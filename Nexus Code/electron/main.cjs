@@ -5,7 +5,7 @@ const { spawn } = require("child_process");
 const os = require("os");
 
 const DEV = process.env.ELECTRON_DEV === "true";
-const DEV_URL = "http://localhost:5173";
+const DEV_URL = "http://localhost:5175";
 const NETWORK_MUTATION_PATTERNS = [
   /\bnetworksetup\b/i,
   /\bscutil\b/i,
