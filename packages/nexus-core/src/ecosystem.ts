@@ -38,13 +38,13 @@ export const NEXUS_ECOSYSTEM_APPS: NexusAppTarget[] = [
   {
     id: 'api',
     title: 'Nexus API',
-    workspacePath: 'API',
+    workspacePath: '.nexus-private/NexusAPI/API',
     platform: 'Backend / Service Layer',
   },
   {
     id: 'control-plane',
     title: 'Nexus Control Plane',
-    workspacePath: 'API/nexus-control-plane',
+    workspacePath: '.nexus-private/NexusAPI/API/nexus-control-plane',
     platform: 'Control Plane Backend',
     defaultPort: 4399,
   },
@@ -60,6 +60,6 @@ export const NEXUS_ECOSYSTEM_APPS: NexusAppTarget[] = [
 export const NEXUS_ECOSYSTEM_VERSION = '2026.03'
 export const NEXUS_GLOBAL_ASSETS_PATH = 'assets/global'
 export const NEXUS_SHARED_PACKAGES = ['@nexus/core', '@nexus/api', '@nexus/schemas'] as const
-export const NEXUS_API_PACKAGE_PATH = 'API/nexus-api'
-export const NEXUS_CONTROL_PLANE_PATH = 'API/nexus-control-plane'
+export const NEXUS_API_PACKAGE_PATH = '.nexus-private/NexusAPI/API/nexus-api'
+export const NEXUS_CONTROL_PLANE_PATH = '.nexus-private/NexusAPI/API/nexus-control-plane'
 export const NEXUS_CONTROL_UI_PATH = 'Nexus Control'

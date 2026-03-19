@@ -1,7 +1,8 @@
-import { createHash } from 'node:crypto'
+import { createHash, randomBytes } from 'node:crypto'
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { resolveApiSource } from './lib/api-source.mjs'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -35,14 +36,16 @@ const hashSecret = (value) => createHash('sha256').update(String(value)).digest(
 const normalizeDeviceId = (value) => String(value || '').replace(/[^a-z0-9\-_:.]/gi, '').slice(0, 120)
 const safeUserIdPart = (value) => String(value || '').toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 24)
 
-const dataDir = options['data-dir']
-  ? path.resolve(options['data-dir'])
-  : path.join(ROOT, 'API', 'nexus-control-plane', 'data')
+const resolveDataDir = async () => {
+  if (options['data-dir']) {
+    return path.resolve(options['data-dir'])
+  }
 
-const files = {
-  users: path.join(dataDir, 'users.json'),
-  devices: path.join(dataDir, 'devices.json'),
+  const source = await resolveApiSource({ root: ROOT, quiet: true })
+  return path.join(source.controlPlaneDir, 'data')
 }
+
+let files = null
 
 const readJson = async (file, fallback) => {
   try {
@@ -103,6 +106,7 @@ const usage = () => {
   console.log('Usage:')
   console.log('  node tools/security-admin.mjs make-admin --username <name> --password <pwd> [--device-id <id>] [--device-label <label>] [--data-dir <path>]')
   console.log('  node tools/security-admin.mjs approve-device --device-id <id> [--roles admin,developer] [--device-label <label>] [--data-dir <path>]')
+  console.log('  node tools/security-admin.mjs generate-signing-secret --username <name> [--bytes 32]')
 }
 
 const runMakeAdmin = async () => {
@@ -187,7 +191,38 @@ const runApproveDevice = async () => {
   console.log(`- roles: ${approved.roles.join(',')}`)
 }
 
+const runGenerateSigningSecret = async () => {
+  if (options.help === 'true') {
+    usage()
+    return
+  }
+
+  const username = String(options.username || '').trim().toLowerCase()
+  const bytesRaw = Number(options.bytes || 32)
+  const bytes = Number.isInteger(bytesRaw) ? Math.max(16, Math.min(64, bytesRaw)) : 32
+
+  if (!username) {
+    throw new Error('generate-signing-secret benoetigt --username')
+  }
+
+  const secret = randomBytes(bytes).toString('base64url')
+  console.log('Mutation Signing Secret erzeugt.')
+  console.log(`- username: ${username}`)
+  console.log(`- bytes: ${bytes}`)
+  console.log(`- secret: ${secret}`)
+  console.log('\nExport Beispiel (lokal):')
+  console.log(`export NEXUS_MUTATION_SIGNING_SECRETS="${username}:${secret}"`)
+  console.log('\nMehrere User:')
+  console.log(`export NEXUS_MUTATION_SIGNING_SECRETS="youngjibbit:<secret1>,${username}:${secret}"`)
+}
+
 const main = async () => {
+  const dataDir = await resolveDataDir()
+  files = {
+    users: path.join(dataDir, 'users.json'),
+    devices: path.join(dataDir, 'devices.json'),
+  }
+
   if (!command || command === 'help' || command === '--help') {
     usage()
     return
@@ -200,6 +235,11 @@ const main = async () => {
 
   if (command === 'approve-device') {
     await runApproveDevice()
+    return
+  }
+
+  if (command === 'generate-signing-secret') {
+    await runGenerateSigningSecret()
     return
   }
 

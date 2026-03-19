@@ -1,13 +1,14 @@
-import { spawn } from 'node:child_process'
 import net from 'node:net'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { spawnNpm, spawnProcess } from './lib/process-utils.mjs'
+import { resolveControlPlanePrefixArg } from './lib/api-source.mjs'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const ROOT = path.resolve(__dirname, '..')
+const controlPlaneTarget = await resolveControlPlanePrefixArg({ root: ROOT, quiet: false })
 
-const npmCmd = process.platform === 'win32' ? 'npm.cmd' : 'npm'
 const controlPort = Number(process.env.NEXUS_CONTROL_PORT || 4399)
 const uiPort = Number(process.env.NEXUS_CONTROL_UI_PORT || 5180)
 const uiUrl = process.env.NEXUS_CONTROL_UI_URL || `http://localhost:${uiPort}`
@@ -17,7 +18,7 @@ const children = []
 let shuttingDown = false
 
 const run = (label, args) => {
-  const child = spawn(npmCmd, args, {
+  const child = spawnNpm(args, {
     cwd: ROOT,
     env: process.env,
     stdio: 'inherit',
@@ -89,18 +90,18 @@ const openBrowser = (url) => {
 
   try {
     if (process.platform === 'darwin') {
-      const proc = spawn('open', [url], { stdio: 'ignore', detached: true })
+      const proc = spawnProcess('open', [url], { stdio: 'ignore', detached: true, shell: false })
       proc.unref()
       return
     }
 
     if (process.platform === 'win32') {
-      const proc = spawn('cmd', ['/c', 'start', '', url], { stdio: 'ignore', detached: true })
+      const proc = spawnProcess('cmd', ['/c', 'start', '', url], { stdio: 'ignore', detached: true, shell: false })
       proc.unref()
       return
     }
 
-    const proc = spawn('xdg-open', [url], { stdio: 'ignore', detached: true })
+    const proc = spawnProcess('xdg-open', [url], { stdio: 'ignore', detached: true, shell: false })
     proc.unref()
   } catch (error) {
     console.warn(`Browser konnte nicht automatisch geöffnet werden: ${error.message}`)
@@ -131,7 +132,7 @@ const shutdown = (exitCode = 0) => {
 process.on('SIGINT', () => shutdown(0))
 process.on('SIGTERM', () => shutdown(0))
 
-console.log('Starte Nexus Control Plane und Nexus Control UI...')
+console.log(`Starte Nexus Control Plane und Nexus Control UI [api-source=${controlPlaneTarget.source.mode}]...`)
 
 const controlPlaneRunning = await isPortReachable(controlPort)
 const controlUiRunning = await isPortReachable(uiPort)
@@ -139,7 +140,7 @@ const controlUiRunning = await isPortReachable(uiPort)
 if (controlPlaneRunning) {
   console.log(`Control Plane laeuft bereits auf http://localhost:${controlPort}`)
 } else {
-  run('control-plane', ['--prefix', './API/nexus-control-plane', 'run', 'dev'])
+  run('control-plane', [...controlPlaneTarget.prefixArgs, 'run', 'dev'])
 }
 
 if (controlUiRunning) {
