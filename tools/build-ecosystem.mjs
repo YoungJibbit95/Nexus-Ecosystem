@@ -9,8 +9,10 @@ const ROOT = path.resolve(__dirname, '..')
 const BUILD_ROOT = path.join(ROOT, 'build')
 
 const args = new Set(process.argv.slice(2))
-const withAndroid = args.has('--with-android') || args.has('--android')
+const withAndroid = (args.has('--with-android') || args.has('--android')) && !args.has('--skip-android')
+const withInstallers = args.has('--with-installers') || !args.has('--skip-installers')
 const strictAndroid = args.has('--strict-android')
+const strictInstallers = args.has('--strict-installers')
 const clean = !args.has('--no-clean')
 
 const npmCmd = process.platform === 'win32' ? 'npm.cmd' : 'npm'
@@ -21,6 +23,10 @@ const APPS = [
     name: 'Nexus Main',
     dir: 'Nexus Main',
     buildScript: 'build',
+    electron: {
+      installerScript: 'electron:build:installers',
+      releaseDir: 'release',
+    },
     artifacts: [
       { from: 'dist', to: 'web' },
       { from: 'release', to: 'release' },
@@ -42,7 +48,14 @@ const APPS = [
     name: 'Nexus Code',
     dir: 'Nexus Code',
     buildScript: 'build',
-    artifacts: [{ from: 'dist', to: 'web' }],
+    electron: {
+      installerScript: 'electron:build:installers',
+      releaseDir: 'release',
+    },
+    artifacts: [
+      { from: 'dist', to: 'web' },
+      { from: 'release', to: 'release' },
+    ],
   },
   {
     id: 'code-mobile',
@@ -149,6 +162,69 @@ const collectAndroidArtifacts = async (outputRoot) => {
   return allFiles.filter((file) => file.endsWith('.apk') || file.endsWith('.aab'))
 }
 
+const INSTALLER_EXTENSIONS = new Set([
+  '.dmg',
+  '.pkg',
+  '.exe',
+  '.msi',
+  '.zip',
+  '.appimage',
+  '.deb',
+])
+
+const collectInstallerArtifacts = async (releaseRoot) => {
+  if (!(await exists(releaseRoot))) return []
+  const allFiles = await walkFiles(releaseRoot)
+  return allFiles.filter((file) => INSTALLER_EXTENSIONS.has(path.extname(file).toLowerCase()))
+}
+
+const buildElectronInstallersForApp = async (app, warnings) => {
+  if (!app.electron || !withInstallers) {
+    return {
+      attempted: false,
+      succeeded: false,
+      installerArtifacts: [],
+    }
+  }
+
+  const appRoot = path.join(ROOT, app.dir)
+  const releaseRoot = path.join(appRoot, app.electron.releaseDir || 'release')
+
+  try {
+    runCommand(
+      npmCmd,
+      ['--prefix', appRoot, 'run', app.electron.installerScript],
+      { cwd: ROOT },
+    )
+
+    const installerArtifacts = await collectInstallerArtifacts(releaseRoot)
+    if (installerArtifacts.length === 0) {
+      warnings.push(`[${app.name}] Installer-Build lief, aber keine Installer-Artefakte im Release gefunden.`)
+    }
+
+    return {
+      attempted: true,
+      succeeded: true,
+      installerArtifacts,
+    }
+  } catch (error) {
+    const message = `[${app.name}] Installer-Build fehlgeschlagen: ${error.message}`
+    if (strictInstallers) throw new Error(message)
+
+    warnings.push(message)
+    const cached = await collectInstallerArtifacts(releaseRoot)
+    if (cached.length > 0) {
+      warnings.push(`[${app.name}] Vorhandene Installer-Artefakte aus ${app.electron.releaseDir || 'release'} werden weiterverwendet.`)
+    }
+
+    return {
+      attempted: true,
+      succeeded: false,
+      installerArtifacts: cached,
+    }
+  }
+}
+
 const buildAndroidForApp = async (app, warnings) => {
   if (!app.android) return []
 
@@ -213,6 +289,7 @@ const main = async () => {
     generatedAt: new Date().toISOString(),
     root: ROOT,
     withAndroid,
+    withInstallers,
     apps: [],
     warnings: [],
     durationMs: 0,
@@ -249,7 +326,13 @@ const main = async () => {
 
     await ensureDir(appOutRoot)
 
-    runCommand(npmCmd, ['--prefix', appRoot, 'run', app.buildScript], { cwd: ROOT })
+    const appWarnings = []
+    const installerBuild = await buildElectronInstallersForApp(app, appWarnings)
+
+    const needsAppBuild = !(installerBuild.attempted && installerBuild.succeeded)
+    if (needsAppBuild) {
+      runCommand(npmCmd, ['--prefix', appRoot, 'run', app.buildScript], { cwd: ROOT })
+    }
 
     const copied = []
     for (const artifact of app.artifacts) {
@@ -261,7 +344,6 @@ const main = async () => {
       }
     }
 
-    const appWarnings = []
     let androidArtifacts = []
 
     if (withAndroid && app.android) {
@@ -285,6 +367,9 @@ const main = async () => {
       name: app.name,
       buildMs: Date.now() - appStart,
       copiedArtifacts: copied,
+      installerArtifacts: installerBuild.installerArtifacts.map((file) => path.relative(ROOT, file)),
+      installerBuildAttempted: installerBuild.attempted,
+      installerBuildSucceeded: installerBuild.succeeded,
       androidArtifacts: androidArtifacts.map((file) => path.relative(ROOT, file)),
       warnings: appWarnings,
     })

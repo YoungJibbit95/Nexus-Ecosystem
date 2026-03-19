@@ -1,0 +1,104 @@
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "04:00"
+      timezone: "Europe/Berlin"
+    labels:
+      - "dependencies"
+      - "security"
+
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "04:10"
+      timezone: "Europe/Berlin"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+
+  - package-ecosystem: "npm"
+    directory: "/API/nexus-control-plane"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "04:20"
+      timezone: "Europe/Berlin"
+    labels:
+      - "dependencies"
+      - "security"
+
+  - package-ecosystem: "npm"
+    directory: "/API/nexus-api"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "04:25"
+      timezone: "Europe/Berlin"
+    labels:
+      - "dependencies"
+
+  - package-ecosystem: "npm"
+    directory: "/API/schemas"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "04:30"
+      timezone: "Europe/Berlin"
+    labels:
+      - "dependencies"
+
+  - package-ecosystem: "npm"
+    directory: "/Nexus Main"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "04:35"
+      timezone: "Europe/Berlin"
+    labels:
+      - "dependencies"
+
+  - package-ecosystem: "npm"
+    directory: "/Nexus Mobile"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "04:40"
+      timezone: "Europe/Berlin"
+    labels:
+      - "dependencies"
+
+  - package-ecosystem: "npm"
+    directory: "/Nexus Code"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "04:45"
+      timezone: "Europe/Berlin"
+    labels:
+      - "dependencies"
+
+  - package-ecosystem: "npm"
+    directory: "/Nexus Code Mobile"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "04:50"
+      timezone: "Europe/Berlin"
+    labels:
+      - "dependencies"
+
+  - package-ecosystem: "npm"
+    directory: "/Nexus Control"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "04:55"
+      timezone: "Europe/Berlin"
+    labels:
+      - "dependencies"

@@ -200,6 +200,24 @@ const checks = [
     message: 'Root Scripts enthalten Security Admin Hilfscommands',
   },
   {
+    id: 'root-script-main-installer-build',
+    file: 'package.json',
+    pattern: /"build:main"\s*:\s*"[\s\S]*?Nexus Main[\s\S]*?electron:build:installers"/,
+    message: 'build:main erzeugt Installer fuer Nexus Main',
+  },
+  {
+    id: 'root-script-code-installer-build',
+    file: 'package.json',
+    pattern: /"build:code"\s*:\s*"[\s\S]*?Nexus Code[\s\S]*?electron:build:installers"/,
+    message: 'build:code erzeugt Installer fuer Nexus Code',
+  },
+  {
+    id: 'root-script-electron-installers',
+    file: 'package.json',
+    pattern: /"build:electron:installers"\s*:\s*"npm run build:main && npm run build:code"/,
+    message: 'Root Script fuer beide Electron Installer vorhanden',
+  },
+  {
     id: 'tool-security-admin',
     file: 'tools/security-admin.mjs',
     pattern: /make-admin|approve-device|passwordHash|role:\s*'admin'/s,
@@ -242,6 +260,30 @@ const checks = [
     file: 'README.md',
     pattern: /API\/nexus-api|API\/nexus-control-plane|Nexus Control/s,
     message: 'README dokumentiert API- und Control-Komponenten',
+  },
+  {
+    id: 'github-security-policy-file',
+    file: '.github/SECURITY.md',
+    pattern: /Security Policy|Report A Vulnerability|Governance/s,
+    message: 'GitHub Security Policy Datei vorhanden',
+  },
+  {
+    id: 'github-dependabot-config',
+    file: '.github/dependabot.yml',
+    pattern: /package-ecosystem:\s*"npm"[\s\S]*\/API\/nexus-control-plane/s,
+    message: 'Dependabot ist fuer Monorepo-Pakete konfiguriert',
+  },
+  {
+    id: 'github-codeql-workflow',
+    file: '.github/workflows/codeql.yml',
+    pattern: /github\/codeql-action\/init@v3|languages:\s*javascript-typescript/s,
+    message: 'CodeQL Workflow vorhanden',
+  },
+  {
+    id: 'github-installer-workflow',
+    file: '.github/workflows/build-installers.yml',
+    pattern: /electron:build:mac[\s\S]*electron:build:win/s,
+    message: 'GitHub Workflow fuer macOS/Windows Installer vorhanden',
   },
 ]
 

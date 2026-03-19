@@ -105,7 +105,10 @@ Im Code ist die Trennung serverseitig bereits aktiv. Fuer GitHub musst du zusaet
 
 Dieses Repo enthaelt dafuer bereits:
 
+- `.github/SECURITY.md`
 - `.github/CODEOWNERS`
+- `.github/dependabot.yml`
+- `.github/workflows/codeql.yml`
 - `.github/workflows/security-verify.yml`
 - `.github/pull_request_template.md`
 
