@@ -30,3 +30,6 @@ pnpm-debug.log*
 # Local env files
 **/.env.local
 **/.env.*.local
+
+# Private API checkout
+.nexus-private/

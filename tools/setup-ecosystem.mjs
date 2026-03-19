@@ -1,7 +1,11 @@
-import { spawnSync } from 'node:child_process'
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { spawnNpmSync } from './lib/process-utils.mjs'
+import {
+  resolveApiSource,
+  syncPrivateApiRepo,
+} from './lib/api-source.mjs'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -10,16 +14,14 @@ const ROOT = path.resolve(__dirname, '..')
 const args = new Set(process.argv.slice(2))
 const skipInstall = args.has('--skip-install')
 const skipEnv = args.has('--skip-env')
+const skipPrivateSync = args.has('--skip-private-sync')
 
-const npmCmd = process.platform === 'win32' ? 'npm.cmd' : 'npm'
-
-const PROJECTS = [
+const BASE_PROJECTS = [
   { name: 'Nexus Main', dir: 'Nexus Main' },
   { name: 'Nexus Mobile', dir: 'Nexus Mobile' },
   { name: 'Nexus Code', dir: 'Nexus Code' },
   { name: 'Nexus Code Mobile', dir: 'Nexus Code Mobile' },
   { name: 'Nexus Control', dir: 'Nexus Control' },
-  { name: 'API/nexus-control-plane', dir: 'API/nexus-control-plane' },
 ]
 
 const APP_ENV_TARGETS = [
@@ -31,11 +33,11 @@ const APP_ENV_TARGETS = [
 
 const DEFAULT_CONTROL_URL = process.env.NEXUS_CONTROL_URL || 'http://localhost:4399'
 
-const run = (cmd, cmdArgs, cwd) => {
-  const printable = [cmd, ...cmdArgs].join(' ')
+const runNpm = (cmdArgs, cwd) => {
+  const printable = ['npm', ...cmdArgs].join(' ')
   console.log(`\n$ ${printable}`)
 
-  const result = spawnSync(cmd, cmdArgs, {
+  const result = spawnNpmSync(cmdArgs, {
     cwd,
     stdio: 'inherit',
     env: process.env,
@@ -103,11 +105,34 @@ const main = async () => {
   console.log('Nexus Ecosystem Setup')
   console.log('=====================')
 
+  if (!skipPrivateSync) {
+    await syncPrivateApiRepo({
+      root: ROOT,
+      quiet: false,
+    })
+  } else {
+    console.log('\nPrivate-API-Sync uebersprungen (--skip-private-sync).')
+  }
+
+  const apiSource = await resolveApiSource({
+    root: ROOT,
+    quiet: false,
+  })
+
+  const projects = [
+    ...BASE_PROJECTS,
+    {
+      name: 'Private NexusAPI Control Plane',
+      dir: apiSource.controlPlaneDir,
+      isAbsolute: true,
+    },
+  ]
+
   if (!skipInstall) {
-    for (const project of PROJECTS) {
-      const projectDir = path.join(ROOT, project.dir)
+    for (const project of projects) {
+      const projectDir = project.isAbsolute ? project.dir : path.join(ROOT, project.dir)
       console.log(`\nInstalliere Dependencies: ${project.name}`)
-      run(npmCmd, ['install'], projectDir)
+      runNpm(['install'], projectDir)
     }
   } else {
     console.log('\nInstall-Schritt uebersprungen (--skip-install).')
@@ -135,8 +160,11 @@ const main = async () => {
   }
 
   console.log('\nNaechste Schritte:')
+  console.log('- npm run control:ensure      # startet die Control Plane falls sie noch nicht laeuft')
   console.log('- npm run dev:control:open  # startet Control Plane + UI mit Browser-Open')
   console.log('- npm run dev:main          # startet Nexus Main mit Electron')
+  console.log('- npm run api:private:sync  # synchronisiert private NexusAPI Repo')
+  console.log('- npm run security:signing-secret -- --username youngjibbit')
   console.log('- npm run verify:ecosystem  # fuehrt Integritaetspruefungen aus')
 }
 

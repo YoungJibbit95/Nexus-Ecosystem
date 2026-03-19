@@ -1,7 +1,9 @@
-import { spawnSync } from 'node:child_process'
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { ensureControlPlane } from './lib/control-plane-guard.mjs'
+import { spawnNpmSync, spawnProcessSync } from './lib/process-utils.mjs'
+import { resolveApiSource } from './lib/api-source.mjs'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -14,8 +16,6 @@ const withInstallers = args.has('--with-installers') || !args.has('--skip-instal
 const strictAndroid = args.has('--strict-android')
 const strictInstallers = args.has('--strict-installers')
 const clean = !args.has('--no-clean')
-
-const npmCmd = process.platform === 'win32' ? 'npm.cmd' : 'npm'
 
 const APPS = [
   {
@@ -77,20 +77,20 @@ const APPS = [
   },
 ]
 
-const SHARED_EXPORTS = [
+const resolveSharedExports = (apiSource) => [
   {
     label: 'API Paket',
-    from: path.join('API', 'nexus-api'),
+    from: apiSource.apiDir,
     to: path.join('API', 'nexus-api'),
   },
   {
     label: 'Control Plane Paket',
-    from: path.join('API', 'nexus-control-plane'),
+    from: apiSource.controlPlaneDir,
     to: path.join('API', 'nexus-control-plane'),
   },
   {
     label: 'Schemas Paket',
-    from: path.join('API', 'schemas'),
+    from: apiSource.schemasDir,
     to: path.join('API', 'schemas'),
   },
 ]
@@ -100,7 +100,29 @@ const runCommand = (cmd, cmdArgs, options = {}) => {
   const printable = [cmd, ...cmdArgs].join(' ')
   console.log(`\n$ ${printable}`)
 
-  const result = spawnSync(cmd, cmdArgs, {
+  const result = spawnProcessSync(cmd, cmdArgs, {
+    cwd,
+    env,
+    stdio: 'inherit',
+  })
+
+  if (result.error) {
+    throw result.error
+  }
+
+  if (result.status !== 0 && !allowFailure) {
+    throw new Error(`Command failed (${result.status}): ${printable}`)
+  }
+
+  return result.status ?? 1
+}
+
+const runNpmCommand = (cmdArgs, options = {}) => {
+  const { cwd = ROOT, allowFailure = false, env = process.env } = options
+  const printable = ['npm', ...cmdArgs].join(' ')
+  console.log(`\n$ ${printable}`)
+
+  const result = spawnNpmSync(cmdArgs, {
     cwd,
     env,
     stdio: 'inherit',
@@ -191,11 +213,7 @@ const buildElectronInstallersForApp = async (app, warnings) => {
   const releaseRoot = path.join(appRoot, app.electron.releaseDir || 'release')
 
   try {
-    runCommand(
-      npmCmd,
-      ['--prefix', appRoot, 'run', app.electron.installerScript],
-      { cwd: ROOT },
-    )
+    runNpmCommand(['--prefix', appRoot, 'run', app.electron.installerScript], { cwd: ROOT })
 
     const installerArtifacts = await collectInstallerArtifacts(releaseRoot)
     if (installerArtifacts.length === 0) {
@@ -250,7 +268,7 @@ const buildAndroidForApp = async (app, warnings) => {
   }
 
   try {
-    runCommand(npmCmd, ['--prefix', appRoot, 'run', app.android.capSyncScript], { cwd: ROOT })
+    runNpmCommand(['--prefix', appRoot, 'run', app.android.capSyncScript], { cwd: ROOT })
   } catch (error) {
     const message = `[${app.name}] cap:sync fehlgeschlagen: ${error.message}`
     if (strictAndroid) throw new Error(message)
@@ -285,6 +303,8 @@ const buildAndroidForApp = async (app, warnings) => {
 
 const main = async () => {
   const startedAt = Date.now()
+  const apiSource = await resolveApiSource({ root: ROOT, quiet: false })
+  const sharedExports = resolveSharedExports(apiSource)
   const manifest = {
     generatedAt: new Date().toISOString(),
     root: ROOT,
@@ -293,6 +313,25 @@ const main = async () => {
     apps: [],
     warnings: [],
     durationMs: 0,
+    apiSource: {
+      mode: apiSource.mode,
+      controlPlaneDir: path.relative(ROOT, apiSource.controlPlaneDir),
+      apiDir: path.relative(ROOT, apiSource.apiDir),
+      schemasDir: path.relative(ROOT, apiSource.schemasDir),
+    },
+  }
+
+  const controlPlaneGuard = await ensureControlPlane({
+    root: ROOT,
+    startIfMissing: true,
+    timeoutMs: 90_000,
+    quiet: false,
+  })
+  manifest.controlPlane = {
+    url: controlPlaneGuard.url,
+    startedByBuildTool: controlPlaneGuard.started,
+    pid: controlPlaneGuard.pid,
+    sourceMode: controlPlaneGuard.sourceMode || apiSource.mode,
   }
 
   if (clean) {
@@ -308,14 +347,14 @@ const main = async () => {
     manifest.warnings.push('Global Assets unter assets/global nicht gefunden.')
   }
 
-  for (const sharedExport of SHARED_EXPORTS) {
+  for (const sharedExport of sharedExports) {
     const copied = await copyPathIfExists(
-      path.join(ROOT, sharedExport.from),
+      sharedExport.from,
       path.join(BUILD_ROOT, sharedExport.to),
     )
 
     if (!copied) {
-      manifest.warnings.push(`${sharedExport.label} unter ${sharedExport.from} nicht gefunden.`)
+      manifest.warnings.push(`${sharedExport.label} unter ${path.relative(ROOT, sharedExport.from)} nicht gefunden.`)
     }
   }
 
@@ -331,7 +370,7 @@ const main = async () => {
 
     const needsAppBuild = !(installerBuild.attempted && installerBuild.succeeded)
     if (needsAppBuild) {
-      runCommand(npmCmd, ['--prefix', appRoot, 'run', app.buildScript], { cwd: ROOT })
+      runNpmCommand(['--prefix', appRoot, 'run', app.buildScript], { cwd: ROOT })
     }
 
     const copied = []
