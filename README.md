@@ -1,80 +1,135 @@
-# Nexus Ecosystem
+<div align="center">
 
-Zentrales Monorepo für alle Nexus-Varianten.
+# 🚀 Nexus Ecosystem
 
-- GitHub Repository: [Nexus-Ecosystem](https://github.com/YoungJibbit95/Nexus-Ecosystem.git)
-- Projektboard: [GitHub Project #2](https://github.com/users/YoungJibbit95/projects/2)
+**Ein verbundenes Multi-App-System für `Nexus Main`, `Nexus Mobile`, `Nexus Code` und `Nexus Code Mobile`**
 
-## Ziele
+[![Repo](https://img.shields.io/badge/GitHub-Nexus--Ecosystem-181717?style=for-the-badge&logo=github)](https://github.com/YoungJibbit95/Nexus-Ecosystem)
+![Apps](https://img.shields.io/badge/Apps-4-22c55e?style=for-the-badge)
+![Shared API](https://img.shields.io/badge/Shared-NexusAPI-f59e0b?style=for-the-badge)
+![Build](https://img.shields.io/badge/Build-Ecosystem-0ea5e9?style=for-the-badge)
 
-- Eine gemeinsame technische Basis für alle Nexus-Apps
-- Konsistentes Design und Verhalten zwischen Desktop und Mobile
-- Mobile bleibt responsive, übernimmt aber Main-Standards für UI-Verhalten
-- Klare Build- und Entwicklungsabläufe über einen Root-Entry-Point
+</div>
 
-## Apps im Ecosystem
+> [!IMPORTANT]
+> Dieses Repository ist als **Ecosystem-Monorepo** aufgebaut: Alle Nexus-Versionen arbeiten über eine gemeinsame API-, Core- und Asset-Schicht zusammen.
 
-- `Nexus Main`: Desktop-App (Electron + React)
-- `Nexus Mobile`: Mobile App (Capacitor + React)
-- `Nexus Code`: Code-Workspace (Desktop)
-- `Nexus Code Mobile`: Code-Workspace (Mobile)
-- `API`: Service-/Backend-Bereich
+> [!TIP]
+> Wenn du nur testen willst: direkt zu **[🧪 Schnellstart für Nutzer](#-schnellstart-für-nutzer)** springen.
 
-## Neue Core-Schicht
+## ✨ Inhaltsverzeichnis
 
-`packages/nexus-core` ist die gemeinsame Verbindung zwischen Main und Mobile.
+- [🎯 Was ist das Nexus Ecosystem?](#-was-ist-das-nexus-ecosystem)
+- [🧩 Ecosystem-Komponenten](#-ecosystem-komponenten)
+- [🏗️ Architektur auf einen Blick](#️-architektur-auf-einen-blick)
+- [🧪 Schnellstart für Nutzer](#-schnellstart-für-nutzer)
+- [🛠️ Setup für Entwickler](#️-setup-für-entwickler)
+- [📦 Build-System & Artefakte](#-build-system--artefakte)
+- [📱 Mobile Build (Android/iOS)](#-mobile-build-androidios)
+- [⚡ NexusAPI & Performance](#-nexusapi--performance)
+- [📋 GitHub Project Workflow](#-github-project-workflow)
+- [🧯 Troubleshooting](#-troubleshooting)
+- [📚 Weitere Doku](#-weitere-doku)
 
-Enthalten sind:
+## 🎯 Was ist das Nexus Ecosystem?
 
-- gemeinsame Runtime-Helfer (Font, Accessibility, Density, Typografie, Safe Areas)
-- gemeinsame View-Metadaten (`NEXUS_VIEW_META`)
-- Ecosystem-Metadaten und App-Targets
+Das Nexus Ecosystem verbindet mehrere Apps zu einer gemeinsamen Plattform:
 
-Damit laufen Main und Mobile über dieselben Basisregeln für Design-Runtime, ohne die mobile Layout-Optimierung zu verlieren.
+- **Einheitliches Design- und Runtime-Verhalten** über Main + Mobile
+- **Geteilte Kommunikation** über `API/nexus-api`
+- **Globale Assets** (Branding, Topologie, Performance Budgets)
+- **Zentraler Build-Flow** mit einem gemeinsamen `build/`-Ordner
 
-## Neue NexusAPI-Schicht
+Ziel: schnelle Weiterentwicklung bei stabiler Performance und klarer Wartbarkeit.
 
-`API/nexus-api` verbindet jetzt alle vier Frontend-Apps:
+## 🧩 Ecosystem-Komponenten
 
-- `Nexus Main`
-- `Nexus Mobile`
-- `Nexus Code`
-- `Nexus Code Mobile`
+| Bereich | Pfad | Zweck |
+|---|---|---|
+| Nexus Main | `Nexus Main/` | Desktop-App (Electron + React) |
+| Nexus Mobile | `Nexus Mobile/` | Mobile App (Capacitor + React) |
+| Nexus Code | `Nexus Code/` | Entwickler-/Code-Workspace (Desktop) |
+| Nexus Code Mobile | `Nexus Code Mobile/` | Entwickler-/Code-Workspace (Mobile) |
+| NexusAPI | `API/nexus-api/` | Verbindungen, Sync-Events, Performance-Monitoring |
+| Shared Core | `packages/nexus-core/` | Gemeinsame Runtime-, UI- und View-Metadaten |
+| Global Assets | `assets/global/` | Branding, Connection-Topologie, Performance-Budgets |
+| Build Tooling | `tools/` | Ecosystem Build + Verification |
 
-Die NexusAPI übernimmt:
+## 🏗️ Architektur auf einen Blick
 
-- app-übergreifendes Connection-Management per Event-Bus (`BroadcastChannel` + `localStorage` Fallback)
-- Heartbeats und Peer-Status (`online`/`stale`)
-- zentrale State- und Navigation-Sync Events
-- globales Performance-Monitoring (View-Render, Paint, Long Tasks, JS Heap Snapshots)
+```mermaid
+flowchart LR
+    A["Nexus Main"] --> E["NexusAPI Runtime"]
+    B["Nexus Mobile"] --> E
+    C["Nexus Code"] --> E
+    D["Nexus Code Mobile"] --> E
 
-Jede App startet beim Boot eine Runtime via `createNexusRuntime(...)` und reportet Navigation + View-Performance in denselben Bus.
+    E --> F["Connection Manager\n(BroadcastChannel + localStorage Fallback)"]
+    E --> G["Performance Manager\n(View, Paint, Long Tasks, Heap)"]
 
-## Global Assets
+    H["packages/nexus-core"] --> A
+    H --> B
+    H --> C
+    H --> D
 
-Gemeinsame Assets liegen im Root unter `assets/global`:
+    I["assets/global\nbranding / topology / budgets"] --> E
+```
 
-- `assets/global/branding/nexus-brand.tokens.json`
-- `assets/global/connection/topology.json`
-- `assets/global/performance/budgets.json`
+## 🧪 Schnellstart für Nutzer
 
-Damit sind Branding, Verbindungsregeln und Performance-Ziele zentral versioniert und für alle Nexus-Varianten nutzbar.
+Dieser Weg ist für alle, die das Ecosystem **einfach starten und testen** wollen.
 
-## Wie Main und Mobile verbunden sind
+### 1. Repository klonen
 
-1. Beide Projekte importieren Runtime- und Meta-Logik aus `@nexus/core`
-2. Beide Vite-Configs nutzen denselben Alias auf `packages/nexus-core/src`
-3. Beide TSConfigs sind mit denselben Path-Aliases verdrahtet
-4. Mobile bleibt eigenständig in der Shell (Header, Bottom Nav, Safe Area), übernimmt aber Main-nahe Verhaltensebene
+```bash
+git clone https://github.com/YoungJibbit95/Nexus-Ecosystem.git
+cd Nexus-Ecosystem
+```
 
-## Performance-Entscheidungen
+### 2. Abhängigkeiten installieren
 
-- keine zusätzliche Runtime-Abhängigkeit für den Core
-- nur schlanke Utility-Funktionen im Shared Layer
-- Vite `fs.allow` sauber auf Repo-Root gesetzt, um Cross-Package-Imports stabil zu halten
-- getrennte Dev-Ports (`Main: 5173`, `Mobile: 5174`, `Code: 5175`, `Code Mobile: 5176`) für parallele Entwicklung
+```bash
+npm --prefix "./Nexus Main" install
+npm --prefix "./Nexus Mobile" install
+npm --prefix "./Nexus Code" install
+npm --prefix "./Nexus Code Mobile" install
+```
 
-## Development
+### 3. Komplett-Build ausführen
+
+```bash
+npm run build
+```
+
+### 4. Ergebnisse nutzen
+
+Alle gebauten Ergebnisse landen zentral in `build/`.
+
+| Ergebnis | Ort |
+|---|---|
+| Nexus Main Build | `build/Nexus Main/` |
+| Nexus Mobile Build | `build/Nexus Mobile/` |
+| Nexus Code Build | `build/Nexus Code/` |
+| Nexus Code Mobile Build | `build/Nexus Code Mobile/` |
+| Shared API Snapshot | `build/API/nexus-api/` |
+| Shared Assets Snapshot | `build/assets/global/` |
+| Build-Protokoll | `build/manifest.json` |
+
+> [!NOTE]
+> Wenn dein Android SDK korrekt eingerichtet ist, werden APK/AAB-Artefakte automatisch in den jeweiligen Mobile-Build-Ordner übernommen.
+
+## 🛠️ Setup für Entwickler
+
+### Voraussetzungen
+
+| Tool | Empfehlung |
+|---|---|
+| Node.js | 20.x oder neuer |
+| npm | 10.x oder neuer |
+| Android Studio (optional) | Für Android-Build/Tests |
+| Xcode (optional, macOS) | Für iOS-Build/Tests |
+
+### Lokale Entwicklung starten
 
 Vom Repo-Root aus:
 
@@ -85,64 +140,140 @@ npm run dev:code
 npm run dev:code-mobile
 ```
 
-## Build
+> [!TIP]
+> Nutze je App ein eigenes Terminal-Fenster, um alle Targets parallel laufen zu lassen.
 
-Zentrales Build-Tool:
+<details>
+<summary><strong>Warum ist alles verbunden, aber Mobile bleibt mobil-optimiert?</strong></summary>
 
-```bash
-npm run build
+- Gemeinsame Runtime- und View-Meta-Standards kommen aus `packages/nexus-core`
+- Alle Apps nutzen `@nexus/api` für übergreifende Kommunikation
+- Mobile Shell (Safe Area, Navigation, Touch-Flow) bleibt gerätespezifisch
+
+Dadurch bekommst du konsistente Features + UX ohne Mobile-Layouts zu „verdesktoppen“.
+
+</details>
+
+## 📦 Build-System & Artefakte
+
+### Wichtige Commands (Root)
+
+| Command | Zweck |
+|---|---|
+| `npm run build` | Voller Ecosystem-Build inkl. Android-Versuch |
+| `npm run build:ecosystem:fast` | Schneller Build ohne Android-Versuch |
+| `npm run build:main` | Nur Nexus Main bauen |
+| `npm run build:mobile` | Nur Nexus Mobile bauen |
+| `npm run build:code` | Nur Nexus Code bauen |
+| `npm run build:code-mobile` | Nur Nexus Code Mobile bauen |
+| `npm run verify:ecosystem` | API-/Layout-/Integrations-Checks |
+
+### Build-Ordnerstruktur
+
+```text
+build/
+├── API/
+│   └── nexus-api/
+├── Nexus Main/
+├── Nexus Mobile/
+├── Nexus Code/
+├── Nexus Code Mobile/
+├── assets/
+│   └── global/
+└── manifest.json
 ```
 
-`npm run build` startet den Ecosystem-Build und legt alle Artefakte in `build/` ab:
+## 📱 Mobile Build (Android/iOS)
 
-- `build/Nexus Main/...`
-- `build/Nexus Mobile/...`
-- `build/Nexus Code/...`
-- `build/Nexus Code Mobile/...`
-- `build/assets/global/...`
-- `build/API/nexus-api/...`
-- `build/manifest.json`
-
-Android-Artefakte (`.apk`/`.aab`) werden bei vorhandenem Android SDK ebenfalls direkt ins jeweilige App-Build-Verzeichnis kopiert.
-
-Alternative Modi:
+### Nexus Mobile
 
 ```bash
-npm run build:ecosystem:fast
+npm --prefix "./Nexus Mobile" run cap:build:android
+npm --prefix "./Nexus Mobile" run cap:build:ios
 ```
 
-Schneller Build ohne Android-Versuch.
-
-Einzeln pro App:
+### Nexus Code Mobile
 
 ```bash
-npm run build:main
-npm run build:mobile
-npm run build:code
-npm run build:code-mobile
+npm --prefix "./Nexus Code Mobile" run cap:sync
+npm --prefix "./Nexus Code Mobile" run cap:android
+npm --prefix "./Nexus Code Mobile" run cap:ios
 ```
 
-Qualitaetscheck (API + Mobile Layout + Cross-App Integration):
+> [!WARNING]
+> Ohne korrektes SDK (`ANDROID_HOME`, `ANDROID_SDK_ROOT`, Xcode Tools) kann kein natives Artefakt erzeugt werden.
 
-```bash
-npm run verify:ecosystem
+## ⚡ NexusAPI & Performance
+
+`API/nexus-api` ist die zentrale Schicht für app-übergreifende Runtime-Prozesse.
+
+### Kernpunkte
+
+- Connection-Management zwischen allen 4 Nexus-Apps
+- Event-Bus mit Fallback-Strategie (`BroadcastChannel` -> `localStorage`)
+- State-Sync + Navigation-Sync
+- Performance-Metriken mit Schutzmechanismen (Rate Limits + Ring Buffer)
+
+### Beispielintegration
+
+```ts
+import { createNexusRuntime } from '@nexus/api'
+
+const runtime = createNexusRuntime({
+  appId: 'main',
+  appVersion: '5.0.0'
+})
+
+runtime.start()
+runtime.connection.syncState('main.activeView', 'dashboard')
+runtime.performance.trackViewRender('main:dashboard')
 ```
 
-## Delivery-Workflow (empfohlen)
+## 📋 GitHub Project Workflow
 
-1. Für jede Änderung ein Issue im Project #2 anlegen
-2. Branch aus dem Repo erstellen
-3. Änderungen lokal validieren (`build:*`)
-4. PR erstellen und mit Projektboard verknüpfen
-5. Nach Merge Release-Notes pro App aktualisieren
+- Repository: [Nexus-Ecosystem](https://github.com/YoungJibbit95/Nexus-Ecosystem)
+- Project Board: [Project #2](https://github.com/users/YoungJibbit95/projects/2)
 
-Weitere Details:
+Empfohlener Flow pro Feature:
 
-- `docs/NEXUS_API.md`
-- `docs/PROJECT_BOARD.md`
+1. Card/Issue im Project anlegen
+2. Branch + Umsetzung im passenden Modul
+3. `npm run build` und `npm run verify:ecosystem` lokal ausführen
+4. PR mit Card verlinken
+5. Nach Merge Card in den nächsten Status verschieben
 
-## Nächste Ausbau-Stufe
+## 🧯 Troubleshooting
 
-- weitere gemeinsame Domain-Layer (Store-Schemas, View-Registries)
-- dedizierte Sync-/Migration-Strategie für plattformübergreifende Daten
-- gemeinsame UI-Komponentenbibliothek für Main/Mobile mit Mobile Overrides
+<details>
+<summary><strong>Build bricht mit fehlenden Modulen ab</strong></summary>
+
+In mindestens einem App-Ordner fehlen Dependencies. Die Install-Commands im Root-README einmal vollständig ausführen.
+
+</details>
+
+<details>
+<summary><strong>Android-Artefakt fehlt im <code>build/</code>-Ordner</strong></summary>
+
+Android SDK oder Umgebungsvariablen sind nicht verfügbar. Prüfe `ANDROID_HOME` und `ANDROID_SDK_ROOT` und starte dann erneut `npm run build`.
+
+</details>
+
+<details>
+<summary><strong>Port-Konflikte in der Entwicklung</strong></summary>
+
+Die Apps nutzen eigene Dev-Ports (`5173`-`5176`). Schließe alte Prozesse oder ändere den Port in der jeweiligen Vite-Konfiguration.
+
+</details>
+
+## 📚 Weitere Doku
+
+- [NEXUS_API.md](./docs/NEXUS_API.md)
+- [PROJECT_BOARD.md](./docs/PROJECT_BOARD.md)
+
+---
+
+<div align="center">
+
+**Nexus Ecosystem** • Eine gemeinsame Basis für produktive Desktop- und Mobile-Apps ⚙️📱💻
+
+</div>
