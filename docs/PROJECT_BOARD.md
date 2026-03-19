@@ -13,9 +13,9 @@ Projektboard: `https://github.com/users/YoungJibbit95/projects/2`
 
 - `Global Assets Layer` (`assets/global`)
 - `Nexus Core Layer` (`packages/nexus-core`)
-- `Nexus API Layer` (`API/nexus-api`)
-- `Schemas Layer` (`API/schemas`)
-- `Control Plane Layer` (`API/nexus-control-plane`)
+- `Nexus API Layer` (`.nexus-private/NexusAPI/API/nexus-api`)
+- `Schemas Layer` (`.nexus-private/NexusAPI/API/schemas`)
+- `Control Plane Layer` (`.nexus-private/NexusAPI/API/nexus-control-plane`)
 - `Control UI Layer` (`Nexus Control`)
 - `App Integrations` (Main, Mobile, Code, Code Mobile)
 
@@ -31,3 +31,4 @@ Projektboard: `https://github.com/users/YoungJibbit95/projects/2`
 - Card 8: Verify/Build Pipeline Erweiterung
 - Card 9: Security Review + Passwortrotation
 - Card 10: GitHub Security Governance (Branch Protection, CODEOWNERS, Required Checks)
+- Card 11: Control UI GitHub Pages + Private API Handshake
