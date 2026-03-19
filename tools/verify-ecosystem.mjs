@@ -116,6 +116,12 @@ const checks = [
     message: 'Control Plane bietet Device-Allowlist Endpunkte',
   },
   {
+    id: 'control-plane-owner-mutation-lock',
+    file: 'API/nexus-control-plane/src/server.mjs',
+    pattern: /requireMutationSession|OWNER_ONLY_MUTATION|restrictMutationsToOwner/s,
+    message: 'Control Plane erzwingt Owner-Only Mutationen fuer API-Write Routen',
+  },
+  {
     id: 'control-plane-rate-limit',
     file: 'API/nexus-control-plane/src/security.mjs',
     pattern: /class SlidingWindowRateLimiter/s,
@@ -194,6 +200,24 @@ const checks = [
     message: 'Root Scripts enthalten Security Admin Hilfscommands',
   },
   {
+    id: 'root-script-main-installer-build',
+    file: 'package.json',
+    pattern: /"build:main"\s*:\s*"[\s\S]*?Nexus Main[\s\S]*?electron:build:installers"/,
+    message: 'build:main erzeugt Installer fuer Nexus Main',
+  },
+  {
+    id: 'root-script-code-installer-build',
+    file: 'package.json',
+    pattern: /"build:code"\s*:\s*"[\s\S]*?Nexus Code[\s\S]*?electron:build:installers"/,
+    message: 'build:code erzeugt Installer fuer Nexus Code',
+  },
+  {
+    id: 'root-script-electron-installers',
+    file: 'package.json',
+    pattern: /"build:electron:installers"\s*:\s*"npm run build:main && npm run build:code"/,
+    message: 'Root Script fuer beide Electron Installer vorhanden',
+  },
+  {
     id: 'tool-security-admin',
     file: 'tools/security-admin.mjs',
     pattern: /make-admin|approve-device|passwordHash|role:\s*'admin'/s,
@@ -205,6 +229,13 @@ const checks = [
     pattern: /"trustedOrigins"\s*:\s*\[\s*"http:\/\/localhost:5173"/,
     forbiddenPattern: /"trustedOrigins"[\s\S]*"\*"/,
     message: 'Control Plane nutzt feste trustedOrigins statt Wildcard',
+  },
+  {
+    id: 'control-plane-owner-policy',
+    file: 'API/nexus-control-plane/data/policies.json',
+    pattern: /"ownerUsernames"\s*:\s*\[\s*"youngjibbit"/,
+    extraPattern: /"restrictMutationsToOwner"\s*:\s*true/,
+    message: 'Policies setzen Owner-Only API Mutationen auf youngjibbit',
   },
   {
     id: 'main-electron-security-flags',
@@ -230,6 +261,30 @@ const checks = [
     pattern: /API\/nexus-api|API\/nexus-control-plane|Nexus Control/s,
     message: 'README dokumentiert API- und Control-Komponenten',
   },
+  {
+    id: 'github-security-policy-file',
+    file: '.github/SECURITY.md',
+    pattern: /Security Policy|Report A Vulnerability|Governance/s,
+    message: 'GitHub Security Policy Datei vorhanden',
+  },
+  {
+    id: 'github-dependabot-config',
+    file: '.github/dependabot.yml',
+    pattern: /package-ecosystem:\s*"npm"[\s\S]*\/API\/nexus-control-plane/s,
+    message: 'Dependabot ist fuer Monorepo-Pakete konfiguriert',
+  },
+  {
+    id: 'github-codeql-workflow',
+    file: '.github/workflows/codeql.yml',
+    pattern: /github\/codeql-action\/init@v3|languages:\s*javascript-typescript/s,
+    message: 'CodeQL Workflow vorhanden',
+  },
+  {
+    id: 'github-installer-workflow',
+    file: '.github/workflows/build-installers.yml',
+    pattern: /electron:build:mac[\s\S]*electron:build:win/s,
+    message: 'GitHub Workflow fuer macOS/Windows Installer vorhanden',
+  },
 ]
 
 const results = []
@@ -245,8 +300,9 @@ for (const check of checks) {
   }
 
   const okPattern = check.pattern.test(content)
+  const okExtraPattern = check.extraPattern ? check.extraPattern.test(content) : true
   const hasForbiddenPattern = check.forbiddenPattern ? check.forbiddenPattern.test(content) : false
-  const ok = okPattern && !hasForbiddenPattern
+  const ok = okPattern && okExtraPattern && !hasForbiddenPattern
   results.push({
     ...check,
     ok,
@@ -254,6 +310,8 @@ for (const check of checks) {
       ? 'OK'
       : hasForbiddenPattern
         ? 'Verbotenes Pattern gefunden'
+        : !okExtraPattern
+          ? 'Zusatz-Pattern nicht gefunden'
         : 'Pattern nicht gefunden',
   })
 }

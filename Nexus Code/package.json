@@ -17,7 +17,12 @@
     "electron:dev": "cross-env ELECTRON_DEV=true concurrently -n VITE,ELECTRON -c cyan,magenta \"vite\" \"wait-on http://localhost:5173 && electron .\"",
     "electron:build": "npm run build && electron-builder",
     "pack": "vite build && electron-builder --dir",
-    "dist": "vite build && electron-builder"
+    "dist": "vite build && electron-builder",
+    "electron:pack:win": "electron-builder --win",
+    "electron:pack:mac": "electron-builder --mac",
+    "electron:build:win": "npm run build && npm run electron:pack:win",
+    "electron:build:mac": "npm run build && npm run electron:pack:mac",
+    "electron:build:installers": "npm run build && npm run electron:pack:mac && npm run electron:pack:win"
   },
   "dependencies": {
     "@hello-pangea/dnd": "^17.0.0",

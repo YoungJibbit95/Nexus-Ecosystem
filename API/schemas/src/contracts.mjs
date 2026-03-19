@@ -143,6 +143,19 @@ export const validatePolicyDocument = (payload) => {
     ? true
     : Boolean(payload.allowFirstAdminDeviceBootstrap)
 
+  const ownerUsernames = Array.isArray(payload.ownerUsernames)
+    ? payload.ownerUsernames
+      .filter((value) => isString(value))
+      .map((value) => value.trim())
+      .filter((value) => value.length > 0)
+      .map((value) => value.toLowerCase())
+      .filter((value, index, list) => list.indexOf(value) === index)
+    : ['youngjibbit']
+
+  const restrictMutationsToOwner = payload.restrictMutationsToOwner == null
+    ? true
+    : Boolean(payload.restrictMutationsToOwner)
+
   return ok({
     allowAnonymousIngest,
     maxEventsPerBatch,
@@ -151,6 +164,8 @@ export const validatePolicyDocument = (payload) => {
     ingestKeys,
     requireVerifiedDeviceForRoles,
     allowFirstAdminDeviceBootstrap,
+    ownerUsernames,
+    restrictMutationsToOwner,
   })
 }
 
@@ -180,6 +195,8 @@ export const defaultPolicies = () => ({
   },
   requireVerifiedDeviceForRoles: ['admin', 'developer'],
   allowFirstAdminDeviceBootstrap: true,
+  ownerUsernames: ['youngjibbit'],
+  restrictMutationsToOwner: true,
 })
 
 export const defaultGlobalConfig = () => ({

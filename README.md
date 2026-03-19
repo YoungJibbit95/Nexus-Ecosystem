@@ -177,6 +177,7 @@ Lokale Default-Accounts:
 
 - Rollenbasiertes API-Modell (`admin`, `developer`, `viewer`, `agent`)
 - Device-Verification fuer privilegierte Rollen (`admin`, `developer`)
+- Owner-Lock fuer API-Mutationen (`ownerUsernames` + `restrictMutationsToOwner`)
 - Sliding-Window Rate Limiting im Control Plane
 - Idempotency-Key Support fuer Commands
 - Ingest-Schutz via Bearer Token oder `X-Nexus-Ingest-Key`
@@ -186,6 +187,12 @@ Lokale Default-Accounts:
 - Audit-Log fuer sicherheitsrelevante Aktionen
 
 Admin/Developer-Logins sind nur mit `X-Nexus-Device-Id` und freigegebenem Geraet moeglich.
+Zusatz: Mutierende API-Calls (Config/Policies/Devices/Commands) sind auf den Owner-Account beschraenkt (`youngjibbit`), auch wenn andere Rollen `admin`/`developer` besitzen.
+
+Command-Sicherheit:
+
+- `POST /api/v1/commands` ist owner-only.
+- Commands haben keinen direkten User-/Role-Write-Endpunkt und koennen keine Accounts hochstufen.
 
 Default `trustedOrigins` (lokal) sind auf die bekannten Dev-Origins begrenzt:
 
@@ -208,6 +215,9 @@ Die Wildcard `*` sollte fuer sichere Setups nicht verwendet werden.
 | `npm run security:make-admin -- --username ... --password ...` | Admin-User lokal erstellen/aktualisieren |
 | `npm run security:approve-device -- --device-id ...` | Device lokal fuer Rollen freischalten |
 | `npm run build` | Voller Ecosystem Build (inkl. Android-Versuch) |
+| `npm run build:electron:installers` | Baut beide Electron-Apps inkl. macOS+Windows Installer |
+| `npm run build:main` | Baut `Nexus Main` inkl. macOS+Windows Installer |
+| `npm run build:code` | Baut `Nexus Code` inkl. macOS+Windows Installer |
 | `npm run build:ecosystem:fast` | Schneller Build ohne Android-Versuch |
 | `npm run build:apps` | Alle Frontend-Apps bauen |
 | `npm run build:control-plane` | Control Plane Build Snapshot |
@@ -230,6 +240,16 @@ build/
 │   └── global/
 └── manifest.json
 ```
+
+Electron-Installer landen pro App in:
+
+- `Nexus Main/release/`
+- `Nexus Code/release/`
+
+Der GitHub Workflow `.github/workflows/build-installers.yml` erzeugt diese Installer auch automatisiert auf nativen Runnern:
+
+- `macos-latest` -> `.dmg`/`.pkg`
+- `windows-latest` -> `.exe`/`.msi`
 
 ## 🧭 API-Konfiguration in Apps
 
@@ -258,8 +278,11 @@ Empfohlener Flow:
 Zusatz fuer Security-Governance auf GitHub:
 
 1. Branch Protection auf `main` aktivieren
-2. Required Status Check: `Security Verify`
+2. Required Status Check: `verify-ecosystem` (Job aus Workflow `Security Verify`)
 3. CODEOWNERS-Reviews fuer API/Electron/Tooling erzwingen
+4. Dependabot aktiv halten (`.github/dependabot.yml`)
+5. CodeQL aktiv halten (`.github/workflows/codeql.yml`)
+6. Security Policy ueber GitHub Security Tab verwenden (`.github/SECURITY.md`)
 
 ## 🧯 Troubleshooting
 
