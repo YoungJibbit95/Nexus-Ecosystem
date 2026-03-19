@@ -258,7 +258,7 @@ Empfohlener Flow:
 Zusatz fuer Security-Governance auf GitHub:
 
 1. Branch Protection auf `main` aktivieren
-2. Required Status Check: `Security Verify`
+2. Required Status Check: `verify-ecosystem` (Job aus Workflow `Security Verify`)
 3. CODEOWNERS-Reviews fuer API/Electron/Tooling erzwingen
 
 ## 🧯 Troubleshooting
