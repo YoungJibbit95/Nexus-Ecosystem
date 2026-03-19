@@ -8,11 +8,16 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      "@nexus/api": path.resolve(__dirname, "../packages/nexus-api/src"),
     },
   },
   server: {
-    port: 5173,
+    port: 5175,
+    strictPort: true,
     open: false,
+    fs: {
+      allow: [path.resolve(__dirname, "..")],
+    },
   },
   build: {
     rollupOptions: {

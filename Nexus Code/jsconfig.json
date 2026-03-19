@@ -2,7 +2,9 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@nexus/api": ["../packages/nexus-api/src/index.ts"],
+      "@nexus/api/*": ["../packages/nexus-api/src/*"]
     },
     "jsx": "react-jsx",
     "module": "esnext",
