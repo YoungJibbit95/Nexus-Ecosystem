@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Nexus Code</string>
+    <string name="title_activity_main">Nexus Code</string>
+    <string name="package_name">com.nexus.code</string>
+    <string name="custom_url_scheme">com.nexus.code</string>
+</resources>

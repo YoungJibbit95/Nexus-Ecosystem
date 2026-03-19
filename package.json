@@ -1,0 +1,17 @@
+{
+  "name": "nexus-ecosystem",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "dev:main": "npm --prefix \"./Nexus Main\" run dev",
+    "dev:mobile": "npm --prefix \"./Nexus Mobile\" run dev",
+    "dev:code": "npm --prefix \"./Nexus Code\" run dev",
+    "dev:code-mobile": "npm --prefix \"./Nexus Code Mobile\" run dev",
+    "build:main": "npm --prefix \"./Nexus Main\" run build",
+    "build:mobile": "npm --prefix \"./Nexus Mobile\" run build",
+    "build:code": "npm --prefix \"./Nexus Code\" run build",
+    "build:code-mobile": "npm --prefix \"./Nexus Code Mobile\" run build",
+    "build": "npm run build:main && npm run build:mobile",
+    "build:all": "npm run build && npm run build:code && npm run build:code-mobile"
+  }
+}

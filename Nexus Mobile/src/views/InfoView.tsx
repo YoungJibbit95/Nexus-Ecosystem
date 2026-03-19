@@ -1,0 +1,352 @@
+import { useMobile } from '../lib/useMobile'
+import React, { useState } from 'react'
+import { Glass } from '../components/Glass'
+import { useTheme } from '../store/themeStore'
+import {
+  ChevronDown, ChevronUp, BookOpen, Code2, FileText, CheckSquare, Bell,
+  Layout, Settings, Palette, Terminal, Keyboard, Zap, GitBranch, Sparkles,
+  Wand2, Search, Layers, Calculator, HardDrive, Wrench, Package, BarChart3,
+  Type, Monitor, Sliders, Eye, Play, Copy, Star, Clock
+} from 'lucide-react'
+
+function Acc({ title, icon: Icon, open, onToggle, children, badge }: any) {
+  const t = useTheme()
+  return (
+    <div style={{ marginBottom: 8 }}>
+      <button onClick={onToggle} style={{
+        width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '13px 18px',
+        background: open ? `rgba(${hexRgb(t.accent)},0.1)` : 'rgba(255,255,255,0.04)',
+        border: `1px solid ${open ? `rgba(${hexRgb(t.accent)},0.25)` : 'rgba(255,255,255,0.08)'}`,
+        borderRadius: open ? '12px 12px 0 0' : 12,
+        cursor: 'pointer', color: 'inherit', transition: 'all 0.15s',
+      }}>
+        {Icon && <Icon size={18} style={{ color: t.accent, opacity: 0.85, flexShrink: 0 }}/>}
+        <span style={{ flex: 1, textAlign: 'left', fontSize: 14, fontWeight: 700 }}>{title}</span>
+        {badge && <span style={{ fontSize: 9, fontWeight: 800, padding: '2px 7px', borderRadius: 8, background: t.accent, color: '#fff' }}>{badge}</span>}
+        {open ? <ChevronUp size={14} style={{ opacity: 0.45 }}/> : <ChevronDown size={14} style={{ opacity: 0.45 }}/>}
+      </button>
+      {open && (
+        <div style={{ padding: '18px 20px', background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.07)', borderTop: 'none', borderRadius: '0 0 12px 12px' }}>
+          {children}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function hexRgb(hex: string) {
+  const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16)
+  return `${r},${g},${b}`
+}
+
+function Card({ title, icon, desc, keys }: { title: string; icon?: string; desc: string; keys?: string[] }) {
+  const t = useTheme()
+  return (
+    <div style={{ padding: '12px 14px', borderRadius: 10, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', marginBottom: 8 }}>
+      <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 5, color: t.accent }}>{icon} {title}</div>
+      <div style={{ fontSize: 12, opacity: 0.68, lineHeight: 1.6 }}>{desc}</div>
+      {keys && <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 8 }}>
+        {keys.map(k => <kbd key={k} style={{ padding: '2px 8px', borderRadius: 5, fontSize: 10, fontFamily: 'monospace', background: 'rgba(255,255,255,0.09)', border: '1px solid rgba(255,255,255,0.13)' }}>{k}</kbd>)}
+      </div>}
+    </div>
+  )
+}
+
+function Code({ children }: { children: string }) {
+  const t = useTheme()
+  return (
+    <div style={{ padding: '12px 16px', borderRadius: 10, background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(255,255,255,0.09)', marginBottom: 12, overflowX: 'auto' }}>
+      <pre style={{ margin: 0, fontSize: 12, fontFamily: "'Fira Code',monospace", color: `rgba(${hexRgb(t.accent)},0.9)`, lineHeight: 1.65, whiteSpace: 'pre-wrap' }}>{children}</pre>
+    </div>
+  )
+}
+
+function Badge({ label, color = '#007AFF' }: { label: string; color?: string }) {
+  return <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 10, fontWeight: 700, background: `${color}22`, color, border: `1px solid ${color}44`, marginRight: 5 }}>{label}</span>
+}
+
+function Grid2({ children }: { children: React.ReactNode }) {
+  return <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>{children}</div>
+}
+
+function H({ children }: { children: string }) {
+  const t = useTheme()
+  return <div style={{ fontSize: 11, fontWeight: 800, opacity: 0.4, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10, marginTop: 16, display: 'flex', alignItems: 'center', gap: 6 }}>
+    <div style={{ width: 18, height: 2, background: t.accent, borderRadius: 1 }}/>{children}
+  </div>
+}
+
+function P({ children }: { children: React.ReactNode }) {
+  return <p style={{ fontSize: 13, opacity: 0.7, lineHeight: 1.7, marginBottom: 12 }}>{children}</p>
+}
+
+export function InfoView() {
+  const t = useTheme()
+  const rgb = hexRgb(t.accent)
+  const mob = useMobile()
+  const [open, setOpen] = useState<Record<string,boolean>>({ about: true, changelog: true, notes: false, code: false, tasks: false, reminders: false, canvas: false, files: false, devtools: false, settings: false, shortcuts: false, terminal: false })
+  const tog = (k: string) => setOpen(s => ({ ...s, [k]: !s[k] }))
+
+  return (
+    <div style={{ height: '100%', overflowY: 'auto', padding: mob?.isMobile ? '14px 14px' : '20px 22px' }}>
+      <div style={{ maxWidth: 820, margin: '0 auto' }}>
+
+        {/* Hero */}
+        <div style={{ marginBottom: 28, padding: '24px 28px', borderRadius: 18, background: `linear-gradient(135deg, rgba(${rgb},0.12) 0%, transparent 60%)`, border: `1px solid rgba(${rgb},0.2)`, position: 'relative', overflow: 'hidden' }}>
+          <div style={{ position: 'absolute', top: -30, right: -30, width: 140, height: 140, borderRadius: '50%', background: `radial-gradient(circle, rgba(${rgb},0.2), transparent)`, filter: 'blur(30px)' }}/>
+          <div style={{ position: 'relative' }}>
+            <div style={{ fontSize: 32, fontWeight: 900, marginBottom: 6, background: `linear-gradient(135deg, ${t.accent}, ${t.accent2})`, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+              NEXUS v4.1
+            </div>
+            <div style={{ fontSize: 13, opacity: 0.55, marginBottom: 16 }}>Productivity Suite · Glass & Glow Edition · März 2026</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              <Badge label="Notes" color={t.accent}/>
+              <Badge label="Code Editor" color="#BF5AF2"/>
+              <Badge label="Tasks" color="#FF9F0A"/>
+              <Badge label="Reminders" color="#FF453A"/>
+              <Badge label="Canvas" color="#30D158"/>
+              <Badge label="Files" color="#64D2FF"/>
+              <Badge label="DevTools" color="#FF6B35"/>
+              <Badge label="Workspaces" color="#5E5CE6"/>
+            </div>
+          </div>
+        </div>
+
+        {/* ═══ CHANGELOG ═══ */}
+        <Acc title="Changelog" icon={Star} open={open.changelog} onToggle={() => tog('changelog')} badge="v4.1 NEW">
+          <div style={{ marginBottom: 10 }}>
+            <div style={{ fontSize: 18, fontWeight: 800, color: t.accent }}>v4.1 — Liquid Glass Recode</div>
+            <div style={{ fontSize: 10, opacity: 0.45, marginTop: 3, textTransform: 'uppercase', letterSpacing: 1 }}>
+              März 2026 · Active Channel
+            </div>
+          </div>
+
+          {[
+            { icon: '🫧', title: 'Design-System Recode (iOS-Style)', color: '#64D2FF', items: [
+              'Globales Liquid-Glass Look-and-Feel mit deutlich mehr Frosted Blur und Sättigung',
+              'Neue Layer-Tiefe: weiche Lichtkante oben, stärkere Tiefenschatten unten',
+              'Mobile Header + Bottom Navigation als floating frosted surfaces',
+              'TitleBar und Spotlight visuell an iOS-Glass angepasst',
+            ]},
+            { icon: '⌘', title: 'Command & Search Upgrade', color: '#007AFF', items: [
+              'Command Palette (Cmd/Ctrl+K) mit erweiterten Aktionen und Verlauf',
+              'Toolbar-Spotlight verbessert: bessere Resultate + Smart Hints',
+              'Schneller Zugriff auf Navigation, Create, Theme, Terminal-Kommandos',
+            ]},
+            { icon: '💻', title: 'Terminal 4.1', color: '#BF5AF2', items: [
+              'Neue Commands: help, views, goto, new, list, stats, theme, preset, search, palette, clear, exit',
+              'Terminal-Chips für schnelle Kommandos',
+              'Direkte Datenaktionen: Notes/Tasks/Reminders/Code erstellen und navigieren',
+            ]},
+            { icon: '📊', title: 'Dashboard & Views', color: '#30D158', items: [
+              'Persistentes Widget-Layout (sichtbar/hidden, Reihenfolge, Breite)',
+              'Konsistenter ViewHeader in mehreren Views',
+              'Files-View mit verbessertem Workspace-Entry-Flow',
+            ]},
+          ].map(section => (
+            <div key={section.title} style={{ padding: '14px 16px', borderRadius: 11, background: 'rgba(255,255,255,0.03)', border: `1px solid ${section.color}22`, marginBottom: 8 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8, color: section.color }}>{section.icon} {section.title}</div>
+              <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
+                {section.items.map((item, i) => (
+                  <li key={i} style={{ fontSize: 12, opacity: 0.74, lineHeight: 1.6, paddingLeft: 14, position: 'relative', marginBottom: 3 }}>
+                    <span style={{ position: 'absolute', left: 2, color: section.color }}>·</span>{item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+
+          <div style={{ height: 1, background: 'rgba(255,255,255,0.07)', margin: '18px 0' }}/>
+
+          <div style={{ opacity: 0.62 }}>
+            <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 8 }}>v4.0 — Core Production Build</div>
+            <div style={{ fontSize: 12, opacity: 0.75, lineHeight: 1.65, marginBottom: 10 }}>
+              Dashboard Widgets · Command Palette · Theme Tokens + Auto-Kontrast · Mobile UX Refresh
+            </div>
+            <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 8 }}>v3.x — Foundation</div>
+            <div style={{ fontSize: 12, opacity: 0.75, lineHeight: 1.65 }}>
+              Notes/Code/Tasks/Reminders/Canvas Basis · Glow/Glass Engine · Preset-System
+            </div>
+          </div>
+
+          <div style={{ marginTop: 16, padding: '10px 16px', borderRadius: 10, background: 'rgba(48,209,88,0.08)', border: '1px solid rgba(48,209,88,0.2)', fontSize: 11, color: '#30d158', textAlign: 'center', fontWeight: 700 }}>
+            ✓ Production-ready · Electron + React + Zustand · Liquid Glass UI · v4.1
+          </div>
+        </Acc>
+
+        {/* ═══ ABOUT ═══ */}
+        <Acc title="Was ist Nexus?" icon={BookOpen} open={open.about} onToggle={() => tog('about')}>
+          <P>Nexus ist eine lokale Productivity-App mit modernem Liquid-Glass UI. Fokus: schnelle Navigation, klare Datenmodelle, starke Editor-Workflows und eine konsistente UX über alle Views.</P>
+          <Grid2>
+            <Card icon="📝" title="Notes" desc="Markdown-Editor mit Split/Preview, Tags, Pinning und Magic-Elementen."/>
+            <Card icon="💻" title="Code" desc="Monaco-basierter Editor mit Multi-Language Support und Ausführungs-/Preview-Modi."/>
+            <Card icon="✅" title="Tasks" desc="Kanban-Flow mit Deadlines, Subtasks, Prioritäten und Filtern."/>
+            <Card icon="🔔" title="Reminders" desc="Zeitbasierte Erinnerungen mit Snooze, Repeat und Toast-Flow."/>
+            <Card icon="📊" title="Dashboard" desc="Pinbare Widgets, personalisierbar und persistent gespeichert."/>
+            <Card icon="🗂️" title="Files & Workspaces" desc="Einheitliche Dateiansicht über Notes/Code/Tasks/Reminders."/>
+            <Card icon="🛠️" title="DevTools" desc="Builder + UI Calculator für schnelle Frontend-Arbeit."/>
+            <Card icon="⚙️" title="Settings" desc="Theme-System mit Presets, Tokens, Glass/Glow/Background/Motion."/>
+          </Grid2>
+          <Code>{`Nexus v4.1 — Stack
+━━━━━━━━━━━━━━━━━━━━━━━━━
+Frontend:   React 18 + Vite 5 + TypeScript
+State:      Zustand (persisted Stores)
+Editor:     Monaco Editor
+Markdown:   react-markdown + remark-gfm
+DnD:        react-dnd
+Animation:  Framer Motion
+Runtime:    Electron`}
+          </Code>
+        </Acc>
+
+        {/* ═══ NOTES ═══ */}
+        <Acc title="Notes — Markdown Editor" icon={FileText} open={open.notes} onToggle={() => tog('notes')}>
+          <H>Workflow</H>
+          <Grid2>
+            <Card icon="✏️" title="Edit / Split / Preview" desc="Drei Ansichtsmodi mit schneller Umschaltung und stabilen Scrollflächen."/>
+            <Card icon="🏷️" title="Tags & Pinning" desc="Tags zur Strukturierung, Pinning für wichtige Notizen oben in der Liste."/>
+            <Card icon="⚡" title="Magic Builder" desc="Nexus-spezifische Elemente wie List/Alert/Progress/Card/Timeline/Grid."/>
+            <Card icon="💾" title="Autosave" desc="Notizen werden automatisch gespeichert (konfigurierbar)."/>
+          </Grid2>
+          <H>Beispiel</H>
+          <Code>{`\`\`\`nexus-alert
+warning
+Deployment läuft gerade im Wartungsfenster.
+\`\`\`
+
+\`\`\`nexus-progress
+UI Polish | 90
+Testing   | 70
+Release   | 40
+\`\`\``}
+          </Code>
+          <Card title="Nützliche Shortcuts" desc="" keys={['Ctrl+S Save','Ctrl+B Bold','Ctrl+I Italic','Ctrl+K Link','Ctrl+Z Undo','Ctrl+Y Redo']}/>
+        </Acc>
+
+        {/* ═══ CODE ═══ */}
+        <Acc title="Code Editor" icon={Code2} open={open.code} onToggle={() => tog('code')}>
+          <H>Features</H>
+          <Grid2>
+            <Card icon="🧠" title="Monaco Engine" desc="Syntax-Highlighting, große Sprachabdeckung, strukturierte Editor-Experience."/>
+            <Card icon="▶️" title="Run & Preview" desc="Schnelle Ausführung/Preview je nach Dateityp und Modus."/>
+            <Card icon="📂" title="Tab & Datei-Flow" desc="Code-Dateien anlegen, öffnen, speichern und schnell wechseln."/>
+            <Card icon="🔎" title="Output Feedback" desc="Ergebnisse und Fehler sauber lesbar im Output-Bereich."/>
+          </Grid2>
+          <Card title="Shortcuts" desc="" keys={['Ctrl+Enter Run','Ctrl+S Save','Ctrl+Space Suggest','Ctrl+/ Comment','Ctrl+G Go to Line']}/>
+        </Acc>
+
+        {/* ═══ TASKS ═══ */}
+        <Acc title="Tasks — Kanban Board" icon={CheckSquare} open={open.tasks} onToggle={() => tog('tasks')}>
+          <H>Board-System</H>
+          <P>Drei Statusspalten mit Drag & Drop: <strong>To Do</strong>, <strong>In Progress</strong>, <strong>Done</strong>.</P>
+          <Grid2>
+            <Card icon="🏷️" title="Tags & Filter" desc="Filter nach Priority und Tags für schnelle Fokussierung."/>
+            <Card icon="📅" title="Deadlines" desc="Überfällige Tasks werden visuell hervorgehoben."/>
+            <Card icon="☑️" title="Subtasks" desc="Task-Detail mit Subtask-Fortschritt und Toggle-Flow."/>
+            <Card icon="📝" title="Task Notes" desc="Jeder Task kann eigene Markdown-Notizen enthalten."/>
+            <Card icon="⚡" title="Prioritäten" desc="Low / Mid / High über Farbcode und Streifen."/>
+            <Card icon="📊" title="Stats" desc="Fortschritt + Kennzahlen direkt im View."/>
+          </Grid2>
+        </Acc>
+
+        {/* ═══ REMINDERS ═══ */}
+        <Acc title="Reminders" icon={Bell} open={open.reminders} onToggle={() => tog('reminders')}>
+          <H>Reminder Flow</H>
+          <Grid2>
+            <Card icon="⏱" title="Quick Time Presets" desc="+15m, +1h, +3h, Tomorrow, +1 week."/>
+            <Card icon="🔁" title="Repeat" desc="none / daily / weekly / monthly."/>
+            <Card icon="💤" title="Snooze" desc="5m, 15m oder 1h direkt aus Karte oder Toast."/>
+            <Card icon="📝" title="Notes" desc="Optionaler Markdown-Notizbereich pro Reminder."/>
+          </Grid2>
+          <Grid2>
+            <Card icon="🗓" title="Upcoming" desc="Zukünftige Erinnerungen, chronologisch gruppiert."/>
+            <Card icon="⚠️" title="Overdue" desc="Überfällige Erinnerungen mit schneller Aktion."/>
+            <Card icon="✅" title="Done" desc="Abgeschlossene Items zur Nachverfolgung."/>
+            <Card icon="🔍" title="Search/Filter" desc="Schneller Zugriff über Titel/Message."/>
+          </Grid2>
+        </Acc>
+
+        {/* ═══ CANVAS ═══ */}
+        <Acc title="Canvas — Infinite Board" icon={GitBranch} open={open.canvas} onToggle={() => tog('canvas')}>
+          <H>Visuelles Arbeiten</H>
+          <Grid2>
+            <Card icon="📝" title="Text & Ideas" desc="Freie Ideenblöcke auf unendlicher Fläche."/>
+            <Card icon="🖼" title="Media & Snippets" desc="Bilder, Inhalte und strukturierte Elemente kombinieren."/>
+            <Card icon="🔗" title="Connections" desc="Zusammenhänge als Knoten + Verbindungen darstellen."/>
+            <Card icon="🔍" title="Zoom & Pan" desc="Präzise Navigation für große Maps."/>
+          </Grid2>
+          <Card title="Canvas Controls" desc="" keys={['Scroll Zoom','Space+Drag Pan','Ctrl+0 Reset']}/>
+        </Acc>
+
+        {/* ═══ FILES / WORKSPACES ═══ */}
+        <Acc title="Files & Workspaces" icon={HardDrive} open={open.files} onToggle={() => tog('files')}>
+          <P>Der Files-View ist die zentrale Übersicht über Notes, Code, Tasks und Reminders inklusive Workspace-Zuordnung.</P>
+          <Grid2>
+            <Card icon="➕" title="Workspaces" desc="Erstellen, umbenennen und farblich strukturieren."/>
+            <Card icon="📦" title="Item Zuweisung" desc="Items per Menü mehreren Workspaces zuordnen."/>
+            <Card icon="⊞" title="Grid/List" desc="Zwischen visuellem Kartenmodus und kompakter Liste wechseln."/>
+            <Card icon="🔍" title="Filter & Suche" desc="Typfilter plus Volltextsuche über Titel/Preview."/>
+          </Grid2>
+        </Acc>
+
+        {/* ═══ DEVTOOLS ═══ */}
+        <Acc title="DevTools — Builder & Calculator" icon={Wrench} open={open.devtools} onToggle={() => tog('devtools')} badge="NEW">
+          <H>Builder</H>
+          <Grid2>
+            <Card icon="📐" title="Layout/Spacing" desc="Schnelle Kontrolle über Maße, Padding, Margin und Positionierung."/>
+            <Card icon="🎨" title="Visual Styling" desc="Background, Border, Shadow, Glow, Blur und Typografie in einem Flow."/>
+            <Card icon="📋" title="Code Output" desc="Exportierbarer CSS/Tailwind Output für schnelle Übernahme."/>
+            <Card icon="🧮" title="UI Calculator" desc="Hilfsfunktionen für Spacing, Typografie, Farben und Layout."/>
+          </Grid2>
+        </Acc>
+
+        {/* ═══ SETTINGS ═══ */}
+        <Acc title="Settings — Theme Editor" icon={Settings} open={open.settings} onToggle={() => tog('settings')}>
+          <P>Alle Änderungen sind live. Der Settings-View steuert Farben, Glass, Glow, Motion, Layout und Editor-Verhalten zentral.</P>
+          <Grid2>
+            <Card icon="🎨" title="Theme" desc="Mode, Presets, Accent-Farben, Global Font."/>
+            <Card icon="🪟" title="Glass" desc="Blur/Saturation/Tint/Border + Modi wie frosted, crystal, neon."/>
+            <Card icon="✨" title="Glow" desc="Farbverläufe, Intensität, Radius, Animation."/>
+            <Card icon="🖼" title="Background" desc="Solid/Gradient/Mesh/Aurora inkl. Overlay-Optionen."/>
+            <Card icon="📐" title="Layout" desc="Sidebar, Toolbar, Radius, Dichte und Schriftgrößen."/>
+            <Card icon="🎬" title="Motion" desc="Animationsgeschwindigkeit und Accessibility-Optionen."/>
+            <Card icon="💻" title="Editor" desc="Autosave, Wrap, Zeilennummern, Tab-Size, Notes-Font."/>
+            <Card icon="🧠" title="QOL" desc="High Contrast, Reduced Motion, Auto Accent-Kontrast."/>
+          </Grid2>
+        </Acc>
+
+        {/* ═══ SHORTCUTS ═══ */}
+        <Acc title="Tastenkürzel" icon={Keyboard} open={open.shortcuts} onToggle={() => tog('shortcuts')}>
+          <Grid2>
+            <Card title="Global" desc="" keys={['Cmd/Ctrl+K Palette','Esc Close Overlay','Shift×2 Toolbar Expand']}/>
+            <Card title="Notes" desc="" keys={['Ctrl+S Save','Ctrl+B Bold','Ctrl+I Italic','Ctrl+K Link','Ctrl+Z/Ctrl+Y Undo/Redo']}/>
+            <Card title="Code" desc="" keys={['Ctrl+Enter Run','Ctrl+S Save','Ctrl+Space Suggestions','Ctrl+/ Comment']}/>
+            <Card title="Canvas" desc="" keys={['Scroll Zoom','Space+Drag Pan','Ctrl+0 Reset']}/>
+          </Grid2>
+        </Acc>
+
+        {/* ═══ TERMINAL ═══ */}
+        <Acc title="Terminal" icon={Terminal} open={open.terminal} onToggle={() => tog('terminal')}>
+          <P>Das Nexus Terminal ist eine schnelle Kommandooberfläche für Navigation, Erstellen, Suche und Theme-Steuerung.</P>
+          <H>Verfügbare Commands</H>
+          <Code>{`help
+views
+goto <view>
+new note|task|reminder|code
+list notes|tasks|reminders
+stats
+theme dark|light
+preset <name>
+search <query>
+palette
+clear
+exit`}
+          </Code>
+          <P>Zusätzlich gibt es Quick-Chips im Terminal für häufige Befehle.</P>
+        </Acc>
+
+        <div style={{ height: 40 }}/>
+      </div>
+    </div>
+  )
+}
