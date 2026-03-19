@@ -3,8 +3,8 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
-      "@nexus/api": ["../packages/nexus-api/src/index.ts"],
-      "@nexus/api/*": ["../packages/nexus-api/src/*"]
+      "@nexus/api": ["../API/nexus-api/src/index.ts"],
+      "@nexus/api/*": ["../API/nexus-api/src/*"]
     },
     "jsx": "react-jsx",
     "module": "esnext",

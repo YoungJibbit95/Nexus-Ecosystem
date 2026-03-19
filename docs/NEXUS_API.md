@@ -1,6 +1,7 @@
 # NexusAPI
 
 `@nexus/api` ist die zentrale Runtime fuer Verbindung und Performance im Nexus Ecosystem.
+Code-Location: `API/nexus-api`
 
 ## Kernmodule
 
@@ -37,3 +38,9 @@ runtime.performance.trackViewRender('main:dashboard')
 ## Ziel
 
 Ein einheitlicher Kommunikations- und Monitoring-Layer fuer Main, Mobile, Code und Code Mobile.
+
+## Performance-Schutz
+
+- Metrik-Rate-Limit (`maxMetricsPerMinute`, Default: 120)
+- periodische Summary-Events (`performance-summary`)
+- Ring-Buffer fuer lokale Analyse ohne unkontrolliertes Wachstum

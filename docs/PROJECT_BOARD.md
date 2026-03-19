@@ -13,7 +13,7 @@ Projektboard: `https://github.com/users/YoungJibbit95/projects/2`
 
 - `Global Assets Layer` (`assets/global`)
 - `Nexus Core Layer` (`packages/nexus-core`)
-- `Nexus API Layer` (`packages/nexus-api`)
+- `Nexus API Layer` (`API/nexus-api`)
 - `App Integrations` (Main, Mobile, Code, Code Mobile)
 
 ## Empfohlene Card-Aufteilung

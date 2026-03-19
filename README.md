@@ -34,7 +34,7 @@ Damit laufen Main und Mobile über dieselben Basisregeln für Design-Runtime, oh
 
 ## Neue NexusAPI-Schicht
 
-`packages/nexus-api` verbindet jetzt alle vier Frontend-Apps:
+`API/nexus-api` verbindet jetzt alle vier Frontend-Apps:
 
 - `Nexus Main`
 - `Nexus Mobile`
@@ -87,7 +87,33 @@ npm run dev:code-mobile
 
 ## Build
 
-Einzeln:
+Zentrales Build-Tool:
+
+```bash
+npm run build
+```
+
+`npm run build` startet den Ecosystem-Build und legt alle Artefakte in `build/` ab:
+
+- `build/Nexus Main/...`
+- `build/Nexus Mobile/...`
+- `build/Nexus Code/...`
+- `build/Nexus Code Mobile/...`
+- `build/assets/global/...`
+- `build/API/nexus-api/...`
+- `build/manifest.json`
+
+Android-Artefakte (`.apk`/`.aab`) werden bei vorhandenem Android SDK ebenfalls direkt ins jeweilige App-Build-Verzeichnis kopiert.
+
+Alternative Modi:
+
+```bash
+npm run build:ecosystem:fast
+```
+
+Schneller Build ohne Android-Versuch.
+
+Einzeln pro App:
 
 ```bash
 npm run build:main
@@ -96,16 +122,10 @@ npm run build:code
 npm run build:code-mobile
 ```
 
-Alles:
+Qualitaetscheck (API + Mobile Layout + Cross-App Integration):
 
 ```bash
-npm run build
-```
-
-Alle Varianten (inkl. Nexus Code / Nexus Code Mobile):
-
-```bash
-npm run build:all
+npm run verify:ecosystem
 ```
 
 ## Delivery-Workflow (empfohlen)
