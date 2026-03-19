@@ -92,6 +92,30 @@ const requireSession = (req, res, roles = []) => {
   return session
 }
 
+const normalizeUsername = (value) => String(value || '').trim().toLowerCase()
+
+const requireMutationSession = (req, res, roles = [], scope = 'mutation') => {
+  const session = requireSession(req, res, roles)
+  if (!session) return null
+
+  const policies = store.getPolicies()
+  const restrictToOwner = policies.restrictMutationsToOwner !== false
+  if (!restrictToOwner) return session
+
+  const ownerUsernames = Array.isArray(policies.ownerUsernames)
+    ? policies.ownerUsernames.map((value) => normalizeUsername(value)).filter(Boolean)
+    : ['youngjibbit']
+
+  const isOwner = ownerUsernames.includes(normalizeUsername(session.username))
+  if (isOwner) return session
+
+  reject(req, res, 403, 'OWNER_ONLY_MUTATION', {
+    scope,
+    username: session.username,
+  })
+  return null
+}
+
 const parseLimit = (searchParams, fallback, max = 1000) => {
   const raw = Number(searchParams.get('limit') || fallback)
   if (!Number.isFinite(raw)) return fallback
@@ -343,7 +367,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === 'PUT' && pathname === '/api/v1/config/global') {
-      const session = requireSession(req, res, ['admin', 'developer'])
+      const session = requireMutationSession(req, res, ['admin', 'developer'], 'config.global.update')
       if (!session) return
 
       const body = await readJsonBody(req)
@@ -376,7 +400,7 @@ const server = http.createServer(async (req, res) => {
       }
 
       if (req.method === 'PUT') {
-        const session = requireSession(req, res, ['admin', 'developer'])
+        const session = requireMutationSession(req, res, ['admin', 'developer'], 'config.app.update')
         if (!session) return
 
         const body = await readJsonBody(req)
@@ -404,7 +428,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === 'PUT' && pathname === '/api/v1/policies') {
-      const session = requireSession(req, res, ['admin'])
+      const session = requireMutationSession(req, res, ['admin'], 'policies.update')
       if (!session) return
 
       const body = await readJsonBody(req)
@@ -431,7 +455,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === 'POST' && pathname === '/api/v1/devices/approve') {
-      const session = requireSession(req, res, ['admin'])
+      const session = requireMutationSession(req, res, ['admin'], 'devices.approve')
       if (!session) return
 
       const body = await readJsonBody(req)
@@ -461,7 +485,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === 'POST' && pathname === '/api/v1/devices/revoke') {
-      const session = requireSession(req, res, ['admin'])
+      const session = requireMutationSession(req, res, ['admin'], 'devices.revoke')
       if (!session) return
 
       const body = await readJsonBody(req)
@@ -507,7 +531,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === 'POST' && pathname === '/api/v1/commands') {
-      const session = requireSession(req, res, ['admin', 'developer'])
+      const session = requireMutationSession(req, res, ['admin', 'developer'], 'commands.create')
       if (!session) return
 
       const body = await readJsonBody(req)

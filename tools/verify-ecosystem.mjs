@@ -116,6 +116,12 @@ const checks = [
     message: 'Control Plane bietet Device-Allowlist Endpunkte',
   },
   {
+    id: 'control-plane-owner-mutation-lock',
+    file: 'API/nexus-control-plane/src/server.mjs',
+    pattern: /requireMutationSession|OWNER_ONLY_MUTATION|restrictMutationsToOwner/s,
+    message: 'Control Plane erzwingt Owner-Only Mutationen fuer API-Write Routen',
+  },
+  {
     id: 'control-plane-rate-limit',
     file: 'API/nexus-control-plane/src/security.mjs',
     pattern: /class SlidingWindowRateLimiter/s,
@@ -207,6 +213,13 @@ const checks = [
     message: 'Control Plane nutzt feste trustedOrigins statt Wildcard',
   },
   {
+    id: 'control-plane-owner-policy',
+    file: 'API/nexus-control-plane/data/policies.json',
+    pattern: /"ownerUsernames"\s*:\s*\[\s*"youngjibbit"/,
+    extraPattern: /"restrictMutationsToOwner"\s*:\s*true/,
+    message: 'Policies setzen Owner-Only API Mutationen auf youngjibbit',
+  },
+  {
     id: 'main-electron-security-flags',
     file: 'Nexus Main/electron/main-window.cjs',
     pattern: /webSecurity:\s*true[\s\S]*sandbox:\s*true[\s\S]*allowRunningInsecureContent:\s*false/s,
@@ -245,8 +258,9 @@ for (const check of checks) {
   }
 
   const okPattern = check.pattern.test(content)
+  const okExtraPattern = check.extraPattern ? check.extraPattern.test(content) : true
   const hasForbiddenPattern = check.forbiddenPattern ? check.forbiddenPattern.test(content) : false
-  const ok = okPattern && !hasForbiddenPattern
+  const ok = okPattern && okExtraPattern && !hasForbiddenPattern
   results.push({
     ...check,
     ok,
@@ -254,6 +268,8 @@ for (const check of checks) {
       ? 'OK'
       : hasForbiddenPattern
         ? 'Verbotenes Pattern gefunden'
+        : !okExtraPattern
+          ? 'Zusatz-Pattern nicht gefunden'
         : 'Pattern nicht gefunden',
   })
 }

@@ -21,7 +21,24 @@ Wichtig: Auch wenn jemand im Browser UI-Elemente manipuliert, blockt der Server 
 - Fuer `admin`/`developer` muss das Device in der Allowlist freigegeben sein.
 - Policy-Felder:
   - `requireVerifiedDeviceForRoles`
-  - `allowFirstAdminDeviceBootstrap`
+- `allowFirstAdminDeviceBootstrap`
+
+### Owner-Only API Mutationen
+
+- Policies enthalten:
+  - `ownerUsernames`
+  - `restrictMutationsToOwner`
+- Wenn `restrictMutationsToOwner=true`, duerfen mutierende API-Routen nur von Owner-Usern ausgefuehrt werden.
+- Aktueller Owner im Repo: `youngjibbit`.
+
+Betroffene Mutationen:
+
+- `PUT /api/v1/config/global`
+- `PUT /api/v1/config/apps/:appId`
+- `PUT /api/v1/policies`
+- `POST /api/v1/devices/approve`
+- `POST /api/v1/devices/revoke`
+- `POST /api/v1/commands`
 
 Empfehlung:
 
@@ -38,6 +55,12 @@ Empfehlung:
 
 - Event Ingest nur mit gueltigem Bearer Token oder passendem `X-Nexus-Ingest-Key`.
 - Ingest Keys sind app-spezifisch (`main`, `mobile`, `code`, `code-mobile`).
+
+### Command-Sicherheit (kein Self-Escalation Pfad)
+
+- Command-Erstellung ist owner-only.
+- Commands schreiben nicht in `users.json` oder Rollenfelder.
+- Es gibt keinen API-Endpunkt, der per Command Userrechte hochstuft.
 
 ### Electron-Haertung (Nexus Main)
 

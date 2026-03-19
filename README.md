@@ -177,6 +177,7 @@ Lokale Default-Accounts:
 
 - Rollenbasiertes API-Modell (`admin`, `developer`, `viewer`, `agent`)
 - Device-Verification fuer privilegierte Rollen (`admin`, `developer`)
+- Owner-Lock fuer API-Mutationen (`ownerUsernames` + `restrictMutationsToOwner`)
 - Sliding-Window Rate Limiting im Control Plane
 - Idempotency-Key Support fuer Commands
 - Ingest-Schutz via Bearer Token oder `X-Nexus-Ingest-Key`
@@ -186,6 +187,12 @@ Lokale Default-Accounts:
 - Audit-Log fuer sicherheitsrelevante Aktionen
 
 Admin/Developer-Logins sind nur mit `X-Nexus-Device-Id` und freigegebenem Geraet moeglich.
+Zusatz: Mutierende API-Calls (Config/Policies/Devices/Commands) sind auf den Owner-Account beschraenkt (`youngjibbit`), auch wenn andere Rollen `admin`/`developer` besitzen.
+
+Command-Sicherheit:
+
+- `POST /api/v1/commands` ist owner-only.
+- Commands haben keinen direkten User-/Role-Write-Endpunkt und koennen keine Accounts hochstufen.
 
 Default `trustedOrigins` (lokal) sind auf die bekannten Dev-Origins begrenzt:
 
