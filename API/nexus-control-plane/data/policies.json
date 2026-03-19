@@ -28,5 +28,9 @@
     "admin",
     "developer"
   ],
-  "allowFirstAdminDeviceBootstrap": false
+  "allowFirstAdminDeviceBootstrap": false,
+  "ownerUsernames": [
+    "youngjibbit"
+  ],
+  "restrictMutationsToOwner": true
 }

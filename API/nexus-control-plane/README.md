@@ -41,6 +41,7 @@ Service URL: `http://localhost:4399`
 - Sliding Window Rate Limiting
 - CORS Policy via `trustedOrigins`
 - Rollenbasierte API-Berechtigung
+- Owner-Only Mutations-Lock (`ownerUsernames` + `restrictMutationsToOwner`)
 - Device-Verification fuer privilegierte Rollen (admin/developer)
 - Ingest-Schutz via Bearer Token oder `x-nexus-ingest-key`
 - Audit-Trail fuer Aenderungen
@@ -50,6 +51,7 @@ Hinweis:
 - Fuer Login- und Session-Flows im Control UI wird `X-Nexus-Device-Id` verwendet.
 - `trustedOrigins` sollte eine echte Allowlist sein (keine `*` Wildcard).
 - Lokale Defaults enthalten `localhost`/`127.0.0.1` Ports fuer die Nexus Apps + Control UI sowie `capacitor://localhost`/`ionic://localhost`.
+- Mutierende Endpunkte (Config/Policies/Devices/Commands) koennen auf Owner-Accounts begrenzt werden; default Owner: `youngjibbit`.
 
 ## Datenablage
 

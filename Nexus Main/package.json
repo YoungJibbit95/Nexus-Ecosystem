@@ -11,8 +11,12 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "electron:dev": "concurrently -k \"vite\" \"wait-on http://localhost:5173 && electron .\"",
-    "electron:build": "npm run build && electron-builder --win",
-    "electron:build:mac": "npm run build && electron-builder --mac"
+    "electron:build": "npm run electron:build:win",
+    "electron:build:mac": "npm run build && npm run electron:pack:mac",
+    "electron:pack:win": "electron-builder --win",
+    "electron:pack:mac": "electron-builder --mac",
+    "electron:build:win": "npm run build && npm run electron:pack:win",
+    "electron:build:installers": "npm run build && npm run electron:pack:mac && npm run electron:pack:win"
   },
   "files": [
     "dist/**/*",
@@ -78,7 +82,10 @@
       "target": [
         {
           "target": "dmg",
-          "arch": ["arm64", "x64"]
+          "arch": [
+            "arm64",
+            "x64"
+          ]
         }
       ]
     },
