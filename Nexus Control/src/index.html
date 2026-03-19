@@ -15,6 +15,10 @@
         <p class="eyebrow">Nexus Ecosystem</p>
         <h1>Nexus Control</h1>
         <p class="muted">Control Plane UI fuer Registry, Security, Config, Commands und Guides.</p>
+        <div class="session-bar">
+          <span id="session-role-badge" class="chip stale">nicht eingeloggt</span>
+          <span id="session-capabilities" class="hint">Readonly bis Login.</span>
+        </div>
       </div>
       <div class="topbar-actions">
         <button id="refresh-btn" class="btn ghost">Aktualisieren</button>
@@ -37,11 +41,17 @@
           Device ID (verifiziert)
           <input id="device-id" type="text" readonly />
         </label>
+        <label>
+          Mutation Signing Secret
+          <input id="mutation-signing-secret" type="password" placeholder="owner-signing-secret" autocomplete="off" />
+        </label>
         <div class="actions-row">
           <button class="btn" type="submit">Speichern</button>
         </div>
       </form>
-      <p id="status-line" class="status">Bereit.</p>
+      <p class="hint">Nur fuer mutierende Aktionen gebraucht. Wird nur in dieser Browser-Session gehalten.</p>
+      <p id="bootstrap-info" class="hint">Backend Handshake: ausstehend</p>
+      <p id="status-line" class="status" role="status" aria-live="polite">Bereit.</p>
     </section>
 
     <section id="auth-panel" class="panel">
@@ -63,17 +73,19 @@
     </section>
 
     <section id="workspace" class="workspace hidden">
-      <nav class="tabs">
-        <button data-tab="dashboard" class="tab active">Dashboard</button>
-        <button data-tab="settings" class="tab">Settings</button>
-        <button data-tab="commands" class="tab">Commands</button>
-        <button data-tab="policies" class="tab">Policies</button>
-        <button data-tab="devices" class="tab">Devices</button>
-        <button data-tab="audit" class="tab">Audit</button>
-        <button data-tab="guides" class="tab">Guides</button>
+      <nav class="tabs" role="tablist" aria-label="Nexus Control Bereiche">
+        <button id="tab-btn-dashboard" data-tab="dashboard" class="tab active" role="tab" aria-selected="true" aria-controls="tab-dashboard">Dashboard</button>
+        <button id="tab-btn-build" data-tab="build" class="tab" role="tab" aria-selected="false" aria-controls="tab-build">Build</button>
+        <button id="tab-btn-settings" data-tab="settings" class="tab" role="tab" aria-selected="false" aria-controls="tab-settings">Settings</button>
+        <button id="tab-btn-commands" data-tab="commands" class="tab" role="tab" aria-selected="false" aria-controls="tab-commands">Commands</button>
+        <button id="tab-btn-policies" data-tab="policies" class="tab" role="tab" aria-selected="false" aria-controls="tab-policies">Policies</button>
+        <button id="tab-btn-paywalls" data-tab="paywalls" class="tab" role="tab" aria-selected="false" aria-controls="tab-paywalls">Paywalls</button>
+        <button id="tab-btn-devices" data-tab="devices" class="tab" role="tab" aria-selected="false" aria-controls="tab-devices">Devices</button>
+        <button id="tab-btn-audit" data-tab="audit" class="tab" role="tab" aria-selected="false" aria-controls="tab-audit">Audit</button>
+        <button id="tab-btn-guides" data-tab="guides" class="tab" role="tab" aria-selected="false" aria-controls="tab-guides">Guides</button>
       </nav>
 
-      <section id="tab-dashboard" class="tab-panel active">
+      <section id="tab-dashboard" class="tab-panel active" role="tabpanel" aria-labelledby="tab-btn-dashboard">
         <div class="cards">
           <article class="card">
             <h3>Online Apps</h3>
@@ -114,7 +126,29 @@
         </div>
       </section>
 
-      <section id="tab-settings" class="tab-panel">
+      <section id="tab-build" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-build">
+        <div class="panel-inner">
+          <h3>Build Manifest</h3>
+          <p class="hint">Zeigt den letzten zentralen Ecosystem-Build aus <code>build/manifest.json</code>.</p>
+          <div class="actions-row">
+            <button id="build-manifest-refresh" class="btn ghost" type="button">Manifest laden</button>
+          </div>
+          <pre id="build-manifest" class="mono-block">Noch kein Manifest geladen.</pre>
+        </div>
+
+        <div class="panel-inner">
+          <h3>Build Command Guide</h3>
+          <pre class="guide-block">npm run build
+npm run build:ecosystem:fast
+npm run build:main
+npm run build:code
+npm run build:mobile
+npm run build:code-mobile
+npm run verify:ecosystem</pre>
+        </div>
+      </section>
+
+      <section id="tab-settings" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-settings">
         <div class="panel-inner">
           <h3>Global Config</h3>
           <textarea id="global-config" rows="14"></textarea>
@@ -142,7 +176,7 @@
         </div>
       </section>
 
-      <section id="tab-commands" class="tab-panel">
+      <section id="tab-commands" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-commands">
         <div class="panel-inner">
           <h3>Command Center</h3>
           <form id="command-form" class="grid-2">
@@ -181,7 +215,7 @@
               <textarea id="command-payload" rows="8">{"reason":"manual-trigger"}</textarea>
             </label>
             <div class="actions-row">
-              <button class="btn" type="submit">Command erstellen</button>
+              <button id="command-submit-btn" class="btn" type="submit">Command erstellen</button>
             </div>
           </form>
         </div>
@@ -192,7 +226,7 @@
         </div>
       </section>
 
-      <section id="tab-policies" class="tab-panel">
+      <section id="tab-policies" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-policies">
         <div class="panel-inner">
           <h3>Security Policies</h3>
           <textarea id="policies-config" rows="16"></textarea>
@@ -202,7 +236,63 @@
         </div>
       </section>
 
-      <section id="tab-devices" class="tab-panel">
+      <section id="tab-paywalls" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-paywalls">
+        <div class="panel-inner">
+          <h3>View Paywalls</h3>
+          <p class="hint">Definiert, welche Views je Tier geladen werden duerfen. Nicht geladene Views werden API-seitig blockiert.</p>
+          <form id="paywall-form" class="grid-2">
+            <label>
+              Paywalls aktiv
+              <select id="paywall-enabled">
+                <option value="false">Nein</option>
+                <option value="true">Ja</option>
+              </select>
+            </label>
+            <label>
+              Default Tier
+              <select id="paywall-default-tier">
+                <option value="free">free</option>
+                <option value="paid">paid</option>
+              </select>
+            </label>
+          </form>
+        </div>
+
+        <div class="panel-inner">
+          <h3>Tier Templates</h3>
+          <p class="hint">Views als CSV-Liste, z.B. <code>dashboard,notes,tasks</code>.</p>
+          <div class="grid-2">
+            <label>Free · main <input id="paywall-free-main" type="text" /></label>
+            <label>Paid · main <input id="paywall-paid-main" type="text" /></label>
+            <label>Free · mobile <input id="paywall-free-mobile" type="text" /></label>
+            <label>Paid · mobile <input id="paywall-paid-mobile" type="text" /></label>
+            <label>Free · code <input id="paywall-free-code" type="text" /></label>
+            <label>Paid · code <input id="paywall-paid-code" type="text" /></label>
+            <label>Free · code-mobile <input id="paywall-free-code-mobile" type="text" /></label>
+            <label>Paid · code-mobile <input id="paywall-paid-code-mobile" type="text" /></label>
+          </div>
+        </div>
+
+        <div class="panel-inner">
+          <h3>User Templates</h3>
+          <p class="hint">Usernames als CSV. Diese Mappings setzen die Tier-Zuordnung serverseitig.</p>
+          <div class="grid-2">
+            <label class="wide">
+              Free User (CSV)
+              <textarea id="paywall-users-free" rows="3" placeholder="free_demo,guest_user"></textarea>
+            </label>
+            <label class="wide">
+              Paid User (CSV)
+              <textarea id="paywall-users-paid" rows="3" placeholder="paid_demo,premium_user"></textarea>
+            </label>
+          </div>
+          <div class="actions-row">
+            <button id="save-paywalls" class="btn" type="button">Paywalls speichern</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="tab-devices" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-devices">
         <div class="panel-inner">
           <h3>Device Allowlist (Admin)</h3>
           <form id="device-form" class="grid-2">
@@ -232,14 +322,14 @@
         </div>
       </section>
 
-      <section id="tab-audit" class="tab-panel">
+      <section id="tab-audit" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-audit">
         <div class="panel-inner">
           <h3>Audit Log</h3>
           <pre id="audit-list" class="mono-block">[]</pre>
         </div>
       </section>
 
-      <section id="tab-guides" class="tab-panel">
+      <section id="tab-guides" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-guides">
         <div class="panel-inner">
           <h3>API Guides</h3>
           <div class="inline-form">
