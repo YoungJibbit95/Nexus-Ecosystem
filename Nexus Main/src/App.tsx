@@ -36,9 +36,17 @@ export default function App() {
   const runtimeRef = useRef<NexusRuntime | null>(null)
 
   useEffect(() => {
+    const controlBaseUrl = (import.meta as any).env?.VITE_NEXUS_CONTROL_URL as string | undefined
+    const controlIngestKey = (import.meta as any).env?.VITE_NEXUS_CONTROL_INGEST_KEY as string | undefined
+
     const runtime = createNexusRuntime({
       appId: 'main',
       appVersion: '5.0.0',
+      control: {
+        enabled: Boolean(controlBaseUrl),
+        baseUrl: controlBaseUrl,
+        ingestKey: controlIngestKey,
+      },
     })
     runtime.start()
     runtimeRef.current = runtime

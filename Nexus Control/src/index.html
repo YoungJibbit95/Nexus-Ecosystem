@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Nexus Control</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div class="page-bg"></div>
+
+  <main class="app-shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Nexus Ecosystem</p>
+        <h1>Nexus Control</h1>
+        <p class="muted">Control Plane UI fuer Registry, Security, Config, Commands und Guides.</p>
+      </div>
+      <div class="topbar-actions">
+        <button id="refresh-btn" class="btn ghost">Aktualisieren</button>
+        <button id="logout-btn" class="btn danger">Logout</button>
+      </div>
+    </header>
+
+    <section class="panel api-panel">
+      <h2>API Verbindung</h2>
+      <form id="api-settings-form" class="grid-2">
+        <label>
+          Control API URL
+          <input id="api-base-url" type="url" placeholder="http://localhost:4399" required />
+        </label>
+        <label>
+          Ingest Key (optional)
+          <input id="api-ingest-key" type="text" placeholder="main-local-dev-key" />
+        </label>
+        <label>
+          Device ID (verifiziert)
+          <input id="device-id" type="text" readonly />
+        </label>
+        <div class="actions-row">
+          <button class="btn" type="submit">Speichern</button>
+        </div>
+      </form>
+      <p id="status-line" class="status">Bereit.</p>
+    </section>
+
+    <section id="auth-panel" class="panel">
+      <h2>Login</h2>
+      <form id="login-form" class="grid-2">
+        <label>
+          Benutzername
+          <input id="login-username" type="text" value="admin" required />
+        </label>
+        <label>
+          Passwort
+          <input id="login-password" type="password" value="change-me-now" required />
+        </label>
+        <div class="actions-row">
+          <button class="btn" type="submit">Einloggen</button>
+        </div>
+      </form>
+      <p class="hint">Default Local Dev Accounts stehen im Control-Plane README.</p>
+    </section>
+
+    <section id="workspace" class="workspace hidden">
+      <nav class="tabs">
+        <button data-tab="dashboard" class="tab active">Dashboard</button>
+        <button data-tab="settings" class="tab">Settings</button>
+        <button data-tab="commands" class="tab">Commands</button>
+        <button data-tab="policies" class="tab">Policies</button>
+        <button data-tab="devices" class="tab">Devices</button>
+        <button data-tab="audit" class="tab">Audit</button>
+        <button data-tab="guides" class="tab">Guides</button>
+      </nav>
+
+      <section id="tab-dashboard" class="tab-panel active">
+        <div class="cards">
+          <article class="card">
+            <h3>Online Apps</h3>
+            <p id="metric-online" class="metric">-</p>
+          </article>
+          <article class="card">
+            <h3>Stale Apps</h3>
+            <p id="metric-stale" class="metric">-</p>
+          </article>
+          <article class="card">
+            <h3>Events Total</h3>
+            <p id="metric-events" class="metric">-</p>
+          </article>
+          <article class="card">
+            <h3>Avg View Render (ms)</h3>
+            <p id="metric-render" class="metric">-</p>
+          </article>
+        </div>
+
+        <div class="panel-inner">
+          <h3>App Registry</h3>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>App</th>
+                  <th>Status</th>
+                  <th>Version</th>
+                  <th>Last Seen</th>
+                  <th>Route</th>
+                  <th>Events</th>
+                  <th>Stale</th>
+                </tr>
+              </thead>
+              <tbody id="apps-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section id="tab-settings" class="tab-panel">
+        <div class="panel-inner">
+          <h3>Global Config</h3>
+          <textarea id="global-config" rows="14"></textarea>
+          <div class="actions-row">
+            <button id="save-global-config" class="btn">Global Config speichern</button>
+          </div>
+        </div>
+
+        <div class="panel-inner">
+          <h3>App Config</h3>
+          <div class="inline-form">
+            <select id="app-config-select">
+              <option value="main">main</option>
+              <option value="mobile">mobile</option>
+              <option value="code">code</option>
+              <option value="code-mobile">code-mobile</option>
+              <option value="control">control</option>
+            </select>
+            <button id="load-app-config" class="btn ghost">Laden</button>
+          </div>
+          <textarea id="app-config" rows="14"></textarea>
+          <div class="actions-row">
+            <button id="save-app-config" class="btn">App Config speichern</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="tab-commands" class="tab-panel">
+        <div class="panel-inner">
+          <h3>Command Center</h3>
+          <form id="command-form" class="grid-2">
+            <label>
+              Target App
+              <select id="command-target" required>
+                <option value="main">main</option>
+                <option value="mobile">mobile</option>
+                <option value="code">code</option>
+                <option value="code-mobile">code-mobile</option>
+                <option value="control">control</option>
+              </select>
+            </label>
+            <label>
+              Command Type
+              <input id="command-type" type="text" placeholder="sync-config" required />
+            </label>
+            <label>
+              Priority
+              <select id="command-priority">
+                <option value="normal">normal</option>
+                <option value="high">high</option>
+                <option value="low">low</option>
+              </select>
+            </label>
+            <label>
+              TTL (ms)
+              <input id="command-ttl" type="number" value="60000" min="1000" max="600000" />
+            </label>
+            <label class="wide">
+              Idempotency Key (optional)
+              <input id="command-idempotency" type="text" placeholder="cmd-sync-main-001" />
+            </label>
+            <label class="wide">
+              Payload JSON
+              <textarea id="command-payload" rows="8">{"reason":"manual-trigger"}</textarea>
+            </label>
+            <div class="actions-row">
+              <button class="btn" type="submit">Command erstellen</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="panel-inner">
+          <h3>Command Queue</h3>
+          <pre id="commands-list" class="mono-block">[]</pre>
+        </div>
+      </section>
+
+      <section id="tab-policies" class="tab-panel">
+        <div class="panel-inner">
+          <h3>Security Policies</h3>
+          <textarea id="policies-config" rows="16"></textarea>
+          <div class="actions-row">
+            <button id="save-policies" class="btn">Policies speichern</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="tab-devices" class="tab-panel">
+        <div class="panel-inner">
+          <h3>Device Allowlist (Admin)</h3>
+          <form id="device-form" class="grid-2">
+            <label>
+              Device ID
+              <input id="device-manage-id" type="text" placeholder="nxdev-..." required />
+            </label>
+            <label>
+              Label
+              <input id="device-manage-label" type="text" placeholder="MacBook-Pro-Dev" />
+            </label>
+            <label class="wide">
+              Rollen (CSV)
+              <input id="device-manage-roles" type="text" value="admin,developer" />
+            </label>
+            <div class="actions-row">
+              <button id="device-approve-btn" class="btn" type="button">Geraet freigeben</button>
+              <button id="device-revoke-btn" class="btn danger" type="button">Geraet sperren</button>
+              <button id="device-refresh-btn" class="btn ghost" type="button">Liste laden</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="panel-inner">
+          <h3>Devices</h3>
+          <pre id="devices-list" class="mono-block">[]</pre>
+        </div>
+      </section>
+
+      <section id="tab-audit" class="tab-panel">
+        <div class="panel-inner">
+          <h3>Audit Log</h3>
+          <pre id="audit-list" class="mono-block">[]</pre>
+        </div>
+      </section>
+
+      <section id="tab-guides" class="tab-panel">
+        <div class="panel-inner">
+          <h3>API Guides</h3>
+          <div class="inline-form">
+            <select id="guide-select"></select>
+            <button id="load-guide" class="btn ghost">Guide laden</button>
+          </div>
+          <pre id="guide-content" class="guide-block">Kein Guide geladen.</pre>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

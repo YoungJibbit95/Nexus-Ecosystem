@@ -1,12 +1,14 @@
 # NexusAPI
 
-`@nexus/api` ist die zentrale Runtime fuer Verbindung und Performance im Nexus Ecosystem.
+`@nexus/api` ist die zentrale Runtime fuer Verbindung, Performance und optionales Control-Plane Forwarding.
+
 Code-Location: `API/nexus-api`
 
 ## Kernmodule
 
 - `NexusConnectionManager`
 - `NexusPerformanceManager`
+- `NexusControlClient`
 - `createNexusRuntime`
 
 ## Event-Typen
@@ -16,6 +18,8 @@ Code-Location: `API/nexus-api`
 - `navigation`
 - `performance-metric`
 - `performance-summary`
+- `command`
+- `config-update`
 - `custom`
 
 ## Start in einer App
@@ -23,9 +27,17 @@ Code-Location: `API/nexus-api`
 ```ts
 import { createNexusRuntime } from '@nexus/api'
 
-const runtime = createNexusRuntime({ appId: 'main', appVersion: '5.0.0' })
-runtime.start()
+const runtime = createNexusRuntime({
+  appId: 'main',
+  appVersion: '5.0.0',
+  control: {
+    enabled: true,
+    baseUrl: 'http://localhost:4399',
+    ingestKey: 'main-local-dev-key',
+  },
+})
 
+runtime.start()
 runtime.connection.syncState('main.activeView', 'dashboard')
 runtime.performance.trackViewRender('main:dashboard')
 ```
@@ -35,12 +47,21 @@ runtime.performance.trackViewRender('main:dashboard')
 1. `BroadcastChannel` (primaerer Kanal)
 2. `localStorage` Event-Fallback
 
-## Ziel
+## Guard Rails
 
-Ein einheitlicher Kommunikations- und Monitoring-Layer fuer Main, Mobile, Code und Code Mobile.
+- Payload-Grenze im Connection-Layer (`maxPayloadBytes`)
+- Event-Validation und Event-Age-Filter
+- Set-basierte Event-Deduplizierung
+- Metrik-Rate-Limit (`maxMetricsPerMinute`, default `120`)
+- Ring Buffer fuer lokale Analyse
 
-## Performance-Schutz
+## Verbindung zur Control Plane
 
-- Metrik-Rate-Limit (`maxMetricsPerMinute`, Default: 120)
-- periodische Summary-Events (`performance-summary`)
-- Ring-Buffer fuer lokale Analyse ohne unkontrolliertes Wachstum
+Wenn `control.enabled` aktiv ist, sendet der Runtime-Layer Events in Batches an:
+
+- `POST /api/v1/events/batch`
+
+Typische Vite Env Variablen:
+
+- `VITE_NEXUS_CONTROL_URL`
+- `VITE_NEXUS_CONTROL_INGEST_KEY`

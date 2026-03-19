@@ -11,12 +11,61 @@ const isBrowser = typeof window !== 'undefined'
 
 const uid = () => `${now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
 
+const EVENT_TYPES: NexusEventType[] = [
+  'heartbeat',
+  'state-sync',
+  'navigation',
+  'performance-metric',
+  'performance-summary',
+  'command',
+  'config-update',
+  'custom',
+]
+
+const APP_IDS: NexusAppId[] = ['main', 'mobile', 'code', 'code-mobile', 'control']
+
+const getPayloadBytes = (payload: unknown) => {
+  try {
+    const text = JSON.stringify(payload)
+    if (typeof TextEncoder !== 'undefined') {
+      return new TextEncoder().encode(text).byteLength
+    }
+
+    return unescape(encodeURIComponent(text)).length
+  } catch {
+    return Number.POSITIVE_INFINITY
+  }
+}
+
+const isValidTarget = (target: unknown): target is NexusEventTarget => (
+  target === 'all' || APP_IDS.includes(target as NexusAppId)
+)
+
+const isValidType = (type: unknown): type is NexusEventType => EVENT_TYPES.includes(type as NexusEventType)
+
+const isValidEvent = (event: unknown): event is NexusConnectionEvent => {
+  if (!event || typeof event !== 'object') return false
+
+  const candidate = event as NexusConnectionEvent
+
+  if (!candidate.id || typeof candidate.id !== 'string') return false
+  if (!Number.isFinite(candidate.timestamp)) return false
+  if (!APP_IDS.includes(candidate.source)) return false
+  if (!isValidTarget(candidate.target)) return false
+  if (!isValidType(candidate.type)) return false
+
+  return true
+}
+
 export interface NexusConnectionOptions {
   appId: NexusAppId
   channelName?: string
   heartbeatMs?: number
   staleAfterMs?: number
   storageKey?: string
+  maxRecentEventIds?: number
+  maxPayloadBytes?: number
+  maxEventAgeMs?: number
   debug?: boolean
 }
 
@@ -28,13 +77,17 @@ export class NexusConnectionManager {
   private heartbeatMs: number
   private staleAfterMs: number
   private storageKey: string
+  private maxRecentEventIds: number
+  private maxPayloadBytes: number
+  private maxEventAgeMs: number
   private debug: boolean
 
   private channel: BroadcastChannel | null = null
   private listeners = new Set<ConnectionListener>()
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null
   private peers = new Map<NexusAppId, number>()
-  private recentEventIds: string[] = []
+  private recentEventIds = new Set<string>()
+  private recentEventOrder: string[] = []
   private started = false
 
   constructor(options: NexusConnectionOptions) {
@@ -43,6 +96,9 @@ export class NexusConnectionManager {
     this.heartbeatMs = options.heartbeatMs ?? 15_000
     this.staleAfterMs = options.staleAfterMs ?? 45_000
     this.storageKey = options.storageKey ?? '__nexus_ecosystem_bus__'
+    this.maxRecentEventIds = options.maxRecentEventIds ?? 1_200
+    this.maxPayloadBytes = options.maxPayloadBytes ?? 16_000
+    this.maxEventAgeMs = options.maxEventAgeMs ?? 5 * 60_000
     this.debug = options.debug ?? false
   }
 
@@ -65,7 +121,7 @@ export class NexusConnectionManager {
     }, this.heartbeatMs)
 
     if (this.debug) {
-      console.info(`[NexusAPI:${this.appId}] connection started`)
+      console.info(`[NexusAPI:${this.appId}] connection started`) // eslint-disable-line no-console
     }
   }
 
@@ -88,7 +144,7 @@ export class NexusConnectionManager {
     window.removeEventListener('storage', this.onStorage)
 
     if (this.debug) {
-      console.info(`[NexusAPI:${this.appId}] connection stopped`)
+      console.info(`[NexusAPI:${this.appId}] connection stopped`) // eslint-disable-line no-console
     }
   }
 
@@ -98,6 +154,17 @@ export class NexusConnectionManager {
   }
 
   publish<T = unknown>(type: NexusEventType, payload: T, target: NexusEventTarget = 'all') {
+    if (!isValidType(type)) return
+    if (!isValidTarget(target)) return
+
+    const payloadBytes = getPayloadBytes(payload)
+    if (!Number.isFinite(payloadBytes) || payloadBytes > this.maxPayloadBytes) {
+      if (this.debug) {
+        console.warn(`[NexusAPI:${this.appId}] payload blocked (${payloadBytes} bytes)`) // eslint-disable-line no-console
+      }
+      return
+    }
+
     const event: NexusConnectionEvent<T> = {
       id: uid(),
       timestamp: now(),
@@ -166,10 +233,16 @@ export class NexusConnectionManager {
     }
   }
 
-  private handleIncoming(event: NexusConnectionEvent) {
-    if (!event || !event.id) return
+  private handleIncoming(rawEvent: unknown) {
+    if (!isValidEvent(rawEvent)) return
+
+    const event = rawEvent as NexusConnectionEvent
+
     if (this.hasSeenEvent(event.id)) return
     if (event.source === this.appId) return
+
+    const isExpired = now() - event.timestamp > this.maxEventAgeMs
+    if (isExpired) return
 
     this.markEventSeen(event.id)
 
@@ -191,13 +264,19 @@ export class NexusConnectionManager {
   }
 
   private hasSeenEvent(eventId: string) {
-    return this.recentEventIds.includes(eventId)
+    return this.recentEventIds.has(eventId)
   }
 
   private markEventSeen(eventId: string) {
-    this.recentEventIds.push(eventId)
-    if (this.recentEventIds.length > 600) {
-      this.recentEventIds.splice(0, this.recentEventIds.length - 600)
+    this.recentEventIds.add(eventId)
+    this.recentEventOrder.push(eventId)
+
+    if (this.recentEventOrder.length > this.maxRecentEventIds) {
+      const trim = this.recentEventOrder.length - this.maxRecentEventIds
+      const removed = this.recentEventOrder.splice(0, trim)
+      for (const id of removed) {
+        this.recentEventIds.delete(id)
+      }
     }
   }
 }

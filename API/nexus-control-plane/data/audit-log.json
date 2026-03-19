@@ -1,0 +1,160 @@
+[
+  {
+    "id": "audit_mmxczwoi_cxdcx2",
+    "at": "2026-03-19T11:00:36.018Z",
+    "action": "auth.login.failed",
+    "actor": "user:youngjibbit",
+    "details": {
+      "reason": "invalid credentials"
+    }
+  },
+  {
+    "id": "audit_mmxd06th_9p9qth",
+    "at": "2026-03-19T11:00:49.157Z",
+    "action": "auth.login.failed",
+    "actor": "user:youngjibbit",
+    "details": {
+      "reason": "invalid credentials"
+    }
+  },
+  {
+    "id": "audit_mmxd0i8s_f56j75",
+    "at": "2026-03-19T11:01:03.964Z",
+    "action": "device.bootstrap.approved",
+    "actor": "system:bootstrap",
+    "details": {
+      "deviceId": "nxdev-mmxcxulx-62002hgh",
+      "roleScopes": [
+        "admin",
+        "developer"
+      ]
+    }
+  },
+  {
+    "id": "audit_mmxd0i8t_2ndg23",
+    "at": "2026-03-19T11:01:03.965Z",
+    "action": "auth.login.success",
+    "actor": "user:admin",
+    "details": {
+      "role": "admin",
+      "deviceId": "nxdev-mmxcxulx-62002hgh"
+    }
+  },
+  {
+    "id": "audit_mmxd36ay_rk6q94",
+    "at": "2026-03-19T11:03:08.458Z",
+    "action": "policies.update",
+    "actor": "user:admin:admin",
+    "details": {
+      "changedKeys": [
+        "allowAnonymousIngest",
+        "maxEventsPerBatch",
+        "rateLimitPerMinute",
+        "trustedOrigins",
+        "ingestKeys",
+        "requireVerifiedDeviceForRoles",
+        "allowFirstAdminDeviceBootstrap"
+      ]
+    }
+  },
+  {
+    "id": "audit_mmxdodxb_0243ah",
+    "at": "2026-03-19T11:19:38.111Z",
+    "action": "auth.login.success",
+    "actor": "user:viewer",
+    "details": {
+      "role": "viewer",
+      "deviceId": "nxviewer-test-device"
+    }
+  },
+  {
+    "id": "audit_mmxdodyj_6jdn58",
+    "at": "2026-03-19T11:19:38.155Z",
+    "action": "auth.login.blocked.unverified-device",
+    "actor": "user:admin",
+    "details": {
+      "role": "admin",
+      "deviceId": "nxadmin-not-approved"
+    }
+  },
+  {
+    "id": "audit_mmxdodyt_gpsmj3",
+    "at": "2026-03-19T11:19:38.165Z",
+    "action": "auth.login.blocked.unverified-device",
+    "actor": "user:admin",
+    "details": {
+      "role": "admin",
+      "deviceId": "nxadmin-not-approved"
+    }
+  },
+  {
+    "id": "audit_mmxe5fvl_eewmsx",
+    "at": "2026-03-19T11:32:53.793Z",
+    "action": "auth.login.success",
+    "actor": "user:viewer",
+    "details": {
+      "role": "viewer",
+      "deviceId": "nxviewer-smoke"
+    }
+  },
+  {
+    "id": "audit_mmxe5fya_dqfmm8",
+    "at": "2026-03-19T11:32:53.890Z",
+    "action": "auth.login.blocked.unverified-device",
+    "actor": "user:admin",
+    "details": {
+      "role": "admin",
+      "deviceId": "nxadmin-smoke-unverified"
+    }
+  },
+  {
+    "id": "audit_mmxe5g05_zw8ui8",
+    "at": "2026-03-19T11:32:53.957Z",
+    "action": "auth.login.blocked.unverified-device",
+    "actor": "user:admin",
+    "details": {
+      "role": "admin",
+      "deviceId": "nxadmin-smoke-unverified"
+    }
+  },
+  {
+    "id": "audit_mmxe6nlf_dwi7sv",
+    "at": "2026-03-19T11:33:50.451Z",
+    "action": "auth.login.success",
+    "actor": "user:youngjibbit",
+    "details": {
+      "role": "admin",
+      "deviceId": "nxdev-mmxcxulx-62002hgh"
+    }
+  },
+  {
+    "id": "audit_mmxe6nlu_wccnuf",
+    "at": "2026-03-19T11:33:50.466Z",
+    "action": "auth.login.success",
+    "actor": "user:youngjibbit",
+    "details": {
+      "role": "admin",
+      "deviceId": "nxdev-mmxcxulx-62002hgh"
+    }
+  },
+  {
+    "id": "audit_mmxe6umc_j9edkn",
+    "at": "2026-03-19T11:33:59.556Z",
+    "action": "auth.login.success",
+    "actor": "user:youngjibbit",
+    "details": {
+      "role": "admin",
+      "deviceId": "nxdev-mmxcxulx-62002hgh"
+    }
+  },
+  {
+    "id": "audit_mmxe6umr_ptbakp",
+    "at": "2026-03-19T11:33:59.571Z",
+    "action": "auth.login.success",
+    "actor": "user:youngjibbit",
+    "details": {
+      "role": "admin",
+      "deviceId": "nxdev-mmxcxulx-62002hgh"
+    }
+  }
+]

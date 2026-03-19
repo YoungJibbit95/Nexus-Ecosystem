@@ -18,6 +18,9 @@ export default defineConfig({
     fs: {
       allow: [path.resolve(__dirname, '..')],
     },
+    watch: {
+      ignored: ['**/android/**', '**/ios/**', '**/dist/**', '**/build/**'],
+    },
   },
   build: {
     // Capacitor needs smaller chunks for WebView
@@ -34,6 +37,7 @@ export default defineConfig({
     }
   },
   optimizeDeps: {
+    entries: ['index.html'],
     include: [
       'monaco-editor/esm/vs/language/json/json.worker',
       'monaco-editor/esm/vs/language/css/css.worker',
