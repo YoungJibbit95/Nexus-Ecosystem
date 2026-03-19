@@ -227,6 +227,12 @@ const checks = [
     message: 'dev:main startet Nexus Main in Electron',
   },
   {
+    id: 'root-script-code-electron',
+    file: 'package.json',
+    pattern: /"dev:code"\s*:\s*".*electron:dev"/s,
+    message: 'dev:code startet Nexus Code in Electron',
+  },
+  {
     id: 'root-script-dev-all',
     file: 'package.json',
     pattern: /"dev:all"\s*:\s*"node \.\/tools\/dev-ecosystem\.mjs"/,
@@ -282,6 +288,12 @@ const checks = [
     pattern: /Starte Nexus Dev Stack \(Control \+ Main \+ Code\)/,
     forbiddenPattern: /id:\s*'mobile'|id:\s*'code-mobile'/,
     message: 'dev:all startet keinen Mobile Vite Stack',
+  },
+  {
+    id: 'dev-stack-code-electron',
+    file: 'tools/dev-ecosystem.mjs',
+    pattern: /id:\s*'code'[\s\S]*run', 'electron:dev'/s,
+    message: 'dev:all startet Nexus Code im Electron Modus',
   },
   {
     id: 'mobile-package-dev-native',

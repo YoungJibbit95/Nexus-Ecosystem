@@ -38,7 +38,7 @@ const SERVICES = [
   {
     id: 'code',
     label: 'Nexus Code',
-    args: ['--prefix', './Nexus Code', 'run', 'dev'],
+    args: ['--prefix', './Nexus Code', 'run', 'electron:dev'],
     port: 5175,
     url: 'http://localhost:5175',
   },
