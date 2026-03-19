@@ -23,37 +23,6 @@ updates:
       - "dependencies"
 
   - package-ecosystem: "npm"
-    directory: "/API/nexus-control-plane"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "04:20"
-      timezone: "Europe/Berlin"
-    labels:
-      - "dependencies"
-      - "security"
-
-  - package-ecosystem: "npm"
-    directory: "/API/nexus-api"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "04:25"
-      timezone: "Europe/Berlin"
-    labels:
-      - "dependencies"
-
-  - package-ecosystem: "npm"
-    directory: "/API/schemas"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "04:30"
-      timezone: "Europe/Berlin"
-    labels:
-      - "dependencies"
-
-  - package-ecosystem: "npm"
     directory: "/Nexus Main"
     schedule:
       interval: "weekly"

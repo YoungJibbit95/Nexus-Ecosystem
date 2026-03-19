@@ -2,7 +2,7 @@
 
 `@nexus/api` ist die zentrale Runtime fuer Verbindung, Performance und optionales Control-Plane Forwarding.
 
-Code-Location: `API/nexus-api`
+Code-Location: `.nexus-private/NexusAPI/API/nexus-api`
 
 ## Kernmodule
 
@@ -60,8 +60,32 @@ runtime.performance.trackViewRender('main:dashboard')
 Wenn `control.enabled` aktiv ist, sendet der Runtime-Layer Events in Batches an:
 
 - `POST /api/v1/events/batch`
+- `POST /api/v1/views/validate` (View-Zugriff / Paywall-Check)
 
 Typische Vite Env Variablen:
 
 - `VITE_NEXUS_CONTROL_URL`
 - `VITE_NEXUS_CONTROL_INGEST_KEY`
+- `VITE_NEXUS_USER_ID` (optional, User-Template Mapping)
+- `VITE_NEXUS_USERNAME` (optional, User-Template Mapping)
+- `VITE_NEXUS_USER_TIER` (`free`/`paid`, optionaler Override)
+
+## View Validation / Paywalls
+
+Apps koennen View-Transitions gegen die Control Plane pruefen:
+
+```ts
+const access = await runtime.control.validateViewAccess('dashboard', {
+  userTier: 'free',
+})
+
+if (!access.allowed) {
+  console.warn(access.requiredTier) // z. B. \"paid\"
+}
+```
+
+Die Regeln kommen aus `policies.paywalls` (Control Plane) und koennen im Nexus Control Panel im Tab `Paywalls` gepflegt werden.
+
+Hinweis:
+
+- Root-`dev`/`build` Commands erzwingen eine aktive Control Plane automatisch via `tools/run-with-control-plane.mjs`.

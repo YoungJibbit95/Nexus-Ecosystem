@@ -1,13 +1,13 @@
-import { spawn } from 'node:child_process'
 import net from 'node:net'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { spawnNpm, spawnProcess } from './lib/process-utils.mjs'
+import { resolveControlPlanePrefixArg } from './lib/api-source.mjs'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const ROOT = path.resolve(__dirname, '..')
-
-const npmCmd = process.platform === 'win32' ? 'npm.cmd' : 'npm'
+const controlPlaneTarget = await resolveControlPlanePrefixArg({ root: ROOT, quiet: false })
 
 const skipOpen = String(process.env.NEXUS_CONTROL_NO_OPEN || '').toLowerCase() === 'true'
 const openControlUrl = String(process.env.NEXUS_DEV_OPEN_CONTROL || 'true').toLowerCase() !== 'false'
@@ -16,7 +16,7 @@ const SERVICES = [
   {
     id: 'control-plane',
     label: 'Control Plane',
-    args: ['--prefix', './API/nexus-control-plane', 'run', 'dev'],
+    args: [...controlPlaneTarget.prefixArgs, 'run', 'dev'],
     port: Number(process.env.NEXUS_CONTROL_PORT || 4399),
     url: `http://localhost:${Number(process.env.NEXUS_CONTROL_PORT || 4399)}`,
   },
@@ -48,7 +48,7 @@ const children = []
 let shuttingDown = false
 
 const run = (service, args) => {
-  const child = spawn(npmCmd, args, {
+  const child = spawnNpm(args, {
     cwd: ROOT,
     env: process.env,
     stdio: 'inherit',
@@ -120,18 +120,18 @@ const openBrowser = (url) => {
 
   try {
     if (process.platform === 'darwin') {
-      const proc = spawn('open', [url], { stdio: 'ignore', detached: true })
+      const proc = spawnProcess('open', [url], { stdio: 'ignore', detached: true, shell: false })
       proc.unref()
       return
     }
 
     if (process.platform === 'win32') {
-      const proc = spawn('cmd', ['/c', 'start', '', url], { stdio: 'ignore', detached: true })
+      const proc = spawnProcess('cmd', ['/c', 'start', '', url], { stdio: 'ignore', detached: true, shell: false })
       proc.unref()
       return
     }
 
-    const proc = spawn('xdg-open', [url], { stdio: 'ignore', detached: true })
+    const proc = spawnProcess('xdg-open', [url], { stdio: 'ignore', detached: true, shell: false })
     proc.unref()
   } catch (error) {
     console.warn(`Browser konnte nicht automatisch geoeffnet werden: ${error.message}`)
@@ -158,7 +158,7 @@ const shutdown = (exitCode = 0) => {
 process.on('SIGINT', () => shutdown(0))
 process.on('SIGTERM', () => shutdown(0))
 
-console.log('Starte Nexus Dev Stack (Control + Main + Code)...')
+console.log(`Starte Nexus Dev Stack (Control + Main + Code) [api-source=${controlPlaneTarget.source.mode}]...`)
 
 for (const service of SERVICES) {
   const running = await isPortReachable(service.port)

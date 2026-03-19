@@ -13,6 +13,7 @@
 
 > [!IMPORTANT]
 > Das Ecosystem ist jetzt in **Runtime Plane** (`@nexus/api` in den Apps) und **Control Plane** (`.nexus-private/NexusAPI/API/nexus-control-plane` + `Nexus Control`) aufgeteilt.
+> Der ehemalige Public-Ordner `API/` ist aus diesem Repository entfernt; API-Code liegt nur noch im privaten Repo `YoungJibbit95/NexusAPI`.
 
 ## ✨ Inhaltsverzeichnis
 
