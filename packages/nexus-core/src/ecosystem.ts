@@ -26,12 +26,14 @@ export const NEXUS_ECOSYSTEM_APPS: NexusAppTarget[] = [
     title: 'Nexus Code',
     workspacePath: 'Nexus Code',
     platform: 'Code Workspace (Desktop)',
+    defaultPort: 5175,
   },
   {
     id: 'code-mobile',
     title: 'Nexus Code Mobile',
     workspacePath: 'Nexus Code Mobile',
     platform: 'Code Workspace (Mobile)',
+    defaultPort: 5176,
   },
   {
     id: 'api',
@@ -42,3 +44,5 @@ export const NEXUS_ECOSYSTEM_APPS: NexusAppTarget[] = [
 ]
 
 export const NEXUS_ECOSYSTEM_VERSION = '2026.03'
+export const NEXUS_GLOBAL_ASSETS_PATH = 'assets/global'
+export const NEXUS_SHARED_PACKAGES = ['@nexus/core', '@nexus/api'] as const

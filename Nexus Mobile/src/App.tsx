@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useTheme, GLOBAL_FONTS } from './store/themeStore'
 import { Sidebar, View } from './components/Sidebar'
@@ -19,6 +19,7 @@ import {
   NEXUS_VIEW_META,
   sanitizeGlobalFont,
 } from '@nexus/core'
+import { createNexusRuntime, type NexusRuntime } from '@nexus/api'
 
 import { DashboardView } from './views/DashboardView'
 import { NotesView } from './views/NotesView'
@@ -38,6 +39,21 @@ export default function App() {
   const setViewStr = (v: string) => setView(v as View)
   const t = useTheme()
   const mob = useMobile()
+  const runtimeRef = useRef<NexusRuntime | null>(null)
+
+  useEffect(() => {
+    const runtime = createNexusRuntime({
+      appId: 'mobile',
+      appVersion: '4.0.0',
+    })
+    runtime.start()
+    runtimeRef.current = runtime
+
+    return () => {
+      runtime.stop()
+      runtimeRef.current = null
+    }
+  }, [])
 
   useEffect(() => {
     const safeFont = sanitizeGlobalFont(
@@ -76,6 +92,16 @@ export default function App() {
   useEffect(() => {
     applySafeAreaInsets(mob.safeTop, mob.safeBottom)
   }, [mob.safeTop, mob.safeBottom])
+
+  useEffect(() => {
+    const runtime = runtimeRef.current
+    if (!runtime) return
+
+    runtime.connection.sendNavigation(view)
+    runtime.connection.syncState('mobile.activeView', view)
+    runtime.connection.syncState('mobile.isMobile', mob.isMobile)
+    runtime.performance.trackViewRender(`mobile:${view}`)
+  }, [view, mob.isMobile])
 
   const bgStyles = buildBackground(t.background, t.bg, t.mode)
   const sidebarLeft = (t as any).sidebarPosition !== 'right'

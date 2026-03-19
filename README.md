@@ -32,6 +32,34 @@ Enthalten sind:
 
 Damit laufen Main und Mobile über dieselben Basisregeln für Design-Runtime, ohne die mobile Layout-Optimierung zu verlieren.
 
+## Neue NexusAPI-Schicht
+
+`packages/nexus-api` verbindet jetzt alle vier Frontend-Apps:
+
+- `Nexus Main`
+- `Nexus Mobile`
+- `Nexus Code`
+- `Nexus Code Mobile`
+
+Die NexusAPI übernimmt:
+
+- app-übergreifendes Connection-Management per Event-Bus (`BroadcastChannel` + `localStorage` Fallback)
+- Heartbeats und Peer-Status (`online`/`stale`)
+- zentrale State- und Navigation-Sync Events
+- globales Performance-Monitoring (View-Render, Paint, Long Tasks, JS Heap Snapshots)
+
+Jede App startet beim Boot eine Runtime via `createNexusRuntime(...)` und reportet Navigation + View-Performance in denselben Bus.
+
+## Global Assets
+
+Gemeinsame Assets liegen im Root unter `assets/global`:
+
+- `assets/global/branding/nexus-brand.tokens.json`
+- `assets/global/connection/topology.json`
+- `assets/global/performance/budgets.json`
+
+Damit sind Branding, Verbindungsregeln und Performance-Ziele zentral versioniert und für alle Nexus-Varianten nutzbar.
+
 ## Wie Main und Mobile verbunden sind
 
 1. Beide Projekte importieren Runtime- und Meta-Logik aus `@nexus/core`
@@ -44,7 +72,7 @@ Damit laufen Main und Mobile über dieselben Basisregeln für Design-Runtime, oh
 - keine zusätzliche Runtime-Abhängigkeit für den Core
 - nur schlanke Utility-Funktionen im Shared Layer
 - Vite `fs.allow` sauber auf Repo-Root gesetzt, um Cross-Package-Imports stabil zu halten
-- getrennte Dev-Ports (`Main: 5173`, `Mobile: 5174`) für parallele Entwicklung
+- getrennte Dev-Ports (`Main: 5173`, `Mobile: 5174`, `Code: 5175`, `Code Mobile: 5176`) für parallele Entwicklung
 
 ## Development
 
@@ -87,6 +115,11 @@ npm run build:all
 3. Änderungen lokal validieren (`build:*`)
 4. PR erstellen und mit Projektboard verknüpfen
 5. Nach Merge Release-Notes pro App aktualisieren
+
+Weitere Details:
+
+- `docs/NEXUS_API.md`
+- `docs/PROJECT_BOARD.md`
 
 ## Nächste Ausbau-Stufe
 

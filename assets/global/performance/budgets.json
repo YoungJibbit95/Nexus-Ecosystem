@@ -1,0 +1,9 @@
+{
+  "targets": {
+    "viewRenderMsP95": 80,
+    "longTaskMsMax": 150,
+    "jsHeapBytesWarn": 157286400,
+    "bundleWarningKb": 2000
+  },
+  "notes": "Budgets sind globale Leitwerte fuer Main, Mobile, Code und Code Mobile."
+}

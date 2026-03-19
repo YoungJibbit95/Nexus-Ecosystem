@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, lazy, Suspense } from 'react'
+import React, { useState, useEffect, useMemo, useRef, lazy, Suspense } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useTheme, GLOBAL_FONTS } from './store/themeStore'
 import { useTerminal } from './store/terminalStore'
@@ -13,6 +13,7 @@ import {
   applyTypographyScale,
   sanitizeGlobalFont,
 } from '@nexus/core'
+import { createNexusRuntime, type NexusRuntime } from '@nexus/api'
 
 const DashboardView = lazy(() => import('./views/DashboardView').then(m => ({ default: m.DashboardView })))
 const NotesView = lazy(() => import('./views/NotesView').then(m => ({ default: m.NotesView })))
@@ -32,6 +33,21 @@ export default function App() {
   const [view, setView] = useState<View>('dashboard')
   const t = useTheme()
   const terminalOpen = useTerminal((s) => s.isOpen)
+  const runtimeRef = useRef<NexusRuntime | null>(null)
+
+  useEffect(() => {
+    const runtime = createNexusRuntime({
+      appId: 'main',
+      appVersion: '5.0.0',
+    })
+    runtime.start()
+    runtimeRef.current = runtime
+
+    return () => {
+      runtime.stop()
+      runtimeRef.current = null
+    }
+  }, [])
 
   useEffect(() => {
     const safeFont = sanitizeGlobalFont(
@@ -70,6 +86,15 @@ export default function App() {
   useEffect(() => {
     applyPanelDensity(t.qol?.panelDensity ?? 'comfortable')
   }, [t.qol?.panelDensity])
+
+  useEffect(() => {
+    const runtime = runtimeRef.current
+    if (!runtime) return
+
+    runtime.connection.sendNavigation(view)
+    runtime.connection.syncState('main.activeView', view)
+    runtime.performance.trackViewRender(`main:${view}`)
+  }, [view])
 
   const bgStyles = buildBackground(t.background, t.bg, t.mode)
   const accentRgb = hexToRgb(t.accent)
