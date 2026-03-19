@@ -70,4 +70,4 @@ Override per Env:
 
 - `NEXUS_CONTROL_DATA_DIR`
 - `NEXUS_CONTROL_PORT`
-- `NEXUS_CONTROL_HOST`
+- `NEXUS_CONTROL_HOST` (nur `127.0.0.1`/`localhost` werden akzeptiert)

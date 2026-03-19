@@ -15,7 +15,7 @@ Diese Variablen koennen in folgenden Apps gesetzt werden:
 ## Control Plane Server
 
 - `NEXUS_CONTROL_PORT` (default `4399`)
-- `NEXUS_CONTROL_HOST` (default `0.0.0.0`)
+- `NEXUS_CONTROL_HOST` (default `127.0.0.1`, externe Hosts werden ignoriert)
 - `NEXUS_CONTROL_DATA_DIR` (default `API/nexus-control-plane/data`)
 - `NEXUS_CONTROL_GUIDES_DIR` (default `API/nexus-control-plane/guides`)
 - `NEXUS_CONTROL_UI_PORT` (default `5180`, fuer Dev-UI Scripts)
@@ -33,4 +33,6 @@ Diese Variablen koennen in folgenden Apps gesetzt werden:
 
 - Ingest Keys werden ueber Policies verwaltet (`/api/v1/policies`).
 - Device-Allowlist wird ueber `/api/v1/devices/*` gepflegt.
+- `dev:all` startet den Core-Stack ohne Mobile Native IDEs.
+- Mobile Dev-Start erfolgt nativ ueber Capacitor (`npm run dev:mobile:android|ios`, `npm run dev:code-mobile:android|ios`).
 - Fuer Production keine Default Credentials nutzen.

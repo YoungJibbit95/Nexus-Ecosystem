@@ -118,13 +118,17 @@ Alle Artefakte landen zentral in `build/`.
 ### App-Entwicklung (Runtime Plane)
 
 ```bash
-npm run dev:all       # kompletter Dev-Stack (Control + Main + Mobile + Code)
+npm run dev:all       # Core Dev-Stack (Control + Main + Code)
 npm run dev:main      # Nexus Main in Electron
 npm run dev:main:web  # Nexus Main nur im Browser (Vite)
-npm run dev:mobile
+npm run dev:mobile:android
+npm run dev:mobile:ios
 npm run dev:code
-npm run dev:code-mobile
+npm run dev:code-mobile:android
+npm run dev:code-mobile:ios
 ```
+
+Mobile Apps werden nativ ueber Capacitor gestartet (`npx cap open ios|android`), nicht ueber Vite-Devserver.
 
 Admin-/Device-Bootstrap (lokal):
 
@@ -182,6 +186,8 @@ Lokale Default-Accounts:
 - Idempotency-Key Support fuer Commands
 - Ingest-Schutz via Bearer Token oder `X-Nexus-Ingest-Key`
 - CORS-Policy ueber `trustedOrigins`
+- Interne Server binden nur an `127.0.0.1` (kein `0.0.0.0`)
+- Keine globalen Electron Session-Overrides (`defaultSession`, `webRequest`, `setProxy`)
 - Payload-Guards in `NexusConnectionManager` (`maxPayloadBytes`)
 - Event-Validation und Event-Age Guards
 - Audit-Log fuer sicherheitsrelevante Aktionen
@@ -210,8 +216,12 @@ Die Wildcard `*` sollte fuer sichere Setups nicht verwendet werden.
 | Command | Zweck |
 |---|---|
 | `npm run setup` | Vollstaendiges Local Setup (Install + `.env.local` Defaults) |
-| `npm run dev:all` | Startet alle Dev-relevanten Services gemeinsam |
+| `npm run dev:all` | Startet den Core-Stack (Control Plane, Control UI, Main, Code) |
 | `npm run dev:all:no-open` | Wie `dev:all`, aber ohne Browser-Autostart |
+| `npm run dev:mobile:android` | Nexus Mobile nativ (build + cap sync + Android Studio) |
+| `npm run dev:mobile:ios` | Nexus Mobile nativ (build + cap sync + Xcode) |
+| `npm run dev:code-mobile:android` | Nexus Code Mobile nativ (build + cap sync + Android Studio) |
+| `npm run dev:code-mobile:ios` | Nexus Code Mobile nativ (build + cap sync + Xcode) |
 | `npm run security:make-admin -- --username ... --password ...` | Admin-User lokal erstellen/aktualisieren |
 | `npm run security:approve-device -- --device-id ...` | Device lokal fuer Rollen freischalten |
 | `npm run build` | Voller Ecosystem Build (inkl. Android-Versuch) |
