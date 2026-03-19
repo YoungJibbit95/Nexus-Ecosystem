@@ -55,6 +55,31 @@ const APPS = [
       outputDir: 'android/app/build/outputs',
     },
   },
+  {
+    id: 'control',
+    name: 'Nexus Control',
+    dir: 'Nexus Control',
+    buildScript: 'build',
+    artifacts: [{ from: 'dist', to: 'web' }],
+  },
+]
+
+const SHARED_EXPORTS = [
+  {
+    label: 'API Paket',
+    from: path.join('API', 'nexus-api'),
+    to: path.join('API', 'nexus-api'),
+  },
+  {
+    label: 'Control Plane Paket',
+    from: path.join('API', 'nexus-control-plane'),
+    to: path.join('API', 'nexus-control-plane'),
+  },
+  {
+    label: 'Schemas Paket',
+    from: path.join('API', 'schemas'),
+    to: path.join('API', 'schemas'),
+  },
 ]
 
 const runCommand = (cmd, cmdArgs, options = {}) => {
@@ -206,12 +231,15 @@ const main = async () => {
     manifest.warnings.push('Global Assets unter assets/global nicht gefunden.')
   }
 
-  const copiedApi = await copyPathIfExists(
-    path.join(ROOT, 'API', 'nexus-api'),
-    path.join(BUILD_ROOT, 'API', 'nexus-api'),
-  )
-  if (!copiedApi) {
-    manifest.warnings.push('API Paket unter API/nexus-api nicht gefunden.')
+  for (const sharedExport of SHARED_EXPORTS) {
+    const copied = await copyPathIfExists(
+      path.join(ROOT, sharedExport.from),
+      path.join(BUILD_ROOT, sharedExport.to),
+    )
+
+    if (!copied) {
+      manifest.warnings.push(`${sharedExport.label} unter ${sharedExport.from} nicht gefunden.`)
+    }
   }
 
   for (const app of APPS) {

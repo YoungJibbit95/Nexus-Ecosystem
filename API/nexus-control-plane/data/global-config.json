@@ -1,0 +1,19 @@
+{
+  "flags": {
+    "enableTelemetry": true,
+    "enableRuntimeSync": true,
+    "enableCommandExecution": true
+  },
+  "telemetry": {
+    "sampleRate": 1,
+    "flushIntervalMs": 5000
+  },
+  "ui": {
+    "defaultDensity": "comfortable",
+    "defaultFont": "system-ui"
+  },
+  "runtime": {
+    "staleAfterMs": 45000,
+    "heartbeatMs": 15000
+  }
+}

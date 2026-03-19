@@ -23,13 +23,21 @@ function NexusBridge({ runtime }) {
 }
 
 function App() {
+  const controlBaseUrl = import.meta.env?.VITE_NEXUS_CONTROL_URL;
+  const controlIngestKey = import.meta.env?.VITE_NEXUS_CONTROL_INGEST_KEY;
+
   const runtime = useMemo(
     () =>
       createNexusRuntime({
         appId: "code",
         appVersion: "1.0.0",
+        control: {
+          enabled: Boolean(controlBaseUrl),
+          baseUrl: controlBaseUrl,
+          ingestKey: controlIngestKey,
+        },
       }),
-    [],
+    [controlBaseUrl, controlIngestKey],
   );
 
   useEffect(() => {

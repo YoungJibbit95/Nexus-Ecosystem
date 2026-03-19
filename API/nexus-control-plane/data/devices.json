@@ -1,0 +1,16 @@
+[
+  {
+    "deviceId": "nxdev-mmxcxulx-62002hgh",
+    "label": "nexus-control-ui",
+    "status": "approved",
+    "roleScopes": [
+      "admin",
+      "developer"
+    ],
+    "approvedBy": "local:youngjibbit:admin-bootstrap",
+    "approvedAt": "2026-03-19T11:33:34.630Z",
+    "createdAt": "2026-03-19T11:01:03.962Z",
+    "lastSeenAt": "2026-03-19T11:33:59.570Z",
+    "lastSeenBy": "youngjibbit"
+  }
+]

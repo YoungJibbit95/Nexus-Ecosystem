@@ -1,6 +1,16 @@
 'use strict';
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, shell } = require('electron');
 const path = require('path');
+
+const DEV_URL = 'http://localhost:5173';
+
+const isAllowedNavigation = (url, isDev) => {
+  if (!url || typeof url !== 'string') return false;
+  if (isDev) {
+    return url.startsWith(`${DEV_URL}/`) || url === DEV_URL;
+  }
+  return url.startsWith('file://');
+};
 
 function createMainWindow(onClosed) {
   const isDev = !app.isPackaged;
@@ -17,18 +27,32 @@ function createMainWindow(onClosed) {
       preload: path.join(__dirname, '..', 'preload.cjs'),
       nodeIntegration: false,
       contextIsolation: true,
-      webSecurity: !isDev,
-      sandbox: !isDev,
+      webSecurity: true,
+      sandbox: true,
       devTools: isDev,
-      allowRunningInsecureContent: isDev,
+      allowRunningInsecureContent: false,
+      webviewTag: false,
     },
   });
 
   if (isDev) {
-    win.loadURL('http://localhost:5173');
+    win.loadURL(DEV_URL);
   } else {
     win.loadFile(path.join(__dirname, '..', 'dist', 'index.html'));
   }
+
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    if (url && /^https?:\/\//i.test(url)) {
+      shell.openExternal(url).catch(() => {});
+    }
+    return { action: 'deny' };
+  });
+
+  win.webContents.on('will-navigate', (event, url) => {
+    if (!isAllowedNavigation(url, isDev)) {
+      event.preventDefault();
+    }
+  });
 
   win.once('ready-to-show', () => {
     win.show();

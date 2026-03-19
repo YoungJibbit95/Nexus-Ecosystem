@@ -1,4 +1,4 @@
-export type NexusAppId = 'main' | 'mobile' | 'code' | 'code-mobile'
+export type NexusAppId = 'main' | 'mobile' | 'code' | 'code-mobile' | 'control'
 
 export type NexusEventType =
   | 'heartbeat'
@@ -6,6 +6,8 @@ export type NexusEventType =
   | 'navigation'
   | 'performance-metric'
   | 'performance-summary'
+  | 'command'
+  | 'config-update'
   | 'custom'
 
 export type NexusEventTarget = NexusAppId | 'all'

@@ -14,12 +14,20 @@ Projektboard: `https://github.com/users/YoungJibbit95/projects/2`
 - `Global Assets Layer` (`assets/global`)
 - `Nexus Core Layer` (`packages/nexus-core`)
 - `Nexus API Layer` (`API/nexus-api`)
+- `Schemas Layer` (`API/schemas`)
+- `Control Plane Layer` (`API/nexus-control-plane`)
+- `Control UI Layer` (`Nexus Control`)
 - `App Integrations` (Main, Mobile, Code, Code Mobile)
 
 ## Empfohlene Card-Aufteilung
 
-- Card 1: Ecosystem Core und Alias-Verdrahtung
-- Card 2: NexusAPI Connection Bus
-- Card 3: NexusAPI Performance Manager
-- Card 4: Global Assets und Performance Budgets
-- Card 5: App-Integration und Verifikation
+- Card 1: Runtime Plane Hardening (`@nexus/api`)
+- Card 2: Control Plane Auth + RBAC
+- Card 3: Config + Policy APIs
+- Card 4: Command API + Idempotency
+- Card 5: Event Ingest + Metrics Summary
+- Card 6: Nexus Control UI Dashboard
+- Card 7: Nexus Control UI Settings + Guides
+- Card 8: Verify/Build Pipeline Erweiterung
+- Card 9: Security Review + Passwortrotation
+- Card 10: GitHub Security Governance (Branch Protection, CODEOWNERS, Required Checks)

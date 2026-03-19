@@ -2,121 +2,107 @@
 
 # 🚀 Nexus Ecosystem
 
-**Ein verbundenes Multi-App-System für `Nexus Main`, `Nexus Mobile`, `Nexus Code` und `Nexus Code Mobile`**
+**Ein verbundenes Multi-App-System mit zentralem Control Plane und Control UI**
 
 [![Repo](https://img.shields.io/badge/GitHub-Nexus--Ecosystem-181717?style=for-the-badge&logo=github)](https://github.com/YoungJibbit95/Nexus-Ecosystem)
-![Apps](https://img.shields.io/badge/Apps-4-22c55e?style=for-the-badge)
+![Apps](https://img.shields.io/badge/Apps-5-22c55e?style=for-the-badge)
 ![Shared API](https://img.shields.io/badge/Shared-NexusAPI-f59e0b?style=for-the-badge)
-![Build](https://img.shields.io/badge/Build-Ecosystem-0ea5e9?style=for-the-badge)
+![Control Plane](https://img.shields.io/badge/Control-Plane+UI-0ea5e9?style=for-the-badge)
 
 </div>
 
 > [!IMPORTANT]
-> Dieses Repository ist als **Ecosystem-Monorepo** aufgebaut: Alle Nexus-Versionen arbeiten über eine gemeinsame API-, Core- und Asset-Schicht zusammen.
-
-> [!TIP]
-> Wenn du nur testen willst: direkt zu **[🧪 Schnellstart für Nutzer](#-schnellstart-für-nutzer)** springen.
+> Das Ecosystem ist jetzt in **Runtime Plane** (`@nexus/api` in den Apps) und **Control Plane** (`API/nexus-control-plane` + `Nexus Control`) aufgeteilt.
 
 ## ✨ Inhaltsverzeichnis
 
 - [🎯 Was ist das Nexus Ecosystem?](#-was-ist-das-nexus-ecosystem)
-- [🧩 Ecosystem-Komponenten](#-ecosystem-komponenten)
-- [🏗️ Architektur auf einen Blick](#️-architektur-auf-einen-blick)
+- [🧩 Komponenten](#-komponenten)
+- [🏗️ Architektur](#️-architektur)
 - [🧪 Schnellstart für Nutzer](#-schnellstart-für-nutzer)
 - [🛠️ Setup für Entwickler](#️-setup-für-entwickler)
+- [⚙️ Control Plane + UI starten](#️-control-plane--ui-starten)
+- [🔐 Security-Features](#-security-features)
 - [📦 Build-System & Artefakte](#-build-system--artefakte)
-- [📱 Mobile Build (Android/iOS)](#-mobile-build-androidios)
-- [⚡ NexusAPI & Performance](#-nexusapi--performance)
+- [🧭 API-Konfiguration in Apps](#-api-konfiguration-in-apps)
 - [📋 GitHub Project Workflow](#-github-project-workflow)
 - [🧯 Troubleshooting](#-troubleshooting)
-- [📚 Weitere Doku](#-weitere-doku)
+- [📚 Doku](#-doku)
 
 ## 🎯 Was ist das Nexus Ecosystem?
 
-Das Nexus Ecosystem verbindet mehrere Apps zu einer gemeinsamen Plattform:
+Ein Monorepo mit mehreren Nexus-Apps, die ueber gemeinsame Runtime-, API- und Control-Layer zusammenarbeiten.
 
-- **Einheitliches Design- und Runtime-Verhalten** über Main + Mobile
-- **Geteilte Kommunikation** über `API/nexus-api`
-- **Globale Assets** (Branding, Topologie, Performance Budgets)
-- **Zentraler Build-Flow** mit einem gemeinsamen `build/`-Ordner
+Ziele:
 
-Ziel: schnelle Weiterentwicklung bei stabiler Performance und klarer Wartbarkeit.
+- konsistente Features ueber Desktop und Mobile
+- zentrale Steuerung und Beobachtbarkeit
+- hohe Wartbarkeit durch gemeinsame Contracts
+- performance-orientierte Build- und Verify-Pipeline
 
-## 🧩 Ecosystem-Komponenten
+## 🧩 Komponenten
 
-| Bereich | Pfad | Zweck |
+| Bereich | Pfad | Rolle |
 |---|---|---|
 | Nexus Main | `Nexus Main/` | Desktop-App (Electron + React) |
 | Nexus Mobile | `Nexus Mobile/` | Mobile App (Capacitor + React) |
-| Nexus Code | `Nexus Code/` | Entwickler-/Code-Workspace (Desktop) |
-| Nexus Code Mobile | `Nexus Code Mobile/` | Entwickler-/Code-Workspace (Mobile) |
-| NexusAPI | `API/nexus-api/` | Verbindungen, Sync-Events, Performance-Monitoring |
-| Shared Core | `packages/nexus-core/` | Gemeinsame Runtime-, UI- und View-Metadaten |
-| Global Assets | `assets/global/` | Branding, Connection-Topologie, Performance-Budgets |
-| Build Tooling | `tools/` | Ecosystem Build + Verification |
+| Nexus Code | `Nexus Code/` | Dev-/Code-App (Desktop) |
+| Nexus Code Mobile | `Nexus Code Mobile/` | Dev-/Code-App (Mobile) |
+| Nexus Control | `Nexus Control/` | Zentrale Management-UI |
+| NexusAPI | `API/nexus-api/` | Shared Runtime API (Connection, Perf, Control Client) |
+| Nexus Control Plane | `API/nexus-control-plane/` | Backend fuer Auth, Config, Policies, Commands, Audit |
+| Nexus Schemas | `API/schemas/` | Zentrale Contracts und Validatoren |
+| Shared Core | `packages/nexus-core/` | Gemeinsame Runtime/UI-Helfer |
+| Global Assets | `assets/global/` | Branding, Topologie, Budgets |
 
-## 🏗️ Architektur auf einen Blick
+## 🏗️ Architektur
 
 ```mermaid
 flowchart LR
-    A["Nexus Main"] --> E["NexusAPI Runtime"]
-    B["Nexus Mobile"] --> E
-    C["Nexus Code"] --> E
-    D["Nexus Code Mobile"] --> E
+  A["Nexus Main"] --> R["@nexus/api Runtime"]
+  B["Nexus Mobile"] --> R
+  C["Nexus Code"] --> R
+  D["Nexus Code Mobile"] --> R
 
-    E --> F["Connection Manager\n(BroadcastChannel + localStorage Fallback)"]
-    E --> G["Performance Manager\n(View, Paint, Long Tasks, Heap)"]
+  R --> E["Connection Manager\n(Event Bus + Guards)"]
+  R --> F["Performance Manager\n(Metrics + Summary)"]
+  R --> G["Control Client\n(Event Forwarding)"]
 
-    H["packages/nexus-core"] --> A
-    H --> B
-    H --> C
-    H --> D
+  G --> H["Nexus Control Plane\nAuth / Config / Policies / Commands / Audit"]
+  I["Nexus Control UI"] --> H
 
-    I["assets/global\nbranding / topology / budgets"] --> E
+  J["API/schemas"] --> H
+  K["packages/nexus-core"] --> A
+  K --> B
+  L["assets/global"] --> R
 ```
 
 ## 🧪 Schnellstart für Nutzer
 
-Dieser Weg ist für alle, die das Ecosystem **einfach starten und testen** wollen.
-
-### 1. Repository klonen
+### 1) Klonen
 
 ```bash
 git clone https://github.com/YoungJibbit95/Nexus-Ecosystem.git
 cd Nexus-Ecosystem
 ```
 
-### 2. Abhängigkeiten installieren
+### 2) Setup ausfuehren
 
 ```bash
-npm --prefix "./Nexus Main" install
-npm --prefix "./Nexus Mobile" install
-npm --prefix "./Nexus Code" install
-npm --prefix "./Nexus Code Mobile" install
+npm run setup
 ```
 
-### 3. Komplett-Build ausführen
+Der Setup-Command installiert alle relevanten Teilprojekte und legt `.env.local` Defaults fuer App->Control-Plane Kommunikation an.
+
+### 3) Komplett bauen
 
 ```bash
 npm run build
 ```
 
-### 4. Ergebnisse nutzen
+### 4) Ergebnis ansehen
 
-Alle gebauten Ergebnisse landen zentral in `build/`.
-
-| Ergebnis | Ort |
-|---|---|
-| Nexus Main Build | `build/Nexus Main/` |
-| Nexus Mobile Build | `build/Nexus Mobile/` |
-| Nexus Code Build | `build/Nexus Code/` |
-| Nexus Code Mobile Build | `build/Nexus Code Mobile/` |
-| Shared API Snapshot | `build/API/nexus-api/` |
-| Shared Assets Snapshot | `build/assets/global/` |
-| Build-Protokoll | `build/manifest.json` |
-
-> [!NOTE]
-> Wenn dein Android SDK korrekt eingerichtet ist, werden APK/AAB-Artefakte automatisch in den jeweiligen Mobile-Build-Ordner übernommen.
+Alle Artefakte landen zentral in `build/`.
 
 ## 🛠️ Setup für Entwickler
 
@@ -124,35 +110,91 @@ Alle gebauten Ergebnisse landen zentral in `build/`.
 
 | Tool | Empfehlung |
 |---|---|
-| Node.js | 20.x oder neuer |
-| npm | 10.x oder neuer |
-| Android Studio (optional) | Für Android-Build/Tests |
-| Xcode (optional, macOS) | Für iOS-Build/Tests |
+| Node.js | 20.x+ |
+| npm | 10.x+ |
+| Android Studio (optional) | Android Builds |
+| Xcode (optional, macOS) | iOS Builds |
 
-### Lokale Entwicklung starten
-
-Vom Repo-Root aus:
+### App-Entwicklung (Runtime Plane)
 
 ```bash
-npm run dev:main
+npm run dev:all       # kompletter Dev-Stack (Control + Main + Mobile + Code)
+npm run dev:main      # Nexus Main in Electron
+npm run dev:main:web  # Nexus Main nur im Browser (Vite)
 npm run dev:mobile
 npm run dev:code
 npm run dev:code-mobile
 ```
 
-> [!TIP]
-> Nutze je App ein eigenes Terminal-Fenster, um alle Targets parallel laufen zu lassen.
+Admin-/Device-Bootstrap (lokal):
 
-<details>
-<summary><strong>Warum ist alles verbunden, aber Mobile bleibt mobil-optimiert?</strong></summary>
+```bash
+# User auf admin setzen/erstellen + optional Device direkt freischalten
+npm run security:make-admin -- --username <deinName> --password <deinPasswort> --device-id <deineDeviceId>
 
-- Gemeinsame Runtime- und View-Meta-Standards kommen aus `packages/nexus-core`
-- Alle Apps nutzen `@nexus/api` für übergreifende Kommunikation
-- Mobile Shell (Safe Area, Navigation, Touch-Flow) bleibt gerätespezifisch
+# einzelnes Device freischalten
+npm run security:approve-device -- --device-id <deineDeviceId> --roles admin,developer
+```
 
-Dadurch bekommst du konsistente Features + UX ohne Mobile-Layouts zu „verdesktoppen“.
+## ⚙️ Control Plane + UI starten
 
-</details>
+### 1) Control Plane starten
+
+```bash
+npm run dev:control-plane
+```
+
+Default URL: `http://localhost:4399`
+
+### 2) Control UI starten
+
+```bash
+npm run dev:control
+```
+
+Default URL: `http://localhost:5180`
+
+### 3) Alles in einem Schritt starten (inkl. Browser öffnen)
+
+```bash
+npm run dev:control:open
+```
+
+Startet Control Plane + Control UI und öffnet automatisch `http://localhost:5180`.
+
+### 3) Einloggen
+
+Lokale Default-Accounts:
+
+- `admin / change-me-now`
+- `developer / developer-local`
+- `viewer / viewer-local`
+
+> [!WARNING]
+> Default-Zugangsdaten sind nur fuer lokale Entwicklung gedacht und muessen in produktiven Umgebungen ersetzt werden.
+
+## 🔐 Security-Features
+
+- Rollenbasiertes API-Modell (`admin`, `developer`, `viewer`, `agent`)
+- Device-Verification fuer privilegierte Rollen (`admin`, `developer`)
+- Sliding-Window Rate Limiting im Control Plane
+- Idempotency-Key Support fuer Commands
+- Ingest-Schutz via Bearer Token oder `X-Nexus-Ingest-Key`
+- CORS-Policy ueber `trustedOrigins`
+- Payload-Guards in `NexusConnectionManager` (`maxPayloadBytes`)
+- Event-Validation und Event-Age Guards
+- Audit-Log fuer sicherheitsrelevante Aktionen
+
+Admin/Developer-Logins sind nur mit `X-Nexus-Device-Id` und freigegebenem Geraet moeglich.
+
+Default `trustedOrigins` (lokal) sind auf die bekannten Dev-Origins begrenzt:
+
+- `http://localhost:5173-5176` (Main/Mobile/Code/Code Mobile)
+- `http://localhost:5180-5181` (Control UI Dev/Preview)
+- `http://127.0.0.1:5173-5176` und `http://127.0.0.1:5180-5181`
+- `capacitor://localhost`, `ionic://localhost`
+
+Die Wildcard `*` sollte fuer sichere Setups nicht verwendet werden.
 
 ## 📦 Build-System & Artefakte
 
@@ -160,120 +202,110 @@ Dadurch bekommst du konsistente Features + UX ohne Mobile-Layouts zu „verdeskt
 
 | Command | Zweck |
 |---|---|
-| `npm run build` | Voller Ecosystem-Build inkl. Android-Versuch |
+| `npm run setup` | Vollstaendiges Local Setup (Install + `.env.local` Defaults) |
+| `npm run dev:all` | Startet alle Dev-relevanten Services gemeinsam |
+| `npm run dev:all:no-open` | Wie `dev:all`, aber ohne Browser-Autostart |
+| `npm run security:make-admin -- --username ... --password ...` | Admin-User lokal erstellen/aktualisieren |
+| `npm run security:approve-device -- --device-id ...` | Device lokal fuer Rollen freischalten |
+| `npm run build` | Voller Ecosystem Build (inkl. Android-Versuch) |
 | `npm run build:ecosystem:fast` | Schneller Build ohne Android-Versuch |
-| `npm run build:main` | Nur Nexus Main bauen |
-| `npm run build:mobile` | Nur Nexus Mobile bauen |
-| `npm run build:code` | Nur Nexus Code bauen |
-| `npm run build:code-mobile` | Nur Nexus Code Mobile bauen |
-| `npm run verify:ecosystem` | API-/Layout-/Integrations-Checks |
+| `npm run build:apps` | Alle Frontend-Apps bauen |
+| `npm run build:control-plane` | Control Plane Build Snapshot |
+| `npm run verify:ecosystem` | Integrations-/Security-/Layout-Checks |
 
-### Build-Ordnerstruktur
+### Build-Ordner
 
 ```text
 build/
 ├── API/
-│   └── nexus-api/
+│   ├── nexus-api/
+│   ├── nexus-control-plane/
+│   └── schemas/
 ├── Nexus Main/
 ├── Nexus Mobile/
 ├── Nexus Code/
 ├── Nexus Code Mobile/
+├── Nexus Control/
 ├── assets/
 │   └── global/
 └── manifest.json
 ```
 
-## 📱 Mobile Build (Android/iOS)
+## 🧭 API-Konfiguration in Apps
 
-### Nexus Mobile
+Alle Apps koennen optional in die Control Plane reporten.
 
-```bash
-npm --prefix "./Nexus Mobile" run cap:build:android
-npm --prefix "./Nexus Mobile" run cap:build:ios
-```
+Vite Env Variablen:
 
-### Nexus Code Mobile
+- `VITE_NEXUS_CONTROL_URL` (z. B. `http://localhost:4399`)
+- `VITE_NEXUS_CONTROL_INGEST_KEY` (passend zur Policy)
 
-```bash
-npm --prefix "./Nexus Code Mobile" run cap:sync
-npm --prefix "./Nexus Code Mobile" run cap:android
-npm --prefix "./Nexus Code Mobile" run cap:ios
-```
-
-> [!WARNING]
-> Ohne korrektes SDK (`ANDROID_HOME`, `ANDROID_SDK_ROOT`, Xcode Tools) kann kein natives Artefakt erzeugt werden.
-
-## ⚡ NexusAPI & Performance
-
-`API/nexus-api` ist die zentrale Schicht für app-übergreifende Runtime-Prozesse.
-
-### Kernpunkte
-
-- Connection-Management zwischen allen 4 Nexus-Apps
-- Event-Bus mit Fallback-Strategie (`BroadcastChannel` -> `localStorage`)
-- State-Sync + Navigation-Sync
-- Performance-Metriken mit Schutzmechanismen (Rate Limits + Ring Buffer)
-
-### Beispielintegration
-
-```ts
-import { createNexusRuntime } from '@nexus/api'
-
-const runtime = createNexusRuntime({
-  appId: 'main',
-  appVersion: '5.0.0'
-})
-
-runtime.start()
-runtime.connection.syncState('main.activeView', 'dashboard')
-runtime.performance.trackViewRender('main:dashboard')
-```
+Wenn `VITE_NEXUS_CONTROL_URL` gesetzt ist, aktiviert `createNexusRuntime(...)` automatisch den Control Client.
 
 ## 📋 GitHub Project Workflow
 
-- Repository: [Nexus-Ecosystem](https://github.com/YoungJibbit95/Nexus-Ecosystem)
-- Project Board: [Project #2](https://github.com/users/YoungJibbit95/projects/2)
+- Repo: [Nexus-Ecosystem](https://github.com/YoungJibbit95/Nexus-Ecosystem)
+- Board: [Project #2](https://github.com/users/YoungJibbit95/projects/2)
 
-Empfohlener Flow pro Feature:
+Empfohlener Flow:
 
-1. Card/Issue im Project anlegen
-2. Branch + Umsetzung im passenden Modul
-3. `npm run build` und `npm run verify:ecosystem` lokal ausführen
-4. PR mit Card verlinken
-5. Nach Merge Card in den nächsten Status verschieben
+1. Card/Issue anlegen
+2. Branch + Umsetzung
+3. `npm run verify:ecosystem` und `npm run build`
+4. PR mit Project Card verknuepfen
+5. Nach Merge Card weiterschieben
+
+Zusatz fuer Security-Governance auf GitHub:
+
+1. Branch Protection auf `main` aktivieren
+2. Required Status Check: `Security Verify`
+3. CODEOWNERS-Reviews fuer API/Electron/Tooling erzwingen
 
 ## 🧯 Troubleshooting
 
 <details>
-<summary><strong>Build bricht mit fehlenden Modulen ab</strong></summary>
+<summary><strong>Control UI kann sich nicht einloggen</strong></summary>
 
-In mindestens einem App-Ordner fehlen Dependencies. Die Install-Commands im Root-README einmal vollständig ausführen.
-
-</details>
-
-<details>
-<summary><strong>Android-Artefakt fehlt im <code>build/</code>-Ordner</strong></summary>
-
-Android SDK oder Umgebungsvariablen sind nicht verfügbar. Prüfe `ANDROID_HOME` und `ANDROID_SDK_ROOT` und starte dann erneut `npm run build`.
+- laeuft der Control Plane Dienst auf der eingestellten URL?
+- stimmt Benutzername/Passwort?
+- ist im UI die richtige API URL hinterlegt?
+- wird `X-Nexus-Device-Id` gesetzt (im UI unter API Settings sichtbar)?
+- ist das Device fuer die Rolle (`admin`/`developer`) freigegeben?
 
 </details>
 
 <details>
-<summary><strong>Port-Konflikte in der Entwicklung</strong></summary>
+<summary><strong>Apps erscheinen als stale im Dashboard</strong></summary>
 
-Die Apps nutzen eigene Dev-Ports (`5173`-`5176`). Schließe alte Prozesse oder ändere den Port in der jeweiligen Vite-Konfiguration.
+- App laeuft nicht oder reportet nicht an die Control Plane
+- `VITE_NEXUS_CONTROL_URL`/Ingest-Key fehlen oder sind falsch
+- `trustedOrigins` decken den App-Origin nicht ab
 
 </details>
 
-## 📚 Weitere Doku
+<details>
+<summary><strong>Android-Artefakte fehlen im Build</strong></summary>
+
+- `ANDROID_HOME` oder `ANDROID_SDK_ROOT` nicht gesetzt
+- Gradle/SDK lokal nicht verfuegbar
+
+</details>
+
+## 📚 Doku
 
 - [NEXUS_API.md](./docs/NEXUS_API.md)
 - [PROJECT_BOARD.md](./docs/PROJECT_BOARD.md)
+- [ENVIRONMENT.md](./docs/ENVIRONMENT.md)
+- [SECURITY.md](./docs/SECURITY.md)
+- [API/nexus-api/README.md](./API/nexus-api/README.md)
+- [API/nexus-control-plane/README.md](./API/nexus-control-plane/README.md)
+- [API/schemas/README.md](./API/schemas/README.md)
+- [Nexus Control/README.md](./Nexus%20Control/README.md)
 
 ---
 
 <div align="center">
 
-**Nexus Ecosystem** • Eine gemeinsame Basis für produktive Desktop- und Mobile-Apps ⚙️📱💻
+**Nexus Ecosystem** • Runtime Plane + Control Plane fuer robuste, skalierbare Nexus-Apps ⚙️
 
 </div>

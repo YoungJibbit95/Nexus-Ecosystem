@@ -2,6 +2,57 @@
 const { ipcMain, Notification } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
+
+const MAX_READ_BYTES = 5 * 1024 * 1024;
+const MAX_WRITE_BYTES = 2 * 1024 * 1024;
+
+const resolveAllowedRoots = () => {
+  const envValue = process.env.NEXUS_ALLOWED_FS_ROOTS;
+  const roots = envValue
+    ? envValue.split(path.delimiter).map((entry) => entry.trim()).filter(Boolean)
+    : [os.homedir()];
+
+  return roots.map((root) => path.resolve(root));
+};
+
+const ALLOWED_ROOTS = resolveAllowedRoots();
+
+const normalizePathInput = (value) => {
+  if (typeof value !== 'string') {
+    return { ok: false, error: 'invalid path type' };
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed || trimmed.length > 500) {
+    return { ok: false, error: 'invalid path value' };
+  }
+
+  return { ok: true, value: path.resolve(trimmed) };
+};
+
+const isWithinRoot = (targetPath, rootPath) => {
+  const relative = path.relative(rootPath, targetPath);
+  return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
+};
+
+const isPathAllowed = (targetPath) => ALLOWED_ROOTS.some((rootPath) => isWithinRoot(targetPath, rootPath));
+
+const assertAllowedPath = (inputPath) => {
+  const normalized = normalizePathInput(inputPath);
+  if (!normalized.ok) {
+    return { ok: false, error: normalized.error };
+  }
+
+  if (!isPathAllowed(normalized.value)) {
+    return {
+      ok: false,
+      error: `path not allowed; configure NEXUS_ALLOWED_FS_ROOTS (${ALLOWED_ROOTS.join(', ')})`,
+    };
+  }
+
+  return { ok: true, value: normalized.value };
+};
 
 function registerWindowHandlers(getMainWindow) {
   ipcMain.handle('window:minimize', () => getMainWindow()?.minimize());
@@ -17,7 +68,20 @@ function registerWindowHandlers(getMainWindow) {
 function registerFileHandlers() {
   ipcMain.handle('fs:read', async (_, filePath) => {
     try {
-      return { ok: true, data: fs.readFileSync(filePath, 'utf-8') };
+      const check = assertAllowedPath(filePath);
+      if (!check.ok) {
+        return { ok: false, error: check.error };
+      }
+
+      const stats = fs.statSync(check.value);
+      if (!stats.isFile()) {
+        return { ok: false, error: 'path is not a file' };
+      }
+      if (stats.size > MAX_READ_BYTES) {
+        return { ok: false, error: `file too large (${stats.size} bytes)` };
+      }
+
+      return { ok: true, data: fs.readFileSync(check.value, 'utf-8') };
     } catch (e) {
       return { ok: false, error: e.message };
     }
@@ -25,8 +89,22 @@ function registerFileHandlers() {
 
   ipcMain.handle('fs:write', async (_, filePath, content) => {
     try {
-      fs.mkdirSync(path.dirname(filePath), { recursive: true });
-      fs.writeFileSync(filePath, content, 'utf-8');
+      const check = assertAllowedPath(filePath);
+      if (!check.ok) {
+        return { ok: false, error: check.error };
+      }
+
+      if (typeof content !== 'string') {
+        return { ok: false, error: 'content must be a string' };
+      }
+
+      const payloadSize = Buffer.byteLength(content, 'utf8');
+      if (payloadSize > MAX_WRITE_BYTES) {
+        return { ok: false, error: `content too large (${payloadSize} bytes)` };
+      }
+
+      fs.mkdirSync(path.dirname(check.value), { recursive: true });
+      fs.writeFileSync(check.value, content, 'utf-8');
       return { ok: true };
     } catch (e) {
       return { ok: false, error: e.message };
@@ -49,4 +127,3 @@ function registerIpcHandlers(getMainWindow) {
 }
 
 module.exports = { registerIpcHandlers };
-

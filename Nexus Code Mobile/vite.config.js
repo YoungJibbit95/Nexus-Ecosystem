@@ -19,6 +19,9 @@ export default defineConfig({
     fs: {
       allow: [path.resolve(__dirname, "..")],
     },
+    watch: {
+      ignored: ["**/android/**", "**/ios/**", "**/dist/**", "**/build/**"],
+    },
   },
   // Monaco Worker muss als ES-Modul gebundelt werden
   worker: {
@@ -51,6 +54,9 @@ export default defineConfig({
         },
       },
     },
+  },
+  optimizeDeps: {
+    entries: ["index.html"],
   },
   // Verhindert "process is not defined" Fehler in WebView
   define: {

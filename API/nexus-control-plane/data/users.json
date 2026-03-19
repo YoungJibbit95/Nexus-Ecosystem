@@ -1,0 +1,26 @@
+[
+  {
+    "id": "u_admin",
+    "username": "admin",
+    "role": "admin",
+    "passwordHash": "ccc0b903bce51fb554262d742d0a282e1f8a87d064f1cf44f8ff5148ca4beb42"
+  },
+  {
+    "id": "u_dev",
+    "username": "developer",
+    "role": "developer",
+    "passwordHash": "bac2f6739b794ea16ed5f9dab318f11e106f99ca0614d24e3377490bca8fa20c"
+  },
+  {
+    "id": "u_viewer",
+    "username": "viewer",
+    "role": "viewer",
+    "passwordHash": "ed3ac73a0fb1340d84a7c6861a346347d46ff114e24e31c56b563bb0c9d2d581"
+  },
+  {
+    "id": "u_youngjibbit",
+    "username": "youngjibbit",
+    "role": "admin",
+    "passwordHash": "9b3c4f51e2bb6b6c80e34172d458287c159f4dbbaaa8a900df83c36e6e7301d9"
+  }
+]
