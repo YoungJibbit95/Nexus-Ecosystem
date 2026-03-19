@@ -1,0 +1,6 @@
+{
+  "controlApiUrl": "http://127.0.0.1:4399",
+  "bootstrapPath": "/api/v1/public/bootstrap",
+  "privateRepoHint": "YoungJibbit95/NexusAPI",
+  "forceApiUrl": false
+}
