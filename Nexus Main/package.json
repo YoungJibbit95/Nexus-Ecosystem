@@ -1,0 +1,108 @@
+{
+  "name": "nexus-3",
+  "version": "5.0.0",
+  "type": "module",
+  "description": "modern code editor, notepad, reminder system and todo list",
+  "author": "youngjibbit95",
+  "main": "electron-main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder",
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "electron:dev": "concurrently -k \"vite\" \"wait-on http://localhost:5173 && electron .\"",
+    "electron:build": "npm run build && electron-builder --win",
+    "electron:build:mac": "npm run build && electron-builder --mac"
+  },
+  "files": [
+    "dist/**/*",
+    "electron/**",
+    "dist-electron/**/*",
+    "package.json"
+  ],
+  "dependencies": {
+    "@monaco-editor/react": "^4.6.0",
+    "clsx": "^2.0.0",
+    "framer-motion": "^10.18.0",
+    "lucide-react": "^0.294.0",
+    "react": "^18.2.0",
+    "react-dnd": "^16.0.1",
+    "react-dnd-html5-backend": "^16.0.1",
+    "react-dom": "^18.2.0",
+    "react-markdown": "^9.0.1",
+    "remark-gfm": "^4.0.0",
+    "zustand": "^4.4.7",
+    "monaco-editor": "^0.44.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.6",
+    "@types/react": "^18.2.46",
+    "@types/react-dom": "^18.2.18",
+    "@vitejs/plugin-react": "^4.2.1",
+    "autoprefixer": "^10.4.16",
+    "concurrently": "^8.2.2",
+    "electron": "^28.3.3",
+    "electron-builder": "^24.13.3",
+    "postcss": "^8.4.32",
+    "tailwindcss": "^3.4.0",
+    "typescript": "^5.3.3",
+    "vite": "^5.0.10",
+    "wait-on": "^7.2.0"
+  },
+  "build": {
+    "appId": "com.youngjibbit95.nexus",
+    "productName": "Nexus v5.0",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "**/*"
+    ],
+    "win": {
+      "icon": "assets/icons/NexusLogo1.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "forceCodeSigning": false
+    },
+    "mac": {
+      "icon": "assets/icons/NexusLogo1.icns",
+      "category": "public.app-category.productivity",
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false,
+      "target": [
+        {
+          "target": "dmg",
+          "arch": ["arm64", "x64"]
+        }
+      ]
+    },
+    "dmg": {
+      "title": "Nexus v5.0",
+      "artifactName": "Nexus_v5_${arch}.dmg"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": true,
+      "allowElevation": true,
+      "artifactName": "Nexus_v5_Setup.exe",
+      "installerIcon": "assets/icons/NexusLogo1.ico",
+      "uninstallerIcon": "assets/icons/NexusLogo1.ico"
+    }
+  },
+  "extraResources": [
+    {
+      "from": "assets/",
+      "to": "assets",
+      "filter": [
+        "**/*"
+      ]
+    }
+  ]
+}
