@@ -15,8 +15,8 @@
       "@/*": ["./src/*"],
       "@nexus/core": ["../packages/nexus-core/src/index.ts"],
       "@nexus/core/*": ["../packages/nexus-core/src/*"],
-      "@nexus/api": ["../packages/nexus-api/src/index.ts"],
-      "@nexus/api/*": ["../packages/nexus-api/src/*"]
+      "@nexus/api": ["../API/nexus-api/src/index.ts"],
+      "@nexus/api/*": ["../API/nexus-api/src/*"]
     }
   },
   "include": ["src"]

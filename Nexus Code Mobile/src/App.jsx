@@ -38,15 +38,26 @@ function App() {
   }, [runtime]);
 
   return (
-    <Router>
-      <NexusBridge runtime={runtime} />
-      <Routes>
-        <Route path="/" element={<Navigate to="/editor" replace />} />
-        <Route path="/editor" element={<Editor />} />
-        <Route path="*" element={<Navigate to="/editor" replace />} />
-      </Routes>
-      <Toaster />
-    </Router>
+    <div
+      style={{
+        width: "100%",
+        height: "100%",
+        minHeight: "100dvh",
+        overflow: "hidden",
+        paddingTop: "env(safe-area-inset-top, 0px)",
+        paddingBottom: "env(safe-area-inset-bottom, 0px)",
+      }}
+    >
+      <Router>
+        <NexusBridge runtime={runtime} />
+        <Routes>
+          <Route path="/" element={<Navigate to="/editor" replace />} />
+          <Route path="/editor" element={<Editor />} />
+          <Route path="*" element={<Navigate to="/editor" replace />} />
+        </Routes>
+        <Toaster />
+      </Router>
+    </div>
   );
 }
 

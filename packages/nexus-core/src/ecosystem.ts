@@ -46,3 +46,4 @@ export const NEXUS_ECOSYSTEM_APPS: NexusAppTarget[] = [
 export const NEXUS_ECOSYSTEM_VERSION = '2026.03'
 export const NEXUS_GLOBAL_ASSETS_PATH = 'assets/global'
 export const NEXUS_SHARED_PACKAGES = ['@nexus/core', '@nexus/api'] as const
+export const NEXUS_API_PACKAGE_PATH = 'API/nexus-api'

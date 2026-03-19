@@ -9,7 +9,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
-      "@nexus/api": path.resolve(__dirname, "../packages/nexus-api/src"),
+      "@nexus/api": path.resolve(__dirname, "../API/nexus-api/src"),
     },
   },
   server: {

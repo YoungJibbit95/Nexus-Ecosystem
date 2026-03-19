@@ -11,7 +11,11 @@
     "build:mobile": "npm --prefix \"./Nexus Mobile\" run build",
     "build:code": "npm --prefix \"./Nexus Code\" run build",
     "build:code-mobile": "npm --prefix \"./Nexus Code Mobile\" run build",
-    "build": "npm run build:main && npm run build:mobile",
-    "build:all": "npm run build && npm run build:code && npm run build:code-mobile"
+    "build:apps": "npm run build:main && npm run build:mobile && npm run build:code && npm run build:code-mobile",
+    "build:ecosystem": "node ./tools/build-ecosystem.mjs --with-android",
+    "build:ecosystem:fast": "node ./tools/build-ecosystem.mjs",
+    "build": "npm run build:ecosystem",
+    "build:all": "npm run build:ecosystem",
+    "verify:ecosystem": "node ./tools/verify-ecosystem.mjs"
   }
 }
