@@ -66,8 +66,15 @@ Empfehlung:
 
 - `contextIsolation: true`, `sandbox: true`, `webSecurity: true`
 - Navigation und Popup-Open werden gefiltert
-- Strengere Security Header/CSP
+- Keine globalen Session-Overrides (`defaultSession`, `webRequest`, `setProxy`)
 - IPC Dateizugriffe nur in erlaubten Root-Pfaden (`NEXUS_ALLOWED_FS_ROOTS`) mit Groessenlimits
+
+### Lokale Netzwerkgrenzen
+
+- Interne Server binden ausschliesslich an `127.0.0.1`
+- Kein Binding auf `0.0.0.0`
+- Port-Konflikte werden vor Start erkannt
+- Server reagieren auf `SIGINT`/`SIGTERM` mit sauberem Shutdown
 
 ## 2) So benutzt du die Security richtig
 

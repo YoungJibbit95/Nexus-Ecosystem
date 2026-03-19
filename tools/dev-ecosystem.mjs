@@ -36,25 +36,11 @@ const SERVICES = [
     url: 'http://localhost:5173',
   },
   {
-    id: 'mobile',
-    label: 'Nexus Mobile',
-    args: ['--prefix', './Nexus Mobile', 'run', 'dev'],
-    port: 5174,
-    url: 'http://localhost:5174',
-  },
-  {
     id: 'code',
     label: 'Nexus Code',
     args: ['--prefix', './Nexus Code', 'run', 'dev'],
     port: 5175,
     url: 'http://localhost:5175',
-  },
-  {
-    id: 'code-mobile',
-    label: 'Nexus Code Mobile',
-    args: ['--prefix', './Nexus Code Mobile', 'run', 'dev'],
-    port: 5176,
-    url: 'http://localhost:5176',
   },
 ]
 
@@ -172,7 +158,7 @@ const shutdown = (exitCode = 0) => {
 process.on('SIGINT', () => shutdown(0))
 process.on('SIGTERM', () => shutdown(0))
 
-console.log('Starte Nexus Dev Stack (Control + Main + Mobile + Code)...')
+console.log('Starte Nexus Dev Stack (Control + Main + Code)...')
 
 for (const service of SERVICES) {
   const running = await isPortReachable(service.port)
@@ -208,6 +194,12 @@ try {
     console.log('\nKeine neuen Prozesse gestartet (alle Services liefen bereits).')
     process.exit(0)
   }
+
+  console.log('\nMobile Apps starten nativ via Capacitor:')
+  console.log('- npm run dev:mobile:android   # build + cap sync + Android Studio')
+  console.log('- npm run dev:mobile:ios       # build + cap sync + Xcode')
+  console.log('- npm run dev:code-mobile:android')
+  console.log('- npm run dev:code-mobile:ios')
 
   console.log('\nDruecke Ctrl+C zum Beenden der gestarteten Prozesse.')
 } catch (error) {

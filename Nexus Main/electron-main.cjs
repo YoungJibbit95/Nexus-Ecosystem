@@ -1,7 +1,6 @@
 'use strict';
 const { app, BrowserWindow } = require('electron');
 const { createMainWindow } = require('./electron/main-window.cjs');
-const { applySecurityHeaders } = require('./electron/security.cjs');
 const { registerIpcHandlers } = require('./electron/ipc-handlers.cjs');
 
 let mainWindow = null;
@@ -13,7 +12,6 @@ function bootMainWindow() {
 }
 
 app.whenReady().then(() => {
-  applySecurityHeaders({ isDev: !app.isPackaged });
   registerIpcHandlers(() => mainWindow);
   bootMainWindow();
 });

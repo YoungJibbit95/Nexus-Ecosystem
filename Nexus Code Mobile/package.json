@@ -7,7 +7,10 @@
   "author": "youngjibbit95",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "npm run cap:android",
+    "dev:web": "vite",
+    "dev:android": "npm run cap:android",
+    "dev:ios": "npm run cap:ios",
     "build": "vite build",
     "preview": "vite preview",
     "lint": "eslint . --quiet",

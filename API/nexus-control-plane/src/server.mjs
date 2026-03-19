@@ -1,4 +1,5 @@
 import http from 'node:http'
+import net from 'node:net'
 import { URL } from 'node:url'
 import {
   normalizeAppId,
@@ -14,8 +15,41 @@ import {
 } from './security.mjs'
 import { ControlPlaneStore } from './store.mjs'
 
-const PORT = Number(process.env.NEXUS_CONTROL_PORT || 4399)
-const HOST = process.env.NEXUS_CONTROL_HOST || '0.0.0.0'
+const DEFAULT_PORT = 4399
+const rawPort = Number(process.env.NEXUS_CONTROL_PORT || DEFAULT_PORT)
+const PORT = Number.isInteger(rawPort) && rawPort > 0 && rawPort <= 65535 ? rawPort : DEFAULT_PORT
+
+const requestedHost = String(process.env.NEXUS_CONTROL_HOST || '127.0.0.1').trim()
+const loopbackHosts = new Set(['127.0.0.1', 'localhost'])
+const HOST = loopbackHosts.has(requestedHost) ? '127.0.0.1' : '127.0.0.1'
+
+if (!loopbackHosts.has(requestedHost)) {
+  console.warn(`[security] Ignoriere NEXUS_CONTROL_HOST=${requestedHost}. Erzwinge 127.0.0.1`)
+}
+
+const assertPortAvailable = (port, host) => new Promise((resolve, reject) => {
+  const probe = net.createServer()
+
+  probe.once('error', (error) => {
+    if (error?.code === 'EADDRINUSE') {
+      reject(new Error(`Port ${port} auf ${host} ist bereits belegt`))
+      return
+    }
+    reject(error)
+  })
+
+  probe.once('listening', () => {
+    probe.close((closeError) => {
+      if (closeError) {
+        reject(closeError)
+        return
+      }
+      resolve(true)
+    })
+  })
+
+  probe.listen(port, host)
+})
 
 const store = new ControlPlaneStore()
 await store.init()
@@ -596,6 +630,36 @@ const server = http.createServer(async (req, res) => {
   }
 })
 
+try {
+  await assertPortAvailable(PORT, HOST)
+} catch (error) {
+  console.error(`Control Plane Start fehlgeschlagen: ${error?.message || 'Port nicht verfuegbar'}`)
+  process.exit(1)
+}
+
+let shuttingDown = false
+const shutdown = (signal) => {
+  if (shuttingDown) return
+  shuttingDown = true
+  console.log(`\nControl Plane shutdown via ${signal}`)
+  server.close(() => {
+    process.exit(0)
+  })
+  setTimeout(() => process.exit(0), 1_500).unref()
+}
+
+server.on('error', (error) => {
+  if (error?.code === 'EADDRINUSE') {
+    console.error(`Control Plane Start fehlgeschlagen: Port ${PORT} bereits belegt`)
+    process.exit(1)
+  }
+  console.error('Control Plane Server Fehler', error)
+  process.exit(1)
+})
+
+process.on('SIGINT', () => shutdown('SIGINT'))
+process.on('SIGTERM', () => shutdown('SIGTERM'))
+
 server.listen(PORT, HOST, () => {
-  console.log(`Nexus Control Plane laeuft auf http://${HOST}:${PORT}`)
+  console.log(`Nexus Control Plane laeuft auf http://127.0.0.1:${PORT}`)
 })

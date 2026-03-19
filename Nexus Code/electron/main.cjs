@@ -6,8 +6,39 @@ const os = require("os");
 
 const DEV = process.env.ELECTRON_DEV === "true";
 const DEV_URL = "http://localhost:5173";
+const NETWORK_MUTATION_PATTERNS = [
+  /\bnetworksetup\b/i,
+  /\bscutil\b/i,
+  /\bnetsh\b/i,
+  /\bpfctl\b/i,
+  /\biptables\b/i,
+  /\bufw\b/i,
+  /\bfirewall-cmd\b/i,
+  /\bSet-Net(Firewall|IP|Connection|DnsClient|Proxy)\b/i,
+  /\broute\b.+\b(add|delete|change)\b/i,
+  /\bifconfig\b.+\b(up|down|alias|-alias)\b/i,
+  /\/etc\/hosts\b/i,
+  /\/etc\/resolv\.conf\b/i,
+  /\bgsettings\b.+\bproxy\b/i,
+];
 
 let mainWindow = null;
+const activeProcesses = new Map();
+
+const isBlockedNetworkMutationCommand = (command) => {
+  const raw = String(command || "").trim();
+  if (!raw) return false;
+  return NETWORK_MUTATION_PATTERNS.some((pattern) => pattern.test(raw));
+};
+
+const terminateActiveProcesses = () => {
+  for (const [id, proc] of activeProcesses.entries()) {
+    try {
+      proc.kill("SIGTERM");
+    } catch {}
+    activeProcesses.delete(id);
+  }
+};
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -25,7 +56,7 @@ function createWindow() {
       preload: path.join(__dirname, "preload.cjs"),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false,
+      sandbox: true,
     },
   });
 
@@ -156,10 +187,17 @@ ipcMain.handle("fs:rename", async (event, oldPath, newPath) => {
 
 // ── IPC: Terminal (Real Shell) ─────────────────────────────────────────────
 
-const activeProcesses = new Map();
-
 ipcMain.on("terminal:run", (event, { id, command, cwd }) => {
   try {
+    if (isBlockedNetworkMutationCommand(command)) {
+      event.sender.send(`terminal:output:${id}`, {
+        type: "error",
+        text: "Blocked: network/system configuration commands are disabled in this app.",
+      });
+      event.sender.send(`terminal:exit:${id}`, 126);
+      return;
+    }
+
     // Use the system shell directly for maximum compatibility
     const proc = spawn(command, [], {
       cwd: cwd || os.homedir(),
@@ -209,6 +247,10 @@ app.whenReady().then(() => {
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();
+});
+
+app.on("before-quit", () => {
+  terminateActiveProcesses();
 });
 
 // Prevent multiple instances
