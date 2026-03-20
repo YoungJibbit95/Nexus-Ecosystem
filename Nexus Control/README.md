@@ -55,7 +55,7 @@ Artefakte: `Nexus Control/dist`
 
 ## Voraussetzungen
 
-- Laufender Control Plane Service (Default: `http://localhost:4399`)
+- Laufender Control Plane Service (Public Default: `https://nexus-api.dev`, lokal optional `http://127.0.0.1:4399`)
 
 ## Runtime Config (UI -> Private API)
 
@@ -87,7 +87,7 @@ Optional vorher in GitHub Repository Variables setzen:
 
 - `NEXUS_CONTROL_PUBLIC_API_URL` -> oeffentliche HTTPS URL deiner Control Plane
 
-Fehlt die Variable, deployt die UI trotzdem mit leerer Runtime-URL und entsperrter API-URL im UI.
+Fehlt die Variable, wird `https://nexus-api.dev` als Runtime-Default gesetzt (API-Feld bleibt editierbar, falls Override noetig ist).
 
 Dann:
 

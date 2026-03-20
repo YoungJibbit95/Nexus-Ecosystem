@@ -4,7 +4,7 @@ export const apiPanelMarkup = () => `
     <form id="api-settings-form" class="grid-2">
       <label>
         Control API URL
-        <input id="api-base-url" type="url" placeholder="http://localhost:4399" required />
+        <input id="api-base-url" type="url" placeholder="https://nexus-api.dev" required />
       </label>
       <label>
         Ingest Key (optional)

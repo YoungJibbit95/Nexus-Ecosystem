@@ -41,19 +41,18 @@ jobs:
       - name: Resolve runtime API URL
         run: |
           API_URL="${{ vars.NEXUS_CONTROL_PUBLIC_API_URL }}"
+          FORCE_API_URL="true"
           if [ -z "$API_URL" ]; then
-            API_URL="https://youngjibbit95.github.io/Nexus-Ecosystem/"
-            echo "::warning::Repository Variable NEXUS_CONTROL_PUBLIC_API_URL fehlt. Runtime API URL bleibt leer (UI bleibt editierbar)."
-            echo "NEXUS_CONTROL_UI_FORCE_API_URL=false" >> "$GITHUB_ENV"
+            API_URL="https://nexus-api.dev"
+            echo "::notice::Repository Variable NEXUS_CONTROL_PUBLIC_API_URL fehlt. Nutze Default $API_URL."
           elif echo "$API_URL" | grep -Eq '^https?://(127\.0\.0\.1|localhost)(:|/|$)'; then
             echo "::warning::NEXUS_CONTROL_PUBLIC_API_URL zeigt auf Loopback ($API_URL). Das funktioniert auf GitHub Pages nicht. UI bleibt editierbar."
-            echo "NEXUS_CONTROL_UI_FORCE_API_URL=false" >> "$GITHUB_ENV"
+            FORCE_API_URL="false"
           elif ! echo "$API_URL" | grep -Eq '^https://'; then
             echo "::warning::NEXUS_CONTROL_PUBLIC_API_URL ist nicht HTTPS ($API_URL). Unter HTTPS Pages sind HTTP-Requests blockiert. UI bleibt editierbar."
-            echo "NEXUS_CONTROL_UI_FORCE_API_URL=false" >> "$GITHUB_ENV"
-          else
-            echo "NEXUS_CONTROL_UI_FORCE_API_URL=true" >> "$GITHUB_ENV"
+            FORCE_API_URL="false"
           fi
+          echo "NEXUS_CONTROL_UI_FORCE_API_URL=$FORCE_API_URL" >> "$GITHUB_ENV"
           echo "NEXUS_CONTROL_UI_DEFAULT_API_URL=$API_URL" >> "$GITHUB_ENV"
 
       - name: Install dependencies

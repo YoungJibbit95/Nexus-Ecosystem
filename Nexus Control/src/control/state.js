@@ -1,5 +1,6 @@
 import {
   DEFAULT_API_URL,
+  DEFAULT_LOCAL_API_URL,
   DEFAULT_RUNTIME_CONFIG,
   SESSION_KEYS,
   STORAGE_KEYS,
@@ -11,9 +12,9 @@ export const hasStoredBaseUrl = localStorage.getItem(STORAGE_KEYS.baseUrl) != nu
 const resolveDefaultBaseUrl = () => {
   const pageHost = String(globalThis.location?.hostname || '').trim().toLowerCase()
   if (!pageHost || isLoopbackHost(pageHost)) {
-    return DEFAULT_API_URL
+    return DEFAULT_LOCAL_API_URL
   }
-  return ''
+  return DEFAULT_API_URL
 }
 
 export const createInitialState = () => ({

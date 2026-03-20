@@ -7,26 +7,37 @@ import { resolveControlPlanePrefixArg } from './lib/api-source.mjs'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const ROOT = path.resolve(__dirname, '..')
-const controlPlaneTarget = await resolveControlPlanePrefixArg({ root: ROOT, quiet: false })
+const cliArgs = new Set(process.argv.slice(2))
+const includeControlPlane = !cliArgs.has('--without-control-plane') && !cliArgs.has('--apps-only')
+const controlPlaneTarget = includeControlPlane
+  ? await resolveControlPlanePrefixArg({ root: ROOT, quiet: false })
+  : null
 
 const skipOpen = String(process.env.NEXUS_CONTROL_NO_OPEN || '').toLowerCase() === 'true'
 const openControlUrl = String(process.env.NEXUS_DEV_OPEN_CONTROL || 'true').toLowerCase() !== 'false'
 
-const SERVICES = [
-  {
-    id: 'control-plane',
-    label: 'Control Plane',
-    args: [...controlPlaneTarget.prefixArgs, 'run', 'dev'],
-    port: Number(process.env.NEXUS_CONTROL_PORT || 4399),
-    url: `http://localhost:${Number(process.env.NEXUS_CONTROL_PORT || 4399)}`,
-  },
-  {
-    id: 'control-ui',
-    label: 'Control UI',
-    args: ['--prefix', './Nexus Control', 'run', 'dev'],
-    port: Number(process.env.NEXUS_CONTROL_UI_PORT || 5180),
-    url: `http://localhost:${Number(process.env.NEXUS_CONTROL_UI_PORT || 5180)}`,
-  },
+const SERVICES = []
+
+if (includeControlPlane && controlPlaneTarget) {
+  SERVICES.push(
+    {
+      id: 'control-plane',
+      label: 'Control Plane',
+      args: [...controlPlaneTarget.prefixArgs, 'run', 'dev'],
+      port: Number(process.env.NEXUS_CONTROL_PORT || 4399),
+      url: `http://localhost:${Number(process.env.NEXUS_CONTROL_PORT || 4399)}`,
+    },
+    {
+      id: 'control-ui',
+      label: 'Control UI',
+      args: ['--prefix', './Nexus Control', 'run', 'dev'],
+      port: Number(process.env.NEXUS_CONTROL_UI_PORT || 5180),
+      url: `http://localhost:${Number(process.env.NEXUS_CONTROL_UI_PORT || 5180)}`,
+    },
+  )
+}
+
+SERVICES.push(
   {
     id: 'main',
     label: 'Nexus Main (Electron + Vite)',
@@ -42,7 +53,7 @@ const SERVICES = [
     port: 5175,
     url: 'http://localhost:5175',
   },
-]
+)
 
 const children = []
 let shuttingDown = false
@@ -158,7 +169,10 @@ const shutdown = (exitCode = 0) => {
 process.on('SIGINT', () => shutdown(0))
 process.on('SIGTERM', () => shutdown(0))
 
-console.log(`Starte Nexus Dev Stack (Control + Main + Code) [api-source=${controlPlaneTarget.source.mode}]...`)
+const stackLabel = includeControlPlane
+  ? `Control + Main + Code [api-source=${controlPlaneTarget.source.mode}]`
+  : 'Main + Code (API extern)'
+console.log(`Starte Nexus Dev Stack (${stackLabel})...`)
 
 for (const service of SERVICES) {
   const running = await isPortReachable(service.port)

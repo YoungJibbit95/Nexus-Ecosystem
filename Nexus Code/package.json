@@ -119,6 +119,9 @@
   "build": {
     "appId": "com.nexus.code",
     "productName": "Nexus Code",
+    "npmRebuild": false,
+    "buildDependenciesFromSource": false,
+    "nodeGypRebuild": false,
     "directories": {
       "output": "release"
     },
