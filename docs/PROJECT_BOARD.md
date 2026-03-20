@@ -31,7 +31,7 @@ Projektboard: `https://github.com/users/YoungJibbit95/projects/2`
 - Card 8: Verify/Build Pipeline Erweiterung
 - Card 9: Security Review + Passwortrotation
 - Card 10: GitHub Security Governance (Branch Protection, CODEOWNERS, Required Checks)
-- Card 11: Control UI GitHub Pages + Private API Handshake
+- Card 11: Control UI Server Deployment + Private API Handshake
 - Card 12: API v2 Contract Layer (Catalog/Layout/Release/Capabilities)
 - Card 13: Shared Core Live-Sync Orchestrator (Main/Mobile + Code/Code-Mobile)
 - Card 14: Control UI Live-Sync Builder + Promotion Flow

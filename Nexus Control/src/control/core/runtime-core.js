@@ -127,7 +127,7 @@ export const createRuntimeCore = ({ state, el, setBootstrapInfo, apiRequest }) =
       const error = new Error('LOOPBACK_URL_ON_HOSTED_UI')
       error.nexusCode = 'LOOPBACK_URL_ON_HOSTED_UI'
       error.nexusMessage = 'Loopback-API URL ist auf gehosteter UI nicht erreichbar.'
-      error.nexusHint = 'Setze NEXUS_CONTROL_PUBLIC_API_URL auf eine oeffentliche HTTPS API URL und deploye die Pages neu.'
+      error.nexusHint = 'Setze eine oeffentliche HTTPS API URL in runtime-config.json oder in den API Einstellungen.'
       throw error
     }
 
@@ -135,7 +135,7 @@ export const createRuntimeCore = ({ state, el, setBootstrapInfo, apiRequest }) =
       const error = new Error('MIXED_CONTENT_BLOCKED')
       error.nexusCode = 'MIXED_CONTENT_BLOCKED'
       error.nexusMessage = 'Mixed Content: HTTPS UI darf nicht gegen HTTP API loggen.'
-      error.nexusHint = 'Nutze eine HTTPS API URL und fuege den Pages-Origin in trustedOrigins hinzu.'
+      error.nexusHint = 'Nutze eine HTTPS API URL und fuege den UI-Origin in trustedOrigins hinzu.'
       throw error
     }
   }

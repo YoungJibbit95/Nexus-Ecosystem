@@ -200,25 +200,19 @@ vor produktiver Nutzung gesetzt bzw. sofort rotiert werden.
 > [!WARNING]
 > Zugangsdaten aus lokalen Bootstrap-Setups duerfen nicht in Docs, Screenshots, Beispieldateien oder Commits landen.
 
-### 4) Control UI auf GitHub Pages (optional)
+### 4) Control UI auf API-Server deployen
 
-Neuer Workflow: `.github/workflows/deploy-control-pages.yml`
+Control Panel wird nicht mehr ueber GitHub Pages deployed.
+Empfohlenes Ziel ist derselbe Server wie die API (`nexus-api.dev`), z. B. als `/control` oder Subdomain.
 
-Optional vor dem Deploy in GitHub Repository Variables setzen:
+Kurzablauf:
 
-- `NEXUS_CONTROL_PUBLIC_API_URL` = oeffentliche HTTPS URL deiner laufenden Control Plane
+1. `npm --prefix "./Nexus Control" run build`
+2. `Nexus Control/dist` auf den Server deployen (Nginx/Caddy/Apache)
+3. `runtime-config.json` mit `controlApiUrl: "https://nexus-api.dev"` ausliefern
+4. Sicherstellen, dass die UI-Origin in `trustedOrigins`/`NEXUS_EXTRA_TRUSTED_ORIGINS` erlaubt ist
 
-Wenn die Variable fehlt, nutzt der Workflow als Default `https://nexus-api.dev`.
-
-Der Workflow baut `Nexus Control/dist` mit Runtime-Config und deployed die UI auf GitHub Pages.
-Die UI verbindet sich dann weiter mit der API ueber `GET /api/v1/public/bootstrap` (Handshake) und die normalen Auth/API-Endpunkte.
-
-Wenn im Control Panel der Fehler erscheint:
-
-`Loopback-API URL ist auf gehosteter UI nicht erreichbar`
-
-dann ist in der Website noch `localhost/127.0.0.1` konfiguriert. Setze eine oeffentliche HTTPS API URL in
-`NEXUS_CONTROL_PUBLIC_API_URL` und fuehre den Pages-Workflow neu aus.
+Details: [`docs/CONTROL_PANEL_HOSTED_SETUP.md`](./docs/CONTROL_PANEL_HOSTED_SETUP.md)
 
 ## 🔐 Security-Features
 
@@ -255,10 +249,10 @@ Default `trustedOrigins` (lokal) sind auf die bekannten Dev-Origins begrenzt:
 - `http://127.0.0.1:5173-5176` und `http://127.0.0.1:5180-5181`
 - `capacitor://localhost`, `ionic://localhost`
 
-Fuer GitHub Pages ist `https://youngjibbit95.github.io` standardmaessig serverseitig erlaubt (`NEXUS_OWNER_PAGES_ORIGIN`).
+Fuer gehostete Control-UIs muessen die echten UI-Origins serverseitig erlaubt sein.
 Weitere Origins kannst du in `trustedOrigins` oder `NEXUS_EXTRA_TRUSTED_ORIGINS` ergaenzen, z. B.:
 
-- `https://youngjibbit95.github.io`
+- `https://nexus-api.dev`
 
 Die Wildcard `*` sollte fuer sichere Setups nicht verwendet werden.
 
@@ -389,7 +383,7 @@ Kurz: Public Core ist sinnvoll, aber der wirklich autoritative Control Plane sol
 - laeuft der Control Plane Dienst auf der eingestellten URL?
 - stimmt Benutzername/Passwort?
 - ist im UI die richtige API URL hinterlegt?
-- wenn UI auf HTTPS (GitHub Pages) laeuft: ist die API ebenfalls HTTPS (kein `http://localhost`/`127.0.0.1`)?
+- wenn UI gehostet auf HTTPS laeuft: ist die API ebenfalls HTTPS (kein `http://localhost`/`127.0.0.1`)?
 - zeigt der Handshake einen CORS-/Origin-Fehler an (`origin nicht trusted`)?
 - wird `X-Nexus-Device-Id` gesetzt (im UI unter API Settings sichtbar)?
 - ist das Device fuer die Rolle (`admin`/`developer`) freigegeben?
