@@ -78,7 +78,6 @@ Empfehlung:
 - Erlaubt sind exakte Origins und optional eng gefasste Subdomain-Patterns wie `https://*.example.com`.
 - Nur Origins eintragen, die wirklich auf die Control Plane zugreifen.
 - Fuer Laufzeit-Overrides ohne Policy-Edit: `NEXUS_EXTRA_TRUSTED_ORIGINS` verwenden.
-- Owner-Pages-Origin kann separat ueber `NEXUS_OWNER_PAGES_ORIGIN` gesteuert werden.
 
 ### Ingest-Sicherheit
 

@@ -79,26 +79,19 @@ Beispiel:
 }
 ```
 
-## GitHub Pages Deployment
+## Server Deployment (ohne GitHub Pages)
 
-Workflow: `.github/workflows/deploy-control-pages.yml`
+Control UI wird auf dem API-Server gehostet (z. B. `https://nexus-api.dev/control`).
 
-Optional vorher in GitHub Repository Variables setzen:
+Empfohlen:
 
-- `NEXUS_CONTROL_PUBLIC_API_URL` -> oeffentliche HTTPS URL deiner Control Plane
-
-Fehlt die Variable, wird `https://nexus-api.dev` als Runtime-Default gesetzt (API-Feld bleibt editierbar, falls Override noetig ist).
-
-Dann:
-
-1. GitHub Pages fuer das Repo aktivieren.
-2. Workflow `Deploy Nexus Control (GitHub Pages)` ausfuehren oder auf `main` pushen.
-3. Pages-UI oeffnen und Handshake pruefen (`Backend Handshake: ok ...`).
+1. `npm --prefix "./Nexus Control" run build`
+2. `dist/` in den Webroot des API-Servers deployen
+3. `runtime-config.json` mit `controlApiUrl=https://nexus-api.dev` ausliefern
+4. UI-Origin in `trustedOrigins` bzw. `NEXUS_EXTRA_TRUSTED_ORIGINS` erlauben
 
 Wichtig:
 
-- Die API kann privat verwaltet bleiben; auf GitHub Pages wird dafuer kein konkreter privater Repo-Hinweis benoetigt.
-- CORS `trustedOrigins` muss deine UI-Origin enthalten. `https://youngjibbit95.github.io` ist standardmaessig als Owner-Pages-Origin erlaubt und kann ueber `NEXUS_OWNER_PAGES_ORIGIN` angepasst werden.
 - Admin/Mutation bleibt durch Owner-Lock, Device-Verifizierung und Signaturpflicht serverseitig geschuetzt.
 - Bei gehosteter UI darf die API URL nie `localhost/127.0.0.1` sein.
 

@@ -27,12 +27,11 @@ Diese Variablen koennen in folgenden Apps gesetzt werden:
 - `NEXUS_BUILD_MANIFEST_PATH` (optional Pfad fuer Build-Manifest Endpoint)
 - `NEXUS_PRIVATE_REPO_HINT` (optionaler Hint fuer Public Bootstrap Endpoint)
 - `NEXUS_CONTROL_PLANE_VERSION` (optional Versionslabel fuer Public Bootstrap Endpoint)
-- `NEXUS_OWNER_PAGES_ORIGIN` (default `https://youngjibbit95.github.io`, serverseitig zusaetzlich erlaubter Owner-Pages-Origin)
 - `NEXUS_EXTRA_TRUSTED_ORIGINS` (CSV mit zusaetzlichen erlaubten Origins, z. B. `https://control.example.com,https://staging.example.com`)
 
-## Control UI Build / GitHub Pages
+## Control UI Build / Server Hosting
 
-- `NEXUS_CONTROL_UI_DEFAULT_API_URL` (build-time Ziel-API fuer `runtime-config.json`, darf leer sein)
+- `NEXUS_CONTROL_UI_DEFAULT_API_URL` (build-time Ziel-API fuer `runtime-config.json`, empfohlen `https://nexus-api.dev`)
 - `NEXUS_CONTROL_UI_BOOTSTRAP_PATH` (build-time Bootstrap Endpoint, default `/api/v1/public/bootstrap`)
 - `NEXUS_CONTROL_PRIVATE_REPO_HINT` (optionaler build-time Repo-Hinweis im UI)
 - `NEXUS_CONTROL_UI_FORCE_API_URL` (`true` sperrt API URL Input im UI auf runtime-config)

@@ -1,66 +1,69 @@
-# Control Panel Hosted Setup (GitHub Pages)
+# Control Panel Server Setup (`nexus-api.dev`)
 
-Dieses Setup loest den Fehler:
-
-`Loopback-API URL ist auf gehosteter UI nicht erreichbar`
+Dieses Setup ersetzt GitHub Pages.  
+Control UI wird direkt auf dem API-Server gehostet.
 
 ## Zielbild
 
-- Control UI laeuft auf GitHub Pages (`https://youngjibbit95.github.io/...`)
-- Control Plane bleibt intern auf `127.0.0.1:4399`
-- Oeffentlicher HTTPS Endpoint (Reverse Proxy) leitet auf `127.0.0.1:4399`
+- API bleibt intern loopback-bound: `127.0.0.1:4399`
+- Reverse Proxy liefert API extern unter `https://nexus-api.dev`
+- Reverse Proxy liefert Control UI statisch unter `https://nexus-api.dev/control`
 
-## 1) Oeffentlichen HTTPS Endpoint fuer die API bereitstellen
+## 1) Control UI bauen
 
-Die API selbst bleibt loopback-bound. Externer Zugriff erfolgt nur ueber Reverse Proxy.
+```bash
+npm --prefix "./Nexus Control" run build
+```
 
-Beispiel (Nginx):
+Ergebnis: `Nexus Control/dist/`
 
-```nginx
-server {
-  listen 443 ssl;
-  server_name nexus-api.dev;
+## 2) UI auf den Server deployen
 
-  location / {
-    proxy_pass http://127.0.0.1:4399;
-    proxy_set_header Host $host;
-    proxy_set_header X-Forwarded-Proto https;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-  }
+Beispiel (Ubuntu):
+
+- `dist/` nach `/var/www/nexus-control` kopieren
+- Webserver-Route `/control` auf diesen Ordner zeigen lassen
+
+## 3) Runtime-Config setzen
+
+`runtime-config.json` in der ausgelieferten UI muss mindestens enthalten:
+
+```json
+{
+  "controlApiUrl": "https://nexus-api.dev",
+  "bootstrapPath": "/api/v1/public/bootstrap",
+  "forceApiUrl": true
 }
 ```
 
-## 2) CORS/Origin erlauben
+## 4) Origins erlauben
 
-Setze auf dem API-Host:
+Stelle sicher, dass die UI-Origin in der API-Allowlist enthalten ist:
+
+- per Policy `trustedOrigins`
+- oder per Env `NEXUS_EXTRA_TRUSTED_ORIGINS`
+
+Beispiel:
 
 ```bash
-export NEXUS_EXTRA_TRUSTED_ORIGINS="https://youngjibbit95.github.io"
+export NEXUS_EXTRA_TRUSTED_ORIGINS="https://nexus-api.dev"
 ```
 
-Optional (wenn du eine eigene Pages-Domain nutzt): diese Domain ebenfalls eintragen.
-
-## 3) GitHub Pages Build auf richtige API URL setzen
-
-In `Nexus-Ecosystem` Repository Variables:
-
-- `NEXUS_CONTROL_PUBLIC_API_URL=https://nexus-api.dev`
-
-Dann Workflow `Deploy Nexus Control (GitHub Pages)` neu ausfuehren.
-
-## 4) Verifikation
-
-Von lokal/CI pruefen:
+## 5) Verifikation
 
 ```bash
 curl -fsS https://nexus-api.dev/health
 curl -fsS https://nexus-api.dev/api/v1/public/bootstrap
 ```
 
-Wenn beide Requests funktionieren, sollte Login in der gehosteten Control UI moeglich sein.
+Dann im Browser:
 
-## 5) Typische Fehler
+- `https://nexus-api.dev/control`
+- Login ausfuehren
+- Handshake im Header pruefen (`Backend Handshake: ok ...`)
 
-- `localhost/127.0.0.1` in der Website: nicht erreichbar von GitHub Pages.
-- HTTP-API bei HTTPS-UI: Browser blockiert Mixed Content.
-- Origin nicht trusted: API antwortet mit CORS/Handshake-Fehler.
+## Typische Fehler
+
+- `localhost/127.0.0.1` als API-URL in gehosteter UI
+- UI auf HTTPS, API aber HTTP (Mixed Content)
+- UI-Origin nicht in `trustedOrigins`

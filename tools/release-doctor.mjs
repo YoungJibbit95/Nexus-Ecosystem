@@ -140,9 +140,9 @@ const resolveJava21Home = async () => {
 const checkHostedControlApi = async () => {
   const normalized = normalizeUrl(apiUrlInput)
   if (!normalized) {
-    const message = 'NEXUS_CONTROL_PUBLIC_API_URL fehlt oder ungueltig.'
+    const message = '--api-url bzw. NEXUS_CONTROL_PUBLIC_API_URL fehlt oder ist ungueltig.'
     if (requireHostedUi) {
-      pushCheck('FAIL', 'Hosted Control API URL', `${message} Setze eine oeffentliche HTTPS URL in GitHub Repository Variables.`)
+      pushCheck('FAIL', 'Hosted Control API URL', `${message} Setze eine oeffentliche HTTPS URL deiner API.`)
     } else {
       pushCheck('WARN', 'Hosted Control API URL', `${message} Optional fuer lokale Entwicklung, Pflicht fuer gehostete Control UI.`)
     }
@@ -156,7 +156,7 @@ const checkHostedControlApi = async () => {
   }
 
   if (parsed.protocol !== 'https:') {
-    pushCheck('FAIL', 'Hosted Control API URL', `Nicht-HTTPS URL erkannt (${normalized}). GitHub Pages benoetigt HTTPS API Endpunkt.`)
+    pushCheck('FAIL', 'Hosted Control API URL', `Nicht-HTTPS URL erkannt (${normalized}). Gehostete UIs benoetigen HTTPS API Endpunkt.`)
     return
   }
 
