@@ -32,7 +32,7 @@
     "monaco-editor": "^0.44.0",
     "@capacitor/core": "^6.0.0",
     "@capacitor/haptics": "^6.0.0",
-    "@capacitor/keyboard": "^6.0.0",
+    "@capacitor/keyboard": "^8.0.1",
     "@capacitor/status-bar": "^6.0.0",
     "@capacitor/app": "^6.0.0"
   },
