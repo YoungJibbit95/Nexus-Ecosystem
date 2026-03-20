@@ -27,17 +27,31 @@ const MORE_ITEMS: { id: View; icon: any; label: string; color: string }[] = [
 ]
 
 export function MobileNav({
-  view, onChange, safeBottom
+  view,
+  onChange,
+  safeBottom,
+  availableViews,
 }: {
   view: View
   onChange: (v: View) => void
   safeBottom: number
+  availableViews?: View[]
 }) {
   const t = useTheme()
   const rgb = hexToRgb(t.accent)
   const [showMore, setShowMore] = useState(false)
+  const allowedViews = new Set<View>(
+    Array.isArray(availableViews) && availableViews.length > 0
+      ? availableViews
+      : [
+        ...PRIMARY_ITEMS.map((item) => item.id),
+        ...MORE_ITEMS.map((item) => item.id),
+      ],
+  )
+  const visiblePrimaryItems = PRIMARY_ITEMS.filter((item) => allowedViews.has(item.id))
+  const visibleMoreItems = MORE_ITEMS.filter((item) => allowedViews.has(item.id))
 
-  const isMore = MORE_ITEMS.some(i => i.id === view)
+  const isMore = visibleMoreItems.some(i => i.id === view)
   const press = (next: View) => {
     void haptic('light')
     onChange(next)
@@ -94,7 +108,7 @@ export function MobileNav({
               />
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
-                {MORE_ITEMS.map(item => {
+                {visibleMoreItems.map(item => {
                   const isActive = view === item.id
                   const iRgb = hexToRgb(item.color)
                   return (
@@ -135,7 +149,7 @@ export function MobileNav({
         paddingBottom: safeBottom,
         display: 'flex', alignItems: 'stretch',
       }}>
-        {PRIMARY_ITEMS.map(item => {
+        {visiblePrimaryItems.map(item => {
           const isActive = view === item.id
           const iRgb = hexToRgb(item.color)
           return (
@@ -173,23 +187,25 @@ export function MobileNav({
         })}
 
         {/* More button */}
-        <button
-          onClick={() => {
-            void haptic('medium')
-            setShowMore(s => !s)
-          }}
-          style={{
-            flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
-            justifyContent: 'center', gap: 3, padding: '10px 4px', minHeight: 64,
-            border: 'none', background: 'transparent', cursor: 'pointer',
-            color: (showMore || isMore)
-              ? t.accent
-              : (t.mode === 'dark' ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.4)'),
-          }}
-        >
-          {showMore ? <X size={22} strokeWidth={2.5}/> : <Menu size={22} strokeWidth={1.8}/>}
-          <span style={{ fontSize: 10, fontWeight: (showMore || isMore) ? 700 : 500 }}>More</span>
-        </button>
+        {visibleMoreItems.length > 0 ? (
+          <button
+            onClick={() => {
+              void haptic('medium')
+              setShowMore(s => !s)
+            }}
+            style={{
+              flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
+              justifyContent: 'center', gap: 3, padding: '10px 4px', minHeight: 64,
+              border: 'none', background: 'transparent', cursor: 'pointer',
+              color: (showMore || isMore)
+                ? t.accent
+                : (t.mode === 'dark' ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.4)'),
+            }}
+          >
+            {showMore ? <X size={22} strokeWidth={2.5}/> : <Menu size={22} strokeWidth={1.8}/>}
+            <span style={{ fontSize: 10, fontWeight: (showMore || isMore) ? 700 : 500 }}>More</span>
+          </button>
+        ) : null}
       </div>
     </>
   )

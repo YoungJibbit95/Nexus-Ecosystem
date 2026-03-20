@@ -24,7 +24,7 @@ const APPS = [
     dir: 'Nexus Main',
     buildScript: 'build',
     electron: {
-      installerScript: 'electron:build:installers',
+      installerScript: 'electron:build:host',
       releaseDir: 'release',
     },
     artifacts: [
@@ -49,7 +49,7 @@ const APPS = [
     dir: 'Nexus Code',
     buildScript: 'build',
     electron: {
-      installerScript: 'electron:build:installers',
+      installerScript: 'electron:build:host',
       releaseDir: 'release',
     },
     artifacts: [
@@ -146,6 +146,85 @@ const exists = async (targetPath) => {
   } catch {
     return false
   }
+}
+
+const unescapeGradlePath = (value) => String(value || '')
+  .replace(/\\:/g, ':')
+  .replace(/\\\\/g, '\\')
+
+const resolveSdkFromLocalProperties = async (androidRoot) => {
+  const localProperties = path.join(androidRoot, 'local.properties')
+  if (!(await exists(localProperties))) return null
+
+  try {
+    const raw = await fs.readFile(localProperties, 'utf8')
+    const match = raw.match(/^\s*sdk\.dir\s*=\s*(.+)\s*$/m)
+    if (!match) return null
+    const sdkPath = unescapeGradlePath(match[1])
+    if (!sdkPath) return null
+    return path.resolve(sdkPath)
+  } catch {
+    return null
+  }
+}
+
+const resolveAndroidSdkPath = async (appRoot) => {
+  const candidates = []
+  const addCandidate = (value) => {
+    const normalized = String(value || '').trim()
+    if (!normalized) return
+    candidates.push(path.resolve(normalized))
+  }
+
+  addCandidate(process.env.ANDROID_HOME)
+  addCandidate(process.env.ANDROID_SDK_ROOT)
+
+  const androidRoot = path.join(appRoot, 'android')
+  const localPropertiesSdk = await resolveSdkFromLocalProperties(androidRoot)
+  addCandidate(localPropertiesSdk)
+
+  addCandidate(path.join(ROOT, 'android-sdk'))
+  addCandidate(path.join(ROOT, '.android-sdk'))
+
+  const home = process.env.HOME || process.env.USERPROFILE || ''
+  if (home) {
+    addCandidate(path.join(home, 'Library', 'Android', 'sdk'))
+    addCandidate(path.join(home, 'Android', 'Sdk'))
+    addCandidate(path.join(home, 'AppData', 'Local', 'Android', 'Sdk'))
+  }
+
+  for (const candidate of candidates) {
+    if (await exists(candidate)) {
+      return candidate
+    }
+  }
+
+  return null
+}
+
+const resolveJavaHomeForAndroid = async () => {
+  const candidates = []
+  const addCandidate = (value) => {
+    const normalized = String(value || '').trim()
+    if (!normalized) return
+    candidates.push(path.resolve(normalized))
+  }
+
+  addCandidate(process.env.JAVA_HOME)
+  addCandidate('/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home')
+  addCandidate('/Library/Java/JavaVirtualMachines/openjdk-21.jdk/Contents/Home')
+  addCandidate('/usr/lib/jvm/java-21-openjdk')
+  addCandidate('/usr/lib/jvm/jdk-21')
+  addCandidate('/usr/lib/jvm/temurin-21-jdk')
+
+  for (const candidate of candidates) {
+    const javac = path.join(candidate, 'bin', process.platform === 'win32' ? 'javac.exe' : 'javac')
+    if (await exists(javac)) {
+      return candidate
+    }
+  }
+
+  return null
 }
 
 const ensureDir = async (targetPath) => {
@@ -255,10 +334,10 @@ const buildAndroidForApp = async (app, warnings) => {
     return []
   }
 
-  const hasSdk = Boolean(process.env.ANDROID_HOME || process.env.ANDROID_SDK_ROOT)
+  const sdkPath = await resolveAndroidSdkPath(appRoot)
   const cachedArtifacts = await collectAndroidArtifacts(outputRoot)
 
-  if (!hasSdk) {
+  if (!sdkPath) {
     if (cachedArtifacts.length > 0) {
       warnings.push(`[${app.name}] Android SDK fehlt, vorhandene Android-Artefakte werden verwendet.`)
       return cachedArtifacts
@@ -267,8 +346,22 @@ const buildAndroidForApp = async (app, warnings) => {
     return []
   }
 
+  const androidEnv = {
+    ...process.env,
+    ANDROID_HOME: sdkPath,
+    ANDROID_SDK_ROOT: sdkPath,
+  }
+  const javaHome = await resolveJavaHomeForAndroid()
+  if (javaHome) {
+    androidEnv.JAVA_HOME = javaHome
+    androidEnv.PATH = `${path.join(javaHome, 'bin')}${path.delimiter}${androidEnv.PATH || ''}`
+  }
+
   try {
-    runNpmCommand(['--prefix', appRoot, 'run', app.android.capSyncScript], { cwd: ROOT })
+    runNpmCommand(['--prefix', appRoot, 'run', app.android.capSyncScript], {
+      cwd: ROOT,
+      env: androidEnv,
+    })
   } catch (error) {
     const message = `[${app.name}] cap:sync fehlgeschlagen: ${error.message}`
     if (strictAndroid) throw new Error(message)
@@ -286,7 +379,10 @@ const buildAndroidForApp = async (app, warnings) => {
   }
 
   try {
-    runCommand(gradlew, ['assembleDebug'], { cwd: androidRoot })
+    runCommand(gradlew, ['assembleDebug'], {
+      cwd: androidRoot,
+      env: androidEnv,
+    })
   } catch (error) {
     const message = `[${app.name}] assembleDebug fehlgeschlagen: ${error.message}`
     if (strictAndroid) throw new Error(message)

@@ -25,6 +25,20 @@ const NETWORK_MUTATION_PATTERNS = [
 let mainWindow = null;
 const activeProcesses = new Map();
 
+const resolveShellLaunch = (command) => {
+  if (process.platform === "win32") {
+    return {
+      binary: process.env.ComSpec || "cmd.exe",
+      args: ["/d", "/s", "/c", command],
+    };
+  }
+
+  return {
+    binary: process.env.SHELL || "/bin/bash",
+    args: ["-lc", command],
+  };
+};
+
 const isBlockedNetworkMutationCommand = (command) => {
   const raw = String(command || "").trim();
   if (!raw) return false;
@@ -189,7 +203,18 @@ ipcMain.handle("fs:rename", async (event, oldPath, newPath) => {
 
 ipcMain.on("terminal:run", (event, { id, command, cwd }) => {
   try {
-    if (isBlockedNetworkMutationCommand(command)) {
+    const normalized = String(command || "").trim();
+
+    if (!normalized) {
+      event.sender.send(`terminal:output:${id}`, {
+        type: "error",
+        text: "Kein Befehl uebergeben.",
+      });
+      event.sender.send(`terminal:exit:${id}`, 1);
+      return;
+    }
+
+    if (isBlockedNetworkMutationCommand(normalized)) {
       event.sender.send(`terminal:output:${id}`, {
         type: "error",
         text: "Blocked: network/system configuration commands are disabled in this app.",
@@ -198,14 +223,24 @@ ipcMain.on("terminal:run", (event, { id, command, cwd }) => {
       return;
     }
 
-    // Use the system shell directly for maximum compatibility
-    const proc = spawn(command, [], {
+    const running = activeProcesses.get(id);
+    if (running && !running.killed) {
+      try {
+        running.kill("SIGTERM");
+      } catch {}
+      activeProcesses.delete(id);
+    }
+
+    const shellLaunch = resolveShellLaunch(normalized);
+    const proc = spawn(shellLaunch.binary, shellLaunch.args, {
       cwd: cwd || os.homedir(),
       env: { ...process.env, FORCE_COLOR: "1" },
-      shell: true
+      stdio: ["ignore", "pipe", "pipe"],
+      windowsHide: true,
     });
 
     activeProcesses.set(id, proc);
+    event.sender.send(`terminal:ready:${id}`);
 
     proc.stdout.on("data", (data) => {
       event.sender.send(`terminal:output:${id}`, { type: "output", text: data.toString() });
@@ -215,23 +250,38 @@ ipcMain.on("terminal:run", (event, { id, command, cwd }) => {
       event.sender.send(`terminal:output:${id}`, { type: "error", text: data.toString() });
     });
 
-    proc.on("close", (code) => {
-      event.sender.send(`terminal:output:${id}`, { type: "system", text: `\nProcess exited with code ${code}` });
-      event.sender.send(`terminal:exit:${id}`, code);
+    proc.on("error", (error) => {
+      event.sender.send(`terminal:output:${id}`, { type: "error", text: `Failed to start: ${error.message}` });
+      event.sender.send(`terminal:exit:${id}`, 1);
       activeProcesses.delete(id);
     });
 
-    event.sender.send(`terminal:ready:${id}`);
+    proc.on("close", (code) => {
+      const exitCode = typeof code === "number" ? code : 1;
+      event.sender.send(`terminal:output:${id}`, { type: "system", text: `\nProcess exited with code ${exitCode}` });
+      event.sender.send(`terminal:exit:${id}`, exitCode);
+      activeProcesses.delete(id);
+    });
   } catch (error) {
     event.sender.send(`terminal:output:${id}`, { type: "error", text: `Failed to start: ${error.message}` });
+    event.sender.send(`terminal:exit:${id}`, 1);
   }
 });
 
 ipcMain.on("terminal:kill", (event, id) => {
   const proc = activeProcesses.get(id);
   if (proc) {
-    proc.kill();
-    activeProcesses.delete(id);
+    try {
+      proc.kill("SIGTERM");
+    } catch {}
+
+    setTimeout(() => {
+      if (!proc.killed) {
+        try {
+          proc.kill("SIGKILL");
+        } catch {}
+      }
+    }, 1200);
   }
 });
 

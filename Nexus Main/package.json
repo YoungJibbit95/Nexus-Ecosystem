@@ -13,9 +13,10 @@
     "electron:dev": "concurrently -k \"vite\" \"wait-on http://localhost:5173 && electron .\"",
     "electron:build": "npm run electron:build:win",
     "electron:build:mac": "npm run build && npm run electron:pack:mac",
-    "electron:pack:win": "electron-builder --win",
+    "electron:pack:win": "node ../tools/electron-pack-win.mjs -- electron-builder --win",
     "electron:pack:mac": "electron-builder --mac",
     "electron:build:win": "npm run build && npm run electron:pack:win",
+    "electron:build:host": "node ../tools/electron-build-host.mjs --app \"Nexus Main\" --mac-script electron:build:mac --win-script electron:build:win",
     "electron:build:installers": "npm run build && npm run electron:pack:mac && npm run electron:pack:win"
   },
   "files": [
@@ -29,20 +30,21 @@
     "clsx": "^2.0.0",
     "framer-motion": "^10.18.0",
     "lucide-react": "^0.294.0",
+    "monaco-editor": "^0.44.0",
     "react": "^18.2.0",
     "react-dnd": "^16.0.1",
     "react-dnd-html5-backend": "^16.0.1",
     "react-dom": "^18.2.0",
     "react-markdown": "^9.0.1",
     "remark-gfm": "^4.0.0",
-    "zustand": "^4.4.7",
-    "monaco-editor": "^0.44.0"
+    "zustand": "^4.4.7"
   },
   "devDependencies": {
     "@types/node": "^20.10.6",
     "@types/react": "^18.2.46",
     "@types/react-dom": "^18.2.18",
     "@vitejs/plugin-react": "^4.2.1",
+    "7zip-bin": "^5.2.0",
     "autoprefixer": "^10.4.16",
     "concurrently": "^8.2.2",
     "electron": "^28.3.3",

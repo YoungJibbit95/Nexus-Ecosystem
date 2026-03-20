@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef, lazy, Suspense } from 'react'
+import React, { useState, useEffect, useMemo, useRef, useCallback, lazy, Suspense } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useTheme, GLOBAL_FONTS } from './store/themeStore'
 import { useTerminal } from './store/terminalStore'
@@ -11,9 +11,12 @@ import {
   applyGlobalFont,
   applyPanelDensity,
   applyTypographyScale,
+  buildLiveViewModel,
+  getFallbackViewsForApp,
+  resolveLayoutProfile,
   sanitizeGlobalFont,
 } from '@nexus/core'
-import { createNexusRuntime, type NexusRuntime } from '@nexus/api'
+import { createNexusRuntime, type NexusLiveBundle, type NexusRuntime } from '@nexus/api'
 
 const DashboardView = lazy(() => import('./views/DashboardView').then(m => ({ default: m.DashboardView })))
 const NotesView = lazy(() => import('./views/NotesView').then(m => ({ default: m.NotesView })))
@@ -29,11 +32,61 @@ const DevToolsView = lazy(() => import('./views/DevToolsView').then(m => ({ defa
 const NexusTerminal = lazy(() => import('./components/NexusTerminal').then(m => ({ default: m.NexusTerminal })))
 const NexusToolbar = lazy(() => import('./components/NexusToolbar').then(m => ({ default: m.NexusToolbar })))
 
+const VIEW_IDS = getFallbackViewsForApp('main') as View[]
+
 export default function App() {
   const [view, setView] = useState<View>('dashboard')
+  const [availableViews, setAvailableViews] = useState<View[]>(VIEW_IDS)
+  const [remoteDensity, setRemoteDensity] = useState<'compact' | 'comfortable' | 'spacious' | null>(null)
+  const [liveReleaseId, setLiveReleaseId] = useState<string | null>(null)
+  const [viewGuardState, setViewGuardState] = useState<{
+    checking: boolean
+    blockedView: string | null
+    requiredTier: string | null
+    reason: string | null
+  }>({
+    checking: false,
+    blockedView: null,
+    requiredTier: null,
+    reason: null,
+  })
   const t = useTheme()
   const terminalOpen = useTerminal((s) => s.isOpen)
   const runtimeRef = useRef<NexusRuntime | null>(null)
+  const guardRequestSeq = useRef(0)
+
+  const viewAccessContext = useMemo(() => ({
+    userId: (import.meta as any).env?.VITE_NEXUS_USER_ID as string | undefined,
+    username: (import.meta as any).env?.VITE_NEXUS_USERNAME as string | undefined,
+    userTier: (import.meta as any).env?.VITE_NEXUS_USER_TIER as 'free' | 'paid' | undefined,
+  }), [])
+
+  const applyLiveBundle = useCallback((bundle: NexusLiveBundle | null) => {
+    if (!bundle?.catalog || !bundle.layoutSchema) return
+
+    const model = buildLiveViewModel({
+      appId: 'main',
+      catalog: bundle.catalog,
+      schema: bundle.layoutSchema,
+    })
+
+    const nextViews = model.views
+      .map((candidate) => candidate as View)
+      .filter((candidate) => VIEW_IDS.includes(candidate))
+
+    if (nextViews.length > 0) {
+      setAvailableViews(nextViews)
+      setView((prev) => (nextViews.includes(prev) ? prev : nextViews[0]))
+    }
+
+    const profile = resolveLayoutProfile(bundle.layoutSchema, {
+      mode: 'desktop',
+      density: 'comfortable',
+      navigation: 'sidebar',
+    })
+    setRemoteDensity(profile.density)
+    setLiveReleaseId(bundle.release?.id || null)
+  }, [])
 
   useEffect(() => {
     const controlBaseUrl = (import.meta as any).env?.VITE_NEXUS_CONTROL_URL as string | undefined
@@ -47,15 +100,29 @@ export default function App() {
         baseUrl: controlBaseUrl,
         ingestKey: controlIngestKey,
       },
+      liveSync: {
+        enabled: Boolean(controlBaseUrl),
+        channel: 'production',
+        onUpdate: (event) => {
+          applyLiveBundle(event.bundle)
+        },
+      },
     })
     runtime.start()
     runtimeRef.current = runtime
+    void runtime.loadLiveBundle({
+      channel: 'production',
+      forceRefresh: true,
+      cacheTtlMs: 0,
+    }).then((bundle) => {
+      applyLiveBundle(bundle)
+    })
 
     return () => {
       runtime.stop()
       runtimeRef.current = null
     }
-  }, [])
+  }, [applyLiveBundle])
 
   useEffect(() => {
     const safeFont = sanitizeGlobalFont(
@@ -92,8 +159,8 @@ export default function App() {
   }, [t.qol?.fontSize])
 
   useEffect(() => {
-    applyPanelDensity(t.qol?.panelDensity ?? 'comfortable')
-  }, [t.qol?.panelDensity])
+    applyPanelDensity(remoteDensity || t.qol?.panelDensity || 'comfortable')
+  }, [remoteDensity, t.qol?.panelDensity])
 
   useEffect(() => {
     const runtime = runtimeRef.current
@@ -103,6 +170,48 @@ export default function App() {
     runtime.connection.syncState('main.activeView', view)
     runtime.performance.trackViewRender(`main:${view}`)
   }, [view])
+
+  const requestViewChange = useCallback(async (nextRaw: unknown) => {
+    const next = String(nextRaw || '').toLowerCase() as View
+    if (!availableViews.includes(next)) return
+    if (next === view) return
+
+    const runtime = runtimeRef.current
+    if (!runtime) {
+      setView(next)
+      setViewGuardState((prev) => ({
+        ...prev,
+        blockedView: null,
+        requiredTier: null,
+        reason: null,
+      }))
+      return
+    }
+
+    const requestId = ++guardRequestSeq.current
+    setViewGuardState((prev) => ({ ...prev, checking: true }))
+
+    const access = await runtime.control.validateViewAccess(next, viewAccessContext)
+    if (requestId !== guardRequestSeq.current) return
+
+    if (access.allowed) {
+      setView(next)
+      setViewGuardState({
+        checking: false,
+        blockedView: null,
+        requiredTier: null,
+        reason: null,
+      })
+      return
+    }
+
+    setViewGuardState({
+      checking: false,
+      blockedView: next,
+      requiredTier: access.requiredTier || 'paid',
+      reason: access.reason || 'PAYWALL_BLOCKED',
+    })
+  }, [availableViews, view, viewAccessContext])
 
   const bgStyles = buildBackground(t.background, t.bg, t.mode)
   const accentRgb = hexToRgb(t.accent)
@@ -153,7 +262,7 @@ export default function App() {
   }, [t.animations])
 
   const viewMap: Record<View, React.ReactNode> = {
-    dashboard: <DashboardView setView={(v: any) => setView(v)} />,
+    dashboard: <DashboardView setView={(v: any) => { void requestViewChange(v) }} />,
     notes: <NotesView />,
     code: <CodeView />,
     tasks: <TasksView />,
@@ -175,7 +284,7 @@ export default function App() {
     }}>
       <div style={{ pointerEvents: 'auto', width: '100%' }}>
         <Suspense fallback={null}>
-          <NexusToolbar setView={setView} />
+          <NexusToolbar setView={(v: any) => { void requestViewChange(v) }} />
         </Suspense>
       </div>
     </div>
@@ -219,7 +328,7 @@ export default function App() {
         }}
       >
         <TitleBar />
-        <div style={{ display: 'flex', flex: 1, overflow: 'hidden', minHeight: 0, flexDirection: sidebarLeft ? 'row' : 'row-reverse' }}>
+        <div style={{ display: 'flex', flex: 1, overflow: 'hidden', minHeight: 0, flexDirection: sidebarLeft ? 'row' : 'row-reverse', position: 'relative' }}>
           <div
             style={{
               width: sidebarHidden ? 0 : t.sidebarWidth,
@@ -228,7 +337,76 @@ export default function App() {
               transition: 'width 220ms cubic-bezier(0.2, 0.8, 0.2, 1)',
             }}
           >
-            <Sidebar view={view} onChange={setView} />
+            <Sidebar
+              view={view}
+              availableViews={availableViews}
+              onChange={(v: any) => { void requestViewChange(v) }}
+            />
+          </div>
+          <div
+            style={{
+              position: 'absolute',
+              top: 64,
+              left: 16,
+              right: 16,
+              zIndex: 1200,
+              pointerEvents: 'none',
+            }}
+          >
+            {viewGuardState.checking ? (
+              <div
+                style={{
+                  pointerEvents: 'none',
+                  borderRadius: 10,
+                  padding: '8px 10px',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  background: t.mode === 'dark' ? 'rgba(6,12,24,0.82)' : 'rgba(255,255,255,0.88)',
+                  border: `1px solid rgba(${hexToRgb(t.accent)},0.34)`,
+                  color: t.accent,
+                  boxShadow: `0 8px 24px rgba(${hexToRgb(t.accent)},0.2)`,
+                }}
+              >
+                Validiere View-Zugriff...
+              </div>
+            ) : null}
+            {viewGuardState.blockedView ? (
+              <div
+                style={{
+                  pointerEvents: 'none',
+                  marginTop: 8,
+                  borderRadius: 10,
+                  padding: '9px 10px',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  background: 'rgba(255,69,58,0.14)',
+                  border: '1px solid rgba(255,69,58,0.45)',
+                  color: t.mode === 'dark' ? '#ffd8d2' : '#5e1810',
+                  boxShadow: '0 8px 26px rgba(255,69,58,0.18)',
+                }}
+              >
+                View gesperrt: `{viewGuardState.blockedView}` erfordert Tier `{viewGuardState.requiredTier || 'paid'}` ({viewGuardState.reason || 'PAYWALL_BLOCKED'}).
+              </div>
+            ) : null}
+            {liveReleaseId ? (
+              <div
+                style={{
+                  marginTop: 8,
+                  marginLeft: 'auto',
+                  width: 'fit-content',
+                  borderRadius: 999,
+                  border: `1px solid rgba(${accentRgb},0.32)`,
+                  background: t.mode === 'dark' ? 'rgba(10,18,34,0.78)' : 'rgba(255,255,255,0.82)',
+                  padding: '5px 10px',
+                  fontSize: 11,
+                  fontWeight: 700,
+                  color: t.accent,
+                  pointerEvents: 'none',
+                }}
+              >
+                Live Release: {liveReleaseId}
+              </div>
+            ) : null}
           </div>
           <div
             style={{
@@ -271,7 +449,7 @@ export default function App() {
               </motion.div>
             </AnimatePresence>
             <Suspense fallback={null}>
-              {terminalOpen ? <NexusTerminal setView={setView} /> : null}
+              {terminalOpen ? <NexusTerminal setView={(v: any) => { void requestViewChange(v) }} /> : null}
             </Suspense>
             {toolbarBottom && toolbarEl}
           </div>

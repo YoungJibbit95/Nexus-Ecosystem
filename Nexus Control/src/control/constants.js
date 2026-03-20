@@ -17,7 +17,7 @@ export const RUNTIME_CONFIG_PATH = './runtime-config.json'
 export const DEFAULT_RUNTIME_CONFIG = {
   controlApiUrl: DEFAULT_API_URL,
   bootstrapPath: '/api/v1/public/bootstrap',
-  privateRepoHint: 'YoungJibbit95/NexusAPI',
+  privateRepoHint: '',
   forceApiUrl: false,
 }
 

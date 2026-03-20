@@ -65,7 +65,7 @@ Felder:
 
 - `controlApiUrl`: Ziel-URL der Control Plane API
 - `bootstrapPath`: Public Probe Endpoint (default: `/api/v1/public/bootstrap`)
-- `privateRepoHint`: Anzeige-Hinweis auf private API-Quelle
+- `privateRepoHint`: optionaler Anzeige-Hinweis auf eine private API-Quelle
 - `forceApiUrl`: sperrt die URL im UI auf den Runtime-Wert
 
 Beispiel:
@@ -74,7 +74,7 @@ Beispiel:
 {
   "controlApiUrl": "https://api.example.com",
   "bootstrapPath": "/api/v1/public/bootstrap",
-  "privateRepoHint": "YoungJibbit95/NexusAPI",
+  "privateRepoHint": "",
   "forceApiUrl": true
 }
 ```
@@ -97,15 +97,18 @@ Dann:
 
 Wichtig:
 
-- Die API bleibt privat verwaltet (Repo `YoungJibbit95/NexusAPI`), nur der Endpoint ist konsumierbar.
+- Die API kann privat verwaltet bleiben; auf GitHub Pages wird dafuer kein konkreter privater Repo-Hinweis benoetigt.
 - CORS `trustedOrigins` muss deine UI-Origin enthalten. `https://youngjibbit95.github.io` ist standardmaessig als Owner-Pages-Origin erlaubt und kann ueber `NEXUS_OWNER_PAGES_ORIGIN` angepasst werden.
 - Admin/Mutation bleibt durch Owner-Lock, Device-Verifizierung und Signaturpflicht serverseitig geschuetzt.
+- Bei gehosteter UI darf die API URL nie `localhost/127.0.0.1` sein.
 
 Bei Handshake-/Login-Fehlern (`failed to fetch`) pruefe:
 
 - API URL ist korrekt und ueber HTTPS erreichbar.
 - Keine Loopback-URL (`localhost`/`127.0.0.1`) auf gehosteter UI.
 - API-Origin ist in `trustedOrigins` oder `NEXUS_EXTRA_TRUSTED_ORIGINS` enthalten.
+
+Siehe auch: [`docs/CONTROL_PANEL_HOSTED_SETUP.md`](../docs/CONTROL_PANEL_HOSTED_SETUP.md)
 
 ## API Einstellungen in der UI
 

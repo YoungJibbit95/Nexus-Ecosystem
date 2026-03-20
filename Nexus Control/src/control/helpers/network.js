@@ -54,7 +54,7 @@ export const classifyNetworkFailure = (error, requestUrl, timeoutMs) => {
     return {
       code: 'LOOPBACK_URL_ON_HOSTED_UI',
       message: 'Loopback-API URL auf gehosteter UI ist nicht erreichbar.',
-      hint: 'Setze eine oeffentliche HTTPS API URL statt localhost/127.0.0.1.',
+      hint: 'Setze NEXUS_CONTROL_PUBLIC_API_URL auf eine oeffentliche HTTPS API URL und deploye die Pages neu.',
     }
   }
 

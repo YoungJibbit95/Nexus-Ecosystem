@@ -31,6 +31,14 @@ Wichtig: Auch wenn jemand im Browser UI-Elemente manipuliert, blockt der Server 
 - Wenn `restrictMutationsToOwner=true`, duerfen mutierende API-Routen nur von Owner-Usern ausgefuehrt werden.
 - Aktueller Owner im Repo: `youngjibbit`.
 
+### Owner-Only Control Panel Zugriff
+
+- Policies enthalten:
+  - `ownerOnlyControlPanel`
+  - `controlPanelAllowedUsernames`
+- Wenn `ownerOnlyControlPanel=true`, werden nicht erlaubte User bereits beim Login abgewiesen (`CONTROL_PANEL_OWNER_ONLY`).
+- Default im Repo: nur `youngjibbit`.
+
 Betroffene Mutationen:
 
 - `PUT /api/v1/config/global`
@@ -39,6 +47,25 @@ Betroffene Mutationen:
 - `POST /api/v1/devices/approve`
 - `POST /api/v1/devices/revoke`
 - `POST /api/v1/commands`
+- `PUT /api/v2/features/catalog`
+- `PUT /api/v2/layout/schema`
+- `POST /api/v2/releases/promote`
+
+### Kryptografische Signaturpflicht fuer Mutationen
+
+Mutierende Endpunkte erwarten zusaetzlich HMAC-Signaturen:
+
+- `X-Nexus-Signature-Ts` (Unix Sekunden)
+- `X-Nexus-Signature-Nonce` (einmalig)
+- `X-Nexus-Signature-V1` (HMAC-SHA256)
+
+Serverseitig erzwungen:
+
+- Zeitfenster (`mutationSignatureMaxSkewSec`)
+- Replay-Schutz via Nonce-Cache (`mutationSignatureNonceTtlSec`)
+- Benutzerbezogene Secret-Allowlist aus `NEXUS_MUTATION_SIGNING_SECRETS`
+
+Ohne gueltige Signatur werden Mutationen geblockt.
 
 Empfehlung:
 
@@ -47,14 +74,23 @@ Empfehlung:
 
 ### CORS / trustedOrigins
 
-- `trustedOrigins` ist eine Allowlist, keine Wildcard.
+- `trustedOrigins` ist eine Allowlist. Die globale Wildcard `*` sollte nicht genutzt werden.
+- Erlaubt sind exakte Origins und optional eng gefasste Subdomain-Patterns wie `https://*.example.com`.
 - Nur Origins eintragen, die wirklich auf die Control Plane zugreifen.
-- Keine `*` in produktiven oder sensiblen Setups.
+- Fuer Laufzeit-Overrides ohne Policy-Edit: `NEXUS_EXTRA_TRUSTED_ORIGINS` verwenden.
+- Owner-Pages-Origin kann separat ueber `NEXUS_OWNER_PAGES_ORIGIN` gesteuert werden.
 
 ### Ingest-Sicherheit
 
 - Event Ingest nur mit gueltigem Bearer Token oder passendem `X-Nexus-Ingest-Key`.
 - Ingest Keys sind app-spezifisch (`main`, `mobile`, `code`, `code-mobile`).
+- API-v2 Read/Capability-Endpunkte koennen ebenfalls mit Ingest-Key (app-gebunden) genutzt werden.
+
+### UI-Schema Sicherheit (Whitelist Renderer)
+
+- Das Layout-Schema erlaubt nur registrierte Komponenten (`componentWhitelist`).
+- Unbekannte Component-Typen werden serverseitig bei Validation/Save verworfen.
+- Kein Remote-JS / keine dynamische Script-Ausfuehrung aus der API.
 
 ### Command-Sicherheit (kein Self-Escalation Pfad)
 
@@ -76,6 +112,12 @@ Empfehlung:
 - Port-Konflikte werden vor Start erkannt
 - Server reagieren auf `SIGINT`/`SIGTERM` mit sauberem Shutdown
 
+### API-Pflichtbetrieb fuer Dev/Build
+
+- Root-`dev` und Root-`build` laufen ueber `tools/run-with-control-plane.mjs`
+- Der Guard startet die Control Plane automatisch, falls sie noch nicht laeuft
+- Das Build-Tool (`tools/build-ecosystem.mjs`) erzwingt ebenfalls eine aktive Control Plane
+
 ## 2) So benutzt du die Security richtig
 
 ## First Boot
@@ -85,13 +127,20 @@ Empfehlung:
 3. Pruefe `devices` Tab und gib nur vertrauenswuerdige Devices frei.
 4. Setze/halte `allowFirstAdminDeviceBootstrap: false` nach Erstfreigabe.
 
-Alternative (CLI Bootstrap):
+Admin-/Device-Bootstrap und Secret-Rotation laufen ausschliesslich im privaten NexusAPI-Operations-Setup.
+Im oeffentlichen Ecosystem-Repo gibt es dafuer absichtlich keine Root-CLI-Kommandos.
+
+Signatur-Secret Beispiel (serverseitige Umgebung):
 
 ```bash
-npm run security:make-admin -- --username <name> --password <passwort> --device-id <deviceId>
+export NEXUS_MUTATION_SIGNING_SECRETS="youngjibbit:<secret>"
 ```
 
-Damit wird der User als `admin` gesetzt/erstellt und das Device fuer `admin,developer` freigegeben.
+Trusted Devs zulaessen:
+
+```bash
+export NEXUS_MUTATION_SIGNING_SECRETS="youngjibbit:<secretA>,trusteddev:<secretB>"
+```
 
 ## Day-to-Day
 
@@ -109,6 +158,12 @@ Im Code ist die Trennung serverseitig bereits aktiv. Fuer GitHub musst du zusaet
 3. CODEOWNERS-Review fuer Security-kritische Pfade erzwingen.
 4. Direkte Pushes auf `main` verbieten.
 5. Optional: separate Teams fuer App-Feature vs Security-Review.
+
+Empfohlene Betriebsstrategie:
+
+- Open Source Core kann public bleiben.
+- Produktive Control-Plane-Deployments, Secrets und Signatur-Keys in private Infrastruktur/Repos auslagern.
+- Fuer dieses Setup kann die private Repo `NexusAPI` als Quelle genutzt werden (`npm run api:private:sync`).
 
 Dieses Repo enthaelt dafuer bereits:
 

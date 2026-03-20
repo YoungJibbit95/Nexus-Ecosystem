@@ -21,7 +21,7 @@ export const createRuntimeCore = ({ state, el, setBootstrapInfo, apiRequest }) =
       ? DEFAULT_RUNTIME_CONFIG.controlApiUrl
       : normalizeUrl(raw?.controlApiUrl, DEFAULT_RUNTIME_CONFIG.controlApiUrl, { allowEmpty: true }),
     bootstrapPath: normalizePath(raw?.bootstrapPath, DEFAULT_RUNTIME_CONFIG.bootstrapPath),
-    privateRepoHint: String(raw?.privateRepoHint || DEFAULT_RUNTIME_CONFIG.privateRepoHint).trim() || DEFAULT_RUNTIME_CONFIG.privateRepoHint,
+    privateRepoHint: String(raw?.privateRepoHint || '').trim(),
     forceApiUrl: parseBool(raw?.forceApiUrl, DEFAULT_RUNTIME_CONFIG.forceApiUrl),
   })
 
@@ -89,7 +89,10 @@ export const createRuntimeCore = ({ state, el, setBootstrapInfo, apiRequest }) =
       const repoHint = item.privateRepoHint || state.runtimeConfig.privateRepoHint
       const lockState = item.ownerLockEnabled === true ? 'owner-lock aktiv' : 'owner-lock aus'
       const originState = item.originTrusted === false ? 'origin nicht trusted' : 'origin trusted'
-      const message = `Backend Handshake: ok | ${service} v${version} | ${repoHint} | ${lockState} | ${originState}`
+      const details = [`${service} v${version}`]
+      if (repoHint) details.push(repoHint)
+      details.push(lockState, originState)
+      const message = `Backend Handshake: ok | ${details.join(' | ')}`
       setBootstrapInfo(message)
       handshakeCache.at = Date.now()
       handshakeCache.ok = true
@@ -124,7 +127,7 @@ export const createRuntimeCore = ({ state, el, setBootstrapInfo, apiRequest }) =
       const error = new Error('LOOPBACK_URL_ON_HOSTED_UI')
       error.nexusCode = 'LOOPBACK_URL_ON_HOSTED_UI'
       error.nexusMessage = 'Loopback-API URL ist auf gehosteter UI nicht erreichbar.'
-      error.nexusHint = 'Nutze in der Website eine oeffentliche HTTPS API URL statt localhost/127.0.0.1.'
+      error.nexusHint = 'Setze NEXUS_CONTROL_PUBLIC_API_URL auf eine oeffentliche HTTPS API URL und deploye die Pages neu.'
       throw error
     }
 
@@ -132,7 +135,7 @@ export const createRuntimeCore = ({ state, el, setBootstrapInfo, apiRequest }) =
       const error = new Error('MIXED_CONTENT_BLOCKED')
       error.nexusCode = 'MIXED_CONTENT_BLOCKED'
       error.nexusMessage = 'Mixed Content: HTTPS UI darf nicht gegen HTTP API loggen.'
-      error.nexusHint = 'Nutze eine HTTPS API URL.'
+      error.nexusHint = 'Nutze eine HTTPS API URL und fuege den Pages-Origin in trustedOrigins hinzu.'
       throw error
     }
   }

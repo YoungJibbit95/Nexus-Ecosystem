@@ -23,7 +23,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       NEXUS_CONTROL_UI_BOOTSTRAP_PATH: /api/v1/public/bootstrap
-      NEXUS_CONTROL_PRIVATE_REPO_HINT: YoungJibbit95/NexusAPI
       NEXUS_CONTROL_UI_FORCE_API_URL: false
     steps:
       - name: Checkout
@@ -43,8 +42,14 @@ jobs:
         run: |
           API_URL="${{ vars.NEXUS_CONTROL_PUBLIC_API_URL }}"
           if [ -z "$API_URL" ]; then
-            API_URL="http://127.0.0.1:4399"
-            echo "::warning::Repository Variable NEXUS_CONTROL_PUBLIC_API_URL fehlt. Fallback auf $API_URL (UI bleibt editierbar)."
+            API_URL=""
+            echo "::warning::Repository Variable NEXUS_CONTROL_PUBLIC_API_URL fehlt. Runtime API URL bleibt leer (UI bleibt editierbar)."
+            echo "NEXUS_CONTROL_UI_FORCE_API_URL=false" >> "$GITHUB_ENV"
+          elif echo "$API_URL" | grep -Eq '^https?://(127\.0\.0\.1|localhost)(:|/|$)'; then
+            echo "::warning::NEXUS_CONTROL_PUBLIC_API_URL zeigt auf Loopback ($API_URL). Das funktioniert auf GitHub Pages nicht. UI bleibt editierbar."
+            echo "NEXUS_CONTROL_UI_FORCE_API_URL=false" >> "$GITHUB_ENV"
+          elif ! echo "$API_URL" | grep -Eq '^https://'; then
+            echo "::warning::NEXUS_CONTROL_PUBLIC_API_URL ist nicht HTTPS ($API_URL). Unter HTTPS Pages sind HTTP-Requests blockiert. UI bleibt editierbar."
             echo "NEXUS_CONTROL_UI_FORCE_API_URL=false" >> "$GITHUB_ENV"
           else
             echo "NEXUS_CONTROL_UI_FORCE_API_URL=true" >> "$GITHUB_ENV"

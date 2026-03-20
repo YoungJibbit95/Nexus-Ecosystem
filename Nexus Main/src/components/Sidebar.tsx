@@ -121,7 +121,15 @@ function NavRow({
   )
 }
 
-export function Sidebar({ view, onChange }: { view: View; onChange: (v: View) => void }) {
+export function Sidebar({
+  view,
+  onChange,
+  availableViews,
+}: {
+  view: View
+  onChange: (v: View) => void
+  availableViews?: View[]
+}) {
   const t = useTheme()
   const terminal = useTerminal()
   const { notes, tasks, reminders, addNote, addTask, addRem } = useApp()
@@ -134,10 +142,20 @@ export function Sidebar({ view, onChange }: { view: View; onChange: (v: View) =>
   const isFloating = sidebarStyle === 'floating'
   const isMinimal = sidebarStyle === 'minimal'
   const isRail = sidebarStyle === 'rail'
+  const allowedViews = new Set<View>(
+    Array.isArray(availableViews) && availableViews.length > 0
+      ? availableViews
+      : [
+        ...MAIN_ITEMS.map((item) => item.id),
+        ...FOOTER_ITEMS.map((item) => item.id),
+      ],
+  )
 
   if (isHidden) return null
 
   const iconOnly = isRail || isMinimal || t.sidebarWidth < 165 || !showLabels
+  const visibleMainItems = MAIN_ITEMS.filter((item) => allowedViews.has(item.id))
+  const visibleFooterItems = FOOTER_ITEMS.filter((item) => allowedViews.has(item.id))
   const pendingTasks = tasks.filter((tk) => tk.status !== 'done').length
   const overdueReminders = reminders.filter((r) => !r.done && new Date(r.snoozeUntil || r.datetime) < new Date()).length
 
@@ -231,7 +249,7 @@ export function Sidebar({ view, onChange }: { view: View; onChange: (v: View) =>
               <button
                 onClick={() => {
                   addNote()
-                  onChange('notes')
+                  if (allowedViews.has('notes')) onChange('notes')
                 }}
                 style={{
                   flex: 1,
@@ -254,7 +272,7 @@ export function Sidebar({ view, onChange }: { view: View; onChange: (v: View) =>
               <button
                 onClick={() => {
                   addTask('Quick Task', 'todo')
-                  onChange('tasks')
+                  if (allowedViews.has('tasks')) onChange('tasks')
                 }}
                 style={{
                   flex: 1,
@@ -280,7 +298,7 @@ export function Sidebar({ view, onChange }: { view: View; onChange: (v: View) =>
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1, minHeight: 0 }}>
-        {MAIN_ITEMS.map((item, idx) => (
+        {visibleMainItems.map((item, idx) => (
           <motion.div
             key={item.id}
             initial={t.animations.entryAnimations ? { opacity: 0, x: -10 } : false}
@@ -302,7 +320,7 @@ export function Sidebar({ view, onChange }: { view: View; onChange: (v: View) =>
       <div style={{ height: 1, margin: '6px 2px', background: 'rgba(255,255,255,0.08)' }} />
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-        {FOOTER_ITEMS.map((item, idx) => (
+        {visibleFooterItems.map((item, idx) => (
           <motion.div
             key={item.id}
             initial={t.animations.entryAnimations ? { opacity: 0, x: -10 } : false}

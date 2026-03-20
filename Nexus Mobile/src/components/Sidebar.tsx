@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React from 'react'
 import { Glass } from './Glass'
 import { useTheme } from '../store/themeStore'
 import { useTerminal } from '../store/terminalStore'
@@ -28,7 +28,15 @@ const BOTTOM_ITEMS: { id: View; icon: any; label: string }[] = [
   { id: 'info',     icon: Info,     label: 'Info' },
 ]
 
-export function Sidebar({ view, onChange }: { view: View; onChange: (v: View) => void }) {
+export function Sidebar({
+  view,
+  onChange,
+  availableViews,
+}: {
+  view: View
+  onChange: (v: View) => void
+  availableViews?: View[]
+}) {
   const t = useTheme()
   const terminal = useTerminal()
   const rgb = hexToRgb(t.accent)
@@ -41,9 +49,19 @@ export function Sidebar({ view, onChange }: { view: View; onChange: (v: View) =>
   const isFloating    = sidebarStyle === 'floating'
   const isMinimal     = sidebarStyle === 'minimal'
   const isRail        = sidebarStyle === 'rail'
+  const allowedViews = new Set<View>(
+    Array.isArray(availableViews) && availableViews.length > 0
+      ? availableViews
+      : [
+        ...ITEMS.map((item) => item.id),
+        ...BOTTOM_ITEMS.map((item) => item.id),
+      ],
+  )
 
   // Rail and narrow modes force icon-only
   const iconOnly = isRail || isMinimal || t.sidebarWidth < 160
+  const visibleItems = ITEMS.filter((item) => allowedViews.has(item.id))
+  const visibleBottomItems = BOTTOM_ITEMS.filter((item) => allowedViews.has(item.id))
 
   const borderSide = isRight
     ? { borderLeft: `1px solid ${t.mode==='dark' ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)'}` }
@@ -207,7 +225,7 @@ export function Sidebar({ view, onChange }: { view: View; onChange: (v: View) =>
 
       {/* Nav items */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 1, flex: 1 }}>
-        {ITEMS.map((item, idx) => renderItem(item, idx))}
+        {visibleItems.map((item, idx) => renderItem(item, idx))}
       </div>
 
       {/* Divider */}
@@ -215,7 +233,7 @@ export function Sidebar({ view, onChange }: { view: View; onChange: (v: View) =>
 
       {/* Bottom items */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-        {BOTTOM_ITEMS.map((item, idx) => renderItem(item, ITEMS.length + idx))}
+        {visibleBottomItems.map((item, idx) => renderItem(item, visibleItems.length + idx))}
       </div>
 
       {/* Terminal button */}

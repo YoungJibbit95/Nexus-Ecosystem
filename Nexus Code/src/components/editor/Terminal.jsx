@@ -205,12 +205,11 @@ export default function Terminal({ isOpen, onToggle, activeFile, code, workspace
   const [cmdHistories, setCmdHistories] = useState({ 1: [] });
   const [cmdIndex, setCmdIndex] = useState({});
   const [copied, setCopied] = useState(false);
-  const [isRunning, setIsRunning] = useState(false);
+  const [runningByTab, setRunningByTab] = useState({});
 
   const scrollRef = useRef(null);
   const inputRef = useRef(null);
-  const activeProcs = useRef(new Set());
-  let _entryId = useRef(10);
+  const entryIdRef = useRef(10);
 
   // Auto-scroll
   useEffect(() => {
@@ -233,30 +232,42 @@ export default function Terminal({ isOpen, onToggle, activeFile, code, workspace
         ...(prev[tabId] || []),
         ...entries.map((e) => ({
           ...e,
-          id: ++_entryId.current,
+          id: ++entryIdRef.current,
         })),
       ],
     }));
   }, []);
 
+  const addCommandHistory = useCallback((tabId, cmd) => {
+    setCmdHistories((prev) => {
+      const current = prev[tabId] || [];
+      const next = [cmd, ...current.filter((item) => item !== cmd)];
+      return { ...prev, [tabId]: next.slice(0, 100) };
+    });
+    setCmdIndex((prev) => ({ ...prev, [tabId]: -1 }));
+  }, []);
+
+  const setTabRunning = useCallback((tabId, running) => {
+    setRunningByTab((prev) => ({ ...prev, [tabId]: running }));
+  }, []);
+
   // Terminal Output Listeners
   useEffect(() => {
-    const unsubscribes = tabs.map(tab => {
-      // @ts-ignore
-      const unsubOutput = window.electronAPI?.onTerminalOutput(tab.id, (data) => {
+    // @ts-ignore
+    const api = window.electronAPI;
+    if (!api) return undefined;
+
+    const unsubscribes = tabs.map((tab) => {
+      const unsubOutput = api.onTerminalOutput?.(tab.id, (data) => {
         addEntries(tab.id, [data]);
       });
-      // @ts-ignore
-      const unsubExit = window.electronAPI?.onTerminalExit(tab.id, (code) => {
-        activeProcs.current.delete(tab.id);
-        if (tab.id === activeTabId) setIsRunning(false);
+      const unsubExit = api.onTerminalExit?.(tab.id, () => {
+        setTabRunning(tab.id, false);
       });
-      // @ts-ignore
-      const unsubReady = window.electronAPI?.onTerminalReady(tab.id, () => {
-        activeProcs.current.add(tab.id);
-        if (tab.id === activeTabId) setIsRunning(true);
+      const unsubReady = api.onTerminalReady?.(tab.id, () => {
+        setTabRunning(tab.id, true);
       });
-      
+
       return () => {
         unsubOutput?.();
         unsubExit?.();
@@ -264,50 +275,60 @@ export default function Terminal({ isOpen, onToggle, activeFile, code, workspace
       };
     });
 
-    return () => unsubscribes.forEach(unsub => unsub());
-  }, [tabs, activeTabId, addEntries]);
+    return () => unsubscribes.forEach((unsub) => unsub());
+  }, [tabs, addEntries, setTabRunning]);
 
-  const setInput = (val) =>
-    setInputs((prev) => ({ ...prev, [activeTabId]: val }));
+  const setInput = useCallback((tabId, value) => {
+    setInputs((prev) => ({ ...prev, [tabId]: value }));
+  }, []);
 
   const currentHistory = histories[activeTabId] || [];
   const currentInput = inputs[activeTabId] || "";
+  const isRunning = Boolean(runningByTab[activeTabId]);
 
-  const handleRun = useCallback(() => {
-    const cmd = currentInput.trim();
-    if (isRunning) return;
+  const executeCommand = useCallback((rawInput) => {
+    const tabId = activeTabId;
+    const cmd = String(rawInput || "").trim();
+    const cmdLower = cmd.toLowerCase();
+    const tabRunning = Boolean(runningByTab[tabId]);
+    if (tabRunning) return;
 
     if (!cmd) return;
 
     // Handle clear specially
-    if (cmd.toLowerCase() === "clear" || cmd.toLowerCase() === "cls") {
-      setHistories((prev) => ({ ...prev, [activeTabId]: [] }));
-      setInput("");
+    if (cmdLower === "clear" || cmdLower === "cls") {
+      setHistories((prev) => ({ ...prev, [tabId]: [] }));
+      setInput(tabId, "");
       return;
     }
 
+    addEntries(tabId, [{ type: "input", text: `$ ${cmd}` }]);
+    addCommandHistory(tabId, cmd);
+    setInput(tabId, "");
+
     // @ts-ignore
-    if (window.electronAPI) {
-      addEntries(activeTabId, [{ type: "input", text: `$ ${cmd}` }]);
-      setInput("");
-      // @ts-ignore
-      window.electronAPI.terminalRun({
-        id: activeTabId,
+    const api = window.electronAPI;
+    if (api?.terminalRun) {
+      setTabRunning(tabId, true);
+      api.terminalRun({
+        id: tabId,
         command: cmd,
-        cwd: workspacePath || null
+        cwd: workspacePath || null,
       });
     } else {
       // Fallback for non-electron (simulated)
-      addEntries(activeTabId, [{ type: "input", text: `$ ${cmd} (Simulator)` }]);
-      setInput("");
-      setIsRunning(true);
+      setTabRunning(tabId, true);
       setTimeout(() => {
         const responses = getResponse(cmd);
-        if (responses) addEntries(activeTabId, responses);
-        setIsRunning(false);
+        if (responses) addEntries(tabId, responses);
+        setTabRunning(tabId, false);
       }, 500);
     }
-  }, [currentInput, activeTabId, addEntries, isRunning, workspacePath]);
+  }, [activeTabId, runningByTab, addEntries, addCommandHistory, setInput, setTabRunning, workspacePath]);
+
+  const handleRun = useCallback(() => {
+    executeCommand(currentInput);
+  }, [executeCommand, currentInput]);
 
   const handleKeyDown = useCallback(
     (e) => {
@@ -325,14 +346,14 @@ export default function Terminal({ isOpen, onToggle, activeFile, code, workspace
         e.preventDefault();
         const newIdx = Math.min(idx + 1, hist.length - 1);
         setCmdIndex((prev) => ({ ...prev, [activeTabId]: newIdx }));
-        if (hist[newIdx] !== undefined) setInput(hist[newIdx]);
+        if (hist[newIdx] !== undefined) setInput(activeTabId, hist[newIdx]);
         return;
       }
       if (e.key === "ArrowDown") {
         e.preventDefault();
         const newIdx = Math.max(idx - 1, -1);
         setCmdIndex((prev) => ({ ...prev, [activeTabId]: newIdx }));
-        setInput(newIdx === -1 ? "" : (hist[newIdx] ?? ""));
+        setInput(activeTabId, newIdx === -1 ? "" : (hist[newIdx] ?? ""));
         return;
       }
 
@@ -340,13 +361,14 @@ export default function Terminal({ isOpen, onToggle, activeFile, code, workspace
       if (e.key === "c" && e.ctrlKey) {
         e.preventDefault();
         // @ts-ignore
-        if (isRunning && window.electronAPI) {
+        if (isRunning && window.electronAPI?.terminalKill) {
           // @ts-ignore
           window.electronAPI.terminalKill(activeTabId);
+          setTabRunning(activeTabId, false);
         } else {
           addEntries(activeTabId, [{ type: "input", text: `$ ${currentInput}^C` }]);
-          setInput("");
-          setIsRunning(false);
+          setInput(activeTabId, "");
+          setTabRunning(activeTabId, false);
         }
         return;
       }
@@ -365,11 +387,11 @@ export default function Terminal({ isOpen, onToggle, activeFile, code, workspace
         const match = cmds.find(
           (c) => c.startsWith(currentInput) && c !== currentInput,
         );
-        if (match) setInput(match);
+        if (match) setInput(activeTabId, match);
         return;
       }
     },
-    [handleRun, cmdHistories, cmdIndex, activeTabId, currentInput, addEntries],
+    [handleRun, cmdHistories, cmdIndex, activeTabId, currentInput, addEntries, isRunning, setInput, setTabRunning],
   );
 
   const handleCopy = async () => {
@@ -393,12 +415,12 @@ export default function Terminal({ isOpen, onToggle, activeFile, code, workspace
       ...prev,
       [tab.id]: [
         {
-          id: ++_entryId.current,
+          id: ++entryIdRef.current,
           type: "system",
           text: "✦ Nexus Code Terminal v1.0",
         },
         {
-          id: ++_entryId.current,
+          id: ++entryIdRef.current,
           type: "system",
           text: "Tippe 'help' für verfügbare Befehle.",
         },
@@ -411,6 +433,19 @@ export default function Terminal({ isOpen, onToggle, activeFile, code, workspace
 
   const closeTab = (tabId) => {
     if (tabs.length === 1) return;
+
+    // @ts-ignore
+    if (runningByTab[tabId] && window.electronAPI?.terminalKill) {
+      // @ts-ignore
+      window.electronAPI.terminalKill(tabId);
+    }
+
+    setRunningByTab((prev) => {
+      const next = { ...prev };
+      delete next[tabId];
+      return next;
+    });
+
     setTabs((prev) => {
       const remaining = prev.filter((t) => t.id !== tabId);
       if (activeTabId === tabId)
@@ -614,8 +649,7 @@ export default function Terminal({ isOpen, onToggle, activeFile, code, workspace
                   cmd = `java ${cls}`;
                 }
                 if (cmd) {
-                  setInputs((prev) => ({ ...prev, [activeTabId]: cmd }));
-                  setTimeout(() => handleRun(), 50);
+                  executeCommand(cmd);
                 }
               }}
               title={`${activeFile.name} ausführen`}
@@ -714,7 +748,7 @@ export default function Terminal({ isOpen, onToggle, activeFile, code, workspace
         <input
           ref={inputRef}
           value={currentInput}
-          onChange={(e) => setInput(e.target.value)}
+          onChange={(e) => setInput(activeTabId, e.target.value)}
           onKeyDown={handleKeyDown}
           disabled={isRunning}
           spellCheck={false}

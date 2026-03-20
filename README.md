@@ -162,29 +162,8 @@ npm run dev:code-mobile:ios
 Mobile Apps werden nativ ueber Capacitor gestartet (`npx cap open ios|android`), nicht ueber Vite-Devserver.
 Alle Root-`dev` und Root-`build` Commands erzwingen vorher automatisch eine aktive Control Plane.
 
-Admin-/Device-Bootstrap (lokal):
-
-```bash
-# User auf admin setzen/erstellen + optional Device direkt freischalten
-npm run security:make-admin -- --username <deinName> --password <deinPasswort> --device-id <deineDeviceId>
-
-# einzelnes Device freischalten
-npm run security:approve-device -- --device-id <deineDeviceId> --roles admin,developer
-```
-
-Mutation Signing Secret (Pflicht fuer mutierende API-Aktionen):
-
-```bash
-npm run security:signing-secret -- --username youngjibbit
-# danach als Env setzen, z. B.
-export NEXUS_MUTATION_SIGNING_SECRETS="youngjibbit:<deinSecret>"
-```
-
-Mehrere berechtigte Personen:
-
-```bash
-export NEXUS_MUTATION_SIGNING_SECRETS="youngjibbit:<secretA>,trusteddev:<secretB>"
-```
+Security-Admin-Bootstrap (User/Devices/Secrets) ist bewusst **nicht** ueber Public-Root-Commands verfuegbar.
+Diese Operationen laufen ausschliesslich ueber das private NexusAPI Operations-Setup.
 
 ## ⚙️ Control Plane + UI starten
 
@@ -214,14 +193,12 @@ Startet Control Plane + Control UI und öffnet automatisch `http://localhost:518
 
 ### 3) Einloggen
 
-Lokale Default-Accounts:
-
-- `admin / change-me-now`
-- `developer / developer-local`
-- `viewer / viewer-local`
+Die lokale/private Control-Plane-Umgebung bootstrapped Entwicklungs-Accounts fuer lokale Tests.
+Die konkreten Bootstrap-Passwoerter werden im Public-Repo absichtlich nicht dokumentiert und muessen
+vor produktiver Nutzung gesetzt bzw. sofort rotiert werden.
 
 > [!WARNING]
-> Default-Zugangsdaten sind nur fuer lokale Entwicklung gedacht und muessen in produktiven Umgebungen ersetzt werden.
+> Zugangsdaten aus lokalen Bootstrap-Setups duerfen nicht in Docs, Screenshots, Beispieldateien oder Commits landen.
 
 ### 4) Control UI auf GitHub Pages (optional)
 
@@ -235,6 +212,13 @@ Wenn die Variable fehlt, deployed die UI trotzdem (Runtime-URL bleibt leer, API-
 
 Der Workflow baut `Nexus Control/dist` mit Runtime-Config und deployed die UI auf GitHub Pages.
 Die UI verbindet sich dann weiter mit der API ueber `GET /api/v1/public/bootstrap` (Handshake) und die normalen Auth/API-Endpunkte.
+
+Wenn im Control Panel der Fehler erscheint:
+
+`Loopback-API URL ist auf gehosteter UI nicht erreichbar`
+
+dann ist in der Website noch `localhost/127.0.0.1` konfiguriert. Setze eine oeffentliche HTTPS API URL in
+`NEXUS_CONTROL_PUBLIC_API_URL` und fuehre den Pages-Workflow neu aus.
 
 ## 🔐 Security-Features
 
@@ -294,10 +278,6 @@ Die Wildcard `*` sollte fuer sichere Setups nicht verwendet werden.
 | `npm run dev:mobile:ios` | Nexus Mobile nativ (build + cap sync + Xcode) |
 | `npm run dev:code-mobile:android` | Nexus Code Mobile nativ (build + cap sync + Android Studio) |
 | `npm run dev:code-mobile:ios` | Nexus Code Mobile nativ (build + cap sync + Xcode) |
-| `npm run security:make-admin -- --username ... --password ...` | Admin-User lokal erstellen/aktualisieren |
-| `npm run security:approve-device -- --device-id ...` | Device lokal fuer Rollen freischalten |
-| `npm run security:signing-secret -- --username ...` | Erzeugt Mutation Signing Secret fuer Owner/Trusted Devs |
-| `npm run security:ingest-key -- --app-id ...` | Erzeugt/rotiert Ingest Key fuer eine App in `policies.json` |
 | `npm run build` | Voller Ecosystem Build (inkl. Android-Versuch) |
 | `npm run build:electron:installers` | Baut beide Electron-Apps inkl. macOS+Windows Installer |
 | `npm run build:main` | Baut `Nexus Main` host-spezifisch (z. B. macOS -> `.dmg`, Windows -> `.exe`) |
@@ -306,6 +286,8 @@ Die Wildcard `*` sollte fuer sichere Setups nicht verwendet werden.
 | `npm run build:apps` | Alle Frontend-Apps bauen |
 | `npm run build:control-plane` | Control Plane Build Snapshot |
 | `npm run verify:ecosystem` | Integrations-/Security-/Layout-Checks |
+| `npm run doctor:release` | Release-Readiness Check (Hosted API, Android SDK, Notarization) |
+| `npm run doctor:release:hosted` | Wie oben, mit Pflicht-Checks fuer gehostete Control UI |
 
 ### Build-Ordner
 
@@ -409,7 +391,7 @@ Kurz: Public Core ist sinnvoll, aber der wirklich autoritative Control Plane sol
 - zeigt der Handshake einen CORS-/Origin-Fehler an (`origin nicht trusted`)?
 - wird `X-Nexus-Device-Id` gesetzt (im UI unter API Settings sichtbar)?
 - ist das Device fuer die Rolle (`admin`/`developer`) freigegeben?
-- Owner-User (`youngjibbit`) koennen neue Devices nach erfolgreicher Auth automatisch freischalten; falls Login trotzdem blockiert, einmal `npm run security:approve-device -- --device-id <id> --roles admin,developer` ausfuehren.
+- Owner-User (`youngjibbit`) koennen neue Devices nach erfolgreicher Auth automatisch freischalten; manuelle Device-Admin-Operationen sind nur im privaten NexusAPI-Operationsbereich erlaubt.
 - Browser-Preflight muss `OPTIONS 204` erhalten; bei `405` laeuft meist eine alte Control-Plane-Version.
 
 </details>
@@ -439,6 +421,7 @@ Kurz: Public Core ist sinnvoll, aber der wirklich autoritative Control Plane sol
 - [PROJECT_BOARD.md](./docs/PROJECT_BOARD.md)
 - [ENVIRONMENT.md](./docs/ENVIRONMENT.md)
 - [SECURITY.md](./docs/SECURITY.md)
+- [CONTROL_PANEL_HOSTED_SETUP.md](./docs/CONTROL_PANEL_HOSTED_SETUP.md)
 - [Nexus Control/README.md](./Nexus%20Control/README.md)
 - Private API Repo (Owner-only): [YoungJibbit95/NexusAPI](https://github.com/YoungJibbit95/NexusAPI)
 
