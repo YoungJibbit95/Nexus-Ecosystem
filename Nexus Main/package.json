@@ -14,7 +14,7 @@
     "electron:build": "npm run electron:build:win",
     "electron:build:mac": "npm run build && npm run electron:pack:mac",
     "electron:pack:win": "node ../tools/electron-pack-win.mjs -- electron-builder --win",
-    "electron:pack:mac": "electron-builder --mac",
+    "electron:pack:mac": "node ../tools/electron-pack-mac.mjs -- electron-builder --mac",
     "electron:build:win": "npm run build && npm run electron:pack:win",
     "electron:build:host": "node ../tools/electron-build-host.mjs --app \"Nexus Main\" --mac-script electron:build:mac --win-script electron:build:win",
     "electron:build:installers": "npm run build && npm run electron:pack:mac && npm run electron:pack:win"

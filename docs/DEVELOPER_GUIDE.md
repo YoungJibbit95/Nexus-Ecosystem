@@ -44,8 +44,8 @@ npm --prefix "./Nexus Control" run build
 ## Relevante Dateien
 
 - `packages/nexus-core/src/liveSync.ts`
-- `.nexus-private/NexusAPI/API/nexus-api/src/control.ts`
-- `.nexus-private/NexusAPI/API/nexus-api/src/runtime.ts`
-- `.nexus-private/NexusAPI/API/nexus-control-plane/src/server.mjs`
-- `.nexus-private/NexusAPI/API/nexus-control-plane/src/store.mjs`
+- `Nexus Main/src/App.tsx`
+- `Nexus Mobile/src/App.tsx`
+- `Nexus Code/src/App.jsx`
+- `Nexus Code Mobile/src/App.jsx`
 - `Nexus Control/src/app.js`
