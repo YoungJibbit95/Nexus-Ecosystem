@@ -10,7 +10,7 @@ export const SESSION_KEYS = {
   token: 'nexus.control.token',
 }
 
-export const DEFAULT_API_URL = 'http://localhost:4399'
+export const DEFAULT_API_URL = 'hhttps://youngjibbit95.github.io/Nexus-Ecosystem/'
 export const DEFAULT_REQUEST_TIMEOUT_MS = 8_000
 export const RUNTIME_CONFIG_PATH = './runtime-config.json'
 
