@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from 'node:crypto'
+import { pbkdf2Sync, randomBytes } from 'node:crypto'
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -31,7 +31,12 @@ const parseOptions = (argv) => {
 const options = parseOptions(args.slice(1))
 
 const nowIso = () => new Date().toISOString()
-const hashSecret = (value) => createHash('sha256').update(String(value)).digest('hex')
+const hashPassword = (value) => {
+  const iterations = 210_000
+  const salt = randomBytes(16).toString('hex')
+  const digest = pbkdf2Sync(String(value || ''), salt, iterations, 64, 'sha512').toString('hex')
+  return `pbkdf2-sha512$${iterations}$${salt}$${digest}`
+}
 
 const normalizeDeviceId = (value) => String(value || '').replace(/[^a-z0-9\-_:.]/gi, '').slice(0, 120)
 const safeUserIdPart = (value) => String(value || '').toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 24)
@@ -107,6 +112,7 @@ const usage = () => {
   console.log('  node tools/security-admin.mjs make-admin --username <name> --password <pwd> [--device-id <id>] [--device-label <label>] [--data-dir <path>]')
   console.log('  node tools/security-admin.mjs approve-device --device-id <id> [--roles admin,developer] [--device-label <label>] [--data-dir <path>]')
   console.log('  node tools/security-admin.mjs generate-signing-secret --username <name> [--bytes 32]')
+  console.log('  node tools/security-admin.mjs generate-ingest-key --app-id <main|mobile|code|code-mobile> [--bytes 24] [--data-dir <path>]')
 }
 
 const runMakeAdmin = async () => {
@@ -129,14 +135,14 @@ const runMakeAdmin = async () => {
 
   if (existing) {
     existing.role = 'admin'
-    existing.passwordHash = hashSecret(password)
+    existing.passwordHash = hashPassword(password)
   } else {
     const suffix = safeUserIdPart(username) || Date.now().toString(36)
     users.push({
       id: `u_${suffix}`,
       username,
       role: 'admin',
-      passwordHash: hashSecret(password),
+      passwordHash: hashPassword(password),
     })
   }
 
@@ -216,11 +222,51 @@ const runGenerateSigningSecret = async () => {
   console.log(`export NEXUS_MUTATION_SIGNING_SECRETS="youngjibbit:<secret1>,${username}:${secret}"`)
 }
 
+const runGenerateIngestKey = async () => {
+  if (options.help === 'true') {
+    usage()
+    return
+  }
+
+  const appId = String(options['app-id'] || '').trim()
+  const allowedApps = ['main', 'mobile', 'code', 'code-mobile']
+  if (!allowedApps.includes(appId)) {
+    throw new Error(`generate-ingest-key benoetigt --app-id (${allowedApps.join(', ')})`)
+  }
+
+  const bytesRaw = Number(options.bytes || 24)
+  const bytes = Number.isInteger(bytesRaw) ? Math.max(12, Math.min(64, bytesRaw)) : 24
+  const key = randomBytes(bytes).toString('base64url')
+
+  const policies = await readJson(files.policies, {})
+  const nextPolicies = (policies && typeof policies === 'object' && !Array.isArray(policies))
+    ? policies
+    : {}
+
+  const currentKeys = (nextPolicies.ingestKeys && typeof nextPolicies.ingestKeys === 'object' && !Array.isArray(nextPolicies.ingestKeys))
+    ? nextPolicies.ingestKeys
+    : {}
+
+  nextPolicies.ingestKeys = {
+    ...currentKeys,
+    [appId]: key,
+  }
+
+  await writeJson(files.policies, nextPolicies)
+
+  console.log('Ingest Key erzeugt und gespeichert.')
+  console.log(`- appId: ${appId}`)
+  console.log(`- key: ${key}`)
+  console.log('\nExport Beispiel:')
+  console.log(`export NEXUS_INGEST_KEY_${appId.toUpperCase().replace(/-/g, '_')}="${key}"`)
+}
+
 const main = async () => {
   const dataDir = await resolveDataDir()
   files = {
     users: path.join(dataDir, 'users.json'),
     devices: path.join(dataDir, 'devices.json'),
+    policies: path.join(dataDir, 'policies.json'),
   }
 
   if (!command || command === 'help' || command === '--help') {
@@ -240,6 +286,11 @@ const main = async () => {
 
   if (command === 'generate-signing-secret') {
     await runGenerateSigningSecret()
+    return
+  }
+
+  if (command === 'generate-ingest-key') {
+    await runGenerateIngestKey()
     return
   }
 
