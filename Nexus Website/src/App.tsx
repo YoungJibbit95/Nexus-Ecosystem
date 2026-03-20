@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
+import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Activity,
   AlertTriangle,
   ArrowRight,
   CheckCircle2,
   Code2,
+  CreditCard,
   Cpu,
   Globe2,
   Laptop,
@@ -19,16 +19,20 @@ import {
   ShieldCheck,
   Smartphone,
   Sparkles,
+  Unlock,
   UserRound,
+  UserPlus,
   Webhook,
   Wrench,
   Zap,
 } from 'lucide-react'
 
-type TabId = 'main' | 'code' | 'ecosystem' | 'control'
+type TabId = 'preview' | 'main' | 'code' | 'ecosystem' | 'access' | 'control'
 type Tier = 'free' | 'paid'
 type AppId = 'main' | 'mobile' | 'code' | 'code-mobile'
+type PreviewAppId = AppId | 'control'
 type MessageTone = 'neutral' | 'success' | 'error' | 'warning'
+type VisualFxMode = 'full' | 'lite'
 
 type SessionCapabilities = {
   canMutate?: boolean
@@ -90,8 +94,11 @@ type BusyState = {
   session: boolean
   workspace: boolean
   login: boolean
+  register: boolean
   save: boolean
   viewCheck: boolean
+  accessCheck: boolean
+  checkout: boolean
 }
 
 type ApiRequestOptions = {
@@ -107,6 +114,8 @@ const STORAGE_KEYS = {
   baseUrl: 'nexus.control.baseUrl',
   ingestKey: 'nexus.control.ingestKey',
   deviceId: 'nexus.control.deviceId',
+  registerPath: 'nexus.website.registerPath',
+  checkoutPath: 'nexus.website.checkoutPath',
 }
 
 const SESSION_KEYS = {
@@ -124,11 +133,15 @@ const DEFAULT_VIEWS_BY_APP: Record<AppId, string[]> = {
 }
 
 const TAB_ITEMS: Array<{ id: TabId; label: string; icon: any }> = [
+  { id: 'preview', label: 'Preview Universe', icon: Sparkles },
   { id: 'main', label: 'Nexus Main', icon: LayoutDashboard },
   { id: 'code', label: 'Nexus Code', icon: Code2 },
   { id: 'ecosystem', label: 'Ecosystem', icon: Layers },
+  { id: 'access', label: 'Website Access', icon: Unlock },
   { id: 'control', label: 'Control API', icon: ServerCog },
 ]
+
+const PreviewUniverse = lazy(() => import('./components/PreviewUniverse').then((module) => ({ default: module.PreviewUniverse })))
 
 const MAIN_FEATURES = [
   {
@@ -241,6 +254,53 @@ const ECOSYSTEM_NODES = [
   },
 ]
 
+const VIEW_SURFACE_MATRIX = [
+  { viewId: 'dashboard', summary: 'Widget-Grid, Snap Layout Editor, KPI Cockpit' },
+  { viewId: 'notes', summary: 'Markdown + Magic Widgets (list, alert, progress, timeline)' },
+  { viewId: 'code', summary: 'Monaco Flow mit Run/Preview und JSON Validation' },
+  { viewId: 'tasks', summary: 'Kanban mit Prioritäten, Deadlines, Subtasks' },
+  { viewId: 'reminders', summary: 'Soon/Overdue Filter + Snooze Quick Actions' },
+  { viewId: 'canvas', summary: 'Mindmap/Roadmap/Sprint + AI Project Generator' },
+  { viewId: 'files', summary: 'Workspace-basierte Datei- und Kontextzuordnung' },
+  { viewId: 'flux', summary: 'Live Aktivitätsstream und Runtime Pulse' },
+  { viewId: 'settings', summary: 'Live Theme/Glass/Animation/Editor Tuning' },
+  { viewId: 'info', summary: 'Runtime- und Build-Transparenz im UI' },
+  { viewId: 'devtools', summary: 'UI Builder + Utility Rechner für Engineering Workflows' },
+]
+
+const CODE_EDITOR_SURFACE = [
+  'Explorer + Dateibaum',
+  'Global Search / Replace',
+  'Git Panel (Commit/Sync Flow)',
+  'Debug Panel + Problems Panel',
+  'Extensions + Settings',
+  'Terminal + Command Palette + Spotlight',
+]
+
+const RUNTIME_FACTS = [
+  { label: 'Event Channel', value: 'nexus-ecosystem-bus' },
+  { label: 'Heartbeat Interval', value: '15s' },
+  { label: 'Stale Threshold', value: '45s' },
+  { label: 'Default Target', value: 'all apps' },
+  { label: 'Live Sync Source', value: 'Catalog + Schema + Release (v2)' },
+  { label: 'Paywall Validation', value: 'serverseitig per view check' },
+]
+
+const PERFORMANCE_BUDGETS = [
+  { label: 'View Render p95', value: '<= 80ms' },
+  { label: 'Long Task Max', value: '<= 150ms' },
+  { label: 'Heap Warn', value: '<= 150MB' },
+  { label: 'Bundle Warn', value: '<= 2000KB' },
+]
+
+const detectInitialVisualFxMode = (): VisualFxMode => {
+  if (typeof navigator === 'undefined') return 'full'
+  const nav = navigator as Navigator & { deviceMemory?: number }
+  const lowCpu = typeof nav.hardwareConcurrency === 'number' && nav.hardwareConcurrency <= 4
+  const lowMemory = typeof nav.deviceMemory === 'number' && nav.deviceMemory <= 4
+  return lowCpu || lowMemory ? 'lite' : 'full'
+}
+
 const toHex = (buffer: ArrayBuffer) => Array
   .from(new Uint8Array(buffer))
   .map((byte) => byte.toString(16).padStart(2, '0'))
@@ -263,6 +323,18 @@ const parseCsvUnique = (value: string) => {
 }
 
 const csvFromList = (items: unknown) => (Array.isArray(items) ? items.join(',') : '')
+
+const normalizeApiPath = (value: string, fallback: string) => {
+  const raw = String(value || '').trim()
+  const fallbackPath = fallback.startsWith('/') ? fallback : `/${fallback}`
+  if (!raw) return fallbackPath
+
+  if (!raw.startsWith('/')) {
+    return `/${raw}`
+  }
+
+  return raw
+}
 
 const normalizeBaseUrl = (value: string) => {
   const raw = String(value || '').trim()
@@ -424,20 +496,33 @@ const buildPaywallPayload = (editor: PaywallEditor) => {
 
 function App() {
   const envBaseUrl = String((import.meta as any).env?.VITE_NEXUS_CONTROL_URL || 'https://nexus-api.dev')
+  const envRegisterPath = String((import.meta as any).env?.VITE_NEXUS_AUTH_REGISTER_PATH || '/auth/register')
+  const envCheckoutPath = String((import.meta as any).env?.VITE_NEXUS_BILLING_CHECKOUT_PATH || '/api/v1/billing/checkout')
 
   const [activeTab, setActiveTab] = useState<TabId>('main')
   const [selectedMainFeature, setSelectedMainFeature] = useState(MAIN_FEATURES[0].id)
   const [selectedCodeFeature, setSelectedCodeFeature] = useState(CODE_FEATURES[0].id)
   const [selectedNode, setSelectedNode] = useState(ECOSYSTEM_NODES[0].id)
+  const [visualFxMode, setVisualFxMode] = useState<VisualFxMode>(detectInitialVisualFxMode)
 
   const [apiBaseUrl, setApiBaseUrl] = useState(() => localStorage.getItem(STORAGE_KEYS.baseUrl) || envBaseUrl)
   const [ingestKey, setIngestKey] = useState(() => localStorage.getItem(STORAGE_KEYS.ingestKey) || '')
   const [deviceId, setDeviceId] = useState(() => localStorage.getItem(STORAGE_KEYS.deviceId) || createDeviceId())
+  const [registerPath, setRegisterPath] = useState(() => localStorage.getItem(STORAGE_KEYS.registerPath) || envRegisterPath)
+  const [checkoutPath, setCheckoutPath] = useState(() => localStorage.getItem(STORAGE_KEYS.checkoutPath) || envCheckoutPath)
   const [signingSecret, setSigningSecret] = useState(() => sessionStorage.getItem(SESSION_KEYS.signingSecret) || '')
   const [token, setToken] = useState(() => sessionStorage.getItem(SESSION_KEYS.token) || '')
 
   const [authUsername, setAuthUsername] = useState('')
   const [authPassword, setAuthPassword] = useState('')
+  const [authMode, setAuthMode] = useState<'login' | 'register'>('login')
+  const [registerForm, setRegisterForm] = useState({
+    username: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+    requestedTier: 'free' as Tier,
+  })
 
   const [session, setSession] = useState<ControlSession | null>(null)
   const [bootstrap, setBootstrap] = useState<BootstrapInfo | null>(null)
@@ -459,10 +544,17 @@ function App() {
     userTier: 'free' as Tier,
   })
   const [viewCheckResult, setViewCheckResult] = useState<ViewAccessResult | null>(null)
+  const [websiteAccessForm, setWebsiteAccessForm] = useState({
+    appId: 'main' as AppId,
+    viewId: 'dashboard',
+    usernameHint: '',
+    requestedTier: 'free' as Tier,
+  })
+  const [websiteAccessResult, setWebsiteAccessResult] = useState<ViewAccessResult | null>(null)
 
   const [status, setStatus] = useState<{ tone: MessageTone; text: string }>({
     tone: 'neutral',
-    text: 'Website bereit. Nutze den Control-Tab für API Management.',
+    text: 'Website bereit. Nutze Website Access für Nutzerflüsse und Control API für Admin-Management.',
   })
 
   const [busy, setBusy] = useState<BusyState>({
@@ -470,11 +562,16 @@ function App() {
     session: false,
     workspace: false,
     login: false,
+    register: false,
     save: false,
     viewCheck: false,
+    accessCheck: false,
+    checkout: false,
   })
 
   const normalizedBaseUrl = useMemo(() => normalizeBaseUrl(apiBaseUrl), [apiBaseUrl])
+  const normalizedRegisterPath = useMemo(() => normalizeApiPath(registerPath, '/auth/register'), [registerPath])
+  const normalizedCheckoutPath = useMemo(() => normalizeApiPath(checkoutPath, '/api/v1/billing/checkout'), [checkoutPath])
 
   const selectedMainFeatureData = useMemo(
     () => MAIN_FEATURES.find((item) => item.id === selectedMainFeature) || MAIN_FEATURES[0],
@@ -490,6 +587,41 @@ function App() {
     () => ECOSYSTEM_NODES.find((item) => item.id === selectedNode) || ECOSYSTEM_NODES[0],
     [selectedNode],
   )
+
+  const previewSession = useMemo(
+    () => (session ? { username: session.username, role: session.role, expiresAt: session.expiresAt } : null),
+    [session?.expiresAt, session?.role, session?.username],
+  )
+
+  const previewBusy = useMemo(
+    () => ({
+      handshake: busy.handshake,
+      session: busy.session,
+      accessCheck: busy.accessCheck,
+    }),
+    [busy.accessCheck, busy.handshake, busy.session],
+  )
+
+  const previewAccessSummary = useMemo(
+    () => (websiteAccessResult
+      ? {
+        allowed: websiteAccessResult.allowed,
+        reason: websiteAccessResult.reason,
+        requiredTier: websiteAccessResult.requiredTier,
+        userTier: websiteAccessResult.userTier,
+        paywallEnabled: websiteAccessResult.paywallEnabled,
+      }
+      : null),
+    [
+      websiteAccessResult?.allowed,
+      websiteAccessResult?.paywallEnabled,
+      websiteAccessResult?.reason,
+      websiteAccessResult?.requiredTier,
+      websiteAccessResult?.userTier,
+    ],
+  )
+
+  const previewAppsCount = useMemo(() => Math.max(apps.length, 5), [apps.length])
 
   const markBusy = useCallback((key: keyof BusyState, value: boolean) => {
     setBusy((prev) => ({ ...prev, [key]: value }))
@@ -749,6 +881,180 @@ function App() {
     }
   }, [apiRequest, authPassword, authUsername, loadWorkspaceData, markBusy, refreshSession, updateStatus])
 
+  const handleRegister = useCallback(async () => {
+    const username = normalizeCsvToken(registerForm.username)
+    const email = String(registerForm.email || '').trim()
+    const password = String(registerForm.password || '')
+    const confirmPassword = String(registerForm.confirmPassword || '')
+
+    if (!username) {
+      updateStatus('warning', 'Bitte einen gültigen Username für die Registrierung angeben.')
+      return
+    }
+
+    if (password.length < 8) {
+      updateStatus('warning', 'Passwort muss mindestens 8 Zeichen haben.')
+      return
+    }
+
+    if (password !== confirmPassword) {
+      updateStatus('warning', 'Passwörter stimmen nicht überein.')
+      return
+    }
+
+    markBusy('register', true)
+    try {
+      const res = await apiRequest(normalizedRegisterPath, {
+        method: 'POST',
+        auth: false,
+        body: {
+          username,
+          password,
+          email: email || undefined,
+          requestedTier: registerForm.requestedTier,
+          source: 'nexus-website',
+        },
+      })
+
+      const nextToken = String(res?.token || '')
+      if (nextToken) {
+        setToken(nextToken)
+        setAuthUsername(username)
+        setAuthPassword('')
+        setAuthMode('login')
+        setRegisterForm({
+          username: '',
+          email: '',
+          password: '',
+          confirmPassword: '',
+          requestedTier: 'free',
+        })
+
+        const sessionOk = await refreshSession(nextToken)
+        if (sessionOk) {
+          await loadWorkspaceData(nextToken)
+        }
+
+        updateStatus('success', `Account ${username} erstellt und eingeloggt.`)
+        return
+      }
+
+      setAuthUsername(username)
+      setAuthPassword('')
+      setAuthMode('login')
+      setRegisterForm({
+        username: '',
+        email: '',
+        password: '',
+        confirmPassword: '',
+        requestedTier: 'free',
+      })
+      updateStatus('success', `Account ${username} erstellt. Jetzt einloggen.`)
+    } catch (error: any) {
+      const errorMessage = String(error?.message || '')
+      if (errorMessage.includes('HTTP_404') || errorMessage.includes('ROUTE_NOT_FOUND')) {
+        updateStatus('warning', `Register Endpoint ${normalizedRegisterPath} ist auf der API nicht aktiv.`)
+        return
+      }
+
+      updateStatus('error', `Registrierung fehlgeschlagen: ${errorMessage || 'Unbekannter Fehler'}`)
+    } finally {
+      markBusy('register', false)
+    }
+  }, [apiRequest, loadWorkspaceData, markBusy, normalizedRegisterPath, refreshSession, registerForm, updateStatus])
+
+  const handleWebsiteAccessCheck = useCallback(async () => {
+    const viewId = normalizeCsvToken(websiteAccessForm.viewId)
+    if (!viewId) {
+      updateStatus('warning', 'Bitte eine gültige View ID für den Access-Check angeben.')
+      return
+    }
+
+    if (websiteAccessForm.requestedTier === 'paid' && !session) {
+      setWebsiteAccessResult(null)
+      updateStatus('warning', 'Paid Tier erfordert Login. Bitte erst anmelden.')
+      return
+    }
+
+    markBusy('accessCheck', true)
+    try {
+      const headers: Record<string, string> = {
+        'X-Nexus-App-Id': websiteAccessForm.appId,
+      }
+      if (token) {
+        headers.Authorization = `Bearer ${token}`
+      }
+      if (ingestKey.trim()) {
+        headers['X-Nexus-Ingest-Key'] = ingestKey.trim()
+      }
+
+      const username = session?.username || websiteAccessForm.usernameHint.trim() || undefined
+
+      const res = await apiRequest('/api/v1/views/validate', {
+        method: 'POST',
+        auth: false,
+        headers,
+        body: {
+          appId: websiteAccessForm.appId,
+          viewId,
+          username,
+        },
+      })
+
+      const result = (res?.item || null) as ViewAccessResult | null
+      setWebsiteAccessResult(result)
+
+      if (result?.allowed) {
+        updateStatus('success', `Access erlaubt (${result.userTier} Tier, API validiert).`)
+      } else if (result?.requiredTier === 'paid') {
+        updateStatus('warning', 'Paid Access blockiert: API meldet keine aktive Paid-Berechtigung.')
+      } else {
+        updateStatus('warning', `Access blockiert: ${result?.reason || 'Unbekannter Grund'}`)
+      }
+    } catch (error: any) {
+      updateStatus('error', `Website Access Check fehlgeschlagen: ${error?.message || 'Unbekannter Fehler'}`)
+    } finally {
+      markBusy('accessCheck', false)
+    }
+  }, [apiRequest, ingestKey, markBusy, session, token, updateStatus, websiteAccessForm])
+
+  const handleStartCheckout = useCallback(async () => {
+    if (!session) {
+      updateStatus('warning', 'Für den Paid Checkout bitte zuerst einloggen.')
+      return
+    }
+
+    markBusy('checkout', true)
+    try {
+      const res = await apiRequest(normalizedCheckoutPath, {
+        method: 'POST',
+        body: {
+          plan: 'paid',
+          username: session.username,
+          source: 'nexus-website',
+          returnUrl: window.location.href,
+        },
+      })
+
+      const checkoutUrl = String(res?.checkoutUrl || res?.url || res?.item?.checkoutUrl || '')
+      if (checkoutUrl && /^https?:\/\//.test(checkoutUrl)) {
+        window.location.href = checkoutUrl
+        return
+      }
+
+      updateStatus('success', 'Checkout angefragt. Danach Access-Check erneut ausführen.')
+    } catch (error: any) {
+      const errorMessage = String(error?.message || '')
+      if (errorMessage.includes('HTTP_404') || errorMessage.includes('ROUTE_NOT_FOUND')) {
+        updateStatus('warning', `Checkout Endpoint ${normalizedCheckoutPath} ist auf der API nicht aktiv.`)
+        return
+      }
+      updateStatus('error', `Checkout Start fehlgeschlagen: ${errorMessage || 'Unbekannter Fehler'}`)
+    } finally {
+      markBusy('checkout', false)
+    }
+  }, [apiRequest, markBusy, normalizedCheckoutPath, session, updateStatus])
+
   const handleLogout = useCallback(async () => {
     try {
       if (token) {
@@ -860,6 +1166,10 @@ function App() {
   const mutationSignatureRequired = Boolean(session?.capabilities?.mutationSignatureRequired)
   const signatureReady = !mutationSignatureRequired || Boolean(signingSecret.trim())
   const policySaveReady = session?.role === 'admin' && session?.capabilities?.canMutate === true && signatureReady
+  const refreshCurrentSession = useCallback(async () => refreshSession(), [refreshSession])
+  const toggleVisualFxMode = useCallback(() => {
+    setVisualFxMode((prev) => (prev === 'full' ? 'lite' : 'full'))
+  }, [])
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.baseUrl, apiBaseUrl)
@@ -870,8 +1180,19 @@ function App() {
   }, [ingestKey])
 
   useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.registerPath, registerPath)
+  }, [registerPath])
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.checkoutPath, checkoutPath)
+  }, [checkoutPath])
+
+  useEffect(() => {
     const nextDeviceId = deviceId.trim() || createDeviceId()
-    setDeviceId(nextDeviceId)
+    if (nextDeviceId !== deviceId) {
+      setDeviceId(nextDeviceId)
+      return
+    }
     localStorage.setItem(STORAGE_KEYS.deviceId, nextDeviceId)
   }, [deviceId])
 
@@ -912,7 +1233,12 @@ function App() {
       : <Activity size={16} />
 
   return (
-    <div className="nexus-site">
+    <div className={`nexus-site ${visualFxMode === 'lite' ? 'fx-lite' : 'fx-full'}`}>
+      <div className="space-stars-layer layer-a" aria-hidden="true" />
+      <div className="space-stars-layer layer-b" aria-hidden="true" />
+      <div className="space-nebula-layer" aria-hidden="true" />
+      {visualFxMode === 'full' ? <div className="space-meteor meteor-a" aria-hidden="true" /> : null}
+      {visualFxMode === 'full' ? <div className="space-meteor meteor-b" aria-hidden="true" /> : null}
       <div className="site-gradient site-gradient-a" aria-hidden="true" />
       <div className="site-gradient site-gradient-b" aria-hidden="true" />
       <div className="site-grid-overlay" aria-hidden="true" />
@@ -930,6 +1256,9 @@ function App() {
             <span className="site-chip"><Sparkles size={14} /> Website-only Setup</span>
             <span className="site-chip"><ShieldCheck size={14} /> Control API Integration</span>
             <span className="site-chip"><Zap size={14} /> Live Paywall Support</span>
+            <button type="button" className={`site-chip site-chip-button ${visualFxMode === 'lite' ? 'active' : ''}`} onClick={toggleVisualFxMode}>
+              <Activity size={14} /> {visualFxMode === 'lite' ? 'Performance Mode' : 'Cinematic Mode'}
+            </button>
           </div>
         </header>
 
@@ -957,15 +1286,32 @@ function App() {
           <span>{status.text}</span>
         </div>
 
-        <AnimatePresence mode="wait">
-          <motion.section
-            key={activeTab}
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.2, ease: 'easeInOut' }}
-            className="site-panel"
-          >
+        <section key={activeTab} className="site-panel site-panel-animate">
+            {activeTab === 'preview' ? (
+              <Suspense
+                fallback={(
+                  <div className="panel-grid">
+                    <article className="panel-card">
+                      <div className="panel-title"><Sparkles size={16} /> Preview Universe</div>
+                      <p>Lade interaktive App-Previews und Orbit-Layer...</p>
+                    </article>
+                  </div>
+                )}
+              >
+                <PreviewUniverse
+                  session={previewSession}
+                  bootstrap={bootstrap}
+                  paywallEnabled={paywallEditor.enabled}
+                  appsCount={previewAppsCount}
+                  runHandshake={runHandshake}
+                  refreshSession={refreshCurrentSession}
+                  handleWebsiteAccessCheck={handleWebsiteAccessCheck}
+                  busy={previewBusy}
+                  viewAccessSummary={previewAccessSummary}
+                />
+              </Suspense>
+            ) : null}
+
             {activeTab === 'main' ? (
               <div className="panel-grid">
                 <article className="panel-card panel-card-feature-list">
@@ -998,10 +1344,25 @@ function App() {
                 <article className="panel-card panel-card-kpi">
                   <div className="panel-title"><Activity size={16} /> Website KPI Preview</div>
                   <div className="kpi-grid">
-                    <div><span>Tabs</span><strong>4</strong></div>
-                    <div><span>Control Flows</span><strong>8+</strong></div>
+                    <div><span>Tabs</span><strong>{TAB_ITEMS.length}</strong></div>
+                    <div><span>Main/Mobile Views</span><strong>{VIEW_SURFACE_MATRIX.length}</strong></div>
                     <div><span>Paywall Apps</span><strong>{PAYWALL_APP_IDS.length}</strong></div>
-                    <div><span>View Tests</span><strong>Live</strong></div>
+                    <div><span>Runtime Rules</span><strong>{RUNTIME_FACTS.length}</strong></div>
+                  </div>
+                </article>
+
+                <article className="panel-card panel-card-wide">
+                  <div className="panel-title"><Layers size={16} /> Main + Mobile View Surface</div>
+                  <div className="surface-grid">
+                    {VIEW_SURFACE_MATRIX.map((view) => (
+                      <div key={view.viewId} className="surface-item">
+                        <div className="surface-item-head">
+                          <strong>{view.viewId}</strong>
+                          <span className="surface-badge">main+mobile</span>
+                        </div>
+                        <p>{view.summary}</p>
+                      </div>
+                    ))}
                   </div>
                 </article>
               </div>
@@ -1045,6 +1406,21 @@ function App() {
                     <div><Globe2 size={16} /><span>Shared Control API Contract</span></div>
                   </div>
                 </article>
+
+                <article className="panel-card panel-card-wide">
+                  <div className="panel-title"><Code2 size={16} /> Code + Code Mobile Panel Surface</div>
+                  <div className="surface-grid">
+                    {CODE_EDITOR_SURFACE.map((item) => (
+                      <div key={item} className="surface-item">
+                        <div className="surface-item-head">
+                          <strong>{item}</strong>
+                          <span className="surface-badge">editor-stack</span>
+                        </div>
+                        <p>Gespiegelt in Nexus Code und Nexus Code Mobile für konsistente Dev-Flows.</p>
+                      </div>
+                    ))}
+                  </div>
+                </article>
               </div>
             ) : null}
 
@@ -1078,6 +1454,299 @@ function App() {
                     <div>API Runtime</div>
                     <ArrowRight size={14} />
                     <div>Control Plane</div>
+                  </div>
+                </article>
+
+                <article className="panel-card panel-card-wide">
+                  <div className="panel-title"><Activity size={16} /> Runtime + Performance Guardrails</div>
+                  <div className="form-grid two">
+                    <div className="guard-list">
+                      {RUNTIME_FACTS.map((fact) => (
+                        <div key={fact.label}>
+                          <span>{fact.label}</span>
+                          <strong>{fact.value}</strong>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="guard-list">
+                      {PERFORMANCE_BUDGETS.map((budget) => (
+                        <div key={budget.label}>
+                          <span>{budget.label}</span>
+                          <strong>{budget.value}</strong>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </article>
+              </div>
+            ) : null}
+
+            {activeTab === 'access' ? (
+              <div className="control-grid">
+                <article className="panel-card control-card">
+                  <div className="panel-title"><UserRound size={16} /> Website Account Access</div>
+                  <p className="muted-copy">
+                    Account-Erstellung und Login laufen auf Web-Ebene. Für Paid-Funktionen ist Login zwingend,
+                    die finale Freigabe kommt aus der API-Validierung.
+                  </p>
+
+                  {session ? (
+                    <div className="session-box">
+                      <div className="session-row"><strong>{session.username}</strong><span>{session.role}</span></div>
+                      <div className="session-meta">Aktive Session: {session.expiresAt || '-'}</div>
+                      <div className={`small-state ${signatureReady ? 'ok' : 'warn'}`}>
+                        {signatureReady ? 'Session aktiv' : 'Signing Secret fehlt für Mutationen'}
+                      </div>
+                      <div className="action-row">
+                        <button onClick={() => void refreshSession()} disabled={busy.session}>
+                          <RefreshCw size={14} className={busy.session ? 'spin' : ''} /> Session refresh
+                        </button>
+                        <button onClick={() => void handleLogout()}>
+                          <LogOut size={14} /> Logout
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="session-box">
+                      <div className="auth-mode-switch">
+                        <button
+                          className={authMode === 'login' ? 'auth-mode-button active' : 'auth-mode-button'}
+                          onClick={() => setAuthMode('login')}
+                          type="button"
+                        >
+                          <LogIn size={14} /> Login
+                        </button>
+                        <button
+                          className={authMode === 'register' ? 'auth-mode-button active' : 'auth-mode-button'}
+                          onClick={() => setAuthMode('register')}
+                          type="button"
+                        >
+                          <UserPlus size={14} /> Signup
+                        </button>
+                      </div>
+
+                      {authMode === 'login' ? (
+                        <>
+                          <div className="form-grid two">
+                            <label>
+                              Username
+                              <input
+                                type="text"
+                                value={authUsername}
+                                onChange={(e) => setAuthUsername(e.target.value)}
+                                placeholder="viewer"
+                              />
+                            </label>
+                            <label>
+                              Passwort
+                              <input
+                                type="password"
+                                value={authPassword}
+                                onChange={(e) => setAuthPassword(e.target.value)}
+                                placeholder="••••••••"
+                              />
+                            </label>
+                          </div>
+                          <button onClick={() => void handleLogin()} disabled={busy.login}>
+                            <LogIn size={14} className={busy.login ? 'spin' : ''} /> Einloggen
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <div className="form-grid two">
+                            <label>
+                              Username
+                              <input
+                                type="text"
+                                value={registerForm.username}
+                                onChange={(e) => setRegisterForm((prev) => ({ ...prev, username: e.target.value }))}
+                                placeholder="new_user"
+                              />
+                            </label>
+                            <label>
+                              E-Mail (optional)
+                              <input
+                                type="email"
+                                value={registerForm.email}
+                                onChange={(e) => setRegisterForm((prev) => ({ ...prev, email: e.target.value }))}
+                                placeholder="user@nexus.dev"
+                              />
+                            </label>
+                            <label>
+                              Passwort
+                              <input
+                                type="password"
+                                value={registerForm.password}
+                                onChange={(e) => setRegisterForm((prev) => ({ ...prev, password: e.target.value }))}
+                                placeholder="mind. 8 Zeichen"
+                              />
+                            </label>
+                            <label>
+                              Passwort wiederholen
+                              <input
+                                type="password"
+                                value={registerForm.confirmPassword}
+                                onChange={(e) => setRegisterForm((prev) => ({ ...prev, confirmPassword: e.target.value }))}
+                                placeholder="••••••••"
+                              />
+                            </label>
+                          </div>
+                          <div className="form-grid two">
+                            <label>
+                              Gewünschter Tier
+                              <select
+                                value={registerForm.requestedTier}
+                                onChange={(e) => setRegisterForm((prev) => ({
+                                  ...prev,
+                                  requestedTier: e.target.value === 'paid' ? 'paid' : 'free',
+                                }))}
+                              >
+                                <option value="free">free</option>
+                                <option value="paid">paid</option>
+                              </select>
+                            </label>
+                            <label>
+                              Register Endpoint
+                              <input
+                                type="text"
+                                value={registerPath}
+                                onChange={(e) => setRegisterPath(e.target.value)}
+                                placeholder="/auth/register"
+                              />
+                            </label>
+                          </div>
+                          <button onClick={() => void handleRegister()} disabled={busy.register}>
+                            <UserPlus size={14} className={busy.register ? 'spin' : ''} /> Account erstellen
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </article>
+
+                <article className="panel-card control-card">
+                  <div className="panel-title"><Lock size={16} /> Paywall Entitlement Check</div>
+                  <p className="muted-copy">
+                    Der Zugriff wird nicht clientseitig entschieden. Die Website prüft jede Freigabe gegen
+                    `/api/v1/views/validate` und vertraut nur der API-Antwort.
+                  </p>
+                  <div className="form-grid two">
+                    <label>
+                      App
+                      <select
+                        value={websiteAccessForm.appId}
+                        onChange={(e) => setWebsiteAccessForm((prev) => ({ ...prev, appId: e.target.value as AppId }))}
+                      >
+                        {PAYWALL_APP_IDS.map((appId) => (
+                          <option key={appId} value={appId}>{appId}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      View ID
+                      <input
+                        type="text"
+                        value={websiteAccessForm.viewId}
+                        onChange={(e) => setWebsiteAccessForm((prev) => ({ ...prev, viewId: e.target.value }))}
+                        placeholder="dashboard"
+                      />
+                    </label>
+                    <label>
+                      Gewünschter Tier
+                      <select
+                        value={websiteAccessForm.requestedTier}
+                        onChange={(e) => setWebsiteAccessForm((prev) => ({
+                          ...prev,
+                          requestedTier: e.target.value === 'paid' ? 'paid' : 'free',
+                        }))}
+                      >
+                        <option value="free">free</option>
+                        <option value="paid">paid</option>
+                      </select>
+                    </label>
+                    <label>
+                      Username Hint (ohne Session)
+                      <input
+                        type="text"
+                        value={websiteAccessForm.usernameHint}
+                        onChange={(e) => setWebsiteAccessForm((prev) => ({ ...prev, usernameHint: e.target.value }))}
+                        placeholder="optional"
+                        disabled={Boolean(session)}
+                      />
+                    </label>
+                  </div>
+
+                  <div className="action-row">
+                    <button onClick={() => void handleWebsiteAccessCheck()} disabled={busy.accessCheck}>
+                      <Unlock size={14} className={busy.accessCheck ? 'spin' : ''} /> Entitlement prüfen
+                    </button>
+                    <span className={`small-state ${(websiteAccessForm.requestedTier === 'paid' && !session) ? 'warn' : 'ok'}`}>
+                      {(websiteAccessForm.requestedTier === 'paid' && !session)
+                        ? 'Paid flow wartet auf Login'
+                        : 'Flow bereit'}
+                    </span>
+                  </div>
+
+                  {websiteAccessResult ? (
+                    <div className={`view-result ${websiteAccessResult.allowed ? 'ok' : 'blocked'}`}>
+                      <div>
+                        <strong>{websiteAccessResult.allowed ? 'ACCESS_GRANTED' : 'ACCESS_BLOCKED'}</strong>
+                        <span>{websiteAccessResult.reason}</span>
+                      </div>
+                      <div>
+                        Tier: {websiteAccessResult.userTier} | Required: {websiteAccessResult.requiredTier || '-'} | Paywall:{' '}
+                        {websiteAccessResult.paywallEnabled ? 'on' : 'off'}
+                      </div>
+                    </div>
+                  ) : null}
+                </article>
+
+                <article className="panel-card control-card">
+                  <div className="panel-title"><CreditCard size={16} /> Checkout Bridge</div>
+                  <p className="muted-copy">
+                    Checkout wird über API gestartet. Nach erfolgreichem Kauf muss der Access-Check erneut laufen,
+                    damit die neue Berechtigung sichtbar wird.
+                  </p>
+                  <div className="form-grid">
+                    <label>
+                      Checkout Endpoint
+                      <input
+                        type="text"
+                        value={checkoutPath}
+                        onChange={(e) => setCheckoutPath(e.target.value)}
+                        placeholder="/api/v1/billing/checkout"
+                      />
+                    </label>
+                  </div>
+                  <div className="action-row">
+                    <button onClick={() => void handleStartCheckout()} disabled={!session || busy.checkout}>
+                      <CreditCard size={14} className={busy.checkout ? 'spin' : ''} /> Paid Checkout starten
+                    </button>
+                    <span className={`small-state ${session ? 'ok' : 'warn'}`}>
+                      {session ? `Checkout User: ${session.username}` : 'Für Checkout bitte einloggen'}
+                    </span>
+                  </div>
+                </article>
+
+                <article className="panel-card control-card control-card-wide">
+                  <div className="panel-title"><ShieldCheck size={16} /> Website Paywall Runtime Rules</div>
+                  <div className="guard-list">
+                    <div>
+                      <span>Rule: Paid Features benötigen Login</span>
+                      <strong>{websiteAccessForm.requestedTier === 'paid' && !session ? 'BLOCKED' : 'OK'}</strong>
+                    </div>
+                    <div>
+                      <span>Rule: Access basiert auf API-Validation</span>
+                      <strong>{websiteAccessResult ? (websiteAccessResult.allowed ? 'GRANTED' : 'DENIED') : 'PENDING'}</strong>
+                    </div>
+                    <div>
+                      <span>Register Path</span>
+                      <strong>{normalizedRegisterPath}</strong>
+                    </div>
+                    <div>
+                      <span>Checkout Path</span>
+                      <strong>{normalizedCheckoutPath}</strong>
+                    </div>
                   </div>
                 </article>
               </div>
@@ -1446,8 +2115,7 @@ function App() {
                 </article>
               </div>
             ) : null}
-          </motion.section>
-        </AnimatePresence>
+        </section>
       </div>
     </div>
   )
