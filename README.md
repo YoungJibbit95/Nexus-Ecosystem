@@ -49,7 +49,7 @@ Ziele:
 | Nexus Mobile | `Nexus Mobile/` | Mobile App (Capacitor + React) |
 | Nexus Code | `Nexus Code/` | Dev-/Code-App (Desktop) |
 | Nexus Code Mobile | `Nexus Code Mobile/` | Dev-/Code-App (Mobile) |
-| Nexus Control | `Nexus Control/` | Zentrale Management-UI |
+| Nexus Control | `../Nexus Control/` (private) | Zentrale Management-UI |
 | NexusAPI | `.nexus-private/NexusAPI/API/nexus-api/` | Shared Runtime API (Connection, Perf, Control Client) |
 | Nexus Control Plane | `.nexus-private/NexusAPI/API/nexus-control-plane/` | Backend fuer Auth, Config, Policies, Commands, Audit |
 | Nexus Schemas | `.nexus-private/NexusAPI/API/schemas/` | Zentrale Contracts und Validatoren |
@@ -207,8 +207,8 @@ Empfohlenes Ziel ist derselbe Server wie die API (`nexus-api.dev`), z. B. als `/
 
 Kurzablauf:
 
-1. `npm --prefix "./Nexus Control" run build`
-2. `Nexus Control/dist` auf den Server deployen (Nginx/Caddy/Apache)
+1. `npm --prefix "../Nexus Control" run build`
+2. `../Nexus Control/dist` auf den Server deployen (Nginx/Caddy/Apache)
 3. `runtime-config.json` mit `controlApiUrl: "https://nexus-api.dev"` ausliefern
 4. Sicherstellen, dass die UI-Origin in `trustedOrigins`/`NEXUS_EXTRA_TRUSTED_ORIGINS` erlaubt ist
 
@@ -296,7 +296,7 @@ build/
 ├── Nexus Mobile/
 ├── Nexus Code/
 ├── Nexus Code Mobile/
-├── Nexus Control/
+├── Nexus Control/ (aus privater Quelle)
 ├── assets/
 │   └── global/
 └── manifest.json
@@ -417,7 +417,7 @@ Kurz: Public Core ist sinnvoll, aber der wirklich autoritative Control Plane sol
 - [ENVIRONMENT.md](./docs/ENVIRONMENT.md)
 - [SECURITY.md](./docs/SECURITY.md)
 - [CONTROL_PANEL_HOSTED_SETUP.md](./docs/CONTROL_PANEL_HOSTED_SETUP.md)
-- [Nexus Control/README.md](./Nexus%20Control/README.md)
+- [Nexus Control (private)](https://github.com/YoungJibbit95/NexusAPI/tree/main/Nexus%20Control)
 - Private API Repo (Owner-only): [YoungJibbit95/NexusAPI](https://github.com/YoungJibbit95/NexusAPI)
 
 ---
