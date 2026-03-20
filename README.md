@@ -411,7 +411,6 @@ Kurz: Public Core ist sinnvoll, aber der wirklich autoritative Control Plane sol
 
 ## 📚 Doku
 
-- [NEXUS_API.md](./docs/NEXUS_API.md) *(public high-level only, ohne sensitive Route-/Mutation-Details)*
 - [DEVELOPER_GUIDE.md](./docs/DEVELOPER_GUIDE.md)
 - [USER_GUIDE.md](./docs/USER_GUIDE.md)
 - [PROJECT_BOARD.md](./docs/PROJECT_BOARD.md)

@@ -27,6 +27,7 @@ const APPS = [
     buildScript: 'build',
     electron: {
       installerScript: 'electron:build:host',
+      installerScriptMac: 'electron:build:installers',
       releaseDir: 'release',
     },
     artifacts: [
@@ -52,6 +53,7 @@ const APPS = [
     buildScript: 'build',
     electron: {
       installerScript: 'electron:build:host',
+      installerScriptMac: 'electron:build:installers',
       releaseDir: 'release',
     },
     artifacts: [
@@ -292,9 +294,12 @@ const buildElectronInstallersForApp = async (app, warnings) => {
 
   const appRoot = path.join(ROOT, app.dir)
   const releaseRoot = path.join(appRoot, app.electron.releaseDir || 'release')
+  const installerScript = process.platform === 'darwin'
+    ? (app.electron.installerScriptMac || app.electron.installerScript)
+    : app.electron.installerScript
 
   try {
-    runNpmCommand(['--prefix', appRoot, 'run', app.electron.installerScript], { cwd: ROOT })
+    runNpmCommand(['--prefix', appRoot, 'run', installerScript], { cwd: ROOT })
 
     const installerArtifacts = await collectInstallerArtifacts(releaseRoot)
     if (installerArtifacts.length === 0) {

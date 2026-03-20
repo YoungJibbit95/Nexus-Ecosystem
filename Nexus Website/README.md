@@ -5,13 +5,8 @@ Separate React/Vite Website fuer das Nexus Ecosystem.
 ## Features
 
 - Interaktive Tabs fuer `Nexus Main`, `Nexus Code`, `Ecosystem`
-- Control API Integration
-  - Handshake (`/api/v1/public/bootstrap`)
-  - Login/Logout + Session (`/auth/login`, `/auth/logout`, `/api/v1/session`)
-  - Workspace Data (`/api/v1/apps`, `/api/v1/metrics/summary`, `/api/v1/policies`)
-  - Paywall + User Access Management via Policies (`PUT /api/v1/policies`)
-  - View Validation (`/api/v1/views/validate`)
-- Signierte Mutationen (HMAC) fuer Owner-/Admin-gesicherte Policy Updates
+- Control API Integration (Handshake, Auth, Session, Policy/Paywall, View Validation)
+- Signierte Mutationen fuer Owner-/Admin-gesicherte Policy Updates
 
 ## Setup
 
