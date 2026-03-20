@@ -1,0 +1,54 @@
+{
+  "name": "EditorSettings",
+  "type": "object",
+  "properties": {
+    "theme": {
+      "type": "string",
+      "enum": [
+        "nexus_dark",
+        "neon_ultra",
+        "ocean_wave",
+        "dracula",
+        "void"
+      ],
+      "default": "nexus_dark"
+    },
+    "font_size": {
+      "type": "number",
+      "default": 14
+    },
+    "font_family": {
+      "type": "string",
+      "default": "JetBrains Mono"
+    },
+    "tab_size": {
+      "type": "number",
+      "default": 4
+    },
+    "word_wrap": {
+      "type": "boolean",
+      "default": false
+    },
+    "minimap": {
+      "type": "boolean",
+      "default": true
+    },
+    "line_numbers": {
+      "type": "boolean",
+      "default": true
+    },
+    "auto_save": {
+      "type": "boolean",
+      "default": true
+    },
+    "primary_accent": {
+      "type": "string",
+      "default": "#8000ff"
+    },
+    "secondary_accent": {
+      "type": "string",
+      "default": "#0033ff"
+    }
+  },
+  "required": []
+}

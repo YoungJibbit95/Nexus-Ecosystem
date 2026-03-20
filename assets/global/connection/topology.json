@@ -1,0 +1,17 @@
+{
+  "channel": "nexus-ecosystem-bus",
+  "apps": ["main", "mobile", "code", "code-mobile"],
+  "events": [
+    "heartbeat",
+    "state-sync",
+    "navigation",
+    "performance-metric",
+    "performance-summary",
+    "custom"
+  ],
+  "rules": {
+    "heartbeatIntervalMs": 15000,
+    "staleAfterMs": 45000,
+    "defaultTarget": "all"
+  }
+}

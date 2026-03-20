@@ -1,0 +1,23 @@
+{
+  "ecosystem": {
+    "name": "Nexus",
+    "version": "2026.03",
+    "tagline": "One ecosystem, multiple runtimes"
+  },
+  "colors": {
+    "accentPrimary": "#007AFF",
+    "accentSecondary": "#5E5CE6",
+    "bgDark": "#0A0A14",
+    "bgLight": "#F5F7FB"
+  },
+  "typography": {
+    "default": "system-ui, -apple-system, sans-serif",
+    "monospace": "Fira Code"
+  },
+  "apps": {
+    "main": { "label": "Nexus Main" },
+    "mobile": { "label": "Nexus Mobile" },
+    "code": { "label": "Nexus Code" },
+    "code-mobile": { "label": "Nexus Code Mobile" }
+  }
+}

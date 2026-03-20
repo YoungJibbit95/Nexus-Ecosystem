@@ -1,0 +1,65 @@
+export type NexusAppTarget = {
+  id: 'main' | 'mobile' | 'code' | 'code-mobile' | 'api' | 'control-plane' | 'control'
+  title: string
+  workspacePath: string
+  platform: string
+  defaultPort?: number
+}
+
+export const NEXUS_ECOSYSTEM_APPS: NexusAppTarget[] = [
+  {
+    id: 'main',
+    title: 'Nexus Main',
+    workspacePath: 'Nexus Main',
+    platform: 'Desktop (Electron + React)',
+    defaultPort: 5173,
+  },
+  {
+    id: 'mobile',
+    title: 'Nexus Mobile',
+    workspacePath: 'Nexus Mobile',
+    platform: 'Mobile Shell (Capacitor + React)',
+    defaultPort: 5174,
+  },
+  {
+    id: 'code',
+    title: 'Nexus Code',
+    workspacePath: 'Nexus Code',
+    platform: 'Code Workspace (Desktop)',
+    defaultPort: 5175,
+  },
+  {
+    id: 'code-mobile',
+    title: 'Nexus Code Mobile',
+    workspacePath: 'Nexus Code Mobile',
+    platform: 'Code Workspace (Mobile)',
+    defaultPort: 5176,
+  },
+  {
+    id: 'api',
+    title: 'Nexus API',
+    workspacePath: '.nexus-private/NexusAPI/API',
+    platform: 'Backend / Service Layer',
+  },
+  {
+    id: 'control-plane',
+    title: 'Nexus Control Plane',
+    workspacePath: '.nexus-private/NexusAPI/API/nexus-control-plane',
+    platform: 'Control Plane Backend',
+    defaultPort: 4399,
+  },
+  {
+    id: 'control',
+    title: 'Nexus Control',
+    workspacePath: 'Nexus Control',
+    platform: 'Management UI (Web)',
+    defaultPort: 5180,
+  },
+]
+
+export const NEXUS_ECOSYSTEM_VERSION = '2026.03'
+export const NEXUS_GLOBAL_ASSETS_PATH = 'assets/global'
+export const NEXUS_SHARED_PACKAGES = ['@nexus/core', '@nexus/api', '@nexus/schemas'] as const
+export const NEXUS_API_PACKAGE_PATH = '.nexus-private/NexusAPI/API/nexus-api'
+export const NEXUS_CONTROL_PLANE_PATH = '.nexus-private/NexusAPI/API/nexus-control-plane'
+export const NEXUS_CONTROL_UI_PATH = 'Nexus Control'

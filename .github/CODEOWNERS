@@ -1,0 +1,13 @@
+# Security-kritische Bereiche
+/.github/** @YoungJibbit95
+/Nexus\ Main/electron/** @YoungJibbit95
+/Nexus\ Control/** @YoungJibbit95
+/.nexus-private/NexusAPI/API/nexus-control-plane/** @YoungJibbit95
+/.nexus-private/NexusAPI/API/nexus-api/** @YoungJibbit95
+/tools/** @YoungJibbit95
+/docs/SECURITY.md @YoungJibbit95
+/docs/ENVIRONMENT.md @YoungJibbit95
+/README.md @YoungJibbit95
+
+# Default Owner
+* @YoungJibbit95

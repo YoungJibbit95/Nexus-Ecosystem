@@ -1,0 +1,6 @@
+{
+  "controlApiUrl": "https://youngjibbit95.github.io/Nexus-Ecosystem/",
+  "bootstrapPath": "/api/v1/public/bootstrap",
+  "privateRepoHint": "",
+  "forceApiUrl": false
+}

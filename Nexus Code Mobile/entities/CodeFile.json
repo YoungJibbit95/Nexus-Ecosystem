@@ -1,0 +1,25 @@
+{
+  "name": "CodeFile",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "File name including extension"
+    },
+    "content": {
+      "type": "string",
+      "description": "File content/code"
+    },
+    "language": {
+      "type": "string",
+      "description": "Programming language"
+    },
+    "folder": {
+      "type": "string",
+      "description": "Folder path"
+    }
+  },
+  "required": [
+    "name"
+  ]
+}
