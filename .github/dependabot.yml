@@ -7,6 +7,7 @@ updates:
       day: "monday"
       time: "04:00"
       timezone: "Europe/Berlin"
+    open-pull-requests-limit: 10
     labels:
       - "dependencies"
       - "security"
@@ -29,6 +30,7 @@ updates:
       day: "monday"
       time: "04:35"
       timezone: "Europe/Berlin"
+    open-pull-requests-limit: 10
     labels:
       - "dependencies"
 
@@ -39,6 +41,7 @@ updates:
       day: "monday"
       time: "04:40"
       timezone: "Europe/Berlin"
+    open-pull-requests-limit: 10
     labels:
       - "dependencies"
 
@@ -49,6 +52,7 @@ updates:
       day: "monday"
       time: "04:45"
       timezone: "Europe/Berlin"
+    open-pull-requests-limit: 10
     labels:
       - "dependencies"
 
@@ -59,6 +63,7 @@ updates:
       day: "monday"
       time: "04:50"
       timezone: "Europe/Berlin"
+    open-pull-requests-limit: 10
     labels:
       - "dependencies"
 
@@ -69,5 +74,6 @@ updates:
       day: "monday"
       time: "04:55"
       timezone: "Europe/Berlin"
+    open-pull-requests-limit: 10
     labels:
       - "dependencies"

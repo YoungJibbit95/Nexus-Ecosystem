@@ -164,7 +164,7 @@ const main = async () => {
   console.log('- npm run dev:control:open  # startet Control Plane + UI mit Browser-Open')
   console.log('- npm run dev:main          # startet Nexus Main mit Electron')
   console.log('- npm run api:private:sync  # synchronisiert private NexusAPI Repo')
-  console.log('- npm run security:signing-secret -- --username youngjibbit')
+  console.log('- npm run doctor:release    # prueft Hosted-API, Android SDK und Notarization-Readiness')
   console.log('- npm run verify:ecosystem  # fuehrt Integritaetspruefungen aus')
 }
 

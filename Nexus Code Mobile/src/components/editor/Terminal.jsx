@@ -205,12 +205,11 @@ export default function Terminal({ isOpen, onToggle, activeFile, code, workspace
   const [cmdHistories, setCmdHistories] = useState({ 1: [] });
   const [cmdIndex, setCmdIndex] = useState({});
   const [copied, setCopied] = useState(false);
-  const [isRunning, setIsRunning] = useState(false);
+  const [runningByTab, setRunningByTab] = useState({});
 
   const scrollRef = useRef(null);
   const inputRef = useRef(null);
-  const activeProcs = useRef(new Set());
-  let _entryId = useRef(10);
+  const entryIdRef = useRef(10);
 
   // Auto-scroll
   useEffect(() => {
@@ -233,47 +232,60 @@ export default function Terminal({ isOpen, onToggle, activeFile, code, workspace
         ...(prev[tabId] || []),
         ...entries.map((e) => ({
           ...e,
-          id: ++_entryId.current,
+          id: ++entryIdRef.current,
         })),
       ],
     }));
   }, []);
 
-  // Terminal Output Listeners (mobile: simulated only, no real shell)
-  useEffect(() => {
-    // No-op on mobile — terminal runs in simulation mode
-    return () => {};
-  }, [tabs, activeTabId, addEntries]);
+  const addCommandHistory = useCallback((tabId, cmd) => {
+    setCmdHistories((prev) => {
+      const current = prev[tabId] || [];
+      const next = [cmd, ...current.filter((item) => item !== cmd)];
+      return { ...prev, [tabId]: next.slice(0, 100) };
+    });
+    setCmdIndex((prev) => ({ ...prev, [tabId]: -1 }));
+  }, []);
 
-  const setInput = (val) =>
-    setInputs((prev) => ({ ...prev, [activeTabId]: val }));
+  const setInput = useCallback((tabId, value) => {
+    setInputs((prev) => ({ ...prev, [tabId]: value }));
+  }, []);
 
   const currentHistory = histories[activeTabId] || [];
   const currentInput = inputs[activeTabId] || "";
+  const isRunning = Boolean(runningByTab[activeTabId]);
 
-  const handleRun = useCallback(() => {
-    const cmd = currentInput.trim();
-    if (isRunning) return;
+  const executeCommand = useCallback((rawInput) => {
+    const tabId = activeTabId;
+    const cmd = String(rawInput || "").trim();
+    const cmdLower = cmd.toLowerCase();
+    const tabRunning = Boolean(runningByTab[tabId]);
+    if (tabRunning) return;
 
     if (!cmd) return;
 
     // Handle clear specially
-    if (cmd.toLowerCase() === "clear" || cmd.toLowerCase() === "cls") {
-      setHistories((prev) => ({ ...prev, [activeTabId]: [] }));
-      setInput("");
+    if (cmdLower === "clear" || cmdLower === "cls") {
+      setHistories((prev) => ({ ...prev, [tabId]: [] }));
+      setInput(tabId, "");
       return;
     }
 
     // Mobile: always use simulated terminal
-    addEntries(activeTabId, [{ type: "input", text: `$ ${cmd}` }]);
-    setInput("");
-    setIsRunning(true);
+    addEntries(tabId, [{ type: "input", text: `$ ${cmd}` }]);
+    addCommandHistory(tabId, cmd);
+    setInput(tabId, "");
+    setRunningByTab((prev) => ({ ...prev, [tabId]: true }));
     setTimeout(() => {
       const responses = getResponse(cmd);
-      if (responses) addEntries(activeTabId, responses);
-      setIsRunning(false);
+      if (responses) addEntries(tabId, responses);
+      setRunningByTab((prev) => ({ ...prev, [tabId]: false }));
     }, 400);
-  }, [currentInput, activeTabId, addEntries, isRunning, workspacePath]);
+  }, [activeTabId, runningByTab, addEntries, addCommandHistory, setInput]);
+
+  const handleRun = useCallback(() => {
+    executeCommand(currentInput);
+  }, [executeCommand, currentInput]);
 
   const handleKeyDown = useCallback(
     (e) => {
@@ -291,14 +303,14 @@ export default function Terminal({ isOpen, onToggle, activeFile, code, workspace
         e.preventDefault();
         const newIdx = Math.min(idx + 1, hist.length - 1);
         setCmdIndex((prev) => ({ ...prev, [activeTabId]: newIdx }));
-        if (hist[newIdx] !== undefined) setInput(hist[newIdx]);
+        if (hist[newIdx] !== undefined) setInput(activeTabId, hist[newIdx]);
         return;
       }
       if (e.key === "ArrowDown") {
         e.preventDefault();
         const newIdx = Math.max(idx - 1, -1);
         setCmdIndex((prev) => ({ ...prev, [activeTabId]: newIdx }));
-        setInput(newIdx === -1 ? "" : (hist[newIdx] ?? ""));
+        setInput(activeTabId, newIdx === -1 ? "" : (hist[newIdx] ?? ""));
         return;
       }
 
@@ -306,8 +318,8 @@ export default function Terminal({ isOpen, onToggle, activeFile, code, workspace
       if (e.key === "c" && e.ctrlKey) {
         e.preventDefault();
         addEntries(activeTabId, [{ type: "input", text: `$ ${currentInput}^C` }]);
-        setInput("");
-        setIsRunning(false);
+        setInput(activeTabId, "");
+        setRunningByTab((prev) => ({ ...prev, [activeTabId]: false }));
         return;
       }
 
@@ -325,11 +337,11 @@ export default function Terminal({ isOpen, onToggle, activeFile, code, workspace
         const match = cmds.find(
           (c) => c.startsWith(currentInput) && c !== currentInput,
         );
-        if (match) setInput(match);
+        if (match) setInput(activeTabId, match);
         return;
       }
     },
-    [handleRun, cmdHistories, cmdIndex, activeTabId, currentInput, addEntries],
+    [handleRun, cmdHistories, cmdIndex, activeTabId, currentInput, addEntries, setInput],
   );
 
   const handleCopy = async () => {
@@ -353,12 +365,12 @@ export default function Terminal({ isOpen, onToggle, activeFile, code, workspace
       ...prev,
       [tab.id]: [
         {
-          id: ++_entryId.current,
+          id: ++entryIdRef.current,
           type: "system",
           text: "✦ Nexus Code Terminal v1.0",
         },
         {
-          id: ++_entryId.current,
+          id: ++entryIdRef.current,
           type: "system",
           text: "Tippe 'help' für verfügbare Befehle.",
         },
@@ -371,6 +383,13 @@ export default function Terminal({ isOpen, onToggle, activeFile, code, workspace
 
   const closeTab = (tabId) => {
     if (tabs.length === 1) return;
+
+    setRunningByTab((prev) => {
+      const next = { ...prev };
+      delete next[tabId];
+      return next;
+    });
+
     setTabs((prev) => {
       const remaining = prev.filter((t) => t.id !== tabId);
       if (activeTabId === tabId)
@@ -574,8 +593,7 @@ export default function Terminal({ isOpen, onToggle, activeFile, code, workspace
                   cmd = `java ${cls}`;
                 }
                 if (cmd) {
-                  setInputs((prev) => ({ ...prev, [activeTabId]: cmd }));
-                  setTimeout(() => handleRun(), 50);
+                  executeCommand(cmd);
                 }
               }}
               title={`${activeFile.name} ausführen`}
@@ -674,14 +692,14 @@ export default function Terminal({ isOpen, onToggle, activeFile, code, workspace
         <input
           ref={inputRef}
           value={currentInput}
-          onChange={(e) => setInput(e.target.value)}
+          onChange={(e) => setInput(activeTabId, e.target.value)}
           onKeyDown={handleKeyDown}
           disabled={isRunning}
           spellCheck={false}
           autoComplete="off"
           autoCorrect="off"
           autoCapitalize="off"
-          inputMode="none"
+          inputMode="text"
           enterKeyHint="send"
           className="flex-1 bg-transparent outline-none font-mono min-w-0"
           style={{

@@ -24,10 +24,6 @@
     "dev:control:open": "node ./tools/dev-control-open.mjs",
     "dev:all": "node ./tools/dev-ecosystem.mjs",
     "dev:all:no-open": "NEXUS_CONTROL_NO_OPEN=true node ./tools/dev-ecosystem.mjs",
-    "security:make-admin": "node ./tools/security-admin.mjs make-admin",
-    "security:approve-device": "node ./tools/security-admin.mjs approve-device",
-    "security:signing-secret": "node ./tools/security-admin.mjs generate-signing-secret",
-    "security:ingest-key": "node ./tools/security-admin.mjs generate-ingest-key",
     "build:main": "node ./tools/run-with-control-plane.mjs -- npm --prefix \"./Nexus Main\" run electron:build:host",
     "build:mobile": "node ./tools/run-with-control-plane.mjs -- npm --prefix \"./Nexus Mobile\" run build",
     "build:code": "node ./tools/run-with-control-plane.mjs -- npm --prefix \"./Nexus Code\" run electron:build:host",
@@ -40,6 +36,8 @@
     "build:ecosystem:fast": "node ./tools/run-with-control-plane.mjs -- node ./tools/build-ecosystem.mjs --skip-installers",
     "build": "npm run build:ecosystem",
     "build:all": "npm run build:ecosystem",
-    "verify:ecosystem": "node ./tools/verify-ecosystem.mjs"
+    "verify:ecosystem": "node ./tools/verify-ecosystem.mjs",
+    "doctor:release": "node ./tools/release-doctor.mjs",
+    "doctor:release:hosted": "node ./tools/release-doctor.mjs --hosted-ui"
   }
 }
