@@ -42,7 +42,7 @@ jobs:
         run: |
           API_URL="${{ vars.NEXUS_CONTROL_PUBLIC_API_URL }}"
           if [ -z "$API_URL" ]; then
-            API_URL="https://youngjibbit95.github.io/Nexus-Ecosystem/"
+            API_URL=""
             echo "::warning::Repository Variable NEXUS_CONTROL_PUBLIC_API_URL fehlt. Runtime API URL bleibt leer (UI bleibt editierbar)."
             echo "NEXUS_CONTROL_UI_FORCE_API_URL=false" >> "$GITHUB_ENV"
           elif echo "$API_URL" | grep -Eq '^https?://(127\.0\.0\.1|localhost)(:|/|$)'; then
