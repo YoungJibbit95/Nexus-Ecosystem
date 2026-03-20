@@ -1,0 +1,29 @@
+:root {
+  color-scheme: dark;
+  --bg: #090f1d;
+  --bg-soft: #121c33;
+  --panel: rgba(11, 20, 39, 0.78);
+  --panel-border: rgba(98, 127, 202, 0.28);
+  --text: #e6edf8;
+  --muted: #a5b3d9;
+  --accent: #4fd1c5;
+  --accent-2: #60a5fa;
+  --danger: #f87171;
+  --ok: #34d399;
+  --warn: #fbbf24;
+  --radius: 16px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  width: 100%;
+  min-height: 100%;
+  font-family: 'Sora', 'IBM Plex Sans', 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}

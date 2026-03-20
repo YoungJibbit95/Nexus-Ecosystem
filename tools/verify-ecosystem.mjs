@@ -49,59 +49,34 @@ const listFilesRecursive = async (dir, out = []) => {
 }
 
 const run = async () => {
-  let apiSource = null
-  let apiSourceError = null
-
-  try {
-    apiSource = await resolveApiSource({ root: ROOT, quiet: true })
-  } catch (error) {
-    apiSourceError = String(error?.message || error)
-  }
+  const apiSource = await resolveApiSource({ root: ROOT, quiet: true })
 
   const checks = [
-    apiSource
-      ? {
-        id: 'private-api-source',
-        ok: apiSource.mode === 'private',
-        message: 'API Source ist private-only',
-        details: `mode=${apiSource.mode}`,
-      }
-      : {
-        id: 'private-api-source-optional',
-        ok: true,
-        message: 'Private NexusAPI Checkout optional (z. B. in CI) nicht vorhanden',
-        details: apiSourceError || 'missing private checkout',
-      },
     {
-      id: 'public-api-dir-absent',
-      ok: !(await exists(path.join(ROOT, 'API'))),
-      message: 'Public API Ordner ist aus dem Repo entfernt',
-      details: 'API/',
+      id: 'private-api-source',
+      ok: apiSource.mode === 'private',
+      message: 'API Source ist private-only',
+      details: `mode=${apiSource.mode}`,
+    },
+    {
+      id: 'private-api-dir',
+      ok: await exists(apiSource.apiDir),
+      message: 'Private nexus-api Quelle vorhanden',
+      details: apiSource.apiDir,
+    },
+    {
+      id: 'private-control-plane-dir',
+      ok: await exists(apiSource.controlPlaneDir),
+      message: 'Private nexus-control-plane Quelle vorhanden',
+      details: apiSource.controlPlaneDir,
+    },
+    {
+      id: 'private-schemas-dir',
+      ok: await exists(apiSource.schemasDir),
+      message: 'Private schemas Quelle vorhanden',
+      details: apiSource.schemasDir,
     },
   ]
-
-  if (apiSource) {
-    checks.push(
-      {
-        id: 'private-api-dir',
-        ok: await exists(apiSource.apiDir),
-        message: 'Private nexus-api Quelle vorhanden',
-        details: apiSource.apiDir,
-      },
-      {
-        id: 'private-control-plane-dir',
-        ok: await exists(apiSource.controlPlaneDir),
-        message: 'Private nexus-control-plane Quelle vorhanden',
-        details: apiSource.controlPlaneDir,
-      },
-      {
-        id: 'private-schemas-dir',
-        ok: await exists(apiSource.schemasDir),
-        message: 'Private schemas Quelle vorhanden',
-        details: apiSource.schemasDir,
-      },
-    )
-  }
 
   const fileChecks = [
     {
@@ -129,63 +104,137 @@ const run = async () => {
       message: 'Nexus Code Mobile nutzt NexusRuntime',
     },
     {
+      id: 'main-view-validation',
+      file: path.join(ROOT, 'Nexus Main/src/App.tsx'),
+      pattern: /validateViewAccess\(/,
+      message: 'Nexus Main validiert Views gegen API',
+    },
+    {
+      id: 'mobile-view-validation',
+      file: path.join(ROOT, 'Nexus Mobile/src/App.tsx'),
+      pattern: /validateViewAccess\(/,
+      message: 'Nexus Mobile validiert Views gegen API',
+    },
+    {
+      id: 'code-view-validation',
+      file: path.join(ROOT, 'Nexus Code/src/App.jsx'),
+      pattern: /validateViewAccess\("editor"/,
+      message: 'Nexus Code validiert editor-View',
+    },
+    {
+      id: 'code-mobile-view-validation',
+      file: path.join(ROOT, 'Nexus Code Mobile/src/App.jsx'),
+      pattern: /validateViewAccess\("editor"/,
+      message: 'Nexus Code Mobile validiert editor-View',
+    },
+    {
       id: 'control-ui-paywall-tab',
-      file: path.join(ROOT, 'Nexus Control/src/index.html'),
+      file: path.join(ROOT, 'Nexus Control/src/layout/workspace/nav-tabs.js'),
       pattern: /data-tab="paywalls"/,
       message: 'Control UI hat Paywalls-Tab',
     },
     {
+      id: 'control-ui-livesync-tab',
+      file: path.join(ROOT, 'Nexus Control/src/layout/workspace/nav-tabs.js'),
+      pattern: /data-tab="livesync"/,
+      message: 'Control UI hat Live-Sync-Tab',
+    },
+    {
       id: 'control-ui-paywall-save',
-      file: path.join(ROOT, 'Nexus Control/src/app.js'),
+      file: path.join(ROOT, 'Nexus Control/src/control/events/management-events.js'),
       pattern: /savePaywallsBtn|buildPaywallPayloadFromUi|renderPaywallEditor/s,
       message: 'Control UI kann Paywalls laden/speichern',
     },
-    ...(apiSource
-      ? [
-        {
-          id: 'api-view-validation-route',
-          file: path.join(apiSource.controlPlaneDir, 'src/server.mjs'),
-          pattern: /\/api\/v1\/views\/validate/,
-          message: 'Control Plane hat View-Validation-Route',
-        },
-        {
-          id: 'api-owner-only-control-panel',
-          file: path.join(apiSource.controlPlaneDir, 'src/server.mjs'),
-          pattern: /CONTROL_PANEL_OWNER_ONLY|ownerOnlyControlPanel/s,
-          message: 'Control Plane erzwingt Owner-Only Panel',
-        },
-        {
-          id: 'api-loopback-host',
-          file: path.join(apiSource.controlPlaneDir, 'src/server.mjs'),
-          pattern: /const HOST = loopbackHosts\.has\(requestedHost\) \? '127\.0\.0\.1' : '127\.0\.0\.1'/,
-          message: 'Control Plane bindet nur an 127.0.0.1',
-        },
-        {
-          id: 'api-port-management',
-          file: path.join(apiSource.controlPlaneDir, 'src/server.mjs'),
-          pattern: /assertPortAvailable\(PORT, HOST\)/,
-          message: 'Control Plane prueft Portkonflikte vor Start',
-        },
-        {
-          id: 'schemas-paywalls-default',
-          file: path.join(apiSource.schemasDir, 'src/contracts.mjs'),
-          pattern: /defaultPaywallPolicies|paywalls:\s*defaultPaywallPolicies\(\)/s,
-          message: 'Schemas enthalten Paywall-Defaults',
-        },
-        {
-          id: 'schemas-paywalls-validate',
-          file: path.join(apiSource.schemasDir, 'src/contracts.mjs'),
-          pattern: /incomingPaywalls|paywallTiers|paywallUsers/s,
-          message: 'Schemas validieren Paywall-Policies',
-        },
-        {
-          id: 'nexus-api-view-client',
-          file: path.join(apiSource.apiDir, 'src/control.ts'),
-          pattern: /validateViewAccess\(viewId/s,
-          message: 'nexus-api Client hat View-Validation-Client',
-        },
-      ]
-      : []),
+    {
+      id: 'control-ui-v2-actions',
+      file: path.join(ROOT, 'Nexus Control/src/control/workspace/v2-actions.js'),
+      pattern: /saveV2FeatureCatalog|saveV2LayoutSchema|promoteV2Release|loadV2Runtime/s,
+      message: 'Control UI kann v2 Catalog/Schema/Promotion steuern',
+    },
+    {
+      id: 'api-view-validation-route',
+      file: path.join(apiSource.controlPlaneDir, 'src/server/routes/auth/ingest-routes.mjs'),
+      pattern: /\/api\/v1\/views\/validate/,
+      message: 'Control Plane hat View-Validation-Route',
+    },
+    {
+      id: 'api-v2-routes',
+      file: path.join(apiSource.controlPlaneDir, 'src/server/routes/v2-routes.mjs'),
+      pattern: /handleV2CatalogRoutes|handleV2LayoutRoutes|handleV2CapabilitiesRoutes|handleV2ReleaseRoutes/s,
+      message: 'Control Plane hat API v2 Routes fuer Catalog/Layout/Releases',
+    },
+    {
+      id: 'api-v2-store',
+      file: path.join(apiSource.controlPlaneDir, 'src/store/live-sync-release-methods.mjs'),
+      pattern: /promoteRelease|reportClientCapability|getCurrentRelease/s,
+      message: 'Control Plane Store verwaltet v2 Artefakte',
+    },
+    {
+      id: 'api-owner-only-control-panel',
+      file: path.join(apiSource.controlPlaneDir, 'src/server/helpers/authz.mjs'),
+      pattern: /CONTROL_PANEL_OWNER_ONLY|ownerOnlyControlPanel|isControlPanelOwnerOnlyEnabled/s,
+      message: 'Control Plane erzwingt Owner-Only Panel',
+    },
+    {
+      id: 'api-loopback-host',
+      file: path.join(apiSource.controlPlaneDir, 'src/server.mjs'),
+      pattern: /resolveLoopbackHost|hostInfo\.downgraded|const HOST = hostInfo\.host/s,
+      message: 'Control Plane bindet nur an 127.0.0.1',
+    },
+    {
+      id: 'api-port-management',
+      file: path.join(apiSource.controlPlaneDir, 'src/server.mjs'),
+      pattern: /ensureServerStart\(|assertPortAvailable/s,
+      message: 'Control Plane prueft Portkonflikte vor Start',
+    },
+    {
+      id: 'schemas-paywalls-default',
+      file: path.join(apiSource.schemasDir, 'src/contracts/paywalls.mjs'),
+      pattern: /defaultPaywallPolicies|paywalls:\s*defaultPaywallPolicies\(\)/s,
+      message: 'Schemas enthalten Paywall-Defaults',
+    },
+    {
+      id: 'schemas-paywalls-validate',
+      file: path.join(apiSource.schemasDir, 'src/contracts/policy.mjs'),
+      pattern: /incomingPaywalls|paywallTiers|paywallUsers/s,
+      message: 'Schemas validieren Paywall-Policies',
+    },
+    {
+      id: 'nexus-api-view-client',
+      file: path.join(apiSource.apiDir, 'src/control/client.ts'),
+      pattern: /validateViewAccess\(viewId/s,
+      message: 'nexus-api Client hat View-Validation-Client',
+    },
+    {
+      id: 'nexus-api-live-sync-client',
+      file: path.join(apiSource.apiDir, 'src/control/client.ts'),
+      pattern: /fetchCatalog|fetchLayoutSchema|fetchCurrentRelease|fetchLiveBundle|subscribeReleaseUpdates|resolveFeatureCompatibility/s,
+      message: 'nexus-api Client bietet v2 Live-Sync API',
+    },
+    {
+      id: 'nexus-runtime-live-sync',
+      file: path.join(apiSource.apiDir, 'src/runtime.ts'),
+      pattern: /loadLiveBundle|resolveCompatibility|liveSync/s,
+      message: 'Nexus Runtime integriert Live-Sync Hooks',
+    },
+    {
+      id: 'shared-core-live-sync',
+      file: path.join(ROOT, 'packages/nexus-core/src/liveSync.ts'),
+      pattern: /buildLiveViewModel|resolveLayoutProfile|getFallbackViewsForApp/s,
+      message: 'Shared Core hat zentrale Live-Sync View-Orchestrierung',
+    },
+    {
+      id: 'main-live-sync-consumer',
+      file: path.join(ROOT, 'Nexus Main/src/App.tsx'),
+      pattern: /buildLiveViewModel|loadLiveBundle|liveSync/s,
+      message: 'Nexus Main nutzt Live-Sync Catalog/Layout Runtime',
+    },
+    {
+      id: 'mobile-live-sync-consumer',
+      file: path.join(ROOT, 'Nexus Mobile/src/App.tsx'),
+      pattern: /buildLiveViewModel|loadLiveBundle|liveSync/s,
+      message: 'Nexus Mobile nutzt Live-Sync Catalog/Layout Runtime',
+    },
     {
       id: 'private-alias-main',
       file: path.join(ROOT, 'Nexus Main/vite.config.ts'),

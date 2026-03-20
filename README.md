@@ -13,13 +13,13 @@
 
 > [!IMPORTANT]
 > Das Ecosystem ist jetzt in **Runtime Plane** (`@nexus/api` in den Apps) und **Control Plane** (`.nexus-private/NexusAPI/API/nexus-control-plane` + `Nexus Control`) aufgeteilt.
-> Der ehemalige Public-Ordner `API/` ist aus diesem Repository entfernt; API-Code liegt nur noch im privaten Repo `YoungJibbit95/NexusAPI`.
 
 ## ✨ Inhaltsverzeichnis
 
 - [🎯 Was ist das Nexus Ecosystem?](#-was-ist-das-nexus-ecosystem)
 - [🧩 Komponenten](#-komponenten)
 - [🏗️ Architektur](#️-architektur)
+- [🔄 Live-Sync v2](#-live-sync-v2)
 - [🧪 Schnellstart für Nutzer](#-schnellstart-für-nutzer)
 - [🛠️ Setup für Entwickler](#️-setup-für-entwickler)
 - [⚙️ Control Plane + UI starten](#️-control-plane--ui-starten)
@@ -77,6 +77,20 @@ flowchart LR
   K --> B
   L["assets/global"] --> R
 ```
+
+## 🔄 Live-Sync v2
+
+Die Apps nutzen API-v2 Contracts fuer Feature- und Layout-Sync.
+Die exakten API-Routen und internen Mutationsablaeufe sind absichtlich **nicht** im Public-README dokumentiert
+und werden nur im privaten API-Bereich gepflegt.
+
+Umsetzung:
+
+1. Shared Core (`packages/nexus-core/src/liveSync.ts`) berechnet aus Catalog+Schema die effektiv erlaubten Views.
+2. Main/Mobile uebernehmen diese View-Liste live (stable-only Features fuer die jeweilige App).
+3. Layout-Profile aus dem Schema steuern mobile/desktop Darstellung (z. B. `density`, `navigation`).
+4. Code/Code-Mobile melden Capabilities und abonnieren Release-Updates.
+5. Nexus Control Tab `Live Sync` dient als Light Builder fuer Catalog/Schema + Promotion.
 
 ## 🧪 Schnellstart für Nutzer
 
@@ -217,7 +231,7 @@ Optional vor dem Deploy in GitHub Repository Variables setzen:
 
 - `NEXUS_CONTROL_PUBLIC_API_URL` = oeffentliche HTTPS URL deiner laufenden Control Plane
 
-Wenn die Variable fehlt, deployed die UI trotzdem (Fallback auf `http://127.0.0.1:4399`, API-Feld bleibt editierbar).
+Wenn die Variable fehlt, deployed die UI trotzdem (Runtime-URL bleibt leer, API-Feld bleibt editierbar).
 
 Der Workflow baut `Nexus Control/dist` mit Runtime-Config und deployed die UI auf GitHub Pages.
 Die UI verbindet sich dann weiter mit der API ueber `GET /api/v1/public/bootstrap` (Handshake) und die normalen Auth/API-Endpunkte.
@@ -233,7 +247,7 @@ Die UI verbindet sich dann weiter mit der API ueber `GET /api/v1/public/bootstra
 - Sliding-Window Rate Limiting im Control Plane
 - Idempotency-Key Support fuer Commands
 - Ingest-Schutz via Bearer Token oder `X-Nexus-Ingest-Key`
-- CORS-Policy ueber `trustedOrigins`
+- CORS-Policy ueber `trustedOrigins` + optionale Runtime-Erweiterung via `NEXUS_EXTRA_TRUSTED_ORIGINS`
 - Interne Server binden nur an `127.0.0.1` (kein `0.0.0.0`)
 - Keine globalen Electron Session-Overrides (`defaultSession`, `webRequest`, `setProxy`)
 - Payload-Guards in `NexusConnectionManager` (`maxPayloadBytes`)
@@ -246,9 +260,9 @@ Zusatz: Mutierende API-Calls (Config/Policies/Devices/Commands) sind auf den Own
 
 Command-Sicherheit:
 
-- `POST /api/v1/commands` ist owner-only.
-- Commands haben keinen direkten User-/Role-Write-Endpunkt und koennen keine Accounts hochstufen.
-- Ohne gueltige Mutation-Signatur koennen keine schreibenden API-Endpunkte ausgefuehrt werden.
+- Command-Mutationen sind owner-only.
+- Commands haben keinen direkten User-/Role-Write-Pfad und koennen keine Accounts hochstufen.
+- Ohne gueltige Mutation-Signatur koennen keine schreibenden API-Aktionen ausgefuehrt werden.
 
 Default `trustedOrigins` (lokal) sind auf die bekannten Dev-Origins begrenzt:
 
@@ -257,7 +271,8 @@ Default `trustedOrigins` (lokal) sind auf die bekannten Dev-Origins begrenzt:
 - `http://127.0.0.1:5173-5176` und `http://127.0.0.1:5180-5181`
 - `capacitor://localhost`, `ionic://localhost`
 
-Fuer GitHub Pages muss deine Pages-Origin zusaetzlich explizit in `trustedOrigins` stehen, z. B.:
+Fuer GitHub Pages ist `https://youngjibbit95.github.io` standardmaessig serverseitig erlaubt (`NEXUS_OWNER_PAGES_ORIGIN`).
+Weitere Origins kannst du in `trustedOrigins` oder `NEXUS_EXTRA_TRUSTED_ORIGINS` ergaenzen, z. B.:
 
 - `https://youngjibbit95.github.io`
 
@@ -282,10 +297,11 @@ Die Wildcard `*` sollte fuer sichere Setups nicht verwendet werden.
 | `npm run security:make-admin -- --username ... --password ...` | Admin-User lokal erstellen/aktualisieren |
 | `npm run security:approve-device -- --device-id ...` | Device lokal fuer Rollen freischalten |
 | `npm run security:signing-secret -- --username ...` | Erzeugt Mutation Signing Secret fuer Owner/Trusted Devs |
+| `npm run security:ingest-key -- --app-id ...` | Erzeugt/rotiert Ingest Key fuer eine App in `policies.json` |
 | `npm run build` | Voller Ecosystem Build (inkl. Android-Versuch) |
 | `npm run build:electron:installers` | Baut beide Electron-Apps inkl. macOS+Windows Installer |
-| `npm run build:main` | Baut `Nexus Main` inkl. macOS+Windows Installer |
-| `npm run build:code` | Baut `Nexus Code` inkl. macOS+Windows Installer |
+| `npm run build:main` | Baut `Nexus Main` host-spezifisch (z. B. macOS -> `.dmg`, Windows -> `.exe`) |
+| `npm run build:code` | Baut `Nexus Code` host-spezifisch (z. B. macOS -> `.dmg`, Windows -> `.exe`) |
 | `npm run build:ecosystem:fast` | Schneller Build ohne Android-Versuch |
 | `npm run build:apps` | Alle Frontend-Apps bauen |
 | `npm run build:control-plane` | Control Plane Build Snapshot |
@@ -335,9 +351,16 @@ Wenn `VITE_NEXUS_CONTROL_URL` gesetzt ist, aktiviert `createNexusRuntime(...)` a
 
 View-Paywalls:
 
-- Control Plane Endpoint: `POST /api/v1/views/validate`
 - Control Panel Tab: `Paywalls` (globaler Toggle, Tier-Templates, Free/Paid-User-Templates)
 - Apps validieren View-Wechsel gegen die API, bevor gesperrte Views gerendert werden.
+
+Live-Sync Runtime:
+
+- `runtime.loadLiveBundle({ channel: 'production' })`
+- `runtime.resolveCompatibility(bundle)`
+- `runtime.control.subscribeReleaseUpdates(...)`
+
+Damit uebernehmen Mobile-Apps neue **stable** Features aus Main/Code automatisiert, solange die Kompatibilitaetsregeln passen.
 
 ## 📋 GitHub Project Workflow
 
@@ -382,8 +405,12 @@ Kurz: Public Core ist sinnvoll, aber der wirklich autoritative Control Plane sol
 - laeuft der Control Plane Dienst auf der eingestellten URL?
 - stimmt Benutzername/Passwort?
 - ist im UI die richtige API URL hinterlegt?
+- wenn UI auf HTTPS (GitHub Pages) laeuft: ist die API ebenfalls HTTPS (kein `http://localhost`/`127.0.0.1`)?
+- zeigt der Handshake einen CORS-/Origin-Fehler an (`origin nicht trusted`)?
 - wird `X-Nexus-Device-Id` gesetzt (im UI unter API Settings sichtbar)?
 - ist das Device fuer die Rolle (`admin`/`developer`) freigegeben?
+- Owner-User (`youngjibbit`) koennen neue Devices nach erfolgreicher Auth automatisch freischalten; falls Login trotzdem blockiert, einmal `npm run security:approve-device -- --device-id <id> --roles admin,developer` ausfuehren.
+- Browser-Preflight muss `OPTIONS 204` erhalten; bei `405` laeuft meist eine alte Control-Plane-Version.
 
 </details>
 
@@ -406,7 +433,9 @@ Kurz: Public Core ist sinnvoll, aber der wirklich autoritative Control Plane sol
 
 ## 📚 Doku
 
-- [NEXUS_API.md](./docs/NEXUS_API.md)
+- [NEXUS_API.md](./docs/NEXUS_API.md) *(public high-level only, ohne sensitive Route-/Mutation-Details)*
+- [DEVELOPER_GUIDE.md](./docs/DEVELOPER_GUIDE.md)
+- [USER_GUIDE.md](./docs/USER_GUIDE.md)
 - [PROJECT_BOARD.md](./docs/PROJECT_BOARD.md)
 - [ENVIRONMENT.md](./docs/ENVIRONMENT.md)
 - [SECURITY.md](./docs/SECURITY.md)
