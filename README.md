@@ -148,8 +148,8 @@ Standardverhalten:
 ### App-Entwicklung (Runtime Plane)
 
 ```bash
-npm run control:ensure  # API-Guard: startet Control Plane falls noetig
-npm run dev:all       # Core Dev-Stack (Control + Main + Code)
+npm run dev:all       # Main + Code (API extern)
+npm run dev:all:with-local-api  # inkl. lokaler Control Plane + Control UI
 npm run dev:main      # Nexus Main in Electron
 npm run dev:main:web  # Nexus Main nur im Browser (Vite)
 npm run dev:mobile:android
@@ -160,7 +160,7 @@ npm run dev:code-mobile:ios
 ```
 
 Mobile Apps werden nativ ueber Capacitor gestartet (`npx cap open ios|android`), nicht ueber Vite-Devserver.
-Alle Root-`dev` und Root-`build` Commands erzwingen vorher automatisch eine aktive Control Plane.
+Root-`build` Commands sind API-unabhaengig. Die lokale Control Plane ist optional fuer Integrations-/Admin-Tests.
 
 Security-Admin-Bootstrap (User/Devices/Secrets) ist bewusst **nicht** ueber Public-Root-Commands verfuegbar.
 Diese Operationen laufen ausschliesslich ueber das private NexusAPI Operations-Setup.
@@ -208,7 +208,7 @@ Optional vor dem Deploy in GitHub Repository Variables setzen:
 
 - `NEXUS_CONTROL_PUBLIC_API_URL` = oeffentliche HTTPS URL deiner laufenden Control Plane
 
-Wenn die Variable fehlt, deployed die UI trotzdem (Runtime-URL bleibt leer, API-Feld bleibt editierbar).
+Wenn die Variable fehlt, nutzt der Workflow als Default `https://nexus-api.dev`.
 
 Der Workflow baut `Nexus Control/dist` mit Runtime-Config und deployed die UI auf GitHub Pages.
 Die UI verbindet sich dann weiter mit der API ueber `GET /api/v1/public/bootstrap` (Handshake) und die normalen Auth/API-Endpunkte.
@@ -271,14 +271,15 @@ Die Wildcard `*` sollte fuer sichere Setups nicht verwendet werden.
 | `npm run setup` | Vollstaendiges Local Setup (Install + `.env.local` Defaults) |
 | `npm run api:private:sync` | Synchronisiert private `NexusAPI` Quelle |
 | `npm run api:private:source` | Zeigt aktive API-Quelle + Pfade an |
-| `npm run control:ensure` | Erzwingt, dass die Control Plane aktiv ist |
-| `npm run dev:all` | Startet den Core-Stack (Control Plane, Control UI, Main, Code) |
+| `npm run dev:all` | Startet Main + Code (API extern) |
+| `npm run dev:all:with-local-api` | Startet lokalen Core-Stack (Control Plane, Control UI, Main, Code) |
 | `npm run dev:all:no-open` | Wie `dev:all`, aber ohne Browser-Autostart |
 | `npm run dev:mobile:android` | Nexus Mobile nativ (build + cap sync + Android Studio) |
 | `npm run dev:mobile:ios` | Nexus Mobile nativ (build + cap sync + Xcode) |
 | `npm run dev:code-mobile:android` | Nexus Code Mobile nativ (build + cap sync + Android Studio) |
 | `npm run dev:code-mobile:ios` | Nexus Code Mobile nativ (build + cap sync + Xcode) |
-| `npm run build` | Voller Ecosystem Build (inkl. Android-Versuch) |
+| `npm run build` | Voller Ecosystem Build (API-unabhaengig, inkl. Android-Versuch) |
+| `npm run build:ecosystem:with-local-api` | Build inkl. lokaler Control-Plane-Absicherung |
 | `npm run build:electron:installers` | Baut beide Electron-Apps inkl. macOS+Windows Installer |
 | `npm run build:main` | Baut `Nexus Main` host-spezifisch (z. B. macOS -> `.dmg`, Windows -> `.exe`) |
 | `npm run build:code` | Baut `Nexus Code` host-spezifisch (z. B. macOS -> `.dmg`, Windows -> `.exe`) |
@@ -319,17 +320,18 @@ Der GitHub Workflow `.github/workflows/build-installers.yml` erzeugt diese Insta
 
 ## 🧭 API-Konfiguration in Apps
 
-Alle Apps koennen optional in die Control Plane reporten.
+Alle Apps verbinden sich standardmaessig mit `https://nexus-api.dev`.
+Per Env kannst du lokal oder staging-spezifisch ueberschreiben.
 
 Vite Env Variablen:
 
-- `VITE_NEXUS_CONTROL_URL` (z. B. `http://localhost:4399`)
+- `VITE_NEXUS_CONTROL_URL` (Standard: `https://nexus-api.dev`, lokal optional `http://127.0.0.1:4399`)
 - `VITE_NEXUS_CONTROL_INGEST_KEY` (passend zur Policy)
 - `VITE_NEXUS_USER_ID` (optional, User-Template Mapping)
 - `VITE_NEXUS_USERNAME` (optional, User-Template Mapping)
 - `VITE_NEXUS_USER_TIER` (`free`/`paid`, optionaler Tier-Override)
 
-Wenn `VITE_NEXUS_CONTROL_URL` gesetzt ist, aktiviert `createNexusRuntime(...)` automatisch den Control Client.
+`createNexusRuntime(...)` aktiviert den Control Client automatisch, sobald eine gueltige Base-URL aktiv ist.
 
 View-Paywalls:
 

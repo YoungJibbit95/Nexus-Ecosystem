@@ -31,4 +31,5 @@ npm run preview
 
 ## Optional ENV
 
-`VITE_NEXUS_CONTROL_URL` kann gesetzt werden, um eine Default-API-URL vorzubelegen.
+`VITE_NEXUS_CONTROL_URL` kann gesetzt werden, um die API-URL zu ueberschreiben.
+Ohne Env wird `https://nexus-api.dev` als Default genutzt.

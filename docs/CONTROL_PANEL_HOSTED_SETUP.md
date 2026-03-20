@@ -19,7 +19,7 @@ Beispiel (Nginx):
 ```nginx
 server {
   listen 443 ssl;
-  server_name control-api.example.com;
+  server_name nexus-api.dev;
 
   location / {
     proxy_pass http://127.0.0.1:4399;
@@ -44,7 +44,7 @@ Optional (wenn du eine eigene Pages-Domain nutzt): diese Domain ebenfalls eintra
 
 In `Nexus-Ecosystem` Repository Variables:
 
-- `NEXUS_CONTROL_PUBLIC_API_URL=https://control-api.example.com`
+- `NEXUS_CONTROL_PUBLIC_API_URL=https://nexus-api.dev`
 
 Dann Workflow `Deploy Nexus Control (GitHub Pages)` neu ausfuehren.
 
@@ -53,8 +53,8 @@ Dann Workflow `Deploy Nexus Control (GitHub Pages)` neu ausfuehren.
 Von lokal/CI pruefen:
 
 ```bash
-curl -fsS https://control-api.example.com/health
-curl -fsS https://control-api.example.com/api/v1/public/bootstrap
+curl -fsS https://nexus-api.dev/health
+curl -fsS https://nexus-api.dev/api/v1/public/bootstrap
 ```
 
 Wenn beide Requests funktionieren, sollte Login in der gehosteten Control UI moeglich sein.

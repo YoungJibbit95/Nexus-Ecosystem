@@ -1,4 +1,4 @@
-import { DEFAULT_API_URL } from '../constants.js'
+import { DEFAULT_API_URL, DEFAULT_LOCAL_API_URL } from '../constants.js'
 import { isLoopbackHost, normalizeUrl, parseErrorMessage } from '../helpers.js'
 
 export const bindSessionEvents = ({
@@ -31,7 +31,7 @@ export const bindSessionEvents = ({
 
     const pageHost = String(globalThis.location?.hostname || '').trim().toLowerCase()
     const localUi = !pageHost || isLoopbackHost(pageHost)
-    const defaultFallback = localUi ? DEFAULT_API_URL : ''
+    const defaultFallback = localUi ? DEFAULT_LOCAL_API_URL : DEFAULT_API_URL
     const fallbackBaseUrl = normalizeUrl(
       state.runtimeConfig.controlApiUrl || state.baseUrl || defaultFallback,
       defaultFallback,

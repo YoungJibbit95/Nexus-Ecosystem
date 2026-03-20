@@ -423,7 +423,7 @@ const buildPaywallPayload = (editor: PaywallEditor) => {
 }
 
 function App() {
-  const envBaseUrl = String((import.meta as any).env?.VITE_NEXUS_CONTROL_URL || 'http://localhost:4399')
+  const envBaseUrl = String((import.meta as any).env?.VITE_NEXUS_CONTROL_URL || 'https://nexus-api.dev')
 
   const [activeTab, setActiveTab] = useState<TabId>('main')
   const [selectedMainFeature, setSelectedMainFeature] = useState(MAIN_FEATURES[0].id)
@@ -1094,7 +1094,7 @@ function App() {
                         type="text"
                         value={apiBaseUrl}
                         onChange={(e) => setApiBaseUrl(e.target.value)}
-                        placeholder="http://localhost:4399"
+                        placeholder="https://nexus-api.dev"
                       />
                     </label>
                     <label>

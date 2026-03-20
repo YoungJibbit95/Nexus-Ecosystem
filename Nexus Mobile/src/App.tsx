@@ -95,7 +95,7 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    const controlBaseUrl = (import.meta as any).env?.VITE_NEXUS_CONTROL_URL as string | undefined
+    const controlBaseUrl = ((import.meta as any).env?.VITE_NEXUS_CONTROL_URL as string | undefined) || 'https://nexus-api.dev'
     const controlIngestKey = (import.meta as any).env?.VITE_NEXUS_CONTROL_INGEST_KEY as string | undefined
 
     const runtime = createNexusRuntime({

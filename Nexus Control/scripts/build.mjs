@@ -9,7 +9,7 @@ const SRC = path.join(ROOT, "src");
 const DIST = path.join(ROOT, "dist");
 
 const DEFAULT_RUNTIME_CONFIG = {
-  controlApiUrl: "https://youngjibbit95.github.io/Nexus-Ecosystem/",
+  controlApiUrl: "https://nexus-api.dev",
   bootstrapPath: "/api/v1/public/bootstrap",
   privateRepoHint: "",
   forceApiUrl: false,
@@ -57,7 +57,6 @@ const runtimeConfig = {
   controlApiUrl: normalizeUrl(
     process.env.NEXUS_CONTROL_UI_DEFAULT_API_URL,
     DEFAULT_RUNTIME_CONFIG.controlApiUrl,
-    { allowEmpty: true },
   ),
   bootstrapPath: normalizePath(
     process.env.NEXUS_CONTROL_UI_BOOTSTRAP_PATH,

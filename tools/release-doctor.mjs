@@ -18,7 +18,9 @@ const readArg = (name) => {
 
 const requireHostedUi = hasArg('--hosted-ui')
 const requireNotarization = hasArg('--require-notarization')
-const apiUrlInput = readArg('--api-url') || String(process.env.NEXUS_CONTROL_PUBLIC_API_URL || '').trim()
+const apiUrlInput = readArg('--api-url')
+  || String(process.env.NEXUS_CONTROL_PUBLIC_API_URL || '').trim()
+  || 'https://nexus-api.dev'
 
 const checks = []
 const pushCheck = (status, title, details) => checks.push({ status, title, details })

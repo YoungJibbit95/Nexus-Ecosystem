@@ -15,6 +15,8 @@ const withAndroid = (args.has('--with-android') || args.has('--android')) && !ar
 const withInstallers = args.has('--with-installers') || !args.has('--skip-installers')
 const strictAndroid = args.has('--strict-android')
 const strictInstallers = args.has('--strict-installers')
+const withControlPlane = args.has('--with-control-plane') || args.has('--with-api')
+const strictControlPlane = args.has('--strict-control-plane')
 const clean = !args.has('--no-clean')
 
 const APPS = [
@@ -406,6 +408,7 @@ const main = async () => {
     root: ROOT,
     withAndroid,
     withInstallers,
+    withControlPlane,
     apps: [],
     warnings: [],
     durationMs: 0,
@@ -417,17 +420,43 @@ const main = async () => {
     },
   }
 
-  const controlPlaneGuard = await ensureControlPlane({
-    root: ROOT,
-    startIfMissing: true,
-    timeoutMs: 90_000,
-    quiet: false,
-  })
-  manifest.controlPlane = {
-    url: controlPlaneGuard.url,
-    startedByBuildTool: controlPlaneGuard.started,
-    pid: controlPlaneGuard.pid,
-    sourceMode: controlPlaneGuard.sourceMode || apiSource.mode,
+  if (withControlPlane) {
+    try {
+      const controlPlaneGuard = await ensureControlPlane({
+        root: ROOT,
+        startIfMissing: true,
+        timeoutMs: 90_000,
+        quiet: false,
+      })
+      manifest.controlPlane = {
+        enabled: true,
+        url: controlPlaneGuard.url,
+        startedByBuildTool: controlPlaneGuard.started,
+        pid: controlPlaneGuard.pid,
+        sourceMode: controlPlaneGuard.sourceMode || apiSource.mode,
+      }
+    } catch (error) {
+      const message = `Control Plane konnte nicht gestartet werden: ${error.message || error}`
+      if (strictControlPlane) {
+        throw new Error(message)
+      }
+      manifest.warnings.push(message)
+      manifest.controlPlane = {
+        enabled: true,
+        url: null,
+        startedByBuildTool: false,
+        pid: null,
+        sourceMode: apiSource.mode,
+      }
+    }
+  } else {
+    manifest.controlPlane = {
+      enabled: false,
+      url: null,
+      startedByBuildTool: false,
+      pid: null,
+      sourceMode: apiSource.mode,
+    }
   }
 
   if (clean) {

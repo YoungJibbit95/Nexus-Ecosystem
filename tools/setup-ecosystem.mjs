@@ -31,7 +31,7 @@ const APP_ENV_TARGETS = [
   { appId: 'code-mobile', dir: 'Nexus Code Mobile' },
 ]
 
-const DEFAULT_CONTROL_URL = process.env.NEXUS_CONTROL_URL || 'http://localhost:4399'
+const DEFAULT_CONTROL_URL = process.env.NEXUS_CONTROL_URL || 'https://nexus-api.dev'
 
 const runNpm = (cmdArgs, cwd) => {
   const printable = ['npm', ...cmdArgs].join(' ')
@@ -160,9 +160,12 @@ const main = async () => {
   }
 
   console.log('\nNaechste Schritte:')
-  console.log('- npm run control:ensure      # startet die Control Plane falls sie noch nicht laeuft')
-  console.log('- npm run dev:control:open  # startet Control Plane + UI mit Browser-Open')
+  console.log('- npm run dev:all           # startet Main + Code (API extern)')
+  console.log('- npm run dev:all:with-local-api  # startet Control Plane + UI + Main + Code')
+  console.log('- npm run dev:control:open  # startet lokale Control Plane + UI mit Browser-Open')
   console.log('- npm run dev:main          # startet Nexus Main mit Electron')
+  console.log('- npm run build:ecosystem   # API-unabhaengiger Full Build')
+  console.log('- npm run build:ecosystem:with-local-api  # Build inkl. local API Guard')
   console.log('- npm run api:private:sync  # synchronisiert private NexusAPI Repo')
   console.log('- npm run doctor:release    # prueft Hosted-API, Android SDK und Notarization-Readiness')
   console.log('- npm run verify:ecosystem  # fuehrt Integritaetspruefungen aus')

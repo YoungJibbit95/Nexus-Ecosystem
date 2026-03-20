@@ -112,11 +112,11 @@ Empfehlung:
 - Port-Konflikte werden vor Start erkannt
 - Server reagieren auf `SIGINT`/`SIGTERM` mit sauberem Shutdown
 
-### API-Pflichtbetrieb fuer Dev/Build
+### API-Betrieb fuer Dev/Build
 
-- Root-`dev` und Root-`build` laufen ueber `tools/run-with-control-plane.mjs`
-- Der Guard startet die Control Plane automatisch, falls sie noch nicht laeuft
-- Das Build-Tool (`tools/build-ecosystem.mjs`) erzwingt ebenfalls eine aktive Control Plane
+- Root-`build` laeuft standardmaessig API-unabhaengig.
+- Lokale API-Integration ist optional ueber `npm run dev:all:with-local-api` und `npm run build:ecosystem:with-local-api`.
+- `tools/build-ecosystem.mjs` kann mit `--with-control-plane` explizit einen lokalen API-Guard aktivieren.
 
 ## 2) So benutzt du die Security richtig
 

@@ -23,7 +23,7 @@ function NexusBridge({ runtime }) {
 }
 
 function App() {
-  const controlBaseUrl = import.meta.env?.VITE_NEXUS_CONTROL_URL;
+  const controlBaseUrl = import.meta.env?.VITE_NEXUS_CONTROL_URL || "https://nexus-api.dev";
   const controlIngestKey = import.meta.env?.VITE_NEXUS_CONTROL_INGEST_KEY;
   const viewUserId = import.meta.env?.VITE_NEXUS_USER_ID;
   const viewUsername = import.meta.env?.VITE_NEXUS_USERNAME;
