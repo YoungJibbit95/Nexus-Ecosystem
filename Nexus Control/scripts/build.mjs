@@ -23,10 +23,23 @@ const parseBool = (value, fallback = false) => {
   return fallback
 }
 
-const normalizeUrl = (value, fallback) => {
+const normalizeUrl = (value, fallback, options = {}) => {
+  const allowEmpty = options.allowEmpty === true
   const raw = String(value || '').trim()
-  if (!raw) return fallback
-  return raw.replace(/\/$/, '')
+  if (!raw) return allowEmpty ? '' : fallback
+  let parsed
+  try {
+    parsed = new URL(raw)
+  } catch {
+    return allowEmpty ? '' : fallback
+  }
+
+  if (!['http:', 'https:'].includes(parsed.protocol)) return allowEmpty ? '' : fallback
+  if (parsed.username || parsed.password) return allowEmpty ? '' : fallback
+  if (parsed.search || parsed.hash) return allowEmpty ? '' : fallback
+
+  const pathname = parsed.pathname === '/' ? '' : parsed.pathname
+  return `${parsed.protocol}//${parsed.host}${pathname}`.replace(/\/$/, '')
 }
 
 const normalizePath = (value, fallback) => {
@@ -40,7 +53,11 @@ await fs.mkdir(DIST, { recursive: true })
 await fs.cp(SRC, DIST, { recursive: true })
 
 const runtimeConfig = {
-  controlApiUrl: normalizeUrl(process.env.NEXUS_CONTROL_UI_DEFAULT_API_URL, DEFAULT_RUNTIME_CONFIG.controlApiUrl),
+  controlApiUrl: normalizeUrl(
+    process.env.NEXUS_CONTROL_UI_DEFAULT_API_URL,
+    DEFAULT_RUNTIME_CONFIG.controlApiUrl,
+    { allowEmpty: true },
+  ),
   bootstrapPath: normalizePath(process.env.NEXUS_CONTROL_UI_BOOTSTRAP_PATH, DEFAULT_RUNTIME_CONFIG.bootstrapPath),
   privateRepoHint: String(process.env.NEXUS_CONTROL_PRIVATE_REPO_HINT || DEFAULT_RUNTIME_CONFIG.privateRepoHint).trim(),
   forceApiUrl: parseBool(process.env.NEXUS_CONTROL_UI_FORCE_API_URL, DEFAULT_RUNTIME_CONFIG.forceApiUrl),
