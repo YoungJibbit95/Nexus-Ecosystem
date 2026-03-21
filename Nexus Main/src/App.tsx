@@ -18,25 +18,64 @@ import {
 } from '@nexus/core'
 import { createNexusRuntime, type NexusLiveBundle, type NexusRuntime } from '@nexus/api'
 
-const DashboardView = lazy(() => import('./views/DashboardView').then(m => ({ default: m.DashboardView })))
-const NotesView = lazy(() => import('./views/NotesView').then(m => ({ default: m.NotesView })))
-const CodeView = lazy(() => import('./views/CodeView').then(m => ({ default: m.CodeView })))
-const TasksView = lazy(() => import('./views/TasksView').then(m => ({ default: m.TasksView })))
-const RemindersView = lazy(() => import('./views/RemindersView').then(m => ({ default: m.RemindersView })))
-const CanvasView = lazy(() => import('./views/CanvasView').then(m => ({ default: m.CanvasView })))
-const FilesView = lazy(() => import('./views/FilesView').then(m => ({ default: m.FilesView })))
-const FluxView = lazy(() => import('./views/FluxView').then(m => ({ default: m.FluxView })))
-const SettingsView = lazy(() => import('./views/SettingsView').then(m => ({ default: m.SettingsView })))
-const InfoView = lazy(() => import('./views/InfoView').then(m => ({ default: m.InfoView })))
-const DevToolsView = lazy(() => import('./views/DevToolsView').then(m => ({ default: m.DevToolsView })))
-const NexusTerminal = lazy(() => import('./components/NexusTerminal').then(m => ({ default: m.NexusTerminal })))
-const NexusToolbar = lazy(() => import('./components/NexusToolbar').then(m => ({ default: m.NexusToolbar })))
+const loadDashboardView = () => import('./views/DashboardView')
+const loadNotesView = () => import('./views/NotesView')
+const loadCodeView = () => import('./views/CodeView')
+const loadTasksView = () => import('./views/TasksView')
+const loadRemindersView = () => import('./views/RemindersView')
+const loadCanvasView = () => import('./views/CanvasView')
+const loadFilesView = () => import('./views/FilesView')
+const loadFluxView = () => import('./views/FluxView')
+const loadSettingsView = () => import('./views/SettingsView')
+const loadInfoView = () => import('./views/InfoView')
+const loadDevToolsView = () => import('./views/DevToolsView')
+const loadNexusTerminal = () => import('./components/NexusTerminal')
+const loadNexusToolbar = () => import('./components/NexusToolbar')
+
+const DashboardView = lazy(() => loadDashboardView().then(m => ({ default: m.DashboardView })))
+const NotesView = lazy(() => loadNotesView().then(m => ({ default: m.NotesView })))
+const CodeView = lazy(() => loadCodeView().then(m => ({ default: m.CodeView })))
+const TasksView = lazy(() => loadTasksView().then(m => ({ default: m.TasksView })))
+const RemindersView = lazy(() => loadRemindersView().then(m => ({ default: m.RemindersView })))
+const CanvasView = lazy(() => loadCanvasView().then(m => ({ default: m.CanvasView })))
+const FilesView = lazy(() => loadFilesView().then(m => ({ default: m.FilesView })))
+const FluxView = lazy(() => loadFluxView().then(m => ({ default: m.FluxView })))
+const SettingsView = lazy(() => loadSettingsView().then(m => ({ default: m.SettingsView })))
+const InfoView = lazy(() => loadInfoView().then(m => ({ default: m.InfoView })))
+const DevToolsView = lazy(() => loadDevToolsView().then(m => ({ default: m.DevToolsView })))
+const NexusTerminal = lazy(() => loadNexusTerminal().then(m => ({ default: m.NexusTerminal })))
+const NexusToolbar = lazy(() => loadNexusToolbar().then(m => ({ default: m.NexusToolbar })))
 
 const VIEW_IDS = getFallbackViewsForApp('main') as View[]
+const VIEW_CHUNK_PRELOADERS: Record<View, () => Promise<unknown>> = {
+  dashboard: loadDashboardView,
+  notes: loadNotesView,
+  code: loadCodeView,
+  tasks: loadTasksView,
+  reminders: loadRemindersView,
+  canvas: loadCanvasView,
+  files: loadFilesView,
+  flux: loadFluxView,
+  settings: loadSettingsView,
+  info: loadInfoView,
+  devtools: loadDevToolsView,
+}
+
+const preloadMainViews = async (views: View[]) => {
+  const tasks = views
+    .map((viewId) => VIEW_CHUNK_PRELOADERS[viewId])
+    .filter((loader): loader is () => Promise<unknown> => typeof loader === 'function')
+    .map((loader) => loader())
+
+  tasks.push(loadNexusTerminal(), loadNexusToolbar())
+  if (tasks.length === 0) return
+  await Promise.allSettled(tasks)
+}
 
 export default function App() {
   const [view, setView] = useState<View>('dashboard')
   const [availableViews, setAvailableViews] = useState<View[]>(VIEW_IDS)
+  const [bootReady, setBootReady] = useState(false)
   const [remoteDensity, setRemoteDensity] = useState<'compact' | 'comfortable' | 'spacious' | null>(null)
   const [liveReleaseId, setLiveReleaseId] = useState<string | null>(null)
   const [viewGuardState, setViewGuardState] = useState<{
@@ -61,8 +100,8 @@ export default function App() {
     userTier: (import.meta as any).env?.VITE_NEXUS_USER_TIER as 'free' | 'paid' | undefined,
   }), [])
 
-  const applyLiveBundle = useCallback((bundle: NexusLiveBundle | null) => {
-    if (!bundle?.catalog || !bundle.layoutSchema) return
+  const resolveBundleViews = useCallback((bundle: NexusLiveBundle | null) => {
+    if (!bundle?.catalog || !bundle.layoutSchema) return VIEW_IDS
 
     const model = buildLiveViewModel({
       appId: 'main',
@@ -74,10 +113,15 @@ export default function App() {
       .map((candidate) => candidate as View)
       .filter((candidate) => VIEW_IDS.includes(candidate))
 
-    if (nextViews.length > 0) {
-      setAvailableViews(nextViews)
-      setView((prev) => (nextViews.includes(prev) ? prev : nextViews[0]))
-    }
+    return nextViews.length > 0 ? nextViews : VIEW_IDS
+  }, [])
+
+  const applyLiveBundle = useCallback((bundle: NexusLiveBundle | null) => {
+    if (!bundle?.catalog || !bundle.layoutSchema) return
+
+    const nextViews = resolveBundleViews(bundle)
+    setAvailableViews(nextViews)
+    setView((prev) => (nextViews.includes(prev) ? prev : nextViews[0]))
 
     const profile = resolveLayoutProfile(bundle.layoutSchema, {
       mode: 'desktop',
@@ -86,7 +130,7 @@ export default function App() {
     })
     setRemoteDensity(profile.density)
     setLiveReleaseId(bundle.release?.id || null)
-  }, [])
+  }, [resolveBundleViews])
 
   useEffect(() => {
     const controlBaseUrl = ((import.meta as any).env?.VITE_NEXUS_CONTROL_URL as string | undefined) || 'https://nexus-api.dev'
@@ -99,6 +143,7 @@ export default function App() {
         enabled: Boolean(controlBaseUrl),
         baseUrl: controlBaseUrl,
         ingestKey: controlIngestKey,
+        viewValidationCacheMs: 120_000,
       },
       liveSync: {
         enabled: Boolean(controlBaseUrl),
@@ -110,19 +155,57 @@ export default function App() {
     })
     runtime.start()
     runtimeRef.current = runtime
-    void runtime.loadLiveBundle({
-      channel: 'production',
-      forceRefresh: true,
-      cacheTtlMs: 0,
-    }).then((bundle) => {
-      applyLiveBundle(bundle)
-    })
+    let active = true
+
+    void (async () => {
+      let startupViews = VIEW_IDS
+      try {
+        const bundle = await runtime.loadLiveBundle({
+          channel: 'production',
+          forceRefresh: true,
+          cacheTtlMs: 0,
+        })
+        if (!active) return
+        applyLiveBundle(bundle)
+        startupViews = resolveBundleViews(bundle)
+      } catch {
+        startupViews = VIEW_IDS
+      }
+
+      try {
+        const warmup = await runtime.control.warmupViewAccess(startupViews, {
+          ...viewAccessContext,
+          forceRefresh: true,
+          concurrency: 4,
+        })
+        if (!active) return
+
+        const allowedViews = warmup.allowedViews.filter((candidate) => startupViews.includes(candidate as View)) as View[]
+        const preloadViews = allowedViews.length > 0 ? allowedViews : startupViews
+
+        await preloadMainViews(preloadViews)
+        if (!active) return
+
+        setAvailableViews(startupViews)
+        setView((prev) => {
+          if (allowedViews.length === 0) return startupViews[0] || prev
+          if (allowedViews.includes(prev)) return prev
+          return allowedViews[0]
+        })
+      } catch {
+        if (!active) return
+        setAvailableViews(startupViews)
+      }
+
+      setBootReady(true)
+    })()
 
     return () => {
+      active = false
       runtime.stop()
       runtimeRef.current = null
     }
-  }, [applyLiveBundle])
+  }, [applyLiveBundle, resolveBundleViews, viewAccessContext])
 
   useEffect(() => {
     const safeFont = sanitizeGlobalFont(
@@ -189,9 +272,13 @@ export default function App() {
     }
 
     const requestId = ++guardRequestSeq.current
-    setViewGuardState((prev) => ({ ...prev, checking: true }))
+    const checkingTimer = setTimeout(() => {
+      if (requestId !== guardRequestSeq.current) return
+      setViewGuardState((prev) => ({ ...prev, checking: true }))
+    }, 120)
 
     const access = await runtime.control.validateViewAccess(next, viewAccessContext)
+    clearTimeout(checkingTimer)
     if (requestId !== guardRequestSeq.current) return
 
     if (access.allowed) {
@@ -212,6 +299,24 @@ export default function App() {
       reason: access.reason || 'PAYWALL_BLOCKED',
     })
   }, [availableViews, view, viewAccessContext])
+
+  if (!bootReady) {
+    return (
+      <div style={{
+        width: '100%',
+        minHeight: '100dvh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'linear-gradient(135deg, #04050c 0%, #111628 100%)',
+        color: '#d7e6ff',
+        fontFamily: 'system-ui, sans-serif',
+        fontWeight: 700,
+      }}>
+        Initialisiere Views und Zugriffsrechte...
+      </div>
+    )
+  }
 
   const bgStyles = buildBackground(t.background, t.bg, t.mode)
   const accentRgb = hexToRgb(t.accent)

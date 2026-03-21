@@ -41,6 +41,7 @@ const VIEW_IDS = getFallbackViewsForApp('mobile') as View[]
 export default function App() {
   const [view, setView] = useState<View>('dashboard')
   const [availableViews, setAvailableViews] = useState<View[]>(VIEW_IDS)
+  const [bootReady, setBootReady] = useState(false)
   const [remoteDensity, setRemoteDensity] = useState<'compact' | 'comfortable' | 'spacious' | null>(null)
   const [remoteNavigation, setRemoteNavigation] = useState<'sidebar' | 'bottom-nav' | 'tabs' | null>(null)
   const [liveReleaseId, setLiveReleaseId] = useState<string | null>(null)
@@ -67,8 +68,8 @@ export default function App() {
     userTier: (import.meta as any).env?.VITE_NEXUS_USER_TIER as 'free' | 'paid' | undefined,
   }), [])
 
-  const applyLiveBundle = useCallback((bundle: NexusLiveBundle | null) => {
-    if (!bundle?.catalog || !bundle.layoutSchema) return
+  const resolveBundleViews = useCallback((bundle: NexusLiveBundle | null) => {
+    if (!bundle?.catalog || !bundle.layoutSchema) return VIEW_IDS
 
     const model = buildLiveViewModel({
       appId: 'mobile',
@@ -79,10 +80,15 @@ export default function App() {
       .map((candidate) => candidate as View)
       .filter((candidate) => VIEW_IDS.includes(candidate))
 
-    if (nextViews.length > 0) {
-      setAvailableViews(nextViews)
-      setView((prev) => (nextViews.includes(prev) ? prev : nextViews[0]))
-    }
+    return nextViews.length > 0 ? nextViews : VIEW_IDS
+  }, [])
+
+  const applyLiveBundle = useCallback((bundle: NexusLiveBundle | null) => {
+    if (!bundle?.catalog || !bundle.layoutSchema) return
+
+    const nextViews = resolveBundleViews(bundle)
+    setAvailableViews(nextViews)
+    setView((prev) => (nextViews.includes(prev) ? prev : nextViews[0]))
 
     const profile = resolveLayoutProfile(bundle.layoutSchema, {
       mode: 'mobile',
@@ -92,7 +98,7 @@ export default function App() {
     setRemoteDensity(profile.density)
     setRemoteNavigation(profile.navigation)
     setLiveReleaseId(bundle.release?.id || null)
-  }, [])
+  }, [resolveBundleViews])
 
   useEffect(() => {
     const controlBaseUrl = ((import.meta as any).env?.VITE_NEXUS_CONTROL_URL as string | undefined) || 'https://nexus-api.dev'
@@ -105,6 +111,7 @@ export default function App() {
         enabled: Boolean(controlBaseUrl),
         baseUrl: controlBaseUrl,
         ingestKey: controlIngestKey,
+        viewValidationCacheMs: 120_000,
       },
       liveSync: {
         enabled: Boolean(controlBaseUrl),
@@ -116,19 +123,51 @@ export default function App() {
     })
     runtime.start()
     runtimeRef.current = runtime
-    void runtime.loadLiveBundle({
-      channel: 'production',
-      forceRefresh: true,
-      cacheTtlMs: 0,
-    }).then((bundle) => {
-      applyLiveBundle(bundle)
-    })
+    let active = true
+
+    void (async () => {
+      let startupViews = VIEW_IDS
+      try {
+        const bundle = await runtime.loadLiveBundle({
+          channel: 'production',
+          forceRefresh: true,
+          cacheTtlMs: 0,
+        })
+        if (!active) return
+        applyLiveBundle(bundle)
+        startupViews = resolveBundleViews(bundle)
+      } catch {
+        startupViews = VIEW_IDS
+      }
+
+      try {
+        const warmup = await runtime.control.warmupViewAccess(startupViews, {
+          ...viewAccessContext,
+          forceRefresh: true,
+          concurrency: 4,
+        })
+        if (!active) return
+        const allowedViews = warmup.allowedViews.filter((candidate) => startupViews.includes(candidate as View)) as View[]
+        setAvailableViews(startupViews)
+        setView((prev) => {
+          if (allowedViews.length === 0) return startupViews[0] || prev
+          if (allowedViews.includes(prev)) return prev
+          return allowedViews[0]
+        })
+      } catch {
+        if (!active) return
+        setAvailableViews(startupViews)
+      }
+
+      setBootReady(true)
+    })()
 
     return () => {
+      active = false
       runtime.stop()
       runtimeRef.current = null
     }
-  }, [applyLiveBundle])
+  }, [applyLiveBundle, resolveBundleViews, viewAccessContext])
 
   useEffect(() => {
     const safeFont = sanitizeGlobalFont(
@@ -196,9 +235,13 @@ export default function App() {
     }
 
     const requestId = ++guardRequestSeq.current
-    setViewGuardState((prev) => ({ ...prev, checking: true }))
+    const checkingTimer = setTimeout(() => {
+      if (requestId !== guardRequestSeq.current) return
+      setViewGuardState((prev) => ({ ...prev, checking: true }))
+    }, 120)
 
     const access = await runtime.control.validateViewAccess(next, viewAccessContext)
+    clearTimeout(checkingTimer)
     if (requestId !== guardRequestSeq.current) return
 
     if (access.allowed) {
@@ -219,6 +262,24 @@ export default function App() {
       reason: access.reason || 'PAYWALL_BLOCKED',
     })
   }, [availableViews, view, viewAccessContext])
+
+  if (!bootReady) {
+    return (
+      <div style={{
+        width: '100%',
+        minHeight: '100dvh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'linear-gradient(135deg, #04050c 0%, #111628 100%)',
+        color: '#d7e6ff',
+        fontFamily: 'system-ui, sans-serif',
+        fontWeight: 700,
+      }}>
+        Initialisiere Views und Zugriffsrechte...
+      </div>
+    )
+  }
 
   const bgStyles = buildBackground(t.background, t.bg, t.mode)
   const sidebarLeft = (t as any).sidebarPosition !== 'right'

@@ -6,6 +6,7 @@ import type {
   NexusReleaseSnapshot,
   NexusUiSchemaDocument,
   NexusUserTier,
+  NexusViewAccessResult,
 } from '../types'
 
 export interface NexusControlOptions {
@@ -50,6 +51,20 @@ export interface NexusViewAccessCheckOptions {
   username?: string
   userTier?: NexusUserTier
   forceRefresh?: boolean
+}
+
+export interface NexusViewWarmupOptions extends NexusViewAccessCheckOptions {
+  concurrency?: number
+}
+
+export interface NexusViewWarmupResult {
+  appId: NexusAppId
+  checkedViews: string[]
+  allowedViews: string[]
+  blockedViews: string[]
+  resultByView: Record<string, NexusViewAccessResult>
+  durationMs: number
+  checkedAt: string
 }
 
 export interface NexusFetchResult<T> {
@@ -100,4 +115,5 @@ export type {
   NexusFeatureCatalog,
   NexusUiSchemaDocument,
   NexusReleaseSnapshot,
+  NexusViewAccessResult,
 }
