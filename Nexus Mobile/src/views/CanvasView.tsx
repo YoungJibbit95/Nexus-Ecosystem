@@ -14,7 +14,7 @@ import { hexToRgb } from '../lib/utils'
 import { useMobile } from '../lib/useMobile'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { CanvasNexusCodeBlock } from './canvas/CanvasMagicRenderers'
+import { CanvasNexusCodeBlock } from '@nexus/core/canvas/CanvasMagicRenderers'
 
 // ─── CONSTANTS ───
 

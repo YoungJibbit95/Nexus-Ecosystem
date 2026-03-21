@@ -35,6 +35,8 @@ const exists = async (targetPath) => {
   }
 }
 
+const CONTROL_UI_PRESENT = await exists(CONTROL_UI_ROOT)
+
 const listFilesRecursive = async (dir, out = []) => {
   const entries = await fs.readdir(dir, { withFileTypes: true })
   for (const entry of entries) {
@@ -123,30 +125,6 @@ const run = async () => {
       message: 'Nexus Code Mobile validiert editor-View',
     },
     {
-      id: 'control-ui-paywall-tab',
-      file: path.join(CONTROL_UI_ROOT, 'src/layout/workspace/nav-tabs.js'),
-      pattern: /data-tab="paywalls"/,
-      message: 'Control UI hat Paywalls-Tab',
-    },
-    {
-      id: 'control-ui-livesync-tab',
-      file: path.join(CONTROL_UI_ROOT, 'src/layout/workspace/nav-tabs.js'),
-      pattern: /data-tab="livesync"/,
-      message: 'Control UI hat Live-Sync-Tab',
-    },
-    {
-      id: 'control-ui-paywall-save',
-      file: path.join(CONTROL_UI_ROOT, 'src/control/events/management-events.js'),
-      pattern: /savePaywallsBtn|buildPaywallPayloadFromUi|renderPaywallEditor/s,
-      message: 'Control UI kann Paywalls laden/speichern',
-    },
-    {
-      id: 'control-ui-v2-actions',
-      file: path.join(CONTROL_UI_ROOT, 'src/control/workspace/v2-actions.js'),
-      pattern: /saveV2FeatureCatalog|saveV2LayoutSchema|promoteV2Release|loadV2Runtime/s,
-      message: 'Control UI kann v2 Catalog/Schema/Promotion steuern',
-    },
-    {
       id: 'nexus-api-view-client',
       file: path.join(ROOT, 'packages/nexus-core/src/api/control/client.ts'),
       pattern: /validateViewAccess\(viewId/s,
@@ -207,6 +185,42 @@ const run = async () => {
       message: 'Nexus Code Mobile Alias zeigt auf internes API Package',
     },
   ]
+
+  if (CONTROL_UI_PRESENT) {
+    fileChecks.push(
+      {
+        id: 'control-ui-paywall-tab',
+        file: path.join(CONTROL_UI_ROOT, 'src/layout/workspace/nav-tabs.js'),
+        pattern: /data-tab="paywalls"/,
+        message: 'Control UI hat Paywalls-Tab',
+      },
+      {
+        id: 'control-ui-livesync-tab',
+        file: path.join(CONTROL_UI_ROOT, 'src/layout/workspace/nav-tabs.js'),
+        pattern: /data-tab="livesync"/,
+        message: 'Control UI hat Live-Sync-Tab',
+      },
+      {
+        id: 'control-ui-paywall-save',
+        file: path.join(CONTROL_UI_ROOT, 'src/control/events/management-events.js'),
+        pattern: /savePaywallsBtn|buildPaywallPayloadFromUi|renderPaywallEditor/s,
+        message: 'Control UI kann Paywalls laden/speichern',
+      },
+      {
+        id: 'control-ui-v2-actions',
+        file: path.join(CONTROL_UI_ROOT, 'src/control/workspace/v2-actions.js'),
+        pattern: /saveV2FeatureCatalog|saveV2LayoutSchema|promoteV2Release|loadV2Runtime/s,
+        message: 'Control UI kann v2 Catalog/Schema/Promotion steuern',
+      },
+    )
+  } else {
+    checks.push({
+      id: 'control-ui-private-workspace',
+      ok: true,
+      message: 'Private Control UI Workspace ist lokal nicht vorhanden und wird im Public-Verify uebersprungen',
+      details: CONTROL_UI_ROOT,
+    })
+  }
 
   for (const check of fileChecks) {
     const content = await readFileSafe(check.file)

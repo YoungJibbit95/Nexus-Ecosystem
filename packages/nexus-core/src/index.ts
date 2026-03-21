@@ -1,5 +1,6 @@
 export * from './runtime'
 export * from './views'
+export * from './canvas/CanvasMagicRenderers'
 export * from './ecosystem'
 export * from './liveSync'
 export * from './api'

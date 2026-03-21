@@ -25,6 +25,16 @@ const NETWORK_MUTATION_PATTERNS = [
 let mainWindow = null;
 const activeProcesses = new Map();
 
+const isAllowedNavigation = (url) => {
+  if (!url || typeof url !== "string") return false;
+  if (DEV) {
+    return url.startsWith(`${DEV_URL}/`) || url === DEV_URL;
+  }
+  return url.startsWith("file://");
+};
+
+const isExternalHttpUrl = (url) => /^https?:\/\//i.test(String(url || ""));
+
 const resolveShellLaunch = (command) => {
   if (process.platform === "win32") {
     return {
@@ -71,6 +81,9 @@ function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
+      webSecurity: true,
+      allowRunningInsecureContent: false,
+      webviewTag: false,
     },
   });
 
@@ -90,8 +103,16 @@ function createWindow() {
 
   // Open external links in default browser
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url);
+    if (isExternalHttpUrl(url)) {
+      shell.openExternal(url).catch(() => {});
+    }
     return { action: "deny" };
+  });
+
+  mainWindow.webContents.on("will-navigate", (event, url) => {
+    if (!isAllowedNavigation(url)) {
+      event.preventDefault();
+    }
   });
 
   mainWindow.on("closed", () => {

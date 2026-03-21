@@ -1,6 +1,8 @@
 # Security-kritische Bereiche
 /.github/** @YoungJibbit95
 /Nexus\ Main/electron/** @YoungJibbit95
+/Nexus\ Main/electron-main.* @YoungJibbit95
+/Nexus\ Code/electron/** @YoungJibbit95
 /Nexus\ Control/** @YoungJibbit95
 /packages/nexus-core/** @YoungJibbit95
 /tools/** @YoungJibbit95
