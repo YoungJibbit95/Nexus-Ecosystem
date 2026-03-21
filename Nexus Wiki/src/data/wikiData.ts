@@ -519,7 +519,7 @@ export const entries: WikiEntry[] = [
     ],
     commands: ['canvas template sprint', 'canvas template decision'],
     tags: ['canvas', 'markdown', 'nexus-kanban', 'project-context'],
-    sources: ['Nexus Main/src/views/canvas/CanvasMagicRenderers.tsx', 'Nexus Main/src/views/CanvasView.tsx'],
+    sources: ['packages/nexus-core/src/canvas/CanvasMagicRenderers.tsx', 'Nexus Main/src/views/CanvasView.tsx'],
     markdownSnippets: [
       {
         label: 'Compact List',

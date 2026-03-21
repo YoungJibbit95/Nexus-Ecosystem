@@ -56,7 +56,7 @@ import { hexToRgb } from "../lib/utils";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { shallow } from "zustand/shallow";
-import { CanvasNexusCodeBlock } from "./canvas/CanvasMagicRenderers";
+import { CanvasNexusCodeBlock } from "@nexus/core/canvas/CanvasMagicRenderers";
 import type { MagicTemplateId, MagicTemplatePayload } from "./canvas/CanvasMagicModal";
 
 const CanvasMagicModal = lazy(() =>

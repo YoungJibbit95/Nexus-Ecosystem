@@ -31,5 +31,9 @@ pnpm-debug.log*
 **/.env.local
 **/.env.*.local
 
+# Private overlay sources must never enter the public repo
+.nexus-private/
+**/.nexus-private/
+
 # Local build caches
 **/.cache/
