@@ -113,13 +113,13 @@ const run = async () => {
     {
       id: 'code-view-validation',
       file: path.join(ROOT, 'Nexus Code/src/App.jsx'),
-      pattern: /validateViewAccess\("editor"/,
+      pattern: /validateViewAccess\("editor"|warmupViewAccess\(\["editor"\]/,
       message: 'Nexus Code validiert editor-View',
     },
     {
       id: 'code-mobile-view-validation',
       file: path.join(ROOT, 'Nexus Code Mobile/src/App.jsx'),
-      pattern: /validateViewAccess\("editor"/,
+      pattern: /validateViewAccess\("editor"|warmupViewAccess\(\["editor"\]/,
       message: 'Nexus Code Mobile validiert editor-View',
     },
     {

@@ -14,66 +14,7 @@ import { hexToRgb } from '../lib/utils'
 import { useMobile } from '../lib/useMobile'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-
-// ── Inline magic element renderers for Canvas markdown nodes ──────────────
-function CanvasMagicList({ content, accent }: { content: string; accent: string }) {
-  const rgb = hexToRgb(accent)
-  return (
-    <div style={{ margin: '6px 0', borderRadius: 8, overflow: 'hidden', border: `1px solid rgba(${rgb},0.2)` }}>
-      {content.trim().split('\n').filter(Boolean).map((row, i) => {
-        const [label, detail] = row.split('|').map(s => s.trim())
-        return (
-          <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 8px', fontSize: 10, background: i % 2 === 0 ? `rgba(${rgb},0.06)` : 'transparent' }}>
-            <span style={{ fontWeight: 600 }}>{label}</span>
-            {detail && <span style={{ opacity: 0.55 }}>{detail}</span>}
-          </div>
-        )
-      })}
-    </div>
-  )
-}
-function CanvasMagicProgress({ content, accent }: { content: string; accent: string }) {
-  const rgb = hexToRgb(accent)
-  return (
-    <div style={{ margin: '6px 0', display: 'flex', flexDirection: 'column', gap: 5 }}>
-      {content.trim().split('\n').filter(Boolean).map((row, i) => {
-        const [label, pct] = row.split('|').map(s => s.trim())
-        const val = Math.min(100, Math.max(0, Number(pct) || 0))
-        return (
-          <div key={i}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, marginBottom: 2, opacity: 0.7 }}>
-              <span>{label}</span><span>{val}%</span>
-            </div>
-            <div style={{ height: 4, borderRadius: 2, background: `rgba(${rgb},0.15)`, overflow: 'hidden' }}>
-              <div style={{ width: `${val}%`, height: '100%', background: `rgba(${rgb},0.8)`, borderRadius: 2 }} />
-            </div>
-          </div>
-        )
-      })}
-    </div>
-  )
-}
-function CanvasMagicAlert({ content }: { content: string }) {
-  const lines = content.trim().split('\n')
-  const type = lines[0]?.trim().toLowerCase() || 'info'
-  const msg = lines.slice(1).join(' ').trim()
-  const colors: Record<string,string> = { info: '#007AFF', success: '#30D158', warning: '#FF9F0A', error: '#FF453A' }
-  const c = colors[type] || colors.info
-  return (
-    <div style={{ margin: '6px 0', padding: '6px 8px', borderRadius: 6, background: `${c}15`, border: `1px solid ${c}40`, fontSize: 10, color: c }}>
-      <strong style={{ textTransform: 'capitalize' }}>{type}:</strong> {msg}
-    </div>
-  )
-}
-function CanvasNexusCodeBlock({ className, children, accent }: { className?: string; children: React.ReactNode; accent: string }) {
-  const lang = (className || '').replace('language-', '')
-  const raw = Array.isArray(children) ? children.join('') : String(children ?? '')
-  const content = raw.replace(/\n$/, '')
-  if (lang === 'nexus-list') return <CanvasMagicList content={content} accent={accent} />
-  if (lang === 'nexus-alert') return <CanvasMagicAlert content={content} />
-  if (lang === 'nexus-progress') return <CanvasMagicProgress content={content} accent={accent} />
-  return <pre style={{ fontSize: 10, opacity: 0.7, overflow: 'auto', padding: '4px 6px', background: 'rgba(0,0,0,0.2)', borderRadius: 6 }}><code>{content}</code></pre>
-}
+import { CanvasNexusCodeBlock } from './canvas/CanvasMagicRenderers'
 
 // ─── CONSTANTS ───
 
@@ -252,14 +193,42 @@ function NodeWidget({ node, isSelected, onSelect, onStartConnect, onEndConnect, 
 
     useEffect(() => {
         if (!dragging) return
+        let raf = 0
+        let pending: { x: number; y: number } | null = null
+
+        const flush = () => {
+            raf = 0
+            if (!pending) return
+            moveNode(node.id, pending.x, pending.y)
+            pending = null
+        }
+
         const onMove = (e: MouseEvent) => {
             const zoom = useCanvas.getState().viewport?.zoom || 1
-            moveNode(node.id, dragStart.current.nodeX + (e.clientX - dragStart.current.x) / zoom, dragStart.current.nodeY + (e.clientY - dragStart.current.y) / zoom)
+            pending = {
+                x: dragStart.current.nodeX + (e.clientX - dragStart.current.x) / zoom,
+                y: dragStart.current.nodeY + (e.clientY - dragStart.current.y) / zoom,
+            }
+            if (!raf) raf = requestAnimationFrame(flush)
         }
-        const onUp = () => setDragging(false)
+        const onUp = () => {
+            if (raf) {
+                cancelAnimationFrame(raf)
+                raf = 0
+            }
+            if (pending) {
+                moveNode(node.id, pending.x, pending.y)
+                pending = null
+            }
+            setDragging(false)
+        }
         window.addEventListener('mousemove', onMove)
         window.addEventListener('mouseup', onUp)
-        return () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp) }
+        return () => {
+            if (raf) cancelAnimationFrame(raf)
+            window.removeEventListener('mousemove', onMove)
+            window.removeEventListener('mouseup', onUp)
+        }
     }, [dragging, node.id, moveNode])
 
     // Resize
@@ -271,15 +240,79 @@ function NodeWidget({ node, isSelected, onSelect, onStartConnect, onEndConnect, 
 
     useEffect(() => {
         if (!resizing) return
+        let raf = 0
+        let pending: { width: number; height: number } | null = null
+
+        const flush = () => {
+            raf = 0
+            if (!pending) return
+            resizeNode(node.id, pending.width, pending.height)
+            pending = null
+        }
+
         const onMove = (e: MouseEvent) => {
             const zoom = useCanvas.getState().viewport?.zoom || 1
-            resizeNode(node.id, resizeStart.current.w + (e.clientX - resizeStart.current.x) / zoom, resizeStart.current.h + (e.clientY - resizeStart.current.y) / zoom)
+            pending = {
+                width: resizeStart.current.w + (e.clientX - resizeStart.current.x) / zoom,
+                height: resizeStart.current.h + (e.clientY - resizeStart.current.y) / zoom,
+            }
+            if (!raf) raf = requestAnimationFrame(flush)
         }
-        const onUp = () => setResizing(false)
+        const onUp = () => {
+            if (raf) {
+                cancelAnimationFrame(raf)
+                raf = 0
+            }
+            if (pending) {
+                resizeNode(node.id, pending.width, pending.height)
+                pending = null
+            }
+            setResizing(false)
+        }
         window.addEventListener('mousemove', onMove)
         window.addEventListener('mouseup', onUp)
-        return () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp) }
+        return () => {
+            if (raf) cancelAnimationFrame(raf)
+            window.removeEventListener('mousemove', onMove)
+            window.removeEventListener('mouseup', onUp)
+        }
     }, [resizing, node.id, resizeNode])
+
+    const replaceMarkdownCodeBlock = useCallback((
+        mdNode: any,
+        className: string | undefined,
+        rawChildren: React.ReactNode,
+        nextBlockContent: string,
+    ) => {
+        const current = node.content || ''
+        const lang = (className || '').replace('language-', '')
+        const raw = Array.isArray(rawChildren) ? rawChildren.join('') : String(rawChildren ?? '')
+        const currentBlockContent = raw.replace(/\n$/, '')
+        const normalizedNext = nextBlockContent.replace(/\r\n/g, '\n').replace(/\n+$/, '')
+        const makeFence = (block: string) => `\`\`\`${lang}\n${block.replace(/\n+$/, '')}\n\`\`\``
+        const nextFence = makeFence(normalizedNext)
+
+        const start = mdNode?.position?.start?.offset
+        const end = mdNode?.position?.end?.offset
+        if (
+            Number.isFinite(start)
+            && Number.isFinite(end)
+            && start >= 0
+            && end > start
+            && end <= current.length
+        ) {
+            updateNode(node.id, { content: `${current.slice(0, start)}${nextFence}${current.slice(end)}` })
+            return
+        }
+
+        const prevFence = makeFence(currentBlockContent)
+        const idx = current.indexOf(prevFence)
+        if (idx >= 0) {
+            updateNode(node.id, {
+                content: `${current.slice(0, idx)}${nextFence}${current.slice(idx + prevFence.length)}`,
+            })
+        }
+    }, [node.content, node.id, updateNode])
 
     const renderContent = () => {
         switch (node.type) {
@@ -325,8 +358,14 @@ function NodeWidget({ node, isSelected, onSelect, onStartConnect, onEndConnect, 
                                   remarkPlugins={[remarkGfm]}
                                   components={{
                                     pre: ({ children }: any) => <>{children}</>,
-                                    code: ({ className, children }: any) => (
-                                      <CanvasNexusCodeBlock className={className} accent={node.color || t.accent}>{children}</CanvasNexusCodeBlock>
+                                    code: ({ node: mdNode, className, children }: any) => (
+                                      <CanvasNexusCodeBlock
+                                        className={className}
+                                        accent={node.color || t.accent}
+                                        onChange={(next) => replaceMarkdownCodeBlock(mdNode, className, children, next)}
+                                      >
+                                        {children}
+                                      </CanvasNexusCodeBlock>
                                     ),
                                   }}
                                 >{node.content}</ReactMarkdown>
@@ -591,6 +630,14 @@ function NodeWidget({ node, isSelected, onSelect, onStartConnect, onEndConnect, 
                 animation: 'nexus-scale-in 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both',
                 willChange: 'transform, left, top, width, height',
                 backfaceVisibility: 'hidden',
+                transform: isSelected
+                    ? 'translateZ(0) scale(1.01)'
+                    : hovered
+                        ? 'translateZ(0) scale(1.004)'
+                        : 'translateZ(0)',
+                transition: dragging || resizing
+                    ? 'none'
+                    : 'transform 0.16s cubic-bezier(0.2, 0.8, 0.2, 1)',
             }}>
             {/* Connection ports */}
             {(isSelected || connectingFrom) && (
@@ -881,6 +928,7 @@ export function CanvasView() {
     const [canvasSize, setCanvasSize] = useState({ w: 800, h: 600 })
     const [quickAddPos, setQuickAddPos] = useState<{ x: number, y: number } | null>(null)
     const [showWidgetMenu, setShowWidgetMenu] = useState(false) // Added state
+    const [wheelPanning, setWheelPanning] = useState(false)
 
     // History (undo/redo)
     const [history, setHistory] = useState<any[]>([])
@@ -896,6 +944,9 @@ export function CanvasView() {
     const [focusNodeOnly, setFocusNodeOnly] = useState(false)
 
     const panStart = useRef({ x: 0, y: 0, panX: 0, panY: 0 })
+    const wheelPanRaf = useRef(0)
+    const wheelPanDelta = useRef({ x: 0, y: 0 })
+    const wheelPanReleaseTimeout = useRef(0)
 
     const projectNodes = useMemo(() => {
         if (!canvas) return []
@@ -987,19 +1038,131 @@ export function CanvasView() {
 
     useEffect(() => {
         if (!panning) return
-        const onMove = (e: MouseEvent) => setPan(panStart.current.panX + e.clientX - panStart.current.x, panStart.current.panY + e.clientY - panStart.current.y)
-        const onUp = () => setPanning(false)
+        let raf = 0
+        let pending: { x: number; y: number } | null = null
+
+        const flush = () => {
+            raf = 0
+            if (!pending) return
+            setPan(pending.x, pending.y)
+            pending = null
+        }
+
+        const onMove = (e: MouseEvent) => {
+            pending = {
+                x: panStart.current.panX + e.clientX - panStart.current.x,
+                y: panStart.current.panY + e.clientY - panStart.current.y,
+            }
+            if (!raf) raf = requestAnimationFrame(flush)
+        }
+        const onUp = () => {
+            if (raf) {
+                cancelAnimationFrame(raf)
+                raf = 0
+            }
+            if (pending) {
+                setPan(pending.x, pending.y)
+                pending = null
+            }
+            setPanning(false)
+        }
         window.addEventListener('mousemove', onMove)
         window.addEventListener('mouseup', onUp)
-        return () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp) }
+        return () => {
+            if (raf) cancelAnimationFrame(raf)
+            window.removeEventListener('mousemove', onMove)
+            window.removeEventListener('mouseup', onUp)
+        }
     }, [panning, setPan])
 
-    // Smooth zoom with cursor centering
+    const applyZoomAtPoint = useCallback((clientX: number, clientY: number, scaleFactor: number) => {
+        const el = canvasRef.current
+        if (!el) return
+        const vp = useCanvas.getState().viewport
+        const rect = el.getBoundingClientRect()
+        const localX = clientX - rect.left
+        const localY = clientY - rect.top
+        const nextZoom = Math.max(0.15, Math.min(3, vp.zoom * scaleFactor))
+        if (Math.abs(nextZoom - vp.zoom) < 0.0001) return
+        const worldX = (localX - vp.panX) / vp.zoom
+        const worldY = (localY - vp.panY) / vp.zoom
+        const nextPanX = localX - worldX * nextZoom
+        const nextPanY = localY - worldY * nextZoom
+        useCanvas.setState({
+            viewport: {
+                ...vp,
+                zoom: nextZoom,
+                panX: nextPanX,
+                panY: nextPanY,
+            },
+        })
+    }, [])
+
+    const setZoomCentered = useCallback((nextZoom: number) => {
+        const el = canvasRef.current
+        const vp = useCanvas.getState().viewport
+        const clamped = Math.max(0.15, Math.min(3, nextZoom))
+        if (!el) {
+            setZoom(clamped)
+            return
+        }
+        const rect = el.getBoundingClientRect()
+        const centerX = rect.left + rect.width / 2
+        const centerY = rect.top + rect.height / 2
+        const factor = clamped / Math.max(0.0001, vp.zoom)
+        applyZoomAtPoint(centerX, centerY, factor)
+    }, [applyZoomAtPoint, setZoom])
+
+    // Trackpad-friendly wheel: pan by default, zoom only with pinch/Ctrl.
     const handleWheel = useCallback((e: React.WheelEvent) => {
         e.preventDefault()
-        const delta = e.deltaY > 0 ? -0.1 : 0.1
-        setZoom(Math.max(0.15, Math.min(3, viewport.zoom + delta)))
-    }, [viewport.zoom, setZoom])
+        const deltaScale = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? canvasSize.h : 1
+        const dx = e.deltaX * deltaScale
+        const dy = e.deltaY * deltaScale
+
+        if (e.ctrlKey || e.metaKey) {
+            const factor = Math.exp(-dy * 0.0015)
+            applyZoomAtPoint(e.clientX, e.clientY, factor)
+            return
+        }
+
+        wheelPanDelta.current.x -= dx
+        wheelPanDelta.current.y -= dy
+        setWheelPanning(true)
+        if (!wheelPanRaf.current) {
+            wheelPanRaf.current = requestAnimationFrame(() => {
+                wheelPanRaf.current = 0
+                const vp = useCanvas.getState().viewport
+                const delta = wheelPanDelta.current
+                wheelPanDelta.current = { x: 0, y: 0 }
+                if (delta.x || delta.y) {
+                    useCanvas.setState({
+                        viewport: {
+                            ...vp,
+                            panX: vp.panX + delta.x,
+                            panY: vp.panY + delta.y,
+                        },
+                    })
+                }
+            })
+        }
+
+        if (wheelPanReleaseTimeout.current) {
+            window.clearTimeout(wheelPanReleaseTimeout.current)
+        }
+        wheelPanReleaseTimeout.current = window.setTimeout(() => {
+            setWheelPanning(false)
+        }, 90)
+    }, [applyZoomAtPoint, canvasSize.h])
+
+    useEffect(() => () => {
+        if (wheelPanRaf.current) {
+            cancelAnimationFrame(wheelPanRaf.current)
+        }
+        if (wheelPanReleaseTimeout.current) {
+            window.clearTimeout(wheelPanReleaseTimeout.current)
+        }
+    }, [])
 
     const handleStartConnect = useCallback((nodeId: string) => setConnectingFrom(nodeId), [])
     const handleEndConnect = useCallback((nodeId: string) => {
@@ -1334,11 +1497,11 @@ export function CanvasView() {
                             <ToolBtn icon={Plus} tooltip="Projekt Template" onClick={createProjectTemplate} accent={t.accent} rgb={rgb} />
                             <ToolBtn icon={AlignCenter} tooltip="Fit to View" onClick={fitView} accent={t.accent} rgb={rgb} />
                             <div style={{ width: 1, height: 18, background: 'rgba(255,255,255,0.1)', margin: '0 2px' }} />
-                            <ToolBtn icon={ZoomOut} tooltip="Rauszoomen" onClick={() => setZoom(Math.max(0.15, viewport.zoom - 0.15))} accent={t.accent} rgb={rgb} />
+                            <ToolBtn icon={ZoomOut} tooltip="Rauszoomen" onClick={() => setZoomCentered(viewport.zoom - 0.15)} accent={t.accent} rgb={rgb} />
                             <span style={{ fontSize: 11, fontFamily: 'monospace', padding: '2px 6px', borderRadius: 5, background: 'rgba(255,255,255,0.06)', minWidth: 42, textAlign: 'center', opacity: 0.8 }}>
                                 {Math.round(viewport.zoom * 100)}%
                             </span>
-                            <ToolBtn icon={ZoomIn} tooltip="Reinzoomen" onClick={() => setZoom(Math.min(3, viewport.zoom + 0.15))} accent={t.accent} rgb={rgb} />
+                            <ToolBtn icon={ZoomIn} tooltip="Reinzoomen" onClick={() => setZoomCentered(viewport.zoom + 0.15)} accent={t.accent} rgb={rgb} />
                             <ToolBtn icon={Maximize2} tooltip="Reset View" onClick={resetViewport} accent={t.accent} rgb={rgb} />
                         </>
                     )}
@@ -1401,10 +1564,10 @@ export function CanvasView() {
                                 <div style={{ fontSize:11, fontWeight:800, opacity:0.4, textTransform:'uppercase', letterSpacing:1, marginBottom:14 }}>View Controls</div>
                                 <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:14 }}>
                                     {/* Zoom controls */}
-                                    <button onClick={() => setZoom(Math.max(0.15, viewport.zoom - 0.25))} style={{ padding:'14px', borderRadius:14, background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.1)', cursor:'pointer', color:'inherit', display:'flex', alignItems:'center', justifyContent:'center', gap:8, fontSize:15, fontWeight:700 }}>
+                                    <button onClick={() => setZoomCentered(viewport.zoom - 0.25)} style={{ padding:'14px', borderRadius:14, background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.1)', cursor:'pointer', color:'inherit', display:'flex', alignItems:'center', justifyContent:'center', gap:8, fontSize:15, fontWeight:700 }}>
                                         <ZoomOut size={20}/> Zoom Out
                                     </button>
-                                    <button onClick={() => setZoom(Math.min(3, viewport.zoom + 0.25))} style={{ padding:'14px', borderRadius:14, background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.1)', cursor:'pointer', color:'inherit', display:'flex', alignItems:'center', justifyContent:'center', gap:8, fontSize:15, fontWeight:700 }}>
+                                    <button onClick={() => setZoomCentered(viewport.zoom + 0.25)} style={{ padding:'14px', borderRadius:14, background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.1)', cursor:'pointer', color:'inherit', display:'flex', alignItems:'center', justifyContent:'center', gap:8, fontSize:15, fontWeight:700 }}>
                                         <ZoomIn size={20}/> Zoom In
                                     </button>
                                     <button onClick={fitView} style={{ padding:'14px', borderRadius:14, background:`rgba(${rgb},0.12)`, border:`1px solid rgba(${rgb},0.25)`, cursor:'pointer', color:t.accent, display:'flex', alignItems:'center', justifyContent:'center', gap:8, fontSize:14, fontWeight:700 }}>
@@ -1480,8 +1643,14 @@ export function CanvasView() {
                     <div ref={canvasRef}
                         className="w-full h-full relative nx-canvas-grid"
                         style={{
-                            cursor: connectingFrom ? 'crosshair' : (spaceHeld ? (panning ? 'grabbing' : 'grab') : 'default'),
-                            transition: panning ? 'none' : 'background-position 0.1s ease-out', // viewport.moving replaced with panning
+                            cursor: connectingFrom
+                                ? 'crosshair'
+                                : (spaceHeld
+                                    ? (panning ? 'grabbing' : 'grab')
+                                    : (wheelPanning ? 'grabbing' : 'default')),
+                            transition: panning || wheelPanning
+                                ? 'none'
+                                : 'background-position 0.08s ease-out, background-size 0.12s ease-out',
                             backgroundPosition: `${viewport.panX}px ${viewport.panY}px`, // viewport.x, viewport.y replaced with viewport.panX, viewport.panY
                             backgroundSize: `${24 * viewport.zoom}px ${24 * viewport.zoom}px`,
                             backgroundImage: gridMode === 'dots'
@@ -1514,7 +1683,11 @@ export function CanvasView() {
                                 const dy = e.touches[0].clientY - e.touches[1].clientY
                                 const dist = Math.sqrt(dx*dx + dy*dy)
                                 const scale = dist / touchStartDist
-                                setZoom(Math.max(0.15, Math.min(3, touchStartZoom * scale)))
+                                const centerX = (e.touches[0].clientX + e.touches[1].clientX) / 2
+                                const centerY = (e.touches[0].clientY + e.touches[1].clientY) / 2
+                                const vp = useCanvas.getState().viewport
+                                const nextZoom = Math.max(0.15, Math.min(3, touchStartZoom * scale))
+                                applyZoomAtPoint(centerX, centerY, nextZoom / Math.max(0.0001, vp.zoom))
                             } else if (e.touches.length === 1 && panning) {
                                 const dx = e.touches[0].clientX - panStart.current.x
                                 const dy = e.touches[0].clientY - panStart.current.y
@@ -1698,7 +1871,7 @@ export function CanvasView() {
                             position: 'absolute', bottom: 16, left: '50%', transform: 'translateX(-50%)',
                             fontSize: 10, opacity: 0.35, pointerEvents: 'none',
                             background: 'rgba(0,0,0,0.4)', padding: '2px 8px', borderRadius: 6, fontFamily: 'monospace',
-                        }}>{Math.round(viewport.zoom * 100)}% · Scroll to zoom · Space+Drag to pan</div>
+                        }}>{Math.round(viewport.zoom * 100)}% · Scroll to pan · Pinch/Ctrl + Scroll to zoom</div>
                     )}
                 </div>
             </div>

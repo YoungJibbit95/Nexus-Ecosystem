@@ -609,6 +609,53 @@ const NodeWidget = React.memo(function NodeWidget({
     outline: "none",
   };
 
+  const replaceMarkdownCodeBlock = useCallback(
+    (
+      mdNode: any,
+      className: string | undefined,
+      rawChildren: React.ReactNode,
+      nextBlockContent: string,
+    ) => {
+      const current = node.content || "";
+      const lang = (className || "").replace("language-", "");
+      const raw = Array.isArray(rawChildren)
+        ? rawChildren.join("")
+        : String(rawChildren ?? "");
+      const currentBlockContent = raw.replace(/\n$/, "");
+      const normalizedNext = nextBlockContent
+        .replace(/\r\n/g, "\n")
+        .replace(/\n+$/, "");
+
+      const makeFence = (block: string) =>
+        `\`\`\`${lang}\n${block.replace(/\n+$/, "")}\n\`\`\``;
+
+      const nextFence = makeFence(normalizedNext);
+      const start = mdNode?.position?.start?.offset;
+      const end = mdNode?.position?.end?.offset;
+      if (
+        Number.isFinite(start) &&
+        Number.isFinite(end) &&
+        start >= 0 &&
+        end > start &&
+        end <= current.length
+      ) {
+        updateNode(node.id, {
+          content: `${current.slice(0, start)}${nextFence}${current.slice(end)}`,
+        });
+        return;
+      }
+
+      const prevFence = makeFence(currentBlockContent);
+      const idx = current.indexOf(prevFence);
+      if (idx >= 0) {
+        updateNode(node.id, {
+          content: `${current.slice(0, idx)}${nextFence}${current.slice(idx + prevFence.length)}`,
+        });
+      }
+    },
+    [node.content, node.id, updateNode],
+  );
+
   const renderContent = () => {
     switch (node.type) {
       case "text":
@@ -706,10 +753,18 @@ const NodeWidget = React.memo(function NodeWidget({
                   remarkPlugins={[remarkGfm]}
                   components={{
                     pre: ({ children }: any) => <>{children}</>,
-                    code: ({ className, children }: any) => (
+                    code: ({ node: mdNode, className, children }: any) => (
                       <CanvasNexusCodeBlock
                         className={className}
                         accent={node.color || t.accent}
+                        onChange={(next) =>
+                          replaceMarkdownCodeBlock(
+                            mdNode,
+                            className,
+                            children,
+                            next,
+                          )
+                        }
                       >
                         {children}
                       </CanvasNexusCodeBlock>
@@ -2035,6 +2090,15 @@ const NodeWidget = React.memo(function NodeWidget({
           "nexus-scale-in 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both",
         willChange: "transform, left, top, width, height",
         backfaceVisibility: "hidden",
+        transform: isSelected
+          ? "translateZ(0) scale(1.01)"
+          : hovered
+            ? "translateZ(0) scale(1.004)"
+            : "translateZ(0)",
+        transition:
+          dragging || resizing
+            ? "none"
+            : "transform 0.16s cubic-bezier(0.2, 0.8, 0.2, 1)",
       }}
     >
       {/* Connection ports */}
@@ -2550,8 +2614,12 @@ export function CanvasView() {
   const [layoutMode, setLayoutMode] = useState<
     "mindmap" | "timeline" | "board"
   >("mindmap");
+  const [wheelPanning, setWheelPanning] = useState(false);
 
   const panStart = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
+  const wheelPanRaf = useRef<number>(0);
+  const wheelPanDelta = useRef({ x: 0, y: 0 });
+  const wheelPanReleaseTimeout = useRef<number>(0);
 
   // Track canvas size
   useEffect(() => {
@@ -2647,28 +2715,145 @@ export function CanvasView() {
 
   useEffect(() => {
     if (!panning) return;
-    const onMove = (e: MouseEvent) =>
-      setPan(
-        panStart.current.panX + e.clientX - panStart.current.x,
-        panStart.current.panY + e.clientY - panStart.current.y,
-      );
-    const onUp = () => setPanning(false);
+    let raf = 0;
+    let pending: { x: number; y: number } | null = null;
+
+    const flush = () => {
+      raf = 0;
+      if (!pending) return;
+      setPan(pending.x, pending.y);
+      pending = null;
+    };
+
+    const onMove = (e: MouseEvent) => {
+      pending = {
+        x: panStart.current.panX + e.clientX - panStart.current.x,
+        y: panStart.current.panY + e.clientY - panStart.current.y,
+      };
+      if (!raf) raf = requestAnimationFrame(flush);
+    };
+
+    const onUp = () => {
+      if (raf) {
+        cancelAnimationFrame(raf);
+        raf = 0;
+      }
+      if (pending) {
+        setPan(pending.x, pending.y);
+        pending = null;
+      }
+      setPanning(false);
+    };
+
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
     return () => {
+      if (raf) cancelAnimationFrame(raf);
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
     };
   }, [panning, setPan]);
 
-  // Smooth zoom with cursor centering
+  const applyZoomAtPoint = useCallback(
+    (clientX: number, clientY: number, scaleFactor: number) => {
+      const el = canvasRef.current;
+      if (!el) return;
+      const vp = useCanvas.getState().viewport;
+      const rect = el.getBoundingClientRect();
+      const localX = clientX - rect.left;
+      const localY = clientY - rect.top;
+      const nextZoom = Math.max(0.15, Math.min(3, vp.zoom * scaleFactor));
+      if (Math.abs(nextZoom - vp.zoom) < 0.0001) return;
+      const worldX = (localX - vp.panX) / vp.zoom;
+      const worldY = (localY - vp.panY) / vp.zoom;
+      const nextPanX = localX - worldX * nextZoom;
+      const nextPanY = localY - worldY * nextZoom;
+      useCanvas.setState({
+        viewport: {
+          ...vp,
+          zoom: nextZoom,
+          panX: nextPanX,
+          panY: nextPanY,
+        },
+      });
+    },
+    [],
+  );
+
+  const setZoomCentered = useCallback(
+    (nextZoom: number) => {
+      const el = canvasRef.current;
+      const vp = useCanvas.getState().viewport;
+      const clamped = Math.max(0.15, Math.min(3, nextZoom));
+      if (!el) {
+        setZoom(clamped);
+        return;
+      }
+      const rect = el.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+      const factor = clamped / Math.max(0.0001, vp.zoom);
+      applyZoomAtPoint(centerX, centerY, factor);
+    },
+    [applyZoomAtPoint, setZoom],
+  );
+
+  // Trackpad-friendly wheel: pan by default, zoom only with pinch/Ctrl.
   const handleWheel = useCallback(
     (e: React.WheelEvent) => {
       e.preventDefault();
-      const delta = e.deltaY > 0 ? -0.1 : 0.1;
-      setZoom(Math.max(0.15, Math.min(3, viewport.zoom + delta)));
+      const deltaScale =
+        e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? canvasSize.h : 1;
+      const dx = e.deltaX * deltaScale;
+      const dy = e.deltaY * deltaScale;
+
+      if (e.ctrlKey || e.metaKey) {
+        const factor = Math.exp(-dy * 0.0015);
+        applyZoomAtPoint(e.clientX, e.clientY, factor);
+        return;
+      }
+
+      wheelPanDelta.current.x -= dx;
+      wheelPanDelta.current.y -= dy;
+      setWheelPanning(true);
+      if (!wheelPanRaf.current) {
+        wheelPanRaf.current = requestAnimationFrame(() => {
+          wheelPanRaf.current = 0;
+          const vp = useCanvas.getState().viewport;
+          const delta = wheelPanDelta.current;
+          wheelPanDelta.current = { x: 0, y: 0 };
+          if (delta.x || delta.y) {
+            useCanvas.setState({
+              viewport: {
+                ...vp,
+                panX: vp.panX + delta.x,
+                panY: vp.panY + delta.y,
+              },
+            });
+          }
+        });
+      }
+
+      if (wheelPanReleaseTimeout.current) {
+        window.clearTimeout(wheelPanReleaseTimeout.current);
+      }
+      wheelPanReleaseTimeout.current = window.setTimeout(() => {
+        setWheelPanning(false);
+      }, 90);
     },
-    [viewport.zoom, setZoom],
+    [applyZoomAtPoint, canvasSize.h],
+  );
+
+  useEffect(
+    () => () => {
+      if (wheelPanRaf.current) {
+        cancelAnimationFrame(wheelPanRaf.current);
+      }
+      if (wheelPanReleaseTimeout.current) {
+        window.clearTimeout(wheelPanReleaseTimeout.current);
+      }
+    },
+    [],
   );
 
   const handleStartConnect = useCallback(
@@ -2880,8 +3065,9 @@ export function CanvasView() {
           const context = mk("markdown", 420, -80, "AI Context Board", {
             color: "#64D2FF",
             content:
-              "```nexus-grid\n2\nScope\nDependencies\nAssumptions\nKPIs\n```\n\n" +
-              "```nexus-timeline\nW1 | Discovery\nW2 | Architecture\nW3 | Build\nW4 | QA\nW5 | Release\n```",
+              "```nexus-list\nProblem | Welches Problem wird gelöst?\nPrimary User | Für wen bauen wir?\nSuccess Metric | Welche Metrik beweist Erfolg?\n```\n\n" +
+              "```nexus-progress\nDiscovery | 30\nDelivery Plan | 20\nQA Readiness | 10\n```\n\n" +
+              "```nexus-timeline\nW1 | Scope + Discovery\nW2 | Architektur festziehen\nW3 | Kernfunktionen bauen\nW4 | QA + Hardening\nW5 | Rollout\n```",
           });
           connectNodes([[rootId, context]]);
         }
@@ -2945,8 +3131,9 @@ export function CanvasView() {
           const note = mk("markdown", 0, 230, "Knowledge Hub", {
             color: "#64D2FF",
             content:
-              "```nexus-grid\n2\nVision\nStakeholder\nAbhängigkeiten\nRisiken\n```\n\n" +
-              "```nexus-timeline\nW1 | Discovery\nW2 | Architecture\nW3 | Build\nW4 | Review\n```",
+              "```nexus-grid\n2\nVision\nStakeholder\nAbhängigkeiten\nOffene Fragen\n```\n\n" +
+              "```nexus-list\nOwner | @product\nRisiko-Level | Mittel\nNächstes Review | Freitag\n```\n\n" +
+              "```nexus-timeline\nW1 | Discovery\nW2 | Architektur\nW3 | Umsetzung\nW4 | Review + Entscheidung\n```",
           });
           connectNodes([[rootId, note]]);
         }
@@ -2991,7 +3178,7 @@ export function CanvasView() {
         const timeline = mk("markdown", 270, 30, "Timeline", {
           color: "#BF5AF2",
           content:
-            "```nexus-timeline\nQ1 | Discovery + UX\nQ2 | Core Build\nQ3 | Beta + QA\nQ4 | Release + Rollout\n```",
+            "```nexus-timeline\nPhase 1 | Discovery + Scope Lock\nPhase 2 | Core Build\nPhase 3 | Beta + QA\nPhase 4 | Launch + Monitoring\n```",
         });
         const risk = mk("risk", -360, 210, "Rollout Risk", {
           color: "#FF453A",
@@ -3009,8 +3196,8 @@ export function CanvasView() {
         if (payload.includeNotes) {
           const brief = mk("markdown", 40, 250, "Roadmap Notes", {
             content:
-              "```nexus-list\nOwners | Product + Eng\nBudget | TBD\nDependencies | API, Design, QA\n```\n\n" +
-              "```nexus-progress\nScope Fit | 70\nTeam Readiness | 60\n```",
+              "```nexus-list\nOwners | Product + Eng\nDependencies | API, Design, QA\nGo-Live Gate | Performance + QA signoff\n```\n\n" +
+              "```nexus-progress\nScope Fit | 70\nTeam Readiness | 60\nRelease Confidence | 45\n```",
           });
           connectNodes([[rootId, brief]]);
         }
@@ -3063,7 +3250,8 @@ export function CanvasView() {
         if (payload.includeNotes) {
           const standup = mk("markdown", 20, 290, "Daily Standup", {
             content:
-              "```nexus-kanban\nYesterday | Was habe ich geschafft?\nToday | Was ist als Nächstes dran?\nBlocker | Wo brauche ich Hilfe?\n```",
+              "```nexus-kanban\nYesterday | Erledigte Tasks + Ergebnis\nToday | Wichtigste 1-2 Deliverables\nBlocker | Owner + ETA für Entblockung\n```\n\n" +
+              "```nexus-alert\ninfo\nSprint Scope bleibt stabil, neue Requests nur per Tradeoff-Entscheidung.\n```",
           });
           connectNodes([[rootId, standup]]);
         }
@@ -3109,8 +3297,9 @@ export function CanvasView() {
 
         const matrix = mk("markdown", 90, 260, "Matrix Legende", {
           content:
-            "```nexus-grid\n2\nLow Impact\nHigh Impact\nLow Probability\nHigh Probability\n```\n\n" +
-            "```nexus-alert\nwarning\nMitigation-Owner pro kritischem Risiko definieren.\n```",
+            "```nexus-grid\n2\nNiedriger Impact\nHoher Impact\nNiedrige Wahrscheinlichkeit\nHohe Wahrscheinlichkeit\n```\n\n" +
+            "```nexus-list\nCritical Risiken | Tägliches Tracking\nHigh Risiken | 2x pro Woche Review\nOwner Pflicht | Ja, für jedes Risiko\n```\n\n" +
+            "```nexus-alert\nwarning\nFür alle Critical-Risiken innerhalb von 24h einen Mitigation-Owner setzen.\n```",
         });
         connectNodes([[rootId, matrix]]);
       }
@@ -3868,7 +4057,7 @@ export function CanvasView() {
             <ToolBtn
               icon={ZoomOut}
               tooltip="Rauszoomen"
-              onClick={() => setZoom(Math.max(0.15, viewport.zoom - 0.15))}
+              onClick={() => setZoomCentered(viewport.zoom - 0.15)}
               accent={t.accent}
               rgb={rgb}
             />
@@ -3889,7 +4078,7 @@ export function CanvasView() {
             <ToolBtn
               icon={ZoomIn}
               tooltip="Reinzoomen"
-              onClick={() => setZoom(Math.min(3, viewport.zoom + 0.15))}
+              onClick={() => setZoomCentered(viewport.zoom + 0.15)}
               accent={t.accent}
               rgb={rgb}
             />
@@ -3978,10 +4167,12 @@ export function CanvasView() {
                   ? panning
                     ? "grabbing"
                     : "grab"
-                  : "default",
-              transition: panning
+                  : wheelPanning
+                    ? "grabbing"
+                    : "default",
+              transition: panning || wheelPanning
                 ? "none"
-                : "background-position 0.1s ease-out", // viewport.moving replaced with panning
+                : "background-position 0.08s ease-out, background-size 0.12s ease-out",
               backgroundPosition: `${viewport.panX}px ${viewport.panY}px`, // viewport.x, viewport.y replaced with viewport.panX, viewport.panY
               backgroundSize: `${24 * viewport.zoom}px ${24 * viewport.zoom}px`,
               backgroundImage:
@@ -4317,8 +4508,8 @@ export function CanvasView() {
                 fontFamily: "monospace",
               }}
             >
-              {Math.round(viewport.zoom * 100)}% · Scroll to zoom · Space+Drag
-              to pan
+              {Math.round(viewport.zoom * 100)}% · Scroll to pan · Pinch/Ctrl +
+              Scroll to zoom
             </div>
           )}
         </div>

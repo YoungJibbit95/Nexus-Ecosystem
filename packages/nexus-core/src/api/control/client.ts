@@ -19,6 +19,8 @@ import type {
   NexusReleaseFetchOptions,
   NexusReleaseSubscriptionOptions,
   NexusViewAccessCheckOptions,
+  NexusViewWarmupOptions,
+  NexusViewWarmupResult,
 } from './options'
 import { clamp, isBrowser, normalizeBaseUrl, normalizeReleaseChannel, normalizeUserId, normalizeUserTier, shouldSample } from './utils'
 import { clearRemoteCaches } from './client/common'
@@ -28,6 +30,7 @@ import { fetchCatalog, fetchCurrentRelease, fetchLayoutSchema, fetchLiveBundle }
 import { flush, pushEvent } from './client/flush'
 import { subscribeReleaseUpdates } from './client/subscription'
 import { validateViewAccess } from './client/view-access'
+import { warmupViewAccess } from './client/warmup'
 export class NexusControlClient {
   private appId: NexusControlClientOptions['appId']
   private appVersion: string
@@ -152,6 +155,9 @@ export class NexusControlClient {
   }
   validateViewAccess(viewId: string, options: NexusViewAccessCheckOptions = {}): Promise<NexusViewAccessResult> {
     return validateViewAccess(this, viewId, options)
+  }
+  warmupViewAccess(viewIds: string[], options: NexusViewWarmupOptions = {}): Promise<NexusViewWarmupResult> {
+    return warmupViewAccess(this, viewIds, options)
   }
   fetchCatalog(options: NexusCatalogFetchOptions = {}): Promise<NexusFetchResult<NexusFeatureCatalog>> {
     return fetchCatalog(this, options)

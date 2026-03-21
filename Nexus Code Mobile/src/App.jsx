@@ -49,6 +49,7 @@ function App() {
           enabled: Boolean(controlBaseUrl),
           baseUrl: controlBaseUrl,
           ingestKey: controlIngestKey,
+          viewValidationCacheMs: 120_000,
         },
         liveSync: {
           enabled: false,
@@ -109,11 +110,15 @@ function App() {
     let active = true;
 
     const runValidation = async () => {
-      const access = await runtime.control.validateViewAccess("editor", {
+      const warmup = await runtime.control.warmupViewAccess(["editor"], {
         userId: viewUserId,
         username: viewUsername,
         userTier: viewUserTier,
+        forceRefresh: true,
+        concurrency: 1,
       });
+      const access = warmup.resultByView.editor;
+      if (!access) return;
 
       if (!active) return;
       setViewAccessState({
