@@ -238,7 +238,7 @@ const sectionMeta: Record<SectionId, Record<Language, { title: string; subtitle:
         "Control UI zones for Live Sync, paywalls, policies, devices, commands, audit, guides and deployment migration.",
       bullets: [
         "🧭 Operator flow from staging to production promotion.",
-        "🔐 Security operations with owner-only, signatures and device governance.",
+        "🔐 Security operations with access governance and operational safeguards.",
         "📡 Guides and audit paths for daily ops and incident response.",
       ],
     },
@@ -301,9 +301,9 @@ const sectionMeta: Record<SectionId, Record<Language, { title: string; subtitle:
     en: {
       title: "Security + Paywalls 🔐",
       subtitle:
-        "Owner-only controls, signatures, device verification, entitlements, paywall gates and secure operating rules for web and apps.",
+        "Account access, subscription gates and secure operating rules for web and apps.",
       bullets: [
-        "💳 Clear separation between paywall UX and API-side enforcement.",
+        "💳 Clear separation between paywall UX and protected backend enforcement.",
         "🛡️ Security baseline and policy guardrails documented clearly.",
         "📋 Includes operational steps for security workflows.",
       ],
