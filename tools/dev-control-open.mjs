@@ -2,14 +2,14 @@ import net from 'node:net'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { spawnNpm, spawnProcess } from './lib/process-utils.mjs'
-import { resolveControlPlanePrefixArg } from './lib/api-source.mjs'
+import { ensureControlPlane } from './lib/control-plane-guard.mjs'
+import { resolveHostedControlUrl } from './lib/api-source.mjs'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const ROOT = path.resolve(__dirname, '..')
-const controlPlaneTarget = await resolveControlPlanePrefixArg({ root: ROOT, quiet: false })
 
-const controlPort = Number(process.env.NEXUS_CONTROL_PORT || 4399)
+const hostedControlUrl = resolveHostedControlUrl()
 const uiPort = Number(process.env.NEXUS_CONTROL_UI_PORT || 5180)
 const uiUrl = process.env.NEXUS_CONTROL_UI_URL || `http://localhost:${uiPort}`
 const skipOpen = String(process.env.NEXUS_CONTROL_NO_OPEN || '').toLowerCase() === 'true'
@@ -84,7 +84,7 @@ const isPortReachable = async (port, host = '127.0.0.1', timeoutMs = 1_500) => {
 
 const openBrowser = (url) => {
   if (skipOpen) {
-    console.log(`\nBrowser-Open übersprungen (NEXUS_CONTROL_NO_OPEN=true). URL: ${url}`)
+    console.log(`\nBrowser-Open uebersprungen (NEXUS_CONTROL_NO_OPEN=true). URL: ${url}`)
     return
   }
 
@@ -104,8 +104,8 @@ const openBrowser = (url) => {
     const proc = spawnProcess('xdg-open', [url], { stdio: 'ignore', detached: true, shell: false })
     proc.unref()
   } catch (error) {
-    console.warn(`Browser konnte nicht automatisch geöffnet werden: ${error.message}`)
-    console.warn(`Bitte manuell öffnen: ${url}`)
+    console.warn(`Browser konnte nicht automatisch geoeffnet werden: ${error.message}`)
+    console.warn(`Bitte manuell oeffnen: ${url}`)
   }
 }
 
@@ -132,35 +132,36 @@ const shutdown = (exitCode = 0) => {
 process.on('SIGINT', () => shutdown(0))
 process.on('SIGTERM', () => shutdown(0))
 
-console.log(`Starte Nexus Control Plane und Nexus Control UI [api-source=${controlPlaneTarget.source.mode}]...`)
+console.log(`Pruefe Hosted API: ${hostedControlUrl}`)
+await ensureControlPlane({
+  root: ROOT,
+  startIfMissing: false,
+  timeoutMs: 10_000,
+  quiet: false,
+})
 
-const controlPlaneRunning = await isPortReachable(controlPort)
+console.log('Starte Nexus Control UI (Hosted API Mode)...')
+
 const controlUiRunning = await isPortReachable(uiPort)
-
-if (controlPlaneRunning) {
-  console.log(`Control Plane laeuft bereits auf http://localhost:${controlPort}`)
-} else {
-  run('control-plane', [...controlPlaneTarget.prefixArgs, 'run', 'dev'])
-}
-
 if (controlUiRunning) {
-  console.log(`Control UI laeuft bereits auf http://localhost:${uiPort}`)
+  console.log(`Control UI laeuft bereits auf ${uiUrl}`)
 } else {
-  run('control-ui', ['--prefix', './Nexus Control', 'run', 'dev'])
+  run('control-ui', ['--prefix', '../Nexus Control', 'run', 'dev'])
 }
 
 try {
-  await waitForPort(controlPort)
   await waitForPort(uiPort)
-  console.log(`\nControl Plane erreichbar auf http://localhost:${controlPort}`)
-  console.log(`Control UI erreichbar auf ${uiUrl}`)
+  console.log(`\nControl UI erreichbar auf ${uiUrl}`)
+  console.log(`Hosted API: ${hostedControlUrl}`)
   openBrowser(uiUrl)
+
   if (children.length === 0) {
-    console.log('\nKeine neuen Prozesse gestartet (beide Services liefen bereits).')
+    console.log('\nKeine neuen Prozesse gestartet (Control UI lief bereits).')
     process.exit(0)
   }
-  console.log('\nDrücke Ctrl+C zum Beenden der gestarteten Prozesse.')
+
+  console.log('\nDruecke Ctrl+C zum Beenden der gestarteten Prozesse.')
 } catch (error) {
-  console.error(`\nStartprüfung fehlgeschlagen: ${error.message}`)
+  console.error(`\nStartpruefung fehlgeschlagen: ${error.message}`)
   shutdown(1)
 }

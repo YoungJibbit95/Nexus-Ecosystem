@@ -32,7 +32,7 @@ npm --prefix "./Nexus Main" run build
 npm --prefix "./Nexus Mobile" run build
 npm --prefix "./Nexus Code" run build
 npm --prefix "./Nexus Code Mobile" run build
-npm --prefix "./Nexus Control" run build
+npm --prefix "../Nexus Control" run build
 ```
 
 ## Security-Regeln
@@ -48,4 +48,4 @@ npm --prefix "./Nexus Control" run build
 - `Nexus Mobile/src/App.tsx`
 - `Nexus Code/src/App.jsx`
 - `Nexus Code Mobile/src/App.jsx`
-- `Nexus Control/src/app.js`
+- `../Nexus Control/src/app.js`

@@ -2,35 +2,28 @@ import net from 'node:net'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { spawnNpm, spawnProcess } from './lib/process-utils.mjs'
-import { resolveControlPlanePrefixArg } from './lib/api-source.mjs'
+import { resolveHostedControlUrl } from './lib/api-source.mjs'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const ROOT = path.resolve(__dirname, '..')
 const cliArgs = new Set(process.argv.slice(2))
-const includeControlPlane = !cliArgs.has('--without-control-plane') && !cliArgs.has('--apps-only')
-const controlPlaneTarget = includeControlPlane
-  ? await resolveControlPlanePrefixArg({ root: ROOT, quiet: false })
-  : null
+const includeControlUi = !cliArgs.has('--without-control-plane')
+  && !cliArgs.has('--without-control-ui')
+  && !cliArgs.has('--apps-only')
 
+const hostedControlUrl = resolveHostedControlUrl()
 const skipOpen = String(process.env.NEXUS_CONTROL_NO_OPEN || '').toLowerCase() === 'true'
 const openControlUrl = String(process.env.NEXUS_DEV_OPEN_CONTROL || 'true').toLowerCase() !== 'false'
 
 const SERVICES = []
 
-if (includeControlPlane && controlPlaneTarget) {
+if (includeControlUi) {
   SERVICES.push(
-    {
-      id: 'control-plane',
-      label: 'Control Plane',
-      args: [...controlPlaneTarget.prefixArgs, 'run', 'dev'],
-      port: Number(process.env.NEXUS_CONTROL_PORT || 4399),
-      url: `http://localhost:${Number(process.env.NEXUS_CONTROL_PORT || 4399)}`,
-    },
     {
       id: 'control-ui',
       label: 'Control UI',
-      args: ['--prefix', './Nexus Control', 'run', 'dev'],
+      args: ['--prefix', '../Nexus Control', 'run', 'dev'],
       port: Number(process.env.NEXUS_CONTROL_UI_PORT || 5180),
       url: `http://localhost:${Number(process.env.NEXUS_CONTROL_UI_PORT || 5180)}`,
     },
@@ -169,9 +162,9 @@ const shutdown = (exitCode = 0) => {
 process.on('SIGINT', () => shutdown(0))
 process.on('SIGTERM', () => shutdown(0))
 
-const stackLabel = includeControlPlane
-  ? `Control + Main + Code [api-source=${controlPlaneTarget.source.mode}]`
-  : 'Main + Code (API extern)'
+const stackLabel = includeControlUi
+  ? `Control UI + Main + Code (Hosted API: ${hostedControlUrl})`
+  : `Main + Code (Hosted API: ${hostedControlUrl})`
 console.log(`Starte Nexus Dev Stack (${stackLabel})...`)
 
 for (const service of SERVICES) {
@@ -198,6 +191,7 @@ try {
   for (const service of SERVICES) {
     console.log(`- ${service.label}: ${service.url}`)
   }
+  console.log(`- Hosted API: ${hostedControlUrl}`)
 
   const controlUi = SERVICES.find((service) => service.id === 'control-ui')
   if (controlUi) {
