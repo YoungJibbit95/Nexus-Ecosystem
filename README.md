@@ -14,8 +14,9 @@
 > [!IMPORTANT]
 > Das Public-Ecosystem enthaelt nur **Runtime Plane + API Client Layer** (`@nexus/api` in den Apps). Die produktive Control Plane laeuft gehostet unter `NEXUS_CONTROL_URL`; Server-/Operations-Code liegt im privaten NexusAPI-Repo.
 
+<div align="center">
 ## Nexus Wiki: https://youngjibbit95.github.io/Nexus-Ecosystem/
-
+</div>
 ## ✨ Inhaltsverzeichnis
 
 - [🎯 Was ist das Nexus Ecosystem?](#-was-ist-das-nexus-ecosystem)
