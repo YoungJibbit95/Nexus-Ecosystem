@@ -31,5 +31,5 @@ pnpm-debug.log*
 **/.env.local
 **/.env.*.local
 
-# Private API checkout
-.nexus-private/
+# Local build caches
+**/.cache/

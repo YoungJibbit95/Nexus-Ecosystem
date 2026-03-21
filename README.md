@@ -12,7 +12,7 @@
 </div>
 
 > [!IMPORTANT]
-> Das Ecosystem ist jetzt in **Runtime Plane** (`@nexus/api` in den Apps) und **Control Plane** (`.nexus-private/NexusAPI/API/nexus-control-plane` + `Nexus Control`) aufgeteilt.
+> Das Public-Ecosystem enthaelt nur **Runtime Plane + API Client Layer** (`@nexus/api` in den Apps). Die produktive Control Plane laeuft gehostet unter `NEXUS_CONTROL_URL`; Server-/Operations-Code liegt im privaten NexusAPI-Repo.
 
 ## ✨ Inhaltsverzeichnis
 
@@ -49,10 +49,9 @@ Ziele:
 | Nexus Mobile | `Nexus Mobile/` | Mobile App (Capacitor + React) |
 | Nexus Code | `Nexus Code/` | Dev-/Code-App (Desktop) |
 | Nexus Code Mobile | `Nexus Code Mobile/` | Dev-/Code-App (Mobile) |
-| Nexus Control | `Nexus Control/` | Zentrale Management-UI |
-| NexusAPI | `.nexus-private/NexusAPI/API/nexus-api/` | Shared Runtime API (Connection, Perf, Control Client) |
-| Nexus Control Plane | `.nexus-private/NexusAPI/API/nexus-control-plane/` | Backend fuer Auth, Config, Policies, Commands, Audit |
-| Nexus Schemas | `.nexus-private/NexusAPI/API/schemas/` | Zentrale Contracts und Validatoren |
+| Nexus Control | `../Nexus Control/` (private) | Zentrale Management-UI |
+| Nexus API Client | `packages/nexus-core/` | Shared Runtime API Client (Connection, Perf, Control Client) |
+| Nexus Control Plane | `NEXUS_CONTROL_URL` (hosted, private backend) | Backend fuer Auth, Config, Policies, Commands, Audit |
 | Shared Core | `packages/nexus-core/` | Gemeinsame Runtime/UI-Helfer |
 | Global Assets | `assets/global/` | Branding, Topologie, Budgets |
 
@@ -72,7 +71,6 @@ flowchart LR
   G --> H["Nexus Control Plane\nAuth / Config / Policies / Commands / Audit"]
   I["Nexus Control UI"] --> H
 
-  J[".nexus-private/NexusAPI/API/schemas"] --> H
   K["packages/nexus-core"] --> A
   K --> B
   L["assets/global"] --> R
@@ -130,26 +128,23 @@ Alle Artefakte landen zentral in `build/`.
 | Android Studio (optional) | Android Builds |
 | Xcode (optional, macOS) | iOS Builds |
 
-### Private API Source (empfohlen)
+### Hosted API Source (Standard)
 
 ```bash
-# private NexusAPI Repo klonen/aktualisieren
-npm run api:private:sync
-
-# zeigt die aktuell aktive API-Quelle (private-only)
-npm run api:private:source
+# zeigt aktive Hosted API + lokales Client-Package
+npm run api:source
 ```
 
 Standardverhalten:
 
-- Das Ecosystem nutzt ausschliesslich die private Quelle unter `.nexus-private/NexusAPI`.
-- Wenn die private Quelle fehlt oder unvollstaendig ist, stoppen Setup/Dev/Build mit Fehler.
+- Das Ecosystem nutzt `packages/nexus-core` als lokalen Client-Layer.
+- Serverseitige API-/Control-Plane-Komponenten sind nicht Teil dieses Public-Repos.
 
 ### App-Entwicklung (Runtime Plane)
 
 ```bash
 npm run dev:all       # Main + Code (API extern)
-npm run dev:all:with-local-api  # inkl. lokaler Control Plane + Control UI
+npm run dev:all:with-control-ui  # inkl. Control UI + Main + Code
 npm run dev:main      # Nexus Main in Electron
 npm run dev:main:web  # Nexus Main nur im Browser (Vite)
 npm run dev:mobile:android
@@ -160,20 +155,18 @@ npm run dev:code-mobile:ios
 ```
 
 Mobile Apps werden nativ ueber Capacitor gestartet (`npx cap open ios|android`), nicht ueber Vite-Devserver.
-Root-`build` Commands sind API-unabhaengig. Die lokale Control Plane ist optional fuer Integrations-/Admin-Tests.
+Root-`build` Commands bauen Apps + Client-Layer. Optional kann ein Hosted-API-Healthcheck erzwungen werden.
 
 Security-Admin-Bootstrap (User/Devices/Secrets) ist bewusst **nicht** ueber Public-Root-Commands verfuegbar.
 Diese Operationen laufen ausschliesslich ueber das private NexusAPI Operations-Setup.
 
-## ⚙️ Control Plane + UI starten
+## ⚙️ Control UI starten (Hosted API)
 
-### 1) Control Plane starten
+### 1) Hosted API URL setzen (optional)
 
 ```bash
-npm run dev:control-plane
+export NEXUS_CONTROL_URL=https://nexus-api.dev
 ```
-
-Default URL: `http://localhost:4399`
 
 ### 2) Control UI starten
 
@@ -189,13 +182,12 @@ Default URL: `http://localhost:5180`
 npm run dev:control:open
 ```
 
-Startet Control Plane + Control UI und öffnet automatisch `http://localhost:5180`.
+Startet die Control UI und oeffnet automatisch `http://localhost:5180`.
 
 ### 3) Einloggen
 
-Die lokale/private Control-Plane-Umgebung bootstrapped Entwicklungs-Accounts fuer lokale Tests.
-Die konkreten Bootstrap-Passwoerter werden im Public-Repo absichtlich nicht dokumentiert und muessen
-vor produktiver Nutzung gesetzt bzw. sofort rotiert werden.
+Accounts/Bootstrap fuer die Control Plane werden im privaten NexusAPI-Operations-Setup verwaltet.
+Sensitive Bootstrap-Details sind absichtlich nicht Teil dieses Public-Repos.
 
 > [!WARNING]
 > Zugangsdaten aus lokalen Bootstrap-Setups duerfen nicht in Docs, Screenshots, Beispieldateien oder Commits landen.
@@ -207,8 +199,8 @@ Empfohlenes Ziel ist derselbe Server wie die API (`nexus-api.dev`), z. B. als `/
 
 Kurzablauf:
 
-1. `npm --prefix "./Nexus Control" run build`
-2. `Nexus Control/dist` auf den Server deployen (Nginx/Caddy/Apache)
+1. `npm --prefix "../Nexus Control" run build`
+2. `../Nexus Control/dist` auf den Server deployen (Nginx/Caddy/Apache)
 3. `runtime-config.json` mit `controlApiUrl: "https://nexus-api.dev"` ausliefern
 4. Sicherstellen, dass die UI-Origin in `trustedOrigins`/`NEXUS_EXTRA_TRUSTED_ORIGINS` erlaubt ist
 
@@ -263,23 +255,21 @@ Die Wildcard `*` sollte fuer sichere Setups nicht verwendet werden.
 | Command | Zweck |
 |---|---|
 | `npm run setup` | Vollstaendiges Local Setup (Install + `.env.local` Defaults) |
-| `npm run api:private:sync` | Synchronisiert private `NexusAPI` Quelle |
-| `npm run api:private:source` | Zeigt aktive API-Quelle + Pfade an |
+| `npm run api:source` | Zeigt aktive Hosted API + Client-Package an |
 | `npm run dev:all` | Startet Main + Code (API extern) |
-| `npm run dev:all:with-local-api` | Startet lokalen Core-Stack (Control Plane, Control UI, Main, Code) |
+| `npm run dev:all:with-control-ui` | Startet Core-Stack (Control UI, Main, Code) |
 | `npm run dev:all:no-open` | Wie `dev:all`, aber ohne Browser-Autostart |
 | `npm run dev:mobile:android` | Nexus Mobile nativ (build + cap sync + Android Studio) |
 | `npm run dev:mobile:ios` | Nexus Mobile nativ (build + cap sync + Xcode) |
 | `npm run dev:code-mobile:android` | Nexus Code Mobile nativ (build + cap sync + Android Studio) |
 | `npm run dev:code-mobile:ios` | Nexus Code Mobile nativ (build + cap sync + Xcode) |
 | `npm run build` | Voller Ecosystem Build (API-unabhaengig, inkl. Android-Versuch) |
-| `npm run build:ecosystem:with-local-api` | Build inkl. lokaler Control-Plane-Absicherung |
+| `npm run build:ecosystem:with-healthcheck` | Build inkl. Hosted-API-Healthcheck |
 | `npm run build:electron:installers` | Baut beide Electron-Apps inkl. macOS+Windows Installer |
 | `npm run build:main` | Baut `Nexus Main` host-spezifisch (z. B. macOS -> `.dmg`, Windows -> `.exe`) |
 | `npm run build:code` | Baut `Nexus Code` host-spezifisch (z. B. macOS -> `.dmg`, Windows -> `.exe`) |
 | `npm run build:ecosystem:fast` | Schneller Build ohne Android-Versuch |
 | `npm run build:apps` | Alle Frontend-Apps bauen |
-| `npm run build:control-plane` | Control Plane Build Snapshot |
 | `npm run verify:ecosystem` | Integrations-/Security-/Layout-Checks |
 | `npm run doctor:release` | Release-Readiness Check (Hosted API, Android SDK, Notarization) |
 | `npm run doctor:release:hosted` | Wie oben, mit Pflicht-Checks fuer gehostete Control UI |
@@ -289,9 +279,7 @@ Die Wildcard `*` sollte fuer sichere Setups nicht verwendet werden.
 ```text
 build/
 ├── API/
-│   ├── nexus-api/
-│   ├── nexus-control-plane/
-│   └── schemas/
+│   └── nexus-api/
 ├── Nexus Main/
 ├── Nexus Mobile/
 ├── Nexus Code/
@@ -301,6 +289,8 @@ build/
 │   └── global/
 └── manifest.json
 ```
+
+Hinweis: Unter `build/API/` liegt ausschliesslich das API-Client-Package (`packages/nexus-core`), kein serverseitiger Control-Plane-Code.
 
 Electron-Installer landen pro App in:
 
@@ -417,7 +407,7 @@ Kurz: Public Core ist sinnvoll, aber der wirklich autoritative Control Plane sol
 - [ENVIRONMENT.md](./docs/ENVIRONMENT.md)
 - [SECURITY.md](./docs/SECURITY.md)
 - [CONTROL_PANEL_HOSTED_SETUP.md](./docs/CONTROL_PANEL_HOSTED_SETUP.md)
-- [Nexus Control/README.md](./Nexus%20Control/README.md)
+- [Nexus Control (private)](https://github.com/YoungJibbit95/NexusAPI/tree/main/Nexus%20Control)
 - Private API Repo (Owner-only): [YoungJibbit95/NexusAPI](https://github.com/YoungJibbit95/NexusAPI)
 
 ---

@@ -75,29 +75,19 @@ const APPS = [
   {
     id: 'control',
     name: 'Nexus Control',
-    dir: 'Nexus Control',
+    dir: '../Nexus Control',
     buildScript: 'build',
     artifacts: [{ from: 'dist', to: 'web' }],
   },
 ]
 
-const resolveSharedExports = (apiSource) => [
+const resolveSharedExports = (apiSource) => ([
   {
     label: 'API Paket',
     from: apiSource.apiDir,
     to: path.join('API', 'nexus-api'),
   },
-  {
-    label: 'Control Plane Paket',
-    from: apiSource.controlPlaneDir,
-    to: path.join('API', 'nexus-control-plane'),
-  },
-  {
-    label: 'Schemas Paket',
-    from: apiSource.schemasDir,
-    to: path.join('API', 'schemas'),
-  },
-]
+]).filter((entry) => Boolean(entry.from))
 
 const runCommand = (cmd, cmdArgs, options = {}) => {
   const { cwd = ROOT, allowFailure = false, env = process.env } = options
@@ -419,9 +409,8 @@ const main = async () => {
     durationMs: 0,
     apiSource: {
       mode: apiSource.mode,
-      controlPlaneDir: path.relative(ROOT, apiSource.controlPlaneDir),
       apiDir: path.relative(ROOT, apiSource.apiDir),
-      schemasDir: path.relative(ROOT, apiSource.schemasDir),
+      controlBaseUrl: apiSource.controlBaseUrl || null,
     },
   }
 
@@ -441,7 +430,7 @@ const main = async () => {
         sourceMode: controlPlaneGuard.sourceMode || apiSource.mode,
       }
     } catch (error) {
-      const message = `Control Plane konnte nicht gestartet werden: ${error.message || error}`
+      const message = `Control API Healthcheck fehlgeschlagen: ${error.message || error}`
       if (strictControlPlane) {
         throw new Error(message)
       }

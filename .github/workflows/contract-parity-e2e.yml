@@ -53,54 +53,12 @@ jobs:
       - name: Build Control UI
         run: npm --prefix "./Nexus Control" run build
 
-      - name: Detect private NexusAPI checkout
-        id: private_api
+      - name: Hosted API smoke
         shell: bash
+        env:
+          NEXUS_CONTROL_URL: ${{ vars.NEXUS_CONTROL_URL || 'https://nexus-api.dev' }}
         run: |
           set -euo pipefail
-          if [ -d ".nexus-private/NexusAPI/API/nexus-control-plane" ]; then
-            echo "available=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "::warning::.nexus-private/NexusAPI fehlt im öffentlichen CI-Checkout. API-v2-Smoke wird uebersprungen."
-            echo "available=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: API v2 smoke
-        if: steps.private_api.outputs.available == 'true'
-        shell: bash
-        run: |
-          set -euo pipefail
-          cd ".nexus-private/NexusAPI/API/nexus-control-plane"
-          NEXUS_CONTROL_PORT=4499 node ./src/server.mjs > /tmp/nexus-cp-ci.log 2>&1 &
-          CP_PID=$!
-          trap 'kill "$CP_PID" >/dev/null 2>&1 || true' EXIT
-
-          for i in {1..40}; do
-            if curl -fsS "http://127.0.0.1:4499/health" >/dev/null 2>&1; then
-              break
-            fi
-            sleep 0.25
-            if [ "$i" -eq 40 ]; then
-              echo "control-plane did not start"
-              cat /tmp/nexus-cp-ci.log || true
-              exit 1
-            fi
-          done
-
-          curl -fsS "http://127.0.0.1:4499/api/v2/features/catalog?appId=main&channel=production" \
-            -H "X-Nexus-App-Id: main" \
-            -H "X-Nexus-Ingest-Key: main-local-dev-key" >/tmp/nexus-v2-catalog-ci.json
-
-          curl -fsS "http://127.0.0.1:4499/api/v2/layout/schema?appId=mobile&channel=production" \
-            -H "X-Nexus-App-Id: mobile" \
-            -H "X-Nexus-Ingest-Key: mobile-local-dev-key" >/tmp/nexus-v2-layout-ci.json
-
-          curl -fsS "http://127.0.0.1:4499/api/v2/releases/current?appId=code&channel=production" \
-            -H "X-Nexus-App-Id: code" \
-            -H "X-Nexus-Ingest-Key: code-local-dev-key" >/tmp/nexus-v2-release-ci.json
-
-          curl -fsS "http://127.0.0.1:4499/api/v2/clients/capabilities" \
-            -H "Content-Type: application/json" \
-            -H "X-Nexus-App-Id: code-mobile" \
-            -H "X-Nexus-Ingest-Key: code-mobile-local-dev-key" \
-            -d '{"appId":"code-mobile","appVersion":"1.0.0","platform":"mobile","supports":{"schemaVersions":["2.0.0"],"components":["code-editor"],"layoutProfiles":["mobile-adaptive"],"featureFlags":["live-release-sync"]}}' >/tmp/nexus-v2-capabilities-ci.json
+          echo "Smoke target: ${NEXUS_CONTROL_URL}"
+          curl -fsS "${NEXUS_CONTROL_URL}/health" >/tmp/nexus-health-ci.json
+          curl -fsS "${NEXUS_CONTROL_URL}/api/v1/public/bootstrap" >/tmp/nexus-bootstrap-ci.json

@@ -1,46 +1,80 @@
 import http from 'node:http'
-import { promises as fs } from 'node:fs'
-import path from 'node:path'
-import { spawnNpm } from './process-utils.mjs'
-import { resolveApiSource } from './api-source.mjs'
+import https from 'node:https'
+import { resolveApiSource, resolveHostedControlUrl } from './api-source.mjs'
 
-export const DEFAULT_CONTROL_PORT = 4399
-export const DEFAULT_CONTROL_HOST = '127.0.0.1'
+export const DEFAULT_CONTROL_HOST = 'nexus-api.dev'
+export const DEFAULT_CONTROL_PORT = 443
 const DEFAULT_TIMEOUT_MS = 90_000
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
-const toPort = (value) => {
+const normalizePort = (value, protocol) => {
   const raw = Number(value)
-  if (!Number.isInteger(raw) || raw <= 0 || raw > 65535) return DEFAULT_CONTROL_PORT
-  return raw
+  if (Number.isInteger(raw) && raw > 0 && raw <= 65535) return raw
+  return protocol === 'http:' ? 80 : 443
 }
 
-export const resolveControlPlaneTarget = () => ({
-  host: DEFAULT_CONTROL_HOST,
-  port: toPort(process.env.NEXUS_CONTROL_PORT || DEFAULT_CONTROL_PORT),
-})
+const buildHealthPath = (pathname) => {
+  const trimmed = String(pathname || '/').trim()
+  const base = trimmed.endsWith('/') ? trimmed.slice(0, -1) : trimmed
+  const normalizedBase = base || ''
+  return `${normalizedBase}/health`.replace(/\/\/+/, '/')
+}
 
-const requestHealth = ({ host, port, timeoutMs }) => new Promise((resolve) => {
-  const req = http.request({
+export const resolveControlPlaneTarget = () => {
+  const configured = resolveHostedControlUrl()
+  let parsed
+
+  try {
+    parsed = new URL(configured)
+  } catch {
+    throw new Error(`NEXUS_CONTROL_URL ist ungueltig: ${configured}`)
+  }
+
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    throw new Error(`NEXUS_CONTROL_URL nutzt kein HTTP(S)-Schema: ${configured}`)
+  }
+
+  const port = normalizePort(parsed.port, parsed.protocol)
+  const host = parsed.hostname || DEFAULT_CONTROL_HOST
+  const basePath = parsed.pathname || '/'
+  const healthPath = buildHealthPath(basePath)
+
+  return {
+    baseUrl: parsed.origin + (basePath === '/' ? '' : basePath.replace(/\/$/, '')),
+    protocol: parsed.protocol,
     host,
     port,
-    path: '/health',
+    healthPath,
+    healthUrl: `${parsed.origin}${healthPath}`,
+  }
+}
+
+const requestHealth = ({ protocol, host, port, path, timeoutMs }) => new Promise((resolve) => {
+  const transport = protocol === 'http:' ? http : https
+
+  const req = transport.request({
+    protocol,
+    host,
+    port,
+    path,
     method: 'GET',
     timeout: timeoutMs,
   }, (res) => {
     const chunks = []
     res.on('data', (chunk) => chunks.push(chunk))
     res.on('end', () => {
+      const body = Buffer.concat(chunks).toString('utf8')
       let data = null
       try {
-        data = JSON.parse(Buffer.concat(chunks).toString('utf8'))
+        data = JSON.parse(body)
       } catch {
         data = null
       }
 
+      const healthyByPayload = data?.ok === true || data?.status === 'healthy'
       resolve({
-        ok: res.statusCode === 200 && data?.ok === true && data?.status === 'healthy',
+        ok: (res.statusCode === 200) && healthyByPayload,
         status: res.statusCode ?? 0,
       })
     })
@@ -58,53 +92,34 @@ const requestHealth = ({ host, port, timeoutMs }) => new Promise((resolve) => {
   req.end()
 })
 
-export const isControlPlaneHealthy = async ({ host, port, timeoutMs = 1_200 }) => {
-  const res = await requestHealth({ host, port, timeoutMs })
+export const isControlPlaneHealthy = async ({ timeoutMs = 1_500 } = {}) => {
+  const target = resolveControlPlaneTarget()
+  const res = await requestHealth({
+    protocol: target.protocol,
+    host: target.host,
+    port: target.port,
+    path: target.healthPath,
+    timeoutMs,
+  })
   return res.ok
 }
 
 export const waitForControlPlane = async ({
-  host,
-  port,
   timeoutMs = DEFAULT_TIMEOUT_MS,
-  probeIntervalMs = 450,
-}) => {
+  probeIntervalMs = 700,
+} = {}) => {
   const startedAt = Date.now()
 
   while (Date.now() - startedAt <= timeoutMs) {
     // eslint-disable-next-line no-await-in-loop
-    const ok = await isControlPlaneHealthy({ host, port, timeoutMs: 1_400 })
+    const ok = await isControlPlaneHealthy({ timeoutMs: 2_000 })
     if (ok) return true
     // eslint-disable-next-line no-await-in-loop
     await sleep(probeIntervalMs)
   }
 
-  throw new Error(`Control Plane nicht erreichbar auf http://${host}:${port} (Timeout ${timeoutMs}ms)`)
-}
-
-const startControlPlaneDetached = async ({ root, host, port, controlPlaneDir }) => {
-  const logDir = path.join(root, 'build', 'logs')
-  await fs.mkdir(logDir, { recursive: true })
-
-  const child = spawnNpm(['--prefix', controlPlaneDir, 'run', 'dev'], {
-    cwd: root,
-    env: {
-      ...process.env,
-      NEXUS_CONTROL_HOST: host,
-      NEXUS_CONTROL_PORT: String(port),
-    },
-    detached: true,
-    stdio: 'ignore',
-  })
-
-  child.unref()
-
-  if (child.pid) {
-    const pidFile = path.join(logDir, 'control-plane.pid')
-    await fs.writeFile(pidFile, `${child.pid}\n`, 'utf8')
-  }
-
-  return child.pid ?? null
+  const target = resolveControlPlaneTarget()
+  throw new Error(`Hosted Control API nicht erreichbar: ${target.healthUrl} (Timeout ${timeoutMs}ms)`)
 }
 
 export const ensureControlPlane = async ({
@@ -115,49 +130,34 @@ export const ensureControlPlane = async ({
 } = {}) => {
   if (!root) throw new Error('ensureControlPlane benoetigt root')
 
-  const { host, port } = resolveControlPlaneTarget()
   const apiSource = await resolveApiSource({ root, quiet: true })
-  const controlPlaneDir = apiSource.controlPlaneDir
+  const target = resolveControlPlaneTarget()
 
-  const alreadyUp = await isControlPlaneHealthy({ host, port })
-  if (alreadyUp) {
+  const alreadyUp = await isControlPlaneHealthy()
+  if (!alreadyUp) {
+    if (!startIfMissing) {
+      throw new Error(`Hosted Control API ist nicht erreichbar: ${target.healthUrl}`)
+    }
+
     if (!quiet) {
-      console.log(`[control-plane-guard] aktiv: http://${host}:${port} (${apiSource.mode})`)
+      console.log(`[control-plane-guard] pruefe Hosted API: ${target.healthUrl} ...`)
     }
-    return {
-      host,
-      port,
-      url: `http://${host}:${port}`,
-      started: false,
-      pid: null,
-      sourceMode: apiSource.mode,
-      controlPlaneDir,
-    }
-  }
 
-  if (!startIfMissing) {
-    throw new Error(`Control Plane ist nicht aktiv: http://${host}:${port}`)
+    await waitForControlPlane({ timeoutMs })
   }
 
   if (!quiet) {
-    console.log(`[control-plane-guard] starte Control Plane auf http://${host}:${port} (${apiSource.mode}) ...`)
-  }
-
-  const pid = await startControlPlaneDetached({ root, host, port, controlPlaneDir })
-  await waitForControlPlane({ host, port, timeoutMs })
-
-  if (!quiet) {
-    const pidMsg = pid ? ` (pid ${pid})` : ''
-    console.log(`[control-plane-guard] bereit: http://${host}:${port}${pidMsg}`)
+    console.log(`[control-plane-guard] erreichbar: ${target.healthUrl} (${apiSource.mode})`)
   }
 
   return {
-    host,
-    port,
-    url: `http://${host}:${port}`,
-    started: true,
-    pid,
+    host: target.host,
+    port: target.port,
+    url: target.baseUrl,
+    healthUrl: target.healthUrl,
+    started: false,
+    pid: null,
     sourceMode: apiSource.mode,
-    controlPlaneDir,
+    controlPlaneDir: null,
   }
 }

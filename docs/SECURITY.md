@@ -114,8 +114,8 @@ Empfehlung:
 ### API-Betrieb fuer Dev/Build
 
 - Root-`build` laeuft standardmaessig API-unabhaengig.
-- Lokale API-Integration ist optional ueber `npm run dev:all:with-local-api` und `npm run build:ecosystem:with-local-api`.
-- `tools/build-ecosystem.mjs` kann mit `--with-control-plane` explizit einen lokalen API-Guard aktivieren.
+- App- und Control-UI-Dev laufen gegen die gehostete API (ueber `NEXUS_CONTROL_URL`).
+- Fuer Build-Pipelines kann `tools/build-ecosystem.mjs` mit `--with-control-plane` einen Hosted-API-Healthcheck erzwingen (z. B. `npm run build:ecosystem:with-healthcheck`).
 
 ## 2) So benutzt du die Security richtig
 
@@ -162,7 +162,7 @@ Empfohlene Betriebsstrategie:
 
 - Open Source Core kann public bleiben.
 - Produktive Control-Plane-Deployments, Secrets und Signatur-Keys in private Infrastruktur/Repos auslagern.
-- Fuer dieses Setup kann die private Repo `NexusAPI` als Quelle genutzt werden (`npm run api:private:sync`).
+- Das Public-Ecosystem bleibt dabei auf Runtime + API-Client-Layer beschraenkt (`packages/nexus-core`).
 
 Dieses Repo enthaelt dafuer bereits:
 

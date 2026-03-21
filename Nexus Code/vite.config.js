@@ -8,7 +8,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
-      "@nexus/api": path.resolve(__dirname, "../.nexus-private/NexusAPI/API/nexus-api/src"),
+      "@nexus/api": path.resolve(__dirname, "../packages/nexus-core/src/api"),
     },
   },
   server: {
