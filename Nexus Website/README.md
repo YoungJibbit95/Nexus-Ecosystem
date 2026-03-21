@@ -4,7 +4,8 @@ Separate React/Vite Website fuer das Nexus Ecosystem.
 
 ## Features
 
-- Interaktive Tabs fuer `Preview Universe`, `Nexus Main`, `Nexus Code`, `Ecosystem`, `Website Access`, `Control API`
+- Interaktive Tabs fuer `Preview Universe`, `Nexus Main`, `Nexus Code`, `Ecosystem`, `Wiki`, `Website Access`, `Control API`
+- Neuer `Wiki` Tab als zentrale API-/Control-Dokumentation im Produkt-Website-Design (ersetzt fruehere GitHub-Pages-Flaechen)
 - Neuer `Preview Universe` Tab mit Orbit-Navigation und browserbasierten App-Previews (Main, Mobile, Code, Code Mobile, Control)
 - Website Access Flow: Signup/Login + API-validierte Entitlement-Pruefung fuer Paywall-Gates
 - Paid-Flow Guard: Website blockiert Paid-Intent ohne Login und verlangt danach API Validation
@@ -40,4 +41,5 @@ Ohne Env wird `https://nexus-api.dev` als Default genutzt.
 
 `VITE_NEXUS_AUTH_REGISTER_PATH` setzt den Register-Endpunkt (Default: `/auth/register`).
 
-`VITE_NEXUS_BILLING_CHECKOUT_PATH` setzt den Checkout-Endpunkt (Default: `/api/v1/billing/checkout`).
+`VITE_NEXUS_PAYMENTS_CHECKOUT_PATH` setzt den Checkout-Endpunkt (Default: `/api/v2/payments/checkout/session`).
+Kompatibilitaetshalber wird auch `VITE_NEXUS_BILLING_CHECKOUT_PATH` gelesen.

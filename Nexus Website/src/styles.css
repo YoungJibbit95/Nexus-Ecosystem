@@ -233,7 +233,7 @@ body {
 .site-tabs {
   margin-top: 16px;
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 10px;
 }
 
@@ -827,6 +827,72 @@ body {
   grid-template-columns: 1.1fr 1fr;
 }
 
+.wiki-grid {
+  grid-template-columns: 1fr 1fr;
+}
+
+.wiki-route-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.wiki-route-item {
+  border: 1px solid rgba(137, 169, 240, 0.25);
+  border-radius: 10px;
+  background: rgba(8, 14, 27, 0.68);
+  padding: 9px;
+  display: grid;
+  gap: 5px;
+}
+
+.wiki-route-item span {
+  color: rgba(207, 225, 255, 0.74);
+  font-size: 0.78rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.wiki-route-item code {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.76rem;
+  color: #d7ebff;
+}
+
+.wiki-note-strip {
+  border: 1px solid rgba(131, 166, 244, 0.24);
+  border-radius: 10px;
+  background: rgba(8, 13, 28, 0.72);
+  padding: 9px;
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 9px;
+}
+
+.wiki-note-strip span {
+  color: rgba(205, 223, 255, 0.74);
+  font-size: 0.84rem;
+}
+
+.wiki-note-strip strong {
+  color: #d6ebff;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.8rem;
+}
+
+.wiki-bullet-list {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 6px;
+}
+
+.wiki-bullet-list li {
+  color: rgba(214, 228, 255, 0.82);
+  font-size: 0.88rem;
+}
+
 .ecosystem-nodes {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1222,6 +1288,7 @@ button:disabled {
 
   .panel-grid,
   .control-grid,
+  .wiki-grid,
   .universe-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1248,6 +1315,7 @@ button:disabled {
 
   .panel-grid,
   .control-grid,
+  .wiki-grid,
   .universe-grid,
   .ecosystem-grid,
   .form-grid.two,
@@ -1265,5 +1333,9 @@ button:disabled {
 
   .site-tab {
     padding: 10px;
+  }
+
+  .wiki-route-grid {
+    grid-template-columns: 1fr;
   }
 }

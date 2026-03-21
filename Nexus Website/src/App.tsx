@@ -3,6 +3,7 @@ import {
   Activity,
   AlertTriangle,
   ArrowRight,
+  BookOpen,
   CheckCircle2,
   Code2,
   CreditCard,
@@ -27,7 +28,7 @@ import {
   Zap,
 } from 'lucide-react'
 
-type TabId = 'preview' | 'main' | 'code' | 'ecosystem' | 'access' | 'control'
+type TabId = 'preview' | 'main' | 'code' | 'ecosystem' | 'wiki' | 'access' | 'control'
 type Tier = 'free' | 'paid'
 type AppId = 'main' | 'mobile' | 'code' | 'code-mobile'
 type PreviewAppId = AppId | 'control'
@@ -124,6 +125,7 @@ const SESSION_KEYS = {
 }
 
 const PAYWALL_APP_IDS: AppId[] = ['main', 'mobile', 'code', 'code-mobile']
+const DEFAULT_CHECKOUT_PLAN_ID = 'pro_monthly'
 
 const DEFAULT_VIEWS_BY_APP: Record<AppId, string[]> = {
   main: ['dashboard', 'notes', 'code', 'tasks', 'settings', 'info'],
@@ -137,6 +139,7 @@ const TAB_ITEMS: Array<{ id: TabId; label: string; icon: any }> = [
   { id: 'main', label: 'Nexus Main', icon: LayoutDashboard },
   { id: 'code', label: 'Nexus Code', icon: Code2 },
   { id: 'ecosystem', label: 'Ecosystem', icon: Layers },
+  { id: 'wiki', label: 'Wiki', icon: BookOpen },
   { id: 'access', label: 'Website Access', icon: Unlock },
   { id: 'control', label: 'Control API', icon: ServerCog },
 ]
@@ -291,6 +294,39 @@ const PERFORMANCE_BUDGETS = [
   { label: 'Long Task Max', value: '<= 150ms' },
   { label: 'Heap Warn', value: '<= 150MB' },
   { label: 'Bundle Warn', value: '<= 2000KB' },
+]
+
+const WIKI_PAGES = [
+  {
+    title: 'API Quickstart',
+    scope: 'Runtime + Control API',
+    summary: 'Base URL, Auth, Session, View Validation, Checkout und Webhook-Flows in einem Runbook.',
+    bullets: [
+      'Handshake: GET /api/v1/public/bootstrap',
+      'Session: POST /auth/login -> GET /api/v1/session',
+      'Checkout: POST /api/v2/payments/checkout/session',
+    ],
+  },
+  {
+    title: 'Control Operations',
+    scope: 'Policies + Releases + Devices',
+    summary: 'Owner-/Admin-Workflows fuer Mutationen, Signaturen, Device-Checks und Rollout-Steuerung.',
+    bullets: [
+      'Policies speichern: PUT /api/v1/policies (signiert)',
+      'View Access pruefen: POST /api/v1/views/validate',
+      'Live Sync steuern: /api/v2/features, /api/v2/layout, /api/v2/releases',
+    ],
+  },
+  {
+    title: 'Security Baseline',
+    scope: 'Prod Guardrails',
+    summary: 'Trusted Origins, Signed Mutations, Owner-Lock und Audit-Transparenz fuer produktive Setups.',
+    bullets: [
+      'Keine GitHub-Pages-Abhaengigkeit mehr',
+      'Control/UI gegen gehostete API URL betreiben',
+      'Mutationen nur mit Session + Signatur freigeben',
+    ],
+  },
 ]
 
 const detectInitialVisualFxMode = (): VisualFxMode => {
@@ -497,7 +533,11 @@ const buildPaywallPayload = (editor: PaywallEditor) => {
 function App() {
   const envBaseUrl = String((import.meta as any).env?.VITE_NEXUS_CONTROL_URL || 'https://nexus-api.dev')
   const envRegisterPath = String((import.meta as any).env?.VITE_NEXUS_AUTH_REGISTER_PATH || '/auth/register')
-  const envCheckoutPath = String((import.meta as any).env?.VITE_NEXUS_BILLING_CHECKOUT_PATH || '/api/v1/billing/checkout')
+  const envCheckoutPath = String(
+    (import.meta as any).env?.VITE_NEXUS_PAYMENTS_CHECKOUT_PATH
+    || (import.meta as any).env?.VITE_NEXUS_BILLING_CHECKOUT_PATH
+    || '/api/v2/payments/checkout/session'
+  )
 
   const [activeTab, setActiveTab] = useState<TabId>('main')
   const [selectedMainFeature, setSelectedMainFeature] = useState(MAIN_FEATURES[0].id)
@@ -571,7 +611,7 @@ function App() {
 
   const normalizedBaseUrl = useMemo(() => normalizeBaseUrl(apiBaseUrl), [apiBaseUrl])
   const normalizedRegisterPath = useMemo(() => normalizeApiPath(registerPath, '/auth/register'), [registerPath])
-  const normalizedCheckoutPath = useMemo(() => normalizeApiPath(checkoutPath, '/api/v1/billing/checkout'), [checkoutPath])
+  const normalizedCheckoutPath = useMemo(() => normalizeApiPath(checkoutPath, '/api/v2/payments/checkout/session'), [checkoutPath])
 
   const selectedMainFeatureData = useMemo(
     () => MAIN_FEATURES.find((item) => item.id === selectedMainFeature) || MAIN_FEATURES[0],
@@ -1026,13 +1066,25 @@ function App() {
 
     markBusy('checkout', true)
     try {
+      const successUrl = new URL(window.location.href)
+      successUrl.searchParams.set('checkout', 'success')
+      successUrl.hash = successUrl.hash || '#pricing'
+
+      const cancelUrl = new URL(window.location.href)
+      cancelUrl.searchParams.set('checkout', 'cancel')
+      cancelUrl.hash = cancelUrl.hash || '#pricing'
+
       const res = await apiRequest(normalizedCheckoutPath, {
         method: 'POST',
         body: {
-          plan: 'paid',
+          planId: DEFAULT_CHECKOUT_PLAN_ID,
           username: session.username,
-          source: 'nexus-website',
-          returnUrl: window.location.href,
+          successUrl: successUrl.toString(),
+          cancelUrl: cancelUrl.toString(),
+          metadata: {
+            source: 'nexus-website',
+            app: 'nexus-website',
+          },
         },
       })
 
@@ -1481,6 +1533,81 @@ function App() {
               </div>
             ) : null}
 
+            {activeTab === 'wiki' ? (
+              <div className="panel-grid wiki-grid">
+                <article className="panel-card">
+                  <div className="panel-title"><BookOpen size={16} /> Product Wiki Hub</div>
+                  <h2>API + Control Panel Wiki</h2>
+                  <p>
+                    Die GitHub-Pages-Flaeche wurde durch dieses Wiki im Produkt-Website-Design ersetzt.
+                    API- und Control-Themen sind hier zentral gepflegt.
+                  </p>
+                  <div className="wiki-note-strip">
+                    <span>Hosting</span>
+                    <strong>Website + Hosted API</strong>
+                  </div>
+                  <div className="wiki-note-strip">
+                    <span>Pages Status</span>
+                    <strong>deaktiviert</strong>
+                  </div>
+                  <div className="wiki-note-strip">
+                    <span>Primary Target</span>
+                    <strong>https://nexus-api.dev</strong>
+                  </div>
+                </article>
+
+                <article className="panel-card">
+                  <div className="panel-title"><ServerCog size={16} /> Routing Blueprint</div>
+                  <div className="wiki-route-grid">
+                    <div className="wiki-route-item">
+                      <span>Bootstrap</span>
+                      <code>/api/v1/public/bootstrap</code>
+                    </div>
+                    <div className="wiki-route-item">
+                      <span>Session</span>
+                      <code>/auth/login {'->'} /api/v1/session</code>
+                    </div>
+                    <div className="wiki-route-item">
+                      <span>Checkout</span>
+                      <code>/api/v2/payments/checkout/session</code>
+                    </div>
+                    <div className="wiki-route-item">
+                      <span>Catalog</span>
+                      <code>/api/v2/payments/plans/public</code>
+                    </div>
+                    <div className="wiki-route-item">
+                      <span>Paywall Check</span>
+                      <code>/api/v1/views/validate</code>
+                    </div>
+                    <div className="wiki-route-item">
+                      <span>Policy Mutation</span>
+                      <code>PUT /api/v1/policies (signed)</code>
+                    </div>
+                  </div>
+                </article>
+
+                <article className="panel-card panel-card-wide">
+                  <div className="panel-title"><Layers size={16} /> Wiki Pages</div>
+                  <div className="surface-grid">
+                    {WIKI_PAGES.map((page) => (
+                      <div key={page.title} className="surface-item">
+                        <div className="surface-item-head">
+                          <strong>{page.title}</strong>
+                          <span className="surface-badge">{page.scope}</span>
+                        </div>
+                        <p>{page.summary}</p>
+                        <ul className="wiki-bullet-list">
+                          {page.bullets.map((line) => (
+                            <li key={line}>{line}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
+                  </div>
+                </article>
+              </div>
+            ) : null}
+
             {activeTab === 'access' ? (
               <div className="control-grid">
                 <article className="panel-card control-card">
@@ -1714,7 +1841,7 @@ function App() {
                         type="text"
                         value={checkoutPath}
                         onChange={(e) => setCheckoutPath(e.target.value)}
-                        placeholder="/api/v1/billing/checkout"
+                        placeholder="/api/v2/payments/checkout/session"
                       />
                     </label>
                   </div>
