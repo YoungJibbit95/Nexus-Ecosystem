@@ -43,6 +43,8 @@ type PreviewDefinition = {
 
 type SectionId =
   | 'overview'
+  | 'ecosystem'
+  | 'apps'
   | 'map'
   | 'orbit'
   | 'atlas'
@@ -51,18 +53,76 @@ type SectionId =
   | 'integration'
   | 'coverage'
 
-const SECTION_ITEMS: Array<{ id: SectionId; label: string; icon: any; emoji: string }> = [
-  { id: 'overview', label: 'Overview', icon: Rocket, emoji: '🚀' },
-  { id: 'map', label: 'Info Map', icon: Compass, emoji: '🧭' },
-  { id: 'orbit', label: 'Mission Orbit', icon: Sparkles, emoji: '🪐' },
-  { id: 'atlas', label: 'Wiki Atlas', icon: Search, emoji: '📚' },
-  { id: 'guides', label: 'Guide Pages', icon: Workflow, emoji: '🧩' },
-  { id: 'matrix', label: 'View Matrix', icon: Table2, emoji: '🗂️' },
-  { id: 'integration', label: 'Auth + Paywall', icon: ShieldCheck, emoji: '💳' },
-  { id: 'coverage', label: 'Coverage', icon: LayoutDashboard, emoji: '📈' },
+const SECTION_ITEMS: Array<{ id: SectionId; label: string; icon: any; emoji: string; keywords: string[] }> = [
+  { id: 'overview', label: 'Overview', icon: Rocket, emoji: '🚀', keywords: ['start', 'hero', 'intro'] },
+  { id: 'ecosystem', label: 'Ecosystem', icon: Grid3X3, emoji: '🛰️', keywords: ['architektur', 'flow', 'runtime'] },
+  { id: 'apps', label: 'App Surfaces', icon: Workflow, emoji: '🧠', keywords: ['main', 'code', 'mobile', 'tabs'] },
+  { id: 'map', label: 'Info Map', icon: Compass, emoji: '🧭', keywords: ['navigation', 'wo finde ich was'] },
+  { id: 'orbit', label: 'Mission Orbit', icon: Sparkles, emoji: '🪐', keywords: ['module', 'surface'] },
+  { id: 'atlas', label: 'Wiki Atlas', icon: Search, emoji: '📚', keywords: ['suche', 'artikel', 'finder'] },
+  { id: 'guides', label: 'Guide Pages', icon: BookOpen, emoji: '🧩', keywords: ['view guide', 'markdown'] },
+  { id: 'matrix', label: 'View Matrix', icon: Table2, emoji: '🗂️', keywords: ['parity', 'on off'] },
+  { id: 'integration', label: 'Auth + Paywall', icon: ShieldCheck, emoji: '💳', keywords: ['billing', 'login', 'signup'] },
+  { id: 'coverage', label: 'Coverage', icon: LayoutDashboard, emoji: '📈', keywords: ['stats', 'quellen'] },
 ]
 
 const GUIDE_CATEGORIES = new Set<CategoryId>(['view', 'markdown', 'settings', 'workflow'])
+
+type SurfaceTabId = 'main' | 'code' | 'mobile'
+
+const APP_SURFACE_TABS: Array<{
+  id: SurfaceTabId
+  label: string
+  emoji: string
+  previewKey: AppId
+  guideApps: AppId[]
+  subtitle: string
+  highlights: string[]
+  keywords: string[]
+}> = [
+  {
+    id: 'main',
+    label: 'Nexus Main',
+    emoji: '🧠',
+    previewKey: 'main',
+    guideApps: ['main'],
+    subtitle: 'Desktop Productivity Universe',
+    highlights: [
+      'Dashboard, Notes, Canvas, Tasks, Reminders, Files, Flux, DevTools, Settings',
+      'NotesView + Canvas mit Magic Menues und Markdown Superflows',
+      'Terminal + Spotlight als produktiver Command Layer',
+    ],
+    keywords: ['nexus main', 'notesview', 'canvas', 'settings'],
+  },
+  {
+    id: 'code',
+    label: 'Nexus Code',
+    emoji: '💻',
+    previewKey: 'code',
+    guideApps: ['code'],
+    subtitle: 'Desktop IDE Universe',
+    highlights: [
+      'Explorer, Search, Problems, Git, Debug, Extensions, Terminal',
+      'Editor-Loop mit Diagnostics, Command Palette und workspace IO',
+      'Keyboard-first Workflows fuer schnelle Delivery',
+    ],
+    keywords: ['nexus code', 'ide', 'explorer', 'debug'],
+  },
+  {
+    id: 'mobile',
+    label: 'Mobile Versions',
+    emoji: '📱',
+    previewKey: 'mobile',
+    guideApps: ['mobile', 'code-mobile'],
+    subtitle: 'Nexus Mobile + Nexus Code Mobile',
+    highlights: [
+      'Mobile Parity fuer Main mit Bottom Navigation und Safe-Area UX',
+      'Code Mobile mit nativeFS Bridge, Paneling und touch-adaptivem Editor',
+      'Gemeinsame Runtime-LiveSync Flows trotz mobiler Constraints',
+    ],
+    keywords: ['mobile', 'code mobile', 'bottom nav', 'nativefs'],
+  },
+]
 
 const previewMap: Record<AppId, PreviewDefinition> = {
   ecosystem: {
@@ -183,30 +243,42 @@ const INFO_MAP_CARDS = [
   },
   {
     id: 'map-2',
+    title: 'Ecosystem Deep Area',
+    text: 'Großer Architekturbereich mit Galaxy-Map, Markdown-Look-Zusammenfassung und Flow Steps.',
+    target: 'ecosystem',
+  },
+  {
+    id: 'map-3',
+    title: 'App Surface Tabs',
+    text: 'Feste Tabs fuer Nexus Main, Nexus Code und Mobile Versionen mit eigenen Interaktionszonen.',
+    target: 'apps',
+  },
+  {
+    id: 'map-4',
     title: 'Feature Scope',
     text: 'Mission Orbit zeigt App-Surfaces und Kernmodule. Klick auf ein Surface fuer konkrete Module.',
     target: 'orbit',
   },
   {
-    id: 'map-3',
+    id: 'map-5',
     title: 'Article Explorer',
     text: 'Wiki Atlas ist der schnelle Finder ueber Suche + Kategorie + App Filter mit Detailansicht.',
     target: 'atlas',
   },
   {
-    id: 'map-4',
+    id: 'map-6',
     title: 'Guide Pages',
     text: 'Jede View hat eine große Guide-Seite mit Schritten, Funktionen, Commands und Quellen.',
     target: 'guides',
   },
   {
-    id: 'map-5',
+    id: 'map-7',
     title: 'Parity Checks',
     text: 'View Matrix und Coverage zeigen, welche Views wo verfuegbar sind und wie breit dokumentiert wurde.',
     target: 'matrix',
   },
   {
-    id: 'map-6',
+    id: 'map-8',
     title: 'Auth + Paywall',
     text: 'Integration Bereich zeigt Website-Template fuer Signup/Login/Billing und API-Handover Prompt.',
     target: 'integration',
@@ -236,10 +308,12 @@ function jumpTo(id: string) {
 function App() {
   const [activeSection, setActiveSection] = useState<SectionId>('overview')
   const [visualFxMode, setVisualFxMode] = useState<VisualFxMode>('full')
+  const [sectionSearch, setSectionSearch] = useState('')
   const [atlasQuery, setAtlasQuery] = useState('')
   const [guideQuery, setGuideQuery] = useState('')
   const [category, setCategory] = useState<CategoryFilter>('all')
   const [appFilter, setAppFilter] = useState<AppFilter>('all')
+  const [activeSurfaceTab, setActiveSurfaceTab] = useState<SurfaceTabId>('main')
   const [selectedId, setSelectedId] = useState<string>(entries[0]?.id ?? '')
   const [previewApp, setPreviewApp] = useState<AppId>('main')
   const [previewModuleId, setPreviewModuleId] = useState(previewMap.main.modules[0]?.id ?? '')
@@ -253,6 +327,7 @@ function App() {
   const [authTier, setAuthTier] = useState<TierId>('free')
   const [featureCheck, setFeatureCheck] = useState<FeatureId>('notes.magic')
 
+  const deferredSectionSearch = useDeferredValue(sectionSearch)
   const deferredAtlasQuery = useDeferredValue(atlasQuery)
   const deferredGuideQuery = useDeferredValue(guideQuery)
 
@@ -364,6 +439,55 @@ function App() {
     [previewApp, previewModuleId],
   )
 
+  const activeSurfaceDefinition = useMemo(
+    () => APP_SURFACE_TABS.find((item) => item.id === activeSurfaceTab) ?? APP_SURFACE_TABS[0],
+    [activeSurfaceTab],
+  )
+
+  const selectedSurfaceModule = useMemo(() => {
+    const modules = previewMap[activeSurfaceDefinition.previewKey].modules
+    return modules.find((module) => module.id === previewModuleId) ?? modules[0] ?? null
+  }, [activeSurfaceDefinition, previewModuleId])
+
+  const activeSurfaceGuides = useMemo(() => {
+    const matchingApps = new Set(activeSurfaceDefinition.guideApps)
+    return entries
+      .filter((entry) => matchingApps.has(entry.app) && GUIDE_CATEGORIES.has(entry.category))
+      .slice(0, 16)
+  }, [activeSurfaceDefinition])
+
+  const activeSurfaceModules = useMemo(
+    () => previewMap[activeSurfaceDefinition.previewKey].modules,
+    [activeSurfaceDefinition],
+  )
+
+  const sectionSearchMatches = useMemo(() => {
+    const q = deferredSectionSearch.trim().toLowerCase()
+    if (!q) return []
+
+    const sectionMatches = SECTION_ITEMS.filter((item) => {
+      const terms = [item.label, ...item.keywords, item.emoji].join(' ').toLowerCase()
+      return terms.includes(q)
+    }).map((item) => ({
+      id: item.id,
+      title: item.label,
+      subtitle: `Section · ${item.emoji}`,
+      type: 'section' as const,
+    }))
+
+    const tabMatches = APP_SURFACE_TABS.filter((item) => {
+      const terms = [item.label, item.subtitle, ...item.keywords].join(' ').toLowerCase()
+      return terms.includes(q)
+    }).map((item) => ({
+      id: item.id,
+      title: item.label,
+      subtitle: `App Tab · ${item.emoji}`,
+      type: 'tab' as const,
+    }))
+
+    return [...sectionMatches, ...tabMatches].slice(0, 10)
+  }, [deferredSectionSearch])
+
   const quickCounts = useMemo(
     () => apps.map((item) => ({ ...item, count: atlasEntries.filter((entry) => entry.app === item.id).length })),
     [atlasEntries],
@@ -473,7 +597,7 @@ function App() {
           <span className="brand-text">Nexus Wiki</span>
         </button>
         <nav className="top-nav-links" aria-label="Section Navigation">
-          {SECTION_ITEMS.slice(0, 6).map((item) => (
+          {SECTION_ITEMS.slice(0, 8).map((item) => (
             <button
               key={item.id}
               type="button"
@@ -492,6 +616,58 @@ function App() {
           <Activity size={14} /> {visualFxMode === 'lite' ? 'Performance' : 'Cinematic'}
         </button>
       </header>
+
+      <div className="section-tabs-bar">
+        <div className="section-tabs-scroll">
+          {SECTION_ITEMS.map((item) => (
+            <button
+              key={`fixed-${item.id}`}
+              type="button"
+              className={activeSection === item.id ? 'section-tab active' : 'section-tab'}
+              onClick={() => jumpTo(item.id)}
+            >
+              <span>{item.emoji}</span> {item.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="section-tab-search">
+          <label>
+            Bereich / Tab Suche
+            <input
+              type="search"
+              value={sectionSearch}
+              onChange={(event) => setSectionSearch(event.target.value)}
+              placeholder="ecosystem, apps, nexus main, code mobile ..."
+            />
+          </label>
+          {sectionSearchMatches.length > 0 ? (
+            <div className="section-search-results">
+              {sectionSearchMatches.map((match) => (
+                <button
+                  key={`${match.type}-${match.id}`}
+                  type="button"
+                  onClick={() => {
+                    if (match.type === 'section') {
+                      jumpTo(match.id)
+                    } else {
+                      setActiveSurfaceTab(match.id as SurfaceTabId)
+                      jumpTo('apps')
+                    }
+                    setSectionSearch('')
+                  }}
+                >
+                  <CheckCircle2 size={14} />
+                  <span>
+                    <strong>{match.title}</strong>
+                    <small>{match.subtitle}</small>
+                  </span>
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      </div>
 
       <div className="site-layout">
         <aside className="left-sidebar">
@@ -567,6 +743,186 @@ function App() {
                 <Search size={16} /> Im Atlas suchen
               </button>
             </div>
+          </section>
+
+          <section id="ecosystem" className="section-block ecosystem-section scroll-reveal">
+            <div className="section-head">
+              <h2>Ecosystem Mega Area</h2>
+              <p>
+                Riesige Gesamtansicht fuer Architektur, Runtime, Control und App-Verzahnung. Diese Zone ist bewusst
+                gross, visuell und textlich tief erklaert.
+              </p>
+            </div>
+
+            <div className="ecosystem-huge-grid">
+              <article className="ecosystem-visual-card scroll-reveal">
+                <h3>🌌 Galactic Architecture Map</h3>
+                <p>
+                  Jeder Planet steht fuer eine App-Surface. Klick auf einen Planet filtert den Atlas direkt auf diesen
+                  Bereich.
+                </p>
+                <div className="ecosystem-constellation">
+                  {apps.map((item, index) => (
+                    <button
+                      key={`eco-node-${item.id}`}
+                      type="button"
+                      className="ecosystem-node"
+                      style={{ ['--i' as any]: index, ['--n' as any]: apps.length }}
+                      onClick={() => {
+                        setAppFilter(item.id)
+                        jumpTo('atlas')
+                      }}
+                    >
+                      <span>{appEmoji[item.id]}</span>
+                      <strong>{item.label}</strong>
+                      <small>{item.subtitle}</small>
+                    </button>
+                  ))}
+                </div>
+              </article>
+
+              <article className="ecosystem-markdown-card scroll-reveal">
+                <h3>🧾 Ecosystem in Markdown-Look</h3>
+                <ul className="emoji-markdown-list">
+                  <li>✅ **Shared Core:** LiveSync + view guards + runtime mappings.</li>
+                  <li>🧠 **Nexus Main:** Productivity stack mit Notes/Canvas/Settings.</li>
+                  <li>💻 **Nexus Code:** IDE stack fuer editor-first engineering.</li>
+                  <li>📱 **Mobile Surfaces:** parity fuer Main + Code via mobile UX patterns.</li>
+                  <li>🛡️ **Control Plane:** policies, paywalls, live sync, audit und devices.</li>
+                  <li>⚙️ **Runtime/API:** autoritative source fuer feature activation.</li>
+                </ul>
+                <pre>{`# Nexus Ecosystem
+├─ Main / Mobile (Productivity)
+├─ Code / Code Mobile (IDE)
+├─ Control (Ops + Security + Billing)
+└─ Runtime/API (Contracts + Entitlements + Gates)`}</pre>
+              </article>
+
+              <article className="ecosystem-flow-card scroll-reveal">
+                <h3>🚀 Scroll Guide durch den Stack</h3>
+                <div className="ecosystem-flow-steps">
+                  <div>
+                    <strong>1. Overview</strong>
+                    <p>Mission, Zielbild und zentrale Navigation verstehen.</p>
+                  </div>
+                  <div>
+                    <strong>2. Ecosystem</strong>
+                    <p>Architektur, Runtime-Flow und Verantwortungen pro Surface.</p>
+                  </div>
+                  <div>
+                    <strong>3. App Surfaces</strong>
+                    <p>Tabs fuer Main, Code und Mobile Versionen mit Deep-Dive.</p>
+                  </div>
+                  <div>
+                    <strong>4. Atlas + Guides</strong>
+                    <p>Schnell suchen und dann in die großen Guide-Seiten springen.</p>
+                  </div>
+                  <div>
+                    <strong>5. Matrix + Integration</strong>
+                    <p>Parity pruefen und Auth/Paywall API-Handover validieren.</p>
+                  </div>
+                </div>
+              </article>
+            </div>
+          </section>
+
+          <section id="apps" className="section-block apps-section scroll-reveal">
+            <div className="section-head">
+              <h2>App Surfaces in riesigen Tabs</h2>
+              <p>
+                Feste App-Tabs fuer Nexus Main, Nexus Code und Mobile Versionen. Scrollt man weiter, wird jede Zone
+                als eigene große Space-Wiki-Welt dargestellt.
+              </p>
+            </div>
+
+            <div className="app-tab-row">
+              {APP_SURFACE_TABS.map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  className={activeSurfaceTab === tab.id ? 'app-tab active' : 'app-tab'}
+                  onClick={() => {
+                    setActiveSurfaceTab(tab.id)
+                    setPreviewApp(tab.previewKey)
+                    setPreviewModuleId(previewMap[tab.previewKey].modules[0]?.id ?? '')
+                  }}
+                >
+                  <span>{tab.emoji}</span>
+                  <strong>{tab.label}</strong>
+                  <small>{tab.subtitle}</small>
+                </button>
+              ))}
+            </div>
+
+            <article className="app-surface-stage scroll-reveal">
+              <header>
+                <h3>
+                  {activeSurfaceDefinition.emoji} {activeSurfaceDefinition.label}
+                </h3>
+                <p>{activeSurfaceDefinition.subtitle}</p>
+              </header>
+
+              <div className="app-surface-grid">
+                <section className="app-surface-card">
+                  <div className="detail-card-head">
+                    <strong>Module Orbit</strong>
+                    <span>{activeSurfaceModules.length} Module</span>
+                  </div>
+                  <div className="module-grid">
+                    {activeSurfaceModules.map((module) => (
+                      <button
+                        key={module.id}
+                        type="button"
+                        className={
+                          previewApp === activeSurfaceDefinition.previewKey && previewModuleId === module.id
+                            ? 'module-pill active'
+                            : 'module-pill'
+                        }
+                        onClick={() => {
+                          setPreviewApp(activeSurfaceDefinition.previewKey)
+                          setPreviewModuleId(module.id)
+                        }}
+                      >
+                        <span>{module.label}</span>
+                        <small>{module.state}</small>
+                      </button>
+                    ))}
+                  </div>
+                  {selectedSurfaceModule ? <div className="module-note">{selectedSurfaceModule.detail}</div> : null}
+                </section>
+
+                <section className="app-surface-card">
+                  <div className="detail-card-head">
+                    <strong>Highlights</strong>
+                    <span>markdown look</span>
+                  </div>
+                  <ul className="emoji-markdown-list">
+                    {activeSurfaceDefinition.highlights.map((item) => (
+                      <li key={item}>✨ {item}</li>
+                    ))}
+                  </ul>
+                </section>
+
+                <section className="app-surface-card">
+                  <div className="detail-card-head">
+                    <strong>Guide Shortcuts</strong>
+                    <span>{activeSurfaceGuides.length}</span>
+                  </div>
+                  <div className="command-row">
+                    {activeSurfaceGuides.map((entry) => (
+                      <button
+                        key={`surface-guide-${entry.id}`}
+                        type="button"
+                        className="chip-btn"
+                        onClick={() => jumpTo(`guide-${entry.id}`)}
+                      >
+                        {entry.title}
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              </div>
+            </article>
           </section>
 
           <section id="map" className="section-block scroll-reveal">

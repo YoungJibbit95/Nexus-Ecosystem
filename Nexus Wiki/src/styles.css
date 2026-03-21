@@ -126,6 +126,97 @@ body {
   gap: 12px;
 }
 
+.section-tabs-bar {
+  position: sticky;
+  top: 76px;
+  z-index: 32;
+  margin: 10px auto 0;
+  width: min(1640px, calc(100% - 28px));
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: rgba(2, 6, 23, 0.78);
+  backdrop-filter: blur(14px);
+  padding: 10px 12px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 10px;
+}
+
+.section-tabs-scroll {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.section-tab {
+  border: 1px solid rgba(148, 163, 184, 0.32);
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.76);
+  color: var(--text);
+  padding: 8px 11px;
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+
+.section-tab span {
+  margin-right: 6px;
+}
+
+.section-tab.active {
+  border-color: rgba(34, 211, 238, 0.75);
+  background: linear-gradient(130deg, rgba(79, 70, 229, 0.36), rgba(6, 182, 212, 0.26));
+}
+
+.section-tab-search {
+  position: relative;
+}
+
+.section-tab-search label {
+  font-size: 0.72rem;
+}
+
+.section-tab-search input {
+  height: 38px;
+}
+
+.section-search-results {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 14px;
+  background: rgba(2, 6, 23, 0.94);
+  box-shadow: 0 20px 42px rgba(2, 6, 23, 0.6);
+  padding: 8px;
+  display: grid;
+  gap: 6px;
+}
+
+.section-search-results button {
+  width: 100%;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+}
+
+.section-search-results button span {
+  display: grid;
+  gap: 2px;
+}
+
+.section-search-results button strong {
+  font-size: 0.84rem;
+}
+
+.section-search-results button small {
+  font-size: 0.72rem;
+  color: rgba(203, 213, 225, 0.74);
+}
+
 .brand {
   border: 1px solid rgba(99, 102, 241, 0.38);
   border-radius: 12px;
@@ -205,7 +296,7 @@ button:hover,
 }
 
 .site-layout {
-  width: min(1520px, calc(100% - 28px));
+  width: min(1640px, calc(100% - 28px));
   margin: 14px auto 32px;
   display: grid;
   grid-template-columns: 290px minmax(0, 1fr);
@@ -305,11 +396,11 @@ button:hover,
 
 .section-block {
   border: 1px solid var(--border);
-  border-radius: 20px;
+  border-radius: 24px;
   background: var(--panel);
   backdrop-filter: blur(16px);
   box-shadow: var(--shadow);
-  padding: 20px;
+  padding: 30px;
   position: relative;
   overflow: hidden;
 }
@@ -331,17 +422,19 @@ button:hover,
 .section-head h2 {
   margin: 0 0 6px;
   font-family: 'Sora', sans-serif;
-  font-size: clamp(1.2rem, 2.3vw, 1.9rem);
+  font-size: clamp(1.45rem, 2.9vw, 2.4rem);
 }
 
 .section-head p {
   margin: 0;
   color: var(--muted);
   max-width: 86ch;
+  font-size: 1rem;
+  line-height: 1.7;
 }
 
 .hero-section {
-  min-height: 68vh;
+  min-height: 82vh;
   display: grid;
   align-content: center;
   gap: 16px;
@@ -432,7 +525,7 @@ button:hover,
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
 
@@ -442,21 +535,245 @@ button:hover,
   border: 1px solid rgba(148, 163, 184, 0.24);
   border-radius: 14px;
   background: rgba(15, 23, 42, 0.72);
-  padding: 12px;
+  padding: 18px;
   display: grid;
   gap: 8px;
+  min-height: 170px;
 }
 
 .info-map-card strong {
   font-family: 'Sora', sans-serif;
-  font-size: 0.92rem;
+  font-size: 1.08rem;
 }
 
 .info-map-card p {
   margin: 0;
   color: var(--muted);
-  font-size: 0.86rem;
-  line-height: 1.45;
+  font-size: 0.98rem;
+  line-height: 1.6;
+}
+
+.ecosystem-section,
+.apps-section {
+  background:
+    radial-gradient(circle at 90% 0%, rgba(34, 211, 238, 0.1), transparent 36%),
+    radial-gradient(circle at 0% 100%, rgba(99, 102, 241, 0.12), transparent 42%),
+    var(--panel);
+}
+
+.ecosystem-huge-grid {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 12px;
+}
+
+.ecosystem-visual-card,
+.ecosystem-markdown-card,
+.ecosystem-flow-card,
+.app-surface-stage,
+.app-surface-card {
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 18px;
+  background: rgba(15, 23, 42, 0.75);
+  padding: 16px;
+}
+
+.ecosystem-visual-card,
+.ecosystem-markdown-card {
+  display: grid;
+  gap: 10px;
+}
+
+.ecosystem-flow-card {
+  grid-column: 1 / -1;
+}
+
+.ecosystem-visual-card h3,
+.ecosystem-markdown-card h3,
+.ecosystem-flow-card h3,
+.apps-section h3 {
+  margin: 0;
+  font-family: 'Sora', sans-serif;
+  font-size: clamp(1.1rem, 2.2vw, 1.6rem);
+}
+
+.ecosystem-visual-card p,
+.ecosystem-markdown-card p,
+.ecosystem-flow-card p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.65;
+}
+
+.ecosystem-constellation {
+  position: relative;
+  min-height: 420px;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(30, 64, 175, 0.34), rgba(2, 6, 23, 0.88)),
+    rgba(2, 6, 23, 0.9);
+  overflow: hidden;
+}
+
+.ecosystem-constellation::before,
+.ecosystem-constellation::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  border-radius: 999px;
+}
+
+.ecosystem-constellation::before {
+  width: 46%;
+  height: 46%;
+  border: 1px dashed rgba(125, 211, 252, 0.42);
+}
+
+.ecosystem-constellation::after {
+  width: 72%;
+  height: 72%;
+  border: 1px solid rgba(129, 140, 248, 0.24);
+}
+
+.ecosystem-node {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  --angle: calc((360deg / var(--n)) * var(--i));
+  transform: translate(-50%, -50%) rotate(var(--angle)) translateY(-165px) rotate(calc(var(--angle) * -1));
+  width: 146px;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.34);
+  background: rgba(15, 23, 42, 0.92);
+  color: var(--text);
+  padding: 8px;
+  display: grid;
+  gap: 3px;
+  text-align: left;
+}
+
+.ecosystem-node span {
+  font-size: 0.94rem;
+}
+
+.ecosystem-node strong {
+  font-size: 0.8rem;
+}
+
+.ecosystem-node small {
+  color: rgba(203, 213, 225, 0.68);
+  font-size: 0.7rem;
+}
+
+.emoji-markdown-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+}
+
+.emoji-markdown-list li {
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.74);
+  padding: 9px 10px;
+  color: var(--muted);
+  line-height: 1.5;
+  font-size: 0.92rem;
+}
+
+.ecosystem-flow-steps {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.ecosystem-flow-steps div {
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.76);
+  padding: 10px;
+  display: grid;
+  gap: 6px;
+}
+
+.ecosystem-flow-steps strong {
+  font-size: 0.84rem;
+}
+
+.ecosystem-flow-steps p {
+  margin: 0;
+  font-size: 0.8rem;
+}
+
+.app-tab-row {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.app-tab {
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 16px;
+  background: rgba(15, 23, 42, 0.78);
+  padding: 12px;
+  display: grid;
+  gap: 4px;
+  text-align: left;
+}
+
+.app-tab span {
+  font-size: 1rem;
+}
+
+.app-tab strong {
+  font-size: 1rem;
+  font-family: 'Sora', sans-serif;
+}
+
+.app-tab small {
+  font-size: 0.78rem;
+  color: rgba(203, 213, 225, 0.72);
+}
+
+.app-tab.active {
+  border-color: rgba(34, 211, 238, 0.72);
+  background: linear-gradient(130deg, rgba(79, 70, 229, 0.3), rgba(6, 182, 212, 0.26));
+}
+
+.app-surface-stage {
+  margin-top: 12px;
+  display: grid;
+  gap: 12px;
+  min-height: 64vh;
+}
+
+.app-surface-stage header h3 {
+  margin: 0 0 4px;
+}
+
+.app-surface-stage header p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.app-surface-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.app-surface-card {
+  display: grid;
+  gap: 10px;
 }
 
 .orbit-layout {
@@ -983,7 +1300,7 @@ pre {
 }
 
 .guide-page {
-  min-height: 68vh;
+  min-height: 84vh;
   display: grid;
   gap: 12px;
   background:
@@ -1352,6 +1669,11 @@ pre {
     grid-template-columns: 1fr;
   }
 
+  .section-tabs-bar {
+    width: calc(100% - 28px);
+    grid-template-columns: 1fr;
+  }
+
   .left-sidebar {
     position: relative;
     top: 0;
@@ -1380,7 +1702,14 @@ pre {
   .integration-grid,
   .coverage-grid,
   .source-grid,
-  .info-map-grid {
+  .info-map-grid,
+  .ecosystem-huge-grid,
+  .app-surface-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .app-tab-row,
+  .ecosystem-flow-steps {
     grid-template-columns: 1fr;
   }
 
@@ -1415,6 +1744,11 @@ pre {
     margin-top: 10px;
   }
 
+  .section-tabs-bar {
+    width: calc(100% - 16px);
+    top: 116px;
+  }
+
   .left-sidebar {
     grid-template-columns: 1fr;
   }
@@ -1434,6 +1768,12 @@ pre {
   .section-block,
   .sidebar-card {
     padding: 14px;
+  }
+
+  .section-tabs-bar {
+    position: relative;
+    top: 0;
+    margin-top: 8px;
   }
 
   .hero-section {
@@ -1473,6 +1813,27 @@ pre {
     position: relative;
     left: auto !important;
     top: auto !important;
+    transform: none;
+    width: 100%;
+  }
+
+  .ecosystem-constellation {
+    min-height: auto;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    padding: 10px;
+  }
+
+  .ecosystem-constellation::before,
+  .ecosystem-constellation::after {
+    display: none;
+  }
+
+  .ecosystem-node {
+    position: relative;
+    left: auto;
+    top: auto;
     transform: none;
     width: 100%;
   }
