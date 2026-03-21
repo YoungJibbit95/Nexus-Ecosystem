@@ -10,7 +10,7 @@
 
 <div align="center">
   
-## Nexus Wiki: youngjibbit95.github.io/Nexus-Ecosystem
+## Nexus Wiki: https://youngjibbit95.github.io/Nexus-Ecosystem
 
 </div>
 
