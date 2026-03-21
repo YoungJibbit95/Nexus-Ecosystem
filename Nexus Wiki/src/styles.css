@@ -233,7 +233,7 @@ body {
 .site-tabs {
   margin-top: 16px;
   display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 10px;
 }
 
@@ -1508,5 +1508,340 @@ button:disabled {
   .wiki-dashboard-grid,
   .wiki-detail-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+/* Mission + Atlas + Guide expansions for full product-page style parity */
+.wiki-cosmic {
+  --scroll-progress: 0;
+}
+
+.scroll-progress-shell {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  z-index: 30;
+  background: rgba(4, 8, 16, 0.32);
+  pointer-events: none;
+}
+
+.scroll-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, rgba(95, 184, 255, 0.9), rgba(103, 255, 218, 0.92));
+  box-shadow: 0 0 12px rgba(107, 224, 255, 0.5);
+  transition: width 0.18s linear;
+}
+
+.wiki-hero {
+  position: relative;
+  overflow: hidden;
+}
+
+.wiki-hero::after {
+  content: '';
+  position: absolute;
+  inset: auto -8% -48% -8%;
+  height: 180px;
+  background: radial-gradient(circle at 50% 0%, rgba(92, 177, 255, 0.26), transparent 70%);
+  pointer-events: none;
+}
+
+.mission-grid {
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: 14px;
+}
+
+.mission-orbit-card,
+.mission-module-card,
+.mission-wide-card {
+  background: linear-gradient(145deg, rgba(9, 18, 35, 0.9), rgba(7, 14, 27, 0.82));
+}
+
+.mission-orbit-card {
+  min-height: 520px;
+}
+
+.wiki-orbit {
+  position: relative;
+  min-height: 450px;
+  border-radius: 20px;
+  border: 1px solid rgba(134, 173, 247, 0.3);
+  background:
+    radial-gradient(circle at 50% 50%, rgba(22, 62, 102, 0.74), rgba(7, 14, 25, 0.95) 72%),
+    linear-gradient(180deg, rgba(17, 33, 66, 0.5), rgba(8, 14, 26, 0.3));
+  overflow: hidden;
+}
+
+.wiki-orbit::before,
+.wiki-orbit::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  border-radius: 999px;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.wiki-orbit::before {
+  width: 62%;
+  height: 62%;
+  border: 1px dashed rgba(124, 174, 255, 0.34);
+  animation: spin 22s linear infinite;
+}
+
+.wiki-orbit::after {
+  width: 82%;
+  height: 82%;
+  border: 1px solid rgba(100, 231, 204, 0.18);
+  animation: spinReverse 30s linear infinite;
+}
+
+.wiki-orbit-core {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 180px;
+  height: 180px;
+  border-radius: 999px;
+  border: 1px solid rgba(120, 226, 255, 0.48);
+  box-shadow: 0 0 30px rgba(90, 194, 255, 0.28);
+  background:
+    radial-gradient(circle at 35% 35%, rgba(127, 228, 255, 0.86), rgba(26, 70, 105, 0.76) 52%, rgba(8, 20, 36, 0.94) 80%);
+  display: grid;
+  place-items: center;
+  text-align: center;
+  padding: 14px;
+}
+
+.wiki-orbit-core strong {
+  font-family: 'Sora', sans-serif;
+  font-size: 1.04rem;
+}
+
+.wiki-orbit-core small {
+  margin-top: 3px;
+  color: rgba(217, 233, 255, 0.76);
+}
+
+.wiki-orbit-node {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  --angle: calc((360deg / var(--n)) * var(--i));
+  transform: translate(-50%, -50%) rotate(var(--angle)) translateY(-210px) rotate(calc(var(--angle) * -1));
+  width: 154px;
+  border-radius: 12px;
+  border: 1px solid rgba(139, 176, 248, 0.34);
+  background: rgba(8, 17, 33, 0.92);
+  color: var(--site-text);
+  padding: 8px;
+  display: grid;
+  gap: 2px;
+  text-align: left;
+  transition: transform 0.18s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.wiki-orbit-node span {
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.wiki-orbit-node small {
+  font-size: 0.68rem;
+  color: rgba(200, 223, 255, 0.72);
+}
+
+.wiki-orbit-node:hover {
+  transform: translate(-50%, -50%) rotate(var(--angle)) translateY(-210px) rotate(calc(var(--angle) * -1)) scale(1.03);
+  border-color: rgba(109, 235, 206, 0.56);
+}
+
+.wiki-orbit-node.active {
+  border-color: rgba(111, 236, 208, 0.72);
+  box-shadow: 0 0 18px rgba(92, 224, 204, 0.28);
+}
+
+.wiki-atlas-layout {
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr) minmax(0, 1.2fr);
+  gap: 12px;
+}
+
+.wiki-nav-card {
+  position: sticky;
+  top: 18px;
+  align-self: start;
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+}
+
+.wiki-stream-card,
+.wiki-detail-card {
+  min-height: 720px;
+}
+
+.wiki-mini-list {
+  margin-top: 14px;
+  border: 1px solid rgba(133, 167, 243, 0.25);
+  border-radius: 12px;
+  background: rgba(8, 14, 28, 0.7);
+  padding: 10px;
+  display: grid;
+  gap: 8px;
+}
+
+.wiki-mini-list strong {
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(206, 226, 255, 0.78);
+}
+
+.wiki-mini-row {
+  width: 100%;
+  justify-content: space-between;
+  font-size: 0.82rem;
+  background: rgba(8, 14, 27, 0.75);
+}
+
+.wiki-mini-row span:last-child {
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+.wiki-tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.wiki-tag-row .site-chip {
+  padding: 4px 9px;
+  font-size: 0.72rem;
+  background: rgba(8, 15, 28, 0.84);
+}
+
+.guides-grid {
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.markdown-super-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.guide-cluster-card {
+  display: grid;
+  gap: 10px;
+}
+
+.view-function-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.view-function-card {
+  border: 1px solid rgba(136, 170, 245, 0.26);
+  border-radius: 12px;
+  background: rgba(8, 14, 28, 0.7);
+  padding: 10px;
+  display: grid;
+  gap: 8px;
+  contain: layout paint;
+}
+
+.wiki-related-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.wiki-related-item {
+  width: 100%;
+  text-align: left;
+  border: 1px solid rgba(132, 169, 243, 0.28);
+  border-radius: 11px;
+  background: rgba(8, 14, 28, 0.74);
+  padding: 9px;
+  display: grid;
+  gap: 5px;
+}
+
+.wiki-related-item strong {
+  font-size: 0.84rem;
+}
+
+.wiki-related-item small {
+  color: rgba(203, 223, 255, 0.72);
+  font-size: 0.76rem;
+}
+
+.auth-template-card {
+  background: linear-gradient(145deg, rgba(8, 16, 31, 0.92), rgba(7, 13, 25, 0.86));
+}
+
+.auth-template-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+@supports (content-visibility: auto) {
+  .wiki-entry,
+  .view-function-card,
+  .wiki-related-item {
+    content-visibility: auto;
+    contain-intrinsic-size: 180px;
+  }
+}
+
+@media (max-width: 1180px) {
+  .mission-grid,
+  .wiki-atlas-layout,
+  .view-function-grid,
+  .markdown-super-grid,
+  .wiki-related-grid,
+  .auth-template-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .mission-orbit-card {
+    min-height: auto;
+  }
+
+  .wiki-orbit {
+    min-height: 500px;
+  }
+
+  .wiki-nav-card {
+    position: relative;
+    top: 0;
+    max-height: none;
+  }
+
+  .wiki-stream-card,
+  .wiki-detail-card {
+    min-height: auto;
+  }
+}
+
+@media (max-width: 840px) {
+  .wiki-orbit {
+    min-height: 560px;
+  }
+
+  .wiki-orbit-node {
+    width: 148px;
+    transform: translate(-50%, -50%) rotate(var(--angle)) translateY(-230px) rotate(calc(var(--angle) * -1));
+  }
+
+  .wiki-orbit-node:hover {
+    transform: translate(-50%, -50%) rotate(var(--angle)) translateY(-230px) rotate(calc(var(--angle) * -1)) scale(1.02);
   }
 }
