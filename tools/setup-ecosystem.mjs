@@ -2,10 +2,7 @@ import { promises as fs } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { spawnNpmSync } from './lib/process-utils.mjs'
-import {
-  resolveApiSource,
-  syncPrivateApiRepo,
-} from './lib/api-source.mjs'
+import { resolveApiSource, resolveHostedControlUrl } from './lib/api-source.mjs'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -14,14 +11,13 @@ const ROOT = path.resolve(__dirname, '..')
 const args = new Set(process.argv.slice(2))
 const skipInstall = args.has('--skip-install')
 const skipEnv = args.has('--skip-env')
-const skipPrivateSync = args.has('--skip-private-sync')
 
 const BASE_PROJECTS = [
   { name: 'Nexus Main', dir: 'Nexus Main' },
   { name: 'Nexus Mobile', dir: 'Nexus Mobile' },
   { name: 'Nexus Code', dir: 'Nexus Code' },
   { name: 'Nexus Code Mobile', dir: 'Nexus Code Mobile' },
-  { name: 'Nexus Control', dir: 'Nexus Control' },
+  { name: 'Nexus Control', dir: '../Nexus Control' },
 ]
 
 const APP_ENV_TARGETS = [
@@ -31,7 +27,7 @@ const APP_ENV_TARGETS = [
   { appId: 'code-mobile', dir: 'Nexus Code Mobile' },
 ]
 
-const DEFAULT_CONTROL_URL = process.env.NEXUS_CONTROL_URL || 'https://nexus-api.dev'
+const DEFAULT_CONTROL_URL = resolveHostedControlUrl()
 
 const runNpm = (cmdArgs, cwd) => {
   const printable = ['npm', ...cmdArgs].join(' ')
@@ -105,32 +101,14 @@ const main = async () => {
   console.log('Nexus Ecosystem Setup')
   console.log('=====================')
 
-  if (!skipPrivateSync) {
-    await syncPrivateApiRepo({
-      root: ROOT,
-      quiet: false,
-    })
-  } else {
-    console.log('\nPrivate-API-Sync uebersprungen (--skip-private-sync).')
-  }
-
   const apiSource = await resolveApiSource({
     root: ROOT,
     quiet: false,
   })
 
-  const projects = [
-    ...BASE_PROJECTS,
-    {
-      name: 'Private NexusAPI Control Plane',
-      dir: apiSource.controlPlaneDir,
-      isAbsolute: true,
-    },
-  ]
-
   if (!skipInstall) {
-    for (const project of projects) {
-      const projectDir = project.isAbsolute ? project.dir : path.join(ROOT, project.dir)
+    for (const project of BASE_PROJECTS) {
+      const projectDir = path.join(ROOT, project.dir)
       console.log(`\nInstalliere Dependencies: ${project.name}`)
       runNpm(['install'], projectDir)
     }
@@ -149,6 +127,9 @@ const main = async () => {
   }
 
   console.log('\nSetup abgeschlossen.')
+  console.log(`\nAPI-Modus: ${apiSource.mode}`)
+  console.log(`API-Client: ${path.relative(ROOT, apiSource.apiDir)}`)
+  console.log(`Hosted API URL: ${apiSource.controlBaseUrl}`)
 
   if (envResults.length > 0) {
     console.log('\n.env.local Status:')
@@ -160,15 +141,14 @@ const main = async () => {
   }
 
   console.log('\nNaechste Schritte:')
-  console.log('- npm run dev:all           # startet Main + Code (API extern)')
-  console.log('- npm run dev:all:with-local-api  # startet Control Plane + UI + Main + Code')
-  console.log('- npm run dev:control:open  # startet lokale Control Plane + UI mit Browser-Open')
-  console.log('- npm run dev:main          # startet Nexus Main mit Electron')
-  console.log('- npm run build:ecosystem   # API-unabhaengiger Full Build')
-  console.log('- npm run build:ecosystem:with-local-api  # Build inkl. local API Guard')
-  console.log('- npm run api:private:sync  # synchronisiert private NexusAPI Repo')
-  console.log('- npm run doctor:release    # prueft Hosted-API, Android SDK und Notarization-Readiness')
-  console.log('- npm run verify:ecosystem  # fuehrt Integritaetspruefungen aus')
+  console.log('- npm run dev:all                 # startet Main + Code (Hosted API)')
+  console.log('- npm run dev:all:with-control-ui # startet Control UI + Main + Code')
+  console.log('- npm run dev:control:open        # startet Control UI und oeffnet Browser')
+  console.log('- npm run dev:main                # startet Nexus Main mit Electron')
+  console.log('- npm run build:ecosystem         # Full Build')
+  console.log('- npm run build:ecosystem:with-healthcheck  # Build inkl. Hosted-API Healthcheck')
+  console.log('- npm run doctor:release          # prueft Hosted-API, Android SDK und Notarization-Readiness')
+  console.log('- npm run verify:ecosystem        # fuehrt Integritaetspruefungen aus')
 }
 
 main().catch((error) => {

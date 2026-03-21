@@ -6,10 +6,10 @@
         "./src/*"
       ],
       "@nexus/api": [
-        "../.nexus-private/NexusAPI/API/nexus-api/src/index.ts"
+        "../packages/nexus-core/src/api/index.ts"
       ],
       "@nexus/api/*": [
-        "../.nexus-private/NexusAPI/API/nexus-api/src/*"
+        "../packages/nexus-core/src/api/*"
       ]
     },
     "jsx": "react-jsx",
