@@ -29,6 +29,7 @@ import {
   Map,
   RotateCcw,
   RotateCw,
+  FileDown,
   StickyNote,
   Sun,
   Copy,
@@ -162,6 +163,25 @@ const laneForNode = (node: CanvasNode, index: number): CanvasNodeStatus => {
 };
 
 const CANVAS_NODE_OVERSCAN_PX = 560;
+
+const toFileSafeSlug = (value: string) =>
+  (value || "canvas")
+    .toLowerCase()
+    .replace(/[^a-z0-9-_]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "") || "canvas";
+
+const triggerTextDownload = (filename: string, content: string, mime = "text/plain;charset=utf-8") => {
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+};
 
 // ─── CONNECTION LINE ───
 
@@ -419,8 +439,18 @@ const NodeWidget = React.memo(function NodeWidget({
     node.type !== "markdown",
   );
   const [hovered, setHovered] = useState(false);
+  const [dragPreview, setDragPreview] = useState<{ x: number; y: number } | null>(null);
+  const [resizePreview, setResizePreview] = useState<{
+    width: number;
+    height: number;
+  } | null>(null);
   const dragStart = useRef({ x: 0, y: 0, nodeX: 0, nodeY: 0 });
   const resizeStart = useRef({ x: 0, y: 0, w: 0, h: 0 });
+
+  const liveX = dragPreview?.x ?? node.x;
+  const liveY = dragPreview?.y ?? node.y;
+  const liveWidth = resizePreview?.width ?? node.width;
+  const liveHeight = resizePreview?.height ?? node.height;
 
   const isSticky = node.type === "text" && node.color === "#FFCC00";
   const stickyBg = isSticky
@@ -452,7 +482,7 @@ const NodeWidget = React.memo(function NodeWidget({
     const flush = () => {
       raf = 0;
       if (!pending) return;
-      moveNode(node.id, pending.x, pending.y);
+      setDragPreview(pending);
       pending = null;
     };
 
@@ -475,10 +505,10 @@ const NodeWidget = React.memo(function NodeWidget({
         cancelAnimationFrame(raf);
         raf = 0;
       }
-      if (pending) {
-        moveNode(node.id, pending.x, pending.y);
-        pending = null;
-      }
+      const finalPos = pending || dragPreview;
+      if (finalPos) moveNode(node.id, finalPos.x, finalPos.y);
+      pending = null;
+      setDragPreview(null);
       setDragging(false);
     };
     window.addEventListener("mousemove", onMove);
@@ -488,7 +518,7 @@ const NodeWidget = React.memo(function NodeWidget({
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
     };
-  }, [dragging, node.id, moveNode, snapToGrid]);
+  }, [dragging, node.id, moveNode, snapToGrid, dragPreview]);
 
   // Resize
   const handleResizeStart = useCallback(
@@ -514,17 +544,23 @@ const NodeWidget = React.memo(function NodeWidget({
     const flush = () => {
       raf = 0;
       if (!pending) return;
-      resizeNode(node.id, pending.width, pending.height);
+      setResizePreview(pending);
       pending = null;
     };
 
     const onMove = (e: MouseEvent) => {
       const zoom = useCanvas.getState().viewport?.zoom || 1;
+      const nextWidth = Math.max(
+        160,
+        resizeStart.current.w + (e.clientX - resizeStart.current.x) / zoom,
+      );
+      const nextHeight = Math.max(
+        80,
+        resizeStart.current.h + (e.clientY - resizeStart.current.y) / zoom,
+      );
       pending = {
-        width:
-          resizeStart.current.w + (e.clientX - resizeStart.current.x) / zoom,
-        height:
-          resizeStart.current.h + (e.clientY - resizeStart.current.y) / zoom,
+        width: nextWidth,
+        height: nextHeight,
       };
       if (!raf) {
         raf = requestAnimationFrame(flush);
@@ -535,10 +571,10 @@ const NodeWidget = React.memo(function NodeWidget({
         cancelAnimationFrame(raf);
         raf = 0;
       }
-      if (pending) {
-        resizeNode(node.id, pending.width, pending.height);
-        pending = null;
-      }
+      const finalSize = pending || resizePreview;
+      if (finalSize) resizeNode(node.id, finalSize.width, finalSize.height);
+      pending = null;
+      setResizePreview(null);
       setResizing(false);
     };
     window.addEventListener("mousemove", onMove);
@@ -548,7 +584,7 @@ const NodeWidget = React.memo(function NodeWidget({
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
     };
-  }, [resizing, node.id, resizeNode]);
+  }, [resizing, node.id, resizeNode, resizePreview]);
 
   const duplicateNodeWithContent = useCallback(() => {
     const state = useCanvas.getState();
@@ -2083,13 +2119,12 @@ const NodeWidget = React.memo(function NodeWidget({
       onMouseLeave={() => setHovered(false)}
       style={{
         position: "absolute",
-        left: node.x,
-        top: node.y,
-        width: node.width,
-        height: node.height,
+        left: liveX,
+        top: liveY,
+        width: liveWidth,
+        height: liveHeight,
         zIndex: isSelected ? 100 : 1,
-        animation:
-          "nexus-scale-in 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both",
+        animation: dragging || resizing ? undefined : "nexus-scale-in 0.22s ease-out both",
         willChange: "transform, left, top, width, height",
         backfaceVisibility: "hidden",
         transform: isSelected
@@ -2129,8 +2164,8 @@ const NodeWidget = React.memo(function NodeWidget({
           borderColor: isSelected ? nodeAccent : undefined,
           borderWidth: isSelected ? 2 : 1,
           overflow: "hidden",
-          cursor: dragging ? "grabbing" : "grab",
-          userSelect: dragging ? "none" : "auto",
+          cursor: dragging ? "grabbing" : resizing ? "nwse-resize" : "grab",
+          userSelect: dragging || resizing ? "none" : "auto",
           background: isSticky ? stickyBg : undefined,
           boxShadow: isSelected
             ? `0 0 0 2px ${nodeAccent}, 0 8px 32px rgba(0,0,0,0.3), 0 0 20px ${nodeAccent}30`
@@ -2622,6 +2657,9 @@ export function CanvasView() {
   const wheelPanRaf = useRef<number>(0);
   const wheelPanDelta = useRef({ x: 0, y: 0 });
   const wheelPanReleaseTimeout = useRef<number>(0);
+  const wheelZoomRaf = useRef<number>(0);
+  const wheelZoomDelta = useRef(0);
+  const wheelZoomPoint = useRef({ x: 0, y: 0 });
 
   const visibleBounds = useMemo(() => {
     const zoom = Math.max(0.0001, viewport.zoom);
@@ -2734,7 +2772,10 @@ export function CanvasView() {
     (e: React.MouseEvent) => {
       setQuickAddPos(null);
       setShowWidgetMenu(false);
-      if (e.button === 1 || (e.button === 0 && spaceHeld)) {
+      const isCanvasBackground =
+        e.target === e.currentTarget ||
+        (e.target as HTMLElement).id === "nexus-canvas-inner";
+      if (e.button === 1 || (e.button === 0 && (spaceHeld || isCanvasBackground))) {
         e.preventDefault();
         setPanning(true);
         panStart.current = {
@@ -2743,11 +2784,8 @@ export function CanvasView() {
           panX: viewport.panX,
           panY: viewport.panY,
         };
-      } else if (
-        e.button === 0 &&
-        (e.target === e.currentTarget ||
-          (e.target as HTMLElement).id === "nexus-canvas-inner")
-      ) {
+      }
+      if (e.button === 0 && isCanvasBackground) {
         setSelectedNodeId(null);
         setConnectingFrom(null);
       }
@@ -2840,7 +2878,7 @@ export function CanvasView() {
     [applyZoomAtPoint, setZoom],
   );
 
-  // Trackpad-friendly wheel: pan by default, zoom only with pinch/Ctrl.
+  // Trackpad-friendly wheel: pan by default, zoom only with pinch (Ctrl in Chromium).
   const handleWheel = useCallback(
     (e: React.WheelEvent) => {
       e.preventDefault();
@@ -2852,10 +2890,23 @@ export function CanvasView() {
       const dy = Math.max(-240, Math.min(240, rawDy));
       if (Math.abs(dx) < 0.001 && Math.abs(dy) < 0.001) return;
 
-      if (e.ctrlKey || e.metaKey) {
-        const isTrackpadPinch = e.deltaMode === 0 && Math.abs(rawDy) < 24;
-        const factor = Math.exp(-dy * (isTrackpadPinch ? 0.0021 : 0.00135));
-        applyZoomAtPoint(e.clientX, e.clientY, factor);
+      if (e.ctrlKey) {
+        wheelZoomPoint.current = { x: e.clientX, y: e.clientY };
+        wheelZoomDelta.current += dy;
+        if (!wheelZoomRaf.current) {
+          wheelZoomRaf.current = requestAnimationFrame(() => {
+            wheelZoomRaf.current = 0;
+            const zoomDelta = Math.max(-160, Math.min(160, wheelZoomDelta.current));
+            wheelZoomDelta.current = 0;
+            if (Math.abs(zoomDelta) < 0.001) return;
+            const factor = Math.exp(-zoomDelta * 0.0016);
+            applyZoomAtPoint(
+              wheelZoomPoint.current.x,
+              wheelZoomPoint.current.y,
+              factor,
+            );
+          });
+        }
         return;
       }
 
@@ -2894,6 +2945,9 @@ export function CanvasView() {
     () => () => {
       if (wheelPanRaf.current) {
         cancelAnimationFrame(wheelPanRaf.current);
+      }
+      if (wheelZoomRaf.current) {
+        cancelAnimationFrame(wheelZoomRaf.current);
       }
       if (wheelPanReleaseTimeout.current) {
         window.clearTimeout(wheelPanReleaseTimeout.current);
@@ -2938,6 +2992,87 @@ export function CanvasView() {
     setZoom(z);
     setPan(cW / 2 - cx * z, cH / 2 - cy * z);
   }, [canvas, canvasSize, resetViewport, setZoom, setPan]);
+
+  const exportCanvas = useCallback(() => {
+    if (!canvas) return;
+    const exportedAt = new Date().toISOString();
+    const stamp = exportedAt.slice(0, 19).replace(/[:T]/g, "-");
+    const slug = toFileSafeSlug(canvas.name);
+    const baseName = `${slug}-${stamp}`;
+
+    const jsonPayload = {
+      version: 1,
+      app: "nexus-canvas",
+      exportedAt,
+      viewport,
+      canvas: {
+        id: canvas.id,
+        name: canvas.name,
+        created: canvas.created,
+        updated: canvas.updated,
+        nodes: canvas.nodes,
+        connections: canvas.connections,
+      },
+    };
+
+    const readable: string[] = [];
+    readable.push(`# Canvas Export: ${canvas.name}`);
+    readable.push(`exported_at: ${exportedAt}`);
+    readable.push(`canvas_id: ${canvas.id}`);
+    readable.push(`nodes: ${canvas.nodes.length}`);
+    readable.push(`connections: ${canvas.connections.length}`);
+    readable.push("");
+    readable.push("## Nodes");
+    canvas.nodes.forEach((node, index) => {
+      readable.push(`### ${index + 1}. ${node.title || "Untitled"} (${node.type})`);
+      readable.push(`id: ${node.id}`);
+      readable.push(`position: x=${Math.round(node.x)}, y=${Math.round(node.y)}`);
+      readable.push(`size: w=${Math.round(node.width)}, h=${Math.round(node.height)}`);
+      if (node.status) readable.push(`status: ${node.status}`);
+      if (node.priority) readable.push(`priority: ${node.priority}`);
+      if (typeof node.progress === "number") readable.push(`progress: ${node.progress}`);
+      if (node.dueDate) readable.push(`due_date: ${node.dueDate}`);
+      if (node.owner) readable.push(`owner: ${node.owner}`);
+      if (node.tags?.length) readable.push(`tags: ${node.tags.join(", ")}`);
+      if (node.items?.length) {
+        readable.push("checklist:");
+        node.items.forEach((item) => {
+          readable.push(`- [${item.done ? "x" : " "}] ${item.text}`);
+        });
+      }
+      if (node.content?.trim()) {
+        readable.push("content:");
+        readable.push("```text");
+        readable.push(node.content.trimEnd());
+        readable.push("```");
+      }
+      readable.push("");
+    });
+    readable.push("## Connections");
+    canvas.connections.forEach((conn, index) => {
+      const from = canvas.nodes.find((n) => n.id === conn.fromId);
+      const to = canvas.nodes.find((n) => n.id === conn.toId);
+      readable.push(
+        `${index + 1}. ${from?.title || conn.fromId} -> ${to?.title || conn.toId}${conn.label ? ` (${conn.label})` : ""}`,
+      );
+    });
+    readable.push("");
+    readable.push("## Raw JSON");
+    readable.push("```json");
+    readable.push(JSON.stringify(jsonPayload, null, 2));
+    readable.push("```");
+
+    triggerTextDownload(
+      `${baseName}.nexus-canvas.json`,
+      JSON.stringify(jsonPayload, null, 2),
+      "application/json;charset=utf-8",
+    );
+    triggerTextDownload(
+      `${baseName}.nexus-canvas.md`,
+      readable.join("\n"),
+      "text/markdown;charset=utf-8",
+    );
+  }, [canvas, viewport]);
 
   const addWidgetNode = useCallback(
     (type: NodeType | "sticky", x?: number, y?: number) => {
@@ -4135,6 +4270,13 @@ export function CanvasView() {
               accent={t.accent}
               rgb={rgb}
             />
+            <ToolBtn
+              icon={FileDown}
+              tooltip="Canvas exportieren (JSON + AI-Markdown)"
+              onClick={exportCanvas}
+              accent={t.accent}
+              rgb={rgb}
+            />
           </div>
         </div>
 
@@ -4209,13 +4351,9 @@ export function CanvasView() {
             style={{
               cursor: connectingFrom
                 ? "crosshair"
-                : spaceHeld
-                  ? panning
-                    ? "grabbing"
-                    : "grab"
-                  : wheelPanning
-                    ? "grabbing"
-                    : "default",
+                : panning || wheelPanning
+                  ? "grabbing"
+                  : "grab",
               transition: panning || wheelPanning
                 ? "none"
                 : "background-position 0.08s ease-out, background-size 0.12s ease-out",

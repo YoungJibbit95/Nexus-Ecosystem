@@ -82,6 +82,8 @@ export function NexusToolbar({
   const [pinnedIds, setPinnedIds] = useState<string[]>([]);
   const [recentIds, setRecentIds] = useState<string[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
+  const islandRef = useRef<HTMLDivElement>(null);
+  const [islandCompact, setIslandCompact] = useState(false);
 
   const toolbarMode = t.toolbar?.toolbarMode ?? "island";
   const isSpotlight = toolbarMode === "spotlight" || !!forceSpotlight;
@@ -89,6 +91,18 @@ export function NexusToolbar({
   const isBottom = (t.toolbar?.position ?? "bottom") === "bottom";
   const reducedMotion = t.qol?.reducedMotion ?? false;
   const spotlightAnchorX = "30%";
+
+  useEffect(() => {
+    const el = islandRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setIslandCompact(entry.contentRect.width < 910);
+      }
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     setPinnedIds(
@@ -1026,8 +1040,9 @@ export function NexusToolbar({
       }}
     >
       <motion.div
+        ref={islandRef}
         animate={{
-          width: expanded ? "min(1060px, 96vw)" : "min(500px, 94vw)",
+          width: expanded ? "min(1120px, 98vw)" : "min(520px, 94vw)",
           height: expanded ? 74 : 56,
         }}
         transition={
@@ -1162,7 +1177,7 @@ export function NexusToolbar({
                   style={{
                     display: "flex",
                     alignItems: "center",
-                    gap: 6,
+                    gap: islandCompact ? 4 : 6,
                     minWidth: 0,
                     flex: 1,
                     overflowX: "auto",
@@ -1182,12 +1197,12 @@ export function NexusToolbar({
                         style={{
                           display: "inline-flex",
                           alignItems: "center",
-                          gap: 6,
+                          gap: islandCompact ? 0 : 6,
                           whiteSpace: "nowrap",
                           border: "none",
                           borderRadius: 10,
                           background: "transparent",
-                          padding: "6px 9px",
+                          padding: islandCompact ? "6px 7px" : "6px 9px",
                           cursor: "pointer",
                           fontSize: 11,
                           fontWeight: 700,
@@ -1203,7 +1218,7 @@ export function NexusToolbar({
                         }}
                       >
                         <Icon size={13} />
-                        {item.label}
+                        {!islandCompact && item.label}
                       </button>
                     );
                   })}
@@ -1217,16 +1232,43 @@ export function NexusToolbar({
                     flexShrink: 0,
                   }}
                 >
-                  <StatusPill
-                    label="Tasks"
-                    value={pendingTasks}
-                    color={pendingTasks ? "#ff9f0a" : undefined}
-                  />
-                  <StatusPill
-                    label="Due"
-                    value={overdueReminders}
-                    color={overdueReminders ? "#ff453a" : undefined}
-                  />
+                  {islandCompact ? (
+                    <>
+                      <span
+                        style={{
+                          fontSize: 10,
+                          fontWeight: 700,
+                          color: pendingTasks ? "#ff9f0a" : "inherit",
+                          opacity: pendingTasks ? 1 : 0.6,
+                        }}
+                      >
+                        T {pendingTasks}
+                      </span>
+                      <span
+                        style={{
+                          fontSize: 10,
+                          fontWeight: 700,
+                          color: overdueReminders ? "#ff453a" : "inherit",
+                          opacity: overdueReminders ? 1 : 0.6,
+                        }}
+                      >
+                        D {overdueReminders}
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <StatusPill
+                        label="Tasks"
+                        value={pendingTasks}
+                        color={pendingTasks ? "#ff9f0a" : undefined}
+                      />
+                      <StatusPill
+                        label="Due"
+                        value={overdueReminders}
+                        color={overdueReminders ? "#ff453a" : undefined}
+                      />
+                    </>
+                  )}
                   <span
                     style={{
                       fontSize: 10,
