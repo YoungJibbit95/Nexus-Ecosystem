@@ -12,10 +12,10 @@ Control UI wird direkt auf dem API-Server gehostet.
 ## 1) Control UI bauen
 
 ```bash
-npm --prefix "./Nexus Control" run build
+npm --prefix "../Nexus Control" run build
 ```
 
-Ergebnis: `Nexus Control/dist/`
+Ergebnis: `../Nexus Control/dist/`
 
 ## 2) UI auf den Server deployen
 
