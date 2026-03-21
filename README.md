@@ -1,65 +1,61 @@
 <div align="center">
 
-# 🧠 NEXUS ECOSYSTEM // V5
+# 🌌 NEXUS ECOSYSTEM V5
 
-### ⚡ FULL ECOSYSTEM • CONTROL DASHBOARD • CYBERPUNK UI
+### ⚡ Cyberpunk • Modular • Scalable • Bilingual • FULL DOCS
 
-```
-[ SYSTEM BOOT ]
-> Nexus Runtime ............ ONLINE
-> Control Plane ............ CONNECTED
-> Live Sync ................ ACTIVE
-> Security Layer ........... ENFORCED
-```
+<img src="https://readme-typing-svg.herokuapp.com?font=JetBrains+Mono&size=22&duration=3000&color=00F7FF&center=true&vCenter=true&width=800&lines=Nexus+System+Initializing...;Control+Plane+Connected;Runtime+Online;Full+Documentation+Loaded"/>
 
 </div>
 
 ---
 
-## 🌐 LANGUAGE SWITCH
-
-<details open>
-<summary>🇬🇧 ENGLISH</summary>
-
-## 🧠 SYSTEM CORE
-
-Nexus is a **multi-app ecosystem platform** with:
-
-- Modular apps (Desktop + Mobile)
-- Shared runtime (`@nexus/api`)
-- Central control plane
-- Live synchronization system
-- Advanced security architecture
+> [!IMPORTANT]
+> Public repo contains only **Runtime Plane + API Client Layer**.  
+> Productive Control Plane is hosted privately via `NEXUS_CONTROL_URL`.
+> Wiki Website: youngjibbit95.github.io/Nexus-Ecosystem
 
 ---
 
-## 🧩 COMPONENTS
+## 🌐 Language Switch
 
-- Nexus Main (Electron + React)
+<details open>
+<summary>🇬🇧 English</summary>
+
+## 🧠 System Overview
+
+```txt
+STATUS: ONLINE
+RUNTIME: ACTIVE
+CONTROL: CONNECTED
+SYNC: LIVE
+SECURITY: ENFORCED
+```
+
+## 🎯 What is Nexus?
+
+A **multi-app ecosystem** with shared runtime, control plane and live sync.
+
+## 🧩 Components
+
+- Nexus Main (Electron)
 - Nexus Mobile (Capacitor)
 - Nexus Code
 - Nexus Code Mobile
-- Nexus Control (private)
-- Nexus API Client (`packages/nexus-core`)
+- Nexus API Client (nexus-core)
+- Control Plane (private)
 
----
+## 🏗️ Architecture
 
-## 🏗️ ARCHITECTURE
+Apps → Runtime → Control Client → Control Plane
 
-Apps → Runtime → Control Client → Control Plane → UI
+## 🔄 Live Sync
 
----
+- Feature sync across apps
+- Layout adaptation
+- Capability-based updates
 
-## 🔄 LIVE SYNC V2
-
-- Feature sync across apps  
-- Layout adaptation  
-- Capability-based updates  
-- Release subscription system  
-
----
-
-## 🚀 QUICK START
+## 🚀 Quick Start
 
 ```bash
 git clone https://github.com/YoungJibbit95/Nexus-Ecosystem.git
@@ -68,57 +64,35 @@ npm run setup
 npm run build
 ```
 
----
-
-## 🛠️ FULL DEV COMMANDS
+## 🛠️ Dev Commands
 
 ```bash
-npm run setup
-npm run api:source
-
 npm run dev:all
 npm run dev:all:with-control-ui
 npm run dev:main
-npm run dev:main:web
-
 npm run dev:mobile:android
 npm run dev:mobile:ios
-
 npm run dev:code
-npm run dev:code-mobile:android
-npm run dev:code-mobile:ios
-
 npm run build
-npm run build:ecosystem:fast
-npm run build:apps
-
 npm run verify:ecosystem
 npm run doctor:release
 ```
 
----
+## ⚙️ Control Plane
 
-## ⚙️ CONTROL PLANE
-
-- Hosted backend (`NEXUS_CONTROL_URL`)
-- Auth / Policies / Commands
+- Hosted backend
+- Auth / Config / Policies
 - UI deployable separately
-- Secure origin validation
 
----
-
-## 🔐 SECURITY SYSTEM
+## 🔐 Security
 
 - Role-based access
 - Device verification
 - HMAC signatures
-- Anti-replay protection
-- Audit logging
-- Owner-only mutations
+- Anti-replay
+- Audit logs
 
----
-
-## 📦 BUILD STRUCTURE
+## 📦 Build System
 
 ```txt
 build/
@@ -130,45 +104,57 @@ build/
 └── assets
 ```
 
----
+## 📋 Workflow
 
-## 📋 WORKFLOW
+1. Create issue
+2. Build feature
+3. Verify
+4. PR
+5. Deploy
 
-1. Create Issue  
-2. Develop Feature  
-3. Verify + Build  
-4. Pull Request  
-5. Deploy  
+## 🧯 Troubleshooting
 
----
-
-## 🧯 TROUBLESHOOTING
-
-- Check API URL  
-- Check ENV variables  
-- Verify device  
-- Check trusted origins  
+- Check API URL
+- Check ENV
+- Check device verification
+- Check origins
 
 </details>
 
 ---
 
 <details>
-<summary>🇩🇪 DEUTSCH</summary>
+<summary>🇩🇪 Deutsch</summary>
 
-## 🧠 SYSTEM KERN
+## 🧠 Systemübersicht
 
-Nexus ist ein **Multi-App Ecosystem** mit:
+```txt
+STATUS: ONLINE
+RUNTIME: AKTIV
+CONTROL: VERBUNDEN
+SYNC: LIVE
+SECURITY: AKTIV
+```
 
-- Modularen Apps  
-- Gemeinsamer Runtime  
-- Zentraler Control Plane  
-- Live-Synchronisation  
-- Security Layer  
+## 🎯 Was ist Nexus?
 
----
+Ein **Multi-App Ecosystem** mit zentraler Steuerung.
 
-## 🚀 SCHNELLSTART
+## 🧩 Komponenten
+
+- Nexus Main
+- Nexus Mobile
+- Nexus Code
+- API Client
+- Control Plane
+
+## 🔄 Live Sync
+
+- Feature Sync
+- Layout Anpassung
+- Automatische Updates
+
+## 🚀 Schnellstart
 
 ```bash
 git clone https://github.com/YoungJibbit95/Nexus-Ecosystem.git
@@ -177,9 +163,7 @@ npm run setup
 npm run build
 ```
 
----
-
-## 🛠️ COMMANDS
+## 🛠️ Commands
 
 ```bash
 npm run dev:all
@@ -189,20 +173,18 @@ npm run build
 npm run verify:ecosystem
 ```
 
----
+## 🔐 Sicherheit
 
-## 🔐 SICHERHEIT
-
-- Rollen  
-- Device Verification  
-- HMAC  
-- Audit Logs  
+- Rollen
+- Device Verification
+- HMAC
+- Audit Logs
 
 </details>
 
 ---
 
-## 📊 STATS
+## 📊 GitHub Stats
 
 <p align="center">
 <img src="https://github-readme-stats.vercel.app/api?username=YoungJibbit95&show_icons=true&theme=tokyonight"/>
@@ -210,7 +192,7 @@ npm run verify:ecosystem
 
 ---
 
-## 🐍 CONTRIBUTION SYSTEM
+## 🐍 Contribution Snake
 
 <p align="center">
 <img src="https://raw.githubusercontent.com/platane/snk/output/github-contribution-grid-snake-dark.svg"/>
@@ -218,7 +200,7 @@ npm run verify:ecosystem
 
 ---
 
-## 🌐 CONNECT
+## 🌐 Connect
 
 <p align="center">
 <a href="https://github.com/YoungJibbit95">
@@ -234,7 +216,7 @@ npm run verify:ecosystem
 
 ---
 
-## 🧠 PHILOSOPHY
+## 🧠 Philosophy
 
 ```txt
 build > talk
@@ -244,14 +226,12 @@ consistency > motivation
 
 ---
 
-## 🚀 VISION
+## 🚀 Vision
 
-> Build a fully connected ecosystem where apps evolve together.
+> A fully connected software ecosystem.
 
 ---
 
-<div align="center">
-
-⚡ NEXUS SYSTEM // END OF TRANSMISSION
-
-</div>
+<p align="center">
+<img src="https://capsule-render.vercel.app/api?type=waving&color=0:00F7FF,100:ff00ff&height=140&section=footer"/>
+</p>
