@@ -33,7 +33,6 @@ export function NexusToolbar({ spotlightMode: forceSpotlight, setView }: {
   const { notes, tasks, codes, reminders } = useApp()
   const { canvases } = useCanvas()
   const rgb = hexToRgb(t.accent)
-  const rgb2 = hexToRgb(t.accent2)
 
   const [expanded, setExpanded]     = useState(false)
   const [hovered, setHovered]       = useState<string | null>(null)
@@ -51,6 +50,8 @@ export function NexusToolbar({ spotlightMode: forceSpotlight, setView }: {
   const isFullWidth = toolbarMode === 'full-width'
   const isBottom    = (t.toolbar?.position ?? 'bottom') === 'bottom'
   const barHeight   = t.toolbar?.height ?? 44
+  const reducedMotion = t.qol?.reducedMotion ?? false
+  const spotlightAnchorX = '30%'
 
   // Clock
   useEffect(() => {
@@ -129,8 +130,8 @@ export function NexusToolbar({ spotlightMode: forceSpotlight, setView }: {
           onClick={() => setExpanded(false)} />
         <motion.div
           initial={{opacity:0,scale:0.94,y:-16}} animate={{opacity:1,scale:1,y:0}} exit={{opacity:0,scale:0.94,y:-16}}
-          transition={{type:'spring',stiffness:420,damping:30}}
-          style={{ position:'fixed', top:72, left:'50%', transform:'translateX(-50%)', width:700, zIndex:900 }}
+          transition={reducedMotion ? { duration: 0.12 } : {type:'spring',stiffness:420,damping:30}}
+          style={{ position:'fixed', top:72, left:spotlightAnchorX, transform:'translateX(-30%)', width:700, zIndex:900 }}
         >
           <SpotlightPanel
             search={search} setSearch={setSearch} selIdx={selIdx} setSelIdx={setSelIdx}
@@ -156,13 +157,18 @@ export function NexusToolbar({ spotlightMode: forceSpotlight, setView }: {
     }}>
       <LogoPill rgb={rgb} t={t} small />
       <div style={{ width:1, height:18, background:'rgba(255,255,255,0.1)', margin:'0 8px', flexShrink:0 }}/>
-      {VIEW_ITEMS.map(item => (
-        <button key={item.id} onClick={() => setView?.(item.id)}
-          onMouseEnter={() => setHovered(item.id)} onMouseLeave={() => setHovered(null)}
-          style={{ padding:'5px 9px', borderRadius:8, border:'none', background:hovered===item.id?`rgba(${hexToRgb(item.color)},0.14)`:'transparent', cursor:'pointer', display:'flex', alignItems:'center', gap:5, color:hovered===item.id?item.color:'inherit', transition:'all 0.12s', fontSize:11, fontWeight:600 }}>
-          <item.icon size={13} style={{ opacity:hovered===item.id?1:0.5 }}/> {item.label}
-        </button>
-      ))}
+      <div
+        className="nx-toolbar-view-rail"
+        style={{ display:'flex', alignItems:'center', gap:2, maxWidth:'54vw', overflowX:'auto', overflowY:'hidden', paddingBottom:2 }}
+      >
+        {VIEW_ITEMS.map(item => (
+          <button key={item.id} onClick={() => setView?.(item.id)}
+            onMouseEnter={() => setHovered(item.id)} onMouseLeave={() => setHovered(null)}
+            style={{ padding:'5px 9px', borderRadius:8, border:'none', background:hovered===item.id?`rgba(${hexToRgb(item.color)},0.14)`:'transparent', cursor:'pointer', display:'flex', alignItems:'center', gap:5, color:hovered===item.id?item.color:'inherit', transition:'all 0.12s', fontSize:11, fontWeight:600, whiteSpace:'nowrap' }}>
+            <item.icon size={13} style={{ opacity:hovered===item.id?1:0.5 }}/> {item.label}
+          </button>
+        ))}
+      </div>
       <div style={{ flex:1 }}/>
       <div style={{ display:'flex', alignItems:'center', gap:12, marginRight:10 }}>
         {[
@@ -204,8 +210,8 @@ export function NexusToolbar({ spotlightMode: forceSpotlight, setView }: {
   return (
     <div style={{ display:'flex', justifyContent:'center', padding: isBottom?'0 0 10px':'10px 0 0', pointerEvents:'none', position:'relative' }}>
       <motion.div
-        animate={{ width: expanded ? 'min(640px, 90vw)' : 216, height: expanded ? 50 : 44 }}
-        transition={{ type:'spring', stiffness:360, damping:28, mass:0.9 }}
+        animate={{ width: expanded ? 'min(980px, 96vw)' : 'min(460px, 94vw)', height: expanded ? 62 : 50 }}
+        transition={reducedMotion ? { duration: 0.12 } : { type:'spring', stiffness:320, damping:28, mass:0.9 }}
         onHoverStart={() => setExpanded(true)}
         onHoverEnd={() => setExpanded(false)}
         style={{ pointerEvents:'auto', position:'relative' }}
@@ -218,7 +224,7 @@ export function NexusToolbar({ spotlightMode: forceSpotlight, setView }: {
           filter: `blur(${expanded ? 18 : 10}px)`,
           opacity: t.glow.gradientGlow ? (expanded ? t.glow.intensity * 0.5 : t.glow.intensity * 0.25) : 0,
           transition: 'all 0.4s ease',
-          animation: t.glow.animated ? `nexus-spin ${3/Math.max(t.glow.animationSpeed,0.1)}s linear infinite` : undefined,
+          animation: !reducedMotion && t.glow.animated ? `nexus-spin ${3/Math.max(t.glow.animationSpeed,0.1)}s linear infinite` : undefined,
           pointerEvents: 'none',
         }} />
 
@@ -261,31 +267,38 @@ export function NexusToolbar({ spotlightMode: forceSpotlight, setView }: {
           <AnimatePresence initial={false}>
             {expanded && (
               <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} transition={{duration:0.14}}
-                style={{ display:'flex', alignItems:'center', flex:1, gap:1, marginLeft:8 }}>
-                {VIEW_ITEMS.map(item => {
-                  const iRgb = hexToRgb(item.color)
-                  return (
-                    <button key={item.id} onClick={() => item.id && setView?.(item.id)}
-                      onMouseEnter={() => setHovered(item.id)} onMouseLeave={() => setHovered(null)}
-                      title={item.label}
-                      style={{
-                        position:'relative', padding:'7px 8px', borderRadius:11, border:'none',
-                        background: hovered===item.id ? `rgba(${iRgb},0.2)` : 'transparent',
-                        cursor:'pointer', transition:'all 0.12s', display:'flex', alignItems:'center', justifyContent:'center',
-                      }}>
-                      <item.icon size={15} style={{ color:hovered===item.id?item.color:'inherit', opacity:hovered===item.id?1:0.45, transition:'all 0.12s' }}/>
-                      {/* Tooltip */}
-                      <AnimatePresence>
-                        {hovered===item.id && (
-                          <motion.div initial={{opacity:0,y:isBottom?4:-4,scale:0.88}} animate={{opacity:1,y:0,scale:1}} exit={{opacity:0,y:isBottom?4:-4,scale:0.88}} transition={{duration:0.1}}
-                            style={{ position:'absolute', [isBottom?'bottom':'top']:'calc(100% + 9px)', left:'50%', transform:'translateX(-50%)', background:'rgba(6,6,18,0.95)', backdropFilter:'blur(16px)', border:`1px solid ${item.color}33`, borderRadius:8, padding:'4px 9px', zIndex:9999, pointerEvents:'none', whiteSpace:'nowrap' }}>
-                            <span style={{ fontSize:10, fontWeight:700, color:item.color }}>{item.label}</span>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </button>
-                  )
-                })}
+                style={{ display:'flex', alignItems:'center', flex:1, gap:8, marginLeft:8, minWidth:0 }}>
+                <div
+                  className="nx-toolbar-view-rail"
+                  style={{ display:'flex', alignItems:'center', gap:4, minWidth:0, flex:1, overflowX:'auto', overflowY:'hidden', paddingBottom:2 }}
+                >
+                  {VIEW_ITEMS.map(item => {
+                    const iRgb = hexToRgb(item.color)
+                    return (
+                      <button key={item.id} onClick={() => item.id && setView?.(item.id)}
+                        onMouseEnter={() => setHovered(item.id)} onMouseLeave={() => setHovered(null)}
+                        title={item.label}
+                        style={{
+                          position:'relative',
+                          padding:'7px 9px',
+                          borderRadius:11,
+                          border:'none',
+                          background: hovered===item.id ? `rgba(${iRgb},0.2)` : 'transparent',
+                          cursor:'pointer',
+                          transition:'all 0.12s',
+                          display:'inline-flex',
+                          alignItems:'center',
+                          justifyContent:'center',
+                          gap:6,
+                          whiteSpace:'nowrap',
+                          color: hovered===item.id ? item.color : 'inherit',
+                        }}>
+                        <item.icon size={14} style={{ opacity:hovered===item.id?1:0.5, transition:'all 0.12s' }}/>
+                        <span style={{ fontSize:11, fontWeight:700 }}>{item.label}</span>
+                      </button>
+                    )
+                  })}
+                </div>
 
                 <div style={{ width:1, height:18, background:'rgba(255,255,255,0.1)', margin:'0 6px', flexShrink:0 }}/>
 
@@ -321,7 +334,8 @@ export function NexusToolbar({ spotlightMode: forceSpotlight, setView }: {
                 style={{ position:'fixed', inset:0, zIndex:898, background:'rgba(0,0,0,0.4)', backdropFilter:'blur(4px)' }}
                 onClick={() => { setCmdMode(false); setExpanded(false) }} />
               <motion.div initial={{opacity:0,scale:0.95,y:-10}} animate={{opacity:1,scale:1,y:0}} exit={{opacity:0,scale:0.95,y:-10}}
-                style={{ position:'fixed', top:isBottom?'auto':'calc(100% + 12px)', bottom:isBottom?'calc(100% + 12px)':'auto', left:'50%', transform:'translateX(-50%)', width:660, zIndex:899 }}>
+                transition={reducedMotion ? { duration: 0.12 } : { type:'spring', stiffness:340, damping:28 }}
+                style={{ position:'fixed', top:isBottom?'auto':'calc(100% + 12px)', bottom:isBottom?'calc(100% + 12px)':'auto', left:spotlightAnchorX, transform:'translateX(-30%)', width:660, zIndex:899 }}>
                 <SpotlightPanel
                   search={search} setSearch={setSearch} selIdx={selIdx} setSelIdx={setSelIdx}
                   suggestions={suggestions} commands={COMMANDS} handleKey={handleKey}

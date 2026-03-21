@@ -87,6 +87,8 @@ export function NexusToolbar({
   const isSpotlight = toolbarMode === "spotlight" || !!forceSpotlight;
   const isFullWidth = toolbarMode === "full-width";
   const isBottom = (t.toolbar?.position ?? "bottom") === "bottom";
+  const reducedMotion = t.qol?.reducedMotion ?? false;
+  const spotlightAnchorX = "30%";
 
   useEffect(() => {
     setPinnedIds(
@@ -832,11 +834,16 @@ export function NexusToolbar({
                 initial={{ opacity: 0, y: -16, scale: 0.96 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -16, scale: 0.96 }}
+                transition={
+                  reducedMotion
+                    ? { duration: 0.12 }
+                    : { type: "spring", stiffness: 360, damping: 30 }
+                }
                 style={{
                   position: "fixed",
                   top: 80,
-                  left: "50%",
-                  transform: "translateX(-50%)",
+                  left: spotlightAnchorX,
+                  transform: "translateX(-30%)",
                   width: "min(760px, 92vw)",
                   zIndex: 901,
                 }}
@@ -882,16 +889,52 @@ export function NexusToolbar({
           />
 
           <div
+            className="nx-toolbar-view-rail"
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 8,
+              gap: 4,
+              maxWidth: "52vw",
+              overflowX: "auto",
+              overflowY: "hidden",
+              paddingBottom: 2,
             }}
           >
-            <span style={{ fontSize: 11, fontWeight: 800, opacity: 0.65 }}>
-              Command Bar
-            </span>
-            <span style={{ fontSize: 10, opacity: 0.45 }}>Shift x2</span>
+            {VIEW_ITEMS.map((item) => {
+              const itemRgb = hexToRgb(item.color);
+              const Icon = item.icon;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => setView?.(item.id)}
+                  style={{
+                    border: "none",
+                    borderRadius: 10,
+                    padding: "5px 9px",
+                    background: "transparent",
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    whiteSpace: "nowrap",
+                    color: "inherit",
+                    fontSize: 11,
+                    fontWeight: 700,
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = `rgba(${itemRgb},0.16)`;
+                    e.currentTarget.style.color = item.color;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "transparent";
+                    e.currentTarget.style.color = "inherit";
+                  }}
+                >
+                  <Icon size={12} />
+                  {item.label}
+                </button>
+              );
+            })}
           </div>
 
           <div style={{ flex: 1 }} />
@@ -984,13 +1027,20 @@ export function NexusToolbar({
     >
       <motion.div
         animate={{
-          width: expanded ? "min(940px, 96vw)" : "min(420px, 92vw)",
-          height: expanded ? 66 : 54,
+          width: expanded ? "min(1060px, 96vw)" : "min(500px, 94vw)",
+          height: expanded ? 74 : 56,
         }}
-        transition={{ type: "spring", stiffness: 380, damping: 30 }}
+        transition={
+          reducedMotion
+            ? { duration: 0.12 }
+            : { type: "spring", stiffness: 300, damping: 32, mass: 0.9 }
+        }
         style={{
           position: "relative",
-          animation: expanded ? "nexus-dock-breathe 3.4s ease-in-out infinite" : undefined,
+          animation:
+            expanded && !reducedMotion
+              ? "nexus-dock-breathe 3.8s ease-in-out infinite"
+              : undefined,
         }}
       >
         <div
@@ -1001,7 +1051,9 @@ export function NexusToolbar({
             background: `conic-gradient(from 0deg, ${t.accent}, ${t.accent2}, ${t.accent})`,
             filter: `blur(${expanded ? 24 : 16}px)`,
             opacity: expanded ? 0.55 : 0.28,
-            animation: "nexus-gradient-shift 8s ease infinite",
+            animation: reducedMotion
+              ? undefined
+              : "nexus-gradient-shift 8s ease infinite",
             pointerEvents: "none",
           }}
         />
@@ -1025,7 +1077,9 @@ export function NexusToolbar({
             background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.22), transparent)",
             mixBlendMode: "screen",
             pointerEvents: "none",
-            animation: "nexus-shine-sweep 4.8s ease-in-out infinite",
+            animation: reducedMotion
+              ? undefined
+              : "nexus-shine-sweep 4.8s ease-in-out infinite",
           }}
         />
 
@@ -1099,29 +1153,90 @@ export function NexusToolbar({
                 style={{
                   display: "flex",
                   alignItems: "center",
-                  gap: 8,
+                  gap: 9,
                   flex: 1,
+                  minWidth: 0,
                 }}
               >
-                <StatusPill
-                  label="Tasks"
-                  value={pendingTasks}
-                  color={pendingTasks ? "#ff9f0a" : undefined}
-                />
-                <StatusPill
-                  label="Due"
-                  value={overdueReminders}
-                  color={overdueReminders ? "#ff453a" : undefined}
-                />
-                <span
+                <div
                   style={{
-                    fontSize: 10,
-                    opacity: 0.55,
-                    fontFamily: "monospace",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    minWidth: 0,
+                    flex: 1,
+                    overflowX: "auto",
+                    overflowY: "hidden",
+                    paddingBottom: 2,
+                  }}
+                  className="nx-toolbar-view-rail"
+                >
+                  {VIEW_ITEMS.map((item) => {
+                    const Icon = item.icon;
+                    const iRgb = hexToRgb(item.color);
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => setView?.(item.id)}
+                        title={item.label}
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 6,
+                          whiteSpace: "nowrap",
+                          border: "none",
+                          borderRadius: 10,
+                          background: "transparent",
+                          padding: "6px 9px",
+                          cursor: "pointer",
+                          fontSize: 11,
+                          fontWeight: 700,
+                          color: "inherit",
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = `rgba(${iRgb},0.16)`;
+                          e.currentTarget.style.color = item.color;
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = "transparent";
+                          e.currentTarget.style.color = "inherit";
+                        }}
+                      >
+                        <Icon size={13} />
+                        {item.label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    flexShrink: 0,
                   }}
                 >
-                  {timeStr}
-                </span>
+                  <StatusPill
+                    label="Tasks"
+                    value={pendingTasks}
+                    color={pendingTasks ? "#ff9f0a" : undefined}
+                  />
+                  <StatusPill
+                    label="Due"
+                    value={overdueReminders}
+                    color={overdueReminders ? "#ff453a" : undefined}
+                  />
+                  <span
+                    style={{
+                      fontSize: 10,
+                      opacity: 0.55,
+                      fontFamily: "monospace",
+                    }}
+                  >
+                    {timeStr}
+                  </span>
+                </div>
               </div>
 
               <button
@@ -1176,10 +1291,15 @@ export function NexusToolbar({
               initial={{ opacity: 0, scale: 0.98, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.98, y: 10 }}
+              transition={
+                reducedMotion
+                  ? { duration: 0.12 }
+                  : { type: "spring", stiffness: 340, damping: 30 }
+              }
               style={{
                 position: "absolute",
-                left: "50%",
-                transform: "translateX(-50%)",
+                left: spotlightAnchorX,
+                transform: "translateX(-30%)",
                 top: isBottom ? undefined : "calc(100% + 12px)",
                 bottom: isBottom ? "calc(100% + 12px)" : undefined,
                 width: "min(700px, 92vw)",

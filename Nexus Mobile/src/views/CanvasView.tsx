@@ -54,6 +54,8 @@ const PM_PRIORITY_COLOR: Record<ProjectPriority, string> = {
     critical: '#FF453A',
 }
 
+const CANVAS_NODE_OVERSCAN_PX = 560
+
 // ─── CONNECTION LINE ───
 
 function ConnectionLine({ conn, nodes, zoom, onDelete }: {
@@ -971,7 +973,7 @@ export function CanvasView() {
             .slice(0, 8)
     }, [filteredProjectNodes])
 
-    const visibleNodeIds = useMemo(() => {
+    const focusNodeIds = useMemo(() => {
         if (!canvas) return new Set<string>()
         if (!focusNodeOnly || !selectedNodeId) return new Set(canvas.nodes.map(n => n.id))
         const linked = new Set<string>([selectedNodeId])
@@ -982,10 +984,40 @@ export function CanvasView() {
         return linked
     }, [canvas, focusNodeOnly, selectedNodeId])
 
-    const visibleNodes = useMemo(
-        () => canvas?.nodes.filter(n => visibleNodeIds.has(n.id)) ?? [],
-        [canvas, visibleNodeIds]
+    const visibleBounds = useMemo(() => {
+        const zoom = Math.max(0.0001, viewport.zoom)
+        const worldLeft = -viewport.panX / zoom
+        const worldTop = -viewport.panY / zoom
+        const worldRight = worldLeft + canvasSize.w / zoom
+        const worldBottom = worldTop + canvasSize.h / zoom
+        return {
+            left: worldLeft - CANVAS_NODE_OVERSCAN_PX,
+            top: worldTop - CANVAS_NODE_OVERSCAN_PX,
+            right: worldRight + CANVAS_NODE_OVERSCAN_PX,
+            bottom: worldBottom + CANVAS_NODE_OVERSCAN_PX,
+        }
+    }, [viewport.panX, viewport.panY, viewport.zoom, canvasSize.w, canvasSize.h])
+
+    const visibleNodes = useMemo(() => {
+        if (!canvas) return []
+        return canvas.nodes.filter(n => {
+            if (!focusNodeIds.has(n.id)) return false
+            const right = n.x + n.width
+            const bottom = n.y + n.height
+            return !(
+                right < visibleBounds.left
+                || n.x > visibleBounds.right
+                || bottom < visibleBounds.top
+                || n.y > visibleBounds.bottom
+            )
+        })
+    }, [canvas, focusNodeIds, visibleBounds])
+
+    const visibleNodeIds = useMemo(
+        () => new Set(visibleNodes.map(n => n.id)),
+        [visibleNodes],
     )
+
     const visibleConnections = useMemo(
         () => canvas?.connections.filter(cn => visibleNodeIds.has(cn.fromId) && visibleNodeIds.has(cn.toId)) ?? [],
         [canvas, visibleNodeIds]
@@ -1117,11 +1149,15 @@ export function CanvasView() {
     const handleWheel = useCallback((e: React.WheelEvent) => {
         e.preventDefault()
         const deltaScale = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? canvasSize.h : 1
-        const dx = e.deltaX * deltaScale
-        const dy = e.deltaY * deltaScale
+        const rawDx = e.deltaX * deltaScale
+        const rawDy = e.deltaY * deltaScale
+        const dx = Math.max(-240, Math.min(240, rawDx))
+        const dy = Math.max(-240, Math.min(240, rawDy))
+        if (Math.abs(dx) < 0.001 && Math.abs(dy) < 0.001) return
 
         if (e.ctrlKey || e.metaKey) {
-            const factor = Math.exp(-dy * 0.0015)
+            const isTrackpadPinch = e.deltaMode === 0 && Math.abs(rawDy) < 24
+            const factor = Math.exp(-dy * (isTrackpadPinch ? 0.0021 : 0.00135))
             applyZoomAtPoint(e.clientX, e.clientY, factor)
             return
         }
@@ -1152,7 +1188,7 @@ export function CanvasView() {
         }
         wheelPanReleaseTimeout.current = window.setTimeout(() => {
             setWheelPanning(false)
-        }, 90)
+        }, 110)
     }, [applyZoomAtPoint, canvasSize.h])
 
     useEffect(() => () => {
@@ -1662,6 +1698,9 @@ export function CanvasView() {
                                         ? 'linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px)'
                                         : 'linear-gradient(rgba(0,0,0,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.05) 1px, transparent 1px)')
                                     : 'none',
+                            touchAction: 'none',
+                            overscrollBehavior: 'none',
+                            contain: 'layout paint',
                         }}
                         onMouseDown={handleCanvasMouseDown}
                         onWheel={handleWheel}
@@ -1871,7 +1910,7 @@ export function CanvasView() {
                             position: 'absolute', bottom: 16, left: '50%', transform: 'translateX(-50%)',
                             fontSize: 10, opacity: 0.35, pointerEvents: 'none',
                             background: 'rgba(0,0,0,0.4)', padding: '2px 8px', borderRadius: 6, fontFamily: 'monospace',
-                        }}>{Math.round(viewport.zoom * 100)}% · Scroll to pan · Pinch/Ctrl + Scroll to zoom</div>
+                        }}>{Math.round(viewport.zoom * 100)}% · Scroll to pan · Pinch/Ctrl + Scroll to zoom · Render {visibleNodes.length}/{canvas?.nodes.length ?? 0}</div>
                     )}
                 </div>
             </div>

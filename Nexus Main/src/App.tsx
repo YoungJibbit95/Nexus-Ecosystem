@@ -300,32 +300,6 @@ export default function App() {
     })
   }, [availableViews, view, viewAccessContext])
 
-  if (!bootReady) {
-    return (
-      <div style={{
-        width: '100%',
-        minHeight: '100dvh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'linear-gradient(135deg, #04050c 0%, #111628 100%)',
-        color: '#d7e6ff',
-        fontFamily: 'system-ui, sans-serif',
-        fontWeight: 700,
-      }}>
-        Initialisiere Views und Zugriffsrechte...
-      </div>
-    )
-  }
-
-  const bgStyles = buildBackground(t.background, t.bg, t.mode)
-  const accentRgb = hexToRgb(t.accent)
-  const accent2Rgb = hexToRgb(t.accent2)
-  const sidebarLeft = (t as any).sidebarPosition !== 'right'
-  const toolbarBottom = t.toolbar?.position !== 'top'
-  const toolbarVisible = t.toolbar?.visible !== false
-  const sidebarHidden = (t as any).sidebarStyle === 'hidden'
-
   const motionPreset = useMemo(() => {
     const style = (t.animations as any).entranceStyle ?? 'fade'
     if (!t.animations.pageTransitions) {
@@ -365,6 +339,32 @@ export default function App() {
         }
     }
   }, [t.animations])
+
+  if (!bootReady) {
+    return (
+      <div style={{
+        width: '100%',
+        minHeight: '100dvh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'linear-gradient(135deg, #04050c 0%, #111628 100%)',
+        color: '#d7e6ff',
+        fontFamily: 'system-ui, sans-serif',
+        fontWeight: 700,
+      }}>
+        Initialisiere Views und Zugriffsrechte...
+      </div>
+    )
+  }
+
+  const bgStyles = buildBackground(t.background, t.bg, t.mode)
+  const accentRgb = hexToRgb(t.accent)
+  const accent2Rgb = hexToRgb(t.accent2)
+  const sidebarLeft = (t as any).sidebarPosition !== 'right'
+  const toolbarBottom = t.toolbar?.position !== 'top'
+  const toolbarVisible = t.toolbar?.visible !== false
+  const sidebarHidden = (t as any).sidebarStyle === 'hidden'
 
   const viewMap: Record<View, React.ReactNode> = {
     dashboard: <DashboardView setView={(v: any) => { void requestViewChange(v) }} />,

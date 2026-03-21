@@ -161,6 +161,8 @@ const laneForNode = (node: CanvasNode, index: number): CanvasNodeStatus => {
   return fallback[index % fallback.length];
 };
 
+const CANVAS_NODE_OVERSCAN_PX = 560;
+
 // ─── CONNECTION LINE ───
 
 const ConnectionLine = React.memo(function ConnectionLine({
@@ -2621,6 +2623,46 @@ export function CanvasView() {
   const wheelPanDelta = useRef({ x: 0, y: 0 });
   const wheelPanReleaseTimeout = useRef<number>(0);
 
+  const visibleBounds = useMemo(() => {
+    const zoom = Math.max(0.0001, viewport.zoom);
+    const worldLeft = -viewport.panX / zoom;
+    const worldTop = -viewport.panY / zoom;
+    const worldRight = worldLeft + canvasSize.w / zoom;
+    const worldBottom = worldTop + canvasSize.h / zoom;
+    return {
+      left: worldLeft - CANVAS_NODE_OVERSCAN_PX,
+      top: worldTop - CANVAS_NODE_OVERSCAN_PX,
+      right: worldRight + CANVAS_NODE_OVERSCAN_PX,
+      bottom: worldBottom + CANVAS_NODE_OVERSCAN_PX,
+    };
+  }, [viewport.panX, viewport.panY, viewport.zoom, canvasSize.w, canvasSize.h]);
+
+  const visibleNodes = useMemo(() => {
+    if (!canvas) return [] as CanvasNode[];
+    return canvas.nodes.filter((node) => {
+      const right = node.x + node.width;
+      const bottom = node.y + node.height;
+      return !(
+        right < visibleBounds.left ||
+        node.x > visibleBounds.right ||
+        bottom < visibleBounds.top ||
+        node.y > visibleBounds.bottom
+      );
+    });
+  }, [canvas, visibleBounds]);
+
+  const visibleNodeIds = useMemo(
+    () => new Set(visibleNodes.map((node) => node.id)),
+    [visibleNodes],
+  );
+
+  const visibleConnections = useMemo(() => {
+    if (!canvas) return [] as CanvasConnection[];
+    return canvas.connections.filter(
+      (conn) => visibleNodeIds.has(conn.fromId) && visibleNodeIds.has(conn.toId),
+    );
+  }, [canvas, visibleNodeIds]);
+
   // Track canvas size
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -2804,11 +2846,15 @@ export function CanvasView() {
       e.preventDefault();
       const deltaScale =
         e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? canvasSize.h : 1;
-      const dx = e.deltaX * deltaScale;
-      const dy = e.deltaY * deltaScale;
+      const rawDx = e.deltaX * deltaScale;
+      const rawDy = e.deltaY * deltaScale;
+      const dx = Math.max(-240, Math.min(240, rawDx));
+      const dy = Math.max(-240, Math.min(240, rawDy));
+      if (Math.abs(dx) < 0.001 && Math.abs(dy) < 0.001) return;
 
       if (e.ctrlKey || e.metaKey) {
-        const factor = Math.exp(-dy * 0.0015);
+        const isTrackpadPinch = e.deltaMode === 0 && Math.abs(rawDy) < 24;
+        const factor = Math.exp(-dy * (isTrackpadPinch ? 0.0021 : 0.00135));
         applyZoomAtPoint(e.clientX, e.clientY, factor);
         return;
       }
@@ -2839,7 +2885,7 @@ export function CanvasView() {
       }
       wheelPanReleaseTimeout.current = window.setTimeout(() => {
         setWheelPanning(false);
-      }, 90);
+      }, 110);
     },
     [applyZoomAtPoint, canvasSize.h],
   );
@@ -4185,6 +4231,9 @@ export function CanvasView() {
                       ? "linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px)"
                       : "linear-gradient(rgba(0,0,0,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.05) 1px, transparent 1px)"
                     : "none",
+              touchAction: "none",
+              overscrollBehavior: "none",
+              contain: "layout paint",
             }}
             onMouseDown={handleCanvasMouseDown}
             onWheel={handleWheel}
@@ -4342,7 +4391,7 @@ export function CanvasView() {
               )}
 
               {/* SVG Layer for Connections */}
-              {canvas && canvas.connections.length > 0 && (
+              {canvas && visibleConnections.length > 0 && (
                 <svg
                   style={{
                     position: "absolute",
@@ -4354,7 +4403,7 @@ export function CanvasView() {
                     pointerEvents: "auto",
                     zIndex: 0,
                   }}
-                >
+                  >
                   <defs>
                     <filter
                       id="glow-filter"
@@ -4371,11 +4420,11 @@ export function CanvasView() {
                       />
                     </filter>
                   </defs>
-                  {canvas.connections.map((conn) => (
+                  {visibleConnections.map((conn) => (
                     <ConnectionLine
                       key={conn.id}
                       conn={conn}
-                      nodes={canvas.nodes}
+                      nodes={visibleNodes}
                       zoom={viewport.zoom}
                       onDelete={deleteConnection}
                     />
@@ -4384,7 +4433,7 @@ export function CanvasView() {
               )}
 
               {/* Nodes */}
-              {canvas?.nodes.map((node) => (
+              {visibleNodes.map((node) => (
                 <NodeWidget
                   key={node.id}
                   node={node}
@@ -4508,8 +4557,7 @@ export function CanvasView() {
                 fontFamily: "monospace",
               }}
             >
-              {Math.round(viewport.zoom * 100)}% · Scroll to pan · Pinch/Ctrl +
-              Scroll to zoom
+              {Math.round(viewport.zoom * 100)}% · Scroll to pan · Pinch/Ctrl + Scroll to zoom · Render {visibleNodes.length}/{canvas?.nodes.length ?? 0}
             </div>
           )}
         </div>
