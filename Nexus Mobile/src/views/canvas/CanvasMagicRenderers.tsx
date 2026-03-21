@@ -21,6 +21,21 @@ function appendLine(base: string, line: string) {
   return clean ? `${clean}\n${line}` : line;
 }
 
+function parsePipeRows(content: string) {
+  return content
+    .trim()
+    .split("\n")
+    .filter(Boolean)
+    .map((row) => {
+      const [left = "", right = ""] = row.split("|").map((s) => s.trim());
+      return { left, right };
+    });
+}
+
+function joinPipeRows(rows: Array<{ left: string; right: string }>) {
+  return normalizeContent(rows.map((row) => `${row.left} | ${row.right}`).join("\n"));
+}
+
 function MagicShell({
   label,
   content,
@@ -235,9 +250,9 @@ function MagicShell({
   );
 }
 
-function CanvasMagicList({ content, accent }: MagicBlockProps) {
+function CanvasMagicList({ content, accent, onChange }: MagicBlockProps) {
   const rgb = hexToRgb(accent);
-  const rows = content.trim().split("\n").filter(Boolean);
+  const rows = parsePipeRows(content);
   return (
     <div
       style={{
@@ -252,33 +267,124 @@ function CanvasMagicList({ content, accent }: MagicBlockProps) {
         </div>
       )}
       {rows.map((row, i) => {
-        const [label, detail] = row.split("|").map((s) => s.trim());
+        const updateRow = (next: Partial<{ left: string; right: string }>) => {
+          if (!onChange) return;
+          const nextRows = [...rows];
+          nextRows[i] = {
+            left: next.left ?? nextRows[i].left,
+            right: next.right ?? nextRows[i].right,
+          };
+          onChange(joinPipeRows(nextRows));
+        };
+        const removeRow = () => {
+          if (!onChange) return;
+          onChange(joinPipeRows(rows.filter((_, idx) => idx !== i)));
+        };
         return (
           <div
             key={i}
             style={{
               display: "flex",
-              justifyContent: "space-between",
+              alignItems: "center",
               gap: 8,
               padding: "5px 8px",
               fontSize: 10,
               background: i % 2 === 0 ? `rgba(${rgb},0.06)` : "transparent",
             }}
           >
-            <span style={{ fontWeight: 600 }}>{label}</span>
-            {detail && (
-              <span style={{ opacity: 0.6, textAlign: "right" }}>{detail}</span>
+            {onChange ? (
+              <>
+                <input
+                  className="node-interactive"
+                  value={row.left}
+                  onChange={(e) => updateRow({ left: e.target.value })}
+                  placeholder="Label"
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                    border: `1px solid rgba(${rgb},0.22)`,
+                    borderRadius: 6,
+                    background: "rgba(255,255,255,0.06)",
+                    color: "inherit",
+                    fontSize: 10,
+                    padding: "3px 6px",
+                    outline: "none",
+                  }}
+                />
+                <input
+                  className="node-interactive"
+                  value={row.right}
+                  onChange={(e) => updateRow({ right: e.target.value })}
+                  placeholder="Wert"
+                  style={{
+                    width: 96,
+                    border: `1px solid rgba(${rgb},0.22)`,
+                    borderRadius: 6,
+                    background: "rgba(255,255,255,0.06)",
+                    color: "inherit",
+                    fontSize: 10,
+                    padding: "3px 6px",
+                    outline: "none",
+                  }}
+                />
+                <button
+                  className="node-interactive"
+                  onClick={removeRow}
+                  style={{
+                    border: "none",
+                    borderRadius: 6,
+                    background: "rgba(255,69,58,0.2)",
+                    color: "#ff8b80",
+                    cursor: "pointer",
+                    fontSize: 10,
+                    padding: "2px 6px",
+                  }}
+                >
+                  ✕
+                </button>
+              </>
+            ) : (
+              <>
+                <span style={{ fontWeight: 600 }}>{row.left}</span>
+                {row.right && (
+                  <span style={{ opacity: 0.6, textAlign: "right" }}>
+                    {row.right}
+                  </span>
+                )}
+              </>
             )}
           </div>
         );
       })}
+      {onChange && (
+        <div style={{ padding: "6px 8px", borderTop: `1px solid rgba(${rgb},0.14)` }}>
+          <button
+            className="node-interactive"
+            onClick={() =>
+              onChange(joinPipeRows([...rows, { left: "Neuer Punkt", right: "Kontext" }]))
+            }
+            style={{
+              border: `1px solid rgba(${rgb},0.3)`,
+              borderRadius: 6,
+              background: `rgba(${rgb},0.14)`,
+              color: accent,
+              cursor: "pointer",
+              fontSize: 10,
+              fontWeight: 700,
+              padding: "3px 8px",
+            }}
+          >
+            + Eintrag
+          </button>
+        </div>
+      )}
     </div>
   );
 }
 
-function CanvasMagicProgress({ content, accent }: MagicBlockProps) {
+function CanvasMagicProgress({ content, accent, onChange }: MagicBlockProps) {
   const rgb = hexToRgb(accent);
-  const rows = content.trim().split("\n").filter(Boolean);
+  const rows = parsePipeRows(content);
   return (
     <div
       style={{
@@ -291,8 +397,20 @@ function CanvasMagicProgress({ content, accent }: MagicBlockProps) {
         <div style={{ fontSize: 10, opacity: 0.6 }}>Keine Metriken</div>
       )}
       {rows.map((row, i) => {
-        const [label, pct] = row.split("|").map((s) => s.trim());
-        const val = Math.min(100, Math.max(0, Number(pct) || 0));
+        const val = Math.min(100, Math.max(0, Number(row.right) || 0));
+        const updateRow = (next: Partial<{ left: string; right: string }>) => {
+          if (!onChange) return;
+          const nextRows = [...rows];
+          nextRows[i] = {
+            left: next.left ?? nextRows[i].left,
+            right: next.right ?? nextRows[i].right,
+          };
+          onChange(joinPipeRows(nextRows));
+        };
+        const removeRow = () => {
+          if (!onChange) return;
+          onChange(joinPipeRows(rows.filter((_, idx) => idx !== i)));
+        };
         return (
           <div key={i}>
             <div
@@ -304,8 +422,66 @@ function CanvasMagicProgress({ content, accent }: MagicBlockProps) {
                 opacity: 0.74,
               }}
             >
-              <span>{label}</span>
-              <span>{val}%</span>
+              {onChange ? (
+                <input
+                  className="node-interactive"
+                  value={row.left}
+                  onChange={(e) => updateRow({ left: e.target.value })}
+                  placeholder="Metrik"
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                    border: `1px solid rgba(${rgb},0.22)`,
+                    borderRadius: 6,
+                    background: "rgba(255,255,255,0.06)",
+                    color: "inherit",
+                    fontSize: 9,
+                    padding: "2px 6px",
+                    outline: "none",
+                  }}
+                />
+              ) : (
+                <span>{row.left}</span>
+              )}
+              {onChange ? (
+                <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                  <input
+                    className="node-interactive"
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={val}
+                    onChange={(e) => updateRow({ right: e.target.value })}
+                    style={{
+                      width: 52,
+                      border: `1px solid rgba(${rgb},0.22)`,
+                      borderRadius: 6,
+                      background: "rgba(255,255,255,0.06)",
+                      color: "inherit",
+                      fontSize: 9,
+                      padding: "2px 6px",
+                      outline: "none",
+                    }}
+                  />
+                  <button
+                    className="node-interactive"
+                    onClick={removeRow}
+                    style={{
+                      border: "none",
+                      borderRadius: 6,
+                      background: "rgba(255,69,58,0.2)",
+                      color: "#ff8b80",
+                      cursor: "pointer",
+                      fontSize: 9,
+                      padding: "2px 5px",
+                    }}
+                  >
+                    ✕
+                  </button>
+                </div>
+              ) : (
+                <span>{val}%</span>
+              )}
             </div>
             <div
               style={{
@@ -325,9 +501,40 @@ function CanvasMagicProgress({ content, accent }: MagicBlockProps) {
                 }}
               />
             </div>
+            {onChange && (
+              <input
+                className="node-interactive"
+                type="range"
+                min={0}
+                max={100}
+                value={val}
+                onChange={(e) => updateRow({ right: e.target.value })}
+                style={{ width: "100%", marginTop: 4 }}
+              />
+            )}
           </div>
         );
       })}
+      {onChange && (
+        <button
+          className="node-interactive"
+          onClick={() =>
+            onChange(joinPipeRows([...rows, { left: "Neue Metrik", right: "0" }]))
+          }
+          style={{
+            border: `1px solid rgba(${rgb},0.3)`,
+            borderRadius: 6,
+            background: `rgba(${rgb},0.14)`,
+            color: accent,
+            cursor: "pointer",
+            fontSize: 10,
+            fontWeight: 700,
+            padding: "3px 8px",
+          }}
+        >
+          + KPI
+        </button>
+      )}
     </div>
   );
 }
@@ -359,9 +566,9 @@ function CanvasMagicAlert({ content }: { content: string }) {
   );
 }
 
-function CanvasMagicTimeline({ content, accent }: MagicBlockProps) {
+function CanvasMagicTimeline({ content, accent, onChange }: MagicBlockProps) {
   const rgb = hexToRgb(accent);
-  const rows = content.trim().split("\n").filter(Boolean);
+  const rows = parsePipeRows(content);
   return (
     <div
       style={{
@@ -375,7 +582,19 @@ function CanvasMagicTimeline({ content, accent }: MagicBlockProps) {
         </div>
       )}
       {rows.map((row, i) => {
-        const [when, what] = row.split("|").map((s) => s.trim());
+        const updateRow = (next: Partial<{ left: string; right: string }>) => {
+          if (!onChange) return;
+          const nextRows = [...rows];
+          nextRows[i] = {
+            left: next.left ?? nextRows[i].left,
+            right: next.right ?? nextRows[i].right,
+          };
+          onChange(joinPipeRows(nextRows));
+        };
+        const removeRow = () => {
+          if (!onChange) return;
+          onChange(joinPipeRows(rows.filter((_, idx) => idx !== i)));
+        };
         return (
           <div
             key={i}
@@ -401,12 +620,92 @@ function CanvasMagicTimeline({ content, accent }: MagicBlockProps) {
                 fontWeight: 700,
               }}
             >
-              {when}
+              {onChange ? (
+                <input
+                  className="node-interactive"
+                  value={row.left}
+                  onChange={(e) => updateRow({ left: e.target.value })}
+                  placeholder="Zeitpunkt"
+                  style={{
+                    width: "100%",
+                    border: `1px solid rgba(${rgb},0.22)`,
+                    borderRadius: 6,
+                    background: "rgba(255,255,255,0.06)",
+                    color: "inherit",
+                    fontSize: 9,
+                    padding: "2px 6px",
+                    outline: "none",
+                  }}
+                />
+              ) : (
+                row.left
+              )}
             </div>
-            <div style={{ fontSize: 10, lineHeight: 1.45 }}>{what}</div>
+            {onChange ? (
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <input
+                  className="node-interactive"
+                  value={row.right}
+                  onChange={(e) => updateRow({ right: e.target.value })}
+                  placeholder="Event"
+                  style={{
+                    flex: 1,
+                    border: `1px solid rgba(${rgb},0.22)`,
+                    borderRadius: 6,
+                    background: "rgba(255,255,255,0.06)",
+                    color: "inherit",
+                    fontSize: 10,
+                    padding: "3px 6px",
+                    outline: "none",
+                  }}
+                />
+                <button
+                  className="node-interactive"
+                  onClick={removeRow}
+                  style={{
+                    border: "none",
+                    borderRadius: 6,
+                    background: "rgba(255,69,58,0.2)",
+                    color: "#ff8b80",
+                    cursor: "pointer",
+                    fontSize: 9,
+                    padding: "2px 5px",
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+            ) : (
+              <div style={{ fontSize: 10, lineHeight: 1.45 }}>{row.right}</div>
+            )}
           </div>
         );
       })}
+      {onChange && (
+        <button
+          className="node-interactive"
+          onClick={() =>
+            onChange(
+              joinPipeRows([
+                ...rows,
+                { left: new Date().toISOString().slice(0, 10), right: "Neues Event" },
+              ]),
+            )
+          }
+          style={{
+            border: `1px solid rgba(${rgb},0.3)`,
+            borderRadius: 6,
+            background: `rgba(${rgb},0.14)`,
+            color: accent,
+            cursor: "pointer",
+            fontSize: 10,
+            fontWeight: 700,
+            padding: "3px 8px",
+          }}
+        >
+          + Event
+        </button>
+      )}
     </div>
   );
 }
@@ -476,9 +775,9 @@ function CanvasMagicCard({ content, accent }: MagicBlockProps) {
   );
 }
 
-function CanvasMagicKanban({ content, accent }: MagicBlockProps) {
+function CanvasMagicKanban({ content, accent, onChange }: MagicBlockProps) {
   const rgb = hexToRgb(accent);
-  const lines = content.trim().split("\n").filter(Boolean);
+  const rows = parsePipeRows(content);
   return (
     <div
       style={{
@@ -487,11 +786,23 @@ function CanvasMagicKanban({ content, accent }: MagicBlockProps) {
         gap: 4,
       }}
     >
-      {lines.length === 0 && (
+      {rows.length === 0 && (
         <div style={{ fontSize: 10, opacity: 0.6 }}>Keine Karten</div>
       )}
-      {lines.map((row, i) => {
-        const [lane, task] = row.split("|").map((s) => s.trim());
+      {rows.map((row, i) => {
+        const updateRow = (next: Partial<{ left: string; right: string }>) => {
+          if (!onChange) return;
+          const nextRows = [...rows];
+          nextRows[i] = {
+            left: next.left ?? nextRows[i].left,
+            right: next.right ?? nextRows[i].right,
+          };
+          onChange(joinPipeRows(nextRows));
+        };
+        const removeRow = () => {
+          if (!onChange) return;
+          onChange(joinPipeRows(rows.filter((_, idx) => idx !== i)));
+        };
         return (
           <div
             key={i}
@@ -517,12 +828,92 @@ function CanvasMagicKanban({ content, accent }: MagicBlockProps) {
                 flexShrink: 0,
               }}
             >
-              {lane || "Lane"}
+              {onChange ? (
+                <select
+                  className="node-interactive"
+                  value={row.left || "Todo"}
+                  onChange={(e) => updateRow({ left: e.target.value })}
+                  style={{
+                    border: "none",
+                    background: "transparent",
+                    color: accent,
+                    fontSize: 9,
+                    fontWeight: 700,
+                    outline: "none",
+                  }}
+                >
+                  {["Backlog", "Todo", "Doing", "Review", "Done", "Blocked"].map(
+                    (lane) => (
+                      <option key={lane} value={lane}>
+                        {lane}
+                      </option>
+                    ),
+                  )}
+                </select>
+              ) : (
+                row.left || "Lane"
+              )}
             </span>
-            <span style={{ opacity: 0.84 }}>{task || "Task"}</span>
+            {onChange ? (
+              <>
+                <input
+                  className="node-interactive"
+                  value={row.right}
+                  onChange={(e) => updateRow({ right: e.target.value })}
+                  placeholder="Task"
+                  style={{
+                    flex: 1,
+                    border: `1px solid rgba(${rgb},0.22)`,
+                    borderRadius: 6,
+                    background: "rgba(255,255,255,0.06)",
+                    color: "inherit",
+                    fontSize: 10,
+                    padding: "3px 6px",
+                    outline: "none",
+                  }}
+                />
+                <button
+                  className="node-interactive"
+                  onClick={removeRow}
+                  style={{
+                    border: "none",
+                    borderRadius: 6,
+                    background: "rgba(255,69,58,0.2)",
+                    color: "#ff8b80",
+                    cursor: "pointer",
+                    fontSize: 9,
+                    padding: "2px 5px",
+                  }}
+                >
+                  ✕
+                </button>
+              </>
+            ) : (
+              <span style={{ opacity: 0.84 }}>{row.right || "Task"}</span>
+            )}
           </div>
         );
       })}
+      {onChange && (
+        <button
+          className="node-interactive"
+          onClick={() =>
+            onChange(joinPipeRows([...rows, { left: "Todo", right: "Neue Aufgabe" }]))
+          }
+          style={{
+            border: `1px solid rgba(${rgb},0.3)`,
+            borderRadius: 6,
+            background: `rgba(${rgb},0.14)`,
+            color: accent,
+            cursor: "pointer",
+            fontSize: 10,
+            fontWeight: 700,
+            padding: "3px 8px",
+          }}
+        >
+          + Task
+        </button>
+      )}
     </div>
   );
 }

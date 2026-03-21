@@ -134,6 +134,14 @@ body { background: #0a0a14; color-scheme: dark light; }
 *::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.30); }
 *::-webkit-scrollbar-corner { background: transparent; }
 
+.nx-toolbar-view-rail {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.nx-toolbar-view-rail::-webkit-scrollbar {
+  display: none;
+}
+
 /* ══════════════════════════════════════════════════════════════
    BUTTON ANIMATIONS — universal click-scale + hover glow
    ══════════════════════════════════════════════════════════════ */

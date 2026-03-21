@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
+import React, { useState, useEffect, useRef, useMemo, useCallback, lazy, Suspense } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useTheme, GLOBAL_FONTS } from './store/themeStore'
 import { Sidebar, View } from './components/Sidebar'
@@ -24,19 +24,54 @@ import {
 } from '@nexus/core'
 import { createNexusRuntime, type NexusLiveBundle, type NexusRuntime } from '@nexus/api'
 
-import { DashboardView } from './views/DashboardView'
-import { NotesView } from './views/NotesView'
-import { CodeView } from './views/CodeView'
-import { TasksView } from './views/TasksView'
-import { RemindersView } from './views/RemindersView'
-import { CanvasView } from './views/CanvasView'
-import { FilesView } from './views/FilesView'
-import { FluxView } from './views/FluxView'
-import { SettingsView } from './views/SettingsView'
-import { InfoView } from './views/InfoView'
-import { DevToolsView } from './views/DevToolsView'
-
 const VIEW_IDS = getFallbackViewsForApp('mobile') as View[]
+const loadDashboardView = () => import('./views/DashboardView')
+const loadNotesView = () => import('./views/NotesView')
+const loadCodeView = () => import('./views/CodeView')
+const loadTasksView = () => import('./views/TasksView')
+const loadRemindersView = () => import('./views/RemindersView')
+const loadCanvasView = () => import('./views/CanvasView')
+const loadFilesView = () => import('./views/FilesView')
+const loadFluxView = () => import('./views/FluxView')
+const loadSettingsView = () => import('./views/SettingsView')
+const loadInfoView = () => import('./views/InfoView')
+const loadDevToolsView = () => import('./views/DevToolsView')
+
+const DashboardView = lazy(() => loadDashboardView().then(m => ({ default: m.DashboardView })))
+const NotesView = lazy(() => loadNotesView().then(m => ({ default: m.NotesView })))
+const CodeView = lazy(() => loadCodeView().then(m => ({ default: m.CodeView })))
+const TasksView = lazy(() => loadTasksView().then(m => ({ default: m.TasksView })))
+const RemindersView = lazy(() => loadRemindersView().then(m => ({ default: m.RemindersView })))
+const CanvasView = lazy(() => loadCanvasView().then(m => ({ default: m.CanvasView })))
+const FilesView = lazy(() => loadFilesView().then(m => ({ default: m.FilesView })))
+const FluxView = lazy(() => loadFluxView().then(m => ({ default: m.FluxView })))
+const SettingsView = lazy(() => loadSettingsView().then(m => ({ default: m.SettingsView })))
+const InfoView = lazy(() => loadInfoView().then(m => ({ default: m.InfoView })))
+const DevToolsView = lazy(() => loadDevToolsView().then(m => ({ default: m.DevToolsView })))
+
+const VIEW_CHUNK_PRELOADERS: Record<View, () => Promise<unknown>> = {
+  dashboard: loadDashboardView,
+  notes: loadNotesView,
+  code: loadCodeView,
+  tasks: loadTasksView,
+  reminders: loadRemindersView,
+  canvas: loadCanvasView,
+  files: loadFilesView,
+  flux: loadFluxView,
+  settings: loadSettingsView,
+  info: loadInfoView,
+  devtools: loadDevToolsView,
+}
+
+const preloadMobileViews = async (views: View[]) => {
+  const tasks = views
+    .map((viewId) => VIEW_CHUNK_PRELOADERS[viewId])
+    .filter((loader): loader is () => Promise<unknown> => typeof loader === 'function')
+    .map((loader) => loader())
+
+  if (tasks.length === 0) return
+  await Promise.allSettled(tasks)
+}
 
 export default function App() {
   const [view, setView] = useState<View>('dashboard')
@@ -148,6 +183,9 @@ export default function App() {
         })
         if (!active) return
         const allowedViews = warmup.allowedViews.filter((candidate) => startupViews.includes(candidate as View)) as View[]
+        const preloadViews = allowedViews.length > 0 ? allowedViews : startupViews
+        await preloadMobileViews(preloadViews)
+        if (!active) return
         setAvailableViews(startupViews)
         setView((prev) => {
           if (allowedViews.length === 0) return startupViews[0] || prev
@@ -155,6 +193,12 @@ export default function App() {
           return allowedViews[0]
         })
       } catch {
+        if (!active) return
+        try {
+          await preloadMobileViews(startupViews)
+        } catch {
+          // Ignore chunk preloading failures and continue boot.
+        }
         if (!active) return
         setAvailableViews(startupViews)
       }
@@ -263,6 +307,19 @@ export default function App() {
     })
   }, [availableViews, view, viewAccessContext])
 
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        setPaletteOpen((s) => !s)
+      } else if (e.key === 'Escape') {
+        setPaletteOpen(false)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
   if (!bootReady) {
     return (
       <div style={{
@@ -342,19 +399,6 @@ export default function App() {
       }} />
     </div>
   )
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
-        e.preventDefault()
-        setPaletteOpen((s) => !s)
-      } else if (e.key === 'Escape') {
-        setPaletteOpen(false)
-      }
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [])
 
   // ── MOBILE LAYOUT ───────────────────────────────────────────────────────
   if (mob.isMobile) {
@@ -481,7 +525,23 @@ export default function App() {
               transition={{ duration: 0.18, ease: 'easeInOut' }}
               style={{ height: '100%', overflow: 'hidden' }}
             >
-              {viewMap[view]}
+              <Suspense
+                fallback={
+                  <div style={{
+                    height: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    opacity: 0.6,
+                    fontSize: 13,
+                    fontWeight: 600,
+                  }}>
+                    Loading view...
+                  </div>
+                }
+              >
+                {viewMap[view]}
+              </Suspense>
             </motion.div>
           </AnimatePresence>
         </div>
@@ -573,7 +633,23 @@ export default function App() {
               transition={{ duration: 0.18 * (t.visual.animationSpeed || 1), ease: 'easeInOut' }}
               style={{ flex: 1, overflow: 'hidden', height: '100%', minHeight: 0 }}
             >
-              {viewMap[view]}
+              <Suspense
+                fallback={
+                  <div style={{
+                    height: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    opacity: 0.6,
+                    fontSize: 13,
+                    fontWeight: 600,
+                  }}>
+                    Loading view...
+                  </div>
+                }
+              >
+                {viewMap[view]}
+              </Suspense>
             </motion.div>
           </AnimatePresence>
           <NexusTerminal setView={(v: any) => { void requestViewChange(v) }} openPalette={() => setPaletteOpen(true)} />
