@@ -29,6 +29,17 @@ type AppFilter = 'all' | AppId
 type VisualFxMode = 'full' | 'lite'
 type AuthMode = 'signup' | 'login'
 
+type SectionId =
+  | 'hero'
+  | 'solar'
+  | 'ecosystem'
+  | 'apps'
+  | 'atlas'
+  | 'guides'
+  | 'matrix'
+  | 'integration'
+  | 'coverage'
+
 type PreviewModule = {
   id: string
   label: string
@@ -41,36 +52,23 @@ type PreviewDefinition = {
   modules: PreviewModule[]
 }
 
-type SectionId =
-  | 'overview'
-  | 'ecosystem'
-  | 'apps'
-  | 'map'
-  | 'orbit'
-  | 'atlas'
-  | 'guides'
-  | 'matrix'
-  | 'integration'
-  | 'coverage'
+type SurfaceTabId = 'main' | 'code' | 'mobile'
 
 const SECTION_ITEMS: Array<{ id: SectionId; label: string; icon: any; emoji: string; keywords: string[] }> = [
-  { id: 'overview', label: 'Overview', icon: Rocket, emoji: '🚀', keywords: ['start', 'hero', 'intro'] },
-  { id: 'ecosystem', label: 'Ecosystem', icon: Grid3X3, emoji: '🛰️', keywords: ['architektur', 'flow', 'runtime'] },
+  { id: 'hero', label: 'Overview', icon: Rocket, emoji: '🚀', keywords: ['intro', 'start', 'hero'] },
+  { id: 'solar', label: 'Solar Travel', icon: Sparkles, emoji: '🪐', keywords: ['sonnensystem', 'travel', 'tabs'] },
+  { id: 'ecosystem', label: 'Ecosystem', icon: Grid3X3, emoji: '🛰️', keywords: ['architektur', 'runtime', 'flow'] },
   { id: 'apps', label: 'App Surfaces', icon: Workflow, emoji: '🧠', keywords: ['main', 'code', 'mobile', 'tabs'] },
-  { id: 'map', label: 'Info Map', icon: Compass, emoji: '🧭', keywords: ['navigation', 'wo finde ich was'] },
-  { id: 'orbit', label: 'Mission Orbit', icon: Sparkles, emoji: '🪐', keywords: ['module', 'surface'] },
-  { id: 'atlas', label: 'Wiki Atlas', icon: Search, emoji: '📚', keywords: ['suche', 'artikel', 'finder'] },
-  { id: 'guides', label: 'Guide Pages', icon: BookOpen, emoji: '🧩', keywords: ['view guide', 'markdown'] },
-  { id: 'matrix', label: 'View Matrix', icon: Table2, emoji: '🗂️', keywords: ['parity', 'on off'] },
-  { id: 'integration', label: 'Auth + Paywall', icon: ShieldCheck, emoji: '💳', keywords: ['billing', 'login', 'signup'] },
-  { id: 'coverage', label: 'Coverage', icon: LayoutDashboard, emoji: '📈', keywords: ['stats', 'quellen'] },
+  { id: 'atlas', label: 'Wiki Atlas', icon: Search, emoji: '📚', keywords: ['search', 'finder', 'artikel'] },
+  { id: 'guides', label: 'Guide Worlds', icon: BookOpen, emoji: '🧩', keywords: ['view guide', 'markdown', 'features'] },
+  { id: 'matrix', label: 'View Matrix', icon: Table2, emoji: '🗂️', keywords: ['parity', 'availability'] },
+  { id: 'integration', label: 'Auth + Paywall', icon: ShieldCheck, emoji: '💳', keywords: ['login', 'signup', 'billing'] },
+  { id: 'coverage', label: 'Coverage', icon: LayoutDashboard, emoji: '📈', keywords: ['stats', 'quellen', 'coverage'] },
 ]
 
 const GUIDE_CATEGORIES = new Set<CategoryId>(['view', 'markdown', 'settings', 'workflow'])
 
-type SurfaceTabId = 'main' | 'code' | 'mobile'
-
-const APP_SURFACE_TABS: Array<{
+const SURFACE_TABS: Array<{
   id: SurfaceTabId
   label: string
   emoji: string
@@ -88,7 +86,7 @@ const APP_SURFACE_TABS: Array<{
     guideApps: ['main'],
     subtitle: 'Desktop Productivity Universe',
     highlights: [
-      'Dashboard, Notes, Canvas, Tasks, Reminders, Files, Flux, DevTools, Settings',
+      'Dashboard, Notes, Canvas, Tasks, Reminders, Files, Flux, DevTools und Settings',
       'NotesView + Canvas mit Magic Menues und Markdown Superflows',
       'Terminal + Spotlight als produktiver Command Layer',
     ],
@@ -102,7 +100,7 @@ const APP_SURFACE_TABS: Array<{
     guideApps: ['code'],
     subtitle: 'Desktop IDE Universe',
     highlights: [
-      'Explorer, Search, Problems, Git, Debug, Extensions, Terminal',
+      'Explorer, Search, Problems, Git, Debug, Extensions und Terminal',
       'Editor-Loop mit Diagnostics, Command Palette und workspace IO',
       'Keyboard-first Workflows fuer schnelle Delivery',
     ],
@@ -126,8 +124,7 @@ const APP_SURFACE_TABS: Array<{
 
 const previewMap: Record<AppId, PreviewDefinition> = {
   ecosystem: {
-    intro:
-      'Monorepo Kontrolle fuer Main, Mobile, Code, Code Mobile und die gehostete Control Plane mit Runtime Contracts.',
+    intro: 'Monorepo Kontrolle fuer Main, Mobile, Code, Code Mobile und gehostete Control Plane mit Runtime Contracts.',
     modules: [
       { id: 'eco-1', label: 'Root Scripts', state: 'stable', detail: 'setup, build, verify, doctor und dev orchestration.' },
       { id: 'eco-2', label: 'Shared Core', state: 'stable', detail: 'liveSync, runtime mapping, contract glue, view guard layer.' },
@@ -234,57 +231,6 @@ Bitte implementiere/validiere folgende Contracts fuer Website Auth + Billing:
 6) Signed owner mutations und idempotency keys fuer kritische billing/policy endpoints.
 Antwort als API contract changelog mit request/response JSON, error-codes und migration notes.`
 
-const INFO_MAP_CARDS = [
-  {
-    id: 'map-1',
-    title: 'Quick Orientation',
-    text: 'Overview + Info Map erklaeren direkt, wo du Architektur, Views, Settings, Markdown und API-Flows findest.',
-    target: 'overview',
-  },
-  {
-    id: 'map-2',
-    title: 'Ecosystem Deep Area',
-    text: 'Großer Architekturbereich mit Galaxy-Map, Markdown-Look-Zusammenfassung und Flow Steps.',
-    target: 'ecosystem',
-  },
-  {
-    id: 'map-3',
-    title: 'App Surface Tabs',
-    text: 'Feste Tabs fuer Nexus Main, Nexus Code und Mobile Versionen mit eigenen Interaktionszonen.',
-    target: 'apps',
-  },
-  {
-    id: 'map-4',
-    title: 'Feature Scope',
-    text: 'Mission Orbit zeigt App-Surfaces und Kernmodule. Klick auf ein Surface fuer konkrete Module.',
-    target: 'orbit',
-  },
-  {
-    id: 'map-5',
-    title: 'Article Explorer',
-    text: 'Wiki Atlas ist der schnelle Finder ueber Suche + Kategorie + App Filter mit Detailansicht.',
-    target: 'atlas',
-  },
-  {
-    id: 'map-6',
-    title: 'Guide Pages',
-    text: 'Jede View hat eine große Guide-Seite mit Schritten, Funktionen, Commands und Quellen.',
-    target: 'guides',
-  },
-  {
-    id: 'map-7',
-    title: 'Parity Checks',
-    text: 'View Matrix und Coverage zeigen, welche Views wo verfuegbar sind und wie breit dokumentiert wurde.',
-    target: 'matrix',
-  },
-  {
-    id: 'map-8',
-    title: 'Auth + Paywall',
-    text: 'Integration Bereich zeigt Website-Template fuer Signup/Login/Billing und API-Handover Prompt.',
-    target: 'integration',
-  },
-]
-
 function makeSearchBlob(entry: WikiEntry) {
   const chunks = [
     entry.title,
@@ -301,20 +247,28 @@ function makeSearchBlob(entry: WikiEntry) {
   return chunks.join(' ').toLowerCase()
 }
 
+function hashHue(value: string) {
+  let hash = 0
+  for (let i = 0; i < value.length; i += 1) {
+    hash = (hash * 31 + value.charCodeAt(i)) % 360
+  }
+  return hash
+}
+
 function jumpTo(id: string) {
   document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
 function App() {
-  const [activeSection, setActiveSection] = useState<SectionId>('overview')
+  const [activeSection, setActiveSection] = useState<SectionId>('hero')
   const [visualFxMode, setVisualFxMode] = useState<VisualFxMode>('full')
-  const [sectionSearch, setSectionSearch] = useState('')
+  const [travelSearch, setTravelSearch] = useState('')
   const [atlasQuery, setAtlasQuery] = useState('')
   const [guideQuery, setGuideQuery] = useState('')
   const [category, setCategory] = useState<CategoryFilter>('all')
   const [appFilter, setAppFilter] = useState<AppFilter>('all')
-  const [activeSurfaceTab, setActiveSurfaceTab] = useState<SurfaceTabId>('main')
-  const [selectedId, setSelectedId] = useState<string>(entries[0]?.id ?? '')
+  const [surfaceTab, setSurfaceTab] = useState<SurfaceTabId>('main')
+  const [selectedAtlasId, setSelectedAtlasId] = useState<string>(entries[0]?.id ?? '')
   const [previewApp, setPreviewApp] = useState<AppId>('main')
   const [previewModuleId, setPreviewModuleId] = useState(previewMap.main.modules[0]?.id ?? '')
   const [copyState, setCopyState] = useState('')
@@ -327,7 +281,7 @@ function App() {
   const [authTier, setAuthTier] = useState<TierId>('free')
   const [featureCheck, setFeatureCheck] = useState<FeatureId>('notes.magic')
 
-  const deferredSectionSearch = useDeferredValue(sectionSearch)
+  const deferredTravelSearch = useDeferredValue(travelSearch)
   const deferredAtlasQuery = useDeferredValue(atlasQuery)
   const deferredGuideQuery = useDeferredValue(guideQuery)
 
@@ -354,37 +308,38 @@ function App() {
   }, [])
 
   useEffect(() => {
-    const observer = new IntersectionObserver(
+    const revealObserver = new IntersectionObserver(
       (records) => {
         records.forEach((record) => {
           if (record.isIntersecting) {
             record.target.classList.add('is-visible')
-            observer.unobserve(record.target)
+            revealObserver.unobserve(record.target)
           }
         })
       },
-      { threshold: 0.15, rootMargin: '0px 0px -10% 0px' },
+      { threshold: 0.14, rootMargin: '0px 0px -10% 0px' },
     )
 
-    const targets = document.querySelectorAll('.scroll-reveal')
-    targets.forEach((item) => observer.observe(item))
-    return () => observer.disconnect()
-  }, [atlasQuery, guideQuery, appFilter, category])
+    const revealNodes = document.querySelectorAll('.scroll-reveal')
+    revealNodes.forEach((node) => revealObserver.observe(node))
+
+    return () => revealObserver.disconnect()
+  }, [atlasQuery, guideQuery, appFilter, category, surfaceTab])
 
   useEffect(() => {
     const sectionObserver = new IntersectionObserver(
       (records) => {
-        const visible = records
+        const best = records
           .filter((record) => record.isIntersecting)
           .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0]
 
-        if (!visible) return
-        const id = visible.target.id as SectionId
+        if (!best) return
+        const id = best.target.id as SectionId
         if (SECTION_ITEMS.some((item) => item.id === id)) {
           setActiveSection(id)
         }
       },
-      { threshold: [0.2, 0.35, 0.6], rootMargin: '-10% 0px -48% 0px' },
+      { threshold: [0.2, 0.35, 0.6], rootMargin: '-12% 0px -44% 0px' },
     )
 
     SECTION_ITEMS.forEach((item) => {
@@ -414,83 +369,17 @@ function App() {
 
   useEffect(() => {
     if (!atlasEntries.length) {
-      setSelectedId('')
+      setSelectedAtlasId('')
       return
     }
-    if (!atlasEntries.some((entry) => entry.id === selectedId)) {
-      setSelectedId(atlasEntries[0].id)
+    if (!atlasEntries.some((entry) => entry.id === selectedAtlasId)) {
+      setSelectedAtlasId(atlasEntries[0].id)
     }
-  }, [atlasEntries, selectedId])
+  }, [atlasEntries, selectedAtlasId])
 
-  useEffect(() => {
-    const modules = previewMap[previewApp].modules
-    if (!modules.some((module) => module.id === previewModuleId)) {
-      setPreviewModuleId(modules[0]?.id ?? '')
-    }
-  }, [previewApp, previewModuleId])
-
-  const selectedEntry = useMemo(
-    () => atlasEntries.find((entry) => entry.id === selectedId) ?? null,
-    [atlasEntries, selectedId],
-  )
-
-  const selectedPreviewModule = useMemo(
-    () => previewMap[previewApp].modules.find((module) => module.id === previewModuleId) ?? null,
-    [previewApp, previewModuleId],
-  )
-
-  const activeSurfaceDefinition = useMemo(
-    () => APP_SURFACE_TABS.find((item) => item.id === activeSurfaceTab) ?? APP_SURFACE_TABS[0],
-    [activeSurfaceTab],
-  )
-
-  const selectedSurfaceModule = useMemo(() => {
-    const modules = previewMap[activeSurfaceDefinition.previewKey].modules
-    return modules.find((module) => module.id === previewModuleId) ?? modules[0] ?? null
-  }, [activeSurfaceDefinition, previewModuleId])
-
-  const activeSurfaceGuides = useMemo(() => {
-    const matchingApps = new Set(activeSurfaceDefinition.guideApps)
-    return entries
-      .filter((entry) => matchingApps.has(entry.app) && GUIDE_CATEGORIES.has(entry.category))
-      .slice(0, 16)
-  }, [activeSurfaceDefinition])
-
-  const activeSurfaceModules = useMemo(
-    () => previewMap[activeSurfaceDefinition.previewKey].modules,
-    [activeSurfaceDefinition],
-  )
-
-  const sectionSearchMatches = useMemo(() => {
-    const q = deferredSectionSearch.trim().toLowerCase()
-    if (!q) return []
-
-    const sectionMatches = SECTION_ITEMS.filter((item) => {
-      const terms = [item.label, ...item.keywords, item.emoji].join(' ').toLowerCase()
-      return terms.includes(q)
-    }).map((item) => ({
-      id: item.id,
-      title: item.label,
-      subtitle: `Section · ${item.emoji}`,
-      type: 'section' as const,
-    }))
-
-    const tabMatches = APP_SURFACE_TABS.filter((item) => {
-      const terms = [item.label, item.subtitle, ...item.keywords].join(' ').toLowerCase()
-      return terms.includes(q)
-    }).map((item) => ({
-      id: item.id,
-      title: item.label,
-      subtitle: `App Tab · ${item.emoji}`,
-      type: 'tab' as const,
-    }))
-
-    return [...sectionMatches, ...tabMatches].slice(0, 10)
-  }, [deferredSectionSearch])
-
-  const quickCounts = useMemo(
-    () => apps.map((item) => ({ ...item, count: atlasEntries.filter((entry) => entry.app === item.id).length })),
-    [atlasEntries],
+  const selectedAtlasEntry = useMemo(
+    () => atlasEntries.find((entry) => entry.id === selectedAtlasId) ?? null,
+    [atlasEntries, selectedAtlasId],
   )
 
   const guideEntries = useMemo(() => {
@@ -506,58 +395,134 @@ function App() {
 
   const groupedGuides = useMemo(() => {
     return apps
-      .map((item) => ({
-        app: item,
-        guides: guideEntries.filter((entry) => entry.app === item.id),
-      }))
+      .map((item) => ({ app: item, guides: guideEntries.filter((entry) => entry.app === item.id) }))
       .filter((group) => group.guides.length > 0)
   }, [guideEntries])
 
-  const markdownFocusEntries = useMemo(
-    () => guideEntries.filter((entry) => entry.category === 'markdown').slice(0, 8),
-    [guideEntries],
+  const surfaceDefinition = useMemo(
+    () => SURFACE_TABS.find((item) => item.id === surfaceTab) ?? SURFACE_TABS[0],
+    [surfaceTab],
   )
 
-  const categoryCounts = useMemo(() => {
-    return categories.map((item) => ({
-      id: item.id,
-      label: item.label,
-      count: entries.filter((entry) => entry.category === item.id).length,
-    }))
-  }, [])
+  useEffect(() => {
+    setPreviewApp(surfaceDefinition.previewKey)
+    const first = previewMap[surfaceDefinition.previewKey].modules[0]?.id ?? ''
+    setPreviewModuleId((current) => {
+      if (previewMap[surfaceDefinition.previewKey].modules.some((mod) => mod.id === current)) return current
+      return first
+    })
+  }, [surfaceDefinition])
 
-  const appCounts = useMemo(() => {
-    return apps.map((item) => ({
+  useEffect(() => {
+    const modules = previewMap[previewApp].modules
+    if (!modules.some((module) => module.id === previewModuleId)) {
+      setPreviewModuleId(modules[0]?.id ?? '')
+    }
+  }, [previewApp, previewModuleId])
+
+  const surfaceModules = useMemo(
+    () => previewMap[surfaceDefinition.previewKey].modules,
+    [surfaceDefinition],
+  )
+
+  const selectedSurfaceModule = useMemo(
+    () => surfaceModules.find((item) => item.id === previewModuleId) ?? surfaceModules[0] ?? null,
+    [previewModuleId, surfaceModules],
+  )
+
+  const surfaceGuides = useMemo(() => {
+    const appSet = new Set(surfaceDefinition.guideApps)
+    return guideEntries.filter((entry) => appSet.has(entry.app)).slice(0, 18)
+  }, [guideEntries, surfaceDefinition])
+
+  const quickCounts = useMemo(
+    () => apps.map((item) => ({ ...item, count: atlasEntries.filter((entry) => entry.app === item.id).length })),
+    [atlasEntries],
+  )
+
+  const sectionSearchMatches = useMemo(() => {
+    const q = deferredTravelSearch.trim().toLowerCase()
+    if (!q) return [] as Array<{ type: 'section' | 'tab' | 'guide'; id: string; title: string; subtitle: string }>
+
+    const sectionMatches = SECTION_ITEMS.filter((item) => {
+      const terms = [item.label, ...item.keywords, item.emoji].join(' ').toLowerCase()
+      return terms.includes(q)
+    }).map((item) => ({
+      type: 'section' as const,
       id: item.id,
-      label: item.label,
-      count: entries.filter((entry) => entry.app === item.id).length,
+      title: item.label,
+      subtitle: `Section · ${item.emoji}`,
     }))
-  }, [])
+
+    const tabMatches = SURFACE_TABS.filter((item) => {
+      const terms = [item.label, item.subtitle, ...item.keywords].join(' ').toLowerCase()
+      return terms.includes(q)
+    }).map((item) => ({
+      type: 'tab' as const,
+      id: item.id,
+      title: item.label,
+      subtitle: `App Tab · ${item.emoji}`,
+    }))
+
+    const guideMatches = indexedEntries
+      .filter(({ blob }) => blob.includes(q))
+      .map(({ entry }) => ({
+        type: 'guide' as const,
+        id: entry.id,
+        title: entry.title,
+        subtitle: `Guide · ${appEmoji[entry.app]} ${entry.app}`,
+      }))
+      .slice(0, 8)
+
+    return [...sectionMatches, ...tabMatches, ...guideMatches].slice(0, 14)
+  }, [deferredTravelSearch, indexedEntries])
+
+  const categoryCounts = useMemo(
+    () => categories.map((item) => ({ ...item, count: entries.filter((entry) => entry.category === item.id).length })),
+    [],
+  )
+
+  const appCounts = useMemo(
+    () => apps.map((item) => ({ ...item, count: entries.filter((entry) => entry.app === item.id).length })),
+    [],
+  )
 
   const sourceCoverage = useMemo(() => {
     const mapped = new Map<string, number>()
-    entries.forEach((entry) => {
-      entry.sources.forEach((source) => {
+    for (const entry of entries) {
+      for (const source of entry.sources) {
         mapped.set(source, (mapped.get(source) ?? 0) + 1)
-      })
-    })
+      }
+    }
 
     return Array.from(mapped.entries())
       .map(([source, count]) => ({ source, count }))
       .sort((a, b) => b.count - a.count)
-      .slice(0, 42)
+      .slice(0, 48)
+  }, [])
+
+  const topCommands = useMemo(() => {
+    const unique = new Set<string>()
+    entries.forEach((entry) => {
+      entry.commands.forEach((command) => {
+        if (unique.size < 16) unique.add(command)
+      })
+    })
+    return Array.from(unique)
   }, [])
 
   const orbitNodes = useMemo(() => {
-    const total = apps.length
-    return apps.map((item, index) => {
-      const angle = ((Math.PI * 2) / total) * index - Math.PI / 2
-      const radius = 39
-      const x = 50 + Math.cos(angle) * radius
-      const y = 50 + Math.sin(angle) * radius
+    const planets = SECTION_ITEMS.filter((item) => item.id !== 'hero')
+    const total = planets.length
+    return planets.map((item, index) => {
+      const angle = (360 / total) * index
+      const radius = 170 + (index % 3) * 28 + Math.floor(index / 3) * 18
       return {
         item,
-        style: { left: `${x}%`, top: `${y}%` },
+        style: {
+          ['--angle' as any]: `${angle}deg`,
+          ['--radius' as any]: `${radius}px`,
+        },
       }
     })
   }, [])
@@ -580,8 +545,18 @@ function App() {
     }
   }
 
+  const openGuide = (guideId: string) => {
+    jumpTo('guides')
+    window.setTimeout(() => {
+      jumpTo(`guide-${guideId}`)
+    }, 220)
+  }
+
   return (
-    <div className={`wiki-root ${visualFxMode === 'lite' ? 'fx-lite' : 'fx-full'}`}>
+    <div
+      className={`wiki-root ${visualFxMode === 'lite' ? 'fx-lite' : 'fx-full'}`}
+      style={{ ['--scroll-progress' as any]: scrollProgress.toString() }}
+    >
       <div className="scroll-progress-track" aria-hidden="true">
         <div className="scroll-progress-fill" style={{ width: `${scrollProgress * 100}%` }} />
       </div>
@@ -591,1038 +566,909 @@ function App() {
       <div className="space-layer nebula" aria-hidden="true" />
       <div className="space-layer grid-overlay" aria-hidden="true" />
 
-      <header className="top-header">
-        <button type="button" className="brand" onClick={() => jumpTo('overview')}>
-          <span className="brand-logo">✦</span>
-          <span className="brand-text">Nexus Wiki</span>
-        </button>
-        <nav className="top-nav-links" aria-label="Section Navigation">
-          {SECTION_ITEMS.slice(0, 8).map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              className={activeSection === item.id ? 'top-link active' : 'top-link'}
-              onClick={() => jumpTo(item.id)}
-            >
-              {item.label}
+      <main className="open-flow">
+        <section id="hero" className="section-viewport hero-viewport scroll-reveal">
+          <div className="hero-topline">
+            <button type="button" className="brand" onClick={() => jumpTo('hero')}>
+              <span className="brand-logo">✦</span>
+              <span className="brand-text">Nexus Wiki Universe</span>
             </button>
-          ))}
-        </nav>
-        <button
-          type="button"
-          className={visualFxMode === 'lite' ? 'mode-switch active' : 'mode-switch'}
-          onClick={() => setVisualFxMode((prev) => (prev === 'full' ? 'lite' : 'full'))}
-        >
-          <Activity size={14} /> {visualFxMode === 'lite' ? 'Performance' : 'Cinematic'}
-        </button>
-      </header>
-
-      <div className="section-tabs-bar">
-        <div className="section-tabs-scroll">
-          {SECTION_ITEMS.map((item) => (
             <button
-              key={`fixed-${item.id}`}
               type="button"
-              className={activeSection === item.id ? 'section-tab active' : 'section-tab'}
-              onClick={() => jumpTo(item.id)}
+              className={visualFxMode === 'lite' ? 'mode-switch active' : 'mode-switch'}
+              onClick={() => setVisualFxMode((prev) => (prev === 'full' ? 'lite' : 'full'))}
             >
-              <span>{item.emoji}</span> {item.label}
+              <Activity size={14} /> {visualFxMode === 'lite' ? 'Performance' : 'Cinematic'}
             </button>
-          ))}
-        </div>
-
-        <div className="section-tab-search">
-          <label>
-            Bereich / Tab Suche
-            <input
-              type="search"
-              value={sectionSearch}
-              onChange={(event) => setSectionSearch(event.target.value)}
-              placeholder="ecosystem, apps, nexus main, code mobile ..."
-            />
-          </label>
-          {sectionSearchMatches.length > 0 ? (
-            <div className="section-search-results">
-              {sectionSearchMatches.map((match) => (
-                <button
-                  key={`${match.type}-${match.id}`}
-                  type="button"
-                  onClick={() => {
-                    if (match.type === 'section') {
-                      jumpTo(match.id)
-                    } else {
-                      setActiveSurfaceTab(match.id as SurfaceTabId)
-                      jumpTo('apps')
-                    }
-                    setSectionSearch('')
-                  }}
-                >
-                  <CheckCircle2 size={14} />
-                  <span>
-                    <strong>{match.title}</strong>
-                    <small>{match.subtitle}</small>
-                  </span>
-                </button>
-              ))}
-            </div>
-          ) : null}
-        </div>
-      </div>
-
-      <div className="site-layout">
-        <aside className="left-sidebar">
-          <div className="sidebar-card scroll-reveal">
-            <div className="sidebar-title">Wiki Navigation</div>
-            <div className="section-list">
-              {SECTION_ITEMS.map((item) => {
-                const Icon = item.icon
-                const isActive = activeSection === item.id
-                return (
-                  <button
-                    type="button"
-                    key={item.id}
-                    className={isActive ? 'section-link active' : 'section-link'}
-                    onClick={() => jumpTo(item.id)}
-                  >
-                    <Icon size={16} />
-                    <span>
-                      {item.label} <small>{item.emoji}</small>
-                    </span>
-                  </button>
-                )
-              })}
-            </div>
           </div>
 
-          <div className="sidebar-card scroll-reveal">
-            <div className="sidebar-title">Live Stats</div>
-            <div className="stat-grid">
-              <div>
-                <span>Entries</span>
-                <strong>{entries.length}</strong>
-              </div>
-              <div>
-                <span>Guide Pages</span>
-                <strong>{guideEntries.length}</strong>
-              </div>
-              <div>
-                <span>Apps</span>
-                <strong>{apps.length}</strong>
-              </div>
-              <div>
-                <span>Scroll</span>
-                <strong>{Math.round(scrollProgress * 100)}%</strong>
-              </div>
-            </div>
-          </div>
-        </aside>
+          <div className="hero-command">
+            <div className="travel-search">
+              <label>
+                Suche im gesamten Wiki
+                <input
+                  type="search"
+                  value={travelSearch}
+                  onChange={(event) => setTravelSearch(event.target.value)}
+                  placeholder="notesview, canvas magic, settings, paywall ..."
+                />
+              </label>
 
-        <main className="content-shell">
-          <section id="overview" className="section-block hero-section scroll-reveal">
-            <div className="hero-badge">
-              <Sparkles size={14} /> Live-Sync Wiki Mode Active
-            </div>
-            <h1>
-              Nexus Ecosystem Wiki im <span>Product-Page Style</span>
-            </h1>
-            <p>
-              Große, scroll-basierte Wissensoberflaeche mit klaren Bereichen: Orientierung, Orbit, Atlas,
-              Guide-Pages, Matrix, Integration und Coverage. Jede View ist als umfangreicher Guide aufbereitet.
-            </p>
-            <div className="hero-chip-row">
-              <span className="hero-chip">🌌 Space Theme</span>
-              <span className="hero-chip">🧭 Klare Informationspfade</span>
-              <span className="hero-chip">🧩 Guide-Seiten pro View</span>
-              <span className="hero-chip">⚡ Scroll Animationen + Performance Mode</span>
-            </div>
-            <div className="hero-cta-row">
-              <button type="button" className="cta-primary" onClick={() => jumpTo('guides')}>
-                <BookOpen size={16} /> Zu den Guide Pages
-              </button>
-              <button type="button" className="cta-secondary" onClick={() => jumpTo('atlas')}>
-                <Search size={16} /> Im Atlas suchen
-              </button>
-            </div>
-          </section>
-
-          <section id="ecosystem" className="section-block ecosystem-section scroll-reveal">
-            <div className="section-head">
-              <h2>Ecosystem Mega Area</h2>
-              <p>
-                Riesige Gesamtansicht fuer Architektur, Runtime, Control und App-Verzahnung. Diese Zone ist bewusst
-                gross, visuell und textlich tief erklaert.
-              </p>
-            </div>
-
-            <div className="ecosystem-huge-grid">
-              <article className="ecosystem-visual-card scroll-reveal">
-                <h3>🌌 Galactic Architecture Map</h3>
-                <p>
-                  Jeder Planet steht fuer eine App-Surface. Klick auf einen Planet filtert den Atlas direkt auf diesen
-                  Bereich.
-                </p>
-                <div className="ecosystem-constellation">
-                  {apps.map((item, index) => (
+              {sectionSearchMatches.length > 0 ? (
+                <div className="travel-search-results">
+                  {sectionSearchMatches.map((result) => (
                     <button
-                      key={`eco-node-${item.id}`}
+                      key={`${result.type}-${result.id}`}
                       type="button"
-                      className="ecosystem-node"
-                      style={{ ['--i' as any]: index, ['--n' as any]: apps.length }}
                       onClick={() => {
-                        setAppFilter(item.id)
-                        jumpTo('atlas')
+                        if (result.type === 'section') {
+                          jumpTo(result.id)
+                        }
+                        if (result.type === 'tab') {
+                          setSurfaceTab(result.id as SurfaceTabId)
+                          jumpTo('apps')
+                        }
+                        if (result.type === 'guide') {
+                          openGuide(result.id)
+                        }
+                        setTravelSearch('')
                       }}
                     >
-                      <span>{appEmoji[item.id]}</span>
-                      <strong>{item.label}</strong>
-                      <small>{item.subtitle}</small>
+                      <CheckCircle2 size={14} />
+                      <span>
+                        <strong>{result.title}</strong>
+                        <small>{result.subtitle}</small>
+                      </span>
                     </button>
                   ))}
                 </div>
-              </article>
-
-              <article className="ecosystem-markdown-card scroll-reveal">
-                <h3>🧾 Ecosystem in Markdown-Look</h3>
-                <ul className="emoji-markdown-list">
-                  <li>✅ **Shared Core:** LiveSync + view guards + runtime mappings.</li>
-                  <li>🧠 **Nexus Main:** Productivity stack mit Notes/Canvas/Settings.</li>
-                  <li>💻 **Nexus Code:** IDE stack fuer editor-first engineering.</li>
-                  <li>📱 **Mobile Surfaces:** parity fuer Main + Code via mobile UX patterns.</li>
-                  <li>🛡️ **Control Plane:** policies, paywalls, live sync, audit und devices.</li>
-                  <li>⚙️ **Runtime/API:** autoritative source fuer feature activation.</li>
-                </ul>
-                <pre>{`# Nexus Ecosystem
-├─ Main / Mobile (Productivity)
-├─ Code / Code Mobile (IDE)
-├─ Control (Ops + Security + Billing)
-└─ Runtime/API (Contracts + Entitlements + Gates)`}</pre>
-              </article>
-
-              <article className="ecosystem-flow-card scroll-reveal">
-                <h3>🚀 Scroll Guide durch den Stack</h3>
-                <div className="ecosystem-flow-steps">
-                  <div>
-                    <strong>1. Overview</strong>
-                    <p>Mission, Zielbild und zentrale Navigation verstehen.</p>
-                  </div>
-                  <div>
-                    <strong>2. Ecosystem</strong>
-                    <p>Architektur, Runtime-Flow und Verantwortungen pro Surface.</p>
-                  </div>
-                  <div>
-                    <strong>3. App Surfaces</strong>
-                    <p>Tabs fuer Main, Code und Mobile Versionen mit Deep-Dive.</p>
-                  </div>
-                  <div>
-                    <strong>4. Atlas + Guides</strong>
-                    <p>Schnell suchen und dann in die großen Guide-Seiten springen.</p>
-                  </div>
-                  <div>
-                    <strong>5. Matrix + Integration</strong>
-                    <p>Parity pruefen und Auth/Paywall API-Handover validieren.</p>
-                  </div>
-                </div>
-              </article>
-            </div>
-          </section>
-
-          <section id="apps" className="section-block apps-section scroll-reveal">
-            <div className="section-head">
-              <h2>App Surfaces in riesigen Tabs</h2>
-              <p>
-                Feste App-Tabs fuer Nexus Main, Nexus Code und Mobile Versionen. Scrollt man weiter, wird jede Zone
-                als eigene große Space-Wiki-Welt dargestellt.
-              </p>
+              ) : null}
             </div>
 
-            <div className="app-tab-row">
-              {APP_SURFACE_TABS.map((tab) => (
+            <nav className="hero-tab-strip" aria-label="Wiki Sections">
+              {SECTION_ITEMS.map((item, index) => (
                 <button
-                  key={tab.id}
+                  key={`travel-${item.id}`}
                   type="button"
-                  className={activeSurfaceTab === tab.id ? 'app-tab active' : 'app-tab'}
-                  onClick={() => {
-                    setActiveSurfaceTab(tab.id)
-                    setPreviewApp(tab.previewKey)
-                    setPreviewModuleId(previewMap[tab.previewKey].modules[0]?.id ?? '')
-                  }}
+                  className={activeSection === item.id ? 'travel-tab active' : 'travel-tab'}
+                  onClick={() => jumpTo(item.id)}
                 >
-                  <span>{tab.emoji}</span>
-                  <strong>{tab.label}</strong>
-                  <small>{tab.subtitle}</small>
+                  <span>{index + 1}</span>
+                  {item.emoji} {item.label}
                 </button>
               ))}
-            </div>
+            </nav>
+          </div>
 
-            <article className="app-surface-stage scroll-reveal">
-              <header>
-                <h3>
-                  {activeSurfaceDefinition.emoji} {activeSurfaceDefinition.label}
-                </h3>
-                <p>{activeSurfaceDefinition.subtitle}</p>
-              </header>
+          <div className="hero-kicker">
+            <Sparkles size={15} /> Scroll-Mission aktiv
+          </div>
+          <h1>
+            Großes Nexus Wiki als <span>Solar-System-Minigame</span>
+          </h1>
+          <p>
+            Klarer Lesefluss statt leerer Mega-Boxen: Jede Sektion zeigt jetzt direkt nutzbare Infos, konkrete
+            Feature-Listen, Commands und Lernpfade. Suche + Tabs bringen dich sofort zu der Stelle, die du brauchst.
+          </p>
 
-              <div className="app-surface-grid">
-                <section className="app-surface-card">
-                  <div className="detail-card-head">
-                    <strong>Module Orbit</strong>
-                    <span>{activeSurfaceModules.length} Module</span>
-                  </div>
-                  <div className="module-grid">
-                    {activeSurfaceModules.map((module) => (
-                      <button
-                        key={module.id}
-                        type="button"
-                        className={
-                          previewApp === activeSurfaceDefinition.previewKey && previewModuleId === module.id
-                            ? 'module-pill active'
-                            : 'module-pill'
-                        }
-                        onClick={() => {
-                          setPreviewApp(activeSurfaceDefinition.previewKey)
-                          setPreviewModuleId(module.id)
-                        }}
-                      >
-                        <span>{module.label}</span>
-                        <small>{module.state}</small>
-                      </button>
-                    ))}
-                  </div>
-                  {selectedSurfaceModule ? <div className="module-note">{selectedSurfaceModule.detail}</div> : null}
-                </section>
-
-                <section className="app-surface-card">
-                  <div className="detail-card-head">
-                    <strong>Highlights</strong>
-                    <span>markdown look</span>
-                  </div>
-                  <ul className="emoji-markdown-list">
-                    {activeSurfaceDefinition.highlights.map((item) => (
-                      <li key={item}>✨ {item}</li>
-                    ))}
-                  </ul>
-                </section>
-
-                <section className="app-surface-card">
-                  <div className="detail-card-head">
-                    <strong>Guide Shortcuts</strong>
-                    <span>{activeSurfaceGuides.length}</span>
-                  </div>
-                  <div className="command-row">
-                    {activeSurfaceGuides.map((entry) => (
-                      <button
-                        key={`surface-guide-${entry.id}`}
-                        type="button"
-                        className="chip-btn"
-                        onClick={() => jumpTo(`guide-${entry.id}`)}
-                      >
-                        {entry.title}
-                      </button>
-                    ))}
-                  </div>
-                </section>
-              </div>
+          <div className="hero-read-layout">
+            <article className="hero-read-card">
+              <h3>📌 Schnellstart in Markdown</h3>
+              <pre>{`# Nexus Wiki Quickstart
+1. 🔎 Suche nutzen (oben)
+2. 🪐 Section-Tab klicken
+3. 🧩 Guide oeffnen
+4. 💻 Command kopieren
+5. ✅ Feature in App testen`}</pre>
             </article>
-          </section>
 
-          <section id="map" className="section-block scroll-reveal">
-            <div className="section-head">
-              <h2>Info Map: Wo sind welche Informationen?</h2>
-              <p>Diese Map macht das Wiki direkt lesbar und nimmt die Orientierung vorweg.</p>
-            </div>
-            <div className="info-map-grid">
-              {INFO_MAP_CARDS.map((card) => (
+            <article className="hero-read-card">
+              <h3>🧭 Wo finde ich was?</h3>
+              <ul className="emoji-markdown-list">
+                <li>🧠 <strong>Apps:</strong> Main / Code / Mobile Features, Module, Guide-Spruenge.</li>
+                <li>📚 <strong>Atlas:</strong> Volltextsuche, Kategorien, Apps, Detailansicht pro Thema.</li>
+                <li>🧩 <strong>Guides:</strong> Schritt-fuer-Schritt, Markdown, Commands, Quellen.</li>
+                <li>💳 <strong>Integration:</strong> Signup/Login-Paywall UX und API-Handover.</li>
+              </ul>
+            </article>
+          </div>
+
+          <ul className="emoji-markdown-list large">
+            <li>🚀 <strong>Travel Tabs:</strong> feste Steps fuer den gesamten Wiki-Flow.</li>
+            <li>🛰️ <strong>Ecosystem:</strong> Architektur, Runtime, Coverage und Operator-Checks.</li>
+            <li>🧠 <strong>App Worlds:</strong> Main, Code und Mobile Versionen mit Lernpfaden.</li>
+            <li>🧩 <strong>Guide Worlds:</strong> jede View mit klaren Steps + Markdown-Referenzen.</li>
+          </ul>
+          <div className="hero-actions">
+            <button type="button" className="cta-primary" onClick={() => jumpTo('solar')}>
+              <Rocket size={16} /> Reise starten
+            </button>
+            <button type="button" className="cta-secondary" onClick={() => jumpTo('guides')}>
+              <BookOpen size={16} /> Zu den View Worlds
+            </button>
+          </div>
+        </section>
+
+        <section id="solar" className="section-viewport solar-viewport scroll-reveal">
+          <div className="section-head">
+            <h2>Solar Travel: feste Tabs im Scroll-Flow</h2>
+            <p>Die Website fuehlt sich wie ein Sonnensystem an. Jeder Planet ist eine Wiki-Stage.</p>
+          </div>
+
+          <div className="solar-layout">
+            <div className="solar-map">
+              <div className="solar-sun">
+                <strong>Nexus Sun</strong>
+                <small>Wiki Core</small>
+              </div>
+
+              {orbitNodes.map(({ item, style }) => (
                 <button
-                  key={card.id}
+                  key={`orbit-${item.id}`}
                   type="button"
-                  className="info-map-card scroll-reveal"
-                  onClick={() => jumpTo(card.target)}
+                  className={activeSection === item.id ? 'solar-planet active' : 'solar-planet'}
+                  style={style}
+                  onClick={() => jumpTo(item.id)}
                 >
-                  <strong>{card.title}</strong>
-                  <p>{card.text}</p>
+                  <span>{item.emoji}</span>
+                  <b>{item.label}</b>
                 </button>
               ))}
             </div>
-          </section>
 
-          <section id="orbit" className="section-block scroll-reveal">
-            <div className="section-head">
-              <h2>Mission Orbit: App-Surfaces + Module</h2>
-              <p>
-                Verbessertes Orbit-Modell ohne springende Knoten. Klick auf eine App, um Module und Surface-Details
-                zu sehen.
-              </p>
-            </div>
+            <div className="solar-log">
+              <h3>🧾 Travel Log (Markdown Look)</h3>
+              <ul className="emoji-markdown-list">
+                {SECTION_ITEMS.map((item, index) => (
+                  <li key={`log-${item.id}`}>
+                    {activeSection === item.id ? '✅' : '🪐'} <strong>Step {index + 1}:</strong> {item.label}
+                  </li>
+                ))}
+              </ul>
 
-            <div className="orbit-layout">
-              <article className="orbit-card scroll-reveal">
-                <div className="orbit-core">
-                  <strong>Nexus Core</strong>
-                  <small>Apps + Runtime + Control</small>
+              <div className="solar-command-block">
+                <div className="detail-head">
+                  <strong>Top Commands</strong>
+                  <span>{topCommands.length}</span>
                 </div>
-                {orbitNodes.map(({ item, style }) => (
+                <div className="command-row">
+                  {topCommands.map((command) => (
+                    <button key={`orbit-cmd-${command}`} type="button" className="chip-btn" onClick={() => copyText(command, `top:${command}`)}>
+                      {command}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="ecosystem" className="section-viewport ecosystem-viewport scroll-reveal">
+          <div className="section-head">
+            <h2>Ecosystem Mega Area</h2>
+            <p>Große Architekturzone mit offenen Erklaerflaechen statt kleinen Einzelcontainern.</p>
+          </div>
+
+          <div className="ecosystem-grid">
+            <article className="ecosystem-panel huge">
+              <h3>🌌 Galactic Architecture</h3>
+              <p>
+                Jeder Planet mappt auf eine App-Surface. Klick filtert den Atlas und springt direkt in die passende
+                Doku-Welt.
+              </p>
+              <div className="ecosystem-planets">
+                {apps.map((item, idx) => (
                   <button
-                    key={item.id}
+                    key={`eco-${item.id}`}
                     type="button"
-                    className={previewApp === item.id ? 'orbit-node active' : 'orbit-node'}
-                    style={style}
-                    onClick={() => setPreviewApp(item.id)}
-                    title={item.subtitle}
+                    className="ecosystem-planet"
+                    style={{ ['--i' as any]: idx, ['--n' as any]: apps.length }}
+                    onClick={() => {
+                      setAppFilter(item.id)
+                      jumpTo('atlas')
+                    }}
                   >
                     <span>{appEmoji[item.id]}</span>
-                    <b>{item.label}</b>
+                    <strong>{item.label}</strong>
+                    <small>{item.subtitle}</small>
                   </button>
                 ))}
-              </article>
+              </div>
+            </article>
 
-              <article className="surface-card scroll-reveal">
-                <div className="surface-title">
-                  <span>{appEmoji[previewApp]}</span>
-                  <strong>{apps.find((item) => item.id === previewApp)?.label}</strong>
+            <article className="ecosystem-panel">
+              <h3>🧭 Runtime & Control Flow</h3>
+              <ul className="emoji-markdown-list">
+                <li>⚙️ <strong>Runtime/API:</strong> autoritative Quelle fuer Entitlements und View-Freigaben.</li>
+                <li>🛡️ <strong>Control:</strong> Policies, Devices, LiveSync, Paywalls und Promotion-Kontrolle.</li>
+                <li>🔄 <strong>Shared Core:</strong> stabile View-Resolution ueber Desktop + Mobile.</li>
+                <li>🏗️ <strong>Release Gates:</strong> verify/build/compat verhindern Contract Drift.</li>
+              </ul>
+
+              <pre>{`## Deployment Route
+- staging catalog/schema validieren
+- verify + all builds ausfuehren
+- security guards pruefen
+- erst dann production promotion`}</pre>
+            </article>
+
+            <article className="ecosystem-panel">
+              <h3>📡 Coverage Snapshot</h3>
+              <div className="stats-two-col">
+                <div>
+                  <div className="detail-head">
+                    <strong>Apps</strong>
+                    <span>{appCounts.length}</span>
+                  </div>
+                  <ul className="emoji-markdown-list">
+                    {appCounts.map((item) => (
+                      <li key={`eco-app-count-${item.id}`}>
+                        {appEmoji[item.id]} <strong>{item.label}:</strong> {item.count} Artikel
+                      </li>
+                    ))}
+                  </ul>
                 </div>
-                <p>{previewMap[previewApp].intro}</p>
-                <div className="module-grid">
-                  {previewMap[previewApp].modules.map((module) => (
+
+                <div>
+                  <div className="detail-head">
+                    <strong>Kategorien</strong>
+                    <span>{categoryCounts.length}</span>
+                  </div>
+                  <ul className="emoji-markdown-list">
+                    {categoryCounts.map((item) => (
+                      <li key={`eco-cat-count-${item.id}`}>
+                        {categoryEmoji[item.id]} <strong>{item.label}:</strong> {item.count}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section id="apps" className="section-viewport apps-viewport scroll-reveal">
+          <div className="section-head">
+            <h2>App Worlds: Main, Code und Mobile als feste Tabs</h2>
+            <p>Jeder Tab ist ein großer, interaktiver Weltraum-Bereich mit eigenen Highlights und Guide-Sprüngen.</p>
+          </div>
+
+          <div className="app-tab-row">
+            {SURFACE_TABS.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                className={surfaceTab === tab.id ? 'app-tab active' : 'app-tab'}
+                onClick={() => setSurfaceTab(tab.id)}
+              >
+                <span>{tab.emoji}</span>
+                <strong>{tab.label}</strong>
+                <small>{tab.subtitle}</small>
+              </button>
+            ))}
+          </div>
+
+          <article className="app-stage">
+            <header>
+              <h3>
+                {surfaceDefinition.emoji} {surfaceDefinition.label}
+              </h3>
+              <p>{surfaceDefinition.subtitle}</p>
+            </header>
+
+            <div className="app-stage-grid">
+              <section className="app-stage-card">
+                <div className="detail-head">
+                  <strong>Module Orbit</strong>
+                  <span>{surfaceModules.length} Module</span>
+                </div>
+                <div className="module-list">
+                  {surfaceModules.map((module) => (
                     <button
                       key={module.id}
                       type="button"
                       className={previewModuleId === module.id ? 'module-pill active' : 'module-pill'}
-                      onClick={() => setPreviewModuleId(module.id)}
+                      onClick={() => {
+                        setPreviewApp(surfaceDefinition.previewKey)
+                        setPreviewModuleId(module.id)
+                      }}
                     >
                       <span>{module.label}</span>
                       <small>{module.state}</small>
                     </button>
                   ))}
                 </div>
-                {selectedPreviewModule ? <div className="module-note">{selectedPreviewModule.detail}</div> : null}
-              </article>
-            </div>
-          </section>
+                {selectedSurfaceModule ? <div className="module-note">{selectedSurfaceModule.detail}</div> : null}
+              </section>
 
-          <section id="atlas" className="section-block scroll-reveal">
-            <div className="section-head">
-              <h2>Wiki Atlas</h2>
-              <p>Direkter Explorer mit Suche, Kategorien, App-Filtern und Detailpanel.</p>
-            </div>
+              <section className="app-stage-card">
+                <div className="detail-head">
+                  <strong>Feature Highlights</strong>
+                  <span>markdown style</span>
+                </div>
+                <ul className="emoji-markdown-list">
+                  {surfaceDefinition.highlights.map((item) => (
+                    <li key={item}>✨ {item}</li>
+                  ))}
+                </ul>
+              </section>
 
-            <div className="atlas-layout">
-              <aside className="atlas-nav scroll-reveal">
-                <label>
-                  Suche
-                  <input
-                    type="search"
-                    value={atlasQuery}
-                    onChange={(event) => setAtlasQuery(event.target.value)}
-                    placeholder="notes magic, canvas, paywall, settings"
-                  />
-                </label>
-
-                <div className="chip-wrap">
-                  <button
-                    type="button"
-                    className={category === 'all' ? 'chip-btn active' : 'chip-btn'}
-                    onClick={() => setCategory('all')}
-                  >
-                    🌌 Alle Kategorien
-                  </button>
-                  {categories.map((item) => (
-                    <button
-                      key={item.id}
-                      type="button"
-                      className={category === item.id ? 'chip-btn active' : 'chip-btn'}
-                      onClick={() => setCategory(item.id)}
-                    >
-                      {categoryEmoji[item.id]} {item.label}
+              <section className="app-stage-card">
+                <div className="detail-head">
+                  <strong>Guide Shortcuts</strong>
+                  <span>{surfaceGuides.length}</span>
+                </div>
+                <ul className="emoji-markdown-list">
+                  {surfaceGuides.slice(0, 8).map((entry) => (
+                    <li key={`surf-guide-summary-${entry.id}`}>
+                      🧩 <strong>{entry.title}:</strong> {entry.summary}
+                    </li>
+                  ))}
+                </ul>
+                <div className="command-row">
+                  {surfaceGuides.slice(0, 12).map((entry) => (
+                    <button key={`surf-guide-${entry.id}`} type="button" className="chip-btn" onClick={() => openGuide(entry.id)}>
+                      {entry.title}
                     </button>
                   ))}
                 </div>
+              </section>
+            </div>
+          </article>
+        </section>
 
-                <div className="chip-wrap">
+        <section id="atlas" className="section-viewport atlas-viewport scroll-reveal">
+          <div className="section-head">
+            <h2>Wiki Atlas</h2>
+            <p>Search-first Explorer mit großen Textflächen und klarer Lesbarkeit.</p>
+          </div>
+
+          <div className="atlas-open-grid">
+            <aside className="atlas-filters">
+              <label>
+                Atlas Suche
+                <input
+                  type="search"
+                  value={atlasQuery}
+                  onChange={(event) => setAtlasQuery(event.target.value)}
+                  placeholder="notes magic, canvas, paywall, settings ..."
+                />
+              </label>
+
+              <div className="chip-wrap">
+                <button type="button" className={category === 'all' ? 'chip-btn active' : 'chip-btn'} onClick={() => setCategory('all')}>
+                  🌌 Alle Kategorien
+                </button>
+                {categories.map((item) => (
                   <button
+                    key={item.id}
                     type="button"
-                    className={appFilter === 'all' ? 'chip-btn active' : 'chip-btn'}
-                    onClick={() => setAppFilter('all')}
+                    className={category === item.id ? 'chip-btn active' : 'chip-btn'}
+                    onClick={() => setCategory(item.id)}
                   >
-                    🌌 Alle Apps
+                    {categoryEmoji[item.id]} {item.label}
                   </button>
-                  {apps.map((item) => (
-                    <button
-                      key={item.id}
-                      type="button"
-                      className={appFilter === item.id ? 'chip-btn active' : 'chip-btn'}
-                      onClick={() => setAppFilter(item.id)}
-                    >
+                ))}
+              </div>
+
+              <div className="chip-wrap">
+                <button type="button" className={appFilter === 'all' ? 'chip-btn active' : 'chip-btn'} onClick={() => setAppFilter('all')}>
+                  🌌 Alle Apps
+                </button>
+                {apps.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    className={appFilter === item.id ? 'chip-btn active' : 'chip-btn'}
+                    onClick={() => setAppFilter(item.id)}
+                  >
+                    {appEmoji[item.id]} {item.label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="mini-counts">
+                {quickCounts.map((item) => (
+                  <button key={item.id} type="button" onClick={() => setAppFilter(item.id)}>
+                    <span>
                       {appEmoji[item.id]} {item.label}
-                    </button>
-                  ))}
-                </div>
+                    </span>
+                    <strong>{item.count}</strong>
+                  </button>
+                ))}
+              </div>
+            </aside>
 
-                <div className="mini-counts">
-                  {quickCounts.map((item) => (
-                    <button key={item.id} type="button" onClick={() => setAppFilter(item.id)}>
-                      <span>
-                        {appEmoji[item.id]} {item.label}
-                      </span>
-                      <strong>{item.count}</strong>
-                    </button>
-                  ))}
-                </div>
-              </aside>
-
-              <article className="atlas-list scroll-reveal">
-                <div className="subhead">Artikel ({atlasEntries.length})</div>
-                <div className="entry-list">
-                  {atlasEntries.length === 0 ? (
-                    <div className="empty-state">Keine Treffer. Passe Suche oder Filter an.</div>
-                  ) : (
-                    atlasEntries.map((entry) => (
-                      <button
-                        key={entry.id}
-                        type="button"
-                        className={selectedEntry?.id === entry.id ? 'entry-row active' : 'entry-row'}
-                        onClick={() => setSelectedId(entry.id)}
-                      >
-                        <strong>
-                          {appEmoji[entry.app]} {entry.title}
-                        </strong>
-                        <span>
-                          {categoryEmoji[entry.category]} {entry.category}
-                        </span>
-                        <p>{entry.summary}</p>
-                      </button>
-                    ))
-                  )}
-                </div>
-              </article>
-
-              <article className="atlas-detail scroll-reveal">
-                {!selectedEntry ? (
-                  <div className="empty-state">Waehle links einen Artikel aus.</div>
+            <section className="atlas-stream">
+              <div className="subhead">Artikel Stream ({atlasEntries.length})</div>
+              <div className="entry-list">
+                {atlasEntries.length === 0 ? (
+                  <div className="empty-state">Keine Treffer. Passe Suche oder Filter an.</div>
                 ) : (
-                  <div className="detail-stack">
-                    <div>
-                      <div className="detail-meta">
-                        {appEmoji[selectedEntry.app]} {selectedEntry.app} · {categoryEmoji[selectedEntry.category]}{' '}
-                        {selectedEntry.category}
-                      </div>
-                      <h3>{selectedEntry.title}</h3>
-                      <p>{selectedEntry.summary}</p>
+                  atlasEntries.map((entry) => (
+                    <button
+                      key={entry.id}
+                      type="button"
+                      className={selectedAtlasEntry?.id === entry.id ? 'entry-row active' : 'entry-row'}
+                      onClick={() => setSelectedAtlasId(entry.id)}
+                    >
+                      <strong>
+                        {appEmoji[entry.app]} {entry.title}
+                      </strong>
+                      <span>
+                        {categoryEmoji[entry.category]} {entry.category}
+                      </span>
+                      <p>{entry.summary}</p>
+                    </button>
+                  ))
+                )}
+              </div>
+            </section>
+          </div>
+
+          <article className="atlas-detail-wide">
+            {!selectedAtlasEntry ? (
+              <div className="empty-state">Waehle links einen Artikel aus.</div>
+            ) : (
+              <div className="detail-stack">
+                <div>
+                  <div className="detail-meta">
+                    {appEmoji[selectedAtlasEntry.app]} {selectedAtlasEntry.app} · {categoryEmoji[selectedAtlasEntry.category]} {selectedAtlasEntry.category}
+                  </div>
+                  <h3>{selectedAtlasEntry.title}</h3>
+                  <p>{selectedAtlasEntry.summary}</p>
+                </div>
+
+                <div className="detail-columns">
+                  <section>
+                    <div className="detail-head">
+                      <strong>Guide Flow</strong>
+                      <span>{selectedAtlasEntry.guide.length}</span>
                     </div>
+                    <ol>
+                      {selectedAtlasEntry.guide.map((step, index) => (
+                        <li key={step.title}>
+                          <b>{index + 1}. {step.title}:</b> {step.detail}
+                        </li>
+                      ))}
+                    </ol>
+                  </section>
 
-                    <section className="detail-card">
-                      <div className="detail-card-head">
-                        <strong>Schritt fuer Schritt</strong>
-                        <span>{selectedEntry.guide.length} Steps</span>
-                      </div>
-                      <ol>
-                        {selectedEntry.guide.map((step) => (
-                          <li key={step.title}>
-                            <b>{step.title}:</b> {step.detail}
-                          </li>
-                        ))}
-                      </ol>
-                    </section>
+                  <section>
+                    <div className="detail-head">
+                      <strong>Feature Punkte</strong>
+                      <span>{selectedAtlasEntry.points.length}</span>
+                    </div>
+                    <ul>
+                      {selectedAtlasEntry.points.map((point) => (
+                        <li key={point}>✨ {point}</li>
+                      ))}
+                    </ul>
 
-                    <section className="detail-card">
-                      <div className="detail-card-head">
-                        <strong>Funktionen</strong>
-                        <span>{selectedEntry.points.length}</span>
-                      </div>
-                      <ul>
-                        {selectedEntry.points.map((point) => (
-                          <li key={point}>{point}</li>
-                        ))}
-                      </ul>
-                    </section>
-
-                    {selectedEntry.commands.length > 0 ? (
-                      <section className="detail-card">
-                        <div className="detail-card-head">
+                    {selectedAtlasEntry.commands.length ? (
+                      <div>
+                        <div className="detail-head">
                           <strong>Commands</strong>
-                          <span>copyable</span>
+                          <span>{selectedAtlasEntry.commands.length}</span>
                         </div>
                         <div className="command-row">
-                          {selectedEntry.commands.map((command) => (
+                          {selectedAtlasEntry.commands.map((command) => (
                             <button
-                              key={command}
+                              key={`atlas-cmd-${command}`}
                               type="button"
                               className="chip-btn"
-                              onClick={() => copyText(command, `cmd:${selectedEntry.id}:${command}`)}
+                              onClick={() => copyText(command, `atlas-cmd:${selectedAtlasEntry.id}:${command}`)}
                             >
                               {command}
                             </button>
                           ))}
                         </div>
-                      </section>
-                    ) : null}
-
-                    {selectedEntry.markdownSnippets?.length ? (
-                      <section className="detail-card">
-                        <div className="detail-card-head">
-                          <strong>Markdown Snippets</strong>
-                          <span>{selectedEntry.markdownSnippets.length}</span>
-                        </div>
-                        <div className="snippet-grid">
-                          {selectedEntry.markdownSnippets.map((snippet) => (
-                            <article key={snippet.label} className="snippet-card">
-                              <div className="snippet-head">
-                                <strong>{snippet.label}</strong>
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    copyText(snippet.snippet, `snippet:${selectedEntry.id}:${snippet.label}`)
-                                  }
-                                >
-                                  <Copy size={14} /> Copy
-                                </button>
-                              </div>
-                              <p>{snippet.description}</p>
-                              <pre>{snippet.snippet}</pre>
-                            </article>
-                          ))}
-                        </div>
-                      </section>
-                    ) : null}
-
-                    <section className="detail-card">
-                      <div className="detail-card-head">
-                        <strong>Quellen</strong>
-                        <span>{selectedEntry.sources.length}</span>
                       </div>
-                      <ul>
-                        {selectedEntry.sources.map((source) => (
-                          <li key={source}>
-                            <code>{source}</code>
-                          </li>
+                    ) : null}
+
+                    <div>
+                      <div className="detail-head">
+                        <strong>Tags</strong>
+                        <span>{selectedAtlasEntry.tags.length}</span>
+                      </div>
+                      <div className="tag-row">
+                        {selectedAtlasEntry.tags.map((tag) => (
+                          <span key={`atlas-tag-${tag}`}>#{tag}</span>
                         ))}
-                      </ul>
-                    </section>
-                  </div>
-                )}
-              </article>
-            </div>
-          </section>
-
-          <section id="guides" className="section-block scroll-reveal">
-            <div className="section-head">
-              <h2>Guide Pages: Jede View als große eigene Seite</h2>
-              <p>
-                Durchsuche alle View-Guides und springe direkt in eine große Guide-Seite mit Schritten, Funktionen,
-                Commands, Markdown und Quellen.
-              </p>
-            </div>
-
-            <div className="guide-toolbar scroll-reveal">
-              <label>
-                Guides durchsuchen
-                <input
-                  type="search"
-                  value={guideQuery}
-                  onChange={(event) => setGuideQuery(event.target.value)}
-                  placeholder="notesview, canvas magic menu, settings, terminal ..."
-                />
-              </label>
-              <div className="toolbar-kpi">
-                <span>
-                  <BookOpen size={15} /> {guideEntries.length} Guide-Seiten
-                </span>
-                <span>
-                  <Grid3X3 size={15} /> {groupedGuides.length} App-Sektionen
-                </span>
-              </div>
-            </div>
-
-            <div className="guide-index scroll-reveal">
-              {groupedGuides.map((group) => (
-                <div key={group.app.id} className="guide-index-col">
-                  <strong>
-                    {appEmoji[group.app.id]} {group.app.label}
-                  </strong>
-                  <div>
-                    {group.guides.map((entry) => (
-                      <button
-                        key={entry.id}
-                        type="button"
-                        onClick={() => jumpTo(`guide-${entry.id}`)}
-                      >
-                        {entry.title}
-                      </button>
-                    ))}
-                  </div>
+                      </div>
+                    </div>
+                  </section>
                 </div>
-              ))}
+
+                <pre>{`## ${selectedAtlasEntry.title}
+- app: ${selectedAtlasEntry.app}
+- category: ${selectedAtlasEntry.category}
+- points: ${selectedAtlasEntry.points.length}
+- commands: ${selectedAtlasEntry.commands.length}`}</pre>
+              </div>
+            )}
+          </article>
+        </section>
+
+        <section id="guides" className="section-viewport guides-viewport scroll-reveal">
+          <div className="section-head">
+            <h2>Guide Worlds: klar, groß, direkt lesbar</h2>
+            <p>
+              Jede View hat eine eigene Guide-Szene mit echten Nutzungsinfos: Schritte, Features, Commands,
+              Markdown-Snippets und Quellen. Keine leeren Flächen, sondern dichte Doku.
+            </p>
+          </div>
+
+          <div className="guide-toolbar-wide">
+            <label>
+              Guide Suche
+              <input
+                type="search"
+                value={guideQuery}
+                onChange={(event) => setGuideQuery(event.target.value)}
+                placeholder="notesview, canvas magic menu, settings, terminal ..."
+              />
+            </label>
+            <div className="toolbar-kpi">
+              <span>
+                <BookOpen size={15} /> {guideEntries.length} Guide Worlds
+              </span>
+              <span>
+                <Grid3X3 size={15} /> {groupedGuides.length} App-Sektionen
+              </span>
             </div>
+          </div>
 
-            <div className="guide-pages">
-              {groupedGuides.map((group) => (
-                <section key={group.app.id} className="guide-group scroll-reveal">
-                  <header>
-                    <h3>
-                      {appEmoji[group.app.id]} {group.app.label}
-                    </h3>
-                    <p>{group.app.subtitle}</p>
-                  </header>
-
-                  {group.guides.map((entry) => (
-                    <article key={entry.id} id={`guide-${entry.id}`} className="guide-page scroll-reveal">
-                      <div className="guide-page-head">
-                        <div>
-                          <span className="guide-pill">
-                            {categoryEmoji[entry.category]} {entry.category}
-                          </span>
-                          <h4>{entry.title}</h4>
-                        </div>
-                        <button
-                          type="button"
-                          className="chip-btn"
-                          onClick={() => copyText(`https://youngjibbit95.github.io/Nexus-Ecosystem/#guide-${entry.id}`, `anchor:${entry.id}`)}
-                        >
-                          <Copy size={14} /> Link
-                        </button>
-                      </div>
-
-                      <p className="guide-summary">{entry.summary}</p>
-
-                      <div className="guide-page-grid">
-                        <section>
-                          <div className="detail-card-head">
-                            <strong>Guide Flow</strong>
-                            <span>{entry.guide.length}</span>
-                          </div>
-                          <ol>
-                            {entry.guide.map((step) => (
-                              <li key={step.title}>
-                                <b>{step.title}:</b> {step.detail}
-                              </li>
-                            ))}
-                          </ol>
-                        </section>
-
-                        <section>
-                          <div className="detail-card-head">
-                            <strong>View Funktionen</strong>
-                            <span>{entry.points.length}</span>
-                          </div>
-                          <ul>
-                            {entry.points.map((point) => (
-                              <li key={point}>{point}</li>
-                            ))}
-                          </ul>
-                        </section>
-                      </div>
-
-                      {entry.commands.length ? (
-                        <section className="guide-extra">
-                          <div className="detail-card-head">
-                            <strong>Commands</strong>
-                            <span>interactive</span>
-                          </div>
-                          <div className="command-row">
-                            {entry.commands.map((command) => (
-                              <button
-                                key={command}
-                                type="button"
-                                className="chip-btn"
-                                onClick={() => copyText(command, `guide-cmd:${entry.id}:${command}`)}
-                              >
-                                {command}
-                              </button>
-                            ))}
-                          </div>
-                        </section>
-                      ) : null}
-
-                      {entry.markdownSnippets?.length ? (
-                        <section className="guide-extra">
-                          <div className="detail-card-head">
-                            <strong>Markdown Guide</strong>
-                            <span>{entry.markdownSnippets.length} Snippets</span>
-                          </div>
-                          <div className="snippet-grid">
-                            {entry.markdownSnippets.map((snippet) => (
-                              <article key={snippet.label} className="snippet-card">
-                                <div className="snippet-head">
-                                  <strong>{snippet.label}</strong>
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      copyText(snippet.snippet, `guide-snippet:${entry.id}:${snippet.label}`)
-                                    }
-                                  >
-                                    <Copy size={14} /> Copy
-                                  </button>
-                                </div>
-                                <p>{snippet.description}</p>
-                                <pre>{snippet.snippet}</pre>
-                              </article>
-                            ))}
-                          </div>
-                        </section>
-                      ) : null}
-
-                      <section className="guide-extra">
-                        <div className="detail-card-head">
-                          <strong>Tags + Quellen</strong>
-                          <span>{entry.sources.length} Quellen</span>
-                        </div>
-                        <div className="tag-row">
-                          {entry.tags.map((tag) => (
-                            <span key={tag}>#{tag}</span>
-                          ))}
-                        </div>
-                        <ul>
-                          {entry.sources.map((source) => (
-                            <li key={source}>
-                              <code>{source}</code>
-                            </li>
-                          ))}
-                        </ul>
-                      </section>
-                    </article>
-                  ))}
-                </section>
-              ))}
-            </div>
-
-            {markdownFocusEntries.length ? (
-              <article className="markdown-focus scroll-reveal">
-                <h3>Markdown Fokus (Notes + Canvas)</h3>
-                <p>
-                  Diese Guides decken NotesView Markdown, Canvas Markdown und Magic-Menues mit praxisnahen Snippets ab.
-                </p>
-                <div className="command-row">
-                  {markdownFocusEntries.map((entry) => (
-                    <button key={entry.id} type="button" className="chip-btn" onClick={() => jumpTo(`guide-${entry.id}`)}>
+          <div className="guide-index-open">
+            {groupedGuides.map((group) => (
+              <div key={group.app.id} className="guide-index-row">
+                <strong>
+                  {appEmoji[group.app.id]} {group.app.label}
+                </strong>
+                <div className="guide-index-links">
+                  {group.guides.slice(0, 14).map((entry) => (
+                    <button key={entry.id} type="button" onClick={() => openGuide(entry.id)}>
                       {entry.title}
                     </button>
                   ))}
                 </div>
-              </article>
-            ) : null}
-          </section>
+              </div>
+            ))}
+          </div>
 
-          <section id="matrix" className="section-block scroll-reveal">
-            <div className="section-head">
-              <h2>View Availability Matrix</h2>
-              <p>Direkter Parity-Check fuer Main, Mobile, Code, Code Mobile und Control.</p>
-            </div>
-            <div className="table-wrap">
-              <table className="matrix-table">
-                <thead>
-                  <tr>
-                    <th>View</th>
-                    <th>Main</th>
-                    <th>Mobile</th>
-                    <th>Code</th>
-                    <th>Code Mobile</th>
-                    <th>Control</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {viewMatrix.map((row) => (
-                    <tr key={row.view}>
-                      <td>{row.view}</td>
-                      <td className={row.main ? 'on' : 'off'}>{row.main ? 'ON' : 'OFF'}</td>
-                      <td className={row.mobile ? 'on' : 'off'}>{row.mobile ? 'ON' : 'OFF'}</td>
-                      <td className={row.code ? 'on' : 'off'}>{row.code ? 'ON' : 'OFF'}</td>
-                      <td className={row.codeMobile ? 'on' : 'off'}>{row.codeMobile ? 'ON' : 'OFF'}</td>
-                      <td className={row.control ? 'on' : 'off'}>{row.control ? 'ON' : 'OFF'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
-
-          <section id="integration" className="section-block scroll-reveal">
-            <div className="section-head">
-              <h2>Auth, Account, Payments und API-Handover</h2>
-              <p>
-                Website-Template fuer Signup/Login/Paywall UX. Entitlement Entscheidungen bleiben API-seitig autoritativ.
-              </p>
-            </div>
-
-            <div className="integration-grid">
-              <article className="integration-card scroll-reveal">
-                <div className="detail-card-head">
-                  <strong>Account Session Flow</strong>
-                  <span>website ux</span>
+          {guideEntries.map((entry) => (
+            <article
+              key={entry.id}
+              id={`guide-${entry.id}`}
+              className={`guide-scene app-${entry.app} cat-${entry.category} scroll-reveal`}
+              style={{ ['--scene-hue' as any]: hashHue(entry.id) }}
+            >
+              <header className="guide-scene-head">
+                <div>
+                  <span className="guide-pill">
+                    {appEmoji[entry.app]} {entry.app} · {categoryEmoji[entry.category]} {entry.category}
+                  </span>
+                  <h3>{entry.title}</h3>
                 </div>
-                <div className="mode-row">
-                  <button
-                    type="button"
-                    className={authMode === 'signup' ? 'chip-btn active' : 'chip-btn'}
-                    onClick={() => setAuthMode('signup')}
-                  >
-                    Signup
-                  </button>
-                  <button
-                    type="button"
-                    className={authMode === 'login' ? 'chip-btn active' : 'chip-btn'}
-                    onClick={() => setAuthMode('login')}
-                  >
-                    Login
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  className="chip-btn"
+                  onClick={() => copyText(`https://youngjibbit95.github.io/Nexus-Ecosystem/#guide-${entry.id}`, `anchor:${entry.id}`)}
+                >
+                  <Copy size={14} /> Link
+                </button>
+              </header>
 
-                <div className="form-grid two">
-                  <label>
-                    Email
-                    <input
-                      type="email"
-                      value={authEmail}
-                      onChange={(event) => setAuthEmail(event.target.value)}
-                      placeholder="captain@nexus.dev"
-                    />
-                  </label>
-                  <label>
-                    Password
-                    <input
-                      type="password"
-                      value={authPassword}
-                      onChange={(event) => setAuthPassword(event.target.value)}
-                      placeholder="Strong password"
-                    />
-                  </label>
-                </div>
+              <p className="guide-summary">{entry.summary}</p>
 
-                {authMode === 'signup' ? (
-                  <label>
-                    Confirm Password
-                    <input
-                      type="password"
-                      value={authConfirm}
-                      onChange={(event) => setAuthConfirm(event.target.value)}
-                      placeholder="Repeat password"
-                    />
-                  </label>
-                ) : null}
+              <pre>{`### ${entry.title}
+- app: ${entry.app}
+- category: ${entry.category}
+- steps: ${entry.guide.length}
+- features: ${entry.points.length}`}</pre>
 
-                <label>
-                  Demo Tier
-                  <select value={authTier} onChange={(event) => setAuthTier(event.target.value as TierId)}>
-                    <option value="free">Free</option>
-                    <option value="pro">Pro</option>
-                    <option value="team">Team</option>
-                    <option value="enterprise">Enterprise</option>
-                  </select>
-                </label>
-              </article>
-
-              <article className="integration-card scroll-reveal">
-                <div className="detail-card-head">
-                  <strong>Paywall Guard Preview</strong>
-                  <span>entitlement check</span>
-                </div>
-
-                <label>
-                  Angefragtes Feature
-                  <select value={featureCheck} onChange={(event) => setFeatureCheck(event.target.value as FeatureId)}>
-                    {FEATURE_OPTIONS.map((item) => (
-                      <option key={item.id} value={item.id}>
-                        {item.label}
-                      </option>
+              <div className="guide-columns">
+                <section>
+                  <div className="detail-head">
+                    <strong>Schritt-fuer-Schritt</strong>
+                    <span>{entry.guide.length}</span>
+                  </div>
+                  <ol>
+                    {entry.guide.map((step, index) => (
+                      <li key={step.title}>
+                        <b>🚀 {index + 1}. {step.title}:</b> {step.detail}
+                      </li>
                     ))}
-                  </select>
-                </label>
+                  </ol>
+                </section>
 
-                <div className="tier-grid">
-                  <div>
-                    <span>Aktiver Tier</span>
-                    <strong>{authTier.toUpperCase()}</strong>
+                <section>
+                  <div className="detail-head">
+                    <strong>Feature Liste</strong>
+                    <span>{entry.points.length}</span>
                   </div>
-                  <div>
-                    <span>Benoetigter Tier</span>
-                    <strong>{activeFeature.requiredTier.toUpperCase()}</strong>
+                  <ul>
+                    {entry.points.map((point) => (
+                      <li key={point}>✨ {point}</li>
+                    ))}
+                  </ul>
+                </section>
+              </div>
+
+              {entry.commands.length ? (
+                <section className="guide-strip">
+                  <div className="detail-head">
+                    <strong>Commands</strong>
+                    <span>copyable</span>
                   </div>
-                </div>
+                  <div className="command-row">
+                    {entry.commands.map((command) => (
+                      <button
+                        key={command}
+                        type="button"
+                        className="chip-btn"
+                        onClick={() => copyText(command, `cmd:${entry.id}:${command}`)}
+                      >
+                        {command}
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              ) : null}
 
-                <div className={hasEntitlement ? 'result-box ok' : 'result-box blocked'}>
-                  <strong>{activeFeature.label}</strong>
-                  <p>
-                    {hasEntitlement
-                      ? 'Access erlaubbar: API sollte allow fuer paywall/check liefern.'
-                      : 'Access blockiert: API sollte deny + upsell tier liefern.'}
-                  </p>
-                </div>
-              </article>
+              {entry.markdownSnippets?.length ? (
+                <section className="guide-strip">
+                  <div className="detail-head">
+                    <strong>Markdown Snippets</strong>
+                    <span>{entry.markdownSnippets.length}</span>
+                  </div>
+                  <div className="snippet-grid">
+                    {entry.markdownSnippets.map((snippet) => (
+                      <article key={snippet.label} className="snippet-card">
+                        <div className="snippet-head">
+                          <strong>{snippet.label}</strong>
+                          <button type="button" onClick={() => copyText(snippet.snippet, `snippet:${entry.id}:${snippet.label}`)}>
+                            <Copy size={14} /> Copy
+                          </button>
+                        </div>
+                        <p>{snippet.description}</p>
+                        <pre>{snippet.snippet}</pre>
+                      </article>
+                    ))}
+                  </div>
+                </section>
+              ) : null}
 
-              <article className="integration-card wide scroll-reveal">
-                <div className="detail-card-head">
-                  <strong>API Engineer Prompt + Integrations-Checklist</strong>
-                  <button type="button" onClick={() => copyText(API_ENGINEER_PROMPT, 'api-prompt')}>
-                    <Copy size={14} /> Prompt kopieren
-                  </button>
+              <section className="guide-strip">
+                <div className="detail-head">
+                  <strong>Tags + Quellen</strong>
+                  <span>{entry.sources.length}</span>
+                </div>
+                <div className="tag-row">
+                  {entry.tags.map((tag) => (
+                    <span key={tag}>#{tag}</span>
+                  ))}
                 </div>
                 <ul>
-                  <li>Signup/Login Form steuert nur UX + Payload, nicht Entitlement Authority.</li>
-                  <li>Checkout startet ueber API Session-Endpunkt; Preise/Tiers nicht im Frontend vertrauen.</li>
-                  <li>Feature-Guard nutzt allow/deny/reason/upsellTier fuer konsistente UX in allen Views.</li>
-                  <li>Nach Kauf Entitlements revalidieren und View-Verfuegbarkeit im Client aktualisieren.</li>
+                  {entry.sources.map((source) => (
+                    <li key={source}>
+                      📎 <code>{source}</code>
+                    </li>
+                  ))}
                 </ul>
-                <pre>{API_ENGINEER_PROMPT}</pre>
-              </article>
-            </div>
-          </section>
+              </section>
+            </article>
+          ))}
+        </section>
 
-          <section id="coverage" className="section-block scroll-reveal">
-            <div className="section-head">
-              <h2>Coverage + Dokumentationsbreite</h2>
-              <p>Einordnung nach Kategorien, Apps und am haeufigsten referenzierten Quellen.</p>
-            </div>
+        <section id="matrix" className="section-viewport matrix-viewport scroll-reveal">
+          <div className="section-head">
+            <h2>View Matrix</h2>
+            <p>Paritaet und Verfuegbarkeit transparent fuer Main, Mobile, Code, Code Mobile und Control.</p>
+          </div>
+          <div className="table-wrap">
+            <table className="matrix-table">
+              <thead>
+                <tr>
+                  <th>View</th>
+                  <th>Main</th>
+                  <th>Mobile</th>
+                  <th>Code</th>
+                  <th>Code Mobile</th>
+                  <th>Control</th>
+                </tr>
+              </thead>
+              <tbody>
+                {viewMatrix.map((row) => (
+                  <tr key={row.view}>
+                    <td>{row.view}</td>
+                    <td className={row.main ? 'on' : 'off'}>{row.main ? 'ON' : 'OFF'}</td>
+                    <td className={row.mobile ? 'on' : 'off'}>{row.mobile ? 'ON' : 'OFF'}</td>
+                    <td className={row.code ? 'on' : 'off'}>{row.code ? 'ON' : 'OFF'}</td>
+                    <td className={row.codeMobile ? 'on' : 'off'}>{row.codeMobile ? 'ON' : 'OFF'}</td>
+                    <td className={row.control ? 'on' : 'off'}>{row.control ? 'ON' : 'OFF'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
 
-            <div className="coverage-grid">
-              <article className="coverage-card scroll-reveal">
-                <div className="subhead">Kategorie Coverage</div>
-                <div className="count-list">
-                  {categoryCounts.map((item) => (
-                    <div key={item.id}>
-                      <span>
-                        {categoryEmoji[item.id]} {item.label}
-                      </span>
-                      <strong>{item.count}</strong>
-                    </div>
+        <section id="integration" className="section-viewport integration-viewport scroll-reveal">
+          <div className="section-head">
+            <h2>Auth + Paywall Integration Stage</h2>
+            <p>Website UX steuert nur Flows, API bleibt autoritativ fuer Entitlements und Billing-Entscheidungen.</p>
+          </div>
+
+          <div className="integration-grid">
+            <article className="integration-card">
+              <div className="detail-head">
+                <strong>Account Flow</strong>
+                <span>website ux</span>
+              </div>
+              <div className="mode-row">
+                <button type="button" className={authMode === 'signup' ? 'chip-btn active' : 'chip-btn'} onClick={() => setAuthMode('signup')}>
+                  Signup
+                </button>
+                <button type="button" className={authMode === 'login' ? 'chip-btn active' : 'chip-btn'} onClick={() => setAuthMode('login')}>
+                  Login
+                </button>
+              </div>
+
+              <div className="form-grid two">
+                <label>
+                  Email
+                  <input
+                    type="email"
+                    value={authEmail}
+                    onChange={(event) => setAuthEmail(event.target.value)}
+                    placeholder="captain@nexus.dev"
+                  />
+                </label>
+                <label>
+                  Password
+                  <input
+                    type="password"
+                    value={authPassword}
+                    onChange={(event) => setAuthPassword(event.target.value)}
+                    placeholder="Strong password"
+                  />
+                </label>
+              </div>
+
+              {authMode === 'signup' ? (
+                <label>
+                  Confirm Password
+                  <input
+                    type="password"
+                    value={authConfirm}
+                    onChange={(event) => setAuthConfirm(event.target.value)}
+                    placeholder="Repeat password"
+                  />
+                </label>
+              ) : null}
+
+              <label>
+                Demo Tier
+                <select value={authTier} onChange={(event) => setAuthTier(event.target.value as TierId)}>
+                  <option value="free">Free</option>
+                  <option value="pro">Pro</option>
+                  <option value="team">Team</option>
+                  <option value="enterprise">Enterprise</option>
+                </select>
+              </label>
+            </article>
+
+            <article className="integration-card">
+              <div className="detail-head">
+                <strong>Paywall Guard</strong>
+                <span>entitlement</span>
+              </div>
+
+              <label>
+                Feature Anfrage
+                <select value={featureCheck} onChange={(event) => setFeatureCheck(event.target.value as FeatureId)}>
+                  {FEATURE_OPTIONS.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.label}
+                    </option>
                   ))}
-                </div>
-              </article>
+                </select>
+              </label>
 
-              <article className="coverage-card scroll-reveal">
-                <div className="subhead">App Coverage</div>
-                <div className="count-list">
-                  {appCounts.map((item) => (
-                    <div key={item.id}>
-                      <span>
-                        {appEmoji[item.id]} {item.label}
-                      </span>
-                      <strong>{item.count}</strong>
-                    </div>
-                  ))}
+              <div className="tier-grid">
+                <div>
+                  <span>Aktiver Tier</span>
+                  <strong>{authTier.toUpperCase()}</strong>
                 </div>
-              </article>
-
-              <article className="coverage-card wide scroll-reveal">
-                <div className="subhead">Top Quellen</div>
-                <div className="source-grid">
-                  {sourceCoverage.map((item) => (
-                    <div key={item.source}>
-                      <strong>{item.source}</strong>
-                      <span>{item.count} Referenzen</span>
-                    </div>
-                  ))}
+                <div>
+                  <span>Benoetigter Tier</span>
+                  <strong>{activeFeature.requiredTier.toUpperCase()}</strong>
                 </div>
-              </article>
-            </div>
-          </section>
+              </div>
 
-          <footer className="wiki-footer">
-            <p>
-              Nexus Ecosystem Wiki · Scroll-first Product Style · {new Date().getFullYear()} 🌌
-            </p>
-            {copyState && copyState !== 'copy-error' ? <span className="small-state ok">Kopiert</span> : null}
-            {copyState === 'copy-error' ? <span className="small-state warn">Kopieren fehlgeschlagen</span> : null}
-          </footer>
-        </main>
-      </div>
+              <div className={hasEntitlement ? 'result-box ok' : 'result-box blocked'}>
+                <strong>{activeFeature.label}</strong>
+                <p>
+                  {hasEntitlement
+                    ? 'Access erlaubbar: API sollte allow fuer paywall/check liefern.'
+                    : 'Access blockiert: API sollte deny + upsell tier liefern.'}
+                </p>
+              </div>
+            </article>
+
+            <article className="integration-card wide">
+              <div className="detail-head">
+                <strong>API Handover Prompt</strong>
+                <button type="button" onClick={() => copyText(API_ENGINEER_PROMPT, 'api-prompt')}>
+                  <Copy size={14} /> Prompt kopieren
+                </button>
+              </div>
+              <ul className="emoji-markdown-list">
+                <li>✅ Signup/Login ist Frontend-UX, finale Entscheidung API-seitig.</li>
+                <li>✅ Checkout startet via API Session-Endpunkt, keine Client-Authority fuer Tier/Preis.</li>
+                <li>✅ paywall/check gibt allow|deny|reason|upsellTier zurueck.</li>
+              </ul>
+              <pre>{API_ENGINEER_PROMPT}</pre>
+            </article>
+          </div>
+        </section>
+
+        <section id="coverage" className="section-viewport coverage-viewport scroll-reveal">
+          <div className="section-head">
+            <h2>Coverage</h2>
+            <p>Wie breit das Wiki aktuell Kategorien, Apps und Quellpfade abdeckt.</p>
+          </div>
+
+          <div className="coverage-grid">
+            <article className="coverage-card">
+              <div className="subhead">Kategorie Coverage</div>
+              <div className="count-list">
+                {categoryCounts.map((item) => (
+                  <div key={item.id}>
+                    <span>
+                      {categoryEmoji[item.id]} {item.label}
+                    </span>
+                    <strong>{item.count}</strong>
+                  </div>
+                ))}
+              </div>
+            </article>
+
+            <article className="coverage-card">
+              <div className="subhead">App Coverage</div>
+              <div className="count-list">
+                {appCounts.map((item) => (
+                  <div key={item.id}>
+                    <span>
+                      {appEmoji[item.id]} {item.label}
+                    </span>
+                    <strong>{item.count}</strong>
+                  </div>
+                ))}
+              </div>
+            </article>
+
+            <article className="coverage-card wide">
+              <div className="subhead">Top Quellen</div>
+              <div className="source-grid">
+                {sourceCoverage.map((item) => (
+                  <div key={item.source}>
+                    <strong>{item.source}</strong>
+                    <span>{item.count} Referenzen</span>
+                  </div>
+                ))}
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <footer className="wiki-footer">
+          <p>Nexus Ecosystem Wiki · Solar Travel Edition · {new Date().getFullYear()} 🌌</p>
+          {copyState && copyState !== 'copy-error' ? <span className="small-state ok">Kopiert</span> : null}
+          {copyState === 'copy-error' ? <span className="small-state warn">Kopieren fehlgeschlagen</span> : null}
+        </footer>
+      </main>
     </div>
   )
 }

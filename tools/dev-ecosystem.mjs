@@ -1,8 +1,13 @@
-import net from 'node:net'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { spawnNpm, spawnProcess } from './lib/process-utils.mjs'
 import { resolveHostedControlUrl } from './lib/api-source.mjs'
+import {
+  describeListeningProcess,
+  isLikelyMainViteProcess,
+  isPortReachable,
+  waitForPortAnyHost,
+} from './lib/dev-port-utils.mjs'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -50,6 +55,7 @@ SERVICES.push(
 
 const children = []
 let shuttingDown = false
+const LOOPBACK_HOSTS = ['127.0.0.1', '::1']
 
 const run = (service, args) => {
   const child = spawnNpm(args, {
@@ -67,53 +73,6 @@ const run = (service, args) => {
 
   children.push(child)
   return child
-}
-
-const waitForPort = (port, host = '127.0.0.1', timeoutMs = 90_000) => {
-  const startedAt = Date.now()
-
-  return new Promise((resolve, reject) => {
-    const tryConnect = () => {
-      const socket = new net.Socket()
-
-      socket.setTimeout(1_200)
-      socket.once('connect', () => {
-        socket.destroy()
-        resolve(true)
-      })
-
-      socket.once('timeout', () => {
-        socket.destroy()
-        retryOrFail()
-      })
-
-      socket.once('error', () => {
-        socket.destroy()
-        retryOrFail()
-      })
-
-      socket.connect(port, host)
-    }
-
-    const retryOrFail = () => {
-      if (Date.now() - startedAt > timeoutMs) {
-        reject(new Error(`Port ${port} nicht erreichbar (Timeout nach ${timeoutMs}ms)`))
-        return
-      }
-      setTimeout(tryConnect, 450)
-    }
-
-    tryConnect()
-  })
-}
-
-const isPortReachable = async (port, host = '127.0.0.1', timeoutMs = 1_400) => {
-  try {
-    await waitForPort(port, host, timeoutMs)
-    return true
-  } catch {
-    return false
-  }
 }
 
 const openBrowser = (url) => {
@@ -168,13 +127,24 @@ const stackLabel = includeControlUi
 console.log(`Starte Nexus Dev Stack (${stackLabel})...`)
 
 for (const service of SERVICES) {
-  const running = await isPortReachable(service.port)
+  const running = await isPortReachable(service.port, LOOPBACK_HOSTS)
 
   if (running) {
     if (service.id === 'main' && service.fallbackArgsIfPortBusy) {
-      console.log(`[${service.id}] Port ${service.port} bereits aktiv, starte nur Electron.`)
-      run(service, service.fallbackArgsIfPortBusy)
-      continue
+      const listener = describeListeningProcess(service.port)
+      if (listener?.command && isLikelyMainViteProcess(listener.command)) {
+        console.log(`[${service.id}] Port ${service.port} bereits aktiv (PID ${listener.pid}), starte nur Electron.`)
+        run(service, service.fallbackArgsIfPortBusy)
+        continue
+      }
+
+      console.error(
+        `[${service.id}] Port ${service.port} ist belegt, aber nicht durch Nexus Main Vite.\n`
+        + `Bitte Prozess beenden und erneut starten.\n`
+        + (listener ? `Belegt durch PID ${listener.pid}: ${listener.command}` : 'Prozess konnte nicht eindeutig erkannt werden.'),
+      )
+      shutdown(1)
+      break
     }
 
     console.log(`[${service.id}] Port ${service.port} bereits aktiv, starte Service nicht doppelt.`)
@@ -184,8 +154,12 @@ for (const service of SERVICES) {
   run(service, service.args)
 }
 
+if (shuttingDown) {
+  process.exit(1)
+}
+
 try {
-  await Promise.all(SERVICES.map((service) => waitForPort(service.port)))
+  await Promise.all(SERVICES.map((service) => waitForPortAnyHost(service.port, LOOPBACK_HOSTS)))
 
   console.log('\nAlle Dev Services sind erreichbar:')
   for (const service of SERVICES) {
