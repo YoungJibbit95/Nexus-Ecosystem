@@ -409,9 +409,7 @@ const main = async () => {
     durationMs: 0,
     apiSource: {
       mode: apiSource.mode,
-      controlPlaneDir: apiSource.controlPlaneDir ? path.relative(ROOT, apiSource.controlPlaneDir) : null,
       apiDir: path.relative(ROOT, apiSource.apiDir),
-      schemasDir: apiSource.schemasDir ? path.relative(ROOT, apiSource.schemasDir) : null,
       controlBaseUrl: apiSource.controlBaseUrl || null,
     },
   }

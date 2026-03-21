@@ -148,19 +148,19 @@ const run = async () => {
     },
     {
       id: 'nexus-api-view-client',
-      file: path.join(ROOT, 'packages/nexus-api/src/control/client.ts'),
+      file: path.join(ROOT, 'packages/nexus-core/src/api/control/client.ts'),
       pattern: /validateViewAccess\(viewId/s,
       message: 'nexus-api Client hat View-Validation-Client',
     },
     {
       id: 'nexus-api-live-sync-client',
-      file: path.join(ROOT, 'packages/nexus-api/src/control/client.ts'),
+      file: path.join(ROOT, 'packages/nexus-core/src/api/control/client.ts'),
       pattern: /fetchCatalog|fetchLayoutSchema|fetchCurrentRelease|fetchLiveBundle|subscribeReleaseUpdates|resolveFeatureCompatibility/s,
       message: 'nexus-api Client bietet v2 Live-Sync API',
     },
     {
       id: 'nexus-runtime-live-sync',
-      file: path.join(ROOT, 'packages/nexus-api/src/runtime.ts'),
+      file: path.join(ROOT, 'packages/nexus-core/src/api/runtime.ts'),
       pattern: /loadLiveBundle|resolveCompatibility|liveSync/s,
       message: 'Nexus Runtime integriert Live-Sync Hooks',
     },
@@ -185,25 +185,25 @@ const run = async () => {
     {
       id: 'hosted-alias-main',
       file: path.join(ROOT, 'Nexus Main/vite.config.ts'),
-      pattern: /packages\/nexus-api\/src/,
+      pattern: /packages\/nexus-core\/src\/api/,
       message: 'Nexus Main Alias zeigt auf internes API Package',
     },
     {
       id: 'hosted-alias-mobile',
       file: path.join(ROOT, 'Nexus Mobile/vite.config.ts'),
-      pattern: /packages\/nexus-api\/src/,
+      pattern: /packages\/nexus-core\/src\/api/,
       message: 'Nexus Mobile Alias zeigt auf internes API Package',
     },
     {
       id: 'hosted-alias-code',
       file: path.join(ROOT, 'Nexus Code/vite.config.js'),
-      pattern: /packages\/nexus-api\/src/,
+      pattern: /packages\/nexus-core\/src\/api/,
       message: 'Nexus Code Alias zeigt auf internes API Package',
     },
     {
       id: 'hosted-alias-code-mobile',
       file: path.join(ROOT, 'Nexus Code Mobile/vite.config.js'),
-      pattern: /packages\/nexus-api\/src/,
+      pattern: /packages\/nexus-core\/src\/api/,
       message: 'Nexus Code Mobile Alias zeigt auf internes API Package',
     },
   ]

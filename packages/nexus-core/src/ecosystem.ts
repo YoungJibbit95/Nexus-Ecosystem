@@ -38,7 +38,7 @@ export const NEXUS_ECOSYSTEM_APPS: NexusAppTarget[] = [
   {
     id: 'api',
     title: 'Nexus API',
-    workspacePath: 'packages/nexus-api',
+    workspacePath: 'packages/nexus-core/src/api',
     platform: 'Hosted API Client Layer',
   },
   {
@@ -60,6 +60,6 @@ export const NEXUS_ECOSYSTEM_APPS: NexusAppTarget[] = [
 export const NEXUS_ECOSYSTEM_VERSION = '2026.03'
 export const NEXUS_GLOBAL_ASSETS_PATH = 'assets/global'
 export const NEXUS_SHARED_PACKAGES = ['@nexus/core', '@nexus/api'] as const
-export const NEXUS_API_PACKAGE_PATH = 'packages/nexus-api'
+export const NEXUS_API_PACKAGE_PATH = 'packages/nexus-core/src/api'
 export const NEXUS_CONTROL_PLANE_PATH = 'Hosted API (NEXUS_CONTROL_URL)'
 export const NEXUS_CONTROL_UI_PATH = '../Nexus Control'

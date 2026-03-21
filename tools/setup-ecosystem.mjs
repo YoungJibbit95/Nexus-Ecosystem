@@ -146,7 +146,7 @@ const main = async () => {
   console.log('- npm run dev:control:open        # startet Control UI und oeffnet Browser')
   console.log('- npm run dev:main                # startet Nexus Main mit Electron')
   console.log('- npm run build:ecosystem         # Full Build')
-  console.log('- npm run build:ecosystem:with-api-check  # Build inkl. Hosted-API Healthcheck')
+  console.log('- npm run build:ecosystem:with-healthcheck  # Build inkl. Hosted-API Healthcheck')
   console.log('- npm run doctor:release          # prueft Hosted-API, Android SDK und Notarization-Readiness')
   console.log('- npm run verify:ecosystem        # fuehrt Integritaetspruefungen aus')
 }
