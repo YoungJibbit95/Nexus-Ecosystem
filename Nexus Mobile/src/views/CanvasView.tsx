@@ -54,7 +54,8 @@ const PM_PRIORITY_COLOR: Record<ProjectPriority, string> = {
     critical: '#FF453A',
 }
 
-const CANVAS_NODE_OVERSCAN_PX = 560
+const CANVAS_NODE_OVERSCAN_PX = 680
+const CANVAS_NODE_OVERSCAN_MAX_PX = 2200
 
 const toFileSafeSlug = (value: string) =>
     (value || 'canvas')
@@ -77,12 +78,12 @@ const triggerTextDownload = (filename: string, content: string, mime = 'text/pla
 
 // ─── CONNECTION LINE ───
 
-function ConnectionLine({ conn, nodes, zoom, onDelete }: {
-    conn: CanvasConnection; nodes: CanvasNode[]; zoom: number; onDelete: (id: string) => void
+function ConnectionLine({ conn, nodeById, zoom, onDelete, reduceEffects }: {
+    conn: CanvasConnection; nodeById: globalThis.Map<string, CanvasNode>; zoom: number; onDelete: (id: string) => void; reduceEffects?: boolean
 }) {
     const t = useTheme()
-    const fromNode = nodes.find(n => n.id === conn.fromId)
-    const toNode = nodes.find(n => n.id === conn.toId)
+    const fromNode = nodeById.get(conn.fromId)
+    const toNode = nodeById.get(conn.toId)
     if (!fromNode || !toNode) return null
 
     const x1 = fromNode.x + fromNode.width / 2
@@ -94,25 +95,26 @@ function ConnectionLine({ conn, nodes, zoom, onDelete }: {
 
     const [hovered, setHovered] = useState(false)
     const connColor = conn.color || t.accent
+    const showDetail = !reduceEffects && hovered
 
     return (
-        <g onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
-            <path d={path} stroke="transparent" strokeWidth={18 / zoom} fill="none" style={{ cursor: 'pointer' }} />
+        <g onMouseEnter={() => !reduceEffects && setHovered(true)} onMouseLeave={() => !reduceEffects && setHovered(false)}>
+            <path d={path} stroke={reduceEffects ? connColor : "transparent"} strokeWidth={reduceEffects ? 1.2 / zoom : 18 / zoom} fill="none" style={{ cursor: reduceEffects ? 'default' : 'pointer', opacity: 0.5 }} />
             {/* Glow layer */}
-            {hovered && (
+            {showDetail && (
                 <path d={path} stroke={connColor} strokeWidth={6 / zoom} fill="none" opacity={0.2} style={{ filter: `blur(${3 / zoom}px)` }} />
             )}
             <path
                 d={path}
                 stroke={connColor}
-                strokeWidth={(hovered ? 2.5 : 1.5) / zoom}
+                strokeWidth={(showDetail ? 2.5 : 1.5) / zoom}
                 fill="none"
-                strokeDasharray={hovered ? 'none' : `${8 / zoom} ${4 / zoom}`}
-                opacity={hovered ? 1 : 0.55}
-                style={{ transition: 'all 0.2s', filter: hovered ? `drop-shadow(0 0 ${4 / zoom}px ${connColor})` : 'none' }}
+                strokeDasharray={reduceEffects ? 'none' : showDetail ? 'none' : `${8 / zoom} ${4 / zoom}`}
+                opacity={showDetail ? 1 : reduceEffects ? 0.62 : 0.55}
+                style={{ transition: reduceEffects ? 'none' : 'all 0.2s', filter: showDetail ? `drop-shadow(0 0 ${4 / zoom}px ${connColor})` : 'none' }}
             />
             {/* Arrowhead */}
-            {hovered && (() => {
+            {showDetail && (() => {
                 const angle = Math.atan2(y2 - y1, x2 - x1)
                 const ax = x2 - (8 / zoom) * Math.cos(angle)
                 const ay = y2 - (8 / zoom) * Math.sin(angle)
@@ -124,7 +126,7 @@ function ConnectionLine({ conn, nodes, zoom, onDelete }: {
                 )
             })()}
             {/* Midpoint delete */}
-            {hovered && (
+            {showDetail && (
                 <g transform={`translate(${(x1 + x2) / 2},${(y1 + y2) / 2})`}
                     onClick={(e) => { e.stopPropagation(); onDelete(conn.id) }} style={{ cursor: 'pointer' }}>
                     <circle r={10 / zoom} fill="#FF3B30" opacity={0.9} />
@@ -977,7 +979,7 @@ export function CanvasView() {
     const wheelPanDelta = useRef({ x: 0, y: 0 })
     const wheelPanReleaseTimeout = useRef(0)
     const wheelZoomRaf = useRef(0)
-    const wheelZoomDelta = useRef(0)
+    const wheelZoomLogDelta = useRef(0)
     const wheelZoomPoint = useRef({ x: 0, y: 0 })
 
     const projectNodes = useMemo(() => {
@@ -1016,15 +1018,19 @@ export function CanvasView() {
 
     const visibleBounds = useMemo(() => {
         const zoom = Math.max(0.0001, viewport.zoom)
+        const overscan = Math.min(
+            CANVAS_NODE_OVERSCAN_MAX_PX,
+            Math.max(CANVAS_NODE_OVERSCAN_PX, 560 / Math.max(0.2, zoom)),
+        )
         const worldLeft = -viewport.panX / zoom
         const worldTop = -viewport.panY / zoom
         const worldRight = worldLeft + canvasSize.w / zoom
         const worldBottom = worldTop + canvasSize.h / zoom
         return {
-            left: worldLeft - CANVAS_NODE_OVERSCAN_PX,
-            top: worldTop - CANVAS_NODE_OVERSCAN_PX,
-            right: worldRight + CANVAS_NODE_OVERSCAN_PX,
-            bottom: worldBottom + CANVAS_NODE_OVERSCAN_PX,
+            left: worldLeft - overscan,
+            top: worldTop - overscan,
+            right: worldRight + overscan,
+            bottom: worldBottom + overscan,
         }
     }, [viewport.panX, viewport.panY, viewport.zoom, canvasSize.w, canvasSize.h])
 
@@ -1043,15 +1049,23 @@ export function CanvasView() {
         })
     }, [canvas, focusNodeIds, visibleBounds])
 
-    const visibleNodeIds = useMemo(
-        () => new Set(visibleNodes.map(n => n.id)),
-        [visibleNodes],
-    )
+    const visibleNodeById = useMemo(() => {
+        const map = new globalThis.Map<string, CanvasNode>()
+        visibleNodes.forEach(node => map.set(node.id, node))
+        return map
+    }, [visibleNodes])
 
     const visibleConnections = useMemo(
-        () => canvas?.connections.filter(cn => visibleNodeIds.has(cn.fromId) && visibleNodeIds.has(cn.toId)) ?? [],
-        [canvas, visibleNodeIds]
+        () => canvas?.connections.filter(cn => visibleNodeById.has(cn.fromId) && visibleNodeById.has(cn.toId)) ?? [],
+        [canvas, visibleNodeById]
     )
+    const reduceConnectionEffects =
+        panning
+        || wheelPanning
+        || (canvas?.nodes.length ?? 0) > 70
+        || viewport.zoom < 0.35
+        || (canvas?.connections.length ?? 0) > 140
+    const miniMapNodes = (canvas && canvas.nodes.length > 320) ? visibleNodes : (canvas?.nodes ?? [])
 
     // Track canvas size
     useEffect(() => {
@@ -1177,31 +1191,45 @@ export function CanvasView() {
         applyZoomAtPoint(centerX, centerY, factor)
     }, [applyZoomAtPoint, setZoom])
 
-    // Trackpad-friendly wheel: pan by default, zoom only with pinch/Ctrl.
+    // Trackpad-friendly wheel: pan by default, zoom only with pinch.
     const handleWheel = useCallback((e: React.WheelEvent) => {
         e.preventDefault()
         const deltaScale = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? canvasSize.h : 1
         const rawDx = e.deltaX * deltaScale
         const rawDy = e.deltaY * deltaScale
-        const dx = Math.max(-240, Math.min(240, rawDx))
-        const dy = Math.max(-240, Math.min(240, rawDy))
-        if (Math.abs(dx) < 0.001 && Math.abs(dy) < 0.001) return
+        const dx = Math.max(-180, Math.min(180, rawDx))
+        const dy = Math.max(-180, Math.min(180, rawDy))
+        if (Math.abs(dx) < 0.02 && Math.abs(dy) < 0.02) return
 
-        if (e.ctrlKey) {
+        const isZoomGesture = e.ctrlKey || e.metaKey
+        if (isZoomGesture) {
+            const pinchDelta = Math.max(-56, Math.min(56, dy))
+            const sensitivity = Math.abs(pinchDelta) < 8 ? 0.0068 : 0.0052
+            wheelZoomLogDelta.current += -pinchDelta * sensitivity
             wheelZoomPoint.current = { x: e.clientX, y: e.clientY }
-            wheelZoomDelta.current += dy
             if (!wheelZoomRaf.current) {
-                wheelZoomRaf.current = requestAnimationFrame(() => {
-                    wheelZoomRaf.current = 0
-                    const zoomDelta = Math.max(-160, Math.min(160, wheelZoomDelta.current))
-                    wheelZoomDelta.current = 0
-                    if (Math.abs(zoomDelta) < 0.001) return
-                    const factor = Math.exp(-zoomDelta * 0.0016)
+                const flushZoom = () => {
+                    const zoomStep = Math.max(-0.32, Math.min(0.32, wheelZoomLogDelta.current))
+                    if (Math.abs(zoomStep) < 0.0005) {
+                        wheelZoomLogDelta.current = 0
+                        wheelZoomRaf.current = 0
+                        return
+                    }
+                    wheelZoomLogDelta.current -= zoomStep
+                    const factor = Math.exp(zoomStep)
                     applyZoomAtPoint(wheelZoomPoint.current.x, wheelZoomPoint.current.y, factor)
-                })
+                    if (Math.abs(wheelZoomLogDelta.current) > 0.0005) {
+                        wheelZoomRaf.current = requestAnimationFrame(flushZoom)
+                    } else {
+                        wheelZoomLogDelta.current = 0
+                        wheelZoomRaf.current = 0
+                    }
+                }
+                wheelZoomRaf.current = requestAnimationFrame(flushZoom)
             }
             return
         }
+        wheelZoomLogDelta.current = 0
 
         wheelPanDelta.current.x -= dx
         wheelPanDelta.current.y -= dy
@@ -1239,6 +1267,7 @@ export function CanvasView() {
         if (wheelZoomRaf.current) {
             cancelAnimationFrame(wheelZoomRaf.current)
         }
+        wheelZoomLogDelta.current = 0
         if (wheelPanReleaseTimeout.current) {
             window.clearTimeout(wheelPanReleaseTimeout.current)
         }
@@ -1335,6 +1364,34 @@ export function CanvasView() {
         triggerTextDownload(`${baseName}.nexus-canvas.json`, JSON.stringify(jsonPayload, null, 2), 'application/json;charset=utf-8')
         triggerTextDownload(`${baseName}.nexus-canvas.md`, readable.join('\n'), 'text/markdown;charset=utf-8')
     }, [canvas, viewport])
+
+    const duplicateSelectedNode = useCallback(() => {
+        if (!selectedNodeId) return
+        const state = useCanvas.getState()
+        const active = state.getActiveCanvas()
+        const source = active?.nodes.find(node => node.id === selectedNodeId)
+        if (!source) return
+
+        state.addNode(source.type, source.x + 56, source.y + 56)
+        const c = state.getActiveCanvas()
+        const created = c?.nodes[c.nodes.length - 1]
+        if (!created) return
+        state.updateNode(created.id, {
+            title: `${source.title} Copy`,
+            width: source.width,
+            height: source.height,
+            content: source.content,
+            color: source.color,
+            items: source.items?.map((item, idx) => ({ ...item, id: `${item.id}-copy-${idx}-${Date.now().toString(36)}` })),
+            codeLang: source.codeLang,
+            linkedNoteId: source.linkedNoteId,
+            linkedCodeId: source.linkedCodeId,
+            linkedTaskId: source.linkedTaskId,
+            linkedReminderId: source.linkedReminderId,
+            pm: source.pm ? { ...source.pm, tags: source.pm.tags ? [...source.pm.tags] : undefined } : undefined,
+        })
+        setSelectedNodeId(created.id)
+    }, [selectedNodeId])
 
     const createProjectTemplate = useCallback(() => {
         if (!canvas) return
@@ -1646,6 +1703,7 @@ export function CanvasView() {
                             <ToolBtn icon={Link} tooltip="Auto Link [[Wiki]]" onClick={autoLinkWikiRefs} accent={t.accent} rgb={rgb} />
                             <ToolBtn icon={Grid} tooltip="Arrange by Status" onClick={autoArrangeByStatus} accent={t.accent} rgb={rgb} />
                             <ToolBtn icon={Plus} tooltip="Projekt Template" onClick={createProjectTemplate} accent={t.accent} rgb={rgb} />
+                            <ToolBtn icon={Copy} tooltip="Node duplizieren" onClick={duplicateSelectedNode} accent={t.accent} rgb={rgb} active={Boolean(selectedNodeId)} />
                             <ToolBtn icon={AlignCenter} tooltip="Fit to View" onClick={fitView} accent={t.accent} rgb={rgb} />
                             <div style={{ width: 1, height: 18, background: 'rgba(255,255,255,0.1)', margin: '0 2px' }} />
                             <ToolBtn icon={ZoomOut} tooltip="Rauszoomen" onClick={() => setZoomCentered(viewport.zoom - 0.15)} accent={t.accent} rgb={rgb} />
@@ -1756,6 +1814,11 @@ export function CanvasView() {
                                         <Plus size={16}/> Template
                                     </button>
                                 </div>
+                                <div style={{ display:'flex', gap:10, marginTop:10 }}>
+                                    <button onClick={duplicateSelectedNode} style={{ flex:1, padding:'12px', borderRadius:12, background:Boolean(selectedNodeId)?`rgba(${rgb},0.15)`:'rgba(255,255,255,0.07)', border:`1px solid ${selectedNodeId?t.accent:'rgba(255,255,255,0.1)'}`, cursor:'pointer', color:selectedNodeId?t.accent:'inherit', fontSize:13, fontWeight:700, display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}>
+                                        <Copy size={16}/> Duplicate
+                                    </button>
+                                </div>
                                 <div style={{ textAlign:'center', marginTop:12, fontSize:11, opacity:0.4 }}>
                                     Zoom: {Math.round(viewport.zoom*100)}% · {canvas?.nodes.length??0} Nodes
                                 </div>
@@ -1792,7 +1855,7 @@ export function CanvasView() {
                             position: 'absolute', top: 12, left: '50%', transform: 'translateX(-50%)',
                             zIndex: 200, padding: '4px 12px', borderRadius: 8,
                             background: 'rgba(0,0,0,0.5)', fontSize: 11, opacity: 0.7, pointerEvents: 'none',
-                        }}>Hold Space + Drag to Pan</div>
+                        }}>Space + Drag (optional) · Hintergrund ziehen zum Pannen</div>
                     )}
 
                     <div ref={canvasRef}
@@ -1872,15 +1935,17 @@ export function CanvasView() {
                         }}>
                             {/* SVG Layer for Connections */}
                             {canvas && visibleConnections.length > 0 && (
-                                <svg style={{ position: 'absolute', left: 0, top: 0, width: '100%', height: '100%', overflow: 'visible', pointerEvents: 'none', zIndex: 0 }}>
-                                    <defs>
-                                        <filter id="glow-filter" x="-20%" y="-20%" width="140%" height="140%">
-                                            <feGaussianBlur stdDeviation="4" result="blur" />
-                                            <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                                        </filter>
-                                    </defs>
+                                <svg style={{ position: 'absolute', left: 0, top: 0, width: '100%', height: '100%', overflow: 'visible', pointerEvents: reduceConnectionEffects ? 'none' : 'auto', zIndex: 0 }}>
+                                    {!reduceConnectionEffects && (
+                                        <defs>
+                                            <filter id="glow-filter" x="-20%" y="-20%" width="140%" height="140%">
+                                                <feGaussianBlur stdDeviation="4" result="blur" />
+                                                <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                                            </filter>
+                                        </defs>
+                                    )}
                                     {visibleConnections.map(conn => (
-                                        <ConnectionLine key={conn.id} conn={conn} nodes={visibleNodes} zoom={viewport.zoom} onDelete={deleteConnection} />
+                                        <ConnectionLine key={conn.id} conn={conn} nodeById={visibleNodeById} zoom={viewport.zoom} onDelete={deleteConnection} reduceEffects={reduceConnectionEffects} />
                                     ))}
                                 </svg>
                             )}
@@ -1938,8 +2003,8 @@ export function CanvasView() {
                     )}
 
                     {/* Mini-map */}
-                    {showMiniMap && visibleNodes.length > 0 && (
-                        <MiniMap nodes={visibleNodes} viewport={viewport} canvasW={canvasSize.w} canvasH={canvasSize.h} />
+                    {showMiniMap && miniMapNodes.length > 0 && (
+                        <MiniMap nodes={miniMapNodes} viewport={viewport} canvasW={canvasSize.w} canvasH={canvasSize.h} />
                     )}
 
                     {/* Project Panel */}
@@ -2027,7 +2092,7 @@ export function CanvasView() {
                             position: 'absolute', bottom: 16, left: '50%', transform: 'translateX(-50%)',
                             fontSize: 10, opacity: 0.35, pointerEvents: 'none',
                             background: 'rgba(0,0,0,0.4)', padding: '2px 8px', borderRadius: 6, fontFamily: 'monospace',
-                        }}>{Math.round(viewport.zoom * 100)}% · Scroll to pan · Pinch/Ctrl + Scroll to zoom · Render {visibleNodes.length}/{canvas?.nodes.length ?? 0}</div>
+                        }}>{Math.round(viewport.zoom * 100)}% · Scroll = Pan · Pinch/Ctrl + Scroll = Zoom · Render {visibleNodes.length}/{canvas?.nodes.length ?? 0}</div>
                     )}
                 </div>
             </div>

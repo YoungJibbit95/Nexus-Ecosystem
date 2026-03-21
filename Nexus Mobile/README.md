@@ -1,120 +1,75 @@
-# 🚀 Nexus Mobile
+# Nexus Mobile
 
-[![Version](https://img.shields.io/badge/version-4.0.0-blue.svg)](https://github.com/YoungJibbit95/Nexus-Mobile)
-[![Framework](https://img.shields.io/badge/framework-React-61dafb.svg)](https://reactjs.org/)
-[![Tooling](https://img.shields.io/badge/tooling-Vite-646cff.svg)](https://vitejs.dev/)
-[![Mobile](https://img.shields.io/badge/mobile-Capacitor-119eff.svg)](https://capacitorjs.com/)
-[![Styling](https://img.shields.io/badge/styling-Tailwind_CSS-38b2ac.svg)](https://tailwindcss.com/)
+Nexus Mobile ist die mobile Runtime-Plane-App im Nexus Ecosystem. Das Projekt kombiniert Dashboard, Notes, Tasks, Reminders, Canvas, Files, DevTools, Flux und Settings in einer React-/Vite-App mit nativen Capacitor-Zielen fuer Android und iOS.
 
-**Nexus Mobile** ist eine moderne, funktionsreiche All-in-One-Produktivitätslösung für Web und Mobile. Es kombiniert einen leistungsstarken Code-Editor, ein Notizbuch, ein Erinnerungssystem, Aufgabenlisten und vieles mehr in einer nahtlosen, reaktionsschnellen Oberfläche.
+## Verifizierte Funktionen
 
----
+- Dashboard, Notes, Tasks, Reminders, Canvas, Files, DevTools, Flux und Settings sind als App-Bereiche vorhanden.
+- Mobile Navigation und Command Palette sind im UI vorhanden.
+- Native Builds laufen ueber Capacitor (`android/`, `ios/`, `capacitor.config.ts`).
+- Lokaler App-State liegt in den Stores unter `src/store/`.
 
-## ✨ Hauptfunktionen
+## Voraussetzungen
 
-Nexus Mobile wurde entwickelt, um alle deine täglichen Werkzeuge an einem Ort zu vereinen:
+- Node.js 20+
+- npm 10+
+- Android Studio fuer Android-Entwicklung
+- Xcode auf macOS fuer iOS-Entwicklung
 
-- 💻 **Moderner Code-Editor**: Ein leistungsstarker Editor (basiert auf Monaco Editor für Desktop, optimiert als Textarea für Mobile) für schnelle Bearbeitungen unterwegs.
-- 🎨 **Digitales Canvas**: Ein interaktives Whiteboard zum Skizzieren von Ideen, Flussdiagrammen oder schnellen Notizen.
-- 📝 **Intelligentes Notizbuch**: Organisiere deine Gedanken mit einem flexiblen Notepad, das Markdown unterstützt.
-- ⚡ **Nexus Flux**: Ein Echtzeit-Aktivitätsstream und System-Pulse, der alle deine Aktionen übersichtlich protokolliert.
-- 📅 **Erinnerungs- & Aufgabensystem**: Verpasse nie wieder eine Deadline mit integrierten Remindern und einer intuitiven Todo-Liste.
-- 📂 **Dateimanager**: Behalte den Überblick über deine Projektdateien direkt in der App.
-- 📊 **Persönliches Dashboard**: Eine zentrale Übersicht über alle deine Aktivitäten und anstehenden Aufgaben.
-- ⚙️ **Anpassbar**: Umfangreiche Einstellungen, um die App an deinen Workflow anzupassen.
-- 🛠️ **DevTools Integriert**: Eingebaute Entwicklerwerkzeuge für schnelles Debugging und Performance-Checks.
+## Setup
 
----
-
-## 📱 Mobile Optimierung
-
-Nexus Mobile nutzt **Capacitor**, um eine native App-Erfahrung zu bieten:
-
-- **Echtzeit-Haptic Feedback** für eine physische Rückmeldung bei Interaktionen.
-- **Adaptive Navigation**: Eine intuitive Bottom-Nav für Mobile, die auf Desktop zu einer Sidebar wechselt.
-- **Notch-Handling**: Automatische Berücksichtigung von Safe-Areas für moderne Smartphones.
-- **Leistung**: Ressourcenintensive Komponenten werden auf mobilen Geräten automatisch optimiert.
-
----
-
-## 🛠️ Installation & Setup
-
-### Voraussetzungen
-- **Node.js**: Version 18 oder höher
-- **npm**: Standardmäßig bei Node.js dabei
-- **Android Studio**: Für die Android-Entwicklung
-- **Xcode**: (Nur macOS) Für die iOS-Entwicklung
-- **JDK 17**: Für Android-Builds
-
-### Erste Schritte
-
-1. **Repository klonen**
-   ```bash
-   git clone https://github.com/YoungJibbit95/Nexus-Mobile.git
-   cd nexus-mobile
-   ```
-
-2. **Abhängigkeiten installieren**
-   ```bash
-   npm install
-   ```
-
-3. **Web-App bauen**
-   ```bash
-   npm run build
-   ```
-
-4. **Capacitor Plattformen hinzufügen** (einmalig)
-   ```bash
-   npx cap add android
-   npx cap add ios
-   ```
-
-5. **Native Projekte synchronisieren**
-   ```bash
-   npx cap sync
-   ```
-
----
-
-## 🚀 Entwicklung
-
-### Lokaler Server (Web)
-Starte den Vite-Development-Server für eine schnelle Web-Ansicht:
 ```bash
-npm run dev
+npm install
 ```
 
-### Mobile Live-Reload
-Verbinde dein Gerät oder starte einen Simulator und führe folgenden Befehl aus, um Änderungen sofort zu sehen:
+Die nativen Plattformordner (`android/`, `ios/`) sind bereits im Projekt vorhanden. Fuer einen sauberen Stand kannst du bei Bedarf `npm run cap:sync` ausfuehren.
 
-- **Android:**
-  ```bash
-  npx cap run android --livereload --external
-  ```
-- **iOS:**
-  ```bash
-  npx cap run ios --livereload --external
-  ```
+## Entwicklung
 
----
+### Web
 
-## 🏗️ Tech-Stack
+```bash
+npm run dev:web
+```
 
-- **Frontend:** React 18
-- **Build-Tool:** Vite
-- **Styling:** Tailwind CSS & Framer Motion (Animationen)
-- **Mobile Bridge:** Capacitor 6
-- **Zustandsverwaltung:** Zustand
-- **Editor:** Monaco Editor
-- **Icons:** Lucide React
+### Android
 
----
+```bash
+npm run cap:android
+```
 
-## 📄 Lizenz
+### iOS
 
-Nexus Mobile ist ein Projekt von [youngjibbit95](https://github.com/youngjibbit95). Alle Rechte vorbehalten.
+```bash
+npm run cap:ios
+```
 
----
+## Build
 
-*Entwickelt mit ❤️ für Produktivität und Code-Exzellenz.*
+```bash
+npm run build
+```
+
+## Wichtige Scripts
+
+- `npm run dev` startet den Android-Capacitor-Flow.
+- `npm run dev:web` startet den Vite-Dev-Server.
+- `npm run dev:android` startet denselben Android-Flow wie `dev`.
+- `npm run dev:ios` baut, synchronisiert und oeffnet Xcode.
+- `npm run cap:sync` synchronisiert native Projekte.
+- `npm run cap:build:android` baut die Web-App und synchronisiert Android.
+- `npm run cap:build:ios` baut die Web-App und synchronisiert iOS.
+
+## Struktur
+
+- `src/components/` UI-Bausteine wie Navigation und Command Palette
+- `src/views/` App-Views inklusive Canvas
+- `src/store/` lokaler App-, Theme-, Terminal- und Canvas-State
+- `src/lib/` gemeinsame Utilities
+- `android/` natives Android-Projekt
+- `ios/` natives iOS-Projekt
+
+## Hinweise
+
+- `npm run dev` ist kein reiner Web-Devserver, sondern oeffnet Android Studio.
+- Wenn du nur die Browser-Ansicht brauchst, nutze `npm run dev:web`.

@@ -6,7 +6,7 @@
     "setup": "node ./tools/setup-ecosystem.mjs",
     "api:source": "node ./tools/api-source-status.mjs",
     "control:ensure": "node ./tools/run-with-control-plane.mjs --quiet",
-    "dev:main": "npm --prefix \"./Nexus Main\" run electron:dev",
+    "dev:main": "node ./tools/dev-main.mjs",
     "dev:main:web": "npm --prefix \"./Nexus Main\" run dev",
     "dev:mobile": "npm --prefix \"./Nexus Mobile\" run cap:android",
     "dev:mobile:android": "npm --prefix \"./Nexus Mobile\" run cap:android",

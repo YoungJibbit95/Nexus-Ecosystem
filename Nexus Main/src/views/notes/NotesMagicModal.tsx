@@ -74,6 +74,24 @@ const MAGIC_TYPES: MagicTypeDef[] = [
     build: (v: Record<string,string>) => `\n\`\`\`nexus-card\n${v.url} | ${v.title} | ${v.desc}\n\`\`\`\n`,
   },
   {
+    id: 'nexus-metrics', label: 'KPI Cards', icon: '📈', desc: 'Kennzahlen mit Wert und Delta',
+    color: '#64D2FF',
+    fields: [{ key: 'rows', label: 'Einträge (Label | Wert | Delta, eine Zeile pro KPI)', multiline: true, placeholder: 'MRR | 49.2k | +8.4%\nNPS | 61 | +5\nUptime | 99.95% | +0.03%' }],
+    build: (v: Record<string,string>) => `\n\`\`\`nexus-metrics\n${v.rows}\n\`\`\`\n`,
+  },
+  {
+    id: 'nexus-steps', label: 'Process Steps', icon: '🪜', desc: 'Schrittfolge mit Details',
+    color: '#30D158',
+    fields: [{ key: 'rows', label: 'Einträge (Schritt | Detail, eine Zeile pro Schritt)', multiline: true, placeholder: 'Research | Problem und Zielbild klären\nBuild | Kernfeatures implementieren\nValidate | QA und Feedback einholen' }],
+    build: (v: Record<string,string>) => `\n\`\`\`nexus-steps\n${v.rows}\n\`\`\`\n`,
+  },
+  {
+    id: 'nexus-quadrant', label: 'Quadrant Board', icon: '🧩', desc: '2x2 Board für Priorisierung und Mapping',
+    color: '#FF9F0A',
+    fields: [{ key: 'rows', label: 'Einträge (Titel | Inhalt, bis zu 4 Zeilen)', multiline: true, placeholder: 'Quick Wins | Hoher Impact, geringer Aufwand\nBig Bets | Hoher Impact, hoher Aufwand\nFill-ins | Niedriger Impact, geringer Aufwand\nAvoid | Niedriger Impact, hoher Aufwand' }],
+    build: (v: Record<string,string>) => `\n\`\`\`nexus-quadrant\n${v.rows}\n\`\`\`\n`,
+  },
+  {
     id: 'badge', label: 'Badge', icon: '✨', desc: 'Inline-Abzeichen im Text',
     color: '#FFE600',
     fields: [

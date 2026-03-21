@@ -34,6 +34,7 @@ import {
   Sun,
   Copy,
   AlignCenter,
+  LocateFixed,
   Bell,
   Wand2,
   Flag,
@@ -162,7 +163,8 @@ const laneForNode = (node: CanvasNode, index: number): CanvasNodeStatus => {
   return fallback[index % fallback.length];
 };
 
-const CANVAS_NODE_OVERSCAN_PX = 560;
+const CANVAS_NODE_OVERSCAN_PX = 680;
+const CANVAS_NODE_OVERSCAN_MAX_PX = 2200;
 
 const toFileSafeSlug = (value: string) =>
   (value || "canvas")
@@ -187,18 +189,20 @@ const triggerTextDownload = (filename: string, content: string, mime = "text/pla
 
 const ConnectionLine = React.memo(function ConnectionLine({
   conn,
-  nodes,
+  nodeById,
   zoom,
   onDelete,
+  reduceEffects,
 }: {
   conn: CanvasConnection;
-  nodes: CanvasNode[];
+  nodeById: globalThis.Map<string, CanvasNode>;
   zoom: number;
   onDelete: (id: string) => void;
+  reduceEffects?: boolean;
 }) {
   const t = useTheme();
-  const fromNode = nodes.find((n) => n.id === conn.fromId);
-  const toNode = nodes.find((n) => n.id === conn.toId);
+  const fromNode = nodeById.get(conn.fromId);
+  const toNode = nodeById.get(conn.toId);
   if (!fromNode || !toNode) return null;
 
   const x1 = fromNode.x + fromNode.width / 2;
@@ -210,21 +214,22 @@ const ConnectionLine = React.memo(function ConnectionLine({
 
   const [hovered, setHovered] = useState(false);
   const connColor = conn.color || t.accent;
+  const showDetail = !reduceEffects && hovered;
 
   return (
     <g
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+      onMouseEnter={() => !reduceEffects && setHovered(true)}
+      onMouseLeave={() => !reduceEffects && setHovered(false)}
     >
       <path
         d={path}
-        stroke="transparent"
-        strokeWidth={18 / zoom}
+        stroke={reduceEffects ? connColor : "transparent"}
+        strokeWidth={reduceEffects ? 1.2 / zoom : 18 / zoom}
         fill="none"
-        style={{ cursor: "pointer" }}
+        style={{ cursor: reduceEffects ? "default" : "pointer", opacity: 0.5 }}
       />
       {/* Glow layer */}
-      {hovered && (
+      {showDetail && (
         <path
           d={path}
           stroke={connColor}
@@ -237,19 +242,19 @@ const ConnectionLine = React.memo(function ConnectionLine({
       <path
         d={path}
         stroke={connColor}
-        strokeWidth={(hovered ? 2.5 : 1.5) / zoom}
+        strokeWidth={(showDetail ? 2.5 : 1.5) / zoom}
         fill="none"
-        strokeDasharray={hovered ? "none" : `${8 / zoom} ${4 / zoom}`}
-        opacity={hovered ? 1 : 0.55}
+        strokeDasharray={reduceEffects ? "none" : showDetail ? "none" : `${8 / zoom} ${4 / zoom}`}
+        opacity={showDetail ? 1 : reduceEffects ? 0.62 : 0.55}
         style={{
-          transition: "all 0.2s",
-          filter: hovered
+          transition: reduceEffects ? "none" : "all 0.2s",
+          filter: showDetail
             ? `drop-shadow(0 0 ${4 / zoom}px ${connColor})`
             : "none",
         }}
       />
       {/* Arrowhead */}
-      {hovered &&
+      {showDetail &&
         (() => {
           const angle = Math.atan2(y2 - y1, x2 - x1);
           const ax = x2 - (8 / zoom) * Math.cos(angle);
@@ -263,7 +268,7 @@ const ConnectionLine = React.memo(function ConnectionLine({
           );
         })()}
       {/* Midpoint delete */}
-      {hovered && (
+      {showDetail && (
         <g
           transform={`translate(${(x1 + x2) / 2},${(y1 + y2) / 2})`}
           onClick={(e) => {
@@ -384,6 +389,7 @@ const NodeWidget = React.memo(function NodeWidget({
   onEndConnect,
   connectingFrom,
   snapToGrid,
+  reduceEffects,
 }: {
   node: CanvasNode;
   isSelected: boolean;
@@ -392,6 +398,7 @@ const NodeWidget = React.memo(function NodeWidget({
   onEndConnect: (id: string) => void;
   connectingFrom: string | null;
   snapToGrid?: boolean;
+  reduceEffects?: boolean;
 }) {
   const t = useTheme();
   const app = useApp(
@@ -2124,16 +2131,21 @@ const NodeWidget = React.memo(function NodeWidget({
         width: liveWidth,
         height: liveHeight,
         zIndex: isSelected ? 100 : 1,
-        animation: dragging || resizing ? undefined : "nexus-scale-in 0.22s ease-out both",
+        animation:
+          reduceEffects || dragging || resizing
+            ? undefined
+            : "nexus-scale-in 0.22s ease-out both",
         willChange: "transform, left, top, width, height",
         backfaceVisibility: "hidden",
-        transform: isSelected
-          ? "translateZ(0) scale(1.01)"
-          : hovered
-            ? "translateZ(0) scale(1.004)"
-            : "translateZ(0)",
+        transform: reduceEffects
+          ? "translateZ(0)"
+          : isSelected
+            ? "translateZ(0) scale(1.01)"
+            : hovered
+              ? "translateZ(0) scale(1.004)"
+              : "translateZ(0)",
         transition:
-          dragging || resizing
+          reduceEffects || dragging || resizing
             ? "none"
             : "transform 0.16s cubic-bezier(0.2, 0.8, 0.2, 1)",
       }}
@@ -2169,7 +2181,9 @@ const NodeWidget = React.memo(function NodeWidget({
           background: isSticky ? stickyBg : undefined,
           boxShadow: isSelected
             ? `0 0 0 2px ${nodeAccent}, 0 8px 32px rgba(0,0,0,0.3), 0 0 20px ${nodeAccent}30`
-            : `0 4px 16px rgba(0,0,0,0.2)`,
+            : reduceEffects
+              ? `0 2px 8px rgba(0,0,0,0.15)`
+              : `0 4px 16px rgba(0,0,0,0.2)`,
         }}
       >
         <div
@@ -2652,32 +2666,88 @@ export function CanvasView() {
     "mindmap" | "timeline" | "board"
   >("mindmap");
   const [wheelPanning, setWheelPanning] = useState(false);
+  const [showProjectPanel, setShowProjectPanel] = useState(false);
+  const [pmStatusFilter, setPmStatusFilter] = useState<
+    "all" | CanvasNodeStatus
+  >("all");
+  const [focusNodeOnly, setFocusNodeOnly] = useState(false);
 
   const panStart = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
   const wheelPanRaf = useRef<number>(0);
   const wheelPanDelta = useRef({ x: 0, y: 0 });
   const wheelPanReleaseTimeout = useRef<number>(0);
   const wheelZoomRaf = useRef<number>(0);
-  const wheelZoomDelta = useRef(0);
+  const wheelZoomLogDelta = useRef(0);
   const wheelZoomPoint = useRef({ x: 0, y: 0 });
+
+  const projectNodes = useMemo(() => {
+    if (!canvas) return [] as CanvasNode[];
+    return canvas.nodes.filter(
+      (node) =>
+        node.type === "project" ||
+        node.type === "goal" ||
+        node.type === "milestone" ||
+        node.type === "decision" ||
+        node.type === "risk" ||
+        node.type === "task" ||
+        node.type === "checklist",
+    );
+  }, [canvas]);
+
+  const selectedNode = useMemo(
+    () => canvas?.nodes.find((node) => node.id === selectedNodeId) ?? null,
+    [canvas, selectedNodeId],
+  );
+
+  const filteredProjectNodes = useMemo(() => {
+    if (pmStatusFilter === "all") return projectNodes;
+    return projectNodes.filter((node) => node.status === pmStatusFilter);
+  }, [projectNodes, pmStatusFilter]);
+
+  const timelineNodes = useMemo(
+    () =>
+      [...filteredProjectNodes]
+        .filter((node) => !!node.dueDate)
+        .sort((a, b) => parseDueDateTs(a.dueDate) - parseDueDateTs(b.dueDate))
+        .slice(0, 8),
+    [filteredProjectNodes],
+  );
+
+  const focusNodeIds = useMemo(() => {
+    if (!canvas) return new Set<string>();
+    if (!focusNodeOnly || !selectedNodeId) {
+      return new Set(canvas.nodes.map((node) => node.id));
+    }
+    const linked = new Set<string>([selectedNodeId]);
+    canvas.connections.forEach((conn) => {
+      if (conn.fromId === selectedNodeId) linked.add(conn.toId);
+      if (conn.toId === selectedNodeId) linked.add(conn.fromId);
+    });
+    return linked;
+  }, [canvas, focusNodeOnly, selectedNodeId]);
 
   const visibleBounds = useMemo(() => {
     const zoom = Math.max(0.0001, viewport.zoom);
+    const overscan = Math.min(
+      CANVAS_NODE_OVERSCAN_MAX_PX,
+      Math.max(CANVAS_NODE_OVERSCAN_PX, 560 / Math.max(0.2, zoom)),
+    );
     const worldLeft = -viewport.panX / zoom;
     const worldTop = -viewport.panY / zoom;
     const worldRight = worldLeft + canvasSize.w / zoom;
     const worldBottom = worldTop + canvasSize.h / zoom;
     return {
-      left: worldLeft - CANVAS_NODE_OVERSCAN_PX,
-      top: worldTop - CANVAS_NODE_OVERSCAN_PX,
-      right: worldRight + CANVAS_NODE_OVERSCAN_PX,
-      bottom: worldBottom + CANVAS_NODE_OVERSCAN_PX,
+      left: worldLeft - overscan,
+      top: worldTop - overscan,
+      right: worldRight + overscan,
+      bottom: worldBottom + overscan,
     };
   }, [viewport.panX, viewport.panY, viewport.zoom, canvasSize.w, canvasSize.h]);
 
   const visibleNodes = useMemo(() => {
     if (!canvas) return [] as CanvasNode[];
     return canvas.nodes.filter((node) => {
+      if (!focusNodeIds.has(node.id)) return false;
       const right = node.x + node.width;
       const bottom = node.y + node.height;
       return !(
@@ -2687,19 +2757,31 @@ export function CanvasView() {
         node.y > visibleBounds.bottom
       );
     });
-  }, [canvas, visibleBounds]);
+  }, [canvas, focusNodeIds, visibleBounds]);
 
-  const visibleNodeIds = useMemo(
-    () => new Set(visibleNodes.map((node) => node.id)),
-    [visibleNodes],
-  );
+  const visibleNodeById = useMemo(() => {
+    const map = new globalThis.Map<string, CanvasNode>();
+    visibleNodes.forEach((node) => map.set(node.id, node));
+    return map;
+  }, [visibleNodes]);
 
   const visibleConnections = useMemo(() => {
     if (!canvas) return [] as CanvasConnection[];
     return canvas.connections.filter(
-      (conn) => visibleNodeIds.has(conn.fromId) && visibleNodeIds.has(conn.toId),
+      (conn) =>
+        visibleNodeById.has(conn.fromId) && visibleNodeById.has(conn.toId),
     );
-  }, [canvas, visibleNodeIds]);
+  }, [canvas, visibleNodeById]);
+
+  const reduceNodeEffects =
+    (canvas?.nodes.length ?? 0) > 70 || viewport.zoom < 0.35;
+  const reduceConnectionEffects =
+    reduceNodeEffects ||
+    panning ||
+    wheelPanning ||
+    (canvas?.connections.length ?? 0) > 140;
+  const miniMapNodes =
+    canvas && canvas.nodes.length > 320 ? visibleNodes : canvas?.nodes ?? [];
 
   // Track canvas size
   useEffect(() => {
@@ -2715,6 +2797,72 @@ export function CanvasView() {
 
   // Keyboard
   useEffect(() => {
+    const zoomFromCenterBy = (delta: number) => {
+      const el = canvasRef.current;
+      const vp = useCanvas.getState().viewport;
+      if (!el) {
+        useCanvas.getState().setZoom(vp.zoom + delta);
+        return;
+      }
+      const rect = el.getBoundingClientRect();
+      const nextZoom = Math.max(0.15, Math.min(3, vp.zoom + delta));
+      const worldX = (rect.width * 0.5 - vp.panX) / vp.zoom;
+      const worldY = (rect.height * 0.5 - vp.panY) / vp.zoom;
+      useCanvas.setState({
+        viewport: {
+          ...vp,
+          zoom: nextZoom,
+          panX: rect.width * 0.5 - worldX * nextZoom,
+          panY: rect.height * 0.5 - worldY * nextZoom,
+        },
+      });
+    };
+
+    const fitCanvasNow = () => {
+      const state = useCanvas.getState();
+      const active = state.getActiveCanvas();
+      if (!active || active.nodes.length === 0) {
+        resetViewport();
+        return;
+      }
+      const minX = Math.min(...active.nodes.map((n) => n.x));
+      const maxX = Math.max(...active.nodes.map((n) => n.x + n.width));
+      const minY = Math.min(...active.nodes.map((n) => n.y));
+      const maxY = Math.max(...active.nodes.map((n) => n.y + n.height));
+      const pad = 60;
+      const z = Math.min(
+        (canvasSize.w - pad * 2) / Math.max(100, maxX - minX),
+        (canvasSize.h - pad * 2) / Math.max(100, maxY - minY),
+        1.5,
+      );
+      const cx = (minX + maxX) / 2;
+      const cy = (minY + maxY) / 2;
+      useCanvas.setState({
+        viewport: {
+          ...state.viewport,
+          zoom: z,
+          panX: canvasSize.w * 0.5 - cx * z,
+          panY: canvasSize.h * 0.5 - cy * z,
+        },
+      });
+    };
+
+    const focusNodeNow = (nodeId: string) => {
+      const state = useCanvas.getState();
+      const active = state.getActiveCanvas();
+      const node = active?.nodes.find((item) => item.id === nodeId);
+      if (!node) return;
+      const nextZoom = Math.max(0.5, Math.min(1.35, state.viewport.zoom));
+      useCanvas.setState({
+        viewport: {
+          ...state.viewport,
+          zoom: nextZoom,
+          panX: canvasSize.w * 0.5 - (node.x + node.width * 0.5) * nextZoom,
+          panY: canvasSize.h * 0.5 - (node.y + node.height * 0.5) * nextZoom,
+        },
+      });
+    };
+
     const onDown = (e: KeyboardEvent) => {
       const targetTag = (e.target as HTMLElement).tagName;
       const isEditing =
@@ -2735,6 +2883,7 @@ export function CanvasView() {
         setShowWidgetMenu(false);
         setQuickAddPos(null);
         setShowMagicBuilder(false);
+        setShowProjectPanel(false);
       }
       // Undo / Redo
       if ((e.ctrlKey || e.metaKey) && e.key === "z" && !isEditing) {
@@ -2746,6 +2895,30 @@ export function CanvasView() {
       // Center view
       if ((e.ctrlKey || e.metaKey) && e.key === "0") {
         resetViewport();
+      }
+      if (!isEditing && (e.key === "+" || e.key === "=")) {
+        e.preventDefault();
+        zoomFromCenterBy(0.12);
+      }
+      if (!isEditing && e.key === "-") {
+        e.preventDefault();
+        zoomFromCenterBy(-0.12);
+      }
+      if (!isEditing && e.key.toLowerCase() === "g") {
+        e.preventDefault();
+        setGridMode((g) => (g === "dots" ? "lines" : g === "lines" ? "none" : "dots"));
+      }
+      if (!isEditing && e.key.toLowerCase() === "f") {
+        e.preventDefault();
+        if (selectedNodeId) {
+          focusNodeNow(selectedNodeId);
+        } else {
+          fitCanvasNow();
+        }
+      }
+      if (!isEditing && e.key.toLowerCase() === "p") {
+        e.preventDefault();
+        setShowProjectPanel((prev) => !prev);
       }
       if (
         (e.ctrlKey || e.metaKey) &&
@@ -2765,7 +2938,7 @@ export function CanvasView() {
       window.removeEventListener("keydown", onDown);
       window.removeEventListener("keyup", onUp);
     };
-  }, [selectedNodeId, resetViewport]);
+  }, [selectedNodeId, resetViewport, canvasSize.w, canvasSize.h]);
 
   // Pan
   const handleCanvasMouseDown = useCallback(
@@ -2878,7 +3051,7 @@ export function CanvasView() {
     [applyZoomAtPoint, setZoom],
   );
 
-  // Trackpad-friendly wheel: pan by default, zoom only with pinch (Ctrl in Chromium).
+  // Trackpad-friendly wheel: pan by default, zoom only with pinch.
   const handleWheel = useCallback(
     (e: React.WheelEvent) => {
       e.preventDefault();
@@ -2886,29 +3059,46 @@ export function CanvasView() {
         e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? canvasSize.h : 1;
       const rawDx = e.deltaX * deltaScale;
       const rawDy = e.deltaY * deltaScale;
-      const dx = Math.max(-240, Math.min(240, rawDx));
-      const dy = Math.max(-240, Math.min(240, rawDy));
-      if (Math.abs(dx) < 0.001 && Math.abs(dy) < 0.001) return;
+      const dx = Math.max(-180, Math.min(180, rawDx));
+      const dy = Math.max(-180, Math.min(180, rawDy));
+      if (Math.abs(dx) < 0.02 && Math.abs(dy) < 0.02) return;
 
-      if (e.ctrlKey) {
+      const isZoomGesture = e.ctrlKey || e.metaKey;
+      if (isZoomGesture) {
+        const pinchDelta = Math.max(-56, Math.min(56, dy));
+        const sensitivity = Math.abs(pinchDelta) < 8 ? 0.0068 : 0.0052;
+        wheelZoomLogDelta.current += -pinchDelta * sensitivity;
         wheelZoomPoint.current = { x: e.clientX, y: e.clientY };
-        wheelZoomDelta.current += dy;
         if (!wheelZoomRaf.current) {
-          wheelZoomRaf.current = requestAnimationFrame(() => {
-            wheelZoomRaf.current = 0;
-            const zoomDelta = Math.max(-160, Math.min(160, wheelZoomDelta.current));
-            wheelZoomDelta.current = 0;
-            if (Math.abs(zoomDelta) < 0.001) return;
-            const factor = Math.exp(-zoomDelta * 0.0016);
+          const flushZoom = () => {
+            const zoomStep = Math.max(
+              -0.32,
+              Math.min(0.32, wheelZoomLogDelta.current),
+            );
+            if (Math.abs(zoomStep) < 0.0005) {
+              wheelZoomLogDelta.current = 0;
+              wheelZoomRaf.current = 0;
+              return;
+            }
+            wheelZoomLogDelta.current -= zoomStep;
+            const factor = Math.exp(zoomStep);
             applyZoomAtPoint(
               wheelZoomPoint.current.x,
               wheelZoomPoint.current.y,
               factor,
             );
-          });
+            if (Math.abs(wheelZoomLogDelta.current) > 0.0005) {
+              wheelZoomRaf.current = requestAnimationFrame(flushZoom);
+            } else {
+              wheelZoomLogDelta.current = 0;
+              wheelZoomRaf.current = 0;
+            }
+          };
+          wheelZoomRaf.current = requestAnimationFrame(flushZoom);
         }
         return;
       }
+      wheelZoomLogDelta.current = 0;
 
       wheelPanDelta.current.x -= dx;
       wheelPanDelta.current.y -= dy;
@@ -2949,6 +3139,7 @@ export function CanvasView() {
       if (wheelZoomRaf.current) {
         cancelAnimationFrame(wheelZoomRaf.current);
       }
+      wheelZoomLogDelta.current = 0;
       if (wheelPanReleaseTimeout.current) {
         window.clearTimeout(wheelPanReleaseTimeout.current);
       }
@@ -2992,6 +3183,23 @@ export function CanvasView() {
     setZoom(z);
     setPan(cW / 2 - cx * z, cH / 2 - cy * z);
   }, [canvas, canvasSize, resetViewport, setZoom, setPan]);
+
+  const focusNode = useCallback(
+    (nodeId: string) => {
+      const target = canvas?.nodes.find((node) => node.id === nodeId);
+      if (!target) return;
+      const nextZoom = Math.max(0.5, Math.min(1.35, viewport.zoom));
+      useCanvas.setState({
+        viewport: {
+          ...viewport,
+          zoom: nextZoom,
+          panX: canvasSize.w * 0.5 - (target.x + target.width * 0.5) * nextZoom,
+          panY: canvasSize.h * 0.5 - (target.y + target.height * 0.5) * nextZoom,
+        },
+      });
+    },
+    [canvas, canvasSize.w, canvasSize.h, viewport],
+  );
 
   const exportCanvas = useCallback(() => {
     if (!canvas) return;
@@ -3123,14 +3331,190 @@ export function CanvasView() {
     [],
   );
 
+  const createStarterPack = useCallback(
+    (origin?: { x: number; y: number }) => {
+      const centerX =
+        origin?.x ?? (-viewport.panX + canvasSize.w * 0.42) / viewport.zoom;
+      const centerY =
+        origin?.y ?? (-viewport.panY + canvasSize.h * 0.36) / viewport.zoom;
+      const root = spawnNode("project", {
+        x: centerX,
+        y: centerY,
+        title: "Project Starter",
+        patch: {
+          color: "#5E5CE6",
+          status: "doing",
+          priority: "high",
+          progress: 12,
+          owner: "team",
+          dueDate: new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10),
+          content: "Scope, KPI, Owner, Risiken und Next Steps",
+        },
+      });
+      const brief = spawnNode("markdown", {
+        x: centerX - 450,
+        y: centerY - 90,
+        title: "Project Brief",
+        patch: {
+          color: "#64D2FF",
+          content:
+            "```nexus-list\nScope | Must-have Features\nPrimary KPI | Adoption + Retention\nOwner | product + engineering\n```\n\n"
+            + "```nexus-steps\nDiscovery | Zielbild fixieren\nBuild | Kernumsetzung liefern\nQA | Stabilität + UX sicherstellen\n```",
+        },
+      });
+      const sprint = spawnNode("checklist", {
+        x: centerX + 430,
+        y: centerY - 70,
+        title: "Sprint Execution",
+        patch: { color: "#30D158" },
+      });
+      const risk = spawnNode("risk", {
+        x: centerX - 130,
+        y: centerY + 320,
+        title: "Primary Risk",
+        patch: {
+          color: "#FF453A",
+          status: "blocked",
+          priority: "critical",
+          owner: "lead",
+        },
+      });
+      const milestone = spawnNode("milestone", {
+        x: centerX + 320,
+        y: centerY + 310,
+        title: "Milestone #1",
+        patch: {
+          color: "#FF9F0A",
+          status: "todo",
+          dueDate: new Date(Date.now() + 8 * 86400000).toISOString().slice(0, 10),
+        },
+      });
+      connectNodes([
+        [root, brief],
+        [root, sprint],
+        [root, risk],
+        [root, milestone],
+      ]);
+      if (sprint) {
+        const state = useCanvas.getState();
+        state.addChecklistItem(sprint, "Kickoff + Scope finalisieren");
+        state.addChecklistItem(sprint, "API + UI Integration");
+        state.addChecklistItem(sprint, "QA + UAT");
+        state.addChecklistItem(sprint, "Launch Gate");
+      }
+      if (root) setSelectedNodeId(root);
+      requestAnimationFrame(() => fitView());
+    },
+    [
+      canvasSize.h,
+      canvasSize.w,
+      connectNodes,
+      fitView,
+      spawnNode,
+      viewport.panX,
+      viewport.panY,
+      viewport.zoom,
+    ],
+  );
+
   const createMagicTemplate = useCallback(
     (payload: MagicTemplatePayload) => {
-      const centerX = (-viewport.panX + canvasSize.w * 0.5) / viewport.zoom;
-      const centerY = (-viewport.panY + canvasSize.h * 0.45) / viewport.zoom;
+      const state = useCanvas.getState();
+      const activeCanvas = state.getActiveCanvas();
+      const viewportCenterX = (-viewport.panX + canvasSize.w * 0.5) / viewport.zoom;
+      const viewportCenterY = (-viewport.panY + canvasSize.h * 0.45) / viewport.zoom;
+
+      const estimateTemplateSize = (
+        template: MagicTemplateId,
+        depth?: MagicTemplatePayload["aiDepth"],
+      ) => {
+        if (template === "ai-project") {
+          const spread = depth === "deep" ? 1900 : depth === "light" ? 1280 : 1540;
+          return { w: spread, h: 1080 };
+        }
+        if (template === "roadmap") return { w: 1720, h: 1000 };
+        if (template === "sprint") return { w: 1760, h: 1080 };
+        if (template === "risk-matrix") return { w: 1520, h: 980 };
+        if (template === "decision-flow") return { w: 1460, h: 980 };
+        return { w: 1380, h: 980 };
+      };
+
+      const templateSize = estimateTemplateSize(payload.template, payload.aiDepth);
+      const candidateOffsets: Array<[number, number]> = [
+        [0, 0],
+        [760, 0],
+        [-760, 0],
+        [0, 560],
+        [0, -560],
+        [760, 460],
+        [-760, 460],
+        [760, -460],
+        [-760, -460],
+        [1280, 0],
+        [-1280, 0],
+        [0, 980],
+        [0, -980],
+      ];
+
+      const overlapScore = (centerX: number, centerY: number) => {
+        if (!activeCanvas?.nodes.length) return 0;
+        const margin = 92;
+        const left = centerX - templateSize.w * 0.5 - margin;
+        const top = centerY - templateSize.h * 0.5 - margin;
+        const right = centerX + templateSize.w * 0.5 + margin;
+        const bottom = centerY + templateSize.h * 0.5 + margin;
+        let score = 0;
+        activeCanvas.nodes.forEach((node) => {
+          const nodeLeft = node.x - 40;
+          const nodeTop = node.y - 40;
+          const nodeRight = node.x + node.width + 40;
+          const nodeBottom = node.y + node.height + 40;
+          const intersects =
+            nodeLeft < right &&
+            nodeRight > left &&
+            nodeTop < bottom &&
+            nodeBottom > top;
+          if (!intersects) return;
+          score += 1;
+          const overlapW = Math.max(
+            0,
+            Math.min(right, nodeRight) - Math.max(left, nodeLeft),
+          );
+          const overlapH = Math.max(
+            0,
+            Math.min(bottom, nodeBottom) - Math.max(top, nodeTop),
+          );
+          score += (overlapW * overlapH) / (templateSize.w * templateSize.h + 1);
+        });
+        return score;
+      };
+
+      let centerX = viewportCenterX;
+      let centerY = viewportCenterY;
+      let bestScore = Number.POSITIVE_INFINITY;
+      candidateOffsets.forEach(([dx, dy]) => {
+        const candX = viewportCenterX + dx;
+        const candY = viewportCenterY + dy;
+        const score = overlapScore(candX, candY);
+        if (score < bestScore) {
+          bestScore = score;
+          centerX = candX;
+          centerY = candY;
+        }
+      });
+      centerX = Math.round(centerX / 10) * 10;
+      centerY = Math.round(centerY / 10) * 10;
+
       const day = (offset: number) => {
         const d = new Date();
         d.setDate(d.getDate() + offset);
         return d.toISOString().slice(0, 10);
+      };
+
+      const spread = (count: number, gap: number) => {
+        if (count <= 1) return [0];
+        const start = (-gap * (count - 1)) / 2;
+        return Array.from({ length: count }, (_, index) => start + index * gap);
       };
 
       const mk = (
@@ -3139,10 +3523,117 @@ export function CanvasView() {
         dy: number,
         title?: string,
         patch?: Partial<CanvasNode>,
-      ) => spawnNode(type, { x: centerX + dx, y: centerY + dy, title, patch });
+      ) => {
+        const id = spawnNode(type, { x: centerX + dx, y: centerY + dy, title, patch });
+        if (id) createdNodeIds.push(id);
+        return id;
+      };
 
-      const state = useCanvas.getState();
       let rootId: string | null = null;
+      const createdNodeIds: string[] = [];
+
+      const resolveTemplateOverlaps = (anchorId?: string | null) => {
+        const active = state.getActiveCanvas();
+        if (!active || createdNodeIds.length < 2) return;
+
+        const pos = new globalThis.Map<string, {
+          x: number;
+          y: number;
+          width: number;
+          height: number;
+        }>();
+        createdNodeIds.forEach((id) => {
+          const node = active.nodes.find((item) => item.id === id);
+          if (!node) return;
+          pos.set(id, {
+            x: node.x,
+            y: node.y,
+            width: node.width,
+            height: node.height,
+          });
+        });
+
+        if (pos.size < 2) return;
+        const ids = [...pos.keys()];
+        const keepAnchor = anchorId && pos.has(anchorId) ? anchorId : null;
+        const original = new globalThis.Map(
+          ids.map((id) => {
+            const p = pos.get(id)!;
+            return [id, { x: p.x, y: p.y }] as const;
+          }),
+        );
+
+        for (let iter = 0; iter < 160; iter += 1) {
+          let moved = false;
+          for (let i = 0; i < ids.length; i += 1) {
+            for (let j = i + 1; j < ids.length; j += 1) {
+              const idA = ids[i];
+              const idB = ids[j];
+              const a = pos.get(idA);
+              const b = pos.get(idB);
+              if (!a || !b) continue;
+
+              const pad = 24;
+              const overlapX =
+                Math.min(a.x + a.width + pad, b.x + b.width + pad) -
+                Math.max(a.x - pad, b.x - pad);
+              const overlapY =
+                Math.min(a.y + a.height + pad, b.y + b.height + pad) -
+                Math.max(a.y - pad, b.y - pad);
+              if (overlapX <= 0 || overlapY <= 0) continue;
+
+              moved = true;
+              const centerAX = a.x + a.width * 0.5;
+              const centerAY = a.y + a.height * 0.5;
+              const centerBX = b.x + b.width * 0.5;
+              const centerBY = b.y + b.height * 0.5;
+              const splitByX = overlapX <= overlapY;
+              const baseShift = (splitByX ? overlapX : overlapY) * 0.5 + 20;
+
+              let shiftAX = 0;
+              let shiftAY = 0;
+              let shiftBX = 0;
+              let shiftBY = 0;
+
+              if (splitByX) {
+                const dir = centerAX <= centerBX ? -1 : 1;
+                shiftAX = dir * baseShift;
+                shiftBX = -dir * baseShift;
+              } else {
+                const dir = centerAY <= centerBY ? -1 : 1;
+                shiftAY = dir * baseShift;
+                shiftBY = -dir * baseShift;
+              }
+
+              if (keepAnchor && idA === keepAnchor) {
+                shiftBX += shiftAX;
+                shiftBY += shiftAY;
+                shiftAX = 0;
+                shiftAY = 0;
+              } else if (keepAnchor && idB === keepAnchor) {
+                shiftAX += shiftBX;
+                shiftAY += shiftBY;
+                shiftBX = 0;
+                shiftBY = 0;
+              }
+
+              a.x += shiftAX;
+              a.y += shiftAY;
+              b.x += shiftBX;
+              b.y += shiftBY;
+            }
+          }
+          if (!moved) break;
+        }
+
+        ids.forEach((id) => {
+          const next = pos.get(id);
+          const start = original.get(id);
+          if (!next || !start) return;
+          if (Math.abs(next.x - start.x) < 0.5 && Math.abs(next.y - start.y) < 0.5) return;
+          state.moveNode(id, Math.round(next.x), Math.round(next.y));
+        });
+      };
 
       if (payload.template === "ai-project") {
         const prompt = (payload.aiPrompt || "").trim();
@@ -3214,8 +3705,12 @@ export function CanvasView() {
             : "AI-generated project map.",
         });
 
+        const goalX = spread(goalTitles.length, 300);
+        const milestoneX = spread(milestoneTitles.length, 280);
+        const riskX = spread(riskTitles.length, 320);
+
         const goalIds = goalTitles.map((title, idx) =>
-          mk("goal", -420 + idx * 210, -220, title, {
+          mk("goal", goalX[idx] || 0, -320, title, {
             color: "#30D158",
             status: "todo",
             progress: 5 + idx * 6,
@@ -3223,7 +3718,7 @@ export function CanvasView() {
           }),
         );
         const milestoneIds = milestoneTitles.map((title, idx) =>
-          mk("milestone", -460 + idx * 185, 40, title, {
+          mk("milestone", milestoneX[idx] || 0, 70, title, {
             color: "#FF9F0A",
             status: idx === 0 ? "doing" : "todo",
             dueDate: day(5 + idx * 6),
@@ -3231,7 +3726,7 @@ export function CanvasView() {
           }),
         );
         const riskIds = riskTitles.map((title, idx) =>
-          mk("risk", -300 + idx * 230, 300, title, {
+          mk("risk", riskX[idx] || 0, 430, title, {
             color: "#FF453A",
             priority: idx === 0 ? "critical" : "high",
             status: idx === 0 ? "blocked" : "todo",
@@ -3243,10 +3738,11 @@ export function CanvasView() {
         riskIds.forEach((risk) => connectNodes([[rootId, risk]]));
 
         if (payload.includeNotes) {
-          const context = mk("markdown", 420, -80, "AI Context Board", {
+          const context = mk("markdown", 650, -120, "AI Context Board", {
             color: "#64D2FF",
             content:
               "```nexus-list\nProblem | Welches Problem wird gelöst?\nPrimary User | Für wen bauen wir?\nSuccess Metric | Welche Metrik beweist Erfolg?\n```\n\n" +
+              "```nexus-metrics\nActivation | 42% | +6%\nRetention D30 | 31% | +4%\nNPS | 58 | +5\n```\n\n" +
               "```nexus-progress\nDiscovery | 30\nDelivery Plan | 20\nQA Readiness | 10\n```\n\n" +
               "```nexus-timeline\nW1 | Scope + Discovery\nW2 | Architektur festziehen\nW3 | Kernfunktionen bauen\nW4 | QA + Hardening\nW5 | Rollout\n```",
           });
@@ -3254,7 +3750,7 @@ export function CanvasView() {
         }
 
         if (payload.includeTasks) {
-          const execution = mk("checklist", 420, 190, "Execution Plan", {
+          const execution = mk("checklist", 650, 260, "Execution Plan", {
             color: "#30D158",
           });
           if (execution) {
@@ -3279,24 +3775,24 @@ export function CanvasView() {
           status: "doing",
           content: "Vision, Scope, Kernfragen und Stakeholder",
         });
-        const g1 = mk("goal", -300, -170, "Core Goal", {
+        const g1 = mk("goal", -460, -220, "Core Goal", {
           color: "#30D158",
           progress: 20,
           dueDate: day(14),
         });
-        const g2 = mk("goal", 290, -170, "User Value", {
+        const g2 = mk("goal", 460, -220, "User Value", {
           color: "#5E5CE6",
           progress: 10,
           dueDate: day(21),
         });
-        const d1 = mk("decision", 330, 130, "Open Decision", {
+        const d1 = mk("decision", 500, 180, "Open Decision", {
           color: "#BF5AF2",
         });
-        const r1 = mk("risk", -320, 130, "Main Risk", {
+        const r1 = mk("risk", -500, 180, "Main Risk", {
           color: "#FF453A",
           priority: "high",
         });
-        const m1 = mk("milestone", 0, -240, "Milestone #1", {
+        const m1 = mk("milestone", 0, -360, "Milestone #1", {
           color: "#FF9F0A",
           dueDate: day(7),
         });
@@ -3309,10 +3805,11 @@ export function CanvasView() {
         ]);
 
         if (payload.includeNotes) {
-          const note = mk("markdown", 0, 230, "Knowledge Hub", {
+          const note = mk("markdown", 0, 360, "Knowledge Hub", {
             color: "#64D2FF",
             content:
               "```nexus-grid\n2\nVision\nStakeholder\nAbhängigkeiten\nOffene Fragen\n```\n\n" +
+              "```nexus-steps\nDiscovery | Problem + Zielbild schärfen\nBuild | Kernumsetzung priorisieren\nReview | Entscheidung und Rollout freigeben\n```\n\n" +
               "```nexus-list\nOwner | @product\nRisiko-Level | Mittel\nNächstes Review | Freitag\n```\n\n" +
               "```nexus-timeline\nW1 | Discovery\nW2 | Architektur\nW3 | Umsetzung\nW4 | Review + Entscheidung\n```",
           });
@@ -3320,7 +3817,7 @@ export function CanvasView() {
         }
 
         if (payload.includeTasks) {
-          const checklist = mk("checklist", 320, 280, "Execution Checklist", {
+          const checklist = mk("checklist", 580, 360, "Execution Checklist", {
             color: "#30D158",
           });
           if (checklist) {
@@ -3333,35 +3830,35 @@ export function CanvasView() {
       }
 
       if (payload.template === "roadmap") {
-        rootId = mk("project", -40, -30, payload.title, {
+        rootId = mk("project", 0, -20, payload.title, {
           color: "#30D158",
           progress: 18,
           status: "doing",
           content: "Roadmap-Owner, Zielbild, KPI und Scope",
         });
-        const goal = mk("goal", -360, -50, "North Star", {
+        const goal = mk("goal", -520, -40, "North Star", {
           color: "#64D2FF",
           dueDate: day(45),
           progress: 15,
         });
-        const ms1 = mk("milestone", -130, -240, "Alpha", {
+        const ms1 = mk("milestone", -240, -330, "Alpha", {
           color: "#FF9F0A",
           dueDate: day(10),
         });
-        const ms2 = mk("milestone", 120, -240, "Beta", {
+        const ms2 = mk("milestone", 110, -330, "Beta", {
           color: "#FF9F0A",
           dueDate: day(24),
         });
-        const ms3 = mk("milestone", 370, -240, "Launch", {
+        const ms3 = mk("milestone", 460, -330, "Launch", {
           color: "#FF9F0A",
           dueDate: day(40),
         });
-        const timeline = mk("markdown", 270, 30, "Timeline", {
+        const timeline = mk("markdown", 560, 90, "Timeline", {
           color: "#BF5AF2",
           content:
             "```nexus-timeline\nPhase 1 | Discovery + Scope Lock\nPhase 2 | Core Build\nPhase 3 | Beta + QA\nPhase 4 | Launch + Monitoring\n```",
         });
-        const risk = mk("risk", -360, 210, "Rollout Risk", {
+        const risk = mk("risk", -520, 250, "Rollout Risk", {
           color: "#FF453A",
           priority: "critical",
         });
@@ -3375,7 +3872,7 @@ export function CanvasView() {
         ]);
 
         if (payload.includeNotes) {
-          const brief = mk("markdown", 40, 250, "Roadmap Notes", {
+          const brief = mk("markdown", 80, 360, "Roadmap Notes", {
             content:
               "```nexus-list\nOwners | Product + Eng\nDependencies | API, Design, QA\nGo-Live Gate | Performance + QA signoff\n```\n\n" +
               "```nexus-progress\nScope Fit | 70\nTeam Readiness | 60\nRelease Confidence | 45\n```",
@@ -3384,7 +3881,7 @@ export function CanvasView() {
         }
 
         if (payload.includeTasks) {
-          const todos = mk("checklist", 500, 200, "Launch Tasks");
+          const todos = mk("checklist", 760, 250, "Launch Tasks");
           if (todos) {
             state.addChecklistItem(todos, "Launch Plan finalisieren");
             state.addChecklistItem(todos, "Go/No-Go Meeting");
@@ -3398,18 +3895,18 @@ export function CanvasView() {
       }
 
       if (payload.template === "sprint") {
-        rootId = mk("project", 20, -210, `${payload.title} Sprint`, {
+        rootId = mk("project", 20, -280, `${payload.title} Sprint`, {
           color: "#FF9F0A",
           status: "doing",
           progress: 30,
           content: "Sprint Goal, Capacity, Definition of Done",
         });
-        const backlog = mk("checklist", -450, 20, "Backlog", {
+        const backlog = mk("checklist", -580, 30, "Backlog", {
           color: "#8E8E93",
         });
-        const doing = mk("checklist", -130, 20, "Doing", { color: "#007AFF" });
-        const review = mk("checklist", 190, 20, "Review", { color: "#BF5AF2" });
-        const done = mk("checklist", 510, 20, "Done", { color: "#30D158" });
+        const doing = mk("checklist", -190, 30, "Doing", { color: "#007AFF" });
+        const review = mk("checklist", 200, 30, "Review", { color: "#BF5AF2" });
+        const done = mk("checklist", 590, 30, "Done", { color: "#30D158" });
         connectNodes([
           [rootId, backlog],
           [rootId, doing],
@@ -3429,7 +3926,7 @@ export function CanvasView() {
         if (done) state.addChecklistItem(done, "Definition of Done erfüllt");
 
         if (payload.includeNotes) {
-          const standup = mk("markdown", 20, 290, "Daily Standup", {
+          const standup = mk("markdown", 30, 380, "Daily Standup", {
             content:
               "```nexus-kanban\nYesterday | Erledigte Tasks + Ergebnis\nToday | Wichtigste 1-2 Deliverables\nBlocker | Owner + ETA für Entblockung\n```\n\n" +
               "```nexus-alert\ninfo\nSprint Scope bleibt stabil, neue Requests nur per Tradeoff-Entscheidung.\n```",
@@ -3438,7 +3935,7 @@ export function CanvasView() {
         }
 
         if (payload.includeTasks) {
-          const risk = mk("risk", -300, 290, "Sprint Risk", {
+          const risk = mk("risk", -400, 380, "Sprint Risk", {
             priority: "high",
             color: "#FF453A",
           });
@@ -3447,24 +3944,24 @@ export function CanvasView() {
       }
 
       if (payload.template === "risk-matrix") {
-        rootId = mk("project", 0, -230, `${payload.title} Risk Matrix`, {
+        rootId = mk("project", 0, -290, `${payload.title} Risk Matrix`, {
           color: "#FF453A",
           status: "doing",
           content: "Risiken priorisieren und mitigieren",
         });
-        const rLow = mk("risk", -360, 20, "Low Impact / Low Prob", {
+        const rLow = mk("risk", -540, 20, "Low Impact / Low Prob", {
           priority: "low",
           status: "todo",
         });
-        const rMed = mk("risk", -60, 20, "High Prob / Low Impact", {
+        const rMed = mk("risk", -180, 20, "High Prob / Low Impact", {
           priority: "mid",
           status: "todo",
         });
-        const rHigh = mk("risk", 250, 20, "Low Prob / High Impact", {
+        const rHigh = mk("risk", 180, 20, "Low Prob / High Impact", {
           priority: "high",
           status: "doing",
         });
-        const rCritical = mk("risk", 560, 20, "High Impact / High Prob", {
+        const rCritical = mk("risk", 540, 20, "High Impact / High Prob", {
           priority: "critical",
           status: "blocked",
           color: "#FF453A",
@@ -3476,43 +3973,44 @@ export function CanvasView() {
           [rootId, rCritical],
         ]);
 
-        const matrix = mk("markdown", 90, 260, "Matrix Legende", {
+        const matrix = mk("markdown", 100, 350, "Matrix Legende", {
           content:
-            "```nexus-grid\n2\nNiedriger Impact\nHoher Impact\nNiedrige Wahrscheinlichkeit\nHohe Wahrscheinlichkeit\n```\n\n" +
-            "```nexus-list\nCritical Risiken | Tägliches Tracking\nHigh Risiken | 2x pro Woche Review\nOwner Pflicht | Ja, für jedes Risiko\n```\n\n" +
-            "```nexus-alert\nwarning\nFür alle Critical-Risiken innerhalb von 24h einen Mitigation-Owner setzen.\n```",
+              "```nexus-grid\n2\nNiedriger Impact\nHoher Impact\nNiedrige Wahrscheinlichkeit\nHohe Wahrscheinlichkeit\n```\n\n" +
+              "```nexus-quadrant\nQuick Wins | Sofort umsetzen\nBig Bets | Planen + absichern\nFill-ins | Opportunistisch einplanen\nAvoid | Vorerst aus Scope nehmen\n```\n\n" +
+              "```nexus-list\nCritical Risiken | Tägliches Tracking\nHigh Risiken | 2x pro Woche Review\nOwner Pflicht | Ja, für jedes Risiko\n```\n\n" +
+              "```nexus-alert\nwarning\nFür alle Critical-Risiken innerhalb von 24h einen Mitigation-Owner setzen.\n```",
         });
         connectNodes([[rootId, matrix]]);
       }
 
       if (payload.template === "decision-flow") {
-        rootId = mk("decision", 0, -40, `${payload.title} Entscheidung`, {
+        rootId = mk("decision", 0, -80, `${payload.title} Entscheidung`, {
           color: "#BF5AF2",
           status: "doing",
           priority: "high",
           content: "Welche Option erfüllt Ziel + Risiken am besten?",
         });
-        const optA = mk("markdown", -320, -30, "Option A", {
+        const optA = mk("markdown", -440, -20, "Option A", {
           content:
             "```nexus-card\nOption A|Schneller Start|Mehr technisches Risiko\n```",
           color: "#64D2FF",
         });
-        const optB = mk("markdown", 320, -30, "Option B", {
+        const optB = mk("markdown", 440, -20, "Option B", {
           content:
             "```nexus-card\nOption B|Stabiler Rollout|Höherer Initialaufwand\n```",
           color: "#30D158",
         });
-        const criteria = mk("checklist", 0, 170, "Kriterien", {
+        const criteria = mk("checklist", 0, 230, "Kriterien", {
           color: "#FF9F0A",
         });
-        const next = mk("milestone", 0, 360, "Nächster Schritt", {
+        const next = mk("milestone", 0, 450, "Nächster Schritt", {
           dueDate: day(5),
           status: "todo",
         });
-        const risk = mk("risk", -350, 320, "Tradeoff Risk", {
+        const risk = mk("risk", -450, 400, "Tradeoff Risk", {
           priority: "high",
         });
-        const outcome = mk("goal", 350, 320, "Expected Outcome", {
+        const outcome = mk("goal", 450, 400, "Expected Outcome", {
           progress: 5,
           dueDate: day(30),
         });
@@ -3531,6 +4029,7 @@ export function CanvasView() {
         }
       }
 
+      resolveTemplateOverlaps(rootId);
       if (rootId) setSelectedNodeId(rootId);
       setShowMagicBuilder(false);
       setQuickAddPos(null);
@@ -3546,6 +4045,98 @@ export function CanvasView() {
       fitView,
     ],
   );
+
+  const duplicateSelectedNode = useCallback(() => {
+    if (!selectedNodeId) return;
+    const state = useCanvas.getState();
+    const active = state.getActiveCanvas();
+    const source = active?.nodes.find((node) => node.id === selectedNodeId);
+    if (!source) return;
+
+    state.addNode(source.type, source.x + 64, source.y + 64);
+    const next = state.getActiveCanvas();
+    const created = next?.nodes[next.nodes.length - 1];
+    if (!created) return;
+
+    const duplicateItems = source.items?.map((item, index) => ({
+      ...item,
+      id: `${item.id}-copy-${index}-${Date.now().toString(36)}`,
+    }));
+    state.updateNode(created.id, {
+      title: `${source.title} Copy`,
+      width: source.width,
+      height: source.height,
+      color: source.color,
+      content: source.content,
+      items: duplicateItems,
+      codeLang: source.codeLang,
+      status: source.status,
+      priority: source.priority,
+      progress: source.progress,
+      dueDate: source.dueDate,
+      owner: source.owner,
+      tags: source.tags ? [...source.tags] : undefined,
+      effort: source.effort,
+      lane: source.lane,
+      icon: source.icon,
+      linkedCodeId: source.linkedCodeId,
+      linkedNoteId: source.linkedNoteId,
+      linkedReminderId: source.linkedReminderId,
+      linkedTaskId: source.linkedTaskId,
+    });
+    setSelectedNodeId(created.id);
+  }, [selectedNodeId]);
+
+  const autoArrangeByStatus = useCallback(() => {
+    const state = useCanvas.getState();
+    const active = state.getActiveCanvas();
+    if (!active || active.nodes.length === 0) return;
+
+    const order: CanvasNodeStatus[] = ["todo", "doing", "blocked", "done"];
+    const counters: Record<CanvasNodeStatus, number> = {
+      todo: 0,
+      doing: 0,
+      blocked: 0,
+      done: 0,
+    };
+    const baseX = 120;
+    const columnGap = 340;
+    const baseY = 120;
+    const rowGap = 240;
+
+    active.nodes.forEach((node, index) => {
+      const lane = node.status || laneForNode(node, index);
+      const laneIndex = order.indexOf(lane);
+      const row = counters[lane]++;
+      state.moveNode(
+        node.id,
+        baseX + Math.max(0, laneIndex) * columnGap,
+        baseY + row * rowGap,
+      );
+    });
+    requestAnimationFrame(() => fitView());
+  }, [fitView]);
+
+  const autoLinkWikiRefs = useCallback(() => {
+    const state = useCanvas.getState();
+    const active = state.getActiveCanvas();
+    if (!active) return;
+    const byTitle = new globalThis.Map(
+      active.nodes.map((node) => [node.title.trim().toLowerCase(), node.id] as const),
+    );
+    active.nodes.forEach((node) => {
+      const content = node.content || "";
+      const refs = Array.from(content.matchAll(/\[\[([^\]]+)\]\]/g)).map((m) =>
+        m[1].trim().toLowerCase(),
+      );
+      refs.forEach((ref) => {
+        const toId = byTitle.get(ref);
+        if (toId && toId !== node.id) {
+          state.addConnection(node.id, toId);
+        }
+      });
+    });
+  }, []);
 
   const applyAutoLayout = useCallback(
     (mode: "mindmap" | "timeline" | "board", opts?: { fitView?: boolean }) => {
@@ -4111,6 +4702,63 @@ export function CanvasView() {
                   >
                     Element hinzufügen
                   </div>
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "1fr 1fr",
+                      gap: 6,
+                      padding: "0 6px 8px",
+                    }}
+                  >
+                    <button
+                      onClick={() => {
+                        createStarterPack();
+                        setShowWidgetMenu(false);
+                      }}
+                      style={{
+                        border: `1px solid rgba(${rgb},0.3)`,
+                        borderRadius: 8,
+                        background: `rgba(${rgb},0.12)`,
+                        color: t.accent,
+                        fontSize: 11,
+                        fontWeight: 700,
+                        padding: "8px 6px",
+                        cursor: "pointer",
+                      }}
+                    >
+                      Starter Pack
+                    </button>
+                    <button
+                      onClick={() => {
+                        createMagicTemplate({
+                          template: "roadmap",
+                          title: "Roadmap",
+                          includeNotes: true,
+                          includeTasks: true,
+                        });
+                        setShowWidgetMenu(false);
+                      }}
+                      style={{
+                        border: "1px solid rgba(255,255,255,0.2)",
+                        borderRadius: 8,
+                        background: "rgba(255,255,255,0.07)",
+                        color: "inherit",
+                        fontSize: 11,
+                        fontWeight: 700,
+                        padding: "8px 6px",
+                        cursor: "pointer",
+                      }}
+                    >
+                      Roadmap
+                    </button>
+                  </div>
+                  <div
+                    style={{
+                      height: 1,
+                      background: "rgba(255,255,255,0.1)",
+                      margin: "0 8px 6px",
+                    }}
+                  />
                   {WIDGET_TYPES.map(({ type, icon: WIcon, label }) => (
                     <button
                       key={type}
@@ -4153,6 +4801,36 @@ export function CanvasView() {
             <div style={{ flex: 1 }} />
 
             {/* Canvas tools */}
+            <ToolBtn
+              icon={CheckSquare}
+              tooltip={showProjectPanel ? "Project Panel schließen" : "Project Panel öffnen"}
+              onClick={() => setShowProjectPanel((s) => !s)}
+              accent={t.accent}
+              rgb={rgb}
+              active={showProjectPanel}
+            />
+            <ToolBtn
+              icon={Link}
+              tooltip="Auto-Link für [[Node Titel]]"
+              onClick={autoLinkWikiRefs}
+              accent={t.accent}
+              rgb={rgb}
+            />
+            <ToolBtn
+              icon={Calendar}
+              tooltip="Starter Pack einfügen"
+              onClick={() => createStarterPack()}
+              accent={t.accent}
+              rgb={rgb}
+            />
+            <ToolBtn
+              icon={Copy}
+              tooltip="Ausgewählten Node duplizieren"
+              onClick={duplicateSelectedNode}
+              accent={t.accent}
+              rgb={rgb}
+              active={Boolean(selectedNodeId)}
+            />
             <ToolBtn
               icon={Wand2}
               tooltip="Magic Builder (Ctrl+M)"
@@ -4218,11 +4896,32 @@ export function CanvasView() {
               rgb={rgb}
             />
             <ToolBtn
+              icon={AlignCenter}
+              tooltip="Nach Status anordnen"
+              onClick={autoArrangeByStatus}
+              accent={t.accent}
+              rgb={rgb}
+            />
+            <ToolBtn
               icon={Maximize2}
               tooltip="Fit to View"
               onClick={fitView}
               accent={t.accent}
               rgb={rgb}
+            />
+            <ToolBtn
+              icon={LocateFixed}
+              tooltip={
+                selectedNodeId
+                  ? "Ausgewählten Node fokussieren (F)"
+                  : "Canvas fokussieren (F)"
+              }
+              onClick={() =>
+                selectedNodeId ? focusNode(selectedNodeId) : fitView()
+              }
+              accent={t.accent}
+              rgb={rgb}
+              active={Boolean(selectedNodeId)}
             />
 
             <div
@@ -4341,7 +5040,7 @@ export function CanvasView() {
                 pointerEvents: "none",
               }}
             >
-              Hold Space + Drag to Pan
+              Space + Drag (optional) · Hintergrund ziehen zum Pannen
             </div>
           )}
 
@@ -4403,7 +5102,7 @@ export function CanvasView() {
                 backfaceVisibility: "hidden",
               }}
             >
-              {layoutGuides?.type === "board" && (
+              {layoutGuides?.type === "board" && !reduceConnectionEffects && (
                 <div
                   style={{
                     position: "absolute",
@@ -4461,7 +5160,7 @@ export function CanvasView() {
                 </div>
               )}
 
-              {layoutGuides?.type === "timeline" && (
+              {layoutGuides?.type === "timeline" && !reduceConnectionEffects && (
                 <div
                   style={{
                     position: "absolute",
@@ -4538,33 +5237,36 @@ export function CanvasView() {
                     width: "100%",
                     height: "100%",
                     overflow: "visible",
-                    pointerEvents: "auto",
+                    pointerEvents: reduceConnectionEffects ? "none" : "auto",
                     zIndex: 0,
                   }}
                   >
-                  <defs>
-                    <filter
-                      id="glow-filter"
-                      x="-20%"
-                      y="-20%"
-                      width="140%"
-                      height="140%"
-                    >
-                      <feGaussianBlur stdDeviation="4" result="blur" />
-                      <feComposite
-                        in="SourceGraphic"
-                        in2="blur"
-                        operator="over"
-                      />
-                    </filter>
-                  </defs>
+                  {!reduceConnectionEffects && (
+                    <defs>
+                      <filter
+                        id="glow-filter"
+                        x="-20%"
+                        y="-20%"
+                        width="140%"
+                        height="140%"
+                      >
+                        <feGaussianBlur stdDeviation="4" result="blur" />
+                        <feComposite
+                          in="SourceGraphic"
+                          in2="blur"
+                          operator="over"
+                        />
+                      </filter>
+                    </defs>
+                  )}
                   {visibleConnections.map((conn) => (
                     <ConnectionLine
                       key={conn.id}
                       conn={conn}
-                      nodes={visibleNodes}
+                      nodeById={visibleNodeById}
                       zoom={viewport.zoom}
                       onDelete={deleteConnection}
+                      reduceEffects={reduceConnectionEffects}
                     />
                   ))}
                 </svg>
@@ -4581,6 +5283,7 @@ export function CanvasView() {
                   onEndConnect={handleEndConnect}
                   connectingFrom={connectingFrom}
                   snapToGrid={snapToGrid}
+                  reduceEffects={reduceNodeEffects}
                 />
               ))}
             </div>
@@ -4589,8 +5292,8 @@ export function CanvasView() {
           {/* Quick Add Context Menu */}
           {quickAddPos &&
             (() => {
-              const menuW = 168;
-              const menuH = Math.min(420, 70 + WIDGET_TYPES.length * 34);
+              const menuW = 236;
+              const menuH = Math.min(540, 162 + WIDGET_TYPES.length * 34);
               const clampedX = Math.max(
                 8,
                 Math.min(quickAddPos.x, canvasSize.w - menuW - 8),
@@ -4610,7 +5313,7 @@ export function CanvasView() {
                     border: `1px solid ${t.mode === "dark" ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)"}`,
                     borderRadius: 12,
                     padding: 6,
-                    width: 150,
+                    width: 220,
                     boxShadow: "0 8px 32px rgba(0,0,0,0.3)",
                     animation:
                       "nexus-scale-in 0.15s cubic-bezier(0.4,0,0.2,1) both",
@@ -4628,6 +5331,117 @@ export function CanvasView() {
                   >
                     Add Element
                   </div>
+                  <div
+                    style={{
+                      fontSize: 9,
+                      fontWeight: 700,
+                      opacity: 0.45,
+                      padding: "2px 8px 6px",
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    Quick Packs
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, padding: "0 6px 8px" }}>
+                    <button
+                      onClick={() => {
+                        const canvasX =
+                          (-viewport.panX + quickAddPos.x) / viewport.zoom;
+                        const canvasY =
+                          (-viewport.panY + quickAddPos.y) / viewport.zoom;
+                        createStarterPack({ x: canvasX, y: canvasY });
+                        setQuickAddPos(null);
+                      }}
+                      style={{
+                        border: `1px solid rgba(${rgb},0.3)`,
+                        borderRadius: 8,
+                        background: `rgba(${rgb},0.12)`,
+                        color: t.accent,
+                        fontSize: 11,
+                        fontWeight: 700,
+                        padding: "8px 6px",
+                        cursor: "pointer",
+                      }}
+                    >
+                      Starter Pack
+                    </button>
+                    <button
+                      onClick={() => {
+                        createMagicTemplate({
+                          template: "mindmap",
+                          title: "Mindmap Pack",
+                          includeNotes: true,
+                          includeTasks: true,
+                        });
+                        setQuickAddPos(null);
+                      }}
+                      style={{
+                        border: "1px solid rgba(255,255,255,0.2)",
+                        borderRadius: 8,
+                        background: "rgba(255,255,255,0.07)",
+                        color: "inherit",
+                        fontSize: 11,
+                        fontWeight: 700,
+                        padding: "8px 6px",
+                        cursor: "pointer",
+                      }}
+                    >
+                      Mindmap
+                    </button>
+                    <button
+                      onClick={() => {
+                        createMagicTemplate({
+                          template: "roadmap",
+                          title: "Roadmap Pack",
+                          includeNotes: true,
+                          includeTasks: true,
+                        });
+                        setQuickAddPos(null);
+                      }}
+                      style={{
+                        border: "1px solid rgba(255,255,255,0.2)",
+                        borderRadius: 8,
+                        background: "rgba(255,255,255,0.07)",
+                        color: "inherit",
+                        fontSize: 11,
+                        fontWeight: 700,
+                        padding: "8px 6px",
+                        cursor: "pointer",
+                      }}
+                    >
+                      Roadmap
+                    </button>
+                    <button
+                      onClick={() => {
+                        createMagicTemplate({
+                          template: "risk-matrix",
+                          title: "Risk Pack",
+                          includeNotes: true,
+                          includeTasks: true,
+                        });
+                        setQuickAddPos(null);
+                      }}
+                      style={{
+                        border: "1px solid rgba(255,255,255,0.2)",
+                        borderRadius: 8,
+                        background: "rgba(255,255,255,0.07)",
+                        color: "inherit",
+                        fontSize: 11,
+                        fontWeight: 700,
+                        padding: "8px 6px",
+                        cursor: "pointer",
+                      }}
+                    >
+                      Risk Matrix
+                    </button>
+                  </div>
+                  <div
+                    style={{
+                      height: 1,
+                      background: "rgba(255,255,255,0.1)",
+                      margin: "0 8px 6px",
+                    }}
+                  />
                   {WIDGET_TYPES.map(({ type, icon: WIcon, label }) => (
                     <button
                       key={type}
@@ -4668,10 +5482,301 @@ export function CanvasView() {
               );
             })()}
 
+          {/* Project Panel */}
+          {showProjectPanel && canvas && (
+            <div
+              style={{
+                position: "absolute",
+                top: 14,
+                right: 14,
+                zIndex: 210,
+                width: 338,
+                maxHeight: "78%",
+                overflow: "auto",
+                borderRadius: 14,
+                padding: 12,
+                background:
+                  t.mode === "dark"
+                    ? "rgba(12,12,22,0.85)"
+                    : "rgba(255,255,255,0.9)",
+                backdropFilter: "blur(18px)",
+                border: "1px solid rgba(255,255,255,0.14)",
+                boxShadow: "0 14px 40px rgba(0,0,0,0.35)",
+              }}
+            >
+              <div
+                style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}
+              >
+                <CheckSquare size={14} style={{ color: t.accent }} />
+                <div style={{ fontSize: 12, fontWeight: 800 }}>Project Canvas</div>
+                <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
+                  <button
+                    onClick={() => setFocusNodeOnly((s) => !s)}
+                    style={{
+                      padding: "4px 8px",
+                      borderRadius: 8,
+                      border: `1px solid ${focusNodeOnly ? t.accent : "rgba(255,255,255,0.14)"}`,
+                      background: focusNodeOnly
+                        ? `rgba(${rgb},0.16)`
+                        : "rgba(255,255,255,0.06)",
+                      color: focusNodeOnly ? t.accent : "inherit",
+                      fontSize: 10,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Focus
+                  </button>
+                  <button
+                    onClick={() => setShowProjectPanel(false)}
+                    style={{
+                      padding: "4px 8px",
+                      borderRadius: 8,
+                      border: "1px solid rgba(255,255,255,0.14)",
+                      background: "rgba(255,255,255,0.06)",
+                      fontSize: 10,
+                      cursor: "pointer",
+                      color: "inherit",
+                    }}
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(4,1fr)",
+                  gap: 6,
+                  marginBottom: 10,
+                }}
+              >
+                {[
+                  { label: "Nodes", val: projectNodes.length },
+                  {
+                    label: "Done",
+                    val: projectNodes.filter((node) => node.status === "done").length,
+                  },
+                  {
+                    label: "Blocked",
+                    val: projectNodes.filter((node) => node.status === "blocked").length,
+                  },
+                  { label: "Links", val: canvas.connections.length },
+                ].map((item) => (
+                  <div
+                    key={item.label}
+                    style={{
+                      padding: "7px 6px",
+                      borderRadius: 9,
+                      background: "rgba(255,255,255,0.06)",
+                      border: "1px solid rgba(255,255,255,0.08)",
+                      textAlign: "center",
+                    }}
+                  >
+                    <div style={{ fontSize: 14, fontWeight: 800 }}>{item.val}</div>
+                    <div style={{ fontSize: 9, opacity: 0.55 }}>{item.label}</div>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ display: "flex", gap: 6, overflowX: "auto", marginBottom: 10 }}>
+                <button
+                  onClick={() => setPmStatusFilter("all")}
+                  style={{
+                    fontSize: 10,
+                    padding: "4px 7px",
+                    borderRadius: 999,
+                    border: `1px solid ${pmStatusFilter === "all" ? t.accent : "rgba(255,255,255,0.15)"}`,
+                    background:
+                      pmStatusFilter === "all"
+                        ? `rgba(${rgb},0.16)`
+                        : "rgba(255,255,255,0.04)",
+                    color: pmStatusFilter === "all" ? t.accent : "inherit",
+                    cursor: "pointer",
+                  }}
+                >
+                  all
+                </button>
+                {BOARD_LANES.map((lane) => (
+                  <button
+                    key={lane.id}
+                    onClick={() => setPmStatusFilter(lane.id)}
+                    style={{
+                      fontSize: 10,
+                      padding: "4px 7px",
+                      borderRadius: 999,
+                      border: `1px solid ${pmStatusFilter === lane.id ? lane.color : "rgba(255,255,255,0.15)"}`,
+                      background:
+                        pmStatusFilter === lane.id
+                          ? `${lane.color}22`
+                          : "rgba(255,255,255,0.04)",
+                      color: pmStatusFilter === lane.id ? lane.color : "inherit",
+                      cursor: "pointer",
+                    }}
+                  >
+                    {lane.id}
+                  </button>
+                ))}
+              </div>
+
+              {selectedNode && (
+                <div
+                  style={{
+                    border: "1px solid rgba(255,255,255,0.12)",
+                    borderRadius: 10,
+                    padding: 10,
+                    marginBottom: 10,
+                    background: "rgba(255,255,255,0.04)",
+                  }}
+                >
+                  <div style={{ fontSize: 11, fontWeight: 700, marginBottom: 8 }}>
+                    Selected: {selectedNode.title}
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+                    <select
+                      value={selectedNode.status || "todo"}
+                      onChange={(e) =>
+                        useCanvas
+                          .getState()
+                          .updateNode(selectedNode.id, {
+                            status: e.target.value as CanvasNodeStatus,
+                          })
+                      }
+                      style={{
+                        fontSize: 11,
+                        padding: "6px 8px",
+                        borderRadius: 8,
+                        background: "rgba(255,255,255,0.08)",
+                        border: "1px solid rgba(255,255,255,0.14)",
+                        color: "inherit",
+                      }}
+                    >
+                      {BOARD_LANES.map((lane) => (
+                        <option key={lane.id} value={lane.id}>
+                          {lane.id}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      value={selectedNode.priority || "mid"}
+                      onChange={(e) =>
+                        useCanvas.getState().updateNode(selectedNode.id, {
+                          priority: e.target.value as "low" | "mid" | "high" | "critical",
+                        })
+                      }
+                      style={{
+                        fontSize: 11,
+                        padding: "6px 8px",
+                        borderRadius: 8,
+                        background: "rgba(255,255,255,0.08)",
+                        border: "1px solid rgba(255,255,255,0.14)",
+                        color: "inherit",
+                      }}
+                    >
+                      {(["low", "mid", "high", "critical"] as const).map((prio) => (
+                        <option key={prio} value={prio}>
+                          {prio}
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      value={selectedNode.owner || ""}
+                      placeholder="Owner"
+                      onChange={(e) =>
+                        useCanvas.getState().updateNode(selectedNode.id, {
+                          owner: e.target.value,
+                        })
+                      }
+                      style={{
+                        fontSize: 11,
+                        padding: "6px 8px",
+                        borderRadius: 8,
+                        background: "rgba(255,255,255,0.08)",
+                        border: "1px solid rgba(255,255,255,0.14)",
+                        color: "inherit",
+                      }}
+                    />
+                    <input
+                      type="date"
+                      value={selectedNode.dueDate ? selectedNode.dueDate.slice(0, 10) : ""}
+                      onChange={(e) =>
+                        useCanvas.getState().updateNode(selectedNode.id, {
+                          dueDate: e.target.value || undefined,
+                        })
+                      }
+                      style={{
+                        fontSize: 11,
+                        padding: "6px 8px",
+                        borderRadius: 8,
+                        background: "rgba(255,255,255,0.08)",
+                        border: "1px solid rgba(255,255,255,0.14)",
+                        color: "inherit",
+                      }}
+                    />
+                  </div>
+                  <div style={{ marginTop: 8 }}>
+                    <label
+                      style={{ fontSize: 10, opacity: 0.6, display: "block", marginBottom: 4 }}
+                    >
+                      Progress {selectedNode.progress ?? 0}%
+                    </label>
+                    <input
+                      type="range"
+                      min={0}
+                      max={100}
+                      value={selectedNode.progress ?? 0}
+                      onChange={(e) =>
+                        useCanvas.getState().updateNode(selectedNode.id, {
+                          progress: Number(e.target.value),
+                        })
+                      }
+                      style={{ width: "100%" }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div style={{ fontSize: 10, fontWeight: 700, opacity: 0.55, marginBottom: 6 }}>
+                Timeline
+              </div>
+              {timelineNodes.length === 0 ? (
+                <div style={{ fontSize: 11, opacity: 0.5 }}>
+                  Keine Datums-Items im aktuellen Filter.
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  {timelineNodes.map((node) => (
+                    <button
+                      key={node.id}
+                      onClick={() => {
+                        setSelectedNodeId(node.id);
+                        focusNode(node.id);
+                      }}
+                      style={{
+                        textAlign: "left",
+                        border: "1px solid rgba(255,255,255,0.11)",
+                        borderRadius: 9,
+                        background: "rgba(255,255,255,0.05)",
+                        cursor: "pointer",
+                        padding: "7px 8px",
+                        color: "inherit",
+                      }}
+                    >
+                      <div style={{ fontSize: 11, fontWeight: 700 }}>{node.title}</div>
+                      <div style={{ fontSize: 10, opacity: 0.6 }}>
+                        {node.dueDate ? new Date(node.dueDate).toLocaleDateString() : "-"}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Mini-map */}
-          {showMiniMap && canvas && canvas.nodes.length > 0 && (
+          {showMiniMap && miniMapNodes.length > 0 && (
             <MiniMap
-              nodes={canvas.nodes}
+              nodes={miniMapNodes}
               viewport={viewport}
               canvasW={canvasSize.w}
               canvasH={canvasSize.h}
@@ -4695,7 +5800,7 @@ export function CanvasView() {
                 fontFamily: "monospace",
               }}
             >
-              {Math.round(viewport.zoom * 100)}% · Scroll to pan · Pinch/Ctrl + Scroll to zoom · Render {visibleNodes.length}/{canvas?.nodes.length ?? 0}
+              {Math.round(viewport.zoom * 100)}% · Scroll = Pan · Pinch/Ctrl + Scroll = Zoom · F = Focus · G = Grid · P = Project Panel · Render {visibleNodes.length}/{canvas?.nodes.length ?? 0}
             </div>
           )}
         </div>

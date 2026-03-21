@@ -88,5 +88,4 @@ npm run dist
 
 ## Notes
 
-- Mobile-port preparation is intentionally excluded in this repository (handled in a separate project).
 - All state is local-first via browser/Electron storage.

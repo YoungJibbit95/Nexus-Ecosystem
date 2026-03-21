@@ -170,6 +170,91 @@ function MagicCard({ content, accent }: { content: string; accent: string }) {
   )
 }
 
+function MagicMetrics({ content, accent }: { content: string; accent: string }) {
+  const rows = content.trim().split('\n').filter(Boolean).map((row) => {
+    const [label, value, delta] = row.split('|').map(s => s.trim())
+    return { label, value, delta }
+  })
+  return (
+    <div className="nx-magic-fade" style={{
+      display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+      gap: 10, margin: '12px 0',
+    }}>
+      {rows.map((row, i) => (
+        <div key={i} style={{
+          borderRadius: 10, padding: '10px 12px',
+          border: '1px solid rgba(255,255,255,0.1)',
+          background: `linear-gradient(155deg, ${accent}14, rgba(255,255,255,0.03))`,
+        }}>
+          <div style={{ fontSize: 10, opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{row.label || `KPI ${i + 1}`}</div>
+          <div style={{ fontSize: 22, fontWeight: 800, marginTop: 4, lineHeight: 1.1 }}>{row.value || '0'}</div>
+          {row.delta && (
+            <div style={{
+              marginTop: 6, fontSize: 11, fontWeight: 700, display: 'inline-flex',
+              padding: '2px 8px', borderRadius: 999, background: `${accent}22`, color: accent,
+            }}>
+              {row.delta}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function MagicSteps({ content, accent }: { content: string; accent: string }) {
+  const rows = content.trim().split('\n').filter(Boolean).map((row) => {
+    const [title, detail] = row.split('|').map(s => s.trim())
+    return { title, detail }
+  })
+  return (
+    <div className="nx-magic-fade" style={{ margin: '12px 0', display: 'flex', flexDirection: 'column', gap: 10 }}>
+      {rows.map((row, i) => (
+        <div key={i} style={{ display: 'flex', gap: 10 }}>
+          <div style={{
+            width: 22, height: 22, borderRadius: '50%',
+            background: `${accent}26`, border: `1px solid ${accent}55`, color: accent,
+            fontSize: 11, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            flexShrink: 0,
+          }}>
+            {i + 1}
+          </div>
+          <div style={{
+            flex: 1, borderRadius: 8, padding: '8px 10px',
+            border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.03)',
+          }}>
+            <div style={{ fontSize: 12, fontWeight: 700 }}>{row.title || `Step ${i + 1}`}</div>
+            {row.detail && <div style={{ fontSize: 12, opacity: 0.68, marginTop: 3, lineHeight: 1.5 }}>{row.detail}</div>}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function MagicQuadrant({ content, accent }: { content: string; accent: string }) {
+  const rows = content.trim().split('\n').filter(Boolean).map((row) => {
+    const [title, detail] = row.split('|').map(s => s.trim())
+    return { title, detail }
+  })
+  while (rows.length < 4) rows.push({ title: `Quadrant ${rows.length + 1}`, detail: '' })
+  return (
+    <div className="nx-magic-fade" style={{
+      display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, margin: '12px 0',
+    }}>
+      {rows.slice(0, 4).map((row, i) => (
+        <div key={i} style={{
+          minHeight: 86, borderRadius: 10, padding: '8px 10px',
+          border: `1px solid ${accent}26`, background: `${accent}12`,
+        }}>
+          <div style={{ fontSize: 11, fontWeight: 800, color: accent }}>{row.title || `Quadrant ${i + 1}`}</div>
+          <div style={{ fontSize: 12, opacity: 0.76, marginTop: 4, lineHeight: 1.45 }}>{row.detail || 'Inhalt hinzufügen'}</div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 // Inline badge: `b:Label|variant`
 function renderInlineBadge(text: string, accent: string) {
   if (!text.startsWith('b:')) {
@@ -202,6 +287,9 @@ function NexusCodeBlock({ className, children, accent }: { className?: string; c
   if (lang === 'nexus-timeline') return <MagicTimeline content={content} accent={accent} />
   if (lang === 'nexus-grid')     return <MagicGrid content={content} />
   if (lang === 'nexus-card')     return <MagicCard content={content} accent={accent} />
+  if (lang === 'nexus-metrics')  return <MagicMetrics content={content} accent={accent} />
+  if (lang === 'nexus-steps')    return <MagicSteps content={content} accent={accent} />
+  if (lang === 'nexus-quadrant') return <MagicQuadrant content={content} accent={accent} />
 
   return (
     <pre style={{
@@ -276,6 +364,24 @@ const MAGIC_TYPES = [
       { key: 'desc', label: 'Beschreibung', multiline: false, placeholder: 'Kurze Beschreibung...' },
     ],
     build: (v: Record<string,string>) => `\n\`\`\`nexus-card\n${v.url} | ${v.title} | ${v.desc}\n\`\`\`\n`,
+  },
+  {
+    id: 'nexus-metrics', label: 'KPI Cards', icon: '📈', desc: 'Kennzahlen mit Wert und Delta',
+    color: '#64D2FF',
+    fields: [{ key: 'rows', label: 'Einträge (Label | Wert | Delta, eine Zeile pro KPI)', multiline: true, placeholder: 'MRR | 49.2k | +8.4%\nNPS | 61 | +5\nUptime | 99.95% | +0.03%' }],
+    build: (v: Record<string,string>) => `\n\`\`\`nexus-metrics\n${v.rows}\n\`\`\`\n`,
+  },
+  {
+    id: 'nexus-steps', label: 'Process Steps', icon: '🪜', desc: 'Schrittfolge mit Details',
+    color: '#30D158',
+    fields: [{ key: 'rows', label: 'Einträge (Schritt | Detail, eine Zeile pro Schritt)', multiline: true, placeholder: 'Research | Problem und Zielbild klären\nBuild | Kernfeatures implementieren\nValidate | QA und Feedback einholen' }],
+    build: (v: Record<string,string>) => `\n\`\`\`nexus-steps\n${v.rows}\n\`\`\`\n`,
+  },
+  {
+    id: 'nexus-quadrant', label: 'Quadrant Board', icon: '🧩', desc: '2x2 Board für Priorisierung und Mapping',
+    color: '#FF9F0A',
+    fields: [{ key: 'rows', label: 'Einträge (Titel | Inhalt, bis zu 4 Zeilen)', multiline: true, placeholder: 'Quick Wins | Hoher Impact, geringer Aufwand\nBig Bets | Hoher Impact, hoher Aufwand\nFill-ins | Niedriger Impact, geringer Aufwand\nAvoid | Niedriger Impact, hoher Aufwand' }],
+    build: (v: Record<string,string>) => `\n\`\`\`nexus-quadrant\n${v.rows}\n\`\`\`\n`,
   },
   {
     id: 'badge', label: 'Badge', icon: '✨', desc: 'Inline-Abzeichen im Text',
