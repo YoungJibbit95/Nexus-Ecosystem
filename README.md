@@ -1,79 +1,41 @@
 <div align="center">
 
-# 🌌 NEXUS ECOSYSTEM V5
+# 🌌 NEXUS ECOSYSTEM V6
 
-### ⚡ Cyberpunk • Modular • Scalable • Full System Architecture
+### ⚡ Cyberpunk • Modular • Scalable • Bilingual System
 
-<img src="https://readme-typing-svg.herokuapp.com?font=JetBrains+Mono&size=22&duration=3000&color=00F7FF&center=true&vCenter=true&width=600&lines=Initializing+Nexus...;Control+Plane+Connected;Runtime+Online;Live+Sync+Active"/>
+<img src="https://readme-typing-svg.herokuapp.com?font=JetBrains+Mono&size=22&duration=3000&color=00F7FF&center=true&vCenter=true&width=700&lines=Nexus+System+Initializing...;Control+Plane+Connected;Runtime+Online;Language+Mode:+EN+%7C+DE"/>
 
 </div>
 
 ---
 
-> [!IMPORTANT]
-> Public Repo enthält nur **Runtime Plane + API Client Layer**.  
-> Die produktive **Control Plane läuft privat (NEXUS_CONTROL_URL)**.
+## 🌐 Language / Sprache
 
----
+<details open>
+<summary>🇬🇧 English</summary>
 
-## 🧠 SYSTEM OVERVIEW
+## 🧠 System Overview
 
 ```txt
-STATUS:        ONLINE
-RUNTIME:       ACTIVE
-CONTROL:       CONNECTED
-SYNC:          LIVE
-SECURITY:      ENFORCED
+STATUS: ONLINE
+RUNTIME: ACTIVE
+CONTROL: CONNECTED
+SYNC: LIVE
+SECURITY: ENFORCED
 ```
 
----
+### 🎯 What is Nexus?
 
-## 🎯 WHAT IS NEXUS?
+Nexus is a **multi-app ecosystem** with:
 
-Ein **Multi-App Ecosystem**, bestehend aus:
+- Modular apps (desktop & mobile)
+- Shared runtime (`@nexus/api`)
+- Central control plane
+- Live synchronization
+- Performance & observability
 
-- 🧩 mehreren Apps (Desktop + Mobile)
-- 🔗 gemeinsamer Runtime (`@nexus/api`)
-- 🎛️ zentraler Control Plane
-- 📊 Observability + Performance Tracking
-
----
-
-## 🧩 COMPONENTS
-
-- Nexus Main (Electron + React)
-- Nexus Mobile (Capacitor + React)
-- Nexus Code (Dev App)
-- Nexus Code Mobile
-- Nexus Control (private)
-- Nexus API Client (`nexus-core`)
-
----
-
-## 🏗️ ARCHITECTURE
-
-```mermaid
-flowchart LR
-A["Apps"] --> R["@nexus/api"]
-R --> C["Connection Manager"]
-R --> P["Performance Manager"]
-R --> CL["Control Client"]
-CL --> CP["Control Plane"]
-UI --> CP
-```
-
----
-
-## 🔄 LIVE SYNC V2
-
-- automatische Feature Synchronisation
-- Layout Anpassung (mobile/desktop)
-- Capability-based Updates
-- Control Panel Integration
-
----
-
-## 🚀 QUICK START
+### 🚀 Quick Start
 
 ```bash
 git clone https://github.com/YoungJibbit95/Nexus-Ecosystem.git
@@ -82,62 +44,71 @@ npm run setup
 npm run build
 ```
 
----
-
-## 🛠️ DEV COMMANDS
-
-```bash
-npm run dev:all
-npm run dev:main
-npm run dev:mobile
-npm run build
-npm run verify:ecosystem
-```
-
----
-
-## ⚙️ CONTROL PLANE
-
-- Hosted API (extern)
-- Auth / Policies / Commands
-- UI separat deploybar
-- sichere Origin Policies
-
----
-
-## 🔐 SECURITY
+### 🔐 Security
 
 - Role-based system
 - Device verification
 - HMAC signatures
 - Anti-replay protection
-- Audit logging
-- Owner-only mutations
+- Audit logs
+
+</details>
 
 ---
 
-## 📦 BUILD SYSTEM
+<details>
+<summary>🇩🇪 Deutsch</summary>
+
+## 🧠 Systemübersicht
 
 ```txt
-build/
-├── Apps
-├── API Client
-├── Control UI
-└── Assets
+STATUS: ONLINE
+RUNTIME: AKTIV
+CONTROL: VERBUNDEN
+SYNC: LIVE
+SECURITY: AKTIV
 ```
+
+### 🎯 Was ist Nexus?
+
+Nexus ist ein **Multi-App-System** mit:
+
+- Modularen Apps (Desktop & Mobile)
+- Gemeinsamer Runtime (`@nexus/api`)
+- Zentraler Control Plane
+- Live-Synchronisation
+- Performance & Monitoring
+
+### 🚀 Schnellstart
+
+```bash
+git clone https://github.com/YoungJibbit95/Nexus-Ecosystem.git
+cd Nexus-Ecosystem
+npm run setup
+npm run build
+```
+
+### 🔐 Sicherheit
+
+- Rollenbasiertes System
+- Device Verification
+- HMAC Signaturen
+- Replay-Schutz
+- Audit Logs
+
+</details>
 
 ---
 
-## 📊 GITHUB STATS
+## 📊 GitHub Stats
 
 <p align="center">
 <img src="https://github-readme-stats.vercel.app/api?username=YoungJibbit95&show_icons=true&theme=tokyonight&hide_border=true"/>
-<img src="https://github-readme-streak-stats.herokuapp.com/?user=YoungJibbit95&theme=tokyonight&hide_border=true"/>
 </p>
 
 ---
 
-## 🐍 CONTRIBUTION SNAKE
+## 🐍 Contribution Snake
 
 <p align="center">
 <img src="https://raw.githubusercontent.com/platane/snk/output/github-contribution-grid-snake-dark.svg"/>
@@ -145,35 +116,7 @@ build/
 
 ---
 
-## 📋 WORKFLOW
-
-1. Create Issue
-2. Build Feature
-3. Verify + Build
-4. PR + Review
-5. Deploy
-
----
-
-## 🧯 TROUBLESHOOTING
-
-- API erreichbar?
-- richtige ENV gesetzt?
-- Device verified?
-- Origin erlaubt?
-
----
-
-## 📚 DOCS
-
-- Developer Guide
-- User Guide
-- Security Docs
-- Control Panel Setup
-
----
-
-## 🌐 CONNECT
+## 🌐 Connect
 
 <p align="center">
 <a href="https://github.com/YoungJibbit95">
@@ -189,19 +132,9 @@ build/
 
 ---
 
-## 🧠 PHILOSOPHY
+## 🚀 Vision
 
-```txt
-build > talk
-systems > hacks
-consistency > motivation
-```
-
----
-
-## 🚀 VISION
-
-> Build a fully connected software ecosystem.
+> A connected ecosystem where software evolves together.
 
 ---
 
