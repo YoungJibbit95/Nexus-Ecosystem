@@ -49,7 +49,7 @@ export const categories: Array<{ id: CategoryId; label: string; description: str
   { id: 'settings', label: 'Settings', description: 'Theme, Layout, Motion, Editor' },
   { id: 'workflow', label: 'Workflows', description: 'Terminal, Spotlight, Productivity' },
   { id: 'runtime', label: 'Runtime/API', description: 'Live Sync, Compatibility, Contracts' },
-  { id: 'security', label: 'Security', description: 'Owner-Only, Signaturen, Paywalls' },
+  { id: 'security', label: 'Security', description: 'Access Governance, Account Schutz, Paywalls' },
   { id: 'ops', label: 'Ops/Deploy', description: 'Hosting, Build, Release, Verify' },
 ]
 
@@ -154,23 +154,23 @@ export const entries: WikiEntry[] = [
   },
   {
     id: 'security-owner-signatures',
-    title: 'Owner-Only und Signaturpflicht',
+    title: 'Security Governance und Zugriffsschutz',
     app: 'control',
     category: 'security',
     summary:
-      'Mutierende API-Routen sind owner-only und verlangen HMAC Signaturen mit Replay-Schutz.',
+      'Der Zugriff auf kritische Verwaltungsfunktionen folgt klaren Rollen- und Freigaberegeln.',
     guide: [
-      { title: '1. Owner Policies aktiv halten', detail: 'restrictMutationsToOwner und ownerOnlyControlPanel duerfen nicht abgeschwaecht werden.' },
-      { title: '2. Signatur-Header setzen', detail: 'Mutationen brauchen X-Nexus-Signature-Ts/Nonce/V1 und passende serverseitige Secrets.' },
-      { title: '3. Device Verification erzwingen', detail: 'Admin/Developer Logins sind an freigegebene Devices gebunden.' },
+      { title: '1. Rollenmodell pruefen', detail: 'Administrative Rechte nur an wirklich benoetigte Accounts vergeben.' },
+      { title: '2. Sicherheitsregeln aktiv halten', detail: 'Kritische Aktionen nur innerhalb definierter Governance-Policies erlauben.' },
+      { title: '3. Regelmaessig kontrollieren', detail: 'Zugriffe und Aenderungen im Security-Betrieb laufend verifizieren.' },
     ],
     points: [
-      'Ohne gueltige Signatur werden Mutationen serverseitig blockiert.',
-      'Nonce- und Zeitfenster reduzieren Replay-Angriffe.',
-      'Security Baseline kann Start bei unsicheren Policies verhindern.',
+      'Sicherheitsentscheidungen werden zentral und konsistent verwaltet.',
+      'Least-Privilege reduziert Risiko bei Fehlkonfigurationen.',
+      'Regelmaessige Reviews halten den Betrieb stabil und nachvollziehbar.',
     ],
-    commands: ['export NEXUS_MUTATION_SIGNING_SECRETS="youngjibbit:<secret>"'],
-    tags: ['owner-only', 'signature', 'hmac', 'device-verification'],
+    commands: ['Control UI -> Policies', 'Control UI -> Audit'],
+    tags: ['security', 'governance', 'access-control'],
     sources: ['docs/SECURITY.md', 'docs/ENVIRONMENT.md'],
   },
   {
@@ -179,14 +179,15 @@ export const entries: WikiEntry[] = [
     app: 'control',
     category: 'security',
     summary:
-      'Wenn Nutzer ueber Free Tier hinausgehen, werden View-Entitlements ueber die API geprueft und serverseitig erzwungen.',
+      'Premium-Funktionen folgen einem klaren Account- und Tier-Modell mit Login/Upgrade-Flow.',
     guide: [
       { title: '1. Konto und Login', detail: 'Website/App fordert Login fuer Premium-Features an.' },
-      { title: '2. Entitlement-Check', detail: 'API validiert, ob ein Kauf/Tier vorhanden ist.' },
+      { title: '2. Planstatus pruefen', detail: 'Nur berechtigte Konten erhalten Zugriff auf Premium-Bereiche.' },
       { title: '3. View-Freigabe', detail: 'Nur erlaubte Views/Funktionen werden freigeschaltet, sonst klarer Hinweis im Client.' },
     ],
     points: [
-      'Die Website darf nur UX steuern; Sicherheitsentscheidung liegt serverseitig.',
+      'Die Website steuert primär den UX-Flow fuer Login und Upgrade.',
+      'Autorisierung liegt in den geschuetzten Backend-Systemen.',
       'Control Paywalls Tab pflegt Tier-Views und User-Templates.',
       'Clients muessen Blockierungszustand sauber darstellen.',
     ],
@@ -200,19 +201,19 @@ export const entries: WikiEntry[] = [
     app: 'control',
     category: 'ops',
     summary:
-      'Control UI wird auf nexus-api.dev/control gehostet; GitHub Pages wird fuer das Produktwiki genutzt.',
+      'Control UI laeuft auf der verwalteten Infrastruktur; GitHub Pages wird fuer das oeffentliche Produktwiki genutzt.',
     guide: [
       { title: '1. Build', detail: 'Control UI ueber npm --prefix "../Nexus Control" run build erzeugen.' },
       { title: '2. Deploy', detail: 'dist statisch unter /control ausliefern.' },
-      { title: '3. Runtime Config', detail: 'controlApiUrl, bootstrapPath, forceApiUrl in runtime-config.json setzen.' },
+      { title: '3. Release checken', detail: 'Nach Deployment den UI-Start und die Kernnavigation validieren.' },
     ],
     points: [
-      'UI-Origin muss in trustedOrigins erlaubt sein.',
-      'Loopback-Bindings der API bleiben intern.',
-      'Mixed Content und localhost URLs in gehosteter UI vermeiden.',
+      'Oeffentliche Seiten zeigen nur dokumentationsrelevante Inhalte.',
+      'Interne Infrastruktur-Details bleiben in privaten Betriebsdokumenten.',
+      'Deployment-Checks sind Pflicht vor Freigabe.',
     ],
-    commands: ['curl -fsS https://nexus-api.dev/health', 'curl -fsS https://nexus-api.dev/api/v1/public/bootstrap'],
-    tags: ['hosting', 'control-ui', 'deploy', 'runtime-config'],
+    commands: ['npm --prefix "../Nexus Control" run build', 'npm run verify:ecosystem'],
+    tags: ['hosting', 'control-ui', 'deploy'],
     sources: ['docs/CONTROL_PANEL_HOSTED_SETUP.md', 'README.md'],
   },
   {
@@ -1018,7 +1019,7 @@ export const entries: WikiEntry[] = [
       { title: '3. Promote', detail: 'Nach Checks auf production promoten.' },
     ],
     points: [
-      'Nur owner/signierte Mutationen duerfen schreiben.',
+      'Aenderungen folgen einem kontrollierten Freigabeprozess.',
       'Schema Validation blockiert ungueltige Komponenten.',
       'Promotion ist ein expliziter Schritt.',
     ],
@@ -1099,7 +1100,7 @@ export const entries: WikiEntry[] = [
     guide: [
       { title: '1. Global Config laden', detail: 'Globale Policies und Runtime Defaults im JSON Editor pruefen.' },
       { title: '2. App Config waehlen', detail: 'Target App selektieren, Config laden und differenziert anpassen.' },
-      { title: '3. Save mit Sicherheitsrahmen', detail: 'Nur mit owner-signierter Mutation speichern und Ergebnisstatus kontrollieren.' },
+      { title: '3. Save kontrollieren', detail: 'Aenderungen speichern und Ergebnisstatus sauber pruefen.' },
     ],
     points: [
       'Global Config gilt app-uebergreifend und wirkt auf Runtime Verhalten.',
@@ -1140,11 +1141,11 @@ export const entries: WikiEntry[] = [
       'Policies Tab ist die zentrale Pflegeflaeche fuer Security-Richtlinien und Owner-Restriktionen.',
     guide: [
       { title: '1. Policies laden', detail: 'Aktuelle Security Policies als Baseline einlesen.' },
-      { title: '2. Mutationen absichern', detail: 'Owner-only Restriktionen und Signaturpflicht nicht aufweichen.' },
+      { title: '2. Richtlinien absichern', detail: 'Zugriffs- und Sicherheitsregeln konsistent halten.' },
       { title: '3. Save + Audit', detail: 'Nach Speichern Audit Log und API Status fuer Policy-Drift pruefen.' },
     ],
     points: [
-      'Policies wirken direkt auf mutierende API Endpunkte.',
+      'Policies wirken direkt auf die Zugriffskontrolle im Betrieb.',
       'Unsichere Policies koennen Baseline Enforcement triggern.',
       'Aenderungen immer mit Security Team abstimmen.',
     ],
@@ -1182,7 +1183,7 @@ export const entries: WikiEntry[] = [
       'Audit Tab zeigt sicherheitsrelevante und operative Events zur Nachverfolgung von Mutation, Policy und Device Aktionen.',
     guide: [
       { title: '1. Audit Feed laden', detail: 'Aktuelle Events aus Audit Log abrufen.' },
-      { title: '2. Kritische Muster suchen', detail: 'Fehlgeschlagene Signaturen, Policy Saves und Device Revokes priorisieren.' },
+      { title: '2. Kritische Muster suchen', detail: 'Ungewoehnliche Policy- und Device-Events priorisieren.' },
       { title: '3. Incident Trail sichern', detail: 'Auffaellige Eventketten fuer Postmortem und Rotation-Massnahmen dokumentieren.' },
     ],
     points: [
@@ -1200,9 +1201,9 @@ export const entries: WikiEntry[] = [
     app: 'control',
     category: 'view',
     summary:
-      'Guides Tab konsumiert API Guides direkt aus /api/v1/guides und zeigt sie als operative Wissensquelle in Control.',
+      'Guides Tab zeigt zentral gepflegte Betriebsdokumentation direkt in der Control-Oberflaeche.',
     guide: [
-      { title: '1. Guide-Liste laden', detail: 'Verfuegbare Guides vom API Endpoint einlesen.' },
+      { title: '1. Guide-Liste laden', detail: 'Verfuegbare Guides aus der angebundenen Guide-Quelle einlesen.' },
       { title: '2. Zielguide waehlen', detail: 'Passenden Guide selektieren und Inhalt in der Vorschau laden.' },
       { title: '3. Im Betrieb nutzen', detail: 'Guides fuer Troubleshooting und Releaseablauf direkt in Control referenzieren.' },
     ],
@@ -1224,7 +1225,7 @@ export const entries: WikiEntry[] = [
       'Nexus Main blockiert nicht berechtigte Views clientseitig sichtbar, waehrend die finale Autorisierung API-seitig erfolgt.',
     guide: [
       { title: '1. Login UX triggern', detail: 'Bei Zugriff auf Premium-Bereiche Login/Upgrade Hinweis ausgeben.' },
-      { title: '2. View Access pruefen', detail: 'Runtime Control validateViewAccess vor View-Wechsel auswerten.' },
+      { title: '2. View Access pruefen', detail: 'Vor View-Wechsel den aktuellen Zugriffsstatus auswerten.' },
       { title: '3. Blockzustand klar darstellen', detail: 'Blocked View, requiredTier und reason fuer Nutzer transparent anzeigen.' },
     ],
     points: [
@@ -1232,7 +1233,7 @@ export const entries: WikiEntry[] = [
       'API entscheidet final ueber Entitlement.',
       'Guards decken auch remote navigation/profile Regeln ab.',
     ],
-    commands: ['runtime.control.validateViewAccess(...)', 'requestViewChange(nextView)'],
+    commands: ['Login/Upgrade Prompt anzeigen', 'View-Wechsel nach Zugriffsstatus steuern'],
     tags: ['paywall', 'entitlement', 'view-guard', 'main-app'],
     sources: ['Nexus Main/src/App.tsx'],
   },
@@ -1244,7 +1245,7 @@ export const entries: WikiEntry[] = [
     summary:
       'Auch in Mobile erzwingt der View Guard klare Paywall-Hinweise bei gesperrten Views und verhindert Navigation in nicht freigegebene Bereiche.',
     guide: [
-      { title: '1. Navigation intercepten', detail: 'requestViewChange fuehrt Access-Validierung vor Wechsel aus.' },
+      { title: '1. Navigation intercepten', detail: 'Navigation prueft den Zugriffsstatus vor dem Wechsel.' },
       { title: '2. Guard State rendern', detail: 'Checking/Blocked Zustande im mobilen Layout sichtbar anzeigen.' },
       { title: '3. Upgrade Pfad anbieten', detail: 'Nutzer aus blockierter Ansicht in Login/Account Flow leiten.' },
     ],
@@ -1253,29 +1254,29 @@ export const entries: WikiEntry[] = [
       'Remote Navigation Profile duerfen nur erlaubte Views mappen.',
       'Tier Hinweise bleiben konsistent zu Desktop Main.',
     ],
-    commands: ['runtime.control.validateViewAccess(...)', 'mobile requestViewChange(nextView)'],
+    commands: ['Login/Upgrade Prompt anzeigen', 'Navigation nach Zugriffsstatus steuern'],
     tags: ['mobile-paywall', 'view-guard', 'entitlement'],
     sources: ['Nexus Mobile/src/App.tsx'],
   },
   {
     id: 'environment-variables-guide',
-    title: 'Environment Variablen Guide',
+    title: 'Konfigurations-Grundlagen Guide',
     app: 'ecosystem',
     category: 'runtime',
     summary:
-      'Ecosystem Variablen steuern App Runtime Verbindung, Control Plane Sicherheit und gehostete UI Konfiguration.',
+      'Die oeffentliche Dokumentation beschreibt nur allgemeine Konfigurationsprinzipien; konkrete Betriebswerte bleiben intern.',
     guide: [
-      { title: '1. App Runtime Vars', detail: 'VITE_NEXUS_CONTROL_URL und VITE_NEXUS_CONTROL_INGEST_KEY je App setzen.' },
-      { title: '2. Control Vars', detail: 'Ports, host bindings, signing secrets und trusted origins korrekt konfigurieren.' },
-      { title: '3. Hosting Vars', detail: 'Control UI build-time defaults fuer runtime-config setzen.' },
+      { title: '1. App Konfiguration trennen', detail: 'Entwicklungs-, Staging- und Produktionswerte sauber voneinander isolieren.' },
+      { title: '2. Secrets schuetzen', detail: 'Sensible Werte nur ueber private Secret-Stores und niemals in oeffentlichen Repos pflegen.' },
+      { title: '3. Releases absichern', detail: 'Vor Deploy immer mit sicherem Default-Set und Checklisten validieren.' },
     ],
     points: [
-      'Control Host default ist loopback 127.0.0.1.',
-      'NEXUS_ENFORCE_SECURITY_BASELINE ist standardmaessig aktiv.',
-      'NEXUS_EXTRA_TRUSTED_ORIGINS erweitert CORS allowlist gezielt.',
+      'Oeffentliche Wiki-Seiten enthalten keine konkreten Secret-/Endpoint-Werte.',
+      'Interne Konfigurationsdetails gehoeren in private Betriebsdokumentation.',
+      'Konfigurationsaenderungen sollten versioniert und freigegeben werden.',
     ],
-    commands: ['export NEXUS_CONTROL_URL=https://nexus-api.dev', 'export NEXUS_EXTRA_TRUSTED_ORIGINS="https://nexus-api.dev"'],
-    tags: ['env', 'runtime-config', 'cors', 'security-baseline'],
+    commands: ['Interne Ops-Runbooks fuer Environments nutzen'],
+    tags: ['config', 'release-safety', 'security'],
     sources: ['docs/ENVIRONMENT.md'],
   },
   {
@@ -1284,16 +1285,16 @@ export const entries: WikiEntry[] = [
     app: 'control',
     category: 'security',
     summary:
-      'Security Betrieb umfasst Device Approval, trusted origins, key rotation und Audit Monitoring im Tagesbetrieb.',
+      'Security-Betrieb umfasst Access-Review, Device-Hygiene und Audit-Monitoring im Tagesbetrieb.',
     guide: [
       { title: '1. Device Hygiene', detail: 'Nur vertrauenswuerdige Devices freigeben und regelmaessig bereinigen.' },
-      { title: '2. Origin Hygiene', detail: 'Nur benoetigte UI Origins freigeben, keine wildcard CORS.' },
-      { title: '3. Key Hygiene', detail: 'Ingest Keys und Signing Secrets periodisch rotieren.' },
+      { title: '2. Access Hygiene', detail: 'Berechtigungen regelmaessig pruefen und ueberfluessige Rechte entfernen.' },
+      { title: '3. Secret Hygiene', detail: 'Interne Schluessel und Zugangsdaten gemaess Security-Prozess rotieren.' },
     ],
     points: [
-      'allowFirstAdminDeviceBootstrap nur fuer Erstsetup.',
+      'Temporäre Ausnahmen nur kurzzeitig und kontrolliert nutzen.',
       'Audit Logs fuer ungewoehnliche Commands/Fehler beobachten.',
-      'Owner-only Login kann zusaetzlich per controlPanelAllowedUsernames eingeschraenkt werden.',
+      'Detailkonfiguration bleibt in internen Security-Runbooks.',
     ],
     commands: ['Control UI -> devices', 'Control UI -> policies'],
     tags: ['security-ops', 'device-verify', 'audit', 'origins'],
