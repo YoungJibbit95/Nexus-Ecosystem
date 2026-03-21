@@ -2,7 +2,7 @@ import { promises as fs } from 'node:fs'
 import path from 'node:path'
 
 export const DEFAULT_HOSTED_CONTROL_URL = 'https://nexus-api.dev'
-export const DEFAULT_API_CLIENT_DIR = 'packages/nexus-core'
+export const DEFAULT_API_CLIENT_DIR = 'packages/nexus-core/src/api'
 
 // Legacy exports kept for backwards compatibility with older scripts.
 export const DEFAULT_PRIVATE_API_REPO = 'hosted'
@@ -36,9 +36,9 @@ export const resolveApiSource = async ({ root, quiet = true } = {}) => {
   if (!root) throw new Error('resolveApiSource benoetigt root')
 
   const apiDir = path.join(root, DEFAULT_API_CLIENT_DIR)
-  const packageJsonPath = path.join(apiDir, 'package.json')
+  const apiIndexPath = path.join(apiDir, 'index.ts')
 
-  if (!(await exists(packageJsonPath))) {
+  if (!(await exists(apiIndexPath))) {
     throw new Error(
       `API Client Package nicht gefunden: ${apiDir}. `
       + 'Fuehre den Ecosystem-Migrationsschritt fuer packages/nexus-core aus.'
