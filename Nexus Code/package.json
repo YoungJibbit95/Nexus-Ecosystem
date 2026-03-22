@@ -131,6 +131,7 @@
       "package.json"
     ],
     "win": {
+      "icon": "assets/icons/NexusCodeLogo.ico",
       "target": [
         {
           "target": "nsis",
@@ -138,7 +139,28 @@
             "x64"
           ]
         }
+      ],
+      "forceCodeSigning": false
+    },
+    "mac": {
+      "icon": "assets/icons/NexusCodeLogo.icns",
+      "category": "public.app-category.developer-tools",
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false,
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
       ]
+    },
+    "dmg": {
+      "title": "Nexus Code v1.0",
+      "artifactName": "Nexus_v5_${arch}.dmg",
+      "icon": "assets/icons/NexusCodeLogo.icns"
     },
     "nsis": {
       "oneClick": false,
@@ -147,13 +169,9 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "allowElevation": true,
-      "artifactName": "Nexus_Code_Setup.exe"
-    },
-    "mac": {
-      "target": [
-        "dmg"
-      ],
-      "category": "public.app-category.developer-tools"
+      "artifactName": "Nexus_Code_Setup.exe",
+      "installerIcon": "assets/icons/NexusCodeLogo.ico",
+      "uninstallerIcon": "assets/icons/NexusCodeLogo.ico"
     },
     "linux": {
       "target": [

@@ -1,5 +1,5 @@
 {
-  "name": "nexus-3",
+  "name": "nexus",
   "version": "5.0.0",
   "type": "module",
   "description": "modern code editor, notepad, reminder system and todo list",
@@ -96,7 +96,8 @@
     },
     "dmg": {
       "title": "Nexus v5.0",
-      "artifactName": "Nexus_v5_${arch}.dmg"
+      "artifactName": "Nexus_v5_${arch}.dmg",
+      "icon": "assets/icons/NexusLogo1.icns"
     },
     "nsis": {
       "oneClick": false,
