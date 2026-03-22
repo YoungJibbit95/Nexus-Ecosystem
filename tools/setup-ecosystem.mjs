@@ -15,7 +15,10 @@ const args = new Set(process.argv.slice(2));
 const skipInstall = args.has("--skip-install");
 const skipEnv = args.has("--skip-env");
 
-const BASE_PROJECTS = [
+const ROOT_PROJECT = { name: "Nexus Ecosystem Root", dir: "." };
+
+const EXTRA_PROJECTS = [
+  { name: "@nexus/core", dir: "packages/nexus-core" },
   { name: "Nexus Main", dir: "Nexus Main" },
   { name: "Nexus Mobile", dir: "Nexus Mobile" },
   { name: "Nexus Code", dir: "Nexus Code" },
@@ -99,6 +102,31 @@ const ensureEnvFile = async ({ appId, dir }) => {
   };
 };
 
+const installRootAndProjects = async () => {
+  console.log(`\nInstalliere Dependencies: ${ROOT_PROJECT.name}`);
+  runNpm(["install"], ROOT);
+
+  for (const project of EXTRA_PROJECTS) {
+    const projectDir = path.join(ROOT, project.dir);
+
+    if (!(await fileExists(projectDir))) {
+      console.warn(
+        `- Uebersprungen: ${project.name} (${project.dir} nicht gefunden)`,
+      );
+      continue;
+    }
+
+    const packageJson = path.join(projectDir, "package.json");
+    if (!(await fileExists(packageJson))) {
+      console.warn(`- Uebersprungen: ${project.name} (keine package.json)`);
+      continue;
+    }
+
+    console.log(`\nInstalliere Dependencies: ${project.name}`);
+    runNpm(["install"], projectDir);
+  }
+};
+
 const main = async () => {
   console.log("Nexus Ecosystem Setup");
   console.log("=====================");
@@ -109,11 +137,7 @@ const main = async () => {
   });
 
   if (!skipInstall) {
-    for (const project of BASE_PROJECTS) {
-      const projectDir = path.join(ROOT, project.dir);
-      console.log(`\nInstalliere Dependencies: ${project.name}`);
-      runNpm(["install"], projectDir);
-    }
+    await installRootAndProjects();
   } else {
     console.log("\nInstall-Schritt uebersprungen (--skip-install).");
   }
