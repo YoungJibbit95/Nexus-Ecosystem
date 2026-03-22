@@ -13,7 +13,7 @@
     "electron:dev": "concurrently -k \"vite\" \"wait-on http://localhost:5173 && electron .\"",
     "electron:build": "npm run electron:build:win",
     "electron:build:mac": "npm run build && npm run electron:pack:mac",
-    "electron:pack:win": "node ../tools/electron-pack-win.mjs -- electron-builder --win",
+    "electron:pack:win": "npm exec electron-builder -- --win",
     "electron:pack:mac": "node ../tools/electron-pack-mac.mjs -- electron-builder --mac",
     "electron:build:win": "npm run build && npm run electron:pack:win",
     "electron:build:host": "node ../tools/electron-build-host.mjs --app \"Nexus Main\" --mac-script electron:build:mac --win-script electron:build:win",

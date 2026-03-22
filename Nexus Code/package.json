@@ -18,7 +18,7 @@
     "electron:build": "npm run build && electron-builder",
     "pack": "vite build && electron-builder --dir",
     "dist": "vite build && electron-builder",
-    "electron:pack:win": "node ../tools/electron-pack-win.mjs -- electron-builder --win",
+    "electron:pack:win": "npm exec electron-builder -- --win",
     "electron:pack:mac": "node ../tools/electron-pack-mac.mjs -- electron-builder --mac",
     "electron:build:win": "npm run build && npm run electron:pack:win",
     "electron:build:mac": "npm run build && npm run electron:pack:mac",
