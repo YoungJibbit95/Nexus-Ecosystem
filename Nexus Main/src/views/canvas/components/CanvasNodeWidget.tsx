@@ -25,15 +25,15 @@ import {
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { shallow } from "zustand/shallow";
-import { Glass } from "../../components/Glass";
-import { hexToRgb } from "../../lib/utils";
-import { useApp } from "../../store/appStore";
+import { Glass } from "../../../components/Glass";
+import { hexToRgb } from "../../../lib/utils";
+import { useApp } from "../../../store/appStore";
 import {
   useCanvas,
   type CanvasConnection,
   type CanvasNode,
-} from "../../store/canvasStore";
-import { useTheme } from "../../store/themeStore";
+} from "../../../store/canvasStore";
+import { useTheme } from "../../../store/themeStore";
 import { CanvasNexusCodeBlock } from "../CanvasMagicRenderers";
 import { NODE_COLORS, WIDGET_TYPES } from "../canvasConstants";
 
@@ -94,7 +94,13 @@ export const ConnectionLine = React.memo(function ConnectionLine({
         stroke={connColor}
         strokeWidth={(showDetail ? 2.5 : 1.5) / zoom}
         fill="none"
-        strokeDasharray={reduceEffects ? "none" : showDetail ? "none" : `${8 / zoom} ${4 / zoom}`}
+        strokeDasharray={
+          reduceEffects
+            ? "none"
+            : showDetail
+              ? "none"
+              : `${8 / zoom} ${4 / zoom}`
+        }
         opacity={showDetail ? 1 : reduceEffects ? 0.62 : 0.55}
         style={{
           transition: reduceEffects ? "none" : "all 0.2s",
@@ -296,7 +302,10 @@ export const CanvasNodeWidget = React.memo(function NodeWidget({
     node.type !== "markdown",
   );
   const [hovered, setHovered] = useState(false);
-  const [dragPreview, setDragPreview] = useState<{ x: number; y: number } | null>(null);
+  const [dragPreview, setDragPreview] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
   const [resizePreview, setResizePreview] = useState<{
     width: number;
     height: number;
@@ -2319,4 +2328,3 @@ function MenuBtn({
     </button>
   );
 }
-

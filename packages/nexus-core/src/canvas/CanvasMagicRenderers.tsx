@@ -2,30 +2,35 @@
 /** @jsx h */
 /** @jsxFrag Fragment */
 
-import { useEffect, useMemo, useState } from "../../../../Nexus Main/node_modules/react";
+import { useEffect, useMemo, useState } from "react";
 
-type ReactNode = any
+type ReactNode = any;
 
-const Fragment = Symbol.for('react.fragment')
+const Fragment = Symbol.for("react.fragment");
 const h = (type: any, props: any, ...children: any[]) => ({
-  $$typeof: Symbol.for('react.element'),
+  $$typeof: Symbol.for("react.element"),
   type,
   key: props?.key ?? null,
   ref: props?.ref ?? null,
-  props: { ...(props || {}), children: children.length <= 1 ? children[0] : children },
+  props: {
+    ...(props || {}),
+    children: children.length <= 1 ? children[0] : children,
+  },
   _owner: null,
-})
+});
 
 declare namespace JSX {
   interface IntrinsicElements {
-    [elemName: string]: any
+    [elemName: string]: any;
   }
 }
 
 const hexToRgb = (h: string) => {
-  const r = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(h)
-  return r ? `${parseInt(r[1], 16)},${parseInt(r[2], 16)},${parseInt(r[3], 16)}` : '0,0,0'
-}
+  const r = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(h);
+  return r
+    ? `${parseInt(r[1], 16)},${parseInt(r[2], 16)},${parseInt(r[3], 16)}`
+    : "0,0,0";
+};
 
 type MagicBlockProps = {
   content: string;
@@ -39,7 +44,10 @@ type MagicAction = {
 };
 
 function normalizeContent(value: string) {
-  return value.replace(/\r\n/g, "\n").replace(/\n{3,}/g, "\n\n").trimEnd();
+  return value
+    .replace(/\r\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trimEnd();
 }
 
 function appendLine(base: string, line: string) {
@@ -59,7 +67,9 @@ function parsePipeRows(content: string) {
 }
 
 function joinPipeRows(rows: Array<{ left: string; right: string }>) {
-  return normalizeContent(rows.map((row) => `${row.left} | ${row.right}`).join("\n"));
+  return normalizeContent(
+    rows.map((row) => `${row.left} | ${row.right}`).join("\n"),
+  );
 }
 
 function parseTripleRows(content: string) {
@@ -68,7 +78,9 @@ function parseTripleRows(content: string) {
     .split("\n")
     .filter(Boolean)
     .map((row) => {
-      const [label = "", value = "", delta = ""] = row.split("|").map((s) => s.trim());
+      const [label = "", value = "", delta = ""] = row
+        .split("|")
+        .map((s) => s.trim());
       return { label, value, delta };
     });
 }
@@ -155,7 +167,9 @@ function MagicShell({
                 <button
                   key={action.label}
                   className="node-interactive"
-                  onClick={() => onChange(normalizeContent(action.apply(content)))}
+                  onClick={() =>
+                    onChange(normalizeContent(action.apply(content)))
+                  }
                   style={{
                     fontSize: 9,
                     borderRadius: 6,
@@ -232,7 +246,9 @@ function MagicShell({
               <button
                 key={action.label}
                 className="node-interactive"
-                onClick={() => setDraft((prev) => normalizeContent(action.apply(prev)))}
+                onClick={() =>
+                  setDraft((prev) => normalizeContent(action.apply(prev)))
+                }
                 style={{
                   fontSize: 9,
                   borderRadius: 6,
@@ -402,11 +418,21 @@ function CanvasMagicList({ content, accent, onChange }: MagicBlockProps) {
         );
       })}
       {onChange && (
-        <div style={{ padding: "6px 8px", borderTop: `1px solid rgba(${rgb},0.14)` }}>
+        <div
+          style={{
+            padding: "6px 8px",
+            borderTop: `1px solid rgba(${rgb},0.14)`,
+          }}
+        >
           <button
             className="node-interactive"
             onClick={() =>
-              onChange(joinPipeRows([...rows, { left: "Neuer Punkt", right: "Kontext" }]))
+              onChange(
+                joinPipeRows([
+                  ...rows,
+                  { left: "Neuer Punkt", right: "Kontext" },
+                ]),
+              )
             }
             style={{
               border: `1px solid rgba(${rgb},0.3)`,
@@ -564,7 +590,9 @@ function CanvasMagicProgress({ content, accent, onChange }: MagicBlockProps) {
         <button
           className="node-interactive"
           onClick={() =>
-            onChange(joinPipeRows([...rows, { left: "Neue Metrik", right: "0" }]))
+            onChange(
+              joinPipeRows([...rows, { left: "Neue Metrik", right: "0" }]),
+            )
           }
           style={{
             border: `1px solid rgba(${rgb},0.3)`,
@@ -585,7 +613,10 @@ function CanvasMagicProgress({ content, accent, onChange }: MagicBlockProps) {
 }
 
 function CanvasMagicAlert({ content }: { content: string }) {
-  const lines = content.trim().split("\n").filter((line) => line.length > 0);
+  const lines = content
+    .trim()
+    .split("\n")
+    .filter((line) => line.length > 0);
   const type = lines[0]?.trim().toLowerCase() || "info";
   const msg = lines.slice(1).join(" ").trim() || "Kein Hinweistext";
   const colors: Record<string, string> = {
@@ -733,7 +764,10 @@ function CanvasMagicTimeline({ content, accent, onChange }: MagicBlockProps) {
             onChange(
               joinPipeRows([
                 ...rows,
-                { left: new Date().toISOString().slice(0, 10), right: "Neues Event" },
+                {
+                  left: new Date().toISOString().slice(0, 10),
+                  right: "Neues Event",
+                },
               ]),
             )
           }
@@ -887,13 +921,18 @@ function CanvasMagicKanban({ content, accent, onChange }: MagicBlockProps) {
                     outline: "none",
                   }}
                 >
-                  {["Backlog", "Todo", "Doing", "Review", "Done", "Blocked"].map(
-                    (lane) => (
-                      <option key={lane} value={lane}>
-                        {lane}
-                      </option>
-                    ),
-                  )}
+                  {[
+                    "Backlog",
+                    "Todo",
+                    "Doing",
+                    "Review",
+                    "Done",
+                    "Blocked",
+                  ].map((lane) => (
+                    <option key={lane} value={lane}>
+                      {lane}
+                    </option>
+                  ))}
                 </select>
               ) : (
                 row.left || "Lane"
@@ -943,7 +982,9 @@ function CanvasMagicKanban({ content, accent, onChange }: MagicBlockProps) {
         <button
           className="node-interactive"
           onClick={() =>
-            onChange(joinPipeRows([...rows, { left: "Todo", right: "Neue Aufgabe" }]))
+            onChange(
+              joinPipeRows([...rows, { left: "Todo", right: "Neue Aufgabe" }]),
+            )
           }
           style={{
             border: `1px solid rgba(${rgb},0.3)`,
@@ -1078,7 +1119,13 @@ function CanvasMagicMetrics({ content, accent, onChange }: MagicBlockProps) {
               </>
             ) : (
               <>
-                <div style={{ fontSize: 9, opacity: 0.7, textTransform: "uppercase" }}>
+                <div
+                  style={{
+                    fontSize: 9,
+                    opacity: 0.7,
+                    textTransform: "uppercase",
+                  }}
+                >
                   {row.label || `KPI ${i + 1}`}
                 </div>
                 <div style={{ fontSize: 16, fontWeight: 800 }}>
@@ -1247,7 +1294,9 @@ function CanvasMagicSteps({ content, accent, onChange }: MagicBlockProps) {
                     {row.left || `Step ${i + 1}`}
                   </div>
                   {row.right && (
-                    <div style={{ fontSize: 9, opacity: 0.78, lineHeight: 1.4 }}>
+                    <div
+                      style={{ fontSize: 9, opacity: 0.78, lineHeight: 1.4 }}
+                    >
                       {row.right}
                     </div>
                   )}
@@ -1261,7 +1310,12 @@ function CanvasMagicSteps({ content, accent, onChange }: MagicBlockProps) {
         <button
           className="node-interactive"
           onClick={() =>
-            onChange(joinPipeRows([...rows, { left: "Neuer Schritt", right: "Detail" }]))
+            onChange(
+              joinPipeRows([
+                ...rows,
+                { left: "Neuer Schritt", right: "Detail" },
+              ]),
+            )
           }
           style={{
             border: `1px solid rgba(${rgb},0.3)`,
@@ -1285,10 +1339,14 @@ function CanvasMagicSteps({ content, accent, onChange }: MagicBlockProps) {
 function CanvasMagicQuadrant({ content, accent, onChange }: MagicBlockProps) {
   const rgb = hexToRgb(accent);
   const rows = parsePipeRows(content);
-  while (rows.length < 4) rows.push({ left: `Quadrant ${rows.length + 1}`, right: "" });
+  while (rows.length < 4)
+    rows.push({ left: `Quadrant ${rows.length + 1}`, right: "" });
   const visible = rows.slice(0, 4);
 
-  const updateRow = (index: number, next: Partial<{ left: string; right: string }>) => {
+  const updateRow = (
+    index: number,
+    next: Partial<{ left: string; right: string }>,
+  ) => {
     if (!onChange) return;
     const nextRows = [...visible];
     nextRows[index] = {
@@ -1408,71 +1466,100 @@ export function CanvasNexusCodeBlock({
       { label: "+ Row", apply: (d) => appendLine(d, "Neuer Punkt | Kontext") },
       {
         label: "Template",
-        apply: () => "Owner | Product\nStatus | In Arbeit\nNächster Schritt | Entscheidung vorbereiten",
+        apply: () =>
+          "Owner | Product\nStatus | In Arbeit\nNächster Schritt | Entscheidung vorbereiten",
       },
     ],
     "nexus-progress": [
       { label: "+ KPI", apply: (d) => appendLine(d, "Neue Metrik | 0") },
       {
         label: "Template",
-        apply: () => "Scope Fit | 70\nTeam Readiness | 60\nRelease Confidence | 40",
+        apply: () =>
+          "Scope Fit | 70\nTeam Readiness | 60\nRelease Confidence | 40",
       },
     ],
     "nexus-alert": [
-      { label: "Warning", apply: () => "warning\nBlocker prüfen und Owner definieren." },
-      { label: "Success", apply: () => "success\nAlle kritischen Tasks sind abgeschlossen." },
+      {
+        label: "Warning",
+        apply: () => "warning\nBlocker prüfen und Owner definieren.",
+      },
+      {
+        label: "Success",
+        apply: () => "success\nAlle kritischen Tasks sind abgeschlossen.",
+      },
     ],
     "nexus-timeline": [
       {
         label: "+ Event",
-        apply: (d) => appendLine(d, `${new Date().toISOString().slice(0, 10)} | Neuer Meilenstein`),
+        apply: (d) =>
+          appendLine(
+            d,
+            `${new Date().toISOString().slice(0, 10)} | Neuer Meilenstein`,
+          ),
       },
       {
         label: "Template",
-        apply: () => "W1 | Discovery\nW2 | Architektur\nW3 | Umsetzung\nW4 | QA + Launch",
+        apply: () =>
+          "W1 | Discovery\nW2 | Architektur\nW3 | Umsetzung\nW4 | QA + Launch",
       },
     ],
     "nexus-grid": [
-      { label: "2 Cols", apply: (d) => {
-        const rows = normalizeContent(d).split("\n").filter(Boolean);
-        const tail = rows.slice(1);
-        return ["2", ...tail.length ? tail : ["Item A", "Item B"]].join("\n");
-      } },
-      { label: "+ Item", apply: (d) => {
-        const rows = normalizeContent(d).split("\n").filter(Boolean);
-        if (rows.length === 0) return "2\nNeues Item";
-        return [...rows, "Neues Item"].join("\n");
-      } },
+      {
+        label: "2 Cols",
+        apply: (d) => {
+          const rows = normalizeContent(d).split("\n").filter(Boolean);
+          const tail = rows.slice(1);
+          return ["2", ...(tail.length ? tail : ["Item A", "Item B"])].join(
+            "\n",
+          );
+        },
+      },
+      {
+        label: "+ Item",
+        apply: (d) => {
+          const rows = normalizeContent(d).split("\n").filter(Boolean);
+          if (rows.length === 0) return "2\nNeues Item";
+          return [...rows, "Neues Item"].join("\n");
+        },
+      },
     ],
     "nexus-card": [
       {
         label: "Template",
-        apply: () => "Feature Name | Kurzbeschreibung des Nutzens | Owner: Team",
+        apply: () =>
+          "Feature Name | Kurzbeschreibung des Nutzens | Owner: Team",
       },
       {
         label: "Decision",
-        apply: () => "Entscheidung | Option B bevorzugen | Grund: geringeres Risiko",
+        apply: () =>
+          "Entscheidung | Option B bevorzugen | Grund: geringeres Risiko",
       },
     ],
     "nexus-kanban": [
       { label: "+ Task", apply: (d) => appendLine(d, "Todo | Neue Aufgabe") },
       {
         label: "Template",
-        apply: () => "Backlog | Scope klären\nDoing | API Integration\nReview | QA Abnahme\nDone | Deployment",
+        apply: () =>
+          "Backlog | Scope klären\nDoing | API Integration\nReview | QA Abnahme\nDone | Deployment",
       },
     ],
     "nexus-metrics": [
       { label: "+ KPI", apply: (d) => appendLine(d, "Neue KPI | 0 | +0%") },
       {
         label: "Template",
-        apply: () => "MAU | 14.2k | +12%\nConversion | 4.7% | +0.8%\nNPS | 58 | +6",
+        apply: () =>
+          "MAU | 14.2k | +12%\nConversion | 4.7% | +0.8%\nNPS | 58 | +6",
       },
     ],
     "nexus-steps": [
-      { label: "+ Step", apply: (d) => appendLine(d, "Neuer Schritt | Beschreibung") },
+      {
+        label: "+ Step",
+        apply: (d) => appendLine(d, "Neuer Schritt | Beschreibung"),
+      },
       {
         label: "Template",
-        apply: () => "Planung | Scope und Ziele finalisieren\nBuild | Kernfunktionen umsetzen\nReview | QA und Freigabe",
+        apply: () =>
+          "Planung | Scope und Ziele finalisieren\nBuild | Kernfunktionen umsetzen\nReview | QA und Freigabe",
       },
     ],
     "nexus-quadrant": [
@@ -1499,7 +1586,7 @@ export function CanvasNexusCodeBlock({
   if (lang === "nexus-list") {
     return wrap(
       "List",
-      <CanvasMagicList content={content} accent={accent} onChange={onChange} />, 
+      <CanvasMagicList content={content} accent={accent} onChange={onChange} />,
     );
   }
   if (lang === "nexus-alert") {
@@ -1508,13 +1595,21 @@ export function CanvasNexusCodeBlock({
   if (lang === "nexus-progress") {
     return wrap(
       "Progress",
-      <CanvasMagicProgress content={content} accent={accent} onChange={onChange} />,
+      <CanvasMagicProgress
+        content={content}
+        accent={accent}
+        onChange={onChange}
+      />,
     );
   }
   if (lang === "nexus-timeline") {
     return wrap(
       "Timeline",
-      <CanvasMagicTimeline content={content} accent={accent} onChange={onChange} />,
+      <CanvasMagicTimeline
+        content={content}
+        accent={accent}
+        onChange={onChange}
+      />,
     );
   }
   if (lang === "nexus-grid") {
@@ -1532,25 +1627,41 @@ export function CanvasNexusCodeBlock({
   if (lang === "nexus-kanban") {
     return wrap(
       "Kanban",
-      <CanvasMagicKanban content={content} accent={accent} onChange={onChange} />,
+      <CanvasMagicKanban
+        content={content}
+        accent={accent}
+        onChange={onChange}
+      />,
     );
   }
   if (lang === "nexus-metrics") {
     return wrap(
       "Metrics",
-      <CanvasMagicMetrics content={content} accent={accent} onChange={onChange} />,
+      <CanvasMagicMetrics
+        content={content}
+        accent={accent}
+        onChange={onChange}
+      />,
     );
   }
   if (lang === "nexus-steps") {
     return wrap(
       "Steps",
-      <CanvasMagicSteps content={content} accent={accent} onChange={onChange} />,
+      <CanvasMagicSteps
+        content={content}
+        accent={accent}
+        onChange={onChange}
+      />,
     );
   }
   if (lang === "nexus-quadrant") {
     return wrap(
       "Quadrant",
-      <CanvasMagicQuadrant content={content} accent={accent} onChange={onChange} />,
+      <CanvasMagicQuadrant
+        content={content}
+        accent={accent}
+        onChange={onChange}
+      />,
     );
   }
   return renderFallback;
