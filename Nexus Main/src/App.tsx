@@ -83,6 +83,27 @@ const NexusTerminal = lazy(() =>
 const NexusToolbar = lazy(() =>
   loadNexusToolbar().then((m) => ({ default: m.NexusToolbar })),
 );
+const CONTROL_API_BASE_URL = "https://nexus-api.cloud";
+const isLowPowerDevice = () => {
+  if (typeof window === "undefined" || typeof navigator === "undefined") {
+    return false;
+  }
+
+  const reducedMotion = window.matchMedia?.(
+    "(prefers-reduced-motion: reduce)",
+  ).matches;
+  const cores = Number(navigator.hardwareConcurrency || 8);
+  const memory = Number((navigator as any).deviceMemory || 8);
+  return Boolean(reducedMotion) || cores <= 4 || memory <= 4;
+};
+
+const runIdle = (task: () => void) => {
+  if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+    (window as any).requestIdleCallback(task, { timeout: 1_200 });
+    return;
+  }
+  setTimeout(task, 80);
+};
 
 const VIEW_IDS = getFallbackViewsForApp("main") as View[];
 const VIEW_CHUNK_PRELOADERS: Record<View, () => Promise<unknown>> = {
@@ -99,24 +120,43 @@ const VIEW_CHUNK_PRELOADERS: Record<View, () => Promise<unknown>> = {
   devtools: loadDevToolsView,
 };
 
-const preloadMainViews = async (views: View[]) => {
-  const tasks = views
+const preloadMainViews = async (
+  views: View[],
+  options: { eagerLimit?: number } = {},
+) => {
+  const eagerLimit = Math.max(
+    1,
+    Math.min(4, Math.floor(options.eagerLimit ?? 2)),
+  );
+  const loaders = views
     .map((viewId) => VIEW_CHUNK_PRELOADERS[viewId])
     .filter(
       (loader): loader is () => Promise<unknown> =>
         typeof loader === "function",
-    )
-    .map((loader) => loader());
+    );
 
-  tasks.push(loadNexusTerminal(), loadNexusToolbar());
-  if (tasks.length === 0) return;
-  await Promise.allSettled(tasks);
+  const uniqueLoaders = [...new Set(loaders)];
+  if (uniqueLoaders.length === 0) return;
+
+  const eager = uniqueLoaders.slice(0, eagerLimit);
+  const deferred = uniqueLoaders.slice(eagerLimit);
+  await Promise.allSettled(eager.map((loader) => loader()));
+
+  if (deferred.length > 0) {
+    runIdle(() => {
+      void Promise.allSettled(deferred.map((loader) => loader()));
+    });
+  }
+  runIdle(() => {
+    void Promise.allSettled([loadNexusTerminal(), loadNexusToolbar()]);
+  });
 };
 
 export default function App() {
   const [view, setView] = useState<View>("dashboard");
   const [availableViews, setAvailableViews] = useState<View[]>(VIEW_IDS);
   const [bootReady, setBootReady] = useState(false);
+  const [bootFailure, setBootFailure] = useState<string | null>(null);
   const [remoteDensity, setRemoteDensity] = useState<
     "compact" | "comfortable" | "spacious" | null
   >(null);
@@ -136,6 +176,7 @@ export default function App() {
   const terminalOpen = useTerminal((s) => s.isOpen);
   const runtimeRef = useRef<NexusRuntime | null>(null);
   const guardRequestSeq = useRef(0);
+  const lowPowerMode = useMemo(() => isLowPowerDevice(), []);
 
   const viewAccessContext = useMemo(
     () => ({
@@ -189,21 +230,28 @@ export default function App() {
   );
 
   useEffect(() => {
-    const controlBaseUrl =
-      ((import.meta as any).env?.VITE_NEXUS_CONTROL_URL as
-        | string
-        | undefined) || "https://nexus-api.dev";
+    const controlBaseUrl = CONTROL_API_BASE_URL;
     const controlIngestKey = (import.meta as any).env
       ?.VITE_NEXUS_CONTROL_INGEST_KEY as string | undefined;
 
     const runtime = createNexusRuntime({
-      appId: "main",
+      appId: 'main',
       appVersion: "5.0.0",
       control: {
         enabled: Boolean(controlBaseUrl),
         baseUrl: controlBaseUrl,
+        localFallbackEnabled: false,
         ingestKey: controlIngestKey,
+        sampleRate: 0.35,
+        flushIntervalMs: 12_000,
+        releasePollIntervalMs: 30_000,
+        viewValidationFailOpen: false,
         viewValidationCacheMs: 120_000,
+      },
+      performance: {
+        collectMemoryMs: 60_000,
+        summaryIntervalMs: 60_000,
+        maxMetricsPerMinute: 60,
       },
       liveSync: {
         enabled: Boolean(controlBaseUrl),
@@ -216,23 +264,63 @@ export default function App() {
     runtime.start();
     runtimeRef.current = runtime;
     let active = true;
+    setBootFailure(null);
 
     void (async () => {
-      let startupViews = VIEW_IDS;
       try {
-        const bundle = await runtime.loadLiveBundle({
+        const [catalogResult, layoutResult, releaseResult] = await Promise.all([
+          runtime.control.fetchCatalog({
+            appId: "main",
+            channel: "production",
+            forceRefresh: true,
+            cacheTtlMs: 0,
+          }),
+          runtime.control.fetchLayoutSchema({
+            appId: "main",
+            channel: "production",
+            forceRefresh: true,
+            cacheTtlMs: 0,
+          }),
+          runtime.control.fetchCurrentRelease({
+            appId: "main",
+            channel: "production",
+            forceRefresh: true,
+            cacheTtlMs: 0,
+          }),
+        ]);
+
+        const failedResources = [
+          ["catalog", catalogResult.errorCode, catalogResult.item],
+          ["layout", layoutResult.errorCode, layoutResult.item],
+          ["release", releaseResult.errorCode, releaseResult.item],
+        ]
+          .filter(([, errorCode, item]) => Boolean(errorCode) || !item)
+          .map(
+            ([resource, errorCode]) =>
+              `${resource}:${String(errorCode || "INVALID_PAYLOAD")}`,
+          );
+
+        if (failedResources.length > 0) {
+          throw new Error(
+            `CONTROL_API_BOOTSTRAP_FAILED (${failedResources.join(", ")})`,
+          );
+        }
+
+        const bundle: NexusLiveBundle = {
+          appId: "main",
           channel: "production",
-          forceRefresh: true,
-          cacheTtlMs: 0,
-        });
+          catalog: catalogResult.item,
+          layoutSchema: layoutResult.item,
+          release: releaseResult.item,
+        };
+
         if (!active) return;
         applyLiveBundle(bundle);
-        startupViews = resolveBundleViews(bundle);
-      } catch {
-        startupViews = VIEW_IDS;
-      }
+        const startupViews = resolveBundleViews(bundle);
+        if (startupViews.length === 0) {
+          throw new Error("CONTROL_API_BOOTSTRAP_FAILED (NO_STARTUP_VIEWS)");
+        }
 
-      try {
         const warmup = await runtime.control.warmupViewAccess(startupViews, {
           ...viewAccessContext,
           forceRefresh: true,
@@ -243,22 +331,38 @@ export default function App() {
         const allowedViews = warmup.allowedViews.filter((candidate) =>
           startupViews.includes(candidate as View),
         ) as View[];
-        const preloadViews =
-          allowedViews.length > 0 ? allowedViews : startupViews;
+        if (allowedViews.length === 0) {
+          const reasons = startupViews
+            .map((candidate) => warmup.resultByView[candidate]?.reason)
+            .filter((reason): reason is string => Boolean(reason))
+            .slice(0, 3);
+          throw new Error(
+            `VIEW_VALIDATION_BLOCKED (${reasons.join(", ") || "NO_ALLOWED_VIEWS"})`,
+          );
+        }
 
-        void preloadMainViews(preloadViews);
+        await preloadMainViews(allowedViews, { eagerLimit: 2 });
         if (!active) return;
 
         setAvailableViews(startupViews);
         setView((prev) => {
-          if (allowedViews.length === 0) return startupViews[0] || prev;
           if (allowedViews.includes(prev)) return prev;
           return allowedViews[0];
         });
+        setViewGuardState({
+          checking: false,
+          blockedView: null,
+          requiredTier: null,
+          reason: null,
+        });
       } catch (error) {
-        console.error("boot warmup failed", error);
+        const reason =
+          error instanceof Error && error.message
+            ? error.message
+            : "CONTROL_API_UNAVAILABLE";
+        console.error("Nexus Main bootstrap failed", error);
         if (!active) return;
-        setAvailableViews(startupViews);
+        setBootFailure(reason);
       } finally {
         if (active) setBootReady(true);
       }
@@ -372,7 +476,7 @@ export default function App() {
 
   const motionPreset = useMemo(() => {
     const style = t.animations?.entranceStyle ?? "fade";
-    if (!(t.animations?.pageTransitions ?? true)) {
+    if (lowPowerMode || !(t.animations?.pageTransitions ?? true)) {
       return {
         initial: false as const,
         animate: { opacity: 1 },
@@ -412,7 +516,7 @@ export default function App() {
           exit: { opacity: 0, y: -8 },
         };
     }
-  }, [t.animations]);
+  }, [lowPowerMode, t.animations]);
 
   if (!bootReady) {
     return (
@@ -430,6 +534,47 @@ export default function App() {
         }}
       >
         Initialisiere Views und Zugriffsrechte...
+      </div>
+    );
+  }
+
+  if (bootFailure) {
+    return (
+      <div
+        style={{
+          width: "100%",
+          minHeight: "100dvh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "linear-gradient(135deg, #1a0909 0%, #0c111b 100%)",
+          color: "#ffe5e2",
+          fontFamily: "system-ui, sans-serif",
+          padding: 24,
+        }}
+      >
+        <div
+          style={{
+            maxWidth: 660,
+            borderRadius: 16,
+            border: "1px solid rgba(255,69,58,0.45)",
+            background: "rgba(255,69,58,0.12)",
+            padding: 18,
+            fontSize: 14,
+            lineHeight: 1.5,
+          }}
+        >
+          <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 8 }}>
+            API-Startpruefung fehlgeschlagen
+          </div>
+          <div>
+            Nexus Main wurde kontrolliert gestoppt, weil der Hosted-API-Bootflow
+            nicht erfolgreich war.
+          </div>
+          <div style={{ marginTop: 8 }}>
+            Reason: <code>{bootFailure}</code>
+          </div>
+        </div>
       </div>
     );
   }
@@ -498,7 +643,9 @@ export default function App() {
         aria-hidden="true"
         className="nx-ambient-layer"
         style={{
-          background: `
+          background: lowPowerMode
+            ? `linear-gradient(160deg, rgba(${accentRgb},0.1), rgba(${accent2Rgb},0.08))`
+            : `
             radial-gradient(650px circle at 10% 14%, rgba(${accentRgb},0.2), transparent 55%),
             radial-gradient(580px circle at 88% 14%, rgba(${accent2Rgb},0.18), transparent 60%),
             radial-gradient(520px circle at 60% 95%, rgba(${accentRgb},0.14), transparent 65%)
@@ -646,7 +793,8 @@ export default function App() {
                 animate={motionPreset.animate}
                 exit={motionPreset.exit}
                 transition={{
-                  duration: 0.2 * (t.visual.animationSpeed || 1),
+                  duration:
+                    (lowPowerMode ? 0.12 : 0.2) * (t.visual.animationSpeed || 1),
                   ease: "easeInOut",
                 }}
                 style={{
@@ -691,7 +839,7 @@ export default function App() {
         </div>
       </div>
 
-      {t.background.vignette && (
+      {!lowPowerMode && t.background.vignette && (
         <div
           aria-hidden="true"
           style={{
@@ -717,7 +865,7 @@ export default function App() {
         />
       )}
 
-      {t.background.scanlines && (
+      {!lowPowerMode && t.background.scanlines && (
         <div
           aria-hidden="true"
           style={{

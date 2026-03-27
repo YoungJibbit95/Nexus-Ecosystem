@@ -1,6 +1,6 @@
 # Environment Variables
 
-## App Runtime (optional)
+## App Runtime (Hosted-only, required)
 
 - `VITE_NEXUS_CONTROL_URL`
 - `VITE_NEXUS_CONTROL_INGEST_KEY`
@@ -11,6 +11,25 @@ Diese Variablen koennen in folgenden Apps gesetzt werden:
 - `Nexus Mobile`
 - `Nexus Code`
 - `Nexus Code Mobile`
+
+### Verbindliche Werte
+
+- `VITE_NEXUS_CONTROL_URL=https://nexus-api.cloud`
+- `VITE_NEXUS_CONTROL_INGEST_KEY` muss pro App dem VPS-Ingest-Key entsprechen.
+
+### Ingest-Key Mapping (pro App)
+
+- `Nexus Main` (`appId=main`): `NEXUS_INGEST_KEY_MAIN`
+- `Nexus Mobile` (`appId=mobile`): `NEXUS_INGEST_KEY_MOBILE`
+- `Nexus Code` (`appId=code`): `NEXUS_INGEST_KEY_CODE`
+- `Nexus Code Mobile` (`appId=code-mobile`): `NEXUS_INGEST_KEY_CODE_MOBILE`
+
+### Beispiel `.env.local` (pro App)
+
+```bash
+VITE_NEXUS_CONTROL_URL=https://nexus-api.cloud
+VITE_NEXUS_CONTROL_INGEST_KEY=REPLACE_WITH_APP_INGEST_KEY
+```
 
 ## Control Plane Server
 
@@ -31,7 +50,7 @@ Diese Variablen koennen in folgenden Apps gesetzt werden:
 
 ## Control UI Build / Server Hosting
 
-- `NEXUS_CONTROL_UI_DEFAULT_API_URL` (build-time Ziel-API fuer `runtime-config.json`, empfohlen `https://nexus-api.dev`)
+- `NEXUS_CONTROL_UI_DEFAULT_API_URL` (build-time Ziel-API fuer `runtime-config.json`, empfohlen `https://nexus-api.cloud`)
 - `NEXUS_CONTROL_UI_BOOTSTRAP_PATH` (build-time Bootstrap Endpoint, default `/api/v1/public/bootstrap`)
 - `NEXUS_CONTROL_PRIVATE_REPO_HINT` (optionaler build-time Repo-Hinweis im UI)
 - `NEXUS_CONTROL_UI_FORCE_API_URL` (`true` sperrt API URL Input im UI auf runtime-config)

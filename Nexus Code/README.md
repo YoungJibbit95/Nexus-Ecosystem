@@ -59,10 +59,8 @@ npm run build:code:installers
 
 ## Environment
 
-- `VITE_NEXUS_CONTROL_URL`
-- `VITE_NEXUS_CONTROL_INGEST_KEY`
+- `VITE_NEXUS_CONTROL_URL` (`https://nexus-api.cloud`)
+- `VITE_NEXUS_CONTROL_INGEST_KEY` (pro App der passende VPS-Ingest-Key)
 - `VITE_NEXUS_USER_ID`
 - `VITE_NEXUS_USERNAME`
 - `VITE_NEXUS_USER_TIER`
-
-Ohne gesetzte API-URL faellt die App auf `https://nexus-api.dev` zurueck.

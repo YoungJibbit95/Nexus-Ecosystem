@@ -31,8 +31,16 @@ const APP_ENV_TARGETS = [
   { appId: "code", dir: "Nexus Code" },
   { appId: "code-mobile", dir: "Nexus Code Mobile" },
 ];
+const APP_INGEST_ENV_KEY_BY_APP = {
+  main: "NEXUS_INGEST_KEY_MAIN",
+  mobile: "NEXUS_INGEST_KEY_MOBILE",
+  code: "NEXUS_INGEST_KEY_CODE",
+  "code-mobile": "NEXUS_INGEST_KEY_CODE_MOBILE",
+};
 
 const DEFAULT_CONTROL_URL = resolveHostedControlUrl();
+const INSECURE_INGEST_KEY_PATTERN = /(local-dev-key|dev-ingest-key|test-ingest-key)/i;
+const PLACEHOLDER_INGEST_KEY_PATTERN = /^REPLACE_WITH_/i;
 
 const runNpm = (cmdArgs, cwd) => {
   const printable = ["npm", ...cmdArgs].join(" ");
@@ -62,11 +70,41 @@ const fileExists = async (target) => {
   }
 };
 
+const normalizeEnvValue = (raw) =>
+  String(raw || "")
+    .trim()
+    .replace(/^["']|["']$/g, "");
+
+const getEnvLineValue = (raw, key) => {
+  const match = raw.match(new RegExp(`^\\s*${key}\\s*=\\s*(.*)$`, "m"));
+  if (!match) return null;
+  return normalizeEnvValue(match[1]);
+};
+
+const setEnvLine = (raw, key, value) => {
+  const line = `${key}=${value}`;
+  const pattern = new RegExp(`^\\s*${key}\\s*=\\s*.*$`, "m");
+  if (pattern.test(raw)) {
+    return raw.replace(pattern, line);
+  }
+  const base = raw.endsWith("\n") ? raw : `${raw}\n`;
+  return `${base}${line}\n`;
+};
+
+const resolveDesiredIngestKey = (appId) => {
+  const envName = APP_INGEST_ENV_KEY_BY_APP[appId];
+  const fromEnv = String(process.env[envName] || "").trim();
+  if (fromEnv) return fromEnv;
+
+  if (envName) return `REPLACE_WITH_${envName}`;
+  return `REPLACE_WITH_NEXUS_INGEST_KEY_${String(appId).toUpperCase().replace(/-/g, "_")}`;
+};
+
 const ensureEnvFile = async ({ appId, dir }) => {
   const file = path.join(ROOT, dir, ".env.local");
   const defaults = {
     VITE_NEXUS_CONTROL_URL: DEFAULT_CONTROL_URL,
-    VITE_NEXUS_CONTROL_INGEST_KEY: `${appId}-local-dev-key`,
+    VITE_NEXUS_CONTROL_INGEST_KEY: resolveDesiredIngestKey(appId),
   };
 
   if (!(await fileExists(file))) {
@@ -80,25 +118,52 @@ const ensureEnvFile = async ({ appId, dir }) => {
   }
 
   const raw = await fs.readFile(file, "utf8");
-  const hasKey = (key) => new RegExp(`^\\s*${key}\\s*=`, "m").test(raw);
-  const missing = Object.entries(defaults).filter(([key]) => !hasKey(key));
+  const currentUrl = getEnvLineValue(raw, "VITE_NEXUS_CONTROL_URL");
+  const currentIngest = getEnvLineValue(raw, "VITE_NEXUS_CONTROL_INGEST_KEY");
+  let nextRaw = raw;
+  const addedKeys = [];
+  let changed = false;
 
-  if (missing.length === 0) {
-    return { file, mode: "unchanged", addedKeys: [] };
+  if (!currentUrl) {
+    nextRaw = setEnvLine(nextRaw, "VITE_NEXUS_CONTROL_URL", defaults.VITE_NEXUS_CONTROL_URL);
+    addedKeys.push("VITE_NEXUS_CONTROL_URL");
+    changed = true;
+  } else if (currentUrl !== DEFAULT_CONTROL_URL) {
+    nextRaw = setEnvLine(nextRaw, "VITE_NEXUS_CONTROL_URL", defaults.VITE_NEXUS_CONTROL_URL);
+    changed = true;
   }
 
-  const appendix = [
-    "",
-    "# Added by tools/setup-ecosystem.mjs",
-    ...missing.map(([key, value]) => `${key}=${value}`),
-    "",
-  ].join("\n");
+  const shouldUpdateIngest =
+    !currentIngest
+    || INSECURE_INGEST_KEY_PATTERN.test(currentIngest)
+    || (PLACEHOLDER_INGEST_KEY_PATTERN.test(currentIngest)
+      && !PLACEHOLDER_INGEST_KEY_PATTERN.test(defaults.VITE_NEXUS_CONTROL_INGEST_KEY));
 
-  await fs.appendFile(file, appendix, "utf8");
+  if (!currentIngest) {
+    nextRaw = setEnvLine(
+      nextRaw,
+      "VITE_NEXUS_CONTROL_INGEST_KEY",
+      defaults.VITE_NEXUS_CONTROL_INGEST_KEY,
+    );
+    addedKeys.push("VITE_NEXUS_CONTROL_INGEST_KEY");
+    changed = true;
+  } else if (shouldUpdateIngest && currentIngest !== defaults.VITE_NEXUS_CONTROL_INGEST_KEY) {
+    nextRaw = setEnvLine(
+      nextRaw,
+      "VITE_NEXUS_CONTROL_INGEST_KEY",
+      defaults.VITE_NEXUS_CONTROL_INGEST_KEY,
+    );
+    changed = true;
+  }
+
+  if (!changed) {
+    return { file, mode: "unchanged", addedKeys: [] };
+  }
+  await fs.writeFile(file, nextRaw, "utf8");
   return {
     file,
     mode: "updated",
-    addedKeys: missing.map(([key]) => key),
+    addedKeys,
   };
 };
 

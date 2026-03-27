@@ -2,6 +2,30 @@ import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 import path from "path";
 
+const CHUNK_GROUPS = {
+  react: ["react", "react-dom"],
+  motion: ["framer-motion"],
+  router: ["react-router-dom"],
+  radix: [
+    "@radix-ui/react-dialog",
+    "@radix-ui/react-dropdown-menu",
+    "@radix-ui/react-select",
+    "@radix-ui/react-slider",
+    "@radix-ui/react-switch",
+    "@radix-ui/react-tooltip",
+  ],
+};
+
+const manualChunks = (id) => {
+  if (!id.includes("node_modules")) return undefined;
+  for (const [chunkName, deps] of Object.entries(CHUNK_GROUPS)) {
+    if (deps.some((dep) => id.includes(`/node_modules/${dep}/`))) {
+      return chunkName;
+    }
+  }
+  return undefined;
+};
+
 export default defineConfig({
   plugins: [react()],
   base: "./",
@@ -22,19 +46,7 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
-        manualChunks: {
-          react: ["react", "react-dom"],
-          motion: ["framer-motion"],
-          router: ["react-router-dom"],
-          radix: [
-            "@radix-ui/react-dialog",
-            "@radix-ui/react-dropdown-menu",
-            "@radix-ui/react-select",
-            "@radix-ui/react-slider",
-            "@radix-ui/react-switch",
-            "@radix-ui/react-tooltip",
-          ],
-        },
+        manualChunks,
       },
     },
   },

@@ -76,6 +76,14 @@ npm run build
 - `android/` natives Android-Projekt
 - `ios/` natives iOS-Projekt
 
+## Environment
+
+- `VITE_NEXUS_CONTROL_URL=https://nexus-api.cloud`
+- `VITE_NEXUS_CONTROL_INGEST_KEY` (VPS-Key fuer `appId=code-mobile`)
+- `VITE_NEXUS_USER_ID`
+- `VITE_NEXUS_USERNAME`
+- `VITE_NEXUS_USER_TIER`
+
 ## Hinweise
 
 - `npm run dev` startet nicht den Browser-Devserver, sondern den Android-Flow.

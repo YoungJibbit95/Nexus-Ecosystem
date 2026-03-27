@@ -69,7 +69,8 @@ export class NexusControlClient {
     this.appVersion = options.appVersion
     this.enabled = options.enabled ?? Boolean(options.baseUrl)
     this.baseUrl = normalizeBaseUrl(options.baseUrl)
-    this.localFallbackEnabled = options.localFallbackEnabled ?? true
+    // Hosted-only runtime: local API fallbacks remain hard-disabled.
+    this.localFallbackEnabled = false
     this.localFallbackLatencyMs = clamp(Math.floor(options.localFallbackLatencyMs ?? 80), 0, 2_000)
     this.token = options.token ?? ''
     this.ingestKey = options.ingestKey ?? ''
@@ -80,7 +81,7 @@ export class NexusControlClient {
     this.sampleRate = clamp(options.sampleRate ?? 1, 0, 1)
     this.debug = options.debug ?? false
     this.viewValidationEnabled = options.viewValidationEnabled ?? Boolean(options.baseUrl)
-    this.viewValidationFailOpen = options.viewValidationFailOpen ?? true
+    this.viewValidationFailOpen = false
     this.viewValidationCacheMs = clamp(options.viewValidationCacheMs ?? 15_000, 0, 300_000)
     this.defaultUserId = normalizeUserId(options.defaultUserId || '')
     this.defaultUsername = normalizeUserId(options.defaultUsername || '')
