@@ -37,7 +37,7 @@
     "zustand": "^4.4.7"
   },
   "devDependencies": {
-    "@capacitor/android": "^6.0.0",
+    "@capacitor/android": "^8.3.0",
     "@capacitor/cli": "^8.3.0",
     "@capacitor/ios": "^6.0.0",
     "@types/node": "^20.10.6",
