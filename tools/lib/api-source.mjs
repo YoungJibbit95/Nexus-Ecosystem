@@ -1,8 +1,9 @@
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
 
-export const DEFAULT_HOSTED_CONTROL_URL = 'https://nexus-api.dev'
+export const DEFAULT_HOSTED_CONTROL_URL = 'https://nexus-api.cloud'
 export const DEFAULT_API_CLIENT_DIR = 'packages/nexus-core/src/api'
+const HOSTED_CONTROL_HOST = 'nexus-api.cloud'
 
 // Legacy exports kept for backwards compatibility with older scripts.
 export const DEFAULT_PRIVATE_API_REPO = 'hosted'
@@ -19,12 +20,23 @@ const exists = async (targetPath) => {
 }
 
 export const resolveHostedControlUrl = () => {
-  const raw = String(
+  const configured = String(
     process.env.NEXUS_CONTROL_URL
       || process.env.VITE_NEXUS_CONTROL_URL
       || DEFAULT_HOSTED_CONTROL_URL,
   ).trim()
-  return raw || DEFAULT_HOSTED_CONTROL_URL
+  const raw = configured || DEFAULT_HOSTED_CONTROL_URL
+
+  try {
+    const parsed = new URL(raw)
+    if (parsed.protocol !== 'https:') return DEFAULT_HOSTED_CONTROL_URL
+    if (parsed.hostname !== HOSTED_CONTROL_HOST) return DEFAULT_HOSTED_CONTROL_URL
+    if (parsed.username || parsed.password || parsed.search || parsed.hash) return DEFAULT_HOSTED_CONTROL_URL
+    const pathname = parsed.pathname === '/' ? '' : parsed.pathname.replace(/\/$/, '')
+    return `${parsed.protocol}//${parsed.host}${pathname}`
+  } catch {
+    return DEFAULT_HOSTED_CONTROL_URL
+  }
 }
 
 export const resolvePrivateApiRoot = (root) => {

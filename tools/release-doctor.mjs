@@ -20,7 +20,7 @@ const requireHostedUi = hasArg('--hosted-ui')
 const requireNotarization = hasArg('--require-notarization')
 const apiUrlInput = readArg('--api-url')
   || String(process.env.NEXUS_CONTROL_PUBLIC_API_URL || '').trim()
-  || 'https://nexus-api.dev'
+  || 'https://nexus-api.cloud'
 
 const checks = []
 const pushCheck = (status, title, details) => checks.push({ status, title, details })
@@ -168,6 +168,15 @@ const checkHostedControlApi = async () => {
     }
 
     const bootstrap = await bootstrapRes.json().catch(() => null)
+    if (!bootstrap || bootstrap.ok !== true || !bootstrap.item || typeof bootstrap.item !== 'object') {
+      pushCheck(
+        'FAIL',
+        'Hosted Control API Bootstrap',
+        'Antwort hat kein gueltiges JSON-API-Format (erwartet ok=true + item-Objekt).',
+      )
+      return
+    }
+
     const service = bootstrap?.item?.service || 'unknown'
     const originTrusted = bootstrap?.item?.originTrusted
     const trustedOriginsCount = bootstrap?.item?.trustedOriginsCount
@@ -187,7 +196,12 @@ const checkHostedControlApi = async () => {
       pushCheck('WARN', 'Hosted Control API Health', `GET /health liefert HTTP ${healthRes.status}.`)
       return
     }
-    pushCheck('PASS', 'Hosted Control API Health', 'Health Endpoint ist erreichbar.')
+    const health = await healthRes.json().catch(() => null)
+    if (!health || (health.ok !== true && health.status !== 'healthy')) {
+      pushCheck('FAIL', 'Hosted Control API Health', 'Health Endpoint liefert kein gueltiges JSON-Health-Format.')
+      return
+    }
+    pushCheck('PASS', 'Hosted Control API Health', 'Health Endpoint ist erreichbar und liefert gueltiges JSON.')
   } catch (error) {
     pushCheck('WARN', 'Hosted Control API Health', `Health Request fehlgeschlagen: ${error.message || error}`)
   }

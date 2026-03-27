@@ -1,4 +1,4 @@
-# Control Panel Server Setup (`nexus-api.dev`)
+# Control Panel Server Setup (`nexus-api.cloud`)
 
 Dieses Setup ersetzt GitHub Pages.  
 Control UI wird direkt auf dem API-Server gehostet.
@@ -6,8 +6,8 @@ Control UI wird direkt auf dem API-Server gehostet.
 ## Zielbild
 
 - API bleibt intern loopback-bound: `127.0.0.1:4399`
-- Reverse Proxy liefert API extern unter `https://nexus-api.dev`
-- Reverse Proxy liefert Control UI statisch unter `https://nexus-api.dev/control`
+- Reverse Proxy liefert API extern unter `https://nexus-api.cloud`
+- Reverse Proxy liefert Control UI statisch unter `https://nexus-api.cloud/control`
 
 ## 1) Control UI bauen
 
@@ -30,7 +30,7 @@ Beispiel (Ubuntu):
 
 ```json
 {
-  "controlApiUrl": "https://nexus-api.dev",
+  "controlApiUrl": "https://nexus-api.cloud",
   "bootstrapPath": "/api/v1/public/bootstrap",
   "forceApiUrl": true
 }
@@ -46,19 +46,19 @@ Stelle sicher, dass die UI-Origin in der API-Allowlist enthalten ist:
 Beispiel:
 
 ```bash
-export NEXUS_EXTRA_TRUSTED_ORIGINS="https://nexus-api.dev"
+export NEXUS_EXTRA_TRUSTED_ORIGINS="https://nexus-api.cloud"
 ```
 
 ## 5) Verifikation
 
 ```bash
-curl -fsS https://nexus-api.dev/health
-curl -fsS https://nexus-api.dev/api/v1/public/bootstrap
+curl -fsS https://nexus-api.cloud/health
+curl -fsS https://nexus-api.cloud/api/v1/public/bootstrap
 ```
 
 Dann im Browser:
 
-- `https://nexus-api.dev/control`
+- `https://nexus-api.cloud/control`
 - Login ausfuehren
 - Handshake im Header pruefen (`Backend Handshake: ok ...`)
 

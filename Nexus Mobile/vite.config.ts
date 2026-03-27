@@ -2,6 +2,23 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
 
+const CHUNK_GROUPS: Record<string, string[]> = {
+  'vendor-react': ['react', 'react-dom'],
+  'vendor-motion': ['framer-motion'],
+  'vendor-markdown': ['react-markdown', 'remark-gfm'],
+  'vendor-dnd': ['react-dnd', 'react-dnd-html5-backend'],
+}
+
+const manualChunks = (id: string) => {
+  if (!id.includes('node_modules')) return undefined
+  for (const [chunkName, deps] of Object.entries(CHUNK_GROUPS)) {
+    if (deps.some((dep) => id.includes(`/node_modules/${dep}/`))) {
+      return chunkName
+    }
+  }
+  return undefined
+}
+
 export default defineConfig({
   plugins: [react()],
   base: '/',
@@ -27,12 +44,7 @@ export default defineConfig({
     chunkSizeWarningLimit: 2000,
     rollupOptions: {
       output: {
-        manualChunks: {
-          'vendor-react': ['react', 'react-dom'],
-          'vendor-motion': ['framer-motion'],
-          'vendor-markdown': ['react-markdown', 'remark-gfm'],
-          'vendor-dnd': ['react-dnd', 'react-dnd-html5-backend'],
-        }
+        manualChunks,
       }
     }
   },

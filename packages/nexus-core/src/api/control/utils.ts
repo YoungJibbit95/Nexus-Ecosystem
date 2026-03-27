@@ -1,19 +1,22 @@
 import type { NexusReleaseChannel, NexusUserTier } from '../types'
 
 export const now = () => Date.now()
+export const NEXUS_CONTROL_CANONICAL_URL = 'https://nexus-api.cloud'
+const NEXUS_CONTROL_CANONICAL_HOST = 'nexus-api.cloud'
 
 export const normalizeBaseUrl = (baseUrl?: string) => {
   const raw = String(baseUrl || '').trim()
-  if (!raw) return ''
+  if (!raw) return NEXUS_CONTROL_CANONICAL_URL
 
   try {
     const parsed = new URL(raw)
-    if (!['http:', 'https:'].includes(parsed.protocol)) return ''
-    if (parsed.username || parsed.password) return ''
+    if (parsed.protocol !== 'https:') return NEXUS_CONTROL_CANONICAL_URL
+    if (parsed.hostname !== NEXUS_CONTROL_CANONICAL_HOST) return NEXUS_CONTROL_CANONICAL_URL
+    if (parsed.username || parsed.password || parsed.search || parsed.hash) return NEXUS_CONTROL_CANONICAL_URL
     const normalized = `${parsed.protocol}//${parsed.host}${parsed.pathname || ''}`
     return normalized.replace(/\/$/, '')
   } catch {
-    return ''
+    return NEXUS_CONTROL_CANONICAL_URL
   }
 }
 

@@ -25,6 +25,24 @@ import {
 import { createNexusRuntime, type NexusLiveBundle, type NexusRuntime } from '@nexus/api'
 
 const VIEW_IDS = getFallbackViewsForApp('mobile') as View[]
+const CONTROL_API_BASE_URL = 'https://nexus-api.cloud'
+const isLowPowerDevice = () => {
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') {
+    return false
+  }
+
+  const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+  const cores = Number(navigator.hardwareConcurrency || 8)
+  const memory = Number((navigator as any).deviceMemory || 8)
+  return Boolean(reducedMotion) || cores <= 4 || memory <= 4
+}
+const runIdle = (task: () => void) => {
+  if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+    ;(window as any).requestIdleCallback(task, { timeout: 1_200 })
+    return
+  }
+  setTimeout(task, 80)
+}
 const loadDashboardView = () => import('./views/DashboardView')
 const loadNotesView = () => import('./views/NotesView')
 const loadCodeView = () => import('./views/CodeView')
@@ -63,20 +81,30 @@ const VIEW_CHUNK_PRELOADERS: Record<View, () => Promise<unknown>> = {
   devtools: loadDevToolsView,
 }
 
-const preloadMobileViews = async (views: View[]) => {
-  const tasks = views
+const preloadMobileViews = async (views: View[], options: { eagerLimit?: number } = {}) => {
+  const eagerLimit = Math.max(1, Math.min(4, Math.floor(options.eagerLimit ?? 2)))
+  const loaders = views
     .map((viewId) => VIEW_CHUNK_PRELOADERS[viewId])
     .filter((loader): loader is () => Promise<unknown> => typeof loader === 'function')
-    .map((loader) => loader())
+  const uniqueLoaders = [...new Set(loaders)]
 
-  if (tasks.length === 0) return
-  await Promise.allSettled(tasks)
+  if (uniqueLoaders.length === 0) return
+  const eager = uniqueLoaders.slice(0, eagerLimit)
+  const deferred = uniqueLoaders.slice(eagerLimit)
+
+  await Promise.allSettled(eager.map((loader) => loader()))
+  if (deferred.length > 0) {
+    runIdle(() => {
+      void Promise.allSettled(deferred.map((loader) => loader()))
+    })
+  }
 }
 
 export default function App() {
   const [view, setView] = useState<View>('dashboard')
   const [availableViews, setAvailableViews] = useState<View[]>(VIEW_IDS)
   const [bootReady, setBootReady] = useState(false)
+  const [bootFailure, setBootFailure] = useState<string | null>(null)
   const [remoteDensity, setRemoteDensity] = useState<'compact' | 'comfortable' | 'spacious' | null>(null)
   const [remoteNavigation, setRemoteNavigation] = useState<'sidebar' | 'bottom-nav' | 'tabs' | null>(null)
   const [liveReleaseId, setLiveReleaseId] = useState<string | null>(null)
@@ -96,6 +124,7 @@ export default function App() {
   const mob = useMobile()
   const runtimeRef = useRef<NexusRuntime | null>(null)
   const guardRequestSeq = useRef(0)
+  const lowPowerMode = useMemo(() => isLowPowerDevice(), [])
 
   const viewAccessContext = useMemo(() => ({
     userId: (import.meta as any).env?.VITE_NEXUS_USER_ID as string | undefined,
@@ -136,7 +165,7 @@ export default function App() {
   }, [resolveBundleViews])
 
   useEffect(() => {
-    const controlBaseUrl = ((import.meta as any).env?.VITE_NEXUS_CONTROL_URL as string | undefined) || 'https://nexus-api.dev'
+    const controlBaseUrl = CONTROL_API_BASE_URL
     const controlIngestKey = (import.meta as any).env?.VITE_NEXUS_CONTROL_INGEST_KEY as string | undefined
 
     const runtime = createNexusRuntime({
@@ -145,8 +174,18 @@ export default function App() {
       control: {
         enabled: Boolean(controlBaseUrl),
         baseUrl: controlBaseUrl,
+        localFallbackEnabled: false,
         ingestKey: controlIngestKey,
+        sampleRate: 0.35,
+        flushIntervalMs: 12_000,
+        releasePollIntervalMs: 30_000,
+        viewValidationFailOpen: false,
         viewValidationCacheMs: 120_000,
+      },
+      performance: {
+        collectMemoryMs: 60_000,
+        summaryIntervalMs: 60_000,
+        maxMetricsPerMinute: 60,
       },
       liveSync: {
         enabled: Boolean(controlBaseUrl),
@@ -159,23 +198,58 @@ export default function App() {
     runtime.start()
     runtimeRef.current = runtime
     let active = true
+    setBootFailure(null)
 
     void (async () => {
-      let startupViews = VIEW_IDS
       try {
-        const bundle = await runtime.loadLiveBundle({
+        const [catalogResult, layoutResult, releaseResult] = await Promise.all([
+          runtime.control.fetchCatalog({
+            appId: 'mobile',
+            channel: 'production',
+            forceRefresh: true,
+            cacheTtlMs: 0,
+          }),
+          runtime.control.fetchLayoutSchema({
+            appId: 'mobile',
+            channel: 'production',
+            forceRefresh: true,
+            cacheTtlMs: 0,
+          }),
+          runtime.control.fetchCurrentRelease({
+            appId: 'mobile',
+            channel: 'production',
+            forceRefresh: true,
+            cacheTtlMs: 0,
+          }),
+        ])
+
+        const failedResources = [
+          ['catalog', catalogResult.errorCode, catalogResult.item],
+          ['layout', layoutResult.errorCode, layoutResult.item],
+          ['release', releaseResult.errorCode, releaseResult.item],
+        ]
+          .filter(([, errorCode, item]) => Boolean(errorCode) || !item)
+          .map(([resource, errorCode]) => `${resource}:${String(errorCode || 'INVALID_PAYLOAD')}`)
+
+        if (failedResources.length > 0) {
+          throw new Error(`CONTROL_API_BOOTSTRAP_FAILED (${failedResources.join(', ')})`)
+        }
+
+        const bundle: NexusLiveBundle = {
+          appId: 'mobile',
           channel: 'production',
-          forceRefresh: true,
-          cacheTtlMs: 0,
-        })
+          catalog: catalogResult.item,
+          layoutSchema: layoutResult.item,
+          release: releaseResult.item,
+        }
+
         if (!active) return
         applyLiveBundle(bundle)
-        startupViews = resolveBundleViews(bundle)
-      } catch {
-        startupViews = VIEW_IDS
-      }
+        const startupViews = resolveBundleViews(bundle)
+        if (startupViews.length === 0) {
+          throw new Error('CONTROL_API_BOOTSTRAP_FAILED (NO_STARTUP_VIEWS)')
+        }
 
-      try {
         const warmup = await runtime.control.warmupViewAccess(startupViews, {
           ...viewAccessContext,
           forceRefresh: true,
@@ -183,27 +257,37 @@ export default function App() {
         })
         if (!active) return
         const allowedViews = warmup.allowedViews.filter((candidate) => startupViews.includes(candidate as View)) as View[]
-        const preloadViews = allowedViews.length > 0 ? allowedViews : startupViews
-        await preloadMobileViews(preloadViews)
+        if (allowedViews.length === 0) {
+          const reasons = startupViews
+            .map((candidate) => warmup.resultByView[candidate]?.reason)
+            .filter((reason): reason is string => Boolean(reason))
+            .slice(0, 3)
+          throw new Error(`VIEW_VALIDATION_BLOCKED (${reasons.join(', ') || 'NO_ALLOWED_VIEWS'})`)
+        }
+
+        await preloadMobileViews(allowedViews, { eagerLimit: 2 })
         if (!active) return
         setAvailableViews(startupViews)
         setView((prev) => {
-          if (allowedViews.length === 0) return startupViews[0] || prev
           if (allowedViews.includes(prev)) return prev
           return allowedViews[0]
         })
-      } catch {
+        setViewGuardState({
+          checking: false,
+          blockedView: null,
+          requiredTier: null,
+          reason: null,
+        })
+      } catch (error) {
+        const reason = error instanceof Error && error.message
+          ? error.message
+          : 'CONTROL_API_UNAVAILABLE'
+        console.error('Nexus Mobile bootstrap failed', error)
         if (!active) return
-        try {
-          await preloadMobileViews(startupViews)
-        } catch {
-          // Ignore chunk preloading failures and continue boot.
-        }
-        if (!active) return
-        setAvailableViews(startupViews)
+        setBootFailure(reason)
+      } finally {
+        if (active) setBootReady(true)
       }
-
-      setBootReady(true)
     })()
 
     return () => {
@@ -338,6 +422,43 @@ export default function App() {
     )
   }
 
+  if (bootFailure) {
+    return (
+      <div style={{
+        width: '100%',
+        minHeight: '100dvh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'linear-gradient(135deg, #1a0909 0%, #0c111b 100%)',
+        color: '#ffe5e2',
+        fontFamily: 'system-ui, sans-serif',
+        padding: 18,
+      }}>
+        <div style={{
+          maxWidth: 620,
+          borderRadius: 14,
+          border: '1px solid rgba(255,69,58,0.45)',
+          background: 'rgba(255,69,58,0.12)',
+          padding: 14,
+          fontSize: 13,
+          lineHeight: 1.45,
+        }}>
+          <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 6 }}>
+            API-Startpruefung fehlgeschlagen
+          </div>
+          <div>
+            Nexus Mobile wurde kontrolliert gestoppt, weil der Hosted-API-Bootflow
+            nicht erfolgreich war.
+          </div>
+          <div style={{ marginTop: 8 }}>
+            Reason: <code>{bootFailure}</code>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   const bgStyles = buildBackground(t.background, t.bg, t.mode)
   const sidebarLeft = (t as any).sidebarPosition !== 'right'
   const toolbarBottom = t.toolbar?.position !== 'top'
@@ -390,12 +511,12 @@ export default function App() {
       <div style={{
         position: 'absolute', top: '-18%', left: '-12%', width: '46vw', height: '46vw', maxWidth: 480, maxHeight: 480,
         background: `radial-gradient(circle, rgba(${hexToRgb(t.accent)},0.18), transparent 68%)`,
-        filter: 'blur(18px)',
+        filter: lowPowerMode ? 'blur(8px)' : 'blur(18px)',
       }} />
       <div style={{
         position: 'absolute', bottom: '-16%', right: '-10%', width: '48vw', height: '48vw', maxWidth: 520, maxHeight: 520,
         background: `radial-gradient(circle, rgba(${hexToRgb(t.accent2)},0.16), transparent 68%)`,
-        filter: 'blur(20px)',
+        filter: lowPowerMode ? 'blur(10px)' : 'blur(20px)',
       }} />
     </div>
   )
@@ -424,8 +545,8 @@ export default function App() {
           background: t.mode === 'dark'
             ? 'linear-gradient(180deg, rgba(255,255,255,0.14), rgba(8,10,18,0.68))'
             : 'linear-gradient(180deg, rgba(255,255,255,0.95), rgba(245,248,255,0.72))',
-          backdropFilter: 'blur(30px) saturate(220%)',
-          WebkitBackdropFilter: 'blur(30px) saturate(220%)',
+          backdropFilter: lowPowerMode ? 'none' : 'blur(30px) saturate(220%)',
+          WebkitBackdropFilter: lowPowerMode ? 'none' : 'blur(30px) saturate(220%)',
           borderBottom: `1px solid ${t.mode === 'dark' ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.9)'}`,
           boxShadow: t.mode === 'dark'
             ? 'inset 0 1px 0 rgba(255,255,255,0.24)'
@@ -519,10 +640,10 @@ export default function App() {
           <AnimatePresence mode="wait">
             <motion.div
               key={view}
-              initial={t.animations.pageTransitions ? { opacity: 0, x: 20 } : false}
+              initial={t.animations.pageTransitions && !lowPowerMode ? { opacity: 0, x: 20 } : false}
               animate={{ opacity: 1, x: 0 }}
-              exit={t.animations.pageTransitions ? { opacity: 0, x: -20 } : undefined}
-              transition={{ duration: 0.18, ease: 'easeInOut' }}
+              exit={t.animations.pageTransitions && !lowPowerMode ? { opacity: 0, x: -20 } : undefined}
+              transition={{ duration: lowPowerMode ? 0.1 : 0.18, ease: 'easeInOut' }}
               style={{ height: '100%', overflow: 'hidden' }}
             >
               <Suspense
@@ -627,10 +748,10 @@ export default function App() {
           <AnimatePresence mode="wait">
             <motion.div
               key={view}
-              initial={t.animations.pageTransitions ? { opacity: 0, y: 8 } : false}
+              initial={t.animations.pageTransitions && !lowPowerMode ? { opacity: 0, y: 8 } : false}
               animate={{ opacity: 1, y: 0 }}
-              exit={t.animations.pageTransitions ? { opacity: 0, y: -8 } : undefined}
-              transition={{ duration: 0.18 * (t.visual.animationSpeed || 1), ease: 'easeInOut' }}
+              exit={t.animations.pageTransitions && !lowPowerMode ? { opacity: 0, y: -8 } : undefined}
+              transition={{ duration: (lowPowerMode ? 0.1 : 0.18) * (t.visual.animationSpeed || 1), ease: 'easeInOut' }}
               style={{ flex: 1, overflow: 'hidden', height: '100%', minHeight: 0 }}
             >
               <Suspense

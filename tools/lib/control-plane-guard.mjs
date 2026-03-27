@@ -2,7 +2,7 @@ import http from 'node:http'
 import https from 'node:https'
 import { resolveApiSource, resolveHostedControlUrl } from './api-source.mjs'
 
-export const DEFAULT_CONTROL_HOST = 'nexus-api.dev'
+export const DEFAULT_CONTROL_HOST = 'nexus-api.cloud'
 export const DEFAULT_CONTROL_PORT = 443
 const DEFAULT_TIMEOUT_MS = 90_000
 
