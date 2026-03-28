@@ -1,5 +1,5 @@
 import type { NexusReleaseSubscriptionOptions } from '../options'
-import { clamp, normalizeReleaseChannel } from '../utils'
+import { NexusControlError, clamp, normalizeReleaseChannel } from '../utils'
 import { fetchLiveBundle } from './fetch-v2'
 
 export const subscribeReleaseUpdates = (
@@ -40,8 +40,28 @@ export const subscribeReleaseUpdates = (
         bundle,
         fetchedAt: Date.now(),
       })
-    } catch {
-      // Ignore subscription poll errors. Listener receives next successful update.
+    } catch (error) {
+      const errorCode = error instanceof NexusControlError
+        ? error.code
+        : ((error as Error | undefined)?.name === 'AbortError' ? 'TIMEOUT' : 'NETWORK')
+      if (client.debug) {
+        console.warn(`[NexusAPI:${client.appId}] release poll failed (${errorCode})`) // eslint-disable-line no-console
+      }
+      listener({
+        appId,
+        channel,
+        releaseId: lastReleaseId,
+        changed: false,
+        bundle: {
+          appId,
+          channel,
+          catalog: null,
+          layoutSchema: null,
+          release: null,
+        },
+        fetchedAt: Date.now(),
+        errorCode,
+      })
     } finally {
       polling = false
     }

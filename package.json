@@ -35,6 +35,7 @@
     "build": "npm run build:ecosystem",
     "build:all": "npm run build:ecosystem",
     "verify:ecosystem": "node ./tools/verify-ecosystem.mjs",
+    "measure:startup-sync": "node ./tools/measure-startup-sync.mjs",
     "doctor:release": "node ./tools/release-doctor.mjs",
     "doctor:release:hosted": "node ./tools/release-doctor.mjs --hosted-ui",
     "dev:all:with-control-ui": "node ./tools/dev-ecosystem.mjs",

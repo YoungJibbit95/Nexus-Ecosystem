@@ -1,6 +1,12 @@
 import type { NexusUserTier, NexusViewAccessResult } from '../../types'
 import type { NexusViewAccessCheckOptions } from '../options'
-import { abortableFetch, normalizeUserId, normalizeUserTier, normalizeViewId } from '../utils'
+import {
+  NexusControlError,
+  normalizeUserId,
+  normalizeUserTier,
+  normalizeViewId,
+  requestJsonWithPolicy,
+} from '../utils'
 import { buildViewAccessCacheKey, getViewValidationErrorReason } from './common'
 
 const buildFallbackResult = (
@@ -49,9 +55,9 @@ export const validateViewAccess = async (
 
   if (!client.baseUrl || !client.viewValidationEnabled) {
     return buildFallbackResult(client, normalizedView, requestedTier, options, {
-      allowed: true,
-      reason: client.localFallbackEnabled ? 'LOCAL_FALLBACK_ALLOW' : 'VIEW_VALIDATION_DISABLED',
-      paywallEnabled: false,
+      allowed: false,
+      reason: 'VIEW_VALIDATION_UNAVAILABLE_FAIL_CLOSED',
+      paywallEnabled: true,
     })
   }
 
@@ -82,16 +88,23 @@ export const validateViewAccess = async (
   if (client.ingestKey) headers['X-Nexus-Ingest-Key'] = client.ingestKey
 
   try {
-    const response = await abortableFetch(`${client.baseUrl}/api/v1/views/validate`, {
+    const response = await requestJsonWithPolicy<any>(`${client.baseUrl}/api/v1/views/validate`, {
       method: 'POST',
       headers,
       body: JSON.stringify(body),
-    }, client.requestTimeoutMs)
+      timeoutMs: client.requestTimeoutMs,
+      maxRetries: 0,
+      parseJson: true,
+    })
 
     if (!response.ok) throw new Error(`VIEW_VALIDATION_HTTP_${response.status}`)
+    if (response.parseError) throw new Error('VIEW_VALIDATION_INVALID_JSON')
 
-    const data = await response.json()
+    const data = response.data
     const item = data?.item ?? {}
+    if (typeof item !== 'object' || item == null || Array.isArray(item)) {
+      throw new Error('VIEW_VALIDATION_INVALID_SCHEMA')
+    }
 
     const userTier = normalizeUserTier(item.userTier) || requestedTier
     const requiredTier = normalizeUserTier(item.requiredTier) || null
@@ -123,12 +136,10 @@ export const validateViewAccess = async (
 
     return result
   } catch (error) {
-    if (client.localFallbackEnabled) {
-      return buildFallbackResult(client, normalizedView, requestedTier, options, {
-        allowed: true,
-        reason: 'LOCAL_FALLBACK_ALLOW',
-        paywallEnabled: false,
-      })
+    if (error instanceof NexusControlError) {
+      const mapped = new Error(`VIEW_VALIDATION_${error.code}`)
+      ;(mapped as any).name = error.code === 'TIMEOUT' ? 'AbortError' : 'Error'
+      error = mapped
     }
 
     const allowed = client.viewValidationFailOpen

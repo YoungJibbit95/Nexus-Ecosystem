@@ -12,14 +12,44 @@ import type {
   NexusLayoutFetchOptions,
   NexusReleaseFetchOptions,
 } from '../options'
-import { abortableFetch, clamp, normalizeReleaseChannel } from '../utils'
-import { buildReadHeaders, pickEtag } from './common'
 import {
-  buildLocalFallbackCatalog,
-  buildLocalFallbackLayoutSchema,
-  buildLocalFallbackRelease,
-  maybeDelayLocalFallback,
-} from './local-fallback'
+  NexusControlError,
+  clamp,
+  normalizeReleaseChannel,
+  requestJsonWithPolicy,
+} from '../utils'
+import { buildReadHeaders, pickEtag } from './common'
+
+const isObject = (value: unknown): value is Record<string, unknown> => (
+  typeof value === 'object' && value !== null && !Array.isArray(value)
+)
+const nonEmpty = (value: unknown) => typeof value === 'string' && value.trim().length > 0
+const validateCatalogItem = (item: unknown, appId: string, channel: NexusReleaseChannel) => {
+  if (!isObject(item)) return false
+  if (!nonEmpty(item.schemaVersion) || !nonEmpty(item.featureVersion)) return false
+  if (String(item.channel || '').trim() !== channel) return false
+  if (!Array.isArray(item.features)) return false
+  const compatMatrix = isObject(item.compatMatrix) ? item.compatMatrix : null
+  if (!compatMatrix || !nonEmpty(compatMatrix[appId])) return false
+  return true
+}
+
+const validateLayoutItem = (item: unknown, appId: string, channel: NexusReleaseChannel) => {
+  if (!isObject(item)) return false
+  if (!nonEmpty(item.schemaVersion) || !nonEmpty(item.featureVersion) || !nonEmpty(item.minClientVersion)) return false
+  if (String(item.appId || '').trim() !== appId) return false
+  if (String(item.channel || '').trim() !== channel) return false
+  if (!Array.isArray(item.screens) || !isObject(item.layoutProfile)) return false
+  return true
+}
+
+const validateReleaseItem = (item: unknown, appId: string, channel: NexusReleaseChannel) => {
+  if (!isObject(item)) return false
+  if (!nonEmpty(item.id) || !nonEmpty(item.schemaVersion) || !nonEmpty(item.featureVersion)) return false
+  if (String(item.appId || '').trim() !== appId) return false
+  if (String(item.channel || '').trim() !== channel) return false
+  return true
+}
 
 const buildNoBaseUrlResult = <T>(cached: any) => ({
   item: cached?.item ?? null,
@@ -36,7 +66,11 @@ const buildNetworkResult = <T>(cached: any, error: unknown) => ({
   fetchedAt: Date.now(),
   fromCache: false,
   notModified: false,
-  errorCode: (error as Error | undefined)?.name === 'AbortError' ? 'TIMEOUT' : 'NETWORK',
+  errorCode: (
+    error instanceof NexusControlError
+      ? error.code
+      : ((error as Error | undefined)?.name === 'AbortError' ? 'TIMEOUT' : 'NETWORK')
+  ),
 } as NexusFetchResult<T>)
 
 const buildHttpResult = <T>(cached: any, status: number) => ({
@@ -55,25 +89,10 @@ const fetchCachedResource = async <T>(client: any, input: {
   cacheTtlMs: number
   forceRefresh: boolean
   endpoint: string
-  fallbackItem: () => T
+  validateItem?: (item: unknown) => boolean
 }): Promise<NexusFetchResult<T>> => {
   const cacheKey = `${input.appId}|${input.channel}`
   const cached = input.cache.get(cacheKey)
-  const fallbackEtag = `local-fallback:${input.appId}:${input.channel}`
-  const buildLocalFallbackResult = async (errorCode: string): Promise<NexusFetchResult<T>> => {
-    const item = input.fallbackItem()
-    const fetchedAt = Date.now()
-    await maybeDelayLocalFallback(client)
-    input.cache.set(cacheKey, { item, etag: fallbackEtag, fetchedAt })
-    return {
-      item,
-      etag: fallbackEtag,
-      fetchedAt,
-      fromCache: false,
-      notModified: false,
-      errorCode,
-    }
-  }
 
   if (!input.forceRefresh && cached && input.cacheTtlMs > 0 && (Date.now() - cached.fetchedAt) <= input.cacheTtlMs) {
     return {
@@ -85,18 +104,19 @@ const fetchCachedResource = async <T>(client: any, input: {
     }
   }
 
-  if (!client.baseUrl) {
-    if (client.localFallbackEnabled) {
-      return buildLocalFallbackResult('LOCAL_FALLBACK_NO_BASE_URL')
-    }
-    return buildNoBaseUrlResult<T>(cached)
-  }
+  if (!client.baseUrl) return buildNoBaseUrlResult<T>(cached)
 
   try {
-    const response = await abortableFetch(input.endpoint, {
+    const response = await requestJsonWithPolicy<any>(input.endpoint, {
       method: 'GET',
       headers: buildReadHeaders(client, input.appId as any, cached?.etag || null),
-    }, client.requestTimeoutMs)
+      timeoutMs: client.requestTimeoutMs,
+      maxRetries: client.readRetryMax,
+      retryBaseMs: client.readRetryBaseMs,
+      retryMaxMs: client.readRetryMaxMs,
+      dedupeKey: client.requestDedupeEnabled ? `${input.endpoint}|${cached?.etag || '-'}` : '',
+      dedupeMap: client.requestDedupeEnabled ? client.inflightGetRequests : undefined,
+    })
 
     if (response.status === 304 && cached) {
       return {
@@ -108,26 +128,32 @@ const fetchCachedResource = async <T>(client: any, input: {
       }
     }
 
-    if (!response.ok) {
-      if (client.localFallbackEnabled) {
-        return buildLocalFallbackResult(`LOCAL_FALLBACK_HTTP_${response.status}`)
+    if (!response.ok) return buildHttpResult<T>(cached, response.status)
+
+    if (response.parseError) {
+      return {
+        ...buildNoBaseUrlResult<T>(cached),
+        errorCode: 'INVALID_JSON',
       }
-      return buildHttpResult<T>(cached, response.status)
     }
 
-    const data = await response.json()
+    const data = response.data
     const item = (data?.item || null) as T | null
     if (!item) {
-      if (client.localFallbackEnabled) {
-        return buildLocalFallbackResult('LOCAL_FALLBACK_INVALID_PAYLOAD')
-      }
       return {
         ...buildNoBaseUrlResult<T>(cached),
         errorCode: 'INVALID_PAYLOAD',
       }
     }
 
-    const etag = pickEtag(client, response, data?.etag)
+    if (typeof input.validateItem === 'function' && !input.validateItem(item)) {
+      return {
+        ...buildNoBaseUrlResult<T>(cached),
+        errorCode: 'INVALID_SCHEMA',
+      }
+    }
+
+    const etag = pickEtag(client, { headers: response.headers } as Response, data?.etag)
     const fetchedAt = Date.now()
     input.cache.set(cacheKey, {
       item,
@@ -143,9 +169,6 @@ const fetchCachedResource = async <T>(client: any, input: {
       notModified: false,
     }
   } catch (error) {
-    if (client.localFallbackEnabled) {
-      return buildLocalFallbackResult('LOCAL_FALLBACK_NETWORK')
-    }
     return buildNetworkResult<T>(cached, error)
   }
 }
@@ -161,7 +184,7 @@ export const fetchCatalog = (client: any, options: NexusCatalogFetchOptions = {}
     cacheTtlMs,
     forceRefresh: options.forceRefresh === true,
     endpoint: `${client.baseUrl}/api/v2/features/catalog?appId=${encodeURIComponent(appId)}&channel=${encodeURIComponent(channel)}`,
-    fallbackItem: () => buildLocalFallbackCatalog(appId as any, channel),
+    validateItem: (item) => validateCatalogItem(item, appId, channel),
   })
 }
 
@@ -176,7 +199,7 @@ export const fetchLayoutSchema = (client: any, options: NexusLayoutFetchOptions 
     cacheTtlMs,
     forceRefresh: options.forceRefresh === true,
     endpoint: `${client.baseUrl}/api/v2/layout/schema?appId=${encodeURIComponent(appId)}&channel=${encodeURIComponent(channel)}`,
-    fallbackItem: () => buildLocalFallbackLayoutSchema(appId as any, channel),
+    validateItem: (item) => validateLayoutItem(item, appId, channel),
   })
 }
 
@@ -191,7 +214,7 @@ export const fetchCurrentRelease = (client: any, options: NexusReleaseFetchOptio
     cacheTtlMs,
     forceRefresh: options.forceRefresh === true,
     endpoint: `${client.baseUrl}/api/v2/releases/current?appId=${encodeURIComponent(appId)}&channel=${encodeURIComponent(channel)}`,
-    fallbackItem: () => buildLocalFallbackRelease(appId as any, channel),
+    validateItem: (item) => validateReleaseItem(item, appId, channel),
   })
 }
 

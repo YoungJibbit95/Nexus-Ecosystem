@@ -28,6 +28,7 @@ Das Ecosystem ist API-first:
 
 ```bash
 npm run verify:ecosystem
+npm run measure:startup-sync
 npm --prefix "./Nexus Main" run build
 npm --prefix "./Nexus Mobile" run build
 npm --prefix "./Nexus Code" run build

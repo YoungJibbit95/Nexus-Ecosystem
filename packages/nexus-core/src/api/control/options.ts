@@ -12,14 +12,20 @@ import type {
 export interface NexusControlOptions {
   enabled?: boolean
   baseUrl?: string
+  // Deprecated: hosted-only runtime ignores local fallback knobs.
   localFallbackEnabled?: boolean
   localFallbackLatencyMs?: number
   token?: string
   ingestKey?: string
   flushIntervalMs?: number
   maxQueueSize?: number
+  maxQueueBytes?: number
   maxBatchSize?: number
   requestTimeoutMs?: number
+  requestDedupeEnabled?: boolean
+  readRetryMax?: number
+  readRetryBaseMs?: number
+  readRetryMaxMs?: number
   sampleRate?: number
   debug?: boolean
   viewValidationEnabled?: boolean
