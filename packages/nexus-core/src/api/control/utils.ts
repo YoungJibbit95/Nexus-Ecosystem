@@ -134,6 +134,18 @@ export const abortableFetch = async (url: string, init: RequestInit, timeoutMs: 
 
 const SAFE_RETRY_METHODS = new Set(['GET', 'HEAD'])
 const RETRYABLE_STATUS = new Set([408, 425, 429, 500, 502, 503, 504])
+const OFFLINE_ERROR_CODES = new Set([
+  'NO_BASE_URL',
+  'TIMEOUT',
+  'NETWORK',
+  'HTTP_408',
+  'HTTP_425',
+  'HTTP_429',
+  'HTTP_500',
+  'HTTP_502',
+  'HTTP_503',
+  'HTTP_504',
+])
 
 export class NexusControlError extends Error {
   code: string
@@ -151,6 +163,12 @@ export class NexusControlError extends Error {
       ;(this as any).cause = input.cause
     }
   }
+}
+
+export const isOfflineControlErrorCode = (codeRaw: unknown) => {
+  const code = String(codeRaw || '').trim().toUpperCase()
+  if (!code) return false
+  return OFFLINE_ERROR_CODES.has(code)
 }
 
 export interface NexusRequestResult<T = unknown> {

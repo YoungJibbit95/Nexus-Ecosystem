@@ -26,6 +26,7 @@ import {
 } from "@nexus/core";
 import {
   createNexusRuntime,
+  isOfflineControlErrorCode,
   type NexusLiveBundle,
   type NexusRuntime,
 } from "@nexus/api";
@@ -106,6 +107,9 @@ const runIdle = (task: () => void) => {
 };
 
 const VIEW_IDS = getFallbackViewsForApp("main") as View[];
+const isOfflineBootstrapResourceError = (errorCodeRaw: unknown) =>
+  isOfflineControlErrorCode(String(errorCodeRaw || "INVALID_PAYLOAD"));
+
 const VIEW_CHUNK_PRELOADERS: Record<View, () => Promise<unknown>> = {
   dashboard: loadDashboardView,
   notes: loadNotesView,
@@ -294,28 +298,35 @@ export default function App() {
           ["release", releaseResult.errorCode, releaseResult.item],
         ]
           .filter(([, errorCode, item]) => Boolean(errorCode) || !item)
-          .map(
-            ([resource, errorCode]) =>
-              `${resource}:${String(errorCode || "INVALID_PAYLOAD")}`,
-          );
+          .map(([resource, errorCode]) => ({
+            resource: String(resource),
+            errorCode: String(errorCode || "INVALID_PAYLOAD"),
+          }));
 
         if (failedResources.length > 0) {
-          throw new Error(
-            `CONTROL_API_BOOTSTRAP_FAILED (${failedResources.join(", ")})`,
+          const offlineOnly = failedResources.every((entry) =>
+            isOfflineBootstrapResourceError(entry.errorCode),
           );
+          if (!offlineOnly) {
+            throw new Error(
+              `CONTROL_API_BOOTSTRAP_FAILED (${failedResources.map((entry) => `${entry.resource}:${entry.errorCode}`).join(", ")})`,
+            );
+          }
         }
 
-        const bundle: NexusLiveBundle = {
-          appId: "main",
-          channel: "production",
-          catalog: catalogResult.item,
-          layoutSchema: layoutResult.item,
-          release: releaseResult.item,
-        };
+        const bundle: NexusLiveBundle | null = failedResources.length === 0
+          ? {
+              appId: "main",
+              channel: "production",
+              catalog: catalogResult.item,
+              layoutSchema: layoutResult.item,
+              release: releaseResult.item,
+            }
+          : null;
 
         if (!active) return;
         applyLiveBundle(bundle);
-        const startupViews = resolveBundleViews(bundle);
+        const startupViews = bundle ? resolveBundleViews(bundle) : VIEW_IDS;
         if (startupViews.length === 0) {
           throw new Error("CONTROL_API_BOOTSTRAP_FAILED (NO_STARTUP_VIEWS)");
         }

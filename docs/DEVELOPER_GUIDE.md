@@ -42,6 +42,13 @@ npm --prefix "../Nexus Control" run build
 - Keine Policy-Abschwaechung fuer `ownerOnlyControlPanel` und `restrictMutationsToOwner`.
 - Nur Whitelist-Komponenten im Layout-Schema verwenden.
 
+## Offline-Modus (Security-First)
+
+- Bei API-Ausfall gibt es keinen lokalen API-Fallback und keine alternativen Datenquellen.
+- Stattdessen wird nur ein strikt begrenzter `free`-Tier-Offline-Modus aktiviert.
+- Nicht freigegebene Views bleiben gesperrt (`OFFLINE_FREE_TIER_BLOCKED`), damit kein Premium-Zugriff offline "durchrutscht".
+- Sobald die API wieder erreichbar ist, gilt wieder die normale serverseitige View-Validation.
+
 ## Relevante Dateien
 
 - `packages/nexus-core/src/liveSync.ts`
