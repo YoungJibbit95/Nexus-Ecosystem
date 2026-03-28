@@ -40,8 +40,8 @@ body { background: #0a0a14; color-scheme: dark light; }
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  backdrop-filter: blur(26px) saturate(150%);
-  -webkit-backdrop-filter: blur(26px) saturate(150%);
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
   background: linear-gradient(160deg, rgba(12, 14, 22, 0.72), rgba(9, 11, 18, 0.62));
   z-index: 2;
 }
@@ -89,10 +89,11 @@ body { background: #0a0a14; color-scheme: dark light; }
   position: fixed;
   inset: -14%;
   pointer-events: none;
-  filter: blur(58px) saturate(132%);
+  filter: blur(34px) saturate(120%);
   opacity: 0.9;
   z-index: 0;
-  animation: nx-ambient-drift 18s ease-in-out infinite alternate;
+  transform: translate3d(0, 0, 0);
+  animation: none;
 }
 
 .nx-segmented {

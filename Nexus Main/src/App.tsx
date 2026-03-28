@@ -125,15 +125,45 @@ const VIEW_CHUNK_PRELOADERS: Record<View, () => Promise<unknown>> = {
   devtools: loadDevToolsView,
 };
 
+const MAIN_PRELOAD_PRIORITY: View[] = [
+  "dashboard",
+  "notes",
+  "tasks",
+  "reminders",
+  "settings",
+  "files",
+  "info",
+  "flux",
+  "canvas",
+  "code",
+  "devtools",
+];
+
+const orderMainPreloadViews = (views: View[]) => {
+  const seen = new Set<View>();
+  return views
+    .filter((viewId) => {
+      if (seen.has(viewId)) return false;
+      seen.add(viewId);
+      return true;
+    })
+    .sort((a, b) => {
+      const aIdx = MAIN_PRELOAD_PRIORITY.indexOf(a);
+      const bIdx = MAIN_PRELOAD_PRIORITY.indexOf(b);
+      return (aIdx === -1 ? 999 : aIdx) - (bIdx === -1 ? 999 : bIdx);
+    });
+};
+
 const preloadMainViews = async (
   views: View[],
-  options: { eagerLimit?: number } = {},
+  options: { eagerLimit?: number; includeDeferred?: boolean } = {},
 ) => {
   const eagerLimit = Math.max(
     1,
-    Math.min(12, Math.floor(options.eagerLimit ?? 2)),
+    Math.min(5, Math.floor(options.eagerLimit ?? 2)),
   );
-  const loaders = views
+  const includeDeferred = Boolean(options.includeDeferred);
+  const loaders = orderMainPreloadViews(views)
     .map((viewId) => VIEW_CHUNK_PRELOADERS[viewId])
     .filter(
       (loader): loader is () => Promise<unknown> =>
@@ -147,7 +177,7 @@ const preloadMainViews = async (
   const deferred = uniqueLoaders.slice(eagerLimit);
   await Promise.allSettled(eager.map((loader) => loader()));
 
-  if (deferred.length > 0) {
+  if (includeDeferred && deferred.length > 0) {
     runIdle(() => {
       void Promise.allSettled(deferred.map((loader) => loader()));
     });
@@ -372,7 +402,9 @@ export default function App() {
           );
         }
 
-        await preloadMainViews(allowedViews, { eagerLimit: allowedViews.length });
+        await preloadMainViews(allowedViews, {
+          eagerLimit: lowPowerMode ? 1 : 3,
+        });
         if (!active) return;
 
         setAvailableViews(startupViews);
@@ -405,7 +437,7 @@ export default function App() {
       runtimeRef.current = null;
       validatedAccessRef.current = {};
     };
-  }, [applyLiveBundle, resolveBundleViews, storeWarmupAccess, viewAccessContext]);
+  }, [applyLiveBundle, lowPowerMode, resolveBundleViews, storeWarmupAccess, viewAccessContext]);
 
   useEffect(() => {
     if (!bootReady) return;

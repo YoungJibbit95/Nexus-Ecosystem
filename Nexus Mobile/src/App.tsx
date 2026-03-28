@@ -90,9 +90,42 @@ const VIEW_CHUNK_PRELOADERS: Record<View, () => Promise<unknown>> = {
   devtools: loadDevToolsView,
 }
 
-const preloadMobileViews = async (views: View[], options: { eagerLimit?: number } = {}) => {
-  const eagerLimit = Math.max(1, Math.min(4, Math.floor(options.eagerLimit ?? 2)))
-  const loaders = views
+const MOBILE_PRELOAD_PRIORITY: View[] = [
+  'dashboard',
+  'notes',
+  'tasks',
+  'reminders',
+  'settings',
+  'files',
+  'info',
+  'flux',
+  'canvas',
+  'code',
+  'devtools',
+]
+
+const orderMobilePreloadViews = (views: View[]) => {
+  const seen = new Set<View>()
+  return views
+    .filter((viewId) => {
+      if (seen.has(viewId)) return false
+      seen.add(viewId)
+      return true
+    })
+    .sort((a, b) => {
+      const aIdx = MOBILE_PRELOAD_PRIORITY.indexOf(a)
+      const bIdx = MOBILE_PRELOAD_PRIORITY.indexOf(b)
+      return (aIdx === -1 ? 999 : aIdx) - (bIdx === -1 ? 999 : bIdx)
+    })
+}
+
+const preloadMobileViews = async (
+  views: View[],
+  options: { eagerLimit?: number; includeDeferred?: boolean } = {},
+) => {
+  const eagerLimit = Math.max(1, Math.min(3, Math.floor(options.eagerLimit ?? 2)))
+  const includeDeferred = Boolean(options.includeDeferred)
+  const loaders = orderMobilePreloadViews(views)
     .map((viewId) => VIEW_CHUNK_PRELOADERS[viewId])
     .filter((loader): loader is () => Promise<unknown> => typeof loader === 'function')
   const uniqueLoaders = [...new Set(loaders)]
@@ -102,7 +135,7 @@ const preloadMobileViews = async (views: View[], options: { eagerLimit?: number 
   const deferred = uniqueLoaders.slice(eagerLimit)
 
   await Promise.allSettled(eager.map((loader) => loader()))
-  if (deferred.length > 0) {
+  if (includeDeferred && deferred.length > 0) {
     runIdle(() => {
       void Promise.allSettled(deferred.map((loader) => loader()))
     })
@@ -296,7 +329,9 @@ export default function App() {
           throw new Error(`VIEW_VALIDATION_BLOCKED (${reasons.join(', ') || 'NO_ALLOWED_VIEWS'})`)
         }
 
-        await preloadMobileViews(allowedViews, { eagerLimit: allowedViews.length })
+        await preloadMobileViews(allowedViews, {
+          eagerLimit: lowPowerMode ? 1 : 2,
+        })
         if (!active) return
         setAvailableViews(startupViews)
         setView((prev) => {
@@ -327,7 +362,7 @@ export default function App() {
       runtimeRef.current = null
       validatedAccessRef.current = {}
     }
-  }, [applyLiveBundle, resolveBundleViews, storeWarmupAccess, viewAccessContext])
+  }, [applyLiveBundle, lowPowerMode, resolveBundleViews, storeWarmupAccess, viewAccessContext])
 
   useEffect(() => {
     if (!bootReady) return
@@ -423,6 +458,7 @@ export default function App() {
     const cachedAccess = validatedAccessRef.current[next]
     if (cachedAccess) {
       if (cachedAccess.allowed) {
+        void VIEW_CHUNK_PRELOADERS[next]?.()
         setView(next)
         setViewGuardState({
           checking: false,
@@ -452,6 +488,7 @@ export default function App() {
     }
 
     if (access.allowed) {
+      void VIEW_CHUNK_PRELOADERS[next]?.()
       setView(next)
       setViewGuardState({
         checking: false,
