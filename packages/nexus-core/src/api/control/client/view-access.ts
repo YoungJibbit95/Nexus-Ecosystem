@@ -2,12 +2,32 @@ import type { NexusUserTier, NexusViewAccessResult } from '../../types'
 import type { NexusViewAccessCheckOptions } from '../options'
 import {
   NexusControlError,
+  isOfflineControlErrorCode,
   normalizeUserId,
   normalizeUserTier,
   normalizeViewId,
   requestJsonWithPolicy,
 } from '../utils'
 import { buildViewAccessCacheKey, getViewValidationErrorReason } from './common'
+
+const OFFLINE_FREE_VIEWS_BY_APP: Record<string, Set<string>> = {
+  main: new Set(['dashboard', 'notes', 'tasks', 'reminders', 'canvas', 'files', 'settings', 'info']),
+  mobile: new Set(['dashboard', 'notes', 'tasks', 'reminders', 'canvas', 'files', 'settings', 'info']),
+  code: new Set(['editor']),
+  'code-mobile': new Set(['editor']),
+}
+
+const isOfflineFreeViewAllowed = (appId: string, viewId: string) => {
+  const allowed = OFFLINE_FREE_VIEWS_BY_APP[appId]
+  if (!allowed) return false
+  return allowed.has(viewId)
+}
+
+const extractOfflineHttpCode = (messageRaw: string) => {
+  const match = messageRaw.match(/VIEW_VALIDATION_HTTP_(\d{3})/)
+  if (!match) return ''
+  return `HTTP_${match[1]}`
+}
 
 const buildFallbackResult = (
   client: any,
@@ -19,14 +39,15 @@ const buildFallbackResult = (
     reason: string
     paywallEnabled?: boolean
     requiredTier?: NexusUserTier | null
-    userTierSource?: 'request' | 'template' | 'default'
+    userTier?: NexusUserTier
+    userTierSource?: 'request' | 'template' | 'default' | 'offline'
   },
 ): NexusViewAccessResult => ({
   appId: client.appId,
   viewId: viewIdRaw,
   allowed: input.allowed,
   reason: input.reason,
-  userTier: requestedTier,
+  userTier: input.userTier || requestedTier,
   userTierSource: input.userTierSource || (options.userTier ? 'request' : 'default'),
   userTemplateKey: null,
   paywallEnabled: input.paywallEnabled ?? false,
@@ -136,6 +157,24 @@ export const validateViewAccess = async (
 
     return result
   } catch (error) {
+    const rawMessage = String((error as Error | undefined)?.message || '')
+    const offlineFromHttpCode = extractOfflineHttpCode(rawMessage)
+
+    if (
+      (error instanceof NexusControlError && isOfflineControlErrorCode(error.code))
+      || (offlineFromHttpCode && isOfflineControlErrorCode(offlineFromHttpCode))
+    ) {
+      const offlineAllowed = isOfflineFreeViewAllowed(client.appId, normalizedView)
+      return buildFallbackResult(client, normalizedView, requestedTier, options, {
+        allowed: offlineAllowed,
+        reason: offlineAllowed ? 'OFFLINE_FREE_TIER_ALLOW' : 'OFFLINE_FREE_TIER_BLOCKED',
+        paywallEnabled: !offlineAllowed,
+        requiredTier: offlineAllowed ? null : 'paid',
+        userTier: 'free',
+        userTierSource: 'offline',
+      })
+    }
+
     if (error instanceof NexusControlError) {
       const mapped = new Error(`VIEW_VALIDATION_${error.code}`)
       ;(mapped as any).name = error.code === 'TIMEOUT' ? 'AbortError' : 'Error'

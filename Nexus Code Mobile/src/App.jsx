@@ -8,9 +8,11 @@ import {
   useLocation,
 } from "react-router-dom";
 import Editor from "./pages/Editor";
-import { createNexusRuntime } from "@nexus/api";
+import { createNexusRuntime, isOfflineControlErrorCode } from "@nexus/api";
 
 const CONTROL_API_BASE_URL = "https://nexus-api.cloud";
+const isOfflineBootstrapResourceError = (errorCodeRaw) =>
+  isOfflineControlErrorCode(String(errorCodeRaw || "INVALID_PAYLOAD"));
 
 function NexusBridge({ runtime }) {
   const location = useLocation();
@@ -129,24 +131,31 @@ function App() {
           ["release", releaseResult.errorCode, releaseResult.item],
         ]
           .filter(([, errorCode, item]) => Boolean(errorCode) || !item)
-          .map(
-            ([resource, errorCode]) =>
-              `${resource}:${String(errorCode || "INVALID_PAYLOAD")}`,
-          );
+          .map(([resource, errorCode]) => ({
+            resource: String(resource),
+            errorCode: String(errorCode || "INVALID_PAYLOAD"),
+          }));
 
         if (failedResources.length > 0) {
-          throw new Error(
-            `CONTROL_API_BOOTSTRAP_FAILED (${failedResources.join(", ")})`,
+          const offlineOnly = failedResources.every((entry) =>
+            isOfflineBootstrapResourceError(entry.errorCode),
           );
+          if (!offlineOnly) {
+            throw new Error(
+              `CONTROL_API_BOOTSTRAP_FAILED (${failedResources.map((entry) => `${entry.resource}:${entry.errorCode}`).join(", ")})`,
+            );
+          }
         }
 
-        applyBundle({
-          appId: "code-mobile",
-          channel: "production",
-          catalog: catalogResult.item,
-          layoutSchema: layoutResult.item,
-          release: releaseResult.item,
-        });
+        if (failedResources.length === 0) {
+          applyBundle({
+            appId: "code-mobile",
+            channel: "production",
+            catalog: catalogResult.item,
+            layoutSchema: layoutResult.item,
+            release: releaseResult.item,
+          });
+        }
       } catch (error) {
         const reason =
           error instanceof Error && error.message

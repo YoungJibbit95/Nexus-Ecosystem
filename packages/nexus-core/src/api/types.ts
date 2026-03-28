@@ -52,7 +52,7 @@ export interface NexusViewAccessResult {
   allowed: boolean
   reason: string
   userTier: NexusUserTier
-  userTierSource: 'request' | 'template' | 'default'
+  userTierSource: 'request' | 'template' | 'default' | 'offline'
   userTemplateKey: string | null
   paywallEnabled: boolean
   requiredTier: NexusUserTier | null
