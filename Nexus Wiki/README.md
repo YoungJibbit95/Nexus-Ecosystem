@@ -1,20 +1,33 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Nexus Wiki
 
-# Run and deploy your AI Studio app
+Interaktive Wiki-Website fuer das Nexus Ecosystem (React + Vite).
 
-This contains everything you need to run your app locally.
+## Scripts
 
-View your app in AI Studio: https://ai.studio/apps/0ac4abb9-fdf6-483f-b857-2382b4136590
+- `npm run dev` startet den lokalen Dev-Server auf Port `3000`
+- `npm run build` erzeugt den Produktions-Build
+- `npm run build:ci` baut und prueft Bundle-Budgets
+- `npm run perf:budget` validiert Bundle-Groessen
+- `npm run preview` startet die Preview
+- `npm run lint` fuehrt `tsc --noEmit` aus
 
-## Run Locally
+## Fokus
 
-**Prerequisites:**  Node.js
+- klare Guide-Navigation nach App + Kategorie
+- globale Suche mit Synonymen
+- DE/EN Sprachumschaltung fuer komplette UI
+- space-themed Produktdesign im Wiki-Layout
 
+## Sicherheit & Performance
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+- Security-Header/CSP in Vite dev/preview
+- CSP/Referrer/Permissions auch im HTML gesetzt
+- Code-Splitting via manual chunks
+- Bundle-Budget-Check fuer CI
+
+## Relevante Dateien
+
+- `src/pages/WikiPage.tsx`: Navigation, Suche, i18n, Content-Rendering
+- `src/data/wikiData.ts`: Wiki-Content/Guides/Matrix
+- `src/components/SpaceBackground.tsx`: adaptive Hintergrund-Animation
+- `scripts/check-bundle-budget.mjs`: Bundle-Budget-Check
