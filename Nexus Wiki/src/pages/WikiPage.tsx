@@ -362,6 +362,8 @@ const uiCopy: Record<
     navTitle: string;
     sidebarTag: string;
     sidebarFilters: string;
+    filterApp: string;
+    filterCategory: string;
     appFilterAll: string;
     categoryFilterAll: string;
     navGroup: Record<NavGroupId, string>;
@@ -369,6 +371,7 @@ const uiCopy: Record<
     searchScopeGlobal: string;
     searchScopeSection: string;
     searchActiveHint: string;
+    searchMinChars: string;
     clearSearch: string;
     sectionEntries: string;
     searchEntries: string;
@@ -397,6 +400,8 @@ const uiCopy: Record<
     navTitle: "Nexus Wiki",
     sidebarTag: "Ecosystem Guide Atlas",
     sidebarFilters: "Filter",
+    filterApp: "App",
+    filterCategory: "Kategorie",
     appFilterAll: "🌌 Alle Apps",
     categoryFilterAll: "🗂️ Alle Kategorien",
     navGroup: {
@@ -408,6 +413,7 @@ const uiCopy: Record<
     searchScopeGlobal: "Globale Suche aktiv (alle Bereiche)",
     searchScopeSection: "Suche auf aktive Sektion begrenzt",
     searchActiveHint: "Treffer springen direkt in den passenden Guide.",
+    searchMinChars: "Tippe mindestens 2 Zeichen fuer globale Suche.",
     clearSearch: "Suche leeren",
     sectionEntries: "Eintraege in dieser Ansicht",
     searchEntries: "globale Treffer",
@@ -435,6 +441,8 @@ const uiCopy: Record<
     navTitle: "Nexus Wiki",
     sidebarTag: "Ecosystem Guide Atlas",
     sidebarFilters: "Filters",
+    filterApp: "App",
+    filterCategory: "Category",
     appFilterAll: "🌌 All apps",
     categoryFilterAll: "🗂️ All categories",
     navGroup: {
@@ -446,6 +454,7 @@ const uiCopy: Record<
     searchScopeGlobal: "Global search active (all sections)",
     searchScopeSection: "Search is scoped to active section",
     searchActiveHint: "Click any result to jump into the matching guide.",
+    searchMinChars: "Type at least 2 characters for global search.",
     clearSearch: "Clear search",
     sectionEntries: "entries in this view",
     searchEntries: "global matches",
@@ -480,6 +489,10 @@ const entryCopy: Record<
     tags: string;
     sources: string;
     copy: string;
+    appLabel: string;
+    categoryLabel: string;
+    featuresLabel: string;
+    commandsLabel: string;
     stepsUnit: string;
     featuresUnit: string;
   }
@@ -492,6 +505,10 @@ const entryCopy: Record<
     tags: "🏷️ Tags",
     sources: "📎 Quellen",
     copy: "Kopieren",
+    appLabel: "App",
+    categoryLabel: "Kategorie",
+    featuresLabel: "Features",
+    commandsLabel: "Commands",
     stepsUnit: "Schritte",
     featuresUnit: "Features",
   },
@@ -503,6 +520,10 @@ const entryCopy: Record<
     tags: "🏷️ Tags",
     sources: "📎 Sources",
     copy: "Copy",
+    appLabel: "App",
+    categoryLabel: "Category",
+    featuresLabel: "Features",
+    commandsLabel: "Commands",
     stepsUnit: "steps",
     featuresUnit: "features",
   },
@@ -519,6 +540,8 @@ const coverageCopy: Record<
     topSources: string;
     fullList: string;
     references: string;
+    stepsUnit: string;
+    featuresUnit: string;
   }
 > = {
   de: {
@@ -530,6 +553,8 @@ const coverageCopy: Record<
     topSources: "📎 Top Quellen",
     fullList: "🧾 Vollstaendige Entry-Liste",
     references: "Referenzen",
+    stepsUnit: "Schritte",
+    featuresUnit: "Features",
   },
   en: {
     totalEntries: "📚 Total entries",
@@ -540,6 +565,8 @@ const coverageCopy: Record<
     topSources: "📎 Top sources",
     fullList: "🧾 Full entry list",
     references: "references",
+    stepsUnit: "steps",
+    featuresUnit: "features",
   },
 };
 
@@ -616,6 +643,8 @@ const searchSynonymIndex = (() => {
   return map;
 })();
 
+const MIN_SEARCH_QUERY_CHARS = 2;
+
 function normalizeText(value: string) {
   return value
     .toLowerCase()
@@ -684,13 +713,21 @@ const sectionBaseEntries: Record<SectionId, WikiEntry[]> = {
 function expandQueryTokens(query: string) {
   if (!query) return [];
 
-  const rawTokens = query.split(" ").filter(Boolean);
+  const rawTokens = query
+    .split(" ")
+    .map((token) => token.trim())
+    .filter((token) => token.length >= MIN_SEARCH_QUERY_CHARS);
   const expanded = new Set<string>(rawTokens);
 
   rawTokens.forEach((token) => {
+    if (token.length < 3) return;
     const synonyms = searchSynonymIndex.get(token);
     if (!synonyms) return;
-    synonyms.forEach((item) => expanded.add(item));
+    synonyms
+      .filter((item) => item.length >= MIN_SEARCH_QUERY_CHARS)
+      .forEach((item) => {
+        if (expanded.size < 28) expanded.add(item);
+      });
   });
 
   return Array.from(expanded);
@@ -703,14 +740,30 @@ function scoreEntry(entry: WikiEntry, blob: string, fullQuery: string, tokens: s
   const summary = normalizeText(entry.summary);
   const tags = entry.tags.map((tag) => normalizeText(tag));
 
+  const hasDirect = title.includes(fullQuery) || summary.includes(fullQuery) || blob.includes(fullQuery);
+  const matchedTokenCount = tokens.reduce((count, token) => {
+    const matched =
+      title.includes(token)
+      || summary.includes(token)
+      || tags.some((tag) => tag.includes(token))
+      || blob.includes(token);
+    return matched ? count + 1 : count;
+  }, 0);
+
+  if (!hasDirect && matchedTokenCount === 0) return 0;
+
+  const requiredMatches = tokens.length > 1 ? Math.min(2, tokens.length) : 1;
+  if (!hasDirect && matchedTokenCount < requiredMatches) return 0;
+
   let score = 0;
 
-  if (title.includes(fullQuery)) score += 180;
-  if (summary.includes(fullQuery)) score += 95;
-  if (blob.includes(fullQuery)) score += 65;
+  if (title.includes(fullQuery)) score += 210;
+  if (summary.includes(fullQuery)) score += 110;
+  if (blob.includes(fullQuery)) score += 70;
 
   tokens.forEach((token) => {
-    if (title.includes(token)) score += 40;
+    if (title.startsWith(token)) score += 45;
+    else if (title.includes(token)) score += 35;
     if (summary.includes(token)) score += 20;
     if (tags.some((tag) => tag.includes(token))) score += 18;
     if (blob.includes(token)) score += 8;
@@ -745,8 +798,10 @@ export function WikiPage() {
   }, [focusedEntryId]);
 
   const deferredQuery = useDeferredValue(normalizeText(query));
-  const searchTokens = useMemo(() => expandQueryTokens(deferredQuery), [deferredQuery]);
-  const isGlobalSearch = deferredQuery.length > 0;
+  const effectiveQuery = deferredQuery.length >= MIN_SEARCH_QUERY_CHARS ? deferredQuery : "";
+  const searchTokens = useMemo(() => expandQueryTokens(effectiveQuery), [effectiveQuery]);
+  const isGlobalSearch = effectiveQuery.length > 0;
+  const hasShortSearchQuery = deferredQuery.length > 0 && !isGlobalSearch;
 
   const searchBlobById = useMemo(() => {
     const index = new Map<string, string>();
@@ -781,7 +836,7 @@ export function WikiPage() {
       if (!appOk || !categoryOk) return;
 
       const blob = searchBlobById.get(entry.id) ?? "";
-      const score = scoreEntry(entry, blob, deferredQuery, searchTokens);
+      const score = scoreEntry(entry, blob, effectiveQuery, searchTokens);
 
       if (!isGlobalSearch || score > 0) {
         scoredEntries.push({ entry, score });
@@ -796,7 +851,7 @@ export function WikiPage() {
     }
 
     return scoredEntries.map((item) => item.entry);
-  }, [activeSection, appFilter, categoryFilter, deferredQuery, isGlobalSearch, searchBlobById, searchTokens]);
+  }, [activeSection, appFilter, categoryFilter, effectiveQuery, isGlobalSearch, searchBlobById, searchTokens]);
 
   const groupedEntries = useMemo(() => {
     const byId = new Map<AppId, WikiEntry[]>();
@@ -896,7 +951,7 @@ export function WikiPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-50 flex overflow-hidden">
+    <div className="min-h-screen bg-slate-950 text-slate-50 flex overflow-x-clip">
       <SpaceBackground />
 
       <button
@@ -928,7 +983,7 @@ export function WikiPage() {
           <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400 font-semibold">{t.sidebarFilters}</p>
           <div className="grid gap-2">
             <label className="space-y-1.5">
-              <span className="text-[11px] text-slate-500 uppercase tracking-[0.18em]">App</span>
+              <span className="text-[11px] text-slate-500 uppercase tracking-[0.18em]">{t.filterApp}</span>
               <select
                 value={appFilter}
                 onChange={(event) => setAppFilter(event.target.value as AppFilter)}
@@ -944,7 +999,7 @@ export function WikiPage() {
             </label>
 
             <label className="space-y-1.5">
-              <span className="text-[11px] text-slate-500 uppercase tracking-[0.18em]">Category</span>
+              <span className="text-[11px] text-slate-500 uppercase tracking-[0.18em]">{t.filterCategory}</span>
               <select
                 value={categoryFilter}
                 onChange={(event) => setCategoryFilter(event.target.value as CategoryFilter)}
@@ -997,7 +1052,7 @@ export function WikiPage() {
         </div>
       </aside>
 
-      <main className="flex-1 h-screen overflow-y-auto relative z-10 custom-scrollbar scroll-smooth">
+      <main className="flex-1 h-screen overflow-y-auto overflow-x-clip relative z-10 custom-scrollbar scroll-smooth">
         <div className="max-w-[1320px] mx-auto px-5 md:px-9 py-8 md:py-12 space-y-8">
           <div className="sticky top-2 md:top-4 z-30">
             <div className="relative overflow-hidden rounded-2xl border border-white/12 bg-slate-900/65 backdrop-blur-2xl shadow-[0_10px_40px_rgba(3,7,18,0.45)]">
@@ -1041,6 +1096,9 @@ export function WikiPage() {
                     {isGlobalSearch ? t.searchScopeGlobal : t.searchScopeSection}
                   </span>
                   <span className="text-slate-400">{t.searchActiveHint}</span>
+                  {hasShortSearchQuery ? (
+                    <span className="text-amber-200">{t.searchMinChars}</span>
+                  ) : null}
                   {isGlobalSearch ? (
                     <button
                       onClick={() => setQuery("")}
@@ -1213,6 +1271,7 @@ export function WikiPage() {
                                 entry={entry}
                                 onCopy={copyText}
                                 copy={cardText}
+                                lang={lang}
                                 isFocused={focusedEntryId === entry.id}
                               />
                             </div>
@@ -1285,6 +1344,7 @@ function EntryCard({
   entry,
   onCopy,
   copy,
+  lang,
   isFocused,
 }: {
   entry: WikiEntry;
@@ -1297,9 +1357,14 @@ function EntryCard({
     tags: string;
     sources: string;
     copy: string;
+    appLabel: string;
+    categoryLabel: string;
+    featuresLabel: string;
+    commandsLabel: string;
     stepsUnit: string;
     featuresUnit: string;
   };
+  lang: Language;
   isFocused: boolean;
 }) {
   return (
@@ -1322,10 +1387,10 @@ function EntryCard({
 
           <div className="flex flex-wrap gap-2">
             <span className="px-2 py-1 rounded-full text-[11px] bg-indigo-500/15 border border-indigo-500/30 text-indigo-200">
-              {appEmoji[entry.app]} {entry.app}
+              {appEmoji[entry.app]} {appLabel[entry.app][lang]}
             </span>
             <span className="px-2 py-1 rounded-full text-[11px] bg-cyan-500/15 border border-cyan-500/30 text-cyan-200">
-              {categoryEmoji[entry.category]} {entry.category}
+              {categoryEmoji[entry.category]} {categoryLabel[entry.category][lang]}
             </span>
             <span className="px-2 py-1 rounded-full text-[11px] bg-emerald-500/15 border border-emerald-500/30 text-emerald-200">
               {entry.guide.length} {copy.stepsUnit}
@@ -1337,10 +1402,10 @@ function EntryCard({
         </div>
 
         <pre className="bg-black/40 border border-white/10 rounded-xl p-3 text-xs text-slate-200 overflow-x-auto leading-relaxed">{`### ${entry.title}
-- app: ${entry.app}
-- category: ${entry.category}
-- features: ${entry.points.length}
-- commands: ${entry.commands.length}`}</pre>
+- ${copy.appLabel}: ${appLabel[entry.app][lang]}
+- ${copy.categoryLabel}: ${categoryLabel[entry.category][lang]}
+- ${copy.featuresLabel}: ${entry.points.length}
+- ${copy.commandsLabel}: ${entry.commands.length}`}</pre>
 
         <div className="grid gap-4 xl:grid-cols-2">
           <section className="p-3 rounded-xl border border-white/10 bg-black/30">
@@ -1466,6 +1531,8 @@ function CoverageSection({
     topSources: string;
     fullList: string;
     references: string;
+    stepsUnit: string;
+    featuresUnit: string;
   };
 }) {
   return (
@@ -1538,7 +1605,7 @@ function CoverageSection({
                 {appEmoji[entry.app]} {entry.title}
               </p>
               <p className="text-xs text-slate-500 mt-1">
-                {categoryEmoji[entry.category]} {categoryLabel[entry.category][lang]} • {entry.guide.length} steps • {entry.points.length} features
+                {categoryEmoji[entry.category]} {categoryLabel[entry.category][lang]} • {entry.guide.length} {copy.stepsUnit} • {entry.points.length} {copy.featuresUnit}
               </p>
             </div>
           ))}
