@@ -22,7 +22,13 @@ import {
   resolveLayoutProfile,
   sanitizeGlobalFont,
 } from '@nexus/core'
-import { createNexusRuntime, isOfflineControlErrorCode, type NexusLiveBundle, type NexusRuntime } from '@nexus/api'
+import {
+  createNexusRuntime,
+  isOfflineControlErrorCode,
+  type NexusLiveBundle,
+  type NexusRuntime,
+  type NexusViewAccessResult,
+} from '@nexus/api'
 
 const VIEW_IDS = getFallbackViewsForApp('mobile') as View[]
 const isOfflineBootstrapResourceError = (errorCodeRaw: unknown) => (
@@ -126,6 +132,7 @@ export default function App() {
   const t = useTheme()
   const mob = useMobile()
   const runtimeRef = useRef<NexusRuntime | null>(null)
+  const validatedAccessRef = useRef<Partial<Record<View, NexusViewAccessResult>>>({})
   const guardRequestSeq = useRef(0)
   const lowPowerMode = useMemo(() => isLowPowerDevice(), [])
 
@@ -167,6 +174,18 @@ export default function App() {
     setLiveReleaseId(bundle.release?.id || null)
   }, [resolveBundleViews])
 
+  const storeWarmupAccess = useCallback((resultByView: Record<string, NexusViewAccessResult>) => {
+    const next: Partial<Record<View, NexusViewAccessResult>> = {
+      ...validatedAccessRef.current,
+    }
+    Object.entries(resultByView || {}).forEach(([viewId, access]) => {
+      const key = String(viewId || '') as View
+      if (!VIEW_IDS.includes(key)) return
+      next[key] = access
+    })
+    validatedAccessRef.current = next
+  }, [])
+
   useEffect(() => {
     const controlBaseUrl = CONTROL_API_BASE_URL
     const controlIngestKey = (import.meta as any).env?.VITE_NEXUS_CONTROL_INGEST_KEY as string | undefined
@@ -199,6 +218,7 @@ export default function App() {
     })
     runtime.start()
     runtimeRef.current = runtime
+    validatedAccessRef.current = {}
     let active = true
     setBootFailure(null)
 
@@ -266,6 +286,7 @@ export default function App() {
           concurrency: 4,
         })
         if (!active) return
+        storeWarmupAccess(warmup.resultByView)
         const allowedViews = warmup.allowedViews.filter((candidate) => startupViews.includes(candidate as View)) as View[]
         if (allowedViews.length === 0) {
           const reasons = startupViews
@@ -275,7 +296,7 @@ export default function App() {
           throw new Error(`VIEW_VALIDATION_BLOCKED (${reasons.join(', ') || 'NO_ALLOWED_VIEWS'})`)
         }
 
-        await preloadMobileViews(allowedViews, { eagerLimit: 2 })
+        await preloadMobileViews(allowedViews, { eagerLimit: allowedViews.length })
         if (!active) return
         setAvailableViews(startupViews)
         setView((prev) => {
@@ -304,8 +325,35 @@ export default function App() {
       active = false
       runtime.stop()
       runtimeRef.current = null
+      validatedAccessRef.current = {}
     }
-  }, [applyLiveBundle, resolveBundleViews, viewAccessContext])
+  }, [applyLiveBundle, resolveBundleViews, storeWarmupAccess, viewAccessContext])
+
+  useEffect(() => {
+    if (!bootReady) return
+    const runtime = runtimeRef.current
+    if (!runtime) return
+
+    const missingViews = availableViews.filter((candidate) => !validatedAccessRef.current[candidate])
+    if (missingViews.length === 0) return
+
+    let active = true
+    void runtime.control
+      .warmupViewAccess(missingViews, {
+        ...viewAccessContext,
+        forceRefresh: false,
+        concurrency: 4,
+      })
+      .then((warmup) => {
+        if (!active) return
+        storeWarmupAccess(warmup.resultByView)
+      })
+      .catch(() => {})
+
+    return () => {
+      active = false
+    }
+  }, [availableViews, bootReady, storeWarmupAccess, viewAccessContext])
 
   useEffect(() => {
     const safeFont = sanitizeGlobalFont(
@@ -372,15 +420,36 @@ export default function App() {
       return
     }
 
-    const requestId = ++guardRequestSeq.current
-    const checkingTimer = setTimeout(() => {
-      if (requestId !== guardRequestSeq.current) return
-      setViewGuardState((prev) => ({ ...prev, checking: true }))
-    }, 120)
+    const cachedAccess = validatedAccessRef.current[next]
+    if (cachedAccess) {
+      if (cachedAccess.allowed) {
+        setView(next)
+        setViewGuardState({
+          checking: false,
+          blockedView: null,
+          requiredTier: null,
+          reason: null,
+        })
+        return
+      }
 
+      setViewGuardState({
+        checking: false,
+        blockedView: next,
+        requiredTier: cachedAccess.requiredTier || 'paid',
+        reason: cachedAccess.reason || 'PAYWALL_BLOCKED',
+      })
+      return
+    }
+
+    const requestId = ++guardRequestSeq.current
+    setViewGuardState((prev) => ({ ...prev, checking: true }))
     const access = await runtime.control.validateViewAccess(next, viewAccessContext)
-    clearTimeout(checkingTimer)
     if (requestId !== guardRequestSeq.current) return
+    validatedAccessRef.current = {
+      ...validatedAccessRef.current,
+      [next]: access,
+    }
 
     if (access.allowed) {
       setView(next)

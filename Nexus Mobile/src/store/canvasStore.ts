@@ -4,7 +4,21 @@ import { genId } from '../lib/utils'
 
 // ─── TYPES ───
 
-export type NodeType = 'text' | 'markdown' | 'checklist' | 'image' | 'code' | 'note' | 'codefile' | 'task' | 'reminder'
+export type NodeType =
+  | 'text'
+  | 'markdown'
+  | 'checklist'
+  | 'image'
+  | 'code'
+  | 'note'
+  | 'codefile'
+  | 'task'
+  | 'reminder'
+  | 'goal'
+  | 'milestone'
+  | 'decision'
+  | 'risk'
+  | 'project'
 export type ProjectStatus = 'idea' | 'backlog' | 'todo' | 'doing' | 'review' | 'done' | 'blocked'
 export type ProjectPriority = 'low' | 'mid' | 'high' | 'critical'
 
@@ -119,6 +133,28 @@ const DEFAULT_NODE_SIZES: Record<NodeType, { w: number; h: number }> = {
   codefile: { w: 400, h: 320 },
   task: { w: 280, h: 220 },
   reminder: { w: 280, h: 180 },
+  goal: { w: 320, h: 230 },
+  milestone: { w: 320, h: 220 },
+  decision: { w: 320, h: 230 },
+  risk: { w: 320, h: 230 },
+  project: { w: 380, h: 260 },
+}
+
+const DEFAULT_NODE_TITLES: Record<NodeType, string> = {
+  text: 'Text',
+  markdown: 'Markdown',
+  checklist: 'Checklist',
+  image: 'Image',
+  code: 'Code',
+  note: 'Notiz',
+  codefile: 'Code-Datei',
+  task: 'Task',
+  reminder: 'Reminder',
+  goal: 'Goal',
+  milestone: 'Milestone',
+  decision: 'Decision',
+  risk: 'Risk',
+  project: 'Project',
 }
 
 // ─── STORE ───
@@ -177,21 +213,34 @@ export const useCanvas = create<CanvasStore>()(
       // Place node near center of visible area if no position given
       const nx = x ?? (-vp.panX + 400) / vp.zoom + Math.random() * 40 - 20
       const ny = y ?? (-vp.panY + 300) / vp.zoom + Math.random() * 40 - 20
+      const defaultProps: Partial<CanvasNode> = (() => {
+        if (type === 'checklist') return { items: [] }
+        if (type === 'code') return { content: '// code here...', codeLang: 'javascript' }
+        if (type === 'goal') return { content: 'Worum geht es bei diesem Ziel?' }
+        if (type === 'milestone') return { content: 'Definition of done, Scope, Deliverables' }
+        if (type === 'decision') return { content: 'Option A vs Option B\nKriterien:\n- Impact\n- Risiko\n- Aufwand' }
+        if (type === 'risk') return { content: 'Risiko:\nEintrittswahrscheinlichkeit:\nMitigation:' }
+        if (type === 'project') return { content: 'Projektziel, Scope, Stakeholder, KPI' }
+        return {}
+      })()
       const node: CanvasNode = {
         id: genId(),
         type,
-        title: type === 'text' ? 'Text' : type === 'markdown' ? 'Markdown' : type === 'checklist' ? 'Checklist' : type === 'image' ? 'Image' : type === 'code' ? 'Code' : type.charAt(0).toUpperCase() + type.slice(1),
+        title: DEFAULT_NODE_TITLES[type],
         x: nx,
         y: ny,
         width: sz.w,
         height: sz.h,
-        content: type === 'code' ? '// code here...' : '',
-        items: type === 'checklist' ? [] : undefined,
-        codeLang: type === 'code' ? 'javascript' : undefined,
+        content: '',
+        ...defaultProps,
         pm: {
-          status: type === 'task' ? 'todo' : 'idea',
+          status: type === 'task' || type === 'goal' || type === 'milestone' || type === 'decision' || type === 'project'
+            ? 'todo'
+            : type === 'risk'
+              ? 'blocked'
+              : 'idea',
           priority: 'mid',
-          progress: type === 'task' ? 0 : undefined,
+          progress: type === 'task' || type === 'goal' || type === 'project' ? 0 : undefined,
           tags: [],
         },
       }
