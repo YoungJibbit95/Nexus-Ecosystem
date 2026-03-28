@@ -22,7 +22,17 @@ import type {
   NexusViewWarmupOptions,
   NexusViewWarmupResult,
 } from './options'
-import { clamp, isBrowser, normalizeBaseUrl, normalizeReleaseChannel, normalizeUserId, normalizeUserTier, shouldSample } from './utils'
+import {
+  NexusControlError,
+  clamp,
+  isBrowser,
+  normalizeBaseUrl,
+  normalizeReleaseChannel,
+  normalizeUserId,
+  normalizeUserTier,
+  requestJsonWithPolicy,
+  shouldSample,
+} from './utils'
 import { clearRemoteCaches } from './client/common'
 import { reportCapabilities } from './client/capabilities'
 import { resolveFeatureCompatibility } from './client/compatibility'
@@ -36,14 +46,17 @@ export class NexusControlClient {
   private appVersion: string
   private enabled: boolean
   private baseUrl: string
-  private localFallbackEnabled: boolean
-  private localFallbackLatencyMs: number
   private token: string
   private ingestKey: string
   private flushIntervalMs: number
   private maxQueueSize: number
+  private maxQueueBytes: number
   private maxBatchSize: number
   private requestTimeoutMs: number
+  private requestDedupeEnabled: boolean
+  private readRetryMax: number
+  private readRetryBaseMs: number
+  private readRetryMaxMs: number
   private sampleRate: number
   private debug: boolean
   private viewValidationEnabled: boolean
@@ -64,23 +77,26 @@ export class NexusControlClient {
   private catalogCache = new Map<string, { fetchedAt: number; etag: string | null; item: NexusFeatureCatalog }>()
   private layoutCache = new Map<string, { fetchedAt: number; etag: string | null; item: NexusUiSchemaDocument }>()
   private releaseCache = new Map<string, { fetchedAt: number; etag: string | null; item: NexusReleaseSnapshot }>()
+  private inflightGetRequests = new Map<string, Promise<any>>()
   constructor(options: NexusControlClientOptions) {
     this.appId = options.appId
     this.appVersion = options.appVersion
     this.enabled = options.enabled ?? Boolean(options.baseUrl)
     this.baseUrl = normalizeBaseUrl(options.baseUrl)
-    // Hosted-only runtime: local API fallbacks remain hard-disabled.
-    this.localFallbackEnabled = false
-    this.localFallbackLatencyMs = clamp(Math.floor(options.localFallbackLatencyMs ?? 80), 0, 2_000)
     this.token = options.token ?? ''
     this.ingestKey = options.ingestKey ?? ''
-    this.flushIntervalMs = options.flushIntervalMs ?? 5_000
-    this.maxQueueSize = options.maxQueueSize ?? 500
-    this.maxBatchSize = options.maxBatchSize ?? 150
-    this.requestTimeoutMs = options.requestTimeoutMs ?? 4_000
+    this.flushIntervalMs = clamp(Math.floor(options.flushIntervalMs ?? 5_000), 1_000, 60_000)
+    this.maxQueueSize = clamp(Math.floor(options.maxQueueSize ?? 500), 50, 5_000)
+    this.maxQueueBytes = clamp(Math.floor(options.maxQueueBytes ?? 1_200_000), 64_000, 10_000_000)
+    this.maxBatchSize = clamp(Math.floor(options.maxBatchSize ?? 150), 1, 1_000)
+    this.requestTimeoutMs = clamp(Math.floor(options.requestTimeoutMs ?? 4_000), 500, 30_000)
+    this.requestDedupeEnabled = options.requestDedupeEnabled !== false
+    this.readRetryMax = clamp(Math.floor(options.readRetryMax ?? 2), 0, 5)
+    this.readRetryBaseMs = clamp(Math.floor(options.readRetryBaseMs ?? 220), 50, 2_000)
+    this.readRetryMaxMs = clamp(Math.floor(options.readRetryMaxMs ?? 2_500), 200, 10_000)
     this.sampleRate = clamp(options.sampleRate ?? 1, 0, 1)
     this.debug = options.debug ?? false
-    this.viewValidationEnabled = options.viewValidationEnabled ?? Boolean(options.baseUrl)
+    this.viewValidationEnabled = true
     this.viewValidationFailOpen = false
     this.viewValidationCacheMs = clamp(options.viewValidationCacheMs ?? 15_000, 0, 300_000)
     this.defaultUserId = normalizeUserId(options.defaultUserId || '')
@@ -135,14 +151,24 @@ export class NexusControlClient {
   async fetchRemoteConfig() {
     if (!this.baseUrl || !this.token) return null
     try {
-      const response = await fetch(`${this.baseUrl}/api/v1/config/apps/${this.appId}`, {
+      const response = await requestJsonWithPolicy<any>(`${this.baseUrl}/api/v1/config/apps/${this.appId}`, {
         method: 'GET',
         headers: { Authorization: `Bearer ${this.token}` },
+        timeoutMs: this.requestTimeoutMs,
+        maxRetries: this.readRetryMax,
+        retryBaseMs: this.readRetryBaseMs,
+        retryMaxMs: this.readRetryMaxMs,
+        dedupeKey: this.requestDedupeEnabled ? `config:${this.appId}` : '',
+        dedupeMap: this.requestDedupeEnabled ? this.inflightGetRequests : undefined,
       })
-      if (!response.ok) return null
-      const data = await response.json()
-      return data?.item ?? null
-    } catch {
+
+      if (!response.ok || response.parseError) return null
+      const item = response.data?.item ?? null
+      return (item && typeof item === 'object') ? item : null
+    } catch (error) {
+      if (this.debug && error instanceof NexusControlError) {
+        console.warn(`[NexusAPI:${this.appId}] config fetch failed (${error.code})`) // eslint-disable-line no-console
+      }
       return null
     }
   }

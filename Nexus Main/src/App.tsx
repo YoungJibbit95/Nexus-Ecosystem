@@ -240,7 +240,6 @@ export default function App() {
       control: {
         enabled: Boolean(controlBaseUrl),
         baseUrl: controlBaseUrl,
-        localFallbackEnabled: false,
         ingestKey: controlIngestKey,
         sampleRate: 0.35,
         flushIntervalMs: 12_000,

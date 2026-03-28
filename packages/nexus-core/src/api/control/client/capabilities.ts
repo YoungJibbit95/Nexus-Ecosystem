@@ -1,5 +1,5 @@
 import type { NexusCapabilityReport } from '../../types'
-import { abortableFetch } from '../utils'
+import { NexusControlError, requestJsonWithPolicy } from '../utils'
 import { buildWriteHeaders, inferPlatformFromApp } from './common'
 
 export const reportCapabilities = async (client: any, report: Partial<NexusCapabilityReport> = {}) => {
@@ -18,57 +18,44 @@ export const reportCapabilities = async (client: any, report: Partial<NexusCapab
   }
 
   if (!client.baseUrl) {
-    if (client.localFallbackEnabled) {
-      return {
-        ok: true,
-        status: 200,
-        item: {
-          accepted: true,
-          mode: 'local-fallback',
-          appId,
-          receivedAt: new Date().toISOString(),
-        },
-      }
-    }
     return { ok: false, status: 0, item: null, errorCode: 'NO_BASE_URL' }
   }
 
   try {
-    const response = await abortableFetch(`${client.baseUrl}/api/v2/clients/capabilities`, {
+    const response = await requestJsonWithPolicy<any>(`${client.baseUrl}/api/v2/clients/capabilities`, {
       method: 'POST',
       headers: buildWriteHeaders(client, appId),
       body: JSON.stringify(payload),
-    }, client.requestTimeoutMs)
+      timeoutMs: client.requestTimeoutMs,
+      maxRetries: 0,
+      parseJson: true,
+    })
 
     if (!response.ok) {
       return { ok: false, status: response.status, item: null, errorCode: `HTTP_${response.status}` }
     }
 
-    const data = await response.json()
+    if (response.parseError) {
+      return { ok: false, status: response.status, item: null, errorCode: 'INVALID_JSON' }
+    }
+
+    const data = response.data
+    const item = data?.item ?? null
+    if (item != null && typeof item !== 'object') {
+      return { ok: false, status: response.status, item: null, errorCode: 'INVALID_SCHEMA' }
+    }
+
     return {
       ok: true,
       status: response.status,
-      item: data?.item ?? null,
+      item,
     }
   } catch (error) {
-    if (client.localFallbackEnabled) {
-      return {
-        ok: true,
-        status: 200,
-        item: {
-          accepted: true,
-          mode: 'local-fallback',
-          appId,
-          receivedAt: new Date().toISOString(),
-        },
-      }
-    }
-
     return {
       ok: false,
       status: 0,
       item: null,
-      errorCode: (error as Error | undefined)?.name === 'AbortError' ? 'TIMEOUT' : 'NETWORK',
+      errorCode: error instanceof NexusControlError ? error.code : ((error as Error | undefined)?.name === 'AbortError' ? 'TIMEOUT' : 'NETWORK'),
     }
   }
 }
