@@ -29,6 +29,7 @@ import {
   isOfflineControlErrorCode,
   type NexusLiveBundle,
   type NexusRuntime,
+  type NexusViewAccessResult,
 } from "@nexus/api";
 
 const loadDashboardView = () => import("./views/DashboardView");
@@ -130,7 +131,7 @@ const preloadMainViews = async (
 ) => {
   const eagerLimit = Math.max(
     1,
-    Math.min(4, Math.floor(options.eagerLimit ?? 2)),
+    Math.min(12, Math.floor(options.eagerLimit ?? 2)),
   );
   const loaders = views
     .map((viewId) => VIEW_CHUNK_PRELOADERS[viewId])
@@ -179,6 +180,9 @@ export default function App() {
   const t = useTheme();
   const terminalOpen = useTerminal((s) => s.isOpen);
   const runtimeRef = useRef<NexusRuntime | null>(null);
+  const validatedAccessRef = useRef<Partial<Record<View, NexusViewAccessResult>>>(
+    {},
+  );
   const guardRequestSeq = useRef(0);
   const lowPowerMode = useMemo(() => isLowPowerDevice(), []);
 
@@ -233,6 +237,21 @@ export default function App() {
     [resolveBundleViews],
   );
 
+  const storeWarmupAccess = useCallback(
+    (resultByView: Record<string, NexusViewAccessResult>) => {
+      const next: Partial<Record<View, NexusViewAccessResult>> = {
+        ...validatedAccessRef.current,
+      };
+      Object.entries(resultByView || {}).forEach(([viewId, access]) => {
+        const key = String(viewId || "") as View;
+        if (!VIEW_IDS.includes(key)) return;
+        next[key] = access;
+      });
+      validatedAccessRef.current = next;
+    },
+    [],
+  );
+
   useEffect(() => {
     const controlBaseUrl = CONTROL_API_BASE_URL;
     const controlIngestKey = (import.meta as any).env
@@ -266,6 +285,7 @@ export default function App() {
     });
     runtime.start();
     runtimeRef.current = runtime;
+    validatedAccessRef.current = {};
     let active = true;
     setBootFailure(null);
 
@@ -337,6 +357,7 @@ export default function App() {
           concurrency: 4,
         });
         if (!active) return;
+        storeWarmupAccess(warmup.resultByView);
 
         const allowedViews = warmup.allowedViews.filter((candidate) =>
           startupViews.includes(candidate as View),
@@ -351,7 +372,7 @@ export default function App() {
           );
         }
 
-        await preloadMainViews(allowedViews, { eagerLimit: 2 });
+        await preloadMainViews(allowedViews, { eagerLimit: allowedViews.length });
         if (!active) return;
 
         setAvailableViews(startupViews);
@@ -382,8 +403,37 @@ export default function App() {
       active = false;
       runtime.stop();
       runtimeRef.current = null;
+      validatedAccessRef.current = {};
     };
-  }, [applyLiveBundle, resolveBundleViews, viewAccessContext]);
+  }, [applyLiveBundle, resolveBundleViews, storeWarmupAccess, viewAccessContext]);
+
+  useEffect(() => {
+    if (!bootReady) return;
+    const runtime = runtimeRef.current;
+    if (!runtime) return;
+
+    const missingViews = availableViews.filter(
+      (candidate) => !validatedAccessRef.current[candidate],
+    );
+    if (missingViews.length === 0) return;
+
+    let active = true;
+    void runtime.control
+      .warmupViewAccess(missingViews, {
+        ...viewAccessContext,
+        forceRefresh: false,
+        concurrency: 4,
+      })
+      .then((warmup) => {
+        if (!active) return;
+        storeWarmupAccess(warmup.resultByView);
+      })
+      .catch(() => {});
+
+    return () => {
+      active = false;
+    };
+  }, [availableViews, bootReady, storeWarmupAccess, viewAccessContext]);
 
   useEffect(() => {
     const safeFont = sanitizeGlobalFont(
@@ -450,20 +500,40 @@ export default function App() {
         return;
       }
 
-      const requestId = ++guardRequestSeq.current;
-      const checkingTimer = setTimeout(() => {
-        if (requestId !== guardRequestSeq.current) return;
-        setViewGuardState((prev) => ({ ...prev, checking: true }));
-      }, 120);
+      const cachedAccess = validatedAccessRef.current[next];
+      if (cachedAccess) {
+        if (cachedAccess.allowed) {
+          void VIEW_CHUNK_PRELOADERS[next]?.();
+          setView(next);
+          setViewGuardState({
+            checking: false,
+            blockedView: null,
+            requiredTier: null,
+            reason: null,
+          });
+          return;
+        }
 
-      const access = await runtime.control.validateViewAccess(
-        next,
-        viewAccessContext,
-      );
-      clearTimeout(checkingTimer);
+        setViewGuardState({
+          checking: false,
+          blockedView: next,
+          requiredTier: cachedAccess.requiredTier || "paid",
+          reason: cachedAccess.reason || "PAYWALL_BLOCKED",
+        });
+        return;
+      }
+
+      const requestId = ++guardRequestSeq.current;
+      setViewGuardState((prev) => ({ ...prev, checking: true }));
+      const access = await runtime.control.validateViewAccess(next, viewAccessContext);
       if (requestId !== guardRequestSeq.current) return;
+      validatedAccessRef.current = {
+        ...validatedAccessRef.current,
+        [next]: access,
+      };
 
       if (access.allowed) {
+        void VIEW_CHUNK_PRELOADERS[next]?.();
         setView(next);
         setViewGuardState({
           checking: false,
