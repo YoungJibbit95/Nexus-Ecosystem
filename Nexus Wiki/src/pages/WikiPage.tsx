@@ -413,7 +413,7 @@ const uiCopy: Record<
     searchScopeGlobal: "Globale Suche aktiv (alle Bereiche)",
     searchScopeSection: "Suche auf aktive Sektion begrenzt",
     searchActiveHint: "Treffer springen direkt in den passenden Guide.",
-    searchMinChars: "Tippe mindestens 2 Zeichen fuer globale Suche.",
+    searchMinChars: "Tippe mindestens 1 Zeichen fuer globale Suche.",
     clearSearch: "Suche leeren",
     sectionEntries: "Eintraege in dieser Ansicht",
     searchEntries: "globale Treffer",
@@ -454,7 +454,7 @@ const uiCopy: Record<
     searchScopeGlobal: "Global search active (all sections)",
     searchScopeSection: "Search is scoped to active section",
     searchActiveHint: "Click any result to jump into the matching guide.",
-    searchMinChars: "Type at least 2 characters for global search.",
+    searchMinChars: "Type at least 1 character for global search.",
     clearSearch: "Clear search",
     sectionEntries: "entries in this view",
     searchEntries: "global matches",
@@ -601,7 +601,7 @@ const sectionIcon: Record<SectionId, any> = {
 
 const appSearchAliases: Record<AppId, string[]> = {
   ecosystem: ["ecosystem", "monorepo", "workspace", "gesamt"],
-  main: ["main", "desktop", "nexus main", "produktivity"],
+  main: ["main", "desktop", "nexus main", "productivity", "produktivity"],
   mobile: ["mobile", "ios", "android", "handy", "phone"],
   code: ["code", "ide", "editor", "desktop ide"],
   "code-mobile": ["code mobile", "mobile ide", "nativefs"],
@@ -631,6 +631,12 @@ const searchSynonymGroups = [
   ["runtime", "api", "sync", "compatibility", "contract"],
   ["control", "panel", "admin", "ops"],
   ["guide", "docs", "wiki", "reference"],
+  ["search", "suche", "spotlight", "quick", "finder"],
+  ["task", "tasks", "aufgabe", "aufgaben", "kanban"],
+  ["reminder", "reminders", "erinnerung", "erinnerungen", "snooze"],
+  ["files", "dateien", "workspace", "explorer"],
+  ["pricing", "payments", "tier", "abo", "subscription", "upgrade"],
+  ["infoview", "info", "dokumentation", "documentation", "changelog"],
 ] as const;
 
 const searchSynonymIndex = (() => {
@@ -643,7 +649,89 @@ const searchSynonymIndex = (() => {
   return map;
 })();
 
-const MIN_SEARCH_QUERY_CHARS = 2;
+const MIN_SEARCH_QUERY_CHARS = 1;
+const MAX_EDIT_DISTANCE = 2;
+const MIN_FUZZY_TOKEN_CHARS = 4;
+
+const germanToEnglishReplacements: Array<[RegExp, string]> = [
+  [/\bGesamtueberblick\b/gi, "Overview"],
+  [/\bVollguide\b/gi, "Full guide"],
+  [/\bVollstaendige\b/gi, "Complete"],
+  [/\bGuide\b/gi, "Guide"],
+  [/\bund\b/gi, "and"],
+  [/\bmit\b/gi, "with"],
+  [/\bfuer\b/gi, "for"],
+  [/\bueber\b/gi, "across"],
+  [/\bzwischen\b/gi, "between"],
+  [/\bohne\b/gi, "without"],
+  [/\balle\b/gi, "all"],
+  [/\bmehrere\b/gi, "multiple"],
+  [/\bneue\b/gi, "new"],
+  [/\bzentrale\b/gi, "central"],
+  [/\bzentral\b/gi, "centrally"],
+  [/\bkritische\b/gi, "critical"],
+  [/\bsichere\b/gi, "secure"],
+  [/\bsicher\b/gi, "secure"],
+  [/\bSicherheit\b/gi, "security"],
+  [/\bSicherheits\b/gi, "security"],
+  [/\bBetrieb\b/gi, "operations"],
+  [/\bBetriebs\b/gi, "operations"],
+  [/\bProduktivitaet\b/gi, "productivity"],
+  [/\bAenderungen\b/gi, "changes"],
+  [/\bAenderung\b/gi, "change"],
+  [/\bpruefen\b/gi, "check"],
+  [/\bvalidieren\b/gi, "validate"],
+  [/\bverwalten\b/gi, "manage"],
+  [/\bverwaltet\b/gi, "managed"],
+  [/\banlegen\b/gi, "create"],
+  [/\boeffnen\b/gi, "open"],
+  [/\bschliessen\b/gi, "close"],
+  [/\bfreischalten\b/gi, "unlock"],
+  [/\bgesperrt\b/gi, "blocked"],
+  [/\bfreigeben\b/gi, "approve"],
+  [/\bfreigegeben\b/gi, "approved"],
+  [/\bRollen\b/gi, "roles"],
+  [/\bRolle\b/gi, "role"],
+  [/\bBerechtigungen\b/gi, "permissions"],
+  [/\bBerechtigung\b/gi, "permission"],
+  [/\bNutzer\b/gi, "users"],
+  [/\bBenutzer\b/gi, "users"],
+  [/\bKonto\b/gi, "account"],
+  [/\bKonten\b/gi, "accounts"],
+  [/\bEinstellungsbereich\b/gi, "settings area"],
+  [/\bEinstellungen\b/gi, "settings"],
+  [/\bAnsicht\b/gi, "view"],
+  [/\bAnsichten\b/gi, "views"],
+  [/\bNavigationen\b/gi, "navigation"],
+  [/\bNavigation\b/gi, "navigation"],
+  [/\bDatei\b/gi, "file"],
+  [/\bDateien\b/gi, "files"],
+  [/\bVerlauf\b/gi, "history"],
+  [/\bLoeschen\b/gi, "delete"],
+  [/\bZuruecksetzen\b/gi, "reset"],
+  [/\bHinweise\b/gi, "hints"],
+  [/\bHinweis\b/gi, "hint"],
+  [/\bSchritt-fuer-Schritt\b/gi, "step-by-step"],
+  [/\bSchritt\b/gi, "step"],
+  [/\bSchritte\b/gi, "steps"],
+  [/\bQuelle\b/gi, "source"],
+  [/\bQuellen\b/gi, "sources"],
+  [/\bKategorien\b/gi, "categories"],
+  [/\bKategorie\b/gi, "category"],
+  [/\bEintraege\b/gi, "entries"],
+  [/\bEintrag\b/gi, "entry"],
+  [/\bverfuegbar\b/gi, "available"],
+  [/\bkonfigurieren\b/gi, "configure"],
+  [/\bkonfiguriert\b/gi, "configured"],
+  [/\bregelmaessig\b/gi, "regularly"],
+  [/\btaegliche\b/gi, "daily"],
+  [/\btaeglich\b/gi, "daily"],
+  [/\buebernehmen\b/gi, "apply"],
+  [/\bstatt\b/gi, "instead of"],
+];
+
+const replaceTextList = (items: string[], translator: (value: string) => string) =>
+  items.map((item) => translator(item));
 
 function normalizeText(value: string) {
   return value
@@ -655,7 +743,49 @@ function normalizeText(value: string) {
     .trim();
 }
 
-function makeSearchBlob(entry: WikiEntry) {
+function translateGermanToEnglish(text: string) {
+  let next = text;
+  germanToEnglishReplacements.forEach(([pattern, replacement]) => {
+    next = next.replace(pattern, replacement);
+  });
+  return next;
+}
+
+function translateSnippetContent(snippet: string) {
+  return snippet
+    .split("\n")
+    .map((line) => {
+      const trimmed = line.trim();
+      if (!trimmed) return line;
+      if (trimmed.startsWith("```")) return line;
+      if (/^(https?:\/\/|npm\s+run|npx\s+|Ctrl|Alt|Shift|Cmd|->)/i.test(trimmed)) return line;
+      return translateGermanToEnglish(line);
+    })
+    .join("\n");
+}
+
+function localizeEntry(entry: WikiEntry, lang: Language): WikiEntry {
+  if (lang === "de") return entry;
+
+  return {
+    ...entry,
+    title: translateGermanToEnglish(entry.title),
+    summary: translateGermanToEnglish(entry.summary),
+    guide: entry.guide.map((step) => ({
+      title: translateGermanToEnglish(step.title),
+      detail: translateGermanToEnglish(step.detail),
+    })),
+    points: replaceTextList(entry.points, translateGermanToEnglish),
+    markdownSnippets: entry.markdownSnippets?.map((snippet) => ({
+      ...snippet,
+      label: translateGermanToEnglish(snippet.label),
+      description: translateGermanToEnglish(snippet.description),
+      snippet: translateSnippetContent(snippet.snippet),
+    })),
+  };
+}
+
+function makeSearchBlob(entry: WikiEntry, sourceEntry?: WikiEntry) {
   const parts = [
     entry.title,
     entry.summary,
@@ -672,7 +802,31 @@ function makeSearchBlob(entry: WikiEntry) {
     ...entry.guide.map((step) => `${step.title} ${step.detail}`),
     ...(entry.markdownSnippets ?? []).flatMap((snippet) => [snippet.label, snippet.description, snippet.snippet]),
   ];
+  if (sourceEntry) {
+    parts.push(
+      sourceEntry.title,
+      sourceEntry.summary,
+      ...sourceEntry.points,
+      ...sourceEntry.guide.map((step) => `${step.title} ${step.detail}`),
+      ...(sourceEntry.markdownSnippets ?? []).flatMap((snippet) => [snippet.label, snippet.description]),
+    );
+  }
   return normalizeText(parts.join(" "));
+}
+
+function makeSearchTerms(entry: WikiEntry) {
+  const raw = normalizeText(
+    [
+      entry.title,
+      entry.summary,
+      ...entry.tags,
+      ...entry.points,
+      ...entry.guide.map((step) => `${step.title} ${step.detail}`),
+      ...(entry.markdownSnippets ?? []).flatMap((snippet) => [snippet.label, snippet.description]),
+    ].join(" "),
+  );
+
+  return Array.from(new Set(raw.split(" ").filter((token) => token.length >= MIN_SEARCH_QUERY_CHARS))).slice(0, 240);
 }
 
 function byApp(ids: AppId[]) {
@@ -733,12 +887,44 @@ function expandQueryTokens(query: string) {
   return Array.from(expanded);
 }
 
-function scoreEntry(entry: WikiEntry, blob: string, fullQuery: string, tokens: string[]) {
+function boundedLevenshteinDistance(a: string, b: string, maxDistance: number) {
+  if (a === b) return 0;
+  if (Math.abs(a.length - b.length) > maxDistance) return maxDistance + 1;
+  if (!a.length || !b.length) return Math.max(a.length, b.length);
+
+  const previous = new Array<number>(b.length + 1);
+  const current = new Array<number>(b.length + 1);
+  for (let index = 0; index <= b.length; index += 1) previous[index] = index;
+
+  for (let row = 1; row <= a.length; row += 1) {
+    current[0] = row;
+    let minInRow = current[0];
+
+    for (let col = 1; col <= b.length; col += 1) {
+      const substitutionCost = a[row - 1] === b[col - 1] ? 0 : 1;
+      current[col] = Math.min(
+        previous[col] + 1,
+        current[col - 1] + 1,
+        previous[col - 1] + substitutionCost,
+      );
+      if (current[col] < minInRow) minInRow = current[col];
+    }
+
+    if (minInRow > maxDistance) return maxDistance + 1;
+
+    for (let index = 0; index <= b.length; index += 1) previous[index] = current[index];
+  }
+
+  return previous[b.length];
+}
+
+function scoreEntry(entry: WikiEntry, blob: string, fullQuery: string, tokens: string[], searchTerms: string[]) {
   if (!fullQuery) return 1;
 
   const title = normalizeText(entry.title);
   const summary = normalizeText(entry.summary);
   const tags = entry.tags.map((tag) => normalizeText(tag));
+  const titleWords = title.split(" ").filter(Boolean);
 
   const hasDirect = title.includes(fullQuery) || summary.includes(fullQuery) || blob.includes(fullQuery);
   const matchedTokenCount = tokens.reduce((count, token) => {
@@ -750,16 +936,33 @@ function scoreEntry(entry: WikiEntry, blob: string, fullQuery: string, tokens: s
     return matched ? count + 1 : count;
   }, 0);
 
-  if (!hasDirect && matchedTokenCount === 0) return 0;
+  let fuzzyMatchCount = 0;
+  tokens.forEach((token) => {
+    if (token.length < MIN_FUZZY_TOKEN_CHARS) return;
+    if (blob.includes(token)) return;
+
+    const fuzzyHit = searchTerms.some((term) => {
+      if (term.length < MIN_FUZZY_TOKEN_CHARS) return false;
+      if (Math.abs(term.length - token.length) > MAX_EDIT_DISTANCE) return false;
+      if (term[0] !== token[0]) return false;
+      return boundedLevenshteinDistance(term, token, MAX_EDIT_DISTANCE) <= MAX_EDIT_DISTANCE;
+    });
+
+    if (fuzzyHit) fuzzyMatchCount += 1;
+  });
+
+  if (!hasDirect && matchedTokenCount === 0 && fuzzyMatchCount === 0) return 0;
 
   const requiredMatches = tokens.length > 1 ? Math.min(2, tokens.length) : 1;
-  if (!hasDirect && matchedTokenCount < requiredMatches) return 0;
+  if (!hasDirect && matchedTokenCount + fuzzyMatchCount < requiredMatches) return 0;
 
   let score = 0;
 
   if (title.includes(fullQuery)) score += 210;
   if (summary.includes(fullQuery)) score += 110;
   if (blob.includes(fullQuery)) score += 70;
+  if (titleWords.some((word) => word.startsWith(fullQuery))) score += 28;
+  if (fuzzyMatchCount > 0) score += fuzzyMatchCount * 16;
 
   tokens.forEach((token) => {
     if (title.startsWith(token)) score += 45;
@@ -803,13 +1006,41 @@ export function WikiPage() {
   const isGlobalSearch = effectiveQuery.length > 0;
   const hasShortSearchQuery = deferredQuery.length > 0 && !isGlobalSearch;
 
+  const sourceEntryById = useMemo(() => {
+    const map = new Map<string, WikiEntry>();
+    entries.forEach((entry) => {
+      map.set(entry.id, entry);
+    });
+    return map;
+  }, []);
+
+  const localizedEntries = useMemo(() => {
+    return entries.map((entry) => localizeEntry(entry, lang));
+  }, [lang]);
+
+  const localizedEntryById = useMemo(() => {
+    const map = new Map<string, WikiEntry>();
+    localizedEntries.forEach((entry) => {
+      map.set(entry.id, entry);
+    });
+    return map;
+  }, [localizedEntries]);
+
   const searchBlobById = useMemo(() => {
     const index = new Map<string, string>();
-    entries.forEach((entry) => {
-      index.set(entry.id, makeSearchBlob(entry));
+    localizedEntries.forEach((entry) => {
+      index.set(entry.id, makeSearchBlob(entry, sourceEntryById.get(entry.id)));
     });
     return index;
-  }, []);
+  }, [localizedEntries, sourceEntryById]);
+
+  const searchTermsById = useMemo(() => {
+    const index = new Map<string, string[]>();
+    localizedEntries.forEach((entry) => {
+      index.set(entry.id, makeSearchTerms(entry));
+    });
+    return index;
+  }, [localizedEntries]);
 
   const entrySections = useMemo(() => {
     const map = new Map<string, SectionId[]>();
@@ -829,14 +1060,16 @@ export function WikiPage() {
 
     const scoredEntries: Array<{ entry: WikiEntry; score: number }> = [];
 
-    base.forEach((entry) => {
+    base.forEach((baseEntry) => {
+      const entry = localizedEntryById.get(baseEntry.id) ?? baseEntry;
       const appOk = appFilter === "all" || entry.app === appFilter;
       const categoryOk = categoryFilter === "all" || entry.category === categoryFilter;
 
       if (!appOk || !categoryOk) return;
 
       const blob = searchBlobById.get(entry.id) ?? "";
-      const score = scoreEntry(entry, blob, effectiveQuery, searchTokens);
+      const searchTerms = searchTermsById.get(entry.id) ?? [];
+      const score = scoreEntry(entry, blob, effectiveQuery, searchTokens, searchTerms);
 
       if (!isGlobalSearch || score > 0) {
         scoredEntries.push({ entry, score });
@@ -848,10 +1081,37 @@ export function WikiPage() {
         if (b.score !== a.score) return b.score - a.score;
         return a.entry.title.localeCompare(b.entry.title);
       });
+
+      if (scoredEntries.length === 0 && effectiveQuery.length >= MIN_SEARCH_QUERY_CHARS) {
+        const fallbackTokens = effectiveQuery.split(" ").filter((token) => token.length >= MIN_SEARCH_QUERY_CHARS);
+
+        localizedEntries.forEach((entry) => {
+          const appOk = appFilter === "all" || entry.app === appFilter;
+          const categoryOk = categoryFilter === "all" || entry.category === categoryFilter;
+          if (!appOk || !categoryOk) return;
+
+          const blob = searchBlobById.get(entry.id) ?? "";
+          const looseHit = fallbackTokens.some((token) => blob.includes(token.slice(0, Math.max(2, token.length - 1))));
+          if (!looseHit) return;
+
+          scoredEntries.push({ entry, score: 6 });
+        });
+      }
     }
 
     return scoredEntries.map((item) => item.entry);
-  }, [activeSection, appFilter, categoryFilter, effectiveQuery, isGlobalSearch, searchBlobById, searchTokens]);
+  }, [
+    activeSection,
+    appFilter,
+    categoryFilter,
+    effectiveQuery,
+    isGlobalSearch,
+    localizedEntries,
+    localizedEntryById,
+    searchBlobById,
+    searchTermsById,
+    searchTokens,
+  ]);
 
   const groupedEntries = useMemo(() => {
     const byId = new Map<AppId, WikiEntry[]>();
@@ -945,9 +1205,17 @@ export function WikiPage() {
     setFocusedEntryId(entry.id);
     setIsMobileMenuOpen(false);
 
-    window.setTimeout(() => {
-      document.getElementById(`entry-${entry.id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 180);
+    const scrollToEntry = (attempt = 0) => {
+      const target = document.getElementById(`entry-${entry.id}`);
+      if (target) {
+        target.scrollIntoView({ behavior: "smooth", block: "start" });
+        return;
+      }
+      if (attempt >= 16) return;
+      window.requestAnimationFrame(() => scrollToEntry(attempt + 1));
+    };
+
+    window.requestAnimationFrame(() => scrollToEntry(0));
   };
 
   return (
@@ -1243,6 +1511,7 @@ export function WikiPage() {
               {activeSection === "coverage" ? (
                 <CoverageSection
                   coverageStats={coverageStats}
+                  allEntries={localizedEntries}
                   filteredEntries={filteredEntries}
                   lang={lang}
                   copy={coverageText}
@@ -1510,6 +1779,7 @@ function EntryCard({
 
 function CoverageSection({
   coverageStats,
+  allEntries,
   filteredEntries,
   lang,
   copy,
@@ -1520,6 +1790,7 @@ function CoverageSection({
     snippetCount: number;
     topSources: Array<{ source: string; count: number }>;
   };
+  allEntries: WikiEntry[];
   filteredEntries: WikiEntry[];
   lang: Language;
   copy: {
@@ -1540,7 +1811,7 @@ function CoverageSection({
       <div className="grid gap-4 md:grid-cols-3">
         <SpotlightCard className="rounded-2xl border border-white/10 bg-slate-900/60 p-4" spotlightColor="rgba(99,102,241,0.12)">
           <p className="text-sm text-slate-400">{copy.totalEntries}</p>
-          <p className="mt-1 text-3xl font-black text-white">{entries.length}</p>
+          <p className="mt-1 text-3xl font-black text-white">{allEntries.length}</p>
         </SpotlightCard>
         <SpotlightCard className="rounded-2xl border border-white/10 bg-slate-900/60 p-4" spotlightColor="rgba(34,211,238,0.12)">
           <p className="text-sm text-slate-400">{copy.snippets}</p>
@@ -1599,7 +1870,7 @@ function CoverageSection({
       <div className="rounded-2xl border border-white/10 bg-slate-900/60 p-4 space-y-3">
         <h3 className="text-lg font-bold text-white">{copy.fullList}</h3>
         <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
-          {entries.map((entry) => (
+          {allEntries.map((entry) => (
             <div key={entry.id} className="p-2.5 rounded-lg bg-black/30 border border-white/5">
               <p className="text-sm text-white leading-snug">
                 {appEmoji[entry.app]} {entry.title}
