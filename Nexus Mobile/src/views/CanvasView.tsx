@@ -1,9 +1,9 @@
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import {
     Plus, ZoomIn, ZoomOut, Maximize2, Trash2, Edit3, Link,
-    Type, FileText, CheckSquare, Image, Code, X, GripVertical,
+    FileText, CheckSquare, X, GripVertical,
     MoreHorizontal, Palette, Unlink, Grid, Map as MapIcon, RotateCcw, RotateCw,
-    StickyNote, Sun, Copy, AlignCenter, Bell, FileDown
+    Copy, AlignCenter, FileDown
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Glass } from '../components/Glass'
@@ -15,927 +15,33 @@ import { useMobile } from '../lib/useMobile'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { CanvasNexusCodeBlock } from '@nexus/core/canvas/CanvasMagicRenderers'
+import {
+    CanvasConnectionLine,
+    CanvasNodeWidget,
+    CanvasMiniMap,
+} from './canvas/components/CanvasCanvasPrimitives'
+import { CanvasToolBtn } from './canvas/components/CanvasToolBtn'
+import { CanvasEmptyState } from './canvas/components/CanvasEmptyState'
+import {
+    autoArrangeCanvasByStatus,
+    autoLinkCanvasWikiRefs,
+    createCanvasProjectTemplate,
+    duplicateSelectedCanvasNode,
+    exportCanvasFiles,
+} from './canvas/mobileCanvasActions'
+import {
+    CANVAS_NODE_OVERSCAN_MAX_PX,
+    CANVAS_NODE_OVERSCAN_PX,
+    NODE_COLORS,
+    PM_PRIORITY_COLOR,
+    PM_STATUS_COLOR,
+    PM_STATUS_ORDER,
+    WIDGET_TYPES,
+} from './canvas/mobileCanvasConfig'
 
 // ─── CONSTANTS ───
 
-const NODE_COLORS = [
-    '#007AFF', '#FF3B30', '#34C759', '#FF9500', '#AF52DE',
-    '#00C7BE', '#FF2D55', '#5856D6', '#FFCC00', '#64D2FF',
-    '#FF6B35', '#30D158', '#BF5AF2', '#FF6B9E', '#FFE600',
-]
-
-const WIDGET_TYPES: { type: NodeType | 'sticky'; icon: any; label: string }[] = [
-    { type: 'text', icon: Type, label: 'Text' },
-    { type: 'markdown', icon: FileText, label: 'Markdown' },
-    { type: 'checklist', icon: CheckSquare, label: 'Checklist' },
-    { type: 'image', icon: Image, label: 'Bild' },
-    { type: 'code', icon: Code, label: 'Code' },
-    { type: 'sticky', icon: StickyNote, label: 'Sticky' },
-    { type: 'note', icon: FileText, label: 'Notiz' },
-    { type: 'codefile', icon: Code, label: 'Code-Datei' },
-    { type: 'task', icon: CheckSquare, label: 'Aufgabe' },
-    { type: 'reminder', icon: Bell, label: 'Reminder' },
-]
-
-const PM_STATUS_ORDER: ProjectStatus[] = ['idea', 'backlog', 'todo', 'doing', 'review', 'done', 'blocked']
-const PM_STATUS_COLOR: Record<ProjectStatus, string> = {
-    idea: '#64D2FF',
-    backlog: '#5E5CE6',
-    todo: '#007AFF',
-    doing: '#FF9F0A',
-    review: '#BF5AF2',
-    done: '#30D158',
-    blocked: '#FF453A',
-}
-const PM_PRIORITY_COLOR: Record<ProjectPriority, string> = {
-    low: '#30D158',
-    mid: '#FFD60A',
-    high: '#FF9F0A',
-    critical: '#FF453A',
-}
-
-const CANVAS_NODE_OVERSCAN_PX = 680
-const CANVAS_NODE_OVERSCAN_MAX_PX = 2200
-
-const toFileSafeSlug = (value: string) =>
-    (value || 'canvas')
-        .toLowerCase()
-        .replace(/[^a-z0-9-_]+/g, '-')
-        .replace(/-+/g, '-')
-        .replace(/^-|-$/g, '') || 'canvas'
-
-const triggerTextDownload = (filename: string, content: string, mime = 'text/plain;charset=utf-8') => {
-    const blob = new Blob([content], { type: mime })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = filename
-    document.body.appendChild(link)
-    link.click()
-    link.remove()
-    URL.revokeObjectURL(url)
-}
-
 // ─── CONNECTION LINE ───
-
-function ConnectionLine({ conn, nodeById, zoom, onDelete, reduceEffects }: {
-    conn: CanvasConnection; nodeById: globalThis.Map<string, CanvasNode>; zoom: number; onDelete: (id: string) => void; reduceEffects?: boolean
-}) {
-    const t = useTheme()
-    const fromNode = nodeById.get(conn.fromId)
-    const toNode = nodeById.get(conn.toId)
-    if (!fromNode || !toNode) return null
-
-    const x1 = fromNode.x + fromNode.width / 2
-    const y1 = fromNode.y + fromNode.height / 2
-    const x2 = toNode.x + toNode.width / 2
-    const y2 = toNode.y + toNode.height / 2
-    const dx = Math.abs(x2 - x1) * 0.5
-    const path = `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`
-
-    const [hovered, setHovered] = useState(false)
-    const connColor = conn.color || t.accent
-    const showDetail = !reduceEffects && hovered
-
-    return (
-        <g onMouseEnter={() => !reduceEffects && setHovered(true)} onMouseLeave={() => !reduceEffects && setHovered(false)}>
-            <path d={path} stroke={reduceEffects ? connColor : "transparent"} strokeWidth={reduceEffects ? 1.2 / zoom : 18 / zoom} fill="none" style={{ cursor: reduceEffects ? 'default' : 'pointer', opacity: 0.5 }} />
-            {/* Glow layer */}
-            {showDetail && (
-                <path d={path} stroke={connColor} strokeWidth={6 / zoom} fill="none" opacity={0.2} style={{ filter: `blur(${3 / zoom}px)` }} />
-            )}
-            <path
-                d={path}
-                stroke={connColor}
-                strokeWidth={(showDetail ? 2.5 : 1.5) / zoom}
-                fill="none"
-                strokeDasharray={reduceEffects ? 'none' : showDetail ? 'none' : `${8 / zoom} ${4 / zoom}`}
-                opacity={showDetail ? 1 : reduceEffects ? 0.62 : 0.55}
-                style={{ transition: reduceEffects ? 'none' : 'all 0.2s', filter: showDetail ? `drop-shadow(0 0 ${4 / zoom}px ${connColor})` : 'none' }}
-            />
-            {/* Arrowhead */}
-            {showDetail && (() => {
-                const angle = Math.atan2(y2 - y1, x2 - x1)
-                const ax = x2 - (8 / zoom) * Math.cos(angle)
-                const ay = y2 - (8 / zoom) * Math.sin(angle)
-                return (
-                    <polygon
-                        points={`${x2},${y2} ${ax - (5 / zoom) * Math.sin(angle)},${ay + (5 / zoom) * Math.cos(angle)} ${ax + (5 / zoom) * Math.sin(angle)},${ay - (5 / zoom) * Math.cos(angle)}`}
-                        fill={connColor} opacity={0.9}
-                    />
-                )
-            })()}
-            {/* Midpoint delete */}
-            {showDetail && (
-                <g transform={`translate(${(x1 + x2) / 2},${(y1 + y2) / 2})`}
-                    onClick={(e) => { e.stopPropagation(); onDelete(conn.id) }} style={{ cursor: 'pointer' }}>
-                    <circle r={10 / zoom} fill="#FF3B30" opacity={0.9} />
-                    <line x1={-4 / zoom} y1={-4 / zoom} x2={4 / zoom} y2={4 / zoom} stroke="white" strokeWidth={1.5 / zoom} />
-                    <line x1={4 / zoom} y1={-4 / zoom} x2={-4 / zoom} y2={4 / zoom} stroke="white" strokeWidth={1.5 / zoom} />
-                </g>
-            )}
-            {conn.label && (
-                <text x={(x1 + x2) / 2} y={(y1 + y2) / 2 - 14 / zoom} textAnchor="middle"
-                    fill={t.mode === 'dark' ? '#fff' : '#000'} fontSize={11 / zoom} opacity={0.7}>
-                    {conn.label}
-                </text>
-            )}
-        </g>
-    )
-}
-
-// ─── CONNECTION PORT ───
-
-function ConnPort({ side, nodeId, onStartConnect, onEndConnect, connecting }: {
-    side: 'top' | 'right' | 'bottom' | 'left'
-    nodeId: string; onStartConnect: (id: string) => void
-    onEndConnect: (id: string) => void; connecting: boolean
-}) {
-    const t = useTheme()
-    const [hovered, setHovered] = useState(false)
-    const posStyle: React.CSSProperties = {
-        position: 'absolute', width: 13, height: 13, borderRadius: '50%',
-        background: hovered || connecting ? t.accent : (t.mode === 'dark' ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.18)'),
-        border: `2px solid ${t.accent}`,
-        cursor: 'crosshair', transition: 'all 0.15s',
-        transform: 'translate(-50%, -50%)', zIndex: 10,
-        boxShadow: (hovered || connecting) ? `0 0 8px ${t.accent}` : 'none',
-        ...(side === 'top' && { top: 0, left: '50%' }),
-        ...(side === 'right' && { top: '50%', right: -7, left: 'auto', transform: 'translate(50%, -50%)' }),
-        ...(side === 'bottom' && { bottom: -7, left: '50%', top: 'auto', transform: 'translate(-50%, 50%)' }),
-        ...(side === 'left' && { top: '50%', left: 0 }),
-    }
-    return (
-        <div style={posStyle}
-            onMouseEnter={() => setHovered(true)}
-            onMouseLeave={() => setHovered(false)}
-            onMouseDown={(e) => { e.stopPropagation(); onStartConnect(nodeId) }}
-            onMouseUp={(e) => { e.stopPropagation(); onEndConnect(nodeId) }}
-        />
-    )
-}
-
-// ─── NODE WIDGET ───
-
-function NodeWidget({ node, isSelected, onSelect, onStartConnect, onEndConnect, connectingFrom }: {
-    node: CanvasNode; isSelected: boolean
-    onSelect: (id: string) => void
-    onStartConnect: (id: string) => void
-    onEndConnect: (id: string) => void
-    connectingFrom: string | null
-}) {
-    const t = useTheme()
-    const app = useApp()
-    const rgb = hexToRgb(node.color || t.accent)
-    const { updateNode, deleteNode, moveNode, resizeNode, addChecklistItem, toggleChecklistItem, deleteChecklistItem } = useCanvas()
-
-    const [dragging, setDragging] = useState(false)
-    const [resizing, setResizing] = useState(false)
-    const [editTitle, setEditTitle] = useState(false)
-    const [showMenu, setShowMenu] = useState(false)
-    const [showColorPicker, setShowColorPicker] = useState(false)
-    const [newCheckItem, setNewCheckItem] = useState('')
-    const [editingContent, setEditingContent] = useState(node.type !== 'markdown')
-    const [hovered, setHovered] = useState(false)
-    const [dragPreview, setDragPreview] = useState<{ x: number; y: number } | null>(null)
-    const [resizePreview, setResizePreview] = useState<{ width: number; height: number } | null>(null)
-    const dragStart = useRef({ x: 0, y: 0, nodeX: 0, nodeY: 0 })
-    const resizeStart = useRef({ x: 0, y: 0, w: 0, h: 0 })
-    const liveX = dragPreview?.x ?? node.x
-    const liveY = dragPreview?.y ?? node.y
-    const liveWidth = resizePreview?.width ?? node.width
-    const liveHeight = resizePreview?.height ?? node.height
-
-    const isSticky = node.type === 'text' && node.color === '#FFCC00'
-    const stickyBg = isSticky
-        ? `linear-gradient(145deg, #FFEE88, #FFD700)`
-        : undefined
-
-    // Drag
-    const handleDragStart = useCallback((e: React.MouseEvent) => {
-        if ((e.target as HTMLElement).closest('.node-interactive')) return
-        e.stopPropagation()
-        onSelect(node.id)
-        setDragging(true)
-        dragStart.current = { x: e.clientX, y: e.clientY, nodeX: node.x, nodeY: node.y }
-    }, [node.id, node.x, node.y, onSelect])
-
-    useEffect(() => {
-        if (!dragging) return
-        let raf = 0
-        let pending: { x: number; y: number } | null = null
-
-        const flush = () => {
-            raf = 0
-            if (!pending) return
-            setDragPreview(pending)
-            pending = null
-        }
-
-        const onMove = (e: MouseEvent) => {
-            const zoom = useCanvas.getState().viewport?.zoom || 1
-            pending = {
-                x: dragStart.current.nodeX + (e.clientX - dragStart.current.x) / zoom,
-                y: dragStart.current.nodeY + (e.clientY - dragStart.current.y) / zoom,
-            }
-            if (!raf) raf = requestAnimationFrame(flush)
-        }
-        const onUp = () => {
-            if (raf) {
-                cancelAnimationFrame(raf)
-                raf = 0
-            }
-            const finalPos = pending || dragPreview
-            if (finalPos) moveNode(node.id, finalPos.x, finalPos.y)
-            pending = null
-            setDragPreview(null)
-            setDragging(false)
-        }
-        window.addEventListener('mousemove', onMove)
-        window.addEventListener('mouseup', onUp)
-        return () => {
-            if (raf) cancelAnimationFrame(raf)
-            window.removeEventListener('mousemove', onMove)
-            window.removeEventListener('mouseup', onUp)
-        }
-    }, [dragging, node.id, moveNode, dragPreview])
-
-    // Resize
-    const handleResizeStart = useCallback((e: React.MouseEvent) => {
-        e.stopPropagation(); e.preventDefault()
-        setResizing(true)
-        resizeStart.current = { x: e.clientX, y: e.clientY, w: node.width, h: node.height }
-    }, [node.width, node.height])
-
-    useEffect(() => {
-        if (!resizing) return
-        let raf = 0
-        let pending: { width: number; height: number } | null = null
-
-        const flush = () => {
-            raf = 0
-            if (!pending) return
-            setResizePreview(pending)
-            pending = null
-        }
-
-        const onMove = (e: MouseEvent) => {
-            const zoom = useCanvas.getState().viewport?.zoom || 1
-            const nextWidth = Math.max(160, resizeStart.current.w + (e.clientX - resizeStart.current.x) / zoom)
-            const nextHeight = Math.max(80, resizeStart.current.h + (e.clientY - resizeStart.current.y) / zoom)
-            pending = {
-                width: nextWidth,
-                height: nextHeight,
-            }
-            if (!raf) raf = requestAnimationFrame(flush)
-        }
-        const onUp = () => {
-            if (raf) {
-                cancelAnimationFrame(raf)
-                raf = 0
-            }
-            const finalSize = pending || resizePreview
-            if (finalSize) resizeNode(node.id, finalSize.width, finalSize.height)
-            pending = null
-            setResizePreview(null)
-            setResizing(false)
-        }
-        window.addEventListener('mousemove', onMove)
-        window.addEventListener('mouseup', onUp)
-        return () => {
-            if (raf) cancelAnimationFrame(raf)
-            window.removeEventListener('mousemove', onMove)
-            window.removeEventListener('mouseup', onUp)
-        }
-    }, [resizing, node.id, resizeNode, resizePreview])
-
-    const replaceMarkdownCodeBlock = useCallback((
-        mdNode: any,
-        className: string | undefined,
-        rawChildren: React.ReactNode,
-        nextBlockContent: string,
-    ) => {
-        const current = node.content || ''
-        const lang = (className || '').replace('language-', '')
-        const raw = Array.isArray(rawChildren) ? rawChildren.join('') : String(rawChildren ?? '')
-        const currentBlockContent = raw.replace(/\n$/, '')
-        const normalizedNext = nextBlockContent.replace(/\r\n/g, '\n').replace(/\n+$/, '')
-        const makeFence = (block: string) => `\`\`\`${lang}\n${block.replace(/\n+$/, '')}\n\`\`\``
-        const nextFence = makeFence(normalizedNext)
-
-        const start = mdNode?.position?.start?.offset
-        const end = mdNode?.position?.end?.offset
-        if (
-            Number.isFinite(start)
-            && Number.isFinite(end)
-            && start >= 0
-            && end > start
-            && end <= current.length
-        ) {
-            updateNode(node.id, { content: `${current.slice(0, start)}${nextFence}${current.slice(end)}` })
-            return
-        }
-
-        const prevFence = makeFence(currentBlockContent)
-        const idx = current.indexOf(prevFence)
-        if (idx >= 0) {
-            updateNode(node.id, {
-                content: `${current.slice(0, idx)}${nextFence}${current.slice(idx + prevFence.length)}`,
-            })
-        }
-    }, [node.content, node.id, updateNode])
-
-    const renderContent = () => {
-        switch (node.type) {
-            case 'text':
-                return (
-                    <textarea
-                        className="node-interactive"
-                        value={node.content}
-                        onChange={(e) => updateNode(node.id, { content: e.target.value })}
-                        placeholder="Text eingeben..."
-                        style={{
-                            width: '100%', height: '100%', resize: 'none',
-                            background: 'transparent', border: 'none', outline: 'none',
-                            color: isSticky ? '#333' : 'inherit', fontFamily: 'inherit',
-                            fontSize: 13, lineHeight: 1.6, padding: 0,
-                        }}
-                    />
-                )
-
-            case 'markdown':
-                return editingContent ? (
-                    <div className="node-interactive" style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
-                        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4 }}>
-                            <button onClick={() => setEditingContent(false)} style={{
-                                fontSize: 10, padding: '2px 8px', borderRadius: 6,
-                                background: `rgba(${rgb}, 0.2)`, border: 'none',
-                                color: node.color || t.accent, cursor: 'pointer',
-                            }}>Preview</button>
-                        </div>
-                        <textarea value={node.content} onChange={(e) => updateNode(node.id, { content: e.target.value })}
-                            placeholder="# Markdown..." style={{
-                                flex: 1, width: '100%', resize: 'none', background: 'transparent',
-                                border: 'none', outline: 'none', color: 'inherit',
-                                fontFamily: "'Fira Code', monospace", fontSize: 12, lineHeight: 1.5, padding: 0,
-                            }} />
-                    </div>
-                ) : (
-                    <div className="node-interactive" style={{ width: '100%', height: '100%', overflow: 'auto', cursor: 'text' }}
-                        onDoubleClick={() => setEditingContent(true)}>
-                        {node.content
-                            ? <div style={{ fontSize: 13, lineHeight: 1.6 }} className="canvas-md">
-                                <ReactMarkdown
-                                  remarkPlugins={[remarkGfm]}
-                                  components={{
-                                    pre: ({ children }: any) => <>{children}</>,
-                                    code: ({ node: mdNode, className, children }: any) => (
-                                      <CanvasNexusCodeBlock
-                                        className={className}
-                                        accent={node.color || t.accent}
-                                        onChange={(next) => replaceMarkdownCodeBlock(mdNode, className, children, next)}
-                                      >
-                                        {children}
-                                      </CanvasNexusCodeBlock>
-                                    ),
-                                  }}
-                                >{node.content}</ReactMarkdown>
-                            </div>
-                            : <div style={{ opacity: 0.4, fontSize: 13 }}>Doppelklick zum Bearbeiten...</div>
-                        }
-                        <button onClick={() => setEditingContent(true)} style={{
-                            position: 'absolute', bottom: 8, right: 8,
-                            fontSize: 10, padding: '2px 8px', borderRadius: 6,
-                            background: `rgba(${rgb}, 0.2)`, border: 'none',
-                            color: node.color || t.accent, cursor: 'pointer',
-                        }}>Edit</button>
-                    </div>
-                )
-
-            case 'checklist':
-                return (
-                    <div className="node-interactive" style={{ width: '100%', height: '100%', overflow: 'auto' }}>
-                        {(node.items || []).map(item => (
-                            <div key={item.id} style={{
-                                display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0',
-                                borderBottom: `1px solid ${t.mode === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'}`,
-                            }}>
-                                <input type="checkbox" checked={item.done} onChange={() => toggleChecklistItem(node.id, item.id)}
-                                    style={{ accentColor: node.color || t.accent, cursor: 'pointer', flexShrink: 0, width: 14, height: 14 }} />
-                                <span style={{ flex: 1, fontSize: 12, textDecoration: item.done ? 'line-through' : 'none', opacity: item.done ? 0.45 : 1, transition: 'all 0.2s' }}>
-                                    {item.text}
-                                </span>
-                                <button onClick={() => deleteChecklistItem(node.id, item.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#FF3B30', opacity: 0.6, padding: 2 }}>
-                                    <X size={11} />
-                                </button>
-                            </div>
-                        ))}
-                        {/* Progress bar */}
-                        {(node.items || []).length > 0 && (
-                            <div style={{ height: 3, background: 'rgba(255,255,255,0.08)', borderRadius: 2, marginTop: 6, marginBottom: 4 }}>
-                                <div style={{
-                                    height: '100%', borderRadius: 2,
-                                    background: node.color || t.accent,
-                                    width: `${((node.items || []).filter(i => i.done).length / ((node.items || []).length || 1)) * 100}%`,
-                                    transition: 'width 0.3s ease',
-                                }} />
-                            </div>
-                        )}
-                        <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
-                            <input type="text" value={newCheckItem} onChange={(e) => setNewCheckItem(e.target.value)}
-                                onKeyDown={(e) => { if (e.key === 'Enter' && newCheckItem.trim()) { addChecklistItem(node.id, newCheckItem.trim()); setNewCheckItem('') } }}
-                                placeholder="Neuer Eintrag..."
-                                style={{
-                                    flex: 1, background: t.mode === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
-                                    border: 'none', borderRadius: 6, padding: '4px 8px', color: 'inherit', fontSize: 12, outline: 'none',
-                                }} />
-                            <button onClick={() => { if (newCheckItem.trim()) { addChecklistItem(node.id, newCheckItem.trim()); setNewCheckItem('') } }}
-                                style={{ background: `rgba(${rgb}, 0.2)`, border: 'none', borderRadius: 6, padding: '4px 8px', cursor: 'pointer', color: node.color || t.accent, fontSize: 12 }}>
-                                <Plus size={14} />
-                            </button>
-                        </div>
-                    </div>
-                )
-
-            case 'image':
-                return (
-                    <div className="node-interactive" style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', gap: 6 }}>
-                        <input type="text" value={node.content} onChange={(e) => updateNode(node.id, { content: e.target.value })}
-                            placeholder="Bild-URL eingeben..."
-                            style={{
-                                width: '100%', background: t.mode === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
-                                border: 'none', borderRadius: 6, padding: '4px 8px', color: 'inherit', fontSize: 11, outline: 'none', flexShrink: 0,
-                            }} />
-                        {node.content
-                            ? <img src={node.content} alt={node.title} style={{ flex: 1, width: '100%', objectFit: 'contain', borderRadius: 8, minHeight: 0 }}
-                                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
-                            : <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.3 }}>
-                                <Image size={32} />
-                            </div>
-                        }
-                    </div>
-                )
-
-            case 'code':
-                return (
-                    <div className="node-interactive" style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', gap: 4 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <select value={node.codeLang || 'javascript'} onChange={(e) => updateNode(node.id, { codeLang: e.target.value })}
-                                style={{
-                                    flex: 1, background: t.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)',
-                                    border: 'none', borderRadius: 6, padding: '3px 6px', color: 'inherit', fontSize: 10, outline: 'none', cursor: 'pointer',
-                                }}>
-                                {['javascript', 'typescript', 'python', 'html', 'css', 'json', 'rust', 'go', 'java', 'c', 'cpp', 'sql', 'bash', 'markdown', 'yaml'].map(l => (
-                                    <option key={l} value={l}>{l}</option>
-                                ))}
-                            </select>
-                            <button onClick={() => { navigator.clipboard?.writeText(node.content) }}
-                                title="Copy code"
-                                style={{ background: `rgba(${rgb},0.15)`, border: 'none', borderRadius: 5, padding: '3px 6px', cursor: 'pointer', color: node.color || t.accent, fontSize: 10, display: 'flex', alignItems: 'center', gap: 3 }}>
-                                <Copy size={10} /> Copy
-                            </button>
-                        </div>
-                        <textarea value={node.content} onChange={(e) => updateNode(node.id, { content: e.target.value })}
-                            placeholder="// Code eingeben..." spellCheck={false}
-                            style={{
-                                flex: 1, width: '100%', resize: 'none',
-                                background: t.mode === 'dark' ? 'rgba(0,0,0,0.35)' : 'rgba(0,0,0,0.03)',
-                                border: 'none', outline: 'none', borderRadius: 6, padding: 8,
-                                color: 'inherit', fontFamily: "'Fira Code', 'Consolas', monospace",
-                                fontSize: 12, lineHeight: 1.5,
-                            }}
-                            onKeyDown={(e) => {
-                                if (e.key === 'Tab') {
-                                    e.preventDefault()
-                                    const ta = e.target as HTMLTextAreaElement
-                                    const s = ta.selectionStart, end = ta.selectionEnd
-                                    updateNode(node.id, { content: ta.value.substring(0, s) + '  ' + ta.value.substring(end) })
-                                    setTimeout(() => { ta.selectionStart = ta.selectionEnd = s + 2 }, 0)
-                                }
-                            }}
-                        />
-                    </div>
-                )
-
-            case 'note': {
-                const linkedNote = app.notes.find(n => n.id === node.linkedNoteId)
-                if (!linkedNote) {
-                    return (
-                        <div className="node-interactive p-3 flex flex-col gap-2 h-full justify-center">
-                            <span className="text-xs opacity-60">Notiz verknüpfen:</span>
-                            <select className="bg-white/10 text-xs p-1.5 rounded outline-none w-full" value="" onChange={e => updateNode(node.id, { linkedNoteId: e.target.value })}>
-                                <option value="">-- Auswählen --</option>
-                                {app.notes.map(n => <option key={n.id} value={n.id}>{n.title || 'Ohne Titel'}</option>)}
-                            </select>
-                        </div>
-                    )
-                }
-                return (
-                    <div className="node-interactive w-full h-full overflow-y-auto p-3 flex flex-col gap-2">
-                        <div className="font-bold text-sm border-b border-white/10 pb-1 mb-1 truncate flex justify-between items-center cursor-pointer hover:text-blue-400 transition-colors" onDoubleClick={() => app.setNote(linkedNote.id)}>
-                            <span>{linkedNote.title || 'Ohne Titel'}</span>
-                            <button onClick={(e) => { e.stopPropagation(); updateNode(node.id, { linkedNoteId: undefined }) }} className="opacity-50 hover:opacity-100" title="Verknüpfung aufheben"><Unlink size={12} /></button>
-                        </div>
-                        <div className="text-xs flex-1 overflow-y-auto canvas-md" style={{ opacity: 0.85 }}>
-                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{linkedNote.content.slice(0, 500) + (linkedNote.content.length > 500 ? '\n...' : '')}</ReactMarkdown>
-                        </div>
-                    </div>
-                )
-            }
-
-            case 'codefile': {
-                const linkedCode = app.codes.find(c => c.id === node.linkedCodeId)
-                if (!linkedCode) {
-                    return (
-                        <div className="node-interactive p-3 flex flex-col gap-2 h-full justify-center">
-                            <span className="text-xs opacity-60">Code-Datei verknüpfen:</span>
-                            <select className="bg-white/10 text-xs p-1.5 rounded outline-none w-full" value="" onChange={e => updateNode(node.id, { linkedCodeId: e.target.value })}>
-                                <option value="">-- Auswählen --</option>
-                                {app.codes.map(c => <option key={c.id} value={c.id}>{c.name || 'Ohne Titel'} ({c.lang})</option>)}
-                            </select>
-                        </div>
-                    )
-                }
-                return (
-                    <div className="node-interactive w-full h-full p-2 flex flex-col gap-2">
-                        <div className="font-bold text-xs border-b border-white/10 pb-1 mb-1 truncate flex justify-between items-center opacity-70">
-                            <span>{linkedCode.name || 'Ohne Titel'} ({linkedCode.lang})</span>
-                            <button onClick={() => updateNode(node.id, { linkedCodeId: undefined })} className="hover:opacity-100"><Unlink size={10} /></button>
-                        </div>
-                        <pre className="text-[10px] opacity-80 flex-1 overflow-auto bg-black/20 p-2 rounded m-0 font-mono">
-                            <code>{(linkedCode.content || '').slice(0, 800) + ((linkedCode.content || '').length > 800 ? '\n...' : '')}</code>
-                        </pre>
-                    </div>
-                )
-            }
-
-            case 'task': {
-                const linkedTask = app.tasks.find(t => t.id === node.linkedTaskId)
-                if (!linkedTask) {
-                    return (
-                        <div className="node-interactive p-3 flex flex-col gap-2 h-full justify-center">
-                            <span className="text-xs opacity-60">Task verknüpfen:</span>
-                            <select className="bg-white/10 text-xs p-1.5 rounded outline-none w-full" value="" onChange={e => updateNode(node.id, { linkedTaskId: e.target.value })}>
-                                <option value="">-- Auswählen --</option>
-                                {app.tasks.map(t => <option key={t.id} value={t.id}>{t.title}</option>)}
-                            </select>
-                        </div>
-                    )
-                }
-                const isTaskDone = linkedTask.status === 'done'
-                return (
-                    <div className="node-interactive w-full h-full p-3 flex flex-col gap-2 overflow-y-auto">
-                        <div className="flex justify-between items-start gap-2 border-b border-white/10 pb-2">
-                            <div className="flex gap-2 items-center text-sm font-semibold w-full" style={{ textDecoration: isTaskDone ? 'line-through' : 'none', opacity: isTaskDone ? 0.5 : 1 }}>
-                                <input type="checkbox" checked={isTaskDone} onChange={(e) => app.updateTask(linkedTask.id, { status: e.target.checked ? 'done' : 'todo' })} style={{ accentColor: node.color || t.accent }} className="shrink-0" />
-                                <span className="truncate flex-1">{linkedTask.title}</span>
-                            </div>
-                            <button onClick={() => updateNode(node.id, { linkedTaskId: undefined })} className="opacity-50 hover:opacity-100 shrink-0"><Unlink size={12} /></button>
-                        </div>
-                        {linkedTask.desc && <div className="text-xs opacity-70 mt-1 line-clamp-3">{linkedTask.desc}</div>}
-                        {linkedTask.subtasks && linkedTask.subtasks.length > 0 && (
-                            <div className="mt-2 flex flex-col gap-1">
-                                {linkedTask.subtasks.map(st => (
-                                    <div key={st.id} className="flex gap-1.5 items-center text-[11px] opacity-80" style={{ textDecoration: st.done ? 'line-through' : 'none' }}>
-                                        <input type="checkbox" checked={st.done} onChange={() => {
-                                            const newSt = (linkedTask.subtasks || []).map(x => x.id === st.id ? { ...x, done: !x.done } : x)
-                                            app.updateTask(linkedTask.id, { subtasks: newSt })
-                                        }} style={{ accentColor: node.color || t.accent }} className="w-2.5 h-2.5 shrink-0" />
-                                        <span className="truncate">{st.title}</span>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                        {linkedTask.deadline && <div className="text-[10px] opacity-50 mt-auto pt-2 border-t border-white/5">Fällig: {new Date(linkedTask.deadline).toLocaleDateString()}</div>}
-                    </div>
-                )
-            }
-
-            case 'reminder': {
-                const linkedReminder = app.reminders.find(r => r.id === node.linkedReminderId)
-                if (!linkedReminder) {
-                    return (
-                        <div className="node-interactive p-3 flex flex-col gap-2 h-full justify-center">
-                            <span className="text-xs opacity-60">Reminder verknüpfen:</span>
-                            <select className="bg-white/10 text-xs p-1.5 rounded outline-none w-full" value="" onChange={e => updateNode(node.id, { linkedReminderId: e.target.value })}>
-                                <option value="">-- Auswählen --</option>
-                                {app.reminders.map(r => <option key={r.id} value={r.id}>{r.title}</option>)}
-                            </select>
-                        </div>
-                    )
-                }
-                const isRemDone = linkedReminder.done
-                return (
-                    <div className="node-interactive w-full h-full p-3 flex flex-col gap-2 justify-center items-center text-center relative" style={{ opacity: isRemDone ? 0.5 : 1 }}>
-                        <button onClick={() => updateNode(node.id, { linkedReminderId: undefined })} className="absolute top-2 right-2 opacity-50 hover:opacity-100 z-10"><Unlink size={12} /></button>
-                        <Bell size={24} style={{ color: node.color || t.accent, opacity: isRemDone ? 0.3 : 1 }} className={(!isRemDone && new Date(linkedReminder.datetime) < new Date()) ? 'nx-glow-pulse' : ''} />
-                        <div className="font-semibold text-sm mt-1" style={{ textDecoration: isRemDone ? 'line-through' : 'none' }}>{linkedReminder.title}</div>
-                        {linkedReminder.msg && <div className="text-xs opacity-70 line-clamp-2">{linkedReminder.msg}</div>}
-                        {linkedReminder.datetime && <div className="text-[10px] opacity-60 mt-auto bg-black/20 px-2 py-1 rounded w-full">{new Date(linkedReminder.datetime).toLocaleString()}</div>}
-                        <div className="mt-2 text-[10px]">
-                            <label className="flex items-center gap-1 cursor-pointer">
-                                <input type="checkbox" checked={isRemDone} onChange={(e) => app.updateReminder(linkedReminder.id, { done: e.target.checked })} style={{ accentColor: node.color || t.accent }} />
-                                Erledigt
-                            </label>
-                        </div>
-                    </div>
-                )
-            }
-
-            default:
-                return null
-        }
-    }
-
-    const TypeIcon = WIDGET_TYPES.find(w => w.type === node.type)?.icon || Type
-    const nodeAccent = node.color || t.accent
-
-    return (
-        <div className="nx-canvas-node"
-            onMouseEnter={() => setHovered(true)}
-            onMouseLeave={() => setHovered(false)}
-            style={{
-                position: 'absolute', left: liveX, top: liveY,
-                width: liveWidth, height: liveHeight,
-                zIndex: isSelected ? 100 : 1,
-                animation: dragging || resizing ? undefined : 'nexus-scale-in 0.22s ease-out both',
-                willChange: 'transform, left, top, width, height',
-                backfaceVisibility: 'hidden',
-                transform: isSelected
-                    ? 'translateZ(0) scale(1.01)'
-                    : hovered
-                        ? 'translateZ(0) scale(1.004)'
-                        : 'translateZ(0)',
-                transition: dragging || resizing
-                    ? 'none'
-                    : 'transform 0.16s cubic-bezier(0.2, 0.8, 0.2, 1)',
-            }}>
-            {/* Connection ports */}
-            {(isSelected || connectingFrom) && (
-                <>
-                    {(['top', 'right', 'bottom', 'left'] as const).map(side => (
-                        <ConnPort key={side} side={side} nodeId={node.id}
-                            onStartConnect={onStartConnect} onEndConnect={onEndConnect}
-                            connecting={connectingFrom === node.id} />
-                    ))}
-                </>
-            )}
-
-            <Glass type="panel" glow={isSelected} className="h-full" style={{
-                width: '100%', height: '100%',
-                borderColor: isSelected ? nodeAccent : undefined,
-                borderWidth: isSelected ? 2 : 1,
-                overflow: 'hidden',
-                cursor: dragging ? 'grabbing' : (resizing ? 'nwse-resize' : 'grab'),
-                userSelect: dragging || resizing ? 'none' : 'auto',
-                background: isSticky ? stickyBg : undefined,
-                boxShadow: isSelected
-                    ? `0 0 0 2px ${nodeAccent}, 0 8px 32px rgba(0,0,0,0.3), 0 0 20px ${nodeAccent}30`
-                    : `0 4px 16px rgba(0,0,0,0.2)`,
-            }}>
-                <div style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: 10, gap: 6 }}>
-                    {/* Header with color strip */}
-                    <div style={{
-                        position: 'absolute', top: 0, left: 0, right: 0, height: 3,
-                        background: `linear-gradient(90deg, ${nodeAccent}, ${nodeAccent}80)`,
-                        borderRadius: `${t.visual.panelRadius}px ${t.visual.panelRadius}px 0 0`,
-                        opacity: 0.8,
-                    }} />
-
-                    <div onMouseDown={handleDragStart} style={{
-                        display: 'flex', alignItems: 'center', gap: 6,
-                        cursor: dragging ? 'grabbing' : 'grab', flexShrink: 0,
-                        borderBottom: `1px solid ${isSticky ? 'rgba(0,0,0,0.1)' : (t.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)')}`,
-                        paddingBottom: 6, paddingTop: 4,
-                    }}>
-                        <GripVertical size={13} style={{ opacity: 0.35, flexShrink: 0 }} />
-                        <TypeIcon size={13} style={{ color: nodeAccent, flexShrink: 0 }} />
-
-                        {editTitle
-                            ? <input autoFocus className="node-interactive" value={node.title}
-                                onChange={(e) => updateNode(node.id, { title: e.target.value })}
-                                onBlur={() => setEditTitle(false)}
-                                onKeyDown={(e) => e.key === 'Enter' && setEditTitle(false)}
-                                style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: isSticky ? '#333' : 'inherit', fontWeight: 600, fontSize: 12, padding: 0, minWidth: 0 }}
-                            />
-                            : <span onDoubleClick={() => setEditTitle(true)}
-                                style={{ flex: 1, fontWeight: 600, fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: isSticky ? '#333' : 'inherit' }}>
-                                {node.title}
-                            </span>
-                        }
-
-                        {/* Context menu */}
-                        <div style={{ position: 'relative', flexShrink: 0 }}>
-                            <button className="node-interactive"
-                                onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); setShowColorPicker(false) }}
-                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: isSticky ? '#666' : 'inherit', opacity: 0.5, padding: 2, display: 'flex', alignItems: 'center' }}>
-                                <MoreHorizontal size={13} />
-                            </button>
-
-                            {showMenu && (
-                                <div className="node-interactive" style={{
-                                    position: 'absolute', top: '100%', right: 0,
-                                    background: t.mode === 'dark' ? '#1a1a2e' : '#fff',
-                                    border: `1px solid ${t.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'}`,
-                                    borderRadius: 10, padding: 4, zIndex: 200, minWidth: 140,
-                                    boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
-                                }}>
-                                    <MenuBtn icon={Edit3} label="Rename" onClick={() => { setEditTitle(true); setShowMenu(false) }} />
-                                    <MenuBtn icon={Palette} label="Color" onClick={() => setShowColorPicker(!showColorPicker)} />
-                                    <MenuBtn icon={Link} label="Connect" onClick={() => { onStartConnect(node.id); setShowMenu(false) }} />
-                                    <MenuBtn icon={Copy} label="Duplicate" onClick={() => {
-                                        useCanvas.getState().addNode(node.type, node.x + 30, node.y + 30)
-                                        setShowMenu(false)
-                                    }} />
-                                    <MenuBtn icon={Trash2} label="Delete" onClick={() => deleteNode(node.id)} danger />
-
-                                    {showColorPicker && (
-                                        <div style={{
-                                            display: 'flex', flexWrap: 'wrap', gap: 4, padding: '6px',
-                                            borderTop: `1px solid ${t.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'}`,
-                                            marginTop: 4,
-                                        }}>
-                                            {NODE_COLORS.map(c => (
-                                                <div key={c} onClick={() => { updateNode(node.id, { color: c }); setShowColorPicker(false); setShowMenu(false) }}
-                                                    style={{ width: 18, height: 18, borderRadius: '50%', background: c, cursor: 'pointer', border: node.color === c ? '2px solid white' : '2px solid transparent', boxShadow: `0 0 4px ${c}` }}
-                                                />
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
-                    <div style={{ flex: 1, overflow: 'hidden', minHeight: 0, position: 'relative' }}>
-                        {(node.pm?.status || node.pm?.priority || node.pm?.owner || node.pm?.dueDate) && (
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 6 }}>
-                                {node.pm?.status && (
-                                    <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 999, background: `${PM_STATUS_COLOR[node.pm.status]}22`, color: PM_STATUS_COLOR[node.pm.status], border: `1px solid ${PM_STATUS_COLOR[node.pm.status]}55`, textTransform: 'uppercase', letterSpacing: 0.4 }}>
-                                        {node.pm.status}
-                                    </span>
-                                )}
-                                {node.pm?.priority && (
-                                    <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 999, background: `${PM_PRIORITY_COLOR[node.pm.priority]}22`, color: PM_PRIORITY_COLOR[node.pm.priority], border: `1px solid ${PM_PRIORITY_COLOR[node.pm.priority]}55`, textTransform: 'uppercase', letterSpacing: 0.4 }}>
-                                        {node.pm.priority}
-                                    </span>
-                                )}
-                                {node.pm?.owner && (
-                                    <span style={{ fontSize: 9, opacity: 0.75, padding: '2px 6px', borderRadius: 999, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.06)' }}>
-                                        @{node.pm.owner}
-                                    </span>
-                                )}
-                                {node.pm?.dueDate && (
-                                    <span style={{ fontSize: 9, opacity: 0.75, padding: '2px 6px', borderRadius: 999, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.06)' }}>
-                                        due {new Date(node.pm.dueDate).toLocaleDateString()}
-                                    </span>
-                                )}
-                            </div>
-                        )}
-                        {renderContent()}
-                    </div>
-
-                    {/* Resize handle */}
-                    {(isSelected || hovered) && (
-                        <div
-                            onMouseDownCapture={handleResizeStart}
-                            style={{
-                                position: 'absolute', right: 0, bottom: 0,
-                                width: 24, height: 24, cursor: 'nwse-resize',
-                                display: 'flex', alignItems: 'flex-end', justifyContent: 'flex-end', padding: 6, opacity: 0.5,
-                                zIndex: 50,
-                            }}
-                        >
-                            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ pointerEvents: 'none' }}>
-                                <path d="M9 1L9 9L1 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                            </svg>
-                        </div>
-                    )}
-                </div>
-            </Glass>
-        </div>
-    )
-}
-
-
-// ─── MENU BUTTON ───
-
-function MenuBtn({ icon: Icon, label, onClick, danger }: { icon: any, label: string, onClick: () => void, danger?: boolean }) {
-    const [h, setH] = useState(false)
-    return (
-        <button onClick={onClick} onMouseEnter={() => setH(true)} onMouseLeave={() => setH(false)}
-            style={{
-                display: 'flex', alignItems: 'center', gap: 8, width: '100%',
-                padding: '7px 10px', border: 'none', borderRadius: 7, cursor: 'pointer', fontSize: 12,
-                background: h ? 'rgba(255,255,255,0.08)' : 'transparent',
-                color: danger ? '#FF3B30' : 'inherit',
-            }}>
-            <Icon size={13} />
-            {label}
-        </button>
-    )
-}
-
-// ─── MINIMAP ───
-
-function MiniMap({ nodes, viewport, canvasW, canvasH }: {
-    nodes: CanvasNode[], viewport: { panX: number, panY: number, zoom: number }
-    canvasW: number, canvasH: number
-}) {
-    const t = useTheme()
-    const MAP_W = 160
-    const MAP_H = 110
-    const PADDING = 40
-
-    if (nodes.length === 0) return null
-
-    const minX = Math.min(...nodes.map(n => n.x)) - PADDING
-    const maxX = Math.max(...nodes.map(n => n.x + n.width)) + PADDING
-    const minY = Math.min(...nodes.map(n => n.y)) - PADDING
-    const maxY = Math.max(...nodes.map(n => n.y + n.height)) + PADDING
-
-    const rangeX = Math.max(maxX - minX, 100)
-    const rangeY = Math.max(maxY - minY, 100)
-    const scale = Math.min(MAP_W / rangeX, MAP_H / rangeY) * 0.85
-
-    const toMapX = (x: number) => (x - minX) * scale + (MAP_W - rangeX * scale) / 2
-    const toMapY = (y: number) => (y - minY) * scale + (MAP_H - rangeY * scale) / 2
-
-    // Viewport rect
-    const vpLeft = (-viewport.panX / viewport.zoom - minX) * scale + (MAP_W - rangeX * scale) / 2
-    const vpTop = (-viewport.panY / viewport.zoom - minY) * scale + (MAP_H - rangeY * scale) / 2
-    const vpW = (canvasW / viewport.zoom) * scale
-    const vpH = (canvasH / viewport.zoom) * scale
-
-    return (
-        <div style={{
-            position: 'absolute', bottom: 16, right: 16, zIndex: 50,
-            width: MAP_W, height: MAP_H, borderRadius: 10,
-            background: t.mode === 'dark' ? 'rgba(10,10,20,0.8)' : 'rgba(240,240,255,0.85)',
-            backdropFilter: 'blur(12px)',
-            border: `1px solid ${t.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`,
-            overflow: 'hidden',
-            boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
-        }}>
-            <svg width={MAP_W} height={MAP_H}>
-                {nodes.map(node => (
-                    <rect key={node.id}
-                        x={toMapX(node.x)} y={toMapY(node.y)}
-                        width={Math.max(node.width * scale, 4)}
-                        height={Math.max(node.height * scale, 3)}
-                        rx={2}
-                        fill={node.color || t.accent}
-                        opacity={0.7}
-                    />
-                ))}
-                {/* Viewport indicator */}
-                <rect
-                    x={vpLeft} y={vpTop}
-                    width={Math.min(vpW, MAP_W)} height={Math.min(vpH, MAP_H)}
-                    fill="none"
-                    stroke={t.accent}
-                    strokeWidth={1}
-                    opacity={0.8}
-                    rx={2}
-                />
-            </svg>
-            <div style={{
-                position: 'absolute', bottom: 3, right: 5, fontSize: 9,
-                opacity: 0.4, fontFamily: 'monospace', letterSpacing: 0.5,
-            }}>MINIMAP</div>
-        </div>
-    )
-}
-
-// ─── TOOLBAR BUTTON ───
-
-function ToolBtn({ icon: Icon, tooltip, onClick, accent, rgb, active, label }: {
-    icon: any; tooltip: string; onClick: () => void; accent: string; rgb: string; active?: boolean; label?: string
-}) {
-    const [h, setH] = useState(false)
-    const mob = useMobile()
-    const sz = mob.isMobile ? 44 : 30
-    const iconSz = mob.isMobile ? 20 : 14
-    return (
-        <button onClick={onClick} onMouseEnter={() => setH(true)} onMouseLeave={() => setH(false)}
-            title={tooltip}
-            style={{
-                background: active ? `rgba(${rgb}, 0.22)` : (h ? `rgba(${rgb}, 0.12)` : 'transparent'),
-                border: active ? `1px solid rgba(${rgb}, 0.4)` : '1px solid transparent',
-                borderRadius: mob.isMobile ? 12 : 7,
-                width: mob.isMobile ? 'auto' : sz, height: sz,
-                minWidth: sz,
-                display: 'flex', flexDirection: mob.isMobile && label ? 'column' : 'row',
-                alignItems: 'center', justifyContent: 'center', gap: 2,
-                cursor: 'pointer', color: (h || active) ? accent : 'inherit',
-                transition: 'all 0.15s', opacity: (h || active) ? 1 : 0.65,
-                padding: mob.isMobile && label ? '8px 10px' : undefined,
-            }}>
-            <Icon size={iconSz} />
-            {mob.isMobile && label && <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 0.3 }}>{label}</span>}
-        </button>
-    )
-}
 
 // ─── MAIN CANVAS VIEW ───
 
@@ -1294,242 +400,34 @@ export function CanvasView() {
         setPan(cW / 2 - cx * z, cH / 2 - cy * z)
     }, [canvas, canvasSize, resetViewport, setZoom, setPan])
 
-    const exportCanvas = useCallback(() => {
-        if (!canvas) return
-        const exportedAt = new Date().toISOString()
-        const stamp = exportedAt.slice(0, 19).replace(/[:T]/g, '-')
-        const slug = toFileSafeSlug(canvas.name)
-        const baseName = `${slug}-${stamp}`
+    const exportCanvas = useCallback(
+        () => exportCanvasFiles(canvas, viewport),
+        [canvas, viewport]
+    )
 
-        const jsonPayload = {
-            version: 1,
-            app: 'nexus-canvas',
-            exportedAt,
-            viewport,
-            canvas: {
-                id: canvas.id,
-                name: canvas.name,
-                created: canvas.created,
-                updated: canvas.updated,
-                nodes: canvas.nodes,
-                connections: canvas.connections,
-            },
-        }
+    const duplicateSelectedNode = useCallback(
+        () => duplicateSelectedCanvasNode(selectedNodeId, setSelectedNodeId),
+        [selectedNodeId]
+    )
 
-        const readable: string[] = []
-        readable.push(`# Canvas Export: ${canvas.name}`)
-        readable.push(`exported_at: ${exportedAt}`)
-        readable.push(`canvas_id: ${canvas.id}`)
-        readable.push(`nodes: ${canvas.nodes.length}`)
-        readable.push(`connections: ${canvas.connections.length}`)
-        readable.push('')
-        readable.push('## Nodes')
-        canvas.nodes.forEach((node, index) => {
-            readable.push(`### ${index + 1}. ${node.title || 'Untitled'} (${node.type})`)
-            readable.push(`id: ${node.id}`)
-            readable.push(`position: x=${Math.round(node.x)}, y=${Math.round(node.y)}`)
-            readable.push(`size: w=${Math.round(node.width)}, h=${Math.round(node.height)}`)
-            if (node.pm?.status) readable.push(`status: ${node.pm.status}`)
-            if (node.pm?.priority) readable.push(`priority: ${node.pm.priority}`)
-            if (typeof node.pm?.progress === 'number') readable.push(`progress: ${node.pm.progress}`)
-            if (node.pm?.dueDate) readable.push(`due_date: ${node.pm.dueDate}`)
-            if (node.pm?.owner) readable.push(`owner: ${node.pm.owner}`)
-            if (node.pm?.tags?.length) readable.push(`tags: ${node.pm.tags.join(', ')}`)
-            if (node.items?.length) {
-                readable.push('checklist:')
-                node.items.forEach((item) => {
-                    readable.push(`- [${item.done ? 'x' : ' '}] ${item.text}`)
-                })
-            }
-            if (node.content?.trim()) {
-                readable.push('content:')
-                readable.push('```text')
-                readable.push(node.content.trimEnd())
-                readable.push('```')
-            }
-            readable.push('')
-        })
-        readable.push('## Connections')
-        canvas.connections.forEach((conn, index) => {
-            const from = canvas.nodes.find((n) => n.id === conn.fromId)
-            const to = canvas.nodes.find((n) => n.id === conn.toId)
-            readable.push(`${index + 1}. ${from?.title || conn.fromId} -> ${to?.title || conn.toId}${conn.label ? ` (${conn.label})` : ''}`)
-        })
-        readable.push('')
-        readable.push('## Raw JSON')
-        readable.push('```json')
-        readable.push(JSON.stringify(jsonPayload, null, 2))
-        readable.push('```')
+    const createProjectTemplate = useCallback(
+        () => createCanvasProjectTemplate({ canvas, viewport, canvasSize, fitView, setSelectedNodeId }),
+        [canvas, viewport, canvasSize, fitView]
+    )
 
-        triggerTextDownload(`${baseName}.nexus-canvas.json`, JSON.stringify(jsonPayload, null, 2), 'application/json;charset=utf-8')
-        triggerTextDownload(`${baseName}.nexus-canvas.md`, readable.join('\n'), 'text/markdown;charset=utf-8')
-    }, [canvas, viewport])
+    const autoArrangeByStatus = useCallback(
+        () => autoArrangeCanvasByStatus(fitView),
+        [fitView]
+    )
 
-    const duplicateSelectedNode = useCallback(() => {
-        if (!selectedNodeId) return
-        const state = useCanvas.getState()
-        const active = state.getActiveCanvas()
-        const source = active?.nodes.find(node => node.id === selectedNodeId)
-        if (!source) return
-
-        state.addNode(source.type, source.x + 56, source.y + 56)
-        const c = state.getActiveCanvas()
-        const created = c?.nodes[c.nodes.length - 1]
-        if (!created) return
-        state.updateNode(created.id, {
-            title: `${source.title} Copy`,
-            width: source.width,
-            height: source.height,
-            content: source.content,
-            color: source.color,
-            items: source.items?.map((item, idx) => ({ ...item, id: `${item.id}-copy-${idx}-${Date.now().toString(36)}` })),
-            codeLang: source.codeLang,
-            linkedNoteId: source.linkedNoteId,
-            linkedCodeId: source.linkedCodeId,
-            linkedTaskId: source.linkedTaskId,
-            linkedReminderId: source.linkedReminderId,
-            pm: source.pm ? { ...source.pm, tags: source.pm.tags ? [...source.pm.tags] : undefined } : undefined,
-        })
-        setSelectedNodeId(created.id)
-    }, [selectedNodeId])
-
-    const createProjectTemplate = useCallback(() => {
-        if (!canvas) return
-        const state = useCanvas.getState()
-        const baseX = (-viewport.panX + canvasSize.w * 0.15) / viewport.zoom
-        const baseY = (-viewport.panY + canvasSize.h * 0.2) / viewport.zoom
-        const make = (type: NodeType, x: number, y: number, patch: Partial<CanvasNode>) => {
-            state.addNode(type, x, y)
-            const c = state.getActiveCanvas()
-            const last = c?.nodes[c.nodes.length - 1]
-            if (!last) return
-            state.updateNode(last.id, patch)
-        }
-        make('markdown', baseX, baseY, {
-            title: 'Projekt Brief',
-            content: '# Projektziel\n\n- Scope\n- Timeline\n- Risiken\n',
-            pm: { status: 'idea', priority: 'high', owner: 'you', progress: 5, tags: ['brief', 'scope'] },
-            width: 360,
-            height: 250,
-        })
-        make('checklist', baseX + 420, baseY, {
-            title: 'Sprint Backlog',
-            items: [
-                { id: `i-${Date.now()}-1`, text: 'UI Polish abschließen', done: false },
-                { id: `i-${Date.now()}-2`, text: 'QA Testcases schreiben', done: false },
-                { id: `i-${Date.now()}-3`, text: 'Release Notes vorbereiten', done: false },
-            ],
-            pm: { status: 'backlog', priority: 'mid', owner: 'team', progress: 0, tags: ['sprint'] },
-            width: 320,
-            height: 240,
-        })
-        make('task', baseX + 120, baseY + 300, {
-            title: 'API Integration',
-            pm: {
-                status: 'doing',
-                priority: 'high',
-                owner: 'backend',
-                dueDate: new Date(Date.now() + 3 * 86400000).toISOString(),
-                estimate: 8,
-                progress: 45,
-                tags: ['api', 'integration'],
-            },
-        })
-        make('task', baseX + 420, baseY + 300, {
-            title: 'Mobile QA',
-            pm: {
-                status: 'todo',
-                priority: 'mid',
-                owner: 'qa',
-                dueDate: new Date(Date.now() + 5 * 86400000).toISOString(),
-                estimate: 5,
-                progress: 0,
-                tags: ['qa', 'mobile'],
-            },
-        })
-        make('text', baseX + 760, baseY + 40, {
-            title: 'Milestone',
-            content: 'Beta Release',
-            pm: {
-                status: 'review',
-                priority: 'critical',
-                owner: 'pm',
-                dueDate: new Date(Date.now() + 10 * 86400000).toISOString(),
-                milestone: 'Beta v1',
-                progress: 70,
-                tags: ['milestone'],
-            },
-            width: 260,
-            height: 160,
-            color: '#BF5AF2',
-        })
-        fitView()
-    }, [canvas, viewport.panX, viewport.panY, viewport.zoom, canvasSize.w, canvasSize.h, fitView])
-
-    const autoArrangeByStatus = useCallback(() => {
-        const state = useCanvas.getState()
-        const c = state.getActiveCanvas()
-        if (!c) return
-        const columns = PM_STATUS_ORDER
-        const laneX = (idx: number) => 120 + idx * 300
-        const laneYStart = 140
-        const laneGap = 170
-        const counters: Record<ProjectStatus, number> = {
-            idea: 0, backlog: 0, todo: 0, doing: 0, review: 0, done: 0, blocked: 0,
-        }
-        c.nodes.forEach(node => {
-            const st = node.pm?.status || 'idea'
-            const idx = columns.indexOf(st)
-            const row = counters[st]++
-            state.moveNode(node.id, laneX(Math.max(0, idx)), laneYStart + row * laneGap)
-        })
-        fitView()
-    }, [fitView])
-
-    const autoLinkWikiRefs = useCallback(() => {
-        const state = useCanvas.getState()
-        const c = state.getActiveCanvas()
-        if (!c) return
-        const byTitle = new Map(c.nodes.map(n => [n.title.trim().toLowerCase(), n.id]))
-        c.nodes.forEach((node) => {
-            const content = node.content || ''
-            const matches = Array.from(content.matchAll(/\[\[([^\]]+)\]\]/g)).map(m => m[1].trim().toLowerCase())
-            matches.forEach((m) => {
-                const toId = byTitle.get(m)
-                if (toId && toId !== node.id) state.addConnection(node.id, toId)
-            })
-        })
-    }, [])
+    const autoLinkWikiRefs = useCallback(
+        () => autoLinkCanvasWikiRefs(),
+        []
+    )
 
     // Empty state
     if (canvases.length === 0) {
-        return (
-            <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20 }}>
-                <div style={{
-                    fontSize: 72, opacity: 0.12,
-                    background: `linear-gradient(135deg, ${t.accent}, ${t.accent2})`,
-                    WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-                    animation: 'nexus-float 3s ease-in-out infinite',
-                }}>✦</div>
-                <div style={{ fontSize: 18, fontWeight: 700, opacity: 0.7 }}>Kein Canvas vorhanden</div>
-                <div style={{ fontSize: 13, opacity: 0.4, maxWidth: 300, textAlign: 'center' }}>
-                    Erstelle ein neues Canvas, um Ideen, Pläne und Mindmaps visuell zu organisieren.
-                </div>
-                <button onClick={() => addCanvas()} style={{
-                    display: 'flex', alignItems: 'center', gap: 8,
-                    padding: '12px 28px', borderRadius: 14, border: 'none',
-                    background: `linear-gradient(135deg, ${t.accent}, ${t.accent2})`,
-                    color: '#fff', fontWeight: 700, fontSize: 15, cursor: 'pointer',
-                    boxShadow: `0 6px 24px rgba(${rgb}, 0.35)`,
-                    transition: 'transform 0.15s ease',
-                }}
-                    onMouseEnter={e => (e.currentTarget.style.transform = 'scale(1.04)')}
-                    onMouseLeave={e => (e.currentTarget.style.transform = 'scale(1)')}
-                >
-                    <Plus size={20} /> Neues Canvas
-                </button>
-            </div>
-        )
+        return <CanvasEmptyState addCanvas={addCanvas} accent={t.accent} accent2={t.accent2} rgb={rgb} />
     }
 
     return (
@@ -1638,7 +536,7 @@ export function CanvasView() {
                     backdropFilter: 'blur(16px)',
                 }}>
                     {/* Sidebar toggle — on mobile shows canvas list as bottom sheet */}
-                    <ToolBtn icon={FileText} tooltip="Canvases" onClick={() => setShowCanvasList(!showCanvasList)} accent={t.accent} rgb={rgb} active={showCanvasList} />
+                    <CanvasToolBtn icon={FileText} tooltip="Canvases" onClick={() => setShowCanvasList(!showCanvasList)} accent={t.accent} rgb={rgb} active={showCanvasList} />
 
                     {/* Canvas name */}
                     {canvas && (
@@ -1680,7 +578,7 @@ export function CanvasView() {
                         <>
                             <div style={{ width: 1, height: 18, background: 'rgba(255,255,255,0.1)', margin: '0 2px' }} />
                             {WIDGET_TYPES.map(({ type, icon: WIcon, label }) => (
-                                <ToolBtn key={type} icon={WIcon} tooltip={label}
+                                <CanvasToolBtn key={type} icon={WIcon} tooltip={label}
                                     onClick={() => {
                                         if (type === 'sticky') {
                                             addNode('text')
@@ -1697,22 +595,22 @@ export function CanvasView() {
                                     accent={t.accent} rgb={rgb} />
                             ))}
                             <div style={{ flex: 1 }} />
-                            <ToolBtn icon={Grid} tooltip="Grid-Modus" onClick={() => setGridMode(g => g === 'dots' ? 'lines' : g === 'lines' ? 'none' : 'dots')} accent={t.accent} rgb={rgb} active={gridMode !== 'none'} />
-                            <ToolBtn icon={MapIcon} tooltip="Minimap" onClick={() => setShowMiniMap(!showMiniMap)} accent={t.accent} rgb={rgb} active={showMiniMap} />
-                            <ToolBtn icon={CheckSquare} tooltip="Projekt Panel" onClick={() => setShowProjectPanel(s => !s)} accent={t.accent} rgb={rgb} active={showProjectPanel} />
-                            <ToolBtn icon={Link} tooltip="Auto Link [[Wiki]]" onClick={autoLinkWikiRefs} accent={t.accent} rgb={rgb} />
-                            <ToolBtn icon={Grid} tooltip="Arrange by Status" onClick={autoArrangeByStatus} accent={t.accent} rgb={rgb} />
-                            <ToolBtn icon={Plus} tooltip="Projekt Template" onClick={createProjectTemplate} accent={t.accent} rgb={rgb} />
-                            <ToolBtn icon={Copy} tooltip="Node duplizieren" onClick={duplicateSelectedNode} accent={t.accent} rgb={rgb} active={Boolean(selectedNodeId)} />
-                            <ToolBtn icon={AlignCenter} tooltip="Fit to View" onClick={fitView} accent={t.accent} rgb={rgb} />
+                            <CanvasToolBtn icon={Grid} tooltip="Grid-Modus" onClick={() => setGridMode(g => g === 'dots' ? 'lines' : g === 'lines' ? 'none' : 'dots')} accent={t.accent} rgb={rgb} active={gridMode !== 'none'} />
+                            <CanvasToolBtn icon={MapIcon} tooltip="Minimap" onClick={() => setShowMiniMap(!showMiniMap)} accent={t.accent} rgb={rgb} active={showMiniMap} />
+                            <CanvasToolBtn icon={CheckSquare} tooltip="Projekt Panel" onClick={() => setShowProjectPanel(s => !s)} accent={t.accent} rgb={rgb} active={showProjectPanel} />
+                            <CanvasToolBtn icon={Link} tooltip="Auto Link [[Wiki]]" onClick={autoLinkWikiRefs} accent={t.accent} rgb={rgb} />
+                            <CanvasToolBtn icon={Grid} tooltip="Arrange by Status" onClick={autoArrangeByStatus} accent={t.accent} rgb={rgb} />
+                            <CanvasToolBtn icon={Plus} tooltip="Projekt Template" onClick={createProjectTemplate} accent={t.accent} rgb={rgb} />
+                            <CanvasToolBtn icon={Copy} tooltip="Node duplizieren" onClick={duplicateSelectedNode} accent={t.accent} rgb={rgb} active={Boolean(selectedNodeId)} />
+                            <CanvasToolBtn icon={AlignCenter} tooltip="Fit to View" onClick={fitView} accent={t.accent} rgb={rgb} />
                             <div style={{ width: 1, height: 18, background: 'rgba(255,255,255,0.1)', margin: '0 2px' }} />
-                            <ToolBtn icon={ZoomOut} tooltip="Rauszoomen" onClick={() => setZoomCentered(viewport.zoom - 0.15)} accent={t.accent} rgb={rgb} />
+                            <CanvasToolBtn icon={ZoomOut} tooltip="Rauszoomen" onClick={() => setZoomCentered(viewport.zoom - 0.15)} accent={t.accent} rgb={rgb} />
                             <span style={{ fontSize: 11, fontFamily: 'monospace', padding: '2px 6px', borderRadius: 5, background: 'rgba(255,255,255,0.06)', minWidth: 42, textAlign: 'center', opacity: 0.8 }}>
                                 {Math.round(viewport.zoom * 100)}%
                             </span>
-                            <ToolBtn icon={ZoomIn} tooltip="Reinzoomen" onClick={() => setZoomCentered(viewport.zoom + 0.15)} accent={t.accent} rgb={rgb} />
-                            <ToolBtn icon={Maximize2} tooltip="Reset View" onClick={resetViewport} accent={t.accent} rgb={rgb} />
-                            <ToolBtn icon={FileDown} tooltip="Export (JSON + AI-Markdown)" onClick={exportCanvas} accent={t.accent} rgb={rgb} />
+                            <CanvasToolBtn icon={ZoomIn} tooltip="Reinzoomen" onClick={() => setZoomCentered(viewport.zoom + 0.15)} accent={t.accent} rgb={rgb} />
+                            <CanvasToolBtn icon={Maximize2} tooltip="Reset View" onClick={resetViewport} accent={t.accent} rgb={rgb} />
+                            <CanvasToolBtn icon={FileDown} tooltip="Export (JSON + AI-Markdown)" onClick={exportCanvas} accent={t.accent} rgb={rgb} />
                         </>
                     )}
                 </div>
@@ -1945,14 +843,14 @@ export function CanvasView() {
                                         </defs>
                                     )}
                                     {visibleConnections.map(conn => (
-                                        <ConnectionLine key={conn.id} conn={conn} nodeById={visibleNodeById} zoom={viewport.zoom} onDelete={deleteConnection} reduceEffects={reduceConnectionEffects} />
+                                        <CanvasConnectionLine key={conn.id} conn={conn} nodeById={visibleNodeById} zoom={viewport.zoom} onDelete={deleteConnection} reduceEffects={reduceConnectionEffects} />
                                     ))}
                                 </svg>
                             )}
 
                             {/* Nodes */}
                             {visibleNodes.map(node => (
-                                <NodeWidget key={node.id} node={node}
+                                <CanvasNodeWidget key={node.id} node={node}
                                     isSelected={selectedNodeId === node.id}
                                     onSelect={setSelectedNodeId}
                                     onStartConnect={handleStartConnect}
@@ -2004,7 +902,7 @@ export function CanvasView() {
 
                     {/* Mini-map */}
                     {showMiniMap && miniMapNodes.length > 0 && (
-                        <MiniMap nodes={miniMapNodes} viewport={viewport} canvasW={canvasSize.w} canvasH={canvasSize.h} />
+                        <CanvasMiniMap nodes={miniMapNodes} viewport={viewport} canvasW={canvasSize.w} canvasH={canvasSize.h} />
                     )}
 
                     {/* Project Panel */}
