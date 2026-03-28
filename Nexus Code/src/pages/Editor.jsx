@@ -19,8 +19,10 @@ import { motion, AnimatePresence } from "framer-motion";
 
 import {
   BACKGROUNDS,
+  DEFAULT_SETTINGS,
   DEFAULT_FILES,
   ErrorBoundary,
+  SETTINGS_STORAGE_KEY,
   THEMES,
   generateId,
   loadFilesFromStorage,
@@ -165,13 +167,6 @@ export default function Editor() {
     const theme = THEMES[settings.theme] || THEMES.nexus_vibrant;
     const accent = settings.primary_accent || theme.accent;
 
-    console.log(
-      "Applying Theme:",
-      settings.theme,
-      "Background:",
-      settings.background,
-    );
-
     // Core Layout (Background from Theme or Override)
     const bgOverride = BACKGROUNDS && BACKGROUNDS[settings.background];
     const bgType = bgOverride ? bgOverride.type : theme.bg_type || "solid";
@@ -237,8 +232,6 @@ export default function Editor() {
       bgType === "gradient"
         ? `background: ${bgValue} fixed no-repeat !important; background-size: cover !important;`
         : `background: ${bgValue} !important;`;
-
-    console.log("Rendering styles for:", settings.theme, "bgType:", bgType);
 
     styleTag.innerHTML = `
       :root {
@@ -510,7 +503,6 @@ export default function Editor() {
 
   const handleFileSelect = useCallback(
     async (fileOrId) => {
-      console.log("Selecting file:", fileOrId);
       try {
         const file =
           typeof fileOrId === "string"

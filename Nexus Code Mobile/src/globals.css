@@ -166,8 +166,13 @@ textarea {
         inset 0 0 30px rgba(128, 0, 255, 0.15);
 }
 
-/* Smooth transitions */
-* {
+/* Smooth transitions (scoped, avoids global layout thrash in large editor trees) */
+button,
+input,
+select,
+textarea,
+.glass,
+.glass-card {
     transition-property:
         color, background-color, border-color, text-decoration-color, fill,
         stroke, opacity, box-shadow, transform, filter;
