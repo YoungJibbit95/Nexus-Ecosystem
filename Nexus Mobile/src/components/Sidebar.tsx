@@ -124,7 +124,7 @@ export function Sidebar({
             borderRight: (!iconOnly && isRight)
               ? `2px solid ${isActive ? itemColor : 'transparent'}`
               : 'none',
-            transition: `all ${180 * (t.visual.animationSpeed||1)}ms ease`,
+            transition: `all ${Math.round(180 / Math.max(t.visual.animationSpeed || 1, 0.1))}ms ease`,
             position: 'relative', overflow: 'hidden',
           }}
           onMouseEnter={e => {

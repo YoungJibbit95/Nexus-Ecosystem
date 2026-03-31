@@ -1,5 +1,5 @@
 'use strict';
-const { ipcMain, Notification } = require('electron');
+const { dialog, ipcMain, Notification } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -65,7 +65,32 @@ function registerWindowHandlers(getMainWindow) {
   ipcMain.handle('window:close', () => getMainWindow()?.close());
 }
 
-function registerFileHandlers() {
+function registerFileHandlers(getMainWindow) {
+  ipcMain.handle('fs:pickDirectory', async () => {
+    try {
+      const win = typeof getMainWindow === 'function' ? getMainWindow() : null;
+      const result = await dialog.showOpenDialog(win || undefined, {
+        title: 'Nexus Workspace Ordner auswählen',
+        properties: ['openDirectory', 'createDirectory'],
+      });
+      if (result.canceled || !result.filePaths?.length) {
+        return { ok: false, canceled: true };
+      }
+
+      const selectedPath = path.resolve(result.filePaths[0]);
+      if (!isPathAllowed(selectedPath)) {
+        return {
+          ok: false,
+          error: `path not allowed; configure NEXUS_ALLOWED_FS_ROOTS (${ALLOWED_ROOTS.join(', ')})`,
+        };
+      }
+
+      return { ok: true, path: selectedPath };
+    } catch (e) {
+      return { ok: false, error: e.message };
+    }
+  });
+
   ipcMain.handle('fs:read', async (_, filePath) => {
     try {
       const check = assertAllowedPath(filePath);
@@ -122,7 +147,7 @@ function registerNotificationHandler() {
 
 function registerIpcHandlers(getMainWindow) {
   registerWindowHandlers(getMainWindow);
-  registerFileHandlers();
+  registerFileHandlers(getMainWindow);
   registerNotificationHandler();
 }
 

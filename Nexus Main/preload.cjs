@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld('api', {
         close: () => ipcRenderer.invoke('window:close'),
     },
     fs: {
+        pickDirectory: () => ipcRenderer.invoke('fs:pickDirectory'),
         read: (p) => ipcRenderer.invoke('fs:read', p),
         write: (p, c) => ipcRenderer.invoke('fs:write', p, c),
     },

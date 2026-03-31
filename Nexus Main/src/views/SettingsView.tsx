@@ -355,6 +355,12 @@ export function SettingsView() {
     toast('Terminal-Workspace bereinigt')
   }
 
+  const panelRenderer = ((t.glassmorphism as any).panelRenderer ?? 'blur') as 'blur' | 'fake-glass' | 'glass-shader'
+  const glowRenderer = ((t.glassmorphism as any).glowRenderer ?? 'css') as 'css' | 'three'
+  const isShaderPanel = panelRenderer === 'glass-shader'
+  const isFakeGlassPanel = panelRenderer === 'fake-glass'
+  const isCssGlowRenderer = glowRenderer === 'css'
+
   return (
     <div className="nx-settings-shell" style={{display:'flex',height:'100%',overflow:'hidden',fontFamily:t.globalFont,minHeight:0}}>
 
@@ -458,7 +464,7 @@ export function SettingsView() {
               <span>Mode: <strong style={{color:t.accent}}>{t.mode}</strong></span>
               <span>Density: <strong>{t.qol?.panelDensity ?? 'comfortable'}</strong></span>
               <span>Blur: <strong>{t.blur.panelBlur}px</strong></span>
-              <span>Panel: <strong>{(t.glassmorphism as any).panelRenderer ?? 'blur'}</strong></span>
+              <span>Panel: <strong>{panelRenderer}</strong></span>
             </div>
           </div>
           <LivePreview/>
@@ -491,7 +497,7 @@ export function SettingsView() {
               <Chips
                 label="Panel Background"
                 options={['blur','fake-glass','glass-shader']}
-                value={(t.glassmorphism as any).panelRenderer ?? 'blur'}
+                value={panelRenderer}
                 onChange={(renderer)=>t.setGlassmorphism({ panelRenderer: renderer } as any)}
               />
             </Row>
@@ -499,7 +505,7 @@ export function SettingsView() {
               <Chips
                 label="Glow Renderer"
                 options={['css','three']}
-                value={(t.glassmorphism as any).glowRenderer ?? 'css'}
+                value={glowRenderer}
                 onChange={(renderer)=>t.setGlassmorphism({ glowRenderer: renderer } as any)}
               />
               <Chips
@@ -574,13 +580,13 @@ export function SettingsView() {
               <Chips
                 label="Renderer"
                 options={['blur','fake-glass','glass-shader']}
-                value={(t.glassmorphism as any).panelRenderer ?? 'blur'}
+                value={panelRenderer}
                 onChange={v=>t.setGlassmorphism({ panelRenderer: v } as any)}
               />
               <Chips
                 label="Glow Renderer"
                 options={['css','three']}
-                value={(t.glassmorphism as any).glowRenderer ?? 'css'}
+                value={glowRenderer}
                 onChange={v=>t.setGlassmorphism({ glowRenderer: v } as any)}
               />
             </Row>
@@ -607,39 +613,75 @@ export function SettingsView() {
               })}
             </div>
 
-            <Divider label="Blur & Sättigung"/>
-            <Row>
-              <Slider label="Panel Blur" value={t.blur.panelBlur} min={0} max={60} step={2} unit="px" onChange={v=>t.setBlur({panelBlur:v})} desc="Backdrop-Blur der Hauptpanels"/>
-              <Slider label="Sidebar Blur" value={t.blur.sidebarBlur} min={0} max={60} step={2} unit="px" onChange={v=>t.setBlur({sidebarBlur:v})}/>
-            </Row>
-            <Row>
-              <Slider label="Modal Blur" value={t.blur.modalBlur} min={0} max={60} step={2} unit="px" onChange={v=>t.setBlur({modalBlur:v})}/>
-              <Slider label="Saturation" value={t.glassmorphism.saturation} min={80} max={400} step={10} unit="%" onChange={v=>t.setGlassmorphism({saturation:v})} desc="Höher = bunter hinter Glas"/>
-            </Row>
+            {!isShaderPanel && <>
+              <Divider label="Blur & Sättigung"/>
+              <Row>
+                <Slider label="Panel Blur" value={t.blur.panelBlur} min={0} max={60} step={2} unit="px" onChange={v=>t.setBlur({panelBlur:v})} desc="Backdrop-Blur der Hauptpanels"/>
+                <Slider label="Sidebar Blur" value={t.blur.sidebarBlur} min={0} max={60} step={2} unit="px" onChange={v=>t.setBlur({sidebarBlur:v})}/>
+              </Row>
+              <Row>
+                <Slider label="Modal Blur" value={t.blur.modalBlur} min={0} max={60} step={2} unit="px" onChange={v=>t.setBlur({modalBlur:v})}/>
+                <Slider label="Saturation" value={t.glassmorphism.saturation} min={80} max={400} step={10} unit="%" onChange={v=>t.setGlassmorphism({saturation:v})} desc="Höher = bunter hinter Glas"/>
+              </Row>
 
-            <Divider label="Border & Tint"/>
-            <Row>
-              <Slider label="Border Opacity" value={t.glassmorphism.borderOpacity} min={0} max={0.8} step={0.01} onChange={v=>t.setGlassmorphism({borderOpacity:v})} desc="Transparenz der Panelkante"/>
-              <Slider label="Glass Depth" value={(t.glassmorphism as any).glassDepth??0.5} min={0} max={1} step={0.05} onChange={v=>t.setGlassmorphism({glassDepth:v} as any)} desc="Tiefeneffekt der Glasschicht"/>
-            </Row>
-            <Swatch label="Tint-Farbe" value={t.glassmorphism.tintColor} onChange={v=>t.setGlassmorphism({tintColor:v})}/>
-            <Slider label="Tint Opacity" value={t.glassmorphism.tintOpacity} min={0} max={0.3} step={0.005} onChange={v=>t.setGlassmorphism({tintOpacity:v})} desc="0 = kein Tint. Erhöhen für eingefärbte Panels."/>
+              <Divider label="Border & Tint"/>
+              <Row>
+                <Slider label="Border Opacity" value={t.glassmorphism.borderOpacity} min={0} max={0.8} step={0.01} onChange={v=>t.setGlassmorphism({borderOpacity:v})} desc="Transparenz der Panelkante"/>
+                <Slider label="Glass Depth" value={(t.glassmorphism as any).glassDepth??0.5} min={0} max={1} step={0.05} onChange={v=>t.setGlassmorphism({glassDepth:v} as any)} desc="Tiefeneffekt der Glasschicht"/>
+              </Row>
+              <Swatch label="Tint-Farbe" value={t.glassmorphism.tintColor} onChange={v=>t.setGlassmorphism({tintColor:v})}/>
+              <Slider label="Tint Opacity" value={t.glassmorphism.tintOpacity} min={0} max={0.3} step={0.005} onChange={v=>t.setGlassmorphism({tintOpacity:v})} desc="0 = kein Tint. Erhöhen für eingefärbte Panels."/>
 
-            <Divider label="Effekte"/>
-            <Row>
-              <Toggle label="Frosted Glass" checked={t.glassmorphism.frostedGlass} onChange={v=>t.setGlassmorphism({frostedGlass:v})} desc="Stärkere Frost-Optik (erzwingt ≥28px Blur)"/>
-              <Toggle label="Inner Shadow" checked={(t.glassmorphism as any).innerShadow??false} onChange={v=>t.setGlassmorphism({innerShadow:v} as any)} desc="Eingebetteter Schatten für Tiefe"/>
-            </Row>
-            <Row>
-              <Toggle label="Reflection Line" checked={(t.glassmorphism as any).reflectionLine??false} onChange={v=>t.setGlassmorphism({reflectionLine:v} as any)} desc="Subtile Glanz-Linie oben"/>
-              <Toggle label="Border Glow" checked={t.glassmorphism.borderGlow} onChange={v=>t.setGlassmorphism({borderGlow:v})} desc="Accent-Leuchten an Kanten"/>
-            </Row>
-            {t.glassmorphism.borderGlow && <Slider label="Border Glow Intensität" value={t.glassmorphism.borderGlowIntensity} min={0} max={1} step={0.05} onChange={v=>t.setGlassmorphism({borderGlowIntensity:v})}/>}
-            <Row>
-              <Toggle label="Noise Overlay" checked={t.blur.noiseOverlay} onChange={v=>t.setBlur({noiseOverlay:v})} desc="Film-Grain-Textur über Panels"/>
-              <Toggle label="Chromatic Aberration" checked={t.glassmorphism.chromaticAberration} onChange={v=>t.setGlassmorphism({chromaticAberration:v})} desc="RGB-Split-Effekt"/>
-            </Row>
-            {t.blur.noiseOverlay && <Slider label="Noise Stärke" value={t.blur.noiseOpacity} min={0.005} max={0.15} step={0.005} onChange={v=>t.setBlur({noiseOpacity:v})}/>}
+              <Divider label="Effekte"/>
+              <Row>
+                <Toggle label="Frosted Glass" checked={t.glassmorphism.frostedGlass} onChange={v=>t.setGlassmorphism({frostedGlass:v})} desc="Stärkere Frost-Optik (erzwingt ≥28px Blur)"/>
+                <Toggle label="Inner Shadow" checked={(t.glassmorphism as any).innerShadow??false} onChange={v=>t.setGlassmorphism({innerShadow:v} as any)} desc="Eingebetteter Schatten für Tiefe"/>
+              </Row>
+              <Row>
+                <Toggle label="Reflection Line" checked={(t.glassmorphism as any).reflectionLine??false} onChange={v=>t.setGlassmorphism({reflectionLine:v} as any)} desc="Subtile Glanz-Linie oben"/>
+                {isCssGlowRenderer ? (
+                  <Toggle label="Border Glow" checked={t.glassmorphism.borderGlow} onChange={v=>t.setGlassmorphism({borderGlow:v})} desc="Accent-Leuchten an Kanten"/>
+                ) : (
+                  <div style={{fontSize:11,opacity:0.6,display:'flex',alignItems:'center'}}>Glow wird durch Three.js gerendert.</div>
+                )}
+              </Row>
+              {isCssGlowRenderer && t.glassmorphism.borderGlow && <Slider label="Border Glow Intensität" value={t.glassmorphism.borderGlowIntensity} min={0} max={1} step={0.05} onChange={v=>t.setGlassmorphism({borderGlowIntensity:v})}/>}
+              <Row>
+                <Toggle label="Noise Overlay" checked={t.blur.noiseOverlay} onChange={v=>t.setBlur({noiseOverlay:v})} desc="Film-Grain-Textur über Panels"/>
+                <Toggle label="Chromatic Aberration" checked={t.glassmorphism.chromaticAberration} onChange={v=>t.setGlassmorphism({chromaticAberration:v})} desc="RGB-Split-Effekt"/>
+              </Row>
+              {t.blur.noiseOverlay && <Slider label="Noise Stärke" value={t.blur.noiseOpacity} min={0.005} max={0.15} step={0.005} onChange={v=>t.setBlur({noiseOpacity:v})}/>}
+              {isFakeGlassPanel && (
+                <div style={{fontSize:11,opacity:0.55,marginTop:8}}>
+                  Fake Glass rendert mit SVG-Filter-Displacement und nutzt die obigen Blur/Tint-Werte als Basis.
+                </div>
+              )}
+            </>}
+
+            {isShaderPanel && <>
+              <Divider label="Shader Controls"/>
+              <div style={{fontSize:11,opacity:0.58,marginBottom:8}}>
+                Three.js nutzt einen performanten Shader-Pfad. Nur shader-relevante Controls werden angezeigt.
+              </div>
+              <Row>
+                <Slider label="Shader Blur" value={t.blur.panelBlur} min={0} max={40} step={1} unit="px" onChange={v=>t.setBlur({panelBlur:v})}/>
+                <Slider label="Saturation" value={t.glassmorphism.saturation} min={80} max={280} step={10} unit="%" onChange={v=>t.setGlassmorphism({saturation:v})}/>
+              </Row>
+              <Row>
+                <Slider label="Border Opacity" value={t.glassmorphism.borderOpacity} min={0} max={0.8} step={0.01} onChange={v=>t.setGlassmorphism({borderOpacity:v})}/>
+                <Slider label="Glass Depth" value={(t.glassmorphism as any).glassDepth??0.5} min={0} max={1} step={0.05} onChange={v=>t.setGlassmorphism({glassDepth:v} as any)}/>
+              </Row>
+              <Row>
+                <Toggle label="Inner Shadow" checked={(t.glassmorphism as any).innerShadow??false} onChange={v=>t.setGlassmorphism({innerShadow:v} as any)}/>
+                <Toggle label="Reflection Line" checked={(t.glassmorphism as any).reflectionLine??false} onChange={v=>t.setGlassmorphism({reflectionLine:v} as any)}/>
+              </Row>
+              {isCssGlowRenderer && (
+                <>
+                  <Toggle label="Border Glow" checked={t.glassmorphism.borderGlow} onChange={v=>t.setGlassmorphism({borderGlow:v})} desc="CSS-basierter Randglow für Shader-Panels"/>
+                  {t.glassmorphism.borderGlow && <Slider label="Border Glow Intensität" value={t.glassmorphism.borderGlowIntensity} min={0} max={1} step={0.05} onChange={v=>t.setGlassmorphism({borderGlowIntensity:v})}/>}
+                </>
+              )}
+            </>}
           </>}
 
           {/* ════════════════════════════════ GLOW */}

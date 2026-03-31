@@ -951,7 +951,7 @@ export default function App() {
               initial={t.animations.pageTransitions && !lowPowerMode ? { opacity: 0, y: 8 } : false}
               animate={{ opacity: 1, y: 0 }}
               exit={t.animations.pageTransitions && !lowPowerMode ? { opacity: 0, y: -8 } : undefined}
-              transition={{ duration: (lowPowerMode ? 0.1 : 0.18) * (t.visual.animationSpeed || 1), ease: 'easeInOut' }}
+              transition={{ duration: (lowPowerMode ? 0.1 : 0.18) / Math.max(t.visual.animationSpeed || 1, 0.1), ease: 'easeInOut' }}
               style={{ flex: 1, overflow: 'hidden', height: '100%', minHeight: 0 }}
             >
               <Suspense
