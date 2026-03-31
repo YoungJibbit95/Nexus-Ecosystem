@@ -317,8 +317,8 @@ export const Glass = memo(forwardRef<HTMLDivElement, GlassProps>(function Glass(
       className={[
         className,
         t.animations.rippleClick && onClick ? 'nx-ripple-container' : '',
-        !lowPowerMode && (t.animations as any).glowPulse && showGlow ? 'nx-glow-pulse' : '',
-        !lowPowerMode && (t.animations as any).floatEffect && hover && !isHovered ? 'nx-float' : '',
+        !lowPowerMode && (t.animations as any).glowPulse && showGlow && (active || type === 'modal') ? 'nx-glow-pulse' : '',
+        !lowPowerMode && (t.animations as any).floatEffect && hover && isHovered ? 'nx-float' : '',
         !lowPowerMode && glassMode === 'plasma' ? 'nx-glass-plasma' : '',
         !lowPowerMode && (t.glassmorphism as any).animatedBlur ? 'nx-plasma-bg' : '',
       ].filter(Boolean).join(' ')}
@@ -343,7 +343,7 @@ export const Glass = memo(forwardRef<HTMLDivElement, GlassProps>(function Glass(
         borderRadius: `${t.visual.panelRadius}px`,
         boxShadow,
         transition: `box-shadow ${getTransitionSpeed(t.visual.animationSpeed)}, border-color ${getTransitionSpeed(t.visual.animationSpeed)}, transform ${getTransitionSpeed(t.visual.animationSpeed)}, background ${getTransitionSpeed(t.visual.animationSpeed)}`,
-        willChange: hover ? 'transform, box-shadow' : 'auto',
+        willChange: hover && isHovered ? 'transform, box-shadow' : 'auto',
         transform: hover && isHovered && t.animations.hoverLift
           ? `translateY(-3px) scale(1.006)` : undefined,
         // crystal mode gets a subtle inner highlight via outline
@@ -426,7 +426,7 @@ export const Glass = memo(forwardRef<HTMLDivElement, GlassProps>(function Glass(
       )}
 
       {/* ── REAL GLOW — element outside panel, not box-shadow ── */}
-      {showGlow && !isGradientGlow && t.glow.mode !== 'off' && !lowPowerMode && !useThreeGlowRenderer && (
+      {showGlow && !isGradientGlow && t.glow.mode !== 'off' && !lowPowerMode && !useThreeGlowRenderer && (active || type === 'modal') && (
         <div aria-hidden="true" style={{
           position: 'absolute',
           inset: -(t.glow.radius * 0.6),

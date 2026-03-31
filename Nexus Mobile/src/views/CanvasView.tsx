@@ -38,6 +38,7 @@ import {
     PM_STATUS_ORDER,
     WIDGET_TYPES,
 } from './canvas/mobileCanvasConfig'
+import { useCanvasWheelGestures } from './canvas/useCanvasWheelGestures'
 
 // ─── CONSTANTS ───
 
@@ -81,9 +82,12 @@ export function CanvasView() {
     const [focusNodeOnly, setFocusNodeOnly] = useState(false)
 
     const panStart = useRef({ x: 0, y: 0, panX: 0, panY: 0 })
-    const wheelPanRaf = useRef(0)
-    const wheelPanDelta = useRef({ x: 0, y: 0 })
-    const wheelPanReleaseTimeout = useRef(0)
+    const { applyZoomAtPoint, handleWheel, setZoomCentered } = useCanvasWheelGestures({
+        canvasRef,
+        canvasHeight: canvasSize.h,
+        setZoom,
+        setWheelPanning,
+    })
 
     const projectNodes = useMemo(() => {
         if (!canvas) return []
@@ -259,110 +263,6 @@ export function CanvasView() {
             window.removeEventListener('mouseup', onUp)
         }
     }, [panning, setPan])
-
-    const applyZoomAtPoint = useCallback((clientX: number, clientY: number, scaleFactor: number) => {
-        const el = canvasRef.current
-        if (!el) return
-        const vp = useCanvas.getState().viewport
-        const rect = el.getBoundingClientRect()
-        const localX = clientX - rect.left
-        const localY = clientY - rect.top
-        const nextZoom = Math.max(0.15, Math.min(3, vp.zoom * scaleFactor))
-        if (Math.abs(nextZoom - vp.zoom) < 0.0001) return
-        const worldX = (localX - vp.panX) / vp.zoom
-        const worldY = (localY - vp.panY) / vp.zoom
-        const nextPanX = localX - worldX * nextZoom
-        const nextPanY = localY - worldY * nextZoom
-        useCanvas.setState({
-            viewport: {
-                ...vp,
-                zoom: nextZoom,
-                panX: nextPanX,
-                panY: nextPanY,
-            },
-        })
-    }, [])
-
-    const setZoomCentered = useCallback((nextZoom: number) => {
-        const el = canvasRef.current
-        const vp = useCanvas.getState().viewport
-        const clamped = Math.max(0.15, Math.min(3, nextZoom))
-        if (!el) {
-            setZoom(clamped)
-            return
-        }
-        const rect = el.getBoundingClientRect()
-        const centerX = rect.left + rect.width / 2
-        const centerY = rect.top + rect.height / 2
-        const factor = clamped / Math.max(0.0001, vp.zoom)
-        applyZoomAtPoint(centerX, centerY, factor)
-    }, [applyZoomAtPoint, setZoom])
-
-    // Trackpad-friendly wheel: pan by default, zoom only with pinch.
-    const handleWheel = useCallback((e: React.WheelEvent) => {
-        e.preventDefault()
-        const deltaScale = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? canvasSize.h : 1
-        const rawDx = e.deltaX * deltaScale
-        const rawDy = e.deltaY * deltaScale
-        const dx = Math.max(-180, Math.min(180, rawDx))
-        const dy = Math.max(-180, Math.min(180, rawDy))
-        if (Math.abs(dx) < 0.02 && Math.abs(dy) < 0.02) return
-
-        const absRawDx = Math.abs(rawDx)
-        const absRawDy = Math.abs(rawDy)
-        const looksLikePinch =
-            absRawDy > 0
-            && absRawDy <= 7
-            && absRawDx <= 7
-            && absRawDy >= absRawDx * 0.75
-        const isZoomGesture = e.ctrlKey || e.metaKey || e.altKey || looksLikePinch
-        if (isZoomGesture) {
-            const pinchDelta = Math.max(-120, Math.min(120, dy))
-            const absPinch = Math.abs(pinchDelta)
-            const sensitivity = absPinch <= 4 ? 0.03 : absPinch < 16 ? 0.016 : 0.0105
-            const factor = Math.exp(-pinchDelta * sensitivity)
-            applyZoomAtPoint(e.clientX, e.clientY, factor)
-            setWheelPanning(false)
-            return
-        }
-
-        wheelPanDelta.current.x -= dx
-        wheelPanDelta.current.y -= dy
-        setWheelPanning(true)
-        if (!wheelPanRaf.current) {
-            wheelPanRaf.current = requestAnimationFrame(() => {
-                wheelPanRaf.current = 0
-                const vp = useCanvas.getState().viewport
-                const delta = wheelPanDelta.current
-                wheelPanDelta.current = { x: 0, y: 0 }
-                if (delta.x || delta.y) {
-                    useCanvas.setState({
-                        viewport: {
-                            ...vp,
-                            panX: vp.panX + delta.x,
-                            panY: vp.panY + delta.y,
-                        },
-                    })
-                }
-            })
-        }
-
-        if (wheelPanReleaseTimeout.current) {
-            window.clearTimeout(wheelPanReleaseTimeout.current)
-        }
-        wheelPanReleaseTimeout.current = window.setTimeout(() => {
-            setWheelPanning(false)
-        }, 110)
-    }, [applyZoomAtPoint, canvasSize.h])
-
-    useEffect(() => () => {
-        if (wheelPanRaf.current) {
-            cancelAnimationFrame(wheelPanRaf.current)
-        }
-        if (wheelPanReleaseTimeout.current) {
-            window.clearTimeout(wheelPanReleaseTimeout.current)
-        }
-    }, [])
 
     const handleStartConnect = useCallback((nodeId: string) => setConnectingFrom(nodeId), [])
     const handleEndConnect = useCallback((nodeId: string) => {

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useCallback, useEffect, useRef } from "react";
 
 type ThreePanelEffectProps = {
   mode: "glass" | "glow";
@@ -27,20 +27,95 @@ export function ThreePanelEffect({
   active,
 }: ThreePanelEffectProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const runtimeRef = useRef<{
+    renderer: any;
+    scene: any;
+    camera: any;
+    material: any;
+    uniforms: any;
+  } | null>(null);
+  const resizeObsRef = useRef<ResizeObserver | null>(null);
+  const rafRef = useRef(0);
+  const runningRef = useRef(false);
+  const disposedRef = useRef(false);
+  const lastFrameRef = useRef(0);
+  const latestRef = useRef({ mode, colorA, colorB, intensity, active });
+
+  const renderNow = useCallback((timeMs: number) => {
+    const runtime = runtimeRef.current;
+    if (!runtime) return;
+    runtime.uniforms.uTime.value = timeMs * 0.001;
+    runtime.renderer.render(runtime.scene, runtime.camera);
+  }, []);
+
+  const stopLoop = useCallback(() => {
+    runningRef.current = false;
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = 0;
+    }
+  }, []);
+
+  const applyUniforms = useCallback(() => {
+    const runtime = runtimeRef.current;
+    if (!runtime) return;
+    const current = latestRef.current;
+    runtime.uniforms.uColorA.value.setRGB(...hexToRgb01(current.colorA));
+    runtime.uniforms.uColorB.value.setRGB(...hexToRgb01(current.colorB));
+    runtime.uniforms.uIntensity.value = Math.max(0.1, Math.min(2.2, current.intensity));
+    runtime.uniforms.uActive.value = current.active ? 1 : 0.55;
+    runtime.uniforms.uGlowOnly.value = current.mode === "glow" ? 1 : 0;
+  }, []);
+
+  const tickRef = useRef<(timeMs: number) => void>(() => {});
+  tickRef.current = (timeMs: number) => {
+    if (disposedRef.current || !runningRef.current) return;
+    if (timeMs - lastFrameRef.current >= 1000 / 30) {
+      lastFrameRef.current = timeMs;
+      renderNow(timeMs);
+    }
+    rafRef.current = window.requestAnimationFrame((next) => tickRef.current(next));
+  };
+
+  const syncLoopState = useCallback(() => {
+    const runtime = runtimeRef.current;
+    if (!runtime || disposedRef.current) {
+      stopLoop();
+      return;
+    }
+    const shouldAnimate =
+      (latestRef.current.mode === "glow" || latestRef.current.active) &&
+      document.visibilityState !== "hidden";
+    if (shouldAnimate && !runningRef.current) {
+      runningRef.current = true;
+      lastFrameRef.current = 0;
+      rafRef.current = window.requestAnimationFrame((timeMs) => tickRef.current(timeMs));
+      return;
+    }
+    if (!shouldAnimate && runningRef.current) {
+      stopLoop();
+      renderNow(performance.now());
+    }
+  }, [renderNow, stopLoop]);
+
+  useEffect(() => {
+    latestRef.current = { mode, colorA, colorB, intensity, active };
+    applyUniforms();
+    syncLoopState();
+  }, [active, applyUniforms, colorA, colorB, intensity, mode, syncLoopState]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || typeof window === "undefined") return;
 
-    let disposed = false;
-    let rafId = 0;
-    let resizeObs: ResizeObserver | null = null;
-    let renderer: any = null;
-    let material: any = null;
+    disposedRef.current = false;
+    const maxPixelRatio = (import.meta as any).env?.PROD ? 1 : 1.25;
+    let removeVisibilityListener: (() => void) | null = null;
+    let geometry: any = null;
 
     void import("three")
       .then((THREE) => {
-        if (disposed || !canvas.parentElement) return;
+        if (disposedRef.current || !canvas.parentElement) return;
         const parent = canvas.parentElement;
         const scene = new THREE.Scene();
         const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
@@ -55,7 +130,7 @@ export function ThreePanelEffect({
           uGlowOnly: { value: mode === "glow" ? 1 : 0 },
         };
 
-        material = new THREE.ShaderMaterial({
+        const material = new THREE.ShaderMaterial({
           uniforms,
           transparent: true,
           depthWrite: false,
@@ -101,46 +176,57 @@ export function ThreePanelEffect({
           `,
         });
 
-        const mesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), material);
+        geometry = new THREE.PlaneGeometry(2, 2);
+        const mesh = new THREE.Mesh(geometry, material);
         scene.add(mesh);
 
-        renderer = new THREE.WebGLRenderer({
+        const renderer = new THREE.WebGLRenderer({
           canvas,
           alpha: true,
-          antialias: true,
-          powerPreference: "high-performance",
+          antialias: false,
+          powerPreference: "low-power",
         });
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, maxPixelRatio));
 
         const resize = () => {
-          if (!parent || !renderer) return;
+          if (!parent) return;
           const w = Math.max(1, Math.floor(parent.clientWidth));
           const h = Math.max(1, Math.floor(parent.clientHeight));
           renderer.setSize(w, h, false);
+          renderNow(performance.now());
         };
 
+        runtimeRef.current = { renderer, scene, camera, material, uniforms };
+        applyUniforms();
         resize();
-        resizeObs = new ResizeObserver(resize);
-        resizeObs.observe(parent);
+        resizeObsRef.current = new ResizeObserver(resize);
+        resizeObsRef.current.observe(parent);
 
-        const tick = (time: number) => {
-          if (disposed || !renderer || !material) return;
-          material.uniforms.uTime.value = time * 0.001;
-          renderer.render(scene, camera);
-          rafId = window.requestAnimationFrame(tick);
+        const visibilityHandler = () => {
+          syncLoopState();
         };
-        rafId = window.requestAnimationFrame(tick);
+        document.addEventListener("visibilitychange", visibilityHandler);
+        removeVisibilityListener = () => {
+          document.removeEventListener("visibilitychange", visibilityHandler);
+        };
+
+        renderNow(0);
+        syncLoopState();
       })
       .catch(() => {});
 
     return () => {
-      disposed = true;
-      if (rafId) cancelAnimationFrame(rafId);
-      resizeObs?.disconnect();
-      if (material) material.dispose?.();
-      renderer?.dispose?.();
+      disposedRef.current = true;
+      stopLoop();
+      removeVisibilityListener?.();
+      resizeObsRef.current?.disconnect();
+      resizeObsRef.current = null;
+      geometry?.dispose?.();
+      runtimeRef.current?.material?.dispose?.();
+      runtimeRef.current?.renderer?.dispose?.();
+      runtimeRef.current = null;
     };
-  }, [active, colorA, colorB, intensity, mode]);
+  }, [applyUniforms, renderNow, stopLoop, syncLoopState]);
 
   return (
     <canvas
@@ -161,4 +247,3 @@ export function ThreePanelEffect({
     />
   );
 }
-

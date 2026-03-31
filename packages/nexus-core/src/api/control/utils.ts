@@ -138,6 +138,7 @@ const OFFLINE_ERROR_CODES = new Set([
   'NO_BASE_URL',
   'TIMEOUT',
   'NETWORK',
+  'OFFLINE',
   'HTTP_408',
   'HTTP_425',
   'HTTP_429',
@@ -195,6 +196,7 @@ export interface NexusRequestPolicyInput {
 }
 
 const normalizeMethod = (methodRaw?: string) => String(methodRaw || 'GET').trim().toUpperCase() || 'GET'
+const isBrowserOffline = () => typeof navigator !== 'undefined' && navigator.onLine === false
 const isSafeRetryMethod = (method: string) => SAFE_RETRY_METHODS.has(method)
 
 const computeRetryDelayMs = (attempt: number, baseMs: number, maxMs: number) => {
@@ -253,6 +255,14 @@ const requestJsonInternal = async <T = any>(url: string, input: NexusRequestPoli
   let attempt = 0
 
   while (true) {
+    if (isBrowserOffline()) {
+      throw new NexusControlError({
+        code: "OFFLINE",
+        status: 0,
+        retriable: false,
+        message: "control request skipped because browser is offline",
+      })
+    }
     try {
       const response = await abortableFetch(url, {
         method,
