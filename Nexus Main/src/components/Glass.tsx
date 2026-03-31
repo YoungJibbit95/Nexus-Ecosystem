@@ -1,7 +1,8 @@
 import React, { CSSProperties, memo, useState, forwardRef, useCallback, useRef, useEffect, useMemo } from 'react'
 import { useTheme } from '../store/themeStore'
 import { hexToRgb } from '../lib/utils'
-import { getNoiseOverlay, getShadowStyles, getTransitionSpeed } from '../lib/visualUtils'
+import { getShadowStyles, getTransitionSpeed } from '../lib/visualUtils'
+import { ThreePanelEffect } from './ThreePanelEffect'
 
 export interface GlassProps {
   children: React.ReactNode
@@ -25,6 +26,30 @@ const isLowPowerDevice = () => {
   const cores = Number(navigator.hardwareConcurrency || 8)
   const memory = Number((navigator as any).deviceMemory || 8)
   return Boolean(reducedMotion) || cores <= 4 || memory <= 4
+}
+
+const ensureFakeGlassFilter = () => {
+  if (typeof document === 'undefined') return
+  if (document.getElementById('nx-fake-glass-filter-defs')) return
+
+  const ns = 'http://www.w3.org/2000/svg'
+  const svg = document.createElementNS(ns, 'svg')
+  svg.setAttribute('id', 'nx-fake-glass-filter-defs')
+  svg.setAttribute('width', '0')
+  svg.setAttribute('height', '0')
+  svg.style.position = 'absolute'
+  svg.style.left = '-9999px'
+  svg.style.top = '-9999px'
+  svg.innerHTML = `
+    <defs>
+      <filter id="nx-fake-glass-filter" x="-20%" y="-20%" width="140%" height="140%">
+        <feTurbulence type="fractalNoise" baseFrequency="0.008 0.012" numOctaves="2" seed="9" result="noise" />
+        <feGaussianBlur in="noise" stdDeviation="1.4" result="blurNoise" />
+        <feDisplacementMap in="SourceGraphic" in2="blurNoise" scale="6" xChannelSelector="R" yChannelSelector="G" />
+      </filter>
+    </defs>
+  `
+  document.body.appendChild(svg)
 }
 
 // ── Panel background pattern generators ──────────────────────────
@@ -165,6 +190,8 @@ export const Glass = memo(forwardRef<HTMLDivElement, GlassProps>(function Glass(
   const active    = isHovered || isFocused
 
   const glassMode  = (t.glassmorphism as any).glassMode ?? 'default'
+  const panelRenderer = (t.glassmorphism as any).panelRenderer ?? 'blur'
+  const glowRenderer = (t.glassmorphism as any).glowRenderer ?? 'css'
   const panelBgMode = (t.background as any).panelBgMode ?? 'glass'
   const reflLine   = (t.glassmorphism as any).reflectionLine ?? false
   const innerShadow = (t.glassmorphism as any).innerShadow ?? false
@@ -172,6 +199,9 @@ export const Glass = memo(forwardRef<HTMLDivElement, GlassProps>(function Glass(
 
   const showGlow = glow && t.glow.mode !== 'off'
   const isGradientGlow = showGlow && t.glow.gradientGlow
+  const useThreePanelRenderer = panelRenderer === 'glass-shader' && !lowPowerMode
+  const useFakeGlassRenderer = panelRenderer === 'fake-glass'
+  const useThreeGlowRenderer = showGlow && glowRenderer === 'three' && !lowPowerMode
 
   const blurPx = type === 'sidebar' ? t.blur.sidebarBlur
                : type === 'modal'   ? t.blur.modalBlur
@@ -237,6 +267,10 @@ export const Glass = memo(forwardRef<HTMLDivElement, GlassProps>(function Glass(
   const boxShadow = [baseShadow, ambientGlow, insetGlow, innerShadowStyle].filter(Boolean).join(', ')
 
   useEffect(() => {
+    if (useFakeGlassRenderer) ensureFakeGlassFilter()
+  }, [useFakeGlassRenderer])
+
+  useEffect(() => {
     return () => {
       if (rafRef.current !== null) {
         cancelAnimationFrame(rafRef.current)
@@ -295,8 +329,12 @@ export const Glass = memo(forwardRef<HTMLDivElement, GlassProps>(function Glass(
         '--nx-blur-speed': `${4 / Math.max((t.glassmorphism as any).animatedBlurSpeed || 3, 0.5)}s`,
         background: bg,
         backgroundSize: bgSize,
-        backdropFilter: `blur(${(!lowPowerMode && (t.glassmorphism as any).animatedBlur) ? effectiveBlur * 1.2 : effectiveBlur}px) saturate(${saturate}%)${glassMode === 'frosted' ? ' brightness(0.94)' : glassMode === 'mirror' ? ' brightness(1.08)' : glassMode === 'plasma' ? ' brightness(0.97)' : ''}${(!lowPowerMode && (t.glassmorphism as any).animatedBlur) ? ' hue-rotate(0deg)' : ''}`,
-        WebkitBackdropFilter: `blur(${effectiveBlur}px) saturate(${saturate}%)${glassMode === 'frosted' ? ' brightness(0.94)' : glassMode === 'mirror' ? ' brightness(1.08)' : ''}`,
+        backdropFilter: panelRenderer === 'glass-shader'
+          ? `blur(${Math.max(4, Math.floor(effectiveBlur * 0.35))}px) saturate(${Math.round(saturate * 0.92)}%)`
+          : `blur(${(!lowPowerMode && (t.glassmorphism as any).animatedBlur) ? effectiveBlur * 1.2 : effectiveBlur}px) saturate(${saturate}%)${glassMode === 'frosted' ? ' brightness(0.94)' : glassMode === 'mirror' ? ' brightness(1.08)' : glassMode === 'plasma' ? ' brightness(0.97)' : ''}${(!lowPowerMode && (t.glassmorphism as any).animatedBlur) ? ' hue-rotate(0deg)' : ''}`,
+        WebkitBackdropFilter: panelRenderer === 'glass-shader'
+          ? `blur(${Math.max(4, Math.floor(effectiveBlur * 0.35))}px) saturate(${Math.round(saturate * 0.92)}%)`
+          : `blur(${effectiveBlur}px) saturate(${saturate}%)${glassMode === 'frosted' ? ' brightness(0.94)' : glassMode === 'mirror' ? ' brightness(1.08)' : ''}`,
         border: `1px solid ${borderColor}`,
         borderRadius: `${t.visual.panelRadius}px`,
         boxShadow,
@@ -308,7 +346,7 @@ export const Glass = memo(forwardRef<HTMLDivElement, GlassProps>(function Glass(
         outline: glassMode === 'crystal' && isDark ? `1px solid rgba(255,255,255,0.06)` : undefined,
         outlineOffset: glassMode === 'crystal' ? '2px' : undefined,
         ...style,
-        overflow: 'hidden',
+        overflow: 'visible',
       } as React.CSSProperties}
       onClick={handleClick}
       onMouseMove={hover ? handleMouseMove : undefined}
@@ -324,9 +362,29 @@ export const Glass = memo(forwardRef<HTMLDivElement, GlassProps>(function Glass(
       onFocus={() => setIsFocused(true)}
       onBlur={() => setIsFocused(false)}
     >
+      {useThreeGlowRenderer && (
+        <ThreePanelEffect
+          mode="glow"
+          colorA={t.glow.gradientColor1 || t.accent}
+          colorB={t.glow.gradientColor2 || t.accent2}
+          intensity={Math.max(0.2, t.glow.intensity)}
+          active={active}
+        />
+      )}
+
       {/* Gradient glow border — always reads theme colors */}
-      {isGradientGlow && (
+      {isGradientGlow && !useThreeGlowRenderer && (
         <GradientGlowBorder glow={t.glow} active={active} animSpeed={t.visual.animationSpeed} />
+      )}
+
+      {useThreePanelRenderer && (
+        <ThreePanelEffect
+          mode="glass"
+          colorA={t.accent}
+          colorB={t.accent2}
+          intensity={Math.max(0.16, Math.min(1.2, t.glassmorphism.borderGlowIntensity + 0.2))}
+          active={active}
+        />
       )}
 
       {/* Mouse light sweep */}
@@ -335,6 +393,20 @@ export const Glass = memo(forwardRef<HTMLDivElement, GlassProps>(function Glass(
           position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 2,
           opacity: isHovered ? 1 : 0, transition: 'opacity 0.6s ease',
           background: `radial-gradient(500px circle at ${mousePos.x}px ${mousePos.y}px, rgba(${accentRgb},0.09), transparent 70%)`,
+        }} />
+      )}
+
+      {useFakeGlassRenderer && (
+        <div aria-hidden="true" style={{
+          position: 'absolute',
+          inset: 0,
+          pointerEvents: 'none',
+          zIndex: 2,
+          borderRadius: 'inherit',
+          filter: 'url(#nx-fake-glass-filter)',
+          background: `linear-gradient(135deg, rgba(${accentRgb}, 0.08), rgba(${hexToRgb(t.accent2)}, 0.06))`,
+          mixBlendMode: isDark ? 'screen' : 'overlay',
+          opacity: 0.82,
         }} />
       )}
 
@@ -350,7 +422,7 @@ export const Glass = memo(forwardRef<HTMLDivElement, GlassProps>(function Glass(
       )}
 
       {/* ── REAL GLOW — element outside panel, not box-shadow ── */}
-      {showGlow && !isGradientGlow && t.glow.mode !== 'off' && !lowPowerMode && (
+      {showGlow && !isGradientGlow && t.glow.mode !== 'off' && !lowPowerMode && !useThreeGlowRenderer && (
         <div aria-hidden="true" style={{
           position: 'absolute',
           inset: -(t.glow.radius * 0.6),
@@ -411,7 +483,7 @@ export const Glass = memo(forwardRef<HTMLDivElement, GlassProps>(function Glass(
       )}
 
       {/* Content */}
-      <div style={{ position: 'relative', zIndex: 5, width: '100%', height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+      <div style={{ position: 'relative', zIndex: 5, width: '100%', height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden', borderRadius: 'inherit' }}>
         {children}
       </div>
     </div>

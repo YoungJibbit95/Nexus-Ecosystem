@@ -230,7 +230,7 @@ function PresetBtn({ name, onClick }: {name:string;onClick:()=>void}) {
 // ─── Tab types ────────────────────────────────────────────────────
 const TABS = [
   { id:'theme',      em:'🎨', label:'Theme'      },
-  { id:'glass',      em:'🪟', label:'Glass'      },
+  { id:'glass',      em:'🪟', label:'Panel Background' },
   { id:'glow',       em:'✨', label:'Glow'       },
   { id:'background', em:'🖼', label:'Background' },
   { id:'layout',     em:'📐', label:'Layout'     },
@@ -458,6 +458,7 @@ export function SettingsView() {
               <span>Mode: <strong style={{color:t.accent}}>{t.mode}</strong></span>
               <span>Density: <strong>{t.qol?.panelDensity ?? 'comfortable'}</strong></span>
               <span>Blur: <strong>{t.blur.panelBlur}px</strong></span>
+              <span>Panel: <strong>{(t.glassmorphism as any).panelRenderer ?? 'blur'}</strong></span>
             </div>
           </div>
           <LivePreview/>
@@ -478,6 +479,49 @@ export function SettingsView() {
                 </button>
               ))}
             </div>
+
+            <Divider label="Quick Settings"/>
+            <Row>
+              <Chips
+                label="Layout Preset"
+                options={['focus','cinema','compact']}
+                value={t.qol?.panelDensity === 'compact' ? 'compact' : t.animations.glowPulse ? 'cinema' : 'focus'}
+                onChange={(profile)=>applyProfile(profile as any)}
+              />
+              <Chips
+                label="Panel Background"
+                options={['blur','fake-glass','glass-shader']}
+                value={(t.glassmorphism as any).panelRenderer ?? 'blur'}
+                onChange={(renderer)=>t.setGlassmorphism({ panelRenderer: renderer } as any)}
+              />
+            </Row>
+            <Row>
+              <Chips
+                label="Glow Renderer"
+                options={['css','three']}
+                value={(t.glassmorphism as any).glowRenderer ?? 'css'}
+                onChange={(renderer)=>t.setGlassmorphism({ glowRenderer: renderer } as any)}
+              />
+              <Chips
+                label="Visual Focus"
+                options={['calm','balanced','vivid']}
+                value={t.glow.intensity < 0.5 ? 'calm' : t.glow.intensity > 1 ? 'vivid' : 'balanced'}
+                onChange={(mode)=>{
+                  if (mode === 'calm') {
+                    t.setGlow({ intensity: 0.35, radius: 14, animated: false })
+                    t.setBlur({ panelBlur: Math.min(t.blur.panelBlur, 14), modalBlur: Math.min(t.blur.modalBlur, 18) })
+                    return
+                  }
+                  if (mode === 'vivid') {
+                    t.setGlow({ intensity: 1.1, radius: 30, animated: true, gradientGlow: true })
+                    t.setBlur({ panelBlur: Math.max(t.blur.panelBlur, 20), modalBlur: Math.max(t.blur.modalBlur, 26) })
+                    return
+                  }
+                  t.setGlow({ intensity: 0.72, radius: 22, animated: false })
+                  t.setBlur({ panelBlur: 16, modalBlur: 22 })
+                }}
+              />
+            </Row>
 
             {/* Presets */}
             <Divider label="Presets"/>
@@ -525,6 +569,21 @@ export function SettingsView() {
           {/* ════════════════════════════════ GLASS */}
           {tab==='glass' && <>
             {/* Glass mode visual picker */}
+            <Divider label="Panel Rendering"/>
+            <Row>
+              <Chips
+                label="Renderer"
+                options={['blur','fake-glass','glass-shader']}
+                value={(t.glassmorphism as any).panelRenderer ?? 'blur'}
+                onChange={v=>t.setGlassmorphism({ panelRenderer: v } as any)}
+              />
+              <Chips
+                label="Glow Renderer"
+                options={['css','three']}
+                value={(t.glassmorphism as any).glowRenderer ?? 'css'}
+                onChange={v=>t.setGlassmorphism({ glowRenderer: v } as any)}
+              />
+            </Row>
             <Divider label="Glass Mode"/>
             <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8,marginBottom:16}}>
               {(['default','frosted','crystal','neon','matte','mirror'] as const).map(mode=>{

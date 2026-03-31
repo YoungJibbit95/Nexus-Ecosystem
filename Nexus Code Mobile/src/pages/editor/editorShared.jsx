@@ -170,6 +170,10 @@ export const DEFAULT_FILES = [];
 export const DEFAULT_SETTINGS = {
   theme: "nexus_vibrant",
   background: "nexus_dark",
+  panel_background_mode: "blur",
+  glow_renderer: "css",
+  panel_blur_strength: 22,
+  panel_glow_outline: true,
   font_size: 14,
   font_family: "JetBrains Mono",
   tab_size: 4,
@@ -273,4 +277,3 @@ export function saveSettingsToStorage(settings) {
     localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
   } catch {}
 }
-

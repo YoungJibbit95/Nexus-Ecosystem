@@ -164,6 +164,8 @@ export default function Editor() {
     const root = document.documentElement;
     const theme = THEMES[settings.theme] || THEMES.nexus_vibrant;
     const accent = settings.primary_accent || theme.accent;
+    const panelMode = settings.panel_background_mode || "blur";
+    const panelBlur = Number(settings.panel_blur_strength || 22);
 
     // Core Layout (Background from Theme or Override)
     const bgOverride = BACKGROUNDS && BACKGROUNDS[settings.background];
@@ -177,11 +179,32 @@ export default function Editor() {
 
     const surface = bgOverride ? bgOverride.surface : theme.surface;
     const border = bgOverride ? bgOverride.border : theme.border;
+    const panelFilter =
+      panelMode === "glass-shader"
+        ? `blur(${Math.max(8, panelBlur)}px) saturate(185%) contrast(112%)`
+        : panelMode === "fake-glass"
+          ? `blur(${Math.max(6, panelBlur * 0.7)}px) saturate(150%)`
+          : `blur(${Math.max(4, panelBlur)}px) saturate(135%)`;
+    const panelSurface =
+      panelMode === "glass-shader"
+        ? `linear-gradient(135deg, color-mix(in srgb, ${accent} 16%, transparent), ${surface})`
+        : panelMode === "fake-glass"
+          ? `linear-gradient(135deg, rgba(255,255,255,0.08), ${surface})`
+          : (surface || "#060614");
+    const panelOutline =
+      settings.panel_glow_outline === false
+        ? "none"
+        : settings.glow_renderer === "three"
+          ? `0 0 0 1px color-mix(in srgb, ${accent} 48%, transparent), 0 0 32px color-mix(in srgb, ${accent} 33%, transparent)`
+          : `0 0 0 1px color-mix(in srgb, ${accent} 32%, transparent), 0 0 18px color-mix(in srgb, ${accent} 20%, transparent)`;
 
     // Apply to CSS variables
     root.style.setProperty("--nexus-bg-type", bgType);
     root.style.setProperty("--nexus-bg-value", bgValue);
     root.style.setProperty("--nexus-surface", surface || "#060614");
+    root.style.setProperty("--nexus-panel-surface", panelSurface);
+    root.style.setProperty("--nexus-panel-filter", panelFilter);
+    root.style.setProperty("--nexus-panel-outline", panelOutline);
     root.style.setProperty("--nexus-border", border || "rgba(255,255,255,0.1)");
 
     // Theme (Colors & Syntax)
@@ -249,6 +272,12 @@ export default function Editor() {
       #root {
         background: transparent !important;
         min-height: 100vh;
+      }
+      .nexus-panel-surface {
+        background: var(--nexus-panel-surface) !important;
+        backdrop-filter: var(--nexus-panel-filter);
+        -webkit-backdrop-filter: var(--nexus-panel-filter);
+        box-shadow: var(--nexus-panel-outline);
       }
       ::-webkit-scrollbar { width: 10px; height: 10px; }
       ::-webkit-scrollbar-track { background: transparent; }
@@ -676,8 +705,12 @@ export default function Editor() {
           settings.sidebar_visible &&
           settings.sidebar_position === "left" && (
             <div
-              className="flex flex-col border-r border-white/5 shrink-0"
-              style={{ background: "var(--nexus-surface)", backdropFilter: "blur(20px)" }}
+              className="flex flex-col border-r border-white/5 shrink-0 nexus-panel-surface"
+              style={{
+                background: "var(--nexus-panel-surface)",
+                backdropFilter: "var(--nexus-panel-filter)",
+                boxShadow: "var(--nexus-panel-outline)",
+              }}
             >
               <Sidebar
                 activePanel={activePanel}
@@ -689,8 +722,12 @@ export default function Editor() {
 
         {showSettings ? (
           <div
-            className="flex-1 m-2 md:m-4 rounded-2xl overflow-hidden animate-in fade-in zoom-in duration-300 border border-white/5"
-            style={{ background: "var(--nexus-surface)", backdropFilter: "blur(40px)" }}
+            className="flex-1 m-2 md:m-4 rounded-2xl overflow-hidden animate-in fade-in zoom-in duration-300 border border-white/5 nexus-panel-surface"
+            style={{
+              background: "var(--nexus-panel-surface)",
+              backdropFilter: "var(--nexus-panel-filter)",
+              boxShadow: "var(--nexus-panel-outline)",
+            }}
           >
             <SettingsPanel
               settings={settings}
@@ -743,8 +780,9 @@ export default function Editor() {
                       className="fixed top-0 left-0 bottom-0 z-40 overflow-hidden flex flex-col"
                       style={{
                         width: "min(300px, 85vw)",
-                        background: "var(--nexus-surface)",
-                        backdropFilter: "blur(40px)",
+                        background: "var(--nexus-panel-surface)",
+                        backdropFilter: "var(--nexus-panel-filter)",
+                        boxShadow: "var(--nexus-panel-outline)",
                         borderRight: "1px solid var(--nexus-border)",
                         paddingTop: "env(safe-area-inset-top, 0px)",
                       }}
@@ -834,7 +872,10 @@ export default function Editor() {
               {settings.status_bar_visible !== false && (
                 <div
                   className="shrink-0 border-t border-white/5 min-h-0"
-                  style={{ background: "var(--nexus-surface)" }}
+                  style={{
+                    background: "var(--nexus-panel-surface)",
+                    backdropFilter: "var(--nexus-panel-filter)",
+                  }}
                 >
                   <Terminal
                     isOpen={terminalOpen}
@@ -853,8 +894,12 @@ export default function Editor() {
               settings.sidebar_visible &&
               settings.sidebar_position === "right" && (
                 <div
-                  className="flex flex-col border-l border-white/5 backdrop-blur-xl shrink-0"
-                  style={{ background: "var(--nexus-surface)" }}
+                  className="flex flex-col border-l border-white/5 backdrop-blur-xl shrink-0 nexus-panel-surface"
+                  style={{
+                    background: "var(--nexus-panel-surface)",
+                    backdropFilter: "var(--nexus-panel-filter)",
+                    boxShadow: "var(--nexus-panel-outline)",
+                  }}
                 >
                   <Sidebar
                     activePanel={activePanel}

@@ -3062,10 +3062,20 @@ export function CanvasView() {
       const dy = Math.max(-180, Math.min(180, rawDy));
       if (Math.abs(dx) < 0.02 && Math.abs(dy) < 0.02) return;
 
-      const isZoomGesture = e.ctrlKey || e.metaKey || e.altKey;
+      const absRawDx = Math.abs(rawDx);
+      const absRawDy = Math.abs(rawDy);
+      const looksLikePinch =
+        absRawDy > 0 &&
+        absRawDy <= 7 &&
+        absRawDx <= 7 &&
+        absRawDy >= absRawDx * 0.75;
+      const isZoomGesture =
+        e.ctrlKey || e.metaKey || e.altKey || looksLikePinch;
       if (isZoomGesture) {
         const pinchDelta = Math.max(-120, Math.min(120, dy));
-        const sensitivity = Math.abs(pinchDelta) < 16 ? 0.0105 : 0.0085;
+        const absPinch = Math.abs(pinchDelta);
+        const sensitivity =
+          absPinch <= 4 ? 0.03 : absPinch < 16 ? 0.016 : 0.0105;
         const factor = Math.exp(-pinchDelta * sensitivity);
         applyZoomAtPoint(e.clientX, e.clientY, factor);
         setWheelPanning(false);
@@ -3307,11 +3317,11 @@ export function CanvasView() {
       const pickCenter = () => {
         if (origin) return { x: origin.x, y: origin.y };
         if (!active?.nodes.length) return { x: viewportCenterX, y: viewportCenterY };
-        const templateSize = { w: 1280, h: 980 };
+        const templateSize = { w: 1440, h: 1080 };
         const offsets: Array<[number, number]> = [[0, 0]];
-        const stepX = Math.max(420, Math.round(templateSize.w * 0.52));
-        const stepY = Math.max(320, Math.round(templateSize.h * 0.45));
-        for (let ring = 1; ring <= 6; ring += 1) {
+        const stepX = Math.max(560, Math.round(templateSize.w * 0.56));
+        const stepY = Math.max(420, Math.round(templateSize.h * 0.48));
+        for (let ring = 1; ring <= 8; ring += 1) {
           const points = 8 + ring * 6;
           const radiusX = stepX * ring;
           const radiusY = stepY * ring;
@@ -3324,17 +3334,17 @@ export function CanvasView() {
           }
         }
         const scoreAt = (centerX: number, centerY: number) => {
-          const margin = 88;
+          const margin = 132;
           const left = centerX - templateSize.w * 0.5 - margin;
           const top = centerY - templateSize.h * 0.5 - margin;
           const right = centerX + templateSize.w * 0.5 + margin;
           const bottom = centerY + templateSize.h * 0.5 + margin;
           let score = 0;
           active.nodes.forEach((node) => {
-            const nodeLeft = node.x - 36;
-            const nodeTop = node.y - 36;
-            const nodeRight = node.x + node.width + 36;
-            const nodeBottom = node.y + node.height + 36;
+            const nodeLeft = node.x - 64;
+            const nodeTop = node.y - 64;
+            const nodeRight = node.x + node.width + 64;
+            const nodeBottom = node.y + node.height + 64;
             if (
               nodeLeft >= right ||
               nodeRight <= left ||
@@ -3475,9 +3485,9 @@ export function CanvasView() {
 
       const templateSize = estimateTemplateSize(payload.template, payload.aiDepth);
       const candidateOffsets: Array<[number, number]> = [[0, 0]];
-      const ringStepX = Math.max(520, Math.round(templateSize.w * 0.52));
-      const ringStepY = Math.max(380, Math.round(templateSize.h * 0.46));
-      for (let ring = 1; ring <= 7; ring += 1) {
+      const ringStepX = Math.max(620, Math.round(templateSize.w * 0.56));
+      const ringStepY = Math.max(460, Math.round(templateSize.h * 0.5));
+      for (let ring = 1; ring <= 9; ring += 1) {
         const points = 8 + ring * 6;
         const radiusX = ringStepX * ring;
         const radiusY = ringStepY * ring;
@@ -3493,17 +3503,17 @@ export function CanvasView() {
 
       const overlapScore = (centerX: number, centerY: number) => {
         if (!activeCanvas?.nodes.length) return 0;
-        const margin = 92;
+        const margin = 140;
         const left = centerX - templateSize.w * 0.5 - margin;
         const top = centerY - templateSize.h * 0.5 - margin;
         const right = centerX + templateSize.w * 0.5 + margin;
         const bottom = centerY + templateSize.h * 0.5 + margin;
         let score = 0;
         activeCanvas.nodes.forEach((node) => {
-          const nodeLeft = node.x - 40;
-          const nodeTop = node.y - 40;
-          const nodeRight = node.x + node.width + 40;
-          const nodeBottom = node.y + node.height + 40;
+          const nodeLeft = node.x - 72;
+          const nodeTop = node.y - 72;
+          const nodeRight = node.x + node.width + 72;
+          const nodeBottom = node.y + node.height + 72;
           const intersects =
             nodeLeft < right &&
             nodeRight > left &&
@@ -3528,7 +3538,7 @@ export function CanvasView() {
           const softRangeY = templateSize.h * 0.62;
           if (distX < softRangeX && distY < softRangeY) {
             const proximity = 1 - Math.max(distX / softRangeX, distY / softRangeY);
-            score += 0.35 * proximity;
+          score += 0.6 * proximity;
           }
         });
         return score;
@@ -3547,8 +3557,8 @@ export function CanvasView() {
           centerY = candY;
         }
       });
-      centerX = Math.round(centerX / 10) * 10;
-      centerY = Math.round(centerY / 10) * 10;
+      centerX = Math.round(centerX / 20) * 20;
+      centerY = Math.round(centerY / 20) * 20;
 
       const day = (offset: number) => {
         const d = new Date();
@@ -3608,7 +3618,7 @@ export function CanvasView() {
           }),
         );
 
-        for (let iter = 0; iter < 160; iter += 1) {
+        for (let iter = 0; iter < 280; iter += 1) {
           let moved = false;
           for (let i = 0; i < ids.length; i += 1) {
             for (let j = i + 1; j < ids.length; j += 1) {
@@ -3618,7 +3628,7 @@ export function CanvasView() {
               const b = pos.get(idB);
               if (!a || !b) continue;
 
-              const pad = 24;
+              const pad = 56;
               const overlapX =
                 Math.min(a.x + a.width + pad, b.x + b.width + pad) -
                 Math.max(a.x - pad, b.x - pad);
@@ -3633,7 +3643,7 @@ export function CanvasView() {
               const centerBX = b.x + b.width * 0.5;
               const centerBY = b.y + b.height * 0.5;
               const splitByX = overlapX <= overlapY;
-              const baseShift = (splitByX ? overlapX : overlapY) * 0.5 + 20;
+              const baseShift = (splitByX ? overlapX : overlapY) * 0.56 + 42;
 
               let shiftAX = 0;
               let shiftAY = 0;

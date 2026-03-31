@@ -179,10 +179,10 @@ export const fonts = [
 
 export const settingSections = [
   { id: "theme", label: "Theme", icon: Palette },
-  { id: "background", label: "Hintergrund", icon: Sparkles },
+  { id: "panel", label: "Panel Background", icon: Sparkles },
+  { id: "background", label: "Background", icon: Monitor },
   { id: "editor", label: "Editor", icon: Code2 },
   { id: "font", label: "Schriftart", icon: Type },
   { id: "glow", label: "Glow Effects", icon: Zap },
   { id: "appearance", label: "Darstellung", icon: Monitor },
 ];
-
