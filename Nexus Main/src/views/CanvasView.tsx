@@ -2676,9 +2676,6 @@ export function CanvasView() {
   const wheelPanRaf = useRef<number>(0);
   const wheelPanDelta = useRef({ x: 0, y: 0 });
   const wheelPanReleaseTimeout = useRef<number>(0);
-  const wheelZoomRaf = useRef<number>(0);
-  const wheelZoomLogDelta = useRef(0);
-  const wheelZoomPoint = useRef({ x: 0, y: 0 });
 
   const projectNodes = useMemo(() => {
     if (!canvas) return [] as CanvasNode[];
@@ -2945,9 +2942,11 @@ export function CanvasView() {
     (e: React.MouseEvent) => {
       setQuickAddPos(null);
       setShowWidgetMenu(false);
+      const target = e.target as HTMLElement;
       const isCanvasBackground =
-        e.target === e.currentTarget ||
-        (e.target as HTMLElement).id === "nexus-canvas-inner";
+        target === e.currentTarget ||
+        target.id === "nexus-canvas-inner" ||
+        Boolean(target.closest("#nexus-canvas-inner"));
       if (e.button === 1 || (e.button === 0 && (spaceHeld || isCanvasBackground))) {
         e.preventDefault();
         setPanning(true);
@@ -3063,42 +3062,15 @@ export function CanvasView() {
       const dy = Math.max(-180, Math.min(180, rawDy));
       if (Math.abs(dx) < 0.02 && Math.abs(dy) < 0.02) return;
 
-      const isZoomGesture = e.ctrlKey || e.metaKey;
+      const isZoomGesture = e.ctrlKey || e.metaKey || e.altKey;
       if (isZoomGesture) {
-        const pinchDelta = Math.max(-56, Math.min(56, dy));
-        const sensitivity = Math.abs(pinchDelta) < 8 ? 0.0068 : 0.0052;
-        wheelZoomLogDelta.current += -pinchDelta * sensitivity;
-        wheelZoomPoint.current = { x: e.clientX, y: e.clientY };
-        if (!wheelZoomRaf.current) {
-          const flushZoom = () => {
-            const zoomStep = Math.max(
-              -0.32,
-              Math.min(0.32, wheelZoomLogDelta.current),
-            );
-            if (Math.abs(zoomStep) < 0.0005) {
-              wheelZoomLogDelta.current = 0;
-              wheelZoomRaf.current = 0;
-              return;
-            }
-            wheelZoomLogDelta.current -= zoomStep;
-            const factor = Math.exp(zoomStep);
-            applyZoomAtPoint(
-              wheelZoomPoint.current.x,
-              wheelZoomPoint.current.y,
-              factor,
-            );
-            if (Math.abs(wheelZoomLogDelta.current) > 0.0005) {
-              wheelZoomRaf.current = requestAnimationFrame(flushZoom);
-            } else {
-              wheelZoomLogDelta.current = 0;
-              wheelZoomRaf.current = 0;
-            }
-          };
-          wheelZoomRaf.current = requestAnimationFrame(flushZoom);
-        }
+        const pinchDelta = Math.max(-120, Math.min(120, dy));
+        const sensitivity = Math.abs(pinchDelta) < 16 ? 0.0105 : 0.0085;
+        const factor = Math.exp(-pinchDelta * sensitivity);
+        applyZoomAtPoint(e.clientX, e.clientY, factor);
+        setWheelPanning(false);
         return;
       }
-      wheelZoomLogDelta.current = 0;
 
       wheelPanDelta.current.x -= dx;
       wheelPanDelta.current.y -= dy;
@@ -3136,10 +3108,6 @@ export function CanvasView() {
       if (wheelPanRaf.current) {
         cancelAnimationFrame(wheelPanRaf.current);
       }
-      if (wheelZoomRaf.current) {
-        cancelAnimationFrame(wheelZoomRaf.current);
-      }
-      wheelZoomLogDelta.current = 0;
       if (wheelPanReleaseTimeout.current) {
         window.clearTimeout(wheelPanReleaseTimeout.current);
       }
@@ -3333,10 +3301,76 @@ export function CanvasView() {
 
   const createStarterPack = useCallback(
     (origin?: { x: number; y: number }) => {
-      const centerX =
-        origin?.x ?? (-viewport.panX + canvasSize.w * 0.42) / viewport.zoom;
-      const centerY =
-        origin?.y ?? (-viewport.panY + canvasSize.h * 0.36) / viewport.zoom;
+      const active = useCanvas.getState().getActiveCanvas();
+      const viewportCenterX = (-viewport.panX + canvasSize.w * 0.42) / viewport.zoom;
+      const viewportCenterY = (-viewport.panY + canvasSize.h * 0.36) / viewport.zoom;
+      const pickCenter = () => {
+        if (origin) return { x: origin.x, y: origin.y };
+        if (!active?.nodes.length) return { x: viewportCenterX, y: viewportCenterY };
+        const templateSize = { w: 1280, h: 980 };
+        const offsets: Array<[number, number]> = [[0, 0]];
+        const stepX = Math.max(420, Math.round(templateSize.w * 0.52));
+        const stepY = Math.max(320, Math.round(templateSize.h * 0.45));
+        for (let ring = 1; ring <= 6; ring += 1) {
+          const points = 8 + ring * 6;
+          const radiusX = stepX * ring;
+          const radiusY = stepY * ring;
+          for (let index = 0; index < points; index += 1) {
+            const angle = (index / points) * Math.PI * 2;
+            offsets.push([
+              Math.round(Math.cos(angle) * radiusX),
+              Math.round(Math.sin(angle) * radiusY),
+            ]);
+          }
+        }
+        const scoreAt = (centerX: number, centerY: number) => {
+          const margin = 88;
+          const left = centerX - templateSize.w * 0.5 - margin;
+          const top = centerY - templateSize.h * 0.5 - margin;
+          const right = centerX + templateSize.w * 0.5 + margin;
+          const bottom = centerY + templateSize.h * 0.5 + margin;
+          let score = 0;
+          active.nodes.forEach((node) => {
+            const nodeLeft = node.x - 36;
+            const nodeTop = node.y - 36;
+            const nodeRight = node.x + node.width + 36;
+            const nodeBottom = node.y + node.height + 36;
+            if (
+              nodeLeft >= right ||
+              nodeRight <= left ||
+              nodeTop >= bottom ||
+              nodeBottom <= top
+            ) {
+              return;
+            }
+            score += 1;
+            const overlapW = Math.max(0, Math.min(right, nodeRight) - Math.max(left, nodeLeft));
+            const overlapH = Math.max(0, Math.min(bottom, nodeBottom) - Math.max(top, nodeTop));
+            score += (overlapW * overlapH) / (templateSize.w * templateSize.h + 1);
+          });
+          return score;
+        };
+        let bestX = viewportCenterX;
+        let bestY = viewportCenterY;
+        let bestScore = Number.POSITIVE_INFINITY;
+        offsets.forEach(([dx, dy]) => {
+          const candX = viewportCenterX + dx;
+          const candY = viewportCenterY + dy;
+          const score = scoreAt(candX, candY);
+          if (score < bestScore) {
+            bestScore = score;
+            bestX = candX;
+            bestY = candY;
+          }
+        });
+        return {
+          x: Math.round(bestX / 10) * 10,
+          y: Math.round(bestY / 10) * 10,
+        };
+      };
+      const center = pickCenter();
+      const centerX = center.x;
+      const centerY = center.y;
       const root = spawnNode("project", {
         x: centerX,
         y: centerY,
@@ -3440,21 +3474,22 @@ export function CanvasView() {
       };
 
       const templateSize = estimateTemplateSize(payload.template, payload.aiDepth);
-      const candidateOffsets: Array<[number, number]> = [
-        [0, 0],
-        [760, 0],
-        [-760, 0],
-        [0, 560],
-        [0, -560],
-        [760, 460],
-        [-760, 460],
-        [760, -460],
-        [-760, -460],
-        [1280, 0],
-        [-1280, 0],
-        [0, 980],
-        [0, -980],
-      ];
+      const candidateOffsets: Array<[number, number]> = [[0, 0]];
+      const ringStepX = Math.max(520, Math.round(templateSize.w * 0.52));
+      const ringStepY = Math.max(380, Math.round(templateSize.h * 0.46));
+      for (let ring = 1; ring <= 7; ring += 1) {
+        const points = 8 + ring * 6;
+        const radiusX = ringStepX * ring;
+        const radiusY = ringStepY * ring;
+        for (let index = 0; index < points; index += 1) {
+          const angle = (index / points) * Math.PI * 2;
+          const jitter = index % 2 === 0 ? 0.16 : -0.1;
+          candidateOffsets.push([
+            Math.round(Math.cos(angle + jitter) * radiusX),
+            Math.round(Math.sin(angle + jitter) * radiusY),
+          ]);
+        }
+      }
 
       const overlapScore = (centerX: number, centerY: number) => {
         if (!activeCanvas?.nodes.length) return 0;
@@ -3485,6 +3520,16 @@ export function CanvasView() {
             Math.min(bottom, nodeBottom) - Math.max(top, nodeTop),
           );
           score += (overlapW * overlapH) / (templateSize.w * templateSize.h + 1);
+          const nodeCenterX = node.x + node.width * 0.5;
+          const nodeCenterY = node.y + node.height * 0.5;
+          const distX = Math.abs(nodeCenterX - centerX);
+          const distY = Math.abs(nodeCenterY - centerY);
+          const softRangeX = templateSize.w * 0.65;
+          const softRangeY = templateSize.h * 0.62;
+          if (distX < softRangeX && distY < softRangeY) {
+            const proximity = 1 - Math.max(distX / softRangeX, distY / softRangeY);
+            score += 0.35 * proximity;
+          }
         });
         return score;
       };
@@ -5075,11 +5120,12 @@ export function CanvasView() {
             onMouseDown={handleCanvasMouseDown}
             onWheel={handleWheel}
             onDoubleClick={(e) => {
-              if (
-                e.target !== e.currentTarget &&
-                (e.target as HTMLElement).id !== "nexus-canvas-inner"
-              )
-                return;
+              const target = e.target as HTMLElement;
+              const isCanvasBackground =
+                target === e.currentTarget ||
+                target.id === "nexus-canvas-inner" ||
+                Boolean(target.closest("#nexus-canvas-inner"));
+              if (!isCanvasBackground) return;
               const rect = canvasRef.current?.getBoundingClientRect();
               if (!rect) return;
               setQuickAddPos({

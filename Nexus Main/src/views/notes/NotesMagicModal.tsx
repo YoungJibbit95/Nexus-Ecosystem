@@ -34,6 +34,12 @@ const MAGIC_TYPES: MagicTypeDef[] = [
     build: (v: Record<string,string>) => `\n\`\`\`nexus-list\n${v.rows}\n\`\`\`\n`,
   },
   {
+    id: 'nexus-checklist', label: 'Checklist', icon: '☑️', desc: 'Interaktive Checkliste mit Fortschritt',
+    color: '#30D158',
+    fields: [{ key: 'rows', label: 'Einträge (Text | done/true/false, eine Zeile pro Punkt)', multiline: true, placeholder: 'UI Polish | false\nAPI Contract finalisieren | true\nRelease Smoke-Test | false' }],
+    build: (v: Record<string,string>) => `\n\`\`\`nexus-checklist\n${v.rows}\n\`\`\`\n`,
+  },
+  {
     id: 'nexus-alert', label: 'Alert Box', icon: '🔔', desc: 'Info, Warnung oder Fehler',
     color: '#FF9F0A',
     fields: [

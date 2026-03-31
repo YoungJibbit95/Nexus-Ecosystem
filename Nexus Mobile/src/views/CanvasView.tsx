@@ -84,9 +84,6 @@ export function CanvasView() {
     const wheelPanRaf = useRef(0)
     const wheelPanDelta = useRef({ x: 0, y: 0 })
     const wheelPanReleaseTimeout = useRef(0)
-    const wheelZoomRaf = useRef(0)
-    const wheelZoomLogDelta = useRef(0)
-    const wheelZoomPoint = useRef({ x: 0, y: 0 })
 
     const projectNodes = useMemo(() => {
         if (!canvas) return []
@@ -208,7 +205,11 @@ export function CanvasView() {
     // Pan
     const handleCanvasMouseDown = useCallback((e: React.MouseEvent) => {
         setQuickAddPos(null)
-        const isCanvasBackground = e.target === e.currentTarget || (e.target as HTMLElement).id === 'nexus-canvas-inner'
+        const target = e.target as HTMLElement
+        const isCanvasBackground =
+            target === e.currentTarget
+            || target.id === 'nexus-canvas-inner'
+            || Boolean(target.closest('#nexus-canvas-inner'))
         if (e.button === 1 || (e.button === 0 && (spaceHeld || isCanvasBackground))) {
             e.preventDefault()
             setPanning(true)
@@ -307,35 +308,15 @@ export function CanvasView() {
         const dy = Math.max(-180, Math.min(180, rawDy))
         if (Math.abs(dx) < 0.02 && Math.abs(dy) < 0.02) return
 
-        const isZoomGesture = e.ctrlKey || e.metaKey
+        const isZoomGesture = e.ctrlKey || e.metaKey || e.altKey
         if (isZoomGesture) {
-            const pinchDelta = Math.max(-56, Math.min(56, dy))
-            const sensitivity = Math.abs(pinchDelta) < 8 ? 0.0068 : 0.0052
-            wheelZoomLogDelta.current += -pinchDelta * sensitivity
-            wheelZoomPoint.current = { x: e.clientX, y: e.clientY }
-            if (!wheelZoomRaf.current) {
-                const flushZoom = () => {
-                    const zoomStep = Math.max(-0.32, Math.min(0.32, wheelZoomLogDelta.current))
-                    if (Math.abs(zoomStep) < 0.0005) {
-                        wheelZoomLogDelta.current = 0
-                        wheelZoomRaf.current = 0
-                        return
-                    }
-                    wheelZoomLogDelta.current -= zoomStep
-                    const factor = Math.exp(zoomStep)
-                    applyZoomAtPoint(wheelZoomPoint.current.x, wheelZoomPoint.current.y, factor)
-                    if (Math.abs(wheelZoomLogDelta.current) > 0.0005) {
-                        wheelZoomRaf.current = requestAnimationFrame(flushZoom)
-                    } else {
-                        wheelZoomLogDelta.current = 0
-                        wheelZoomRaf.current = 0
-                    }
-                }
-                wheelZoomRaf.current = requestAnimationFrame(flushZoom)
-            }
+            const pinchDelta = Math.max(-120, Math.min(120, dy))
+            const sensitivity = Math.abs(pinchDelta) < 16 ? 0.0105 : 0.0085
+            const factor = Math.exp(-pinchDelta * sensitivity)
+            applyZoomAtPoint(e.clientX, e.clientY, factor)
+            setWheelPanning(false)
             return
         }
-        wheelZoomLogDelta.current = 0
 
         wheelPanDelta.current.x -= dx
         wheelPanDelta.current.y -= dy
@@ -370,10 +351,6 @@ export function CanvasView() {
         if (wheelPanRaf.current) {
             cancelAnimationFrame(wheelPanRaf.current)
         }
-        if (wheelZoomRaf.current) {
-            cancelAnimationFrame(wheelZoomRaf.current)
-        }
-        wheelZoomLogDelta.current = 0
         if (wheelPanReleaseTimeout.current) {
             window.clearTimeout(wheelPanReleaseTimeout.current)
         }
@@ -816,7 +793,12 @@ export function CanvasView() {
                             setTouchStartDist(null)
                         }}
                         onDoubleClick={(e) => {
-                            if (e.target !== e.currentTarget && (e.target as HTMLElement).id !== 'nexus-canvas-inner') return
+                            const target = e.target as HTMLElement
+                            const isCanvasBackground =
+                                target === e.currentTarget
+                                || target.id === 'nexus-canvas-inner'
+                                || Boolean(target.closest('#nexus-canvas-inner'))
+                            if (!isCanvasBackground) return
                             const rect = canvasRef.current?.getBoundingClientRect()
                             if (!rect) return
                             setQuickAddPos({ x: e.clientX - rect.left, y: e.clientY - rect.top })
