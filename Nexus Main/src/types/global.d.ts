@@ -9,6 +9,7 @@ declare global {
         close: () => Promise<void> | void
       }
       fs: {
+        pickDirectory: () => Promise<{ ok: boolean; path?: string; canceled?: boolean; error?: string }>
         read: (path: string) => Promise<{ ok: boolean; data?: string; error?: string }>
         write: (path: string, content: string) => Promise<{ ok: boolean; error?: string }>
       }

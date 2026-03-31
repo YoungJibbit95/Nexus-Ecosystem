@@ -287,5 +287,6 @@ export function shouldReduceMotion(): boolean {
 
 export function getTransitionSpeed(speed: number): string {
   if (shouldReduceMotion()) return '0ms'
-  return `${300 * speed}ms`
+  const normalized = Math.min(Math.max(Number.isFinite(speed) ? speed : 1, 0.1), 3)
+  return `${Math.round(300 / normalized)}ms`
 }

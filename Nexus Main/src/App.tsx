@@ -904,7 +904,7 @@ export default function App() {
                 exit={motionPreset.exit}
                 transition={{
                   duration:
-                    (lowPowerMode ? 0.12 : 0.2) * (t.visual.animationSpeed || 1),
+                    (lowPowerMode ? 0.12 : 0.2) / Math.max(t.visual.animationSpeed || 1, 0.1),
                   ease: "easeInOut",
                 }}
                 style={{

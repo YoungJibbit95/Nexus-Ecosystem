@@ -129,7 +129,8 @@ function GradientGlowBorder({ glow, active, animSpeed }: { glow: any; active: bo
   const c1 = glow.gradientColor1 || glow.color
   const c2 = glow.gradientColor2 || glow.color
   const intensity = glow.intensity * (active ? 1.3 : 0.85)
-  const dur = Math.max(3 / Math.max(glow.animationSpeed, 0.1), 1.5)
+  const effectiveSpeed = Math.max(glow.animationSpeed, 0.1) * Math.max(animSpeed, 0.1)
+  const dur = Math.max(3 / Math.max(effectiveSpeed, 0.1), 1.5)
 
   return (
     <>
@@ -144,9 +145,9 @@ function GradientGlowBorder({ glow, active, animSpeed }: { glow: any; active: bo
       }} />
       {/* Sharp gradient border on top */}
       <div aria-hidden="true" style={{
-        position: 'absolute', inset: 0,
-        pointerEvents: 'none', zIndex: 6, borderRadius: 'inherit',
-        padding: '1.5px',
+        position: 'absolute', inset: -1.5,
+        pointerEvents: 'none', zIndex: 7, borderRadius: 'inherit',
+        padding: '2px',
         background: `conic-gradient(from ${glow.gradientAngle}deg, ${c1}dd, ${c2}dd, ${c1}dd)`,
         WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
         WebkitMaskComposite: 'xor',
@@ -178,7 +179,6 @@ export const Glass = memo(forwardRef<HTMLDivElement, GlassProps>(function Glass(
   const t = useTheme()
   const [isHovered, setIsHovered] = useState(false)
   const [isFocused, setIsFocused] = useState(false)
-  const [mousePos, setMousePos] = useState({ x: 0, y: 0 })
   const rootRef = useRef<HTMLDivElement>(null)
   const rafRef = useRef<number | null>(null)
   const nextMouseRef = useRef({ x: 0, y: 0 })
@@ -256,15 +256,15 @@ export const Glass = memo(forwardRef<HTMLDivElement, GlassProps>(function Glass(
   // ambientGlow is now handled by a separate div element for proper external glow
   const ambientGlow = ''
 
-  const insetGlow = t.glassmorphism.borderGlow && showGlow
-    ? `inset 0 0 20px rgba(${accentRgb}, ${t.glassmorphism.borderGlowIntensity * 0.15}), inset 0 1px 0 rgba(${accentRgb}, ${t.glassmorphism.borderGlowIntensity * 0.5})`
+  const borderGlowRing = t.glassmorphism.borderGlow && showGlow && !useThreeGlowRenderer
+    ? `0 0 ${10 + t.glassmorphism.borderGlowIntensity * 22}px rgba(${accentRgb}, ${0.16 + t.glassmorphism.borderGlowIntensity * 0.35}), 0 0 0 1px rgba(${accentRgb}, ${0.12 + t.glassmorphism.borderGlowIntensity * 0.32})`
     : ''
 
   const innerShadowStyle = innerShadow
     ? `inset 0 2px 8px rgba(0,0,0,${glassDepth * 0.3}), inset 0 -1px 4px rgba(255,255,255,${isDark ? 0.04 : 0.2})`
     : ''
 
-  const boxShadow = [baseShadow, ambientGlow, insetGlow, innerShadowStyle].filter(Boolean).join(', ')
+  const boxShadow = [baseShadow, ambientGlow, borderGlowRing, innerShadowStyle].filter(Boolean).join(', ')
 
   useEffect(() => {
     if (useFakeGlassRenderer) ensureFakeGlassFilter()
@@ -286,7 +286,9 @@ export const Glass = memo(forwardRef<HTMLDivElement, GlassProps>(function Glass(
     if (rafRef.current !== null) return
     rafRef.current = requestAnimationFrame(() => {
       rafRef.current = null
-      setMousePos(nextMouseRef.current)
+      if (!rootRef.current) return
+      rootRef.current.style.setProperty('--nx-mouse-x', `${nextMouseRef.current.x}px`)
+      rootRef.current.style.setProperty('--nx-mouse-y', `${nextMouseRef.current.y}px`)
     })
   }, [])
 
@@ -316,7 +318,7 @@ export const Glass = memo(forwardRef<HTMLDivElement, GlassProps>(function Glass(
         className,
         t.animations.rippleClick && onClick ? 'nx-ripple-container' : '',
         !lowPowerMode && (t.animations as any).glowPulse && showGlow ? 'nx-glow-pulse' : '',
-        !lowPowerMode && (t.animations as any).floatEffect && hover ? 'nx-float' : '',
+        !lowPowerMode && (t.animations as any).floatEffect && hover && !isHovered ? 'nx-float' : '',
         !lowPowerMode && glassMode === 'plasma' ? 'nx-glass-plasma' : '',
         !lowPowerMode && (t.glassmorphism as any).animatedBlur ? 'nx-plasma-bg' : '',
       ].filter(Boolean).join(' ')}
@@ -325,6 +327,8 @@ export const Glass = memo(forwardRef<HTMLDivElement, GlassProps>(function Glass(
         position: 'relative',
         '--nx-rgb': hexToRgb(t.accent),
         '--nx-rgb2': hexToRgb(t.accent2),
+        '--nx-mouse-x': '50%',
+        '--nx-mouse-y': '50%',
         '--nx-plasma-speed': `${4 / Math.max((t.glassmorphism as any).animatedBlurSpeed || 3, 0.5)}s`,
         '--nx-blur-speed': `${4 / Math.max((t.glassmorphism as any).animatedBlurSpeed || 3, 0.5)}s`,
         background: bg,
@@ -392,7 +396,7 @@ export const Glass = memo(forwardRef<HTMLDivElement, GlassProps>(function Glass(
         <div aria-hidden="true" style={{
           position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 2,
           opacity: isHovered ? 1 : 0, transition: 'opacity 0.6s ease',
-          background: `radial-gradient(500px circle at ${mousePos.x}px ${mousePos.y}px, rgba(${accentRgb},0.09), transparent 70%)`,
+          background: `radial-gradient(500px circle at var(--nx-mouse-x, 50%) var(--nx-mouse-y, 50%), rgba(${accentRgb},0.09), transparent 70%)`,
         }} />
       )}
 
@@ -465,7 +469,7 @@ export const Glass = memo(forwardRef<HTMLDivElement, GlassProps>(function Glass(
       {glassMode === 'neon' && (
         <div aria-hidden="true" style={{
           position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 3, borderRadius: 'inherit',
-          boxShadow: `inset 0 0 20px rgba(${accentRgb}, 0.08), inset 0 0 1px rgba(${accentRgb}, 0.6)`,
+          boxShadow: `0 0 20px rgba(${accentRgb}, 0.22), 0 0 0 1px rgba(${accentRgb}, 0.55)`,
         }} />
       )}
 

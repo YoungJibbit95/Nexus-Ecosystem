@@ -3,7 +3,7 @@ import {
   Plus, Trash2, Edit3, Search, X, Check, FileText, Code2,
   CheckSquare, Bell, FolderOpen, Grid3x3, List, Star, Clock,
   MoreVertical, ChevronRight, Layers, Package, Copy, ArrowRight,
-  Home, Hash, Zap, Archive, Globe
+  Home, Hash, Zap, Archive, Globe, Download
 } from 'lucide-react'
 import { Glass } from '../components/Glass'
 import { useApp, Note, CodeFile, Task, Reminder } from '../store/appStore'
@@ -35,6 +35,22 @@ const TYPE_META: Record<ItemType, { icon: React.FC<any>; color: string; label: s
   code:     { icon: Code2,       color: '#BF5AF2', label: 'Code' },
   task:     { icon: CheckSquare, color: '#FF9F0A', label: 'Task' },
   reminder: { icon: Bell,        color: '#FF453A', label: 'Reminder' },
+}
+
+const WORKSPACE_ROOT_KEY = 'nx-workspace-root-path-v1'
+
+const stripTrailingSeparators = (value: string) => value.replace(/[\\/]+$/, '')
+const joinFsPath = (root: string, ...segments: string[]) =>
+  `${stripTrailingSeparators(root)}/${segments.join('/')}`
+const sanitizeFileName = (value: string) =>
+  value.trim().toLowerCase().replace(/[^a-z0-9._-]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'item'
+const getCodeExtension = (lang?: string) => {
+  const normalized = (lang || 'txt').toLowerCase()
+  if (normalized === 'typescript') return 'ts'
+  if (normalized === 'javascript') return 'js'
+  if (normalized === 'markdown') return 'md'
+  if (normalized === 'shell') return 'sh'
+  return normalized.replace(/[^a-z0-9]/g, '') || 'txt'
 }
 
 // ── Workspace create / edit modal ─────────────────────────────────
@@ -263,6 +279,15 @@ export function FilesView() {
   const [newWsOpen,   setNewWsOpen]   = useState(false)
   const [editWs,      setEditWs]      = useState<Workspace|null>(null)
   const [assignItem,  setAssignItem]  = useState<FileItem|null>(null)
+  const [workspaceRoot, setWorkspaceRoot] = useState<string>(() => {
+    try {
+      return localStorage.getItem(WORKSPACE_ROOT_KEY) ?? ''
+    } catch {
+      return ''
+    }
+  })
+  const [syncing, setSyncing] = useState(false)
+  const [syncMsg, setSyncMsg] = useState('')
 
   const activeWs = workspaces.find(w => w.id === activeWorkspaceId)
 
@@ -303,6 +328,139 @@ export function FilesView() {
 
   const wsItemCount = (ws: Workspace) =>
     ws.noteIds.length + ws.codeIds.length + ws.taskIds.length + ws.reminderIds.length
+
+  const toast = (message: string) => {
+    setSyncMsg(message)
+    window.setTimeout(() => setSyncMsg(''), 3200)
+  }
+
+  const selectWorkspaceRoot = async (): Promise<string | null> => {
+    const picker = window.api?.fs?.pickDirectory
+    if (!picker) {
+      toast('Ordnerauswahl ist nur in der Desktop-App verfügbar.')
+      return null
+    }
+
+    const result = await picker()
+    if (!result.ok || !result.path) {
+      if (!result.canceled) toast(result.error || 'Ordner konnte nicht ausgewählt werden.')
+      return null
+    }
+
+    setWorkspaceRoot(result.path)
+    try {
+      localStorage.setItem(WORKSPACE_ROOT_KEY, result.path)
+    } catch {}
+    toast(`Workspace-Ordner gesetzt: ${result.path}`)
+    return result.path
+  }
+
+  const exportWorkspaceToDisk = async () => {
+    if (syncing) return
+    const fsApi = window.api?.fs
+    if (!fsApi?.write) {
+      toast('Datei-Export ist in dieser Laufzeit nicht verfügbar.')
+      return
+    }
+
+    let root = workspaceRoot
+    if (!root) {
+      const selected = await selectWorkspaceRoot()
+      if (!selected) return
+      root = selected
+    }
+
+    setSyncing(true)
+    const exportedAt = new Date().toISOString()
+    const exportRoot = joinFsPath(root, 'Nexus Workspace')
+    const manifest: {
+      exportedAt: string
+      app: string
+      counts: Record<string, number>
+      files: Array<{ type: ItemType | 'meta' | 'summary'; sourceId?: string; path: string }>
+    } = {
+      exportedAt,
+      app: 'Nexus Main',
+      counts: {
+        notes: notes.length,
+        code: codes.length,
+        tasks: tasks.length,
+        reminders: reminders.length,
+        workspaces: workspaces.length,
+      },
+      files: [],
+    }
+
+    const writeWithManifest = async (
+      relativePath: string,
+      content: string,
+      meta: { type: ItemType | 'meta' | 'summary'; sourceId?: string },
+    ) => {
+      const absolutePath = joinFsPath(exportRoot, relativePath)
+      const result = await fsApi.write(absolutePath, content)
+      if (!result.ok) {
+        throw new Error(result.error || `Write failed: ${relativePath}`)
+      }
+      manifest.files.push({ ...meta, path: relativePath })
+    }
+
+    try {
+      for (const note of notes) {
+        const noteName = sanitizeFileName(note.title || 'untitled-note')
+        const noteFile = `notes/${noteName}-${note.id.slice(0, 8)}.md`
+        const noteBody = `# ${note.title || 'Untitled'}\n\n${note.content || ''}\n`
+        await writeWithManifest(noteFile, noteBody, { type: 'note', sourceId: note.id })
+      }
+
+      for (const code of codes) {
+        const codeName = sanitizeFileName(code.name || 'untitled-code')
+        const ext = getCodeExtension(code.lang)
+        const codeFile = `code/${codeName}-${code.id.slice(0, 8)}.${ext}`
+        await writeWithManifest(codeFile, code.content || '', { type: 'code', sourceId: code.id })
+      }
+
+      for (const task of tasks) {
+        const taskName = sanitizeFileName(task.title || 'task')
+        const taskFile = `tasks/${taskName}-${task.id.slice(0, 8)}.json`
+        await writeWithManifest(taskFile, JSON.stringify(task, null, 2), { type: 'task', sourceId: task.id })
+      }
+
+      for (const reminder of reminders) {
+        const reminderName = sanitizeFileName(reminder.title || 'reminder')
+        const reminderFile = `reminders/${reminderName}-${reminder.id.slice(0, 8)}.json`
+        await writeWithManifest(reminderFile, JSON.stringify(reminder, null, 2), { type: 'reminder', sourceId: reminder.id })
+      }
+
+      await writeWithManifest('workspaces/workspaces.json', JSON.stringify(workspaces, null, 2), { type: 'meta' })
+
+      const aiExport = [
+        `# Nexus Workspace Export`,
+        ``,
+        `Generated: ${exportedAt}`,
+        ``,
+        `## Notes`,
+        ...notes.map((note) => `- ${note.title || 'Untitled'} (${note.id})`),
+        ``,
+        `## Code`,
+        ...codes.map((code) => `- ${code.name} [${code.lang}] (${code.id})`),
+        ``,
+        `## Tasks`,
+        ...tasks.map((task) => `- ${task.title} [${task.status}/${task.priority}] (${task.id})`),
+        ``,
+        `## Reminders`,
+        ...reminders.map((reminder) => `- ${reminder.title} (${reminder.datetime}) (${reminder.id})`),
+      ].join('\n')
+      await writeWithManifest('workspace-export.txt', aiExport, { type: 'summary' })
+
+      await writeWithManifest('manifest.json', JSON.stringify(manifest, null, 2), { type: 'meta' })
+      toast(`Export abgeschlossen: ${manifest.files.length} Dateien`)
+      void window.api?.notify?.('Nexus Workspace', `Export abgeschlossen (${manifest.files.length} Dateien)`)
+    } catch (error: any) {
+      toast(`Export fehlgeschlagen: ${error?.message || 'Unbekannter Fehler'}`)
+    } finally {
+      setSyncing(false)
+    }
+  }
 
   return (
     <div style={{ display:'flex', height:'100%', overflow:'hidden' }}>
@@ -353,6 +511,25 @@ export function FilesView() {
 
       {/* ── Right: File list ──────────────────────────────── */}
       <div style={{ flex:1, display:'flex', flexDirection:'column', overflow:'hidden', minWidth:0 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 14px', borderBottom:'1px solid rgba(255,255,255,0.06)', background:'rgba(0,0,0,0.08)', flexShrink:0 }}>
+          <button
+            onClick={() => void selectWorkspaceRoot()}
+            style={{ display:'flex', alignItems:'center', gap:6, padding:'6px 10px', borderRadius:8, background:`rgba(${rgb},0.15)`, border:`1px solid rgba(${rgb},0.25)`, color:t.accent, cursor:'pointer', fontSize:11, fontWeight:700 }}
+          >
+            <FolderOpen size={12}/> Ordner wählen
+          </button>
+          <button
+            onClick={() => void exportWorkspaceToDisk()}
+            disabled={syncing}
+            style={{ display:'flex', alignItems:'center', gap:6, padding:'6px 10px', borderRadius:8, background: syncing ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.08)', border:'1px solid rgba(255,255,255,0.12)', color:'inherit', cursor: syncing ? 'not-allowed' : 'pointer', fontSize:11, fontWeight:700, opacity: syncing ? 0.7 : 1 }}
+          >
+            <Download size={12}/> {syncing ? 'Export läuft…' : 'Auf Festplatte exportieren'}
+          </button>
+          <div style={{ fontSize:10, opacity:0.52, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+            {workspaceRoot ? `Root: ${workspaceRoot}` : 'Kein Workspace-Ordner ausgewählt'}
+          </div>
+          {syncMsg && <div style={{ marginLeft:'auto', fontSize:10, color:t.accent, fontWeight:700 }}>{syncMsg}</div>}
+        </div>
 
         {/* Header */}
         <div style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px', borderBottom:'1px solid rgba(255,255,255,0.07)', flexShrink:0, background:'rgba(0,0,0,0.1)' }}>
