@@ -433,7 +433,8 @@ export default function App() {
 
         setBootStep(80, "Lade Kern-Views fuer den Start...");
         await preloadMainViews(allowedViews, {
-          eagerLimit: lowPowerMode ? 1 : 2,
+          eagerLimit: lowPowerMode ? 2 : 4,
+          includeDeferred: true,
         });
         if (!active) return;
 

@@ -442,7 +442,8 @@ export default function App() {
 
         setBootStep(80, 'Lade Kern-Views fuer den Start...')
         await preloadMobileViews(allowedViews, {
-          eagerLimit: lowPowerMode ? 1 : 2,
+          eagerLimit: lowPowerMode ? 2 : 3,
+          includeDeferred: true,
         })
         if (!active) return
         setAvailableViews(startupViews)
