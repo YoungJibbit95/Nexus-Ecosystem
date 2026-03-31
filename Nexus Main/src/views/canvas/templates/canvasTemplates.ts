@@ -158,9 +158,9 @@ export function createMagicTemplate(
 
   const templateSize = estimateTemplateSize(payload.template, payload.aiDepth);
   const candidateOffsets: Array<[number, number]> = [[0, 0]];
-  const ringStepX = Math.max(520, Math.round(templateSize.w * 0.52));
-  const ringStepY = Math.max(380, Math.round(templateSize.h * 0.46));
-  for (let ring = 1; ring <= 7; ring += 1) {
+  const ringStepX = Math.max(620, Math.round(templateSize.w * 0.56));
+  const ringStepY = Math.max(460, Math.round(templateSize.h * 0.5));
+  for (let ring = 1; ring <= 9; ring += 1) {
     const points = 8 + ring * 6;
     const radiusX = ringStepX * ring;
     const radiusY = ringStepY * ring;
@@ -176,17 +176,17 @@ export function createMagicTemplate(
 
   const overlapScore = (centerX: number, centerY: number) => {
     if (!activeCanvas?.nodes.length) return 0;
-    const margin = 92;
+    const margin = 140;
     const left = centerX - templateSize.w * 0.5 - margin;
     const top = centerY - templateSize.h * 0.5 - margin;
     const right = centerX + templateSize.w * 0.5 + margin;
     const bottom = centerY + templateSize.h * 0.5 + margin;
     let score = 0;
     activeCanvas.nodes.forEach((node) => {
-      const nodeLeft = node.x - 40;
-      const nodeTop = node.y - 40;
-      const nodeRight = node.x + node.width + 40;
-      const nodeBottom = node.y + node.height + 40;
+      const nodeLeft = node.x - 72;
+      const nodeTop = node.y - 72;
+      const nodeRight = node.x + node.width + 72;
+      const nodeBottom = node.y + node.height + 72;
       const intersects =
         nodeLeft < right &&
         nodeRight > left &&
@@ -211,7 +211,7 @@ export function createMagicTemplate(
       const softRangeY = templateSize.h * 0.62;
       if (distX < softRangeX && distY < softRangeY) {
         const proximity = 1 - Math.max(distX / softRangeX, distY / softRangeY);
-        score += 0.35 * proximity;
+        score += 0.6 * proximity;
       }
     });
     return score;
@@ -230,8 +230,8 @@ export function createMagicTemplate(
       centerY = candY;
     }
   });
-  centerX = Math.round(centerX / 10) * 10;
-  centerY = Math.round(centerY / 10) * 10;
+  centerX = Math.round(centerX / 20) * 20;
+  centerY = Math.round(centerY / 20) * 20;
 
   const mk = (
     type: NodeType,
@@ -279,7 +279,7 @@ export function createMagicTemplate(
       }),
     );
 
-    for (let iter = 0; iter < 160; iter += 1) {
+    for (let iter = 0; iter < 280; iter += 1) {
       let moved = false;
       for (let i = 0; i < ids.length; i += 1) {
         for (let j = i + 1; j < ids.length; j += 1) {
@@ -289,7 +289,7 @@ export function createMagicTemplate(
           const b = positions.get(idB);
           if (!a || !b) continue;
 
-          const pad = 24;
+          const pad = 56;
           const overlapX =
             Math.min(a.x + a.width + pad, b.x + b.width + pad) -
             Math.max(a.x - pad, b.x - pad);
@@ -304,7 +304,7 @@ export function createMagicTemplate(
           const centerBX = b.x + b.width * 0.5;
           const centerBY = b.y + b.height * 0.5;
           const splitByX = overlapX <= overlapY;
-          const baseShift = (splitByX ? overlapX : overlapY) * 0.5 + 20;
+          const baseShift = (splitByX ? overlapX : overlapY) * 0.56 + 42;
 
           let shiftAX = 0;
           let shiftAY = 0;

@@ -308,10 +308,18 @@ export function CanvasView() {
         const dy = Math.max(-180, Math.min(180, rawDy))
         if (Math.abs(dx) < 0.02 && Math.abs(dy) < 0.02) return
 
-        const isZoomGesture = e.ctrlKey || e.metaKey || e.altKey
+        const absRawDx = Math.abs(rawDx)
+        const absRawDy = Math.abs(rawDy)
+        const looksLikePinch =
+            absRawDy > 0
+            && absRawDy <= 7
+            && absRawDx <= 7
+            && absRawDy >= absRawDx * 0.75
+        const isZoomGesture = e.ctrlKey || e.metaKey || e.altKey || looksLikePinch
         if (isZoomGesture) {
             const pinchDelta = Math.max(-120, Math.min(120, dy))
-            const sensitivity = Math.abs(pinchDelta) < 16 ? 0.0105 : 0.0085
+            const absPinch = Math.abs(pinchDelta)
+            const sensitivity = absPinch <= 4 ? 0.03 : absPinch < 16 ? 0.016 : 0.0105
             const factor = Math.exp(-pinchDelta * sensitivity)
             applyZoomAtPoint(e.clientX, e.clientY, factor)
             setWheelPanning(false)

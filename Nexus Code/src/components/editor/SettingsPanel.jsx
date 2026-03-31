@@ -99,7 +99,7 @@ export default function SettingsPanel({
               {isActive && (
                 <motion.div
                   layoutId="settingsActiveIndicator"
-                  className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-full rounded-r"
+                  className="absolute left-1 top-1 bottom-1 w-0.5 rounded-full"
                   style={{
                     background: "#8000ff",
                     boxShadow: "0 0 10px #8000ff",
@@ -382,6 +382,98 @@ export default function SettingsPanel({
                   </motion.button>
                 ))}
               </div>
+            </div>
+          </div>
+        )}
+
+        {activeSection === "panel" && (
+          <div className="space-y-6">
+            <div
+              className="rounded-xl p-6 border"
+              style={{
+                background: "rgba(128,0,255,0.04)",
+                borderColor: "rgba(128,0,255,0.1)",
+              }}
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <Sparkles size={16} className="text-purple-400" />
+                <span className="text-sm text-gray-300 font-medium">
+                  Panel Background
+                </span>
+              </div>
+              <p className="text-xs text-gray-500 leading-relaxed">
+                Wähle zwischen Blur, Fake Glass und Glass-Shader Look.
+                Glow-Renderer steuert, ob die Outline klassisch per CSS oder
+                in einer intensiveren Variante gerendert wird.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-3 gap-3">
+              {[
+                { id: "blur", label: "Blur" },
+                { id: "fake-glass", label: "Fake Glass" },
+                { id: "glass-shader", label: "Glass" },
+              ].map((mode) => {
+                const active = (settings.panel_background_mode || "blur") === mode.id;
+                return (
+                  <button
+                    key={mode.id}
+                    onClick={() => updateSetting("panel_background_mode", mode.id)}
+                    className="p-3 rounded-xl border text-left"
+                    style={{
+                      background: active ? "rgba(128,0,255,0.12)" : "rgba(255,255,255,0.02)",
+                      borderColor: active ? "rgba(128,0,255,0.35)" : "rgba(255,255,255,0.08)",
+                      color: active ? "#c084fc" : "#9ca3af",
+                    }}
+                  >
+                    <div className="text-xs font-semibold">{mode.label}</div>
+                    <div className="text-[10px] opacity-70 mt-1">
+                      {mode.id === "blur" && "Klassisch, günstig, stabil"}
+                      {mode.id === "fake-glass" && "CSS + Filter Distortion"}
+                      {mode.id === "glass-shader" && "Intensiver Gradient-Glass Look"}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="flex items-center justify-between">
+              <NativeLabel>Glow Renderer</NativeLabel>
+              <NativeSelect
+                value={settings.glow_renderer || "css"}
+                onValueChange={(v) => updateSetting("glow_renderer", v)}
+                className="w-36"
+              >
+                <option value="css">CSS</option>
+                <option value="three">Three-Style</option>
+              </NativeSelect>
+            </div>
+
+            <div>
+              <NativeLabel>
+                Panel Blur Stärke: {settings.panel_blur_strength || 22}px
+              </NativeLabel>
+              <NativeSlider
+                value={[settings.panel_blur_strength || 22]}
+                onValueChange={([v]) => updateSetting("panel_blur_strength", v)}
+                min={0}
+                max={40}
+                step={2}
+                className="w-full"
+              />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div>
+                <NativeLabel>Glow Outline</NativeLabel>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Zeichnet die Leuchtkante um Panels statt im Inneren.
+                </p>
+              </div>
+              <NativeSwitch
+                checked={settings.panel_glow_outline !== false}
+                onCheckedChange={(v) => updateSetting("panel_glow_outline", v)}
+              />
             </div>
           </div>
         )}

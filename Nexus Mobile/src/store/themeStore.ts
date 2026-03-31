@@ -80,6 +80,8 @@ export interface GlassmorphismConfig {
   reflectionLine: boolean
   animatedBlur: boolean
   animatedBlurSpeed: number
+  panelRenderer: 'blur' | 'fake-glass' | 'glass-shader'
+  glowRenderer: 'css' | 'three'
 }
 
 export interface QOLConfig {
@@ -225,19 +227,19 @@ const P: Record<string, Partial<Theme>> = {
   'macOS Dark': {
     mode: 'dark', accent: '#007AFF', accent2: '#5E5CE6', bg: '#1a1a2e',
     glow: { mode: 'outline', color: '#007AFF', intensity: 0.85, radius: 28, spread: 8, blendMode: 'screen', gradientGlow: true, gradientColor1: '#007AFF', gradientColor2: '#5E5CE6', gradientAngle: 135, animated: false, animationSpeed: 1 },
-    blur: { strength: 24, noiseOverlay: true, noiseOpacity: 0.035, sidebarBlur: 24, panelBlur: 20, modalBlur: 28 },
-    glassmorphism: { borderOpacity: 0.18, borderGlow: true, borderGlowIntensity: 0.5, saturation: 200, tintColor: '#007AFF', tintOpacity: 0.04, frostedGlass: false, chromaticAberration: false, glowOutline: true, glowColor1: '#007AFF', glowColor2: '#5E5CE6', glowOutlineStrength: 14 , glassMode: 'default' as any, glassDepth: 0.5, innerShadow: false, reflectionLine: false, animatedBlur: false, animatedBlurSpeed: 3 },
+    blur: { strength: 24, noiseOverlay: false, noiseOpacity: 0.035, sidebarBlur: 24, panelBlur: 20, modalBlur: 28 },
+    glassmorphism: { borderOpacity: 0.18, borderGlow: true, borderGlowIntensity: 0.5, saturation: 200, tintColor: '#007AFF', tintOpacity: 0.04, frostedGlass: false, chromaticAberration: false, glowOutline: true, glowColor1: '#007AFF', glowColor2: '#5E5CE6', glowOutlineStrength: 14 , glassMode: 'default' as any, glassDepth: 0.5, innerShadow: false, reflectionLine: false, animatedBlur: false, animatedBlurSpeed: 3, panelRenderer: 'blur', glowRenderer: 'css' },
   },
   'Neon Ultra': {
     mode: 'dark', accent: '#00FFAA', accent2: '#FF00FF', bg: '#0a0a14',
     glow: { mode: 'outline', color: '#00FFAA', intensity: 0.9, radius: 28, spread: 8, blendMode: 'screen', gradientGlow: true, gradientColor1: '#00FFAA', gradientColor2: '#FF00FF', gradientAngle: 135, animated: true, animationSpeed: 1.5 },
-    blur: { strength: 24, noiseOverlay: true, noiseOpacity: 0.06, sidebarBlur: 24, panelBlur: 20, modalBlur: 28 },
+    blur: { strength: 24, noiseOverlay: false, noiseOpacity: 0.06, sidebarBlur: 24, panelBlur: 20, modalBlur: 28 },
     background: { mode: 'animated-gradient', stops: [{ color: '#00FFAA', position: 0, opacity: 0.15  }, { color: '#FF00FF', position: 100, opacity: 0.15 }], angle: 135, animated: true, animationSpeed: 3, noiseOpacity: 0.04, meshIntensity: 0.5 , overlayOpacity: 0, vignette: false, vignetteStrength: 0.4, scanlines: false, panelBgMode: 'glass' },
   },
   'Ocean Wave': {
     mode: 'dark', accent: '#00AAFF', accent2: '#00DDCC', bg: '#0a1929',
     glow: { mode: 'ambient', color: '#00AAFF', intensity: 0.5, radius: 24, spread: 6, blendMode: 'screen', gradientGlow: false, gradientColor1: '#00AAFF', gradientColor2: '#00DDCC', gradientAngle: 135, animated: false, animationSpeed: 1 },
-    blur: { strength: 18, noiseOverlay: true, noiseOpacity: 0.04, sidebarBlur: 18, panelBlur: 16, modalBlur: 22 },
+    blur: { strength: 18, noiseOverlay: false, noiseOpacity: 0.04, sidebarBlur: 18, panelBlur: 16, modalBlur: 22 },
     background: { mode: 'gradient', stops: [{ color: '#0a1929', position: 0, opacity: 1  }, { color: '#0d2840', position: 100, opacity: 1 }], angle: 160, animated: false, animationSpeed: 4, noiseOpacity: 0.03, meshIntensity: 0.3 , overlayOpacity: 0, vignette: false, vignetteStrength: 0.4, scanlines: false, panelBgMode: 'glass' },
   },
   'Light Clean': {
@@ -248,33 +250,33 @@ const P: Record<string, Partial<Theme>> = {
   'Cyberpunk': {
     mode: 'dark', accent: '#FFE600', accent2: '#FF2D78', bg: '#07080f',
     glow: { mode: 'outline', color: '#FFE600', intensity: 0.85, radius: 24, spread: 6, blendMode: 'screen', gradientGlow: true, gradientColor1: '#FFE600', gradientColor2: '#FF2D78', gradientAngle: 90, animated: true, animationSpeed: 2 },
-    blur: { strength: 18, noiseOverlay: true, noiseOpacity: 0.05, sidebarBlur: 16, panelBlur: 14, modalBlur: 22 },
+    blur: { strength: 18, noiseOverlay: false, noiseOpacity: 0.05, sidebarBlur: 16, panelBlur: 14, modalBlur: 22 },
     background: { mode: 'animated-gradient', stops: [{ color: '#07080f', position: 0, opacity: 1  }, { color: '#1a0a1e', position: 50, opacity: 1 }, { color: '#07080f', position: 100, opacity: 1 }], angle: 135, animated: true, animationSpeed: 5, noiseOpacity: 0.06, meshIntensity: 0.6 , overlayOpacity: 0, vignette: false, vignetteStrength: 0.4, scanlines: false, panelBgMode: 'glass' },
-    glassmorphism: { borderOpacity: 0.3, borderGlow: true, borderGlowIntensity: 0.7, saturation: 200, tintColor: '#FFE600', tintOpacity: 0.04, frostedGlass: true, chromaticAberration: false, glowOutline: true, glowColor1: '#FFE600', glowColor2: '#FF2D78', glowOutlineStrength: 14 , glassMode: 'default' as any, glassDepth: 0.5, innerShadow: false, reflectionLine: false, animatedBlur: false, animatedBlurSpeed: 3 },
+    glassmorphism: { borderOpacity: 0.3, borderGlow: true, borderGlowIntensity: 0.7, saturation: 200, tintColor: '#FFE600', tintOpacity: 0.04, frostedGlass: true, chromaticAberration: false, glowOutline: true, glowColor1: '#FFE600', glowColor2: '#FF2D78', glowOutlineStrength: 14 , glassMode: 'default' as any, glassDepth: 0.5, innerShadow: false, reflectionLine: false, animatedBlur: false, animatedBlurSpeed: 3, panelRenderer: 'blur', glowRenderer: 'css' },
   },
   'SuBset Glow': {
     mode: 'dark', accent: '#FF6B35', accent2: '#FF2D78', bg: '#1a0a0f',
     glow: { mode: 'ambient', color: '#FF6B35', intensity: 0.7, radius: 26, spread: 8, blendMode: 'screen', gradientGlow: true, gradientColor1: '#FF6B35', gradientColor2: '#FF2D78', gradientAngle: 135, animated: false, animationSpeed: 1 },
-    blur: { strength: 20, noiseOverlay: true, noiseOpacity: 0.04, sidebarBlur: 18, panelBlur: 16, modalBlur: 24 },
+    blur: { strength: 20, noiseOverlay: false, noiseOpacity: 0.04, sidebarBlur: 18, panelBlur: 16, modalBlur: 24 },
     background: { mode: 'gradient', stops: [{ color: '#1a0a0f', position: 0, opacity: 1  }, { color: '#2a0f1a', position: 100, opacity: 1 }], angle: 145, animated: false, animationSpeed: 4, noiseOpacity: 0.03, meshIntensity: 0.4 , overlayOpacity: 0, vignette: false, vignetteStrength: 0.4, scanlines: false, panelBgMode: 'glass' },
   },
   'Forest Dark': {
     mode: 'dark', accent: '#30D158', accent2: '#64D2FF', bg: '#0b1a10',
     glow: { mode: 'ambient', color: '#30D158', intensity: 0.55, radius: 22, spread: 5, blendMode: 'screen', gradientGlow: false, gradientColor1: '#30D158', gradientColor2: '#64D2FF', gradientAngle: 135, animated: false, animationSpeed: 1 },
-    blur: { strength: 16, noiseOverlay: true, noiseOpacity: 0.04, sidebarBlur: 16, panelBlur: 12, modalBlur: 20 },
+    blur: { strength: 16, noiseOverlay: false, noiseOpacity: 0.04, sidebarBlur: 16, panelBlur: 12, modalBlur: 20 },
     background: { mode: 'gradient', stops: [{ color: '#0b1a10', position: 0, opacity: 1  }, { color: '#101f16', position: 100, opacity: 1 }], angle: 170, animated: false, animationSpeed: 4, noiseOpacity: 0.04, meshIntensity: 0.3 , overlayOpacity: 0, vignette: false, vignetteStrength: 0.4, scanlines: false, panelBgMode: 'glass' },
   },
   'Deep Space': {
     mode: 'dark', accent: '#BF5AF2', accent2: '#64D2FF', bg: '#060614',
     glow: { mode: 'outline', color: '#BF5AF2', intensity: 0.75, radius: 26, spread: 6, blendMode: 'screen', gradientGlow: true, gradientColor1: '#BF5AF2', gradientColor2: '#64D2FF', gradientAngle: 135, animated: true, animationSpeed: 0.8 },
-    blur: { strength: 22, noiseOverlay: true, noiseOpacity: 0.05, sidebarBlur: 22, panelBlur: 18, modalBlur: 26 },
+    blur: { strength: 22, noiseOverlay: false, noiseOpacity: 0.05, sidebarBlur: 22, panelBlur: 18, modalBlur: 26 },
     background: { mode: 'aurora', stops: [{ color: '#BF5AF2', position: 0, opacity: 0.12  }, { color: '#007AFF', position: 50, opacity: 0.08 }, { color: '#64D2FF', position: 100, opacity: 0.1 }], angle: 135, animated: true, animationSpeed: 6, noiseOpacity: 0.04, meshIntensity: 0.5 , overlayOpacity: 0, vignette: false, vignetteStrength: 0.4, scanlines: false, panelBgMode: 'glass' },
-    glassmorphism: { borderOpacity: 0.2, borderGlow: true, borderGlowIntensity: 0.5, saturation: 180, tintColor: '#BF5AF2', tintOpacity: 0.05, frostedGlass: true, chromaticAberration: false, glowOutline: true, glowColor1: '#BF5AF2', glowColor2: '#64D2FF', glowOutlineStrength: 13 , glassMode: 'default' as any, glassDepth: 0.5, innerShadow: false, reflectionLine: false, animatedBlur: false, animatedBlurSpeed: 3 },
+    glassmorphism: { borderOpacity: 0.2, borderGlow: true, borderGlowIntensity: 0.5, saturation: 180, tintColor: '#BF5AF2', tintOpacity: 0.05, frostedGlass: true, chromaticAberration: false, glowOutline: true, glowColor1: '#BF5AF2', glowColor2: '#64D2FF', glowOutlineStrength: 13 , glassMode: 'default' as any, glassDepth: 0.5, innerShadow: false, reflectionLine: false, animatedBlur: false, animatedBlurSpeed: 3, panelRenderer: 'blur', glowRenderer: 'css' },
   },
   'Rose Gold': {
     mode: 'dark', accent: '#FF6B9E', accent2: '#FFB3C8', bg: '#1a0d12',
     glow: { mode: 'ambient', color: '#FF6B9E', intensity: 0.6, radius: 22, spread: 5, blendMode: 'screen', gradientGlow: true, gradientColor1: '#FF6B9E', gradientColor2: '#FFB3C8', gradientAngle: 135, animated: false, animationSpeed: 1 },
-    blur: { strength: 18, noiseOverlay: true, noiseOpacity: 0.035, sidebarBlur: 18, panelBlur: 14, modalBlur: 22 },
+    blur: { strength: 18, noiseOverlay: false, noiseOpacity: 0.035, sidebarBlur: 18, panelBlur: 14, modalBlur: 22 },
     background: { mode: 'gradient', stops: [{ color: '#1a0d12', position: 0, opacity: 1  }, { color: '#251020', position: 100, opacity: 1 }], angle: 135, animated: false, animationSpeed: 4, noiseOpacity: 0.03, meshIntensity: 0.3 , overlayOpacity: 0, vignette: false, vignetteStrength: 0.4, scanlines: false, panelBgMode: 'glass' },
   },
   'Arctic': {
@@ -286,20 +288,34 @@ const P: Record<string, Partial<Theme>> = {
   'Dracula': {
     mode: 'dark', accent: '#BD93F9', accent2: '#FF79C6', bg: '#282a36',
     glow: { mode: 'outline', color: '#BD93F9', intensity: 0.65, radius: 20, spread: 5, blendMode: 'screen', gradientGlow: true, gradientColor1: '#BD93F9', gradientColor2: '#FF79C6', gradientAngle: 135, animated: false, animationSpeed: 1 },
-    blur: { strength: 16, noiseOverlay: true, noiseOpacity: 0.04, sidebarBlur: 16, panelBlur: 12, modalBlur: 20 },
+    blur: { strength: 16, noiseOverlay: false, noiseOpacity: 0.04, sidebarBlur: 16, panelBlur: 12, modalBlur: 20 },
     background: { mode: 'solid', stops: [{ color: '#282a36', position: 0, opacity: 1  }, { color: '#1e2030', position: 100, opacity: 1 }], angle: 135, animated: false, animationSpeed: 4, noiseOpacity: 0.03, meshIntensity: 0.3 , overlayOpacity: 0, vignette: false, vignetteStrength: 0.4, scanlines: false, panelBgMode: 'glass' },
   },
   'Void': {
     mode: 'dark', accent: '#ffffff', accent2: '#888888', bg: '#000000',
     glow: { mode: 'outline', color: '#ffffff', intensity: 0.5, radius: 18, spread: 4, blendMode: 'screen', gradientGlow: false, gradientColor1: '#ffffff', gradientColor2: '#aaaaaa', gradientAngle: 135, animated: false, animationSpeed: 1 },
     blur: { strength: 20, noiseOverlay: false, noiseOpacity: 0.02, sidebarBlur: 16, panelBlur: 12, modalBlur: 20 },
-    glassmorphism: { borderOpacity: 0.1, borderGlow: false, borderGlowIntensity: 0.2, saturation: 120, tintColor: '#ffffff', tintOpacity: 0.01, frostedGlass: false, chromaticAberration: false, glowOutline: false, glowColor1: '#fff', glowColor2: '#aaa', glowOutlineStrength: 8 , glassMode: 'default' as any, glassDepth: 0.5, innerShadow: false, reflectionLine: false, animatedBlur: false, animatedBlurSpeed: 3 },
+    glassmorphism: { borderOpacity: 0.1, borderGlow: false, borderGlowIntensity: 0.2, saturation: 120, tintColor: '#ffffff', tintOpacity: 0.01, frostedGlass: false, chromaticAberration: false, glowOutline: false, glowColor1: '#fff', glowColor2: '#aaa', glowOutlineStrength: 8 , glassMode: 'default' as any, glassDepth: 0.5, innerShadow: false, reflectionLine: false, animatedBlur: false, animatedBlurSpeed: 3, panelRenderer: 'blur', glowRenderer: 'css' },
   },
   'Sakura': {
     mode: 'light', accent: '#E91E8C', accent2: '#FF6B6B', bg: '#fff5f8',
     glow: { mode: 'ambient', color: '#E91E8C', intensity: 0.35, radius: 18, spread: 4, blendMode: 'normal', gradientGlow: true, gradientColor1: '#E91E8C', gradientColor2: '#FF6B6B', gradientAngle: 135, animated: false, animationSpeed: 1 },
     blur: { strength: 20, noiseOverlay: false, noiseOpacity: 0.01, sidebarBlur: 20, panelBlur: 16, modalBlur: 24 },
     background: { mode: 'gradient', stops: [{ color: '#fff5f8', position: 0, opacity: 1  }, { color: '#ffe0ec', position: 100, opacity: 1 }], angle: 160, animated: false, animationSpeed: 4, noiseOpacity: 0.01, meshIntensity: 0.2 , overlayOpacity: 0, vignette: false, vignetteStrength: 0.4, scanlines: false, panelBgMode: 'glass' },
+  },
+  'Graphite Pro': {
+    mode: 'dark', accent: '#8DB4FF', accent2: '#4DE0D0', bg: '#0e1218',
+    glow: { mode: 'outline', color: '#8DB4FF', intensity: 0.58, radius: 22, spread: 5, blendMode: 'screen', gradientGlow: true, gradientColor1: '#8DB4FF', gradientColor2: '#4DE0D0', gradientAngle: 120, animated: true, animationSpeed: 0.7 },
+    blur: { strength: 18, noiseOverlay: false, noiseOpacity: 0.02, sidebarBlur: 18, panelBlur: 14, modalBlur: 22 },
+    background: { mode: 'gradient', stops: [{ color: '#0e1218', position: 0, opacity: 1 }, { color: '#161f2b', position: 100, opacity: 1 }], angle: 145, animated: false, animationSpeed: 4, noiseOpacity: 0.01, meshIntensity: 0.22, overlayOpacity: 0, vignette: false, vignetteStrength: 0.4, scanlines: false, panelBgMode: 'glass' },
+    glassmorphism: { borderOpacity: 0.2, borderGlow: true, borderGlowIntensity: 0.6, saturation: 165, tintColor: '#8DB4FF', tintOpacity: 0.035, frostedGlass: false, chromaticAberration: false, glowOutline: true, glowColor1: '#8DB4FF', glowColor2: '#4DE0D0', glowOutlineStrength: 12, glassMode: 'default' as any, glassDepth: 0.5, innerShadow: false, reflectionLine: false, animatedBlur: false, animatedBlurSpeed: 3, panelRenderer: 'blur', glowRenderer: 'css' },
+  },
+  'Sunset Haze': {
+    mode: 'light', accent: '#F97316', accent2: '#EC4899', bg: '#fff7ef',
+    glow: { mode: 'focus', color: '#F97316', intensity: 0.34, radius: 16, spread: 3, blendMode: 'normal', gradientGlow: true, gradientColor1: '#F97316', gradientColor2: '#EC4899', gradientAngle: 95, animated: false, animationSpeed: 1 },
+    blur: { strength: 16, noiseOverlay: false, noiseOpacity: 0.01, sidebarBlur: 16, panelBlur: 12, modalBlur: 20 },
+    background: { mode: 'gradient', stops: [{ color: '#fff7ef', position: 0, opacity: 1 }, { color: '#ffe7ef', position: 100, opacity: 1 }], angle: 165, animated: false, animationSpeed: 4, noiseOpacity: 0.01, meshIntensity: 0.18, overlayOpacity: 0, vignette: false, vignetteStrength: 0.4, scanlines: false, panelBgMode: 'glass' },
+    glassmorphism: { borderOpacity: 0.16, borderGlow: true, borderGlowIntensity: 0.4, saturation: 150, tintColor: '#F97316', tintOpacity: 0.02, frostedGlass: false, chromaticAberration: false, glowOutline: true, glowColor1: '#F97316', glowColor2: '#EC4899', glowOutlineStrength: 10, glassMode: 'default' as any, glassDepth: 0.5, innerShadow: false, reflectionLine: false, animatedBlur: false, animatedBlurSpeed: 3, panelRenderer: 'blur', glowRenderer: 'css' },
   },
 }
 
@@ -344,6 +360,8 @@ const DEFAULT_GLASS: GlassmorphismConfig = {
   glowOutline: true, glowColor1: '#007AFF', glowColor2: '#5E5CE6', glowOutlineStrength: 14,
   glassMode: 'default', glassDepth: 0.5, innerShadow: false, reflectionLine: false,
   animatedBlur: false, animatedBlurSpeed: 3,
+  panelRenderer: 'blur',
+  glowRenderer: 'css',
 }
 
 const DEFAULT_ANIMS: AnimationsConfig = {
@@ -392,7 +410,7 @@ export const useTheme = create<Theme>()(
       glow: DEFAULT_GLOW,
       gradient: { angle: 135, stops: [{ color: '#007AFF', position: 0, opacity: 1 }, { color: '#5E5CE6', position: 100, opacity: 1 }], animated: false, animationSpeed: 1 },
       background: DEFAULT_BG,
-      blur: { strength: 24, noiseOverlay: true, noiseOpacity: 0.02, sidebarBlur: 30, panelBlur: 28, modalBlur: 34 },
+      blur: { strength: 24, noiseOverlay: false, noiseOpacity: 0.02, sidebarBlur: 30, panelBlur: 28, modalBlur: 34 },
       glassmorphism: DEFAULT_GLASS,
       visual: { shadowDepth: 0.4, animationSpeed: 1, panelRadius: 14, compactMode: false, spacingDensity: 'comfortable', borderThickness: 0 },
       animations: DEFAULT_ANIMS,

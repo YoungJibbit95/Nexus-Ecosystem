@@ -138,11 +138,11 @@ export const createCanvasProjectTemplate = (input: {
   const state = useCanvas.getState()
   const viewportCenterX = (-input.viewport.panX + input.canvasSize.w * 0.5) / input.viewport.zoom
   const viewportCenterY = (-input.viewport.panY + input.canvasSize.h * 0.45) / input.viewport.zoom
-  const templateSize = { w: 1680, h: 1180 }
+  const templateSize = { w: 1860, h: 1260 }
   const candidateOffsets: Array<[number, number]> = [[0, 0]]
-  const ringStepX = Math.max(540, Math.round(templateSize.w * 0.54))
-  const ringStepY = Math.max(420, Math.round(templateSize.h * 0.48))
-  for (let ring = 1; ring <= 6; ring += 1) {
+  const ringStepX = Math.max(640, Math.round(templateSize.w * 0.58))
+  const ringStepY = Math.max(500, Math.round(templateSize.h * 0.52))
+  for (let ring = 1; ring <= 8; ring += 1) {
     const points = 8 + ring * 6
     const radiusX = ringStepX * ring
     const radiusY = ringStepY * ring
@@ -157,17 +157,17 @@ export const createCanvasProjectTemplate = (input: {
   }
   const overlapScore = (centerX: number, centerY: number) => {
     if (!input.canvas?.nodes.length) return 0
-    const margin = 92
+    const margin = 140
     const left = centerX - templateSize.w * 0.5 - margin
     const top = centerY - templateSize.h * 0.5 - margin
     const right = centerX + templateSize.w * 0.5 + margin
     const bottom = centerY + templateSize.h * 0.5 + margin
     let score = 0
     input.canvas.nodes.forEach((node) => {
-      const nodeLeft = node.x - 40
-      const nodeTop = node.y - 40
-      const nodeRight = node.x + node.width + 40
-      const nodeBottom = node.y + node.height + 40
+      const nodeLeft = node.x - 72
+      const nodeTop = node.y - 72
+      const nodeRight = node.x + node.width + 72
+      const nodeBottom = node.y + node.height + 72
       const intersects =
         nodeLeft < right
         && nodeRight > left
@@ -186,7 +186,7 @@ export const createCanvasProjectTemplate = (input: {
       const softRangeY = templateSize.h * 0.62
       if (distX < softRangeX && distY < softRangeY) {
         const proximity = 1 - Math.max(distX / softRangeX, distY / softRangeY)
-        score += 0.35 * proximity
+        score += 0.6 * proximity
       }
     })
     return score
@@ -204,8 +204,8 @@ export const createCanvasProjectTemplate = (input: {
       baseY = candY
     }
   })
-  baseX = Math.round(baseX / 10) * 10
-  baseY = Math.round(baseY / 10) * 10
+  baseX = Math.round(baseX / 20) * 20
+  baseY = Math.round(baseY / 20) * 20
   const make = (type: NodeType, x: number, y: number, patch: Partial<CanvasNode>) => {
     state.addNode(type, x, y)
     const c = state.getActiveCanvas()
