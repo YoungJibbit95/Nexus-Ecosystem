@@ -141,9 +141,9 @@ export function NexusTerminal({ setView }: NexusTerminalProps) {
   const suggestedCommands = useMemo(() => {
     const q = input.trim().toLowerCase();
     if (!q) return [];
-    return COMMAND_CATALOG
-      .filter((cmd) => cmd.toLowerCase().startsWith(q))
-      .slice(0, 4);
+    return COMMAND_CATALOG.filter((cmd) =>
+      cmd.toLowerCase().startsWith(q),
+    ).slice(0, 4);
   }, [input]);
 
   const handleKeyDown = useCallback(
@@ -256,7 +256,7 @@ export function NexusTerminal({ setView }: NexusTerminalProps) {
         style={{
           position: "fixed",
           bottom: 22,
-          left: "50%",
+          left: "30%",
           transform: "translateX(-50%)",
           width: "min(calc(100vw - 40px), 920px)",
           zIndex: 1000,

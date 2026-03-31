@@ -12,6 +12,7 @@ import { useTheme, GLOBAL_FONTS } from "./store/themeStore";
 import { useTerminal } from "./store/terminalStore";
 import { Sidebar, View } from "./components/Sidebar";
 import { TitleBar } from "./components/TitleBar";
+import { BootSequenceScreen } from "./components/BootSequenceScreen";
 import { buildBackground } from "./lib/visualUtils";
 import { hexToRgb } from "./lib/utils";
 import {
@@ -182,15 +183,14 @@ const preloadMainViews = async (
       void Promise.allSettled(deferred.map((loader) => loader()));
     });
   }
-  runIdle(() => {
-    void Promise.allSettled([loadNexusTerminal(), loadNexusToolbar()]);
-  });
 };
 
 export default function App() {
   const [view, setView] = useState<View>("dashboard");
   const [availableViews, setAvailableViews] = useState<View[]>(VIEW_IDS);
   const [bootReady, setBootReady] = useState(false);
+  const [bootProgress, setBootProgress] = useState(0);
+  const [bootStage, setBootStage] = useState("Nexus Runtime wird gestartet...");
   const [bootFailure, setBootFailure] = useState<string | null>(null);
   const [remoteDensity, setRemoteDensity] = useState<
     "compact" | "comfortable" | "spacious" | null
@@ -318,9 +318,18 @@ export default function App() {
     validatedAccessRef.current = {};
     let active = true;
     setBootFailure(null);
+    setBootProgress(8);
+    setBootStage("Nexus Runtime wird gestartet...");
+
+    const setBootStep = (progress: number, stage: string) => {
+      if (!active) return;
+      setBootProgress((prev) => Math.max(prev, progress));
+      setBootStage(stage);
+    };
 
     void (async () => {
       try {
+        setBootStep(24, "Lade API Katalog, Layout und Release...");
         const [catalogResult, layoutResult, releaseResult] = await Promise.all([
           runtime.control.fetchCatalog({
             appId: "main",
@@ -376,25 +385,45 @@ export default function App() {
 
         if (!active) return;
         applyLiveBundle(bundle);
+        setBootStep(54, "Validiere verfuegbare Views...");
         const startupViews = bundle ? resolveBundleViews(bundle) : VIEW_IDS;
         if (startupViews.length === 0) {
           throw new Error("CONTROL_API_BOOTSTRAP_FAILED (NO_STARTUP_VIEWS)");
         }
 
-        const warmup = await runtime.control.warmupViewAccess(startupViews, {
+        const prioritizedStartupViews = orderMainPreloadViews(startupViews);
+        const warmupCandidates = prioritizedStartupViews.slice(
+          0,
+          Math.min(3, prioritizedStartupViews.length),
+        );
+        const warmup = await runtime.control.warmupViewAccess(warmupCandidates, {
           ...viewAccessContext,
           forceRefresh: true,
           concurrency: 4,
         });
         if (!active) return;
-        storeWarmupAccess(warmup.resultByView);
-
-        const allowedViews = warmup.allowedViews.filter((candidate) =>
+        let resultByView = { ...warmup.resultByView };
+        let allowedViews = warmup.allowedViews.filter((candidate) =>
           startupViews.includes(candidate as View),
         ) as View[];
+
+        if (allowedViews.length === 0 && prioritizedStartupViews.length > warmupCandidates.length) {
+          const fallbackCandidates = prioritizedStartupViews.slice(warmupCandidates.length);
+          const fallbackWarmup = await runtime.control.warmupViewAccess(fallbackCandidates, {
+            ...viewAccessContext,
+            forceRefresh: false,
+            concurrency: 3,
+          });
+          if (!active) return;
+          resultByView = { ...resultByView, ...fallbackWarmup.resultByView };
+          allowedViews = [...allowedViews, ...fallbackWarmup.allowedViews]
+            .filter((candidate) => startupViews.includes(candidate as View)) as View[];
+        }
+
+        storeWarmupAccess(resultByView);
         if (allowedViews.length === 0) {
-          const reasons = startupViews
-            .map((candidate) => warmup.resultByView[candidate]?.reason)
+          const reasons = prioritizedStartupViews
+            .map((candidate) => resultByView[candidate]?.reason)
             .filter((reason): reason is string => Boolean(reason))
             .slice(0, 3);
           throw new Error(
@@ -402,8 +431,9 @@ export default function App() {
           );
         }
 
+        setBootStep(80, "Lade Kern-Views fuer den Start...");
         await preloadMainViews(allowedViews, {
-          eagerLimit: lowPowerMode ? 1 : 3,
+          eagerLimit: lowPowerMode ? 1 : 2,
         });
         if (!active) return;
 
@@ -418,6 +448,7 @@ export default function App() {
           requiredTier: null,
           reason: null,
         });
+        setBootStep(100, "Startsequenz abgeschlossen");
       } catch (error) {
         const reason =
           error instanceof Error && error.message
@@ -427,7 +458,10 @@ export default function App() {
         if (!active) return;
         setBootFailure(reason);
       } finally {
-        if (active) setBootReady(true);
+        if (active) {
+          setBootProgress(100);
+          setBootReady(true);
+        }
       }
     })();
 
@@ -438,34 +472,6 @@ export default function App() {
       validatedAccessRef.current = {};
     };
   }, [applyLiveBundle, lowPowerMode, resolveBundleViews, storeWarmupAccess, viewAccessContext]);
-
-  useEffect(() => {
-    if (!bootReady) return;
-    const runtime = runtimeRef.current;
-    if (!runtime) return;
-
-    const missingViews = availableViews.filter(
-      (candidate) => !validatedAccessRef.current[candidate],
-    );
-    if (missingViews.length === 0) return;
-
-    let active = true;
-    void runtime.control
-      .warmupViewAccess(missingViews, {
-        ...viewAccessContext,
-        forceRefresh: false,
-        concurrency: 4,
-      })
-      .then((warmup) => {
-        if (!active) return;
-        storeWarmupAccess(warmup.resultByView);
-      })
-      .catch(() => {});
-
-    return () => {
-      active = false;
-    };
-  }, [availableViews, bootReady, storeWarmupAccess, viewAccessContext]);
 
   useEffect(() => {
     const safeFont = sanitizeGlobalFont(
@@ -632,21 +638,13 @@ export default function App() {
 
   if (!bootReady) {
     return (
-      <div
-        style={{
-          width: "100%",
-          minHeight: "100dvh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          background: "linear-gradient(135deg, #04050c 0%, #111628 100%)",
-          color: "#d7e6ff",
-          fontFamily: "system-ui, sans-serif",
-          fontWeight: 700,
-        }}
-      >
-        Initialisiere Views und Zugriffsrechte...
-      </div>
+      <BootSequenceScreen
+        appName="Nexus Main"
+        progress={bootProgress}
+        stage={bootStage}
+        accent={t.accent}
+        accent2={t.accent2}
+      />
     );
   }
 

@@ -136,8 +136,76 @@ export const createCanvasProjectTemplate = (input: {
 }) => {
   if (!input.canvas) return
   const state = useCanvas.getState()
-  const baseX = (-input.viewport.panX + input.canvasSize.w * 0.48) / input.viewport.zoom
-  const baseY = (-input.viewport.panY + input.canvasSize.h * 0.42) / input.viewport.zoom
+  const viewportCenterX = (-input.viewport.panX + input.canvasSize.w * 0.5) / input.viewport.zoom
+  const viewportCenterY = (-input.viewport.panY + input.canvasSize.h * 0.45) / input.viewport.zoom
+  const templateSize = { w: 1680, h: 1180 }
+  const candidateOffsets: Array<[number, number]> = [[0, 0]]
+  const ringStepX = Math.max(540, Math.round(templateSize.w * 0.54))
+  const ringStepY = Math.max(420, Math.round(templateSize.h * 0.48))
+  for (let ring = 1; ring <= 6; ring += 1) {
+    const points = 8 + ring * 6
+    const radiusX = ringStepX * ring
+    const radiusY = ringStepY * ring
+    for (let index = 0; index < points; index += 1) {
+      const angle = (index / points) * Math.PI * 2
+      const jitter = index % 2 === 0 ? 0.15 : -0.09
+      candidateOffsets.push([
+        Math.round(Math.cos(angle + jitter) * radiusX),
+        Math.round(Math.sin(angle + jitter) * radiusY),
+      ])
+    }
+  }
+  const overlapScore = (centerX: number, centerY: number) => {
+    if (!input.canvas?.nodes.length) return 0
+    const margin = 92
+    const left = centerX - templateSize.w * 0.5 - margin
+    const top = centerY - templateSize.h * 0.5 - margin
+    const right = centerX + templateSize.w * 0.5 + margin
+    const bottom = centerY + templateSize.h * 0.5 + margin
+    let score = 0
+    input.canvas.nodes.forEach((node) => {
+      const nodeLeft = node.x - 40
+      const nodeTop = node.y - 40
+      const nodeRight = node.x + node.width + 40
+      const nodeBottom = node.y + node.height + 40
+      const intersects =
+        nodeLeft < right
+        && nodeRight > left
+        && nodeTop < bottom
+        && nodeBottom > top
+      if (!intersects) return
+      score += 1
+      const overlapW = Math.max(0, Math.min(right, nodeRight) - Math.max(left, nodeLeft))
+      const overlapH = Math.max(0, Math.min(bottom, nodeBottom) - Math.max(top, nodeTop))
+      score += (overlapW * overlapH) / (templateSize.w * templateSize.h + 1)
+      const nodeCenterX = node.x + node.width * 0.5
+      const nodeCenterY = node.y + node.height * 0.5
+      const distX = Math.abs(nodeCenterX - centerX)
+      const distY = Math.abs(nodeCenterY - centerY)
+      const softRangeX = templateSize.w * 0.65
+      const softRangeY = templateSize.h * 0.62
+      if (distX < softRangeX && distY < softRangeY) {
+        const proximity = 1 - Math.max(distX / softRangeX, distY / softRangeY)
+        score += 0.35 * proximity
+      }
+    })
+    return score
+  }
+  let baseX = viewportCenterX
+  let baseY = viewportCenterY
+  let bestScore = Number.POSITIVE_INFINITY
+  candidateOffsets.forEach(([dx, dy]) => {
+    const candX = viewportCenterX + dx
+    const candY = viewportCenterY + dy
+    const score = overlapScore(candX, candY)
+    if (score < bestScore) {
+      bestScore = score
+      baseX = candX
+      baseY = candY
+    }
+  })
+  baseX = Math.round(baseX / 10) * 10
+  baseY = Math.round(baseY / 10) * 10
   const make = (type: NodeType, x: number, y: number, patch: Partial<CanvasNode>) => {
     state.addNode(type, x, y)
     const c = state.getActiveCanvas()

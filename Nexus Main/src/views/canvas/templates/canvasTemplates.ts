@@ -157,21 +157,22 @@ export function createMagicTemplate(
     (-context.viewport.panY + context.canvasSize.h * 0.45) / context.viewport.zoom;
 
   const templateSize = estimateTemplateSize(payload.template, payload.aiDepth);
-  const candidateOffsets: Array<[number, number]> = [
-    [0, 0],
-    [760, 0],
-    [-760, 0],
-    [0, 560],
-    [0, -560],
-    [760, 460],
-    [-760, 460],
-    [760, -460],
-    [-760, -460],
-    [1280, 0],
-    [-1280, 0],
-    [0, 980],
-    [0, -980],
-  ];
+  const candidateOffsets: Array<[number, number]> = [[0, 0]];
+  const ringStepX = Math.max(520, Math.round(templateSize.w * 0.52));
+  const ringStepY = Math.max(380, Math.round(templateSize.h * 0.46));
+  for (let ring = 1; ring <= 7; ring += 1) {
+    const points = 8 + ring * 6;
+    const radiusX = ringStepX * ring;
+    const radiusY = ringStepY * ring;
+    for (let index = 0; index < points; index += 1) {
+      const angle = (index / points) * Math.PI * 2;
+      const jitter = index % 2 === 0 ? 0.16 : -0.1;
+      candidateOffsets.push([
+        Math.round(Math.cos(angle + jitter) * radiusX),
+        Math.round(Math.sin(angle + jitter) * radiusY),
+      ]);
+    }
+  }
 
   const overlapScore = (centerX: number, centerY: number) => {
     if (!activeCanvas?.nodes.length) return 0;
@@ -202,6 +203,16 @@ export function createMagicTemplate(
         Math.min(bottom, nodeBottom) - Math.max(top, nodeTop),
       );
       score += (overlapW * overlapH) / (templateSize.w * templateSize.h + 1);
+      const nodeCenterX = node.x + node.width * 0.5;
+      const nodeCenterY = node.y + node.height * 0.5;
+      const distX = Math.abs(nodeCenterX - centerX);
+      const distY = Math.abs(nodeCenterY - centerY);
+      const softRangeX = templateSize.w * 0.65;
+      const softRangeY = templateSize.h * 0.62;
+      if (distX < softRangeX && distY < softRangeY) {
+        const proximity = 1 - Math.max(distX / softRangeX, distY / softRangeY);
+        score += 0.35 * proximity;
+      }
     });
     return score;
   };

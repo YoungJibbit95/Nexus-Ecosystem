@@ -31,6 +31,102 @@ function MagicList({ content, accent }: { content: string; accent: string }) {
   )
 }
 
+function MagicChecklist({ content, accent }: { content: string; accent: string }) {
+  const parsed = React.useMemo(() => (
+    content
+      .trim()
+      .split('\n')
+      .filter(Boolean)
+      .map((row) => {
+        const [labelRaw, doneRaw] = row.split('|').map(s => s.trim())
+        const done = ['1', 'true', 'done', 'x', 'yes', 'y'].includes((doneRaw || '').toLowerCase())
+        return { label: labelRaw || 'Neuer Punkt', done }
+      })
+  ), [content])
+  const [items, setItems] = React.useState(parsed)
+
+  React.useEffect(() => {
+    setItems(parsed)
+  }, [parsed])
+
+  const doneCount = items.filter((item) => item.done).length
+  const progress = items.length > 0 ? Math.round((doneCount / items.length) * 100) : 0
+
+  return (
+    <div className="nx-magic-fade" style={{
+      border: '1px solid rgba(255,255,255,0.1)',
+      borderRadius: 12,
+      padding: '10px 12px',
+      margin: '12px 0',
+      background: 'linear-gradient(155deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02))',
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+        <div style={{ fontSize: 12, fontWeight: 700 }}>Checklist</div>
+        <div style={{ fontSize: 11, fontWeight: 700, color: accent }}>
+          {doneCount}/{items.length} ({progress}%)
+        </div>
+      </div>
+      <div style={{ height: 6, borderRadius: 999, background: 'rgba(255,255,255,0.08)', overflow: 'hidden', marginBottom: 10 }}>
+        <div style={{
+          width: `${progress}%`,
+          height: '100%',
+          borderRadius: 999,
+          background: `linear-gradient(90deg, ${accent}bb, ${accent})`,
+          transition: 'width 0.25s ease',
+        }} />
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {items.map((item, i) => (
+          <button
+            key={i}
+            onClick={() => {
+              setItems((prev) => prev.map((entry, index) => (
+                index === i ? { ...entry, done: !entry.done } : entry
+              )))
+            }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              width: '100%',
+              border: '1px solid rgba(255,255,255,0.1)',
+              borderRadius: 9,
+              padding: '8px 10px',
+              background: item.done ? `${accent}18` : 'rgba(255,255,255,0.03)',
+              color: 'inherit',
+              cursor: 'pointer',
+              textAlign: 'left',
+            }}
+          >
+            <span style={{
+              width: 16,
+              height: 16,
+              borderRadius: 4,
+              border: `1px solid ${item.done ? accent : 'rgba(255,255,255,0.35)'}`,
+              display: 'grid',
+              placeItems: 'center',
+              color: accent,
+              fontSize: 11,
+              fontWeight: 800,
+              flexShrink: 0,
+              background: item.done ? `${accent}30` : 'transparent',
+            }}>
+              {item.done ? '✓' : ''}
+            </span>
+            <span style={{
+              fontSize: 12,
+              opacity: item.done ? 0.65 : 0.92,
+              textDecoration: item.done ? 'line-through' : 'none',
+            }}>
+              {item.label}
+            </span>
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 const ALERT_COLORS: Record<string, { bg: string; border: string; icon: string }> = {
   info:    { bg: 'rgba(0,122,255,0.1)',    border: 'rgba(0,122,255,0.35)',    icon: 'ℹ️' },
   success: { bg: 'rgba(48,209,88,0.1)',   border: 'rgba(48,209,88,0.35)',   icon: '✅' },
@@ -265,6 +361,7 @@ export function NexusCodeBlock({ className, children, accent }: { className?: st
   const content = raw.replace(/\n$/, '')
 
   if (lang === 'nexus-list')     return <MagicList content={content} accent={accent} />
+  if (lang === 'nexus-checklist') return <MagicChecklist content={content} accent={accent} />
   if (lang === 'nexus-alert')    return <MagicAlert content={content} />
   if (lang === 'nexus-progress') return <MagicProgress content={content} accent={accent} />
   if (lang === 'nexus-timeline') return <MagicTimeline content={content} accent={accent} />
@@ -307,6 +404,12 @@ const MAGIC_TYPES = [
     color: '#00AAFF',
     fields: [{ key: 'rows', label: 'Einträge (Label | Detail, eine Zeile pro Eintrag)', multiline: true, placeholder: 'Alpha | Erster Punkt\nBeta | Zweiter Punkt\nGamma | Dritter Punkt' }],
     build: (v: Record<string,string>) => `\n\`\`\`nexus-list\n${v.rows}\n\`\`\`\n`,
+  },
+  {
+    id: 'nexus-checklist', label: 'Checklist', icon: '☑️', desc: 'Interaktive Checkliste mit Fortschritt',
+    color: '#30D158',
+    fields: [{ key: 'rows', label: 'Einträge (Text | done/true/false, eine Zeile pro Punkt)', multiline: true, placeholder: 'UI Polish | false\nAPI Contract finalisieren | true\nRelease Smoke-Test | false' }],
+    build: (v: Record<string,string>) => `\n\`\`\`nexus-checklist\n${v.rows}\n\`\`\`\n`,
   },
   {
     id: 'nexus-alert', label: 'Alert Box', icon: '🔔', desc: 'Info, Warnung oder Fehler',
@@ -583,4 +686,3 @@ export function MagicElementModal({ accent, accent2, onClose, onInsert }: MagicM
     </motion.div>
   )
 }
-

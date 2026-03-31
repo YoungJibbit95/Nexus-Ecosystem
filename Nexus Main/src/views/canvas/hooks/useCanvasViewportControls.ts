@@ -34,9 +34,6 @@ export function useCanvasViewportControls({
   const wheelPanRaf = useRef<number>(0);
   const wheelPanDelta = useRef({ x: 0, y: 0 });
   const wheelPanReleaseTimeout = useRef<number>(0);
-  const wheelZoomRaf = useRef<number>(0);
-  const wheelZoomLogDelta = useRef(0);
-  const wheelZoomPoint = useRef({ x: 0, y: 0 });
 
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -141,41 +138,16 @@ export function useCanvasViewportControls({
       const dy = Math.max(-180, Math.min(180, rawDy));
       if (Math.abs(dx) < 0.02 && Math.abs(dy) < 0.02) return;
 
-      if (event.ctrlKey || event.metaKey) {
-        const pinchDelta = Math.max(-56, Math.min(56, dy));
-        const sensitivity = Math.abs(pinchDelta) < 8 ? 0.0068 : 0.0052;
-        wheelZoomLogDelta.current += -pinchDelta * sensitivity;
-        wheelZoomPoint.current = { x: event.clientX, y: event.clientY };
-        if (!wheelZoomRaf.current) {
-          const flushZoom = () => {
-            const zoomStep = Math.max(
-              -0.32,
-              Math.min(0.32, wheelZoomLogDelta.current),
-            );
-            if (Math.abs(zoomStep) < 0.0005) {
-              wheelZoomLogDelta.current = 0;
-              wheelZoomRaf.current = 0;
-              return;
-            }
-            wheelZoomLogDelta.current -= zoomStep;
-            applyZoomAtPoint(
-              wheelZoomPoint.current.x,
-              wheelZoomPoint.current.y,
-              Math.exp(zoomStep),
-            );
-            if (Math.abs(wheelZoomLogDelta.current) > 0.0005) {
-              wheelZoomRaf.current = requestAnimationFrame(flushZoom);
-            } else {
-              wheelZoomLogDelta.current = 0;
-              wheelZoomRaf.current = 0;
-            }
-          };
-          wheelZoomRaf.current = requestAnimationFrame(flushZoom);
-        }
+      const isZoomGesture = event.ctrlKey || event.metaKey || event.altKey;
+      if (isZoomGesture) {
+        const pinchDelta = Math.max(-120, Math.min(120, dy));
+        const sensitivity = Math.abs(pinchDelta) < 16 ? 0.0105 : 0.0085;
+        const factor = Math.exp(-pinchDelta * sensitivity);
+        applyZoomAtPoint(event.clientX, event.clientY, factor);
+        setWheelPanning(false);
         return;
       }
 
-      wheelZoomLogDelta.current = 0;
       wheelPanDelta.current.x -= dx;
       wheelPanDelta.current.y -= dy;
       setWheelPanning(true);
@@ -211,11 +183,9 @@ export function useCanvasViewportControls({
   useEffect(
     () => () => {
       if (wheelPanRaf.current) cancelAnimationFrame(wheelPanRaf.current);
-      if (wheelZoomRaf.current) cancelAnimationFrame(wheelZoomRaf.current);
       if (wheelPanReleaseTimeout.current) {
         window.clearTimeout(wheelPanReleaseTimeout.current);
       }
-      wheelZoomLogDelta.current = 0;
     },
     [],
   );
@@ -224,9 +194,11 @@ export function useCanvasViewportControls({
     (event: React.MouseEvent) => {
       setQuickAddPos(null);
       setShowWidgetMenu(false);
+      const target = event.target as HTMLElement;
       const isCanvasBackground =
-        event.target === event.currentTarget ||
-        (event.target as HTMLElement).id === "nexus-canvas-inner";
+        target === event.currentTarget ||
+        target.id === "nexus-canvas-inner" ||
+        Boolean(target.closest("#nexus-canvas-inner"));
       if (
         event.button === 1 ||
         (event.button === 0 && (spaceHeld || isCanvasBackground))

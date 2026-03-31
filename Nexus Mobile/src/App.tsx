@@ -142,10 +142,93 @@ const preloadMobileViews = async (
   }
 }
 
+function BootSequenceScreen({
+  appName,
+  progress,
+  stage,
+  accent,
+  accent2,
+}: {
+  appName: string
+  progress: number
+  stage: string
+  accent: string
+  accent2: string
+}) {
+  const safeProgress = Math.max(0, Math.min(100, Math.round(progress)))
+  return (
+    <div style={{
+      width: '100%',
+      minHeight: '100dvh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: 'radial-gradient(circle at 20% 15%, rgba(38,53,110,0.45), transparent 45%), linear-gradient(135deg, #04050c 0%, #0b0f1c 45%, #111628 100%)',
+      color: '#d7e6ff',
+      fontFamily: 'system-ui, sans-serif',
+      padding: 18,
+    }}>
+      <div style={{
+        width: 'min(520px, 94vw)',
+        borderRadius: 18,
+        border: '1px solid rgba(255,255,255,0.14)',
+        background: 'rgba(8,12,24,0.68)',
+        backdropFilter: 'blur(16px) saturate(130%)',
+        WebkitBackdropFilter: 'blur(16px) saturate(130%)',
+        boxShadow: '0 24px 70px rgba(0,0,0,0.44), inset 0 1px 0 rgba(255,255,255,0.18)',
+        padding: 18,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{
+            width: 34,
+            height: 34,
+            borderRadius: 11,
+            border: `1px solid ${accent}66`,
+            background: `linear-gradient(135deg, ${accent}44, ${accent2}30)`,
+            display: 'grid',
+            placeItems: 'center',
+            fontWeight: 900,
+            fontSize: 15,
+          }}>✦</div>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 800 }}>{appName}</div>
+            <div style={{ fontSize: 10, opacity: 0.62 }}>Boot Sequence</div>
+          </div>
+        </div>
+        <div style={{ marginTop: 12, fontSize: 12, opacity: 0.88, minHeight: 18 }}>
+          {stage}
+        </div>
+        <div style={{
+          marginTop: 10,
+          height: 9,
+          borderRadius: 999,
+          background: 'rgba(255,255,255,0.08)',
+          overflow: 'hidden',
+          border: '1px solid rgba(255,255,255,0.08)',
+        }}>
+          <div style={{
+            width: `${safeProgress}%`,
+            height: '100%',
+            borderRadius: 999,
+            background: `linear-gradient(90deg, ${accent}, ${accent2})`,
+            boxShadow: `0 0 10px ${accent}88`,
+            transition: 'width 260ms cubic-bezier(0.2, 0.7, 0.2, 1)',
+          }} />
+        </div>
+        <div style={{ marginTop: 7, fontSize: 10, opacity: 0.7 }}>
+          {safeProgress}% geladen
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function App() {
   const [view, setView] = useState<View>('dashboard')
   const [availableViews, setAvailableViews] = useState<View[]>(VIEW_IDS)
   const [bootReady, setBootReady] = useState(false)
+  const [bootProgress, setBootProgress] = useState(0)
+  const [bootStage, setBootStage] = useState('Nexus Runtime wird gestartet...')
   const [bootFailure, setBootFailure] = useState<string | null>(null)
   const [remoteDensity, setRemoteDensity] = useState<'compact' | 'comfortable' | 'spacious' | null>(null)
   const [remoteNavigation, setRemoteNavigation] = useState<'sidebar' | 'bottom-nav' | 'tabs' | null>(null)
@@ -254,9 +337,18 @@ export default function App() {
     validatedAccessRef.current = {}
     let active = true
     setBootFailure(null)
+    setBootProgress(8)
+    setBootStage('Nexus Runtime wird gestartet...')
+
+    const setBootStep = (progress: number, stage: string) => {
+      if (!active) return
+      setBootProgress((prev) => Math.max(prev, progress))
+      setBootStage(stage)
+    }
 
     void (async () => {
       try {
+        setBootStep(24, 'Lade API Katalog, Layout und Release...')
         const [catalogResult, layoutResult, releaseResult] = await Promise.all([
           runtime.control.fetchCatalog({
             appId: 'mobile',
@@ -308,27 +400,47 @@ export default function App() {
 
         if (!active) return
         applyLiveBundle(bundle)
+        setBootStep(54, 'Validiere verfuegbare Views...')
         const startupViews = bundle ? resolveBundleViews(bundle) : VIEW_IDS
         if (startupViews.length === 0) {
           throw new Error('CONTROL_API_BOOTSTRAP_FAILED (NO_STARTUP_VIEWS)')
         }
 
-        const warmup = await runtime.control.warmupViewAccess(startupViews, {
+        const prioritizedStartupViews = orderMobilePreloadViews(startupViews)
+        const warmupCandidates = prioritizedStartupViews.slice(
+          0,
+          Math.min(3, prioritizedStartupViews.length),
+        )
+        const warmup = await runtime.control.warmupViewAccess(warmupCandidates, {
           ...viewAccessContext,
           forceRefresh: true,
           concurrency: 4,
         })
         if (!active) return
-        storeWarmupAccess(warmup.resultByView)
-        const allowedViews = warmup.allowedViews.filter((candidate) => startupViews.includes(candidate as View)) as View[]
+        let resultByView = { ...warmup.resultByView }
+        let allowedViews = warmup.allowedViews.filter((candidate) => startupViews.includes(candidate as View)) as View[]
+        if (allowedViews.length === 0 && prioritizedStartupViews.length > warmupCandidates.length) {
+          const fallbackCandidates = prioritizedStartupViews.slice(warmupCandidates.length)
+          const fallbackWarmup = await runtime.control.warmupViewAccess(fallbackCandidates, {
+            ...viewAccessContext,
+            forceRefresh: false,
+            concurrency: 3,
+          })
+          if (!active) return
+          resultByView = { ...resultByView, ...fallbackWarmup.resultByView }
+          allowedViews = [...allowedViews, ...fallbackWarmup.allowedViews]
+            .filter((candidate) => startupViews.includes(candidate as View)) as View[]
+        }
+        storeWarmupAccess(resultByView)
         if (allowedViews.length === 0) {
-          const reasons = startupViews
-            .map((candidate) => warmup.resultByView[candidate]?.reason)
+          const reasons = prioritizedStartupViews
+            .map((candidate) => resultByView[candidate]?.reason)
             .filter((reason): reason is string => Boolean(reason))
             .slice(0, 3)
           throw new Error(`VIEW_VALIDATION_BLOCKED (${reasons.join(', ') || 'NO_ALLOWED_VIEWS'})`)
         }
 
+        setBootStep(80, 'Lade Kern-Views fuer den Start...')
         await preloadMobileViews(allowedViews, {
           eagerLimit: lowPowerMode ? 1 : 2,
         })
@@ -344,6 +456,7 @@ export default function App() {
           requiredTier: null,
           reason: null,
         })
+        setBootStep(100, 'Startsequenz abgeschlossen')
       } catch (error) {
         const reason = error instanceof Error && error.message
           ? error.message
@@ -352,7 +465,10 @@ export default function App() {
         if (!active) return
         setBootFailure(reason)
       } finally {
-        if (active) setBootReady(true)
+        if (active) {
+          setBootProgress(100)
+          setBootReady(true)
+        }
       }
     })()
 
@@ -363,32 +479,6 @@ export default function App() {
       validatedAccessRef.current = {}
     }
   }, [applyLiveBundle, lowPowerMode, resolveBundleViews, storeWarmupAccess, viewAccessContext])
-
-  useEffect(() => {
-    if (!bootReady) return
-    const runtime = runtimeRef.current
-    if (!runtime) return
-
-    const missingViews = availableViews.filter((candidate) => !validatedAccessRef.current[candidate])
-    if (missingViews.length === 0) return
-
-    let active = true
-    void runtime.control
-      .warmupViewAccess(missingViews, {
-        ...viewAccessContext,
-        forceRefresh: false,
-        concurrency: 4,
-      })
-      .then((warmup) => {
-        if (!active) return
-        storeWarmupAccess(warmup.resultByView)
-      })
-      .catch(() => {})
-
-    return () => {
-      active = false
-    }
-  }, [availableViews, bootReady, storeWarmupAccess, viewAccessContext])
 
   useEffect(() => {
     const safeFont = sanitizeGlobalFont(
@@ -522,19 +612,13 @@ export default function App() {
 
   if (!bootReady) {
     return (
-      <div style={{
-        width: '100%',
-        minHeight: '100dvh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'linear-gradient(135deg, #04050c 0%, #111628 100%)',
-        color: '#d7e6ff',
-        fontFamily: 'system-ui, sans-serif',
-        fontWeight: 700,
-      }}>
-        Initialisiere Views und Zugriffsrechte...
-      </div>
+      <BootSequenceScreen
+        appName='Nexus Mobile'
+        progress={bootProgress}
+        stage={bootStage}
+        accent={t.accent}
+        accent2={t.accent2}
+      />
     )
   }
 
