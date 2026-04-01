@@ -8,6 +8,7 @@ import {
   X,
   Terminal as TerminalIcon,
   Check,
+  ExternalLink,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -205,6 +206,7 @@ export default function Terminal({ isOpen, onToggle, activeFile, code, workspace
   const [cmdHistories, setCmdHistories] = useState({ 1: [] });
   const [cmdIndex, setCmdIndex] = useState({});
   const [copied, setCopied] = useState(false);
+  const [terminalLaunchBusy, setTerminalLaunchBusy] = useState(false);
   const [runningByTab, setRunningByTab] = useState({});
 
   const scrollRef = useRef(null);
@@ -357,6 +359,46 @@ export default function Terminal({ isOpen, onToggle, activeFile, code, workspace
     setHistories((prev) => ({ ...prev, [activeTabId]: [] }));
     inputRef.current?.focus();
   };
+
+  const handleOpenSystemTerminal = useCallback(async () => {
+    // @ts-ignore
+    const api = window.electronAPI;
+    if (!api?.openSystemTerminal) {
+      addEntries(activeTabId, [
+        { type: "warn", text: "System Terminal Link ist in dieser Runtime nicht verfügbar." },
+      ]);
+      return;
+    }
+
+    setTerminalLaunchBusy(true);
+    try {
+      const result = await api.openSystemTerminal(workspacePath || undefined);
+      if (result?.ok) {
+        addEntries(activeTabId, [
+          {
+            type: "success",
+            text: `System Terminal geöffnet (${workspacePath || "~"}).`,
+          },
+        ]);
+      } else {
+        addEntries(activeTabId, [
+          {
+            type: "error",
+            text: `System Terminal konnte nicht geöffnet werden: ${result?.error || "Unbekannter Fehler"}`,
+          },
+        ]);
+      }
+    } catch (error) {
+      addEntries(activeTabId, [
+        {
+          type: "error",
+          text: `System Terminal konnte nicht geöffnet werden: ${error?.message || "Unbekannter Fehler"}`,
+        },
+      ]);
+    } finally {
+      setTerminalLaunchBusy(false);
+    }
+  }, [activeTabId, addEntries, workspacePath]);
 
   const addTab = () => {
     const tab = makeTab();
@@ -576,6 +618,24 @@ export default function Terminal({ isOpen, onToggle, activeFile, code, workspace
             className="p-1.5 rounded hover:bg-white/[0.06] transition-colors"
           >
             <Trash2 size={11} className="text-gray-500" />
+          </motion.button>
+
+          <motion.button
+            whileHover={{ scale: 1.08 }}
+            whileTap={{ scale: 0.92 }}
+            onClick={handleOpenSystemTerminal}
+            disabled={terminalLaunchBusy}
+            title="System Terminal öffnen"
+            className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-semibold transition-colors"
+            style={{
+              border: "1px solid rgba(255,255,255,0.12)",
+              background: "rgba(255,255,255,0.03)",
+              color: terminalLaunchBusy ? "#64748b" : "#cbd5e1",
+              cursor: terminalLaunchBusy ? "progress" : "pointer",
+            }}
+          >
+            <ExternalLink size={10} />
+            <span className="hidden sm:inline">System</span>
           </motion.button>
 
           {/* Run active file */}

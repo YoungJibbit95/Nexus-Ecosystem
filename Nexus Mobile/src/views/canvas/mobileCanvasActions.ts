@@ -138,10 +138,10 @@ export const createCanvasProjectTemplate = (input: {
   const state = useCanvas.getState()
   const viewportCenterX = (-input.viewport.panX + input.canvasSize.w * 0.5) / input.viewport.zoom
   const viewportCenterY = (-input.viewport.panY + input.canvasSize.h * 0.45) / input.viewport.zoom
-  const templateSize = { w: 1860, h: 1260 }
+  const templateSize = { w: 2180, h: 1460 }
   const candidateOffsets: Array<[number, number]> = [[0, 0]]
-  const ringStepX = Math.max(640, Math.round(templateSize.w * 0.58))
-  const ringStepY = Math.max(500, Math.round(templateSize.h * 0.52))
+  const ringStepX = Math.max(760, Math.round(templateSize.w * 0.62))
+  const ringStepY = Math.max(600, Math.round(templateSize.h * 0.56))
   for (let ring = 1; ring <= 8; ring += 1) {
     const points = 8 + ring * 6
     const radiusX = ringStepX * ring
@@ -222,14 +222,14 @@ export const createCanvasProjectTemplate = (input: {
     width: 380,
     height: 250,
   })
-  const brief = make('markdown', baseX - 480, baseY - 30, {
+  const brief = make('markdown', baseX - 620, baseY - 90, {
     title: 'Projekt Brief',
     content: '# Zielbild\n\n- Scope\n- Timeline\n- Risiken\n- Rollout',
     pm: { status: 'idea', priority: 'high', owner: 'you', progress: 5, tags: ['brief', 'scope'] },
-    width: 360,
-    height: 260,
+    width: 390,
+    height: 280,
   })
-  const sprint = make('checklist', baseX + 460, baseY - 20, {
+  const sprint = make('checklist', baseX + 640, baseY - 80, {
     title: 'Sprint Backlog',
     items: [
       { id: `i-${Date.now()}-1`, text: 'UI Polish abschließen', done: false },
@@ -237,10 +237,10 @@ export const createCanvasProjectTemplate = (input: {
       { id: `i-${Date.now()}-3`, text: 'Release Notes vorbereiten', done: false },
     ],
     pm: { status: 'backlog', priority: 'mid', owner: 'team', progress: 0, tags: ['sprint'] },
-    width: 320,
-    height: 240,
+    width: 360,
+    height: 260,
   })
-  const taskApi = make('task', baseX - 220, baseY + 340, {
+  const taskApi = make('task', baseX - 340, baseY + 430, {
     title: 'API Integration',
     pm: {
       status: 'doing',
@@ -252,7 +252,7 @@ export const createCanvasProjectTemplate = (input: {
       tags: ['api', 'integration'],
     },
   })
-  const taskQa = make('task', baseX + 180, baseY + 340, {
+  const taskQa = make('task', baseX + 340, baseY + 430, {
     title: 'Mobile QA',
     pm: {
       status: 'todo',
@@ -264,7 +264,7 @@ export const createCanvasProjectTemplate = (input: {
       tags: ['qa', 'mobile'],
     },
   })
-  const milestone = make('milestone', baseX + 620, baseY + 80, {
+  const milestone = make('milestone', baseX + 860, baseY + 140, {
     title: 'Milestone Beta',
     content: 'Beta Release + QA-Freigabe',
     pm: {
@@ -276,11 +276,11 @@ export const createCanvasProjectTemplate = (input: {
       progress: 70,
       tags: ['milestone'],
     },
-    width: 320,
-    height: 220,
+    width: 340,
+    height: 230,
     color: '#BF5AF2',
   })
-  const risk = make('risk', baseX + 40, baseY + 640, {
+  const risk = make('risk', baseX + 40, baseY + 780, {
     title: 'Top Risk',
     content: 'API-Runtime Drift\nMitigation: Contract Smoke + Alerting',
     pm: {
@@ -290,8 +290,8 @@ export const createCanvasProjectTemplate = (input: {
       progress: 20,
       tags: ['risk'],
     },
-    width: 340,
-    height: 220,
+    width: 360,
+    height: 230,
     color: '#FF453A',
   })
 

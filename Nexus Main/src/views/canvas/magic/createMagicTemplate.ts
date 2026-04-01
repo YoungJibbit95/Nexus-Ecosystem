@@ -48,14 +48,14 @@ export function createMagicTemplateFromPayload({
         depth?: MagicTemplatePayload["aiDepth"],
       ) => {
         if (template === "ai-project") {
-          const spread = depth === "deep" ? 1900 : depth === "light" ? 1280 : 1540;
-          return { w: spread, h: 1080 };
+          const spread = depth === "deep" ? 2240 : depth === "light" ? 1520 : 1820;
+          return { w: spread, h: 1260 };
         }
-        if (template === "roadmap") return { w: 1720, h: 1000 };
-        if (template === "sprint") return { w: 1760, h: 1080 };
-        if (template === "risk-matrix") return { w: 1520, h: 980 };
-        if (template === "decision-flow") return { w: 1460, h: 980 };
-        return { w: 1380, h: 980 };
+        if (template === "roadmap") return { w: 1960, h: 1160 };
+        if (template === "sprint") return { w: 2020, h: 1220 };
+        if (template === "risk-matrix") return { w: 1720, h: 1120 };
+        if (template === "decision-flow") return { w: 1660, h: 1100 };
+        return { w: 1540, h: 1060 };
       };
 
       const templateSize = estimateTemplateSize(payload.template, payload.aiDepth);
@@ -203,7 +203,7 @@ export function createMagicTemplateFromPayload({
               const b = pos.get(idB);
               if (!a || !b) continue;
 
-              const pad = 56;
+              const pad = 84;
               const overlapX =
                 Math.min(a.x + a.width + pad, b.x + b.width + pad) -
                 Math.max(a.x - pad, b.x - pad);
@@ -218,7 +218,7 @@ export function createMagicTemplateFromPayload({
               const centerBX = b.x + b.width * 0.5;
               const centerBY = b.y + b.height * 0.5;
               const splitByX = overlapX <= overlapY;
-              const baseShift = (splitByX ? overlapX : overlapY) * 0.56 + 42;
+              const baseShift = (splitByX ? overlapX : overlapY) * 0.72 + 56;
 
               let shiftAX = 0;
               let shiftAY = 0;
@@ -276,7 +276,7 @@ export function createMagicTemplateFromPayload({
 
           for (let iter = 0; iter < 48; iter += 1) {
             const bounds = clusterBounds();
-            const padding = 92;
+            const padding = 128;
             let collisions = 0;
             let totalShiftX = 0;
             let totalShiftY = 0;
@@ -317,11 +317,11 @@ export function createMagicTemplateFromPayload({
             let shiftX = Math.round(totalShiftX / collisions);
             let shiftY = Math.round(totalShiftY / collisions);
             if (Math.abs(shiftX) < 1 && Math.abs(shiftY) < 1) {
-              shiftX = bounds.centerX <= viewportCenterX ? -58 : 58;
-              shiftY = bounds.centerY <= viewportCenterY ? -44 : 44;
+              shiftX = bounds.centerX <= viewportCenterX ? -72 : 72;
+              shiftY = bounds.centerY <= viewportCenterY ? -56 : 56;
             }
 
-            const maxStep = 260;
+            const maxStep = 320;
             shiftX = Math.max(-maxStep, Math.min(maxStep, shiftX));
             shiftY = Math.max(-maxStep, Math.min(maxStep, shiftY));
             pos.forEach((entry) => {
@@ -410,9 +410,9 @@ export function createMagicTemplateFromPayload({
             : "AI-generated project map.",
         });
 
-        const goalX = spread(goalTitles.length, 300);
-        const milestoneX = spread(milestoneTitles.length, 280);
-        const riskX = spread(riskTitles.length, 320);
+        const goalX = spread(goalTitles.length, 360);
+        const milestoneX = spread(milestoneTitles.length, 340);
+        const riskX = spread(riskTitles.length, 390);
 
         const goalIds = goalTitles.map((title, idx) =>
           mk("goal", goalX[idx] || 0, -320, title, {
