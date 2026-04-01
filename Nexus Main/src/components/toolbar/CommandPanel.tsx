@@ -53,6 +53,8 @@ export function CommandPanel({
     <Glass
       type="modal"
       glow
+      disablePulse
+      performanceProfile="balanced"
       style={{
         borderRadius: 18,
         border: `1px solid rgba(${rgb},0.32)`,

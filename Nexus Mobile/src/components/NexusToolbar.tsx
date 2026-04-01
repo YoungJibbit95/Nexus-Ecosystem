@@ -371,7 +371,7 @@ function SpotlightPanel({ search, setSearch, selIdx, setSelIdx, suggestions, com
   const { notes, tasks, reminders, codes } = useApp()
   const list = search ? suggestions : commands
   return (
-    <Glass type="modal" glow style={{
+    <Glass type="modal" glow disablePulse performanceProfile="balanced" style={{
       borderRadius: compact ? 14 : 20,
       border: `1px solid rgba(${rgb},0.35)`,
       backdropFilter:'blur(36px) saturate(230%)',

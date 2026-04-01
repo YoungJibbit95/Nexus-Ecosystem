@@ -13,6 +13,8 @@ export interface GlassProps {
   hover?: boolean
   gradient?: boolean
   shimmer?: boolean
+  disablePulse?: boolean
+  performanceProfile?: 'auto' | 'balanced' | 'quality'
   onClick?: React.MouseEventHandler<HTMLDivElement>
   animDelay?: number
   onDoubleClick?: React.MouseEventHandler<HTMLDivElement>
@@ -172,7 +174,8 @@ function ReflectionLine() {
 
 export const Glass = memo(forwardRef<HTMLDivElement, GlassProps>(function Glass(
   { children, className = '', style, type = 'panel', glow = false, hover = false,
-    gradient = false, shimmer = false, onClick, animDelay = 0,
+    gradient = false, shimmer = false, disablePulse = false, performanceProfile = 'auto',
+    onClick, animDelay = 0,
     onDoubleClick, onMouseEnter: onME, onMouseLeave: onML }: GlassProps,
   ref
 ) {
@@ -183,6 +186,10 @@ export const Glass = memo(forwardRef<HTMLDivElement, GlassProps>(function Glass(
   const rafRef = useRef<number | null>(null)
   const nextMouseRef = useRef({ x: 0, y: 0 })
   const lowPowerMode = useMemo(() => isLowPowerDevice(), [])
+  const isProdBuild = useMemo(
+    () => Boolean((import.meta as any).env?.PROD),
+    [],
+  )
 
   const accentRgb = hexToRgb(t.accent)
   const tintRgb   = hexToRgb(t.glassmorphism.tintColor)
@@ -196,12 +203,17 @@ export const Glass = memo(forwardRef<HTMLDivElement, GlassProps>(function Glass(
   const reflLine   = (t.glassmorphism as any).reflectionLine ?? false
   const innerShadow = (t.glassmorphism as any).innerShadow ?? false
   const glassDepth = (t.glassmorphism as any).glassDepth ?? 0.5
+  const balancedMode = useMemo(() => {
+    if (performanceProfile === 'quality') return false
+    if (performanceProfile === 'balanced') return true
+    return lowPowerMode || isProdBuild || Boolean(t.qol?.reducedMotion)
+  }, [isProdBuild, lowPowerMode, performanceProfile, t.qol?.reducedMotion])
 
   const showGlow = glow && t.glow.mode !== 'off'
   const isGradientGlow = showGlow && t.glow.gradientGlow
-  const useThreePanelRenderer = panelRenderer === 'glass-shader' && !lowPowerMode
+  const useThreePanelRenderer = panelRenderer === 'glass-shader' && !lowPowerMode && !balancedMode
   const useFakeGlassRenderer = panelRenderer === 'fake-glass'
-  const useThreeGlowRenderer = showGlow && glowRenderer === 'three' && !lowPowerMode
+  const useThreeGlowRenderer = showGlow && glowRenderer === 'three' && !lowPowerMode && !balancedMode
 
   const blurPx = type === 'sidebar' ? t.blur.sidebarBlur
                : type === 'modal'   ? t.blur.modalBlur
@@ -214,11 +226,15 @@ export const Glass = memo(forwardRef<HTMLDivElement, GlassProps>(function Glass(
                       : glassMode === 'mirror' ? blurPx * 1.5
                       : glassMode === 'frosted' ? Math.max(blurPx, 28)
                       : blurPx
+  const effectiveBlurCapped = balancedMode
+    ? Math.min(effectiveBlur, type === 'modal' ? 16 : 14)
+    : effectiveBlur
   const saturate = (lowPowerMode
     ? Math.min(130, Math.round(t.glassmorphism.saturation * 0.82))
     : Math.round(t.glassmorphism.saturation * satMult))
     + (glassMode === 'frosted' ? 40 : 0)
     + (glassMode === 'crystal' ? 20 : 0)
+  const effectiveSaturate = balancedMode ? Math.min(saturate, 165) : saturate
 
   // Background
   let bg: string
@@ -257,7 +273,7 @@ export const Glass = memo(forwardRef<HTMLDivElement, GlassProps>(function Glass(
   const ambientGlow = ''
 
   const borderGlowRing = t.glassmorphism.borderGlow && showGlow && !useThreeGlowRenderer
-    ? `0 0 ${10 + t.glassmorphism.borderGlowIntensity * 22}px rgba(${accentRgb}, ${0.16 + t.glassmorphism.borderGlowIntensity * 0.35}), 0 0 0 1px rgba(${accentRgb}, ${0.12 + t.glassmorphism.borderGlowIntensity * 0.32})`
+    ? `0 0 ${10 + t.glassmorphism.borderGlowIntensity * (balancedMode ? 14 : 22)}px rgba(${accentRgb}, ${0.14 + t.glassmorphism.borderGlowIntensity * (balancedMode ? 0.24 : 0.35)}), 0 0 0 1px rgba(${accentRgb}, ${0.1 + t.glassmorphism.borderGlowIntensity * (balancedMode ? 0.18 : 0.32)})`
     : ''
 
   const innerShadowStyle = innerShadow
@@ -317,10 +333,10 @@ export const Glass = memo(forwardRef<HTMLDivElement, GlassProps>(function Glass(
       className={[
         className,
         t.animations.rippleClick && onClick ? 'nx-ripple-container' : '',
-        !lowPowerMode && (t.animations as any).glowPulse && showGlow && (active || type === 'modal') ? 'nx-glow-pulse' : '',
+        !lowPowerMode && !balancedMode && !disablePulse && (t.animations as any).glowPulse && showGlow && (active || type === 'modal') ? 'nx-glow-pulse' : '',
         !lowPowerMode && (t.animations as any).floatEffect && hover && isHovered ? 'nx-float' : '',
-        !lowPowerMode && glassMode === 'plasma' ? 'nx-glass-plasma' : '',
-        !lowPowerMode && (t.glassmorphism as any).animatedBlur ? 'nx-plasma-bg' : '',
+        !lowPowerMode && !balancedMode && glassMode === 'plasma' ? 'nx-glass-plasma' : '',
+        !lowPowerMode && !balancedMode && (t.glassmorphism as any).animatedBlur ? 'nx-plasma-bg' : '',
       ].filter(Boolean).join(' ')}
       onDoubleClick={onDoubleClick}
       style={{
@@ -334,11 +350,11 @@ export const Glass = memo(forwardRef<HTMLDivElement, GlassProps>(function Glass(
         background: bg,
         backgroundSize: bgSize,
         backdropFilter: panelRenderer === 'glass-shader'
-          ? `blur(${Math.max(4, Math.floor(effectiveBlur * 0.35))}px) saturate(${Math.round(saturate * 0.92)}%)`
-          : `blur(${(!lowPowerMode && (t.glassmorphism as any).animatedBlur) ? effectiveBlur * 1.2 : effectiveBlur}px) saturate(${saturate}%)${glassMode === 'frosted' ? ' brightness(0.94)' : glassMode === 'mirror' ? ' brightness(1.08)' : glassMode === 'plasma' ? ' brightness(0.97)' : ''}${(!lowPowerMode && (t.glassmorphism as any).animatedBlur) ? ' hue-rotate(0deg)' : ''}`,
+          ? `blur(${Math.max(4, Math.floor(effectiveBlurCapped * 0.35))}px) saturate(${Math.round(effectiveSaturate * 0.92)}%)`
+          : `blur(${(!lowPowerMode && !balancedMode && (t.glassmorphism as any).animatedBlur) ? effectiveBlurCapped * 1.2 : effectiveBlurCapped}px) saturate(${effectiveSaturate}%)${glassMode === 'frosted' ? ' brightness(0.94)' : glassMode === 'mirror' ? ' brightness(1.08)' : glassMode === 'plasma' ? ' brightness(0.97)' : ''}${(!lowPowerMode && !balancedMode && (t.glassmorphism as any).animatedBlur) ? ' hue-rotate(0deg)' : ''}`,
         WebkitBackdropFilter: panelRenderer === 'glass-shader'
-          ? `blur(${Math.max(4, Math.floor(effectiveBlur * 0.35))}px) saturate(${Math.round(saturate * 0.92)}%)`
-          : `blur(${effectiveBlur}px) saturate(${saturate}%)${glassMode === 'frosted' ? ' brightness(0.94)' : glassMode === 'mirror' ? ' brightness(1.08)' : ''}`,
+          ? `blur(${Math.max(4, Math.floor(effectiveBlurCapped * 0.35))}px) saturate(${Math.round(effectiveSaturate * 0.92)}%)`
+          : `blur(${effectiveBlurCapped}px) saturate(${effectiveSaturate}%)${glassMode === 'frosted' ? ' brightness(0.94)' : glassMode === 'mirror' ? ' brightness(1.08)' : ''}`,
         border: `1px solid ${borderColor}`,
         borderRadius: `${t.visual.panelRadius}px`,
         boxShadow,
@@ -353,7 +369,7 @@ export const Glass = memo(forwardRef<HTMLDivElement, GlassProps>(function Glass(
         overflow: 'visible',
       } as React.CSSProperties}
       onClick={handleClick}
-      onMouseMove={hover ? handleMouseMove : undefined}
+      onMouseMove={hover && !balancedMode ? handleMouseMove : undefined}
       onMouseEnter={(e) => { if (hover) setIsHovered(true); onME?.(e) }}
       onMouseLeave={(e) => {
         if (hover) setIsHovered(false)
@@ -392,7 +408,7 @@ export const Glass = memo(forwardRef<HTMLDivElement, GlassProps>(function Glass(
       )}
 
       {/* Mouse light sweep */}
-      {hover && !lowPowerMode && (
+      {hover && !lowPowerMode && !balancedMode && (
         <div aria-hidden="true" style={{
           position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 2,
           opacity: isHovered ? 1 : 0, transition: 'opacity 0.6s ease',
@@ -434,19 +450,19 @@ export const Glass = memo(forwardRef<HTMLDivElement, GlassProps>(function Glass(
           background: t.glow.mode === 'ambient'
             ? `radial-gradient(ellipse at 50% 50%, rgba(${accentRgb},${t.glow.intensity * 0.35}), transparent 70%)`
             : `radial-gradient(ellipse at 50% 50%, rgba(${accentRgb},${t.glow.intensity * 0.4}), transparent 65%)`,
-          filter: `blur(${t.glow.radius * 0.5}px)`,
+          filter: `blur(${t.glow.radius * (balancedMode ? 0.3 : 0.5)}px)`,
           pointerEvents: 'none',
           zIndex: -1,
           opacity: active ? Math.min(t.glow.intensity * 1.2, 1) : Math.min(t.glow.intensity * 0.7, 0.85),
           transition: 'opacity 0.4s ease',
-          animation: t.glow.mode === 'pulse'
+          animation: !disablePulse && !balancedMode && t.glow.mode === 'pulse'
             ? `nx-glow-pulse-anim ${2.5 / Math.max(t.visual.animationSpeed, 0.1)}s ease-in-out infinite`
             : undefined,
         }} />
       )}
 
       {/* Plasma animated overlay */}
-      {glassMode === 'plasma' && !lowPowerMode && (
+      {glassMode === 'plasma' && !lowPowerMode && !balancedMode && (
         <div aria-hidden="true" style={{
           position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 1, borderRadius: 'inherit',
           background: `linear-gradient(-45deg, rgba(${hexToRgb(t.accent)},0.12), rgba(${hexToRgb(t.accent2)},0.07), rgba(${hexToRgb(t.accent)},0.04), rgba(${hexToRgb(t.accent2)},0.1))`,
@@ -477,7 +493,7 @@ export const Glass = memo(forwardRef<HTMLDivElement, GlassProps>(function Glass(
       {reflLine && <ReflectionLine />}
 
       {/* Shimmer on hover */}
-      {!lowPowerMode && (shimmer || (hover && isHovered && t.animations.hoverLift)) && (
+      {!lowPowerMode && !balancedMode && (shimmer || (hover && isHovered && t.animations.hoverLift)) && (
         <div aria-hidden="true" style={{
           position: 'absolute', inset: 0,
           background: 'linear-gradient(105deg, transparent 30%, rgba(255,255,255,0.05) 50%, transparent 70%)',

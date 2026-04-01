@@ -25,6 +25,14 @@ const NETWORK_MUTATION_PATTERNS = [
 let mainWindow = null;
 const activeProcesses = new Map();
 
+if (!DEV) {
+  // Packaged builds can degrade to software compositing on some systems.
+  app.commandLine.appendSwitch("ignore-gpu-blocklist");
+  app.commandLine.appendSwitch("enable-gpu-rasterization");
+  app.commandLine.appendSwitch("enable-zero-copy");
+  app.commandLine.appendSwitch("enable-native-gpu-memory-buffers");
+}
+
 const isAllowedNavigation = (url) => {
   if (!url || typeof url !== "string") return false;
   if (DEV) {
