@@ -72,15 +72,16 @@ export function useCanvasWheelGestures({
 
     const absRawDx = Math.abs(rawDx)
     const absRawDy = Math.abs(rawDy)
+    const nearVerticalGesture = absRawDy >= absRawDx * 1.15
     const looksLikePinch =
       absRawDy > 0
-      && absRawDy <= 18
-      && absRawDx <= 14
-      && absRawDy >= absRawDx * 0.55
+      && nearVerticalGesture
+      && absRawDx <= 42
+      && absRawDy <= 96
 
     let mode = wheelGestureMode.current
     if (!mode) {
-      mode = e.ctrlKey || e.metaKey || e.altKey || looksLikePinch ? 'zoom' : 'pan'
+      mode = e.ctrlKey || e.metaKey || looksLikePinch ? 'zoom' : 'pan'
       wheelGestureMode.current = mode
     }
     if (wheelGestureModeTimeout.current) {
@@ -88,21 +89,21 @@ export function useCanvasWheelGestures({
     }
     wheelGestureModeTimeout.current = window.setTimeout(() => {
       wheelGestureMode.current = null
-    }, 120)
+    }, 180)
 
     if (mode === 'zoom') {
-      const pinchDelta = Math.max(-150, Math.min(150, dy))
+      const pinchDelta = Math.max(-140, Math.min(140, dy))
       wheelZoomDelta.current += pinchDelta
       wheelZoomPoint.current = { x: e.clientX, y: e.clientY }
       if (!wheelZoomRaf.current) {
         wheelZoomRaf.current = requestAnimationFrame(() => {
           wheelZoomRaf.current = 0
-          const delta = Math.max(-240, Math.min(240, wheelZoomDelta.current))
+          const delta = Math.max(-200, Math.min(200, wheelZoomDelta.current))
           wheelZoomDelta.current = 0
           const point = wheelZoomPoint.current
           if (!point || Math.abs(delta) < 0.02) return
           const absPinch = Math.abs(delta)
-          const sensitivity = absPinch <= 6 ? 0.04 : absPinch < 24 ? 0.022 : 0.0125
+          const sensitivity = absPinch <= 8 ? 0.011 : absPinch < 28 ? 0.0085 : 0.0062
           const factor = Math.exp(-delta * sensitivity)
           applyZoomAtPoint(point.x, point.y, factor)
         })

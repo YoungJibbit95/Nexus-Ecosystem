@@ -34,6 +34,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   mkdir:        (path) => ipcRenderer.invoke("fs:mkdir", path),
   delete:       (path) => ipcRenderer.invoke("fs:delete", path),
   rename:       (oldPath, newPath) => ipcRenderer.invoke("fs:rename", oldPath, newPath),
+  openSystemTerminal: (cwd) => ipcRenderer.invoke("system:open-terminal", cwd),
   
   // Terminal
   terminalRun:  (payload) => ipcRenderer.send("terminal:run", payload),

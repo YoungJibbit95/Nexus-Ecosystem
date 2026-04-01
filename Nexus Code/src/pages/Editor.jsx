@@ -281,6 +281,18 @@ export default function Editor() {
         -webkit-backdrop-filter: var(--nexus-panel-filter);
         box-shadow: var(--nexus-panel-outline);
       }
+      .monaco-editor,
+      .monaco-editor .margin,
+      .monaco-editor .monaco-editor-background,
+      .monaco-editor-background,
+      .monaco-editor .inputarea.ime-input,
+      .monaco-editor .overflow-guard,
+      .monaco-editor .minimap,
+      .monaco-editor .scroll-decoration {
+        background: transparent !important;
+        background-color: transparent !important;
+        background-image: none !important;
+      }
       ::-webkit-scrollbar { width: 10px; height: 10px; }
       ::-webkit-scrollbar-track { background: transparent; }
       ::-webkit-scrollbar-thumb {

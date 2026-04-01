@@ -64,6 +64,51 @@ const terminateActiveProcesses = () => {
   }
 };
 
+const resolveTerminalWorkingDirectory = async (candidatePath) => {
+  if (!candidatePath || typeof candidatePath !== "string") return os.homedir();
+  try {
+    const stats = await fs.stat(candidatePath);
+    if (stats.isDirectory()) return candidatePath;
+    return path.dirname(candidatePath);
+  } catch {
+    return os.homedir();
+  }
+};
+
+const openSystemTerminal = async (candidatePath) => {
+  const cwd = await resolveTerminalWorkingDirectory(candidatePath);
+  if (process.platform === "darwin") {
+    const proc = spawn("open", ["-a", "Terminal", cwd], {
+      detached: true,
+      stdio: "ignore",
+    });
+    proc.unref();
+    return true;
+  }
+
+  if (process.platform === "win32") {
+    const proc = spawn("cmd.exe", ["/c", "start", "", "cmd.exe", "/K", `cd /d "${cwd}"`], {
+      detached: true,
+      stdio: "ignore",
+      windowsHide: true,
+    });
+    proc.unref();
+    return true;
+  }
+
+  try {
+    const proc = spawn(process.env.TERMINAL || "x-terminal-emulator", ["--working-directory", cwd], {
+      detached: true,
+      stdio: "ignore",
+    });
+    proc.unref();
+    return true;
+  } catch {
+    await shell.openPath(cwd);
+    return false;
+  }
+};
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1400,
@@ -217,6 +262,15 @@ ipcMain.handle("fs:rename", async (event, oldPath, newPath) => {
   } catch (error) {
     console.error("FS Rename Error:", error);
     throw error;
+  }
+});
+
+ipcMain.handle("system:open-terminal", async (_event, cwd) => {
+  try {
+    const opened = await openSystemTerminal(cwd);
+    return { ok: true, opened };
+  } catch (error) {
+    return { ok: false, error: error?.message || "Unknown terminal launch error" };
   }
 });
 

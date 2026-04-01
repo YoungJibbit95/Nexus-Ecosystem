@@ -7,6 +7,7 @@ import { Glass } from '../components/Glass'
 import { useTheme } from '../store/themeStore'
 import { hexToRgb } from '../lib/utils'
 import { motion, AnimatePresence } from 'framer-motion'
+import { VisualBuilder } from './devtools/VisualBuilder'
 
 // ── useCopy ────────────────────────────────────────────────────────────────
 function useCopy() {
@@ -481,7 +482,7 @@ function WebBuilder() {
   const [vp, setVp]               = useState<'desktop'|'tablet'|'mobile'>('desktop')
   const [autoRun, setAutoRun]     = useState(true)
   const [consoleOut, setCOut]     = useState<string[]>([])
-  const [subTab, setSubTab]       = useState<'code'|'designer'>('code')
+  const [subTab, setSubTab]       = useState<'code'|'designer'|'visual'>('code')
   const runTimer = useRef<any>(null)
 
   const activeFile = files.find(f=>f.id===activeId) || files[0]
@@ -536,6 +537,29 @@ try{${safeJs}}catch(e){__p('err',['❌ '+e.message])}
     iframeRef.current.srcdoc = buildSrc()
   },[buildSrc])
 
+  const applyVisualBuilderToCode = useCallback((payload: { html: string; css: string }) => {
+    let nextActiveId = ''
+    setFiles((prev) => {
+      const next = [...prev]
+      const htmlIndex = next.findIndex((file) => file.type === 'html')
+      const cssIndex = next.findIndex((file) => file.type === 'css')
+      if (htmlIndex >= 0) {
+        next[htmlIndex] = { ...next[htmlIndex], content: payload.html }
+        nextActiveId = next[htmlIndex].id
+      } else {
+        const htmlId = `html_${Date.now()}`
+        next.unshift({ id: htmlId, name: 'index.html', type: 'html', content: payload.html })
+        nextActiveId = htmlId
+      }
+      if (cssIndex >= 0) next[cssIndex] = { ...next[cssIndex], content: payload.css }
+      else next.push({ id: `css_${Date.now()}`, name: 'style.css', type: 'css', content: payload.css })
+      return next
+    })
+    if (nextActiveId) setActiveId(nextActiveId)
+    setSubTab('code')
+    requestAnimationFrame(() => run())
+  }, [run])
+
   useEffect(()=>{
     if(!autoRun)return
     clearTimeout(runTimer.current)
@@ -560,6 +584,9 @@ try{${safeJs}}catch(e){__p('err',['❌ '+e.message])}
           </button>
           <button onClick={()=>setSubTab('designer')} style={{ padding:'5px 12px', background:subTab==='designer'?t.accent:'transparent', border:'none', cursor:'pointer', fontSize:11, fontWeight:700, color:subTab==='designer'?'#fff':'inherit', opacity:subTab==='designer'?1:0.55, display:'flex', alignItems:'center', gap:5 }}>
             <Sliders size={12}/> Designer
+          </button>
+          <button onClick={()=>setSubTab('visual')} style={{ padding:'5px 12px', background:subTab==='visual'?t.accent:'transparent', border:'none', cursor:'pointer', fontSize:11, fontWeight:700, color:subTab==='visual'?'#fff':'inherit', opacity:subTab==='visual'?1:0.55, display:'flex', alignItems:'center', gap:5 }}>
+            <Layout size={12}/> Visual
           </button>
         </div>
 
@@ -613,7 +640,7 @@ try{${safeJs}}catch(e){__p('err',['❌ '+e.message])}
               </div>
             )}
           </div>
-        </> : <>
+        </> : subTab === 'designer' ? <>
           {/* Designer + Preview split */}
           <div style={{ width:'55%', flexShrink:0, padding:'12px 14px', overflow:'auto', borderRight:'1px solid rgba(255,255,255,0.07)' }}>
             <ElementDesigner/>
@@ -623,7 +650,11 @@ try{${safeJs}}catch(e){__p('err',['❌ '+e.message])}
               <iframe ref={iframeRef} style={{ width:'100%', height:'100%', border:'none', background:'white', display:'block' }} sandbox="allow-scripts" title="Preview"/>
             </div>
           </div>
-        </>}
+        </> : (
+          <div style={{ flex:1, minHeight:0, overflow:'hidden', padding:12 }}>
+            <VisualBuilder onApplyToCode={applyVisualBuilderToCode} />
+          </div>
+        )}
       </div>
     </div>
   )

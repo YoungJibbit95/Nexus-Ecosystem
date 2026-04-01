@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import Editor, { useMonaco } from "@monaco-editor/react";
 
 function getLanguage(fileName) {
@@ -72,6 +72,29 @@ export default function CodeEditor({
   const [cursorInfo, setCursorInfo] = useState({ line: 1, col: 1 });
   const editorRef = useRef(null);
 
+  const forceTransparentEditorShell = useCallback(() => {
+    const editor = editorRef.current;
+    const domNode = editor?.getDomNode?.();
+    if (!domNode) return;
+    const selectors = [
+      ".monaco-editor",
+      ".monaco-editor .margin",
+      ".monaco-editor .monaco-editor-background",
+      ".monaco-editor-background",
+      ".monaco-editor .inputarea.ime-input",
+      ".monaco-editor .scroll-decoration",
+      ".monaco-editor .minimap",
+      ".monaco-editor .overflow-guard",
+    ];
+    selectors.forEach((selector) => {
+      domNode.querySelectorAll(selector).forEach((node) => {
+        const el = /** @type {HTMLElement} */ (node);
+        el.style.backgroundColor = "transparent";
+        el.style.backgroundImage = "none";
+      });
+    });
+  }, []);
+
   useEffect(() => {
     if (monaco) {
       try {
@@ -94,6 +117,10 @@ export default function CodeEditor({
           ],
           colors: {
             "editor.background": "#00000000",
+            "editorGutter.background": "#00000000",
+            "minimap.background": "#00000000",
+            "editorOverviewRuler.background": "#00000000",
+            "editor.lineHighlightBorder": "#00000000",
             "editor.foreground": activeTheme.text || "#e5e7eb",
             "editor.selectionBackground": activeTheme.selection || "#264f78",
             "editorLineNumber.foreground": "#4b5563",
@@ -103,13 +130,18 @@ export default function CodeEditor({
           },
         });
         monaco.editor.setTheme(themeName);
+        requestAnimationFrame(() => {
+          forceTransparentEditorShell();
+          editorRef.current?.layout?.();
+        });
       } catch (err) {
         console.error("Monaco Theme Definition Error:", err);
         // Fallback to a built-in theme if definition fails
         monaco.editor.setTheme("vs-dark");
+        requestAnimationFrame(() => forceTransparentEditorShell());
       }
     }
-  }, [monaco, settings.primary_accent, settings.theme]);
+  }, [monaco, settings.primary_accent, settings.theme, forceTransparentEditorShell]);
 
   // Compiler options for TS/JSX
   useEffect(() => {
@@ -234,6 +266,7 @@ export default function CodeEditor({
     // to ensure fonts are fully loaded.
     setTimeout(() => {
       editor.layout();
+      forceTransparentEditorShell();
     }, 500);
 
     editor.onDidChangeCursorPosition((e) => {
@@ -262,6 +295,10 @@ export default function CodeEditor({
       return () => disposable.dispose();
     }
   };
+
+  useEffect(() => {
+    requestAnimationFrame(() => forceTransparentEditorShell());
+  }, [settings.theme, settings.primary_accent, forceTransparentEditorShell]);
 
   const responsiveFontSize = isMobile ? Math.max(12, fontSize - 1) : fontSize;
 
@@ -347,4 +384,3 @@ export default function CodeEditor({
     </div>
   );
 }
-
