@@ -4,10 +4,9 @@ import React, {
   useMemo,
   useRef,
   useCallback,
-  lazy,
   Suspense,
 } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { useTheme, GLOBAL_FONTS } from "./store/themeStore";
 import { useTerminal } from "./store/terminalStore";
 import { Sidebar, View } from "./components/Sidebar";
@@ -21,7 +20,6 @@ import {
   applyPanelDensity,
   applyTypographyScale,
   buildLiveViewModel,
-  getFallbackViewsForApp,
   resolveLayoutProfile,
   sanitizeGlobalFont,
 } from "@nexus/core";
@@ -32,61 +30,29 @@ import {
   type NexusRuntime,
   type NexusViewAccessResult,
 } from "@nexus/api";
+import {
+  CanvasView,
+  CodeView,
+  DashboardView,
+  DevToolsView,
+  FilesView,
+  FluxView,
+  InfoView,
+  NexusTerminal,
+  NexusToolbar,
+  NotesView,
+  RemindersView,
+  SettingsView,
+  TasksView,
+  VIEW_CHUNK_PRELOADERS,
+  VIEW_IDS,
+  orderMainPreloadViews,
+  preloadMainViews,
+} from "./app/viewPreload";
 
-const loadDashboardView = () => import("./views/DashboardView");
-const loadNotesView = () => import("./views/NotesView");
-const loadCodeView = () => import("./views/CodeView");
-const loadTasksView = () => import("./views/TasksView");
-const loadRemindersView = () => import("./views/RemindersView");
-const loadCanvasView = () => import("./views/CanvasView");
-const loadFilesView = () => import("./views/FilesView");
-const loadFluxView = () => import("./views/FluxView");
-const loadSettingsView = () => import("./views/SettingsView");
-const loadInfoView = () => import("./views/InfoView");
-const loadDevToolsView = () => import("./views/DevToolsView");
-const loadNexusTerminal = () => import("./components/NexusTerminal");
-const loadNexusToolbar = () => import("./components/NexusToolbar");
-
-const DashboardView = lazy(() =>
-  loadDashboardView().then((m) => ({ default: m.DashboardView })),
-);
-const NotesView = lazy(() =>
-  loadNotesView().then((m) => ({ default: m.NotesView })),
-);
-const CodeView = lazy(() =>
-  loadCodeView().then((m) => ({ default: m.CodeView })),
-);
-const TasksView = lazy(() =>
-  loadTasksView().then((m) => ({ default: m.TasksView })),
-);
-const RemindersView = lazy(() =>
-  loadRemindersView().then((m) => ({ default: m.RemindersView })),
-);
-const CanvasView = lazy(() =>
-  loadCanvasView().then((m) => ({ default: m.CanvasView })),
-);
-const FilesView = lazy(() =>
-  loadFilesView().then((m) => ({ default: m.FilesView })),
-);
-const FluxView = lazy(() =>
-  loadFluxView().then((m) => ({ default: m.FluxView })),
-);
-const SettingsView = lazy(() =>
-  loadSettingsView().then((m) => ({ default: m.SettingsView })),
-);
-const InfoView = lazy(() =>
-  loadInfoView().then((m) => ({ default: m.InfoView })),
-);
-const DevToolsView = lazy(() =>
-  loadDevToolsView().then((m) => ({ default: m.DevToolsView })),
-);
-const NexusTerminal = lazy(() =>
-  loadNexusTerminal().then((m) => ({ default: m.NexusTerminal })),
-);
-const NexusToolbar = lazy(() =>
-  loadNexusToolbar().then((m) => ({ default: m.NexusToolbar })),
-);
 const CONTROL_API_BASE_URL = "https://nexus-api.cloud";
+const MAIN_BOOT_BLOCK_BUDGET_MS = 1_600;
+const MAIN_BOOT_BLOCK_BUDGET_LOW_POWER_MS = 2_200;
 const isLowPowerDevice = () => {
   if (typeof window === "undefined" || typeof navigator === "undefined") {
     return false;
@@ -99,95 +65,30 @@ const isLowPowerDevice = () => {
   const memory = Number((navigator as any).deviceMemory || 8);
   return Boolean(reducedMotion) || cores <= 4 || memory <= 4;
 };
-
-const runIdle = (task: () => void) => {
-  if (typeof window !== "undefined" && "requestIdleCallback" in window) {
-    (window as any).requestIdleCallback(task, { timeout: 1_200 });
-    return;
-  }
-  setTimeout(task, 80);
-};
-
-const VIEW_IDS = getFallbackViewsForApp("main") as View[];
 const isOfflineBootstrapResourceError = (errorCodeRaw: unknown) =>
   isOfflineControlErrorCode(String(errorCodeRaw || "INVALID_PAYLOAD"));
 
-const VIEW_CHUNK_PRELOADERS: Record<View, () => Promise<unknown>> = {
-  dashboard: loadDashboardView,
-  notes: loadNotesView,
-  code: loadCodeView,
-  tasks: loadTasksView,
-  reminders: loadRemindersView,
-  canvas: loadCanvasView,
-  files: loadFilesView,
-  flux: loadFluxView,
-  settings: loadSettingsView,
-  info: loadInfoView,
-  devtools: loadDevToolsView,
-};
-
-const MAIN_PRELOAD_PRIORITY: View[] = [
-  "dashboard",
-  "notes",
-  "tasks",
-  "reminders",
-  "settings",
-  "files",
-  "info",
-  "flux",
+const MAIN_VIEW_EVICT_PRIORITY: View[] = [
   "canvas",
   "code",
   "devtools",
+  "flux",
+  "files",
+  "info",
+  "settings",
+  "reminders",
+  "tasks",
+  "notes",
+  "dashboard",
 ];
 
-const orderMainPreloadViews = (views: View[]) => {
-  const seen = new Set<View>();
-  return views
-    .filter((viewId) => {
-      if (seen.has(viewId)) return false;
-      seen.add(viewId);
-      return true;
-    })
-    .sort((a, b) => {
-      const aIdx = MAIN_PRELOAD_PRIORITY.indexOf(a);
-      const bIdx = MAIN_PRELOAD_PRIORITY.indexOf(b);
-      return (aIdx === -1 ? 999 : aIdx) - (bIdx === -1 ? 999 : bIdx);
-    });
-};
-
-const preloadMainViews = async (
-  views: View[],
-  options: { eagerLimit?: number; includeDeferred?: boolean } = {},
-) => {
-  const eagerLimit = Math.max(
-    1,
-    Math.min(5, Math.floor(options.eagerLimit ?? 2)),
-  );
-  const includeDeferred = Boolean(options.includeDeferred);
-  const loaders = orderMainPreloadViews(views)
-    .map((viewId) => VIEW_CHUNK_PRELOADERS[viewId])
-    .filter(
-      (loader): loader is () => Promise<unknown> =>
-        typeof loader === "function",
-    );
-
-  const uniqueLoaders = [...new Set(loaders)];
-  if (uniqueLoaders.length === 0) return;
-
-  const eager = uniqueLoaders.slice(0, eagerLimit);
-  const deferred = uniqueLoaders.slice(eagerLimit);
-  await Promise.allSettled(eager.map((loader) => loader()));
-
-  if (includeDeferred && deferred.length > 0) {
-    runIdle(() => {
-      void Promise.allSettled(deferred.map((loader) => loader()));
-    });
-  }
-};
 
 export default function App() {
   const [view, setView] = useState<View>("dashboard");
   const [availableViews, setAvailableViews] = useState<View[]>(VIEW_IDS);
+  const [hydratedViews, setHydratedViews] = useState<Record<string, true>>({
+    dashboard: true,
+  });
   const [bootReady, setBootReady] = useState(false);
   const [bootProgress, setBootProgress] = useState(0);
   const [bootStage, setBootStage] = useState("Nexus Runtime wird gestartet...");
@@ -215,6 +116,11 @@ export default function App() {
   );
   const guardRequestSeq = useRef(0);
   const lowPowerMode = useMemo(() => isLowPowerDevice(), []);
+  const renderedViews = useMemo(() => {
+    const ids = new Set<View>(Object.keys(hydratedViews) as View[]);
+    ids.add(view);
+    return Array.from(ids);
+  }, [hydratedViews, view]);
 
   const viewAccessContext = useMemo(
     () => ({
@@ -299,6 +205,10 @@ export default function App() {
         releasePollIntervalMs: 30_000,
         viewValidationFailOpen: false,
         viewValidationCacheMs: 120_000,
+        requestTimeoutMs: lowPowerMode ? 1_800 : 1_300,
+        readRetryMax: 1,
+        readRetryBaseMs: 120,
+        readRetryMaxMs: 1_000,
       },
       performance: {
         collectMemoryMs: 60_000,
@@ -317,9 +227,34 @@ export default function App() {
     runtimeRef.current = runtime;
     validatedAccessRef.current = {};
     let active = true;
+    const bootBudgetMs = lowPowerMode
+      ? MAIN_BOOT_BLOCK_BUDGET_LOW_POWER_MS
+      : MAIN_BOOT_BLOCK_BUDGET_MS;
+    const forceBootReadyTimer = window.setTimeout(() => {
+      if (!active) return;
+      setBootProgress(100);
+      setBootStage("Schnellstart aktiv, Rest wird im Hintergrund geladen...");
+      setBootReady(true);
+    }, bootBudgetMs);
     setBootFailure(null);
     setBootProgress(8);
     setBootStage("Nexus Runtime wird gestartet...");
+
+    void preloadMainViews(VIEW_IDS, {
+      eagerLimit: lowPowerMode ? 3 : 5,
+      includeDeferred: true,
+    });
+    void runtime.control
+      .warmupViewAccess(orderMainPreloadViews(VIEW_IDS), {
+        ...viewAccessContext,
+        forceRefresh: false,
+        concurrency: lowPowerMode ? 4 : 8,
+      })
+      .then((warmup) => {
+        if (!active) return;
+        storeWarmupAccess(warmup.resultByView);
+      })
+      .catch(() => {});
 
     const setBootStep = (progress: number, stage: string) => {
       if (!active) return;
@@ -334,20 +269,20 @@ export default function App() {
           runtime.control.fetchCatalog({
             appId: "main",
             channel: "production",
-            forceRefresh: true,
-            cacheTtlMs: 0,
+            forceRefresh: false,
+            cacheTtlMs: 120_000,
           }),
           runtime.control.fetchLayoutSchema({
             appId: "main",
             channel: "production",
-            forceRefresh: true,
-            cacheTtlMs: 0,
+            forceRefresh: false,
+            cacheTtlMs: 120_000,
           }),
           runtime.control.fetchCurrentRelease({
             appId: "main",
             channel: "production",
-            forceRefresh: true,
-            cacheTtlMs: 0,
+            forceRefresh: false,
+            cacheTtlMs: 60_000,
           }),
         ]);
 
@@ -392,63 +327,30 @@ export default function App() {
         }
 
         const prioritizedStartupViews = orderMainPreloadViews(startupViews);
-        const warmupCandidates = prioritizedStartupViews.slice(
-          0,
-          Math.min(3, prioritizedStartupViews.length),
-        );
-        const warmup = await runtime.control.warmupViewAccess(warmupCandidates, {
-          ...viewAccessContext,
-          forceRefresh: true,
-          concurrency: 4,
-        });
-        if (!active) return;
-        let resultByView = { ...warmup.resultByView };
-        let allowedViews = warmup.allowedViews.filter((candidate) =>
-          startupViews.includes(candidate as View),
-        ) as View[];
-
-        if (allowedViews.length === 0 && prioritizedStartupViews.length > warmupCandidates.length) {
-          const fallbackCandidates = prioritizedStartupViews.slice(warmupCandidates.length);
-          const fallbackWarmup = await runtime.control.warmupViewAccess(fallbackCandidates, {
-            ...viewAccessContext,
-            forceRefresh: false,
-            concurrency: 3,
-          });
-          if (!active) return;
-          resultByView = { ...resultByView, ...fallbackWarmup.resultByView };
-          allowedViews = [...allowedViews, ...fallbackWarmup.allowedViews]
-            .filter((candidate) => startupViews.includes(candidate as View)) as View[];
-        }
-
-        storeWarmupAccess(resultByView);
-        if (allowedViews.length === 0) {
-          const reasons = prioritizedStartupViews
-            .map((candidate) => resultByView[candidate]?.reason)
-            .filter((reason): reason is string => Boolean(reason))
-            .slice(0, 3);
-          throw new Error(
-            `VIEW_VALIDATION_BLOCKED (${reasons.join(", ") || "NO_ALLOWED_VIEWS"})`,
-          );
-        }
-
-        setBootStep(80, "Lade Kern-Views fuer den Start...");
-        await preloadMainViews(allowedViews, {
-          eagerLimit: lowPowerMode ? 2 : 4,
-          includeDeferred: true,
-        });
-        if (!active) return;
-
         setAvailableViews(startupViews);
-        setView((prev) => {
-          if (allowedViews.includes(prev)) return prev;
-          return allowedViews[0];
-        });
+        setView((prev) => (startupViews.includes(prev) ? prev : startupViews[0]));
         setViewGuardState({
           checking: false,
           blockedView: null,
           requiredTier: null,
           reason: null,
         });
+        setBootStep(80, "Views werden vorgewarmt...");
+        void preloadMainViews(startupViews, {
+          eagerLimit: lowPowerMode ? 3 : 5,
+          includeDeferred: true,
+        });
+        void runtime.control
+          .warmupViewAccess(prioritizedStartupViews, {
+            ...viewAccessContext,
+            forceRefresh: false,
+            concurrency: lowPowerMode ? 4 : 8,
+          })
+          .then((warmup) => {
+            if (!active) return;
+            storeWarmupAccess(warmup.resultByView);
+          })
+          .catch(() => {});
         setBootStep(100, "Startsequenz abgeschlossen");
       } catch (error) {
         const reason =
@@ -468,6 +370,7 @@ export default function App() {
 
     return () => {
       active = false;
+      clearTimeout(forceBootReadyTimer);
       runtime.stop();
       runtimeRef.current = null;
       validatedAccessRef.current = {};
@@ -521,6 +424,43 @@ export default function App() {
     runtime.performance.trackViewRender(`main:${view}`);
   }, [view]);
 
+  useEffect(() => {
+    setHydratedViews((prev) => {
+      const cacheLimit = lowPowerMode ? 2 : 3;
+      let changed = false;
+      const next: Record<string, true> = { ...prev };
+
+      if (!next[view]) {
+        next[view] = true;
+        changed = true;
+      }
+
+      const keys = Object.keys(next) as View[];
+      if (keys.length <= cacheLimit) {
+        return changed ? next : prev;
+      }
+
+      const removable = keys
+        .filter((candidate) => candidate !== view)
+        .sort((a, b) => {
+          const aIdx = MAIN_VIEW_EVICT_PRIORITY.indexOf(a);
+          const bIdx = MAIN_VIEW_EVICT_PRIORITY.indexOf(b);
+          return (aIdx === -1 ? 999 : aIdx) - (bIdx === -1 ? 999 : bIdx);
+        });
+
+      while (Object.keys(next).length > cacheLimit && removable.length > 0) {
+        const candidate = removable.shift();
+        if (!candidate) break;
+        if (next[candidate]) {
+          delete next[candidate];
+          changed = true;
+        }
+      }
+
+      return changed ? next : prev;
+    });
+  }, [lowPowerMode, view]);
+
   const requestViewChange = useCallback(
     async (nextRaw: unknown) => {
       const next = String(nextRaw || "").toLowerCase() as View;
@@ -563,8 +503,20 @@ export default function App() {
       }
 
       const requestId = ++guardRequestSeq.current;
-      setViewGuardState((prev) => ({ ...prev, checking: true }));
-      const access = await runtime.control.validateViewAccess(next, viewAccessContext);
+      const previousView = view;
+      void VIEW_CHUNK_PRELOADERS[next]?.();
+      setView(next);
+      setViewGuardState((prev) => ({
+        ...prev,
+        checking: true,
+        blockedView: null,
+        requiredTier: null,
+        reason: null,
+      }));
+      const access = await runtime.control.validateViewAccess(
+        next,
+        viewAccessContext,
+      );
       if (requestId !== guardRequestSeq.current) return;
       validatedAccessRef.current = {
         ...validatedAccessRef.current,
@@ -572,8 +524,6 @@ export default function App() {
       };
 
       if (access.allowed) {
-        void VIEW_CHUNK_PRELOADERS[next]?.();
-        setView(next);
         setViewGuardState({
           checking: false,
           blockedView: null,
@@ -589,6 +539,7 @@ export default function App() {
         requiredTier: access.requiredTier || "paid",
         reason: access.reason || "PAYWALL_BLOCKED",
       });
+      setView(previousView);
     },
     [availableViews, view, viewAccessContext],
   );
@@ -897,45 +848,63 @@ export default function App() {
             }}
           >
             {!toolbarBottom && toolbarEl}
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={view}
-                initial={motionPreset.initial}
-                animate={motionPreset.animate}
-                exit={motionPreset.exit}
-                transition={{
-                  duration:
-                    (lowPowerMode ? 0.12 : 0.2) / Math.max(t.visual.animationSpeed || 1, 0.1),
-                  ease: "easeInOut",
-                }}
-                style={{
-                  flex: 1,
-                  overflow: "hidden",
-                  height: "100%",
-                  minHeight: 0,
-                }}
-              >
-                <Suspense
-                  fallback={
-                    <div
-                      style={{
-                        height: "100%",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        opacity: 0.6,
-                        fontSize: 13,
-                        fontWeight: 600,
-                      }}
+            <motion.div
+              initial={motionPreset.initial}
+              animate={motionPreset.animate}
+              exit={motionPreset.exit}
+              transition={{
+                duration:
+                  (lowPowerMode ? 0.12 : 0.2) / Math.max(t.visual.animationSpeed || 1, 0.1),
+                ease: "easeInOut",
+              }}
+              style={{
+                flex: 1,
+                overflow: "hidden",
+                height: "100%",
+                minHeight: 0,
+                position: "relative",
+              }}
+            >
+              {renderedViews.map((viewId) => {
+                const active = viewId === view;
+                return (
+                  <div
+                    key={viewId}
+                    style={{
+                      position: active ? "relative" : "absolute",
+                      inset: active ? undefined : 0,
+                      height: "100%",
+                      minHeight: 0,
+                      overflow: "hidden",
+                      visibility: active ? "visible" : "hidden",
+                      pointerEvents: active ? "auto" : "none",
+                    }}
+                  >
+                    <Suspense
+                      fallback={
+                        active ? (
+                          <div
+                            style={{
+                              height: "100%",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              opacity: 0.6,
+                              fontSize: 13,
+                              fontWeight: 600,
+                            }}
+                          >
+                            Loading view...
+                          </div>
+                        ) : null
+                      }
                     >
-                      Loading view...
-                    </div>
-                  }
-                >
-                  {viewMap[view]}
-                </Suspense>
-              </motion.div>
-            </AnimatePresence>
+                      {viewMap[viewId]}
+                    </Suspense>
+                  </div>
+                );
+              })}
+            </motion.div>
             <Suspense fallback={null}>
               {terminalOpen ? (
                 <NexusTerminal

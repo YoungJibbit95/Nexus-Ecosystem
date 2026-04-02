@@ -10,7 +10,7 @@
     "dist": "electron-builder",
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "electron:dev": "concurrently -k \"vite\" \"wait-on http://localhost:5173 && electron .\"",
+    "electron:dev": "concurrently -k \"vite\" \"wait-on http://localhost:5173 && electron . --dev\"",
     "electron:build": "npm run electron:build:win",
     "electron:build:mac": "npm run build && npm run electron:pack:mac",
     "electron:pack:win": "npm exec electron-builder -- --win",

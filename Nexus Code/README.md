@@ -1,6 +1,6 @@
 # Nexus Code
 
-Desktop-Dev-Workspace im Nexus Ecosystem. Die App kombiniert Editor, Dateiexplorer, Terminal, Suche, Git-Panel und API-gestuetzte View-/Release-Pruefung in einer Electron-Shell.
+Desktop-Dev-Workspace im Nexus Ecosystem. Die App kombiniert Editor, Dateiexplorer, Terminal, Suche, Git-Panel und Workspace-Flow in einer Electron-Shell.
 
 ## Kernfunktionen
 
@@ -18,6 +18,7 @@ Im Teilprojekt:
 npm install
 npm run dev
 npm run electron:dev
+npx electron .
 ```
 
 Vom Ecosystem-Root:
@@ -59,7 +60,7 @@ npm run build:code:installers
 
 ## Environment
 
-- `VITE_NEXUS_CONTROL_URL` (`https://nexus-api.cloud`)
+- `VITE_NEXUS_CONTROL_URL=https://nexus-api.cloud`
 - `VITE_NEXUS_CONTROL_INGEST_KEY` (pro App der passende VPS-Ingest-Key)
 - `VITE_NEXUS_USER_ID`
 - `VITE_NEXUS_USERNAME`

@@ -862,7 +862,7 @@ export function NexusToolbar({
                   top: 80,
                   left: spotlightAnchorX,
                   transform: "translateX(-30%)",
-                  width: "min(760px, 92vw)",
+                  width: "min(760px, 86vw)",
                   zIndex: 901,
                 }}
               >
