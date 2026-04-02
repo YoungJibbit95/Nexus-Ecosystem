@@ -24,13 +24,13 @@
 
 ## 🎯 What is Nexus?
 
-Nexus is a **multi-app ecosystem** where multiple applications share:
+Nexus is a **multi-app productivity ecosystem** where multiple applications share:
 
 - ⚡ unified runtime  
 - 🔗 shared API layer  
 - 🎛️ central control plane  
 - 📊 observability & performance tracking  
-
+- 📚 shared wiki for full understanding of the system
 ---
 
 ## 🧩 Components
