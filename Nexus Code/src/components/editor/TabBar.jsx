@@ -1,5 +1,5 @@
-import React from "react";
-import { X } from "lucide-react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { X, Plus, Search, TerminalSquare, Save } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 const langColors = {
@@ -21,98 +21,229 @@ const langColors = {
   php: "#8b5cf6",
 };
 
+const languagePresets = [
+  { id: "typescript", label: "TypeScript", ext: "ts" },
+  { id: "javascript", label: "JavaScript", ext: "js" },
+  { id: "python", label: "Python", ext: "py" },
+  { id: "html", label: "HTML", ext: "html" },
+  { id: "css", label: "CSS", ext: "css" },
+  { id: "json", label: "JSON", ext: "json" },
+  { id: "markdown", label: "Markdown", ext: "md" },
+  { id: "rust", label: "Rust", ext: "rs" },
+  { id: "go", label: "Go", ext: "go" },
+];
+
 function getExt(name) {
   if (!name) return "";
   const parts = name.split(".");
   return parts.length > 1 ? parts[parts.length - 1].toLowerCase() : "";
 }
 
-export default function TabBar({ tabs, activeTabId, onTabSelect, onTabClose }) {
-  if (tabs.length === 0) return null;
+function ActionButton({ title, onClick, children }) {
+  return (
+    <button
+      title={title}
+      onClick={onClick}
+      className="h-7 w-7 rounded-md border border-white/10 hover:border-white/20 hover:bg-white/10 text-gray-400 hover:text-gray-200 transition-colors flex items-center justify-center"
+    >
+      {children}
+    </button>
+  );
+}
+
+export default function TabBar({
+  tabs,
+  activeTabId,
+  onTabSelect,
+  onTabClose,
+  onCreateFile,
+  onSaveAll,
+  onToggleTerminal,
+  onOpenCommandPalette,
+}) {
+  const [newFileMenuOpen, setNewFileMenuOpen] = useState(false);
+  const [customFileName, setCustomFileName] = useState("");
+  const menuRef = useRef(null);
+
+  useEffect(() => {
+    if (!newFileMenuOpen) return;
+    const onPointerDown = (event) => {
+      if (!menuRef.current?.contains(event.target)) {
+        setNewFileMenuOpen(false);
+      }
+    };
+    window.addEventListener("pointerdown", onPointerDown);
+    return () => window.removeEventListener("pointerdown", onPointerDown);
+  }, [newFileMenuOpen]);
+
+  const tabsCount = tabs.length;
+  const menuItems = useMemo(() => languagePresets, []);
+
+  const submitCustomFile = () => {
+    const trimmed = customFileName.trim();
+    if (!trimmed) return;
+    onCreateFile?.(trimmed, "name");
+    setCustomFileName("");
+    setNewFileMenuOpen(false);
+  };
 
   return (
     <div
-      className="flex items-center h-9 overflow-x-auto shrink-0"
+      className="flex items-center h-10 shrink-0 border-b border-white/5"
       style={{
-        background: "rgba(0,0,0,0.1)",
+        background: "rgba(0,0,0,0.12)",
         borderBottom: "1px solid var(--nexus-border)",
       }}
     >
-      <AnimatePresence mode="popLayout">
-        {tabs.map((tab, index) => {
-          if (!tab || !tab.name) return null;
-          const ext = getExt(tab.name);
-          const color = langColors[ext] || "#6b7280";
-          const isActive = tab.id === activeTabId;
+      <div className="flex items-center gap-1 px-2 shrink-0 border-r border-white/5">
+        <div className="relative" ref={menuRef}>
+          <ActionButton
+            title="Neue Datei"
+            onClick={() => setNewFileMenuOpen((prev) => !prev)}
+          >
+            <Plus size={14} />
+          </ActionButton>
 
-          return (
-            <motion.div
-              key={tab.id}
-              initial={{ width: 0, opacity: 0, y: -10 }}
-              animate={{ width: "auto", opacity: 1, y: 0 }}
-              exit={{ width: 0, opacity: 0, x: -20 }}
-              transition={{ type: "spring", stiffness: 300, damping: 30 }}
-              whileHover={{ y: -2 }}
-              onClick={() => onTabSelect(tab.id)}
-              className="flex items-center gap-2 px-3 h-full cursor-pointer group relative shrink-0"
-              style={{
-                background: isActive ? "rgba(255,255,255,0.05)" : "transparent",
-                borderBottom: isActive
-                  ? `2px solid ${color}`
-                  : "2px solid transparent",
-                boxShadow: isActive
-                  ? `0 -2px 10px ${color}33, 0 0 20px ${color}22`
-                  : "none",
-                transition: "all 0.3s ease",
-              }}
-            >
-              <motion.span
-                animate={
-                  isActive
-                    ? {
-                        boxShadow: [
-                          `0 0 5px ${color}`,
-                          `0 0 10px ${color}`,
-                          `0 0 5px ${color}`,
-                        ],
-                      }
-                    : {}
-                }
-                transition={{ duration: 2, repeat: Infinity }}
-                className="text-[10px] font-bold px-1 py-0.5 rounded"
-                style={{ background: color + "22", color }}
+          <AnimatePresence>
+            {newFileMenuOpen && (
+              <motion.div
+                initial={{ opacity: 0, y: 8, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 8, scale: 0.98 }}
+                transition={{ duration: 0.16 }}
+                className="absolute left-0 top-full mt-2 z-50 w-64 rounded-xl border border-white/10 bg-black/85 backdrop-blur-xl shadow-2xl p-2"
               >
-                {ext.toUpperCase() || "TXT"}
-              </motion.span>
-              <span
-                className="text-xs"
-                style={{ color: isActive ? "var(--nexus-text)" : "var(--nexus-muted)" }}
-              >
-                {tab.name}
-              </span>
-              {tab.modified && (
-                <motion.div
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  className="w-1.5 h-1.5 rounded-full bg-purple-400"
-                  style={{ boxShadow: "0 0 6px #a855f7" }}
-                />
-              )}
-              <motion.button
-                whileHover={{ scale: 1.2, rotate: 90 }}
-                whileTap={{ scale: 0.9 }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onTabClose(tab.id);
-                }}
-                className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-white/10"
-              >
-                <X size={12} className="text-gray-500" />
-              </motion.button>
-            </motion.div>
-          );
-        })}
-      </AnimatePresence>
+                <div className="px-2 pb-2 text-[10px] uppercase tracking-widest text-gray-500 font-bold">
+                  Datei-Typ wählen
+                </div>
+                <div className="grid grid-cols-2 gap-1">
+                  {menuItems.map((item) => (
+                    <button
+                      key={item.id}
+                      onClick={() => {
+                        onCreateFile?.(item.id, "language");
+                        setNewFileMenuOpen(false);
+                      }}
+                      className="px-2.5 py-1.5 rounded-lg text-xs text-left border border-white/5 hover:border-white/15 hover:bg-white/10 transition-colors"
+                      style={{ color: "var(--nexus-text)" }}
+                    >
+                      <span className="font-semibold">{item.label}</span>
+                      <span className="ml-1 text-[10px] text-gray-500">.{item.ext}</span>
+                    </button>
+                  ))}
+                </div>
+
+                <div className="h-px bg-white/10 my-2" />
+
+                <div className="px-1">
+                  <div className="text-[10px] text-gray-500 mb-1.5">Manueller Dateiname</div>
+                  <div className="flex gap-1.5">
+                    <input
+                      value={customFileName}
+                      onChange={(e) => setCustomFileName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") submitCustomFile();
+                      }}
+                      placeholder="z.B. api.contract.nxs"
+                      className="flex-1 h-8 rounded-md border border-white/10 bg-black/40 px-2 text-xs outline-none"
+                      style={{ color: "var(--nexus-text)" }}
+                    />
+                    <button
+                      onClick={submitCustomFile}
+                      className="h-8 px-2.5 rounded-md border border-white/15 bg-white/10 hover:bg-white/20 text-xs font-semibold"
+                      style={{ color: "var(--nexus-text)" }}
+                    >
+                      Erstellen
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        <ActionButton
+          title="Befehlspalette"
+          onClick={() => onOpenCommandPalette?.()}
+        >
+          <Search size={13} />
+        </ActionButton>
+
+        <ActionButton title="Terminal" onClick={() => onToggleTerminal?.()}>
+          <TerminalSquare size={13} />
+        </ActionButton>
+
+        <ActionButton title="Alle speichern" onClick={() => onSaveAll?.()}>
+          <Save size={13} />
+        </ActionButton>
+      </div>
+
+      <div className="flex-1 min-w-0 h-full overflow-x-auto">
+        {tabsCount === 0 ? (
+          <div className="h-full px-3 flex items-center text-[11px] text-gray-500">
+            Keine Datei geöffnet
+          </div>
+        ) : (
+          <div className="h-full flex items-center">
+            <AnimatePresence mode="popLayout">
+              {tabs.map((tab) => {
+                if (!tab || !tab.name) return null;
+                const ext = getExt(tab.name);
+                const color = langColors[ext] || "#6b7280";
+                const isActive = tab.id === activeTabId;
+
+                return (
+                  <motion.div
+                    key={tab.id}
+                    initial={{ width: 0, opacity: 0, y: -8 }}
+                    animate={{ width: "auto", opacity: 1, y: 0 }}
+                    exit={{ width: 0, opacity: 0, x: -20 }}
+                    transition={{ type: "spring", stiffness: 320, damping: 34 }}
+                    onClick={() => onTabSelect(tab.id)}
+                    className="flex items-center gap-2 px-3 h-full cursor-pointer group relative shrink-0"
+                    style={{
+                      background: isActive ? "rgba(255,255,255,0.05)" : "transparent",
+                      borderBottom: isActive
+                        ? `2px solid ${color}`
+                        : "2px solid transparent",
+                    }}
+                  >
+                    <span
+                      className="text-[10px] font-bold px-1 py-0.5 rounded"
+                      style={{ background: color + "22", color }}
+                    >
+                      {ext.toUpperCase() || "TXT"}
+                    </span>
+                    <span
+                      className="text-xs max-w-[180px] truncate"
+                      style={{
+                        color: isActive ? "var(--nexus-text)" : "var(--nexus-muted)",
+                      }}
+                    >
+                      {tab.name}
+                    </span>
+                    {tab.modified && (
+                      <div
+                        className="w-1.5 h-1.5 rounded-full bg-purple-400"
+                        style={{ boxShadow: "0 0 6px #a855f7" }}
+                      />
+                    )}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onTabClose(tab.id);
+                      }}
+                      className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-white/10 transition-opacity"
+                    >
+                      <X size={12} className="text-gray-500" />
+                    </button>
+                  </motion.div>
+                );
+              })}
+            </AnimatePresence>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

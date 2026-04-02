@@ -101,23 +101,20 @@ function SidebarButton({ item, isActive, onClick }) {
               animate={{ scaleY: 1, opacity: 1 }}
               exit={{ scaleY: 0, opacity: 0 }}
               transition={{ type: "spring", stiffness: 340, damping: 28 }}
-              className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 rounded-r-full"
-              style={{ height: "20px", background: "var(--primary)", boxShadow: "0 0 10px var(--primary)" }}
+              className="absolute left-[2px] top-1/2 -translate-y-1/2 w-[2px] rounded-full"
+              style={{ height: "18px", background: "var(--primary)", boxShadow: "0 0 6px var(--primary)" }}
             />
           )}
         </AnimatePresence>
 
         <motion.div
-          animate={
-            isActive
-              ? { filter: ["drop-shadow(0 0 3px #a855f7)", "drop-shadow(0 0 7px #a855f7)", "drop-shadow(0 0 3px #a855f7)"] }
-              : { filter: "drop-shadow(0 0 0px transparent)" }
-          }
-          transition={
-            isActive
-              ? { duration: 2.4, repeat: Infinity, ease: "easeInOut" }
-              : { duration: 0.2 }
-          }
+          animate={{
+            scale: isActive ? 1.02 : 1,
+            filter: isActive
+              ? "drop-shadow(0 0 6px color-mix(in srgb, var(--primary) 45%, transparent))"
+              : "none",
+          }}
+          transition={{ duration: 0.16 }}
         >
           <Icon size={19} strokeWidth={isActive ? 2 : 1.75} />
         </motion.div>
@@ -174,12 +171,13 @@ function BottomNavItem({ item, isActive, onClick }) {
       </AnimatePresence>
 
       <motion.div
-        animate={
-          isActive
-            ? { filter: ["drop-shadow(0 0 3px #a855f7)", "drop-shadow(0 0 7px #a855f7)", "drop-shadow(0 0 3px #a855f7)"] }
-            : { filter: "drop-shadow(0 0 0px transparent)" }
-        }
-        transition={isActive ? { duration: 2.4, repeat: Infinity } : { duration: 0.2 }}
+        animate={{
+          scale: isActive ? 1.03 : 1,
+          filter: isActive
+            ? "drop-shadow(0 0 6px color-mix(in srgb, var(--primary) 45%, transparent))"
+            : "none",
+        }}
+        transition={{ duration: 0.16 }}
         style={{ color: isActive ? "var(--primary)" : "var(--nexus-muted)" }}
       >
         <Icon size={20} strokeWidth={isActive ? 2 : 1.75} />
@@ -270,20 +268,15 @@ export default function Sidebar({ activePanel, setActivePanel, onOpenSettings })
         transition={{ delay: 0.15, type: "spring", stiffness: 220, damping: 18 }}
         className="mb-3 flex flex-col items-center gap-0.5 select-none"
       >
-        <motion.span
-          animate={{
-            textShadow: [
-              "0 0  8px rgba(168,85,247,0.6)",
-              "0 0 18px rgba(168,85,247,0.9), 0 0 30px rgba(168,85,247,0.4)",
-              "0 0  8px rgba(168,85,247,0.6)",
-            ],
-          }}
-          transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+        <span
           className="text-purple-400 font-bold leading-none"
-          style={{ fontSize: 18 }}
+          style={{
+            fontSize: 18,
+            textShadow: "0 0 10px rgba(168,85,247,0.55)",
+          }}
         >
           ✦
-        </motion.span>
+        </span>
         <span className="text-purple-400/60 font-bold tracking-widest" style={{ fontSize: 8 }}>
           NC
         </span>

@@ -28,181 +28,6 @@ type FullWidthToolbarLayoutProps = {
   setView?: (v: any) => void;
 };
 
-export function FullWidthToolbarLayout(props: FullWidthToolbarLayoutProps) {
-  const {
-    isBottom,
-    t,
-    rgb,
-    pendingTasks,
-    overdueReminders,
-    timeStr,
-    terminal,
-    panelOpen,
-    panel,
-    setPanelOpen,
-    setExpanded,
-    setView,
-  } = props;
-
-  return (
-      <div style={{ position: "relative", width: "100%" }}>
-        <Glass
-          type="modal"
-          style={{
-            width: "100%",
-            height: t.toolbar?.height ?? 44,
-            borderRadius: 0,
-            borderTop: isBottom
-              ? "1px solid rgba(255,255,255,0.08)"
-              : undefined,
-            borderBottom: !isBottom
-              ? "1px solid rgba(255,255,255,0.08)"
-              : undefined,
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-            padding: "0 12px",
-          }}
-        >
-          <DockLogo t={t} rgb={rgb} compact />
-          <div
-            style={{
-              width: 1,
-              height: 18,
-              background: "rgba(255,255,255,0.1)",
-              margin: "0 6px",
-            }}
-          />
-
-          <div
-            className="nx-toolbar-view-rail"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 4,
-              maxWidth: "52vw",
-              overflowX: "auto",
-              overflowY: "hidden",
-              paddingBottom: 2,
-            }}
-          >
-            {VIEW_ITEMS.map((item) => {
-              const itemRgb = hexToRgb(item.color);
-              const Icon = item.icon;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => setView?.(item.id)}
-                  style={{
-                    border: "none",
-                    borderRadius: 10,
-                    padding: "5px 9px",
-                    background: "transparent",
-                    cursor: "pointer",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 6,
-                    whiteSpace: "nowrap",
-                    color: "inherit",
-                    fontSize: 11,
-                    fontWeight: 700,
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = `rgba(${itemRgb},0.16)`;
-                    e.currentTarget.style.color = item.color;
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = "transparent";
-                    e.currentTarget.style.color = "inherit";
-                  }}
-                >
-                  <Icon size={12} />
-                  {item.label}
-                </button>
-              );
-            })}
-          </div>
-
-          <div style={{ flex: 1 }} />
-
-          <StatusPill
-            label="Tasks"
-            value={pendingTasks}
-            color={pendingTasks ? "#ff9f0a" : undefined}
-          />
-          <StatusPill
-            label="Due"
-            value={overdueReminders}
-            color={overdueReminders ? "#ff453a" : undefined}
-          />
-          <StatusPill label="Time" value={timeStr} color={t.accent} mono />
-
-          <button
-            onClick={() => terminal.setOpen(!terminal.isOpen)}
-            style={{
-              border: `1px solid ${terminal.isOpen ? `rgba(${rgb},0.28)` : "rgba(255,255,255,0.09)"}`,
-              background: terminal.isOpen
-                ? `rgba(${rgb},0.15)`
-                : "rgba(255,255,255,0.05)",
-              borderRadius: 8,
-              cursor: "pointer",
-              color: terminal.isOpen ? t.accent : "inherit",
-              padding: "5px 9px",
-              fontSize: 11,
-              fontWeight: 700,
-              display: "flex",
-              alignItems: "center",
-              gap: 5,
-            }}
-          >
-            <Terminal size={12} /> Terminal
-          </button>
-          <button
-            onClick={() => {
-              setPanelOpen(true);
-              setExpanded(true);
-            }}
-            style={{
-              border: `1px solid rgba(${rgb},0.3)`,
-              background: `rgba(${rgb},0.12)`,
-              color: t.accent,
-              borderRadius: 8,
-              cursor: "pointer",
-              padding: "5px 10px",
-              fontSize: 11,
-              fontWeight: 800,
-              display: "flex",
-              alignItems: "center",
-              gap: 5,
-            }}
-          >
-            <Search size={12} /> Search
-          </button>
-        </Glass>
-
-        <AnimatePresence>
-          {panelOpen && (
-            <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 8 }}
-              style={{
-                position: "absolute",
-                right: 14,
-                bottom: isBottom ? "calc(100% + 8px)" : undefined,
-                top: !isBottom ? "calc(100% + 8px)" : undefined,
-                width: "min(680px, 94vw)",
-                zIndex: 910,
-              }}
-            >
-              {panel}
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-  );
-}
-
 type IslandToolbarLayoutProps = {
   isBottom: boolean;
   t: ToolbarTheme;
@@ -222,6 +47,273 @@ type IslandToolbarLayoutProps = {
   islandCompact: boolean;
   setView?: (v: any) => void;
 };
+
+function ViewRailButton({
+  label,
+  color,
+  icon: Icon,
+  compact,
+  onClick,
+}: {
+  label: string;
+  color: string;
+  icon: any;
+  compact?: boolean;
+  onClick: () => void;
+}) {
+  const itemRgb = hexToRgb(color);
+  return (
+    <button
+      onClick={onClick}
+      title={label}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: compact ? 0 : 6,
+        whiteSpace: "nowrap",
+        border: "none",
+        borderRadius: 10,
+        background: "transparent",
+        padding: compact ? "6px 7px" : "6px 9px",
+        cursor: "pointer",
+        fontSize: 11,
+        fontWeight: 700,
+        color: "inherit",
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.background = `rgba(${itemRgb},0.16)`;
+        e.currentTarget.style.color = color;
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.background = "transparent";
+        e.currentTarget.style.color = "inherit";
+      }}
+    >
+      <Icon size={13} />
+      {!compact && label}
+    </button>
+  );
+}
+
+function IconActionButton({
+  active,
+  rgb,
+  color,
+  title,
+  children,
+  onClick,
+}: {
+  active?: boolean;
+  rgb: string;
+  color?: string;
+  title: string;
+  children: React.ReactNode;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      title={title}
+      onClick={onClick}
+      style={{
+        border: `1px solid ${active ? `rgba(${rgb},0.35)` : "rgba(255,255,255,0.1)"}`,
+        borderRadius: 10,
+        cursor: "pointer",
+        width: 34,
+        height: 34,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        color: color || "inherit",
+        background: active ? `rgba(${rgb},0.2)` : "rgba(255,255,255,0.04)",
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+export function FullWidthToolbarLayout(props: FullWidthToolbarLayoutProps) {
+  const {
+    isBottom,
+    t,
+    rgb,
+    pendingTasks,
+    overdueReminders,
+    timeStr,
+    terminal,
+    panelOpen,
+    panel,
+    setPanelOpen,
+    setExpanded,
+    setView,
+  } = props;
+
+  return (
+    <div style={{ position: "relative", width: "100%" }}>
+      <Glass
+        type="modal"
+        style={{
+          width: "100%",
+          height: t.toolbar?.height ?? 44,
+          borderRadius: 0,
+          borderTop: isBottom ? "1px solid rgba(255,255,255,0.08)" : undefined,
+          borderBottom: !isBottom ? "1px solid rgba(255,255,255,0.08)" : undefined,
+          display: "flex",
+          alignItems: "center",
+          padding: "0 12px",
+          overflow: "hidden",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            width: "100%",
+            minWidth: 0,
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              flexShrink: 0,
+            }}
+          >
+            <DockLogo t={t} rgb={rgb} compact />
+            <div
+              style={{
+                width: 1,
+                height: 18,
+                background: "rgba(255,255,255,0.1)",
+              }}
+            />
+          </div>
+
+          <div
+            className="nx-toolbar-view-rail"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+              minWidth: 0,
+              flex: 1,
+              overflowX: "auto",
+              overflowY: "hidden",
+              paddingBottom: 2,
+            }}
+          >
+            {VIEW_ITEMS.map((item) => (
+              <ViewRailButton
+                key={item.id}
+                label={item.label}
+                color={item.color}
+                icon={item.icon}
+                onClick={() => setView?.(item.id)}
+              />
+            ))}
+          </div>
+
+          <div
+            className="nx-toolbar-right-rail"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              flexShrink: 0,
+              overflowX: "auto",
+              overflowY: "hidden",
+              paddingBottom: 2,
+              maxWidth: "42vw",
+            }}
+          >
+            <StatusPill
+              label="Tasks"
+              value={pendingTasks}
+              color={pendingTasks ? "#ff9f0a" : undefined}
+            />
+            <StatusPill
+              label="Due"
+              value={overdueReminders}
+              color={overdueReminders ? "#ff453a" : undefined}
+            />
+            <StatusPill label="Time" value={timeStr} color={t.accent} mono />
+
+            <button
+              onClick={() => terminal.setOpen(!terminal.isOpen)}
+              style={{
+                border: `1px solid ${
+                  terminal.isOpen
+                    ? `rgba(${rgb},0.28)`
+                    : "rgba(255,255,255,0.09)"
+                }`,
+                background: terminal.isOpen
+                  ? `rgba(${rgb},0.15)`
+                  : "rgba(255,255,255,0.05)",
+                borderRadius: 8,
+                cursor: "pointer",
+                color: terminal.isOpen ? t.accent : "inherit",
+                padding: "5px 9px",
+                fontSize: 11,
+                fontWeight: 700,
+                display: "flex",
+                alignItems: "center",
+                gap: 5,
+                whiteSpace: "nowrap",
+              }}
+            >
+              <Terminal size={12} /> Terminal
+            </button>
+
+            <button
+              onClick={() => {
+                setPanelOpen(true);
+                setExpanded(true);
+              }}
+              style={{
+                border: `1px solid rgba(${rgb},0.3)`,
+                background: `rgba(${rgb},0.12)`,
+                color: t.accent,
+                borderRadius: 8,
+                cursor: "pointer",
+                padding: "5px 10px",
+                fontSize: 11,
+                fontWeight: 800,
+                display: "flex",
+                alignItems: "center",
+                gap: 5,
+                whiteSpace: "nowrap",
+              }}
+            >
+              <Search size={12} /> Search
+            </button>
+          </div>
+        </div>
+      </Glass>
+
+      <AnimatePresence>
+        {panelOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 8 }}
+            style={{
+              position: "absolute",
+              right: 12,
+              bottom: isBottom ? "calc(100% + 8px)" : undefined,
+              top: !isBottom ? "calc(100% + 8px)" : undefined,
+              width: "min(680px, 94vw)",
+              zIndex: 910,
+            }}
+          >
+            {panel}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
 
 export function IslandToolbarLayout(props: IslandToolbarLayoutProps) {
   const {
@@ -243,7 +335,8 @@ export function IslandToolbarLayout(props: IslandToolbarLayoutProps) {
     islandCompact,
     setView,
   } = props;
-  const toolbarPulseEffects = Boolean(t.animations?.pulseEffects) && !reducedMotion;
+
+  const compactMode = islandCompact;
 
   return (
     <div
@@ -256,59 +349,25 @@ export function IslandToolbarLayout(props: IslandToolbarLayoutProps) {
       <motion.div
         ref={islandRef}
         animate={{
-          width: expanded ? "min(1120px, 98vw)" : "min(520px, 94vw)",
-          height: expanded ? 74 : 56,
+          width: expanded ? "min(1100px, 98vw)" : "min(560px, 95vw)",
+          height: expanded ? 68 : 54,
         }}
         transition={
           reducedMotion
             ? { duration: 0.12 }
-            : { type: "spring", stiffness: 300, damping: 32, mass: 0.9 }
+            : { type: "spring", stiffness: 280, damping: 30, mass: 0.92 }
         }
-        style={{
-          position: "relative",
-          animation:
-            expanded && toolbarPulseEffects
-              ? "nexus-dock-breathe 3.8s ease-in-out infinite"
-              : undefined,
-        }}
+        style={{ position: "relative" }}
       >
         <div
           style={{
             position: "absolute",
-            inset: expanded ? -10 : -6,
-            borderRadius: expanded ? 34 : 28,
-            background: `conic-gradient(from 0deg, ${t.accent}, ${t.accent2}, ${t.accent})`,
-            filter: `blur(${expanded ? 24 : 16}px)`,
-            opacity: expanded ? 0.55 : 0.28,
-            animation: toolbarPulseEffects
-              ? "nexus-gradient-shift 8s ease infinite"
-              : undefined,
+            inset: expanded ? -7 : -5,
+            borderRadius: expanded ? 28 : 24,
+            background: `radial-gradient(circle at 20% 20%, rgba(${rgb},0.38), transparent 62%)`,
+            filter: `blur(${expanded ? 16 : 10}px)`,
+            opacity: expanded ? 0.8 : 0.5,
             pointerEvents: "none",
-          }}
-        />
-        <div
-          style={{
-            position: "absolute",
-            inset: expanded ? -2 : 0,
-            borderRadius: expanded ? 28 : 22,
-            border: `1px solid rgba(${rgb},${expanded ? 0.5 : 0.3})`,
-            boxShadow: `0 0 ${expanded ? 28 : 14}px rgba(${rgb},${expanded ? 0.35 : 0.2})`,
-            pointerEvents: "none",
-          }}
-        />
-        <div
-          style={{
-            position: "absolute",
-            top: 0,
-            bottom: 0,
-            width: 90,
-            borderRadius: 999,
-            background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.22), transparent)",
-            mixBlendMode: "screen",
-            pointerEvents: "none",
-            animation: toolbarPulseEffects
-              ? "nexus-shine-sweep 4.8s ease-in-out infinite"
-              : undefined,
           }}
         />
 
@@ -317,16 +376,17 @@ export function IslandToolbarLayout(props: IslandToolbarLayoutProps) {
           style={{
             width: "100%",
             height: "100%",
-            borderRadius: expanded ? 26 : 22,
+            borderRadius: expanded ? 24 : 20,
             display: "flex",
             alignItems: "center",
-            padding: expanded ? "0 14px" : "0 14px",
-            gap: expanded ? 10 : 8,
+            padding: expanded ? "0 12px" : "0 14px",
+            gap: expanded ? 8 : 10,
             overflow: "hidden",
-            border: `1px solid rgba(${rgb},${expanded ? 0.22 : 0.14})`,
-            background: t.mode === "dark"
-              ? "linear-gradient(135deg, rgba(12,14,22,0.86), rgba(18,20,32,0.72))"
-              : "linear-gradient(135deg, rgba(255,255,255,0.86), rgba(242,246,255,0.78))",
+            border: `1px solid rgba(${rgb},${expanded ? 0.24 : 0.16})`,
+            background:
+              t.mode === "dark"
+                ? "linear-gradient(135deg, rgba(12,14,22,0.88), rgba(18,20,32,0.76))"
+                : "linear-gradient(135deg, rgba(255,255,255,0.9), rgba(243,247,255,0.82))",
           }}
           onMouseEnter={() => setExpanded(true)}
           onMouseLeave={() => {
@@ -343,22 +403,26 @@ export function IslandToolbarLayout(props: IslandToolbarLayoutProps) {
                 justifyContent: "space-between",
                 gap: 10,
                 flex: 1,
+                minWidth: 0,
               }}
             >
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
                 <span
                   style={{
                     fontSize: 12,
                     fontWeight: 800,
                     letterSpacing: "0.08em",
                     textTransform: "uppercase",
+                    whiteSpace: "nowrap",
                   }}
                 >
                   Nexus Island
                 </span>
-                <span style={{ fontSize: 10, opacity: 0.55 }}>⌘K</span>
+                <span style={{ fontSize: 10, opacity: 0.55, whiteSpace: "nowrap" }}>
+                  ⌘K
+                </span>
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
                 <StatusPill
                   label="Tasks"
                   value={pendingTasks}
@@ -369,7 +433,14 @@ export function IslandToolbarLayout(props: IslandToolbarLayoutProps) {
                   value={overdueReminders}
                   color={overdueReminders ? "#ff453a" : undefined}
                 />
-                <span style={{ fontSize: 10, opacity: 0.55, fontFamily: "monospace" }}>
+                <span
+                  style={{
+                    fontSize: 10,
+                    opacity: 0.55,
+                    fontFamily: "monospace",
+                    whiteSpace: "nowrap",
+                  }}
+                >
                   {timeStr}
                 </span>
               </div>
@@ -382,60 +453,34 @@ export function IslandToolbarLayout(props: IslandToolbarLayoutProps) {
                 style={{
                   display: "flex",
                   alignItems: "center",
-                  gap: 9,
+                  gap: 8,
                   flex: 1,
                   minWidth: 0,
                 }}
               >
                 <div
+                  className="nx-toolbar-view-rail"
                   style={{
                     display: "flex",
                     alignItems: "center",
-                    gap: islandCompact ? 4 : 6,
+                    gap: compactMode ? 4 : 6,
                     minWidth: 0,
                     flex: 1,
                     overflowX: "auto",
                     overflowY: "hidden",
                     paddingBottom: 2,
                   }}
-                  className="nx-toolbar-view-rail"
                 >
-                  {VIEW_ITEMS.map((item) => {
-                    const Icon = item.icon;
-                    const iRgb = hexToRgb(item.color);
-                    return (
-                      <button
-                        key={item.id}
-                        onClick={() => setView?.(item.id)}
-                        title={item.label}
-                        style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: islandCompact ? 0 : 6,
-                          whiteSpace: "nowrap",
-                          border: "none",
-                          borderRadius: 10,
-                          background: "transparent",
-                          padding: islandCompact ? "6px 7px" : "6px 9px",
-                          cursor: "pointer",
-                          fontSize: 11,
-                          fontWeight: 700,
-                          color: "inherit",
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.background = `rgba(${iRgb},0.16)`;
-                          e.currentTarget.style.color = item.color;
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.background = "transparent";
-                          e.currentTarget.style.color = "inherit";
-                        }}
-                      >
-                        <Icon size={13} />
-                        {!islandCompact && item.label}
-                      </button>
-                    );
-                  })}
+                  {VIEW_ITEMS.map((item) => (
+                    <ViewRailButton
+                      key={item.id}
+                      label={item.label}
+                      color={item.color}
+                      icon={item.icon}
+                      compact={compactMode}
+                      onClick={() => setView?.(item.id)}
+                    />
+                  ))}
                 </div>
 
                 <div
@@ -446,7 +491,7 @@ export function IslandToolbarLayout(props: IslandToolbarLayoutProps) {
                     flexShrink: 0,
                   }}
                 >
-                  {islandCompact ? (
+                  {compactMode ? (
                     <>
                       <span
                         style={{
@@ -454,6 +499,7 @@ export function IslandToolbarLayout(props: IslandToolbarLayoutProps) {
                           fontWeight: 700,
                           color: pendingTasks ? "#ff9f0a" : "inherit",
                           opacity: pendingTasks ? 1 : 0.6,
+                          whiteSpace: "nowrap",
                         }}
                       >
                         T {pendingTasks}
@@ -464,6 +510,7 @@ export function IslandToolbarLayout(props: IslandToolbarLayoutProps) {
                           fontWeight: 700,
                           color: overdueReminders ? "#ff453a" : "inherit",
                           opacity: overdueReminders ? 1 : 0.6,
+                          whiteSpace: "nowrap",
                         }}
                       >
                         D {overdueReminders}
@@ -488,6 +535,7 @@ export function IslandToolbarLayout(props: IslandToolbarLayoutProps) {
                       fontSize: 10,
                       opacity: 0.55,
                       fontFamily: "monospace",
+                      whiteSpace: "nowrap",
                     }}
                   >
                     {timeStr}
@@ -495,48 +543,29 @@ export function IslandToolbarLayout(props: IslandToolbarLayoutProps) {
                 </div>
               </div>
 
-              <button
+              <IconActionButton
+                active={terminal.isOpen}
+                rgb={rgb}
+                color={terminal.isOpen ? t.accent : undefined}
+                title="Terminal"
                 onClick={() => terminal.setOpen(!terminal.isOpen)}
-                style={{
-                  border: `1px solid ${terminal.isOpen ? `rgba(${rgb},0.35)` : "rgba(255,255,255,0.09)"}`,
-                  borderRadius: 11,
-                  cursor: "pointer",
-                  width: 34,
-                  height: 34,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  color: terminal.isOpen ? t.accent : "inherit",
-                  background: terminal.isOpen
-                    ? `rgba(${rgb},0.2)`
-                    : "rgba(255,255,255,0.04)",
-                }}
               >
                 <Terminal
                   size={16}
                   style={{ opacity: terminal.isOpen ? 1 : 0.56 }}
                 />
-              </button>
-              <button
+              </IconActionButton>
+
+              <IconActionButton
+                rgb={rgb}
+                title="Search"
                 onClick={() => {
                   setPanelOpen(true);
                   setExpanded(true);
                 }}
-                style={{
-                  border: "1px solid rgba(255,255,255,0.1)",
-                  borderRadius: 11,
-                  cursor: "pointer",
-                  width: 34,
-                  height: 34,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  color: "inherit",
-                  background: "rgba(255,255,255,0.04)",
-                }}
               >
-                <Search size={16} style={{ opacity: 0.62 }} />
-              </button>
+                <Search size={16} style={{ opacity: 0.72 }} />
+              </IconActionButton>
             </>
           )}
         </Glass>
