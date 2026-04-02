@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import {
-  BrowserRouter as Router,
+  HashRouter as Router,
   Route,
   Routes,
   Navigate,
@@ -11,6 +11,8 @@ import Editor from "./pages/Editor";
 import { createNexusRuntime, isOfflineControlErrorCode } from "@nexus/api";
 
 const CONTROL_API_BASE_URL = "https://nexus-api.cloud";
+const CODE_BOOT_BLOCK_BUDGET_MS = 1_500;
+const CODE_BOOT_BLOCK_BUDGET_LOW_POWER_MS = 2_000;
 const isOfflineBootstrapResourceError = (errorCodeRaw) =>
   isOfflineControlErrorCode(String(errorCodeRaw || "INVALID_PAYLOAD"));
 const isLowPowerDevice = () => {
@@ -148,6 +150,10 @@ function App() {
           releasePollIntervalMs: 30_000,
           viewValidationFailOpen: false,
           viewValidationCacheMs: 120_000,
+          requestTimeoutMs: lowPowerMode ? 1_900 : 1_350,
+          readRetryMax: 1,
+          readRetryBaseMs: 120,
+          readRetryMaxMs: 1_000,
         },
         performance: {
           collectMemoryMs: lowPowerMode ? 90_000 : 60_000,
@@ -175,6 +181,15 @@ function App() {
 
   useEffect(() => {
     let active = true;
+    const bootBudgetMs = lowPowerMode
+      ? CODE_BOOT_BLOCK_BUDGET_LOW_POWER_MS
+      : CODE_BOOT_BLOCK_BUDGET_MS;
+    const forceBootReadyTimer = window.setTimeout(() => {
+      if (!active) return;
+      setBootProgress(100);
+      setBootStage("Schnellstart aktiv, Rest wird im Hintergrund geladen...");
+      setBootReady(true);
+    }, bootBudgetMs);
     setBootFailure(null);
     setBootReady(false);
     setBootProgress(8);
@@ -215,20 +230,20 @@ function App() {
           runtime.control.fetchCatalog({
             appId: "code",
             channel: "production",
-            forceRefresh: true,
-            cacheTtlMs: 0,
+            forceRefresh: false,
+            cacheTtlMs: 120_000,
           }),
           runtime.control.fetchLayoutSchema({
             appId: "code",
             channel: "production",
-            forceRefresh: true,
-            cacheTtlMs: 0,
+            forceRefresh: false,
+            cacheTtlMs: 120_000,
           }),
           runtime.control.fetchCurrentRelease({
             appId: "code",
             channel: "production",
-            forceRefresh: true,
-            cacheTtlMs: 0,
+            forceRefresh: false,
+            cacheTtlMs: 60_000,
           }),
         ]);
 
@@ -290,50 +305,10 @@ function App() {
 
     return () => {
       active = false;
+      clearTimeout(forceBootReadyTimer);
       unsubscribe();
     };
   }, [runtime]);
-
-  if (bootFailure) {
-    return (
-      <div
-        style={{
-          width: "100%",
-          minHeight: "100dvh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          background: "linear-gradient(135deg, #1a0909 0%, #0c111b 100%)",
-          color: "#ffe5e2",
-          fontFamily: "system-ui, sans-serif",
-          padding: 24,
-        }}
-      >
-        <div
-          style={{
-            maxWidth: 620,
-            borderRadius: 16,
-            border: "1px solid rgba(255,69,58,0.45)",
-            background: "rgba(255,69,58,0.12)",
-            padding: 18,
-            fontSize: 14,
-            lineHeight: 1.5,
-          }}
-        >
-          <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 8 }}>
-            API-Startpruefung fehlgeschlagen
-          </div>
-          <div>
-            Nexus Code wurde kontrolliert gestoppt, weil der Hosted-API-Bootflow
-            nicht erfolgreich war.
-          </div>
-          <div style={{ marginTop: 8 }}>
-            Reason: <code>{bootFailure}</code>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   if (!bootReady) {
     return <BootSequenceScreen progress={bootProgress} stage={bootStage} />;
@@ -382,6 +357,27 @@ function App() {
   return (
     <Router>
       <NexusBridge runtime={runtime} />
+      {bootFailure ? (
+        <div
+          style={{
+            position: "fixed",
+            top: 10,
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 4000,
+            borderRadius: 10,
+            border: "1px solid rgba(255,69,58,0.38)",
+            background: "rgba(255,69,58,0.12)",
+            color: "#ffd8d2",
+            padding: "8px 12px",
+            fontSize: 12,
+            fontWeight: 700,
+            maxWidth: "min(92vw, 720px)",
+          }}
+        >
+          API Bootstrap eingeschraenkt: {bootFailure}
+        </div>
+      ) : null}
       <Routes>
         <Route path="/" element={<Navigate to="/editor" replace />} />
         <Route path="/editor" element={<Editor />} />

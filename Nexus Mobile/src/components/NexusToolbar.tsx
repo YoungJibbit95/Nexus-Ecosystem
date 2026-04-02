@@ -131,7 +131,7 @@ export function NexusToolbar({ spotlightMode: forceSpotlight, setView }: {
         <motion.div
           initial={{opacity:0,scale:0.94,y:-16}} animate={{opacity:1,scale:1,y:0}} exit={{opacity:0,scale:0.94,y:-16}}
           transition={reducedMotion ? { duration: 0.12 } : {type:'spring',stiffness:420,damping:30}}
-          style={{ position:'fixed', top:72, left:spotlightAnchorX, transform:'translateX(-30%)', width:700, zIndex:900 }}
+          style={{ position:'fixed', top:72, left:spotlightAnchorX, transform:'translateX(-30%)', width:'min(700px, 86vw)', zIndex:900 }}
         >
           <SpotlightPanel
             search={search} setSearch={setSearch} selIdx={selIdx} setSelIdx={setSelIdx}
@@ -335,7 +335,7 @@ export function NexusToolbar({ spotlightMode: forceSpotlight, setView }: {
                 onClick={() => { setCmdMode(false); setExpanded(false) }} />
               <motion.div initial={{opacity:0,scale:0.95,y:-10}} animate={{opacity:1,scale:1,y:0}} exit={{opacity:0,scale:0.95,y:-10}}
                 transition={reducedMotion ? { duration: 0.12 } : { type:'spring', stiffness:340, damping:28 }}
-                style={{ position:'fixed', top:isBottom?'auto':'calc(100% + 12px)', bottom:isBottom?'calc(100% + 12px)':'auto', left:spotlightAnchorX, transform:'translateX(-30%)', width:660, zIndex:899 }}>
+                style={{ position:'fixed', top:isBottom?'auto':'calc(100% + 12px)', bottom:isBottom?'calc(100% + 12px)':'auto', left:spotlightAnchorX, transform:'translateX(-30%)', width:'min(660px, 86vw)', zIndex:899 }}>
                 <SpotlightPanel
                   search={search} setSearch={setSearch} selIdx={selIdx} setSelIdx={setSelIdx}
                   suggestions={suggestions} commands={COMMANDS} handleKey={handleKey}

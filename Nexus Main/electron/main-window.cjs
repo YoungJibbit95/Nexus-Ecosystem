@@ -1,6 +1,7 @@
 'use strict';
 const { app, BrowserWindow, shell } = require('electron');
 const path = require('path');
+const fs = require('fs');
 
 const DEV_URL = 'http://localhost:5173';
 
@@ -13,7 +14,10 @@ const isAllowedNavigation = (url, isDev) => {
 };
 
 function createMainWindow(onClosed) {
-  const isDev = !app.isPackaged;
+  const distIndexPath = path.join(__dirname, '..', 'dist', 'index.html');
+  const hasDistIndex = fs.existsSync(distIndexPath);
+  const forceDev = process.argv.includes('--dev') || process.env.ELECTRON_DEV === 'true';
+  const isDev = forceDev || (!app.isPackaged && !hasDistIndex);
   const win = new BrowserWindow({
     width: 1400,
     height: 900,
@@ -36,10 +40,22 @@ function createMainWindow(onClosed) {
   });
 
   if (isDev) {
-    win.loadURL(DEV_URL);
+    win.loadURL(DEV_URL).catch(() => {
+      if (hasDistIndex) {
+        void win.loadFile(distIndexPath);
+      }
+    });
   } else {
-    win.loadFile(path.join(__dirname, '..', 'dist', 'index.html'));
+    win.loadFile(distIndexPath);
   }
+
+  win.webContents.on('did-fail-load', (_event, _errorCode, _errorDescription, validatedURL) => {
+    if (!isDev) return;
+    if (!hasDistIndex) return;
+    if (typeof validatedURL !== 'string' || !validatedURL.startsWith(DEV_URL)) return;
+    if (win.webContents.isLoadingMainFrame()) return;
+    void win.loadFile(distIndexPath);
+  });
 
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (url && /^https?:\/\//i.test(url)) {

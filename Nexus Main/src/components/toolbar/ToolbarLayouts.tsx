@@ -243,6 +243,7 @@ export function IslandToolbarLayout(props: IslandToolbarLayoutProps) {
     islandCompact,
     setView,
   } = props;
+  const toolbarPulseEffects = Boolean(t.animations?.pulseEffects) && !reducedMotion;
 
   return (
     <div
@@ -266,7 +267,7 @@ export function IslandToolbarLayout(props: IslandToolbarLayoutProps) {
         style={{
           position: "relative",
           animation:
-            expanded && !reducedMotion
+            expanded && toolbarPulseEffects
               ? "nexus-dock-breathe 3.8s ease-in-out infinite"
               : undefined,
         }}
@@ -279,9 +280,9 @@ export function IslandToolbarLayout(props: IslandToolbarLayoutProps) {
             background: `conic-gradient(from 0deg, ${t.accent}, ${t.accent2}, ${t.accent})`,
             filter: `blur(${expanded ? 24 : 16}px)`,
             opacity: expanded ? 0.55 : 0.28,
-            animation: reducedMotion
-              ? undefined
-              : "nexus-gradient-shift 8s ease infinite",
+            animation: toolbarPulseEffects
+              ? "nexus-gradient-shift 8s ease infinite"
+              : undefined,
             pointerEvents: "none",
           }}
         />
@@ -305,9 +306,9 @@ export function IslandToolbarLayout(props: IslandToolbarLayoutProps) {
             background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.22), transparent)",
             mixBlendMode: "screen",
             pointerEvents: "none",
-            animation: reducedMotion
-              ? undefined
-              : "nexus-shine-sweep 4.8s ease-in-out infinite",
+            animation: toolbarPulseEffects
+              ? "nexus-shine-sweep 4.8s ease-in-out infinite"
+              : undefined,
           }}
         />
 
@@ -557,7 +558,7 @@ export function IslandToolbarLayout(props: IslandToolbarLayoutProps) {
                 transform: "translateX(-30%)",
                 top: isBottom ? undefined : "calc(100% + 12px)",
                 bottom: isBottom ? "calc(100% + 12px)" : undefined,
-                width: "min(700px, 92vw)",
+                width: "min(700px, 86vw)",
                 zIndex: 920,
               }}
             >
