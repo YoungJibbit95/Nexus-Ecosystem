@@ -33,6 +33,87 @@ import {
   saveSettingsToStorage,
 } from './editor/editorShared.jsx';
 
+const LANGUAGE_EXTENSIONS = {
+  typescript: "ts",
+  javascript: "js",
+  python: "py",
+  html: "html",
+  css: "css",
+  json: "json",
+  markdown: "md",
+  rust: "rs",
+  go: "go",
+};
+
+function isEditableEventTarget(target) {
+  if (!(target instanceof HTMLElement)) return false;
+  if (target.isContentEditable) return true;
+  const editable = target.closest(
+    'input, textarea, [contenteditable="true"], [role="textbox"]',
+  );
+  return Boolean(editable);
+}
+
+function extractRgbTuple(value) {
+  if (!value || typeof value !== "string") return null;
+  const hexMatch = value.match(/#([0-9a-fA-F]{6})/);
+  if (hexMatch) {
+    const hex = hexMatch[1];
+    return [
+      Number.parseInt(hex.slice(0, 2), 16),
+      Number.parseInt(hex.slice(2, 4), 16),
+      Number.parseInt(hex.slice(4, 6), 16),
+    ];
+  }
+  const rgbMatch = value.match(
+    /rgba?\(\s*([0-9.]+)\s*,\s*([0-9.]+)\s*,\s*([0-9.]+)/i,
+  );
+  if (rgbMatch) {
+    return [
+      Number.parseFloat(rgbMatch[1]),
+      Number.parseFloat(rgbMatch[2]),
+      Number.parseFloat(rgbMatch[3]),
+    ];
+  }
+  return null;
+}
+
+function relativeLuminance(rgb) {
+  if (!rgb) return 0;
+  const channels = rgb.map((v) => {
+    const normalized = Math.max(0, Math.min(255, v)) / 255;
+    return normalized <= 0.03928
+      ? normalized / 12.92
+      : ((normalized + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
+}
+
+function contrastRatio(foreground, background) {
+  const fgLum = relativeLuminance(foreground);
+  const bgLum = relativeLuminance(background);
+  const light = Math.max(fgLum, bgLum);
+  const dark = Math.min(fgLum, bgLum);
+  return (light + 0.05) / (dark + 0.05);
+}
+
+function getReadableColor(preferred, background, muted = false) {
+  const bgRgb = extractRgbTuple(background);
+  const fgRgb = extractRgbTuple(preferred);
+  if (!bgRgb) return preferred;
+  const backgroundIsDark = relativeLuminance(bgRgb) < 0.34;
+  const fallback = muted
+    ? backgroundIsDark
+      ? "#94a3b8"
+      : "#4b5563"
+    : backgroundIsDark
+      ? "#f3f4f6"
+      : "#111827";
+  if (!fgRgb) return fallback;
+  const minContrast = muted ? 2.5 : 4.2;
+  return contrastRatio(fgRgb, bgRgb) >= minContrast ? preferred : fallback;
+}
+
 export default function Editor() {
   // @ts-ignore
   const isElectron = nativeFS.isAvailable;
@@ -56,6 +137,28 @@ export default function Editor() {
 
   const [settings, setSettings] = useState(loadSettingsFromStorage);
   const [workspacePath, setWorkspacePath] = useState(null);
+
+  useEffect(() => {
+    const onExtensionsChanged = (event) => {
+      const installed = Array.isArray(event?.detail?.installed)
+        ? event.detail.installed
+        : [];
+      setSettings((prev) => {
+        const current = Array.isArray(prev.extensions_installed)
+          ? prev.extensions_installed
+          : [];
+        if (JSON.stringify(current) === JSON.stringify(installed)) return prev;
+        return { ...prev, extensions_installed: installed };
+      });
+    };
+    window.addEventListener("nx-code-extensions-changed", onExtensionsChanged);
+    return () => {
+      window.removeEventListener(
+        "nx-code-extensions-changed",
+        onExtensionsChanged,
+      );
+    };
+  }, []);
 
   // Persist files whenever they change (only if not in a workspace for now, or unified)
   useEffect(() => {
@@ -197,6 +300,17 @@ export default function Editor() {
         : settings.glow_renderer === "three"
           ? `0 0 0 1px color-mix(in srgb, ${accent} 48%, transparent), 0 0 32px color-mix(in srgb, ${accent} 33%, transparent)`
           : `0 0 0 1px color-mix(in srgb, ${accent} 32%, transparent), 0 0 18px color-mix(in srgb, ${accent} 20%, transparent)`;
+    const contrastSurface = panelSurface || surface || bgValue;
+    const resolvedText = getReadableColor(
+      theme.text || "#e5e7eb",
+      contrastSurface,
+      false,
+    );
+    const resolvedMuted = getReadableColor(
+      theme.muted || "#6b7280",
+      contrastSurface,
+      true,
+    );
 
     // Apply to CSS variables
     root.style.setProperty("--nexus-bg-type", bgType);
@@ -208,8 +322,9 @@ export default function Editor() {
     root.style.setProperty("--nexus-border", border || "rgba(255,255,255,0.1)");
 
     // Theme (Colors & Syntax)
-    root.style.setProperty("--nexus-text", theme.text || "#e5e7eb");
-    root.style.setProperty("--nexus-muted", theme.muted || "#4b5563");
+    root.style.setProperty("--nexus-text", resolvedText);
+    root.style.setProperty("--nexus-muted", resolvedMuted);
+    root.style.setProperty("--nexus-editor-foreground", resolvedText);
 
     // Accents & Glows
     root.style.setProperty("--primary", accent);
@@ -330,8 +445,12 @@ export default function Editor() {
   // Global keyboard shortcuts
   useEffect(() => {
     const handler = (e) => {
+      const key = String(e.key || "").toLowerCase();
+      const hasPrimaryMod = e.ctrlKey || e.metaKey;
+      const isEditable = isEditableEventTarget(e.target);
+
       // Ctrl+S — save active file
-      if ((e.ctrlKey || e.metaKey) && e.key === "s") {
+      if (hasPrimaryMod && key === "s") {
         e.preventDefault();
         if (activeTabId) {
           setOpenTabs((prev) =>
@@ -340,36 +459,77 @@ export default function Editor() {
             ),
           );
         }
+        return;
+      }
+
+      if (isEditable) {
+        return;
+      }
+
+      // Ctrl+N — new file (language preset)
+      if (hasPrimaryMod && key === "n") {
+        e.preventDefault();
+        window.dispatchEvent(
+          new CustomEvent("nx-code-create-file", {
+            detail: { language: "typescript" },
+          }),
+        );
+        return;
       }
       // Ctrl+B — toggle sidebar
-      if ((e.ctrlKey || e.metaKey) && e.key === "b") {
+      if (hasPrimaryMod && key === "b") {
         e.preventDefault();
         setActivePanel((prev) => (prev ? null : "explorer"));
+        return;
       }
       // Ctrl+` — toggle terminal
-      if ((e.ctrlKey || e.metaKey) && e.key === "`") {
+      if (hasPrimaryMod && e.key === "`") {
         e.preventDefault();
         setTerminalOpen((prev) => !prev);
+        return;
+      }
+
+      // Ctrl+Shift+` — open terminal
+      if (hasPrimaryMod && e.shiftKey && e.key === "`") {
+        e.preventDefault();
+        setTerminalOpen(true);
+        return;
       }
       // Ctrl+W — close active tab
-      if ((e.ctrlKey || e.metaKey) && e.key === "w") {
+      if (hasPrimaryMod && key === "w") {
         e.preventDefault();
         if (activeTabId) handleTabClose(activeTabId);
+        return;
+      }
+
+      // Ctrl+, — settings
+      if (hasPrimaryMod && key === ",") {
+        e.preventDefault();
+        setShowSettings(true);
+        return;
+      }
+
+      // F1 — command palette
+      if (e.key === "F1") {
+        e.preventDefault();
+        setCommandPaletteOpen(true);
+        return;
       }
       // Ctrl+Shift+P — toggle command palette
       if (
-        (e.ctrlKey || e.metaKey) &&
+        hasPrimaryMod &&
         e.shiftKey &&
-        e.key.toLowerCase() === "p"
+        key === "p"
       ) {
         e.preventDefault();
         setCommandPaletteOpen((prev) => !prev);
+        return;
       }
       // Ctrl+P — quick open (also command palette for now)
       if (
-        (e.ctrlKey || e.metaKey) &&
+        hasPrimaryMod &&
         !e.shiftKey &&
-        e.key.toLowerCase() === "p"
+        key === "p"
       ) {
         e.preventDefault();
         setCommandPaletteOpen((prev) => !prev);
@@ -392,7 +552,7 @@ export default function Editor() {
       window.removeEventListener("keydown", handler);
       window.removeEventListener("keyup", shiftHandler);
     };
-  }, [activeTabId, handleTabClose, terminalOpen]);
+  }, [activeTabId, handleTabClose]);
 
   const handleCreateFile = useCallback(
     async (name, parentId = null) => {
@@ -423,6 +583,59 @@ export default function Editor() {
     },
     [openFileTab, workspacePath, files],
   );
+
+  const getNextUntitledName = useCallback(
+    (extension = "txt") => {
+      const ext = String(extension || "txt").replace(/^\./, "");
+      const existingNames = new Set(
+        files.filter((f) => f.type === "file").map((f) => f.name.toLowerCase()),
+      );
+      let idx = 1;
+      while (idx < 1000) {
+        const candidate = idx === 1 ? `untitled.${ext}` : `untitled-${idx}.${ext}`;
+        if (!existingNames.has(candidate.toLowerCase())) return candidate;
+        idx += 1;
+      }
+      return `untitled-${Date.now()}.${ext}`;
+    },
+    [files],
+  );
+
+  const handleCreateFileRequest = useCallback(
+    (value, mode = "name", parentId = null) => {
+      if (mode === "name") {
+        const manual = String(value || "").trim();
+        if (!manual) return;
+        handleCreateFile(manual, parentId);
+        return;
+      }
+      const languageId = String(value || "").toLowerCase();
+      const extension = LANGUAGE_EXTENSIONS[languageId] || languageId || "txt";
+      handleCreateFile(getNextUntitledName(extension), parentId);
+    },
+    [getNextUntitledName, handleCreateFile],
+  );
+
+  const handleSaveAll = useCallback(async () => {
+    if (workspacePath && isElectron) {
+      const diskFiles = files.filter((f) => f.type === "file" && f.fsPath);
+      await Promise.all(
+        diskFiles.map((f) => nativeFS.writeFile(f.fsPath, f.content || "")),
+      );
+    }
+    setOpenTabs((prev) => prev.map((tab) => ({ ...tab, modified: false })));
+  }, [files, workspacePath, isElectron]);
+
+  useEffect(() => {
+    const onCreateFile = (event) => {
+      const detail = event?.detail || {};
+      handleCreateFileRequest(detail.language || "typescript", "language");
+    };
+    window.addEventListener("nx-code-create-file", onCreateFile);
+    return () => {
+      window.removeEventListener("nx-code-create-file", onCreateFile);
+    };
+  }, [handleCreateFileRequest]);
 
   const handleCreateFolder = useCallback(
     async (name, parentId = null) => {
@@ -620,7 +833,7 @@ export default function Editor() {
           handleFileSelect(payload);
           break;
         case "new-file":
-          handleCreateFile("untitled.js");
+          handleCreateFileRequest("typescript", "language");
           break;
         case "change-theme":
           setShowSettings(true);
@@ -641,7 +854,7 @@ export default function Editor() {
           break;
       }
     },
-    [handleCreateFile, handleFileSelect],
+    [handleCreateFileRequest, handleFileSelect],
   );
 
   const activeFile = files.find((f) => f.id === activeTabId);
@@ -698,6 +911,8 @@ export default function Editor() {
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-transparent text-[#e5e7eb] font-sans">
       <TitleBar
+        onNewFile={() => handleCreateFileRequest("typescript", "language")}
+        onSaveAll={handleSaveAll}
         onOpenFolder={handleOpenFolder}
         onToggleSidebar={handleToggleSidebar}
         onToggleSidebarVisibility={handleToggleSidebarVisibility}
@@ -759,7 +974,7 @@ export default function Editor() {
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: -20 }}
                     transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                    className="w-72 backdrop-blur-xl border-r border-white/5 overflow-hidden"
+                    className="w-72 min-h-0 backdrop-blur-xl border-r border-white/5 overflow-hidden"
                     style={{ background: "rgba(255,255,255,0.01)" }}
                   >
                     {renderPanelContent()}
@@ -816,7 +1031,7 @@ export default function Editor() {
                           <span className="text-gray-400 text-sm leading-none">✕</span>
                         </motion.button>
                       </div>
-                      <div className="flex-1 overflow-hidden">
+                      <div className="flex-1 min-h-0 overflow-hidden">
                         {renderPanelContent()}
                       </div>
                     </motion.div>
@@ -837,6 +1052,10 @@ export default function Editor() {
                   activeTabId={activeTabId}
                   onTabSelect={setActiveTabId}
                   onTabClose={handleTabClose}
+                  onCreateFile={handleCreateFileRequest}
+                  onSaveAll={handleSaveAll}
+                  onToggleTerminal={() => setTerminalOpen((prev) => !prev)}
+                  onOpenCommandPalette={() => setCommandPaletteOpen(true)}
                 />
               </div>
 
@@ -872,7 +1091,9 @@ export default function Editor() {
                     />
                   ) : (
                     <WelcomeScreen
-                      onNewFile={() => handleCreateFile("untitled.js")}
+                      onNewFile={() =>
+                        handleCreateFileRequest("typescript", "language")
+                      }
                       onOpenFolder={handleOpenFolder}
                       onOpenSettings={() => setShowSettings(true)}
                     />

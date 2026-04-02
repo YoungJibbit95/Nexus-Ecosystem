@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   Blocks,
   Search,
@@ -254,6 +254,8 @@ const CATEGORIES = [
   { id: "collaboration", label: "Zusammenarbeit", icon: Package },
 ];
 
+const EXTENSIONS_STORAGE_KEY = "nexus-code-installed-extensions";
+
 /* ─── Sub-components ─────────────────────────────────────────────────────── */
 
 function StarRating({ rating }) {
@@ -463,12 +465,20 @@ function ExtensionCard({ ext, installed, onInstall, onUninstall, index }) {
 
 /* ─── Main component ─────────────────────────────────────────────────────── */
 
-export default function ExtensionsPanel() {
+export default function ExtensionsPanel({ onInstalledChange }) {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("all");
-  const [installed, setInstalled] = useState(
-    new Set(["prettier", "eslint", "gitlens"]),
-  );
+  const [installed, setInstalled] = useState(() => {
+    try {
+      const raw = localStorage.getItem(EXTENSIONS_STORAGE_KEY);
+      if (!raw) return new Set(["prettier", "eslint", "gitlens"]);
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return new Set(["prettier", "eslint", "gitlens"]);
+      return new Set(parsed.filter((id) => typeof id === "string"));
+    } catch {
+      return new Set(["prettier", "eslint", "gitlens"]);
+    }
+  });
   const [activeTab, setActiveTab] = useState("marketplace"); // "marketplace" | "installed"
   const [showCategories, setShowCategories] = useState(false);
 
@@ -479,6 +489,20 @@ export default function ExtensionsPanel() {
       s.delete(id);
       return s;
     });
+
+  useEffect(() => {
+    const installedList = Array.from(installed);
+    localStorage.setItem(
+      EXTENSIONS_STORAGE_KEY,
+      JSON.stringify(installedList),
+    );
+    onInstalledChange?.(installedList);
+    window.dispatchEvent(
+      new CustomEvent("nx-code-extensions-changed", {
+        detail: { installed: installedList },
+      }),
+    );
+  }, [installed, onInstalledChange]);
 
   const filtered = useMemo(() => {
     let list =
@@ -511,7 +535,7 @@ export default function ExtensionsPanel() {
       initial={{ x: -260, opacity: 0 }}
       animate={{ x: 0, opacity: 1 }}
       transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
-      className="w-72 flex flex-col shrink-0 overflow-hidden"
+      className="w-72 h-full min-h-0 flex flex-col shrink-0 overflow-hidden"
       style={{
         background: "rgba(6, 6, 20, 0.4)",
         backdropFilter: "blur(20px)",
@@ -679,7 +703,7 @@ export default function ExtensionsPanel() {
       />
 
       {/* ── Extension list ──────────────────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto px-3 py-2 space-y-2">
+      <div className="flex-1 min-h-0 overflow-y-auto px-3 py-2 space-y-2">
         <AnimatePresence mode="popLayout">
           {filtered.map((ext, i) => (
             <ExtensionCard

@@ -59,12 +59,15 @@ function MenuButton({ label, items, activeMenu, setActiveMenu }) {
 }
 
 export default function TitleBar({ 
+  onNewFile,
+  onSaveAll,
   onOpenFolder, 
   onToggleSidebar, 
   onToggleSidebarVisibility, 
   onToggleZenMode, 
   onToggleTerminal, 
   onOpenCommandPalette,
+  onOpenSettings,
   workspaceName 
 }) {
   const [isMaximized, setIsMaximized] = useState(false);
@@ -78,15 +81,22 @@ export default function TitleBar({
     return () => unsub1?.();
   }, []);
 
+  const safeNewFile = onNewFile || (() => {});
+  const safeSaveAll = onSaveAll || (() => {});
+  const safeOpenSettings = onOpenSettings || (() => {});
+  const safeClose = () => win.electronAPI?.close?.();
+  const safeMinimize = () => win.electronAPI?.minimize?.();
+  const safeMaximize = () => win.electronAPI?.maximize?.();
+
   const MENUS = [
     {
       label: "Datei",
       items: [
-        { label: "Neue Datei", shortcut: "Ctrl+N", action: () => {} },
+        { label: "Neue Datei", shortcut: "Ctrl+N", action: safeNewFile },
         { label: "Ordner öffnen...", shortcut: "Ctrl+O", action: onOpenFolder },
-        { label: "Workspace speichern", action: () => {} },
+        { label: "Workspace speichern", shortcut: "Ctrl+S", action: safeSaveAll },
         { label: "Trennen", disabled: true },
-        { label: "Beenden", shortcut: "Alt+F4", action: () => win.electronAPI.close() },
+        { label: "Beenden", shortcut: "Alt+F4", action: safeClose },
       ]
     },
     {
@@ -103,15 +113,15 @@ export default function TitleBar({
       items: [
         { label: "Neues Terminal", shortcut: "Ctrl+Shift+`", action: onToggleTerminal },
         { label: "Terminal umschalten", shortcut: "Ctrl+`", action: onToggleTerminal },
-        { label: "Terminal leeren", action: () => {} },
+        { label: "Terminal leeren", action: onToggleTerminal },
       ]
     },
     {
       label: "Extras",
       items: [
         { label: "Befehlspalette...", shortcut: "F1", action: onOpenCommandPalette },
-        { label: "Einstellungen", shortcut: "Ctrl+,", action: () => {} },
-        { label: "Tastenkombinationen", action: () => {} },
+        { label: "Einstellungen", shortcut: "Ctrl+,", action: safeOpenSettings },
+        { label: "Tastenkombinationen", action: onOpenCommandPalette },
       ]
     }
   ];
@@ -140,9 +150,9 @@ export default function TitleBar({
         >
           {/* ... Control buttons ... */}
           {[
-            { id: "close", color: "#ff5f57", symbol: "✕", action: () => win.electronAPI.close() },
-            { id: "min", color: "#febc2e", symbol: "−", action: () => win.electronAPI.minimize() },
-            { id: "max", color: "#28c840", symbol: isMaximized ? "⊟" : "⊞", action: () => win.electronAPI.maximize() },
+            { id: "close", color: "#ff5f57", symbol: "✕", action: safeClose },
+            { id: "min", color: "#febc2e", symbol: "−", action: safeMinimize },
+            { id: "max", color: "#28c840", symbol: isMaximized ? "⊟" : "⊞", action: safeMaximize },
           ].map((btn) => (
             <motion.button
               key={btn.id}
@@ -181,13 +191,11 @@ export default function TitleBar({
       </div>
 
       <div className="flex-1 flex items-center justify-center pointer-events-none mx-8 overflow-hidden">
-        <motion.span
-          animate={{ opacity: [0.55, 0.9, 0.55] }}
-          transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+        <span
           className="text-[10px] text-gray-500 tracking-[0.2em] font-bold uppercase truncate max-w-[50vw]"
         >
           {workspaceName ? `Nexus Code — ${workspaceName}` : "Nexus Code"}
-        </motion.span>
+        </span>
       </div>
 
       <div className="w-12 shrink-0 flex items-center justify-end">

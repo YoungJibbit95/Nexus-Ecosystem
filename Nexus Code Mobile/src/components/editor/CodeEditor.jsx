@@ -54,6 +54,39 @@ const THEMES = {
   void_pitch: { text: "#ffffff", accent: "#ffffff", selection: "#333333", comment: "#888888", keyword: "#ffffff", string: "#aaaaaa", number: "#eeeeee", function: "#dddddd" },
 };
 
+function extractRgbTuple(value) {
+  if (!value || typeof value !== "string") return null;
+  const hexMatch = value.match(/#([0-9a-fA-F]{6})/);
+  if (hexMatch) {
+    const hex = hexMatch[1];
+    return [
+      Number.parseInt(hex.slice(0, 2), 16),
+      Number.parseInt(hex.slice(2, 4), 16),
+      Number.parseInt(hex.slice(4, 6), 16),
+    ];
+  }
+  const rgbMatch = value.match(
+    /rgba?\(\s*([0-9.]+)\s*,\s*([0-9.]+)\s*,\s*([0-9.]+)/i,
+  );
+  if (!rgbMatch) return null;
+  return [
+    Number.parseFloat(rgbMatch[1]),
+    Number.parseFloat(rgbMatch[2]),
+    Number.parseFloat(rgbMatch[3]),
+  ];
+}
+
+function getLuminance(rgb) {
+  if (!rgb) return 0;
+  const channels = rgb.map((v) => {
+    const normalized = Math.max(0, Math.min(255, v)) / 255;
+    return normalized <= 0.03928
+      ? normalized / 12.92
+      : ((normalized + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
+}
+
 export default function CodeEditor({
   code,
   onChange,
@@ -71,6 +104,11 @@ export default function CodeEditor({
   const language = getLanguage(fileName);
   const [cursorInfo, setCursorInfo] = useState({ line: 1, col: 1 });
   const editorRef = useRef(null);
+  const installedExtensions = Array.isArray(settings.extensions_installed)
+    ? settings.extensions_installed
+    : [];
+  const hasPrettier = installedExtensions.includes("prettier");
+  const hasRainbowBrackets = installedExtensions.includes("rainbow-brackets");
 
   const forceTransparentEditorShell = useCallback(() => {
     const editor = editorRef.current;
@@ -99,13 +137,24 @@ export default function CodeEditor({
     if (monaco) {
       try {
         const activeTheme = THEMES[settings.theme] || THEMES.nexus_vibrant;
+        const rootStyles = getComputedStyle(document.documentElement);
+        const cssEditorText =
+          rootStyles.getPropertyValue("--nexus-editor-foreground").trim() ||
+          rootStyles.getPropertyValue("--nexus-text").trim();
+        const panelSurface = rootStyles
+          .getPropertyValue("--nexus-panel-surface")
+          .trim();
+        const panelRgb = extractRgbTuple(panelSurface);
+        const monacoBase =
+          panelRgb && getLuminance(panelRgb) > 0.52 ? "vs" : "vs-dark";
+        const editorTextColor = cssEditorText || activeTheme.text || "#e5e7eb";
         const accentColor = String(settings.primary_accent || activeTheme.accent || "#8000ff").replace('#', '');
         // Monaco theme names must be strictly alphanumeric (plus - and _)
         const safeThemeBase = String(settings.theme || 'dark').replace(/[^a-z0-9]/gi, '');
         const themeName = `nexus-${safeThemeBase}-${accentColor}`;
 
         monaco.editor.defineTheme(themeName, {
-          base: "vs-dark",
+          base: monacoBase,
           inherit: true,
           rules: [
             { token: "comment", foreground: String(activeTheme.comment || "#6a9955").replace('#', ''), fontStyle: "italic" },
@@ -121,7 +170,7 @@ export default function CodeEditor({
             "minimap.background": "#00000000",
             "editorOverviewRuler.background": "#00000000",
             "editor.lineHighlightBorder": "#00000000",
-            "editor.foreground": activeTheme.text || "#e5e7eb",
+            "editor.foreground": editorTextColor,
             "editor.selectionBackground": activeTheme.selection || "#264f78",
             "editorLineNumber.foreground": "#4b5563",
             "editor.lineHighlightBackground": "#ffffff0a",
@@ -329,16 +378,18 @@ export default function CodeEditor({
             cursorSmoothCaretAnimation: settings.smooth_caret !== false ? "on" : "off",
             cursorStyle: settings.cursor_style || "line",
             renderWhitespace: settings.render_whitespace || "none",
-            formatOnPaste: settings.format_on_paste !== false,
+            formatOnPaste: settings.format_on_paste !== false || hasPrettier,
             stickyScroll: { enabled: settings.sticky_scroll || false },
             smoothScrolling: true,
             padding: { top: isMobile ? 12 : 20, bottom: isMobile ? 12 : 20 },
             scrollBeyondLastLine: false,
             renderLineHighlight: settings.line_highlight || "all",
-            bracketPairColorization: { enabled: settings.bracket_colorization !== false },
+            bracketPairColorization: {
+              enabled: settings.bracket_colorization !== false || hasRainbowBrackets,
+            },
             guides: { bracketPairs: true, indentation: true },
             fontLigatures: settings.font_ligatures !== false,
-            formatOnType: true,
+            formatOnType: hasPrettier || settings.format_on_type !== false,
             fixedOverflowWidgets: true,
             scrollbar: {
               verticalScrollbarSize: isMobile ? 4 : 8,

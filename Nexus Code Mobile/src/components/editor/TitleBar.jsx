@@ -171,6 +171,8 @@ function MobileActionSheet({ open, onClose, actions }) {
 /* ─── Main TitleBar ───────────────────────────────────────────────────── */
 
 export default function TitleBar({
+  onNewFile,
+  onSaveAll,
   onOpenFolder,
   onToggleSidebar,
   onToggleSidebarVisibility,
@@ -183,15 +185,18 @@ export default function TitleBar({
   const [activeMenu, setActiveMenu] = useState(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const isMobile = useMobile();
+  const safeNewFile = onNewFile || (() => {});
+  const safeSaveAll = onSaveAll || (() => {});
+  const safeOpenSettings = onOpenSettings || (() => {});
 
   const MENUS = [
     {
       label: "Datei",
       items: [
-        { label: "Neue Datei", shortcut: "⌘N", action: () => {} },
+        { label: "Neue Datei", shortcut: "⌘N", action: safeNewFile },
         { label: "Ordner öffnen…", shortcut: "⌘O", action: onOpenFolder },
         { separator: true },
-        { label: "Speichern", shortcut: "⌘S", action: () => {} },
+        { label: "Speichern", shortcut: "⌘S", action: safeSaveAll },
       ],
     },
     {
@@ -208,20 +213,21 @@ export default function TitleBar({
       label: "Extras",
       items: [
         { label: "Befehlspalette…", shortcut: "⌘⇧P", action: onOpenCommandPalette },
-        { label: "Einstellungen", shortcut: "⌘,", action: onOpenSettings || (() => {}) },
+        { label: "Einstellungen", shortcut: "⌘,", action: safeOpenSettings },
       ],
     },
   ];
 
   const MOBILE_ACTIONS = [
-    { label: "New File",      icon: Save,           fn: () => {} },
+    { label: "New File",      icon: Save,           fn: safeNewFile },
     { label: "Open Folder",  icon: FolderOpen,      fn: onOpenFolder },
+    { label: "Save All",     icon: Save,            fn: safeSaveAll },
     { separator: true },
     { label: "Explorer",     icon: GitBranch,       fn: onToggleSidebar },
     { label: "Terminal",     icon: TerminalSquare,  fn: onToggleTerminal },
     { separator: true },
     { label: "Command",      icon: Command,         fn: onOpenCommandPalette, primary: true },
-    { label: "Settings",     icon: Settings,        fn: onOpenSettings || (() => {}), primary: true },
+    { label: "Settings",     icon: Settings,        fn: safeOpenSettings, primary: true },
   ];
 
   /* ── Mobile header ─────────────────────────────────────────────── */
@@ -252,14 +258,12 @@ export default function TitleBar({
             >
               <span className="text-white font-black text-[11px] leading-none">N</span>
             </div>
-            <motion.span
-              animate={{ opacity: [0.55, 0.9, 0.55] }}
-              transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+            <span
               className="text-[12px] font-bold tracking-[0.15em] uppercase"
               style={{ color: "var(--nexus-muted)" }}
             >
               {workspaceName ? workspaceName : "Nexus Code"}
-            </motion.span>
+            </span>
           </div>
 
           {/* Right quick actions */}
@@ -343,13 +347,11 @@ export default function TitleBar({
 
       {/* Center: workspace name */}
       <div className="absolute left-1/2 -translate-x-1/2 pointer-events-none">
-        <motion.span
-          animate={{ opacity: [0.5, 0.85, 0.5] }}
-          transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+        <span
           className="text-[10px] text-gray-500 tracking-[0.2em] font-bold uppercase whitespace-nowrap"
         >
           {workspaceName ? `Nexus — ${workspaceName}` : "Nexus Code"}
-        </motion.span>
+        </span>
       </div>
 
       {/* Right: quick actions */}

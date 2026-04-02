@@ -153,13 +153,13 @@ export function NexusToolbar({ spotlightMode: forceSpotlight, setView }: {
       borderBottom: !isBottom ? '1px solid rgba(255,255,255,0.07)' : 'none',
       backdropFilter:'blur(30px) saturate(220%)',
       WebkitBackdropFilter:'blur(30px) saturate(220%)',
-      display:'flex', alignItems:'center', padding:'0 16px', gap:2,
+      display:'flex', alignItems:'center', padding:'0 12px', gap:8, overflow:'hidden',
     }}>
       <LogoPill rgb={rgb} t={t} small />
       <div style={{ width:1, height:18, background:'rgba(255,255,255,0.1)', margin:'0 8px', flexShrink:0 }}/>
       <div
         className="nx-toolbar-view-rail"
-        style={{ display:'flex', alignItems:'center', gap:2, maxWidth:'54vw', overflowX:'auto', overflowY:'hidden', paddingBottom:2 }}
+        style={{ display:'flex', alignItems:'center', gap:2, flex:1, minWidth:0, overflowX:'auto', overflowY:'hidden', paddingBottom:2 }}
       >
         {VIEW_ITEMS.map(item => (
           <button key={item.id} onClick={() => setView?.(item.id)}
@@ -169,8 +169,7 @@ export function NexusToolbar({ spotlightMode: forceSpotlight, setView }: {
           </button>
         ))}
       </div>
-      <div style={{ flex:1 }}/>
-      <div style={{ display:'flex', alignItems:'center', gap:12, marginRight:10 }}>
+      <div style={{ display:'flex', alignItems:'center', gap:12, maxWidth:'38vw', overflowX:'auto', overflowY:'hidden', paddingBottom:2, flexShrink:0 }}>
         {[
           { icon: FileText, val: notes.length, c: '#30D158' },
           { icon: CheckSquare, val: pendingTasks, c: '#FF9F0A' },
@@ -213,18 +212,17 @@ export function NexusToolbar({ spotlightMode: forceSpotlight, setView }: {
         animate={{ width: expanded ? 'min(980px, 96vw)' : 'min(460px, 94vw)', height: expanded ? 62 : 50 }}
         transition={reducedMotion ? { duration: 0.12 } : { type:'spring', stiffness:320, damping:28, mass:0.9 }}
         onHoverStart={() => setExpanded(true)}
-        onHoverEnd={() => setExpanded(false)}
+        onHoverEnd={() => { if (!cmdMode) setExpanded(false) }}
         style={{ pointerEvents:'auto', position:'relative' }}
       >
         {/* Outer glow */}
         <div style={{
           position:'absolute', inset: expanded ? -8 : -4,
           borderRadius: expanded ? 38 : 30,
-          background: `conic-gradient(from 0deg, ${t.accent}, ${t.accent2}, ${t.accent})`,
+          background: `radial-gradient(circle at 20% 20%, rgba(${rgb},0.34), transparent 62%)`,
           filter: `blur(${expanded ? 18 : 10}px)`,
-          opacity: t.glow.gradientGlow ? (expanded ? t.glow.intensity * 0.5 : t.glow.intensity * 0.25) : 0,
-          transition: 'all 0.4s ease',
-          animation: !reducedMotion && t.glow.animated ? `nexus-spin ${3/Math.max(t.glow.animationSpeed,0.1)}s linear infinite` : undefined,
+          opacity: t.glow.gradientGlow ? (expanded ? t.glow.intensity * 0.35 : t.glow.intensity * 0.2) : 0,
+          transition: 'all 0.2s ease',
           pointerEvents: 'none',
         }} />
 
