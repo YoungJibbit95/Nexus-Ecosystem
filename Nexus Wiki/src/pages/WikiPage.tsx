@@ -43,6 +43,7 @@ import {
   type AppFilter,
   type AppId,
   type CategoryFilter,
+  type CategoryId,
   type Language,
   type NavGroupId,
   type SectionId,
@@ -131,49 +132,73 @@ export function WikiPage() {
 
   const filteredEntries = useMemo(() => {
     const base = isGlobalSearch ? entries : sectionBaseEntries[activeSection] ?? [];
+    const baseIndex = new Map<string, number>();
+    base.forEach((entry, index) => baseIndex.set(entry.id, index));
 
-    const scoredEntries: Array<{ entry: WikiEntry; score: number }> = [];
+    const ranked = new Map<string, { entry: WikiEntry; score: number; order: number }>();
+    const upsert = (entry: WikiEntry, score: number, fallbackOrder: number) => {
+      const nextOrder = baseIndex.get(entry.id) ?? fallbackOrder;
+      const current = ranked.get(entry.id);
+      if (!current) {
+        ranked.set(entry.id, { entry, score, order: nextOrder });
+        return;
+      }
+      if (score > current.score) {
+        ranked.set(entry.id, { entry, score, order: Math.min(current.order, nextOrder) });
+      }
+    };
 
-    base.forEach((baseEntry) => {
+    base.forEach((baseEntry, index) => {
       const entry = localizedEntryById.get(baseEntry.id) ?? baseEntry;
       const appOk = appFilter === "all" || entry.app === appFilter;
       const categoryOk = categoryFilter === "all" || entry.category === categoryFilter;
-
       if (!appOk || !categoryOk) return;
 
       const blob = searchBlobById.get(entry.id) ?? "";
       const searchTerms = searchTermsById.get(entry.id) ?? [];
       const score = scoreEntry(entry, blob, effectiveQuery, searchTokens, searchTerms);
-
       if (!isGlobalSearch || score > 0) {
-        scoredEntries.push({ entry, score });
+        upsert(entry, Math.max(1, score), index);
       }
     });
 
-    if (isGlobalSearch) {
-      scoredEntries.sort((a, b) => {
-        if (b.score !== a.score) return b.score - a.score;
-        return a.entry.title.localeCompare(b.entry.title);
-      });
+    if (isGlobalSearch && effectiveQuery.length >= MIN_SEARCH_QUERY_CHARS && ranked.size < 8) {
+      const fallbackTokens = Array.from(
+        new Set(
+          [...searchTokens, ...effectiveQuery.split(" ")]
+            .map((token) => token.trim())
+            .filter((token) => token.length >= MIN_SEARCH_QUERY_CHARS),
+        ),
+      );
 
-      if (scoredEntries.length === 0 && effectiveQuery.length >= MIN_SEARCH_QUERY_CHARS) {
-        const fallbackTokens = effectiveQuery.split(" ").filter((token) => token.length >= MIN_SEARCH_QUERY_CHARS);
-
-        localizedEntries.forEach((entry) => {
+      if (fallbackTokens.length) {
+        localizedEntries.forEach((entry, index) => {
           const appOk = appFilter === "all" || entry.app === appFilter;
           const categoryOk = categoryFilter === "all" || entry.category === categoryFilter;
           if (!appOk || !categoryOk) return;
 
           const blob = searchBlobById.get(entry.id) ?? "";
-          const looseHit = fallbackTokens.some((token) => blob.includes(token.slice(0, Math.max(2, token.length - 1))));
+          const looseHit = fallbackTokens.some((token) =>
+            blob.includes(token.slice(0, Math.max(1, token.length - 1))),
+          );
           if (!looseHit) return;
 
-          scoredEntries.push({ entry, score: 6 });
+          const tokenHitCount = fallbackTokens.reduce(
+            (count, token) => (blob.includes(token) ? count + 1 : count),
+            0,
+          );
+          upsert(entry, 4 + tokenHitCount * 2, base.length + index);
         });
       }
     }
 
-    return scoredEntries.map((item) => item.entry);
+    const resolved = Array.from(ranked.values());
+    resolved.sort((a, b) => {
+      if (isGlobalSearch && b.score !== a.score) return b.score - a.score;
+      if (a.order !== b.order) return a.order - b.order;
+      return a.entry.title.localeCompare(b.entry.title);
+    });
+    return resolved.map((item) => item.entry);
   }, [
     activeSection,
     appFilter,
@@ -248,6 +273,8 @@ export function WikiPage() {
       Object.entries(sectionBaseEntries).map(([id, items]) => [id, items.length]),
     ) as Record<SectionId, number>;
   }, []);
+
+  const sectionRail = useMemo(() => navigationGroups.flatMap((group) => group.sections), []);
 
   const searchPreviewEntries = useMemo(() => {
     if (!isGlobalSearch) return [];
@@ -454,6 +481,31 @@ export function WikiPage() {
             </div>
           </div>
 
+          <section className="sticky top-[98px] md:top-[118px] z-20 rounded-2xl border border-white/10 bg-slate-900/55 backdrop-blur-2xl px-3 py-2">
+            <div className="flex items-center gap-2 overflow-x-auto custom-scrollbar whitespace-nowrap">
+              {sectionRail.map((sectionId) => {
+                const active = sectionId === activeSection;
+                return (
+                  <button
+                    key={`rail-${sectionId}`}
+                    onClick={() => {
+                      setActiveSection(sectionId);
+                      setIsMobileMenuOpen(false);
+                    }}
+                    className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs transition ${
+                      active
+                        ? "border-cyan-400/40 bg-cyan-500/20 text-cyan-100"
+                        : "border-white/10 bg-black/25 text-slate-300 hover:border-cyan-400/35 hover:text-cyan-100"
+                    }`}
+                  >
+                    <span>{sectionLabel[sectionId][lang]}</span>
+                    <span className="text-[10px] opacity-80">{sectionCounts[sectionId]}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+
           <AnimatePresence mode="wait">
             <motion.section
               key={`${activeSection}-${lang}`}
@@ -598,16 +650,16 @@ export function WikiPage() {
                     </div>
                   ) : (
                     groupedEntries.map((group) => (
-                      <div key={group.app.id} className="space-y-3">
-                        <div className="flex items-center gap-2">
-                          <h2 className="text-2xl md:text-3xl font-bold text-white">
+                      <div key={group.app.id} className="space-y-5 py-2">
+                        <div className="flex flex-wrap items-center gap-3">
+                          <h2 className="text-3xl md:text-4xl font-black text-white tracking-tight">
                             {appEmoji[group.app.id]} {appLabel[group.app.id][lang]}
                           </h2>
-                          <span className="text-xs px-2 py-1 rounded-full border border-white/10 text-slate-400 bg-white/5">
+                          <span className="text-xs px-2.5 py-1 rounded-full border border-white/10 text-slate-300 bg-white/5">
                             {group.entries.length} {t.entryCount}
                           </span>
                         </div>
-                        <div className="grid gap-4">
+                        <div className="grid gap-6">
                           {group.entries.map((entry) => (
                             <div key={entry.id}>
                               <EntryCard
@@ -710,80 +762,116 @@ function EntryCard({
   lang: Language;
   isFocused: boolean;
 }) {
+  const [completedSteps, setCompletedSteps] = useState<Record<number, boolean>>({});
+  const completedCount = entry.guide.reduce((count, _step, index) => {
+    if (completedSteps[index]) return count + 1;
+    return count;
+  }, 0);
+
   return (
     <SpotlightCard
-      className={`rounded-2xl border bg-slate-900/60 backdrop-blur-xl transition-all ${
+      className={`rounded-3xl border bg-slate-900/55 backdrop-blur-2xl transition-all ${
         isFocused
           ? "border-cyan-300/60 shadow-[0_0_0_1px_rgba(34,211,238,0.35),0_12px_34px_rgba(6,182,212,0.18)]"
           : "border-white/10"
       }`}
       spotlightColor="rgba(34,211,238,0.1)"
     >
-      <article id={`entry-${entry.id}`} className="p-4 md:p-6 space-y-4">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="space-y-2 min-w-[240px] flex-1">
-            <h3 className="text-lg md:text-2xl font-bold text-white leading-snug">
+      <article id={`entry-${entry.id}`} className="p-6 md:p-8 lg:p-10 space-y-7">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="space-y-3 min-w-[260px] flex-1">
+            <h3 className="text-2xl md:text-4xl font-black text-white leading-tight tracking-tight">
               {appEmoji[entry.app]} {entry.title}
             </h3>
-            <p className="text-slate-300 leading-relaxed text-[15px]">{entry.summary}</p>
+            <p className="text-slate-200 leading-relaxed text-base md:text-lg max-w-5xl">{entry.summary}</p>
           </div>
 
           <div className="flex flex-wrap gap-2">
-            <span className="px-2 py-1 rounded-full text-[11px] bg-indigo-500/15 border border-indigo-500/30 text-indigo-200">
+            <span className="px-2.5 py-1 rounded-full text-[11px] bg-indigo-500/15 border border-indigo-500/30 text-indigo-200">
               {appEmoji[entry.app]} {appLabel[entry.app][lang]}
             </span>
-            <span className="px-2 py-1 rounded-full text-[11px] bg-cyan-500/15 border border-cyan-500/30 text-cyan-200">
+            <span className="px-2.5 py-1 rounded-full text-[11px] bg-cyan-500/15 border border-cyan-500/30 text-cyan-200">
               {categoryEmoji[entry.category]} {categoryLabel[entry.category][lang]}
             </span>
-            <span className="px-2 py-1 rounded-full text-[11px] bg-emerald-500/15 border border-emerald-500/30 text-emerald-200">
+            <span className="px-2.5 py-1 rounded-full text-[11px] bg-emerald-500/15 border border-emerald-500/30 text-emerald-200">
               {entry.guide.length} {copy.stepsUnit}
             </span>
-            <span className="px-2 py-1 rounded-full text-[11px] bg-fuchsia-500/15 border border-fuchsia-500/30 text-fuchsia-200">
+            <span className="px-2.5 py-1 rounded-full text-[11px] bg-fuchsia-500/15 border border-fuchsia-500/30 text-fuchsia-200">
               {entry.points.length} {copy.featuresUnit}
             </span>
           </div>
         </div>
 
-        <pre className="bg-black/40 border border-white/10 rounded-xl p-3 text-xs text-slate-200 overflow-x-auto leading-relaxed">{`### ${entry.title}
-- ${copy.appLabel}: ${appLabel[entry.app][lang]}
-- ${copy.categoryLabel}: ${categoryLabel[entry.category][lang]}
-- ${copy.featuresLabel}: ${entry.points.length}
-- ${copy.commandsLabel}: ${entry.commands.length}`}</pre>
+        <div className="rounded-2xl border border-white/10 bg-black/30 p-4 md:p-5">
+          <p className="text-xs font-mono text-slate-400">### {entry.title}</p>
+          <p className="mt-1 text-sm text-slate-300">
+            {copy.appLabel}: <span className="text-slate-100">{appLabel[entry.app][lang]}</span> • {copy.categoryLabel}:{" "}
+            <span className="text-slate-100">{categoryLabel[entry.category][lang]}</span> • {copy.featuresLabel}:{" "}
+            <span className="text-slate-100">{entry.points.length}</span> • {copy.commandsLabel}:{" "}
+            <span className="text-slate-100">{entry.commands.length}</span>
+          </p>
+        </div>
 
-        <div className="grid gap-4 xl:grid-cols-2">
-          <section className="p-3 rounded-xl border border-white/10 bg-black/30">
-            <h4 className="text-sm font-bold text-indigo-200 mb-2">{copy.steps}</h4>
-            <ol className="space-y-2 text-sm text-slate-300 list-decimal pl-4">
-              {entry.guide.map((step, index) => (
-                <li key={`${entry.id}-${step.title}`}>
-                  <strong className="text-white">
-                    {index + 1}. {step.title}:
-                  </strong>{" "}
-                  {step.detail}
-                </li>
-              ))}
+        <div className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
+          <section className="p-4 md:p-5 rounded-2xl border border-indigo-500/25 bg-indigo-500/[0.06]">
+            <div className="flex items-center justify-between gap-3">
+              <h4 className="text-sm md:text-base font-bold text-indigo-100">{copy.steps}</h4>
+              <span className="text-xs px-2 py-1 rounded-full border border-indigo-300/35 bg-indigo-400/10 text-indigo-100">
+                {completedCount}/{entry.guide.length}
+              </span>
+            </div>
+            <ol className="mt-3 space-y-2.5">
+              {entry.guide.map((step, index) => {
+                const done = Boolean(completedSteps[index]);
+                return (
+                  <li key={`${entry.id}-${step.title}`}>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setCompletedSteps((prev) => ({
+                          ...prev,
+                          [index]: !prev[index],
+                        }))
+                      }
+                      className={`w-full text-left p-3 rounded-xl border transition ${
+                        done
+                          ? "border-emerald-400/35 bg-emerald-500/10"
+                          : "border-white/10 bg-black/20 hover:border-indigo-300/35"
+                      }`}
+                    >
+                      <p className="text-sm md:text-base text-white font-semibold">
+                        {done ? "✅" : `🛰️ ${index + 1}.`} {step.title}
+                      </p>
+                      <p className="mt-1 text-sm text-slate-300 leading-relaxed">{step.detail}</p>
+                    </button>
+                  </li>
+                );
+              })}
             </ol>
           </section>
 
-          <section className="p-3 rounded-xl border border-white/10 bg-black/30">
-            <h4 className="text-sm font-bold text-cyan-200 mb-2">{copy.features}</h4>
-            <ul className="space-y-2 text-sm text-slate-300 list-disc pl-4">
+          <section className="p-4 md:p-5 rounded-2xl border border-cyan-500/25 bg-cyan-500/[0.06]">
+            <h4 className="text-sm md:text-base font-bold text-cyan-100">{copy.features}</h4>
+            <ul className="mt-3 space-y-2 text-sm md:text-[15px] text-slate-200 leading-relaxed">
               {entry.points.map((point) => (
-                <li key={`${entry.id}-point-${point}`}>{point}</li>
+                <li key={`${entry.id}-point-${point}`} className="flex items-start gap-2">
+                  <span className="mt-1">✨</span>
+                  <span>{point}</span>
+                </li>
               ))}
             </ul>
           </section>
         </div>
 
         {entry.commands.length ? (
-          <section className="space-y-2">
-            <h4 className="text-sm font-bold text-emerald-200">{copy.commands}</h4>
-            <div className="flex flex-wrap gap-2">
+          <section className="space-y-3">
+            <h4 className="text-sm md:text-base font-bold text-emerald-200">{copy.commands}</h4>
+            <div className="flex flex-wrap gap-2.5">
               {entry.commands.map((command) => (
                 <button
                   key={`${entry.id}-cmd-${command}`}
                   onClick={() => onCopy(command, `entry-cmd:${entry.id}:${command}`)}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-black/45 border border-white/10 text-xs text-slate-200 hover:border-cyan-400/50"
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-black/45 border border-white/10 text-xs md:text-sm text-slate-200 hover:border-cyan-400/50"
                 >
                   <Copy className="w-3.5 h-3.5" /> {command}
                 </button>
@@ -793,25 +881,25 @@ function EntryCard({
         ) : null}
 
         {entry.markdownSnippets?.length ? (
-          <section className="space-y-2">
-            <h4 className="text-sm font-bold text-fuchsia-200">{copy.snippets}</h4>
-            <div className="grid gap-3">
+          <section className="space-y-3">
+            <h4 className="text-sm md:text-base font-bold text-fuchsia-200">{copy.snippets}</h4>
+            <div className="grid gap-4">
               {entry.markdownSnippets.map((snippet) => (
                 <div
                   key={`${entry.id}-snippet-${snippet.label}`}
-                  className="p-3 rounded-xl border border-white/10 bg-black/35 space-y-2"
+                  className="p-4 rounded-2xl border border-fuchsia-500/20 bg-fuchsia-500/[0.05] space-y-2.5"
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <strong className="text-sm text-white">{snippet.label}</strong>
+                    <strong className="text-sm md:text-base text-white">{snippet.label}</strong>
                     <button
                       onClick={() => onCopy(snippet.snippet, `snippet:${entry.id}:${snippet.label}`)}
-                      className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs border border-white/10 bg-white/5 hover:border-cyan-400/40"
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs border border-white/10 bg-white/5 hover:border-cyan-400/40"
                     >
                       <Copy className="w-3.5 h-3.5" /> {copy.copy}
                     </button>
                   </div>
-                  <p className="text-xs text-slate-400">{snippet.description}</p>
-                  <pre className="bg-black/45 border border-white/10 rounded-lg p-2.5 text-xs text-slate-200 overflow-x-auto leading-relaxed">
+                  <p className="text-sm text-slate-300">{snippet.description}</p>
+                  <pre className="bg-black/45 border border-white/10 rounded-xl p-3 text-xs md:text-sm text-slate-200 overflow-x-auto leading-relaxed">
                     {snippet.snippet}
                   </pre>
                 </div>
@@ -821,13 +909,13 @@ function EntryCard({
         ) : null}
 
         <section className="grid gap-3 lg:grid-cols-[1.1fr_1fr]">
-          <div className="p-3 rounded-xl border border-white/10 bg-black/30">
-            <h4 className="text-sm font-bold text-slate-200 mb-2">{copy.tags}</h4>
+          <div className="p-4 rounded-xl border border-white/10 bg-black/30">
+            <h4 className="text-sm md:text-base font-bold text-slate-100 mb-2">{copy.tags}</h4>
             <div className="flex flex-wrap gap-2">
               {entry.tags.map((tag) => (
                 <span
                   key={`${entry.id}-tag-${tag}`}
-                  className="px-2 py-1 rounded-full text-[11px] bg-indigo-500/10 border border-indigo-500/30 text-indigo-200"
+                  className="px-2.5 py-1 rounded-full text-[11px] bg-indigo-500/10 border border-indigo-500/30 text-indigo-200"
                 >
                   #{tag}
                 </span>
@@ -835,9 +923,9 @@ function EntryCard({
             </div>
           </div>
 
-          <div className="p-3 rounded-xl border border-white/10 bg-black/30">
-            <h4 className="text-sm font-bold text-slate-200 mb-2">{copy.sources}</h4>
-            <ul className="space-y-1 text-xs text-slate-300">
+          <div className="p-4 rounded-xl border border-white/10 bg-black/30">
+            <h4 className="text-sm md:text-base font-bold text-slate-100 mb-2">{copy.sources}</h4>
+            <ul className="space-y-1.5 text-xs md:text-sm text-slate-300">
               {entry.sources.map((source) => (
                 <li key={`${entry.id}-src-${source}`} className="font-mono break-all">
                   {source}
