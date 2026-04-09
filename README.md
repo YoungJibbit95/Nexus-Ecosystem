@@ -1,5 +1,10 @@
 # Nexus Ecosystem
 
+![Repository Views](https://komarev.com/ghpvc/?username=YoungJibbit95&repo=YJarvis&label=Repository%20Views&color=0e75b6&style=flat)
+[![GitHub Stars](https://img.shields.io/github/stars/YoungJibbit95/YJarvis?style=flat)](https://github.com/YoungJibbit95/YJarvis/stargazers)
+[![GitHub Forks](https://img.shields.io/github/forks/YoungJibbit95/YJarvis?style=flat)](https://github.com/YoungJibbit95/YJarvis/network/members)
+[![Last Commit](https://img.shields.io/github/last-commit/YoungJibbit95/YJarvis?style=flat)](https://github.com/YoungJibbit95/YJarvis/commits/main)
+
 Nexus ist ein Multi-App Workspace-Produkt. Das Repository enthaelt die vier Client-Apps (Desktop + Mobile), den gemeinsamen Core/API-Client und die Wiki-Doku.
 
 - Produkt-Wiki: https://youngjibbit95.github.io/Nexus-Ecosystem
