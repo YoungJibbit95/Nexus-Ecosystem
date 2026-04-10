@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import {
   HashRouter as Router,
@@ -7,14 +7,45 @@ import {
   Navigate,
   useLocation,
 } from "react-router-dom";
-import Editor from "./pages/Editor";
 import { createNexusRuntime, isOfflineControlErrorCode } from "@nexus/api";
+import { beginPerfMetric, endPerfMetric, markPerfMetric } from "./lib/perfMetrics";
+import { installRuntimeLagProbe } from "./lib/runtimeLagProbe";
+import { useGlobalTypingAnimation } from "./lib/useGlobalTypingAnimation";
 
 const CONTROL_API_BASE_URL = "https://nexus-api.cloud";
-const CODE_BOOT_BLOCK_BUDGET_MS = 1_500;
-const CODE_BOOT_BLOCK_BUDGET_LOW_POWER_MS = 2_000;
+const CODE_BOOT_PRELOAD_TIMEOUT_MS = 6_500;
+const CODE_BOOT_PRELOAD_TIMEOUT_LOW_POWER_MS = 9_000;
 const isOfflineBootstrapResourceError = (errorCodeRaw) =>
   isOfflineControlErrorCode(String(errorCodeRaw || "INVALID_PAYLOAD"));
+const STARTUP_TTI_METRIC = "code.startup_tti";
+const loadEditorPage = () => import("./pages/Editor");
+const Editor = lazy(() => loadEditorPage());
+const warmupCodeUiModules = () =>
+  Promise.allSettled([
+    loadEditorPage(),
+  ]);
+
+if (typeof window !== "undefined") {
+  beginPerfMetric(STARTUP_TTI_METRIC);
+}
+
+const withTimeoutResult = async (promise, timeoutMs) => {
+  let timeoutHandle = null;
+  const timeoutPromise = new Promise((resolve) => {
+    timeoutHandle = window.setTimeout(() => resolve({ timedOut: true }), timeoutMs);
+  });
+
+  try {
+    return await Promise.race([
+      promise.then((value) => ({ timedOut: false, value })),
+      timeoutPromise,
+    ]);
+  } finally {
+    if (timeoutHandle !== null) {
+      clearTimeout(timeoutHandle);
+    }
+  }
+};
 const isLowPowerDevice = () => {
   if (typeof window === "undefined" || typeof navigator === "undefined") {
     return false;
@@ -126,6 +157,7 @@ function App() {
   const controlBaseUrl = CONTROL_API_BASE_URL;
   const controlIngestKey = import.meta.env?.VITE_NEXUS_CONTROL_INGEST_KEY;
   const lowPowerMode = useMemo(() => isLowPowerDevice(), []);
+  useGlobalTypingAnimation(!lowPowerMode);
   const [bootReady, setBootReady] = useState(false);
   const [bootProgress, setBootProgress] = useState(0);
   const [bootStage, setBootStage] = useState("Nexus Runtime wird gestartet...");
@@ -135,6 +167,7 @@ function App() {
     compatible: true,
     reasons: [],
   });
+  const startupMetricDoneRef = useRef(false);
 
   const runtime = useMemo(
     () =>
@@ -159,6 +192,7 @@ function App() {
           collectMemoryMs: lowPowerMode ? 90_000 : 60_000,
           summaryIntervalMs: 60_000,
           maxMetricsPerMinute: lowPowerMode ? 40 : 60,
+          reportToBus: false,
         },
         liveSync: {
           enabled: false,
@@ -169,7 +203,46 @@ function App() {
 
   useEffect(() => {
     runtime.start();
-    return () => runtime.stop();
+    const stopLagProbe = installRuntimeLagProbe({
+      enabled: import.meta.env?.VITE_NEXUS_LAG_PROBE === "1",
+      onEvent: (event) => {
+        const durationMs = Number(event.durationMs.toFixed(2));
+        markPerfMetric("code.ui_lag_ms", durationMs, {
+          source: event.kind,
+        });
+        runtime.connection.publish(
+          "custom",
+          {
+            event: event.kind,
+            appId: "code",
+            durationMs,
+            detail:
+              event.kind === "long-task"
+                ? { name: event.name }
+                : { interaction: event.interaction },
+          },
+          "all",
+        );
+        if (durationMs >= 120) {
+          // eslint-disable-next-line no-console
+          console.warn("[Nexus Code] interaction lag detected", event);
+        }
+      },
+    });
+    return () => {
+      stopLagProbe();
+      runtime.stop();
+    };
+  }, [runtime]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.__NEXUS_CODE_RUNTIME__ = runtime;
+    return () => {
+      if (window.__NEXUS_CODE_RUNTIME__ === runtime) {
+        delete window.__NEXUS_CODE_RUNTIME__;
+      }
+    };
   }, [runtime]);
 
   useEffect(() => {
@@ -181,19 +254,14 @@ function App() {
 
   useEffect(() => {
     let active = true;
-    const bootBudgetMs = lowPowerMode
-      ? CODE_BOOT_BLOCK_BUDGET_LOW_POWER_MS
-      : CODE_BOOT_BLOCK_BUDGET_MS;
-    const forceBootReadyTimer = window.setTimeout(() => {
-      if (!active) return;
-      setBootProgress(100);
-      setBootStage("Schnellstart aktiv, Rest wird im Hintergrund geladen...");
-      setBootReady(true);
-    }, bootBudgetMs);
+    const preloadBudgetMs = lowPowerMode
+      ? CODE_BOOT_PRELOAD_TIMEOUT_LOW_POWER_MS
+      : CODE_BOOT_PRELOAD_TIMEOUT_MS;
     setBootFailure(null);
     setBootReady(false);
     setBootProgress(8);
     setBootStage("Nexus Runtime wird gestartet...");
+    const uiWarmupPromise = warmupCodeUiModules();
 
     const setBootStep = (progress, stage) => {
       if (!active) return;
@@ -279,6 +347,15 @@ function App() {
             release: releaseResult.item,
           });
         }
+        setBootStep(76, "Lade Editor-Module und Runtime...");
+        const warmupResult = await withTimeoutResult(uiWarmupPromise, preloadBudgetMs);
+        if (!active) return;
+        setBootStep(
+          92,
+          warmupResult.timedOut
+            ? "Editor-Warmup laeuft im Hintergrund weiter..."
+            : "Editor-Module vorgeladen",
+        );
         setBootStep(100, "Startsequenz abgeschlossen");
       } catch (error) {
         const reason =
@@ -305,10 +382,21 @@ function App() {
 
     return () => {
       active = false;
-      clearTimeout(forceBootReadyTimer);
       unsubscribe();
     };
   }, [runtime]);
+
+  useEffect(() => {
+    if (!bootReady || startupMetricDoneRef.current) return;
+    const frame = window.requestAnimationFrame(() => {
+      if (startupMetricDoneRef.current) return;
+      endPerfMetric(STARTUP_TTI_METRIC, {
+        source: "app",
+      });
+      startupMetricDoneRef.current = true;
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [bootReady]);
 
   if (!bootReady) {
     return <BootSequenceScreen progress={bootProgress} stage={bootStage} />;
@@ -380,7 +468,36 @@ function App() {
       ) : null}
       <Routes>
         <Route path="/" element={<Navigate to="/editor" replace />} />
-        <Route path="/editor" element={<Editor />} />
+        <Route
+          path="/editor"
+          element={(
+            <div className={lowPowerMode ? undefined : "nx-view-enter"} style={{ width: "100%", minHeight: "100dvh" }}>
+              <Suspense
+                fallback={(
+                  <div
+                    style={{
+                      width: "100%",
+                      minHeight: "100dvh",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      background:
+                        "radial-gradient(circle at 18% 14%, rgba(51,85,180,0.2), transparent 45%), linear-gradient(135deg, #04050c 0%, #0b0f1c 45%, #111628 100%)",
+                      color: "#d7e6ff",
+                      fontFamily: "system-ui, sans-serif",
+                      fontSize: 13,
+                      fontWeight: 700,
+                    }}
+                  >
+                    Lade Editor...
+                  </div>
+                )}
+              >
+                <Editor />
+              </Suspense>
+            </div>
+          )}
+        />
         <Route path="*" element={<Navigate to="/editor" replace />} />
       </Routes>
       <Toaster />

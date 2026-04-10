@@ -4,6 +4,7 @@ import { Search, Terminal } from "lucide-react";
 import { Glass } from "../Glass";
 import { hexToRgb } from "../../lib/utils";
 import { VIEW_ITEMS } from "./constants";
+import { TOOLBAR_LAYOUT_CONFIG, SPOTLIGHT_POP_TRANSITION } from "./layoutConfig";
 import { DockLogo, StatusPill } from "./ToolbarPrimitives";
 
 type ToolbarTheme = any;
@@ -26,6 +27,7 @@ type FullWidthToolbarLayoutProps = {
   setPanelOpen: (open: boolean) => void;
   setExpanded: (expanded: boolean) => void;
   setView?: (v: any) => void;
+  motionRuntime: any;
 };
 
 type IslandToolbarLayoutProps = {
@@ -46,6 +48,7 @@ type IslandToolbarLayoutProps = {
   expanded: boolean;
   islandCompact: boolean;
   setView?: (v: any) => void;
+  motionRuntime: any;
 };
 
 function ViewRailButton({
@@ -62,11 +65,17 @@ function ViewRailButton({
   onClick: () => void;
 }) {
   const itemRgb = hexToRgb(color);
+  const [hovered, setHovered] = React.useState(false);
   return (
     <button
       onClick={onClick}
       title={label}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onFocus={() => setHovered(true)}
+      onBlur={() => setHovered(false)}
       style={{
+        position: "relative",
         display: "inline-flex",
         alignItems: "center",
         gap: compact ? 0 : 6,
@@ -80,17 +89,48 @@ function ViewRailButton({
         fontWeight: 700,
         color: "inherit",
       }}
-      onMouseEnter={(e) => {
+      onPointerEnter={(e) => {
         e.currentTarget.style.background = `rgba(${itemRgb},0.16)`;
         e.currentTarget.style.color = color;
+        e.currentTarget.style.transform = "translateX(1px) scale(1.03)";
       }}
-      onMouseLeave={(e) => {
+      onPointerLeave={(e) => {
         e.currentTarget.style.background = "transparent";
         e.currentTarget.style.color = "inherit";
+        e.currentTarget.style.transform = "translateX(0) scale(1)";
       }}
     >
       <Icon size={13} />
       {!compact && label}
+      <AnimatePresence>
+        {compact && hovered ? (
+          <motion.span
+            initial={{ opacity: 0, x: 8, scale: 0.94 }}
+            animate={{ opacity: 1, x: 0, scale: 1.04 }}
+            exit={{ opacity: 0, x: 6, scale: 0.96 }}
+            transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
+            style={{
+              position: "absolute",
+              top: "50%",
+              left: "calc(100% + 8px)",
+              transform: "translateY(-50%)",
+              pointerEvents: "none",
+              whiteSpace: "nowrap",
+              borderRadius: 8,
+              border: `1px solid rgba(${itemRgb},0.4)`,
+              background: `linear-gradient(180deg, rgba(${itemRgb},0.2), rgba(${itemRgb},0.1))`,
+              color,
+              fontSize: 10,
+              fontWeight: 700,
+              padding: "4px 8px",
+              zIndex: 40,
+              boxShadow: `0 10px 22px rgba(${itemRgb},0.22)`,
+            }}
+          >
+            {label}
+          </motion.span>
+        ) : null}
+      </AnimatePresence>
     </button>
   );
 }
@@ -100,6 +140,7 @@ function IconActionButton({
   rgb,
   color,
   title,
+  offset,
   children,
   onClick,
 }: {
@@ -107,9 +148,12 @@ function IconActionButton({
   rgb: string;
   color?: string;
   title: string;
+  offset?: { x?: number; y?: number };
   children: React.ReactNode;
   onClick: () => void;
 }) {
+  const x = offset?.x ?? 0;
+  const y = offset?.y ?? 0;
   return (
     <button
       title={title}
@@ -125,6 +169,7 @@ function IconActionButton({
         justifyContent: "center",
         color: color || "inherit",
         background: active ? `rgba(${rgb},0.2)` : "rgba(255,255,255,0.04)",
+        transform: `translate(${x}px, ${y}px)`,
       }}
     >
       {children}
@@ -146,22 +191,26 @@ export function FullWidthToolbarLayout(props: FullWidthToolbarLayoutProps) {
     setPanelOpen,
     setExpanded,
     setView,
+    motionRuntime,
   } = props;
 
   return (
     <div style={{ position: "relative", width: "100%" }}>
       <Glass
         type="modal"
+        disablePulse
         style={{
           width: "100%",
           height: t.toolbar?.height ?? 44,
           borderRadius: 0,
           borderTop: isBottom ? "1px solid rgba(255,255,255,0.08)" : undefined,
-          borderBottom: !isBottom ? "1px solid rgba(255,255,255,0.08)" : undefined,
+          borderBottom: !isBottom
+            ? "1px solid rgba(255,255,255,0.08)"
+            : undefined,
           display: "flex",
           alignItems: "center",
           padding: "0 12px",
-          overflow: "hidden",
+          overflow: "visible",
         }}
       >
         <div
@@ -181,7 +230,12 @@ export function FullWidthToolbarLayout(props: FullWidthToolbarLayoutProps) {
               flexShrink: 0,
             }}
           >
-            <DockLogo t={t} rgb={rgb} compact />
+          <DockLogo
+            t={t}
+            rgb={rgb}
+            compact
+            offset={TOOLBAR_LAYOUT_CONFIG.island.logoOffset}
+          />
             <div
               style={{
                 width: 1,
@@ -225,7 +279,7 @@ export function FullWidthToolbarLayout(props: FullWidthToolbarLayoutProps) {
               overflowX: "auto",
               overflowY: "hidden",
               paddingBottom: 2,
-              maxWidth: "42vw",
+              maxWidth: "54vw",
             }}
           >
             <StatusPill
@@ -298,6 +352,7 @@ export function FullWidthToolbarLayout(props: FullWidthToolbarLayoutProps) {
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 8 }}
+            transition={motionRuntime?.pageTransition}
             style={{
               position: "absolute",
               right: 12,
@@ -334,6 +389,7 @@ export function IslandToolbarLayout(props: IslandToolbarLayoutProps) {
     expanded,
     islandCompact,
     setView,
+    motionRuntime,
   } = props;
 
   const compactMode = islandCompact;
@@ -349,13 +405,24 @@ export function IslandToolbarLayout(props: IslandToolbarLayoutProps) {
       <motion.div
         ref={islandRef}
         animate={{
-          width: expanded ? "min(1100px, 98vw)" : "min(560px, 95vw)",
-          height: expanded ? 68 : 54,
+          width: expanded
+            ? TOOLBAR_LAYOUT_CONFIG.island.expandedWidth
+            : TOOLBAR_LAYOUT_CONFIG.island.collapsedWidth,
+          height: expanded
+            ? TOOLBAR_LAYOUT_CONFIG.island.expandedHeight
+            : TOOLBAR_LAYOUT_CONFIG.island.collapsedHeight,
         }}
         transition={
           reducedMotion
-            ? { duration: 0.12 }
-            : { type: "spring", stiffness: 280, damping: 30, mass: 0.92 }
+            ? {
+                duration: Math.max((motionRuntime?.quickMs ?? 120) / 1000, 0.1),
+              }
+            : (motionRuntime?.spring ?? {
+                type: "spring",
+                stiffness: 280,
+                damping: 30,
+                mass: 0.92,
+              })
         }
         style={{ position: "relative" }}
       >
@@ -373,15 +440,20 @@ export function IslandToolbarLayout(props: IslandToolbarLayoutProps) {
 
         <Glass
           type="modal"
+          disablePulse
           style={{
             width: "100%",
             height: "100%",
             borderRadius: expanded ? 24 : 20,
             display: "flex",
             alignItems: "center",
-            padding: expanded ? "0 12px" : "0 14px",
-            gap: expanded ? 8 : 10,
-            overflow: "hidden",
+            padding: expanded
+              ? TOOLBAR_LAYOUT_CONFIG.island.glassPaddingExpanded
+              : TOOLBAR_LAYOUT_CONFIG.island.glassPaddingCollapsed,
+            gap: expanded
+              ? TOOLBAR_LAYOUT_CONFIG.island.glassGapExpanded
+              : TOOLBAR_LAYOUT_CONFIG.island.glassGapCollapsed,
+            overflow: "visible",
             border: `1px solid rgba(${rgb},${expanded ? 0.24 : 0.16})`,
             background:
               t.mode === "dark"
@@ -393,7 +465,12 @@ export function IslandToolbarLayout(props: IslandToolbarLayoutProps) {
             if (!panelOpen) setExpanded(false);
           }}
         >
-          <DockLogo t={t} rgb={rgb} compact={!expanded} />
+          <DockLogo
+            t={t}
+            rgb={rgb}
+            compact={!expanded}
+            offset={TOOLBAR_LAYOUT_CONFIG.island.logoOffset}
+          />
 
           {!expanded && (
             <div
@@ -401,12 +478,20 @@ export function IslandToolbarLayout(props: IslandToolbarLayoutProps) {
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",
-                gap: 10,
+                gap: TOOLBAR_LAYOUT_CONFIG.island.collapsedContentGap,
                 flex: 1,
                 minWidth: 0,
               }}
             >
-              <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  minWidth: 0,
+                  transform: `translate(${TOOLBAR_LAYOUT_CONFIG.island.brandOffset.x}px, ${TOOLBAR_LAYOUT_CONFIG.island.brandOffset.y}px)`,
+                }}
+              >
                 <span
                   style={{
                     fontSize: 12,
@@ -418,11 +503,25 @@ export function IslandToolbarLayout(props: IslandToolbarLayoutProps) {
                 >
                   Nexus Island
                 </span>
-                <span style={{ fontSize: 10, opacity: 0.55, whiteSpace: "nowrap" }}>
+                <span
+                  style={{
+                    fontSize: 10,
+                    opacity: 0.55,
+                    whiteSpace: "nowrap",
+                  }}
+                >
                   ⌘K
                 </span>
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  flexShrink: 0,
+                  transform: `translate(${TOOLBAR_LAYOUT_CONFIG.island.statusOffset.x}px, ${TOOLBAR_LAYOUT_CONFIG.island.statusOffset.y}px)`,
+                }}
+              >
                 <StatusPill
                   label="Tasks"
                   value={pendingTasks}
@@ -463,7 +562,9 @@ export function IslandToolbarLayout(props: IslandToolbarLayoutProps) {
                   style={{
                     display: "flex",
                     alignItems: "center",
-                    gap: compactMode ? 4 : 6,
+                    gap: compactMode
+                      ? TOOLBAR_LAYOUT_CONFIG.island.expandedViewRailGapCompact
+                      : TOOLBAR_LAYOUT_CONFIG.island.expandedViewRailGapRegular,
                     minWidth: 0,
                     flex: 1,
                     overflowX: "auto",
@@ -489,6 +590,7 @@ export function IslandToolbarLayout(props: IslandToolbarLayoutProps) {
                     alignItems: "center",
                     gap: 6,
                     flexShrink: 0,
+                    transform: `translate(${TOOLBAR_LAYOUT_CONFIG.island.statusOffset.x}px, ${TOOLBAR_LAYOUT_CONFIG.island.statusOffset.y}px)`,
                   }}
                 >
                   {compactMode ? (
@@ -548,6 +650,7 @@ export function IslandToolbarLayout(props: IslandToolbarLayoutProps) {
                 rgb={rgb}
                 color={terminal.isOpen ? t.accent : undefined}
                 title="Terminal"
+                offset={TOOLBAR_LAYOUT_CONFIG.island.actionButtonOffset.terminal}
                 onClick={() => terminal.setOpen(!terminal.isOpen)}
               >
                 <Terminal
@@ -559,6 +662,7 @@ export function IslandToolbarLayout(props: IslandToolbarLayoutProps) {
               <IconActionButton
                 rgb={rgb}
                 title="Search"
+                offset={TOOLBAR_LAYOUT_CONFIG.island.actionButtonOffset.search}
                 onClick={() => {
                   setPanelOpen(true);
                   setExpanded(true);
@@ -573,18 +677,18 @@ export function IslandToolbarLayout(props: IslandToolbarLayoutProps) {
         <AnimatePresence>
           {panelOpen && (
             <motion.div
-              initial={{ opacity: 0, scale: 0.98, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.98, y: 10 }}
+              initial={{ opacity: 0, scale: 0.94 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.96 }}
               transition={
-                reducedMotion
+                motionRuntime?.reduced
                   ? { duration: 0.12 }
-                  : { type: "spring", stiffness: 340, damping: 30 }
+                  : (motionRuntime?.spring ?? SPOTLIGHT_POP_TRANSITION)
               }
               style={{
                 position: "absolute",
                 left: spotlightAnchorX,
-                transform: "translateX(-30%)",
+                transform: `translateX(${TOOLBAR_LAYOUT_CONFIG.spotlight.translateX})`,
                 top: isBottom ? undefined : "calc(100% + 12px)",
                 bottom: isBottom ? "calc(100% + 12px)" : undefined,
                 width: "min(700px, 86vw)",

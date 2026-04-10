@@ -29,6 +29,7 @@ import { useCanvas } from "../store/canvasStore";
 import { Glass } from "./Glass";
 import { hexToRgb } from "../lib/utils";
 import { shallow } from "zustand/shallow";
+import { buildMotionRuntime } from "../lib/motionEngine";
 import {
   VIEW_ITEMS,
   SPOTLIGHT_PINS_KEY,
@@ -40,6 +41,10 @@ import {
   FullWidthToolbarLayout,
   IslandToolbarLayout,
 } from "./toolbar/ToolbarLayouts";
+import {
+  TOOLBAR_LAYOUT_CONFIG,
+  SPOTLIGHT_POP_TRANSITION,
+} from "./toolbar/layoutConfig";
 import type { CommandItem } from "./toolbar/types";
 
 const CommandPanel = lazy(() =>
@@ -55,7 +60,11 @@ export function NexusToolbar({
 }) {
   const t = useTheme();
   const terminal = useTerminal(
-    (s) => ({ isOpen: s.isOpen, setOpen: s.setOpen }),
+    (s) => ({
+      isOpen: s.isOpen,
+      setOpen: s.setOpen,
+      executeCommand: s.executeCommand,
+    }),
     shallow,
   );
   const app = useApp(
@@ -94,7 +103,8 @@ export function NexusToolbar({
   const isFullWidth = toolbarMode === "full-width";
   const isBottom = (t.toolbar?.position ?? "bottom") === "bottom";
   const reducedMotion = t.qol?.reducedMotion ?? false;
-  const spotlightAnchorX = "30%";
+  const spotlightAnchorX = TOOLBAR_LAYOUT_CONFIG.spotlight.anchorX;
+  const motionRuntime = useMemo(() => buildMotionRuntime(t), [t]);
 
   useEffect(() => {
     const el = islandRef.current;
@@ -505,6 +515,20 @@ export function NexusToolbar({
     );
   }, []);
 
+  const runTerminalCommand = useCallback(
+    (rawCommand: string) => {
+      const normalized = String(rawCommand || "").trim();
+      if (!normalized) return;
+      terminal.setOpen(true);
+      terminal.executeCommand(normalized, {
+        setView: (nextView: any) => setView?.(nextView),
+        t: useTheme.getState(),
+        app: useApp.getState(),
+      });
+    },
+    [setView, terminal],
+  );
+
   const commandsById = useMemo(
     () => new Map(commands.map((item) => [item.id, item] as const)),
     [commands],
@@ -544,6 +568,7 @@ export function NexusToolbar({
     const reminderMatch = raw.match(/^(rem:|reminder:)\s*(.+)$/i);
     const canvasMatch = raw.match(/^canvas:\s*(.+)$/i);
     const gotoMatch = raw.match(/^(goto:|view:)\s*(.+)$/i);
+    const terminalMatch = raw.match(/^(>|cmd:|term:)\s*(.+)$/i);
 
     if (noteMatch?.[1]?.trim()) {
       const title = noteMatch[1].trim();
@@ -633,6 +658,23 @@ export function NexusToolbar({
           action: () => setView?.(target.id),
         });
       }
+    }
+
+    if (terminalMatch?.[2]?.trim()) {
+      const terminalCommand = terminalMatch[2].trim();
+      const terminalCommandId = terminalCommand
+        .toLowerCase()
+        .replace(/[^a-z0-9_-]+/g, "-")
+        .slice(0, 48) || "run";
+      items.push({
+        id: `terminal-cmd-${terminalCommandId}`,
+        label: `Run terminal: ${terminalCommand}`,
+        type: "command",
+        color: "#64D2FF",
+        icon: Terminal,
+        hint: "Execute Nexus terminal command",
+        action: () => runTerminalCommand(terminalCommand),
+      });
     }
 
     app.notes
@@ -729,7 +771,7 @@ export function NexusToolbar({
     }
 
     return deduped.slice(0, 14);
-  }, [search, app, addCanvas, commands, canvases, setView]);
+  }, [search, app, addCanvas, commands, canvases, runTerminalCommand, setView]);
 
   const list = search ? suggestions : commandList;
 
@@ -836,6 +878,7 @@ export function NexusToolbar({
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
+                transition={motionRuntime.pageTransition}
                 style={{
                   position: "fixed",
                   inset: 0,
@@ -849,20 +892,21 @@ export function NexusToolbar({
                 }}
               />
               <motion.div
-                initial={{ opacity: 0, y: -16, scale: 0.96 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -16, scale: 0.96 }}
+                initial={{ opacity: 0, scale: 0.94 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.96 }}
                 transition={
-                  reducedMotion
+                  motionRuntime.reduced
                     ? { duration: 0.12 }
-                    : { type: "spring", stiffness: 360, damping: 30 }
+                    : (motionRuntime.spring ?? SPOTLIGHT_POP_TRANSITION)
                 }
                 style={{
                   position: "fixed",
-                  top: 80,
+                  top: TOOLBAR_LAYOUT_CONFIG.spotlight.panelTopPx,
                   left: spotlightAnchorX,
-                  transform: "translateX(-30%)",
-                  width: "min(760px, 86vw)",
+                  transform: `translateX(${TOOLBAR_LAYOUT_CONFIG.spotlight.translateX})`,
+                  width: TOOLBAR_LAYOUT_CONFIG.spotlight.panelWidth,
+                  transformOrigin: "50% 50%",
                   zIndex: 901,
                 }}
               >
@@ -890,6 +934,7 @@ export function NexusToolbar({
         setPanelOpen={setPanelOpen}
         setExpanded={setExpanded}
         setView={setView}
+        motionRuntime={motionRuntime}
       />
     );
   }
@@ -913,6 +958,7 @@ export function NexusToolbar({
       expanded={expanded}
       islandCompact={islandCompact}
       setView={setView}
+      motionRuntime={motionRuntime}
     />
   );
 }

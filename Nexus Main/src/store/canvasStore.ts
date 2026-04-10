@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { genId } from '../lib/utils'
+import { createIndexedDbStorage } from './persistence/indexedDbStorage'
 
 // ─── TYPES ───
 
@@ -154,6 +155,105 @@ const DEFAULT_NODE_TITLES: Record<NodeType, string> = {
   project: 'Project',
 }
 
+const DEFAULT_NODE_COLORS: Record<NodeType, string> = {
+  text: '#5B8CFF',
+  markdown: '#7D6BFF',
+  checklist: '#30D158',
+  image: '#64D2FF',
+  code: '#4E8BFF',
+  note: '#58C4FF',
+  codefile: '#1A7BFF',
+  task: '#32D74B',
+  reminder: '#FF9F0A',
+  goal: '#FFD60A',
+  milestone: '#FF6B35',
+  decision: '#AF52DE',
+  risk: '#FF453A',
+  project: '#00C7BE',
+}
+
+type QueuedNodePatch = {
+  canvasId: string
+  nodeId: string
+  patch: Partial<CanvasNode>
+}
+
+const queuedNodePatches = new Map<string, QueuedNodePatch>()
+let queuedNodePatchHandle: number | null = null
+
+const scheduleQueuedNodePatchFlush = (set: (updater: (state: CanvasStore) => CanvasStore) => void) => {
+  if (queuedNodePatchHandle !== null) return
+
+  const flush = () => {
+    queuedNodePatchHandle = null
+    if (queuedNodePatches.size === 0) return
+    const queued = Array.from(queuedNodePatches.values())
+    queuedNodePatches.clear()
+
+    set((state) => {
+      if (queued.length === 0) return state
+
+      const patchByCanvas = new Map<string, Map<string, Partial<CanvasNode>>>()
+      queued.forEach((entry) => {
+        if (!patchByCanvas.has(entry.canvasId)) {
+          patchByCanvas.set(entry.canvasId, new Map())
+        }
+        const map = patchByCanvas.get(entry.canvasId)!
+        const existing = map.get(entry.nodeId) || {}
+        map.set(entry.nodeId, { ...existing, ...entry.patch })
+      })
+
+      const nextCanvases = state.canvases.slice()
+      let changed = false
+      for (let i = 0; i < nextCanvases.length; i += 1) {
+        const canvas = nextCanvases[i]
+        const patchByNode = patchByCanvas.get(canvas.id)
+        if (!patchByNode || patchByNode.size === 0) continue
+        let canvasChanged = false
+        const nextNodes = canvas.nodes.map((node) => {
+          const patch = patchByNode.get(node.id)
+          if (!patch) return node
+          canvasChanged = true
+          return { ...node, ...patch }
+        })
+        if (!canvasChanged) continue
+        nextCanvases[i] = { ...canvas, nodes: nextNodes, updated: now() }
+        changed = true
+      }
+
+      if (!changed) return state
+      return {
+        ...state,
+        canvases: nextCanvases,
+      }
+    })
+  }
+
+  if (typeof window !== 'undefined' && 'requestAnimationFrame' in window) {
+    queuedNodePatchHandle = window.requestAnimationFrame(flush)
+    return
+  }
+  queuedNodePatchHandle = globalThis.setTimeout(flush, 16) as unknown as number
+}
+
+const enqueueNodePatch = (
+  set: (updater: (state: CanvasStore) => CanvasStore) => void,
+  get: () => CanvasStore,
+  nodeId: string,
+  patch: Partial<CanvasNode>,
+) => {
+  const canvasId = get().activeCanvasId
+  if (!canvasId) return
+  const queueKey = `${canvasId}::${nodeId}`
+  const existing = queuedNodePatches.get(queueKey)
+  queuedNodePatches.set(queueKey, {
+    canvasId,
+    nodeId,
+    patch: { ...(existing?.patch || {}), ...patch },
+  })
+  scheduleQueuedNodePatchFlush(set)
+}
+
 // ─── STORE ───
 
 export const useCanvas = create<CanvasStore>()(
@@ -229,6 +329,7 @@ export const useCanvas = create<CanvasStore>()(
         width: sz.w,
         height: sz.h,
         content: '',
+        color: DEFAULT_NODE_COLORS[type],
         ...defaultProps,
       }
       set(s => ({
@@ -240,13 +341,9 @@ export const useCanvas = create<CanvasStore>()(
       }))
     },
 
-    updateNode: (id, p) => set(s => ({
-      canvases: s.canvases.map(c =>
-        c.id === s.activeCanvasId
-          ? { ...c, nodes: c.nodes.map(n => n.id === id ? { ...n, ...p } : n), updated: now() }
-          : c
-      ),
-    })),
+    updateNode: (id, p) => {
+      enqueueNodePatch(set, get, id, p)
+    },
 
     deleteNode: (id) => set(s => ({
       canvases: s.canvases.map(c =>
@@ -372,5 +469,24 @@ export const useCanvas = create<CanvasStore>()(
 
     getActiveCanvas: () => get().canvases.find(c => c.id === get().activeCanvasId),
 
-  }), { name: 'nx-canvas-v1' })
+  }), {
+    name: 'nx-canvas-v1',
+    storage: createIndexedDbStorage<CanvasStore>({
+      dbName: 'nexus-main-state-v1',
+      storeName: 'persist',
+      debounceMs: 4_200,
+      idleTimeoutMs: 2_000,
+      flushBudgetMs: 12,
+      segmentStateKeys: ['canvases', 'activeCanvasId'],
+    }),
+    partialize: (state) => ({
+      canvases: state.canvases,
+      activeCanvasId: state.activeCanvasId,
+    }),
+    merge: (persistedState, currentState) => ({
+      ...currentState,
+      ...(persistedState as Partial<CanvasStore>),
+      viewport: currentState.viewport,
+    }),
+  })
 )

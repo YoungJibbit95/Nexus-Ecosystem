@@ -191,6 +191,18 @@ function makeTab(name = "bash") {
   return { id: _tabId++, name };
 }
 
+function resolveRunCommandForFile(activeFile) {
+  const fileName = activeFile?.name || "";
+  const ext = fileName.includes(".") ? fileName.split(".").pop()?.toLowerCase() : "";
+  if (!ext) return "";
+  if (ext === "js" || ext === "mjs" || ext === "cjs") return `node ${fileName}`;
+  if (ext === "ts" || ext === "tsx") return `npx tsx ${fileName}`;
+  if (ext === "py") return `python ${fileName}`;
+  if (ext === "java") return `java ${fileName.replace(".java", "")}`;
+  if (ext === "sh") return `bash ${fileName}`;
+  return "";
+}
+
 /* ─── Main component ─────────────────────────────────────────────────────── */
 
 export default function Terminal({ isOpen, onToggle, activeFile, code, workspacePath }) {
@@ -287,6 +299,12 @@ export default function Terminal({ isOpen, onToggle, activeFile, code, workspace
   const currentHistory = histories[activeTabId] || [];
   const currentInput = inputs[activeTabId] || "";
   const isRunning = Boolean(runningByTab[activeTabId]);
+  const runActiveFileCommand = resolveRunCommandForFile(activeFile);
+  const quickCommands = [
+    { label: "git status", command: "git status" },
+    { label: "npm run dev", command: "npm run dev" },
+    { label: "npm run build", command: "npm run build" },
+  ];
 
   const executeCommand = useCallback((rawInput) => {
     const tabId = activeTabId;
@@ -329,8 +347,38 @@ export default function Terminal({ isOpen, onToggle, activeFile, code, workspace
   }, [activeTabId, runningByTab, addEntries, addCommandHistory, setInput, setTabRunning, workspacePath]);
 
   const handleRun = useCallback(() => {
-    executeCommand(currentInput);
-  }, [executeCommand, currentInput]);
+    const commandText = String(currentInput || "").trim();
+    if (!commandText) return;
+
+    if (isRunning) {
+      addEntries(activeTabId, [{ type: "input", text: `$ ${commandText}` }]);
+      // @ts-ignore
+      const api = window.electronAPI;
+      if (api?.terminalInput) {
+        api.terminalInput({ id: activeTabId, input: `${commandText}\n` });
+      } else {
+        addEntries(activeTabId, [
+          { type: "warn", text: "stdin forwarding ist in dieser Runtime nicht verfügbar." },
+        ]);
+      }
+      setInput(activeTabId, "");
+      return;
+    }
+
+    executeCommand(commandText);
+  }, [activeTabId, addEntries, currentInput, executeCommand, isRunning, setInput]);
+
+  const handleStopRunning = useCallback(() => {
+    if (!isRunning) return;
+    // @ts-ignore
+    if (window.electronAPI?.terminalKill) {
+      // @ts-ignore
+      window.electronAPI.terminalKill(activeTabId);
+    }
+    addEntries(activeTabId, [{ type: "warn", text: "^C (manuell beendet)" }]);
+    setTabRunning(activeTabId, false);
+    inputRef.current?.focus();
+  }, [activeTabId, addEntries, isRunning, setTabRunning]);
 
   const handleKeyDown = useCallback(
     (e) => {
@@ -362,15 +410,11 @@ export default function Terminal({ isOpen, onToggle, activeFile, code, workspace
       // Ctrl+C — cancel / kill
       if (e.key === "c" && e.ctrlKey) {
         e.preventDefault();
-        // @ts-ignore
-        if (isRunning && window.electronAPI?.terminalKill) {
-          // @ts-ignore
-          window.electronAPI.terminalKill(activeTabId);
-          setTabRunning(activeTabId, false);
+        if (isRunning) {
+          handleStopRunning();
         } else {
           addEntries(activeTabId, [{ type: "input", text: `$ ${currentInput}^C` }]);
           setInput(activeTabId, "");
-          setTabRunning(activeTabId, false);
         }
         return;
       }
@@ -393,7 +437,7 @@ export default function Terminal({ isOpen, onToggle, activeFile, code, workspace
         return;
       }
     },
-    [handleRun, cmdHistories, cmdIndex, activeTabId, currentInput, addEntries, isRunning, setInput, setTabRunning],
+    [handleRun, cmdHistories, cmdIndex, activeTabId, currentInput, addEntries, handleStopRunning, isRunning, setInput],
   );
 
   const handleCopy = async () => {
@@ -676,6 +720,22 @@ export default function Terminal({ isOpen, onToggle, activeFile, code, workspace
             <Trash2 size={11} className="text-gray-500" />
           </motion.button>
 
+          {isRunning && (
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={handleStopRunning}
+              title="Laufenden Prozess stoppen (Ctrl+C)"
+              className="px-2 py-1 rounded text-[10px] font-semibold text-red-200"
+              style={{
+                border: "1px solid rgba(248,113,113,0.35)",
+                background: "rgba(248,113,113,0.08)",
+              }}
+            >
+              Stop
+            </motion.button>
+          )}
+
           <motion.button
             whileHover={{ scale: 1.08 }}
             whileTap={{ scale: 0.92 }}
@@ -695,23 +755,11 @@ export default function Terminal({ isOpen, onToggle, activeFile, code, workspace
           </motion.button>
 
           {/* Run active file */}
-          {activeFile && (
+          {activeFile && runActiveFileCommand && (
             <motion.button
               whileHover={{ scale: 1.05, y: -1 }}
               whileTap={{ scale: 0.95 }}
-              onClick={() => {
-              const ext = activeFile.name ? activeFile.name.split(".").pop()?.toLowerCase() : "";
-              let cmd = "";
-                if (ext === "js") cmd = `node ${activeFile.name}`;
-                else if (ext === "py") cmd = `python ${activeFile.name}`;
-                else if (ext === "java") {
-                  const cls = activeFile.name.replace(".java", "");
-                  cmd = `java ${cls}`;
-                }
-                if (cmd) {
-                  executeCommand(cmd);
-                }
-              }}
+              onClick={() => executeCommand(runActiveFileCommand)}
               title={`${activeFile.name} ausführen`}
               className="flex items-center gap-1 px-2 py-1 rounded text-[11px] font-semibold text-white ml-1"
               style={{
@@ -734,6 +782,30 @@ export default function Terminal({ isOpen, onToggle, activeFile, code, workspace
             <ChevronDown size={12} className="text-gray-500" />
           </motion.button>
         </div>
+      </div>
+
+      <div
+        className="flex items-center gap-1 px-3 py-1 shrink-0 overflow-x-auto"
+        style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}
+      >
+        {quickCommands.map((item) => (
+          <button
+            key={item.command}
+            type="button"
+            onClick={() => executeCommand(item.command)}
+            disabled={isRunning}
+            className="px-2 py-0.5 rounded text-[10px] font-mono whitespace-nowrap transition-colors"
+            style={{
+              border: "1px solid rgba(255,255,255,0.1)",
+              color: isRunning ? "#64748b" : "#cbd5e1",
+              background: "rgba(255,255,255,0.02)",
+              cursor: isRunning ? "not-allowed" : "pointer",
+            }}
+            title={isRunning ? "Quick Commands sind während laufender Prozesse deaktiviert" : `Ausführen: ${item.command}`}
+          >
+            {item.label}
+          </button>
+        ))}
       </div>
 
       {/* ── Output area ────────────────────────────────────────────── */}
@@ -786,6 +858,9 @@ export default function Terminal({ isOpen, onToggle, activeFile, code, workspace
                   style={{ background: "var(--primary)" }}
                 />
               ))}
+              <span className="text-[11px] text-gray-500 ml-1">
+                Prozess läuft … Enter sendet Eingabe, Ctrl+C stoppt
+              </span>
             </motion.div>
           )}
         </AnimatePresence>
@@ -810,7 +885,6 @@ export default function Terminal({ isOpen, onToggle, activeFile, code, workspace
           value={currentInput}
           onChange={(e) => setInput(activeTabId, e.target.value)}
           onKeyDown={handleKeyDown}
-          disabled={isRunning}
           spellCheck={false}
           autoComplete="off"
           autoCorrect="off"
@@ -820,11 +894,11 @@ export default function Terminal({ isOpen, onToggle, activeFile, code, workspace
             color: "#d1d5db",
             caretColor: "#a855f7",
             fontSize: "12px",
-            opacity: isRunning ? 0.5 : 1,
+            opacity: 1,
           }}
           placeholder={
             isRunning
-              ? ""
+              ? "Prozess läuft … Eingabe wird an stdin gesendet"
               : "Befehl eingeben… (↑↓ Verlauf, Tab Vervollständigung)"
           }
         />

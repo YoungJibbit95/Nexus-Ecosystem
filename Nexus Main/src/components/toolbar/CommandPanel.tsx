@@ -91,7 +91,7 @@ export function CommandPanel({
             setSelIdx(0);
           }}
           onKeyDown={onKeyDown}
-          placeholder="Search commands... (note:, task:, rem:, canvas:)"
+          placeholder="Search commands... (note:, task:, rem:, canvas:, > help)"
           style={{
             flex: 1,
             border: "none",
@@ -157,12 +157,13 @@ export function CommandPanel({
           <div
             style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 8 }}
           >
-            {[
-              { label: "note:", value: "note: " },
-              { label: "task:", value: "task: " },
-              { label: "rem:", value: "rem: " },
-              { label: "canvas:", value: "canvas: " },
-            ].map((item) => (
+              {[
+                { label: "note:", value: "note: " },
+                { label: "task:", value: "task: " },
+                { label: "rem:", value: "rem: " },
+                { label: "canvas:", value: "canvas: " },
+                { label: "cmd:", value: "> " },
+              ].map((item) => (
               <button
                 key={item.label}
                 onClick={() => {

@@ -143,8 +143,12 @@ export function createMagicTemplateFromPayload({
 
       const spread = (count: number, gap: number) => {
         if (count <= 1) return [0];
-        const start = (-gap * (count - 1)) / 2;
-        return Array.from({ length: count }, (_, index) => start + index * gap);
+        const effectiveGap = Math.max(gap, 320);
+        const start = (-effectiveGap * (count - 1)) / 2;
+        return Array.from(
+          { length: count },
+          (_, index) => start + index * effectiveGap,
+        );
       };
 
       const mk = (
@@ -203,7 +207,7 @@ export function createMagicTemplateFromPayload({
               const b = pos.get(idB);
               if (!a || !b) continue;
 
-              const pad = 84;
+              const pad = 132;
               const overlapX =
                 Math.min(a.x + a.width + pad, b.x + b.width + pad) -
                 Math.max(a.x - pad, b.x - pad);
@@ -218,7 +222,7 @@ export function createMagicTemplateFromPayload({
               const centerBX = b.x + b.width * 0.5;
               const centerBY = b.y + b.height * 0.5;
               const splitByX = overlapX <= overlapY;
-              const baseShift = (splitByX ? overlapX : overlapY) * 0.72 + 56;
+              const baseShift = (splitByX ? overlapX : overlapY) * 0.9 + 74;
 
               let shiftAX = 0;
               let shiftAY = 0;
@@ -276,7 +280,7 @@ export function createMagicTemplateFromPayload({
 
           for (let iter = 0; iter < 48; iter += 1) {
             const bounds = clusterBounds();
-            const padding = 128;
+            const padding = 192;
             let collisions = 0;
             let totalShiftX = 0;
             let totalShiftY = 0;
@@ -335,8 +339,10 @@ export function createMagicTemplateFromPayload({
           const next = pos.get(id);
           const start = original.get(id);
           if (!next || !start) return;
-          if (Math.abs(next.x - start.x) < 0.5 && Math.abs(next.y - start.y) < 0.5) return;
-          state.moveNode(id, Math.round(next.x), Math.round(next.y));
+          const nextX = Math.round(next.x / 12) * 12;
+          const nextY = Math.round(next.y / 12) * 12;
+          if (Math.abs(nextX - start.x) < 0.5 && Math.abs(nextY - start.y) < 0.5) return;
+          state.moveNode(id, nextX, nextY);
         });
       };
 

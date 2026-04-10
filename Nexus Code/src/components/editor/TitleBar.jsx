@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 /** @type {any} */
 const win = typeof window !== "undefined" ? window : {};
 const isElectron = !!win.electronAPI;
+const isMacOS = isElectron && win.electronAPI?.platform === "darwin";
 
 function MenuButton({ label, items, activeMenu, setActiveMenu }) {
   const isOpen = activeMenu === label;
@@ -87,6 +88,7 @@ export default function TitleBar({
   const safeClose = () => win.electronAPI?.close?.();
   const safeMinimize = () => win.electronAPI?.minimize?.();
   const safeMaximize = () => win.electronAPI?.maximize?.();
+  const showWindowControls = !isMacOS;
 
   const MENUS = [
     {
@@ -141,40 +143,42 @@ export default function TitleBar({
       }}
     >
       <div className="flex items-center gap-1.5 shrink-0 min-w-0 pr-4">
-        <div
-          className="flex items-center gap-1.5 mr-2"
-          // @ts-ignore
-          style={{ WebkitAppRegion: "no-drag" }}
-          onMouseEnter={() => setHoveredBtn("group")}
-          onMouseLeave={() => setHoveredBtn(null)}
-        >
-          {/* ... Control buttons ... */}
-          {[
-            { id: "close", color: "#ff5f57", symbol: "✕", action: safeClose },
-            { id: "min", color: "#febc2e", symbol: "−", action: safeMinimize },
-            { id: "max", color: "#28c840", symbol: isMaximized ? "⊟" : "⊞", action: safeMaximize },
-          ].map((btn) => (
-            <motion.button
-              key={btn.id}
-              whileTap={{ scale: 0.85 }}
-              onClick={btn.action}
-              className="w-3 h-3 rounded-full flex items-center justify-center focus:outline-none"
-              style={{
-                background: btn.color,
-                boxShadow: hoveredBtn === "group" ? `0 0 6px ${btn.color}80` : "none",
-                cursor: "pointer",
-              }}
-            >
-              <motion.span
-                animate={{ opacity: hoveredBtn === "group" ? 1 : 0 }}
-                className="text-black font-bold leading-none pointer-events-none"
-                style={{ fontSize: 7, marginTop: "0.5px" }}
+        {showWindowControls && (
+          <div
+            className="flex items-center gap-1.5 mr-2"
+            // @ts-ignore
+            style={{ WebkitAppRegion: "no-drag" }}
+            onMouseEnter={() => setHoveredBtn("group")}
+            onMouseLeave={() => setHoveredBtn(null)}
+          >
+            {[
+              { id: "close", color: "#ff5f57", symbol: "✕", action: safeClose },
+              { id: "min", color: "#febc2e", symbol: "−", action: safeMinimize },
+              { id: "max", color: "#28c840", symbol: isMaximized ? "⊟" : "⊞", action: safeMaximize },
+            ].map((btn) => (
+              <motion.button
+                key={btn.id}
+                whileTap={{ scale: 0.85 }}
+                onClick={btn.action}
+                className="w-3 h-3 rounded-full flex items-center justify-center focus:outline-none"
+                style={{
+                  background: btn.color,
+                  boxShadow:
+                    hoveredBtn === "group" ? `0 0 6px ${btn.color}80` : "none",
+                  cursor: "pointer",
+                }}
               >
-                {btn.symbol}
-              </motion.span>
-            </motion.button>
-          ))}
-        </div>
+                <motion.span
+                  animate={{ opacity: hoveredBtn === "group" ? 1 : 0 }}
+                  className="text-white font-bold leading-none pointer-events-none"
+                  style={{ fontSize: 7, marginTop: "0.5px" }}
+                >
+                  {btn.symbol}
+                </motion.span>
+              </motion.button>
+            ))}
+          </div>
+        )}
 
         {/* Menu Bar */}
         <div className="flex items-center gap-1">

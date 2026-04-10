@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import {
   HashRouter as Router,
@@ -7,12 +7,19 @@ import {
   Navigate,
   useLocation,
 } from "react-router-dom";
-import Editor from "./pages/Editor";
 import { createNexusRuntime, isOfflineControlErrorCode } from "@nexus/api";
+import { installRuntimeLagProbe } from "./lib/runtimeLagProbe";
+import { useGlobalTypingAnimation } from "./lib/useGlobalTypingAnimation";
 
 const CONTROL_API_BASE_URL = "https://nexus-api.cloud";
-const CODE_MOBILE_BOOT_BLOCK_BUDGET_MS = 1_500;
-const CODE_MOBILE_BOOT_BLOCK_BUDGET_LOW_POWER_MS = 2_000;
+const CODE_MOBILE_BOOT_BLOCK_BUDGET_MS = 6_500;
+const CODE_MOBILE_BOOT_BLOCK_BUDGET_LOW_POWER_MS = 8_500;
+const loadEditorPage = () => import("./pages/Editor");
+const Editor = lazy(() => loadEditorPage());
+const warmupCodeMobileUiModules = () =>
+  Promise.allSettled([
+    loadEditorPage(),
+  ]);
 const isOfflineBootstrapResourceError = (errorCodeRaw) =>
   isOfflineControlErrorCode(String(errorCodeRaw || "INVALID_PAYLOAD"));
 const isLowPowerDevice = () => {
@@ -126,6 +133,7 @@ function App() {
   const controlBaseUrl = CONTROL_API_BASE_URL;
   const controlIngestKey = import.meta.env?.VITE_NEXUS_CONTROL_INGEST_KEY;
   const lowPowerMode = useMemo(() => isLowPowerDevice(), []);
+  useGlobalTypingAnimation(!lowPowerMode);
   const [bootReady, setBootReady] = useState(false);
   const [bootProgress, setBootProgress] = useState(0);
   const [bootStage, setBootStage] = useState("Nexus Runtime wird gestartet...");
@@ -159,6 +167,7 @@ function App() {
           collectMemoryMs: lowPowerMode ? 90_000 : 60_000,
           summaryIntervalMs: 60_000,
           maxMetricsPerMinute: lowPowerMode ? 40 : 60,
+          reportToBus: false,
         },
         liveSync: {
           enabled: false,
@@ -169,7 +178,41 @@ function App() {
 
   useEffect(() => {
     runtime.start();
-    return () => runtime.stop();
+    const stopLagProbe = installRuntimeLagProbe({
+      enabled: import.meta.env?.VITE_NEXUS_LAG_PROBE === "1",
+      onEvent: (event) => {
+        const durationMs = Number(event.durationMs.toFixed(2));
+        const metricFn = runtime?.performance?.recordCustomMetric;
+        if (typeof metricFn === "function") {
+          try {
+            metricFn.call(runtime.performance, "code_mobile.ui_lag_ms", durationMs, "ms");
+          } catch {
+            // non-blocking diagnostics path
+          }
+        }
+        runtime.connection.publish(
+          "custom",
+          {
+            event: event.kind,
+            appId: "code-mobile",
+            durationMs,
+            detail:
+              event.kind === "long-task"
+                ? { name: event.name }
+                : { interaction: event.interaction },
+          },
+          "all",
+        );
+        if (durationMs >= 120) {
+          // eslint-disable-next-line no-console
+          console.warn("[Nexus Code Mobile] interaction lag detected", event);
+        }
+      },
+    });
+    return () => {
+      stopLagProbe();
+      runtime.stop();
+    };
   }, [runtime]);
 
   useEffect(() => {
@@ -279,6 +322,14 @@ function App() {
             release: releaseResult.item,
           });
         }
+        setBootStep(80, "Lade Editor-Module und Runtime...");
+        const warmupBudgetMs = Math.max(1_200, bootBudgetMs - 700);
+        await Promise.race([
+          warmupCodeMobileUiModules(),
+          new Promise((resolve) => {
+            window.setTimeout(resolve, warmupBudgetMs);
+          }),
+        ]);
         setBootStep(100, "Startsequenz abgeschlossen");
       } catch (error) {
         const reason =
@@ -390,7 +441,36 @@ function App() {
         ) : null}
         <Routes>
           <Route path="/" element={<Navigate to="/editor" replace />} />
-          <Route path="/editor" element={<Editor />} />
+          <Route
+            path="/editor"
+            element={(
+              <div className={lowPowerMode ? undefined : "nx-view-enter"} style={{ width: "100%", minHeight: "100dvh" }}>
+                <Suspense
+                  fallback={(
+                    <div
+                      style={{
+                        width: "100%",
+                        minHeight: "100dvh",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        background:
+                          "radial-gradient(circle at 18% 14%, rgba(51,85,180,0.2), transparent 45%), linear-gradient(135deg, #04050c 0%, #0b0f1c 45%, #111628 100%)",
+                        color: "#d7e6ff",
+                        fontFamily: "system-ui, sans-serif",
+                        fontSize: 13,
+                        fontWeight: 700,
+                      }}
+                    >
+                      Lade Editor...
+                    </div>
+                  )}
+                >
+                  <Editor />
+                </Suspense>
+              </div>
+            )}
+          />
           <Route path="*" element={<Navigate to="/editor" replace />} />
         </Routes>
         <Toaster />

@@ -45,11 +45,15 @@ export function DockLogo({
   t,
   rgb,
   compact,
+  offset,
 }: {
   t: any;
   rgb: string;
   compact?: boolean;
+  offset?: { x?: number; y?: number };
 }) {
+  const x = offset?.x ?? 0;
+  const y = offset?.y ?? 0;
   return (
     <div
       style={{
@@ -63,6 +67,7 @@ export function DockLogo({
         justifyContent: "center",
         boxShadow: `0 0 14px rgba(${rgb},0.3)`,
         flexShrink: 0,
+        transform: `translate(${x}px, ${y}px)`,
       }}
     >
       <Zap size={compact ? 11 : 14} style={{ color: t.accent }} />

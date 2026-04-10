@@ -1,5 +1,5 @@
 import { useMobile } from '../lib/useMobile'
-import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react'
+import React, { useState, useMemo, useEffect, useRef, useCallback, useDeferredValue } from 'react'
 import { createPortal } from 'react-dom'
 import {
   Plus, Trash2, Settings, Save, Copy, Pin, X, RotateCcw, Search,
@@ -14,15 +14,36 @@ import { NexusMarkdown } from '../components/NexusMarkdown'
 import { useApp } from '../store/appStore'
 import { useTheme } from '../store/themeStore'
 import { hexToRgb, fmtDt } from '../lib/utils'
+import { shallow } from 'zustand/shallow'
+import { useNotesAnalysis } from './notes/useNotesAnalysis'
 
 // ─────────────────────────────────────────────────────────────────
 //  MAGIC ELEMENT RENDERERS
 // ─────────────────────────────────────────────────────────────────
 
 import { MagicElementModal, NexusCodeBlock, NexusInlineCode } from './notes/NotesMagicKit'
+const NOTE_COMMIT_DEBOUNCE_MS = 4_200
+const NOTE_PREVIEW_DEBOUNCE_MS = 220
+const NOTE_UNDO_SNAPSHOT_INTERVAL_MS = 260
+const MAX_RENDERED_LINE_NUMBERS = 4_000
+const runIdle = (task: () => void, timeoutMs = 320) => {
+  if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+    ;(window as any).requestIdleCallback(task, { timeout: timeoutMs })
+    return
+  }
+  setTimeout(task, 0)
+}
 export function NotesView() {
-  const { notes, activeNoteId, addNote, updateNote, delNote, setNote, saveNote } = useApp()
-  const [mode, setMode] = useState<'edit' | 'split' | 'preview'>('split')
+  const { notes, activeNoteId, addNote, updateNote, delNote, setNote, saveNote } = useApp((s) => ({
+    notes: s.notes,
+    activeNoteId: s.activeNoteId,
+    addNote: s.addNote,
+    updateNote: s.updateNote,
+    delNote: s.delNote,
+    setNote: s.setNote,
+    saveNote: s.saveNote,
+  }), shallow)
+  const [mode, setMode] = useState<'edit' | 'split' | 'preview'>('edit')
   const [showSettings, setShowSettings] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [showSearch, setShowSearch] = useState(false)
@@ -34,7 +55,9 @@ export function NotesView() {
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null)
   const [showMagic, setShowMagic] = useState(false)
   const [magicStep, setMagicStep] = useState<string | null>(null) // selected element type
+  const deferredSearchQuery = useDeferredValue(searchQuery)
   const editorRef = useRef<HTMLTextAreaElement>(null)
+  const lineNumbersRef = useRef<HTMLPreElement>(null)
   const magicBtnRef = useRef<HTMLButtonElement>(null)
   // Save selection before magic menu opens so we can restore it on insert
   const savedSel = useRef<{ start: number; end: number } | null>(null)
@@ -43,9 +66,20 @@ export function NotesView() {
   const mob = useMobile()
   const [showMobileSidebar, setShowMobileSidebar] = useState(false)
   const active = useMemo(() => notes.find((n) => n.id === activeNoteId) ?? notes[0], [notes, activeNoteId])
-
-  const [undoStack, setUndoStack] = useState<string[]>([])
-  const [redoStack, setRedoStack] = useState<string[]>([])
+  const [draftContent, setDraftContent] = useState('')
+  const [draftDirty, setDraftDirty] = useState(false)
+  const [previewContent, setPreviewContent] = useState('')
+  const draftContentRef = useRef('')
+  const undoStackRef = useRef<string[]>([])
+  const redoStackRef = useRef<string[]>([])
+  const lastUndoSnapshotAtRef = useRef(0)
+  const commitTimerRef = useRef<number | null>(null)
+  const pendingCommitRef = useRef<{ noteId: string; content: string } | null>(null)
+  const deferredDraftContent = useDeferredValue(previewContent)
+  const analysis = useNotesAnalysis(
+    deferredDraftContent,
+    MAX_RENDERED_LINE_NUMBERS,
+  )
 
   const [localSettings, setLocalSettings] = useState({
     fontSize: t.notes.fontSize, fontFamily: t.notes.fontFamily,
@@ -58,59 +92,169 @@ export function NotesView() {
     shadowDepth: t.visual.shadowDepth, spacingDensity: t.visual.spacingDensity as 'comfortable' | 'compact' | 'spacious',
   })
 
-  useEffect(() => { if (active) setUndoStack([active.content]) }, [active?.id])
+  useEffect(() => {
+    draftContentRef.current = draftContent
+  }, [draftContent])
 
   useEffect(() => {
-    if (!t.editor.autosave || !active?.dirty) return
+    const timer = window.setTimeout(() => {
+      setPreviewContent(draftContent)
+    }, NOTE_PREVIEW_DEBOUNCE_MS)
+    return () => {
+      window.clearTimeout(timer)
+    }
+  }, [draftContent])
+
+  const flushPendingCommit = useCallback(() => {
+    const pending = pendingCommitRef.current
+    if (!pending) return
+    runIdle(() => {
+      updateNote(pending.noteId, { content: pending.content, dirty: true })
+    })
+    pendingCommitRef.current = null
+    if (commitTimerRef.current !== null) {
+      window.clearTimeout(commitTimerRef.current)
+      commitTimerRef.current = null
+    }
+  }, [updateNote])
+
+  const queueDraftCommit = useCallback((noteId: string, content: string) => {
+    pendingCommitRef.current = { noteId, content }
+    if (commitTimerRef.current !== null) {
+      window.clearTimeout(commitTimerRef.current)
+    }
+    commitTimerRef.current = window.setTimeout(() => {
+      flushPendingCommit()
+    }, NOTE_COMMIT_DEBOUNCE_MS)
+  }, [flushPendingCommit])
+
+  const saveActiveNow = useCallback(() => {
+    if (!active) return
+    const currentDraft = draftContentRef.current
+    if (active.content !== currentDraft) {
+      updateNote(active.id, { content: currentDraft, dirty: true })
+    } else {
+      flushPendingCommit()
+    }
+    saveNote(active.id)
+    setDraftDirty(false)
+    setLastSavedAt(new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }))
+  }, [active, flushPendingCommit, saveNote, updateNote])
+
+  useEffect(() => {
+    flushPendingCommit()
+    if (!active) {
+      setDraftContent('')
+      setDraftDirty(false)
+      undoStackRef.current = []
+      redoStackRef.current = []
+      return
+    }
+    setDraftContent(active.content)
+    setPreviewContent(active.content)
+    setDraftDirty(Boolean(active.dirty))
+    undoStackRef.current = [active.content]
+    redoStackRef.current = []
+    lastUndoSnapshotAtRef.current = Date.now()
+  }, [active?.id, flushPendingCommit])
+
+  useEffect(() => () => {
+    flushPendingCommit()
+  }, [flushPendingCommit])
+
+  useEffect(() => {
+    if (!t.editor.autosave || !active || !draftDirty) return
     const timer = setTimeout(() => {
-      saveNote(active.id)
-      setLastSavedAt(new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }))
+      saveActiveNow()
     }, t.editor.autosaveInterval)
     return () => clearTimeout(timer)
-  }, [active?.content, active?.dirty, t.editor.autosave, t.editor.autosaveInterval])
+  }, [active, draftDirty, saveActiveNow, t.editor.autosave, t.editor.autosaveInterval])
 
   const handleChange = (value: string) => {
     if (!active) return
-    setUndoStack((s) => [...s.slice(-50), value])
-    setRedoStack([])
-    updateNote(active.id, { content: value, dirty: true })
+    setDraftContent(value)
+    setDraftDirty(true)
+    const undoStack = undoStackRef.current
+    const last = undoStack[undoStack.length - 1]
+    const nowMs = Date.now()
+    const shouldCapture =
+      last !== value
+      && (
+        nowMs - lastUndoSnapshotAtRef.current >= NOTE_UNDO_SNAPSHOT_INTERVAL_MS
+        || Math.abs(value.length - (last?.length ?? 0)) >= 12
+        || value.endsWith('\n')
+      )
+    if (shouldCapture) {
+      if (undoStack.length >= 50) {
+        undoStack.shift()
+      }
+      undoStack.push(value)
+      lastUndoSnapshotAtRef.current = nowMs
+    }
+    redoStackRef.current = []
+    queueDraftCommit(active.id, value)
   }
 
   const handleUndo = () => {
-    if (undoStack.length <= 1 || !active) return
-    const ns = [...undoStack]; const last = ns.pop()!
-    setRedoStack(r => [...r, last]); const prev = ns[ns.length - 1]
-    setUndoStack(ns); updateNote(active.id, { content: prev })
+    if (!active || undoStackRef.current.length <= 1) return
+    const stack = [...undoStackRef.current]
+    const last = stack.pop()!
+    redoStackRef.current = [...redoStackRef.current.slice(-50), last]
+    const previous = stack[stack.length - 1] ?? ''
+    undoStackRef.current = stack
+    setDraftContent(previous)
+    setPreviewContent(previous)
+    setDraftDirty(true)
+    lastUndoSnapshotAtRef.current = Date.now()
+    queueDraftCommit(active.id, previous)
   }
 
   const handleRedo = () => {
-    if (redoStack.length === 0 || !active) return
-    const nr = [...redoStack]; const next = nr.pop()!
-    setRedoStack(nr); setUndoStack(s => [...s, next])
-    updateNote(active.id, { content: next })
+    if (!active || redoStackRef.current.length === 0) return
+    const redo = [...redoStackRef.current]
+    const next = redo.pop()!
+    redoStackRef.current = redo
+    undoStackRef.current = [...undoStackRef.current.slice(-50), next]
+    setDraftContent(next)
+    setPreviewContent(next)
+    setDraftDirty(true)
+    lastUndoSnapshotAtRef.current = Date.now()
+    queueDraftCommit(active.id, next)
   }
+
+  const syncLineNumberScroll = useCallback((target?: HTMLTextAreaElement | null) => {
+    const area = target ?? editorRef.current
+    const lineNumbersEl = lineNumbersRef.current
+    if (!area || !lineNumbersEl) return
+    lineNumbersEl.style.transform = `translateY(${-area.scrollTop}px)`
+  }, [])
+
+  useEffect(() => {
+    syncLineNumberScroll()
+  }, [draftContent, syncLineNumberScroll])
 
   const saveAsFile = () => {
     if (!active) return
-    const blob = new Blob([active.content], { type: 'text/markdown;charset=utf-8' })
+    const blob = new Blob([draftContentRef.current], { type: 'text/markdown;charset=utf-8' })
     const link = document.createElement('a')
     link.href = URL.createObjectURL(blob); link.download = active.title.replace(/\s/g, '_') + '.md'
-    link.click(); URL.revokeObjectURL(link.href); saveNote(active.id)
+    link.click(); URL.revokeObjectURL(link.href); saveActiveNow()
   }
 
   // ── Insert format helper — uses saved selection if textarea lost focus ──
   const insertFormat = useCallback((prefix: string, suffix: string = '', placeholder: string = '') => {
     if (!active) return
     const ta = editorRef.current
+    const currentContent = draftContentRef.current
     // Use saved selection (from magic menu open) or current selection
     const sel = savedSel.current
-    const start = sel?.start ?? (ta?.selectionStart ?? active.content.length)
-    const end   = sel?.end   ?? (ta?.selectionEnd   ?? active.content.length)
+    const start = sel?.start ?? (ta?.selectionStart ?? currentContent.length)
+    const end   = sel?.end   ?? (ta?.selectionEnd   ?? currentContent.length)
     savedSel.current = null
 
-    const selected = active.content.substring(start, end) || placeholder
-    const before = active.content.substring(0, start)
-    const after  = active.content.substring(end)
+    const selected = currentContent.substring(start, end) || placeholder
+    const before = currentContent.substring(0, start)
+    const after  = currentContent.substring(end)
     const newContent = before + prefix + selected + suffix + after
     handleChange(newContent)
 
@@ -121,7 +265,7 @@ export function NotesView() {
       ta.selectionStart = start + prefix.length
       ta.selectionEnd   = start + prefix.length + selected.length
     }, 10)
-  }, [active, handleChange])
+  }, [active])
 
   // Save cursor position before magic menu opens
   const handleMagicOpen = () => {
@@ -138,26 +282,28 @@ export function NotesView() {
       else if (e.key === 'i') { e.preventDefault(); insertFormat('*', '*', 'kursiv') }
       else if (e.key === 's') {
         e.preventDefault()
-        if (active) { saveNote(active.id); setLastSavedAt(new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })) }
+        if (active) saveActiveNow()
       }
       else if (e.key === 'z') { e.preventDefault(); handleUndo() }
       else if (e.key === 'y') { e.preventDefault(); handleRedo() }
       else if (e.key === 'k') { e.preventDefault(); insertFormat('[', '](url)', 'Link-Text') }
     }
     if (e.key === 'Tab') { e.preventDefault(); insertFormat('  ', '') }
-  }, [insertFormat, active, handleUndo, handleRedo, saveNote])
+  }, [insertFormat, active, handleRedo, handleUndo, saveActiveNow])
 
-  const stats = useMemo(() => {
-    if (!active) return { words: 0, chars: 0, lines: 0 }
-    const text = active.content.replace(/[#*`\[\]()]/g, '')
-    return { words: text.trim().split(/\s+/).filter(Boolean).length, chars: active.content.length, lines: active.content.split('\n').length }
-  }, [active?.content])
+  const stats = active
+    ? { words: analysis.words, chars: analysis.chars, lines: analysis.lines }
+    : { words: 0, chars: 0, lines: 0 }
 
   const filteredNotes = useMemo(() => {
     let result = notes
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase()
-      result = result.filter(n => n.title.toLowerCase().includes(q) || n.content.toLowerCase().includes(q) || n.tags.some(t => t.toLowerCase().includes(q)))
+    if (deferredSearchQuery) {
+      const q = deferredSearchQuery.toLowerCase()
+      result = result.filter(n => {
+        if (n.title.toLowerCase().includes(q)) return true
+        if (n.tags.some(t => t.toLowerCase().includes(q))) return true
+        return n.content.toLowerCase().includes(q)
+      })
     }
     if (tagFilter) result = result.filter(n => n.tags.includes(tagFilter))
     result = [...result].sort((a, b) => {
@@ -166,7 +312,7 @@ export function NotesView() {
       return new Date(b.updated).getTime() - new Date(a.updated).getTime()
     })
     return [...result.filter(n => n.pinned), ...result.filter(n => !n.pinned)]
-  }, [notes, searchQuery, tagFilter, sortBy])
+  }, [notes, deferredSearchQuery, sortBy, tagFilter])
 
   const allTags = useMemo(() => {
     const set = new Set<string>(); notes.forEach(n => n.tags.forEach(t => set.add(t))); return Array.from(set)
@@ -211,14 +357,20 @@ export function NotesView() {
     },
   }), [t.accent])
 
-  const noteStats = useMemo(() => {
-    const raw = active?.content || ''
-    const words = raw.trim() ? raw.trim().split(/\s+/).length : 0
-    const links = (raw.match(/\[\[.*?\]\]|\[[^\]]+\]\([^)]+\)/g) || []).length
-    const tasks = (raw.match(/^- \[[ x]\]/gm) || []).length
-    const readMins = Math.max(1, Math.round(words / 220))
-    return { words, links, tasks, readMins }
-  }, [active?.content])
+  const noteStats = active
+    ? {
+      words: analysis.words,
+      links: analysis.links,
+      tasks: analysis.tasks,
+      readMins: analysis.readMins,
+    }
+    : {
+      words: 0,
+      links: 0,
+      tasks: 0,
+      readMins: 1,
+    }
+  const lineNumbersText = active ? analysis.lineNumbersText : '1'
 
   const insertWorkflowTemplate = (kind: 'daily' | 'meeting' | 'project') => {
     if (!active) return
@@ -227,7 +379,7 @@ export function NotesView() {
       meeting: `\n## Meeting\n- Ziel\n- Teilnehmer\n- Entscheidungen\n- Action Items\n`,
       project: `\n## Projekt Plan\n- Scope\n- Milestones\n- Risiken\n- Nächste Schritte\n\n## Tasks\n- [ ] \n`,
     }
-    updateNote(active.id, { content: `${active.content}${templates[kind]}` })
+    handleChange(`${draftContentRef.current}${templates[kind]}`)
   }
 
   return (
@@ -250,7 +402,7 @@ export function NotesView() {
                   {m==='edit'?'✏️':'👁'}
                 </button>
               ))}
-              <button onClick={()=>active&&saveNote(active.id)} style={{ width:40, height:40, borderRadius:10, background:t.accent, border:'none', cursor:'pointer', color:'#fff', display:'flex', alignItems:'center', justifyContent:'center' }}>
+              <button onClick={() => active && saveActiveNow()} style={{ width:40, height:40, borderRadius:10, background:t.accent, border:'none', cursor:'pointer', color:'#fff', display:'flex', alignItems:'center', justifyContent:'center' }}>
                 <Save size={16}/>
               </button>
             </div>
@@ -474,9 +626,9 @@ export function NotesView() {
               {[
                 { icon: RotateCcw, tip: 'Undo (Ctrl+Z)', action: handleUndo },
                 { icon: RotateCcw, tip: 'Redo (Ctrl+Y)', action: handleRedo, flip: true },
-                { icon: Copy,      tip: 'Kopieren',      action: () => navigator.clipboard.writeText(active.content) },
+                { icon: Copy,      tip: 'Kopieren',      action: () => navigator.clipboard.writeText(draftContent) },
                 { icon: Download,  tip: 'Download .md',  action: saveAsFile },
-                { icon: Save,      tip: 'Speichern (Ctrl+S)', action: () => { saveNote(active.id); setLastSavedAt(new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })) }, accent: active.dirty },
+                { icon: Save,      tip: 'Speichern (Ctrl+S)', action: saveActiveNow, accent: draftDirty },
               ].map(({ icon: Icon, tip, action, flip, accent: useAccent }: any) => (
                 <button key={tip} onClick={action} title={tip} style={{
                   padding: '5px', borderRadius: 7, border: 'none', cursor: 'pointer',
@@ -622,7 +774,19 @@ export function NotesView() {
                       fontFamily: "'Fira Code', monospace",
                       opacity: 0.18, width: 36, overflowY: 'hidden',
                     }}>
-                      {active.content.split('\n').map((_, i) => <div key={i}>{i + 1}</div>)}
+                      <pre
+                        ref={lineNumbersRef}
+                        style={{
+                          margin: 0,
+                          whiteSpace: 'pre',
+                          fontFamily: 'inherit',
+                          fontSize: 'inherit',
+                          lineHeight: 'inherit',
+                          willChange: 'transform',
+                        }}
+                      >
+                        {lineNumbersText}
+                      </pre>
                     </div>
                     <textarea
                       ref={editorRef}
@@ -638,9 +802,10 @@ export function NotesView() {
                         overflowWrap: t.editor.wordWrap ? 'break-word' : 'normal',
                         color: 'inherit', border: 'none',
                       }}
-                      value={active.content}
+                      value={draftContent}
                       onChange={e => handleChange(e.target.value)}
                       onKeyDown={handleKeyDown}
+                      onScroll={(e) => syncLineNumberScroll(e.currentTarget)}
                     />
                   </div>
                 ) : (
@@ -657,7 +822,7 @@ export function NotesView() {
                       overflowWrap: t.editor.wordWrap ? 'break-word' : 'normal',
                       color: 'inherit', border: 'none',
                     }}
-                    value={active.content}
+                    value={draftContent}
                     onChange={e => handleChange(e.target.value)}
                     onKeyDown={handleKeyDown}
                   />
@@ -673,7 +838,7 @@ export function NotesView() {
                   flex: 1, overflowY: 'scroll', overflowX: 'hidden',
                   padding: 20, minHeight: 0,
                 }}>
-                  <NexusMarkdown content={active.content} />
+                  <NexusMarkdown content={deferredDraftContent} />
                 </div>
               </Glass>
             )}
@@ -685,8 +850,8 @@ export function NotesView() {
             <span>{stats.chars} Z</span>
             <span>{stats.lines} L</span>
             <div style={{ flex: 1 }} />
-            {active.dirty && <span style={{ color: t.accent, opacity: 1 }}>● Ungespeichert</span>}
-            {lastSavedAt && !active.dirty && (
+            {draftDirty && <span style={{ color: t.accent, opacity: 1 }}>● Ungespeichert</span>}
+            {lastSavedAt && !draftDirty && (
               <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                 <Clock size={9} /> {lastSavedAt}
               </span>

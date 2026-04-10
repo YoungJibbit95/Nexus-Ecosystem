@@ -45,6 +45,12 @@ const LANGUAGE_EXTENSIONS = {
   go: "go",
 };
 
+const FILES_PERSIST_DEBOUNCE_MS = 3_200;
+const SETTINGS_PERSIST_DEBOUNCE_MS = 900;
+const EDITOR_BUFFER_COMMIT_MS = 8_000;
+const WORKSPACE_AUTOSAVE_MS = 5_200;
+const LOCAL_AUTOSAVE_MS = 6_200;
+
 function isEditableEventTarget(target) {
   if (!(target instanceof HTMLElement)) return false;
   if (target.isContentEditable) return true;
@@ -114,6 +120,28 @@ function getReadableColor(preferred, background, muted = false) {
   return contrastRatio(fgRgb, bgRgb) >= minContrast ? preferred : fallback;
 }
 
+function pickReadableSurface(...values) {
+  for (const value of values) {
+    if (extractRgbTuple(value)) return value;
+  }
+  return values.find((value) => Boolean(String(value || "").trim())) || "#0b1020";
+}
+
+function toRgbaColor(value, alpha = 1) {
+  const rgb = extractRgbTuple(value);
+  if (!rgb) return `rgba(128, 0, 255, ${alpha})`;
+  const [r, g, b] = rgb.map((channel) =>
+    Math.max(0, Math.min(255, Math.round(channel))),
+  );
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function ensureReadableEditorTextColor(value) {
+  const rgb = extractRgbTuple(value);
+  if (!rgb) return "#e5e7eb";
+  return relativeLuminance(rgb) < 0.38 ? "#e5e7eb" : value;
+}
+
 export default function Editor() {
   // @ts-ignore
   const isElectron = nativeFS.isAvailable;
@@ -128,7 +156,15 @@ export default function Editor() {
   const [problems, setProblems] = useState([]);
   const [openTabs, setOpenTabs] = useState([]);
   const [activeTabId, setActiveTabId] = useState(null);
+  const [editorCode, setEditorCode] = useState("");
   const autoSaveRef = useRef(null);
+  const filesPersistTimerRef = useRef(null);
+  const settingsPersistTimerRef = useRef(null);
+  const codeCommitTimerRef = useRef(null);
+  const filesRef = useRef([]);
+  const activeTabIdRef = useRef(null);
+  const editorCodeRef = useRef("");
+  const previousActiveTabRef = useRef(null);
 
   const [files, setFiles] = useState(() => {
     const stored = loadFilesFromStorage();
@@ -147,7 +183,12 @@ export default function Editor() {
         const current = Array.isArray(prev.extensions_installed)
           ? prev.extensions_installed
           : [];
-        if (JSON.stringify(current) === JSON.stringify(installed)) return prev;
+        if (
+          current.length === installed.length &&
+          current.every((entry, index) => entry === installed[index])
+        ) {
+          return prev;
+        }
         return { ...prev, extensions_installed: installed };
       });
     };
@@ -162,10 +203,101 @@ export default function Editor() {
 
   // Persist files whenever they change (only if not in a workspace for now, or unified)
   useEffect(() => {
-    if (!workspacePath) {
-      saveFilesToStorage(files);
+    if (workspacePath) return;
+    if (filesPersistTimerRef.current) {
+      window.clearTimeout(filesPersistTimerRef.current);
     }
+    filesPersistTimerRef.current = window.setTimeout(() => {
+      saveFilesToStorage(files);
+    }, FILES_PERSIST_DEBOUNCE_MS);
+    return () => {
+      if (filesPersistTimerRef.current) {
+        window.clearTimeout(filesPersistTimerRef.current);
+        filesPersistTimerRef.current = null;
+      }
+    };
   }, [files, workspacePath]);
+
+  useEffect(() => {
+    if (settingsPersistTimerRef.current) {
+      window.clearTimeout(settingsPersistTimerRef.current);
+    }
+    settingsPersistTimerRef.current = window.setTimeout(() => {
+      saveSettingsToStorage(settings);
+    }, SETTINGS_PERSIST_DEBOUNCE_MS);
+    return () => {
+      if (settingsPersistTimerRef.current) {
+        window.clearTimeout(settingsPersistTimerRef.current);
+        settingsPersistTimerRef.current = null;
+      }
+    };
+  }, [settings]);
+
+  useEffect(() => {
+    filesRef.current = files;
+  }, [files]);
+
+  useEffect(() => {
+    activeTabIdRef.current = activeTabId;
+  }, [activeTabId]);
+
+  useEffect(() => {
+    editorCodeRef.current = editorCode;
+  }, [editorCode]);
+
+  const commitBufferToFile = useCallback((targetTabId, content) => {
+    if (!targetTabId) return;
+    setFiles((prev) => {
+      const idx = prev.findIndex((f) => f.id === targetTabId);
+      if (idx === -1) return prev;
+      const current = prev[idx];
+      const previousContent = current.content || "";
+      if (previousContent === content) return prev;
+      const next = prev.slice();
+      next[idx] = {
+        ...current,
+        content,
+        modifiedAt: new Date().toISOString(),
+      };
+      return next;
+    });
+  }, []);
+
+  const flushEditorBuffer = useCallback(
+    (targetTabId = activeTabIdRef.current) => {
+      if (!targetTabId) return;
+      if (codeCommitTimerRef.current) {
+        window.clearTimeout(codeCommitTimerRef.current);
+        codeCommitTimerRef.current = null;
+      }
+      setEditorCode((prev) =>
+        prev === editorCodeRef.current ? prev : editorCodeRef.current,
+      );
+      commitBufferToFile(targetTabId, editorCodeRef.current);
+    },
+    [commitBufferToFile],
+  );
+
+  useEffect(() => {
+    const previousTabId = previousActiveTabRef.current;
+    if (previousTabId && previousTabId !== activeTabId) {
+      flushEditorBuffer(previousTabId);
+    }
+    previousActiveTabRef.current = activeTabId;
+
+    const activeFile = files.find((f) => f.id === activeTabId);
+    const nextCode = activeFile?.content || "";
+    setEditorCode(nextCode);
+    editorCodeRef.current = nextCode;
+  }, [activeTabId, files, flushEditorBuffer]);
+
+  useEffect(() => {
+    return () => {
+      flushEditorBuffer();
+      if (autoSaveRef.current) window.clearTimeout(autoSaveRef.current);
+      if (codeCommitTimerRef.current) window.clearTimeout(codeCommitTimerRef.current);
+    };
+  }, [flushEditorBuffer]);
 
   const handleToggleZenMode = useCallback(() => {
     setSettings((prev) => ({ ...prev, zen_mode: !prev.zen_mode }));
@@ -262,8 +394,6 @@ export default function Editor() {
     [files, isElectron],
   );
   useEffect(() => {
-    saveSettingsToStorage(settings);
-
     const root = document.documentElement;
     const theme = THEMES[settings.theme] || THEMES.nexus_vibrant;
     const accent = settings.primary_accent || theme.accent;
@@ -277,7 +407,7 @@ export default function Editor() {
 
     // Special logic for theme-based accent gradient if requested/default
     if (!settings.background && theme.accent && theme.accent2) {
-      bgValue = `linear-gradient(135deg, color-mix(in srgb, ${theme.accent} 20%, #000) 0%, color-mix(in srgb, ${theme.accent2} 20%, #000) 100%)`;
+      bgValue = `linear-gradient(135deg, ${toRgbaColor(theme.accent, 0.2)} 0%, ${toRgbaColor(theme.accent2, 0.2)} 100%), #05060f`;
     }
 
     const surface = bgOverride ? bgOverride.surface : theme.surface;
@@ -290,7 +420,7 @@ export default function Editor() {
           : `blur(${Math.max(4, panelBlur)}px) saturate(135%)`;
     const panelSurface =
       panelMode === "glass-shader"
-        ? `linear-gradient(135deg, color-mix(in srgb, ${accent} 16%, transparent), ${surface})`
+        ? `linear-gradient(135deg, ${toRgbaColor(accent, 0.16)}, ${surface})`
         : panelMode === "fake-glass"
           ? `linear-gradient(135deg, rgba(255,255,255,0.08), ${surface})`
           : (surface || "#060614");
@@ -298,14 +428,15 @@ export default function Editor() {
       settings.panel_glow_outline === false
         ? "none"
         : settings.glow_renderer === "three"
-          ? `0 0 0 1px color-mix(in srgb, ${accent} 48%, transparent), 0 0 32px color-mix(in srgb, ${accent} 33%, transparent)`
-          : `0 0 0 1px color-mix(in srgb, ${accent} 32%, transparent), 0 0 18px color-mix(in srgb, ${accent} 20%, transparent)`;
-    const contrastSurface = panelSurface || surface || bgValue;
+          ? `0 0 0 1px ${toRgbaColor(accent, 0.48)}, 0 0 32px ${toRgbaColor(accent, 0.33)}`
+          : `0 0 0 1px ${toRgbaColor(accent, 0.32)}, 0 0 18px ${toRgbaColor(accent, 0.2)}`;
+    const contrastSurface = pickReadableSurface(panelSurface, surface, bgValue);
     const resolvedText = getReadableColor(
       theme.text || "#e5e7eb",
       contrastSurface,
       false,
     );
+    const safeEditorText = ensureReadableEditorTextColor(resolvedText);
     const resolvedMuted = getReadableColor(
       theme.muted || "#6b7280",
       contrastSurface,
@@ -322,9 +453,9 @@ export default function Editor() {
     root.style.setProperty("--nexus-border", border || "rgba(255,255,255,0.1)");
 
     // Theme (Colors & Syntax)
-    root.style.setProperty("--nexus-text", resolvedText);
+    root.style.setProperty("--nexus-text", safeEditorText);
     root.style.setProperty("--nexus-muted", resolvedMuted);
-    root.style.setProperty("--nexus-editor-foreground", resolvedText);
+    root.style.setProperty("--nexus-editor-foreground", safeEditorText);
 
     // Accents & Glows
     root.style.setProperty("--primary", accent);
@@ -427,6 +558,18 @@ export default function Editor() {
     setActiveTabId(file.id);
   }, []);
 
+  const setTabModified = useCallback((tabId, modified) => {
+    if (!tabId) return;
+    setOpenTabs((prev) => {
+      const idx = prev.findIndex((tab) => tab.id === tabId);
+      if (idx === -1) return prev;
+      if (Boolean(prev[idx].modified) === modified) return prev;
+      const next = prev.slice();
+      next[idx] = { ...prev[idx], modified };
+      return next;
+    });
+  }, []);
+
   const handleTabClose = useCallback(
     (tabId) => {
       setOpenTabs((prev) => {
@@ -453,11 +596,7 @@ export default function Editor() {
       if (hasPrimaryMod && key === "s") {
         e.preventDefault();
         if (activeTabId) {
-          setOpenTabs((prev) =>
-            prev.map((t) =>
-              t.id === activeTabId ? { ...t, modified: false } : t,
-            ),
-          );
+          setTabModified(activeTabId, false);
         }
         return;
       }
@@ -552,7 +691,7 @@ export default function Editor() {
       window.removeEventListener("keydown", handler);
       window.removeEventListener("keyup", shiftHandler);
     };
-  }, [activeTabId, handleTabClose]);
+  }, [activeTabId, handleTabClose, setTabModified]);
 
   const handleCreateFile = useCallback(
     async (name, parentId = null) => {
@@ -617,14 +756,21 @@ export default function Editor() {
   );
 
   const handleSaveAll = useCallback(async () => {
+    flushEditorBuffer();
+    const mergedFiles = filesRef.current.map((f) =>
+      f.id === activeTabIdRef.current
+        ? { ...f, content: editorCodeRef.current, modifiedAt: new Date().toISOString() }
+        : f,
+    );
+    setFiles(mergedFiles);
     if (workspacePath && isElectron) {
-      const diskFiles = files.filter((f) => f.type === "file" && f.fsPath);
+      const diskFiles = mergedFiles.filter((f) => f.type === "file" && f.fsPath);
       await Promise.all(
         diskFiles.map((f) => nativeFS.writeFile(f.fsPath, f.content || "")),
       );
     }
     setOpenTabs((prev) => prev.map((tab) => ({ ...tab, modified: false })));
-  }, [files, workspacePath, isElectron]);
+  }, [flushEditorBuffer, workspacePath, isElectron]);
 
   useEffect(() => {
     const onCreateFile = (event) => {
@@ -774,44 +920,47 @@ export default function Editor() {
   const handleCodeChange = useCallback(
     (newCode) => {
       if (!activeTabId) return;
+      editorCodeRef.current = newCode;
 
-      setFiles((prev) =>
-        prev.map((f) =>
-          f.id === activeTabId
-            ? { ...f, content: newCode, modifiedAt: new Date().toISOString() }
-            : f,
-        ),
-      );
+      setTabModified(activeTabId, true);
 
-      setOpenTabs((prev) =>
-        prev.map((t) => (t.id === activeTabId ? { ...t, modified: true } : t)),
-      );
+      if (codeCommitTimerRef.current) {
+        window.clearTimeout(codeCommitTimerRef.current);
+      }
+      const activeId = activeTabIdRef.current;
+      codeCommitTimerRef.current = window.setTimeout(() => {
+        commitBufferToFile(activeId, editorCodeRef.current);
+        codeCommitTimerRef.current = null;
+      }, EDITOR_BUFFER_COMMIT_MS);
 
       // Save to disk if workspace file
-      const file = files.find((f) => f.id === activeTabId);
-      if (file && file.fsPath) {
+      const activeFile = filesRef.current.find(
+        (f) => f.id === activeTabIdRef.current,
+      );
+      if (activeFile && activeFile.fsPath) {
         if (autoSaveRef.current) clearTimeout(autoSaveRef.current);
         autoSaveRef.current = setTimeout(async () => {
-          await nativeFS.writeFile(file.fsPath, newCode);
-          setOpenTabs((prev) =>
-            prev.map((t) =>
-              t.id === activeTabId ? { ...t, modified: false } : t,
-            ),
-          );
-        }, 1000);
+          const currentTabId = activeTabIdRef.current;
+          if (!currentTabId) return;
+          const currentCode = editorCodeRef.current;
+          commitBufferToFile(currentTabId, currentCode);
+          const file = filesRef.current.find((f) => f.id === currentTabId);
+          if (!file?.fsPath) return;
+          await nativeFS.writeFile(file.fsPath, currentCode);
+          setTabModified(currentTabId, false);
+        }, WORKSPACE_AUTOSAVE_MS);
       } else if (settings.auto_save) {
         // Local storage auto-save
         if (autoSaveRef.current) clearTimeout(autoSaveRef.current);
         autoSaveRef.current = setTimeout(() => {
-          setOpenTabs((prev) =>
-            prev.map((t) =>
-              t.id === activeTabId ? { ...t, modified: false } : t,
-            ),
-          );
-        }, 1500);
+          const currentTabId = activeTabIdRef.current;
+          if (!currentTabId) return;
+          commitBufferToFile(currentTabId, editorCodeRef.current);
+          setTabModified(currentTabId, false);
+        }, LOCAL_AUTOSAVE_MS);
       }
     },
-    [activeTabId, settings.auto_save, files],
+    [activeTabId, commitBufferToFile, setTabModified, settings.auto_save],
   );
 
   const handleSettingsChange = useCallback((newSettings) => {
@@ -858,7 +1007,7 @@ export default function Editor() {
   );
 
   const activeFile = files.find((f) => f.id === activeTabId);
-  const currentCode = activeFile?.content ?? "";
+  const currentCode = activeTabId ? editorCode : "";
 
   /* ─── Panel content helper ──────────────────────────────────────── */
   const renderPanelContent = () => (
@@ -885,9 +1034,20 @@ export default function Editor() {
       )}
       {activePanel === "git" && <GitPanel files={files} />}
       {activePanel === "debug" && (
-        <DebugPanel activeFile={activeFile} _code={currentCode} />
+        <DebugPanel activeFile={activeFile} _code={currentCode} problems={problems} />
       )}
-      {activePanel === "extensions" && <ExtensionsPanel />}
+      {activePanel === "extensions" && (
+        <ExtensionsPanel
+          onInstalledChange={(installedList) => {
+            setSettings((prev) => ({
+              ...prev,
+              extensions_installed: Array.isArray(installedList)
+                ? installedList
+                : [],
+            }));
+          }}
+        />
+      )}
       {activePanel === "problems" && (
         <ProblemsPanel
           problems={problems}
@@ -932,7 +1092,7 @@ export default function Editor() {
           settings.sidebar_visible &&
           settings.sidebar_position === "left" && (
             <div
-              className="flex flex-col border-r border-white/5 shrink-0 nexus-panel-surface"
+              className="relative z-40 h-full min-h-0 overflow-visible flex flex-col border-r border-white/5 shrink-0 nexus-panel-surface"
               style={{
                 background: "var(--nexus-panel-surface)",
                 backdropFilter: "var(--nexus-panel-filter)",
@@ -974,8 +1134,8 @@ export default function Editor() {
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: -20 }}
                     transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                    className="w-72 min-h-0 backdrop-blur-xl border-r border-white/5 overflow-hidden"
-                    style={{ background: "rgba(255,255,255,0.01)" }}
+                    className="relative z-20 w-72 min-h-0 backdrop-blur-xl border-r border-white/5 overflow-visible"
+                    style={{ background: "rgba(255,255,255,0.01)", willChange: "transform, opacity" }}
                   >
                     {renderPanelContent()}
                   </motion.div>
@@ -994,7 +1154,7 @@ export default function Editor() {
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       exit={{ opacity: 0 }}
-                      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-30"
+                      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[80]"
                       onClick={() => setActivePanel(null)}
                     />
                     {/* Drawer */}
@@ -1004,7 +1164,7 @@ export default function Editor() {
                       animate={{ x: 0 }}
                       exit={{ x: "-100%" }}
                       transition={{ type: "spring", stiffness: 320, damping: 36 }}
-                      className="fixed top-0 left-0 bottom-0 z-40 overflow-hidden flex flex-col"
+                      className="fixed top-0 left-0 bottom-0 z-[90] overflow-hidden flex flex-col"
                       style={{
                         width: "min(300px, 85vw)",
                         background: "var(--nexus-panel-surface)",
@@ -1088,6 +1248,7 @@ export default function Editor() {
                       wordWrap={settings.word_wrap || false}
                       minimap={settings.minimap !== false && !isMobile}
                       settings={{ ...settings, minimap: isMobile ? false : settings.minimap }}
+                      isMobile={isMobile}
                     />
                   ) : (
                     <WelcomeScreen
@@ -1127,7 +1288,7 @@ export default function Editor() {
               settings.sidebar_visible &&
               settings.sidebar_position === "right" && (
                 <div
-                  className="flex flex-col border-l border-white/5 backdrop-blur-xl shrink-0 nexus-panel-surface"
+                  className="relative z-40 h-full min-h-0 overflow-visible flex flex-col border-l border-white/5 backdrop-blur-xl shrink-0 nexus-panel-surface"
                   style={{
                     background: "var(--nexus-panel-surface)",
                     backdropFilter: "var(--nexus-panel-filter)",

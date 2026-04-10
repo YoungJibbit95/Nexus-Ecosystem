@@ -1,1 +1,1 @@
-{"root":["./src/utils/index.ts"],"version":"5.9.3"}
+{"root":["./src/types/vite-workers.d.ts","./src/utils/index.ts"],"version":"5.9.3"}

@@ -444,7 +444,7 @@ export function DashboardView({ setView }: { setView?: (v: string) => void }) {
           style={{ marginTop: 16, textAlign: 'center', fontSize: 10, opacity: 0.25 }}>
           <Sparkles size={10} style={{ display: 'inline', marginRight: 5 }} />
           <button onClick={()=>setEditLayout(e=>!e)} style={{ display:'inline-flex', alignItems:'center', gap:4, padding:'3px 9px', borderRadius:7, background:editLayout?`rgba(${hexToRgb(t.accent)},0.15)`:`rgba(255,255,255,0.06)`, border:`1px solid ${editLayout?t.accent:'rgba(255,255,255,0.1)'}`, cursor:'pointer', fontSize:10, color:editLayout?t.accent:'inherit', fontWeight:700, marginRight:8 }}><Layout size={10}/> Edit Layout</button>
-          Nexus v4.0 · Shift×2 für Spotlight · Double-Click auf Canvas-Nodes zum Bearbeiten
+          Nexus v5.0 · Shift×2 für Spotlight · Double-Click auf Canvas-Nodes zum Bearbeiten
         </motion.div>
       </div>
     </div>

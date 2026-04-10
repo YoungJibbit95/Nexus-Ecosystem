@@ -1,8 +1,21 @@
 import React from 'react';
 import { AlertTriangle, RotateCcw } from 'lucide-react';
+import { createQueuedStorageManager } from './storageManager';
 
 export const FILES_STORAGE_KEY = "nexus-code-files";
 export const SETTINGS_STORAGE_KEY = "nexus-code-settings";
+const FILES_INDEX_STORAGE_KEY = "nexus-code-files-index-v2";
+const FILE_CONTENT_KEY_PREFIX = "nexus-code-file-content-v2:";
+const filesStorage = createQueuedStorageManager({
+  debounceMs: 2600,
+  idleTimeoutMs: 1800,
+});
+const settingsStorage = createQueuedStorageManager({
+  debounceMs: 1200,
+  idleTimeoutMs: 1200,
+});
+const lastFileContentById = new Map();
+let knownPersistedFileIds = new Set();
 
 let _idCounter = 0;
 export const generateId = () => {
@@ -201,20 +214,88 @@ export const DEFAULT_SETTINGS = {
 };
 
 export function loadFilesFromStorage() {
-  try {
-    const stored = localStorage.getItem(FILES_STORAGE_KEY);
-    if (stored) {
-      const parsed = JSON.parse(stored);
-      if (Array.isArray(parsed)) return parsed.filter((f) => !!f);
+  const indexed = filesStorage.readJson(FILES_INDEX_STORAGE_KEY, null);
+  if (Array.isArray(indexed) && indexed.length > 0) {
+    const hydrated = indexed
+      .map((fileMeta) => {
+        if (!fileMeta || typeof fileMeta !== "object") return null;
+        const fileId = String(fileMeta.id || "");
+        if (!fileId) return null;
+        const contentKey = `${FILE_CONTENT_KEY_PREFIX}${fileId}`;
+        const restoredContent = filesStorage.readJson(
+          contentKey,
+          typeof fileMeta.content === "string" ? fileMeta.content : "",
+        );
+        const content =
+          typeof restoredContent === "string" ? restoredContent : "";
+        lastFileContentById.set(fileId, content);
+        return {
+          ...fileMeta,
+          content,
+        };
+      })
+      .filter((file) => !!file);
+
+    if (hydrated.length > 0) {
+      knownPersistedFileIds = new Set(
+        hydrated.map((file) => String(file.id || "")).filter(Boolean),
+      );
+      return hydrated;
     }
-  } catch {}
+  }
+
+  const legacy = filesStorage.readJson(FILES_STORAGE_KEY, null);
+  if (Array.isArray(legacy)) {
+    const normalized = legacy.filter((file) => !!file);
+    knownPersistedFileIds = new Set(
+      normalized.map((file) => String(file.id || "")).filter(Boolean),
+    );
+    normalized.forEach((file) => {
+      const fileId = String(file?.id || "");
+      if (!fileId) return;
+      const content = typeof file?.content === "string" ? file.content : "";
+      lastFileContentById.set(fileId, content);
+    });
+    saveFilesToStorage(normalized);
+    return normalized;
+  }
   return null;
 }
 
 export function saveFilesToStorage(files) {
-  try {
-    localStorage.setItem(FILES_STORAGE_KEY, JSON.stringify(files));
-  } catch {}
+  if (!Array.isArray(files)) return;
+
+  const nextIndex = [];
+  const nextFileIds = new Set();
+
+  files.forEach((file) => {
+    if (!file || typeof file !== "object") return;
+    const fileId = String(file.id || "");
+    if (!fileId) return;
+
+    nextFileIds.add(fileId);
+    const { content, ...meta } = file;
+    nextIndex.push(meta);
+    const normalizedContent = typeof content === "string" ? content : "";
+
+    if (lastFileContentById.get(fileId) !== normalizedContent) {
+      filesStorage.writeJson(
+        `${FILE_CONTENT_KEY_PREFIX}${fileId}`,
+        normalizedContent,
+      );
+      lastFileContentById.set(fileId, normalizedContent);
+    }
+  });
+
+  filesStorage.writeJson(FILES_INDEX_STORAGE_KEY, nextIndex);
+
+  knownPersistedFileIds.forEach((fileId) => {
+    if (nextFileIds.has(fileId)) return;
+    filesStorage.remove(`${FILE_CONTENT_KEY_PREFIX}${fileId}`);
+    lastFileContentById.delete(fileId);
+  });
+  knownPersistedFileIds = nextFileIds;
+  filesStorage.remove(FILES_STORAGE_KEY);
 }
 
 /* ─── Error Boundary ─────────────────────────────────────────────────── */
@@ -263,17 +344,13 @@ export class ErrorBoundary extends React.Component {
 /* ─── Storage Helpers ────────────────────────────────────────────────── */
 
 export function loadSettingsFromStorage() {
-  try {
-    const stored = localStorage.getItem(SETTINGS_STORAGE_KEY);
-    if (stored) {
-      return { ...DEFAULT_SETTINGS, ...JSON.parse(stored) };
-    }
-  } catch {}
+  const stored = settingsStorage.readJson(SETTINGS_STORAGE_KEY, null);
+  if (stored && typeof stored === "object") {
+    return { ...DEFAULT_SETTINGS, ...stored };
+  }
   return DEFAULT_SETTINGS;
 }
 
 export function saveSettingsToStorage(settings) {
-  try {
-    localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
-  } catch {}
+  settingsStorage.writeJson(SETTINGS_STORAGE_KEY, settings);
 }

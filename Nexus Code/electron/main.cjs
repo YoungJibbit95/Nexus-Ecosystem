@@ -1,11 +1,12 @@
 const { app, BrowserWindow, ipcMain, shell, Menu, dialog } = require("electron");
 const path = require("path");
 const fs = require("fs").promises;
-const { spawn } = require("child_process");
+const { spawn, execSync } = require("child_process");
 const os = require("os");
 
 const DEV = process.env.ELECTRON_DEV === "true";
 const DEV_URL = "http://localhost:5175";
+const WINDOW_SHOW_FALLBACK_MS = 4_500;
 const NETWORK_MUTATION_PATTERNS = [
   /\bnetworksetup\b/i,
   /\bscutil\b/i,
@@ -25,12 +26,46 @@ const NETWORK_MUTATION_PATTERNS = [
 let mainWindow = null;
 const activeProcesses = new Map();
 
-if (!DEV) {
-  // Packaged builds can degrade to software compositing on some systems.
+const buildRendererFailureHtml = (reason, details) => {
+  const safeReason = String(reason || "RENDERER_LOAD_FAILED")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+  const safeDetails = String(details || "")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+  return `data:text/html;charset=utf-8,<!doctype html><html><head><meta charset="utf-8"/><title>Nexus Code Start Error</title><style>body{margin:0;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial,sans-serif;background:linear-gradient(135deg,#15090a,#0d1320);color:#ffe2df;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px}section{max-width:780px;border:1px solid rgba(255,69,58,.42);background:rgba(255,69,58,.14);border-radius:14px;padding:18px;line-height:1.5}h1{margin:0 0 8px;font-size:20px}code{display:block;margin-top:8px;padding:8px 10px;border-radius:8px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.15);white-space:pre-wrap;word-break:break-word}</style></head><body><section><h1>Nexus Code konnte nicht geladen werden</h1><div>Die Renderer-Oberflaeche ist beim Start fehlgeschlagen. Bitte sende den Fehlercode an den Ecosystem Manager.</div><code>${safeReason}${safeDetails ? `\\n${safeDetails}` : ""}</code></section></body></html>`;
+};
+
+const shouldEnableGpuSwitches = process.env.NEXUS_FORCE_GPU_SWITCHES === "1";
+
+const isRosettaTranslated = () => {
+  if (process.platform !== "darwin") return false;
+  if (process.arch !== "x64") return false;
+  try {
+    const value = execSync("/usr/sbin/sysctl -in sysctl.proc_translated", {
+      stdio: ["ignore", "pipe", "ignore"],
+    })
+      .toString()
+      .trim();
+    return value === "1";
+  } catch {
+    return false;
+  }
+};
+
+if (shouldEnableGpuSwitches) {
+  // Keep GPU overrides opt-in only to avoid build-only driver regressions.
   app.commandLine.appendSwitch("ignore-gpu-blocklist");
   app.commandLine.appendSwitch("enable-gpu-rasterization");
   app.commandLine.appendSwitch("enable-zero-copy");
   app.commandLine.appendSwitch("enable-native-gpu-memory-buffers");
+}
+
+if (isRosettaTranslated()) {
+  console.warn(
+    "[Nexus Code] running under Rosetta translation (x64 on Apple Silicon). " +
+      "Use the arm64 build for production performance.",
+  );
 }
 
 const isAllowedNavigation = (url) => {
@@ -134,6 +169,7 @@ function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
+      backgroundThrottling: false,
       webSecurity: true,
       allowRunningInsecureContent: false,
       webviewTag: false,
@@ -143,15 +179,69 @@ function createWindow() {
   // Remove default application menu
   Menu.setApplicationMenu(null);
 
+  let windowShown = false;
+  let rendererFailed = false;
+  const revealWindow = (reason) => {
+    if (!mainWindow || mainWindow.isDestroyed() || windowShown) return;
+    windowShown = true;
+    try {
+      mainWindow.show();
+    } catch {}
+    console.info("[Nexus Code] window shown:", reason);
+  };
+  const fallbackShowTimer = setTimeout(() => {
+    revealWindow("fallback-timeout");
+  }, WINDOW_SHOW_FALLBACK_MS);
+
+  const reportRendererFailure = (reason, details) => {
+    rendererFailed = true;
+    console.error("[Nexus Code] renderer failed:", reason, details || "");
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    revealWindow("renderer-failure");
+    if (!DEV) {
+      mainWindow
+        .loadURL(buildRendererFailureHtml(reason, details))
+        .catch(() => {});
+    }
+  };
+
   if (DEV) {
-    mainWindow.loadURL(DEV_URL);
+    mainWindow.loadURL(DEV_URL).catch((error) => {
+      reportRendererFailure("DEV_URL_LOAD_FAILED", error?.message || String(error));
+    });
   } else {
-    mainWindow.loadFile(path.join(__dirname, "../dist/index.html"));
+    mainWindow
+      .loadFile(path.join(__dirname, "../dist/index.html"))
+      .catch((error) => {
+        reportRendererFailure("DIST_INDEX_LOAD_FAILED", error?.message || String(error));
+      });
   }
 
   // Show window once ready to avoid white flash
   mainWindow.once("ready-to-show", () => {
-    mainWindow.show();
+    revealWindow("ready-to-show");
+  });
+
+  mainWindow.webContents.on(
+    "did-fail-load",
+    (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
+      if (!isMainFrame) return;
+      reportRendererFailure(
+        "DID_FAIL_LOAD",
+        `code=${errorCode} desc=${errorDescription} url=${validatedURL}`,
+      );
+    },
+  );
+  mainWindow.webContents.on("render-process-gone", (_event, details) => {
+    reportRendererFailure(
+      "RENDER_PROCESS_GONE",
+      details ? JSON.stringify(details) : "no-details",
+    );
+  });
+  mainWindow.webContents.on("did-finish-load", () => {
+    if (!rendererFailed) {
+      revealWindow("did-finish-load");
+    }
   });
 
   // Open external links in default browser
@@ -169,6 +259,7 @@ function createWindow() {
   });
 
   mainWindow.on("closed", () => {
+    clearTimeout(fallbackShowTimer);
     mainWindow = null;
   });
 
@@ -318,7 +409,7 @@ ipcMain.on("terminal:run", (event, { id, command, cwd }) => {
     const proc = spawn(shellLaunch.binary, shellLaunch.args, {
       cwd: cwd || os.homedir(),
       env: { ...process.env, FORCE_COLOR: "1" },
-      stdio: ["ignore", "pipe", "pipe"],
+      stdio: ["pipe", "pipe", "pipe"],
       windowsHide: true,
     });
 
@@ -368,6 +459,19 @@ ipcMain.on("terminal:kill", (event, id) => {
   }
 });
 
+ipcMain.on("terminal:input", (_event, payload) => {
+  const id = payload?.id;
+  const input = payload?.input;
+  if (typeof id !== "number") return;
+  const proc = activeProcesses.get(id);
+  if (!proc || proc.killed) return;
+  try {
+    const text = String(input ?? "");
+    if (text.length === 0) return;
+    proc.stdin?.write(text);
+  } catch {}
+});
+
 // ── App lifecycle ──────────────────────────────────────────────────────────
 
 app.whenReady().then(() => {
@@ -392,9 +496,14 @@ if (!gotLock) {
   app.quit();
 } else {
   app.on("second-instance", () => {
-    if (mainWindow) {
+    if (mainWindow && !mainWindow.isDestroyed()) {
       if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.show();
       mainWindow.focus();
+      return;
+    }
+    if (app.isReady()) {
+      createWindow();
     }
   });
 }

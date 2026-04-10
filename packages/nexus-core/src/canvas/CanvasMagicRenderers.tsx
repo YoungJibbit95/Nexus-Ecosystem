@@ -79,6 +79,26 @@ function parsePipeRows(content: string) {
     });
 }
 
+function parseChecklistRows(content: string) {
+  return content
+    .trim()
+    .split("\n")
+    .filter(Boolean)
+    .map((row) => {
+      const [labelRaw = "", doneRaw = ""] = row.split("|").map((s) => s.trim());
+      const done = ["1", "true", "done", "x", "yes", "y"].includes(
+        doneRaw.toLowerCase(),
+      );
+      return { label: labelRaw || "Neuer Punkt", done };
+    });
+}
+
+function joinChecklistRows(rows: Array<{ label: string; done: boolean }>) {
+  return normalizeContent(
+    rows.map((row) => `${row.label} | ${row.done ? "done" : "todo"}`).join("\n"),
+  );
+}
+
 function joinPipeRows(rows: Array<{ left: string; right: string }>) {
   return normalizeContent(
     rows.map((row) => `${row.left} | ${row.right}`).join("\n"),
@@ -625,6 +645,175 @@ function CanvasMagicProgress({ content, accent, onChange }: MagicBlockProps) {
   );
 }
 
+function CanvasMagicChecklist({ content, accent, onChange }: MagicBlockProps) {
+  const rgb = hexToRgb(accent);
+  const rows = parseChecklistRows(content);
+  const doneCount = rows.filter((row) => row.done).length;
+  const progress = rows.length > 0 ? Math.round((doneCount / rows.length) * 100) : 0;
+
+  return (
+    <div
+      style={{
+        border: `1px solid rgba(${rgb},0.22)`,
+        borderRadius: 8,
+        padding: 8,
+        display: "flex",
+        flexDirection: "column",
+        gap: 6,
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          fontSize: 10,
+          fontWeight: 700,
+          opacity: 0.86,
+        }}
+      >
+        <span>Checklist</span>
+        <span style={{ color: accent }}>
+          {doneCount}/{rows.length} ({progress}%)
+        </span>
+      </div>
+      <div
+        style={{
+          height: 4,
+          borderRadius: 999,
+          background: `rgba(${rgb},0.16)`,
+          overflow: "hidden",
+        }}
+      >
+        <div
+          style={{
+            width: `${progress}%`,
+            height: "100%",
+            background: `rgba(${rgb},0.84)`,
+            borderRadius: 999,
+            transition: "width 0.2s ease",
+          }}
+        />
+      </div>
+      {rows.length === 0 && (
+        <div style={{ fontSize: 10, opacity: 0.62 }}>Keine Einträge</div>
+      )}
+      {rows.map((row, i) => {
+        const updateRow = (next: Partial<{ label: string; done: boolean }>) => {
+          if (!onChange) return;
+          const nextRows = [...rows];
+          nextRows[i] = {
+            label: next.label ?? nextRows[i].label,
+            done: next.done ?? nextRows[i].done,
+          };
+          onChange(joinChecklistRows(nextRows));
+        };
+        const removeRow = () => {
+          if (!onChange) return;
+          onChange(joinChecklistRows(rows.filter((_, idx) => idx !== i)));
+        };
+
+        return (
+          <div
+            key={i}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              border: `1px solid rgba(${rgb},0.18)`,
+              borderRadius: 7,
+              background: row.done ? `rgba(${rgb},0.14)` : "rgba(255,255,255,0.04)",
+              padding: "4px 6px",
+            }}
+          >
+            {onChange ? (
+              <input
+                className="node-interactive"
+                type="checkbox"
+                checked={row.done}
+                onChange={(e) => updateRow({ done: e.target.checked })}
+                style={{ accentColor: accent, width: 13, height: 13, flexShrink: 0 }}
+              />
+            ) : (
+              <span style={{ width: 12, textAlign: "center", color: accent }}>
+                {row.done ? "✓" : "○"}
+              </span>
+            )}
+            {onChange ? (
+              <input
+                className="node-interactive"
+                value={row.label}
+                onChange={(e) => updateRow({ label: e.target.value })}
+                style={{
+                  flex: 1,
+                  minWidth: 0,
+                  border: `1px solid rgba(${rgb},0.18)`,
+                  borderRadius: 6,
+                  background: "rgba(255,255,255,0.06)",
+                  color: "inherit",
+                  fontSize: 10,
+                  padding: "2px 6px",
+                  outline: "none",
+                  textDecoration: row.done ? "line-through" : "none",
+                  opacity: row.done ? 0.66 : 1,
+                }}
+              />
+            ) : (
+              <span
+                style={{
+                  fontSize: 10,
+                  textDecoration: row.done ? "line-through" : "none",
+                  opacity: row.done ? 0.66 : 0.9,
+                }}
+              >
+                {row.label}
+              </span>
+            )}
+            {onChange && (
+              <button
+                className="node-interactive"
+                onClick={removeRow}
+                style={{
+                  border: "none",
+                  borderRadius: 6,
+                  background: "rgba(255,69,58,0.2)",
+                  color: "#ff8b80",
+                  cursor: "pointer",
+                  fontSize: 9,
+                  padding: "2px 5px",
+                }}
+              >
+                ✕
+              </button>
+            )}
+          </div>
+        );
+      })}
+      {onChange && (
+        <button
+          className="node-interactive"
+          onClick={() =>
+            onChange(
+              joinChecklistRows([...rows, { label: "Neuer Punkt", done: false }]),
+            )
+          }
+          style={{
+            border: `1px solid rgba(${rgb},0.3)`,
+            borderRadius: 6,
+            background: `rgba(${rgb},0.14)`,
+            color: accent,
+            cursor: "pointer",
+            fontSize: 10,
+            fontWeight: 700,
+            padding: "3px 8px",
+          }}
+        >
+          + Punkt
+        </button>
+      )}
+    </div>
+  );
+}
+
 export function CanvasNexusCodeBlock({
   className,
   children,
@@ -672,6 +861,17 @@ export function CanvasNexusCodeBlock({
         label: "Template",
         apply: () =>
           "Scope Fit | 70\nTeam Readiness | 60\nRelease Confidence | 40",
+      },
+    ],
+    "nexus-checklist": [
+      {
+        label: "+ Item",
+        apply: (d) => appendLine(d, "Neuer Punkt | todo"),
+      },
+      {
+        label: "Template",
+        apply: () =>
+          "Kickoff vorbereiten | done\nAPI Contract finalisieren | todo\nSmoke Test durchführen | todo",
       },
     ],
     "nexus-alert": [
@@ -785,6 +985,16 @@ export function CanvasNexusCodeBlock({
       <CanvasMagicList content={content} accent={accent} onChange={onChange} />,
     );
   }
+  if (lang === "nexus-checklist") {
+    return wrap(
+      "Checklist",
+      <CanvasMagicChecklist
+        content={content}
+        accent={accent}
+        onChange={onChange}
+      />,
+    );
+  }
   if (lang === "nexus-alert") {
     return wrap("Alert", <CanvasMagicAlert content={content} />);
   }
@@ -861,4 +1071,58 @@ export function CanvasNexusCodeBlock({
     );
   }
   return renderFallback;
+}
+
+function renderInlineBadge(text: string, accent: string) {
+  if (!text.startsWith("b:")) {
+    return (
+      <code
+        style={{
+          fontFamily: "monospace",
+          background: "rgba(255,255,255,0.08)",
+          padding: "2px 6px",
+          borderRadius: 4,
+          fontSize: "0.85em",
+        }}
+      >
+        {text}
+      </code>
+    );
+  }
+  const [label, variant] = text.slice(2).split("|");
+  const colors: Record<string, string> = {
+    magic: accent,
+    success: "#30D158",
+    warning: "#FF9F0A",
+    error: "#FF453A",
+    info: "#007AFF",
+  };
+  const color = colors[(variant || "").toLowerCase()] || accent;
+  return (
+    <span
+      style={{
+        background: `${color}22`,
+        color,
+        border: `1px solid ${color}44`,
+        verticalAlign: "middle",
+        borderRadius: 999,
+        padding: "1px 6px",
+        fontSize: "0.78em",
+        fontWeight: 700,
+      }}
+    >
+      {label || "Badge"}
+    </span>
+  );
+}
+
+export function CanvasNexusInlineCode({
+  children,
+  accent,
+}: {
+  children: ReactNode;
+  accent: string;
+}) {
+  const raw = Array.isArray(children) ? children.join("") : String(children ?? "");
+  return <>{renderInlineBadge(raw, accent)}</>;
 }

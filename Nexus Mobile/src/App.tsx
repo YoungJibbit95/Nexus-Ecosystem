@@ -11,6 +11,9 @@ import { CommandPalette } from './components/CommandPalette'
 import { buildBackground } from './lib/visualUtils'
 import { useMobile } from './lib/useMobile'
 import { hexToRgb } from './lib/utils'
+import { installRuntimeLagProbe } from './lib/runtimeLagProbe'
+import { buildMotionRuntime } from './lib/motionEngine'
+import { useGlobalTypingAnimation } from './lib/useGlobalTypingAnimation'
 import {
   applyAccessibilityFlags,
   applyGlobalFont,
@@ -18,6 +21,7 @@ import {
   applySafeAreaInsets,
   applyTypographyScale,
   buildLiveViewModel,
+  getFallbackViewsForApp,
   NEXUS_VIEW_META,
   resolveLayoutProfile,
   sanitizeGlobalFont,
@@ -51,8 +55,37 @@ const isOfflineBootstrapResourceError = (errorCodeRaw: unknown) => (
   isOfflineControlErrorCode(String(errorCodeRaw || 'INVALID_PAYLOAD'))
 )
 const CONTROL_API_BASE_URL = 'https://nexus-api.cloud'
-const MOBILE_BOOT_BLOCK_BUDGET_MS = 1_600
-const MOBILE_BOOT_BLOCK_BUDGET_LOW_POWER_MS = 2_200
+const MOBILE_BOOT_BLOCK_BUDGET_MS = 6_500
+const MOBILE_BOOT_BLOCK_BUDGET_LOW_POWER_MS = 8_500
+const MOBILE_BOOT_PRIORITY_VIEWS: View[] = [
+  'dashboard',
+  'notes',
+  'tasks',
+  'settings',
+  'reminders',
+  'files',
+]
+const MOBILE_HEAVY_PRELOAD_VIEWS = new Set<View>(['code', 'canvas', 'devtools'])
+const MOBILE_PERSISTENT_VIEW_CACHE: View[] = [
+  'dashboard',
+  'notes',
+  'tasks',
+  'settings',
+  'files',
+  'canvas',
+  'code',
+]
+const mergeUniqueViews = (...groups: View[][]): View[] => {
+  const ordered = groups.flat()
+  const seen = new Set<View>()
+  const result: View[] = []
+  for (const viewId of ordered) {
+    if (seen.has(viewId)) continue
+    seen.add(viewId)
+    result.push(viewId)
+  }
+  return result
+}
 const isLowPowerDevice = () => {
   if (typeof window === 'undefined' || typeof navigator === 'undefined') {
     return false
@@ -64,34 +97,46 @@ const isLowPowerDevice = () => {
   return Boolean(reducedMotion) || cores <= 4 || memory <= 4
 }
 
-const MOBILE_VIEW_EVICT_PRIORITY: View[] = [
-  'canvas',
-  'code',
-  'devtools',
-  'flux',
-  'files',
-  'info',
-  'settings',
-  'reminders',
-  'tasks',
-  'notes',
-  'dashboard',
-]
+const withTimeoutResult = async <T,>(
+  promise: Promise<T>,
+  timeoutMs: number,
+): Promise<{ timedOut: true } | { timedOut: false; value: T }> => {
+  let timeoutHandle: number | null = null
+  const timeoutPromise = new Promise<{ timedOut: true }>((resolve) => {
+    timeoutHandle = window.setTimeout(() => resolve({ timedOut: true }), timeoutMs)
+  })
+
+  try {
+    const result = await Promise.race([
+      promise.then((value) => ({ timedOut: false as const, value })),
+      timeoutPromise,
+    ])
+    return result
+  } finally {
+    if (timeoutHandle !== null) {
+      clearTimeout(timeoutHandle)
+    }
+  }
+}
+
+const MOBILE_CORE_FALLBACK_VIEWS: View[] = getFallbackViewsForApp('mobile')
+  .map((candidate) => candidate as View)
+  .filter((candidate) => VIEW_IDS.includes(candidate))
+const MOBILE_SAFE_STARTUP_VIEWS: View[] = MOBILE_CORE_FALLBACK_VIEWS.length > 0
+  ? MOBILE_CORE_FALLBACK_VIEWS
+  : VIEW_IDS
 
 
 export default function App() {
   const [view, setView] = useState<View>('dashboard')
-  const [availableViews, setAvailableViews] = useState<View[]>(VIEW_IDS)
-  const [hydratedViews, setHydratedViews] = useState<Record<string, true>>({
-    dashboard: true,
-  })
+  const [availableViews, setAvailableViews] = useState<View[]>(MOBILE_SAFE_STARTUP_VIEWS)
+  const [mountedViews, setMountedViews] = useState<View[]>(['dashboard'])
   const [bootReady, setBootReady] = useState(false)
   const [bootProgress, setBootProgress] = useState(0)
   const [bootStage, setBootStage] = useState('Nexus Runtime wird gestartet...')
   const [bootFailure, setBootFailure] = useState<string | null>(null)
   const [remoteDensity, setRemoteDensity] = useState<'compact' | 'comfortable' | 'spacious' | null>(null)
   const [remoteNavigation, setRemoteNavigation] = useState<'sidebar' | 'bottom-nav' | 'tabs' | null>(null)
-  const [liveReleaseId, setLiveReleaseId] = useState<string | null>(null)
   const [viewGuardState, setViewGuardState] = useState<{
     checking: boolean
     blockedView: string | null
@@ -103,6 +148,7 @@ export default function App() {
     requiredTier: null,
     reason: null,
   })
+  const [sidebarAutoPeek, setSidebarAutoPeek] = useState(false)
   const [paletteOpen, setPaletteOpen] = useState(false)
   const t = useTheme()
   const mob = useMobile()
@@ -110,11 +156,37 @@ export default function App() {
   const validatedAccessRef = useRef<Partial<Record<View, NexusViewAccessResult>>>({})
   const guardRequestSeq = useRef(0)
   const lowPowerMode = useMemo(() => isLowPowerDevice(), [])
-  const renderedViews = useMemo(() => {
-    const ids = new Set<View>(Object.keys(hydratedViews) as View[])
-    ids.add(view)
-    return Array.from(ids)
-  }, [hydratedViews, view])
+  const motionRuntime = useMemo(
+    () => buildMotionRuntime(t, { lowPowerMode }),
+    [lowPowerMode, t],
+  )
+  useGlobalTypingAnimation(!(t.qol?.reducedMotion ?? false))
+  const motionCssVars = useMemo(
+    () =>
+      ({
+        '--nx-motion-quick': `${motionRuntime.quickMs}ms`,
+        '--nx-motion-regular': `${motionRuntime.regularMs}ms`,
+        '--nx-hover-lift': `${motionRuntime.hoverLiftPx}px`,
+        '--nx-hover-scale': `${motionRuntime.hoverScale}`,
+        '--nx-press-scale': `${motionRuntime.pressScale}`,
+        '--nx-hover-extra-scale': motionRuntime.reduced
+          ? '0'
+          : motionRuntime.profile === 'cinematic'
+            ? '0.008'
+            : motionRuntime.profile === 'expressive'
+              ? '0.007'
+              : '0.006',
+      }) as React.CSSProperties,
+    [motionRuntime],
+  )
+
+  useEffect(() => {
+    const sidebarStyle = (t as any).sidebarStyle
+    const autoHideEnabled = Boolean(t.qol?.sidebarAutoHide) && sidebarStyle !== 'hidden'
+    if (!autoHideEnabled) {
+      setSidebarAutoPeek(false)
+    }
+  }, [t.qol?.sidebarAutoHide, (t as any).sidebarStyle])
 
   const viewAccessContext = useMemo(() => ({
     userId: (import.meta as any).env?.VITE_NEXUS_USER_ID as string | undefined,
@@ -122,36 +194,68 @@ export default function App() {
     userTier: (import.meta as any).env?.VITE_NEXUS_USER_TIER as 'free' | 'paid' | undefined,
   }), [])
 
+  const emitViewFilterDebugEvents = useCallback((events: Array<{ viewId: string; reason: string }> | undefined) => {
+    if (!Array.isArray(events) || events.length === 0) return
+    const runtime = runtimeRef.current
+    for (const item of events) {
+      const viewId = String(item?.viewId || '')
+      const reason = String(item?.reason || 'unknown')
+      if (!viewId) continue
+      console.info('[Nexus Mobile] view filtered by live model', { viewId, reason })
+      runtime?.connection.publish('custom', {
+        event: 'view_filtered',
+        appId: 'mobile',
+        viewId,
+        reason,
+      }, 'all')
+    }
+  }, [])
+
+  useEffect(() => {
+    setMountedViews((prev) => {
+      const filtered = prev.filter((entry) => availableViews.includes(entry))
+      if (availableViews.includes(view) && !filtered.includes(view)) {
+        filtered.push(view)
+      }
+      if (filtered.length > 0) return filtered
+      const fallback = availableViews[0] ?? 'dashboard'
+      return [fallback]
+    })
+  }, [availableViews, view])
+
   const resolveBundleViews = useCallback((bundle: NexusLiveBundle | null) => {
-    if (!bundle?.catalog || !bundle.layoutSchema) return VIEW_IDS
+    if (!bundle) return MOBILE_SAFE_STARTUP_VIEWS
 
     const model = buildLiveViewModel({
       appId: 'mobile',
-      catalog: bundle.catalog,
-      schema: bundle.layoutSchema,
+      catalog: bundle.catalog ?? null,
+      schema: bundle.layoutSchema ?? null,
     })
+    emitViewFilterDebugEvents(model.filterDebugEvents)
     const nextViews = model.views
       .map((candidate) => candidate as View)
       .filter((candidate) => VIEW_IDS.includes(candidate))
 
-    return nextViews.length > 0 ? nextViews : VIEW_IDS
-  }, [])
+    return nextViews.length > 0 ? nextViews : MOBILE_SAFE_STARTUP_VIEWS
+  }, [emitViewFilterDebugEvents])
 
   const applyLiveBundle = useCallback((bundle: NexusLiveBundle | null) => {
-    if (!bundle?.catalog || !bundle.layoutSchema) return
-
     const nextViews = resolveBundleViews(bundle)
     setAvailableViews(nextViews)
     setView((prev) => (nextViews.includes(prev) ? prev : nextViews[0]))
 
-    const profile = resolveLayoutProfile(bundle.layoutSchema, {
-      mode: 'mobile',
-      density: 'comfortable',
-      navigation: 'bottom-nav',
-    })
-    setRemoteDensity(profile.density)
-    setRemoteNavigation(profile.navigation)
-    setLiveReleaseId(bundle.release?.id || null)
+    if (bundle?.layoutSchema) {
+      const profile = resolveLayoutProfile(bundle.layoutSchema, {
+        mode: 'mobile',
+        density: 'comfortable',
+        navigation: 'bottom-nav',
+      })
+      setRemoteDensity(profile.density)
+      setRemoteNavigation(profile.navigation)
+    } else {
+      setRemoteDensity(null)
+      setRemoteNavigation(null)
+    }
   }, [resolveBundleViews])
 
   const storeWarmupAccess = useCallback((resultByView: Record<string, NexusViewAccessResult>) => {
@@ -166,13 +270,23 @@ export default function App() {
     validatedAccessRef.current = next
   }, [])
 
+  const preloadViewChunk = useCallback(
+    async (viewId: View, timeoutMs?: number) => {
+      const loader = VIEW_CHUNK_PRELOADERS[viewId]
+      if (typeof loader !== 'function') return
+      const budget = timeoutMs ?? (lowPowerMode ? 180 : 80)
+      await withTimeoutResult(loader(), budget)
+    },
+    [lowPowerMode],
+  )
+
   useEffect(() => {
     const controlBaseUrl = CONTROL_API_BASE_URL
     const controlIngestKey = (import.meta as any).env?.VITE_NEXUS_CONTROL_INGEST_KEY as string | undefined
 
     const runtime = createNexusRuntime({
       appId: 'mobile',
-      appVersion: '4.0.0',
+      appVersion: '5.0.0',
       control: {
         enabled: Boolean(controlBaseUrl),
         baseUrl: controlBaseUrl,
@@ -191,10 +305,12 @@ export default function App() {
         collectMemoryMs: 60_000,
         summaryIntervalMs: 60_000,
         maxMetricsPerMinute: 60,
+        reportToBus: false,
       },
       liveSync: {
         enabled: Boolean(controlBaseUrl),
         channel: 'production',
+        immediate: false,
         onUpdate: (event) => {
           applyLiveBundle(event.bundle)
         },
@@ -202,6 +318,31 @@ export default function App() {
     })
     runtime.start()
     runtimeRef.current = runtime
+    const stopLagProbe = installRuntimeLagProbe({
+      enabled: (import.meta as any).env?.VITE_NEXUS_LAG_PROBE === '1',
+      onEvent: (event) => {
+        const metric = Number(event.durationMs.toFixed(2))
+        const recordCustomMetric = (runtime.performance as any)?.recordCustomMetric
+        if (typeof recordCustomMetric === 'function') {
+          try {
+            recordCustomMetric.call(runtime.performance, 'mobile.ui_lag_ms', metric, 'ms')
+          } catch {
+            // best-effort only
+          }
+        }
+        runtime.connection.publish('custom', {
+          event: event.kind,
+          appId: 'mobile',
+          durationMs: metric,
+          detail: event.kind === 'long-task'
+            ? { name: event.name }
+            : { interaction: event.interaction },
+        }, 'all')
+        if (metric >= 120) {
+          console.warn('[Nexus Mobile] interaction lag detected', event)
+        }
+      },
+    })
     validatedAccessRef.current = {}
     let active = true
     const bootBudgetMs = lowPowerMode
@@ -217,21 +358,10 @@ export default function App() {
     setBootProgress(8)
     setBootStage('Nexus Runtime wird gestartet...')
 
-    void preloadMobileViews(VIEW_IDS, {
-      eagerLimit: lowPowerMode ? 2 : 4,
-      includeDeferred: true,
+    void preloadMobileViews(MOBILE_SAFE_STARTUP_VIEWS, {
+      eagerLimit: lowPowerMode ? 1 : 2,
+      includeDeferred: false,
     })
-    void runtime.control
-      .warmupViewAccess(orderMobilePreloadViews(VIEW_IDS), {
-        ...viewAccessContext,
-        forceRefresh: false,
-        concurrency: lowPowerMode ? 4 : 8,
-      })
-      .then((warmup) => {
-        if (!active) return
-        storeWarmupAccess(warmup.resultByView)
-      })
-      .catch(() => {})
 
     const setBootStep = (progress: number, stage: string) => {
       if (!active) return
@@ -294,14 +424,28 @@ export default function App() {
         if (!active) return
         applyLiveBundle(bundle)
         setBootStep(54, 'Validiere verfuegbare Views...')
-        const startupViews = bundle ? resolveBundleViews(bundle) : VIEW_IDS
+        const startupViews = bundle ? resolveBundleViews(bundle) : MOBILE_SAFE_STARTUP_VIEWS
         if (startupViews.length === 0) {
           throw new Error('CONTROL_API_BOOTSTRAP_FAILED (NO_STARTUP_VIEWS)')
         }
 
         const prioritizedStartupViews = orderMobilePreloadViews(startupViews)
+        const priorityPrewarmViews = MOBILE_BOOT_PRIORITY_VIEWS.filter((candidate) =>
+          startupViews.includes(candidate),
+        )
+        const heavyPrewarmViews = Array.from(MOBILE_HEAVY_PRELOAD_VIEWS).filter((candidate) =>
+          startupViews.includes(candidate),
+        )
         setAvailableViews(startupViews)
         setView((prev) => (startupViews.includes(prev) ? prev : startupViews[0]))
+        setMountedViews(
+          mergeUniqueViews(
+            [startupViews[0]],
+            MOBILE_PERSISTENT_VIEW_CACHE.filter((candidate) =>
+              startupViews.includes(candidate),
+            ),
+          ),
+        )
         setViewGuardState({
           checking: false,
           blockedView: null,
@@ -309,21 +453,51 @@ export default function App() {
           reason: null,
         })
         setBootStep(80, 'Views werden vorgewarmt...')
-        void preloadMobileViews(startupViews, {
-          eagerLimit: lowPowerMode ? 2 : 4,
-          includeDeferred: true,
+        const startupPreloadPromise = preloadMobileViews(startupViews, {
+          eagerLimit: lowPowerMode ? 2 : 3,
+          includeDeferred: false,
         })
-        void runtime.control
+        const heavyPreloadPromise = heavyPrewarmViews.length > 0
+          ? preloadMobileViews(heavyPrewarmViews, {
+              eagerLimit: Math.max(1, heavyPrewarmViews.length),
+              includeDeferred: false,
+              allowHeavy: true,
+            })
+          : Promise.resolve()
+        const priorityWarmupPromise = Promise.allSettled(
+          priorityPrewarmViews.map((candidate) =>
+            preloadViewChunk(candidate, lowPowerMode ? 260 : 150),
+          ),
+        )
+        const accessWarmupPromise = runtime.control
           .warmupViewAccess(prioritizedStartupViews, {
             ...viewAccessContext,
             forceRefresh: false,
             concurrency: lowPowerMode ? 4 : 8,
           })
-          .then((warmup) => {
-            if (!active) return
-            storeWarmupAccess(warmup.resultByView)
-          })
-          .catch(() => {})
+        const warmupBudgetMs = Math.max(1_000, bootBudgetMs - 700)
+        const warmupResult = await withTimeoutResult(
+          Promise.allSettled([
+            startupPreloadPromise,
+            priorityWarmupPromise,
+            accessWarmupPromise,
+            heavyPreloadPromise,
+          ]),
+          warmupBudgetMs,
+        )
+        if ('value' in warmupResult) {
+          const settledAccess = warmupResult.value[2]
+          if (settledAccess?.status === 'fulfilled') {
+            storeWarmupAccess(settledAccess.value.resultByView)
+          }
+        } else {
+          void accessWarmupPromise
+            .then((warmup) => {
+              if (!active) return
+              storeWarmupAccess(warmup.resultByView)
+            })
+            .catch(() => {})
+        }
         setBootStep(100, 'Startsequenz abgeschlossen')
       } catch (error) {
         const reason = error instanceof Error && error.message
@@ -343,6 +517,7 @@ export default function App() {
     return () => {
       active = false
       clearTimeout(forceBootReadyTimer)
+      stopLagProbe()
       runtime.stop()
       runtimeRef.current = null
       validatedAccessRef.current = {}
@@ -397,43 +572,6 @@ export default function App() {
     runtime.performance.trackViewRender(`mobile:${view}`)
   }, [view, mob.isMobile])
 
-  useEffect(() => {
-    setHydratedViews((prev) => {
-      const cacheLimit = lowPowerMode ? 2 : 3
-      let changed = false
-      const next: Record<string, true> = { ...prev }
-
-      if (!next[view]) {
-        next[view] = true
-        changed = true
-      }
-
-      const keys = Object.keys(next) as View[]
-      if (keys.length <= cacheLimit) {
-        return changed ? next : prev
-      }
-
-      const removable = keys
-        .filter((candidate) => candidate !== view)
-        .sort((a, b) => {
-          const aIdx = MOBILE_VIEW_EVICT_PRIORITY.indexOf(a)
-          const bIdx = MOBILE_VIEW_EVICT_PRIORITY.indexOf(b)
-          return (aIdx === -1 ? 999 : aIdx) - (bIdx === -1 ? 999 : bIdx)
-        })
-
-      while (Object.keys(next).length > cacheLimit && removable.length > 0) {
-        const candidate = removable.shift()
-        if (!candidate) break
-        if (next[candidate]) {
-          delete next[candidate]
-          changed = true
-        }
-      }
-
-      return changed ? next : prev
-    })
-  }, [lowPowerMode, view])
-
   const requestViewChange = useCallback(async (nextRaw: unknown) => {
     const next = String(nextRaw || '').toLowerCase() as View
     if (!availableViews.includes(next)) return
@@ -442,6 +580,8 @@ export default function App() {
     const runtime = runtimeRef.current
     if (!runtime) {
       setView(next)
+      setMountedViews((prev) => (prev.includes(next) ? prev : [...prev, next]))
+      void preloadViewChunk(next)
       setViewGuardState({
         checking: false,
         blockedView: null,
@@ -454,8 +594,9 @@ export default function App() {
     const cachedAccess = validatedAccessRef.current[next]
     if (cachedAccess) {
       if (cachedAccess.allowed) {
-        void VIEW_CHUNK_PRELOADERS[next]?.()
+        void preloadViewChunk(next)
         setView(next)
+        setMountedViews((prev) => (prev.includes(next) ? prev : [...prev, next]))
         setViewGuardState({
           checking: false,
           blockedView: null,
@@ -476,8 +617,9 @@ export default function App() {
 
     const requestId = ++guardRequestSeq.current
     const previousView = view
-    void VIEW_CHUNK_PRELOADERS[next]?.()
+    void preloadViewChunk(next)
     setView(next)
+    setMountedViews((prev) => (prev.includes(next) ? prev : [...prev, next]))
     setViewGuardState((prev) => ({
       ...prev,
       checking: true,
@@ -509,7 +651,7 @@ export default function App() {
       reason: access.reason || 'PAYWALL_BLOCKED',
     })
     setView(previousView)
-  }, [availableViews, view, viewAccessContext])
+  }, [availableViews, preloadViewChunk, view, viewAccessContext])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -577,25 +719,84 @@ export default function App() {
   const sidebarLeft = (t as any).sidebarPosition !== 'right'
   const toolbarBottom = t.toolbar?.position !== 'top'
   const toolbarVisible = t.toolbar?.visible !== false
+  const sidebarHidden = (t as any).sidebarStyle === 'hidden'
+  const sidebarAutoHideEnabled = Boolean(t.qol?.sidebarAutoHide) && !sidebarHidden
+  const sidebarExpanded = !sidebarAutoHideEnabled || sidebarAutoPeek
+  const collapsedSidebarWidth = sidebarAutoHideEnabled ? 12 : t.sidebarWidth
+  const effectiveSidebarWidth = sidebarHidden ? 0 : (sidebarExpanded ? t.sidebarWidth : collapsedSidebarWidth)
 
   // Bottom nav height for mobile content offset
   const mobileNavigationMode = remoteNavigation || 'bottom-nav'
   const showMobileBottomNav = mobileNavigationMode !== 'sidebar'
   const MOBILE_NAV_HEIGHT = showMobileBottomNav ? (64 + mob.safeBottom) : 0
 
-  const viewMap: Record<View, React.ReactNode> = {
-    dashboard: <DashboardView setView={(v: any) => { void requestViewChange(v) }} />,
-    notes: <NotesView />,
-    code: <CodeView />,
-    tasks: <TasksView />,
-    reminders: <RemindersView />,
-    canvas: <CanvasView />,
-    files: <FilesView />,
-    flux: <FluxView />,
-    settings: <SettingsView />,
-    info: <InfoView />,
-    devtools: <DevToolsView />,
+  const renderActiveView = (viewId: View): React.ReactNode => {
+    switch (viewId) {
+      case 'dashboard':
+        return <DashboardView setView={(v: any) => { void requestViewChange(v) }} />
+      case 'notes':
+        return <NotesView />
+      case 'code':
+        return <CodeView />
+      case 'tasks':
+        return <TasksView />
+      case 'reminders':
+        return <RemindersView />
+      case 'canvas':
+        return <CanvasView />
+      case 'files':
+        return <FilesView />
+      case 'flux':
+        return <FluxView />
+      case 'settings':
+        return <SettingsView />
+      case 'info':
+        return <InfoView />
+      case 'devtools':
+        return <DevToolsView />
+      default:
+        return <DashboardView setView={(v: any) => { void requestViewChange(v) }} />
+    }
   }
+
+  const renderMountedViews = () => (
+    mergeUniqueViews(
+      [view],
+      mountedViews.filter((entry) => availableViews.includes(entry)),
+    ).map((viewId) => (
+      <div
+        key={viewId}
+        style={{
+          position: 'absolute',
+          inset: 0,
+          pointerEvents: viewId === view ? 'auto' : 'none',
+          display: viewId === view ? 'block' : 'none',
+          animation:
+            viewId === view && !(t.qol?.reducedMotion ?? false)
+              ? 'nx-view-enter calc(var(--nx-motion-regular, 210ms) + 70ms) cubic-bezier(0.22, 1, 0.36, 1) both'
+              : undefined,
+        }}
+      >
+        <Suspense
+          fallback={viewId === view ? (
+            <div style={{
+              height: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              opacity: 0.6,
+              fontSize: 13,
+              fontWeight: 600,
+            }}>
+              Loading view...
+            </div>
+          ) : null}
+        >
+          {renderActiveView(viewId)}
+        </Suspense>
+      </div>
+    ))
+  )
 
   const toolbarEl = (!mob.isMobile && toolbarVisible) ? (
     <div style={{
@@ -639,6 +840,7 @@ export default function App() {
   if (mob.isMobile) {
     return (
       <div style={{
+        ...motionCssVars,
         display: 'flex', flexDirection: 'column',
         width: '100%', height: '100%', overflow: 'hidden',
         position: 'relative',
@@ -687,11 +889,6 @@ export default function App() {
             <div style={{ fontSize: 10, opacity: 0.62, marginTop: 2, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
               {mobileMeta.subtitle}
             </div>
-            {liveReleaseId ? (
-              <div style={{ fontSize: 9, opacity: 0.7, marginTop: 2, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
-                live: {liveReleaseId}
-              </div>
-            ) : null}
           </div>
 
           <button
@@ -752,47 +949,15 @@ export default function App() {
           WebkitOverflowScrolling: 'touch',
         }}>
           <motion.div
-            initial={t.animations.pageTransitions && !lowPowerMode ? { opacity: 0, x: 20 } : false}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: lowPowerMode ? 0.1 : 0.18, ease: 'easeInOut' }}
+            initial={motionRuntime.pageInitial}
+            animate={motionRuntime.pageAnimate}
+            exit={motionRuntime.pageExit}
+            transition={motionRuntime.pageTransition}
             style={{ height: '100%', overflow: 'hidden', position: 'relative' }}
           >
-            {renderedViews.map((viewId) => {
-              const active = viewId === view
-              return (
-                <div
-                  key={`mobile-${viewId}`}
-                  style={{
-                    position: active ? 'relative' : 'absolute',
-                    inset: active ? undefined : 0,
-                    height: '100%',
-                    overflow: 'hidden',
-                    visibility: active ? 'visible' : 'hidden',
-                    pointerEvents: active ? 'auto' : 'none',
-                  }}
-                >
-                  <Suspense
-                    fallback={
-                      active ? (
-                        <div style={{
-                          height: '100%',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          opacity: 0.6,
-                          fontSize: 13,
-                          fontWeight: 600,
-                        }}>
-                          Loading view...
-                        </div>
-                      ) : null
-                    }
-                  >
-                    {viewMap[viewId]}
-                  </Suspense>
-                </div>
-              )
-            })}
+            <div style={{ position: 'relative', height: '100%', overflow: 'hidden' }}>
+              {renderMountedViews()}
+            </div>
           </motion.div>
         </div>
 
@@ -814,6 +979,7 @@ export default function App() {
   // ── TABLET / DESKTOP LAYOUT (unchanged) ─────────────────────────────────
   return (
       <div style={{
+        ...motionCssVars,
         display: 'flex', flexDirection: 'column',
         width: '100%', height: '100%', overflow: 'hidden',
         position: 'relative',
@@ -861,62 +1027,63 @@ export default function App() {
       <div style={{
         display: 'flex', flex: 1, overflow: 'hidden', minHeight: 0,
         flexDirection: sidebarLeft ? 'row' : 'row-reverse',
+        position: 'relative',
       }}>
-        <div style={{ width: t.sidebarWidth, flexShrink: 0, height: '100%' }}>
+        <div
+          style={{
+            width: effectiveSidebarWidth,
+            flexShrink: 0,
+            height: '100%',
+            overflow: 'hidden',
+            transition: `width ${motionRuntime.quickMs}ms cubic-bezier(0.2, 0.8, 0.2, 1)`,
+            pointerEvents: sidebarAutoHideEnabled && !sidebarExpanded ? 'none' : 'auto',
+          }}
+          onMouseEnter={() => {
+            if (sidebarAutoHideEnabled) setSidebarAutoPeek(true)
+          }}
+          onMouseLeave={() => {
+            if (sidebarAutoHideEnabled) setSidebarAutoPeek(false)
+          }}
+        >
           <Sidebar
             view={view}
             availableViews={availableViews}
             onChange={(v: any) => { void requestViewChange(v) }}
           />
         </div>
+        {sidebarAutoHideEnabled && !sidebarExpanded ? (
+          <div
+            onMouseEnter={() => setSidebarAutoPeek(true)}
+            style={{
+              position: 'absolute',
+              top: 0,
+              bottom: 0,
+              [sidebarLeft ? 'left' : 'right']: 0,
+              width: 14,
+              zIndex: 55,
+              cursor: 'ew-resize',
+              background: sidebarLeft
+                ? 'linear-gradient(90deg, rgba(255,255,255,0.14), transparent)'
+                : 'linear-gradient(270deg, rgba(255,255,255,0.14), transparent)',
+              opacity: 0.48,
+            }}
+          />
+        ) : null}
         <div style={{
           flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column',
           position: 'relative', minHeight: 0,
         }}>
           {!toolbarBottom && toolbarEl}
           <motion.div
-            initial={t.animations.pageTransitions && !lowPowerMode ? { opacity: 0, y: 8 } : false}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: (lowPowerMode ? 0.1 : 0.18) / Math.max(t.visual.animationSpeed || 1, 0.1), ease: 'easeInOut' }}
+            initial={motionRuntime.pageInitial}
+            animate={motionRuntime.pageAnimate}
+            exit={motionRuntime.pageExit}
+            transition={motionRuntime.pageTransition}
             style={{ flex: 1, overflow: 'hidden', height: '100%', minHeight: 0, position: 'relative' }}
           >
-            {renderedViews.map((viewId) => {
-              const active = viewId === view
-              return (
-                <div
-                  key={`desktop-${viewId}`}
-                  style={{
-                    position: active ? 'relative' : 'absolute',
-                    inset: active ? undefined : 0,
-                    height: '100%',
-                    minHeight: 0,
-                    overflow: 'hidden',
-                    visibility: active ? 'visible' : 'hidden',
-                    pointerEvents: active ? 'auto' : 'none',
-                  }}
-                >
-                  <Suspense
-                    fallback={
-                      active ? (
-                        <div style={{
-                          height: '100%',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          opacity: 0.6,
-                          fontSize: 13,
-                          fontWeight: 600,
-                        }}>
-                          Loading view...
-                        </div>
-                      ) : null
-                    }
-                  >
-                    {viewMap[viewId]}
-                  </Suspense>
-                </div>
-              )
-            })}
+            <div style={{ position: 'relative', height: '100%', minHeight: 0, overflow: 'hidden' }}>
+              {renderMountedViews()}
+            </div>
           </motion.div>
           <NexusTerminal setView={(v: any) => { void requestViewChange(v) }} openPalette={() => setPaletteOpen(true)} />
           {toolbarBottom && toolbarEl}

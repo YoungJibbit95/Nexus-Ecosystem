@@ -30,6 +30,7 @@
   "include": [
     "src/components/**/*.js",
     "src/pages/**/*.jsx",
+    "src/types/**/*.d.ts",
     "src/Layout.jsx"
   ],
   "exclude": [

@@ -15,6 +15,20 @@ const env = {
   CSC_IDENTITY_AUTO_DISCOVERY: String(process.env.CSC_IDENTITY_AUTO_DISCOVERY || 'false'),
 }
 
+const hasArchFlag = command.some((part) =>
+  part === '--arm64' || part === '--x64' || part === '--universal' || part.startsWith('--mac.'),
+)
+const macArchMode = String(process.env.NEXUS_MAC_ARCH || '').trim().toLowerCase()
+if (!hasArchFlag && macArchMode !== 'all' && macArchMode !== 'universal') {
+  if (process.platform === 'darwin' && process.arch === 'arm64') {
+    command.push('--arm64')
+    console.log('[electron-pack-mac] Arch auto-selected: arm64 (host)')
+  } else if (process.platform === 'darwin' && process.arch === 'x64') {
+    command.push('--x64')
+    console.log('[electron-pack-mac] Arch auto-selected: x64 (host)')
+  }
+}
+
 const result = spawnSync(command[0], command.slice(1), {
   cwd: appDir,
   stdio: 'inherit',

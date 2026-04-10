@@ -1,5 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import Editor, { useMonaco } from "@monaco-editor/react";
+import { ensureMonacoWorkers } from "../../lib/monacoWorkers";
+
+const IGNORED_DIAGNOSTIC_CODES = new Set([2307, 2792, 1208, 2339, 2580, 2304]);
+const EDITOR_CHANGE_EMIT_INTERVAL_MS = 60;
+const CURSOR_INFO_UPDATE_MS = 50;
+const LINE_COUNT_UPDATE_MS = 80;
 
 function getLanguage(fileName) {
   if (!fileName) return "plaintext";
@@ -76,6 +82,19 @@ function extractRgbTuple(value) {
   ];
 }
 
+function pickReadableColorSource(...values) {
+  for (const value of values) {
+    const normalized = typeof value === "string" ? value.trim() : "";
+    if (!normalized) continue;
+    if (extractRgbTuple(normalized)) return normalized;
+  }
+  for (const value of values) {
+    const normalized = typeof value === "string" ? value.trim() : "";
+    if (normalized) return normalized;
+  }
+  return "#0b1020";
+}
+
 function getLuminance(rgb) {
   if (!rgb) return 0;
   const channels = rgb.map((v) => {
@@ -85,6 +104,19 @@ function getLuminance(rgb) {
       : ((normalized + 0.055) / 1.055) ** 2.4;
   });
   return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
+}
+
+function normalizeEditorTextColor(value) {
+  const rgb = extractRgbTuple(value);
+  if (!rgb) return "#e5e7eb";
+  return getLuminance(rgb) < 0.45 ? "#e5e7eb" : value;
+}
+
+function isIgnoredDiagnosticCode(rawCode) {
+  const normalized =
+    typeof rawCode === "object" && rawCode !== null ? rawCode.value : rawCode;
+  const numeric = Number(normalized);
+  return Number.isFinite(numeric) && IGNORED_DIAGNOSTIC_CODES.has(numeric);
 }
 
 export default function CodeEditor({
@@ -99,10 +131,27 @@ export default function CodeEditor({
   onMarkersChange,
   settings = /** @type {any} */ ({}),
 }) {
+  useEffect(() => {
+    ensureMonacoWorkers();
+  }, []);
+
   const monaco = useMonaco();
   const language = getLanguage(fileName);
   const [cursorInfo, setCursorInfo] = useState({ line: 1, col: 1 });
+  const [lineCount, setLineCount] = useState(1);
   const editorRef = useRef(null);
+  const markerTimerRef = useRef(null);
+  const markerHashRef = useRef("");
+  const changeEmitTimerRef = useRef(null);
+  const pendingChangeRef = useRef(null);
+  const cursorTimerRef = useRef(null);
+  const pendingCursorInfoRef = useRef({ line: 1, col: 1 });
+  const lineCountTimerRef = useRef(null);
+  const pendingLineCountRef = useRef(1);
+  const markerListenerDisposableRef = useRef(null);
+  const cursorListenerDisposableRef = useRef(null);
+  const blurListenerDisposableRef = useRef(null);
+  const contentListenerDisposableRef = useRef(null);
   const installedExtensions = Array.isArray(settings.extensions_installed)
     ? settings.extensions_installed
     : [];
@@ -132,6 +181,17 @@ export default function CodeEditor({
     });
   }, []);
 
+  const disposeEditorListeners = useCallback(() => {
+    markerListenerDisposableRef.current?.dispose?.();
+    markerListenerDisposableRef.current = null;
+    cursorListenerDisposableRef.current?.dispose?.();
+    cursorListenerDisposableRef.current = null;
+    blurListenerDisposableRef.current?.dispose?.();
+    blurListenerDisposableRef.current = null;
+    contentListenerDisposableRef.current?.dispose?.();
+    contentListenerDisposableRef.current = null;
+  }, []);
+
   useEffect(() => {
     if (monaco) {
       try {
@@ -140,13 +200,12 @@ export default function CodeEditor({
         const cssEditorText =
           rootStyles.getPropertyValue("--nexus-editor-foreground").trim() ||
           rootStyles.getPropertyValue("--nexus-text").trim();
-        const panelSurface = rootStyles
-          .getPropertyValue("--nexus-panel-surface")
-          .trim();
-        const panelRgb = extractRgbTuple(panelSurface);
-        const monacoBase =
-          panelRgb && getLuminance(panelRgb) > 0.52 ? "vs" : "vs-dark";
-        const editorTextColor = cssEditorText || activeTheme.text || "#e5e7eb";
+        const monacoBase = "vs-dark";
+        const editorTextColor = normalizeEditorTextColor(
+          pickReadableColorSource(cssEditorText, activeTheme.text, "#e5e7eb"),
+        );
+        const editorLineNumberColor = "#9ca3af";
+        const editorWidgetBackground = "#0a0a0f";
         const accentColor = String(settings.primary_accent || activeTheme.accent || "#8000ff").replace('#', '');
         // Monaco theme names must be strictly alphanumeric (plus - and _)
         const safeThemeBase = String(settings.theme || 'dark').replace(/[^a-z0-9]/gi, '');
@@ -171,10 +230,10 @@ export default function CodeEditor({
             "editor.lineHighlightBorder": "#00000000",
             "editor.foreground": editorTextColor,
             "editor.selectionBackground": activeTheme.selection || "#264f78",
-            "editorLineNumber.foreground": "#4b5563",
+            "editorLineNumber.foreground": editorLineNumberColor,
             "editor.lineHighlightBackground": "#ffffff0a",
             "editorCursor.foreground": activeTheme.accent || "#8000ff",
-            "editorWidget.background": "#0a0a0f",
+            "editorWidget.background": editorWidgetBackground,
           },
         });
         monaco.editor.setTheme(themeName);
@@ -189,7 +248,15 @@ export default function CodeEditor({
         requestAnimationFrame(() => forceTransparentEditorShell());
       }
     }
-  }, [monaco, settings.primary_accent, settings.theme, forceTransparentEditorShell]);
+  }, [
+    monaco,
+    settings.primary_accent,
+    settings.theme,
+    settings.background,
+    settings.panel_background_mode,
+    settings.panel_blur_strength,
+    forceTransparentEditorShell,
+  ]);
 
   // Compiler options for TS/JSX
   useEffect(() => {
@@ -227,13 +294,22 @@ export default function CodeEditor({
         });
 
         tsDefaults.setDiagnosticsOptions({
-          noSemanticValidation: false,
+          noSemanticValidation: true,
           noSyntaxValidation: false,
+          noSuggestionDiagnostics: true,
           // 2580: Cannot find name 'require'
           // 2304: Cannot find name 'module', 'process', etc.
           // 2307: Cannot find module (import/require)
-          diagnosticCodesToIgnore: [2307, 2792, 1208, 2339, 2580, 2304] 
+          diagnosticCodesToIgnore: [...IGNORED_DIAGNOSTIC_CODES],
         });
+        if (typeof jsDefaults?.setDiagnosticsOptions === "function") {
+          jsDefaults.setDiagnosticsOptions({
+            noSemanticValidation: true,
+            noSyntaxValidation: false,
+            noSuggestionDiagnostics: true,
+            diagnosticCodesToIgnore: [...IGNORED_DIAGNOSTIC_CODES],
+          });
+        }
       } catch (err) {
         console.error("Monaco TS Config Error:", err);
       }
@@ -303,12 +379,91 @@ export default function CodeEditor({
     }
   }, [settings._revealLine]);
 
+  const flushPendingChange = useCallback(() => {
+    if (changeEmitTimerRef.current) {
+      window.clearTimeout(changeEmitTimerRef.current);
+      changeEmitTimerRef.current = null;
+    }
+    if (pendingChangeRef.current === null) return;
+    const nextValue = pendingChangeRef.current;
+    pendingChangeRef.current = null;
+    onChange(nextValue);
+  }, [onChange]);
+
+  const flushCursorInfo = useCallback(() => {
+    if (cursorTimerRef.current) {
+      window.clearTimeout(cursorTimerRef.current);
+      cursorTimerRef.current = null;
+    }
+    const next = pendingCursorInfoRef.current;
+    setCursorInfo((prev) =>
+      prev.line === next.line && prev.col === next.col ? prev : next,
+    );
+  }, []);
+
+  const scheduleCursorInfoUpdate = useCallback((line, col) => {
+    pendingCursorInfoRef.current = { line, col };
+    if (cursorTimerRef.current) return;
+    cursorTimerRef.current = window.setTimeout(() => {
+      cursorTimerRef.current = null;
+      const next = pendingCursorInfoRef.current;
+      setCursorInfo((prev) =>
+        prev.line === next.line && prev.col === next.col ? prev : next,
+      );
+    }, CURSOR_INFO_UPDATE_MS);
+  }, []);
+
+  const scheduleLineCountUpdate = useCallback((nextCount) => {
+    const normalized = Math.max(1, Number(nextCount || 1));
+    pendingLineCountRef.current = normalized;
+    if (lineCountTimerRef.current) return;
+    lineCountTimerRef.current = window.setTimeout(() => {
+      lineCountTimerRef.current = null;
+      const next = pendingLineCountRef.current;
+      setLineCount((prev) => (prev === next ? prev : next));
+    }, LINE_COUNT_UPDATE_MS);
+  }, []);
+
+  const emitEditorChange = useCallback((value) => {
+    pendingChangeRef.current = value;
+    if (changeEmitTimerRef.current) return;
+    changeEmitTimerRef.current = window.setTimeout(() => {
+      changeEmitTimerRef.current = null;
+      if (pendingChangeRef.current === null) return;
+      const nextValue = pendingChangeRef.current;
+      pendingChangeRef.current = null;
+      onChange(nextValue);
+    }, EDITOR_CHANGE_EMIT_INTERVAL_MS);
+  }, [onChange]);
+
+  useEffect(() => {
+    return () => {
+      disposeEditorListeners();
+      if (markerTimerRef.current) {
+        window.clearTimeout(markerTimerRef.current);
+        markerTimerRef.current = null;
+      }
+      if (cursorTimerRef.current) {
+        window.clearTimeout(cursorTimerRef.current);
+        cursorTimerRef.current = null;
+      }
+      if (lineCountTimerRef.current) {
+        window.clearTimeout(lineCountTimerRef.current);
+        lineCountTimerRef.current = null;
+      }
+      flushPendingChange();
+      flushCursorInfo();
+    };
+  }, [disposeEditorListeners, flushPendingChange, flushCursorInfo]);
+
   const handleEditorChange = (value) => {
-    onChange(value || "");
+    emitEditorChange(value || "");
   };
 
   const handleEditorDidMount = (editor, _monaco) => {
     editorRef.current = editor;
+    disposeEditorListeners();
+    setLineCount(Math.max(1, Number(editor.getModel()?.getLineCount?.() || 1)));
 
     // Fix for "versetzt" (offset) issue: refresh layout after a short delay
     // to ensure fonts are fully loaded.
@@ -317,32 +472,81 @@ export default function CodeEditor({
       forceTransparentEditorShell();
     }, 500);
 
-    editor.onDidChangeCursorPosition((e) => {
-      setCursorInfo({
-        line: e.position.lineNumber,
-        col: e.position.column,
-      });
+    cursorListenerDisposableRef.current = editor.onDidChangeCursorPosition((e) => {
+      scheduleCursorInfoUpdate(e.position.lineNumber, e.position.column);
+    });
+    contentListenerDisposableRef.current = editor.onDidChangeModelContent(() => {
+      const nextCount = editor.getModel()?.getLineCount?.() || 1;
+      scheduleLineCountUpdate(nextCount);
+    });
+    blurListenerDisposableRef.current = editor.onDidBlurEditorText(() => {
+      flushPendingChange();
+      flushCursorInfo();
     });
 
     // Listen for markers (errors, warnings)
     if (_monaco) {
       const updateMarkers = () => {
-        const markers = _monaco.editor.getModelMarkers({ resource: editor.getModel()?.uri });
+        const modelUri = editor.getModel()?.uri;
+        if (!modelUri) {
+          if (onMarkersChange && markerHashRef.current !== "__empty__") {
+            markerHashRef.current = "__empty__";
+            onMarkersChange([]);
+          }
+          return;
+        }
+        const markers = _monaco.editor
+          .getModelMarkers({ resource: modelUri })
+          .filter((marker) => {
+            if (marker?.severity < _monaco.MarkerSeverity.Error) return false;
+            if (isIgnoredDiagnosticCode(marker?.code)) return false;
+            return true;
+          })
+          .slice(0, 120);
         if (onMarkersChange) {
-          onMarkersChange(markers);
+          const hash = markers
+            .map(
+              (marker) =>
+                `${marker.severity}|${String(marker.code || "")}|${marker.startLineNumber}|${marker.startColumn}|${marker.endLineNumber}|${marker.endColumn}|${marker.message || ""}`,
+            )
+            .join("::");
+          if (hash === markerHashRef.current) return;
+          markerHashRef.current = hash;
+          if (markerTimerRef.current) {
+            window.clearTimeout(markerTimerRef.current);
+          }
+          markerTimerRef.current = window.setTimeout(() => {
+            markerTimerRef.current = null;
+            onMarkersChange(markers);
+          }, 220);
         }
       };
 
-      const disposable = _monaco.editor.onDidChangeMarkers(() => {
+      markerListenerDisposableRef.current = _monaco.editor.onDidChangeMarkers(() => {
         updateMarkers();
       });
 
       // Initial check
       updateMarkers();
-
-      return () => disposable.dispose();
     }
   };
+
+  useEffect(() => {
+    const editorLineCount = editorRef.current?.getModel?.()?.getLineCount?.();
+    if (Number.isFinite(editorLineCount) && editorLineCount > 0) {
+      setLineCount(editorLineCount);
+      return;
+    }
+    if (!code) {
+      setLineCount(1);
+      return;
+    }
+    let lines = 1;
+    for (let i = 0; i < code.length; i += 1) {
+      if (code.charCodeAt(i) === 10) lines += 1;
+    }
+    setLineCount(lines);
+  }, [code, fileName]);
 
   useEffect(() => {
     requestAnimationFrame(() => forceTransparentEditorShell());
@@ -370,23 +574,27 @@ export default function CodeEditor({
             lineNumbers: showLineNumbers ? "on" : "off",
             tabSize: settings.tab_size || 4,
             wordWrap: wordWrap ? "on" : "off",
-            minimap: { enabled: settings.minimap !== false },
+            minimap: { enabled: settings.minimap === true },
             cursorBlinking: settings.cursor_blinking || "solid", 
-            cursorSmoothCaretAnimation: settings.smooth_caret !== false ? "on" : "off",
+            cursorSmoothCaretAnimation: settings.smooth_caret === true ? "on" : "off",
             cursorStyle: settings.cursor_style || "line",
             renderWhitespace: settings.render_whitespace || "none",
-            formatOnPaste: settings.format_on_paste !== false || hasPrettier,
+            formatOnPaste: hasPrettier || settings.format_on_paste === true,
             stickyScroll: { enabled: settings.sticky_scroll || false },
             smoothScrolling: true,
             padding: { top: 20, bottom: 20 },
             scrollBeyondLastLine: false,
             renderLineHighlight: settings.line_highlight || "all",
             bracketPairColorization: {
-              enabled: settings.bracket_colorization !== false || hasRainbowBrackets,
+              enabled: hasRainbowBrackets || settings.bracket_colorization === true,
             },
             guides: { bracketPairs: true, indentation: true },
             fontLigatures: settings.font_ligatures !== false,
-            formatOnType: hasPrettier || settings.format_on_type !== false,
+            formatOnType: hasPrettier || settings.format_on_type === true,
+            selectionHighlight: false,
+            occurrencesHighlight: "off",
+            codeLens: false,
+            inlayHints: { enabled: "off" },
             fixedOverflowWidgets: true,
             scrollbar: {
               verticalScrollbarSize: 8,
@@ -423,7 +631,7 @@ export default function CodeEditor({
             Ln {cursorInfo.line}, Col {cursorInfo.col}
           </span>
           <span className="text-[10px] text-gray-500">
-            {(code || "").split("\n").length} Lines
+            {lineCount} Lines
           </span>
         </div>
       </div>

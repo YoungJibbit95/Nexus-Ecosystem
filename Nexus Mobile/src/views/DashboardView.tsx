@@ -12,6 +12,54 @@ import { useApp, DashboardWidgetId, DashboardWidget } from '../store/appStore'
 import { useTheme } from '../store/themeStore'
 import { hexToRgb, fmtDt } from '../lib/utils'
 import { useMobile } from '../lib/useMobile'
+import { buildMotionRuntime } from '../lib/motionEngine'
+
+const DASHBOARD_WIDGET_ORDER: DashboardWidgetId[] = [
+  'stats',
+  'quick',
+  'tasks',
+  'reminders',
+  'notes',
+  'activity',
+  'chart',
+  'calendar',
+]
+
+const DASHBOARD_WIDGET_DEFAULTS: Record<DashboardWidgetId, Pick<DashboardWidget, 'label' | 'icon'>> = {
+  stats: { label: 'Stats', icon: '📊' },
+  quick: { label: 'Quick Actions', icon: '⚡' },
+  tasks: { label: 'Tasks', icon: '✅' },
+  reminders: { label: 'Reminders', icon: '🔔' },
+  notes: { label: 'Recent Notes', icon: '📝' },
+  activity: { label: 'Activity', icon: '📡' },
+  chart: { label: 'Progress', icon: '📈' },
+  calendar: { label: 'Calendar', icon: '📅' },
+}
+
+const DASHBOARD_WIDGET_ORDER_INDEX: Record<DashboardWidgetId, number> = DASHBOARD_WIDGET_ORDER.reduce((acc, id, index) => {
+  acc[id] = index
+  return acc
+}, {} as Record<DashboardWidgetId, number>)
+
+function normalizeDashboardWidgets(input: DashboardWidget[]): DashboardWidget[] {
+  const byId = new Map(input.map((widget) => [widget.id, widget]))
+  const merged = DASHBOARD_WIDGET_ORDER.map((id, fallbackOrder) => {
+    const stored = byId.get(id)
+    const hasOrder = typeof stored?.order === 'number' && Number.isFinite(stored.order)
+    return {
+      id,
+      label: stored?.label ?? DASHBOARD_WIDGET_DEFAULTS[id].label,
+      icon: stored?.icon ?? DASHBOARD_WIDGET_DEFAULTS[id].icon,
+      span: stored?.span === 2 ? 2 : 1,
+      visible: stored?.visible !== false,
+      order: hasOrder ? stored.order : fallbackOrder,
+    } satisfies DashboardWidget
+  })
+
+  return merged
+    .sort((a, b) => a.order - b.order || DASHBOARD_WIDGET_ORDER_INDEX[a.id] - DASHBOARD_WIDGET_ORDER_INDEX[b.id])
+    .map((widget, index) => ({ ...widget, order: index }))
+}
 
 function StatCard({
   icon: Icon,
@@ -30,8 +78,13 @@ function StatCard({
 }) {
   const rgb = hexToRgb(color)
   return (
-    <button
+    <motion.button
       onClick={onClick}
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      whileHover={{ filter: 'brightness(1.05)' }}
+      whileTap={{ filter: 'brightness(0.97)' }}
+      transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
       style={{
         border: '1px solid rgba(255,255,255,0.1)',
         borderRadius: 12,
@@ -50,12 +103,13 @@ function StatCard({
       <div style={{ fontSize: 24, lineHeight: 1, fontWeight: 800 }}>{value}</div>
       <div style={{ marginTop: 3, fontSize: 11, opacity: 0.6 }}>{label}</div>
       {sub && <div style={{ marginTop: 3, fontSize: 10, opacity: 0.5 }}>{sub}</div>}
-    </button>
+    </motion.button>
   )
 }
 
 function SmallCard({ title, icon: Icon, color, children, action }: { title: string; icon: any; color: string; children: React.ReactNode; action?: React.ReactNode }) {
   return (
+    <motion.div layout whileHover={{ filter: 'brightness(1.03)' }} transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}>
     <Glass style={{ padding: '14px 14px', height: '100%' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
@@ -66,12 +120,14 @@ function SmallCard({ title, icon: Icon, color, children, action }: { title: stri
       </div>
       {children}
     </Glass>
+    </motion.div>
   )
 }
 
 export function DashboardView({ setView }: { setView?: (v: string) => void }) {
   const t = useTheme()
   const mob = useMobile()
+  const motionRuntime = useMemo(() => buildMotionRuntime(t), [t])
   const rgb = hexToRgb(t.accent)
   const {
     notes,
@@ -86,7 +142,7 @@ export function DashboardView({ setView }: { setView?: (v: string) => void }) {
 
   const [editLayout, setEditLayout] = useState(false)
 
-  const ordered = useMemo(() => [...dashboardWidgets].sort((a, b) => a.order - b.order), [dashboardWidgets])
+  const ordered = useMemo(() => normalizeDashboardWidgets(dashboardWidgets), [dashboardWidgets])
   const visible = useMemo(() => ordered.filter((w) => w.visible), [ordered])
 
   const doneTasks = tasks.filter((x) => x.status === 'done').length
@@ -101,7 +157,7 @@ export function DashboardView({ setView }: { setView?: (v: string) => void }) {
   const now = new Date()
   const greeting = now.getHours() < 12 ? 'Guten Morgen' : now.getHours() < 18 ? 'Guten Tag' : 'Guten Abend'
 
-  const setWidgets = (next: DashboardWidget[]) => setDashboardWidgets(next)
+  const setWidgets = (next: DashboardWidget[]) => setDashboardWidgets(normalizeDashboardWidgets(next))
   const toggleWidget = (id: DashboardWidgetId) => setWidgets(ordered.map((w) => (w.id === id ? { ...w, visible: !w.visible } : w)))
   const setSpan = (id: DashboardWidgetId, span: 1 | 2) => setWidgets(ordered.map((w) => (w.id === id ? { ...w, span } : w)))
   const move = (id: DashboardWidgetId, dir: -1 | 1) => {
@@ -136,9 +192,12 @@ export function DashboardView({ setView }: { setView?: (v: string) => void }) {
             { label: 'Dateien', view: 'files' },
             { label: 'Settings', view: 'settings' },
           ].map((x) => (
-            <button
+            <motion.button
               key={x.label}
               onClick={() => setView?.(x.view)}
+              whileHover={{ filter: 'brightness(1.06)' }}
+              whileTap={{ filter: 'brightness(0.97)' }}
+              transition={{ duration: 0.14, ease: [0.22, 1, 0.36, 1] }}
               style={{
                 border: `1px solid rgba(${rgb},0.25)`,
                 background: `rgba(${rgb},0.12)`,
@@ -151,7 +210,7 @@ export function DashboardView({ setView }: { setView?: (v: string) => void }) {
               }}
             >
               {x.label}
-            </button>
+            </motion.button>
           ))}
         </div>
       </SmallCard>
@@ -282,13 +341,34 @@ export function DashboardView({ setView }: { setView?: (v: string) => void }) {
                 </div>
               </div>
 
+              {mob.isMobile && (
+                <div style={{ marginBottom: 8, fontSize: 10, opacity: 0.45 }}>
+                  Mobile rendert Widgets immer einspaltig. `2w` bleibt für Desktop gespeichert.
+                </div>
+              )}
+
               <div style={{ display: 'grid', gridTemplateColumns: mob.isMobile ? '1fr' : '1fr 1fr', gap: 7 }}>
                 {ordered.map((w) => (
                   <div key={w.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 9px', borderRadius: 9, background: w.visible ? `rgba(${rgb},0.08)` : 'rgba(255,255,255,0.04)', border: `1px solid ${w.visible ? `rgba(${rgb},0.2)` : 'rgba(255,255,255,0.09)'}` }}>
                     <span style={{ fontSize: 14 }}>{w.icon}</span>
                     <span style={{ flex: 1, fontSize: 12, fontWeight: 600, opacity: w.visible ? 1 : 0.5 }}>{w.label}</span>
                     <button onClick={() => setSpan(w.id, 1)} style={{ border: `1px solid ${w.span === 1 ? t.accent : 'rgba(255,255,255,0.12)'}`, background: w.span === 1 ? `rgba(${rgb},0.2)` : 'transparent', color: w.span === 1 ? t.accent : 'inherit', borderRadius: 6, padding: '2px 6px', fontSize: 10, cursor: 'pointer' }}>1w</button>
-                    <button onClick={() => setSpan(w.id, 2)} style={{ border: `1px solid ${w.span === 2 ? t.accent : 'rgba(255,255,255,0.12)'}`, background: w.span === 2 ? `rgba(${rgb},0.2)` : 'transparent', color: w.span === 2 ? t.accent : 'inherit', borderRadius: 6, padding: '2px 6px', fontSize: 10, cursor: 'pointer' }}>2w</button>
+                    <button
+                      onClick={() => setSpan(w.id, 2)}
+                      disabled={mob.isMobile}
+                      style={{
+                        border: `1px solid ${w.span === 2 ? t.accent : 'rgba(255,255,255,0.12)'}`,
+                        background: w.span === 2 ? `rgba(${rgb},0.2)` : 'transparent',
+                        color: w.span === 2 ? t.accent : 'inherit',
+                        borderRadius: 6,
+                        padding: '2px 6px',
+                        fontSize: 10,
+                        cursor: mob.isMobile ? 'not-allowed' : 'pointer',
+                        opacity: mob.isMobile ? 0.45 : 1,
+                      }}
+                    >
+                      2w
+                    </button>
                     <button onClick={() => move(w.id, -1)} style={{ border: 'none', background: 'none', cursor: 'pointer', opacity: 0.7, color: 'inherit' }}><ChevronUp size={12} /></button>
                     <button onClick={() => move(w.id, 1)} style={{ border: 'none', background: 'none', cursor: 'pointer', opacity: 0.7, color: 'inherit' }}><ChevronDown size={12} /></button>
                     <button onClick={() => toggleWidget(w.id)} style={{ border: 'none', background: 'none', cursor: 'pointer', color: w.visible ? t.accent : 'inherit', opacity: w.visible ? 1 : 0.45 }}>
@@ -320,10 +400,18 @@ export function DashboardView({ setView }: { setView?: (v: string) => void }) {
         </Glass>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: mob.isMobile ? '1fr' : '1fr 1fr', gap: 12 }}>
-          {visible.map((w) => (
-            <div key={w.id} style={{ gridColumn: mob.isMobile ? 'span 1' : `span ${w.span}` }}>
+          {visible.map((w, idx) => (
+            <motion.div
+              key={w.id}
+              layout
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              whileHover={{ filter: 'brightness(1.03)' }}
+              transition={{ ...motionRuntime.spring, delay: idx * 0.03, duration: 0.2 }}
+              style={{ gridColumn: mob.isMobile ? 'span 1' : `span ${w.span === 2 ? 2 : 1}` }}
+            >
               {widgetNodes[w.id]}
-            </div>
+            </motion.div>
           ))}
         </div>
       )}

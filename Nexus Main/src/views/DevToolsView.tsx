@@ -513,7 +513,8 @@ function WebBuilder() {
     const css  = files.filter(f=>f.type==='css').map(f=>f.content).join('\n')
     const js   = files.filter(f=>f.type==='js').map(f=>f.content).join('\n')
     const safeJs = js.replace(/<\/script>/gi,'<\\/script>')
-    return `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>${css}</style></head>
+    const baseCss = `html, body { margin: 0; min-height: 100%; background: #090d1f; color: #e5e7eb; } body { font-family: system-ui, -apple-system, Segoe UI, sans-serif; }`
+    return `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>${baseCss}\n${css}</style></head>
 ${html.match(/<body[^>]*>[\s\S]*<\/body>/i)?.[0]||'<body>'+html+'</body>'}
 <script>
 const __logs=[],oL=console.log,oE=console.error,oW=console.warn
@@ -576,7 +577,7 @@ try{${safeJs}}catch(e){__p('err',['❌ '+e.message])}
   return (
     <div style={{ display:'flex', flexDirection:'column', height:'100%', overflow:'hidden' }}>
       {/* Toolbar */}
-      <div style={{ display:'flex', alignItems:'center', gap:8, padding:'7px 12px', borderBottom:'1px solid rgba(255,255,255,0.07)', flexShrink:0, background:'rgba(0,0,0,0.1)' }}>
+      <div style={{ display:'flex', alignItems:'center', gap:8, padding:'7px 12px', borderBottom:'1px solid rgba(255,255,255,0.07)', flexShrink:0, background:'rgba(0,0,0,0.1)', flexWrap:'wrap' }}>
         {/* Sub-tabs: Code vs Designer */}
         <div style={{ display:'flex', background:'rgba(255,255,255,0.06)', borderRadius:9, overflow:'hidden' }}>
           <button onClick={()=>setSubTab('code')} style={{ padding:'5px 12px', background:subTab==='code'?t.accent:'transparent', border:'none', cursor:'pointer', fontSize:11, fontWeight:700, color:subTab==='code'?'#fff':'inherit', opacity:subTab==='code'?1:0.55, display:'flex', alignItems:'center', gap:5 }}>
@@ -618,7 +619,7 @@ try{${safeJs}}catch(e){__p('err',['❌ '+e.message])}
       <div style={{ flex:1, display:'flex', overflow:'hidden', minHeight:0 }}>
         {subTab === 'code' ? <>
           {/* File tree sidebar */}
-          <div style={{ width:180, flexShrink:0, borderRight:'1px solid rgba(255,255,255,0.07)', background:'rgba(0,0,0,0.12)', overflow:'hidden' }}>
+          <div style={{ width:200, flexShrink:0, borderRight:'1px solid rgba(255,255,255,0.07)', background:'rgba(0,0,0,0.12)', overflow:'hidden' }}>
             <FileTree files={files} activeId={activeId} onSelect={setActiveId} onNew={newFile} onDelete={deleteFile} onRename={renameFile}/>
           </div>
 
@@ -630,8 +631,8 @@ try{${safeJs}}catch(e){__p('err',['❌ '+e.message])}
           {/* Preview + console */}
           <div style={{ flex:1, display:'flex', flexDirection:'column', overflow:'hidden', minHeight:0 }}>
             <div style={{ flex:1, overflow:'hidden', display:'flex', alignItems:'center', justifyContent:'center', background:'rgba(0,0,0,0.18)', padding:vp!=='desktop'?10:0 }}>
-              <div style={{ width:vpWidth, height:'100%', maxHeight:'100%', transition:'width 0.3s ease', boxShadow:vp!=='desktop'?'0 8px 40px rgba(0,0,0,0.6)':undefined, borderRadius:vp!=='desktop'?12:0, overflow:'hidden' }}>
-                <iframe ref={iframeRef} style={{ width:'100%', height:'100%', border:'none', background:'white', display:'block' }} sandbox="allow-scripts" title="Preview"/>
+              <div style={{ width:vpWidth, height:'100%', maxHeight:'100%', transition:'width 0.3s ease', boxShadow:vp!=='desktop'?'0 8px 40px rgba(0,0,0,0.6)':undefined, borderRadius:vp!=='desktop'?12:0, overflow:'hidden', border:'1px solid rgba(255,255,255,0.08)', background:'radial-gradient(circle at 18% 0%, rgba(56, 87, 140, 0.28), rgba(3, 6, 18, 0.95) 60%)' }}>
+                <iframe ref={iframeRef} style={{ width:'100%', height:'100%', border:'none', background:'transparent', display:'block', colorScheme:'dark' }} sandbox="allow-scripts" title="Preview"/>
               </div>
             </div>
             {consoleOut.length>0 && (
@@ -646,8 +647,8 @@ try{${safeJs}}catch(e){__p('err',['❌ '+e.message])}
             <ElementDesigner/>
           </div>
           <div style={{ flex:1, overflow:'hidden', display:'flex', alignItems:'center', justifyContent:'center', background:'rgba(0,0,0,0.18)', padding:vp!=='desktop'?10:0 }}>
-            <div style={{ width:vpWidth, height:'100%', maxHeight:'100%', transition:'width 0.3s ease', boxShadow:vp!=='desktop'?'0 8px 40px rgba(0,0,0,0.6)':undefined, borderRadius:vp!=='desktop'?12:0, overflow:'hidden' }}>
-              <iframe ref={iframeRef} style={{ width:'100%', height:'100%', border:'none', background:'white', display:'block' }} sandbox="allow-scripts" title="Preview"/>
+            <div style={{ width:vpWidth, height:'100%', maxHeight:'100%', transition:'width 0.3s ease', boxShadow:vp!=='desktop'?'0 8px 40px rgba(0,0,0,0.6)':undefined, borderRadius:vp!=='desktop'?12:0, overflow:'hidden', border:'1px solid rgba(255,255,255,0.08)', background:'radial-gradient(circle at 18% 0%, rgba(56, 87, 140, 0.28), rgba(3, 6, 18, 0.95) 60%)' }}>
+              <iframe ref={iframeRef} style={{ width:'100%', height:'100%', border:'none', background:'transparent', display:'block', colorScheme:'dark' }} sandbox="allow-scripts" title="Preview"/>
             </div>
           </div>
         </> : (

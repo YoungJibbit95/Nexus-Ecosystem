@@ -10,12 +10,14 @@ import { Glass } from '../components/Glass'
 import { useApp } from '../store/appStore'
 import { useTheme } from '../store/themeStore'
 import { hexToRgb, fmtDt } from '../lib/utils'
+import { buildMotionRuntime } from '../lib/motionEngine'
 
 const LAYOUT_STORAGE_KEY = 'nx-dashboard-layout-v2'
 
 type WidgetId = 'stats' | 'tasks' | 'reminders' | 'notes' | 'quick' | 'activity' | 'chart' | 'calendar'
 type GridCell = { x: 1 | 2; y: number }
 const SNAP_ROW_HEIGHT = 170
+const SNAP_EXTRA_ROWS = 4
 
 interface Widget {
   id: WidgetId
@@ -43,6 +45,7 @@ const cloneDefaultWidgets = () => DEFAULT_WIDGETS.map((widget) => ({ ...widget }
 
 const cellKey = (y: number, x: 1 | 2) => `${y}:${x}`
 const clampX = (x: number, span: 1 | 2): 1 | 2 => (span === 2 ? 1 : (x >= 2 ? 2 : 1))
+const getSnapRowLimit = (visibleCount: number) => Math.max(6, visibleCount + SNAP_EXTRA_ROWS)
 
 function assignGridByOrder(list: Widget[]): Widget[] {
   const ordered = [...list].sort((a, b) => a.order - b.order)
@@ -86,8 +89,7 @@ function compactGrid(list: Widget[]): Widget[] {
   const placedVisible = visible.map((raw) => {
     const span = (raw.span === 2 ? 2 : 1) as 1 | 2
     const desiredX = clampX(raw.x, span)
-    const desiredY = Math.max(1, Math.floor(raw.y || 1))
-    let y = desiredY
+    let y = 1
 
     while (true) {
       if (span === 2) {
@@ -213,25 +215,29 @@ function StatCard({ icon: Icon, label, value, sub, color, trend, delay = 0, onCl
 function QuickChip({ icon: Icon, label, color, onClick }: { icon: any; label: string; color: string; onClick: () => void }) {
   const rgb = hexToRgb(color)
   return (
-    <button
+    <motion.button
       onClick={onClick}
+      whileHover={{ filter: 'brightness(1.06)' }}
+      whileTap={{ filter: 'brightness(0.97)' }}
+      transition={{ duration: 0.14, ease: [0.22, 1, 0.36, 1] }}
       style={{
         display: 'flex', alignItems: 'center', gap: 7,
         padding: '7px 14px', borderRadius: 20,
         background: `rgba(${rgb}, 0.1)`, border: `1px solid rgba(${rgb}, 0.2)`,
         color, cursor: 'pointer', fontSize: 12, fontWeight: 600,
-        transition: 'all 0.15s',
+        transition: 'background-color 0.15s ease, color 0.15s ease',
       }}
       onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = `rgba(${rgb},0.2)` }}
       onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = `rgba(${rgb},0.1)` }}
     >
       <Icon size={13} /> {label}
-    </button>
+    </motion.button>
   )
 }
 
 export function DashboardView({ setView }: { setView?: (v: string) => void }) {
   const t = useTheme()
+  const motionRuntime = useMemo(() => buildMotionRuntime(t), [t])
   const { notes, tasks, codes, reminders, activities } = useApp()
   const rgb = hexToRgb(t.accent)
 
@@ -311,18 +317,19 @@ export function DashboardView({ setView }: { setView?: (v: string) => void }) {
   }
 
   const setWidgetGrid = (id: WidgetId, cell: GridCell) => {
-    setWidgets((ws) =>
-      reorderLayoutByGrid(
+    setWidgets((ws) => {
+      const maxRow = getSnapRowLimit(ws.filter((w) => w.visible).length)
+      return reorderLayoutByGrid(
         ws.map((w) => {
           if (w.id !== id) return w
           return {
             ...w,
             x: clampX(cell.x, w.span),
-            y: Math.max(1, Math.floor(cell.y)),
+            y: Math.max(1, Math.min(maxRow, Math.floor(cell.y))),
           }
         })
       )
-    )
+    })
   }
 
   const setDropCellFromPointer = (e: React.DragEvent<HTMLElement>) => {
@@ -332,19 +339,22 @@ export function DashboardView({ setView }: { setView?: (v: string) => void }) {
     const bounds = gridRef.current.getBoundingClientRect()
     const relX = e.clientX - bounds.left
     const relY = e.clientY - bounds.top
-    const dragged = normalizeLayout(widgets).find((w) => w.id === dragWidgetId)
+    const normalized = normalizeLayout(widgets)
+    const dragged = normalized.find((w) => w.id === dragWidgetId)
+    const maxRow = getSnapRowLimit(normalized.filter((w) => w.visible).length)
     const rawX: 1 | 2 = relX > bounds.width / 2 ? 2 : 1
     const x = clampX(rawX, dragged?.span ?? 1)
-    const y = Math.max(1, Math.floor(relY / SNAP_ROW_HEIGHT) + 1)
+    const y = Math.max(1, Math.min(maxRow, Math.floor(relY / SNAP_ROW_HEIGHT) + 1))
     setDropCell({ x, y })
   }
 
   const nudgeWidgetRow = (id: WidgetId, delta: number) => {
-    setWidgets((ws) =>
-      reorderLayoutByGrid(
-        ws.map((w) => (w.id === id ? { ...w, y: Math.max(1, w.y + delta) } : w))
+    setWidgets((ws) => {
+      const maxRow = getSnapRowLimit(ws.filter((w) => w.visible).length)
+      return reorderLayoutByGrid(
+        ws.map((w) => (w.id === id ? { ...w, y: Math.max(1, Math.min(maxRow, w.y + delta)) } : w))
       )
-    )
+    })
   }
 
   const setWidgetColumn = (id: WidgetId, x: 1 | 2) => {
@@ -422,7 +432,8 @@ export function DashboardView({ setView }: { setView?: (v: string) => void }) {
   const orderedWidgets = useMemo(() => normalizeLayout(widgets), [widgets])
   const visibleWidgets = orderedWidgets.filter((w) => w.visible)
   const draggedWidget = dragWidgetId ? orderedWidgets.find((w) => w.id === dragWidgetId) ?? null : null
-  const snapRowCount = Math.max(6, ...visibleWidgets.map((w) => w.y), dropCell?.y ?? 1)
+  const maxSnapRows = getSnapRowLimit(visibleWidgets.length)
+  const snapRowCount = Math.max(maxSnapRows, ...visibleWidgets.map((w) => w.y), dropCell?.y ?? 1)
   const snapRows = useMemo(
     () => Array.from({ length: snapRowCount + 1 }, (_, i) => i + 1),
     [snapRowCount]
@@ -904,9 +915,15 @@ export function DashboardView({ setView }: { setView?: (v: string) => void }) {
           {visibleWidgets.map((w, idx) => (
             <motion.div
               key={w.id}
+              layout
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: idx * 0.03, duration: 0.22 }}
+              whileHover={editLayout ? undefined : { filter: 'brightness(1.03)' }}
+              transition={{
+                ...motionRuntime.spring,
+                delay: idx * 0.03,
+                duration: 0.22,
+              }}
               style={{
                 gridColumn: `${w.x} / span ${w.span}`,
                 gridRow: `${w.y} / span 1`,

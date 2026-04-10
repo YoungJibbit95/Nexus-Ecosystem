@@ -515,8 +515,8 @@ export function CanvasView() {
                                     border:'1px solid rgba(255,255,255,0.1)', borderBottom:'none', padding:'8px 16px 32px' }}>
                                 <div style={{ width:36, height:4, borderRadius:2, background:'rgba(255,255,255,0.2)', margin:'0 auto 16px' }}/>
                                 <div style={{ fontSize:11, fontWeight:800, opacity:0.4, textTransform:'uppercase', letterSpacing:1, marginBottom:14 }}>Add Element</div>
-                                <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:10 }}>
-                                    {WIDGET_TYPES.map(({ type, icon: WIcon, label }) => (
+                                <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:10 }}>
+                                    {WIDGET_TYPES.map(({ type, icon: WIcon, label, description, category, accent: widgetAccent }) => (
                                         <button key={type}
                                             onClick={() => {
                                                 if (type === 'sticky') {
@@ -528,10 +528,16 @@ export function CanvasView() {
                                                 } else { addNode(type as NodeType) }
                                                 setShowMobileAddMenu(false)
                                             }}
-                                            style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:6, padding:'14px 8px', borderRadius:14,
-                                                background:`rgba(${rgb},0.1)`, border:`1px solid rgba(${rgb},0.18)`, cursor:'pointer', color:t.accent }}>
-                                            <WIcon size={24}/>
-                                            <span style={{ fontSize:10, fontWeight:700 }}>{label}</span>
+                                            style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:6, padding:'12px 8px', borderRadius:14,
+                                                background:`${widgetAccent}1a`, border:`1px solid ${widgetAccent}4d`, cursor:'pointer', color:widgetAccent, textAlign:'center' }}>
+                                            <WIcon size={20}/>
+                                            <span style={{ fontSize:10, fontWeight:700, lineHeight:1.1 }}>{label}</span>
+                                            <span style={{ fontSize:8, fontWeight:700, padding:'2px 6px', borderRadius:999, border:`1px solid ${widgetAccent}55`, background:`${widgetAccent}22`, textTransform:'uppercase', letterSpacing:0.35 }}>
+                                                {category}
+                                            </span>
+                                            <span style={{ fontSize:9, opacity:0.75, lineHeight:1.2, minHeight:22 }}>
+                                                {description}
+                                            </span>
                                         </button>
                                     ))}
                                 </div>
@@ -757,12 +763,12 @@ export function CanvasView() {
                             position: 'absolute', top: quickAddPos.y, left: quickAddPos.x,
                             zIndex: 300, background: t.mode === 'dark' ? '#1a1a2e' : '#fff',
                             border: `1px solid ${t.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'}`,
-                            borderRadius: 12, padding: 6, width: 150,
+                            borderRadius: 12, padding: 6, width: 292, maxHeight: 580, overflowY: 'auto',
                             boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
                             animation: 'nexus-scale-in 0.15s cubic-bezier(0.4,0,0.2,1) both',
                         }} onClick={e => e.stopPropagation()}>
                             <div style={{ fontSize: 10, fontWeight: 700, opacity: 0.5, padding: '4px 8px', textTransform: 'uppercase' }}>Add Element</div>
-                            {WIDGET_TYPES.map(({ type, icon: WIcon, label }) => (
+                            {WIDGET_TYPES.map(({ type, icon: WIcon, label, description, category, accent: widgetAccent }) => (
                                 <button key={type} onClick={() => {
                                     const canvasX = (-viewport.panX + quickAddPos.x) / viewport.zoom
                                     const canvasY = (-viewport.panY + quickAddPos.y) / viewport.zoom
@@ -779,12 +785,33 @@ export function CanvasView() {
                                     }
                                     setQuickAddPos(null)
                                 }} style={{
-                                    display: 'flex', alignItems: 'center', gap: 8, width: '100%',
-                                    padding: '6px 8px', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 13,
+                                    display: 'flex', alignItems: 'center', gap: 10, width: '100%',
+                                    padding: '8px 10px', border: 'none', borderRadius: 10, cursor: 'pointer', fontSize: 12,
                                     background: 'transparent', color: t.mode === 'dark' ? '#fff' : '#000', textAlign: 'left',
                                 }} onMouseEnter={e => e.currentTarget.style.background = 'rgba(128,128,128,0.1)'}
                                     onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                                    <WIcon size={14} style={{ color: t.accent }} /> {label}
+                                    <span style={{
+                                        width: 24, height: 24, borderRadius: 8,
+                                        background: `${widgetAccent}22`,
+                                        color: widgetAccent,
+                                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                                        flexShrink: 0,
+                                    }}>
+                                        <WIcon size={14} />
+                                    </span>
+                                    <span style={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 0, flex: 1 }}>
+                                        <span style={{ fontWeight: 700, fontSize: 12, lineHeight: 1.25 }}>{label}</span>
+                                        <span style={{ fontSize: 10, opacity: 0.64, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                            {description}
+                                        </span>
+                                    </span>
+                                    <span style={{
+                                        fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 999,
+                                        border: `1px solid ${widgetAccent}55`, color: widgetAccent, background: `${widgetAccent}1a`,
+                                        textTransform: 'uppercase', letterSpacing: 0.4, flexShrink: 0,
+                                    }}>
+                                        {category}
+                                    </span>
                                 </button>
                             ))}
                         </div>

@@ -55,6 +55,22 @@ const MOBILE_PRELOAD_PRIORITY: View[] = [
   'code',
   'devtools',
 ]
+const MOBILE_HEAVY_PRELOAD_VIEWS = new Set<View>(['code', 'canvas', 'devtools'])
+const MOBILE_PRELOAD_PROMISES = new WeakMap<
+  () => Promise<unknown>,
+  Promise<unknown>
+>()
+
+const runLoaderOnce = (loader: () => Promise<unknown>) => {
+  const existing = MOBILE_PRELOAD_PROMISES.get(loader)
+  if (existing) return existing
+  const next = loader().catch((error) => {
+    MOBILE_PRELOAD_PROMISES.delete(loader)
+    throw error
+  })
+  MOBILE_PRELOAD_PROMISES.set(loader, next)
+  return next
+}
 
 const runIdle = (task: () => void) => {
   if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
@@ -81,11 +97,17 @@ export const orderMobilePreloadViews = (views: View[]) => {
 
 export const preloadMobileViews = async (
   views: View[],
-  options: { eagerLimit?: number; includeDeferred?: boolean } = {},
+  options: {
+    eagerLimit?: number
+    includeDeferred?: boolean
+    allowHeavy?: boolean
+  } = {},
 ) => {
   const eagerLimit = Math.max(1, Math.min(3, Math.floor(options.eagerLimit ?? 2)))
   const includeDeferred = Boolean(options.includeDeferred)
+  const allowHeavy = options.allowHeavy === true
   const loaders = orderMobilePreloadViews(views)
+    .filter((viewId) => allowHeavy || !MOBILE_HEAVY_PRELOAD_VIEWS.has(viewId))
     .map((viewId) => VIEW_CHUNK_PRELOADERS[viewId])
     .filter((loader): loader is () => Promise<unknown> => typeof loader === 'function')
   const uniqueLoaders = [...new Set(loaders)]
@@ -94,10 +116,10 @@ export const preloadMobileViews = async (
   const eager = uniqueLoaders.slice(0, eagerLimit)
   const deferred = uniqueLoaders.slice(eagerLimit)
 
-  await Promise.allSettled(eager.map((loader) => loader()))
+  await Promise.allSettled(eager.map((loader) => runLoaderOnce(loader)))
   if (includeDeferred && deferred.length > 0) {
     runIdle(() => {
-      void Promise.allSettled(deferred.map((loader) => loader()))
+      void Promise.allSettled(deferred.map((loader) => runLoaderOnce(loader)))
     })
   }
 }

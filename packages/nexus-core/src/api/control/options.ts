@@ -115,6 +115,7 @@ export interface NexusReleaseSubscriptionOptions {
   channel?: NexusReleaseChannel
   pollIntervalMs?: number
   immediate?: boolean
+  cacheTtlMs?: number
 }
 
 export type {
