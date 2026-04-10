@@ -6,7 +6,7 @@ import {
   Bold, Italic, Heading, List, ListOrdered, Quote, Code, Link,
   Download, Clock, Hash, Eye, Edit3, Minus, Strikethrough,
   Maximize2, Minimize2, Wand2, Sparkles, Bell, Zap, Calendar, CreditCard,
-  ChevronDown, Table, FileText
+  ChevronDown, Table, FileText, Upload
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Glass } from '../components/Glass'
@@ -26,6 +26,7 @@ const NOTE_COMMIT_DEBOUNCE_MS = 4_200
 const NOTE_PREVIEW_DEBOUNCE_MS = 220
 const NOTE_UNDO_SNAPSHOT_INTERVAL_MS = 260
 const MAX_RENDERED_LINE_NUMBERS = 4_000
+const NOTES_IMPORT_INPUT_ID = 'nx-mobile-notes-import-markdown'
 const runIdle = (task: () => void, timeoutMs = 320) => {
   if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
     ;(window as any).requestIdleCallback(task, { timeout: timeoutMs })
@@ -241,6 +242,30 @@ export function NotesView() {
     link.click(); URL.revokeObjectURL(link.href); saveActiveNow()
   }
 
+  const importMarkdownFile = useCallback(
+    async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0]
+      event.currentTarget.value = ''
+      if (!file) return
+      const rawContent = await file.text()
+      const headingMatch = rawContent.match(/^#\s+(.+?)\s*$/m)
+      const fallbackTitle = file.name.replace(/\.md$/i, '') || 'Imported Note'
+      const title = headingMatch?.[1]?.trim() || fallbackTitle
+      addNote()
+      const createdId = useApp.getState().activeNoteId
+      if (!createdId) return
+      updateNote(createdId, {
+        title,
+        content: rawContent,
+        tags: ['imported'],
+      })
+      saveNote(createdId)
+      setNote(createdId)
+      setLastSavedAt(new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }))
+    },
+    [addNote, saveNote, setNote, updateNote],
+  )
+
   // ── Insert format helper — uses saved selection if textarea lost focus ──
   const insertFormat = useCallback((prefix: string, suffix: string = '', placeholder: string = '') => {
     if (!active) return
@@ -425,6 +450,7 @@ export function NotesView() {
               {[
                 { icon: Search, action: () => setShowSearch(!showSearch), active: showSearch, tip: 'Suchen' },
                 { icon: Plus,   action: addNote,                         active: false,        tip: 'Neue Notiz', color: t.accent },
+                { icon: Upload, action: () => document.getElementById(NOTES_IMPORT_INPUT_ID)?.click(), active: false, tip: 'Markdown importieren' },
                 { icon: Settings, action: () => setShowSettings(true),  active: false,        tip: 'Einstellungen' },
               ].map(({ icon: Icon, action, active: isActive, tip, color }) => (
                 <button key={tip} onClick={action} title={tip} style={{
@@ -627,6 +653,7 @@ export function NotesView() {
                 { icon: RotateCcw, tip: 'Undo (Ctrl+Z)', action: handleUndo },
                 { icon: RotateCcw, tip: 'Redo (Ctrl+Y)', action: handleRedo, flip: true },
                 { icon: Copy,      tip: 'Kopieren',      action: () => navigator.clipboard.writeText(draftContent) },
+                { icon: Upload,    tip: 'Import .md',    action: () => document.getElementById(NOTES_IMPORT_INPUT_ID)?.click() },
                 { icon: Download,  tip: 'Download .md',  action: saveAsFile },
                 { icon: Save,      tip: 'Speichern (Ctrl+S)', action: saveActiveNow, accent: draftDirty },
               ].map(({ icon: Icon, tip, action, flip, accent: useAccent }: any) => (
@@ -959,6 +986,13 @@ export function NotesView() {
           ✦ MAGIC ELEMENT BUILDER MODAL
           Rendered at top level — always above everything
       ══════════════════════════════════════ */}
+      <input
+        id={NOTES_IMPORT_INPUT_ID}
+        type="file"
+        accept=".md,text/markdown"
+        onChange={importMarkdownFile}
+        style={{ display: 'none' }}
+      />
       <AnimatePresence>
         {showMagic && (
           <MagicElementModal

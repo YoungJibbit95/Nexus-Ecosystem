@@ -4,7 +4,10 @@ import { Search, Terminal } from "lucide-react";
 import { Glass } from "../Glass";
 import { hexToRgb } from "../../lib/utils";
 import { VIEW_ITEMS } from "./constants";
-import { TOOLBAR_LAYOUT_CONFIG, SPOTLIGHT_POP_TRANSITION } from "./layoutConfig";
+import {
+  TOOLBAR_LAYOUT_CONFIG,
+  SPOTLIGHT_POP_TRANSITION,
+} from "./layoutConfig";
 import { DockLogo, StatusPill } from "./ToolbarPrimitives";
 
 type ToolbarTheme = any;
@@ -230,12 +233,12 @@ export function FullWidthToolbarLayout(props: FullWidthToolbarLayoutProps) {
               flexShrink: 0,
             }}
           >
-          <DockLogo
-            t={t}
-            rgb={rgb}
-            compact
-            offset={TOOLBAR_LAYOUT_CONFIG.island.logoOffset}
-          />
+            <DockLogo
+              t={t}
+              rgb={rgb}
+              compact
+              offset={TOOLBAR_LAYOUT_CONFIG.island.logoOffset}
+            />
             <div
               style={{
                 width: 1,
@@ -494,6 +497,8 @@ export function IslandToolbarLayout(props: IslandToolbarLayoutProps) {
               >
                 <span
                   style={{
+                    marginTop: -25,
+                    marginLeft: 30,
                     fontSize: 12,
                     fontWeight: 800,
                     letterSpacing: "0.08em",
@@ -505,6 +510,7 @@ export function IslandToolbarLayout(props: IslandToolbarLayoutProps) {
                 </span>
                 <span
                   style={{
+                    marginTop: -25,
                     fontSize: 10,
                     opacity: 0.55,
                     whiteSpace: "nowrap",
@@ -515,6 +521,7 @@ export function IslandToolbarLayout(props: IslandToolbarLayoutProps) {
               </div>
               <div
                 style={{
+                  marginTop: -23,
                   display: "flex",
                   alignItems: "center",
                   gap: 6,
@@ -550,6 +557,7 @@ export function IslandToolbarLayout(props: IslandToolbarLayoutProps) {
             <>
               <div
                 style={{
+                  marginLeft: 180,
                   display: "flex",
                   alignItems: "center",
                   gap: 8,
@@ -560,6 +568,7 @@ export function IslandToolbarLayout(props: IslandToolbarLayoutProps) {
                 <div
                   className="nx-toolbar-view-rail"
                   style={{
+                    marginTop: -20,
                     display: "flex",
                     alignItems: "center",
                     gap: compactMode
@@ -650,7 +659,9 @@ export function IslandToolbarLayout(props: IslandToolbarLayoutProps) {
                 rgb={rgb}
                 color={terminal.isOpen ? t.accent : undefined}
                 title="Terminal"
-                offset={TOOLBAR_LAYOUT_CONFIG.island.actionButtonOffset.terminal}
+                offset={
+                  TOOLBAR_LAYOUT_CONFIG.island.actionButtonOffset.terminal
+                }
                 onClick={() => terminal.setOpen(!terminal.isOpen)}
               >
                 <Terminal

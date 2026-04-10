@@ -1,43 +1,19 @@
-import React, { useState, useMemo, useRef } from 'react'
-import {
-  Plus, Trash2, Edit3, Search, X, Check, FileText, Code2,
-  CheckSquare, Bell, FolderOpen, Grid3x3, List, Star, Clock,
-  MoreVertical, ChevronRight, Layers, Package, Copy, ArrowRight,
-  Home, Hash, Zap, Archive, Globe, Download
-} from 'lucide-react'
-import { Glass } from '../components/Glass'
+import React, { useState, useMemo } from 'react'
+import { Search, FolderOpen, Grid3x3, List, Layers, ArrowRight, Zap, Download, Edit3 } from 'lucide-react'
 import { useApp, Note, CodeFile, Task, Reminder } from '../store/appStore'
 import { useTheme } from '../store/themeStore'
 import { useWorkspaces, Workspace } from '../store/workspaceStore'
+import { useCanvas } from '../store/canvasStore'
+import { useWorkspaceFs, WORKSPACE_EXPORT_DIRNAME } from '../store/workspaceFsStore'
 import { hexToRgb } from '../lib/utils'
-import { motion, AnimatePresence } from 'framer-motion'
-
-const ICONS = ['🏠','💼','🚀','🎨','📚','🔬','🎮','💡','⚡','🌊','🎯','🔥','✨','🌿','💎','🎵']
-const COLORS = ['#007AFF','#5E5CE6','#FF453A','#FF9F0A','#30D158','#00C7BE','#BF5AF2','#FF6B9E','#64D2FF','#FFD60A']
-
-type ItemType = 'note'|'code'|'task'|'reminder'
-type ViewMode = 'grid'|'list'
-
-interface FileItem {
-  id: string
-  title: string
-  type: ItemType
-  updated: string
-  preview?: string
-  tags?: string[]
-  lang?: string
-  priority?: string
-  status?: string
-}
-
-const TYPE_META: Record<ItemType, { icon: React.FC<any>; color: string; label: string }> = {
-  note:     { icon: FileText,    color: '#007AFF', label: 'Note' },
-  code:     { icon: Code2,       color: '#BF5AF2', label: 'Code' },
-  task:     { icon: CheckSquare, color: '#FF9F0A', label: 'Task' },
-  reminder: { icon: Bell,        color: '#FF453A', label: 'Reminder' },
-}
-
-const WORKSPACE_ROOT_KEY = 'nx-workspace-root-path-v1'
+import { AnimatePresence } from 'framer-motion'
+import { AssignModal, FileCard, WorkspaceCreateButton, WorkspaceModal } from './files/FilesUiParts'
+import { FileItem, ItemType, ViewMode } from './files/filesTypes'
+import {
+  buildWorkspaceRuntimeSnapshot,
+  readWorkspaceRuntimeSnapshot,
+  writeWorkspaceRuntimeSnapshot,
+} from '../lib/workspaceFsRuntime'
 
 const stripTrailingSeparators = (value: string) => value.replace(/[\\/]+$/, '')
 const joinFsPath = (root: string, ...segments: string[]) =>
@@ -52,215 +28,36 @@ const getCodeExtension = (lang?: string) => {
   if (normalized === 'shell') return 'sh'
   return normalized.replace(/[^a-z0-9]/g, '') || 'txt'
 }
-
-// ── Workspace create / edit modal ─────────────────────────────────
-function WorkspaceModal({ ws, onClose }: { ws?: Workspace; onClose: () => void }) {
-  const t = useTheme()
-  const rgb = hexToRgb(t.accent)
-  const { addWorkspace, updateWorkspace } = useWorkspaces()
-  const [name,  setName]  = useState(ws?.name ?? '')
-  const [icon,  setIcon]  = useState(ws?.icon ?? '🏠')
-  const [color, setColor] = useState(ws?.color ?? '#007AFF')
-  const [desc,  setDesc]  = useState(ws?.description ?? '')
-
-  const save = () => {
-    if (!name.trim()) return
-    ws ? updateWorkspace(ws.id, { name, icon, color, description: desc }) : addWorkspace(name, icon, color, desc)
-    onClose()
+const getCodeLangFromPath = (filePath: string) => {
+  const ext = (filePath.split('.').pop() || '').toLowerCase()
+  const map: Record<string, string> = {
+    ts: 'typescript',
+    tsx: 'typescript',
+    js: 'javascript',
+    jsx: 'javascript',
+    py: 'python',
+    md: 'markdown',
+    json: 'json',
+    html: 'html',
+    css: 'css',
+    sh: 'shell',
+    yml: 'yaml',
+    yaml: 'yaml',
   }
-
-  return (
-    <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}
-      style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.6)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:200, backdropFilter:'blur(8px)' }}
-      onClick={onClose}>
-      <motion.div initial={{scale:0.9,y:20}} animate={{scale:1,y:0}} exit={{scale:0.9,y:20}} onClick={e=>e.stopPropagation()}>
-        <Glass glow style={{ width:420, padding:24 }}>
-          <div style={{ fontSize:16, fontWeight:800, marginBottom:20 }}>{ws?'Edit Workspace':'New Workspace'}</div>
-
-          <div style={{ marginBottom:14 }}>
-            <label style={{ fontSize:11, opacity:0.5, display:'block', marginBottom:5, textTransform:'uppercase', letterSpacing:0.5 }}>Name</label>
-            <div style={{ display:'flex', gap:10, alignItems:'center' }}>
-              <div style={{ fontSize:28 }}>{icon}</div>
-              <input autoFocus value={name} onChange={e=>setName(e.target.value)} onKeyDown={e=>e.key==='Enter'&&save()} placeholder="My Workspace" style={{ flex:1, padding:'8px 11px', borderRadius:9, background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.12)', outline:'none', fontSize:14, fontWeight:700, color:'inherit' }} />
-            </div>
-          </div>
-
-          <div style={{ marginBottom:14 }}>
-            <label style={{ fontSize:11, opacity:0.5, display:'block', marginBottom:7, textTransform:'uppercase', letterSpacing:0.5 }}>Icon</label>
-            <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
-              {ICONS.map(i => (
-                <button key={i} onClick={()=>setIcon(i)} style={{ width:36, height:36, borderRadius:8, border:`2px solid ${icon===i?color:'rgba(255,255,255,0.1)'}`, background:icon===i?`${color}22`:'transparent', cursor:'pointer', fontSize:18, transition:'all 0.12s' }}>{i}</button>
-              ))}
-            </div>
-          </div>
-
-          <div style={{ marginBottom:14 }}>
-            <label style={{ fontSize:11, opacity:0.5, display:'block', marginBottom:7, textTransform:'uppercase', letterSpacing:0.5 }}>Color</label>
-            <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
-              {COLORS.map(c => (
-                <button key={c} onClick={()=>setColor(c)} style={{ width:28, height:28, borderRadius:'50%', background:c, border:`3px solid ${color===c?'white':'transparent'}`, cursor:'pointer', transition:'all 0.12s', transform:color===c?'scale(1.2)':'none', boxShadow:color===c?`0 0 10px ${c}`:'none' }} />
-              ))}
-            </div>
-          </div>
-
-          <div style={{ marginBottom:20 }}>
-            <label style={{ fontSize:11, opacity:0.5, display:'block', marginBottom:5, textTransform:'uppercase', letterSpacing:0.5 }}>Description (optional)</label>
-            <input value={desc} onChange={e=>setDesc(e.target.value)} placeholder="What's this workspace for?" style={{ width:'100%', padding:'8px 11px', borderRadius:9, background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.12)', outline:'none', fontSize:13, color:'inherit' }} />
-          </div>
-
-          <div style={{ display:'flex', gap:8 }}>
-            <button onClick={onClose} style={{ flex:1, padding:'9px', borderRadius:9, background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.1)', cursor:'pointer', fontSize:13, color:'inherit' }}>Cancel</button>
-            <button onClick={save} style={{ flex:2, padding:'9px', borderRadius:9, background:color, border:'none', cursor:'pointer', fontSize:13, fontWeight:700, color:'#fff', boxShadow:`0 2px 16px ${color}66` }}>
-              {ws?'Save':'Create Workspace'}
-            </button>
-          </div>
-        </Glass>
-      </motion.div>
-    </motion.div>
-  )
+  return map[ext] || ext || 'plaintext'
 }
-
-// ── File card ─────────────────────────────────────────────────────
-function FileCard({ item, viewMode, onAssign, wsColor }: { item: FileItem; viewMode: ViewMode; onAssign: () => void; wsColor?: string }) {
-  const t = useTheme()
-  const meta = TYPE_META[item.type]
-  const Icon = meta.icon
-  const [menu, setMenu] = useState(false)
-  const { openNote, openCode, setNote, setCode } = useApp()
-
-  const open = () => {
-    if (item.type === 'note') { openNote(item.id); setNote(item.id) }
-    if (item.type === 'code') { openCode(item.id); setCode(item.id) }
-  }
-
-  const timeAgo = (iso: string) => {
-    const d = (Date.now() - new Date(iso).getTime()) / 1000
-    if (d < 60) return 'just now'
-    if (d < 3600) return `${Math.floor(d/60)}m ago`
-    if (d < 86400) return `${Math.floor(d/3600)}h ago`
-    return `${Math.floor(d/86400)}d ago`
-  }
-
-  if (viewMode === 'list') {
-    return (
-      <div onDoubleClick={open} style={{ display:'flex', alignItems:'center', gap:12, padding:'9px 14px', borderRadius:10, cursor:'pointer', transition:'background 0.12s', marginBottom:2 }}
-        onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,0.05)'}
-        onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
-        <div style={{ width:30, height:30, borderRadius:8, background:`${meta.color}22`, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-          <Icon size={14} style={{ color:meta.color }}/>
-        </div>
-        <div style={{ flex:1, minWidth:0 }}>
-          <div style={{ fontSize:13, fontWeight:600, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{item.title}</div>
-          {item.preview && <div style={{ fontSize:11, opacity:0.5, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{item.preview}</div>}
-        </div>
-        <div style={{ display:'flex', alignItems:'center', gap:10, flexShrink:0 }}>
-          {wsColor && <div style={{ width:6, height:6, borderRadius:'50%', background:wsColor }} title="In workspace"/>}
-          <span style={{ fontSize:10, opacity:0.4 }}>{timeAgo(item.updated)}</span>
-          <span style={{ fontSize:10, padding:'2px 7px', borderRadius:10, background:`${meta.color}20`, color:meta.color, fontWeight:700 }}>{meta.label}</span>
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <Glass hover glow style={{ padding:14, cursor:'pointer', position:'relative' }} onDoubleClick={open}>
-      <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:10 }}>
-        <div style={{ width:34, height:34, borderRadius:9, background:`${meta.color}22`, display:'flex', alignItems:'center', justifyContent:'center' }}>
-          <Icon size={16} style={{ color:meta.color }}/>
-        </div>
-        <div style={{ display:'flex', gap:5, alignItems:'center' }}>
-          {wsColor && <div style={{ width:8, height:8, borderRadius:'50%', background:wsColor }} title="In workspace"/>}
-          <button onClick={e=>{e.stopPropagation();setMenu(m=>!m)}} style={{ background:'none', border:'none', cursor:'pointer', opacity:0.35, padding:3, borderRadius:5, color:'inherit' }}
-            onMouseEnter={e=>e.currentTarget.style.opacity='1'} onMouseLeave={e=>e.currentTarget.style.opacity='0.35'}>
-            <MoreVertical size={13}/>
-          </button>
-        </div>
-      </div>
-      <div style={{ fontSize:13, fontWeight:700, marginBottom:4, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{item.title}</div>
-      {item.preview && <div style={{ fontSize:11, opacity:0.5, lineHeight:1.4, overflow:'hidden', display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical' as any, marginBottom:8 }}>{item.preview}</div>}
-      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-        <span style={{ fontSize:10, padding:'2px 7px', borderRadius:10, background:`${meta.color}20`, color:meta.color, fontWeight:700 }}>{meta.label}</span>
-        <span style={{ fontSize:10, opacity:0.4 }}>{timeAgo(item.updated)}</span>
-      </div>
-      {menu && (
-        <div style={{ position:'absolute', top:10, right:30, zIndex:50, background:'rgba(20,20,30,0.95)', backdropFilter:'blur(12px)', borderRadius:10, padding:6, border:'1px solid rgba(255,255,255,0.1)', minWidth:140, boxShadow:'0 8px 24px rgba(0,0,0,0.4)' }} onClick={e=>e.stopPropagation()}>
-          {(item.type==='note'||item.type==='code') && <MenuItem icon={<ArrowRight size={12}/>} label="Open" onClick={()=>{open();setMenu(false)}}/>}
-          <MenuItem icon={<Package size={12}/>} label="Add to Workspace" onClick={()=>{onAssign();setMenu(false)}}/>
-        </div>
-      )}
-    </Glass>
-  )
+const toSafeId = () =>
+  (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function')
+    ? crypto.randomUUID()
+    : `id-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
+const toRelPath = (baseDir: string, fullPath: string) => {
+  const base = stripTrailingSeparators(baseDir)
+  if (!fullPath.startsWith(base)) return fullPath
+  return fullPath.slice(base.length).replace(/^[/\\]+/, '')
 }
-
-function MenuItem({ icon, label, onClick, danger }: { icon: React.ReactNode; label: string; onClick: () => void; danger?: boolean }) {
-  return (
-    <button onClick={onClick} style={{ display:'flex', alignItems:'center', gap:8, width:'100%', padding:'6px 10px', background:'none', border:'none', cursor:'pointer', borderRadius:7, fontSize:12, color: danger?'#ff453a':'inherit', textAlign:'left', transition:'background 0.1s' }}
-      onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,0.08)'}
-      onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
-      {icon} {label}
-    </button>
-  )
-}
-
-// ── Workspace card ────────────────────────────────────────────────
-function WorkspaceCard({ ws, active, onSelect, onEdit, onDelete, itemCount }: {
-  ws: Workspace; active: boolean; onSelect: () => void; onEdit: () => void; onDelete: () => void; itemCount: number
-}) {
-  const t = useTheme()
-  return (
-    <Glass hover glow={active} style={{ padding:16, cursor:'pointer', border: active?`1.5px solid ${ws.color}`:'1px solid rgba(255,255,255,0.08)', position:'relative', overflow:'visible' }} onDoubleClick={onSelect}>
-      {active && <div style={{ position:'absolute', top:-1, left:0, right:0, height:2, background:ws.color, borderRadius:'2px 2px 0 0', boxShadow:`0 0 10px ${ws.color}` }}/>}
-      <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:12 }}>
-        <div style={{ width:44, height:44, borderRadius:12, background:`${ws.color}22`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:22, border:`1px solid ${ws.color}44`, boxShadow: active?`0 0 16px ${ws.color}44`:'none' }}>
-          {ws.icon}
-        </div>
-        <div style={{ display:'flex', gap:4 }}>
-          <button onClick={e=>{e.stopPropagation();onEdit()}} style={{ background:'none', border:'none', cursor:'pointer', opacity:0.35, padding:4, borderRadius:6, color:'inherit' }} onMouseEnter={e=>e.currentTarget.style.opacity='1'} onMouseLeave={e=>e.currentTarget.style.opacity='0.35'}><Edit3 size={12}/></button>
-          {ws.id !== 'default' && <button onClick={e=>{e.stopPropagation();onDelete()}} style={{ background:'none', border:'none', cursor:'pointer', color:'#ff453a', opacity:0.35, padding:4, borderRadius:6 }} onMouseEnter={e=>e.currentTarget.style.opacity='1'} onMouseLeave={e=>e.currentTarget.style.opacity='0.35'}><Trash2 size={12}/></button>}
-        </div>
-      </div>
-      <div style={{ fontSize:14, fontWeight:800, marginBottom:3, color: active?ws.color:'inherit' }}>{ws.icon} {ws.name}</div>
-      {ws.description && <div style={{ fontSize:11, opacity:0.5, marginBottom:8, lineHeight:1.4 }}>{ws.description}</div>}
-      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-        <span style={{ fontSize:11, opacity:0.5 }}>{itemCount} item{itemCount!==1?'s':''}</span>
-        <button onClick={e=>{e.stopPropagation();onSelect()}} style={{ padding:'4px 10px', borderRadius:7, background: active?ws.color:`${ws.color}22`, border:`1px solid ${ws.color}44`, cursor:'pointer', fontSize:11, fontWeight:700, color: active?'#fff':ws.color, transition:'all 0.15s' }}>
-          {active?'Active':'Switch'}
-        </button>
-      </div>
-    </Glass>
-  )
-}
-
-// ── Assign to workspace modal ────────────────────────────────────
-function AssignModal({ item, onClose }: { item: FileItem; onClose: () => void }) {
-  const t = useTheme()
-  const { workspaces, addItemToWorkspace, removeItemFromWorkspace, getWorkspaceForItem } = useWorkspaces()
-  const currentWs = getWorkspaceForItem(item.type, item.id)
-
-  return (
-    <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}
-      style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:200, backdropFilter:'blur(6px)' }}
-      onClick={onClose}>
-      <motion.div initial={{scale:0.9,y:20}} animate={{scale:1,y:0}} exit={{scale:0.9,y:20}} onClick={e=>e.stopPropagation()}>
-        <Glass style={{ width:360, padding:20 }} glow>
-          <div style={{ fontSize:15, fontWeight:800, marginBottom:6 }}>Add to Workspace</div>
-          <div style={{ fontSize:12, opacity:0.5, marginBottom:16 }}>"{item.title}"</div>
-          {workspaces.map(ws => {
-            const inWs = (ws[`${item.type}Ids` as keyof Workspace] as string[]).includes(item.id)
-            return (
-              <button key={ws.id} onClick={()=>{ inWs ? removeItemFromWorkspace(ws.id,item.type,item.id) : addItemToWorkspace(ws.id,item.type,item.id) }}
-                style={{ display:'flex', alignItems:'center', gap:12, width:'100%', padding:'10px 12px', borderRadius:10, background: inWs?`${ws.color}18`:'rgba(255,255,255,0.04)', border:`1px solid ${inWs?ws.color:'rgba(255,255,255,0.08)'}`, cursor:'pointer', marginBottom:6, transition:'all 0.12s' }}>
-                <span style={{ fontSize:18 }}>{ws.icon}</span>
-                <span style={{ flex:1, textAlign:'left', fontSize:13, fontWeight:600, color: inWs?ws.color:'inherit' }}>{ws.name}</span>
-                {inWs && <Check size={14} style={{ color:ws.color }}/>}
-              </button>
-            )
-          })}
-          <button onClick={onClose} style={{ width:'100%', padding:'8px', borderRadius:9, background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.1)', cursor:'pointer', fontSize:13, color:'inherit', marginTop:8 }}>Done</button>
-        </Glass>
-      </motion.div>
-    </motion.div>
-  )
+const parseMarkdownTitle = (content: string, fallback = 'Untitled') => {
+  const hit = content.match(/^#\s+(.+?)\s*$/m)
+  return hit?.[1]?.trim() || fallback
 }
 
 // ─────────────────────────────────────────────
@@ -270,7 +67,12 @@ export function FilesView() {
   const t = useTheme()
   const rgb = hexToRgb(t.accent)
   const { notes, codes, tasks, reminders } = useApp()
-  const { workspaces, activeWorkspaceId, setActive, addWorkspace, updateWorkspace, delWorkspace } = useWorkspaces()
+  const canvases = useCanvas((s) => s.canvases)
+  const { workspaces, activeWorkspaceId, setActive } = useWorkspaces()
+  const workspaceRoot = useWorkspaceFs((s) => s.rootPath)
+  const setWorkspaceRoot = useWorkspaceFs((s) => s.setRootPath)
+  const autoSync = useWorkspaceFs((s) => s.autoSync)
+  const setAutoSync = useWorkspaceFs((s) => s.setAutoSync)
 
   const [search,      setSearch]      = useState('')
   const [typeFilter,  setTypeFilter]  = useState<'all'|ItemType>('all')
@@ -279,15 +81,9 @@ export function FilesView() {
   const [newWsOpen,   setNewWsOpen]   = useState(false)
   const [editWs,      setEditWs]      = useState<Workspace|null>(null)
   const [assignItem,  setAssignItem]  = useState<FileItem|null>(null)
-  const [workspaceRoot, setWorkspaceRoot] = useState<string>(() => {
-    try {
-      return localStorage.getItem(WORKSPACE_ROOT_KEY) ?? ''
-    } catch {
-      return ''
-    }
-  })
   const [syncing, setSyncing] = useState(false)
   const [syncMsg, setSyncMsg] = useState('')
+  const [loadingWorkspace, setLoadingWorkspace] = useState(false)
 
   const activeWs = workspaces.find(w => w.id === activeWorkspaceId)
 
@@ -348,15 +144,269 @@ export function FilesView() {
     }
 
     setWorkspaceRoot(result.path)
-    try {
-      localStorage.setItem(WORKSPACE_ROOT_KEY, result.path)
-    } catch {}
     toast(`Workspace-Ordner gesetzt: ${result.path}`)
     return result.path
   }
 
+  const readWorkspaceDirectory = async (root: string) => {
+    const fsApi = window.api?.fs
+    if (!fsApi?.readDir) return null
+    const primaryRoot = joinFsPath(root, WORKSPACE_EXPORT_DIRNAME)
+    const primaryResult = await fsApi.readDir(primaryRoot, true)
+    if (primaryResult.ok && primaryResult.entries) {
+      return { baseRoot: primaryRoot, entries: primaryResult.entries }
+    }
+    const fallbackResult = await fsApi.readDir(root, true)
+    if (!fallbackResult.ok || !fallbackResult.entries) return null
+    return { baseRoot: root, entries: fallbackResult.entries }
+  }
+
+  const importWorkspaceFromDisk = async () => {
+    if (loadingWorkspace || syncing) return
+    const fsApi = window.api?.fs
+    if (!fsApi?.read || !fsApi?.readDir) {
+      toast('Workspace-Import ist nur in der Desktop-App verfügbar.')
+      return
+    }
+
+    let root = workspaceRoot
+    if (!root) {
+      const selected = await selectWorkspaceRoot()
+      if (!selected) return
+      root = selected
+    }
+
+    setLoadingWorkspace(true)
+    try {
+      const runtimeSnapshot = await readWorkspaceRuntimeSnapshot(root, fsApi)
+      if (runtimeSnapshot) {
+        const incoming = runtimeSnapshot.state
+
+        useApp.setState((state) => {
+          const nextNotes = Array.isArray(incoming.notes) ? incoming.notes : state.notes
+          const noteIds = new Set(nextNotes.map((note) => note.id))
+          const nextOpenNoteIds = (Array.isArray(incoming.openNoteIds) ? incoming.openNoteIds : []).filter((id) =>
+            noteIds.has(id),
+          )
+          const nextActiveNoteId =
+            incoming.activeNoteId && noteIds.has(incoming.activeNoteId)
+              ? incoming.activeNoteId
+              : nextOpenNoteIds[0] || nextNotes[0]?.id || null
+
+          const nextCodes = Array.isArray(incoming.codes) ? incoming.codes : state.codes
+          const codeIds = new Set(nextCodes.map((code) => code.id))
+          const nextOpenCodeIds = (Array.isArray(incoming.openCodeIds) ? incoming.openCodeIds : []).filter((id) =>
+            codeIds.has(id),
+          )
+          const nextActiveCodeId =
+            incoming.activeCodeId && codeIds.has(incoming.activeCodeId)
+              ? incoming.activeCodeId
+              : nextOpenCodeIds[0] || nextCodes[0]?.id || null
+
+          return {
+            notes: nextNotes,
+            openNoteIds: nextOpenNoteIds,
+            activeNoteId: nextActiveNoteId,
+            codes: nextCodes,
+            openCodeIds: nextOpenCodeIds,
+            activeCodeId: nextActiveCodeId,
+            tasks: Array.isArray(incoming.tasks) ? incoming.tasks : state.tasks,
+            reminders: Array.isArray(incoming.reminders) ? incoming.reminders : state.reminders,
+            folders: Array.isArray(incoming.folders) ? incoming.folders : state.folders,
+          }
+        })
+
+        if (Array.isArray(incoming.canvases) && incoming.canvases.length > 0) {
+          const canvasIds = new Set(incoming.canvases.map((canvas) => canvas.id))
+          useCanvas.setState((state) => ({
+            ...state,
+            canvases: incoming.canvases,
+            activeCanvasId:
+              incoming.activeCanvasId && canvasIds.has(incoming.activeCanvasId)
+                ? incoming.activeCanvasId
+                : incoming.canvases[0]?.id || state.activeCanvasId,
+          }))
+        }
+
+        if (Array.isArray(incoming.workspaces) && incoming.workspaces.length > 0) {
+          const workspaceIds = new Set(incoming.workspaces.map((workspace) => workspace.id))
+          useWorkspaces.setState((state) => ({
+            ...state,
+            workspaces: incoming.workspaces,
+            activeWorkspaceId:
+              incoming.activeWorkspaceId && workspaceIds.has(incoming.activeWorkspaceId)
+                ? incoming.activeWorkspaceId
+                : incoming.workspaces[0]?.id || state.activeWorkspaceId,
+          }))
+        }
+
+        toast('Workspace Runtime geladen (schneller Snapshot-Import).')
+        return
+      }
+
+      const readResult = await readWorkspaceDirectory(root)
+      if (!readResult) {
+        toast('Workspace konnte nicht gelesen werden.')
+        return
+      }
+
+      const { baseRoot, entries } = readResult
+      const files = entries
+        .filter((entry) => !entry.isDirectory)
+        .map((entry) => ({ ...entry, relPath: toRelPath(baseRoot, entry.path) }))
+
+      const importedNotes: Note[] = []
+      const importedCodes: CodeFile[] = []
+      const importedTasks: Task[] = []
+      const importedReminders: Reminder[] = []
+      let importedWorkspaceDefs: Workspace[] | null = null
+
+      for (const file of files) {
+        const rel = file.relPath.replace(/\\/g, '/')
+        const lower = rel.toLowerCase()
+        if (lower.endsWith('workspace-export.txt') || lower.endsWith('manifest.json')) continue
+        const fileRead = await fsApi.read(file.path)
+        if (!fileRead.ok || typeof fileRead.data !== 'string') continue
+        const content = fileRead.data
+
+        if (lower.endsWith('/workspaces/workspaces.json')) {
+          try {
+            const parsed = JSON.parse(content)
+            if (Array.isArray(parsed)) {
+              importedWorkspaceDefs = parsed.filter((item) => item && typeof item.id === 'string') as Workspace[]
+            }
+          } catch {}
+          continue
+        }
+
+        if (lower.includes('/notes/') && lower.endsWith('.md')) {
+          const titleFromPath = rel.split('/').pop()?.replace(/\.md$/i, '') || 'Imported Note'
+          const noteTitle = parseMarkdownTitle(content, titleFromPath)
+          importedNotes.push({
+            id: toSafeId(),
+            title: noteTitle,
+            content,
+            tags: [],
+            created: new Date(file.mtimeMs || Date.now()).toISOString(),
+            updated: new Date(file.mtimeMs || Date.now()).toISOString(),
+            dirty: false,
+          })
+          continue
+        }
+
+        if (lower.includes('/code/')) {
+          const fileName = rel.split('/').pop() || `imported-${toSafeId()}.txt`
+          importedCodes.push({
+            id: toSafeId(),
+            name: fileName,
+            lang: getCodeLangFromPath(fileName),
+            content,
+            dirty: false,
+            created: new Date(file.mtimeMs || Date.now()).toISOString(),
+            updated: new Date(file.mtimeMs || Date.now()).toISOString(),
+            lastSaved: new Date(file.mtimeMs || Date.now()).toISOString(),
+          })
+          continue
+        }
+
+        if (lower.includes('/tasks/') && lower.endsWith('.json')) {
+          try {
+            const parsed = JSON.parse(content)
+            if (parsed && typeof parsed === 'object') {
+              importedTasks.push({
+                id: toSafeId(),
+                title: String(parsed.title || 'Imported Task'),
+                desc: String(parsed.desc || parsed.description || ''),
+                status: parsed.status === 'done' || parsed.status === 'doing' ? parsed.status : 'todo',
+                priority: parsed.priority === 'high' || parsed.priority === 'low' ? parsed.priority : 'mid',
+                deadline: parsed.deadline ? String(parsed.deadline) : undefined,
+                tags: Array.isArray(parsed.tags) ? parsed.tags.map((tag: any) => String(tag)) : [],
+                color: parsed.color ? String(parsed.color) : undefined,
+                subtasks: Array.isArray(parsed.subtasks)
+                  ? parsed.subtasks.map((sub: any) => ({
+                    id: String(sub?.id || toSafeId()),
+                    title: String(sub?.title || 'Subtask'),
+                    done: Boolean(sub?.done),
+                  }))
+                  : [],
+                created: parsed.created ? String(parsed.created) : new Date(file.mtimeMs || Date.now()).toISOString(),
+                updated: parsed.updated ? String(parsed.updated) : new Date(file.mtimeMs || Date.now()).toISOString(),
+                linkedNoteId: parsed.linkedNoteId ? String(parsed.linkedNoteId) : undefined,
+                folderId: parsed.folderId ? String(parsed.folderId) : null,
+                notes: parsed.notes ? String(parsed.notes) : undefined,
+              })
+            }
+          } catch {}
+          continue
+        }
+
+        if (lower.includes('/reminders/') && lower.endsWith('.json')) {
+          try {
+            const parsed = JSON.parse(content)
+            if (parsed && typeof parsed === 'object') {
+              importedReminders.push({
+                id: toSafeId(),
+                title: String(parsed.title || 'Imported Reminder'),
+                msg: String(parsed.msg || parsed.message || ''),
+                datetime: String(parsed.datetime || new Date(file.mtimeMs || Date.now()).toISOString()),
+                repeat: parsed.repeat === 'daily' || parsed.repeat === 'weekly' || parsed.repeat === 'monthly' ? parsed.repeat : 'none',
+                done: Boolean(parsed.done),
+                snoozeUntil: parsed.snoozeUntil ? String(parsed.snoozeUntil) : undefined,
+                linkedNoteId: parsed.linkedNoteId ? String(parsed.linkedNoteId) : undefined,
+                linkedTaskId: parsed.linkedTaskId ? String(parsed.linkedTaskId) : undefined,
+                folderId: parsed.folderId ? String(parsed.folderId) : null,
+                notes: parsed.notes ? String(parsed.notes) : undefined,
+              })
+            }
+          } catch {}
+        }
+      }
+
+      const importedSomething =
+        importedNotes.length > 0 ||
+        importedCodes.length > 0 ||
+        importedTasks.length > 0 ||
+        importedReminders.length > 0
+
+      if (!importedSomething) {
+        toast('Keine importierbaren Workspace-Dateien gefunden.')
+        return
+      }
+
+      useApp.setState((state) => {
+        const nextNotes = importedNotes.length > 0 ? importedNotes : state.notes
+        const nextCodes = importedCodes.length > 0 ? importedCodes : state.codes
+        return {
+          notes: nextNotes,
+          openNoteIds: nextNotes.length > 0 ? [nextNotes[0].id] : [],
+          activeNoteId: nextNotes[0]?.id ?? null,
+          codes: nextCodes,
+          openCodeIds: nextCodes.length > 0 ? [nextCodes[0].id] : [],
+          activeCodeId: nextCodes[0]?.id ?? null,
+          tasks: importedTasks.length > 0 ? importedTasks : state.tasks,
+          reminders: importedReminders.length > 0 ? importedReminders : state.reminders,
+        }
+      })
+
+      if (importedWorkspaceDefs && importedWorkspaceDefs.length > 0) {
+        useWorkspaces.setState((state) => ({
+          ...state,
+          workspaces: importedWorkspaceDefs!,
+          activeWorkspaceId: importedWorkspaceDefs![0]?.id || state.activeWorkspaceId,
+        }))
+      }
+
+      useApp.getState().logActivity('system', 'workspace-imported', `${importedNotes.length} notes · ${importedCodes.length} code`)
+      toast(`Workspace geladen: ${importedNotes.length} Notes · ${importedCodes.length} Code · ${importedTasks.length} Tasks · ${importedReminders.length} Reminders`)
+    } catch (error: any) {
+      toast(`Workspace-Import fehlgeschlagen: ${error?.message || 'Unbekannter Fehler'}`)
+    } finally {
+      setLoadingWorkspace(false)
+    }
+  }
+
   const exportWorkspaceToDisk = async () => {
-    if (syncing) return
+    if (syncing || loadingWorkspace) return
     const fsApi = window.api?.fs
     if (!fsApi?.write) {
       toast('Datei-Export ist in dieser Laufzeit nicht verfügbar.')
@@ -372,12 +422,12 @@ export function FilesView() {
 
     setSyncing(true)
     const exportedAt = new Date().toISOString()
-    const exportRoot = joinFsPath(root, 'Nexus Workspace')
+    const exportRoot = joinFsPath(root, WORKSPACE_EXPORT_DIRNAME)
     const manifest: {
       exportedAt: string
       app: string
       counts: Record<string, number>
-      files: Array<{ type: ItemType | 'meta' | 'summary'; sourceId?: string; path: string }>
+      files: Array<{ type: ItemType | 'meta' | 'summary' | 'canvas'; sourceId?: string; path: string }>
     } = {
       exportedAt,
       app: 'Nexus Main',
@@ -386,6 +436,7 @@ export function FilesView() {
         code: codes.length,
         tasks: tasks.length,
         reminders: reminders.length,
+        canvases: canvases.length,
         workspaces: workspaces.length,
       },
       files: [],
@@ -394,7 +445,7 @@ export function FilesView() {
     const writeWithManifest = async (
       relativePath: string,
       content: string,
-      meta: { type: ItemType | 'meta' | 'summary'; sourceId?: string },
+      meta: { type: ItemType | 'meta' | 'summary' | 'canvas'; sourceId?: string },
     ) => {
       const absolutePath = joinFsPath(exportRoot, relativePath)
       const result = await fsApi.write(absolutePath, content)
@@ -405,6 +456,27 @@ export function FilesView() {
     }
 
     try {
+      const runtimeSnapshot = buildWorkspaceRuntimeSnapshot({
+        notes,
+        openNoteIds: useApp.getState().openNoteIds,
+        activeNoteId: useApp.getState().activeNoteId,
+        codes,
+        openCodeIds: useApp.getState().openCodeIds,
+        activeCodeId: useApp.getState().activeCodeId,
+        tasks,
+        reminders,
+        folders: useApp.getState().folders,
+        canvases,
+        activeCanvasId: useCanvas.getState().activeCanvasId,
+        workspaces,
+        activeWorkspaceId,
+      })
+      const runtimeWrite = await writeWorkspaceRuntimeSnapshot(root, runtimeSnapshot, fsApi)
+      if (!runtimeWrite.ok) {
+        throw new Error(runtimeWrite.error || 'Runtime Snapshot konnte nicht geschrieben werden.')
+      }
+      manifest.files.push({ type: 'meta', path: 'state/runtime.json' })
+
       for (const note of notes) {
         const noteName = sanitizeFileName(note.title || 'untitled-note')
         const noteFile = `notes/${noteName}-${note.id.slice(0, 8)}.md`
@@ -431,6 +503,12 @@ export function FilesView() {
         await writeWithManifest(reminderFile, JSON.stringify(reminder, null, 2), { type: 'reminder', sourceId: reminder.id })
       }
 
+      for (const canvas of canvases) {
+        const canvasName = sanitizeFileName(canvas.name || 'canvas')
+        const canvasFile = `canvas/${canvasName}-${canvas.id.slice(0, 8)}.json`
+        await writeWithManifest(canvasFile, JSON.stringify(canvas, null, 2), { type: 'canvas', sourceId: canvas.id })
+      }
+
       await writeWithManifest('workspaces/workspaces.json', JSON.stringify(workspaces, null, 2), { type: 'meta' })
 
       const aiExport = [
@@ -449,6 +527,9 @@ export function FilesView() {
         ``,
         `## Reminders`,
         ...reminders.map((reminder) => `- ${reminder.title} (${reminder.datetime}) (${reminder.id})`),
+        ``,
+        `## Canvas`,
+        ...canvases.map((canvas) => `- ${canvas.name} (${canvas.id})`),
       ].join('\n')
       await writeWithManifest('workspace-export.txt', aiExport, { type: 'summary' })
 
@@ -472,10 +553,7 @@ export function FilesView() {
             <div style={{ fontSize:13, fontWeight:800, marginBottom:1 }}>Workspaces</div>
             <div style={{ fontSize:10, opacity:0.4 }}>{workspaces.length} workspace{workspaces.length!==1?'s':''}</div>
           </div>
-          <button onClick={()=>setNewWsOpen(true)} style={{ width:28, height:28, borderRadius:8, background:`rgba(${rgb},0.15)`, border:`1px solid rgba(${rgb},0.25)`, cursor:'pointer', color:t.accent, display:'flex', alignItems:'center', justifyContent:'center', transition:'all 0.12s' }}
-            onMouseEnter={e=>e.currentTarget.style.background=`rgba(${rgb},0.25)`} onMouseLeave={e=>e.currentTarget.style.background=`rgba(${rgb},0.15)`}>
-            <Plus size={14}/>
-          </button>
+          <WorkspaceCreateButton onClick={() => setNewWsOpen(true)} />
         </div>
 
         <div style={{ flex:1, overflowY:'auto', padding:'4px 10px 12px' }}>
@@ -516,17 +594,44 @@ export function FilesView() {
             onClick={() => void selectWorkspaceRoot()}
             style={{ display:'flex', alignItems:'center', gap:6, padding:'6px 10px', borderRadius:8, background:`rgba(${rgb},0.15)`, border:`1px solid rgba(${rgb},0.25)`, color:t.accent, cursor:'pointer', fontSize:11, fontWeight:700 }}
           >
-            <FolderOpen size={12}/> Ordner wählen
+            <FolderOpen size={12}/> Workspace wählen/erstellen
+          </button>
+          <button
+            onClick={() => void importWorkspaceFromDisk()}
+            disabled={loadingWorkspace || syncing}
+            style={{ display:'flex', alignItems:'center', gap:6, padding:'6px 10px', borderRadius:8, background: loadingWorkspace ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.08)', border:'1px solid rgba(255,255,255,0.12)', color:'inherit', cursor: loadingWorkspace || syncing ? 'not-allowed' : 'pointer', fontSize:11, fontWeight:700, opacity: loadingWorkspace || syncing ? 0.7 : 1 }}
+          >
+            <ArrowRight size={12}/> {loadingWorkspace ? 'Workspace wird geladen…' : 'Workspace laden'}
           </button>
           <button
             onClick={() => void exportWorkspaceToDisk()}
-            disabled={syncing}
-            style={{ display:'flex', alignItems:'center', gap:6, padding:'6px 10px', borderRadius:8, background: syncing ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.08)', border:'1px solid rgba(255,255,255,0.12)', color:'inherit', cursor: syncing ? 'not-allowed' : 'pointer', fontSize:11, fontWeight:700, opacity: syncing ? 0.7 : 1 }}
+            disabled={syncing || loadingWorkspace}
+            style={{ display:'flex', alignItems:'center', gap:6, padding:'6px 10px', borderRadius:8, background: syncing ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.08)', border:'1px solid rgba(255,255,255,0.12)', color:'inherit', cursor: syncing || loadingWorkspace ? 'not-allowed' : 'pointer', fontSize:11, fontWeight:700, opacity: syncing || loadingWorkspace ? 0.7 : 1 }}
           >
-            <Download size={12}/> {syncing ? 'Export läuft…' : 'Auf Festplatte exportieren'}
+            <Download size={12}/> {syncing ? 'Sync läuft…' : 'Workspace synchronisieren'}
+          </button>
+          <button
+            onClick={() => setAutoSync(!autoSync)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '6px 10px',
+              borderRadius: 8,
+              background: autoSync ? `rgba(${rgb},0.16)` : 'rgba(255,255,255,0.06)',
+              border: autoSync ? `1px solid rgba(${rgb},0.3)` : '1px solid rgba(255,255,255,0.12)',
+              color: autoSync ? t.accent : 'inherit',
+              cursor: 'pointer',
+              fontSize: 11,
+              fontWeight: 700,
+            }}
+          >
+            <Zap size={12}/> {autoSync ? 'Auto-Sync: an' : 'Auto-Sync: aus'}
           </button>
           <div style={{ fontSize:10, opacity:0.52, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-            {workspaceRoot ? `Root: ${workspaceRoot}` : 'Kein Workspace-Ordner ausgewählt'}
+            {workspaceRoot
+              ? `Aktiver Workspace: ${workspaceRoot} · ${autoSync ? 'Runtime-Sync aktiv' : 'nur manuelles Sync'}`
+              : 'Kein Workspace-Ordner ausgewählt'}
           </div>
           {syncMsg && <div style={{ marginLeft:'auto', fontSize:10, color:t.accent, fontWeight:700 }}>{syncMsg}</div>}
         </div>

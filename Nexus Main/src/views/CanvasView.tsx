@@ -98,6 +98,11 @@ export function CanvasView() {
     () => canvases.find((entry) => entry.id === activeCanvasId),
     [canvases, activeCanvasId],
   );
+  useEffect(() => {
+    if (canvases.length === 0) return
+    if (canvas) return
+    setActiveCanvas(canvases[0].id)
+  }, [canvas, canvases, setActiveCanvas]);
   const canvasRef = useRef<HTMLDivElement>(null);
 
   const [panning, setPanning] = useState(false);
@@ -490,6 +495,21 @@ export function CanvasView() {
     },
     [],
   );
+
+  const safeCreateCanvas = useCallback(() => {
+    try {
+      addCanvas();
+      requestAnimationFrame(() => {
+        const active = useCanvas.getState().activeCanvasId;
+        if (!active) {
+          const first = useCanvas.getState().canvases[0];
+          if (first) useCanvas.getState().setActiveCanvas(first.id);
+        }
+      });
+    } catch (error) {
+      console.error("[Canvas] create canvas failed", error);
+    }
+  }, [addCanvas]);
 
   const setZoomCentered = useCallback(
     (nextZoom: number) => {
@@ -1274,7 +1294,7 @@ export function CanvasView() {
           organisieren.
         </div>
         <button
-          onClick={() => addCanvas()}
+          onClick={safeCreateCanvas}
           style={{
             display: "flex",
             alignItems: "center",
@@ -1318,7 +1338,7 @@ export function CanvasView() {
         canvases={canvases}
         activeCanvasId={activeCanvasId}
         activeCanvas={canvas}
-        addCanvas={addCanvas}
+        addCanvas={safeCreateCanvas}
         setActiveCanvas={setActiveCanvas}
         deleteCanvas={deleteCanvas}
       />

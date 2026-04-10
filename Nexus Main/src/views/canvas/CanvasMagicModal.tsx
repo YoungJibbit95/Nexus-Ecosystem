@@ -9,6 +9,8 @@ export type MagicTemplateId =
   | "sprint"
   | "risk-matrix"
   | "decision-flow"
+  | "meeting-hub"
+  | "delivery-map"
   | "ai-project";
 
 export type MagicTemplatePayload = {
@@ -61,6 +63,20 @@ const MAGIC_TEMPLATES: {
     desc: "Optionen, Kriterien, Entscheidung und nächste Schritte.",
     icon: "🌿",
     color: "#BF5AF2",
+  },
+  {
+    id: "meeting-hub",
+    label: "Meeting Hub",
+    desc: "Agenda, Entscheidungen, Action Items und Follow-up in einem Canvas.",
+    icon: "🗓️",
+    color: "#64D2FF",
+  },
+  {
+    id: "delivery-map",
+    label: "Delivery Map",
+    desc: "Delivery-Pipeline mit Backlog, Build, QA, Launch und Risiken.",
+    icon: "🚚",
+    color: "#30D158",
   },
   {
     id: "ai-project",

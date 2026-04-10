@@ -112,6 +112,50 @@ function registerFileHandlers(getMainWindow) {
     }
   });
 
+  ipcMain.handle('fs:readDir', async (_, dirPath, recursive = true) => {
+    try {
+      const check = assertAllowedPath(dirPath);
+      if (!check.ok) {
+        return { ok: false, error: check.error };
+      }
+
+      const stats = fs.statSync(check.value);
+      if (!stats.isDirectory()) {
+        return { ok: false, error: 'path is not a directory' };
+      }
+
+      const entries = [];
+      const stack = [check.value];
+      const maxEntries = 2_500;
+
+      while (stack.length > 0) {
+        const currentDir = stack.pop();
+        const dirEntries = fs.readdirSync(currentDir, { withFileTypes: true });
+        for (const entry of dirEntries) {
+          const absPath = path.resolve(currentDir, entry.name);
+          if (!isPathAllowed(absPath)) continue;
+          const entryStats = fs.statSync(absPath);
+          entries.push({
+            path: absPath,
+            isDirectory: entry.isDirectory(),
+            size: entryStats.size || 0,
+            mtimeMs: entryStats.mtimeMs || 0,
+          });
+          if (entries.length >= maxEntries) {
+            return { ok: true, entries };
+          }
+          if (recursive && entry.isDirectory()) {
+            stack.push(absPath);
+          }
+        }
+      }
+
+      return { ok: true, entries };
+    } catch (e) {
+      return { ok: false, error: e.message };
+    }
+  });
+
   ipcMain.handle('fs:write', async (_, filePath, content) => {
     try {
       const check = assertAllowedPath(filePath);
