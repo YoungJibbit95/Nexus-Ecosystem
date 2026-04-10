@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { genId } from '../lib/utils'
 import { createIndexedDbStorage } from './persistence/indexedDbStorage'
+import { createInitialAppData } from './appStoreInitialData'
 
 /* ============================================================
    TYPES
@@ -191,6 +192,7 @@ interface Store {
 ============================================================ */
 
 const now = () => new Date().toISOString()
+const INITIAL_APP_DATA = createInitialAppData(now)
 
 /* ============================================================
    STORE
@@ -201,98 +203,9 @@ export const useApp = create<Store>()(
     (set, get) => ({
       /* ================= NOTES ================= */
 
-      notes: [{
-        id: 'w',
-        title: '👋 Willkommen bei Nexus',
-        content:
-          '# 👋 Willkommen bei Nexus\n' +
-          '___\n' +
-          '\n' +
-          '> Warum fünf verschiedene Apps jonglieren, wenn eine alles kann?\n' +
-          '\n' +
-          'Nexus wurde entwickelt, um deinen gesamten Workflow in einer einzigen, klaren Umgebung zu bündeln – ohne Chaos, ohne Kontextwechsel, ohne unnötige Reibung.\n' +
-          '\n' +
-          '---\n' +
-          '\n' +
-          '## ❓ Was ist Nexus?\n' +
-          '\n' +
-          'Nexus ist eine modulare Productivity-Suite, die Struktur, Kreativität und Technik in einem System vereint.\n' +
-          '\n' +
-          '### 🎯 Die Idee dahinter\n' +
-          '\n' +
-          'Produktivität bedeutet nicht „mehr machen“.\n' +
-          'Produktivität bedeutet **klar denken, schnell handeln, organisiert bleiben**.\n' +
-          '\n' +
-          'Nexus gibt dir dafür die Werkzeuge.\n' +
-          '\n' +
-          '---\n' +
-          '\n' +
-          '## 🚀 Wofür kannst du Nexus nutzen?\n' +
-          '\n' +
-          'Egal ob du …\n' +
-          '\n' +
-          '- 📂 Projekte planst\n' +
-          '- 📝 strukturierte Notizen schreibst\n' +
-          '- 💡 brainstormst oder Ideen sammelst\n' +
-          '- 💻 Code entwickelst und testest\n' +
-          '- ⏰ Erinnerungen verwaltest\n' +
-          '- 🧠 komplexe Zusammenhänge visualisierst\n' +
-          '\n' +
-          '**Nexus passt sich deinem Workflow an – nicht andersherum.**\n' +
-          '\n' +
-          '---\n' +
-          '\n' +
-          '# ⚙️ Features? Mehr als genug.\n' +
-          '___\n' +
-          '\n' +
-          '## 🔷 Canvas View\n' +
-          'Infinite Canvas mit Pan & Zoom.\n' +
-          'Erstelle visuelle Strukturen mit Widgets, verbinde Elemente und denke frei – ohne Grenzen.\n' +
-          '\n' +
-          '## 📝 Notes View\n' +
-          'Markdown-Editor mit Toolbar, Split-View, Pinning, Volltextsuche und Tag-System.\n' +
-          'Schnell schreiben. Klar strukturieren. Sofort wiederfinden.\n' +
-          '\n' +
-          '## 💻 Code Editor\n' +
-          'Monaco-basiert mit Projekt-Sidebar und integrierter REPL für JS/TS sowie Python (Pyodide).\n' +
-          'Schreiben. Testen. Iterieren – direkt in Nexus.\n' +
-          '\n' +
-          '## 🔔 Reminders\n' +
-          'Intelligente Erinnerungen mit Toasts, Audio, Snooze-Funktion, Wiederholungen und Überfällig-Markierung.\n' +
-          '\n' +
-          '## ⚙️ Settings & Visual Engine\n' +
-          'Theme-Presets, Typografie, Glow-System, Glassmorphism, Blur-Optionen und individuelle Farbgestaltung.\n' +
-          '\n' +
-          '---\n' +
-          '\n' +
-          '## 🔥 Weitere Highlights\n' +
-          '\n' +
-          '- 💾 **Autosave** – Deine Arbeit wird automatisch gespeichert\n' +
-          '- 📑 **Tab Management** – Schnelle Navigation zwischen Modulen\n' +
-          '- 🔗 **Backlinks & Connections** – Verknüpfe Notizen, Canvas-Elemente und Tasks intelligent\n' +
-          '- 🎨 **Custom Gradients & Glow Control** – Visuelle Anpassung bis ins Detail\n' +
-          '\n' +
-          '---\n' +
-          '\n' +
-          '## 💡 Warum Nexus?\n' +
-          '\n' +
-          'Weil Produktivität nicht fragmentiert sein sollte.\n' +
-          'Weil dein Workflow fließen sollte.\n' +
-          'Weil Fokus wichtiger ist als Feature-Overload.\n' +
-          '\n' +
-          '---\n' +
-          '\n' +
-          '## Willkommen in deinem neuen Arbeitsraum.\n' +
-          '\n' +
-          '**Genieße dein produktiveres Setup mit Nexus.** 🚀\n',
-        tags: ['welcome'],
-        created: now(),
-        updated: now(),
-        dirty: false,
-      }],
-
-      openNoteIds: ['w'],
-      activeNoteId: 'w',
+      notes: INITIAL_APP_DATA.notes,
+      openNoteIds: INITIAL_APP_DATA.openNoteIds,
+      activeNoteId: INITIAL_APP_DATA.activeNoteId,
 
       folders: [],
       activities: [],
@@ -386,83 +299,9 @@ export const useApp = create<Store>()(
 
       /* ================= CODE ================= */
 
-      codes: [{
-        id: 'e',
-        name: 'example.py',
-        lang: 'python',
-        content:
-          '# Nexus Python Sandbox 🚀\n' +
-          '\n' +
-          'print("Nexus Python Environment Ready")\n' +
-          '\n' +
-          '# -----------------------------\n' +
-          '# Data Model\n' +
-          '# -----------------------------\n' +
-          'class Project:\n' +
-          '    def __init__(self, name: str, priority: int):\n' +
-          '        self.name = name\n' +
-          '        self.priority = priority\n' +
-          '        self.completed = False\n' +
-          '\n' +
-          '    def complete(self):\n' +
-          '        self.completed = True\n' +
-          '\n' +
-          '    def __repr__(self):\n' +
-          '        status = "✔" if self.completed else "✘"\n' +
-          '        return f"{self.name} (Priority: {self.priority}) [{status}]"\n' +
-          '\n' +
-          '# -----------------------------\n' +
-          '# State\n' +
-          '# -----------------------------\n' +
-          'projects = []\n' +
-          '\n' +
-          'def add_project(name: str, priority: int):\n' +
-          '    p = Project(name, priority)\n' +
-          '    projects.append(p)\n' +
-          '    return p\n' +
-          '\n' +
-          'def list_projects():\n' +
-          '    print("\\nCurrent Projects:")\n' +
-          '    for p in sorted(projects, key=lambda x: x.priority):\n' +
-          '        print(p)\n' +
-          '\n' +
-          '# -----------------------------\n' +
-          '# Functional Example\n' +
-          '# -----------------------------\n' +
-          'def priority_summary():\n' +
-          '    return {p.name: p.priority for p in projects}\n' +
-          '\n' +
-          '# -----------------------------\n' +
-          '# Async Example (Pyodide Safe)\n' +
-          '# -----------------------------\n' +
-          'import asyncio\n' +
-          '\n' +
-          'async def simulate_deploy():\n' +
-          '    print("\\nDeploying...")\n' +
-          '    await asyncio.sleep(0.5)\n' +
-          '    print("Deployment finished.")\n' +
-          '\n' +
-          '# -----------------------------\n' +
-          '# Demo Execution\n' +
-          '# -----------------------------\n' +
-          'p1 = add_project("Build Nexus", 1)\n' +
-          'p2 = add_project("Write Docs", 3)\n' +
-          'p3 = add_project("Optimize UI", 2)\n' +
-          '\n' +
-          'p1.complete()\n' +
-          '\n' +
-          'list_projects()\n' +
-          '\n' +
-          'print("\\nPriority Map:", priority_summary())\n' +
-          '\n' +
-          'await simulate_deploy()\n',
-        dirty: false,
-        created: now(),
-        updated: now(),
-        lastSaved: now()
-      }],
-      openCodeIds: [],
-      activeCodeId: null,
+      codes: INITIAL_APP_DATA.codes,
+      openCodeIds: INITIAL_APP_DATA.openCodeIds,
+      activeCodeId: INITIAL_APP_DATA.activeCodeId,
 
       addCode: (name = 'untitled.txt', lang = 'plaintext') => {
         const file: CodeFile = {
@@ -554,7 +393,7 @@ export const useApp = create<Store>()(
 
       /* ================= TASKS ================= */
 
-      tasks: [],
+      tasks: INITIAL_APP_DATA.tasks,
 
       addTask: (title, status, desc = '', priority = 'mid') => {
         const t: Task = {
@@ -626,7 +465,7 @@ export const useApp = create<Store>()(
 
       /* ================= REMINDERS ================= */
 
-      reminders: [],
+      reminders: INITIAL_APP_DATA.reminders,
 
       addRem: r =>
         set(s => ({

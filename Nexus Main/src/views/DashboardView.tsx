@@ -2,238 +2,31 @@ import React, { useMemo, useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   FileText, Code, CheckSquare, Bell, GitBranch, Zap,
-  Clock, Star, AlertCircle, CheckCircle2,
-  Calendar, Hash, Activity, BarChart3, Sparkles, ArrowRight,
+  Activity, Sparkles,
   Layout, X, Eye, EyeOff, RotateCcw, ChevronUp, ChevronDown, GripVertical
 } from 'lucide-react'
 import { Glass } from '../components/Glass'
 import { useApp } from '../store/appStore'
 import { useTheme } from '../store/themeStore'
-import { hexToRgb, fmtDt } from '../lib/utils'
+import { hexToRgb } from '../lib/utils'
 import { buildMotionRuntime } from '../lib/motionEngine'
-
-const LAYOUT_STORAGE_KEY = 'nx-dashboard-layout-v2'
-
-type WidgetId = 'stats' | 'tasks' | 'reminders' | 'notes' | 'quick' | 'activity' | 'chart' | 'calendar'
-type GridCell = { x: 1 | 2; y: number }
-const SNAP_ROW_HEIGHT = 170
-const SNAP_EXTRA_ROWS = 4
-
-interface Widget {
-  id: WidgetId
-  label: string
-  icon: string
-  span: 1 | 2
-  x: 1 | 2
-  y: number
-  visible: boolean
-  order: number
-}
-
-const DEFAULT_WIDGETS: Widget[] = [
-  { id: 'stats', label: 'Stats', icon: '📊', span: 2, x: 1, y: 1, visible: true, order: 0 },
-  { id: 'notes', label: 'Notes', icon: '📝', span: 1, x: 1, y: 2, visible: true, order: 1 },
-  { id: 'reminders', label: 'Reminders', icon: '🔔', span: 1, x: 2, y: 2, visible: true, order: 2 },
-  { id: 'tasks', label: 'Tasks', icon: '✅', span: 1, x: 1, y: 3, visible: true, order: 3 },
-  { id: 'activity', label: 'Activity', icon: '📡', span: 1, x: 2, y: 3, visible: true, order: 4 },
-  { id: 'quick', label: 'Quick Access', icon: '⚡', span: 2, x: 1, y: 4, visible: false, order: 5 },
-  { id: 'chart', label: 'Progress Chart', icon: '📈', span: 1, x: 1, y: 5, visible: false, order: 6 },
-  { id: 'calendar', label: 'Calendar', icon: '🗓️', span: 1, x: 2, y: 5, visible: false, order: 7 },
-]
-
-const cloneDefaultWidgets = () => DEFAULT_WIDGETS.map((widget) => ({ ...widget }))
-
-const cellKey = (y: number, x: 1 | 2) => `${y}:${x}`
-const clampX = (x: number, span: 1 | 2): 1 | 2 => (span === 2 ? 1 : (x >= 2 ? 2 : 1))
-const getSnapRowLimit = (visibleCount: number) => Math.max(6, visibleCount + SNAP_EXTRA_ROWS)
-
-function assignGridByOrder(list: Widget[]): Widget[] {
-  const ordered = [...list].sort((a, b) => a.order - b.order)
-  const visible = ordered.filter((w) => w.visible)
-  const hidden = ordered.filter((w) => !w.visible)
-
-  let row = 1
-  let nextCol: 1 | 2 = 1
-
-  const flowedVisible = visible.map((w) => {
-    const span = (w.span === 2 ? 2 : 1) as 1 | 2
-    if (span === 2) {
-      if (nextCol === 2) {
-        row += 1
-      }
-      const placed = { ...w, span, x: 1 as 1 | 2, y: row }
-      row += 1
-      nextCol = 1
-      return placed
-    }
-
-    const placed = { ...w, span, x: nextCol, y: row }
-    if (nextCol === 1) {
-      nextCol = 2
-    } else {
-      nextCol = 1
-      row += 1
-    }
-    return placed
-  })
-
-  return [...flowedVisible, ...hidden]
-}
-
-function compactGrid(list: Widget[]): Widget[] {
-  const ordered = [...list].sort((a, b) => a.order - b.order)
-  const visible = ordered.filter((w) => w.visible)
-  const hidden = ordered.filter((w) => !w.visible)
-  const occupied = new Set<string>()
-
-  const placedVisible = visible.map((raw) => {
-    const span = (raw.span === 2 ? 2 : 1) as 1 | 2
-    const desiredX = clampX(raw.x, span)
-    let y = 1
-
-    while (true) {
-      if (span === 2) {
-        if (!occupied.has(cellKey(y, 1)) && !occupied.has(cellKey(y, 2))) break
-      } else if (!occupied.has(cellKey(y, desiredX))) {
-        break
-      }
-      y += 1
-    }
-
-    if (span === 2) {
-      occupied.add(cellKey(y, 1))
-      occupied.add(cellKey(y, 2))
-      return { ...raw, span, x: 1 as 1 | 2, y }
-    }
-
-    occupied.add(cellKey(y, desiredX))
-    return { ...raw, span, x: desiredX, y }
-  })
-
-  const sortedVisible = [...placedVisible].sort((a, b) => a.y - b.y || a.x - b.x)
-  const reOrderedVisible = sortedVisible.map((w, i) => ({ ...w, order: i }))
-  const reOrderedHidden = hidden.map((w, i) => ({ ...w, order: reOrderedVisible.length + i }))
-  return [...reOrderedVisible, ...reOrderedHidden]
-}
-
-function normalizeLayout(list: Widget[]): Widget[] {
-  const ordered = [...list].sort((a, b) => a.order - b.order)
-  const hasStoredGrid = ordered.every((w) => Number.isFinite((w as any).x) && Number.isFinite((w as any).y))
-  const base = ordered.map((w, i) => {
-    const span = (w.span === 2 ? 2 : 1) as 1 | 2
-    return {
-      ...w,
-      span,
-      x: clampX(Number((w as any).x ?? 1), span),
-      y: Math.max(1, Math.floor(Number((w as any).y ?? 1))),
-      order: i,
-    }
-  })
-
-  const withGrid = hasStoredGrid ? base : assignGridByOrder(base)
-  return compactGrid(withGrid)
-}
-
-function reorderLayoutByGrid(list: Widget[]): Widget[] {
-  const normalized = normalizeLayout(list)
-  const visible = normalized
-    .filter((w) => w.visible)
-    .sort((a, b) => a.y - b.y || a.x - b.x)
-    .map((w, i) => ({ ...w, order: i }))
-  const hidden = normalized
-    .filter((w) => !w.visible)
-    .map((w, i) => ({ ...w, order: visible.length + i }))
-  return normalizeLayout([...visible, ...hidden])
-}
-
-// ── Mini sparkline chart ─────────────────────────────────────────────────────
-function Sparkline({ data, color, height = 32 }: { data: number[]; color: string; height?: number }) {
-  if (!data.length) return null
-  const max = Math.max(...data, 1)
-  const w = 80
-  const maxIndex = Math.max(data.length - 1, 1)
-  const toX = (i: number) => (data.length === 1 ? w / 2 : (i / maxIndex) * w)
-  const pts = data.map((v, i) => `${toX(i)},${height - (v / max) * height}`).join(' ')
-  return (
-    <svg width={w} height={height} viewBox={`0 0 ${w} ${height}`} style={{ overflow: 'visible' }}>
-      <defs>
-        <linearGradient id={`sg-${color.replace('#', '')}`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity="0.4" />
-          <stop offset="100%" stopColor={color} stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <polyline points={pts + ` ${w},${height} 0,${height}`} fill={`url(#sg-${color.replace('#', '')})`} stroke="none" />
-      <polyline points={pts} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-      {data.length > 0 && (
-        <circle cx={toX(data.length - 1)} cy={height - (data[data.length - 1] / max) * height} r="3" fill={color} />
-      )}
-    </svg>
-  )
-}
-
-// ── Stat card ────────────────────────────────────────────────────────────────
-function StatCard({ icon: Icon, label, value, sub, color, trend, delay = 0, onClick }: {
-  icon: any
-  label: string
-  value: string | number
-  sub?: string
-  color: string
-  trend?: number[]
-  delay?: number
-  onClick?: () => void
-}) {
-  const rgb = hexToRgb(color)
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 14 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay, duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
-      onClick={onClick}
-      style={{ cursor: onClick ? 'pointer' : 'default' }}
-    >
-      <Glass hover={!!onClick} glow style={{ padding: '16px 18px', height: '100%' }}>
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12 }}>
-          <div style={{
-            width: 36, height: 36, borderRadius: 10,
-            background: `rgba(${rgb}, 0.15)`,
-            border: `1px solid rgba(${rgb}, 0.25)`,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <Icon size={16} style={{ color }} />
-          </div>
-          {trend && <Sparkline data={trend} color={color} />}
-        </div>
-        <div style={{ fontSize: 26, fontWeight: 800, letterSpacing: '-0.03em', lineHeight: 1 }}>{value}</div>
-        <div style={{ fontSize: 11, fontWeight: 600, opacity: 0.5, marginTop: 4 }}>{label}</div>
-        {sub && <div style={{ fontSize: 10, opacity: 0.35, marginTop: 2 }}>{sub}</div>}
-      </Glass>
-    </motion.div>
-  )
-}
-
-// ── Quick action chip ────────────────────────────────────────────────────────
-function QuickChip({ icon: Icon, label, color, onClick }: { icon: any; label: string; color: string; onClick: () => void }) {
-  const rgb = hexToRgb(color)
-  return (
-    <motion.button
-      onClick={onClick}
-      whileHover={{ filter: 'brightness(1.06)' }}
-      whileTap={{ filter: 'brightness(0.97)' }}
-      transition={{ duration: 0.14, ease: [0.22, 1, 0.36, 1] }}
-      style={{
-        display: 'flex', alignItems: 'center', gap: 7,
-        padding: '7px 14px', borderRadius: 20,
-        background: `rgba(${rgb}, 0.1)`, border: `1px solid rgba(${rgb}, 0.2)`,
-        color, cursor: 'pointer', fontSize: 12, fontWeight: 600,
-        transition: 'background-color 0.15s ease, color 0.15s ease',
-      }}
-      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = `rgba(${rgb},0.2)` }}
-      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = `rgba(${rgb},0.1)` }}
-    >
-      <Icon size={13} /> {label}
-    </motion.button>
-  )
-}
+import {
+  DEFAULT_WIDGETS,
+  LAYOUT_STORAGE_KEY,
+  SNAP_ROW_HEIGHT,
+  assignGridByOrder,
+  cellKey,
+  clampX,
+  cloneDefaultWidgets,
+  getSnapRowLimit,
+  normalizeLayout,
+  reorderLayoutByGrid,
+  type GridCell,
+  type Widget,
+  type WidgetId,
+} from './dashboard/dashboardLayout'
+import { QuickChip } from './dashboard/dashboardUi'
+import { buildDashboardWidgetContent } from './dashboard/widgetContent'
 
 export function DashboardView({ setView }: { setView?: (v: string) => void }) {
   const t = useTheme()
@@ -244,6 +37,7 @@ export function DashboardView({ setView }: { setView?: (v: string) => void }) {
   const [editLayout, setEditLayout] = useState(false)
   const [widgets, setWidgets] = useState<Widget[]>(cloneDefaultWidgets())
   const [dragWidgetId, setDragWidgetId] = useState<WidgetId | null>(null)
+  const [dragOriginCell, setDragOriginCell] = useState<GridCell | null>(null)
   const [dropCell, setDropCell] = useState<GridCell | null>(null)
   const gridRef = useRef<HTMLDivElement>(null)
 
@@ -306,11 +100,14 @@ export function DashboardView({ setView }: { setView?: (v: string) => void }) {
 
   const clearDragState = () => {
     setDragWidgetId(null)
+    setDragOriginCell(null)
     setDropCell(null)
   }
 
   const startDrag = (e: React.DragEvent<HTMLElement>, id: WidgetId) => {
+    const origin = normalizeLayout(widgets).find((widget) => widget.id === id)
     setDragWidgetId(id)
+    setDragOriginCell(origin ? { x: origin.x, y: origin.y } : null)
     setDropCell(null)
     e.dataTransfer.setData('text/plain', id)
     e.dataTransfer.effectAllowed = 'move'
@@ -318,17 +115,36 @@ export function DashboardView({ setView }: { setView?: (v: string) => void }) {
 
   const setWidgetGrid = (id: WidgetId, cell: GridCell) => {
     setWidgets((ws) => {
-      const maxRow = getSnapRowLimit(ws.filter((w) => w.visible).length)
-      return reorderLayoutByGrid(
-        ws.map((w) => {
-          if (w.id !== id) return w
+      const ordered = normalizeLayout(ws)
+      const dragged = ordered.find((w) => w.id === id)
+      if (!dragged) return ordered
+      const maxRow = getSnapRowLimit(ordered.filter((w) => w.visible).length)
+      const nextCell = {
+        x: clampX(cell.x, dragged.span),
+        y: Math.max(1, Math.min(maxRow, Math.floor(cell.y))),
+      }
+      const occupant = ordered.find((w) => {
+        if (!w.visible || w.id === id) return false
+        if (w.y !== nextCell.y) return false
+        if (w.span === 2) return true
+        return w.x === nextCell.x
+      })
+
+      const swapped = ordered.map((widget) => {
+        if (widget.id === id) {
+          return { ...widget, x: nextCell.x, y: nextCell.y }
+        }
+        if (occupant && widget.id === occupant.id && dragOriginCell) {
           return {
-            ...w,
-            x: clampX(cell.x, w.span),
-            y: Math.max(1, Math.min(maxRow, Math.floor(cell.y))),
+            ...widget,
+            x: clampX(dragOriginCell.x, widget.span),
+            y: Math.max(1, Math.min(maxRow, dragOriginCell.y)),
           }
-        })
-      )
+        }
+        return widget
+      })
+
+      return reorderLayoutByGrid(swapped)
     })
   }
 
@@ -451,210 +267,27 @@ export function DashboardView({ setView }: { setView?: (v: string) => void }) {
     return map
   }, [visibleWidgets])
 
-  const widgetContent: Record<WidgetId, React.ReactNode> = {
-    stats: (
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12 }}>
-        <StatCard icon={FileText} label="Notizen" value={notes.length} sub={`${pinnedNotes} angeheftet`} color={t.accent} trend={noteSpark} delay={0} onClick={() => setView?.('notes')} />
-        <StatCard icon={CheckSquare} label="Erledigt" value={doneTasks} sub={`${pendingTasks} offen`} color="#30D158" trend={taskSpark} delay={0.05} onClick={() => setView?.('tasks')} />
-        <StatCard icon={Bell} label="Erinnerungen" value={reminders.filter((r) => !r.done).length} sub={overdueReminders > 0 ? `${overdueReminders} überfällig` : 'Alles pünktlich'} color={overdueReminders > 0 ? '#FF453A' : '#FF9F0A'} delay={0.1} onClick={() => setView?.('reminders')} />
-        <StatCard icon={Code} label="Code-Dateien" value={codes.length} color="#BF5AF2" delay={0.15} onClick={() => setView?.('code')} />
-      </div>
-    ),
-    notes: (
-      <Glass style={{ padding: '16px 18px', height: '100%' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <FileText size={14} style={{ color: t.accent }} />
-            <span style={{ fontSize: 12, fontWeight: 700 }}>Zuletzt bearbeitet</span>
-          </div>
-          <button onClick={() => setView?.('notes')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: t.accent, fontSize: 10, opacity: 0.6, display: 'flex', alignItems: 'center', gap: 3 }}>
-            Alle <ArrowRight size={10} />
-          </button>
-        </div>
-        {recentNotes.length === 0 ? (
-          <div style={{ opacity: 0.35, fontSize: 12, textAlign: 'center', padding: '20px 0' }}>Noch keine Notizen</div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {recentNotes.map((note) => (
-              <button key={note.id} onClick={() => setView?.('notes')} style={{ width: '100%', padding: '9px 10px', borderRadius: 9, textAlign: 'left', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)', cursor: 'pointer', color: 'inherit', transition: 'all 0.12s' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-                  {note.pinned && <Star size={9} style={{ color: '#FF9F0A', flexShrink: 0 }} />}
-                  <span style={{ fontSize: 12, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{note.title || 'Unbenannte Notiz'}</span>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 10, opacity: 0.4 }}>
-                  <Clock size={9} />
-                  <span>{fmtDt(note.updated)}</span>
-                  {note.tags?.length > 0 && <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}><Hash size={9} />{note.tags[0]}</span>}
-                </div>
-              </button>
-            ))}
-          </div>
-        )}
-      </Glass>
-    ),
-    reminders: (
-      <Glass style={{ padding: '16px 18px', height: '100%' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Calendar size={14} style={{ color: '#FF9F0A' }} />
-            <span style={{ fontSize: 12, fontWeight: 700 }}>Erinnerungen</span>
-          </div>
-          <button onClick={() => setView?.('reminders')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: t.accent, fontSize: 10, opacity: 0.6, display: 'flex', alignItems: 'center', gap: 3 }}>
-            Alle <ArrowRight size={10} />
-          </button>
-        </div>
-        {urgentReminders.length === 0 ? (
-          <div style={{ opacity: 0.35, fontSize: 12, textAlign: 'center', padding: '20px 0' }}>
-            <CheckCircle2 size={24} style={{ margin: '0 auto 8px', display: 'block', opacity: 0.4 }} />
-            Alles erledigt!
-          </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {urgentReminders.map((rem) => {
-              const isOverdue = new Date(rem.snoozeUntil || rem.datetime) < new Date()
-              const color = isOverdue ? '#FF453A' : '#FF9F0A'
-              const rgbR = hexToRgb(color)
-              return (
-                <button key={rem.id} onClick={() => setView?.('reminders')} style={{ width: '100%', padding: '9px 10px', borderRadius: 9, textAlign: 'left', background: `rgba(${rgbR}, 0.06)`, border: `1px solid rgba(${rgbR}, 0.15)`, cursor: 'pointer', color: 'inherit', transition: 'all 0.12s' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-                    {isOverdue ? <AlertCircle size={10} style={{ color: '#FF453A', flexShrink: 0 }} /> : <Bell size={10} style={{ color: '#FF9F0A', flexShrink: 0 }} />}
-                    <span style={{ fontSize: 12, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{rem.title}</span>
-                  </div>
-                  <div style={{ fontSize: 10, color, opacity: 0.8, display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <Clock size={9} />
-                    {isOverdue ? 'Überfällig · ' : ''}{fmtDt(rem.snoozeUntil || rem.datetime)}
-                  </div>
-                </button>
-              )
-            })}
-          </div>
-        )}
-      </Glass>
-    ),
-    tasks: (
-      <Glass style={{ padding: '16px 18px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-          <BarChart3 size={14} style={{ color: '#FF9F0A' }} />
-          <span style={{ fontSize: 12, fontWeight: 700 }}>Task-Übersicht</span>
-        </div>
-        {tasks.length === 0 ? (
-          <div style={{ opacity: 0.35, fontSize: 12, textAlign: 'center', padding: '12px 0' }}>Keine Tasks</div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {[
-              { status: 'todo', label: 'Offen', color: '#8E8E93' },
-              { status: 'doing', label: 'In Arbeit', color: t.accent },
-              { status: 'done', label: 'Fertig', color: '#30D158' },
-            ].map(({ status, label, color }) => {
-              const count = tasksByStatus[status] || 0
-              const pct = tasks.length ? (count / tasks.length) * 100 : 0
-              const rgbS = hexToRgb(color)
-              return (
-                <div key={status}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 4 }}>
-                    <span style={{ opacity: 0.65 }}>{label}</span>
-                    <span style={{ fontWeight: 700, color }}>{count}</span>
-                  </div>
-                  <div style={{ height: 5, borderRadius: 3, background: 'rgba(255,255,255,0.07)', overflow: 'hidden' }}>
-                    <motion.div initial={{ width: 0 }} animate={{ width: `${pct}%` }} transition={{ delay: 0.1, duration: 0.55, ease: [0.4,0,0.2,1] }} style={{ height: '100%', background: `rgba(${rgbS},0.8)`, borderRadius: 3 }} />
-                  </div>
-                </div>
-              )
-            })}
-            <button onClick={() => setView?.('tasks')} style={{ marginTop: 6, width: '100%', padding: '8px', borderRadius: 8, border: 'none', background: `rgba(${rgb},0.08)`, cursor: 'pointer', color: t.accent, fontSize: 11, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
-              Task Board öffnen <ArrowRight size={11} />
-            </button>
-          </div>
-        )}
-      </Glass>
-    ),
-    activity: (
-      <Glass style={{ padding: '16px 18px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-          <Activity size={14} style={{ color: t.accent2 }} />
-          <span style={{ fontSize: 12, fontWeight: 700 }}>Letzte Aktivität</span>
-        </div>
-        {recentActivity.length === 0 ? (
-          <div style={{ opacity: 0.35, fontSize: 12, textAlign: 'center', padding: '12px 0' }}>Noch keine Aktivität</div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-            {recentActivity.map((act, i) => {
-              const Icon = actIcon(act.type)
-              const color = actColor(act.type)
-              const rgbA = hexToRgb(color)
-              return (
-                <div key={act.id} style={{ display: 'flex', gap: 10, padding: '7px 0', borderBottom: i < recentActivity.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none', alignItems: 'flex-start' }}>
-                  <div style={{ width: 24, height: 24, borderRadius: 6, flexShrink: 0, marginTop: 1, background: `rgba(${rgbA},0.12)`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <Icon size={11} style={{ color }} />
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 11, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{act.action}</div>
-                    <div style={{ fontSize: 9, opacity: 0.35, marginTop: 1 }}>{fmtDt(act.timestamp)}</div>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        )}
-      </Glass>
-    ),
-    quick: (
-      <Glass style={{ padding: '16px 18px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Zap size={14} style={{ color: t.accent }} />
-            <span style={{ fontSize: 12, fontWeight: 700 }}>Quick Access</span>
-          </div>
-        </div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <QuickChip icon={FileText} label="Neue Notiz" color={t.accent} onClick={() => setView?.('notes')} />
-          <QuickChip icon={CheckSquare} label="Task Board" color="#FF9F0A" onClick={() => setView?.('tasks')} />
-          <QuickChip icon={Code} label="Code Editor" color="#30D158" onClick={() => setView?.('code')} />
-          <QuickChip icon={GitBranch} label="Canvas" color={t.accent2} onClick={() => setView?.('canvas')} />
-          <QuickChip icon={Bell} label="Reminders" color="#FF453A" onClick={() => setView?.('reminders')} />
-        </div>
-      </Glass>
-    ),
-    chart: (
-      <Glass style={{ padding: '16px 18px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-          <BarChart3 size={14} style={{ color: t.accent }} />
-          <span style={{ fontSize: 12, fontWeight: 700 }}>Progress Pulse</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-          <div>
-            <div style={{ fontSize: 10, opacity: 0.45, marginBottom: 6 }}>Notizen (7 Tage)</div>
-            <Sparkline data={noteSpark} color={t.accent} height={36} />
-          </div>
-          <div>
-            <div style={{ fontSize: 10, opacity: 0.45, marginBottom: 6 }}>Tasks (7 Tage)</div>
-            <Sparkline data={taskSpark} color="#30D158" height={36} />
-          </div>
-        </div>
-      </Glass>
-    ),
-    calendar: (
-      <Glass style={{ padding: '16px 18px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-          <Calendar size={14} style={{ color: '#FF9F0A' }} />
-          <span style={{ fontSize: 12, fontWeight: 700 }}>Heute & Morgen</span>
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {reminders
-            .filter((r) => !r.done)
-            .sort((a, b) => new Date(a.snoozeUntil || a.datetime).getTime() - new Date(b.snoozeUntil || b.datetime).getTime())
-            .slice(0, 4)
-            .map((r) => (
-              <div key={r.id} style={{ padding: '8px 10px', borderRadius: 8, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.title}</div>
-                <div style={{ fontSize: 10, opacity: 0.52 }}>{fmtDt(r.snoozeUntil || r.datetime)}</div>
-              </div>
-            ))}
-          {!reminders.filter((r) => !r.done).length && <div style={{ fontSize: 12, opacity: 0.35, textAlign: 'center' }}>Keine offenen Erinnerungen</div>}
-        </div>
-      </Glass>
-    ),
-  }
+  const widgetContent = buildDashboardWidgetContent({
+    theme: t,
+    setView,
+    notes,
+    tasks,
+    reminders,
+    codes,
+    recentNotes,
+    urgentReminders,
+    recentActivity,
+    noteSpark,
+    taskSpark,
+    pinnedNotes,
+    doneTasks,
+    pendingTasks,
+    overdueReminders,
+    tasksByStatus,
+    actIcon,
+    actColor,
+    accentRgb: rgb,
+  })
 
   return (
     <div className="h-full overflow-y-auto custom-scrollbar" style={{ padding: '20px 24px', position: 'relative' }}>

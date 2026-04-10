@@ -4,148 +4,60 @@ import React, {
   useMemo,
   useRef,
   useCallback,
-  Suspense,
 } from "react";
-import { motion } from "framer-motion";
 import { useTheme, GLOBAL_FONTS } from "./store/themeStore";
 import { useTerminal } from "./store/terminalStore";
-import { Sidebar, View } from "./components/Sidebar";
-import { TitleBar } from "./components/TitleBar";
+import type { View } from "./components/Sidebar";
 import { BootSequenceScreen } from "./components/BootSequenceScreen";
 import { buildBackground } from "./lib/visualUtils";
 import { hexToRgb } from "./lib/utils";
 import { installRuntimeLagProbe } from "./lib/runtimeLagProbe";
 import { buildMotionRuntime } from "./lib/motionEngine";
 import { useGlobalTypingAnimation } from "./lib/useGlobalTypingAnimation";
+import { useWorkspaceRuntimeSync } from "./hooks/useWorkspaceRuntimeSync";
 import {
   applyAccessibilityFlags,
   applyGlobalFont,
   applyPanelDensity,
   applyTypographyScale,
   buildLiveViewModel,
-  getFallbackViewsForApp,
   resolveLayoutProfile,
   sanitizeGlobalFont,
 } from "@nexus/core";
 import {
   createNexusRuntime,
-  isOfflineControlErrorCode,
   type NexusLiveBundle,
   type NexusRuntime,
   type NexusViewAccessResult,
 } from "@nexus/api";
 import {
-  CanvasView,
-  CodeView,
-  DashboardView,
-  DevToolsView,
-  FilesView,
-  FluxView,
-  InfoView,
-  NexusTerminal,
-  NexusToolbar,
-  NotesView,
-  RemindersView,
-  SettingsView,
-  TasksView,
   VIEW_CHUNK_PRELOADERS,
   VIEW_IDS,
   orderMainPreloadViews,
   preloadMainViews,
 } from "./app/viewPreload";
-
-const CONTROL_API_BASE_URL = "https://nexus-api.cloud";
-const MAIN_BOOT_PRELOAD_TIMEOUT_MS = 6_000;
-const MAIN_BOOT_PRELOAD_TIMEOUT_LOW_POWER_MS = 8_500;
-const MAIN_BOOT_VIEW_WARMUP_TIMEOUT_MS = 2_800;
-const MAIN_BOOT_VIEW_WARMUP_TIMEOUT_LOW_POWER_MS = 4_200;
-const isLowPowerDevice = () => {
-  if (typeof window === "undefined" || typeof navigator === "undefined") {
-    return false;
-  }
-
-  const reducedMotion = window.matchMedia?.(
-    "(prefers-reduced-motion: reduce)",
-  ).matches;
-  const cores = Number(navigator.hardwareConcurrency || 8);
-  const memory = Number((navigator as any).deviceMemory || 8);
-  return Boolean(reducedMotion) || cores <= 4 || memory <= 4;
-};
-const isOfflineBootstrapResourceError = (errorCodeRaw: unknown) =>
-  isOfflineControlErrorCode(String(errorCodeRaw || "INVALID_PAYLOAD"));
-
-const withTimeoutResult = async <T,>(
-  promise: Promise<T>,
-  timeoutMs: number,
-): Promise<{ timedOut: true } | { timedOut: false; value: T }> => {
-  let timeoutHandle: number | null = null;
-  const timeoutPromise = new Promise<{ timedOut: true }>((resolve) => {
-    timeoutHandle = window.setTimeout(
-      () => resolve({ timedOut: true }),
-      timeoutMs,
-    );
-  });
-
-  try {
-    const result = await Promise.race([
-      promise.then((value) => ({ timedOut: false as const, value })),
-      timeoutPromise,
-    ]);
-    return result;
-  } finally {
-    if (timeoutHandle !== null) {
-      clearTimeout(timeoutHandle);
-    }
-  }
-};
-
-const MAIN_CORE_FALLBACK_VIEWS: View[] = getFallbackViewsForApp("main")
-  .map((candidate) => candidate as View)
-  .filter((candidate) => VIEW_IDS.includes(candidate));
-const MAIN_SAFE_STARTUP_VIEWS: View[] =
-  MAIN_CORE_FALLBACK_VIEWS.length > 0 ? MAIN_CORE_FALLBACK_VIEWS : VIEW_IDS;
-const MAIN_CRITICAL_PRELOAD_VIEWS: View[] = [
-  "dashboard",
-  "notes",
-  "tasks",
-  "settings",
-  "reminders",
-];
-const MAIN_BOOT_PRIORITY_VIEWS: View[] = [
-  "dashboard",
-  "notes",
-  "tasks",
-  "settings",
-  "reminders",
-  "files",
-];
-const MAIN_HEAVY_PRELOAD_VIEW_SET = new Set<View>([
-  "code",
-  "canvas",
-  "devtools",
-]);
-const MAIN_PERSISTENT_VIEW_CACHE: View[] = [
-  "dashboard",
-  "notes",
-  "tasks",
-  "settings",
-  "files",
-  "canvas",
-  "code",
-];
-const mergeUniqueViews = (...groups: View[][]): View[] => {
-  const ordered = groups.flat();
-  const seen = new Set<View>();
-  const result: View[] = [];
-  for (const viewId of ordered) {
-    if (seen.has(viewId)) continue;
-    seen.add(viewId);
-    result.push(viewId);
-  }
-  return result;
-};
+import { MainViewHost } from "./app/mainViewHost";
+import { MainShellLayout } from "./app/MainShellLayout";
+import {
+  CONTROL_API_BASE_URL,
+  MAIN_BOOT_PRELOAD_TIMEOUT_LOW_POWER_MS,
+  MAIN_BOOT_PRELOAD_TIMEOUT_MS,
+  MAIN_BOOT_PRIORITY_VIEWS,
+  MAIN_BOOT_VIEW_WARMUP_TIMEOUT_LOW_POWER_MS,
+  MAIN_BOOT_VIEW_WARMUP_TIMEOUT_MS,
+  MAIN_CORE_FALLBACK_VIEWS,
+  MAIN_CRITICAL_PRELOAD_VIEWS,
+  MAIN_HEAVY_PRELOAD_VIEW_SET,
+  MAIN_PERSISTENT_VIEW_CACHE,
+  MAIN_SAFE_STARTUP_VIEWS,
+  isLowPowerDevice,
+  isOfflineBootstrapResourceError,
+  mergeUniqueViews,
+  withTimeoutResult,
+} from "./app/mainAppConfig";
 
 export default function App() {
+  useWorkspaceRuntimeSync();
   const [view, setView] = useState<View>("dashboard");
   const [availableViews, setAvailableViews] = useState<View[]>(
     MAIN_SAFE_STARTUP_VIEWS,
@@ -842,329 +754,47 @@ export default function App() {
       ? t.sidebarWidth
       : collapsedSidebarWidth;
 
-  const renderActiveView = (viewId: View): React.ReactNode => {
-    switch (viewId) {
-      case "dashboard":
-        return (
-          <DashboardView
-            setView={(v: any) => {
-              void requestViewChange(v);
-            }}
-          />
-        );
-      case "notes":
-        return <NotesView />;
-      case "code":
-        return <CodeView />;
-      case "tasks":
-        return <TasksView />;
-      case "reminders":
-        return <RemindersView />;
-      case "canvas":
-        return <CanvasView />;
-      case "files":
-        return <FilesView />;
-      case "flux":
-        return <FluxView />;
-      case "settings":
-        return <SettingsView />;
-      case "info":
-        return <InfoView />;
-      case "devtools":
-        return <DevToolsView />;
-      default:
-        return (
-          <DashboardView
-            setView={(v: any) => {
-              void requestViewChange(v);
-            }}
-          />
-        );
-    }
-  };
-
-  const toolbarEl = toolbarVisible ? (
-    <div
-      style={{
-        position: "relative",
-        zIndex: 500,
-        display: "flex",
-        justifyContent: "center",
-        padding: toolbarBottom ? "0 0 6px" : "6px 0 0",
-        pointerEvents: "none",
-      }}
-    >
-      <div style={{ pointerEvents: "auto", width: "100%" }}>
-        <Suspense fallback={null}>
-          <NexusToolbar
-            setView={(v: any) => {
-              void requestViewChange(v);
-            }}
-          />
-        </Suspense>
-      </div>
-    </div>
-  ) : null;
-
-  const renderedViews = mergeUniqueViews(
-    [view],
-    mountedViews.filter((entry) => availableViews.includes(entry)),
-  );
-
   return (
-    <div
-      className="nx-app-shell"
-      style={{
-        ...motionCssVars,
-        color: t.mode === "dark" ? "#f8f8fc" : "#15161d",
-        ...bgStyles,
-        fontSize: `var(--nx-font-size, 14px)`,
-      }}
-    >
-      <div
-        aria-hidden="true"
-        className="nx-ambient-layer"
-        style={{
-          background: lowPowerMode
-            ? `linear-gradient(160deg, rgba(${accentRgb},0.1), rgba(${accent2Rgb},0.08))`
-            : `
-            radial-gradient(650px circle at 10% 14%, rgba(${accentRgb},0.2), transparent 55%),
-            radial-gradient(580px circle at 88% 14%, rgba(${accent2Rgb},0.18), transparent 60%),
-            radial-gradient(520px circle at 60% 95%, rgba(${accentRgb},0.14), transparent 65%)
-          `,
+    <>
+      <MainShellLayout
+        theme={t}
+        lowPowerMode={lowPowerMode}
+        motionCssVars={motionCssVars}
+        backgroundStyles={bgStyles}
+        accentRgb={accentRgb}
+        accent2Rgb={accent2Rgb}
+        sidebarLeft={sidebarLeft}
+        sidebarAutoHideEnabled={sidebarAutoHideEnabled}
+        sidebarExpanded={sidebarExpanded}
+        effectiveSidebarWidth={effectiveSidebarWidth}
+        toolbarBottom={toolbarBottom}
+        toolbarVisible={toolbarVisible}
+        terminalOpen={terminalOpen}
+        view={view}
+        availableViews={availableViews}
+        viewGuardState={viewGuardState}
+        motionRuntime={motionRuntime}
+        onRequestViewChange={(nextView) => {
+          void requestViewChange(nextView);
         }}
+        onPrefetchView={(nextView) => {
+          void preloadViewChunk(nextView);
+        }}
+        onSidebarAutoPeek={(next) => {
+          setSidebarAutoPeek(next);
+        }}
+        mainViewNode={
+          <MainViewHost
+            view={view}
+            mountedViews={mountedViews}
+            availableViews={availableViews}
+            reducedMotion={Boolean(t.qol?.reducedMotion ?? false)}
+            onRequestViewChange={(nextView) => {
+              void requestViewChange(nextView);
+            }}
+          />
+        }
       />
-
-      <div
-        className="nx-shell-window"
-        style={{
-          width: "calc(100% / var(--nx-ui-scale, 1))",
-          height: "calc(100% / var(--nx-ui-scale, 1))",
-          transform: "scale(var(--nx-ui-scale, 1))",
-          transformOrigin: "top left",
-          borderRadius: 18,
-          border:
-            t.mode === "dark"
-              ? "1px solid rgba(255,255,255,0.12)"
-              : "1px solid rgba(0,0,0,0.1)",
-          boxShadow:
-            t.mode === "dark"
-              ? "0 28px 80px rgba(0,0,0,0.52), 0 0 0 1px rgba(255,255,255,0.04) inset"
-              : "0 20px 60px rgba(28,31,42,0.16), 0 0 0 1px rgba(255,255,255,0.6) inset",
-        }}
-      >
-        <TitleBar />
-        <div
-          style={{
-            display: "flex",
-            flex: 1,
-            overflow: "hidden",
-            minHeight: 0,
-            flexDirection: sidebarLeft ? "row" : "row-reverse",
-            position: "relative",
-          }}
-        >
-          <div
-            style={{
-              width: effectiveSidebarWidth,
-              flexShrink: 0,
-              height: "100%",
-              transition: "width 220ms cubic-bezier(0.2, 0.8, 0.2, 1)",
-              transitionDuration: `${motionRuntime.quickMs}ms`,
-              overflow: "hidden",
-              pointerEvents:
-                sidebarAutoHideEnabled && !sidebarExpanded ? "none" : "auto",
-            }}
-            onMouseEnter={() => {
-              if (sidebarAutoHideEnabled) setSidebarAutoPeek(true);
-            }}
-            onMouseLeave={() => {
-              if (sidebarAutoHideEnabled) setSidebarAutoPeek(false);
-            }}
-          >
-            <Sidebar
-              view={view}
-              availableViews={availableViews}
-              onChange={(v: any) => {
-                void requestViewChange(v);
-              }}
-              onPrefetch={(v: any) => {
-                void preloadViewChunk(v);
-              }}
-            />
-          </div>
-          {sidebarAutoHideEnabled && !sidebarExpanded ? (
-            <div
-              onMouseEnter={() => setSidebarAutoPeek(true)}
-              style={{
-                position: "absolute",
-                top: 0,
-                bottom: 0,
-                [sidebarLeft ? "left" : "right"]: 0,
-                width: 14,
-                zIndex: 55,
-                cursor: "ew-resize",
-                background: sidebarLeft
-                  ? "linear-gradient(90deg, rgba(255,255,255,0.14), transparent)"
-                  : "linear-gradient(270deg, rgba(255,255,255,0.14), transparent)",
-                opacity: 0.48,
-              }}
-            />
-          ) : null}
-          <div
-            style={{
-              position: "absolute",
-              top: 64,
-              left: 16,
-              right: 16,
-              zIndex: 1200,
-              pointerEvents: "none",
-            }}
-          >
-            {viewGuardState.checking ? (
-              <div
-                style={{
-                  pointerEvents: "none",
-                  borderRadius: 10,
-                  padding: "8px 10px",
-                  fontSize: 12,
-                  fontWeight: 700,
-                  background:
-                    t.mode === "dark"
-                      ? "rgba(6,12,24,0.82)"
-                      : "rgba(255,255,255,0.88)",
-                  border: `1px solid rgba(${hexToRgb(t.accent)},0.34)`,
-                  color: t.accent,
-                  boxShadow: `0 8px 24px rgba(${hexToRgb(t.accent)},0.2)`,
-                }}
-              >
-                Validiere View-Zugriff...
-              </div>
-            ) : null}
-            {viewGuardState.blockedView ? (
-              <div
-                style={{
-                  pointerEvents: "none",
-                  marginTop: 8,
-                  borderRadius: 10,
-                  padding: "9px 10px",
-                  fontSize: 12,
-                  fontWeight: 700,
-                  background: "rgba(255,69,58,0.14)",
-                  border: "1px solid rgba(255,69,58,0.45)",
-                  color: t.mode === "dark" ? "#ffd8d2" : "#5e1810",
-                  boxShadow: "0 8px 26px rgba(255,69,58,0.18)",
-                }}
-              >
-                View gesperrt: `{viewGuardState.blockedView}` erfordert Tier `
-                {viewGuardState.requiredTier || "paid"}` (
-                {viewGuardState.reason || "PAYWALL_BLOCKED"}).
-              </div>
-            ) : null}
-
-          </div>
-          <div
-            style={{
-              flex: 1,
-              overflow: "hidden",
-              display: "flex",
-              flexDirection: "column",
-              position: "relative",
-              minHeight: 0,
-              background:
-                t.mode === "dark"
-                  ? "rgba(7,8,13,0.42)"
-                  : "rgba(255,255,255,0.42)",
-            }}
-          >
-            {!toolbarBottom && toolbarEl}
-            <motion.div
-              initial={motionRuntime.pageInitial}
-              animate={motionRuntime.pageAnimate}
-              exit={motionRuntime.pageExit}
-              transition={motionRuntime.pageTransition}
-              style={{
-                flex: 1,
-                overflow: "hidden",
-                height: "100%",
-                minHeight: 0,
-                position: "relative",
-              }}
-            >
-                <div
-                  style={{
-                    position: "relative",
-                    height: "100%",
-                    minHeight: 0,
-                    overflow: "hidden",
-                  }}
-                >
-                  {renderedViews.map((viewId) => (
-                    <div
-                      key={viewId}
-                      style={{
-                        position: "absolute",
-                        inset: 0,
-                        overflow: "hidden",
-                        display: viewId === view ? "block" : "none",
-                        pointerEvents: viewId === view ? "auto" : "none",
-                        animation:
-                          viewId === view && !(t.qol?.reducedMotion ?? false)
-                            ? "nx-view-enter calc(var(--nx-motion-regular, 210ms) + 70ms) cubic-bezier(0.22, 1, 0.36, 1) both"
-                            : undefined,
-                      }}
-                    >
-                      <Suspense
-                        fallback={
-                          viewId === view ? (
-                            <div
-                              style={{
-                                height: "100%",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                opacity: 0.6,
-                                fontSize: 13,
-                                fontWeight: 600,
-                              }}
-                            >
-                              Loading view...
-                            </div>
-                          ) : null
-                        }
-                      >
-                        {renderActiveView(viewId)}
-                      </Suspense>
-                    </div>
-                  ))}
-                </div>
-              </motion.div>
-            <Suspense fallback={null}>
-              {terminalOpen ? (
-                <NexusTerminal
-                  setView={(v: any) => {
-                    void requestViewChange(v);
-                  }}
-                />
-              ) : null}
-            </Suspense>
-            {toolbarBottom && toolbarEl}
-          </div>
-        </div>
-      </div>
-
-      {!lowPowerMode && t.background.vignette && (
-        <div
-          aria-hidden="true"
-          style={{
-            position: "fixed",
-            inset: 0,
-            pointerEvents: "none",
-            zIndex: 1,
-            background: `radial-gradient(circle at center, transparent 54%, rgba(0,0,0,${t.background.vignetteStrength * 0.56}) 100%)`,
-          }}
-        />
-      )}
 
       {!!t.background.overlayOpacity && (
         <div
@@ -1193,6 +823,7 @@ export default function App() {
           }}
         />
       )}
-    </div>
+
+    </>
   );
 }

@@ -254,13 +254,100 @@ const enqueueNodePatch = (
   scheduleQueuedNodePatchFlush(set)
 }
 
+const sanitizePersistedCanvases = (value: unknown): Canvas[] => {
+  if (!Array.isArray(value)) return []
+  return value
+    .filter((entry) => entry && typeof entry === 'object')
+    .map((entry: any) => ({
+      id: typeof entry.id === 'string' ? entry.id : genId(),
+      name: typeof entry.name === 'string' ? entry.name : 'Canvas',
+      nodes: Array.isArray(entry.nodes) ? entry.nodes : [],
+      connections: Array.isArray(entry.connections) ? entry.connections : [],
+      created: typeof entry.created === 'string' ? entry.created : now(),
+      updated: typeof entry.updated === 'string' ? entry.updated : now(),
+    }))
+}
+
+const buildDefaultCanvas = (): Canvas => ({
+  id: 'canvas-welcome',
+  name: '🚀 Nexus Canvas Walkthrough',
+  created: now(),
+  updated: now(),
+  nodes: [
+    {
+      id: 'canvas-node-project',
+      type: 'project',
+      title: 'Nexus Workspace Setup',
+      x: 120,
+      y: 80,
+      width: 380,
+      height: 260,
+      color: '#5E5CE6',
+      status: 'doing',
+      priority: 'high',
+      progress: 36,
+      owner: 'you',
+      dueDate: new Date(Date.now() + 9 * 86400000).toISOString().slice(0, 10),
+      content: 'Ziel: Workspace aufsetzen, Team onboarden und Roadmap visualisieren.',
+    },
+    {
+      id: 'canvas-node-note',
+      type: 'markdown',
+      title: 'Quick Guide',
+      x: -320,
+      y: 70,
+      width: 360,
+      height: 280,
+      color: '#64D2FF',
+      content:
+        '```nexus-list\nZoom | Pinch oder Ctrl/Cmd + Scroll\nPan | Drag auf Hintergrund\nMagic Builder | Cmd/Ctrl + M\n```\n\n' +
+        '```nexus-steps\nCanvas öffnen | Überblick gewinnen\nTemplate nutzen | Struktur erzeugen\nNodes verfeinern | Inhalte präzisieren\n```',
+    },
+    {
+      id: 'canvas-node-checklist',
+      type: 'checklist',
+      title: 'Kickoff Checklist',
+      x: 520,
+      y: 120,
+      width: 280,
+      height: 220,
+      color: '#30D158',
+      items: [
+        { id: 'item-1', text: 'Workspace-Ordner wählen', done: false },
+        { id: 'item-2', text: 'Notes Guide lesen', done: true },
+        { id: 'item-3', text: 'Dashboard Layout anpassen', done: false },
+      ],
+      content: '',
+    },
+    {
+      id: 'canvas-node-risk',
+      type: 'risk',
+      title: 'Performance Risk',
+      x: 150,
+      y: 390,
+      width: 330,
+      height: 220,
+      color: '#FF453A',
+      status: 'blocked',
+      priority: 'critical',
+      content:
+        '```nexus-alert\nwarning\nLag im Built-Modus immer mit Profiling prüfen (TTI, Input Delay, View Switch).\n```',
+    },
+  ],
+  connections: [
+    { id: 'conn-1', fromId: 'canvas-node-project', toId: 'canvas-node-note' },
+    { id: 'conn-2', fromId: 'canvas-node-project', toId: 'canvas-node-checklist' },
+    { id: 'conn-3', fromId: 'canvas-node-project', toId: 'canvas-node-risk' },
+  ],
+})
+
 // ─── STORE ───
 
 export const useCanvas = create<CanvasStore>()(
   persist((set, get) => ({
 
-    canvases: [],
-    activeCanvasId: null,
+    canvases: [buildDefaultCanvas()],
+    activeCanvasId: 'canvas-welcome',
     viewport: { panX: 0, panY: 0, zoom: 1 },
 
     // ─── Canvas CRUD ───
@@ -483,10 +570,23 @@ export const useCanvas = create<CanvasStore>()(
       canvases: state.canvases,
       activeCanvasId: state.activeCanvasId,
     }),
-    merge: (persistedState, currentState) => ({
-      ...currentState,
-      ...(persistedState as Partial<CanvasStore>),
-      viewport: currentState.viewport,
-    }),
+    merge: (persistedState, currentState) => {
+      const persisted = (persistedState || {}) as Partial<CanvasStore>
+      const canvases = sanitizePersistedCanvases((persisted as any).canvases)
+      const preferredActive =
+        typeof persisted.activeCanvasId === 'string' ? persisted.activeCanvasId : null
+      const hasPreferredActive = preferredActive
+        ? canvases.some((canvas) => canvas.id === preferredActive)
+        : false
+      return {
+        ...currentState,
+        ...persisted,
+        canvases,
+        activeCanvasId: hasPreferredActive
+          ? preferredActive
+          : (canvases[0]?.id ?? null),
+        viewport: currentState.viewport,
+      }
+    },
   })
 )
