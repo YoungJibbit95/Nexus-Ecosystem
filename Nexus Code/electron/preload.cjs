@@ -38,6 +38,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   
   // Terminal
   terminalRun:  (payload) => ipcRenderer.send("terminal:run", payload),
+  terminalInput: (payload) => ipcRenderer.send("terminal:input", payload),
   terminalKill: (id) => ipcRenderer.send("terminal:kill", id),
   onTerminalOutput: (id, cb) => {
     const handler = (_event, data) => cb(data);

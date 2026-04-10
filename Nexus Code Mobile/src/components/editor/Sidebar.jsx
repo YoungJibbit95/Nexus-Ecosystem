@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   FileCode2,
   Settings,
@@ -9,7 +9,6 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useMobile } from "../../hook/useMobile";
 
 const SIDEBAR_ITEMS = [
   { icon: FileCode2, label: "Explorer",   id: "explorer" },
@@ -31,8 +30,9 @@ function Tooltip({ label, visible }) {
           animate={{ opacity: 1, x: 0, scale: 1 }}
           exit={{ opacity: 0, x: -6, scale: 0.92 }}
           transition={{ type: "spring", stiffness: 300, damping: 30 }}
-          className="absolute left-full ml-2.5 top-1/2 -translate-y-1/2 z-50
+          className="absolute left-full ml-2.5 top-1/2 -translate-y-1/2 z-[1200]
                      pointer-events-none whitespace-nowrap"
+          style={{ willChange: "transform, opacity" }}
         >
           <div
             className="absolute right-full top-1/2 -translate-y-1/2 w-0 h-0"
@@ -90,6 +90,7 @@ function SidebarButton({ item, isActive, onClick }) {
             ? "0 0 20px color-mix(in srgb, var(--primary) 20%, transparent)"
             : "none",
           transition: "background 0.2s ease, color 0.2s ease, box-shadow 0.25s ease",
+          willChange: "transform, opacity",
         }}
       >
         <AnimatePresence>
@@ -101,8 +102,8 @@ function SidebarButton({ item, isActive, onClick }) {
               animate={{ scaleY: 1, opacity: 1 }}
               exit={{ scaleY: 0, opacity: 0 }}
               transition={{ type: "spring", stiffness: 340, damping: 28 }}
-              className="absolute left-[2px] top-1/2 -translate-y-1/2 w-[2px] rounded-full"
-              style={{ height: "18px", background: "var(--primary)", boxShadow: "0 0 6px var(--primary)" }}
+              className="absolute left-[2px] top-[8px] bottom-[8px] w-[2px] rounded-full"
+              style={{ background: "var(--primary)", boxShadow: "0 0 6px var(--primary)" }}
             />
           )}
         </AnimatePresence>
@@ -110,11 +111,10 @@ function SidebarButton({ item, isActive, onClick }) {
         <motion.div
           animate={{
             scale: isActive ? 1.02 : 1,
-            filter: isActive
-              ? "drop-shadow(0 0 6px color-mix(in srgb, var(--primary) 45%, transparent))"
-              : "none",
+            opacity: isActive ? 1 : hovered ? 0.95 : 0.88,
           }}
           transition={{ duration: 0.16 }}
+          style={{ willChange: "transform, opacity" }}
         >
           <Icon size={19} strokeWidth={isActive ? 2 : 1.75} />
         </motion.div>
@@ -142,13 +142,24 @@ function SidebarButton({ item, isActive, onClick }) {
 
 function BottomNavItem({ item, isActive, onClick }) {
   const Icon = item.icon;
+  const [compact, setCompact] = useState(
+    typeof window !== "undefined" ? window.innerWidth < 390 : false,
+  );
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const updateCompact = () => setCompact(window.innerWidth < 390);
+    updateCompact();
+    window.addEventListener("resize", updateCompact, { passive: true });
+    return () => window.removeEventListener("resize", updateCompact);
+  }, []);
 
   return (
     <motion.button
       whileTap={{ scale: 0.85 }}
       onClick={onClick}
-      className="flex-1 flex flex-col items-center justify-center gap-0.5 py-2 relative outline-none"
-      style={{ minHeight: 56 }}
+      className="flex-1 flex flex-col items-center justify-center gap-0.5 py-2 relative outline-none overflow-hidden"
+      style={{ minHeight: compact ? 52 : 56, minWidth: 0 }}
     >
       {/* Active indicator */}
       <AnimatePresence>
@@ -173,22 +184,25 @@ function BottomNavItem({ item, isActive, onClick }) {
       <motion.div
         animate={{
           scale: isActive ? 1.03 : 1,
-          filter: isActive
-            ? "drop-shadow(0 0 6px color-mix(in srgb, var(--primary) 45%, transparent))"
-            : "none",
+          opacity: isActive ? 1 : 0.9,
         }}
         transition={{ duration: 0.16 }}
-        style={{ color: isActive ? "var(--primary)" : "var(--nexus-muted)" }}
+        style={{
+          color: isActive ? "var(--primary)" : "var(--nexus-muted)",
+          willChange: "transform, opacity",
+        }}
       >
-        <Icon size={20} strokeWidth={isActive ? 2 : 1.75} />
+        <Icon size={compact ? 18 : 20} strokeWidth={isActive ? 2 : 1.75} />
       </motion.div>
 
-      <span
-        className="text-[9px] font-semibold tracking-wide leading-none uppercase"
-        style={{ color: isActive ? "var(--primary)" : "var(--nexus-muted)", opacity: isActive ? 1 : 0.7 }}
-      >
-        {item.label}
-      </span>
+      {!compact && (
+        <span
+          className="text-[9px] font-semibold tracking-wide leading-none uppercase truncate max-w-full px-1"
+          style={{ color: isActive ? "var(--primary)" : "var(--nexus-muted)", opacity: isActive ? 1 : 0.7 }}
+        >
+          {item.label}
+        </span>
+      )}
     </motion.button>
   );
 }
@@ -196,6 +210,17 @@ function BottomNavItem({ item, isActive, onClick }) {
 /* ─── Mobile bottom navigation bar ───────────────────────────────────── */
 
 export function MobileBottomNav({ activePanel, setActivePanel, onOpenSettings }) {
+  const [compact, setCompact] = useState(
+    typeof window !== "undefined" ? window.innerWidth < 390 : false,
+  );
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const updateCompact = () => setCompact(window.innerWidth < 390);
+    updateCompact();
+    window.addEventListener("resize", updateCompact, { passive: true });
+    return () => window.removeEventListener("resize", updateCompact);
+  }, []);
+
   // Show first 5 items in bottom nav, Settings as last tab
   const navItems = SIDEBAR_ITEMS.slice(0, 5);
 
@@ -225,21 +250,23 @@ export function MobileBottomNav({ activePanel, setActivePanel, onOpenSettings })
       <motion.button
         whileTap={{ scale: 0.85 }}
         onClick={onOpenSettings}
-        className="flex-1 flex flex-col items-center justify-center gap-0.5 py-2 outline-none"
-        style={{ minHeight: 56 }}
+        className="flex-1 flex flex-col items-center justify-center gap-0.5 py-2 outline-none overflow-hidden"
+        style={{ minHeight: compact ? 52 : 56, minWidth: 0 }}
       >
         <motion.div
           style={{ color: "var(--nexus-muted)" }}
           whileTap={{ rotate: 90 }}
         >
-          <Settings size={20} strokeWidth={1.75} />
+          <Settings size={compact ? 18 : 20} strokeWidth={1.75} />
         </motion.div>
-        <span
-          className="text-[9px] font-semibold tracking-wide leading-none uppercase"
-          style={{ color: "var(--nexus-muted)", opacity: 0.7 }}
-        >
-          Settings
-        </span>
+        {!compact && (
+          <span
+            className="text-[9px] font-semibold tracking-wide leading-none uppercase truncate max-w-full px-1"
+            style={{ color: "var(--nexus-muted)", opacity: 0.7 }}
+          >
+            Settings
+          </span>
+        )}
       </motion.button>
     </motion.div>
   );
@@ -255,10 +282,13 @@ export default function Sidebar({ activePanel, setActivePanel, onOpenSettings })
       initial={{ x: -56, opacity: 0 }}
       animate={{ x: 0, opacity: 1 }}
       transition={{ type: "spring", stiffness: 300, damping: 30 }}
-      className="w-14 flex flex-col items-center py-3 gap-1 shrink-0 relative"
+      className="w-14 h-full min-h-0 flex flex-col items-center pt-3 pb-1 gap-1 shrink-0 relative"
       style={{
         background: "var(--nexus-surface)",
         borderRight: "1px solid var(--nexus-border)",
+        zIndex: 40,
+        overflow: "visible",
+        willChange: "transform, opacity",
       }}
     >
       {/* Logo mark */}

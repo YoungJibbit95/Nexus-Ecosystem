@@ -25,6 +25,15 @@ export type NexusUiSchemaLike = {
   componentWhitelist?: string[]
 }
 
+export type NexusViewFilterReason =
+  | 'schema_disabled'
+  | 'unsupported_by_client'
+
+export type NexusViewFilterDebugEvent = {
+  viewId: string
+  reason: NexusViewFilterReason
+}
+
 const normalizeViewId = (value: string) => String(value || '')
   .trim()
   .toLowerCase()
@@ -37,6 +46,21 @@ const dedupeList = (items: string[]) => {
     const id = normalizeViewId(raw)
     if (!id || out.includes(id)) continue
     out.push(id)
+  }
+  return out
+}
+
+const dedupeFilterDebugEvents = (events: NexusViewFilterDebugEvent[]) => {
+  const out: NexusViewFilterDebugEvent[] = []
+  const seen = new Set<string>()
+  for (const event of events) {
+    const viewId = normalizeViewId(event.viewId)
+    if (!viewId) continue
+    const reason = event.reason
+    const key = `${viewId}:${reason}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    out.push({ viewId, reason })
   }
   return out
 }
@@ -107,14 +131,25 @@ const collectStableFeatureIds = (appId: NexusCoreAppId, catalog: NexusFeatureCat
   return stable
 }
 
-const resolveSchemaViews = (schema: NexusUiSchemaLike | null | undefined) => {
+const resolveSchemaScreenState = (schema: NexusUiSchemaLike | null | undefined) => {
   const source = Array.isArray(schema?.screens) ? schema.screens : []
-  const enabled = source
-    .filter((screen) => screen?.enabled !== false)
-    .map((screen) => normalizeViewId(String(screen?.id || '')))
-    .filter(Boolean)
+  const enabled: string[] = []
+  const disabled = new Set<string>()
 
-  return dedupeList(enabled)
+  for (const screen of source) {
+    const viewId = normalizeViewId(String(screen?.id || ''))
+    if (!viewId) continue
+    if (screen?.enabled === false) {
+      disabled.add(viewId)
+      continue
+    }
+    enabled.push(viewId)
+  }
+
+  return {
+    enabled: dedupeList(enabled),
+    disabled,
+  }
 }
 
 export const buildLiveViewModel = (input: {
@@ -124,21 +159,33 @@ export const buildLiveViewModel = (input: {
 }) => {
   const appId = input.appId
   const fallbackViews = getFallbackViewsForApp(appId)
-  const schemaViews = resolveSchemaViews(input.schema)
+  const schemaState = resolveSchemaScreenState(input.schema)
+  const schemaViews = schemaState.enabled
   const featureMap = VIEW_FEATURE_MAP[appId] || {}
   const stableFeatureIds = collectStableFeatureIds(appId, input.catalog)
-  const candidates = schemaViews.length > 0 ? schemaViews : fallbackViews
+  const candidates = schemaViews.length > 0
+    ? dedupeList([...schemaViews, ...fallbackViews])
+    : fallbackViews
   const supportedByClient = new Set(fallbackViews)
+  const explicitlyDisabledViews = schemaState.disabled
   const disabledViews: string[] = []
+  const filterDebugEvents: NexusViewFilterDebugEvent[] = []
   const finalViews: string[] = []
 
   for (const viewId of dedupeList(candidates)) {
-    if (!supportedByClient.has(viewId)) continue
-    const featureId = featureMap[viewId]
-    if (featureId && !stableFeatureIds.has(featureId)) {
+    if (explicitlyDisabledViews.has(viewId)) {
       disabledViews.push(viewId)
+      filterDebugEvents.push({ viewId, reason: 'schema_disabled' })
       continue
     }
+    if (!supportedByClient.has(viewId)) {
+      disabledViews.push(viewId)
+      filterDebugEvents.push({ viewId, reason: 'unsupported_by_client' })
+      continue
+    }
+    const featureId = featureMap[viewId]
+    // Feature drift must not hide core views. Keep feature state informational only.
+    void featureId
     finalViews.push(viewId)
   }
 
@@ -148,6 +195,7 @@ export const buildLiveViewModel = (input: {
       views: fallbackViews.slice(0, 1),
       disabledViews: dedupeList(disabledViews),
       enabledFeatureIds: Array.from(stableFeatureIds),
+      filterDebugEvents: dedupeFilterDebugEvents(filterDebugEvents),
     }
   }
 
@@ -155,6 +203,7 @@ export const buildLiveViewModel = (input: {
     views: finalViews,
     disabledViews: dedupeList(disabledViews),
     enabledFeatureIds: Array.from(stableFeatureIds),
+    filterDebugEvents: dedupeFilterDebugEvents(filterDebugEvents),
   }
 }
 

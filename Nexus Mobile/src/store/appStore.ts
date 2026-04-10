@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { genId } from '../lib/utils'
+import { createIndexedDbStorage } from './persistence/indexedDbStorage'
 
 /* ============================================================
    TYPES
@@ -325,13 +326,15 @@ export const useApp = create<Store>()(
         }),
 
       updateNote: (id, p) =>
-        set(s => ({
-          notes: s.notes.map(n =>
-            n.id === id
-              ? { ...n, ...p, updated: now(), dirty: true }
-              : n
-          )
-        })),
+        set(s => {
+          const idx = s.notes.findIndex(n => n.id === id)
+          if (idx === -1) return s
+          const current = s.notes[idx]
+          const next = { ...current, ...p, updated: now(), dirty: true }
+          const notes = s.notes.slice()
+          notes[idx] = next
+          return { notes }
+        }),
 
       delNote: id =>
         set(s => {
@@ -365,13 +368,14 @@ export const useApp = create<Store>()(
         }),
 
       saveNote: id =>
-        set(s => ({
-          notes: s.notes.map(n =>
-            n.id === id
-              ? { ...n, dirty: false, updated: now() }
-              : n
-          )
-        })),
+        set(s => {
+          const idx = s.notes.findIndex(n => n.id === id)
+          if (idx === -1) return s
+          const current = s.notes[idx]
+          const notes = s.notes.slice()
+          notes[idx] = { ...current, dirty: false, updated: now() }
+          return { notes }
+        }),
 
       safeCloseNote: id => {
         const note = get().notes.find(n => n.id === id)
@@ -483,21 +487,22 @@ export const useApp = create<Store>()(
       },
 
       updateCode: (id, p) =>
-        set(s => ({
-          codes: s.codes.map(c =>
-            c.id === id
-              ? {
-                ...c,
-                ...p,
-                updated: now(),
-                dirty:
-                  p.hasOwnProperty('dirty')
-                    ? p.dirty!
-                    : true
-              }
-              : c
-          )
-        })),
+        set(s => {
+          const idx = s.codes.findIndex(c => c.id === id)
+          if (idx === -1) return s
+          const current = s.codes[idx]
+          const codes = s.codes.slice()
+          codes[idx] = {
+            ...current,
+            ...p,
+            updated: now(),
+            dirty:
+              Object.prototype.hasOwnProperty.call(p, 'dirty')
+                ? p.dirty!
+                : true
+          }
+          return { codes }
+        }),
 
       delCode: id =>
         set(s => {
@@ -531,13 +536,14 @@ export const useApp = create<Store>()(
         }),
 
       saveCode: id =>
-        set(s => ({
-          codes: s.codes.map(c =>
-            c.id === id
-              ? { ...c, dirty: false, lastSaved: now() }
-              : c
-          )
-        })),
+        set(s => {
+          const idx = s.codes.findIndex(c => c.id === id)
+          if (idx === -1) return s
+          const current = s.codes[idx]
+          const codes = s.codes.slice()
+          codes[idx] = { ...current, dirty: false, lastSaved: now() }
+          return { codes }
+        }),
 
       safeCloseCode: id => {
         const file = get().codes.find(c => c.id === id)
@@ -701,6 +707,43 @@ export const useApp = create<Store>()(
         get().notes.some(n => n.dirty) ||
         get().codes.some(c => c.dirty)
     }),
-    { name: 'nx-app-v3' }
+    {
+      name: 'nx-app-v3',
+      storage: createIndexedDbStorage<Store>({
+        dbName: 'nexus-mobile-state-v1',
+        storeName: 'persist',
+        debounceMs: 3_600,
+        idleTimeoutMs: 1_800,
+        flushBudgetMs: 12,
+        segmentStateKeys: [
+          'notes',
+          'openNoteIds',
+          'activeNoteId',
+          'codes',
+          'openCodeIds',
+          'activeCodeId',
+          'tasks',
+          'reminders',
+          'folders',
+          'activities',
+        ],
+      }),
+      partialize: (state) => ({
+        notes: state.notes,
+        openNoteIds: state.openNoteIds,
+        activeNoteId: state.activeNoteId,
+        codes: state.codes,
+        openCodeIds: state.openCodeIds,
+        activeCodeId: state.activeCodeId,
+        tasks: state.tasks,
+        reminders: state.reminders,
+        folders: state.folders,
+        activities: state.activities,
+      }),
+      merge: (persistedState, currentState) => ({
+        ...currentState,
+        ...(persistedState as Partial<Store>),
+      }),
+    }
   )
 )

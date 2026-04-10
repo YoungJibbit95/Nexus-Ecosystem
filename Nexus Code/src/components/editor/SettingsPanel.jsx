@@ -947,39 +947,13 @@ export default function SettingsPanel({
             </div>
 
             <div className="pt-4 border-t border-white/5">
-              <NativeLabel className="text-gray-400 mb-3 block text-[10px] uppercase tracking-widest">
+              <NativeLabel className="text-gray-400 mb-2 block text-[10px] uppercase tracking-widest">
                 Theme Modus
               </NativeLabel>
-              <div className="grid grid-cols-2 gap-4">
-                <button
-                  className="p-4 rounded-xl border flex flex-col items-center gap-2 transition-all"
-                  style={{
-                    background: "rgba(128,0,255,0.08)",
-                    borderColor: "rgba(128,0,255,0.2)",
-                  }}
-                >
-                  <span className="text-lg">🌙</span>
-                  <span className="text-xs text-purple-300 font-medium">
-                    Dark Mode
-                  </span>
-                  <span className="text-[10px] text-gray-500">Aktiv</span>
-                </button>
-                <button
-                  className="p-4 rounded-xl border flex flex-col items-center gap-2 opacity-50 cursor-not-allowed"
-                  style={{
-                    background: "rgba(255,255,255,0.02)",
-                    borderColor: "rgba(255,255,255,0.05)",
-                  }}
-                >
-                  <span className="text-lg">☀️</span>
-                  <span className="text-xs text-gray-400 font-medium">
-                    Light Mode
-                  </span>
-                  <span className="text-[10px] text-gray-600">
-                    Bald verfügbar
-                  </span>
-                </button>
-              </div>
+              <p className="text-xs text-gray-500 leading-relaxed">
+                Der Theme-Modus wird vollständig durch Preset und Accent-Farben gesteuert.
+                Nicht-funktionale Umschalter wurden entfernt.
+              </p>
             </div>
           </div>
         )}

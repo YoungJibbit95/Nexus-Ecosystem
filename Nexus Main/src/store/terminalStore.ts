@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware'
 import { PRESETS } from './themeStore'
 import { useApp } from './appStore'
 import { useCanvas } from './canvasStore'
+import { createStoreManagerStorage } from './persistence/storeManager'
 
 export type TerminalLine = {
   type: 'input' | 'output' | 'error' | 'success' | 'warn'
@@ -719,6 +720,11 @@ export const useTerminal = create<TerminalState>()(
     {
       name: 'nx-terminal',
       version: 2,
+      storage: createStoreManagerStorage<TerminalState>({
+        debounceMs: 2_800,
+        idleTimeoutMs: 1_900,
+        flushBudgetMs: 8,
+      }),
       partialize: (s) => ({
         macros: s.macros,
       }),

@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { createStoreManagerStorage } from './persistence/storeManager'
 
 export type TerminalLine = {
   type: 'input' | 'output' | 'error' | 'success' | 'warn'
@@ -50,7 +51,7 @@ export const useTerminal = create<TerminalState>()(
     (set, get) => ({
       isOpen: false,
       history: [
-        { type: 'output', text: 'Nexus Terminal [Version 4.0]', timestamp: new Date().toISOString() },
+        { type: 'output', text: 'Nexus Terminal [Version 5.0]', timestamp: new Date().toISOString() },
         { type: 'output', text: 'Type "help" for available commands.', timestamp: new Date().toISOString() },
       ],
       lastCommand: '',
@@ -220,6 +221,13 @@ export const useTerminal = create<TerminalState>()(
         get().addHistory({ type: 'error', text: `Unknown command: ${action}` })
       },
     }),
-    { name: 'nx-terminal-v2' }
+    {
+      name: 'nx-terminal-v2',
+      storage: createStoreManagerStorage<TerminalState>({
+        debounceMs: 2_800,
+        idleTimeoutMs: 1_900,
+        flushBudgetMs: 8,
+      }),
+    }
   )
 )

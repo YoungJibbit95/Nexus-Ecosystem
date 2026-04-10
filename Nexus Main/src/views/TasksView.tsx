@@ -9,6 +9,7 @@ import { hexToRgb } from '../lib/utils'
 import { motion, AnimatePresence } from 'framer-motion'
 import { DndProvider, useDrag, useDrop } from 'react-dnd'
 import { HTML5Backend } from 'react-dnd-html5-backend'
+import { shallow } from 'zustand/shallow'
 
 const PRIORITY_COLOR = { low: '#30d158', mid: '#ffd60a', high: '#ff453a' }
 const PRIORITY_LABEL = { low: 'Low', mid: 'Medium', high: 'High' }
@@ -111,7 +112,7 @@ function TaskCard({ tk, onEdit, onDelete }: { tk: Task; onEdit: () => void; onDe
 
 // ── Drop column ──────────────────────────────────────────────────
 function DropCol({ id, children }: { id: string; children: React.ReactNode }) {
-  const { moveTask } = useApp()
+  const moveTask = useApp((s) => s.moveTask)
   const [{ isOver }, drop] = useDrop({
     accept: 'TASK',
     drop: (tk: Task) => { if (tk.status !== id) moveTask(tk.id, id as any) },
@@ -128,7 +129,12 @@ function DropCol({ id, children }: { id: string; children: React.ReactNode }) {
 function TaskModal({ task, onClose, status }: { task?: Task; onClose: () => void; status?: 'todo'|'doing'|'done' }) {
   const t = useTheme()
   const rgb = hexToRgb(t.accent)
-  const { addTask, updateTask, addSubtask, toggleSubtask } = useApp()
+  const { addTask, updateTask, addSubtask, toggleSubtask } = useApp((s) => ({
+    addTask: s.addTask,
+    updateTask: s.updateTask,
+    addSubtask: s.addSubtask,
+    toggleSubtask: s.toggleSubtask,
+  }), shallow)
   const [title,    setTitle]    = useState(task?.title ?? '')
   const [desc,     setDesc]     = useState(task?.desc ?? '')
   const [priority, setPriority] = useState<'low'|'mid'|'high'>(task?.priority ?? 'low')
@@ -263,7 +269,15 @@ function TaskModal({ task, onClose, status }: { task?: Task; onClose: () => void
 export function TasksView() {
   const t = useTheme()
   const rgb = hexToRgb(t.accent)
-  const { tasks, addTask, updateTask, delTask, moveTask, addSubtask, toggleSubtask } = useApp()
+  const { tasks, addTask, updateTask, delTask, moveTask, addSubtask, toggleSubtask } = useApp((s) => ({
+    tasks: s.tasks,
+    addTask: s.addTask,
+    updateTask: s.updateTask,
+    delTask: s.delTask,
+    moveTask: s.moveTask,
+    addSubtask: s.addSubtask,
+    toggleSubtask: s.toggleSubtask,
+  }), shallow)
 
   const [search,     setSearch]    = useState('')
   const [editId,     setEditId]    = useState<string|null>(null)

@@ -25,53 +25,23 @@ import {
 } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { CanvasNexusCodeBlock } from '@nexus/core/canvas/CanvasMagicRenderers'
+import {
+  CanvasNexusCodeBlock,
+  CanvasNexusInlineCode,
+} from '@nexus/core/canvas/CanvasMagicRenderers'
 import { Glass } from '../../../components/Glass'
-import { useCanvas, type CanvasConnection, type CanvasNode, type NodeType, type ProjectPriority, type ProjectStatus } from '../../../store/canvasStore'
+import { useCanvas, type CanvasConnection, type CanvasNode } from '../../../store/canvasStore'
 import { useTheme } from '../../../store/themeStore'
 import { useApp } from '../../../store/appStore'
 import { hexToRgb } from '../../../lib/utils'
-
-const NODE_COLORS = [
-  '#007AFF', '#FF3B30', '#34C759', '#FF9500', '#AF52DE',
-  '#00C7BE', '#FF2D55', '#5856D6', '#FFCC00', '#64D2FF',
-  '#FF6B35', '#30D158', '#BF5AF2', '#FF6B9E', '#FFE600',
-]
-
-const WIDGET_TYPES: { type: NodeType | 'sticky'; icon: any; label: string }[] = [
-  { type: 'text', icon: Type, label: 'Text' },
-  { type: 'markdown', icon: FileText, label: 'Markdown' },
-  { type: 'checklist', icon: CheckSquare, label: 'Checklist' },
-  { type: 'image', icon: Image, label: 'Bild' },
-  { type: 'code', icon: Code, label: 'Code' },
-  { type: 'sticky', icon: StickyNote, label: 'Sticky' },
-  { type: 'note', icon: FileText, label: 'Notiz' },
-  { type: 'codefile', icon: Code, label: 'Code-Datei' },
-  { type: 'task', icon: CheckSquare, label: 'Aufgabe' },
-  { type: 'reminder', icon: Bell, label: 'Reminder' },
-  { type: 'project', icon: FileText, label: 'Projekt' },
-  { type: 'goal', icon: Sun, label: 'Goal' },
-  { type: 'milestone', icon: Flag, label: 'Milestone' },
-  { type: 'decision', icon: GitBranch, label: 'Decision' },
-  { type: 'risk', icon: AlertCircle, label: 'Risk' },
-]
-
-const PM_STATUS_ORDER: ProjectStatus[] = ['idea', 'backlog', 'todo', 'doing', 'review', 'done', 'blocked']
-const PM_STATUS_COLOR: Record<ProjectStatus, string> = {
-  idea: '#64D2FF',
-  backlog: '#5E5CE6',
-  todo: '#007AFF',
-  doing: '#FF9F0A',
-  review: '#BF5AF2',
-  done: '#30D158',
-  blocked: '#FF453A',
-}
-const PM_PRIORITY_COLOR: Record<ProjectPriority, string> = {
-  low: '#30D158',
-  mid: '#FFD60A',
-  high: '#FF9F0A',
-  critical: '#FF453A',
-}
+import {
+  NODE_COLORS,
+  PM_PRIORITY_COLOR,
+  PM_STATUS_COLOR,
+  PM_STATUS_ORDER,
+  WIDGET_TYPES,
+  getWidgetPreset,
+} from '../mobileCanvasConfig'
 export function CanvasConnectionLine({ conn, nodeById, zoom, onDelete, reduceEffects }: {
     conn: CanvasConnection; nodeById: globalThis.Map<string, CanvasNode>; zoom: number; onDelete: (id: string) => void; reduceEffects?: boolean
 }) {
@@ -180,7 +150,11 @@ export function CanvasNodeWidget({ node, isSelected, onSelect, onStartConnect, o
 }) {
     const t = useTheme()
     const app = useApp()
-    const rgb = hexToRgb(node.color || t.accent)
+    const widgetPreset = getWidgetPreset(node.type)
+    const nodeAccent = node.color || widgetPreset?.accent || t.accent
+    const rgb = hexToRgb(nodeAccent)
+    const widgetCategory = widgetPreset?.category || 'Capture'
+    const widgetDescription = widgetPreset?.description || node.type
     const { updateNode, deleteNode, moveNode, resizeNode, addChecklistItem, toggleChecklistItem, deleteChecklistItem } = useCanvas()
 
     const [dragging, setDragging] = useState(false)
@@ -204,6 +178,11 @@ export function CanvasNodeWidget({ node, isSelected, onSelect, onStartConnect, o
     const stickyBg = isSticky
         ? `linear-gradient(145deg, #FFEE88, #FFD700)`
         : undefined
+    const resizeSafeBackground = isSticky
+        ? stickyBg
+        : t.mode === 'dark'
+            ? 'rgba(12,14,24,0.92)'
+            : 'rgba(248,248,252,0.95)'
 
     // Drag
     const handleDragStart = useCallback((e: React.MouseEvent) => {
@@ -339,6 +318,31 @@ export function CanvasNodeWidget({ node, isSelected, onSelect, onStartConnect, o
         }
     }, [node.content, node.id, updateNode])
 
+    const statusColor = (status?: string) => {
+        if (status === 'done' || status === 'review') return '#30D158'
+        if (status === 'blocked') return '#FF453A'
+        if (status === 'doing') return '#0A84FF'
+        return '#8E8E93'
+    }
+
+    const priorityColor = (priority?: string) => {
+        if (priority === 'critical') return '#FF375F'
+        if (priority === 'high') return '#FF9F0A'
+        if (priority === 'mid') return '#64D2FF'
+        return '#8E8E93'
+    }
+
+    const fieldStyle: React.CSSProperties = {
+        width: '100%',
+        background: t.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
+        border: '1px solid rgba(255,255,255,0.1)',
+        borderRadius: 7,
+        padding: '5px 7px',
+        fontSize: 11,
+        color: 'inherit',
+        outline: 'none',
+    }
+
     const renderContent = () => {
         switch (node.type) {
             case 'text':
@@ -383,15 +387,20 @@ export function CanvasNodeWidget({ node, isSelected, onSelect, onStartConnect, o
                                   remarkPlugins={[remarkGfm]}
                                   components={{
                                     pre: ({ children }: any) => <>{children}</>,
-                                    code: ({ node: mdNode, className, children }: any) => (
-                                      <CanvasNexusCodeBlock
-                                        className={className}
-                                        accent={node.color || t.accent}
-                                        onChange={(next) => replaceMarkdownCodeBlock(mdNode, className, children, next)}
-                                      >
-                                        {children}
-                                      </CanvasNexusCodeBlock>
-                                    ),
+                                    code: ({ node: mdNode, inline, className, children }: any) =>
+                                      inline || !className ? (
+                                        <CanvasNexusInlineCode accent={node.color || t.accent}>
+                                          {children}
+                                        </CanvasNexusInlineCode>
+                                      ) : (
+                                        <CanvasNexusCodeBlock
+                                          className={className}
+                                          accent={node.color || t.accent}
+                                          onChange={(next) => replaceMarkdownCodeBlock(mdNode, className, children, next)}
+                                        >
+                                          {children}
+                                        </CanvasNexusCodeBlock>
+                                      ),
                                   }}
                                 >{node.content}</ReactMarkdown>
                             </div>
@@ -515,12 +524,64 @@ export function CanvasNodeWidget({ node, isSelected, onSelect, onStartConnect, o
                 const linkedNote = app.notes.find(n => n.id === node.linkedNoteId)
                 if (!linkedNote) {
                     return (
-                        <div className="node-interactive p-3 flex flex-col gap-2 h-full justify-center">
-                            <span className="text-xs opacity-60">Notiz verknüpfen:</span>
-                            <select className="bg-white/10 text-xs p-1.5 rounded outline-none w-full" value="" onChange={e => updateNode(node.id, { linkedNoteId: e.target.value })}>
-                                <option value="">-- Auswählen --</option>
+                        <div className="node-interactive w-full h-full p-2 flex flex-col gap-2" style={{ minHeight: 0 }}>
+                            <div style={{ fontSize: 10, opacity: 0.65, fontWeight: 700 }}>
+                                Local Note (optional mit Notes verknüpfen)
+                            </div>
+                            <select className="bg-white/10 text-xs p-1.5 rounded outline-none w-full" value={node.linkedNoteId || ''} onChange={e => updateNode(node.id, { linkedNoteId: e.target.value })}>
+                                <option value="">Local Note</option>
                                 {app.notes.map(n => <option key={n.id} value={n.id}>{n.title || 'Ohne Titel'}</option>)}
                             </select>
+                            <div style={{
+                                flex: 1, minHeight: 0, borderRadius: 8, border: '1px solid rgba(255,255,255,0.08)',
+                                background: 'rgba(0,0,0,0.16)', padding: 8, overflow: 'auto',
+                            }}>
+                                {editingContent ? (
+                                    <textarea
+                                        value={node.content}
+                                        onChange={(e) => updateNode(node.id, { content: e.target.value })}
+                                        placeholder="# Lokale Notiz&#10;&#10;```nexus-checklist&#10;Task A | done&#10;Task B | todo&#10;```"
+                                        style={{
+                                            width: '100%', height: '100%', minHeight: 96, resize: 'none',
+                                            background: 'transparent', border: 'none', outline: 'none',
+                                            color: 'inherit', fontFamily: "'Fira Code', monospace", fontSize: 12, lineHeight: 1.5,
+                                        }}
+                                    />
+                                ) : (
+                                    <div className="canvas-md" style={{ fontSize: 12, lineHeight: 1.55 }}>
+                                        <ReactMarkdown
+                                            remarkPlugins={[remarkGfm]}
+                                            components={{
+                                                pre: ({ children }: any) => <>{children}</>,
+                                                code: ({ inline, className, children }: any) =>
+                                                    inline || !className ? (
+                                                        <CanvasNexusInlineCode accent={node.color || t.accent}>
+                                                            {children}
+                                                        </CanvasNexusInlineCode>
+                                                    ) : (
+                                                        <CanvasNexusCodeBlock className={className} accent={node.color || t.accent}>
+                                                            {children}
+                                                        </CanvasNexusCodeBlock>
+                                                    ),
+                                            }}
+                                        >
+                                            {node.content || '_Leere Notiz_'}
+                                        </ReactMarkdown>
+                                    </div>
+                                )}
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                                <button
+                                    onClick={() => setEditingContent(prev => !prev)}
+                                    style={{
+                                        fontSize: 10, padding: '2px 8px', borderRadius: 6,
+                                        background: `rgba(${rgb}, 0.2)`, border: 'none',
+                                        color: node.color || t.accent, cursor: 'pointer',
+                                    }}
+                                >
+                                    {editingContent ? 'Preview' : 'Edit'}
+                                </button>
+                            </div>
                         </div>
                     )
                 }
@@ -531,7 +592,24 @@ export function CanvasNodeWidget({ node, isSelected, onSelect, onStartConnect, o
                             <button onClick={(e) => { e.stopPropagation(); updateNode(node.id, { linkedNoteId: undefined }) }} className="opacity-50 hover:opacity-100" title="Verknüpfung aufheben"><Unlink size={12} /></button>
                         </div>
                         <div className="text-xs flex-1 overflow-y-auto canvas-md" style={{ opacity: 0.85 }}>
-                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{linkedNote.content.slice(0, 500) + (linkedNote.content.length > 500 ? '\n...' : '')}</ReactMarkdown>
+                            <ReactMarkdown
+                                remarkPlugins={[remarkGfm]}
+                                components={{
+                                    pre: ({ children }: any) => <>{children}</>,
+                                    code: ({ inline, className, children }: any) =>
+                                        inline || !className ? (
+                                            <CanvasNexusInlineCode accent={node.color || t.accent}>
+                                                {children}
+                                            </CanvasNexusInlineCode>
+                                        ) : (
+                                            <CanvasNexusCodeBlock className={className} accent={node.color || t.accent}>
+                                                {children}
+                                            </CanvasNexusCodeBlock>
+                                        ),
+                                }}
+                            >
+                                {linkedNote.content.slice(0, 500) + (linkedNote.content.length > 500 ? '\n...' : '')}
+                            </ReactMarkdown>
                         </div>
                     </div>
                 )
@@ -541,12 +619,46 @@ export function CanvasNodeWidget({ node, isSelected, onSelect, onStartConnect, o
                 const linkedCode = app.codes.find(c => c.id === node.linkedCodeId)
                 if (!linkedCode) {
                     return (
-                        <div className="node-interactive p-3 flex flex-col gap-2 h-full justify-center">
-                            <span className="text-xs opacity-60">Code-Datei verknüpfen:</span>
-                            <select className="bg-white/10 text-xs p-1.5 rounded outline-none w-full" value="" onChange={e => updateNode(node.id, { linkedCodeId: e.target.value })}>
-                                <option value="">-- Auswählen --</option>
+                        <div className="node-interactive w-full h-full p-2 flex flex-col gap-2">
+                            <div style={{ fontSize: 10, opacity: 0.65, fontWeight: 700 }}>
+                                Local Code (optional mit Nexus Code verknüpfen)
+                            </div>
+                            <select className="bg-white/10 text-xs p-1.5 rounded outline-none w-full" value={node.linkedCodeId || ''} onChange={e => updateNode(node.id, { linkedCodeId: e.target.value })}>
+                                <option value="">Local Code</option>
                                 {app.codes.map(c => <option key={c.id} value={c.id}>{c.name || 'Ohne Titel'} ({c.lang})</option>)}
                             </select>
+                            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                                <select
+                                    value={node.codeLang || 'javascript'}
+                                    onChange={(e) => updateNode(node.id, { codeLang: e.target.value })}
+                                    style={{ ...fieldStyle, flex: 1 }}
+                                >
+                                    {['javascript', 'typescript', 'python', 'html', 'css', 'json', 'rust', 'go', 'java', 'c', 'cpp', 'sql', 'bash', 'markdown', 'yaml'].map(lang => (
+                                        <option key={lang} value={lang}>{lang}</option>
+                                    ))}
+                                </select>
+                                <button
+                                    onClick={() => navigator.clipboard?.writeText(node.content)}
+                                    style={{
+                                        background: `rgba(${rgb},0.15)`, border: 'none', borderRadius: 6,
+                                        padding: '4px 8px', cursor: 'pointer', color: node.color || t.accent, fontSize: 10,
+                                    }}
+                                >
+                                    Copy
+                                </button>
+                            </div>
+                            <textarea
+                                value={node.content}
+                                onChange={(e) => updateNode(node.id, { content: e.target.value })}
+                                spellCheck={false}
+                                placeholder="// Local code snippet..."
+                                style={{
+                                    flex: 1, minHeight: 110, width: '100%', resize: 'none',
+                                    background: 'rgba(0,0,0,0.28)', border: '1px solid rgba(255,255,255,0.08)',
+                                    borderRadius: 8, padding: 8, color: 'inherit',
+                                    fontFamily: "'Fira Code', 'Consolas', monospace", fontSize: 11, lineHeight: 1.5, outline: 'none',
+                                }}
+                            />
                         </div>
                     )
                 }
@@ -566,13 +678,67 @@ export function CanvasNodeWidget({ node, isSelected, onSelect, onStartConnect, o
             case 'task': {
                 const linkedTask = app.tasks.find(t => t.id === node.linkedTaskId)
                 if (!linkedTask) {
+                    const localProgress = Math.max(0, Math.min(100, Number(node.pm?.progress ?? 0)))
                     return (
-                        <div className="node-interactive p-3 flex flex-col gap-2 h-full justify-center">
-                            <span className="text-xs opacity-60">Task verknüpfen:</span>
-                            <select className="bg-white/10 text-xs p-1.5 rounded outline-none w-full" value="" onChange={e => updateNode(node.id, { linkedTaskId: e.target.value })}>
-                                <option value="">-- Auswählen --</option>
+                        <div className="node-interactive w-full h-full p-2 flex flex-col gap-2">
+                            <div style={{ fontSize: 10, opacity: 0.65, fontWeight: 700 }}>
+                                Local Task (oder verknüpfen)
+                            </div>
+                            <select className="bg-white/10 text-xs p-1.5 rounded outline-none w-full" value={node.linkedTaskId || ''} onChange={e => updateNode(node.id, { linkedTaskId: e.target.value })}>
+                                <option value="">Local Task</option>
                                 {app.tasks.map(t => <option key={t.id} value={t.id}>{t.title}</option>)}
                             </select>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                                <select
+                                    value={node.pm?.status || 'todo'}
+                                    onChange={(e) => updateNode(node.id, { pm: { ...(node.pm || {}), status: e.target.value as any } })}
+                                    style={fieldStyle}
+                                >
+                                    <option value="todo">Todo</option>
+                                    <option value="doing">Doing</option>
+                                    <option value="blocked">Blocked</option>
+                                    <option value="done">Done</option>
+                                </select>
+                                <select
+                                    value={node.pm?.priority || 'mid'}
+                                    onChange={(e) => updateNode(node.id, { pm: { ...(node.pm || {}), priority: e.target.value as any } })}
+                                    style={fieldStyle}
+                                >
+                                    <option value="low">Low</option>
+                                    <option value="mid">Mid</option>
+                                    <option value="high">High</option>
+                                    <option value="critical">Critical</option>
+                                </select>
+                            </div>
+                            <input
+                                type="date"
+                                value={node.pm?.dueDate ? node.pm.dueDate.slice(0, 10) : ''}
+                                onChange={(e) => updateNode(node.id, { pm: { ...(node.pm || {}), dueDate: e.target.value || undefined } })}
+                                style={fieldStyle}
+                            />
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 6, alignItems: 'center' }}>
+                                <input
+                                    type="range"
+                                    min={0}
+                                    max={100}
+                                    value={localProgress}
+                                    onChange={(e) => updateNode(node.id, { pm: { ...(node.pm || {}), progress: Number(e.target.value) } })}
+                                    style={{ width: '100%' }}
+                                />
+                                <span style={{ fontSize: 10, fontWeight: 700, color: nodeAccent }}>
+                                    {localProgress}%
+                                </span>
+                            </div>
+                            <textarea
+                                value={node.content}
+                                onChange={(e) => updateNode(node.id, { content: e.target.value })}
+                                placeholder="Aktion, Kontext, nächste Schritte..."
+                                style={{
+                                    flex: 1, minHeight: 84, width: '100%', resize: 'none',
+                                    background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)',
+                                    borderRadius: 8, padding: 8, color: 'inherit', fontSize: 11, lineHeight: 1.5, outline: 'none',
+                                }}
+                            />
                         </div>
                     )
                 }
@@ -609,12 +775,46 @@ export function CanvasNodeWidget({ node, isSelected, onSelect, onStartConnect, o
                 const linkedReminder = app.reminders.find(r => r.id === node.linkedReminderId)
                 if (!linkedReminder) {
                     return (
-                        <div className="node-interactive p-3 flex flex-col gap-2 h-full justify-center">
-                            <span className="text-xs opacity-60">Reminder verknüpfen:</span>
-                            <select className="bg-white/10 text-xs p-1.5 rounded outline-none w-full" value="" onChange={e => updateNode(node.id, { linkedReminderId: e.target.value })}>
-                                <option value="">-- Auswählen --</option>
+                        <div className="node-interactive w-full h-full p-2 flex flex-col gap-2">
+                            <div style={{ fontSize: 10, opacity: 0.65, fontWeight: 700 }}>
+                                Local Reminder (oder verknüpfen)
+                            </div>
+                            <select className="bg-white/10 text-xs p-1.5 rounded outline-none w-full" value={node.linkedReminderId || ''} onChange={e => updateNode(node.id, { linkedReminderId: e.target.value })}>
+                                <option value="">Local Reminder</option>
                                 {app.reminders.map(r => <option key={r.id} value={r.id}>{r.title}</option>)}
                             </select>
+                            <input
+                                type="datetime-local"
+                                value={node.pm?.dueDate ? new Date(node.pm.dueDate).toISOString().slice(0, 16) : ''}
+                                onChange={(e) =>
+                                    updateNode(node.id, {
+                                        pm: {
+                                            ...(node.pm || {}),
+                                            dueDate: e.target.value ? new Date(e.target.value).toISOString() : undefined,
+                                        },
+                                    })
+                                }
+                                style={fieldStyle}
+                            />
+                            <label style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 11, opacity: 0.88 }}>
+                                <input
+                                    type="checkbox"
+                                    checked={node.pm?.status === 'done'}
+                                    onChange={(e) => updateNode(node.id, { pm: { ...(node.pm || {}), status: e.target.checked ? 'done' : 'todo' } })}
+                                    style={{ accentColor: nodeAccent }}
+                                />
+                                Erledigt
+                            </label>
+                            <textarea
+                                value={node.content}
+                                onChange={(e) => updateNode(node.id, { content: e.target.value })}
+                                placeholder="Reminder-Notiz oder Message..."
+                                style={{
+                                    flex: 1, minHeight: 92, width: '100%', resize: 'none',
+                                    background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)',
+                                    borderRadius: 8, padding: 8, color: 'inherit', fontSize: 11, lineHeight: 1.45, outline: 'none',
+                                }}
+                            />
                         </div>
                     )
                 }
@@ -636,75 +836,293 @@ export function CanvasNodeWidget({ node, isSelected, onSelect, onStartConnect, o
                 )
             }
 
-            case 'project':
-            case 'goal':
-            case 'milestone':
-            case 'decision':
-            case 'risk':
+            case 'project': {
+                const status = node.pm?.status || 'doing'
+                const priority = node.pm?.priority || 'mid'
+                const progress = Math.max(0, Math.min(100, Number(node.pm?.progress ?? 0)))
+                const sColor = statusColor(status)
+                const pColor = priorityColor(priority)
                 return (
-                    <div className="node-interactive" style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', gap: 6 }}>
-                        <div style={{ display: 'flex', gap: 6 }}>
-                            <select
-                                value={node.pm?.status || 'idea'}
-                                onChange={(e) => updateNode(node.id, { pm: { ...(node.pm || {}), status: e.target.value as ProjectStatus } })}
-                                style={{
-                                    flex: 1,
-                                    background: t.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)',
-                                    border: 'none',
-                                    borderRadius: 6,
-                                    padding: '4px 6px',
-                                    color: 'inherit',
-                                    fontSize: 11,
-                                }}
-                            >
-                                {PM_STATUS_ORDER.map((status) => <option key={status} value={status}>{status}</option>)}
+                    <div className="node-interactive" style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', gap: 7 }}>
+                        <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+                            <span style={{ fontSize: 9, padding: '2px 7px', borderRadius: 999, background: `${sColor}22`, border: `1px solid ${sColor}55`, color: sColor, fontWeight: 700 }}>
+                                {status.toUpperCase()}
+                            </span>
+                            <span style={{ fontSize: 9, padding: '2px 7px', borderRadius: 999, background: `${pColor}22`, border: `1px solid ${pColor}55`, color: pColor, fontWeight: 700 }}>
+                                {priority.toUpperCase()}
+                            </span>
+                            {!!node.pm?.owner && (
+                                <span style={{ fontSize: 9, padding: '2px 7px', borderRadius: 999, border: '1px solid rgba(255,255,255,0.16)', background: 'rgba(255,255,255,0.08)', opacity: 0.82 }}>
+                                    @{node.pm?.owner}
+                                </span>
+                            )}
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                            <select value={status} onChange={(e) => updateNode(node.id, { pm: { ...(node.pm || {}), status: e.target.value as any } })} style={fieldStyle}>
+                                <option value="todo">Todo</option>
+                                <option value="doing">Doing</option>
+                                <option value="review">Review</option>
+                                <option value="done">Done</option>
+                                <option value="blocked">Blocked</option>
+                            </select>
+                            <select value={priority} onChange={(e) => updateNode(node.id, { pm: { ...(node.pm || {}), priority: e.target.value as any } })} style={fieldStyle}>
+                                <option value="low">Low</option>
+                                <option value="mid">Mid</option>
+                                <option value="high">High</option>
+                                <option value="critical">Critical</option>
+                            </select>
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                            <input
+                                type="text"
+                                value={node.pm?.owner || ''}
+                                onChange={(e) => updateNode(node.id, { pm: { ...(node.pm || {}), owner: e.target.value } })}
+                                placeholder="Owner"
+                                style={fieldStyle}
+                            />
+                            <input
+                                type="date"
+                                value={node.pm?.dueDate ? node.pm.dueDate.slice(0, 10) : ''}
+                                onChange={(e) => updateNode(node.id, { pm: { ...(node.pm || {}), dueDate: e.target.value || undefined } })}
+                                style={fieldStyle}
+                            />
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 6, alignItems: 'center' }}>
+                            <input type="range" min={0} max={100} value={progress} onChange={(e) => updateNode(node.id, { pm: { ...(node.pm || {}), progress: Number(e.target.value) } })} style={{ width: '100%' }} />
+                            <span style={{ fontSize: 10, fontWeight: 700, color: nodeAccent }}>{progress}%</span>
+                        </div>
+                        <textarea
+                            value={node.content}
+                            onChange={(e) => updateNode(node.id, { content: e.target.value })}
+                            placeholder="Scope, Zielbild, nächster Schritt"
+                            style={{
+                                flex: 1, width: '100%', resize: 'none',
+                                background: t.mode === 'dark' ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.03)',
+                                border: '1px solid rgba(255,255,255,0.08)', outline: 'none', borderRadius: 7, padding: 8,
+                                color: 'inherit', fontSize: 11, lineHeight: 1.5,
+                            }}
+                        />
+                    </div>
+                )
+            }
+
+            case 'goal': {
+                const priority = node.pm?.priority || 'mid'
+                const progress = Math.max(0, Math.min(100, Number(node.pm?.progress ?? 0)))
+                const pColor = priorityColor(priority)
+                return (
+                    <div className="node-interactive" style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', gap: 7 }}>
+                        <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+                            <span style={{ fontSize: 9, padding: '2px 7px', borderRadius: 999, background: `${pColor}22`, border: `1px solid ${pColor}55`, color: pColor, fontWeight: 700 }}>
+                                PRIORITY {priority.toUpperCase()}
+                            </span>
+                            {!!node.pm?.dueDate && (
+                                <span style={{ fontSize: 9, padding: '2px 7px', borderRadius: 999, border: '1px solid rgba(255,255,255,0.16)', background: 'rgba(255,255,255,0.08)', opacity: 0.82 }}>
+                                    Due {new Date(node.pm.dueDate).toLocaleDateString()}
+                                </span>
+                            )}
+                        </div>
+                        <textarea
+                            value={node.content}
+                            onChange={(e) => updateNode(node.id, { content: e.target.value })}
+                            placeholder="Warum ist das wichtig? Wie wird Erfolg gemessen?"
+                            style={{
+                                flex: 1, width: '100%', resize: 'none',
+                                background: t.mode === 'dark' ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.03)',
+                                border: '1px solid rgba(255,255,255,0.08)', outline: 'none', borderRadius: 7, padding: 8,
+                                color: 'inherit', fontSize: 11, lineHeight: 1.5,
+                            }}
+                        />
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 6, alignItems: 'center' }}>
+                            <input type="range" min={0} max={100} value={progress} onChange={(e) => updateNode(node.id, { pm: { ...(node.pm || {}), progress: Number(e.target.value) } })} style={{ width: '100%' }} />
+                            <span style={{ fontSize: 10, fontWeight: 700, color: nodeAccent }}>{progress}%</span>
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                            <select value={priority} onChange={(e) => updateNode(node.id, { pm: { ...(node.pm || {}), priority: e.target.value as any } })} style={fieldStyle}>
+                                <option value="low">Low</option>
+                                <option value="mid">Mid</option>
+                                <option value="high">High</option>
+                                <option value="critical">Critical</option>
                             </select>
                             <input
-                                type="number"
-                                value={typeof node.pm?.progress === 'number' ? node.pm.progress : 0}
-                                min={0}
-                                max={100}
-                                onChange={(e) => updateNode(node.id, { pm: { ...(node.pm || {}), progress: Math.max(0, Math.min(100, Number(e.target.value) || 0)) } })}
-                                style={{
-                                    width: 72,
-                                    background: t.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)',
-                                    border: 'none',
-                                    borderRadius: 6,
-                                    padding: '4px 6px',
-                                    color: 'inherit',
-                                    fontSize: 11,
-                                }}
+                                type="date"
+                                value={node.pm?.dueDate ? node.pm.dueDate.slice(0, 10) : ''}
+                                onChange={(e) => updateNode(node.id, { pm: { ...(node.pm || {}), dueDate: e.target.value || undefined } })}
+                                style={fieldStyle}
+                            />
+                        </div>
+                    </div>
+                )
+            }
+
+            case 'milestone': {
+                const status = node.pm?.status || 'todo'
+                const progress = Math.max(0, Math.min(100, Number(node.pm?.progress ?? 0)))
+                const sColor = statusColor(status)
+                return (
+                    <div className="node-interactive" style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', gap: 7 }}>
+                        <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+                            <span style={{ fontSize: 9, padding: '2px 7px', borderRadius: 999, background: `${sColor}22`, border: `1px solid ${sColor}55`, color: sColor, fontWeight: 700 }}>
+                                {status.toUpperCase()}
+                            </span>
+                            <span style={{ fontSize: 9, padding: '2px 7px', borderRadius: 999, border: '1px solid rgba(255,255,255,0.16)', background: 'rgba(255,255,255,0.08)' }}>
+                                {progress}%
+                            </span>
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                            <select value={status} onChange={(e) => updateNode(node.id, { pm: { ...(node.pm || {}), status: e.target.value as any } })} style={fieldStyle}>
+                                <option value="todo">Planned</option>
+                                <option value="doing">In Progress</option>
+                                <option value="blocked">Blocked</option>
+                                <option value="done">Done</option>
+                            </select>
+                            <input
+                                type="date"
+                                value={node.pm?.dueDate ? node.pm.dueDate.slice(0, 10) : ''}
+                                onChange={(e) => updateNode(node.id, { pm: { ...(node.pm || {}), dueDate: e.target.value || undefined } })}
+                                style={fieldStyle}
+                            />
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 6, alignItems: 'center' }}>
+                            <input type="range" min={0} max={100} value={progress} onChange={(e) => updateNode(node.id, { pm: { ...(node.pm || {}), progress: Number(e.target.value) } })} style={{ width: '100%' }} />
+                            <span style={{ fontSize: 10, fontWeight: 700, color: nodeAccent }}>{progress}%</span>
+                        </div>
+                        <textarea
+                            value={node.content}
+                            onChange={(e) => updateNode(node.id, { content: e.target.value })}
+                            placeholder="Done-Kriterien, Deliverables, Blocker"
+                            style={{
+                                flex: 1, width: '100%', resize: 'none',
+                                background: t.mode === 'dark' ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.03)',
+                                border: '1px solid rgba(255,255,255,0.08)', outline: 'none', borderRadius: 7, padding: 8,
+                                color: 'inherit', fontSize: 11, lineHeight: 1.5,
+                            }}
+                        />
+                    </div>
+                )
+            }
+
+            case 'decision': {
+                const status = node.pm?.status || 'todo'
+                const priority = node.pm?.priority || 'mid'
+                const sColor = statusColor(status)
+                const pColor = priorityColor(priority)
+                return (
+                    <div className="node-interactive" style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', gap: 7 }}>
+                        <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+                            <span style={{ fontSize: 9, padding: '2px 7px', borderRadius: 999, background: `${sColor}22`, border: `1px solid ${sColor}55`, color: sColor, fontWeight: 700 }}>
+                                {status.toUpperCase()}
+                            </span>
+                            <span style={{ fontSize: 9, padding: '2px 7px', borderRadius: 999, background: `${pColor}22`, border: `1px solid ${pColor}55`, color: pColor, fontWeight: 700 }}>
+                                {priority.toUpperCase()}
+                            </span>
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                            <select value={status} onChange={(e) => updateNode(node.id, { pm: { ...(node.pm || {}), status: e.target.value as any } })} style={fieldStyle}>
+                                <option value="todo">Open</option>
+                                <option value="doing">Review</option>
+                                <option value="done">Decided</option>
+                            </select>
+                            <select value={priority} onChange={(e) => updateNode(node.id, { pm: { ...(node.pm || {}), priority: e.target.value as any } })} style={fieldStyle}>
+                                <option value="low">Low Impact</option>
+                                <option value="mid">Mid Impact</option>
+                                <option value="high">High Impact</option>
+                                <option value="critical">Critical</option>
+                            </select>
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                            <input
+                                type="text"
+                                value={node.pm?.owner || ''}
+                                onChange={(e) => updateNode(node.id, { pm: { ...(node.pm || {}), owner: e.target.value } })}
+                                placeholder="Decision Owner"
+                                style={fieldStyle}
+                            />
+                            <input
+                                type="date"
+                                value={node.pm?.dueDate ? node.pm.dueDate.slice(0, 10) : ''}
+                                onChange={(e) => updateNode(node.id, { pm: { ...(node.pm || {}), dueDate: e.target.value || undefined } })}
+                                style={fieldStyle}
                             />
                         </div>
                         <textarea
                             value={node.content}
                             onChange={(e) => updateNode(node.id, { content: e.target.value })}
-                            placeholder="Projekt-/Risiko-Details..."
+                            placeholder="Option A&#10;Option B&#10;Kriterien&#10;Entscheidung"
                             style={{
-                                flex: 1,
-                                width: '100%',
-                                resize: 'none',
+                                flex: 1, width: '100%', resize: 'none',
                                 background: t.mode === 'dark' ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.03)',
-                                border: 'none',
-                                outline: 'none',
-                                borderRadius: 6,
-                                padding: 8,
-                                color: 'inherit',
-                                fontFamily: "'Fira Code', 'Consolas', monospace",
-                                fontSize: 12,
-                                lineHeight: 1.5,
+                                border: '1px solid rgba(255,255,255,0.08)', outline: 'none', borderRadius: 7, padding: 8,
+                                color: 'inherit', fontSize: 11, lineHeight: 1.5,
                             }}
                         />
                     </div>
                 )
+            }
+
+            case 'risk': {
+                const priority = node.pm?.priority || 'high'
+                const status = node.pm?.status || 'blocked'
+                const probability = Math.max(0, Math.min(100, Number(node.pm?.progress ?? 45)))
+                const impact = Math.max(1, Math.min(10, Number(node.pm?.estimate ?? 7)))
+                const pColor = priorityColor(priority)
+                const sColor = statusColor(status)
+                return (
+                    <div className="node-interactive" style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', gap: 7 }}>
+                        <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+                            <span style={{ fontSize: 9, padding: '2px 7px', borderRadius: 999, background: `${pColor}22`, border: `1px solid ${pColor}55`, color: pColor, fontWeight: 700 }}>
+                                {priority.toUpperCase()}
+                            </span>
+                            <span style={{ fontSize: 9, padding: '2px 7px', borderRadius: 999, background: `${sColor}22`, border: `1px solid ${sColor}55`, color: sColor, fontWeight: 700 }}>
+                                {status.toUpperCase()}
+                            </span>
+                            <span style={{ fontSize: 9, padding: '2px 7px', borderRadius: 999, border: '1px solid rgba(255,69,58,0.35)', background: 'rgba(255,69,58,0.15)', color: '#FF453A', fontWeight: 700 }}>
+                                Score {Math.round((probability / 10) * impact)}
+                            </span>
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                            <select value={priority} onChange={(e) => updateNode(node.id, { pm: { ...(node.pm || {}), priority: e.target.value as any } })} style={fieldStyle}>
+                                <option value="low">Low</option>
+                                <option value="mid">Mid</option>
+                                <option value="high">High</option>
+                                <option value="critical">Critical</option>
+                            </select>
+                            <select value={status} onChange={(e) => updateNode(node.id, { pm: { ...(node.pm || {}), status: e.target.value as any } })} style={fieldStyle}>
+                                <option value="todo">Watch</option>
+                                <option value="doing">Mitigation</option>
+                                <option value="blocked">Active</option>
+                                <option value="done">Mitigated</option>
+                            </select>
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 6, alignItems: 'center' }}>
+                            <input type="range" min={0} max={100} value={probability} onChange={(e) => updateNode(node.id, { pm: { ...(node.pm || {}), progress: Number(e.target.value) } })} style={{ width: '100%' }} />
+                            <span style={{ fontSize: 10, opacity: 0.75 }}>Prob {probability}%</span>
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 6, alignItems: 'center' }}>
+                            <input type="range" min={1} max={10} value={impact} onChange={(e) => updateNode(node.id, { pm: { ...(node.pm || {}), estimate: Number(e.target.value) } })} style={{ width: '100%' }} />
+                            <span style={{ fontSize: 10, opacity: 0.75 }}>Impact {impact}/10</span>
+                        </div>
+                        <textarea
+                            value={node.content}
+                            onChange={(e) => updateNode(node.id, { content: e.target.value })}
+                            placeholder="Risiko, Trigger, Mitigation/Fallback"
+                            style={{
+                                flex: 1, width: '100%', resize: 'none',
+                                background: t.mode === 'dark' ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.03)',
+                                border: '1px solid rgba(255,255,255,0.08)', outline: 'none', borderRadius: 7, padding: 8,
+                                color: 'inherit', fontSize: 11, lineHeight: 1.5,
+                            }}
+                        />
+                    </div>
+                )
+            }
 
             default:
                 return null
         }
     }
 
-    const TypeIcon = WIDGET_TYPES.find(w => w.type === node.type)?.icon || Type
-    const nodeAccent = node.color || t.accent
+    const TypeIcon = widgetPreset?.icon || Type
 
     return (
         <div className="nx-canvas-node"
@@ -737,14 +1155,27 @@ export function CanvasNodeWidget({ node, isSelected, onSelect, onStartConnect, o
                 </>
             )}
 
-            <Glass type="panel" glow={isSelected} className="h-full" style={{
+            <Glass
+                type="panel"
+                glow={isSelected}
+                performanceProfile={resizing ? 'balanced' : 'auto'}
+                className="h-full"
+                style={{
                 width: '100%', height: '100%',
                 borderColor: isSelected ? nodeAccent : undefined,
                 borderWidth: isSelected ? 2 : 1,
                 overflow: 'hidden',
                 cursor: dragging ? 'grabbing' : (resizing ? 'nwse-resize' : 'grab'),
                 userSelect: dragging || resizing ? 'none' : 'auto',
-                background: isSticky ? stickyBg : undefined,
+                background: resizing
+                    ? resizeSafeBackground
+                    : isSticky
+                        ? stickyBg
+                        : `linear-gradient(180deg, rgba(${rgb},${t.mode === 'dark' ? '0.16' : '0.09'}) 0%, rgba(${rgb},0) 42%)`,
+                backdropFilter: resizing ? 'none' : undefined,
+                WebkitBackdropFilter: resizing ? 'none' : undefined,
+                contain: 'layout paint',
+                isolation: 'isolate',
                 boxShadow: isSelected
                     ? `0 0 0 2px ${nodeAccent}, 0 8px 32px rgba(0,0,0,0.3), 0 0 20px ${nodeAccent}30`
                     : `0 4px 16px rgba(0,0,0,0.2)`,
@@ -765,7 +1196,22 @@ export function CanvasNodeWidget({ node, isSelected, onSelect, onStartConnect, o
                         paddingBottom: 6, paddingTop: 4,
                     }}>
                         <GripVertical size={13} style={{ opacity: 0.35, flexShrink: 0 }} />
-                        <TypeIcon size={13} style={{ color: nodeAccent, flexShrink: 0 }} />
+                        <div
+                            style={{
+                                width: 18,
+                                height: 18,
+                                borderRadius: 6,
+                                background: `rgba(${rgb},0.2)`,
+                                border: `1px solid rgba(${rgb},0.34)`,
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                flexShrink: 0,
+                            }}
+                            title={widgetDescription}
+                        >
+                            <TypeIcon size={11} style={{ color: nodeAccent, flexShrink: 0 }} />
+                        </div>
 
                         {editTitle
                             ? <input autoFocus className="node-interactive" value={node.title}
@@ -779,6 +1225,31 @@ export function CanvasNodeWidget({ node, isSelected, onSelect, onStartConnect, o
                                 {node.title}
                             </span>
                         }
+
+                        {!editTitle && (
+                            <span
+                                title={widgetDescription}
+                                style={{
+                                    fontSize: 9,
+                                    fontWeight: 700,
+                                    padding: '2px 7px',
+                                    borderRadius: 999,
+                                    border: `1px solid rgba(${rgb},0.42)`,
+                                    color: nodeAccent,
+                                    background: `rgba(${rgb},0.18)`,
+                                    letterSpacing: 0.25,
+                                    textTransform: 'uppercase',
+                                    lineHeight: 1.1,
+                                    flexShrink: 0,
+                                    maxWidth: 92,
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap',
+                                }}
+                            >
+                                {widgetCategory}
+                            </span>
+                        )}
 
                         {/* Context menu */}
                         <div style={{ position: 'relative', flexShrink: 0 }}>

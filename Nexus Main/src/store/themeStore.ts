@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { createStoreManagerStorage } from './persistence/storeManager'
 
 export type GlowMode = 'ambient' | 'outline' | 'focus' | 'gradient' | 'pulse' | 'off'
 export type BlendMode = 'normal' | 'screen' | 'multiply' | 'overlay'
@@ -91,6 +92,7 @@ export interface QOLConfig {
   fontSize: number
   panelDensity: 'comfortable' | 'compact' | 'spacious'
   quickActions: boolean
+  motionProfile?: 'minimal' | 'balanced' | 'expressive' | 'cinematic'
 }
 
 export interface VisualConfig {
@@ -320,6 +322,7 @@ export const GLOBAL_FONTS = [
   { value: "'Sora', sans-serif", label: 'Sora' },
   { value: "'Avenir Next', 'Avenir', 'Segoe UI', sans-serif", label: 'Avenir Next' },
   { value: "'Segoe UI', 'Helvetica Neue', Arial, sans-serif", label: 'Segoe / Helvetica' },
+  { value: "'JetBrains Mono', 'Fira Code', 'SF Mono', Menlo, Monaco, Consolas, monospace", label: 'JetBrains Mono' },
   { value: "'Fira Code', 'SF Mono', Menlo, Monaco, Consolas, monospace", label: 'Fira Code Mono' },
 ]
 
@@ -384,7 +387,7 @@ export const useTheme = create<Theme>()(
       visual: { shadowDepth: 0.4, animationSpeed: 1, panelRadius: 14, compactMode: false, spacingDensity: 'comfortable', borderThickness: 0 },
       animations: DEFAULT_ANIMS,
       editor: { autosave: true, autosaveInterval: 2000, wordWrap: true, lineNumbers: true, minimap: true, cursorAnimation: true, tabSize: 2, fontSize: 13, fontFamily: 'monospace' },
-      qol: { reducedMotion: false, highContrast: false, showTooltips: true, sidebarAutoHide: false, fontSize: 14, panelDensity: 'comfortable', quickActions: false },
+      qol: { reducedMotion: false, highContrast: false, showTooltips: true, sidebarAutoHide: false, fontSize: 14, panelDensity: 'comfortable', quickActions: false, motionProfile: 'balanced' },
 
       glowOutline: true, glowColor1: '#00bcd4', glowColor2: '#2196f3', glowOutlineStrength: 12,
 
@@ -423,8 +426,28 @@ export const useTheme = create<Theme>()(
         }))
       },
     }),
-    { name: 'nx-theme-v5' }
+    {
+      name: 'nx-theme-v5',
+      storage: createStoreManagerStorage<Theme>({
+        debounceMs: 2_800,
+        idleTimeoutMs: 1_900,
+        flushBudgetMs: 9,
+      }),
+    }
   )
 )
 
 export const PRESETS = Object.keys(P)
+
+export const PRESET_PREVIEWS = PRESETS.reduce<
+  Record<string, { mode: 'dark' | 'light'; accent: string; accent2: string; bg: string }>
+>((acc, presetName) => {
+  const preset = P[presetName] || {}
+  acc[presetName] = {
+    mode: (preset.mode === 'light' ? 'light' : 'dark'),
+    accent: String(preset.accent || '#007AFF'),
+    accent2: String(preset.accent2 || preset.accent || '#5E5CE6'),
+    bg: String(preset.bg || '#12141f'),
+  }
+  return acc
+}, {})

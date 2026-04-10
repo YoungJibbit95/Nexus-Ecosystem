@@ -1,12 +1,4 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react'
-import Editor, { loader } from '@monaco-editor/react'
-import * as monaco from 'monaco-editor'
-import { useMobile } from '../lib/useMobile'
-
-// Point the loader at the locally installed monaco-editor package.
-// This is required for Electron builds (file:// protocol) where CDN is blocked.
-// When running under Vite dev server this is a no-op since CDN works fine.
-loader.config({ monaco })
 import {
   Play, Copy, Plus, Trash2, Save, X, FileCode,
   ChevronDown, ChevronRight, Terminal, Download,
@@ -18,6 +10,7 @@ import { useApp, CodeFile } from '../store/appStore'
 import { useTheme } from '../store/themeStore'
 import { hexToRgb } from '../lib/utils'
 import { motion, AnimatePresence } from 'framer-motion'
+import { shallow } from 'zustand/shallow'
 
 // ─────────────────────────────────────────────
 // Language registry
@@ -28,7 +21,7 @@ const LANGS = [
   { id: 'python',     label: 'Python',     ext: 'py',   color: '#3572A5', hello: `# Python\nprint("Hello, World!")\nprint(f"2 + 2 = {2 + 2}")\n\nnums = [1, 2, 3, 4, 5]\nprint("squares:", [x**2 for x in nums])\nprint("sum:", sum(nums))\n\nfor i in range(3):\n    print(f"  loop {i}")` },
   { id: 'html',       label: 'HTML',       ext: 'html', color: '#E34C26', hello: `<!DOCTYPE html>\n<html lang="en">\n<head>\n  <meta charset="UTF-8">\n  <title>Hello</title>\n  <style>\n    body { font-family: system-ui; background: #0a0a14; color: white; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }\n    h1 { background: linear-gradient(135deg, #007AFF, #5E5CE6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }\n  </style>\n</head>\n<body>\n  <div>\n    <h1>Hello, World!</h1>\n    <p>Edit this HTML preview →</p>\n  </div>\n</body>\n</html>` },
   { id: 'css',        label: 'CSS',        ext: 'css',  color: '#563d7c', hello: `/* CSS Preview */\nbody {\n  background: linear-gradient(135deg, #0a0a14 0%, #1a1a2e 100%);\n  min-height: 100vh;\n  margin: 0;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  font-family: system-ui, sans-serif;\n  color: white;\n}\n\n.card {\n  padding: 2rem;\n  border-radius: 16px;\n  background: rgba(255,255,255,0.08);\n  backdrop-filter: blur(20px);\n  border: 1px solid rgba(255,255,255,0.12);\n  text-align: center;\n}` },
-  { id: 'json',       label: 'JSON',       ext: 'json', color: '#8bc34a', hello: `{\n  "name": "Nexus v3",\n  "version": "4.0.0",\n  "features": [\n    "Code Editor",\n    "Canvas",\n    "Tasks",\n    "Reminders"\n  ],\n  "settings": {\n    "theme": "Deep Space",\n    "glow": true,\n    "blur": 20\n  }\n}` },
+  { id: 'json',       label: 'JSON',       ext: 'json', color: '#8bc34a', hello: `{\n  "name": "Nexus v5",\n  "version": "5.0.0",\n  "features": [\n    "Code Editor",\n    "Canvas",\n    "Tasks",\n    "Reminders"\n  ],\n  "settings": {\n    "theme": "Deep Space",\n    "glow": true,\n    "blur": 20\n  }\n}` },
   { id: 'markdown',   label: 'Markdown',   ext: 'md',   color: '#083fa1', hello: `# Hello World\n\nThis is a **Markdown** preview with *live rendering*.\n\n## Features\n\n- ✅ Live preview\n- ✅ Syntax highlighting\n- ✅ GFM tables\n\n## Code\n\n\`\`\`js\nconsole.log("Hello!")\n\`\`\`\n\n## Table\n\n| Name | Value |\n|------|-------|\n| Alpha | 1 |\n| Beta | 2 |` },
   { id: 'java',       label: 'Java',       ext: 'java', color: '#b07219', hello: `public class Main {\n    public static void main(String[] args) {\n        System.out.println("Hello, World!");\n        \n        int sum = 0;\n        for (int i = 1; i <= 10; i++) {\n            sum += i;\n        }\n        System.out.println("Sum 1-10: " + sum);\n        \n        String[] fruits = {"Apple", "Banana", "Cherry"};\n        for (String f : fruits) {\n            System.out.println("  - " + f);\n        }\n    }\n}` },
   { id: 'cpp',        label: 'C++',        ext: 'cpp',  color: '#f34b7d', hello: `#include <iostream>\n#include <vector>\nusing namespace std;\n\nint main() {\n    cout << "Hello, World!" << endl;\n    \n    vector<int> nums = {1, 2, 3, 4, 5};\n    int sum = 0;\n    for (int n : nums) {\n        sum += n;\n        cout << n * n << " ";\n    }\n    cout << endl;\n    cout << "Sum: " << sum << endl;\n    return 0;\n}` },
@@ -243,10 +236,19 @@ function OutLine({ text }: { text: string }) {
 export function CodeView() {
   const t = useTheme()
   const rgb = hexToRgb(t.accent)
-  const { codes, activeCodeId, openCodeIds, addCode, updateCode, delCode, setCode, openCode, closeCode, saveCode } = useApp()
+  const { codes, activeCodeId, openCodeIds, addCode, updateCode, delCode, setCode, openCode, closeCode, saveCode } = useApp((s) => ({
+    codes: s.codes,
+    activeCodeId: s.activeCodeId,
+    openCodeIds: s.openCodeIds,
+    addCode: s.addCode,
+    updateCode: s.updateCode,
+    delCode: s.delCode,
+    setCode: s.setCode,
+    openCode: s.openCode,
+    closeCode: s.closeCode,
+    saveCode: s.saveCode,
+  }), shallow)
 
-  const mob = useMobile()
-  // Always use textarea fallback on mobile — Monaco too heavy for WebView
   const [output, setOutput]         = useState<string[]>([])
   const [running, setRunning]       = useState(false)
   const [elapsed, setElapsed]       = useState<number|null>(null)
@@ -259,7 +261,6 @@ export function CodeView() {
   const [newLang, setNewLang]       = useState('javascript')
   const [preview, setPreview]       = useState<'editor'|'split'|'preview'>('editor')
   const [copiedOut, setCopiedOut]   = useState(false)
-  const [editorFailed, setEditorFailed] = useState(() => mob.isMobile)
   const [runHistory, setRunHistory] = useState<{ file: string; at: string; ok: boolean; ms: number }[]>([])
   const outRef  = useRef<HTMLDivElement>(null)
   const dragRef = useRef<{y:number;h:number}|null>(null)
@@ -433,68 +434,22 @@ export function CodeView() {
                 {/* Editor */}
                 {(preview==='editor'||preview==='split') && (
                   <div style={{ flex:1, overflow:'hidden', minWidth:0, position:'relative' }}>
-                    {editorFailed ? (
-                      <textarea
-                        value={active.content}
-                        onChange={e => updateCode(active.id, { content: e.target.value, dirty: true })}
-                        style={{
-                          width: '100%', height: '100%', padding: '14px 16px',
-                          background: 'transparent', border: 'none', outline: 'none', resize: 'none',
-                          fontSize: t.editor.fontSize || 13, lineHeight: 1.65,
-                          fontFamily: "'Fira Code','JetBrains Mono',monospace",
-                          color: 'inherit', tabSize: t.editor.tabSize || 2,
-                        }}
-                        onKeyDown={e => {
-                          if ((e.ctrlKey||e.metaKey) && e.key==='Enter') { e.preventDefault(); run() }
-                          if (e.key==='Tab') { e.preventDefault(); const s=e.currentTarget; const i=s.selectionStart; const spaces='  '; s.value=s.value.slice(0,i)+spaces+s.value.slice(s.selectionEnd); s.selectionStart=s.selectionEnd=i+spaces.length; updateCode(active.id,{content:s.value,dirty:true}) }
-                        }}
-                        spellCheck={false}
-                      />
-                    ) : (
-                    <Editor
-                      height="100%"
-                      language={active.lang}
+                    <textarea
                       value={active.content}
-                      onChange={v => updateCode(active.id, { content: v??'', dirty:true })}
-                      theme={t.mode==='light'?'vs':'vs-dark'}
-                      loading={
-                        <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100%', flexDirection:'column', gap:12, opacity:0.5 }}>
-                          <Loader size={20} className="nx-spin" style={{ color: t.accent }} />
-                          <span style={{ fontSize:12 }}>Editor wird geladen…</span>
-                        </div>
-                      }
-                      options={{
-                        fontSize: t.editor.fontSize || 13,
-                        fontFamily: t.editor.fontFamily || "'Fira Code','JetBrains Mono',monospace",
-                        fontLigatures: true,
-                        minimap: { enabled: t.editor.minimap },
-                        lineNumbers: t.editor.lineNumbers ? 'on' : 'off',
-                        wordWrap: t.editor.wordWrap ? 'on' : 'off',
-                        scrollBeyondLastLine: false,
-                        renderLineHighlight: 'gutter',
-                        padding: { top: 14, bottom: 14 },
-                        smoothScrolling: true,
-                        cursorBlinking: t.editor.cursorAnimation ? 'smooth' : 'blink',
-                        cursorSmoothCaretAnimation: 'on' as any,
-                        bracketPairColorization: { enabled: true },
-                        guides: { bracketPairs: 'active' as any },
-                        quickSuggestions: true,
-                        formatOnPaste: true,
-                        tabSize: t.editor.tabSize || 2,
-                        scrollbar: { verticalScrollbarSize: 6, horizontalScrollbarSize: 6 },
-                        overviewRulerLanes: 0,
-                        hideCursorInOverviewRuler: true,
-                        renderFinalNewline: 'on' as any,
+                      onChange={e => updateCode(active.id, { content: e.target.value, dirty: true })}
+                      style={{
+                        width: '100%', height: '100%', padding: '14px 16px',
+                        background: 'transparent', border: 'none', outline: 'none', resize: 'none',
+                        fontSize: t.editor.fontSize || 13, lineHeight: 1.65,
+                        fontFamily: "'Fira Code','JetBrains Mono',monospace",
+                        color: 'inherit', tabSize: t.editor.tabSize || 2,
                       }}
-                      onMount={(editor, monacoInstance) => {
-                        editor.addCommand(monacoInstance.KeyMod.CtrlCmd | monacoInstance.KeyCode.Enter, () => run())
-                        editor.addCommand(monacoInstance.KeyMod.CtrlCmd | monacoInstance.KeyCode.KeyS, () => active && saveCode(active.id))
-                        // Focus the editor after mount
-                        setTimeout(() => editor.focus(), 50)
+                      onKeyDown={e => {
+                        if ((e.ctrlKey||e.metaKey) && e.key==='Enter') { e.preventDefault(); run() }
+                        if (e.key==='Tab') { e.preventDefault(); const s=e.currentTarget; const i=s.selectionStart; const spaces='  '; s.value=s.value.slice(0,i)+spaces+s.value.slice(s.selectionEnd); s.selectionStart=s.selectionEnd=i+spaces.length; updateCode(active.id,{content:s.value,dirty:true}) }
                       }}
-                      onValidate={() => {}}
+                      spellCheck={false}
                     />
-                    )}
                   </div>
                 )}
                 {/* Preview */}

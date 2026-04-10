@@ -1,9 +1,10 @@
 import { useMobile } from '../lib/useMobile'
-import React, { useState } from 'react'
-import { Glass } from '../components/Glass'
+import React, { useMemo, useState } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
 import { useTheme } from '../store/themeStore'
+import { buildMotionRuntime } from '../lib/motionEngine'
 import {
-  ChevronDown, ChevronUp, BookOpen, Code2, FileText, CheckSquare, Bell,
+  ChevronDown, BookOpen, Code2, FileText, CheckSquare, Bell,
   Layout, Settings, Palette, Terminal, Keyboard, Zap, GitBranch, Sparkles,
   Wand2, Search, Layers, Calculator, HardDrive, Wrench, Package, BarChart3,
   Type, Monitor, Sliders, Eye, Play, Copy, Star, Clock
@@ -11,25 +12,54 @@ import {
 
 function Acc({ title, icon: Icon, open, onToggle, children, badge }: any) {
   const t = useTheme()
+  const motionRuntime = useMemo(() => buildMotionRuntime(t), [t])
+  const quickMotion = `var(--nx-motion-quick, ${motionRuntime.quickMs}ms)`
+  const regularMotion = `var(--nx-motion-regular, ${motionRuntime.regularMs}ms)`
+  const motionEase = 'cubic-bezier(0.22, 1, 0.36, 1)'
   return (
     <div style={{ marginBottom: 8 }}>
-      <button onClick={onToggle} style={{
+      <motion.button
+        type="button"
+        onClick={onToggle}
+        whileHover={t.animations?.hoverLift ? { filter: 'brightness(1.03)' } : undefined}
+        whileTap={motionRuntime.reduced ? undefined : { filter: 'brightness(0.97)' }}
+        transition={motionRuntime.spring}
+        style={{
         width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '13px 18px',
         background: open ? `rgba(${hexRgb(t.accent)},0.1)` : 'rgba(255,255,255,0.04)',
         border: `1px solid ${open ? `rgba(${hexRgb(t.accent)},0.25)` : 'rgba(255,255,255,0.08)'}`,
         borderRadius: open ? '12px 12px 0 0' : 12,
-        cursor: 'pointer', color: 'inherit', transition: 'all 0.15s',
-      }}>
+        cursor: 'pointer', color: 'inherit',
+        transition: `background-color ${regularMotion} ${motionEase}, border-color ${quickMotion} ${motionEase}, box-shadow ${regularMotion} ${motionEase}`,
+      }}
+      >
         {Icon && <Icon size={18} style={{ color: t.accent, opacity: 0.85, flexShrink: 0 }}/>}
         <span style={{ flex: 1, textAlign: 'left', fontSize: 14, fontWeight: 700 }}>{title}</span>
         {badge && <span style={{ fontSize: 9, fontWeight: 800, padding: '2px 7px', borderRadius: 8, background: t.accent, color: '#fff' }}>{badge}</span>}
-        {open ? <ChevronUp size={14} style={{ opacity: 0.45 }}/> : <ChevronDown size={14} style={{ opacity: 0.45 }}/>}
-      </button>
-      {open && (
-        <div style={{ padding: '18px 20px', background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.07)', borderTop: 'none', borderRadius: '0 0 12px 12px' }}>
-          {children}
-        </div>
-      )}
+        <motion.span
+          aria-hidden="true"
+          animate={{ rotate: open ? 180 : 0, opacity: 0.5 }}
+          transition={motionRuntime.spring}
+          style={{ display: 'inline-flex' }}
+        >
+          <ChevronDown size={14} />
+        </motion.span>
+      </motion.button>
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: Math.max(0.14, motionRuntime.regularMs / 1000), ease: [0.22, 1, 0.36, 1] }}
+            style={{ overflow: 'hidden' }}
+          >
+            <div style={{ padding: '18px 20px', background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.07)', borderTop: 'none', borderRadius: '0 0 12px 12px' }}>
+              {children}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
@@ -41,14 +71,19 @@ function hexRgb(hex: string) {
 
 function Card({ title, icon, desc, keys }: { title: string; icon?: string; desc: string; keys?: string[] }) {
   const t = useTheme()
+  const motionRuntime = useMemo(() => buildMotionRuntime(t), [t])
   return (
-    <div style={{ padding: '12px 14px', borderRadius: 10, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', marginBottom: 8 }}>
+    <motion.div
+      whileHover={t.animations?.hoverLift ? { filter: 'brightness(1.03)' } : undefined}
+      transition={motionRuntime.spring}
+      style={{ padding: '12px 14px', borderRadius: 10, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', marginBottom: 8 }}
+    >
       <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 5, color: t.accent }}>{icon} {title}</div>
       <div style={{ fontSize: 12, opacity: 0.68, lineHeight: 1.6 }}>{desc}</div>
       {keys && <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 8 }}>
         {keys.map(k => <kbd key={k} style={{ padding: '2px 8px', borderRadius: 5, fontSize: 10, fontFamily: 'monospace', background: 'rgba(255,255,255,0.09)', border: '1px solid rgba(255,255,255,0.13)' }}>{k}</kbd>)}
       </div>}
-    </div>
+    </motion.div>
   )
 }
 
@@ -84,7 +119,22 @@ export function InfoView() {
   const t = useTheme()
   const rgb = hexRgb(t.accent)
   const mob = useMobile()
-  const [open, setOpen] = useState<Record<string,boolean>>({ about: true, changelog: true, notes: false, code: false, tasks: false, reminders: false, canvas: false, files: false, devtools: false, settings: false, shortcuts: false, terminal: false })
+  const [open, setOpen] = useState<Record<string,boolean>>({
+    about: true,
+    changelog: true,
+    dashboard: false,
+    notes: false,
+    code: false,
+    tasks: false,
+    reminders: false,
+    canvas: false,
+    files: false,
+    flux: false,
+    devtools: false,
+    settings: false,
+    shortcuts: false,
+    terminal: false,
+  })
   const tog = (k: string) => setOpen(s => ({ ...s, [k]: !s[k] }))
 
   return (
@@ -96,9 +146,9 @@ export function InfoView() {
           <div style={{ position: 'absolute', top: -30, right: -30, width: 140, height: 140, borderRadius: '50%', background: `radial-gradient(circle, rgba(${rgb},0.2), transparent)`, filter: 'blur(30px)' }}/>
           <div style={{ position: 'relative' }}>
             <div style={{ fontSize: 32, fontWeight: 900, marginBottom: 6, background: `linear-gradient(135deg, ${t.accent}, ${t.accent2})`, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-              NEXUS v4.1
+              NEXUS v5.0
             </div>
-            <div style={{ fontSize: 13, opacity: 0.55, marginBottom: 16 }}>Productivity Suite · Glass & Glow Edition · März 2026</div>
+            <div style={{ fontSize: 13, opacity: 0.55, marginBottom: 16 }}>Productivity Suite · Glass & Glow Edition · 4. April 2026</div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
               <Badge label="Notes" color={t.accent}/>
               <Badge label="Code Editor" color="#BF5AF2"/>
@@ -106,6 +156,7 @@ export function InfoView() {
               <Badge label="Reminders" color="#FF453A"/>
               <Badge label="Canvas" color="#30D158"/>
               <Badge label="Files" color="#64D2FF"/>
+              <Badge label="Flux" color="#FFD60A"/>
               <Badge label="DevTools" color="#FF6B35"/>
               <Badge label="Workspaces" color="#5E5CE6"/>
             </div>
@@ -113,35 +164,36 @@ export function InfoView() {
         </div>
 
         {/* ═══ CHANGELOG ═══ */}
-        <Acc title="Changelog" icon={Star} open={open.changelog} onToggle={() => tog('changelog')} badge="v4.1 NEW">
+        <Acc title="Changelog" icon={Star} open={open.changelog} onToggle={() => tog('changelog')} badge="v5.0 NEW">
           <div style={{ marginBottom: 10 }}>
-            <div style={{ fontSize: 18, fontWeight: 800, color: t.accent }}>v4.1 — Liquid Glass Recode</div>
+            <div style={{ fontSize: 18, fontWeight: 800, color: t.accent }}>v5.0 — Stability, Performance & UX Polish</div>
             <div style={{ fontSize: 10, opacity: 0.45, marginTop: 3, textTransform: 'uppercase', letterSpacing: 1 }}>
-              März 2026 · Active Channel
+              4. April 2026 · Active Channel
             </div>
           </div>
 
           {[
-            { icon: '🫧', title: 'Design-System Recode (iOS-Style)', color: '#64D2FF', items: [
-              'Globales Liquid-Glass Look-and-Feel mit deutlich mehr Frosted Blur und Sättigung',
-              'Neue Layer-Tiefe: weiche Lichtkante oben, stärkere Tiefenschatten unten',
-              'Mobile Header + Bottom Navigation als floating frosted surfaces',
-              'TitleBar und Spotlight visuell an iOS-Glass angepasst',
+            { icon: '🚀', title: 'Performance-Update projektweit', color: '#64D2FF', items: [
+              'View-Wechsel und Startup überarbeitet, weniger wahrnehmbare Delays im Build',
+              'Terminal und UI-Updates mit geringerem Re-Render-Druck auf Laptop/Phone',
+              'Canvas Rendering mit reduzierten Effekten bei hohen Lastsituationen',
+              'Stabilere Runtime bei schwankender Netzqualität',
             ]},
-            { icon: '⌘', title: 'Command & Search Upgrade', color: '#007AFF', items: [
-              'Command Palette (Cmd/Ctrl+K) mit erweiterten Aktionen und Verlauf',
-              'Toolbar-Spotlight verbessert: bessere Resultate + Smart Hints',
-              'Schneller Zugriff auf Navigation, Create, Theme, Terminal-Kommandos',
+            { icon: '🧠', title: 'Canvas Stabilität + UX', color: '#30D158', items: [
+              'Resize-Verhalten gehärtet (kein weißes Flashing mehr auf Node-Hintergründen)',
+              'Resize nutzt jetzt Resize-Safe Fallback ohne schwere Filter im Drag',
+              'Node-Interaktion bleibt flüssig bei Zoom/Pan/Resize',
+              'Main- und Mobile-Canvas wieder auf gleichem Stabilitätsstand',
             ]},
-            { icon: '💻', title: 'Terminal 4.1', color: '#BF5AF2', items: [
-              'Neue Commands: help, views, goto, new, list, stats, theme, preset, search, palette, clear, exit',
-              'Terminal-Chips für schnelle Kommandos',
-              'Direkte Datenaktionen: Notes/Tasks/Reminders/Code erstellen und navigieren',
+            { icon: '⌘', title: 'Terminal + Navigation', color: '#BF5AF2', items: [
+              'Terminal-Banner und Runtime-Versionen auf v5 aktualisiert',
+              'Command/Navigation-Flows bleiben vollständig erhalten',
+              'Schnelle Aktionen für Create/Goto/Search weiterhin direkt verfügbar',
             ]},
-            { icon: '📊', title: 'Dashboard & Views', color: '#30D158', items: [
-              'Persistentes Widget-Layout (sichtbar/hidden, Reihenfolge, Breite)',
-              'Konsistenter ViewHeader in mehreren Views',
-              'Files-View mit verbessertem Workspace-Entry-Flow',
+            { icon: '📘', title: 'InfoView & Version-Parität', color: '#FF6B35', items: [
+              'Mobile InfoView auf v5 angehoben',
+              'Stale v4.x Marker in Mobile entfernt (App/Sidebar/Code/Terminal)',
+              'Dokumentationsinhalte auf aktuellen Feature-Stand gebracht',
             ]},
           ].map(section => (
             <div key={section.title} style={{ padding: '14px 16px', borderRadius: 11, background: 'rgba(255,255,255,0.03)', border: `1px solid ${section.color}22`, marginBottom: 8 }}>
@@ -159,18 +211,15 @@ export function InfoView() {
           <div style={{ height: 1, background: 'rgba(255,255,255,0.07)', margin: '18px 0' }}/>
 
           <div style={{ opacity: 0.62 }}>
-            <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 8 }}>v4.0 — Core Production Build</div>
-            <div style={{ fontSize: 12, opacity: 0.75, lineHeight: 1.65, marginBottom: 10 }}>
-              Dashboard Widgets · Command Palette · Theme Tokens + Auto-Kontrast · Mobile UX Refresh
-            </div>
-            <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 8 }}>v3.x — Foundation</div>
+            <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 8 }}>Previous Releases</div>
             <div style={{ fontSize: 12, opacity: 0.75, lineHeight: 1.65 }}>
-              Notes/Code/Tasks/Reminders/Canvas Basis · Glow/Glass Engine · Preset-System
+              Core Production Build · Dashboard Widgets · Command Palette · Theme Tokens + Auto-Kontrast ·
+              Notes/Code/Tasks/Reminders/Canvas Foundation · Glow/Glass Engine · Preset-System
             </div>
           </div>
 
           <div style={{ marginTop: 16, padding: '10px 16px', borderRadius: 10, background: 'rgba(48,209,88,0.08)', border: '1px solid rgba(48,209,88,0.2)', fontSize: 11, color: '#30d158', textAlign: 'center', fontWeight: 700 }}>
-            ✓ Production-ready · Electron + React + Zustand · Liquid Glass UI · v4.1
+            ✓ Production-ready · Electron + React + Zustand · Liquid Glass UI · v5.0.0
           </div>
         </Acc>
 
@@ -184,10 +233,11 @@ export function InfoView() {
             <Card icon="🔔" title="Reminders" desc="Zeitbasierte Erinnerungen mit Snooze, Repeat und Toast-Flow."/>
             <Card icon="📊" title="Dashboard" desc="Pinbare Widgets, personalisierbar und persistent gespeichert."/>
             <Card icon="🗂️" title="Files & Workspaces" desc="Einheitliche Dateiansicht über Notes/Code/Tasks/Reminders."/>
+            <Card icon="⚡" title="Flux" desc="Operations View mit Queue, Bottlenecks, Activity-Filter und Quick Actions."/>
             <Card icon="🛠️" title="DevTools" desc="Builder + UI Calculator für schnelle Frontend-Arbeit."/>
             <Card icon="⚙️" title="Settings" desc="Theme-System mit Presets, Tokens, Glass/Glow/Background/Motion."/>
           </Grid2>
-          <Code>{`Nexus v4.1 — Stack
+          <Code>{`Nexus v5.0 — Stack
 ━━━━━━━━━━━━━━━━━━━━━━━━━
 Frontend:   React 18 + Vite 5 + TypeScript
 State:      Zustand (persisted Stores)
@@ -197,6 +247,18 @@ DnD:        react-dnd
 Animation:  Framer Motion
 Runtime:    Electron`}
           </Code>
+        </Acc>
+
+        {/* ═══ DASHBOARD ═══ */}
+        <Acc title="Dashboard — Layout Editor" icon={Layout} open={open.dashboard} onToggle={() => tog('dashboard')} badge="UPDATED">
+          <P>Das Dashboard nutzt ein flexibles 2-Spalten-Layout mit Snap-Verhalten und persistenter Widget-Positionierung.</P>
+          <Grid2>
+            <Card icon="🧲" title="Snap Layout" desc="Widgets lassen sich präzise im Grid platzieren und neu anordnen."/>
+            <Card icon="🎛️" title="Manuelle Kontrolle" desc="Breite, Spalte, Zeile und Sichtbarkeit pro Widget steuerbar."/>
+            <Card icon="♻️" title="Reset" desc="Dashboard-Layout kann jederzeit auf Standard zurückgesetzt werden."/>
+            <Card icon="📦" title="Persistenz" desc="Widget-Konfiguration bleibt zwischen Sessions erhalten."/>
+          </Grid2>
+          <Card title="Keybinds" desc="Keine globalen Tastenkürzel in Dashboard; Fokus auf direkte UI-Interaktion."/>
         </Acc>
 
         {/* ═══ NOTES ═══ */}
@@ -220,7 +282,7 @@ Testing   | 70
 Release   | 40
 \`\`\``}
           </Code>
-          <Card title="Nützliche Shortcuts" desc="" keys={['Ctrl+S Save','Ctrl+B Bold','Ctrl+I Italic','Ctrl+K Link','Ctrl+Z Undo','Ctrl+Y Redo']}/>
+          <Card title="Nützliche Shortcuts" desc="" keys={['Cmd/Ctrl+S Save','Cmd/Ctrl+B Bold','Cmd/Ctrl+I Italic','Cmd/Ctrl+K Link','Cmd/Ctrl+Z Undo','Cmd/Ctrl+Y Redo','Tab Indent']}/>
         </Acc>
 
         {/* ═══ CODE ═══ */}
@@ -232,7 +294,7 @@ Release   | 40
             <Card icon="📂" title="Tab & Datei-Flow" desc="Code-Dateien anlegen, öffnen, speichern und schnell wechseln."/>
             <Card icon="🔎" title="Output Feedback" desc="Ergebnisse und Fehler sauber lesbar im Output-Bereich."/>
           </Grid2>
-          <Card title="Shortcuts" desc="" keys={['Ctrl+Enter Run','Ctrl+S Save','Ctrl+Space Suggest','Ctrl+/ Comment','Ctrl+G Go to Line']}/>
+          <Card title="Shortcuts" desc="" keys={['Cmd/Ctrl+Enter Run','Cmd/Ctrl+S Save','Tab Indent (Textarea-Fallback)','Enter Create File (Modal)']}/>
         </Acc>
 
         {/* ═══ TASKS ═══ */}
@@ -275,7 +337,7 @@ Release   | 40
             <Card icon="🔗" title="Connections" desc="Zusammenhänge als Knoten + Verbindungen darstellen."/>
             <Card icon="🔍" title="Zoom & Pan" desc="Präzise Navigation für große Maps."/>
           </Grid2>
-          <Card title="Canvas Controls" desc="" keys={['Scroll Zoom','Space+Drag Pan','Ctrl+0 Reset']}/>
+          <Card title="Canvas Controls" desc="" keys={['Space Hold Pan Mode','Delete Node','Esc Reset Selection','Cmd/Ctrl+0 Reset View']}/>
         </Acc>
 
         {/* ═══ FILES / WORKSPACES ═══ */}
@@ -287,6 +349,21 @@ Release   | 40
             <Card icon="⊞" title="Grid/List" desc="Zwischen visuellem Kartenmodus und kompakter Liste wechseln."/>
             <Card icon="🔍" title="Filter & Suche" desc="Typfilter plus Volltextsuche über Titel/Preview."/>
           </Grid2>
+          <Card title="Keybinds" desc="" keys={['Enter Save Workspace (Modal)']}/>
+        </Acc>
+
+        {/* ═══ FLUX ═══ */}
+        <Acc title="Flux — Ops Center" icon={Zap} open={open.flux} onToggle={() => tog('flux')} badge="REWORKED">
+          <P>Flux bündelt operative Workflows: Action Queue, Bottleneck-Erkennung, Activity-Stream und Quick Create.</P>
+          <Grid2>
+            <Card icon="🧭" title="Action Queue" desc="Priorisierte Liste offener Tasks/Fälligkeiten mit direkten Resolve-Aktionen."/>
+            <Card icon="🚨" title="Bottlenecks" desc="Engpässe werden anhand Priorität, Status und Fälligkeit hervorgehoben."/>
+            <Card icon="🕵️" title="Activity Stream" desc="Filter nach Note/Code/Task/Reminder plus Volltextsuche."/>
+            <Card icon="⚡" title="Quick Create" desc="Neue Note/Code/Task/Reminder direkt per UI oder Shortcut."/>
+            <Card icon="📈" title="Ops Score" desc="Gesundheitswert 0–100 aus Queue-Last, Bottlenecks und Aktivitätsniveau."/>
+            <Card icon="🏁" title="Bulk Actions" desc="Resolve Urgent und Start Backlog für schnelle Entlastung in Peak-Phasen."/>
+          </Grid2>
+          <Card title="Keybinds" desc="" keys={['Cmd/Ctrl+F Focus Search','Cmd/Ctrl+Shift+N/C/T/R Quick Create','Cmd/Ctrl+Shift+D Resolve Urgent','Cmd/Ctrl+Shift+B Start Backlog','1/2/3/4 Filter','0 Reset Filter','F Focus Mode','Esc Reset Query']}/>
         </Acc>
 
         {/* ═══ DEVTOOLS ═══ */}
@@ -318,10 +395,19 @@ Release   | 40
         {/* ═══ SHORTCUTS ═══ */}
         <Acc title="Tastenkürzel" icon={Keyboard} open={open.shortcuts} onToggle={() => tog('shortcuts')}>
           <Grid2>
-            <Card title="Global" desc="" keys={['Cmd/Ctrl+K Palette','Esc Close Overlay','Shift×2 Toolbar Expand']}/>
-            <Card title="Notes" desc="" keys={['Ctrl+S Save','Ctrl+B Bold','Ctrl+I Italic','Ctrl+K Link','Ctrl+Z/Ctrl+Y Undo/Redo']}/>
-            <Card title="Code" desc="" keys={['Ctrl+Enter Run','Ctrl+S Save','Ctrl+Space Suggestions','Ctrl+/ Comment']}/>
-            <Card title="Canvas" desc="" keys={['Scroll Zoom','Space+Drag Pan','Ctrl+0 Reset']}/>
+            <Card title="Global / Palette" desc="" keys={['Cmd/Ctrl+K Palette Toggle','Esc Palette Close']}/>
+            <Card title="Dashboard" desc="Keine globalen Tastenkürzel; Fokus auf direkte UI-Interaktion."/>
+            <Card title="Notes" desc="" keys={['Cmd/Ctrl+S Save','Cmd/Ctrl+B Bold','Cmd/Ctrl+I Italic','Cmd/Ctrl+K Link','Cmd/Ctrl+Z Undo','Cmd/Ctrl+Y Redo','Tab Indent']}/>
+            <Card title="Code" desc="" keys={['Cmd/Ctrl+Enter Run','Cmd/Ctrl+S Save','Tab Indent (Textarea)','Enter Create File (Modal)']}/>
+            <Card title="Tasks" desc="" keys={['Enter Add Tag','Enter Add Subtask']}/>
+            <Card title="Reminders" desc="Keine globalen Tastenkürzel; Fokus auf Quick-Presets und Kartenaktionen."/>
+            <Card title="Canvas" desc="" keys={['Space Hold Pan Mode','Delete Node','Esc Reset Selection','Cmd/Ctrl+0 Reset View']}/>
+            <Card title="Files" desc="" keys={['Enter Save Workspace (Modal)']}/>
+            <Card title="Flux" desc="" keys={['Cmd/Ctrl+F Focus Search','Cmd/Ctrl+Shift+N/C/T/R Quick Create','Cmd/Ctrl+Shift+D Resolve Urgent','Cmd/Ctrl+Shift+B Start Backlog','1/2/3/4 Filter','0 Reset Filter','F Focus Mode','Esc Reset Query']}/>
+            <Card title="DevTools" desc="" keys={['Tab Indent (Builder Textarea)','Enter Confirm Rename','Esc Cancel Rename']}/>
+            <Card title="Settings" desc="" keys={['Enter Commit Hex Color']}/>
+            <Card title="Info" desc="Keine globalen Tastenkürzel; dient als Referenz- und Release-Übersicht."/>
+            <Card title="Terminal" desc="" keys={['Enter Execute','ArrowUp/ArrowDown History','Esc Close Terminal','Ctrl+L Clear']}/>
           </Grid2>
         </Acc>
 

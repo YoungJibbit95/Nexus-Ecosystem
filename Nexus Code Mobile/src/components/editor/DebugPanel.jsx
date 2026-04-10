@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import {
   Play,
   Square,
@@ -47,12 +47,7 @@ const INITIAL_VARIABLES = [
   },
 ];
 
-const MOCK_CALLSTACK = [
-  { id: 1, fn: "main()", file: "main.java", line: 3, active: true },
-  { id: 2, fn: "fibonacci(10)", file: "example.py", line: 7, active: false },
-  { id: 3, fn: "greet(name)", file: "app.js", line: 2, active: false },
-  { id: 4, fn: "<anonymous>()", file: "app.js", line: 31, active: false },
-];
+const MAX_STACK_FRAMES = 4;
 
 const INITIAL_CONSOLE = [
   {
@@ -155,11 +150,12 @@ function TypeBadge({ type }) {
 
 /* ─── Main component ─────────────────────────────────────────────────────── */
 
-export default function DebugPanel({ activeFile, _code }) {
+export default function DebugPanel({ activeFile, _code, problems = [] }) {
   const [isRunning, setIsRunning] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [variables, setVariables] = useState(INITIAL_VARIABLES);
-  const [breakpoints, setBreakpoints] = useState([3, 7, 12]);
+  const [breakpoints, setBreakpoints] = useState([]);
+  const [pausedLine, setPausedLine] = useState(null);
   const [consoleLog, setConsoleLog] = useState(INITIAL_CONSOLE);
   const [consoleInput, setConsoleInput] = useState("");
   const [watchInput, setWatchInput] = useState("");
@@ -177,6 +173,47 @@ export default function DebugPanel({ activeFile, _code }) {
   const consoleEndRef = useRef(null);
   const consoleInputRef = useRef(null);
   let _logId = useRef(consoleLog.length + 1);
+  const syntaxErrors = useMemo(
+    () => problems.filter((item) => Number(item?.severity) === 8),
+    [problems],
+  );
+  const firstSyntaxError = syntaxErrors[0] || null;
+  const callstack = useMemo(() => {
+    if (!isRunning && !isPaused) return [];
+    const activeLine = Number(pausedLine || breakpoints[0] || 1);
+    const fileName = activeFile?.name || "untitled";
+    const frames = [
+      {
+        id: 1,
+        fn: activeFile ? `run(${fileName})` : "run()",
+        file: fileName,
+        line: activeLine,
+        active: true,
+      },
+      {
+        id: 2,
+        fn: "dispatch()",
+        file: "runtime/debug-adapter",
+        line: 44,
+        active: false,
+      },
+      {
+        id: 3,
+        fn: "eventLoop()",
+        file: "runtime/scheduler",
+        line: 18,
+        active: false,
+      },
+      {
+        id: 4,
+        fn: "<entry>",
+        file: fileName,
+        line: 1,
+        active: false,
+      },
+    ];
+    return frames.slice(0, MAX_STACK_FRAMES);
+  }, [activeFile, breakpoints, isPaused, isRunning, pausedLine]);
 
   useEffect(() => {
     consoleEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -195,17 +232,25 @@ export default function DebugPanel({ activeFile, _code }) {
   const handleStart = () => {
     setIsRunning(true);
     setIsPaused(false);
+    setPausedLine(null);
     addLog(
       "▶ Debug-Session gestartet" + (activeFile ? ` — ${activeFile.name}` : ""),
       "info",
     );
     setTimeout(() => {
       addLog("Ausführung läuft…", "system");
-      // Simulate hitting a breakpoint
-      if (breakpoints.length > 0) {
+      const sortedBreakpoints = [...breakpoints].sort((a, b) => a - b);
+      const firstBreakpointLine = sortedBreakpoints[0] || null;
+      const pauseLine = firstBreakpointLine || firstSyntaxError?.startLineNumber || null;
+      if (pauseLine) {
         setTimeout(() => {
           setIsPaused(true);
-          addLog(`⏸ Breakpoint bei Zeile ${breakpoints[0]} getroffen`, "warn");
+          setPausedLine(pauseLine);
+          if (firstBreakpointLine) {
+            addLog(`⏸ Breakpoint bei Zeile ${pauseLine} getroffen`, "warn");
+          } else {
+            addLog(`⏸ Syntax-Fehler bei Zeile ${pauseLine}: ${firstSyntaxError?.message || "Unbekannter Fehler"}`, "error");
+          }
           addLog("Variablen wurden aktualisiert.", "system");
           setVariables((prev) =>
             prev.map((v) =>
@@ -219,6 +264,7 @@ export default function DebugPanel({ activeFile, _code }) {
         setTimeout(() => {
           addLog("Ausführung abgeschlossen ✓", "output");
           setIsRunning(false);
+          setPausedLine(null);
         }, 1800);
       }
     }, 400);
@@ -227,6 +273,7 @@ export default function DebugPanel({ activeFile, _code }) {
   const handleStop = () => {
     setIsRunning(false);
     setIsPaused(false);
+    setPausedLine(null);
     addLog("■ Debug-Session beendet", "system");
   };
 
@@ -236,11 +283,13 @@ export default function DebugPanel({ activeFile, _code }) {
     setTimeout(() => {
       addLog("Ausführung abgeschlossen ✓", "output");
       setIsRunning(false);
+      setPausedLine(null);
     }, 900);
   };
 
   const handleStepOver = () => {
     addLog("→ Schritt übersprungen", "info");
+    setPausedLine((prev) => (Number.isFinite(prev) ? prev + 1 : prev));
     setVariables((prev) =>
       prev.map((v) => (v.name === "isReady" ? { ...v, value: "true" } : v)),
     );
@@ -510,6 +559,25 @@ export default function DebugPanel({ activeFile, _code }) {
               </span>
             </div>
           )}
+          {firstSyntaxError && (
+            <div
+              className="mx-3 mb-3 flex items-start gap-1.5 px-2.5 py-1.5 rounded-lg"
+              style={{
+                background: "rgba(239,68,68,0.08)",
+                border: "1px solid rgba(239,68,68,0.2)",
+              }}
+            >
+              <AlertTriangle size={11} className="text-red-400 mt-0.5 shrink-0" />
+              <div className="min-w-0">
+                <p className="text-[11px] text-red-300 font-semibold">
+                  Syntax-Fehler bei Zeile {firstSyntaxError.startLineNumber}
+                </p>
+                <p className="text-[10px] text-red-200/80 truncate">
+                  {firstSyntaxError.message}
+                </p>
+              </div>
+            </div>
+          )}
         </SectionHeader>
 
         {/* ── Variables / Watch ───────────────────────────────────────── */}
@@ -608,12 +676,12 @@ export default function DebugPanel({ activeFile, _code }) {
         <SectionHeader
           icon={Layers}
           title="Call Stack"
-          count={MOCK_CALLSTACK.length}
+          count={callstack.length}
           expanded={sections.callstack}
           onToggle={() => toggleSection("callstack")}
         >
           <div className="pb-1">
-            {MOCK_CALLSTACK.map((frame, i) => (
+            {callstack.map((frame, i) => (
               <motion.div
                 key={frame.id}
                 initial={{ opacity: 0, x: -8 }}
@@ -625,7 +693,6 @@ export default function DebugPanel({ activeFile, _code }) {
                   className="w-1.5 h-1.5 rounded-full shrink-0"
                   style={{
                     background: frame.active ? "#a855f7" : "#374151",
-                    boxShadow: frame.active ? "0 0 5px #a855f7" : "none",
                   }}
                 />
                 <div className="flex-1 min-w-0">
@@ -666,17 +733,12 @@ export default function DebugPanel({ activeFile, _code }) {
                 >
                   <motion.div
                     animate={{
-                      boxShadow:
-                        isRunning && !isPaused
-                          ? [
-                              "0 0 4px #ef4444",
-                              "0 0 8px #ef4444",
-                              "0 0 4px #ef4444",
-                            ]
-                          : ["0 0 3px #ef4444"],
+                      scale: isRunning && !isPaused ? [1, 1.16, 1] : 1,
+                      opacity: isRunning && !isPaused ? [0.78, 1, 0.78] : 1,
                     }}
                     transition={{ duration: 1.2, repeat: Infinity }}
                     className="w-2 h-2 rounded-full bg-red-500 shrink-0"
+                    style={{ willChange: "transform, opacity" }}
                   />
                   <span className="text-xs text-gray-400 font-mono flex-1">
                     Zeile <span className="text-gray-200">{line}</span>
@@ -868,7 +930,7 @@ export default function DebugPanel({ activeFile, _code }) {
           {!isRunning
             ? "Bereit"
             : isPaused
-              ? `Pausiert — Zeile ${breakpoints[0] ?? "?"}`
+              ? `Pausiert — Zeile ${pausedLine ?? breakpoints[0] ?? "?"}`
               : "Läuft…"}
         </span>
         {breakpoints.length > 0 && (

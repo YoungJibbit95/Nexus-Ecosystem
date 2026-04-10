@@ -1,7 +1,8 @@
 import React, { CSSProperties, memo, useState, forwardRef, useCallback, useRef, useEffect, useMemo } from 'react'
 import { useTheme } from '../store/themeStore'
 import { hexToRgb } from '../lib/utils'
-import { getShadowStyles, getTransitionSpeed } from '../lib/visualUtils'
+import { getShadowStyles } from '../lib/visualUtils'
+import { buildMotionRuntime } from '../lib/motionEngine'
 import { ThreePanelEffect } from './ThreePanelEffect'
 
 export interface GlassProps {
@@ -28,30 +29,6 @@ const isLowPowerDevice = () => {
   const cores = Number(navigator.hardwareConcurrency || 8)
   const memory = Number((navigator as any).deviceMemory || 8)
   return Boolean(reducedMotion) || cores <= 4 || memory <= 4
-}
-
-const ensureFakeGlassFilter = () => {
-  if (typeof document === 'undefined') return
-  if (document.getElementById('nx-fake-glass-filter-defs')) return
-
-  const ns = 'http://www.w3.org/2000/svg'
-  const svg = document.createElementNS(ns, 'svg')
-  svg.setAttribute('id', 'nx-fake-glass-filter-defs')
-  svg.setAttribute('width', '0')
-  svg.setAttribute('height', '0')
-  svg.style.position = 'absolute'
-  svg.style.left = '-9999px'
-  svg.style.top = '-9999px'
-  svg.innerHTML = `
-    <defs>
-      <filter id="nx-fake-glass-filter" x="-20%" y="-20%" width="140%" height="140%">
-        <feTurbulence type="fractalNoise" baseFrequency="0.008 0.012" numOctaves="2" seed="9" result="noise" />
-        <feGaussianBlur in="noise" stdDeviation="1.4" result="blurNoise" />
-        <feDisplacementMap in="SourceGraphic" in2="blurNoise" scale="6" xChannelSelector="R" yChannelSelector="G" />
-      </filter>
-    </defs>
-  `
-  document.body.appendChild(svg)
 }
 
 // ── Panel background pattern generators ──────────────────────────
@@ -133,6 +110,7 @@ function GradientGlowBorder({ glow, active, animSpeed }: { glow: any; active: bo
   const intensity = glow.intensity * (active ? 1.3 : 0.85)
   const effectiveSpeed = Math.max(glow.animationSpeed, 0.1) * Math.max(animSpeed, 0.1)
   const dur = Math.max(3 / Math.max(effectiveSpeed, 0.1), 1.5)
+  const wanderAnim = glow.animated ? `nx-gradient-wander ${dur}s linear infinite` : undefined
 
   return (
     <>
@@ -140,21 +118,21 @@ function GradientGlowBorder({ glow, active, animSpeed }: { glow: any; active: bo
       <div aria-hidden="true" style={{
         position: 'absolute', inset: -glow.radius * 0.4,
         pointerEvents: 'none', zIndex: 0, borderRadius: 'inherit',
-        background: `conic-gradient(from ${glow.gradientAngle}deg, ${c1}, ${c2}, ${c1})`,
+        background: `conic-gradient(from calc(${glow.gradientAngle}deg + var(--nx-gradient-rot, 0deg)), ${c1}, ${c2}, ${c1})`,
         filter: `blur(${glow.radius * 0.7}px)`,
         opacity: Math.min(intensity * 0.55, 0.9),
-        animation: glow.animated ? `nexus-spin ${dur}s linear infinite` : undefined,
+        animation: wanderAnim,
       }} />
       {/* Sharp gradient border on top */}
       <div aria-hidden="true" style={{
         position: 'absolute', inset: -1.5,
         pointerEvents: 'none', zIndex: 7, borderRadius: 'inherit',
         padding: '2px',
-        background: `conic-gradient(from ${glow.gradientAngle}deg, ${c1}dd, ${c2}dd, ${c1}dd)`,
+        background: `conic-gradient(from calc(${glow.gradientAngle}deg + var(--nx-gradient-rot, 0deg)), ${c1}dd, ${c2}dd, ${c1}dd)`,
         WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
         WebkitMaskComposite: 'xor',
         maskComposite: 'exclude',
-        animation: glow.animated ? `nexus-spin ${dur}s linear infinite` : undefined,
+        animation: wanderAnim,
         opacity: Math.min(intensity, 1),
       }} />
     </>
@@ -186,10 +164,6 @@ export const Glass = memo(forwardRef<HTMLDivElement, GlassProps>(function Glass(
   const rafRef = useRef<number | null>(null)
   const nextMouseRef = useRef({ x: 0, y: 0 })
   const lowPowerMode = useMemo(() => isLowPowerDevice(), [])
-  const isProdBuild = useMemo(
-    () => Boolean((import.meta as any).env?.PROD),
-    [],
-  )
 
   const accentRgb = hexToRgb(t.accent)
   const tintRgb   = hexToRgb(t.glassmorphism.tintColor)
@@ -206,8 +180,16 @@ export const Glass = memo(forwardRef<HTMLDivElement, GlassProps>(function Glass(
   const balancedMode = useMemo(() => {
     if (performanceProfile === 'quality') return false
     if (performanceProfile === 'balanced') return true
-    return lowPowerMode || isProdBuild || Boolean(t.qol?.reducedMotion)
-  }, [isProdBuild, lowPowerMode, performanceProfile, t.qol?.reducedMotion])
+    return lowPowerMode || Boolean(t.qol?.reducedMotion)
+  }, [lowPowerMode, performanceProfile, t.qol?.reducedMotion])
+  const motionRuntime = useMemo(
+    () => buildMotionRuntime(t, { lowPowerMode }),
+    [lowPowerMode, t],
+  )
+  const quickMotion = `var(--nx-motion-quick, ${motionRuntime.quickMs}ms)`
+  const regularMotion = `var(--nx-motion-regular, ${motionRuntime.regularMs}ms)`
+  const motionEase = 'cubic-bezier(0.2, 1.25, 0.32, 1)'
+  const panelTransition = `box-shadow ${regularMotion} ${motionEase}, border-color ${quickMotion} ${motionEase}, transform ${quickMotion} ${motionEase}, background ${regularMotion} ${motionEase}, opacity ${quickMotion} ${motionEase}`
 
   const showGlow = glow && t.glow.mode !== 'off'
   const isGradientGlow = showGlow && t.glow.gradientGlow
@@ -283,10 +265,6 @@ export const Glass = memo(forwardRef<HTMLDivElement, GlassProps>(function Glass(
   const boxShadow = [baseShadow, ambientGlow, borderGlowRing, innerShadowStyle].filter(Boolean).join(', ')
 
   useEffect(() => {
-    if (useFakeGlassRenderer) ensureFakeGlassFilter()
-  }, [useFakeGlassRenderer])
-
-  useEffect(() => {
     return () => {
       if (rafRef.current !== null) {
         cancelAnimationFrame(rafRef.current)
@@ -331,6 +309,8 @@ export const Glass = memo(forwardRef<HTMLDivElement, GlassProps>(function Glass(
         else if (ref) (ref as any).current = node
       }}
       className={[
+        'nx-motion-panel',
+        'nx-bounce-target',
         className,
         t.animations.rippleClick && onClick ? 'nx-ripple-container' : '',
         !lowPowerMode && !balancedMode && !disablePulse && (t.animations as any).glowPulse && showGlow && (active || type === 'modal') ? 'nx-glow-pulse' : '',
@@ -358,10 +338,10 @@ export const Glass = memo(forwardRef<HTMLDivElement, GlassProps>(function Glass(
         border: `1px solid ${borderColor}`,
         borderRadius: `${t.visual.panelRadius}px`,
         boxShadow,
-        transition: `box-shadow ${getTransitionSpeed(t.visual.animationSpeed)}, border-color ${getTransitionSpeed(t.visual.animationSpeed)}, transform ${getTransitionSpeed(t.visual.animationSpeed)}, background ${getTransitionSpeed(t.visual.animationSpeed)}`,
+        transition: panelTransition,
         willChange: hover && isHovered ? 'transform, box-shadow' : 'auto',
         transform: hover && isHovered && t.animations.hoverLift
-          ? `translateY(-3px) scale(1.006)` : undefined,
+          ? `translateY(-${motionRuntime.hoverLiftPx}px) scale(${motionRuntime.hoverScale + 0.006})` : undefined,
         // crystal mode gets a subtle inner highlight via outline
         outline: glassMode === 'crystal' && isDark ? `1px solid rgba(255,255,255,0.06)` : undefined,
         outlineOffset: glassMode === 'crystal' ? '2px' : undefined,
@@ -411,7 +391,7 @@ export const Glass = memo(forwardRef<HTMLDivElement, GlassProps>(function Glass(
       {hover && !lowPowerMode && !balancedMode && (
         <div aria-hidden="true" style={{
           position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 2,
-          opacity: isHovered ? 1 : 0, transition: 'opacity 0.6s ease',
+          opacity: isHovered ? 1 : 0, transition: `opacity ${regularMotion} ${motionEase}`,
           background: `radial-gradient(500px circle at var(--nx-mouse-x, 50%) var(--nx-mouse-y, 50%), rgba(${accentRgb},0.09), transparent 70%)`,
         }} />
       )}
@@ -423,10 +403,14 @@ export const Glass = memo(forwardRef<HTMLDivElement, GlassProps>(function Glass(
           pointerEvents: 'none',
           zIndex: 2,
           borderRadius: 'inherit',
-          filter: 'url(#nx-fake-glass-filter)',
-          background: `linear-gradient(135deg, rgba(${accentRgb}, 0.08), rgba(${hexToRgb(t.accent2)}, 0.06))`,
-          mixBlendMode: isDark ? 'screen' : 'overlay',
-          opacity: 0.82,
+          backgroundImage: `
+            linear-gradient(135deg, rgba(${accentRgb}, 0.1), rgba(${hexToRgb(t.accent2)}, 0.06)),
+            radial-gradient(circle at 20% 10%, rgba(255,255,255,0.08), transparent 50%),
+            repeating-linear-gradient(120deg, rgba(255,255,255,0.04) 0px, rgba(255,255,255,0.04) 2px, transparent 2px, transparent 8px)
+          `,
+          backgroundBlendMode: 'screen, normal, normal',
+          mixBlendMode: 'normal',
+          opacity: isDark ? 0.62 : 0.44,
         }} />
       )}
 
@@ -454,7 +438,7 @@ export const Glass = memo(forwardRef<HTMLDivElement, GlassProps>(function Glass(
           pointerEvents: 'none',
           zIndex: -1,
           opacity: active ? Math.min(t.glow.intensity * 1.2, 1) : Math.min(t.glow.intensity * 0.7, 0.85),
-          transition: 'opacity 0.4s ease',
+          transition: `opacity ${regularMotion} ${motionEase}`,
           animation: !disablePulse && !balancedMode && t.glow.mode === 'pulse'
             ? `nx-glow-pulse-anim ${2.5 / Math.max(t.visual.animationSpeed, 0.1)}s ease-in-out infinite`
             : undefined,
@@ -502,8 +486,9 @@ export const Glass = memo(forwardRef<HTMLDivElement, GlassProps>(function Glass(
         }} />
       )}
 
-      {/* Content */}
-      <div style={{ position: 'relative', zIndex: 5, width: '100%', height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden', borderRadius: 'inherit' }}>
+      {/* Content
+          Keep overflow visible here so inner controls/icons are never clipped by nested inherited radii. */}
+      <div style={{ position: 'relative', zIndex: 5, width: '100%', height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'visible' }}>
         {children}
       </div>
     </div>

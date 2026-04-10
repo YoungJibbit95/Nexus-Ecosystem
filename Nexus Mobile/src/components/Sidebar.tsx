@@ -3,11 +3,12 @@ import { Glass } from './Glass'
 import { useTheme } from '../store/themeStore'
 import { useTerminal } from '../store/terminalStore'
 import { hexToRgb } from '../lib/utils'
+import { buildMotionRuntime } from '../lib/motionEngine'
 import {
   Bell, Code2, Columns, FileText, GitBranch, HardDrive, Info,
   Settings, Terminal, Zap, BarChart3, Wrench
 } from 'lucide-react'
-import { motion } from 'framer-motion'
+import { AnimatePresence, motion } from 'framer-motion'
 
 export type View = 'dashboard' | 'notes' | 'code' | 'tasks' | 'reminders' | 'canvas' | 'files' | 'flux' | 'devtools' | 'settings' | 'info'
 
@@ -38,8 +39,10 @@ export function Sidebar({
   availableViews?: View[]
 }) {
   const t = useTheme()
+  const motionRuntime = buildMotionRuntime(t)
   const terminal = useTerminal()
   const rgb = hexToRgb(t.accent)
+  const [hoveredId, setHoveredId] = React.useState<View | 'terminal' | null>(null)
 
   const sidebarStyle  = (t as any).sidebarStyle  ?? 'default'
   const showLabels    = (t as any).sidebarLabels  ?? true
@@ -95,9 +98,13 @@ export function Sidebar({
 
   const renderItem = (item: { id: View; icon: any; label: string; color?: string }, idx: number) => {
     const isActive = view === item.id
+    const isHovered = hoveredId === item.id
     const itemColor = item.color ?? t.accent
     const itemRgb   = hexToRgb(itemColor)
     const Icon = item.icon
+    const hoverSlideX = isRight
+      ? -Math.max(1, motionRuntime.hoverLiftPx * 0.55)
+      : Math.max(1, motionRuntime.hoverLiftPx * 0.55)
 
     return (
       <div key={item.id} style={{
@@ -105,7 +112,9 @@ export function Sidebar({
           ? `nexus-slide-right 0.28s cubic-bezier(0.4,0,0.2,1) ${idx * 30}ms both`
           : undefined,
       }}>
-        <button onClick={() => onChange(item.id)}
+        <motion.button
+          className="nx-sidebar-nav-row nx-bounce-target"
+          onClick={() => onChange(item.id)}
           title={iconOnly ? item.label : undefined}
           style={{
             display: 'flex', alignItems: 'center',
@@ -114,75 +123,139 @@ export function Sidebar({
             borderRadius: t.visual.panelRadius * 0.65,
             border: 'none', cursor: 'pointer', fontFamily: 'inherit',
             fontSize: 13, fontWeight: isActive ? 700 : 500,
-            color: isActive ? itemColor : (t.mode==='dark' ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.6)'),
+            color: isActive
+              ? itemColor
+              : isHovered
+                ? (t.mode === 'dark' ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.85)')
+                : (t.mode === 'dark' ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.6)'),
             background: isActive
               ? `rgba(${itemRgb}, 0.15)`
-              : 'transparent',
+              : isHovered
+                ? `rgba(${itemRgb},0.08)`
+                : 'transparent',
             borderLeft: (!iconOnly && !isRight)
               ? `2px solid ${isActive ? itemColor : 'transparent'}`
               : 'none',
             borderRight: (!iconOnly && isRight)
               ? `2px solid ${isActive ? itemColor : 'transparent'}`
               : 'none',
-            transition: `all ${Math.round(180 / Math.max(t.visual.animationSpeed || 1, 0.1))}ms ease`,
+            transition: `background-color ${motionRuntime.quickMs}ms ease, color ${motionRuntime.quickMs}ms ease, border-color ${motionRuntime.quickMs}ms ease, opacity ${motionRuntime.quickMs}ms ease`,
             position: 'relative', overflow: 'hidden',
+            transform: 'translateZ(0)',
+            contain: 'paint',
           }}
-          onMouseEnter={e => {
-            if (!isActive) {
-              e.currentTarget.style.background = `rgba(${itemRgb},0.08)`
-              e.currentTarget.style.color = t.mode==='dark' ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.85)'
-            }
-          }}
-          onMouseLeave={e => {
-            if (!isActive) {
-              e.currentTarget.style.background = 'transparent'
-              e.currentTarget.style.color = t.mode==='dark' ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.6)'
-            }
-          }}
+          onMouseEnter={() => setHoveredId(item.id)}
+          onMouseLeave={() => setHoveredId((prev) => (prev === item.id ? null : prev))}
+          onFocus={() => setHoveredId(item.id)}
+          onBlur={() => setHoveredId((prev) => (prev === item.id ? null : prev))}
         >
-          {/* Icon container */}
-          <div style={{
-            width: iconOnly ? 32 : 20, height: iconOnly ? 32 : 20,
-            borderRadius: iconOnly ? t.visual.panelRadius * 0.5 : 6,
-            background: isActive && iconOnly ? `rgba(${itemRgb},0.18)` : 'transparent',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            flexShrink: 0, transition: 'all 0.15s',
-          }}>
-            <Icon size={iconOnly ? 16 : 15} style={{
-              color: isActive ? itemColor : 'inherit',
-              opacity: isActive ? 1 : 0.6,
-              transition: 'all 0.15s',
-            }} />
-          </div>
+          <motion.div
+            animate={
+              motionRuntime.reduced
+                ? { x: 0, scale: 1 }
+                : {
+                    x: isHovered ? hoverSlideX : 0,
+                    scale: isHovered ? motionRuntime.hoverScale + 0.01 : 1,
+                  }
+            }
+            transition={motionRuntime.hoverSpring}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: itemGap,
+              justifyContent: iconOnly ? 'center' : 'flex-start',
+              width: '100%',
+            }}
+          >
+            {/* Icon container */}
+            <div style={{
+              width: iconOnly ? 32 : 20, height: iconOnly ? 32 : 20,
+              borderRadius: iconOnly ? t.visual.panelRadius * 0.5 : 6,
+              background: isActive && iconOnly ? `rgba(${itemRgb},0.18)` : 'transparent',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              flexShrink: 0, transition: 'all 0.15s',
+            }}>
+              <Icon size={iconOnly ? 16 : 15} style={{
+                color: isActive ? itemColor : 'inherit',
+                opacity: isActive ? 1 : 0.6,
+                transition: 'all 0.15s',
+              }} />
+            </div>
 
-          {/* Label */}
-          {!iconOnly && showLabels && <span>{item.label}</span>}
+            {/* Label */}
+            {!iconOnly && showLabels && <span>{item.label}</span>}
+          </motion.div>
+
+          <AnimatePresence>
+            {iconOnly && isHovered ? (
+              <motion.div
+                initial={{ opacity: 0, x: isRight ? -8 : 8, scale: 0.94 }}
+                animate={{ opacity: 1, x: 0, scale: 1.04 }}
+                exit={{ opacity: 0, x: isRight ? -6 : 6, scale: 0.96 }}
+                transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
+                style={{
+                  position: 'absolute',
+                  [isRight ? 'right' : 'left']: 'calc(100% + 8px)',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  pointerEvents: 'none',
+                  whiteSpace: 'nowrap',
+                  padding: '4px 8px',
+                  borderRadius: 8,
+                  border: `1px solid rgba(${itemRgb},0.38)`,
+                  background: `linear-gradient(180deg, rgba(${itemRgb},0.2), rgba(${itemRgb},0.1))`,
+                  color: itemColor,
+                  fontSize: 10,
+                  fontWeight: 700,
+                  zIndex: 12,
+                  boxShadow: `0 10px 24px rgba(${itemRgb},0.22)`,
+                }}
+              >
+                {item.label}
+              </motion.div>
+            ) : null}
+          </AnimatePresence>
 
           {/* Active dot (icon-only mode) */}
           {isActive && !iconOnly && (
-            <div style={{
+            <motion.div
+              initial={{ opacity: 0, scale: 0.6 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={motionRuntime.hoverSpring}
+              style={{
               position: 'absolute', right: 8, width: 5, height: 5,
               borderRadius: '50%', background: itemColor,
               boxShadow: `0 0 8px ${itemColor}`,
-            }} />
+            }}
+            />
           )}
 
           {/* Active indicator bar (icon-only) */}
           {isActive && iconOnly && !isRight && (
-            <div style={{
+            <motion.div
+              initial={{ opacity: 0, scaleY: 0.6 }}
+              animate={{ opacity: 1, scaleY: 1 }}
+              transition={motionRuntime.hoverSpring}
+              style={{
               position: 'absolute', left: 0, top: '20%', width: 3, height: '60%',
               borderRadius: '0 2px 2px 0', background: itemColor,
               boxShadow: `2px 0 8px ${itemColor}`,
-            }} />
+            }}
+            />
           )}
           {isActive && iconOnly && isRight && (
-            <div style={{
+            <motion.div
+              initial={{ opacity: 0, scaleY: 0.6 }}
+              animate={{ opacity: 1, scaleY: 1 }}
+              transition={motionRuntime.hoverSpring}
+              style={{
               position: 'absolute', right: 0, top: '20%', width: 3, height: '60%',
               borderRadius: '2px 0 0 2px', background: itemColor,
               boxShadow: `-2px 0 8px ${itemColor}`,
-            }} />
+            }}
+            />
           )}
-        </button>
+        </motion.button>
       </div>
     )
   }
@@ -218,7 +291,7 @@ export function Sidebar({
               WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
               filter: `drop-shadow(0 0 ${t.glow.radius * 0.4}px ${t.glow.color})`,
             }}>✦ Nexus</div>
-            <div style={{ fontSize: 9, opacity: 0.4, letterSpacing: 1.2, textTransform: 'uppercase' }}>v4.0</div>
+            <div style={{ fontSize: 9, opacity: 0.4, letterSpacing: 1.2, textTransform: 'uppercase' }}>v5.0</div>
           </div>
         )}
       </div>
@@ -239,6 +312,7 @@ export function Sidebar({
       {/* Terminal button */}
       <div style={{ marginTop: 6 }}>
         <button
+          className="nx-bounce-target"
           onClick={() => terminal.setOpen(!terminal.isOpen)}
           title={iconOnly ? 'Terminal' : undefined}
           style={{
@@ -249,14 +323,44 @@ export function Sidebar({
             border: 'none', cursor: 'pointer', fontFamily: 'inherit',
             fontSize: 11, fontWeight: 700, letterSpacing: 0.5,
             color: terminal.isOpen ? t.accent : 'inherit',
-            background: terminal.isOpen ? `rgba(${rgb},0.15)` : `rgba(${rgb},0.07)`,
-            transition: 'all 0.15s',
+            background:
+              terminal.isOpen
+                ? `rgba(${rgb},0.15)`
+                : hoveredId === 'terminal'
+                  ? `rgba(${rgb},0.18)`
+                  : `rgba(${rgb},0.07)`,
+            transition: `background-color ${motionRuntime.quickMs}ms ease, color ${motionRuntime.quickMs}ms ease`,
+            transform: 'translateZ(0)',
+            contain: 'paint',
           }}
-          onMouseEnter={e => { e.currentTarget.style.background = `rgba(${rgb},0.18)` }}
-          onMouseLeave={e => { e.currentTarget.style.background = terminal.isOpen ? `rgba(${rgb},0.15)` : `rgba(${rgb},0.07)` }}
+          onMouseEnter={() => setHoveredId('terminal')}
+          onMouseLeave={() => setHoveredId((prev) => (prev === 'terminal' ? null : prev))}
+          onFocus={() => setHoveredId('terminal')}
+          onBlur={() => setHoveredId((prev) => (prev === 'terminal' ? null : prev))}
         >
-          <Terminal size={14} style={{ color: t.accent, flexShrink: 0 }} />
-          {!iconOnly && <span style={{ textTransform: 'uppercase', letterSpacing: 1 }}>Terminal</span>}
+          <motion.div
+            animate={
+              motionRuntime.reduced
+                ? { x: 0, scale: 1 }
+                : {
+                    x: hoveredId === 'terminal'
+                      ? (isRight ? -Math.max(1, motionRuntime.hoverLiftPx * 0.55) : Math.max(1, motionRuntime.hoverLiftPx * 0.55))
+                      : 0,
+                    scale: hoveredId === 'terminal' ? motionRuntime.hoverScale + 0.01 : 1,
+                  }
+            }
+            transition={motionRuntime.hoverSpring}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: iconOnly ? 0 : 9,
+              justifyContent: iconOnly ? 'center' : 'flex-start',
+              width: '100%',
+            }}
+          >
+            <Terminal size={14} style={{ color: t.accent, flexShrink: 0 }} />
+            {!iconOnly && <span style={{ textTransform: 'uppercase', letterSpacing: 1 }}>Terminal</span>}
+          </motion.div>
         </button>
       </div>
     </Glass>

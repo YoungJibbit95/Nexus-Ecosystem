@@ -1,5 +1,5 @@
 import React from 'react'
-import { motion } from 'framer-motion'
+import { AnimatePresence, motion } from 'framer-motion'
 import {
   Bell, Code2, Columns, FileText, GitBranch, HardDrive, Info,
   Settings, Terminal, Zap, BarChart3, Wrench, Plus, Circle
@@ -9,6 +9,8 @@ import { useTheme } from '../store/themeStore'
 import { useTerminal } from '../store/terminalStore'
 import { useApp } from '../store/appStore'
 import { hexToRgb } from '../lib/utils'
+import { buildMotionRuntime } from '../lib/motionEngine'
+import { shallow } from 'zustand/shallow'
 
 export type View =
   | 'dashboard'
@@ -46,24 +48,35 @@ function NavRow({
   label,
   color,
   iconOnly,
+  alignRight,
   onClick,
+  onPrefetch,
 }: {
   active: boolean
   icon: any
   label: string
   color: string
   iconOnly: boolean
+  alignRight?: boolean
   onClick: () => void
+  onPrefetch?: () => void
 }) {
   const t = useTheme()
+  const motionRuntime = buildMotionRuntime(t)
   const rgb = hexToRgb(color)
   const Icon = icon
+  const [hovered, setHovered] = React.useState(false)
+  const hoverSlideX = alignRight
+    ? -Math.max(1, motionRuntime.hoverLiftPx * 0.55)
+    : Math.max(1, motionRuntime.hoverLiftPx * 0.55)
 
   return (
-    <button
+    <motion.button
+      className="nx-sidebar-nav-row nx-bounce-target"
       onClick={onClick}
       title={iconOnly ? label : undefined}
       style={{
+        '--nx-row-hover-bg': `rgba(${rgb},0.1)`,
         width: '100%',
         display: 'flex',
         alignItems: 'center',
@@ -77,34 +90,83 @@ function NavRow({
         cursor: 'pointer',
         fontSize: 12,
         fontWeight: active ? 700 : 550,
-        transition: 'all 150ms ease',
+        transition:
+          `background-color ${motionRuntime.quickMs}ms ease, color ${motionRuntime.quickMs}ms ease, border-color ${motionRuntime.quickMs}ms ease, opacity ${motionRuntime.quickMs}ms ease`,
         position: 'relative',
         overflow: 'hidden',
+        transform: 'translateZ(0)',
+        contain: 'paint',
+      } as React.CSSProperties}
+      onMouseEnter={() => {
+        setHovered(true)
+        onPrefetch?.()
       }}
-      onMouseEnter={(e) => {
-        if (!active) e.currentTarget.style.background = `rgba(${rgb},0.1)`
+      onMouseLeave={() => {
+        setHovered(false)
       }}
-      onMouseLeave={(e) => {
-        if (!active) e.currentTarget.style.background = 'transparent'
-      }}
+      onFocus={() => onPrefetch?.()}
+      onPointerDown={() => onPrefetch?.()}
     >
-      <div
-        style={{
-          width: iconOnly ? 30 : 20,
-          height: iconOnly ? 30 : 20,
-          borderRadius: iconOnly ? 9 : 6,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: active && iconOnly ? `rgba(${rgb},0.22)` : 'transparent',
-        }}
+      <motion.div
+        animate={
+          motionRuntime.reduced
+            ? { x: 0, scale: 1 }
+            : {
+                x: hovered ? hoverSlideX : 0,
+                scale: hovered ? motionRuntime.hoverScale + 0.01 : 1,
+              }
+        }
+        transition={motionRuntime.hoverSpring}
+        style={{ display: 'flex', alignItems: 'center', gap: iconOnly ? 0 : 10, width: '100%', justifyContent: iconOnly ? 'center' : 'flex-start' }}
       >
-        <Icon size={iconOnly ? 16 : 14} style={{ opacity: active ? 1 : 0.75 }} />
-      </div>
-      {!iconOnly && <span style={{ whiteSpace: 'nowrap' }}>{label}</span>}
+        <div
+          style={{
+            width: iconOnly ? 30 : 20,
+            height: iconOnly ? 30 : 20,
+            borderRadius: iconOnly ? 9 : 6,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: active && iconOnly ? `rgba(${rgb},0.22)` : 'transparent',
+          }}
+        >
+          <Icon size={iconOnly ? 16 : 14} style={{ opacity: active ? 1 : 0.75 }} />
+        </div>
+        {!iconOnly && <span style={{ whiteSpace: 'nowrap' }}>{label}</span>}
+      </motion.div>
+
+      <AnimatePresence>
+        {iconOnly && hovered ? (
+          <motion.div
+            initial={{ opacity: 0, x: alignRight ? -8 : 8, scale: 0.94 }}
+            animate={{ opacity: 1, x: 0, scale: 1.04 }}
+            exit={{ opacity: 0, x: alignRight ? -6 : 6, scale: 0.96 }}
+            transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
+            style={{
+              position: 'absolute',
+              [alignRight ? 'right' : 'left']: 'calc(100% + 8px)',
+              top: '50%',
+              transform: 'translateY(-50%)',
+              pointerEvents: 'none',
+              whiteSpace: 'nowrap',
+              padding: '4px 8px',
+              borderRadius: 8,
+              border: `1px solid rgba(${rgb},0.38)`,
+              background: `linear-gradient(180deg, rgba(${rgb},0.2), rgba(${rgb},0.1))`,
+              color,
+              fontSize: 10,
+              fontWeight: 700,
+              zIndex: 12,
+              boxShadow: `0 10px 24px rgba(${rgb},0.22)`,
+            }}
+          >
+            {label}
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
 
       {active && (
-        <span
+        <motion.span
           style={{
             position: 'absolute',
             left: 0,
@@ -115,9 +177,12 @@ function NavRow({
             background: color,
             boxShadow: `0 0 12px ${color}`,
           }}
+          initial={{ opacity: 0, scaleY: 0.6 }}
+          animate={{ opacity: 1, scaleY: 1 }}
+          transition={motionRuntime.hoverSpring}
         />
       )}
-    </button>
+    </motion.button>
   )
 }
 
@@ -125,15 +190,28 @@ export function Sidebar({
   view,
   onChange,
   availableViews,
+  onPrefetch,
 }: {
   view: View
   onChange: (v: View) => void
   availableViews?: View[]
+  onPrefetch?: (v: View) => void
 }) {
   const t = useTheme()
-  const terminal = useTerminal()
-  const { notes, tasks, reminders, addNote, addTask, addRem } = useApp()
+  const { terminalOpen, setTerminalOpen } = useTerminal((s) => ({
+    terminalOpen: s.isOpen,
+    setTerminalOpen: s.setOpen,
+  }), shallow)
+  const { notes, tasks, reminders, addNote, addTask, addRem } = useApp((s) => ({
+    notes: s.notes,
+    tasks: s.tasks,
+    reminders: s.reminders,
+    addNote: s.addNote,
+    addTask: s.addTask,
+    addRem: s.addRem,
+  }), shallow)
   const rgb = hexToRgb(t.accent)
+  const motionRuntime = buildMotionRuntime(t)
 
   const sidebarStyle = (t as any).sidebarStyle ?? 'default'
   const showLabels = (t as any).sidebarLabels ?? true
@@ -142,6 +220,10 @@ export function Sidebar({
   const isFloating = sidebarStyle === 'floating'
   const isMinimal = sidebarStyle === 'minimal'
   const isRail = sidebarStyle === 'rail'
+  const enableEntryMotion =
+    Boolean(t.animations.entryAnimations) &&
+    !((import.meta as any).env?.PROD) &&
+    !(t.qol?.reducedMotion ?? false)
   const allowedViews = new Set<View>(
     Array.isArray(availableViews) && availableViews.length > 0
       ? availableViews
@@ -247,6 +329,7 @@ export function Sidebar({
 
             <div style={{ display: 'flex', gap: 6, marginBottom: 4 }}>
               <button
+                className="nx-bounce-target"
                 onClick={() => {
                   addNote()
                   if (allowedViews.has('notes')) onChange('notes')
@@ -270,6 +353,7 @@ export function Sidebar({
                 <Plus size={11} /> Note
               </button>
               <button
+                className="nx-bounce-target"
                 onClick={() => {
                   addTask('Quick Task', 'todo')
                   if (allowedViews.has('tasks')) onChange('tasks')
@@ -298,50 +382,71 @@ export function Sidebar({
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1, minHeight: 0 }}>
-        {visibleMainItems.map((item, idx) => (
-          <motion.div
-            key={item.id}
-            initial={t.animations.entryAnimations ? { opacity: 0, x: -10 } : false}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.18, delay: idx * 0.02 }}
-          >
+        {visibleMainItems.map((item, idx) => {
+          const row = (
             <NavRow
               active={view === item.id}
               icon={item.icon}
               label={item.label}
               color={item.color}
               iconOnly={iconOnly}
+              alignRight={isRight}
               onClick={() => onChange(item.id)}
+              onPrefetch={() => onPrefetch?.(item.id)}
             />
-          </motion.div>
-        ))}
+          )
+          if (!enableEntryMotion) {
+            return <div key={item.id}>{row}</div>
+          }
+          return (
+            <motion.div
+              key={item.id}
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.18, delay: idx * 0.02 }}
+            >
+              {row}
+            </motion.div>
+          )
+        })}
       </div>
 
       <div style={{ height: 1, margin: '6px 2px', background: 'rgba(255,255,255,0.08)' }} />
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-        {visibleFooterItems.map((item, idx) => (
-          <motion.div
-            key={item.id}
-            initial={t.animations.entryAnimations ? { opacity: 0, x: -10 } : false}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.18, delay: 0.2 + idx * 0.03 }}
-          >
+        {visibleFooterItems.map((item, idx) => {
+          const row = (
             <NavRow
               active={view === item.id}
               icon={item.icon}
               label={item.label}
               color={t.accent}
               iconOnly={iconOnly}
+              alignRight={isRight}
               onClick={() => onChange(item.id)}
+              onPrefetch={() => onPrefetch?.(item.id)}
             />
-          </motion.div>
-        ))}
+          )
+          if (!enableEntryMotion) {
+            return <div key={item.id}>{row}</div>
+          }
+          return (
+            <motion.div
+              key={item.id}
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.18, delay: 0.2 + idx * 0.03 }}
+            >
+              {row}
+            </motion.div>
+          )
+        })}
       </div>
 
       <div style={{ marginTop: 6 }}>
         <button
-          onClick={() => terminal.setOpen(!terminal.isOpen)}
+          className="nx-bounce-target"
+          onClick={() => setTerminalOpen(!terminalOpen)}
           title={iconOnly ? 'Terminal' : undefined}
           style={{
             width: '100%',
@@ -351,9 +456,9 @@ export function Sidebar({
             gap: iconOnly ? 0 : 8,
             padding: iconOnly ? '8px 0' : '8px 10px',
             borderRadius: 10,
-            border: terminal.isOpen ? `1px solid rgba(${rgb},0.35)` : '1px solid rgba(255,255,255,0.09)',
-            background: terminal.isOpen ? `rgba(${rgb},0.16)` : 'rgba(255,255,255,0.05)',
-            color: terminal.isOpen ? t.accent : 'inherit',
+            border: terminalOpen ? `1px solid rgba(${rgb},0.35)` : '1px solid rgba(255,255,255,0.09)',
+            background: terminalOpen ? `rgba(${rgb},0.16)` : 'rgba(255,255,255,0.05)',
+            color: terminalOpen ? t.accent : 'inherit',
             cursor: 'pointer',
             fontSize: 11,
             fontWeight: 750,
@@ -368,8 +473,8 @@ export function Sidebar({
           {!iconOnly && (
             <Circle
               size={9}
-              fill={terminal.isOpen ? '#34c759' : 'transparent'}
-              color={terminal.isOpen ? '#34c759' : 'rgba(255,255,255,0.3)'}
+              fill={terminalOpen ? '#34c759' : 'transparent'}
+              color={terminalOpen ? '#34c759' : 'rgba(255,255,255,0.3)'}
             />
           )}
         </button>
@@ -377,6 +482,7 @@ export function Sidebar({
 
       {!iconOnly && (
         <button
+          className="nx-bounce-target"
           onClick={() => {
             addRem({
               title: 'Quick Reminder',
