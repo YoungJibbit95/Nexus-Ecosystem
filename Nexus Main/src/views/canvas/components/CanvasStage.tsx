@@ -30,6 +30,7 @@ export function CanvasStage({
   setSelectedNodeId,
   handleStartConnect,
   handleEndConnect,
+  onHubQuickAction,
   snapToGrid,
   reduceNodeEffects,
 }: {
@@ -58,6 +59,10 @@ export function CanvasStage({
   setSelectedNodeId: (next: string | null) => void;
   handleStartConnect: (id: string) => void;
   handleEndConnect: (id: string) => void;
+  onHubQuickAction: (
+    node: CanvasNode,
+    action: "note" | "task" | "decision" | "risk",
+  ) => void;
   snapToGrid: boolean;
   reduceNodeEffects: boolean;
 }) {
@@ -344,6 +349,7 @@ export function CanvasStage({
               onStartConnect={handleStartConnect}
               onEndConnect={handleEndConnect}
               connectingFrom={connectingFrom}
+              onHubQuickAction={onHubQuickAction}
               snapToGrid={snapToGrid}
               reduceEffects={reduceNodeEffects}
             />

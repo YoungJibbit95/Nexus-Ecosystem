@@ -1,6 +1,10 @@
 import React from 'react'
 import { X } from 'lucide-react'
 import { motion } from 'framer-motion'
+import {
+  NOTES_MAGIC_DEFINITIONS,
+  buildNotesMagicSnippet,
+} from '@nexus/core/notes/magicRegistry'
 
 function MagicList({ content, accent }: { content: string; accent: string }) {
   const rows = content.trim().split('\n').filter(Boolean)
@@ -334,6 +338,109 @@ function MagicQuadrant({ content, accent }: { content: string; accent: string })
   )
 }
 
+const CALLOUT_STYLES: Record<string, { border: string; bg: string; icon: string }> = {
+  info: { border: 'rgba(0,122,255,0.35)', bg: 'rgba(0,122,255,0.1)', icon: 'ℹ️' },
+  success: { border: 'rgba(48,209,88,0.35)', bg: 'rgba(48,209,88,0.1)', icon: '✅' },
+  warning: { border: 'rgba(255,159,10,0.35)', bg: 'rgba(255,159,10,0.12)', icon: '⚠️' },
+  error: { border: 'rgba(255,69,58,0.35)', bg: 'rgba(255,69,58,0.1)', icon: '⛔' },
+  tip: { border: 'rgba(191,90,242,0.35)', bg: 'rgba(191,90,242,0.11)', icon: '💡' },
+}
+
+function MagicCallout({ content }: { content: string }) {
+  const lines = content.trim().split('\n').filter(Boolean)
+  const [typeRaw = 'info', titleRaw = 'Hinweis'] = (lines[0] || 'info | Hinweis').split('|').map(v => v.trim())
+  const body = lines.slice(1).join('\n').trim() || 'Details ergänzen'
+  const type = typeRaw.toLowerCase()
+  const style = CALLOUT_STYLES[type] || CALLOUT_STYLES.info
+  return (
+    <div className="nx-magic-fade" style={{
+      margin: '12px 0',
+      borderRadius: 10,
+      border: `1px solid ${style.border}`,
+      background: style.bg,
+      padding: '10px 12px',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 4 }}>
+        <span style={{ fontSize: 14 }}>{style.icon}</span>
+        <span style={{ fontSize: 12, fontWeight: 700 }}>{titleRaw || 'Hinweis'}</span>
+      </div>
+      <div style={{ fontSize: 12, opacity: 0.8, lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>{body}</div>
+    </div>
+  )
+}
+
+function MagicKanban({ content, accent }: { content: string; accent: string }) {
+  const entries = content
+    .trim()
+    .split('\n')
+    .filter(Boolean)
+    .map((row) => {
+      const [laneRaw, taskRaw] = row.split('|').map((v) => v.trim())
+      return {
+        lane: laneRaw || 'Backlog',
+        task: taskRaw || 'Neuer Task',
+      }
+    })
+  const laneOrder = ['Backlog', 'Todo', 'Doing', 'Review', 'Done']
+  const laneMap = new Map<string, string[]>()
+  entries.forEach((entry) => {
+    if (!laneMap.has(entry.lane)) laneMap.set(entry.lane, [])
+    laneMap.get(entry.lane)!.push(entry.task)
+  })
+  const lanes = Array.from(laneMap.keys()).sort((a, b) => {
+    const ai = laneOrder.indexOf(a)
+    const bi = laneOrder.indexOf(b)
+    if (ai === -1 && bi === -1) return a.localeCompare(b)
+    if (ai === -1) return 1
+    if (bi === -1) return -1
+    return ai - bi
+  })
+  return (
+    <div className="nx-magic-fade" style={{
+      margin: '12px 0',
+      display: 'grid',
+      gridTemplateColumns: `repeat(${Math.max(1, lanes.length)}, minmax(140px, 1fr))`,
+      gap: 8,
+    }}>
+      {lanes.length === 0 && (
+        <div style={{ fontSize: 12, opacity: 0.55 }}>Keine Kanban-Einträge</div>
+      )}
+      {lanes.map((lane) => {
+        const tasks = laneMap.get(lane) || []
+        return (
+          <div key={lane} style={{
+            borderRadius: 10,
+            border: '1px solid rgba(255,255,255,0.1)',
+            background: 'rgba(255,255,255,0.04)',
+            padding: 8,
+          }}>
+            <div style={{ fontSize: 10, fontWeight: 800, color: accent, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 7 }}>
+              {lane}
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+              {tasks.map((task, index) => (
+                <div key={`${lane}-${index}`} style={{
+                  borderRadius: 7,
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  background: 'rgba(0,0,0,0.16)',
+                  padding: '6px 8px',
+                  fontSize: 12,
+                  lineHeight: 1.45,
+                }}>
+                  {task}
+                </div>
+              ))}
+              {tasks.length === 0 && (
+                <div style={{ fontSize: 11, opacity: 0.5, padding: '2px 0' }}>Keine Tasks</div>
+              )}
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 // Inline badge: `b:Label|variant`
 function renderInlineBadge(text: string, accent: string) {
   if (!text.startsWith('b:')) {
@@ -367,9 +474,11 @@ export function NexusCodeBlock({ className, children, accent }: { className?: st
   if (lang === 'nexus-timeline') return <MagicTimeline content={content} accent={accent} />
   if (lang === 'nexus-grid')     return <MagicGrid content={content} />
   if (lang === 'nexus-card')     return <MagicCard content={content} accent={accent} />
+  if (lang === 'nexus-kanban')   return <MagicKanban content={content} accent={accent} />
   if (lang === 'nexus-metrics')  return <MagicMetrics content={content} accent={accent} />
   if (lang === 'nexus-steps')    return <MagicSteps content={content} accent={accent} />
   if (lang === 'nexus-quadrant') return <MagicQuadrant content={content} accent={accent} />
+  if (lang === 'nexus-callout')  return <MagicCallout content={content} />
 
   return (
     <pre style={{
@@ -398,98 +507,16 @@ interface MagicModalProps {
   onInsert: (snippet: string) => void
 }
 
-const MAGIC_TYPES = [
-  {
-    id: 'nexus-list', label: 'Liste', icon: '📋', desc: 'Zeilen mit Label und Detail',
-    color: '#00AAFF',
-    fields: [{ key: 'rows', label: 'Einträge (Label | Detail, eine Zeile pro Eintrag)', multiline: true, placeholder: 'Alpha | Erster Punkt\nBeta | Zweiter Punkt\nGamma | Dritter Punkt' }],
-    build: (v: Record<string,string>) => `\n\`\`\`nexus-list\n${v.rows}\n\`\`\`\n`,
-  },
-  {
-    id: 'nexus-checklist', label: 'Checklist', icon: '☑️', desc: 'Interaktive Checkliste mit Fortschritt',
-    color: '#30D158',
-    fields: [{ key: 'rows', label: 'Einträge (Text | done/true/false, eine Zeile pro Punkt)', multiline: true, placeholder: 'UI Polish | false\nAPI Contract finalisieren | true\nRelease Smoke-Test | false' }],
-    build: (v: Record<string,string>) => `\n\`\`\`nexus-checklist\n${v.rows}\n\`\`\`\n`,
-  },
-  {
-    id: 'nexus-alert', label: 'Alert Box', icon: '🔔', desc: 'Info, Warnung oder Fehler',
-    color: '#FF9F0A',
-    fields: [
-      { key: 'type', label: 'Typ (info / success / warning / error)', multiline: false, placeholder: 'info' },
-      { key: 'msg', label: 'Nachricht', multiline: true, placeholder: 'Wichtige Information hier...' },
-    ],
-    build: (v: Record<string,string>) => `\n\`\`\`nexus-alert\n${v.type || 'info'}\n${v.msg}\n\`\`\`\n`,
-  },
-  {
-    id: 'nexus-progress', label: 'Fortschritt', icon: '📊', desc: 'Fortschrittsbalken mit Prozent',
-    color: '#30D158',
-    fields: [{ key: 'rows', label: 'Einträge (Label | Prozent, eine Zeile pro Balken)', multiline: true, placeholder: 'Frontend | 80\nBackend | 65\nDesign | 45' }],
-    build: (v: Record<string,string>) => `\n\`\`\`nexus-progress\n${v.rows}\n\`\`\`\n`,
-  },
-  {
-    id: 'nexus-timeline', label: 'Timeline', icon: '🗓️', desc: 'Zeitstrahl mit Datum und Text',
-    color: '#BF5AF2',
-    fields: [{ key: 'rows', label: 'Einträge (Datum | Ereignis, eine Zeile pro Punkt)', multiline: true, placeholder: 'Q1 2026 | Projektstart\nQ2 2026 | Alpha Release\nQ3 2026 | Beta Launch' }],
-    build: (v: Record<string,string>) => `\n\`\`\`nexus-timeline\n${v.rows}\n\`\`\`\n`,
-  },
-  {
-    id: 'nexus-grid', label: 'Grid', icon: '⊞', desc: 'Mehrspaltiges Raster',
-    color: '#FF6B6B',
-    fields: [
-      { key: 'cols', label: 'Spalten (Zahl)', multiline: false, placeholder: '2' },
-      { key: 'items', label: 'Inhalte (eine Zeile pro Zelle)', multiline: true, placeholder: 'Zelle 1\nZelle 2\nZelle 3\nZelle 4' },
-    ],
-    build: (v: Record<string,string>) => `\n\`\`\`nexus-grid\n${v.cols || '2'}\n${v.items}\n\`\`\`\n`,
-  },
-  {
-    id: 'nexus-card', label: 'Bild-Karte', icon: '🖼️', desc: 'Karte mit Bild, Titel und Text',
-    color: '#FF79C6',
-    fields: [
-      { key: 'url', label: 'Bild-URL', multiline: false, placeholder: 'https://images.unsplash.com/photo-1618005182384?w=600' },
-      { key: 'title', label: 'Titel', multiline: false, placeholder: 'Mein Titel' },
-      { key: 'desc', label: 'Beschreibung', multiline: false, placeholder: 'Kurze Beschreibung...' },
-    ],
-    build: (v: Record<string,string>) => `\n\`\`\`nexus-card\n${v.url} | ${v.title} | ${v.desc}\n\`\`\`\n`,
-  },
-  {
-    id: 'nexus-metrics', label: 'KPI Cards', icon: '📈', desc: 'Kennzahlen mit Wert und Delta',
-    color: '#64D2FF',
-    fields: [{ key: 'rows', label: 'Einträge (Label | Wert | Delta, eine Zeile pro KPI)', multiline: true, placeholder: 'MRR | 49.2k | +8.4%\nNPS | 61 | +5\nUptime | 99.95% | +0.03%' }],
-    build: (v: Record<string,string>) => `\n\`\`\`nexus-metrics\n${v.rows}\n\`\`\`\n`,
-  },
-  {
-    id: 'nexus-steps', label: 'Process Steps', icon: '🪜', desc: 'Schrittfolge mit Details',
-    color: '#30D158',
-    fields: [{ key: 'rows', label: 'Einträge (Schritt | Detail, eine Zeile pro Schritt)', multiline: true, placeholder: 'Research | Problem und Zielbild klären\nBuild | Kernfeatures implementieren\nValidate | QA und Feedback einholen' }],
-    build: (v: Record<string,string>) => `\n\`\`\`nexus-steps\n${v.rows}\n\`\`\`\n`,
-  },
-  {
-    id: 'nexus-quadrant', label: 'Quadrant Board', icon: '🧩', desc: '2x2 Board für Priorisierung und Mapping',
-    color: '#FF9F0A',
-    fields: [{ key: 'rows', label: 'Einträge (Titel | Inhalt, bis zu 4 Zeilen)', multiline: true, placeholder: 'Quick Wins | Hoher Impact, geringer Aufwand\nBig Bets | Hoher Impact, hoher Aufwand\nFill-ins | Niedriger Impact, geringer Aufwand\nAvoid | Niedriger Impact, hoher Aufwand' }],
-    build: (v: Record<string,string>) => `\n\`\`\`nexus-quadrant\n${v.rows}\n\`\`\`\n`,
-  },
-  {
-    id: 'badge', label: 'Badge', icon: '✨', desc: 'Inline-Abzeichen im Text',
-    color: '#FFE600',
-    fields: [
-      { key: 'label', label: 'Text', multiline: false, placeholder: 'Nexus' },
-      { key: 'variant', label: 'Farbe (magic / success / warning / error / info)', multiline: false, placeholder: 'magic' },
-    ],
-    build: (v: Record<string,string>) => `\`b:${v.label || 'Badge'}|${v.variant || 'magic'}\``,
-  },
-]
-
 export function MagicElementModal({ accent, accent2, onClose, onInsert }: MagicModalProps) {
   const [selected, setSelected] = React.useState<string | null>(null)
   const [fields, setFields] = React.useState<Record<string,string>>({})
 
-  const type = MAGIC_TYPES.find(m => m.id === selected)
+  const type = NOTES_MAGIC_DEFINITIONS.find(m => m.id === selected)
 
   const handleSelect = (id: string) => {
     setSelected(id)
-    // Pre-fill defaults
-    const t = MAGIC_TYPES.find(m => m.id === id)!
+    const t = NOTES_MAGIC_DEFINITIONS.find(m => m.id === id)
+    if (!t) return
     const defaults: Record<string,string> = {}
     t.fields.forEach(f => { defaults[f.key] = f.placeholder })
     setFields(defaults)
@@ -497,7 +524,7 @@ export function MagicElementModal({ accent, accent2, onClose, onInsert }: MagicM
 
   const handleInsert = () => {
     if (!type) return
-    onInsert(type.build(fields))
+    onInsert(buildNotesMagicSnippet(type.id, fields))
   }
 
   return (
@@ -569,7 +596,7 @@ export function MagicElementModal({ accent, accent2, onClose, onInsert }: MagicM
             <div style={{ fontSize: 9, fontWeight: 800, opacity: 0.3, textTransform: 'uppercase', letterSpacing: '0.2em', marginBottom: 8, paddingLeft: 4 }}>
               Elemente
             </div>
-            {MAGIC_TYPES.map(mt => (
+            {NOTES_MAGIC_DEFINITIONS.map(mt => (
               <button
                 key={mt.id}
                 onClick={() => handleSelect(mt.id)}
@@ -655,7 +682,7 @@ export function MagicElementModal({ accent, accent2, onClose, onInsert }: MagicM
                     lineHeight: 1.6, whiteSpace: 'pre-wrap', wordBreak: 'break-all',
                     maxHeight: 120, overflowY: 'auto',
                   }}>
-                    {type.build(fields)}
+                    {buildNotesMagicSnippet(type.id, fields)}
                   </div>
                 </div>
 

@@ -578,6 +578,11 @@ export function NotesView() {
               <FmtBtn icon={ListOrdered}  tooltip="Num. Liste"   action={() => insertFormat('\n1. ', '', 'Eintrag')} />
               <FmtBtn icon={Table}        tooltip="Tabelle"      action={() => insertFormat('\n| Kopf | Kopf |\n| --- | --- |\n| Zelle | Zelle |\n')} />
               <FmtBtn icon={Minus}        tooltip="Trennlinie"   action={() => insertFormat('\n---\n', '')} />
+              <FmtBtn icon={Bell}         tooltip="Callout Block" action={() => insertFormat('\n```nexus-callout\ninfo | Hinweis\nKurzinfo oder Entscheidung notieren.\n```\n')} />
+              <FmtBtn icon={Zap}          tooltip="Kanban Block" action={() => insertFormat('\n```nexus-kanban\nBacklog | Aufgabe sammeln\nDoing | Umsetzung\nReview | QA/Abnahme\nDone | Fertig\n```\n')} />
+              <FmtBtn icon={Calendar}     tooltip="Timeline Block" action={() => insertFormat('\n```nexus-timeline\nHeute | Kickoff\nMorgen | Umsetzung\nDiese Woche | Review\n```\n')} />
+              <FmtBtn icon={CreditCard}   tooltip="Card Block" action={() => insertFormat('\n```nexus-card\nhttps://images.unsplash.com/photo-1618005182384?w=600 | Titel | Kurze Beschreibung\n```\n')} />
+              <FmtBtn icon={ChevronDown}  tooltip="Details/Toggle" action={() => insertFormat('\n<details>\n<summary>Mehr anzeigen</summary>\n\nDetails hier ergänzen...\n\n</details>\n')} />
 
               <div style={{ width: 1, height: 14, background: 'rgba(255,255,255,0.1)', margin: '0 4px' }} />
 

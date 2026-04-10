@@ -16,10 +16,14 @@ export type MotionRuntime = {
   reduced: boolean;
   quickMs: number;
   regularMs: number;
+  hoverEase: string;
+  pressEase: string;
+  settleEase: string;
   spring: MotionSpring;
   hoverSpring: MotionSpring;
   hoverLiftPx: number;
   hoverScale: number;
+  hoverExtraScale: number;
   pressScale: number;
   pageInitial: false | Record<string, number>;
   pageAnimate: Record<string, number>;
@@ -65,10 +69,14 @@ export function buildMotionRuntime(
       reduced: true,
       quickMs: ms,
       regularMs: ms,
+      hoverEase: "ease-out",
+      pressEase: "ease-out",
+      settleEase: "ease-out",
       spring: { type: "spring", stiffness: 260, damping: 36, mass: 1 },
       hoverSpring: { type: "spring", stiffness: 260, damping: 36, mass: 1 },
       hoverLiftPx: 0,
       hoverScale: 1,
+      hoverExtraScale: 0,
       pressScale: 0.99,
       pageInitial: false,
       pageAnimate: { opacity: 1 },
@@ -84,7 +92,11 @@ export function buildMotionRuntime(
       regularBase: number;
       hoverLiftPx: number;
       hoverScale: number;
+      hoverExtraScale: number;
       pressScale: number;
+      hoverEase: string;
+      pressEase: string;
+      settleEase: string;
       spring: MotionSpring;
       hoverSpring: MotionSpring;
       pageInitial: Record<string, number>;
@@ -96,7 +108,11 @@ export function buildMotionRuntime(
       regularBase: 210,
       hoverLiftPx: 2.5,
       hoverScale: 1.007,
+      hoverExtraScale: 0.006,
       pressScale: 0.985,
+      hoverEase: "cubic-bezier(0.2, 0.86, 0.3, 1)",
+      pressEase: "cubic-bezier(0.25, 1, 0.5, 1)",
+      settleEase: "cubic-bezier(0.22, 1, 0.36, 1)",
       spring: { type: "spring", stiffness: 280, damping: 28, mass: 1 },
       hoverSpring: { type: "spring", stiffness: 250, damping: 20, mass: 0.92 },
       pageInitial: { opacity: 0, y: 8 },
@@ -107,7 +123,11 @@ export function buildMotionRuntime(
       regularBase: 230,
       hoverLiftPx: 4,
       hoverScale: 1.012,
+      hoverExtraScale: 0.007,
       pressScale: 0.978,
+      hoverEase: "cubic-bezier(0.18, 0.94, 0.24, 1.02)",
+      pressEase: "cubic-bezier(0.2, 1, 0.38, 1)",
+      settleEase: "cubic-bezier(0.18, 1, 0.28, 1)",
       spring: { type: "spring", stiffness: 300, damping: 25, mass: 0.95 },
       hoverSpring: { type: "spring", stiffness: 270, damping: 19, mass: 0.88 },
       pageInitial: { opacity: 0, y: 12, scale: 0.995 },
@@ -118,7 +138,11 @@ export function buildMotionRuntime(
       regularBase: 255,
       hoverLiftPx: 5,
       hoverScale: 1.016,
+      hoverExtraScale: 0.008,
       pressScale: 0.972,
+      hoverEase: "cubic-bezier(0.14, 0.95, 0.18, 1.05)",
+      pressEase: "cubic-bezier(0.18, 1, 0.35, 1)",
+      settleEase: "cubic-bezier(0.16, 1, 0.22, 1)",
       spring: { type: "spring", stiffness: 315, damping: 23, mass: 0.92 },
       hoverSpring: { type: "spring", stiffness: 285, damping: 17, mass: 0.84 },
       pageInitial: { opacity: 0, y: 14, scale: 0.992 },
@@ -135,10 +159,14 @@ export function buildMotionRuntime(
     reduced: false,
     quickMs,
     regularMs,
+    hoverEase: cfg.hoverEase,
+    pressEase: cfg.pressEase,
+    settleEase: cfg.settleEase,
     spring: cfg.spring,
     hoverSpring: cfg.hoverSpring,
     hoverLiftPx: cfg.hoverLiftPx,
     hoverScale: cfg.hoverScale,
+    hoverExtraScale: cfg.hoverExtraScale,
     pressScale: cfg.pressScale,
     pageInitial: theme.animations?.pageTransitions ? cfg.pageInitial : false,
     pageAnimate: { opacity: 1, y: 0, scale: 1 },

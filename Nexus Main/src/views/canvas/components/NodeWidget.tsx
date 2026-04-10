@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Trash2,
   Edit3,
@@ -31,7 +31,18 @@ import {
   CanvasNexusCodeBlock,
   CanvasNexusInlineCode,
 } from "@nexus/core/canvas/CanvasMagicRenderers";
+import {
+  CANVAS_MAGIC_HUB_QUICK_ACTIONS,
+  type CanvasMagicHubQuickActionId,
+} from "@nexus/core/canvas/magicHubTemplates";
 import { NODE_COLORS, WIDGET_TYPES } from "../constants";
+
+const HUB_ACTION_ICONS = {
+  note: FileText,
+  task: CheckSquare,
+  decision: Flag,
+  risk: Bell,
+} as const;
 
 function ConnPort({
   side,
@@ -108,6 +119,7 @@ const NodeWidget = React.memo(function NodeWidget({
   connectingFrom,
   snapToGrid,
   reduceEffects,
+  onHubQuickAction,
 }: {
   node: CanvasNode;
   isSelected: boolean;
@@ -117,6 +129,10 @@ const NodeWidget = React.memo(function NodeWidget({
   connectingFrom: string | null;
   snapToGrid?: boolean;
   reduceEffects?: boolean;
+  onHubQuickAction?: (
+    node: CanvasNode,
+    action: CanvasMagicHubQuickActionId,
+  ) => void;
 }) {
   const t = useTheme();
   const app = useApp(
@@ -136,6 +152,16 @@ const NodeWidget = React.memo(function NodeWidget({
   const rgb = hexToRgb(nodeAccent);
   const widgetCategory = widgetPreset?.category || "Capture";
   const widgetDescription = widgetPreset?.description || node.type;
+  const isMagicHub = useMemo(() => {
+    const tags = [
+      ...(node.tags || []),
+      ...(((node as any).pm?.tags as string[] | undefined) || []),
+    ];
+    return (
+      tags.includes("magic-hub") ||
+      tags.some((tag) => tag.startsWith("preset:"))
+    );
+  }, [node.tags]);
   const {
     updateNode,
     deleteNode,
@@ -2442,6 +2468,47 @@ const NodeWidget = React.memo(function NodeWidget({
               position: "relative",
             }}
           >
+            {isMagicHub && onHubQuickAction && (
+              <div
+                className="node-interactive"
+                style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: 5,
+                  paddingBottom: 4,
+                  marginBottom: 2,
+                }}
+              >
+                {CANVAS_MAGIC_HUB_QUICK_ACTIONS.map(({ id, label }) => {
+                  const Icon = HUB_ACTION_ICONS[id];
+                  return (
+                  <button
+                    key={id}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onHubQuickAction(node, id);
+                    }}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 4,
+                      border: `1px solid rgba(${rgb},0.42)`,
+                      background: `rgba(${rgb},0.16)`,
+                      color: nodeAccent,
+                      borderRadius: 999,
+                      padding: "2px 8px",
+                      fontSize: 10,
+                      fontWeight: 700,
+                      cursor: "pointer",
+                    }}
+                  >
+                    <Icon size={10} />
+                    {label}
+                  </button>
+                  );
+                })}
+              </div>
+            )}
             {renderContent()}
           </div>
 

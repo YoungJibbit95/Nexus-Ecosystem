@@ -32,56 +32,56 @@ const MAGIC_TEMPLATES: {
   {
     id: "mindmap",
     label: "Mindmap Core",
-    desc: "Zentrales Thema mit Branches und Unterpunkten.",
+    desc: "Großes Hub-Widget als zentraler Startpunkt für Mindmaps.",
     icon: "🧠",
     color: "#64D2FF",
   },
   {
     id: "roadmap",
     label: "Project Roadmap",
-    desc: "Goal + Milestones + Timeline + Risks.",
+    desc: "Ein zentrales Roadmap-Widget mit Planung, Timeline und KPIs.",
     icon: "🗺️",
     color: "#30D158",
   },
   {
     id: "sprint",
     label: "Sprint Planner",
-    desc: "Backlog, Doing, Review, Done mit Verknüpfungen.",
+    desc: "Sprint-Hub mit Kanban, Steps und Checklist in einer Node.",
     icon: "🏁",
     color: "#FF9F0A",
   },
   {
     id: "risk-matrix",
     label: "Risk Matrix",
-    desc: "Risiken nach Impact und Wahrscheinlichkeit strukturieren.",
+    desc: "Risikohub als zentrale Matrix-Node für Mitigations.",
     icon: "⚠️",
     color: "#FF453A",
   },
   {
     id: "decision-flow",
     label: "Decision Flow",
-    desc: "Optionen, Kriterien, Entscheidung und nächste Schritte.",
+    desc: "Decision-Hub mit Optionen, Kriterien und Ausführungspfad.",
     icon: "🌿",
     color: "#BF5AF2",
   },
   {
     id: "meeting-hub",
     label: "Meeting Hub",
-    desc: "Agenda, Entscheidungen, Action Items und Follow-up in einem Canvas.",
+    desc: "Meeting als ein großes Hub-Widget für Agenda und Actions.",
     icon: "🗓️",
     color: "#64D2FF",
   },
   {
     id: "delivery-map",
     label: "Delivery Map",
-    desc: "Delivery-Pipeline mit Backlog, Build, QA, Launch und Risiken.",
+    desc: "Delivery-Hub mit Backlog/Build/QA/Launch als zentrale Node.",
     icon: "🚚",
     color: "#30D158",
   },
   {
     id: "ai-project",
     label: "AI Project Generator",
-    desc: "Erzeugt Projektstruktur aus Prompt inkl. Risiken, Milestones und Tasks.",
+    desc: "Prompt erzeugt ein einzelnes AI-Hub-Widget als Startpunkt.",
     icon: "🤖",
     color: "#5E5CE6",
   },
@@ -316,7 +316,7 @@ export function CanvasMagicModal({
                     onChange={(e) => setIncludeNotes(e.target.checked)}
                     style={{ accentColor: t.accent }}
                   />
-                  Notiz-Node hinzufügen
+                  Notiz-Sektion im Hub ergänzen
                 </label>
               </div>
               <div style={{ display: "flex", gap: 8, marginTop: 5 }}>
@@ -335,7 +335,7 @@ export function CanvasMagicModal({
                     onChange={(e) => setIncludeTasks(e.target.checked)}
                     style={{ accentColor: t.accent }}
                   />
-                  Aufgabenstruktur hinzufügen
+                  Task-Checklist im Hub ergänzen
                 </label>
               </div>
 
@@ -425,8 +425,8 @@ export function CanvasMagicModal({
               </div>
               <div style={{ fontSize: 12, lineHeight: 1.55, opacity: 0.82 }}>
                 {template === "ai-project"
-                  ? "Generiert automatisch Scope, Milestones, Risiken, Entscheidungen und Delivery-Tasks aus deinem Prompt."
-                  : "Der Builder erzeugt mehrere verbundene Nodes mit passender Struktur, Farb-Codierung und Magic-Markdown-Blöcken."}
+                  ? "Erzeugt ein großes AI-Hub-Widget aus deinem Prompt. Danach kannst du normale Nodes gezielt anhängen."
+                  : "Erzeugt ein einzelnes großes Hub-Widget mit Magic-Markdown-Struktur als zentralen Canvas-Anker."}
               </div>
               <div
                 style={{
@@ -445,7 +445,7 @@ export function CanvasMagicModal({
                     border: `1px solid rgba(${rgb},0.3)`,
                   }}
                 >
-                  Auto Links
+                  Hub First
                 </span>
                 <span
                   style={{
@@ -456,7 +456,7 @@ export function CanvasMagicModal({
                     border: `1px solid rgba(${hexToRgb(t.accent2)},0.3)`,
                   }}
                 >
-                  PM Widgets
+                  Magic Blocks
                 </span>
                 <span
                   style={{
@@ -467,7 +467,7 @@ export function CanvasMagicModal({
                     border: "1px solid rgba(255,255,255,0.15)",
                   }}
                 >
-                  Mindmap Ready
+                  Attach More Nodes
                 </span>
               </div>
             </div>

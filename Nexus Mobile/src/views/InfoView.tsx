@@ -121,6 +121,7 @@ export function InfoView() {
   const mob = useMobile()
   const [open, setOpen] = useState<Record<string,boolean>>({
     about: true,
+    guide: true,
     changelog: true,
     dashboard: false,
     notes: false,
@@ -148,7 +149,7 @@ export function InfoView() {
             <div style={{ fontSize: 32, fontWeight: 900, marginBottom: 6, background: `linear-gradient(135deg, ${t.accent}, ${t.accent2})`, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
               NEXUS v5.0
             </div>
-            <div style={{ fontSize: 13, opacity: 0.55, marginBottom: 16 }}>Productivity Suite · Glass & Glow Edition · 4. April 2026</div>
+            <div style={{ fontSize: 13, opacity: 0.55, marginBottom: 16 }}>Productivity Suite · Workspace Edition · 10. April 2026</div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
               <Badge label="Notes" color={t.accent}/>
               <Badge label="Code Editor" color="#BF5AF2"/>
@@ -249,6 +250,24 @@ Runtime:    Electron`}
           </Code>
         </Acc>
 
+        <Acc title="Komplette View-Referenz" icon={Layers} open={open.guide} onToggle={() => tog('guide')} badge="ALL VIEWS">
+          <P>Alle produktiven Views mit Kernfunktionen und praktischen Shortcuts in einer kompakten Übersicht.</P>
+          <Grid2>
+            <Card icon="📊" title="Dashboard" desc="Widget-Liveboard mit Layout-Editor und persistenter Anordnung." keys={['Drag Widgets','Layout bearbeiten','Reset Layout']}/>
+            <Card icon="📝" title="Notes" desc="Markdown + Magic Blocks, Import/Export, Tags, Split/Preview." keys={['Cmd/Ctrl+S','Cmd/Ctrl+B','Cmd/Ctrl+I','Cmd/Ctrl+K']}/>
+            <Card icon="💻" title="Code" desc="Monaco, Run/Preview, Tabs, Search und Output." keys={['Cmd/Ctrl+Enter','Cmd/Ctrl+S']}/>
+            <Card icon="✅" title="Tasks" desc="Kanban mit Prioritäten, Deadlines und Subtasks."/>
+            <Card icon="🔔" title="Reminders" desc="Snooze/Repeat/Overdue mit schneller Bearbeitung."/>
+            <Card icon="🧠" title="Canvas" desc="Infinite Board mit Magic Presets, Auto-Layout und Export." keys={['Cmd/Ctrl+M','Cmd/Ctrl+0','+ / -','G','F']}/>
+            <Card icon="🗂️" title="Files" desc="Workspace-Ordner und zentraler Datei-/Item-Zugriff."/>
+            <Card icon="⚡" title="Flux" desc="Ops-Center mit Queue, Bottlenecks und Quick Create." keys={['Cmd/Ctrl+F','Cmd/Ctrl+Shift+N/C/T/R']}/>
+            <Card icon="🛠️" title="DevTools" desc="UI-Builder und Helper für schnelle Frontend-Iterationen."/>
+            <Card icon="⚙️" title="Settings" desc="Presets + Theme/Panel/Motion-Konfiguration."/>
+            <Card icon="⌘" title="Terminal" desc="Command-Hub für Navigation, Suche und schnelle Aktionen." keys={['Enter','Tab','ArrowUp/Down','Esc']}/>
+            <Card icon="ℹ️" title="Info" desc="Produktguide, Changelog und Referenzdokumentation."/>
+          </Grid2>
+        </Acc>
+
         {/* ═══ DASHBOARD ═══ */}
         <Acc title="Dashboard — Layout Editor" icon={Layout} open={open.dashboard} onToggle={() => tog('dashboard')} badge="UPDATED">
           <P>Das Dashboard nutzt ein flexibles 2-Spalten-Layout mit Snap-Verhalten und persistenter Widget-Positionierung.</P>
@@ -280,6 +299,18 @@ Deployment läuft gerade im Wartungsfenster.
 UI Polish | 90
 Testing   | 70
 Release   | 40
+\`\`\`
+
+\`\`\`nexus-kanban
+Backlog | Scope finalisieren
+Doing | API integrieren
+Review | QA + Smoke Test
+Done | Release freigeben
+\`\`\`
+
+\`\`\`nexus-callout
+tip | Rollout Hinweis
+Vor dem Go-Live alle kritischen Flows einmal im Build testen.
 \`\`\``}
           </Code>
           <Card title="Nützliche Shortcuts" desc="" keys={['Cmd/Ctrl+S Save','Cmd/Ctrl+B Bold','Cmd/Ctrl+I Italic','Cmd/Ctrl+K Link','Cmd/Ctrl+Z Undo','Cmd/Ctrl+Y Redo','Tab Indent']}/>
@@ -330,6 +361,7 @@ Release   | 40
 
         {/* ═══ CANVAS ═══ */}
         <Acc title="Canvas — Infinite Board" icon={GitBranch} open={open.canvas} onToggle={() => tog('canvas')}>
+          <P>Magic Presets erstellen einen zentralen großen Hub pro Preset. Von dort aus kannst du weitere Nodes strukturiert anbinden.</P>
           <H>Visuelles Arbeiten</H>
           <Grid2>
             <Card icon="📝" title="Text & Ideas" desc="Freie Ideenblöcke auf unendlicher Fläche."/>
@@ -395,7 +427,7 @@ Release   | 40
         {/* ═══ SHORTCUTS ═══ */}
         <Acc title="Tastenkürzel" icon={Keyboard} open={open.shortcuts} onToggle={() => tog('shortcuts')}>
           <Grid2>
-            <Card title="Global / Palette" desc="" keys={['Cmd/Ctrl+K Palette Toggle','Esc Palette Close']}/>
+            <Card title="Global / Palette" desc="" keys={['Cmd/Ctrl+K Palette Toggle','Cmd/Ctrl+1..9 Direkt zu View-Slots','Cmd/Ctrl+[ / ] View vor/zurück','Esc Palette Close']}/>
             <Card title="Dashboard" desc="Keine globalen Tastenkürzel; Fokus auf direkte UI-Interaktion."/>
             <Card title="Notes" desc="" keys={['Cmd/Ctrl+S Save','Cmd/Ctrl+B Bold','Cmd/Ctrl+I Italic','Cmd/Ctrl+K Link','Cmd/Ctrl+Z Undo','Cmd/Ctrl+Y Redo','Tab Indent']}/>
             <Card title="Code" desc="" keys={['Cmd/Ctrl+Enter Run','Cmd/Ctrl+S Save','Tab Indent (Textarea)','Enter Create File (Modal)']}/>

@@ -2,6 +2,23 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
 
+const resolveMonacoChunk = (id: string) => {
+  if (!id.includes("monaco-editor")) return null;
+  if (id.includes("monaco-editor/esm/vs/editor/")) return "vendor-monaco-core";
+  if (id.includes("monaco-editor/esm/vs/base/")) return "vendor-monaco-base";
+  if (id.includes("monaco-editor/esm/vs/language/typescript/"))
+    return "vendor-monaco-ts";
+  if (id.includes("monaco-editor/esm/vs/language/json/"))
+    return "vendor-monaco-json";
+  if (id.includes("monaco-editor/esm/vs/language/css/"))
+    return "vendor-monaco-css";
+  if (id.includes("monaco-editor/esm/vs/language/html/"))
+    return "vendor-monaco-html";
+  if (id.includes("monaco-editor/esm/vs/language/"))
+    return "vendor-monaco-lang";
+  return "vendor-monaco-misc";
+};
+
 export default defineConfig({
   plugins: [react()],
   base: "./",
@@ -26,7 +43,9 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           if (!id.includes("node_modules")) return;
-          if (id.includes("monaco-editor")) return "vendor-monaco";
+          const monacoChunk = resolveMonacoChunk(id);
+          if (monacoChunk) return monacoChunk;
+          if (id.includes("/node_modules/three/")) return "vendor-three";
           if (id.includes("react-markdown") || id.includes("remark-gfm"))
             return "vendor-markdown";
           if (id.includes("lucide-react")) return "vendor-lucide";

@@ -84,7 +84,9 @@ export function MainShellLayout({
 
   return (
     <div
-      className="nx-app-shell"
+      className="nx-app-shell nx-motion-root"
+      data-nx-motion-profile={motionRuntime?.profile || "balanced"}
+      data-nx-motion-reduced={motionRuntime?.reduced ? "1" : "0"}
       style={{
         ...motionCssVars,
         color: t.mode === "dark" ? "#f8f8fc" : "#15161d",
@@ -136,6 +138,7 @@ export function MainShellLayout({
           }}
         >
           <div
+            className="nx-motion-surface nx-motion-hover-soft"
             style={{
               width: effectiveSidebarWidth,
               flexShrink: 0,
@@ -230,6 +233,7 @@ export function MainShellLayout({
             ) : null}
           </div>
           <div
+            className="nx-motion-surface"
             style={{
               flex: 1,
               overflow: "hidden",

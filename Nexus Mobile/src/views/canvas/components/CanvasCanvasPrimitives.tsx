@@ -29,6 +29,10 @@ import {
   CanvasNexusCodeBlock,
   CanvasNexusInlineCode,
 } from '@nexus/core/canvas/CanvasMagicRenderers'
+import {
+  CANVAS_MAGIC_HUB_QUICK_ACTIONS,
+  type CanvasMagicHubQuickActionId,
+} from '@nexus/core/canvas/magicHubTemplates'
 import { Glass } from '../../../components/Glass'
 import { useCanvas, type CanvasConnection, type CanvasNode } from '../../../store/canvasStore'
 import { useTheme } from '../../../store/themeStore'
@@ -42,6 +46,13 @@ import {
   WIDGET_TYPES,
   getWidgetPreset,
 } from '../mobileCanvasConfig'
+
+const HUB_ACTION_ICONS = {
+  note: FileText,
+  task: CheckSquare,
+  decision: GitBranch,
+  risk: AlertCircle,
+} as const
 export function CanvasConnectionLine({ conn, nodeById, zoom, onDelete, reduceEffects }: {
     conn: CanvasConnection; nodeById: globalThis.Map<string, CanvasNode>; zoom: number; onDelete: (id: string) => void; reduceEffects?: boolean
 }) {
@@ -141,12 +152,16 @@ function ConnPort({ side, nodeId, onStartConnect, onEndConnect, connecting }: {
 
 // ─── NODE WIDGET ───
 
-export function CanvasNodeWidget({ node, isSelected, onSelect, onStartConnect, onEndConnect, connectingFrom }: {
+export function CanvasNodeWidget({ node, isSelected, onSelect, onStartConnect, onEndConnect, connectingFrom, onHubQuickAction }: {
     node: CanvasNode; isSelected: boolean
     onSelect: (id: string) => void
     onStartConnect: (id: string) => void
     onEndConnect: (id: string) => void
     connectingFrom: string | null
+    onHubQuickAction?: (
+      node: CanvasNode,
+      action: CanvasMagicHubQuickActionId,
+    ) => void
 }) {
     const t = useTheme()
     const app = useApp()
@@ -155,6 +170,13 @@ export function CanvasNodeWidget({ node, isSelected, onSelect, onStartConnect, o
     const rgb = hexToRgb(nodeAccent)
     const widgetCategory = widgetPreset?.category || 'Capture'
     const widgetDescription = widgetPreset?.description || node.type
+    const hubTags = [
+      ...(node.pm?.tags || []),
+      ...(((node as any).tags as string[] | undefined) || []),
+    ]
+    const isMagicHub =
+      hubTags.includes('magic-hub')
+      || hubTags.some((tag) => tag.startsWith('preset:'))
     const { updateNode, deleteNode, moveNode, resizeNode, addChecklistItem, toggleChecklistItem, deleteChecklistItem } = useCanvas()
 
     const [dragging, setDragging] = useState(false)
@@ -1293,6 +1315,48 @@ export function CanvasNodeWidget({ node, isSelected, onSelect, onStartConnect, o
                             )}
                         </div>
                     </div>
+
+                    {isMagicHub && onHubQuickAction && (
+                      <div
+                        className="node-interactive"
+                        style={{
+                          display: 'flex',
+                          flexWrap: 'wrap',
+                          gap: 5,
+                          paddingBottom: 4,
+                          marginBottom: 2,
+                        }}
+                      >
+                        {CANVAS_MAGIC_HUB_QUICK_ACTIONS.map(({ id, label }) => {
+                          const Icon = HUB_ACTION_ICONS[id]
+                          return (
+                          <button
+                            key={id}
+                            onClick={(event) => {
+                              event.stopPropagation()
+                              onHubQuickAction(node, id)
+                            }}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 4,
+                              border: `1px solid rgba(${rgb},0.42)`,
+                              background: `rgba(${rgb},0.16)`,
+                              color: nodeAccent,
+                              borderRadius: 999,
+                              padding: '2px 8px',
+                              fontSize: 10,
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            <Icon size={10} />
+                            {label}
+                          </button>
+                          )
+                        })}
+                      </div>
+                    )}
 
                     <div style={{ flex: 1, overflow: 'hidden', minHeight: 0, position: 'relative' }}>
                         {(node.pm?.status || node.pm?.priority || node.pm?.owner || node.pm?.dueDate) && (

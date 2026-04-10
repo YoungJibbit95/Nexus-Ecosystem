@@ -21,6 +21,9 @@ body { background: #0a0a14; color-scheme: dark light; }
   --nx-speed: 200ms;
   --nx-motion-quick: 170ms;
   --nx-motion-regular: 210ms;
+  --nx-motion-hover-ease: cubic-bezier(0.2, 0.86, 0.3, 1);
+  --nx-motion-press-ease: cubic-bezier(0.25, 1, 0.5, 1);
+  --nx-motion-settle-ease: cubic-bezier(0.22, 1, 0.36, 1);
   --nx-hover-lift: 2.5px;
   --nx-hover-scale: 1.007;
   --nx-press-scale: 0.985;
@@ -154,21 +157,23 @@ body { background: #0a0a14; color-scheme: dark light; }
    ══════════════════════════════════════════════════════════════ */
 :where(button, [role='button'], .nx-interactive):not(:disabled):not([aria-disabled='true']) {
   transition:
-    transform var(--nx-motion-quick, 170ms) cubic-bezier(0.2, 1.25, 0.32, 1),
+    transform var(--nx-motion-quick, 170ms) var(--nx-motion-hover-ease, cubic-bezier(0.2, 0.86, 0.3, 1)),
     opacity var(--nx-motion-quick, 170ms) ease,
     background-color var(--nx-motion-regular, 210ms) ease,
     color var(--nx-motion-regular, 210ms) ease,
     border-color var(--nx-motion-quick, 170ms) ease,
-    box-shadow var(--nx-motion-regular, 210ms) ease !important;
+    box-shadow var(--nx-motion-regular, 210ms) var(--nx-motion-settle-ease, ease),
+    filter var(--nx-motion-quick, 170ms) var(--nx-motion-settle-ease, ease);
   cursor: pointer;
   transform: translateZ(0);
+  transform-origin: center center;
   backface-visibility: hidden;
   will-change: transform, filter;
 }
 
 @media (hover: hover) and (pointer: fine) {
   :where(button, [role='button'], .nx-interactive):not(:disabled):not([aria-disabled='true']):not(.nx-sidebar-nav-row):hover {
-    transform: scale(var(--nx-hover-scale, 1.007));
+    transform: scale(calc(var(--nx-hover-scale, 1.007) + var(--nx-hover-extra-scale, 0)));
     filter: brightness(1.04);
   }
 }
@@ -176,6 +181,7 @@ body { background: #0a0a14; color-scheme: dark light; }
 :where(button, [role='button'], .nx-interactive):not(:disabled):not([aria-disabled='true']):not(.nx-sidebar-nav-row):active {
   transform: scale(var(--nx-press-scale, 0.985));
   filter: brightness(0.96);
+  transition-timing-function: var(--nx-motion-press-ease, cubic-bezier(0.25, 1, 0.5, 1));
 }
 /* Pill / icon buttons get a radial hover highlight */
 button.nx-icon-btn {
@@ -207,12 +213,47 @@ button.nx-sidebar-nav-row:active {
 
 .nx-bounce-target {
   transition:
+    transform var(--nx-motion-quick, 170ms) var(--nx-motion-hover-ease, cubic-bezier(0.2, 0.86, 0.3, 1)),
     box-shadow var(--nx-motion-regular, 210ms) ease,
     filter var(--nx-motion-regular, 210ms) ease;
 }
 
 .nx-bounce-target:hover {
+  transform: scale(calc(var(--nx-hover-scale, 1.007) + var(--nx-hover-extra-scale, 0) * 0.65));
   filter: brightness(1.04);
+}
+
+/* Motion Engine Phase 2: shared hover/press variants */
+:where(.nx-motion-hover-soft, .nx-motion-hover-medium, .nx-motion-hover-strong, .nx-motion-surface) {
+  transition:
+    transform var(--nx-motion-quick, 170ms) var(--nx-motion-hover-ease, cubic-bezier(0.2, 0.86, 0.3, 1)),
+    box-shadow var(--nx-motion-regular, 210ms) var(--nx-motion-settle-ease, ease),
+    filter var(--nx-motion-regular, 210ms) var(--nx-motion-settle-ease, ease),
+    border-color var(--nx-motion-quick, 170ms) ease;
+  transform: translateZ(0);
+  transform-origin: center center;
+  backface-visibility: hidden;
+}
+
+.nx-motion-hover-soft { --nx-hover-mult: 0.35; }
+.nx-motion-hover-medium { --nx-hover-mult: 0.62; }
+.nx-motion-hover-strong { --nx-hover-mult: 0.9; }
+
+@media (hover: hover) and (pointer: fine) {
+  :where(.nx-motion-hover-soft, .nx-motion-hover-medium, .nx-motion-hover-strong):hover {
+    transform: scale(calc(1 + var(--nx-hover-extra-scale, 0) * var(--nx-hover-mult, 0.5)));
+    filter: brightness(1.03);
+  }
+}
+
+:where(.nx-motion-hover-soft, .nx-motion-hover-medium, .nx-motion-hover-strong):active {
+  transform: scale(var(--nx-press-scale, 0.985));
+  transition-timing-function: var(--nx-motion-press-ease, cubic-bezier(0.25, 1, 0.5, 1));
+}
+
+[data-nx-motion-reduced='1'] :where(.nx-bounce-target, .nx-motion-hover-soft, .nx-motion-hover-medium, .nx-motion-hover-strong) {
+  transform: none !important;
+  filter: none !important;
 }
 
 @property --nx-gradient-rot {
