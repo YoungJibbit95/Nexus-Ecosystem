@@ -1,14 +1,13 @@
 import { useMobile } from '../lib/useMobile'
 import React, { useState, useMemo, useEffect, useRef, useCallback, useDeferredValue } from 'react'
-import { createPortal } from 'react-dom'
 import {
-  Plus, Trash2, Settings, Save, Copy, Pin, X, RotateCcw, Search,
+  Plus, Save, Copy, RotateCcw,
   Bold, Italic, Heading, List, ListOrdered, Quote, Code, Link,
   Download, Clock, Hash, Eye, Edit3, Minus, Strikethrough,
-  Maximize2, Minimize2, Wand2, Sparkles, Bell, Zap, Calendar, CreditCard,
+  Maximize2, Minimize2, Wand2, Bell, Zap, Calendar, CreditCard,
   ChevronDown, Table, FileText, Upload
 } from 'lucide-react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { AnimatePresence } from 'framer-motion'
 import { Glass } from '../components/Glass'
 import { NexusMarkdown } from '../components/NexusMarkdown'
 import { useApp } from '../store/appStore'
@@ -22,6 +21,8 @@ import { useNotesAnalysis } from './notes/useNotesAnalysis'
 // ─────────────────────────────────────────────────────────────────
 
 import { MagicElementModal, NexusCodeBlock, NexusInlineCode } from './notes/NotesMagicKit'
+import { NotesSidebarPanels } from './notes/NotesSidebarPanels'
+import { NotesSettingsModal, type NotesLocalSettings } from './notes/NotesSettingsModal'
 const NOTE_COMMIT_DEBOUNCE_MS = 4_200
 const NOTE_PREVIEW_DEBOUNCE_MS = 220
 const NOTE_UNDO_SNAPSHOT_INTERVAL_MS = 260
@@ -55,7 +56,6 @@ export function NotesView() {
   const [focusMode, setFocusMode] = useState(false)
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null)
   const [showMagic, setShowMagic] = useState(false)
-  const [magicStep, setMagicStep] = useState<string | null>(null) // selected element type
   const deferredSearchQuery = useDeferredValue(searchQuery)
   const editorRef = useRef<HTMLTextAreaElement>(null)
   const lineNumbersRef = useRef<HTMLPreElement>(null)
@@ -82,7 +82,7 @@ export function NotesView() {
     MAX_RENDERED_LINE_NUMBERS,
   )
 
-  const [localSettings, setLocalSettings] = useState({
+  const [localSettings, setLocalSettings] = useState<NotesLocalSettings>({
     fontSize: t.notes.fontSize, fontFamily: t.notes.fontFamily,
     lineHeight: t.notes.lineHeight, mode: t.notes.mode,
     autosave: t.editor.autosave, autosaveInterval: t.editor.autosaveInterval,
@@ -297,7 +297,6 @@ export function NotesView() {
     if (editorRef.current) {
       savedSel.current = { start: editorRef.current.selectionStart, end: editorRef.current.selectionEnd }
     }
-    setMagicStep(null)
     setShowMagic(true)
   }
 
@@ -440,187 +439,33 @@ export function NotesView() {
         </div>
       )}
 
-      {/* ── SIDEBAR ── */}
-      {!focusMode && !mob.isMobile && (
-        <Glass className="flex flex-col shrink-0" style={{ width: 220, overflow: 'hidden', minHeight: 0 }}>
-          {/* Header */}
-          <div className="flex items-center justify-between px-3 py-2.5 shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-            <span style={{ fontSize: 12, fontWeight: 700, opacity: 0.85 }}>Notes</span>
-            <div className="flex gap-0.5">
-              {[
-                { icon: Search, action: () => setShowSearch(!showSearch), active: showSearch, tip: 'Suchen' },
-                { icon: Plus,   action: addNote,                         active: false,        tip: 'Neue Notiz', color: t.accent },
-                { icon: Upload, action: () => document.getElementById(NOTES_IMPORT_INPUT_ID)?.click(), active: false, tip: 'Markdown importieren' },
-                { icon: Settings, action: () => setShowSettings(true),  active: false,        tip: 'Einstellungen' },
-              ].map(({ icon: Icon, action, active: isActive, tip, color }) => (
-                <button key={tip} onClick={action} title={tip} style={{
-                  padding: '5px', borderRadius: 7, border: 'none', cursor: 'pointer',
-                  background: isActive ? `rgba(${rgb},0.12)` : 'transparent',
-                  color: isActive ? t.accent : (color || 'inherit'),
-                  transition: 'all 0.15s', display: 'flex',
-                }}
-                  onMouseEnter={e => (e.currentTarget.style.background = `rgba(${rgb},0.12)`)}
-                  onMouseLeave={e => (e.currentTarget.style.background = isActive ? `rgba(${rgb},0.12)` : 'transparent')}
-                >
-                  <Icon size={14} />
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {showSearch && (
-            <div className="px-3 py-2 shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-              <input
-                autoFocus placeholder="Suchen..." value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                style={{
-                  width: '100%', padding: '6px 10px', borderRadius: 8, fontSize: 12,
-                  background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)',
-                  outline: 'none', color: 'inherit',
-                }}
-              />
-            </div>
-          )}
-
-          {allTags.length > 0 && (
-            <div className="px-3 py-2 shrink-0 flex flex-wrap gap-1" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-              {allTags.slice(0, 8).map(tag => (
-                <button key={tag} onClick={() => setTagFilter(tagFilter === tag ? null : tag)}
-                  style={{
-                    padding: '2px 8px', borderRadius: 20, fontSize: 10, border: 'none', cursor: 'pointer',
-                    background: tagFilter === tag ? `rgba(${rgb},0.25)` : 'rgba(255,255,255,0.06)',
-                    color: tagFilter === tag ? t.accent : 'inherit', transition: 'all 0.15s',
-                  }}
-                >#{tag}</button>
-              ))}
-            </div>
-          )}
-
-          <div className="px-2 py-1 shrink-0 flex gap-0.5" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-            {(['updated', 'title', 'created'] as const).map(s => (
-              <button key={s} onClick={() => setSortBy(s)} style={{
-                padding: '3px 8px', borderRadius: 6, fontSize: 10, border: 'none', cursor: 'pointer',
-                background: sortBy === s ? `rgba(${rgb},0.15)` : 'transparent',
-                color: sortBy === s ? t.accent : 'inherit', transition: 'all 0.15s',
-              }}>
-                {s === 'updated' ? 'Aktuell' : s === 'title' ? 'A-Z' : 'Neu'}
-              </button>
-            ))}
-          </div>
-
-          {/* Scrollable list — overflow-y:auto always shows scrollbar when needed */}
-          <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '6px', minHeight: 0 }}>
-            {filteredNotes.map((n) => (
-              <div
-                key={n.id} onClick={() => setNote(n.id)} role="button" tabIndex={0}
-                style={{
-                  padding: '8px 10px', borderRadius: 9, cursor: 'pointer', marginBottom: 2,
-                  background: n.id === activeNoteId ? 'rgba(255,255,255,0.1)' : 'transparent',
-                  borderLeft: `2px solid ${n.id === activeNoteId ? t.accent : 'transparent'}`,
-                  transition: 'all 0.13s', position: 'relative',
-                }}
-                className="group"
-                onMouseEnter={e => { if (n.id !== activeNoteId) (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.05)' }}
-                onMouseLeave={e => { if (n.id !== activeNoteId) (e.currentTarget as HTMLElement).style.background = 'transparent' }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, fontWeight: 500 }}>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
-                    {n.dirty && <span style={{ color: t.accent, fontSize: 7, flexShrink: 0 }}>●</span>}
-                    {n.title}
-                  </span>
-                  {n.pinned && <Pin size={9} style={{ color: '#FFCC00', flexShrink: 0 }} />}
-                </div>
-                <div style={{ fontSize: 10, opacity: 0.45, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {n.content.replace(/[#*`]/g, '').slice(0, 45)}…
-                </div>
-                {n.tags.length > 0 && (
-                  <div style={{ display: 'flex', gap: 3, marginTop: 4, flexWrap: 'wrap' }}>
-                    {n.tags.slice(0, 3).map(tag => (
-                      <span key={tag} style={{ fontSize: 9, padding: '1px 6px', borderRadius: 10, background: `rgba(${rgb},0.12)`, color: t.accent }}>{tag}</span>
-                    ))}
-                  </div>
-                )}
-                <div style={{ position: 'absolute', right: 6, top: 6, display: 'flex', gap: 2, opacity: 0, transition: 'opacity 0.15s' }}
-                  className="group-hover:opacity-100"
-                  onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
-                  onMouseLeave={e => (e.currentTarget.style.opacity = '0')}
-                >
-                  <button onClick={e => { e.stopPropagation(); updateNote(n.id, { pinned: !n.pinned }) }}
-                    style={{ padding: 3, borderRadius: 5, border: 'none', cursor: 'pointer', background: 'rgba(255,255,255,0.1)', display: 'flex' }}>
-                    <Pin size={9} style={{ color: n.pinned ? '#FFCC00' : undefined }} />
-                  </button>
-                  <button onClick={e => { e.stopPropagation(); delNote(n.id) }}
-                    style={{ padding: 3, borderRadius: 5, border: 'none', cursor: 'pointer', background: 'rgba(255,69,58,0.15)', color: '#FF453A', display: 'flex' }}>
-                    <Trash2 size={9} />
-                  </button>
-                </div>
-              </div>
-            ))}
-            {filteredNotes.length === 0 && (
-              <div style={{ fontSize: 11, opacity: 0.35, textAlign: 'center', padding: '24px 0' }}>
-                {searchQuery ? 'Keine Ergebnisse' : 'Keine Notizen'}
-              </div>
-            )}
-          </div>
-        </Glass>
-      )}
-
-      {/* Mobile note list — bottom sheet */}
-      <AnimatePresence>
-        {mob.isMobile && showMobileSidebar && (
-          <>
-            <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}
-              onClick={() => setShowMobileSidebar(false)}
-              style={{ position:'fixed', inset:0, zIndex:200, background:'rgba(0,0,0,0.5)', backdropFilter:'blur(5px)' }}/>
-            <motion.div initial={{y:'100%'}} animate={{y:0}} exit={{y:'100%'}}
-              transition={{type:'spring',stiffness:380,damping:30}}
-              style={{ position:'fixed', bottom:0, left:0, right:0, zIndex:201,
-                background: t.mode==='dark'?'rgba(12,12,22,0.98)':'rgba(248,248,255,0.98)',
-                backdropFilter:'blur(24px)', borderRadius:'20px 20px 0 0',
-                border:'1px solid rgba(255,255,255,0.1)', borderBottom:'none',
-                padding:'8px 0 40px', maxHeight:'80vh', display:'flex', flexDirection:'column' }}>
-              <div style={{ width:36, height:4, borderRadius:2, background:'rgba(255,255,255,0.2)', margin:'0 auto 12px' }}/>
-              <div style={{ padding:'0 16px 12px', display:'flex', alignItems:'center', justifyContent:'space-between', borderBottom:'1px solid rgba(255,255,255,0.07)' }}>
-                <span style={{ fontWeight:800, fontSize:16 }}>All Notes <span style={{ fontSize:12, opacity:0.4, fontWeight:500 }}>({notes.length})</span></span>
-                <button onClick={()=>{addNote();setShowMobileSidebar(false)}}
-                  style={{ display:'flex', alignItems:'center', gap:6, padding:'9px 16px', borderRadius:12, background:t.accent, border:'none', color:'#fff', fontWeight:700, fontSize:13, cursor:'pointer' }}>
-                  <Plus size={15}/> New
-                </button>
-              </div>
-              {/* Search */}
-              <div style={{ padding:'10px 16px', borderBottom:'1px solid rgba(255,255,255,0.07)' }}>
-                <input value={searchQuery} onChange={e=>setSearchQuery(e.target.value)}
-                  placeholder="Search notes…"
-                  style={{ width:'100%', padding:'10px 14px', borderRadius:12, background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.1)', outline:'none', fontSize:14, color:'inherit' }}/>
-              </div>
-              <div style={{ flex:1, overflowY:'auto', padding:'8px 12px' }}>
-                {notes.filter(n => searchQuery ? (n.title+n.content).toLowerCase().includes(searchQuery.toLowerCase()) : true)
-                  .sort((a,b) => new Date(b.updated).getTime()-new Date(a.updated).getTime())
-                  .map(n => (
-                  <button key={n.id} onClick={()=>{setNote(n.id);setShowMobileSidebar(false)}}
-                    style={{ width:'100%', textAlign:'left', padding:'13px 14px', borderRadius:14, cursor:'pointer', marginBottom:6,
-                      background: n.id===activeNoteId?`rgba(${rgb},0.15)`:'rgba(255,255,255,0.04)',
-                      border:`1px solid ${n.id===activeNoteId?`rgba(${rgb},0.3)`:'rgba(255,255,255,0.07)'}`,
-                      display:'flex', alignItems:'flex-start', gap:12 }}>
-                    <div style={{ flex:1, minWidth:0 }}>
-                      <div style={{ fontSize:14, fontWeight:n.id===activeNoteId?700:600, color:n.id===activeNoteId?t.accent:'inherit', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                        {n.pinned && '📌 '}{n.title||'Untitled'}
-                      </div>
-                      <div style={{ fontSize:12, opacity:0.45, marginTop:3, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                        {n.content.replace(/[#*`]/g,'').slice(0,60)}
-                      </div>
-                      {n.tags.length>0 && <div style={{ display:'flex', gap:4, marginTop:6, flexWrap:'wrap' }}>
-                        {n.tags.slice(0,3).map(tag=><span key={tag} style={{ fontSize:10, padding:'2px 7px', borderRadius:10, background:`rgba(${rgb},0.12)`, color:t.accent }}>#{tag}</span>)}
-                      </div>}
-                    </div>
-                  </button>
-                ))}
-                {notes.length===0 && <div style={{ opacity:0.35, textAlign:'center', padding:'30px 0', fontSize:14 }}>No notes yet</div>}
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+      <NotesSidebarPanels
+        isMobile={mob.isMobile}
+        focusMode={focusMode}
+        showMobileSidebar={showMobileSidebar}
+        setShowMobileSidebar={setShowMobileSidebar}
+        notes={notes}
+        filteredNotes={filteredNotes}
+        allTags={allTags}
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        showSearch={showSearch}
+        setShowSearch={setShowSearch}
+        sortBy={sortBy}
+        setSortBy={setSortBy}
+        tagFilter={tagFilter}
+        setTagFilter={setTagFilter}
+        activeNoteId={activeNoteId}
+        accent={t.accent}
+        rgb={rgb}
+        mode={t.mode}
+        addNote={addNote}
+        setNote={setNote}
+        updateNote={updateNote}
+        delNote={delNote}
+        onOpenSettings={() => setShowSettings(true)}
+        onImportMarkdown={() => document.getElementById(NOTES_IMPORT_INPUT_ID)?.click()}
+      />
 
     {/* ── MAIN PANEL ── */}
       {active ? (
@@ -714,6 +559,11 @@ export function NotesView() {
               <FmtBtn icon={ListOrdered}  tooltip="Num. Liste"   action={() => insertFormat('\n1. ', '', 'Eintrag')} />
               <FmtBtn icon={Table}        tooltip="Tabelle"      action={() => insertFormat('\n| Kopf | Kopf |\n| --- | --- |\n| Zelle | Zelle |\n')} />
               <FmtBtn icon={Minus}        tooltip="Trennlinie"   action={() => insertFormat('\n---\n', '')} />
+              <FmtBtn icon={Bell}         tooltip="Callout Block" action={() => insertFormat('\n```nexus-callout\ninfo | Hinweis\nKurzinfo oder Entscheidung notieren.\n```\n')} />
+              <FmtBtn icon={Zap}          tooltip="Kanban Block" action={() => insertFormat('\n```nexus-kanban\nBacklog | Aufgabe sammeln\nDoing | Umsetzung\nReview | QA/Abnahme\nDone | Fertig\n```\n')} />
+              <FmtBtn icon={Calendar}     tooltip="Timeline Block" action={() => insertFormat('\n```nexus-timeline\nHeute | Kickoff\nMorgen | Umsetzung\nDiese Woche | Review\n```\n')} />
+              <FmtBtn icon={CreditCard}   tooltip="Card Block" action={() => insertFormat('\n```nexus-card\nhttps://images.unsplash.com/photo-1618005182384?w=600 | Titel | Kurze Beschreibung\n```\n')} />
+              <FmtBtn icon={ChevronDown}  tooltip="Details/Toggle" action={() => insertFormat('\n<details>\n<summary>Mehr anzeigen</summary>\n\nDetails hier ergänzen...\n\n</details>\n')} />
 
               <div style={{ width: 1, height: 14, background: 'rgba(255,255,255,0.1)', margin: '0 4px' }} />
 
@@ -865,7 +715,7 @@ export function NotesView() {
                   flex: 1, overflowY: 'scroll', overflowX: 'hidden',
                   padding: 20, minHeight: 0,
                 }}>
-                  <NexusMarkdown content={deferredDraftContent} />
+                  <NexusMarkdown content={deferredDraftContent} components={mdComponents} />
                 </div>
               </Glass>
             )}
@@ -897,90 +747,16 @@ export function NotesView() {
         </div>
       )}
 
-      {/* Settings Modal */}
-      <AnimatePresence>
-        {showSettings && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            style={{ position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}
-          >
-            <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }} onClick={() => setShowSettings(false)} />
-            <motion.div
-              initial={{ scale: 0.94, y: 12 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.94, y: 12 }}
-              transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-              style={{
-                position: 'relative', zIndex: 1, width: 380, maxHeight: '80vh', overflowY: 'auto',
-                background: t.mode === 'dark' ? 'rgba(14,14,26,0.97)' : 'rgba(255,255,255,0.97)',
-                backdropFilter: 'blur(24px)', borderRadius: 18,
-                border: '1px solid rgba(255,255,255,0.12)',
-                boxShadow: '0 40px 80px rgba(0,0,0,0.7)', padding: 22,
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                <span style={{ fontWeight: 700, fontSize: 14 }}>📝 Notes Settings</span>
-                <button onClick={() => setShowSettings(false)} style={{
-                  padding: 6, borderRadius: 8, border: 'none', cursor: 'pointer',
-                  background: 'rgba(255,255,255,0.06)', color: 'inherit', display: 'flex',
-                }}><X size={14} /></button>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                {[
-                  { label: 'Schriftgröße', key: 'fontSize', type: 'number', min: 10, max: 24, step: 1 },
-                  { label: 'Zeilenhöhe', key: 'lineHeight', type: 'number', min: 1, max: 3, step: 0.1 },
-                  { label: 'Tab Size', key: 'tabSize', type: 'number', min: 2, max: 8, step: 2 },
-                ].map(({ label, key, min, max, step }) => (
-                  <div key={key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12 }}>
-                    <span style={{ opacity: 0.8 }}>{label}</span>
-                    <input type="number" min={min} max={max} step={step}
-                      value={(localSettings as any)[key]}
-                      onChange={e => setLocalSettings(s => ({ ...s, [key]: Number(e.target.value) }))}
-                      style={{
-                        width: 60, padding: '4px 8px', borderRadius: 7, fontSize: 12, textAlign: 'right',
-                        background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)',
-                        outline: 'none', color: 'inherit',
-                      }}
-                    />
-                  </div>
-                ))}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12 }}>
-                  <span style={{ opacity: 0.8 }}>Schriftart</span>
-                  <select value={localSettings.fontFamily} onChange={e => setLocalSettings(s => ({ ...s, fontFamily: e.target.value }))}
-                    style={{
-                      padding: '4px 8px', borderRadius: 7, fontSize: 11,
-                      background: t.mode === 'dark' ? 'rgba(255,255,255,0.06)' : '#fff',
-                      border: '1px solid rgba(255,255,255,0.1)', outline: 'none', color: 'inherit',
-                    }}>
-                    {['Fira Code', 'JetBrains Mono', 'Source Code Pro', 'Monaco', 'Inter', 'system-ui'].map(f => (
-                      <option key={f} value={f}>{f}</option>
-                    ))}
-                  </select>
-                </div>
-                {[
-                  { label: 'Wortumbruch', key: 'wordWrap' },
-                  { label: 'Zeilennummern', key: 'lineNumbers' },
-                  { label: 'Autosave', key: 'autosave' },
-                ].map(({ label, key }) => (
-                  <div key={key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12 }}>
-                    <span style={{ opacity: 0.8 }}>{label}</span>
-                    <input type="checkbox" checked={(localSettings as any)[key]}
-                      onChange={e => setLocalSettings(s => ({ ...s, [key]: e.target.checked }))}
-                      style={{ cursor: 'pointer', accentColor: t.accent, width: 15, height: 15 }}
-                    />
-                  </div>
-                ))}
-              </div>
-              <button onClick={handleApplySettings} style={{
-                marginTop: 16, width: '100%', padding: '10px', borderRadius: 12, border: 'none',
-                cursor: 'pointer', fontWeight: 700, fontSize: 13, color: '#fff',
-                background: `linear-gradient(135deg, ${t.accent}, ${t.accent2})`,
-                boxShadow: `0 4px 14px ${t.accent}44`,
-                transition: 'all 0.15s',
-              }}>
-                ✓ Anwenden
-              </button>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <NotesSettingsModal
+        open={showSettings}
+        mode={t.mode}
+        accent={t.accent}
+        accent2={t.accent2}
+        localSettings={localSettings}
+        setLocalSettings={setLocalSettings}
+        onApply={handleApplySettings}
+        onClose={() => setShowSettings(false)}
+      />
 
       {/* ══════════════════════════════════════
           ✦ MAGIC ELEMENT BUILDER MODAL

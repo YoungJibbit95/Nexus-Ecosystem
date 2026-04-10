@@ -17,10 +17,16 @@ import { useGlobalTypingAnimation } from "./lib/useGlobalTypingAnimation";
 import { useWorkspaceRuntimeSync } from "./hooks/useWorkspaceRuntimeSync";
 import {
   applyAccessibilityFlags,
+  buildAdaptiveViewWarmupPlan,
   applyGlobalFont,
   applyPanelDensity,
   applyTypographyScale,
   buildLiveViewModel,
+  loadViewWarmupStats,
+  orderViewsForNavigation,
+  saveViewWarmupStats,
+  type NexusViewTransitionStats,
+  resolveViewHotkey,
   resolveLayoutProfile,
   sanitizeGlobalFont,
 } from "@nexus/core";
@@ -31,9 +37,9 @@ import {
   type NexusViewAccessResult,
 } from "@nexus/api";
 import {
-  VIEW_CHUNK_PRELOADERS,
   VIEW_IDS,
   orderMainPreloadViews,
+  preloadMainViewChunk,
   preloadMainViews,
 } from "./app/viewPreload";
 import { MainViewHost } from "./app/mainViewHost";
@@ -88,8 +94,28 @@ export default function App() {
   const validatedAccessRef = useRef<
     Partial<Record<View, NexusViewAccessResult>>
   >({});
+  const transitionStatsRef = useRef<NexusViewTransitionStats>({});
+  const recentViewsRef = useRef<View[]>(["dashboard"]);
+  const previousTrackedViewRef = useRef<View>("dashboard");
+  const warmupPersistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+  const preloadTelemetryRef = useRef<
+    Partial<Record<View, { reports: number }>>
+  >({});
+  const lagSamplesRef = useRef<Array<{ ts: number; duration: number }>>([]);
+  const motionRecoveryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
   const guardRequestSeq = useRef(0);
+  const [lagPressure, setLagPressure] = useState<
+    "low" | "elevated" | "critical"
+  >("low");
+  const [autoMotionSafety, setAutoMotionSafety] = useState(false);
   const lowPowerMode = useMemo(() => isLowPowerDevice(), []);
+  const motionSafetyLowPower = lowPowerMode || autoMotionSafety;
+  const effectiveReducedMotion =
+    Boolean(t.qol?.reducedMotion ?? false) || autoMotionSafety;
 
   const viewAccessContext = useMemo(
     () => ({
@@ -132,6 +158,92 @@ export default function App() {
       }
     },
     [],
+  );
+
+  const flushWarmupStats = useCallback(() => {
+    void saveViewWarmupStats("main", {
+      transitionStats: transitionStatsRef.current,
+      recentViews: recentViewsRef.current,
+    });
+  }, []);
+
+  const scheduleWarmupStatsPersist = useCallback(() => {
+    if (warmupPersistTimerRef.current !== null) {
+      clearTimeout(warmupPersistTimerRef.current);
+    }
+    warmupPersistTimerRef.current = globalThis.setTimeout(() => {
+      warmupPersistTimerRef.current = null;
+      flushWarmupStats();
+    }, 900);
+  }, [flushWarmupStats]);
+
+  const trackLagPressure = useCallback((durationMs: number) => {
+    if (!Number.isFinite(durationMs) || durationMs < 80) return;
+
+    const nowTs = Date.now();
+    lagSamplesRef.current = [
+      ...lagSamplesRef.current.filter((sample) => nowTs - sample.ts <= 12_000),
+      { ts: nowTs, duration: durationMs },
+    ];
+
+    const severeCount = lagSamplesRef.current.filter(
+      (sample) => sample.duration >= 180,
+    ).length;
+    const mediumCount = lagSamplesRef.current.filter(
+      (sample) => sample.duration >= 120,
+    ).length;
+
+    const nextPressure: "low" | "elevated" | "critical" =
+      severeCount >= 3 || mediumCount >= 6
+        ? "critical"
+        : severeCount >= 1 || mediumCount >= 3
+          ? "elevated"
+          : "low";
+    setLagPressure((prev) => (prev === nextPressure ? prev : nextPressure));
+
+    if (nextPressure === "critical") {
+      setAutoMotionSafety(true);
+      if (motionRecoveryTimerRef.current !== null) {
+        clearTimeout(motionRecoveryTimerRef.current);
+      }
+      motionRecoveryTimerRef.current = globalThis.setTimeout(() => {
+        motionRecoveryTimerRef.current = null;
+        lagSamplesRef.current = [];
+        setLagPressure("low");
+        setAutoMotionSafety(false);
+      }, 25_000);
+    }
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    void loadViewWarmupStats("main")
+      .then((payload) => {
+        if (!active) return;
+        transitionStatsRef.current = payload.transitionStats || {};
+        const loadedRecent = (payload.recentViews || []) as View[];
+        recentViewsRef.current = [
+          view,
+          ...loadedRecent.filter((entry) => entry !== view),
+        ].slice(0, 8);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(
+    () => () => {
+      if (warmupPersistTimerRef.current !== null) {
+        clearTimeout(warmupPersistTimerRef.current);
+      }
+      if (motionRecoveryTimerRef.current !== null) {
+        clearTimeout(motionRecoveryTimerRef.current);
+      }
+      flushWarmupStats();
+    },
+    [flushWarmupStats],
   );
 
   useEffect(() => {
@@ -203,12 +315,70 @@ export default function App() {
 
   const preloadViewChunk = useCallback(
     async (viewId: View, timeoutMs?: number) => {
-      const loader = VIEW_CHUNK_PRELOADERS[viewId];
-      if (typeof loader !== "function") return;
-      const budget = timeoutMs ?? (lowPowerMode ? 160 : 60);
-      await withTimeoutResult(loader(), budget);
+      const chunk = preloadMainViewChunk(viewId);
+      if (!chunk) return;
+
+      const budget =
+        timeoutMs ??
+        (lagPressure === "critical"
+          ? 80
+          : lagPressure === "elevated"
+            ? 120
+            : lowPowerMode
+              ? 160
+              : 60);
+      const startedAt =
+        typeof performance !== "undefined" ? performance.now() : Date.now();
+      const result = await withTimeoutResult(chunk.promise, budget);
+      const endedAt =
+        typeof performance !== "undefined" ? performance.now() : Date.now();
+      const durationMs = Number(Math.max(0, endedAt - startedAt).toFixed(2));
+
+      const telemetry = preloadTelemetryRef.current[viewId] || { reports: 0 };
+      const shouldReport = telemetry.reports < 8 || result.timedOut;
+      if (shouldReport) {
+        telemetry.reports += 1;
+        preloadTelemetryRef.current[viewId] = telemetry;
+        const runtime = runtimeRef.current;
+        runtime?.connection.publish(
+          "custom",
+          {
+            event: "view_preload",
+            appId: "main",
+            viewId,
+            cacheStatus: chunk.warm ? "hit" : "miss",
+            durationMs,
+            timedOut: result.timedOut,
+            lagPressure,
+          },
+          "all",
+        );
+      }
+
+      const recordCustomMetric = (runtimeRef.current?.performance as any)
+        ?.recordCustomMetric;
+      if (typeof recordCustomMetric === "function") {
+        try {
+          recordCustomMetric.call(
+            runtimeRef.current?.performance,
+            "main.view_preload_ms",
+            durationMs,
+            "ms",
+          );
+          if (result.timedOut) {
+            recordCustomMetric.call(
+              runtimeRef.current?.performance,
+              "main.view_preload_timeout",
+              1,
+              "count",
+            );
+          }
+        } catch {
+          // keep diagnostics best-effort.
+        }
+      }
     },
-    [lowPowerMode],
+    [lagPressure, lowPowerMode],
   );
 
   useEffect(() => {
@@ -286,6 +456,7 @@ export default function App() {
         if (metric >= 120) {
           console.warn("[Nexus Main] interaction lag detected", event);
         }
+        trackLagPressure(metric);
       },
     });
     validatedAccessRef.current = {};
@@ -510,6 +681,7 @@ export default function App() {
     lowPowerMode,
     resolveBundleViews,
     storeWarmupAccess,
+    trackLagPressure,
     viewAccessContext,
   ]);
 
@@ -530,10 +702,10 @@ export default function App() {
 
   useEffect(() => {
     applyAccessibilityFlags({
-      reducedMotion: t.qol?.reducedMotion ?? false,
+      reducedMotion: effectiveReducedMotion,
       highContrast: t.qol?.highContrast ?? false,
     });
-  }, [t.qol?.reducedMotion, t.qol?.highContrast]);
+  }, [effectiveReducedMotion, t.qol?.highContrast]);
 
   useEffect(() => {
     const sz = t.qol?.fontSize ?? 14;
@@ -552,13 +724,26 @@ export default function App() {
   }, [remoteDensity, t.qol?.panelDensity]);
 
   useEffect(() => {
+    const previous = previousTrackedViewRef.current;
+    if (previous !== view) {
+      const bucket = transitionStatsRef.current[previous] || {};
+      bucket[view] = (bucket[view] || 0) + 1;
+      transitionStatsRef.current[previous] = bucket;
+    }
+    previousTrackedViewRef.current = view;
+    recentViewsRef.current = [
+      view,
+      ...recentViewsRef.current.filter((entry) => entry !== view),
+    ].slice(0, 8);
+    scheduleWarmupStatsPersist();
+
     const runtime = runtimeRef.current;
     if (!runtime) return;
 
     runtime.connection.sendNavigation(view);
     runtime.connection.syncState("main.activeView", view);
     runtime.performance.trackViewRender(`main:${view}`);
-  }, [view]);
+  }, [scheduleWarmupStatsPersist, view]);
 
   const requestViewChange = useCallback(
     async (nextRaw: unknown) => {
@@ -651,26 +836,132 @@ export default function App() {
     [availableViews, preloadViewChunk, view, viewAccessContext],
   );
 
+  useEffect(() => {
+    if (!bootReady) return;
+    const warmupMaxItems =
+      lagPressure === "critical"
+        ? 1
+        : lagPressure === "elevated"
+          ? lowPowerMode
+            ? 1
+            : 2
+          : lowPowerMode
+            ? 2
+            : 4;
+    const queue = buildAdaptiveViewWarmupPlan({
+      currentView: view,
+      availableViews,
+      mountedViews,
+      transitionStats: transitionStatsRef.current,
+      recentViews: recentViewsRef.current,
+      maxItems: warmupMaxItems,
+    }) as View[];
+    if (queue.length === 0) return;
+
+    const warmupPerViewBudgetMs =
+      lagPressure === "critical"
+        ? 80
+        : lagPressure === "elevated"
+          ? 120
+          : lowPowerMode
+            ? 240
+            : 140;
+
+    let cancelled = false;
+    const warmup = () => {
+      if (cancelled) return;
+      void (async () => {
+        for (const candidate of queue) {
+          if (cancelled || candidate === view) break;
+          await preloadViewChunk(candidate, warmupPerViewBudgetMs);
+        }
+      })();
+    };
+
+    if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+      const handle = (window as any).requestIdleCallback(warmup, {
+        timeout: 1_000,
+      });
+      return () => {
+        cancelled = true;
+        (window as any).cancelIdleCallback?.(handle);
+      };
+    }
+
+    const fallbackHandle = globalThis.setTimeout(warmup, 80);
+    return () => {
+      cancelled = true;
+      clearTimeout(fallbackHandle);
+    };
+  }, [
+    availableViews,
+    bootReady,
+    lagPressure,
+    lowPowerMode,
+    mountedViews,
+    preloadViewChunk,
+    view,
+  ]);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!(event.metaKey || event.ctrlKey)) return;
+      const target = event.target as HTMLElement | null;
+      const isEditing = Boolean(
+        target &&
+          (target.tagName === "INPUT" ||
+            target.tagName === "TEXTAREA" ||
+            target.isContentEditable),
+      );
+      if (isEditing) return;
+      if (event.altKey) return;
+
+      if (/^[1-9]$/.test(event.key)) {
+        const nextView = resolveViewHotkey(
+          Number(event.key) - 1,
+          availableViews,
+        ) as View | null;
+        if (!nextView) return;
+        event.preventDefault();
+        void requestViewChange(nextView);
+        return;
+      }
+
+      if (event.key === "[" || event.key === "]") {
+        const orderedViews = orderViewsForNavigation(availableViews) as View[];
+        if (orderedViews.length < 2) return;
+        const currentIndex = Math.max(0, orderedViews.indexOf(view));
+        const delta = event.key === "]" ? 1 : -1;
+        const nextIndex =
+          (currentIndex + delta + orderedViews.length) % orderedViews.length;
+        const nextView = orderedViews[nextIndex];
+        if (!nextView || nextView === view) return;
+        event.preventDefault();
+        void requestViewChange(nextView);
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [availableViews, requestViewChange, view]);
+
   const motionRuntime = useMemo(
-    () => buildMotionRuntime(t, { lowPowerMode }),
-    [lowPowerMode, t],
+    () => buildMotionRuntime(t, { lowPowerMode: motionSafetyLowPower }),
+    [motionSafetyLowPower, t],
   );
-  useGlobalTypingAnimation(!(t.qol?.reducedMotion ?? false));
+  useGlobalTypingAnimation(!effectiveReducedMotion);
   const motionCssVars = useMemo(
     () =>
       ({
         "--nx-motion-quick": `${motionRuntime.quickMs}ms`,
         "--nx-motion-regular": `${motionRuntime.regularMs}ms`,
+        "--nx-motion-hover-ease": motionRuntime.hoverEase,
+        "--nx-motion-press-ease": motionRuntime.pressEase,
+        "--nx-motion-settle-ease": motionRuntime.settleEase,
         "--nx-hover-lift": `${motionRuntime.hoverLiftPx}px`,
         "--nx-hover-scale": `${motionRuntime.hoverScale}`,
         "--nx-press-scale": `${motionRuntime.pressScale}`,
-        "--nx-hover-extra-scale": motionRuntime.reduced
-          ? "0"
-          : motionRuntime.profile === "cinematic"
-            ? "0.008"
-            : motionRuntime.profile === "expressive"
-              ? "0.007"
-              : "0.006",
+        "--nx-hover-extra-scale": `${motionRuntime.hoverExtraScale}`,
       }) as React.CSSProperties,
     [motionRuntime],
   );
@@ -758,7 +1049,7 @@ export default function App() {
     <>
       <MainShellLayout
         theme={t}
-        lowPowerMode={lowPowerMode}
+        lowPowerMode={motionSafetyLowPower}
         motionCssVars={motionCssVars}
         backgroundStyles={bgStyles}
         accentRgb={accentRgb}
@@ -788,7 +1079,7 @@ export default function App() {
             view={view}
             mountedViews={mountedViews}
             availableViews={availableViews}
-            reducedMotion={Boolean(t.qol?.reducedMotion ?? false)}
+            reducedMotion={effectiveReducedMotion}
             onRequestViewChange={(nextView) => {
               void requestViewChange(nextView);
             }}

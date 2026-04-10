@@ -16,13 +16,19 @@ import { buildMotionRuntime } from './lib/motionEngine'
 import { useGlobalTypingAnimation } from './lib/useGlobalTypingAnimation'
 import {
   applyAccessibilityFlags,
+  buildAdaptiveViewWarmupPlan,
   applyGlobalFont,
   applyPanelDensity,
   applySafeAreaInsets,
   applyTypographyScale,
   buildLiveViewModel,
   getFallbackViewsForApp,
+  loadViewWarmupStats,
   NEXUS_VIEW_META,
+  saveViewWarmupStats,
+  type NexusViewTransitionStats,
+  orderViewsForNavigation,
+  resolveViewHotkey,
   resolveLayoutProfile,
   sanitizeGlobalFont,
 } from '@nexus/core'
@@ -45,9 +51,9 @@ import {
   RemindersView,
   SettingsView,
   TasksView,
-  VIEW_CHUNK_PRELOADERS,
   VIEW_IDS,
   orderMobilePreloadViews,
+  preloadMobileViewChunk,
   preloadMobileViews,
 } from './app/viewPreload'
 
@@ -154,28 +160,36 @@ export default function App() {
   const mob = useMobile()
   const runtimeRef = useRef<NexusRuntime | null>(null)
   const validatedAccessRef = useRef<Partial<Record<View, NexusViewAccessResult>>>({})
+  const transitionStatsRef = useRef<NexusViewTransitionStats>({})
+  const recentViewsRef = useRef<View[]>(['dashboard'])
+  const previousTrackedViewRef = useRef<View>('dashboard')
+  const warmupPersistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const preloadTelemetryRef = useRef<Partial<Record<View, { reports: number }>>>({})
+  const lagSamplesRef = useRef<Array<{ ts: number; duration: number }>>([])
+  const motionRecoveryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const guardRequestSeq = useRef(0)
+  const [lagPressure, setLagPressure] = useState<'low' | 'elevated' | 'critical'>('low')
+  const [autoMotionSafety, setAutoMotionSafety] = useState(false)
   const lowPowerMode = useMemo(() => isLowPowerDevice(), [])
+  const motionSafetyLowPower = lowPowerMode || autoMotionSafety
+  const effectiveReducedMotion = Boolean(t.qol?.reducedMotion ?? false) || autoMotionSafety
   const motionRuntime = useMemo(
-    () => buildMotionRuntime(t, { lowPowerMode }),
-    [lowPowerMode, t],
+    () => buildMotionRuntime(t, { lowPowerMode: motionSafetyLowPower }),
+    [motionSafetyLowPower, t],
   )
-  useGlobalTypingAnimation(!(t.qol?.reducedMotion ?? false))
+  useGlobalTypingAnimation(!effectiveReducedMotion)
   const motionCssVars = useMemo(
     () =>
       ({
         '--nx-motion-quick': `${motionRuntime.quickMs}ms`,
         '--nx-motion-regular': `${motionRuntime.regularMs}ms`,
+        '--nx-motion-hover-ease': motionRuntime.hoverEase,
+        '--nx-motion-press-ease': motionRuntime.pressEase,
+        '--nx-motion-settle-ease': motionRuntime.settleEase,
         '--nx-hover-lift': `${motionRuntime.hoverLiftPx}px`,
         '--nx-hover-scale': `${motionRuntime.hoverScale}`,
         '--nx-press-scale': `${motionRuntime.pressScale}`,
-        '--nx-hover-extra-scale': motionRuntime.reduced
-          ? '0'
-          : motionRuntime.profile === 'cinematic'
-            ? '0.008'
-            : motionRuntime.profile === 'expressive'
-              ? '0.007'
-              : '0.006',
+        '--nx-hover-extra-scale': `${motionRuntime.hoverExtraScale}`,
       }) as React.CSSProperties,
     [motionRuntime],
   )
@@ -210,6 +224,87 @@ export default function App() {
       }, 'all')
     }
   }, [])
+
+  const flushWarmupStats = useCallback(() => {
+    void saveViewWarmupStats('mobile', {
+      transitionStats: transitionStatsRef.current,
+      recentViews: recentViewsRef.current,
+    })
+  }, [])
+
+  const scheduleWarmupStatsPersist = useCallback(() => {
+    if (warmupPersistTimerRef.current !== null) {
+      clearTimeout(warmupPersistTimerRef.current)
+    }
+    warmupPersistTimerRef.current = globalThis.setTimeout(() => {
+      warmupPersistTimerRef.current = null
+      flushWarmupStats()
+    }, 900)
+  }, [flushWarmupStats])
+
+  const trackLagPressure = useCallback((durationMs: number) => {
+    if (!Number.isFinite(durationMs) || durationMs < 80) return
+
+    const nowTs = Date.now()
+    lagSamplesRef.current = [
+      ...lagSamplesRef.current.filter((sample) => nowTs - sample.ts <= 12_000),
+      { ts: nowTs, duration: durationMs },
+    ]
+
+    const severeCount = lagSamplesRef.current.filter((sample) => sample.duration >= 180).length
+    const mediumCount = lagSamplesRef.current.filter((sample) => sample.duration >= 120).length
+    const nextPressure: 'low' | 'elevated' | 'critical' =
+      severeCount >= 3 || mediumCount >= 6
+        ? 'critical'
+        : severeCount >= 1 || mediumCount >= 3
+          ? 'elevated'
+          : 'low'
+    setLagPressure((prev) => (prev === nextPressure ? prev : nextPressure))
+
+    if (nextPressure === 'critical') {
+      setAutoMotionSafety(true)
+      if (motionRecoveryTimerRef.current !== null) {
+        clearTimeout(motionRecoveryTimerRef.current)
+      }
+      motionRecoveryTimerRef.current = globalThis.setTimeout(() => {
+        motionRecoveryTimerRef.current = null
+        lagSamplesRef.current = []
+        setLagPressure('low')
+        setAutoMotionSafety(false)
+      }, 25_000)
+    }
+  }, [])
+
+  useEffect(() => {
+    let active = true
+    void loadViewWarmupStats('mobile')
+      .then((payload) => {
+        if (!active) return
+        transitionStatsRef.current = payload.transitionStats || {}
+        const loadedRecent = (payload.recentViews || []) as View[]
+        recentViewsRef.current = [
+          view,
+          ...loadedRecent.filter((entry) => entry !== view),
+        ].slice(0, 8)
+      })
+      .catch(() => {})
+    return () => {
+      active = false
+    }
+  }, [])
+
+  useEffect(
+    () => () => {
+      if (warmupPersistTimerRef.current !== null) {
+        clearTimeout(warmupPersistTimerRef.current)
+      }
+      if (motionRecoveryTimerRef.current !== null) {
+        clearTimeout(motionRecoveryTimerRef.current)
+      }
+      flushWarmupStats()
+    },
+    [flushWarmupStats],
+  )
 
   useEffect(() => {
     setMountedViews((prev) => {
@@ -272,12 +367,53 @@ export default function App() {
 
   const preloadViewChunk = useCallback(
     async (viewId: View, timeoutMs?: number) => {
-      const loader = VIEW_CHUNK_PRELOADERS[viewId]
-      if (typeof loader !== 'function') return
-      const budget = timeoutMs ?? (lowPowerMode ? 180 : 80)
-      await withTimeoutResult(loader(), budget)
+      const chunk = preloadMobileViewChunk(viewId)
+      if (!chunk) return
+
+      const budget = timeoutMs ?? (
+        lagPressure === 'critical'
+          ? 90
+          : lagPressure === 'elevated'
+            ? 130
+            : lowPowerMode
+              ? 180
+              : 80
+      )
+      const startedAt = typeof performance !== 'undefined' ? performance.now() : Date.now()
+      const result = await withTimeoutResult(chunk.promise, budget)
+      const endedAt = typeof performance !== 'undefined' ? performance.now() : Date.now()
+      const durationMs = Number(Math.max(0, endedAt - startedAt).toFixed(2))
+
+      const telemetry = preloadTelemetryRef.current[viewId] || { reports: 0 }
+      const shouldReport = telemetry.reports < 8 || result.timedOut
+      if (shouldReport) {
+        telemetry.reports += 1
+        preloadTelemetryRef.current[viewId] = telemetry
+        const runtime = runtimeRef.current
+        runtime?.connection.publish('custom', {
+          event: 'view_preload',
+          appId: 'mobile',
+          viewId,
+          cacheStatus: chunk.warm ? 'hit' : 'miss',
+          durationMs,
+          timedOut: result.timedOut,
+          lagPressure,
+        }, 'all')
+      }
+
+      const recordCustomMetric = (runtimeRef.current?.performance as any)?.recordCustomMetric
+      if (typeof recordCustomMetric === 'function') {
+        try {
+          recordCustomMetric.call(runtimeRef.current?.performance, 'mobile.view_preload_ms', durationMs, 'ms')
+          if (result.timedOut) {
+            recordCustomMetric.call(runtimeRef.current?.performance, 'mobile.view_preload_timeout', 1, 'count')
+          }
+        } catch {
+          // best-effort only
+        }
+      }
     },
-    [lowPowerMode],
+    [lagPressure, lowPowerMode],
   )
 
   useEffect(() => {
@@ -341,6 +477,7 @@ export default function App() {
         if (metric >= 120) {
           console.warn('[Nexus Mobile] interaction lag detected', event)
         }
+        trackLagPressure(metric)
       },
     })
     validatedAccessRef.current = {}
@@ -522,7 +659,7 @@ export default function App() {
       runtimeRef.current = null
       validatedAccessRef.current = {}
     }
-  }, [applyLiveBundle, lowPowerMode, resolveBundleViews, storeWarmupAccess, viewAccessContext])
+  }, [applyLiveBundle, lowPowerMode, resolveBundleViews, storeWarmupAccess, trackLagPressure, viewAccessContext])
 
   useEffect(() => {
     const safeFont = sanitizeGlobalFont(
@@ -540,10 +677,10 @@ export default function App() {
 
   useEffect(() => {
     applyAccessibilityFlags({
-      reducedMotion: t.qol?.reducedMotion ?? false,
+      reducedMotion: effectiveReducedMotion,
       highContrast: t.qol?.highContrast ?? false,
     })
-  }, [t.qol?.reducedMotion, t.qol?.highContrast])
+  }, [effectiveReducedMotion, t.qol?.highContrast])
 
   useEffect(() => {
     const sz = t.qol?.fontSize ?? (mob.isMobile ? 15 : 14)
@@ -563,6 +700,19 @@ export default function App() {
   }, [mob.safeTop, mob.safeBottom])
 
   useEffect(() => {
+    const previous = previousTrackedViewRef.current
+    if (previous !== view) {
+      const bucket = transitionStatsRef.current[previous] || {}
+      bucket[view] = (bucket[view] || 0) + 1
+      transitionStatsRef.current[previous] = bucket
+    }
+    previousTrackedViewRef.current = view
+    recentViewsRef.current = [
+      view,
+      ...recentViewsRef.current.filter((entry) => entry !== view),
+    ].slice(0, 8)
+    scheduleWarmupStatsPersist()
+
     const runtime = runtimeRef.current
     if (!runtime) return
 
@@ -570,7 +720,7 @@ export default function App() {
     runtime.connection.syncState('mobile.activeView', view)
     runtime.connection.syncState('mobile.isMobile', mob.isMobile)
     runtime.performance.trackViewRender(`mobile:${view}`)
-  }, [view, mob.isMobile])
+  }, [mob.isMobile, scheduleWarmupStatsPersist, view])
 
   const requestViewChange = useCallback(async (nextRaw: unknown) => {
     const next = String(nextRaw || '').toLowerCase() as View
@@ -654,17 +804,94 @@ export default function App() {
   }, [availableViews, preloadViewChunk, view, viewAccessContext])
 
   useEffect(() => {
+    if (!bootReady) return
+    const warmupMaxItems =
+      lagPressure === 'critical'
+        ? 1
+        : lagPressure === 'elevated'
+          ? lowPowerMode
+            ? 1
+            : 2
+          : lowPowerMode
+            ? 2
+            : 4
+    const queue = buildAdaptiveViewWarmupPlan({
+      currentView: view,
+      availableViews,
+      mountedViews,
+      transitionStats: transitionStatsRef.current,
+      recentViews: recentViewsRef.current,
+      maxItems: warmupMaxItems,
+    }) as View[]
+    if (queue.length === 0) return
+
+    const warmupPerViewBudgetMs =
+      lagPressure === 'critical'
+        ? 90
+        : lagPressure === 'elevated'
+          ? 130
+          : lowPowerMode
+            ? 240
+            : 140
+
+    let cancelled = false
+    const warmup = () => {
+      if (cancelled) return
+      void (async () => {
+        for (const candidate of queue) {
+          if (cancelled || candidate === view) break
+          await preloadViewChunk(candidate, warmupPerViewBudgetMs)
+        }
+      })()
+    }
+
+    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+      const handle = (window as any).requestIdleCallback(warmup, { timeout: 1_000 })
+      return () => {
+        cancelled = true
+        ;(window as any).cancelIdleCallback?.(handle)
+      }
+    }
+
+    const fallbackHandle = globalThis.setTimeout(warmup, 80)
+    return () => {
+      cancelled = true
+      clearTimeout(fallbackHandle)
+    }
+  }, [availableViews, bootReady, lagPressure, lowPowerMode, mountedViews, preloadViewChunk, view])
+
+  useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null
+      const isEditing = Boolean(
+        target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable),
+      )
+
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault()
         setPaletteOpen((s) => !s)
+      } else if (!isEditing && (e.metaKey || e.ctrlKey) && /^[1-9]$/.test(e.key)) {
+        const nextView = resolveViewHotkey(Number(e.key) - 1, availableViews) as View | null
+        if (!nextView) return
+        e.preventDefault()
+        void requestViewChange(nextView)
+      } else if (!isEditing && (e.metaKey || e.ctrlKey) && (e.key === '[' || e.key === ']')) {
+        const orderedViews = orderViewsForNavigation(availableViews) as View[]
+        if (orderedViews.length < 2) return
+        const currentIndex = Math.max(0, orderedViews.indexOf(view))
+        const delta = e.key === ']' ? 1 : -1
+        const nextIndex = (currentIndex + delta + orderedViews.length) % orderedViews.length
+        const nextView = orderedViews[nextIndex]
+        if (!nextView || nextView === view) return
+        e.preventDefault()
+        void requestViewChange(nextView)
       } else if (e.key === 'Escape') {
         setPaletteOpen(false)
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [])
+  }, [availableViews, requestViewChange, view])
 
   if (!bootReady) {
     return (
@@ -839,7 +1066,11 @@ export default function App() {
   // ── MOBILE LAYOUT ───────────────────────────────────────────────────────
   if (mob.isMobile) {
     return (
-      <div style={{
+      <div
+        className='nx-app-shell nx-motion-root'
+        data-nx-motion-profile={motionRuntime.profile}
+        data-nx-motion-reduced={motionRuntime.reduced ? '1' : '0'}
+        style={{
         ...motionCssVars,
         display: 'flex', flexDirection: 'column',
         width: '100%', height: '100%', overflow: 'hidden',
@@ -851,11 +1082,14 @@ export default function App() {
         WebkitTapHighlightColor: 'transparent',
         // Safe area top padding for status bar
         paddingTop: `env(safe-area-inset-top, ${mob.safeTop}px)`,
-      }}>
+      }}
+      >
         {ambientLayer}
 
         {/* Mobile header strip */}
-        <div style={{
+        <div
+          className='nx-motion-surface nx-motion-hover-soft'
+          style={{
           minHeight: 56, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           gap: 10, padding: '8px 14px', flexShrink: 0,
           background: t.mode === 'dark'
@@ -867,7 +1101,8 @@ export default function App() {
           boxShadow: t.mode === 'dark'
             ? 'inset 0 1px 0 rgba(255,255,255,0.24)'
             : 'inset 0 1px 0 rgba(255,255,255,0.96)',
-        }}>
+        }}
+        >
           <button
             className="nx-icon-btn"
             onClick={() => { void requestViewChange('dashboard') }}
@@ -978,7 +1213,11 @@ export default function App() {
 
   // ── TABLET / DESKTOP LAYOUT (unchanged) ─────────────────────────────────
   return (
-      <div style={{
+      <div
+        className='nx-app-shell nx-motion-root'
+        data-nx-motion-profile={motionRuntime.profile}
+        data-nx-motion-reduced={motionRuntime.reduced ? '1' : '0'}
+        style={{
         ...motionCssVars,
         display: 'flex', flexDirection: 'column',
         width: '100%', height: '100%', overflow: 'hidden',
@@ -986,7 +1225,8 @@ export default function App() {
         color: t.mode === 'dark' ? '#fff' : '#0a0a0a',
         ...bgStyles,
         fontSize: 'var(--nx-font-size, 14px)',
-      }}>
+      }}
+      >
       {ambientLayer}
       <TitleBar />
       {(viewGuardState.checking || viewGuardState.blockedView) ? (
@@ -1030,6 +1270,7 @@ export default function App() {
         position: 'relative',
       }}>
         <div
+          className='nx-motion-surface nx-motion-hover-soft'
           style={{
             width: effectiveSidebarWidth,
             flexShrink: 0,
@@ -1069,10 +1310,13 @@ export default function App() {
             }}
           />
         ) : null}
-        <div style={{
+        <div
+          className='nx-motion-surface'
+          style={{
           flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column',
           position: 'relative', minHeight: 0,
-        }}>
+        }}
+        >
           {!toolbarBottom && toolbarEl}
           <motion.div
             initial={motionRuntime.pageInitial}

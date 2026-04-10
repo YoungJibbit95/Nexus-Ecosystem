@@ -102,6 +102,21 @@ const runLoaderOnce = (loader: () => Promise<unknown>) => {
   return next;
 };
 
+export const preloadMainViewChunk = (viewId: View) => {
+  const loader = VIEW_CHUNK_PRELOADERS[viewId];
+  if (typeof loader !== "function") return null;
+  return {
+    warm: MAIN_PRELOAD_PROMISES.has(loader),
+    promise: runLoaderOnce(loader),
+  };
+};
+
+export const isMainViewChunkWarm = (viewId: View) => {
+  const loader = VIEW_CHUNK_PRELOADERS[viewId];
+  if (typeof loader !== "function") return false;
+  return MAIN_PRELOAD_PROMISES.has(loader);
+};
+
 const runIdle = (task: () => void) => {
   if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
     (window as any).requestIdleCallback(task, { timeout: 1_200 });

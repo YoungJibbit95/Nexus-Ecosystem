@@ -147,46 +147,52 @@ interface NexusMarkdownProps {
   content: string
   className?: string
   style?: React.CSSProperties
+  components?: Record<string, any>
 }
 
-export function NexusMarkdown({ content, className = '', style }: NexusMarkdownProps) {
+export function NexusMarkdown({ content, className = '', style, components }: NexusMarkdownProps) {
   const t = useTheme()
+  const baseComponents = {
+    pre({ children }: any) { return <>{children}</> },
+    code({ className: cls, children, ...props }: any) {
+      const isBlock = Boolean(cls?.startsWith('language-'))
+      if (isBlock) return <CodeBlock className={cls} accent={t.accent}>{children}</CodeBlock>
+      return <InlineCode accent={t.accent}>{children}</InlineCode>
+    },
+    h1: ({ children }: any) => <h1 style={{ fontSize: '1.6em', fontWeight: 800, color: 'inherit', margin: '0.8em 0 0.4em', borderBottom: `1px solid rgba(255,255,255,0.1)`, paddingBottom: '0.3em' }}>{children}</h1>,
+    h2: ({ children }: any) => <h2 style={{ fontSize: '1.3em', fontWeight: 700, color: 'inherit', margin: '0.7em 0 0.35em' }}>{children}</h2>,
+    h3: ({ children }: any) => <h3 style={{ fontSize: '1.1em', fontWeight: 700, color: 'inherit', margin: '0.6em 0 0.3em' }}>{children}</h3>,
+    blockquote: ({ children }: any) => (
+      <blockquote style={{ borderLeft: `3px solid ${t.accent}`, paddingLeft: 14, margin: '10px 0', opacity: 0.75, fontStyle: 'italic' }}>{children}</blockquote>
+    ),
+    hr: () => <hr style={{ border: 'none', borderTop: '1px solid rgba(255,255,255,0.1)', margin: '16px 0' }} />,
+    table: ({ children }: any) => (
+      <div style={{ overflowX: 'auto', marginBottom: 14 }}>
+        <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: 13 }}>{children}</table>
+      </div>
+    ),
+    thead: ({ children }: any) => <thead style={{ background: 'rgba(255,255,255,0.05)' }}>{children}</thead>,
+    th: ({ children }: any) => <th style={{ padding: '7px 14px', textAlign: 'left', borderBottom: '1px solid rgba(255,255,255,0.1)', fontWeight: 600, fontSize: 12, opacity: 0.7, textTransform: 'uppercase', letterSpacing: 0.5 }}>{children}</th>,
+    td: ({ children }: any) => <td style={{ padding: '7px 14px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>{children}</td>,
+    a: ({ href, children }: any) => <a href={href} style={{ color: t.accent, textDecoration: 'underline', textDecorationColor: `${t.accent}60` }} target="_blank" rel="noreferrer">{children}</a>,
+    strong: ({ children }: any) => <strong style={{ fontWeight: 700 }}>{children}</strong>,
+    em: ({ children }: any) => <em style={{ opacity: 0.8 }}>{children}</em>,
+    img: ({ src, alt }: any) => <img src={src} alt={alt} style={{ maxWidth: '100%', borderRadius: 8, margin: '8px 0', display: 'block' }} />,
+    ul: ({ children }: any) => <ul style={{ paddingLeft: '1.4em', margin: '8px 0' }}>{children}</ul>,
+    ol: ({ children }: any) => <ol style={{ paddingLeft: '1.4em', margin: '8px 0' }}>{children}</ol>,
+    li: ({ children }: any) => <li style={{ marginBottom: '0.25em', lineHeight: 1.65 }}>{children}</li>,
+    p: ({ children }: any) => <p style={{ margin: '0 0 0.8em', lineHeight: 1.72 }}>{children}</p>,
+  }
+  const mergedComponents = {
+    ...baseComponents,
+    ...(components || {}),
+  }
 
   return (
     <ReactMarkdown
       remarkPlugins={[remarkGfm]}
       className={`nx-prose ${className}`}
-      components={{
-        pre({ children }: any) { return <>{children}</> },
-        code({ className: cls, children, ...props }: any) {
-          const isBlock = Boolean(cls?.startsWith('language-'))
-          if (isBlock) return <CodeBlock className={cls} accent={t.accent}>{children}</CodeBlock>
-          return <InlineCode accent={t.accent}>{children}</InlineCode>
-        },
-        h1: ({ children }: any) => <h1 style={{ fontSize: '1.6em', fontWeight: 800, color: 'inherit', margin: '0.8em 0 0.4em', borderBottom: `1px solid rgba(255,255,255,0.1)`, paddingBottom: '0.3em' }}>{children}</h1>,
-        h2: ({ children }: any) => <h2 style={{ fontSize: '1.3em', fontWeight: 700, color: 'inherit', margin: '0.7em 0 0.35em' }}>{children}</h2>,
-        h3: ({ children }: any) => <h3 style={{ fontSize: '1.1em', fontWeight: 700, color: 'inherit', margin: '0.6em 0 0.3em' }}>{children}</h3>,
-        blockquote: ({ children }: any) => (
-          <blockquote style={{ borderLeft: `3px solid ${t.accent}`, paddingLeft: 14, margin: '10px 0', opacity: 0.75, fontStyle: 'italic' }}>{children}</blockquote>
-        ),
-        hr: () => <hr style={{ border: 'none', borderTop: '1px solid rgba(255,255,255,0.1)', margin: '16px 0' }} />,
-        table: ({ children }: any) => (
-          <div style={{ overflowX: 'auto', marginBottom: 14 }}>
-            <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: 13 }}>{children}</table>
-          </div>
-        ),
-        thead: ({ children }: any) => <thead style={{ background: 'rgba(255,255,255,0.05)' }}>{children}</thead>,
-        th: ({ children }: any) => <th style={{ padding: '7px 14px', textAlign: 'left', borderBottom: '1px solid rgba(255,255,255,0.1)', fontWeight: 600, fontSize: 12, opacity: 0.7, textTransform: 'uppercase', letterSpacing: 0.5 }}>{children}</th>,
-        td: ({ children }: any) => <td style={{ padding: '7px 14px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>{children}</td>,
-        a: ({ href, children }: any) => <a href={href} style={{ color: t.accent, textDecoration: 'underline', textDecorationColor: `${t.accent}60` }} target="_blank" rel="noreferrer">{children}</a>,
-        strong: ({ children }: any) => <strong style={{ fontWeight: 700 }}>{children}</strong>,
-        em: ({ children }: any) => <em style={{ opacity: 0.8 }}>{children}</em>,
-        img: ({ src, alt }: any) => <img src={src} alt={alt} style={{ maxWidth: '100%', borderRadius: 8, margin: '8px 0', display: 'block' }} />,
-        ul: ({ children }: any) => <ul style={{ paddingLeft: '1.4em', margin: '8px 0' }}>{children}</ul>,
-        ol: ({ children }: any) => <ol style={{ paddingLeft: '1.4em', margin: '8px 0' }}>{children}</ol>,
-        li: ({ children }: any) => <li style={{ marginBottom: '0.25em', lineHeight: 1.65 }}>{children}</li>,
-        p: ({ children }: any) => <p style={{ margin: '0 0 0.8em', lineHeight: 1.72 }}>{children}</p>,
-      }}
+      components={mergedComponents}
     >
       {content}
     </ReactMarkdown>

@@ -20,6 +20,10 @@ import { hexToRgb } from "../lib/utils";
 import { shallow } from "zustand/shallow";
 import type { MagicTemplateId, MagicTemplatePayload } from "./canvas/CanvasMagicModal";
 import { createMagicTemplateFromPayload } from "./canvas/magic/createMagicTemplate";
+import {
+  getCanvasMagicHubQuickAction,
+  type CanvasMagicHubQuickActionId,
+} from "@nexus/core/canvas/magicHubTemplates";
 import { MiniMap } from "./canvas/components/MiniMap";
 import { CanvasQuickAddMenu } from "./canvas/components/CanvasQuickAddMenu";
 import { CanvasProjectPanel } from "./canvas/components/CanvasProjectPanel";
@@ -994,6 +998,31 @@ export function CanvasView() {
     ],
   );
 
+  const handleHubQuickAction = useCallback(
+    (hubNode: CanvasNode, action: CanvasMagicHubQuickActionId) => {
+      const state = useCanvas.getState();
+      const target = getCanvasMagicHubQuickAction(action);
+      if (!target) return;
+      const nextX = hubNode.x + hubNode.width + 88;
+      const nextY = hubNode.y + target.yOffset;
+      state.addNode(target.nodeType as NodeType, nextX, nextY);
+      const activeCanvas = state.getActiveCanvas();
+      const created = activeCanvas?.nodes[activeCanvas.nodes.length - 1];
+      if (!created) return;
+      state.updateNode(created.id, {
+        title: target.title,
+        color: target.color,
+        content: target.content,
+        status: target.status as any,
+        priority: target.priority as any,
+        progress: typeof target.progress === "number" ? target.progress : 0,
+      });
+      state.addConnection(hubNode.id, created.id);
+      setSelectedNodeId(created.id);
+    },
+    [],
+  );
+
 
   const duplicateSelectedNode = useCallback(() => {
     if (!selectedNodeId) return;
@@ -1422,6 +1451,7 @@ export function CanvasView() {
           setSelectedNodeId={setSelectedNodeId}
           handleStartConnect={handleStartConnect}
           handleEndConnect={handleEndConnect}
+          onHubQuickAction={handleHubQuickAction}
           snapToGrid={snapToGrid}
           reduceNodeEffects={reduceNodeEffects}
         />

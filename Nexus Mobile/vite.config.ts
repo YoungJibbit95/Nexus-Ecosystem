@@ -9,8 +9,27 @@ const CHUNK_GROUPS: Record<string, string[]> = {
   'vendor-dnd': ['react-dnd', 'react-dnd-html5-backend'],
 }
 
+const resolveMonacoChunk = (id: string) => {
+  if (!id.includes('monaco-editor')) return null
+  if (id.includes('monaco-editor/esm/vs/editor/')) return 'vendor-monaco-core'
+  if (id.includes('monaco-editor/esm/vs/base/')) return 'vendor-monaco-base'
+  if (id.includes('monaco-editor/esm/vs/language/typescript/'))
+    return 'vendor-monaco-ts'
+  if (id.includes('monaco-editor/esm/vs/language/json/'))
+    return 'vendor-monaco-json'
+  if (id.includes('monaco-editor/esm/vs/language/css/'))
+    return 'vendor-monaco-css'
+  if (id.includes('monaco-editor/esm/vs/language/html/'))
+    return 'vendor-monaco-html'
+  if (id.includes('monaco-editor/esm/vs/language/')) return 'vendor-monaco-lang'
+  return 'vendor-monaco-misc'
+}
+
 const manualChunks = (id: string) => {
   if (!id.includes('node_modules')) return undefined
+  const monacoChunk = resolveMonacoChunk(id)
+  if (monacoChunk) return monacoChunk
+  if (id.includes('/node_modules/three/')) return 'vendor-three'
   for (const [chunkName, deps] of Object.entries(CHUNK_GROUPS)) {
     if (deps.some((dep) => id.includes(`/node_modules/${dep}/`))) {
       return chunkName

@@ -1,4 +1,9 @@
 import { useCanvas, type Canvas, type CanvasNode, type NodeType, type ProjectStatus } from '../../store/canvasStore'
+import type { CanvasMagicTemplatePayload } from '@nexus/core/canvas/magicHubTemplates'
+import {
+  CANVAS_MAGIC_HUB_TEMPLATES,
+  buildCanvasMagicHubMarkdown,
+} from '@nexus/core/canvas/magicHubTemplates'
 
 const PM_STATUS_ORDER: ProjectStatus[] = ['idea', 'backlog', 'todo', 'doing', 'review', 'done', 'blocked']
 
@@ -125,6 +130,44 @@ export const duplicateSelectedCanvasNode = (
     pm: source.pm ? { ...source.pm, tags: source.pm.tags ? [...source.pm.tags] : undefined } : undefined,
   })
   setSelectedNodeId(created.id)
+}
+
+export const createCanvasMagicHubTemplate = (input: {
+  payload: CanvasMagicTemplatePayload
+  viewport: { panX: number; panY: number; zoom: number }
+  canvasSize: { w: number; h: number }
+  fitView: () => void
+  setSelectedNodeId: (id: string | null) => void
+}) => {
+  const state = useCanvas.getState()
+  const centerX = (-input.viewport.panX + input.canvasSize.w * 0.5) / input.viewport.zoom
+  const centerY = (-input.viewport.panY + input.canvasSize.h * 0.45) / input.viewport.zoom
+  const x = Math.round(centerX / 20) * 20
+  const y = Math.round(centerY / 20) * 20
+  const meta = CANVAS_MAGIC_HUB_TEMPLATES[input.payload.template]
+  const title = input.payload.title?.trim() || meta.label
+
+  state.addNode('markdown', x - 380, y - 300)
+  const active = state.getActiveCanvas()
+  const created = active?.nodes[active.nodes.length - 1]
+  if (!created) return
+
+  state.updateNode(created.id, {
+    title,
+    width: 760,
+    height: 600,
+    color: meta.color,
+    content: buildCanvasMagicHubMarkdown(input.payload),
+    pm: {
+      ...(created.pm || {}),
+      tags: Array.from(new Set([...(created.pm?.tags || []), 'magic-hub', `preset:${input.payload.template}`])),
+      status: created.pm?.status || 'idea',
+      priority: created.pm?.priority || 'mid',
+    },
+  })
+
+  input.setSelectedNodeId(created.id)
+  setTimeout(() => input.fitView(), 30)
 }
 
 export const createCanvasProjectTemplate = (input: {

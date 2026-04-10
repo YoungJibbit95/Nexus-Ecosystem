@@ -814,6 +814,110 @@ function CanvasMagicChecklist({ content, accent, onChange }: MagicBlockProps) {
   );
 }
 
+function CanvasMagicCallout({ content, accent, onChange }: MagicBlockProps) {
+  const rgb = hexToRgb(accent);
+  const lines = content.trim().split("\n").filter(Boolean);
+  const [head = "info | Hinweis", ...rest] = lines;
+  const [typeRaw = "info", titleRaw = "Hinweis"] = head.split("|").map((v) => v.trim());
+  const type = typeRaw.toLowerCase();
+  const body = rest.join("\n").trim() || "Details ergänzen";
+  const calloutStyles: Record<string, { border: string; bg: string; icon: string }> = {
+    info: { border: "rgba(0,122,255,0.35)", bg: "rgba(0,122,255,0.1)", icon: "ℹ️" },
+    success: { border: "rgba(48,209,88,0.35)", bg: "rgba(48,209,88,0.1)", icon: "✅" },
+    warning: { border: "rgba(255,159,10,0.35)", bg: "rgba(255,159,10,0.12)", icon: "⚠️" },
+    error: { border: "rgba(255,69,58,0.35)", bg: "rgba(255,69,58,0.1)", icon: "⛔" },
+    tip: { border: "rgba(191,90,242,0.35)", bg: "rgba(191,90,242,0.11)", icon: "💡" },
+  };
+  const style = calloutStyles[type] || calloutStyles.info;
+  return (
+    <div
+      style={{
+        borderRadius: 8,
+        border: `1px solid ${style.border}`,
+        background: style.bg,
+        padding: 8,
+        display: "flex",
+        flexDirection: "column",
+        gap: 6,
+      }}
+    >
+      {onChange && (
+        <div style={{ display: "flex", gap: 6 }}>
+          <input
+            className="node-interactive"
+            value={typeRaw}
+            onChange={(e) => {
+              const next = [`${e.target.value} | ${titleRaw}`, ...rest].join("\n");
+              onChange(normalizeContent(next));
+            }}
+            placeholder="Typ"
+            style={{
+              width: 82,
+              border: `1px solid rgba(${rgb},0.24)`,
+              borderRadius: 6,
+              background: "rgba(255,255,255,0.08)",
+              color: "inherit",
+              fontSize: 10,
+              padding: "3px 6px",
+              outline: "none",
+            }}
+          />
+          <input
+            className="node-interactive"
+            value={titleRaw}
+            onChange={(e) => {
+              const next = [`${typeRaw} | ${e.target.value}`, ...rest].join("\n");
+              onChange(normalizeContent(next));
+            }}
+            placeholder="Titel"
+            style={{
+              flex: 1,
+              minWidth: 0,
+              border: `1px solid rgba(${rgb},0.24)`,
+              borderRadius: 6,
+              background: "rgba(255,255,255,0.08)",
+              color: "inherit",
+              fontSize: 10,
+              padding: "3px 6px",
+              outline: "none",
+            }}
+          />
+        </div>
+      )}
+      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        <span style={{ fontSize: 12 }}>{style.icon}</span>
+        <span style={{ fontSize: 10, fontWeight: 700 }}>{titleRaw || "Hinweis"}</span>
+      </div>
+      {onChange ? (
+        <textarea
+          className="node-interactive"
+          value={body}
+          onChange={(e) => {
+            const next = [`${typeRaw} | ${titleRaw}`, e.target.value].join("\n");
+            onChange(normalizeContent(next));
+          }}
+          style={{
+            width: "100%",
+            minHeight: 72,
+            resize: "vertical",
+            border: `1px solid rgba(${rgb},0.24)`,
+            borderRadius: 6,
+            background: "rgba(0,0,0,0.2)",
+            color: "inherit",
+            fontSize: 10,
+            lineHeight: 1.45,
+            padding: "5px 6px",
+            outline: "none",
+            fontFamily: "'Fira Code', monospace",
+          }}
+        />
+      ) : (
+        <div style={{ fontSize: 10, lineHeight: 1.5, opacity: 0.86, whiteSpace: "pre-wrap" }}>{body}</div>
+      )}
+    </div>
+  );
+}
+
 export function CanvasNexusCodeBlock({
   className,
   children,
@@ -882,6 +986,16 @@ export function CanvasNexusCodeBlock({
       {
         label: "Success",
         apply: () => "success\nAlle kritischen Tasks sind abgeschlossen.",
+      },
+    ],
+    "nexus-callout": [
+      {
+        label: "Template",
+        apply: () => "info | Hinweis\nKurzinfo oder Entscheidung ergänzen.",
+      },
+      {
+        label: "Warning",
+        apply: () => "warning | Achtung\nBitte vor dem Release QA-Signoff einholen.",
       },
     ],
     "nexus-timeline": [
@@ -997,6 +1111,16 @@ export function CanvasNexusCodeBlock({
   }
   if (lang === "nexus-alert") {
     return wrap("Alert", <CanvasMagicAlert content={content} />);
+  }
+  if (lang === "nexus-callout") {
+    return wrap(
+      "Callout",
+      <CanvasMagicCallout
+        content={content}
+        accent={accent}
+        onChange={onChange}
+      />,
+    );
   }
   if (lang === "nexus-progress") {
     return wrap(

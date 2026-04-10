@@ -119,6 +119,7 @@ export function InfoView() {
   const rgb = hexRgb(t.accent)
   const [open, setOpen] = useState<Record<string,boolean>>({
     about: true,
+    guide: true,
     changelog: true,
     dashboard: false,
     notes: false,
@@ -146,7 +147,7 @@ export function InfoView() {
             <div style={{ fontSize: 32, fontWeight: 900, marginBottom: 6, background: `linear-gradient(135deg, ${t.accent}, ${t.accent2})`, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
               NEXUS v5.0
             </div>
-            <div style={{ fontSize: 13, opacity: 0.55, marginBottom: 16 }}>Productivity Suite · Glass & Glow Edition · 4. April 2026</div>
+            <div style={{ fontSize: 13, opacity: 0.55, marginBottom: 16 }}>Productivity Suite · Workspace Edition · 10. April 2026</div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
               <Badge label="Notes" color={t.accent}/>
               <Badge label="Code Editor" color="#BF5AF2"/>
@@ -283,6 +284,34 @@ Anim:      Framer Motion`}
           </Code>
         </Acc>
 
+        <Acc title="Komplette View-Referenz" icon={Layers} open={open.guide} onToggle={() => tog('guide')} badge="ALL VIEWS">
+          <P>Diese Übersicht deckt alle produktiven Views inkl. Kernfunktionen und wichtigsten Shortcuts ab. Ziel: schneller Einstieg ohne zwischen mehreren Sektionen springen zu müssen.</P>
+          <Grid2>
+            <Card icon="📊" title="Dashboard" desc="Live-Status, Widgets, Layout-Editor, Prioritätsüberblick." keys={['Drag Widgets','Layout bearbeiten','Reset Layout']}/>
+            <Card icon="📝" title="Notes" desc="Markdown + Magic Blocks, Split/Preview, Import/Export, Tags." keys={['Cmd/Ctrl+S','Cmd/Ctrl+B','Cmd/Ctrl+I','Cmd/Ctrl+K']}/>
+            <Card icon="💻" title="Code" desc="Monaco Editor, Run/Preview, Tabs, Search, Output, Terminal-Flow." keys={['Cmd/Ctrl+Enter','Cmd/Ctrl+S','Tab','Enter (Create File)']}/>
+            <Card icon="✅" title="Tasks" desc="Kanban-Flow mit Prioritäten, Tags, Subtasks und Deadlines." keys={['Drag & Drop','Quick Filter']}/>
+            <Card icon="🔔" title="Reminders" desc="Zeitfenster, Snooze, Repeat-Regeln, Overdue-Handling." keys={['Quick Presets','Snooze 5m/15m/1h']}/>
+            <Card icon="🧠" title="Canvas" desc="Infinite Board, Magic Presets, PM-Nodes, Auto-Layout, Export." keys={['Cmd/Ctrl+M','Cmd/Ctrl+0','G','F','+ / -']}/>
+            <Card icon="🗂️" title="Files" desc="Workspace-Ordner, Dateifokus, Zuordnung von Items zu Workspaces." keys={['Enter (Save Workspace)']}/>
+            <Card icon="⚡" title="Flux" desc="Ops Center mit Queue, Bottleneck-Checks und Quick Create." keys={['Cmd/Ctrl+F','Cmd/Ctrl+Shift+N/C/T/R','1..4','0']}/>
+            <Card icon="🛠️" title="DevTools" desc="Builder + UI-Rechner + Prototyping-Helfer für schnelle Iteration." keys={['Tab','Enter Rename','Esc Cancel']}/>
+            <Card icon="⚙️" title="Settings" desc="Theme, Panel Background, Glow, Layout, Motion und Presets." keys={['Live Preview','Preset Switching']}/>
+            <Card icon="⌘" title="Terminal" desc="Command Hub für Navigation, Template-Actions und schnelle Flows." keys={['Enter','Tab','ArrowUp/Down','Esc','Ctrl+L']}/>
+            <Card icon="ℹ️" title="Info" desc="Produktdoku, Changelog, View-Referenz und Command-Examples."/>
+          </Grid2>
+          <Code>{`Global Keybinds
+Cmd/Ctrl+S      -> Save in Editor Views
+Cmd/Ctrl+B/I/K  -> Notes Formatting (Bold/Italic/Link)
+Cmd/Ctrl+M      -> Canvas Magic Builder
+Cmd/Ctrl+0      -> Canvas Reset View
+Cmd/Ctrl+Enter  -> Code Run
+Cmd/Ctrl+1..9   -> Direkt zu View-Slot 1-9
+Cmd/Ctrl+[ / ]  -> Vorherige / nächste View
+Esc             -> Dialoge/Selection schließen`}
+          </Code>
+        </Acc>
+
         {/* ═══ DASHBOARD ═══ */}
         <Acc title="Dashboard — Layout Editor" icon={Layout} open={open.dashboard} onToggle={() => tog('dashboard')} badge="UPDATED">
           <P>Das Dashboard ist jetzt ein flexibles 2-Spalten Grid mit Snap-Logik. Widgets können per Drag & Drop oder manuell präzise positioniert werden.</P>
@@ -339,6 +368,18 @@ API
 UI
 QA
 Rollout
+\`\`\`
+
+\`\`\`nexus-kanban
+Backlog | Scope finalisieren
+Doing | API integrieren
+Review | QA + Smoke Test
+Done | Release freigeben
+\`\`\`
+
+\`\`\`nexus-callout
+tip | Rollout Hinweis
+Vor dem Go-Live alle kritischen Flows einmal im Build testen.
 \`\`\`
 
 \`\`\`nexus-card
@@ -428,6 +469,7 @@ Schnell verschieben: Card anfassen und in andere Spalte ziehen`}
 
         {/* ═══ CANVAS ═══ */}
         <Acc title="Canvas — Infinite Board" icon={GitBranch} open={open.canvas} onToggle={() => tog('canvas')}>
+          <P>Magic Presets erzeugen einen zentralen großen Hub pro Preset. Danach erweiterst du die Map gezielt mit eigenen Nodes statt mit vielen vorverteilten Startnodes.</P>
           <H>Core Features</H>
           <Grid2>
             <Card icon="✨" title="Magic Builder" desc="Template-Generator für Mindmap, Roadmap, Sprint, Risk Matrix, Decision Flow und AI Project." keys={['Ctrl+M']}/>
@@ -579,7 +621,7 @@ Review | QA Run
         {/* ═══ SHORTCUTS ═══ */}
         <Acc title="Tastenkürzel" icon={Keyboard} open={open.shortcuts} onToggle={() => tog('shortcuts')}>
           <Grid2>
-            <Card title="Global / Spotlight" desc="" keys={['Shift×2 Spotlight Toggle','Cmd/Ctrl+K Spotlight Open','Esc Spotlight Close']}/>
+            <Card title="Global / Spotlight" desc="" keys={['Shift×2 Spotlight Toggle','Cmd/Ctrl+K Spotlight Open','Cmd/Ctrl+1..9 Direkt zu View-Slots','Cmd/Ctrl+[ / ] View vor/zurück','Esc Spotlight Close']}/>
             <Card title="Dashboard" desc="Keine globalen Tastenkürzel; Fokus auf Drag/Drop und Inline-Controls."/>
             <Card title="Notes" desc="" keys={['Cmd/Ctrl+S Save','Cmd/Ctrl+B Bold','Cmd/Ctrl+I Italic','Cmd/Ctrl+K Link','Cmd/Ctrl+Z Undo','Cmd/Ctrl+Y Redo','Tab Indent']}/>
             <Card title="Code" desc="" keys={['Cmd/Ctrl+Enter Run','Cmd/Ctrl+S Save','Tab Indent (Textarea)','Enter Create File (Modal)']}/>

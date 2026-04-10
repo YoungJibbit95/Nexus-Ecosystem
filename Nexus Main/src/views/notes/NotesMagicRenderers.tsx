@@ -332,6 +332,109 @@ function MagicQuadrant({ content, accent }: { content: string; accent: string })
   )
 }
 
+const CALLOUT_STYLES: Record<string, { border: string; bg: string; icon: string }> = {
+  info: { border: 'rgba(0,122,255,0.35)', bg: 'rgba(0,122,255,0.1)', icon: 'ℹ️' },
+  success: { border: 'rgba(48,209,88,0.35)', bg: 'rgba(48,209,88,0.1)', icon: '✅' },
+  warning: { border: 'rgba(255,159,10,0.35)', bg: 'rgba(255,159,10,0.12)', icon: '⚠️' },
+  error: { border: 'rgba(255,69,58,0.35)', bg: 'rgba(255,69,58,0.1)', icon: '⛔' },
+  tip: { border: 'rgba(191,90,242,0.35)', bg: 'rgba(191,90,242,0.11)', icon: '💡' },
+}
+
+function MagicCallout({ content }: { content: string }) {
+  const lines = content.trim().split('\n').filter(Boolean)
+  const [typeRaw = 'info', titleRaw = 'Hinweis'] = (lines[0] || 'info | Hinweis').split('|').map(v => v.trim())
+  const body = lines.slice(1).join('\n').trim() || 'Details ergänzen'
+  const type = typeRaw.toLowerCase()
+  const style = CALLOUT_STYLES[type] || CALLOUT_STYLES.info
+  return (
+    <div className="nx-magic-fade" style={{
+      margin: '12px 0',
+      borderRadius: 10,
+      border: `1px solid ${style.border}`,
+      background: style.bg,
+      padding: '10px 12px',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 4 }}>
+        <span style={{ fontSize: 14 }}>{style.icon}</span>
+        <span style={{ fontSize: 12, fontWeight: 700 }}>{titleRaw || 'Hinweis'}</span>
+      </div>
+      <div style={{ fontSize: 12, opacity: 0.8, lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>{body}</div>
+    </div>
+  )
+}
+
+function MagicKanban({ content, accent }: { content: string; accent: string }) {
+  const entries = content
+    .trim()
+    .split('\n')
+    .filter(Boolean)
+    .map((row) => {
+      const [laneRaw, taskRaw] = row.split('|').map((v) => v.trim())
+      return {
+        lane: laneRaw || 'Backlog',
+        task: taskRaw || 'Neuer Task',
+      }
+    })
+  const laneOrder = ['Backlog', 'Todo', 'Doing', 'Review', 'Done']
+  const laneMap = new Map<string, string[]>()
+  entries.forEach((entry) => {
+    if (!laneMap.has(entry.lane)) laneMap.set(entry.lane, [])
+    laneMap.get(entry.lane)!.push(entry.task)
+  })
+  const lanes = Array.from(laneMap.keys()).sort((a, b) => {
+    const ai = laneOrder.indexOf(a)
+    const bi = laneOrder.indexOf(b)
+    if (ai === -1 && bi === -1) return a.localeCompare(b)
+    if (ai === -1) return 1
+    if (bi === -1) return -1
+    return ai - bi
+  })
+  return (
+    <div className="nx-magic-fade" style={{
+      margin: '12px 0',
+      display: 'grid',
+      gridTemplateColumns: `repeat(${Math.max(1, lanes.length)}, minmax(140px, 1fr))`,
+      gap: 8,
+    }}>
+      {lanes.length === 0 && (
+        <div style={{ fontSize: 12, opacity: 0.55 }}>Keine Kanban-Einträge</div>
+      )}
+      {lanes.map((lane) => {
+        const tasks = laneMap.get(lane) || []
+        return (
+          <div key={lane} style={{
+            borderRadius: 10,
+            border: '1px solid rgba(255,255,255,0.1)',
+            background: 'rgba(255,255,255,0.04)',
+            padding: 8,
+          }}>
+            <div style={{ fontSize: 10, fontWeight: 800, color: accent, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 7 }}>
+              {lane}
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+              {tasks.map((task, index) => (
+                <div key={`${lane}-${index}`} style={{
+                  borderRadius: 7,
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  background: 'rgba(0,0,0,0.16)',
+                  padding: '6px 8px',
+                  fontSize: 12,
+                  lineHeight: 1.45,
+                }}>
+                  {task}
+                </div>
+              ))}
+              {tasks.length === 0 && (
+                <div style={{ fontSize: 11, opacity: 0.5, padding: '2px 0' }}>Keine Tasks</div>
+              )}
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 function renderInlineBadge(text: string, accent: string) {
   if (!text.startsWith('b:')) {
     return <code style={{ fontFamily: 'monospace', background: 'rgba(255,255,255,0.08)', padding: '2px 6px', borderRadius: 4, fontSize: '0.85em' }}>{text}</code>
@@ -365,6 +468,8 @@ export function NexusCodeBlock({ className, children, accent }: { className?: st
   if (lang === 'nexus-metrics')  return <MagicMetrics content={content} accent={accent} />
   if (lang === 'nexus-steps')    return <MagicSteps content={content} accent={accent} />
   if (lang === 'nexus-quadrant') return <MagicQuadrant content={content} accent={accent} />
+  if (lang === 'nexus-callout')  return <MagicCallout content={content} />
+  if (lang === 'nexus-kanban')   return <MagicKanban content={content} accent={accent} />
 
   return (
     <pre style={{

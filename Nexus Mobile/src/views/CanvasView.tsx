@@ -3,7 +3,7 @@ import {
     Plus, ZoomIn, ZoomOut, Maximize2, Trash2, Edit3, Link,
     FileText, CheckSquare, X, GripVertical,
     MoreHorizontal, Palette, Unlink, Grid, Map as MapIcon, RotateCcw, RotateCw,
-    Copy, AlignCenter, FileDown
+    Copy, AlignCenter, FileDown, Wand2
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Glass } from '../components/Glass'
@@ -16,6 +16,12 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { CanvasNexusCodeBlock } from '@nexus/core/canvas/CanvasMagicRenderers'
 import {
+    CANVAS_MAGIC_HUB_TEMPLATES,
+    getCanvasMagicHubQuickAction,
+    type CanvasMagicHubQuickActionId,
+    type CanvasMagicTemplateId,
+} from '@nexus/core/canvas/magicHubTemplates'
+import {
     CanvasConnectionLine,
     CanvasNodeWidget,
     CanvasMiniMap,
@@ -25,6 +31,7 @@ import { CanvasEmptyState } from './canvas/components/CanvasEmptyState'
 import {
     autoArrangeCanvasByStatus,
     autoLinkCanvasWikiRefs,
+    createCanvasMagicHubTemplate,
     createCanvasProjectTemplate,
     duplicateSelectedCanvasNode,
     exportCanvasFiles,
@@ -65,7 +72,7 @@ export function CanvasView() {
     const [showMiniMap, setShowMiniMap] = useState(true)
     const [canvasSize, setCanvasSize] = useState({ w: 800, h: 600 })
     const [quickAddPos, setQuickAddPos] = useState<{ x: number, y: number } | null>(null)
-    const [showWidgetMenu, setShowWidgetMenu] = useState(false) // Added state
+    const [showMagicBuilder, setShowMagicBuilder] = useState(false)
     const [wheelPanning, setWheelPanning] = useState(false)
 
     // History (undo/redo)
@@ -300,6 +307,63 @@ export function CanvasView() {
         [canvas, viewport, canvasSize, fitView]
     )
 
+    const magicHubTemplates = useMemo(
+      () => Object.entries(CANVAS_MAGIC_HUB_TEMPLATES).map(([id, meta]) => ({
+        id: id as CanvasMagicTemplateId,
+        ...meta,
+      })),
+      [],
+    )
+
+    const createMagicHubPreset = useCallback((template: CanvasMagicTemplateId) => {
+      const meta = CANVAS_MAGIC_HUB_TEMPLATES[template]
+      createCanvasMagicHubTemplate({
+        payload: {
+          template,
+          title: meta.label,
+          includeNotes: true,
+          includeTasks: true,
+          aiDepth: 'balanced',
+        },
+        viewport,
+        canvasSize,
+        fitView,
+        setSelectedNodeId,
+      })
+      setShowMagicBuilder(false)
+      setShowMobileTools(false)
+      setShowMobileAddMenu(false)
+      setQuickAddPos(null)
+    }, [canvasSize, fitView, viewport])
+
+    const handleHubQuickAction = useCallback((
+      hubNode: CanvasNode,
+      action: CanvasMagicHubQuickActionId,
+    ) => {
+      const state = useCanvas.getState()
+      const target = getCanvasMagicHubQuickAction(action)
+      if (!target) return
+      const nextX = hubNode.x + hubNode.width + 88
+      const nextY = hubNode.y + target.yOffset
+      state.addNode(target.nodeType as NodeType, nextX, nextY)
+      const activeCanvas = state.getActiveCanvas()
+      const created = activeCanvas?.nodes[activeCanvas.nodes.length - 1]
+      if (!created) return
+      state.updateNode(created.id, {
+        title: target.title,
+        color: target.color,
+        content: target.content,
+        pm: {
+          ...(created.pm || {}),
+          status: target.status,
+          priority: target.priority,
+          progress: typeof target.progress === 'number' ? target.progress : 0,
+        },
+      })
+      state.addConnection(hubNode.id, created.id)
+      setSelectedNodeId(created.id)
+    }, [])
+
     const autoArrangeByStatus = useCallback(
         () => autoArrangeCanvasByStatus(fitView),
         [fitView]
@@ -483,6 +547,7 @@ export function CanvasView() {
                             <CanvasToolBtn icon={Grid} tooltip="Grid-Modus" onClick={() => setGridMode(g => g === 'dots' ? 'lines' : g === 'lines' ? 'none' : 'dots')} accent={t.accent} rgb={rgb} active={gridMode !== 'none'} />
                             <CanvasToolBtn icon={MapIcon} tooltip="Minimap" onClick={() => setShowMiniMap(!showMiniMap)} accent={t.accent} rgb={rgb} active={showMiniMap} />
                             <CanvasToolBtn icon={CheckSquare} tooltip="Projekt Panel" onClick={() => setShowProjectPanel(s => !s)} accent={t.accent} rgb={rgb} active={showProjectPanel} />
+                            <CanvasToolBtn icon={Wand2} tooltip="Magic Hub Templates" onClick={() => setShowMagicBuilder(s => !s)} accent={t.accent} rgb={rgb} active={showMagicBuilder} />
                             <CanvasToolBtn icon={Link} tooltip="Auto Link [[Wiki]]" onClick={autoLinkWikiRefs} accent={t.accent} rgb={rgb} />
                             <CanvasToolBtn icon={Grid} tooltip="Arrange by Status" onClick={autoArrangeByStatus} accent={t.accent} rgb={rgb} />
                             <CanvasToolBtn icon={Plus} tooltip="Projekt Template" onClick={createProjectTemplate} accent={t.accent} rgb={rgb} />
@@ -515,6 +580,31 @@ export function CanvasView() {
                                     border:'1px solid rgba(255,255,255,0.1)', borderBottom:'none', padding:'8px 16px 32px' }}>
                                 <div style={{ width:36, height:4, borderRadius:2, background:'rgba(255,255,255,0.2)', margin:'0 auto 16px' }}/>
                                 <div style={{ fontSize:11, fontWeight:800, opacity:0.4, textTransform:'uppercase', letterSpacing:1, marginBottom:14 }}>Add Element</div>
+                                <button
+                                  onClick={() => {
+                                    setShowMobileAddMenu(false)
+                                    setShowMagicBuilder(true)
+                                  }}
+                                  style={{
+                                    width: '100%',
+                                    marginBottom: 12,
+                                    padding: '11px 12px',
+                                    borderRadius: 12,
+                                    border: `1px solid rgba(${rgb},0.35)`,
+                                    background: `linear-gradient(135deg, rgba(${rgb},0.2), rgba(${rgb},0.08))`,
+                                    color: t.accent,
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: 8,
+                                    fontSize: 13,
+                                    fontWeight: 800,
+                                  }}
+                                >
+                                  <Wand2 size={16} />
+                                  Magic Hub Templates
+                                </button>
                                 <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:10 }}>
                                     {WIDGET_TYPES.map(({ type, icon: WIcon, label, description, category, accent: widgetAccent }) => (
                                         <button key={type}
@@ -596,6 +686,9 @@ export function CanvasView() {
                                     </button>
                                 </div>
                                 <div style={{ display:'flex', gap:10, marginTop:10 }}>
+                                    <button onClick={() => setShowMagicBuilder(true)} style={{ flex:1, padding:'12px', borderRadius:12, background:`rgba(${rgb},0.12)`, border:`1px solid rgba(${rgb},0.25)`, cursor:'pointer', color:t.accent, fontSize:13, fontWeight:700, display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}>
+                                        <Wand2 size={16}/> Magic Hub
+                                    </button>
                                     <button onClick={autoArrangeByStatus} style={{ flex:1, padding:'12px', borderRadius:12, background:`rgba(${rgb},0.12)`, border:`1px solid rgba(${rgb},0.25)`, cursor:'pointer', color:t.accent, fontSize:13, fontWeight:700, display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}>
                                         <Grid size={16}/> Arrange
                                     </button>
@@ -610,6 +703,76 @@ export function CanvasView() {
                                 </div>
                                 <div style={{ textAlign:'center', marginTop:12, fontSize:11, opacity:0.4 }}>
                                     Zoom: {Math.round(viewport.zoom*100)}% · {canvas?.nodes.length??0} Nodes
+                                </div>
+                            </motion.div>
+                        </>
+                    )}
+                </AnimatePresence>
+
+                <AnimatePresence>
+                    {showMagicBuilder && (
+                        <>
+                            <motion.div
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
+                              exit={{ opacity: 0 }}
+                              onClick={() => setShowMagicBuilder(false)}
+                              style={{ position: 'absolute', inset: 0, zIndex: 82, background: 'rgba(0,0,0,0.42)', backdropFilter: 'blur(6px)' }}
+                            />
+                            <motion.div
+                              initial={{ y: '100%' }}
+                              animate={{ y: 0 }}
+                              exit={{ y: '100%' }}
+                              transition={{ type: 'spring', stiffness: 360, damping: 30 }}
+                              style={{
+                                position: 'absolute',
+                                left: 0,
+                                right: 0,
+                                bottom: 0,
+                                zIndex: 83,
+                                borderRadius: '20px 20px 0 0',
+                                border: '1px solid rgba(255,255,255,0.12)',
+                                borderBottom: 'none',
+                                padding: '10px 14px 30px',
+                                background: t.mode === 'dark' ? 'rgba(10,10,20,0.97)' : 'rgba(248,248,255,0.97)',
+                                backdropFilter: 'blur(20px)',
+                                maxHeight: '78%',
+                                overflowY: 'auto',
+                              }}
+                            >
+                                <div style={{ width: 36, height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.2)', margin: '0 auto 14px' }} />
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                                    <Wand2 size={16} style={{ color: t.accent }} />
+                                    <div style={{ fontSize: 13, fontWeight: 800 }}>Magic Hub Templates</div>
+                                    <button
+                                      onClick={() => setShowMagicBuilder(false)}
+                                      style={{ marginLeft: 'auto', border: 'none', background: 'rgba(255,255,255,0.08)', borderRadius: 8, width: 28, height: 28, cursor: 'pointer', color: 'inherit', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                                    >
+                                      <X size={14} />
+                                    </button>
+                                </div>
+                                <div style={{ display: 'grid', gridTemplateColumns: mob.isMobile ? '1fr' : '1fr 1fr', gap: 10 }}>
+                                    {magicHubTemplates.map((template) => (
+                                        <button
+                                          key={template.id}
+                                          onClick={() => createMagicHubPreset(template.id)}
+                                          style={{
+                                            border: `1px solid ${template.color}55`,
+                                            background: `${template.color}1a`,
+                                            borderRadius: 12,
+                                            padding: '10px 11px',
+                                            textAlign: 'left',
+                                            color: 'inherit',
+                                            cursor: 'pointer',
+                                          }}
+                                        >
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                                                <span style={{ width: 10, height: 10, borderRadius: 999, background: template.color, boxShadow: `0 0 12px ${template.color}` }} />
+                                                <span style={{ fontSize: 12, fontWeight: 800, color: template.color }}>{template.label}</span>
+                                            </div>
+                                            <div style={{ fontSize: 11, opacity: 0.72, lineHeight: 1.35 }}>{template.summary}</div>
+                                        </button>
+                                    ))}
                                 </div>
                             </motion.div>
                         </>
@@ -717,7 +880,6 @@ export function CanvasView() {
                             if (!rect) return
                             setQuickAddPos({ x: e.clientX - rect.left, y: e.clientY - rect.top })
                         }}
-                        onClick={() => setShowWidgetMenu(false)} // Added onClick
                     >
                         {/* ── TRANSFORM LAYER ── */}
                         <div style={{
@@ -752,6 +914,7 @@ export function CanvasView() {
                                     onStartConnect={handleStartConnect}
                                     onEndConnect={handleEndConnect}
                                     connectingFrom={connectingFrom}
+                                    onHubQuickAction={handleHubQuickAction}
                                 />
                             ))}
                         </div>
