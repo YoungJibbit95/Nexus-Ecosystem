@@ -9,11 +9,18 @@
   html,
   body,
   #root {
-    @apply w-full min-h-full overflow-x-clip;
+    @apply w-full max-w-full min-h-full overflow-x-hidden;
   }
 
   body {
-    @apply bg-[#030712] text-slate-50 antialiased selection:bg-indigo-500/30;
+    @apply bg-[#030712] text-slate-50 antialiased selection:bg-indigo-500/30 overflow-x-hidden;
+  }
+
+  img,
+  video,
+  canvas,
+  svg {
+    @apply max-w-full;
   }
 }
 
