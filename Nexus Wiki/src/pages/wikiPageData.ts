@@ -102,21 +102,21 @@ const sectionMeta: Record<SectionId, Record<Language, { title: string; subtitle:
     de: {
       title: "Architektur & Sync 🏗️",
       subtitle:
-        "Runtime Plane, Control Plane, Live Sync v2, Compatibility und Promotion-Flows in einer zusammenhaengenden Sicht.",
+        "Runtime Plane, Control Plane, Live Sync v2 sowie Render- und Motion-Engine in einer zusammenhaengenden Sicht.",
       bullets: [
         "🌌 API-first Struktur mit Shared Core als Bruecke zwischen allen Apps.",
         "🔄 Live Sync v2 steuert Features + Layouts ueber Catalog/Schema.",
-        "🧱 Version Gates verhindern Drift zwischen Clients und Runtime.",
+        "🧱 Render Pipeline + Motion Degradation halten UX auch unter Last vorhersehbar.",
       ],
     },
     en: {
       title: "Architecture & Sync 🏗️",
       subtitle:
-        "Runtime plane, control plane, Live Sync v2, compatibility and promotion flows in one connected system view.",
+        "Runtime plane, control plane, Live Sync v2 plus the render and motion engine in one connected system view.",
       bullets: [
         "🌌 API-first architecture with Shared Core as the bridge across apps.",
         "🔄 Live Sync v2 controls features and layouts via catalog/schema.",
-        "🧱 Version gates prevent drift between clients and runtime.",
+        "🧱 Render pipeline and motion degradation keep UX predictable under load.",
       ],
     },
   },
@@ -238,7 +238,7 @@ const sectionMeta: Record<SectionId, Record<Language, { title: string; subtitle:
       bullets: [
         "🎛️ Settings-Optionen app-uebergreifend geordnet statt verteilt.",
         "⚡ Workflow-Abschnitte mit konkreten Command-Beispielen.",
-        "🧠 Hilft, das Ecosystem als einheitliches System zu bedienen.",
+        "🧠 Today/Continue Patterns, Quick Capture und Handoff-Flows sind als ein Arbeitsmodus dokumentiert.",
       ],
     },
     en: {
@@ -278,21 +278,21 @@ const sectionMeta: Record<SectionId, Record<Language, { title: string; subtitle:
     de: {
       title: "Runtime/API Reference ⚙️",
       subtitle:
-        "Runtime Contracts, Live Sync, Compatibility, Environment-Konfiguration und API-nahe Integrationspunkte fuer Website/App/Control.",
+        "Runtime Contracts, Render Diagnostics, Live Sync, Compatibility und API-nahe Integrationspunkte fuer Website/App/Control.",
       bullets: [
         "🔄 End-to-End Sicht auf Resolve/Compatibility/Promotion.",
-        "🌐 Environment Variablen und Hosted API-Pfade integriert.",
-        "🧾 Mit Matrix- und Command-Kontext fuer reale Umsetzung.",
+        "🎯 Render Tiers, Surface-/Effect-Klassen und Motion-Capabilities als Referenz integriert.",
+        "🧾 Mit Matrix-, Diagnostics- und Command-Kontext fuer reale Umsetzung.",
       ],
     },
     en: {
       title: "Runtime/API Reference ⚙️",
       subtitle:
-        "Runtime contracts, Live Sync, compatibility, environment configuration and API-near integration points for website/app/control.",
+        "Runtime contracts, render diagnostics, Live Sync, compatibility and API-near integration points for website/app/control.",
       bullets: [
         "🔄 End-to-end view of resolve, compatibility and promotion.",
-        "🌐 Environment variables and hosted API paths included.",
-        "🧾 Matrix and command context for real implementation.",
+        "🎯 Render tiers, surface/effect classes and motion capabilities included as references.",
+        "🧾 Matrix, diagnostics and command context for real implementation.",
       ],
     },
   },
@@ -396,7 +396,7 @@ const uiCopy: Record<
     tableCode: "Code",
     tableCodeMobile: "Code Mobile",
     tableControl: "Control",
-    footerLayout: "Nexus Wiki Layout v3",
+    footerLayout: "Nexus Wiki Layout v4",
     copied: "Kopiert",
     copyError: "Kopieren fehlgeschlagen",
     entryCount: "Eintraege",
@@ -437,7 +437,7 @@ const uiCopy: Record<
     tableCode: "Code",
     tableCodeMobile: "Code Mobile",
     tableControl: "Control",
-    footerLayout: "Nexus Wiki Layout v3",
+    footerLayout: "Nexus Wiki Layout v4",
     copied: "Copied",
     copyError: "Copy failed",
     entryCount: "entries",
@@ -571,7 +571,7 @@ const appSearchAliases: Record<AppId, string[]> = {
   code: ["code", "ide", "editor", "desktop ide"],
   "code-mobile": ["code mobile", "mobile ide", "nativefs"],
   control: ["control", "panel", "admin", "paywall"],
-  runtime: ["runtime", "api", "sync", "contracts"],
+  runtime: ["runtime", "api", "sync", "contracts", "render", "motion", "diagnostics", "pipeline"],
 };
 
 const categorySearchAliases: Record<CategoryId, string[]> = {
@@ -579,8 +579,8 @@ const categorySearchAliases: Record<CategoryId, string[]> = {
   view: ["view", "guide", "screen", "ansicht"],
   markdown: ["markdown", "notes", "notizen", "md"],
   settings: ["settings", "preferences", "einstellungen"],
-  workflow: ["workflow", "prozess", "flow", "commands"],
-  runtime: ["runtime", "api", "live sync", "compatibility"],
+  workflow: ["workflow", "prozess", "flow", "commands", "continue", "today", "handoff"],
+  runtime: ["runtime", "api", "live sync", "compatibility", "render", "motion", "diagnostics"],
   security: ["security", "paywall", "entitlement", "sicherheit"],
   ops: ["ops", "deploy", "build", "release"],
 };
@@ -592,6 +592,9 @@ const searchSynonymGroups = [
   ["settings", "preferences", "einstellungen", "config", "konfiguration"],
   ["security", "paywall", "entitlement", "auth", "sicherheit"],
   ["workflow", "flow", "prozess", "automation", "pipeline"],
+  ["render", "renderer", "pipeline", "tier", "budget", "surface", "effect", "diagnostics"],
+  ["motion", "animation", "degradation", "complexity", "choreography", "interrupt"],
+  ["native", "consistency", "parity", "predictable", "stability"],
   ["mobile", "phone", "ios", "android", "handy"],
   ["code", "editor", "ide", "debug", "git"],
   ["runtime", "api", "sync", "compatibility", "contract"],
@@ -604,6 +607,7 @@ const searchSynonymGroups = [
   ["files", "dateien", "workspace", "explorer"],
   ["pricing", "payments", "tier", "abo", "subscription", "upgrade"],
   ["infoview", "info", "dokumentation", "documentation", "changelog"],
+  ["today", "continue", "quickcapture", "capture", "handoff", "workspace"],
 ] as const;
 
 const searchSynonymIndex = (() => {
