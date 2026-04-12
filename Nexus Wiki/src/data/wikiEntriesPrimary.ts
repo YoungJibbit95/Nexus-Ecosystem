@@ -762,4 +762,201 @@ export const wikiEntriesPrimary: WikiEntry[] = [
     tags: ['terminal', 'spotlight', 'macros', 'commands'],
     sources: ['Nexus Main/src/store/terminalStore.ts', 'Nexus Main/src/views/InfoView.tsx'],
   },
+  {
+    id: 'ecosystem-why-native-guide',
+    title: 'Warum Nexus native wirkt',
+    app: 'ecosystem',
+    category: 'overview',
+    summary:
+      'Nexus fuehlt sich konsistent an, weil Render-, Motion- und Surface-Regeln zentral als Produktsystem gepflegt werden.',
+    guide: [
+      { title: '1. Gemeinsame Engine verstehen', detail: 'UI-Entscheidungen laufen ueber gemeinsame Render- und Motion-Bausteine statt pro View isoliert.' },
+      { title: '2. Degradation statt Bruch', detail: 'Bei schwacher Hardware reduziert das System Komplexitaet qualitativ, nicht willkuerlich.' },
+      { title: '3. Dokumentation synchron halten', detail: 'InfoView, Website und Wiki nutzen dieselben Begriffe und denselben Produktstand.' },
+    ],
+    points: [
+      'Konsistenz entsteht aus Shared-Core-Regeln, nicht aus Copy/Paste-Styling.',
+      'Budget- und Motion-Profile verhindern visuelle Uebersteuerung.',
+      'Produkt- und Technikstory bleiben durch Docs-Sync nachvollziehbar.',
+    ],
+    commands: ['InfoView oeffnen', 'Render Diagnostics View pruefen', 'Wiki Suche: render / motion / diagnostics'],
+    tags: ['native-feel', 'ui-engine', 'product-story'],
+    sources: [
+      'Nexus Main/src/views/InfoView.tsx',
+      'packages/nexus-core/src/render/renderCoordinator.ts',
+      'packages/nexus-core/src/motion/motionEngine.ts',
+    ],
+  },
+  {
+    id: 'runtime-render-pipeline-guide',
+    title: 'Render Pipeline Guide',
+    app: 'runtime',
+    category: 'runtime',
+    summary:
+      'Die Render Pipeline verbindet Profile, Surface-Rezepte, Budget-Allokation und Commit-Diagnostics in einer festen Reihenfolge.',
+    guide: [
+      { title: '1. Profil aufloesen', detail: 'resolveRenderProfile bestimmt Tier, Frame-Budget und Surface-Limits pro Plattform.' },
+      { title: '2. Surface-Rezept aufloesen', detail: 'resolveSurfaceRecipe kombiniert SurfaceClass + EffectClass mit Tier-Skalierung.' },
+      { title: '3. Budget allokieren und committen', detail: 'allocateEffectBudget + RenderCoordinator priorisieren Dynamic/Shader/Burst und publizieren Diagnostics.' },
+    ],
+    points: [
+      'Pipeline-Phasen: measure -> resolve -> allocate -> commit -> cleanup.',
+      'Policy-State haelt Cooldowns und Stabilitaetsfenster ein.',
+      'Invariants markieren Konflikte frueh, bevor UI-Zustaende driften.',
+    ],
+    commands: ['Render Diagnostics View', 'RenderDiagnosticsPanel (dev)'],
+    tags: ['render-pipeline', 'tiers', 'budget', 'diagnostics'],
+    sources: [
+      'packages/nexus-core/src/render/renderProfile.ts',
+      'packages/nexus-core/src/render/surfaceRecipes.ts',
+      'packages/nexus-core/src/render/effectBudget.ts',
+      'packages/nexus-core/src/render/renderCoordinator.ts',
+    ],
+  },
+  {
+    id: 'runtime-motion-engine-guide',
+    title: 'Motion Engine Guide',
+    app: 'runtime',
+    category: 'runtime',
+    summary:
+      'Die Motion Engine steuert Motion Families, Choreografie und Degradation-Level fuer ruhige, absichtsvolle Interaktionen.',
+    guide: [
+      { title: '1. Motion Profile waehlen', detail: 'minimal/balanced/expressive/cinematic werden aus Theme + Runtime-Kontext aufgeloest.' },
+      { title: '2. Families nutzen', detail: 'navigation, toolbar, sheet, command, status, micro, hero, content erhalten eigene Regeln.' },
+      { title: '3. Degradation beachten', detail: 'full bis static-safe reduziert Intensitaet stufenweise statt abrupter Feature-Abschaltung.' },
+    ],
+    points: [
+      'Interrupt-Policies vermeiden hektisches Umschalten bei schnellen Interaktionen.',
+      'Animation Complexity wird aus Surface-Modus und Runtime-Zustand abgeleitet.',
+      'Niedriges Power- oder Reduced-Motion-Profil bleibt funktional, aber bewusst ruhiger.',
+    ],
+    commands: ['profile <focus|cinematic|compact|default>', 'Settings -> Motion Tab'],
+    tags: ['motion-engine', 'families', 'degradation', 'animation-complexity'],
+    sources: [
+      'packages/nexus-core/src/motion/motionEngine.ts',
+      'packages/nexus-core/src/render/effectBudget.ts',
+      'Nexus Main/src/lib/motionEngine.ts',
+    ],
+  },
+  {
+    id: 'runtime-surface-effect-classes',
+    title: 'Surface und Effect Classes',
+    app: 'runtime',
+    category: 'runtime',
+    summary:
+      'SurfaceClass und EffectClass bilden die technische Grammatik der Nexus UI Engine fuer Blur, Saturation und Dynamik-Capabilities.',
+    guide: [
+      { title: '1. SurfaceClass verstehen', detail: 'shell/panel/modal/toolbar/ios/liquid/hero/utility steuern Basisbudgets und Ladder-Wahl.' },
+      { title: '2. EffectClass zuordnen', detail: 'static/backdrop/refractive-edge/liquid-interactive/shader-burst/status-highlight steuern Dynamikrechte.' },
+      { title: '3. Tier-Skalierung anwenden', detail: 'Tier-spezifische Faktoren passen Blur/Saturation und Shader/Burst-Verfuegbarkeit an.' },
+    ],
+    points: [
+      'Surface-Rezepte kapseln Budgetwerte reproduzierbar je Klasse.',
+      'Effect-Capabilities sind an lowPower/reducedMotion Guardrails gebunden.',
+      'Klassenwahl ist Produktentscheidung, nicht nur Stylingdetail.',
+    ],
+    commands: ['resolveSurfaceRecipe(surfaceClass, effectClass, profile)'],
+    tags: ['surface-classes', 'effect-classes', 'ui-engine'],
+    sources: [
+      'packages/nexus-core/src/render/surfaceRecipes.ts',
+      'packages/nexus-core/src/render/effectBudget.ts',
+    ],
+  },
+  {
+    id: 'main-render-diagnostics-guide',
+    title: 'Nexus Main: Render Diagnostics View',
+    app: 'main',
+    category: 'view',
+    summary:
+      'Render Diagnostics zeigt Pipeline-Zustand, Budget-Metriken, Surface-Entscheidungen und Toolbar-Szenen-Matrix fuer gezieltes Tuning.',
+    guide: [
+      { title: '1. Diagnostics oeffnen', detail: 'Die diagnostics View zeigt Tier, Phase, Frame-Budget und Drop-Schaetzung in Echtzeit.' },
+      { title: '2. Surface-Entscheidungen lesen', detail: 'Mode, motionCapability, animationComplexity, reason und priorityScore pro Surface analysieren.' },
+      { title: '3. Ursachen eingrenzen', detail: 'Invariant Violations, Resolve/Allocate/Commit Dauer und Listener-Zeiten fuer Engpaesse nutzen.' },
+    ],
+    points: [
+      'Dev-Panel bietet Surface Table und optionalen Bounds Overlay.',
+      'Toolbar Preview Matrix simuliert Slot-Sichtbarkeit fuer mehrere Modi/Breiten.',
+      'Diagnostics helfen, UI-Qualitaet auf Fakten statt Bauchgefuehl zu optimieren.',
+    ],
+    commands: ['goto diagnostics', 'RenderDiagnosticsPanel toggles'],
+    tags: ['render-diagnostics', 'runtime-observability', 'ui-engine'],
+    sources: [
+      'Nexus Main/src/views/RenderDiagnosticsView.tsx',
+      'Nexus Main/src/components/render/RenderDiagnosticsPanel.tsx',
+      'Nexus Main/src/components/render/ToolbarPreviewMatrix.tsx',
+    ],
+  },
+  {
+    id: 'main-infoview-product-brain',
+    title: 'Nexus Main: InfoView als Product Brain',
+    app: 'main',
+    category: 'view',
+    summary:
+      'InfoView ist die kompakte In-App Wissensschicht fuer Changelog, View-Loops, Keybinds und operative Kommandos.',
+    guide: [
+      { title: '1. Release-Kontext holen', detail: 'Changelog auf aktuelle Stabilitaets-, Performance- und UX-Aenderungen pruefen.' },
+      { title: '2. View-Loop verstehen', detail: 'Guide-Accordeons liefern pro Surface Kernnutzen, typische Schritte und Shortcuts.' },
+      { title: '3. In Workflow uebersetzen', detail: 'Terminal- und Spotlight-Kommandos direkt in den taeglichen Ablauf uebernehmen.' },
+    ],
+    points: [
+      'InfoView bleibt bewusst dichter und handlungsnäher als Website und Wiki.',
+      'Section-Struktur macht Produktwissen ohne Kontextwechsel in der App abrufbar.',
+      'Guides, Keybinds und Changelog sind als zusammenhaengender Arbeitskontext aufgebaut.',
+    ],
+    commands: ['goto info', 'views', 'help', 'profile <focus|cinematic|compact|default>'],
+    tags: ['infoview', 'product-brain', 'in-app-docs'],
+    sources: ['Nexus Main/src/views/InfoView.tsx', 'Nexus Main/src/store/terminalStore.ts'],
+  },
+  {
+    id: 'ecosystem-workflow-surface-philosophy',
+    title: 'Today / Continue Workflow Surface Philosophie',
+    app: 'ecosystem',
+    category: 'workflow',
+    summary:
+      'Nexus priorisiert den naechsten sinnvollen Arbeitsschritt ueber Today Layer, Quick Capture und kommandogetriebene Continue-Flows.',
+    guide: [
+      { title: '1. Today Layer lesen', detail: 'Offene Tasks, due-today Reminder und Overdue-Druck werden als Fokus-Signal zusammengefuehrt.' },
+      { title: '2. Continue per Command', detail: 'Terminal- und Quick-Capture-Intents erzeugen direkte Spruenge in Notes/Tasks/Reminders/Code/Canvas.' },
+      { title: '3. Zustand uebergeben', detail: 'Workspace-Handoff-Daten auf Mobile halten Kontext, Confidence und letzte Aktion nachvollziehbar.' },
+    ],
+    points: [
+      'computeTodayLayerSummary verdichtet Reminder-Health und offene Aufgaben.',
+      'createCaptureIntent/parseCaptureIntentFromQuery schaffen schnelle Capture-Einstiege.',
+      'Workspace-Handoff speichert Quelle, Risiko und Checkpoint-Metadaten fuer mobile Uebernahme.',
+    ],
+    commands: ['stats', 'today', 'new note [T]', 'new task [T]', 'new reminder [T]'],
+    tags: ['today-layer', 'continue-flow', 'quick-capture', 'workspace-handoff'],
+    sources: [
+      'packages/nexus-core/src/todayLayer.ts',
+      'packages/nexus-core/src/quickCapture.ts',
+      'Nexus Mobile/src/store/workspaceHandoffStore.ts',
+    ],
+  },
+  {
+    id: 'ecosystem-documentation-map',
+    title: 'Dokumentationslandkarte: README, InfoView, Website, Wiki',
+    app: 'ecosystem',
+    category: 'workflow',
+    summary:
+      'Die Doku ist absichtlich geschichtet: README fuer Setup, InfoView fuer In-App-Handlung, Website fuer Produktstory, Wiki fuer technische Tiefe.',
+    guide: [
+      { title: '1. README fuer Start und Scope', detail: 'Repo-Setup, Builds, Betriebsgrenzen und High-Level Architektur zuerst pruefen.' },
+      { title: '2. InfoView fuer operative Nutzung', detail: 'In-App Guides und Keybinds fuer den unmittelbaren Workflow verwenden.' },
+      { title: '3. Website + Wiki fuer Produktkontext', detail: 'Website liefert Story und Belege, Wiki liefert Referenz und Matrix-Detail.' },
+    ],
+    points: [
+      'Alle Ebenen sollten denselben Begriffssatz fuer Views, Engine und Diagnostics verwenden.',
+      'Wiki darf detaillierter sein; Website bleibt produktorientiert und beweisbar.',
+      'InfoView bleibt kuerzer und handlungsnah fuer taegliche Anwendung.',
+    ],
+    commands: ['README lesen', 'InfoView oeffnen', 'Wiki Suche nutzen'],
+    tags: ['docs-map', 'knowledge-system', 'product-intelligence'],
+    sources: [
+      'README.md',
+      'Nexus Main/src/views/InfoView.tsx',
+      'nexusproject.dev/src/App.tsx',
+      'Nexus Wiki/src/pages/WikiPage.tsx',
+    ],
+  },
 ]

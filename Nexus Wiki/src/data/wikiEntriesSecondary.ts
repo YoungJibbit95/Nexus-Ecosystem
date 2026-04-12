@@ -597,6 +597,32 @@ export const wikiEntriesSecondary: WikiEntry[] = [
     sources: ['Nexus Mobile/src/App.tsx'],
   },
   {
+    id: 'mobile-workspace-handoff-reminder-health',
+    title: 'Nexus Mobile: Workspace Handoff und Reminder Health',
+    app: 'mobile',
+    category: 'workflow',
+    summary:
+      'Mobile zeigt Handoff-Metadaten aus dem Workspace-Transfer und kombiniert sie mit Today/Reminder-Health fuer klarere Continue-Entscheidungen.',
+    guide: [
+      { title: '1. Handoff-Zustand lesen', detail: 'Dashboard und Files zeigen Quelle, Confidence, letzte Aktion und Checkpoint-Status.' },
+      { title: '2. Risiko und Aktualitaet bewerten', detail: 'snapshotAge und Risk-Level helfen zu erkennen, ob ein Transfer frisch oder stale ist.' },
+      { title: '3. Mit Today Layer verknuepfen', detail: 'Due-today und Overdue Signale priorisieren den naechsten Schritt nach dem Handoff.' },
+    ],
+    points: [
+      'useWorkspaceHandoff persistiert Aktion, Zeit, Quelle und Confidence.',
+      'Handoff-Mode ist derzeit manual-runtime und bleibt explizit nachvollziehbar.',
+      'Today/Reminder-Health reduziert Kontextverlust nach Device- oder View-Wechsel.',
+    ],
+    commands: ['Dashboard -> Handoff card', 'Files -> Handoff menu', 'today'],
+    tags: ['workspace-handoff', 'continue', 'reminder-health', 'mobile-workflow'],
+    sources: [
+      'Nexus Mobile/src/store/workspaceHandoffStore.ts',
+      'Nexus Mobile/src/views/DashboardView.tsx',
+      'Nexus Mobile/src/views/FilesView.tsx',
+      'packages/nexus-core/src/todayLayer.ts',
+    ],
+  },
+  {
     id: 'environment-variables-guide',
     title: 'Konfigurations-Grundlagen Guide',
     app: 'ecosystem',
