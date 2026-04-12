@@ -320,7 +320,7 @@ export function WikiPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-50 flex overflow-x-clip">
+    <div className="min-h-screen bg-slate-950 text-slate-50 flex overflow-x-hidden">
       <SpaceBackground />
 
       <button
@@ -332,7 +332,7 @@ export function WikiPage() {
 
       <aside
         className={`
-        fixed md:static inset-y-0 left-0 z-40 w-80 bg-slate-900/80 backdrop-blur-2xl border-r border-white/10 flex flex-col transition-transform duration-300
+        fixed md:static inset-y-0 left-0 z-40 w-[min(20rem,88vw)] md:w-80 bg-slate-900/80 backdrop-blur-2xl border-r border-white/10 flex flex-col transition-transform duration-300
         ${isMobileMenuOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
       `}
       >
@@ -421,7 +421,7 @@ export function WikiPage() {
         </div>
       </aside>
 
-      <main className="flex-1 h-screen overflow-y-auto overflow-x-clip relative z-10 custom-scrollbar scroll-smooth">
+      <main className="flex-1 h-screen overflow-y-auto overflow-x-hidden relative z-10 custom-scrollbar scroll-smooth">
         <div className="max-w-[1320px] mx-auto px-5 md:px-9 py-8 md:py-12 space-y-8">
           <div className="sticky top-2 md:top-4 z-30">
             <div className="relative overflow-hidden rounded-2xl border border-white/12 bg-slate-900/65 backdrop-blur-2xl shadow-[0_10px_40px_rgba(3,7,18,0.45)]">
@@ -779,7 +779,7 @@ function EntryCard({
     >
       <article id={`entry-${entry.id}`} className="p-6 md:p-8 lg:p-10 space-y-7">
         <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="space-y-3 min-w-[260px] flex-1">
+          <div className="space-y-3 min-w-0 flex-1">
             <h3 className="text-2xl md:text-4xl font-black text-white leading-tight tracking-tight">
               {appEmoji[entry.app]} {entry.title}
             </h3>
