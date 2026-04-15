@@ -5,10 +5,12 @@ import {
   Bold, Italic, Heading, List, ListOrdered, Quote, Code, Link,
   Download, Clock, Hash, Eye, Edit3, Minus, Strikethrough,
   Maximize2, Minimize2, Wand2, Bell, Zap, Calendar, CreditCard,
-  ChevronDown, Table, FileText, Upload
+  ChevronDown, Table, FileText, MoreHorizontal
 } from 'lucide-react'
 import { AnimatePresence } from 'framer-motion'
 import { Glass } from '../components/Glass'
+import { InteractiveIconButton } from '../components/render/InteractiveIconButton'
+import { InteractiveActionButton } from '../components/render/InteractiveActionButton'
 import { NexusMarkdown } from '../components/NexusMarkdown'
 import { useApp } from '../store/appStore'
 import { useTheme } from '../store/themeStore'
@@ -59,13 +61,13 @@ export function NotesView() {
   const deferredSearchQuery = useDeferredValue(searchQuery)
   const editorRef = useRef<HTMLTextAreaElement>(null)
   const lineNumbersRef = useRef<HTMLPreElement>(null)
-  const magicBtnRef = useRef<HTMLButtonElement>(null)
   // Save selection before magic menu opens so we can restore it on insert
   const savedSel = useRef<{ start: number; end: number } | null>(null)
   const t = useTheme()
   const rgb = hexToRgb(t.accent)
   const mob = useMobile()
   const [showMobileSidebar, setShowMobileSidebar] = useState(false)
+  const [mobileTopMenuOpen, setMobileTopMenuOpen] = useState(false)
   const active = useMemo(() => notes.find((n) => n.id === activeNoteId) ?? notes[0], [notes, activeNoteId])
   const [draftContent, setDraftContent] = useState('')
   const [draftDirty, setDraftDirty] = useState(false)
@@ -350,25 +352,21 @@ export function NotesView() {
   }
 
   // Small formatting button
-  const FmtBtn = ({ icon: Icon, tooltip, action }: { icon: any; tooltip: string; action: () => void }) => {
-    const [h, setH] = useState(false)
-    return (
-      <button
-        title={tooltip} onClick={action}
-        onMouseEnter={() => setH(true)} onMouseLeave={() => setH(false)}
-        style={{
-          padding: '5px', borderRadius: 7, border: 'none', cursor: 'pointer',
-          background: h ? `rgba(${rgb}, 0.15)` : 'transparent',
-          color: h ? t.accent : 'inherit',
-          transform: h ? 'scale(1.12)' : 'scale(1)',
-          transition: 'all 0.13s cubic-bezier(0.34,1.56,0.64,1)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}
-      >
-        <Icon size={14} />
-      </button>
-    )
-  }
+  const FmtBtn = ({ icon: Icon, tooltip, action }: { icon: any; tooltip: string; action: () => void }) => (
+    <InteractiveIconButton
+      motionId={`mobile-notes-fmt-${tooltip.replace(/\s+/g, '-').toLowerCase()}`}
+      onClick={action}
+      title={tooltip}
+      idleOpacity={0.72}
+      radius={7}
+      style={{
+        padding: '5px',
+        color: t.accent,
+      }}
+    >
+      <Icon size={14} />
+    </InteractiveIconButton>
+  )
 
   // ReactMarkdown components — passed accent via closure
   const mdComponents = useMemo(() => ({
@@ -412,30 +410,130 @@ export function NotesView() {
       {/* Mobile top bar */}
       {mob.isMobile && !focusMode && (
         <div style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px', borderBottom:'1px solid rgba(255,255,255,0.07)', background:'rgba(0,0,0,0.1)', flexShrink:0 }}>
-          <button onClick={()=>setShowMobileSidebar(true)} style={{ width:42, height:42, borderRadius:12, background:`rgba(${rgb},0.12)`, border:`1px solid rgba(${rgb},0.2)`, cursor:'pointer', color:t.accent, display:'flex', alignItems:'center', justifyContent:'center' }}>
+          <InteractiveActionButton
+            onClick={()=>setShowMobileSidebar(true)}
+            motionId="mobile-notes-open-sidebar"
+            areaHint={52}
+            radius={12}
+            style={{ width:42, height:42, borderRadius:12, background:`rgba(${rgb},0.12)`, border:`1px solid rgba(${rgb},0.2)`, cursor:'pointer', color:t.accent, display:'flex', alignItems:'center', justifyContent:'center' }}
+          >
             <FileText size={20}/>
-          </button>
+          </InteractiveActionButton>
           <div style={{ flex:1, fontSize:15, fontWeight:700, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', color:t.accent }}>
             {active ? (active.title || 'Untitled') : 'Notes'}
           </div>
           {active && (
             <div style={{ display:'flex', gap:6 }}>
               {(['edit','preview'] as const).map(m => (
-                <button key={m} onClick={()=>setMode(m)}
+                <InteractiveActionButton key={m} onClick={()=>setMode(m)}
+                  motionId={`mobile-notes-top-mode-${m}`}
+                  selected={mode===m}
+                  areaHint={58}
+                  radius={10}
                   style={{ padding:'8px 12px', borderRadius:10, border:`1px solid ${mode===m?t.accent:'rgba(255,255,255,0.1)'}`, background:mode===m?`rgba(${rgb},0.15)`:'transparent', cursor:'pointer', color:mode===m?t.accent:'inherit', fontSize:12, fontWeight:700 }}>
                   {m==='edit'?'✏️':'👁'}
-                </button>
+                </InteractiveActionButton>
               ))}
-              <button onClick={() => active && saveActiveNow()} style={{ width:40, height:40, borderRadius:10, background:t.accent, border:'none', cursor:'pointer', color:'#fff', display:'flex', alignItems:'center', justifyContent:'center' }}>
+              <InteractiveActionButton
+                onClick={() => active && saveActiveNow()}
+                motionId="mobile-notes-top-save"
+                areaHint={52}
+                radius={10}
+                style={{ width:40, height:40, borderRadius:10, background:t.accent, border:'none', cursor:'pointer', color:'#fff', display:'flex', alignItems:'center', justifyContent:'center' }}
+              >
                 <Save size={16}/>
-              </button>
+              </InteractiveActionButton>
             </div>
           )}
           {!active && (
-            <button onClick={addNote} style={{ display:'flex', alignItems:'center', gap:6, padding:'9px 16px', borderRadius:12, background:t.accent, border:'none', color:'#fff', fontWeight:700, fontSize:13, cursor:'pointer' }}>
+            <InteractiveActionButton
+              onClick={addNote}
+              motionId="mobile-notes-top-add"
+              areaHint={86}
+              radius={12}
+              style={{ display:'flex', alignItems:'center', gap:6, padding:'9px 16px', borderRadius:12, background:t.accent, border:'none', color:'#fff', fontWeight:700, fontSize:13, cursor:'pointer' }}
+            >
               <Plus size={16}/> New
-            </button>
+            </InteractiveActionButton>
           )}
+          <div style={{ position: 'relative' }}>
+            <InteractiveActionButton
+              onClick={() => setMobileTopMenuOpen((open) => !open)}
+              motionId="mobile-notes-top-menu"
+              selected={mobileTopMenuOpen}
+              areaHint={52}
+              radius={10}
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 10,
+                background: mobileTopMenuOpen ? `rgba(${rgb},0.2)` : 'rgba(255,255,255,0.08)',
+                border: '1px solid rgba(255,255,255,0.12)',
+                cursor: 'pointer',
+                color: mobileTopMenuOpen ? t.accent : 'inherit',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+              title="Mehr"
+            >
+              <MoreHorizontal size={16} />
+            </InteractiveActionButton>
+            {mobileTopMenuOpen ? (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: 'calc(100% + 6px)',
+                  right: 0,
+                  zIndex: 120,
+                  minWidth: 180,
+                  borderRadius: 12,
+                  border: '1px solid rgba(255,255,255,0.14)',
+                  background: 'rgba(17,20,31,0.96)',
+                  backdropFilter: 'blur(12px)',
+                  padding: 6,
+                  boxShadow: '0 16px 34px rgba(0,0,0,0.35)',
+                }}
+              >
+                <InteractiveActionButton
+                  onClick={() => {
+                    addNote()
+                    setMobileTopMenuOpen(false)
+                  }}
+                  motionId="mobile-notes-menu-add"
+                  areaHint={78}
+                  radius={9}
+                  style={{ width: '100%', border: 'none', borderRadius: 9, background: 'transparent', color: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', fontSize: 12, fontWeight: 650 }}
+                >
+                  <Plus size={12} /> Neue Notiz
+                </InteractiveActionButton>
+                <InteractiveActionButton
+                  onClick={() => {
+                    document.getElementById(NOTES_IMPORT_INPUT_ID)?.click()
+                    setMobileTopMenuOpen(false)
+                  }}
+                  motionId="mobile-notes-menu-import"
+                  areaHint={78}
+                  radius={9}
+                  style={{ width: '100%', border: 'none', borderRadius: 9, background: 'transparent', color: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', fontSize: 12, fontWeight: 650 }}
+                >
+                  <Download size={12} /> Markdown importieren
+                </InteractiveActionButton>
+                <InteractiveActionButton
+                  onClick={() => {
+                    setShowSettings(true)
+                    setMobileTopMenuOpen(false)
+                  }}
+                  motionId="mobile-notes-menu-settings"
+                  areaHint={78}
+                  radius={9}
+                  style={{ width: '100%', border: 'none', borderRadius: 9, background: 'transparent', color: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', fontSize: 12, fontWeight: 650 }}
+                >
+                  <Edit3 size={12} /> Einstellungen
+                </InteractiveActionButton>
+              </div>
+            ) : null}
+          </div>
         </div>
       )}
 
@@ -469,7 +567,7 @@ export function NotesView() {
 
     {/* ── MAIN PANEL ── */}
       {active ? (
-        <div className="flex-1 flex flex-col gap-2" style={{ minHeight: 0, overflow: 'hidden' }}>
+        <div className="flex-1 flex flex-col gap-2" style={{ minHeight: 0, overflow: 'visible' }}>
 
           {/* Header bar */}
           <Glass className="flex items-center gap-2 px-3 py-2 shrink-0">
@@ -483,7 +581,11 @@ export function NotesView() {
             <div className="flex gap-0.5 items-center shrink-0">
               {/* View mode */}
               {(['edit', 'split', 'preview'] as const).map(m => (
-                <button key={m} onClick={() => setMode(m)} title={m}
+                <InteractiveActionButton key={m} onClick={() => setMode(m)} title={m}
+                  motionId={`mobile-notes-mode-${m}`}
+                  selected={mode === m}
+                  areaHint={54}
+                  radius={7}
                   style={{
                     padding: '4px 8px', borderRadius: 7, fontSize: 11, fontWeight: 500,
                     border: 'none', cursor: 'pointer',
@@ -491,36 +593,45 @@ export function NotesView() {
                     color: mode === m ? t.accent : 'inherit', transition: 'all 0.15s',
                   }}>
                   {m === 'edit' ? <Edit3 size={13} /> : m === 'preview' ? <Eye size={13} /> : <span style={{ fontSize: 10, fontWeight: 700 }}>SPLIT</span>}
-                </button>
+                </InteractiveActionButton>
               ))}
               <div style={{ width: 1, height: 14, background: 'rgba(255,255,255,0.1)', margin: '0 4px' }} />
               {[
                 { icon: RotateCcw, tip: 'Undo (Ctrl+Z)', action: handleUndo },
                 { icon: RotateCcw, tip: 'Redo (Ctrl+Y)', action: handleRedo, flip: true },
                 { icon: Copy,      tip: 'Kopieren',      action: () => navigator.clipboard.writeText(draftContent) },
-                { icon: Upload,    tip: 'Import .md',    action: () => document.getElementById(NOTES_IMPORT_INPUT_ID)?.click() },
                 { icon: Download,  tip: 'Download .md',  action: saveAsFile },
                 { icon: Save,      tip: 'Speichern (Ctrl+S)', action: saveActiveNow, accent: draftDirty },
               ].map(({ icon: Icon, tip, action, flip, accent: useAccent }: any) => (
-                <button key={tip} onClick={action} title={tip} style={{
-                  padding: '5px', borderRadius: 7, border: 'none', cursor: 'pointer',
+                <InteractiveActionButton
+                  key={tip}
+                  onClick={action}
+                  title={tip}
+                  motionId={`mobile-notes-top-action-${tip.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}`}
+                  selected={Boolean(useAccent)}
+                  areaHint={44}
+                  radius={7}
+                  style={{
+                  padding: '5px', borderRadius: 7, border: 'none',
                   background: 'transparent', color: useAccent ? t.accent : 'inherit',
-                  transform: flip ? 'scaleX(-1)' : undefined, display: 'flex', transition: 'all 0.15s',
-                }}
-                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.08)')}
-                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-                >
-                  <Icon size={13} />
-                </button>
+                  display: 'flex',
+                }}>
+                  <Icon size={13} style={{ transform: flip ? 'scaleX(-1)' : undefined }} />
+                </InteractiveActionButton>
               ))}
               <div style={{ width: 1, height: 14, background: 'rgba(255,255,255,0.1)', margin: '0 4px' }} />
-              <button onClick={() => setFocusMode(!focusMode)} title="Focus Mode" style={{
-                padding: '5px', borderRadius: 7, border: 'none', cursor: 'pointer',
+              <InteractiveActionButton onClick={() => setFocusMode(!focusMode)} title="Focus Mode"
+                motionId="mobile-notes-focus-mode"
+                selected={focusMode}
+                areaHint={46}
+                radius={7}
+                style={{
+                padding: '5px', borderRadius: 7, border: 'none',
                 background: focusMode ? `rgba(${rgb},0.15)` : 'transparent',
-                color: focusMode ? t.accent : 'inherit', transition: 'all 0.15s', display: 'flex',
+                color: focusMode ? t.accent : 'inherit', display: 'flex',
               }}>
                 {focusMode ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
-              </button>
+              </InteractiveActionButton>
             </div>
           </Glass>
 
@@ -538,9 +649,27 @@ export function NotesView() {
                 </span>
               ))}
               <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
-                <button onClick={() => insertWorkflowTemplate('daily')} style={{ padding: '4px 8px', borderRadius: 8, border: `1px solid rgba(${rgb},0.3)`, background: `rgba(${rgb},0.14)`, color: t.accent, fontSize: 10, fontWeight: 700, cursor: 'pointer' }}>Daily</button>
-                <button onClick={() => insertWorkflowTemplate('meeting')} style={{ padding: '4px 8px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.06)', color: 'inherit', fontSize: 10, fontWeight: 700, cursor: 'pointer' }}>Meeting</button>
-                <button onClick={() => insertWorkflowTemplate('project')} style={{ padding: '4px 8px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.06)', color: 'inherit', fontSize: 10, fontWeight: 700, cursor: 'pointer' }}>Project</button>
+                <InteractiveActionButton
+                  onClick={() => insertWorkflowTemplate('daily')}
+                  motionId="mobile-notes-workflow-daily"
+                  areaHint={56}
+                  radius={8}
+                  style={{ padding: '4px 8px', borderRadius: 8, border: `1px solid rgba(${rgb},0.3)`, background: `rgba(${rgb},0.14)`, color: t.accent, fontSize: 10, fontWeight: 700, cursor: 'pointer' }}
+                >Daily</InteractiveActionButton>
+                <InteractiveActionButton
+                  onClick={() => insertWorkflowTemplate('meeting')}
+                  motionId="mobile-notes-workflow-meeting"
+                  areaHint={62}
+                  radius={8}
+                  style={{ padding: '4px 8px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.06)', color: 'inherit', fontSize: 10, fontWeight: 700, cursor: 'pointer' }}
+                >Meeting</InteractiveActionButton>
+                <InteractiveActionButton
+                  onClick={() => insertWorkflowTemplate('project')}
+                  motionId="mobile-notes-workflow-project"
+                  areaHint={62}
+                  radius={8}
+                  style={{ padding: '4px 8px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.06)', color: 'inherit', fontSize: 10, fontWeight: 700, cursor: 'pointer' }}
+                >Project</InteractiveActionButton>
               </div>
             </div>
           </Glass>
@@ -569,9 +698,12 @@ export function NotesView() {
 
               {/* ✦ Magic Button */}
               <div style={{ position: 'relative' }}>
-                <button
-                  ref={magicBtnRef}
+                <InteractiveActionButton
                   onClick={handleMagicOpen}
+                  motionId="mobile-notes-open-magic"
+                  selected={showMagic}
+                  areaHint={78}
+                  radius={8}
                   style={{
                     padding: '4px 10px', borderRadius: 8, border: `1px solid ${t.accent}${showMagic ? '60' : '30'}`,
                     background: showMagic ? `linear-gradient(135deg, ${t.accent}30, ${t.accent2}30)` : `linear-gradient(135deg, ${t.accent}18, ${t.accent2}18)`,
@@ -584,7 +716,7 @@ export function NotesView() {
                 >
                   <Wand2 size={12} style={{ transform: showMagic ? 'rotate(12deg) scale(1.15)' : 'none', transition: 'transform 0.2s' }} />
                   Magic
-                </button>
+                </InteractiveActionButton>
               </div>
 
               <div style={{ flex: 1 }} />
@@ -593,17 +725,19 @@ export function NotesView() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                 <Hash size={10} style={{ opacity: 0.35 }} />
                 {active.tags.map(tag => (
-                  <span key={tag} onClick={() => updateNote(active.id, { tags: active.tags.filter(t => t !== tag) })}
+                  <InteractiveActionButton key={tag} onClick={() => updateNote(active.id, { tags: active.tags.filter(t => t !== tag) })}
+                    motionId={`mobile-notes-remove-tag-${tag}`}
+                    areaHint={46}
+                    radius={20}
                     style={{
                       fontSize: 10, padding: '2px 8px', borderRadius: 20, cursor: 'pointer',
+                      border: 'none',
                       background: `rgba(${rgb},0.12)`, color: t.accent, transition: 'opacity 0.15s',
                     }}
                     title="Klicken zum Entfernen"
-                    onMouseEnter={e => (e.currentTarget.style.opacity = '0.6')}
-                    onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
                   >
                     {tag} ×
-                  </span>
+                  </InteractiveActionButton>
                 ))}
                 {editingTags ? (
                   <input
@@ -625,18 +759,20 @@ export function NotesView() {
                     placeholder="tag..."
                   />
                 ) : (
-                  <button onClick={() => setEditingTags(true)}
-                    style={{ fontSize: 10, opacity: 0.4, background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', transition: 'opacity 0.15s' }}
-                    onMouseEnter={e => (e.currentTarget.style.opacity = '0.8')}
-                    onMouseLeave={e => (e.currentTarget.style.opacity = '0.4')}
-                  >+ Tag</button>
+                  <InteractiveActionButton onClick={() => setEditingTags(true)}
+                    motionId="mobile-notes-add-tag"
+                    className="nx-icon-fade"
+                    areaHint={40}
+                    radius={14}
+                    style={{ fontSize: 10, ['--nx-idle-opacity' as any]: 0.4, background: 'none', border: 'none', color: 'inherit' }}
+                  >+ Tag</InteractiveActionButton>
                 )}
               </div>
             </div>
           )}
 
           {/* ── EDITOR / PREVIEW ── */}
-          <div style={{ display: 'flex', gap: 10, flex: 1, minHeight: 0, overflow: 'hidden' }}>
+          <div style={{ display: 'flex', gap: 10, flex: 1, minHeight: 0, overflow: 'visible' }}>
 
             {/* Editor */}
             {(mode === 'edit' || mode === 'split') && (
@@ -709,7 +845,7 @@ export function NotesView() {
 
             {/* Preview — always has a visible scrollbar */}
             {(mode === 'preview' || mode === 'split') && (
-              <Glass className="flex-1 flex flex-col" style={{ minHeight: 0, overflow: 'hidden' }} glow>
+              <Glass className="flex-1 flex flex-col" style={{ minHeight: 0, overflow: 'visible', background: `linear-gradient(150deg, rgba(${rgb},0.32), rgba(${hexToRgb(t.accent2)},0.2) 58%, rgba(255,255,255,0.03))` }} glow gradient>
                 {/* The scrollable div is direct child of the Glass content wrapper (which is flex-col) */}
                 <div style={{
                   flex: 1, overflowY: 'scroll', overflowX: 'hidden',
@@ -740,10 +876,14 @@ export function NotesView() {
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.2, flexDirection: 'column', gap: 8 }}>
           <div style={{ fontSize: 32 }}>📝</div>
           <div style={{ fontSize: 12, letterSpacing: '0.1em', textTransform: 'uppercase' }}>Keine Notiz ausgewählt</div>
-          <button onClick={addNote} style={{
+          <InteractiveActionButton onClick={addNote}
+            motionId="mobile-notes-empty-add"
+            areaHint={96}
+            radius={20}
+            style={{
             marginTop: 8, padding: '8px 18px', borderRadius: 20, border: 'none', cursor: 'pointer',
             background: `rgba(${rgb},0.2)`, color: t.accent, fontSize: 12, fontWeight: 700,
-          }}>+ Neue Notiz</button>
+          }}>+ Neue Notiz</InteractiveActionButton>
         </div>
       )}
 

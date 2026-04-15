@@ -1,5 +1,7 @@
 import React from 'react'
 import { Glass } from './Glass'
+import { LiquidGlassSurface } from './LiquidGlassSurface'
+import { LiquidGlassButton } from './LiquidGlassButton'
 import { useTheme } from '../store/themeStore'
 import { useTerminal } from '../store/terminalStore'
 import { hexToRgb } from '../lib/utils'
@@ -9,8 +11,10 @@ import {
   Settings, Terminal, Zap, BarChart3, Wrench
 } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
+import { SurfaceHighlight } from './render/SurfaceHighlight'
+import { useInteractiveSurfaceMotion } from '../render/useInteractiveSurfaceMotion'
 
-export type View = 'dashboard' | 'notes' | 'code' | 'tasks' | 'reminders' | 'canvas' | 'files' | 'flux' | 'devtools' | 'settings' | 'info'
+export type View = 'dashboard' | 'notes' | 'code' | 'tasks' | 'reminders' | 'canvas' | 'files' | 'flux' | 'devtools' | 'diagnostics' | 'settings' | 'info'
 
 const ITEMS: { id: View; icon: any; label: string; color?: string }[] = [
   { id: 'dashboard', icon: BarChart3, label: 'Dashboard', color: '#007AFF' },
@@ -29,6 +33,9 @@ const BOTTOM_ITEMS: { id: View; icon: any; label: string }[] = [
   { id: 'info',     icon: Info,     label: 'Info' },
 ]
 
+const clampNumber = (value: number, min: number, max: number) =>
+  Math.max(min, Math.min(max, value))
+
 export function Sidebar({
   view,
   onChange,
@@ -43,6 +50,26 @@ export function Sidebar({
   const terminal = useTerminal()
   const rgb = hexToRgb(t.accent)
   const [hoveredId, setHoveredId] = React.useState<View | 'terminal' | null>(null)
+  const isLiquidSidebar = ((t.glassmorphism as any)?.panelRenderer ?? 'blur') === 'liquid-glass'
+  const liquidPreset = ((t.glassmorphism as any).liquidPreset ?? 'performance') as 'fidelity' | 'performance' | 'no-shader'
+  const liquidPresetDefaults = liquidPreset === 'fidelity'
+    ? { distortionScale: -180, displace: 0.5, saturation: 2.1 }
+    : liquidPreset === 'no-shader'
+      ? { distortionScale: -192, displace: 0.46, saturation: 2.2 }
+      : { distortionScale: -132, displace: 0.34, saturation: 1.6 }
+  const liquidDistortionScaleOverride = Number((t.glassmorphism as any).liquidDistortionScale)
+  const liquidDisplaceOverride = Number((t.glassmorphism as any).liquidDisplace)
+  const liquidSaturationOverride = Number((t.glassmorphism as any).liquidSaturation)
+  const liquidDistortionScale = Number.isFinite(liquidDistortionScaleOverride)
+    ? clampNumber(liquidDistortionScaleOverride, -320, 320)
+    : liquidPresetDefaults.distortionScale
+  const liquidDisplace = Number.isFinite(liquidDisplaceOverride)
+    ? clampNumber(liquidDisplaceOverride, 0, 3)
+    : liquidPresetDefaults.displace
+  const liquidSaturation = Number.isFinite(liquidSaturationOverride)
+    ? clampNumber(liquidSaturationOverride, 0.8, 2.8)
+    : liquidPresetDefaults.saturation
+  const useLiquidShader = liquidPreset !== 'no-shader'
 
   const sidebarStyle  = (t as any).sidebarStyle  ?? 'default'
   const showLabels    = (t as any).sidebarLabels  ?? true
@@ -60,6 +87,18 @@ export function Sidebar({
         ...BOTTOM_ITEMS.map((item) => item.id),
       ],
   )
+  const terminalInteraction = useInteractiveSurfaceMotion({
+    id: 'mobile-sidebar-terminal',
+    hovered: hoveredId === 'terminal',
+    focused: hoveredId === 'terminal',
+    selected: terminal.isOpen,
+    alignRight: isRight,
+    surfaceClass: 'utility-surface',
+    effectClass: isLiquidSidebar ? 'liquid-interactive' : 'status-highlight',
+    budgetPriority: terminal.isOpen ? 'high' : 'normal',
+    areaHint: 74,
+    family: 'micro',
+  })
 
   // Rail and narrow modes force icon-only
   const iconOnly = isRail || isMinimal || t.sidebarWidth < 160
@@ -86,12 +125,10 @@ export function Sidebar({
         ...borderSide,
       }
 
-  // Accent background option
-  const sidebarBg = accentBg
-    ? t.mode === 'dark'
-      ? `linear-gradient(to bottom, rgba(${rgb},0.18), rgba(${rgb},0.08))`
-      : `linear-gradient(to bottom, rgba(${rgb},0.1), rgba(${rgb},0.04))`
-    : undefined
+  // Keep subtle theme tint always; accentBg increases strength.
+  const sidebarBg = t.mode === 'dark'
+    ? `linear-gradient(180deg, rgba(${rgb},${accentBg ? 0.22 : 0.14}), rgba(${rgb},${accentBg ? 0.1 : 0.06}) 46%, rgba(${hexToRgb(t.accent2)},${accentBg ? 0.1 : 0.05}) 100%)`
+    : `linear-gradient(180deg, rgba(${rgb},${accentBg ? 0.12 : 0.08}), rgba(${hexToRgb(t.accent2)},${accentBg ? 0.08 : 0.05}) 100%)`
 
   const itemPad = iconOnly ? '8px 0' : t.visual.compactMode ? '6px 10px' : '8px 12px'
   const itemGap  = iconOnly ? 0 : 10
@@ -105,6 +142,11 @@ export function Sidebar({
     const hoverSlideX = isRight
       ? -Math.max(1, motionRuntime.hoverLiftPx * 0.55)
       : Math.max(1, motionRuntime.hoverLiftPx * 0.55)
+    const overlayVisible = isHovered || isActive
+    const overlayOpacity = isActive ? 0.76 : 0.52
+    const overlayTransition = motionRuntime.reduced
+      ? { duration: 0.01, ease: 'linear' as const }
+      : { duration: 0.12, ease: [0.2, 0.9, 0.24, 1] as [number, number, number, number] }
 
     return (
       <div key={item.id} style={{
@@ -121,23 +163,26 @@ export function Sidebar({
             gap: itemGap, justifyContent: iconOnly ? 'center' : 'flex-start',
             width: '100%', padding: itemPad,
             borderRadius: t.visual.panelRadius * 0.65,
-            border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+            border: isLiquidSidebar ? '1px solid transparent' : 'none',
+            cursor: 'pointer', fontFamily: 'inherit',
             fontSize: 13, fontWeight: isActive ? 700 : 500,
             color: isActive
               ? itemColor
               : isHovered
                 ? (t.mode === 'dark' ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.85)')
                 : (t.mode === 'dark' ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.6)'),
-            background: isActive
-              ? `rgba(${itemRgb}, 0.15)`
-              : isHovered
-                ? `rgba(${itemRgb},0.08)`
-                : 'transparent',
+            background: isLiquidSidebar
+              ? 'transparent'
+              : isActive
+                ? `rgba(${itemRgb}, 0.15)`
+                : isHovered
+                  ? `rgba(${itemRgb},0.08)`
+                  : 'transparent',
             borderLeft: (!iconOnly && !isRight)
-              ? `2px solid ${isActive ? itemColor : 'transparent'}`
+              ? `2px solid ${!isLiquidSidebar && isActive ? itemColor : 'transparent'}`
               : 'none',
             borderRight: (!iconOnly && isRight)
-              ? `2px solid ${isActive ? itemColor : 'transparent'}`
+              ? `2px solid ${!isLiquidSidebar && isActive ? itemColor : 'transparent'}`
               : 'none',
             transition: `background-color ${motionRuntime.quickMs}ms ease, color ${motionRuntime.quickMs}ms ease, border-color ${motionRuntime.quickMs}ms ease, opacity ${motionRuntime.quickMs}ms ease`,
             position: 'relative', overflow: 'hidden',
@@ -150,6 +195,55 @@ export function Sidebar({
           onBlur={() => setHoveredId((prev) => (prev === item.id ? null : prev))}
         >
           <motion.div
+            aria-hidden="true"
+            initial={false}
+            animate={{
+              opacity: overlayVisible ? overlayOpacity : 0,
+              scale: overlayVisible ? 1 : 0.925,
+            }}
+            transition={overlayTransition}
+            style={{
+              position: 'absolute',
+              inset: 1,
+              borderRadius: t.visual.panelRadius * 0.58,
+              pointerEvents: 'none',
+              zIndex: 0,
+              overflow: 'hidden',
+              transformOrigin: '50% 50%',
+            }}
+          >
+            {isLiquidSidebar ? (
+              <LiquidGlassSurface
+                variant="element"
+                borderRadius={t.visual.panelRadius * 0.58}
+                dark={t.mode === 'dark'}
+                lowPower={!useLiquidShader}
+                backgroundOpacity={t.mode === 'dark' ? 0.04 : 0.08}
+                brightness={t.mode === 'dark' ? 52 : 72}
+                opacity={t.mode === 'dark' ? 0.92 : 0.88}
+                blur={liquidPreset === 'fidelity' ? 11 : liquidPreset === 'performance' ? 9 : 10}
+                saturation={liquidSaturation}
+                distortionScale={liquidDistortionScale}
+                borderWidth={0.1}
+                displace={liquidDisplace}
+                accentColor={itemColor}
+                style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}
+              />
+            ) : (
+              <div
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  borderRadius: t.visual.panelRadius * 0.58,
+                  border: `1px solid rgba(${itemRgb},${isActive ? 0.36 : 0.26})`,
+                  background: `linear-gradient(160deg, rgba(${itemRgb},${isActive ? 0.22 : 0.14}), rgba(${itemRgb},${isActive ? 0.08 : 0.06}))`,
+                  boxShadow: isActive ? `0 10px 20px rgba(${itemRgb},0.16)` : 'none',
+                }}
+              />
+            )}
+          </motion.div>
+
+          <motion.div
             animate={
               motionRuntime.reduced
                 ? { x: 0, scale: 1 }
@@ -160,6 +254,8 @@ export function Sidebar({
             }
             transition={motionRuntime.hoverSpring}
             style={{
+              position: 'relative',
+              zIndex: 1,
               display: 'flex',
               alignItems: 'center',
               gap: itemGap,
@@ -217,7 +313,7 @@ export function Sidebar({
           </AnimatePresence>
 
           {/* Active dot (icon-only mode) */}
-          {isActive && !iconOnly && (
+          {isActive && !iconOnly && !isLiquidSidebar && (
             <motion.div
               initial={{ opacity: 0, scale: 0.6 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -231,7 +327,7 @@ export function Sidebar({
           )}
 
           {/* Active indicator bar (icon-only) */}
-          {isActive && iconOnly && !isRight && (
+          {isActive && iconOnly && !isRight && !isLiquidSidebar && (
             <motion.div
               initial={{ opacity: 0, scaleY: 0.6 }}
               animate={{ opacity: 1, scaleY: 1 }}
@@ -243,7 +339,7 @@ export function Sidebar({
             }}
             />
           )}
-          {isActive && iconOnly && isRight && (
+          {isActive && iconOnly && isRight && !isLiquidSidebar && (
             <motion.div
               initial={{ opacity: 0, scaleY: 0.6 }}
               animate={{ opacity: 1, scaleY: 1 }}
@@ -311,46 +407,84 @@ export function Sidebar({
 
       {/* Terminal button */}
       <div style={{ marginTop: 6 }}>
-        <button
+        <LiquidGlassButton
           className="nx-bounce-target"
           onClick={() => terminal.setOpen(!terminal.isOpen)}
           title={iconOnly ? 'Terminal' : undefined}
+          color={t.accent}
+          borderRadius={t.visual.panelRadius * 0.65}
+          size="sm"
           style={{
-            display: 'flex', alignItems: 'center',
-            gap: iconOnly ? 0 : 9, justifyContent: iconOnly ? 'center' : 'flex-start',
-            width: '100%', padding: iconOnly ? '8px 0' : '8px 12px',
-            borderRadius: t.visual.panelRadius * 0.65,
-            border: 'none', cursor: 'pointer', fontFamily: 'inherit',
-            fontSize: 11, fontWeight: 700, letterSpacing: 0.5,
+            display: 'flex',
+            alignItems: 'center',
+            gap: iconOnly ? 0 : 9,
+            justifyContent: iconOnly ? 'center' : 'flex-start',
+            width: '100%',
+            padding: iconOnly ? '8px 0' : '8px 12px',
+            fontFamily: 'inherit',
+            fontSize: 11,
+            fontWeight: 700,
+            letterSpacing: 0.5,
             color: terminal.isOpen ? t.accent : 'inherit',
-            background:
+            background: isLiquidSidebar ? 'transparent' : (
               terminal.isOpen
                 ? `rgba(${rgb},0.15)`
                 : hoveredId === 'terminal'
                   ? `rgba(${rgb},0.18)`
-                  : `rgba(${rgb},0.07)`,
-            transition: `background-color ${motionRuntime.quickMs}ms ease, color ${motionRuntime.quickMs}ms ease`,
+                  : `rgba(${rgb},0.07)`
+            ),
+            transition: `background-color ${terminalInteraction.runtime.timings.quickMs}ms ease, color ${terminalInteraction.runtime.timings.quickMs}ms ease`,
             transform: 'translateZ(0)',
             contain: 'paint',
+            position: 'relative',
+            overflow: 'hidden',
+            border: isLiquidSidebar ? '1px solid transparent' : 'none',
           }}
           onMouseEnter={() => setHoveredId('terminal')}
           onMouseLeave={() => setHoveredId((prev) => (prev === 'terminal' ? null : prev))}
           onFocus={() => setHoveredId('terminal')}
           onBlur={() => setHoveredId((prev) => (prev === 'terminal' ? null : prev))}
         >
+          <SurfaceHighlight
+            highlight={terminalInteraction.highlight}
+            radius={t.visual.panelRadius * 0.58}
+          >
+            {isLiquidSidebar ? (
+              <LiquidGlassSurface
+                variant="element"
+                borderRadius={t.visual.panelRadius * 0.58}
+                dark={t.mode === 'dark'}
+                lowPower={!useLiquidShader}
+                backgroundOpacity={t.mode === 'dark' ? 0.04 : 0.08}
+                brightness={t.mode === 'dark' ? 52 : 72}
+                opacity={t.mode === 'dark' ? 0.92 : 0.88}
+                blur={liquidPreset === 'fidelity' ? 11 : liquidPreset === 'performance' ? 9 : 10}
+                saturation={liquidSaturation}
+                distortionScale={liquidDistortionScale}
+                borderWidth={0.1}
+                displace={liquidDisplace}
+                accentColor={t.accent}
+                style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}
+              />
+            ) : (
+              <div
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  borderRadius: t.visual.panelRadius * 0.58,
+                  border: `1px solid rgba(${rgb},${terminal.isOpen ? 0.36 : 0.22})`,
+                  background: `linear-gradient(160deg, rgba(${rgb},${terminal.isOpen ? 0.2 : 0.12}), rgba(${rgb},0.06))`,
+                }}
+              />
+            )}
+          </SurfaceHighlight>
+
           <motion.div
-            animate={
-              motionRuntime.reduced
-                ? { x: 0, scale: 1 }
-                : {
-                    x: hoveredId === 'terminal'
-                      ? (isRight ? -Math.max(1, motionRuntime.hoverLiftPx * 0.55) : Math.max(1, motionRuntime.hoverLiftPx * 0.55))
-                      : 0,
-                    scale: hoveredId === 'terminal' ? motionRuntime.hoverScale + 0.01 : 1,
-                  }
-            }
-            transition={motionRuntime.hoverSpring}
+            animate={terminalInteraction.content.animate}
+            transition={terminalInteraction.content.transition}
             style={{
+              position: 'relative',
+              zIndex: 1,
               display: 'flex',
               alignItems: 'center',
               gap: iconOnly ? 0 : 9,
@@ -361,7 +495,7 @@ export function Sidebar({
             <Terminal size={14} style={{ color: t.accent, flexShrink: 0 }} />
             {!iconOnly && <span style={{ textTransform: 'uppercase', letterSpacing: 1 }}>Terminal</span>}
           </motion.div>
-        </button>
+        </LiquidGlassButton>
       </div>
     </Glass>
   )

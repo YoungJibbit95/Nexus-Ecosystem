@@ -80,7 +80,11 @@ export interface GlassmorphismConfig {
   reflectionLine: boolean
   animatedBlur: boolean
   animatedBlurSpeed: number
-  panelRenderer: 'blur' | 'fake-glass' | 'glass-shader'
+  panelRenderer: 'blur' | 'fake-glass' | 'glass-shader' | 'liquid-glass'
+  liquidPreset?: 'fidelity' | 'performance' | 'no-shader'
+  liquidDistortionScale?: number
+  liquidDisplace?: number
+  liquidSaturation?: number
   glowRenderer: 'css' | 'three'
 }
 
@@ -332,12 +336,36 @@ const DEFAULT_GLOW: GlowConfig = {
   gradientColor2: '#5E5CE6', gradientAngle: 135, animated: false, animationSpeed: 1,
 }
 
+const DEFAULT_TOOLBAR: Theme['toolbar'] = {
+  toolbarMode: 'island',
+  position: 'bottom',
+  mode: 'pill',
+  height: 40,
+  visible: true,
+}
+
+const DEFAULT_GRADIENT: GradientConfig = {
+  angle: 135,
+  stops: [{ color: '#007AFF', position: 0, opacity: 1 }, { color: '#5E5CE6', position: 100, opacity: 1 }],
+  animated: false,
+  animationSpeed: 1,
+}
+
 const DEFAULT_BG: BackgroundConfig = {
   mode: 'solid',
   stops: [{ color: '#007AFF', position: 0, opacity: 0.15 }, { color: '#5E5CE6', position: 100, opacity: 0.15 }],
   angle: 135, animated: false, animationSpeed: 4, noiseOpacity: 0.03, meshIntensity: 0.3,
   overlayOpacity: 0, vignette: false, vignetteStrength: 0.4,
   scanlines: false, panelBgMode: 'glass',
+}
+
+const DEFAULT_BLUR: BlurConfig = {
+  strength: 24,
+  noiseOverlay: false,
+  noiseOpacity: 0.035,
+  sidebarBlur: 24,
+  panelBlur: 20,
+  modalBlur: 28,
 }
 
 const DEFAULT_GLASS: GlassmorphismConfig = {
@@ -348,6 +376,7 @@ const DEFAULT_GLASS: GlassmorphismConfig = {
   glassMode: 'default', glassDepth: 0.5, innerShadow: false, reflectionLine: false,
   animatedBlur: false, animatedBlurSpeed: 3,
   panelRenderer: 'blur',
+  liquidPreset: 'performance',
   glowRenderer: 'css',
 }
 
@@ -358,6 +387,87 @@ const DEFAULT_ANIMS: AnimationsConfig = {
   glowPulse: false, particleEffects: false,
   floatEffect: false, borderFlow: false, shakeOnError: false,
   confettiOnComplete: false, magneticButtons: false, entranceStyle: 'fade',
+}
+
+const DEFAULT_VISUAL: VisualConfig = {
+  shadowDepth: 0.4,
+  animationSpeed: 1,
+  panelRadius: 14,
+  compactMode: false,
+  spacingDensity: 'comfortable',
+  borderThickness: 0,
+}
+
+const DEFAULT_EDITOR: EditorConfig = {
+  autosave: true,
+  autosaveInterval: 2000,
+  wordWrap: true,
+  lineNumbers: true,
+  minimap: true,
+  cursorAnimation: true,
+  tabSize: 2,
+  fontSize: 13,
+  fontFamily: 'monospace',
+}
+
+const DEFAULT_QOL: QOLConfig = {
+  reducedMotion: false,
+  highContrast: false,
+  showTooltips: true,
+  sidebarAutoHide: false,
+  fontSize: 14,
+  panelDensity: 'comfortable',
+  quickActions: false,
+  motionProfile: 'balanced',
+}
+
+const isRecord = (value: unknown): value is Record<string, any> =>
+  Boolean(value) && typeof value === 'object' && !Array.isArray(value)
+
+const mergeConfig = <T extends Record<string, any>>(base: T, incoming: unknown): T => (
+  isRecord(incoming) ? ({ ...base, ...incoming } as T) : ({ ...base } as T)
+)
+
+const sanitizeThemeSnapshot = (persistedRaw: unknown, current: Theme): Theme => {
+  const persisted = isRecord(persistedRaw) ? (persistedRaw as Partial<Theme>) : {}
+  const sidebarWidthRaw = Number(persisted.sidebarWidth)
+  const sidebarWidth = Number.isFinite(sidebarWidthRaw)
+    ? Math.max(180, Math.min(420, sidebarWidthRaw))
+    : current.sidebarWidth
+
+  return {
+    ...current,
+    ...persisted,
+    mode: persisted.mode === 'light' ? 'light' : 'dark',
+    accent: typeof persisted.accent === 'string' && persisted.accent.length > 0 ? persisted.accent : current.accent,
+    accent2: typeof persisted.accent2 === 'string' && persisted.accent2.length > 0 ? persisted.accent2 : current.accent2,
+    bg: typeof persisted.bg === 'string' && persisted.bg.length > 0 ? persisted.bg : current.bg,
+    globalFont: typeof persisted.globalFont === 'string' && persisted.globalFont.length > 0 ? persisted.globalFont : current.globalFont,
+    sidebarWidth,
+    sidebarPosition: persisted.sidebarPosition === 'right' ? 'right' : 'left',
+    sidebarStyle: ['default', 'floating', 'minimal', 'rail', 'hidden'].includes(String(persisted.sidebarStyle))
+      ? persisted.sidebarStyle as Theme['sidebarStyle']
+      : current.sidebarStyle,
+    sidebarLabels: typeof persisted.sidebarLabels === 'boolean' ? persisted.sidebarLabels : current.sidebarLabels,
+    sidebarAccentBg: typeof persisted.sidebarAccentBg === 'boolean' ? persisted.sidebarAccentBg : current.sidebarAccentBg,
+    toolbar: mergeConfig(current.toolbar, persisted.toolbar),
+    notes: mergeConfig(current.notes, persisted.notes),
+    glow: mergeConfig(current.glow, persisted.glow),
+    gradient: mergeConfig(current.gradient, persisted.gradient),
+    background: mergeConfig(current.background, persisted.background),
+    blur: mergeConfig(current.blur, persisted.blur),
+    glassmorphism: mergeConfig(current.glassmorphism, persisted.glassmorphism),
+    visual: mergeConfig(current.visual, persisted.visual),
+    animations: mergeConfig(current.animations, persisted.animations),
+    editor: mergeConfig(current.editor, persisted.editor),
+    qol: mergeConfig(current.qol, persisted.qol),
+    glowOutline: typeof persisted.glowOutline === 'boolean' ? persisted.glowOutline : current.glowOutline,
+    glowColor1: typeof persisted.glowColor1 === 'string' && persisted.glowColor1.length > 0 ? persisted.glowColor1 : current.glowColor1,
+    glowColor2: typeof persisted.glowColor2 === 'string' && persisted.glowColor2.length > 0 ? persisted.glowColor2 : current.glowColor2,
+    glowOutlineStrength: Number.isFinite(Number(persisted.glowOutlineStrength))
+      ? Number(persisted.glowOutlineStrength)
+      : current.glowOutlineStrength,
+  }
 }
 
 // ── Store ──────────────────────────────────────────────────────────────────────
@@ -376,18 +486,18 @@ export const useTheme = create<Theme>()(
       sidebarStyle: 'default',
       sidebarLabels: true,
       sidebarAccentBg: false,
-      toolbar: { toolbarMode: 'island', position: 'bottom', mode: 'pill', height: 40, visible: true },
+      toolbar: DEFAULT_TOOLBAR,
 
       notes: DEFAULT_NOTES,
       glow: DEFAULT_GLOW,
-      gradient: { angle: 135, stops: [{ color: '#007AFF', position: 0, opacity: 1 }, { color: '#5E5CE6', position: 100, opacity: 1 }], animated: false, animationSpeed: 1 },
+      gradient: DEFAULT_GRADIENT,
       background: DEFAULT_BG,
-      blur: { strength: 24, noiseOverlay: false, noiseOpacity: 0.035, sidebarBlur: 24, panelBlur: 20, modalBlur: 28 },
+      blur: DEFAULT_BLUR,
       glassmorphism: DEFAULT_GLASS,
-      visual: { shadowDepth: 0.4, animationSpeed: 1, panelRadius: 14, compactMode: false, spacingDensity: 'comfortable', borderThickness: 0 },
+      visual: DEFAULT_VISUAL,
       animations: DEFAULT_ANIMS,
-      editor: { autosave: true, autosaveInterval: 2000, wordWrap: true, lineNumbers: true, minimap: true, cursorAnimation: true, tabSize: 2, fontSize: 13, fontFamily: 'monospace' },
-      qol: { reducedMotion: false, highContrast: false, showTooltips: true, sidebarAutoHide: false, fontSize: 14, panelDensity: 'comfortable', quickActions: false, motionProfile: 'balanced' },
+      editor: DEFAULT_EDITOR,
+      qol: DEFAULT_QOL,
 
       glowOutline: true, glowColor1: '#00bcd4', glowColor2: '#2196f3', glowOutlineStrength: 12,
 
@@ -433,6 +543,7 @@ export const useTheme = create<Theme>()(
         idleTimeoutMs: 1_900,
         flushBudgetMs: 9,
       }),
+      merge: (persistedState, currentState) => sanitizeThemeSnapshot(persistedState, currentState as Theme),
     }
   )
 )

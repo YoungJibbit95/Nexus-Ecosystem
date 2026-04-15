@@ -1,131 +1,73 @@
 # Nexus Ecosystem
 
-![Repository Views](https://komarev.com/ghpvc/?username=YoungJibbit95&repo=YJarvis&label=Repository%20Views&color=0e75b6&style=flat)
-[![GitHub Stars](https://img.shields.io/github/stars/YoungJibbit95/YJarvis?style=flat)](https://github.com/YoungJibbit95/YJarvis/stargazers)
-[![GitHub Forks](https://img.shields.io/github/forks/YoungJibbit95/YJarvis?style=flat)](https://github.com/YoungJibbit95/YJarvis/network/members)
-[![Last Commit](https://img.shields.io/github/last-commit/YoungJibbit95/YJarvis?style=flat)](https://github.com/YoungJibbit95/YJarvis/commits/main)
+Nexus ist ein Multi-App Workspace-System fuer Planung, Entwicklung und Daily Operations.
+Dieses Repository enthaelt die produktiven Clients, den Shared Core und die Wiki-Dokumentation.
 
-Nexus ist ein Multi-App Workspace-System fuer Produktivitaet, Planung und Entwicklung.
-Dieses Repository enthaelt die Client-Apps (Desktop + Mobile), den gemeinsamen Core und die Wiki-Doku.
+## Produktueberblick
 
-- Produkt-Wiki (GitHub Pages): https://youngjibbit95.github.io/Nexus-Ecosystem
-- Produktions-API-Ziel fuer Clients: `https://nexus-api.cloud`
+Nexus besteht aus vier Client-Apps:
 
-## Was Nexus ist
+- `Nexus Main` (Desktop, Electron)
+- `Nexus Mobile` (Mobile, Capacitor)
+- `Nexus Code` (Desktop IDE, Electron)
+- `Nexus Code Mobile` (Mobile IDE, Capacitor)
 
-Nexus vereint mehrere Arbeitsflaechen in einem konsistenten UX- und Command-System:
+Zentrale Ziele:
 
-- Planen und steuern: `dashboard`, `tasks`, `reminders`, `canvas`, `flux`
-- Dokumentieren: `notes` mit Markdown + Magic-Elementen
-- Entwickeln: `Nexus Code` / `Nexus Code Mobile`
-- Organisieren: `files` + Workspace-Ordner-Flow
-- Navigieren: Spotlight, Terminal, Quick Actions
+- schnelle Bedienung trotz umfangreicher Features
+- konsistente UX zwischen Desktop und Mobile
+- klare Architekturgrenzen zwischen App-Layer, Shared Core und API
 
-Zielbild:
-
-- Schnell in der Nutzung (wenige Klicks, klare Shortcuts)
-- Umfangreich in den Funktionen (Magic Blocks, Canvas, Workspaces, IDE-Flows)
-- Einheitlich ueber alle Apps (Desktop und Mobile Paritaet)
-
-## Apps im Monorepo
-
-- `Nexus Main` (Electron): Haupt-Desktop-App
-- `Nexus Mobile` (Capacitor): Mobile Haupt-App
-- `Nexus Code` (Electron): Lightweight IDE
-- `Nexus Code Mobile` (Capacitor): Mobile Code-App
-- `packages/nexus-core`: Shared Runtime, API-Client, Sync-/Validation-Logik
-- `Nexus Wiki`: Doku fuer GitHub Pages
-
-## View-Guide
-
-### Nexus Main / Nexus Mobile
-
-- `dashboard`
-  - Widget-Board mit Layout-Editor
-  - Fokus auf Uebersicht, Prioritaeten, schnelle Navigation
-- `notes`
-  - Markdown Editor (Edit/Split/Preview)
-  - Magic Blocks (`nexus-list`, `nexus-checklist`, `nexus-alert`, `nexus-progress`, `nexus-timeline`, `nexus-grid`, `nexus-card`, `nexus-metrics`, `nexus-steps`, `nexus-quadrant`, `nexus-kanban`, `nexus-callout`)
-  - Import/Export von `.md`
-- `tasks`
-  - Kanban-Flow mit Prioritaeten, Tags, Subtasks, Deadlines
-- `reminders`
-  - Reminder-Zeitfenster, Snooze, Repeat, Overdue-Flow
-- `canvas`
-  - Infinite Board mit PM-Nodes, Connections, Auto-Layout
-  - Magic Presets erzeugen zentrale Hub-Nodes
-  - Export als JSON + Markdown (lesbar fuer Menschen/AI)
-- `files`
-  - Workspace-Ordner und Dateifokus ueber die App-Objekte
-- `flux`
-  - Ops-Center fuer Queue, Bottlenecks, Quick-Create
-- `devtools`
-  - Builder-/Calculator-Helfer fuer schnelle UI-Arbeit
-- `settings`
-  - Theme, Panel-Background, Motion, Layout, Presets
-- `info`
-  - In-App Dokumentation, Changelog, Keybind-Referenz
-
-### Nexus Code / Nexus Code Mobile
-
-- Monaco-basierter Editor
-- Datei-/Tab-Workflows
-- Run/Preview-/Output-Flows
-- Terminal-Integration
-- Visuelle Paritaet zu Nexus Main (Panel-/Theme-System)
-
-## Kern-Shortcuts
-
-- Global:
-  - `Cmd/Ctrl+S` Speichern (Editor-Views)
-  - `Esc` Dialog/Selection schliessen
-- Notes:
-  - `Cmd/Ctrl+B` Fett
-  - `Cmd/Ctrl+I` Kursiv
-  - `Cmd/Ctrl+K` Link
-  - `Cmd/Ctrl+Z` Undo
-  - `Cmd/Ctrl+Y` Redo
-- Canvas:
-  - `Cmd/Ctrl+M` Magic Builder
-  - `Cmd/Ctrl+0` View Reset
-  - `+` / `-` Zoom
-  - `G` Grid Toggle
-  - `F` Fit/Focus
-- Code:
-  - `Cmd/Ctrl+Enter` Run
-  - `Cmd/Ctrl+S` Save
-
-## Architektur (High-Level)
+## Architektur
 
 ```mermaid
 flowchart LR
-  A["Nexus Apps (Main/Mobile/Code/Code Mobile)"] --> B["packages/nexus-core"]
-  B --> C["nexus-api.cloud"]
-  D["Nexus Wiki (GitHub Pages)"] --> A
+  A["Nexus Main / Mobile"] --> C["@nexus/core"]
+  B["Nexus Code / Code Mobile"] --> C
+  C --> D["https://nexus-api.cloud"]
+  E["InfoView (in-app docs)"] --> A
+  E --> B
+  F["Nexus Wiki"] --> E
 ```
 
-Hinweis: Der eigentliche API-Server liegt bewusst ausserhalb dieses Repos.
+## Render Pipeline und Motion Engine
 
-## Repository-Struktur
+Die Clients nutzen eine zentrale Render-/Motion-Infrastruktur aus `@nexus/core`:
 
-```text
-Nexus-Ecosystem/
-  Nexus Main/
-  Nexus Mobile/
-  Nexus Code/
-  Nexus Code Mobile/
-  packages/
-    nexus-core/
-  Nexus Wiki/
-  tools/
-```
+- Render Pipeline:
+  `Measure -> Resolve -> Allocate -> Commit -> Cleanup`
+- Surface-/Effect-Model:
+  `surfaceClass`, `effectClass`, `budgetPriority`, `visibilityState`, `interactionState`
+- Motion Capabilities:
+  `full`, `rich-reduced`, `composed-light`, `critical-only`, `static-safe`
+- Ownership Guardrails:
+  kein ungeplanter Konflikt bei `transform`, `filter`, `opacity`
 
-## Voraussetzungen
+Dadurch bleiben Animationen hochwertig, aber unter Last kontrolliert degradierbar.
 
-- Node.js 20+
-- npm 10+
-- macOS fuer Electron-Desktop-Dev empfohlen
-- Android-Toolchain fuer mobile Android Builds (optional)
+## Core Views (Main/Mobile)
+
+- `dashboard`: Today-Layer, Capture, Resume, Workspace-Kontext
+- `notes`: Markdown, Magic-Elemente, Split/Edit/Preview
+- `tasks`: Kanban + Prioritaet/Deadline
+- `reminders`: Due/Overdue/Snooze + Control Center
+- `canvas`: Nodes/Templates/Auto-Layout
+- `files`: Workspace- und Handoff-Flows
+- `flux`: Ops-/Queue-Flow
+- `devtools`: produktive UI/Builder-Utilities
+- `settings`: Presets + Material/Motion/Theme
+- `info`: In-App Product-Brain + Architektur + Diagnostics
+
+## Dokumentationslandkarte
+
+- `README.md` (dieses Dokument): Repo- und Architektur-Einstieg
+- `Nexus Main/README.md`: Desktop-App-Details
+- `Nexus Mobile/README.md`: Mobile-App-Details
+- `Nexus Code/README.md`: Desktop-IDE-Details
+- `Nexus Code Mobile/README.md`: Mobile-IDE-Details
+- `packages/nexus-core/README.md`: Shared Render/Motion/API-Contracts
+- `Nexus Wiki/README.md`: Wiki/GitHub-Pages Hub
+- `nexusproject.dev/README.md`: Website/Pricing/API-Policy Doku
 
 ## Setup
 
@@ -135,16 +77,11 @@ cd Nexus-Ecosystem
 npm run setup
 ```
 
-## Entwicklung
+## Development
 
 ```bash
-# Main + Code (ohne Control UI)
 npm run dev:all
-
-# Main + Code + Control UI
 npm run dev:all:with-control-ui
-
-# Einzelstarts
 npm run dev:main
 npm run dev:code
 npm run dev:mobile:android
@@ -155,61 +92,36 @@ npm run dev:code-mobile:android
 
 ```bash
 npm run build:ecosystem
+npm run verify:single-react
 npm run verify:ecosystem
 npm run doctor:release
 ```
 
-## Environment (ohne Secret-Werte)
+## Aktuelle Stabilisierung (Release-Pass)
 
-Alle Apps sind auf denselben API-Host ausgerichtet:
+- Canvas-Interaktion wurde fuer Main und Mobile stabilisiert:
+  Node-Scroll bleibt lokal in der Node, Trackpad-Gesten ueber Nodes triggern den Canvas nicht mehr, und Editor-Caret-Jumps beim Tippen wurden durch Draft+Debounce-Commit reduziert.
+- API->Client View-Access wurde robust gemacht:
+  User-Kontext nutzt jetzt zusaetzlich Website-Session-, Payment-Status- und Subscription-Flags fuer konsistente Tier-Erkennung (`free`/`paid`) in Main, Mobile, Code und Code Mobile.
+- Build/Runtime-Hardening:
+  `@nexus/core` Alias ist in allen Apps konsistent hinterlegt, damit Build und Runtime dieselbe Core-Aufloesung nutzen.
+
+## Environment
+
+Produktiver API-Host fuer Clients:
 
 - `VITE_NEXUS_CONTROL_URL=https://nexus-api.cloud`
-- `VITE_NEXUS_CONTROL_INGEST_KEY=<pro-app key>`
-- optional:
-  - `VITE_NEXUS_USER_ID`
-  - `VITE_NEXUS_USERNAME`
-  - `VITE_NEXUS_USER_TIER`
+- `VITE_NEXUS_CONTROL_INGEST_KEY=<pro app key>`
 
-## Troubleshooting
+Optional:
 
-### `Port 5173 is already in use`
+- `VITE_NEXUS_USER_ID`
+- `VITE_NEXUS_USERNAME`
+- `VITE_NEXUS_USER_TIER`
 
-Es laeuft bereits ein Vite-Prozess. Beende den alten Prozess oder starte danach erneut:
+## Security Boundary
 
-```bash
-lsof -i :5173
-kill -9 <PID>
-```
+Dieses Repository enthaelt keine private API-Server-Implementierung.
 
-### App startet in Dev, aber nicht als Build
-
-- Architektur pruefen (Apple Silicon: ARM64 Build/Start verwenden)
-- Parallel laufende alte Electron-Instanzen beenden
-- Build neu erzeugen (`npm run build:ecosystem`)
-
-### API nicht erreichbar
-
-- Host pruefen: `https://nexus-api.cloud`
-- Netzwerk/TLS pruefen
-- In Logs nach `LOCAL_FALLBACK-*` suchen (sollte in Production nicht auftreten)
-
-## Security- und Repo-Grenzen
-
-Dieses Repository enthaelt **keine private API-Implementierung**.
-
-- im Repo:
-  - Clients
-  - Shared Core
-  - Build-/Setup-Tooling
-  - Wiki
-- ausserhalb:
-  - API-Server-Repo
-  - Infrastruktur/Secrets
-
-Bitte keine Secrets in Commits oder `.env` Dateien einchecken.
-
-## Beitrag und Pflege
-
-- Paritaet beachten: relevante Desktop-Aenderungen nach Mobile uebertragen
-- Bei API-/Core-Aenderungen auf alle vier Apps testen
-- Doku (InfoView + README + Wiki) bei Feature-Aenderungen direkt aktualisieren
+- im Repo: Clients, Shared Core, Wiki, Tooling
+- ausserhalb: API-Server, Infrastruktur, Secrets

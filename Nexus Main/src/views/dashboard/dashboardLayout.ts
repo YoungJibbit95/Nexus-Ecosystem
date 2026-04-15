@@ -1,4 +1,4 @@
-export const LAYOUT_STORAGE_KEY = "nx-dashboard-layout-v2";
+export const LAYOUT_STORAGE_KEY = "nx-dashboard-layout-v3";
 
 export type WidgetId =
   | "stats"

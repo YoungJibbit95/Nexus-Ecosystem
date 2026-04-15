@@ -14,9 +14,12 @@ import {
 import { Glass } from '../../components/Glass'
 import { useTheme } from '../../store/themeStore'
 import { hexToRgb } from '../../lib/utils'
-
+import {
+  InspectorRow,
+  NumberInput,
+  renderBuilderElementContent,
+} from './visualBuilderParts'
 type BuilderElementType = 'section' | 'card' | 'button' | 'text' | 'input' | 'image'
-
 type BuilderElement = {
   id: string
   type: BuilderElementType
@@ -34,22 +37,17 @@ type BuilderElement = {
   border: string
   align: 'left' | 'center' | 'right'
 }
-
 type BuilderPayload = {
   html: string
   css: string
 }
-
 type VisualBuilderProps = {
   onApplyToCode: (payload: BuilderPayload) => void
 }
-
 const BUILDER_CANVAS_WIDTH = 1600
 const BUILDER_CANVAS_HEIGHT = 960
-
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value))
 const snap = (value: number, step = 4) => Math.round(value / step) * step
-
 const elementBase = (
   type: BuilderElementType,
   id: string,
@@ -172,10 +170,8 @@ const elementBase = (
     align: 'center',
   }
 }
-
 const makeId = (prefix: string) =>
   `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`
-
 const escapeHtml = (value: string) =>
   String(value || '')
     .replace(/&/g, '&amp;')
@@ -183,39 +179,10 @@ const escapeHtml = (value: string) =>
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;')
-
-function renderElementContent(element: BuilderElement) {
-  if (element.type === 'image') {
-    return (
-      <div style={{ width: '100%', height: '100%', display: 'grid', placeItems: 'center' }}>
-        <ImageIcon size={24} style={{ opacity: 0.8 }} />
-      </div>
-    )
-  }
-  if (element.type === 'input') {
-    return (
-      <div
-        style={{
-          width: '100%',
-          height: '100%',
-          display: 'flex',
-          alignItems: 'center',
-          opacity: 0.82,
-          fontSize: element.fontSize,
-        }}
-      >
-        {element.label}
-      </div>
-    )
-  }
-  return <span>{element.label}</span>
-}
-
 function toMarkup(elements: BuilderElement[]): BuilderPayload {
   const sorted = [...elements].sort((a, b) => a.y - b.y || a.x - b.x)
   const html: string[] = []
   const css: string[] = []
-
   html.push('<main class="nexus-builder-root">')
   sorted.forEach((element) => {
     const cls = `vb-${element.id}`
@@ -236,12 +203,10 @@ function toMarkup(elements: BuilderElement[]): BuilderPayload {
     html.push(`  <div class="nexus-builder-item ${cls}">${escapeHtml(element.label)}</div>`)
   })
   html.push('</main>')
-
   css.push(':root { color-scheme: dark; }')
   css.push('body { margin: 0; min-height: 100vh; background: radial-gradient(circle at 10% 10%, #111827, #020617 55%); color: #f8fafc; font-family: "SF Pro Display", "Inter", sans-serif; }')
   css.push('.nexus-builder-root { position: relative; width: 100%; max-width: 1600px; min-height: 920px; margin: 0 auto; }')
   css.push('.nexus-builder-item { position: absolute; box-sizing: border-box; display: flex; align-items: center; justify-content: center; }')
-
   sorted.forEach((element) => {
     const cls = `.vb-${element.id}`
     css.push(
@@ -266,63 +231,14 @@ function toMarkup(elements: BuilderElement[]): BuilderPayload {
       css.push(`${cls}:hover { transform: translateY(-1px); box-shadow: 0 12px 26px rgba(2, 6, 23, 0.45); }`)
     }
   })
-
   return {
     html: html.join('\n'),
     css: css.join('\n'),
   }
 }
-
-function InspectorRow({
-  label,
-  children,
-}: {
-  label: string
-  children: React.ReactNode
-}) {
-  return (
-    <div style={{ marginBottom: 10 }}>
-      <div style={{ fontSize: 10, opacity: 0.55, marginBottom: 4 }}>{label}</div>
-      {children}
-    </div>
-  )
-}
-
-function NumberInput({
-  value,
-  min,
-  max,
-  onChange,
-}: {
-  value: number
-  min: number
-  max: number
-  onChange: (next: number) => void
-}) {
-  return (
-    <input
-      type="number"
-      value={Math.round(value)}
-      min={min}
-      max={max}
-      onChange={(event) => onChange(Number(event.target.value))}
-      style={{
-        width: '100%',
-        borderRadius: 7,
-        border: '1px solid rgba(255,255,255,0.13)',
-        background: 'rgba(255,255,255,0.06)',
-        color: 'inherit',
-        padding: '6px 8px',
-        fontSize: 11,
-      }}
-    />
-  )
-}
-
 export function VisualBuilder({ onApplyToCode }: VisualBuilderProps) {
   const t = useTheme()
   const rgb = hexToRgb(t.accent)
-
   const [elements, setElements] = useState<BuilderElement[]>(() => [
     elementBase('section', makeId('section'), 0, t.accent, t.accent2),
     elementBase('text', makeId('text'), 1, t.accent, t.accent2),
@@ -331,7 +247,6 @@ export function VisualBuilder({ onApplyToCode }: VisualBuilderProps) {
   ])
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [copiedState, setCopiedState] = useState<'none' | 'code' | 'css'>('none')
-
   const canvasRef = useRef<HTMLDivElement>(null)
   const dragMeta = useRef<{
     id: string
@@ -341,40 +256,33 @@ export function VisualBuilder({ onApplyToCode }: VisualBuilderProps) {
   const frameRef = useRef(0)
   const pendingRef = useRef<{ id: string; x: number; y: number } | null>(null)
   const elementsRef = useRef(elements)
-
   useEffect(() => {
     elementsRef.current = elements
   }, [elements])
-
   const selected = useMemo(
     () => elements.find((element) => element.id === selectedId) ?? null,
     [elements, selectedId],
   )
-
   const syncCopiedState = useCallback((next: 'code' | 'css') => {
     setCopiedState(next)
     window.setTimeout(() => setCopiedState('none'), 1500)
   }, [])
-
   const patchSelected = useCallback((patch: Partial<BuilderElement>) => {
     if (!selectedId) return
     setElements((prev) =>
       prev.map((item) => (item.id === selectedId ? { ...item, ...patch } : item)),
     )
   }, [selectedId])
-
   const addElement = useCallback((type: BuilderElementType) => {
     const id = makeId(type)
     setElements((prev) => [...prev, elementBase(type, id, prev.length, t.accent, t.accent2)])
     setSelectedId(id)
   }, [t.accent, t.accent2])
-
   const removeSelected = useCallback(() => {
     if (!selectedId) return
     setElements((prev) => prev.filter((item) => item.id !== selectedId))
     setSelectedId(null)
   }, [selectedId])
-
   const duplicateSelected = useCallback(() => {
     if (!selected) return
     const duplicate: BuilderElement = {
@@ -387,7 +295,6 @@ export function VisualBuilder({ onApplyToCode }: VisualBuilderProps) {
     setElements((prev) => [...prev, duplicate])
     setSelectedId(duplicate.id)
   }, [selected])
-
   const autoLayout = useCallback(() => {
     const gap = 34
     const columns = 3
@@ -395,7 +302,6 @@ export function VisualBuilder({ onApplyToCode }: VisualBuilderProps) {
     let y = 80
     let col = 0
     let rowHeight = 0
-
     setElements((prev) =>
       prev.map((item) => {
         const next = { ...item, x, y }
@@ -412,19 +318,16 @@ export function VisualBuilder({ onApplyToCode }: VisualBuilderProps) {
       }),
     )
   }, [])
-
   const applyToCode = useCallback(() => {
     const payload = toMarkup(elements)
     onApplyToCode(payload)
     syncCopiedState('code')
   }, [elements, onApplyToCode, syncCopiedState])
-
   const copyCss = useCallback(async () => {
     const payload = toMarkup(elements)
     await navigator.clipboard.writeText(payload.css)
     syncCopiedState('css')
   }, [elements, syncCopiedState])
-
   const flushDrag = useCallback(() => {
     frameRef.current = 0
     const pending = pendingRef.current
@@ -436,16 +339,13 @@ export function VisualBuilder({ onApplyToCode }: VisualBuilderProps) {
       ),
     )
   }, [])
-
   const onMouseDownElement = useCallback((event: React.MouseEvent, id: string) => {
     if (event.button !== 0) return
     const target = event.target as HTMLElement
     if (target.closest('[data-builder-ignore-drag="true"]')) return
-
     const canvas = canvasRef.current
     const current = elementsRef.current.find((item) => item.id === id)
     if (!canvas || !current) return
-
     const rect = canvas.getBoundingClientRect()
     dragMeta.current = {
       id,
@@ -453,7 +353,6 @@ export function VisualBuilder({ onApplyToCode }: VisualBuilderProps) {
       offsetY: event.clientY - rect.top - current.y,
     }
     setSelectedId(id)
-
     const onMove = (moveEvent: MouseEvent) => {
       const meta = dragMeta.current
       const canvasNode = canvasRef.current
@@ -461,16 +360,13 @@ export function VisualBuilder({ onApplyToCode }: VisualBuilderProps) {
       const view = canvasNode.getBoundingClientRect()
       const source = elementsRef.current.find((item) => item.id === meta.id)
       if (!source) return
-
       const maxX = Math.max(0, BUILDER_CANVAS_WIDTH - source.width)
       const maxY = Math.max(0, BUILDER_CANVAS_HEIGHT - source.height)
       const nextX = snap(clamp(moveEvent.clientX - view.left - meta.offsetX, 0, maxX))
       const nextY = snap(clamp(moveEvent.clientY - view.top - meta.offsetY, 0, maxY))
-
       pendingRef.current = { id: meta.id, x: nextX, y: nextY }
       if (!frameRef.current) frameRef.current = requestAnimationFrame(flushDrag)
     }
-
     const onUp = () => {
       dragMeta.current = null
       if (frameRef.current) {
@@ -481,15 +377,12 @@ export function VisualBuilder({ onApplyToCode }: VisualBuilderProps) {
       window.removeEventListener('mousemove', onMove)
       window.removeEventListener('mouseup', onUp)
     }
-
     window.addEventListener('mousemove', onMove)
     window.addEventListener('mouseup', onUp)
   }, [flushDrag])
-
   useEffect(() => () => {
     if (frameRef.current) cancelAnimationFrame(frameRef.current)
   }, [])
-
   const palette: Array<{ type: BuilderElementType; label: string; icon: any }> = [
     { type: 'section', label: 'Section', icon: Layout },
     { type: 'card', label: 'Card', icon: Square },
@@ -498,7 +391,6 @@ export function VisualBuilder({ onApplyToCode }: VisualBuilderProps) {
     { type: 'input', label: 'Input', icon: AlignJustify },
     { type: 'image', label: 'Image', icon: ImageIcon },
   ]
-
   return (
     <div style={{ display: 'flex', gap: 12, height: '100%', overflow: 'hidden' }}>
       <Glass
@@ -541,9 +433,7 @@ export function VisualBuilder({ onApplyToCode }: VisualBuilderProps) {
             )
           })}
         </div>
-
         <div style={{ height: 1, background: 'rgba(255,255,255,0.08)', margin: '12px 0' }} />
-
         <div style={{ display: 'grid', gap: 6 }}>
           <button
             onClick={autoLayout}
@@ -603,9 +493,7 @@ export function VisualBuilder({ onApplyToCode }: VisualBuilderProps) {
             Delete
           </button>
         </div>
-
         <div style={{ height: 1, background: 'rgba(255,255,255,0.08)', margin: '12px 0' }} />
-
         <div style={{ display: 'grid', gap: 6 }}>
           <button
             onClick={applyToCode}
@@ -644,7 +532,6 @@ export function VisualBuilder({ onApplyToCode }: VisualBuilderProps) {
           </button>
         </div>
       </Glass>
-
       <Glass
         style={{
           flex: 1,
@@ -723,13 +610,12 @@ export function VisualBuilder({ onApplyToCode }: VisualBuilderProps) {
                 >
                   {element.type}
                 </div>
-                {renderElementContent(element)}
+                {renderBuilderElementContent(element)}
               </div>
             )
           })}
         </div>
       </Glass>
-
       <Glass
         style={{
           width: 255,
@@ -764,7 +650,6 @@ export function VisualBuilder({ onApplyToCode }: VisualBuilderProps) {
                 }}
               />
             </InspectorRow>
-
             <InspectorRow label="Position X">
               <NumberInput value={selected.x} min={0} max={BUILDER_CANVAS_WIDTH} onChange={(next) => patchSelected({ x: snap(next) })} />
             </InspectorRow>
@@ -789,7 +674,6 @@ export function VisualBuilder({ onApplyToCode }: VisualBuilderProps) {
             <InspectorRow label="Font Weight">
               <NumberInput value={selected.weight} min={100} max={900} onChange={(next) => patchSelected({ weight: clamp(Math.round(next / 100) * 100, 100, 900) })} />
             </InspectorRow>
-
             <InspectorRow label="Text Align">
               <div style={{ display: 'flex', gap: 4 }}>
                 {(['left', 'center', 'right'] as const).map((option) => (
@@ -814,7 +698,6 @@ export function VisualBuilder({ onApplyToCode }: VisualBuilderProps) {
                 ))}
               </div>
             </InspectorRow>
-
             <InspectorRow label="Background">
               <input
                 value={selected.bg}

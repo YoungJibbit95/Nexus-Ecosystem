@@ -77,6 +77,7 @@ export function CanvasSidebar({
           </span>
           <button
             onClick={addCanvas}
+            className="nx-interactive nx-bounce-target"
             style={{
               background: `rgba(${rgb}, 0.15)`,
               border: "none",
@@ -108,6 +109,8 @@ export function CanvasSidebar({
             <div
               key={entry.id}
               onClick={() => setActiveCanvas(entry.id)}
+              className="nx-surface-row"
+              data-active={entry.id === activeCanvasId ? "true" : "false"}
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -121,17 +124,7 @@ export function CanvasSidebar({
                   entry.id === activeCanvasId
                     ? `2px solid ${accent}`
                     : "2px solid transparent",
-                transition: "all 0.15s",
-              }}
-              onMouseEnter={(e) => {
-                if (entry.id !== activeCanvasId) {
-                  e.currentTarget.style.background = "rgba(255,255,255,0.05)";
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (entry.id !== activeCanvasId) {
-                  e.currentTarget.style.background = "transparent";
-                }
+                ["--nx-row-hover-bg" as any]: "rgba(255,255,255,0.05)",
               }}
             >
               <span
@@ -163,20 +156,13 @@ export function CanvasSidebar({
                   e.stopPropagation();
                   if (confirm(`Delete "${entry.name}"?`)) deleteCanvas(entry.id);
                 }}
+                className="nx-interactive nx-bounce-target nx-icon-fade"
                 style={{
                   background: "none",
                   border: "none",
-                  cursor: "pointer",
                   color: "#FF3B30",
-                  opacity: 0,
+                  ["--nx-idle-opacity" as any]: 0.28,
                   padding: 2,
-                  transition: "opacity 0.15s",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.opacity = "1";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.opacity = "0";
                 }}
               >
                 <X size={11} />

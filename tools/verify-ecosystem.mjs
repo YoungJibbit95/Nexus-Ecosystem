@@ -79,25 +79,25 @@ const run = async () => {
     {
       id: 'main-app-uses-runtime',
       file: path.join(ROOT, 'Nexus Main/src/App.tsx'),
-      pattern: /createNexusRuntime\(\{\s*appId:\s*'main'/s,
+      pattern: /createNexusRuntime\(\{\s*appId:\s*["']main["']/s,
       message: 'Nexus Main nutzt NexusRuntime',
     },
     {
       id: 'mobile-app-uses-runtime',
       file: path.join(ROOT, 'Nexus Mobile/src/App.tsx'),
-      pattern: /createNexusRuntime\(\{\s*appId:\s*'mobile'/s,
+      pattern: /createNexusRuntime\(\{\s*appId:\s*["']mobile["']/s,
       message: 'Nexus Mobile nutzt NexusRuntime',
     },
     {
       id: 'code-app-uses-runtime',
       file: path.join(ROOT, 'Nexus Code/src/App.jsx'),
-      pattern: /createNexusRuntime\(\{\s*appId:\s*"code"/s,
+      pattern: /createNexusRuntime\(\{\s*appId:\s*["']code["']/s,
       message: 'Nexus Code nutzt NexusRuntime',
     },
     {
       id: 'code-mobile-app-uses-runtime',
       file: path.join(ROOT, 'Nexus Code Mobile/src/App.jsx'),
-      pattern: /createNexusRuntime\(\{\s*appId:\s*"code-mobile"/s,
+      pattern: /createNexusRuntime\(\{\s*appId:\s*["']code-mobile["']/s,
       message: 'Nexus Code Mobile nutzt NexusRuntime',
     },
     {

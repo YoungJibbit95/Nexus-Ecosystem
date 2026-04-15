@@ -5,7 +5,7 @@ import { haptic } from '../lib/haptics'
 import { View } from './Sidebar'
 import {
   BarChart3, FileText, Code2, Columns, Bell, GitBranch,
-  HardDrive, Wrench, Zap, Settings, Info, Menu, X
+  HardDrive, Wrench, Zap, Settings, Info, Menu, X, Activity
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -21,6 +21,9 @@ const MORE_ITEMS: { id: View; icon: any; label: string; color: string }[] = [
   { id: 'canvas',    icon: GitBranch, label: 'Canvas',   color: '#64D2FF' },
   { id: 'files',     icon: HardDrive, label: 'Files',    color: '#5E5CE6' },
   { id: 'devtools',  icon: Wrench,    label: 'DevTools', color: '#FF6B35' },
+  ...((import.meta as any).env?.DEV
+    ? [{ id: 'diagnostics' as View, icon: Activity, label: 'Diagnostics', color: '#5AC8FA' }]
+    : []),
   { id: 'flux',      icon: Zap,       label: 'Flux',     color: '#FFD60A' },
   { id: 'settings',  icon: Settings,  label: 'Settings', color: '#8E8E93' },
   { id: 'info',      icon: Info,      label: 'Info',     color: '#8E8E93' },

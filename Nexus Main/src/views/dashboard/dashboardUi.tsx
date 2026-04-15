@@ -1,7 +1,11 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { Glass } from "../../components/Glass";
+import { LiquidGlassButton } from "../../components/LiquidGlassButton";
+import { SurfaceHighlight } from "../../components/render/SurfaceHighlight";
+import { useTheme } from "../../store/themeStore";
 import { hexToRgb } from "../../lib/utils";
+import { useInteractiveSurfaceMotion } from "../../render/useInteractiveSurfaceMotion";
 
 export function Sparkline({
   data,
@@ -125,13 +129,92 @@ export function QuickChip({
   color: string;
   onClick: () => void;
 }) {
+  const t = useTheme();
+  const isLiquidGlass =
+    ((t.glassmorphism as any)?.panelRenderer ?? "blur") === "liquid-glass";
   const rgb = hexToRgb(color);
+  const chipId = React.useId();
+  const [hovered, setHovered] = React.useState(false);
+  const [focused, setFocused] = React.useState(false);
+  const [pressed, setPressed] = React.useState(false);
+  const interaction = useInteractiveSurfaceMotion({
+    id: `dashboard-quick-chip-${chipId}`,
+    hovered,
+    focused,
+    pressed,
+    surfaceClass: "utility-surface",
+    effectClass: isLiquidGlass ? "liquid-interactive" : "status-highlight",
+    budgetPriority: "normal",
+    areaHint: 62,
+    family: "micro",
+  });
+
+  const interactiveEvents = {
+    onMouseEnter: () => setHovered(true),
+    onMouseLeave: () => {
+      setHovered(false);
+      setPressed(false);
+    },
+    onFocus: () => setFocused(true),
+    onBlur: () => {
+      setFocused(false);
+      setPressed(false);
+    },
+    onPointerDown: () => setPressed(true),
+    onPointerUp: () => setPressed(false),
+    onPointerCancel: () => setPressed(false),
+  };
+
+  if (isLiquidGlass) {
+    return (
+      <motion.div
+        style={{ display: "inline-flex", position: "relative" }}
+        animate={interaction.content.animate}
+        transition={interaction.content.transition}
+      >
+        <SurfaceHighlight highlight={interaction.highlight} inset={1} radius={20}>
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              borderRadius: 20,
+              border: `1px solid rgba(${rgb},0.3)`,
+              background: `radial-gradient(circle at 50% 50%, rgba(${rgb},0.19), rgba(${rgb},0.07) 68%, rgba(${rgb},0.02) 100%)`,
+            }}
+          />
+        </SurfaceHighlight>
+        <LiquidGlassButton
+          onClick={onClick}
+          color={color}
+          borderRadius={20}
+          size="sm"
+          className="nx-motion-managed"
+          {...interactiveEvents}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 7,
+            padding: "7px 14px",
+            color,
+            cursor: "pointer",
+            fontSize: 12,
+            fontWeight: 600,
+            position: "relative",
+            zIndex: 1,
+          }}
+        >
+          <Icon size={13} /> {label}
+        </LiquidGlassButton>
+      </motion.div>
+    );
+  }
   return (
     <motion.button
       onClick={onClick}
-      whileHover={{ filter: "brightness(1.06)" }}
-      whileTap={{ filter: "brightness(0.97)" }}
-      transition={{ duration: 0.14, ease: [0.22, 1, 0.36, 1] }}
+      className="nx-motion-managed"
+      {...interactiveEvents}
+      animate={interaction.content.animate}
+      transition={interaction.content.transition}
       style={{
         display: "flex",
         alignItems: "center",
@@ -144,16 +227,26 @@ export function QuickChip({
         cursor: "pointer",
         fontSize: 12,
         fontWeight: 600,
-        transition: "background-color 0.15s ease, color 0.15s ease",
-      }}
-      onMouseEnter={(e) => {
-        (e.currentTarget as HTMLElement).style.background = `rgba(${rgb},0.2)`;
-      }}
-      onMouseLeave={(e) => {
-        (e.currentTarget as HTMLElement).style.background = `rgba(${rgb},0.1)`;
+        transition:
+          "background-color var(--nx-motion-regular, 210ms) var(--nx-motion-settle-ease, cubic-bezier(0.22, 1, 0.36, 1)), color var(--nx-motion-regular, 210ms) var(--nx-motion-settle-ease, cubic-bezier(0.22, 1, 0.36, 1)), border-color var(--nx-motion-quick, 170ms) var(--nx-motion-settle-ease, cubic-bezier(0.22, 1, 0.36, 1))",
+        position: "relative",
+        overflow: "hidden",
       }}
     >
-      <Icon size={13} /> {label}
+      <SurfaceHighlight highlight={interaction.highlight} inset={1} radius={20}>
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            borderRadius: 20,
+            border: `1px solid rgba(${rgb},0.26)`,
+            background: `radial-gradient(circle at 50% 50%, rgba(${rgb},0.22), rgba(${rgb},0.09) 70%, rgba(${rgb},0.03) 100%)`,
+          }}
+        />
+      </SurfaceHighlight>
+      <span style={{ position: "relative", zIndex: 1, display: "inline-flex", alignItems: "center", gap: 7 }}>
+        <Icon size={13} /> {label}
+      </span>
     </motion.button>
   );
 }

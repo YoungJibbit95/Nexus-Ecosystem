@@ -1,12 +1,20 @@
 import React from 'react'
+import { Activity } from 'lucide-react'
 import { useTheme } from '../store/themeStore'
 import { useMobile } from '../lib/useMobile'
 
 declare const window: Window & { api?: any; Capacitor?: any }
 
-export function TitleBar() {
+export function TitleBar({
+  showDiagnosticsButton = false,
+  onOpenDiagnostics,
+}: {
+  showDiagnosticsButton?: boolean
+  onOpenDiagnostics?: () => void
+}) {
   const t = useTheme()
   const { isMobile, isNative } = useMobile()
+  const showDiagnostics = Boolean(showDiagnosticsButton && onOpenDiagnostics)
 
   // On mobile/native apps there's no TitleBar at all — the status bar is handled natively
   if (isMobile || isNative) return null
@@ -48,6 +56,42 @@ export function TitleBar() {
       }}>
         Nexus
       </div>
+      {showDiagnostics ? (
+        <div
+          style={{
+            marginLeft: 'auto',
+            display: 'flex',
+            alignItems: 'center',
+            ['-webkit-app-region' as any]: 'no-drag',
+          }}
+        >
+          <button
+            title='Open Diagnostics'
+            onClick={onOpenDiagnostics}
+            style={{
+              height: 26,
+              borderRadius: 8,
+              border: t.mode === 'dark' ? '1px solid rgba(255,255,255,0.14)' : '1px solid rgba(0,0,0,0.12)',
+              background: t.mode === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+              color: 'inherit',
+              opacity: 0.78,
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6,
+              padding: '0 10px',
+              fontSize: 10,
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+            }}
+          >
+            <Activity size={12} />
+            Diagnostics
+          </button>
+        </div>
+      ) : null}
     </div>
   )
 }

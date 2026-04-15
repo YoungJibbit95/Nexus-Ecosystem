@@ -27,6 +27,7 @@ export function CanvasEmptyState({
       </div>
       <button
         onClick={() => addCanvas()}
+        className="nx-interactive nx-bounce-target"
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -38,12 +39,8 @@ export function CanvasEmptyState({
           color: '#fff',
           fontWeight: 700,
           fontSize: 15,
-          cursor: 'pointer',
           boxShadow: `0 6px 24px rgba(${rgb}, 0.35)`,
-          transition: 'transform 0.15s ease',
         }}
-        onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.04)')}
-        onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
       >
         <Plus size={20} /> Neues Canvas
       </button>

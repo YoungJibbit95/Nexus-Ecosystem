@@ -10,16 +10,14 @@ function MagicList({ content, accent }: { content: string; accent: string }) {
       {rows.map((row, i) => {
         const [label, detail] = row.split('|').map(s => s.trim())
         return (
-          <div key={i} style={{
+          <div key={i} className="nx-surface-row" data-active="false" style={{
             display: 'flex', justifyContent: 'space-between', alignItems: 'center',
             padding: '9px 14px',
             background: i % 2 === 0 ? 'rgba(255,255,255,0.02)' : 'transparent',
             borderBottom: i < rows.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none',
-            fontSize: 13, transition: 'background 0.15s',
-          }}
-            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
-            onMouseLeave={e => (e.currentTarget.style.background = i % 2 === 0 ? 'rgba(255,255,255,0.02)' : 'transparent')}
-          >
+            fontSize: 13,
+            ['--nx-row-hover-bg' as any]: 'rgba(255,255,255,0.05)',
+          }}>
             <span style={{ opacity: 0.85 }}>{label}</span>
             {detail && <span style={{ color: accent, fontWeight: 600, fontSize: 12, background: `${accent}18`, padding: '2px 8px', borderRadius: 20 }}>{detail}</span>}
           </div>
@@ -212,14 +210,11 @@ function MagicGrid({ content }: { content: string }) {
       gap: 8, margin: '12px 0',
     }}>
       {items.map((item, i) => (
-        <div key={i} style={{
+        <div key={i} className="nx-surface-row" data-active="false" style={{
           background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
           borderRadius: 8, padding: '10px 12px', fontSize: 13, lineHeight: 1.5,
-          transition: 'background 0.15s',
-        }}
-          onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.07)')}
-          onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.04)')}
-        >
+          ['--nx-row-hover-bg' as any]: 'rgba(255,255,255,0.07)',
+        }}>
           {item}
         </div>
       ))}

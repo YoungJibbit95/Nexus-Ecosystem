@@ -1,99 +1,92 @@
-# Nexus v5.0
+# Nexus Main
 
-Nexus is a desktop productivity workspace built with Electron, React, and Zustand.  
-It combines Notes, Code, Tasks, Reminders, Canvas planning, Files, DevTools, and a command-driven terminal/spotlight flow in one local-first app.
+Nexus Main ist die Desktop-Workspace-App im Nexus Ecosystem (Electron + React + Vite).
+Die App kombiniert produktive Kern-Views mit einer zentralen Render-/Motion-Laufzeit aus `@nexus/core`.
 
-## v5.0 Highlights
+## Kern-Views
 
-- Full glass/glow UI refresh with cleaner macOS-style shell behavior
-- Canvas Magic Builder extended with `AI Project Generator` (prompt + depth)
-- Dashboard Layout Editor improved with drag/drop snap logic and manual grid controls
-- Terminal moved to centered bottom dock and stabilized
-- Performance pass across heavy UI layers (toolbar, glass hover, terminal render window)
-- Electron main process split into modular files
+- `dashboard`: Today-Layer, Resume/Continue, Workspace-Kontext
+- `notes`: Markdown-Editor, Preview/Reading-Flows, Magic-Elemente
+- `tasks`: Kanban, Prioritaet/Deadline, Fokus-Flow
+- `reminders`: Reminder-Management, Control-Center, Re-Schedule-Flow
+- `canvas`: visuelle Planung, Templates/Magic, Inspector-Flow
+- `files`: Workspace-Ordner, Runtime-Handoff, Sync-Status
+- `code`: eingebetteter Code-Flow innerhalb Main
+- `devtools`: Builder-/Utility-Tools
+- `settings`: Presets + Material/Motion/Theme
+- `info`: In-App-Dokumentation mit Architektur- und Diagnostics-Abschnitten
 
-## Core Features
+## UI Engine (Render + Motion)
 
-- `Dashboard`: customizable widget grid with drag/drop + snap layout editor
-- `Notes`: markdown editor, split/preview modes, magic widgets
-- `Code`: Monaco editor, JS/TS run, HTML/CSS preview, JSON validation
-- `Tasks`: kanban workflow with subtasks, notes, priorities, deadlines
-- `Reminders`: timeline/reminder workflow, snooze, soon/overdue filters
-- `Canvas`: mindmap + project management board with auto-layout modes
-- `Files`: unified item browser with workspace assignment
-- `DevTools`: UI builder + utility calculators
-- `Settings`: deep visual and UX configuration
-- `Terminal + Spotlight`: command palette, macros, quick actions, app navigation
+Nexus Main nutzt die zentrale Runtime aus `packages/nexus-core/src/render` und `packages/nexus-core/src/motion`.
 
-## Getting Started
+Render-Pipeline:
 
-### Requirements
+- `Measure`
+- `Resolve`
+- `Allocate`
+- `Commit`
+- `Cleanup`
 
-- Node.js 18+
-- npm 9+
+Wichtige Ziele:
 
-### Install
+- deterministische Surface-Capabilities statt lokaler Zufalls-Entscheidungen
+- kontrollierte Degradation unter Last (`full` bis `static-safe`)
+- Ownership-Guardrails fuer `transform`, `filter`, `opacity`
+- event-basierte Diagnostics statt unkontrolliertem Polling
+
+## Entwicklung
 
 ```bash
 npm install
-```
-
-### Run (Web)
-
-```bash
 npm run dev
-```
-
-### Run (Electron + Vite)
-
-```bash
 npm run electron:dev
 ```
 
-### Production Build
+## Build / Packaging
 
 ```bash
 npm run build
+npm run electron:build
+npm run electron:build:mac
+npm run electron:build:win
+npm run electron:build:installers
 ```
 
-### Package
+## Relevante Scripts
 
-```bash
-npm run dist
-```
+- `npm run start`
+- `npm run dev`
+- `npm run build`
+- `npm run electron:dev`
+- `npm run electron:build`
+- `npm run electron:build:mac`
+- `npm run electron:build:win`
+- `npm run electron:build:host`
+- `npm run electron:build:installers`
 
-## Scripts
+## Wichtige Pfade
 
-- `npm run dev` - Vite dev server
-- `npm run build` - TypeScript build + Vite production build
-- `npm run electron:dev` - Electron with live Vite server
-- `npm run electron:build` - Build + Windows package
-- `npm run electron:build:mac` - Build + macOS package
-- `npm run dist` - Electron Builder package
-
-## Project Structure
-
-- `src/` - renderer app (React)
-- `src/views/` - app views (Dashboard, Notes, Canvas, etc.)
-- `src/components/` - shared UI components
-- `src/store/` - Zustand stores
-- `electron-main.cjs` - Electron boot entry
-- `electron/` - modular Electron runtime (`main-window`, `ipc-handlers`, `security`)
-
-## Documentation
-
-- [View Guides](./docs/GUIDES.md)
-- [Architecture Notes](./docs/ARCHITECTURE.md)
-- [Changelog](./CHANGELOG.md)
+- `src/App.tsx`
+- `src/render/renderRuntime.ts`
+- `src/render/useRenderSurfaceBudget.ts`
+- `src/render/useSurfaceMotionRuntime.ts`
+- `src/components/Glass.tsx`
+- `src/views/InfoView.tsx`
+- `src/views/RenderDiagnosticsView.tsx` (nur Dev)
+- `src/store/*`
+- `electron-main.cjs`
 
 ## Environment
 
 - `VITE_NEXUS_CONTROL_URL=https://nexus-api.cloud`
-- `VITE_NEXUS_CONTROL_INGEST_KEY` (VPS-Key fuer `appId=main`)
+- `VITE_NEXUS_CONTROL_INGEST_KEY` (App-Key fuer `main`)
 - `VITE_NEXUS_USER_ID`
 - `VITE_NEXUS_USERNAME`
 - `VITE_NEXUS_USER_TIER`
 
-## Notes
+## Hinweise
 
-- All state is local-first via browser/Electron storage.
+- Keine lokale private API-Implementierung im Client.
+- Runtime- und API-Policies sind cloud-first auf `nexus-api.cloud` ausgerichtet.
+- Render Diagnostics sind fuer Entwicklung gedacht und im Produktionsbetrieb nicht Teil des regulären Flows.

@@ -217,11 +217,18 @@ export function CanvasView() {
     const handleCanvasMouseDown = useCallback((e: React.MouseEvent) => {
         setQuickAddPos(null)
         const target = e.target as HTMLElement
+        const isInsideNode = Boolean(target.closest('.nx-canvas-node'))
         const isCanvasBackground =
-            target === e.currentTarget
-            || target.id === 'nexus-canvas-inner'
-            || Boolean(target.closest('#nexus-canvas-inner'))
-        if (e.button === 1 || (e.button === 0 && (spaceHeld || isCanvasBackground))) {
+            !isInsideNode
+            && (
+                target === e.currentTarget
+                || target.id === 'nexus-canvas-inner'
+                || Boolean(target.closest('#nexus-canvas-inner'))
+            )
+        const canStartPan =
+            e.button === 1
+            || (e.button === 0 && ((spaceHeld && !isInsideNode) || isCanvasBackground))
+        if (canStartPan) {
             e.preventDefault()
             setPanning(true)
             panStart.current = { x: e.clientX, y: e.clientY, panX: viewport.panX, panY: viewport.panY }
@@ -394,30 +401,27 @@ export function CanvasView() {
                             <button onClick={() => addCanvas()} style={{
                                 background: `rgba(${rgb}, 0.15)`, border: 'none', borderRadius: 7,
                                 width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                cursor: 'pointer', color: t.accent, transition: 'all 0.15s',
+                                color: t.accent,
                             }}><Plus size={13} /></button>
                         </div>
 
                         <div style={{ flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column', gap: 1 }}>
                             {canvases.map(c => (
-                                <div key={c.id} onClick={() => setActiveCanvas(c.id)} style={{
+                                <div key={c.id} onClick={() => setActiveCanvas(c.id)} className="nx-surface-row" data-active={c.id === activeCanvasId ? 'true' : 'false'} style={{
                                     display: 'flex', alignItems: 'center', gap: 8,
                                     padding: '7px 9px', borderRadius: 8, cursor: 'pointer',
                                     background: c.id === activeCanvasId ? `rgba(${rgb}, 0.15)` : 'transparent',
                                     borderLeft: c.id === activeCanvasId ? `2px solid ${t.accent}` : '2px solid transparent',
-                                    transition: 'all 0.15s',
+                                    ['--nx-row-hover-bg' as any]: 'rgba(255,255,255,0.05)',
                                 }}
-                                    onMouseEnter={e => { if (c.id !== activeCanvasId) (e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.05)' }}
-                                    onMouseLeave={e => { if (c.id !== activeCanvasId) (e.currentTarget as HTMLDivElement).style.background = 'transparent' }}
                                 >
                                     <span style={{ flex: 1, fontSize: 12, fontWeight: c.id === activeCanvasId ? 600 : 400, color: c.id === activeCanvasId ? t.accent : undefined, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                         {c.name}
                                     </span>
                                     <span style={{ fontSize: 10, opacity: 0.35, background: 'rgba(255,255,255,0.08)', padding: '1px 5px', borderRadius: 4 }}>{c.nodes.length}</span>
                                     <button onClick={(e) => { e.stopPropagation(); if (confirm(`Delete "${c.name}"?`)) deleteCanvas(c.id) }}
-                                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#FF3B30', opacity: 0, padding: 2, transition: 'opacity 0.15s' }}
-                                        onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.opacity = '1'}
-                                        onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.opacity = '0'}
+                                        className="nx-interactive nx-bounce-target nx-icon-fade"
+                                        style={{ background: 'none', border: 'none', color: '#FF3B30', ['--nx-idle-opacity' as any]: 0.28, padding: 2 }}
                                     ><X size={11} /></button>
                                 </div>
                             ))}
@@ -947,12 +951,12 @@ export function CanvasView() {
                                         addNode(type as NodeType, canvasX, canvasY)
                                     }
                                     setQuickAddPos(null)
-                                }} style={{
+                                }} className="nx-surface-row" data-active="false" style={{
                                     display: 'flex', alignItems: 'center', gap: 10, width: '100%',
                                     padding: '8px 10px', border: 'none', borderRadius: 10, cursor: 'pointer', fontSize: 12,
                                     background: 'transparent', color: t.mode === 'dark' ? '#fff' : '#000', textAlign: 'left',
-                                }} onMouseEnter={e => e.currentTarget.style.background = 'rgba(128,128,128,0.1)'}
-                                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                                    ['--nx-row-hover-bg' as any]: 'rgba(128,128,128,0.1)',
+                                }}>
                                     <span style={{
                                         width: 24, height: 24, borderRadius: 8,
                                         background: `${widgetAccent}22`,

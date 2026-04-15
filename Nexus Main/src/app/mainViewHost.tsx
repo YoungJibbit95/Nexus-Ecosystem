@@ -9,6 +9,7 @@ import {
   FluxView,
   InfoView,
   NotesView,
+  RenderDiagnosticsView,
   RemindersView,
   SettingsView,
   TasksView,
@@ -20,6 +21,7 @@ type Props = {
   availableViews: View[];
   reducedMotion: boolean;
   onRequestViewChange: (viewId: View | string) => void;
+  onOpenWalkthrough: () => void;
 };
 
 const mergeUniqueViews = (...groups: View[][]): View[] => {
@@ -37,6 +39,7 @@ const mergeUniqueViews = (...groups: View[][]): View[] => {
 const renderActiveView = (
   viewId: View,
   onRequestViewChange: (viewId: View | string) => void,
+  onOpenWalkthrough: () => void,
 ): React.ReactNode => {
   switch (viewId) {
     case "dashboard":
@@ -54,7 +57,13 @@ const renderActiveView = (
     case "tasks":
       return <TasksView />;
     case "reminders":
-      return <RemindersView />;
+      return (
+        <RemindersView
+          setView={(nextView: string) => {
+            onRequestViewChange(nextView);
+          }}
+        />
+      );
     case "canvas":
       return <CanvasView />;
     case "files":
@@ -62,11 +71,22 @@ const renderActiveView = (
     case "flux":
       return <FluxView />;
     case "settings":
-      return <SettingsView />;
+      return <SettingsView onOpenWalkthrough={onOpenWalkthrough} />;
     case "info":
-      return <InfoView />;
+      return <InfoView onOpenWalkthrough={onOpenWalkthrough} />;
     case "devtools":
       return <DevToolsView />;
+    case "diagnostics":
+      if ((import.meta as any).env?.DEV) {
+        return <RenderDiagnosticsView />;
+      }
+      return (
+        <DashboardView
+          setView={(nextView: string) => {
+            onRequestViewChange(nextView);
+          }}
+        />
+      );
     default:
       return (
         <DashboardView
@@ -84,6 +104,7 @@ export function MainViewHost({
   availableViews,
   reducedMotion,
   onRequestViewChange,
+  onOpenWalkthrough,
 }: Props) {
   const renderedViews = mergeUniqueViews(
     [view],
@@ -133,7 +154,7 @@ export function MainViewHost({
               ) : null
             }
           >
-            {renderActiveView(viewId, onRequestViewChange)}
+            {renderActiveView(viewId, onRequestViewChange, onOpenWalkthrough)}
           </Suspense>
         </div>
       ))}

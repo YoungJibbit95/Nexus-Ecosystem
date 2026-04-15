@@ -4,6 +4,7 @@
 # Node
 **/node_modules/
 
+references
 # Build outputs
 **/dist/
 **/release/

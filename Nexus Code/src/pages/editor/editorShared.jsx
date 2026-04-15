@@ -187,6 +187,8 @@ export const DEFAULT_SETTINGS = {
   glow_renderer: "css",
   panel_blur_strength: 22,
   panel_glow_outline: true,
+  glow_intensity: 50,
+  glow_radius: 24,
   font_size: 14,
   font_family: "JetBrains Mono",
   tab_size: 4,

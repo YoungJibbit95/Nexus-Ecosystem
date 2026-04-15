@@ -23,6 +23,10 @@ Das Ecosystem ist API-first:
 - `minClientVersion` im UI-Schema muss mit App-Version passen.
 - `compatMatrix[appId]` definiert zulaessige Versionen.
 - Runtime prueft ueber `runtime.resolveCompatibility(...)`.
+- Navigation-Contract fuer Mobile:
+  - `bottom-nav` = Phone-Standard
+  - `tabs` = eigener Tabs-Renderer (kein stilles Fallback)
+  - `sidebar` = Tablet/Large-Screen
 
 ## Pflicht-Checks vor Promotion
 
@@ -52,8 +56,11 @@ npm --prefix "../Nexus Control" run build
 ## Relevante Dateien
 
 - `packages/nexus-core/src/liveSync.ts`
+- `packages/nexus-core/src/quickCapture.ts`
+- `packages/nexus-core/src/todayLayer.ts`
 - `Nexus Main/src/App.tsx`
 - `Nexus Mobile/src/App.tsx`
 - `Nexus Code/src/App.jsx`
 - `Nexus Code Mobile/src/App.jsx`
 - `../Nexus Control/src/app.js`
+- `docs/PARITY_MATRIX.md`

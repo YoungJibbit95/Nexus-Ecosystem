@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback, Suspense } from 'react'
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { useTheme, GLOBAL_FONTS } from './store/themeStore'
 import { Sidebar, View } from './components/Sidebar'
 import { TitleBar } from './components/TitleBar'
 import { BootSequenceScreen } from './components/BootSequenceScreen'
 import { MobileNav } from './components/MobileNav'
+import { MobileTabsNav } from './components/MobileTabsNav'
 import { NexusTerminal } from './components/NexusTerminal'
 import { NexusToolbar } from './components/NexusToolbar'
 import { CommandPalette } from './components/CommandPalette'
@@ -14,6 +15,7 @@ import { hexToRgb } from './lib/utils'
 import { installRuntimeLagProbe } from './lib/runtimeLagProbe'
 import { buildMotionRuntime } from './lib/motionEngine'
 import { useGlobalTypingAnimation } from './lib/useGlobalTypingAnimation'
+import { configureRenderRuntime } from './render/renderRuntime'
 import {
   applyAccessibilityFlags,
   buildAdaptiveViewWarmupPlan,
@@ -22,10 +24,10 @@ import {
   applySafeAreaInsets,
   applyTypographyScale,
   buildLiveViewModel,
-  getFallbackViewsForApp,
   loadViewWarmupStats,
   NEXUS_VIEW_META,
   saveViewWarmupStats,
+  resolveNexusControlUserContext,
   type NexusViewTransitionStats,
   orderViewsForNavigation,
   resolveViewHotkey,
@@ -34,108 +36,44 @@ import {
 } from '@nexus/core'
 import {
   createNexusRuntime,
-  isOfflineControlErrorCode,
   type NexusLiveBundle,
   type NexusRuntime,
   type NexusViewAccessResult,
 } from '@nexus/api'
 import {
-  CanvasView,
-  CodeView,
-  DashboardView,
-  DevToolsView,
-  FilesView,
-  FluxView,
-  InfoView,
-  NotesView,
-  RemindersView,
-  SettingsView,
-  TasksView,
   VIEW_IDS,
   orderMobilePreloadViews,
   preloadMobileViewChunk,
   preloadMobileViews,
 } from './app/viewPreload'
+import { MobileViewHost } from './app/mobileViewHost'
+import { MobileShellLayout } from './app/MobileShellLayout'
+import {
+  CONTROL_API_BASE_URL,
+  MOBILE_BOOT_BLOCK_BUDGET_LOW_POWER_MS,
+  MOBILE_BOOT_BLOCK_BUDGET_MS,
+  MOBILE_BOOT_PRIORITY_VIEWS,
+  MOBILE_HEAVY_PRELOAD_VIEWS,
+  MOBILE_PERSISTENT_VIEW_CACHE,
+  MOBILE_SAFE_STARTUP_VIEWS,
+  isLowPowerDevice,
+  isOfflineBootstrapResourceError,
+  mergeUniqueViews,
+  withTimeoutResult,
+} from './app/mobileAppConfig'
 
-const isOfflineBootstrapResourceError = (errorCodeRaw: unknown) => (
-  isOfflineControlErrorCode(String(errorCodeRaw || 'INVALID_PAYLOAD'))
-)
-const CONTROL_API_BASE_URL = 'https://nexus-api.cloud'
-const MOBILE_BOOT_BLOCK_BUDGET_MS = 6_500
-const MOBILE_BOOT_BLOCK_BUDGET_LOW_POWER_MS = 8_500
-const MOBILE_BOOT_PRIORITY_VIEWS: View[] = [
-  'dashboard',
-  'notes',
-  'tasks',
-  'settings',
-  'reminders',
-  'files',
-]
-const MOBILE_HEAVY_PRELOAD_VIEWS = new Set<View>(['code', 'canvas', 'devtools'])
-const MOBILE_PERSISTENT_VIEW_CACHE: View[] = [
-  'dashboard',
-  'notes',
-  'tasks',
-  'settings',
-  'files',
-  'canvas',
-  'code',
-]
-const mergeUniqueViews = (...groups: View[][]): View[] => {
-  const ordered = groups.flat()
-  const seen = new Set<View>()
-  const result: View[] = []
-  for (const viewId of ordered) {
-    if (seen.has(viewId)) continue
-    seen.add(viewId)
-    result.push(viewId)
-  }
-  return result
+const withDevDiagnosticsView = (views: View[]): View[] => {
+  const baseViews = views.filter((candidate) => candidate !== 'diagnostics')
+  if (!(import.meta as any).env?.DEV) return baseViews
+  return [...baseViews, 'diagnostics']
 }
-const isLowPowerDevice = () => {
-  if (typeof window === 'undefined' || typeof navigator === 'undefined') {
-    return false
-  }
-
-  const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-  const cores = Number(navigator.hardwareConcurrency || 8)
-  const memory = Number((navigator as any).deviceMemory || 8)
-  return Boolean(reducedMotion) || cores <= 4 || memory <= 4
-}
-
-const withTimeoutResult = async <T,>(
-  promise: Promise<T>,
-  timeoutMs: number,
-): Promise<{ timedOut: true } | { timedOut: false; value: T }> => {
-  let timeoutHandle: number | null = null
-  const timeoutPromise = new Promise<{ timedOut: true }>((resolve) => {
-    timeoutHandle = window.setTimeout(() => resolve({ timedOut: true }), timeoutMs)
-  })
-
-  try {
-    const result = await Promise.race([
-      promise.then((value) => ({ timedOut: false as const, value })),
-      timeoutPromise,
-    ])
-    return result
-  } finally {
-    if (timeoutHandle !== null) {
-      clearTimeout(timeoutHandle)
-    }
-  }
-}
-
-const MOBILE_CORE_FALLBACK_VIEWS: View[] = getFallbackViewsForApp('mobile')
-  .map((candidate) => candidate as View)
-  .filter((candidate) => VIEW_IDS.includes(candidate))
-const MOBILE_SAFE_STARTUP_VIEWS: View[] = MOBILE_CORE_FALLBACK_VIEWS.length > 0
-  ? MOBILE_CORE_FALLBACK_VIEWS
-  : VIEW_IDS
-
+type CoreView = keyof typeof NEXUS_VIEW_META
 
 export default function App() {
   const [view, setView] = useState<View>('dashboard')
-  const [availableViews, setAvailableViews] = useState<View[]>(MOBILE_SAFE_STARTUP_VIEWS)
+  const [availableViews, setAvailableViews] = useState<View[]>(
+    withDevDiagnosticsView(MOBILE_SAFE_STARTUP_VIEWS),
+  )
   const [mountedViews, setMountedViews] = useState<View[]>(['dashboard'])
   const [bootReady, setBootReady] = useState(false)
   const [bootProgress, setBootProgress] = useState(0)
@@ -193,6 +131,41 @@ export default function App() {
       }) as React.CSSProperties,
     [motionRuntime],
   )
+  const isCoreView = useCallback(
+    (candidate: View): candidate is CoreView =>
+      Object.prototype.hasOwnProperty.call(NEXUS_VIEW_META, candidate),
+    [],
+  )
+
+  useEffect(() => {
+    configureRenderRuntime({
+      lowPowerMode: motionSafetyLowPower,
+      reducedMotion: effectiveReducedMotion,
+      motion: {
+        quickMs: motionRuntime.quickMs,
+        regularMs: motionRuntime.regularMs,
+        hoverEase: motionRuntime.hoverEase,
+        pressEase: motionRuntime.pressEase,
+        settleEase: motionRuntime.settleEase,
+        hoverLiftPx: motionRuntime.hoverLiftPx,
+        hoverScale: motionRuntime.hoverScale,
+        pressScale: motionRuntime.pressScale,
+        hoverExtraScale: motionRuntime.hoverExtraScale,
+      },
+    })
+  }, [
+    effectiveReducedMotion,
+    motionRuntime.hoverEase,
+    motionRuntime.hoverExtraScale,
+    motionRuntime.hoverLiftPx,
+    motionRuntime.hoverScale,
+    motionRuntime.pressEase,
+    motionRuntime.pressScale,
+    motionRuntime.quickMs,
+    motionRuntime.regularMs,
+    motionRuntime.settleEase,
+    motionSafetyLowPower,
+  ])
 
   useEffect(() => {
     const sidebarStyle = (t as any).sidebarStyle
@@ -202,7 +175,7 @@ export default function App() {
     }
   }, [t.qol?.sidebarAutoHide, (t as any).sidebarStyle])
 
-  const viewAccessContext = useMemo(() => ({
+  const viewAccessContext = useMemo(() => resolveNexusControlUserContext({
     userId: (import.meta as any).env?.VITE_NEXUS_USER_ID as string | undefined,
     username: (import.meta as any).env?.VITE_NEXUS_USERNAME as string | undefined,
     userTier: (import.meta as any).env?.VITE_NEXUS_USER_TIER as 'free' | 'paid' | undefined,
@@ -226,11 +199,12 @@ export default function App() {
   }, [])
 
   const flushWarmupStats = useCallback(() => {
+    const recentViews = recentViewsRef.current.filter((entry) => isCoreView(entry))
     void saveViewWarmupStats('mobile', {
       transitionStats: transitionStatsRef.current,
-      recentViews: recentViewsRef.current,
+      recentViews,
     })
-  }, [])
+  }, [isCoreView])
 
   const scheduleWarmupStatsPersist = useCallback(() => {
     if (warmupPersistTimerRef.current !== null) {
@@ -319,7 +293,7 @@ export default function App() {
   }, [availableViews, view])
 
   const resolveBundleViews = useCallback((bundle: NexusLiveBundle | null) => {
-    if (!bundle) return MOBILE_SAFE_STARTUP_VIEWS
+    if (!bundle) return withDevDiagnosticsView(MOBILE_SAFE_STARTUP_VIEWS)
 
     const model = buildLiveViewModel({
       appId: 'mobile',
@@ -331,7 +305,9 @@ export default function App() {
       .map((candidate) => candidate as View)
       .filter((candidate) => VIEW_IDS.includes(candidate))
 
-    return nextViews.length > 0 ? nextViews : MOBILE_SAFE_STARTUP_VIEWS
+    return withDevDiagnosticsView(
+      nextViews.length > 0 ? nextViews : MOBILE_SAFE_STARTUP_VIEWS,
+    )
   }, [emitViewFilterDebugEvents])
 
   const applyLiveBundle = useCallback((bundle: NexusLiveBundle | null) => {
@@ -453,6 +429,7 @@ export default function App() {
       },
     })
     runtime.start()
+    runtime.control.setViewValidationDefaults(viewAccessContext)
     runtimeRef.current = runtime
     const stopLagProbe = installRuntimeLagProbe({
       enabled: (import.meta as any).env?.VITE_NEXUS_LAG_PROBE === '1',
@@ -561,7 +538,9 @@ export default function App() {
         if (!active) return
         applyLiveBundle(bundle)
         setBootStep(54, 'Validiere verfuegbare Views...')
-        const startupViews = bundle ? resolveBundleViews(bundle) : MOBILE_SAFE_STARTUP_VIEWS
+        const startupViews = bundle
+          ? resolveBundleViews(bundle)
+          : withDevDiagnosticsView(MOBILE_SAFE_STARTUP_VIEWS)
         if (startupViews.length === 0) {
           throw new Error('CONTROL_API_BOOTSTRAP_FAILED (NO_STARTUP_VIEWS)')
         }
@@ -724,6 +703,7 @@ export default function App() {
 
   const requestViewChange = useCallback(async (nextRaw: unknown) => {
     const next = String(nextRaw || '').toLowerCase() as View
+    if (next === 'diagnostics' && !(import.meta as any).env?.DEV) return
     if (!availableViews.includes(next)) return
     if (next === view) return
 
@@ -815,12 +795,16 @@ export default function App() {
           : lowPowerMode
             ? 2
             : 4
+    const coreAvailableViews = availableViews.filter((candidate) => isCoreView(candidate))
+    const coreMountedViews = mountedViews.filter((candidate) => isCoreView(candidate))
+    const coreRecentViews = recentViewsRef.current.filter((candidate) => isCoreView(candidate))
+    const currentCoreView = isCoreView(view) ? view : 'dashboard'
     const queue = buildAdaptiveViewWarmupPlan({
-      currentView: view,
-      availableViews,
-      mountedViews,
+      currentView: currentCoreView,
+      availableViews: coreAvailableViews,
+      mountedViews: coreMountedViews,
       transitionStats: transitionStatsRef.current,
-      recentViews: recentViewsRef.current,
+      recentViews: coreRecentViews,
       maxItems: warmupMaxItems,
     }) as View[]
     if (queue.length === 0) return
@@ -871,12 +855,14 @@ export default function App() {
         e.preventDefault()
         setPaletteOpen((s) => !s)
       } else if (!isEditing && (e.metaKey || e.ctrlKey) && /^[1-9]$/.test(e.key)) {
-        const nextView = resolveViewHotkey(Number(e.key) - 1, availableViews) as View | null
+        const coreAvailableViews = availableViews.filter((candidate) => isCoreView(candidate))
+        const nextView = resolveViewHotkey(Number(e.key) - 1, coreAvailableViews) as View | null
         if (!nextView) return
         e.preventDefault()
         void requestViewChange(nextView)
       } else if (!isEditing && (e.metaKey || e.ctrlKey) && (e.key === '[' || e.key === ']')) {
-        const orderedViews = orderViewsForNavigation(availableViews) as View[]
+        const coreAvailableViews = availableViews.filter((candidate) => isCoreView(candidate))
+        const orderedViews = orderViewsForNavigation(coreAvailableViews) as View[]
         if (orderedViews.length < 2) return
         const currentIndex = Math.max(0, orderedViews.indexOf(view))
         const delta = e.key === ']' ? 1 : -1
@@ -891,7 +877,7 @@ export default function App() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [availableViews, requestViewChange, view])
+  }, [availableViews, isCoreView, requestViewChange, view])
 
   if (!bootReady) {
     return (
@@ -952,77 +938,22 @@ export default function App() {
   const collapsedSidebarWidth = sidebarAutoHideEnabled ? 12 : t.sidebarWidth
   const effectiveSidebarWidth = sidebarHidden ? 0 : (sidebarExpanded ? t.sidebarWidth : collapsedSidebarWidth)
 
-  // Bottom nav height for mobile content offset
-  const mobileNavigationMode = remoteNavigation || 'bottom-nav'
-  const showMobileBottomNav = mobileNavigationMode !== 'sidebar'
+  const requestedNavigationMode = remoteNavigation || 'bottom-nav'
+  const mobileNavigationMode = requestedNavigationMode === 'tabs' ? 'tabs' : 'bottom-nav'
+  const showMobileBottomNav = mobileNavigationMode === 'bottom-nav'
+  const showMobileTabsNav = mobileNavigationMode === 'tabs'
   const MOBILE_NAV_HEIGHT = showMobileBottomNav ? (64 + mob.safeBottom) : 0
 
-  const renderActiveView = (viewId: View): React.ReactNode => {
-    switch (viewId) {
-      case 'dashboard':
-        return <DashboardView setView={(v: any) => { void requestViewChange(v) }} />
-      case 'notes':
-        return <NotesView />
-      case 'code':
-        return <CodeView />
-      case 'tasks':
-        return <TasksView />
-      case 'reminders':
-        return <RemindersView />
-      case 'canvas':
-        return <CanvasView />
-      case 'files':
-        return <FilesView />
-      case 'flux':
-        return <FluxView />
-      case 'settings':
-        return <SettingsView />
-      case 'info':
-        return <InfoView />
-      case 'devtools':
-        return <DevToolsView />
-      default:
-        return <DashboardView setView={(v: any) => { void requestViewChange(v) }} />
-    }
-  }
-
-  const renderMountedViews = () => (
-    mergeUniqueViews(
-      [view],
-      mountedViews.filter((entry) => availableViews.includes(entry)),
-    ).map((viewId) => (
-      <div
-        key={viewId}
-        style={{
-          position: 'absolute',
-          inset: 0,
-          pointerEvents: viewId === view ? 'auto' : 'none',
-          display: viewId === view ? 'block' : 'none',
-          animation:
-            viewId === view && !(t.qol?.reducedMotion ?? false)
-              ? 'nx-view-enter calc(var(--nx-motion-regular, 210ms) + 70ms) cubic-bezier(0.22, 1, 0.36, 1) both'
-              : undefined,
-        }}
-      >
-        <Suspense
-          fallback={viewId === view ? (
-            <div style={{
-              height: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              opacity: 0.6,
-              fontSize: 13,
-              fontWeight: 600,
-            }}>
-              Loading view...
-            </div>
-          ) : null}
-        >
-          {renderActiveView(viewId)}
-        </Suspense>
-      </div>
-    ))
+  const viewHostNode = (
+    <MobileViewHost
+      view={view}
+      mountedViews={mountedViews}
+      availableViews={availableViews}
+      reducedMotion={effectiveReducedMotion}
+      onRequestViewChange={(nextView) => {
+        void requestViewChange(nextView)
+      }}
+    />
   )
 
   const toolbarEl = (!mob.isMobile && toolbarVisible) ? (
@@ -1039,56 +970,33 @@ export default function App() {
   ) : null
 
   const mobileMeta = NEXUS_VIEW_META[view] || NEXUS_VIEW_META.dashboard
-  const ambientLayer = (
-    <div
-      aria-hidden
-      style={{
-        position: 'absolute',
-        inset: 0,
-        pointerEvents: 'none',
-        overflow: 'hidden',
-        zIndex: 0,
-      }}
-    >
-      <div style={{
-        position: 'absolute', top: '-18%', left: '-12%', width: '46vw', height: '46vw', maxWidth: 480, maxHeight: 480,
-        background: `radial-gradient(circle, rgba(${hexToRgb(t.accent)},0.18), transparent 68%)`,
-        filter: lowPowerMode ? 'blur(8px)' : 'blur(18px)',
-      }} />
-      <div style={{
-        position: 'absolute', bottom: '-16%', right: '-10%', width: '48vw', height: '48vw', maxWidth: 520, maxHeight: 520,
-        background: `radial-gradient(circle, rgba(${hexToRgb(t.accent2)},0.16), transparent 68%)`,
-        filter: lowPowerMode ? 'blur(10px)' : 'blur(20px)',
-      }} />
-    </div>
-  )
 
   // ── MOBILE LAYOUT ───────────────────────────────────────────────────────
   if (mob.isMobile) {
     return (
-      <div
-        className='nx-app-shell nx-motion-root'
-        data-nx-motion-profile={motionRuntime.profile}
-        data-nx-motion-reduced={motionRuntime.reduced ? '1' : '0'}
-        style={{
-        ...motionCssVars,
-        display: 'flex', flexDirection: 'column',
-        width: '100%', height: '100%', overflow: 'hidden',
-        position: 'relative',
-        color: t.mode === 'dark' ? '#fff' : '#0a0a0a',
-        ...bgStyles,
-        fontSize: 'var(--nx-font-size, 15px)',
-        overscrollBehavior: 'none',
-        WebkitTapHighlightColor: 'transparent',
-        // Safe area top padding for status bar
-        paddingTop: `env(safe-area-inset-top, ${mob.safeTop}px)`,
-      }}
+      <MobileShellLayout
+        theme={t}
+        motionRuntime={motionRuntime}
+        motionCssVars={motionCssVars}
+        backgroundStyles={bgStyles}
+        lowPowerMode={lowPowerMode}
+        accentRgb={hexToRgb(t.accent)}
+        accent2Rgb={hexToRgb(t.accent2)}
+        fontSize='var(--nx-font-size, 15px)'
       >
-        {ambientLayer}
-
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            height: '100%',
+            overscrollBehavior: 'none',
+            WebkitTapHighlightColor: 'transparent',
+            paddingTop: `env(safe-area-inset-top, ${mob.safeTop}px)`,
+          }}
+        >
         {/* Mobile header strip */}
         <div
-          className='nx-motion-surface nx-motion-hover-soft'
+          className='nx-motion-surface'
           style={{
           minHeight: 56, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           gap: 10, padding: '8px 14px', flexShrink: 0,
@@ -1171,10 +1079,18 @@ export default function App() {
                   color: t.mode === 'dark' ? '#ffd8d2' : '#5e1810',
                 }}
               >
-                View gesperrt: `{viewGuardState.blockedView}` erfordert Tier `{viewGuardState.requiredTier || 'paid'}` ({viewGuardState.reason || 'PAYWALL_BLOCKED'}).
-              </div>
-            ) : null}
+                  View gesperrt: `{viewGuardState.blockedView}` erfordert Tier `{viewGuardState.requiredTier || 'paid'}` ({viewGuardState.reason || 'PAYWALL_BLOCKED'}).
+                </div>
+              ) : null}
           </div>
+        ) : null}
+
+        {showMobileTabsNav ? (
+          <MobileTabsNav
+            view={view}
+            availableViews={availableViews}
+            onChange={(v) => { void requestViewChange(v) }}
+          />
         ) : null}
 
         {/* Main content */}
@@ -1191,7 +1107,7 @@ export default function App() {
             style={{ height: '100%', overflow: 'hidden', position: 'relative' }}
           >
             <div style={{ position: 'relative', height: '100%', overflow: 'hidden' }}>
-              {renderMountedViews()}
+              {viewHostNode}
             </div>
           </motion.div>
         </div>
@@ -1207,28 +1123,27 @@ export default function App() {
         ) : null}
 
         <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} setView={(v: any) => { void requestViewChange(v) }} />
-      </div>
+        </div>
+      </MobileShellLayout>
     )
   }
 
   // ── TABLET / DESKTOP LAYOUT (unchanged) ─────────────────────────────────
   return (
-      <div
-        className='nx-app-shell nx-motion-root'
-        data-nx-motion-profile={motionRuntime.profile}
-        data-nx-motion-reduced={motionRuntime.reduced ? '1' : '0'}
-        style={{
-        ...motionCssVars,
-        display: 'flex', flexDirection: 'column',
-        width: '100%', height: '100%', overflow: 'hidden',
-        position: 'relative',
-        color: t.mode === 'dark' ? '#fff' : '#0a0a0a',
-        ...bgStyles,
-        fontSize: 'var(--nx-font-size, 14px)',
-      }}
+      <MobileShellLayout
+        theme={t}
+        motionRuntime={motionRuntime}
+        motionCssVars={motionCssVars}
+        backgroundStyles={bgStyles}
+        lowPowerMode={lowPowerMode}
+        accentRgb={hexToRgb(t.accent)}
+        accent2Rgb={hexToRgb(t.accent2)}
+        fontSize='var(--nx-font-size, 14px)'
       >
-      {ambientLayer}
-      <TitleBar />
+      <TitleBar
+        showDiagnosticsButton={Boolean((import.meta as any).env?.DEV)}
+        onOpenDiagnostics={() => { void requestViewChange('diagnostics') }}
+      />
       {(viewGuardState.checking || viewGuardState.blockedView) ? (
         <div style={{ padding: '8px 12px 0', flexShrink: 0, zIndex: 4 }}>
           {viewGuardState.checking ? (
@@ -1270,7 +1185,7 @@ export default function App() {
         position: 'relative',
       }}>
         <div
-          className='nx-motion-surface nx-motion-hover-soft'
+          className='nx-motion-surface'
           style={{
             width: effectiveSidebarWidth,
             flexShrink: 0,
@@ -1326,7 +1241,7 @@ export default function App() {
             style={{ flex: 1, overflow: 'hidden', height: '100%', minHeight: 0, position: 'relative' }}
           >
             <div style={{ position: 'relative', height: '100%', minHeight: 0, overflow: 'hidden' }}>
-              {renderMountedViews()}
+              {viewHostNode}
             </div>
           </motion.div>
           <NexusTerminal setView={(v: any) => { void requestViewChange(v) }} openPalette={() => setPaletteOpen(true)} />
@@ -1334,6 +1249,6 @@ export default function App() {
         </div>
       </div>
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} setView={(v: any) => { void requestViewChange(v) }} />
-    </div>
+    </MobileShellLayout>
   )
 }

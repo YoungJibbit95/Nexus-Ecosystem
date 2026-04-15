@@ -1,53 +1,21 @@
 # Nexus Code Mobile
 
-Nexus Code Mobile ist die mobile Code-App im Nexus Ecosystem. Das Projekt liefert einen React-/Vite-Editor mit nativen Capacitor-Targets fuer Android und iOS sowie Editor-Panels fuer Suche, Git, Debug, Problems und Terminal.
+Nexus Code Mobile ist die mobile IDE-App im Nexus Ecosystem (React + Vite + Capacitor).
+Sie bringt den Editor-/Run-Flow auf Android/iOS mit mobilen Shell- und Panel-Anpassungen.
 
-## Verifizierte Funktionen
+## Kernfunktionen
 
-- Monaco-basierter Code-Editor (`src/components/editor/CodeEditor.jsx`)
-- Native Filesystem-Bridge ueber Capacitor (`src/lib/nativeFS.js`)
-- Editor-Panels fuer Search, Git, Debug, Problems und Terminal
-- Dateibaum, Tabs und Spotlight-Suche in `src/pages/Editor.jsx`
-- Vorhandene Setup-Skripte `SETUP-ANDROID.bat` und `SETUP-ANDROID.sh`
-
-## Voraussetzungen
-
-- Node.js 20+
-- npm 10+
-- Android Studio fuer Android
-- Xcode auf macOS fuer iOS
-
-## Setup
-
-### Schnellstart-Skripte
-
-- Windows: `SETUP-ANDROID.bat`
-- macOS/Linux: `./SETUP-ANDROID.sh`
-- macOS/iOS: `./SETUP-ANDROID.sh ios`
-
-### Manuell
-
-```bash
-npm install
-```
+- Monaco-basierter Editor (`src/components/editor/CodeEditor.jsx`)
+- Dateibaum, Tabs, Search/Spotlight, Run-Flow
+- Panels fuer Search, Git, Debug, Problems und Terminal
+- Native Filesystem-Bridge (`src/lib/nativeFS.js`)
 
 ## Entwicklung
 
-### Web
-
 ```bash
+npm install
 npm run dev:web
-```
-
-### Android
-
-```bash
 npm run cap:android
-```
-
-### iOS
-
-```bash
 npm run cap:ios
 ```
 
@@ -55,36 +23,45 @@ npm run cap:ios
 
 ```bash
 npm run build
+npm run cap:sync
+npm run cap:copy
 ```
 
-## Wichtige Scripts
+## Relevante Scripts
 
-- `npm run dev` startet den Android-Capacitor-Flow.
-- `npm run dev:web` startet den Vite-Dev-Server.
-- `npm run dev:android` startet denselben Android-Flow wie `dev`.
-- `npm run dev:ios` baut, synchronisiert und oeffnet Xcode.
-- `npm run cap:sync` baut die Web-App und synchronisiert Capacitor.
-- `npm run cap:copy` baut die Web-App und kopiert Assets in native Projekte.
-- `npm run lint` prueft den Code mit ESLint.
+- `npm run dev`
+- `npm run dev:web`
+- `npm run dev:android`
+- `npm run dev:ios`
+- `npm run build`
+- `npm run preview`
+- `npm run lint`
+- `npm run cap:add:android`
+- `npm run cap:add:ios`
+- `npm run cap:sync`
+- `npm run cap:android`
+- `npm run cap:ios`
+- `npm run cap:copy`
 
 ## Struktur
 
-- `src/components/editor/` Editor, Panels und Shell-Komponenten
-- `src/lib/nativeFS.js` native Dateisystem-Bridge fuer iOS/Android
-- `src/pages/Editor.jsx` Hauptseite mit File-Tree, Tabs und Panel-Steuerung
-- `src/api/` API-Helfer
-- `android/` natives Android-Projekt
-- `ios/` natives iOS-Projekt
+- `src/pages/Editor.jsx`
+- `src/components/editor/*`
+- `src/lib/nativeFS.js`
+- `src/api/*`
+- `android/`
+- `ios/`
 
 ## Environment
 
 - `VITE_NEXUS_CONTROL_URL=https://nexus-api.cloud`
-- `VITE_NEXUS_CONTROL_INGEST_KEY` (VPS-Key fuer `appId=code-mobile`)
+- `VITE_NEXUS_CONTROL_INGEST_KEY` (App-Key fuer `code-mobile`)
 - `VITE_NEXUS_USER_ID`
 - `VITE_NEXUS_USERNAME`
 - `VITE_NEXUS_USER_TIER`
 
 ## Hinweise
 
-- `npm run dev` startet nicht den Browser-Devserver, sondern den Android-Flow.
-- Die README dokumentiert nur nachweisbare lokale Funktionen; Release- und Lizenzregeln muessen separat gepflegt werden.
+- `npm run dev` startet den Android-Flow (nicht nur Web).
+- Fuer Browser-Debugging `npm run dev:web` nutzen.
+- Mobile und Desktop sollen funktional moeglichst paritaetisch bleiben.

@@ -164,6 +164,8 @@ export function MagicElementModal({
               <button
                 key={definition.id}
                 onClick={() => handleSelect(definition.id)}
+                className="nx-surface-row"
+                data-active={selected === definition.id ? "true" : "false"}
                 style={{
                   width: "100%",
                   padding: "9px 10px",
@@ -180,19 +182,7 @@ export function MagicElementModal({
                   color: "inherit",
                   cursor: "pointer",
                   textAlign: "left",
-                  transition: "all 0.12s",
-                }}
-                onMouseEnter={(e) => {
-                  if (selected !== definition.id) {
-                    (e.currentTarget as HTMLElement).style.background =
-                      "rgba(255,255,255,0.05)";
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (selected !== definition.id) {
-                    (e.currentTarget as HTMLElement).style.background =
-                      "transparent";
-                  }
+                  ["--nx-row-hover-bg" as any]: "rgba(255,255,255,0.05)",
                 }}
               >
                 <span style={{ fontSize: 18, lineHeight: 1, flexShrink: 0 }}>

@@ -1,11 +1,20 @@
 import React, { useState } from 'react'
-import { Minus, Maximize2, X, Search, Command } from 'lucide-react'
+import { Minus, Maximize2, X, Search, Command, Activity, Cloud } from 'lucide-react'
 import { useTheme } from '../store/themeStore'
 
-export function TitleBar() {
+export function TitleBar({
+  showDiagnosticsButton = false,
+  onOpenDiagnostics,
+  releaseId = null,
+}: {
+  showDiagnosticsButton?: boolean
+  onOpenDiagnostics?: () => void
+  releaseId?: string | null
+}) {
   const t = useTheme()
   const [hovered, setHovered] = useState<string | null>(null)
   const isDark = t.mode === 'dark'
+  const showDiagnostics = Boolean(showDiagnosticsButton && onOpenDiagnostics)
 
   const actions = [
     { id: 'close', color: '#ff5f57', icon: <X size={9} />, run: () => window.api?.window.close() },
@@ -126,6 +135,62 @@ export function TitleBar() {
           <Command size={10} />
           Shift x2 Spotlight
         </div>
+        {releaseId ? (
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 5,
+              fontSize: 10,
+              fontWeight: 800,
+              letterSpacing: '0.04em',
+              padding: '4px 8px',
+              borderRadius: 999,
+              border: isDark ? `1px solid ${t.accent}55` : `1px solid ${t.accent}66`,
+              background: isDark
+                ? `linear-gradient(135deg, ${t.accent}2a, ${t.accent2}20)`
+                : `linear-gradient(135deg, ${t.accent}22, ${t.accent2}1a)`,
+              color: t.accent,
+              boxShadow: `0 8px 18px ${t.accent}28`,
+              whiteSpace: 'nowrap',
+              maxWidth: 220,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
+            title={`Live Release ${releaseId}`}
+          >
+            <Cloud size={11} />
+            <span style={{ opacity: 0.86 }}>Release</span>
+            <span style={{ opacity: 0.96 }}>{releaseId}</span>
+          </div>
+        ) : null}
+        {showDiagnostics ? (
+          <button
+            title="Open Diagnostics"
+            onClick={onOpenDiagnostics}
+            style={{
+              height: 28,
+              borderRadius: 8,
+              border: isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.1)',
+              background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
+              color: 'inherit',
+              opacity: 0.72,
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6,
+              padding: '0 10px',
+              fontSize: 10,
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+            }}
+          >
+            <Activity size={12} />
+            Diagnostics
+          </button>
+        ) : null}
         <button
           title="Search"
           onClick={() => window.dispatchEvent(new CustomEvent('nx-open-spotlight', { detail: { query: '' } }))}

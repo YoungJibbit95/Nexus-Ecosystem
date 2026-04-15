@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { motion } from 'framer-motion'
 import {
   Bell,
   Calendar,
@@ -22,6 +23,7 @@ import {
   Flag,
   GitBranch,
   AlertCircle,
+  Maximize2,
 } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -34,10 +36,12 @@ import {
   type CanvasMagicHubQuickActionId,
 } from '@nexus/core/canvas/magicHubTemplates'
 import { Glass } from '../../../components/Glass'
+import { SurfaceHighlight } from '../../../components/render/SurfaceHighlight'
 import { useCanvas, type CanvasConnection, type CanvasNode } from '../../../store/canvasStore'
 import { useTheme } from '../../../store/themeStore'
 import { useApp } from '../../../store/appStore'
 import { hexToRgb } from '../../../lib/utils'
+import { useInteractiveSurfaceMotion } from '../../../render/useInteractiveSurfaceMotion'
 import {
   NODE_COLORS,
   PM_PRIORITY_COLOR,
@@ -127,26 +131,61 @@ function ConnPort({ side, nodeId, onStartConnect, onEndConnect, connecting }: {
     onEndConnect: (id: string) => void; connecting: boolean
 }) {
     const t = useTheme()
+    const motionId = React.useId().replace(/:/g, '-')
+    const accentRgb = hexToRgb(t.accent)
     const [hovered, setHovered] = useState(false)
+    const [focused, setFocused] = useState(false)
+    const [pressed, setPressed] = useState(false)
+    const interaction = useInteractiveSurfaceMotion({
+      id: `mobile-canvas-port-${nodeId}-${side}-${motionId}`,
+      hovered,
+      focused,
+      selected: connecting,
+      pressed,
+      surfaceClass: 'utility-surface',
+      effectClass: 'status-highlight',
+      budgetPriority: connecting ? 'high' : 'normal',
+      areaHint: 18,
+      family: 'micro',
+    })
+    const isActive = hovered || focused || connecting
     const posStyle: React.CSSProperties = {
         position: 'absolute', width: 13, height: 13, borderRadius: '50%',
-        background: hovered || connecting ? t.accent : (t.mode === 'dark' ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.18)'),
+        background: isActive ? t.accent : (t.mode === 'dark' ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.18)'),
         border: `2px solid ${t.accent}`,
-        cursor: 'crosshair', transition: 'all 0.15s',
+        cursor: 'crosshair',
+        transition: `background-color ${interaction.runtime.timings.quickMs}ms ${interaction.runtime.timings.easing}, box-shadow ${interaction.runtime.timings.quickMs}ms ${interaction.runtime.timings.easing}`,
         transform: 'translate(-50%, -50%)', zIndex: 10,
-        boxShadow: (hovered || connecting) ? `0 0 8px ${t.accent}` : 'none',
+        boxShadow: isActive ? `0 0 8px ${t.accent}` : 'none',
         ...(side === 'top' && { top: 0, left: '50%' }),
         ...(side === 'right' && { top: '50%', right: -7, left: 'auto', transform: 'translate(50%, -50%)' }),
         ...(side === 'bottom' && { bottom: -7, left: '50%', top: 'auto', transform: 'translate(-50%, 50%)' }),
         ...(side === 'left' && { top: '50%', left: 0 }),
     }
     return (
-        <div style={posStyle}
+        <motion.div style={posStyle}
+            className="nx-motion-managed"
+            animate={interaction.content.animate}
+            transition={interaction.content.transition}
             onMouseEnter={() => setHovered(true)}
-            onMouseLeave={() => setHovered(false)}
-            onMouseDown={(e) => { e.stopPropagation(); onStartConnect(nodeId) }}
-            onMouseUp={(e) => { e.stopPropagation(); onEndConnect(nodeId) }}
-        />
+            onMouseLeave={() => { setHovered(false); setPressed(false) }}
+            onFocus={() => setFocused(true)}
+            onBlur={() => { setFocused(false); setPressed(false) }}
+            onMouseDown={(e) => { e.stopPropagation(); setPressed(true); onStartConnect(nodeId) }}
+            onMouseUp={(e) => { e.stopPropagation(); setPressed(false); onEndConnect(nodeId) }}
+        >
+            <SurfaceHighlight highlight={interaction.highlight} inset={0} radius={999}>
+                <div
+                    style={{
+                        position: 'absolute',
+                        inset: 0,
+                        borderRadius: '50%',
+                        border: `1px solid rgba(${accentRgb},0.35)`,
+                        background: `radial-gradient(circle at 50% 50%, rgba(${accentRgb},0.22), rgba(${accentRgb},0.08) 68%, rgba(${accentRgb},0.02) 100%)`,
+                    }}
+                />
+            </SurfaceHighlight>
+        </motion.div>
     )
 }
 
@@ -186,6 +225,9 @@ export function CanvasNodeWidget({ node, isSelected, onSelect, onStartConnect, o
     const [showColorPicker, setShowColorPicker] = useState(false)
     const [newCheckItem, setNewCheckItem] = useState('')
     const [editingContent, setEditingContent] = useState(node.type !== 'markdown')
+    const [contentDraft, setContentDraft] = useState(node.content || '')
+    const contentCommitTimerRef = useRef<number | null>(null)
+    const pendingContentRef = useRef<string | null>(null)
     const [hovered, setHovered] = useState(false)
     const [dragPreview, setDragPreview] = useState<{ x: number; y: number } | null>(null)
     const [resizePreview, setResizePreview] = useState<{ width: number; height: number } | null>(null)
@@ -195,6 +237,15 @@ export function CanvasNodeWidget({ node, isSelected, onSelect, onStartConnect, o
     const liveY = dragPreview?.y ?? node.y
     const liveWidth = resizePreview?.width ?? node.width
     const liveHeight = resizePreview?.height ?? node.height
+    const nodeForRender = useMemo(
+      () => node.content === contentDraft
+        ? node
+        : {
+            ...node,
+            content: contentDraft,
+          },
+      [contentDraft, node],
+    )
 
     const isSticky = node.type === 'text' && node.color === '#FFCC00'
     const stickyBg = isSticky
@@ -205,6 +256,62 @@ export function CanvasNodeWidget({ node, isSelected, onSelect, onStartConnect, o
         : t.mode === 'dark'
             ? 'rgba(12,14,24,0.92)'
             : 'rgba(248,248,252,0.95)'
+
+    const flushPendingContentCommit = useCallback(() => {
+        const pending = pendingContentRef.current
+        if (pending === null) return
+        pendingContentRef.current = null
+        updateNode(node.id, { content: pending })
+    }, [node.id, updateNode])
+
+    const scheduleContentCommit = useCallback((nextContent: string) => {
+        setContentDraft(nextContent)
+        pendingContentRef.current = nextContent
+        if (contentCommitTimerRef.current !== null) {
+            window.clearTimeout(contentCommitTimerRef.current)
+        }
+        contentCommitTimerRef.current = window.setTimeout(() => {
+            contentCommitTimerRef.current = null
+            flushPendingContentCommit()
+        }, 120)
+    }, [flushPendingContentCommit])
+
+    const commitNodePatch = useCallback((id: string, patch: Partial<CanvasNode>) => {
+        if (id !== node.id) {
+            updateNode(id, patch)
+            return
+        }
+        if (Object.prototype.hasOwnProperty.call(patch, 'content')) {
+            const nextContent = String((patch as any).content ?? '')
+            scheduleContentCommit(nextContent)
+            const { content: _content, ...rest } = patch
+            if (Object.keys(rest).length > 0) {
+                updateNode(id, rest)
+            }
+            return
+        }
+        updateNode(id, patch)
+    }, [node.id, scheduleContentCommit, updateNode])
+
+    useEffect(() => {
+        if (pendingContentRef.current !== null) return
+        setContentDraft(node.content || '')
+    }, [node.id, node.content])
+
+    useEffect(() => () => {
+        if (contentCommitTimerRef.current !== null) {
+            window.clearTimeout(contentCommitTimerRef.current)
+            contentCommitTimerRef.current = null
+        }
+        flushPendingContentCommit()
+    }, [flushPendingContentCommit])
+
+    const handleNodeWheelCapture = useCallback((event: React.WheelEvent) => {
+        event.stopPropagation()
+        if (event.ctrlKey || event.metaKey || event.altKey) {
+            event.preventDefault()
+        }
+    }, [])
 
     // Drag
     const handleDragStart = useCallback((e: React.MouseEvent) => {
@@ -310,7 +417,7 @@ export function CanvasNodeWidget({ node, isSelected, onSelect, onStartConnect, o
         rawChildren: React.ReactNode,
         nextBlockContent: string,
     ) => {
-        const current = node.content || ''
+        const current = nodeForRender.content || ''
         const lang = (className || '').replace('language-', '')
         const raw = Array.isArray(rawChildren) ? rawChildren.join('') : String(rawChildren ?? '')
         const currentBlockContent = raw.replace(/\n$/, '')
@@ -327,18 +434,18 @@ export function CanvasNodeWidget({ node, isSelected, onSelect, onStartConnect, o
             && end > start
             && end <= current.length
         ) {
-            updateNode(node.id, { content: `${current.slice(0, start)}${nextFence}${current.slice(end)}` })
+            commitNodePatch(node.id, { content: `${current.slice(0, start)}${nextFence}${current.slice(end)}` })
             return
         }
 
         const prevFence = makeFence(currentBlockContent)
         const idx = current.indexOf(prevFence)
         if (idx >= 0) {
-            updateNode(node.id, {
+            commitNodePatch(node.id, {
                 content: `${current.slice(0, idx)}${nextFence}${current.slice(idx + prevFence.length)}`,
             })
         }
-    }, [node.content, node.id, updateNode])
+    }, [commitNodePatch, node.id, nodeForRender.content])
 
     const statusColor = (status?: string) => {
         if (status === 'done' || status === 'review') return '#30D158'
@@ -366,13 +473,14 @@ export function CanvasNodeWidget({ node, isSelected, onSelect, onStartConnect, o
     }
 
     const renderContent = () => {
+        const nodeContent = nodeForRender.content
         switch (node.type) {
             case 'text':
                 return (
                     <textarea
                         className="node-interactive"
-                        value={node.content}
-                        onChange={(e) => updateNode(node.id, { content: e.target.value })}
+                        value={nodeContent}
+                        onChange={(e) => commitNodePatch(node.id, { content: e.target.value })}
                         placeholder="Text eingeben..."
                         style={{
                             width: '100%', height: '100%', resize: 'none',
@@ -393,7 +501,7 @@ export function CanvasNodeWidget({ node, isSelected, onSelect, onStartConnect, o
                                 color: node.color || t.accent, cursor: 'pointer',
                             }}>Preview</button>
                         </div>
-                        <textarea value={node.content} onChange={(e) => updateNode(node.id, { content: e.target.value })}
+                        <textarea value={nodeContent} onChange={(e) => commitNodePatch(node.id, { content: e.target.value })}
                             placeholder="# Markdown..." style={{
                                 flex: 1, width: '100%', resize: 'none', background: 'transparent',
                                 border: 'none', outline: 'none', color: 'inherit',
@@ -403,7 +511,7 @@ export function CanvasNodeWidget({ node, isSelected, onSelect, onStartConnect, o
                 ) : (
                     <div className="node-interactive" style={{ width: '100%', height: '100%', overflow: 'auto', cursor: 'text' }}
                         onDoubleClick={() => setEditingContent(true)}>
-                        {node.content
+                        {nodeContent
                             ? <div style={{ fontSize: 13, lineHeight: 1.6 }} className="canvas-md">
                                 <ReactMarkdown
                                   remarkPlugins={[remarkGfm]}
@@ -424,7 +532,7 @@ export function CanvasNodeWidget({ node, isSelected, onSelect, onStartConnect, o
                                         </CanvasNexusCodeBlock>
                                       ),
                                   }}
-                                >{node.content}</ReactMarkdown>
+                                >{nodeContent}</ReactMarkdown>
                             </div>
                             : <div style={{ opacity: 0.4, fontSize: 13 }}>Doppelklick zum Bearbeiten...</div>
                         }
@@ -485,14 +593,14 @@ export function CanvasNodeWidget({ node, isSelected, onSelect, onStartConnect, o
             case 'image':
                 return (
                     <div className="node-interactive" style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', gap: 6 }}>
-                        <input type="text" value={node.content} onChange={(e) => updateNode(node.id, { content: e.target.value })}
+                        <input type="text" value={nodeContent} onChange={(e) => commitNodePatch(node.id, { content: e.target.value })}
                             placeholder="Bild-URL eingeben..."
                             style={{
                                 width: '100%', background: t.mode === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
                                 border: 'none', borderRadius: 6, padding: '4px 8px', color: 'inherit', fontSize: 11, outline: 'none', flexShrink: 0,
                             }} />
-                        {node.content
-                            ? <img src={node.content} alt={node.title} style={{ flex: 1, width: '100%', objectFit: 'contain', borderRadius: 8, minHeight: 0 }}
+                        {nodeContent
+                            ? <img src={nodeContent} alt={node.title} style={{ flex: 1, width: '100%', objectFit: 'contain', borderRadius: 8, minHeight: 0 }}
                                 onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
                             : <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.3 }}>
                                 <Image size={32} />
@@ -514,13 +622,13 @@ export function CanvasNodeWidget({ node, isSelected, onSelect, onStartConnect, o
                                     <option key={l} value={l}>{l}</option>
                                 ))}
                             </select>
-                            <button onClick={() => { navigator.clipboard?.writeText(node.content) }}
+                            <button onClick={() => { navigator.clipboard?.writeText(nodeContent) }}
                                 title="Copy code"
                                 style={{ background: `rgba(${rgb},0.15)`, border: 'none', borderRadius: 5, padding: '3px 6px', cursor: 'pointer', color: node.color || t.accent, fontSize: 10, display: 'flex', alignItems: 'center', gap: 3 }}>
                                 <Copy size={10} /> Copy
                             </button>
                         </div>
-                        <textarea value={node.content} onChange={(e) => updateNode(node.id, { content: e.target.value })}
+                        <textarea value={nodeContent} onChange={(e) => commitNodePatch(node.id, { content: e.target.value })}
                             placeholder="// Code eingeben..." spellCheck={false}
                             style={{
                                 flex: 1, width: '100%', resize: 'none',
@@ -534,7 +642,7 @@ export function CanvasNodeWidget({ node, isSelected, onSelect, onStartConnect, o
                                     e.preventDefault()
                                     const ta = e.target as HTMLTextAreaElement
                                     const s = ta.selectionStart, end = ta.selectionEnd
-                                    updateNode(node.id, { content: ta.value.substring(0, s) + '  ' + ta.value.substring(end) })
+                                    commitNodePatch(node.id, { content: ta.value.substring(0, s) + '  ' + ta.value.substring(end) })
                                     setTimeout(() => { ta.selectionStart = ta.selectionEnd = s + 2 }, 0)
                                 }
                             }}
@@ -560,8 +668,8 @@ export function CanvasNodeWidget({ node, isSelected, onSelect, onStartConnect, o
                             }}>
                                 {editingContent ? (
                                     <textarea
-                                        value={node.content}
-                                        onChange={(e) => updateNode(node.id, { content: e.target.value })}
+                                        value={nodeContent}
+                                        onChange={(e) => commitNodePatch(node.id, { content: e.target.value })}
                                         placeholder="# Lokale Notiz&#10;&#10;```nexus-checklist&#10;Task A | done&#10;Task B | todo&#10;```"
                                         style={{
                                             width: '100%', height: '100%', minHeight: 96, resize: 'none',
@@ -587,7 +695,7 @@ export function CanvasNodeWidget({ node, isSelected, onSelect, onStartConnect, o
                                                     ),
                                             }}
                                         >
-                                            {node.content || '_Leere Notiz_'}
+                                            {nodeContent || '_Leere Notiz_'}
                                         </ReactMarkdown>
                                     </div>
                                 )}
@@ -660,7 +768,7 @@ export function CanvasNodeWidget({ node, isSelected, onSelect, onStartConnect, o
                                     ))}
                                 </select>
                                 <button
-                                    onClick={() => navigator.clipboard?.writeText(node.content)}
+                                    onClick={() => navigator.clipboard?.writeText(nodeContent)}
                                     style={{
                                         background: `rgba(${rgb},0.15)`, border: 'none', borderRadius: 6,
                                         padding: '4px 8px', cursor: 'pointer', color: node.color || t.accent, fontSize: 10,
@@ -670,8 +778,8 @@ export function CanvasNodeWidget({ node, isSelected, onSelect, onStartConnect, o
                                 </button>
                             </div>
                             <textarea
-                                value={node.content}
-                                onChange={(e) => updateNode(node.id, { content: e.target.value })}
+                                value={nodeContent}
+                                onChange={(e) => commitNodePatch(node.id, { content: e.target.value })}
                                 spellCheck={false}
                                 placeholder="// Local code snippet..."
                                 style={{
@@ -752,8 +860,8 @@ export function CanvasNodeWidget({ node, isSelected, onSelect, onStartConnect, o
                                 </span>
                             </div>
                             <textarea
-                                value={node.content}
-                                onChange={(e) => updateNode(node.id, { content: e.target.value })}
+                                value={nodeContent}
+                                onChange={(e) => commitNodePatch(node.id, { content: e.target.value })}
                                 placeholder="Aktion, Kontext, nächste Schritte..."
                                 style={{
                                     flex: 1, minHeight: 84, width: '100%', resize: 'none',
@@ -828,8 +936,8 @@ export function CanvasNodeWidget({ node, isSelected, onSelect, onStartConnect, o
                                 Erledigt
                             </label>
                             <textarea
-                                value={node.content}
-                                onChange={(e) => updateNode(node.id, { content: e.target.value })}
+                                value={nodeContent}
+                                onChange={(e) => commitNodePatch(node.id, { content: e.target.value })}
                                 placeholder="Reminder-Notiz oder Message..."
                                 style={{
                                     flex: 1, minHeight: 92, width: '100%', resize: 'none',
@@ -914,8 +1022,8 @@ export function CanvasNodeWidget({ node, isSelected, onSelect, onStartConnect, o
                             <span style={{ fontSize: 10, fontWeight: 700, color: nodeAccent }}>{progress}%</span>
                         </div>
                         <textarea
-                            value={node.content}
-                            onChange={(e) => updateNode(node.id, { content: e.target.value })}
+                            value={nodeContent}
+                            onChange={(e) => commitNodePatch(node.id, { content: e.target.value })}
                             placeholder="Scope, Zielbild, nächster Schritt"
                             style={{
                                 flex: 1, width: '100%', resize: 'none',
@@ -945,8 +1053,8 @@ export function CanvasNodeWidget({ node, isSelected, onSelect, onStartConnect, o
                             )}
                         </div>
                         <textarea
-                            value={node.content}
-                            onChange={(e) => updateNode(node.id, { content: e.target.value })}
+                            value={nodeContent}
+                            onChange={(e) => commitNodePatch(node.id, { content: e.target.value })}
                             placeholder="Warum ist das wichtig? Wie wird Erfolg gemessen?"
                             style={{
                                 flex: 1, width: '100%', resize: 'none',
@@ -1010,8 +1118,8 @@ export function CanvasNodeWidget({ node, isSelected, onSelect, onStartConnect, o
                             <span style={{ fontSize: 10, fontWeight: 700, color: nodeAccent }}>{progress}%</span>
                         </div>
                         <textarea
-                            value={node.content}
-                            onChange={(e) => updateNode(node.id, { content: e.target.value })}
+                            value={nodeContent}
+                            onChange={(e) => commitNodePatch(node.id, { content: e.target.value })}
                             placeholder="Done-Kriterien, Deliverables, Blocker"
                             style={{
                                 flex: 1, width: '100%', resize: 'none',
@@ -1068,8 +1176,8 @@ export function CanvasNodeWidget({ node, isSelected, onSelect, onStartConnect, o
                             />
                         </div>
                         <textarea
-                            value={node.content}
-                            onChange={(e) => updateNode(node.id, { content: e.target.value })}
+                            value={nodeContent}
+                            onChange={(e) => commitNodePatch(node.id, { content: e.target.value })}
                             placeholder="Option A&#10;Option B&#10;Kriterien&#10;Entscheidung"
                             style={{
                                 flex: 1, width: '100%', resize: 'none',
@@ -1125,8 +1233,8 @@ export function CanvasNodeWidget({ node, isSelected, onSelect, onStartConnect, o
                             <span style={{ fontSize: 10, opacity: 0.75 }}>Impact {impact}/10</span>
                         </div>
                         <textarea
-                            value={node.content}
-                            onChange={(e) => updateNode(node.id, { content: e.target.value })}
+                            value={nodeContent}
+                            onChange={(e) => commitNodePatch(node.id, { content: e.target.value })}
                             placeholder="Risiko, Trigger, Mitigation/Fallback"
                             style={{
                                 flex: 1, width: '100%', resize: 'none',
@@ -1150,6 +1258,7 @@ export function CanvasNodeWidget({ node, isSelected, onSelect, onStartConnect, o
         <div className="nx-canvas-node"
             onMouseEnter={() => setHovered(true)}
             onMouseLeave={() => setHovered(false)}
+            onWheelCapture={handleNodeWheelCapture}
             style={{
                 position: 'absolute', left: liveX, top: liveY,
                 width: liveWidth, height: liveHeight,
@@ -1296,6 +1405,18 @@ export function CanvasNodeWidget({ node, isSelected, onSelect, onStartConnect, o
                                         useCanvas.getState().addNode(node.type, node.x + 30, node.y + 30)
                                         setShowMenu(false)
                                     }} />
+                                    <MenuBtn
+                                      icon={Maximize2}
+                                      label="Larger"
+                                      onClick={() => {
+                                        resizeNode(
+                                          node.id,
+                                          Math.max(node.width + 120, 320),
+                                          Math.max(node.height + 90, 180),
+                                        )
+                                        setShowMenu(false)
+                                      }}
+                                    />
                                     <MenuBtn icon={Trash2} label="Delete" onClick={() => deleteNode(node.id)} danger />
 
                                     {showColorPicker && (
@@ -1412,18 +1533,60 @@ export function CanvasNodeWidget({ node, isSelected, onSelect, onStartConnect, o
 // ─── MENU BUTTON ───
 
 function MenuBtn({ icon: Icon, label, onClick, danger }: { icon: any, label: string, onClick: () => void, danger?: boolean }) {
-    const [h, setH] = useState(false)
+    const t = useTheme()
+    const motionId = React.useId().replace(/:/g, '-')
+    const tint = danger ? '#FF3B30' : t.accent
+    const tintRgb = hexToRgb(tint)
+    const [hovered, setHovered] = useState(false)
+    const [focused, setFocused] = useState(false)
+    const [pressed, setPressed] = useState(false)
+    const interaction = useInteractiveSurfaceMotion({
+      id: `mobile-canvas-node-menu-${label}-${motionId}`,
+      hovered,
+      focused,
+      pressed,
+      surfaceClass: 'utility-surface',
+      effectClass: 'status-highlight',
+      budgetPriority: danger ? 'high' : 'normal',
+      areaHint: 74,
+      family: 'micro',
+    })
     return (
-        <button onClick={onClick} onMouseEnter={() => setH(true)} onMouseLeave={() => setH(false)}
+        <motion.button
+            type="button"
+            className="nx-motion-managed nx-bounce-target"
+            onClick={onClick}
+            onMouseEnter={() => setHovered(true)}
+            onMouseLeave={() => { setHovered(false); setPressed(false) }}
+            onFocus={() => setFocused(true)}
+            onBlur={() => { setFocused(false); setPressed(false) }}
+            onPointerDown={() => setPressed(true)}
+            onPointerUp={() => setPressed(false)}
+            onPointerCancel={() => setPressed(false)}
+            animate={interaction.content.animate}
+            transition={interaction.content.transition}
             style={{
                 display: 'flex', alignItems: 'center', gap: 8, width: '100%',
                 padding: '7px 10px', border: 'none', borderRadius: 7, cursor: 'pointer', fontSize: 12,
-                background: h ? 'rgba(255,255,255,0.08)' : 'transparent',
+                background: 'transparent',
                 color: danger ? '#FF3B30' : 'inherit',
+                position: 'relative',
+                overflow: 'hidden',
             }}>
+            <SurfaceHighlight highlight={interaction.highlight} inset={0} radius={7}>
+                <div
+                    style={{
+                        position: 'absolute',
+                        inset: 0,
+                        borderRadius: 7,
+                        border: `1px solid rgba(${tintRgb},0.22)`,
+                        background: `radial-gradient(circle at 50% 50%, rgba(${tintRgb},0.18), rgba(${tintRgb},0.06) 68%, rgba(${tintRgb},0.02) 100%)`,
+                    }}
+                />
+            </SurfaceHighlight>
             <Icon size={13} />
-            {label}
-        </button>
+            <span style={{ position: 'relative', zIndex: 1 }}>{label}</span>
+        </motion.button>
     )
 }
 

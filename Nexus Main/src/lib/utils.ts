@@ -6,6 +6,7 @@ export const hexToRgb = (h: string) => {
 export const genId = () => Math.random().toString(36).slice(2) + Date.now().toString(36)
 export const fmtDt = (d: Date | string) => {
   const date = typeof d === 'string' ? new Date(d) : d
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '—'
   return new Intl.DateTimeFormat('de-DE', {
     day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
   }).format(date)

@@ -62,6 +62,13 @@ export function useCanvasWheelGestures({
   }, [applyZoomAtPoint, canvasRef, setZoom])
 
   const handleWheel = useCallback((e: React.WheelEvent) => {
+    const target = e.target as HTMLElement | null
+    if (target?.closest('.nx-canvas-node')) {
+      if (e.ctrlKey || e.metaKey || e.altKey) {
+        e.preventDefault()
+      }
+      return
+    }
     e.preventDefault()
     const deltaScale = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? canvasHeight : 1
     const rawDx = e.deltaX * deltaScale

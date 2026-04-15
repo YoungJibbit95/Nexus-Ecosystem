@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import type { LucideIcon } from "lucide-react";
 
 export function CanvasToolButton({
@@ -16,16 +16,13 @@ export function CanvasToolButton({
   rgb: string;
   active?: boolean;
 }) {
-  const [hovered, setHovered] = useState(false);
-
   return (
     <button
       onClick={onClick}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
       title={tooltip}
+      className="nx-interactive nx-bounce-target"
       style={{
-        background: hovered || active ? `rgba(${rgb}, 0.18)` : "transparent",
+        background: active ? `rgba(${rgb}, 0.18)` : "transparent",
         border: active
           ? `1px solid rgba(${rgb}, 0.3)`
           : "1px solid transparent",
@@ -35,10 +32,8 @@ export function CanvasToolButton({
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        cursor: "pointer",
-        color: hovered || active ? accent : "inherit",
-        transition: "all 0.15s",
-        opacity: hovered || active ? 1 : 0.65,
+        color: active ? accent : "inherit",
+        opacity: active ? 1 : 0.65,
       }}
     >
       <Icon size={14} />

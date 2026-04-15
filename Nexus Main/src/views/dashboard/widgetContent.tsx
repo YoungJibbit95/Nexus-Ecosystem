@@ -18,6 +18,7 @@ import {
   Zap,
 } from "lucide-react";
 import { Glass } from "../../components/Glass";
+import { LiquidGlassButton } from "../../components/LiquidGlassButton";
 import { fmtDt, hexToRgb } from "../../lib/utils";
 import type { WidgetId } from "./dashboardLayout";
 import { QuickChip, Sparkline, StatCard } from "./dashboardUi";
@@ -65,6 +66,38 @@ export function buildDashboardWidgetContent({
   actColor,
   accentRgb: rgb,
 }: DashboardWidgetContentArgs): Record<WidgetId, React.ReactNode> {
+  const isLiquidGlass =
+    ((t.glassmorphism as any)?.panelRenderer ?? "blur") === "liquid-glass";
+  const WidgetActionButton = ({
+    liquidColor,
+    style,
+    children,
+    ...rest
+  }: React.ButtonHTMLAttributes<HTMLButtonElement> & { liquidColor?: string }) => {
+    if (isLiquidGlass) {
+      return (
+        <LiquidGlassButton
+          {...rest}
+          color={liquidColor || t.accent}
+          size="sm"
+          style={{
+            ...(style || {}),
+            background: "transparent",
+            border: "1px solid transparent",
+          }}
+        >
+          {children}
+        </LiquidGlassButton>
+      );
+    }
+
+    return (
+      <button {...rest} style={style}>
+        {children}
+      </button>
+    );
+  };
+
   return {
     stats: (
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 12 }}>
@@ -108,14 +141,15 @@ export function buildDashboardWidgetContent({
       </div>
     ),
     notes: (
-      <Glass style={{ padding: "16px 18px", height: "100%" }}>
+      <Glass gradient style={{ padding: "16px 18px", height: "100%", background: `linear-gradient(145deg, rgba(${rgb},0.32), rgba(${hexToRgb(t.accent2)},0.2) 58%, rgba(255,255,255,0.03))` }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <FileText size={14} style={{ color: t.accent }} />
             <span style={{ fontSize: 12, fontWeight: 700 }}>Zuletzt bearbeitet</span>
           </div>
-          <button
+          <WidgetActionButton
             onClick={() => setView?.("notes")}
+            liquidColor={t.accent}
             style={{
               background: "none",
               border: "none",
@@ -129,7 +163,7 @@ export function buildDashboardWidgetContent({
             }}
           >
             Alle <ArrowRight size={10} />
-          </button>
+          </WidgetActionButton>
         </div>
         {recentNotes.length === 0 ? (
           <div style={{ opacity: 0.35, fontSize: 12, textAlign: "center", padding: "20px 0" }}>
@@ -138,9 +172,10 @@ export function buildDashboardWidgetContent({
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {recentNotes.map((note) => (
-              <button
+              <WidgetActionButton
                 key={note.id}
                 onClick={() => setView?.("notes")}
+                liquidColor={t.accent}
                 style={{
                   width: "100%",
                   padding: "9px 10px",
@@ -177,21 +212,22 @@ export function buildDashboardWidgetContent({
                     </span>
                   ) : null}
                 </div>
-              </button>
+              </WidgetActionButton>
             ))}
           </div>
         )}
       </Glass>
     ),
     reminders: (
-      <Glass style={{ padding: "16px 18px", height: "100%" }}>
+      <Glass gradient style={{ padding: "16px 18px", height: "100%", background: "linear-gradient(145deg, rgba(255,159,10,0.28), rgba(255,69,58,0.18) 62%, rgba(255,255,255,0.03))" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <Calendar size={14} style={{ color: "#FF9F0A" }} />
             <span style={{ fontSize: 12, fontWeight: 700 }}>Erinnerungen</span>
           </div>
-          <button
+          <WidgetActionButton
             onClick={() => setView?.("reminders")}
+            liquidColor="#ff9f0a"
             style={{
               background: "none",
               border: "none",
@@ -205,7 +241,7 @@ export function buildDashboardWidgetContent({
             }}
           >
             Alle <ArrowRight size={10} />
-          </button>
+          </WidgetActionButton>
         </div>
         {urgentReminders.length === 0 ? (
           <div style={{ opacity: 0.35, fontSize: 12, textAlign: "center", padding: "20px 0" }}>
@@ -219,9 +255,10 @@ export function buildDashboardWidgetContent({
               const color = isOverdue ? "#FF453A" : "#FF9F0A";
               const rgbR = hexToRgb(color);
               return (
-                <button
+                <WidgetActionButton
                   key={rem.id}
                   onClick={() => setView?.("reminders")}
+                  liquidColor={isOverdue ? "#ff453a" : "#ff9f0a"}
                   style={{
                     width: "100%",
                     padding: "9px 10px",
@@ -257,7 +294,7 @@ export function buildDashboardWidgetContent({
                     {isOverdue ? "Überfällig · " : ""}
                     {fmtDt(rem.snoozeUntil || rem.datetime)}
                   </div>
-                </button>
+                </WidgetActionButton>
               );
             })}
           </div>
@@ -265,7 +302,7 @@ export function buildDashboardWidgetContent({
       </Glass>
     ),
     tasks: (
-      <Glass style={{ padding: "16px 18px" }}>
+      <Glass gradient style={{ padding: "16px 18px", background: `linear-gradient(145deg, rgba(${rgb},0.28), rgba(255,159,10,0.2) 62%, rgba(255,255,255,0.03))` }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
           <BarChart3 size={14} style={{ color: "#FF9F0A" }} />
           <span style={{ fontSize: 12, fontWeight: 700 }}>Task-Übersicht</span>
@@ -299,8 +336,9 @@ export function buildDashboardWidgetContent({
                 </div>
               );
             })}
-            <button
+            <WidgetActionButton
               onClick={() => setView?.("tasks")}
+              liquidColor="#ff9f0a"
               style={{
                 marginTop: 6,
                 width: "100%",
@@ -319,13 +357,13 @@ export function buildDashboardWidgetContent({
               }}
             >
               Task Board öffnen <ArrowRight size={11} />
-            </button>
+            </WidgetActionButton>
           </div>
         )}
       </Glass>
     ),
     activity: (
-      <Glass style={{ padding: "16px 18px" }}>
+      <Glass gradient style={{ padding: "16px 18px", background: `linear-gradient(145deg, rgba(${hexToRgb(t.accent2)},0.3), rgba(${rgb},0.18) 62%, rgba(255,255,255,0.03))` }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
           <Activity size={14} style={{ color: t.accent2 }} />
           <span style={{ fontSize: 12, fontWeight: 700 }}>Letzte Aktivität</span>
@@ -388,7 +426,7 @@ export function buildDashboardWidgetContent({
       </Glass>
     ),
     quick: (
-      <Glass style={{ padding: "16px 18px" }}>
+      <Glass gradient style={{ padding: "16px 18px", background: `linear-gradient(145deg, rgba(${rgb},0.3), rgba(${hexToRgb(t.accent2)},0.18) 62%, rgba(255,255,255,0.03))` }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <Zap size={14} style={{ color: t.accent }} />
@@ -405,7 +443,7 @@ export function buildDashboardWidgetContent({
       </Glass>
     ),
     chart: (
-      <Glass style={{ padding: "16px 18px" }}>
+      <Glass gradient style={{ padding: "16px 18px", background: `linear-gradient(145deg, rgba(${rgb},0.28), rgba(${hexToRgb(t.accent2)},0.2) 62%, rgba(255,255,255,0.03))` }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
           <BarChart3 size={14} style={{ color: t.accent }} />
           <span style={{ fontSize: 12, fontWeight: 700 }}>Progress Pulse</span>
@@ -423,7 +461,7 @@ export function buildDashboardWidgetContent({
       </Glass>
     ),
     calendar: (
-      <Glass style={{ padding: "16px 18px" }}>
+      <Glass gradient style={{ padding: "16px 18px", background: "linear-gradient(145deg, rgba(255,159,10,0.26), rgba(255,69,58,0.18) 62%, rgba(255,255,255,0.03))" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
           <Calendar size={14} style={{ color: "#FF9F0A" }} />
           <span style={{ fontSize: 12, fontWeight: 700 }}>Heute & Morgen</span>
