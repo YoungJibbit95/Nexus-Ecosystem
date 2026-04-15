@@ -1,119 +1,13 @@
 import { useMobile } from '../lib/useMobile'
-import React, { useMemo, useState } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
+import React, { useState } from 'react'
 import { useTheme } from '../store/themeStore'
-import { buildMotionRuntime } from '../lib/motionEngine'
 import {
-  ChevronDown, BookOpen, Code2, FileText, CheckSquare, Bell,
+  BookOpen, Code2, FileText, CheckSquare, Bell,
   Layout, Settings, Palette, Terminal, Keyboard, Zap, GitBranch, Sparkles,
   Wand2, Search, Layers, Calculator, HardDrive, Wrench, Package, BarChart3,
   Type, Monitor, Sliders, Eye, Play, Copy, Star, Clock
 } from 'lucide-react'
-
-function Acc({ title, icon: Icon, open, onToggle, children, badge }: any) {
-  const t = useTheme()
-  const motionRuntime = useMemo(() => buildMotionRuntime(t), [t])
-  const quickMotion = `var(--nx-motion-quick, ${motionRuntime.quickMs}ms)`
-  const regularMotion = `var(--nx-motion-regular, ${motionRuntime.regularMs}ms)`
-  const motionEase = 'cubic-bezier(0.22, 1, 0.36, 1)'
-  return (
-    <div style={{ marginBottom: 8 }}>
-      <motion.button
-        type="button"
-        onClick={onToggle}
-        whileHover={t.animations?.hoverLift ? { filter: 'brightness(1.03)' } : undefined}
-        whileTap={motionRuntime.reduced ? undefined : { filter: 'brightness(0.97)' }}
-        transition={motionRuntime.spring}
-        style={{
-        width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '13px 18px',
-        background: open ? `rgba(${hexRgb(t.accent)},0.1)` : 'rgba(255,255,255,0.04)',
-        border: `1px solid ${open ? `rgba(${hexRgb(t.accent)},0.25)` : 'rgba(255,255,255,0.08)'}`,
-        borderRadius: open ? '12px 12px 0 0' : 12,
-        cursor: 'pointer', color: 'inherit',
-        transition: `background-color ${regularMotion} ${motionEase}, border-color ${quickMotion} ${motionEase}, box-shadow ${regularMotion} ${motionEase}`,
-      }}
-      >
-        {Icon && <Icon size={18} style={{ color: t.accent, opacity: 0.85, flexShrink: 0 }}/>}
-        <span style={{ flex: 1, textAlign: 'left', fontSize: 14, fontWeight: 700 }}>{title}</span>
-        {badge && <span style={{ fontSize: 9, fontWeight: 800, padding: '2px 7px', borderRadius: 8, background: t.accent, color: '#fff' }}>{badge}</span>}
-        <motion.span
-          aria-hidden="true"
-          animate={{ rotate: open ? 180 : 0, opacity: 0.5 }}
-          transition={motionRuntime.spring}
-          style={{ display: 'inline-flex' }}
-        >
-          <ChevronDown size={14} />
-        </motion.span>
-      </motion.button>
-      <AnimatePresence initial={false}>
-        {open && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: Math.max(0.14, motionRuntime.regularMs / 1000), ease: [0.22, 1, 0.36, 1] }}
-            style={{ overflow: 'hidden' }}
-          >
-            <div style={{ padding: '18px 20px', background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.07)', borderTop: 'none', borderRadius: '0 0 12px 12px' }}>
-              {children}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  )
-}
-
-function hexRgb(hex: string) {
-  const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16)
-  return `${r},${g},${b}`
-}
-
-function Card({ title, icon, desc, keys }: { title: string; icon?: string; desc: string; keys?: string[] }) {
-  const t = useTheme()
-  const motionRuntime = useMemo(() => buildMotionRuntime(t), [t])
-  return (
-    <motion.div
-      whileHover={t.animations?.hoverLift ? { filter: 'brightness(1.03)' } : undefined}
-      transition={motionRuntime.spring}
-      style={{ padding: '12px 14px', borderRadius: 10, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', marginBottom: 8 }}
-    >
-      <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 5, color: t.accent }}>{icon} {title}</div>
-      <div style={{ fontSize: 12, opacity: 0.68, lineHeight: 1.6 }}>{desc}</div>
-      {keys && <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 8 }}>
-        {keys.map(k => <kbd key={k} style={{ padding: '2px 8px', borderRadius: 5, fontSize: 10, fontFamily: 'monospace', background: 'rgba(255,255,255,0.09)', border: '1px solid rgba(255,255,255,0.13)' }}>{k}</kbd>)}
-      </div>}
-    </motion.div>
-  )
-}
-
-function Code({ children }: { children: string }) {
-  const t = useTheme()
-  return (
-    <div style={{ padding: '12px 16px', borderRadius: 10, background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(255,255,255,0.09)', marginBottom: 12, overflowX: 'auto' }}>
-      <pre style={{ margin: 0, fontSize: 12, fontFamily: "'Fira Code',monospace", color: `rgba(${hexRgb(t.accent)},0.9)`, lineHeight: 1.65, whiteSpace: 'pre-wrap' }}>{children}</pre>
-    </div>
-  )
-}
-
-function Badge({ label, color = '#007AFF' }: { label: string; color?: string }) {
-  return <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 10, fontWeight: 700, background: `${color}22`, color, border: `1px solid ${color}44`, marginRight: 5 }}>{label}</span>
-}
-
-function Grid2({ children }: { children: React.ReactNode }) {
-  return <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>{children}</div>
-}
-
-function H({ children }: { children: string }) {
-  const t = useTheme()
-  return <div style={{ fontSize: 11, fontWeight: 800, opacity: 0.4, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10, marginTop: 16, display: 'flex', alignItems: 'center', gap: 6 }}>
-    <div style={{ width: 18, height: 2, background: t.accent, borderRadius: 1 }}/>{children}
-  </div>
-}
-
-function P({ children }: { children: React.ReactNode }) {
-  return <p style={{ fontSize: 13, opacity: 0.7, lineHeight: 1.7, marginBottom: 12 }}>{children}</p>
-}
+import { Acc, Badge, Card, Code, Grid2, H, P, hexRgb } from './info/InfoPrimitives'
 
 export function InfoView() {
   const t = useTheme()
@@ -121,6 +15,7 @@ export function InfoView() {
   const mob = useMobile()
   const [open, setOpen] = useState<Record<string,boolean>>({
     about: true,
+    architecture: true,
     guide: true,
     changelog: true,
     dashboard: false,
@@ -247,6 +142,27 @@ Markdown:   react-markdown + remark-gfm
 DnD:        react-dnd
 Animation:  Framer Motion
 Runtime:    Electron`}
+          </Code>
+        </Acc>
+
+        <Acc title="Nexus Engine & Architektur" icon={Monitor} open={open.architecture} onToggle={() => tog('architecture')} badge="CORE v5">
+          <P>Auch auf Mobile basiert Nexus auf derselben zentralen UI-Engine wie Desktop: Render-Capabilities, Motion-Degradation und Guardrails kommen aus dem Shared Core.</P>
+          <Grid2>
+            <Card icon="🧭" title="Render Pipeline" desc="Measure → Resolve → Allocate → Commit → Cleanup für stabile und vorhersagbare UI-Updates."/>
+            <Card icon="🎞️" title="Motion-Vertrag" desc="Render entscheidet die Komplexität, Motion setzt sie kontrolliert um — ohne Konflikte pro Element."/>
+            <Card icon="🛡️" title="Guardrails" desc="Bounds/Hitbox/Owner-Regeln verhindern visuelle Drift und kaputte Interaktionen."/>
+            <Card icon="📉" title="Degradation" desc="Bei Last oder Low-Power sinkt Komplexität stufenweise statt die UX abrupt abzuschalten."/>
+          </Grid2>
+          <Code>{`@nexus/core (shared)
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+Render: Surface classes + effect budget + diagnostics
+Motion: Familien + capability-aware transitions
+Apps:   Main/Mobile konsumieren denselben Vertrag
+
+Effekt:
+- konsistentere Optik
+- stabilere Laufzeit
+- weniger Sonderlogik pro View`}
           </Code>
         </Acc>
 

@@ -122,7 +122,6 @@ export function CanvasView() {
     x: number;
     y: number;
   } | null>(null);
-  const [showWidgetMenu, setShowWidgetMenu] = useState(false);
   const [snapToGrid, setSnapToGrid] = useState(true);
   const [showMagicBuilder, setShowMagicBuilder] = useState(false);
   const [layoutMode, setLayoutMode] = useState<
@@ -345,7 +344,6 @@ export function CanvasView() {
       if (e.key === "Escape") {
         setConnectingFrom(null);
         setSelectedNodeId(null);
-        setShowWidgetMenu(false);
         setQuickAddPos(null);
         setShowMagicBuilder(false);
         setShowProjectPanel(false);
@@ -408,14 +406,19 @@ export function CanvasView() {
   // Pan
   const handleCanvasMouseDown = useCallback(
     (e: React.MouseEvent) => {
-      setQuickAddPos(null);
-      setShowWidgetMenu(false);
       const target = e.target as HTMLElement;
+      const isInsideNode = Boolean(target.closest(".nx-canvas-node"));
       const isCanvasBackground =
-        target === e.currentTarget ||
-        target.id === "nexus-canvas-inner" ||
-        Boolean(target.closest("#nexus-canvas-inner"));
-      if (e.button === 1 || (e.button === 0 && (spaceHeld || isCanvasBackground))) {
+        !isInsideNode &&
+        (target === e.currentTarget ||
+          target.id === "nexus-canvas-inner" ||
+          Boolean(target.closest("#nexus-canvas-inner")));
+      setQuickAddPos(null);
+      const canStartPan =
+        e.button === 1 ||
+        (e.button === 0 &&
+          ((spaceHeld && !isInsideNode) || isCanvasBackground));
+      if (canStartPan) {
         e.preventDefault();
         setPanning(true);
         panStart.current = {
@@ -432,6 +435,19 @@ export function CanvasView() {
     },
     [spaceHeld, viewport.panX, viewport.panY],
   );
+
+  const openQuickAddMenuFromToolbar = useCallback(() => {
+    setQuickAddPos((current) => {
+      if (current) return null;
+      const rect = canvasRef.current?.getBoundingClientRect();
+      const viewportWidth = rect?.width ?? canvasSize.w;
+      const viewportHeight = rect?.height ?? canvasSize.h;
+      return {
+        x: Math.max(24, viewportWidth * 0.5),
+        y: Math.max(72, Math.min(viewportHeight * 0.24, 172)),
+      };
+    });
+  }, [canvasSize.h, canvasSize.w]);
 
   useEffect(() => {
     if (!panning) return;
@@ -536,6 +552,13 @@ export function CanvasView() {
   // Trackpad-friendly wheel: keep gesture mode stable and zoom on a single RAF pass.
   const handleWheel = useCallback(
     (e: React.WheelEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target?.closest(".nx-canvas-node")) {
+        if (e.ctrlKey || e.metaKey || e.altKey) {
+          e.preventDefault();
+        }
+        return;
+      }
       e.preventDefault();
       const deltaScale =
         e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? canvasSize.h : 1;
@@ -1324,6 +1347,7 @@ export function CanvasView() {
         </div>
         <button
           onClick={safeCreateCanvas}
+          className="nx-interactive nx-bounce-target"
           style={{
             display: "flex",
             alignItems: "center",
@@ -1335,14 +1359,8 @@ export function CanvasView() {
             color: "#fff",
             fontWeight: 700,
             fontSize: 15,
-            cursor: "pointer",
             boxShadow: `0 6px 24px rgba(${rgb}, 0.35)`,
-            transition: "transform 0.15s ease",
           }}
-          onMouseEnter={(e) =>
-            (e.currentTarget.style.transform = "scale(1.04)")
-          }
-          onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
         >
           <Plus size={20} /> Neues Canvas
         </button>
@@ -1378,6 +1396,7 @@ export function CanvasView() {
           flex: 1,
           display: "flex",
           flexDirection: "column",
+          position: "relative",
           overflow: "hidden",
         }}
       >
@@ -1394,8 +1413,7 @@ export function CanvasView() {
           quickWidgetTypes={QUICK_WIDGET_TYPES}
           widgets={WIDGET_TYPES}
           addWidgetNode={addWidgetNode}
-          showWidgetMenu={showWidgetMenu}
-          setShowWidgetMenu={setShowWidgetMenu}
+          onOpenQuickAddMenu={openQuickAddMenuFromToolbar}
           createStarterPack={() => createStarterPack()}
           createMagicTemplate={createMagicTemplate}
           showProjectPanel={showProjectPanel}
@@ -1423,6 +1441,7 @@ export function CanvasView() {
           setZoomCentered={setZoomCentered}
           resetViewport={resetViewport}
           exportCanvas={exportCanvas}
+          quickAddOpen={Boolean(quickAddPos)}
         />
 
         <CanvasStage

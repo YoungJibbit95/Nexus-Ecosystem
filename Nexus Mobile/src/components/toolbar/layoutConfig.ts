@@ -2,11 +2,19 @@
 // Edit here to move Spotlight/Island pieces without searching in component markup.
 export const MOBILE_TOOLBAR_LAYOUT = {
   spotlight: {
-    anchorX: "30%",
-    translateX: "-30%",
+    anchorX: "50%",
+    translateX: "-50%",
     panelTopPx: 68,
-    panelWidth: "min(560px, 82vw)",
-    overlayPanelWidth: "min(520px, 80vw)",
+    panelWidth: "min(560px, 88vw)",
+    overlayPanelWidth: "min(520px, 88vw)",
+  },
+  fullWidth: {
+    height: 44,
+    logoOffset: { x: 0, y: 0 },
+    actionButtonOffset: {
+      terminal: { x: 0, y: 0 },
+      search: { x: 0, y: 0 },
+    },
   },
   island: {
     logoOffset: { x: 0, y: 0 },

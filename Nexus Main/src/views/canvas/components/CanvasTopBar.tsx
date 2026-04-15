@@ -37,8 +37,8 @@ export function CanvasTopBar({
   quickWidgetTypes,
   widgets,
   addWidgetNode,
-  showWidgetMenu,
-  setShowWidgetMenu,
+  onOpenQuickAddMenu,
+  quickAddOpen,
   createStarterPack,
   createMagicTemplate,
   showProjectPanel,
@@ -77,8 +77,8 @@ export function CanvasTopBar({
   quickWidgetTypes: Array<NodeType | "sticky">;
   widgets: WidgetType[];
   addWidgetNode: (type: NodeType | "sticky") => void;
-  showWidgetMenu: boolean;
-  setShowWidgetMenu: (next: boolean | ((prev: boolean) => boolean)) => void;
+  onOpenQuickAddMenu: () => void;
+  quickAddOpen: boolean;
   createStarterPack: () => void;
   createMagicTemplate: (payload: MagicTemplatePayload) => void;
   showProjectPanel: boolean;
@@ -115,7 +115,9 @@ export function CanvasTopBar({
         background: mode === "dark" ? "rgba(255,255,255,0.025)" : "rgba(255,255,255,0.6)",
         backdropFilter: "blur(16px)",
         overflowX: "auto",
-        overflowY: "hidden",
+        overflowY: "visible",
+        position: "relative",
+        zIndex: 80,
       }}
     >
       <div
@@ -202,134 +204,11 @@ export function CanvasTopBar({
           <ToolBtn
             icon={Plus}
             tooltip="Mehr Elemente"
-            onClick={() => setShowWidgetMenu((prev) => !prev)}
+            onClick={onOpenQuickAddMenu}
             accent={accent}
             rgb={rgb}
-            active={showWidgetMenu}
+            active={quickAddOpen}
           />
-          {showWidgetMenu && (
-            <div
-              style={{
-                position: "absolute",
-                top: "calc(100% + 6px)",
-                left: 0,
-                zIndex: 500,
-                minWidth: 190,
-                maxHeight: 320,
-                overflowY: "auto",
-                borderRadius: 12,
-                padding: 6,
-                background: mode === "dark" ? "rgba(10,12,20,0.96)" : "rgba(255,255,255,0.96)",
-                border: `1px solid ${
-                  mode === "dark" ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.1)"
-                }`,
-                boxShadow: "0 16px 40px rgba(0,0,0,0.45)",
-              }}
-            >
-              <div
-                style={{
-                  fontSize: 10,
-                  fontWeight: 800,
-                  opacity: 0.5,
-                  textTransform: "uppercase",
-                  letterSpacing: 0.8,
-                  padding: "4px 8px 6px",
-                }}
-              >
-                Element hinzufuegen
-              </div>
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
-                  gap: 6,
-                  padding: "0 6px 8px",
-                }}
-              >
-                <button
-                  onClick={() => {
-                    createStarterPack();
-                    setShowWidgetMenu(false);
-                  }}
-                  style={{
-                    border: `1px solid rgba(${rgb},0.3)`,
-                    borderRadius: 8,
-                    background: `rgba(${rgb},0.12)`,
-                    color: accent,
-                    fontSize: 11,
-                    fontWeight: 700,
-                    padding: "8px 6px",
-                    cursor: "pointer",
-                  }}
-                >
-                  Starter Pack
-                </button>
-                <button
-                  onClick={() => {
-                    createMagicTemplate({
-                      template: "roadmap",
-                      title: "Roadmap",
-                      includeNotes: true,
-                      includeTasks: true,
-                    });
-                    setShowWidgetMenu(false);
-                  }}
-                  style={{
-                    border: "1px solid rgba(255,255,255,0.2)",
-                    borderRadius: 8,
-                    background: "rgba(255,255,255,0.07)",
-                    color: "inherit",
-                    fontSize: 11,
-                    fontWeight: 700,
-                    padding: "8px 6px",
-                    cursor: "pointer",
-                  }}
-                >
-                  Roadmap
-                </button>
-              </div>
-              <div
-                style={{
-                  height: 1,
-                  background: "rgba(255,255,255,0.1)",
-                  margin: "0 8px 6px",
-                }}
-              />
-              {widgets.map(({ type, icon: WIcon, label }) => (
-                <button
-                  key={type}
-                  onClick={() => {
-                    addWidgetNode(type);
-                    setShowWidgetMenu(false);
-                  }}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    width: "100%",
-                    textAlign: "left",
-                    padding: "7px 8px",
-                    border: "none",
-                    borderRadius: 8,
-                    cursor: "pointer",
-                    background: "transparent",
-                    color: "inherit",
-                    fontSize: 12,
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background =
-                      mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = "transparent";
-                  }}
-                >
-                  <WIcon size={13} style={{ color: accent }} />
-                  {label}
-                </button>
-              ))}
-            </div>
-          )}
         </div>
 
         <div style={{ flex: 1 }} />

@@ -16,16 +16,14 @@ function MagicList({ content, accent }: { content: string; accent: string }) {
       {rows.map((row, i) => {
         const [label, detail] = row.split('|').map(s => s.trim())
         return (
-          <div key={i} style={{
+          <div key={i} className="nx-surface-row" data-active="false" style={{
             display: 'flex', justifyContent: 'space-between', alignItems: 'center',
             padding: '9px 14px',
             background: i % 2 === 0 ? 'rgba(255,255,255,0.02)' : 'transparent',
             borderBottom: i < rows.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none',
-            fontSize: 13, transition: 'background 0.15s',
-          }}
-            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
-            onMouseLeave={e => (e.currentTarget.style.background = i % 2 === 0 ? 'rgba(255,255,255,0.02)' : 'transparent')}
-          >
+            fontSize: 13,
+            ['--nx-row-hover-bg' as any]: 'rgba(255,255,255,0.05)',
+          }}>
             <span style={{ opacity: 0.85 }}>{label}</span>
             {detail && <span style={{ color: accent, fontWeight: 600, fontSize: 12, background: `${accent}18`, padding: '2px 8px', borderRadius: 20 }}>{detail}</span>}
           </div>
@@ -218,14 +216,11 @@ function MagicGrid({ content }: { content: string }) {
       gap: 8, margin: '12px 0',
     }}>
       {items.map((item, i) => (
-        <div key={i} style={{
+        <div key={i} className="nx-surface-row" data-active="false" style={{
           background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
           borderRadius: 8, padding: '10px 12px', fontSize: 13, lineHeight: 1.5,
-          transition: 'background 0.15s',
-        }}
-          onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.07)')}
-          onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.04)')}
-        >
+          ['--nx-row-hover-bg' as any]: 'rgba(255,255,255,0.07)',
+        }}>
           {item}
         </div>
       ))}
@@ -600,16 +595,16 @@ export function MagicElementModal({ accent, accent2, onClose, onInsert }: MagicM
               <button
                 key={mt.id}
                 onClick={() => handleSelect(mt.id)}
+                className="nx-surface-row"
+                data-active={selected === mt.id ? "true" : "false"}
                 style={{
                   width: '100%', padding: '9px 10px', borderRadius: 10, marginBottom: 2,
                   display: 'flex', alignItems: 'center', gap: 10,
                   border: `1px solid ${selected === mt.id ? mt.color + '50' : 'transparent'}`,
                   background: selected === mt.id ? `${mt.color}18` : 'transparent',
                   color: 'inherit', cursor: 'pointer', textAlign: 'left',
-                  transition: 'all 0.12s',
+                  ['--nx-row-hover-bg' as any]: 'rgba(255,255,255,0.05)',
                 }}
-                onMouseEnter={e => { if (selected !== mt.id) (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.05)' }}
-                onMouseLeave={e => { if (selected !== mt.id) (e.currentTarget as HTMLElement).style.background = 'transparent' }}
               >
                 <span style={{ fontSize: 18, lineHeight: 1, flexShrink: 0 }}>{mt.icon}</span>
                 <div>
@@ -691,16 +686,14 @@ export function MagicElementModal({ accent, accent2, onClose, onInsert }: MagicM
                 {/* Insert button */}
                 <button
                   onClick={handleInsert}
+                  className="nx-interactive nx-bounce-target"
                   style={{
                     width: '100%', padding: '12px', borderRadius: 12, border: 'none',
                     cursor: 'pointer', fontWeight: 700, fontSize: 13, color: '#fff',
                     background: `linear-gradient(135deg, ${type.color}, ${accent2})`,
                     boxShadow: `0 4px 20px ${type.color}44`,
-                    transition: 'all 0.15s',
                     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                   }}
-                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(-1px)'; (e.currentTarget as HTMLElement).style.boxShadow = `0 8px 28px ${type.color}55` }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = ''; (e.currentTarget as HTMLElement).style.boxShadow = `0 4px 20px ${type.color}44` }}
                 >
                   <span style={{ fontSize: 16 }}>{type.icon}</span>
                   In Notiz einfügen

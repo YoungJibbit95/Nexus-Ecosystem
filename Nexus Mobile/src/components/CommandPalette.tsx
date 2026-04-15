@@ -1,12 +1,14 @@
-import React, { useMemo, useState } from 'react'
+import React, { useMemo, useState, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Search, ArrowRight, Sparkles, Sun, Moon, Plus, LayoutPanelTop, CheckSquare, Bell, Code2, FileText } from 'lucide-react'
 import { useTheme, PRESETS } from '../store/themeStore'
 import { useApp } from '../store/appStore'
+import { useCanvas } from '../store/canvasStore'
 import { useTerminal } from '../store/terminalStore'
 import { View } from './Sidebar'
 import { hexToRgb } from '../lib/utils'
 import { haptic } from '../lib/haptics'
+import { createCaptureIntent, parseCaptureIntentFromQuery, type CaptureIntent } from '@nexus/core'
 
 type PaletteAction = {
   id: string
@@ -16,6 +18,8 @@ type PaletteAction = {
   keywords: string
   run: () => void
 }
+
+const DEV_MODE = (import.meta as any).env?.DEV
 
 const VIEW_ITEMS: { id: View; title: string }[] = [
   { id: 'dashboard', title: 'Dashboard' },
@@ -27,6 +31,7 @@ const VIEW_ITEMS: { id: View; title: string }[] = [
   { id: 'files', title: 'Dateien' },
   { id: 'flux', title: 'Flux' },
   { id: 'devtools', title: 'DevTools' },
+  ...(DEV_MODE ? [{ id: 'diagnostics' as View, title: 'Diagnostics' }] : []),
   { id: 'settings', title: 'Settings' },
   { id: 'info', title: 'Info' },
 ]
@@ -42,6 +47,7 @@ export function CommandPalette({
 }) {
   const t = useTheme()
   const app = useApp()
+  const addCanvas = useCanvas((s) => s.addCanvas)
   const terminal = useTerminal()
   const [query, setQuery] = useState('')
   const [recent, setRecent] = useState<string[]>(() => {
@@ -53,6 +59,44 @@ export function CommandPalette({
     }
   })
   const rgb = hexToRgb(t.accent)
+
+  const runCaptureIntent = useCallback((intent: CaptureIntent) => {
+    switch (intent.type) {
+      case 'note': {
+        app.addNote()
+        const latest = useApp.getState().notes[0]
+        const title = intent.title?.trim()
+        if (latest?.id && title) {
+          useApp.getState().updateNote(latest.id, { title })
+        }
+        setView((intent.targetView || 'notes') as View)
+        return
+      }
+      case 'task':
+        app.addTask(intent.title?.trim() || 'Neue Aufgabe', 'todo', '', 'mid')
+        setView((intent.targetView || 'tasks') as View)
+        return
+      case 'reminder': {
+        const inOneHour = new Date(Date.now() + 60 * 60 * 1000).toISOString()
+        app.addRem({ title: intent.title?.trim() || 'Neue Erinnerung', msg: '', datetime: inOneHour, repeat: 'none' })
+        setView((intent.targetView || 'reminders') as View)
+        return
+      }
+      case 'code': {
+        const baseName = (intent.title?.trim() || 'untitled').replace(/\s+/g, '-').toLowerCase()
+        const fileName = /\.[a-z0-9]+$/i.test(baseName) ? baseName : `${baseName}.ts`
+        app.addCode(fileName, 'typescript')
+        setView((intent.targetView || 'code') as View)
+        return
+      }
+      case 'canvas':
+        addCanvas(intent.title?.trim() || 'Neue Idee')
+        setView((intent.targetView || 'canvas') as View)
+        return
+      default:
+        return
+    }
+  }, [addCanvas, app, setView])
 
   const actions = useMemo<PaletteAction[]>(() => {
     const nav: PaletteAction[] = VIEW_ITEMS.map((v) => ({
@@ -71,24 +115,19 @@ export function CommandPalette({
     const create: PaletteAction[] = [
       {
         id: 'create-note', title: 'Neue Notiz', subtitle: 'Legt eine Note an und öffnet Notes', group: 'Create', keywords: 'new note notiz create',
-        run: () => { app.addNote(); setView('notes'); onClose() },
+        run: () => { runCaptureIntent(createCaptureIntent('note', { title: 'Neue Notiz', targetView: 'notes' })); onClose() },
       },
       {
         id: 'create-task', title: 'Neuer Task', subtitle: 'Schnellaufgabe in To Do', group: 'Create', keywords: 'new task todo',
-        run: () => { app.addTask('Neue Aufgabe', 'todo', '', 'mid'); setView('tasks'); onClose() },
+        run: () => { runCaptureIntent(createCaptureIntent('task', { title: 'Neue Aufgabe', targetView: 'tasks' })); onClose() },
       },
       {
         id: 'create-reminder', title: 'Neuer Reminder in 1h', subtitle: 'Erstellt Erinnerung in einer Stunde', group: 'Create', keywords: 'new reminder erinnerung',
-        run: () => {
-          const inOneHour = new Date(Date.now() + 60 * 60 * 1000).toISOString()
-          app.addRem({ title: 'Neue Erinnerung', msg: '', datetime: inOneHour, repeat: 'none' })
-          setView('reminders')
-          onClose()
-        },
+        run: () => { runCaptureIntent(createCaptureIntent('reminder', { title: 'Neue Erinnerung', targetView: 'reminders' })); onClose() },
       },
       {
         id: 'create-code', title: 'Neue Code-Datei', subtitle: 'Erstellt untitled.ts', group: 'Create', keywords: 'new code file',
-        run: () => { app.addCode('untitled.ts', 'typescript'); setView('code'); onClose() },
+        run: () => { runCaptureIntent(createCaptureIntent('code', { title: 'untitled.ts', targetView: 'code' })); onClose() },
       },
     ]
 
@@ -124,13 +163,30 @@ export function CommandPalette({
     ]
 
     return [...nav, ...create, ...theme]
-  }, [app, onClose, setView, t, terminal])
+  }, [onClose, runCaptureIntent, setView, t, terminal])
 
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    if (!q) return actions
-    return actions.filter((a) => (`${a.title} ${a.subtitle || ''} ${a.group} ${a.keywords}`).toLowerCase().includes(q))
-  }, [actions, query])
+    const raw = query.trim()
+    const q = raw.toLowerCase()
+    const base = !q
+      ? actions
+      : actions.filter((a) => (`${a.title} ${a.subtitle || ''} ${a.group} ${a.keywords}`).toLowerCase().includes(q))
+
+    const captureIntent = parseCaptureIntentFromQuery(raw)
+    if (!captureIntent) return base
+    const captureTitle = captureIntent.title?.trim() || 'Quick Capture'
+    return [
+      {
+        id: `capture-${captureIntent.type}-${captureTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
+        title: `Capture ${captureIntent.type}: ${captureTitle}`,
+        subtitle: 'Shared Capture Intent',
+        group: 'Create',
+        keywords: `capture ${captureIntent.type}`,
+        run: () => { runCaptureIntent(captureIntent); onClose() },
+      },
+      ...base,
+    ]
+  }, [actions, onClose, query, runCaptureIntent])
 
   const markRecent = (id: string) => {
     const next = [id, ...recent.filter((x) => x !== id)].slice(0, 8)

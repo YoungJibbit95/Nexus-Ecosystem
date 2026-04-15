@@ -30,6 +30,7 @@ export function CommandPanel({
   isPinned,
   pinnedCommands,
   recentCommands,
+  quickActions,
 }: {
   isBottom: boolean;
   t: any;
@@ -48,6 +49,7 @@ export function CommandPanel({
   isPinned: (id: string) => boolean;
   pinnedCommands: CommandItem[];
   recentCommands: CommandItem[];
+  quickActions: CommandItem[];
 }) {
   return (
     <Glass
@@ -139,6 +141,50 @@ export function CommandPanel({
             padding: "8px 12px 6px",
           }}
         >
+          {quickActions.length > 0 && (
+            <div style={{ marginBottom: 10 }}>
+              <div
+                style={{
+                  fontSize: 10,
+                  opacity: 0.54,
+                  fontWeight: 700,
+                  marginBottom: 6,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.06em",
+                }}
+              >
+                Quick Actions
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {quickActions.map((action) => {
+                  const actionRgb = hexToRgb(action.color || t.accent);
+                  const Icon = action.icon;
+                  return (
+                    <button
+                      key={`qa-${action.id}`}
+                      onClick={() => onSelectItem(action)}
+                      style={{
+                        border: `1px solid rgba(${actionRgb},0.28)`,
+                        background: `linear-gradient(135deg, rgba(${actionRgb},0.2), rgba(${actionRgb},0.08))`,
+                        color: action.color || t.accent,
+                        borderRadius: 9,
+                        fontSize: 11,
+                        fontWeight: 700,
+                        padding: "5px 9px",
+                        cursor: "pointer",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 6,
+                      }}
+                    >
+                      <Icon size={12} /> {action.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           <div
             style={{
               display: "flex",
@@ -191,7 +237,7 @@ export function CommandPanel({
           <div
             style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 8 }}
           >
-            {VIEW_ITEMS.slice(0, 8).map((v) => (
+            {VIEW_ITEMS.map((v) => (
               <button
                 key={v.id}
                 onClick={() => {

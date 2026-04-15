@@ -424,12 +424,22 @@ export default function Editor() {
         : panelMode === "fake-glass"
           ? `linear-gradient(135deg, rgba(255,255,255,0.08), ${surface})`
           : (surface || "#060614");
+    const glowIntensity = Math.max(
+      0,
+      Math.min(1.4, Number(settings.glow_intensity ?? 50) / 100),
+    );
+    const glowRadius = Math.max(
+      0,
+      Math.min(64, Number(settings.glow_radius ?? 24)),
+    );
+    const glowRingOpacity = 0.2 + glowIntensity * 0.28;
+    const glowBloomOpacity = 0.12 + glowIntensity * 0.22;
     const panelOutline =
       settings.panel_glow_outline === false
         ? "none"
         : settings.glow_renderer === "three"
-          ? `0 0 0 1px ${toRgbaColor(accent, 0.48)}, 0 0 32px ${toRgbaColor(accent, 0.33)}`
-          : `0 0 0 1px ${toRgbaColor(accent, 0.32)}, 0 0 18px ${toRgbaColor(accent, 0.2)}`;
+          ? `0 0 0 1px ${toRgbaColor(accent, Math.min(0.62, glowRingOpacity + 0.1))}, 0 0 ${Math.round(glowRadius * 1.6)}px ${toRgbaColor(accent, Math.min(0.5, glowBloomOpacity + 0.14))}`
+          : `0 0 0 1px ${toRgbaColor(accent, Math.min(0.46, glowRingOpacity))}, 0 0 ${Math.round(glowRadius)}px ${toRgbaColor(accent, Math.min(0.34, glowBloomOpacity))}`;
     const contrastSurface = pickReadableSurface(panelSurface, surface, bgValue);
     const resolvedText = getReadableColor(
       theme.text || "#e5e7eb",

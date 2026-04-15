@@ -1,33 +1,23 @@
 # Nexus Wiki
 
-Interaktive Referenzdoku fuer das Nexus Ecosystem (React + Vite).
+Interaktive Referenzdokumentation fuer das Nexus Ecosystem (React + Vite).
+Die Wiki ist die tiefe technische Ebene zwischen Repo-README und In-App-InfoView.
 
-## Zielbild
+## Rolle im Doku-System
 
-Die Wiki-Seite ist die tiefe, technische Referenz zur Produktseite und zur In-App-InfoView.
+- `README.md` (Root): Einstieg + Architekturrahmen
+- `InfoView` (Main/Mobile): kompakte In-App-Hilfe
+- `Nexus Wiki`: detaillierte technische Referenz und View-Matrix
+- `nexusproject.dev`: Produkt-/Story-Kommunikation
 
-- Website: Produktstory mit Belegen
-- InfoView: kompakte In-App-Handlungsdoku
-- Wiki: detaillierte Architektur-, View- und Workflow-Referenz
+## Inhaltsschwerpunkte
 
-## Inhaltsschwerpunkte (aktuell)
-
-- Render Pipeline Guide
-- Motion Engine Guide
-- Surface Classes / Effect Classes
-- Render Diagnostics View
-- InfoView als Product Brain
-- Why Nexus feels native
-- Today/Continue Workflow Surface Philosophie
-- Workspace Handoff + Reminder Health (mobile)
-- Dokumentationslandkarte (README / InfoView / Website / Wiki)
-
-## Navigation und Suche
-
-- klare Bereichsstruktur ueber Sektionen + Filter (App/Kategorie)
-- globale Suche mit Synonym-Erweiterung
-- Synonyme fuer Render/Motion/Diagnostics/InfoView/Handoff/Today integriert
-- Treffer springen direkt in den passenden Guide-Block
+- Render Pipeline (Measure/Resolve/Allocate/Commit/Cleanup)
+- Motion Engine und Degradation-Strategien
+- Surface-/Effect-Klassen
+- Diagnostics- und Performance-Prinzipien
+- View-Atlas ueber Main/Mobile
+- Workspace-, Handoff- und Reminder-Flow-Referenzen
 
 ## Wichtige Dateien
 
@@ -39,16 +29,17 @@ Die Wiki-Seite ist die tiefe, technische Referenz zur Produktseite und zur In-Ap
 
 ## Scripts
 
-- `npm run dev`
-- `npm run build`
-- `npm run build:ci`
-- `npm run perf:budget`
-- `npm run preview`
-- `npm run lint`
+```bash
+npm install
+npm run dev
+npm run build
+npm run build:ci
+npm run perf:budget
+npm run preview
+npm run lint
+```
 
-## Performance und Sicherheit
+## Hinweise
 
-- Bundle-Budget-Checks fuer CI
-- code-splitting / lazy loading
-- Security Header + CSP in Dev/Preview-Konfiguration
-- Suchlogik mit normalisierten Tokens + fuzzy fallback
+- Inhalte sollen mit `Nexus Main/src/views/InfoView.tsx`, `Nexus Mobile/src/views/InfoView.tsx` und `packages/nexus-core/src/render/*` konsistent bleiben.
+- Feature-Claims nur dokumentieren, wenn sie im Code verifiziert sind.

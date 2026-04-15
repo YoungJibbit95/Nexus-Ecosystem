@@ -208,24 +208,24 @@ function FileTree({ files, activeId, onSelect, onNew, onDelete, onRename }: {
                   style={{ width:'100%', padding:'5px 8px', borderRadius:7, background:'rgba(255,255,255,0.1)', border:`1px solid ${t.accent}`, outline:'none', fontSize:12, color:'inherit' }}/>
               ) : (
                 <div onClick={() => onSelect(file.id)}
-                  style={{ display:'flex', alignItems:'center', gap:8, padding:'6px 8px', borderRadius:8, cursor:'pointer', background:isActive?`rgba(${rgb},0.12)`:'transparent', border:isActive?`1px solid rgba(${rgb},0.2)`:'1px solid transparent', marginBottom:2, transition:'all 0.1s' }}
-                  onMouseEnter={e=>{if(!isActive)e.currentTarget.style.background='rgba(255,255,255,0.05)'}}
-                  onMouseLeave={e=>{if(!isActive)e.currentTarget.style.background='transparent'}}>
+                  className="nx-surface-row"
+                  data-active={isActive ? 'true' : 'false'}
+                  style={{ display:'flex', alignItems:'center', gap:8, padding:'6px 8px', borderRadius:8, cursor:'pointer', background:isActive?`rgba(${rgb},0.12)`:'transparent', border:isActive?`1px solid rgba(${rgb},0.2)`:'1px solid transparent', marginBottom:2, ['--nx-row-hover-bg' as any]:'rgba(255,255,255,0.05)' }}>
                   <span style={{ fontSize:9, fontWeight:800, color:extColor, width:20, flexShrink:0, textTransform:'uppercase' }}>{file.type}</span>
                   <span style={{ flex:1, fontSize:12, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', opacity:isActive?1:0.7 }}>{file.name}</span>
                   <button onClick={e=>{e.stopPropagation();setMenu(menu===file.id?null:file.id)}}
-                    style={{ background:'none', border:'none', cursor:'pointer', opacity:0, padding:'1px 3px', color:'inherit', display:'flex', alignItems:'center', borderRadius:4, transition:'opacity 0.1s' }}
-                    onMouseEnter={e=>e.currentTarget.style.opacity='1'} onMouseLeave={e=>e.currentTarget.style.opacity='0'}>
+                    className="nx-interactive nx-bounce-target nx-icon-fade"
+                    style={{ background:'none', border:'none', ['--nx-idle-opacity' as any]:0.28, padding:'1px 3px', color:'inherit', display:'flex', alignItems:'center', borderRadius:4 }}>
                     <MoreVertical size={11}/>
                   </button>
                 </div>
               )}
               {menu === file.id && (
                 <div style={{ position:'absolute', right:4, top:30, zIndex:100, background:'rgba(14,14,24,0.97)', backdropFilter:'blur(16px)', borderRadius:10, padding:5, border:'1px solid rgba(255,255,255,0.1)', minWidth:130, boxShadow:'0 8px 24px rgba(0,0,0,0.4)' }} onClick={e=>e.stopPropagation()}>
-                  <button onClick={()=>{setRenaming(file.id);setMenu(null)}} style={{ display:'flex', alignItems:'center', gap:8, width:'100%', padding:'6px 10px', background:'none', border:'none', cursor:'pointer', borderRadius:7, fontSize:12, color:'inherit', textAlign:'left' }} onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,0.08)'} onMouseLeave={e=>e.currentTarget.style.background='none'}>
+                  <button onClick={()=>{setRenaming(file.id);setMenu(null)}} className="nx-interactive nx-bounce-target nx-menu-item" style={{ display:'flex', alignItems:'center', gap:8, width:'100%', padding:'6px 10px', background:'none', border:'none', borderRadius:7, fontSize:12, color:'inherit', textAlign:'left' }}>
                     <Edit3 size={11}/> Rename
                   </button>
-                  <button onClick={()=>{onDelete(file.id);setMenu(null)}} style={{ display:'flex', alignItems:'center', gap:8, width:'100%', padding:'6px 10px', background:'none', border:'none', cursor:'pointer', borderRadius:7, fontSize:12, color:'#ff453a', textAlign:'left' }} onMouseEnter={e=>e.currentTarget.style.background='rgba(255,69,58,0.1)'} onMouseLeave={e=>e.currentTarget.style.background='none'}>
+                  <button onClick={()=>{onDelete(file.id);setMenu(null)}} className="nx-interactive nx-bounce-target" style={{ display:'flex', alignItems:'center', gap:8, width:'100%', padding:'6px 10px', background:'none', border:'none', borderRadius:7, fontSize:12, color:'#ff453a', textAlign:'left' }}>
                     <Trash2 size={11}/> Delete
                   </button>
                 </div>
@@ -441,7 +441,7 @@ function ElementDesigner() {
         <Glass style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', background:'rgba(0,0,0,0.25)', position:'relative', overflow:'visible', minHeight:120 }}>
           <div style={{ position:'absolute', top:8, left:12, fontSize:9, opacity:0.3, fontWeight:800, textTransform:'uppercase', letterSpacing:0.5 }}>Preview — &lt;{e.tag}&gt;</div>
           <div style={{ position:'absolute', top:6, right:10, display:'flex', gap:5 }}>
-            <button onClick={()=>setE({...DEFAULT_ELEM,bgColor:t.accent,bgColor2:t.accent2,glowColor:t.accent})} style={{ background:'none', border:'none', cursor:'pointer', opacity:0.4, padding:'2px 6px', borderRadius:5, color:'inherit', fontSize:9, display:'flex', alignItems:'center', gap:3 }} onMouseEnter={e=>e.currentTarget.style.opacity='0.9'} onMouseLeave={e=>e.currentTarget.style.opacity='0.4'}>
+            <button onClick={()=>setE({...DEFAULT_ELEM,bgColor:t.accent,bgColor2:t.accent2,glowColor:t.accent})} className="nx-interactive nx-bounce-target nx-icon-fade" style={{ background:'none', border:'none', ['--nx-idle-opacity' as any]:0.4, padding:'2px 6px', borderRadius:5, color:'inherit', fontSize:9, display:'flex', alignItems:'center', gap:3 }}>
               <RefreshCw size={9}/> Reset
             </button>
           </div>

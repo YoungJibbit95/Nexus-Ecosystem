@@ -2,10 +2,15 @@ import React, { useState, useMemo, useCallback, useRef } from 'react'
 import { Plus, Trash2, X, Search, CheckSquare, Edit3, Calendar, Tag, Flag, Filter,
   ChevronDown, BarChart2, Clock, Link, Maximize2, Hash, AlertCircle, Check, Pin } from 'lucide-react'
 import { Glass } from '../components/Glass'
+import { InteractiveIconButton } from '../components/render/InteractiveIconButton'
+import { SurfaceHighlight } from '../components/render/SurfaceHighlight'
 import { NexusMarkdown } from '../components/NexusMarkdown'
 import { useApp, Task } from '../store/appStore'
 import { useTheme } from '../store/themeStore'
 import { hexToRgb } from '../lib/utils'
+import { useRenderSurfaceBudget } from '../render/useRenderSurfaceBudget'
+import { useInteractiveSurfaceMotion } from '../render/useInteractiveSurfaceMotion'
+import { useSurfaceMotionRuntime } from '../render/useSurfaceMotionRuntime'
 import { motion, AnimatePresence } from 'framer-motion'
 import { DndProvider, useDrag, useDrop } from 'react-dnd'
 import { HTML5Backend } from 'react-dnd-html5-backend'
@@ -57,14 +62,58 @@ function TaskCard({ tk, onEdit, onDelete }: { tk: Task; onEdit: () => void; onDe
   const t = useTheme()
   const rgb = hexToRgb(t.accent)
   const [, drag] = useDrag({ type: 'TASK', item: tk })
+  const [hovered, setHovered] = useState(false)
+  const [focused, setFocused] = useState(false)
+  const [pressed, setPressed] = useState(false)
+  const interaction = useInteractiveSurfaceMotion({
+    id: `tasks-card-${tk.id}`,
+    hovered,
+    focused,
+    selected: tk.status === 'doing',
+    pressed,
+    surfaceClass: 'panel-surface',
+    effectClass: 'status-highlight',
+    budgetPriority: tk.status === 'doing' ? 'high' : 'normal',
+    areaHint: 148,
+    family: 'content',
+  })
   const isOverdue = tk.deadline && new Date(tk.deadline) < new Date() && tk.status !== 'done'
   const subDone  = (tk.subtasks||[]).filter(s=>s.done).length
   const subTotal = (tk.subtasks||[]).length
 
   return (
     <div ref={drag as any} style={{ cursor:'grab', marginBottom:8 }}>
-      <Glass glow style={{ padding:'11px 13px', transition:'all 0.15s' }}
-        onDoubleClick={onEdit}>
+      <motion.div
+        className="nx-motion-managed"
+        animate={interaction.content.animate}
+        transition={interaction.content.transition}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => {
+          setHovered(false)
+          setPressed(false)
+        }}
+        onFocusCapture={() => setFocused(true)}
+        onBlurCapture={() => {
+          setFocused(false)
+          setPressed(false)
+        }}
+        onPointerDown={() => setPressed(true)}
+        onPointerUp={() => setPressed(false)}
+        onPointerCancel={() => setPressed(false)}
+      >
+        <Glass glow style={{ padding:'11px 13px', transition:'all 0.15s', position:'relative', overflow:'hidden' }}
+          onDoubleClick={onEdit}>
+          <SurfaceHighlight highlight={interaction.highlight} inset={1} radius={10}>
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                borderRadius: 10,
+                border: `1px solid rgba(${rgb},0.22)`,
+                background: `radial-gradient(circle at 50% 50%, rgba(${rgb},0.18), rgba(${rgb},0.06) 68%, rgba(${rgb},0.02) 100%)`,
+              }}
+            />
+          </SurfaceHighlight>
         <div style={{ display:'flex', gap:10 }}>
           {/* Priority stripe */}
           <div style={{ width:3, borderRadius:2, background:PRIORITY_COLOR[tk.priority], flexShrink:0, alignSelf:'stretch' }} />
@@ -75,8 +124,12 @@ function TaskCard({ tk, onEdit, onDelete }: { tk: Task; onEdit: () => void; onDe
                 {tk.title}
               </span>
               <div style={{ display:'flex', gap:3, flexShrink:0 }}>
-                <button onClick={onEdit}   style={{ background:'none', border:'none', cursor:'pointer', padding:'2px 3px', borderRadius:4, color:'inherit', opacity:0.35 }} onMouseEnter={e=>e.currentTarget.style.opacity='1'} onMouseLeave={e=>e.currentTarget.style.opacity='0.35'}><Edit3 size={11}/></button>
-                <button onClick={onDelete} style={{ background:'none', border:'none', cursor:'pointer', padding:'2px 3px', borderRadius:4, color:'#ff453a', opacity:0.35 }} onMouseEnter={e=>e.currentTarget.style.opacity='1'} onMouseLeave={e=>e.currentTarget.style.opacity='0.35'}><Trash2 size={11}/></button>
+                <InteractiveIconButton motionId={`task-edit-${tk.id}`} onClick={onEdit} idleOpacity={0.35} radius={4}>
+                  <Edit3 size={11}/>
+                </InteractiveIconButton>
+                <InteractiveIconButton motionId={`task-delete-${tk.id}`} onClick={onDelete} intent="danger" idleOpacity={0.35} radius={4}>
+                  <Trash2 size={11}/>
+                </InteractiveIconButton>
               </div>
             </div>
 
@@ -105,7 +158,8 @@ function TaskCard({ tk, onEdit, onDelete }: { tk: Task; onEdit: () => void; onDe
             </div>
           </div>
         </div>
-      </Glass>
+        </Glass>
+      </motion.div>
     </div>
   )
 }
@@ -144,6 +198,32 @@ function TaskModal({ task, onClose, status }: { task?: Task; onClose: () => void
   const [notes,    setNotes]    = useState((task as any)?.notes ?? '')
   const [tab,      setTab]      = useState<'details'|'subtasks'|'notes'>('details')
   const subRef = useRef<HTMLInputElement>(null)
+  const modalDecision = useRenderSurfaceBudget({
+    id: `tasks-modal-${task?.id ?? status ?? 'new'}`,
+    surfaceClass: 'modal-surface',
+    effectClass: 'backdrop',
+    interactionState: 'active',
+    visibilityState: 'visible',
+    budgetPriority: 'high',
+    areaHint: 220,
+    motionClassHint: 'sheet',
+    transformOwnerHint: 'surface',
+    filterOwnerHint: 'surface',
+    opacityOwnerHint: 'surface',
+  })
+  const modalRuntime = useSurfaceMotionRuntime(modalDecision, { family: 'sheet' })
+  const overlayTransition = {
+    duration: Math.max(0.12, modalRuntime.timings.quickMs / 1000),
+    ease: modalRuntime.timings.framerEase,
+  }
+  const panelTransition = {
+    duration: Math.max(0.16, modalRuntime.timings.regularMs / 1000),
+    ease: modalRuntime.timings.framerEase,
+  }
+  const panelInitial =
+    modalRuntime.allowEntry && modalRuntime.capability !== 'static-safe'
+      ? { scale: 0.94, y: 16, opacity: 0.78 }
+      : { scale: 0.985, y: 6, opacity: 0.9 }
 
   const save = () => {
     if (!title.trim()) return
@@ -162,10 +242,10 @@ function TaskModal({ task, onClose, status }: { task?: Task; onClose: () => void
   }
 
   return (
-    <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}
+    <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} transition={overlayTransition}
       style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.6)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:100, backdropFilter:'blur(6px)' }}
       onClick={onClose}>
-      <motion.div initial={{scale:0.92,y:20}} animate={{scale:1,y:0}} exit={{scale:0.92,y:20}} onClick={e=>e.stopPropagation()}
+      <motion.div initial={panelInitial} animate={{scale:1,y:0,opacity:1}} exit={panelInitial} transition={panelTransition} onClick={e=>e.stopPropagation()}
         style={{ width:480, maxHeight:'85vh', display:'flex', flexDirection:'column' }}>
         <Glass glow style={{ padding:0, display:'flex', flexDirection:'column', maxHeight:'85vh' }}>
           {/* Header */}
@@ -229,9 +309,16 @@ function TaskModal({ task, onClose, status }: { task?: Task; onClose: () => void
                       {st.done && <Check size={10} color="#fff"/>}
                     </button>
                     <span style={{ flex:1, fontSize:13, opacity:st.done?0.4:0.85, textDecoration:st.done?'line-through':undefined }}>{st.title}</span>
-                    <button onClick={()=>task&&updateTask(task.id,{subtasks:task.subtasks.filter(s=>s.id!==st.id)})} style={{ background:'none', border:'none', cursor:'pointer', color:'#ff453a', opacity:0.4, padding:2 }} onMouseEnter={e=>e.currentTarget.style.opacity='1'} onMouseLeave={e=>e.currentTarget.style.opacity='0.4'}>
+                    <InteractiveIconButton
+                      motionId={`task-sub-delete-${task.id}-${st.id}`}
+                      intent="danger"
+                      idleOpacity={0.4}
+                      radius={4}
+                      style={{ padding: 2 }}
+                      onClick={()=>task&&updateTask(task.id,{subtasks:task.subtasks.filter(s=>s.id!==st.id)})}
+                    >
                       <Trash2 size={11}/>
-                    </button>
+                    </InteractiveIconButton>
                   </div>
                 ))}
                 {task && (
@@ -286,6 +373,22 @@ export function TasksView() {
   const [filterTag,  setFilterTag] = useState('')
   const [filterPanel,setFilterPanel] = useState(false)
   const [showDone,   setShowDone]  = useState(true)
+  const filterPanelDecision = useRenderSurfaceBudget({
+    id: 'tasks-filter-panel',
+    surfaceClass: 'panel-surface',
+    effectClass: 'status-highlight',
+    interactionState: filterPanel ? 'active' : 'idle',
+    visibilityState: filterPanel ? 'visible' : 'hidden',
+    budgetPriority: filterPanel ? 'high' : 'low',
+    areaHint: 180,
+    motionClassHint: 'status',
+    transformOwnerHint: 'surface',
+    filterOwnerHint: 'none',
+    opacityOwnerHint: 'surface',
+  })
+  const filterPanelRuntime = useSurfaceMotionRuntime(filterPanelDecision, {
+    family: 'status',
+  })
 
   const allTags = useMemo(() => {
     const s = new Set<string>()
@@ -323,7 +426,16 @@ export function TasksView() {
         {/* Filter panel */}
         <AnimatePresence>
           {filterPanel && (
-            <motion.div initial={{height:0,opacity:0}} animate={{height:'auto',opacity:1}} exit={{height:0,opacity:0}} style={{ overflow:'hidden', flexShrink:0 }}>
+            <motion.div
+              initial={{height:0,opacity:0}}
+              animate={{height:'auto',opacity:1}}
+              exit={{height:0,opacity:0}}
+              transition={{
+                duration: Math.max(0.12, filterPanelRuntime.timings.regularMs / 1000),
+                ease: filterPanelRuntime.timings.framerEase,
+              }}
+              style={{ overflow:'hidden', flexShrink:0 }}
+            >
               <div style={{ padding:'10px 16px', borderBottom:'1px solid rgba(255,255,255,0.07)', display:'flex', flexWrap:'wrap', gap:10, background:'rgba(0,0,0,0.08)' }}>
                 <div>
                   <div style={{ fontSize:10, opacity:0.45, marginBottom:5, fontWeight:700, textTransform:'uppercase', letterSpacing:0.5 }}>Priority</div>
@@ -357,7 +469,7 @@ export function TasksView() {
         <StatsBar tasks={tasks} />
 
         {/* Board */}
-        <div style={{ flex:1, display:'flex', gap:12, padding:14, overflow:'hidden', minHeight:0 }}>
+        <div style={{ flex:1, display:'flex', gap:12, padding:14, overflow:'visible', minHeight:0 }}>
           {COLS.map(col => {
             const items = filtered.filter(tk => tk.status === col.id && (showDone || col.id !== 'done'))
             if (!showDone && col.id === 'done') return null
@@ -370,13 +482,20 @@ export function TasksView() {
                     <span style={{ fontSize:13, fontWeight:700 }}>{col.label}</span>
                     <span style={{ fontSize:11, padding:'2px 8px', borderRadius:10, background:`${col.color}1a`, color:col.color, fontWeight:700 }}>{items.length}</span>
                   </div>
-                  <button onClick={()=>{setNewStatus(col.id)}} style={{ background:'none', border:'none', cursor:'pointer', color:t.accent, opacity:0.7, padding:'3px 5px', borderRadius:6, display:'flex', alignItems:'center' }} onMouseEnter={e=>e.currentTarget.style.opacity='1'} onMouseLeave={e=>e.currentTarget.style.opacity='0.7'}>
+                  <InteractiveIconButton
+                    motionId={`task-col-add-${col.id}`}
+                    intent="accent"
+                    idleOpacity={0.7}
+                    radius={6}
+                    style={{ padding: '3px 5px' }}
+                    onClick={()=>{setNewStatus(col.id)}}
+                  >
                     <Plus size={15}/>
-                  </button>
+                  </InteractiveIconButton>
                 </Glass>
 
                 {/* Cards */}
-                <div style={{ flex:1, overflowY:'auto', paddingRight:2 }}>
+                <div style={{ flex:1, overflowY:'auto', padding:'4px 8px 10px' }}>
                   <DropCol id={col.id}>
                     {items.length === 0 ? (
                       <div style={{ height:80, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', border:'2px dashed rgba(255,255,255,0.07)', borderRadius:10, fontSize:12, opacity:0.3, gap:5 }}>

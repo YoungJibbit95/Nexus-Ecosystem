@@ -144,41 +144,42 @@ export function NexusTerminal({ setView, openPalette }: NexusTerminalProps) {
               <button
                 onClick={clearHistory}
                 title="Clear (Ctrl+L)"
-                className="nx-btn-ghost"
+                className="nx-interactive nx-bounce-target"
                 style={{
                   background: 'none', border: 'none', cursor: 'pointer',
                   color: 'rgba(255,255,255,0.3)', fontSize: 9, letterSpacing: '0.1em', fontWeight: 700,
                   padding: '4px 8px', borderRadius: 6,
-                  transition: 'color 0.15s, background 0.15s',
+                  transition: 'color var(--nx-motion-quick,170ms), background-color var(--nx-motion-regular,210ms)',
+                  ['--nx-row-hover-bg' as any]: 'rgba(255,255,255,0.06)',
                 }}
-                onMouseEnter={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.7)'; e.currentTarget.style.background = 'rgba(255,255,255,0.06)' }}
-                onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.3)'; e.currentTarget.style.background = 'none' }}
               >
                 CLEAR
               </button>
               <button
                 onClick={() => setIsMinimized(!isMinimized)}
                 title={isMinimized ? 'Expand' : 'Minimize'}
+                className="nx-interactive nx-bounce-target"
                 style={{
                   background: 'none', border: 'none', cursor: 'pointer',
                   color: 'rgba(255,255,255,0.35)', padding: '4px 6px', borderRadius: 6,
-                  transition: 'color 0.15s, background 0.15s', display: 'flex', alignItems: 'center',
+                  transition: 'color var(--nx-motion-quick,170ms), background-color var(--nx-motion-regular,210ms)',
+                  display: 'flex', alignItems: 'center',
+                  ['--nx-row-hover-bg' as any]: 'rgba(255,255,255,0.06)',
                 }}
-                onMouseEnter={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.8)'; e.currentTarget.style.background = 'rgba(255,255,255,0.06)' }}
-                onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.35)'; e.currentTarget.style.background = 'none' }}
               >
                 {isMinimized ? <Maximize2 size={13} /> : <Minimize2 size={13} />}
               </button>
               <button
                 onClick={() => setOpen(false)}
                 title="Close (Esc)"
+                className="nx-interactive nx-bounce-target"
                 style={{
                   background: 'none', border: 'none', cursor: 'pointer',
                   color: 'rgba(255,255,255,0.35)', padding: '4px 6px', borderRadius: 6,
-                  transition: 'color 0.15s, background 0.15s', display: 'flex', alignItems: 'center',
+                  transition: 'color var(--nx-motion-quick,170ms), background-color var(--nx-motion-regular,210ms)',
+                  display: 'flex', alignItems: 'center',
+                  ['--nx-row-hover-bg' as any]: 'rgba(255,69,58,0.08)',
                 }}
-                onMouseEnter={e => { e.currentTarget.style.color = '#FF453A'; e.currentTarget.style.background = 'rgba(255,69,58,0.08)' }}
-                onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.35)'; e.currentTarget.style.background = 'none' }}
               >
                 <X size={13} />
               </button>
@@ -247,6 +248,7 @@ export function NexusTerminal({ setView, openPalette }: NexusTerminalProps) {
                       setInput(c)
                       setTimeout(() => inputRef.current?.focus(), 10)
                     }}
+                    className="nx-interactive nx-bounce-target"
                     style={{
                       border: `1px solid rgba(${t.mode === 'dark' ? '255,255,255' : '0,0,0'},0.12)`,
                       background: 'rgba(255,255,255,0.04)',
@@ -255,6 +257,7 @@ export function NexusTerminal({ setView, openPalette }: NexusTerminalProps) {
                       fontSize: 10,
                       cursor: 'pointer',
                       color: 'inherit',
+                      ['--nx-row-hover-bg' as any]: 'rgba(255,255,255,0.08)',
                     }}
                   >
                     {c}

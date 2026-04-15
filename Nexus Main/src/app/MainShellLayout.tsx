@@ -89,6 +89,8 @@ export function MainShellLayout({
       data-nx-motion-reduced={motionRuntime?.reduced ? "1" : "0"}
       style={{
         ...motionCssVars,
+        ["--nx-shell-accent-rgb" as any]: accentRgb,
+        ["--nx-shell-accent2-rgb" as any]: accent2Rgb,
         color: t.mode === "dark" ? "#f8f8fc" : "#15161d",
         ...backgroundStyles,
         fontSize: "var(--nx-font-size, 14px)",
@@ -138,7 +140,7 @@ export function MainShellLayout({
           }}
         >
           <div
-            className="nx-motion-surface nx-motion-hover-soft"
+            className="nx-motion-surface"
             style={{
               width: effectiveSidebarWidth,
               flexShrink: 0,
@@ -241,7 +243,7 @@ export function MainShellLayout({
               flexDirection: "column",
               position: "relative",
               minHeight: 0,
-              background: t.mode === "dark" ? "rgba(7,8,13,0.42)" : "rgba(255,255,255,0.42)",
+              background: t.mode === "dark" ? "rgba(7,8,13,0.26)" : "rgba(255,255,255,0.3)",
             }}
           >
             {!toolbarBottom ? toolbarEl : null}

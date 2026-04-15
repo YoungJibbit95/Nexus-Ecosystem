@@ -1,5 +1,5 @@
 import React from 'react'
-import { Plus, Trash2, Settings, Search, Pin, Upload, FileText } from 'lucide-react'
+import { Plus, Trash2, Settings, Search, Pin, Upload, FileText, MoreHorizontal } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Glass } from '../../components/Glass'
 import type { Note } from '../../store/appStore'
@@ -59,31 +59,122 @@ export function NotesSidebarPanels({
   onOpenSettings,
   onImportMarkdown,
 }: NotesSidebarPanelsProps) {
+  const [headerMenuOpen, setHeaderMenuOpen] = React.useState(false)
+
   return (
     <>
       {!focusMode && !isMobile && (
         <Glass className="flex flex-col shrink-0" style={{ width: 220, overflow: 'hidden', minHeight: 0 }}>
           <div className="flex items-center justify-between px-3 py-2.5 shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
             <span style={{ fontSize: 12, fontWeight: 700, opacity: 0.85 }}>Notes</span>
-            <div className="flex gap-0.5">
-              {[
-                { icon: Search, action: () => setShowSearch(!showSearch), active: showSearch, tip: 'Suchen' },
-                { icon: Plus, action: addNote, active: false, tip: 'Neue Notiz', color: accent },
-                { icon: Upload, action: onImportMarkdown, active: false, tip: 'Markdown importieren' },
-                { icon: Settings, action: onOpenSettings, active: false, tip: 'Einstellungen' },
-              ].map(({ icon: Icon, action, active: isActive, tip, color }) => (
-                <button key={tip} onClick={action} title={tip} style={{
-                  padding: '5px', borderRadius: 7, border: 'none', cursor: 'pointer',
-                  background: isActive ? `rgba(${rgb},0.12)` : 'transparent',
-                  color: isActive ? accent : (color || 'inherit'),
-                  transition: 'all 0.15s', display: 'flex',
+            <div className="flex gap-0.5" style={{ position: 'relative' }}>
+              <button
+                onClick={() => setShowSearch(!showSearch)}
+                title="Suchen"
+                className="nx-interactive nx-bounce-target"
+                style={{
+                  padding: '5px',
+                  borderRadius: 7,
+                  border: 'none',
+                  background: showSearch ? `rgba(${rgb},0.12)` : 'transparent',
+                  color: showSearch ? accent : 'inherit',
+                  display: 'flex',
                 }}
-                  onMouseEnter={e => (e.currentTarget.style.background = `rgba(${rgb},0.12)`)}
-                  onMouseLeave={e => (e.currentTarget.style.background = isActive ? `rgba(${rgb},0.12)` : 'transparent')}
+              >
+                <Search size={14} />
+              </button>
+              <button
+                onClick={addNote}
+                title="Neue Notiz"
+                className="nx-interactive nx-bounce-target"
+                style={{
+                  padding: '5px',
+                  borderRadius: 7,
+                  border: 'none',
+                  background: `rgba(${rgb},0.16)`,
+                  color: accent,
+                  display: 'flex',
+                }}
+              >
+                <Plus size={14} />
+              </button>
+              <button
+                onClick={() => setHeaderMenuOpen((open) => !open)}
+                title="Mehr"
+                className="nx-interactive nx-bounce-target"
+                style={{
+                  padding: '5px',
+                  borderRadius: 7,
+                  border: 'none',
+                  background: headerMenuOpen ? `rgba(${rgb},0.12)` : 'transparent',
+                  color: headerMenuOpen ? accent : 'inherit',
+                  display: 'flex',
+                }}
+              >
+                <MoreHorizontal size={14} />
+              </button>
+              {headerMenuOpen ? (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 'calc(100% + 6px)',
+                    right: 0,
+                    zIndex: 40,
+                    minWidth: 170,
+                    borderRadius: 10,
+                    border: '1px solid rgba(255,255,255,0.14)',
+                    background: 'rgba(17,20,31,0.96)',
+                    backdropFilter: 'blur(12px)',
+                    padding: 6,
+                    boxShadow: '0 14px 34px rgba(0,0,0,0.35)',
+                  }}
                 >
-                  <Icon size={14} />
-                </button>
-              ))}
+                  <button
+                    onClick={() => {
+                      onImportMarkdown()
+                      setHeaderMenuOpen(false)
+                    }}
+                    className="nx-interactive nx-bounce-target nx-menu-item"
+                    style={{
+                      width: '100%',
+                      border: 'none',
+                      borderRadius: 8,
+                      background: 'transparent',
+                      color: 'inherit',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      padding: '8px 10px',
+                      fontSize: 12,
+                      fontWeight: 650,
+                    }}
+                  >
+                    <Upload size={12} /> Markdown importieren
+                  </button>
+                  <button
+                    onClick={() => {
+                      onOpenSettings()
+                      setHeaderMenuOpen(false)
+                    }}
+                    className="nx-interactive nx-bounce-target nx-menu-item"
+                    style={{
+                      width: '100%',
+                      border: 'none',
+                      borderRadius: 8,
+                      background: 'transparent',
+                      color: 'inherit',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      padding: '8px 10px',
+                      fontSize: 12,
+                      fontWeight: 650,
+                    }}
+                  >
+                    <Settings size={12} /> Einstellungen
+                  </button>
+                </div>
+              ) : null}
             </div>
           </div>
 
@@ -136,15 +227,15 @@ export function NotesSidebarPanels({
                 onClick={() => setNote(n.id)}
                 role="button"
                 tabIndex={0}
+                className="group nx-surface-row"
+                data-active={n.id === activeNoteId ? 'true' : 'false'}
                 style={{
                   padding: '8px 10px', borderRadius: 9, cursor: 'pointer', marginBottom: 2,
                   background: n.id === activeNoteId ? 'rgba(255,255,255,0.1)' : 'transparent',
                   borderLeft: `2px solid ${n.id === activeNoteId ? accent : 'transparent'}`,
-                  transition: 'all 0.13s', position: 'relative',
+                  position: 'relative',
+                  ['--nx-row-hover-bg' as any]: 'rgba(255,255,255,0.05)',
                 }}
-                className="group"
-                onMouseEnter={e => { if (n.id !== activeNoteId) (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.05)' }}
-                onMouseLeave={e => { if (n.id !== activeNoteId) (e.currentTarget as HTMLElement).style.background = 'transparent' }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, fontWeight: 500 }}>
                   <span style={{ display: 'flex', alignItems: 'center', gap: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
@@ -163,17 +254,19 @@ export function NotesSidebarPanels({
                     ))}
                   </div>
                 )}
-                <div style={{ position: 'absolute', right: 6, top: 6, display: 'flex', gap: 2, opacity: 0, transition: 'opacity 0.15s' }}
-                  className="group-hover:opacity-100"
-                  onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
-                  onMouseLeave={e => (e.currentTarget.style.opacity = '0')}
-                >
-                  <button onClick={e => { e.stopPropagation(); updateNote(n.id, { pinned: !n.pinned }) }}
-                    style={{ padding: 3, borderRadius: 5, border: 'none', cursor: 'pointer', background: 'rgba(255,255,255,0.1)', display: 'flex' }}>
+                <div style={{ position: 'absolute', right: 6, top: 6, display: 'flex', gap: 2, opacity: 0, transition: 'opacity 0.15s' }} className="group-hover:opacity-100">
+                  <button
+                    onClick={e => { e.stopPropagation(); updateNote(n.id, { pinned: !n.pinned }) }}
+                    className="nx-interactive nx-bounce-target"
+                    style={{ padding: 3, borderRadius: 5, border: 'none', background: 'rgba(255,255,255,0.1)', display: 'flex' }}
+                  >
                     <Pin size={9} style={{ color: n.pinned ? '#FFCC00' : undefined }} />
                   </button>
-                  <button onClick={e => { e.stopPropagation(); delNote(n.id) }}
-                    style={{ padding: 3, borderRadius: 5, border: 'none', cursor: 'pointer', background: 'rgba(255,69,58,0.15)', color: '#FF453A', display: 'flex' }}>
+                  <button
+                    onClick={e => { e.stopPropagation(); delNote(n.id) }}
+                    className="nx-interactive nx-bounce-target"
+                    style={{ padding: 3, borderRadius: 5, border: 'none', background: 'rgba(255,69,58,0.15)', color: '#FF453A', display: 'flex' }}
+                  >
                     <Trash2 size={9} />
                   </button>
                 </div>

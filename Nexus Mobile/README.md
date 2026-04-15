@@ -1,46 +1,48 @@
 # Nexus Mobile
 
-Nexus Mobile ist die mobile Runtime-Plane-App im Nexus Ecosystem. Das Projekt kombiniert Dashboard, Notes, Tasks, Reminders, Canvas, Files, DevTools, Flux und Settings in einer React-/Vite-App mit nativen Capacitor-Zielen fuer Android und iOS.
+Nexus Mobile ist die mobile Workspace-App im Nexus Ecosystem (React + Vite + Capacitor).
+Sie spiegelt die zentralen Main-Workflows mobil wider, mit eigener Navigation und mobilen Runtime-Details.
 
-## Verifizierte Funktionen
+## Kern-Views
 
-- Dashboard, Notes, Tasks, Reminders, Canvas, Files, DevTools, Flux und Settings sind als App-Bereiche vorhanden.
-- Mobile Navigation und Command Palette sind im UI vorhanden.
-- Native Builds laufen ueber Capacitor (`android/`, `ios/`, `capacitor.config.ts`).
-- Lokaler App-State liegt in den Stores unter `src/store/`.
+- `dashboard`: Today- und Workspace-Kontext mit Quick-Actions
+- `notes`: Markdown-Flow inkl. Magic-Elemente
+- `tasks`: Kanban- und Fokus-Workflows
+- `reminders`: Reminder-Ansicht mit nativer Service-Anbindung
+- `canvas`: mobile Canvas-Interaktion mit Templates/Magic
+- `files`: Workspace- und Handoff-Flows
+- `code`: mobiler Code-Flow
+- `devtools`: mobile Utility-Ansicht
+- `settings`: Presets + Material/Motion/Theme
+- `info`: mobile In-App-Dokumentation und Runtime-Erklaerung
 
-## Voraussetzungen
+## Navigation und Shell
 
-- Node.js 20+
-- npm 10+
-- Android Studio fuer Android-Entwicklung
-- Xcode auf macOS fuer iOS-Entwicklung
+- `bottom-nav` ist Standard fuer Phones
+- `tabs` hat eigene mobile Renderlogik
+- `sidebar` ist fuer groessere Layouts (Tablet/Large Screen)
 
-## Setup
+Shell-Module:
 
-```bash
-npm install
-```
+- `src/app/MobileShellLayout.tsx`
+- `src/app/mobileViewHost.tsx`
+- `src/app/mobileAppConfig.ts`
 
-Die nativen Plattformordner (`android/`, `ios/`) sind bereits im Projekt vorhanden. Fuer einen sauberen Stand kannst du bei Bedarf `npm run cap:sync` ausfuehren.
+## Render + Motion
+
+Wie Main nutzt Mobile die zentrale Engine aus `@nexus/core`:
+
+- Render-Pipeline mit Measure/Resolve/Allocate/Commit/Cleanup
+- Surface-/Effect-Capabilities pro sichtbarer Flaeche
+- kontrollierte Degradation fuer Low-Power/Reduced-Motion
+- gemeinsame Diagnostics-Basis fuer Main und Mobile
 
 ## Entwicklung
 
-### Web
-
 ```bash
+npm install
 npm run dev:web
-```
-
-### Android
-
-```bash
 npm run cap:android
-```
-
-### iOS
-
-```bash
 npm run cap:ios
 ```
 
@@ -48,36 +50,46 @@ npm run cap:ios
 
 ```bash
 npm run build
+npm run cap:build:android
+npm run cap:build:ios
 ```
 
-## Wichtige Scripts
+## Relevante Scripts
 
-- `npm run dev` startet den Android-Capacitor-Flow.
-- `npm run dev:web` startet den Vite-Dev-Server.
-- `npm run dev:android` startet denselben Android-Flow wie `dev`.
-- `npm run dev:ios` baut, synchronisiert und oeffnet Xcode.
-- `npm run cap:sync` synchronisiert native Projekte.
-- `npm run cap:build:android` baut die Web-App und synchronisiert Android.
-- `npm run cap:build:ios` baut die Web-App und synchronisiert iOS.
+- `npm run dev`
+- `npm run dev:web`
+- `npm run dev:android`
+- `npm run dev:ios`
+- `npm run build`
+- `npm run preview`
+- `npm run cap:sync`
+- `npm run cap:android`
+- `npm run cap:ios`
+- `npm run cap:build:android`
+- `npm run cap:build:ios`
 
-## Struktur
+## Wichtige Pfade
 
-- `src/components/` UI-Bausteine wie Navigation und Command Palette
-- `src/views/` App-Views inklusive Canvas
-- `src/store/` lokaler App-, Theme-, Terminal- und Canvas-State
-- `src/lib/` gemeinsame Utilities
-- `android/` natives Android-Projekt
-- `ios/` natives iOS-Projekt
+- `src/App.tsx`
+- `src/render/renderRuntime.ts`
+- `src/render/useRenderSurfaceBudget.ts`
+- `src/render/useSurfaceMotionRuntime.ts`
+- `src/lib/mobileReminderService.ts`
+- `src/views/InfoView.tsx`
+- `src/views/RenderDiagnosticsView.tsx` (nur Dev)
+- `android/`
+- `ios/`
 
 ## Environment
 
 - `VITE_NEXUS_CONTROL_URL=https://nexus-api.cloud`
-- `VITE_NEXUS_CONTROL_INGEST_KEY` (VPS-Key fuer `appId=mobile`)
+- `VITE_NEXUS_CONTROL_INGEST_KEY` (App-Key fuer `mobile`)
 - `VITE_NEXUS_USER_ID`
 - `VITE_NEXUS_USERNAME`
 - `VITE_NEXUS_USER_TIER`
 
 ## Hinweise
 
-- `npm run dev` ist kein reiner Web-Devserver, sondern oeffnet Android Studio.
-- Wenn du nur die Browser-Ansicht brauchst, nutze `npm run dev:web`.
+- `npm run dev` startet den Android-Capacitor-Flow.
+- Fuer reinen Browser-Loop `npm run dev:web` verwenden.
+- Reminder-Services haben native + Fallback-Pfade, der bevorzugte Pfad ist nativer Scheduler.

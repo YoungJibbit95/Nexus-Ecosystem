@@ -37,7 +37,21 @@ interface TerminalState {
   executeCommand: (cmd: string, context: TerminalContext, options?: ExecuteCommandOptions) => void
 }
 
-const VIEWS = ['dashboard', 'notes', 'code', 'tasks', 'reminders', 'canvas', 'files', 'flux', 'devtools', 'settings', 'info']
+const DEV_MODE = (import.meta as any).env?.DEV
+const VIEWS = [
+  'dashboard',
+  'notes',
+  'code',
+  'tasks',
+  'reminders',
+  'canvas',
+  'files',
+  'flux',
+  'devtools',
+  ...(DEV_MODE ? ['diagnostics'] : []),
+  'settings',
+  'info',
+]
 
 const VIEW_ALIASES: Record<string, string> = {
   dash: 'dashboard',
@@ -49,6 +63,7 @@ const VIEW_ALIASES: Record<string, string> = {
   reminder: 'reminders',
   file: 'files',
   dev: 'devtools',
+  ...(DEV_MODE ? { diag: 'diagnostics' } : {}),
   config: 'settings',
   about: 'info',
 }

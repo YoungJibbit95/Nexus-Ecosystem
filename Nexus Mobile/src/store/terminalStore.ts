@@ -42,7 +42,21 @@ const HELP_TEXT = [
   'exit                              Close terminal',
 ].join('\n')
 
-const VIEWS = ['dashboard', 'notes', 'code', 'tasks', 'reminders', 'canvas', 'files', 'flux', 'devtools', 'settings', 'info']
+const DEV_MODE = (import.meta as any).env?.DEV
+const VIEWS = [
+  'dashboard',
+  'notes',
+  'code',
+  'tasks',
+  'reminders',
+  'canvas',
+  'files',
+  'flux',
+  'devtools',
+  ...(DEV_MODE ? ['diagnostics'] : []),
+  'settings',
+  'info',
+]
 
 const normalize = (cmd: string) => cmd.trim().replace(/^\//, '')
 

@@ -1,7 +1,10 @@
 const metricStarts = new Map();
 
 function getNow() {
-  if (typeof performance !== "undefined" && typeof performance.now === "function") {
+  if (
+    typeof performance !== "undefined" &&
+    typeof performance.now === "function"
+  ) {
     return performance.now();
   }
   return Date.now();
@@ -22,7 +25,12 @@ function sendToRuntime(metricName, valueMs) {
   const recordFn = runtime?.performance?.recordCustomMetric;
   if (typeof recordFn !== "function") return;
   try {
-    recordFn.call(runtime.performance, metricName, Number(valueMs.toFixed(2)), "ms");
+    recordFn.call(
+      runtime.performance,
+      metricName,
+      Number(valueMs.toFixed(2)),
+      "ms",
+    );
   } catch {
     // keep metric pipeline non-blocking
   }

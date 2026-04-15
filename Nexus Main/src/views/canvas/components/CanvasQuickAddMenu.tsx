@@ -88,6 +88,7 @@ export function CanvasQuickAddMenu({
             createStarterPack(getCanvasPoint());
             setQuickAddPos(null);
           }}
+          className="nx-interactive nx-bounce-target"
           style={{
             border: `1px solid rgba(${rgb},0.3)`,
             borderRadius: 8,
@@ -111,6 +112,7 @@ export function CanvasQuickAddMenu({
             });
             setQuickAddPos(null);
           }}
+          className="nx-interactive nx-bounce-target"
           style={{
             border: "1px solid rgba(255,255,255,0.2)",
             borderRadius: 8,
@@ -134,6 +136,7 @@ export function CanvasQuickAddMenu({
             });
             setQuickAddPos(null);
           }}
+          className="nx-interactive nx-bounce-target"
           style={{
             border: "1px solid rgba(255,255,255,0.2)",
             borderRadius: 8,
@@ -157,6 +160,7 @@ export function CanvasQuickAddMenu({
             });
             setQuickAddPos(null);
           }}
+          className="nx-interactive nx-bounce-target"
           style={{
             border: "1px solid rgba(255,255,255,0.2)",
             borderRadius: 8,
@@ -186,6 +190,8 @@ export function CanvasQuickAddMenu({
             addWidgetNode(type, point.x, point.y);
             setQuickAddPos(null);
           }}
+          className="nx-surface-row"
+          data-active="false"
           style={{
             display: "flex",
             alignItems: "center",
@@ -199,9 +205,8 @@ export function CanvasQuickAddMenu({
             background: "transparent",
             color: mode === "dark" ? "#fff" : "#000",
             textAlign: "left",
+            ["--nx-row-hover-bg" as any]: "rgba(128,128,128,0.1)",
           }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(128,128,128,0.1)")}
-          onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
         >
           <span
             style={{

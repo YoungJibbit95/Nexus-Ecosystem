@@ -856,6 +856,19 @@ export default function SettingsPanel({
                 className="w-full"
               />
             </div>
+            <div>
+              <NativeLabel>
+                Glow Radius: {settings.glow_radius || 24}px
+              </NativeLabel>
+              <NativeSlider
+                value={[settings.glow_radius || 24]}
+                onValueChange={([v]) => updateSetting("glow_radius", v)}
+                min={0}
+                max={64}
+                step={2}
+                className="w-full"
+              />
+            </div>
 
             <div className="mt-6 grid grid-cols-2 gap-3">
               <div
@@ -882,7 +895,7 @@ export default function SettingsPanel({
                   borderColor: "rgba(128,0,255,0.2)",
                   boxShadow:
                     settings.border_glow !== false
-                      ? `0 0 ${(settings.glow_intensity || 50) / 3}px rgba(128,0,255,0.5)`
+                      ? `0 0 ${Math.round(((settings.glow_radius || 24) * (settings.glow_intensity || 50)) / 120)}px rgba(128,0,255,0.5)`
                       : "none",
                 }}
               >

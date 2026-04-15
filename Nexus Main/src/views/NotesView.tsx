@@ -5,10 +5,12 @@ import {
   Bold, Italic, Heading, List, ListOrdered, Quote, Code, Link,
   Download, Clock, Hash, Eye, Edit3, Minus, Strikethrough,
   Maximize2, Minimize2, Wand2, Sparkles, Bell, Zap, Calendar, CreditCard,
-  ChevronDown, Table, Upload
+  ChevronDown, Table, Upload, MoreHorizontal
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Glass } from '../components/Glass'
+import { InteractiveIconButton } from '../components/render/InteractiveIconButton'
+import { InteractiveActionButton } from '../components/render/InteractiveActionButton'
 import { NexusMarkdown } from '../components/NexusMarkdown'
 import { useApp } from '../store/appStore'
 import { useTheme } from '../store/themeStore'
@@ -55,6 +57,7 @@ export function NotesView() {
   const [focusMode, setFocusMode] = useState(false)
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null)
   const [showMagic, setShowMagic] = useState(false)
+  const [notesHeaderMenuOpen, setNotesHeaderMenuOpen] = useState(false)
   const deferredSearchQuery = useDeferredValue(searchQuery)
   const editorRef = useRef<HTMLTextAreaElement>(null)
   const lineNumbersRef = useRef<HTMLPreElement>(null)
@@ -348,25 +351,21 @@ export function NotesView() {
   }
 
   // Small formatting button
-  const FmtBtn = ({ icon: Icon, tooltip, action }: { icon: any; tooltip: string; action: () => void }) => {
-    const [h, setH] = useState(false)
-    return (
-      <button
-        title={tooltip} onClick={action}
-        onMouseEnter={() => setH(true)} onMouseLeave={() => setH(false)}
-        style={{
-          padding: '5px', borderRadius: 7, border: 'none', cursor: 'pointer',
-          background: h ? `rgba(${rgb}, 0.15)` : 'transparent',
-          color: h ? t.accent : 'inherit',
-          transform: h ? 'scale(1.12)' : 'scale(1)',
-          transition: 'all 0.13s cubic-bezier(0.34,1.56,0.64,1)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}
-      >
-        <Icon size={14} />
-      </button>
-    )
-  }
+  const FmtBtn = ({ icon: Icon, tooltip, action }: { icon: any; tooltip: string; action: () => void }) => (
+    <InteractiveIconButton
+      motionId={`notes-fmt-${tooltip.replace(/\s+/g, '-').toLowerCase()}`}
+      onClick={action}
+      title={tooltip}
+      idleOpacity={0.72}
+      radius={7}
+      style={{
+        padding: '5px',
+        color: t.accent,
+      }}
+    >
+      <Icon size={14} />
+    </InteractiveIconButton>
+  )
 
   // ReactMarkdown components — passed accent via closure
   const mdComponents = useMemo(() => ({
@@ -388,25 +387,128 @@ export function NotesView() {
           {/* Header */}
           <div className="flex items-center justify-between px-3 py-2.5 shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
             <span style={{ fontSize: 12, fontWeight: 700, opacity: 0.85 }}>Notes</span>
-            <div className="flex gap-0.5">
-              {[
-                { icon: Search, action: () => setShowSearch(!showSearch), active: showSearch, tip: 'Suchen' },
-                { icon: Plus,   action: addNote,                         active: false,        tip: 'Neue Notiz', color: t.accent },
-                { icon: Upload, action: () => document.getElementById(NOTES_IMPORT_INPUT_ID)?.click(), active: false, tip: 'Markdown importieren' },
-                { icon: Settings, action: () => setShowSettings(true),  active: false,        tip: 'Einstellungen' },
-              ].map(({ icon: Icon, action, active: isActive, tip, color }) => (
-                <button key={tip} onClick={action} title={tip} style={{
-                  padding: '5px', borderRadius: 7, border: 'none', cursor: 'pointer',
-                  background: isActive ? `rgba(${rgb},0.12)` : 'transparent',
-                  color: isActive ? t.accent : (color || 'inherit'),
-                  transition: 'all 0.15s', display: 'flex',
+            <div className="flex gap-0.5" style={{ position: 'relative' }}>
+              <InteractiveActionButton
+                onClick={() => setShowSearch(!showSearch)}
+                title="Suchen"
+                motionId="notes-sidebar-toggle-search"
+                selected={showSearch}
+                areaHint={46}
+                radius={7}
+                style={{
+                  padding: '5px',
+                  borderRadius: 7,
+                  border: 'none',
+                  background: showSearch ? `rgba(${rgb},0.12)` : 'transparent',
+                  color: showSearch ? t.accent : 'inherit',
+                  display: 'flex',
                 }}
-                  onMouseEnter={e => (e.currentTarget.style.background = `rgba(${rgb},0.12)`)}
-                  onMouseLeave={e => (e.currentTarget.style.background = isActive ? `rgba(${rgb},0.12)` : 'transparent')}
+              >
+                <Search size={14} />
+              </InteractiveActionButton>
+              <InteractiveActionButton
+                onClick={addNote}
+                title="Neue Notiz"
+                motionId="notes-sidebar-add"
+                areaHint={46}
+                radius={7}
+                style={{
+                  padding: '5px',
+                  borderRadius: 7,
+                  border: 'none',
+                  background: `rgba(${rgb},0.16)`,
+                  color: t.accent,
+                  display: 'flex',
+                }}
+              >
+                <Plus size={14} />
+              </InteractiveActionButton>
+              <InteractiveActionButton
+                onClick={() => setNotesHeaderMenuOpen((open) => !open)}
+                title="Mehr"
+                motionId="notes-sidebar-menu"
+                selected={notesHeaderMenuOpen}
+                areaHint={46}
+                radius={7}
+                style={{
+                  padding: '5px',
+                  borderRadius: 7,
+                  border: 'none',
+                  background: notesHeaderMenuOpen ? `rgba(${rgb},0.12)` : 'transparent',
+                  color: notesHeaderMenuOpen ? t.accent : 'inherit',
+                  display: 'flex',
+                }}
+              >
+                <MoreHorizontal size={14} />
+              </InteractiveActionButton>
+              {notesHeaderMenuOpen ? (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 'calc(100% + 6px)',
+                    right: 0,
+                    zIndex: 40,
+                    minWidth: 170,
+                    borderRadius: 10,
+                    border: '1px solid rgba(255,255,255,0.14)',
+                    background: 'rgba(17,20,31,0.96)',
+                    backdropFilter: 'blur(12px)',
+                    padding: 6,
+                    boxShadow: '0 14px 34px rgba(0,0,0,0.35)',
+                  }}
                 >
-                  <Icon size={14} />
-                </button>
-              ))}
+                  <InteractiveActionButton
+                    onClick={() => {
+                      document.getElementById(NOTES_IMPORT_INPUT_ID)?.click()
+                      setNotesHeaderMenuOpen(false)
+                    }}
+                    motionId="notes-import-markdown"
+                    className="nx-menu-item"
+                    areaHint={72}
+                    radius={8}
+                    style={{
+                      width: '100%',
+                      border: 'none',
+                      borderRadius: 8,
+                      background: 'transparent',
+                      color: 'inherit',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      padding: '8px 10px',
+                      fontSize: 12,
+                      fontWeight: 650,
+                    }}
+                  >
+                    <Upload size={12} /> Markdown importieren
+                  </InteractiveActionButton>
+                  <InteractiveActionButton
+                    onClick={() => {
+                      setShowSettings(true)
+                      setNotesHeaderMenuOpen(false)
+                    }}
+                    motionId="notes-open-settings"
+                    className="nx-menu-item"
+                    areaHint={72}
+                    radius={8}
+                    style={{
+                      width: '100%',
+                      border: 'none',
+                      borderRadius: 8,
+                      background: 'transparent',
+                      color: 'inherit',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      padding: '8px 10px',
+                      fontSize: 12,
+                      fontWeight: 650,
+                    }}
+                  >
+                    <Settings size={12} /> Einstellungen
+                  </InteractiveActionButton>
+                </div>
+              ) : null}
             </div>
           </div>
 
@@ -427,26 +529,35 @@ export function NotesView() {
           {allTags.length > 0 && (
             <div className="px-3 py-2 shrink-0 flex flex-wrap gap-1" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
               {allTags.slice(0, 8).map(tag => (
-                <button key={tag} onClick={() => setTagFilter(tagFilter === tag ? null : tag)}
+                <InteractiveActionButton key={tag} onClick={() => setTagFilter(tagFilter === tag ? null : tag)}
+                  motionId={`notes-tag-filter-${tag}`}
+                  selected={tagFilter === tag}
+                  areaHint={52}
+                  radius={20}
                   style={{
                     padding: '2px 8px', borderRadius: 20, fontSize: 10, border: 'none', cursor: 'pointer',
                     background: tagFilter === tag ? `rgba(${rgb},0.25)` : 'rgba(255,255,255,0.06)',
                     color: tagFilter === tag ? t.accent : 'inherit', transition: 'all 0.15s',
                   }}
-                >#{tag}</button>
+                >#{tag}</InteractiveActionButton>
               ))}
             </div>
           )}
 
           <div className="px-2 py-1 shrink-0 flex gap-0.5" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
             {(['updated', 'title', 'created'] as const).map(s => (
-              <button key={s} onClick={() => setSortBy(s)} style={{
+              <InteractiveActionButton key={s} onClick={() => setSortBy(s)}
+                motionId={`notes-sort-${s}`}
+                selected={sortBy === s}
+                areaHint={52}
+                radius={6}
+                style={{
                 padding: '3px 8px', borderRadius: 6, fontSize: 10, border: 'none', cursor: 'pointer',
                 background: sortBy === s ? `rgba(${rgb},0.15)` : 'transparent',
                 color: sortBy === s ? t.accent : 'inherit', transition: 'all 0.15s',
               }}>
                 {s === 'updated' ? 'Aktuell' : s === 'title' ? 'A-Z' : 'Neu'}
-              </button>
+              </InteractiveActionButton>
             ))}
           </div>
 
@@ -455,15 +566,15 @@ export function NotesView() {
             {filteredNotes.map((n) => (
               <div
                 key={n.id} onClick={() => setNote(n.id)} role="button" tabIndex={0}
+                className="group nx-surface-row"
+                data-active={n.id === activeNoteId ? 'true' : 'false'}
                 style={{
                   padding: '8px 10px', borderRadius: 9, cursor: 'pointer', marginBottom: 2,
                   background: n.id === activeNoteId ? 'rgba(255,255,255,0.1)' : 'transparent',
                   borderLeft: `2px solid ${n.id === activeNoteId ? t.accent : 'transparent'}`,
-                  transition: 'all 0.13s', position: 'relative',
+                  position: 'relative',
+                  ['--nx-row-hover-bg' as any]: 'rgba(255,255,255,0.05)',
                 }}
-                className="group"
-                onMouseEnter={e => { if (n.id !== activeNoteId) (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.05)' }}
-                onMouseLeave={e => { if (n.id !== activeNoteId) (e.currentTarget as HTMLElement).style.background = 'transparent' }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, fontWeight: 500 }}>
                   <span style={{ display: 'flex', alignItems: 'center', gap: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
@@ -482,17 +593,19 @@ export function NotesView() {
                     ))}
                   </div>
                 )}
-                <div style={{ position: 'absolute', right: 6, top: 6, display: 'flex', gap: 2, opacity: 0, transition: 'opacity 0.15s' }}
-                  className="group-hover:opacity-100"
-                  onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
-                  onMouseLeave={e => (e.currentTarget.style.opacity = '0')}
-                >
-                  <button onClick={e => { e.stopPropagation(); updateNote(n.id, { pinned: !n.pinned }) }}
-                    style={{ padding: 3, borderRadius: 5, border: 'none', cursor: 'pointer', background: 'rgba(255,255,255,0.1)', display: 'flex' }}>
+                <div style={{ position: 'absolute', right: 6, top: 6, display: 'flex', gap: 2, opacity: 0, transition: 'opacity 0.15s' }} className="group-hover:opacity-100">
+                  <button
+                    onClick={e => { e.stopPropagation(); updateNote(n.id, { pinned: !n.pinned }) }}
+                    className="nx-interactive nx-bounce-target"
+                    style={{ padding: 3, borderRadius: 5, border: 'none', background: 'rgba(255,255,255,0.1)', display: 'flex' }}
+                  >
                     <Pin size={9} style={{ color: n.pinned ? '#FFCC00' : undefined }} />
                   </button>
-                  <button onClick={e => { e.stopPropagation(); delNote(n.id) }}
-                    style={{ padding: 3, borderRadius: 5, border: 'none', cursor: 'pointer', background: 'rgba(255,69,58,0.15)', color: '#FF453A', display: 'flex' }}>
+                  <button
+                    onClick={e => { e.stopPropagation(); delNote(n.id) }}
+                    className="nx-interactive nx-bounce-target"
+                    style={{ padding: 3, borderRadius: 5, border: 'none', background: 'rgba(255,69,58,0.15)', color: '#FF453A', display: 'flex' }}
+                  >
                     <Trash2 size={9} />
                   </button>
                 </div>
@@ -509,7 +622,7 @@ export function NotesView() {
 
       {/* ── MAIN PANEL ── */}
       {active ? (
-        <div className="flex-1 flex flex-col gap-2" style={{ minHeight: 0, overflow: 'hidden' }}>
+        <div className="flex-1 flex flex-col gap-2" style={{ minHeight: 0, overflow: 'visible' }}>
 
           {/* Header bar */}
           <Glass className="flex items-center gap-2 px-3 py-2 shrink-0">
@@ -523,7 +636,11 @@ export function NotesView() {
             <div className="flex gap-0.5 items-center shrink-0">
               {/* View mode */}
               {(['edit', 'split', 'preview'] as const).map(m => (
-                <button key={m} onClick={() => setMode(m)} title={m}
+                <InteractiveActionButton key={m} onClick={() => setMode(m)} title={m}
+                  motionId={`notes-mode-${m}`}
+                  selected={mode === m}
+                  areaHint={54}
+                  radius={7}
                   style={{
                     padding: '4px 8px', borderRadius: 7, fontSize: 11, fontWeight: 500,
                     border: 'none', cursor: 'pointer',
@@ -531,36 +648,45 @@ export function NotesView() {
                     color: mode === m ? t.accent : 'inherit', transition: 'all 0.15s',
                   }}>
                   {m === 'edit' ? <Edit3 size={13} /> : m === 'preview' ? <Eye size={13} /> : <span style={{ fontSize: 10, fontWeight: 700 }}>SPLIT</span>}
-                </button>
+                </InteractiveActionButton>
               ))}
               <div style={{ width: 1, height: 14, background: 'rgba(255,255,255,0.1)', margin: '0 4px' }} />
               {[
                 { icon: RotateCcw, tip: 'Undo (Ctrl+Z)', action: handleUndo },
                 { icon: RotateCcw, tip: 'Redo (Ctrl+Y)', action: handleRedo, flip: true },
                 { icon: Copy,      tip: 'Kopieren',      action: () => navigator.clipboard.writeText(draftContent) },
-                { icon: Upload,    tip: 'Import .md',    action: () => document.getElementById(NOTES_IMPORT_INPUT_ID)?.click() },
                 { icon: Download,  tip: 'Download .md',  action: saveAsFile },
                 { icon: Save,      tip: 'Speichern (Ctrl+S)', action: saveActiveNow, accent: draftDirty },
               ].map(({ icon: Icon, tip, action, flip, accent: useAccent }: any) => (
-                <button key={tip} onClick={action} title={tip} style={{
-                  padding: '5px', borderRadius: 7, border: 'none', cursor: 'pointer',
+                <InteractiveActionButton
+                  key={tip}
+                  onClick={action}
+                  title={tip}
+                  motionId={`notes-top-action-${tip.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}`}
+                  selected={Boolean(useAccent)}
+                  areaHint={44}
+                  radius={7}
+                  style={{
+                  padding: '5px', borderRadius: 7, border: 'none',
                   background: 'transparent', color: useAccent ? t.accent : 'inherit',
-                  transform: flip ? 'scaleX(-1)' : undefined, display: 'flex', transition: 'all 0.15s',
-                }}
-                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.08)')}
-                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-                >
-                  <Icon size={13} />
-                </button>
+                  display: 'flex',
+                }}>
+                  <Icon size={13} style={{ transform: flip ? 'scaleX(-1)' : undefined }} />
+                </InteractiveActionButton>
               ))}
               <div style={{ width: 1, height: 14, background: 'rgba(255,255,255,0.1)', margin: '0 4px' }} />
-              <button onClick={() => setFocusMode(!focusMode)} title="Focus Mode" style={{
-                padding: '5px', borderRadius: 7, border: 'none', cursor: 'pointer',
+              <InteractiveActionButton onClick={() => setFocusMode(!focusMode)} title="Focus Mode"
+                motionId="notes-focus-mode"
+                selected={focusMode}
+                areaHint={46}
+                radius={7}
+                style={{
+                padding: '5px', borderRadius: 7, border: 'none',
                 background: focusMode ? `rgba(${rgb},0.15)` : 'transparent',
-                color: focusMode ? t.accent : 'inherit', transition: 'all 0.15s', display: 'flex',
+                color: focusMode ? t.accent : 'inherit', display: 'flex',
               }}>
                 {focusMode ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
-              </button>
+              </InteractiveActionButton>
             </div>
           </Glass>
 
@@ -588,8 +714,12 @@ export function NotesView() {
 
               {/* ✦ Magic Button */}
               <div style={{ position: 'relative' }}>
-                <button
+                <InteractiveActionButton
                   onClick={handleMagicOpen}
+                  motionId="notes-open-magic"
+                  selected={showMagic}
+                  areaHint={78}
+                  radius={8}
                   style={{
                     padding: '4px 10px', borderRadius: 8, border: `1px solid ${t.accent}${showMagic ? '60' : '30'}`,
                     background: showMagic ? `linear-gradient(135deg, ${t.accent}30, ${t.accent2}30)` : `linear-gradient(135deg, ${t.accent}18, ${t.accent2}18)`,
@@ -602,7 +732,7 @@ export function NotesView() {
                 >
                   <Wand2 size={12} style={{ transform: showMagic ? 'rotate(12deg) scale(1.15)' : 'none', transition: 'transform 0.2s' }} />
                   Magic
-                </button>
+                </InteractiveActionButton>
               </div>
 
               <div style={{ flex: 1 }} />
@@ -611,17 +741,19 @@ export function NotesView() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                 <Hash size={10} style={{ opacity: 0.35 }} />
                 {active.tags.map(tag => (
-                  <span key={tag} onClick={() => updateNote(active.id, { tags: active.tags.filter(t => t !== tag) })}
+                  <InteractiveActionButton key={tag} onClick={() => updateNote(active.id, { tags: active.tags.filter(t => t !== tag) })}
+                    motionId={`notes-remove-tag-${tag}`}
+                    areaHint={46}
+                    radius={20}
                     style={{
                       fontSize: 10, padding: '2px 8px', borderRadius: 20, cursor: 'pointer',
+                      border: 'none',
                       background: `rgba(${rgb},0.12)`, color: t.accent, transition: 'opacity 0.15s',
                     }}
                     title="Klicken zum Entfernen"
-                    onMouseEnter={e => (e.currentTarget.style.opacity = '0.6')}
-                    onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
                   >
                     {tag} ×
-                  </span>
+                  </InteractiveActionButton>
                 ))}
                 {editingTags ? (
                   <input
@@ -643,18 +775,20 @@ export function NotesView() {
                     placeholder="tag..."
                   />
                 ) : (
-                  <button onClick={() => setEditingTags(true)}
-                    style={{ fontSize: 10, opacity: 0.4, background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', transition: 'opacity 0.15s' }}
-                    onMouseEnter={e => (e.currentTarget.style.opacity = '0.8')}
-                    onMouseLeave={e => (e.currentTarget.style.opacity = '0.4')}
-                  >+ Tag</button>
+                  <InteractiveActionButton onClick={() => setEditingTags(true)}
+                    motionId="notes-add-tag"
+                    className="nx-icon-fade"
+                    areaHint={40}
+                    radius={14}
+                    style={{ fontSize: 10, ['--nx-idle-opacity' as any]: 0.4, background: 'none', border: 'none', color: 'inherit' }}
+                  >+ Tag</InteractiveActionButton>
                 )}
               </div>
             </div>
           )}
 
           {/* ── EDITOR / PREVIEW ── */}
-          <div style={{ display: 'flex', gap: 10, flex: 1, minHeight: 0, overflow: 'hidden' }}>
+          <div style={{ display: 'flex', gap: 10, flex: 1, minHeight: 0, overflow: 'visible' }}>
 
             {/* Editor */}
             {(mode === 'edit' || mode === 'split') && (
@@ -727,7 +861,7 @@ export function NotesView() {
 
             {/* Preview — always has a visible scrollbar */}
             {(mode === 'preview' || mode === 'split') && (
-              <Glass className="flex-1 flex flex-col" style={{ minHeight: 0, overflow: 'hidden' }} glow>
+              <Glass className="flex-1 flex flex-col" style={{ minHeight: 0, overflow: 'visible', background: `linear-gradient(150deg, rgba(${rgb},0.32), rgba(${hexToRgb(t.accent2)},0.2) 58%, rgba(255,255,255,0.03))` }} glow gradient>
                 {/* The scrollable div is direct child of the Glass content wrapper (which is flex-col) */}
                 <div style={{
                   flex: 1, overflowY: 'scroll', overflowX: 'hidden',
@@ -758,10 +892,14 @@ export function NotesView() {
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.2, flexDirection: 'column', gap: 8 }}>
           <div style={{ fontSize: 32 }}>📝</div>
           <div style={{ fontSize: 12, letterSpacing: '0.1em', textTransform: 'uppercase' }}>Keine Notiz ausgewählt</div>
-          <button onClick={addNote} style={{
+          <InteractiveActionButton onClick={addNote}
+            motionId="notes-empty-add"
+            areaHint={96}
+            radius={20}
+            style={{
             marginTop: 8, padding: '8px 18px', borderRadius: 20, border: 'none', cursor: 'pointer',
             background: `rgba(${rgb},0.2)`, color: t.accent, fontSize: 12, fontWeight: 700,
-          }}>+ Neue Notiz</button>
+          }}>+ Neue Notiz</InteractiveActionButton>
         </div>
       )}
 

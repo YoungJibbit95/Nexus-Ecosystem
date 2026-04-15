@@ -5,6 +5,7 @@ import {
   Search, RotateCcw, Columns, Eye, Edit3, Loader, Clock
 } from 'lucide-react'
 import { Glass } from '../components/Glass'
+import { InteractiveIconButton } from '../components/render/InteractiveIconButton'
 import { NexusMarkdown } from '../components/NexusMarkdown'
 import { useApp, CodeFile } from '../store/appStore'
 import { useTheme } from '../store/themeStore'
@@ -188,10 +189,12 @@ async function executeCode(file: CodeFile): Promise<string> {
 function ToolBtn({ onClick, title, icon, active }: { onClick: () => void; title: string; icon: React.ReactNode; active?: boolean }) {
   const t = useTheme()
   return (
-    <button onClick={onClick} title={title}
-      style={{ background: active ? `rgba(${hexToRgb(t.accent)},0.15)` : 'none', border: 'none', cursor: 'pointer', color: active ? t.accent : 'inherit', opacity: active ? 1 : 0.5, padding: '5px 7px', borderRadius: 6, display: 'flex', alignItems: 'center', transition: 'all 0.12s' }}
-      onMouseEnter={e => { e.currentTarget.style.opacity='1'; e.currentTarget.style.background='rgba(255,255,255,0.08)' }}
-      onMouseLeave={e => { e.currentTarget.style.opacity=active?'1':'0.5'; e.currentTarget.style.background=active?`rgba(${hexToRgb(t.accent)},0.15)`:'none' }}>
+    <button
+      onClick={onClick}
+      title={title}
+      className="nx-interactive nx-bounce-target"
+      style={{ background: active ? `rgba(${hexToRgb(t.accent)},0.15)` : 'none', border: 'none', color: active ? t.accent : 'inherit', opacity: active ? 1 : 0.5, padding: '5px 7px', borderRadius: 6, display: 'flex', alignItems: 'center' }}
+    >
       {icon}
     </button>
   )
@@ -217,9 +220,15 @@ function FileTab({ file, active, onSelect, onClose }: { file: CodeFile; active: 
       <span style={{ fontSize:12, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', flex:1, opacity: active?1:0.6 }}>
         {file.dirty && <span style={{ color:t.accent, marginRight:3 }}>●</span>}{file.name}
       </span>
-      <button onClick={e=>{e.stopPropagation();onClose()}} style={{ background:'none', border:'none', cursor:'pointer', color:'inherit', opacity:0.3, padding:'2px 1px', display:'flex', borderRadius:3 }} onMouseEnter={e=>e.currentTarget.style.opacity='1'} onMouseLeave={e=>e.currentTarget.style.opacity='0.3'}>
+      <InteractiveIconButton
+        motionId={`mobile-code-tab-close-${file.id}`}
+        onClick={e=>{e.stopPropagation();onClose()}}
+        idleOpacity={0.3}
+        radius={3}
+        style={{ padding:'2px 1px' }}
+      >
         <X size={12} />
-      </button>
+      </InteractiveIconButton>
     </div>
   )
 }
@@ -351,18 +360,27 @@ export function CodeView() {
             const l = getLang(f.lang)
             const isA = f.id === activeCodeId
             return (
-              <div key={f.id} onClick={() => { openCode(f.id); setCode(f.id) }}
-                style={{ display:'flex', alignItems:'center', gap:7, padding:'7px 8px', borderRadius:8, cursor:'pointer', marginBottom:2, background:isA?`rgba(${rgb},0.12)`:'transparent', border:isA?`1px solid rgba(${rgb},0.22)`:'1px solid transparent', transition:'all 0.12s' }}
-                onMouseEnter={e => { if(!isA) e.currentTarget.style.background='rgba(255,255,255,0.05)' }}
-                onMouseLeave={e => { if(!isA) e.currentTarget.style.background='transparent' }}>
+              <div
+                key={f.id}
+                onClick={() => { openCode(f.id); setCode(f.id) }}
+                className="nx-surface-row"
+                data-active={isA ? 'true' : 'false'}
+                style={{ display:'flex', alignItems:'center', gap:7, padding:'7px 8px', borderRadius:8, cursor:'pointer', marginBottom:2, background:isA?`rgba(${rgb},0.12)`:'transparent', border:isA?`1px solid rgba(${rgb},0.22)`:'1px solid transparent', ['--nx-row-hover-bg' as any]:'rgba(255,255,255,0.05)' }}
+              >
                 <span style={{ fontSize:9, fontWeight:800, color:l.color, letterSpacing:0.3, textTransform:'uppercase', width:26, flexShrink:0 }}>{l.ext}</span>
                 <span style={{ flex:1, fontSize:12, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', opacity:isA?1:0.65 }}>
                   {f.dirty && <span style={{ color:t.accent }}>● </span>}{f.name}
                 </span>
-                <button onClick={e=>{e.stopPropagation(); if(confirm(`Delete "${f.name}"?`)) delCode(f.id)}} style={{ background:'none', border:'none', cursor:'pointer', color:'#ff453a', opacity:0, padding:'2px 3px', borderRadius:4, transition:'opacity 0.1s' }}
-                  onMouseEnter={e=>e.currentTarget.style.opacity='1'} onMouseLeave={e=>e.currentTarget.style.opacity='0'}>
+                <InteractiveIconButton
+                  motionId={`mobile-code-delete-${f.id}`}
+                  onClick={e=>{e.stopPropagation(); if(confirm(`Delete "${f.name}"?`)) delCode(f.id)}}
+                  intent="danger"
+                  idleOpacity={0.28}
+                  radius={4}
+                  style={{ padding:'2px 3px' }}
+                >
                   <Trash2 size={11}/>
-                </button>
+                </InteractiveIconButton>
               </div>
             )
           })}
@@ -480,9 +498,12 @@ export function CodeView() {
 
               {/* Output panel */}
               <div style={{ flexShrink:0 }}>
-                <div onMouseDown={startDrag} style={{ height:5, cursor:'ns-resize', background:'rgba(255,255,255,0.04)', borderTop:'1px solid rgba(255,255,255,0.07)' }}
-                  onMouseEnter={e=>e.currentTarget.style.background=`rgba(${rgb},0.25)`}
-                  onMouseLeave={e=>e.currentTarget.style.background='rgba(255,255,255,0.04)'} />
+                <div
+                  onMouseDown={startDrag}
+                  className="nx-surface-row"
+                  data-active="false"
+                  style={{ height:5, cursor:'ns-resize', background:'rgba(255,255,255,0.04)', borderTop:'1px solid rgba(255,255,255,0.07)', ['--nx-row-hover-bg' as any]:`rgba(${rgb},0.25)` }}
+                />
 
                 <div style={{ display:'flex', alignItems:'center', gap:8, padding:'0 14px', height:36, background:'rgba(0,0,0,0.2)', borderTop:'1px solid rgba(255,255,255,0.06)' }}>
                   <button onClick={()=>setOutOpen(s=>!s)} style={{ background:'none', border:'none', cursor:'pointer', color:'inherit', opacity:0.55, display:'flex', alignItems:'center', gap:5, padding:0, fontSize:11, fontWeight:700, textTransform:'uppercase', letterSpacing:0.5 }}>
@@ -492,10 +513,18 @@ export function CodeView() {
                   </button>
                   {elapsed !== null && <span style={{ fontSize:10, opacity:0.35, display:'flex', alignItems:'center', gap:3 }}><Clock size={9}/>{elapsed.toFixed(1)}ms</span>}
                   <div style={{ flex:1 }} />
-                  <button onClick={handleCopyOut} style={{ background:'none', border:'none', cursor:'pointer', opacity:0.4, padding:'2px 6px', borderRadius:4, fontSize:10, color: copiedOut?t.accent:'inherit', display:'flex', alignItems:'center', gap:3 }} onMouseEnter={e=>e.currentTarget.style.opacity='1'} onMouseLeave={e=>e.currentTarget.style.opacity='0.4'}>
+                  <button
+                    onClick={handleCopyOut}
+                    className="nx-interactive nx-bounce-target nx-icon-fade"
+                    style={{ background:'none', border:'none', ['--nx-idle-opacity' as any]:0.4, padding:'2px 6px', borderRadius:4, fontSize:10, color: copiedOut?t.accent:'inherit', display:'flex', alignItems:'center', gap:3 }}
+                  >
                     {copiedOut?<><span>✓</span> Copied</>:<><Copy size={9}/> Copy</>}
                   </button>
-                  <button onClick={()=>setOutput([])} style={{ background:'none', border:'none', cursor:'pointer', opacity:0.4, padding:'2px 6px', borderRadius:4, fontSize:10, color:'inherit', display:'flex', alignItems:'center', gap:3 }} onMouseEnter={e=>e.currentTarget.style.opacity='1'} onMouseLeave={e=>e.currentTarget.style.opacity='0.4'}>
+                  <button
+                    onClick={()=>setOutput([])}
+                    className="nx-interactive nx-bounce-target nx-icon-fade"
+                    style={{ background:'none', border:'none', ['--nx-idle-opacity' as any]:0.4, padding:'2px 6px', borderRadius:4, fontSize:10, color:'inherit', display:'flex', alignItems:'center', gap:3 }}
+                  >
                     <RotateCcw size={9}/> Clear
                   </button>
                   <RunBtn running={running} onClick={run} accent={t.accent} />

@@ -129,6 +129,13 @@ export function useCanvasViewportControls({
 
   const handleWheel = useCallback(
     (event: React.WheelEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target?.closest(".nx-canvas-node")) {
+        if (event.ctrlKey || event.metaKey || event.altKey) {
+          event.preventDefault();
+        }
+        return;
+      }
       event.preventDefault();
       const deltaScale =
         event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? canvasSize.h : 1;
@@ -195,13 +202,16 @@ export function useCanvasViewportControls({
       setQuickAddPos(null);
       setShowWidgetMenu(false);
       const target = event.target as HTMLElement;
+      const isInsideNode = Boolean(target.closest(".nx-canvas-node"));
       const isCanvasBackground =
-        target === event.currentTarget ||
-        target.id === "nexus-canvas-inner" ||
-        Boolean(target.closest("#nexus-canvas-inner"));
+        !isInsideNode &&
+        (target === event.currentTarget ||
+          target.id === "nexus-canvas-inner" ||
+          Boolean(target.closest("#nexus-canvas-inner")));
       if (
         event.button === 1 ||
-        (event.button === 0 && (spaceHeld || isCanvasBackground))
+        (event.button === 0 &&
+          ((spaceHeld && !isInsideNode) || isCanvasBackground))
       ) {
         event.preventDefault();
         setPanning(true);

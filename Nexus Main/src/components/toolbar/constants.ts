@@ -8,6 +8,8 @@ import {
   HardDrive,
   Wrench,
   Settings,
+  Sparkles,
+  Info,
 } from "lucide-react";
 
 export const VIEW_ITEMS = [
@@ -19,7 +21,9 @@ export const VIEW_ITEMS = [
   { id: "canvas", icon: GitBranch, label: "Canvas", color: "#64D2FF" },
   { id: "files", icon: HardDrive, label: "Files", color: "#5E5CE6" },
   { id: "devtools", icon: Wrench, label: "DevTools", color: "#FF6B35" },
+  { id: "flux", icon: Sparkles, label: "Flux", color: "#B084FF" },
   { id: "settings", icon: Settings, label: "Settings", color: "#8E8E93" },
+  { id: "info", icon: Info, label: "Info", color: "#64D2FF" },
 ] as const;
 
 export type ViewId = (typeof VIEW_ITEMS)[number]["id"];

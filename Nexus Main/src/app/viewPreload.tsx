@@ -1,8 +1,10 @@
 import { lazy } from 'react';
 import { getFallbackViewsForApp } from '@nexus/core';
 import type { View } from '../components/Sidebar';
+import { DashboardView as DashboardViewComponent } from '../views/DashboardView';
 
-const loadDashboardView = () => import('../views/DashboardView');
+const IS_DEV = (import.meta as any).env?.DEV;
+const loadDashboardView = () => Promise.resolve({ DashboardView: DashboardViewComponent });
 const loadNotesView = () => import('../views/NotesView');
 const loadCodeView = () => import('../views/CodeView');
 const loadTasksView = () => import('../views/TasksView');
@@ -13,12 +15,11 @@ const loadFluxView = () => import('../views/FluxView');
 const loadSettingsView = () => import('../views/SettingsView');
 const loadInfoView = () => import('../views/InfoView');
 const loadDevToolsView = () => import('../views/DevToolsView');
+const loadRenderDiagnosticsView = () => import('../views/RenderDiagnosticsView');
 const loadNexusTerminal = () => import('../components/NexusTerminal');
 const loadNexusToolbar = () => import('../components/NexusToolbar');
 
-export const DashboardView = lazy(() =>
-  loadDashboardView().then((m) => ({ default: m.DashboardView })),
-);
+export const DashboardView = DashboardViewComponent;
 export const NotesView = lazy(() =>
   loadNotesView().then((m) => ({ default: m.NotesView })),
 );
@@ -49,6 +50,9 @@ export const InfoView = lazy(() =>
 export const DevToolsView = lazy(() =>
   loadDevToolsView().then((m) => ({ default: m.DevToolsView })),
 );
+export const RenderDiagnosticsView = lazy(() =>
+  loadRenderDiagnosticsView().then((m) => ({ default: m.RenderDiagnosticsView })),
+);
 export const NexusTerminal = lazy(() =>
   loadNexusTerminal().then((m) => ({ default: m.NexusTerminal })),
 );
@@ -56,7 +60,13 @@ export const NexusToolbar = lazy(() =>
   loadNexusToolbar().then((m) => ({ default: m.NexusToolbar })),
 );
 
-export const VIEW_IDS = getFallbackViewsForApp('main') as View[];
+const BASE_VIEW_IDS = getFallbackViewsForApp('main') as View[];
+export const VIEW_IDS: View[] = Array.from(
+  new Set<View>([
+    ...BASE_VIEW_IDS,
+    ...(IS_DEV ? (['diagnostics'] as View[]) : []),
+  ]),
+);
 
 export const VIEW_CHUNK_PRELOADERS: Record<View, () => Promise<unknown>> = {
   dashboard: loadDashboardView,
@@ -70,6 +80,7 @@ export const VIEW_CHUNK_PRELOADERS: Record<View, () => Promise<unknown>> = {
   settings: loadSettingsView,
   info: loadInfoView,
   devtools: loadDevToolsView,
+  diagnostics: loadRenderDiagnosticsView,
 };
 
 const MAIN_PRELOAD_PRIORITY: View[] = [
@@ -84,6 +95,7 @@ const MAIN_PRELOAD_PRIORITY: View[] = [
   'canvas',
   'code',
   'devtools',
+  'diagnostics',
 ];
 const MAIN_HEAVY_PRELOAD_VIEWS = new Set<View>(['code', 'canvas', 'devtools']);
 const MAIN_PRELOAD_PROMISES = new WeakMap<

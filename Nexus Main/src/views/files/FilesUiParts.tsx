@@ -2,17 +2,22 @@ import React, { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Check, Plus, Edit3, Trash2, ArrowRight, Package, MoreVertical } from 'lucide-react'
 import { Glass } from '../../components/Glass'
+import { InteractiveIconButton } from '../../components/render/InteractiveIconButton'
+import { SurfaceHighlight } from '../../components/render/SurfaceHighlight'
 import { useTheme } from '../../store/themeStore'
 import { useWorkspaces, Workspace } from '../../store/workspaceStore'
 import { useApp } from '../../store/appStore'
 import { hexToRgb } from '../../lib/utils'
+import { useInteractiveSurfaceMotion } from '../../render/useInteractiveSurfaceMotion'
 import { ICONS, COLORS, TYPE_META, ViewMode, FileItem } from './filesTypes'
 
 function MenuItem({ icon, label, onClick, danger }: { icon: React.ReactNode; label: string; onClick: () => void; danger?: boolean }) {
   return (
-    <button onClick={onClick} style={{ display:'flex', alignItems:'center', gap:8, width:'100%', padding:'6px 10px', background:'none', border:'none', cursor:'pointer', borderRadius:7, fontSize:12, color: danger?'#ff453a':'inherit', textAlign:'left', transition:'background 0.1s' }}
-      onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,0.08)'}
-      onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+    <button
+      onClick={onClick}
+      className="nx-interactive nx-bounce-target nx-menu-item"
+      style={{ display:'flex', alignItems:'center', gap:8, width:'100%', padding:'6px 10px', background:'none', border:'none', borderRadius:7, fontSize:12, color: danger?'#ff453a':'inherit', textAlign:'left' }}
+    >
       {icon} {label}
     </button>
   )
@@ -87,7 +92,23 @@ export function FileCard({ item, viewMode, onAssign, wsColor }: { item: FileItem
   const meta = TYPE_META[item.type]
   const Icon = meta.icon
   const [menu, setMenu] = useState(false)
+  const [hovered, setHovered] = useState(false)
+  const [focused, setFocused] = useState(false)
+  const [pressed, setPressed] = useState(false)
   const { openNote, openCode, setNote, setCode } = useApp()
+  const metaRgb = hexToRgb(meta.color)
+  const interaction = useInteractiveSurfaceMotion({
+    id: `files-card-${item.id}`,
+    hovered,
+    focused,
+    selected: Boolean(menu),
+    pressed,
+    surfaceClass: 'utility-surface',
+    effectClass: 'status-highlight',
+    budgetPriority: menu ? 'high' : 'normal',
+    areaHint: viewMode === 'list' ? 96 : 132,
+    family: 'content',
+  })
 
   const open = () => {
     if (item.type === 'note') { openNote(item.id); setNote(item.id) }
@@ -104,9 +125,38 @@ export function FileCard({ item, viewMode, onAssign, wsColor }: { item: FileItem
 
   if (viewMode === 'list') {
     return (
-      <div onDoubleClick={open} style={{ display:'flex', alignItems:'center', gap:12, padding:'9px 14px', borderRadius:10, cursor:'pointer', transition:'background 0.12s', marginBottom:2 }}
-        onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,0.05)'}
-        onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+      <motion.div
+        className="nx-motion-managed nx-surface-row"
+        animate={interaction.content.animate}
+        transition={interaction.content.transition}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => {
+          setHovered(false)
+          setPressed(false)
+        }}
+        onFocusCapture={() => setFocused(true)}
+        onBlurCapture={() => {
+          setFocused(false)
+          setPressed(false)
+        }}
+        onPointerDown={() => setPressed(true)}
+        onPointerUp={() => setPressed(false)}
+        onPointerCancel={() => setPressed(false)}
+        onDoubleClick={open}
+        data-active="false"
+        style={{ display:'flex', alignItems:'center', gap:12, padding:'9px 14px', borderRadius:10, cursor:'pointer', marginBottom:2, ['--nx-row-hover-bg' as any]:'rgba(255,255,255,0.05)', position:'relative', overflow:'hidden' }}
+      >
+        <SurfaceHighlight highlight={interaction.highlight} inset={1} radius={10}>
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              borderRadius: 10,
+              border: `1px solid rgba(${metaRgb},0.24)`,
+              background: `radial-gradient(circle at 50% 50%, rgba(${metaRgb},0.16), rgba(${metaRgb},0.05) 68%, rgba(${metaRgb},0.02) 100%)`,
+            }}
+          />
+        </SurfaceHighlight>
         <div style={{ width:30, height:30, borderRadius:8, background:`${meta.color}22`, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
           <Icon size={14} style={{ color:meta.color }}/>
         </div>
@@ -119,22 +169,56 @@ export function FileCard({ item, viewMode, onAssign, wsColor }: { item: FileItem
           <span style={{ fontSize:10, opacity:0.4 }}>{timeAgo(item.updated)}</span>
           <span style={{ fontSize:10, padding:'2px 7px', borderRadius:10, background:`${meta.color}20`, color:meta.color, fontWeight:700 }}>{meta.label}</span>
         </div>
-      </div>
+      </motion.div>
     )
   }
 
   return (
-    <Glass hover glow style={{ padding:14, cursor:'pointer', position:'relative' }} onDoubleClick={open}>
+    <motion.div
+      className="nx-motion-managed"
+      animate={interaction.content.animate}
+      transition={interaction.content.transition}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => {
+        setHovered(false)
+        setPressed(false)
+      }}
+      onFocusCapture={() => setFocused(true)}
+      onBlurCapture={() => {
+        setFocused(false)
+        setPressed(false)
+      }}
+      onPointerDown={() => setPressed(true)}
+      onPointerUp={() => setPressed(false)}
+      onPointerCancel={() => setPressed(false)}
+    >
+    <Glass hover glow style={{ padding:14, cursor:'pointer', position:'relative', overflow:'hidden' }} onDoubleClick={open}>
+      <SurfaceHighlight highlight={interaction.highlight} inset={1} radius={10}>
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            borderRadius: 10,
+            border: `1px solid rgba(${metaRgb},0.22)`,
+            background: `radial-gradient(circle at 50% 50%, rgba(${metaRgb},0.16), rgba(${metaRgb},0.05) 68%, rgba(${metaRgb},0.02) 100%)`,
+          }}
+        />
+      </SurfaceHighlight>
       <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:10 }}>
         <div style={{ width:34, height:34, borderRadius:9, background:`${meta.color}22`, display:'flex', alignItems:'center', justifyContent:'center' }}>
           <Icon size={16} style={{ color:meta.color }}/>
         </div>
         <div style={{ display:'flex', gap:5, alignItems:'center' }}>
           {wsColor && <div style={{ width:8, height:8, borderRadius:'50%', background:wsColor }} title="In workspace"/>}
-          <button onClick={e=>{e.stopPropagation();setMenu(m=>!m)}} style={{ background:'none', border:'none', cursor:'pointer', opacity:0.35, padding:3, borderRadius:5, color:'inherit' }}
-            onMouseEnter={e=>e.currentTarget.style.opacity='1'} onMouseLeave={e=>e.currentTarget.style.opacity='0.35'}>
+          <InteractiveIconButton
+            motionId={`files-card-menu-${item.id}`}
+            onClick={(e) => { e.stopPropagation(); setMenu((m) => !m) }}
+            idleOpacity={0.35}
+            radius={5}
+            style={{ padding:3 }}
+          >
             <MoreVertical size={13}/>
-          </button>
+          </InteractiveIconButton>
         </div>
       </div>
       <div style={{ fontSize:13, fontWeight:700, marginBottom:4, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{item.title}</div>
@@ -150,6 +234,7 @@ export function FileCard({ item, viewMode, onAssign, wsColor }: { item: FileItem
         </div>
       )}
     </Glass>
+    </motion.div>
   )
 }
 
@@ -164,8 +249,27 @@ export function WorkspaceCard({ ws, active, onSelect, onEdit, onDelete, itemCoun
           {ws.icon}
         </div>
         <div style={{ display:'flex', gap:4 }}>
-          <button onClick={e=>{e.stopPropagation();onEdit()}} style={{ background:'none', border:'none', cursor:'pointer', opacity:0.35, padding:4, borderRadius:6, color:'inherit' }} onMouseEnter={e=>e.currentTarget.style.opacity='1'} onMouseLeave={e=>e.currentTarget.style.opacity='0.35'}><Edit3 size={12}/></button>
-          {ws.id !== 'default' && <button onClick={e=>{e.stopPropagation();onDelete()}} style={{ background:'none', border:'none', cursor:'pointer', color:'#ff453a', opacity:0.35, padding:4, borderRadius:6 }} onMouseEnter={e=>e.currentTarget.style.opacity='1'} onMouseLeave={e=>e.currentTarget.style.opacity='0.35'}><Trash2 size={12}/></button>}
+          <InteractiveIconButton
+            motionId={`workspace-edit-${ws.id}`}
+            onClick={(e) => { e.stopPropagation(); onEdit() }}
+            idleOpacity={0.35}
+            radius={6}
+            style={{ padding:4 }}
+          >
+            <Edit3 size={12}/>
+          </InteractiveIconButton>
+          {ws.id !== 'default' && (
+            <InteractiveIconButton
+              motionId={`workspace-delete-${ws.id}`}
+              onClick={(e) => { e.stopPropagation(); onDelete() }}
+              intent="danger"
+              idleOpacity={0.35}
+              radius={6}
+              style={{ padding:4 }}
+            >
+              <Trash2 size={12}/>
+            </InteractiveIconButton>
+          )}
         </div>
       </div>
       <div style={{ fontSize:14, fontWeight:800, marginBottom:3, color: active?ws.color:'inherit' }}>{ws.icon} {ws.name}</div>
@@ -213,8 +317,11 @@ export function WorkspaceCreateButton({ onClick }: { onClick: () => void }) {
   const t = useTheme()
   const rgb = hexToRgb(t.accent)
   return (
-    <button onClick={onClick} style={{ width:28, height:28, borderRadius:8, background:`rgba(${rgb},0.15)`, border:`1px solid rgba(${rgb},0.25)`, cursor:'pointer', color:t.accent, display:'flex', alignItems:'center', justifyContent:'center', transition:'all 0.12s' }}
-      onMouseEnter={e=>e.currentTarget.style.background=`rgba(${rgb},0.25)`} onMouseLeave={e=>e.currentTarget.style.background=`rgba(${rgb},0.15)`}>
+    <button
+      onClick={onClick}
+      className="nx-interactive nx-bounce-target"
+      style={{ width:28, height:28, borderRadius:8, background:`rgba(${rgb},0.15)`, border:`1px solid rgba(${rgb},0.25)`, color:t.accent, display:'flex', alignItems:'center', justifyContent:'center' }}
+    >
       <Plus size={14}/>
     </button>
   )

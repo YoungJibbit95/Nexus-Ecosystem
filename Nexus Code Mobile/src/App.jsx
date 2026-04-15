@@ -8,6 +8,7 @@ import {
   useLocation,
 } from "react-router-dom";
 import { createNexusRuntime, isOfflineControlErrorCode } from "@nexus/api";
+import { resolveNexusControlUserContext } from "@nexus/core";
 import { installRuntimeLagProbe } from "./lib/runtimeLagProbe";
 import { useGlobalTypingAnimation } from "./lib/useGlobalTypingAnimation";
 
@@ -133,6 +134,15 @@ function App() {
   const controlBaseUrl = CONTROL_API_BASE_URL;
   const controlIngestKey = import.meta.env?.VITE_NEXUS_CONTROL_INGEST_KEY;
   const lowPowerMode = useMemo(() => isLowPowerDevice(), []);
+  const viewAccessContext = useMemo(
+    () =>
+      resolveNexusControlUserContext({
+        userId: import.meta.env?.VITE_NEXUS_USER_ID,
+        username: import.meta.env?.VITE_NEXUS_USERNAME,
+        userTier: import.meta.env?.VITE_NEXUS_USER_TIER,
+      }),
+    [],
+  );
   useGlobalTypingAnimation(!lowPowerMode);
   const [bootReady, setBootReady] = useState(false);
   const [bootProgress, setBootProgress] = useState(0);
@@ -142,6 +152,12 @@ function App() {
     releaseId: null,
     compatible: true,
     reasons: [],
+  });
+  const [viewGuardState, setViewGuardState] = useState({
+    checking: true,
+    blocked: false,
+    reason: null,
+    requiredTier: null,
   });
 
   const runtime = useMemo(
@@ -177,6 +193,7 @@ function App() {
   );
 
   useEffect(() => {
+    runtime.control.setViewValidationDefaults(viewAccessContext);
     runtime.start();
     const stopLagProbe = installRuntimeLagProbe({
       enabled: import.meta.env?.VITE_NEXUS_LAG_PROBE === "1",
@@ -213,7 +230,7 @@ function App() {
       stopLagProbe();
       runtime.stop();
     };
-  }, [runtime]);
+  }, [runtime, viewAccessContext]);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -235,6 +252,12 @@ function App() {
     }, bootBudgetMs);
     setBootFailure(null);
     setBootReady(false);
+    setViewGuardState({
+      checking: true,
+      blocked: false,
+      reason: null,
+      requiredTier: null,
+    });
     setBootProgress(8);
     setBootStage("Nexus Runtime wird gestartet...");
 
@@ -322,6 +345,22 @@ function App() {
             release: releaseResult.item,
           });
         }
+        setBootStep(72, "Validiere Editor-Zugriff...");
+        const editorAccess = await runtime.control.validateViewAccess("editor", {
+          forceRefresh: false,
+          ...viewAccessContext,
+        });
+        if (!active) return;
+        setViewGuardState({
+          checking: false,
+          blocked: !editorAccess.allowed,
+          reason: editorAccess.reason || null,
+          requiredTier: editorAccess.requiredTier || null,
+        });
+        if (!editorAccess.allowed) {
+          setBootStep(100, "Editor-Zugriff gesperrt");
+          return;
+        }
         setBootStep(80, "Lade Editor-Module und Runtime...");
         const warmupBudgetMs = Math.max(1_200, bootBudgetMs - 700);
         await Promise.race([
@@ -341,6 +380,10 @@ function App() {
         setBootFailure(reason);
       } finally {
         if (active) {
+          setViewGuardState((prev) => ({
+            ...prev,
+            checking: false,
+          }));
           setBootProgress(100);
           setBootReady(true);
         }
@@ -359,7 +402,7 @@ function App() {
       clearTimeout(forceBootReadyTimer);
       unsubscribe();
     };
-  }, [runtime, lowPowerMode]);
+  }, [runtime, lowPowerMode, viewAccessContext]);
 
   if (!bootReady) {
     return <BootSequenceScreen progress={bootProgress} stage={bootStage} />;
@@ -399,6 +442,46 @@ function App() {
           </div>
           <div style={{ marginTop: 6 }}>
             Gruende: <code>{(releaseState.reasons || []).join(" | ") || "N/A"}</code>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (viewGuardState.blocked) {
+    return (
+      <div
+        style={{
+          width: "100%",
+          minHeight: "100dvh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "linear-gradient(135deg, #1d1603 0%, #111723 100%)",
+          color: "#fff3d0",
+          fontFamily: "system-ui, sans-serif",
+          padding: 16,
+        }}
+      >
+        <div
+          style={{
+            maxWidth: 560,
+            borderRadius: 14,
+            border: "1px solid rgba(255,191,64,0.45)",
+            background: "rgba(255,191,64,0.12)",
+            padding: 14,
+            fontSize: 13,
+            lineHeight: 1.45,
+          }}
+        >
+          <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 6 }}>
+            Editor-Zugriff gesperrt
+          </div>
+          <div>
+            Grund: <code>{viewGuardState.reason || "PAYWALL_BLOCKED"}</code>
+          </div>
+          <div style={{ marginTop: 6 }}>
+            Erforderlicher Tier: <code>{viewGuardState.requiredTier || "paid"}</code>
           </div>
         </div>
       </div>

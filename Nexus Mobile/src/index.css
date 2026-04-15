@@ -72,28 +72,65 @@ body {
     background-color var(--nx-motion-regular, 210ms) ease,
     color var(--nx-motion-regular, 210ms) ease,
     border-color var(--nx-motion-quick, 170ms) ease,
-    box-shadow var(--nx-motion-regular, 210ms) var(--nx-motion-settle-ease, ease),
-    filter var(--nx-motion-quick, 170ms) var(--nx-motion-settle-ease, ease);
+    box-shadow var(--nx-motion-regular, 210ms) var(--nx-motion-settle-ease, ease);
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
   cursor: pointer;
   transform: translateZ(0);
   transform-origin: center center;
   backface-visibility: hidden;
-  will-change: transform, filter;
+  will-change: transform, opacity;
 }
 
 @media (hover: hover) and (pointer: fine) {
-  :where(button, [role='button'], .nx-interactive):not(:disabled):not([aria-disabled='true']):not(.nx-sidebar-nav-row):hover {
+  :where(button, [role='button'], .nx-interactive):not(:disabled):not([aria-disabled='true']):not(.nx-sidebar-nav-row):not(.nx-motion-managed):not(.nx-toolbar-navchip):not(.nx-toolbar-command):not(.nx-icon-btn):hover {
     transform: scale(calc(var(--nx-hover-scale, 1.007) + var(--nx-hover-extra-scale, 0)));
-    filter: brightness(1.04);
   }
 }
 
-:where(button, [role='button'], .nx-interactive):not(:disabled):not([aria-disabled='true']):not(.nx-sidebar-nav-row):active {
+:where(button, [role='button'], .nx-interactive):not(:disabled):not([aria-disabled='true']):not(.nx-sidebar-nav-row):not(.nx-motion-managed):not(.nx-toolbar-navchip):not(.nx-toolbar-command):not(.nx-icon-btn):active {
   transform: scale(var(--nx-press-scale, 0.985));
-  filter: brightness(0.96);
   transition-timing-function: var(--nx-motion-press-ease, cubic-bezier(0.25, 1, 0.5, 1));
+}
+
+:where(button, [role='button'], .nx-interactive):not(:disabled):not([aria-disabled='true']):not(.nx-sidebar-nav-row):not(.nx-motion-managed):not(.nx-toolbar-navchip):not(.nx-toolbar-command):not(.nx-icon-btn) {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+
+:where(button, [role='button'], .nx-interactive):not(:disabled):not([aria-disabled='true']):not(.nx-sidebar-nav-row):not(.nx-motion-managed):not(.nx-toolbar-navchip):not(.nx-toolbar-command):not(.nx-icon-btn)::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  transform: scale(0.92);
+  transform-origin: 50% 50%;
+  background: radial-gradient(
+    circle at 50% 50%,
+    rgba(255,255,255,0.18) 0%,
+    rgba(255,255,255,0.09) 38%,
+    rgba(255,255,255,0) 78%
+  );
+  transition:
+    opacity var(--nx-motion-quick, 170ms) var(--nx-motion-settle-ease, cubic-bezier(0.22, 1, 0.36, 1)),
+    transform var(--nx-motion-quick, 170ms) var(--nx-motion-hover-ease, cubic-bezier(0.2, 0.86, 0.3, 1));
+  z-index: 0;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  :where(button, [role='button'], .nx-interactive):not(:disabled):not([aria-disabled='true']):not(.nx-sidebar-nav-row):not(.nx-motion-managed):not(.nx-toolbar-navchip):not(.nx-toolbar-command):not(.nx-icon-btn):hover::before {
+    opacity: 1;
+    transform: scale(1);
+    animation: nx-hover-slab-in var(--nx-motion-regular, 210ms) cubic-bezier(0.2, 0.9, 0.22, 1) 1 both;
+  }
+
+  :where(button, [role='button'], .nx-interactive):not(:disabled):not([aria-disabled='true']):not(.nx-sidebar-nav-row):not(.nx-motion-managed):not(.nx-toolbar-navchip):not(.nx-toolbar-command):not(.nx-icon-btn):not(:hover)::before {
+    opacity: 0;
+    transform: scale(0.92);
+  }
 }
 
 .nx-sidebar-nav-row {
@@ -106,15 +143,66 @@ button.nx-sidebar-nav-row:active {
 }
 
 .nx-bounce-target {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  transform-origin: 50% 50%;
   transition:
     transform var(--nx-motion-quick, 170ms) var(--nx-motion-hover-ease, cubic-bezier(0.2, 0.86, 0.3, 1)),
-    box-shadow var(--nx-motion-regular, 210ms) ease,
-    filter var(--nx-motion-regular, 210ms) ease;
+    box-shadow var(--nx-motion-regular, 210ms) var(--nx-motion-settle-ease, ease),
+    background-color var(--nx-motion-regular, 210ms) var(--nx-motion-settle-ease, ease),
+    border-color var(--nx-motion-quick, 170ms) var(--nx-motion-settle-ease, ease),
+    color var(--nx-motion-quick, 170ms) var(--nx-motion-settle-ease, ease);
+}
+
+.nx-bounce-target:not(.nx-sidebar-nav-row)::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  transform: scale(0.9);
+  transform-origin: 50% 50%;
+  background: radial-gradient(
+    circle at 50% 50%,
+    rgba(255,255,255,0.18) 0%,
+    rgba(255,255,255,0.09) 38%,
+    rgba(255,255,255,0) 78%
+  );
+  transition:
+    opacity var(--nx-motion-quick, 170ms) var(--nx-motion-settle-ease, cubic-bezier(0.22, 1, 0.36, 1)),
+    transform var(--nx-motion-quick, 170ms) var(--nx-motion-hover-ease, cubic-bezier(0.2, 0.86, 0.3, 1));
+  z-index: 0;
+}
+
+.nx-bounce-target:not(.nx-sidebar-nav-row) > * {
+  position: relative;
+  z-index: 1;
 }
 
 .nx-bounce-target:hover {
   transform: scale(calc(var(--nx-hover-scale, 1.007) + var(--nx-hover-extra-scale, 0) * 0.65));
-  filter: brightness(1.04);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .nx-bounce-target:not(.nx-sidebar-nav-row):hover::before {
+    opacity: 1;
+    transform: scale(1);
+    animation: nx-hover-slab-in var(--nx-motion-regular, 210ms) cubic-bezier(0.2, 0.9, 0.22, 1) 1 both;
+  }
+
+  .nx-bounce-target:not(.nx-sidebar-nav-row):not(:hover)::before {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+}
+
+.nx-sidebar-surface,
+.nx-sidebar-surface:hover,
+.nx-sidebar-surface:active {
+  transform: none !important;
+  filter: none !important;
 }
 
 /* Motion Engine Phase 2: shared hover/press variants */
@@ -122,7 +210,6 @@ button.nx-sidebar-nav-row:active {
   transition:
     transform var(--nx-motion-quick, 170ms) var(--nx-motion-hover-ease, cubic-bezier(0.2, 0.86, 0.3, 1)),
     box-shadow var(--nx-motion-regular, 210ms) var(--nx-motion-settle-ease, ease),
-    filter var(--nx-motion-regular, 210ms) var(--nx-motion-settle-ease, ease),
     border-color var(--nx-motion-quick, 170ms) ease;
   transform: translateZ(0);
   transform-origin: center center;
@@ -133,10 +220,98 @@ button.nx-sidebar-nav-row:active {
 .nx-motion-hover-medium { --nx-hover-mult: 0.62; }
 .nx-motion-hover-strong { --nx-hover-mult: 0.9; }
 
+.nx-surface-row {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-radius: inherit;
+  transform: translateZ(0);
+  transform-origin: 50% 50%;
+  transition:
+    background-color var(--nx-motion-regular, 210ms) var(--nx-motion-settle-ease, ease),
+    border-color var(--nx-motion-quick, 170ms) var(--nx-motion-settle-ease, ease),
+    opacity var(--nx-motion-quick, 170ms) ease,
+    box-shadow var(--nx-motion-regular, 210ms) var(--nx-motion-settle-ease, ease);
+}
+
+.nx-surface-row::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  transform: scale(0.94);
+  transform-origin: 50% 50%;
+  background: radial-gradient(
+    circle at 50% 50%,
+    rgba(255,255,255,0.16) 0%,
+    rgba(255,255,255,0.08) 42%,
+    rgba(255,255,255,0.02) 70%,
+    rgba(255,255,255,0) 100%
+  );
+  transition:
+    opacity var(--nx-motion-quick, 170ms) var(--nx-motion-settle-ease, cubic-bezier(0.22, 1, 0.36, 1)),
+    transform var(--nx-motion-quick, 170ms) var(--nx-motion-hover-ease, cubic-bezier(0.2, 0.86, 0.3, 1));
+  z-index: 0;
+}
+
+.nx-surface-row > * {
+  position: relative;
+  z-index: 1;
+}
+
+.nx-surface-row[data-active='true']::before {
+  opacity: 1;
+  transform: scale(1);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .nx-surface-row[data-active='false']:hover {
+    background: var(--nx-row-hover-bg, rgba(255, 255, 255, 0.06));
+  }
+
+  .nx-surface-row[data-active='false']:hover::before {
+    opacity: 1;
+    transform: scale(1);
+    animation: nx-hover-slab-in var(--nx-motion-regular, 210ms) cubic-bezier(0.2, 0.9, 0.22, 1) 1 both;
+  }
+
+  .nx-surface-row[data-active='false']:not(:hover)::before {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+}
+
+.nx-icon-fade {
+  --nx-idle-opacity: 0.35;
+  --nx-icon-hover-bg: rgba(255, 255, 255, 0.08);
+  opacity: var(--nx-idle-opacity, 0.35);
+  transition:
+    opacity var(--nx-motion-quick, 170ms) ease,
+    background-color var(--nx-motion-regular, 210ms) var(--nx-motion-settle-ease, ease);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .nx-icon-fade:hover {
+    opacity: 1;
+    background: var(--nx-icon-hover-bg, rgba(255, 255, 255, 0.08));
+  }
+}
+
+.nx-menu-item {
+  transition: background-color var(--nx-motion-regular, 210ms) var(--nx-motion-settle-ease, ease);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .nx-menu-item:hover {
+    background: rgba(255, 255, 255, 0.08);
+  }
+}
+
 @media (hover: hover) and (pointer: fine) {
   :where(.nx-motion-hover-soft, .nx-motion-hover-medium, .nx-motion-hover-strong):hover {
     transform: scale(calc(1 + var(--nx-hover-extra-scale, 0) * var(--nx-hover-mult, 0.5)));
-    filter: brightness(1.03);
   }
 }
 
@@ -147,7 +322,13 @@ button.nx-sidebar-nav-row:active {
 
 [data-nx-motion-reduced='1'] :where(.nx-bounce-target, .nx-motion-hover-soft, .nx-motion-hover-medium, .nx-motion-hover-strong) {
   transform: none !important;
-  filter: none !important;
+}
+
+[data-nx-motion-reduced='1'] :where(button, [role='button'], .nx-interactive):not(:disabled):not([aria-disabled='true']):not(.nx-sidebar-nav-row):not(.nx-motion-managed):not(.nx-toolbar-navchip):not(.nx-toolbar-command):not(.nx-icon-btn)::before {
+  animation: none !important;
+  transition: none !important;
+  opacity: 0 !important;
+  transform: scale(1) !important;
 }
 
 @property --nx-gradient-rot {
@@ -215,6 +396,11 @@ button.nx-icon-btn:hover::after { opacity: 1; }
   0%   { opacity: 0; transform: scale(0.72); }
   55%  { transform: scale(1.06); }
   80%  { transform: scale(0.97); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes nx-hover-slab-in {
+  0% { opacity: 0; transform: scale(0.9); }
+  58% { opacity: 1; transform: scale(1.045); }
   100% { opacity: 1; transform: scale(1); }
 }
 @keyframes nx-view-enter {
@@ -335,21 +521,6 @@ button:focus-visible {
   font-size: 0.78em; font-weight: 700; vertical-align: middle; letter-spacing: 0.02em;
 }
 
-/* ── Real color-cycling glow — hue shifts continuously ── */
-@keyframes nexus-color-cycle {
-  0%   { filter: hue-rotate(0deg)   blur(var(--nx-glow-blur, 18px)); }
-  25%  { filter: hue-rotate(90deg)  blur(var(--nx-glow-blur, 18px)); }
-  50%  { filter: hue-rotate(180deg) blur(var(--nx-glow-blur, 18px)); }
-  75%  { filter: hue-rotate(270deg) blur(var(--nx-glow-blur, 18px)); }
-  100% { filter: hue-rotate(360deg) blur(var(--nx-glow-blur, 18px)); }
-}
-
-/* Color-shift for text/fills */
-@keyframes nexus-hue-shift {
-  0%   { filter: hue-rotate(0deg); }
-  100% { filter: hue-rotate(360deg); }
-}
-
 /* Glow pulse — size breathes */
 @keyframes nexus-glow-breathe {
   0%, 100% { opacity: 0.65; transform: scale(1); }
@@ -423,11 +594,17 @@ button:focus-visible {
 }
 
 /* ── Spacing density ── */
-[data-density='compact'] .Glass, [data-density='compact'] [class*='glass'] {
+[data-density='compact'] .Glass,
+[data-density='compact'] .nx-motion-panel,
+[data-density='compact'] .nx-ios-surface,
+[data-density='compact'] .nx-sidebar-surface {
   padding: 10px 12px !important;
 }
 [data-density='compact'] button { padding-top: 4px !important; padding-bottom: 4px !important; }
-[data-density='spacious'] .Glass, [data-density='spacious'] [class*='glass'] {
+[data-density='spacious'] .Glass,
+[data-density='spacious'] .nx-motion-panel,
+[data-density='spacious'] .nx-ios-surface,
+[data-density='spacious'] .nx-sidebar-surface {
   padding: 20px 24px !important;
 }
 

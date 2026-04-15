@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 
 function ToolBtn({
   icon: Icon,
@@ -15,15 +15,13 @@ function ToolBtn({
   rgb: string;
   active?: boolean;
 }) {
-  const [h, setH] = useState(false);
   return (
     <button
       onClick={onClick}
-      onMouseEnter={() => setH(true)}
-      onMouseLeave={() => setH(false)}
       title={tooltip}
+      className="nx-interactive nx-bounce-target"
       style={{
-        background: h || active ? `rgba(${rgb}, 0.18)` : "transparent",
+        background: active ? `rgba(${rgb}, 0.18)` : "transparent",
         border: active
           ? `1px solid rgba(${rgb}, 0.3)`
           : "1px solid transparent",
@@ -33,10 +31,8 @@ function ToolBtn({
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        cursor: "pointer",
-        color: h || active ? accent : "inherit",
-        transition: "all 0.15s",
-        opacity: h || active ? 1 : 0.65,
+        color: active ? accent : "inherit",
+        opacity: active ? 1 : 0.72,
       }}
     >
       <Icon size={14} />

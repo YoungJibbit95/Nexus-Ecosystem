@@ -45,9 +45,21 @@ export default defineConfig({
   plugins: [react()],
   base: "./",
   resolve: {
+    dedupe: ["react", "react-dom"],
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      "@nexus/core": path.resolve(__dirname, "../packages/nexus-core/src"),
       "@nexus/api": path.resolve(__dirname, "../packages/nexus-core/src/api"),
+      react: path.resolve(__dirname, "./node_modules/react"),
+      "react-dom": path.resolve(__dirname, "./node_modules/react-dom"),
+      "react/jsx-runtime": path.resolve(
+        __dirname,
+        "./node_modules/react/jsx-runtime.js",
+      ),
+      "react/jsx-dev-runtime": path.resolve(
+        __dirname,
+        "./node_modules/react/jsx-dev-runtime.js",
+      ),
     },
   },
   server: {
