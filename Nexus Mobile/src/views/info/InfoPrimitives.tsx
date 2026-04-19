@@ -126,7 +126,7 @@ export function Acc({ title, icon: Icon, open, onToggle, children, badge }: any)
             exit={{ height: 0, opacity: 0 }}
             transition={{
               duration: Math.max(0.14, interaction.runtime.timings.regularMs / 1000),
-              ease: interaction.runtime.timings.framerEase,
+              ease: interaction.runtime.timings.framerEase as any,
             }}
             style={{ overflow: "hidden" }}
           >
@@ -314,4 +314,3 @@ export function P({ children }: { children: React.ReactNode }) {
     </p>
   );
 }
-

@@ -112,6 +112,25 @@ npm run verify:ecosystem
 npm run doctor:release
 ```
 
+## Dependency Baseline (April 2026)
+
+Major dependency refresh is applied across all 4 apps and validated with full builds plus verify scripts.
+
+- React / React DOM: `19.2.x`
+- Framer Motion: `12.38.x`
+- Lucide React: `1.8.x`
+- Monaco Editor: `0.55.x`
+- Three.js: `0.184.x`
+- Zustand: `5.0.x`
+- React Markdown: `10.1.x`
+
+Security checks (high severity, production deps) currently report `0 vulnerabilities` for:
+
+- `Nexus Main`
+- `Nexus Mobile`
+- `Nexus Code`
+- `Nexus Code Mobile`
+
 ## Environment
 
 Production API host:

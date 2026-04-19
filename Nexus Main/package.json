@@ -26,35 +26,35 @@
     "package.json"
   ],
   "dependencies": {
-    "@monaco-editor/react": "^4.6.0",
+    "@monaco-editor/react": "^4.7.0",
     "clsx": "^2.0.0",
-    "framer-motion": "^10.18.0",
-    "lucide-react": "^0.294.0",
-    "monaco-editor": "^0.44.0",
-    "react": "^18.2.0",
+    "framer-motion": "^12.38.0",
+    "lucide-react": "^1.8.0",
+    "monaco-editor": "^0.55.1",
+    "react": "^19.2.0",
     "react-dnd": "^16.0.1",
     "react-dnd-html5-backend": "^16.0.1",
-    "react-dom": "^18.2.0",
-    "react-markdown": "^9.0.1",
+    "react-dom": "^19.2.0",
+    "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.0",
-    "three": "^0.171.0",
-    "zustand": "^4.4.7"
+    "three": "^0.184.0",
+    "zustand": "^5.0.12"
   },
   "devDependencies": {
     "@types/node": "^20.10.6",
-    "@types/react": "^18.2.46",
-    "@types/react-dom": "^18.2.18",
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
     "7zip-bin": "^5.2.0",
     "autoprefixer": "^10.4.16",
-    "concurrently": "^8.2.2",
+    "concurrently": "^9.2.1",
     "electron": "^41.1.0",
     "electron-builder": "^26.8.1",
     "postcss": "^8.4.32",
     "tailwindcss": "^3.4.0",
     "typescript": "^5.3.3",
     "vite": "^8.0.3",
-    "wait-on": "^7.2.0"
+    "wait-on": "^9.0.5"
   },
   "build": {
     "appId": "com.youngjibbit95.nexus",
@@ -122,6 +122,7 @@
   "overrides": {
     "picomatch": "2.3.2",
     "minimatch": "10.2.4",
-    "brace-expansion": "5.0.5"
+    "brace-expansion": "5.0.5",
+    "dompurify": "3.4.0"
   }
 }

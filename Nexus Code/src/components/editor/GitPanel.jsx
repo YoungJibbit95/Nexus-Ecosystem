@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import {
   GitBranch,
+  GitFork,
   GitCommit,
   RefreshCw,
   Check,
@@ -11,7 +12,6 @@ import {
   Download,
   AlertCircle,
   Clock,
-  Github,
   Key,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -359,7 +359,7 @@ export default function GitPanel({ files }) {
             title="Settings"
             className="p-1 rounded hover:bg-white/[0.06] text-gray-500 hover:text-gray-300 transition-colors"
           >
-            <Github size={12} className={githubUser ? "text-green-400" : ""} />
+            <GitFork size={12} className={githubUser ? "text-green-400" : ""} />
           </motion.button>
         </div>
       </div>

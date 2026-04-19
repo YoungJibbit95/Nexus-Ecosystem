@@ -189,12 +189,13 @@ export function NexusMarkdown({ content, className = '', style, components }: Ne
   }
 
   return (
-    <ReactMarkdown
-      remarkPlugins={[remarkGfm]}
-      className={`nx-prose ${className}`}
-      components={mergedComponents}
-    >
-      {content}
-    </ReactMarkdown>
+    <div style={style} className={`nx-prose ${className}`.trim()}>
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        components={mergedComponents}
+      >
+        {content}
+      </ReactMarkdown>
+    </div>
   )
 }
