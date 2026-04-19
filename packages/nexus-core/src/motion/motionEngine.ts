@@ -24,7 +24,7 @@ type MotionSpring = {
   mass: number;
 };
 
-type MotionTransition = MotionSpring | { duration: number; ease: string };
+type MotionTransition = MotionSpring | { duration: number; ease: any };
 
 type ThemeLike = {
   qol?: {

@@ -24,27 +24,27 @@
     "@capacitor/keyboard": "^8.0.0",
     "@capacitor/local-notifications": "^8.0.0",
     "@capacitor/status-bar": "^8.0.0",
-    "@monaco-editor/react": "^4.6.0",
+    "@monaco-editor/react": "^4.7.0",
     "clsx": "^2.0.0",
-    "framer-motion": "^10.18.0",
-    "lucide-react": "^0.294.0",
-    "monaco-editor": "^0.44.0",
-    "react": "^18.2.0",
+    "framer-motion": "^12.38.0",
+    "lucide-react": "^1.8.0",
+    "monaco-editor": "^0.55.1",
+    "react": "^19.2.0",
     "react-dnd": "^16.0.1",
     "react-dnd-html5-backend": "^16.0.1",
-    "react-dom": "^18.2.0",
-    "react-markdown": "^9.0.1",
+    "react-dom": "^19.2.0",
+    "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.0",
-    "three": "^0.171.0",
-    "zustand": "^4.4.7"
+    "three": "^0.184.0",
+    "zustand": "^5.0.12"
   },
   "devDependencies": {
     "@capacitor/android": "^8.0.0",
     "@capacitor/cli": "^8.3.0",
     "@capacitor/ios": "^8.0.0",
     "@types/node": "^20.10.6",
-    "@types/react": "^18.2.46",
-    "@types/react-dom": "^18.2.18",
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
     "autoprefixer": "^10.4.16",
     "postcss": "^8.4.32",
@@ -53,6 +53,7 @@
     "vite": "^8.0.3"
   },
   "overrides": {
-    "picomatch": "2.3.2"
+    "picomatch": "2.3.2",
+    "dompurify": "3.4.0"
   }
 }
