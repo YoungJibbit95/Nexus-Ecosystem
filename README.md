@@ -2,9 +2,7 @@
 
 [![Apps](https://img.shields.io/badge/apps-4-0ea5e9)](./README.md)
 [![Shared%20Core](https://img.shields.io/badge/shared-core%20render%20%2B%20motion-14b8a6)](./packages/nexus-core/README.md)
-<img src="https://komarev.com/ghpvc/?username=YoungJibbit95&label=Profile+Views&color=0e75b6&style=flat" alt="profile views" />
-  <img src="https://img.shields.io/github/followers/YoungJibbit95?label=Followers&style=flat&color=1f6feb" alt="followers" />
-  <img src="https://img.shields.io/github/stars/YoungJibbit95?affiliations=OWNER%2CCOLLABORATOR&style=flat&color=f1e05a" alt="stars" />
+![Repo Views](https://komarev.com/ghpvc/?username=YoungJibbit95&repo=Nexus-Ecosystem&color=0ea5e9)
 
 Nexus ist ein Multi-App Workspace-System fuer Planung, Entwicklung und Daily Operations.
 Dieses Repository enthaelt die produktiven Clients, Shared Core Runtime-Logik und die Wiki-/Website-Dokumentation.
