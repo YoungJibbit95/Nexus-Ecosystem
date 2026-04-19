@@ -6,9 +6,8 @@ export type ModuleId =
   | "editor"
   | "workspace";
 
-export type RendererMode = "blur" | "fake-glass" | "glass-shader" | "liquid-glass";
+export type RendererMode = "blur" | "fake-glass" | "glass-shader";
 export type GlowRendererMode = "css" | "three";
-export type LiquidPresetMode = "fidelity" | "performance" | "no-shader";
 
 export type ExperiencePreset = {
   id: "focus" | "balanced" | "cinematic";

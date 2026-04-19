@@ -73,7 +73,7 @@ function NavRow({
   const t = useTheme()
   const rgb = hexToRgb(color)
   const Icon = icon
-  const isLiquidSidebar = ((t.glassmorphism as any)?.panelRenderer ?? 'blur') === 'liquid-glass'
+  const isLiquidSidebar = false
   const liquidPreset = ((t.glassmorphism as any).liquidPreset ?? 'performance') as 'fidelity' | 'performance' | 'no-shader'
   const liquidPresetDefaults = liquidPreset === 'fidelity'
     ? { distortionScale: -180, displace: 0.5, saturation: 2.1 }
@@ -312,7 +312,7 @@ export function Sidebar({
   const rgb = hexToRgb(t.accent)
   const [terminalHovered, setTerminalHovered] = React.useState(false)
   const [terminalFocused, setTerminalFocused] = React.useState(false)
-  const isLiquidSidebar = ((t.glassmorphism as any)?.panelRenderer ?? 'blur') === 'liquid-glass'
+  const isLiquidSidebar = false
   const liquidPreset = ((t.glassmorphism as any).liquidPreset ?? 'performance') as 'fidelity' | 'performance' | 'no-shader'
   const liquidPresetDefaults = liquidPreset === 'fidelity'
     ? { distortionScale: -180, displace: 0.5, saturation: 2.1 }

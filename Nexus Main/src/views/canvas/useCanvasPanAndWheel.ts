@@ -1,0 +1,260 @@
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useCanvas, type Viewport } from "../../store/canvasStore";
+
+export const useCanvasPanAndWheel = ({
+  canvasRef,
+  canvasSize,
+  viewport,
+  spaceHeld,
+  setPan,
+  setSelectedNodeId,
+  setConnectingFrom,
+  setQuickAddPos,
+}: {
+  canvasRef: React.RefObject<HTMLDivElement | null>;
+  canvasSize: { w: number; h: number };
+  viewport: Viewport;
+  spaceHeld: boolean;
+  setPan: (x: number, y: number) => void;
+  setSelectedNodeId: (id: string | null) => void;
+  setConnectingFrom: (id: string | null) => void;
+  setQuickAddPos: (value: { x: number; y: number } | null) => void;
+}) => {
+  const [panning, setPanning] = useState(false);
+  const [wheelPanning, setWheelPanning] = useState(false);
+
+  const panStart = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
+  const wheelPanRaf = useRef<number>(0);
+  const wheelPanDelta = useRef({ x: 0, y: 0 });
+  const wheelPanReleaseTimeout = useRef<number>(0);
+  const wheelZoomRaf = useRef<number>(0);
+  const wheelZoomDelta = useRef(0);
+  const wheelZoomPoint = useRef<{ x: number; y: number } | null>(null);
+  const wheelGestureMode = useRef<"pan" | "zoom" | null>(null);
+  const wheelGestureModeTimeout = useRef<number>(0);
+
+  const zoomAtPoint = useCallback(
+    (clientX: number, clientY: number, scaleFactor: number) => {
+      const el = canvasRef.current;
+      if (!el) return;
+      const vp = useCanvas.getState().viewport;
+      const rect = el.getBoundingClientRect();
+      const localX = clientX - rect.left;
+      const localY = clientY - rect.top;
+      const nextZoom = Math.max(0.15, Math.min(3, vp.zoom * scaleFactor));
+      if (Math.abs(nextZoom - vp.zoom) < 0.0001) return;
+      const worldX = (localX - vp.panX) / vp.zoom;
+      const worldY = (localY - vp.panY) / vp.zoom;
+      const nextPanX = localX - worldX * nextZoom;
+      const nextPanY = localY - worldY * nextZoom;
+      useCanvas.setState({
+        viewport: {
+          ...vp,
+          zoom: nextZoom,
+          panX: nextPanX,
+          panY: nextPanY,
+        },
+      });
+    },
+    [canvasRef],
+  );
+
+  const handleCanvasMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const isInsideNode = Boolean(target.closest(".nx-canvas-node"));
+      const isCanvasBackground =
+        !isInsideNode &&
+        (target === e.currentTarget ||
+          target.id === "nexus-canvas-inner" ||
+          Boolean(target.closest("#nexus-canvas-inner")));
+      setQuickAddPos(null);
+      const canStartPan =
+        e.button === 1 ||
+        (e.button === 0 &&
+          ((spaceHeld && !isInsideNode) || isCanvasBackground));
+      if (canStartPan) {
+        e.preventDefault();
+        setPanning(true);
+        panStart.current = {
+          x: e.clientX,
+          y: e.clientY,
+          panX: viewport.panX,
+          panY: viewport.panY,
+        };
+      }
+      if (e.button === 0 && isCanvasBackground) {
+        setSelectedNodeId(null);
+        setConnectingFrom(null);
+      }
+    },
+    [
+      setConnectingFrom,
+      setQuickAddPos,
+      setSelectedNodeId,
+      spaceHeld,
+      viewport.panX,
+      viewport.panY,
+    ],
+  );
+
+  useEffect(() => {
+    if (!panning) return;
+    let raf = 0;
+    let pending: { x: number; y: number } | null = null;
+
+    const flush = () => {
+      raf = 0;
+      if (!pending) return;
+      setPan(pending.x, pending.y);
+      pending = null;
+    };
+
+    const onMove = (e: MouseEvent) => {
+      pending = {
+        x: panStart.current.panX + e.clientX - panStart.current.x,
+        y: panStart.current.panY + e.clientY - panStart.current.y,
+      };
+      if (!raf) raf = requestAnimationFrame(flush);
+    };
+
+    const onUp = () => {
+      if (raf) {
+        cancelAnimationFrame(raf);
+        raf = 0;
+      }
+      if (pending) {
+        setPan(pending.x, pending.y);
+        pending = null;
+      }
+      setPanning(false);
+    };
+
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    return () => {
+      if (raf) cancelAnimationFrame(raf);
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, [panning, setPan]);
+
+  const handleWheel = useCallback(
+    (e: React.WheelEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target?.closest(".nx-canvas-node")) {
+        if (e.ctrlKey || e.metaKey || e.altKey) {
+          e.preventDefault();
+        }
+        return;
+      }
+      e.preventDefault();
+      const deltaScale =
+        e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? canvasSize.h : 1;
+      const rawDx = e.deltaX * deltaScale;
+      const rawDy = e.deltaY * deltaScale;
+      const dx = Math.max(-180, Math.min(180, rawDx));
+      const dy = Math.max(-180, Math.min(180, rawDy));
+      if (Math.abs(dx) < 0.02 && Math.abs(dy) < 0.02) return;
+
+      const absRawDx = Math.abs(rawDx);
+      const absRawDy = Math.abs(rawDy);
+      const nearVerticalGesture = absRawDy >= absRawDx * 1.15;
+      const looksLikePinch =
+        absRawDy > 0 &&
+        nearVerticalGesture &&
+        absRawDx <= 42 &&
+        absRawDy <= 96;
+
+      let mode = wheelGestureMode.current;
+      if (!mode) {
+        mode = e.ctrlKey || e.metaKey || looksLikePinch ? "zoom" : "pan";
+        wheelGestureMode.current = mode;
+      }
+      if (wheelGestureModeTimeout.current) {
+        window.clearTimeout(wheelGestureModeTimeout.current);
+      }
+      wheelGestureModeTimeout.current = window.setTimeout(() => {
+        wheelGestureMode.current = null;
+      }, 180);
+
+      if (mode === "zoom") {
+        const pinchDelta = Math.max(-140, Math.min(140, dy));
+        wheelZoomDelta.current += pinchDelta;
+        wheelZoomPoint.current = { x: e.clientX, y: e.clientY };
+        if (!wheelZoomRaf.current) {
+          wheelZoomRaf.current = requestAnimationFrame(() => {
+            wheelZoomRaf.current = 0;
+            const delta = Math.max(-200, Math.min(200, wheelZoomDelta.current));
+            wheelZoomDelta.current = 0;
+            const point = wheelZoomPoint.current;
+            if (!point || Math.abs(delta) < 0.02) return;
+            const absPinch = Math.abs(delta);
+            const sensitivity =
+              absPinch <= 8 ? 0.011 : absPinch < 28 ? 0.0085 : 0.0062;
+            const factor = Math.exp(-delta * sensitivity);
+            zoomAtPoint(point.x, point.y, factor);
+          });
+        }
+        setWheelPanning(false);
+        return;
+      }
+
+      wheelPanDelta.current.x -= dx;
+      wheelPanDelta.current.y -= dy;
+      setWheelPanning(true);
+      if (!wheelPanRaf.current) {
+        wheelPanRaf.current = requestAnimationFrame(() => {
+          wheelPanRaf.current = 0;
+          const vp = useCanvas.getState().viewport;
+          const delta = wheelPanDelta.current;
+          wheelPanDelta.current = { x: 0, y: 0 };
+          if (delta.x || delta.y) {
+            useCanvas.setState({
+              viewport: {
+                ...vp,
+                panX: vp.panX + delta.x,
+                panY: vp.panY + delta.y,
+              },
+            });
+          }
+        });
+      }
+
+      if (wheelPanReleaseTimeout.current) {
+        window.clearTimeout(wheelPanReleaseTimeout.current);
+      }
+      wheelPanReleaseTimeout.current = window.setTimeout(() => {
+        setWheelPanning(false);
+      }, 110);
+    },
+    [canvasSize.h, zoomAtPoint],
+  );
+
+  useEffect(
+    () => () => {
+      if (wheelPanRaf.current) {
+        cancelAnimationFrame(wheelPanRaf.current);
+      }
+      if (wheelZoomRaf.current) {
+        cancelAnimationFrame(wheelZoomRaf.current);
+      }
+      if (wheelPanReleaseTimeout.current) {
+        window.clearTimeout(wheelPanReleaseTimeout.current);
+      }
+      if (wheelGestureModeTimeout.current) {
+        window.clearTimeout(wheelGestureModeTimeout.current);
+      }
+      wheelGestureMode.current = null;
+    },
+    [],
+  );
+
+  return {
+    panning,
+    wheelPanning,
+    zoomAtPoint,
+    handleCanvasMouseDown,
+    handleWheel,
+  };
+};

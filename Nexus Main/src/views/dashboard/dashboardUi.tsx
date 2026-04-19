@@ -131,7 +131,7 @@ export function QuickChip({
 }) {
   const t = useTheme();
   const isLiquidGlass =
-    ((t.glassmorphism as any)?.panelRenderer ?? "blur") === "liquid-glass";
+    false;
   const rgb = hexToRgb(color);
   const chipId = React.useId();
   const [hovered, setHovered] = React.useState(false);

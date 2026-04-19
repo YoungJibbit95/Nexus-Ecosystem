@@ -106,10 +106,14 @@ function getLuminance(rgb) {
   return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
 }
 
-function normalizeEditorTextColor(value) {
-  const rgb = extractRgbTuple(value);
-  if (!rgb) return "#e5e7eb";
-  return getLuminance(rgb) < 0.45 ? "#e5e7eb" : value;
+function normalizeEditorTextColor(value, background) {
+  const bg = extractRgbTuple(background);
+  const fg = extractRgbTuple(value);
+  if (!bg) return "#f3f4f6";
+  // Keep editor text bright by default; only switch to dark on very bright surfaces.
+  if (getLuminance(bg) < 0.72) return "#f3f4f6";
+  if (fg && getLuminance(fg) > 0.42) return value;
+  return "#111827";
 }
 
 function isIgnoredDiagnosticCode(rawCode) {
@@ -200,9 +204,13 @@ export default function CodeEditor({
         const cssEditorText =
           rootStyles.getPropertyValue("--nexus-editor-foreground").trim() ||
           rootStyles.getPropertyValue("--nexus-text").trim();
+        const cssEditorSurface =
+          rootStyles.getPropertyValue("--nexus-panel-surface").trim() ||
+          rootStyles.getPropertyValue("--nexus-bg-value").trim();
         const monacoBase = "vs-dark";
         const editorTextColor = normalizeEditorTextColor(
-          pickReadableColorSource(cssEditorText, activeTheme.text, "#e5e7eb"),
+          pickReadableColorSource(cssEditorText, activeTheme.text, "#f3f4f6"),
+          cssEditorSurface,
         );
         const editorLineNumberColor = "#9ca3af";
         const editorWidgetBackground = "#0a0a0f";

@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 /** @type {any} */
 const win = typeof window !== "undefined" ? window : {};
 const isElectron = !!win.electronAPI;
 const isMacOS = isElectron && win.electronAPI?.platform === "darwin";
+const MACOS_TRAFFIC_LIGHT_SAFE_WIDTH = 78;
 
 function MenuButton({ label, items, activeMenu, setActiveMenu }) {
   const isOpen = activeMenu === label;
@@ -26,6 +27,8 @@ function MenuButton({ label, items, activeMenu, setActiveMenu }) {
             <div 
               className="fixed inset-0 z-40" 
               onClick={() => setActiveMenu(null)}
+              // @ts-ignore
+              style={{ WebkitAppRegion: "no-drag" }}
             />
             <motion.div
               initial={{ opacity: 0, y: 5, scale: 0.95 }}
@@ -74,6 +77,7 @@ export default function TitleBar({
   const [isMaximized, setIsMaximized] = useState(false);
   const [hoveredBtn, setHoveredBtn] = useState(null);
   const [activeMenu, setActiveMenu] = useState(null);
+  const menuHostRef = useRef(null);
 
   useEffect(() => {
     if (!isElectron) return;
@@ -81,6 +85,36 @@ export default function TitleBar({
     const unsub1 = win.electronAPI.onMaximized(setIsMaximized);
     return () => unsub1?.();
   }, []);
+
+  useEffect(() => {
+    if (!activeMenu) return;
+
+    const closeMenu = () => setActiveMenu(null);
+    const onPointerDownCapture = (event) => {
+      const host = menuHostRef.current;
+      if (!host) {
+        closeMenu();
+        return;
+      }
+      const target = event.target;
+      if (target instanceof Node && host.contains(target)) return;
+      closeMenu();
+    };
+    const onKeyDown = (event) => {
+      if (event.key === "Escape") closeMenu();
+    };
+    const onWindowBlur = () => closeMenu();
+
+    document.addEventListener("pointerdown", onPointerDownCapture, true);
+    window.addEventListener("keydown", onKeyDown, true);
+    window.addEventListener("blur", onWindowBlur);
+
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDownCapture, true);
+      window.removeEventListener("keydown", onKeyDown, true);
+      window.removeEventListener("blur", onWindowBlur);
+    };
+  }, [activeMenu]);
 
   const safeNewFile = onNewFile || (() => {});
   const safeSaveAll = onSaveAll || (() => {});
@@ -142,7 +176,10 @@ export default function TitleBar({
         WebkitAppRegion: isElectron ? "drag" : "no-drag",
       }}
     >
-      <div className="flex items-center gap-1.5 shrink-0 min-w-0 pr-4">
+      <div
+        className="flex items-center gap-1.5 shrink-0 min-w-0 pr-4"
+        style={{ paddingLeft: isMacOS ? MACOS_TRAFFIC_LIGHT_SAFE_WIDTH : 0 }}
+      >
         {showWindowControls && (
           <div
             className="flex items-center gap-1.5 mr-2"
@@ -181,7 +218,12 @@ export default function TitleBar({
         )}
 
         {/* Menu Bar */}
-        <div className="flex items-center gap-1">
+        <div
+          ref={menuHostRef}
+          className="flex items-center gap-1"
+          // @ts-ignore
+          style={{ WebkitAppRegion: "no-drag" }}
+        >
           {MENUS.map(menu => (
             <MenuButton 
               key={menu.label} 

@@ -34,6 +34,7 @@ export function SpotlightPanel({
   return (
     <Glass
       type="modal"
+      className="nx-toolbar-surface nx-toolbar-surface--spotlight"
       glow
       disablePulse
       performanceProfile="balanced"

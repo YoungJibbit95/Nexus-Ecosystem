@@ -87,6 +87,7 @@ export function MobileFullWidthToolbarSection(props: any) {
   return (
     <Glass
       type="modal"
+      className="nx-toolbar-surface nx-toolbar-surface--full"
       style={{
         width: "100%",
         height: barHeight ?? fullCfg.height,

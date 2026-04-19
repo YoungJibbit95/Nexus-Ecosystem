@@ -1,16 +1,26 @@
 # Nexus Code Mobile
 
-Nexus Code Mobile ist die mobile IDE-App im Nexus Ecosystem (React + Vite + Capacitor).
-Sie bringt den Editor-/Run-Flow auf Android/iOS mit mobilen Shell- und Panel-Anpassungen.
+[![Platform](https://img.shields.io/badge/platform-android%20%2F%20ios-16a34a)](./README.md)
+[![Framework](https://img.shields.io/badge/stack-capacitor%20%2B%20react-111827)](./README.md)
+[![Core%20Parity](https://img.shields.io/badge/render%2Fmotion-core%20aligned-14b8a6)](../packages/nexus-core/README.md)
 
-## Kernfunktionen
+Nexus Code Mobile ist die mobile IDE-App im Nexus Ecosystem.
+Sie bringt den Editor-/Run-Flow auf Android/iOS mit mobile-angepassten Panels und Touch-Interaktionen.
 
-- Monaco-basierter Editor (`src/components/editor/CodeEditor.jsx`)
-- Dateibaum, Tabs, Search/Spotlight, Run-Flow
-- Panels fuer Search, Git, Debug, Problems und Terminal
-- Native Filesystem-Bridge (`src/lib/nativeFS.js`)
+## Main Surfaces
 
-## Entwicklung
+| Surface | Purpose | Highlights |
+| --- | --- | --- |
+| `Editor` | code writing | Monaco-based editing with mobile interaction tuning |
+| `Explorer` | files and project context | project tree and quick file switching |
+| `Search` | find/jump | project search and action routing |
+| `Terminal` | command runtime | integrated terminal and output views |
+| `Debug` | diagnostics | runtime debugging surface |
+| `Problems` | quality surface | errors/warnings and jump actions |
+| `Command` | quick actions | command palette and shortcuts |
+| `Settings` | mobile editor behavior | runtime/editor controls |
+
+## Development
 
 ```bash
 npm install
@@ -27,7 +37,7 @@ npm run cap:sync
 npm run cap:copy
 ```
 
-## Relevante Scripts
+## Script Reference
 
 - `npm run dev`
 - `npm run dev:web`
@@ -43,7 +53,7 @@ npm run cap:copy
 - `npm run cap:ios`
 - `npm run cap:copy`
 
-## Struktur
+## Structure
 
 - `src/pages/Editor.jsx`
 - `src/components/editor/*`
@@ -55,13 +65,13 @@ npm run cap:copy
 ## Environment
 
 - `VITE_NEXUS_CONTROL_URL=https://nexus-api.cloud`
-- `VITE_NEXUS_CONTROL_INGEST_KEY` (App-Key fuer `code-mobile`)
+- `VITE_NEXUS_CONTROL_INGEST_KEY` (key for `code-mobile`)
 - `VITE_NEXUS_USER_ID`
 - `VITE_NEXUS_USERNAME`
 - `VITE_NEXUS_USER_TIER`
 
-## Hinweise
+## Notes
 
-- `npm run dev` startet den Android-Flow (nicht nur Web).
-- Fuer Browser-Debugging `npm run dev:web` nutzen.
-- Mobile und Desktop sollen funktional moeglichst paritaetisch bleiben.
+- `npm run dev` starts Android flow by default.
+- Use `npm run dev:web` for web-only debugging.
+- Mobile/desktop feature parity is targeted where practical.

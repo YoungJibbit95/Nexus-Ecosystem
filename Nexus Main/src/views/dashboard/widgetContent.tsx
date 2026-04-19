@@ -67,7 +67,7 @@ export function buildDashboardWidgetContent({
   accentRgb: rgb,
 }: DashboardWidgetContentArgs): Record<WidgetId, React.ReactNode> {
   const isLiquidGlass =
-    ((t.glassmorphism as any)?.panelRenderer ?? "blur") === "liquid-glass";
+    false;
   const WidgetActionButton = ({
     liquidColor,
     style,

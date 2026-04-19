@@ -23,6 +23,17 @@ declare global {
         }>
         write: (path: string, content: string) => Promise<{ ok: boolean; error?: string }>
       }
+      code: {
+        execute: (payload: { lang: string; code: string; fileName?: string }) => Promise<{
+          ok: boolean
+          output: string
+          error?: string
+          exitCode?: number
+          runtime?: string
+          timeout?: boolean
+          unsupported?: boolean
+        }>
+      }
       notify: (title: string, body: string) => Promise<void> | void
     }
   }
