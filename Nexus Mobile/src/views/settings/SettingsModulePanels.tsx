@@ -14,7 +14,6 @@ import {
 import { SettingsWorkspaceModule } from "./SettingsWorkspaceModule";
 import {
   GlowRendererMode,
-  LiquidPresetMode,
   ModuleId,
   RendererMode,
 } from "./settingsTypes";
@@ -25,10 +24,6 @@ type SettingsModulePanelsProps = {
   rgb: string;
   panelRenderer: RendererMode;
   glowRenderer: GlowRendererMode;
-  liquidPreset: LiquidPresetMode;
-  liquidDistortionScale: number;
-  liquidDisplace: number;
-  liquidSaturation: number;
   toast: (text: string) => void;
   onOpenWalkthrough?: () => void;
   clearSpotlight: () => void;
@@ -42,16 +37,28 @@ export function SettingsModulePanels({
   rgb,
   panelRenderer,
   glowRenderer,
-  liquidPreset,
-  liquidDistortionScale,
-  liquidDisplace,
-  liquidSaturation,
   toast,
   onOpenWalkthrough,
   clearSpotlight,
   clearTerminalWorkspace,
   resetDashboardLayout,
 }: SettingsModulePanelsProps) {
+  const panelModeHelp: Record<RendererMode, { label: string; desc: string }> = {
+    blur: {
+      label: "Soft Blur",
+      desc: "Empfohlen für Alltag: stabil, klar und schnell.",
+    },
+    "fake-glass": {
+      label: "Fake Glass",
+      desc: "CSS/SVG-Glaslook ohne Shader, gute Balance.",
+    },
+    "glass-shader": {
+      label: "Shader Glass",
+      desc: "Höchste visuelle Tiefe, benötigt mehr Grafikleistung.",
+    },
+  };
+  const activePanelHelp = panelModeHelp[panelRenderer];
+
   return (
     <>
             {module === "appearance" ? (
@@ -184,35 +191,51 @@ export function SettingsModulePanels({
                   </div>
                 </ModuleCard>
 
-                <ModuleCard title="Typography">
+                <ModuleCard
+                  title="Typography"
+                  desc="Globale Schrift und Grundlesbarkeit der Oberfläche"
+                >
                   <FontLibrary
                     value={t.globalFont}
                     onChange={(font) => t.setGlobalFont(font)}
                   />
                   <div style={{ marginTop: 10 }}>
-                    <Row>
-                      <Slider
-                        label="UI Font Size"
-                        value={t.qol.fontSize}
-                        min={12}
-                        max={18}
-                        step={1}
-                        unit="px"
-                        onChange={(value) => t.setQOL({ fontSize: value })}
-                      />
-                      <Segmented
-                        label="Editor Font"
-                        value={t.editor.fontFamily}
-                        options={[
-                          "monospace",
-                          "Fira Code",
-                          "Menlo",
-                          "Consolas",
-                          "JetBrains Mono",
-                        ]}
-                        onChange={(font) => t.setEditor({ fontFamily: font })}
-                      />
-                    </Row>
+                    <Slider
+                      label="UI Font Size"
+                      value={t.qol.fontSize}
+                      min={12}
+                      max={18}
+                      step={1}
+                      unit="px"
+                      onChange={(value) => t.setQOL({ fontSize: value })}
+                    />
+                  </div>
+                </ModuleCard>
+
+                <ModuleCard
+                  title="Accessibility & Clarity"
+                  desc="Kontrast und UI-Hilfen für bessere Lesbarkeit"
+                >
+                  <Row>
+                    <Toggle
+                      label="High Contrast UI"
+                      checked={Boolean(t.qol?.highContrast)}
+                      onChange={(next) => t.setQOL({ highContrast: next })}
+                    />
+                    <Toggle
+                      label="Show Tooltips"
+                      checked={Boolean(t.qol?.showTooltips)}
+                      onChange={(next) => t.setQOL({ showTooltips: next })}
+                    />
+                  </Row>
+                  <div style={{ marginTop: 8 }}>
+                    <Toggle
+                      label="Auto Accent Contrast"
+                      checked={Boolean((t.qol as any)?.autoAccentContrast ?? true)}
+                      onChange={(next) =>
+                        t.setQOL({ autoAccentContrast: next } as any)
+                      }
+                    />
                   </div>
                 </ModuleCard>
               </>
@@ -221,24 +244,35 @@ export function SettingsModulePanels({
             {module === "panel" ? (
               <>
                 <ModuleCard
-                  title="Panel Renderer"
-                  desc="Nur passende Controls werden angezeigt"
+                  title="Panel Background"
+                  desc="Wähle einen Modus. Nur passende Regler werden darunter gezeigt."
                 >
                   <Segmented
-                    label="Panel Background"
+                    label="Mode"
                     value={panelRenderer}
-                    options={["blur", "fake-glass", "liquid-glass", "glass-shader"]}
+                    options={[
+                      { value: "blur", label: "Soft Blur" },
+                      { value: "fake-glass", label: "Fake Glass" },
+                      { value: "glass-shader", label: "Shader Glass" },
+                    ]}
                     onChange={(mode) =>
                       t.setGlassmorphism({
                         panelRenderer: mode as RendererMode,
                       } as any)
                     }
                   />
+                  <div style={{ marginTop: 8, fontSize: 11, opacity: 0.68 }}>
+                    <strong style={{ opacity: 0.92 }}>{activePanelHelp.label}:</strong>{" "}
+                    {activePanelHelp.desc}
+                  </div>
                   <div style={{ height: 10 }} />
                   <Segmented
-                    label="Glow Renderer"
+                    label="Glow Engine"
                     value={glowRenderer}
-                    options={["css", "three"]}
+                    options={[
+                      { value: "css", label: "CSS (leicht)" },
+                      { value: "three", label: "Three.js (dynamisch)" },
+                    ]}
                     onChange={(mode) =>
                       t.setGlassmorphism({
                         glowRenderer: mode as GlowRendererMode,
@@ -268,7 +302,10 @@ export function SettingsModulePanels({
                 </ModuleCard>
 
                 {panelRenderer === "blur" ? (
-                  <ModuleCard title="Blur Renderer Controls">
+                  <ModuleCard
+                    title="Soft Blur Controls"
+                    desc="Für ruhige, transparente Panels"
+                  >
                     <Row>
                       <Slider
                         label="Panel Blur"
@@ -293,7 +330,10 @@ export function SettingsModulePanels({
                 ) : null}
 
                 {panelRenderer === "fake-glass" ? (
-                  <ModuleCard title="Fake Glass Controls">
+                  <ModuleCard
+                    title="Fake Glass Controls"
+                    desc="CSS-/SVG-Glaslook ohne Shader"
+                  >
                     <Row>
                       <Slider
                         label="Border Opacity"
@@ -319,128 +359,11 @@ export function SettingsModulePanels({
                   </ModuleCard>
                 ) : null}
 
-                {panelRenderer === "liquid-glass" ? (
-                  <ModuleCard title="Liquid Glass Controls" desc="Nur für Buttons/Chips, Panels bleiben CSS-Blur">
-                    <div style={{ fontSize: 11, opacity: 0.68, lineHeight: 1.45, marginBottom: 8 }}>
-                      Liquid Glass wird in dieser Version nur auf interaktive Buttons angewendet,
-                      damit Panels und View-Wechsel performant bleiben.
-                    </div>
-                    <Segmented
-                      label="Pipeline Preset"
-                      value={liquidPreset}
-                      options={["fidelity", "performance", "no-shader"]}
-                      onChange={(mode) =>
-                        t.setGlassmorphism({
-                          liquidPreset: mode as LiquidPresetMode,
-                        } as any)
-                      }
-                    />
-                    <div style={{ height: 8 }} />
-                    <Row>
-                      <Slider
-                        label="Distortion Depth"
-                        value={(t.glassmorphism as any).glassDepth ?? 0.5}
-                        min={0.2}
-                        max={2}
-                        step={0.05}
-                        unit="x"
-                        onChange={(value) =>
-                          t.setGlassmorphism({ glassDepth: value } as any)
-                        }
-                      />
-                      <Slider
-                        label="Saturation"
-                        value={t.glassmorphism.saturation}
-                        min={90}
-                        max={260}
-                        step={5}
-                        unit="%"
-                        onChange={(value) =>
-                          t.setGlassmorphism({ saturation: value })
-                        }
-                      />
-                    </Row>
-                    <div style={{ marginTop: 8 }}>
-                      <Slider
-                        label="Tint Opacity"
-                        value={t.glassmorphism.tintOpacity}
-                        min={0}
-                        max={0.45}
-                        step={0.01}
-                        onChange={(value) =>
-                          t.setGlassmorphism({ tintOpacity: value })
-                        }
-                      />
-                    </div>
-                    <div style={{ marginTop: 8 }}>
-                      <Row>
-                        <Slider
-                          label="Distortion Scale"
-                          value={liquidDistortionScale}
-                          min={-320}
-                          max={320}
-                          step={2}
-                          onChange={(value) =>
-                            t.setGlassmorphism({
-                              liquidDistortionScale: value,
-                            } as any)
-                          }
-                        />
-                        <Slider
-                          label="Displace"
-                          value={liquidDisplace}
-                          min={0}
-                          max={3}
-                          step={0.02}
-                          onChange={(value) =>
-                            t.setGlassmorphism({
-                              liquidDisplace: value,
-                            } as any)
-                          }
-                        />
-                        <Slider
-                          label="Liquid Saturation"
-                          value={liquidSaturation}
-                          min={0.8}
-                          max={2.8}
-                          step={0.02}
-                          unit="x"
-                          onChange={(value) =>
-                            t.setGlassmorphism({
-                              liquidSaturation: value,
-                            } as any)
-                          }
-                        />
-                      </Row>
-                    </div>
-                    <div style={{ marginTop: 8, display: "flex", justifyContent: "flex-end" }}>
-                      <button
-                        onClick={() =>
-                          t.setGlassmorphism({
-                            liquidDistortionScale: undefined,
-                            liquidDisplace: undefined,
-                            liquidSaturation: undefined,
-                          } as any)
-                        }
-                        style={{
-                          borderRadius: 10,
-                          border: "1px solid rgba(255,255,255,0.12)",
-                          background: "rgba(255,255,255,0.04)",
-                          color: "inherit",
-                          padding: "8px 10px",
-                          fontSize: 12,
-                          fontWeight: 700,
-                          cursor: "pointer",
-                        }}
-                      >
-                        Preset-Werte nutzen
-                      </button>
-                    </div>
-                  </ModuleCard>
-                ) : null}
-
                 {panelRenderer === "glass-shader" ? (
-                  <ModuleCard title="Glass Shader Controls">
+                  <ModuleCard
+                    title="Shader Glass Controls"
+                    desc="Qualität zuerst. Für schwächere Geräte lieber Soft Blur."
+                  >
                     <Row>
                       <Slider
                         label="Glass Depth"
@@ -658,37 +581,26 @@ export function SettingsModulePanels({
                     />
                   </Row>
                   <div style={{ marginTop: 8 }}>
-                    <Row>
-                      <Toggle
-                        label="Toolbar Visible"
-                        checked={t.toolbar?.visible ?? true}
-                        onChange={(next) => t.setToolbar({ visible: next })}
-                      />
-                      <Toggle
-                        label="High Contrast"
-                        checked={Boolean(t.qol?.highContrast)}
-                        onChange={(next) => t.setQOL({ highContrast: next })}
-                      />
-                    </Row>
+                    <Toggle
+                      label="Toolbar Visible"
+                      checked={t.toolbar?.visible ?? true}
+                      onChange={(next) => t.setToolbar({ visible: next })}
+                    />
                   </div>
                 </ModuleCard>
 
-                <ModuleCard title="Density & Radius">
-                  <Row>
-                    <Segmented
-                      label="Panel Density"
-                      value={t.qol?.panelDensity ?? "comfortable"}
-                      options={["comfortable", "compact", "spacious"]}
-                      onChange={(value) =>
-                        t.setQOL({ panelDensity: value as any })
-                      }
-                    />
-                    <Toggle
-                      label="Quick Actions"
-                      checked={Boolean(t.qol?.quickActions)}
-                      onChange={(next) => t.setQOL({ quickActions: next })}
-                    />
-                  </Row>
+                <ModuleCard
+                  title="Density & Radius"
+                  desc="Steuert Panel-Inhalt und Abstände, nicht Toolbar-Geometrie"
+                >
+                  <Segmented
+                    label="Panel Density"
+                    value={t.qol?.panelDensity ?? "comfortable"}
+                    options={["comfortable", "compact", "spacious"]}
+                    onChange={(value) =>
+                      t.setQOL({ panelDensity: value as any })
+                    }
+                  />
                   <div style={{ marginTop: 8 }}>
                     <Row>
                       <Slider
@@ -714,6 +626,17 @@ export function SettingsModulePanels({
                       />
                     </Row>
                   </div>
+                </ModuleCard>
+
+                <ModuleCard
+                  title="Workflow Shortcuts"
+                  desc="Schnellzugriffe für Actions, Capture und Navigation"
+                >
+                  <Toggle
+                    label="Quick Actions"
+                    checked={Boolean(t.qol?.quickActions)}
+                    onChange={(next) => t.setQOL({ quickActions: next })}
+                  />
                 </ModuleCard>
               </>
             ) : null}
@@ -833,7 +756,10 @@ export function SettingsModulePanels({
 
             {module === "editor" ? (
               <>
-                <ModuleCard title="Code Editor">
+                <ModuleCard
+                  title="Code Editor"
+                  desc="Wirkt direkt auf CodeView und Editor-Bereiche in Notes"
+                >
                   <Row>
                     <Slider
                       label="Font Size"
@@ -854,6 +780,20 @@ export function SettingsModulePanels({
                     />
                   </Row>
                   <div style={{ marginTop: 8 }}>
+                    <Segmented
+                      label="Editor Font"
+                      value={t.editor.fontFamily}
+                      options={[
+                        { value: "monospace", label: "monospace", previewFont: "monospace" },
+                        { value: "Fira Code", label: "Fira Code", previewFont: "Fira Code" },
+                        { value: "Menlo", label: "Menlo", previewFont: "Menlo" },
+                        { value: "Consolas", label: "Consolas", previewFont: "Consolas" },
+                        { value: "JetBrains Mono", label: "JetBrains Mono", previewFont: "JetBrains Mono" },
+                      ]}
+                      onChange={(font) => t.setEditor({ fontFamily: font })}
+                    />
+                  </div>
+                  <div style={{ marginTop: 8 }}>
                     <Row>
                       <Toggle
                         label="Word Wrap"
@@ -864,6 +804,46 @@ export function SettingsModulePanels({
                         label="Line Numbers"
                         checked={Boolean(t.editor.lineNumbers)}
                         onChange={(next) => t.setEditor({ lineNumbers: next })}
+                      />
+                    </Row>
+                  </div>
+                </ModuleCard>
+
+                <ModuleCard
+                  title="Editor Behavior"
+                  desc="Autosave, Minimap und Cursor-Verhalten"
+                >
+                  <Row>
+                    <Toggle
+                      label="Autosave"
+                      checked={Boolean(t.editor.autosave)}
+                      onChange={(next) => t.setEditor({ autosave: next })}
+                    />
+                    <Toggle
+                      label="Minimap"
+                      checked={Boolean(t.editor.minimap)}
+                      onChange={(next) => t.setEditor({ minimap: next })}
+                    />
+                  </Row>
+                  <div style={{ marginTop: 8 }}>
+                    <Row>
+                      <Toggle
+                        label="Cursor Animation"
+                        checked={Boolean(t.editor.cursorAnimation)}
+                        onChange={(next) =>
+                          t.setEditor({ cursorAnimation: next })
+                        }
+                      />
+                      <Slider
+                        label="Autosave Interval"
+                        value={t.editor.autosaveInterval}
+                        min={500}
+                        max={6000}
+                        step={100}
+                        unit="ms"
+                        onChange={(value) =>
+                          t.setEditor({ autosaveInterval: value })
+                        }
                       />
                     </Row>
                   </div>
@@ -892,24 +872,6 @@ export function SettingsModulePanels({
                   </Row>
                 </ModuleCard>
 
-                <ModuleCard title="Accessibility">
-                  <Row>
-                    <Toggle
-                      label="Auto Accent Contrast"
-                      checked={Boolean(
-                        (t.qol as any)?.autoAccentContrast ?? true,
-                      )}
-                      onChange={(next) =>
-                        t.setQOL({ autoAccentContrast: next } as any)
-                      }
-                    />
-                    <Toggle
-                      label="Tooltips"
-                      checked={Boolean(t.qol?.showTooltips)}
-                      onChange={(next) => t.setQOL({ showTooltips: next })}
-                    />
-                  </Row>
-                </ModuleCard>
               </>
             ) : null}
 

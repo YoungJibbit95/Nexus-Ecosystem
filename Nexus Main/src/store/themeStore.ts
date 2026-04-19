@@ -80,11 +80,7 @@ export interface GlassmorphismConfig {
   reflectionLine: boolean
   animatedBlur: boolean
   animatedBlurSpeed: number
-  panelRenderer: 'blur' | 'fake-glass' | 'glass-shader' | 'liquid-glass'
-  liquidPreset?: 'fidelity' | 'performance' | 'no-shader'
-  liquidDistortionScale?: number
-  liquidDisplace?: number
-  liquidSaturation?: number
+  panelRenderer: 'blur' | 'fake-glass' | 'glass-shader'
   glowRenderer: 'css' | 'three'
 }
 
@@ -308,6 +304,60 @@ const P: Record<string, any> = {
     background: { mode: 'gradient', stops: [{ color: '#fff7ef', position: 0, opacity: 1 }, { color: '#ffe7ef', position: 100, opacity: 1 }], angle: 165, animated: false, animationSpeed: 4, noiseOpacity: 0.01, meshIntensity: 0.18 },
     glassmorphism: { borderOpacity: 0.16, borderGlow: true, borderGlowIntensity: 0.4, saturation: 150, tintColor: '#F97316', tintOpacity: 0.02, frostedGlass: false, chromaticAberration: false, glowOutline: true, glowColor1: '#F97316', glowColor2: '#EC4899', glowOutlineStrength: 10 },
   },
+  'Nordic Night': {
+    mode: 'dark', accent: '#88C0D0', accent2: '#5E81AC', bg: '#1c2330',
+    glow: { mode: 'outline', color: '#88C0D0', intensity: 0.55, radius: 22, spread: 5, blendMode: 'screen', gradientGlow: true, gradientColor1: '#88C0D0', gradientColor2: '#5E81AC', gradientAngle: 125, animated: false, animationSpeed: 1 },
+    blur: { strength: 18, noiseOverlay: false, noiseOpacity: 0.02, sidebarBlur: 18, panelBlur: 14, modalBlur: 22 },
+    background: { mode: 'gradient', stops: [{ color: '#1c2330', position: 0, opacity: 1 }, { color: '#243245', position: 100, opacity: 1 }], angle: 155, animated: false, animationSpeed: 4, noiseOpacity: 0.02, meshIntensity: 0.24 },
+  },
+  'Emerald Mist': {
+    mode: 'dark', accent: '#2DD4BF', accent2: '#22C55E', bg: '#0a1514',
+    glow: { mode: 'ambient', color: '#2DD4BF', intensity: 0.62, radius: 24, spread: 6, blendMode: 'screen', gradientGlow: true, gradientColor1: '#2DD4BF', gradientColor2: '#22C55E', gradientAngle: 135, animated: false, animationSpeed: 1 },
+    blur: { strength: 18, noiseOverlay: false, noiseOpacity: 0.025, sidebarBlur: 18, panelBlur: 15, modalBlur: 22 },
+    background: { mode: 'aurora', stops: [{ color: '#2DD4BF', position: 0, opacity: 0.12 }, { color: '#22C55E', position: 60, opacity: 0.08 }, { color: '#0a1514', position: 100, opacity: 1 }], angle: 140, animated: true, animationSpeed: 5, noiseOpacity: 0.03, meshIntensity: 0.36 },
+  },
+  'Ruby Graphite': {
+    mode: 'dark', accent: '#EF476F', accent2: '#F78C6B', bg: '#16181f',
+    glow: { mode: 'outline', color: '#EF476F', intensity: 0.6, radius: 23, spread: 6, blendMode: 'screen', gradientGlow: true, gradientColor1: '#EF476F', gradientColor2: '#F78C6B', gradientAngle: 110, animated: false, animationSpeed: 1 },
+    blur: { strength: 17, noiseOverlay: false, noiseOpacity: 0.022, sidebarBlur: 17, panelBlur: 14, modalBlur: 21 },
+    background: { mode: 'gradient', stops: [{ color: '#16181f', position: 0, opacity: 1 }, { color: '#211b26', position: 100, opacity: 1 }], angle: 152, animated: false, animationSpeed: 4, noiseOpacity: 0.02, meshIntensity: 0.24 },
+  },
+  'Solar Flare': {
+    mode: 'dark', accent: '#FFB020', accent2: '#FF5D5D', bg: '#140f08',
+    glow: { mode: 'gradient', color: '#FFB020', intensity: 0.72, radius: 26, spread: 7, blendMode: 'screen', gradientGlow: true, gradientColor1: '#FFB020', gradientColor2: '#FF5D5D', gradientAngle: 95, animated: true, animationSpeed: 0.9 },
+    blur: { strength: 20, noiseOverlay: false, noiseOpacity: 0.028, sidebarBlur: 20, panelBlur: 16, modalBlur: 24 },
+    background: { mode: 'animated-gradient', stops: [{ color: '#140f08', position: 0, opacity: 1 }, { color: '#2a120e', position: 55, opacity: 1 }, { color: '#140f08', position: 100, opacity: 1 }], angle: 140, animated: true, animationSpeed: 4, noiseOpacity: 0.03, meshIntensity: 0.32 },
+  },
+  'Lavender Storm': {
+    mode: 'dark', accent: '#A78BFA', accent2: '#38BDF8', bg: '#121222',
+    glow: { mode: 'outline', color: '#A78BFA', intensity: 0.64, radius: 24, spread: 6, blendMode: 'screen', gradientGlow: true, gradientColor1: '#A78BFA', gradientColor2: '#38BDF8', gradientAngle: 132, animated: true, animationSpeed: 0.8 },
+    blur: { strength: 19, noiseOverlay: false, noiseOpacity: 0.025, sidebarBlur: 19, panelBlur: 15, modalBlur: 23 },
+    background: { mode: 'aurora', stops: [{ color: '#A78BFA', position: 0, opacity: 0.12 }, { color: '#38BDF8', position: 55, opacity: 0.08 }, { color: '#121222', position: 100, opacity: 1 }], angle: 135, animated: true, animationSpeed: 6, noiseOpacity: 0.03, meshIntensity: 0.38 },
+  },
+  'Paper Ink': {
+    mode: 'light', accent: '#1F6FEB', accent2: '#7C3AED', bg: '#f7f8fb',
+    glow: { mode: 'focus', color: '#1F6FEB', intensity: 0.28, radius: 14, spread: 2, blendMode: 'normal', gradientGlow: false, gradientColor1: '#1F6FEB', gradientColor2: '#7C3AED', gradientAngle: 135, animated: false, animationSpeed: 1 },
+    blur: { strength: 14, noiseOverlay: false, noiseOpacity: 0.01, sidebarBlur: 14, panelBlur: 11, modalBlur: 18 },
+    background: { mode: 'gradient', stops: [{ color: '#f7f8fb', position: 0, opacity: 1 }, { color: '#edf1f8', position: 100, opacity: 1 }], angle: 170, animated: false, animationSpeed: 4, noiseOpacity: 0.01, meshIntensity: 0.14 },
+  },
+  'Mint Frost': {
+    mode: 'light', accent: '#0EA5A2', accent2: '#22C55E', bg: '#eefcf9',
+    glow: { mode: 'focus', color: '#0EA5A2', intensity: 0.32, radius: 16, spread: 3, blendMode: 'normal', gradientGlow: true, gradientColor1: '#0EA5A2', gradientColor2: '#22C55E', gradientAngle: 130, animated: false, animationSpeed: 1 },
+    blur: { strength: 15, noiseOverlay: false, noiseOpacity: 0.01, sidebarBlur: 15, panelBlur: 12, modalBlur: 19 },
+    background: { mode: 'gradient', stops: [{ color: '#eefcf9', position: 0, opacity: 1 }, { color: '#dff7f0', position: 100, opacity: 1 }], angle: 162, animated: false, animationSpeed: 4, noiseOpacity: 0.01, meshIntensity: 0.16 },
+  },
+  'Midnight Amber': {
+    mode: 'dark', accent: '#F59E0B', accent2: '#F97316', bg: '#111013',
+    glow: { mode: 'ambient', color: '#F59E0B', intensity: 0.66, radius: 24, spread: 6, blendMode: 'screen', gradientGlow: true, gradientColor1: '#F59E0B', gradientColor2: '#F97316', gradientAngle: 110, animated: false, animationSpeed: 1 },
+    blur: { strength: 18, noiseOverlay: false, noiseOpacity: 0.024, sidebarBlur: 18, panelBlur: 14, modalBlur: 22 },
+    background: { mode: 'gradient', stops: [{ color: '#111013', position: 0, opacity: 1 }, { color: '#1d1614', position: 100, opacity: 1 }], angle: 148, animated: false, animationSpeed: 4, noiseOpacity: 0.02, meshIntensity: 0.22 },
+  },
+  'Matrix Terminal': {
+    mode: 'dark', accent: '#22C55E', accent2: '#16A34A', bg: '#05110a',
+    glow: { mode: 'outline', color: '#22C55E', intensity: 0.72, radius: 24, spread: 6, blendMode: 'screen', gradientGlow: false, gradientColor1: '#22C55E', gradientColor2: '#16A34A', gradientAngle: 120, animated: false, animationSpeed: 1 },
+    blur: { strength: 16, noiseOverlay: false, noiseOpacity: 0.02, sidebarBlur: 16, panelBlur: 13, modalBlur: 20 },
+    background: { mode: 'gradient', stops: [{ color: '#05110a', position: 0, opacity: 1 }, { color: '#0a1a12', position: 100, opacity: 1 }], angle: 170, animated: false, animationSpeed: 4, noiseOpacity: 0.02, meshIntensity: 0.2 },
+  },
 }
 
 // ── Defaults ──────────────────────────────────────────────────────────────────
@@ -376,7 +426,6 @@ const DEFAULT_GLASS: GlassmorphismConfig = {
   glassMode: 'default', glassDepth: 0.5, innerShadow: false, reflectionLine: false,
   animatedBlur: false, animatedBlurSpeed: 3,
   panelRenderer: 'blur',
-  liquidPreset: 'performance',
   glowRenderer: 'css',
 }
 
@@ -428,12 +477,19 @@ const mergeConfig = <T extends Record<string, any>>(base: T, incoming: unknown):
   isRecord(incoming) ? ({ ...base, ...incoming } as T) : ({ ...base } as T)
 )
 
+const sanitizePanelRenderer = (value: unknown): GlassmorphismConfig['panelRenderer'] => {
+  if (value === 'fake-glass' || value === 'glass-shader') return value
+  return 'blur'
+}
+
 const sanitizeThemeSnapshot = (persistedRaw: unknown, current: Theme): Theme => {
   const persisted = isRecord(persistedRaw) ? (persistedRaw as Partial<Theme>) : {}
   const sidebarWidthRaw = Number(persisted.sidebarWidth)
   const sidebarWidth = Number.isFinite(sidebarWidthRaw)
     ? Math.max(180, Math.min(420, sidebarWidthRaw))
     : current.sidebarWidth
+  const mergedGlassmorphism = mergeConfig(current.glassmorphism, persisted.glassmorphism)
+  mergedGlassmorphism.panelRenderer = sanitizePanelRenderer(mergedGlassmorphism.panelRenderer)
 
   return {
     ...current,
@@ -456,7 +512,7 @@ const sanitizeThemeSnapshot = (persistedRaw: unknown, current: Theme): Theme => 
     gradient: mergeConfig(current.gradient, persisted.gradient),
     background: mergeConfig(current.background, persisted.background),
     blur: mergeConfig(current.blur, persisted.blur),
-    glassmorphism: mergeConfig(current.glassmorphism, persisted.glassmorphism),
+    glassmorphism: mergedGlassmorphism,
     visual: mergeConfig(current.visual, persisted.visual),
     animations: mergeConfig(current.animations, persisted.animations),
     editor: mergeConfig(current.editor, persisted.editor),

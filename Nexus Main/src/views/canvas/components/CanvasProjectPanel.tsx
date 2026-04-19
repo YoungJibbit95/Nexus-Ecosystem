@@ -1,16 +1,37 @@
-import React from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { CheckSquare } from "lucide-react";
 import {
   useCanvas,
   type Canvas,
   type CanvasNode,
+  type CanvasNodePriority,
   type CanvasNodeStatus,
 } from "../../../store/canvasStore";
+import { NodeSearchSection } from "./projectPanel/NodeSearchSection";
+import { NodeOutlineSection } from "./projectPanel/NodeOutlineSection";
+import { NodeBulkActionsSection } from "./projectPanel/NodeBulkActionsSection";
+import { SelectedNodeDetailsSection } from "./projectPanel/SelectedNodeDetailsSection";
+import { TimelineSection } from "./projectPanel/TimelineSection";
+import { scoreNodeMatch } from "./projectPanel/helpers";
+import { type BoardLane } from "./projectPanel/types";
 
-type BoardLane = {
-  id: CanvasNodeStatus;
-  label: string;
-  color: string;
+type CanvasProjectPanelProps = {
+  open: boolean;
+  canvas: Canvas | null | undefined;
+  accent: string;
+  rgb: string;
+  mode: "dark" | "light";
+  projectNodes: CanvasNode[];
+  selectedNode: CanvasNode | null;
+  focusNodeOnly: boolean;
+  onToggleFocusOnly: () => void;
+  onClose: () => void;
+  lanes: BoardLane[];
+  pmStatusFilter: "all" | CanvasNodeStatus;
+  setPmStatusFilter: (next: "all" | CanvasNodeStatus) => void;
+  timelineNodes: CanvasNode[];
+  setSelectedNodeId: (id: string | null) => void;
+  focusNode: (id: string) => void;
 };
 
 export function CanvasProjectPanel({
@@ -30,32 +51,106 @@ export function CanvasProjectPanel({
   timelineNodes,
   setSelectedNodeId,
   focusNode,
-}: {
-  open: boolean;
-  canvas: Canvas | null | undefined;
-  accent: string;
-  rgb: string;
-  mode: "dark" | "light";
-  projectNodes: CanvasNode[];
-  selectedNode: CanvasNode | null;
-  focusNodeOnly: boolean;
-  onToggleFocusOnly: () => void;
-  onClose: () => void;
-  lanes: BoardLane[];
-  pmStatusFilter: "all" | CanvasNodeStatus;
-  setPmStatusFilter: (next: "all" | CanvasNodeStatus) => void;
-  timelineNodes: CanvasNode[];
-  setSelectedNodeId: (id: string | null) => void;
-  focusNode: (id: string) => void;
-}) {
+}: CanvasProjectPanelProps) {
   if (!open || !canvas) return null;
 
-  const updateNode = (nodeId: string, patch: Partial<CanvasNode>) => {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [bulkTagDraft, setBulkTagDraft] = useState("");
+  const [bulkSelected, setBulkSelected] = useState<Record<string, true>>({});
+
+  const bulkSelectedIds = useMemo(() => Object.keys(bulkSelected), [bulkSelected]);
+
+  const updateNode = useCallback((nodeId: string, patch: Partial<CanvasNode>) => {
     useCanvas.getState().updateNode(nodeId, patch);
-  };
+  }, []);
+
+  const clearBulkSelection = useCallback(() => {
+    setBulkSelected({});
+  }, []);
+
+  const bulkToggle = useCallback((nodeId: string) => {
+    setBulkSelected((prev) => {
+      if (prev[nodeId]) {
+        const next = { ...prev };
+        delete next[nodeId];
+        return next;
+      }
+      return { ...prev, [nodeId]: true };
+    });
+  }, []);
+
+  const bulkApplyPatch = useCallback(
+    (patch: Partial<CanvasNode>) => {
+      if (bulkSelectedIds.length === 0) return;
+      const state = useCanvas.getState();
+      bulkSelectedIds.forEach((nodeId) => state.updateNode(nodeId, patch));
+    },
+    [bulkSelectedIds],
+  );
+
+  const bulkDelete = useCallback(() => {
+    if (bulkSelectedIds.length === 0) return;
+    const state = useCanvas.getState();
+    bulkSelectedIds.forEach((nodeId) => state.deleteNode(nodeId));
+    setBulkSelected({});
+    if (selectedNode && bulkSelectedIds.includes(selectedNode.id)) {
+      setSelectedNodeId(null);
+    }
+  }, [bulkSelectedIds, selectedNode, setSelectedNodeId]);
+
+  const bulkApplyTag = useCallback(() => {
+    const tag = bulkTagDraft.trim();
+    if (!tag || bulkSelectedIds.length === 0) return;
+    const state = useCanvas.getState();
+    bulkSelectedIds.forEach((nodeId) => {
+      const current = canvas.nodes.find((node) => node.id === nodeId);
+      if (!current) return;
+      const tags = new Set(current.tags || []);
+      tags.add(tag);
+      state.updateNode(nodeId, { tags: Array.from(tags) });
+    });
+    setBulkTagDraft("");
+  }, [bulkSelectedIds, bulkTagDraft, canvas.nodes]);
 
   const doneCount = projectNodes.filter((node) => node.status === "done").length;
   const blockedCount = projectNodes.filter((node) => node.status === "blocked").length;
+
+  const searchedNodes = useMemo(() => {
+    const q = searchQuery.trim();
+    if (!q) return canvas.nodes.slice(0, 18);
+    return canvas.nodes
+      .map((node) => ({ node, score: scoreNodeMatch(node, q) }))
+      .filter((entry) => entry.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 28)
+      .map((entry) => entry.node);
+  }, [canvas.nodes, searchQuery]);
+
+  const outlineGroups = useMemo(() => {
+    const groups = new Map<string, CanvasNode[]>();
+    canvas.nodes.forEach((node) => {
+      const key = node.type;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key)?.push(node);
+    });
+    return Array.from(groups.entries()).sort((a, b) => b[1].length - a[1].length);
+  }, [canvas.nodes]);
+
+  const jumpToNode = useCallback(
+    (nodeId: string) => {
+      setSelectedNodeId(nodeId);
+      focusNode(nodeId);
+    },
+    [focusNode, setSelectedNodeId],
+  );
+
+  const selectNodesFromSearch = useCallback(() => {
+    const next: Record<string, true> = {};
+    searchedNodes.forEach((node) => {
+      next[node.id] = true;
+    });
+    setBulkSelected(next);
+  }, [searchedNodes]);
 
   return (
     <div
@@ -64,12 +159,12 @@ export function CanvasProjectPanel({
         top: 14,
         right: 14,
         zIndex: 210,
-        width: 338,
-        maxHeight: "78%",
+        width: 372,
+        maxHeight: "82%",
         overflow: "auto",
         borderRadius: 14,
         padding: 12,
-        background: mode === "dark" ? "rgba(12,12,22,0.85)" : "rgba(255,255,255,0.9)",
+        background: mode === "dark" ? "rgba(12,12,22,0.86)" : "rgba(255,255,255,0.92)",
         backdropFilter: "blur(18px)",
         border: "1px solid rgba(255,255,255,0.14)",
         boxShadow: "0 14px 40px rgba(0,0,0,0.35)",
@@ -176,145 +271,39 @@ export function CanvasProjectPanel({
         ))}
       </div>
 
-      {selectedNode && (
-        <div
-          style={{
-            border: "1px solid rgba(255,255,255,0.12)",
-            borderRadius: 10,
-            padding: 10,
-            marginBottom: 10,
-            background: "rgba(255,255,255,0.04)",
-          }}
-        >
-          <div style={{ fontSize: 11, fontWeight: 700, marginBottom: 8 }}>
-            Selected: {selectedNode.title}
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
-            <select
-              value={selectedNode.status || "todo"}
-              onChange={(e) =>
-                updateNode(selectedNode.id, {
-                  status: e.target.value as CanvasNodeStatus,
-                })
-              }
-              style={{
-                fontSize: 11,
-                padding: "6px 8px",
-                borderRadius: 8,
-                background: "rgba(255,255,255,0.08)",
-                border: "1px solid rgba(255,255,255,0.14)",
-                color: "inherit",
-              }}
-            >
-              {lanes.map((lane) => (
-                <option key={lane.id} value={lane.id}>
-                  {lane.id}
-                </option>
-              ))}
-            </select>
-            <select
-              value={selectedNode.priority || "mid"}
-              onChange={(e) =>
-                updateNode(selectedNode.id, {
-                  priority: e.target.value as "low" | "mid" | "high" | "critical",
-                })
-              }
-              style={{
-                fontSize: 11,
-                padding: "6px 8px",
-                borderRadius: 8,
-                background: "rgba(255,255,255,0.08)",
-                border: "1px solid rgba(255,255,255,0.14)",
-                color: "inherit",
-              }}
-            >
-              {(["low", "mid", "high", "critical"] as const).map((prio) => (
-                <option key={prio} value={prio}>
-                  {prio}
-                </option>
-              ))}
-            </select>
-            <input
-              value={selectedNode.owner || ""}
-              placeholder="Owner"
-              onChange={(e) => updateNode(selectedNode.id, { owner: e.target.value })}
-              style={{
-                fontSize: 11,
-                padding: "6px 8px",
-                borderRadius: 8,
-                background: "rgba(255,255,255,0.08)",
-                border: "1px solid rgba(255,255,255,0.14)",
-                color: "inherit",
-              }}
-            />
-            <input
-              type="date"
-              value={selectedNode.dueDate ? selectedNode.dueDate.slice(0, 10) : ""}
-              onChange={(e) =>
-                updateNode(selectedNode.id, {
-                  dueDate: e.target.value || undefined,
-                })
-              }
-              style={{
-                fontSize: 11,
-                padding: "6px 8px",
-                borderRadius: 8,
-                background: "rgba(255,255,255,0.08)",
-                border: "1px solid rgba(255,255,255,0.14)",
-                color: "inherit",
-              }}
-            />
-          </div>
-          <div style={{ marginTop: 8 }}>
-            <label style={{ fontSize: 10, opacity: 0.6, display: "block", marginBottom: 4 }}>
-              Progress {selectedNode.progress ?? 0}%
-            </label>
-            <input
-              type="range"
-              min={0}
-              max={100}
-              value={selectedNode.progress ?? 0}
-              onChange={(e) => updateNode(selectedNode.id, { progress: Number(e.target.value) })}
-              style={{ width: "100%" }}
-            />
-          </div>
-        </div>
-      )}
+      <NodeSearchSection
+        accent={accent}
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        searchedNodes={searchedNodes}
+        bulkSelected={bulkSelected}
+        bulkToggle={bulkToggle}
+        jumpToNode={jumpToNode}
+      />
 
-      <div style={{ fontSize: 10, fontWeight: 700, opacity: 0.55, marginBottom: 6 }}>
-        Timeline
-      </div>
-      {timelineNodes.length === 0 ? (
-        <div style={{ fontSize: 11, opacity: 0.5 }}>
-          Keine Datums-Items im aktuellen Filter.
-        </div>
-      ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          {timelineNodes.map((node) => (
-            <button
-              key={node.id}
-              onClick={() => {
-                setSelectedNodeId(node.id);
-                focusNode(node.id);
-              }}
-              style={{
-                textAlign: "left",
-                border: "1px solid rgba(255,255,255,0.11)",
-                borderRadius: 9,
-                background: "rgba(255,255,255,0.05)",
-                cursor: "pointer",
-                padding: "7px 8px",
-                color: "inherit",
-              }}
-            >
-              <div style={{ fontSize: 11, fontWeight: 700 }}>{node.title}</div>
-              <div style={{ fontSize: 10, opacity: 0.6 }}>
-                {node.dueDate ? new Date(node.dueDate).toLocaleDateString() : "-"}
-              </div>
-            </button>
-          ))}
-        </div>
-      )}
+      <NodeOutlineSection outlineGroups={outlineGroups} jumpToNode={jumpToNode} />
+
+      <NodeBulkActionsSection
+        bulkSelectedIds={bulkSelectedIds}
+        bulkTagDraft={bulkTagDraft}
+        setBulkTagDraft={setBulkTagDraft}
+        setBulkSelectedFromSearch={selectNodesFromSearch}
+        onClearBulkSelection={clearBulkSelection}
+        onApplyStatus={(status) => bulkApplyPatch({ status })}
+        onApplyPriority={(priority) => bulkApplyPatch({ priority })}
+        onApplyTag={bulkApplyTag}
+        onDeleteSelected={bulkDelete}
+      />
+
+      {selectedNode ? (
+        <SelectedNodeDetailsSection
+          selectedNode={selectedNode}
+          lanes={lanes}
+          updateNode={updateNode}
+        />
+      ) : null}
+
+      <TimelineSection timelineNodes={timelineNodes} jumpToNode={jumpToNode} />
     </div>
   );
 }

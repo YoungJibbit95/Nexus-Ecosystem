@@ -7,7 +7,6 @@ import {
   Terminal,
 } from "lucide-react";
 import { hexToRgb } from "../../lib/utils";
-import { LiquidGlassButton } from "../LiquidGlassButton";
 import type { ViewId } from "./constants";
 
 type ToolbarTheme = any;
@@ -17,10 +16,7 @@ type Offset = { x?: number; y?: number };
 const cx = (offset?: Offset) => offset?.x ?? 0;
 const cy = (offset?: Offset) => offset?.y ?? 0;
 
-const pickButtonRenderer = (theme: ToolbarTheme) =>
-  (theme?.glassmorphism as any)?.panelRenderer === "liquid-glass"
-    ? LiquidGlassButton
-    : "button";
+const pickButtonRenderer = (_theme?: ToolbarTheme) => "button";
 
 export function IslandToolbarBrand({
   t,

@@ -38,6 +38,7 @@ export interface CanvasNode {
   y: number
   width: number
   height: number
+  nodeScale?: number       // scales frame + content together (node-local zoom)
   content: string          // text / markdown / code content, or image URL
   color?: string           // optional accent color override
   items?: ChecklistItem[]  // checklist items
@@ -415,6 +416,7 @@ export const useCanvas = create<CanvasStore>()(
         y: ny,
         width: sz.w,
         height: sz.h,
+        nodeScale: 1,
         content: '',
         color: DEFAULT_NODE_COLORS[type],
         ...defaultProps,

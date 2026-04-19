@@ -73,12 +73,10 @@ textarea {
     0% {
         opacity: 0;
         transform: translateY(14px) scale(0.992);
-        filter: blur(1px);
     }
     100% {
         opacity: 1;
         transform: translateY(0) scale(1);
-        filter: blur(0);
     }
 }
 
@@ -223,7 +221,7 @@ textarea,
 .glass-card {
     transition-property:
         color, background-color, border-color, text-decoration-color, fill,
-        stroke, opacity, box-shadow, transform, filter;
+        stroke, opacity, box-shadow, transform;
     transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
     transition-duration: var(--nx-motion-quick, 170ms);
 }
@@ -231,20 +229,20 @@ textarea,
 :where(button, [role='button'], .nx-interactive):not(:disabled):not([aria-disabled='true']) {
     transform: translateZ(0);
     backface-visibility: hidden;
-    will-change: transform, filter;
+    will-change: transform;
     cursor: pointer;
 }
 
 @media (hover: hover) and (pointer: fine) {
     :where(button, [role='button'], .nx-interactive):not(:disabled):not([aria-disabled='true']):hover {
         transform: scale(var(--nx-hover-scale, 1.007));
-        filter: brightness(1.04);
+        opacity: 0.98;
     }
 }
 
 :where(button, [role='button'], .nx-interactive):not(:disabled):not([aria-disabled='true']):active {
     transform: scale(var(--nx-press-scale, 0.985));
-    filter: brightness(0.96);
+    opacity: 0.95;
 }
 
 @keyframes nx-typing-pulse {

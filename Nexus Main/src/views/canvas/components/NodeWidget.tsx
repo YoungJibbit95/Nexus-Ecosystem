@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import {
   Bell,
@@ -29,6 +29,8 @@ import {
 } from "@nexus/core/canvas/magicHubTemplates";
 import { NODE_COLORS, WIDGET_TYPES } from "../constants";
 import { renderNodeWidgetContent } from "./nodeWidget/renderNodeWidgetContent";
+import { useNodeWidgetTransforms } from "./nodeWidget/useNodeWidgetTransforms";
+import { useNodeWidgetContentDraft } from "./nodeWidget/useNodeWidgetContentDraft";
 
 const HUB_ACTION_ICONS = {
   note: FileText,
@@ -218,8 +220,6 @@ const NodeWidget = React.memo(function NodeWidget({
     shallow,
   );
 
-  const [dragging, setDragging] = useState(false);
-  const [resizing, setResizing] = useState(false);
   const [editTitle, setEditTitle] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [showColorPicker, setShowColorPicker] = useState(false);
@@ -227,234 +227,46 @@ const NodeWidget = React.memo(function NodeWidget({
   const [editingContent, setEditingContent] = useState(
     node.type !== "markdown",
   );
-  const [contentDraft, setContentDraft] = useState(node.content || "");
-  const contentCommitTimerRef = useRef<number | null>(null);
-  const pendingContentRef = useRef<string | null>(null);
   const [hovered, setHovered] = useState(false);
-  const [dragPreview, setDragPreview] = useState<{
-    x: number;
-    y: number;
-  } | null>(null);
-  const [resizePreview, setResizePreview] = useState<{
-    width: number;
-    height: number;
-  } | null>(null);
-  const dragStart = useRef({ x: 0, y: 0, nodeX: 0, nodeY: 0 });
-  const resizeStart = useRef({ x: 0, y: 0, w: 0, h: 0 });
+  const {
+    contentDraft,
+    nodeForRender,
+    commitNodePatch,
+  } = useNodeWidgetContentDraft({
+    node,
+    updateNode,
+  });
+  const {
+    dragging,
+    resizing,
+    scalingNode,
+    dragPreview,
+    resizePreview,
+    scalePreview,
+    handleNodeWheelCapture,
+    handleDragStart,
+    handleResizeStart,
+    handleScaleResizeStart,
+  } = useNodeWidgetTransforms({
+    node,
+    snapToGrid,
+    onSelect,
+    moveNode,
+    resizeNode,
+    updateNode,
+  });
 
-  const liveX = dragPreview?.x ?? node.x;
+  const liveX = scalePreview?.x ?? dragPreview?.x ?? node.x;
   const liveY = dragPreview?.y ?? node.y;
-  const liveWidth = resizePreview?.width ?? node.width;
-  const liveHeight = resizePreview?.height ?? node.height;
-  const nodeForRender = useMemo(
-    () =>
-      node.content === contentDraft
-        ? node
-        : {
-            ...node,
-            content: contentDraft,
-          },
-    [contentDraft, node],
-  );
-
+  const liveWidth = scalePreview?.width ?? resizePreview?.width ?? node.width;
+  const liveHeight = scalePreview?.height ?? resizePreview?.height ?? node.height;
+  const liveNodeScale = scalePreview?.scale ?? node.nodeScale ?? 1;
+  const safeNodeScale = Math.max(0.65, Math.min(2.4, liveNodeScale));
+  const inverseNodeScale = 1 / safeNodeScale;
   const isSticky = node.type === "text" && node.color === "#FFCC00";
   const stickyBg = isSticky
     ? `linear-gradient(145deg, #FFEE88, #FFD700)`
     : undefined;
-
-  const flushPendingContentCommit = useCallback(() => {
-    const pending = pendingContentRef.current;
-    if (pending === null) return;
-    pendingContentRef.current = null;
-    updateNode(node.id, { content: pending });
-  }, [node.id, updateNode]);
-
-  const scheduleContentCommit = useCallback(
-    (nextContent: string) => {
-      setContentDraft(nextContent);
-      pendingContentRef.current = nextContent;
-      if (contentCommitTimerRef.current !== null) {
-        window.clearTimeout(contentCommitTimerRef.current);
-      }
-      contentCommitTimerRef.current = window.setTimeout(() => {
-        contentCommitTimerRef.current = null;
-        flushPendingContentCommit();
-      }, 120);
-    },
-    [flushPendingContentCommit],
-  );
-
-  const commitNodePatch = useCallback(
-    (id: string, patch: Partial<CanvasNode>) => {
-      if (id !== node.id) {
-        updateNode(id, patch);
-        return;
-      }
-      if (Object.prototype.hasOwnProperty.call(patch, "content")) {
-        const nextContent = String((patch as any).content ?? "");
-        scheduleContentCommit(nextContent);
-        const { content: _content, ...rest } = patch;
-        if (Object.keys(rest).length > 0) {
-          updateNode(id, rest);
-        }
-        return;
-      }
-      updateNode(id, patch);
-    },
-    [node.id, scheduleContentCommit, updateNode],
-  );
-
-  useEffect(() => {
-    if (pendingContentRef.current !== null) return;
-    setContentDraft(node.content || "");
-  }, [node.id, node.content]);
-
-  useEffect(
-    () => () => {
-      if (contentCommitTimerRef.current !== null) {
-        window.clearTimeout(contentCommitTimerRef.current);
-        contentCommitTimerRef.current = null;
-      }
-      flushPendingContentCommit();
-    },
-    [flushPendingContentCommit],
-  );
-
-  const handleNodeWheelCapture = useCallback((event: React.WheelEvent) => {
-    event.stopPropagation();
-    if (event.ctrlKey || event.metaKey || event.altKey) {
-      event.preventDefault();
-    }
-  }, []);
-
-  // Drag
-  const handleDragStart = useCallback(
-    (e: React.MouseEvent) => {
-      if ((e.target as HTMLElement).closest(".node-interactive")) return;
-      e.stopPropagation();
-      onSelect(node.id);
-      setDragging(true);
-      dragStart.current = {
-        x: e.clientX,
-        y: e.clientY,
-        nodeX: node.x,
-        nodeY: node.y,
-      };
-    },
-    [node.id, node.x, node.y, onSelect],
-  );
-
-  useEffect(() => {
-    if (!dragging) return;
-    let raf = 0;
-    let pending: { x: number; y: number } | null = null;
-
-    const flush = () => {
-      raf = 0;
-      if (!pending) return;
-      setDragPreview(pending);
-      pending = null;
-    };
-
-    const onMove = (e: MouseEvent) => {
-      const zoom = useCanvas.getState().viewport?.zoom || 1;
-      const rawX =
-        dragStart.current.nodeX + (e.clientX - dragStart.current.x) / zoom;
-      const rawY =
-        dragStart.current.nodeY + (e.clientY - dragStart.current.y) / zoom;
-      const GRID = 24;
-      const x = snapToGrid ? Math.round(rawX / GRID) * GRID : rawX;
-      const y = snapToGrid ? Math.round(rawY / GRID) * GRID : rawY;
-      pending = { x, y };
-      if (!raf) {
-        raf = requestAnimationFrame(flush);
-      }
-    };
-    const onUp = () => {
-      if (raf) {
-        cancelAnimationFrame(raf);
-        raf = 0;
-      }
-      const finalPos = pending || dragPreview;
-      if (finalPos) moveNode(node.id, finalPos.x, finalPos.y);
-      pending = null;
-      setDragPreview(null);
-      setDragging(false);
-    };
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
-    return () => {
-      if (raf) cancelAnimationFrame(raf);
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
-    };
-  }, [dragging, node.id, moveNode, snapToGrid, dragPreview]);
-
-  // Resize
-  const handleResizeStart = useCallback(
-    (e: React.MouseEvent) => {
-      e.stopPropagation();
-      e.preventDefault();
-      setResizing(true);
-      resizeStart.current = {
-        x: e.clientX,
-        y: e.clientY,
-        w: node.width,
-        h: node.height,
-      };
-    },
-    [node.width, node.height],
-  );
-
-  useEffect(() => {
-    if (!resizing) return;
-    let raf = 0;
-    let pending: { width: number; height: number } | null = null;
-
-    const flush = () => {
-      raf = 0;
-      if (!pending) return;
-      setResizePreview(pending);
-      pending = null;
-    };
-
-    const onMove = (e: MouseEvent) => {
-      const zoom = useCanvas.getState().viewport?.zoom || 1;
-      const nextWidth = Math.max(
-        160,
-        resizeStart.current.w + (e.clientX - resizeStart.current.x) / zoom,
-      );
-      const nextHeight = Math.max(
-        80,
-        resizeStart.current.h + (e.clientY - resizeStart.current.y) / zoom,
-      );
-      pending = {
-        width: nextWidth,
-        height: nextHeight,
-      };
-      if (!raf) {
-        raf = requestAnimationFrame(flush);
-      }
-    };
-    const onUp = () => {
-      if (raf) {
-        cancelAnimationFrame(raf);
-        raf = 0;
-      }
-      const finalSize = pending || resizePreview;
-      if (finalSize) resizeNode(node.id, finalSize.width, finalSize.height);
-      pending = null;
-      setResizePreview(null);
-      setResizing(false);
-    };
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
-    return () => {
-      if (raf) cancelAnimationFrame(raf);
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
-    };
-  }, [resizing, node.id, resizeNode, resizePreview]);
 
   const duplicateNodeWithContent = useCallback(() => {
     const state = useCanvas.getState();
@@ -466,6 +278,7 @@ const NodeWidget = React.memo(function NodeWidget({
       title: `${node.title} Copy`,
       width: node.width,
       height: node.height,
+      nodeScale: node.nodeScale ?? 1,
       content: nodeForRender.content,
       color: node.color,
       items: node.items
@@ -586,7 +399,7 @@ const NodeWidget = React.memo(function NodeWidget({
         height: liveHeight,
         zIndex: isSelected ? 100 : 1,
         animation:
-          reduceEffects || dragging || resizing
+          reduceEffects || dragging || resizing || scalingNode
             ? undefined
             : "nexus-scale-in 0.22s ease-out both",
         willChange: "transform, left, top, width, height",
@@ -599,7 +412,7 @@ const NodeWidget = React.memo(function NodeWidget({
               ? "translateZ(0) scale(1.004)"
               : "translateZ(0)",
         transition:
-          reduceEffects || dragging || resizing
+          reduceEffects || dragging || resizing || scalingNode
             ? "none"
             : "transform 0.16s cubic-bezier(0.2, 0.8, 0.2, 1)",
       }}
@@ -630,8 +443,14 @@ const NodeWidget = React.memo(function NodeWidget({
           borderColor: isSelected ? nodeAccent : undefined,
           borderWidth: isSelected ? 2 : 1,
           overflow: "hidden",
-          cursor: dragging ? "grabbing" : resizing ? "nwse-resize" : "grab",
-          userSelect: dragging || resizing ? "none" : "auto",
+          cursor: dragging
+            ? "grabbing"
+            : resizing
+              ? "nwse-resize"
+              : scalingNode
+                ? "nesw-resize"
+                : "grab",
+          userSelect: dragging || resizing || scalingNode ? "none" : "auto",
           background: isSticky
             ? stickyBg
             : `linear-gradient(180deg, rgba(${rgb},${t.mode === "dark" ? "0.16" : "0.09"}) 0%, rgba(${rgb},0) 42%)`,
@@ -644,13 +463,25 @@ const NodeWidget = React.memo(function NodeWidget({
       >
         <div
           style={{
-            display: "flex",
-            flexDirection: "column",
             height: "100%",
-            padding: 10,
-            gap: 6,
+            width: "100%",
+            position: "relative",
+            overflow: "hidden",
           }}
         >
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              height: "100%",
+              padding: 10,
+              gap: 6,
+              width: `${(inverseNodeScale * 100).toFixed(3)}%`,
+              minWidth: `${(inverseNodeScale * 100).toFixed(3)}%`,
+              transform: `scale(${safeNodeScale})`,
+              transformOrigin: "top left",
+            }}
+          >
           {/* Header with color strip */}
           <div
             style={{
@@ -936,43 +767,83 @@ const NodeWidget = React.memo(function NodeWidget({
             )}
             {renderedContent}
           </div>
+          </div>
 
-          {/* Resize handle */}
-          {(isSelected || hovered) && (
-            <div
-              onMouseDownCapture={handleResizeStart}
-              style={{
-                position: "absolute",
-                right: 0,
-                bottom: 0,
-                width: 24,
-                height: 24,
-                cursor: "nwse-resize",
-                display: "flex",
-                alignItems: "flex-end",
-                justifyContent: "flex-end",
-                padding: 6,
-                opacity: 0.5,
-                zIndex: 50,
-              }}
+        {/* Resize handle (frame only) */}
+        {(isSelected || hovered) && (
+          <div
+            onMouseDownCapture={handleResizeStart}
+            style={{
+              position: "absolute",
+              right: 0,
+              bottom: 0,
+              width: 24,
+              height: 24,
+              cursor: "nwse-resize",
+              display: "flex",
+              alignItems: "flex-end",
+              justifyContent: "flex-end",
+              padding: 6,
+              opacity: 0.5,
+              zIndex: 50,
+            }}
+            title="Rahmengröße ändern"
+          >
+            <svg
+              width="10"
+              height="10"
+              viewBox="0 0 10 10"
+              fill="none"
+              style={{ pointerEvents: "none" }}
             >
-              <svg
-                width="10"
-                height="10"
-                viewBox="0 0 10 10"
-                fill="none"
-                style={{ pointerEvents: "none" }}
-              >
-                <path
-                  d="M9 1L9 9L1 9"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </div>
-          )}
+              <path
+                d="M9 1L9 9L1 9"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </div>
+        )}
+
+        {/* Node zoom handle (frame + content) */}
+        {(isSelected || hovered) && (
+          <div
+            onMouseDownCapture={handleScaleResizeStart}
+            style={{
+              position: "absolute",
+              left: 0,
+              bottom: 0,
+              width: 24,
+              height: 24,
+              cursor: "nesw-resize",
+              display: "flex",
+              alignItems: "flex-end",
+              justifyContent: "flex-start",
+              padding: 6,
+              opacity: 0.5,
+              zIndex: 50,
+            }}
+            title="Node + Inhalt zoomen"
+          >
+            <svg
+              width="10"
+              height="10"
+              viewBox="0 0 10 10"
+              fill="none"
+              style={{ pointerEvents: "none" }}
+            >
+              <path
+                d="M1 1L1 9L9 9"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </div>
+        )}
         </div>
       </Glass>
     </div>

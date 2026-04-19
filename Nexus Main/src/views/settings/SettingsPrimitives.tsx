@@ -1,5 +1,4 @@
 import React from "react";
-import { LiquidGlassButton } from "../../components/LiquidGlassButton";
 import { GLOBAL_FONTS, PRESETS, PRESET_PREVIEWS, useTheme } from "../../store/themeStore";
 import { hexToRgb } from "../../lib/utils";
 
@@ -56,12 +55,11 @@ export function Segmented({
 }: {
   label?: string;
   value: string;
-  options: string[];
+  options: Array<string | { value: string; label: string; previewFont?: string }>;
   onChange: (value: string) => void;
 }) {
   const t = useTheme();
   const rgb = hexToRgb(t.accent);
-  const isLiquidGlass = ((t.glassmorphism as any)?.panelRenderer ?? "blur") === "liquid-glass";
   return (
     <div>
       {label ? (
@@ -70,34 +68,16 @@ export function Segmented({
         </div>
       ) : null}
       <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-        {options.map((option) => {
-          const active = option === value;
-          if (isLiquidGlass) {
-            return (
-              <LiquidGlassButton
-                key={option}
-                onClick={() => onChange(option)}
-                color={active ? t.accent : undefined}
-                style={{
-                  padding: "6px 10px",
-                  borderRadius: 10,
-                  fontSize: 11,
-                  fontWeight: 700,
-                  textTransform: "capitalize",
-                  color: active ? t.accent : "inherit",
-                  background: active ? `rgba(${rgb},0.12)` : undefined,
-                  border: "1px solid transparent",
-                  cursor: "pointer",
-                }}
-              >
-                {option}
-              </LiquidGlassButton>
-            );
-          }
+        {options.map((rawOption) => {
+          const option =
+            typeof rawOption === "string"
+              ? { value: rawOption, label: rawOption }
+              : rawOption;
+          const active = option.value === value;
           return (
             <button
-              key={option}
-              onClick={() => onChange(option)}
+              key={option.value}
+              onClick={() => onChange(option.value)}
               style={{
                 padding: "6px 10px",
                 borderRadius: 10,
@@ -108,11 +88,12 @@ export function Segmented({
                 color: active ? t.accent : "inherit",
                 fontSize: 11,
                 fontWeight: 700,
-                textTransform: "capitalize",
+                textTransform: "none",
                 cursor: "pointer",
+                fontFamily: option.previewFont ?? "inherit",
               }}
             >
-              {option}
+              {option.label}
             </button>
           );
         })}
@@ -233,7 +214,15 @@ export function FontLibrary({
               cursor: "pointer",
             }}
           >
-            <div style={{ fontSize: 12, fontWeight: 800 }}>{font.label}</div>
+            <div
+              style={{
+                fontSize: 12,
+                fontWeight: 800,
+                fontFamily: font.value,
+              }}
+            >
+              {font.label}
+            </div>
             <div
               style={{
                 marginTop: 3,

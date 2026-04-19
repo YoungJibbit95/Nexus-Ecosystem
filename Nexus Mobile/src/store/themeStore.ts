@@ -81,11 +81,7 @@ export interface GlassmorphismConfig {
   reflectionLine: boolean
   animatedBlur: boolean
   animatedBlurSpeed: number
-  panelRenderer: 'blur' | 'fake-glass' | 'glass-shader' | 'liquid-glass'
-  liquidPreset?: 'fidelity' | 'performance' | 'no-shader'
-  liquidDistortionScale?: number
-  liquidDisplace?: number
-  liquidSaturation?: number
+  panelRenderer: 'blur' | 'fake-glass' | 'glass-shader'
   glowRenderer: 'css' | 'three'
 }
 
@@ -367,7 +363,6 @@ const DEFAULT_GLASS: GlassmorphismConfig = {
   glassMode: 'default', glassDepth: 0.5, innerShadow: false, reflectionLine: false,
   animatedBlur: false, animatedBlurSpeed: 3,
   panelRenderer: 'blur',
-  liquidPreset: 'performance',
   glowRenderer: 'css',
 }
 
@@ -444,6 +439,11 @@ const mergeConfig = <T extends Record<string, any>>(base: T, incoming: unknown):
   isRecord(incoming) ? ({ ...base, ...incoming } as T) : ({ ...base } as T)
 )
 
+const sanitizePanelRenderer = (value: unknown): GlassmorphismConfig['panelRenderer'] => {
+  if (value === 'fake-glass' || value === 'glass-shader') return value
+  return 'blur'
+}
+
 const sanitizeThemeSnapshot = (persistedRaw: unknown, current: Theme): Theme => {
   const persisted = isRecord(persistedRaw) ? (persistedRaw as Partial<Theme>) : {}
   const sidebarWidthRaw = Number(persisted.sidebarWidth)
@@ -452,6 +452,8 @@ const sanitizeThemeSnapshot = (persistedRaw: unknown, current: Theme): Theme => 
     : current.sidebarWidth
   const mergedQol = mergeConfig(current.qol, persisted.qol)
   const autoAccentContrast = (mergedQol as any).autoAccentContrast ?? true
+  const mergedGlassmorphism = mergeConfig(current.glassmorphism, persisted.glassmorphism)
+  mergedGlassmorphism.panelRenderer = sanitizePanelRenderer(mergedGlassmorphism.panelRenderer)
 
   return {
     ...current,
@@ -474,7 +476,7 @@ const sanitizeThemeSnapshot = (persistedRaw: unknown, current: Theme): Theme => 
     gradient: mergeConfig(current.gradient, persisted.gradient),
     background: mergeConfig(current.background, persisted.background),
     blur: mergeConfig(current.blur, persisted.blur),
-    glassmorphism: mergeConfig(current.glassmorphism, persisted.glassmorphism),
+    glassmorphism: mergedGlassmorphism,
     visual: mergeConfig(current.visual, persisted.visual),
     animations: mergeConfig(current.animations, persisted.animations),
     editor: mergeConfig(current.editor, persisted.editor),

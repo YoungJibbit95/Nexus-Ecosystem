@@ -594,16 +594,16 @@ button:focus-visible {
 }
 
 /* ── Spacing density ── */
-[data-density='compact'] .Glass,
-[data-density='compact'] .nx-motion-panel,
-[data-density='compact'] .nx-ios-surface,
+[data-density='compact'] .Glass:not(.nx-toolbar-surface),
+[data-density='compact'] .nx-motion-panel:not(.nx-toolbar-surface),
+[data-density='compact'] .nx-ios-surface:not(.nx-toolbar-surface),
 [data-density='compact'] .nx-sidebar-surface {
   padding: 10px 12px !important;
 }
 [data-density='compact'] button { padding-top: 4px !important; padding-bottom: 4px !important; }
-[data-density='spacious'] .Glass,
-[data-density='spacious'] .nx-motion-panel,
-[data-density='spacious'] .nx-ios-surface,
+[data-density='spacious'] .Glass:not(.nx-toolbar-surface),
+[data-density='spacious'] .nx-motion-panel:not(.nx-toolbar-surface),
+[data-density='spacious'] .nx-ios-surface:not(.nx-toolbar-surface),
 [data-density='spacious'] .nx-sidebar-surface {
   padding: 20px 24px !important;
 }

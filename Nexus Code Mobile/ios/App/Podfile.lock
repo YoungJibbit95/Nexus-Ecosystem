@@ -1,15 +1,15 @@
 PODS:
-  - Capacitor (7.6.0):
+  - Capacitor (8.3.0):
     - CapacitorCordova
-  - CapacitorCordova (7.6.0)
-  - CapacitorDialog (7.0.4):
+  - CapacitorCordova (8.3.0)
+  - CapacitorDialog (8.0.1):
     - Capacitor
-  - CapacitorFilesystem (7.1.8):
+  - CapacitorFilesystem (8.1.2):
     - Capacitor
     - IONFilesystemLib (~> 1.1.1)
-  - CapacitorKeyboard (7.0.5):
+  - CapacitorKeyboard (8.0.3):
     - Capacitor
-  - CapacitorStatusBar (7.0.5):
+  - CapacitorStatusBar (8.0.2):
     - Capacitor
   - IONFilesystemLib (1.1.2)
 
@@ -40,12 +40,12 @@ EXTERNAL SOURCES:
     :path: "../../node_modules/@capacitor/status-bar"
 
 SPEC CHECKSUMS:
-  Capacitor: 9251cf0e689bfcc0f8ddc9bae2267108019d9de0
-  CapacitorCordova: f163aa2e84b79efc54d6a75b305bc7e05fb80c5d
-  CapacitorDialog: 870022e984975fad89eb4bbac84afb3cc2a666ea
-  CapacitorFilesystem: f54cd6b76be06fa7ceb219cf313d32e0d626ea87
-  CapacitorKeyboard: fc8fe4ae5dfcbac649cc0de9ee20db4e88ee26c5
-  CapacitorStatusBar: b4bdcf487553983ffc68d81dfe1668bacb48252f
+  Capacitor: 9f1f99495b474d82bccfd27b15617b84f5938144
+  CapacitorCordova: 2e1e2bb93b2f365309dc4ff18b72b9a69a7814a9
+  CapacitorDialog: d43769d1245d315ffc931b2ca3d4eea76870798b
+  CapacitorFilesystem: 7d3e3df84be4f0d999a5d6baa23aeb30c2de6450
+  CapacitorKeyboard: ad22f33de28070c8e16ecb119084af06915724e2
+  CapacitorStatusBar: b692a4cf12b3fe3a7b7ece86da62106065d78fdc
   IONFilesystemLib: 21a63377696b2d8fab5632ecfb7d2ac67bddb68a
 
 PODFILE CHECKSUM: c135da341f806c02bcb45798138a34708d7c25a7

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   FolderOpen,
@@ -184,6 +184,7 @@ export default function TitleBar({
 }) {
   const [activeMenu, setActiveMenu] = useState(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const menuHostRef = useRef(null);
   const isMobile = useMobile();
   const safeNewFile = onNewFile || (() => {});
   const safeSaveAll = onSaveAll || (() => {});
@@ -229,6 +230,35 @@ export default function TitleBar({
     { label: "Command",      icon: Command,         fn: onOpenCommandPalette, primary: true },
     { label: "Settings",     icon: Settings,        fn: safeOpenSettings, primary: true },
   ];
+
+  useEffect(() => {
+    if (!activeMenu || isMobile) return;
+    const closeMenu = () => setActiveMenu(null);
+    const onPointerDownCapture = (event) => {
+      const host = menuHostRef.current;
+      if (!host) {
+        closeMenu();
+        return;
+      }
+      const target = event.target;
+      if (target instanceof Node && host.contains(target)) return;
+      closeMenu();
+    };
+    const onKeyDown = (event) => {
+      if (event.key === "Escape") closeMenu();
+    };
+    const onWindowBlur = () => closeMenu();
+
+    document.addEventListener("pointerdown", onPointerDownCapture, true);
+    window.addEventListener("keydown", onKeyDown, true);
+    window.addEventListener("blur", onWindowBlur);
+
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDownCapture, true);
+      window.removeEventListener("keydown", onKeyDown, true);
+      window.removeEventListener("blur", onWindowBlur);
+    };
+  }, [activeMenu, isMobile]);
 
   /* ── Mobile header ─────────────────────────────────────────────── */
   if (isMobile) {
@@ -332,7 +362,7 @@ export default function TitleBar({
         >
           <span className="text-white font-black text-[10px] leading-none">N</span>
         </div>
-        <div className="flex items-center gap-0.5">
+        <div className="flex items-center gap-0.5" ref={menuHostRef}>
           {MENUS.map((menu) => (
             <MenuSheet
               key={menu.label}

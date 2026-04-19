@@ -3,7 +3,6 @@ import { useTheme } from '../store/themeStore'
 import { hexToRgb } from '../lib/utils'
 import { getShadowStyles } from '../lib/visualUtils'
 import { ThreePanelEffect } from './ThreePanelEffect'
-import { LiquidGlassSurface } from './LiquidGlassSurface'
 import { useRenderSurfaceBudget } from '../render/useRenderSurfaceBudget'
 import { useSurfaceMotionRuntime } from '../render/useSurfaceMotionRuntime'
 
@@ -78,7 +77,7 @@ function getPanelBg(mode: string, accent: string, bg: string, isDark: boolean): 
     case 'gradient':
       return `linear-gradient(135deg, rgba(${rgb},0.14) 0%, transparent 60%)`
     case 'solid':
-      return isDark ? 'rgba(15,15,25,0.85)' : 'rgba(255,255,255,0.95)'
+      return isDark ? 'rgba(15,15,25,0.74)' : 'rgba(255,255,255,0.92)'
     default:
       return ''
   }
@@ -93,9 +92,6 @@ function getPanelBgSize(mode: string): string {
   }
 }
 
-const clampNumber = (value: number, min: number, max: number) =>
-  Math.max(min, Math.min(max, value))
-
 // ── Glass mode backgrounds ────────────────────────────────────────
 function getGlassModeBg(mode: string, accentRgb: string, accent2Rgb: string, tintRgb: string, tintOpacity: number, isDark: boolean): string {
   const base = isDark ? '255,255,255' : '0,0,0'
@@ -103,32 +99,32 @@ function getGlassModeBg(mode: string, accentRgb: string, accent2Rgb: string, tin
   switch (mode) {
     case 'plasma':
       return isDark
-        ? 'rgba(255,255,255,0.06)'
-        : 'rgba(255,255,255,0.75)'
+        ? 'rgba(255,255,255,0.04)'
+        : 'rgba(255,255,255,0.62)'
     case 'frosted':
       return isDark
-        ? `linear-gradient(rgba(${tintRgb},${tintOpacity+0.04}),rgba(${tintRgb},${tintOpacity})), rgba(20,20,35,0.82)`
-        : `rgba(255,255,255,0.92)`
+        ? `linear-gradient(rgba(${tintRgb},${tintOpacity + 0.035}),rgba(${tintRgb},${tintOpacity})), rgba(20,20,35,0.68)`
+        : `rgba(255,255,255,0.84)`
     case 'crystal':
       return isDark
-        ? `linear-gradient(135deg, rgba(${base},0.14) 0%, rgba(${base},0.04) 50%, rgba(${accentRgb},0.06) 100%)`
-        : `linear-gradient(135deg, rgba(${inv},0.88) 0%, rgba(${inv},0.72) 100%)`
+        ? `linear-gradient(135deg, rgba(${base},0.11) 0%, rgba(${base},0.03) 50%, rgba(${accentRgb},0.05) 100%)`
+        : `linear-gradient(135deg, rgba(${inv},0.82) 0%, rgba(${inv},0.66) 100%)`
     case 'neon':
       return isDark
-        ? `linear-gradient(135deg, rgba(${accentRgb},0.15) 0%, rgba(${accentRgb},0.04) 100%), rgba(8,8,18,0.88)`
-        : `linear-gradient(135deg, rgba(${accentRgb},0.08) 0%, rgba(255,255,255,0.9) 100%)`
+        ? `linear-gradient(135deg, rgba(${accentRgb},0.12) 0%, rgba(${accentRgb},0.035) 100%), rgba(8,8,18,0.72)`
+        : `linear-gradient(135deg, rgba(${accentRgb},0.08) 0%, rgba(255,255,255,0.82) 100%)`
     case 'matte':
-      return isDark ? `rgba(18,18,28,0.94)` : `rgba(248,248,252,0.98)`
+      return isDark ? `rgba(18,18,28,0.82)` : `rgba(248,248,252,0.9)`
     case 'mirror':
       return isDark
-        ? `linear-gradient(160deg, rgba(${base},0.28) 0%, rgba(${base},0.08) 40%, rgba(${accentRgb},0.12) 100%)`
-        : `linear-gradient(160deg, rgba(${inv},0.95) 0%, rgba(${inv},0.75) 100%)`
+        ? `linear-gradient(160deg, rgba(${base},0.22) 0%, rgba(${base},0.06) 40%, rgba(${accentRgb},0.1) 100%)`
+        : `linear-gradient(160deg, rgba(${inv},0.88) 0%, rgba(${inv},0.7) 100%)`
     default: // 'default' / 'glass'
       return isDark
         ? tintOpacity > 0
-          ? `linear-gradient(145deg, rgba(${accentRgb},0.14), rgba(${accent2Rgb},0.1) 55%, rgba(${tintRgb},${Math.max(tintOpacity, 0.03)})), rgba(255,255,255,0.08)`
-          : `linear-gradient(145deg, rgba(${accentRgb},0.12), rgba(${accent2Rgb},0.08) 60%), rgba(255,255,255,0.08)`
-        : 'rgba(255,255,255,0.78)'
+          ? `linear-gradient(145deg, rgba(${accentRgb},0.12), rgba(${accent2Rgb},0.08) 55%, rgba(${tintRgb},${Math.max(tintOpacity, 0.025)})), rgba(255,255,255,0.05)`
+          : `linear-gradient(145deg, rgba(${accentRgb},0.1), rgba(${accent2Rgb},0.07) 60%), rgba(255,255,255,0.05)`
+        : 'rgba(255,255,255,0.7)'
   }
 }
 
@@ -205,7 +201,7 @@ export const Glass = memo(forwardRef<HTMLDivElement, GlassProps>(function Glass(
 
   const glassMode  = (t.glassmorphism as any).glassMode ?? 'default'
   const panelRenderer = (t.glassmorphism as any)?.panelRenderer ?? 'blur'
-  const liquidPreset = ((t.glassmorphism as any).liquidPreset ?? 'performance') as 'fidelity' | 'performance' | 'no-shader'
+  const normalizedPanelRenderer = panelRenderer
   const glowRenderer = (t.glassmorphism as any).glowRenderer ?? 'css'
   const panelBgMode = (t.background as any).panelBgMode ?? 'glass'
   const reflLine   = (t.glassmorphism as any).reflectionLine ?? false
@@ -230,14 +226,14 @@ export const Glass = memo(forwardRef<HTMLDivElement, GlassProps>(function Glass(
         : type === 'modal'
           ? 'modal-surface'
           : 'panel-surface',
-    effectClass: shaderEligibleSurface && panelRenderer === 'glass-shader'
+    effectClass: shaderEligibleSurface && normalizedPanelRenderer === 'glass-shader'
       ? 'shader-burst'
-      : panelRenderer === 'fake-glass'
+      : normalizedPanelRenderer === 'fake-glass'
         ? 'refractive-edge'
         : 'backdrop',
     interactionState,
     budgetPriority: isToolbarSurface ? 'low' : type === 'modal' ? 'high' : type === 'sidebar' ? 'low' : 'normal',
-    prefersShader: shaderEligibleSurface && panelRenderer === 'glass-shader',
+    prefersShader: shaderEligibleSurface && normalizedPanelRenderer === 'glass-shader',
     prefersBurst: Boolean(hover || shimmer),
     areaHint,
     visibilityState,
@@ -255,7 +251,7 @@ export const Glass = memo(forwardRef<HTMLDivElement, GlassProps>(function Glass(
   const renderDynamicEnabled = renderDecision.dynamic
   const renderShaderEnabled =
     shaderEligibleSurface &&
-    panelRenderer === 'glass-shader' &&
+    normalizedPanelRenderer === 'glass-shader' &&
     visibilityState !== 'hidden'
   const renderBurstEnabled = renderDecision.burst
   const renderAllowsHoverMotion = surfaceMotion.allowHover
@@ -265,16 +261,11 @@ export const Glass = memo(forwardRef<HTMLDivElement, GlassProps>(function Glass(
   const showGlow = glow && t.glow.mode !== 'off'
   const isGradientGlow = showGlow && t.glow.gradientGlow
   const useThreePanelRenderer =
-    panelRenderer === 'glass-shader' &&
+    normalizedPanelRenderer === 'glass-shader' &&
     !lowPowerMode &&
     !balancedMode &&
     renderShaderEnabled
-  const useFakeGlassRenderer = panelRenderer === 'fake-glass'
-  // Panels never render liquid-glass overlays/shaders.
-  // Liquid-glass mode is reserved for dedicated button/interactive surfaces.
-  const useLiquidGlassRenderer = false && panelRenderer === 'liquid-glass'
-  const liquidShaderQuality = liquidPreset === 'fidelity' ? 'fidelity' : 'performance'
-  const useLiquidShaderRenderer = false
+  const useFakeGlassRenderer = normalizedPanelRenderer === 'fake-glass'
   // CSS glow is currently more stable than the shader path (no flicker/pulsing drift).
   const useThreeGlowRenderer = false
 
@@ -298,91 +289,18 @@ export const Glass = memo(forwardRef<HTMLDivElement, GlassProps>(function Glass(
     + (glassMode === 'frosted' ? 40 : 0)
     + (glassMode === 'crystal' ? 20 : 0)
   const effectiveSaturate = balancedMode ? Math.min(saturate, 165) : saturate
-  const liquidSurfacePreset = useMemo(() => {
-    if (liquidPreset === 'fidelity') {
-      return {
-        overlayOpacity: useLiquidShaderRenderer ? 0.88 : 1,
-        borderWidth: Math.max(0.06, Math.min(0.14, 0.065 + t.glassmorphism.borderGlowIntensity * 0.06)),
-        brightness: isDark ? 50 : 68,
-        opacity: isDark ? 0.93 : 0.86,
-        blur: Math.max(9, Math.min(22, effectiveBlurCapped)),
-        displace: lowPowerMode ? 0.28 : 0.5,
-        saturation: Math.max(1.2, Math.min(2.4, effectiveSaturate / 96)),
-        distortionScale: -180 - Math.round(((t.glassmorphism as any).glassDepth ?? 0.5) * 90),
-        redOffset: 0,
-        greenOffset: 10,
-        blueOffset: 20,
-        mixBlendMode: (isDark ? 'screen' : 'overlay') as React.CSSProperties['mixBlendMode'],
-      }
-    }
-
-    if (liquidPreset === 'no-shader') {
-      return {
-        overlayOpacity: 1,
-        borderWidth: Math.max(0.06, Math.min(0.14, 0.06 + t.glassmorphism.borderGlowIntensity * 0.065)),
-        brightness: isDark ? 52 : 70,
-        opacity: isDark ? 0.95 : 0.9,
-        blur: Math.max(10, Math.min(24, effectiveBlurCapped * 1.08)),
-        displace: lowPowerMode ? 0.22 : 0.46,
-        saturation: Math.max(1.25, Math.min(2.5, effectiveSaturate / 92)),
-        distortionScale: -192 - Math.round(((t.glassmorphism as any).glassDepth ?? 0.5) * 92),
-        redOffset: 0,
-        greenOffset: 12,
-        blueOffset: 24,
-        mixBlendMode: (isDark ? 'screen' : 'overlay') as React.CSSProperties['mixBlendMode'],
-      }
-    }
-
-    return {
-      overlayOpacity: useLiquidShaderRenderer ? 0.82 : 1,
-      borderWidth: Math.max(0.05, Math.min(0.12, 0.055 + t.glassmorphism.borderGlowIntensity * 0.05)),
-      brightness: isDark ? 46 : 65,
-      opacity: isDark ? 0.9 : 0.8,
-      blur: Math.max(7, Math.min(16, effectiveBlurCapped * 0.86)),
-      displace: lowPowerMode ? 0.16 : 0.34,
-      saturation: Math.max(1.05, Math.min(2.2, effectiveSaturate / 112)),
-      distortionScale: -132 - Math.round(((t.glassmorphism as any).glassDepth ?? 0.5) * 72),
-      redOffset: 0,
-      greenOffset: 8,
-      blueOffset: 16,
-      mixBlendMode: (isDark ? 'screen' : 'overlay') as React.CSSProperties['mixBlendMode'],
-    }
-  }, [
-    effectiveBlurCapped,
-    effectiveSaturate,
-    isDark,
-    liquidPreset,
-    lowPowerMode,
-    t.glassmorphism,
-    useLiquidShaderRenderer,
-  ])
-  const liquidDistortionScaleOverride = Number((t.glassmorphism as any).liquidDistortionScale)
-  const liquidDisplaceOverride = Number((t.glassmorphism as any).liquidDisplace)
-  const liquidSaturationOverride = Number((t.glassmorphism as any).liquidSaturation)
-  const liquidSurface = {
-    ...liquidSurfacePreset,
-    distortionScale: Number.isFinite(liquidDistortionScaleOverride)
-      ? clampNumber(liquidDistortionScaleOverride, -320, 320)
-      : liquidSurfacePreset.distortionScale,
-    displace: Number.isFinite(liquidDisplaceOverride)
-      ? clampNumber(liquidDisplaceOverride, 0, 3)
-      : liquidSurfacePreset.displace,
-    saturation: Number.isFinite(liquidSaturationOverride)
-      ? clampNumber(liquidSaturationOverride, 0.8, 2.8)
-      : liquidSurfacePreset.saturation,
-  }
 
   // Background
   let bg: string
   if (panelBgMode !== 'glass') {
     const patternBg = getPanelBg(panelBgMode, t.accent, t.bg, isDark)
     const solidBase = glassMode === 'matte'
-      ? (isDark ? 'rgba(14,14,22,0.92)' : 'rgba(250,250,252,0.97)')
-      : (isDark ? 'rgba(255,255,255,0.07)' : 'rgba(255,255,255,0.72)')
+      ? (isDark ? 'rgba(14,14,22,0.84)' : 'rgba(250,250,252,0.94)')
+      : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.68)')
     bg = patternBg ? `${patternBg}` : solidBase
   } else {
-    const themeTintStrength = type === 'sidebar' ? 0.28 : type === 'modal' ? 0.22 : 0.2
-    const themeTint = `linear-gradient(145deg, rgba(${accentRgb},${themeTintStrength}), rgba(${accent2Rgb},${Math.max(themeTintStrength - 0.04, 0.08)}) 58%, rgba(${accentRgb},0.04))`
+    const themeTintStrength = type === 'sidebar' ? 0.22 : type === 'modal' ? 0.18 : 0.16
+    const themeTint = `linear-gradient(145deg, rgba(${accentRgb},${themeTintStrength}), rgba(${accent2Rgb},${Math.max(themeTintStrength - 0.04, 0.06)}) 58%, rgba(${accentRgb},0.035))`
     bg = gradient
       ? `linear-gradient(135deg, rgba(${accentRgb},0.18), rgba(${accentRgb},0.06))`
       : `${themeTint}, ${getGlassModeBg(glassMode, accentRgb, accent2Rgb, tintRgb, t.glassmorphism.tintOpacity, isDark)}`
@@ -516,7 +434,6 @@ export const Glass = memo(forwardRef<HTMLDivElement, GlassProps>(function Glass(
   const allowHoverLift = hover && type !== 'sidebar' && renderDynamicEnabled && renderAllowsHoverMotion
   const isInteractiveSurface = Boolean(type !== 'sidebar' && (hover || onClick || onDoubleClick) && !showGlow)
   const useCssHoverBounce = isInteractiveSurface && !(allowHoverLift && t.animations.hoverLift)
-  const liquidBackdropFilter = `blur(${Math.max(6, Math.floor(effectiveBlurCapped * 0.78))}px) saturate(${Math.round(effectiveSaturate * 1.05)}%)${glassMode === 'mirror' ? ' brightness(1.04)' : ''}`
   const baseBackdropFilter = `blur(${(!lowPowerMode && !balancedMode && (t.glassmorphism as any).animatedBlur) ? effectiveBlurCapped * 1.2 : effectiveBlurCapped}px) saturate(${effectiveSaturate}%)${glassMode === 'frosted' ? ' brightness(0.94)' : glassMode === 'mirror' ? ' brightness(1.08)' : glassMode === 'plasma' ? ' brightness(0.97)' : ''}`
   const webkitBaseBackdropFilter = `blur(${effectiveBlurCapped}px) saturate(${effectiveSaturate}%)${glassMode === 'frosted' ? ' brightness(0.94)' : glassMode === 'mirror' ? ' brightness(1.08)' : ''}`
 
@@ -552,12 +469,10 @@ export const Glass = memo(forwardRef<HTMLDivElement, GlassProps>(function Glass(
         '--nx-blur-speed': `${4 / Math.max((t.glassmorphism as any).animatedBlurSpeed || 3, 0.5)}s`,
         background: bg,
         backgroundSize: bgSize,
-        // When liquid-glass is selected, panels still get normal blur backdrop —
-        // the liquid glass effect is only a subtle surface overlay (see below).
-        backdropFilter: panelRenderer === 'glass-shader'
+        backdropFilter: normalizedPanelRenderer === 'glass-shader'
           ? `blur(${Math.max(4, Math.floor(effectiveBlurCapped * 0.35))}px) saturate(${Math.round(effectiveSaturate * 0.92)}%)`
           : baseBackdropFilter,
-        WebkitBackdropFilter: panelRenderer === 'glass-shader'
+        WebkitBackdropFilter: normalizedPanelRenderer === 'glass-shader'
           ? `blur(${Math.max(4, Math.floor(effectiveBlurCapped * 0.35))}px) saturate(${Math.round(effectiveSaturate * 0.92)}%)`
           : webkitBaseBackdropFilter,
         border: `1px solid ${borderColor}`,
@@ -612,19 +527,6 @@ export const Glass = memo(forwardRef<HTMLDivElement, GlassProps>(function Glass(
         />
       )}
 
-      {useLiquidShaderRenderer && (
-        <ThreePanelEffect
-          mode="liquid"
-          quality={liquidShaderQuality}
-          colorA={t.accent}
-          colorB={t.accent2}
-          intensity={liquidPreset === 'fidelity'
-            ? Math.max(0.62, Math.min(1.26, t.glassmorphism.borderGlowIntensity + 0.52))
-            : Math.max(0.3, Math.min(0.96, t.glassmorphism.borderGlowIntensity + 0.24))}
-          active={active}
-        />
-      )}
-
       {/* Mouse light sweep */}
       {allowHoverLift && !lowPowerMode && !balancedMode && renderDynamicEnabled && renderAllowsRichMotion && (
         <div aria-hidden="true" style={{
@@ -646,29 +548,6 @@ export const Glass = memo(forwardRef<HTMLDivElement, GlassProps>(function Glass(
           mixBlendMode: isDark ? 'screen' : 'overlay',
           opacity: 0.82,
         }} />
-      )}
-
-      {/* Liquid Glass: Panels use variant="surface" (subtle edge hints only).
-          The full liquid glass effect (variant="element") is used by LiquidGlassButton. */}
-      {useLiquidGlassRenderer && (
-        <LiquidGlassSurface
-          variant="surface"
-          style={{ opacity: liquidSurface.overlayOpacity }}
-          borderRadius={t.visual.panelRadius}
-          borderWidth={liquidSurface.borderWidth}
-          brightness={liquidSurface.brightness}
-          opacity={liquidSurface.opacity}
-          blur={liquidSurface.blur}
-          displace={liquidSurface.displace}
-          saturation={liquidSurface.saturation}
-          distortionScale={liquidSurface.distortionScale}
-          redOffset={liquidSurface.redOffset}
-          greenOffset={liquidSurface.greenOffset}
-          blueOffset={liquidSurface.blueOffset}
-          mixBlendMode={liquidSurface.mixBlendMode}
-          lowPower={lowPowerMode || balancedMode}
-          dark={isDark}
-        />
       )}
 
       {/* Noise overlay */}

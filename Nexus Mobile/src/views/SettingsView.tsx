@@ -5,7 +5,6 @@ import {
   Download,
   Upload,
 } from "lucide-react";
-import { LiquidGlassButton } from "../components/LiquidGlassButton";
 import { useTheme } from "../store/themeStore";
 import { useTerminal } from "../store/terminalStore";
 import { hexToRgb } from "../lib/utils";
@@ -13,7 +12,6 @@ import { buildMotionRuntime } from "../lib/motionEngine";
 import { MODULES } from "./settings/settingsConstants";
 import {
   GlowRendererMode,
-  LiquidPresetMode,
   ModuleId,
   RendererMode,
 } from "./settings/settingsTypes";
@@ -33,32 +31,6 @@ export function SettingsView({
     "blur") as RendererMode;
   const glowRenderer = ((t.glassmorphism as any).glowRenderer ??
     "css") as GlowRendererMode;
-  const liquidPreset = ((t.glassmorphism as any).liquidPreset ??
-    "performance") as LiquidPresetMode;
-  const liquidPresetDefaults = useMemo(() => {
-    if (liquidPreset === "fidelity") {
-      return { distortionScale: -180, displace: 0.5, saturation: 2.1 };
-    }
-    if (liquidPreset === "no-shader") {
-      return { distortionScale: -192, displace: 0.46, saturation: 2.2 };
-    }
-    return { distortionScale: -132, displace: 0.34, saturation: 1.6 };
-  }, [liquidPreset]);
-  const liquidDistortionScale = Number.isFinite(
-    Number((t.glassmorphism as any).liquidDistortionScale),
-  )
-    ? Number((t.glassmorphism as any).liquidDistortionScale)
-    : liquidPresetDefaults.distortionScale;
-  const liquidDisplace = Number.isFinite(
-    Number((t.glassmorphism as any).liquidDisplace),
-  )
-    ? Number((t.glassmorphism as any).liquidDisplace)
-    : liquidPresetDefaults.displace;
-  const liquidSaturation = Number.isFinite(
-    Number((t.glassmorphism as any).liquidSaturation),
-  )
-    ? Number((t.glassmorphism as any).liquidSaturation)
-    : liquidPresetDefaults.saturation;
 
   const toast = (text: string) => {
     setMsg(text);
@@ -300,9 +272,8 @@ export function SettingsView({
             gap: 6,
           }}
         >
-          <LiquidGlassButton
+          <button
             onClick={saveThemeSlot}
-            color={t.accent}
             style={{
               padding: "8px 10px",
               fontSize: 12,
@@ -310,14 +281,17 @@ export function SettingsView({
               display: "flex",
               alignItems: "center",
               gap: 7,
-              border: "1px solid transparent",
+              border: `1px solid rgba(${rgb},0.3)`,
               borderRadius: 10,
               width: "100%",
+              background: `rgba(${rgb},0.16)`,
+              color: t.accent,
+              cursor: "pointer",
             }}
           >
             <Save size={12} /> Preset speichern
-          </LiquidGlassButton>
-          <LiquidGlassButton
+          </button>
+          <button
             onClick={exportTheme}
             style={{
               padding: "8px 10px",
@@ -326,13 +300,16 @@ export function SettingsView({
               display: "flex",
               alignItems: "center",
               gap: 7,
-              border: "1px solid transparent",
+              border: "1px solid rgba(255,255,255,0.12)",
               borderRadius: 10,
               width: "100%",
+              background: "rgba(255,255,255,0.04)",
+              color: "inherit",
+              cursor: "pointer",
             }}
           >
             <Download size={12} /> Export JSON
-          </LiquidGlassButton>
+          </button>
           <label
             style={{
               borderRadius: 10,
@@ -468,10 +445,6 @@ export function SettingsView({
               rgb={rgb}
               panelRenderer={panelRenderer}
               glowRenderer={glowRenderer}
-              liquidPreset={liquidPreset}
-              liquidDistortionScale={liquidDistortionScale}
-              liquidDisplace={liquidDisplace}
-              liquidSaturation={liquidSaturation}
               toast={toast}
               onOpenWalkthrough={onOpenWalkthrough}
               clearSpotlight={clearSpotlight}

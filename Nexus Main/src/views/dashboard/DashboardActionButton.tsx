@@ -30,7 +30,7 @@ export function DashboardActionButton({
 }: DashboardActionButtonProps) {
   const t = useTheme();
   const isLiquidGlass =
-    ((t.glassmorphism as any)?.panelRenderer ?? "blur") === "liquid-glass";
+    false;
   const accent = liquidColor || t.accent;
   const rgb = hexToRgb(accent);
   const internalId = React.useId();

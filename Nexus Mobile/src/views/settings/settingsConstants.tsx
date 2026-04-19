@@ -20,7 +20,7 @@ export const MODULES: {
     id: "appearance",
     icon: <Wand2 size={14} />,
     title: "Appearance",
-    desc: "Presets, Farben, Schrift",
+    desc: "Presets, Themes, Lesbarkeit",
   },
   {
     id: "panel",
@@ -32,7 +32,7 @@ export const MODULES: {
     id: "layout",
     icon: <LayoutGrid size={14} />,
     title: "Layout",
-    desc: "Sidebar, Toolbar, Dichte",
+    desc: "Sidebar, Toolbar, Abstände",
   },
   {
     id: "motion",
@@ -44,7 +44,7 @@ export const MODULES: {
     id: "editor",
     icon: <Type size={14} />,
     title: "Editor",
-    desc: "Code und Notes Verhalten",
+    desc: "Code & Notes Live-Verhalten",
   },
   {
     id: "workspace",

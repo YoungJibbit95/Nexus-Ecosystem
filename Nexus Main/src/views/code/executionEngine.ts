@@ -1,5 +1,17 @@
 import type { CodeFile } from "../../store/appStore";
 
+type NativeExecutionResult = {
+  ok: boolean;
+  output: string;
+  error?: string;
+  exitCode?: number;
+  runtime?: string;
+  timeout?: boolean;
+  unsupported?: boolean;
+};
+
+const NATIVE_EXEC_LANGS = new Set(["javascript", "typescript", "python", "bash"]);
+
 function prettyVal(val: any, depth = 0): string {
   if (val === null) return "null";
   if (val === undefined) return "undefined";
@@ -243,7 +255,48 @@ function simulateLang(lang: string, code: string): string {
   }
 }
 
+async function tryNativeExecution(file: CodeFile): Promise<string | null> {
+  if (!NATIVE_EXEC_LANGS.has(file.lang)) return null;
+  const api = window.api?.code?.execute;
+  if (!api) return null;
+
+  try {
+    const result = (await api({
+      lang: file.lang,
+      code: file.content,
+      fileName: file.name,
+    })) as NativeExecutionResult;
+
+    if (!result || result.unsupported) return null;
+
+    const runtime = result.runtime ? ` (${result.runtime})` : "";
+    const header = `⚡  Native runtime${runtime}`;
+    const body = (result.output || "").trimEnd();
+
+    if (result.ok) {
+      if (body) return `${header}\n\n${body}`;
+      return `${header}\n\n✓  Process exited successfully`;
+    }
+
+    const failReason =
+      result.error ||
+      (typeof result.exitCode === "number"
+        ? `Process exited with code ${result.exitCode}`
+        : "Execution failed");
+
+    if (body) {
+      return `${header}\n\n${body}\n\n❌  ${failReason}`;
+    }
+    return `${header}\n\n❌  ${failReason}`;
+  } catch {
+    return null;
+  }
+}
+
 export async function executeCode(file: CodeFile): Promise<string> {
+  const native = await tryNativeExecution(file);
+  if (native) return native;
+
   switch (file.lang) {
     case "javascript":
     case "typescript":

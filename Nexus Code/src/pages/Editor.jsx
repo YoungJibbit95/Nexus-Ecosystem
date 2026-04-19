@@ -139,10 +139,15 @@ function toRgbaColor(value, alpha = 1) {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
-function ensureReadableEditorTextColor(value) {
-  const rgb = extractRgbTuple(value);
-  if (!rgb) return "#e5e7eb";
-  return relativeLuminance(rgb) < 0.38 ? "#e5e7eb" : value;
+function ensureReadableEditorTextColor(preferred, background) {
+  const bgRgb = extractRgbTuple(background);
+  const fgRgb = extractRgbTuple(preferred);
+  if (!bgRgb) return "#f3f4f6";
+  const bgLum = relativeLuminance(bgRgb);
+  // Nexus Code should default to bright text and only flip on truly bright surfaces.
+  if (bgLum < 0.72) return "#f3f4f6";
+  if (fgRgb && relativeLuminance(fgRgb) > 0.42) return preferred;
+  return "#111827";
 }
 
 export default function Editor() {
@@ -457,10 +462,10 @@ export default function Editor() {
     const border = bgOverride ? bgOverride.border : theme.border;
     const panelFilter =
       panelMode === "glass-shader"
-        ? `blur(${Math.max(8, panelBlur)}px) saturate(185%) contrast(112%)`
+        ? `blur(${Math.max(6, Math.min(16, panelBlur * 0.55))}px) saturate(145%) contrast(104%)`
         : panelMode === "fake-glass"
-          ? `blur(${Math.max(6, panelBlur * 0.7)}px) saturate(150%)`
-          : `blur(${Math.max(4, panelBlur)}px) saturate(135%)`;
+          ? `blur(${Math.max(5, Math.min(13, panelBlur * 0.5))}px) saturate(132%)`
+          : `blur(${Math.max(4, Math.min(12, panelBlur * 0.45))}px) saturate(122%)`;
     const panelSurface =
       panelMode === "glass-shader"
         ? `linear-gradient(135deg, ${toRgbaColor(accent, 0.16)}, ${surface})`
@@ -489,7 +494,10 @@ export default function Editor() {
       contrastSurface,
       false,
     );
-    const safeEditorText = ensureReadableEditorTextColor(resolvedText);
+    const safeEditorText = ensureReadableEditorTextColor(
+      resolvedText,
+      contrastSurface,
+    );
     const resolvedMuted = getReadableColor(
       theme.muted || "#6b7280",
       contrastSurface,
@@ -1148,8 +1156,8 @@ export default function Editor() {
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -20 }}
-                  transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                  className="relative z-20 w-72 min-h-0 backdrop-blur-xl border-r border-white/5 overflow-visible"
+                  transition={{ type: "tween", duration: 0.18, ease: [0.2, 0.7, 0.2, 1] }}
+                  className="relative z-20 w-72 min-h-0 border-r border-white/5 overflow-visible"
                   style={{ background: "rgba(255,255,255,0.01)", willChange: "transform, opacity" }}
                 >
                   {activePanel === "explorer" && (
@@ -1215,8 +1223,8 @@ export default function Editor() {
             {/* Main Editor Area */}
             <div className="flex-1 flex flex-col min-w-0 min-h-0 bg-transparent">
               <div
-                className="h-9 backdrop-blur-md border-b border-white/5 shrink-0"
-                style={{ background: "rgba(0,0,0,0.2)" }}
+                className="h-9 border-b border-white/5 shrink-0"
+                style={{ background: "rgba(0,0,0,0.18)" }}
               >
                 <TabBar
                   tabs={openTabs}
@@ -1297,7 +1305,7 @@ export default function Editor() {
               settings.sidebar_visible &&
               settings.sidebar_position === "right" && (
                 <div
-                  className="relative z-40 h-full min-h-0 overflow-visible flex flex-col border-l border-white/5 backdrop-blur-xl shrink-0 nexus-panel-surface"
+                  className="relative z-40 h-full min-h-0 overflow-visible flex flex-col border-l border-white/5 shrink-0 nexus-panel-surface"
                   style={{
                     background: "var(--nexus-panel-surface)",
                     backdropFilter: "var(--nexus-panel-filter)",

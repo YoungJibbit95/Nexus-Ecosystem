@@ -50,7 +50,7 @@ export function Sidebar({
   const terminal = useTerminal()
   const rgb = hexToRgb(t.accent)
   const [hoveredId, setHoveredId] = React.useState<View | 'terminal' | null>(null)
-  const isLiquidSidebar = ((t.glassmorphism as any)?.panelRenderer ?? 'blur') === 'liquid-glass'
+  const isLiquidSidebar = false
   const liquidPreset = ((t.glassmorphism as any).liquidPreset ?? 'performance') as 'fidelity' | 'performance' | 'no-shader'
   const liquidPresetDefaults = liquidPreset === 'fidelity'
     ? { distortionScale: -180, displace: 0.5, saturation: 2.1 }
