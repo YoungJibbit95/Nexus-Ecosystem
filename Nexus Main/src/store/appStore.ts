@@ -45,6 +45,10 @@ export type Task = {
   tags: string[]
   color?: string
   subtasks: { id: string; title: string; done: boolean }[]
+  blocked?: boolean
+  blockedReason?: string
+  dependsOnTaskIds?: string[]
+  linkedCanvasNodeId?: string
   created: string
   updated: string
   linkedNoteId?: string
@@ -72,6 +76,9 @@ export type Activity = {
   action: string
   targetName: string
   timestamp: string
+  targetId?: string
+  targetView?: 'notes' | 'code' | 'tasks' | 'reminders' | 'canvas' | 'files' | 'dashboard' | 'flux'
+  workspaceId?: string | null
 }
 
 export type Folder = {
@@ -101,7 +108,12 @@ interface Store {
   folders: Folder[]
   activities: Activity[]
 
-  logActivity: (type: Activity['type'], action: string, targetName: string) => void
+  logActivity: (
+    type: Activity['type'],
+    action: string,
+    targetName: string,
+    meta?: Pick<Activity, 'targetId' | 'targetView' | 'workspaceId'>,
+  ) => void
 
   // Notes
   addNote: () => void
@@ -177,8 +189,17 @@ export const useApp = create<Store>()(
       folders: [],
       activities: [],
 
-      logActivity: (type, action, targetName) => set(s => ({
-        activities: [{ id: genId(), type, action, targetName, timestamp: now() }, ...s.activities].slice(0, 100)
+      logActivity: (type, action, targetName, meta) => set(s => ({
+        activities: [{
+          id: genId(),
+          type,
+          action,
+          targetName,
+          timestamp: now(),
+          targetId: meta?.targetId,
+          targetView: meta?.targetView,
+          workspaceId: meta?.workspaceId ?? null,
+        }, ...s.activities].slice(0, 120)
       })),
 
 
@@ -194,7 +215,7 @@ export const useApp = create<Store>()(
             updated: now(),
             dirty: false
           }
-          get().logActivity('note', 'created', n.title)
+          get().logActivity('note', 'created', n.title, { targetId: n.id, targetView: 'notes' })
           return {
             notes: [n, ...s.notes],
             openNoteIds: [n.id, ...s.openNoteIds],
@@ -279,7 +300,7 @@ export const useApp = create<Store>()(
           lastSaved: now()
         }
 
-        get().logActivity('code', 'created', file.name)
+        get().logActivity('code', 'created', file.name, { targetId: file.id, targetView: 'code' })
         set(s => ({
           codes: [file, ...s.codes],
           openCodeIds: [file.id, ...s.openCodeIds],
@@ -368,10 +389,12 @@ export const useApp = create<Store>()(
           priority,
           tags: [],
           subtasks: [],
+          blocked: false,
+          dependsOnTaskIds: [],
           created: now(),
           updated: now()
         }
-        get().logActivity('task', 'created', t.title)
+        get().logActivity('task', 'created', t.title, { targetId: t.id, targetView: 'tasks' })
         set(s => ({
           tasks: [t, ...s.tasks]
         }))
@@ -389,12 +412,20 @@ export const useApp = create<Store>()(
           tasks: s.tasks.filter(t => t.id !== id)
         })),
 
-      moveTask: (id, status) =>
+      moveTask: (id, status) => {
+        const current = get().tasks.find((task) => task.id === id)
+        if (current && current.status !== status) {
+          get().logActivity('task', `status:${current.status}->${status}`, current.title, {
+            targetId: current.id,
+            targetView: 'tasks',
+          })
+        }
         set(s => ({
           tasks: s.tasks.map(t =>
             t.id === id ? { ...t, status, updated: now() } : t
           )
-        })),
+        }))
+      },
 
       addSubtask: (taskId, title) =>
         set(s => ({
@@ -432,12 +463,16 @@ export const useApp = create<Store>()(
       reminders: INITIAL_APP_DATA.reminders,
 
       addRem: r =>
-        set(s => ({
-          reminders: [
-            ...s.reminders,
-            { ...r, id: genId(), done: false }
-          ]
-        })),
+        set(s => {
+          const reminder: Reminder = { ...r, id: genId(), done: false }
+          get().logActivity('reminder', 'created', reminder.title, { targetId: reminder.id, targetView: 'reminders' })
+          return {
+            reminders: [
+              ...s.reminders,
+              reminder,
+            ]
+          }
+        }),
 
       delRem: id =>
         set(s => ({
@@ -445,11 +480,16 @@ export const useApp = create<Store>()(
         })),
 
       doneRem: id =>
-        set(s => ({
-          reminders: s.reminders.map(r =>
-            r.id === id ? { ...r, done: true } : r
-          )
-        })),
+        set(s => {
+          const current = s.reminders.find((reminder) => reminder.id === id)
+          if (!current) return s
+          get().logActivity('reminder', 'completed', current.title, { targetId: current.id, targetView: 'reminders' })
+          return {
+            reminders: s.reminders.map(r =>
+              r.id === id ? { ...r, done: true } : r
+            )
+          }
+        }),
 
       snoozeRem: (id, minutes) => {
         const snoozeUntil = new Date(

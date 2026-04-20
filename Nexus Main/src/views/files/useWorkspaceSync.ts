@@ -56,6 +56,29 @@ const parseMarkdownTitle = (content: string, fallback = 'Untitled') => {
   const hit = content.match(/^#\s+(.+?)\s*$/m)
   return hit?.[1]?.trim() || fallback
 }
+const ensureStringArray = (value: unknown) =>
+  Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === 'string') : []
+const normalizeWorkspaceDefinition = (workspace: any): Workspace | null => {
+  if (!workspace || typeof workspace !== 'object' || typeof workspace.id !== 'string') return null
+  const fallbackTimestamp = new Date().toISOString()
+  const createdAt = typeof workspace.created === 'string' && workspace.created ? workspace.created : fallbackTimestamp
+  const lastAccessedAt =
+    typeof workspace.lastAccessed === 'string' && workspace.lastAccessed ? workspace.lastAccessed : fallbackTimestamp
+  return {
+    id: workspace.id,
+    name: typeof workspace.name === 'string' && workspace.name ? workspace.name : 'Workspace',
+    icon: typeof workspace.icon === 'string' && workspace.icon ? workspace.icon : '🗂️',
+    color: typeof workspace.color === 'string' && workspace.color ? workspace.color : '#007AFF',
+    description: typeof workspace.description === 'string' ? workspace.description : undefined,
+    created: createdAt,
+    lastAccessed: lastAccessedAt,
+    noteIds: ensureStringArray(workspace.noteIds),
+    codeIds: ensureStringArray(workspace.codeIds),
+    taskIds: ensureStringArray(workspace.taskIds),
+    reminderIds: ensureStringArray(workspace.reminderIds),
+    canvasIds: ensureStringArray(workspace.canvasIds),
+  }
+}
 
 type WorkspaceSyncArgs = {
   notes: Note[]
@@ -190,14 +213,22 @@ export function useWorkspaceSync({
         }
 
         if (Array.isArray(incoming.workspaces) && incoming.workspaces.length > 0) {
-          const workspaceIds = new Set(incoming.workspaces.map((workspace) => workspace.id))
+          const normalizedWorkspaces = incoming.workspaces
+            .map((workspace) => normalizeWorkspaceDefinition(workspace))
+            .filter((workspace): workspace is Workspace => Boolean(workspace))
+          if (normalizedWorkspaces.length === 0) {
+            markWorkspaceSync('runtime-import')
+            toast('Runtime Snapshot geladen, Workspace-Definitionen übersprungen (ungültig).')
+            return
+          }
+          const workspaceIds = new Set(normalizedWorkspaces.map((workspace) => workspace.id))
           useWorkspaces.setState((state) => ({
             ...state,
-            workspaces: incoming.workspaces,
+            workspaces: normalizedWorkspaces,
             activeWorkspaceId:
               incoming.activeWorkspaceId && workspaceIds.has(incoming.activeWorkspaceId)
                 ? incoming.activeWorkspaceId
-                : incoming.workspaces[0]?.id || state.activeWorkspaceId,
+                : normalizedWorkspaces[0]?.id || state.activeWorkspaceId,
           }))
         }
 
@@ -221,6 +252,7 @@ export function useWorkspaceSync({
       const importedCodes: CodeFile[] = []
       const importedTasks: Task[] = []
       const importedReminders: Reminder[] = []
+      const importedCanvases: Canvas[] = []
       let importedWorkspaceDefs: Workspace[] | null = null
 
       for (const file of files) {
@@ -235,7 +267,9 @@ export function useWorkspaceSync({
           try {
             const parsed = JSON.parse(content)
             if (Array.isArray(parsed)) {
-              importedWorkspaceDefs = parsed.filter((item) => item && typeof item.id === 'string') as Workspace[]
+              importedWorkspaceDefs = parsed
+                .map((item) => normalizeWorkspaceDefinition(item))
+                .filter((item): item is Workspace => Boolean(item))
             }
           } catch {}
           continue
@@ -284,6 +318,12 @@ export function useWorkspaceSync({
                 deadline: parsed.deadline ? String(parsed.deadline) : undefined,
                 tags: Array.isArray(parsed.tags) ? parsed.tags.map((tag: any) => String(tag)) : [],
                 color: parsed.color ? String(parsed.color) : undefined,
+                blocked: Boolean(parsed.blocked),
+                blockedReason: parsed.blockedReason ? String(parsed.blockedReason) : undefined,
+                dependsOnTaskIds: Array.isArray(parsed.dependsOnTaskIds)
+                  ? parsed.dependsOnTaskIds.map((entry: any) => String(entry)).filter(Boolean)
+                  : [],
+                linkedCanvasNodeId: parsed.linkedCanvasNodeId ? String(parsed.linkedCanvasNodeId) : undefined,
                 subtasks: Array.isArray(parsed.subtasks)
                   ? parsed.subtasks.map((sub: any) => ({
                     id: String(sub?.id || toSafeId()),
@@ -322,13 +362,33 @@ export function useWorkspaceSync({
             }
           } catch {}
         }
+
+        if (lower.includes('/canvas/') && lower.endsWith('.json')) {
+          try {
+            const parsed = JSON.parse(content)
+            if (parsed && typeof parsed === 'object' && typeof parsed.id === 'string') {
+              const name = typeof parsed.name === 'string' && parsed.name ? parsed.name : 'Imported Canvas'
+              const nodes = Array.isArray(parsed.nodes) ? parsed.nodes : []
+              const connections = Array.isArray(parsed.connections) ? parsed.connections : []
+              importedCanvases.push({
+                id: String(parsed.id),
+                name,
+                nodes,
+                connections,
+                created: typeof parsed.created === 'string' ? parsed.created : new Date(file.mtimeMs || Date.now()).toISOString(),
+                updated: typeof parsed.updated === 'string' ? parsed.updated : new Date(file.mtimeMs || Date.now()).toISOString(),
+              })
+            }
+          } catch {}
+        }
       }
 
       const importedSomething =
         importedNotes.length > 0 ||
         importedCodes.length > 0 ||
         importedTasks.length > 0 ||
-        importedReminders.length > 0
+        importedReminders.length > 0 ||
+        importedCanvases.length > 0
 
       if (!importedSomething) {
         toast('Keine importierbaren Workspace-Dateien gefunden.')
@@ -350,6 +410,14 @@ export function useWorkspaceSync({
         }
       })
 
+      if (importedCanvases.length > 0) {
+        useCanvas.setState((state) => ({
+          ...state,
+          canvases: importedCanvases,
+          activeCanvasId: importedCanvases[0]?.id || state.activeCanvasId,
+        }))
+      }
+
       if (importedWorkspaceDefs && importedWorkspaceDefs.length > 0) {
         useWorkspaces.setState((state) => ({
           ...state,
@@ -358,9 +426,16 @@ export function useWorkspaceSync({
         }))
       }
 
-      useApp.getState().logActivity('system', 'workspace-imported', `${importedNotes.length} notes · ${importedCodes.length} code`)
+      useApp
+        .getState()
+        .logActivity(
+          'system',
+          'workspace-imported',
+          `${importedNotes.length} notes · ${importedCodes.length} code`,
+          { targetView: 'files' },
+        )
       markWorkspaceSync('import')
-      toast(`Workspace geladen: ${importedNotes.length} Notes · ${importedCodes.length} Code · ${importedTasks.length} Tasks · ${importedReminders.length} Reminders`)
+      toast(`Workspace geladen: ${importedNotes.length} Notes · ${importedCodes.length} Code · ${importedTasks.length} Tasks · ${importedReminders.length} Reminders · ${importedCanvases.length} Canvas`)
     } catch (error: any) {
       toast(`Workspace-Import fehlgeschlagen: ${error?.message || 'Unbekannter Fehler'}`)
     } finally {

@@ -13,6 +13,7 @@ Dieses Repository enthaelt die produktiven Clients, Shared Core Runtime-Logik un
 - [Nexus Mobile README](./Nexus%20Mobile/README.md)
 - [Nexus Code README](./Nexus%20Code/README.md)
 - [Nexus Code Mobile README](./Nexus%20Code%20Mobile/README.md)
+- [Nexus Native Installer README](./Nexus%20Installer/README.md)
 - [@nexus/core README](./packages/nexus-core/README.md)
 - [Nexus Wiki README](./Nexus%20Wiki/README.md)
 - [nexusproject.dev README](./nexusproject.dev/README.md)
@@ -77,6 +78,7 @@ This keeps UX smooth while still degrading safely under low power, reduced motio
 | `Nexus Mobile/` | mobile workspace app |
 | `Nexus Code/` | desktop IDE app |
 | `Nexus Code Mobile/` | mobile IDE app |
+| `Nexus Installer/` | native Rust installer for build+install from GitHub |
 | `packages/nexus-core/` | shared render/motion/runtime contracts |
 | `packages/nexus-api/` | shared API clients/contracts |
 | `tools/` | verify/release guard scripts |

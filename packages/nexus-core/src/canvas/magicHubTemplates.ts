@@ -255,7 +255,7 @@ export const CANVAS_MAGIC_HUB_TEMPLATES: Record<
   "ai-project": {
     label: "AI Project Generator",
     color: "#5E5CE6",
-    summary: "Prompt-basierter Projekt-Hub als Startpunkt für weitere Nodes.",
+    summary: "Prompt-basierte Multi-Node Projektmap mit Goals, Milestones, Risks und Execution-Plan.",
     focusRows: [
       "Prompt Fokus | Ziel, User, Outcome",
       "Scope Guardrails | Was ist in/out of scope?",
@@ -285,13 +285,61 @@ export const CANVAS_MAGIC_HUB_TEMPLATES: Record<
   },
 };
 
+export const DEFAULT_CANVAS_MAGIC_TEMPLATE_ID: CanvasMagicTemplateId = "mindmap";
+
+export type CanvasMagicTemplatePayloadInput = Omit<
+  CanvasMagicTemplatePayload,
+  "template"
+> & {
+  template?: string | null;
+};
+
+export const isCanvasMagicTemplateId = (
+  template: unknown,
+): template is CanvasMagicTemplateId =>
+  typeof template === "string" && template in CANVAS_MAGIC_HUB_TEMPLATES;
+
+export const resolveCanvasMagicTemplateId = (
+  template: unknown,
+  fallback: CanvasMagicTemplateId = DEFAULT_CANVAS_MAGIC_TEMPLATE_ID,
+): CanvasMagicTemplateId => (isCanvasMagicTemplateId(template) ? template : fallback);
+
+export const resolveCanvasMagicHubTemplateMeta = (
+  template: unknown,
+  fallback: CanvasMagicTemplateId = DEFAULT_CANVAS_MAGIC_TEMPLATE_ID,
+) => {
+  const id = resolveCanvasMagicTemplateId(template, fallback);
+  return {
+    id,
+    meta: CANVAS_MAGIC_HUB_TEMPLATES[id],
+    wasFallback: id !== template,
+  };
+};
+
+export const normalizeCanvasMagicTemplatePayload = (
+  payload: CanvasMagicTemplatePayloadInput,
+  fallback: CanvasMagicTemplateId = DEFAULT_CANVAS_MAGIC_TEMPLATE_ID,
+): CanvasMagicTemplatePayload => {
+  const resolved = resolveCanvasMagicTemplateId(payload.template, fallback);
+  return {
+    ...payload,
+    template: resolved,
+    title: payload.title ?? "",
+    includeNotes: payload.includeNotes ?? true,
+    includeTasks: payload.includeTasks ?? true,
+    aiPrompt: payload.aiPrompt ?? "",
+    aiDepth: payload.aiDepth ?? "balanced",
+  };
+};
+
 const joinRows = (rows: string[]) => rows.join("\n");
 
 export function buildCanvasMagicHubMarkdown(payload: CanvasMagicTemplatePayload) {
-  const meta = CANVAS_MAGIC_HUB_TEMPLATES[payload.template];
+  const normalized = normalizeCanvasMagicTemplatePayload(payload);
+  const { id, meta } = resolveCanvasMagicHubTemplateMeta(normalized.template);
   const promptLine =
-    payload.template === "ai-project" && payload.aiPrompt
-      ? `\n> AI Prompt: ${payload.aiPrompt.trim()}`
+    id === "ai-project" && normalized.aiPrompt
+      ? `\n> AI Prompt: ${normalized.aiPrompt.trim()}`
       : "";
 
   const sections = [
@@ -321,7 +369,7 @@ export function buildCanvasMagicHubMarkdown(payload: CanvasMagicTemplatePayload)
     "```",
   ];
 
-  if (payload.includeTasks) {
+  if (normalized.includeTasks) {
     sections.push(
       "",
       "```nexus-checklist",
@@ -332,7 +380,7 @@ export function buildCanvasMagicHubMarkdown(payload: CanvasMagicTemplatePayload)
     );
   }
 
-  if (payload.includeNotes) {
+  if (normalized.includeNotes) {
     sections.push(
       "",
       "```nexus-alert",
@@ -344,6 +392,281 @@ export function buildCanvasMagicHubMarkdown(payload: CanvasMagicTemplatePayload)
 
   return sections.join("\n").replace(/\n{3,}/g, "\n\n").trim();
 }
+
+export type CanvasMagicProjectNodeType =
+  | "project"
+  | "goal"
+  | "milestone"
+  | "risk"
+  | "decision"
+  | "markdown"
+  | "checklist";
+
+export type CanvasMagicProjectNodeMeta = {
+  status?: "todo" | "doing" | "blocked" | "done";
+  priority?: "low" | "mid" | "high" | "critical";
+  progress?: number;
+  dueDate?: string;
+  owner?: string;
+  tags?: string[];
+};
+
+export type CanvasMagicProjectNode = {
+  id: string;
+  type: CanvasMagicProjectNodeType;
+  x: number;
+  y: number;
+  title: string;
+  width?: number;
+  height?: number;
+  color?: string;
+  content?: string;
+  meta?: CanvasMagicProjectNodeMeta;
+  checklistItems?: string[];
+};
+
+export type CanvasMagicProjectGraph = {
+  rootId: string;
+  nodes: CanvasMagicProjectNode[];
+  links: Array<{ from: string; to: string }>;
+};
+
+const spreadPositions = (count: number, gap: number) => {
+  if (count <= 1) return [0];
+  const start = (-gap * (count - 1)) / 2;
+  return Array.from({ length: count }, (_, index) => start + index * gap);
+};
+
+const dueDateFromNow = (days: number) => {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  return date.toISOString().slice(0, 10);
+};
+
+const extractPromptKeywords = (prompt: string, max: number) => {
+  const tokens = prompt
+    .toLowerCase()
+    .replace(/[^a-z0-9äöüß\s-]/gi, " ")
+    .split(/\s+/)
+    .filter((word) => word.length > 3);
+  const stopWords = new Set([
+    "with",
+    "that",
+    "this",
+    "from",
+    "into",
+    "über",
+    "oder",
+    "aber",
+    "project",
+    "projekt",
+    "product",
+    "feature",
+    "features",
+    "platform",
+    "system",
+    "tool",
+  ]);
+  const freq = new globalThis.Map<string, number>();
+  tokens.forEach((word) => {
+    if (stopWords.has(word)) return;
+    freq.set(word, (freq.get(word) || 0) + 1);
+  });
+  return [...freq.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, max)
+    .map(([word]) => word);
+};
+
+export const buildAiProjectMagicGraph = (
+  payload: CanvasMagicTemplatePayloadInput,
+): CanvasMagicProjectGraph => {
+  const normalized = normalizeCanvasMagicTemplatePayload(payload, "ai-project");
+  const prompt = (normalized.aiPrompt || "").trim();
+  const depth = normalized.aiDepth || "balanced";
+  const goalCount = depth === "light" ? 3 : depth === "deep" ? 6 : 4;
+  const milestoneCount = depth === "light" ? 3 : depth === "deep" ? 6 : 4;
+  const riskCount = depth === "light" ? 2 : depth === "deep" ? 5 : 3;
+  const keywords = extractPromptKeywords(prompt, goalCount + 2);
+
+  const goalTitles =
+    keywords.length > 0
+      ? keywords.slice(0, goalCount).map((word) => `Goal: ${word}`)
+      : ["Goal: Product Value", "Goal: Delivery", "Goal: Quality"].slice(0, goalCount);
+  const milestoneTitles = [
+    "Milestone: Discovery",
+    "Milestone: Architecture",
+    "Milestone: Build",
+    "Milestone: QA",
+    "Milestone: Beta",
+    "Milestone: Launch",
+  ].slice(0, milestoneCount);
+  const riskTitles = [
+    "Risk: Scope Drift",
+    "Risk: Integration Delay",
+    "Risk: Performance Regression",
+    "Risk: Adoption Gap",
+    "Risk: Quality Regression",
+  ].slice(0, riskCount);
+
+  const goalX = spreadPositions(goalTitles.length, 290);
+  const milestoneX = spreadPositions(milestoneTitles.length, 260);
+  const riskX = spreadPositions(riskTitles.length, 300);
+  const rootTitle = normalized.title?.trim() || "AI Project Core";
+
+  const nodes: CanvasMagicProjectNode[] = [
+    {
+      id: "root",
+      type: "project",
+      x: 0,
+      y: 0,
+      title: rootTitle,
+      width: 390,
+      height: 260,
+      color: "#5E5CE6",
+      content: prompt
+        ? `AI Prompt:\n${prompt}\n\nAuto-generated map (${depth}).`
+        : "AI-generated project map.",
+      meta: {
+        status: "doing",
+        priority: "high",
+        progress: 10,
+        dueDate: dueDateFromNow(21),
+        owner: "team",
+        tags: ["magic", "ai-project", `depth:${depth}`],
+      },
+    },
+    {
+      id: "decision",
+      type: "decision",
+      x: -620,
+      y: 150,
+      title: "Primary Decision",
+      color: "#BF5AF2",
+      content: "Optionen, Tradeoffs und Go/No-Go.",
+      meta: {
+        status: "todo",
+        priority: "high",
+        tags: ["decision"],
+      },
+    },
+  ];
+
+  const links: Array<{ from: string; to: string }> = [];
+
+  goalTitles.forEach((title, index) => {
+    const nodeId = `goal-${index}`;
+    nodes.push({
+      id: nodeId,
+      type: "goal",
+      x: goalX[index] || 0,
+      y: -320,
+      title,
+      color: "#30D158",
+      meta: {
+        status: "todo",
+        priority: "mid",
+        progress: 5 + index * 6,
+        dueDate: dueDateFromNow(14 + index * 6),
+        tags: ["goal"],
+      },
+    });
+    links.push({ from: "root", to: nodeId });
+  });
+
+  milestoneTitles.forEach((title, index) => {
+    const nodeId = `milestone-${index}`;
+    nodes.push({
+      id: nodeId,
+      type: "milestone",
+      x: milestoneX[index] || 0,
+      y: 80,
+      title,
+      color: "#FF9F0A",
+      meta: {
+        status: index === 0 ? "doing" : "todo",
+        priority: index <= 1 ? "high" : "mid",
+        progress: index === 0 ? 28 : 0,
+        dueDate: dueDateFromNow(5 + index * 6),
+        tags: ["milestone"],
+      },
+    });
+    links.push({ from: "root", to: nodeId });
+  });
+
+  riskTitles.forEach((title, index) => {
+    const nodeId = `risk-${index}`;
+    nodes.push({
+      id: nodeId,
+      type: "risk",
+      x: riskX[index] || 0,
+      y: 430,
+      title,
+      color: "#FF453A",
+      meta: {
+        status: index === 0 ? "blocked" : "todo",
+        priority: index === 0 ? "critical" : "high",
+        tags: ["risk"],
+      },
+    });
+    links.push({ from: "root", to: nodeId });
+  });
+
+  if (normalized.includeNotes) {
+    nodes.push({
+      id: "context-board",
+      type: "markdown",
+      x: 670,
+      y: -100,
+      title: "AI Context Board",
+      width: 360,
+      height: 340,
+      color: "#64D2FF",
+      content:
+        "```nexus-list\nProblem | Welches Problem wird gelöst?\nPrimary User | Für wen bauen wir?\nSuccess Metric | Welche Metrik beweist Erfolg?\n```\n\n"
+        + "```nexus-metrics\nActivation | 0 | +0\nRetention D30 | 0 | +0\nNPS | 0 | +0\n```\n\n"
+        + "```nexus-steps\nDiscovery | Zielbild schärfen\nBuild | Kernmodule liefern\nQA | Stabilität sichern\n```",
+      meta: {
+        status: "todo",
+        priority: "mid",
+        tags: ["context", "notes"],
+      },
+    });
+    links.push({ from: "root", to: "context-board" });
+  }
+
+  if (normalized.includeTasks) {
+    nodes.push({
+      id: "execution-plan",
+      type: "checklist",
+      x: 670,
+      y: 280,
+      title: "Execution Plan",
+      color: "#30D158",
+      checklistItems: [
+        "Kickoff + Scope lock",
+        "Architecture review",
+        "Implementation sprint",
+        "QA + hardening",
+        "Go-live checklist",
+      ].slice(0, depth === "deep" ? 5 : 4),
+      meta: {
+        status: "todo",
+        priority: "mid",
+        tags: ["execution", "checklist"],
+      },
+    });
+    links.push({ from: "root", to: "execution-plan" });
+  }
+
+  links.push({ from: "root", to: "decision" });
+
+  return {
+    rootId: "root",
+    nodes,
+    links,
+  };
+};
 
 export type CanvasMagicHubQuickActionId =
   | "note"

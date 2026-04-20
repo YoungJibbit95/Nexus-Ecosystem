@@ -309,10 +309,50 @@ export function NotesSidebarPanels({
                   placeholder="Search notes…"
                   style={{ width: '100%', padding: '10px 14px', borderRadius: 12, background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)', outline: 'none', fontSize: 14, color: 'inherit' }} />
               </div>
+              <div style={{ padding: '8px 16px', borderBottom: '1px solid rgba(255,255,255,0.07)', display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {(['updated', 'title', 'created'] as const).map((sortKey) => (
+                  <button
+                    key={sortKey}
+                    onClick={() => setSortBy(sortKey)}
+                    style={{
+                      padding: '4px 9px',
+                      borderRadius: 999,
+                      fontSize: 11,
+                      border: '1px solid rgba(255,255,255,0.14)',
+                      background: sortBy === sortKey ? `rgba(${rgb},0.16)` : 'rgba(255,255,255,0.05)',
+                      color: sortBy === sortKey ? accent : 'inherit',
+                      cursor: 'pointer',
+                      fontWeight: 650,
+                    }}
+                  >
+                    {sortKey === 'updated' ? 'Aktuell' : sortKey === 'title' ? 'A-Z' : 'Neu'}
+                  </button>
+                ))}
+              </div>
+              {allTags.length > 0 ? (
+                <div style={{ padding: '8px 16px', borderBottom: '1px solid rgba(255,255,255,0.07)', display: 'flex', gap: 6, flexWrap: 'wrap', maxHeight: 82, overflowY: 'auto' }}>
+                  {allTags.map((tag) => (
+                    <button
+                      key={tag}
+                      onClick={() => setTagFilter(tagFilter === tag ? null : tag)}
+                      style={{
+                        padding: '3px 8px',
+                        borderRadius: 999,
+                        fontSize: 10,
+                        border: '1px solid rgba(255,255,255,0.12)',
+                        background: tagFilter === tag ? `rgba(${rgb},0.2)` : 'rgba(255,255,255,0.05)',
+                        color: tagFilter === tag ? accent : 'inherit',
+                        cursor: 'pointer',
+                        fontWeight: 650,
+                      }}
+                    >
+                      #{tag}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
               <div style={{ flex: 1, overflowY: 'auto', padding: '8px 12px' }}>
-                {notes.filter(n => searchQuery ? (n.title + n.content).toLowerCase().includes(searchQuery.toLowerCase()) : true)
-                  .sort((a, b) => new Date(b.updated).getTime() - new Date(a.updated).getTime())
-                  .map(n => (
+                {filteredNotes.map(n => (
                     <button key={n.id} onClick={() => { setNote(n.id); setShowMobileSidebar(false) }}
                       style={{
                         width: '100%', textAlign: 'left', padding: '13px 14px', borderRadius: 14, cursor: 'pointer', marginBottom: 6,
@@ -333,7 +373,7 @@ export function NotesSidebarPanels({
                       </div>
                     </button>
                   ))}
-                {notes.length === 0 && <div style={{ opacity: 0.35, textAlign: 'center', padding: '30px 0', fontSize: 14 }}>No notes yet</div>}
+                {filteredNotes.length === 0 && <div style={{ opacity: 0.35, textAlign: 'center', padding: '30px 0', fontSize: 14 }}>{searchQuery ? 'Keine Treffer' : 'Keine Notizen'}</div>}
               </div>
             </motion.div>
           </>

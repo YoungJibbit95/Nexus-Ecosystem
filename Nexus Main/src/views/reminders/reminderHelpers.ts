@@ -1,5 +1,13 @@
 import { useEffect, useRef } from "react";
 import { useApp } from "../../store/appStore";
+import {
+  REMINDER_TEMPLATES as CORE_REMINDER_TEMPLATES,
+  REMINDER_SNOOZE_PRESETS,
+  REMINDER_OVERDUE_SNOOZE_PRESETS,
+  createReminderFromTemplate,
+  formatReminderRepeat,
+  type ReminderTemplateId,
+} from "@nexus/core";
 
 export type QuietHoursState = {
   enabled: boolean;
@@ -59,40 +67,14 @@ export const isNowWithinQuietHours = (
   return nowMinutes >= startMinutes || nowMinutes < endMinutes;
 };
 
-export const REMINDER_TEMPLATES = [
-  {
-    id: "standup",
-    label: "Standup",
-    title: "Daily Standup",
-    msg: "Status, Blocker, Next Step",
-    offsetMinutes: 10,
-    repeat: "daily" as const,
-  },
-  {
-    id: "followup",
-    label: "Follow-up",
-    title: "Follow-up",
-    msg: "Rückmeldung prüfen und nächsten Schritt planen",
-    offsetMinutes: 90,
-    repeat: "none" as const,
-  },
-  {
-    id: "break",
-    label: "Break",
-    title: "Break Reminder",
-    msg: "Kurz aufstehen, trinken, resetten",
-    offsetMinutes: 50,
-    repeat: "none" as const,
-  },
-  {
-    id: "review",
-    label: "Review",
-    title: "Review Block",
-    msg: "Review-Slot für offene Tasks/PRs",
-    offsetMinutes: 180,
-    repeat: "weekly" as const,
-  },
-] as const;
+export const REMINDER_TEMPLATES = CORE_REMINDER_TEMPLATES;
+export {
+  REMINDER_SNOOZE_PRESETS,
+  REMINDER_OVERDUE_SNOOZE_PRESETS,
+  createReminderFromTemplate,
+  formatReminderRepeat,
+  type ReminderTemplateId,
+};
 
 export type Toast = {
   id: string;

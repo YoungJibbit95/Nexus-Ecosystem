@@ -19,6 +19,8 @@ type UseDashboardDerivedDataInput = {
   notes: DashboardEntity[];
   tasks: DashboardEntity[];
   codes: DashboardEntity[];
+  canvases: DashboardEntity[];
+  activeCanvasId: string | null | undefined;
   reminders: DashboardEntity[];
   activities: DashboardEntity[];
   workspaces: DashboardEntity[];
@@ -37,10 +39,42 @@ type UseDashboardDerivedDataInput = {
   accent2: string;
 };
 
+type ResumeEntry = {
+  label: "Note" | "Code" | "Task" | "Reminder" | "Canvas";
+  title: string;
+  subtitle: string;
+  reason: string;
+  relevance: number;
+  action: () => void;
+};
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+const buildDailySeries = (
+  entries: DashboardEntity[],
+  dateSelector: (entry: DashboardEntity) => unknown,
+): number[] => {
+  const now = new Date();
+  const end = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const start = end - DAY_MS * 6;
+  const buckets = Array.from({ length: 7 }, () => 0);
+  entries.forEach((entry) => {
+    const raw = dateSelector(entry);
+    const ts = raw ? new Date(String(raw)).getTime() : NaN;
+    if (!Number.isFinite(ts)) return;
+    const dayIndex = Math.floor((ts - start) / DAY_MS);
+    if (dayIndex < 0 || dayIndex > 6) return;
+    buckets[dayIndex] += 1;
+  });
+  return buckets;
+};
+
 export function useDashboardDerivedData({
   notes,
   tasks,
   codes,
+  canvases,
+  activeCanvasId,
   reminders,
   activities,
   workspaces,
@@ -82,19 +116,19 @@ export function useDashboardDerivedData({
 
   const recentActivity = useMemo(() => [...activities].slice(0, 8), [activities]);
 
-  const noteSpark = useMemo(() => {
-    const base = notes.length;
-    return Array.from({ length: 7 }, (_, index) =>
-      Math.max(0, base - (6 - index) * 2 + Math.round(Math.random() * 2)),
-    );
-  }, [notes.length]);
+  const noteSpark = useMemo(
+    () => buildDailySeries(notes, (note) => note.updated || note.created),
+    [notes],
+  );
 
-  const taskSpark = useMemo(() => {
-    const base = doneTasks;
-    return Array.from({ length: 7 }, (_, index) =>
-      Math.max(0, base - (6 - index) + Math.round(Math.random())),
-    );
-  }, [doneTasks]);
+  const taskSpark = useMemo(
+    () =>
+      buildDailySeries(
+        tasks.filter((task) => task.status === "done"),
+        (task) => task.updated || task.created,
+      ),
+    [tasks],
+  );
 
   const recentNotes = useMemo(
     () =>
@@ -117,6 +151,13 @@ export function useDashboardDerivedData({
   );
 
   const resumeLane = useMemo(() => {
+    const nowTs = Date.now();
+    const priorityRank: Record<string, number> = {
+      critical: 0,
+      high: 1,
+      mid: 2,
+      low: 3,
+    };
     const lastNote = [...notes].sort(
       (a, b) => new Date(b.updated).getTime() - new Date(a.updated).getTime(),
     )[0];
@@ -133,16 +174,36 @@ export function useDashboardDerivedData({
     const focusTask = tasks
       .filter((task) => task.status !== "done")
       .sort((a, b) => {
-        const priorityRank = { high: 0, mid: 1, low: 2 } as const;
-        return priorityRank[a.priority] - priorityRank[b.priority];
+        const aDue = a.deadline ? new Date(a.deadline).getTime() : Number.POSITIVE_INFINITY;
+        const bDue = b.deadline ? new Date(b.deadline).getTime() : Number.POSITIVE_INFINITY;
+        const aOverdue = Number.isFinite(aDue) && aDue < nowTs;
+        const bOverdue = Number.isFinite(bDue) && bDue < nowTs;
+        if (aOverdue !== bOverdue) return aOverdue ? -1 : 1;
+        const aPrio = priorityRank[a.priority] ?? 10;
+        const bPrio = priorityRank[b.priority] ?? 10;
+        if (aPrio !== bPrio) return aPrio - bPrio;
+        if (aDue !== bDue) return aDue - bDue;
+        return (
+          new Date(b.updated || b.created || 0).getTime()
+          - new Date(a.updated || a.created || 0).getTime()
+        );
       })[0];
+    const activeCanvas =
+      canvases.find((canvas) => canvas.id === activeCanvasId)
+      || [...canvases].sort(
+        (a, b) =>
+          new Date(b.updated || b.created || 0).getTime()
+          - new Date(a.updated || a.created || 0).getTime(),
+      )[0];
 
-    return [
+    const entries: ResumeEntry[] = [
       lastNote
         ? {
             label: "Note",
             title: lastNote.title || "Untitled",
-            subtitle: new Date(lastNote.updated).toLocaleString(),
+            subtitle: `${new Date(lastNote.updated || lastNote.created).toLocaleString()}${lastNote.tags?.[0] ? ` · #${lastNote.tags[0]}` : ""}`,
+            reason: "Zuletzt bearbeitet",
+            relevance: 60,
             action: () => setView?.("notes"),
           }
         : null,
@@ -150,7 +211,9 @@ export function useDashboardDerivedData({
         ? {
             label: "Code",
             title: lastCode.name,
-            subtitle: new Date(lastCode.updated).toLocaleString(),
+            subtitle: `${new Date(lastCode.updated || lastCode.created).toLocaleString()}${lastCode.lang ? ` · ${lastCode.lang}` : ""}`,
+            reason: "Letzte aktive Datei",
+            relevance: 55,
             action: () => setView?.("code"),
           }
         : null,
@@ -158,9 +221,15 @@ export function useDashboardDerivedData({
         ? {
             label: "Reminder",
             title: nextReminder.title,
-            subtitle: new Date(
-              nextReminder.snoozeUntil || nextReminder.datetime,
-            ).toLocaleString(),
+            subtitle: new Date(nextReminder.snoozeUntil || nextReminder.datetime).toLocaleString(),
+            reason:
+              new Date(nextReminder.snoozeUntil || nextReminder.datetime).getTime() < nowTs
+                ? "Überfällig"
+                : "Als Nächstes fällig",
+            relevance:
+              new Date(nextReminder.snoozeUntil || nextReminder.datetime).getTime() < nowTs
+                ? 100
+                : 78,
             action: () => setView?.("reminders"),
           }
         : null,
@@ -168,21 +237,36 @@ export function useDashboardDerivedData({
         ? {
             label: "Task",
             title: focusTask.title,
-            subtitle: `Prioritaet ${focusTask.priority}`,
+            subtitle:
+              focusTask.deadline
+                ? `Deadline ${new Date(focusTask.deadline).toLocaleDateString()}`
+                : `Priorität ${focusTask.priority || "mid"}`,
+            reason:
+              focusTask.deadline && new Date(focusTask.deadline).getTime() < nowTs
+                ? "Blockiert Fokus durch Überfälligkeit"
+                : "Nächster Fokus-Task",
+            relevance:
+              focusTask.deadline && new Date(focusTask.deadline).getTime() < nowTs
+                ? 94
+                : 72 - (priorityRank[focusTask.priority] ?? 2) * 4,
             action: () => setView?.("tasks"),
           }
         : null,
+      activeCanvas
+        ? {
+            label: "Canvas",
+            title: activeCanvas.name || "Canvas",
+            subtitle: `${activeCanvas.nodes?.length || 0} Nodes · ${new Date(activeCanvas.updated || activeCanvas.created).toLocaleString()}`,
+            reason: "Letzter visueller Arbeitskontext",
+            relevance: 50,
+            action: () => setView?.("canvas"),
+          }
+        : null,
     ].filter(
-      (
-        entry,
-      ): entry is {
-        label: string;
-        title: string;
-        subtitle: string;
-        action: () => void;
-      } => Boolean(entry),
+      (entry): entry is ResumeEntry => Boolean(entry),
     );
-  }, [codes, notes, reminders, setView, tasks]);
+    return entries.sort((a, b) => b.relevance - a.relevance).slice(0, 5);
+  }, [activeCanvasId, canvases, codes, notes, reminders, setView, tasks]);
 
   const tasksByStatus = useMemo(() => {
     const counts: Record<string, number> = {};

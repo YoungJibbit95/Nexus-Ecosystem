@@ -102,6 +102,7 @@ export const useCanvasNodeActions = ({
         viewport,
         spawnNode,
         connectNodes,
+        addChecklistItem: useCanvas.getState().addChecklistItem,
         fitView,
         setSelectedNodeId,
         setShowMagicBuilder,

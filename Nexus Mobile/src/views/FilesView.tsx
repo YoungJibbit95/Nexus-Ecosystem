@@ -33,6 +33,7 @@ import {
   parseRuntimeSnapshot,
   type FileItem,
   type ItemType,
+  type SmartViewMode,
   type ViewMode,
   type WorkspaceRuntimeSnapshot,
 } from './files/mobileFilesTypes'
@@ -43,6 +44,26 @@ type ReviewRisk = 'low' | 'medium' | 'high'
 const SNAPSHOT_SECTIONS: SnapshotSection[] = ['notes', 'codes', 'tasks', 'reminders', 'canvases', 'workspaces']
 
 const getArray = <T,>(value: unknown): T[] => (Array.isArray(value) ? (value as T[]) : [])
+const getStringArray = (value: unknown): string[] =>
+  Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === 'string') : []
+const normalizeWorkspaceEntry = (workspace: any): Workspace | null => {
+  if (!workspace || typeof workspace !== 'object' || typeof workspace.id !== 'string') return null
+  const now = new Date().toISOString()
+  return {
+    id: workspace.id,
+    name: typeof workspace.name === 'string' && workspace.name ? workspace.name : 'Workspace',
+    icon: typeof workspace.icon === 'string' && workspace.icon ? workspace.icon : '🗂️',
+    color: typeof workspace.color === 'string' && workspace.color ? workspace.color : '#007AFF',
+    description: typeof workspace.description === 'string' ? workspace.description : undefined,
+    created: typeof workspace.created === 'string' && workspace.created ? workspace.created : now,
+    lastAccessed: typeof workspace.lastAccessed === 'string' && workspace.lastAccessed ? workspace.lastAccessed : now,
+    noteIds: getStringArray(workspace.noteIds),
+    codeIds: getStringArray(workspace.codeIds),
+    taskIds: getStringArray(workspace.taskIds),
+    reminderIds: getStringArray(workspace.reminderIds),
+    canvasIds: getStringArray(workspace.canvasIds),
+  }
+}
 
 const mergeById = <T extends { id: string }>(current: T[], incoming: T[]) => {
   const map = new Map<string, T>()
@@ -111,22 +132,27 @@ const riskMeta: Record<ReviewRisk, { label: string; color: string; bg: string; b
 // ─────────────────────────────────────────────
 // Main
 // ─────────────────────────────────────────────
-export function FilesView() {
+type FilesViewProps = {
+  setView?: (view: string) => void
+}
+
+export function FilesView({ setView }: FilesViewProps = {}) {
   const t = useTheme()
   const rgb = hexToRgb(t.accent)
   const mob = useMobile()
-  const { notes, codes, tasks, reminders, openNoteIds, activeNoteId, openCodeIds, activeCodeId, folders } = useApp()
-  const { canvases, activeCanvasId } = useCanvas()
+  const { notes, codes, tasks, reminders, openNoteIds, activeNoteId, openCodeIds, activeCodeId, folders, openNote, setNote, openCode, setCode } = useApp()
+  const { canvases, activeCanvasId, setActiveCanvas } = useCanvas()
   const { workspaces, activeWorkspaceId, setActive } = useWorkspaces()
 
   const [search,      setSearch]      = useState('')
   const [typeFilter,  setTypeFilter]  = useState<'all'|ItemType>('all')
+  const [smartView,   setSmartView]   = useState<SmartViewMode>('all')
+  const [folderFilter, setFolderFilter] = useState<'all' | 'none' | string>('all')
   const [viewMode,    setViewMode]    = useState<ViewMode>('grid')
   const [tab,         setTab]         = useState<'all'|'workspaces'>('all')
   const [newWsOpen,   setNewWsOpen]   = useState(false)
   const [editWs,      setEditWs]      = useState<Workspace|null>(null)
   const [assignItem,  setAssignItem]  = useState<FileItem|null>(null)
-  const [onlyUnassigned, setOnlyUnassigned] = useState(false)
   const [handoffMsg, setHandoffMsg] = useState('')
   const [handoffMenuOpen, setHandoffMenuOpen] = useState(false)
   const [mergeSelection, setMergeSelection] = useState<Record<SnapshotSection, boolean>>({
@@ -248,6 +274,8 @@ export function FilesView() {
     const nextFolders = getArray<any>(state.folders)
     const nextCanvases = getArray<any>(state.canvases)
     const nextWorkspaces = getArray<any>(state.workspaces)
+      .map((workspace) => normalizeWorkspaceEntry(workspace))
+      .filter((workspace): workspace is Workspace => Boolean(workspace))
 
     const noteIds = new Set(nextNotes.map((note) => note.id))
     const codeIds = new Set(nextCodes.map((code) => code.id))
@@ -296,6 +324,8 @@ export function FilesView() {
     const incomingFolders = getArray<any>(incoming.folders)
     const incomingCanvases = getArray<any>(incoming.canvases)
     const incomingWorkspaces = getArray<any>(incoming.workspaces)
+      .map((workspace) => normalizeWorkspaceEntry(workspace))
+      .filter((workspace): workspace is Workspace => Boolean(workspace))
 
     const useIncoming = (section: SnapshotSection) => mode === 'replace' || selected[section]
 
@@ -314,9 +344,12 @@ export function FilesView() {
     const nextCanvases = useIncoming('canvases')
       ? (mode === 'replace' ? incomingCanvases : mergeById(canvases as any[], incomingCanvases))
       : (canvases as any[])
+    const currentWorkspaces = (workspaces as any[])
+      .map((workspace: any) => normalizeWorkspaceEntry(workspace))
+      .filter((workspace: Workspace | null): workspace is Workspace => Boolean(workspace))
     const nextWorkspaces = useIncoming('workspaces')
-      ? (mode === 'replace' ? incomingWorkspaces : mergeById(workspaces as any[], incomingWorkspaces))
-      : (workspaces as any[])
+      ? (mode === 'replace' ? incomingWorkspaces : mergeById(currentWorkspaces, incomingWorkspaces))
+      : currentWorkspaces
 
     const noteIds = new Set(nextNotes.map((entry) => entry.id))
     const codeIds = new Set(nextCodes.map((entry) => entry.id))
@@ -450,45 +483,95 @@ export function FilesView() {
   // Build unified file list
   const allItems = useMemo((): FileItem[] => {
     const items: FileItem[] = []
-    notes.forEach(n => items.push({ id:n.id, title:n.title||'Untitled', type:'note', updated:n.updated||n.created, preview:n.content?.slice(0,80) }))
-    codes.forEach(c => items.push({ id:c.id, title:c.name, type:'code', updated:c.updated||c.created, preview:`${c.lang} · ${c.content?.split('\n').length} lines`, lang:c.lang }))
-    tasks.forEach(tk => items.push({ id:tk.id, title:tk.title, type:'task', updated:tk.updated||tk.created, preview:tk.desc?.slice(0,60), priority:tk.priority, status:tk.status }))
-    reminders.forEach(r => items.push({ id:r.id, title:r.title, type:'reminder', updated:r.datetime, preview:r.msg?.slice(0,60) }))
+    notes.forEach(n => items.push({ id:n.id, title:n.title||'Untitled', type:'note', updated:n.updated||n.created, preview:n.content?.slice(0,80), folderId: n.folderId ?? null, pinned: Boolean(n.pinned) }))
+    codes.forEach(c => items.push({ id:c.id, title:c.name, type:'code', updated:c.updated||c.created, preview:`${c.lang} · ${c.content?.split('\n').length} lines`, lang:c.lang, folderId: c.folderId ?? null, pinned: Boolean(c.pinned) }))
+    tasks.forEach(tk => items.push({ id:tk.id, title:tk.title, type:'task', updated:tk.updated||tk.created, preview:tk.desc?.slice(0,60), priority:tk.priority, status:tk.status, folderId: tk.folderId ?? null }))
+    reminders.forEach(r => items.push({ id:r.id, title:r.title, type:'reminder', updated:r.datetime, preview:r.msg?.slice(0,60), folderId: r.folderId ?? null }))
+    canvases.forEach(canvas => items.push({ id:canvas.id, title:canvas.name || 'Untitled Canvas', type:'canvas', updated:canvas.updated || canvas.created, preview:`${canvas.nodes.length} nodes · ${canvas.connections.length} links` }))
     return items.sort((a,b) => new Date(b.updated).getTime() - new Date(a.updated).getTime())
-  }, [notes, codes, tasks, reminders])
+  }, [notes, codes, tasks, reminders, canvases])
 
-  const filtered = useMemo(() => {
+  const itemInWorkspace = (workspace: Workspace, item: FileItem) => {
+    const key = `${item.type}Ids` as keyof Workspace
+    return (workspace[key] as string[]).includes(item.id)
+  }
+
+  const isItemAssigned = (item: FileItem) =>
+    workspaces.some((workspace) => itemInWorkspace(workspace, item))
+
+  const folderOptions = useMemo(() => {
+    const used = new Set(
+      allItems
+        .map((item) => item.folderId)
+        .filter((folderId): folderId is string => Boolean(folderId)),
+    )
+    return folders
+      .filter((folder) => used.has(folder.id))
+      .sort((a, b) => a.name.localeCompare(b.name))
+  }, [allItems, folders])
+
+  const displayItems = useMemo(() => {
     let items = allItems
     if (typeFilter !== 'all') items = items.filter(i => i.type === typeFilter)
+    if (folderFilter === 'none') items = items.filter((item) => !item.folderId)
+    else if (folderFilter !== 'all') items = items.filter((item) => item.folderId === folderFilter)
     if (search) items = items.filter(i => i.title.toLowerCase().includes(search.toLowerCase()) || i.preview?.toLowerCase().includes(search.toLowerCase()))
-    if (onlyUnassigned) {
-      items = items.filter(i => !workspaces.some(w => (w[`${i.type}Ids` as keyof Workspace] as string[]).includes(i.id)))
+    if (tab === 'workspaces' && activeWs) {
+      items = items.filter((item) => itemInWorkspace(activeWs, item))
+    }
+    if (smartView === 'workspace' && activeWs) {
+      items = items.filter((item) => itemInWorkspace(activeWs, item))
+    }
+    if (smartView === 'recent') {
+      const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000
+      items = items.filter((item) => new Date(item.updated).getTime() >= cutoff)
+    }
+    if (smartView === 'pinned') {
+      items = items.filter((item) => item.pinned)
+    }
+    if (smartView === 'unassigned') {
+      items = items.filter((item) => !isItemAssigned(item))
     }
     return items
-  }, [allItems, typeFilter, search, onlyUnassigned, workspaces])
-
-  const wsItems = useMemo(() => {
-    if (!activeWs) return filtered
-    return filtered.filter(item => {
-      const key = `${item.type}Ids` as keyof Workspace
-      return (activeWs[key] as string[]).includes(item.id)
-    })
-  }, [filtered, activeWs])
-
-  const displayItems = tab === 'workspaces' && activeWs ? wsItems : filtered
+  }, [activeWs, allItems, folderFilter, isItemAssigned, search, smartView, tab, typeFilter])
 
   const getItemWsColor = (item: FileItem) => {
-    const ws = workspaces.find(w => (w[`${item.type}Ids` as keyof Workspace] as string[]).includes(item.id))
+    const ws = workspaces.find(w => itemInWorkspace(w, item))
     return ws?.color
   }
 
   const wsItemCount = (ws: Workspace) =>
-    ws.noteIds.length + ws.codeIds.length + ws.taskIds.length + ws.reminderIds.length
+    ws.noteIds.length + ws.codeIds.length + ws.taskIds.length + ws.reminderIds.length + ws.canvasIds.length
 
   const unassignedCount = useMemo(
-    () => allItems.filter(i => !workspaces.some(w => (w[`${i.type}Ids` as keyof Workspace] as string[]).includes(i.id))).length,
-    [allItems, workspaces]
+    () => allItems.filter((item) => !isItemAssigned(item)).length,
+    [allItems, isItemAssigned]
   )
+
+  const openItem = (item: FileItem) => {
+    if (item.type === 'note') {
+      openNote(item.id)
+      setNote(item.id)
+      setView?.('notes')
+      return
+    }
+    if (item.type === 'code') {
+      openCode(item.id)
+      setCode(item.id)
+      setView?.('code')
+      return
+    }
+    if (item.type === 'task') {
+      setView?.('tasks')
+      return
+    }
+    if (item.type === 'reminder') {
+      setView?.('reminders')
+      return
+    }
+    setActiveCanvas(item.id)
+    setView?.('canvas')
+  }
 
   const confidenceMeta = confidence === 'fresh'
     ? { label: 'Fresh', color: '#30d158', bg: 'rgba(48,209,88,0.1)', border: '1px solid rgba(48,209,88,0.25)' }
@@ -652,7 +735,7 @@ export function FilesView() {
           </div>
 
           <div style={{ flex:1, overflowY:'auto', padding:'4px 10px 12px' }}>
-            <InteractiveActionButton onClick={()=>{setActive(null);setTab('all')}}
+            <InteractiveActionButton onClick={()=>{setActive(null);setTab('all');setSmartView('all')}}
               motionId="mobile-files-workspace-all-files"
               selected={!activeWorkspaceId}
               areaHint={120}
@@ -668,7 +751,7 @@ export function FilesView() {
             <div style={{ fontSize:10, fontWeight:800, opacity:0.35, textTransform:'uppercase', letterSpacing:1, padding:'8px 4px 4px' }}>My Workspaces</div>
 
             {workspaces.map(ws => (
-              <InteractiveActionButton key={ws.id} onClick={()=>{setActive(ws.id);setTab('workspaces')}}
+              <InteractiveActionButton key={ws.id} onClick={()=>{setActive(ws.id);setTab('workspaces');setSmartView('workspace')}}
                 motionId={`mobile-files-workspace-${ws.id}`}
                 selected={activeWorkspaceId===ws.id}
                 areaHint={120}
@@ -724,7 +807,7 @@ export function FilesView() {
             </div>
 
             <div style={{ display:'flex', background:'rgba(255,255,255,0.06)', borderRadius:8, overflow:'hidden' }}>
-              {(['all','note','code','task','reminder'] as const).map(f => (
+              {(['all','note','code','task','reminder','canvas'] as const).map(f => (
                 <InteractiveActionButton key={f} onClick={()=>setTypeFilter(f)}
                   motionId={`mobile-files-type-${f}`}
                   selected={typeFilter===f}
@@ -733,6 +816,29 @@ export function FilesView() {
                   style={{ padding:'5px 9px', background:typeFilter===f?t.accent:'transparent', border:'none', cursor:'pointer', fontSize:10, fontWeight:700, color:typeFilter===f?'#fff':'inherit', opacity:typeFilter===f?1:0.5, transition:'all 0.12s', textTransform:'capitalize' }}>{f}</InteractiveActionButton>
               ))}
             </div>
+
+            <select
+              value={folderFilter}
+              onChange={(event) => setFolderFilter(event.target.value)}
+              style={{
+                padding:'6px 8px',
+                borderRadius:8,
+                background:'rgba(255,255,255,0.06)',
+                border:'1px solid rgba(255,255,255,0.12)',
+                outline:'none',
+                color:'inherit',
+                fontSize:11,
+                minWidth:120,
+              }}
+            >
+              <option value="all">All folders</option>
+              <option value="none">No folder</option>
+              {folderOptions.map((folder) => (
+                <option key={folder.id} value={folder.id}>
+                  {folder.name}
+                </option>
+              ))}
+            </select>
 
             <div style={{ display:'flex', background:'rgba(255,255,255,0.06)', borderRadius:8, overflow:'hidden' }}>
               <InteractiveActionButton onClick={()=>setViewMode('grid')}
@@ -751,17 +857,37 @@ export function FilesView() {
           </div>
 
           <div style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 14px', borderBottom:'1px solid rgba(255,255,255,0.06)', background:'rgba(0,0,0,0.05)', flexWrap:'wrap' }}>
-            <span style={{ fontSize:10, padding:'3px 8px', borderRadius:999, background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.1)' }}>
-              <strong>{unassignedCount}</strong> <span style={{ opacity:0.6 }}>unassigned</span>
-            </span>
-            <InteractiveActionButton onClick={() => setOnlyUnassigned(s => !s)}
-              motionId="mobile-files-only-unassigned"
-              selected={onlyUnassigned}
-              areaHint={80}
-              radius={8}
-              style={{ padding:'5px 9px', borderRadius:8, border:`1px solid ${onlyUnassigned ? t.accent : 'rgba(255,255,255,0.14)'}`, background:onlyUnassigned ? `rgba(${rgb},0.14)` : 'rgba(255,255,255,0.06)', color:onlyUnassigned ? t.accent : 'inherit', fontSize:10, fontWeight:700, cursor:'pointer' }}>
-              {onlyUnassigned ? 'Show all' : 'Only unassigned'}
-            </InteractiveActionButton>
+            {([
+              { id: 'all', label: 'All' },
+              { id: 'workspace', label: 'Workspace' },
+              { id: 'recent', label: 'Recent 7d' },
+              { id: 'pinned', label: 'Pinned' },
+              { id: 'unassigned', label: `Unassigned (${unassignedCount})` },
+            ] as const).map((entry) => (
+              <InteractiveActionButton
+                key={entry.id}
+                onClick={() => {
+                  setSmartView(entry.id)
+                  setTab(entry.id === 'workspace' ? 'workspaces' : 'all')
+                }}
+                motionId={`mobile-files-smart-view-${entry.id}`}
+                selected={smartView === entry.id}
+                areaHint={80}
+                radius={8}
+                style={{
+                  padding:'5px 9px',
+                  borderRadius:8,
+                  border:`1px solid ${smartView === entry.id ? t.accent : 'rgba(255,255,255,0.14)'}`,
+                  background:smartView === entry.id ? `rgba(${rgb},0.14)` : 'rgba(255,255,255,0.06)',
+                  color:smartView === entry.id ? t.accent : 'inherit',
+                  fontSize:10,
+                  fontWeight:700,
+                  cursor:'pointer',
+                }}
+              >
+                {entry.label}
+              </InteractiveActionButton>
+            ))}
           </div>
 
           <div style={{ display:'flex', alignItems:'center', gap:16, padding:'6px 16px', borderBottom:'1px solid rgba(255,255,255,0.05)', background:'rgba(0,0,0,0.05)', flexShrink:0 }}>
@@ -770,6 +896,7 @@ export function FilesView() {
               { label:'Code',      val:codes.length,     color:'#BF5AF2' },
               { label:'Tasks',     val:tasks.length,     color:'#FF9F0A' },
               { label:'Reminders', val:reminders.length, color:'#FF453A' },
+              { label:'Canvas',    val:canvases.length,  color:'#30D158' },
             ].map(s => (
               <div key={s.label} style={{ fontSize:10, display:'flex', alignItems:'center', gap:5 }}>
                 <div style={{ width:6, height:6, borderRadius:'50%', background:s.color }}/>
@@ -790,20 +917,20 @@ export function FilesView() {
                     {activeWs ? `No files in "${activeWs.name}"` : 'No files yet'}
                   </div>
                   <div style={{ fontSize:12, opacity:0.6 }}>
-                    {activeWs ? 'Add files to this workspace via the ⋮ menu on any file' : 'Create notes, code files, tasks, or reminders to see them here'}
+                    {activeWs ? 'Add files to this workspace via the ⋮ menu on any file' : 'Create notes, code files, tasks, reminders, or canvases to see them here'}
                   </div>
                 </div>
               </div>
             ) : viewMode === 'grid' ? (
               <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(200px,1fr))', gap:10 }}>
                 {displayItems.map(item => (
-                  <FileCard key={item.id} item={item} viewMode="grid" onAssign={()=>setAssignItem(item)} wsColor={getItemWsColor(item)} />
+                  <FileCard key={item.id} item={item} viewMode="grid" onAssign={()=>setAssignItem(item)} onOpen={openItem} wsColor={getItemWsColor(item)} />
                 ))}
               </div>
             ) : (
               <div>
                 {displayItems.map(item => (
-                  <FileCard key={item.id} item={item} viewMode="list" onAssign={()=>setAssignItem(item)} wsColor={getItemWsColor(item)} />
+                  <FileCard key={item.id} item={item} viewMode="list" onAssign={()=>setAssignItem(item)} onOpen={openItem} wsColor={getItemWsColor(item)} />
                 ))}
               </div>
             )}

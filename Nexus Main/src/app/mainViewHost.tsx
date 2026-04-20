@@ -55,7 +55,13 @@ const renderActiveView = (
     case "code":
       return <CodeView />;
     case "tasks":
-      return <TasksView />;
+      return (
+        <TasksView
+          setView={(nextView: string) => {
+            onRequestViewChange(nextView);
+          }}
+        />
+      );
     case "reminders":
       return (
         <RemindersView
@@ -67,9 +73,21 @@ const renderActiveView = (
     case "canvas":
       return <CanvasView />;
     case "files":
-      return <FilesView />;
+      return (
+        <FilesView
+          setView={(nextView: string) => {
+            onRequestViewChange(nextView);
+          }}
+        />
+      );
     case "flux":
-      return <FluxView />;
+      return (
+        <FluxView
+          setView={(nextView: string) => {
+            onRequestViewChange(nextView);
+          }}
+        />
+      );
     case "settings":
       return <SettingsView onOpenWalkthrough={onOpenWalkthrough} />;
     case "info":

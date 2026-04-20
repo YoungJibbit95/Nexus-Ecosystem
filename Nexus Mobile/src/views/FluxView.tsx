@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Activity as ActivityIcon,
   AlertTriangle,
+  ArrowRight,
   Bell,
   CheckCircle2,
   CheckSquare,
@@ -20,16 +21,34 @@ import { useTheme } from '../store/themeStore'
 import { hexToRgb } from '../lib/utils'
 
 type FluxFilter = Activity['type'] | 'all'
+type OpsPreset = 'all' | 'overdue' | 'due-soon' | 'high-priority' | 'focus' | 'reminder-triage' | 'task-backlog'
 type QueueItem = {
   id: string
   type: 'task' | 'reminder'
+  targetId: string
   title: string
   detail: string
   severity: number
   dueTs: number
+  overdue: boolean
+  dueSoon: boolean
+  highPriority: boolean
+  focusCandidate: boolean
+  backlogCandidate: boolean
   color: string
+  openLabel: string
+  open: () => void
   resolveLabel: string
   resolve: () => void
+}
+type BottleneckItem = {
+  id: string
+  title: string
+  detail: string
+  severity: number
+  color: string
+  actionLabel: string
+  action: () => void
 }
 
 const TYPE_META: Record<Activity['type'], { icon: any; color: string; label: string }> = {
@@ -43,6 +62,15 @@ const TYPE_META: Record<Activity['type'], { icon: any; color: string; label: str
 const PRIORITY_WEIGHT: Record<string, number> = { low: 1, mid: 2, high: 3 }
 const FILTER_OPTIONS: FluxFilter[] = ['all', 'note', 'code', 'task', 'reminder']
 const QUEUE_FILTERS: Array<'all' | 'task' | 'reminder'> = ['all', 'task', 'reminder']
+const PRESET_META: Record<OpsPreset, { label: string; detail: string }> = {
+  all: { label: 'All', detail: 'Gesamte Queue' },
+  overdue: { label: 'Overdue', detail: 'Überfällige Items' },
+  'due-soon': { label: 'Due Soon', detail: 'Nächste 24h' },
+  'high-priority': { label: 'High Priority', detail: 'Kritische Priorität' },
+  focus: { label: 'Focus', detail: 'Nur Fokus-relevante Arbeit' },
+  'reminder-triage': { label: 'Reminder Triage', detail: 'Reminder zuerst abarbeiten' },
+  'task-backlog': { label: 'Task Backlog', detail: 'Nur offene Backlog-Tasks' },
+}
 
 const computeTaskSeverity = (task: { priority: string; status: string; deadline?: string }, nowTs: number) => {
   const deadlineTs = parseTs(task.deadline)
@@ -71,7 +99,7 @@ const formatDue = (ts: number) => {
   return new Date(ts).toLocaleString([], { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
 }
 
-export function FluxView() {
+export function FluxView({ setView }: { setView?: (view: string) => void } = {}) {
   const t = useTheme()
   const accentRgb = hexToRgb(t.accent)
   const {
@@ -86,6 +114,10 @@ export function FluxView() {
     addRem,
     moveTask,
     doneRem,
+    openNote,
+    setNote,
+    openCode,
+    setCode,
   } = useApp(
     (s) => ({
       activities: s.activities,
@@ -99,6 +131,10 @@ export function FluxView() {
       addRem: s.addRem,
       moveTask: s.moveTask,
       doneRem: s.doneRem,
+      openNote: s.openNote,
+      setNote: s.setNote,
+      openCode: s.openCode,
+      setCode: s.setCode,
     }),
     shallow,
   )
@@ -108,6 +144,7 @@ export function FluxView() {
   const [focusMode, setFocusMode] = useState(false)
   const [queueSort, setQueueSort] = useState<'severity' | 'time'>('severity')
   const [queueFilter, setQueueFilter] = useState<'all' | 'task' | 'reminder'>('all')
+  const [preset, setPreset] = useState<OpsPreset>('all')
   const searchRef = useRef<HTMLInputElement>(null)
   const [nowTs, setNowTs] = useState(() => Date.now())
 
@@ -115,6 +152,60 @@ export function FluxView() {
     const intervalId = window.setInterval(() => setNowTs(Date.now()), 15_000)
     return () => window.clearInterval(intervalId)
   }, [])
+
+  const openTasksView = useCallback(() => {
+    setView?.('tasks')
+  }, [setView])
+  const openRemindersView = useCallback(() => {
+    setView?.('reminders')
+  }, [setView])
+  const openNoteById = useCallback((noteId?: string) => {
+    if (!noteId) return
+    openNote(noteId)
+    setNote(noteId)
+    setView?.('notes')
+  }, [openNote, setNote, setView])
+  const openCodeById = useCallback((codeId?: string) => {
+    if (!codeId) return
+    openCode(codeId)
+    setCode(codeId)
+    setView?.('code')
+  }, [openCode, setCode, setView])
+  const openActivityTarget = useCallback((entry: Activity) => {
+    if (entry.targetView === 'notes') {
+      if (entry.targetId) {
+        openNoteById(entry.targetId)
+        return
+      }
+      const byName = notes.find((note) => note.title === entry.targetName)
+      if (byName) {
+        openNoteById(byName.id)
+        return
+      }
+    }
+    if (entry.targetView === 'code') {
+      if (entry.targetId) {
+        openCodeById(entry.targetId)
+        return
+      }
+      const byName = codes.find((code) => code.name === entry.targetName)
+      if (byName) {
+        openCodeById(byName.id)
+        return
+      }
+    }
+    if (entry.targetView === 'tasks' || entry.type === 'task') {
+      openTasksView()
+      return
+    }
+    if (entry.targetView === 'reminders' || entry.type === 'reminder') {
+      openRemindersView()
+      return
+    }
+    if (entry.targetView) {
+      setView?.(entry.targetView)
+    }
+  }, [codes, notes, openCodeById, openNoteById, openRemindersView, openTasksView, setView])
 
   const runQuickAction = useCallback((action: 'note' | 'code' | 'task' | 'reminder') => {
     if (action === 'note') {
@@ -295,54 +386,113 @@ export function FluxView() {
     return Math.max(0, Math.round((nowTs - latestTs) / 60000))
   }, [activities, nowTs])
 
-  const bottlenecks = useMemo(() => {
+  const overdueRemindersCount = useMemo(
+    () => reminders.filter((reminder) => !reminder.done && parseTs(reminder.snoozeUntil || reminder.datetime) < nowTs).length,
+    [nowTs, reminders],
+  )
+  const blockedTaskCount = useMemo(
+    () => pendingTasks.filter((task) => Boolean(task.blocked)).length,
+    [pendingTasks],
+  )
+
+  const bottlenecks = useMemo<BottleneckItem[]>(() => {
     const taskIssues = pendingTasks
       .slice()
       .sort((a, b) => {
         const aSeverity = computeTaskSeverity(a, nowTs)
         const bSeverity = computeTaskSeverity(b, nowTs)
         if (bSeverity !== aSeverity) return bSeverity - aSeverity
+        if (Boolean(b.blocked) !== Boolean(a.blocked)) return Number(Boolean(b.blocked)) - Number(Boolean(a.blocked))
         return parseTs(a.deadline) - parseTs(b.deadline)
       })
-      .slice(0, 4)
-      .map((task) => ({
-        id: `task-${task.id}`,
-        title: task.title,
-        detail: `Task · ${task.priority.toUpperCase()} · ${task.status}`,
-        color: TYPE_META.task.color,
-      }))
+      .slice(0, 3)
+      .map((task) => {
+        const severity = computeTaskSeverity(task, nowTs) + (task.blocked ? 2 : 0)
+        return {
+          id: `task-${task.id}`,
+          title: task.title,
+          detail: `Task · ${task.priority.toUpperCase()} · ${task.status}${task.blocked ? ' · blocked' : ''}`,
+          color: TYPE_META.task.color,
+          severity,
+          actionLabel: 'Open Task Board',
+          action: openTasksView,
+        }
+      })
 
-    const reminderIssues = dueReminders.slice(0, 4).map((reminder) => ({
-      id: `rem-${reminder.id}`,
-      title: reminder.title,
-      detail: `Reminder · fällig ${formatDue(parseTs(reminder.snoozeUntil || reminder.datetime))}`,
-      color: TYPE_META.reminder.color,
-    }))
+    const reminderIssues = reminders
+      .filter((reminder) => !reminder.done)
+      .slice()
+      .sort((a, b) => parseTs(a.snoozeUntil || a.datetime) - parseTs(b.snoozeUntil || b.datetime))
+      .slice(0, 3)
+      .map((reminder) => {
+        const dueTs = parseTs(reminder.snoozeUntil || reminder.datetime)
+        const overdue = dueTs < nowTs
+        return {
+          id: `rem-${reminder.id}`,
+          title: reminder.title,
+          detail: `Reminder · ${overdue ? 'überfällig' : 'fällig'} ${formatDue(dueTs)}`,
+          color: TYPE_META.reminder.color,
+          severity: overdue ? 5 : 3,
+          actionLabel: 'Open Reminders',
+          action: openRemindersView,
+        }
+      })
 
     return [...taskIssues, ...reminderIssues]
       .filter((entry) => matchesQuery(entry.title, entry.detail))
+      .sort((a, b) => b.severity - a.severity)
       .slice(0, 6)
-  }, [dueReminders, matchesQuery, nowTs, pendingTasks])
+  }, [matchesQuery, nowTs, openRemindersView, openTasksView, pendingTasks, reminders])
 
-  const opsHealthScore = useMemo(() => {
-    const penalties = pendingTasks.length * 2 + dueReminders.length * 8 + bottlenecks.length * 5
-    const activityBonus = Math.min(activityLast24h, 20)
-    return Math.max(0, Math.min(100, 100 - penalties + activityBonus))
-  }, [activityLast24h, bottlenecks.length, dueReminders.length, pendingTasks.length])
+  const opsSignal = useMemo(() => {
+    const openTaskPenalty = Math.min(28, pendingTasks.length * 1.8)
+    const overduePenalty = Math.min(36, overdueRemindersCount * 9)
+    const blockedPenalty = Math.min(22, blockedTaskCount * 6)
+    const dueSoonPenalty = Math.min(14, dueNext24h * 1.2)
+    const stalePenalty = lastActivityAgeMinutes != null && lastActivityAgeMinutes > 240
+      ? Math.min(12, Math.round((lastActivityAgeMinutes - 240) / 30))
+      : 0
+    const activityBonus = Math.min(14, Math.round(activityLast24h * 0.7))
+    const score = Math.max(
+      0,
+      Math.min(
+        100,
+        Math.round(100 - openTaskPenalty - overduePenalty - blockedPenalty - dueSoonPenalty - stalePenalty + activityBonus),
+      ),
+    )
+    const label = score >= 78 ? 'Healthy' : score >= 56 ? 'Watch' : 'Critical'
+    const summary =
+      label === 'Healthy'
+        ? 'Queue ist stabil, nur leichte Priorisierung nötig.'
+        : label === 'Watch'
+          ? 'Es gibt aktive Engpässe. Triage der Queue empfohlen.'
+          : 'Kritischer Ops-Druck: zuerst überfällige Reminder und blockierte Tasks lösen.'
+    return { score, label, summary }
+  }, [activityLast24h, blockedTaskCount, dueNext24h, lastActivityAgeMinutes, overdueRemindersCount, pendingTasks.length])
 
   const queueItems = useMemo<QueueItem[]>(() => {
     const taskQueue: QueueItem[] = pendingTasks.map((task) => {
       const deadlineTs = parseTs(task.deadline)
       const severity = computeTaskSeverity(task, nowTs)
+      const overdue = Number.isFinite(deadlineTs) && deadlineTs < nowTs
+      const dueSoon = Number.isFinite(deadlineTs) && deadlineTs <= nowTs + 24 * 60 * 60 * 1000
 
       return {
         id: `task-${task.id}`,
+        targetId: task.id,
         type: 'task',
         title: task.title,
-        detail: `Task · ${task.priority.toUpperCase()} · ${task.status} · ${formatDue(deadlineTs)}`,
+        detail: `Task · ${task.priority.toUpperCase()} · ${task.status} · ${formatDue(deadlineTs)}${task.blocked ? ' · blocked' : ''}`,
         severity,
         dueTs: deadlineTs,
+        overdue,
+        dueSoon,
+        highPriority: task.priority === 'high' || severity >= 4,
+        focusCandidate: task.status === 'doing' || (task.tags || []).includes('focus'),
+        backlogCandidate: task.status === 'todo',
         color: TYPE_META.task.color,
+        openLabel: 'Open',
+        open: openTasksView,
         resolveLabel: task.status === 'todo' ? 'Start' : 'Done',
         resolve: () => moveTask(task.id, task.status === 'todo' ? 'doing' : 'done'),
       }
@@ -354,25 +504,48 @@ export function FluxView() {
         const dueTs = parseTs(reminder.snoozeUntil || reminder.datetime)
         const overdue = dueTs < nowTs
         const severity = overdue ? 4 : 2
+        const dueSoon = dueTs <= nowTs + 24 * 60 * 60 * 1000
         return {
           id: `rem-${reminder.id}`,
+          targetId: reminder.id,
           type: 'reminder',
           title: reminder.title,
           detail: `Reminder · ${overdue ? 'überfällig' : 'geplant'} · ${formatDue(dueTs)}`,
           severity,
           dueTs,
+          overdue,
+          dueSoon,
+          highPriority: overdue,
+          focusCandidate: overdue || dueSoon,
+          backlogCandidate: false,
           color: TYPE_META.reminder.color,
+          openLabel: 'Open',
+          open: openRemindersView,
           resolveLabel: 'Done',
           resolve: () => doneRem(reminder.id),
         }
       })
 
     let merged = [...taskQueue, ...reminderQueue]
-    if (queueFilter !== 'all') {
-      merged = merged.filter((item) => item.type === queueFilter)
+    const effectiveFilter =
+      preset === 'reminder-triage' ? 'reminder' : preset === 'task-backlog' ? 'task' : queueFilter
+    if (effectiveFilter !== 'all') {
+      merged = merged.filter((item) => item.type === effectiveFilter)
     }
-    if (focusMode) {
-      merged = merged.filter((item) => item.severity >= 3)
+    const effectiveFocus = focusMode || preset === 'focus'
+    if (effectiveFocus) {
+      merged = merged.filter((item) => item.severity >= 3 || item.focusCandidate)
+    }
+    if (preset === 'overdue') {
+      merged = merged.filter((item) => item.overdue)
+    } else if (preset === 'due-soon') {
+      merged = merged.filter((item) => item.dueSoon)
+    } else if (preset === 'high-priority') {
+      merged = merged.filter((item) => item.highPriority)
+    } else if (preset === 'task-backlog') {
+      merged = merged.filter((item) => item.type === 'task' && item.backlogCandidate)
+    } else if (preset === 'reminder-triage') {
+      merged = merged.filter((item) => item.type === 'reminder')
     }
     if (normalizedQuery) {
       merged = merged.filter((item) => matchesQuery(item.title, item.detail, item.type))
@@ -387,14 +560,18 @@ export function FluxView() {
       return a.dueTs - b.dueTs
     })
 
-    return merged.slice(0, focusMode ? 12 : 8)
-  }, [doneRem, focusMode, matchesQuery, moveTask, normalizedQuery, nowTs, pendingTasks, queueFilter, queueSort, reminders])
+    return merged.slice(0, effectiveFocus ? 14 : 10)
+  }, [doneRem, focusMode, matchesQuery, moveTask, normalizedQuery, nowTs, openRemindersView, openTasksView, pendingTasks, preset, queueFilter, queueSort, reminders])
 
   const filteredActivities = useMemo(() => {
     const q = query.trim().toLowerCase()
     return activities
       .filter((entry) => {
         if (filter !== 'all' && entry.type !== filter) return false
+        if (preset === 'reminder-triage' && entry.type !== 'reminder') return false
+        if (preset === 'task-backlog' && entry.type !== 'task') return false
+        if ((preset === 'overdue' || preset === 'due-soon') && !['task', 'reminder'].includes(entry.type)) return false
+        if ((preset === 'high-priority' || preset === 'focus') && entry.type !== 'task') return false
         if (!q) return true
         return (
           entry.targetName.toLowerCase().includes(q) ||
@@ -403,7 +580,9 @@ export function FluxView() {
         )
       })
       .sort((a, b) => parseTs(b.timestamp) - parseTs(a.timestamp))
-  }, [activities, filter, query])
+  }, [activities, filter, preset, query])
+
+  const activePresetMeta = PRESET_META[preset]
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12, height: '100%', padding: 14, minHeight: 0 }}>
@@ -449,11 +628,41 @@ export function FluxView() {
             </button>
           </div>
         </div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
+          {(Object.keys(PRESET_META) as OpsPreset[]).map((presetId) => {
+            const meta = PRESET_META[presetId]
+            const active = preset === presetId
+            return (
+              <button
+                key={presetId}
+                onClick={() => setPreset(presetId)}
+                title={meta.detail}
+                style={{
+                  padding: '4px 8px',
+                  borderRadius: 999,
+                  border: `1px solid ${active ? `rgba(${accentRgb},0.42)` : 'rgba(255,255,255,0.14)'}`,
+                  background: active ? `rgba(${accentRgb},0.2)` : 'rgba(255,255,255,0.04)',
+                  color: active ? t.accent : 'inherit',
+                  fontSize: 10,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  letterSpacing: 0.2,
+                }}
+              >
+                {meta.label}
+              </button>
+            )
+          })}
+        </div>
       </Glass>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))', gap: 10, flexShrink: 0 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(132px,1fr))', gap: 8, flexShrink: 0 }}>
         {[
-          { label: 'Ops Score', value: `${opsHealthScore}%`, color: opsHealthScore < 55 ? '#FF453A' : opsHealthScore < 75 ? '#FF9F0A' : '#34C759' },
+          {
+            label: `Ops Score · ${opsSignal.label}`,
+            value: `${opsSignal.score}%`,
+            color: opsSignal.score < 55 ? '#FF453A' : opsSignal.score < 75 ? '#FF9F0A' : '#34C759',
+          },
           { label: 'Notes', value: notes.length, color: TYPE_META.note.color },
           { label: 'Code Files', value: codes.length, color: TYPE_META.code.color },
           { label: 'Open Tasks', value: pendingTasks.length, color: TYPE_META.task.color },
@@ -473,7 +682,7 @@ export function FluxView() {
         ))}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(250px, 340px) minmax(0,1fr)', gap: 12, flex: 1, minHeight: 0 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 10, flex: 1, minHeight: 0 }}>
         <Glass style={{ padding: '12px', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 8 }}>
             <div style={{ fontSize: 12, fontWeight: 800 }}>Action Queue</div>
@@ -509,6 +718,20 @@ export function FluxView() {
                 Time
               </button>
             </div>
+          </div>
+          <div
+            style={{
+              marginBottom: 8,
+              fontSize: 10,
+              opacity: 0.72,
+              border: '1px solid rgba(255,255,255,0.1)',
+              borderRadius: 8,
+              padding: '6px 8px',
+              background: 'rgba(255,255,255,0.03)',
+            }}
+          >
+            <span style={{ fontWeight: 700, marginRight: 6 }}>{activePresetMeta.label}</span>
+            <span>{activePresetMeta.detail}</span>
           </div>
 
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
@@ -548,7 +771,9 @@ export function FluxView() {
               cursor: 'pointer',
             }}
           >
-            {focusMode ? 'Focus Mode aktiv (nur kritische Items)' : 'Focus Mode aus'}
+            {focusMode || preset === 'focus'
+              ? 'Focus Mode aktiv (nur kritische Items)'
+              : 'Focus Mode aus'}
           </button>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 10 }}>
@@ -603,22 +828,41 @@ export function FluxView() {
                       <div style={{ fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.title}</div>
                       <div style={{ fontSize: 10, opacity: 0.72, lineHeight: 1.4 }}>{item.detail}</div>
                     </div>
-                    <button
-                      onClick={item.resolve}
-                      style={{
-                        padding: '5px 8px',
-                        borderRadius: 7,
-                        border: '1px solid rgba(255,255,255,0.2)',
-                        background: overdue ? 'rgba(255,69,58,0.2)' : 'rgba(255,255,255,0.1)',
-                        color: 'inherit',
-                        fontSize: 10,
-                        fontWeight: 700,
-                        cursor: 'pointer',
-                        flexShrink: 0,
-                      }}
-                    >
-                      {item.resolveLabel}
-                    </button>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 5, flexShrink: 0 }}>
+                      <button
+                        onClick={item.open}
+                        style={{
+                          padding: '4px 7px',
+                          borderRadius: 7,
+                          border: '1px solid rgba(255,255,255,0.18)',
+                          background: 'rgba(255,255,255,0.08)',
+                          color: 'inherit',
+                          fontSize: 10,
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        <ArrowRight size={11} style={{ verticalAlign: 'middle', marginRight: 4 }} />
+                        {item.openLabel}
+                      </button>
+                      <button
+                        onClick={item.resolve}
+                        style={{
+                          padding: '4px 7px',
+                          borderRadius: 7,
+                          border: '1px solid rgba(255,255,255,0.2)',
+                          background: overdue ? 'rgba(255,69,58,0.2)' : 'rgba(255,255,255,0.1)',
+                          color: 'inherit',
+                          fontSize: 10,
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {item.resolveLabel}
+                      </button>
+                    </div>
                   </div>
                 </div>
               )
@@ -632,9 +876,42 @@ export function FluxView() {
                 <div style={{ fontSize: 11, opacity: 0.58, padding: '6px 2px' }}>Keine akuten Bottlenecks erkannt.</div>
               )}
               {bottlenecks.map((entry) => (
-                <div key={entry.id} style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 11, opacity: 0.78 }}>
-                  <AlertTriangle size={12} style={{ color: entry.color, flexShrink: 0 }} />
-                  <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{entry.title}</span>
+                <div
+                  key={entry.id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 8,
+                    border: '1px solid rgba(255,255,255,0.12)',
+                    borderRadius: 8,
+                    padding: '7px 8px',
+                    background: 'rgba(255,255,255,0.03)',
+                  }}
+                >
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 11, opacity: 0.9 }}>
+                      <AlertTriangle size={12} style={{ color: entry.color, flexShrink: 0 }} />
+                      <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{entry.title}</span>
+                    </div>
+                    <div style={{ fontSize: 10, opacity: 0.62, marginTop: 2 }}>{entry.detail}</div>
+                  </div>
+                  <button
+                    onClick={entry.action}
+                    style={{
+                      padding: '4px 8px',
+                      borderRadius: 7,
+                      border: '1px solid rgba(255,255,255,0.18)',
+                      background: 'rgba(255,255,255,0.08)',
+                      color: 'inherit',
+                      fontSize: 10,
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      flexShrink: 0,
+                    }}
+                  >
+                    {entry.actionLabel}
+                  </button>
                 </div>
               ))}
             </div>
@@ -696,6 +973,11 @@ export function FluxView() {
             {filteredActivities.map((entry) => {
               const meta = TYPE_META[entry.type] || TYPE_META.system
               const Icon = meta.icon
+              const canOpen =
+                Boolean(entry.targetView) ||
+                Boolean(entry.targetId) ||
+                entry.type === 'task' ||
+                entry.type === 'reminder'
               return (
                 <div key={entry.id} style={{ border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '9px 10px', background: 'rgba(255,255,255,0.03)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
@@ -713,18 +995,36 @@ export function FluxView() {
                       {new Date(entry.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </div>
                   </div>
+                  {canOpen && (
+                    <div style={{ marginTop: 6 }}>
+                      <button
+                        onClick={() => openActivityTarget(entry)}
+                        style={{
+                          padding: '4px 8px',
+                          borderRadius: 7,
+                          border: `1px solid rgba(${accentRgb},0.28)`,
+                          background: `rgba(${accentRgb},0.12)`,
+                          color: t.accent,
+                          fontSize: 10,
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Open Context
+                      </button>
+                    </div>
+                  )}
                 </div>
               )
             })}
           </div>
 
           <div style={{ marginTop: 10, fontSize: 10, opacity: 0.65, display: 'flex', alignItems: 'center', gap: 6 }}>
-            <CheckCircle2 size={12} style={{ color: '#34C759' }} />
-            {opsHealthScore >= 75
-              ? 'Ops stabil: Queue ist im grünen Bereich.'
-              : opsHealthScore >= 55
-                ? 'Ops beobachtbar: Priorisierte Queue-Abarbeitung empfohlen.'
-                : 'Ops kritisch: Resolve Urgent und Start Backlog jetzt ausführen.'}
+            <CheckCircle2
+              size={12}
+              style={{ color: opsSignal.label === 'Healthy' ? '#34C759' : opsSignal.label === 'Watch' ? '#FF9F0A' : '#FF453A' }}
+            />
+            {opsSignal.summary}
           </div>
         </Glass>
       </div>

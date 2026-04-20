@@ -2,12 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { Glass } from '../../components/Glass'
 import { DashboardActionButton } from './mobileDashboardPrimitives'
 import { readRenderDiagnostics, subscribeRenderDiagnostics } from '../../render/renderRuntime'
-
-type ResumeEntry = {
-  label: string
-  title: string
-  action: () => void
-}
+import type { MobileDashboardResumeEntry } from './useMobileDashboardDerivedData'
 
 export function MobileRuntimeSummaryCard({
   t,
@@ -16,7 +11,7 @@ export function MobileRuntimeSummaryCard({
 }: {
   t: any
   rgb: string
-  resumeLane: ResumeEntry[]
+  resumeLane: MobileDashboardResumeEntry[]
 }) {
   const [runtimeDiagnostics, setRuntimeDiagnostics] = useState(() => readRenderDiagnostics())
 
@@ -50,11 +45,20 @@ export function MobileRuntimeSummaryCard({
               padding: '5px 8px',
               cursor: 'pointer',
               display: 'inline-flex',
-              alignItems: 'center',
+              alignItems: 'flex-start',
+              flexDirection: 'column',
               gap: 5,
+              minWidth: 112,
             }}
           >
-            {entry.label}: {entry.title}
+            <span style={{ fontSize: 9, opacity: 0.72, textTransform: 'uppercase', letterSpacing: 0.35 }}>
+              {entry.label}
+            </span>
+            <span style={{ lineHeight: 1.2 }}>{entry.title}</span>
+            <span style={{ fontSize: 9, opacity: 0.62 }}>{entry.reason}</span>
+            <span style={{ fontSize: 9, opacity: 0.52, lineHeight: 1.2 }}>
+              {entry.subtitle}
+            </span>
           </DashboardActionButton>
         ))}
         {resumeLane.length === 0 ? (
@@ -85,4 +89,3 @@ export function MobileRuntimeSummaryCard({
     </Glass>
   )
 }
-

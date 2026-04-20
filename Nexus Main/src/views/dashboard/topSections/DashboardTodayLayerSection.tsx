@@ -237,6 +237,38 @@ export function DashboardTodayLayerSection({
             >
               + Note
             </DashboardActionButton>
+            <DashboardActionButton
+              onClick={() => runCaptureIntent("task")}
+              liquidColor="#ff9f0a"
+              style={{
+                padding: "5px 10px",
+                borderRadius: 999,
+                border: "1px solid rgba(255,159,10,0.28)",
+                background: "rgba(255,159,10,0.14)",
+                color: "#ff9f0a",
+                cursor: "pointer",
+                fontSize: 10,
+                fontWeight: 800,
+              }}
+            >
+              + Task
+            </DashboardActionButton>
+            <DashboardActionButton
+              onClick={() => runCaptureIntent("reminder")}
+              liquidColor="#ff453a"
+              style={{
+                padding: "5px 10px",
+                borderRadius: 999,
+                border: "1px solid rgba(255,69,58,0.3)",
+                background: "rgba(255,69,58,0.13)",
+                color: "#ff453a",
+                cursor: "pointer",
+                fontSize: 10,
+                fontWeight: 800,
+              }}
+            >
+              + Reminder
+            </DashboardActionButton>
             <div style={{ position: "relative" }}>
               <DashboardActionButton
                 onClick={() => setCaptureMenuOpen((open) => !open)}
@@ -277,8 +309,6 @@ export function DashboardTodayLayerSection({
                 >
                   {(
                     [
-                      { type: "task", label: "Task" },
-                      { type: "reminder", label: "Reminder" },
                       { type: "code", label: "Code" },
                       { type: "canvas", label: "Canvas" },
                     ] as Array<{ type: CaptureIntentType; label: string }>
@@ -383,4 +413,3 @@ const captureMenuButtonStyle: React.CSSProperties = {
   fontSize: 12,
   fontWeight: 650,
 };
-

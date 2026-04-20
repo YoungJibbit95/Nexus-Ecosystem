@@ -5,7 +5,7 @@ import {
   Bold, Italic, Heading, List, ListOrdered, Quote, Code, Link,
   Download, Clock, Hash, Eye, Edit3, Minus, Strikethrough,
   Maximize2, Minimize2, Wand2, Sparkles, Bell, Zap, Calendar, CreditCard,
-  ChevronDown, Table, Upload, MoreHorizontal
+  ChevronDown, Table, Upload, MoreHorizontal, ListTree, ArrowUpRight, CheckSquare2, AlarmClock, Orbit
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Glass } from '../components/Glass'
@@ -13,12 +13,19 @@ import { InteractiveIconButton } from '../components/render/InteractiveIconButto
 import { InteractiveActionButton } from '../components/render/InteractiveActionButton'
 import { NexusMarkdown } from '../components/NexusMarkdown'
 import { useApp } from '../store/appStore'
+import { useCanvas } from '../store/canvasStore'
 import { useTheme } from '../store/themeStore'
 import { hexToRgb, fmtDt } from '../lib/utils'
 import { NexusCodeBlock, NexusInlineCode } from './notes/NotesMagicRenderers'
 import { useNotesAnalysis } from './notes/useNotesAnalysis'
 import { NotesSettingsModal } from './notes/NotesSettingsModal'
 import { shallow } from 'zustand/shallow'
+import {
+  buildNoteKnowledgeGraph,
+  extractHeadings,
+  rankNotesForQuery,
+  resolveRelatedNotes,
+} from '@nexus/core/notes/knowledge'
 
 const MagicElementModal = lazy(() =>
   import('./notes/NotesMagicModal').then((m) => ({ default: m.MagicElementModal })),
@@ -37,7 +44,7 @@ const runIdle = (task: () => void, timeoutMs = 320) => {
 }
 
 export function NotesView() {
-  const { notes, activeNoteId, addNote, updateNote, delNote, setNote, saveNote } = useApp((s) => ({
+  const { notes, activeNoteId, addNote, updateNote, delNote, setNote, saveNote, addTask, updateTask, addRem } = useApp((s) => ({
     notes: s.notes,
     activeNoteId: s.activeNoteId,
     addNote: s.addNote,
@@ -45,6 +52,12 @@ export function NotesView() {
     delNote: s.delNote,
     setNote: s.setNote,
     saveNote: s.saveNote,
+    addTask: s.addTask,
+    updateTask: s.updateTask,
+    addRem: s.addRem,
+  }), shallow)
+  const { addCanvas } = useCanvas((s) => ({
+    addCanvas: s.addCanvas,
   }), shallow)
   const [mode, setMode] = useState<'edit' | 'split' | 'preview'>('edit')
   const [showSettings, setShowSettings] = useState(false)
@@ -58,8 +71,13 @@ export function NotesView() {
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null)
   const [showMagic, setShowMagic] = useState(false)
   const [notesHeaderMenuOpen, setNotesHeaderMenuOpen] = useState(false)
+  const [showQuickSwitch, setShowQuickSwitch] = useState(false)
+  const [quickSwitchQuery, setQuickSwitchQuery] = useState('')
+  const [quickSwitchCursor, setQuickSwitchCursor] = useState(0)
   const deferredSearchQuery = useDeferredValue(searchQuery)
+  const deferredQuickSwitchQuery = useDeferredValue(quickSwitchQuery)
   const editorRef = useRef<HTMLTextAreaElement>(null)
+  const quickSwitchInputRef = useRef<HTMLInputElement>(null)
   const lineNumbersRef = useRef<HTMLPreElement>(null)
   // Save selection before magic menu opens so we can restore it on insert
   const savedSel = useRef<{ start: number; end: number } | null>(null)
@@ -317,17 +335,27 @@ export function NotesView() {
   const stats = active
     ? { words: analysis.words, chars: analysis.chars, lines: analysis.lines }
     : { words: 0, chars: 0, lines: 0 }
+  const noteStats = active
+    ? {
+      words: analysis.words,
+      links: analysis.links,
+      tasks: analysis.tasks,
+      readMins: analysis.readMins,
+    }
+    : {
+      words: 0,
+      links: 0,
+      tasks: 0,
+      readMins: 1,
+    }
+
+  const searchRanked = useMemo(
+    () => rankNotesForQuery(notes, deferredSearchQuery, 320).map((entry) => entry.note),
+    [notes, deferredSearchQuery],
+  )
 
   const filteredNotes = useMemo(() => {
-    let result = notes
-    if (deferredSearchQuery) {
-      const q = deferredSearchQuery.toLowerCase()
-      result = result.filter(n => {
-        if (n.title.toLowerCase().includes(q)) return true
-        if (n.tags.some(t => t.toLowerCase().includes(q))) return true
-        return n.content.toLowerCase().includes(q)
-      })
-    }
+    let result = deferredSearchQuery ? searchRanked : notes
     if (tagFilter) result = result.filter(n => n.tags.includes(tagFilter))
     result = [...result].sort((a, b) => {
       if (sortBy === 'title') return a.title.localeCompare(b.title)
@@ -335,13 +363,207 @@ export function NotesView() {
       return new Date(b.updated).getTime() - new Date(a.updated).getTime()
     })
     return [...result.filter(n => n.pinned), ...result.filter(n => !n.pinned)]
-  }, [notes, deferredSearchQuery, tagFilter, sortBy])
+  }, [notes, deferredSearchQuery, searchRanked, tagFilter, sortBy])
+
+  const knowledgeGraph = useMemo(() => buildNoteKnowledgeGraph(notes), [notes])
+  const activeHeadings = useMemo(() => extractHeadings(draftContent, 4), [draftContent])
+  const activeIncoming = useMemo(
+    () => (active ? knowledgeGraph.incomingByNoteId.get(active.id) || [] : []),
+    [knowledgeGraph, active?.id],
+  )
+  const activeOutgoing = useMemo(
+    () => (active ? (knowledgeGraph.outgoingByNoteId.get(active.id) || []).filter((edge) => Boolean(edge.targetId)) : []),
+    [knowledgeGraph, active?.id],
+  )
+  const activeUnresolved = useMemo(
+    () => (active ? knowledgeGraph.unresolvedByNoteId.get(active.id) || [] : []),
+    [knowledgeGraph, active?.id],
+  )
+  const activeRelatedNotes = useMemo(
+    () => (active ? resolveRelatedNotes(active.id, knowledgeGraph, 6) : []),
+    [knowledgeGraph, active?.id],
+  )
+  const quickSwitchResults = useMemo(
+    () => rankNotesForQuery(notes, deferredQuickSwitchQuery, 12),
+    [notes, deferredQuickSwitchQuery],
+  )
 
   const lineNumbersText = active ? analysis.lineNumbersText : '1'
 
   const allTags = useMemo(() => {
     const set = new Set<string>(); notes.forEach(n => n.tags.forEach(t => set.add(t))); return Array.from(set)
   }, [notes])
+
+  const openQuickSwitch = useCallback(() => {
+    setShowQuickSwitch(true)
+    setQuickSwitchQuery('')
+    setQuickSwitchCursor(0)
+    requestAnimationFrame(() => {
+      quickSwitchInputRef.current?.focus()
+      quickSwitchInputRef.current?.select()
+    })
+  }, [])
+
+  const closeQuickSwitch = useCallback(() => {
+    setShowQuickSwitch(false)
+    setQuickSwitchQuery('')
+    setQuickSwitchCursor(0)
+  }, [])
+
+  useEffect(() => {
+    const onGlobalKeyDown = (event: KeyboardEvent) => {
+      if (!(event.ctrlKey || event.metaKey)) return
+      const key = event.key.toLowerCase()
+      if (key !== 'p') return
+      event.preventDefault()
+      openQuickSwitch()
+    }
+    window.addEventListener('keydown', onGlobalKeyDown)
+    return () => {
+      window.removeEventListener('keydown', onGlobalKeyDown)
+    }
+  }, [openQuickSwitch])
+
+  useEffect(() => {
+    if (!showQuickSwitch) return
+    setQuickSwitchCursor((cursor) => {
+      if (quickSwitchResults.length === 0) return 0
+      return Math.min(cursor, quickSwitchResults.length - 1)
+    })
+  }, [showQuickSwitch, quickSwitchResults.length])
+
+  const jumpToHeading = useCallback((index: number) => {
+    if (mode === 'preview') {
+      setMode('split')
+    }
+    requestAnimationFrame(() => {
+      const textarea = editorRef.current
+      if (!textarea) return
+      textarea.focus()
+      textarea.selectionStart = index
+      textarea.selectionEnd = index
+      const contentBefore = draftContentRef.current.slice(0, index)
+      const line = (contentBefore.match(/\n/g)?.length ?? 0) + 1
+      const lineHeightPx = t.notes.fontSize * t.notes.lineHeight
+      textarea.scrollTop = Math.max(0, (line - 4) * lineHeightPx)
+      syncLineNumberScroll(textarea)
+    })
+  }, [mode, syncLineNumberScroll, t.notes.fontSize, t.notes.lineHeight])
+
+  const insertWorkflowTemplate = useCallback((kind: 'daily' | 'meeting' | 'project') => {
+    if (!active) return
+    const templates: Record<typeof kind, string> = {
+      daily: `\n## Daily Focus\n- Top 3 Prioritäten\n- Blocker\n- Heute erledigt\n\n## Review\n- Was lief gut?\n- Was verbessern?\n`,
+      meeting: `\n## Meeting\n- Ziel\n- Teilnehmer\n- Entscheidungen\n- Action Items\n`,
+      project: `\n## Projekt Plan\n- Scope\n- Milestones\n- Risiken\n- Nächste Schritte\n\n## Tasks\n- [ ] \n`,
+    }
+    handleChange(`${draftContentRef.current}${templates[kind]}`)
+  }, [active, handleChange])
+
+  const insertWikilink = useCallback((title: string) => {
+    if (!title) return
+    insertFormat(`[[${title}]]`, '', '')
+  }, [insertFormat])
+
+  const convertNoteToTask = useCallback(() => {
+    if (!active) return
+    const state = useApp.getState()
+    const beforeTaskIds = new Set(state.tasks.map((task) => task.id))
+    const summary = draftContentRef.current
+      .replace(/[#*`\[\]()]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 220)
+    addTask(active.title || 'Notiz Aufgabe', 'todo', summary, 'mid')
+    const afterState = useApp.getState()
+    const created = afterState.tasks.find((task) => !beforeTaskIds.has(task.id))
+    if (!created) return
+    updateTask(created.id, {
+      linkedNoteId: active.id,
+      notes: `Erstellt aus Notiz: ${active.title}`,
+    })
+  }, [active, addTask, updateTask])
+
+  const convertNoteToReminder = useCallback(() => {
+    if (!active) return
+    const reminderAt = new Date(Date.now() + 60 * 60 * 1000).toISOString()
+    addRem({
+      title: active.title || 'Note Reminder',
+      msg: draftContentRef.current.slice(0, 220),
+      datetime: reminderAt,
+      repeat: 'none',
+      linkedNoteId: active.id,
+    })
+  }, [active, addRem])
+
+  const convertNoteToCanvas = useCallback(() => {
+    if (!active) return
+    const beforeCanvases = new Set(useCanvas.getState().canvases.map((canvas) => canvas.id))
+    addCanvas(`${active.title || 'Notiz'} Canvas`)
+    const stateAfterCanvas = useCanvas.getState()
+    const createdCanvas = stateAfterCanvas.canvases.find((canvas) => !beforeCanvases.has(canvas.id))
+    if (!createdCanvas) return
+    const captureNewNode = (type: 'note' | 'markdown', x: number, y: number) => {
+      const beforeNodeIds = new Set((useCanvas.getState().getActiveCanvas()?.nodes || []).map((node) => node.id))
+      useCanvas.getState().addNode(type, x, y)
+      const createdNode = (useCanvas.getState().getActiveCanvas()?.nodes || []).find((node) => !beforeNodeIds.has(node.id))
+      return createdNode?.id || null
+    }
+    const noteNodeId = captureNewNode('note', 140, 120)
+    if (noteNodeId) {
+      useCanvas.getState().updateNode(noteNodeId, {
+        title: active.title || 'Notiz',
+        linkedNoteId: active.id,
+        content: draftContentRef.current.slice(0, 1200),
+      })
+    }
+    const markdownNodeId = captureNewNode('markdown', 560, 120)
+    if (markdownNodeId) {
+      useCanvas.getState().updateNode(markdownNodeId, {
+        title: `Kontext: ${active.title || 'Notiz'}`,
+        linkedNoteId: active.id,
+        content: draftContentRef.current,
+      })
+    }
+  }, [active, addCanvas])
+
+  useEffect(() => {
+    if (!showQuickSwitch) return
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        closeQuickSwitch()
+        return
+      }
+      if (event.key === 'ArrowDown') {
+        event.preventDefault()
+        setQuickSwitchCursor((cursor) => {
+          if (quickSwitchResults.length === 0) return 0
+          return (cursor + 1) % quickSwitchResults.length
+        })
+        return
+      }
+      if (event.key === 'ArrowUp') {
+        event.preventDefault()
+        setQuickSwitchCursor((cursor) => {
+          if (quickSwitchResults.length === 0) return 0
+          return (cursor - 1 + quickSwitchResults.length) % quickSwitchResults.length
+        })
+        return
+      }
+      if (event.key === 'Enter') {
+        event.preventDefault()
+        const selected = quickSwitchResults[quickSwitchCursor]
+        if (!selected) return
+        setNote(selected.note.id)
+        closeQuickSwitch()
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => {
+      window.removeEventListener('keydown', onKeyDown)
+    }
+  }, [closeQuickSwitch, quickSwitchCursor, quickSwitchResults, setNote, showQuickSwitch])
 
   const handleApplySettings = () => {
     t.setNotes({ fontSize: localSettings.fontSize, fontFamily: localSettings.fontFamily, lineHeight: localSettings.lineHeight, mode: localSettings.mode })
@@ -484,6 +706,31 @@ export function NotesView() {
                   </InteractiveActionButton>
                   <InteractiveActionButton
                     onClick={() => {
+                      openQuickSwitch()
+                      setNotesHeaderMenuOpen(false)
+                    }}
+                    motionId="notes-quick-switch"
+                    className="nx-menu-item"
+                    areaHint={72}
+                    radius={8}
+                    style={{
+                      width: '100%',
+                      border: 'none',
+                      borderRadius: 8,
+                      background: 'transparent',
+                      color: 'inherit',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      padding: '8px 10px',
+                      fontSize: 12,
+                      fontWeight: 650,
+                    }}
+                  >
+                    <Search size={12} /> Quick Switch (Ctrl/Cmd+P)
+                  </InteractiveActionButton>
+                  <InteractiveActionButton
+                    onClick={() => {
                       setShowSettings(true)
                       setNotesHeaderMenuOpen(false)
                     }}
@@ -506,6 +753,82 @@ export function NotesView() {
                     }}
                   >
                     <Settings size={12} /> Einstellungen
+                  </InteractiveActionButton>
+                  <div style={{ height: 1, background: 'rgba(255,255,255,0.08)', margin: '6px 4px' }} />
+                  <InteractiveActionButton
+                    onClick={() => {
+                      convertNoteToTask()
+                      setNotesHeaderMenuOpen(false)
+                    }}
+                    motionId="notes-convert-task"
+                    className="nx-menu-item"
+                    areaHint={72}
+                    radius={8}
+                    style={{
+                      width: '100%',
+                      border: 'none',
+                      borderRadius: 8,
+                      background: 'transparent',
+                      color: 'inherit',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      padding: '8px 10px',
+                      fontSize: 12,
+                      fontWeight: 650,
+                    }}
+                  >
+                    <CheckSquare2 size={12} /> Als Task erstellen
+                  </InteractiveActionButton>
+                  <InteractiveActionButton
+                    onClick={() => {
+                      convertNoteToReminder()
+                      setNotesHeaderMenuOpen(false)
+                    }}
+                    motionId="notes-convert-reminder"
+                    className="nx-menu-item"
+                    areaHint={72}
+                    radius={8}
+                    style={{
+                      width: '100%',
+                      border: 'none',
+                      borderRadius: 8,
+                      background: 'transparent',
+                      color: 'inherit',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      padding: '8px 10px',
+                      fontSize: 12,
+                      fontWeight: 650,
+                    }}
+                  >
+                    <AlarmClock size={12} /> Als Reminder planen
+                  </InteractiveActionButton>
+                  <InteractiveActionButton
+                    onClick={() => {
+                      convertNoteToCanvas()
+                      setNotesHeaderMenuOpen(false)
+                    }}
+                    motionId="notes-convert-canvas"
+                    className="nx-menu-item"
+                    areaHint={72}
+                    radius={8}
+                    style={{
+                      width: '100%',
+                      border: 'none',
+                      borderRadius: 8,
+                      background: 'transparent',
+                      color: 'inherit',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      padding: '8px 10px',
+                      fontSize: 12,
+                      fontWeight: 650,
+                    }}
+                  >
+                    <Orbit size={12} /> In Canvas abbilden
                   </InteractiveActionButton>
                 </div>
               ) : null}
@@ -654,6 +977,7 @@ export function NotesView() {
               {[
                 { icon: RotateCcw, tip: 'Undo (Ctrl+Z)', action: handleUndo },
                 { icon: RotateCcw, tip: 'Redo (Ctrl+Y)', action: handleRedo, flip: true },
+                { icon: Search,    tip: 'Quick Switch (Ctrl/Cmd+P)', action: openQuickSwitch },
                 { icon: Copy,      tip: 'Kopieren',      action: () => navigator.clipboard.writeText(draftContent) },
                 { icon: Download,  tip: 'Download .md',  action: saveAsFile },
                 { icon: Save,      tip: 'Speichern (Ctrl+S)', action: saveActiveNow, accent: draftDirty },
@@ -688,6 +1012,137 @@ export function NotesView() {
                 {focusMode ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
               </InteractiveActionButton>
             </div>
+          </Glass>
+
+          <Glass className="shrink-0" style={{ padding: '7px 10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              {[
+                { label: 'Words', val: noteStats.words },
+                { label: 'Read', val: `${noteStats.readMins}m` },
+                { label: 'Links', val: noteStats.links },
+                { label: 'Tasks', val: noteStats.tasks },
+              ].map((entry) => (
+                <span key={entry.label} style={{ fontSize: 10, padding: '3px 8px', borderRadius: 999, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                  <strong style={{ fontWeight: 800 }}>{entry.val}</strong> <span style={{ opacity: 0.6 }}>{entry.label}</span>
+                </span>
+              ))}
+              <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                <InteractiveActionButton
+                  onClick={openQuickSwitch}
+                  motionId="notes-workflow-switch"
+                  areaHint={62}
+                  radius={8}
+                  style={{ padding: '4px 8px', borderRadius: 8, border: `1px solid rgba(${rgb},0.3)`, background: `rgba(${rgb},0.14)`, color: t.accent, fontSize: 10, fontWeight: 700, cursor: 'pointer' }}
+                >
+                  <ArrowUpRight size={11} /> Jump
+                </InteractiveActionButton>
+                <InteractiveActionButton
+                  onClick={() => insertWorkflowTemplate('daily')}
+                  motionId="notes-workflow-daily"
+                  areaHint={56}
+                  radius={8}
+                  style={{ padding: '4px 8px', borderRadius: 8, border: `1px solid rgba(${rgb},0.3)`, background: `rgba(${rgb},0.14)`, color: t.accent, fontSize: 10, fontWeight: 700, cursor: 'pointer' }}
+                >
+                  Daily
+                </InteractiveActionButton>
+                <InteractiveActionButton
+                  onClick={convertNoteToTask}
+                  motionId="notes-workflow-task"
+                  areaHint={62}
+                  radius={8}
+                  style={{ padding: '4px 8px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.06)', color: 'inherit', fontSize: 10, fontWeight: 700, cursor: 'pointer' }}
+                >
+                  <CheckSquare2 size={11} /> Task
+                </InteractiveActionButton>
+                <InteractiveActionButton
+                  onClick={convertNoteToReminder}
+                  motionId="notes-workflow-reminder"
+                  areaHint={76}
+                  radius={8}
+                  style={{ padding: '4px 8px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.06)', color: 'inherit', fontSize: 10, fontWeight: 700, cursor: 'pointer' }}
+                >
+                  <AlarmClock size={11} /> Reminder
+                </InteractiveActionButton>
+                <InteractiveActionButton
+                  onClick={convertNoteToCanvas}
+                  motionId="notes-workflow-canvas"
+                  areaHint={72}
+                  radius={8}
+                  style={{ padding: '4px 8px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.06)', color: 'inherit', fontSize: 10, fontWeight: 700, cursor: 'pointer' }}
+                >
+                  <Orbit size={11} /> Canvas
+                </InteractiveActionButton>
+              </div>
+            </div>
+            {(activeHeadings.length > 0 || activeOutgoing.length > 0 || activeIncoming.length > 0 || activeUnresolved.length > 0 || activeRelatedNotes.length > 0) && (
+              <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {activeHeadings.slice(0, 4).map((heading) => (
+                  <InteractiveActionButton
+                    key={heading.id}
+                    onClick={() => jumpToHeading(heading.index)}
+                    motionId={`notes-heading-${heading.id}`}
+                    areaHint={68}
+                    radius={999}
+                    style={{ padding: '3px 9px', borderRadius: 999, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.04)', fontSize: 10, cursor: 'pointer', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                    title={`Zu Abschnitt springen: ${heading.text}`}
+                  >
+                    <ListTree size={10} /> {heading.text}
+                  </InteractiveActionButton>
+                ))}
+                {activeOutgoing.slice(0, 4).map((edge) => (
+                  <InteractiveActionButton
+                    key={`out-${edge.sourceId}-${edge.targetId}-${edge.targetTitle}`}
+                    onClick={() => edge.targetId && setNote(edge.targetId)}
+                    motionId={`notes-outgoing-${edge.targetId || edge.targetTitle}`}
+                    areaHint={68}
+                    radius={999}
+                    style={{ padding: '3px 9px', borderRadius: 999, border: `1px solid rgba(${rgb},0.28)`, background: `rgba(${rgb},0.1)`, color: t.accent, fontSize: 10, cursor: 'pointer', maxWidth: 170, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                    title={`Verlinkte Notiz öffnen: ${edge.targetTitle}`}
+                  >
+                    ↗ {edge.targetTitle}
+                  </InteractiveActionButton>
+                ))}
+                {activeIncoming.slice(0, 4).map((edge) => (
+                  <InteractiveActionButton
+                    key={`in-${edge.sourceId}-${edge.targetTitle}`}
+                    onClick={() => setNote(edge.sourceId)}
+                    motionId={`notes-backlink-${edge.sourceId}`}
+                    areaHint={68}
+                    radius={999}
+                    style={{ padding: '3px 9px', borderRadius: 999, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.06)', fontSize: 10, cursor: 'pointer', maxWidth: 170, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                    title={`Backlink öffnen: ${edge.sourceTitle}`}
+                  >
+                    ← {edge.sourceTitle}
+                  </InteractiveActionButton>
+                ))}
+                {activeRelatedNotes.slice(0, 3).map((related) => (
+                  <InteractiveActionButton
+                    key={`rel-${related.id}`}
+                    onClick={() => setNote(related.id)}
+                    motionId={`notes-related-${related.id}`}
+                    areaHint={68}
+                    radius={999}
+                    style={{ padding: '3px 9px', borderRadius: 999, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.04)', fontSize: 10, cursor: 'pointer', maxWidth: 170, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                    title={`Verwandte Notiz öffnen: ${related.title}`}
+                  >
+                    ≈ {related.title}
+                  </InteractiveActionButton>
+                ))}
+                {activeUnresolved.slice(0, 3).map((edge) => (
+                  <InteractiveActionButton
+                    key={`missing-${edge.targetTitle}`}
+                    onClick={() => insertWikilink(edge.targetTitle)}
+                    motionId={`notes-unresolved-${edge.targetTitle}`}
+                    areaHint={68}
+                    radius={999}
+                    style={{ padding: '3px 9px', borderRadius: 999, border: '1px dashed rgba(255,159,10,0.45)', background: 'rgba(255,159,10,0.1)', color: '#FF9F0A', fontSize: 10, cursor: 'pointer', maxWidth: 170, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                    title={`Nicht aufgelöster Wikilink: ${edge.targetTitle}. Klicken um einzufügen.`}
+                  >
+                    ? {edge.targetTitle}
+                  </InteractiveActionButton>
+                ))}
+              </div>
+            )}
           </Glass>
 
           {/* Formatting toolbar */}
@@ -901,6 +1356,100 @@ export function NotesView() {
             background: `rgba(${rgb},0.2)`, color: t.accent, fontSize: 12, fontWeight: 700,
           }}>+ Neue Notiz</InteractiveActionButton>
         </div>
+      )}
+
+      {showQuickSwitch && createPortal(
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 2600,
+            background: 'rgba(5, 8, 18, 0.55)',
+            backdropFilter: 'blur(6px)',
+            display: 'flex',
+            alignItems: 'flex-start',
+            justifyContent: 'center',
+            paddingTop: '12vh',
+          }}
+          onClick={closeQuickSwitch}
+        >
+          <Glass
+            className="flex flex-col"
+            style={{
+              width: 'min(680px, calc(100vw - 44px))',
+              maxHeight: '66vh',
+              overflow: 'hidden',
+            }}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div style={{ padding: '12px 12px 8px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+              <input
+                ref={quickSwitchInputRef}
+                value={quickSwitchQuery}
+                onChange={(event) => {
+                  setQuickSwitchQuery(event.target.value)
+                  setQuickSwitchCursor(0)
+                }}
+                placeholder="Quick Switch: Notiztitel, Tag oder Inhalt..."
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  borderRadius: 10,
+                  border: `1px solid rgba(${rgb},0.28)`,
+                  background: `rgba(${rgb},0.08)`,
+                  color: 'inherit',
+                  fontSize: 13,
+                  outline: 'none',
+                }}
+              />
+            </div>
+            <div style={{ overflowY: 'auto', maxHeight: '52vh', padding: 8 }}>
+              {quickSwitchResults.length > 0 ? quickSwitchResults.map((result, index) => (
+                <InteractiveActionButton
+                  key={result.note.id}
+                  onMouseEnter={() => setQuickSwitchCursor(index)}
+                  onClick={() => {
+                    setNote(result.note.id)
+                    closeQuickSwitch()
+                  }}
+                  motionId={`notes-quick-switch-row-${result.note.id}`}
+                  selected={index === quickSwitchCursor}
+                  areaHint={72}
+                  radius={10}
+                  style={{
+                    width: '100%',
+                    textAlign: 'left',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    borderRadius: 10,
+                    background: index === quickSwitchCursor ? `rgba(${rgb},0.16)` : 'rgba(255,255,255,0.04)',
+                    padding: '9px 10px',
+                    marginBottom: 6,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'flex-start',
+                    gap: 3,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <span style={{ fontSize: 12, fontWeight: 700, color: index === quickSwitchCursor ? t.accent : 'inherit' }}>
+                    {result.note.title || 'Untitled'}
+                  </span>
+                  <span style={{ fontSize: 11, opacity: 0.66, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', width: '100%' }}>
+                    {result.preview}
+                  </span>
+                  <span style={{ fontSize: 10, opacity: 0.52, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                    {result.reason}
+                  </span>
+                </InteractiveActionButton>
+              )) : (
+                <div style={{ fontSize: 12, opacity: 0.5, padding: '10px 4px' }}>
+                  Keine passenden Notizen gefunden.
+                </div>
+              )}
+            </div>
+          </Glass>
+        </div>,
+        document.body,
       )}
 
       <NotesSettingsModal

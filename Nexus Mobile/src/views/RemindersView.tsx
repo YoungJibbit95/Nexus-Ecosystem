@@ -18,7 +18,14 @@ import { useInteractiveSurfaceMotion } from '../render/useInteractiveSurfaceMoti
 import { useRenderSurfaceBudget } from '../render/useRenderSurfaceBudget'
 import { useSurfaceMotionRuntime } from '../render/useSurfaceMotionRuntime'
 import { motion, AnimatePresence } from 'framer-motion'
-import { computeTodayLayerSummary } from '@nexus/core'
+import {
+  computeTodayLayerSummary,
+  REMINDER_TEMPLATES,
+  REMINDER_SNOOZE_PRESETS,
+  createReminderFromTemplate,
+  formatReminderRepeat,
+  type ReminderTemplateId,
+} from '@nexus/core'
 
 type QuietHoursState = {
   enabled: boolean
@@ -136,7 +143,7 @@ function ToastCard({ toast, onDone, onSnooze }: { toast: Toast; onDone: () => vo
           <button onClick={onDone} style={{ flex:1, padding:'7px 0', borderRadius:8, background:t.accent, border:'none', color:'#fff', fontSize:12, fontWeight:700, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:4 }}>
             <Check size={12}/> Dismiss
           </button>
-          {[5,15,60].map(m => (
+          {REMINDER_SNOOZE_PRESETS.map(m => (
             <button key={m} onClick={()=>onSnooze(m)} style={{ padding:'7px 10px', borderRadius:8, background:'rgba(255,255,255,0.08)', border:'1px solid rgba(255,255,255,0.1)', color:'inherit', fontSize:11, cursor:'pointer' }}>
               {m < 60 ? `${m}m` : '1h'}
             </button>
@@ -273,11 +280,19 @@ function useChecker(
 }
 
 // ── Reminder form ────────────────────────────────────────────────
-function ReminderModal({ reminder, onClose }: { reminder?: Reminder; onClose: () => void }) {
+function ReminderModal({
+  reminder,
+  onClose,
+  setView,
+}: {
+  reminder?: Reminder
+  onClose: () => void
+  setView?: (viewId: string) => void
+}) {
   const t = useTheme()
   const rgb = hexToRgb(t.accent)
   const mob = useMobile()
-  const { addRem, updateReminder } = useApp()
+  const { addRem, updateReminder, tasks, notes: noteEntries, openNote, setNote } = useApp()
 
   const now = new Date()
   now.setMinutes(now.getMinutes() + 15)
@@ -287,8 +302,12 @@ function ReminderModal({ reminder, onClose }: { reminder?: Reminder; onClose: ()
   const [msg,      setMsg]      = useState(reminder?.msg ?? '')
   const [datetime, setDatetime] = useState(reminder?.datetime ? reminder.datetime.slice(0,16) : defaultDT)
   const [repeat,   setRepeat]   = useState<Reminder['repeat']>(reminder?.repeat ?? 'none')
+  const [linkedTaskId, setLinkedTaskId] = useState(reminder?.linkedTaskId ?? '')
+  const [linkedNoteId, setLinkedNoteId] = useState(reminder?.linkedNoteId ?? '')
   const [tab,      setTab]      = useState<'basic'|'notes'>('basic')
-  const [notes,    setNotes]    = useState((reminder as any)?.notes ?? '')
+  const [reminderNotes, setReminderNotes] = useState((reminder as any)?.notes ?? '')
+  const linkedTask = linkedTaskId ? tasks.find((task) => task.id === linkedTaskId) ?? null : null
+  const linkedNote = linkedNoteId ? noteEntries.find((note) => note.id === linkedNoteId) ?? null : null
   const modalDecision = useRenderSurfaceBudget({
     id: `reminders-modal-${reminder?.id ?? 'new'}`,
     surfaceClass: 'modal-surface',
@@ -326,9 +345,27 @@ function ReminderModal({ reminder, onClose }: { reminder?: Reminder; onClose: ()
   const save = () => {
     if (!title.trim()) return
     if (reminder) {
-      updateReminder(reminder.id, { title, msg, datetime: new Date(datetime).toISOString(), repeat, notes } as any)
+      updateReminder(
+        reminder.id,
+        {
+          title,
+          msg,
+          datetime: new Date(datetime).toISOString(),
+          repeat,
+          linkedTaskId: linkedTaskId || undefined,
+          linkedNoteId: linkedNoteId || undefined,
+          notes: reminderNotes,
+        } as any,
+      )
     } else {
-      addRem({ title, msg, datetime: new Date(datetime).toISOString(), repeat })
+      addRem({
+        title,
+        msg,
+        datetime: new Date(datetime).toISOString(),
+        repeat,
+        linkedTaskId: linkedTaskId || undefined,
+        linkedNoteId: linkedNoteId || undefined,
+      })
     }
     onClose()
   }
@@ -397,11 +434,67 @@ function ReminderModal({ reminder, onClose }: { reminder?: Reminder; onClose: ()
                     ))}
                   </div>
                 </div>
+                <div style={{ marginTop: 12, display: 'grid', gap: 8 }}>
+                  <label style={{ display: 'grid', gap: 4, fontSize: 11, opacity: 0.8 }}>
+                    Verknupfte Task
+                    <select
+                      value={linkedTaskId}
+                      onChange={(event) => setLinkedTaskId(event.target.value)}
+                      style={{ borderRadius:8, border:'1px solid rgba(255,255,255,0.12)', background:'rgba(255,255,255,0.05)', color:'inherit', padding:'7px 9px', fontSize:12 }}
+                    >
+                      <option value="">Keine Task</option>
+                      {tasks.slice(0, 120).map((task) => (
+                        <option key={task.id} value={task.id}>
+                          {task.title}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label style={{ display: 'grid', gap: 4, fontSize: 11, opacity: 0.8 }}>
+                    Verknupfte Note
+                    <select
+                      value={linkedNoteId}
+                      onChange={(event) => setLinkedNoteId(event.target.value)}
+                      style={{ borderRadius:8, border:'1px solid rgba(255,255,255,0.12)', background:'rgba(255,255,255,0.05)', color:'inherit', padding:'7px 9px', fontSize:12 }}
+                    >
+                      <option value="">Keine Note</option>
+                      {noteEntries.slice(0, 160).map((note) => (
+                        <option key={note.id} value={note.id}>
+                          {note.title}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+                {linkedTask || linkedNote ? (
+                  <div style={{ marginTop:8, display:'flex', gap:6, flexWrap:'wrap' }}>
+                    {linkedTask ? (
+                      <button
+                        onClick={() => setView?.('tasks')}
+                        style={{ padding:'4px 9px', borderRadius:7, border:'1px solid rgba(255,255,255,0.14)', background:'rgba(255,255,255,0.06)', cursor:'pointer', fontSize:10, fontWeight:700, color:'inherit' }}
+                      >
+                        Open Task
+                      </button>
+                    ) : null}
+                    {linkedNote ? (
+                      <button
+                        onClick={() => {
+                          openNote(linkedNote.id)
+                          setNote(linkedNote.id)
+                          setView?.('notes')
+                        }}
+                        style={{ padding:'4px 9px', borderRadius:7, border:'1px solid rgba(255,255,255,0.14)', background:'rgba(255,255,255,0.06)', cursor:'pointer', fontSize:10, fontWeight:700, color:'inherit' }}
+                      >
+                        Open Note
+                      </button>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
             )}
             {tab === 'notes' && (
               <div style={{ display:'flex', flexDirection:'column', height:280 }}>
-                <textarea value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Markdown notes…" style={{ flex:1, padding:'14px 20px', background:'transparent', border:'none', outline:'none', fontSize:13, color:'inherit', resize:'none', fontFamily:"'Fira Code',monospace", lineHeight:1.6 }} />
+                <textarea value={reminderNotes} onChange={e=>setReminderNotes(e.target.value)} placeholder="Markdown notes…" style={{ flex:1, padding:'14px 20px', background:'transparent', border:'none', outline:'none', fontSize:13, color:'inherit', resize:'none', fontFamily:"'Fira Code',monospace", lineHeight:1.6 }} />
               </div>
             )}
           </div>
@@ -419,15 +512,26 @@ function ReminderModal({ reminder, onClose }: { reminder?: Reminder; onClose: ()
 }
 
 // ── Reminder card ─────────────────────────────────────────────────
-function ReminderCard({ r, onEdit, now }: { r: Reminder; onEdit: () => void; now: Date }) {
+function ReminderCard({
+  r,
+  onEdit,
+  now,
+  setView,
+}: {
+  r: Reminder
+  onEdit: () => void
+  now: Date
+  setView?: (viewId: string) => void
+}) {
   const t = useTheme()
   const rgb = hexToRgb(t.accent)
-  const { doneRem, delRem, snoozeRem } = useApp()
+  const { doneRem, delRem, snoozeRem, tasks, notes, openNote, setNote } = useApp()
   const dt       = new Date(r.snoozeUntil || r.datetime)
   const isPast   = dt < now && !r.done
   const isSoon   = !isPast && (dt.getTime() - now.getTime()) < 30 * 60000
-  const isToday  = dt.toDateString() === now.toDateString()
   const hasnotes = !!(r as any).notes
+  const linkedTask = r.linkedTaskId ? tasks.find((task) => task.id === r.linkedTaskId) ?? null : null
+  const linkedNote = r.linkedNoteId ? notes.find((note) => note.id === r.linkedNoteId) ?? null : null
   const [expanded, setExpanded] = useState(false)
   const cardDecision = useRenderSurfaceBudget({
     id: `reminder-card-${r.id}`,
@@ -473,6 +577,13 @@ function ReminderCard({ r, onEdit, now }: { r: Reminder; onEdit: () => void; now
     if (today)    return `Today ${timeStr}`
     if (tomorrow) return `Tomorrow ${timeStr}`
     return d.toLocaleDateString([], { month:'short', day:'numeric' }) + ' ' + timeStr
+  }
+
+  const openLinkedNote = () => {
+    if (!linkedNote) return
+    openNote(linkedNote.id)
+    setNote(linkedNote.id)
+    setView?.('notes')
   }
 
   return (
@@ -546,9 +657,27 @@ function ReminderCard({ r, onEdit, now }: { r: Reminder; onEdit: () => void; now
               </span>
               {r.repeat !== 'none' && (
                 <span style={{ display:'flex', alignItems:'center', gap:3, fontSize:10, padding:'2px 7px', borderRadius:10, background:`rgba(${rgb},0.12)`, color:t.accent }}>
-                  <Repeat size={9}/> {r.repeat}
+                  <Repeat size={9}/> {formatReminderRepeat(r.repeat)}
                 </span>
               )}
+              {linkedTask ? (
+                <button
+                  onClick={() => setView?.('tasks')}
+                  style={{ fontSize:10, padding:'2px 7px', borderRadius:10, border:'1px solid rgba(255,255,255,0.16)', background:'rgba(255,255,255,0.06)', color:'inherit', cursor:'pointer', maxWidth:180, whiteSpace:'nowrap', textOverflow:'ellipsis', overflow:'hidden' }}
+                  title={linkedTask.title}
+                >
+                  Task: {linkedTask.title}
+                </button>
+              ) : null}
+              {linkedNote ? (
+                <button
+                  onClick={openLinkedNote}
+                  style={{ fontSize:10, padding:'2px 7px', borderRadius:10, border:'1px solid rgba(255,255,255,0.16)', background:'rgba(255,255,255,0.06)', color:'inherit', cursor:'pointer', maxWidth:180, whiteSpace:'nowrap', textOverflow:'ellipsis', overflow:'hidden' }}
+                  title={linkedNote.title}
+                >
+                  Note: {linkedNote.title}
+                </button>
+              ) : null}
               {r.snoozeUntil && !r.done && (
                 <span style={{ fontSize:10, padding:'2px 7px', borderRadius:10, background:'rgba(255,159,10,0.15)', color:'#ff9f0a', display:'flex', alignItems:'center', gap:3 }}>
                   <AlarmClock size={9}/> Snoozed
@@ -574,6 +703,26 @@ function ReminderCard({ r, onEdit, now }: { r: Reminder; onEdit: () => void; now
               <div style={{ marginTop:10, paddingTop:10, borderTop:'1px solid rgba(255,255,255,0.07)' }}>
                 {r.msg && <div style={{ fontSize:13, opacity:0.7, lineHeight:1.55, marginBottom: hasnotes?10:0 }}>{r.msg}</div>}
                 {hasnotes && <NexusMarkdown content={(r as any).notes} />}
+                {linkedTask || linkedNote ? (
+                  <div style={{ marginTop:8, display:'flex', gap:6, flexWrap:'wrap' }}>
+                    {linkedTask ? (
+                      <button
+                        onClick={() => setView?.('tasks')}
+                        style={{ padding:'4px 9px', borderRadius:7, border:'1px solid rgba(255,255,255,0.14)', background:'rgba(255,255,255,0.06)', cursor:'pointer', fontSize:10, fontWeight:700, color:'inherit' }}
+                      >
+                        Open Task
+                      </button>
+                    ) : null}
+                    {linkedNote ? (
+                      <button
+                        onClick={openLinkedNote}
+                        style={{ padding:'4px 9px', borderRadius:7, border:'1px solid rgba(255,255,255,0.14)', background:'rgba(255,255,255,0.06)', cursor:'pointer', fontSize:10, fontWeight:700, color:'inherit' }}
+                      >
+                        Open Note
+                      </button>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
             </motion.div>
           )}
@@ -582,7 +731,7 @@ function ReminderCard({ r, onEdit, now }: { r: Reminder; onEdit: () => void; now
         {/* Snooze quick buttons for overdue */}
         {isPast && !r.done && (
           <div style={{ display:'flex', gap:5, marginTop:10 }}>
-            {[5,15,60].map(m => (
+            {REMINDER_SNOOZE_PRESETS.map(m => (
               <button key={m} onClick={()=>snoozeRem(r.id,m)} style={{ padding:'4px 10px', borderRadius:7, border:'1px solid rgba(255,159,10,0.2)', background:'rgba(255,159,10,0.08)', cursor:'pointer', fontSize:10, fontWeight:600, color:'#ff9f0a' }}>
                 Snooze {m<60?`${m}m`:'1h'}
               </button>
@@ -620,7 +769,7 @@ export function RemindersView({ setView }: { setView?: (viewId: string) => void 
   } = useChecker(setToasts, quietHours)
   const [now, setNow]             = useState(new Date())
   const [search, setSearch]       = useState('')
-  const [filter, setFilter]       = useState<'all'|'upcoming'|'overdue'|'done'>('upcoming')
+  const [filter, setFilter]       = useState<'all'|'upcoming'|'overdue'|'soon'|'done'>('upcoming')
   const [newOpen, setNewOpen]     = useState(false)
   const [editId, setEditId]       = useState<string|null>(null)
   const [controlBusy, setControlBusy] = useState<'permissions' | 'reschedule' | 'settings' | null>(null)
@@ -641,6 +790,7 @@ export function RemindersView({ setView }: { setView?: (viewId: string) => void 
     switch(filter) {
       case 'upcoming': return rs.filter(r => !r.done && new Date(r.snoozeUntil||r.datetime) >= now).sort((a,b) => new Date(a.snoozeUntil||a.datetime).getTime() - new Date(b.snoozeUntil||b.datetime).getTime())
       case 'overdue':  return rs.filter(r => !r.done && new Date(r.snoozeUntil||r.datetime) < now).sort((a,b) => new Date(a.snoozeUntil||a.datetime).getTime() - new Date(b.snoozeUntil||b.datetime).getTime())
+      case 'soon':     return rs.filter(r => !r.done && new Date(r.snoozeUntil||r.datetime) >= now && (new Date(r.snoozeUntil||r.datetime).getTime() - now.getTime()) <= 30*60000).sort((a,b) => new Date(a.snoozeUntil||a.datetime).getTime() - new Date(b.snoozeUntil||b.datetime).getTime())
       case 'done':     return rs.filter(r => r.done).sort((a,b) => b.datetime.localeCompare(a.datetime))
       default:         return [...rs].sort((a,b) => new Date(a.snoozeUntil||a.datetime).getTime() - new Date(b.snoozeUntil||b.datetime).getTime())
     }
@@ -659,22 +809,16 @@ export function RemindersView({ setView }: { setView?: (viewId: string) => void 
     [tasks, reminders, now],
   )
 
-  const quickReminder = (kind: 'standup' | 'followup' | 'break') => {
-    const base = new Date()
-    if (kind === 'standup') {
-      base.setHours(9, 30, 0, 0)
-      if (base.getTime() < Date.now()) base.setDate(base.getDate() + 1)
-      addRem({ title: 'Daily Standup', msg: 'Team Sync + Blocker Check', datetime: base.toISOString(), repeat: 'daily' })
-    }
-    if (kind === 'followup') {
-      base.setHours(base.getHours() + 2)
-      addRem({ title: 'Follow-up', msg: 'Offene Punkte checken', datetime: base.toISOString(), repeat: 'none' })
-    }
-    if (kind === 'break') {
-      base.setMinutes(base.getMinutes() + 45)
-      addRem({ title: 'Break / Reset', msg: 'Kurz Pause machen', datetime: base.toISOString(), repeat: 'none' })
-    }
-  }
+  const createTemplateReminder = useCallback((templateId: ReminderTemplateId) => {
+    const created = createReminderFromTemplate(templateId, new Date())
+    if (!created) return
+    addRem({
+      title: created.title,
+      msg: created.msg,
+      datetime: created.datetime,
+      repeat: created.repeat,
+    })
+  }, [addRem])
 
   const nextOpenReminderAt = useMemo(() => {
     const pending = reminders
@@ -731,10 +875,11 @@ export function RemindersView({ setView }: { setView?: (viewId: string) => void 
           <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search reminders…" style={{ width:'100%', padding:'7px 10px 7px 32px', borderRadius:9, background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.1)', outline:'none', fontSize:12, color:'inherit' }}/>
         </div>
         <div style={{ display:'flex', background:'rgba(255,255,255,0.06)', borderRadius:9, overflow:'hidden' }}>
-          {(['upcoming','overdue','all','done'] as const).map(f => (
+          {(['upcoming','soon','overdue','all','done'] as const).map(f => (
             <button key={f} onClick={()=>setFilter(f)} style={{ padding:'6px 11px', background:filter===f?t.accent:'transparent', border:'none', cursor:'pointer', fontSize:11, fontWeight:700, color:filter===f?'#fff':'inherit', opacity:filter===f?1:0.5, transition:'all 0.12s', textTransform:'capitalize', position:'relative' }}>
               {f}
               {f==='overdue' && overdue.length>0 && <span style={{ marginLeft:4, fontSize:10, padding:'1px 5px', borderRadius:8, background:filter==='overdue'?'rgba(0,0,0,0.2)':'rgba(255,69,58,0.8)', color:'#fff' }}>{overdue.length}</span>}
+              {f==='soon' && soonCount>0 && <span style={{ marginLeft:4, fontSize:10, padding:'1px 5px', borderRadius:8, background:filter==='soon'?'rgba(0,0,0,0.2)':'rgba(255,159,10,0.8)', color:'#fff' }}>{soonCount}</span>}
             </button>
           ))}
         </div>
@@ -887,15 +1032,29 @@ export function RemindersView({ setView }: { setView?: (viewId: string) => void 
           >
             <LifeBuoy size={11}/> Fallback erklären
           </button>
-          <button onClick={() => quickReminder('standup')} style={{ marginLeft: 'auto', padding:'5px 9px', borderRadius:8, border:'1px solid rgba(48,209,88,0.26)', background:'rgba(48,209,88,0.12)', color:'#30d158', fontSize:10, fontWeight:700, cursor:'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-            <Plus size={11}/> Daily Standup
-          </button>
-          <button onClick={() => quickReminder('followup')} style={{ padding:'5px 9px', borderRadius:8, border:'1px solid rgba(255,255,255,0.14)', background:'rgba(255,255,255,0.06)', color:'inherit', fontSize:10, fontWeight:700, cursor:'pointer' }}>
-            Follow-up +2h
-          </button>
-          <button onClick={() => quickReminder('break')} style={{ padding:'5px 9px', borderRadius:8, border:'1px solid rgba(255,255,255,0.14)', background:'rgba(255,255,255,0.06)', color:'inherit', fontSize:10, fontWeight:700, cursor:'pointer' }}>
-            Break +45m
-          </button>
+          {REMINDER_TEMPLATES.map((template, index) => (
+            <button
+              key={template.id}
+              onClick={() => createTemplateReminder(template.id)}
+              style={{
+                marginLeft: index === 0 ? 'auto' : undefined,
+                padding:'5px 9px',
+                borderRadius:8,
+                border:index === 0 ? '1px solid rgba(48,209,88,0.26)' : '1px solid rgba(255,255,255,0.14)',
+                background:index === 0 ? 'rgba(48,209,88,0.12)' : 'rgba(255,255,255,0.06)',
+                color:index === 0 ? '#30d158' : 'inherit',
+                fontSize:10,
+                fontWeight:700,
+                cursor:'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 5,
+              }}
+            >
+              {index === 0 ? <Plus size={11}/> : null}
+              {template.label}
+            </button>
+          ))}
         </div>
       </Glass>
 
@@ -906,7 +1065,13 @@ export function RemindersView({ setView }: { setView?: (viewId: string) => void 
             <Bell size={44} strokeWidth={1} style={{ color:t.accent, opacity:0.4 }}/>
             <div style={{ textAlign:'center' }}>
               <div style={{ fontSize:15, fontWeight:700, marginBottom:5 }}>
-                {filter==='overdue'?'No overdue reminders':filter==='done'?'No completed reminders':'No reminders'}
+                {filter==='overdue'
+                  ? 'No overdue reminders'
+                  : filter==='done'
+                    ? 'No completed reminders'
+                    : filter==='soon'
+                      ? 'No reminders in the next 30 minutes'
+                      : 'No reminders'}
               </div>
               <div style={{ fontSize:12, opacity:0.6 }}>
                 {filter==='upcoming'?'You\'re all caught up!':'Click + New to add one'}
@@ -922,21 +1087,21 @@ export function RemindersView({ setView }: { setView?: (viewId: string) => void 
                 <span style={{ opacity:0.6 }}>{items.length}</span>
               </div>
               <AnimatePresence>
-                {items.map(r => <ReminderCard key={r.id} r={r} now={now} onEdit={()=>setEditId(r.id)}/>)}
+                {items.map(r => <ReminderCard key={r.id} r={r} now={now} onEdit={()=>setEditId(r.id)} setView={setView} />)}
               </AnimatePresence>
             </div>
           ))
         ) : (
           <AnimatePresence>
-            {filtered.map(r => <ReminderCard key={r.id} r={r} now={now} onEdit={()=>setEditId(r.id)}/>)}
+            {filtered.map(r => <ReminderCard key={r.id} r={r} now={now} onEdit={()=>setEditId(r.id)} setView={setView} />)}
           </AnimatePresence>
         )}
       </div>
 
       {/* Modals */}
       <AnimatePresence>
-        {newOpen  && <ReminderModal key="new" onClose={()=>setNewOpen(false)}/>}
-        {editId   && <ReminderModal key={editId} reminder={editReminder} onClose={()=>setEditId(null)}/>}
+        {newOpen  && <ReminderModal key="new" onClose={()=>setNewOpen(false)} setView={setView} />}
+        {editId   && <ReminderModal key={editId} reminder={editReminder} onClose={()=>setEditId(null)} setView={setView} />}
       </AnimatePresence>
 
       {/* Toasts */}

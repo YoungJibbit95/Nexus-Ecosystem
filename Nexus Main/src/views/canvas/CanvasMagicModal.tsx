@@ -81,7 +81,7 @@ const MAGIC_TEMPLATES: {
   {
     id: "ai-project",
     label: "AI Project Generator",
-    desc: "Prompt erzeugt ein einzelnes AI-Hub-Widget als Startpunkt.",
+    desc: "Prompt erzeugt eine strukturierte Multi-Node-Projektmap.",
     icon: "🤖",
     color: "#5E5CE6",
   },
@@ -425,7 +425,7 @@ export function CanvasMagicModal({
               </div>
               <div style={{ fontSize: 12, lineHeight: 1.55, opacity: 0.82 }}>
                 {template === "ai-project"
-                  ? "Erzeugt ein großes AI-Hub-Widget aus deinem Prompt. Danach kannst du normale Nodes gezielt anhängen."
+                  ? "Erzeugt aus Prompt + Depth eine Multi-Node-Map (Goals, Milestones, Risks, Execution) statt nur eines Hubs."
                   : "Erzeugt ein einzelnes großes Hub-Widget mit Magic-Markdown-Struktur als zentralen Canvas-Anker."}
               </div>
               <div
@@ -445,7 +445,7 @@ export function CanvasMagicModal({
                     border: `1px solid rgba(${rgb},0.3)`,
                   }}
                 >
-                  Hub First
+                  {template === "ai-project" ? "Multi Node" : "Hub First"}
                 </span>
                 <span
                   style={{

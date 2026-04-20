@@ -1,6 +1,6 @@
 import React from "react";
 import { applyMotionProfile } from "../../lib/motionEngine";
-import type { BgMode } from "../../store/themeStore";
+import type { BgMode, Theme } from "../../store/themeStore";
 import { MODULES, MOTION_PROFILES, EXPERIENCE_PRESETS } from "./settingsConstants";
 import {
   FontLibrary,
@@ -20,10 +20,12 @@ import {
 
 type SettingsModulePanelsProps = {
   module: ModuleId;
-  t: any;
+  t: Theme;
   rgb: string;
   panelRenderer: RendererMode;
   glowRenderer: GlowRendererMode;
+  showAdvancedSettings: boolean;
+  showExperimentalSettings: boolean;
   toast: (text: string) => void;
   onOpenWalkthrough?: () => void;
   clearSpotlight: () => void;
@@ -37,6 +39,8 @@ export function SettingsModulePanels({
   rgb,
   panelRenderer,
   glowRenderer,
+  showAdvancedSettings,
+  showExperimentalSettings,
   toast,
   onOpenWalkthrough,
   clearSpotlight,
@@ -231,10 +235,8 @@ export function SettingsModulePanels({
                   <div style={{ marginTop: 8 }}>
                     <Toggle
                       label="Auto Accent Contrast"
-                      checked={Boolean((t.qol as any)?.autoAccentContrast ?? true)}
-                      onChange={(next) =>
-                        t.setQOL({ autoAccentContrast: next } as any)
-                      }
+                      checked={Boolean(t.qol?.autoAccentContrast ?? true)}
+                      onChange={(next) => t.setQOL({ autoAccentContrast: next })}
                     />
                   </div>
                 </ModuleCard>
@@ -245,7 +247,7 @@ export function SettingsModulePanels({
               <>
                 <ModuleCard
                   title="Panel Background"
-                  desc="Wähle einen Modus. Nur passende Regler werden darunter gezeigt."
+                  desc="Stabiler Panel-Look für den Alltag. Tieferes Tuning liegt unter Advanced."
                 >
                   <Segmented
                     label="Mode"
@@ -258,50 +260,33 @@ export function SettingsModulePanels({
                     onChange={(mode) =>
                       t.setGlassmorphism({
                         panelRenderer: mode as RendererMode,
-                      } as any)
+                      })
                     }
                   />
                   <div style={{ marginTop: 8, fontSize: 11, opacity: 0.68 }}>
                     <strong style={{ opacity: 0.92 }}>{activePanelHelp.label}:</strong>{" "}
                     {activePanelHelp.desc}
                   </div>
-                  <div style={{ height: 10 }} />
-                  <Segmented
-                    label="Glow Engine"
-                    value={glowRenderer}
-                    options={[
-                      { value: "css", label: "CSS (leicht)" },
-                      { value: "three", label: "Three.js (dynamisch)" },
-                    ]}
-                    onChange={(mode) =>
-                      t.setGlassmorphism({
-                        glowRenderer: mode as GlowRendererMode,
-                      } as any)
-                    }
-                  />
-                  <div style={{ height: 10 }} />
-                  <Row>
-                    <Slider
-                      label="Glow Intensity"
-                      value={t.glow.intensity}
-                      min={0}
-                      max={1.4}
-                      step={0.02}
-                      onChange={(value) => t.setGlow({ intensity: value })}
-                    />
-                    <Slider
-                      label="Glow Radius"
-                      value={t.glow.radius}
-                      min={0}
-                      max={44}
-                      step={1}
-                      unit="px"
-                      onChange={(value) => t.setGlow({ radius: value })}
-                    />
-                  </Row>
+                  {!showAdvancedSettings ? (
+                    <div
+                      style={{
+                        marginTop: 9,
+                        borderRadius: 10,
+                        border: "1px solid rgba(255,255,255,0.12)",
+                        background: "rgba(255,255,255,0.04)",
+                        padding: "8px 10px",
+                        fontSize: 11,
+                        opacity: 0.72,
+                        lineHeight: 1.45,
+                      }}
+                    >
+                      Erweiterte Regler für Blur/Fake/Shader sind unter{" "}
+                      <strong>Advanced</strong> verfügbar.
+                    </div>
+                  ) : null}
                 </ModuleCard>
 
-                {panelRenderer === "blur" ? (
+                {showAdvancedSettings && panelRenderer === "blur" ? (
                   <ModuleCard
                     title="Soft Blur Controls"
                     desc="Für ruhige, transparente Panels"
@@ -329,7 +314,7 @@ export function SettingsModulePanels({
                   </ModuleCard>
                 ) : null}
 
-                {panelRenderer === "fake-glass" ? (
+                {showAdvancedSettings && panelRenderer === "fake-glass" ? (
                   <ModuleCard
                     title="Fake Glass Controls"
                     desc="CSS-/SVG-Glaslook ohne Shader"
@@ -359,7 +344,7 @@ export function SettingsModulePanels({
                   </ModuleCard>
                 ) : null}
 
-                {panelRenderer === "glass-shader" ? (
+                {showAdvancedSettings && panelRenderer === "glass-shader" ? (
                   <ModuleCard
                     title="Shader Glass Controls"
                     desc="Qualität zuerst. Für schwächere Geräte lieber Soft Blur."
@@ -367,13 +352,13 @@ export function SettingsModulePanels({
                     <Row>
                       <Slider
                         label="Glass Depth"
-                        value={(t.glassmorphism as any).glassDepth ?? 1}
+                        value={t.glassmorphism.glassDepth ?? 1}
                         min={0.2}
                         max={2}
                         step={0.05}
                         unit="x"
                         onChange={(value) =>
-                          t.setGlassmorphism({ glassDepth: value } as any)
+                          t.setGlassmorphism({ glassDepth: value })
                         }
                       />
                       <Slider
@@ -391,104 +376,51 @@ export function SettingsModulePanels({
                     <div style={{ marginTop: 8 }}>
                       <Toggle
                         label="Reflection Line"
-                        checked={Boolean(
-                          (t.glassmorphism as any).reflectionLine,
-                        )}
+                        checked={Boolean(t.glassmorphism.reflectionLine)}
                         onChange={(next) =>
-                          t.setGlassmorphism({ reflectionLine: next } as any)
+                          t.setGlassmorphism({ reflectionLine: next })
                         }
                       />
                     </div>
                   </ModuleCard>
                 ) : null}
 
-                <ModuleCard title="Glow">
-                  <div style={{ marginTop: 8 }}>
-                    <Toggle
-                      label="Gradient Glow"
-                      checked={t.glow.gradientGlow}
-                      onChange={(next) => t.setGlow({ gradientGlow: next })}
-                    />
+                <ModuleCard
+                  title="Release Freeze"
+                  desc="Glow- und Toolbar-Zonen sind im Release-Zyklus bewusst eingefroren."
+                >
+                  <div style={{ fontSize: 11, opacity: 0.72, lineHeight: 1.5 }}>
+                    Sichtbare Alltagseinstellungen bleiben aktiv. Engine-nahe Glow-Controls
+                    sind absichtlich nicht frei schaltbar, damit Main und Mobile stabil
+                    bleiben.
                   </div>
-                  <div style={{ marginTop: 8 }}>
-                    <Row>
-                      <Segmented
-                        label="Glow Mode"
-                        value={t.glow.mode}
-                        options={[
-                          "outline",
-                          "ambient",
-                          "gradient",
-                          "focus",
-                          "pulse",
-                          "off",
-                        ]}
-                        onChange={(mode) => t.setGlow({ mode: mode as any })}
-                      />
-                      <Toggle
-                        label="Animated Glow"
-                        checked={Boolean(t.glow.animated)}
-                        onChange={(next) => t.setGlow({ animated: next })}
-                      />
-                    </Row>
-                  </div>
-                  <div style={{ marginTop: 8 }}>
-                    <Row>
+                  {showExperimentalSettings ? (
+                    <div
+                      style={{
+                        marginTop: 9,
+                        borderRadius: 10,
+                        border: "1px solid rgba(255,159,10,0.34)",
+                        background: "rgba(255,159,10,0.08)",
+                        padding: "8px 10px",
+                        fontSize: 11,
+                        display: "grid",
+                        gap: 3,
+                      }}
+                    >
                       <div>
-                        <div
-                          style={{
-                            fontSize: 11,
-                            opacity: 0.62,
-                            marginBottom: 6,
-                          }}
-                        >
-                          Glow Color A
-                        </div>
-                        <input
-                          type="color"
-                          value={t.glow.gradientColor1}
-                          onChange={(event) =>
-                            t.setGlow({
-                              gradientColor1: event.target.value,
-                              color: event.target.value,
-                            })
-                          }
-                          style={{
-                            width: "100%",
-                            height: 36,
-                            borderRadius: 9,
-                            border: "1px solid rgba(255,255,255,0.14)",
-                            background: "transparent",
-                          }}
-                        />
+                        Glow mode: <strong>{t.glow.mode}</strong>
                       </div>
                       <div>
-                        <div
-                          style={{
-                            fontSize: 11,
-                            opacity: 0.62,
-                            marginBottom: 6,
-                          }}
-                        >
-                          Glow Color B
-                        </div>
-                        <input
-                          type="color"
-                          value={t.glow.gradientColor2}
-                          onChange={(event) =>
-                            t.setGlow({ gradientColor2: event.target.value })
-                          }
-                          style={{
-                            width: "100%",
-                            height: 36,
-                            borderRadius: 9,
-                            border: "1px solid rgba(255,255,255,0.14)",
-                            background: "transparent",
-                          }}
-                        />
+                        Glow engine: <strong>{glowRenderer}</strong>
                       </div>
-                    </Row>
-                  </div>
+                      <div>
+                        Radius / Intensity:{" "}
+                        <strong>
+                          {t.glow.radius}px / {t.glow.intensity.toFixed(2)}
+                        </strong>
+                      </div>
+                    </div>
+                  ) : null}
                 </ModuleCard>
 
                 <ModuleCard title="Background">
@@ -515,7 +447,7 @@ export function SettingsModulePanels({
                   <Row>
                     <Segmented
                       label="Style"
-                      value={(t as any).sidebarStyle ?? "default"}
+                      value={t.sidebarStyle ?? "default"}
                       options={[
                         "default",
                         "floating",
@@ -523,14 +455,20 @@ export function SettingsModulePanels({
                         "rail",
                         "hidden",
                       ]}
-                      onChange={(value) => (t as any).setSidebarStyle?.(value)}
+                      onChange={(value) =>
+                        t.setSidebarStyle(
+                          value as Theme["sidebarStyle"],
+                        )
+                      }
                     />
                     <Segmented
                       label="Position"
-                      value={(t as any).sidebarPosition ?? "left"}
+                      value={t.sidebarPosition ?? "left"}
                       options={["left", "right"]}
                       onChange={(value) =>
-                        (t as any).setSidebarPosition?.(value)
+                        t.setSidebarPosition(
+                          value as Theme["sidebarPosition"],
+                        )
                       }
                     />
                   </Row>
@@ -549,8 +487,8 @@ export function SettingsModulePanels({
                     <Row>
                       <Toggle
                         label="Show Labels"
-                        checked={Boolean((t as any).sidebarLabels ?? true)}
-                        onChange={(next) => (t as any).setSidebarLabels?.(next)}
+                        checked={Boolean(t.sidebarLabels ?? true)}
+                        onChange={(next) => t.setSidebarLabels(next)}
                       />
                       <Toggle
                         label="Sidebar Auto Hide"
@@ -561,32 +499,38 @@ export function SettingsModulePanels({
                   </div>
                 </ModuleCard>
 
-                <ModuleCard title="Toolbar">
-                  <Row>
-                    <Segmented
-                      label="Mode"
-                      value={t.toolbar?.toolbarMode ?? "island"}
-                      options={["island", "spotlight", "full-width"]}
-                      onChange={(value) =>
-                        t.setToolbar({ toolbarMode: value as any })
-                      }
-                    />
-                    <Segmented
-                      label="Position"
-                      value={t.toolbar?.position ?? "bottom"}
-                      options={["bottom", "top"]}
-                      onChange={(value) =>
-                        t.setToolbar({ position: value as any })
-                      }
-                    />
-                  </Row>
-                  <div style={{ marginTop: 8 }}>
-                    <Toggle
-                      label="Toolbar Visible"
-                      checked={t.toolbar?.visible ?? true}
-                      onChange={(next) => t.setToolbar({ visible: next })}
-                    />
+                <ModuleCard
+                  title="Toolbar (frozen)"
+                  desc="Toolbar-/Spotlight-Geometrie ist im aktuellen Release eingefroren."
+                >
+                  <div style={{ fontSize: 11, opacity: 0.72, lineHeight: 1.5 }}>
+                    Änderungen an Toolbar-Mode, Position und Sichtbarkeit erfolgen nur
+                    kontrolliert über dedizierte Release-Pässe.
                   </div>
+                  {showExperimentalSettings ? (
+                    <div
+                      style={{
+                        marginTop: 9,
+                        borderRadius: 10,
+                        border: "1px solid rgba(255,255,255,0.14)",
+                        background: "rgba(255,255,255,0.05)",
+                        padding: "8px 10px",
+                        fontSize: 11,
+                        display: "grid",
+                        gap: 3,
+                      }}
+                    >
+                      <div>
+                        Mode: <strong>{t.toolbar.toolbarMode}</strong>
+                      </div>
+                      <div>
+                        Position: <strong>{t.toolbar.position}</strong>
+                      </div>
+                      <div>
+                        Sichtbar: <strong>{t.toolbar.visible ? "ja" : "nein"}</strong>
+                      </div>
+                    </div>
+                  ) : null}
                 </ModuleCard>
 
                 <ModuleCard
@@ -598,7 +542,9 @@ export function SettingsModulePanels({
                     value={t.qol?.panelDensity ?? "comfortable"}
                     options={["comfortable", "compact", "spacious"]}
                     onChange={(value) =>
-                      t.setQOL({ panelDensity: value as any })
+                      t.setQOL({
+                        panelDensity: value as Theme["qol"]["panelDensity"],
+                      })
                     }
                   />
                   <div style={{ marginTop: 8 }}>
@@ -709,10 +655,13 @@ export function SettingsModulePanels({
                     />
                     <Segmented
                       label="Entry Style"
-                      value={(t.animations as any).entranceStyle ?? "fade"}
+                      value={t.animations.entranceStyle ?? "fade"}
                       options={["fade", "slide", "scale"]}
                       onChange={(value) =>
-                        t.setAnimations({ entranceStyle: value as any })
+                        t.setAnimations({
+                          entranceStyle:
+                            value as Theme["animations"]["entranceStyle"],
+                        })
                       }
                     />
                   </Row>

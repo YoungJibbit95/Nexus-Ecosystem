@@ -1,4 +1,4 @@
-import { Bell, CheckSquare, Code2, FileText } from 'lucide-react'
+import { Bell, CheckSquare, Code2, FileText, PenSquare } from 'lucide-react'
 import type { FC } from 'react'
 import type { CodeFile, Note, Reminder, Task } from '../../store/appStore'
 import type { Workspace } from '../../store/workspaceStore'
@@ -6,8 +6,9 @@ import type { Workspace } from '../../store/workspaceStore'
 export const MOBILE_FILE_WORKSPACE_ICONS = ['🏠','💼','🚀','🎨','📚','🔬','🎮','💡','⚡','🌊','🎯','🔥','✨','🌿','💎','🎵']
 export const MOBILE_FILE_WORKSPACE_COLORS = ['#007AFF','#5E5CE6','#FF453A','#FF9F0A','#30D158','#00C7BE','#BF5AF2','#FF6B9E','#64D2FF','#FFD60A']
 
-export type ItemType = 'note'|'code'|'task'|'reminder'
+export type ItemType = 'note'|'code'|'task'|'reminder'|'canvas'
 export type ViewMode = 'grid'|'list'
+export type SmartViewMode = 'all' | 'workspace' | 'recent' | 'pinned' | 'unassigned'
 
 export interface FileItem {
   id: string
@@ -19,6 +20,8 @@ export interface FileItem {
   lang?: string
   priority?: string
   status?: string
+  folderId?: string | null
+  pinned?: boolean
 }
 
 export type WorkspaceRuntimeSnapshot = {
@@ -47,6 +50,7 @@ export const TYPE_META: Record<ItemType, { icon: FC<any>; color: string; label: 
   code:     { icon: Code2,       color: '#BF5AF2', label: 'Code' },
   task:     { icon: CheckSquare, color: '#FF9F0A', label: 'Task' },
   reminder: { icon: Bell,        color: '#FF453A', label: 'Reminder' },
+  canvas:   { icon: PenSquare,   color: '#30D158', label: 'Canvas' },
 }
 
 export const parseRuntimeSnapshot = (raw: string): WorkspaceRuntimeSnapshot | null => {

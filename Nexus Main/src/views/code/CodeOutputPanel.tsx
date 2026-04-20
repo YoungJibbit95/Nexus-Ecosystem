@@ -19,6 +19,7 @@ export function CodeOutputPanel({
   handleCopyOut,
   copiedOut,
   elapsed,
+  runHistory,
   run,
   running,
   accent,
@@ -34,6 +35,7 @@ export function CodeOutputPanel({
   handleCopyOut: () => void;
   copiedOut: boolean;
   elapsed: number | null;
+  runHistory: Array<{ fileId: string; fileName: string; at: string; ok: boolean; ms: number }>;
   run: () => void;
   running: boolean;
   accent: string;
@@ -102,6 +104,11 @@ export function CodeOutputPanel({
             {elapsed.toFixed(1)}ms
           </span>
         )}
+        {runHistory[0] ? (
+          <span style={{ fontSize: 10, opacity: 0.45 }}>
+            Last: {runHistory[0].fileName} · {runHistory[0].ok ? "ok" : "error"}
+          </span>
+        ) : null}
         <div style={{ flex: 1 }} />
         <button
           onClick={handleCopyOut}

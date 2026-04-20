@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { Glass } from "../../../components/Glass";
 import { DashboardActionButton } from "../DashboardActionButton";
 import { DashboardRuntimeHealthCard } from "./DashboardRuntimeHealthCard";
+import type { DashboardResumeEntry } from "./types";
 
 export function DashboardContinueSection({
   contentMotion,
@@ -13,7 +14,7 @@ export function DashboardContinueSection({
   contentMotion: any;
   contentFramerEase: any;
   t: any;
-  resumeLane: Array<any>;
+  resumeLane: DashboardResumeEntry[];
 }) {
   return (
     <motion.div
@@ -106,6 +107,23 @@ export function DashboardContinueSection({
                 <span style={{ fontSize: 10, opacity: 0.58 }}>
                   {entry.subtitle}
                 </span>
+                {entry.reason ? (
+                  <span
+                    style={{
+                      marginTop: 1,
+                      alignSelf: "flex-start",
+                      fontSize: 9,
+                      fontWeight: 700,
+                      opacity: 0.72,
+                      padding: "2px 6px",
+                      borderRadius: 999,
+                      border: "1px solid rgba(255,255,255,0.14)",
+                      background: "rgba(255,255,255,0.06)",
+                    }}
+                  >
+                    {entry.reason}
+                  </span>
+                ) : null}
               </DashboardActionButton>
             ))}
             {resumeLane.length === 0 ? (
@@ -129,4 +147,3 @@ export function DashboardContinueSection({
     </motion.div>
   );
 }
-

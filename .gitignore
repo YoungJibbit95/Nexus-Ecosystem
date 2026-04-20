@@ -36,5 +36,7 @@ pnpm-debug.log*
 .nexus-private/
 **/.nexus-private/
 
+**/NexusInstaller
+
 # Local build caches
 **/.cache/

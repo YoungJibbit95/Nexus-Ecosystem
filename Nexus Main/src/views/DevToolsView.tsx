@@ -1,13 +1,22 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react'
-import { Copy, Check, RefreshCw, Play, Code2, Calculator, Plus, X,
-  Monitor, Tablet, Smartphone, Download, Trash2, FileText, FolderOpen,
-  ChevronRight, ChevronDown, Edit3, Eye, Layers, Sliders, Save,
-  FilePlus, FolderPlus, MoreVertical, Palette, Layout, Type, Zap } from 'lucide-react'
+import { Copy, Check, RefreshCw, Play, Code2, Calculator, Monitor, Tablet, Smartphone, Download, Trash2, Edit3, MoreVertical, Layout, Sliders, Save } from 'lucide-react'
+import {
+  DEFAULT_DEVTOOLS_WEB_FILES,
+  extractDevToolsCodeBundles,
+  formatDevToolsArtifactKind,
+  toExecutableDevToolsHtml,
+  type DevToolsArtifact,
+  type DevToolsArtifactKind,
+  type DevToolsBuilderSubTab,
+  type DevToolsFsFile,
+} from '@nexus/core/devtools'
 import { Glass } from '../components/Glass'
 import { useTheme } from '../store/themeStore'
 import { hexToRgb } from '../lib/utils'
-import { motion, AnimatePresence } from 'framer-motion'
 import { VisualBuilder } from './devtools/VisualBuilder'
+import { DevToolsArtifactLibraryPanel } from './devtools/DevToolsArtifactLibraryPanel'
+import { useDevToolsArtifactLibrary } from './devtools/useDevToolsArtifactLibrary'
+import { DevToolsCalculatorSection } from './devtools/DevToolsCalculatorSection'
 
 // ── useCopy ────────────────────────────────────────────────────────────────
 function useCopy() {
@@ -15,136 +24,6 @@ function useCopy() {
   const copy = (text: string, key: string) => { navigator.clipboard.writeText(text); setK(key); setTimeout(()=>setK(null),1600) }
   return { copy, copied: k }
 }
-
-// ── File system types ──────────────────────────────────────────────────────
-interface FSFile { id: string; name: string; type: 'html'|'css'|'js'; content: string }
-interface FSFolder { id: string; name: string; children: string[] }
-
-const DEFAULT_FILES: FSFile[] = [
-  { id: 'index', name: 'index.html', type: 'html', content: `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>My Project</title>
-  <link rel="stylesheet" href="style.css">
-</head>
-<body>
-  <nav class="navbar">
-    <div class="logo">✦ Brand</div>
-    <div class="nav-links">
-      <a href="#">Home</a>
-      <a href="#">About</a>
-      <a href="#">Work</a>
-    </div>
-    <button class="btn-primary">Get Started</button>
-  </nav>
-
-  <section class="hero">
-    <div class="hero-content">
-      <h1 class="hero-title">Build <span class="accent">Beautiful</span> Products</h1>
-      <p class="hero-sub">A modern design system built for Nexus DevTools.</p>
-      <div class="hero-actions">
-        <button class="btn-primary">Start Building</button>
-        <button class="btn-ghost">View Docs →</button>
-      </div>
-    </div>
-    <div class="hero-visual">
-      <div class="card glow">
-        <div class="card-icon">🚀</div>
-        <div class="card-title">Launch Ready</div>
-        <div class="card-desc">Ship fast with confidence</div>
-      </div>
-    </div>
-  </section>
-  <script src="app.js"></script>
-</body>
-</html>` },
-  { id: 'style', name: 'style.css', type: 'css', content: `*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-:root {
-  --accent: #007AFF;
-  --accent2: #5E5CE6;
-  --bg: #0a0a14;
-  --surface: rgba(255,255,255,0.07);
-  --border: rgba(255,255,255,0.1);
-  --text: #ffffff;
-  --text-muted: rgba(255,255,255,0.55);
-  --radius: 14px;
-  --blur: 20px;
-}
-
-body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: system-ui, -apple-system, sans-serif;
-  min-height: 100vh;
-}
-
-.navbar {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 16px 40px;
-  background: rgba(255,255,255,0.04);
-  backdrop-filter: blur(var(--blur));
-  border-bottom: 1px solid var(--border);
-  position: sticky; top: 0; z-index: 100;
-}
-.logo { font-size: 18px; font-weight: 900; background: linear-gradient(135deg,var(--accent),var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-.nav-links { display: flex; gap: 28px; }
-.nav-links a { color: var(--text-muted); text-decoration: none; font-size: 14px; font-weight: 500; transition: color 0.2s; }
-.nav-links a:hover { color: var(--text); }
-
-.hero { display: flex; align-items: center; justify-content: space-between; padding: 80px 40px; min-height: 80vh; gap: 40px; }
-.hero-title { font-size: 3.5rem; font-weight: 900; line-height: 1.1; letter-spacing: -0.03em; margin-bottom: 16px; }
-.accent { background: linear-gradient(135deg,var(--accent),var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-.hero-sub { color: var(--text-muted); font-size: 1.1rem; line-height: 1.6; margin-bottom: 32px; max-width: 420px; }
-.hero-actions { display: flex; gap: 12px; }
-
-.btn-primary { padding: 12px 24px; border-radius: 10px; background: var(--accent); color: white; font-weight: 700; font-size: 14px; border: none; cursor: pointer; box-shadow: 0 4px 16px rgba(0,122,255,0.4); transition: all 0.2s; }
-.btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,122,255,0.5); }
-.btn-ghost { padding: 12px 24px; border-radius: 10px; background: transparent; color: var(--text); font-weight: 600; font-size: 14px; border: 1px solid var(--border); cursor: pointer; transition: all 0.2s; }
-.btn-ghost:hover { background: var(--surface); }
-
-.card { padding: 28px; border-radius: var(--radius); background: var(--surface); border: 1px solid var(--border); backdrop-filter: blur(var(--blur)); max-width: 280px; }
-.card.glow { box-shadow: 0 0 40px rgba(0,122,255,0.15), 0 16px 40px rgba(0,0,0,0.3); }
-.card-icon { font-size: 32px; margin-bottom: 12px; }
-.card-title { font-size: 18px; font-weight: 700; margin-bottom: 6px; }
-.card-desc { color: var(--text-muted); font-size: 13px; line-height: 1.5; }` },
-  { id: 'app', name: 'app.js', type: 'js', content: `// App JavaScript
-document.addEventListener('DOMContentLoaded', () => {
-  console.log('App loaded!');
-
-  // Smooth scroll for nav links
-  document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-    anchor.addEventListener('click', e => {
-      e.preventDefault();
-      const target = document.querySelector(anchor.getAttribute('href'));
-      if (target) target.scrollIntoView({ behavior: 'smooth' });
-    });
-  });
-
-  // Button ripple effect
-  document.querySelectorAll('button').forEach(btn => {
-    btn.addEventListener('click', function(e) {
-      const ripple = document.createElement('span');
-      const rect = this.getBoundingClientRect();
-      ripple.style.cssText = \`
-        position: absolute; border-radius: 50%; 
-        width: 100px; height: 100px;
-        background: rgba(255,255,255,0.3);
-        transform: scale(0); animation: ripple 0.5s ease-out;
-        left: \${e.clientX - rect.left - 50}px;
-        top: \${e.clientY - rect.top - 50}px;
-        pointer-events: none;
-      \`;
-      this.style.position = 'relative';
-      this.style.overflow = 'hidden';
-      this.appendChild(ripple);
-      ripple.addEventListener('animationend', () => ripple.remove());
-    });
-  });
-});` },
-]
 
 // ── Code editor textarea ────────────────────────────────────────────────────
 function CodePane({ value, onChange, lang }: { value: string; onChange: (v:string)=>void; lang: string }) {
@@ -172,7 +51,7 @@ function CodePane({ value, onChange, lang }: { value: string; onChange: (v:strin
 
 // ── File tree ───────────────────────────────────────────────────────────────
 function FileTree({ files, activeId, onSelect, onNew, onDelete, onRename }: {
-  files: FSFile[]; activeId: string; onSelect: (id:string)=>void
+  files: DevToolsFsFile[]; activeId: string; onSelect: (id:string)=>void
   onNew: (type:'html'|'css'|'js')=>void; onDelete: (id:string)=>void; onRename: (id:string,name:string)=>void
 }) {
   const t = useTheme()
@@ -475,18 +354,23 @@ function WebBuilder() {
   const t = useTheme()
   const rgb = hexToRgb(t.accent)
   const { copy, copied } = useCopy()
+  const { artifacts, saveArtifact, removeArtifact } = useDevToolsArtifactLibrary()
   const iframeRef = useRef<HTMLIFrameElement>(null)
 
-  const [files, setFiles]         = useState<FSFile[]>(DEFAULT_FILES)
+  const [files, setFiles]         = useState<DevToolsFsFile[]>(DEFAULT_DEVTOOLS_WEB_FILES)
   const [activeId, setActiveId]   = useState('style')
   const [vp, setVp]               = useState<'desktop'|'tablet'|'mobile'>('desktop')
   const [autoRun, setAutoRun]     = useState(true)
   const [consoleOut, setCOut]     = useState<string[]>([])
-  const [subTab, setSubTab]       = useState<'code'|'designer'|'visual'>('code')
+  const [subTab, setSubTab]       = useState<DevToolsBuilderSubTab>('code')
+  const [leftPane, setLeftPane]   = useState<'files'|'library'>('files')
+  const [saveKind, setSaveKind]   = useState<DevToolsArtifactKind>('recipe')
+  const [saveLabel, setSaveLabel] = useState('')
   const runTimer = useRef<any>(null)
 
   const activeFile = files.find(f=>f.id===activeId) || files[0]
   const vpWidth = vp==='desktop'?'100%':vp==='tablet'?'768px':'375px'
+  const bundles = useMemo(() => extractDevToolsCodeBundles(files), [files])
 
   const updateFile = (id: string, content: string) =>
     setFiles(fs => fs.map(f => f.id===id ? {...f, content} : f))
@@ -509,20 +393,13 @@ function WebBuilder() {
     setFiles(fs=>fs.map(f=>f.id===id?{...f,name}:f))
 
   const buildSrc = useCallback(() => {
-    const html = files.find(f=>f.type==='html')?.content || '<body></body>'
-    const css  = files.filter(f=>f.type==='css').map(f=>f.content).join('\n')
-    const js   = files.filter(f=>f.type==='js').map(f=>f.content).join('\n')
-    const safeJs = js.replace(/<\/script>/gi,'<\\/script>')
-    const baseCss = `html, body { margin: 0; min-height: 100%; background: #090d1f; color: #e5e7eb; } body { font-family: system-ui, -apple-system, Segoe UI, sans-serif; }`
-    return `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>${baseCss}\n${css}</style></head>
-${html.match(/<body[^>]*>[\s\S]*<\/body>/i)?.[0]||'<body>'+html+'</body>'}
-<script>
-const __logs=[],oL=console.log,oE=console.error,oW=console.warn
-const __p=(t,a)=>{__logs.push({t,m:a.map(x=>typeof x==='object'?JSON.stringify(x,null,2):String(x)).join(' ')});window.parent.postMessage({type:'__c__',logs:__logs},'*')}
-console.log=(...a)=>{oL(...a);__p('log',a)};console.error=(...a)=>{oE(...a);__p('err',a)};console.warn=(...a)=>{oW(...a);__p('warn',a)}
-try{${safeJs}}catch(e){__p('err',['❌ '+e.message])}
-</script></html>`
-  }, [files])
+    return toExecutableDevToolsHtml({
+      html: bundles.html || '<body></body>',
+      css: bundles.css,
+      js: bundles.js,
+      includeLogBridge: true,
+    })
+  }, [bundles])
 
   useEffect(() => {
     const h = (e: MessageEvent) => {
@@ -561,6 +438,163 @@ try{${safeJs}}catch(e){__p('err',['❌ '+e.message])}
     requestAnimationFrame(() => run())
   }, [run])
 
+  const inferFileType = useCallback((language: string): DevToolsFsFile['type'] => {
+    const normalized = language.toLowerCase()
+    if (normalized.includes('css')) return 'css'
+    if (normalized.includes('js') || normalized.includes('ts')) return 'js'
+    return 'html'
+  }, [])
+
+  const buildArtifactDraft = useCallback((kind: DevToolsArtifactKind, titleOverride?: string) => {
+    const fallbackTitle = `${formatDevToolsArtifactKind(kind)} ${new Date().toLocaleDateString()}`
+    const title = titleOverride?.trim() || fallbackTitle
+    const description = `Saved from DevTools ${subTab} view`
+    const projectPayload = {
+      type: 'project-snapshot' as const,
+      files,
+      activeId,
+      viewport: vp,
+      autoRun,
+      subTab,
+      source: subTab === 'visual' ? 'visual-builder' as const : 'web-builder' as const,
+    }
+    if (kind === 'snippet') {
+      return {
+        kind,
+        title: titleOverride?.trim() || `${activeFile?.name ?? 'code'} snippet`,
+        description,
+        payload: {
+          type: 'snippet' as const,
+          language: activeFile?.type ?? 'html',
+          fileName: activeFile?.name ?? 'snippet.txt',
+          code: activeFile?.content ?? '',
+        },
+      }
+    }
+    if (kind === 'recipe') {
+      return {
+        kind,
+        title,
+        description,
+        payload: {
+          type: 'recipe' as const,
+          html: bundles.html,
+          css: bundles.css,
+          js: bundles.js,
+        },
+      }
+    }
+    if (kind === 'preset') {
+      return {
+        kind,
+        title,
+        description,
+        payload: {
+          type: 'preset' as const,
+          viewport: vp,
+          autoRun,
+          subTab,
+        },
+      }
+    }
+    if (kind === 'component') {
+      return {
+        kind,
+        title,
+        description,
+        payload: {
+          type: 'component' as const,
+          html: bundles.html,
+          css: bundles.css,
+        },
+      }
+    }
+    return {
+      kind,
+      title: titleOverride?.trim() || 'Prototype Snapshot',
+      description,
+      payload: projectPayload,
+    }
+  }, [activeFile?.content, activeFile?.name, activeFile?.type, activeId, autoRun, bundles.css, bundles.html, bundles.js, files, subTab, vp])
+
+  const saveCurrentArtifact = useCallback(() => {
+    const draft = buildArtifactDraft(saveKind, saveLabel)
+    const artifact = saveArtifact(draft)
+    setSaveLabel('')
+    setLeftPane('library')
+    setCOut((prev) => [`Saved: ${artifact.title}`, ...prev].slice(0, 6))
+  }, [buildArtifactDraft, saveKind, saveLabel, saveArtifact])
+
+  const loadArtifact = useCallback((artifact: DevToolsArtifact) => {
+    const payload = artifact.payload
+    if (payload.type === 'project-snapshot') {
+      setFiles(payload.files.length > 0 ? payload.files : DEFAULT_DEVTOOLS_WEB_FILES)
+      setActiveId(payload.activeId)
+      setVp(payload.viewport)
+      setAutoRun(payload.autoRun)
+      setSubTab(payload.subTab)
+      requestAnimationFrame(() => run())
+      return
+    }
+    if (payload.type === 'preset') {
+      setVp(payload.viewport)
+      setAutoRun(payload.autoRun)
+      setSubTab(payload.subTab)
+      return
+    }
+    if (payload.type === 'snippet') {
+      const type = inferFileType(payload.language)
+      const id = `${type}_${Date.now()}`
+      setFiles((prev) => [...prev, { id, type, name: payload.fileName || `${id}.${type}`, content: payload.code }])
+      setActiveId(id)
+      setSubTab('code')
+      return
+    }
+    if (payload.type === 'recipe' || payload.type === 'component') {
+      let nextActiveId = ''
+      setFiles((prev) => {
+        const next = [...prev]
+        const htmlIndex = next.findIndex((file) => file.type === 'html')
+        const cssIndex = next.findIndex((file) => file.type === 'css')
+        const jsIndex = next.findIndex((file) => file.type === 'js')
+        const html = payload.html
+        const css = payload.css
+        const js = payload.type === 'recipe' ? payload.js : (jsIndex >= 0 ? next[jsIndex].content : '')
+        if (htmlIndex >= 0) {
+          next[htmlIndex] = { ...next[htmlIndex], content: html }
+          nextActiveId = next[htmlIndex].id
+        } else {
+          const htmlId = `html_${Date.now()}`
+          next.unshift({ id: htmlId, name: 'index.html', type: 'html', content: html })
+          nextActiveId = htmlId
+        }
+        if (cssIndex >= 0) next[cssIndex] = { ...next[cssIndex], content: css }
+        else next.push({ id: `css_${Date.now()}`, name: 'style.css', type: 'css', content: css })
+        if (payload.type === 'recipe') {
+          if (jsIndex >= 0) next[jsIndex] = { ...next[jsIndex], content: js }
+          else next.push({ id: `js_${Date.now()}`, name: 'app.js', type: 'js', content: js })
+        }
+        return next
+      })
+      if (nextActiveId) setActiveId(nextActiveId)
+      setSubTab('code')
+      requestAnimationFrame(() => run())
+    }
+  }, [inferFileType, run])
+
+  const copyArtifactPayload = useCallback((artifact: DevToolsArtifact) => {
+    copy(JSON.stringify(artifact.payload, null, 2), `artifact-${artifact.id}`)
+  }, [copy])
+
+  const downloadArtifactJson = useCallback((artifact: DevToolsArtifact) => {
+    const safeTitle = artifact.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || artifact.kind
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(new Blob([JSON.stringify(artifact, null, 2)], { type: 'application/json' }))
+    a.download = `nexus-${artifact.kind}-${safeTitle}.json`
+    a.click()
+    URL.revokeObjectURL(a.href)
+  }, [])
+
   useEffect(()=>{
     if(!autoRun)return
     clearTimeout(runTimer.current)
@@ -572,6 +606,7 @@ try{${safeJs}}catch(e){__p('err',['❌ '+e.message])}
     const a=document.createElement('a')
     a.href=URL.createObjectURL(new Blob([buildSrc()],{type:'text/html'}))
     a.download='nexus-project.html'; a.click()
+    URL.revokeObjectURL(a.href)
   }
 
   return (
@@ -606,6 +641,32 @@ try{${safeJs}}catch(e){__p('err',['❌ '+e.message])}
           <input type="checkbox" checked={autoRun} onChange={e=>setAutoRun(e.target.checked)} style={{ cursor:'pointer' }}/> Auto-run
         </label>
 
+        <div style={{ display:'flex', alignItems:'center', gap:6, marginLeft:8 }}>
+          <select
+            value={saveKind}
+            onChange={(event) => setSaveKind(event.target.value as DevToolsArtifactKind)}
+            style={{ padding:'5px 6px', borderRadius:7, background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.1)', color:'inherit', fontSize:10, fontWeight:700 }}
+          >
+            <option value="recipe">Recipe</option>
+            <option value="snippet">Snippet</option>
+            <option value="component">Component</option>
+            <option value="preset">Preset</option>
+            <option value="prototype">Prototype</option>
+          </select>
+          <input
+            value={saveLabel}
+            onChange={(event) => setSaveLabel(event.target.value)}
+            placeholder="Optional name"
+            style={{ width:120, padding:'5px 7px', borderRadius:7, background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.1)', color:'inherit', fontSize:10 }}
+          />
+          <button
+            onClick={saveCurrentArtifact}
+            style={{ display:'flex', alignItems:'center', gap:4, padding:'5px 10px', borderRadius:7, background:`rgba(${rgb},0.18)`, border:`1px solid rgba(${rgb},0.28)`, cursor:'pointer', fontSize:10, fontWeight:700, color:t.accent }}
+          >
+            <Save size={11}/> Save
+          </button>
+        </div>
+
         <div style={{ flex:1 }}/>
         <button onClick={downloadProject} style={{ display:'flex', alignItems:'center', gap:4, padding:'5px 10px', borderRadius:7, background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.1)', cursor:'pointer', fontSize:10, fontWeight:600 }}>
           <Download size={11}/> Export
@@ -619,8 +680,28 @@ try{${safeJs}}catch(e){__p('err',['❌ '+e.message])}
       <div style={{ flex:1, display:'flex', overflow:'hidden', minHeight:0 }}>
         {subTab === 'code' ? <>
           {/* File tree sidebar */}
-          <div style={{ width:200, flexShrink:0, borderRight:'1px solid rgba(255,255,255,0.07)', background:'rgba(0,0,0,0.12)', overflow:'hidden' }}>
-            <FileTree files={files} activeId={activeId} onSelect={setActiveId} onNew={newFile} onDelete={deleteFile} onRename={renameFile}/>
+          <div style={{ width:230, flexShrink:0, borderRight:'1px solid rgba(255,255,255,0.07)', background:'rgba(0,0,0,0.12)', overflow:'hidden', display:'flex', flexDirection:'column' }}>
+            <div style={{ display:'flex', padding:'8px 8px 0', gap:4 }}>
+              <button onClick={() => setLeftPane('files')} style={{ flex:1, padding:'5px 8px', borderRadius:7, border:`1px solid ${leftPane==='files'?`rgba(${rgb},0.24)`:'rgba(255,255,255,0.1)'}`, background:leftPane==='files'?`rgba(${rgb},0.12)`:'rgba(255,255,255,0.03)', color:leftPane==='files'?t.accent:'inherit', fontSize:10, fontWeight:700, cursor:'pointer' }}>
+                Files
+              </button>
+              <button onClick={() => setLeftPane('library')} style={{ flex:1, padding:'5px 8px', borderRadius:7, border:`1px solid ${leftPane==='library'?`rgba(${rgb},0.24)`:'rgba(255,255,255,0.1)'}`, background:leftPane==='library'?`rgba(${rgb},0.12)`:'rgba(255,255,255,0.03)', color:leftPane==='library'?t.accent:'inherit', fontSize:10, fontWeight:700, cursor:'pointer' }}>
+                Library ({artifacts.length})
+              </button>
+            </div>
+            <div style={{ flex:1, minHeight:0 }}>
+              {leftPane === 'files' ? (
+                <FileTree files={files} activeId={activeId} onSelect={setActiveId} onNew={newFile} onDelete={deleteFile} onRename={renameFile}/>
+              ) : (
+                <DevToolsArtifactLibraryPanel
+                  artifacts={artifacts}
+                  onLoad={loadArtifact}
+                  onCopy={copyArtifactPayload}
+                  onDownload={downloadArtifactJson}
+                  onDelete={removeArtifact}
+                />
+              )}
+            </div>
           </div>
 
           {/* Active file editor */}
@@ -661,82 +742,10 @@ try{${safeJs}}catch(e){__p('err',['❌ '+e.message])}
   )
 }
 
-// ── UI Calculator ──────────────────────────────────────────────────────────
-const CALC_CATS = [
-  { cat:'Spacing', items:[
-    { name:'px → rem',   fn:(a:number)=>`${(a/16).toFixed(4).replace(/0+$/,'').replace(/\.$/,'')}rem`, inputs:[{l:'px',v:16,min:1,max:200}] },
-    { name:'rem → px',   fn:(a:number)=>`${a*16}px`, inputs:[{l:'rem',v:1,min:0.1,max:20,step:0.125}] },
-    { name:'8pt Grid',   fn:(a:number)=>`${Math.round(a/8)*8}px`, inputs:[{l:'px',v:20,min:1,max:200}] },
-    { name:'4pt Grid',   fn:(a:number)=>`${Math.round(a/4)*4}px`, inputs:[{l:'px',v:14,min:1,max:200}] },
-  ]},
-  { cat:'Color', items:[
-    { name:'Hex→RGB',    fn:(_:number,s:string)=>{const r=parseInt(s.slice(1,3),16),g=parseInt(s.slice(3,5),16),b=parseInt(s.slice(5,7),16);return `rgb(${r}, ${g}, ${b})`}, inputs:[{l:'hex',v:0,color:'#007AFF',min:0,max:100}] },
-    { name:'Hex→RGBA',   fn:(a:number,s:string)=>{const r=parseInt(s.slice(1,3),16),g=parseInt(s.slice(3,5),16),b=parseInt(s.slice(5,7),16);return `rgba(${r}, ${g}, ${b}, ${(a/100).toFixed(2)})`}, inputs:[{l:'alpha%',v:80,min:0,max:100},{l:'hex',v:0,color:'#007AFF',min:0,max:0}] },
-    { name:'Contrast',   fn:(_:number,s:string)=>{if(!/^#[0-9a-fA-F]{6}$/.test(s))return '—';const L=(x:number)=>x<=0.04045?x/12.92:((x+0.055)/1.055)**2.4;const r=parseInt(s.slice(1,3),16)/255,g=parseInt(s.slice(3,5),16)/255,b=parseInt(s.slice(5,7),16)/255;const lum=0.2126*L(r)+0.7152*L(g)+0.0722*L(b);const R=(1.05)/(lum+0.05);return `${R.toFixed(2)}:1 (${R>=7?'AAA':R>=4.5?'AA':R>=3?'AA Lg':'Fail'})`}, inputs:[{l:'hex',v:0,color:'#333333',min:0,max:0}] },
-    { name:'Luminance',  fn:(_:number,s:string)=>{if(!/^#[0-9a-fA-F]{6}$/.test(s))return '—';const L=(x:number)=>x<=0.04045?x/12.92:((x+0.055)/1.055)**2.4;const r=parseInt(s.slice(1,3),16)/255,g=parseInt(s.slice(3,5),16)/255,b=parseInt(s.slice(5,7),16)/255;return (0.2126*L(r)+0.7152*L(g)+0.0722*L(b)).toFixed(4)}, inputs:[{l:'hex',v:0,color:'#007AFF',min:0,max:0}] },
-  ]},
-  { cat:'Typography', items:[
-    { name:'Line Height',fn:(a:number)=>`${(a*1.5).toFixed(0)}px / 1.5em`, inputs:[{l:'font-size px',v:16,min:8,max:72}] },
-    { name:'Clamp()',    fn:(a:number,_:string,b:number)=>`clamp(${a}px, ${((a+b)/2/16).toFixed(2)}rem, ${b}px)`, inputs:[{l:'min px',v:14,min:8,max:100},{l:'max px',v:24,min:8,max:100}] },
-    { name:'Tracking',   fn:(a:number,_:string,b:number)=>`${(a/b).toFixed(4)}em`, inputs:[{l:'spacing px',v:1,min:0,max:20,step:0.5},{l:'font-size',v:16,min:8,max:72}] },
-    { name:'Scale Step', fn:(a:number)=>`${(16*Math.pow(1.25,a)).toFixed(1)}px`, inputs:[{l:'step',v:2,min:-4,max:8}] },
-  ]},
-  { cat:'Layout', items:[
-    { name:'Golden φ',   fn:(a:number)=>`${(a*1.618).toFixed(1)}px / ${(a/1.618).toFixed(1)}px`, inputs:[{l:'value px',v:100,min:1,max:1000}] },
-    { name:'Aspect',     fn:(a:number,_:string,b:number)=>{const g=(x:number,y:number):number=>y===0?x:g(y,x%y);const d=g(Math.round(a),Math.round(b));return `${Math.round(a/d)} / ${Math.round(b/d)}`}, inputs:[{l:'width',v:1920,min:1,max:9999},{l:'height',v:1080,min:1,max:9999}] },
-    { name:'Viewport%',  fn:(a:number,_:string,b:number)=>`${(a/b*100).toFixed(2)}vw`, inputs:[{l:'element px',v:320,min:1,max:3000},{l:'viewport',v:1440,min:320,max:3840}] },
-    { name:'clamp()',    fn:(a:number,_:string,b:number)=>`clamp(${a}px, ${((a+b)/2/16).toFixed(2)}rem, ${b}px)`, inputs:[{l:'min px',v:320,min:1,max:2000},{l:'max px',v:1200,min:1,max:2000}] },
-  ]},
-  { cat:'Animation', items:[
-    { name:'FPS→ms',     fn:(a:number)=>`${(1000/a).toFixed(2)}ms`, inputs:[{l:'fps',v:60,min:1,max:240}] },
-    { name:'Stagger',    fn:(a:number,_:string,b:number)=>`${a*b}ms total`, inputs:[{l:'delay ms',v:40,min:1,max:500},{l:'items',v:6,min:1,max:50}] },
-    { name:'Spring',     fn:(a:number)=>`~${(Math.sqrt(1/a)*1000).toFixed(0)}ms`, inputs:[{l:'stiffness',v:300,min:1,max:2000}] },
-    { name:'cubic-bezier',fn:(a:number)=>`cubic-bezier(${(a/100).toFixed(2)}, 0, ${(1-a/100).toFixed(2)}, 1)`, inputs:[{l:'tension 0–100',v:40,min:0,max:100}] },
-  ]},
-]
-
-function CalcItem({ item }: { item: any }) {
-  const t = useTheme()
-  const rgb = hexToRgb(t.accent)
-  const { copy, copied } = useCopy()
-  const [vals, setVals] = useState<[number,string]>([item.inputs?.[0]?.v??16, item.inputs?.[0]?.color??'#007AFF'])
-  const [val2, setVal2] = useState<number>(item.inputs?.[1]?.v??100)
-  let result='—'
-  try{result=item.fn(vals[0],vals[1],val2)}catch{}
-  return (
-    <div style={{ padding:'11px 13px', borderRadius:11, background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.07)' }}>
-      <div style={{ fontSize:12,fontWeight:700,marginBottom:2 }}>{item.name}</div>
-      {item.inputs?.map((inp:any,i:number)=>(
-        <div key={i} style={{ marginBottom:6 }}>
-          <div style={{ fontSize:9,opacity:0.45,marginBottom:2 }}>{inp.l}</div>
-          {inp.color!==undefined?(
-            <div style={{ display:'flex',gap:5,alignItems:'center' }}>
-              <input type="color" value={vals[1]} onChange={e=>setVals(v=>[v[0],e.target.value])} style={{ width:24,height:22,borderRadius:4,border:'1px solid rgba(255,255,255,0.15)',padding:2,cursor:'pointer' }}/>
-              <input value={vals[1]} onChange={e=>{if(/^#[0-9a-fA-F]{0,6}$/.test(e.target.value))setVals(v=>[v[0],e.target.value])}} style={{ flex:1,padding:'3px 7px',borderRadius:5,background:'rgba(255,255,255,0.07)',border:'1px solid rgba(255,255,255,0.1)',outline:'none',fontSize:10,color:'inherit',fontFamily:'monospace' }}/>
-            </div>
-          ):(
-            <input type="number" value={i===0?vals[0]:val2} step={inp.step??1} min={inp.min} max={inp.max}
-              onChange={e=>{const n=parseFloat(e.target.value);i===0?setVals(v=>[n,v[1]]):setVal2(n)}}
-              style={{ width:'100%',padding:'4px 8px',borderRadius:6,background:'rgba(255,255,255,0.07)',border:'1px solid rgba(255,255,255,0.1)',outline:'none',fontSize:11,color:'inherit',fontFamily:'monospace' }}/>
-          )}
-        </div>
-      ))}
-      <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginTop:8,padding:'6px 9px',borderRadius:7,background:`rgba(${rgb},0.1)`,border:`1px solid rgba(${rgb},0.2)` }}>
-        <code style={{ fontSize:11,color:t.accent,fontFamily:'monospace',wordBreak:'break-all' }}>{result}</code>
-        <button onClick={()=>copy(result,item.name)} style={{ background:'none',border:'none',cursor:'pointer',color:copied===item.name?t.accent:'inherit',opacity:copied===item.name?1:0.4,padding:'1px 3px',display:'flex',alignItems:'center' }}>
-          {copied===item.name?<Check size={10}/>:<Copy size={10}/>}
-        </button>
-      </div>
-    </div>
-  )
-}
-
 // ── Main ───────────────────────────────────────────────────────────────────
 export function DevToolsView() {
   const t = useTheme()
-  const rgb = hexToRgb(t.accent)
   const [tab, setTab]     = useState<'builder'|'calc'>('builder')
-  const [calcCat, setCat] = useState(0)
 
   return (
     <div style={{ display:'flex',flexDirection:'column',height:'100%',overflow:'hidden' }}>
@@ -757,23 +766,7 @@ export function DevToolsView() {
       </div>
 
       <div style={{ flex:1,overflow:'hidden',display:'flex',flexDirection:'column',minHeight:0 }}>
-        {tab==='builder' ? <WebBuilder /> : (
-          <div style={{ display:'flex',height:'100%',overflow:'hidden' }}>
-            <div style={{ width:130,flexShrink:0,borderRight:'1px solid rgba(255,255,255,0.07)',padding:'10px 7px',display:'flex',flexDirection:'column',gap:3,background:'rgba(0,0,0,0.1)' }}>
-              {CALC_CATS.map((cat,i)=>(
-                <button key={cat.cat} onClick={()=>setCat(i)} style={{ padding:'7px 9px',borderRadius:8,border:`1px solid ${calcCat===i?t.accent:'transparent'}`,background:calcCat===i?`rgba(${rgb},0.15)`:'transparent',cursor:'pointer',fontSize:11,fontWeight:700,color:calcCat===i?t.accent:'inherit',textAlign:'left',transition:'all 0.1s' }}>
-                  {cat.cat}
-                </button>
-              ))}
-            </div>
-            <div style={{ flex:1,overflowY:'auto',padding:'12px 14px' }}>
-              <div style={{ fontSize:10,fontWeight:800,opacity:0.35,textTransform:'uppercase',letterSpacing:1,marginBottom:10 }}>{CALC_CATS[calcCat].cat}</div>
-              <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:8 }}>
-                {CALC_CATS[calcCat].items.map(item=><CalcItem key={item.name} item={item}/>)}
-              </div>
-            </div>
-          </div>
-        )}
+        {tab==='builder' ? <WebBuilder /> : <DevToolsCalculatorSection />}
       </div>
     </div>
   )

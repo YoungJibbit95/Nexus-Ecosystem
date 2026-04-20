@@ -27,7 +27,9 @@ import { DashboardActionButton } from './dashboard/mobileDashboardPrimitives'
 import {
   MobileDashboardEmptyWidgetsState,
   MobileDashboardHiddenTray,
+  MobileDashboardWidgetSafeModeNotice,
 } from './dashboard/MobileDashboardSupportSections'
+import { MobileDashboardWidgetErrorBoundary } from './dashboard/MobileDashboardWidgetErrorBoundary'
 import { MobileDashboardWidgetEditChrome } from './dashboard/MobileDashboardWidgetEditChrome'
 import { MobileRuntimeSummaryCard } from './dashboard/MobileRuntimeSummaryCard'
 import { useMobileDashboardLayoutEditing } from './dashboard/useMobileDashboardLayoutEditing'
@@ -54,6 +56,8 @@ export function DashboardView({ setView }: { setView?: (v: string) => void }) {
     resetDashboardWidgets,
   } = useApp()
   const addCanvas = useCanvas((state) => state.addCanvas)
+  const canvases = useCanvas((state) => state.canvases)
+  const activeCanvasId = useCanvas((state) => state.activeCanvasId)
   const { workspaces: rawWorkspaces, activeWorkspaceId } = useWorkspaces()
   const notes = asObjectArray<any>(rawNotes)
   const tasks = asObjectArray<any>(rawTasks)
@@ -200,6 +204,8 @@ export function DashboardView({ setView }: { setView?: (v: string) => void }) {
     reminders,
     activities,
     codes,
+    canvases,
+    activeCanvasId,
     workspaces,
     activeWorkspaceId,
     setView,
@@ -211,27 +217,40 @@ export function DashboardView({ setView }: { setView?: (v: string) => void }) {
     updateReminder,
   })
 
-  const widgetNodes = useMemo(
-    () =>
-      buildMobileDashboardWidgetContent({
-        t,
-        rgb,
-        mob,
-        notes,
-        tasks,
-        reminders,
-        codes,
-        recentNotes,
-        upcomingReminders,
-        recentActivity,
-        pinnedNotes,
-        doneTasks,
-        openTasks,
-        overdueReminders,
-        taskProgress,
-        runCaptureIntent,
-        setView,
-      }),
+  const { widgetNodes, widgetContentBuildError } = useMemo(
+    () => {
+      try {
+        return {
+          widgetNodes: buildMobileDashboardWidgetContent({
+            t,
+            rgb,
+            mob,
+            notes,
+            tasks,
+            reminders,
+            codes,
+            recentNotes,
+            upcomingReminders,
+            recentActivity,
+            pinnedNotes,
+            doneTasks,
+            openTasks,
+            overdueReminders,
+            taskProgress,
+            runCaptureIntent,
+            setView,
+          }),
+          widgetContentBuildError: null as string | null,
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error || 'unknown')
+        console.error('[Mobile Dashboard] widget content build failed', error)
+        return {
+          widgetNodes: {} as Partial<Record<string, React.ReactNode>>,
+          widgetContentBuildError: message,
+        }
+      }
+    },
     [
       t,
       rgb,
@@ -358,6 +377,20 @@ export function DashboardView({ setView }: { setView?: (v: string) => void }) {
             >
               + Note
             </DashboardActionButton>
+            <DashboardActionButton
+              onClick={() => runCaptureIntent('task')}
+              liquidColor="#ff9f0a"
+              style={{ padding: '5px 9px', borderRadius: 999, border: '1px solid rgba(255,159,10,0.32)', background: 'rgba(255,159,10,0.14)', color: '#ffb547', fontSize: 10, fontWeight: 800, cursor: 'pointer' }}
+            >
+              + Task
+            </DashboardActionButton>
+            <DashboardActionButton
+              onClick={() => runCaptureIntent('reminder')}
+              liquidColor="#ff453a"
+              style={{ padding: '5px 9px', borderRadius: 999, border: '1px solid rgba(255,69,58,0.32)', background: 'rgba(255,69,58,0.14)', color: '#ff7d75', fontSize: 10, fontWeight: 800, cursor: 'pointer' }}
+            >
+              + Reminder
+            </DashboardActionButton>
             <div style={{ position: 'relative' }}>
               <DashboardActionButton
                 onClick={() => setCaptureMenuOpen((open) => !open)}
@@ -381,8 +414,6 @@ export function DashboardView({ setView }: { setView?: (v: string) => void }) {
               {captureMenuOpen ? (
                 <div style={{ position: 'absolute', top: 'calc(100% + 6px)', left: 0, zIndex: 60, minWidth: 150, borderRadius: 10, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(17,20,31,0.96)', backdropFilter: 'blur(12px)', padding: 6, boxShadow: '0 14px 34px rgba(0,0,0,0.35)' }}>
                   {([
-                    { type: 'task', label: 'Task' },
-                    { type: 'reminder', label: 'Reminder' },
                     { type: 'code', label: 'Code' },
                     { type: 'canvas', label: 'Canvas' },
                   ] as Array<{ type: CaptureIntentType; label: string }>).map((entry) => (
@@ -448,6 +479,12 @@ export function DashboardView({ setView }: { setView?: (v: string) => void }) {
         t={t}
         rgb={rgb}
         layoutLocked={layoutLocked}
+      />
+      <MobileDashboardWidgetSafeModeNotice
+        error={widgetContentBuildError}
+        resetLayout={resetLayout}
+        t={t}
+        rgb={rgb}
       />
 
       {visible.length === 0 ? (
@@ -527,7 +564,21 @@ export function DashboardView({ setView }: { setView?: (v: string) => void }) {
                   mob={mob}
                 />
               ) : null}
-              {widgetNodes[w.id]}
+              <MobileDashboardWidgetErrorBoundary
+                widgetLabel={w.label}
+                onResetLayout={resetLayout}
+              >
+                {widgetNodes[w.id] || (
+                  <Glass style={{ minHeight: 120, padding: 12 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 4 }}>
+                      Widget nicht verfügbar
+                    </div>
+                    <div style={{ fontSize: 11, opacity: 0.66 }}>
+                      {w.label} konnte nicht geladen werden.
+                    </div>
+                  </Glass>
+                )}
+              </MobileDashboardWidgetErrorBoundary>
             </motion.div>
           ))}
         </div>

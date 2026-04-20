@@ -9,6 +9,8 @@ import { computeTodayLayerSummary } from '@nexus/core'
 import {
   QUIET_HOURS_KEY,
   REMINDER_TEMPLATES,
+  createReminderFromTemplate,
+  type ReminderTemplateId,
   readQuietHours,
   type QuietHoursState,
   type Toast,
@@ -96,17 +98,20 @@ export function RemindersView({ setView }: { setView?: (viewId: string) => void 
     window.setTimeout(() => setControlMsg(''), 2600)
   }, [reminders, delRem])
 
-  const createTemplateReminder = useCallback((templateId: (typeof REMINDER_TEMPLATES)[number]['id']) => {
-    const template = REMINDER_TEMPLATES.find((entry) => entry.id === templateId)
-    if (!template) return
-    const dueAt = new Date(Date.now() + template.offsetMinutes * 60000).toISOString()
+  const createTemplateReminder = useCallback((templateId: ReminderTemplateId) => {
+    const created = createReminderFromTemplate(templateId, new Date())
+    if (!created) {
+      setControlMsg("Template nicht verfugbar")
+      window.setTimeout(() => setControlMsg(""), 2400)
+      return
+    }
     addRem({
-      title: template.title,
-      msg: template.msg,
-      datetime: dueAt,
-      repeat: template.repeat,
+      title: created.title,
+      msg: created.msg,
+      datetime: created.datetime,
+      repeat: created.repeat,
     })
-    setControlMsg(`Template erstellt: ${template.label}`)
+    setControlMsg(`Template erstellt: ${created.template.label}`)
     window.setTimeout(() => setControlMsg(''), 2400)
   }, [addRem])
 
@@ -313,21 +318,21 @@ export function RemindersView({ setView }: { setView?: (viewId: string) => void 
                 <span style={{ opacity:0.6 }}>{items.length}</span>
               </div>
               <AnimatePresence>
-                {items.map(r => <ReminderCard key={r.id} r={r} now={now} onEdit={()=>setEditId(r.id)}/>)}
+                {items.map(r => <ReminderCard key={r.id} r={r} now={now} onEdit={()=>setEditId(r.id)} setView={setView} />)}
               </AnimatePresence>
             </div>
           ))
         ) : (
           <AnimatePresence>
-            {filtered.map(r => <ReminderCard key={r.id} r={r} now={now} onEdit={()=>setEditId(r.id)}/>)}
+            {filtered.map(r => <ReminderCard key={r.id} r={r} now={now} onEdit={()=>setEditId(r.id)} setView={setView} />)}
           </AnimatePresence>
         )}
       </div>
 
       {/* Modals */}
       <AnimatePresence>
-        {newOpen  && <ReminderModal key="new" onClose={()=>setNewOpen(false)}/>}
-        {editId   && <ReminderModal key={editId} reminder={editReminder} onClose={()=>setEditId(null)}/>}
+        {newOpen  && <ReminderModal key="new" onClose={()=>setNewOpen(false)} setView={setView} />}
+        {editId   && <ReminderModal key={editId} reminder={editReminder} onClose={()=>setEditId(null)} setView={setView} />}
       </AnimatePresence>
 
       {/* Toasts */}

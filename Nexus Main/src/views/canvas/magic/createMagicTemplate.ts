@@ -1,8 +1,10 @@
 import type { CanvasNode, NodeType } from "../../../store/canvasStore";
 import type { MagicTemplatePayload } from "../CanvasMagicModal";
 import {
-  CANVAS_MAGIC_HUB_TEMPLATES,
+  buildAiProjectMagicGraph,
   buildCanvasMagicHubMarkdown,
+  normalizeCanvasMagicTemplatePayload,
+  resolveCanvasMagicHubTemplateMeta,
 } from "@nexus/core/canvas/magicHubTemplates";
 
 type SpawnNodeFn = (
@@ -25,6 +27,7 @@ type CreateMagicTemplateParams = {
   viewport: { panX: number; panY: number; zoom: number };
   spawnNode: SpawnNodeFn;
   connectNodes: ConnectNodesFn;
+  addChecklistItem?: (nodeId: string, text: string) => void;
   fitView: () => void;
   setSelectedNodeId: (id: string | null) => void;
   setShowMagicBuilder: (value: boolean) => void;
@@ -49,8 +52,48 @@ const finalizeTemplate = (params: CreateMagicTemplateParams, rootId: string | nu
 
 export function createMagicTemplateFromPayload(params: CreateMagicTemplateParams) {
   const center = getViewportCenter(params);
-  const meta = CANVAS_MAGIC_HUB_TEMPLATES[params.payload.template];
-  const title = params.payload.title?.trim() || meta.label;
+  const payload = normalizeCanvasMagicTemplatePayload(params.payload);
+
+  if (payload.template === "ai-project") {
+    const graph = buildAiProjectMagicGraph(payload);
+    const idMap = new globalThis.Map<string, string | null>();
+    graph.nodes.forEach((node) => {
+      const createdId = params.spawnNode(node.type as NodeType, {
+        x: center.x + node.x,
+        y: center.y + node.y,
+        title: node.title,
+        patch: {
+          width: node.width,
+          height: node.height,
+          color: node.color,
+          content: node.content,
+          status: node.meta?.status,
+          priority: node.meta?.priority,
+          progress: node.meta?.progress,
+          dueDate: node.meta?.dueDate,
+          owner: node.meta?.owner,
+          tags: node.meta?.tags ? [...node.meta.tags] : undefined,
+        },
+      });
+      if (createdId && node.checklistItems?.length && params.addChecklistItem) {
+        node.checklistItems.forEach((item) =>
+          params.addChecklistItem?.(createdId, item),
+        );
+      }
+      idMap.set(node.id, createdId);
+    });
+    params.connectNodes(
+      graph.links.map((entry) => [idMap.get(entry.from), idMap.get(entry.to)]),
+    );
+    const rootId = idMap.get(graph.rootId) ?? null;
+    finalizeTemplate(params, rootId);
+    return;
+  }
+
+  const { id: templateId, meta } = resolveCanvasMagicHubTemplateMeta(
+    payload.template,
+  );
+  const title = payload.title?.trim() || meta.label;
   const rootId = params.spawnNode("markdown", {
     x: center.x - 380,
     y: center.y - 300,
@@ -59,8 +102,8 @@ export function createMagicTemplateFromPayload(params: CreateMagicTemplateParams
       width: 760,
       height: 600,
       color: meta.color,
-      content: buildCanvasMagicHubMarkdown(params.payload),
-      tags: ["magic-hub", `preset:${params.payload.template}`],
+      content: buildCanvasMagicHubMarkdown(payload),
+      tags: ["magic-hub", `preset:${templateId}`],
     },
   });
   finalizeTemplate(params, rootId);

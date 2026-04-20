@@ -14,6 +14,7 @@ import { CodeTabStrip } from "./code/CodeTabStrip";
 import { CodeOutputPanel } from "./code/CodeOutputPanel";
 import {
   CodeExplorerSidebar,
+  CodeQuickOpenModal,
   CodeNewFileModal,
   EmptyCodeState,
 } from "./code/CodeViewSections";
@@ -27,6 +28,7 @@ export function CodeView() {
   const rgb = hexToRgb(t.accent);
   const {
     codes,
+    folders,
     activeCodeId,
     openCodeIds,
     addCode,
@@ -39,6 +41,7 @@ export function CodeView() {
   } = useApp(
     (s) => ({
       codes: s.codes,
+      folders: s.folders,
       activeCodeId: s.activeCodeId,
       openCodeIds: s.openCodeIds,
       addCode: s.addCode,
@@ -59,6 +62,10 @@ export function CodeView() {
   const [outH, setOutH] = useState(220);
   const [search, setSearch] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
+  const [quickOpenOpen, setQuickOpenOpen] = useState(false);
+  const [quickOpenQuery, setQuickOpenQuery] = useState("");
+  const [fileScope, setFileScope] = useState<"all" | "open">("all");
+  const [folderFilter, setFolderFilter] = useState<string>("all");
   const [newOpen, setNewOpen] = useState(false);
   const [newName, setNewName] = useState("");
   const [newLang, setNewLang] = useState("javascript");
@@ -71,6 +78,9 @@ export function CodeView() {
   const [MonacoEditorComponent, setMonacoEditorComponent] = useState<any>(null);
   const [monacoLoading, setMonacoLoading] = useState(false);
   const [previewDocFrame, setPreviewDocFrame] = useState("");
+  const [runHistory, setRunHistory] = useState<
+    Array<{ fileId: string; fileName: string; at: string; ok: boolean; ms: number }>
+  >([]);
   const monacoLoadTokenRef = useRef(0);
   const outRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ y: number; h: number } | null>(null);
@@ -83,6 +93,32 @@ export function CodeView() {
   const lang = active ? getLang(active.lang) : null;
   const hasPreview =
     active && ["html", "css", "markdown"].includes(active.lang);
+  const folderScopedCodes = useMemo(
+    () =>
+      codes.filter((file) =>
+        folderFilter === "all" ? true : (file.folderId ?? "__root__") === folderFilter,
+      ),
+    [codes, folderFilter],
+  );
+  const quickOpenFiles = useMemo(() => {
+    const query = quickOpenQuery.trim().toLowerCase();
+    const openSet = new Set(openCodeIds);
+    return folderScopedCodes
+      .filter((file) =>
+        !query
+          ? true
+          : `${file.name} ${file.lang} ${file.folderId ?? "root"}`
+              .toLowerCase()
+              .includes(query),
+      )
+      .sort((a, b) => {
+        const aOpen = openSet.has(a.id) ? 1 : 0;
+        const bOpen = openSet.has(b.id) ? 1 : 0;
+        if (aOpen !== bOpen) return bOpen - aOpen;
+        return a.name.localeCompare(b.name);
+      })
+      .slice(0, 40);
+  }, [folderScopedCodes, openCodeIds, quickOpenQuery]);
   const previewDoc = useMemo(() => {
     if (!active) return "";
     if (active.lang === "css") {
@@ -173,8 +209,19 @@ export function CodeView() {
     await new Promise((r) => setTimeout(r, 40));
     const t0 = performance.now();
     const result = await executeCode(active);
-    setElapsed(performance.now() - t0);
+    const elapsedMs = performance.now() - t0;
+    setElapsed(elapsedMs);
     setOutput(result.split("\n"));
+    setRunHistory((history) => [
+      {
+        fileId: active.id,
+        fileName: active.name,
+        at: new Date().toISOString(),
+        ok: !result.includes("❌"),
+        ms: elapsedMs,
+      },
+      ...history,
+    ].slice(0, 10));
     setRunning(false);
   }, [active]);
 
@@ -184,9 +231,20 @@ export function CodeView() {
         e.preventDefault();
         run();
       }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "p") {
+        e.preventDefault();
+        setQuickOpenOpen(true);
+      }
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "f") {
+        e.preventDefault();
+        setSearchOpen((state) => !state);
+      }
       if ((e.ctrlKey || e.metaKey) && e.key === "s" && active) {
         e.preventDefault();
         saveCode(active.id);
+      }
+      if (e.key === "Escape") {
+        setQuickOpenOpen(false);
       }
     };
     window.addEventListener("keydown", h);
@@ -244,17 +302,48 @@ export function CodeView() {
     anchor.click();
   }, [active]);
 
+  const insertSnippet = useCallback(
+    (kind: "log" | "fetch" | "todo") => {
+      if (!active) return;
+      const map = {
+        log: '\nconsole.log("debug:", { value: true })\n',
+        fetch:
+          '\nconst res = await fetch("https://example.com/api")\nconst data = await res.json()\nconsole.log(data)\n',
+        todo: "\n// TODO: implement\n// 1. parse input\n// 2. validate\n// 3. return output\n",
+      };
+      updateCode(active.id, { content: `${active.content}${map[kind]}`, dirty: true });
+    },
+    [active, updateCode],
+  );
+
+  const openCodeFromQuickOpen = useCallback(
+    (id: string) => {
+      openCode(id);
+      setCode(id);
+      setQuickOpenOpen(false);
+      setQuickOpenQuery("");
+    },
+    [openCode, setCode],
+  );
+
   return (
     <div style={{ display: "flex", height: "100%", overflow: "hidden" }}>
       <CodeExplorerSidebar
-        codes={codes}
+        codes={folderScopedCodes}
         activeCodeId={activeCodeId}
+        openCodeIds={openCodeIds}
         search={search}
         searchOpen={searchOpen}
         rgb={rgb}
+        fileScope={fileScope}
+        folderFilter={folderFilter}
+        folders={folders}
         setSearch={setSearch}
         setSearchOpen={setSearchOpen}
+        setFileScope={setFileScope}
+        setFolderFilter={setFolderFilter}
         setNewOpen={setNewOpen}
+        openQuickOpen={() => setQuickOpenOpen(true)}
         openCode={openCode}
         setCode={setCode}
         delCode={delCode}
@@ -286,6 +375,104 @@ export function CodeView() {
           running={running}
           accent={t.accent}
         />
+        {active ? (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              padding: "7px 10px",
+              borderBottom: "1px solid rgba(255,255,255,0.06)",
+              background: "rgba(0,0,0,0.08)",
+              flexWrap: "wrap",
+            }}
+          >
+            <button
+              onClick={() => insertSnippet("log")}
+              style={{
+                padding: "5px 9px",
+                borderRadius: 8,
+                border: `1px solid rgba(${rgb},0.3)`,
+                background: `rgba(${rgb},0.14)`,
+                color: t.accent,
+                fontSize: 10,
+                fontWeight: 700,
+                cursor: "pointer",
+              }}
+            >
+              + log()
+            </button>
+            <button
+              onClick={() => insertSnippet("fetch")}
+              style={{
+                padding: "5px 9px",
+                borderRadius: 8,
+                border: "1px solid rgba(255,255,255,0.14)",
+                background: "rgba(255,255,255,0.06)",
+                color: "inherit",
+                fontSize: 10,
+                fontWeight: 700,
+                cursor: "pointer",
+              }}
+            >
+              + fetch()
+            </button>
+            <button
+              onClick={() => insertSnippet("todo")}
+              style={{
+                padding: "5px 9px",
+                borderRadius: 8,
+                border: "1px solid rgba(255,255,255,0.14)",
+                background: "rgba(255,255,255,0.06)",
+                color: "inherit",
+                fontSize: 10,
+                fontWeight: 700,
+                cursor: "pointer",
+              }}
+            >
+              + TODO block
+            </button>
+            <button
+              onClick={() => setQuickOpenOpen(true)}
+              style={{
+                padding: "5px 9px",
+                borderRadius: 8,
+                border: "1px solid rgba(255,255,255,0.14)",
+                background: "rgba(255,255,255,0.06)",
+                color: "inherit",
+                fontSize: 10,
+                fontWeight: 700,
+                cursor: "pointer",
+              }}
+            >
+              Quick Open
+            </button>
+            <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+              <span style={{ fontSize: 10, opacity: 0.55 }}>
+                In-app scratch editor. Für große Projekte: Nexus Code.
+              </span>
+              {runHistory.slice(0, 3).map((runEntry, index) => (
+                <button
+                  key={`${runEntry.at}-${index}`}
+                  onClick={() => openCodeFromQuickOpen(runEntry.fileId)}
+                  style={{
+                    fontSize: 10,
+                    padding: "3px 7px",
+                    borderRadius: 999,
+                    background: runEntry.ok ? "rgba(48,209,88,0.14)" : "rgba(255,69,58,0.14)",
+                    color: runEntry.ok ? "#30D158" : "#FF453A",
+                    border: `1px solid ${runEntry.ok ? "rgba(48,209,88,0.3)" : "rgba(255,69,58,0.3)"}`,
+                    cursor: "pointer",
+                    whiteSpace: "nowrap",
+                  }}
+                  title={`Last run ${new Date(runEntry.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`}
+                >
+                  {runEntry.fileName.split(".").pop()} {Math.round(runEntry.ms)}ms
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
 
         {/* Content */}
         <div
@@ -298,7 +485,12 @@ export function CodeView() {
           }}
         >
           {!active ? (
-            <EmptyCodeState accent={t.accent} rgb={rgb} setNewOpen={setNewOpen} />
+            <EmptyCodeState
+              accent={t.accent}
+              rgb={rgb}
+              setNewOpen={setNewOpen}
+              openQuickOpen={() => setQuickOpenOpen(true)}
+            />
           ) : (
             <>
               <div
@@ -585,6 +777,7 @@ export function CodeView() {
                 handleCopyOut={handleCopyOut}
                 copiedOut={copiedOut}
                 elapsed={elapsed}
+                runHistory={runHistory}
                 run={run}
                 running={running}
                 accent={t.accent}
@@ -606,6 +799,15 @@ export function CodeView() {
         setFileName={setNewName}
         setFileLang={setNewLang}
         createFile={createFile}
+      />
+      <CodeQuickOpenModal
+        open={quickOpenOpen}
+        query={quickOpenQuery}
+        files={quickOpenFiles}
+        activeCodeId={activeCodeId}
+        setOpen={setQuickOpenOpen}
+        setQuery={setQuickOpenQuery}
+        openFile={openCodeFromQuickOpen}
       />
     </div>
   );

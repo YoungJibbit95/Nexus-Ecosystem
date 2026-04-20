@@ -1,3 +1,5 @@
+import type { Theme } from "../../store/themeStore";
+
 export type ModuleId =
   | "appearance"
   | "panel"
@@ -13,5 +15,5 @@ export type ExperiencePreset = {
   id: "focus" | "balanced" | "cinematic";
   title: string;
   desc: string;
-  apply: (theme: any) => void;
+  apply: (theme: Theme) => void;
 };
