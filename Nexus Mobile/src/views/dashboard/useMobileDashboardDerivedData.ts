@@ -3,12 +3,23 @@ import { computeTodayLayerSummary, createCaptureIntent, type CaptureIntentType }
 
 type Entity = Record<string, any>
 
+export type MobileDashboardResumeEntry = {
+  label: "Note" | "Code" | "Task" | "Reminder" | "Canvas"
+  title: string
+  subtitle: string
+  reason: string
+  relevance: number
+  action: () => void
+}
+
 export function useMobileDashboardDerivedData({
   notes,
   tasks,
   reminders,
   activities,
   codes,
+  canvases,
+  activeCanvasId,
   workspaces,
   activeWorkspaceId,
   setView,
@@ -24,6 +35,8 @@ export function useMobileDashboardDerivedData({
   reminders: Entity[]
   activities: Entity[]
   codes: Entity[]
+  canvases: Entity[]
+  activeCanvasId?: string | null
   workspaces: Entity[]
   activeWorkspaceId?: string | null
   setView?: (v: string) => void
@@ -65,17 +78,106 @@ export function useMobileDashboardDerivedData({
   )
 
   const resumeLane = useMemo(() => {
+    const nowTs = Date.now()
+    const priorityRank: Record<string, number> = {
+      critical: 0,
+      high: 1,
+      mid: 2,
+      low: 3,
+    }
     const lastNote = [...notes].sort((a, b) => +new Date(b.updated) - +new Date(a.updated))[0]
     const lastCode = [...codes].sort((a, b) => +new Date(b.updated) - +new Date(a.updated))[0]
     const nextReminder = reminders
       .filter((r) => !r.done)
       .sort((a, b) => +new Date(a.snoozeUntil || a.datetime) - +new Date(b.snoozeUntil || b.datetime))[0]
-    return [
-      lastNote ? { label: 'Note', title: lastNote.title || 'Untitled', action: () => setView?.('notes') } : null,
-      lastCode ? { label: 'Code', title: lastCode.name, action: () => setView?.('code') } : null,
-      nextReminder ? { label: 'Reminder', title: nextReminder.title, action: () => setView?.('reminders') } : null,
-    ].filter((entry): entry is { label: string; title: string; action: () => void } => Boolean(entry))
-  }, [codes, notes, reminders, setView])
+    const focusTask = tasks
+      .filter((task) => task.status !== 'done')
+      .sort((a, b) => {
+        const aDue = a.deadline ? +new Date(a.deadline) : Number.POSITIVE_INFINITY
+        const bDue = b.deadline ? +new Date(b.deadline) : Number.POSITIVE_INFINITY
+        const aOverdue = Number.isFinite(aDue) && aDue < nowTs
+        const bOverdue = Number.isFinite(bDue) && bDue < nowTs
+        if (aOverdue !== bOverdue) return aOverdue ? -1 : 1
+        const aPrio = priorityRank[a.priority] ?? 10
+        const bPrio = priorityRank[b.priority] ?? 10
+        if (aPrio !== bPrio) return aPrio - bPrio
+        if (aDue !== bDue) return aDue - bDue
+        return +new Date(b.updated || b.created || 0) - +new Date(a.updated || a.created || 0)
+      })[0]
+    const activeCanvas =
+      canvases.find((canvas) => canvas.id === activeCanvasId)
+      || [...canvases].sort((a, b) => +new Date(b.updated || b.created || 0) - +new Date(a.updated || a.created || 0))[0]
+
+    const entries: MobileDashboardResumeEntry[] = [
+      lastNote
+        ? {
+          label: 'Note',
+          title: lastNote.title || 'Untitled',
+          subtitle: `${new Date(lastNote.updated || lastNote.created).toLocaleString()}${lastNote.tags?.[0] ? ` · #${lastNote.tags[0]}` : ''}`,
+          reason: 'Zuletzt bearbeitet',
+          relevance: 60,
+          action: () => setView?.('notes'),
+        }
+        : null,
+      lastCode
+        ? {
+          label: 'Code',
+          title: lastCode.name,
+          subtitle: `${new Date(lastCode.updated || lastCode.created).toLocaleString()}${lastCode.lang ? ` · ${lastCode.lang}` : ''}`,
+          reason: 'Letzte aktive Datei',
+          relevance: 56,
+          action: () => setView?.('code'),
+        }
+        : null,
+      nextReminder
+        ? {
+          label: 'Reminder',
+          title: nextReminder.title,
+          subtitle: new Date(nextReminder.snoozeUntil || nextReminder.datetime).toLocaleString(),
+          reason:
+            +new Date(nextReminder.snoozeUntil || nextReminder.datetime) < nowTs
+              ? 'Überfällig'
+              : 'Als Nächstes fällig',
+          relevance:
+            +new Date(nextReminder.snoozeUntil || nextReminder.datetime) < nowTs
+              ? 100
+              : 78,
+          action: () => setView?.('reminders'),
+        }
+        : null,
+      focusTask
+        ? {
+          label: 'Task',
+          title: focusTask.title,
+          subtitle:
+            focusTask.deadline
+              ? `Deadline ${new Date(focusTask.deadline).toLocaleDateString()}`
+              : `Priorität ${focusTask.priority || 'mid'}`,
+          reason:
+            focusTask.deadline && +new Date(focusTask.deadline) < nowTs
+              ? 'Überfällig priorisiert'
+              : 'Nächster Fokus-Task',
+          relevance:
+            focusTask.deadline && +new Date(focusTask.deadline) < nowTs
+              ? 94
+              : 72 - (priorityRank[focusTask.priority] ?? 2) * 4,
+          action: () => setView?.('tasks'),
+        }
+        : null,
+      activeCanvas
+        ? {
+          label: 'Canvas',
+          title: activeCanvas.name || 'Canvas',
+          subtitle: `${activeCanvas.nodes?.length || 0} Nodes · ${new Date(activeCanvas.updated || activeCanvas.created).toLocaleString()}`,
+          reason: 'Letzter visueller Kontext',
+          relevance: 50,
+          action: () => setView?.('canvas'),
+        }
+        : null,
+    ].filter((entry): entry is MobileDashboardResumeEntry => Boolean(entry))
+
+    return entries.sort((a, b) => b.relevance - a.relevance).slice(0, 5)
+  }, [activeCanvasId, canvases, codes, notes, reminders, setView, tasks])
 
   const runCaptureIntent = useCallback((intentType: CaptureIntentType) => {
     const intent = createCaptureIntent(intentType)

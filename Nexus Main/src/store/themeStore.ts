@@ -92,6 +92,7 @@ export interface QOLConfig {
   fontSize: number
   panelDensity: 'comfortable' | 'compact' | 'spacious'
   quickActions: boolean
+  autoAccentContrast?: boolean
   motionProfile?: 'minimal' | 'balanced' | 'expressive' | 'cinematic'
 }
 
@@ -210,7 +211,11 @@ export interface Theme {
 
 // ── Presets ──────────────────────────────────────────────────────────────────
 
-const P: Record<string, any> = {
+type DeepPartial<T> = {
+  [K in keyof T]?: T[K] extends object ? DeepPartial<T[K]> : T[K]
+}
+
+const P: Record<string, DeepPartial<Theme>> = {
   'macOS Dark': {
     mode: 'dark', accent: '#007AFF', accent2: '#5E5CE6', bg: '#1a1a2e',
     glow: { mode: 'outline', color: '#007AFF', intensity: 0.85, radius: 28, spread: 8, blendMode: 'screen', gradientGlow: true, gradientColor1: '#007AFF', gradientColor2: '#5E5CE6', gradientAngle: 135, animated: false, animationSpeed: 1 },
@@ -467,14 +472,15 @@ const DEFAULT_QOL: QOLConfig = {
   fontSize: 14,
   panelDensity: 'comfortable',
   quickActions: false,
+  autoAccentContrast: true,
   motionProfile: 'balanced',
 }
 
-const isRecord = (value: unknown): value is Record<string, any> =>
+const isRecord = (value: unknown): value is Record<string, unknown> =>
   Boolean(value) && typeof value === 'object' && !Array.isArray(value)
 
-const mergeConfig = <T extends Record<string, any>>(base: T, incoming: unknown): T => (
-  isRecord(incoming) ? ({ ...base, ...incoming } as T) : ({ ...base } as T)
+const mergeConfig = <T extends object>(base: T, incoming: unknown): T => (
+  isRecord(incoming) ? ({ ...base, ...(incoming as Partial<T>) } as T) : ({ ...base } as T)
 )
 
 const sanitizePanelRenderer = (value: unknown): GlassmorphismConfig['panelRenderer'] => {
@@ -582,7 +588,7 @@ export const useTheme = create<Theme>()(
       setToolbar: (tb) => set((s) => ({ toolbar: { ...s.toolbar, ...tb } })),
 
       preset: (n) => {
-        const p = P[n]
+        const p = P[n] as Partial<Theme> | undefined
         if (p) set((s) => ({
           ...s, ...p,
           glow: { ...s.glow, ...p.glow },

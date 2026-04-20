@@ -16,6 +16,11 @@ import {
   RendererMode,
 } from "./settings/settingsTypes";
 import { SettingsModulePanels } from "./settings/SettingsModulePanels";
+import {
+  applyThemeTransferPayload,
+  buildThemeTransferPayload,
+  parseThemeTransferPayload,
+} from "./settings/themeTransfer";
 
 export function SettingsView({
   onOpenWalkthrough,
@@ -26,11 +31,13 @@ export function SettingsView({
   const rgb = hexToRgb(t.accent);
   const [module, setModule] = useState<ModuleId>("appearance");
   const [msg, setMsg] = useState<string | null>(null);
+  const [presetEditorOpen, setPresetEditorOpen] = useState(false);
+  const [presetNameDraft, setPresetNameDraft] = useState("");
+  const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
+  const [showExperimentalSettings, setShowExperimentalSettings] = useState(false);
 
-  const panelRenderer = ((t.glassmorphism as any)?.panelRenderer ??
-    "blur") as RendererMode;
-  const glowRenderer = ((t.glassmorphism as any).glowRenderer ??
-    "css") as GlowRendererMode;
+  const panelRenderer = t.glassmorphism.panelRenderer as RendererMode;
+  const glowRenderer = t.glassmorphism.glowRenderer as GlowRendererMode;
 
   const toast = (text: string) => {
     setMsg(text);
@@ -38,27 +45,7 @@ export function SettingsView({
   };
 
   const exportTheme = () => {
-    const payload = JSON.stringify(
-      {
-        accent: t.accent,
-        accent2: t.accent2,
-        bg: t.bg,
-        mode: t.mode,
-        globalFont: t.globalFont,
-        glow: t.glow,
-        blur: t.blur,
-        background: t.background,
-        glassmorphism: t.glassmorphism,
-        visual: t.visual,
-        animations: t.animations,
-        editor: t.editor,
-        notes: t.notes,
-        qol: t.qol,
-        toolbar: t.toolbar,
-      },
-      null,
-      2,
-    );
+    const payload = JSON.stringify(buildThemeTransferPayload(t), null, 2);
     const blob = new Blob([payload], { type: "application/json" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
@@ -72,27 +59,20 @@ export function SettingsView({
     const reader = new FileReader();
     reader.onload = () => {
       try {
-        const data = JSON.parse(String(reader.result || "{}"));
-        if (data.mode) t.setMode(data.mode);
-        if (data.accent || data.accent2 || data.bg) {
-          t.setColors({
-            accent: data.accent,
-            accent2: data.accent2,
-            bg: data.bg,
-          });
+        const data = JSON.parse(String(reader.result || "{}")) as unknown;
+        const parsed = parseThemeTransferPayload(data);
+        if (!parsed.ok) {
+          toast("message" in parsed ? parsed.message : "Theme-Datei ungültig");
+          return;
         }
-        if (data.globalFont) t.setGlobalFont(data.globalFont);
-        if (data.glow) t.setGlow(data.glow);
-        if (data.blur) t.setBlur(data.blur);
-        if (data.background) t.setBackground(data.background);
-        if (data.glassmorphism) t.setGlassmorphism(data.glassmorphism);
-        if (data.visual) t.setVisual(data.visual);
-        if (data.animations) t.setAnimations(data.animations);
-        if (data.editor) t.setEditor(data.editor);
-        if (data.notes) t.setNotes(data.notes);
-        if (data.qol) t.setQOL(data.qol);
-        if (data.toolbar) t.setToolbar(data.toolbar);
-        toast("Theme importiert");
+        applyThemeTransferPayload(t, parsed.payload, {
+          includeReleaseFrozen: false,
+        });
+        toast(
+          parsed.partial
+            ? "Theme importiert (teilweise, mit sicheren Fallbacks)"
+            : "Theme importiert",
+        );
       } catch {
         toast("Import fehlgeschlagen");
       }
@@ -100,29 +80,25 @@ export function SettingsView({
     reader.readAsText(file);
   };
 
-  const saveThemeSlot = () => {
-    const name = window.prompt("Preset Name?")?.trim();
+  const commitSaveThemeSlot = () => {
+    const name = presetNameDraft.trim();
     if (!name) return;
-    const key = `nx-theme-${name}`;
-    const payload = JSON.stringify({
-      accent: t.accent,
-      accent2: t.accent2,
-      bg: t.bg,
-      mode: t.mode,
-      globalFont: t.globalFont,
-      glow: t.glow,
-      blur: t.blur,
-      background: t.background,
-      glassmorphism: t.glassmorphism,
-      visual: t.visual,
-      animations: t.animations,
-      editor: t.editor,
-      notes: t.notes,
-      qol: t.qol,
-      toolbar: t.toolbar,
-    });
+    const safeName = name.toLowerCase().replace(/[^a-z0-9-_\s]/g, "").trim();
+    if (!safeName) {
+      toast("Ungültiger Preset-Name");
+      return;
+    }
+    const key = `nx-theme-${safeName}`;
+    const payload = JSON.stringify(buildThemeTransferPayload(t));
     localStorage.setItem(key, payload);
-    toast(`Preset gespeichert: ${name}`);
+    setPresetEditorOpen(false);
+    setPresetNameDraft("");
+    toast(`Preset gespeichert: ${safeName}`);
+  };
+
+  const openSaveThemeSlot = () => {
+    setPresetNameDraft("");
+    setPresetEditorOpen(true);
   };
 
   const clearSpotlight = () => {
@@ -144,7 +120,7 @@ export function SettingsView({
       recordingMacro: null,
       undoStack: [],
       redoStack: [],
-    } as any);
+    });
     toast("Terminal Workspace bereinigt");
   };
 
@@ -273,7 +249,7 @@ export function SettingsView({
           }}
         >
           <button
-            onClick={saveThemeSlot}
+            onClick={openSaveThemeSlot}
             style={{
               padding: "8px 10px",
               fontSize: 12,
@@ -336,6 +312,74 @@ export function SettingsView({
               }}
             />
           </label>
+          {presetEditorOpen ? (
+            <div
+              style={{
+                borderRadius: 10,
+                border: "1px solid rgba(255,255,255,0.12)",
+                background: "rgba(255,255,255,0.03)",
+                padding: 10,
+                display: "grid",
+                gap: 8,
+              }}
+            >
+              <div style={{ fontSize: 11, fontWeight: 700, opacity: 0.8 }}>
+                Preset Name
+              </div>
+              <input
+                value={presetNameDraft}
+                onChange={(event) => setPresetNameDraft(event.target.value)}
+                placeholder="z. B. focus-laptop"
+                style={{
+                  width: "100%",
+                  borderRadius: 8,
+                  border: "1px solid rgba(255,255,255,0.14)",
+                  background: "rgba(255,255,255,0.05)",
+                  color: "inherit",
+                  fontSize: 12,
+                  padding: "7px 8px",
+                  outline: "none",
+                }}
+              />
+              <div style={{ display: "flex", gap: 6 }}>
+                <button
+                  onClick={commitSaveThemeSlot}
+                  style={{
+                    flex: 1,
+                    borderRadius: 8,
+                    border: `1px solid rgba(${rgb},0.32)`,
+                    background: `rgba(${rgb},0.16)`,
+                    color: t.accent,
+                    fontSize: 11,
+                    fontWeight: 700,
+                    padding: "6px 8px",
+                    cursor: "pointer",
+                  }}
+                >
+                  Speichern
+                </button>
+                <button
+                  onClick={() => {
+                    setPresetEditorOpen(false);
+                    setPresetNameDraft("");
+                  }}
+                  style={{
+                    flex: 1,
+                    borderRadius: 8,
+                    border: "1px solid rgba(255,255,255,0.14)",
+                    background: "rgba(255,255,255,0.04)",
+                    color: "inherit",
+                    fontSize: 11,
+                    fontWeight: 700,
+                    padding: "6px 8px",
+                    cursor: "pointer",
+                  }}
+                >
+                  Abbrechen
+                </button>
+              </div>
+            </div>
+          ) : null}
         </div>
       </aside>
 
@@ -403,6 +447,44 @@ export function SettingsView({
                 flexWrap: "wrap",
               }}
             >
+              <button
+                type="button"
+                onClick={() => setShowAdvancedSettings((value) => !value)}
+                style={{
+                  borderRadius: 8,
+                  border: `1px solid ${showAdvancedSettings ? `rgba(${rgb},0.32)` : "rgba(255,255,255,0.16)"}`,
+                  background: showAdvancedSettings
+                    ? `rgba(${rgb},0.16)`
+                    : "rgba(255,255,255,0.06)",
+                  color: showAdvancedSettings ? t.accent : "inherit",
+                  fontSize: 10,
+                  fontWeight: 700,
+                  padding: "4px 8px",
+                  cursor: "pointer",
+                }}
+              >
+                Advanced {showAdvancedSettings ? "AN" : "OFF"}
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  setShowExperimentalSettings((value) => !value)
+                }
+                style={{
+                  borderRadius: 8,
+                  border: `1px solid ${showExperimentalSettings ? "rgba(255,159,10,0.38)" : "rgba(255,255,255,0.16)"}`,
+                  background: showExperimentalSettings
+                    ? "rgba(255,159,10,0.16)"
+                    : "rgba(255,255,255,0.06)",
+                  color: showExperimentalSettings ? "#ff9f0a" : "inherit",
+                  fontSize: 10,
+                  fontWeight: 700,
+                  padding: "4px 8px",
+                  cursor: "pointer",
+                }}
+              >
+                Experimental {showExperimentalSettings ? "ON" : "OFF"}
+              </button>
               <span>
                 Mode: <strong style={{ color: t.accent }}>{t.mode}</strong>
               </span>
@@ -445,6 +527,8 @@ export function SettingsView({
               rgb={rgb}
               panelRenderer={panelRenderer}
               glowRenderer={glowRenderer}
+              showAdvancedSettings={showAdvancedSettings}
+              showExperimentalSettings={showExperimentalSettings}
               toast={toast}
               onOpenWalkthrough={onOpenWalkthrough}
               clearSpotlight={clearSpotlight}

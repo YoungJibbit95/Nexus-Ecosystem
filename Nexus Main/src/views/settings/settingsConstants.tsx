@@ -26,13 +26,13 @@ export const MODULES: {
     id: "panel",
     icon: <Sparkles size={14} />,
     title: "Panel Background",
-    desc: "Renderer & Glow Pipeline",
+    desc: "Stabiler Panel-Look + Engine-Tuning",
   },
   {
     id: "layout",
     icon: <LayoutGrid size={14} />,
     title: "Layout",
-    desc: "Sidebar, Toolbar, Abstände",
+    desc: "Sidebar, Dichte, Workflow-Zonen",
   },
   {
     id: "motion",
@@ -91,7 +91,7 @@ export const EXPERIENCE_PRESETS: ExperiencePreset[] = [
         gradientGlow: false,
       });
       t.setBlur({ panelBlur: 14, sidebarBlur: 14, modalBlur: 18 });
-      t.setGlassmorphism({ panelRenderer: "blur", glowRenderer: "css" } as any);
+      t.setGlassmorphism({ panelRenderer: "blur", glowRenderer: "css" });
     },
   },
   {
@@ -118,7 +118,7 @@ export const EXPERIENCE_PRESETS: ExperiencePreset[] = [
         gradientGlow: true,
       });
       t.setBlur({ panelBlur: 18, sidebarBlur: 18, modalBlur: 22 });
-      t.setGlassmorphism({ panelRenderer: "blur", glowRenderer: "css" } as any);
+      t.setGlassmorphism({ panelRenderer: "blur", glowRenderer: "css" });
       applyMotionProfile(t, "balanced");
     },
   },
@@ -149,7 +149,7 @@ export const EXPERIENCE_PRESETS: ExperiencePreset[] = [
       t.setGlassmorphism({
         panelRenderer: "glass-shader",
         glowRenderer: "three",
-      } as any);
+      });
       applyMotionProfile(t, "cinematic");
     },
   },

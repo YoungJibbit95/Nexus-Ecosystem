@@ -87,7 +87,7 @@ export const buildWorkspaceRuntimeFingerprint = (snapshot: WorkspaceRuntimeSnaps
   const workspaceSig = state.workspaces
     .map(
       (workspace) =>
-        `${workspace.id}:${workspace.lastAccessed}:${workspace.noteIds.length}:${workspace.codeIds.length}:${workspace.taskIds.length}:${workspace.reminderIds.length}`,
+        `${workspace.id}:${workspace.lastAccessed}:${workspace.noteIds.length}:${workspace.codeIds.length}:${workspace.taskIds.length}:${workspace.reminderIds.length}:${workspace.canvasIds.length}`,
     )
     .join('|')
 

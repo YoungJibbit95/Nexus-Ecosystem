@@ -76,7 +76,14 @@ const renderActiveView = (
     case "code":
       return withViewBoundary("code", <CodeView />);
     case "tasks":
-      return withViewBoundary("tasks", <TasksView />);
+      return withViewBoundary(
+        "tasks",
+        <TasksView
+          setView={(nextView: string) => {
+            onRequestViewChange(nextView);
+          }}
+        />,
+      );
     case "reminders":
       return withViewBoundary(
         "reminders",
@@ -89,9 +96,23 @@ const renderActiveView = (
     case "canvas":
       return withViewBoundary("canvas", <CanvasView />);
     case "files":
-      return withViewBoundary("files", <FilesView />);
+      return withViewBoundary(
+        "files",
+        <FilesView
+          setView={(nextView: string) => {
+            onRequestViewChange(nextView);
+          }}
+        />,
+      );
     case "flux":
-      return withViewBoundary("flux", <FluxView />);
+      return withViewBoundary(
+        "flux",
+        <FluxView
+          setView={(nextView: string) => {
+            onRequestViewChange(nextView);
+          }}
+        />,
+      );
     case "settings":
       return withViewBoundary("settings", <SettingsView />);
     case "info":

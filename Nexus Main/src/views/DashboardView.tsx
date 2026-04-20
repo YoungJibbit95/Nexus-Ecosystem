@@ -32,6 +32,8 @@ export function DashboardView({ setView }: { setView?: (v: string) => void }) {
     updateReminder,
   } = useApp();
   const addCanvas = useCanvas((state) => state.addCanvas);
+  const canvases = useCanvas((state) => state.canvases);
+  const activeCanvasId = useCanvas((state) => state.activeCanvasId);
   const { workspaces: rawWorkspaces, activeWorkspaceId } = useWorkspaces();
   const notes = asObjectArray<any>(rawNotes);
   const tasks = asObjectArray<any>(rawTasks);
@@ -186,6 +188,8 @@ export function DashboardView({ setView }: { setView?: (v: string) => void }) {
     notes,
     tasks,
     codes,
+    canvases,
+    activeCanvasId,
     reminders,
     activities,
     workspaces,

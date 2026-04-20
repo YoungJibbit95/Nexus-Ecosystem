@@ -1,5 +1,14 @@
 import type { CaptureIntentType } from "@nexus/core";
 
+export type DashboardResumeEntry = {
+  label: "Note" | "Code" | "Task" | "Reminder" | "Canvas";
+  title: string;
+  subtitle: string;
+  reason: string;
+  relevance: number;
+  action: () => void;
+};
+
 export type DashboardTopSectionsProps = {
   t: any;
   rgb: string;
@@ -24,8 +33,7 @@ export type DashboardTopSectionsProps = {
   lastSyncLabel: string;
   contentMotion: any;
   contentFramerEase: any;
-  resumeLane: Array<any>;
+  resumeLane: DashboardResumeEntry[];
   widgetContentBuildError: string | null;
   resetLayout: () => void;
 };
-

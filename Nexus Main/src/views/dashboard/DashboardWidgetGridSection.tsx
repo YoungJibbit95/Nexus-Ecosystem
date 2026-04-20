@@ -5,6 +5,7 @@ import { Glass } from "../../components/Glass";
 import { hexToRgb } from "../../lib/utils";
 import { clampX, type Widget } from "./dashboardLayout";
 import { DashboardActionButton } from "./DashboardActionButton";
+import { DashboardWidgetErrorBoundary } from "./DashboardWidgetErrorBoundary";
 
 type PointerDragState = {
   widgetId: string;
@@ -38,7 +39,7 @@ export type DashboardWidgetGridSectionProps = {
   toggleWidget: (widgetId: any) => void;
   t: any;
   rgb: string;
-  widgetContent: Record<string, React.ReactNode>;
+  widgetContent: Partial<Record<string, React.ReactNode>>;
   resetLayout: () => void;
 };
 
@@ -66,6 +67,11 @@ export function DashboardWidgetGridSection({
   widgetContent,
   resetLayout,
 }: DashboardWidgetGridSectionProps) {
+  const targetWidgetLabel =
+    dragState?.targetWidgetId
+      ? visibleWidgets.find((widget) => widget.id === dragState.targetWidgetId)?.label
+      : null;
+
   return (
     <>
       <div
@@ -288,25 +294,30 @@ export function DashboardWidgetGridSection({
                   </div>
                 </div>
               )}
-              {widgetContent[w.id] ?? (
-                <div
-                  style={{
-                    height: "100%",
-                    borderRadius: 12,
-                    border: "1px solid rgba(255,255,255,0.12)",
-                    background: "rgba(255,255,255,0.05)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    textAlign: "center",
-                    padding: 14,
-                    fontSize: 12,
-                    opacity: 0.78,
-                  }}
-                >
-                  {w.label} konnte nicht geladen werden.
-                </div>
-              )}
+              <DashboardWidgetErrorBoundary
+                widgetLabel={w.label}
+                onResetLayout={resetLayout}
+              >
+                {widgetContent[w.id] ?? (
+                  <div
+                    style={{
+                      height: "100%",
+                      borderRadius: 12,
+                      border: "1px solid rgba(255,255,255,0.12)",
+                      background: "rgba(255,255,255,0.05)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      textAlign: "center",
+                      padding: 14,
+                      fontSize: 12,
+                      opacity: 0.78,
+                    }}
+                  >
+                    {w.label} konnte nicht geladen werden.
+                  </div>
+                )}
+              </DashboardWidgetErrorBoundary>
             </motion.div>
           ))
         )}
@@ -346,9 +357,9 @@ export function DashboardWidgetGridSection({
               color: t.accent,
             }}
           >
-            {dragState?.targetWidgetId
-              ? `Swap mit ${dragState.targetWidgetId}`
-              : `Drop: R${dropCell.y} C${dropCell.x}`}
+            {targetWidgetLabel
+              ? `Swap mit ${targetWidgetLabel}`
+              : "Loslassen zum Platzieren"}
           </motion.div>
         )}
         {editLayout && dragState && draggedWidget && (
@@ -463,7 +474,7 @@ export function DashboardWidgetGridSection({
       ) : null}
       <div style={{ marginTop: 12, textAlign: "center", fontSize: 10, opacity: 0.32 }}>
         <Sparkles size={10} style={{ display: "inline", marginRight: 5 }} />
-        Widget-Swap: Ziehe ein Widget direkt auf ein anderes, um Plätze zu tauschen.
+        Widget-Swap: Ziehe ein Widget direkt auf ein anderes für einen Platztausch.
       </div>
     </>
   );

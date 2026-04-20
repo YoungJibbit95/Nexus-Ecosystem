@@ -23,7 +23,11 @@ import { hexToRgb } from "../../lib/utils";
 import { useInteractiveSurfaceMotion } from "../../render/useInteractiveSurfaceMotion";
 import { useRenderSurfaceBudget } from "../../render/useRenderSurfaceBudget";
 import { useSurfaceMotionRuntime } from "../../render/useSurfaceMotionRuntime";
-import type { Toast } from "./reminderHelpers";
+import {
+  REMINDER_SNOOZE_PRESETS,
+  formatReminderRepeat,
+  type Toast,
+} from "./reminderHelpers";
 
 export function ToastCard({
   toast,
@@ -123,7 +127,7 @@ export function ToastCard({
           >
             <Check size={12} /> Dismiss
           </button>
-          {[5, 15, 60].map((minutes) => (
+          {REMINDER_SNOOZE_PRESETS.map((minutes) => (
             <button
               key={minutes}
               onClick={() => onSnooze(minutes)}
@@ -149,13 +153,15 @@ export function ToastCard({
 export function ReminderModal({
   reminder,
   onClose,
+  setView,
 }: {
   reminder?: Reminder;
   onClose: () => void;
+  setView?: (viewId: string) => void;
 }) {
   const t = useTheme();
   const rgb = hexToRgb(t.accent);
-  const { addRem, updateReminder } = useApp();
+  const { addRem, updateReminder, tasks, notes: noteEntries, openNote, setNote } = useApp();
 
   const now = new Date();
   now.setMinutes(now.getMinutes() + 15);
@@ -167,8 +173,12 @@ export function ReminderModal({
     reminder?.datetime ? reminder.datetime.slice(0, 16) : defaultDT,
   );
   const [repeat, setRepeat] = useState<Reminder["repeat"]>(reminder?.repeat ?? "none");
+  const [linkedTaskId, setLinkedTaskId] = useState(reminder?.linkedTaskId ?? "");
+  const [linkedNoteId, setLinkedNoteId] = useState(reminder?.linkedNoteId ?? "");
   const [tab, setTab] = useState<"basic" | "notes">("basic");
-  const [notes, setNotes] = useState((reminder as any)?.notes ?? "");
+  const [reminderNotes, setReminderNotes] = useState((reminder as any)?.notes ?? "");
+  const linkedTask = linkedTaskId ? tasks.find((task) => task.id === linkedTaskId) ?? null : null;
+  const linkedNote = linkedNoteId ? noteEntries.find((note) => note.id === linkedNoteId) ?? null : null;
 
   const modalDecision = useRenderSurfaceBudget({
     id: `reminders-modal-${reminder?.id ?? "new"}`,
@@ -214,11 +224,20 @@ export function ReminderModal({
           msg,
           datetime: new Date(datetime).toISOString(),
           repeat,
-          notes,
+          linkedTaskId: linkedTaskId || undefined,
+          linkedNoteId: linkedNoteId || undefined,
+          notes: reminderNotes,
         } as any,
       );
     } else {
-      addRem({ title, msg, datetime: new Date(datetime).toISOString(), repeat });
+      addRem({
+        title,
+        msg,
+        datetime: new Date(datetime).toISOString(),
+        repeat,
+        linkedTaskId: linkedTaskId || undefined,
+        linkedNoteId: linkedNoteId || undefined,
+      });
     }
     onClose();
   };
@@ -406,13 +425,101 @@ export function ReminderModal({
                     </button>
                   ))}
                 </div>
+                <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
+                  <label style={{ display: "grid", gap: 4, fontSize: 11, opacity: 0.8 }}>
+                    Verknupfte Task
+                    <select
+                      value={linkedTaskId}
+                      onChange={(event) => setLinkedTaskId(event.target.value)}
+                      style={{
+                        borderRadius: 8,
+                        border: "1px solid rgba(255,255,255,0.12)",
+                        background: "rgba(255,255,255,0.05)",
+                        color: "inherit",
+                        padding: "7px 9px",
+                        fontSize: 12,
+                      }}
+                    >
+                      <option value="">Keine Task</option>
+                      {tasks.slice(0, 120).map((task) => (
+                        <option key={task.id} value={task.id}>
+                          {task.title}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label style={{ display: "grid", gap: 4, fontSize: 11, opacity: 0.8 }}>
+                    Verknupfte Note
+                    <select
+                      value={linkedNoteId}
+                      onChange={(event) => setLinkedNoteId(event.target.value)}
+                      style={{
+                        borderRadius: 8,
+                        border: "1px solid rgba(255,255,255,0.12)",
+                        background: "rgba(255,255,255,0.05)",
+                        color: "inherit",
+                        padding: "7px 9px",
+                        fontSize: 12,
+                      }}
+                    >
+                      <option value="">Keine Note</option>
+                      {noteEntries.slice(0, 160).map((note) => (
+                        <option key={note.id} value={note.id}>
+                          {note.title}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+                {linkedTask || linkedNote ? (
+                  <div style={{ marginTop: 8, display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    {linkedTask ? (
+                      <button
+                        onClick={() => setView?.("tasks")}
+                        style={{
+                          padding: "4px 9px",
+                          borderRadius: 7,
+                          border: "1px solid rgba(255,255,255,0.14)",
+                          background: "rgba(255,255,255,0.06)",
+                          cursor: "pointer",
+                          fontSize: 10,
+                          fontWeight: 700,
+                          color: "inherit",
+                        }}
+                      >
+                        Open Task
+                      </button>
+                    ) : null}
+                    {linkedNote ? (
+                      <button
+                        onClick={() => {
+                          openNote(linkedNote.id);
+                          setNote(linkedNote.id);
+                          setView?.("notes");
+                        }}
+                        style={{
+                          padding: "4px 9px",
+                          borderRadius: 7,
+                          border: "1px solid rgba(255,255,255,0.14)",
+                          background: "rgba(255,255,255,0.06)",
+                          cursor: "pointer",
+                          fontSize: 10,
+                          fontWeight: 700,
+                          color: "inherit",
+                        }}
+                      >
+                        Open Note
+                      </button>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
             )}
             {tab === "notes" && (
               <div style={{ display: "flex", flexDirection: "column", height: 280 }}>
                 <textarea
-                  value={notes}
-                  onChange={(event) => setNotes(event.target.value)}
+                  value={reminderNotes}
+                  onChange={(event) => setReminderNotes(event.target.value)}
                   placeholder="Markdown notes…"
                   style={{
                     flex: 1,
@@ -483,18 +590,22 @@ export function ReminderCard({
   r,
   onEdit,
   now,
+  setView,
 }: {
   r: Reminder;
   onEdit: () => void;
   now: Date;
+  setView?: (viewId: string) => void;
 }) {
   const t = useTheme();
   const rgb = hexToRgb(t.accent);
-  const { doneRem, delRem, snoozeRem } = useApp();
+  const { doneRem, delRem, snoozeRem, tasks, notes, openNote, setNote } = useApp();
   const dt = new Date(r.snoozeUntil || r.datetime);
   const isPast = dt < now && !r.done;
   const isSoon = !isPast && dt.getTime() - now.getTime() < 30 * 60000;
   const hasnotes = !!(r as any).notes;
+  const linkedTask = r.linkedTaskId ? tasks.find((task) => task.id === r.linkedTaskId) ?? null : null;
+  const linkedNote = r.linkedNoteId ? notes.find((note) => note.id === r.linkedNoteId) ?? null : null;
   const [expanded, setExpanded] = useState(false);
   const cardDecision = useRenderSurfaceBudget({
     id: `reminder-card-${r.id}`,
@@ -548,6 +659,13 @@ export function ReminderCard({
     if (today) return `Today ${timeStr}`;
     if (tomorrow) return `Tomorrow ${timeStr}`;
     return `${date.toLocaleDateString([], { month: "short", day: "numeric" })} ${timeStr}`;
+  };
+
+  const openLinkedNote = () => {
+    if (!linkedNote) return;
+    openNote(linkedNote.id);
+    setNote(linkedNote.id);
+    setView?.("notes");
   };
 
   return (
@@ -697,9 +815,51 @@ export function ReminderCard({
                       color: t.accent,
                     }}
                   >
-                    <Repeat size={9} /> {r.repeat}
+                    <Repeat size={9} /> {formatReminderRepeat(r.repeat)}
                   </span>
                 )}
+                {linkedTask ? (
+                  <button
+                    onClick={() => setView?.("tasks")}
+                    style={{
+                      fontSize: 10,
+                      padding: "2px 7px",
+                      borderRadius: 10,
+                      border: "1px solid rgba(255,255,255,0.16)",
+                      background: "rgba(255,255,255,0.06)",
+                      color: "inherit",
+                      cursor: "pointer",
+                      maxWidth: 180,
+                      whiteSpace: "nowrap",
+                      textOverflow: "ellipsis",
+                      overflow: "hidden",
+                    }}
+                    title={linkedTask.title}
+                  >
+                    Task: {linkedTask.title}
+                  </button>
+                ) : null}
+                {linkedNote ? (
+                  <button
+                    onClick={openLinkedNote}
+                    style={{
+                      fontSize: 10,
+                      padding: "2px 7px",
+                      borderRadius: 10,
+                      border: "1px solid rgba(255,255,255,0.16)",
+                      background: "rgba(255,255,255,0.06)",
+                      color: "inherit",
+                      cursor: "pointer",
+                      maxWidth: 180,
+                      whiteSpace: "nowrap",
+                      textOverflow: "ellipsis",
+                      overflow: "hidden",
+                    }}
+                    title={linkedNote.title}
+                  >
+                    Note: {linkedNote.title}
+                  </button>
+                ) : null}
               </div>
             </div>
           </div>
@@ -725,13 +885,51 @@ export function ReminderCard({
                 >
                   <NexusMarkdown content={(r as any).notes} />
                 </div>
+                {linkedTask || linkedNote ? (
+                  <div style={{ marginTop: 8, display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    {linkedTask ? (
+                      <button
+                        onClick={() => setView?.("tasks")}
+                        style={{
+                          padding: "4px 9px",
+                          borderRadius: 7,
+                          border: "1px solid rgba(255,255,255,0.14)",
+                          background: "rgba(255,255,255,0.06)",
+                          cursor: "pointer",
+                          fontSize: 10,
+                          fontWeight: 700,
+                          color: "inherit",
+                        }}
+                      >
+                        Open Task
+                      </button>
+                    ) : null}
+                    {linkedNote ? (
+                      <button
+                        onClick={openLinkedNote}
+                        style={{
+                          padding: "4px 9px",
+                          borderRadius: 7,
+                          border: "1px solid rgba(255,255,255,0.14)",
+                          background: "rgba(255,255,255,0.06)",
+                          cursor: "pointer",
+                          fontSize: 10,
+                          fontWeight: 700,
+                          color: "inherit",
+                        }}
+                      >
+                        Open Note
+                      </button>
+                    ) : null}
+                  </div>
+                ) : null}
               </motion.div>
             )}
           </AnimatePresence>
 
           {isPast && !r.done && (
             <div style={{ display: "flex", gap: 5, marginTop: 10 }}>
-              {[5, 15, 60].map((minutes) => (
+              {REMINDER_SNOOZE_PRESETS.map((minutes) => (
                 <button
                   key={minutes}
                   onClick={() => snoozeRem(r.id, minutes)}

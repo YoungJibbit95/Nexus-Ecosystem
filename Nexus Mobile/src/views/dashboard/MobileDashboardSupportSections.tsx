@@ -102,3 +102,67 @@ export function MobileDashboardEmptyWidgetsState({
     </Glass>
   );
 }
+
+export function MobileDashboardWidgetSafeModeNotice({
+  error,
+  resetLayout,
+  t,
+  rgb,
+}: {
+  error: string | null;
+  resetLayout: () => void;
+  t: any;
+  rgb: string;
+}) {
+  if (!error) return null;
+  return (
+    <Glass
+      style={{
+        padding: "10px 11px",
+        marginBottom: 12,
+        border: "1px solid rgba(255,69,58,0.4)",
+        background: "rgba(255,69,58,0.12)",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 8,
+          flexWrap: "wrap",
+        }}
+      >
+        <span style={{ fontSize: 11, fontWeight: 700, color: "#ffd6d1" }}>
+          Dashboard läuft im Safe Mode (Widget-Build-Fehler erkannt)
+        </span>
+        <DashboardActionButton
+          onClick={resetLayout}
+          liquidColor={t.accent}
+          style={{
+            borderRadius: 8,
+            border: `1px solid rgba(${rgb},0.3)`,
+            background: `rgba(${rgb},0.12)`,
+            color: t.accent,
+            fontSize: 10,
+            fontWeight: 700,
+            padding: "5px 8px",
+            cursor: "pointer",
+          }}
+        >
+          Layout resetten
+        </DashboardActionButton>
+      </div>
+      <div
+        style={{
+          marginTop: 6,
+          fontSize: 10,
+          opacity: 0.72,
+          wordBreak: "break-word",
+        }}
+      >
+        Fehler: {error}
+      </div>
+    </Glass>
+  );
+}

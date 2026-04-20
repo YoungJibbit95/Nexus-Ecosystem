@@ -113,7 +113,19 @@ export function WorkspaceModal({ ws, onClose }: { ws?: Workspace; onClose: () =>
   )
 }
 
-export function FileCard({ item, viewMode, onAssign, wsColor }: { item: FileItem; viewMode: ViewMode; onAssign: () => void; wsColor?: string }) {
+export function FileCard({
+  item,
+  viewMode,
+  onAssign,
+  onOpen,
+  wsColor,
+}: {
+  item: FileItem
+  viewMode: ViewMode
+  onAssign: () => void
+  onOpen?: (item: FileItem) => void
+  wsColor?: string
+}) {
   const meta = TYPE_META[item.type]
   const Icon = meta.icon
   const [menu, setMenu] = useState(false)
@@ -136,8 +148,18 @@ export function FileCard({ item, viewMode, onAssign, wsColor }: { item: FileItem
   })
 
   const open = () => {
-    if (item.type === 'note') { openNote(item.id); setNote(item.id) }
-    if (item.type === 'code') { openCode(item.id); setCode(item.id) }
+    if (onOpen) {
+      onOpen(item)
+      return
+    }
+    if (item.type === 'note') {
+      openNote(item.id)
+      setNote(item.id)
+    }
+    if (item.type === 'code') {
+      openCode(item.id)
+      setCode(item.id)
+    }
   }
 
   const timeAgo = (iso: string) => {
@@ -254,7 +276,7 @@ export function FileCard({ item, viewMode, onAssign, wsColor }: { item: FileItem
       </div>
       {menu && (
         <div style={{ position:'absolute', top:10, right:30, zIndex:50, background:'rgba(20,20,30,0.95)', backdropFilter:'blur(12px)', borderRadius:10, padding:6, border:'1px solid rgba(255,255,255,0.1)', minWidth:140, boxShadow:'0 8px 24px rgba(0,0,0,0.4)' }} onClick={e=>e.stopPropagation()}>
-          {(item.type==='note'||item.type==='code') && <MenuItem icon={<ArrowRight size={12}/>} label="Open" onClick={()=>{open();setMenu(false)}}/>}
+          <MenuItem icon={<ArrowRight size={12}/>} label="Open" onClick={()=>{open();setMenu(false)}}/>
           <MenuItem icon={<Package size={12}/>} label="Add to Workspace" onClick={()=>{onAssign();setMenu(false)}}/>
         </div>
       )}

@@ -16,6 +16,10 @@ export function MobileDashboardWidgetEditChrome({
   layoutLocked,
   mob,
 }: any) {
+  const dragActive = Boolean(dragState)
+  const isDraggingThisWidget = dragState?.widgetId === w.id
+  const controlsLocked = layoutLocked || dragActive
+
   return (
     <div
       style={{
@@ -62,10 +66,10 @@ export function MobileDashboardWidgetEditChrome({
           borderRadius: 8,
           fontSize: 9,
           fontWeight: 700,
-          cursor: layoutLocked ? "not-allowed" : "grab",
-          opacity: layoutLocked ? 0.35 : 0.9,
+          cursor: layoutLocked ? "not-allowed" : isDraggingThisWidget ? "grabbing" : "grab",
+          opacity: layoutLocked ? 0.35 : isDraggingThisWidget ? 1 : 0.9,
         }}
-        title="Long press und ziehen zum Tauschen"
+        title="Long press und ziehen zum Tauschen (Pfeile sind Fallback)"
       >
         <GripVertical size={10} />
         {w.label}
@@ -82,9 +86,10 @@ export function MobileDashboardWidgetEditChrome({
             fontSize: 9,
             fontWeight: 800,
             padding: "2px 6px",
-            cursor: layoutLocked ? "not-allowed" : "pointer",
+            cursor: controlsLocked ? "not-allowed" : "pointer",
+            opacity: controlsLocked ? 0.55 : 1,
           }}
-          disabled={layoutLocked}
+          disabled={controlsLocked}
         >
           1w
         </DashboardActionButton>
@@ -99,10 +104,10 @@ export function MobileDashboardWidgetEditChrome({
             fontSize: 9,
             fontWeight: 800,
             padding: "2px 6px",
-            cursor: mob.isMobile || layoutLocked ? "not-allowed" : "pointer",
-            opacity: mob.isMobile ? 0.55 : 1,
+            cursor: mob.isMobile || controlsLocked ? "not-allowed" : "pointer",
+            opacity: mob.isMobile || controlsLocked ? 0.55 : 1,
           }}
-          disabled={layoutLocked || mob.isMobile}
+          disabled={controlsLocked || mob.isMobile}
         >
           2w
         </DashboardActionButton>
@@ -120,9 +125,10 @@ export function MobileDashboardWidgetEditChrome({
             display: "inline-flex",
             alignItems: "center",
             justifyContent: "center",
-            cursor: layoutLocked ? "not-allowed" : "pointer",
+            cursor: controlsLocked ? "not-allowed" : "pointer",
+            opacity: controlsLocked ? 0.55 : 1,
           }}
-          disabled={layoutLocked}
+          disabled={controlsLocked}
         >
           <ChevronUp size={10} />
         </DashboardActionButton>
@@ -140,9 +146,10 @@ export function MobileDashboardWidgetEditChrome({
             display: "inline-flex",
             alignItems: "center",
             justifyContent: "center",
-            cursor: layoutLocked ? "not-allowed" : "pointer",
+            cursor: controlsLocked ? "not-allowed" : "pointer",
+            opacity: controlsLocked ? 0.55 : 1,
           }}
-          disabled={layoutLocked}
+          disabled={controlsLocked}
         >
           <ChevronDown size={10} />
         </DashboardActionButton>
@@ -160,9 +167,10 @@ export function MobileDashboardWidgetEditChrome({
             display: "inline-flex",
             alignItems: "center",
             justifyContent: "center",
-            cursor: layoutLocked ? "not-allowed" : "pointer",
+            cursor: controlsLocked ? "not-allowed" : "pointer",
+            opacity: controlsLocked ? 0.55 : 1,
           }}
-          disabled={layoutLocked}
+          disabled={controlsLocked}
         >
           {w.visible ? <Eye size={10} /> : <EyeOff size={10} />}
         </DashboardActionButton>

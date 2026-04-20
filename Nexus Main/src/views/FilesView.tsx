@@ -22,24 +22,34 @@ import {
   FileCard,
   WorkspaceModal,
 } from "./files/FilesUiParts";
-import type { FileItem, ItemType, ViewMode } from "./files/filesTypes";
+import type {
+  FileItem,
+  ItemType,
+  SmartViewMode,
+  ViewMode,
+} from "./files/filesTypes";
 import { useWorkspaceSync } from "./files/useWorkspaceSync";
 
-export function FilesView() {
+type FilesViewProps = {
+  setView?: (view: string) => void;
+};
+
+export function FilesView({ setView }: FilesViewProps = {}) {
   const t = useTheme();
   const rgb = hexToRgb(t.accent);
-  const { notes, codes, tasks, reminders } = useApp();
-  const { canvases } = useCanvas();
+  const { notes, codes, tasks, reminders, folders, openNote, setNote, openCode, setCode } = useApp();
+  const { canvases, setActiveCanvas } = useCanvas();
   const { workspaces, activeWorkspaceId, setActive } = useWorkspaces();
 
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<"all" | ItemType>("all");
+  const [smartView, setSmartView] = useState<SmartViewMode>("all");
+  const [folderFilter, setFolderFilter] = useState<"all" | "none" | string>("all");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [tab, setTab] = useState<"all" | "workspaces">("all");
   const [newWsOpen, setNewWsOpen] = useState(false);
   const [editWs, setEditWs] = useState<Workspace | null>(null);
   const [assignItem, setAssignItem] = useState<FileItem | null>(null);
-  const [onlyUnassigned, setOnlyUnassigned] = useState(false);
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
 
   const {
@@ -73,6 +83,8 @@ export function FilesView() {
         type: "note",
         updated: note.updated || note.created,
         preview: note.content?.slice(0, 80),
+        folderId: note.folderId ?? null,
+        pinned: Boolean(note.pinned),
       });
     });
     codes.forEach((code) => {
@@ -83,6 +95,8 @@ export function FilesView() {
         updated: code.updated || code.created,
         preview: `${code.lang} · ${(code.content || "").split("\n").length} lines`,
         lang: code.lang,
+        folderId: code.folderId ?? null,
+        pinned: Boolean(code.pinned),
       });
     });
     tasks.forEach((task) => {
@@ -94,6 +108,7 @@ export function FilesView() {
         preview: task.desc?.slice(0, 60),
         priority: task.priority,
         status: task.status,
+        folderId: task.folderId ?? null,
       });
     });
     reminders.forEach((reminder) => {
@@ -103,16 +118,52 @@ export function FilesView() {
         type: "reminder",
         updated: reminder.datetime,
         preview: reminder.msg?.slice(0, 60),
+        folderId: reminder.folderId ?? null,
+      });
+    });
+    canvases.forEach((canvas) => {
+      items.push({
+        id: canvas.id,
+        title: canvas.name || "Untitled Canvas",
+        type: "canvas",
+        updated: canvas.updated || canvas.created,
+        preview: `${canvas.nodes.length} nodes · ${canvas.connections.length} links`,
       });
     });
     return items.sort(
       (a, b) => new Date(b.updated).getTime() - new Date(a.updated).getTime(),
     );
-  }, [notes, codes, tasks, reminders]);
+  }, [canvases, codes, notes, reminders, tasks]);
 
-  const filtered = useMemo(() => {
+  const itemInWorkspace = (workspace: Workspace, item: FileItem) => {
+    const key = `${item.type}Ids` as keyof Workspace;
+    return (workspace[key] as string[]).includes(item.id);
+  };
+
+  const isItemAssigned = (item: FileItem) =>
+    workspaces.some((workspace) => itemInWorkspace(workspace, item));
+
+  const folderOptions = useMemo(() => {
+    const used = new Set(
+      allItems
+        .map((item) => item.folderId)
+        .filter((folderId): folderId is string => Boolean(folderId)),
+    );
+    return folders
+      .filter((folder) => used.has(folder.id))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [allItems, folders]);
+
+  const displayItems = useMemo(() => {
     let items = allItems;
-    if (typeFilter !== "all") items = items.filter((item) => item.type === typeFilter);
+    if (typeFilter !== "all") {
+      items = items.filter((item) => item.type === typeFilter);
+    }
+    if (folderFilter === "none") {
+      items = items.filter((item) => !item.folderId);
+    } else if (folderFilter !== "all") {
+      items = items.filter((item) => item.folderId === folderFilter);
+    }
     if (search) {
       const q = search.toLowerCase();
       items = items.filter(
@@ -121,50 +172,69 @@ export function FilesView() {
           item.preview?.toLowerCase().includes(q),
       );
     }
-    if (onlyUnassigned) {
-      items = items.filter(
-        (item) =>
-          !workspaces.some((workspace) =>
-            (workspace[`${item.type}Ids` as keyof Workspace] as string[]).includes(item.id),
-          ),
-      );
+
+    if (tab === "workspaces" && activeWs) {
+      items = items.filter((item) => itemInWorkspace(activeWs, item));
     }
+
+    if (smartView === "workspace" && activeWs) {
+      items = items.filter((item) => itemInWorkspace(activeWs, item));
+    }
+    if (smartView === "recent") {
+      const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+      items = items.filter((item) => new Date(item.updated).getTime() >= cutoff);
+    }
+    if (smartView === "pinned") {
+      items = items.filter((item) => item.pinned);
+    }
+    if (smartView === "unassigned") {
+      items = items.filter((item) => !isItemAssigned(item));
+    }
+
     return items;
-  }, [allItems, onlyUnassigned, search, typeFilter, workspaces]);
-
-  const wsItems = useMemo(() => {
-    if (!activeWs) return filtered;
-    return filtered.filter((item) => {
-      const key = `${item.type}Ids` as keyof Workspace;
-      return (activeWs[key] as string[]).includes(item.id);
-    });
-  }, [activeWs, filtered]);
-
-  const displayItems = tab === "workspaces" && activeWs ? wsItems : filtered;
+  }, [activeWs, allItems, folderFilter, isItemAssigned, search, smartView, tab, typeFilter]);
 
   const wsItemCount = (workspace: Workspace) =>
     workspace.noteIds.length +
     workspace.codeIds.length +
     workspace.taskIds.length +
-    workspace.reminderIds.length;
+    workspace.reminderIds.length +
+    workspace.canvasIds.length;
 
   const getItemWsColor = (item: FileItem) => {
-    const workspace = workspaces.find((entry) =>
-      (entry[`${item.type}Ids` as keyof Workspace] as string[]).includes(item.id),
-    );
+    const workspace = workspaces.find((entry) => itemInWorkspace(entry, item));
     return workspace?.color;
   };
 
   const unassignedCount = useMemo(
-    () =>
-      allItems.filter(
-        (item) =>
-          !workspaces.some((workspace) =>
-            (workspace[`${item.type}Ids` as keyof Workspace] as string[]).includes(item.id),
-          ),
-      ).length,
-    [allItems, workspaces],
+    () => allItems.filter((item) => !isItemAssigned(item)).length,
+    [allItems, isItemAssigned],
   );
+
+  const openItem = (item: FileItem) => {
+    if (item.type === "note") {
+      openNote(item.id);
+      setNote(item.id);
+      setView?.("notes");
+      return;
+    }
+    if (item.type === "code") {
+      openCode(item.id);
+      setCode(item.id);
+      setView?.("code");
+      return;
+    }
+    if (item.type === "task") {
+      setView?.("tasks");
+      return;
+    }
+    if (item.type === "reminder") {
+      setView?.("reminders");
+      return;
+    }
+    setActiveCanvas(item.id);
+    setView?.("canvas");
+  };
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
@@ -376,6 +446,7 @@ export function FilesView() {
               onClick={() => {
                 setActive(null);
                 setTab("all");
+                setSmartView("all");
               }}
               motionId="files-workspace-all-files"
               selected={!activeWorkspaceId}
@@ -441,12 +512,14 @@ export function FilesView() {
                   onClick={() => {
                     setActive(ws.id);
                     setTab("workspaces");
+                    setSmartView("workspace");
                   }}
                   onKeyDown={(event) => {
                     if (event.key === "Enter" || event.key === " ") {
                       event.preventDefault();
                       setActive(ws.id);
                       setTab("workspaces");
+                      setSmartView("workspace");
                     }
                   }}
                   style={{ width: "100%", color: "inherit", cursor: "pointer" }}
@@ -588,7 +661,7 @@ export function FilesView() {
             </div>
 
             <div style={{ display: "flex", background: "rgba(255,255,255,0.06)", borderRadius: 8, overflow: "hidden" }}>
-              {(["all", "note", "code", "task", "reminder"] as const).map((filter) => (
+              {(["all", "note", "code", "task", "reminder", "canvas"] as const).map((filter) => (
                 <InteractiveActionButton
                   key={filter}
                   onClick={() => setTypeFilter(filter)}
@@ -613,6 +686,29 @@ export function FilesView() {
                 </InteractiveActionButton>
               ))}
             </div>
+
+            <select
+              value={folderFilter}
+              onChange={(event) => setFolderFilter(event.target.value)}
+              style={{
+                padding: "6px 8px",
+                borderRadius: 8,
+                background: "rgba(255,255,255,0.06)",
+                border: "1px solid rgba(255,255,255,0.12)",
+                outline: "none",
+                color: "inherit",
+                fontSize: 11,
+                minWidth: 128,
+              }}
+            >
+              <option value="all">All folders</option>
+              <option value="none">No folder</option>
+              {folderOptions.map((folder) => (
+                <option key={folder.id} value={folder.id}>
+                  {folder.name}
+                </option>
+              ))}
+            </select>
 
             <div style={{ display: "flex", background: "rgba(255,255,255,0.06)", borderRadius: 8, overflow: "hidden" }}>
               <InteractiveActionButton
@@ -667,36 +763,39 @@ export function FilesView() {
               flexWrap: "wrap",
             }}
           >
-            <span
-              style={{
-                fontSize: 10,
-                padding: "3px 8px",
-                borderRadius: 999,
-                background: "rgba(255,255,255,0.06)",
-                border: "1px solid rgba(255,255,255,0.1)",
-              }}
-            >
-              <strong>{unassignedCount}</strong> <span style={{ opacity: 0.6 }}>unassigned</span>
-            </span>
-            <InteractiveActionButton
-              onClick={() => setOnlyUnassigned((state) => !state)}
-              motionId="files-only-unassigned-toggle"
-              selected={onlyUnassigned}
-              areaHint={82}
-              radius={8}
-              style={{
-                padding: "5px 9px",
-                borderRadius: 8,
-                border: `1px solid ${onlyUnassigned ? t.accent : "rgba(255,255,255,0.14)"}`,
-                background: onlyUnassigned ? `rgba(${rgb},0.14)` : "rgba(255,255,255,0.06)",
-                color: onlyUnassigned ? t.accent : "inherit",
-                fontSize: 10,
-                fontWeight: 700,
-                cursor: "pointer",
-              }}
-            >
-              {onlyUnassigned ? "Show all" : "Only unassigned"}
-            </InteractiveActionButton>
+            {(
+              [
+                { id: "all", label: "All" },
+                { id: "workspace", label: "Workspace" },
+                { id: "recent", label: "Recent 7d" },
+                { id: "pinned", label: "Pinned" },
+                { id: "unassigned", label: `Unassigned (${unassignedCount})` },
+              ] as const
+            ).map((entry) => (
+              <InteractiveActionButton
+                key={entry.id}
+                onClick={() => {
+                  setSmartView(entry.id);
+                  setTab(entry.id === "workspace" ? "workspaces" : "all");
+                }}
+                motionId={`files-smart-view-${entry.id}`}
+                selected={smartView === entry.id}
+                areaHint={78}
+                radius={8}
+                style={{
+                  padding: "5px 9px",
+                  borderRadius: 8,
+                  border: `1px solid ${smartView === entry.id ? t.accent : "rgba(255,255,255,0.14)"}`,
+                  background: smartView === entry.id ? `rgba(${rgb},0.14)` : "rgba(255,255,255,0.06)",
+                  color: smartView === entry.id ? t.accent : "inherit",
+                  fontSize: 10,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                {entry.label}
+              </InteractiveActionButton>
+            ))}
           </div>
 
           <div
@@ -715,6 +814,7 @@ export function FilesView() {
               { label: "Code", val: codes.length, color: "#BF5AF2" },
               { label: "Tasks", val: tasks.length, color: "#FF9F0A" },
               { label: "Reminders", val: reminders.length, color: "#FF453A" },
+              { label: "Canvas", val: canvases.length, color: "#30D158" },
             ].map((entry) => (
               <div key={entry.label} style={{ fontSize: 10, display: "flex", alignItems: "center", gap: 5 }}>
                 <div style={{ width: 6, height: 6, borderRadius: "50%", background: entry.color }} />
@@ -749,7 +849,7 @@ export function FilesView() {
                   <div style={{ fontSize: 12, opacity: 0.6 }}>
                     {activeWs
                       ? "Add files to this workspace via the ⋮ menu on any file"
-                      : "Create notes, code files, tasks, or reminders to see them here"}
+                      : "Create notes, code files, tasks, reminders, or canvases to see them here"}
                   </div>
                 </div>
               </div>
@@ -761,6 +861,7 @@ export function FilesView() {
                     item={item}
                     viewMode="grid"
                     onAssign={() => setAssignItem(item)}
+                    onOpen={openItem}
                     wsColor={getItemWsColor(item)}
                   />
                 ))}
@@ -773,6 +874,7 @@ export function FilesView() {
                     item={item}
                     viewMode="list"
                     onAssign={() => setAssignItem(item)}
+                    onOpen={openItem}
                     wsColor={getItemWsColor(item)}
                   />
                 ))}

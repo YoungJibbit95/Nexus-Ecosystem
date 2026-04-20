@@ -1,8 +1,8 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react'
+import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import {
   Play, Copy, Plus, Trash2, Save, X, FileCode,
   ChevronDown, ChevronRight, Terminal, Download,
-  Search, RotateCcw, Columns, Eye, Edit3, Loader, Clock
+  Search, RotateCcw, Columns, Eye, Edit3, Loader, Clock, Command
 } from 'lucide-react'
 import { Glass } from '../components/Glass'
 import { InteractiveIconButton } from '../components/render/InteractiveIconButton'
@@ -12,175 +12,7 @@ import { useTheme } from '../store/themeStore'
 import { hexToRgb } from '../lib/utils'
 import { motion, AnimatePresence } from 'framer-motion'
 import { shallow } from 'zustand/shallow'
-
-// ─────────────────────────────────────────────
-// Language registry
-// ─────────────────────────────────────────────
-const LANGS = [
-  { id: 'javascript', label: 'JavaScript', ext: 'js',   color: '#F7DF1E', hello: `// JavaScript\nconsole.log("Hello, World!")\nconsole.log("2 + 2 =", 2 + 2)\n\nconst nums = [1,2,3,4,5]\nconsole.log("squares:", nums.map(x => x * x))\nconsole.log("sum:", nums.reduce((a,b) => a+b, 0))\n\nconst greet = name => \`Hello, \${name}!\`\nconsole.log(greet("Nexus"))` },
-  { id: 'typescript', label: 'TypeScript', ext: 'ts',   color: '#3178C6', hello: `// TypeScript\ninterface Person { name: string; age: number }\n\nconst greet = (p: Person): string => \`Hi \${p.name}, age \${p.age}!\`\n\nconst people: Person[] = [\n  { name: "Alice", age: 30 },\n  { name: "Bob",   age: 25 },\n]\n\npeople.forEach(p => console.log(greet(p)))\nconsole.log("Total:", people.length)` },
-  { id: 'python',     label: 'Python',     ext: 'py',   color: '#3572A5', hello: `# Python\nprint("Hello, World!")\nprint(f"2 + 2 = {2 + 2}")\n\nnums = [1, 2, 3, 4, 5]\nprint("squares:", [x**2 for x in nums])\nprint("sum:", sum(nums))\n\nfor i in range(3):\n    print(f"  loop {i}")` },
-  { id: 'html',       label: 'HTML',       ext: 'html', color: '#E34C26', hello: `<!DOCTYPE html>\n<html lang="en">\n<head>\n  <meta charset="UTF-8">\n  <title>Hello</title>\n  <style>\n    body { font-family: system-ui; background: #0a0a14; color: white; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }\n    h1 { background: linear-gradient(135deg, #007AFF, #5E5CE6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }\n  </style>\n</head>\n<body>\n  <div>\n    <h1>Hello, World!</h1>\n    <p>Edit this HTML preview →</p>\n  </div>\n</body>\n</html>` },
-  { id: 'css',        label: 'CSS',        ext: 'css',  color: '#563d7c', hello: `/* CSS Preview */\nbody {\n  background: linear-gradient(135deg, #0a0a14 0%, #1a1a2e 100%);\n  min-height: 100vh;\n  margin: 0;\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  font-family: system-ui, sans-serif;\n  color: white;\n}\n\n.card {\n  padding: 2rem;\n  border-radius: 16px;\n  background: rgba(255,255,255,0.08);\n  backdrop-filter: blur(20px);\n  border: 1px solid rgba(255,255,255,0.12);\n  text-align: center;\n}` },
-  { id: 'json',       label: 'JSON',       ext: 'json', color: '#8bc34a', hello: `{\n  "name": "Nexus v5",\n  "version": "5.0.0",\n  "features": [\n    "Code Editor",\n    "Canvas",\n    "Tasks",\n    "Reminders"\n  ],\n  "settings": {\n    "theme": "Deep Space",\n    "glow": true,\n    "blur": 20\n  }\n}` },
-  { id: 'markdown',   label: 'Markdown',   ext: 'md',   color: '#083fa1', hello: `# Hello World\n\nThis is a **Markdown** preview with *live rendering*.\n\n## Features\n\n- ✅ Live preview\n- ✅ Syntax highlighting\n- ✅ GFM tables\n\n## Code\n\n\`\`\`js\nconsole.log("Hello!")\n\`\`\`\n\n## Table\n\n| Name | Value |\n|------|-------|\n| Alpha | 1 |\n| Beta | 2 |` },
-  { id: 'java',       label: 'Java',       ext: 'java', color: '#b07219', hello: `public class Main {\n    public static void main(String[] args) {\n        System.out.println("Hello, World!");\n        \n        int sum = 0;\n        for (int i = 1; i <= 10; i++) {\n            sum += i;\n        }\n        System.out.println("Sum 1-10: " + sum);\n        \n        String[] fruits = {"Apple", "Banana", "Cherry"};\n        for (String f : fruits) {\n            System.out.println("  - " + f);\n        }\n    }\n}` },
-  { id: 'cpp',        label: 'C++',        ext: 'cpp',  color: '#f34b7d', hello: `#include <iostream>\n#include <vector>\nusing namespace std;\n\nint main() {\n    cout << "Hello, World!" << endl;\n    \n    vector<int> nums = {1, 2, 3, 4, 5};\n    int sum = 0;\n    for (int n : nums) {\n        sum += n;\n        cout << n * n << " ";\n    }\n    cout << endl;\n    cout << "Sum: " << sum << endl;\n    return 0;\n}` },
-  { id: 'rust',       label: 'Rust',       ext: 'rs',   color: '#dea584', hello: `fn main() {\n    println!("Hello, World!");\n    \n    let nums: Vec<i32> = (1..=5).collect();\n    let squares: Vec<i32> = nums.iter().map(|x| x * x).collect();\n    \n    println!("squares: {:?}", squares);\n    println!("sum: {}", nums.iter().sum::<i32>());\n}` },
-  { id: 'go',         label: 'Go',         ext: 'go',   color: '#00ADD8', hello: `package main\n\nimport (\n    "fmt"\n    "math"\n)\n\nfunc main() {\n    fmt.Println("Hello, World!")\n    \n    nums := []int{1, 2, 3, 4, 5}\n    sum := 0\n    for _, n := range nums {\n        sum += n\n        fmt.Printf("sqrt(%d) = %.2f\\n", n, math.Sqrt(float64(n)))\n    }\n    fmt.Printf("Sum: %d\\n", sum)\n}` },
-  { id: 'bash',       label: 'Bash',       ext: 'sh',   color: '#89e051', hello: `#!/bin/bash\necho "Hello, World!"\n\nfor i in {1..5}; do\n    echo "  Item $i"\ndone\n\necho "Done!"` },
-  { id: 'sql',        label: 'SQL',        ext: 'sql',  color: '#e38c00', hello: `-- Create table\nCREATE TABLE users (\n    id INTEGER PRIMARY KEY,\n    name TEXT NOT NULL,\n    email TEXT UNIQUE,\n    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n);\n\n-- Insert data\nINSERT INTO users (name, email) VALUES\n    ('Alice', 'alice@example.com'),\n    ('Bob',   'bob@example.com');\n\n-- Query\nSELECT id, name, email\nFROM users\nORDER BY name ASC;` },
-  { id: 'plaintext',  label: 'Text',       ext: 'txt',  color: '#888888', hello: `Plain text file.\nWrite anything here.` },
-]
-
-const getLang = (id: string) => LANGS.find(l => l.id === id) ?? LANGS[0]
-
-// ─────────────────────────────────────────────
-// Execution engine
-// ─────────────────────────────────────────────
-
-function prettyVal(val: any, depth = 0): string {
-  if (val === null) return 'null'
-  if (val === undefined) return 'undefined'
-  if (typeof val === 'string') return val
-  if (typeof val === 'function') return `[Function: ${val.name || 'fn'}]`
-  if (val instanceof Error) return `${val.name}: ${val.message}`
-  if (depth > 3) return String(val)
-  try { return JSON.stringify(val, null, depth < 2 ? 2 : undefined) }
-  catch { return String(val) }
-}
-
-function runJS(code: string): string {
-  const lines: string[] = []
-  const mock = {
-    log:   (...a: any[]) => lines.push(a.map(v => prettyVal(v)).join(' ')),
-    warn:  (...a: any[]) => lines.push('⚠️  ' + a.map(v => prettyVal(v)).join(' ')),
-    error: (...a: any[]) => lines.push('❌  ' + a.map(v => prettyVal(v)).join(' ')),
-    info:  (...a: any[]) => lines.push('ℹ️  ' + a.map(v => prettyVal(v)).join(' ')),
-    table: (data: any)   => { try { lines.push(JSON.stringify(data, null, 2)) } catch { lines.push(String(data)) } },
-    dir:   (data: any)   => { try { lines.push(JSON.stringify(data, null, 2)) } catch { lines.push(String(data)) } },
-    assert:(cond: boolean, ...msg: any[]) => { if (!cond) lines.push('❌  Assertion failed: ' + msg.join(' ')) },
-    group: (l = '') => lines.push(`▸ ${l}`),
-    groupEnd: () => {},
-    time:  (l = '') => lines.push(`⏱  Timer "${l}" started`),
-    timeEnd:(l = '') => lines.push(`⏱  Timer "${l}" ended`),
-    count: (l = 'default') => lines.push(`#  ${l}: 1`),
-    clear: () => { lines.length = 0 },
-  }
-  try {
-    const fn = new Function(
-      'console','Math','JSON','Array','Object','String','Number','Boolean',
-      'Date','RegExp','Map','Set','WeakMap','WeakSet','Promise','Symbol',
-      'parseInt','parseFloat','isNaN','isFinite','encodeURIComponent','decodeURIComponent',
-      'setTimeout','clearTimeout','setInterval','clearInterval',
-      `"use strict";\n${code}`
-    )
-    const result = fn(
-      mock,Math,JSON,Array,Object,String,Number,Boolean,
-      Date,RegExp,Map,Set,WeakMap,WeakSet,Promise,Symbol,
-      parseInt,parseFloat,isNaN,isFinite,encodeURIComponent,decodeURIComponent,
-      (fn: Function,ms: number) => { lines.push(`⏳  setTimeout(${ms}ms) — async not available in sandbox`) },
-      () => {},
-      (fn: Function,ms: number) => { lines.push(`⏳  setInterval(${ms}ms) — async not available in sandbox`) },
-      () => {},
-    )
-    if (result !== undefined && lines.length === 0) lines.push(prettyVal(result))
-  } catch(e: any) {
-    lines.push(`❌  ${e.name}: ${e.message}`)
-    const stack = (e.stack || '').split('\n').find((l: string) => l.includes('<anonymous>') || l.includes('Function'))
-    if (stack) lines.push('   ' + stack.trim())
-  }
-  return lines.length ? lines.join('\n') : '✓  (no output)'
-}
-
-function runJSON(code: string): string {
-  try {
-    const parsed = JSON.parse(code)
-    const lines = [
-      `✓  Valid JSON`,
-      `📊  ${Array.isArray(parsed) ? `Array[${parsed.length}]` : typeof parsed === 'object' && parsed ? `Object{${Object.keys(parsed).length} keys}` : typeof parsed}`,
-      '',
-      JSON.stringify(parsed, null, 2),
-    ]
-    return lines.join('\n')
-  } catch(e: any) {
-    const match = e.message.match(/position (\d+)/)
-    const pos = match ? parseInt(match[1]) : -1
-    const lines = [`❌  Invalid JSON: ${e.message}`]
-    if (pos >= 0) {
-      const before = code.slice(Math.max(0, pos - 20), pos)
-      const after  = code.slice(pos, pos + 20)
-      lines.push(`   ...${before}▶${after}...`)
-    }
-    return lines.join('\n')
-  }
-}
-
-function simulateLang(lang: string, code: string): string {
-  const runtimes: Record<string, string> = { python:'Python interpreter', java:'JDK', cpp:'g++', c:'gcc', rust:'rustc', go:'Go compiler', bash:'bash' }
-  const header = `ℹ️  ${lang} requires ${runtimes[lang] || 'a runtime'} — showing best-effort simulation.\n\n`
-
-  switch(lang) {
-    case 'python': {
-      const out: string[] = []
-      for (const line of code.split('\n')) {
-        const m = line.match(/^(\s*)print\s*\((.+)\)\s*$/)
-        if (m) {
-          const inner = m[2].trim()
-          try { out.push(String(new Function(`return ${inner}`)())); continue } catch {}
-          // f-string: rough eval
-          const fstr = inner.match(/^f["'](.*?)["']$/)
-          if (fstr) { out.push(fstr[1].replace(/\{([^}]+)\}/g, (_,e) => { try { return String(new Function(`return ${e}`)()) } catch { return `{${e}}` } })); continue }
-          out.push(inner.replace(/^["']|["']$/g, ''))
-        }
-      }
-      return header + (out.length ? out.join('\n') : '(no print() calls found)')
-    }
-    case 'java': {
-      const out = [...code.matchAll(/System\.out\.print(?:ln)?\s*\(\s*(.*?)\s*\)\s*;/g)]
-        .map(m => { try { return String(new Function(`return ${m[1]}`)()) } catch { return m[1].replace(/['"]/g,'') } })
-      return header + (out.length ? out.join('\n') : '(no System.out.println() calls found)')
-    }
-    case 'cpp': case 'c': {
-      const couts = [...code.matchAll(/cout\s*<<\s*(.*?)\s*(?:<<\s*(?:endl|"\\n")|\s*;)/g)]
-        .map(m => m[1].replace(/"/g,'').replace(/\\n/g,'').trim()).filter(s => s && s !== 'endl' && s !== '\\n')
-      const printfs = [...code.matchAll(/printf\s*\(\s*"(.*?)"/g)]
-        .map(m => m[1].replace(/\\n/g,'').replace(/%[sdif]/g,'?'))
-      return header + ([...couts,...printfs].join('\n') || '(no cout/printf found)')
-    }
-    case 'rust': {
-      const out = [...code.matchAll(/println!\s*\(\s*"(.*?)"(?:,\s*(.*?))?\s*\)/g)]
-        .map(m => { let s = m[1]; if (m[2]) s = s.replace('{}', m[2]).replace('{:?}', m[2]); return s })
-      return header + (out.length ? out.join('\n') : '(no println!() calls found)')
-    }
-    case 'go': {
-      const out = [...code.matchAll(/fmt\.Print(?:ln|f)?\s*\(\s*(.*?)\s*\)/g)]
-        .map(m => m[1].replace(/"/g,'').split(',')[0].trim())
-      return header + (out.length ? out.join('\n') : '(no fmt.Print calls found)')
-    }
-    case 'bash': {
-      const out = [...code.matchAll(/^echo\s+["']?([^"'\n]+)["']?/gm)].map(m => m[1])
-      return header + (out.length ? out.join('\n') : '(no echo calls found)')
-    }
-    case 'sql':
-      return `ℹ️  SQL requires a database connection.\n\n📋  Statements detected:\n` +
-        code.replace(/--[^\n]*/g,'').split(';').map(s => s.trim()).filter(Boolean)
-          .map(s => `  ●  ${s.slice(0,60)}${s.length > 60 ? '...' : ''}`).join('\n')
-    default:
-      return `ℹ️  No runtime available for "${lang}" in this sandbox.\n\nCode length: ${code.length} chars`
-  }
-}
-
-async function executeCode(file: CodeFile): Promise<string> {
-  switch(file.lang) {
-    case 'javascript': case 'typescript': return runJS(file.content)
-    case 'json':    return runJSON(file.content)
-    case 'html':    return `🌐  HTML preview available in the Preview tab.\n\n✓  Parsed: ${(file.content.match(/<[a-z][^>]*>/gi)||[]).length} HTML tags`
-    case 'css':     return `🎨  CSS preview available in the Preview tab.\n\n✓  Rules: ${(file.content.match(/\{[^}]*\}/g)||[]).length}`
-    case 'markdown':return `📝  Markdown preview available in the Preview tab.\n\n✓  Headings: ${(file.content.match(/^#{1,6}\s/gm)||[]).length}`
-    default:        return simulateLang(file.lang, file.content)
-  }
-}
+import { LANGS, executeCode, getLang } from '@nexus/core/code'
 
 // ─────────────────────────────────────────────
 // Sub-components
@@ -245,8 +77,9 @@ function OutLine({ text }: { text: string }) {
 export function CodeView() {
   const t = useTheme()
   const rgb = hexToRgb(t.accent)
-  const { codes, activeCodeId, openCodeIds, addCode, updateCode, delCode, setCode, openCode, closeCode, saveCode } = useApp((s) => ({
+  const { codes, folders, activeCodeId, openCodeIds, addCode, updateCode, delCode, setCode, openCode, closeCode, saveCode } = useApp((s) => ({
     codes: s.codes,
+    folders: s.folders,
     activeCodeId: s.activeCodeId,
     openCodeIds: s.openCodeIds,
     addCode: s.addCode,
@@ -265,6 +98,10 @@ export function CodeView() {
   const [outH, setOutH]             = useState(220)
   const [search, setSearch]         = useState('')
   const [searchOpen, setSearchOpen] = useState(false)
+  const [quickOpenOpen, setQuickOpenOpen] = useState(false)
+  const [quickOpenQuery, setQuickOpenQuery] = useState('')
+  const [fileScope, setFileScope] = useState<'all' | 'open'>('all')
+  const [folderFilter, setFolderFilter] = useState<string>('all')
   const [newOpen, setNewOpen]       = useState(false)
   const [newName, setNewName]       = useState('')
   const [newLang, setNewLang]       = useState('javascript')
@@ -278,6 +115,26 @@ export function CodeView() {
   const active = codes.find(c => c.id === activeCodeId)
   const lang   = active ? getLang(active.lang) : null
   const hasPreview = active && ['html','css','markdown'].includes(active.lang)
+  const folderScopedCodes = useMemo(
+    () =>
+      codes.filter((file) =>
+        folderFilter === 'all' ? true : (file.folderId ?? '__root__') === folderFilter,
+      ),
+    [codes, folderFilter],
+  )
+  const quickOpenFiles = useMemo(() => {
+    const query = quickOpenQuery.trim().toLowerCase()
+    const openSet = new Set(openCodeIds)
+    return folderScopedCodes
+      .filter((file) => (!query ? true : `${file.name} ${file.lang}`.toLowerCase().includes(query)))
+      .sort((a, b) => {
+        const aOpen = openSet.has(a.id) ? 1 : 0
+        const bOpen = openSet.has(b.id) ? 1 : 0
+        if (aOpen !== bOpen) return bOpen - aOpen
+        return a.name.localeCompare(b.name)
+      })
+      .slice(0, 40)
+  }, [folderScopedCodes, openCodeIds, quickOpenQuery])
 
   useEffect(() => { if (outRef.current) outRef.current.scrollTop = outRef.current.scrollHeight }, [output])
 
@@ -297,7 +154,16 @@ export function CodeView() {
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
       if ((e.ctrlKey||e.metaKey) && e.key === 'Enter') { e.preventDefault(); run() }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'p') {
+        e.preventDefault()
+        setQuickOpenOpen(true)
+      }
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'f') {
+        e.preventDefault()
+        setSearchOpen((state) => !state)
+      }
       if ((e.ctrlKey||e.metaKey) && e.key === 's' && active) { e.preventDefault(); saveCode(active.id) }
+      if (e.key === 'Escape') setQuickOpenOpen(false)
     }
     window.addEventListener('keydown', h)
     return () => window.removeEventListener('keydown', h)
@@ -320,7 +186,9 @@ export function CodeView() {
     setNewOpen(false); setNewName('')
   }
 
-  const sideFiles = codes.filter(c => !search || c.name.toLowerCase().includes(search.toLowerCase()))
+  const sideFiles = folderScopedCodes
+    .filter((file) => !search || file.name.toLowerCase().includes(search.toLowerCase()))
+    .filter((file) => (fileScope === 'open' ? openCodeIds.includes(file.id) : true))
 
   const handleCopyOut = () => {
     navigator.clipboard.writeText(output.join('\n'))
@@ -337,6 +205,13 @@ export function CodeView() {
     updateCode(active.id, { content: `${active.content}${map[kind]}`, dirty: true })
   }
 
+  const openCodeFromQuickOpen = useCallback((id: string) => {
+    openCode(id)
+    setCode(id)
+    setQuickOpenOpen(false)
+    setQuickOpenQuery('')
+  }, [openCode, setCode])
+
   return (
     <div style={{ display:'flex', height:'100%', overflow:'hidden' }}>
 
@@ -346,8 +221,45 @@ export function CodeView() {
           <span style={{ fontSize:10, fontWeight:800, opacity:0.4, textTransform:'uppercase', letterSpacing:1 }}>Explorer</span>
           <div style={{ display:'flex', gap:2 }}>
             <ToolBtn onClick={() => setSearchOpen(s=>!s)} title="Search files" icon={<Search size={13}/>} active={searchOpen} />
+            <ToolBtn onClick={() => setQuickOpenOpen(true)} title="Quick Open (Ctrl/Cmd+P)" icon={<Command size={13}/>} />
             <ToolBtn onClick={() => setNewOpen(true)} title="New file" icon={<Plus size={13}/>} />
           </div>
+        </div>
+        <div style={{ padding:'0 8px 8px', display:'grid', gridTemplateColumns:'1fr 1fr', gap:6 }}>
+          {(['all','open'] as const).map(scopeId => (
+            <button
+              key={scopeId}
+              onClick={() => setFileScope(scopeId)}
+              style={{
+                borderRadius:7,
+                border:'1px solid rgba(255,255,255,0.12)',
+                background: fileScope === scopeId ? `rgba(${rgb},0.15)` : 'rgba(255,255,255,0.03)',
+                color: fileScope === scopeId ? '#7fd2ff' : 'inherit',
+                fontSize:10,
+                fontWeight:700,
+                padding:'5px 7px',
+                cursor:'pointer',
+                textTransform:'uppercase',
+              }}
+            >
+              {scopeId === 'all' ? `All (${folderScopedCodes.length})` : `Open (${folderScopedCodes.filter((f) => openCodeIds.includes(f.id)).length})`}
+            </button>
+          ))}
+        </div>
+        <div style={{ padding:'0 8px 8px' }}>
+          <select
+            value={folderFilter}
+            onChange={(e) => setFolderFilter(e.target.value)}
+            style={{ width:'100%', padding:'5px 8px', borderRadius:7, background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.1)', outline:'none', fontSize:12, color:'inherit' }}
+          >
+            <option value="all">All folders</option>
+            <option value="__root__">Root</option>
+            {folders.map((folder) => (
+              <option key={folder.id} value={folder.id}>
+                {folder.name}
+              </option>
+            ))}
+          </select>
         </div>
         {searchOpen && (
           <div style={{ padding:'0 8px 8px' }}>
@@ -355,7 +267,7 @@ export function CodeView() {
           </div>
         )}
         <div style={{ flex:1, overflowY:'auto', padding:'0 6px' }}>
-          {sideFiles.length === 0 && <div style={{ textAlign:'center', padding:24, fontSize:12, opacity:0.3 }}>No files</div>}
+          {sideFiles.length === 0 && <div style={{ textAlign:'center', padding:24, fontSize:12, opacity:0.3 }}>No files in current scope</div>}
           {sideFiles.map(f => {
             const l = getLang(f.lang)
             const isA = f.id === activeCodeId
@@ -385,7 +297,7 @@ export function CodeView() {
             )
           })}
         </div>
-        <div style={{ padding:'8px 12px', borderTop:'1px solid rgba(255,255,255,0.06)', fontSize:11, opacity:0.3 }}>{codes.length} file{codes.length!==1?'s':''}</div>
+        <div style={{ padding:'8px 12px', borderTop:'1px solid rgba(255,255,255,0.06)', fontSize:11, opacity:0.3 }}>{sideFiles.length} shown · {codes.length} total</div>
       </div>
 
       {/* ── Editor area ─────────────────────────────────── */}
@@ -422,12 +334,20 @@ export function CodeView() {
             <button onClick={() => insertSnippet('log')} style={{ padding:'5px 9px', borderRadius:8, border:`1px solid rgba(${rgb},0.3)`, background:`rgba(${rgb},0.14)`, color:t.accent, fontSize:10, fontWeight:700, cursor:'pointer' }}>+ log()</button>
             <button onClick={() => insertSnippet('fetch')} style={{ padding:'5px 9px', borderRadius:8, border:'1px solid rgba(255,255,255,0.14)', background:'rgba(255,255,255,0.06)', color:'inherit', fontSize:10, fontWeight:700, cursor:'pointer' }}>+ fetch()</button>
             <button onClick={() => insertSnippet('todo')} style={{ padding:'5px 9px', borderRadius:8, border:'1px solid rgba(255,255,255,0.14)', background:'rgba(255,255,255,0.06)', color:'inherit', fontSize:10, fontWeight:700, cursor:'pointer' }}>+ TODO block</button>
+            <button onClick={() => setQuickOpenOpen(true)} style={{ padding:'5px 9px', borderRadius:8, border:'1px solid rgba(255,255,255,0.14)', background:'rgba(255,255,255,0.06)', color:'inherit', fontSize:10, fontWeight:700, cursor:'pointer' }}>Quick Open</button>
             <div style={{ marginLeft:'auto', display:'flex', alignItems:'center', gap:6 }}>
-              <span style={{ fontSize:10, opacity:0.5 }}>Recent runs:</span>
+              <span style={{ fontSize:10, opacity:0.5 }}>Scratch-first, full IDE in Nexus Code.</span>
               {runHistory.slice(0, 3).map((r, i) => (
-                <span key={`${r.at}-${i}`} style={{ fontSize:10, padding:'3px 7px', borderRadius:999, background:r.ok?'rgba(48,209,88,0.14)':'rgba(255,69,58,0.14)', color:r.ok?'#30D158':'#FF453A', border:`1px solid ${r.ok?'rgba(48,209,88,0.3)':'rgba(255,69,58,0.3)'}` }}>
+                <button
+                  key={`${r.at}-${i}`}
+                  onClick={() => {
+                    const file = codes.find((codeFile) => codeFile.name === r.file)
+                    if (file) openCodeFromQuickOpen(file.id)
+                  }}
+                  style={{ fontSize:10, padding:'3px 7px', borderRadius:999, background:r.ok?'rgba(48,209,88,0.14)':'rgba(255,69,58,0.14)', color:r.ok?'#30D158':'#FF453A', border:`1px solid ${r.ok?'rgba(48,209,88,0.3)':'rgba(255,69,58,0.3)'}`, cursor:'pointer' }}
+                >
                   {r.file.split('.').pop()} {Math.round(r.ms)}ms
-                </span>
+                </button>
               ))}
             </div>
           </div>
@@ -512,6 +432,7 @@ export function CodeView() {
                     {outOpen ? <ChevronDown size={11}/> : <ChevronRight size={11}/>}
                   </button>
                   {elapsed !== null && <span style={{ fontSize:10, opacity:0.35, display:'flex', alignItems:'center', gap:3 }}><Clock size={9}/>{elapsed.toFixed(1)}ms</span>}
+                  {runHistory[0] && <span style={{ fontSize:10, opacity:0.45 }}>Last: {runHistory[0].file} · {runHistory[0].ok ? 'ok' : 'error'}</span>}
                   <div style={{ flex:1 }} />
                   <button
                     onClick={handleCopyOut}
@@ -543,6 +464,75 @@ export function CodeView() {
           )}
         </div>
       </div>
+
+      {/* ── Quick Open modal ───────────────────────────── */}
+      <AnimatePresence>
+        {quickOpenOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.45)', display:'flex', alignItems:'flex-start', justifyContent:'center', zIndex:240, paddingTop:60, backdropFilter:'blur(4px)' }}
+            onClick={() => setQuickOpenOpen(false)}
+          >
+            <motion.div
+              initial={{ y:-8, scale:0.98, opacity:0 }}
+              animate={{ y:0, scale:1, opacity:1 }}
+              exit={{ y:-8, scale:0.98, opacity:0 }}
+              onClick={(event) => event.stopPropagation()}
+            >
+              <Glass style={{ width:460, maxWidth:'90vw', padding:14 }} glow>
+                <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:8 }}>
+                  <Search size={13} style={{ opacity:0.6 }} />
+                  <input
+                    autoFocus
+                    value={quickOpenQuery}
+                    onChange={(event) => setQuickOpenQuery(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Escape') {
+                        setQuickOpenOpen(false)
+                        return
+                      }
+                      if (event.key === 'Enter' && quickOpenFiles[0]) {
+                        openCodeFromQuickOpen(quickOpenFiles[0].id)
+                      }
+                    }}
+                    placeholder="Quick open file…"
+                    style={{ width:'100%', padding:'8px 10px', borderRadius:8, border:'1px solid rgba(255,255,255,0.14)', background:'rgba(255,255,255,0.06)', color:'inherit', outline:'none', fontSize:13 }}
+                  />
+                </div>
+                <div style={{ maxHeight:320, overflowY:'auto', display:'flex', flexDirection:'column', gap:4 }}>
+                  {quickOpenFiles.length === 0 ? (
+                    <div style={{ padding:'14px 8px', textAlign:'center', fontSize:12, opacity:0.56 }}>
+                      No matching files
+                    </div>
+                  ) : (
+                    quickOpenFiles.map((file) => {
+                      const isActive = file.id === activeCodeId
+                      const fileLang = getLang(file.lang)
+                      return (
+                        <button
+                          key={file.id}
+                          onClick={() => openCodeFromQuickOpen(file.id)}
+                          style={{ width:'100%', textAlign:'left', display:'flex', alignItems:'center', gap:8, padding:'7px 8px', borderRadius:8, border:'1px solid rgba(255,255,255,0.1)', background:isActive ? 'rgba(122,169,255,0.15)' : 'rgba(255,255,255,0.03)', color:'inherit', cursor:'pointer' }}
+                        >
+                          <span style={{ width:26, flexShrink:0, fontSize:9, fontWeight:800, color:fileLang.color, textTransform:'uppercase' }}>
+                            {fileLang.ext}
+                          </span>
+                          <span style={{ fontSize:12, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', flex:1 }}>
+                            {file.name}
+                          </span>
+                          <span style={{ fontSize:10, opacity:0.55 }}>{file.folderId ? 'folder' : 'root'}</span>
+                        </button>
+                      )
+                    })
+                  )}
+                </div>
+              </Glass>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ── New file modal ──────────────────────────────── */}
       <AnimatePresence>

@@ -1,8 +1,10 @@
 import { useCanvas, type Canvas, type CanvasNode, type NodeType, type ProjectStatus } from '../../store/canvasStore'
 import type { CanvasMagicTemplatePayload } from '@nexus/core/canvas/magicHubTemplates'
 import {
-  CANVAS_MAGIC_HUB_TEMPLATES,
+  buildAiProjectMagicGraph,
   buildCanvasMagicHubMarkdown,
+  normalizeCanvasMagicTemplatePayload,
+  resolveCanvasMagicHubTemplateMeta,
 } from '@nexus/core/canvas/magicHubTemplates'
 
 const PM_STATUS_ORDER: ProjectStatus[] = ['idea', 'backlog', 'todo', 'doing', 'review', 'done', 'blocked']
@@ -144,8 +146,61 @@ export const createCanvasMagicHubTemplate = (input: {
   const centerY = (-input.viewport.panY + input.canvasSize.h * 0.45) / input.viewport.zoom
   const x = Math.round(centerX / 20) * 20
   const y = Math.round(centerY / 20) * 20
-  const meta = CANVAS_MAGIC_HUB_TEMPLATES[input.payload.template]
-  const title = input.payload.title?.trim() || meta.label
+  const payload = normalizeCanvasMagicTemplatePayload(input.payload)
+
+  const applyChecklist = (nodeId: string, items: string[]) => {
+    if (!items.length) return
+    items.forEach((item) => state.addChecklistItem(nodeId, item))
+  }
+
+  if (payload.template === 'ai-project') {
+    const graph = buildAiProjectMagicGraph(payload)
+    const idMap = new globalThis.Map<string, string | null>()
+    graph.nodes.forEach((node) => {
+      state.addNode(node.type as NodeType, x + node.x, y + node.y)
+      const activeCanvas = state.getActiveCanvas()
+      const created = activeCanvas?.nodes[activeCanvas.nodes.length - 1]
+      if (!created) {
+        idMap.set(node.id, null)
+        return
+      }
+      state.updateNode(created.id, {
+        title: node.title,
+        width: node.width,
+        height: node.height,
+        color: node.color,
+        content: node.content,
+        pm: {
+          ...(created.pm || {}),
+          status: node.meta?.status || created.pm?.status || 'todo',
+          priority: node.meta?.priority || created.pm?.priority || 'mid',
+          progress: typeof node.meta?.progress === 'number' ? node.meta.progress : created.pm?.progress,
+          dueDate: node.meta?.dueDate || created.pm?.dueDate,
+          owner: node.meta?.owner || created.pm?.owner,
+          tags: Array.from(
+            new Set([
+              ...(created.pm?.tags || []),
+              ...(node.meta?.tags || []),
+              'magic-ai-project',
+            ]),
+          ),
+        },
+      })
+      applyChecklist(created.id, node.checklistItems || [])
+      idMap.set(node.id, created.id)
+    })
+    graph.links.forEach((link) => {
+      const from = idMap.get(link.from)
+      const to = idMap.get(link.to)
+      if (from && to) state.addConnection(from, to)
+    })
+    input.setSelectedNodeId(idMap.get(graph.rootId) || null)
+    setTimeout(() => input.fitView(), 30)
+    return
+  }
+
+  const { id: templateId, meta } = resolveCanvasMagicHubTemplateMeta(payload.template)
+  const title = payload.title?.trim() || meta.label
 
   state.addNode('markdown', x - 380, y - 300)
   const active = state.getActiveCanvas()
@@ -157,10 +212,10 @@ export const createCanvasMagicHubTemplate = (input: {
     width: 760,
     height: 600,
     color: meta.color,
-    content: buildCanvasMagicHubMarkdown(input.payload),
+    content: buildCanvasMagicHubMarkdown(payload),
     pm: {
       ...(created.pm || {}),
-      tags: Array.from(new Set([...(created.pm?.tags || []), 'magic-hub', `preset:${input.payload.template}`])),
+      tags: Array.from(new Set([...(created.pm?.tags || []), 'magic-hub', `preset:${templateId}`])),
       status: created.pm?.status || 'idea',
       priority: created.pm?.priority || 'mid',
     },

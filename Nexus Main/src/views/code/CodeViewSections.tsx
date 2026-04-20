@@ -1,6 +1,6 @@
 import React from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { FileCode, Plus, Search, Trash2 } from "lucide-react";
+import { Command, FileCode, Plus, Search, Trash2 } from "lucide-react";
 import { Glass } from "../../components/Glass";
 import { InteractiveIconButton } from "../../components/render/InteractiveIconButton";
 import type { CodeFile } from "../../store/appStore";
@@ -11,31 +11,52 @@ import { ToolBtn } from "./CodeViewPrimitives";
 export function CodeExplorerSidebar({
   codes,
   activeCodeId,
+  openCodeIds,
   search,
   searchOpen,
   rgb,
+  fileScope,
+  folderFilter,
+  folders,
   setSearch,
   setSearchOpen,
+  setFileScope,
+  setFolderFilter,
   setNewOpen,
+  openQuickOpen,
   openCode,
   setCode,
   delCode,
 }: {
   codes: CodeFile[];
   activeCodeId: string | null;
+  openCodeIds: string[];
   search: string;
   searchOpen: boolean;
   rgb: string;
+  fileScope: "all" | "open";
+  folderFilter: string;
+  folders: Array<{ id: string; name: string }>;
   setSearch: (value: string) => void;
   setSearchOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  setFileScope: React.Dispatch<React.SetStateAction<"all" | "open">>;
+  setFolderFilter: React.Dispatch<React.SetStateAction<string>>;
   setNewOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  openQuickOpen: () => void;
   openCode: (id: string) => void;
   setCode: (id: string) => void;
   delCode: (id: string) => void;
 }) {
-  const sideFiles = codes.filter(
-    (code) => !search || code.name.toLowerCase().includes(search.toLowerCase()),
+  const openSet = new Set(openCodeIds);
+  const folderScopedCodes = codes.filter((file) =>
+    folderFilter === "all" ? true : (file.folderId ?? "__root__") === folderFilter,
   );
+  const sideFiles = folderScopedCodes
+    .filter((code) => !search || code.name.toLowerCase().includes(search.toLowerCase()))
+    .filter((code) => (fileScope === "open" ? openSet.has(code.id) : true));
+
+  const openCount = folderScopedCodes.filter((code) => openSet.has(code.id)).length;
+  const visibleCount = sideFiles.length;
 
   return (
     <div
@@ -75,11 +96,63 @@ export function CodeExplorerSidebar({
             active={searchOpen}
           />
           <ToolBtn
+            onClick={openQuickOpen}
+            title="Quick Open (Ctrl/Cmd+P)"
+            icon={<Command size={13} />}
+          />
+          <ToolBtn
             onClick={() => setNewOpen(true)}
             title="New file"
             icon={<Plus size={13} />}
           />
         </div>
+      </div>
+
+      <div style={{ padding: "0 8px 8px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+        {(["all", "open"] as const).map((scopeId) => (
+          <button
+            key={scopeId}
+            onClick={() => setFileScope(scopeId)}
+            style={{
+              borderRadius: 7,
+              border: "1px solid rgba(255,255,255,0.12)",
+              background: fileScope === scopeId ? `rgba(${rgb},0.15)` : "rgba(255,255,255,0.03)",
+              color: fileScope === scopeId ? "#7fd2ff" : "inherit",
+              fontSize: 10,
+              fontWeight: 700,
+              padding: "5px 7px",
+              cursor: "pointer",
+              textTransform: "uppercase",
+            }}
+          >
+            {scopeId === "all" ? `All (${folderScopedCodes.length})` : `Open (${openCount})`}
+          </button>
+        ))}
+      </div>
+
+      <div style={{ padding: "0 8px 8px" }}>
+        <select
+          value={folderFilter}
+          onChange={(event) => setFolderFilter(event.target.value)}
+          style={{
+            width: "100%",
+            padding: "5px 8px",
+            borderRadius: 7,
+            background: "rgba(255,255,255,0.07)",
+            border: "1px solid rgba(255,255,255,0.1)",
+            outline: "none",
+            fontSize: 12,
+            color: "inherit",
+          }}
+        >
+          <option value="all">All folders</option>
+          <option value="__root__">Root</option>
+          {folders.map((folder) => (
+            <option key={folder.id} value={folder.id}>
+              {folder.name}
+            </option>
+          ))}
+        </select>
       </div>
 
       {searchOpen ? (
@@ -106,7 +179,7 @@ export function CodeExplorerSidebar({
       <div style={{ flex: 1, overflowY: "auto", padding: "0 6px" }}>
         {sideFiles.length === 0 ? (
           <div style={{ textAlign: "center", padding: 24, fontSize: 12, opacity: 0.3 }}>
-            No files
+            No files in current scope
           </div>
         ) : null}
 
@@ -187,7 +260,7 @@ export function CodeExplorerSidebar({
           opacity: 0.3,
         }}
       >
-        {codes.length} file{codes.length !== 1 ? "s" : ""}
+        {visibleCount} shown · {codes.length} total
       </div>
     </div>
   );
@@ -197,10 +270,12 @@ export function EmptyCodeState({
   accent,
   rgb,
   setNewOpen,
+  openQuickOpen,
 }: {
   accent: string;
   rgb: string;
   setNewOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  openQuickOpen: () => void;
 }) {
   return (
     <div
@@ -219,26 +294,165 @@ export function EmptyCodeState({
         <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 6 }}>No file open</div>
         <div style={{ fontSize: 13, opacity: 0.6 }}>Select from sidebar or create a new file</div>
       </div>
-      <button
-        onClick={() => setNewOpen(true)}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 7,
-          padding: "9px 20px",
-          borderRadius: 10,
-          background: accent,
-          border: "none",
-          cursor: "pointer",
-          color: "#fff",
-          fontSize: 13,
-          fontWeight: 700,
-          boxShadow: `0 4px 18px rgba(${rgb},0.4)`,
-        }}
-      >
-        <Plus size={14} /> New File
-      </button>
+      <div style={{ display: "flex", gap: 8 }}>
+        <button
+          onClick={() => setNewOpen(true)}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 7,
+            padding: "9px 20px",
+            borderRadius: 10,
+            background: accent,
+            border: "none",
+            cursor: "pointer",
+            color: "#fff",
+            fontSize: 13,
+            fontWeight: 700,
+            boxShadow: `0 4px 18px rgba(${rgb},0.4)`,
+          }}
+        >
+          <Plus size={14} /> New File
+        </button>
+        <button
+          onClick={openQuickOpen}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 7,
+            padding: "9px 14px",
+            borderRadius: 10,
+            background: "rgba(255,255,255,0.08)",
+            border: "1px solid rgba(255,255,255,0.15)",
+            cursor: "pointer",
+            color: "inherit",
+            fontSize: 12,
+            fontWeight: 700,
+          }}
+        >
+          <Command size={13} /> Quick Open
+        </button>
+      </div>
     </div>
+  );
+}
+
+export function CodeQuickOpenModal({
+  open,
+  query,
+  files,
+  activeCodeId,
+  setOpen,
+  setQuery,
+  openFile,
+}: {
+  open: boolean;
+  query: string;
+  files: CodeFile[];
+  activeCodeId: string | null;
+  setOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  setQuery: React.Dispatch<React.SetStateAction<string>>;
+  openFile: (fileId: string) => void;
+}) {
+  return (
+    <AnimatePresence>
+      {open ? (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.45)",
+            display: "flex",
+            alignItems: "flex-start",
+            justifyContent: "center",
+            zIndex: 240,
+            paddingTop: 80,
+            backdropFilter: "blur(4px)",
+          }}
+          onClick={() => setOpen(false)}
+        >
+          <motion.div
+            initial={{ y: -8, scale: 0.98, opacity: 0 }}
+            animate={{ y: 0, scale: 1, opacity: 1 }}
+            exit={{ y: -8, scale: 0.98, opacity: 0 }}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <Glass style={{ width: 560, maxWidth: "90vw", padding: 14 }} glow>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                <Search size={13} style={{ opacity: 0.6 }} />
+                <input
+                  autoFocus
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Escape") {
+                      setOpen(false);
+                      return;
+                    }
+                    if (event.key === "Enter" && files[0]) {
+                      openFile(files[0].id);
+                    }
+                  }}
+                  placeholder="Quick open file…"
+                  style={{
+                    width: "100%",
+                    padding: "8px 10px",
+                    borderRadius: 8,
+                    border: "1px solid rgba(255,255,255,0.14)",
+                    background: "rgba(255,255,255,0.06)",
+                    color: "inherit",
+                    outline: "none",
+                    fontSize: 13,
+                  }}
+                />
+              </div>
+              <div style={{ maxHeight: 360, overflowY: "auto", display: "flex", flexDirection: "column", gap: 4 }}>
+                {files.length === 0 ? (
+                  <div style={{ padding: "14px 8px", textAlign: "center", fontSize: 12, opacity: 0.56 }}>
+                    No matching files
+                  </div>
+                ) : (
+                  files.map((file) => {
+                    const active = file.id === activeCodeId;
+                    const lang = getLang(file.lang);
+                    return (
+                      <button
+                        key={file.id}
+                        onClick={() => openFile(file.id)}
+                        style={{
+                          width: "100%",
+                          textAlign: "left",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 8,
+                          padding: "7px 8px",
+                          borderRadius: 8,
+                          border: "1px solid rgba(255,255,255,0.1)",
+                          background: active ? "rgba(122,169,255,0.15)" : "rgba(255,255,255,0.03)",
+                          color: "inherit",
+                          cursor: "pointer",
+                        }}
+                      >
+                        <span style={{ width: 26, flexShrink: 0, fontSize: 9, fontWeight: 800, color: lang.color, textTransform: "uppercase" }}>
+                          {lang.ext}
+                        </span>
+                        <span style={{ fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
+                          {file.name}
+                        </span>
+                        <span style={{ fontSize: 10, opacity: 0.55 }}>{file.folderId ? "folder" : "root"}</span>
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+            </Glass>
+          </motion.div>
+        </motion.div>
+      ) : null}
+    </AnimatePresence>
   );
 }
 

@@ -225,12 +225,16 @@ export interface Theme {
 
 // ── Presets ──────────────────────────────────────────────────────────────────
 
-const P: Record<string, Partial<Theme>> = {
+type DeepPartial<T> = {
+  [K in keyof T]?: T[K] extends object ? DeepPartial<T[K]> : T[K]
+}
+
+const P: Record<string, DeepPartial<Theme>> = {
   'macOS Dark': {
     mode: 'dark', accent: '#007AFF', accent2: '#5E5CE6', bg: '#1a1a2e',
     glow: { mode: 'outline', color: '#007AFF', intensity: 0.85, radius: 28, spread: 8, blendMode: 'screen', gradientGlow: true, gradientColor1: '#007AFF', gradientColor2: '#5E5CE6', gradientAngle: 135, animated: false, animationSpeed: 1 },
     blur: { strength: 24, noiseOverlay: false, noiseOpacity: 0.035, sidebarBlur: 24, panelBlur: 20, modalBlur: 28 },
-    glassmorphism: { borderOpacity: 0.18, borderGlow: true, borderGlowIntensity: 0.5, saturation: 200, tintColor: '#007AFF', tintOpacity: 0.04, frostedGlass: false, chromaticAberration: false, glowOutline: true, glowColor1: '#007AFF', glowColor2: '#5E5CE6', glowOutlineStrength: 14 , glassMode: 'default' as any, glassDepth: 0.5, innerShadow: false, reflectionLine: false, animatedBlur: false, animatedBlurSpeed: 3, panelRenderer: 'blur', glowRenderer: 'css' },
+    glassmorphism: { borderOpacity: 0.18, borderGlow: true, borderGlowIntensity: 0.5, saturation: 200, tintColor: '#007AFF', tintOpacity: 0.04, frostedGlass: false, chromaticAberration: false, glowOutline: true, glowColor1: '#007AFF', glowColor2: '#5E5CE6', glowOutlineStrength: 14 , glassMode: 'default', glassDepth: 0.5, innerShadow: false, reflectionLine: false, animatedBlur: false, animatedBlurSpeed: 3, panelRenderer: 'blur', glowRenderer: 'css' },
   },
   'Neon Ultra': {
     mode: 'dark', accent: '#00FFAA', accent2: '#FF00FF', bg: '#0a0a14',
@@ -254,7 +258,7 @@ const P: Record<string, Partial<Theme>> = {
     glow: { mode: 'outline', color: '#FFE600', intensity: 0.85, radius: 24, spread: 6, blendMode: 'screen', gradientGlow: true, gradientColor1: '#FFE600', gradientColor2: '#FF2D78', gradientAngle: 90, animated: true, animationSpeed: 2 },
     blur: { strength: 18, noiseOverlay: false, noiseOpacity: 0.05, sidebarBlur: 16, panelBlur: 14, modalBlur: 22 },
     background: { mode: 'animated-gradient', stops: [{ color: '#07080f', position: 0, opacity: 1  }, { color: '#1a0a1e', position: 50, opacity: 1 }, { color: '#07080f', position: 100, opacity: 1 }], angle: 135, animated: true, animationSpeed: 5, noiseOpacity: 0.06, meshIntensity: 0.6 , overlayOpacity: 0, vignette: false, vignetteStrength: 0.4, scanlines: false, panelBgMode: 'glass' },
-    glassmorphism: { borderOpacity: 0.3, borderGlow: true, borderGlowIntensity: 0.7, saturation: 200, tintColor: '#FFE600', tintOpacity: 0.04, frostedGlass: true, chromaticAberration: false, glowOutline: true, glowColor1: '#FFE600', glowColor2: '#FF2D78', glowOutlineStrength: 14 , glassMode: 'default' as any, glassDepth: 0.5, innerShadow: false, reflectionLine: false, animatedBlur: false, animatedBlurSpeed: 3, panelRenderer: 'blur', glowRenderer: 'css' },
+    glassmorphism: { borderOpacity: 0.3, borderGlow: true, borderGlowIntensity: 0.7, saturation: 200, tintColor: '#FFE600', tintOpacity: 0.04, frostedGlass: true, chromaticAberration: false, glowOutline: true, glowColor1: '#FFE600', glowColor2: '#FF2D78', glowOutlineStrength: 14 , glassMode: 'default', glassDepth: 0.5, innerShadow: false, reflectionLine: false, animatedBlur: false, animatedBlurSpeed: 3, panelRenderer: 'blur', glowRenderer: 'css' },
   },
   'SuBset Glow': {
     mode: 'dark', accent: '#FF6B35', accent2: '#FF2D78', bg: '#1a0a0f',
@@ -273,7 +277,7 @@ const P: Record<string, Partial<Theme>> = {
     glow: { mode: 'outline', color: '#BF5AF2', intensity: 0.75, radius: 26, spread: 6, blendMode: 'screen', gradientGlow: true, gradientColor1: '#BF5AF2', gradientColor2: '#64D2FF', gradientAngle: 135, animated: true, animationSpeed: 0.8 },
     blur: { strength: 22, noiseOverlay: false, noiseOpacity: 0.05, sidebarBlur: 22, panelBlur: 18, modalBlur: 26 },
     background: { mode: 'aurora', stops: [{ color: '#BF5AF2', position: 0, opacity: 0.12  }, { color: '#007AFF', position: 50, opacity: 0.08 }, { color: '#64D2FF', position: 100, opacity: 0.1 }], angle: 135, animated: true, animationSpeed: 6, noiseOpacity: 0.04, meshIntensity: 0.5 , overlayOpacity: 0, vignette: false, vignetteStrength: 0.4, scanlines: false, panelBgMode: 'glass' },
-    glassmorphism: { borderOpacity: 0.2, borderGlow: true, borderGlowIntensity: 0.5, saturation: 180, tintColor: '#BF5AF2', tintOpacity: 0.05, frostedGlass: true, chromaticAberration: false, glowOutline: true, glowColor1: '#BF5AF2', glowColor2: '#64D2FF', glowOutlineStrength: 13 , glassMode: 'default' as any, glassDepth: 0.5, innerShadow: false, reflectionLine: false, animatedBlur: false, animatedBlurSpeed: 3, panelRenderer: 'blur', glowRenderer: 'css' },
+    glassmorphism: { borderOpacity: 0.2, borderGlow: true, borderGlowIntensity: 0.5, saturation: 180, tintColor: '#BF5AF2', tintOpacity: 0.05, frostedGlass: true, chromaticAberration: false, glowOutline: true, glowColor1: '#BF5AF2', glowColor2: '#64D2FF', glowOutlineStrength: 13 , glassMode: 'default', glassDepth: 0.5, innerShadow: false, reflectionLine: false, animatedBlur: false, animatedBlurSpeed: 3, panelRenderer: 'blur', glowRenderer: 'css' },
   },
   'Rose Gold': {
     mode: 'dark', accent: '#FF6B9E', accent2: '#FFB3C8', bg: '#1a0d12',
@@ -297,7 +301,7 @@ const P: Record<string, Partial<Theme>> = {
     mode: 'dark', accent: '#ffffff', accent2: '#888888', bg: '#000000',
     glow: { mode: 'outline', color: '#ffffff', intensity: 0.5, radius: 18, spread: 4, blendMode: 'screen', gradientGlow: false, gradientColor1: '#ffffff', gradientColor2: '#aaaaaa', gradientAngle: 135, animated: false, animationSpeed: 1 },
     blur: { strength: 20, noiseOverlay: false, noiseOpacity: 0.02, sidebarBlur: 16, panelBlur: 12, modalBlur: 20 },
-    glassmorphism: { borderOpacity: 0.1, borderGlow: false, borderGlowIntensity: 0.2, saturation: 120, tintColor: '#ffffff', tintOpacity: 0.01, frostedGlass: false, chromaticAberration: false, glowOutline: false, glowColor1: '#fff', glowColor2: '#aaa', glowOutlineStrength: 8 , glassMode: 'default' as any, glassDepth: 0.5, innerShadow: false, reflectionLine: false, animatedBlur: false, animatedBlurSpeed: 3, panelRenderer: 'blur', glowRenderer: 'css' },
+    glassmorphism: { borderOpacity: 0.1, borderGlow: false, borderGlowIntensity: 0.2, saturation: 120, tintColor: '#ffffff', tintOpacity: 0.01, frostedGlass: false, chromaticAberration: false, glowOutline: false, glowColor1: '#fff', glowColor2: '#aaa', glowOutlineStrength: 8 , glassMode: 'default', glassDepth: 0.5, innerShadow: false, reflectionLine: false, animatedBlur: false, animatedBlurSpeed: 3, panelRenderer: 'blur', glowRenderer: 'css' },
   },
   'Sakura': {
     mode: 'light', accent: '#E91E8C', accent2: '#FF6B6B', bg: '#fff5f8',
@@ -310,14 +314,14 @@ const P: Record<string, Partial<Theme>> = {
     glow: { mode: 'outline', color: '#8DB4FF', intensity: 0.58, radius: 22, spread: 5, blendMode: 'screen', gradientGlow: true, gradientColor1: '#8DB4FF', gradientColor2: '#4DE0D0', gradientAngle: 120, animated: true, animationSpeed: 0.7 },
     blur: { strength: 18, noiseOverlay: false, noiseOpacity: 0.02, sidebarBlur: 18, panelBlur: 14, modalBlur: 22 },
     background: { mode: 'gradient', stops: [{ color: '#0e1218', position: 0, opacity: 1 }, { color: '#161f2b', position: 100, opacity: 1 }], angle: 145, animated: false, animationSpeed: 4, noiseOpacity: 0.01, meshIntensity: 0.22, overlayOpacity: 0, vignette: false, vignetteStrength: 0.4, scanlines: false, panelBgMode: 'glass' },
-    glassmorphism: { borderOpacity: 0.2, borderGlow: true, borderGlowIntensity: 0.6, saturation: 165, tintColor: '#8DB4FF', tintOpacity: 0.035, frostedGlass: false, chromaticAberration: false, glowOutline: true, glowColor1: '#8DB4FF', glowColor2: '#4DE0D0', glowOutlineStrength: 12, glassMode: 'default' as any, glassDepth: 0.5, innerShadow: false, reflectionLine: false, animatedBlur: false, animatedBlurSpeed: 3, panelRenderer: 'blur', glowRenderer: 'css' },
+    glassmorphism: { borderOpacity: 0.2, borderGlow: true, borderGlowIntensity: 0.6, saturation: 165, tintColor: '#8DB4FF', tintOpacity: 0.035, frostedGlass: false, chromaticAberration: false, glowOutline: true, glowColor1: '#8DB4FF', glowColor2: '#4DE0D0', glowOutlineStrength: 12, glassMode: 'default', glassDepth: 0.5, innerShadow: false, reflectionLine: false, animatedBlur: false, animatedBlurSpeed: 3, panelRenderer: 'blur', glowRenderer: 'css' },
   },
   'Sunset Haze': {
     mode: 'light', accent: '#F97316', accent2: '#EC4899', bg: '#fff7ef',
     glow: { mode: 'focus', color: '#F97316', intensity: 0.34, radius: 16, spread: 3, blendMode: 'normal', gradientGlow: true, gradientColor1: '#F97316', gradientColor2: '#EC4899', gradientAngle: 95, animated: false, animationSpeed: 1 },
     blur: { strength: 16, noiseOverlay: false, noiseOpacity: 0.01, sidebarBlur: 16, panelBlur: 12, modalBlur: 20 },
     background: { mode: 'gradient', stops: [{ color: '#fff7ef', position: 0, opacity: 1 }, { color: '#ffe7ef', position: 100, opacity: 1 }], angle: 165, animated: false, animationSpeed: 4, noiseOpacity: 0.01, meshIntensity: 0.18, overlayOpacity: 0, vignette: false, vignetteStrength: 0.4, scanlines: false, panelBgMode: 'glass' },
-    glassmorphism: { borderOpacity: 0.16, borderGlow: true, borderGlowIntensity: 0.4, saturation: 150, tintColor: '#F97316', tintOpacity: 0.02, frostedGlass: false, chromaticAberration: false, glowOutline: true, glowColor1: '#F97316', glowColor2: '#EC4899', glowOutlineStrength: 10, glassMode: 'default' as any, glassDepth: 0.5, innerShadow: false, reflectionLine: false, animatedBlur: false, animatedBlurSpeed: 3, panelRenderer: 'blur', glowRenderer: 'css' },
+    glassmorphism: { borderOpacity: 0.16, borderGlow: true, borderGlowIntensity: 0.4, saturation: 150, tintColor: '#F97316', tintOpacity: 0.02, frostedGlass: false, chromaticAberration: false, glowOutline: true, glowColor1: '#F97316', glowColor2: '#EC4899', glowOutlineStrength: 10, glassMode: 'default', glassDepth: 0.5, innerShadow: false, reflectionLine: false, animatedBlur: false, animatedBlurSpeed: 3, panelRenderer: 'blur', glowRenderer: 'css' },
   },
 }
 
@@ -432,11 +436,11 @@ const DEFAULT_QOL: QOLConfig = {
   motionProfile: 'balanced',
 }
 
-const isRecord = (value: unknown): value is Record<string, any> =>
+const isRecord = (value: unknown): value is Record<string, unknown> =>
   Boolean(value) && typeof value === 'object' && !Array.isArray(value)
 
-const mergeConfig = <T extends Record<string, any>>(base: T, incoming: unknown): T => (
-  isRecord(incoming) ? ({ ...base, ...incoming } as T) : ({ ...base } as T)
+const mergeConfig = <T extends object>(base: T, incoming: unknown): T => (
+  isRecord(incoming) ? ({ ...base, ...(incoming as Partial<T>) } as T) : ({ ...base } as T)
 )
 
 const sanitizePanelRenderer = (value: unknown): GlassmorphismConfig['panelRenderer'] => {
@@ -451,7 +455,7 @@ const sanitizeThemeSnapshot = (persistedRaw: unknown, current: Theme): Theme => 
     ? Math.max(180, Math.min(420, sidebarWidthRaw))
     : current.sidebarWidth
   const mergedQol = mergeConfig(current.qol, persisted.qol)
-  const autoAccentContrast = (mergedQol as any).autoAccentContrast ?? true
+  const autoAccentContrast = mergedQol.autoAccentContrast ?? true
   const mergedGlassmorphism = mergeConfig(current.glassmorphism, persisted.glassmorphism)
   mergedGlassmorphism.panelRenderer = sanitizePanelRenderer(mergedGlassmorphism.panelRenderer)
 
@@ -545,7 +549,7 @@ export const useTheme = create<Theme>()(
       // ── Actions ──
       setMode: (mode) => set((s) => ({
         mode,
-        tokens: buildTokens(mode, s.accent, (s.qol as any).autoAccentContrast ?? true),
+        tokens: buildTokens(mode, s.accent, s.qol.autoAccentContrast ?? true),
       })),
       setColors: (c) => set((s) => {
         const accent = c.accent ?? s.accent
@@ -555,7 +559,7 @@ export const useTheme = create<Theme>()(
           accent,
           accent2,
           bg,
-          tokens: buildTokens(s.mode, accent, (s.qol as any).autoAccentContrast ?? true),
+          tokens: buildTokens(s.mode, accent, s.qol.autoAccentContrast ?? true),
         }
       }),
       setGlow: (g) => set((s) => ({ glow: { ...s.glow, ...g } })),
@@ -587,7 +591,7 @@ export const useTheme = create<Theme>()(
       setToolbar: (tb) => set((s) => ({ toolbar: { ...s.toolbar, ...tb } })),
 
       preset: (n) => {
-        const p = P[n]
+        const p = P[n] as Partial<Theme> | undefined
         if (p) set((s) => ({
           ...s, ...p,
           glow: { ...s.glow, ...p.glow },
@@ -597,7 +601,7 @@ export const useTheme = create<Theme>()(
           tokens: buildTokens(
             (p.mode ?? s.mode) as 'dark' | 'light',
             (p.accent ?? s.accent) as string,
-            ((s.qol as any).autoAccentContrast ?? true) as boolean
+            s.qol.autoAccentContrast ?? true
           ),
         }))
       },
