@@ -32,6 +32,10 @@ import {
   CanvasNexusInlineCode,
 } from '@nexus/core/canvas/CanvasMagicRenderers'
 import {
+  replaceMarkdownCodeBlockSafely,
+  writeClipboardTextSafely,
+} from '@nexus/core/canvas/markdownSafety'
+import {
   CANVAS_MAGIC_HUB_QUICK_ACTIONS,
   type CanvasMagicHubQuickActionId,
 } from '@nexus/core/canvas/magicHubTemplates'
@@ -267,6 +271,10 @@ export function CanvasNodeWidget({ node, isSelected, onSelect, onStartConnect, o
         : t.mode === 'dark'
             ? 'rgba(12,14,24,0.92)'
             : 'rgba(248,248,252,0.95)'
+    const normalizedNodeContent =
+        typeof nodeForRender.content === 'string'
+            ? nodeForRender.content
+            : String(nodeForRender.content ?? '')
 
 
     const replaceMarkdownCodeBlock = useCallback((
@@ -275,35 +283,19 @@ export function CanvasNodeWidget({ node, isSelected, onSelect, onStartConnect, o
         rawChildren: React.ReactNode,
         nextBlockContent: string,
     ) => {
-        const current = nodeForRender.content || ''
-        const lang = (className || '').replace('language-', '')
-        const raw = Array.isArray(rawChildren) ? rawChildren.join('') : String(rawChildren ?? '')
-        const currentBlockContent = raw.replace(/\n$/, '')
-        const normalizedNext = nextBlockContent.replace(/\r\n/g, '\n').replace(/\n+$/, '')
-        const makeFence = (block: string) => `\`\`\`${lang}\n${block.replace(/\n+$/, '')}\n\`\`\``
-        const nextFence = makeFence(normalizedNext)
-
-        const start = mdNode?.position?.start?.offset
-        const end = mdNode?.position?.end?.offset
-        if (
-            Number.isFinite(start)
-            && Number.isFinite(end)
-            && start >= 0
-            && end > start
-            && end <= current.length
-        ) {
-            commitNodePatch(node.id, { content: `${current.slice(0, start)}${nextFence}${current.slice(end)}` })
-            return
-        }
-
-        const prevFence = makeFence(currentBlockContent)
-        const idx = current.indexOf(prevFence)
-        if (idx >= 0) {
+        const replaced = replaceMarkdownCodeBlockSafely({
+            markdown: normalizedNodeContent,
+            mdNode,
+            className,
+            rawChildren,
+            nextBlockContent,
+        })
+        if (replaced.replaced && replaced.nextMarkdown !== normalizedNodeContent) {
             commitNodePatch(node.id, {
-                content: `${current.slice(0, idx)}${nextFence}${current.slice(idx + prevFence.length)}`,
+                content: replaced.nextMarkdown,
             })
         }
-    }, [commitNodePatch, node.id, nodeForRender.content])
+    }, [commitNodePatch, node.id, normalizedNodeContent])
 
     const statusColor = (status?: string) => {
         if (status === 'done' || status === 'review') return '#30D158'
@@ -331,7 +323,7 @@ export function CanvasNodeWidget({ node, isSelected, onSelect, onStartConnect, o
     }
 
     const renderContent = () => {
-        const nodeContent = nodeForRender.content
+        const nodeContent = normalizedNodeContent
         switch (node.type) {
             case 'text':
                 return (
@@ -480,7 +472,7 @@ export function CanvasNodeWidget({ node, isSelected, onSelect, onStartConnect, o
                                     <option key={l} value={l}>{l}</option>
                                 ))}
                             </select>
-                            <button onClick={() => { navigator.clipboard?.writeText(nodeContent) }}
+                            <button onClick={() => { void writeClipboardTextSafely(nodeContent) }}
                                 title="Copy code"
                                 style={{ background: `rgba(${rgb},0.15)`, border: 'none', borderRadius: 5, padding: '3px 6px', cursor: 'pointer', color: node.color || t.accent, fontSize: 10, display: 'flex', alignItems: 'center', gap: 3 }}>
                                 <Copy size={10} /> Copy
@@ -626,7 +618,7 @@ export function CanvasNodeWidget({ node, isSelected, onSelect, onStartConnect, o
                                     ))}
                                 </select>
                                 <button
-                                    onClick={() => navigator.clipboard?.writeText(nodeContent)}
+                                    onClick={() => { void writeClipboardTextSafely(nodeContent) }}
                                     style={{
                                         background: `rgba(${rgb},0.15)`, border: 'none', borderRadius: 6,
                                         padding: '4px 8px', cursor: 'pointer', color: node.color || t.accent, fontSize: 10,

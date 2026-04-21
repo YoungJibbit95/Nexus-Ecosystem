@@ -404,8 +404,8 @@ button.nx-icon-btn:hover::after { opacity: 1; }
   100% { opacity: 1; transform: scale(1); }
 }
 @keyframes nx-view-enter {
-  0% { opacity: 0; transform: translateY(14px) scale(0.992); filter: blur(1px); }
-  100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+  0% { opacity: 0; transform: translateY(14px) scale(0.992); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
 }
 @keyframes nx-typing-pulse {
   0% { opacity: 0.92; text-shadow: 0 0 0 rgba(120, 170, 255, 0); }

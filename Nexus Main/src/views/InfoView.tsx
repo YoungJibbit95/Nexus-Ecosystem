@@ -327,7 +327,7 @@ Prinzip:
             <Card icon="💻" title="CodeView" desc="Quick Open, Run/Preview, Output-History und Monaco-Fallback." keys={["Cmd/Ctrl+P", "Cmd/Ctrl+Enter", "Cmd/Ctrl+S"]} />
             <Card icon="✅" title="Tasks" desc="Board + Focus Views + Linked Context + Batch-Flows." />
             <Card icon="🔔" title="Reminders" desc="Recurrence/Snooze/Triage mit Task-/Note-Kontext." />
-            <Card icon="🧠" title="Canvas" desc="Find/Jump, Outline, Multi-Select/Bulk, Focus/Fit und Magic Builder." keys={["Cmd/Ctrl+M", "Cmd/Ctrl+0", "F", "P"]} />
+            <Card icon="🧠" title="Canvas" desc="Find/Jump, Outline, Multi-Select/Bulk, Focus/Fit und Magic Builder." keys={["Cmd/Ctrl+P", "Cmd/Ctrl+M", "Cmd/Ctrl+0", "F", "P"]} />
             <Card icon="🗂️" title="Files" desc="Workspace-Hub mit Canvas-Items, Smart Views und Assign-Flows." />
             <Card icon="⚡" title="Flux" desc="Ops Score + Bottlenecks + Drilldown-Actions auf echte Ziele." />
             <Card icon="🛠️" title="DevTools" desc="Builder/Recipe/Export für wiederverwendbare Artefakte." />
@@ -422,6 +422,7 @@ Prinzip:
             desc=""
             keys={[
               "Space Hold Pan",
+              "Cmd/Ctrl+P Quick Switch",
               "Cmd/Ctrl+M Magic",
               "Cmd/Ctrl+0 Fit",
               "F Focus/Fit",
@@ -480,7 +481,7 @@ Prinzip:
             <Card title="Global" desc="" keys={["Cmd/Ctrl+1..9", "Cmd/Ctrl+[ / ]", "Esc"]} />
             <Card title="Notes" desc="" keys={["Cmd/Ctrl+S", "Cmd/Ctrl+B", "Cmd/Ctrl+I", "Cmd/Ctrl+K"]} />
             <Card title="CodeView" desc="" keys={["Cmd/Ctrl+P", "Cmd/Ctrl+Enter", "Cmd/Ctrl+S"]} />
-            <Card title="Canvas" desc="" keys={["Cmd/Ctrl+M", "Cmd/Ctrl+0", "F", "P", "G", "+ / -"]} />
+            <Card title="Canvas" desc="" keys={["Cmd/Ctrl+P", "Cmd/Ctrl+M", "Cmd/Ctrl+0", "F", "P", "G", "+ / -"]} />
             <Card title="Flux" desc="" keys={["Cmd/Ctrl+F", "Cmd/Ctrl+Shift+N/C/T/R", "1..4", "0"]} />
             <Card title="Terminal" desc="" keys={["Enter", "Tab", "ArrowUp/Down", "Esc", "Ctrl+L"]} />
           </Grid2>

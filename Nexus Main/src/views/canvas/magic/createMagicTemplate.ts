@@ -1,10 +1,8 @@
 import type { CanvasNode, NodeType } from "../../../store/canvasStore";
 import type { MagicTemplatePayload } from "../CanvasMagicModal";
 import {
-  buildAiProjectMagicGraph,
-  buildCanvasMagicHubMarkdown,
+  buildCanvasMagicTemplate,
   normalizeCanvasMagicTemplatePayload,
-  resolveCanvasMagicHubTemplateMeta,
 } from "@nexus/core/canvas/magicHubTemplates";
 
 type SpawnNodeFn = (
@@ -53,9 +51,10 @@ const finalizeTemplate = (params: CreateMagicTemplateParams, rootId: string | nu
 export function createMagicTemplateFromPayload(params: CreateMagicTemplateParams) {
   const center = getViewportCenter(params);
   const payload = normalizeCanvasMagicTemplatePayload(params.payload);
+  const template = buildCanvasMagicTemplate(payload);
 
-  if (payload.template === "ai-project") {
-    const graph = buildAiProjectMagicGraph(payload);
+  if (template.kind === "ai-project") {
+    const graph = template.graph;
     const idMap = new globalThis.Map<string, string | null>();
     graph.nodes.forEach((node) => {
       const createdId = params.spawnNode(node.type as NodeType, {
@@ -90,20 +89,16 @@ export function createMagicTemplateFromPayload(params: CreateMagicTemplateParams
     return;
   }
 
-  const { id: templateId, meta } = resolveCanvasMagicHubTemplateMeta(
-    payload.template,
-  );
-  const title = payload.title?.trim() || meta.label;
   const rootId = params.spawnNode("markdown", {
     x: center.x - 380,
     y: center.y - 300,
-    title,
+    title: template.title,
     patch: {
       width: 760,
       height: 600,
-      color: meta.color,
-      content: buildCanvasMagicHubMarkdown(payload),
-      tags: ["magic-hub", `preset:${templateId}`],
+      color: template.meta.color,
+      content: template.markdown,
+      tags: ["magic-hub", `preset:${template.templateId}`],
     },
   });
   finalizeTemplate(params, rootId);

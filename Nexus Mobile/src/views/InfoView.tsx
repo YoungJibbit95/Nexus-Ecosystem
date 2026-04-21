@@ -227,7 +227,7 @@ export function InfoView() {
             <Card icon="💻" title="CodeView" desc="Quick Open + Run/Preview + Output-History." />
             <Card icon="✅" title="Tasks" desc="Focus Views, Batch-Flows und Linked Context." />
             <Card icon="🔔" title="Reminders" desc="Recurrence/Snooze/Triage mit Kontext." />
-            <Card icon="🧠" title="Canvas" desc="Find/Jump, Outline, Multi-Select, Focus/Fit." keys={["Cmd/Ctrl+M", "Cmd/Ctrl+0", "F", "P"]} />
+            <Card icon="🧠" title="Canvas" desc="Find/Jump, Outline, Multi-Select, Focus/Fit." keys={["Cmd/Ctrl+P", "Cmd/Ctrl+M", "Cmd/Ctrl+0", "F", "P"]} />
             <Card icon="🗂️" title="Files" desc="Smart Views + Workspace/Handoff/Import-Export." />
             <Card icon="⚡" title="Flux" desc="Queue-Slices, Bottlenecks und Action-Drilldowns." />
             <Card icon="🛠️" title="DevTools" desc="Builder/Recipe/Export für wiederverwendbare Outputs." />
@@ -291,7 +291,7 @@ export function InfoView() {
             <Card icon="🪄" title="Magic Templates" desc="Hub-first plus ai-project Prompt-Flow." />
             <Card icon="📐" title="Node Resize + Zoom" desc="Rahmen- und Content-Skalierung pro Node." />
           </Grid2>
-          <Card title="Controls" desc="" keys={["Cmd/Ctrl+M", "Cmd/Ctrl+0", "F", "P", "G", "+ / -"]} />
+          <Card title="Controls" desc="" keys={["Cmd/Ctrl+P", "Cmd/Ctrl+M", "Cmd/Ctrl+0", "F", "P", "G", "+ / -"]} />
         </Acc>
 
         <Acc title="Files & Workspaces" icon={HardDrive} open={open.files} onToggle={() => tog("files")}> 
@@ -335,7 +335,7 @@ export function InfoView() {
             <Card title="Global" desc="" keys={["Cmd/Ctrl+1..9", "Cmd/Ctrl+[ / ]", "Esc"]} />
             <Card title="Notes" desc="" keys={["Cmd/Ctrl+S", "Cmd/Ctrl+B", "Cmd/Ctrl+I", "Cmd/Ctrl+K"]} />
             <Card title="CodeView" desc="" keys={["Cmd/Ctrl+P", "Cmd/Ctrl+Enter", "Cmd/Ctrl+S"]} />
-            <Card title="Canvas" desc="" keys={["Cmd/Ctrl+M", "Cmd/Ctrl+0", "F", "P", "G", "+ / -"]} />
+            <Card title="Canvas" desc="" keys={["Cmd/Ctrl+P", "Cmd/Ctrl+M", "Cmd/Ctrl+0", "F", "P", "G", "+ / -"]} />
             <Card title="Flux" desc="" keys={["Cmd/Ctrl+F", "Cmd/Ctrl+Shift+N/C/T/R", "1..4", "0"]} />
             <Card title="Terminal" desc="" keys={["Enter", "Tab", "ArrowUp/Down", "Esc", "Ctrl+L"]} />
           </Grid2>

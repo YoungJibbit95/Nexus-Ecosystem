@@ -110,6 +110,7 @@ export function CanvasView() {
   const [showMagicBuilder, setShowMagicBuilder] = useState(false);
   const [layoutMode, setLayoutMode] = useState<CanvasLayoutMode>("mindmap");
   const [showProjectPanel, setShowProjectPanel] = useState(false);
+  const [projectSearchFocusToken, setProjectSearchFocusToken] = useState(0);
   const [pmStatusFilter, setPmStatusFilter] = useState<
     "all" | CanvasNodeStatus
   >("all");
@@ -464,6 +465,11 @@ export function CanvasView() {
     [fitView],
   );
 
+  const openProjectSearch = useCallback(() => {
+    setShowProjectPanel(true);
+    setProjectSearchFocusToken((value) => value + 1);
+  }, []);
+
   useCanvasKeyboardShortcuts({
     selectedNodeId,
     setSpaceHeld,
@@ -475,6 +481,7 @@ export function CanvasView() {
     setGridMode,
     setLayoutMode,
     applyAutoLayout,
+    openProjectSearch,
     resetViewport,
     fitView,
     focusNode,
@@ -642,6 +649,7 @@ export function CanvasView() {
           onOpenQuickAddMenu={openQuickAddMenuFromToolbar}
           createStarterPack={() => createStarterPack()}
           createMagicTemplate={createMagicTemplate}
+          openProjectSearch={openProjectSearch}
           showProjectPanel={showProjectPanel}
           setShowProjectPanel={setShowProjectPanel}
           autoLinkWikiRefs={autoLinkWikiRefs}
@@ -731,6 +739,7 @@ export function CanvasView() {
             timelineNodes={timelineNodes}
             setSelectedNodeId={setSelectedNodeId}
             focusNode={focusNode}
+            searchFocusToken={projectSearchFocusToken}
           />
 
           {/* Mini-map */}

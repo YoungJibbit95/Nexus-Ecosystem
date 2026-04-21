@@ -56,10 +56,17 @@ import {
   MOBILE_HEAVY_PRELOAD_VIEWS,
   MOBILE_PERSISTENT_VIEW_CACHE,
   MOBILE_SAFE_STARTUP_VIEWS,
+  describeBootstrapFailureKind,
+  isRecoverableBootstrapResourceError,
   isLowPowerDevice,
   isOfflineBootstrapResourceError,
   mergeUniqueViews,
+  readLastKnownMobileStartupViews,
+  resolveControlApiBaseUrl,
+  shouldPrewarmHeavyMobileViews,
+  isLikelyIOSRuntime,
   withTimeoutResult,
+  writeLastKnownMobileStartupViews,
 } from './app/mobileAppConfig'
 
 const withDevDiagnosticsView = (views: View[]): View[] => {
@@ -79,6 +86,11 @@ export default function App() {
   const [bootProgress, setBootProgress] = useState(0)
   const [bootStage, setBootStage] = useState('Nexus Runtime wird gestartet...')
   const [bootFailure, setBootFailure] = useState<string | null>(null)
+  const [bootFailureDetails, setBootFailureDetails] = useState<Array<{
+    resource: string
+    errorCode: string
+    kind: string
+  }> | null>(null)
   const [remoteDensity, setRemoteDensity] = useState<'compact' | 'comfortable' | 'spacious' | null>(null)
   const [remoteNavigation, setRemoteNavigation] = useState<'sidebar' | 'bottom-nav' | 'tabs' | null>(null)
   const [viewGuardState, setViewGuardState] = useState<{
@@ -109,6 +121,7 @@ export default function App() {
   const [lagPressure, setLagPressure] = useState<'low' | 'elevated' | 'critical'>('low')
   const [autoMotionSafety, setAutoMotionSafety] = useState(false)
   const lowPowerMode = useMemo(() => isLowPowerDevice(), [])
+  const prefersStaticMobileContent = useMemo(() => isLikelyIOSRuntime(), [])
   const motionSafetyLowPower = lowPowerMode || autoMotionSafety
   const effectiveReducedMotion = Boolean(t.qol?.reducedMotion ?? false) || autoMotionSafety
   const motionRuntime = useMemo(
@@ -393,8 +406,18 @@ export default function App() {
   )
 
   useEffect(() => {
-    const controlBaseUrl = CONTROL_API_BASE_URL
+    const controlBaseUrl = resolveControlApiBaseUrl() || CONTROL_API_BASE_URL
     const controlIngestKey = (import.meta as any).env?.VITE_NEXUS_CONTROL_INGEST_KEY as string | undefined
+    const safeStartupViews = withDevDiagnosticsView(
+      mergeUniqueViews(
+        MOBILE_SAFE_STARTUP_VIEWS.filter((candidate) => VIEW_IDS.includes(candidate)),
+        readLastKnownMobileStartupViews(),
+      ),
+    )
+    const hardenedSafeStartupViews =
+      safeStartupViews.length > 0
+        ? safeStartupViews
+        : withDevDiagnosticsView(['dashboard', 'notes', 'tasks', 'settings', 'files'])
 
     const runtime = createNexusRuntime({
       appId: 'mobile',
@@ -408,10 +431,10 @@ export default function App() {
         releasePollIntervalMs: 30_000,
         viewValidationFailOpen: false,
         viewValidationCacheMs: 120_000,
-        requestTimeoutMs: lowPowerMode ? 1_800 : 1_300,
-        readRetryMax: 1,
-        readRetryBaseMs: 120,
-        readRetryMaxMs: 1_000,
+        requestTimeoutMs: lowPowerMode ? 4_600 : 3_200,
+        readRetryMax: 2,
+        readRetryBaseMs: 160,
+        readRetryMaxMs: 1_300,
       },
       performance: {
         collectMemoryMs: 60_000,
@@ -469,10 +492,11 @@ export default function App() {
       setBootReady(true)
     }, bootBudgetMs)
     setBootFailure(null)
+    setBootFailureDetails(null)
     setBootProgress(8)
     setBootStage('Nexus Runtime wird gestartet...')
 
-    void preloadMobileViews(MOBILE_SAFE_STARTUP_VIEWS, {
+    void preloadMobileViews(hardenedSafeStartupViews, {
       eagerLimit: lowPowerMode ? 1 : 2,
       includeDeferred: false,
     })
@@ -516,12 +540,37 @@ export default function App() {
           .map(([resource, errorCode]) => ({
             resource: String(resource),
             errorCode: String(errorCode || 'INVALID_PAYLOAD'),
+            kind: describeBootstrapFailureKind(errorCode),
           }))
 
         if (failedResources.length > 0) {
           const offlineOnly = failedResources.every((entry) => isOfflineBootstrapResourceError(entry.errorCode))
-          if (!offlineOnly) {
+          const recoverableOnly = failedResources.every((entry) =>
+            isRecoverableBootstrapResourceError(entry.errorCode),
+          )
+          const shouldUseSafeFallback = recoverableOnly && hardenedSafeStartupViews.length > 0
+          runtime.connection.publish(
+            'custom',
+            {
+              event: 'mobile_bootstrap_resources_partial',
+              appId: 'mobile',
+              failedResources,
+              fallbackStartupViews: shouldUseSafeFallback ? hardenedSafeStartupViews : [],
+            },
+            'all',
+          )
+          if (!offlineOnly && !shouldUseSafeFallback) {
+            if (active) {
+              setBootFailureDetails(failedResources)
+            }
             throw new Error(`CONTROL_API_BOOTSTRAP_FAILED (${failedResources.map((entry) => `${entry.resource}:${entry.errorCode}`).join(', ')})`)
+          }
+          if (shouldUseSafeFallback) {
+            console.warn('[Nexus Mobile] bootstrap fallback to safe startup views', {
+              failedResources,
+              fallbackViews: hardenedSafeStartupViews,
+            })
+            setBootStep(42, 'Hosted API teilweise nicht erreichbar, sichere lokale Views werden genutzt...')
           }
         }
 
@@ -538,28 +587,39 @@ export default function App() {
         if (!active) return
         applyLiveBundle(bundle)
         setBootStep(54, 'Validiere verfuegbare Views...')
-        const startupViews = bundle
+        const startupViewsFromBundle = bundle
           ? resolveBundleViews(bundle)
-          : withDevDiagnosticsView(MOBILE_SAFE_STARTUP_VIEWS)
+          : hardenedSafeStartupViews
+        const startupViews = startupViewsFromBundle.length > 0
+          ? startupViewsFromBundle
+          : hardenedSafeStartupViews
         if (startupViews.length === 0) {
           throw new Error('CONTROL_API_BOOTSTRAP_FAILED (NO_STARTUP_VIEWS)')
         }
+        writeLastKnownMobileStartupViews(startupViews)
 
         const prioritizedStartupViews = orderMobilePreloadViews(startupViews)
         const priorityPrewarmViews = MOBILE_BOOT_PRIORITY_VIEWS.filter((candidate) =>
           startupViews.includes(candidate),
         )
-        const heavyPrewarmViews = Array.from(MOBILE_HEAVY_PRELOAD_VIEWS).filter((candidate) =>
+        const allowHeavyBootWarmup = shouldPrewarmHeavyMobileViews({ lowPowerMode })
+        const heavyPrewarmViews =
+          allowHeavyBootWarmup
+            ? Array.from(MOBILE_HEAVY_PRELOAD_VIEWS).filter((candidate) =>
+                startupViews.includes(candidate),
+              )
+            : []
+        const persistentCacheViews = MOBILE_PERSISTENT_VIEW_CACHE.filter((candidate) =>
           startupViews.includes(candidate),
-        )
+        ).filter((candidate) => (
+          allowHeavyBootWarmup ? true : !MOBILE_HEAVY_PRELOAD_VIEWS.has(candidate)
+        ))
         setAvailableViews(startupViews)
         setView((prev) => (startupViews.includes(prev) ? prev : startupViews[0]))
         setMountedViews(
           mergeUniqueViews(
             [startupViews[0]],
-            MOBILE_PERSISTENT_VIEW_CACHE.filter((candidate) =>
-              startupViews.includes(candidate),
-            ),
+            persistentCacheViews,
           ),
         )
         setViewGuardState({
@@ -923,6 +983,15 @@ export default function App() {
           <div style={{ marginTop: 8 }}>
             Reason: <code>{bootFailure}</code>
           </div>
+          {bootFailureDetails && bootFailureDetails.length > 0 ? (
+            <div style={{ marginTop: 8, fontSize: 12, opacity: 0.9 }}>
+              {bootFailureDetails.map((entry) => (
+                <div key={`${entry.resource}-${entry.errorCode}`}>
+                  - {entry.resource}: {entry.errorCode} ({entry.kind})
+                </div>
+              ))}
+            </div>
+          ) : null}
         </div>
       </div>
     )
@@ -1099,17 +1168,36 @@ export default function App() {
           paddingBottom: MOBILE_NAV_HEIGHT,
           WebkitOverflowScrolling: 'touch',
         }}>
-          <motion.div
-            initial={motionRuntime.pageInitial}
-            animate={motionRuntime.pageAnimate}
-            exit={motionRuntime.pageExit}
-            transition={motionRuntime.pageTransition}
-            style={{ height: '100%', overflow: 'hidden', position: 'relative' }}
-          >
-            <div style={{ position: 'relative', height: '100%', overflow: 'hidden' }}>
-              {viewHostNode}
+          {prefersStaticMobileContent ? (
+            <div
+              style={{
+                height: '100%',
+                minHeight: 0,
+                overflow: 'hidden',
+                position: 'relative',
+                transform: 'translateZ(0)',
+                WebkitTransform: 'translateZ(0)',
+                backfaceVisibility: 'hidden',
+                WebkitBackfaceVisibility: 'hidden',
+              }}
+            >
+              <div style={{ position: 'relative', height: '100%', minHeight: 0, overflow: 'hidden' }}>
+                {viewHostNode}
+              </div>
             </div>
-          </motion.div>
+          ) : (
+            <motion.div
+              initial={motionRuntime.pageInitial}
+              animate={motionRuntime.pageAnimate}
+              exit={motionRuntime.pageExit}
+              transition={motionRuntime.pageTransition}
+              style={{ height: '100%', overflow: 'hidden', position: 'relative' }}
+            >
+              <div style={{ position: 'relative', height: '100%', overflow: 'hidden' }}>
+                {viewHostNode}
+              </div>
+            </motion.div>
+          )}
         </div>
 
         {/* Mobile bottom navigation */}

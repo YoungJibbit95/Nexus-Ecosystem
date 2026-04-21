@@ -11,6 +11,7 @@ export const useCanvasKeyboardShortcuts = ({
   setGridMode,
   setLayoutMode,
   applyAutoLayout,
+  openProjectSearch,
   resetViewport,
   fitView,
   focusNode,
@@ -30,6 +31,7 @@ export const useCanvasKeyboardShortcuts = ({
     mode: "mindmap" | "timeline" | "board",
     opts?: { fitView?: boolean },
   ) => void;
+  openProjectSearch: () => void;
   resetViewport: () => void;
   fitView: () => void;
   focusNode: (nodeId: string) => void;
@@ -61,6 +63,11 @@ export const useCanvasKeyboardShortcuts = ({
       }
       if ((e.ctrlKey || e.metaKey) && (e.key === "z" || e.key === "y") && !isEditing) {
         e.preventDefault();
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "p" && !isEditing) {
+        e.preventDefault();
+        openProjectSearch();
+        return;
       }
       if ((e.ctrlKey || e.metaKey) && e.key === "0") {
         resetViewport();
@@ -115,6 +122,7 @@ export const useCanvasKeyboardShortcuts = ({
     deleteSelectedNode,
     fitView,
     focusNode,
+    openProjectSearch,
     resetViewport,
     selectedNodeId,
     setConnectingFrom,

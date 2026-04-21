@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CheckSquare } from "lucide-react";
 import {
   useCanvas,
@@ -12,6 +12,7 @@ import { NodeOutlineSection } from "./projectPanel/NodeOutlineSection";
 import { NodeBulkActionsSection } from "./projectPanel/NodeBulkActionsSection";
 import { SelectedNodeDetailsSection } from "./projectPanel/SelectedNodeDetailsSection";
 import { TimelineSection } from "./projectPanel/TimelineSection";
+import { NodeRelationsSection } from "./projectPanel/NodeRelationsSection";
 import { scoreNodeMatch } from "./projectPanel/helpers";
 import { type BoardLane } from "./projectPanel/types";
 
@@ -32,6 +33,7 @@ type CanvasProjectPanelProps = {
   timelineNodes: CanvasNode[];
   setSelectedNodeId: (id: string | null) => void;
   focusNode: (id: string) => void;
+  searchFocusToken?: number;
 };
 
 export function CanvasProjectPanel({
@@ -51,14 +53,41 @@ export function CanvasProjectPanel({
   timelineNodes,
   setSelectedNodeId,
   focusNode,
+  searchFocusToken = 0,
 }: CanvasProjectPanelProps) {
   if (!open || !canvas) return null;
 
   const [searchQuery, setSearchQuery] = useState("");
   const [bulkTagDraft, setBulkTagDraft] = useState("");
   const [bulkSelected, setBulkSelected] = useState<Record<string, true>>({});
+  const [focusTrail, setFocusTrail] = useState<string[]>([]);
+  const [focusTrailIndex, setFocusTrailIndex] = useState(-1);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
 
   const bulkSelectedIds = useMemo(() => Object.keys(bulkSelected), [bulkSelected]);
+
+  useEffect(() => {
+    if (!open) return;
+    const input = searchInputRef.current;
+    if (!input) return;
+    input.focus();
+    input.select();
+  }, [open, searchFocusToken]);
+
+  const commitFocusTrail = useCallback((nodeId: string) => {
+    setFocusTrail((prev) => {
+      const capped =
+        focusTrailIndex >= 0 ? prev.slice(0, focusTrailIndex + 1) : prev.slice();
+      if (capped[capped.length - 1] === nodeId) return capped;
+      const next = [...capped, nodeId];
+      if (next.length > 24) return next.slice(next.length - 24);
+      return next;
+    });
+    setFocusTrailIndex((prev) => {
+      const next = prev >= 0 ? prev + 1 : 0;
+      return Math.min(23, next);
+    });
+  }, [focusTrailIndex]);
 
   const updateNode = useCallback((nodeId: string, patch: Partial<CanvasNode>) => {
     useCanvas.getState().updateNode(nodeId, patch);
@@ -137,12 +166,55 @@ export function CanvasProjectPanel({
   }, [canvas.nodes]);
 
   const jumpToNode = useCallback(
-    (nodeId: string) => {
+    (nodeId: string, options?: { recordTrail?: boolean }) => {
       setSelectedNodeId(nodeId);
       focusNode(nodeId);
+      if (options?.recordTrail !== false) commitFocusTrail(nodeId);
     },
-    [focusNode, setSelectedNodeId],
+    [commitFocusTrail, focusNode, setSelectedNodeId],
   );
+
+  const navigateFocusTrail = useCallback((direction: -1 | 1) => {
+    setFocusTrailIndex((currentIndex) => {
+      const nextIndex = currentIndex + direction;
+      if (nextIndex < 0 || nextIndex >= focusTrail.length) return currentIndex;
+      const targetNodeId = focusTrail[nextIndex];
+      if (targetNodeId) jumpToNode(targetNodeId, { recordTrail: false });
+      return nextIndex;
+    });
+  }, [focusTrail, jumpToNode]);
+
+  const relationSnapshot = useMemo(() => {
+    if (!selectedNode) {
+      return { incoming: [] as CanvasNode[], outgoing: [] as CanvasNode[], local: [] as CanvasNode[] };
+    }
+    const nodeById = new globalThis.Map<string, CanvasNode>();
+    canvas.nodes.forEach((node) => nodeById.set(node.id, node));
+    const incomingIds = canvas.connections
+      .filter((entry) => entry.toId === selectedNode.id)
+      .map((entry) => entry.fromId);
+    const outgoingIds = canvas.connections
+      .filter((entry) => entry.fromId === selectedNode.id)
+      .map((entry) => entry.toId);
+    const toNodes = (ids: string[]) =>
+      ids
+        .map((id) => nodeById.get(id) ?? null)
+        .filter((node): node is CanvasNode => Boolean(node));
+    const incoming = toNodes(incomingIds);
+    const outgoing = toNodes(outgoingIds);
+    const localIds = new Set<string>([...incomingIds, ...outgoingIds]);
+    [...localIds].forEach((nodeId) => {
+      canvas.connections.forEach((entry) => {
+        if (entry.fromId === nodeId && entry.toId !== selectedNode.id) localIds.add(entry.toId);
+        if (entry.toId === nodeId && entry.fromId !== selectedNode.id) localIds.add(entry.fromId);
+      });
+    });
+    const local = [...localIds]
+      .map((id) => nodeById.get(id) ?? null)
+      .filter((node): node is CanvasNode => Boolean(node))
+      .slice(0, 10);
+    return { incoming, outgoing, local };
+  }, [canvas.connections, canvas.nodes, selectedNode]);
 
   const selectNodesFromSearch = useCallback(() => {
     const next: Record<string, true> = {};
@@ -174,6 +246,38 @@ export function CanvasProjectPanel({
         <CheckSquare size={14} style={{ color: accent }} />
         <div style={{ fontSize: 12, fontWeight: 800 }}>Project Canvas</div>
         <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
+          <button
+            onClick={() => navigateFocusTrail(-1)}
+            disabled={focusTrailIndex <= 0}
+            style={{
+              padding: "4px 7px",
+              borderRadius: 8,
+              border: "1px solid rgba(255,255,255,0.14)",
+              background: "rgba(255,255,255,0.06)",
+              fontSize: 10,
+              cursor: focusTrailIndex > 0 ? "pointer" : "not-allowed",
+              color: "inherit",
+              opacity: focusTrailIndex > 0 ? 1 : 0.45,
+            }}
+          >
+            ←
+          </button>
+          <button
+            onClick={() => navigateFocusTrail(1)}
+            disabled={focusTrailIndex >= focusTrail.length - 1}
+            style={{
+              padding: "4px 7px",
+              borderRadius: 8,
+              border: "1px solid rgba(255,255,255,0.14)",
+              background: "rgba(255,255,255,0.06)",
+              fontSize: 10,
+              cursor: focusTrailIndex < focusTrail.length - 1 ? "pointer" : "not-allowed",
+              color: "inherit",
+              opacity: focusTrailIndex < focusTrail.length - 1 ? 1 : 0.45,
+            }}
+          >
+            →
+          </button>
           <button
             onClick={onToggleFocusOnly}
             style={{
@@ -279,6 +383,7 @@ export function CanvasProjectPanel({
         bulkSelected={bulkSelected}
         bulkToggle={bulkToggle}
         jumpToNode={jumpToNode}
+        searchInputRef={searchInputRef}
       />
 
       <NodeOutlineSection outlineGroups={outlineGroups} jumpToNode={jumpToNode} />
@@ -302,6 +407,14 @@ export function CanvasProjectPanel({
           updateNode={updateNode}
         />
       ) : null}
+
+      <NodeRelationsSection
+        selectedNode={selectedNode}
+        incomingNodes={relationSnapshot.incoming}
+        outgoingNodes={relationSnapshot.outgoing}
+        localGraphNodes={relationSnapshot.local}
+        jumpToNode={jumpToNode}
+      />
 
       <TimelineSection timelineNodes={timelineNodes} jumpToNode={jumpToNode} />
     </div>

@@ -27,6 +27,7 @@ import {
   CANVAS_MAGIC_HUB_QUICK_ACTIONS,
   type CanvasMagicHubQuickActionId,
 } from "@nexus/core/canvas/magicHubTemplates";
+import { replaceMarkdownCodeBlockSafely } from "@nexus/core/canvas/markdownSafety";
 import { NODE_COLORS, WIDGET_TYPES } from "../constants";
 import { renderNodeWidgetContent } from "./nodeWidget/renderNodeWidgetContent";
 import { useNodeWidgetTransforms } from "./nodeWidget/useNodeWidgetTransforms";
@@ -323,40 +324,16 @@ const NodeWidget = React.memo(function NodeWidget({
       rawChildren: React.ReactNode,
       nextBlockContent: string,
     ) => {
-      const current = nodeForRender.content || "";
-      const lang = (className || "").replace("language-", "");
-      const raw = Array.isArray(rawChildren)
-        ? rawChildren.join("")
-        : String(rawChildren ?? "");
-      const currentBlockContent = raw.replace(/\n$/, "");
-      const normalizedNext = nextBlockContent
-        .replace(/\r\n/g, "\n")
-        .replace(/\n+$/, "");
-
-      const makeFence = (block: string) =>
-        `\`\`\`${lang}\n${block.replace(/\n+$/, "")}\n\`\`\``;
-
-      const nextFence = makeFence(normalizedNext);
-      const start = mdNode?.position?.start?.offset;
-      const end = mdNode?.position?.end?.offset;
-      if (
-        Number.isFinite(start) &&
-        Number.isFinite(end) &&
-        start >= 0 &&
-        end > start &&
-        end <= current.length
-      ) {
+      const replaced = replaceMarkdownCodeBlockSafely({
+        markdown: nodeForRender.content || "",
+        mdNode,
+        className,
+        rawChildren,
+        nextBlockContent,
+      });
+      if (replaced.replaced && replaced.nextMarkdown !== nodeForRender.content) {
         commitNodePatch(node.id, {
-          content: `${current.slice(0, start)}${nextFence}${current.slice(end)}`,
-        });
-        return;
-      }
-
-      const prevFence = makeFence(currentBlockContent);
-      const idx = current.indexOf(prevFence);
-      if (idx >= 0) {
-        commitNodePatch(node.id, {
-          content: `${current.slice(0, idx)}${nextFence}${current.slice(idx + prevFence.length)}`,
+          content: replaced.nextMarkdown,
         });
       }
     },
