@@ -24,6 +24,15 @@ type Props = {
   onRequestViewChange: (viewId: View | string) => void;
 };
 
+const isLikelyIOSWebkit = () => {
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent || "";
+  const isiOSDevice = /iPad|iPhone|iPod/.test(ua);
+  const iPadDesktopMode =
+    navigator.platform === "MacIntel" && Number(navigator.maxTouchPoints || 0) > 1;
+  return isiOSDevice || iPadDesktopMode;
+};
+
 const mergeUniqueViews = (...groups: View[][]): View[] => {
   const ordered = groups.flat();
   const seen = new Set<View>();
@@ -152,10 +161,15 @@ export function MobileViewHost({
   reducedMotion,
   onRequestViewChange,
 }: Props) {
-  const renderedViews = mergeUniqueViews(
-    [view],
-    mountedViews.filter((entry) => availableViews.includes(entry)),
-  );
+  const prefersStaticLayering = isLikelyIOSWebkit();
+  const useSingleActiveLayer = prefersStaticLayering;
+  const allowViewEnterAnimation = !reducedMotion && !useSingleActiveLayer;
+  const renderedViews = useSingleActiveLayer
+    ? [view]
+    : mergeUniqueViews(
+        [view],
+        mountedViews.filter((entry) => availableViews.includes(entry)),
+      );
 
   return (
     <div
@@ -169,16 +183,30 @@ export function MobileViewHost({
       {renderedViews.map((viewId) => (
         <div
           key={viewId}
-          style={{
-            position: "absolute",
-            inset: 0,
-            pointerEvents: viewId === view ? "auto" : "none",
-            display: viewId === view ? "block" : "none",
-            animation:
-              viewId === view && !reducedMotion
-                ? "nx-view-enter calc(var(--nx-motion-regular, 210ms) + 70ms) cubic-bezier(0.22, 1, 0.36, 1) both"
-                : undefined,
-          }}
+          style={
+            useSingleActiveLayer
+              ? {
+                  position: "relative",
+                  width: "100%",
+                  height: "100%",
+                  minHeight: 0,
+                  overflow: "hidden",
+                }
+              : {
+                  position: "absolute",
+                  inset: 0,
+                  width: "100%",
+                  height: "100%",
+                  overflow: "hidden",
+                  pointerEvents: viewId === view ? "auto" : "none",
+                  zIndex: viewId === view ? 2 : 1,
+                  display: viewId === view ? "block" : "none",
+                  animation:
+                    viewId === view && allowViewEnterAnimation
+                      ? "nx-view-enter calc(var(--nx-motion-regular, 210ms) + 70ms) cubic-bezier(0.22, 1, 0.36, 1) both"
+                      : undefined,
+                }
+          }
         >
           <Suspense
             fallback={

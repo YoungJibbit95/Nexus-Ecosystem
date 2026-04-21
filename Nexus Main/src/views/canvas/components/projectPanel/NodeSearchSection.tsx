@@ -11,6 +11,7 @@ type NodeSearchSectionProps = {
   bulkSelected: Record<string, true>;
   bulkToggle: (nodeId: string) => void;
   jumpToNode: (nodeId: string) => void;
+  searchInputRef?: React.RefObject<HTMLInputElement | null>;
 };
 
 export function NodeSearchSection({
@@ -21,6 +22,7 @@ export function NodeSearchSection({
   bulkSelected,
   bulkToggle,
   jumpToNode,
+  searchInputRef,
 }: NodeSearchSectionProps) {
   return (
     <div
@@ -37,6 +39,7 @@ export function NodeSearchSection({
         <div style={{ fontSize: 11, fontWeight: 700 }}>Find / Jump to Node</div>
       </div>
       <input
+        ref={searchInputRef}
         value={searchQuery}
         onChange={(event) => setSearchQuery(event.target.value)}
         placeholder="Titel, Typ, Tag oder Inhalt…"

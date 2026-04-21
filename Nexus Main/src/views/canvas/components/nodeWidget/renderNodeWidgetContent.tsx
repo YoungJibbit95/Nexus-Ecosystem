@@ -21,6 +21,7 @@ import {
   CANVAS_MAGIC_HUB_QUICK_ACTIONS,
   type CanvasMagicHubQuickActionId,
 } from "@nexus/core/canvas/magicHubTemplates";
+import { writeClipboardTextSafely } from "@nexus/core/canvas/markdownSafety";
 import { renderNodeWidgetTaskAndPlanningContent } from "./renderNodeWidgetTaskAndPlanningContent";
 import type { Theme } from "../../../../store/themeStore";
 import type {
@@ -99,12 +100,14 @@ export function renderNodeWidgetContent(args: NodeWidgetContentArgs): React.Reac
     onHubQuickAction,
   } = args;
   const t = theme;
+  const nodeContent =
+    typeof node.content === "string" ? node.content : String(node.content ?? "");
     switch (node.type) {
       case "text":
         return (
           <textarea
             className="node-interactive"
-            value={node.content}
+            value={nodeContent}
             onChange={(e) => updateNode(node.id, { content: e.target.value })}
             placeholder="Text eingeben..."
             style={{
@@ -157,7 +160,7 @@ export function renderNodeWidgetContent(args: NodeWidgetContentArgs): React.Reac
               </button>
             </div>
             <textarea
-              value={node.content}
+              value={nodeContent}
               onChange={(e) => updateNode(node.id, { content: e.target.value })}
               placeholder="# Markdown..."
               style={{
@@ -186,7 +189,7 @@ export function renderNodeWidgetContent(args: NodeWidgetContentArgs): React.Reac
             }}
             onDoubleClick={() => setEditingContent(true)}
           >
-            {node.content ? (
+            {nodeContent ? (
               <div
                 style={{ fontSize: 13, lineHeight: 1.6 }}
                 className="canvas-md"
@@ -223,7 +226,7 @@ export function renderNodeWidgetContent(args: NodeWidgetContentArgs): React.Reac
                       ),
                   }}
                 >
-                  {node.content}
+                  {nodeContent}
                 </ReactMarkdown>
               </div>
             ) : (
@@ -391,7 +394,7 @@ export function renderNodeWidgetContent(args: NodeWidgetContentArgs): React.Reac
           >
             <input
               type="text"
-              value={node.content}
+              value={nodeContent}
               onChange={(e) => updateNode(node.id, { content: e.target.value })}
               placeholder="Bild-URL eingeben..."
               style={{
@@ -409,9 +412,9 @@ export function renderNodeWidgetContent(args: NodeWidgetContentArgs): React.Reac
                 flexShrink: 0,
               }}
             />
-            {node.content ? (
+            {nodeContent ? (
               <img
-                src={node.content}
+                src={nodeContent}
                 alt={node.title}
                 style={{
                   flex: 1,
@@ -497,7 +500,7 @@ export function renderNodeWidgetContent(args: NodeWidgetContentArgs): React.Reac
               </select>
               <button
                 onClick={() => {
-                  navigator.clipboard?.writeText(node.content);
+                  void writeClipboardTextSafely(nodeContent);
                 }}
                 title="Copy code"
                 style={{
@@ -517,7 +520,7 @@ export function renderNodeWidgetContent(args: NodeWidgetContentArgs): React.Reac
               </button>
             </div>
             <textarea
-              value={node.content}
+              value={nodeContent}
               onChange={(e) => updateNode(node.id, { content: e.target.value })}
               placeholder="// Code eingeben..."
               spellCheck={false}
@@ -593,7 +596,7 @@ export function renderNodeWidgetContent(args: NodeWidgetContentArgs): React.Reac
               >
                 {editingContent ? (
                   <textarea
-                    value={node.content}
+                    value={nodeContent}
                     onChange={(e) =>
                       updateNode(node.id, { content: e.target.value })
                     }
@@ -633,7 +636,7 @@ export function renderNodeWidgetContent(args: NodeWidgetContentArgs): React.Reac
                           ),
                       }}
                     >
-                      {node.content || "_Leere Notiz_"}
+                      {nodeContent || "_Leere Notiz_"}
                     </ReactMarkdown>
                   </div>
                 )}
@@ -759,7 +762,9 @@ export function renderNodeWidgetContent(args: NodeWidgetContentArgs): React.Reac
                   ))}
                 </select>
                 <button
-                  onClick={() => navigator.clipboard?.writeText(node.content)}
+                  onClick={() => {
+                    void writeClipboardTextSafely(nodeContent);
+                  }}
                   style={{
                     background: `rgba(${rgb},0.15)`,
                     border: "none",
@@ -774,7 +779,7 @@ export function renderNodeWidgetContent(args: NodeWidgetContentArgs): React.Reac
                 </button>
               </div>
               <textarea
-                value={node.content}
+                value={nodeContent}
                 onChange={(e) => updateNode(node.id, { content: e.target.value })}
                 spellCheck={false}
                 placeholder="// Local code snippet..."

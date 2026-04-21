@@ -14,6 +14,7 @@ import {
   Plus,
   RotateCcw,
   RotateCw,
+  Search,
   Wand2,
   ZoomIn,
   ZoomOut,
@@ -41,6 +42,7 @@ export function CanvasTopBar({
   quickAddOpen,
   createStarterPack,
   createMagicTemplate,
+  openProjectSearch,
   showProjectPanel,
   setShowProjectPanel,
   autoLinkWikiRefs,
@@ -81,6 +83,7 @@ export function CanvasTopBar({
   quickAddOpen: boolean;
   createStarterPack: () => void;
   createMagicTemplate: (payload: MagicTemplatePayload) => void;
+  openProjectSearch: () => void;
   showProjectPanel: boolean;
   setShowProjectPanel: (next: boolean | ((prev: boolean) => boolean)) => void;
   autoLinkWikiRefs: () => void;
@@ -213,6 +216,14 @@ export function CanvasTopBar({
 
         <div style={{ flex: 1 }} />
 
+        <ToolBtn
+          icon={Search}
+          tooltip="Quick Switch / Node Search (Ctrl+P)"
+          onClick={openProjectSearch}
+          accent={accent}
+          rgb={rgb}
+          active={showProjectPanel}
+        />
         <ToolBtn
           icon={CheckSquare}
           tooltip={showProjectPanel ? "Project Panel schliessen" : "Project Panel oeffnen"}

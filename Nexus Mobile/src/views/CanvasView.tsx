@@ -3,7 +3,7 @@ import {
     Plus, ZoomIn, ZoomOut, Maximize2, Trash2, Edit3, Link,
     FileText, CheckSquare, X, GripVertical,
     MoreHorizontal, Palette, Unlink, Grid, Map as MapIcon, RotateCcw, RotateCw,
-    Copy, AlignCenter, FileDown, Wand2
+    Copy, AlignCenter, FileDown, Wand2, Search, Compass, Network
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Glass } from '../components/Glass'
@@ -87,6 +87,18 @@ export function CanvasView() {
     const [showProjectPanel, setShowProjectPanel] = useState(false)
     const [pmStatusFilter, setPmStatusFilter] = useState<'all' | ProjectStatus>('all')
     const [focusNodeOnly, setFocusNodeOnly] = useState(false)
+    const [projectSearchQuery, setProjectSearchQuery] = useState('')
+    const [focusTrail, setFocusTrail] = useState<string[]>([])
+    const [focusTrailIndex, setFocusTrailIndex] = useState(-1)
+
+    const closeMobileCanvasSheets = useCallback((
+        except: 'none' | 'canvas-list' | 'add' | 'tools' | 'magic' = 'none',
+    ) => {
+        if (except !== 'canvas-list') setShowCanvasList(false)
+        if (except !== 'add') setShowMobileAddMenu(false)
+        if (except !== 'tools') setShowMobileTools(false)
+        if (except !== 'magic') setShowMagicBuilder(false)
+    }, [])
 
     const panStart = useRef({ x: 0, y: 0, panX: 0, panY: 0 })
     const { applyZoomAtPoint, handleWheel, setZoomCentered } = useCanvasWheelGestures({
@@ -118,6 +130,84 @@ export function CanvasView() {
             .sort((a, b) => +new Date(a.pm?.dueDate || 0) - +new Date(b.pm?.dueDate || 0))
             .slice(0, 8)
     }, [filteredProjectNodes])
+
+    const projectSearchNodes = useMemo(() => {
+        if (!canvas) return []
+        const query = projectSearchQuery.trim().toLowerCase()
+        const scoreNode = (node: CanvasNode) => {
+            if (!query) return 1
+            const title = (node.title || '').toLowerCase()
+            const content = String(node.content || '').toLowerCase()
+            const type = node.type.toLowerCase()
+            const tags = (node.pm?.tags || []).join(' ').toLowerCase()
+            const status = (node.pm?.status || '').toLowerCase()
+            const priority = (node.pm?.priority || '').toLowerCase()
+            let score = 0
+            if (title.includes(query)) score += 10
+            if (title.startsWith(query)) score += 3
+            if (type.includes(query)) score += 6
+            if (tags.includes(query)) score += 5
+            if (status.includes(query)) score += 4
+            if (priority.includes(query)) score += 3
+            if (content.includes(query)) score += 2
+            return score
+        }
+        return canvas.nodes
+            .map(node => ({ node, score: scoreNode(node) }))
+            .filter(entry => entry.score > 0)
+            .sort((a, b) => b.score - a.score)
+            .slice(0, query ? 24 : 18)
+            .map(entry => entry.node)
+    }, [canvas, projectSearchQuery])
+
+    const projectOutlineGroups = useMemo(() => {
+        if (!canvas) return [] as Array<[string, CanvasNode[]]>
+        const grouped = new Map<string, CanvasNode[]>()
+        canvas.nodes.forEach((node) => {
+            const key = node.type
+            if (!grouped.has(key)) grouped.set(key, [])
+            grouped.get(key)?.push(node)
+        })
+        return Array.from(grouped.entries()).sort((a, b) => b[1].length - a[1].length)
+    }, [canvas])
+
+    const selectedNodeRelations = useMemo(() => {
+        if (!canvas || !selectedNodeId) {
+            return {
+                incoming: [] as CanvasNode[],
+                outgoing: [] as CanvasNode[],
+                local: [] as CanvasNode[],
+            }
+        }
+        const nodeById = new globalThis.Map<string, CanvasNode>()
+        canvas.nodes.forEach((node) => nodeById.set(node.id, node))
+        const incomingIds = canvas.connections
+            .filter((entry) => entry.toId === selectedNodeId)
+            .map((entry) => entry.fromId)
+        const outgoingIds = canvas.connections
+            .filter((entry) => entry.fromId === selectedNodeId)
+            .map((entry) => entry.toId)
+        const toNodes = (ids: string[]) =>
+            ids
+                .map((id) => nodeById.get(id) ?? null)
+                .filter((node): node is CanvasNode => Boolean(node))
+        const incoming = toNodes(incomingIds)
+        const outgoing = toNodes(outgoingIds)
+
+        const localIds = new Set<string>([...incomingIds, ...outgoingIds])
+        Array.from(localIds).forEach((nodeId) => {
+            canvas.connections.forEach((entry) => {
+                if (entry.fromId === nodeId && entry.toId !== selectedNodeId) localIds.add(entry.toId)
+                if (entry.toId === nodeId && entry.fromId !== selectedNodeId) localIds.add(entry.fromId)
+            })
+        })
+        const local = [...localIds]
+            .map((id) => nodeById.get(id) ?? null)
+            .filter((node): node is CanvasNode => Boolean(node))
+            .slice(0, 10)
+
+        return { incoming, outgoing, local }
+    }, [canvas, selectedNodeId])
 
     const focusNodeIds = useMemo(() => {
         if (!canvas) return new Set<string>()
@@ -192,6 +282,18 @@ export function CanvasView() {
         obs.observe(canvasRef.current)
         return () => obs.disconnect()
     }, [])
+
+    // Mobile should not boot with the canvas list sheet open by default.
+    useEffect(() => {
+        if (!mob.isMobile) return
+        setShowCanvasList(false)
+    }, [mob.isMobile])
+
+    useEffect(() => {
+        setFocusTrail([])
+        setFocusTrailIndex(-1)
+        setProjectSearchQuery('')
+    }, [activeCanvasId])
 
     // Keyboard
     useEffect(() => {
@@ -298,6 +400,41 @@ export function CanvasView() {
         setZoom(z)
         setPan(cW / 2 - cx * z, cH / 2 - cy * z)
     }, [canvas, canvasSize, resetViewport, setZoom, setPan])
+
+    const commitFocusTrail = useCallback((nodeId: string) => {
+        setFocusTrail((prev) => {
+            const capped = focusTrailIndex >= 0 ? prev.slice(0, focusTrailIndex + 1) : prev.slice()
+            if (capped[capped.length - 1] === nodeId) return capped
+            const next = [...capped, nodeId]
+            if (next.length > 24) return next.slice(next.length - 24)
+            return next
+        })
+        setFocusTrailIndex((prev) => {
+            const next = prev >= 0 ? prev + 1 : 0
+            return Math.min(23, next)
+        })
+    }, [focusTrailIndex])
+
+    const jumpToNode = useCallback((nodeId: string, options?: { recordTrail?: boolean }) => {
+        const active = useCanvas.getState().getActiveCanvas()
+        const target = active?.nodes.find((node) => node.id === nodeId)
+        if (!target) return
+        setSelectedNodeId(nodeId)
+        const nextPanX = canvasSize.w * 0.5 - (target.x + target.width * 0.5) * viewport.zoom
+        const nextPanY = canvasSize.h * 0.42 - (target.y + target.height * 0.5) * viewport.zoom
+        setPan(nextPanX, nextPanY)
+        if (options?.recordTrail !== false) commitFocusTrail(nodeId)
+    }, [canvasSize.h, canvasSize.w, commitFocusTrail, setPan, viewport.zoom])
+
+    const navigateFocusTrail = useCallback((direction: -1 | 1) => {
+        setFocusTrailIndex((currentIndex) => {
+            const nextIndex = currentIndex + direction
+            if (nextIndex < 0 || nextIndex >= focusTrail.length) return currentIndex
+            const targetId = focusTrail[nextIndex]
+            if (targetId) jumpToNode(targetId, { recordTrail: false })
+            return nextIndex
+        })
+    }, [focusTrail, jumpToNode])
 
     const exportCanvas = useCallback(
         () => exportCanvasFiles(canvas, viewport),
@@ -457,7 +594,18 @@ export function CanvasView() {
                             </div>
                             <div style={{ flex:1, overflowY:'auto', display:'flex', flexDirection:'column', gap:6 }}>
                                 {canvases.map(c => (
-                                    <button key={c.id} onClick={() => { setActiveCanvas(c.id); setShowCanvasList(false) }}
+                                    <div
+                                        key={c.id}
+                                        role="button"
+                                        tabIndex={0}
+                                        onClick={() => { setActiveCanvas(c.id); setShowCanvasList(false) }}
+                                        onKeyDown={(event) => {
+                                            if (event.key === 'Enter' || event.key === ' ') {
+                                                event.preventDefault()
+                                                setActiveCanvas(c.id)
+                                                setShowCanvasList(false)
+                                            }
+                                        }}
                                         style={{ display:'flex', alignItems:'center', gap:12, padding:'14px 16px', borderRadius:14, cursor:'pointer',
                                             background: c.id===activeCanvasId?`rgba(${rgb},0.18)`:'rgba(255,255,255,0.05)',
                                             border:`1px solid ${c.id===activeCanvasId?t.accent:'rgba(255,255,255,0.08)'}`,
@@ -470,7 +618,7 @@ export function CanvasView() {
                                             style={{ background:'none', border:'none', cursor:'pointer', color:'#FF3B30', padding:'4px 6px', borderRadius:6 }}>
                                             <X size={16}/>
                                         </button>
-                                    </button>
+                                    </div>
                                 ))}
                             </div>
                         </motion.div>
@@ -479,7 +627,7 @@ export function CanvasView() {
             </AnimatePresence>
 
             {/* ── Main Canvas ── */}
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative', isolation: 'isolate' }}>
                 {/* ── Top Bar ── */}
                 <div style={{
                     flexShrink: 0, display: 'flex', alignItems: 'center', gap: mob.isMobile ? 8 : 4,
@@ -487,9 +635,22 @@ export function CanvasView() {
                     borderBottom: `1px solid ${t.mode === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'}`,
                     background: t.mode === 'dark' ? 'rgba(10,10,20,0.85)' : 'rgba(255,255,255,0.85)',
                     backdropFilter: 'blur(16px)',
+                    position: 'relative',
+                    zIndex: 160,
                 }}>
                     {/* Sidebar toggle — on mobile shows canvas list as bottom sheet */}
-                    <CanvasToolBtn icon={FileText} tooltip="Canvases" onClick={() => setShowCanvasList(!showCanvasList)} accent={t.accent} rgb={rgb} active={showCanvasList} />
+                    <CanvasToolBtn
+                        icon={FileText}
+                        tooltip="Canvases"
+                        onClick={() => {
+                            const next = !showCanvasList
+                            if (next) closeMobileCanvasSheets('canvas-list')
+                            setShowCanvasList(next)
+                        }}
+                        accent={t.accent}
+                        rgb={rgb}
+                        active={showCanvasList}
+                    />
 
                     {/* Canvas name */}
                     {canvas && (
@@ -508,7 +669,11 @@ export function CanvasView() {
                     {mob.isMobile ? (
                         /* Mobile: "+ Add" button opens bottom sheet, tools button */
                         <>
-                            <button onClick={() => setShowMobileAddMenu(s => !s)} style={{
+                            <button onClick={() => {
+                                const next = !showMobileAddMenu
+                                if (next) closeMobileCanvasSheets('add')
+                                setShowMobileAddMenu(next)
+                            }} style={{
                                 display: 'flex', alignItems: 'center', gap: 6,
                                 padding: '10px 16px', borderRadius: 12,
                                 background: showMobileAddMenu ? t.accent : `rgba(${rgb},0.18)`,
@@ -518,7 +683,11 @@ export function CanvasView() {
                             }}>
                                 <Plus size={18} /> Add
                             </button>
-                            <button onClick={() => setShowMobileTools(s => !s)} style={{
+                            <button onClick={() => {
+                                const next = !showMobileTools
+                                if (next) closeMobileCanvasSheets('tools')
+                                setShowMobileTools(next)
+                            }} style={{
                                 width: 44, height: 44, borderRadius: 12, border: 'none',
                                 background: showMobileTools ? `rgba(${rgb},0.2)` : 'rgba(255,255,255,0.08)',
                                 cursor: 'pointer', color: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -587,6 +756,7 @@ export function CanvasView() {
                                 <button
                                   onClick={() => {
                                     setShowMobileAddMenu(false)
+                                    closeMobileCanvasSheets('magic')
                                     setShowMagicBuilder(true)
                                   }}
                                   style={{
@@ -682,7 +852,11 @@ export function CanvasView() {
                                     </button>
                                 </div>
                                 <div style={{ display:'flex', gap:10, marginTop:10 }}>
-                                    <button onClick={() => setShowProjectPanel(s => !s)} style={{ flex:1, padding:'12px', borderRadius:12, background:showProjectPanel?`rgba(${rgb},0.15)`:'rgba(255,255,255,0.07)', border:`1px solid ${showProjectPanel?t.accent:'rgba(255,255,255,0.1)'}`, cursor:'pointer', color:showProjectPanel?t.accent:'inherit', fontSize:13, fontWeight:700, display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}>
+                                    <button onClick={() => {
+                                        const next = !showProjectPanel
+                                        if (next) closeMobileCanvasSheets('tools')
+                                        setShowProjectPanel(next)
+                                    }} style={{ flex:1, padding:'12px', borderRadius:12, background:showProjectPanel?`rgba(${rgb},0.15)`:'rgba(255,255,255,0.07)', border:`1px solid ${showProjectPanel?t.accent:'rgba(255,255,255,0.1)'}`, cursor:'pointer', color:showProjectPanel?t.accent:'inherit', fontSize:13, fontWeight:700, display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}>
                                         <CheckSquare size={16}/> Project
                                     </button>
                                     <button onClick={autoLinkWikiRefs} style={{ flex:1, padding:'12px', borderRadius:12, background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.1)', cursor:'pointer', color:'inherit', fontSize:13, fontWeight:700, display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}>
@@ -690,7 +864,10 @@ export function CanvasView() {
                                     </button>
                                 </div>
                                 <div style={{ display:'flex', gap:10, marginTop:10 }}>
-                                    <button onClick={() => setShowMagicBuilder(true)} style={{ flex:1, padding:'12px', borderRadius:12, background:`rgba(${rgb},0.12)`, border:`1px solid rgba(${rgb},0.25)`, cursor:'pointer', color:t.accent, fontSize:13, fontWeight:700, display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}>
+                                    <button onClick={() => {
+                                        closeMobileCanvasSheets('magic')
+                                        setShowMagicBuilder(true)
+                                    }} style={{ flex:1, padding:'12px', borderRadius:12, background:`rgba(${rgb},0.12)`, border:`1px solid rgba(${rgb},0.25)`, cursor:'pointer', color:t.accent, fontSize:13, fontWeight:700, display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}>
                                         <Wand2 size={16}/> Magic Hub
                                     </button>
                                     <button onClick={autoArrangeByStatus} style={{ flex:1, padding:'12px', borderRadius:12, background:`rgba(${rgb},0.12)`, border:`1px solid rgba(${rgb},0.25)`, cursor:'pointer', color:t.accent, fontSize:13, fontWeight:700, display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}>
@@ -992,7 +1169,7 @@ export function CanvasView() {
                     {/* Project Panel */}
                     {showProjectPanel && canvas && (
                         <div style={{
-                            position: 'absolute', top: 14, right: 14, zIndex: 210,
+                            position: 'absolute', top: 14, right: 14, zIndex: 140,
                             width: mob.isMobile ? 'calc(100% - 28px)' : 320, maxHeight: mob.isMobile ? '62%' : '78%',
                             overflow: 'auto', borderRadius: 14, padding: 12,
                             background: t.mode === 'dark' ? 'rgba(12,12,22,0.85)' : 'rgba(255,255,255,0.9)',
@@ -1004,6 +1181,8 @@ export function CanvasView() {
                                 <CheckSquare size={14} style={{ color: t.accent }} />
                                 <div style={{ fontSize: 12, fontWeight: 800 }}>Project Canvas</div>
                                 <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
+                                    <button onClick={() => navigateFocusTrail(-1)} disabled={focusTrailIndex <= 0} style={{ padding: '4px 7px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.06)', fontSize: 10, cursor: focusTrailIndex > 0 ? 'pointer' : 'not-allowed', color: 'inherit', opacity: focusTrailIndex > 0 ? 1 : 0.45 }}>←</button>
+                                    <button onClick={() => navigateFocusTrail(1)} disabled={focusTrailIndex >= focusTrail.length - 1} style={{ padding: '4px 7px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.06)', fontSize: 10, cursor: focusTrailIndex < focusTrail.length - 1 ? 'pointer' : 'not-allowed', color: 'inherit', opacity: focusTrailIndex < focusTrail.length - 1 ? 1 : 0.45 }}>→</button>
                                     <button onClick={() => setFocusNodeOnly(s => !s)} style={{ padding: '4px 8px', borderRadius: 8, border: `1px solid ${focusNodeOnly ? t.accent : 'rgba(255,255,255,0.14)'}`, background: focusNodeOnly ? `rgba(${rgb},0.16)` : 'rgba(255,255,255,0.06)', color: focusNodeOnly ? t.accent : 'inherit', fontSize: 10, cursor: 'pointer' }}>Focus</button>
                                     <button onClick={() => setShowProjectPanel(false)} style={{ padding: '4px 8px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.06)', fontSize: 10, cursor: 'pointer', color: 'inherit' }}>Close</button>
                                 </div>
@@ -1032,6 +1211,61 @@ export function CanvasView() {
                                 ))}
                             </div>
 
+                            <div style={{ border: '1px solid rgba(255,255,255,0.12)', borderRadius: 10, padding: 10, marginBottom: 10, background: 'rgba(255,255,255,0.04)' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8 }}>
+                                    <Search size={12} style={{ opacity: 0.7 }} />
+                                    <div style={{ fontSize: 11, fontWeight: 700 }}>Find / Jump to Node</div>
+                                </div>
+                                <input
+                                    value={projectSearchQuery}
+                                    onChange={(event) => setProjectSearchQuery(event.target.value)}
+                                    placeholder="Titel, Typ, Tag oder Inhalt…"
+                                    style={{ width: '100%', fontSize: 11, padding: '7px 8px', borderRadius: 8, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.14)', color: 'inherit', marginBottom: 8 }}
+                                />
+                                <div style={{ maxHeight: 150, overflow: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                    {projectSearchNodes.length === 0 ? (
+                                        <div style={{ fontSize: 11, opacity: 0.55 }}>Keine Treffer.</div>
+                                    ) : (
+                                        projectSearchNodes.map((node) => (
+                                            <button
+                                                key={`search-${node.id}`}
+                                                onClick={() => jumpToNode(node.id)}
+                                                style={{ textAlign: 'left', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, background: 'rgba(255,255,255,0.04)', color: 'inherit', cursor: 'pointer', padding: '5px 7px' }}
+                                            >
+                                                <div style={{ fontSize: 11, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{node.title || 'Untitled'}</div>
+                                                <div style={{ fontSize: 10, opacity: 0.58 }}>{node.type}{node.pm?.status ? ` · ${node.pm.status}` : ''}{node.pm?.priority ? ` · ${node.pm.priority}` : ''}</div>
+                                            </button>
+                                        ))
+                                    )}
+                                </div>
+                            </div>
+
+                            <div style={{ border: '1px solid rgba(255,255,255,0.12)', borderRadius: 10, padding: 10, marginBottom: 10, background: 'rgba(255,255,255,0.04)' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8 }}>
+                                    <Compass size={12} style={{ opacity: 0.7 }} />
+                                    <div style={{ fontSize: 11, fontWeight: 700 }}>Outline / Navigator</div>
+                                </div>
+                                <div style={{ maxHeight: 146, overflow: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                    {projectOutlineGroups.map(([type, nodes]) => (
+                                        <details key={type} open={nodes.length <= 4}>
+                                            <summary style={{ fontSize: 10, fontWeight: 700, opacity: 0.78, cursor: 'pointer' }}>{type} · {nodes.length}</summary>
+                                            <div style={{ marginTop: 5, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                                {nodes.slice(0, 9).map((node) => (
+                                                    <button
+                                                        key={`outline-${node.id}`}
+                                                        onClick={() => jumpToNode(node.id)}
+                                                        style={{ border: '1px solid rgba(255,255,255,0.1)', borderRadius: 7, background: 'rgba(255,255,255,0.04)', color: 'inherit', fontSize: 10, textAlign: 'left', padding: '4px 7px', cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                                                        title={node.title}
+                                                    >
+                                                        {node.title || 'Untitled'}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </details>
+                                    ))}
+                                </div>
+                            </div>
+
                             {selectedNode && (
                                 <div style={{ border: '1px solid rgba(255,255,255,0.12)', borderRadius: 10, padding: 10, marginBottom: 10, background: 'rgba(255,255,255,0.04)' }}>
                                     <div style={{ fontSize: 11, fontWeight: 700, marginBottom: 8 }}>Selected: {selectedNode.title}</div>
@@ -1052,13 +1286,51 @@ export function CanvasView() {
                                 </div>
                             )}
 
+                            <div style={{ border: '1px solid rgba(255,255,255,0.12)', borderRadius: 10, padding: 10, marginBottom: 10, background: 'rgba(255,255,255,0.04)' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8 }}>
+                                    <Network size={12} style={{ opacity: 0.7 }} />
+                                    <div style={{ fontSize: 11, fontWeight: 700 }}>Backlinks / Local Graph</div>
+                                </div>
+                                {!selectedNode ? (
+                                    <div style={{ fontSize: 11, opacity: 0.55 }}>Node auswählen, um Link-Kontext anzuzeigen.</div>
+                                ) : (
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 8 }}>
+                                        {[
+                                            { title: 'Incoming Links', nodes: selectedNodeRelations.incoming },
+                                            { title: 'Outgoing Links', nodes: selectedNodeRelations.outgoing },
+                                            { title: 'Local Graph Neighbors', nodes: selectedNodeRelations.local },
+                                        ].map((section) => (
+                                            <div key={section.title}>
+                                                <div style={{ fontSize: 10, fontWeight: 700, opacity: 0.62, marginBottom: 5 }}>{section.title}</div>
+                                                {section.nodes.length === 0 ? (
+                                                    <div style={{ fontSize: 10, opacity: 0.5 }}>Keine Einträge.</div>
+                                                ) : (
+                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                                        {section.nodes.slice(0, 6).map((node) => (
+                                                            <button
+                                                                key={`${section.title}-${node.id}`}
+                                                                onClick={() => jumpToNode(node.id)}
+                                                                style={{ border: '1px solid rgba(255,255,255,0.1)', borderRadius: 7, background: 'rgba(255,255,255,0.04)', color: 'inherit', fontSize: 10, textAlign: 'left', padding: '4px 7px', cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                                                                title={node.title}
+                                                            >
+                                                                {node.title || 'Untitled'}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+
                             <div style={{ fontSize: 10, fontWeight: 700, opacity: 0.55, marginBottom: 6 }}>Timeline</div>
                             {timelineNodes.length === 0 ? (
                                 <div style={{ fontSize: 11, opacity: 0.5 }}>Keine Datums-Items im aktuellen Filter.</div>
                             ) : (
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                                     {timelineNodes.map(n => (
-                                        <button key={n.id} onClick={() => { setSelectedNodeId(n.id); if (focusNodeOnly) fitView() }} style={{ textAlign: 'left', border: '1px solid rgba(255,255,255,0.11)', borderRadius: 9, background: 'rgba(255,255,255,0.05)', cursor: 'pointer', padding: '7px 8px', color: 'inherit' }}>
+                                        <button key={n.id} onClick={() => jumpToNode(n.id)} style={{ textAlign: 'left', border: '1px solid rgba(255,255,255,0.11)', borderRadius: 9, background: 'rgba(255,255,255,0.05)', cursor: 'pointer', padding: '7px 8px', color: 'inherit' }}>
                                             <div style={{ fontSize: 11, fontWeight: 700 }}>{n.title}</div>
                                             <div style={{ fontSize: 10, opacity: 0.6 }}>{n.pm?.dueDate ? new Date(n.pm.dueDate).toLocaleDateString() : '-'}</div>
                                         </button>

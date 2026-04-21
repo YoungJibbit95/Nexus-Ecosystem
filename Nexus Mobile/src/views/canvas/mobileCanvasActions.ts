@@ -1,10 +1,8 @@
 import { useCanvas, type Canvas, type CanvasNode, type NodeType, type ProjectStatus } from '../../store/canvasStore'
 import type { CanvasMagicTemplatePayload } from '@nexus/core/canvas/magicHubTemplates'
 import {
-  buildAiProjectMagicGraph,
-  buildCanvasMagicHubMarkdown,
+  buildCanvasMagicTemplate,
   normalizeCanvasMagicTemplatePayload,
-  resolveCanvasMagicHubTemplateMeta,
 } from '@nexus/core/canvas/magicHubTemplates'
 
 const PM_STATUS_ORDER: ProjectStatus[] = ['idea', 'backlog', 'todo', 'doing', 'review', 'done', 'blocked']
@@ -147,14 +145,15 @@ export const createCanvasMagicHubTemplate = (input: {
   const x = Math.round(centerX / 20) * 20
   const y = Math.round(centerY / 20) * 20
   const payload = normalizeCanvasMagicTemplatePayload(input.payload)
+  const template = buildCanvasMagicTemplate(payload)
 
   const applyChecklist = (nodeId: string, items: string[]) => {
     if (!items.length) return
     items.forEach((item) => state.addChecklistItem(nodeId, item))
   }
 
-  if (payload.template === 'ai-project') {
-    const graph = buildAiProjectMagicGraph(payload)
+  if (template.kind === 'ai-project') {
+    const graph = template.graph
     const idMap = new globalThis.Map<string, string | null>()
     graph.nodes.forEach((node) => {
       state.addNode(node.type as NodeType, x + node.x, y + node.y)
@@ -199,23 +198,22 @@ export const createCanvasMagicHubTemplate = (input: {
     return
   }
 
-  const { id: templateId, meta } = resolveCanvasMagicHubTemplateMeta(payload.template)
-  const title = payload.title?.trim() || meta.label
-
   state.addNode('markdown', x - 380, y - 300)
   const active = state.getActiveCanvas()
   const created = active?.nodes[active.nodes.length - 1]
   if (!created) return
 
   state.updateNode(created.id, {
-    title,
+    title: template.title,
     width: 760,
     height: 600,
-    color: meta.color,
-    content: buildCanvasMagicHubMarkdown(payload),
+    color: template.meta.color,
+    content: template.markdown,
     pm: {
       ...(created.pm || {}),
-      tags: Array.from(new Set([...(created.pm?.tags || []), 'magic-hub', `preset:${templateId}`])),
+      tags: Array.from(
+        new Set([...(created.pm?.tags || []), 'magic-hub', `preset:${template.templateId}`]),
+      ),
       status: created.pm?.status || 'idea',
       priority: created.pm?.priority || 'mid',
     },

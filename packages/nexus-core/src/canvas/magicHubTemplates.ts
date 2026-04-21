@@ -332,6 +332,21 @@ export const normalizeCanvasMagicTemplatePayload = (
   };
 };
 
+export type CanvasMagicTemplateBuildResult =
+  | {
+      kind: "ai-project";
+      payload: CanvasMagicTemplatePayload;
+      graph: CanvasMagicProjectGraph;
+    }
+  | {
+      kind: "hub";
+      payload: CanvasMagicTemplatePayload;
+      templateId: CanvasMagicTemplateId;
+      title: string;
+      meta: CanvasMagicHubMeta;
+      markdown: string;
+    };
+
 const joinRows = (rows: string[]) => rows.join("\n");
 
 export function buildCanvasMagicHubMarkdown(payload: CanvasMagicTemplatePayload) {
@@ -665,6 +680,30 @@ export const buildAiProjectMagicGraph = (
     rootId: "root",
     nodes,
     links,
+  };
+};
+
+export const buildCanvasMagicTemplate = (
+  payload: CanvasMagicTemplatePayloadInput,
+): CanvasMagicTemplateBuildResult => {
+  const normalized = normalizeCanvasMagicTemplatePayload(payload);
+  if (normalized.template === "ai-project") {
+    return {
+      kind: "ai-project",
+      payload: normalized,
+      graph: buildAiProjectMagicGraph(normalized),
+    };
+  }
+
+  const { id, meta } = resolveCanvasMagicHubTemplateMeta(normalized.template);
+  const title = normalized.title?.trim() || meta.label;
+  return {
+    kind: "hub",
+    payload: normalized,
+    templateId: id,
+    title,
+    meta,
+    markdown: buildCanvasMagicHubMarkdown(normalized),
   };
 };
 

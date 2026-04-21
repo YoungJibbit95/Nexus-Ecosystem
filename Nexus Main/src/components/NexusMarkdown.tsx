@@ -4,6 +4,7 @@ import remarkGfm from 'remark-gfm'
 import { useTheme } from '../store/themeStore'
 import { hexToRgb } from '../lib/utils'
 import { Copy, Check } from 'lucide-react'
+import { writeClipboardTextSafely } from '@nexus/core/canvas/markdownSafety'
 
 // ── Code block with syntax highlighting + copy ─────────────────
 function CodeBlock({ className, children, accent }: { className?: string; children: React.ReactNode; accent: string }) {
@@ -18,11 +19,11 @@ function CodeBlock({ className, children, accent }: { className?: string; childr
   if (lang === 'nexus-progress') return <MagicProgress content={code} accent={accent} />
   if (lang === 'nexus-badge') return <MagicBadge content={code} accent={accent} />
 
-  const copy = () => {
-    navigator.clipboard.writeText(code).then(() => {
-      setCopied(true)
-      setTimeout(() => setCopied(false), 1600)
-    })
+  const copy = async () => {
+    const copiedOk = await writeClipboardTextSafely(code)
+    if (!copiedOk) return
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1600)
   }
 
   const rgb = hexToRgb(accent)

@@ -500,37 +500,57 @@ export function SettingsModulePanels({
                 </ModuleCard>
 
                 <ModuleCard
-                  title="Toolbar (frozen)"
-                  desc="Toolbar-/Spotlight-Geometrie ist im aktuellen Release eingefroren."
+                  title="Toolbar"
+                  desc="Steuert Mode, Position und Sichtbarkeit der Toolbar."
                 >
-                  <div style={{ fontSize: 11, opacity: 0.72, lineHeight: 1.5 }}>
-                    Änderungen an Toolbar-Mode, Position und Sichtbarkeit erfolgen nur
-                    kontrolliert über dedizierte Release-Pässe.
+                  <Row>
+                    <Segmented
+                      label="Toolbar Mode"
+                      value={t.toolbar.toolbarMode}
+                      options={[
+                        { value: "island", label: "Island" },
+                        { value: "full-width", label: "Full Width" },
+                        { value: "spotlight", label: "Spotlight" },
+                      ]}
+                      onChange={(value) =>
+                        t.setToolbar({
+                          toolbarMode: value as Theme["toolbar"]["toolbarMode"],
+                        })
+                      }
+                    />
+                    <Segmented
+                      label="Position"
+                      value={t.toolbar.position}
+                      options={["top", "bottom"]}
+                      onChange={(value) =>
+                        t.setToolbar({
+                          position: value as Theme["toolbar"]["position"],
+                        })
+                      }
+                    />
+                  </Row>
+                  <div style={{ marginTop: 8 }}>
+                    <Segmented
+                      label="Style"
+                      value={t.toolbar.mode}
+                      options={[
+                        { value: "pill", label: "Pill" },
+                        { value: "full-width", label: "Flat Rail" },
+                      ]}
+                      onChange={(value) =>
+                        t.setToolbar({
+                          mode: value as Theme["toolbar"]["mode"],
+                        })
+                      }
+                    />
                   </div>
-                  {showExperimentalSettings ? (
-                    <div
-                      style={{
-                        marginTop: 9,
-                        borderRadius: 10,
-                        border: "1px solid rgba(255,255,255,0.14)",
-                        background: "rgba(255,255,255,0.05)",
-                        padding: "8px 10px",
-                        fontSize: 11,
-                        display: "grid",
-                        gap: 3,
-                      }}
-                    >
-                      <div>
-                        Mode: <strong>{t.toolbar.toolbarMode}</strong>
-                      </div>
-                      <div>
-                        Position: <strong>{t.toolbar.position}</strong>
-                      </div>
-                      <div>
-                        Sichtbar: <strong>{t.toolbar.visible ? "ja" : "nein"}</strong>
-                      </div>
-                    </div>
-                  ) : null}
+                  <div style={{ marginTop: 8 }}>
+                    <Toggle
+                      label="Toolbar Visible"
+                      checked={Boolean(t.toolbar.visible)}
+                      onChange={(next) => t.setToolbar({ visible: next })}
+                    />
+                  </div>
                 </ModuleCard>
 
                 <ModuleCard
