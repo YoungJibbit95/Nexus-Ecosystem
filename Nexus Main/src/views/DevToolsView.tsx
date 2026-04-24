@@ -21,7 +21,41 @@ import { DevToolsCalculatorSection } from './devtools/DevToolsCalculatorSection'
 // ── useCopy ────────────────────────────────────────────────────────────────
 function useCopy() {
   const [k, setK] = useState<string|null>(null)
-  const copy = (text: string, key: string) => { navigator.clipboard.writeText(text); setK(key); setTimeout(()=>setK(null),1600) }
+
+  const fallbackCopy = (text: string) => {
+    try {
+      const ta = document.createElement('textarea')
+      ta.value = text
+      ta.setAttribute('readonly', 'true')
+      ta.style.position = 'fixed'
+      ta.style.top = '-9999px'
+      document.body.appendChild(ta)
+      ta.select()
+      const ok = document.execCommand('copy')
+      document.body.removeChild(ta)
+      return ok
+    } catch {
+      return false
+    }
+  }
+
+  const markCopied = (key: string) => {
+    setK(key)
+    setTimeout(() => setK(null), 1600)
+  }
+
+  const copy = (text: string, key: string) => {
+    if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+      void navigator.clipboard.writeText(text)
+        .then(() => markCopied(key))
+        .catch(() => {
+          if (fallbackCopy(text)) markCopied(key)
+        })
+      return
+    }
+    if (fallbackCopy(text)) markCopied(key)
+  }
+
   return { copy, copied: k }
 }
 

@@ -162,7 +162,7 @@ export function MobileViewHost({
   onRequestViewChange,
 }: Props) {
   const prefersStaticLayering = isLikelyIOSWebkit();
-  const useSingleActiveLayer = prefersStaticLayering;
+  const useSingleActiveLayer = prefersStaticLayering && reducedMotion;
   const allowViewEnterAnimation = !reducedMotion && !useSingleActiveLayer;
   const renderedViews = useSingleActiveLayer
     ? [view]
@@ -173,16 +173,21 @@ export function MobileViewHost({
 
   return (
     <div
+      className="nx-mobile-view-host"
       style={{
         position: "relative",
         height: "100%",
         minHeight: 0,
+        width: "100%",
+        display: "flex",
+        flexDirection: "column",
         overflow: "hidden",
       }}
     >
       {renderedViews.map((viewId) => (
         <div
           key={viewId}
+          className="nx-mobile-view-layer"
           style={
             useSingleActiveLayer
               ? {
@@ -190,6 +195,8 @@ export function MobileViewHost({
                   width: "100%",
                   height: "100%",
                   minHeight: 0,
+                  display: "flex",
+                  flexDirection: "column",
                   overflow: "hidden",
                 }
               : {
@@ -197,10 +204,12 @@ export function MobileViewHost({
                   inset: 0,
                   width: "100%",
                   height: "100%",
+                  minHeight: 0,
                   overflow: "hidden",
                   pointerEvents: viewId === view ? "auto" : "none",
                   zIndex: viewId === view ? 2 : 1,
-                  display: viewId === view ? "block" : "none",
+                  display: viewId === view ? "flex" : "none",
+                  flexDirection: "column",
                   animation:
                     viewId === view && allowViewEnterAnimation
                       ? "nx-view-enter calc(var(--nx-motion-regular, 210ms) + 70ms) cubic-bezier(0.22, 1, 0.36, 1) both"
@@ -227,7 +236,28 @@ export function MobileViewHost({
               ) : null
             }
           >
-            {renderActiveView(viewId, onRequestViewChange)}
+            <div
+              className="nx-mobile-view-content"
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                height: "100%",
+                minHeight: 0,
+                overflow: "hidden",
+              }}
+            >
+              <div
+                className="nx-mobile-view-root"
+                style={{
+                  flex: 1,
+                  minHeight: 0,
+                  overflow: "hidden",
+                  position: "relative",
+                }}
+              >
+                {renderActiveView(viewId, onRequestViewChange)}
+              </div>
+            </div>
           </Suspense>
         </div>
       ))}

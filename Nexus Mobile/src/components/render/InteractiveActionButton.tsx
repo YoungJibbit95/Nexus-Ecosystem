@@ -1,4 +1,4 @@
-import React, { useId, useState } from "react";
+import React, { useEffect, useId, useState } from "react";
 import { motion } from "framer-motion";
 import { useTheme } from "../../store/themeStore";
 import { hexToRgb } from "../../lib/utils";
@@ -45,6 +45,23 @@ export function InteractiveActionButton({
   const [hovered, setHovered] = useState(false);
   const [focused, setFocused] = useState(false);
   const [pressed, setPressed] = useState(false);
+  const [coarsePointer, setCoarsePointer] = useState(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return false;
+    return window.matchMedia("(pointer: coarse)").matches;
+  });
+
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
+    const media = window.matchMedia("(pointer: coarse)");
+    const update = () => setCoarsePointer(media.matches);
+    update();
+    if (typeof media.addEventListener === "function") {
+      media.addEventListener("change", update);
+      return () => media.removeEventListener("change", update);
+    }
+    media.addListener(update);
+    return () => media.removeListener(update);
+  }, []);
   const interaction = useInteractiveSurfaceMotion({
     id: `action-btn-${id}`,
     hovered,
@@ -60,10 +77,20 @@ export function InteractiveActionButton({
 
   const events = {
     onMouseEnter: (event: React.MouseEvent<HTMLButtonElement>) => {
+      if (coarsePointer) {
+        onMouseEnter?.(event);
+        return;
+      }
       setHovered(true);
       onMouseEnter?.(event);
     },
     onMouseLeave: (event: React.MouseEvent<HTMLButtonElement>) => {
+      if (coarsePointer) {
+        setHovered(false);
+        setPressed(false);
+        onMouseLeave?.(event);
+        return;
+      }
       setHovered(false);
       setPressed(false);
       onMouseLeave?.(event);
@@ -79,14 +106,23 @@ export function InteractiveActionButton({
     },
     onPointerDown: (event: React.PointerEvent<HTMLButtonElement>) => {
       setPressed(true);
+      if (event.pointerType && event.pointerType !== "mouse") {
+        setHovered(false);
+      }
       onPointerDown?.(event);
     },
     onPointerUp: (event: React.PointerEvent<HTMLButtonElement>) => {
       setPressed(false);
+      if (event.pointerType && event.pointerType !== "mouse") {
+        setHovered(false);
+      }
       onPointerUp?.(event);
     },
     onPointerCancel: (event: React.PointerEvent<HTMLButtonElement>) => {
       setPressed(false);
+      if (event.pointerType && event.pointerType !== "mouse") {
+        setHovered(false);
+      }
       onPointerCancel?.(event);
     },
   };
@@ -95,14 +131,17 @@ export function InteractiveActionButton({
     <motion.button
       {...(rest as any)}
       {...events}
-      className={`nx-motion-managed ${rest.className || ""}`.trim()}
+      className={`nx-motion-managed nx-mobile-touch-button ${rest.className || ""}`.trim()}
       animate={interaction.content.animate}
       transition={interaction.content.transition}
       style={{
+        minHeight: "var(--nx-touch-target, 40px)",
         position: "relative",
         overflow: "hidden",
         isolation: "isolate",
         transformOrigin: "50% 50%",
+        touchAction: "manipulation",
+        WebkitTapHighlightColor: "transparent",
         ...style,
       }}
     >
@@ -134,4 +173,3 @@ export function InteractiveActionButton({
     </motion.button>
   );
 }
-

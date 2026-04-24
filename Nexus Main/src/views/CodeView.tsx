@@ -19,6 +19,44 @@ import {
   EmptyCodeState,
 } from "./code/CodeViewSections";
 
+const isEditableTarget = (target: EventTarget | null): boolean => {
+  if (!(target instanceof HTMLElement)) return false;
+  const tag = target.tagName.toLowerCase();
+  return (
+    target.isContentEditable ||
+    tag === "input" ||
+    tag === "textarea" ||
+    tag === "select"
+  );
+};
+
+const copyTextSafe = async (value: string): Promise<boolean> => {
+  if (!value) return false;
+  try {
+    if (navigator?.clipboard?.writeText) {
+      await navigator.clipboard.writeText(value);
+      return true;
+    }
+  } catch {
+    // Fallback below.
+  }
+  try {
+    const textarea = document.createElement("textarea");
+    textarea.value = value;
+    textarea.setAttribute("readonly", "true");
+    textarea.style.position = "fixed";
+    textarea.style.opacity = "0";
+    textarea.style.pointerEvents = "none";
+    document.body.appendChild(textarea);
+    textarea.select();
+    const ok = document.execCommand("copy");
+    document.body.removeChild(textarea);
+    return ok;
+  } catch {
+    return false;
+  }
+};
+
 // ─────────────────────────────────────────────
 // Main
 // ─────────────────────────────────────────────
@@ -227,24 +265,31 @@ export function CodeView() {
 
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
+      const editable = isEditableTarget(e.target);
       if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
         e.preventDefault();
         run();
       }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s" && active) {
+        e.preventDefault();
+        saveCode(active.id);
+      }
+      if (editable) return;
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "p") {
         e.preventDefault();
         setQuickOpenOpen(true);
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "f") {
+        e.preventDefault();
+        setSearchOpen(true);
       }
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "f") {
         e.preventDefault();
         setSearchOpen((state) => !state);
       }
-      if ((e.ctrlKey || e.metaKey) && e.key === "s" && active) {
-        e.preventDefault();
-        saveCode(active.id);
-      }
       if (e.key === "Escape") {
         setQuickOpenOpen(false);
+        setSearchOpen(false);
       }
     };
     window.addEventListener("keydown", h);
@@ -282,15 +327,16 @@ export function CodeView() {
     setNewName("");
   };
 
-  const handleCopyOut = () => {
-    navigator.clipboard.writeText(output.join("\n"));
+  const handleCopyOut = useCallback(async () => {
+    const ok = await copyTextSafe(output.join("\n"));
+    if (!ok) return;
     setCopiedOut(true);
-    setTimeout(() => setCopiedOut(false), 1500);
-  };
+    window.setTimeout(() => setCopiedOut(false), 1500);
+  }, [output]);
 
-  const handleCopyCode = useCallback(() => {
+  const handleCopyCode = useCallback(async () => {
     if (!active) return;
-    navigator.clipboard.writeText(active.content);
+    await copyTextSafe(active.content);
   }, [active]);
 
   const handleDownloadCode = useCallback(() => {

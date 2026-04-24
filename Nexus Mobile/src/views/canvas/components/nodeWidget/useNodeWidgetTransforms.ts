@@ -4,6 +4,7 @@ import {
   useRef,
   useState,
   type MouseEvent as ReactMouseEvent,
+  type TouchEvent as ReactTouchEvent,
   type WheelEvent as ReactWheelEvent,
 } from "react";
 import { useCanvas, type CanvasNode } from "../../../../store/canvasStore";
@@ -37,6 +38,7 @@ export const useNodeWidgetTransforms = ({
   } | null>(null);
 
   const dragStart = useRef({ x: 0, y: 0, nodeX: 0, nodeY: 0 });
+  const dragTouchIdRef = useRef<number | null>(null);
   const resizeStart = useRef({ x: 0, y: 0, w: 0, h: 0 });
   const scaleStart = useRef({
     x: 0,
@@ -70,6 +72,25 @@ export const useNodeWidgetTransforms = ({
     [node.id, node.x, node.y, onSelect],
   );
 
+  const handleDragTouchStart = useCallback(
+    (e: ReactTouchEvent) => {
+      if ((e.target as HTMLElement).closest(".node-interactive")) return;
+      const touch = e.touches[0];
+      if (!touch) return;
+      e.stopPropagation();
+      onSelect(node.id);
+      setDragging(true);
+      dragTouchIdRef.current = touch.identifier;
+      dragStart.current = {
+        x: touch.clientX,
+        y: touch.clientY,
+        nodeX: node.x,
+        nodeY: node.y,
+      };
+    },
+    [node.id, node.x, node.y, onSelect],
+  );
+
   useEffect(() => {
     if (!dragging) return;
     let raf = 0;
@@ -91,7 +112,22 @@ export const useNodeWidgetTransforms = ({
       if (!raf) raf = requestAnimationFrame(flush);
     };
 
-    const onUp = () => {
+    const onTouchMove = (e: TouchEvent) => {
+      if (dragTouchIdRef.current === null) return;
+      const touch = Array.from(e.touches).find(
+        (entry) => entry.identifier === dragTouchIdRef.current,
+      );
+      if (!touch) return;
+      e.preventDefault();
+      const zoom = useCanvas.getState().viewport?.zoom || 1;
+      pending = {
+        x: dragStart.current.nodeX + (touch.clientX - dragStart.current.x) / zoom,
+        y: dragStart.current.nodeY + (touch.clientY - dragStart.current.y) / zoom,
+      };
+      if (!raf) raf = requestAnimationFrame(flush);
+    };
+
+    const finishDrag = () => {
       if (raf) {
         cancelAnimationFrame(raf);
         raf = 0;
@@ -101,14 +137,35 @@ export const useNodeWidgetTransforms = ({
       pending = null;
       setDragPreview(null);
       setDragging(false);
+      dragTouchIdRef.current = null;
+    };
+
+    const onUp = () => {
+      finishDrag();
+    };
+
+    const onTouchEnd = (e: TouchEvent) => {
+      if (dragTouchIdRef.current === null) return;
+      const ended = Array.from(e.changedTouches).some(
+        (entry) => entry.identifier === dragTouchIdRef.current,
+      );
+      if (ended || e.touches.length === 0) {
+        finishDrag();
+      }
     };
 
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
+    window.addEventListener("touchmove", onTouchMove, { passive: false });
+    window.addEventListener("touchend", onTouchEnd);
+    window.addEventListener("touchcancel", onTouchEnd);
     return () => {
       if (raf) cancelAnimationFrame(raf);
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
+      window.removeEventListener("touchmove", onTouchMove);
+      window.removeEventListener("touchend", onTouchEnd);
+      window.removeEventListener("touchcancel", onTouchEnd);
     };
   }, [dragging, dragPreview, moveNode, node.id]);
 
@@ -255,6 +312,7 @@ export const useNodeWidgetTransforms = ({
     scalePreview,
     handleNodeWheelCapture,
     handleDragStart,
+    handleDragTouchStart,
     handleResizeStart,
     handleScaleResizeStart,
   };

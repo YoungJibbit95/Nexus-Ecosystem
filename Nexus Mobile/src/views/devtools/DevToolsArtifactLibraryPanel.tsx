@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { Copy, Download, FolderOpen, Trash2 } from "lucide-react";
 import {
@@ -39,6 +39,7 @@ function ArtifactRow({
   const [focused, setFocused] = useState(false);
   const [pressed, setPressed] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const rowRef = useRef<HTMLDivElement | null>(null);
   const interaction = useInteractiveSurfaceMotion({
     id: `devtools-artifact-${artifact.id}`,
     hovered,
@@ -52,8 +53,28 @@ function ArtifactRow({
     family: "content",
   });
 
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target as Node | null;
+      if (!target) return;
+      if (rowRef.current?.contains(target)) return;
+      setMenuOpen(false);
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMenuOpen(false);
+    };
+    window.addEventListener("pointerdown", onPointerDown, true);
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("pointerdown", onPointerDown, true);
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [menuOpen]);
+
   return (
     <motion.div
+      ref={rowRef}
       initial={false}
       animate={interaction.content.animate}
       transition={interaction.content.transition}
@@ -134,7 +155,10 @@ function ArtifactRow({
         {menuOpen ? (
           <div style={{ display: "grid", gap: 4 }}>
             <button
-              onClick={onLoad}
+              onClick={() => {
+                setMenuOpen(false);
+                onLoad();
+              }}
               className="nx-interactive nx-bounce-target nx-menu-item"
               style={{
                 display: "flex",
@@ -154,7 +178,10 @@ function ArtifactRow({
             </button>
             <div style={{ display: "flex", gap: 4 }}>
               <button
-                onClick={onCopy}
+                onClick={() => {
+                  setMenuOpen(false);
+                  onCopy();
+                }}
                 className="nx-interactive nx-bounce-target"
                 style={{
                   flex: 1,
@@ -175,7 +202,10 @@ function ArtifactRow({
                 <Copy size={11} /> Copy
               </button>
               <button
-                onClick={onDownload}
+                onClick={() => {
+                  setMenuOpen(false);
+                  onDownload();
+                }}
                 className="nx-interactive nx-bounce-target"
                 style={{
                   flex: 1,
@@ -197,7 +227,10 @@ function ArtifactRow({
               </button>
             </div>
             <button
-              onClick={onDelete}
+              onClick={() => {
+                setMenuOpen(false);
+                onDelete();
+              }}
               className="nx-interactive nx-bounce-target"
               style={{
                 display: "flex",
@@ -342,4 +375,3 @@ export function DevToolsArtifactLibraryPanel({
     </div>
   );
 }
-

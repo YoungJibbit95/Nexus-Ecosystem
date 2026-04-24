@@ -35,6 +35,21 @@ const NOTE_PREVIEW_DEBOUNCE_MS = 220
 const NOTE_UNDO_SNAPSHOT_INTERVAL_MS = 260
 const MAX_RENDERED_LINE_NUMBERS = 4_000
 const NOTES_IMPORT_INPUT_ID = 'nx-notes-import-markdown'
+const NOTES_UI_STATE_KEY = 'nx-notes-ui-state-v1'
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  Boolean(value) && typeof value === 'object' && !Array.isArray(value)
+
+const isEditableTarget = (target: EventTarget | null): boolean => {
+  if (!(target instanceof HTMLElement)) return false
+  const tag = target.tagName.toLowerCase()
+  return (
+    target.isContentEditable ||
+    tag === 'input' ||
+    tag === 'textarea' ||
+    tag === 'select'
+  )
+}
 const runIdle = (task: () => void, timeoutMs = 320) => {
   if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
     ;(window as any).requestIdleCallback(task, { timeout: timeoutMs })
@@ -109,6 +124,52 @@ export function NotesView() {
     compactMode: t.visual.compactMode, panelRadius: t.visual.panelRadius,
     shadowDepth: t.visual.shadowDepth, spacingDensity: t.visual.spacingDensity as 'comfortable' | 'compact' | 'spacious',
   })
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(NOTES_UI_STATE_KEY)
+      if (!raw) return
+      const parsed = JSON.parse(raw)
+      if (!isRecord(parsed)) return
+      if (parsed.mode === 'edit' || parsed.mode === 'split' || parsed.mode === 'preview') {
+        setMode(parsed.mode)
+      }
+      if (parsed.sortBy === 'updated' || parsed.sortBy === 'title' || parsed.sortBy === 'created') {
+        setSortBy(parsed.sortBy)
+      }
+      const parsedTagFilter = parsed.tagFilter
+      if (typeof parsedTagFilter === 'string' || parsedTagFilter === null) {
+        setTagFilter(parsedTagFilter as string | null)
+      }
+      if (typeof parsed.focusMode === 'boolean') {
+        setFocusMode(parsed.focusMode)
+      }
+      if (typeof parsed.showSearch === 'boolean') {
+        setShowSearch(parsed.showSearch)
+      }
+      if (typeof parsed.searchQuery === 'string') {
+        setSearchQuery(parsed.searchQuery)
+      }
+    } catch {
+      // Ignore malformed persisted UI state.
+    }
+  }, [])
+
+  useEffect(() => {
+    const payload = {
+      mode,
+      sortBy,
+      tagFilter,
+      focusMode,
+      showSearch,
+      searchQuery,
+    }
+    try {
+      window.localStorage.setItem(NOTES_UI_STATE_KEY, JSON.stringify(payload))
+    } catch {
+      // Ignore storage write failures.
+    }
+  }, [focusMode, mode, searchQuery, showSearch, sortBy, tagFilter])
 
   useEffect(() => {
     draftContentRef.current = draftContent
@@ -412,17 +473,41 @@ export function NotesView() {
 
   useEffect(() => {
     const onGlobalKeyDown = (event: KeyboardEvent) => {
+      if (showQuickSwitch) return
+      const editable = isEditableTarget(event.target)
       if (!(event.ctrlKey || event.metaKey)) return
       const key = event.key.toLowerCase()
-      if (key !== 'p') return
-      event.preventDefault()
-      openQuickSwitch()
+      if (key === 'p') {
+        event.preventDefault()
+        openQuickSwitch()
+        return
+      }
+      if (editable) return
+      if (key === 'f') {
+        event.preventDefault()
+        setShowSearch(true)
+        return
+      }
+      if (key === '1') {
+        event.preventDefault()
+        setMode('edit')
+        return
+      }
+      if (key === '2') {
+        event.preventDefault()
+        setMode('split')
+        return
+      }
+      if (key === '3') {
+        event.preventDefault()
+        setMode('preview')
+      }
     }
     window.addEventListener('keydown', onGlobalKeyDown)
     return () => {
       window.removeEventListener('keydown', onGlobalKeyDown)
     }
-  }, [openQuickSwitch])
+  }, [openQuickSwitch, showQuickSwitch])
 
   useEffect(() => {
     if (!showQuickSwitch) return

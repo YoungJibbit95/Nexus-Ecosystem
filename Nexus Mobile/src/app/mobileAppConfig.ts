@@ -7,9 +7,16 @@ const DEFAULT_CONTROL_API_BASE_URL = "https://nexus-api.cloud";
 const HARD_BOOT_FAILURE_CODES = new Set(["HTTP_401", "HTTP_403"]);
 const RECOVERABLE_BOOT_FAILURE_CODES = new Set([
   "INVALID_PAYLOAD",
+  "INVALID_JSON",
+  "INVALID_SCHEMA",
   "PARSE_ERROR",
   "EMPTY_PAYLOAD",
   "MISSING_PAYLOAD",
+  "TIMEOUT",
+  "NETWORK",
+  "ABORTED",
+  "ABORT_ERR",
+  "NO_BASE_URL",
   "HTTP_404",
 ]);
 
@@ -64,6 +71,7 @@ export const isRecoverableBootstrapResourceError = (errorCodeRaw: unknown) => {
   if (isOfflineControlErrorCode(code)) return true;
   if (RECOVERABLE_BOOT_FAILURE_CODES.has(code)) return true;
   if (HARD_BOOT_FAILURE_CODES.has(code)) return false;
+  if (code.includes("TIMEOUT") || code.includes("ABORT")) return true;
   if (/^HTTP_5\d{2}$/.test(code)) return true;
   return false;
 };
@@ -73,6 +81,9 @@ export const describeBootstrapFailureKind = (errorCodeRaw: unknown) => {
     .trim()
     .toUpperCase();
   if (isOfflineControlErrorCode(code)) return "offline";
+  if (code === "TIMEOUT" || code.includes("TIMEOUT")) return "timeout";
+  if (code === "NETWORK") return "network";
+  if (code.includes("ABORT")) return "timeout";
   if (HARD_BOOT_FAILURE_CODES.has(code)) return "auth";
   if (RECOVERABLE_BOOT_FAILURE_CODES.has(code)) return "payload";
   if (/^HTTP_5\d{2}$/.test(code)) return "server";

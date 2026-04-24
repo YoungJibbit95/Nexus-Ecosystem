@@ -8,8 +8,8 @@ export type ModuleId =
   | "editor"
   | "workspace";
 
-export type RendererMode = "blur" | "fake-glass" | "glass-shader";
-export type GlowRendererMode = "css" | "three";
+export type RendererMode = Theme["glassmorphism"]["panelRenderer"];
+export type GlowRendererMode = Theme["glassmorphism"]["glowRenderer"];
 
 export type ExperiencePreset = {
   id: "focus" | "balanced" | "cinematic";

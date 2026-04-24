@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence } from "framer-motion";
 import {
   Download,
@@ -51,6 +51,8 @@ export function FilesView({ setView }: FilesViewProps = {}) {
   const [editWs, setEditWs] = useState<Workspace | null>(null);
   const [assignItem, setAssignItem] = useState<FileItem | null>(null);
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
+  const headerMenuRef = useRef<HTMLDivElement | null>(null);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
 
   const {
     workspaceRoot,
@@ -211,6 +213,99 @@ export function FilesView({ setView }: FilesViewProps = {}) {
     [allItems, isItemAssigned],
   );
 
+  useEffect(() => {
+    if (!headerMenuOpen) return;
+    const onPointerDown = (event: PointerEvent) => {
+      if (!headerMenuRef.current?.contains(event.target as Node)) {
+        setHeaderMenuOpen(false);
+      }
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setHeaderMenuOpen(false);
+    };
+    window.addEventListener("pointerdown", onPointerDown);
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("pointerdown", onPointerDown);
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [headerMenuOpen]);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const key = event.key.toLowerCase();
+      const cmd = event.metaKey || event.ctrlKey;
+      const target = event.target as HTMLElement | null;
+      const isEditable =
+        target?.tagName === "INPUT" ||
+        target?.tagName === "TEXTAREA" ||
+        target?.isContentEditable;
+
+      if (cmd && key === "f") {
+        event.preventDefault();
+        searchInputRef.current?.focus();
+        searchInputRef.current?.select();
+        return;
+      }
+
+      if (isEditable) return;
+
+      if (key === "1") {
+        event.preventDefault();
+        setTypeFilter("all");
+        return;
+      }
+      if (key === "2") {
+        event.preventDefault();
+        setTypeFilter("note");
+        return;
+      }
+      if (key === "3") {
+        event.preventDefault();
+        setTypeFilter("code");
+        return;
+      }
+      if (key === "4") {
+        event.preventDefault();
+        setTypeFilter("task");
+        return;
+      }
+      if (key === "5") {
+        event.preventDefault();
+        setTypeFilter("reminder");
+        return;
+      }
+      if (key === "6") {
+        event.preventDefault();
+        setTypeFilter("canvas");
+        return;
+      }
+      if (key === "g") {
+        event.preventDefault();
+        setViewMode((prev) => (prev === "grid" ? "list" : "grid"));
+        return;
+      }
+      if (key === "r") {
+        event.preventDefault();
+        setSmartView("recent");
+        return;
+      }
+      if (key === "u") {
+        event.preventDefault();
+        setSmartView("unassigned");
+        return;
+      }
+      if (key === "w") {
+        event.preventDefault();
+        setSmartView(activeWs ? "workspace" : "all");
+        setTab(activeWs ? "workspaces" : "all");
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [activeWs]);
+
   const openItem = (item: FileItem) => {
     if (item.type === "note") {
       openNote(item.id);
@@ -282,7 +377,7 @@ export function FilesView({ setView }: FilesViewProps = {}) {
             >
               <Plus size={13} /> Workspace
             </InteractiveActionButton>
-            <div style={{ position: "relative" }}>
+            <div ref={headerMenuRef} style={{ position: "relative" }}>
               <InteractiveActionButton
                 onClick={() => setHeaderMenuOpen((prev) => !prev)}
                 motionId="files-workspace-flow-menu"
@@ -644,6 +739,7 @@ export function FilesView({ setView }: FilesViewProps = {}) {
                 style={{ position: "absolute", left: 9, top: "50%", transform: "translateY(-50%)", opacity: 0.4 }}
               />
               <input
+                ref={searchInputRef}
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder="Search…"

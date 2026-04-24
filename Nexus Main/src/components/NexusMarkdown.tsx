@@ -5,6 +5,7 @@ import { useTheme } from '../store/themeStore'
 import { hexToRgb } from '../lib/utils'
 import { Copy, Check } from 'lucide-react'
 import { writeClipboardTextSafely } from '@nexus/core/canvas/markdownSafety'
+import { CanvasNexusCodeBlock } from '@nexus/core/canvas/CanvasMagicRenderers'
 
 // ── Code block with syntax highlighting + copy ─────────────────
 function CodeBlock({ className, children, accent }: { className?: string; children: React.ReactNode; accent: string }) {
@@ -13,11 +14,14 @@ function CodeBlock({ className, children, accent }: { className?: string; childr
   const code = String(children).replace(/\n$/, '')
 
   // Magic block types
-  if (lang === 'nexus-list') return <MagicList content={code} accent={accent} />
-  if (lang === 'nexus-alert') return <MagicAlert content={code} />
-  if (lang === 'nexus-card') return <MagicCard content={code} accent={accent} />
-  if (lang === 'nexus-progress') return <MagicProgress content={code} accent={accent} />
   if (lang === 'nexus-badge') return <MagicBadge content={code} accent={accent} />
+  if (lang.startsWith('nexus-')) {
+    return (
+      <CanvasNexusCodeBlock className={className} accent={accent}>
+        {children}
+      </CanvasNexusCodeBlock>
+    )
+  }
 
   const copy = async () => {
     const copiedOk = await writeClipboardTextSafely(code)

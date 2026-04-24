@@ -19,6 +19,7 @@ import { Glass } from '../components/Glass'
 import { useApp, Activity } from '../store/appStore'
 import { useTheme } from '../store/themeStore'
 import { hexToRgb } from '../lib/utils'
+import { useMobile } from '../lib/useMobile'
 
 type FluxFilter = Activity['type'] | 'all'
 type OpsPreset = 'all' | 'overdue' | 'due-soon' | 'high-priority' | 'focus' | 'reminder-triage' | 'task-backlog'
@@ -62,6 +63,7 @@ const TYPE_META: Record<Activity['type'], { icon: any; color: string; label: str
 const PRIORITY_WEIGHT: Record<string, number> = { low: 1, mid: 2, high: 3 }
 const FILTER_OPTIONS: FluxFilter[] = ['all', 'note', 'code', 'task', 'reminder']
 const QUEUE_FILTERS: Array<'all' | 'task' | 'reminder'> = ['all', 'task', 'reminder']
+const OPS_PRESETS: OpsPreset[] = ['all', 'overdue', 'due-soon', 'high-priority', 'focus', 'reminder-triage', 'task-backlog']
 const PRESET_META: Record<OpsPreset, { label: string; detail: string }> = {
   all: { label: 'All', detail: 'Gesamte Queue' },
   overdue: { label: 'Overdue', detail: 'Überfällige Items' },
@@ -70,6 +72,17 @@ const PRESET_META: Record<OpsPreset, { label: string; detail: string }> = {
   focus: { label: 'Focus', detail: 'Nur Fokus-relevante Arbeit' },
   'reminder-triage': { label: 'Reminder Triage', detail: 'Reminder zuerst abarbeiten' },
   'task-backlog': { label: 'Task Backlog', detail: 'Nur offene Backlog-Tasks' },
+}
+const FLUX_FILTER_STORAGE_KEY = 'nx-mobile-flux-filter-v1'
+const FLUX_PRESET_STORAGE_KEY = 'nx-mobile-flux-preset-v1'
+const FLUX_QUEUE_FILTER_STORAGE_KEY = 'nx-mobile-flux-queue-filter-v1'
+const FLUX_QUEUE_SORT_STORAGE_KEY = 'nx-mobile-flux-queue-sort-v1'
+const FLUX_FOCUS_MODE_STORAGE_KEY = 'nx-mobile-flux-focus-mode-v1'
+
+const readStoredValue = <T extends string>(key: string, valid: readonly T[], fallback: T): T => {
+  if (typeof window === 'undefined') return fallback
+  const raw = window.localStorage.getItem(key)
+  return raw && valid.includes(raw as T) ? (raw as T) : fallback
 }
 
 const computeTaskSeverity = (task: { priority: string; status: string; deadline?: string }, nowTs: number) => {
@@ -101,7 +114,14 @@ const formatDue = (ts: number) => {
 
 export function FluxView({ setView }: { setView?: (view: string) => void } = {}) {
   const t = useTheme()
+  const mob = useMobile()
   const accentRgb = hexToRgb(t.accent)
+  const compactEdge = Math.min(mob.screenW, mob.screenH)
+  const isTinyMobile = mob.isMobile && compactEdge <= 430
+  const isTightMobile = mob.isMobile && mob.screenH <= 900
+  const isLandscapeMobile = mob.isMobile && mob.isLandscape
+  const isCompactMobile = mob.isMobile && (isTinyMobile || isTightMobile || isLandscapeMobile)
+  const compactPadding = isCompactMobile ? 8 : 14
   const {
     activities,
     notes,
@@ -139,12 +159,22 @@ export function FluxView({ setView }: { setView?: (view: string) => void } = {})
     shallow,
   )
 
-  const [filter, setFilter] = useState<FluxFilter>('all')
+  const [filter, setFilter] = useState<FluxFilter>(() => readStoredValue(FLUX_FILTER_STORAGE_KEY, FILTER_OPTIONS, 'all'))
   const [query, setQuery] = useState('')
-  const [focusMode, setFocusMode] = useState(false)
-  const [queueSort, setQueueSort] = useState<'severity' | 'time'>('severity')
-  const [queueFilter, setQueueFilter] = useState<'all' | 'task' | 'reminder'>('all')
-  const [preset, setPreset] = useState<OpsPreset>('all')
+  const [focusMode, setFocusMode] = useState(() => {
+    if (typeof window === 'undefined') return false
+    return window.localStorage.getItem(FLUX_FOCUS_MODE_STORAGE_KEY) === '1'
+  })
+  const [queueSort, setQueueSort] = useState<'severity' | 'time'>(() =>
+    readStoredValue(FLUX_QUEUE_SORT_STORAGE_KEY, ['severity', 'time'] as const, 'severity'),
+  )
+  const [queueFilter, setQueueFilter] = useState<'all' | 'task' | 'reminder'>(() =>
+    readStoredValue(FLUX_QUEUE_FILTER_STORAGE_KEY, QUEUE_FILTERS, 'all'),
+  )
+  const [preset, setPreset] = useState<OpsPreset>(() =>
+    readStoredValue(FLUX_PRESET_STORAGE_KEY, OPS_PRESETS, 'all'),
+  )
+  const [mobileSection, setMobileSection] = useState<'queue' | 'activity'>('queue')
   const searchRef = useRef<HTMLInputElement>(null)
   const [nowTs, setNowTs] = useState(() => Date.now())
 
@@ -152,6 +182,31 @@ export function FluxView({ setView }: { setView?: (view: string) => void } = {})
     const intervalId = window.setInterval(() => setNowTs(Date.now()), 15_000)
     return () => window.clearInterval(intervalId)
   }, [])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    window.localStorage.setItem(FLUX_FILTER_STORAGE_KEY, filter)
+  }, [filter])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    window.localStorage.setItem(FLUX_PRESET_STORAGE_KEY, preset)
+  }, [preset])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    window.localStorage.setItem(FLUX_QUEUE_FILTER_STORAGE_KEY, queueFilter)
+  }, [queueFilter])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    window.localStorage.setItem(FLUX_QUEUE_SORT_STORAGE_KEY, queueSort)
+  }, [queueSort])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    window.localStorage.setItem(FLUX_FOCUS_MODE_STORAGE_KEY, focusMode ? '1' : '0')
+  }, [focusMode])
 
   const openTasksView = useCallback(() => {
     setView?.('tasks')
@@ -585,16 +640,19 @@ export function FluxView({ setView }: { setView?: (view: string) => void } = {})
   const activePresetMeta = PRESET_META[preset]
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, height: '100%', padding: 14, minHeight: 0 }}>
-      <Glass style={{ padding: '14px 16px', flexShrink: 0 }} glow>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+    <div
+      className="nx-mobile-view-screen nx-mobile-scroll-root"
+      style={{ display: 'flex', flexDirection: 'column', gap: isCompactMobile ? 8 : 12, height: '100%', padding: compactPadding, minHeight: 0 }}
+    >
+      <Glass style={{ padding: isCompactMobile ? '10px 12px' : '14px 16px', flexShrink: 0 }} glow>
+        <div className="nx-mobile-tight-stack" style={{ gap: 10 }}>
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 20, fontWeight: 900 }}>
-              <Zap size={18} style={{ color: t.accent }} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: isCompactMobile ? 17 : 20, fontWeight: 900 }}>
+              <Zap size={isCompactMobile ? 16 : 18} style={{ color: t.accent }} />
               Flux Ops
             </div>
-            <div style={{ fontSize: 11, opacity: 0.62 }}>Action Queue + Bottlenecks + Activity Stream mit Keyboard-Workflow</div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+            <div style={{ fontSize: isCompactMobile ? 10 : 11, opacity: 0.62 }}>Action Queue + Bottlenecks + Activity Stream mit Keyboard-Workflow</div>
+            <div className="nx-mobile-row-scroll" style={{ gap: 6, marginTop: 8 }}>
               {[
                 'Ctrl+F Search',
                 'Ctrl+Shift+N/C/T/R Quick Create',
@@ -606,7 +664,7 @@ export function FluxView({ setView }: { setView?: (view: string) => void } = {})
                 <span
                   key={hint}
                   style={{
-                    fontSize: 10,
+                    fontSize: isCompactMobile ? 9 : 10,
                     padding: '3px 7px',
                     borderRadius: 999,
                     border: `1px solid rgba(${accentRgb},0.32)`,
@@ -619,17 +677,17 @@ export function FluxView({ setView }: { setView?: (view: string) => void } = {})
               ))}
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
-            <button onClick={() => runQuickAction('note')} style={{ padding: '7px 10px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.06)', color: 'inherit', cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>+ Note</button>
-            <button onClick={() => runQuickAction('code')} style={{ padding: '7px 10px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.06)', color: 'inherit', cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>+ Code</button>
-            <button onClick={() => runQuickAction('task')} style={{ padding: '7px 10px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.06)', color: 'inherit', cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>+ Task</button>
-            <button onClick={() => runQuickAction('reminder')} style={{ padding: '7px 10px', borderRadius: 8, border: `1px solid rgba(${accentRgb},0.36)`, background: `rgba(${accentRgb},0.14)`, color: t.accent, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
+          <div className="nx-mobile-row-scroll" style={{ gap: 7 }}>
+            <button onClick={() => runQuickAction('note')} style={{ padding: isCompactMobile ? '6px 8px' : '7px 10px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.06)', color: 'inherit', cursor: 'pointer', fontSize: isCompactMobile ? 10 : 11, fontWeight: 700 }}>+ Note</button>
+            <button onClick={() => runQuickAction('code')} style={{ padding: isCompactMobile ? '6px 8px' : '7px 10px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.06)', color: 'inherit', cursor: 'pointer', fontSize: isCompactMobile ? 10 : 11, fontWeight: 700 }}>+ Code</button>
+            <button onClick={() => runQuickAction('task')} style={{ padding: isCompactMobile ? '6px 8px' : '7px 10px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.06)', color: 'inherit', cursor: 'pointer', fontSize: isCompactMobile ? 10 : 11, fontWeight: 700 }}>+ Task</button>
+            <button onClick={() => runQuickAction('reminder')} style={{ padding: isCompactMobile ? '6px 8px' : '7px 10px', borderRadius: 8, border: `1px solid rgba(${accentRgb},0.36)`, background: `rgba(${accentRgb},0.14)`, color: t.accent, cursor: 'pointer', fontSize: isCompactMobile ? 10 : 11, fontWeight: 700 }}>
               <Plus size={12} style={{ verticalAlign: 'middle', marginRight: 5 }} />Reminder
             </button>
           </div>
         </div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
-          {(Object.keys(PRESET_META) as OpsPreset[]).map((presetId) => {
+        <div className="nx-mobile-row-scroll" style={{ gap: 6, marginTop: 10 }}>
+          {OPS_PRESETS.map((presetId) => {
             const meta = PRESET_META[presetId]
             const active = preset === presetId
             return (
@@ -643,7 +701,7 @@ export function FluxView({ setView }: { setView?: (view: string) => void } = {})
                   border: `1px solid ${active ? `rgba(${accentRgb},0.42)` : 'rgba(255,255,255,0.14)'}`,
                   background: active ? `rgba(${accentRgb},0.2)` : 'rgba(255,255,255,0.04)',
                   color: active ? t.accent : 'inherit',
-                  fontSize: 10,
+                  fontSize: isCompactMobile ? 9 : 10,
                   fontWeight: 700,
                   cursor: 'pointer',
                   letterSpacing: 0.2,
@@ -656,7 +714,7 @@ export function FluxView({ setView }: { setView?: (view: string) => void } = {})
         </div>
       </Glass>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(132px,1fr))', gap: 8, flexShrink: 0 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: `repeat(auto-fit,minmax(${isCompactMobile ? 120 : 132}px,1fr))`, gap: 8, flexShrink: 0 }}>
         {[
           {
             label: `Ops Score · ${opsSignal.label}`,
@@ -674,15 +732,53 @@ export function FluxView({ setView }: { setView?: (view: string) => void } = {})
             value: lastActivityAgeMinutes == null ? '—' : `${lastActivityAgeMinutes}m`,
             color: lastActivityAgeMinutes != null && lastActivityAgeMinutes > 180 ? '#FF453A' : '#30D158',
           },
-        ].map((metric) => (
-          <Glass key={metric.label} style={{ padding: '10px 12px' }}>
-            <div style={{ fontSize: 10, opacity: 0.58, textTransform: 'uppercase', letterSpacing: 0.6 }}>{metric.label}</div>
-            <div style={{ fontSize: 24, fontWeight: 900, color: metric.color, lineHeight: 1.1 }}>{metric.value}</div>
+        ].slice(0, mob.isMobile ? 4 : 8).map((metric) => (
+          <Glass key={metric.label} style={{ padding: isCompactMobile ? '8px 10px' : '10px 12px' }}>
+            <div style={{ fontSize: isCompactMobile ? 9 : 10, opacity: 0.58, textTransform: 'uppercase', letterSpacing: 0.6 }}>{metric.label}</div>
+            <div style={{ fontSize: isCompactMobile ? 20 : 24, fontWeight: 900, color: metric.color, lineHeight: 1.1 }}>{metric.value}</div>
           </Glass>
         ))}
       </div>
 
+      {mob.isMobile ? (
+        <div style={{ display:'flex', gap:6, flexShrink:0 }}>
+          <button
+            onClick={() => setMobileSection('queue')}
+            style={{
+              flex: 1,
+              padding: '7px 10px',
+              borderRadius: 9,
+              border: `1px solid ${mobileSection === 'queue' ? `rgba(${accentRgb},0.34)` : 'rgba(255,255,255,0.14)'}`,
+              background: mobileSection === 'queue' ? `rgba(${accentRgb},0.16)` : 'rgba(255,255,255,0.04)',
+              color: mobileSection === 'queue' ? t.accent : 'inherit',
+              fontSize: isCompactMobile ? 10 : 11,
+              fontWeight: 700,
+              cursor: 'pointer',
+            }}
+          >
+            Queue
+          </button>
+          <button
+            onClick={() => setMobileSection('activity')}
+            style={{
+              flex: 1,
+              padding: '7px 10px',
+              borderRadius: 9,
+              border: `1px solid ${mobileSection === 'activity' ? `rgba(${accentRgb},0.34)` : 'rgba(255,255,255,0.14)'}`,
+              background: mobileSection === 'activity' ? `rgba(${accentRgb},0.16)` : 'rgba(255,255,255,0.04)',
+              color: mobileSection === 'activity' ? t.accent : 'inherit',
+              fontSize: isCompactMobile ? 10 : 11,
+              fontWeight: 700,
+              cursor: 'pointer',
+            }}
+          >
+            Activity
+          </button>
+        </div>
+      ) : null}
+
       <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 10, flex: 1, minHeight: 0 }}>
+        {!mob.isMobile || mobileSection === 'queue' ? (
         <Glass style={{ padding: '12px', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 8 }}>
             <div style={{ fontSize: 12, fontWeight: 800 }}>Action Queue</div>
@@ -734,7 +830,7 @@ export function FluxView({ setView }: { setView?: (view: string) => void } = {})
             <span>{activePresetMeta.detail}</span>
           </div>
 
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+          <div className="nx-mobile-row-scroll" style={{ gap: 6, marginBottom: 8 }}>
             {QUEUE_FILTERS.map((type) => (
               <button
                 key={type}
@@ -917,10 +1013,12 @@ export function FluxView({ setView }: { setView?: (view: string) => void } = {})
             </div>
           </div>
         </Glass>
+        ) : null}
 
-        <Glass style={{ padding: '12px', display: 'flex', flexDirection: 'column', minHeight: 0 }} glow>
+        {!mob.isMobile || mobileSection === 'activity' ? (
+        <Glass style={{ padding: isCompactMobile ? '9px' : '12px', display: 'flex', flexDirection: 'column', minHeight: 0 }} glow>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 9, flexWrap: 'wrap' }}>
-            <div style={{ fontSize: 12, fontWeight: 800 }}>Activity Stream</div>
+            <div style={{ fontSize: isCompactMobile ? 11 : 12, fontWeight: 800 }}>Activity Stream</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
               {FILTER_OPTIONS.map((type, index) => (
                 <button
@@ -933,7 +1031,7 @@ export function FluxView({ setView }: { setView?: (view: string) => void } = {})
                     background: filter === type ? `rgba(${accentRgb},0.15)` : 'rgba(255,255,255,0.04)',
                     color: filter === type ? t.accent : 'inherit',
                     cursor: 'pointer',
-                    fontSize: 10,
+                    fontSize: isCompactMobile ? 9 : 10,
                     fontWeight: 700,
                     textTransform: 'uppercase',
                   }}
@@ -950,13 +1048,13 @@ export function FluxView({ setView }: { setView?: (view: string) => void } = {})
                   onChange={(event) => setQuery(event.target.value)}
                   placeholder="Suchen"
                   style={{
-                    width: 160,
-                    padding: '5px 8px 5px 26px',
+                    width: isLandscapeMobile ? 132 : 160,
+                    padding: isCompactMobile ? '4px 7px 4px 24px' : '5px 8px 5px 26px',
                     borderRadius: 8,
                     border: '1px solid rgba(255,255,255,0.12)',
                     background: 'rgba(255,255,255,0.05)',
                     color: 'inherit',
-                    fontSize: 11,
+                    fontSize: isCompactMobile ? 10 : 11,
                     outline: 'none',
                   }}
                 />
@@ -1027,6 +1125,7 @@ export function FluxView({ setView }: { setView?: (view: string) => void } = {})
             {opsSignal.summary}
           </div>
         </Glass>
+        ) : null}
       </div>
     </div>
   )

@@ -87,7 +87,7 @@ export function InfoView({ onOpenWalkthrough }: { onOpenWalkthrough?: () => void
               NEXUS v5.0
             </div>
             <div style={{ fontSize: 13, opacity: 0.55, marginBottom: 16 }}>
-              Productivity Suite · Workspace Edition · 10. April 2026
+              Productivity Suite · Workspace Edition · 22. April 2026
             </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
               <Badge label="Notes" color={t.accent} />
@@ -254,9 +254,9 @@ Core:      @nexus/core (render + motion + shared contracts)`}</Code>
           badge="CORE"
         >
           <P>
-            Render und Motion laufen zentral über den Shared Core. Der Rollout ist weit fortgeschritten, aber
-            nicht jeder Legacy-Pfad wurde vollständig eliminiert. Ziel ist kontrollierte Konsolidierung statt
-            fragiler Big-Bang-Rewrites.
+            Render und Motion laufen zentral über den Shared Core. Der Rollout ist weit fortgeschritten;
+            einzelne Legacy-Adapter bestehen noch in Randbereichen. Ziel bleibt kontrollierte Konsolidierung
+            ohne fragile Big-Bang-Rewrites.
           </P>
           <Grid2>
             <Card icon="🧭" title="Render Pipeline" desc="Measure → Resolve → Allocate → Commit → Cleanup." />
@@ -314,7 +314,10 @@ Prinzip:
 2) Shared contracts in packages/nexus-core
 3) App-README und Workspace-README
 4) InfoView als in-app Referenz
-5) Wiki/Website als externe Spiegelung`}</Code>
+5) Wiki/Website als externe Spiegelung
+
+Hinweis:
+Wenn Doku und Runtime abweichen, gilt immer die Runtime.`}</Code>
         </Acc>
 
         <Acc title="Komplette View-Referenz" icon={Layers} open={open.guide} onToggle={() => tog("guide")} badge="ALL VIEWS">
@@ -323,11 +326,16 @@ Prinzip:
           </P>
           <Grid2>
             <Card icon="📊" title="Dashboard" desc="Today + Continue + Runtime Health + In-Grid Layout Editing." keys={["Layout bearbeiten", "Swap Widgets", "Hidden Tray"]} />
-            <Card icon="📝" title="Notes" desc="Wissensarbeit mit Outline, Linking, Magic Blocks und schnellem Wechsel." keys={["Cmd/Ctrl+S", "Cmd/Ctrl+B", "Cmd/Ctrl+K"]} />
+            <Card
+              icon="📝"
+              title="Notes"
+              desc="Wissensarbeit mit Outline, Linking, Magic Blocks und schnellem Wechsel."
+              keys={["Cmd/Ctrl+P", "Cmd/Ctrl+F", "Cmd/Ctrl+S", "Cmd/Ctrl+B", "Cmd/Ctrl+K", "Cmd/Ctrl+1/2/3"]}
+            />
             <Card icon="💻" title="CodeView" desc="Quick Open, Run/Preview, Output-History und Monaco-Fallback." keys={["Cmd/Ctrl+P", "Cmd/Ctrl+Enter", "Cmd/Ctrl+S"]} />
             <Card icon="✅" title="Tasks" desc="Board + Focus Views + Linked Context + Batch-Flows." />
             <Card icon="🔔" title="Reminders" desc="Recurrence/Snooze/Triage mit Task-/Note-Kontext." />
-            <Card icon="🧠" title="Canvas" desc="Find/Jump, Outline, Multi-Select/Bulk, Focus/Fit und Magic Builder." keys={["Cmd/Ctrl+P", "Cmd/Ctrl+M", "Cmd/Ctrl+0", "F", "P"]} />
+            <Card icon="🧠" title="Canvas" desc="Find/Jump, Outline, Multi-Select/Bulk, Focus/Fit und Magic Builder." keys={["Cmd/Ctrl+P", "Cmd/Ctrl+M", "Cmd/Ctrl+0 (reset)", "F", "P"]} />
             <Card icon="🗂️" title="Files" desc="Workspace-Hub mit Canvas-Items, Smart Views und Assign-Flows." />
             <Card icon="⚡" title="Flux" desc="Ops Score + Bottlenecks + Drilldown-Actions auf echte Ziele." />
             <Card icon="🛠️" title="DevTools" desc="Builder/Recipe/Export für wiederverwendbare Artefakte." />
@@ -358,8 +366,15 @@ Prinzip:
           <Grid2>
             <Card icon="🧭" title="Navigation" desc="Quick Switch/Filter/Tags und strukturierte Notizlisten." />
             <Card icon="🔗" title="Linking" desc="Wikilinks, Backlinks und verwandte Inhalte für Wissensnetze." />
-            <Card icon="🪄" title="Magic Blocks" desc="nexus-* Blocks für strukturierte Pläne, Metriken und Kanban-Schnipsel." />
+            <Card icon="🪄" title="Magic Blocks" desc="Voller nexus-* Satz für Listen, Checklisten, Alerts, Callouts, Progress, Timelines, Grid, Cards, Kanban, Metrics, Steps und Quadrants." />
+            <Card icon="📚" title="Markdown Extras" desc="Zusätzlich Tabellen, Trennlinien, Details/Toggle-Blöcke, Links und klassisches Inline-/Block-Markdown." />
             <Card icon="💾" title="Autosave + History" desc="Draft-Commit, Undo/Redo und stabiler Dirty-State." />
+            <Card
+              icon="⌨️"
+              title="Shortcut-Flow"
+              desc="Quick Switch, Search und Moduswechsel direkt über Keyboard."
+              keys={["Cmd/Ctrl+P", "Cmd/Ctrl+F", "Cmd/Ctrl+1/2/3", "Cmd/Ctrl+S", "Cmd/Ctrl+B/I/K"]}
+            />
           </Grid2>
           <Code>{`Unterstützte Magic-Blocks (Notes + Canvas Markdown)
 - nexus-list
@@ -374,7 +389,12 @@ Prinzip:
 - nexus-badge
 - nexus-metrics
 - nexus-steps
-- nexus-quadrant`}</Code>
+- nexus-quadrant
+
+Inline Badge Syntax
+- \`b:Label|magic\`
+- \`b:Ready|success\`
+- \`b:Warnung|warning\``}</Code>
         </Acc>
 
         <Acc title="CodeView — Embedded Coding" icon={Code2} open={open.code} onToggle={() => tog("code")}> 
@@ -424,11 +444,14 @@ Prinzip:
               "Space Hold Pan",
               "Cmd/Ctrl+P Quick Switch",
               "Cmd/Ctrl+M Magic",
-              "Cmd/Ctrl+0 Fit",
+              "Cmd/Ctrl+0 Reset Viewport",
+              "1 / 2 / 3 Layout",
               "F Focus/Fit",
               "P Project Panel",
               "G Grid",
               "+ / - Zoom",
+              "Delete Node",
+              "Esc Reset Selection",
             ]}
           />
         </Acc>
@@ -470,7 +493,7 @@ Prinzip:
           <Grid2>
             <Card icon="✅" title="Stable Controls" desc="Theme, Layout, Accessibility, Editor-Defaults und Workspace-Maintenance." />
             <Card icon="🧪" title="Advanced / Experimental" desc="Engine-nahe Optionen mit klarer Kennzeichnung und geringerem Prominenzgrad." />
-            <Card icon="🧱" title="Release Freeze" desc="Toolbar-/Spotlight-/Glow-Zonen werden nicht als frei editierbare Release-Settings geführt." />
+            <Card icon="🧱" title="Release Freeze" desc="Glow/harte Geometrie bleiben eingefroren; Toolbar Mode/Position/Style bleiben bewusst editierbar." />
             <Card icon="🛡️" title="Theme Import Guard" desc="Schema/Allowlist/Defaults verhindern kaputte oder veraltete JSON-Imports." />
           </Grid2>
           <Card title="Maintenance" desc="Walkthrough, Spotlight Reset, Terminal Reset und Dashboard Reset sind getrennt erklärt." />
@@ -479,9 +502,22 @@ Prinzip:
         <Acc title="Tastenkürzel" icon={Keyboard} open={open.shortcuts} onToggle={() => tog("shortcuts")}> 
           <Grid2>
             <Card title="Global" desc="" keys={["Cmd/Ctrl+1..9", "Cmd/Ctrl+[ / ]", "Esc"]} />
-            <Card title="Notes" desc="" keys={["Cmd/Ctrl+S", "Cmd/Ctrl+B", "Cmd/Ctrl+I", "Cmd/Ctrl+K"]} />
+            <Card
+              title="Notes"
+              desc=""
+              keys={[
+                "Cmd/Ctrl+P",
+                "Cmd/Ctrl+F",
+                "Cmd/Ctrl+1/2/3",
+                "Cmd/Ctrl+S",
+                "Cmd/Ctrl+B",
+                "Cmd/Ctrl+I",
+                "Cmd/Ctrl+K",
+                "Tab indent",
+              ]}
+            />
             <Card title="CodeView" desc="" keys={["Cmd/Ctrl+P", "Cmd/Ctrl+Enter", "Cmd/Ctrl+S"]} />
-            <Card title="Canvas" desc="" keys={["Cmd/Ctrl+P", "Cmd/Ctrl+M", "Cmd/Ctrl+0", "F", "P", "G", "+ / -"]} />
+            <Card title="Canvas" desc="" keys={["Cmd/Ctrl+P", "Cmd/Ctrl+M", "Cmd/Ctrl+0 (reset)", "1/2/3", "F", "P", "G", "+ / -", "Delete", "Esc"]} />
             <Card title="Flux" desc="" keys={["Cmd/Ctrl+F", "Cmd/Ctrl+Shift+N/C/T/R", "1..4", "0"]} />
             <Card title="Terminal" desc="" keys={["Enter", "Tab", "ArrowUp/Down", "Esc", "Ctrl+L"]} />
           </Grid2>

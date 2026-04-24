@@ -108,6 +108,9 @@ export default function App() {
   const [paletteOpen, setPaletteOpen] = useState(false)
   const t = useTheme()
   const mob = useMobile()
+  const isTinyMobile = mob.isMobile && Math.min(mob.screenW, mob.screenH) <= 430
+  const isTightMobile = mob.isMobile && mob.screenH <= 900
+  const isLandscapeMobile = mob.isMobile && mob.isLandscape
   const runtimeRef = useRef<NexusRuntime | null>(null)
   const validatedAccessRef = useRef<Partial<Record<View, NexusViewAccessResult>>>({})
   const transitionStatsRef = useRef<NexusViewTransitionStats>({})
@@ -121,7 +124,10 @@ export default function App() {
   const [lagPressure, setLagPressure] = useState<'low' | 'elevated' | 'critical'>('low')
   const [autoMotionSafety, setAutoMotionSafety] = useState(false)
   const lowPowerMode = useMemo(() => isLowPowerDevice(), [])
-  const prefersStaticMobileContent = useMemo(() => isLikelyIOSRuntime(), [])
+  const prefersStaticMobileContent = useMemo(
+    () => isLikelyIOSRuntime() && (lowPowerMode || Boolean(t.qol?.reducedMotion ?? false)),
+    [lowPowerMode, t.qol?.reducedMotion],
+  )
   const motionSafetyLowPower = lowPowerMode || autoMotionSafety
   const effectiveReducedMotion = Boolean(t.qol?.reducedMotion ?? false) || autoMotionSafety
   const motionRuntime = useMemo(
@@ -431,10 +437,10 @@ export default function App() {
         releasePollIntervalMs: 30_000,
         viewValidationFailOpen: false,
         viewValidationCacheMs: 120_000,
-        requestTimeoutMs: lowPowerMode ? 4_600 : 3_200,
-        readRetryMax: 2,
-        readRetryBaseMs: 160,
-        readRetryMaxMs: 1_300,
+        requestTimeoutMs: lowPowerMode ? 7_200 : 5_200,
+        readRetryMax: lowPowerMode ? 3 : 2,
+        readRetryBaseMs: 220,
+        readRetryMaxMs: 1_900,
       },
       performance: {
         collectMemoryMs: 60_000,
@@ -574,13 +580,16 @@ export default function App() {
           }
         }
 
-        const bundle: NexusLiveBundle | null = failedResources.length === 0
+        const hasPartialBootstrapPayload = Boolean(
+          catalogResult.item || layoutResult.item || releaseResult.item,
+        )
+        const bundle: NexusLiveBundle | null = hasPartialBootstrapPayload
           ? {
               appId: 'mobile',
               channel: 'production',
-              catalog: catalogResult.item,
-              layoutSchema: layoutResult.item,
-              release: releaseResult.item,
+              catalog: catalogResult.item ?? null,
+              layoutSchema: layoutResult.item ?? null,
+              release: releaseResult.item ?? null,
             }
           : null
 
@@ -722,7 +731,7 @@ export default function App() {
   }, [effectiveReducedMotion, t.qol?.highContrast])
 
   useEffect(() => {
-    const sz = t.qol?.fontSize ?? (mob.isMobile ? 15 : 14)
+    const sz = t.qol?.fontSize ?? (mob.isMobile ? 14 : 14)
     applyTypographyScale({
       fontSize: sz,
       baseline: 14,
@@ -737,6 +746,104 @@ export default function App() {
   useEffect(() => {
     applySafeAreaInsets(mob.safeTop, mob.safeBottom)
   }, [mob.safeTop, mob.safeBottom])
+
+  useEffect(() => {
+    const root = document.documentElement
+    if (!mob.isMobile) {
+      delete root.dataset.nxMobileCompact
+      delete root.dataset.nxMobileCompactSize
+      delete root.dataset.nxMobileCompactHeight
+      delete root.dataset.nxMobileOrientation
+      return
+    }
+    root.dataset.nxMobileCompact = '1'
+    root.dataset.nxMobileCompactSize = isTinyMobile ? 'small' : 'regular'
+    root.dataset.nxMobileCompactHeight = isTightMobile ? 'tight' : 'regular'
+    root.dataset.nxMobileOrientation = isLandscapeMobile ? 'landscape' : 'portrait'
+    return () => {
+      delete root.dataset.nxMobileCompact
+      delete root.dataset.nxMobileCompactSize
+      delete root.dataset.nxMobileCompactHeight
+      delete root.dataset.nxMobileOrientation
+    }
+  }, [isLandscapeMobile, isTightMobile, isTinyMobile, mob.isMobile])
+
+  useEffect(() => {
+    if (!mob.isMobile) return
+    const root = document.documentElement
+    const resolveViewportDimension = (candidate: unknown, fallback: number) => {
+      const numeric = Number(candidate)
+      if (!Number.isFinite(numeric)) return fallback
+      // iOS/WebKit can transiently report 0 or near-zero visualViewport sizes.
+      if (numeric < 120) return fallback
+      return numeric
+    }
+    const syncTouchMode = () => {
+      const prefersCoarsePointer =
+        window.matchMedia('(pointer: coarse)').matches
+        || window.matchMedia('(hover: none)').matches
+      root.dataset.nxTouch = prefersCoarsePointer ? 'coarse' : 'fine'
+    }
+    const syncViewport = () => {
+      const viewport = window.visualViewport
+      const fallbackWidth = Math.max(120, Math.round(window.innerWidth || 390))
+      const fallbackHeight = Math.max(120, Math.round(window.innerHeight || 844))
+      const viewportWidth = Math.round(
+        resolveViewportDimension(viewport?.width, fallbackWidth),
+      )
+      const viewportHeight = Math.round(
+        resolveViewportDimension(viewport?.height, fallbackHeight),
+      )
+      const viewportOffsetTop = Math.max(0, Math.round(viewport?.offsetTop ?? 0))
+      root.style.setProperty('--nx-mobile-vw', `${viewportWidth}px`)
+      root.style.setProperty('--nx-mobile-vh', `${viewportHeight}px`)
+      root.style.setProperty('--nx-mobile-viewport-top', `${viewportOffsetTop}px`)
+    }
+    let rafId: number | null = null
+    const queueViewportSync = () => {
+      if (rafId !== null) return
+      rafId = window.requestAnimationFrame(() => {
+        rafId = null
+        syncViewport()
+      })
+    }
+    const viewport = window.visualViewport
+    const coarsePointerQuery = window.matchMedia('(pointer: coarse)')
+    const hoverNoneQuery = window.matchMedia('(hover: none)')
+
+    syncTouchMode()
+    queueViewportSync()
+
+    window.addEventListener('resize', queueViewportSync, { passive: true })
+    window.addEventListener('orientationchange', queueViewportSync)
+    viewport?.addEventListener('resize', queueViewportSync)
+    viewport?.addEventListener('scroll', queueViewportSync)
+    if (typeof coarsePointerQuery.addEventListener === 'function') {
+      coarsePointerQuery.addEventListener('change', syncTouchMode)
+      hoverNoneQuery.addEventListener('change', syncTouchMode)
+    } else {
+      coarsePointerQuery.addListener(syncTouchMode)
+      hoverNoneQuery.addListener(syncTouchMode)
+    }
+
+    return () => {
+      if (rafId !== null) {
+        window.cancelAnimationFrame(rafId)
+      }
+      window.removeEventListener('resize', queueViewportSync)
+      window.removeEventListener('orientationchange', queueViewportSync)
+      viewport?.removeEventListener('resize', queueViewportSync)
+      viewport?.removeEventListener('scroll', queueViewportSync)
+      if (typeof coarsePointerQuery.removeEventListener === 'function') {
+        coarsePointerQuery.removeEventListener('change', syncTouchMode)
+        hoverNoneQuery.removeEventListener('change', syncTouchMode)
+      } else {
+        coarsePointerQuery.removeListener(syncTouchMode)
+        hoverNoneQuery.removeListener(syncTouchMode)
+      }
+      delete root.dataset.nxTouch
+    }
+  }, [mob.isMobile])
 
   useEffect(() => {
     const previous = previousTrackedViewRef.current
@@ -1006,12 +1113,14 @@ export default function App() {
   const sidebarExpanded = !sidebarAutoHideEnabled || sidebarAutoPeek
   const collapsedSidebarWidth = sidebarAutoHideEnabled ? 12 : t.sidebarWidth
   const effectiveSidebarWidth = sidebarHidden ? 0 : (sidebarExpanded ? t.sidebarWidth : collapsedSidebarWidth)
-
   const requestedNavigationMode = remoteNavigation || 'bottom-nav'
   const mobileNavigationMode = requestedNavigationMode === 'tabs' ? 'tabs' : 'bottom-nav'
   const showMobileBottomNav = mobileNavigationMode === 'bottom-nav'
   const showMobileTabsNav = mobileNavigationMode === 'tabs'
-  const MOBILE_NAV_HEIGHT = showMobileBottomNav ? (64 + mob.safeBottom) : 0
+  const mobileNavBaseHeight = isTightMobile
+    ? (isTinyMobile ? 32 : 34)
+    : (isTinyMobile ? 34 : 36)
+  const MOBILE_NAV_HEIGHT = showMobileBottomNav ? (mobileNavBaseHeight + mob.safeBottom) : 0
 
   const viewHostNode = (
     <MobileViewHost
@@ -1051,24 +1160,29 @@ export default function App() {
         lowPowerMode={lowPowerMode}
         accentRgb={hexToRgb(t.accent)}
         accent2Rgb={hexToRgb(t.accent2)}
-        fontSize='var(--nx-font-size, 15px)'
+        fontSize={isTightMobile
+          ? (isTinyMobile ? 'var(--nx-font-size, 12px)' : 'var(--nx-font-size, 13px)')
+          : (isTinyMobile ? 'var(--nx-font-size, 13px)' : 'var(--nx-font-size, 14px)')}
       >
         <div
+          className='nx-mobile-frame'
           style={{
+            ['--nx-mobile-nav-height' as any]: `${MOBILE_NAV_HEIGHT}px`,
             display: 'flex',
             flexDirection: 'column',
             height: '100%',
+            minHeight: 0,
             overscrollBehavior: 'none',
             WebkitTapHighlightColor: 'transparent',
-            paddingTop: `env(safe-area-inset-top, ${mob.safeTop}px)`,
+            paddingTop: `calc(env(safe-area-inset-top, ${mob.safeTop}px) + ${mob.isNative ? '0px' : 'var(--nx-mobile-viewport-top, 0px)'})`,
           }}
         >
         {/* Mobile header strip */}
         <div
-          className='nx-motion-surface'
+          className='nx-motion-surface nx-mobile-header'
           style={{
-          minHeight: 56, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          gap: 10, padding: '8px 14px', flexShrink: 0,
+          minHeight: isTightMobile ? (isTinyMobile ? 30 : 32) : (isTinyMobile ? 32 : 34), display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          gap: isTightMobile ? (isTinyMobile ? 4 : 5) : (isTinyMobile ? 5 : 6), padding: isTightMobile ? (isTinyMobile ? '3px 7px' : '4px 8px') : (isTinyMobile ? '4px 8px' : '5px 9px'), flexShrink: 0,
           background: t.mode === 'dark'
             ? 'linear-gradient(180deg, rgba(255,255,255,0.14), rgba(8,10,18,0.68))'
             : 'linear-gradient(180deg, rgba(255,255,255,0.95), rgba(245,248,255,0.72))',
@@ -1081,34 +1195,44 @@ export default function App() {
         }}
         >
           <button
-            className="nx-icon-btn"
+            className="nx-icon-btn nx-mobile-touch-button nx-mobile-header-button"
             onClick={() => { void requestViewChange('dashboard') }}
             aria-label="Zum Dashboard"
             style={{
-              minWidth: 42, height: 42, borderRadius: 12, border: 'none', cursor: 'pointer',
+              minWidth: isTightMobile ? (isTinyMobile ? 30 : 32) : (isTinyMobile ? 32 : 34),
+              height: isTightMobile ? (isTinyMobile ? 28 : 30) : (isTinyMobile ? 30 : 32),
+              borderRadius: isTightMobile ? 8 : (isTinyMobile ? 9 : 10),
+              border: 'none',
+              cursor: 'pointer',
               background: t.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
               color: t.mode === 'dark' ? '#fff' : '#111',
-              fontSize: 18, fontWeight: 900,
+              fontSize: isTightMobile ? (isTinyMobile ? 10 : 11) : (isTinyMobile ? 11 : 12), fontWeight: 900,
             }}
           >
             ✦
           </button>
 
           <div style={{ flex: 1, minWidth: 0, textAlign: 'center' }}>
-            <div style={{ fontSize: 15, fontWeight: 800, lineHeight: 1.2, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+              <div style={{ fontSize: isTightMobile ? (isTinyMobile ? 10 : 11) : (isTinyMobile ? 11 : 12), fontWeight: 800, lineHeight: 1.2, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
               {mobileMeta.title}
             </div>
-            <div style={{ fontSize: 10, opacity: 0.62, marginTop: 2, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
-              {mobileMeta.subtitle}
-            </div>
+            {!isLandscapeMobile && !isTightMobile ? (
+              <div style={{ fontSize: isTinyMobile ? 8 : 9, opacity: 0.62, marginTop: 1, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                {mobileMeta.subtitle}
+              </div>
+            ) : null}
           </div>
 
           <button
-            className="nx-icon-btn"
+            className="nx-icon-btn nx-mobile-touch-button nx-mobile-header-button"
             onClick={() => { void requestViewChange('settings') }}
             aria-label="Zu den Einstellungen"
             style={{
-              minWidth: 42, height: 42, borderRadius: 12, border: 'none', cursor: 'pointer',
+              minWidth: isTightMobile ? (isTinyMobile ? 30 : 32) : (isTinyMobile ? 32 : 34),
+              height: isTightMobile ? (isTinyMobile ? 28 : 30) : (isTinyMobile ? 30 : 32),
+              borderRadius: isTightMobile ? 8 : (isTinyMobile ? 9 : 10),
+              border: 'none',
+              cursor: 'pointer',
               background: `linear-gradient(135deg, rgba(${hexToRgb(t.accent)},0.22), rgba(${hexToRgb(t.accent2)},0.15))`,
               color: t.accent,
               boxShadow: `0 0 0 1px rgba(${hexToRgb(t.accent)},0.25) inset`,
@@ -1163,39 +1287,44 @@ export default function App() {
         ) : null}
 
         {/* Main content */}
-        <div style={{
-          flex: 1, overflow: 'hidden', minHeight: 0,
-          paddingBottom: MOBILE_NAV_HEIGHT,
-          WebkitOverflowScrolling: 'touch',
-        }}>
+        <div
+          className='nx-mobile-main'
+          style={{
+            flex: 1,
+            minHeight: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+            paddingBottom: showMobileBottomNav ? MOBILE_NAV_HEIGHT : 0,
+            WebkitOverflowScrolling: 'touch',
+            overscrollBehaviorY: 'contain',
+            touchAction: 'pan-y pinch-zoom',
+          }}
+        >
           {prefersStaticMobileContent ? (
             <div
+              className='nx-mobile-main-stage nx-mobile-main-stage--static'
               style={{
                 height: '100%',
                 minHeight: 0,
                 overflow: 'hidden',
                 position: 'relative',
-                transform: 'translateZ(0)',
-                WebkitTransform: 'translateZ(0)',
-                backfaceVisibility: 'hidden',
-                WebkitBackfaceVisibility: 'hidden',
+                display: 'flex',
+                flexDirection: 'column',
               }}
             >
-              <div style={{ position: 'relative', height: '100%', minHeight: 0, overflow: 'hidden' }}>
-                {viewHostNode}
-              </div>
+              {viewHostNode}
             </div>
           ) : (
             <motion.div
+              className='nx-mobile-main-stage nx-mobile-main-stage--motion'
               initial={motionRuntime.pageInitial}
               animate={motionRuntime.pageAnimate}
               exit={motionRuntime.pageExit}
               transition={motionRuntime.pageTransition}
-              style={{ height: '100%', overflow: 'hidden', position: 'relative' }}
+              style={{ height: '100%', minHeight: 0, overflow: 'hidden', position: 'relative' }}
             >
-              <div style={{ position: 'relative', height: '100%', overflow: 'hidden' }}>
-                {viewHostNode}
-              </div>
+              {viewHostNode}
             </motion.div>
           )}
         </div>

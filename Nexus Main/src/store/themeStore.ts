@@ -488,6 +488,74 @@ const sanitizePanelRenderer = (value: unknown): GlassmorphismConfig['panelRender
   return 'blur'
 }
 
+const sanitizeGlowRenderer = (value: unknown): GlassmorphismConfig['glowRenderer'] => (
+  value === 'three' ? 'three' : 'css'
+)
+
+const sanitizeSidebarStyle = (
+  value: unknown,
+  fallback: Theme['sidebarStyle'],
+): Theme['sidebarStyle'] => {
+  if (
+    value === 'default' ||
+    value === 'floating' ||
+    value === 'minimal' ||
+    value === 'rail' ||
+    value === 'hidden'
+  ) {
+    return value
+  }
+  return fallback
+}
+
+const sanitizeToolbarConfig = (
+  value: unknown,
+  fallback: Theme['toolbar'],
+): Theme['toolbar'] => {
+  if (!isRecord(value)) {
+    return { ...fallback }
+  }
+  const toolbarMode =
+    value.toolbarMode === 'spotlight' || value.toolbarMode === 'full-width'
+      ? value.toolbarMode
+      : 'island'
+  const position = value.position === 'top' ? 'top' : 'bottom'
+  const mode = value.mode === 'full-width' ? 'full-width' : 'pill'
+  const visible = typeof value.visible === 'boolean' ? value.visible : fallback.visible
+  return {
+    ...fallback,
+    toolbarMode,
+    position,
+    mode,
+    visible,
+    // toolbar geometry is release-frozen
+    height: fallback.height,
+  }
+}
+
+const sanitizeQolConfig = (
+  value: unknown,
+  fallback: QOLConfig,
+): QOLConfig => {
+  const merged = mergeConfig(fallback, value)
+  const panelDensity =
+    merged.panelDensity === 'compact' || merged.panelDensity === 'spacious'
+      ? merged.panelDensity
+      : 'comfortable'
+  const motionProfile =
+    merged.motionProfile === 'minimal' ||
+    merged.motionProfile === 'expressive' ||
+    merged.motionProfile === 'cinematic'
+      ? merged.motionProfile
+      : 'balanced'
+  return {
+    ...merged,
+    panelDensity,
+    motionProfile,
+    autoAccentContrast: typeof merged.autoAccentContrast === 'boolean' ? merged.autoAccentContrast : true,
+  }
+}
+
 const sanitizeThemeSnapshot = (persistedRaw: unknown, current: Theme): Theme => {
   const persisted = isRecord(persistedRaw) ? (persistedRaw as Partial<Theme>) : {}
   const sidebarWidthRaw = Number(persisted.sidebarWidth)
@@ -496,6 +564,14 @@ const sanitizeThemeSnapshot = (persistedRaw: unknown, current: Theme): Theme => 
     : current.sidebarWidth
   const mergedGlassmorphism = mergeConfig(current.glassmorphism, persisted.glassmorphism)
   mergedGlassmorphism.panelRenderer = sanitizePanelRenderer(mergedGlassmorphism.panelRenderer)
+  mergedGlassmorphism.glowRenderer = sanitizeGlowRenderer(mergedGlassmorphism.glowRenderer)
+  mergedGlassmorphism.reflectionLine = typeof mergedGlassmorphism.reflectionLine === 'boolean'
+    ? mergedGlassmorphism.reflectionLine
+    : current.glassmorphism.reflectionLine
+  mergedGlassmorphism.glassDepth = Number.isFinite(Number(mergedGlassmorphism.glassDepth))
+    ? Math.max(0.1, Math.min(3, Number(mergedGlassmorphism.glassDepth)))
+    : current.glassmorphism.glassDepth
+  const mergedQol = sanitizeQolConfig(persisted.qol, current.qol)
 
   return {
     ...current,
@@ -507,12 +583,10 @@ const sanitizeThemeSnapshot = (persistedRaw: unknown, current: Theme): Theme => 
     globalFont: typeof persisted.globalFont === 'string' && persisted.globalFont.length > 0 ? persisted.globalFont : current.globalFont,
     sidebarWidth,
     sidebarPosition: persisted.sidebarPosition === 'right' ? 'right' : 'left',
-    sidebarStyle: ['default', 'floating', 'minimal', 'rail', 'hidden'].includes(String(persisted.sidebarStyle))
-      ? persisted.sidebarStyle as Theme['sidebarStyle']
-      : current.sidebarStyle,
+    sidebarStyle: sanitizeSidebarStyle(persisted.sidebarStyle, current.sidebarStyle),
     sidebarLabels: typeof persisted.sidebarLabels === 'boolean' ? persisted.sidebarLabels : current.sidebarLabels,
     sidebarAccentBg: typeof persisted.sidebarAccentBg === 'boolean' ? persisted.sidebarAccentBg : current.sidebarAccentBg,
-    toolbar: mergeConfig(current.toolbar, persisted.toolbar),
+    toolbar: sanitizeToolbarConfig(persisted.toolbar, current.toolbar),
     notes: mergeConfig(current.notes, persisted.notes),
     glow: mergeConfig(current.glow, persisted.glow),
     gradient: mergeConfig(current.gradient, persisted.gradient),
@@ -522,7 +596,7 @@ const sanitizeThemeSnapshot = (persistedRaw: unknown, current: Theme): Theme => 
     visual: mergeConfig(current.visual, persisted.visual),
     animations: mergeConfig(current.animations, persisted.animations),
     editor: mergeConfig(current.editor, persisted.editor),
-    qol: mergeConfig(current.qol, persisted.qol),
+    qol: mergedQol,
     glowOutline: typeof persisted.glowOutline === 'boolean' ? persisted.glowOutline : current.glowOutline,
     glowColor1: typeof persisted.glowColor1 === 'string' && persisted.glowColor1.length > 0 ? persisted.glowColor1 : current.glowColor1,
     glowColor2: typeof persisted.glowColor2 === 'string' && persisted.glowColor2.length > 0 ? persisted.glowColor2 : current.glowColor2,
@@ -575,7 +649,7 @@ export const useTheme = create<Theme>()(
       setAnimations: (a) => set((s) => ({ animations: { ...s.animations, ...a } })),
       setEditor: (e) => set((s) => ({ editor: { ...s.editor, ...e } })),
       setNotes: (n) => set((s) => ({ notes: { ...s.notes, ...n } })),
-      setQOL: (q) => set((s) => ({ qol: { ...s.qol, ...q } })),
+      setQOL: (q) => set((s) => ({ qol: sanitizeQolConfig(q, s.qol) })),
       setGlobalFont: (globalFont) => set({ globalFont }),
       setSidebarWidth: (sidebarWidth) => set({ sidebarWidth }),
       setSidebarPosition: (sidebarPosition) => set({ sidebarPosition }),

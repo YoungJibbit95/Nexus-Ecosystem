@@ -752,6 +752,10 @@ button:focus-visible {
   padding-top: 4px !important;
   padding-bottom: 4px !important;
 }
+[data-density='compact'] .nx-toolbar-surface button {
+  padding-top: unset !important;
+  padding-bottom: unset !important;
+}
 [data-density='spacious'] .Glass:not(.nx-toolbar-surface),
 [data-density='spacious'] .nx-motion-panel:not(.nx-toolbar-surface),
 [data-density='spacious'] .nx-ios-surface:not(.nx-toolbar-surface),

@@ -44,6 +44,26 @@ body {
   :root { --nx-touch-target: 44px; }
 }
 
+:root[data-nx-mobile-compact='1'] {
+  --nx-touch-target: 38px;
+  --nx-font-size: 13px;
+  --nx-radius: 11px;
+}
+
+:root[data-nx-mobile-compact='1'][data-nx-mobile-compact-size='small'] {
+  --nx-touch-target: 36px;
+  --nx-font-size: 12.5px;
+  --nx-radius: 9px;
+}
+
+:root[data-nx-mobile-compact='1'][data-nx-mobile-compact-height='tight'] {
+  --nx-touch-target: 34px;
+}
+
+:root[data-nx-mobile-compact='1'][data-nx-mobile-compact-size='small'][data-nx-mobile-compact-height='tight'] {
+  --nx-touch-target: 34px;
+}
+
 /* ══════════════════════════════════════════════════════════════
    SCROLLBARS
    ══════════════════════════════════════════════════════════════ */
@@ -203,6 +223,37 @@ button.nx-sidebar-nav-row:active {
 .nx-sidebar-surface:active {
   transform: none !important;
   filter: none !important;
+}
+
+[data-nx-touch='coarse'] :where(button, [role='button'], .nx-interactive):hover,
+[data-nx-touch='coarse'] .nx-bounce-target:hover,
+[data-nx-touch='coarse'] .nx-surface-row[data-active='false']:hover {
+  transform: none !important;
+  filter: none !important;
+  box-shadow: inherit;
+}
+
+[data-nx-touch='coarse'] :where(button, [role='button'], .nx-interactive):not(:disabled):not([aria-disabled='true']) {
+  will-change: auto;
+  transition-duration: calc(var(--nx-motion-quick, 170ms) * 0.75);
+}
+
+[data-nx-touch='coarse'] :where(button, [role='button'], .nx-interactive):not(:disabled):not([aria-disabled='true']):not(.nx-motion-managed) {
+  transition-property: opacity, background-color, border-color, color, box-shadow;
+  transition-duration: calc(var(--nx-motion-quick, 170ms) * 0.62);
+  transform: none !important;
+}
+
+[data-nx-touch='coarse'] :where(button, [role='button'], .nx-interactive):not(:disabled):not([aria-disabled='true']):not(.nx-motion-managed)::before {
+  display: none !important;
+}
+
+[data-nx-touch='coarse'] :where(button, [role='button'], .nx-interactive):hover::before,
+[data-nx-touch='coarse'] .nx-bounce-target:hover::before,
+[data-nx-touch='coarse'] .nx-surface-row[data-active='false']:hover::before {
+  opacity: 0 !important;
+  transform: scale(0.98) !important;
+  animation: none !important;
 }
 
 /* Motion Engine Phase 2: shared hover/press variants */
@@ -501,8 +552,17 @@ button:focus-visible {
 }
 
 @media (max-width: 768px) {
-  button, input, select, textarea {
+  :where(button, [role='button'], .nx-interactive) {
     min-height: var(--nx-touch-target);
+  }
+  input,
+  select {
+    min-height: var(--nx-touch-target);
+    font-size: max(16px, 1rem);
+  }
+  textarea,
+  [contenteditable='true'],
+  [contenteditable=''] {
     font-size: max(16px, 1rem);
   }
 }
@@ -600,7 +660,14 @@ button:focus-visible {
 [data-density='compact'] .nx-sidebar-surface {
   padding: 10px 12px !important;
 }
-[data-density='compact'] button { padding-top: 4px !important; padding-bottom: 4px !important; }
+[data-density='compact'] button:not(.nx-toolbar-navchip):not(.nx-toolbar-command):not(.nx-icon-btn) {
+  padding-top: 4px !important;
+  padding-bottom: 4px !important;
+}
+[data-density='compact'] .nx-toolbar-surface button {
+  padding-top: unset !important;
+  padding-bottom: unset !important;
+}
 [data-density='spacious'] .Glass:not(.nx-toolbar-surface),
 [data-density='spacious'] .nx-motion-panel:not(.nx-toolbar-surface),
 [data-density='spacious'] .nx-ios-surface:not(.nx-toolbar-surface),
@@ -629,15 +696,242 @@ html { font-size: var(--nx-font-size, 14px); }
 
 /* Bigger touch targets on mobile */
 @media (max-width: 767px) {
-  button { min-height: 36px; }
-  input, textarea, select { font-size: 16px !important; } /* prevent iOS zoom */
+  .nx-mobile-row-scroll {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    -webkit-overflow-scrolling: touch;
+    white-space: nowrap;
+    scrollbar-width: none;
+  }
+
+  .nx-mobile-row-scroll::-webkit-scrollbar {
+    display: none;
+  }
+
+  .nx-mobile-row-scroll > * {
+    flex-shrink: 0;
+  }
+
+  .nx-mobile-row-scroll .nx-mobile-row-flex {
+    flex: 1 1 140px;
+    min-width: 132px;
+    flex-shrink: 1;
+    white-space: normal;
+  }
+
+  .nx-mobile-tight-stack {
+    display: grid;
+    gap: 6px;
+  }
+
+  .nx-mobile-sheet-content {
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+  }
+
+  :root[data-nx-mobile-compact='1'] .Glass:not(.nx-toolbar-surface),
+  :root[data-nx-mobile-compact='1'] .nx-motion-panel:not(.nx-toolbar-surface),
+  :root[data-nx-mobile-compact='1'] .nx-ios-surface:not(.nx-toolbar-surface),
+  :root[data-nx-mobile-compact='1'] .nx-sidebar-surface {
+    padding: 7px 9px !important;
+    border-radius: 11px !important;
+  }
+
+  :root[data-nx-mobile-compact='1'] .nx-mobile-view-screen {
+    gap: 5px;
+  }
+
+  :root[data-nx-mobile-compact='1'][data-nx-mobile-compact-size='small'] .Glass:not(.nx-toolbar-surface),
+  :root[data-nx-mobile-compact='1'][data-nx-mobile-compact-size='small'] .nx-motion-panel:not(.nx-toolbar-surface),
+  :root[data-nx-mobile-compact='1'][data-nx-mobile-compact-size='small'] .nx-ios-surface:not(.nx-toolbar-surface),
+  :root[data-nx-mobile-compact='1'][data-nx-mobile-compact-size='small'] .nx-sidebar-surface {
+    padding: 5px 7px !important;
+    border-radius: 9px !important;
+  }
+
+  :root[data-nx-mobile-compact='1'][data-nx-mobile-compact-size='small'] .nx-mobile-view-screen {
+    gap: 3px;
+  }
+
+  :root[data-nx-mobile-compact='1'][data-nx-mobile-compact-height='tight'] .Glass:not(.nx-toolbar-surface),
+  :root[data-nx-mobile-compact='1'][data-nx-mobile-compact-height='tight'] .nx-motion-panel:not(.nx-toolbar-surface),
+  :root[data-nx-mobile-compact='1'][data-nx-mobile-compact-height='tight'] .nx-ios-surface:not(.nx-toolbar-surface),
+  :root[data-nx-mobile-compact='1'][data-nx-mobile-compact-height='tight'] .nx-sidebar-surface {
+    padding: 5px 7px !important;
+  }
+
+  :root[data-nx-mobile-compact='1'][data-nx-mobile-compact-height='tight'] .nx-mobile-view-screen {
+    gap: 4px;
+  }
+
+  :root[data-nx-mobile-compact='1'] .nx-mobile-touch-button,
+  :root[data-nx-mobile-compact='1'] .nx-mobile-header-button,
+  :root[data-nx-mobile-compact='1'] .nx-mobile-nav-button,
+  :root[data-nx-mobile-compact='1'] .nx-mobile-tab-chip,
+  :root[data-nx-mobile-compact='1'] .nx-mobile-nav-more-item {
+    min-height: var(--nx-touch-target);
+  }
+
+  .nx-mobile-touch-button,
+  .nx-mobile-header-button,
+  .nx-mobile-nav-button,
+  .nx-mobile-tab-chip,
+  .nx-mobile-nav-more-item {
+    min-height: max(34px, var(--nx-touch-target));
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  input,
+  select,
+  textarea,
+  [contenteditable],
+  .nx-prose {
+    font-size: 16px !important;
+  }
+
+  :root[data-nx-mobile-compact='1'] .nx-mobile-editor-textarea {
+    font-size: 14px !important;
+  }
+
+  :root[data-nx-mobile-compact='1'][data-nx-mobile-compact-size='small'] .nx-mobile-editor-textarea {
+    font-size: 13px !important;
+  }
+
+  :root[data-nx-mobile-compact='1'][data-nx-mobile-compact-height='tight'] .nx-mobile-editor-textarea {
+    font-size: 12.5px !important;
+  }
+
+  :root[data-nx-mobile-compact='1'][data-nx-mobile-compact-size='small'][data-nx-mobile-compact-height='tight'] .nx-mobile-editor-textarea {
+    font-size: 12px !important;
+  }
+
+  .nx-mobile-frame,
+  .nx-mobile-main,
+  .nx-mobile-main-stage,
+  .nx-mobile-view-host,
+  .nx-mobile-view-layer,
+  .nx-mobile-view-content,
+  .nx-mobile-view-root {
+    width: 100%;
+    min-height: 0;
+    flex: 1 1 auto;
+    height: 100%;
+    max-height: 100%;
+  }
+
+  .nx-mobile-view-content,
+  .nx-mobile-view-root {
+    overflow: hidden;
+  }
+
+  .nx-mobile-frame {
+    overflow: hidden;
+    touch-action: pan-y pinch-zoom;
+  }
+
+  .nx-mobile-main {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .nx-mobile-view-screen {
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    overflow: hidden;
+    overflow-x: hidden;
+    touch-action: pan-y;
+    overscroll-behavior: contain;
+    padding-bottom: max(0px, env(safe-area-inset-bottom, 0px));
+  }
+
+  .nx-mobile-view-screen > * {
+    min-height: 0;
+  }
+
+  .nx-mobile-scroll-root {
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+    flex: 1 1 auto;
+    max-height: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+    touch-action: pan-y;
+  }
+
+  .nx-mobile-scroll-root,
+  .nx-mobile-view-screen {
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .nx-mobile-canvas-root {
+    touch-action: pan-x pan-y pinch-zoom;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .nx-mobile-canvas-root .node-interactive {
+    touch-action: auto;
+    overscroll-behavior: contain;
+  }
+
+  .nx-mobile-canvas-root .node-interactive textarea,
+  .nx-mobile-canvas-root .node-interactive input,
+  .nx-mobile-canvas-root .node-interactive [contenteditable='true'] {
+    touch-action: manipulation;
+    overscroll-behavior: contain;
+  }
+
+  button,
+  [role='button'],
+  .nx-interactive {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .nx-mobile-main-stage {
+    position: relative;
+    overflow: hidden;
+    contain: none;
+  }
+
+  .nx-mobile-view-root {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .nx-mobile-view-root > * {
+    flex: 1 1 auto;
+    min-height: 0;
+    min-width: 0;
+    width: 100%;
+  }
   
   /* Larger scrollbars for touch */
   * { scrollbar-width: none; }
   *::-webkit-scrollbar { display: none; }
 
   /* Remove hover states on touch — they get stuck */
-  :where(button, [role='button'], .nx-interactive):hover {
+  [data-nx-touch='coarse'] :where(button, [role='button'], .nx-interactive):hover {
     background: unset !important;
     filter: none !important;
     box-shadow: none !important;
@@ -645,9 +939,54 @@ html { font-size: var(--nx-font-size, 14px); }
   }
 
   /* Better tap scale feedback */
-  :where(button, [role='button'], .nx-interactive):not(:disabled):not([aria-disabled='true']):active {
-    transform: scale(var(--nx-press-scale, 0.985)) !important;
+  [data-nx-touch='coarse'] :where(button, [role='button'], .nx-interactive):not(:disabled):not([aria-disabled='true']):active {
+    transform: scale(0.992) !important;
     transition: transform calc(var(--nx-motion-quick, 170ms) * 0.5) !important;
+  }
+
+  [data-nx-touch='coarse'] .nx-surface-row,
+  [data-nx-touch='coarse'] .nx-icon-fade,
+  [data-nx-touch='coarse'] .nx-menu-item {
+    transition-duration: calc(var(--nx-motion-quick, 170ms) * 0.55) !important;
+  }
+
+  [data-nx-touch='coarse'] .nx-mobile-nav-button,
+  [data-nx-touch='coarse'] .nx-mobile-header-button,
+  [data-nx-touch='coarse'] .nx-mobile-touch-button {
+    touch-action: manipulation;
+    -webkit-touch-callout: none;
+  }
+
+  [data-nx-touch='coarse'] .nx-mobile-view-screen {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  [data-nx-touch='coarse'] .nx-mobile-view-screen input,
+  [data-nx-touch='coarse'] .nx-mobile-view-screen textarea,
+  [data-nx-touch='coarse'] .nx-mobile-view-screen select,
+  [data-nx-touch='coarse'] .nx-mobile-view-screen [contenteditable='true'] {
+    -webkit-user-select: text;
+    user-select: text;
+  }
+
+  [data-nx-touch='coarse'] .nx-mobile-view-screen button:not(.nx-icon-btn):not(.nx-toolbar-navchip):not(.nx-toolbar-command):not(.nx-toolbar-command-secondary) {
+    min-height: 34px;
+    line-height: 1.2;
+    touch-action: manipulation;
+    -webkit-touch-callout: none;
+  }
+
+  [data-nx-touch='coarse'] .nx-mobile-view-screen :where(button, [role='button']) {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  [data-nx-touch='coarse'] .nx-mobile-view-screen .nx-mobile-row-scroll > * {
+    scroll-snap-align: start;
+  }
+
+  [data-nx-touch='coarse'] .nx-mobile-view-screen .nx-mobile-row-scroll {
+    scroll-snap-type: x proximity;
   }
 }
 
@@ -660,10 +999,20 @@ html { font-size: var(--nx-font-size, 14px); }
   -webkit-overflow-scrolling: touch;
 }
 
-/* Prevent text selection on UI elements */
-button, .Glass {
+/* Prevent accidental selection only on explicit UI controls */
+button, .nx-no-select {
   -webkit-user-select: none;
   user-select: none;
+}
+
+.Glass input,
+.Glass textarea,
+.Glass select,
+.Glass [contenteditable='true'],
+.Glass [contenteditable=''],
+.Glass .node-interactive {
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 .nx-ios-surface {
@@ -692,13 +1041,5 @@ textarea, input, [contenteditable], .nx-prose {
 @media (max-width: 767px) {
   .Glass {
     border-radius: 16px !important;
-  }
-
-  /* Make modals full-screen on mobile */
-  [style*="position: fixed"][style*="inset: 0"] > div {
-    width: 100% !important;
-    height: 100% !important;
-    border-radius: 0 !important;
-    max-height: 100vh !important;
   }
 }

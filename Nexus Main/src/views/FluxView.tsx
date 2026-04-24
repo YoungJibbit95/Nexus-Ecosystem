@@ -62,6 +62,7 @@ const TYPE_META: Record<Activity['type'], { icon: any; color: string; label: str
 const PRIORITY_WEIGHT: Record<string, number> = { low: 1, mid: 2, high: 3 }
 const FILTER_OPTIONS: FluxFilter[] = ['all', 'note', 'code', 'task', 'reminder']
 const QUEUE_FILTERS: Array<'all' | 'task' | 'reminder'> = ['all', 'task', 'reminder']
+const OPS_PRESETS: OpsPreset[] = ['all', 'overdue', 'due-soon', 'high-priority', 'focus', 'reminder-triage', 'task-backlog']
 const PRESET_META: Record<OpsPreset, { label: string; detail: string }> = {
   all: { label: 'All', detail: 'Gesamte Queue' },
   overdue: { label: 'Overdue', detail: 'Überfällige Items' },
@@ -70,6 +71,17 @@ const PRESET_META: Record<OpsPreset, { label: string; detail: string }> = {
   focus: { label: 'Focus', detail: 'Nur Fokus-relevante Arbeit' },
   'reminder-triage': { label: 'Reminder Triage', detail: 'Reminder zuerst abarbeiten' },
   'task-backlog': { label: 'Task Backlog', detail: 'Nur offene Backlog-Tasks' },
+}
+const FLUX_FILTER_STORAGE_KEY = 'nx-flux-filter-v1'
+const FLUX_PRESET_STORAGE_KEY = 'nx-flux-preset-v1'
+const FLUX_QUEUE_FILTER_STORAGE_KEY = 'nx-flux-queue-filter-v1'
+const FLUX_QUEUE_SORT_STORAGE_KEY = 'nx-flux-queue-sort-v1'
+const FLUX_FOCUS_MODE_STORAGE_KEY = 'nx-flux-focus-mode-v1'
+
+const readStoredValue = <T extends string>(key: string, valid: readonly T[], fallback: T): T => {
+  if (typeof window === 'undefined') return fallback
+  const raw = window.localStorage.getItem(key)
+  return raw && valid.includes(raw as T) ? (raw as T) : fallback
 }
 
 const computeTaskSeverity = (task: { priority: string; status: string; deadline?: string }, nowTs: number) => {
@@ -139,12 +151,21 @@ export function FluxView({ setView }: { setView?: (view: string) => void } = {})
     shallow,
   )
 
-  const [filter, setFilter] = useState<FluxFilter>('all')
+  const [filter, setFilter] = useState<FluxFilter>(() => readStoredValue(FLUX_FILTER_STORAGE_KEY, FILTER_OPTIONS, 'all'))
   const [query, setQuery] = useState('')
-  const [focusMode, setFocusMode] = useState(false)
-  const [queueSort, setQueueSort] = useState<'severity' | 'time'>('severity')
-  const [queueFilter, setQueueFilter] = useState<'all' | 'task' | 'reminder'>('all')
-  const [preset, setPreset] = useState<OpsPreset>('all')
+  const [focusMode, setFocusMode] = useState(() => {
+    if (typeof window === 'undefined') return false
+    return window.localStorage.getItem(FLUX_FOCUS_MODE_STORAGE_KEY) === '1'
+  })
+  const [queueSort, setQueueSort] = useState<'severity' | 'time'>(() =>
+    readStoredValue(FLUX_QUEUE_SORT_STORAGE_KEY, ['severity', 'time'] as const, 'severity'),
+  )
+  const [queueFilter, setQueueFilter] = useState<'all' | 'task' | 'reminder'>(() =>
+    readStoredValue(FLUX_QUEUE_FILTER_STORAGE_KEY, QUEUE_FILTERS, 'all'),
+  )
+  const [preset, setPreset] = useState<OpsPreset>(() =>
+    readStoredValue(FLUX_PRESET_STORAGE_KEY, OPS_PRESETS, 'all'),
+  )
   const searchRef = useRef<HTMLInputElement>(null)
   const [nowTs, setNowTs] = useState(() => Date.now())
 
@@ -152,6 +173,31 @@ export function FluxView({ setView }: { setView?: (view: string) => void } = {})
     const intervalId = window.setInterval(() => setNowTs(Date.now()), 15_000)
     return () => window.clearInterval(intervalId)
   }, [])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    window.localStorage.setItem(FLUX_FILTER_STORAGE_KEY, filter)
+  }, [filter])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    window.localStorage.setItem(FLUX_PRESET_STORAGE_KEY, preset)
+  }, [preset])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    window.localStorage.setItem(FLUX_QUEUE_FILTER_STORAGE_KEY, queueFilter)
+  }, [queueFilter])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    window.localStorage.setItem(FLUX_QUEUE_SORT_STORAGE_KEY, queueSort)
+  }, [queueSort])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    window.localStorage.setItem(FLUX_FOCUS_MODE_STORAGE_KEY, focusMode ? '1' : '0')
+  }, [focusMode])
 
   const openTasksView = useCallback(() => {
     setView?.('tasks')
@@ -629,7 +675,7 @@ export function FluxView({ setView }: { setView?: (view: string) => void } = {})
           </div>
         </div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
-          {(Object.keys(PRESET_META) as OpsPreset[]).map((presetId) => {
+          {OPS_PRESETS.map((presetId) => {
             const meta = PRESET_META[presetId]
             const active = preset === presetId
             return (
