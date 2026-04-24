@@ -35,7 +35,7 @@ export function MobileDashboardHiddenTray({
                 </span>
                 <span style={{ fontSize: 10, opacity: 0.58 }}>{hidden.length} versteckt</span>
               </div>
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              <div className="nx-mobile-row-scroll" style={{ gap: 6 }}>
                 {hidden.map((widget: any) => (
                   <DashboardActionButton
                     key={`hidden-${widget.id}`}
@@ -46,9 +46,10 @@ export function MobileDashboardHiddenTray({
                       border: `1px solid rgba(${rgb},0.28)`,
                       background: `rgba(${rgb},0.14)`,
                       color: t.accent,
-                      fontSize: 10,
+                      fontSize: 10.5,
                       fontWeight: 700,
-                      padding: "5px 9px",
+                      minHeight: 34,
+                      padding: "7px 10px",
                       cursor: layoutLocked ? "not-allowed" : "pointer",
                       opacity: layoutLocked ? 0.5 : 1,
                     }}
@@ -89,9 +90,10 @@ export function MobileDashboardEmptyWidgetsState({
               background: `rgba(${rgb},0.12)`,
               color: t.accent,
               borderRadius: 9,
-              padding: "8px 12px",
+              minHeight: 36,
+              padding: "9px 12px",
               cursor: "pointer",
-              fontSize: 12,
+              fontSize: 12.5,
               fontWeight: 700,
             }}
           >
@@ -124,15 +126,7 @@ export function MobileDashboardWidgetSafeModeNotice({
         background: "rgba(255,69,58,0.12)",
       }}
     >
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 8,
-          flexWrap: "wrap",
-        }}
-      >
+      <div className="nx-mobile-row-scroll" style={{ gap: 8 }}>
         <span style={{ fontSize: 11, fontWeight: 700, color: "#ffd6d1" }}>
           Dashboard läuft im Safe Mode (Widget-Build-Fehler erkannt)
         </span>
@@ -144,9 +138,10 @@ export function MobileDashboardWidgetSafeModeNotice({
             border: `1px solid rgba(${rgb},0.3)`,
             background: `rgba(${rgb},0.12)`,
             color: t.accent,
-            fontSize: 10,
+            fontSize: 10.5,
             fontWeight: 700,
-            padding: "5px 8px",
+            minHeight: 34,
+            padding: "7px 10px",
             cursor: "pointer",
           }}
         >

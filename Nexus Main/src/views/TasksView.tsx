@@ -86,6 +86,13 @@ const getOpenDependencyCount = (task: Task, taskMap: Map<string, Task>) => {
 const isTaskBlocked = (task: Task, taskMap: Map<string, Task>) =>
   Boolean(task.blocked) || getOpenDependencyCount(task, taskMap) > 0
 
+const isEditableTarget = (target: EventTarget | null) => {
+  const el = target as HTMLElement | null
+  if (!el) return false
+  const tag = el.tagName
+  return tag === 'INPUT' || tag === 'TEXTAREA' || el.isContentEditable
+}
+
 const scoreTaskForFocus = (task: Task, taskMap: Map<string, Task>, nowMs: number) => {
   if (task.status === 'done') return -1
   let score = 0
@@ -824,6 +831,7 @@ export function TasksView({ setView }: { setView?: (viewId: string) => void } = 
   const [batchMode, setBatchMode] = useState(false)
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([])
   const [batchTagInput, setBatchTagInput] = useState('')
+  const searchInputRef = useRef<HTMLInputElement>(null)
   const [workMode, setWorkMode] = useState<TaskWorkMode>(() => {
     if (typeof window === 'undefined') return 'board'
     const saved = window.localStorage.getItem(TASK_MODE_STORAGE_KEY)
@@ -970,11 +978,89 @@ export function TasksView({ setView }: { setView?: (viewId: string) => void } = 
     setView?.('notes')
   }, [openNote, setNote, setView])
 
-  const quickAdd = (kind: 'today' | 'bug' | 'focus') => {
+  const quickAdd = useCallback((kind: 'today' | 'bug' | 'focus') => {
     if (kind === 'today') addTask('Heute: Wichtigste Aufgabe', 'todo', 'Tagesfokus', 'mid')
     if (kind === 'bug') addTask('Hotfix / Bugfix', 'todo', 'Reproduzieren, fixen, testen', 'high')
     if (kind === 'focus') addTask('Deep Work Block', 'doing', '90 Minuten Fokus ohne Kontextwechsel', 'mid')
-  }
+  }, [addTask])
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const key = event.key.toLowerCase()
+      const cmd = event.metaKey || event.ctrlKey
+
+      if (cmd && key === 'f') {
+        event.preventDefault()
+        searchInputRef.current?.focus()
+        searchInputRef.current?.select()
+        return
+      }
+
+      if (isEditableTarget(event.target)) return
+
+      if (key === '1') {
+        event.preventDefault()
+        setWorkMode('board')
+        return
+      }
+      if (key === '2') {
+        event.preventDefault()
+        setWorkMode('focus')
+        return
+      }
+      if (key === '3') {
+        event.preventDefault()
+        setWorkMode('due-soon')
+        return
+      }
+      if (key === '4') {
+        event.preventDefault()
+        setWorkMode('high-priority')
+        return
+      }
+      if (key === '5') {
+        event.preventDefault()
+        setWorkMode('blocked')
+        return
+      }
+      if (key === 'b') {
+        event.preventDefault()
+        setBatchMode((prev) => !prev)
+        return
+      }
+      if (key === 'h') {
+        event.preventDefault()
+        setShowDone((prev) => !prev)
+        return
+      }
+      if (key === 'n') {
+        event.preventDefault()
+        setNewStatus('todo')
+        return
+      }
+      if (key === 't') {
+        event.preventDefault()
+        quickAdd('today')
+        return
+      }
+      if (key === 'e') {
+        event.preventDefault()
+        quickAdd('focus')
+        return
+      }
+      if (key === 'g') {
+        event.preventDefault()
+        quickAdd('bug')
+        return
+      }
+      if (key === 'escape') {
+        setFilterPanel(false)
+      }
+    }
+
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [quickAdd])
 
   return (
     <DndProvider backend={HTML5Backend}>
@@ -982,7 +1068,7 @@ export function TasksView({ setView }: { setView?: (viewId: string) => void } = 
         <div style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px', borderBottom:'1px solid rgba(255,255,255,0.07)', flexShrink:0, background:'rgba(0,0,0,0.1)' }}>
           <div style={{ position:'relative', flex:1, maxWidth:320 }}>
             <Search size={13} style={{ position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', opacity:0.4 }}/>
-            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search tasks…" style={{ width:'100%', padding:'7px 10px 7px 32px', borderRadius:9, background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.1)', outline:'none', fontSize:12, color:'inherit' }}/>
+            <input ref={searchInputRef} value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search tasks…" style={{ width:'100%', padding:'7px 10px 7px 32px', borderRadius:9, background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.1)', outline:'none', fontSize:12, color:'inherit' }}/>
           </div>
 
           <button onClick={() => setFilterPanel((state) => !state)} style={{ display:'flex', alignItems:'center', gap:5, padding:'7px 11px', borderRadius:9, background: filterPanel||filterPri.length||filterTag?`rgba(${rgb},0.15)`:'rgba(255,255,255,0.07)', border:`1px solid ${filterPanel||filterPri.length||filterTag?t.accent:'rgba(255,255,255,0.1)'}`, cursor:'pointer', fontSize:12, color: filterPri.length||filterTag?t.accent:'inherit', fontWeight:600 }}>

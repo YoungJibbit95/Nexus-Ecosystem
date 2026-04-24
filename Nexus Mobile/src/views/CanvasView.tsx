@@ -54,9 +54,15 @@ import { useCanvasWheelGestures } from './canvas/useCanvasWheelGestures'
 // ─── MAIN CANVAS VIEW ───
 
 export function CanvasView() {
+    type MobileCanvasSheet = 'none' | 'canvas-list' | 'add' | 'tools' | 'magic' | 'project'
     const t = useTheme()
     const rgb = hexToRgb(t.accent)
     const mob = useMobile()
+    const compactEdge = Math.min(mob.screenW, mob.screenH)
+    const isTinyMobile = mob.isMobile && compactEdge <= 430
+    const isTightMobile = mob.isMobile && mob.screenH <= 900
+    const isLandscapeMobile = mob.isMobile && mob.isLandscape
+    const isCompactMobile = mob.isMobile && (isTinyMobile || isTightMobile || isLandscapeMobile)
     const { canvases, activeCanvasId, viewport, addCanvas, deleteCanvas, setActiveCanvas, renameCanvas, addNode, deleteConnection, setPan, setZoom, resetViewport, addConnection, getActiveCanvas } = useCanvas()
 
     const canvas = getActiveCanvas()
@@ -67,12 +73,13 @@ export function CanvasView() {
     const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
     const [connectingFrom, setConnectingFrom] = useState<string | null>(null)
     const [editCanvasName, setEditCanvasName] = useState(false)
-    const [showCanvasList, setShowCanvasList] = useState(true)
+    const [showCanvasSidebar, setShowCanvasSidebar] = useState(true)
+    const [mobileSheet, setMobileSheet] = useState<MobileCanvasSheet>('none')
     const [gridMode, setGridMode] = useState<'dots' | 'lines' | 'none'>('dots')
     const [showMiniMap, setShowMiniMap] = useState(true)
     const [canvasSize, setCanvasSize] = useState({ w: 800, h: 600 })
     const [quickAddPos, setQuickAddPos] = useState<{ x: number, y: number } | null>(null)
-    const [showMagicBuilder, setShowMagicBuilder] = useState(false)
+    const [desktopMagicBuilderOpen, setDesktopMagicBuilderOpen] = useState(false)
     const [wheelPanning, setWheelPanning] = useState(false)
 
     // History (undo/redo)
@@ -80,27 +87,58 @@ export function CanvasView() {
     const [historyIndex, setHistoryIndex] = useState(-1)
 
     // Mobile-specific state
-    const [showMobileAddMenu, setShowMobileAddMenu] = useState(false)
-    const [showMobileTools, setShowMobileTools] = useState(false)
     const [touchStartDist, setTouchStartDist] = useState<number | null>(null)
     const [touchStartZoom, setTouchStartZoom] = useState(1)
-    const [showProjectPanel, setShowProjectPanel] = useState(false)
+    const [desktopProjectPanelOpen, setDesktopProjectPanelOpen] = useState(false)
     const [pmStatusFilter, setPmStatusFilter] = useState<'all' | ProjectStatus>('all')
     const [focusNodeOnly, setFocusNodeOnly] = useState(false)
     const [projectSearchQuery, setProjectSearchQuery] = useState('')
     const [focusTrail, setFocusTrail] = useState<string[]>([])
     const [focusTrailIndex, setFocusTrailIndex] = useState(-1)
 
+    const showCanvasList = mob.isMobile ? mobileSheet === 'canvas-list' : showCanvasSidebar
+    const showMobileAddMenu = mob.isMobile && mobileSheet === 'add'
+    const showMobileTools = mob.isMobile && mobileSheet === 'tools'
+    const showMagicBuilder = mob.isMobile ? mobileSheet === 'magic' : desktopMagicBuilderOpen
+    const showProjectPanel = mob.isMobile ? mobileSheet === 'project' : desktopProjectPanelOpen
+
+    const setMagicBuilderVisible = useCallback((visible: boolean) => {
+        if (mob.isMobile) {
+            setMobileSheet(visible ? 'magic' : 'none')
+            return
+        }
+        setDesktopMagicBuilderOpen(visible)
+    }, [mob.isMobile])
+
     const closeMobileCanvasSheets = useCallback((
-        except: 'none' | 'canvas-list' | 'add' | 'tools' | 'magic' = 'none',
+        except: MobileCanvasSheet = 'none',
     ) => {
-        if (except !== 'canvas-list') setShowCanvasList(false)
-        if (except !== 'add') setShowMobileAddMenu(false)
-        if (except !== 'tools') setShowMobileTools(false)
-        if (except !== 'magic') setShowMagicBuilder(false)
+        setMobileSheet(except)
     }, [])
 
+    const toggleMobileCanvasSheet = useCallback((sheet: Exclude<MobileCanvasSheet, 'none'>) => {
+        setMobileSheet((prev) => prev === sheet ? 'none' : sheet)
+    }, [])
+
+    const setProjectPanelVisible = useCallback((visible: boolean) => {
+        if (mob.isMobile) {
+            setMobileSheet(visible ? 'project' : 'none')
+            return
+        }
+        setDesktopProjectPanelOpen(visible)
+    }, [mob.isMobile])
+
     const panStart = useRef({ x: 0, y: 0, panX: 0, panY: 0 })
+    const touchModeRef = useRef<'none' | 'pan' | 'node' | 'pinch'>('none')
+
+    const isNodeInteractiveTouchTarget = useCallback((target: EventTarget | null) => {
+        if (!(target instanceof HTMLElement)) return false
+        if (target.closest('.node-interactive, input, textarea, select, button, [contenteditable="true"]')) {
+            return true
+        }
+        return Boolean(target.closest('.nx-canvas-node'))
+    }, [])
+
     const { applyZoomAtPoint, handleWheel, setZoomCentered } = useCanvasWheelGestures({
         canvasRef,
         canvasHeight: canvasSize.h,
@@ -270,6 +308,24 @@ export function CanvasView() {
         || viewport.zoom < 0.35
         || (canvas?.connections.length ?? 0) > 140
     const miniMapNodes = (canvas && canvas.nodes.length > 320) ? visibleNodes : (canvas?.nodes ?? [])
+    const quickAddMenuMetrics = useMemo(() => {
+        const width = mob.isMobile
+            ? Math.max(220, Math.min(280, canvasSize.w - 16))
+            : 292
+        const maxHeight = mob.isMobile
+            ? Math.max(240, Math.min(460, canvasSize.h - 24))
+            : 580
+        return { width, maxHeight }
+    }, [canvasSize.h, canvasSize.w, mob.isMobile])
+    const quickAddMenuPosition = useMemo(() => {
+        if (!quickAddPos) return null
+        const leftLimit = Math.max(8, canvasSize.w - quickAddMenuMetrics.width - 8)
+        const topLimit = Math.max(8, canvasSize.h - quickAddMenuMetrics.maxHeight - 8)
+        return {
+            left: Math.min(Math.max(quickAddPos.x, 8), leftLimit),
+            top: Math.min(Math.max(quickAddPos.y, 8), topLimit),
+        }
+    }, [canvasSize.h, canvasSize.w, quickAddMenuMetrics.maxHeight, quickAddMenuMetrics.width, quickAddPos])
 
     // Track canvas size
     useEffect(() => {
@@ -283,10 +339,10 @@ export function CanvasView() {
         return () => obs.disconnect()
     }, [])
 
-    // Mobile should not boot with the canvas list sheet open by default.
+    // Mobile should not boot with any sheet open by default.
     useEffect(() => {
         if (!mob.isMobile) return
-        setShowCanvasList(false)
+        setMobileSheet('none')
     }, [mob.isMobile])
 
     useEffect(() => {
@@ -474,11 +530,10 @@ export function CanvasView() {
         fitView,
         setSelectedNodeId,
       })
-      setShowMagicBuilder(false)
-      setShowMobileTools(false)
-      setShowMobileAddMenu(false)
+      setMagicBuilderVisible(false)
+      closeMobileCanvasSheets('none')
       setQuickAddPos(null)
-    }, [canvasSize, fitView, viewport])
+    }, [canvasSize, closeMobileCanvasSheets, fitView, setMagicBuilderVisible, viewport])
 
     const handleHubQuickAction = useCallback((
       hubNode: CanvasNode,
@@ -524,9 +579,9 @@ export function CanvasView() {
     }
 
     return (
-        <div style={{ width: '100%', height: '100%', display: 'flex', overflow: 'hidden' }}>
+        <div className="nx-mobile-view-screen nx-mobile-canvas-root" style={{ width: '100%', height: '100%', display: 'flex', overflow: 'hidden' }}>
             {/* ── Sidebar — desktop panel, mobile bottom sheet ── */}
-            {showCanvasList && !mob.isMobile && (
+            {showCanvasSidebar && !mob.isMobile && (
                 <Glass type="panel" className="shrink-0" style={{
                     width: 188, height: '100%', display: 'flex', flexDirection: 'column',
                     borderRight: `1px solid ${t.mode === 'dark' ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)'}`,
@@ -576,46 +631,50 @@ export function CanvasView() {
                 {mob.isMobile && showCanvasList && (
                     <>
                         <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}
-                            onClick={() => setShowCanvasList(false)}
-                            style={{ position:'fixed', inset:0, zIndex:85, background:'rgba(0,0,0,0.45)', backdropFilter:'blur(4px)' }}/>
+                            onClick={() => closeMobileCanvasSheets('none')}
+                            style={{ position:'fixed', inset:0, zIndex:220, background:'rgba(0,0,0,0.45)', backdropFilter:'blur(4px)' }}/>
                         <motion.div initial={{y:'100%'}} animate={{y:0}} exit={{y:'100%'}}
                             transition={{type:'spring',stiffness:380,damping:30}}
-                            style={{ position:'fixed', bottom:0, left:0, right:0, zIndex:86,
+                            style={{ position:'fixed', bottom:0, left:0, right:0, zIndex:221,
                                 background: t.mode==='dark'?'rgba(14,14,26,0.97)':'rgba(248,248,255,0.97)',
                                 backdropFilter:'blur(24px)', borderRadius:'20px 20px 0 0',
                                 border:'1px solid rgba(255,255,255,0.1)', borderBottom:'none',
-                                padding:'8px 16px 40px', maxHeight:'70vh', display:'flex', flexDirection:'column' }}>
-                            <div style={{ width:36, height:4, borderRadius:2, background:'rgba(255,255,255,0.2)', margin:'0 auto 16px' }}/>
-                            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14 }}>
-                                <span style={{ fontSize:14, fontWeight:800 }}>Canvases</span>
-                                <button onClick={() => { addCanvas(); setShowCanvasList(false) }} style={{ display:'flex', alignItems:'center', gap:6, padding:'8px 16px', borderRadius:10, background:`rgba(${rgb},0.18)`, border:'none', cursor:'pointer', color:t.accent, fontSize:13, fontWeight:700 }}>
+                                padding:isCompactMobile ? '8px 12px 24px' : '8px 16px 40px', maxHeight:isCompactMobile ? '80vh' : '74vh', display:'flex', flexDirection:'column' }}>
+                            <div style={{ width:36, height:4, borderRadius:2, background:'rgba(255,255,255,0.2)', margin:isCompactMobile ? '0 auto 10px' : '0 auto 16px' }}/>
+                            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:isCompactMobile ? 10 : 14 }}>
+                                <span style={{ fontSize:isCompactMobile ? 13 : 14, fontWeight:800 }}>Canvases</span>
+                                <button onClick={() => { addCanvas(); closeMobileCanvasSheets('none') }} style={{ display:'flex', alignItems:'center', gap:6, padding:isCompactMobile ? '6px 11px' : '8px 16px', borderRadius:10, background:`rgba(${rgb},0.18)`, border:'none', cursor:'pointer', color:t.accent, fontSize:isCompactMobile ? 12 : 13, fontWeight:700 }}>
                                     <Plus size={16}/> New
                                 </button>
                             </div>
-                            <div style={{ flex:1, overflowY:'auto', display:'flex', flexDirection:'column', gap:6 }}>
+                            <div style={{ flex:1, overflowY:'auto', display:'flex', flexDirection:'column', gap:isCompactMobile ? 5 : 6 }}>
                                 {canvases.map(c => (
                                     <div
                                         key={c.id}
-                                        role="button"
-                                        tabIndex={0}
-                                        onClick={() => { setActiveCanvas(c.id); setShowCanvasList(false) }}
-                                        onKeyDown={(event) => {
-                                            if (event.key === 'Enter' || event.key === ' ') {
-                                                event.preventDefault()
-                                                setActiveCanvas(c.id)
-                                                setShowCanvasList(false)
-                                            }
-                                        }}
-                                        style={{ display:'flex', alignItems:'center', gap:12, padding:'14px 16px', borderRadius:14, cursor:'pointer',
-                                            background: c.id===activeCanvasId?`rgba(${rgb},0.18)`:'rgba(255,255,255,0.05)',
-                                            border:`1px solid ${c.id===activeCanvasId?t.accent:'rgba(255,255,255,0.08)'}`,
-                                            color: c.id===activeCanvasId?t.accent:'inherit', textAlign:'left' }}>
-                                        <div style={{ flex:1 }}>
-                                            <div style={{ fontSize:14, fontWeight:c.id===activeCanvasId?700:500 }}>{c.name}</div>
-                                            <div style={{ fontSize:11, opacity:0.45, marginTop:2 }}>{c.nodes.length} nodes · {c.connections.length} links</div>
+                                        style={{ display:'flex', alignItems:'stretch', gap:8 }}
+                                    >
+                                        <div
+                                            role="button"
+                                            tabIndex={0}
+                                            onClick={() => { setActiveCanvas(c.id); closeMobileCanvasSheets('none') }}
+                                            onKeyDown={(event) => {
+                                                if (event.key === 'Enter' || event.key === ' ') {
+                                                    event.preventDefault()
+                                                    setActiveCanvas(c.id)
+                                                    closeMobileCanvasSheets('none')
+                                                }
+                                            }}
+                                            style={{ flex:1, display:'flex', alignItems:'center', gap:12, padding:isCompactMobile ? '10px 12px' : '14px 16px', borderRadius:14, cursor:'pointer',
+                                                background: c.id===activeCanvasId?`rgba(${rgb},0.18)`:'rgba(255,255,255,0.05)',
+                                                border:`1px solid ${c.id===activeCanvasId?t.accent:'rgba(255,255,255,0.08)'}`,
+                                                color: c.id===activeCanvasId?t.accent:'inherit', textAlign:'left' }}>
+                                            <div style={{ flex:1 }}>
+                                                <div style={{ fontSize:isCompactMobile ? 13 : 14, fontWeight:c.id===activeCanvasId?700:500 }}>{c.name}</div>
+                                                <div style={{ fontSize:isCompactMobile ? 10 : 11, opacity:0.45, marginTop:2 }}>{c.nodes.length} nodes · {c.connections.length} links</div>
+                                            </div>
                                         </div>
                                         <button onClick={e=>{ e.stopPropagation(); if(confirm(`Delete "${c.name}"?`)) deleteCanvas(c.id) }}
-                                            style={{ background:'none', border:'none', cursor:'pointer', color:'#FF3B30', padding:'4px 6px', borderRadius:6 }}>
+                                            style={{ background:'rgba(255,59,48,0.12)', border:'1px solid rgba(255,59,48,0.36)', cursor:'pointer', color:'#FF3B30', padding:'0 12px', borderRadius:10, fontWeight:700 }}>
                                             <X size={16}/>
                                         </button>
                                     </div>
@@ -630,8 +689,8 @@ export function CanvasView() {
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative', isolation: 'isolate' }}>
                 {/* ── Top Bar ── */}
                 <div style={{
-                    flexShrink: 0, display: 'flex', alignItems: 'center', gap: mob.isMobile ? 8 : 4,
-                    padding: mob.isMobile ? '8px 12px' : '5px 8px',
+                    flexShrink: 0, display: 'flex', alignItems: 'center', gap: mob.isMobile ? (isCompactMobile ? 6 : 8) : 4,
+                    padding: mob.isMobile ? (isCompactMobile ? '4px 7px' : '6px 10px') : '5px 8px',
                     borderBottom: `1px solid ${t.mode === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'}`,
                     background: t.mode === 'dark' ? 'rgba(10,10,20,0.85)' : 'rgba(255,255,255,0.85)',
                     backdropFilter: 'blur(16px)',
@@ -643,9 +702,11 @@ export function CanvasView() {
                         icon={FileText}
                         tooltip="Canvases"
                         onClick={() => {
-                            const next = !showCanvasList
-                            if (next) closeMobileCanvasSheets('canvas-list')
-                            setShowCanvasList(next)
+                            if (mob.isMobile) {
+                                toggleMobileCanvasSheet('canvas-list')
+                                return
+                            }
+                            setShowCanvasSidebar((prev) => !prev)
                         }}
                         accent={t.accent}
                         rgb={rgb}
@@ -657,9 +718,9 @@ export function CanvasView() {
                         editCanvasName
                             ? <input autoFocus value={canvas.name} onChange={(e) => renameCanvas(canvas.id, e.target.value)}
                                 onBlur={() => setEditCanvasName(false)} onKeyDown={(e) => e.key === 'Enter' && setEditCanvasName(false)}
-                                style={{ background: 'transparent', border: 'none', outline: 'none', color: t.accent, fontWeight: 600, fontSize: 13, width: 130, padding: '1px 4px' }} />
+                                style={{ background: 'transparent', border: 'none', outline: 'none', color: t.accent, fontWeight: 600, fontSize: isCompactMobile ? 12 : 13, width: isCompactMobile ? 118 : 130, padding: '1px 4px' }} />
                             : <span onDoubleClick={() => setEditCanvasName(true)} onTouchEnd={() => setEditCanvasName(true)}
-                                style={{ fontWeight: 700, fontSize: 14, color: t.accent, padding: '1px 6px', cursor: 'pointer', borderRadius: 4, maxWidth: mob.isMobile ? 120 : 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                style={{ fontWeight: 700, fontSize: isCompactMobile ? 12 : 14, color: t.accent, padding: '1px 6px', cursor: 'pointer', borderRadius: 4, maxWidth: mob.isMobile ? (isCompactMobile ? 104 : 120) : 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                 {canvas.name}
                             </span>
                     )}
@@ -670,29 +731,25 @@ export function CanvasView() {
                         /* Mobile: "+ Add" button opens bottom sheet, tools button */
                         <>
                             <button onClick={() => {
-                                const next = !showMobileAddMenu
-                                if (next) closeMobileCanvasSheets('add')
-                                setShowMobileAddMenu(next)
+                                toggleMobileCanvasSheet('add')
                             }} style={{
                                 display: 'flex', alignItems: 'center', gap: 6,
-                                padding: '10px 16px', borderRadius: 12,
+                                padding: isCompactMobile ? '5px 9px' : '8px 12px', borderRadius: 11,
                                 background: showMobileAddMenu ? t.accent : `rgba(${rgb},0.18)`,
                                 border: 'none', cursor: 'pointer',
                                 color: showMobileAddMenu ? '#fff' : t.accent,
-                                fontSize: 14, fontWeight: 700, flexShrink: 0,
+                                fontSize: isCompactMobile ? 10.5 : 12.5, fontWeight: 700, flexShrink: 0,
                             }}>
-                                <Plus size={18} /> Add
+                                <Plus size={isCompactMobile ? 13 : 16} /> Add
                             </button>
                             <button onClick={() => {
-                                const next = !showMobileTools
-                                if (next) closeMobileCanvasSheets('tools')
-                                setShowMobileTools(next)
+                                toggleMobileCanvasSheet('tools')
                             }} style={{
-                                width: 44, height: 44, borderRadius: 12, border: 'none',
+                                width: isCompactMobile ? 32 : 38, height: isCompactMobile ? 32 : 38, borderRadius: isCompactMobile ? 9 : 11, border: 'none',
                                 background: showMobileTools ? `rgba(${rgb},0.2)` : 'rgba(255,255,255,0.08)',
                                 cursor: 'pointer', color: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center',
                             }}>
-                                <Maximize2 size={20} style={{ opacity: 0.7 }}/>
+                                <Maximize2 size={isCompactMobile ? 14 : 17} style={{ opacity: 0.7 }}/>
                             </button>
                         </>
                     ) : (
@@ -719,8 +776,8 @@ export function CanvasView() {
                             <div style={{ flex: 1 }} />
                             <CanvasToolBtn icon={Grid} tooltip="Grid-Modus" onClick={() => setGridMode(g => g === 'dots' ? 'lines' : g === 'lines' ? 'none' : 'dots')} accent={t.accent} rgb={rgb} active={gridMode !== 'none'} />
                             <CanvasToolBtn icon={MapIcon} tooltip="Minimap" onClick={() => setShowMiniMap(!showMiniMap)} accent={t.accent} rgb={rgb} active={showMiniMap} />
-                            <CanvasToolBtn icon={CheckSquare} tooltip="Projekt Panel" onClick={() => setShowProjectPanel(s => !s)} accent={t.accent} rgb={rgb} active={showProjectPanel} />
-                            <CanvasToolBtn icon={Wand2} tooltip="Magic Hub Templates" onClick={() => setShowMagicBuilder(s => !s)} accent={t.accent} rgb={rgb} active={showMagicBuilder} />
+                            <CanvasToolBtn icon={CheckSquare} tooltip="Projekt Panel" onClick={() => setProjectPanelVisible(!showProjectPanel)} accent={t.accent} rgb={rgb} active={showProjectPanel} />
+                            <CanvasToolBtn icon={Wand2} tooltip="Magic Hub Templates" onClick={() => setDesktopMagicBuilderOpen((s) => !s)} accent={t.accent} rgb={rgb} active={showMagicBuilder} />
                             <CanvasToolBtn icon={Link} tooltip="Auto Link [[Wiki]]" onClick={autoLinkWikiRefs} accent={t.accent} rgb={rgb} />
                             <CanvasToolBtn icon={Grid} tooltip="Arrange by Status" onClick={autoArrangeByStatus} accent={t.accent} rgb={rgb} />
                             <CanvasToolBtn icon={Plus} tooltip="Projekt Template" onClick={createProjectTemplate} accent={t.accent} rgb={rgb} />
@@ -743,26 +800,26 @@ export function CanvasView() {
                     {mob.isMobile && showMobileAddMenu && (
                         <>
                             <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}
-                                onClick={() => setShowMobileAddMenu(false)}
-                                style={{ position:'absolute', inset:0, zIndex:80, background:'rgba(0,0,0,0.4)', backdropFilter:'blur(4px)' }}/>
+                                onClick={() => closeMobileCanvasSheets('none')}
+                                style={{ position:'absolute', inset:0, zIndex:220, background:'rgba(0,0,0,0.4)', backdropFilter:'blur(4px)' }}/>
                             <motion.div initial={{y:'100%'}} animate={{y:0}} exit={{y:'100%'}}
                                 transition={{type:'spring',stiffness:380,damping:30}}
-                                style={{ position:'absolute', bottom:0, left:0, right:0, zIndex:81,
+                                style={{ position:'absolute', bottom:0, left:0, right:0, zIndex:221,
                                     background: t.mode==='dark'?'rgba(14,14,26,0.97)':'rgba(248,248,255,0.97)',
                                     backdropFilter:'blur(24px)', borderRadius:'20px 20px 0 0',
-                                    border:'1px solid rgba(255,255,255,0.1)', borderBottom:'none', padding:'8px 16px 32px' }}>
-                                <div style={{ width:36, height:4, borderRadius:2, background:'rgba(255,255,255,0.2)', margin:'0 auto 16px' }}/>
-                                <div style={{ fontSize:11, fontWeight:800, opacity:0.4, textTransform:'uppercase', letterSpacing:1, marginBottom:14 }}>Add Element</div>
+                                    border:'1px solid rgba(255,255,255,0.1)', borderBottom:'none', padding:isCompactMobile ? '8px 12px 20px' : '8px 16px 32px',
+                                    maxHeight:isCompactMobile ? 'calc(100% - 48px)' : 'calc(100% - 68px)', overflowY:'auto' }}>
+                                <div style={{ width:36, height:4, borderRadius:2, background:'rgba(255,255,255,0.2)', margin:isCompactMobile ? '0 auto 10px' : '0 auto 16px' }}/>
+                                <div style={{ fontSize:11, fontWeight:800, opacity:0.4, textTransform:'uppercase', letterSpacing:1, marginBottom:isCompactMobile ? 10 : 14 }}>Add Element</div>
                                 <button
                                   onClick={() => {
-                                    setShowMobileAddMenu(false)
-                                    closeMobileCanvasSheets('magic')
-                                    setShowMagicBuilder(true)
+                                    closeMobileCanvasSheets('none')
+                                    setMagicBuilderVisible(true)
                                   }}
                                   style={{
                                     width: '100%',
                                     marginBottom: 12,
-                                    padding: '11px 12px',
+                                    padding: isCompactMobile ? '9px 10px' : '11px 12px',
                                     borderRadius: 12,
                                     border: `1px solid rgba(${rgb},0.35)`,
                                     background: `linear-gradient(135deg, rgba(${rgb},0.2), rgba(${rgb},0.08))`,
@@ -772,14 +829,14 @@ export function CanvasView() {
                                     alignItems: 'center',
                                     justifyContent: 'center',
                                     gap: 8,
-                                    fontSize: 13,
+                                    fontSize: isCompactMobile ? 12 : 13,
                                     fontWeight: 800,
                                   }}
                                 >
                                   <Wand2 size={16} />
                                   Magic Hub Templates
                                 </button>
-                                <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:10 }}>
+                                <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:isCompactMobile ? 8 : 10 }}>
                                     {WIDGET_TYPES.map(({ type, icon: WIcon, label, description, category, accent: widgetAccent }) => (
                                         <button key={type}
                                             onClick={() => {
@@ -790,16 +847,16 @@ export function CanvasView() {
                                                         if (c) { const last = c.nodes[c.nodes.length-1]; if (last) state.updateNode(last.id, { color:'#FFCC00', title:'Sticky Note' }) }
                                                     }, 50)
                                                 } else { addNode(type as NodeType) }
-                                                setShowMobileAddMenu(false)
+                                                closeMobileCanvasSheets('none')
                                             }}
-                                            style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:6, padding:'12px 8px', borderRadius:14,
+                                            style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:6, padding:isCompactMobile ? '9px 6px' : '12px 8px', borderRadius:14,
                                                 background:`${widgetAccent}1a`, border:`1px solid ${widgetAccent}4d`, cursor:'pointer', color:widgetAccent, textAlign:'center' }}>
-                                            <WIcon size={20}/>
-                                            <span style={{ fontSize:10, fontWeight:700, lineHeight:1.1 }}>{label}</span>
+                                            <WIcon size={isCompactMobile ? 18 : 20}/>
+                                            <span style={{ fontSize:isCompactMobile ? 9 : 10, fontWeight:700, lineHeight:1.1 }}>{label}</span>
                                             <span style={{ fontSize:8, fontWeight:700, padding:'2px 6px', borderRadius:999, border:`1px solid ${widgetAccent}55`, background:`${widgetAccent}22`, textTransform:'uppercase', letterSpacing:0.35 }}>
                                                 {category}
                                             </span>
-                                            <span style={{ fontSize:9, opacity:0.75, lineHeight:1.2, minHeight:22 }}>
+                                            <span style={{ fontSize:isCompactMobile ? 8 : 9, opacity:0.75, lineHeight:1.2, minHeight:isCompactMobile ? 16 : 22 }}>
                                                 {description}
                                             </span>
                                         </button>
@@ -815,32 +872,33 @@ export function CanvasView() {
                     {mob.isMobile && showMobileTools && (
                         <>
                             <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}
-                                onClick={() => setShowMobileTools(false)}
-                                style={{ position:'absolute', inset:0, zIndex:80, background:'rgba(0,0,0,0.3)', backdropFilter:'blur(4px)' }}/>
+                                onClick={() => closeMobileCanvasSheets('none')}
+                                style={{ position:'absolute', inset:0, zIndex:220, background:'rgba(0,0,0,0.3)', backdropFilter:'blur(4px)' }}/>
                             <motion.div initial={{y:'100%'}} animate={{y:0}} exit={{y:'100%'}}
                                 transition={{type:'spring',stiffness:380,damping:30}}
-                                style={{ position:'absolute', bottom:0, left:0, right:0, zIndex:81,
+                                style={{ position:'absolute', bottom:0, left:0, right:0, zIndex:221,
                                     background: t.mode==='dark'?'rgba(14,14,26,0.97)':'rgba(248,248,255,0.97)',
                                     backdropFilter:'blur(24px)', borderRadius:'20px 20px 0 0',
-                                    border:'1px solid rgba(255,255,255,0.1)', borderBottom:'none', padding:'8px 16px 32px' }}>
-                                <div style={{ width:36, height:4, borderRadius:2, background:'rgba(255,255,255,0.2)', margin:'0 auto 16px' }}/>
-                                <div style={{ fontSize:11, fontWeight:800, opacity:0.4, textTransform:'uppercase', letterSpacing:1, marginBottom:14 }}>View Controls</div>
-                                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:14 }}>
+                                    border:'1px solid rgba(255,255,255,0.1)', borderBottom:'none', padding:isCompactMobile ? '8px 12px 20px' : '8px 16px 32px',
+                                    maxHeight:isCompactMobile ? 'calc(100% - 48px)' : 'calc(100% - 68px)', overflowY:'auto' }}>
+                                <div style={{ width:36, height:4, borderRadius:2, background:'rgba(255,255,255,0.2)', margin:isCompactMobile ? '0 auto 10px' : '0 auto 16px' }}/>
+                                <div style={{ fontSize:11, fontWeight:800, opacity:0.4, textTransform:'uppercase', letterSpacing:1, marginBottom:isCompactMobile ? 10 : 14 }}>View Controls</div>
+                                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:isCompactMobile ? 8 : 10, marginBottom:14 }}>
                                     {/* Zoom controls */}
-                                    <button onClick={() => setZoomCentered(viewport.zoom - 0.25)} style={{ padding:'14px', borderRadius:14, background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.1)', cursor:'pointer', color:'inherit', display:'flex', alignItems:'center', justifyContent:'center', gap:8, fontSize:15, fontWeight:700 }}>
+                                    <button onClick={() => setZoomCentered(viewport.zoom - 0.25)} style={{ padding:isCompactMobile ? '10px' : '14px', borderRadius:14, background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.1)', cursor:'pointer', color:'inherit', display:'flex', alignItems:'center', justifyContent:'center', gap:8, fontSize:isCompactMobile ? 13 : 15, fontWeight:700 }}>
                                         <ZoomOut size={20}/> Zoom Out
                                     </button>
-                                    <button onClick={() => setZoomCentered(viewport.zoom + 0.25)} style={{ padding:'14px', borderRadius:14, background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.1)', cursor:'pointer', color:'inherit', display:'flex', alignItems:'center', justifyContent:'center', gap:8, fontSize:15, fontWeight:700 }}>
+                                    <button onClick={() => setZoomCentered(viewport.zoom + 0.25)} style={{ padding:isCompactMobile ? '10px' : '14px', borderRadius:14, background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.1)', cursor:'pointer', color:'inherit', display:'flex', alignItems:'center', justifyContent:'center', gap:8, fontSize:isCompactMobile ? 13 : 15, fontWeight:700 }}>
                                         <ZoomIn size={20}/> Zoom In
                                     </button>
-                                    <button onClick={fitView} style={{ padding:'14px', borderRadius:14, background:`rgba(${rgb},0.12)`, border:`1px solid rgba(${rgb},0.25)`, cursor:'pointer', color:t.accent, display:'flex', alignItems:'center', justifyContent:'center', gap:8, fontSize:14, fontWeight:700 }}>
+                                    <button onClick={fitView} style={{ padding:isCompactMobile ? '10px' : '14px', borderRadius:14, background:`rgba(${rgb},0.12)`, border:`1px solid rgba(${rgb},0.25)`, cursor:'pointer', color:t.accent, display:'flex', alignItems:'center', justifyContent:'center', gap:8, fontSize:isCompactMobile ? 12 : 14, fontWeight:700 }}>
                                         <AlignCenter size={20}/> Fit View
                                     </button>
-                                    <button onClick={resetViewport} style={{ padding:'14px', borderRadius:14, background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.1)', cursor:'pointer', color:'inherit', display:'flex', alignItems:'center', justifyContent:'center', gap:8, fontSize:14, fontWeight:700 }}>
+                                    <button onClick={resetViewport} style={{ padding:isCompactMobile ? '10px' : '14px', borderRadius:14, background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.1)', cursor:'pointer', color:'inherit', display:'flex', alignItems:'center', justifyContent:'center', gap:8, fontSize:isCompactMobile ? 12 : 14, fontWeight:700 }}>
                                         <Maximize2 size={20}/> Reset
                                     </button>
                                 </div>
-                                <button onClick={exportCanvas} style={{ width:'100%', marginBottom:14, padding:'12px', borderRadius:12, background:`rgba(${rgb},0.13)`, border:`1px solid rgba(${rgb},0.3)`, cursor:'pointer', color:t.accent, fontSize:14, fontWeight:800, display:'flex', alignItems:'center', justifyContent:'center', gap:8 }}>
+                                <button onClick={exportCanvas} style={{ width:'100%', marginBottom:14, padding:isCompactMobile ? '10px' : '12px', borderRadius:12, background:`rgba(${rgb},0.13)`, border:`1px solid rgba(${rgb},0.3)`, cursor:'pointer', color:t.accent, fontSize:isCompactMobile ? 12 : 14, fontWeight:800, display:'flex', alignItems:'center', justifyContent:'center', gap:8 }}>
                                     <FileDown size={18}/> Export (JSON + AI-Markdown)
                                 </button>
                                 <div style={{ display:'flex', gap:10 }}>
@@ -852,11 +910,7 @@ export function CanvasView() {
                                     </button>
                                 </div>
                                 <div style={{ display:'flex', gap:10, marginTop:10 }}>
-                                    <button onClick={() => {
-                                        const next = !showProjectPanel
-                                        if (next) closeMobileCanvasSheets('tools')
-                                        setShowProjectPanel(next)
-                                    }} style={{ flex:1, padding:'12px', borderRadius:12, background:showProjectPanel?`rgba(${rgb},0.15)`:'rgba(255,255,255,0.07)', border:`1px solid ${showProjectPanel?t.accent:'rgba(255,255,255,0.1)'}`, cursor:'pointer', color:showProjectPanel?t.accent:'inherit', fontSize:13, fontWeight:700, display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}>
+                                    <button onClick={() => setProjectPanelVisible(!showProjectPanel)} style={{ flex:1, padding:'12px', borderRadius:12, background:showProjectPanel?`rgba(${rgb},0.15)`:'rgba(255,255,255,0.07)', border:`1px solid ${showProjectPanel?t.accent:'rgba(255,255,255,0.1)'}`, cursor:'pointer', color:showProjectPanel?t.accent:'inherit', fontSize:13, fontWeight:700, display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}>
                                         <CheckSquare size={16}/> Project
                                     </button>
                                     <button onClick={autoLinkWikiRefs} style={{ flex:1, padding:'12px', borderRadius:12, background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.1)', cursor:'pointer', color:'inherit', fontSize:13, fontWeight:700, display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}>
@@ -865,8 +919,7 @@ export function CanvasView() {
                                 </div>
                                 <div style={{ display:'flex', gap:10, marginTop:10 }}>
                                     <button onClick={() => {
-                                        closeMobileCanvasSheets('magic')
-                                        setShowMagicBuilder(true)
+                                        setMagicBuilderVisible(true)
                                     }} style={{ flex:1, padding:'12px', borderRadius:12, background:`rgba(${rgb},0.12)`, border:`1px solid rgba(${rgb},0.25)`, cursor:'pointer', color:t.accent, fontSize:13, fontWeight:700, display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}>
                                         <Wand2 size={16}/> Magic Hub
                                     </button>
@@ -897,8 +950,8 @@ export function CanvasView() {
                               initial={{ opacity: 0 }}
                               animate={{ opacity: 1 }}
                               exit={{ opacity: 0 }}
-                              onClick={() => setShowMagicBuilder(false)}
-                              style={{ position: 'absolute', inset: 0, zIndex: 82, background: 'rgba(0,0,0,0.42)', backdropFilter: 'blur(6px)' }}
+                              onClick={() => setMagicBuilderVisible(false)}
+                              style={{ position: 'absolute', inset: 0, zIndex: 222, background: 'rgba(0,0,0,0.42)', backdropFilter: 'blur(6px)' }}
                             />
                             <motion.div
                               initial={{ y: '100%' }}
@@ -910,14 +963,14 @@ export function CanvasView() {
                                 left: 0,
                                 right: 0,
                                 bottom: 0,
-                                zIndex: 83,
+                                zIndex: 223,
                                 borderRadius: '20px 20px 0 0',
                                 border: '1px solid rgba(255,255,255,0.12)',
                                 borderBottom: 'none',
                                 padding: '10px 14px 30px',
                                 background: t.mode === 'dark' ? 'rgba(10,10,20,0.97)' : 'rgba(248,248,255,0.97)',
                                 backdropFilter: 'blur(20px)',
-                                maxHeight: '78%',
+                                maxHeight: isCompactMobile ? '82%' : '78%',
                                 overflowY: 'auto',
                               }}
                             >
@@ -926,7 +979,7 @@ export function CanvasView() {
                                     <Wand2 size={16} style={{ color: t.accent }} />
                                     <div style={{ fontSize: 13, fontWeight: 800 }}>Magic Hub Templates</div>
                                     <button
-                                      onClick={() => setShowMagicBuilder(false)}
+                                      onClick={() => setMagicBuilderVisible(false)}
                                       style={{ marginLeft: 'auto', border: 'none', background: 'rgba(255,255,255,0.08)', borderRadius: 8, width: 28, height: 28, cursor: 'pointer', color: 'inherit', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
                                     >
                                       <X size={14} />
@@ -1011,7 +1064,7 @@ export function CanvasView() {
                                         ? 'linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px)'
                                         : 'linear-gradient(rgba(0,0,0,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.05) 1px, transparent 1px)')
                                     : 'none',
-                            touchAction: 'none',
+                            touchAction: 'pan-x pan-y pinch-zoom',
                             overscrollBehavior: 'none',
                             contain: 'layout paint',
                         }}
@@ -1019,18 +1072,26 @@ export function CanvasView() {
                         onWheel={handleWheel}
                         onTouchStart={(e) => {
                             if (e.touches.length === 2) {
+                                touchModeRef.current = 'pinch'
                                 const dx = e.touches[0].clientX - e.touches[1].clientX
                                 const dy = e.touches[0].clientY - e.touches[1].clientY
                                 setTouchStartDist(Math.sqrt(dx*dx + dy*dy))
                                 setTouchStartZoom(viewport.zoom)
                             } else if (e.touches.length === 1) {
+                                const target = e.target as HTMLElement | null
+                                if (isNodeInteractiveTouchTarget(target)) {
+                                    touchModeRef.current = 'node'
+                                    setPanning(false)
+                                    return
+                                }
+                                touchModeRef.current = 'pan'
                                 setPanning(true)
                                 panStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, panX: viewport.panX, panY: viewport.panY }
                             }
                         }}
                         onTouchMove={(e) => {
-                            e.preventDefault()
-                            if (e.touches.length === 2 && touchStartDist !== null) {
+                            if (touchModeRef.current === 'pinch' && e.touches.length === 2 && touchStartDist !== null) {
+                                e.preventDefault()
                                 const dx = e.touches[0].clientX - e.touches[1].clientX
                                 const dy = e.touches[0].clientY - e.touches[1].clientY
                                 const dist = Math.sqrt(dx*dx + dy*dy)
@@ -1040,13 +1101,30 @@ export function CanvasView() {
                                 const vp = useCanvas.getState().viewport
                                 const nextZoom = Math.max(0.15, Math.min(3, touchStartZoom * scale))
                                 applyZoomAtPoint(centerX, centerY, nextZoom / Math.max(0.0001, vp.zoom))
-                            } else if (e.touches.length === 1 && panning) {
+                                return
+                            }
+                            if (touchModeRef.current === 'pan' && e.touches.length === 1 && panning) {
+                                e.preventDefault()
                                 const dx = e.touches[0].clientX - panStart.current.x
                                 const dy = e.touches[0].clientY - panStart.current.y
                                 setPan(panStart.current.panX + dx, panStart.current.panY + dy)
                             }
                         }}
-                        onTouchEnd={() => {
+                        onTouchEnd={(e) => {
+                            if (e.touches.length === 0) {
+                                touchModeRef.current = 'none'
+                                setPanning(false)
+                                setTouchStartDist(null)
+                                return
+                            }
+                            if (e.touches.length === 1 && touchModeRef.current === 'pinch') {
+                                touchModeRef.current = 'none'
+                                setPanning(false)
+                                setTouchStartDist(null)
+                            }
+                        }}
+                        onTouchCancel={() => {
+                            touchModeRef.current = 'none'
                             setPanning(false)
                             setTouchStartDist(null)
                         }}
@@ -1102,12 +1180,12 @@ export function CanvasView() {
                     </div>
 
                     {/* Quick Add Context Menu */}
-                    {quickAddPos && (
+                    {quickAddPos && quickAddMenuPosition && (
                         <div style={{
-                            position: 'absolute', top: quickAddPos.y, left: quickAddPos.x,
+                            position: 'absolute', top: quickAddMenuPosition.top, left: quickAddMenuPosition.left,
                             zIndex: 300, background: t.mode === 'dark' ? '#1a1a2e' : '#fff',
                             border: `1px solid ${t.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'}`,
-                            borderRadius: 12, padding: 6, width: 292, maxHeight: 580, overflowY: 'auto',
+                            borderRadius: 12, padding: 6, width: quickAddMenuMetrics.width, maxHeight: quickAddMenuMetrics.maxHeight, overflowY: 'auto',
                             boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
                             animation: 'nexus-scale-in 0.15s cubic-bezier(0.4,0,0.2,1) both',
                         }} onClick={e => e.stopPropagation()}>
@@ -1167,11 +1245,34 @@ export function CanvasView() {
                     )}
 
                     {/* Project Panel */}
+                    {mob.isMobile && showProjectPanel ? (
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 1 }}
+                            onClick={() => setProjectPanelVisible(false)}
+                            style={{
+                                position: 'absolute',
+                                inset: 0,
+                                zIndex: 223,
+                                background: 'rgba(0,0,0,0.35)',
+                                backdropFilter: 'blur(4px)',
+                            }}
+                        />
+                    ) : null}
                     {showProjectPanel && canvas && (
                         <div style={{
-                            position: 'absolute', top: 14, right: 14, zIndex: 140,
-                            width: mob.isMobile ? 'calc(100% - 28px)' : 320, maxHeight: mob.isMobile ? '62%' : '78%',
-                            overflow: 'auto', borderRadius: 14, padding: 12,
+                            position: 'absolute',
+                            top: mob.isMobile ? 'auto' : 14,
+                            right: mob.isMobile ? 0 : 14,
+                            left: mob.isMobile ? 0 : 'auto',
+                            bottom: mob.isMobile ? 0 : 'auto',
+                            zIndex: 224,
+                            width: mob.isMobile ? '100%' : 320,
+                            maxHeight: mob.isMobile ? (isCompactMobile ? '74%' : '70%') : '78%',
+                            overflow: 'auto',
+                            borderRadius: mob.isMobile ? '18px 18px 0 0' : 14,
+                            padding: mob.isMobile ? (isCompactMobile ? '10px 10px calc(16px + var(--sat-bottom, 0px))' : '12px 12px calc(18px + var(--sat-bottom, 0px))') : 12,
                             background: t.mode === 'dark' ? 'rgba(12,12,22,0.85)' : 'rgba(255,255,255,0.9)',
                             backdropFilter: 'blur(18px)',
                             border: '1px solid rgba(255,255,255,0.14)',
@@ -1184,7 +1285,7 @@ export function CanvasView() {
                                     <button onClick={() => navigateFocusTrail(-1)} disabled={focusTrailIndex <= 0} style={{ padding: '4px 7px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.06)', fontSize: 10, cursor: focusTrailIndex > 0 ? 'pointer' : 'not-allowed', color: 'inherit', opacity: focusTrailIndex > 0 ? 1 : 0.45 }}>←</button>
                                     <button onClick={() => navigateFocusTrail(1)} disabled={focusTrailIndex >= focusTrail.length - 1} style={{ padding: '4px 7px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.06)', fontSize: 10, cursor: focusTrailIndex < focusTrail.length - 1 ? 'pointer' : 'not-allowed', color: 'inherit', opacity: focusTrailIndex < focusTrail.length - 1 ? 1 : 0.45 }}>→</button>
                                     <button onClick={() => setFocusNodeOnly(s => !s)} style={{ padding: '4px 8px', borderRadius: 8, border: `1px solid ${focusNodeOnly ? t.accent : 'rgba(255,255,255,0.14)'}`, background: focusNodeOnly ? `rgba(${rgb},0.16)` : 'rgba(255,255,255,0.06)', color: focusNodeOnly ? t.accent : 'inherit', fontSize: 10, cursor: 'pointer' }}>Focus</button>
-                                    <button onClick={() => setShowProjectPanel(false)} style={{ padding: '4px 8px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.06)', fontSize: 10, cursor: 'pointer', color: 'inherit' }}>Close</button>
+                                    <button onClick={() => setProjectPanelVisible(false)} style={{ padding: '4px 8px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.06)', fontSize: 10, cursor: 'pointer', color: 'inherit' }}>Close</button>
                                 </div>
                             </div>
 

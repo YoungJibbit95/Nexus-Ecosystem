@@ -60,6 +60,26 @@ export function NotesSidebarPanels({
   onImportMarkdown,
 }: NotesSidebarPanelsProps) {
   const [headerMenuOpen, setHeaderMenuOpen] = React.useState(false)
+  const headerMenuRef = React.useRef<HTMLDivElement | null>(null)
+
+  React.useEffect(() => {
+    if (!headerMenuOpen) return
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target as Node | null
+      if (!target) return
+      if (headerMenuRef.current?.contains(target)) return
+      setHeaderMenuOpen(false)
+    }
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setHeaderMenuOpen(false)
+    }
+    window.addEventListener('pointerdown', onPointerDown, true)
+    window.addEventListener('keydown', onKeyDown)
+    return () => {
+      window.removeEventListener('pointerdown', onPointerDown, true)
+      window.removeEventListener('keydown', onKeyDown)
+    }
+  }, [headerMenuOpen])
 
   return (
     <>
@@ -67,7 +87,7 @@ export function NotesSidebarPanels({
         <Glass className="flex flex-col shrink-0" style={{ width: 220, overflow: 'hidden', minHeight: 0 }}>
           <div className="flex items-center justify-between px-3 py-2.5 shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
             <span style={{ fontSize: 12, fontWeight: 700, opacity: 0.85 }}>Notes</span>
-            <div className="flex gap-0.5" style={{ position: 'relative' }}>
+            <div ref={headerMenuRef} className="flex gap-0.5" style={{ position: 'relative' }}>
               <button
                 onClick={() => setShowSearch(!showSearch)}
                 title="Suchen"

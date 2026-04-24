@@ -150,7 +150,7 @@ export function FullWidthToolbarLayout(props: SharedLayoutProps) {
         disablePulse
         style={{
           width: "100%",
-          height: t.toolbar?.height ?? fullCfg.height,
+          height: fullCfg.height,
           borderRadius: 0,
           borderTop: isBottom ? "1px solid rgba(255,255,255,0.08)" : undefined,
           borderBottom: !isBottom

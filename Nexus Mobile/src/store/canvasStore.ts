@@ -272,12 +272,56 @@ const sanitizePersistedCanvases = (value: unknown): Canvas[] => {
     }))
 }
 
-const buildDefaultCanvas = (): Canvas => ({
-  id: 'canvas-welcome',
-  name: '🚀 Nexus Canvas Walkthrough',
-  created: now(),
-  updated: now(),
-  nodes: [
+const resolveCanvasNodeScale = (): number => {
+  if (typeof window === 'undefined') return 1
+  const edge = Math.min(
+    Math.max(280, Math.round(window.innerWidth || 0)),
+    Math.max(280, Math.round(window.innerHeight || 0)),
+  )
+  if (edge <= 340) return 0.64
+  if (edge <= 390) return 0.72
+  if (edge <= 430) return 0.78
+  if (edge <= 480) return 0.84
+  if (edge <= 560) return 0.9
+  return 1
+}
+
+const scaleCanvasDimension = (value: number, scale: number, minValue: number) =>
+  Math.max(minValue, Math.round(value * scale))
+
+const resolveNodeSizeForViewport = (type: NodeType): { w: number; h: number } => {
+  const base = DEFAULT_NODE_SIZES[type]
+  const scale = resolveCanvasNodeScale()
+  if (scale >= 0.99) return base
+  return {
+    w: scaleCanvasDimension(base.w, scale, 180),
+    h: scaleCanvasDimension(base.h, scale, 120),
+  }
+}
+
+const resolveViewportCenter = (viewport: Viewport) => {
+  const fallbackW = typeof window === 'undefined' ? 800 : Math.max(320, Math.round(window.innerWidth || 800))
+  const fallbackH = typeof window === 'undefined' ? 600 : Math.max(280, Math.round(window.innerHeight || 600))
+  return {
+    x: (-viewport.panX + fallbackW * 0.5) / Math.max(0.0001, viewport.zoom),
+    y: (-viewport.panY + fallbackH * 0.44) / Math.max(0.0001, viewport.zoom),
+  }
+}
+
+const scaleDefaultCanvasNode = <T extends CanvasNode>(node: T): T => {
+  const scale = resolveCanvasNodeScale()
+  if (scale >= 0.99) return node
+  return {
+    ...node,
+    x: Math.round(node.x * scale),
+    y: Math.round(node.y * scale),
+    width: scaleCanvasDimension(node.width, scale, 180),
+    height: scaleCanvasDimension(node.height, scale, 120),
+  }
+}
+
+const buildDefaultCanvas = (): Canvas => {
+  const defaultNodes: CanvasNode[] = [
     {
       id: 'canvas-node-project',
       type: 'project',
@@ -341,13 +385,20 @@ const buildDefaultCanvas = (): Canvas => ({
       content:
         '```nexus-alert\nwarning\nLag im Built-Modus immer mit Profiling prüfen (TTI, Input Delay, View Switch).\n```',
     },
-  ],
+  ]
+  return {
+  id: 'canvas-welcome',
+  name: '🚀 Nexus Canvas Walkthrough',
+  created: now(),
+  updated: now(),
+  nodes: defaultNodes.map((node) => scaleDefaultCanvasNode(node)),
   connections: [
     { id: 'conn-1', fromId: 'canvas-node-project', toId: 'canvas-node-note' },
     { id: 'conn-2', fromId: 'canvas-node-project', toId: 'canvas-node-checklist' },
     { id: 'conn-3', fromId: 'canvas-node-project', toId: 'canvas-node-risk' },
   ],
-})
+  }
+}
 
 // ─── STORE ───
 
@@ -400,11 +451,12 @@ export const useCanvas = create<CanvasStore>()(
     // ─── Node CRUD ───
 
     addNode: (type, x, y) => {
-      const sz = DEFAULT_NODE_SIZES[type]
+      const sz = resolveNodeSizeForViewport(type)
       const vp = get().viewport
       // Place node near center of visible area if no position given
-      const nx = x ?? (-vp.panX + 400) / vp.zoom + Math.random() * 40 - 20
-      const ny = y ?? (-vp.panY + 300) / vp.zoom + Math.random() * 40 - 20
+      const center = resolveViewportCenter(vp)
+      const nx = x ?? center.x + Math.random() * 36 - 18
+      const ny = y ?? center.y + Math.random() * 36 - 18
       const defaultProps: Partial<CanvasNode> = (() => {
         if (type === 'checklist') return { items: [] }
         if (type === 'code') return { content: '// code here...', codeLang: 'javascript' }

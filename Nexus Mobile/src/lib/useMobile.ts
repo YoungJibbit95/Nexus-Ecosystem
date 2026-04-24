@@ -18,9 +18,29 @@ function getSafeArea(side: 'top'|'right'|'bottom'|'left'): number {
   return parseInt(val) || 0
 }
 
+function readViewportSize() {
+  if (typeof window === 'undefined') return { width: 390, height: 844 }
+  const viewport = window.visualViewport
+  const fallbackWidth = Math.max(120, Math.round(window.innerWidth || 390))
+  const fallbackHeight = Math.max(120, Math.round(window.innerHeight || 844))
+  const viewportWidth = Number(viewport?.width)
+  const viewportHeight = Number(viewport?.height)
+  const width = Math.round(
+    Number.isFinite(viewportWidth) && viewportWidth >= 120
+      ? viewportWidth
+      : fallbackWidth,
+  )
+  const height = Math.round(
+    Number.isFinite(viewportHeight) && viewportHeight >= 120
+      ? viewportHeight
+      : fallbackHeight,
+  )
+  return { width, height }
+}
+
 export function useMobile(): MobileState {
   const [state, setState] = useState<MobileState>(() => {
-    const w = window.innerWidth, h = window.innerHeight
+    const { width: w, height: h } = readViewportSize()
     return {
       isMobile: w < 768,
       isTablet: w >= 768 && w < 1024,
@@ -33,8 +53,9 @@ export function useMobile(): MobileState {
   })
 
   useEffect(() => {
+    let rafId: number | null = null
     const update = () => {
-      const w = window.innerWidth, h = window.innerHeight
+      const { width: w, height: h } = readViewportSize()
       const isNative = !!(window as any).Capacitor?.isNative
       setState({
         isMobile: w < 768,
@@ -47,13 +68,30 @@ export function useMobile(): MobileState {
         isLandscape: w > h,
       })
     }
-    window.addEventListener('resize', update)
-    window.addEventListener('orientationchange', update)
+    const queueUpdate = () => {
+      if (rafId !== null) return
+      rafId = window.requestAnimationFrame(() => {
+        rafId = null
+        update()
+      })
+    }
+    const viewport = window.visualViewport
+    window.addEventListener('resize', queueUpdate, { passive: true })
+    window.addEventListener('orientationchange', queueUpdate)
+    viewport?.addEventListener('resize', queueUpdate)
+    viewport?.addEventListener('scroll', queueUpdate)
     // initial safe area read after layout
-    setTimeout(update, 100)
+    queueUpdate()
+    const warmupTimer = window.setTimeout(queueUpdate, 80)
     return () => {
-      window.removeEventListener('resize', update)
-      window.removeEventListener('orientationchange', update)
+      if (rafId !== null) {
+        window.cancelAnimationFrame(rafId)
+      }
+      window.clearTimeout(warmupTimer)
+      window.removeEventListener('resize', queueUpdate)
+      window.removeEventListener('orientationchange', queueUpdate)
+      viewport?.removeEventListener('resize', queueUpdate)
+      viewport?.removeEventListener('scroll', queueUpdate)
     }
   }, [])
 

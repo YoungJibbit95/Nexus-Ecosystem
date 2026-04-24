@@ -354,6 +354,21 @@ export function CodeQuickOpenModal({
   setQuery: React.Dispatch<React.SetStateAction<string>>;
   openFile: (fileId: string) => void;
 }) {
+  const [cursor, setCursor] = React.useState(0);
+
+  React.useEffect(() => {
+    if (!open) return;
+    setCursor(0);
+  }, [open, query]);
+
+  React.useEffect(() => {
+    if (!open) return;
+    setCursor((prev) => {
+      if (files.length === 0) return 0;
+      return Math.min(prev, files.length - 1);
+    });
+  }, [files, open]);
+
   return (
     <AnimatePresence>
       {open ? (
@@ -392,8 +407,25 @@ export function CodeQuickOpenModal({
                       setOpen(false);
                       return;
                     }
-                    if (event.key === "Enter" && files[0]) {
-                      openFile(files[0].id);
+                    if (event.key === "ArrowDown") {
+                      event.preventDefault();
+                      setCursor((prev) => {
+                        if (files.length === 0) return 0;
+                        return (prev + 1) % files.length;
+                      });
+                      return;
+                    }
+                    if (event.key === "ArrowUp") {
+                      event.preventDefault();
+                      setCursor((prev) => {
+                        if (files.length === 0) return 0;
+                        return (prev - 1 + files.length) % files.length;
+                      });
+                      return;
+                    }
+                    const target = files[cursor] ?? files[0];
+                    if (event.key === "Enter" && target) {
+                      openFile(target.id);
                     }
                   }}
                   placeholder="Quick open file…"
@@ -415,13 +447,15 @@ export function CodeQuickOpenModal({
                     No matching files
                   </div>
                 ) : (
-                  files.map((file) => {
+                  files.map((file, index) => {
                     const active = file.id === activeCodeId;
+                    const selected = index === cursor;
                     const lang = getLang(file.lang);
                     return (
                       <button
                         key={file.id}
                         onClick={() => openFile(file.id)}
+                        onMouseEnter={() => setCursor(index)}
                         style={{
                           width: "100%",
                           textAlign: "left",
@@ -430,8 +464,14 @@ export function CodeQuickOpenModal({
                           gap: 8,
                           padding: "7px 8px",
                           borderRadius: 8,
-                          border: "1px solid rgba(255,255,255,0.1)",
-                          background: active ? "rgba(122,169,255,0.15)" : "rgba(255,255,255,0.03)",
+                          border: selected
+                            ? "1px solid rgba(122,169,255,0.42)"
+                            : "1px solid rgba(255,255,255,0.1)",
+                          background: selected
+                            ? "rgba(122,169,255,0.2)"
+                            : active
+                              ? "rgba(122,169,255,0.15)"
+                              : "rgba(255,255,255,0.03)",
                           color: "inherit",
                           cursor: "pointer",
                         }}

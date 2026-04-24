@@ -51,7 +51,21 @@ const finalizeTemplate = (params: CreateMagicTemplateParams, rootId: string | nu
 export function createMagicTemplateFromPayload(params: CreateMagicTemplateParams) {
   const center = getViewportCenter(params);
   const payload = normalizeCanvasMagicTemplatePayload(params.payload);
-  const template = buildCanvasMagicTemplate(payload);
+  let template: ReturnType<typeof buildCanvasMagicTemplate>;
+  try {
+    template = buildCanvasMagicTemplate(payload);
+  } catch (error) {
+    console.error("[Canvas Magic] template build failed, falling back to mindmap", {
+      error,
+      payload,
+    });
+    const fallbackPayload = normalizeCanvasMagicTemplatePayload({
+      ...params.payload,
+      template: "mindmap",
+      title: "Mindmap Core",
+    });
+    template = buildCanvasMagicTemplate(fallbackPayload);
+  }
 
   if (template.kind === "ai-project") {
     const graph = template.graph;

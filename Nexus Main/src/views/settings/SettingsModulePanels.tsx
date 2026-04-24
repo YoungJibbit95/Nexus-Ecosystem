@@ -240,6 +240,17 @@ export function SettingsModulePanels({
                     />
                   </div>
                 </ModuleCard>
+
+                <ModuleCard
+                  title="Workflow Shortcuts"
+                  desc="Schnellzugriffe für Actions, Capture und Navigation"
+                >
+                  <Toggle
+                    label="Quick Actions"
+                    checked={Boolean(t.qol?.quickActions)}
+                    onChange={(next) => t.setQOL({ quickActions: next })}
+                  />
+                </ModuleCard>
               </>
             ) : null}
 
@@ -344,7 +355,9 @@ export function SettingsModulePanels({
                   </ModuleCard>
                 ) : null}
 
-                {showAdvancedSettings && panelRenderer === "glass-shader" ? (
+                {showAdvancedSettings &&
+                showExperimentalSettings &&
+                panelRenderer === "glass-shader" ? (
                   <ModuleCard
                     title="Shader Glass Controls"
                     desc="Qualität zuerst. Für schwächere Geräte lieber Soft Blur."
@@ -384,15 +397,38 @@ export function SettingsModulePanels({
                     </div>
                   </ModuleCard>
                 ) : null}
+                {showAdvancedSettings &&
+                !showExperimentalSettings &&
+                panelRenderer === "glass-shader" ? (
+                  <ModuleCard
+                    title="Shader Glass Controls (Experimental)"
+                    desc="Shader-nahe Feintuning-Regler sind bewusst hinter Experimental geschützt."
+                  >
+                    <div
+                      style={{
+                        borderRadius: 10,
+                        border: "1px solid rgba(255,159,10,0.32)",
+                        background: "rgba(255,159,10,0.08)",
+                        padding: "8px 10px",
+                        fontSize: 11,
+                        lineHeight: 1.45,
+                      }}
+                    >
+                      Aktiviere <strong>Experimental</strong>, um Shader-Regler wie
+                      <strong> Glass Depth</strong> und <strong>Reflection Line</strong>{" "}
+                      bewusst freizuschalten.
+                    </div>
+                  </ModuleCard>
+                ) : null}
 
                 <ModuleCard
                   title="Release Freeze"
-                  desc="Glow- und Toolbar-Zonen sind im Release-Zyklus bewusst eingefroren."
+                  desc="Glow und feste Toolbar-Geometrie sind im Release-Zyklus eingefroren."
                 >
                   <div style={{ fontSize: 11, opacity: 0.72, lineHeight: 1.5 }}>
-                    Sichtbare Alltagseinstellungen bleiben aktiv. Engine-nahe Glow-Controls
-                    sind absichtlich nicht frei schaltbar, damit Main und Mobile stabil
-                    bleiben.
+                    Alltagseinstellungen bleiben aktiv. Toolbar Mode/Position/Sichtbarkeit
+                    sind weiterhin editierbar, während engine-nahe Glow- und harte
+                    Geometrie-Parameter absichtlich begrenzt bleiben.
                   </div>
                   {showExperimentalSettings ? (
                     <div
@@ -551,6 +587,16 @@ export function SettingsModulePanels({
                       onChange={(next) => t.setToolbar({ visible: next })}
                     />
                   </div>
+                  <div
+                    style={{
+                      marginTop: 8,
+                      fontSize: 11,
+                      opacity: 0.68,
+                      lineHeight: 1.45,
+                    }}
+                  >
+                    Toolbar-Höhe und Geometrie-Feintuning bleiben im Release-Freeze fixiert.
+                  </div>
                 </ModuleCard>
 
                 <ModuleCard
@@ -594,16 +640,6 @@ export function SettingsModulePanels({
                   </div>
                 </ModuleCard>
 
-                <ModuleCard
-                  title="Workflow Shortcuts"
-                  desc="Schnellzugriffe für Actions, Capture und Navigation"
-                >
-                  <Toggle
-                    label="Quick Actions"
-                    checked={Boolean(t.qol?.quickActions)}
-                    onChange={(next) => t.setQOL({ quickActions: next })}
-                  />
-                </ModuleCard>
               </>
             ) : null}
 

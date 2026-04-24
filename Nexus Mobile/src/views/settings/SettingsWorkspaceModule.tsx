@@ -30,8 +30,18 @@ export function SettingsWorkspaceModule({
     <>
       <ModuleCard
         title="Onboarding"
-        desc="Hilft beim Wiedereinstieg, ohne Daten zurückzusetzen."
+        desc="Hilft beim Wiedereinstieg, ohne Daten zu verändern."
       >
+        <div
+          style={{
+            marginBottom: 8,
+            fontSize: 11,
+            opacity: 0.7,
+            lineHeight: 1.45,
+          }}
+        >
+          Sicher: Öffnet nur den Guide, kein Reset.
+        </div>
         <button
           onClick={() => onOpenWalkthrough?.()}
           style={{
@@ -56,6 +66,16 @@ export function SettingsWorkspaceModule({
         title="Support"
         desc="Direkte Wartung von Spotlight- und Command-Daten."
       >
+        <div
+          style={{
+            marginBottom: 8,
+            fontSize: 11,
+            opacity: 0.7,
+            lineHeight: 1.45,
+          }}
+        >
+          Teilweise reset-relevant: Pins/Recents betreffen nur Spotlight-Historie.
+        </div>
         <Row>
           <button
             onClick={() => {
@@ -111,6 +131,19 @@ export function SettingsWorkspaceModule({
         title="Maintenance"
         desc="Recovery-Aktionen mit klarer Auswirkung auf Workspace-Daten."
       >
+        <div
+          style={{
+            marginBottom: 8,
+            borderRadius: 10,
+            border: "1px solid rgba(255,159,10,0.34)",
+            background: "rgba(255,159,10,0.08)",
+            padding: "8px 10px",
+            fontSize: 11,
+            lineHeight: 1.45,
+          }}
+        >
+          Achtung: Diese Aktionen setzen gespeicherte Arbeitszustände zurück.
+        </div>
         <div style={{ display: "grid", gap: 8 }}>
           <button
             onClick={() =>

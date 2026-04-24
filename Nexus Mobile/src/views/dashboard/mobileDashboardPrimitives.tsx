@@ -320,6 +320,7 @@ export function DashboardActionButton({
       animate={interaction.content.animate}
       transition={interaction.content.transition}
       style={{
+        minHeight: "var(--nx-touch-target, 40px)",
         ...style,
         position: "relative",
         overflow: "hidden",

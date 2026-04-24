@@ -23,19 +23,19 @@ export function MobileDashboardWidgetEditChrome({
   return (
     <div
       style={{
-        position: "absolute",
-        top: 7,
-        left: 7,
-        right: 7,
-        zIndex: 4,
+        position: "relative",
+        zIndex: 2,
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
-        gap: 6,
-        padding: "4px 6px",
+        gap: 8,
+        marginBottom: 8,
+        padding: "6px 8px",
         borderRadius: 999,
-        background: "rgba(0,0,0,0.34)",
-        border: "1px solid rgba(255,255,255,0.12)",
+        background: "rgba(0,0,0,0.28)",
+        border: "1px solid rgba(255,255,255,0.14)",
+        overflowX: "auto",
+        overflowY: "hidden",
       }}
     >
       <button
@@ -61,31 +61,36 @@ export function MobileDashboardWidgetEditChrome({
           color: "inherit",
           display: "inline-flex",
           alignItems: "center",
-          gap: 4,
-          padding: "2px 4px",
-          borderRadius: 8,
-          fontSize: 9,
+          gap: 6,
+          padding: "3px 5px",
+          borderRadius: 9,
+          fontSize: 10.5,
           fontWeight: 700,
           cursor: layoutLocked ? "not-allowed" : isDraggingThisWidget ? "grabbing" : "grab",
           opacity: layoutLocked ? 0.35 : isDraggingThisWidget ? 1 : 0.9,
+          maxWidth: 150,
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
         }}
         title="Long press und ziehen zum Tauschen (Pfeile sind Fallback)"
       >
-        <GripVertical size={10} />
+        <GripVertical size={13} />
         {w.label}
       </button>
-      <div style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+      <div style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
         <DashboardActionButton
           onClick={() => setSpan(w.id, 1)}
           liquidColor={w.span === 1 ? t.accent : t.accent2}
           style={{
-            borderRadius: 7,
+            minHeight: 30,
+            borderRadius: 8,
             border: `1px solid ${w.span === 1 ? t.accent : "rgba(255,255,255,0.16)"}`,
             background: w.span === 1 ? `rgba(${rgb},0.2)` : "rgba(255,255,255,0.05)",
             color: w.span === 1 ? t.accent : "inherit",
-            fontSize: 9,
+            fontSize: 10,
             fontWeight: 800,
-            padding: "2px 6px",
+            padding: "4px 7px",
             cursor: controlsLocked ? "not-allowed" : "pointer",
             opacity: controlsLocked ? 0.55 : 1,
           }}
@@ -97,13 +102,14 @@ export function MobileDashboardWidgetEditChrome({
           onClick={() => setSpan(w.id, 2)}
           liquidColor={w.span === 2 ? t.accent : t.accent2}
           style={{
-            borderRadius: 7,
+            minHeight: 30,
+            borderRadius: 8,
             border: `1px solid ${w.span === 2 ? t.accent : "rgba(255,255,255,0.16)"}`,
             background: w.span === 2 ? `rgba(${rgb},0.2)` : "rgba(255,255,255,0.05)",
             color: w.span === 2 ? t.accent : "inherit",
-            fontSize: 9,
+            fontSize: 10,
             fontWeight: 800,
-            padding: "2px 6px",
+            padding: "4px 7px",
             cursor: mob.isMobile || controlsLocked ? "not-allowed" : "pointer",
             opacity: mob.isMobile || controlsLocked ? 0.55 : 1,
           }}
@@ -115,9 +121,10 @@ export function MobileDashboardWidgetEditChrome({
           onClick={() => move(w.id, -1)}
           liquidColor={t.accent2}
           style={{
-            width: 22,
-            height: 20,
-            borderRadius: 7,
+            width: 30,
+            height: 30,
+            minHeight: 30,
+            borderRadius: 8,
             border: "1px solid rgba(255,255,255,0.16)",
             background: "rgba(255,255,255,0.05)",
             color: "inherit",
@@ -130,15 +137,16 @@ export function MobileDashboardWidgetEditChrome({
           }}
           disabled={controlsLocked}
         >
-          <ChevronUp size={10} />
+          <ChevronUp size={13} />
         </DashboardActionButton>
         <DashboardActionButton
           onClick={() => move(w.id, 1)}
           liquidColor={t.accent2}
           style={{
-            width: 22,
-            height: 20,
-            borderRadius: 7,
+            width: 30,
+            height: 30,
+            minHeight: 30,
+            borderRadius: 8,
             border: "1px solid rgba(255,255,255,0.16)",
             background: "rgba(255,255,255,0.05)",
             color: "inherit",
@@ -151,15 +159,16 @@ export function MobileDashboardWidgetEditChrome({
           }}
           disabled={controlsLocked}
         >
-          <ChevronDown size={10} />
+          <ChevronDown size={13} />
         </DashboardActionButton>
         <DashboardActionButton
           onClick={() => toggleWidget(w.id)}
           liquidColor={w.visible ? t.accent : t.accent2}
           style={{
-            width: 22,
-            height: 20,
-            borderRadius: 7,
+            width: 30,
+            height: 30,
+            minHeight: 30,
+            borderRadius: 8,
             border: "1px solid rgba(255,255,255,0.16)",
             background: "rgba(255,255,255,0.05)",
             color: w.visible ? t.accent : "rgba(255,255,255,0.68)",
@@ -172,7 +181,7 @@ export function MobileDashboardWidgetEditChrome({
           }}
           disabled={controlsLocked}
         >
-          {w.visible ? <Eye size={10} /> : <EyeOff size={10} />}
+          {w.visible ? <Eye size={13} /> : <EyeOff size={13} />}
         </DashboardActionButton>
       </div>
     </div>

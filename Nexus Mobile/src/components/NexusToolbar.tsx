@@ -66,7 +66,7 @@ export function NexusToolbar({
   const isSpotlight = toolbarMode === "spotlight" || !!forceSpotlight;
   const isFullWidth = toolbarMode === "full-width";
   const isBottom = (t.toolbar?.position ?? "bottom") === "bottom";
-  const barHeight = t.toolbar?.height ?? 44;
+  const barHeight = MOBILE_TOOLBAR_LAYOUT.fullWidth.height;
   const reducedMotion = t.qol?.reducedMotion ?? false;
   const spotlightAnchorX = MOBILE_TOOLBAR_LAYOUT.spotlight.anchorX;
   const motionRuntime = useMemo(() => buildMotionRuntime(t), [t]);

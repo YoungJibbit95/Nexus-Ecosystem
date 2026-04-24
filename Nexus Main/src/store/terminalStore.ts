@@ -556,7 +556,7 @@ export const useTerminal = create<TerminalState>()(
           if (arg0 === 'compact') {
             ctx.t.setQOL({ panelDensity: 'compact', reducedMotion: true })
             ctx.t.setVisual({ compactMode: true, spacingDensity: 'compact' })
-            ctx.t.setToolbar({ height: 36 })
+            ctx.t.setToolbar({ toolbarMode: 'island' })
             add('success', 'Profile applied: compact')
             return
           }
@@ -564,7 +564,7 @@ export const useTerminal = create<TerminalState>()(
           if (arg0 === 'default') {
             ctx.t.setQOL({ panelDensity: 'comfortable', reducedMotion: false })
             ctx.t.setVisual({ compactMode: false, spacingDensity: 'comfortable' })
-            ctx.t.setToolbar({ toolbarMode: 'island', height: 40 })
+            ctx.t.setToolbar({ toolbarMode: 'island' })
             add('success', 'Profile applied: default')
             return
           }

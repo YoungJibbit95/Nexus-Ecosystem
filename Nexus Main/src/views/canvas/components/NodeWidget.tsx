@@ -319,21 +319,28 @@ const NodeWidget = React.memo(function NodeWidget({
 
   const replaceMarkdownCodeBlock = useCallback(
     (
-      mdNode: any,
+      mdNode: unknown,
       className: string | undefined,
       rawChildren: React.ReactNode,
       nextBlockContent: string,
     ) => {
-      const replaced = replaceMarkdownCodeBlockSafely({
-        markdown: nodeForRender.content || "",
-        mdNode,
-        className,
-        rawChildren,
-        nextBlockContent,
-      });
-      if (replaced.replaced && replaced.nextMarkdown !== nodeForRender.content) {
-        commitNodePatch(node.id, {
-          content: replaced.nextMarkdown,
+      try {
+        const replaced = replaceMarkdownCodeBlockSafely({
+          markdown: nodeForRender.content || "",
+          mdNode,
+          className,
+          rawChildren,
+          nextBlockContent,
+        });
+        if (replaced.replaced && replaced.nextMarkdown !== nodeForRender.content) {
+          commitNodePatch(node.id, {
+            content: replaced.nextMarkdown,
+          });
+        }
+      } catch (error) {
+        console.warn("[Canvas] markdown codeblock replacement skipped", {
+          error,
+          nodeId: node.id,
         });
       }
     },

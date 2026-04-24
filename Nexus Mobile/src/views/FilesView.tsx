@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import {
   AlertTriangle,
   Download,
@@ -11,6 +11,7 @@ import {
   Search,
   Share2,
   ShieldCheck,
+  SlidersHorizontal,
   Upload,
 } from 'lucide-react'
 import { ViewHeader } from '../components/ViewHeader'
@@ -24,6 +25,7 @@ import { useMobile } from '../lib/useMobile'
 import { AnimatePresence } from 'framer-motion'
 import { Glass } from '../components/Glass'
 import { InteractiveActionButton } from '../components/render/InteractiveActionButton'
+import { MobileSheet } from '../components/mobile/MobileViewContract'
 import {
   AssignModal,
   FileCard,
@@ -140,6 +142,14 @@ export function FilesView({ setView }: FilesViewProps = {}) {
   const t = useTheme()
   const rgb = hexToRgb(t.accent)
   const mob = useMobile()
+  const compactEdge = Math.min(mob.screenW, mob.screenH)
+  const isTinyMobile = mob.isMobile && compactEdge <= 430
+  const isTightMobile = mob.isMobile && mob.screenH <= 900
+  const isLandscapeMobile = mob.isMobile && mob.isLandscape
+  const isCompactMobile = mob.isMobile && (isTinyMobile || isTightMobile || isLandscapeMobile)
+  const compactHeaderPadding = isCompactMobile ? '6px 8px 0' : (mob.isMobile ? '10px 10px 0' : '10px 14px 0')
+  const compactHeaderButtonPadding = isCompactMobile ? '6px 8px' : '7px 9px'
+  const compactControlFont = isCompactMobile ? 10 : 11
   const { notes, codes, tasks, reminders, openNoteIds, activeNoteId, openCodeIds, activeCodeId, folders, openNote, setNote, openCode, setCode } = useApp()
   const { canvases, activeCanvasId, setActiveCanvas } = useCanvas()
   const { workspaces, activeWorkspaceId, setActive } = useWorkspaces()
@@ -148,13 +158,16 @@ export function FilesView({ setView }: FilesViewProps = {}) {
   const [typeFilter,  setTypeFilter]  = useState<'all'|ItemType>('all')
   const [smartView,   setSmartView]   = useState<SmartViewMode>('all')
   const [folderFilter, setFolderFilter] = useState<'all' | 'none' | string>('all')
-  const [viewMode,    setViewMode]    = useState<ViewMode>('grid')
+  const [viewMode,    setViewMode]    = useState<ViewMode>(() => mob.isMobile ? 'list' : 'grid')
   const [tab,         setTab]         = useState<'all'|'workspaces'>('all')
   const [newWsOpen,   setNewWsOpen]   = useState(false)
   const [editWs,      setEditWs]      = useState<Workspace|null>(null)
   const [assignItem,  setAssignItem]  = useState<FileItem|null>(null)
   const [handoffMsg, setHandoffMsg] = useState('')
   const [handoffMenuOpen, setHandoffMenuOpen] = useState(false)
+  const [mobileWorkspaceSheetOpen, setMobileWorkspaceSheetOpen] = useState(false)
+  const [mobileHandoffSheetOpen, setMobileHandoffSheetOpen] = useState(false)
+  const [mobileFilterSheetOpen, setMobileFilterSheetOpen] = useState(false)
   const [mergeSelection, setMergeSelection] = useState<Record<SnapshotSection, boolean>>({
     notes: true,
     codes: true,
@@ -180,6 +193,7 @@ export function FilesView({ setView }: FilesViewProps = {}) {
   const saveCheckpoint = useWorkspaceHandoff((s) => s.saveCheckpoint)
 
   const runtimeImportRef = useRef<HTMLInputElement | null>(null)
+  const searchInputRef = useRef<HTMLInputElement | null>(null)
   const activeWs = workspaces.find(w => w.id === activeWorkspaceId)
 
   const setHandoffStatus = (
@@ -413,6 +427,98 @@ export function FilesView({ setView }: FilesViewProps = {}) {
     }
   }
 
+  useEffect(() => {
+    if (mob.isMobile || !handoffMenuOpen) return
+    const onPointerDown = (event: PointerEvent) => {
+      if ((event.target as HTMLElement | null)?.closest('[data-files-handoff-menu="true"]')) return
+      setHandoffMenuOpen(false)
+    }
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setHandoffMenuOpen(false)
+    }
+    window.addEventListener('pointerdown', onPointerDown)
+    window.addEventListener('keydown', onKeyDown)
+    return () => {
+      window.removeEventListener('pointerdown', onPointerDown)
+      window.removeEventListener('keydown', onKeyDown)
+    }
+  }, [handoffMenuOpen, mob.isMobile])
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const key = event.key.toLowerCase()
+      const cmd = event.metaKey || event.ctrlKey
+      const target = event.target as HTMLElement | null
+      const isEditable =
+        target?.tagName === 'INPUT' ||
+        target?.tagName === 'TEXTAREA' ||
+        target?.isContentEditable
+
+      if (cmd && key === 'f') {
+        event.preventDefault()
+        searchInputRef.current?.focus()
+        searchInputRef.current?.select()
+        return
+      }
+
+      if (isEditable) return
+
+      if (key === '1') {
+        event.preventDefault()
+        setTypeFilter('all')
+        return
+      }
+      if (key === '2') {
+        event.preventDefault()
+        setTypeFilter('note')
+        return
+      }
+      if (key === '3') {
+        event.preventDefault()
+        setTypeFilter('code')
+        return
+      }
+      if (key === '4') {
+        event.preventDefault()
+        setTypeFilter('task')
+        return
+      }
+      if (key === '5') {
+        event.preventDefault()
+        setTypeFilter('reminder')
+        return
+      }
+      if (key === '6') {
+        event.preventDefault()
+        setTypeFilter('canvas')
+        return
+      }
+      if (key === 'g') {
+        event.preventDefault()
+        setViewMode((prev) => (prev === 'grid' ? 'list' : 'grid'))
+        return
+      }
+      if (key === 'r') {
+        event.preventDefault()
+        setSmartView('recent')
+        return
+      }
+      if (key === 'u') {
+        event.preventDefault()
+        setSmartView('unassigned')
+        return
+      }
+      if (key === 'w') {
+        event.preventDefault()
+        setSmartView(activeWs ? 'workspace' : 'all')
+        setTab(activeWs ? 'workspaces' : 'all')
+      }
+    }
+
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [activeWs])
+
   const applyImportedSnapshot = (
     snapshot: WorkspaceRuntimeSnapshot,
     mode: 'replace' | 'merge',
@@ -579,40 +685,33 @@ export function FilesView({ setView }: FilesViewProps = {}) {
       ? { label: 'Stale', color: '#ff9f0a', bg: 'rgba(255,159,10,0.1)', border: '1px solid rgba(255,159,10,0.25)' }
       : { label: 'Recent', color: t.accent, bg: `rgba(${rgb},0.12)`, border: `1px solid rgba(${rgb},0.26)` }
 
+  const handoffActions: Array<{
+    icon: typeof Upload
+    label: string
+    onClick: () => void
+    disabled?: boolean
+  }> = [
+    { icon: Upload, label: 'Import runtime.json', onClick: () => runtimeImportRef.current?.click() },
+    { icon: Download, label: 'Export runtime.json', onClick: () => exportRuntimeSnapshot() },
+    { icon: Share2, label: 'Share runtime.json', onClick: () => { void shareRuntimeSnapshot() } },
+    { icon: RefreshCw, label: 'Restore last checkpoint', onClick: () => restoreCheckpoint(), disabled: !checkpoint },
+  ]
+
   return (
-    <div style={{ display:'flex', flexDirection:'column', height:'100%', overflow:'hidden' }}>
-      <div style={{ padding: mob.isMobile ? '10px 10px 0' : '10px 14px 0' }}>
+    <div
+      className="nx-mobile-view-screen"
+      style={{ display:'flex', flexDirection:'column', height:'100%', overflow:'hidden' }}
+    >
+      <div style={{ padding: compactHeaderPadding }}>
         <ViewHeader
           title="Files & Workspaces"
           subtitle={`${allItems.length} Items · ${workspaces.length} Workspaces`}
           right={
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-              <InteractiveActionButton
-                onClick={() => setNewWsOpen(true)}
-                motionId="mobile-files-create-workspace"
-                areaHint={96}
-                radius={10}
-                style={{
-                  border: `1px solid rgba(${rgb},0.3)`,
-                  background: `rgba(${rgb},0.14)`,
-                  color: t.accent,
-                  borderRadius: 10,
-                  padding: '7px 10px',
-                  fontSize: 11,
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 6,
-                }}
-              >
-                <Plus size={13}/> Workspace
-              </InteractiveActionButton>
-              <div style={{ position: 'relative' }}>
+            mob.isMobile ? (
+              <div className="nx-mobile-row-scroll" style={{ gap: 6, justifyContent: 'flex-end' }}>
                 <InteractiveActionButton
-                  onClick={() => setHandoffMenuOpen((prev) => !prev)}
-                  motionId="mobile-files-handoff-menu"
-                  selected={handoffMenuOpen}
+                  onClick={() => setMobileWorkspaceSheetOpen(true)}
+                  motionId="mobile-files-open-workspace-sheet"
                   areaHint={90}
                   radius={10}
                   style={{
@@ -620,8 +719,8 @@ export function FilesView({ setView }: FilesViewProps = {}) {
                     background: 'rgba(255,255,255,0.05)',
                     color: 'inherit',
                     borderRadius: 10,
-                    padding: '7px 9px',
-                    fontSize: 11,
+                    padding: compactHeaderButtonPadding,
+                    fontSize: compactControlFont,
                     fontWeight: 700,
                     cursor: 'pointer',
                     display: 'inline-flex',
@@ -629,63 +728,127 @@ export function FilesView({ setView }: FilesViewProps = {}) {
                     gap: 5,
                   }}
                 >
-                  <ShieldCheck size={12}/> Handoff
-                  <MoreHorizontal size={12}/>
+                  <Layers size={12}/> Workspaces
                 </InteractiveActionButton>
-                {handoffMenuOpen ? (
-                  <div style={{
-                    position: 'absolute',
-                    top: 'calc(100% + 6px)',
-                    right: 0,
-                    zIndex: 40,
-                    minWidth: 220,
-                    borderRadius: 12,
-                    border: '1px solid rgba(255,255,255,0.12)',
-                    background: 'rgba(17,20,31,0.96)',
-                    backdropFilter: 'blur(12px)',
-                    padding: 6,
-                    boxShadow: '0 14px 40px rgba(0,0,0,0.35)',
-                  }}>
-                    {[
-                      { icon: Upload, label: 'Import runtime.json', onClick: () => runtimeImportRef.current?.click() },
-                      { icon: Download, label: 'Export runtime.json', onClick: () => exportRuntimeSnapshot() },
-                      { icon: Share2, label: 'Share runtime.json', onClick: () => { void shareRuntimeSnapshot() } },
-                      { icon: RefreshCw, label: 'Restore last checkpoint', onClick: () => restoreCheckpoint(), disabled: !checkpoint },
-                    ].map((entry) => (
-                      <InteractiveActionButton
-                        key={entry.label}
-                        disabled={entry.disabled}
-                        onClick={() => {
-                          entry.onClick()
-                          setHandoffMenuOpen(false)
-                        }}
-                        motionId={`mobile-files-handoff-${entry.label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
-                        areaHint={78}
-                        radius={8}
-                        style={{
-                          width: '100%',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 8,
-                          padding: '8px 10px',
-                          borderRadius: 8,
-                          border: 'none',
-                          background: 'transparent',
-                          color: 'inherit',
-                          cursor: entry.disabled ? 'not-allowed' : 'pointer',
-                          opacity: entry.disabled ? 0.45 : 1,
-                          fontSize: 12,
-                          fontWeight: 650,
-                        }}
-                      >
-                        <entry.icon size={13}/>
-                        {entry.label}
-                      </InteractiveActionButton>
-                    ))}
-                  </div>
-                ) : null}
+                <InteractiveActionButton
+                  onClick={() => setMobileHandoffSheetOpen(true)}
+                  motionId="mobile-files-open-handoff-sheet"
+                  areaHint={90}
+                  radius={10}
+                  style={{
+                    border: '1px solid rgba(255,255,255,0.14)',
+                    background: 'rgba(255,255,255,0.05)',
+                    color: 'inherit',
+                    borderRadius: 10,
+                    padding: compactHeaderButtonPadding,
+                    fontSize: compactControlFont,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 5,
+                  }}
+                >
+                  <ShieldCheck size={12}/> Actions
+                </InteractiveActionButton>
               </div>
-            </div>
+            ) : (
+              <div className="nx-mobile-row-scroll" style={{ gap: 6, justifyContent: 'flex-end' }}>
+                <InteractiveActionButton
+                  onClick={() => setNewWsOpen(true)}
+                  motionId="mobile-files-create-workspace"
+                  areaHint={96}
+                  radius={10}
+                  style={{
+                    border: `1px solid rgba(${rgb},0.3)`,
+                    background: `rgba(${rgb},0.14)`,
+                    color: t.accent,
+                    borderRadius: 10,
+                    padding: '7px 10px',
+                    fontSize: 11,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                  }}
+                >
+                  <Plus size={13}/> Workspace
+                </InteractiveActionButton>
+                <div style={{ position: 'relative' }} data-files-handoff-menu="true">
+                  <InteractiveActionButton
+                    onClick={() => setHandoffMenuOpen((prev) => !prev)}
+                    motionId="mobile-files-handoff-menu"
+                    selected={handoffMenuOpen}
+                    areaHint={90}
+                    radius={10}
+                    style={{
+                      border: '1px solid rgba(255,255,255,0.14)',
+                      background: 'rgba(255,255,255,0.05)',
+                      color: 'inherit',
+                      borderRadius: 10,
+                      padding: '7px 9px',
+                      fontSize: 11,
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 5,
+                    }}
+                  >
+                    <ShieldCheck size={12}/> Handoff
+                    <MoreHorizontal size={12}/>
+                  </InteractiveActionButton>
+                  {handoffMenuOpen ? (
+                    <div style={{
+                      position: 'absolute',
+                      top: 'calc(100% + 6px)',
+                      right: 0,
+                      zIndex: 40,
+                      minWidth: 220,
+                      borderRadius: 12,
+                      border: '1px solid rgba(255,255,255,0.12)',
+                      background: 'rgba(17,20,31,0.96)',
+                      backdropFilter: 'blur(12px)',
+                      padding: 6,
+                      boxShadow: '0 14px 40px rgba(0,0,0,0.35)',
+                    }}>
+                      {handoffActions.map((entry) => (
+                        <InteractiveActionButton
+                          key={entry.label}
+                          disabled={entry.disabled}
+                          onClick={() => {
+                            entry.onClick()
+                            setHandoffMenuOpen(false)
+                          }}
+                          motionId={`mobile-files-handoff-${entry.label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
+                          areaHint={78}
+                          radius={8}
+                          style={{
+                            width: '100%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 8,
+                            padding: '8px 10px',
+                            borderRadius: 8,
+                            border: 'none',
+                            background: 'transparent',
+                            color: 'inherit',
+                            cursor: entry.disabled ? 'not-allowed' : 'pointer',
+                            opacity: entry.disabled ? 0.45 : 1,
+                            fontSize: 12,
+                            fontWeight: 650,
+                          }}
+                        >
+                          <entry.icon size={13}/>
+                          {entry.label}
+                        </InteractiveActionButton>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            )
           }
         />
         <input
@@ -701,32 +864,45 @@ export function FilesView({ setView }: FilesViewProps = {}) {
         />
       </div>
 
-      <div style={{ padding: '0 12px 8px', display: 'flex', alignItems: 'center', gap: 8, fontSize: 10, flexWrap: 'wrap' }}>
-        <span style={{ padding: '3px 8px', borderRadius: 999, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.06)' }}>
-          Workspace: {activeWs ? `${activeWs.icon} ${activeWs.name}` : 'All Files'}
-        </span>
-        <span style={{ padding: '3px 8px', borderRadius: 999, border: `1px solid rgba(${rgb},0.28)`, background: `rgba(${rgb},0.12)`, color: t.accent }}>
-          Modus: Manual Handoff (runtime.json)
-        </span>
-        <span style={{ padding: '3px 8px', borderRadius: 999, border: confidenceMeta.border, background: confidenceMeta.bg, color: confidenceMeta.color, fontWeight: 700 }}>
-          Confidence: {confidenceMeta.label}
-        </span>
-        {lastSourceApp ? (
-          <span style={{ padding: '3px 8px', borderRadius: 999, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.04)', opacity: 0.8 }}>
-            Source: {lastSourceApp}
+      {mob.isMobile ? (
+        <div className="nx-mobile-row-scroll" style={{ padding: isCompactMobile ? '0 8px 6px' : '0 10px 8px', gap: 6, fontSize: isCompactMobile ? 9 : 10 }}>
+          <span style={{ padding: '3px 7px', borderRadius: 999, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.06)' }}>
+            {activeWs ? `${activeWs.icon} ${activeWs.name}` : 'All Files'}
           </span>
-        ) : null}
-        {lastAction ? (
-          <span style={{ opacity: 0.75 }}>
-            Last: <b>{lastAction}</b>{lastActionAt ? ` · ${new Date(lastActionAt).toLocaleString()}` : ''}
+          <span style={{ padding: '3px 7px', borderRadius: 999, border: confidenceMeta.border, background: confidenceMeta.bg, color: confidenceMeta.color, fontWeight: 700 }}>
+            {confidenceMeta.label}
           </span>
-        ) : null}
-        {handoffMsg ? <span style={{ color: t.accent, fontWeight: 700 }}>{handoffMsg}</span> : null}
-      </div>
+          {handoffMsg ? <span style={{ color: t.accent, fontWeight: 700 }}>{handoffMsg}</span> : null}
+        </div>
+      ) : (
+        <div className="nx-mobile-row-scroll" style={{ padding: '0 12px 8px', gap: 8, fontSize: 10 }}>
+          <span style={{ padding: '3px 8px', borderRadius: 999, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.06)' }}>
+            Workspace: {activeWs ? `${activeWs.icon} ${activeWs.name}` : 'All Files'}
+          </span>
+          <span style={{ padding: '3px 8px', borderRadius: 999, border: `1px solid rgba(${rgb},0.28)`, background: `rgba(${rgb},0.12)`, color: t.accent }}>
+            Modus: Manual Handoff (runtime.json)
+          </span>
+          <span style={{ padding: '3px 8px', borderRadius: 999, border: confidenceMeta.border, background: confidenceMeta.bg, color: confidenceMeta.color, fontWeight: 700 }}>
+            Confidence: {confidenceMeta.label}
+          </span>
+          {lastSourceApp ? (
+            <span style={{ padding: '3px 8px', borderRadius: 999, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.04)', opacity: 0.8 }}>
+              Source: {lastSourceApp}
+            </span>
+          ) : null}
+          {lastAction ? (
+            <span style={{ opacity: 0.75 }}>
+              Last: <b>{lastAction}</b>{lastActionAt ? ` · ${new Date(lastActionAt).toLocaleString()}` : ''}
+            </span>
+          ) : null}
+          {handoffMsg ? <span style={{ color: t.accent, fontWeight: 700 }}>{handoffMsg}</span> : null}
+        </div>
+      )}
 
       <div style={{ display:'flex', flex:1, minHeight:0, overflow:'hidden' }}>
         {/* ── Left: Workspace panel ────────────────────────── */}
-        <div style={{ width:260, flexShrink:0, display:'flex', flexDirection:'column', borderRight:'1px solid rgba(255,255,255,0.07)', background:'rgba(0,0,0,0.12)', overflow:'hidden' }}>
+        {!mob.isMobile ? (
+        <div style={{ width: 260, flexShrink:0, display:'flex', flexDirection:'column', borderRight:'1px solid rgba(255,255,255,0.07)', background:'rgba(0,0,0,0.12)', overflow:'hidden' }}>
           <div style={{ padding:'14px 12px 10px', display:'flex', alignItems:'center', justifyContent:'space-between', flexShrink:0 }}>
             <div>
               <div style={{ fontSize:13, fontWeight:800, marginBottom:1 }}>Workspaces</div>
@@ -785,27 +961,39 @@ export function FilesView({ setView }: FilesViewProps = {}) {
             ))}
           </div>
         </div>
+        ) : null}
 
         {/* ── Right: File list ──────────────────────────────── */}
         <div style={{ flex:1, display:'flex', flexDirection:'column', overflow:'hidden', minWidth:0 }}>
-          <div style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px', borderBottom:'1px solid rgba(255,255,255,0.07)', flexShrink:0, background:'rgba(0,0,0,0.1)' }}>
+          <div className="nx-mobile-row-scroll" style={{ gap:isCompactMobile ? 8 : 10, padding: mob.isMobile ? (isCompactMobile ? '6px 8px' : '10px 10px') : '10px 14px', borderBottom:'1px solid rgba(255,255,255,0.07)', flexShrink:0, background:'rgba(0,0,0,0.1)' }}>
             {activeWs ? (
               <div style={{ display:'flex', alignItems:'center', gap:8, flex:1 }}>
                 <span style={{ fontSize:20 }}>{activeWs.icon}</span>
                 <div>
-                  <div style={{ fontSize:14, fontWeight:800, color:activeWs.color }}>{activeWs.name}</div>
-                  {activeWs.description && <div style={{ fontSize:11, opacity:0.5 }}>{activeWs.description}</div>}
+                  <div style={{ fontSize:isCompactMobile ? 13 : 14, fontWeight:800, color:activeWs.color }}>{activeWs.name}</div>
+                  {activeWs.description && <div style={{ fontSize:isCompactMobile ? 10 : 11, opacity:0.5 }}>{activeWs.description}</div>}
                 </div>
               </div>
             ) : (
-              <div style={{ fontSize:14, fontWeight:800, flex:1 }}>All Files</div>
+              <div style={{ fontSize:isCompactMobile ? 13 : 14, fontWeight:800, flex:1 }}>All Files</div>
             )}
 
-            <div style={{ position:'relative' }}>
+              <div className={mob.isMobile ? 'nx-mobile-row-flex' : undefined} style={{ position:'relative', flex: mob.isMobile ? 1 : undefined, minWidth: mob.isMobile ? 150 : undefined }}>
               <Search size={12} style={{ position:'absolute', left:9, top:'50%', transform:'translateY(-50%)', opacity:0.4 }}/>
-              <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search…" style={{ padding:'6px 10px 6px 28px', borderRadius:9, background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.1)', outline:'none', fontSize:12, color:'inherit', width:180 }}/>
+              <input ref={searchInputRef} value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search…" style={{ padding:isCompactMobile ? '5px 9px 5px 26px' : '6px 10px 6px 28px', borderRadius:9, background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.1)', outline:'none', fontSize:isCompactMobile ? 11 : 12, color:'inherit', width: mob.isMobile ? '100%' : 180 }}/>
             </div>
 
+            {mob.isMobile ? (
+              <button
+                onClick={() => setMobileFilterSheetOpen(true)}
+                style={{ padding:isCompactMobile ? '6px 8px' : '7px 10px', borderRadius:9, background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.12)', cursor:'pointer', fontSize:isCompactMobile ? 11 : 12, color:'inherit', display:'inline-flex', alignItems:'center', gap:6 }}
+              >
+                <SlidersHorizontal size={13} />
+                Filter
+              </button>
+            ) : null}
+
+            {!mob.isMobile ? (
             <div style={{ display:'flex', background:'rgba(255,255,255,0.06)', borderRadius:8, overflow:'hidden' }}>
               {(['all','note','code','task','reminder','canvas'] as const).map(f => (
                 <InteractiveActionButton key={f} onClick={()=>setTypeFilter(f)}
@@ -816,7 +1004,9 @@ export function FilesView({ setView }: FilesViewProps = {}) {
                   style={{ padding:'5px 9px', background:typeFilter===f?t.accent:'transparent', border:'none', cursor:'pointer', fontSize:10, fontWeight:700, color:typeFilter===f?'#fff':'inherit', opacity:typeFilter===f?1:0.5, transition:'all 0.12s', textTransform:'capitalize' }}>{f}</InteractiveActionButton>
               ))}
             </div>
+            ) : null}
 
+            {!mob.isMobile ? (
             <select
               value={folderFilter}
               onChange={(event) => setFolderFilter(event.target.value)}
@@ -839,7 +1029,9 @@ export function FilesView({ setView }: FilesViewProps = {}) {
                 </option>
               ))}
             </select>
+            ) : null}
 
+            {!mob.isMobile ? (
             <div style={{ display:'flex', background:'rgba(255,255,255,0.06)', borderRadius:8, overflow:'hidden' }}>
               <InteractiveActionButton onClick={()=>setViewMode('grid')}
                 motionId="mobile-files-view-grid"
@@ -854,8 +1046,10 @@ export function FilesView({ setView }: FilesViewProps = {}) {
                 radius={8}
                 style={{ padding:'5px 8px', background:viewMode==='list'?t.accent:'transparent', border:'none', cursor:'pointer', color:viewMode==='list'?'#fff':'inherit', display:'flex', alignItems:'center', transition:'all 0.12s' }}><List size={13}/></InteractiveActionButton>
             </div>
+            ) : null}
           </div>
 
+          {!mob.isMobile ? (
           <div style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 14px', borderBottom:'1px solid rgba(255,255,255,0.06)', background:'rgba(0,0,0,0.05)', flexWrap:'wrap' }}>
             {([
               { id: 'all', label: 'All' },
@@ -889,7 +1083,9 @@ export function FilesView({ setView }: FilesViewProps = {}) {
               </InteractiveActionButton>
             ))}
           </div>
+          ) : null}
 
+          {!mob.isMobile ? (
           <div style={{ display:'flex', alignItems:'center', gap:16, padding:'6px 16px', borderBottom:'1px solid rgba(255,255,255,0.05)', background:'rgba(0,0,0,0.05)', flexShrink:0 }}>
             {[
               { label:'Notes',     val:notes.length,     color:'#007AFF' },
@@ -907,8 +1103,9 @@ export function FilesView({ setView }: FilesViewProps = {}) {
             <div style={{ flex:1 }}/>
             <span style={{ fontSize:10, opacity:0.4 }}>{displayItems.length} item{displayItems.length!==1?'s':''}</span>
           </div>
+          ) : null}
 
-          <div style={{ flex:1, overflowY:'auto', padding:12 }}>
+          <div style={{ flex:1, overflowY:'auto', padding: mob.isMobile ? (isCompactMobile ? '8px' : '10px') : 12 }}>
             {displayItems.length === 0 ? (
               <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', height:'60%', gap:12, opacity:0.4 }}>
                 <Layers size={48} strokeWidth={1} style={{ color:t.accent, opacity:0.4 }}/>
@@ -1023,6 +1220,227 @@ export function FilesView({ setView }: FilesViewProps = {}) {
         {editWs    && <WorkspaceModal key={editWs.id} ws={editWs} onClose={()=>setEditWs(null)} />}
         {assignItem && <AssignModal key={assignItem.id} item={assignItem} onClose={()=>setAssignItem(null)} />}
       </AnimatePresence>
+
+      <MobileSheet
+        open={mob.isMobile && mobileWorkspaceSheetOpen}
+        onClose={() => setMobileWorkspaceSheetOpen(false)}
+        title="Workspaces"
+        mode="bottom"
+      >
+        <div style={{ padding: '10px 10px 14px' }}>
+          <InteractiveActionButton
+            onClick={() => {
+              setActive(null)
+              setTab('all')
+              setSmartView('all')
+              setMobileWorkspaceSheetOpen(false)
+            }}
+            motionId="mobile-files-workspace-sheet-all-files"
+            selected={!activeWorkspaceId}
+            areaHint={120}
+            radius={10}
+            style={{ display:'flex', alignItems:'center', gap:10, width:'100%', padding:'10px', borderRadius:10, marginBottom:6, background: !activeWorkspaceId?`rgba(${rgb},0.12)`:'transparent', border: !activeWorkspaceId?`1px solid rgba(${rgb},0.2)`:'1px solid rgba(255,255,255,0.06)', cursor:'pointer', transition:'all 0.12s', color:'inherit' }}
+          >
+            <div style={{ width:34, height:34, borderRadius:9, background:'rgba(255,255,255,0.07)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:18 }}>🗂️</div>
+            <div style={{ flex:1, textAlign:'left' }}>
+              <div style={{ fontSize:13, fontWeight:700, color: !activeWorkspaceId?t.accent:'inherit' }}>All Files</div>
+              <div style={{ fontSize:10, opacity:0.45 }}>{allItems.length} items</div>
+            </div>
+          </InteractiveActionButton>
+          {workspaces.map((ws) => (
+            <InteractiveActionButton
+              key={ws.id}
+              onClick={() => {
+                setActive(ws.id)
+                setTab('workspaces')
+                setSmartView('workspace')
+                setMobileWorkspaceSheetOpen(false)
+              }}
+              motionId={`mobile-files-workspace-sheet-${ws.id}`}
+              selected={activeWorkspaceId === ws.id}
+              areaHint={120}
+              radius={10}
+              style={{ display:'flex', alignItems:'center', gap:10, width:'100%', padding:'10px', borderRadius:10, marginBottom:6, background: activeWorkspaceId===ws.id?`${ws.color}18`:'transparent', border: activeWorkspaceId===ws.id?`1px solid ${ws.color}44`:'1px solid rgba(255,255,255,0.06)', cursor:'pointer', transition:'all 0.12s', color:'inherit' }}
+            >
+              <div style={{ width:34, height:34, borderRadius:9, background:`${ws.color}22`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:18, border:`1px solid ${ws.color}33` }}>
+                {ws.icon}
+              </div>
+              <div style={{ flex:1, textAlign:'left', minWidth:0 }}>
+                <div style={{ fontSize:13, fontWeight:700, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', color: activeWorkspaceId===ws.id?ws.color:'inherit' }}>{ws.name}</div>
+                <div style={{ fontSize:10, opacity:0.45 }}>{wsItemCount(ws)} items</div>
+              </div>
+            </InteractiveActionButton>
+          ))}
+        </div>
+      </MobileSheet>
+
+      <MobileSheet
+        open={mob.isMobile && mobileHandoffSheetOpen}
+        onClose={() => setMobileHandoffSheetOpen(false)}
+        title="Handoff Actions"
+        mode="bottom"
+      >
+        <div style={{ padding: '10px 10px 14px', display: 'grid', gap: 8 }}>
+          <InteractiveActionButton
+            onClick={() => {
+              setNewWsOpen(true)
+              setMobileHandoffSheetOpen(false)
+            }}
+            motionId="mobile-files-handoff-sheet-create-workspace"
+            areaHint={82}
+            radius={10}
+            style={{
+              width: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '10px 10px',
+              borderRadius: 10,
+              border: `1px solid rgba(${rgb},0.3)`,
+              background: `rgba(${rgb},0.14)`,
+              color: t.accent,
+              cursor: 'pointer',
+              fontSize: 12,
+              fontWeight: 700,
+            }}
+          >
+            <Plus size={13}/>
+            Create workspace
+          </InteractiveActionButton>
+          {handoffActions.map((entry) => (
+            <InteractiveActionButton
+              key={entry.label}
+              disabled={entry.disabled}
+              onClick={() => {
+                entry.onClick()
+                setMobileHandoffSheetOpen(false)
+              }}
+              motionId={`mobile-files-handoff-sheet-${entry.label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
+              areaHint={82}
+              radius={10}
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '10px 10px',
+                borderRadius: 10,
+                border: '1px solid rgba(255,255,255,0.12)',
+                background: 'rgba(255,255,255,0.04)',
+                color: 'inherit',
+                cursor: entry.disabled ? 'not-allowed' : 'pointer',
+                opacity: entry.disabled ? 0.45 : 1,
+                fontSize: 12,
+                fontWeight: 700,
+              }}
+            >
+              <entry.icon size={13}/>
+              {entry.label}
+            </InteractiveActionButton>
+          ))}
+        </div>
+      </MobileSheet>
+
+      <MobileSheet
+        open={mob.isMobile && mobileFilterSheetOpen}
+        onClose={() => setMobileFilterSheetOpen(false)}
+        title="Filter & View"
+        mode="bottom"
+      >
+        <div style={{ padding: '10px 10px 14px', display: 'grid', gap: 12 }}>
+          <div style={{ display:'flex', background:'rgba(255,255,255,0.06)', borderRadius:8, overflow:'hidden' }}>
+            {(['all','note','code','task','reminder','canvas'] as const).map(f => (
+              <InteractiveActionButton key={f} onClick={()=>setTypeFilter(f)}
+                motionId={`mobile-files-sheet-type-${f}`}
+                selected={typeFilter===f}
+                areaHint={58}
+                radius={8}
+                style={{ flex: 1, padding:'6px 7px', background:typeFilter===f?t.accent:'transparent', border:'none', cursor:'pointer', fontSize:10, fontWeight:700, color:typeFilter===f?'#fff':'inherit', opacity:typeFilter===f?1:0.5, transition:'all 0.12s', textTransform:'capitalize' }}>{f}</InteractiveActionButton>
+            ))}
+          </div>
+
+          <select
+            value={folderFilter}
+            onChange={(event) => setFolderFilter(event.target.value)}
+            style={{
+              padding:'8px 10px',
+              borderRadius:9,
+              background:'rgba(255,255,255,0.06)',
+              border:'1px solid rgba(255,255,255,0.12)',
+              outline:'none',
+              color:'inherit',
+              fontSize:12,
+              width: '100%',
+            }}
+          >
+            <option value="all">All folders</option>
+            <option value="none">No folder</option>
+            {folderOptions.map((folder) => (
+              <option key={folder.id} value={folder.id}>
+                {folder.name}
+              </option>
+            ))}
+          </select>
+
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap: 8 }}>
+            <InteractiveActionButton
+              onClick={() => setViewMode('list')}
+              motionId="mobile-files-sheet-view-list"
+              selected={viewMode==='list'}
+              areaHint={80}
+              radius={9}
+              style={{ display:'flex', alignItems:'center', justifyContent:'center', gap: 6, padding:'8px 10px', borderRadius:9, border:`1px solid ${viewMode==='list'?t.accent:'rgba(255,255,255,0.12)'}`, background:viewMode==='list'?`rgba(${rgb},0.14)`:'rgba(255,255,255,0.04)', color:viewMode==='list'?t.accent:'inherit', cursor:'pointer', fontSize:12, fontWeight:700 }}
+            >
+              <List size={13} /> List
+            </InteractiveActionButton>
+            <InteractiveActionButton
+              onClick={() => setViewMode('grid')}
+              motionId="mobile-files-sheet-view-grid"
+              selected={viewMode==='grid'}
+              areaHint={80}
+              radius={9}
+              style={{ display:'flex', alignItems:'center', justifyContent:'center', gap: 6, padding:'8px 10px', borderRadius:9, border:`1px solid ${viewMode==='grid'?t.accent:'rgba(255,255,255,0.12)'}`, background:viewMode==='grid'?`rgba(${rgb},0.14)`:'rgba(255,255,255,0.04)', color:viewMode==='grid'?t.accent:'inherit', cursor:'pointer', fontSize:12, fontWeight:700 }}
+            >
+              <Grid3x3 size={13} /> Grid
+            </InteractiveActionButton>
+          </div>
+
+          <div style={{ display:'grid', gap: 6 }}>
+            {([
+              { id: 'all', label: 'All' },
+              { id: 'workspace', label: 'Workspace' },
+              { id: 'recent', label: 'Recent 7d' },
+              { id: 'pinned', label: 'Pinned' },
+              { id: 'unassigned', label: `Unassigned (${unassignedCount})` },
+            ] as const).map((entry) => (
+              <InteractiveActionButton
+                key={entry.id}
+                onClick={() => {
+                  setSmartView(entry.id)
+                  setTab(entry.id === 'workspace' ? 'workspaces' : 'all')
+                }}
+                motionId={`mobile-files-sheet-smart-view-${entry.id}`}
+                selected={smartView === entry.id}
+                areaHint={80}
+                radius={8}
+                style={{
+                  padding:'8px 10px',
+                  borderRadius:8,
+                  border:`1px solid ${smartView === entry.id ? t.accent : 'rgba(255,255,255,0.14)'}`,
+                  background:smartView === entry.id ? `rgba(${rgb},0.14)` : 'rgba(255,255,255,0.06)',
+                  color:smartView === entry.id ? t.accent : 'inherit',
+                  fontSize:12,
+                  fontWeight:700,
+                  cursor:'pointer',
+                  textAlign: 'left',
+                }}
+              >
+                {entry.label}
+              </InteractiveActionButton>
+            ))}
+          </div>
+        </div>
+      </MobileSheet>
     </div>
   )
 }

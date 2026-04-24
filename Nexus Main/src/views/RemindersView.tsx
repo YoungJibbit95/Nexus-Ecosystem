@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react'
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { Plus, Bell, Calendar, Search, Settings2, LifeBuoy, ShieldCheck } from 'lucide-react'
 import { Glass } from '../components/Glass'
 import { useApp } from '../store/appStore'
@@ -18,6 +18,16 @@ import {
 } from './reminders/reminderHelpers'
 import { ReminderCard, ReminderModal, ToastCard } from './reminders/ReminderViewParts'
 
+const REMINDER_FILTER_STORAGE_KEY = 'nx-reminders-filter-v1'
+const REMINDER_SEARCH_STORAGE_KEY = 'nx-reminders-search-v1'
+
+const isEditableTarget = (target: EventTarget | null) => {
+  const el = target as HTMLElement | null
+  if (!el) return false
+  const tag = el.tagName
+  return tag === 'INPUT' || tag === 'TEXTAREA' || el.isContentEditable
+}
+
 export function RemindersView({ setView }: { setView?: (viewId: string) => void } = {}) {
   const t = useTheme()
   const rgb = hexToRgb(t.accent)
@@ -26,8 +36,17 @@ export function RemindersView({ setView }: { setView?: (viewId: string) => void 
   const [toasts, setToasts]       = useState<Toast[]>([])
   const { dismiss, snooze }       = useChecker(setToasts)
   const [now, setNow]             = useState(new Date())
-  const [search, setSearch]       = useState('')
-  const [filter, setFilter]       = useState<'all'|'upcoming'|'overdue'|'soon'|'done'>('upcoming')
+  const [search, setSearch]       = useState(() => {
+    if (typeof window === 'undefined') return ''
+    return window.localStorage.getItem(REMINDER_SEARCH_STORAGE_KEY) || ''
+  })
+  const [filter, setFilter]       = useState<'all'|'upcoming'|'overdue'|'soon'|'done'>(() => {
+    if (typeof window === 'undefined') return 'upcoming'
+    const saved = window.localStorage.getItem(REMINDER_FILTER_STORAGE_KEY)
+    return (['all','upcoming','overdue','soon','done'] as const).includes(saved as any)
+      ? (saved as 'all'|'upcoming'|'overdue'|'soon'|'done')
+      : 'upcoming'
+  })
   const [newOpen, setNewOpen]     = useState(false)
   const [editId, setEditId]       = useState<string|null>(null)
   const [controlOpen, setControlOpen] = useState(false)
@@ -36,6 +55,7 @@ export function RemindersView({ setView }: { setView?: (viewId: string) => void 
   const [lastHealthCheckAt, setLastHealthCheckAt] = useState<string | null>(null)
   const [lastRescheduleAt, setLastRescheduleAt] = useState<string | null>(null)
   const [lastRescheduleReason, setLastRescheduleReason] = useState<string | null>(null)
+  const searchInputRef = useRef<HTMLInputElement>(null)
 
   // Tick every 30s
   useEffect(() => { const id = setInterval(() => setNow(new Date()), 30000); return () => clearInterval(id) }, [])
@@ -44,6 +64,16 @@ export function RemindersView({ setView }: { setView?: (viewId: string) => void 
       localStorage.setItem(QUIET_HOURS_KEY, JSON.stringify(quietHours))
     } catch {}
   }, [quietHours])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    window.localStorage.setItem(REMINDER_FILTER_STORAGE_KEY, filter)
+  }, [filter])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    window.localStorage.setItem(REMINDER_SEARCH_STORAGE_KEY, search)
+  }, [search])
 
   const editReminder = reminders.find(r => r.id === editId)
 
@@ -115,6 +145,60 @@ export function RemindersView({ setView }: { setView?: (viewId: string) => void 
     window.setTimeout(() => setControlMsg(''), 2400)
   }, [addRem])
 
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const key = event.key.toLowerCase()
+      const cmd = event.metaKey || event.ctrlKey
+
+      if (cmd && key === 'f') {
+        event.preventDefault()
+        searchInputRef.current?.focus()
+        searchInputRef.current?.select()
+        return
+      }
+
+      if (isEditableTarget(event.target)) return
+
+      if (key === 'n') {
+        event.preventDefault()
+        setNewOpen(true)
+        return
+      }
+      if (key === '1') {
+        event.preventDefault()
+        setFilter('upcoming')
+        return
+      }
+      if (key === '2') {
+        event.preventDefault()
+        setFilter('soon')
+        return
+      }
+      if (key === '3') {
+        event.preventDefault()
+        setFilter('overdue')
+        return
+      }
+      if (key === '4') {
+        event.preventDefault()
+        setFilter('all')
+        return
+      }
+      if (key === '5') {
+        event.preventDefault()
+        setFilter('done')
+        return
+      }
+      if (key === 'c') {
+        event.preventDefault()
+        setControlOpen((open) => !open)
+      }
+    }
+
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [])
+
   // Group by day for 'all'/'upcoming'
   const grouped = useMemo(() => {
     if (filter !== 'all' && filter !== 'upcoming') return null
@@ -139,7 +223,7 @@ export function RemindersView({ setView }: { setView?: (viewId: string) => void 
       <div style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px', borderBottom:'1px solid rgba(255,255,255,0.07)', flexShrink:0, background:'rgba(0,0,0,0.1)' }}>
         <div style={{ position:'relative', flex:1, maxWidth:280 }}>
           <Search size={13} style={{ position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', opacity:0.4 }}/>
-          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search reminders…" style={{ width:'100%', padding:'7px 10px 7px 32px', borderRadius:9, background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.1)', outline:'none', fontSize:12, color:'inherit' }}/>
+          <input ref={searchInputRef} value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search reminders…" style={{ width:'100%', padding:'7px 10px 7px 32px', borderRadius:9, background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.1)', outline:'none', fontSize:12, color:'inherit' }}/>
         </div>
         <div style={{ display:'flex', background:'rgba(255,255,255,0.06)', borderRadius:9, overflow:'hidden' }}>
           {(['upcoming','soon','overdue','all','done'] as const).map(f => (

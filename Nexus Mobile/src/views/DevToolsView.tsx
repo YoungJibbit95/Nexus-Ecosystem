@@ -11,6 +11,7 @@ import {
   type DevToolsFsFile,
 } from '@nexus/core/devtools'
 import { Glass } from '../components/Glass'
+import { MobileSheet } from '../components/mobile/MobileViewContract'
 import { useTheme } from '../store/themeStore'
 import { hexToRgb } from '../lib/utils'
 import { useMobile } from '../lib/useMobile'
@@ -22,7 +23,41 @@ import { DevToolsCalculatorSection } from './devtools/DevToolsCalculatorSection'
 // ── useCopy ────────────────────────────────────────────────────────────────
 function useCopy() {
   const [k, setK] = useState<string|null>(null)
-  const copy = (text: string, key: string) => { navigator.clipboard.writeText(text); setK(key); setTimeout(()=>setK(null),1600) }
+
+  const fallbackCopy = (text: string) => {
+    try {
+      const ta = document.createElement('textarea')
+      ta.value = text
+      ta.setAttribute('readonly', 'true')
+      ta.style.position = 'fixed'
+      ta.style.top = '-9999px'
+      document.body.appendChild(ta)
+      ta.select()
+      const ok = document.execCommand('copy')
+      document.body.removeChild(ta)
+      return ok
+    } catch {
+      return false
+    }
+  }
+
+  const markCopied = (key: string) => {
+    setK(key)
+    setTimeout(() => setK(null), 1600)
+  }
+
+  const copy = (text: string, key: string) => {
+    if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+      void navigator.clipboard.writeText(text)
+        .then(() => markCopied(key))
+        .catch(() => {
+          if (fallbackCopy(text)) markCopied(key)
+        })
+      return
+    }
+    if (fallbackCopy(text)) markCopied(key)
+  }
+
   return { copy, copied: k }
 }
 
@@ -51,9 +86,10 @@ function CodePane({ value, onChange, lang }: { value: string; onChange: (v:strin
 }
 
 // ── File tree ───────────────────────────────────────────────────────────────
-function FileTree({ files, activeId, onSelect, onNew, onDelete, onRename }: {
+function FileTree({ files, activeId, onSelect, onNew, onDelete, onRename, isMobile }: {
   files: DevToolsFsFile[]; activeId: string; onSelect: (id:string)=>void
   onNew: (type:'html'|'css'|'js')=>void; onDelete: (id:string)=>void; onRename: (id:string,name:string)=>void
+  isMobile?: boolean
 }) {
   const t = useTheme()
   const rgb = hexToRgb(t.accent)
@@ -92,14 +128,33 @@ function FileTree({ files, activeId, onSelect, onNew, onDelete, onRename }: {
                   style={{ display:'flex', alignItems:'center', gap:8, padding:'6px 8px', borderRadius:8, cursor:'pointer', background:isActive?`rgba(${rgb},0.12)`:'transparent', border:isActive?`1px solid rgba(${rgb},0.2)`:'1px solid transparent', marginBottom:2, ['--nx-row-hover-bg' as any]:'rgba(255,255,255,0.05)' }}>
                   <span style={{ fontSize:9, fontWeight:800, color:extColor, width:20, flexShrink:0, textTransform:'uppercase' }}>{file.type}</span>
                   <span style={{ flex:1, fontSize:12, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', opacity:isActive?1:0.7 }}>{file.name}</span>
-                  <button onClick={e=>{e.stopPropagation();setMenu(menu===file.id?null:file.id)}}
-                    className="nx-interactive nx-bounce-target nx-icon-fade"
-                    style={{ background:'none', border:'none', ['--nx-idle-opacity' as any]:0.28, padding:'1px 3px', color:'inherit', display:'flex', alignItems:'center', borderRadius:4 }}>
-                    <MoreVertical size={11}/>
-                  </button>
+                  {isMobile ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <button
+                        onClick={e=>{e.stopPropagation();setRenaming(file.id)}}
+                        className="nx-interactive nx-bounce-target nx-icon-fade"
+                        style={{ background:'none', border:'none', ['--nx-idle-opacity' as any]:0.28, padding:'1px 3px', color:'inherit', display:'flex', alignItems:'center', borderRadius:4 }}
+                      >
+                        <Edit3 size={11}/>
+                      </button>
+                      <button
+                        onClick={e=>{e.stopPropagation();onDelete(file.id)}}
+                        className="nx-interactive nx-bounce-target nx-icon-fade"
+                        style={{ background:'none', border:'none', ['--nx-idle-opacity' as any]:0.28, padding:'1px 3px', color:'#ff453a', display:'flex', alignItems:'center', borderRadius:4 }}
+                      >
+                        <Trash2 size={11}/>
+                      </button>
+                    </div>
+                  ) : (
+                    <button onClick={e=>{e.stopPropagation();setMenu(menu===file.id?null:file.id)}}
+                      className="nx-interactive nx-bounce-target nx-icon-fade"
+                      style={{ background:'none', border:'none', ['--nx-idle-opacity' as any]:0.28, padding:'1px 3px', color:'inherit', display:'flex', alignItems:'center', borderRadius:4 }}>
+                      <MoreVertical size={11}/>
+                    </button>
+                  )}
                 </div>
               )}
-              {menu === file.id && (
+              {!isMobile && menu === file.id && (
                 <div style={{ position:'absolute', right:4, top:30, zIndex:100, background:'rgba(14,14,24,0.97)', backdropFilter:'blur(16px)', borderRadius:10, padding:5, border:'1px solid rgba(255,255,255,0.1)', minWidth:130, boxShadow:'0 8px 24px rgba(0,0,0,0.4)' }} onClick={e=>e.stopPropagation()}>
                   <button onClick={()=>{setRenaming(file.id);setMenu(null)}} className="nx-interactive nx-bounce-target nx-menu-item" style={{ display:'flex', alignItems:'center', gap:8, width:'100%', padding:'6px 10px', background:'none', border:'none', borderRadius:7, fontSize:12, color:'inherit', textAlign:'left' }}>
                     <Edit3 size={11}/> Rename
@@ -368,6 +423,10 @@ function WebBuilder() {
   const [leftPane, setLeftPane]   = useState<'files'|'library'>('files')
   const [saveKind, setSaveKind]   = useState<DevToolsArtifactKind>('recipe')
   const [saveLabel, setSaveLabel] = useState('')
+  const [mobileSheet, setMobileSheet] = useState<'none' | 'explorer' | 'library' | 'preview'>('none')
+  const [mobileControlsSheetOpen, setMobileControlsSheetOpen] = useState(false)
+  const [mobileDesignerStep, setMobileDesignerStep] = useState<'controls' | 'preview'>('controls')
+  const [pendingMobileRun, setPendingMobileRun] = useState(false)
   const runTimer = useRef<any>(null)
 
   const activeFile = files.find(f=>f.id===activeId) || files[0]
@@ -412,10 +471,24 @@ function WebBuilder() {
   },[])
 
   const run = useCallback(()=>{
-    if(!iframeRef.current)return
+    if(!iframeRef.current){
+      if (mob.isMobile) {
+        setMobileSheet('preview')
+        setPendingMobileRun(true)
+      }
+      return
+    }
     setCOut([])
     iframeRef.current.srcdoc = buildSrc()
-  },[buildSrc])
+  },[buildSrc, mob.isMobile])
+
+  useEffect(() => {
+    if (!pendingMobileRun) return
+    if (!iframeRef.current) return
+    setPendingMobileRun(false)
+    setCOut([])
+    iframeRef.current.srcdoc = buildSrc()
+  }, [buildSrc, pendingMobileRun])
 
   const applyVisualBuilderToCode = useCallback((payload: { html: string; css: string }) => {
     let nextActiveId = ''
@@ -524,8 +597,9 @@ function WebBuilder() {
     const artifact = saveArtifact(draft)
     setSaveLabel('')
     setLeftPane('library')
+    if (mob.isMobile) setMobileSheet('library')
     setCOut((prev) => [`Saved: ${artifact.title}`, ...prev].slice(0, 6))
-  }, [buildArtifactDraft, saveKind, saveLabel, saveArtifact])
+  }, [buildArtifactDraft, mob.isMobile, saveKind, saveLabel, saveArtifact])
 
   const loadArtifact = useCallback((artifact: DevToolsArtifact) => {
     const payload = artifact.payload
@@ -611,11 +685,37 @@ function WebBuilder() {
     URL.revokeObjectURL(a.href)
   }
 
+  const paneContent = leftPane === 'files' ? (
+    <FileTree
+      files={files}
+      activeId={activeId}
+      onSelect={setActiveId}
+      onNew={newFile}
+      onDelete={deleteFile}
+      onRename={renameFile}
+      isMobile={mob.isMobile}
+    />
+  ) : (
+    <DevToolsArtifactLibraryPanel
+      artifacts={artifacts}
+      onLoad={loadArtifact}
+      onCopy={copyArtifactPayload}
+      onDownload={downloadArtifactJson}
+      onDelete={removeArtifact}
+    />
+  )
+
+  const previewSurface = (
+    <div style={{ flex:1, overflow:'hidden', display:'flex', alignItems:'center', justifyContent:'center', background:'rgba(0,0,0,0.18)', padding:vp!=='desktop'?10:0 }}>
+      <div style={{ width:vpWidth, height:'100%', maxHeight:'100%', transition:'width 0.3s ease', boxShadow:vp!=='desktop'?'0 8px 40px rgba(0,0,0,0.6)':undefined, borderRadius:vp!=='desktop'?12:0, overflow:'hidden', border:'1px solid rgba(255,255,255,0.08)', background:'radial-gradient(circle at 18% 0%, rgba(56, 87, 140, 0.28), rgba(3, 6, 18, 0.95) 60%)' }}>
+        <iframe ref={iframeRef} style={{ width:'100%', height:'100%', border:'none', background:'transparent', display:'block', colorScheme:'dark' }} sandbox="allow-scripts" title="Preview"/>
+      </div>
+    </div>
+  )
+
   return (
     <div style={{ display:'flex', flexDirection:'column', height:'100%', overflow:'hidden' }}>
-      {/* Toolbar */}
-      <div style={{ display:'flex', alignItems:'center', gap:8, padding:'7px 12px', borderBottom:'1px solid rgba(255,255,255,0.07)', flexShrink:0, background:'rgba(0,0,0,0.1)', flexWrap: mob.isMobile ? 'wrap' : 'nowrap' }}>
-        {/* Sub-tabs: Code vs Designer */}
+      <div style={{ display:'flex', alignItems:'center', gap:8, padding:'7px 10px', borderBottom:'1px solid rgba(255,255,255,0.07)', flexShrink:0, background:'rgba(0,0,0,0.1)', flexWrap: 'wrap' }}>
         <div style={{ display:'flex', background:'rgba(255,255,255,0.06)', borderRadius:9, overflow:'hidden' }}>
           <button onClick={()=>setSubTab('code')} style={{ padding:'5px 12px', background:subTab==='code'?t.accent:'transparent', border:'none', cursor:'pointer', fontSize:11, fontWeight:700, color:subTab==='code'?'#fff':'inherit', opacity:subTab==='code'?1:0.55, display:'flex', alignItems:'center', gap:5 }}>
             <Code2 size={12}/> Code
@@ -628,26 +728,214 @@ function WebBuilder() {
           </button>
         </div>
 
-        <div style={{ height:18, width:1, background:'rgba(255,255,255,0.1)' }}/>
+        {subTab === 'code' && mob.isMobile ? (
+          <div style={{ display:'flex', gap:6 }}>
+            <button onClick={() => { setLeftPane('files'); setMobileSheet('explorer') }} style={{ padding:'5px 9px', borderRadius:8, border:'1px solid rgba(255,255,255,0.12)', background: mobileSheet === 'explorer' ? `rgba(${rgb},0.16)` : 'rgba(255,255,255,0.04)', color: mobileSheet === 'explorer' ? t.accent : 'inherit', cursor:'pointer', fontSize:10, fontWeight:700 }}>Explorer</button>
+            <button onClick={() => { setLeftPane('library'); setMobileSheet('library') }} style={{ padding:'5px 9px', borderRadius:8, border:'1px solid rgba(255,255,255,0.12)', background: mobileSheet === 'library' ? `rgba(${rgb},0.16)` : 'rgba(255,255,255,0.04)', color: mobileSheet === 'library' ? t.accent : 'inherit', cursor:'pointer', fontSize:10, fontWeight:700 }}>Library</button>
+            <button onClick={() => setMobileSheet((current) => current === 'preview' ? 'none' : 'preview')} style={{ padding:'5px 9px', borderRadius:8, border:'1px solid rgba(255,255,255,0.12)', background: mobileSheet === 'preview' ? `rgba(${rgb},0.16)` : 'rgba(255,255,255,0.04)', color: mobileSheet === 'preview' ? t.accent : 'inherit', cursor:'pointer', fontSize:10, fontWeight:700 }}>Preview</button>
+          </div>
+        ) : null}
 
-        {/* Viewport */}
-        <div style={{ display:'flex', background:'rgba(255,255,255,0.06)', borderRadius:8, overflow:'hidden' }}>
-          {([['desktop',Monitor],['tablet',Tablet],['mobile',Smartphone]] as const).map(([v,Icon])=>(
-            <button key={v} onClick={()=>setVp(v as any)} style={{ padding:'5px 8px', background:vp===v?`rgba(${rgb},0.2)`:'transparent', border:'none', cursor:'pointer', color:vp===v?t.accent:'inherit', opacity:vp===v?1:0.45, display:'flex', alignItems:'center' }}>
-              <Icon size={13}/>
+        {subTab === 'designer' && mob.isMobile ? (
+          <div style={{ display:'flex', background:'rgba(255,255,255,0.06)', borderRadius:8, overflow:'hidden' }}>
+            <button onClick={() => setMobileDesignerStep('controls')} style={{ padding:'5px 10px', background:mobileDesignerStep==='controls'?`rgba(${rgb},0.2)`:'transparent', border:'none', cursor:'pointer', color:mobileDesignerStep==='controls'?t.accent:'inherit', fontSize:10, fontWeight:700 }}>
+              Controls
             </button>
-          ))}
-        </div>
+            <button onClick={() => setMobileDesignerStep('preview')} style={{ padding:'5px 10px', background:mobileDesignerStep==='preview'?`rgba(${rgb},0.2)`:'transparent', border:'none', cursor:'pointer', color:mobileDesignerStep==='preview'?t.accent:'inherit', fontSize:10, fontWeight:700 }}>
+              Preview
+            </button>
+          </div>
+        ) : null}
 
-        <label style={{ display:'flex', alignItems:'center', gap:4, fontSize:10, opacity:0.6, cursor:'pointer' }}>
-          <input type="checkbox" checked={autoRun} onChange={e=>setAutoRun(e.target.checked)} style={{ cursor:'pointer' }}/> Auto-run
-        </label>
+        {mob.isMobile ? (
+          <div className="nx-mobile-row-scroll" style={{ marginLeft: 'auto', gap: 6 }}>
+            <button
+              onClick={() => setMobileControlsSheetOpen(true)}
+              style={{ display:'flex', alignItems:'center', gap:5, padding:'5px 9px', borderRadius:8, background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.12)', cursor:'pointer', fontSize:10, fontWeight:700, color:'inherit' }}
+            >
+              <Sliders size={12}/> Options
+            </button>
+            <button onClick={run} style={{ display:'flex', alignItems:'center', gap:5, padding:'5px 11px', borderRadius:8, background:t.accent, border:'none', cursor:'pointer', fontSize:10.5, fontWeight:700, color:'#fff', boxShadow:`0 2px 12px rgba(${rgb},0.4)` }}>
+              <Play size={11} fill="currentColor"/> Run
+            </button>
+          </div>
+        ) : (
+          <>
+            <div style={{ display:'flex', background:'rgba(255,255,255,0.06)', borderRadius:8, overflow:'hidden' }}>
+              {([['desktop',Monitor],['tablet',Tablet],['mobile',Smartphone]] as const).map(([v,Icon])=>(
+                <button key={v} onClick={()=>setVp(v as any)} style={{ padding:'5px 8px', background:vp===v?`rgba(${rgb},0.2)`:'transparent', border:'none', cursor:'pointer', color:vp===v?t.accent:'inherit', opacity:vp===v?1:0.45, display:'flex', alignItems:'center' }}>
+                  <Icon size={13}/>
+                </button>
+              ))}
+            </div>
 
-        <div style={{ display:'flex', alignItems:'center', gap:6, marginLeft:8 }}>
+            <label style={{ display:'flex', alignItems:'center', gap:4, fontSize:10, opacity:0.6, cursor:'pointer' }}>
+              <input type="checkbox" checked={autoRun} onChange={e=>setAutoRun(e.target.checked)} style={{ cursor:'pointer' }}/> Auto-run
+            </label>
+
+            <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+              <select
+                value={saveKind}
+                onChange={(event) => setSaveKind(event.target.value as DevToolsArtifactKind)}
+                style={{ padding:'5px 6px', borderRadius:7, background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.1)', color:'inherit', fontSize:10, fontWeight:700 }}
+              >
+                <option value="recipe">Recipe</option>
+                <option value="snippet">Snippet</option>
+                <option value="component">Component</option>
+                <option value="preset">Preset</option>
+                <option value="prototype">Prototype</option>
+              </select>
+              <input
+                value={saveLabel}
+                onChange={(event) => setSaveLabel(event.target.value)}
+                placeholder="Optional name"
+                style={{ width:120, padding:'5px 7px', borderRadius:7, background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.1)', color:'inherit', fontSize:10 }}
+              />
+              <button
+                onClick={saveCurrentArtifact}
+                style={{ display:'flex', alignItems:'center', gap:4, padding:'5px 10px', borderRadius:7, background:`rgba(${rgb},0.18)`, border:`1px solid rgba(${rgb},0.28)`, cursor:'pointer', fontSize:10, fontWeight:700, color:t.accent }}
+              >
+                <Save size={11}/> Save
+              </button>
+            </div>
+
+            <div style={{ flex:1, minWidth: 0 }} />
+            <button onClick={downloadProject} style={{ display:'flex', alignItems:'center', gap:4, padding:'5px 10px', borderRadius:7, background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.1)', cursor:'pointer', fontSize:10, fontWeight:600 }}>
+              <Download size={11}/> Export
+            </button>
+            <button onClick={run} style={{ display:'flex', alignItems:'center', gap:5, padding:'5px 13px', borderRadius:8, background:t.accent, border:'none', cursor:'pointer', fontSize:11, fontWeight:700, color:'#fff', boxShadow:`0 2px 12px rgba(${rgb},0.4)` }}>
+              <Play size={11} fill="currentColor"/> Run
+            </button>
+          </>
+        )}
+      </div>
+
+      <div style={{ flex:1, display:'flex', flexDirection: mob.isMobile ? 'column' : 'row', overflow:'hidden', minHeight:0 }}>
+        {subTab === 'code' ? (
+          mob.isMobile ? (
+            <div style={{ flex:1, display:'flex', flexDirection:'column', minHeight:0 }}>
+              <div style={{ flex:1, minHeight:0 }}>
+                {activeFile && <CodePane value={activeFile.content} onChange={v=>updateFile(activeFile.id,v)} lang={activeFile.type}/>}
+              </div>
+              {consoleOut.length > 0 ? (
+                <div style={{ flexShrink:0, maxHeight:90, overflowY:'auto', borderTop:'1px solid rgba(255,255,255,0.07)', background:'rgba(0,0,0,0.28)', padding:'5px 10px' }}>
+                  {consoleOut.slice(0, 4).map((line,i)=><div key={i} style={{ fontSize:11, fontFamily:'monospace', lineHeight:1.6, color:line.startsWith('❌')?'#ff453a':line.startsWith('⚠️')?'#ffd60a':'inherit', opacity:0.85 }}>{line}</div>)}
+                </div>
+              ) : null}
+            </div>
+          ) : (
+            <>
+              <div style={{ width:230, flexShrink:0, borderRight:'1px solid rgba(255,255,255,0.07)', background:'rgba(0,0,0,0.12)', overflow:'hidden', display:'flex', flexDirection:'column' }}>
+                <div style={{ display:'flex', padding:'8px 8px 0', gap:4 }}>
+                  <button onClick={() => setLeftPane('files')} style={{ flex:1, padding:'5px 8px', borderRadius:7, border:`1px solid ${leftPane==='files'?`rgba(${rgb},0.24)`:'rgba(255,255,255,0.1)'}`, background:leftPane==='files'?`rgba(${rgb},0.12)`:'rgba(255,255,255,0.03)', color:leftPane==='files'?t.accent:'inherit', fontSize:10, fontWeight:700, cursor:'pointer' }}>
+                    Files
+                  </button>
+                  <button onClick={() => setLeftPane('library')} style={{ flex:1, padding:'5px 8px', borderRadius:7, border:`1px solid ${leftPane==='library'?`rgba(${rgb},0.24)`:'rgba(255,255,255,0.1)'}`, background:leftPane==='library'?`rgba(${rgb},0.12)`:'rgba(255,255,255,0.03)', color:leftPane==='library'?t.accent:'inherit', fontSize:10, fontWeight:700, cursor:'pointer' }}>
+                    Library ({artifacts.length})
+                  </button>
+                </div>
+                <div style={{ flex:1, minHeight:0 }}>
+                  {paneContent}
+                </div>
+              </div>
+
+              <div style={{ flex:'0 0 45%', minHeight:0, display:'flex', flexDirection:'column', overflow:'hidden', borderRight:'1px solid rgba(255,255,255,0.07)' }}>
+                {activeFile && <CodePane value={activeFile.content} onChange={v=>updateFile(activeFile.id,v)} lang={activeFile.type}/>}
+              </div>
+
+              <div style={{ flex:1, display:'flex', flexDirection:'column', overflow:'hidden', minHeight:0 }}>
+                {previewSurface}
+                {consoleOut.length>0 && (
+                  <div style={{ flexShrink:0, maxHeight:90, overflowY:'auto', borderTop:'1px solid rgba(255,255,255,0.07)', background:'rgba(0,0,0,0.28)', padding:'5px 12px' }}>
+                    {consoleOut.map((line,i)=><div key={i} style={{ fontSize:11, fontFamily:'monospace', lineHeight:1.6, color:line.startsWith('❌')?'#ff453a':line.startsWith('⚠️')?'#ffd60a':'inherit', opacity:0.85 }}>{line}</div>)}
+                  </div>
+                )}
+              </div>
+            </>
+          )
+        ) : subTab === 'designer' ? (
+          mob.isMobile ? (
+            <div style={{ flex:1, minHeight:0, overflow:'hidden', display:'flex', flexDirection:'column' }}>
+              {mobileDesignerStep === 'controls' ? (
+                <div style={{ flex:1, minHeight:0, overflow:'auto', padding:'12px 10px' }}>
+                  <ElementDesigner/>
+                </div>
+              ) : (
+                previewSurface
+              )}
+            </div>
+          ) : (
+            <>
+              <div style={{ width:'55%', flexShrink:0, padding:'12px 14px', overflow:'auto', borderRight:'1px solid rgba(255,255,255,0.07)' }}>
+                <ElementDesigner/>
+              </div>
+              {previewSurface}
+            </>
+          )
+        ) : (
+          <div style={{ flex:1, minHeight:0, overflow:'hidden', padding:12 }}>
+            <VisualBuilder onApplyToCode={applyVisualBuilderToCode} />
+          </div>
+        )}
+      </div>
+
+      <MobileSheet
+        open={mob.isMobile && mobileSheet !== 'none'}
+        onClose={() => setMobileSheet('none')}
+        title={
+          mobileSheet === 'preview'
+            ? 'Preview & Console'
+            : leftPane === 'files'
+              ? 'Explorer'
+              : `Library (${artifacts.length})`
+        }
+        mode="bottom"
+      >
+        {mobileSheet === 'preview' ? (
+          <div style={{ height: '70vh', display: 'flex', flexDirection: 'column' }}>
+            {previewSurface}
+            <div style={{ flexShrink:0, maxHeight:120, overflowY:'auto', borderTop:'1px solid rgba(255,255,255,0.07)', background:'rgba(0,0,0,0.28)', padding:'6px 10px' }}>
+              {consoleOut.length ? consoleOut.map((line,i)=><div key={i} style={{ fontSize:11, fontFamily:'monospace', lineHeight:1.6, color:line.startsWith('❌')?'#ff453a':line.startsWith('⚠️')?'#ffd60a':'inherit', opacity:0.85 }}>{line}</div>) : <div style={{ fontSize:11, opacity:0.55 }}>Run project to see logs.</div>}
+            </div>
+          </div>
+        ) : (
+          <div style={{ height: '70vh', display:'flex', flexDirection:'column' }}>
+            <div style={{ display:'flex', padding:'8px 8px 0', gap:4 }}>
+              <button onClick={() => setLeftPane('files')} style={{ flex:1, padding:'6px 8px', borderRadius:8, border:`1px solid ${leftPane==='files'?`rgba(${rgb},0.24)`:'rgba(255,255,255,0.1)'}`, background:leftPane==='files'?`rgba(${rgb},0.12)`:'rgba(255,255,255,0.03)', color:leftPane==='files'?t.accent:'inherit', fontSize:11, fontWeight:700, cursor:'pointer' }}>
+                Files
+              </button>
+              <button onClick={() => setLeftPane('library')} style={{ flex:1, padding:'6px 8px', borderRadius:8, border:`1px solid ${leftPane==='library'?`rgba(${rgb},0.24)`:'rgba(255,255,255,0.1)'}`, background:leftPane==='library'?`rgba(${rgb},0.12)`:'rgba(255,255,255,0.03)', color:leftPane==='library'?t.accent:'inherit', fontSize:11, fontWeight:700, cursor:'pointer' }}>
+                Library ({artifacts.length})
+              </button>
+            </div>
+            <div style={{ flex:1, minHeight:0 }}>
+              {paneContent}
+            </div>
+          </div>
+        )}
+      </MobileSheet>
+
+      <MobileSheet
+        open={mob.isMobile && mobileControlsSheetOpen}
+        onClose={() => setMobileControlsSheetOpen(false)}
+        title="Builder Options"
+        mode="bottom"
+      >
+        <div style={{ padding: '10px 10px 14px', display: 'grid', gap: 10 }}>
+          <div style={{ display:'flex', background:'rgba(255,255,255,0.06)', borderRadius:8, overflow:'hidden' }}>
+            {([['desktop',Monitor],['tablet',Tablet],['mobile',Smartphone]] as const).map(([v,Icon])=>(
+              <button key={v} onClick={()=>setVp(v as any)} style={{ flex:1, padding:'8px 8px', background:vp===v?`rgba(${rgb},0.2)`:'transparent', border:'none', cursor:'pointer', color:vp===v?t.accent:'inherit', opacity:vp===v?1:0.6, display:'flex', alignItems:'center', justifyContent:'center', gap:6, fontSize:11, fontWeight:700 }}>
+                <Icon size={13}/> {String(v)}
+              </button>
+            ))}
+          </div>
+          <label style={{ display:'flex', alignItems:'center', gap:8, fontSize:12, opacity:0.85, cursor:'pointer' }}>
+            <input type="checkbox" checked={autoRun} onChange={e=>setAutoRun(e.target.checked)} style={{ cursor:'pointer' }}/> Auto-run preview
+          </label>
           <select
             value={saveKind}
             onChange={(event) => setSaveKind(event.target.value as DevToolsArtifactKind)}
-            style={{ padding:'5px 6px', borderRadius:7, background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.1)', color:'inherit', fontSize:10, fontWeight:700 }}
+            style={{ width: '100%', padding:'8px 10px', borderRadius:9, background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.1)', color:'inherit', fontSize:12, fontWeight:700 }}
           >
             <option value="recipe">Recipe</option>
             <option value="snippet">Snippet</option>
@@ -658,88 +946,25 @@ function WebBuilder() {
           <input
             value={saveLabel}
             onChange={(event) => setSaveLabel(event.target.value)}
-            placeholder="Optional name"
-            style={{ width:120, padding:'5px 7px', borderRadius:7, background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.1)', color:'inherit', fontSize:10 }}
+            placeholder="Optional artifact name"
+            style={{ width:'100%', padding:'8px 10px', borderRadius:9, background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.1)', color:'inherit', fontSize:12 }}
           />
-          <button
-            onClick={saveCurrentArtifact}
-            style={{ display:'flex', alignItems:'center', gap:4, padding:'5px 10px', borderRadius:7, background:`rgba(${rgb},0.18)`, border:`1px solid rgba(${rgb},0.28)`, cursor:'pointer', fontSize:10, fontWeight:700, color:t.accent }}
-          >
-            <Save size={11}/> Save
-          </button>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <button
+              onClick={() => { saveCurrentArtifact(); setMobileControlsSheetOpen(false) }}
+              style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:6, padding:'9px 10px', borderRadius:9, background:`rgba(${rgb},0.18)`, border:`1px solid rgba(${rgb},0.28)`, cursor:'pointer', fontSize:12, fontWeight:700, color:t.accent }}
+            >
+              <Save size={12}/> Save
+            </button>
+            <button
+              onClick={() => { downloadProject(); setMobileControlsSheetOpen(false) }}
+              style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:6, padding:'9px 10px', borderRadius:9, background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.1)', cursor:'pointer', fontSize:12, fontWeight:700, color:'inherit' }}
+            >
+              <Download size={12}/> Export
+            </button>
+          </div>
         </div>
-
-        <div style={{ flex:1 }}/>
-        <button onClick={downloadProject} style={{ display:'flex', alignItems:'center', gap:4, padding:'5px 10px', borderRadius:7, background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.1)', cursor:'pointer', fontSize:10, fontWeight:600 }}>
-          <Download size={11}/> Export
-        </button>
-        <button onClick={run} style={{ display:'flex', alignItems:'center', gap:5, padding:'5px 13px', borderRadius:8, background:t.accent, border:'none', cursor:'pointer', fontSize:11, fontWeight:700, color:'#fff', boxShadow:`0 2px 12px rgba(${rgb},0.4)` }}>
-          <Play size={11} fill="currentColor"/> Run
-        </button>
-      </div>
-
-      {/* Body */}
-      <div style={{ flex:1, display:'flex', flexDirection: mob.isMobile ? 'column' : 'row', overflow:'hidden', minHeight:0 }}>
-        {subTab === 'code' ? <>
-          {/* File tree sidebar */}
-          <div style={{ width: mob.isMobile ? '100%' : 230, height: mob.isMobile ? 240 : undefined, flexShrink:0, borderRight: mob.isMobile ? 'none' : '1px solid rgba(255,255,255,0.07)', borderBottom: mob.isMobile ? '1px solid rgba(255,255,255,0.07)' : 'none', background:'rgba(0,0,0,0.12)', overflow:'hidden', display:'flex', flexDirection:'column' }}>
-            <div style={{ display:'flex', padding:'8px 8px 0', gap:4 }}>
-              <button onClick={() => setLeftPane('files')} style={{ flex:1, padding:'5px 8px', borderRadius:7, border:`1px solid ${leftPane==='files'?`rgba(${rgb},0.24)`:'rgba(255,255,255,0.1)'}`, background:leftPane==='files'?`rgba(${rgb},0.12)`:'rgba(255,255,255,0.03)', color:leftPane==='files'?t.accent:'inherit', fontSize:10, fontWeight:700, cursor:'pointer' }}>
-                Files
-              </button>
-              <button onClick={() => setLeftPane('library')} style={{ flex:1, padding:'5px 8px', borderRadius:7, border:`1px solid ${leftPane==='library'?`rgba(${rgb},0.24)`:'rgba(255,255,255,0.1)'}`, background:leftPane==='library'?`rgba(${rgb},0.12)`:'rgba(255,255,255,0.03)', color:leftPane==='library'?t.accent:'inherit', fontSize:10, fontWeight:700, cursor:'pointer' }}>
-                Library ({artifacts.length})
-              </button>
-            </div>
-            <div style={{ flex:1, minHeight:0 }}>
-              {leftPane === 'files' ? (
-                <FileTree files={files} activeId={activeId} onSelect={setActiveId} onNew={newFile} onDelete={deleteFile} onRename={renameFile}/>
-              ) : (
-                <DevToolsArtifactLibraryPanel
-                  artifacts={artifacts}
-                  onLoad={loadArtifact}
-                  onCopy={copyArtifactPayload}
-                  onDownload={downloadArtifactJson}
-                  onDelete={removeArtifact}
-                />
-              )}
-            </div>
-          </div>
-
-          {/* Active file editor */}
-          <div style={{ flex: mob.isMobile ? '0 0 38%' : '0 0 45%', minHeight: mob.isMobile ? 170 : 0, display:'flex', flexDirection:'column', overflow:'hidden', borderRight: mob.isMobile ? 'none' : '1px solid rgba(255,255,255,0.07)', borderBottom: mob.isMobile ? '1px solid rgba(255,255,255,0.07)' : 'none' }}>
-            {activeFile && <CodePane value={activeFile.content} onChange={v=>updateFile(activeFile.id,v)} lang={activeFile.type}/>}
-          </div>
-
-          {/* Preview + console */}
-          <div style={{ flex:1, display:'flex', flexDirection:'column', overflow:'hidden', minHeight:0 }}>
-            <div style={{ flex:1, overflow:'hidden', display:'flex', alignItems:'center', justifyContent:'center', background:'rgba(0,0,0,0.18)', padding:vp!=='desktop'?10:0 }}>
-              <div style={{ width:vpWidth, height:'100%', maxHeight:'100%', transition:'width 0.3s ease', boxShadow:vp!=='desktop'?'0 8px 40px rgba(0,0,0,0.6)':undefined, borderRadius:vp!=='desktop'?12:0, overflow:'hidden', border:'1px solid rgba(255,255,255,0.08)', background:'radial-gradient(circle at 18% 0%, rgba(56, 87, 140, 0.28), rgba(3, 6, 18, 0.95) 60%)' }}>
-                <iframe ref={iframeRef} style={{ width:'100%', height:'100%', border:'none', background:'transparent', display:'block', colorScheme:'dark' }} sandbox="allow-scripts" title="Preview"/>
-              </div>
-            </div>
-            {consoleOut.length>0 && (
-              <div style={{ flexShrink:0, maxHeight:90, overflowY:'auto', borderTop:'1px solid rgba(255,255,255,0.07)', background:'rgba(0,0,0,0.28)', padding:'5px 12px' }}>
-                {consoleOut.map((line,i)=><div key={i} style={{ fontSize:11, fontFamily:'monospace', lineHeight:1.6, color:line.startsWith('❌')?'#ff453a':line.startsWith('⚠️')?'#ffd60a':'inherit', opacity:0.85 }}>{line}</div>)}
-              </div>
-            )}
-          </div>
-        </> : subTab === 'designer' ? <>
-          {/* Designer + Preview split */}
-          <div style={{ width: mob.isMobile ? '100%' : '55%', height: mob.isMobile ? '52%' : undefined, flexShrink:0, padding:'12px 14px', overflow:'auto', borderRight: mob.isMobile ? 'none' : '1px solid rgba(255,255,255,0.07)', borderBottom: mob.isMobile ? '1px solid rgba(255,255,255,0.07)' : 'none' }}>
-            <ElementDesigner/>
-          </div>
-          <div style={{ flex:1, overflow:'hidden', display:'flex', alignItems:'center', justifyContent:'center', background:'rgba(0,0,0,0.18)', padding:vp!=='desktop'?10:0 }}>
-            <div style={{ width:vpWidth, height:'100%', maxHeight:'100%', transition:'width 0.3s ease', boxShadow:vp!=='desktop'?'0 8px 40px rgba(0,0,0,0.6)':undefined, borderRadius:vp!=='desktop'?12:0, overflow:'hidden', border:'1px solid rgba(255,255,255,0.08)', background:'radial-gradient(circle at 18% 0%, rgba(56, 87, 140, 0.28), rgba(3, 6, 18, 0.95) 60%)' }}>
-              <iframe ref={iframeRef} style={{ width:'100%', height:'100%', border:'none', background:'transparent', display:'block', colorScheme:'dark' }} sandbox="allow-scripts" title="Preview"/>
-            </div>
-          </div>
-        </> : (
-          <div style={{ flex:1, minHeight:0, overflow:'hidden', padding:12 }}>
-            <VisualBuilder onApplyToCode={applyVisualBuilderToCode} />
-          </div>
-        )}
-      </div>
+      </MobileSheet>
     </div>
   )
 }
@@ -748,21 +973,28 @@ function WebBuilder() {
 export function DevToolsView() {
   const t = useTheme()
   const mob = useMobile()
+  const compactEdge = Math.min(mob.screenW, mob.screenH)
+  const isTinyMobile = mob.isMobile && compactEdge <= 430
+  const isTightMobile = mob.isMobile && mob.screenH <= 900
+  const isLandscapeMobile = mob.isMobile && mob.isLandscape
+  const isCompactMobile = mob.isMobile && (isTinyMobile || isTightMobile || isLandscapeMobile)
   const [tab, setTab]     = useState<'builder'|'calc'>('builder')
 
   return (
-    <div style={{ display:'flex',flexDirection:'column',height:'100%',overflow:'hidden' }}>
+    <div className="nx-mobile-view-screen" style={{ display:'flex',flexDirection:'column',height:'100%',overflow:'hidden' }}>
       {/* Header */}
-      <div style={{ display:'flex',alignItems:'center',gap:12,padding:'9px 16px',borderBottom:'1px solid rgba(255,255,255,0.07)',flexShrink:0,background:'rgba(0,0,0,0.1)' }}>
+      <div className="nx-mobile-row-scroll" style={{ gap:8,padding:isCompactMobile ? '4px 8px' : '6px 10px',borderBottom:'1px solid rgba(255,255,255,0.07)',flexShrink:0,background:'rgba(0,0,0,0.1)' }}>
         <div>
-          <div style={{ fontSize:15,fontWeight:900,background:`linear-gradient(135deg,${t.accent},${t.accent2})`,WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent' }}>🛠️ DevTools</div>
-          <div style={{ fontSize:9,opacity:0.35,marginTop:1,textTransform:'uppercase',letterSpacing:1 }}>Web Builder · Element Designer · Calculator</div>
+          <div style={{ fontSize:isCompactMobile ? 12 : 13,fontWeight:900,background:`linear-gradient(135deg,${t.accent},${t.accent2})`,WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent' }}>🛠️ DevTools</div>
+          {!isCompactMobile ? (
+            <div style={{ fontSize:9,opacity:0.35,marginTop:1,textTransform:'uppercase',letterSpacing:1 }}>Builder · Calculator</div>
+          ) : null}
         </div>
-        <div style={{ display:'flex',background:'rgba(255,255,255,0.06)',borderRadius:10,overflow:'hidden',marginLeft:'auto' }}>
-          <button onClick={()=>setTab('builder')} style={{ padding:'6px 14px',background:tab==='builder'?t.accent:'transparent',border:'none',cursor:'pointer',fontSize:11,fontWeight:700,color:tab==='builder'?'#fff':'inherit',opacity:tab==='builder'?1:0.55,display:'flex',alignItems:'center',gap:5 }}>
+        <div className="nx-mobile-row-scroll" style={{ background:'rgba(255,255,255,0.06)',borderRadius:9,overflow:'hidden',marginLeft:'auto', gap: 0 }}>
+          <button onClick={()=>setTab('builder')} style={{ padding:isCompactMobile ? '4px 8px' : '5px 10px',background:tab==='builder'?t.accent:'transparent',border:'none',cursor:'pointer',fontSize:isCompactMobile ? 10 : 11,fontWeight:700,color:tab==='builder'?'#fff':'inherit',opacity:tab==='builder'?1:0.55,display:'flex',alignItems:'center',gap:5 }}>
             <Code2 size={12}/> Builder
           </button>
-          <button onClick={()=>setTab('calc')} style={{ padding:'6px 14px',background:tab==='calc'?t.accent:'transparent',border:'none',cursor:'pointer',fontSize:11,fontWeight:700,color:tab==='calc'?'#fff':'inherit',opacity:tab==='calc'?1:0.55,display:'flex',alignItems:'center',gap:5 }}>
+          <button onClick={()=>setTab('calc')} style={{ padding:isCompactMobile ? '4px 8px' : '5px 10px',background:tab==='calc'?t.accent:'transparent',border:'none',cursor:'pointer',fontSize:isCompactMobile ? 10 : 11,fontWeight:700,color:tab==='calc'?'#fff':'inherit',opacity:tab==='calc'?1:0.55,display:'flex',alignItems:'center',gap:5 }}>
             <Calculator size={12}/> Calculator
           </button>
         </div>

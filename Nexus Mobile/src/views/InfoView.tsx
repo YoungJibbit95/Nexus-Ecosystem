@@ -26,6 +26,11 @@ export function InfoView() {
   const t = useTheme();
   const rgb = hexRgb(t.accent);
   const mob = useMobile();
+  const compactEdge = Math.min(mob.screenW, mob.screenH);
+  const isTinyMobile = mob.isMobile && compactEdge <= 430;
+  const isTightMobile = mob.isMobile && mob.screenH <= 900;
+  const isLandscapeMobile = mob.isMobile && mob.isLandscape;
+  const isCompactMobile = mob.isMobile && (isTinyMobile || isTightMobile || isLandscapeMobile);
   const [open, setOpen] = useState<Record<string, boolean>>({
     about: true,
     architecture: true,
@@ -47,21 +52,44 @@ export function InfoView() {
   });
 
   const tog = (k: string) => setOpen((s) => ({ ...s, [k]: !s[k] }));
+  const tocEntries = [
+    { id: "changelog", label: "Changelog" },
+    { id: "about", label: "Was ist Nexus?" },
+    { id: "architecture", label: "Architektur" },
+    { id: "diagnostics", label: "Diagnostics" },
+    { id: "guide", label: "View-Referenz" },
+    { id: "dashboard", label: "Dashboard" },
+    { id: "notes", label: "Notes" },
+    { id: "code", label: "CodeView" },
+    { id: "tasks", label: "Tasks" },
+    { id: "reminders", label: "Reminders" },
+    { id: "canvas", label: "Canvas" },
+    { id: "files", label: "Files" },
+    { id: "flux", label: "Flux" },
+    { id: "devtools", label: "DevTools" },
+    { id: "settings", label: "Settings" },
+    { id: "shortcuts", label: "Shortcuts" },
+    { id: "terminal", label: "Terminal" },
+  ] as const;
 
   return (
     <div
+      className="nx-mobile-view-screen nx-mobile-scroll-root"
       style={{
         height: "100%",
+        minHeight: 0,
+        display: "flex",
+        flexDirection: "column",
         overflowY: "auto",
-        padding: mob?.isMobile ? "14px 14px" : "20px 22px",
+        padding: mob?.isMobile ? (isCompactMobile ? "8px 8px" : "14px 14px") : "20px 22px",
       }}
     >
       <div style={{ maxWidth: 820, margin: "0 auto" }}>
         <div
           style={{
-            marginBottom: 22,
-            padding: "20px 22px",
-            borderRadius: 16,
+            marginBottom: isCompactMobile ? 12 : 22,
+            padding: isCompactMobile ? "12px 12px" : "20px 22px",
+            borderRadius: isCompactMobile ? 12 : 16,
             background: `linear-gradient(135deg, rgba(${rgb},0.12) 0%, transparent 62%)`,
             border: `1px solid rgba(${rgb},0.2)`,
             position: "relative",
@@ -83,7 +111,7 @@ export function InfoView() {
           <div style={{ position: "relative" }}>
             <div
               style={{
-                fontSize: 28,
+                fontSize: isCompactMobile ? 22 : 28,
                 fontWeight: 900,
                 marginBottom: 4,
                 background: `linear-gradient(135deg, ${t.accent}, ${t.accent2})`,
@@ -93,8 +121,8 @@ export function InfoView() {
             >
               NEXUS v5.0
             </div>
-            <div style={{ fontSize: 12, opacity: 0.56, marginBottom: 12 }}>
-              Mobile Source-of-Truth · 10. April 2026
+            <div style={{ fontSize: isCompactMobile ? 10 : 12, opacity: 0.56, marginBottom: isCompactMobile ? 8 : 12 }}>
+              Mobile Source-of-Truth · 22. April 2026
             </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
               <Badge label="Notes" color={t.accent} />
@@ -107,6 +135,43 @@ export function InfoView() {
             </div>
           </div>
         </div>
+
+        {mob.isMobile ? (
+          <div
+            style={{
+              marginBottom: isCompactMobile ? 10 : 14,
+              padding: isCompactMobile ? "8px 9px" : "10px 12px",
+              borderRadius: 12,
+              border: "1px solid rgba(255,255,255,0.12)",
+              background: "rgba(255,255,255,0.03)",
+            }}
+          >
+            <div style={{ fontSize: isCompactMobile ? 10 : 11, fontWeight: 800, marginBottom: 7, opacity: 0.78 }}>
+              Inhaltsverzeichnis
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: 6 }}>
+              {tocEntries.map((entry) => (
+                <button
+                  key={entry.id}
+                  onClick={() => setOpen((state) => ({ ...state, [entry.id]: true }))}
+                  style={{
+                    textAlign: "left",
+                    padding: isCompactMobile ? "6px 7px" : "7px 8px",
+                    borderRadius: 8,
+                    border: "1px solid rgba(255,255,255,0.12)",
+                    background: open[entry.id] ? `rgba(${rgb},0.16)` : "rgba(255,255,255,0.04)",
+                    color: open[entry.id] ? t.accent : "inherit",
+                    fontSize: isCompactMobile ? 9 : 10,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                  }}
+                >
+                  {entry.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
 
         <Acc title="Changelog" icon={Star} open={open.changelog} onToggle={() => tog("changelog")} badge="v5.0">
           <P>
@@ -196,7 +261,8 @@ export function InfoView() {
         <Acc title="Nexus Engine & Architektur" icon={Monitor} open={open.architecture} onToggle={() => tog("architecture")} badge="CORE">
           <P>
             Mobile nutzt denselben Render-/Motion-Vertrag aus <code>@nexus/core</code>. Unterschiede liegen primär
-            in Dichte und Interaktionsform, nicht in einer zweiten Architektur.
+            in Dichte und Interaktionsform, nicht in einer zweiten Architektur. Einzelne Legacy-Pfade laufen
+            weiter über Adapter und werden schrittweise konsolidiert.
           </P>
           <Grid2>
             <Card icon="🧭" title="Render Pipeline" desc="Measure → Resolve → Allocate → Commit → Cleanup." />
@@ -208,7 +274,9 @@ export function InfoView() {
 - Render bestimmt das erlaubte Budget
 - Motion setzt es kontrolliert um
 - Views konsumieren den Vertrag
-- Diagnostics machen Zustände sichtbar`}</Code>
+- Diagnostics machen Zustände sichtbar
+
+Wenn Doku und Laufzeit abweichen, gilt die Laufzeit.`}</Code>
         </Acc>
 
         <Acc title="Diagnostics & Docs Map" icon={BarChart3} open={open.diagnostics} onToggle={() => tog("diagnostics")} badge="DEV">
@@ -223,11 +291,21 @@ export function InfoView() {
         <Acc title="Komplette View-Referenz" icon={Layers} open={open.guide} onToggle={() => tog("guide")} badge="ALL VIEWS">
           <Grid2>
             <Card icon="📊" title="Dashboard" desc="Today/Continue + In-Grid Editor + Hidden Tray." />
-            <Card icon="📝" title="Notes" desc="Wissensnavigation, Linking und Magic Blocks." />
+            <Card
+              icon="📝"
+              title="Notes"
+              desc="Wissensnavigation, Linking und Magic Blocks."
+              keys={["Cmd/Ctrl+P", "Cmd/Ctrl+F", "Cmd/Ctrl+1/2/3", "Cmd/Ctrl+S", "Cmd/Ctrl+B", "Cmd/Ctrl+K"]}
+            />
             <Card icon="💻" title="CodeView" desc="Quick Open + Run/Preview + Output-History." />
             <Card icon="✅" title="Tasks" desc="Focus Views, Batch-Flows und Linked Context." />
             <Card icon="🔔" title="Reminders" desc="Recurrence/Snooze/Triage mit Kontext." />
-            <Card icon="🧠" title="Canvas" desc="Find/Jump, Outline, Multi-Select, Focus/Fit." keys={["Cmd/Ctrl+P", "Cmd/Ctrl+M", "Cmd/Ctrl+0", "F", "P"]} />
+            <Card
+              icon="🧠"
+              title="Canvas"
+              desc="Find/Jump, Outline, Multi-Select, Focus/Fit."
+              keys={["Cmd/Ctrl+0 (reset)", "Delete", "Esc", "Find/Magic über Canvas-Buttons"]}
+            />
             <Card icon="🗂️" title="Files" desc="Smart Views + Workspace/Handoff/Import-Export." />
             <Card icon="⚡" title="Flux" desc="Queue-Slices, Bottlenecks und Action-Drilldowns." />
             <Card icon="🛠️" title="DevTools" desc="Builder/Recipe/Export für wiederverwendbare Outputs." />
@@ -250,9 +328,29 @@ export function InfoView() {
           <Grid2>
             <Card icon="🧭" title="Quick Navigation" desc="Schnelle Suche/Switching und strukturierte Listensteuerung." />
             <Card icon="🔗" title="Linking" desc="Wikilinks, Backlinks und related context nutzen." />
-            <Card icon="🪄" title="Magic Markdown" desc="nexus-list/checklist/alert/callout/progress/timeline/grid/card/kanban/metrics/steps/quadrant." />
+            <Card icon="🪄" title="Magic Markdown" desc="nexus-list/checklist/alert/callout/progress/timeline/grid/card/kanban/metrics/steps/quadrant + nexus-badge." />
+            <Card icon="📚" title="Markdown Extras" desc="Tabellen, Trennlinien, Details/Toggle-Blöcke sowie klassische Link-/Inline-Elemente." />
             <Card icon="💾" title="Autosave" desc="Stabiler Draft-/Commit-Flow mit Undo/Redo." />
           </Grid2>
+          <Code>{`Unterstützte Magic-Blocks (Notes + Canvas Markdown)
+- nexus-list
+- nexus-checklist
+- nexus-alert
+- nexus-callout
+- nexus-progress
+- nexus-timeline
+- nexus-grid
+- nexus-card
+- nexus-kanban
+- nexus-badge
+- nexus-metrics
+- nexus-steps
+- nexus-quadrant
+
+Inline Badge Syntax
+b:Label|magic
+b:Ready|success
+b:Warnung|warning`}</Code>
         </Acc>
 
         <Acc title="CodeView" icon={Code2} open={open.code} onToggle={() => tog("code")}> 
@@ -291,7 +389,16 @@ export function InfoView() {
             <Card icon="🪄" title="Magic Templates" desc="Hub-first plus ai-project Prompt-Flow." />
             <Card icon="📐" title="Node Resize + Zoom" desc="Rahmen- und Content-Skalierung pro Node." />
           </Grid2>
-          <Card title="Controls" desc="" keys={["Cmd/Ctrl+P", "Cmd/Ctrl+M", "Cmd/Ctrl+0", "F", "P", "G", "+ / -"]} />
+          <Card
+            title="Controls"
+            desc=""
+            keys={[
+              "Touch: Tool Buttons + Project Panel",
+              "Cmd/Ctrl+0 (reset)",
+              "Delete Node",
+              "Esc Reset Selection",
+            ]}
+          />
         </Acc>
 
         <Acc title="Files & Workspaces" icon={HardDrive} open={open.files} onToggle={() => tog("files")}> 
@@ -326,16 +433,38 @@ export function InfoView() {
             <Card icon="✅" title="Stable first" desc="Alltagssettings im Vordergrund, Experimental separat." />
             <Card icon="🧪" title="Advanced/Experimental" desc="Klar markiert statt gleichrangig mit Release-Settings." />
             <Card icon="🛡️" title="Import Guard" desc="Theme-Import mit Schema/Allowlist/Defaults abgesichert." />
-            <Card icon="🧱" title="Release Freeze" desc="Toolbar/Spotlight/Glow als eingefrorene Zonen respektiert." />
+            <Card icon="🧱" title="Release Freeze" desc="Glow/harte Geometrie eingefroren; Toolbar Mode/Position/Style bleiben bewusst editierbar." />
           </Grid2>
         </Acc>
 
         <Acc title="Tastenkürzel" icon={Keyboard} open={open.shortcuts} onToggle={() => tog("shortcuts")}> 
           <Grid2>
             <Card title="Global" desc="" keys={["Cmd/Ctrl+1..9", "Cmd/Ctrl+[ / ]", "Esc"]} />
-            <Card title="Notes" desc="" keys={["Cmd/Ctrl+S", "Cmd/Ctrl+B", "Cmd/Ctrl+I", "Cmd/Ctrl+K"]} />
+            <Card
+              title="Notes"
+              desc=""
+              keys={[
+                "Cmd/Ctrl+P",
+                "Cmd/Ctrl+F",
+                "Cmd/Ctrl+1/2/3",
+                "Cmd/Ctrl+S",
+                "Cmd/Ctrl+B",
+                "Cmd/Ctrl+I",
+                "Cmd/Ctrl+K",
+                "Tab indent",
+              ]}
+            />
             <Card title="CodeView" desc="" keys={["Cmd/Ctrl+P", "Cmd/Ctrl+Enter", "Cmd/Ctrl+S"]} />
-            <Card title="Canvas" desc="" keys={["Cmd/Ctrl+P", "Cmd/Ctrl+M", "Cmd/Ctrl+0", "F", "P", "G", "+ / -"]} />
+            <Card
+              title="Canvas"
+              desc=""
+              keys={[
+                "Touch First: Buttons/Panel",
+                "Cmd/Ctrl+0 (reset)",
+                "Delete",
+                "Esc",
+              ]}
+            />
             <Card title="Flux" desc="" keys={["Cmd/Ctrl+F", "Cmd/Ctrl+Shift+N/C/T/R", "1..4", "0"]} />
             <Card title="Terminal" desc="" keys={["Enter", "Tab", "ArrowUp/Down", "Esc", "Ctrl+L"]} />
           </Grid2>

@@ -246,6 +246,7 @@ export function CanvasNodeWidget({ node, isSelected, onSelect, onStartConnect, o
         scalePreview,
         handleNodeWheelCapture,
         handleDragStart,
+        handleDragTouchStart,
         handleResizeStart,
         handleScaleResizeStart,
     } = useNodeWidgetTransforms({
@@ -278,22 +279,26 @@ export function CanvasNodeWidget({ node, isSelected, onSelect, onStartConnect, o
 
 
     const replaceMarkdownCodeBlock = useCallback((
-        mdNode: any,
+        mdNode: unknown,
         className: string | undefined,
         rawChildren: React.ReactNode,
         nextBlockContent: string,
     ) => {
-        const replaced = replaceMarkdownCodeBlockSafely({
-            markdown: normalizedNodeContent,
-            mdNode,
-            className,
-            rawChildren,
-            nextBlockContent,
-        })
-        if (replaced.replaced && replaced.nextMarkdown !== normalizedNodeContent) {
-            commitNodePatch(node.id, {
-                content: replaced.nextMarkdown,
+        try {
+            const replaced = replaceMarkdownCodeBlockSafely({
+                markdown: normalizedNodeContent,
+                mdNode,
+                className,
+                rawChildren,
+                nextBlockContent,
             })
+            if (replaced.replaced && replaced.nextMarkdown !== normalizedNodeContent) {
+                commitNodePatch(node.id, {
+                    content: replaced.nextMarkdown,
+                })
+            }
+        } catch (error) {
+            console.warn('[Mobile Canvas] markdown codeblock replacement skipped', { error, nodeId: node.id })
         }
     }, [commitNodePatch, node.id, normalizedNodeContent])
 
@@ -1189,11 +1194,12 @@ export function CanvasNodeWidget({ node, isSelected, onSelect, onStartConnect, o
                         opacity: 0.8,
                     }} />
 
-                    <div onMouseDown={handleDragStart} style={{
+                    <div onMouseDown={handleDragStart} onTouchStart={handleDragTouchStart} style={{
                         display: 'flex', alignItems: 'center', gap: 6,
                         cursor: dragging ? 'grabbing' : 'grab', flexShrink: 0,
                         borderBottom: `1px solid ${isSticky ? 'rgba(0,0,0,0.1)' : (t.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)')}`,
                         paddingBottom: 6, paddingTop: 4,
+                        touchAction: 'none',
                     }}>
                         <GripVertical size={13} style={{ opacity: 0.35, flexShrink: 0 }} />
                         <div
@@ -1348,7 +1354,18 @@ export function CanvasNodeWidget({ node, isSelected, onSelect, onStartConnect, o
                       </div>
                     )}
 
-                    <div style={{ flex: 1, overflow: 'hidden', minHeight: 0, position: 'relative' }}>
+                    <div
+                        onPointerDownCapture={(event) => event.stopPropagation()}
+                        onTouchStartCapture={(event) => event.stopPropagation()}
+                        style={{
+                            flex: 1,
+                            overflow: 'hidden',
+                            minHeight: 0,
+                            position: 'relative',
+                            touchAction: 'pan-y',
+                            overscrollBehavior: 'contain',
+                        }}
+                    >
                         {(node.pm?.status || node.pm?.priority || node.pm?.owner || node.pm?.dueDate) && (
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 6 }}>
                                 {node.pm?.status && (

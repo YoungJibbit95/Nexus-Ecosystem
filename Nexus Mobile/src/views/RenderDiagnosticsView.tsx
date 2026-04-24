@@ -1,16 +1,19 @@
 import React from "react";
-import { Activity } from "lucide-react";
+import { Activity, LayoutPanelTop } from "lucide-react";
 import { RenderDiagnosticsPanel } from "../components/render/RenderDiagnosticsPanel";
 import { ToolbarPreviewMatrix } from "../components/render/ToolbarPreviewMatrix";
 import { useTheme } from "../store/themeStore";
 import { useMobile } from "../lib/useMobile";
+import { MobileSheet } from "../components/mobile/MobileViewContract";
 
 export function RenderDiagnosticsView() {
   const t = useTheme();
   const mob = useMobile();
+  const [toolbarPreviewOpen, setToolbarPreviewOpen] = React.useState(false);
 
   return (
     <div
+      className="nx-mobile-view-screen nx-mobile-scroll-root"
       style={{
         height: "100%",
         minHeight: 0,
@@ -41,16 +44,52 @@ export function RenderDiagnosticsView() {
         </div>
       </div>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: mob.isMobile ? "1fr" : "1fr 1fr",
-          gap: 9,
-        }}
+      {mob.isMobile ? (
+        <>
+          <RenderDiagnosticsPanel />
+          <button
+            onClick={() => setToolbarPreviewOpen(true)}
+            style={{
+              padding: "9px 10px",
+              borderRadius: 10,
+              border: "1px solid rgba(255,255,255,0.12)",
+              background: "rgba(255,255,255,0.05)",
+              color: "inherit",
+              fontSize: 12,
+              fontWeight: 700,
+              cursor: "pointer",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+            }}
+          >
+            <LayoutPanelTop size={14} style={{ color: t.accent }} />
+            Toolbar Preview öffnen
+          </button>
+        </>
+      ) : (
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: 9,
+          }}
+        >
+          <RenderDiagnosticsPanel />
+          <ToolbarPreviewMatrix />
+        </div>
+      )}
+
+      <MobileSheet
+        open={mob.isMobile && toolbarPreviewOpen}
+        onClose={() => setToolbarPreviewOpen(false)}
+        title="Toolbar Preview"
+        mode="bottom"
       >
-        <RenderDiagnosticsPanel />
-        <ToolbarPreviewMatrix />
-      </div>
+        <div style={{ height: "70vh", padding: "10px" }}>
+          <ToolbarPreviewMatrix />
+        </div>
+      </MobileSheet>
     </div>
   );
 }

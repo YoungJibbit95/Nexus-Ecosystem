@@ -27,7 +27,7 @@ export type ThemeTransferPayload = {
   editor: Partial<EditorConfig>;
   notes: Partial<NotesConfig>;
   qol: Partial<QOLConfig>;
-  toolbar: Partial<Theme["toolbar"]>;
+  toolbar: Partial<TransferableToolbar>;
 };
 
 export type ThemeTransferParseResult =
@@ -45,6 +45,11 @@ export type ThemeTransferParseResult =
 type ApplyThemeTransferOptions = {
   includeReleaseFrozen?: boolean;
 };
+
+type TransferableToolbar = Pick<
+  Theme["toolbar"],
+  "toolbarMode" | "position" | "mode" | "visible"
+>;
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -290,18 +295,259 @@ const pickQol = (value: unknown): Partial<QOLConfig> => {
   return out;
 };
 
-const pickToolbar = (value: unknown): Partial<Theme["toolbar"]> => {
+const pickToolbar = (value: unknown): Partial<TransferableToolbar> => {
   if (!isRecord(value)) return {};
-  const out: Partial<Theme["toolbar"]> = {};
+  const out: Partial<TransferableToolbar> = {};
   const toolbarMode = asEnum(value.toolbarMode, ["island", "spotlight", "full-width"] as const);
   if (toolbarMode) out.toolbarMode = toolbarMode;
   const position = asEnum(value.position, ["top", "bottom"] as const);
   if (position) out.position = position;
   const mode = asEnum(value.mode, ["pill", "full-width"] as const);
   if (mode) out.mode = mode;
-  if (isNumber(value.height)) out.height = value.height;
   if (isBoolean(value.visible)) out.visible = value.visible;
   return out;
+};
+
+const ROOT_THEME_KEYS = [
+  "version",
+  "mode",
+  "accent",
+  "accent2",
+  "bg",
+  "globalFont",
+  "glow",
+  "blur",
+  "background",
+  "glassmorphism",
+  "visual",
+  "animations",
+  "editor",
+  "notes",
+  "qol",
+  "toolbar",
+] as const;
+
+const GLOW_KEYS = [
+  "mode",
+  "color",
+  "intensity",
+  "radius",
+  "spread",
+  "blendMode",
+  "gradientGlow",
+  "gradientColor1",
+  "gradientColor2",
+  "gradientAngle",
+  "animated",
+  "animationSpeed",
+] as const;
+
+const BLUR_KEYS = [
+  "strength",
+  "noiseOverlay",
+  "noiseOpacity",
+  "sidebarBlur",
+  "panelBlur",
+  "modalBlur",
+] as const;
+
+const BACKGROUND_KEYS = [
+  "mode",
+  "stops",
+  "angle",
+  "animated",
+  "animationSpeed",
+  "noiseOpacity",
+  "meshIntensity",
+  "overlayOpacity",
+  "vignette",
+  "vignetteStrength",
+  "scanlines",
+  "panelBgMode",
+] as const;
+
+const GLASS_KEYS = [
+  "borderOpacity",
+  "borderGlow",
+  "borderGlowIntensity",
+  "saturation",
+  "tintColor",
+  "tintOpacity",
+  "frostedGlass",
+  "chromaticAberration",
+  "glowOutline",
+  "glowColor1",
+  "glowColor2",
+  "glowOutlineStrength",
+  "glassMode",
+  "glassDepth",
+  "innerShadow",
+  "reflectionLine",
+  "animatedBlur",
+  "animatedBlurSpeed",
+  "panelRenderer",
+  "glowRenderer",
+] as const;
+
+const VISUAL_KEYS = [
+  "borderThickness",
+  "shadowDepth",
+  "animationSpeed",
+  "panelRadius",
+  "compactMode",
+  "spacingDensity",
+] as const;
+
+const ANIMATION_KEYS = [
+  "fade",
+  "scale",
+  "slide",
+  "spring",
+  "smoothTransitions",
+  "entryAnimations",
+  "hoverLift",
+  "pulseEffects",
+  "rippleClick",
+  "pageTransitions",
+  "glowPulse",
+  "particleEffects",
+  "floatEffect",
+  "borderFlow",
+  "shakeOnError",
+  "confettiOnComplete",
+  "magneticButtons",
+  "entranceStyle",
+] as const;
+
+const EDITOR_KEYS = [
+  "autosave",
+  "autosaveInterval",
+  "wordWrap",
+  "lineNumbers",
+  "minimap",
+  "cursorAnimation",
+  "tabSize",
+  "fontSize",
+  "fontFamily",
+] as const;
+
+const NOTES_KEYS = ["fontSize", "fontFamily", "lineHeight", "mode"] as const;
+
+const QOL_KEYS = [
+  "reducedMotion",
+  "highContrast",
+  "showTooltips",
+  "sidebarAutoHide",
+  "quickActions",
+  "autoAccentContrast",
+  "fontSize",
+  "panelDensity",
+  "motionProfile",
+] as const;
+
+const TOOLBAR_KEYS = ["toolbarMode", "position", "mode", "visible"] as const;
+
+const clamp = (value: number, min: number, max: number) =>
+  Math.min(max, Math.max(min, value));
+
+const compactUnknownList = (keys: string[]) =>
+  keys.length > 5 ? `${keys.slice(0, 5).join(", ")} +${keys.length - 5} weitere` : keys.join(", ");
+
+const collectUnknownKeys = (
+  warnings: string[],
+  section: string,
+  value: unknown,
+  allowed: readonly string[],
+) => {
+  if (!isRecord(value)) return;
+  const unknown = Object.keys(value).filter((key) => !allowed.includes(key));
+  if (unknown.length === 0) return;
+  warnings.push(`${section}: Unbekannte Felder ignoriert (${compactUnknownList(unknown)}).`);
+};
+
+const sanitizeStops = (stops: BackgroundConfig["stops"]): BackgroundConfig["stops"] =>
+  stops.map((stop) => ({
+    color: stop.color,
+    position: clamp(stop.position, 0, 100),
+    opacity: clamp(stop.opacity, 0, 1),
+  }));
+
+const sanitizeGlowPatch = (patch: Partial<GlowConfig>): Partial<GlowConfig> => {
+  const next = { ...patch };
+  if (isNumber(next.intensity)) next.intensity = clamp(next.intensity, 0, 1.5);
+  if (isNumber(next.radius)) next.radius = clamp(next.radius, 0, 100);
+  if (isNumber(next.spread)) next.spread = clamp(next.spread, 0, 30);
+  if (isNumber(next.gradientAngle)) next.gradientAngle = clamp(next.gradientAngle, 0, 360);
+  if (isNumber(next.animationSpeed)) next.animationSpeed = clamp(next.animationSpeed, 0.1, 10);
+  return next;
+};
+
+const sanitizeBlurPatch = (patch: Partial<BlurConfig>): Partial<BlurConfig> => {
+  const next = { ...patch };
+  if (isNumber(next.strength)) next.strength = clamp(next.strength, 0, 40);
+  if (isNumber(next.noiseOpacity)) next.noiseOpacity = clamp(next.noiseOpacity, 0, 0.5);
+  if (isNumber(next.sidebarBlur)) next.sidebarBlur = clamp(next.sidebarBlur, 0, 50);
+  if (isNumber(next.panelBlur)) next.panelBlur = clamp(next.panelBlur, 0, 50);
+  if (isNumber(next.modalBlur)) next.modalBlur = clamp(next.modalBlur, 0, 60);
+  return next;
+};
+
+const sanitizeBackgroundPatch = (
+  patch: Partial<BackgroundConfig>,
+): Partial<BackgroundConfig> => {
+  const next = { ...patch };
+  if (next.stops) next.stops = sanitizeStops(next.stops);
+  if (isNumber(next.angle)) next.angle = clamp(next.angle, 0, 360);
+  if (isNumber(next.animationSpeed)) next.animationSpeed = clamp(next.animationSpeed, 0.1, 12);
+  if (isNumber(next.noiseOpacity)) next.noiseOpacity = clamp(next.noiseOpacity, 0, 0.5);
+  if (isNumber(next.meshIntensity)) next.meshIntensity = clamp(next.meshIntensity, 0, 1);
+  if (isNumber(next.overlayOpacity)) next.overlayOpacity = clamp(next.overlayOpacity, 0, 1);
+  if (isNumber(next.vignetteStrength)) next.vignetteStrength = clamp(next.vignetteStrength, 0, 1);
+  return next;
+};
+
+const sanitizeGlassPatch = (
+  patch: Partial<GlassmorphismConfig>,
+): Partial<GlassmorphismConfig> => {
+  const next = { ...patch };
+  if (isNumber(next.borderOpacity)) next.borderOpacity = clamp(next.borderOpacity, 0, 1);
+  if (isNumber(next.borderGlowIntensity)) next.borderGlowIntensity = clamp(next.borderGlowIntensity, 0, 1);
+  if (isNumber(next.saturation)) next.saturation = clamp(next.saturation, 50, 400);
+  if (isNumber(next.tintOpacity)) next.tintOpacity = clamp(next.tintOpacity, 0, 1);
+  if (isNumber(next.glowOutlineStrength)) next.glowOutlineStrength = clamp(next.glowOutlineStrength, 0, 30);
+  if (isNumber(next.glassDepth)) next.glassDepth = clamp(next.glassDepth, 0.1, 3);
+  if (isNumber(next.animatedBlurSpeed)) next.animatedBlurSpeed = clamp(next.animatedBlurSpeed, 0.1, 12);
+  return next;
+};
+
+const sanitizeVisualPatch = (patch: Partial<VisualConfig>): Partial<VisualConfig> => {
+  const next = { ...patch };
+  if (isNumber(next.borderThickness)) next.borderThickness = clamp(next.borderThickness, 0, 4);
+  if (isNumber(next.shadowDepth)) next.shadowDepth = clamp(next.shadowDepth, 0, 1);
+  if (isNumber(next.animationSpeed)) next.animationSpeed = clamp(next.animationSpeed, 0.5, 2);
+  if (isNumber(next.panelRadius)) next.panelRadius = clamp(next.panelRadius, 0, 40);
+  return next;
+};
+
+const sanitizeEditorPatch = (patch: Partial<EditorConfig>): Partial<EditorConfig> => {
+  const next = { ...patch };
+  if (isNumber(next.autosaveInterval)) next.autosaveInterval = clamp(next.autosaveInterval, 250, 10000);
+  if (isNumber(next.tabSize)) next.tabSize = clamp(Math.round(next.tabSize), 1, 8);
+  if (isNumber(next.fontSize)) next.fontSize = clamp(Math.round(next.fontSize), 10, 30);
+  return next;
+};
+
+const sanitizeNotesPatch = (patch: Partial<NotesConfig>): Partial<NotesConfig> => {
+  const next = { ...patch };
+  if (isNumber(next.fontSize)) next.fontSize = clamp(Math.round(next.fontSize), 10, 30);
+  if (isNumber(next.lineHeight)) next.lineHeight = clamp(next.lineHeight, 1, 3);
+  return next;
+};
+
+const sanitizeQolPatch = (patch: Partial<QOLConfig>): Partial<QOLConfig> => {
+  const next = { ...patch };
+  if (isNumber(next.fontSize)) next.fontSize = clamp(Math.round(next.fontSize), 10, 24);
+  return next;
 };
 
 export function buildThemeTransferPayload(theme: Theme): ThemeTransferPayload {
@@ -321,7 +567,12 @@ export function buildThemeTransferPayload(theme: Theme): ThemeTransferPayload {
     editor: { ...theme.editor },
     notes: { ...theme.notes },
     qol: { ...theme.qol },
-    toolbar: { ...theme.toolbar },
+    toolbar: {
+      toolbarMode: theme.toolbar.toolbarMode,
+      position: theme.toolbar.position,
+      mode: theme.toolbar.mode,
+      visible: theme.toolbar.visible,
+    },
   };
 }
 
@@ -332,6 +583,21 @@ export function parseThemeTransferPayload(rawInput: unknown): ThemeTransferParse
 
   const payload: Partial<ThemeTransferPayload> = {};
   const warnings: string[] = [];
+
+  collectUnknownKeys(warnings, "root", rawInput, ROOT_THEME_KEYS);
+  collectUnknownKeys(warnings, "glow", rawInput.glow, GLOW_KEYS);
+  collectUnknownKeys(warnings, "blur", rawInput.blur, BLUR_KEYS);
+  collectUnknownKeys(warnings, "background", rawInput.background, BACKGROUND_KEYS);
+  collectUnknownKeys(warnings, "glassmorphism", rawInput.glassmorphism, GLASS_KEYS);
+  collectUnknownKeys(warnings, "visual", rawInput.visual, VISUAL_KEYS);
+  collectUnknownKeys(warnings, "animations", rawInput.animations, ANIMATION_KEYS);
+  collectUnknownKeys(warnings, "editor", rawInput.editor, EDITOR_KEYS);
+  collectUnknownKeys(warnings, "notes", rawInput.notes, NOTES_KEYS);
+  collectUnknownKeys(warnings, "qol", rawInput.qol, QOL_KEYS);
+  collectUnknownKeys(warnings, "toolbar", rawInput.toolbar, TOOLBAR_KEYS);
+  if (isRecord(rawInput.toolbar) && "height" in rawInput.toolbar) {
+    warnings.push("toolbar.height wird nicht mehr importiert und wurde ignoriert.");
+  }
 
   if (asEnum(rawInput.version, ["v5"] as const) === "v5") payload.version = "v5";
 
@@ -399,28 +665,50 @@ export function applyThemeTransferPayload(
     });
   }
   if (payload.globalFont) theme.setGlobalFont(payload.globalFont);
-  if (payload.blur && Object.keys(payload.blur).length > 0) theme.setBlur(payload.blur);
+  if (payload.blur && Object.keys(payload.blur).length > 0) {
+    theme.setBlur(sanitizeBlurPatch(payload.blur));
+  }
   if (payload.background && Object.keys(payload.background).length > 0) {
-    theme.setBackground(payload.background);
+    theme.setBackground(sanitizeBackgroundPatch(payload.background));
   }
   if (payload.glassmorphism && Object.keys(payload.glassmorphism).length > 0) {
-    const patch = { ...payload.glassmorphism };
+    const patch = sanitizeGlassPatch(payload.glassmorphism);
     if (!includeReleaseFrozen) {
       delete patch.glowRenderer;
     }
     theme.setGlassmorphism(patch);
   }
-  if (payload.visual && Object.keys(payload.visual).length > 0) theme.setVisual(payload.visual);
+  if (payload.visual && Object.keys(payload.visual).length > 0) {
+    theme.setVisual(sanitizeVisualPatch(payload.visual));
+  }
   if (payload.animations && Object.keys(payload.animations).length > 0) {
     theme.setAnimations(payload.animations);
   }
-  if (payload.editor && Object.keys(payload.editor).length > 0) theme.setEditor(payload.editor);
-  if (payload.notes && Object.keys(payload.notes).length > 0) theme.setNotes(payload.notes);
-  if (payload.qol && Object.keys(payload.qol).length > 0) theme.setQOL(payload.qol);
-  if (includeReleaseFrozen && payload.glow && Object.keys(payload.glow).length > 0) {
-    theme.setGlow(payload.glow);
+  if (payload.editor && Object.keys(payload.editor).length > 0) {
+    theme.setEditor(sanitizeEditorPatch(payload.editor));
   }
-  if (includeReleaseFrozen && payload.toolbar && Object.keys(payload.toolbar).length > 0) {
-    theme.setToolbar(payload.toolbar);
+  if (payload.notes && Object.keys(payload.notes).length > 0) {
+    theme.setNotes(sanitizeNotesPatch(payload.notes));
+  }
+  if (payload.qol && Object.keys(payload.qol).length > 0) {
+    theme.setQOL(sanitizeQolPatch(payload.qol));
+  }
+  if (includeReleaseFrozen && payload.glow && Object.keys(payload.glow).length > 0) {
+    theme.setGlow(sanitizeGlowPatch(payload.glow));
+  }
+  if (payload.toolbar && Object.keys(payload.toolbar).length > 0) {
+    if (includeReleaseFrozen) {
+      theme.setToolbar(payload.toolbar);
+    } else {
+      // Release-safe subset: allow daily toolbar controls but keep frozen geometry internals.
+      const safeToolbarPatch: Partial<Theme["toolbar"]> = {};
+      if (payload.toolbar.toolbarMode) safeToolbarPatch.toolbarMode = payload.toolbar.toolbarMode;
+      if (payload.toolbar.position) safeToolbarPatch.position = payload.toolbar.position;
+      if (payload.toolbar.mode) safeToolbarPatch.mode = payload.toolbar.mode;
+      if (typeof payload.toolbar.visible === "boolean") safeToolbarPatch.visible = payload.toolbar.visible;
+      if (Object.keys(safeToolbarPatch).length > 0) {
+        theme.setToolbar(safeToolbarPatch);
+      }
+    }
   }
 }

@@ -22,6 +22,13 @@ import {
   parseThemeTransferPayload,
 } from "./settings/themeTransfer";
 
+type ThemeTransferFeedback = {
+  kind: "success" | "partial" | "error";
+  title: string;
+  details: string[];
+  fileName?: string;
+};
+
 export function SettingsView({
   onOpenWalkthrough,
 }: { onOpenWalkthrough?: () => void } = {}) {
@@ -35,13 +42,18 @@ export function SettingsView({
   const [presetNameDraft, setPresetNameDraft] = useState("");
   const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
   const [showExperimentalSettings, setShowExperimentalSettings] = useState(false);
+  const [transferFeedback, setTransferFeedback] =
+    useState<ThemeTransferFeedback | null>(null);
+  const [lastMaintenanceAction, setLastMaintenanceAction] = useState<
+    string | null
+  >(null);
 
-  const panelRenderer = t.glassmorphism.panelRenderer as RendererMode;
-  const glowRenderer = t.glassmorphism.glowRenderer as GlowRendererMode;
+  const panelRenderer: RendererMode = t.glassmorphism.panelRenderer;
+  const glowRenderer: GlowRendererMode = t.glassmorphism.glowRenderer;
 
   const toast = (text: string) => {
     setMsg(text);
-    window.setTimeout(() => setMsg(null), 1200);
+    window.setTimeout(() => setMsg(null), 1600);
   };
 
   const exportTheme = () => {
@@ -52,28 +64,87 @@ export function SettingsView({
     a.download = "nexus-theme-v5.json";
     a.click();
     URL.revokeObjectURL(a.href);
+    setTransferFeedback({
+      kind: "success",
+      title: "Theme exportiert",
+      details: [
+        "Datei: nexus-theme-v5.json",
+        "Export enthält stabile Settings plus optionale Advanced-Felder.",
+      ],
+    });
     toast("Theme exportiert");
   };
 
   const importTheme = (file: File) => {
+    if (!file.name.toLowerCase().endsWith(".json")) {
+      setTransferFeedback({
+        kind: "error",
+        title: "Import fehlgeschlagen",
+        fileName: file.name,
+        details: ["Nur JSON-Dateien sind erlaubt."],
+      });
+      toast("Nur JSON-Dateien sind erlaubt");
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      setTransferFeedback({
+        kind: "error",
+        title: "Import fehlgeschlagen",
+        fileName: file.name,
+        details: ["Datei ist größer als 2MB und wurde nicht geladen."],
+      });
+      toast("Theme-Datei zu groß");
+      return;
+    }
     const reader = new FileReader();
     reader.onload = () => {
       try {
         const data = JSON.parse(String(reader.result || "{}")) as unknown;
         const parsed = parseThemeTransferPayload(data);
         if (!parsed.ok) {
+          setTransferFeedback({
+            kind: "error",
+            title: "Import fehlgeschlagen",
+            fileName: file.name,
+            details: ["message" in parsed ? parsed.message : "Theme-Datei ungültig"],
+          });
           toast("message" in parsed ? parsed.message : "Theme-Datei ungültig");
           return;
         }
         applyThemeTransferPayload(t, parsed.payload, {
           includeReleaseFrozen: false,
         });
+        if (parsed.warnings.length > 0) {
+          console.warn("[Settings] Theme import warnings:", parsed.warnings);
+          setTransferFeedback({
+            kind: "partial",
+            title: "Theme importiert mit Hinweisen",
+            fileName: file.name,
+            details: parsed.warnings,
+          });
+        } else {
+          setTransferFeedback({
+            kind: "success",
+            title: "Theme importiert",
+            fileName: file.name,
+            details: [
+              "Alle erkannten Felder wurden übernommen.",
+              "Release-frozen Zonen wurden sicher respektiert.",
+            ],
+          });
+        }
         toast(
           parsed.partial
-            ? "Theme importiert (teilweise, mit sicheren Fallbacks)"
+            ? `Theme importiert (${parsed.warnings.length || 1} Hinweis${parsed.warnings.length === 1 ? "" : "e"}, sichere Fallbacks aktiv; Details in Konsole)`
             : "Theme importiert",
         );
       } catch {
+        setTransferFeedback({
+          kind: "error",
+          title: "Import fehlgeschlagen",
+          fileName: file.name,
+          details: ["Datei konnte nicht als gültiges JSON gelesen werden."],
+        });
         toast("Import fehlgeschlagen");
       }
     };
@@ -105,11 +176,13 @@ export function SettingsView({
     localStorage.removeItem("nx-spotlight-pins-v1");
     localStorage.removeItem("nx-spotlight-recents-v1");
     window.dispatchEvent(new CustomEvent("nx-spotlight-storage-updated"));
+    setLastMaintenanceAction("Spotlight Cache gelöscht");
     toast("Spotlight Daten gelöscht");
   };
 
   const resetDashboardLayout = () => {
     localStorage.removeItem("nx-dashboard-layout-v2");
+    setLastMaintenanceAction("Dashboard Layout zurückgesetzt");
     toast("Dashboard Layout zurückgesetzt");
   };
 
@@ -121,7 +194,21 @@ export function SettingsView({
       undoStack: [],
       redoStack: [],
     });
+    setLastMaintenanceAction("Terminal Workspace bereinigt");
     toast("Terminal Workspace bereinigt");
+  };
+
+  const toggleAdvancedSettings = () => {
+    setShowAdvancedSettings((value) => {
+      const next = !value;
+      if (!next) setShowExperimentalSettings(false);
+      return next;
+    });
+  };
+
+  const toggleExperimentalSettings = () => {
+    setShowAdvancedSettings((value) => (value ? value : true));
+    setShowExperimentalSettings((value) => !value);
   };
 
   const activeModule = MODULES.find((m) => m.id === module);
@@ -309,9 +396,74 @@ export function SettingsView({
               onChange={(event) => {
                 const file = event.target.files?.[0];
                 if (file) importTheme(file);
+                event.currentTarget.value = "";
               }}
             />
           </label>
+          <div
+            style={{
+              fontSize: 10,
+              opacity: 0.58,
+              lineHeight: 1.45,
+              borderRadius: 9,
+              border: "1px solid rgba(255,255,255,0.1)",
+              background: "rgba(255,255,255,0.03)",
+              padding: "7px 9px",
+            }}
+          >
+            Import nutzt Schema-Guard + Allowlist. Toolbar Mode/Position/Sichtbarkeit werden übernommen, eingefrorene Engine-Felder bleiben unverändert.
+          </div>
+          {transferFeedback ? (
+            <div
+              style={{
+                borderRadius: 9,
+                border:
+                  transferFeedback.kind === "error"
+                    ? "1px solid rgba(255,69,58,0.3)"
+                    : transferFeedback.kind === "partial"
+                      ? "1px solid rgba(255,159,10,0.32)"
+                      : "1px solid rgba(48,209,88,0.28)",
+                background:
+                  transferFeedback.kind === "error"
+                    ? "rgba(255,69,58,0.08)"
+                    : transferFeedback.kind === "partial"
+                      ? "rgba(255,159,10,0.08)"
+                      : "rgba(48,209,88,0.08)",
+                padding: "8px 9px",
+                fontSize: 10,
+                lineHeight: 1.45,
+              }}
+            >
+              <div style={{ fontWeight: 800, marginBottom: 3 }}>
+                {transferFeedback.title}
+              </div>
+              {transferFeedback.fileName ? (
+                <div style={{ opacity: 0.72, marginBottom: 3 }}>
+                  Datei: {transferFeedback.fileName}
+                </div>
+              ) : null}
+              {transferFeedback.details.slice(0, 3).map((detail) => (
+                <div key={detail} style={{ opacity: 0.84 }}>
+                  • {detail}
+                </div>
+              ))}
+            </div>
+          ) : null}
+          {lastMaintenanceAction ? (
+            <div
+              style={{
+                fontSize: 10,
+                opacity: 0.68,
+                lineHeight: 1.4,
+                borderRadius: 9,
+                border: "1px solid rgba(255,255,255,0.1)",
+                background: "rgba(255,255,255,0.03)",
+                padding: "7px 9px",
+              }}
+            >
+              Letzte Maintenance-Aktion: <strong>{lastMaintenanceAction}</strong>
+            </div>
+          ) : null}
           {presetEditorOpen ? (
             <div
               style={{
@@ -449,7 +601,7 @@ export function SettingsView({
             >
               <button
                 type="button"
-                onClick={() => setShowAdvancedSettings((value) => !value)}
+                onClick={toggleAdvancedSettings}
                 style={{
                   borderRadius: 8,
                   border: `1px solid ${showAdvancedSettings ? `rgba(${rgb},0.32)` : "rgba(255,255,255,0.16)"}`,
@@ -467,9 +619,8 @@ export function SettingsView({
               </button>
               <button
                 type="button"
-                onClick={() =>
-                  setShowExperimentalSettings((value) => !value)
-                }
+                onClick={toggleExperimentalSettings}
+                title={!showAdvancedSettings ? "Aktiviert automatisch auch Advanced" : undefined}
                 style={{
                   borderRadius: 8,
                   border: `1px solid ${showExperimentalSettings ? "rgba(255,159,10,0.38)" : "rgba(255,255,255,0.16)"}`,
@@ -514,11 +665,21 @@ export function SettingsView({
           <motion.div
             key={module}
             initial={
-              motionRuntime.pageInitial || { opacity: 0, y: 8, scale: 0.996 }
+              t.qol?.reducedMotion
+                ? false
+                : motionRuntime.pageInitial || { opacity: 0, y: 8, scale: 0.996 }
             }
-            animate={motionRuntime.pageAnimate}
-            exit={motionRuntime.pageExit || { opacity: 0, y: -6, scale: 1.004 }}
-            transition={motionRuntime.pageTransition}
+            animate={
+              t.qol?.reducedMotion
+                ? { opacity: 1, y: 0, scale: 1 }
+                : motionRuntime.pageAnimate
+            }
+            exit={
+              t.qol?.reducedMotion
+                ? { opacity: 1, y: 0, scale: 1 }
+                : motionRuntime.pageExit || { opacity: 0, y: -6, scale: 1.004 }
+            }
+            transition={t.qol?.reducedMotion ? { duration: 0 } : motionRuntime.pageTransition}
             style={{ maxWidth: 920, margin: "0 auto" }}
           >
             <SettingsModulePanels

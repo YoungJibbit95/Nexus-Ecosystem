@@ -26,6 +26,19 @@ const triggerTextDownload = (filename: string, content: string, mime = 'text/pla
   URL.revokeObjectURL(url)
 }
 
+const resolveCanvasTemplateScale = (canvasSize: { w: number; h: number }) => {
+  const edge = Math.min(canvasSize.w, canvasSize.h)
+  if (edge <= 340) return 0.56
+  if (edge <= 390) return 0.62
+  if (edge <= 430) return 0.68
+  if (edge <= 520) return 0.8
+  if (edge <= 620) return 0.9
+  return 1
+}
+
+const scaleTemplateSize = (value: number, scale: number, min: number) =>
+  Math.max(min, Math.round(value * scale))
+
 export const exportCanvasFiles = (
   canvas: Canvas | undefined,
   viewport: { panX: number; panY: number; zoom: number },
@@ -144,8 +157,23 @@ export const createCanvasMagicHubTemplate = (input: {
   const centerY = (-input.viewport.panY + input.canvasSize.h * 0.45) / input.viewport.zoom
   const x = Math.round(centerX / 20) * 20
   const y = Math.round(centerY / 20) * 20
+  const templateScale = resolveCanvasTemplateScale(input.canvasSize)
   const payload = normalizeCanvasMagicTemplatePayload(input.payload)
-  const template = buildCanvasMagicTemplate(payload)
+  let template: ReturnType<typeof buildCanvasMagicTemplate>
+  try {
+    template = buildCanvasMagicTemplate(payload)
+  } catch (error) {
+    console.error('[Mobile Canvas Magic] template build failed, falling back to mindmap', {
+      error,
+      payload,
+    })
+    const fallbackPayload = normalizeCanvasMagicTemplatePayload({
+      ...input.payload,
+      template: 'mindmap',
+      title: 'Mindmap Core',
+    })
+    template = buildCanvasMagicTemplate(fallbackPayload)
+  }
 
   const applyChecklist = (nodeId: string, items: string[]) => {
     if (!items.length) return
@@ -155,8 +183,9 @@ export const createCanvasMagicHubTemplate = (input: {
   if (template.kind === 'ai-project') {
     const graph = template.graph
     const idMap = new globalThis.Map<string, string | null>()
+    const scaledOffsetX = (offset: number) => Math.round(offset * templateScale)
     graph.nodes.forEach((node) => {
-      state.addNode(node.type as NodeType, x + node.x, y + node.y)
+      state.addNode(node.type as NodeType, x + scaledOffsetX(node.x), y + scaledOffsetX(node.y))
       const activeCanvas = state.getActiveCanvas()
       const created = activeCanvas?.nodes[activeCanvas.nodes.length - 1]
       if (!created) {
@@ -165,8 +194,8 @@ export const createCanvasMagicHubTemplate = (input: {
       }
       state.updateNode(created.id, {
         title: node.title,
-        width: node.width,
-        height: node.height,
+        width: scaleTemplateSize(node.width, templateScale, 180),
+        height: scaleTemplateSize(node.height, templateScale, 120),
         color: node.color,
         content: node.content,
         pm: {
@@ -198,15 +227,15 @@ export const createCanvasMagicHubTemplate = (input: {
     return
   }
 
-  state.addNode('markdown', x - 380, y - 300)
+  state.addNode('markdown', x - Math.round(380 * templateScale), y - Math.round(300 * templateScale))
   const active = state.getActiveCanvas()
   const created = active?.nodes[active.nodes.length - 1]
   if (!created) return
 
   state.updateNode(created.id, {
     title: template.title,
-    width: 760,
-    height: 600,
+    width: scaleTemplateSize(760, templateScale, 420),
+    height: scaleTemplateSize(600, templateScale, 320),
     color: template.meta.color,
     content: template.markdown,
     pm: {
@@ -232,12 +261,15 @@ export const createCanvasProjectTemplate = (input: {
 }) => {
   if (!input.canvas) return
   const state = useCanvas.getState()
+  const templateScale = resolveCanvasTemplateScale(input.canvasSize)
+  const scaled = (value: number) => Math.round(value * templateScale)
+  const scaledSize = (value: number, min: number) => scaleTemplateSize(value, templateScale, min)
   const viewportCenterX = (-input.viewport.panX + input.canvasSize.w * 0.5) / input.viewport.zoom
   const viewportCenterY = (-input.viewport.panY + input.canvasSize.h * 0.45) / input.viewport.zoom
-  const templateSize = { w: 2180, h: 1460 }
+  const templateSize = { w: scaled(2180), h: scaled(1460) }
   const candidateOffsets: Array<[number, number]> = [[0, 0]]
-  const ringStepX = Math.max(760, Math.round(templateSize.w * 0.62))
-  const ringStepY = Math.max(600, Math.round(templateSize.h * 0.56))
+  const ringStepX = Math.max(scaled(560), Math.round(templateSize.w * 0.62))
+  const ringStepY = Math.max(scaled(460), Math.round(templateSize.h * 0.56))
   for (let ring = 1; ring <= 8; ring += 1) {
     const points = 8 + ring * 6
     const radiusX = ringStepX * ring
@@ -253,17 +285,18 @@ export const createCanvasProjectTemplate = (input: {
   }
   const overlapScore = (centerX: number, centerY: number) => {
     if (!input.canvas?.nodes.length) return 0
-    const margin = 140
+    const margin = scaled(140)
     const left = centerX - templateSize.w * 0.5 - margin
     const top = centerY - templateSize.h * 0.5 - margin
     const right = centerX + templateSize.w * 0.5 + margin
     const bottom = centerY + templateSize.h * 0.5 + margin
     let score = 0
     input.canvas.nodes.forEach((node) => {
-      const nodeLeft = node.x - 72
-      const nodeTop = node.y - 72
-      const nodeRight = node.x + node.width + 72
-      const nodeBottom = node.y + node.height + 72
+      const bleed = scaled(72)
+      const nodeLeft = node.x - bleed
+      const nodeTop = node.y - bleed
+      const nodeRight = node.x + node.width + bleed
+      const nodeBottom = node.y + node.height + bleed
       const intersects =
         nodeLeft < right
         && nodeRight > left
@@ -315,17 +348,17 @@ export const createCanvasProjectTemplate = (input: {
     title: 'Project Core',
     content: 'KPI, Scope, Stakeholder, Deliverables',
     pm: { status: 'doing', priority: 'high', owner: 'lead', progress: 12, tags: ['project'] },
-    width: 380,
-    height: 250,
+    width: scaledSize(380, 220),
+    height: scaledSize(250, 150),
   })
-  const brief = make('markdown', baseX - 620, baseY - 90, {
+  const brief = make('markdown', baseX - scaled(620), baseY - scaled(90), {
     title: 'Projekt Brief',
     content: '# Zielbild\n\n- Scope\n- Timeline\n- Risiken\n- Rollout',
     pm: { status: 'idea', priority: 'high', owner: 'you', progress: 5, tags: ['brief', 'scope'] },
-    width: 390,
-    height: 280,
+    width: scaledSize(390, 230),
+    height: scaledSize(280, 180),
   })
-  const sprint = make('checklist', baseX + 640, baseY - 80, {
+  const sprint = make('checklist', baseX + scaled(640), baseY - scaled(80), {
     title: 'Sprint Backlog',
     items: [
       { id: `i-${Date.now()}-1`, text: 'UI Polish abschließen', done: false },
@@ -333,10 +366,10 @@ export const createCanvasProjectTemplate = (input: {
       { id: `i-${Date.now()}-3`, text: 'Release Notes vorbereiten', done: false },
     ],
     pm: { status: 'backlog', priority: 'mid', owner: 'team', progress: 0, tags: ['sprint'] },
-    width: 360,
-    height: 260,
+    width: scaledSize(360, 220),
+    height: scaledSize(260, 170),
   })
-  const taskApi = make('task', baseX - 340, baseY + 430, {
+  const taskApi = make('task', baseX - scaled(340), baseY + scaled(430), {
     title: 'API Integration',
     pm: {
       status: 'doing',
@@ -348,7 +381,7 @@ export const createCanvasProjectTemplate = (input: {
       tags: ['api', 'integration'],
     },
   })
-  const taskQa = make('task', baseX + 340, baseY + 430, {
+  const taskQa = make('task', baseX + scaled(340), baseY + scaled(430), {
     title: 'Mobile QA',
     pm: {
       status: 'todo',
@@ -360,7 +393,7 @@ export const createCanvasProjectTemplate = (input: {
       tags: ['qa', 'mobile'],
     },
   })
-  const milestone = make('milestone', baseX + 860, baseY + 140, {
+  const milestone = make('milestone', baseX + scaled(860), baseY + scaled(140), {
     title: 'Milestone Beta',
     content: 'Beta Release + QA-Freigabe',
     pm: {
@@ -372,11 +405,11 @@ export const createCanvasProjectTemplate = (input: {
       progress: 70,
       tags: ['milestone'],
     },
-    width: 340,
-    height: 230,
+    width: scaledSize(340, 210),
+    height: scaledSize(230, 150),
     color: '#BF5AF2',
   })
-  const risk = make('risk', baseX + 40, baseY + 780, {
+  const risk = make('risk', baseX + scaled(40), baseY + scaled(780), {
     title: 'Top Risk',
     content: 'API-Runtime Drift\nMitigation: Contract Smoke + Alerting',
     pm: {
@@ -386,8 +419,8 @@ export const createCanvasProjectTemplate = (input: {
       progress: 20,
       tags: ['risk'],
     },
-    width: 360,
-    height: 230,
+    width: scaledSize(360, 220),
+    height: scaledSize(230, 150),
     color: '#FF453A',
   })
 

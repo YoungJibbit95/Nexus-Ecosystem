@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
-import { ChevronDown } from "lucide-react";
+import { AnimatePresence, motion, type Transition } from "framer-motion";
+import { ChevronDown, type LucideIcon } from "lucide-react";
 import { useTheme } from "../../store/themeStore";
 import { useInteractiveSurfaceMotion } from "../../render/useInteractiveSurfaceMotion";
 import { SurfaceHighlight } from "../../components/render/SurfaceHighlight";
@@ -12,7 +12,16 @@ export function hexRgb(hex: string) {
   return `${r},${g},${b}`;
 }
 
-export function Acc({ title, icon: Icon, open, onToggle, children, badge }: any) {
+type AccProps = {
+  title: string;
+  icon?: LucideIcon;
+  open: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+  badge?: string;
+};
+
+export function Acc({ title, icon: Icon, open, onToggle, children, badge }: AccProps) {
   const t = useTheme();
   const [hovered, setHovered] = useState(false);
   const [focused, setFocused] = useState(false);
@@ -32,6 +41,11 @@ export function Acc({ title, icon: Icon, open, onToggle, children, badge }: any)
   const quickMotion = `var(--nx-motion-quick, ${interaction.runtime.timings.quickMs}ms)`;
   const regularMotion = `var(--nx-motion-regular, ${interaction.runtime.timings.regularMs}ms)`;
   const motionEase = interaction.runtime.timings.easing;
+  const accordionTransition: Transition = {
+    duration: Math.max(0.14, interaction.runtime.timings.regularMs / 1000),
+    ease: interaction.runtime.timings.framerEase as Transition["ease"],
+  };
+
   return (
     <div style={{ marginBottom: 8 }}>
       <motion.button
@@ -124,10 +138,7 @@ export function Acc({ title, icon: Icon, open, onToggle, children, badge }: any)
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{
-              duration: Math.max(0.14, interaction.runtime.timings.regularMs / 1000),
-              ease: interaction.runtime.timings.framerEase as any,
-            }}
+            transition={accordionTransition}
             style={{ overflow: "hidden" }}
           >
             <div

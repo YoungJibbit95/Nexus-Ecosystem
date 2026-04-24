@@ -21,6 +21,7 @@ import { Glass } from '../components/Glass'
 import { InteractiveIconButton } from '../components/render/InteractiveIconButton'
 import { SurfaceHighlight } from '../components/render/SurfaceHighlight'
 import { ViewHeader } from '../components/ViewHeader'
+import { MobileSheet } from '../components/mobile/MobileViewContract'
 import { useApp, Task, Reminder, Note } from '../store/appStore'
 import { useTheme } from '../store/themeStore'
 import { hexToRgb } from '../lib/utils'
@@ -88,6 +89,13 @@ const getOpenDependencyCount = (task: Task, taskMap: Map<string, Task>) => {
 const isTaskBlocked = (task: Task, taskMap: Map<string, Task>) =>
   Boolean(task.blocked) || getOpenDependencyCount(task, taskMap) > 0
 
+const isEditableTarget = (target: EventTarget | null) => {
+  const el = target as HTMLElement | null
+  if (!el) return false
+  const tag = el.tagName
+  return tag === 'INPUT' || tag === 'TEXTAREA' || el.isContentEditable
+}
+
 const scoreTaskForFocus = (task: Task, taskMap: Map<string, Task>, nowMs: number) => {
   if (task.status === 'done') return -1
   let score = 0
@@ -121,6 +129,16 @@ const applyTaskWorkMode = (tasks: Task[], mode: TaskWorkMode, taskMap: Map<strin
 
 function StatsBar({ tasks }: { tasks: Task[] }) {
   const t = useTheme()
+  const mob = useMobile()
+  const compactEdge = Math.min(mob.screenW, mob.screenH)
+  const isTinyMobile = mob.isMobile && compactEdge <= 430
+  const isTightMobile = mob.isMobile && mob.screenH <= 900
+  const isCompactMobile = mob.isMobile && (isTinyMobile || isTightMobile || mob.isLandscape)
+  const statPadding = isCompactMobile ? (isTinyMobile ? '6px 10px' : '7px 12px') : '8px 14px'
+  const statGap = isCompactMobile ? (isTinyMobile ? 10 : 12) : 16
+  const valueFont = isCompactMobile ? (isTinyMobile ? 12 : 13) : 14
+  const labelFont = isCompactMobile ? 9 : 10
+  const pctFont = isCompactMobile ? 10 : 11
   const total    = tasks.length
   const done     = tasks.filter((task) => task.status === 'done').length
   const overdue  = tasks.filter((task) => isTaskOverdue(task)).length
@@ -129,12 +147,12 @@ function StatsBar({ tasks }: { tasks: Task[] }) {
   const pct      = total ? Math.round((done / total) * 100) : 0
 
   return (
-    <div style={{ display:'flex', alignItems:'center', gap:16, padding:'8px 14px', borderBottom:'1px solid rgba(255,255,255,0.07)', background:'rgba(0,0,0,0.1)', flexShrink:0 }}>
-      <div style={{ display:'flex', alignItems:'center', gap:6, flex:1 }}>
+    <div style={{ display:'flex', alignItems:'center', gap:statGap, padding:statPadding, borderBottom:'1px solid rgba(255,255,255,0.07)', background:'rgba(0,0,0,0.1)', flexShrink:0 }}>
+      <div style={{ display:'flex', alignItems:'center', gap:isCompactMobile ? 5 : 6, flex:1 }}>
         <div style={{ height:5, flex:1, borderRadius:3, background:'rgba(255,255,255,0.08)', overflow:'hidden' }}>
           <div style={{ width:`${pct}%`, height:'100%', borderRadius:3, background:`linear-gradient(90deg, ${t.accent}, ${t.accent2})`, transition:'width 0.5s ease' }} />
         </div>
-        <span style={{ fontSize:11, fontWeight:700, color:t.accent, minWidth:30 }}>{pct}%</span>
+        <span style={{ fontSize:pctFont, fontWeight:700, color:t.accent, minWidth:isCompactMobile ? 26 : 30 }}>{pct}%</span>
       </div>
       {[
         { label:'Total', val:total, color:'inherit' },
@@ -143,8 +161,8 @@ function StatsBar({ tasks }: { tasks: Task[] }) {
         { label:'High', val:high, color: high > 0 ? '#ff9f0a' : 'inherit' },
         { label:'Blocked', val:blocked, color: blocked > 0 ? '#ff453a' : 'inherit' },
       ].map((stat) => (
-        <div key={stat.label} style={{ textAlign:'center', fontSize:10 }}>
-          <div style={{ fontWeight:800, fontSize:14, color:stat.color, lineHeight:1 }}>{stat.val}</div>
+        <div key={stat.label} style={{ textAlign:'center', fontSize:labelFont }}>
+          <div style={{ fontWeight:800, fontSize:valueFont, color:stat.color, lineHeight:1 }}>{stat.val}</div>
           <div style={{ opacity:0.45, marginTop:2 }}>{stat.label}</div>
         </div>
       ))}
@@ -183,7 +201,11 @@ function TaskCard({
   const rgb = hexToRgb(t.accent)
   const mob = useMobile()
   const moveTask = useApp((state) => state.moveTask)
-  const [, drag] = useDrag({ type: 'TASK', item: tk })
+  const [, drag] = useDrag({
+    type: 'TASK',
+    item: tk,
+    canDrag: !batchMode && !mob.isMobile,
+  })
   const [hovered, setHovered] = useState(false)
   const [focused, setFocused] = useState(false)
   const [pressed, setPressed] = useState(false)
@@ -205,7 +227,7 @@ function TaskCard({
   const subTotal = (tk.subtasks || []).length
 
   return (
-    <div ref={drag as any} style={{ cursor: batchMode ? 'default' : 'grab', marginBottom:8 }}>
+    <div ref={drag as any} style={{ cursor: batchMode || mob.isMobile ? 'default' : 'grab', marginBottom:8 }}>
       <motion.div
         className="nx-motion-managed"
         animate={interaction.content.animate}
@@ -331,12 +353,13 @@ function TaskCard({
                         key={`${tk.id}-${column.id}`}
                         onClick={() => moveTask(tk.id, column.id)}
                         style={{
-                          padding:'3px 7px',
-                          borderRadius:7,
+                          minHeight: 30,
+                          padding:'6px 9px',
+                          borderRadius:8,
                           border:`1px solid ${active ? column.color : 'rgba(255,255,255,0.14)'}`,
                           background: active ? `${column.color}22` : 'rgba(255,255,255,0.05)',
                           color: active ? column.color : 'inherit',
-                          fontSize:10,
+                          fontSize:11,
                           fontWeight:700,
                           cursor:'pointer',
                         }}
@@ -385,6 +408,22 @@ function TaskModal({
 }) {
   const t = useTheme()
   const rgb = hexToRgb(t.accent)
+  const mob = useMobile()
+  const compactEdge = Math.min(mob.screenW, mob.screenH)
+  const isTinyMobile = mob.isMobile && compactEdge <= 430
+  const isTightMobile = mob.isMobile && mob.screenH <= 900
+  const isLandscapeMobile = mob.isMobile && mob.isLandscape
+  const isCompactMobile = mob.isMobile && (isTinyMobile || isTightMobile || isLandscapeMobile)
+  const modalHeaderPadding = isCompactMobile ? '12px 14px 10px' : '16px 20px 12px'
+  const modalTopSectionPadding = isCompactMobile ? '10px 14px 0' : '14px 20px 0'
+  const modalTabsPaddingX = isCompactMobile ? '0 14px' : '0 20px'
+  const modalBodyPadding = isCompactMobile ? '10px 14px' : '14px 20px'
+  const modalFooterPadding = isCompactMobile
+    ? '10px 14px calc(10px + var(--sat-bottom, 0px))'
+    : '12px 20px calc(16px + var(--sat-bottom, 0px))'
+  const modalInputFont = isCompactMobile ? 12 : 13
+  const modalTitleFont = isCompactMobile ? 13 : 15
+  const modalActionFont = isCompactMobile ? 12 : 13
   const {
     addTask,
     updateTask,
@@ -574,7 +613,7 @@ function TaskModal({
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={overlayTransition}
-      style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.6)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:100, backdropFilter:'blur(6px)' }}
+      style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.6)', display:'flex', alignItems:mob.isMobile ? 'flex-end' : 'center', justifyContent:'center', zIndex:100, backdropFilter:'blur(6px)' }}
       onClick={onClose}
     >
       <motion.div
@@ -583,18 +622,28 @@ function TaskModal({
         exit={panelInitial}
         transition={panelTransition}
         onClick={(event) => event.stopPropagation()}
-        style={{ width:'min(520px, calc(100vw - 24px))', maxHeight:'85vh', display:'flex', flexDirection:'column' }}
+        style={{
+          width: mob.isMobile ? '100%' : 'min(520px, calc(100vw - 24px))',
+          maxHeight: mob.isMobile ? (isCompactMobile ? '92vh' : '88vh') : '85vh',
+          display:'flex',
+          flexDirection:'column',
+          borderRadius: mob.isMobile ? '20px 20px 0 0' : undefined,
+          position: mob.isMobile ? 'fixed' : undefined,
+          bottom: mob.isMobile ? 0 : undefined,
+          left: mob.isMobile ? 0 : undefined,
+          right: mob.isMobile ? 0 : undefined,
+        }}
       >
-        <Glass glow style={{ padding:0, display:'flex', flexDirection:'column', maxHeight:'85vh' }}>
-          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'16px 20px 12px', borderBottom:'1px solid rgba(255,255,255,0.08)', flexShrink:0 }}>
-            <div style={{ fontSize:15, fontWeight:800 }}>{task ? 'Edit Task' : 'New Task'}</div>
+        <Glass glow style={{ padding:0, display:'flex', flexDirection:'column', maxHeight:mob.isMobile ? (isCompactMobile ? '92vh' : '88vh') : '85vh' }}>
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:modalHeaderPadding, borderBottom:'1px solid rgba(255,255,255,0.08)', flexShrink:0 }}>
+            <div style={{ fontSize:modalTitleFont, fontWeight:800 }}>{task ? 'Edit Task' : 'New Task'}</div>
             <button onClick={onClose} style={{ background:'none', border:'none', cursor:'pointer', opacity:0.5, color:'inherit', padding:4, borderRadius:6 }}>
               <X size={16}/>
             </button>
           </div>
 
-          <div style={{ padding:'14px 20px 0', flexShrink:0 }}>
-            <input autoFocus value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Task title…" style={{ width:'100%', padding:'9px 12px', borderRadius:9, background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.12)', outline:'none', fontSize:14, fontWeight:600, color:'inherit', marginBottom:10 }} />
+          <div style={{ padding:modalTopSectionPadding, flexShrink:0 }}>
+            <input autoFocus value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Task title…" style={{ width:'100%', padding:isCompactMobile ? '8px 10px' : '9px 12px', borderRadius:9, background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.12)', outline:'none', fontSize:isCompactMobile ? 13 : 14, fontWeight:600, color:'inherit', marginBottom:isCompactMobile ? 8 : 10 }} />
             <div style={{ display:'flex', gap:6, marginBottom:10 }}>
               {(['low','mid','high'] as const).map((priorityKey) => (
                 <button
@@ -602,12 +651,12 @@ function TaskModal({
                   onClick={() => setPriority(priorityKey)}
                   style={{
                     flex:1,
-                    padding:'6px 0',
+                    padding:isCompactMobile ? '5px 0' : '6px 0',
                     borderRadius:8,
                     border:`1px solid ${priority===priorityKey?PRIORITY_COLOR[priorityKey]:'rgba(255,255,255,0.1)'}`,
                     background: priority===priorityKey?`${PRIORITY_COLOR[priorityKey]}22`:'transparent',
                     cursor:'pointer',
-                    fontSize:11,
+                    fontSize:isCompactMobile ? 10 : 11,
                     fontWeight:700,
                     color: priority===priorityKey?PRIORITY_COLOR[priorityKey]:'inherit',
                     transition:'all 0.12s',
@@ -619,12 +668,12 @@ function TaskModal({
             </div>
           </div>
 
-          <div style={{ display:'flex', gap:0, borderBottom:'1px solid rgba(255,255,255,0.07)', flexShrink:0, padding:'0 20px' }}>
+          <div style={{ display:'flex', gap:0, borderBottom:'1px solid rgba(255,255,255,0.07)', flexShrink:0, padding:modalTabsPaddingX }}>
             {(['details','subtasks','notes'] as const).map((tabKey) => (
               <button
                 key={tabKey}
                 onClick={() => setTab(tabKey)}
-                style={{ padding:'7px 14px', background:'none', border:'none', cursor:'pointer', fontSize:11, fontWeight:700, textTransform:'uppercase', letterSpacing:0.5, color:tab===tabKey?t.accent:'inherit', opacity:tab===tabKey?1:0.45, borderBottom:`2px solid ${tab===tabKey?t.accent:'transparent'}`, transition:'all 0.12s', marginBottom:-1 }}
+                style={{ padding:isCompactMobile ? '6px 11px' : '7px 14px', background:'none', border:'none', cursor:'pointer', fontSize:isCompactMobile ? 10 : 11, fontWeight:700, textTransform:'uppercase', letterSpacing:0.5, color:tab===tabKey?t.accent:'inherit', opacity:tab===tabKey?1:0.45, borderBottom:`2px solid ${tab===tabKey?t.accent:'transparent'}`, transition:'all 0.12s', marginBottom:-1 }}
               >
                 {tabKey}
               </button>
@@ -633,12 +682,12 @@ function TaskModal({
 
           <div style={{ flex:1, overflow:'hidden', display:'flex', flexDirection:'column' }}>
             {tab === 'details' && (
-              <div style={{ flex:1, overflowY:'auto', padding:'14px 20px' }}>
+              <div style={{ flex:1, overflowY:'auto', padding:modalBodyPadding }}>
                 <label style={{ fontSize:11, opacity:0.5, display:'block', marginBottom:5, textTransform:'uppercase', letterSpacing:0.5 }}>Description</label>
-                <textarea value={desc} onChange={(event) => setDesc(event.target.value)} placeholder="Add a description…" rows={3} style={{ width:'100%', padding:'9px 12px', borderRadius:9, background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.1)', outline:'none', fontSize:13, color:'inherit', resize:'vertical', fontFamily:'inherit', marginBottom:14 }} />
+                <textarea value={desc} onChange={(event) => setDesc(event.target.value)} placeholder="Add a description…" rows={3} style={{ width:'100%', padding:isCompactMobile ? '8px 10px' : '9px 12px', borderRadius:9, background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.1)', outline:'none', fontSize:modalInputFont, color:'inherit', resize:'vertical', fontFamily:'inherit', marginBottom:isCompactMobile ? 12 : 14 }} />
 
                 <label style={{ fontSize:11, opacity:0.5, display:'block', marginBottom:5, textTransform:'uppercase', letterSpacing:0.5 }}>Deadline</label>
-                <input type="date" value={deadline} onChange={(event) => setDeadline(event.target.value)} style={{ width:'100%', padding:'8px 12px', borderRadius:9, background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.1)', outline:'none', fontSize:13, color:'inherit', marginBottom:14, colorScheme: t.mode==='dark'?'dark':'light' }} />
+                <input type="date" value={deadline} onChange={(event) => setDeadline(event.target.value)} style={{ width:'100%', padding:isCompactMobile ? '7px 10px' : '8px 12px', borderRadius:9, background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.1)', outline:'none', fontSize:modalInputFont, color:'inherit', marginBottom:isCompactMobile ? 12 : 14, colorScheme: t.mode==='dark'?'dark':'light' }} />
 
                 <label style={{ fontSize:11, opacity:0.5, display:'block', marginBottom:5, textTransform:'uppercase', letterSpacing:0.5 }}>Tags</label>
                 <div style={{ display:'flex', flexWrap:'wrap', gap:5, marginBottom:6 }}>
@@ -652,8 +701,8 @@ function TaskModal({
                   ))}
                 </div>
                 <div style={{ display:'flex', gap:6, marginBottom:16 }}>
-                  <input value={tagInput} onChange={(event) => setTagInput(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); addTag() } }} placeholder="#tag" style={{ flex:1, padding:'7px 10px', borderRadius:8, background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.1)', outline:'none', fontSize:12, color:'inherit' }} />
-                  <button onClick={addTag} style={{ padding:'7px 12px', borderRadius:8, background:t.accent, border:'none', cursor:'pointer', color:'#fff', fontSize:12, fontWeight:700 }}>Add</button>
+                  <input value={tagInput} onChange={(event) => setTagInput(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); addTag() } }} placeholder="#tag" style={{ flex:1, padding:isCompactMobile ? '6px 9px' : '7px 10px', borderRadius:8, background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.1)', outline:'none', fontSize:isCompactMobile ? 11 : 12, color:'inherit' }} />
+                  <button onClick={addTag} style={{ padding:isCompactMobile ? '6px 10px' : '7px 12px', borderRadius:8, background:t.accent, border:'none', cursor:'pointer', color:'#fff', fontSize:isCompactMobile ? 11 : 12, fontWeight:700 }}>Add</button>
                 </div>
 
                 <div style={{ borderTop:'1px solid rgba(255,255,255,0.08)', paddingTop:12, marginTop:2, display:'grid', gap:12 }}>
@@ -761,7 +810,7 @@ function TaskModal({
             )}
 
             {tab === 'subtasks' && (
-              <div style={{ flex:1, overflowY:'auto', padding:'14px 20px' }}>
+              <div style={{ flex:1, overflowY:'auto', padding:modalBodyPadding }}>
                 {task && (task.subtasks||[]).map((subtask) => (
                   <div key={subtask.id} style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 12px', marginBottom:4, borderRadius:8, background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.06)' }}>
                     <button onClick={() => toggleSubtask(task.id, subtask.id)} style={{ width:18, height:18, borderRadius:5, border:`2px solid ${subtask.done?t.accent:'rgba(255,255,255,0.25)'}`, background:subtask.done?t.accent:'transparent', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, transition:'all 0.12s' }}>
@@ -774,7 +823,7 @@ function TaskModal({
                   </div>
                 ))}
                 {task && (
-                  <input ref={subRef} placeholder="New subtask… (Enter)" style={{ width:'100%', padding:'9px 12px', borderRadius:9, background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.1)', outline:'none', fontSize:13, color:'inherit' }} onKeyDown={(event) => { if (event.key==='Enter' && event.currentTarget.value.trim()) { addSubtask(task.id,event.currentTarget.value.trim()); event.currentTarget.value='' } }} />
+                  <input ref={subRef} placeholder="New subtask… (Enter)" style={{ width:'100%', padding:isCompactMobile ? '8px 10px' : '9px 12px', borderRadius:9, background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.1)', outline:'none', fontSize:modalInputFont, color:'inherit' }} onKeyDown={(event) => { if (event.key==='Enter' && event.currentTarget.value.trim()) { addSubtask(task.id,event.currentTarget.value.trim()); event.currentTarget.value='' } }} />
                 )}
                 {!task && <div style={{ textAlign:'center', padding:20, fontSize:13, opacity:0.4 }}>Save the task first to add subtasks</div>}
               </div>
@@ -782,14 +831,14 @@ function TaskModal({
 
             {tab === 'notes' && (
               <div style={{ flex:1, display:'flex', flexDirection:'column', overflow:'hidden' }}>
-                <textarea value={notesMd} onChange={(event) => setNotesMd(event.target.value)} placeholder="Markdown notes for this task…" style={{ flex:1, width:'100%', padding:'14px 20px', background:'transparent', border:'none', outline:'none', fontSize:13, color:'inherit', resize:'none', fontFamily:"'Fira Code',monospace", lineHeight:1.6 }} />
+                <textarea value={notesMd} onChange={(event) => setNotesMd(event.target.value)} placeholder="Markdown notes for this task…" style={{ flex:1, width:'100%', padding:isCompactMobile ? '10px 14px' : '14px 20px', background:'transparent', border:'none', outline:'none', fontSize:modalInputFont, color:'inherit', resize:'none', fontFamily:"'Fira Code',monospace", lineHeight:1.6 }} />
               </div>
             )}
           </div>
 
-          <div style={{ display:'flex', gap:8, padding:'12px 20px 16px', borderTop:'1px solid rgba(255,255,255,0.07)', flexShrink:0 }}>
-            <button onClick={onClose} style={{ flex:1, padding:'9px', borderRadius:9, background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.1)', cursor:'pointer', fontSize:13, color:'inherit' }}>Cancel</button>
-            <button onClick={save} style={{ flex:2, padding:'9px', borderRadius:9, background:t.accent, border:'none', cursor:'pointer', fontSize:13, fontWeight:700, color:'#fff', boxShadow:`0 2px 14px rgba(${rgb},0.4)` }}>
+          <div style={{ display:'flex', gap:8, padding:modalFooterPadding, borderTop:'1px solid rgba(255,255,255,0.07)', flexShrink:0 }}>
+            <button onClick={onClose} style={{ flex:1, padding:isCompactMobile ? '8px' : '9px', borderRadius:9, background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.1)', cursor:'pointer', fontSize:modalActionFont, color:'inherit' }}>Cancel</button>
+            <button onClick={save} style={{ flex:2, padding:isCompactMobile ? '8px' : '9px', borderRadius:9, background:t.accent, border:'none', cursor:'pointer', fontSize:modalActionFont, fontWeight:700, color:'#fff', boxShadow:`0 2px 14px rgba(${rgb},0.4)` }}>
               {task ? 'Save Changes' : 'Create Task'}
             </button>
           </div>
@@ -803,6 +852,15 @@ export function TasksView({ setView }: { setView?: (viewId: string) => void } = 
   const t = useTheme()
   const rgb = hexToRgb(t.accent)
   const mob = useMobile()
+  const compactEdge = Math.min(mob.screenW, mob.screenH)
+  const isTinyMobile = mob.isMobile && compactEdge <= 430
+  const isTightMobile = mob.isMobile && mob.screenH <= 900
+  const isLandscapeMobile = mob.isMobile && mob.isLandscape
+  const isCompactMobile = mob.isMobile && (isTinyMobile || isTightMobile || isLandscapeMobile)
+  const compactHeaderPadding = isCompactMobile ? '6px 8px 0' : (mob.isMobile ? '10px 10px 0' : '10px 14px 0')
+  const compactRowPadding = isCompactMobile ? '6px 10px' : '10px 14px'
+  const compactControlPadding = isCompactMobile ? '5px 8px' : '7px 11px'
+  const compactFont = isCompactMobile ? 11 : 12
   const {
     tasks,
     reminders,
@@ -834,6 +892,8 @@ export function TasksView({ setView }: { setView?: (viewId: string) => void } = 
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([])
   const [batchTagInput, setBatchTagInput] = useState('')
   const [mobileCol, setMobileCol] = useState<'todo'|'doing'|'done'>('todo')
+  const [mobileControlsOpen, setMobileControlsOpen] = useState(false)
+  const searchInputRef = useRef<HTMLInputElement>(null)
   const [workMode, setWorkMode] = useState<TaskWorkMode>(() => {
     if (typeof window === 'undefined') return 'board'
     const saved = window.localStorage.getItem(TASK_MODE_STORAGE_KEY)
@@ -977,45 +1037,148 @@ export function TasksView({ setView }: { setView?: (viewId: string) => void } = 
     setView?.('notes')
   }, [openNote, setNote, setView])
 
-  const quickAdd = (kind: 'today' | 'bug' | 'focus') => {
+  const quickAdd = useCallback((kind: 'today' | 'bug' | 'focus') => {
     if (kind === 'today') addTask('Heute: Wichtigste Aufgabe', 'todo', 'Tagesfokus', 'mid')
     if (kind === 'bug') addTask('Hotfix / Bugfix', 'todo', 'Reproduzieren, fixen, testen', 'high')
     if (kind === 'focus') addTask('Deep Work Block', 'doing', '90 Minuten Fokus ohne Kontextwechsel', 'mid')
-  }
+  }, [addTask])
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const key = event.key.toLowerCase()
+      const cmd = event.metaKey || event.ctrlKey
+
+      if (cmd && key === 'f') {
+        event.preventDefault()
+        searchInputRef.current?.focus()
+        searchInputRef.current?.select()
+        return
+      }
+
+      if (isEditableTarget(event.target)) return
+
+      if (key === '1') {
+        event.preventDefault()
+        setWorkMode('board')
+        return
+      }
+      if (key === '2') {
+        event.preventDefault()
+        setWorkMode('focus')
+        return
+      }
+      if (key === '3') {
+        event.preventDefault()
+        setWorkMode('due-soon')
+        return
+      }
+      if (key === '4') {
+        event.preventDefault()
+        setWorkMode('high-priority')
+        return
+      }
+      if (key === '5') {
+        event.preventDefault()
+        setWorkMode('blocked')
+        return
+      }
+      if (key === 'b') {
+        event.preventDefault()
+        setBatchMode((prev) => !prev)
+        return
+      }
+      if (key === 'h') {
+        event.preventDefault()
+        setShowDone((prev) => !prev)
+        return
+      }
+      if (key === 'n') {
+        event.preventDefault()
+        setNewStatus('todo')
+        return
+      }
+      if (key === 't') {
+        event.preventDefault()
+        quickAdd('today')
+        return
+      }
+      if (key === 'e') {
+        event.preventDefault()
+        quickAdd('focus')
+        return
+      }
+      if (key === 'g') {
+        event.preventDefault()
+        quickAdd('bug')
+        return
+      }
+      if (key === 'escape') {
+        setFilterPanel(false)
+      }
+    }
+
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [quickAdd])
 
   return (
     <DndProvider backend={HTML5Backend}>
-      <div style={{ display:'flex', flexDirection:'column', height:'100%', overflow:'hidden' }}>
-        <div style={{ padding: mob.isMobile ? '10px 10px 0' : '10px 14px 0' }}>
+      <div
+        className="nx-mobile-view-screen"
+        style={{ display:'flex', flexDirection:'column', height:'100%', overflow:'hidden' }}
+      >
+        <div style={{ padding: compactHeaderPadding }}>
           <ViewHeader
             title="Tasks"
             subtitle={`${tasks.filter((task) => task.status !== 'done').length} offen · ${tasks.filter((task) => task.status === 'done').length} erledigt`}
           />
         </div>
 
-        <div style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px', borderBottom:'1px solid rgba(255,255,255,0.07)', flexShrink:0, background:'rgba(0,0,0,0.1)' }}>
-          <div style={{ position:'relative', flex:1, maxWidth:320 }}>
-            <Search size={13} style={{ position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', opacity:0.4 }}/>
-            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search tasks…" style={{ width:'100%', padding:'7px 10px 7px 32px', borderRadius:9, background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.1)', outline:'none', fontSize:12, color:'inherit' }}/>
+        <div className="nx-mobile-row-scroll" style={{ gap:isCompactMobile ? 8 : 10, padding:compactRowPadding, borderBottom:'1px solid rgba(255,255,255,0.07)', flexShrink:0, background:'rgba(0,0,0,0.1)' }}>
+          <div className="nx-mobile-row-flex" style={{ position:'relative', minWidth:isCompactMobile ? 150 : 180, maxWidth:isLandscapeMobile ? 240 : 320 }}>
+            <Search size={isCompactMobile ? 12 : 13} style={{ position:'absolute', left:9, top:'50%', transform:'translateY(-50%)', opacity:0.4 }}/>
+            <input ref={searchInputRef} value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search tasks…" style={{ width:'100%', padding:isCompactMobile ? '6px 9px 6px 28px' : '7px 10px 7px 32px', borderRadius:9, background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.1)', outline:'none', fontSize:compactFont, color:'inherit' }}/>
           </div>
 
-          <button onClick={() => setFilterPanel((state) => !state)} style={{ display:'flex', alignItems:'center', gap:5, padding:'7px 11px', borderRadius:9, background: filterPanel||filterPri.length||filterTag?`rgba(${rgb},0.15)`:'rgba(255,255,255,0.07)', border:`1px solid ${filterPanel||filterPri.length||filterTag?t.accent:'rgba(255,255,255,0.1)'}`, cursor:'pointer', fontSize:12, color: filterPri.length||filterTag?t.accent:'inherit', fontWeight:600 }}>
-            <Filter size={12}/> Filter {filterPri.length||filterTag?`(${filterPri.length+(filterTag?1:0)})`:''}
-          </button>
+          {mob.isMobile ? (
+            <>
+              <button onClick={() => setNewStatus('todo')} style={{ display:'flex', alignItems:'center', gap:6, padding:isCompactMobile ? '6px 10px' : '7px 12px', borderRadius:9, background:t.accent, border:'none', cursor:'pointer', color:'#fff', fontSize:isCompactMobile ? 11 : 12, fontWeight:700, flexShrink:0 }}>
+                <Plus size={12}/> New
+              </button>
+              <button onClick={() => setMobileControlsOpen(true)} style={{ display:'flex', alignItems:'center', gap:5, padding:compactControlPadding, borderRadius:9, background:(filterPri.length||filterTag||batchMode)?`rgba(${rgb},0.15)`:'rgba(255,255,255,0.07)', border:`1px solid ${(filterPri.length||filterTag||batchMode)?t.accent:'rgba(255,255,255,0.1)'}`, cursor:'pointer', fontSize:compactFont, color:(filterPri.length||filterTag||batchMode)?t.accent:'inherit', fontWeight:700, flexShrink:0 }}>
+                <Filter size={12}/> Controls
+              </button>
+            </>
+          ) : (
+            <>
+              <button onClick={() => setFilterPanel((state) => !state)} style={{ display:'flex', alignItems:'center', gap:5, padding:compactControlPadding, borderRadius:9, background: filterPanel||filterPri.length||filterTag?`rgba(${rgb},0.15)`:'rgba(255,255,255,0.07)', border:`1px solid ${filterPanel||filterPri.length||filterTag?t.accent:'rgba(255,255,255,0.1)'}`, cursor:'pointer', fontSize:compactFont, color: filterPri.length||filterTag?t.accent:'inherit', fontWeight:600 }}>
+                <Filter size={12}/> Filter {filterPri.length||filterTag?`(${filterPri.length+(filterTag?1:0)})`:''}
+              </button>
 
-          <button onClick={() => setShowDone((state) => !state)} style={{ padding:'7px 11px', borderRadius:9, background:!showDone?`rgba(${rgb},0.12)`:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.1)', cursor:'pointer', fontSize:12, color:!showDone?t.accent:'inherit' }}>
-            {showDone?'Hide Done':'Show Done'}
-          </button>
+              <button onClick={() => setShowDone((state) => !state)} style={{ padding:compactControlPadding, borderRadius:9, background:!showDone?`rgba(${rgb},0.12)`:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.1)', cursor:'pointer', fontSize:compactFont, color:!showDone?t.accent:'inherit' }}>
+                {showDone?'Hide Done':'Show Done'}
+              </button>
 
-          <button onClick={() => setBatchMode((state) => !state)} style={{ padding:'7px 11px', borderRadius:9, background:batchMode?`rgba(${rgb},0.16)`:'rgba(255,255,255,0.07)', border:`1px solid ${batchMode?t.accent:'rgba(255,255,255,0.1)'}`, cursor:'pointer', fontSize:12, color:batchMode?t.accent:'inherit', fontWeight:700 }}>
-            {batchMode ? 'Batch On' : 'Batch'}
-          </button>
+              <button onClick={() => setBatchMode((state) => !state)} style={{ padding:compactControlPadding, borderRadius:9, background:batchMode?`rgba(${rgb},0.16)`:'rgba(255,255,255,0.07)', border:`1px solid ${batchMode?t.accent:'rgba(255,255,255,0.1)'}`, cursor:'pointer', fontSize:compactFont, color:batchMode?t.accent:'inherit', fontWeight:700 }}>
+                {batchMode ? 'Batch On' : 'Batch'}
+              </button>
+            </>
+          )}
         </div>
 
-        <div style={{ display:'flex', alignItems:'center', gap:7, padding:'8px 14px', borderBottom:'1px solid rgba(255,255,255,0.06)', flexShrink:0, background:'rgba(0,0,0,0.07)', flexWrap:'wrap' }}>
+        <div className="nx-mobile-row-scroll" style={{ gap:6, padding:isCompactMobile ? '5px 10px' : '8px 14px', borderBottom:'1px solid rgba(255,255,255,0.06)', flexShrink:0, background:'rgba(0,0,0,0.07)' }}>
           {TASK_WORK_MODES.map((mode) => {
             const active = mode === workMode
             const meta = TASK_WORK_MODE_META[mode]
+            const compactLabel = mode === 'due-soon'
+              ? 'Soon'
+              : mode === 'high-priority'
+                ? 'High'
+                : mode === 'blocked'
+                  ? 'Blocked'
+                  : mode === 'focus'
+                    ? 'Focus'
+                    : 'Board'
             return (
               <button
                 key={mode}
@@ -1024,18 +1187,19 @@ export function TasksView({ setView }: { setView?: (viewId: string) => void } = 
                   display:'flex',
                   alignItems:'center',
                   gap:5,
-                  padding:'5px 9px',
+                  padding:isCompactMobile ? '4px 8px' : '5px 9px',
                   borderRadius:999,
                   border: `1px solid ${active ? t.accent : 'rgba(255,255,255,0.12)'}`,
                   background: active ? `rgba(${rgb},0.16)` : 'rgba(255,255,255,0.06)',
                   color: active ? t.accent : 'inherit',
-                  fontSize:11,
+                  fontSize:isCompactMobile ? 10 : 11,
                   fontWeight:700,
                   cursor:'pointer',
+                  whiteSpace: 'nowrap',
                 }}
               >
                 {meta.icon}
-                {meta.label}
+                {isLandscapeMobile ? compactLabel : meta.label}
                 <span style={{ opacity:0.65 }}>{modeCounts[mode]}</span>
               </button>
             )
@@ -1043,9 +1207,9 @@ export function TasksView({ setView }: { setView?: (viewId: string) => void } = 
         </div>
 
         <AnimatePresence>
-          {batchMode && (
+          {batchMode && !mob.isMobile && (
             <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }} style={{ overflow:'hidden', flexShrink:0 }}>
-              <div style={{ padding:'8px 14px', borderBottom:'1px solid rgba(255,255,255,0.06)', background:'rgba(0,0,0,0.07)', display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
+              <div className="nx-mobile-row-scroll" style={{ padding:'8px 14px', borderBottom:'1px solid rgba(255,255,255,0.06)', background:'rgba(0,0,0,0.07)', gap:8 }}>
                 <span style={{ fontSize:11, padding:'3px 8px', borderRadius:999, background:'rgba(255,255,255,0.08)', border:'1px solid rgba(255,255,255,0.12)' }}>{selectedCount} selected</span>
 
                 <button onClick={() => applyBatchStatus('todo')} style={{ padding:'5px 8px', borderRadius:8, border:'1px solid rgba(255,255,255,0.12)', background:'rgba(255,255,255,0.07)', color:'inherit', cursor:'pointer', fontSize:10, fontWeight:700 }}>To Do</button>
@@ -1067,12 +1231,12 @@ export function TasksView({ setView }: { setView?: (viewId: string) => void } = 
         </AnimatePresence>
 
         <AnimatePresence>
-          {filterPanel && (
+          {filterPanel && !mob.isMobile && (
             <motion.div initial={{height:0,opacity:0}} animate={{height:'auto',opacity:1}} exit={{height:0,opacity:0}} transition={{ duration: Math.max(0.12, filterPanelRuntime.timings.regularMs / 1000), ease: filterPanelRuntime.timings.framerEase }} style={{ overflow:'hidden', flexShrink:0 }}>
-              <div style={{ padding:'10px 16px', borderBottom:'1px solid rgba(255,255,255,0.07)', display:'flex', flexWrap:'wrap', gap:10, background:'rgba(0,0,0,0.08)' }}>
+              <div className="nx-mobile-row-scroll" style={{ padding:isCompactMobile ? '8px 12px' : '10px 16px', borderBottom:'1px solid rgba(255,255,255,0.07)', gap:isCompactMobile ? 8 : 10, background:'rgba(0,0,0,0.08)' }}>
                 <div>
                   <div style={{ fontSize:10, opacity:0.45, marginBottom:5, fontWeight:700, textTransform:'uppercase', letterSpacing:0.5 }}>Priority</div>
-                  <div style={{ display:'flex', gap:5 }}>
+                  <div className="nx-mobile-row-scroll" style={{ gap:5 }}>
                     {(['low','mid','high'] as const).map((priorityKey) => (
                       <button key={priorityKey} onClick={() => setFilterPri((previous) => previous.includes(priorityKey) ? previous.filter((entry) => entry !== priorityKey) : [...previous, priorityKey])} style={{ padding:'4px 10px', borderRadius:7, border:`1px solid ${filterPri.includes(priorityKey)?PRIORITY_COLOR[priorityKey]:'rgba(255,255,255,0.1)'}`, background:filterPri.includes(priorityKey)?`${PRIORITY_COLOR[priorityKey]}20`:'transparent', cursor:'pointer', fontSize:11, color:filterPri.includes(priorityKey)?PRIORITY_COLOR[priorityKey]:'inherit' }}>
                         {PRIORITY_LABEL[priorityKey]}
@@ -1083,7 +1247,7 @@ export function TasksView({ setView }: { setView?: (viewId: string) => void } = 
                 {allTags.length > 0 && (
                   <div>
                     <div style={{ fontSize:10, opacity:0.45, marginBottom:5, fontWeight:700, textTransform:'uppercase', letterSpacing:0.5 }}>Tag</div>
-                    <div style={{ display:'flex', flexWrap:'wrap', gap:4 }}>
+                    <div className="nx-mobile-row-scroll" style={{ gap:4 }}>
                       {allTags.map((tag) => (
                         <button key={tag} onClick={() => setFilterTag((current) => current === tag ? '' : tag)} style={{ padding:'4px 9px', borderRadius:7, border:`1px solid ${filterTag===tag?t.accent:'rgba(255,255,255,0.1)'}`, background:filterTag===tag?`rgba(${rgb},0.15)`:'transparent', cursor:'pointer', fontSize:11, color:filterTag===tag?t.accent:'inherit' }}>
                           #{tag}
@@ -1100,33 +1264,30 @@ export function TasksView({ setView }: { setView?: (viewId: string) => void } = 
           )}
         </AnimatePresence>
 
-        <StatsBar tasks={tasks} />
+        {!mob.isMobile ? <StatsBar tasks={tasks} /> : null}
 
-        <div style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 14px', borderBottom:'1px solid rgba(255,255,255,0.06)', background:'rgba(0,0,0,0.06)', flexWrap:'wrap' }}>
-          <span style={{ fontSize:10, padding:'3px 8px', borderRadius:999, background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.1)' }}>
-            <strong>{dueSoonCount}</strong> <span style={{ opacity:0.6 }}>Due &lt; 48h</span>
-          </span>
-          <span style={{ fontSize:10, padding:'3px 8px', borderRadius:999, background:doingCount > 5 ? 'rgba(255,69,58,0.14)' : 'rgba(255,255,255,0.06)', border:doingCount > 5 ? '1px solid rgba(255,69,58,0.35)' : '1px solid rgba(255,255,255,0.1)', color:doingCount > 5 ? '#FF453A' : 'inherit' }}>
-            <strong>{doingCount}</strong> <span style={{ opacity:0.7 }}>WIP</span>
-          </span>
-          <span style={{ fontSize:10, padding:'3px 8px', borderRadius:999, background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.1)' }}>
-            <strong>{filtered.length}</strong> <span style={{ opacity:0.7 }}>{TASK_WORK_MODE_META[workMode].label}</span>
-          </span>
-          <div style={{ marginLeft:'auto', display:'flex', gap:6 }}>
-            <button onClick={() => quickAdd('today')} style={{ padding:'5px 9px', borderRadius:8, border:`1px solid rgba(${rgb},0.3)`, background:`rgba(${rgb},0.14)`, color:t.accent, fontSize:10, fontWeight:700, cursor:'pointer' }}>+ Today</button>
-            <button onClick={() => quickAdd('focus')} style={{ padding:'5px 9px', borderRadius:8, border:'1px solid rgba(255,255,255,0.14)', background:'rgba(255,255,255,0.06)', color:'inherit', fontSize:10, fontWeight:700, cursor:'pointer' }}>+ Focus</button>
-            <button onClick={() => quickAdd('bug')} style={{ padding:'5px 9px', borderRadius:8, border:'1px solid rgba(255,69,58,0.35)', background:'rgba(255,69,58,0.12)', color:'#FF453A', fontSize:10, fontWeight:700, cursor:'pointer' }}>+ Bugfix</button>
+        {!mob.isMobile ? (
+          <div className="nx-mobile-row-scroll" style={{ gap:8, padding:isCompactMobile ? '5px 10px' : '8px 14px', borderBottom:'1px solid rgba(255,255,255,0.06)', background:'rgba(0,0,0,0.06)' }}>
+            <span style={{ fontSize:10, padding:'3px 8px', borderRadius:999, background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.1)' }}>
+              <strong>{dueSoonCount}</strong> <span style={{ opacity:0.6 }}>Due &lt; 48h</span>
+            </span>
+            <span style={{ fontSize:10, padding:'3px 8px', borderRadius:999, background:doingCount > 5 ? 'rgba(255,69,58,0.14)' : 'rgba(255,255,255,0.06)', border:doingCount > 5 ? '1px solid rgba(255,69,58,0.35)' : '1px solid rgba(255,255,255,0.1)', color:doingCount > 5 ? '#FF453A' : 'inherit' }}>
+              <strong>{doingCount}</strong> <span style={{ opacity:0.7 }}>WIP</span>
+            </span>
+            <span style={{ fontSize:10, padding:'3px 8px', borderRadius:999, background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.1)' }}>
+              <strong>{filtered.length}</strong> <span style={{ opacity:0.7 }}>{TASK_WORK_MODE_META[workMode].label}</span>
+            </span>
           </div>
-        </div>
+        ) : null}
 
         {mob.isMobile && (
-          <div style={{ display:'flex', gap:0, padding:'0 12px 8px', flexShrink:0 }}>
+          <div style={{ display:'flex', gap:0, padding:isCompactMobile ? '0 8px 6px' : '0 12px 8px', flexShrink:0 }}>
             {COLS.map((column) => {
               const count = filtered.filter((task) => task.status === column.id).length
               const active = mobileCol === column.id
               return (
-                <button key={column.id} onClick={() => setMobileCol(column.id)} style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', gap:5, padding:'9px 4px', borderRadius:0, border:'none', borderBottom:`2px solid ${active?column.color:'transparent'}`, background:'transparent', cursor:'pointer', color:active?column.color:'inherit', fontSize:12, fontWeight:active?700:500, transition:'all 0.15s' }}>
-                  <span>{column.emoji}</span> {column.label}
+                <button key={column.id} onClick={() => setMobileCol(column.id)} style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', gap:5, padding:isCompactMobile ? '7px 3px' : '9px 4px', borderRadius:0, border:'none', borderBottom:`2px solid ${active?column.color:'transparent'}`, background:'transparent', cursor:'pointer', color:active?column.color:'inherit', fontSize:isCompactMobile ? 11 : 12, fontWeight:active?700:500, transition:'all 0.15s' }}>
+                  <span>{column.emoji}</span> {!isLandscapeMobile ? column.label : null}
                   <span style={{ fontSize:10, padding:'1px 6px', borderRadius:8, background:`rgba(255,255,255,0.08)`, marginLeft:2 }}>{count}</span>
                 </button>
               )
@@ -1134,7 +1295,7 @@ export function TasksView({ setView }: { setView?: (viewId: string) => void } = 
           </div>
         )}
 
-        <div style={{ flex:1, display: mob.isMobile ? 'block' : 'flex', gap:12, padding: mob.isMobile ? '0 12px 12px' : 14, overflow:'visible', minHeight:0, overflowY: mob.isMobile ? 'auto' : undefined }}>
+        <div style={{ flex:1, display: mob.isMobile ? 'block' : 'flex', gap:12, padding: mob.isMobile ? (isCompactMobile ? '0 8px 8px' : '0 12px 12px') : 14, overflow:'visible', minHeight:0, overflowY: mob.isMobile ? 'auto' : undefined }}>
           {COLS.filter((column) => !mob.isMobile || column.id === mobileCol).map((column) => {
             if (!showDone && column.id === 'done') return null
             const items = filtered.filter((task) => task.status === column.id)
@@ -1186,6 +1347,83 @@ export function TasksView({ setView }: { setView?: (viewId: string) => void } = 
           })}
         </div>
       </div>
+
+      <MobileSheet
+        open={mob.isMobile && mobileControlsOpen}
+        onClose={() => setMobileControlsOpen(false)}
+        title="Task Controls"
+        mode="bottom"
+      >
+        <div style={{ padding: '8px 8px 12px', display: 'grid', gap: 8 }}>
+          <div className="nx-mobile-row-scroll" style={{ gap: 6 }}>
+            <button onClick={() => setShowDone((state) => !state)} style={{ padding:'6px 10px', borderRadius:9, background:!showDone?`rgba(${rgb},0.12)`:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.1)', cursor:'pointer', fontSize:11, color:!showDone?t.accent:'inherit', fontWeight:700 }}>
+              {showDone ? 'Done anzeigen' : 'Done ausblenden'}
+            </button>
+            <button onClick={() => setBatchMode((state) => !state)} style={{ padding:'6px 10px', borderRadius:9, background:batchMode?`rgba(${rgb},0.16)`:'rgba(255,255,255,0.07)', border:`1px solid ${batchMode?t.accent:'rgba(255,255,255,0.1)'}`, cursor:'pointer', fontSize:11, color:batchMode?t.accent:'inherit', fontWeight:700 }}>
+              {batchMode ? 'Batch aktiv' : 'Batch aktivieren'}
+            </button>
+            <button onClick={() => { setFilterPri([]); setFilterTag('') }} style={{ padding:'6px 10px', borderRadius:9, background:'rgba(255,69,58,0.1)', border:'1px solid rgba(255,69,58,0.2)', cursor:'pointer', fontSize:11, color:'#ff453a', fontWeight:700 }}>
+              Filter löschen
+            </button>
+          </div>
+
+          <div style={{ display: 'grid', gap: 6 }}>
+            <div style={{ fontSize: 10, opacity: 0.55, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4 }}>Priority Filter</div>
+            <div className="nx-mobile-row-scroll" style={{ gap: 6 }}>
+              {(['low','mid','high'] as const).map((priorityKey) => (
+                <button
+                  key={`mobile-task-control-pri-${priorityKey}`}
+                  onClick={() => setFilterPri((previous) => previous.includes(priorityKey) ? previous.filter((entry) => entry !== priorityKey) : [...previous, priorityKey])}
+                  style={{ padding:'5px 10px', borderRadius:8, border:`1px solid ${filterPri.includes(priorityKey)?PRIORITY_COLOR[priorityKey]:'rgba(255,255,255,0.1)'}`, background:filterPri.includes(priorityKey)?`${PRIORITY_COLOR[priorityKey]}20`:'rgba(255,255,255,0.04)', cursor:'pointer', fontSize:11, color:filterPri.includes(priorityKey)?PRIORITY_COLOR[priorityKey]:'inherit', fontWeight:700 }}
+                >
+                  {PRIORITY_LABEL[priorityKey]}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {allTags.length > 0 ? (
+            <div style={{ display: 'grid', gap: 6 }}>
+              <div style={{ fontSize: 10, opacity: 0.55, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4 }}>Tag Filter</div>
+              <div className="nx-mobile-row-scroll" style={{ gap: 6 }}>
+                {allTags.map((tag) => (
+                  <button
+                    key={`mobile-task-control-tag-${tag}`}
+                    onClick={() => setFilterTag((current) => current === tag ? '' : tag)}
+                    style={{ padding:'5px 9px', borderRadius:8, border:`1px solid ${filterTag===tag?t.accent:'rgba(255,255,255,0.1)'}`, background:filterTag===tag?`rgba(${rgb},0.15)`:'rgba(255,255,255,0.04)', cursor:'pointer', fontSize:11, color:filterTag===tag?t.accent:'inherit', fontWeight:700 }}
+                  >
+                    #{tag}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          <div className="nx-mobile-row-scroll" style={{ gap: 6 }}>
+            <button onClick={() => quickAdd('today')} style={{ padding:'6px 10px', borderRadius:8, border:`1px solid rgba(${rgb},0.3)`, background:`rgba(${rgb},0.14)`, color:t.accent, fontSize:11, fontWeight:700, cursor:'pointer' }}>+ Today</button>
+            <button onClick={() => quickAdd('focus')} style={{ padding:'6px 10px', borderRadius:8, border:'1px solid rgba(255,255,255,0.14)', background:'rgba(255,255,255,0.06)', color:'inherit', fontSize:11, fontWeight:700, cursor:'pointer' }}>+ Focus</button>
+            <button onClick={() => quickAdd('bug')} style={{ padding:'6px 10px', borderRadius:8, border:'1px solid rgba(255,69,58,0.35)', background:'rgba(255,69,58,0.12)', color:'#FF453A', fontSize:11, fontWeight:700, cursor:'pointer' }}>+ Bugfix</button>
+          </div>
+
+          {batchMode ? (
+            <div style={{ display: 'grid', gap: 6, borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 8 }}>
+              <span style={{ fontSize: 11, padding:'4px 8px', borderRadius:999, background:'rgba(255,255,255,0.08)', border:'1px solid rgba(255,255,255,0.12)', width: 'fit-content' }}>
+                {selectedCount} ausgewählt
+              </span>
+              <div className="nx-mobile-row-scroll" style={{ gap: 6 }}>
+                <button onClick={() => applyBatchStatus('todo')} style={{ padding:'6px 9px', borderRadius:8, border:'1px solid rgba(255,255,255,0.12)', background:'rgba(255,255,255,0.07)', color:'inherit', cursor:'pointer', fontSize:11, fontWeight:700 }}>To Do</button>
+                <button onClick={() => applyBatchStatus('doing')} style={{ padding:'6px 9px', borderRadius:8, border:'1px solid rgba(255,159,10,0.24)', background:'rgba(255,159,10,0.12)', color:'#ff9f0a', cursor:'pointer', fontSize:11, fontWeight:700 }}>Doing</button>
+                <button onClick={() => applyBatchStatus('done')} style={{ padding:'6px 9px', borderRadius:8, border:'1px solid rgba(48,209,88,0.28)', background:'rgba(48,209,88,0.12)', color:'#30d158', cursor:'pointer', fontSize:11, fontWeight:700 }}>Done</button>
+              </div>
+              <div className="nx-mobile-row-scroll" style={{ gap: 6 }}>
+                <input value={batchTagInput} onChange={(event) => setBatchTagInput(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); applyBatchTag() } }} placeholder="#tag" style={{ width:100, padding:'6px 8px', borderRadius:8, border:'1px solid rgba(255,255,255,0.14)', background:'rgba(255,255,255,0.06)', color:'inherit', fontSize:11, outline:'none' }} />
+                <button onClick={applyBatchTag} style={{ padding:'6px 10px', borderRadius:8, border:'1px solid rgba(255,255,255,0.14)', background:'rgba(255,255,255,0.07)', color:'inherit', cursor:'pointer', fontSize:11, fontWeight:700, display:'flex', alignItems:'center', gap:4 }}><Tag size={11} /> Tag</button>
+                <button onClick={batchDelete} style={{ padding:'6px 10px', borderRadius:8, border:'1px solid rgba(255,69,58,0.3)', background:'rgba(255,69,58,0.12)', color:'#ff453a', cursor:'pointer', fontSize:11, fontWeight:700, display:'flex', alignItems:'center', gap:4 }}><Trash2 size={11} /> Delete</button>
+              </div>
+            </div>
+          ) : null}
+        </div>
+      </MobileSheet>
 
       <AnimatePresence>
         {newStatus && <TaskModal key="new" onClose={() => setNewStatus(null)} status={newStatus} setView={setView} />}
