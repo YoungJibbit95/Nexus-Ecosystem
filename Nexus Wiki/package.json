@@ -6,11 +6,12 @@
   "scripts": {
     "dev": "vite --port=3000 --host=0.0.0.0",
     "build": "vite build",
-    "build:ci": "npm run build && npm run perf:budget",
+    "build:ci": "npm run build && npm run perf:budget && npm run i18n:check",
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit",
-    "perf:budget": "node scripts/check-bundle-budget.mjs"
+    "perf:budget": "node scripts/check-bundle-budget.mjs",
+    "i18n:check": "tsx scripts/check-wiki-i18n.ts"
   },
   "dependencies": {
     "@google/genai": "^1.29.0",

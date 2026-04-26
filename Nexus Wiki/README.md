@@ -31,6 +31,7 @@ Markdown-Lab, View-Matrix und UI-Engine-Referenzen.
 - Sticky globale Suche mit Tippfehler-/Synonym-Suche
 - Vollstaendige DE/EN-Umschaltung fuer UI-Texte, Entry-Inhalte, Guide-Schritte, Featurelisten und Markdown-Snippets
 - Schnellsuche-Chips fuer zentrale Themen wie `nexus-kanban`, Canvas Magic, Render Diagnostics und Keybinds
+- Mission-Path-Leiste fuer den Nutzerfluss: Suchen -> Andocken -> Abarbeiten -> Uebernehmen
 - Roadmap-artige Guide-Darstellung pro App
 - Groessere offene Content-Surfaces statt kleiner, enger Karten
 - Mobile Overflow-Schutz ueber globale `overflow-x` Guards und komprimierte Roadmap-Marker
@@ -44,6 +45,7 @@ Markdown-Lab, View-Matrix und UI-Engine-Referenzen.
 - `src/data/wikiEntriesPrimary.ts`
 - `src/data/wikiEntriesSecondary.ts`
 - `src/data/wikiViewMatrix.ts`
+- `scripts/check-wiki-i18n.ts`
 
 ## Scripts
 
@@ -53,6 +55,7 @@ npm run dev
 npm run build
 npm run build:ci
 npm run perf:budget
+npm run i18n:check
 npm run preview
 npm run lint
 ```
