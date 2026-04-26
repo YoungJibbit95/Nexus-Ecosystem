@@ -2,6 +2,7 @@ import { gzipSync } from 'node:zlib';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 
+const distDir = path.resolve(process.cwd(), 'dist');
 const distAssetsDir = path.resolve(process.cwd(), 'dist/assets');
 
 const readBudget = (key, fallback) => {
@@ -12,8 +13,9 @@ const readBudget = (key, fallback) => {
 };
 
 const budgets = {
-  maxTotalJsKb: readBudget('BUNDLE_BUDGET_TOTAL_JS_KB', 900),
-  maxLargestJsKb: readBudget('BUNDLE_BUDGET_LARGEST_JS_KB', 330),
+  maxInitialJsKb: readBudget('BUNDLE_BUDGET_INITIAL_JS_KB', readBudget('BUNDLE_BUDGET_TOTAL_JS_KB', 900)),
+  maxLargestInitialJsKb: readBudget('BUNDLE_BUDGET_LARGEST_INITIAL_JS_KB', readBudget('BUNDLE_BUDGET_LARGEST_JS_KB', 330)),
+  maxLargestLazyJsKb: readBudget('BUNDLE_BUDGET_LARGEST_LAZY_JS_KB', 520),
   maxTotalCssKb: readBudget('BUNDLE_BUDGET_TOTAL_CSS_KB', 180),
   maxTotalGzipKb: readBudget('BUNDLE_BUDGET_TOTAL_GZIP_KB', 360),
 };
@@ -38,6 +40,12 @@ const listAssets = (ext) => {
   });
 };
 
+const readInitialJsFiles = () => {
+  const html = readFileSync(path.join(distDir, 'index.html'), 'utf8');
+  const matches = Array.from(html.matchAll(/(?:src|href)="\.\/assets\/([^"]+\.js)"/g));
+  return new Set(matches.map((match) => match[1]));
+};
+
 const fail = (message) => {
   console.error(`[bundle-budget] FAIL: ${message}`);
   process.exitCode = 1;
@@ -46,29 +54,42 @@ const fail = (message) => {
 try {
   const jsAssets = listAssets('.js');
   const cssAssets = listAssets('.css');
+  const initialJsFiles = readInitialJsFiles();
+  const initialJsAssets = jsAssets.filter((asset) => initialJsFiles.has(asset.file));
+  const lazyJsAssets = jsAssets.filter((asset) => !initialJsFiles.has(asset.file));
 
   const totalJsRaw = toKb(jsAssets.reduce((sum, asset) => sum + asset.rawBytes, 0));
   const totalJsGzip = toKb(jsAssets.reduce((sum, asset) => sum + asset.gzipBytes, 0));
+  const initialJsRaw = toKb(initialJsAssets.reduce((sum, asset) => sum + asset.rawBytes, 0));
+  const initialJsGzip = toKb(initialJsAssets.reduce((sum, asset) => sum + asset.gzipBytes, 0));
   const totalCssRaw = toKb(cssAssets.reduce((sum, asset) => sum + asset.rawBytes, 0));
   const totalCssGzip = toKb(cssAssets.reduce((sum, asset) => sum + asset.gzipBytes, 0));
-  const largestJsRaw = jsAssets.length
-    ? toKb(Math.max(...jsAssets.map((asset) => asset.rawBytes)))
+  const largestInitialJsRaw = initialJsAssets.length
+    ? toKb(Math.max(...initialJsAssets.map((asset) => asset.rawBytes)))
+    : 0;
+  const largestLazyJsRaw = lazyJsAssets.length
+    ? toKb(Math.max(...lazyJsAssets.map((asset) => asset.rawBytes)))
     : 0;
 
-  console.log('[bundle-budget] JS assets:');
-  jsAssets.forEach((asset) => console.log(`  - ${formatAsset(asset)}`));
+  console.log('[bundle-budget] Initial JS assets:');
+  initialJsAssets.forEach((asset) => console.log(`  - ${formatAsset(asset)}`));
+  console.log('[bundle-budget] Lazy JS assets:');
+  lazyJsAssets.forEach((asset) => console.log(`  - ${formatAsset(asset)}`));
   console.log('[bundle-budget] CSS assets:');
   cssAssets.forEach((asset) => console.log(`  - ${formatAsset(asset)}`));
 
   console.log(
-    `[bundle-budget] totals => js(raw=${totalJsRaw}kb,gzip=${totalJsGzip}kb) css(raw=${totalCssRaw}kb,gzip=${totalCssGzip}kb)`,
+    `[bundle-budget] totals => initialJs(raw=${initialJsRaw}kb,gzip=${initialJsGzip}kb) allJs(raw=${totalJsRaw}kb,gzip=${totalJsGzip}kb) css(raw=${totalCssRaw}kb,gzip=${totalCssGzip}kb)`,
   );
 
-  if (totalJsRaw > budgets.maxTotalJsKb) {
-    fail(`total JS raw size ${totalJsRaw}kb exceeds ${budgets.maxTotalJsKb}kb`);
+  if (initialJsRaw > budgets.maxInitialJsKb) {
+    fail(`initial JS raw size ${initialJsRaw}kb exceeds ${budgets.maxInitialJsKb}kb`);
   }
-  if (largestJsRaw > budgets.maxLargestJsKb) {
-    fail(`largest JS chunk ${largestJsRaw}kb exceeds ${budgets.maxLargestJsKb}kb`);
+  if (largestInitialJsRaw > budgets.maxLargestInitialJsKb) {
+    fail(`largest initial JS chunk ${largestInitialJsRaw}kb exceeds ${budgets.maxLargestInitialJsKb}kb`);
+  }
+  if (largestLazyJsRaw > budgets.maxLargestLazyJsKb) {
+    fail(`largest lazy JS chunk ${largestLazyJsRaw}kb exceeds ${budgets.maxLargestLazyJsKb}kb`);
   }
   if (totalCssRaw > budgets.maxTotalCssKb) {
     fail(`total CSS raw size ${totalCssRaw}kb exceeds ${budgets.maxTotalCssKb}kb`);

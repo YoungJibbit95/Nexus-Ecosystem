@@ -1,19 +1,33 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Avenir Next", "Plus Jakarta Sans", "Outfit", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 }
 
 @layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
   html,
   body,
   #root {
     @apply w-full max-w-full min-h-full overflow-x-hidden;
   }
 
+  html {
+    overflow-x: clip;
+  }
+
   body {
-    @apply bg-[#030712] text-slate-50 antialiased selection:bg-indigo-500/30 overflow-x-hidden;
+    @apply bg-[#020617] text-slate-50 antialiased selection:bg-cyan-500/30 overflow-x-hidden;
+    background:
+      radial-gradient(circle at 14% 8%, rgba(34, 211, 238, 0.18), transparent 30rem),
+      radial-gradient(circle at 86% 12%, rgba(79, 70, 229, 0.2), transparent 26rem),
+      linear-gradient(180deg, #020617 0%, #050816 48%, #020617 100%);
   }
 
   img,
@@ -22,9 +36,178 @@
   svg {
     @apply max-w-full;
   }
+
+  pre,
+  code {
+    max-width: 100%;
+  }
 }
 
 @layer utilities {
+  .wiki-shell {
+    isolation: isolate;
+    background:
+      radial-gradient(circle at 50% 0%, rgba(56, 189, 248, 0.1), transparent 34rem),
+      linear-gradient(135deg, rgba(2, 6, 23, 0.88), rgba(8, 13, 31, 0.92));
+  }
+
+  .wiki-main {
+    min-width: 0;
+  }
+
+  .wiki-sidebar {
+    background:
+      linear-gradient(180deg, rgba(2, 6, 23, 0.92), rgba(15, 23, 42, 0.74)),
+      radial-gradient(circle at top left, rgba(34, 211, 238, 0.13), transparent 18rem);
+    box-shadow: 18px 0 80px rgba(0, 0, 0, 0.35);
+  }
+
+  .wiki-search-dock {
+    background:
+      linear-gradient(120deg, rgba(15, 23, 42, 0.86), rgba(8, 13, 31, 0.72)),
+      radial-gradient(circle at 8% 0%, rgba(34, 211, 238, 0.16), transparent 18rem),
+      radial-gradient(circle at 88% 20%, rgba(129, 140, 248, 0.13), transparent 18rem);
+  }
+
+  .wiki-atlas-hero {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.11);
+    background:
+      linear-gradient(135deg, rgba(15, 23, 42, 0.76), rgba(15, 23, 42, 0.34)),
+      radial-gradient(circle at 20% 15%, rgba(34, 211, 238, 0.16), transparent 24rem),
+      radial-gradient(circle at 92% 16%, rgba(168, 85, 247, 0.16), transparent 25rem);
+    box-shadow:
+      0 24px 80px rgba(0, 0, 0, 0.35),
+      inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  }
+
+  .wiki-atlas-hero::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+    background-size: 56px 56px;
+    mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.65), transparent 74%);
+  }
+
+  .wiki-atlas-orbit {
+    position: absolute;
+    right: clamp(-8rem, -8vw, -2rem);
+    top: 50%;
+    width: clamp(18rem, 35vw, 34rem);
+    aspect-ratio: 1;
+    transform: translateY(-50%);
+    border-radius: 999px;
+    border: 1px solid rgba(125, 211, 252, 0.18);
+    background:
+      radial-gradient(circle, rgba(34, 211, 238, 0.12), transparent 28%),
+      conic-gradient(from 90deg, rgba(34, 211, 238, 0.28), transparent, rgba(129, 140, 248, 0.25), transparent);
+    opacity: 0.82;
+    filter: blur(0.2px);
+    animation: wikiOrbitSpin 44s linear infinite;
+  }
+
+  .wiki-atlas-orbit::after {
+    content: "";
+    position: absolute;
+    inset: 17%;
+    border-radius: inherit;
+    border: 1px dashed rgba(255, 255, 255, 0.18);
+  }
+
+  .wiki-kicker {
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    font-size: 0.72rem;
+    color: rgb(165, 243, 252);
+  }
+
+  .wiki-gradient-text {
+    color: transparent;
+    background: linear-gradient(90deg, #ffffff, #a5f3fc 42%, #c4b5fd 72%, #f0abfc);
+    -webkit-background-clip: text;
+    background-clip: text;
+  }
+
+  .wiki-stat-card {
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.075), rgba(255, 255, 255, 0.025)),
+      radial-gradient(circle at 20% 0%, rgba(34, 211, 238, 0.12), transparent 11rem);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  }
+
+  .wiki-section-rail {
+    background:
+      linear-gradient(90deg, rgba(2, 6, 23, 0.78), rgba(15, 23, 42, 0.64)),
+      radial-gradient(circle at 10% 0%, rgba(34, 211, 238, 0.12), transparent 14rem);
+  }
+
+  .wiki-roadmap {
+    position: relative;
+    min-width: 0;
+  }
+
+  .wiki-roadmap::before {
+    content: "";
+    position: absolute;
+    left: 1.15rem;
+    top: 0.75rem;
+    bottom: 0.75rem;
+    width: 1px;
+    background: linear-gradient(180deg, transparent, rgba(34, 211, 238, 0.55), rgba(129, 140, 248, 0.36), transparent);
+  }
+
+  .wiki-road-step {
+    position: relative;
+    min-width: 0;
+    padding-left: 3.25rem;
+  }
+
+  .wiki-road-marker {
+    position: absolute;
+    left: 0;
+    top: 2.25rem;
+    z-index: 2;
+    display: grid;
+    place-items: center;
+    width: 2.3rem;
+    height: 2.3rem;
+    border-radius: 999px;
+    border: 1px solid rgba(125, 211, 252, 0.45);
+    background: radial-gradient(circle at 35% 25%, rgba(255, 255, 255, 0.28), rgba(34, 211, 238, 0.2) 32%, rgba(15, 23, 42, 0.95) 70%);
+    color: rgb(224, 242, 254);
+    font: 700 0.78rem/1 var(--font-mono);
+    box-shadow: 0 0 24px rgba(34, 211, 238, 0.2);
+  }
+
+  .wiki-entry-card {
+    content-visibility: auto;
+    contain-intrinsic-size: 760px;
+    background:
+      linear-gradient(135deg, rgba(15, 23, 42, 0.78), rgba(2, 6, 23, 0.74)),
+      radial-gradient(circle at 0% 0%, rgba(34, 211, 238, 0.11), transparent 18rem),
+      radial-gradient(circle at 100% 0%, rgba(168, 85, 247, 0.09), transparent 18rem);
+    box-shadow:
+      0 18px 60px rgba(0, 0, 0, 0.28),
+      inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  }
+
+  .wiki-markdown-strip {
+    background:
+      linear-gradient(90deg, rgba(34, 211, 238, 0.08), rgba(99, 102, 241, 0.06), rgba(217, 70, 239, 0.06)),
+      rgba(2, 6, 23, 0.42);
+  }
+
+  .wiki-copy-chip {
+    word-break: break-word;
+    overflow-wrap: anywhere;
+  }
+
   .bg-grid-white {
     background-image: url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 0h40v40H0V0zm1 1h38v38H1V1z' fill='%23ffffff' fill-opacity='0.03' fill-rule='evenodd'/%3E%3C/svg%3E");
   }
@@ -57,6 +240,12 @@
       transform: translateX(100%);
     }
   }
+
+  @keyframes wikiOrbitSpin {
+    to {
+      transform: translateY(-50%) rotate(360deg);
+    }
+  }
 }
 
 /* Custom Scrollbar */
@@ -81,5 +270,26 @@
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .wiki-atlas-orbit {
+    opacity: 0.36;
+    right: -11rem;
+    width: 22rem;
+  }
+
+  .wiki-roadmap::before,
+  .wiki-road-marker {
+    display: none;
+  }
+
+  .wiki-road-step {
+    padding-left: 0;
+  }
+
+  .wiki-entry-card {
+    contain-intrinsic-size: 980px;
   }
 }

@@ -1,5 +1,6 @@
 import { BookOpen, Check, ChevronRight, Code, Compass, Copy, Cpu, Database, Grid3X3, Layers, LayoutDashboard, Menu, Monitor, Rocket, Search, Settings2, Shield, Smartphone, Sparkles, Terminal, Workflow, X } from "lucide-react";
 import { apps, categories, entries, viewMatrix, type AppId, type CategoryId, type WikiEntry } from "../data/wikiData";
+import { englishEntryTranslations } from "../data/wikiEntryTranslations";
 
 type SectionId =
   | "getting-started"
@@ -210,23 +211,23 @@ const sectionMeta: Record<SectionId, Record<Language, { title: string; subtitle:
   },
   "markdown-lab": {
     de: {
-      title: "Markdown Lab (Notes + Canvas) 📝",
+      title: "Markdown Lab v5 (Notes + Canvas) 📝",
       subtitle:
-        "Sammelpunkt fuer alle Markdown-Features, Snippets und Magic-Builder-Flows aus NotesView und Canvas.",
+        "Sammelpunkt fuer Standard-Markdown, Notes Magic Widgets, Canvas Markdown Nodes und aktuelle Nexus-Blocksyntax.",
       bullets: [
-        "✨ Enthalten: Widgets, Alerts, Progress, Grid, Timeline, Badge, Cards.",
-        "🧪 Snippets sind direkt kopierbar und im Workflow einsetzbar.",
-        "📚 Perfekt als Referenz fuer Content-/PM-/Knowledge-Flows.",
+        "✨ Enthalten: nexus-list, nexus-alert, nexus-progress, nexus-timeline, nexus-grid, nexus-card und nexus-kanban.",
+        "🧪 Snippets sind direkt kopierbar und klar nach Notes/Canvas-Einsatz getrennt.",
+        "📚 Perfekt als Referenz fuer Content-, PM-, Sprint-, Knowledge- und Review-Flows.",
       ],
     },
     en: {
-      title: "Markdown Lab (Notes + Canvas) 📝",
+      title: "Markdown Lab v5 (Notes + Canvas) 📝",
       subtitle:
-        "Single reference point for all Markdown features, snippets and Magic Builder flows from NotesView and Canvas.",
+        "Single reference point for standard Markdown, Notes Magic widgets, Canvas Markdown nodes and current Nexus block syntax.",
       bullets: [
-        "✨ Includes widgets, alerts, progress, grid, timeline, badges and cards.",
-        "🧪 Snippets are copy-ready and workflow-friendly.",
-        "📚 Strong reference for content, PM and knowledge workflows.",
+        "✨ Includes nexus-list, nexus-alert, nexus-progress, nexus-timeline, nexus-grid, nexus-card and nexus-kanban.",
+        "🧪 Snippets are copy-ready and clearly split by Notes/Canvas usage.",
+        "📚 Strong reference for content, PM, sprint, knowledge and review workflows.",
       ],
     },
   },
@@ -374,7 +375,7 @@ const uiCopy: Record<
       guides: "App Guides",
       knowledge: "Wissenszonen",
     },
-    searchPlaceholder: "Suche nach View, Feature, Command, Markdown, Settings ...",
+    searchPlaceholder: "Suche nach View, Feature, Command, Markdown, nexus-kanban, Diagnostics ...",
     searchScopeGlobal: "Globale Suche aktiv (alle Bereiche)",
     searchScopeSection: "Suche auf aktive Sektion begrenzt",
     searchActiveHint: "Treffer springen direkt in den passenden Guide.",
@@ -396,7 +397,7 @@ const uiCopy: Record<
     tableCode: "Code",
     tableCodeMobile: "Code Mobile",
     tableControl: "Control",
-    footerLayout: "Nexus Wiki Layout v4",
+    footerLayout: "Nexus Wiki Layout v5",
     copied: "Kopiert",
     copyError: "Kopieren fehlgeschlagen",
     entryCount: "Eintraege",
@@ -415,7 +416,7 @@ const uiCopy: Record<
       guides: "App Guides",
       knowledge: "Knowledge Zones",
     },
-    searchPlaceholder: "Search views, features, commands, markdown, settings ...",
+    searchPlaceholder: "Search views, features, commands, markdown, nexus-kanban, diagnostics ...",
     searchScopeGlobal: "Global search active (all sections)",
     searchScopeSection: "Search is scoped to active section",
     searchActiveHint: "Click any result to jump into the matching guide.",
@@ -437,7 +438,7 @@ const uiCopy: Record<
     tableCode: "Code",
     tableCodeMobile: "Code Mobile",
     tableControl: "Control",
-    footerLayout: "Nexus Wiki Layout v4",
+    footerLayout: "Nexus Wiki Layout v5",
     copied: "Copied",
     copyError: "Copy failed",
     entryCount: "entries",
@@ -587,13 +588,14 @@ const categorySearchAliases: Record<CategoryId, string[]> = {
 
 const searchSynonymGroups = [
   ["notes", "note", "notizen", "notesview", "markdown", "md"],
-  ["canvas", "magic", "mindmap", "diagram", "graph", "knoten"],
+  ["canvas", "magic", "magic builder", "mindmap", "roadmap", "sprint", "risk matrix", "decision flow", "ai project", "diagram", "graph", "knoten"],
+  ["nexus-list", "nexus-alert", "nexus-progress", "nexus-timeline", "nexus-grid", "nexus-card", "nexus-kanban", "magic widgets", "markdown widgets"],
   ["keybind", "keybinds", "shortcut", "shortcuts", "hotkey", "hotkeys", "tastenkurzel", "taste"],
   ["settings", "preferences", "einstellungen", "config", "konfiguration"],
   ["security", "paywall", "entitlement", "auth", "sicherheit"],
   ["workflow", "flow", "prozess", "automation", "pipeline"],
-  ["render", "renderer", "pipeline", "tier", "budget", "surface", "effect", "diagnostics"],
-  ["motion", "animation", "degradation", "complexity", "choreography", "interrupt"],
+  ["render", "renderer", "pipeline", "tier", "budget", "surface", "surface class", "effect", "effect class", "render token", "diagnostics"],
+  ["motion", "animation", "degradation", "complexity", "motion capability", "animation complexity", "choreography", "interrupt"],
   ["native", "consistency", "parity", "predictable", "stability"],
   ["mobile", "phone", "ios", "android", "handy"],
   ["code", "editor", "ide", "debug", "git"],
@@ -788,7 +790,7 @@ function translateSnippetContent(snippet: string) {
 function localizeEntry(entry: WikiEntry, lang: Language): WikiEntry {
   if (lang === "de") return entry;
 
-  return {
+  const fallback: WikiEntry = {
     ...entry,
     title: translateGermanToEnglish(entry.title),
     summary: translateGermanToEnglish(entry.summary),
@@ -806,6 +808,21 @@ function localizeEntry(entry: WikiEntry, lang: Language): WikiEntry {
       snippet: translateSnippetContent(snippet.snippet),
     })),
   };
+
+  const translation = englishEntryTranslations[entry.id];
+  if (translation) {
+    return {
+      ...fallback,
+      ...translation,
+      guide: translation.guide ?? fallback.guide,
+      points: translation.points ?? fallback.points,
+      commands: translation.commands ?? fallback.commands,
+      tags: translation.tags ?? fallback.tags,
+      markdownSnippets: translation.markdownSnippets ?? fallback.markdownSnippets,
+    };
+  }
+
+  return fallback;
 }
 
 function makeSearchBlob(entry: WikiEntry, sourceEntry?: WikiEntry) {
