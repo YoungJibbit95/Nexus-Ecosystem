@@ -67,6 +67,7 @@ export function WikiPage() {
 
   useEffect(() => {
     window.localStorage.setItem("nexus-wiki-lang", lang);
+    document.documentElement.lang = lang;
   }, [lang]);
 
   useEffect(() => {
@@ -301,6 +302,20 @@ export function WikiPage() {
     lang === "de"
       ? ["notes markdown", "nexus-kanban", "canvas magic", "render diagnostics", "keybinds", "today layer"]
       : ["notes markdown", "nexus-kanban", "canvas magic", "render diagnostics", "keybinds", "today layer"];
+  const missionPath =
+    lang === "de"
+      ? [
+          { step: "01", title: "Suchen", detail: "Feature, View, Command oder Markdown-Block eingeben." },
+          { step: "02", title: "Andocken", detail: "Sektion oder Treffer öffnen und direkt zum passenden Guide springen." },
+          { step: "03", title: "Abarbeiten", detail: "Schritte abhaken, Keybinds lernen und Funktionen in der App nachvollziehen." },
+          { step: "04", title: "Übernehmen", detail: "Snippets, Commands und Matrixwissen direkt ins Projekt übertragen." },
+        ]
+      : [
+          { step: "01", title: "Search", detail: "Enter a feature, view, command or Markdown block." },
+          { step: "02", title: "Dock", detail: "Open the section or result and jump straight into the matching guide." },
+          { step: "03", title: "Execute", detail: "Check steps, learn keybinds and reproduce features inside the app." },
+          { step: "04", title: "Apply", detail: "Move snippets, commands and matrix knowledge directly into the project." },
+        ];
 
   const copyText = async (text: string, token: string) => {
     try {
@@ -575,6 +590,28 @@ export function WikiPage() {
                   </div>
                 ))}
               </div>
+            </div>
+          </section>
+
+          <section className="wiki-mission-path rounded-3xl border border-white/10 p-4 md:p-5">
+            <div className="grid gap-3 md:grid-cols-4">
+              {missionPath.map((item) => (
+                <button
+                  key={item.step}
+                  type="button"
+                  onClick={() => {
+                    if (item.step === "01") setQuery("notes markdown");
+                    if (item.step === "02") setActiveSection("coverage");
+                    if (item.step === "03") setActiveSection("nexus-main");
+                    if (item.step === "04") setActiveSection("markdown-lab");
+                  }}
+                  className="wiki-path-card group rounded-2xl p-4 text-left transition hover:-translate-y-0.5"
+                >
+                  <span className="font-mono text-xs text-cyan-200/80">{item.step}</span>
+                  <h3 className="mt-2 text-lg font-black text-white">{item.title}</h3>
+                  <p className="mt-1 text-sm leading-relaxed text-slate-300">{item.detail}</p>
+                </button>
+              ))}
             </div>
           </section>
 
