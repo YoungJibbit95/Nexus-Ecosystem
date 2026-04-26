@@ -285,6 +285,22 @@ export function WikiPage() {
   const cardText = entryCopy[lang];
   const coverageText = coverageCopy[lang];
   const meta = sectionMeta[activeSection][lang];
+  const atlasCards =
+    lang === "de"
+      ? [
+          { label: "Guides", value: entries.length, detail: "Views, Workflows, Runtime und Ops" },
+          { label: "Markdown Snippets", value: coverageStats.snippetCount, detail: "Notes, Canvas und Widget-Syntax" },
+          { label: "Matrix Zeilen", value: viewMatrix.length, detail: "Main, Mobile, Code und Control" },
+        ]
+      : [
+          { label: "Guides", value: entries.length, detail: "Views, workflows, runtime and ops" },
+          { label: "Markdown snippets", value: coverageStats.snippetCount, detail: "Notes, Canvas and widget syntax" },
+          { label: "Matrix rows", value: viewMatrix.length, detail: "Main, Mobile, Code and Control" },
+        ];
+  const quickSearches =
+    lang === "de"
+      ? ["notes markdown", "nexus-kanban", "canvas magic", "render diagnostics", "keybinds", "today layer"]
+      : ["notes markdown", "nexus-kanban", "canvas magic", "render diagnostics", "keybinds", "today layer"];
 
   const copyText = async (text: string, token: string) => {
     try {
@@ -320,7 +336,7 @@ export function WikiPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-50 flex overflow-x-hidden">
+    <div className="wiki-shell min-h-screen bg-slate-950 text-slate-50 flex overflow-x-hidden">
       <SpaceBackground />
 
       <button
@@ -332,7 +348,7 @@ export function WikiPage() {
 
       <aside
         className={`
-        fixed md:static inset-y-0 left-0 z-40 w-[min(20rem,88vw)] md:w-80 bg-slate-900/80 backdrop-blur-2xl border-r border-white/10 flex flex-col transition-transform duration-300
+        wiki-sidebar fixed md:static inset-y-0 left-0 z-40 w-[min(20rem,88vw)] md:w-80 backdrop-blur-2xl border-r border-white/10 flex flex-col transition-transform duration-300
         ${isMobileMenuOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
       `}
       >
@@ -421,10 +437,10 @@ export function WikiPage() {
         </div>
       </aside>
 
-      <main className="flex-1 h-screen overflow-y-auto overflow-x-hidden relative z-10 custom-scrollbar scroll-smooth">
+      <main className="wiki-main flex-1 h-screen overflow-y-auto overflow-x-hidden relative z-10 custom-scrollbar scroll-smooth">
         <div className="max-w-[1320px] mx-auto px-5 md:px-9 py-8 md:py-12 space-y-8">
           <div className="sticky top-2 md:top-4 z-30">
-            <div className="relative overflow-hidden rounded-2xl border border-white/12 bg-slate-900/65 backdrop-blur-2xl shadow-[0_10px_40px_rgba(3,7,18,0.45)]">
+            <div className="wiki-search-dock relative overflow-hidden rounded-2xl border border-white/12 backdrop-blur-2xl shadow-[0_10px_40px_rgba(3,7,18,0.45)]">
               <div className="absolute inset-0 bg-[linear-gradient(110deg,rgba(14,116,144,0.12),rgba(99,102,241,0.12),rgba(168,85,247,0.08))]" />
               <div className="relative p-3 md:p-4 space-y-3">
                 <div className="flex flex-col lg:flex-row gap-3 lg:items-center">
@@ -477,11 +493,27 @@ export function WikiPage() {
                     </button>
                   ) : null}
                 </div>
+
+                <div className="flex items-center gap-2 overflow-x-auto custom-scrollbar pb-0.5">
+                  <span className="shrink-0 text-[11px] uppercase tracking-[0.2em] text-slate-500">
+                    {lang === "de" ? "Schnellsuche" : "Quick search"}
+                  </span>
+                  {quickSearches.map((item) => (
+                    <button
+                      key={item}
+                      type="button"
+                      onClick={() => setQuery(item)}
+                      className="shrink-0 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-slate-200 transition hover:border-cyan-300/40 hover:bg-cyan-300/10"
+                    >
+                      {item}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
 
-          <section className="sticky top-[98px] md:top-[118px] z-20 rounded-2xl border border-white/10 bg-slate-900/55 backdrop-blur-2xl px-3 py-2">
+          <section className="wiki-section-rail sticky top-[98px] md:top-[118px] z-20 rounded-2xl border border-white/10 backdrop-blur-2xl px-3 py-2">
             <div className="flex items-center gap-2 overflow-x-auto custom-scrollbar whitespace-nowrap">
               {sectionRail.map((sectionId) => {
                 const active = sectionId === activeSection;
@@ -506,6 +538,46 @@ export function WikiPage() {
             </div>
           </section>
 
+          <section className="wiki-atlas-hero rounded-[2rem] p-6 md:p-10">
+            <div className="wiki-atlas-orbit" />
+            <div className="relative grid gap-8 lg:grid-cols-[1.2fr_0.8fr] lg:items-end">
+              <div className="space-y-5 min-w-0">
+                <p className="wiki-kicker">{t.productLabel}</p>
+                <h2 className="wiki-gradient-text text-4xl md:text-6xl font-black tracking-tight leading-[0.96] max-w-4xl">
+                  {lang === "de" ? "Ein Wiki wie ein Missionsatlas." : "A wiki built like a mission atlas."}
+                </h2>
+                <p className="text-base md:text-lg text-slate-200/90 leading-relaxed max-w-3xl">
+                  {lang === "de"
+                    ? "Suche, View-Guides, Markdown-Lab und Render-Diagnostik sind als ein durchgehender Pfad aufgebaut: oben finden, unten durcharbeiten, direkt im Projekt anwenden."
+                    : "Search, view guides, the Markdown lab and render diagnostics are arranged as one continuous path: find it at the top, work through it below, apply it in the project."}
+                </p>
+                <div className="flex flex-wrap gap-2.5 text-xs text-cyan-100">
+                  {[
+                    "NotesView",
+                    "Canvas Magic",
+                    "Render Pipeline",
+                    "Motion Engine",
+                    "Live Sync v2",
+                  ].map((chip) => (
+                    <span key={chip} className="rounded-full border border-cyan-300/25 bg-cyan-300/10 px-3 py-1.5">
+                      {chip}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
+                {atlasCards.map((item) => (
+                  <div key={item.label} className="wiki-stat-card rounded-2xl p-4">
+                    <p className="text-xs uppercase tracking-[0.22em] text-cyan-200/80">{item.label}</p>
+                    <p className="mt-2 text-3xl font-black text-white">{item.value}</p>
+                    <p className="mt-1 text-sm text-slate-300 leading-snug">{item.detail}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+
           <AnimatePresence mode="wait">
             <motion.section
               key={`${activeSection}-${lang}`}
@@ -516,16 +588,8 @@ export function WikiPage() {
               className="space-y-6"
             >
               <header className="relative overflow-hidden rounded-3xl border border-white/10 bg-slate-900/55 backdrop-blur-2xl p-6 md:p-10">
-                <motion.div
-                  animate={{ rotate: 360 }}
-                  transition={{ duration: 50, repeat: Infinity, ease: "linear" }}
-                  className="absolute -right-24 -top-24 w-72 h-72 border border-cyan-300/20 rounded-full"
-                />
-                <motion.div
-                  animate={{ rotate: -360 }}
-                  transition={{ duration: 70, repeat: Infinity, ease: "linear" }}
-                  className="absolute -right-16 -top-16 w-56 h-56 border border-indigo-300/20 rounded-full"
-                />
+                <div className="absolute -right-24 -top-24 w-72 h-72 border border-cyan-300/20 rounded-full" />
+                <div className="absolute -right-16 -top-16 w-56 h-56 border border-indigo-300/20 rounded-full" />
                 <div className="relative space-y-5">
                   <p className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs border border-cyan-500/35 bg-cyan-500/10 text-cyan-100">
                     <Sparkles className="w-4 h-4" />
@@ -659,9 +723,10 @@ export function WikiPage() {
                             {group.entries.length} {t.entryCount}
                           </span>
                         </div>
-                        <div className="grid gap-6">
-                          {group.entries.map((entry) => (
-                            <div key={entry.id}>
+                        <div className="wiki-roadmap grid gap-6">
+                          {group.entries.map((entry, index) => (
+                            <div key={entry.id} className="wiki-road-step">
+                              <span className="wiki-road-marker">{String(index + 1).padStart(2, "0")}</span>
                               <EntryCard
                                 entry={entry}
                                 onCopy={copyText}
@@ -770,7 +835,7 @@ function EntryCard({
 
   return (
     <SpotlightCard
-      className={`rounded-3xl border bg-slate-900/55 backdrop-blur-2xl transition-all ${
+      className={`wiki-entry-card rounded-3xl border backdrop-blur-2xl transition-all ${
         isFocused
           ? "border-cyan-300/60 shadow-[0_0_0_1px_rgba(34,211,238,0.35),0_12px_34px_rgba(6,182,212,0.18)]"
           : "border-white/10"
@@ -802,8 +867,8 @@ function EntryCard({
           </div>
         </div>
 
-        <div className="rounded-2xl border border-white/10 bg-black/30 p-4 md:p-5">
-          <p className="text-xs font-mono text-slate-400">### {entry.title}</p>
+        <div className="wiki-markdown-strip rounded-2xl border border-white/10 p-4 md:p-5">
+          <p className="text-xs font-mono text-cyan-200/80">### {entry.title}</p>
           <p className="mt-1 text-sm text-slate-300">
             {copy.appLabel}: <span className="text-slate-100">{appLabel[entry.app][lang]}</span> • {copy.categoryLabel}:{" "}
             <span className="text-slate-100">{categoryLabel[entry.category][lang]}</span> • {copy.featuresLabel}:{" "}
@@ -871,7 +936,7 @@ function EntryCard({
                 <button
                   key={`${entry.id}-cmd-${command}`}
                   onClick={() => onCopy(command, `entry-cmd:${entry.id}:${command}`)}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-black/45 border border-white/10 text-xs md:text-sm text-slate-200 hover:border-cyan-400/50"
+                  className="wiki-copy-chip inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-black/45 border border-white/10 text-xs md:text-sm text-slate-200 hover:border-cyan-400/50"
                 >
                   <Copy className="w-3.5 h-3.5" /> {command}
                 </button>
@@ -915,7 +980,7 @@ function EntryCard({
               {entry.tags.map((tag) => (
                 <span
                   key={`${entry.id}-tag-${tag}`}
-                  className="px-2.5 py-1 rounded-full text-[11px] bg-indigo-500/10 border border-indigo-500/30 text-indigo-200"
+                  className="wiki-copy-chip px-2.5 py-1 rounded-full text-[11px] bg-indigo-500/10 border border-indigo-500/30 text-indigo-200"
                 >
                   #{tag}
                 </span>
