@@ -95,12 +95,18 @@ export function CanvasView() {
     const [projectSearchQuery, setProjectSearchQuery] = useState('')
     const [focusTrail, setFocusTrail] = useState<string[]>([])
     const [focusTrailIndex, setFocusTrailIndex] = useState(-1)
+    const [pendingDeleteCanvasId, setPendingDeleteCanvasId] = useState<string | null>(null)
+    const [projectSelectionIds, setProjectSelectionIds] = useState<Set<string>>(() => new Set())
 
     const showCanvasList = mob.isMobile ? mobileSheet === 'canvas-list' : showCanvasSidebar
     const showMobileAddMenu = mob.isMobile && mobileSheet === 'add'
     const showMobileTools = mob.isMobile && mobileSheet === 'tools'
     const showMagicBuilder = mob.isMobile ? mobileSheet === 'magic' : desktopMagicBuilderOpen
     const showProjectPanel = mob.isMobile ? mobileSheet === 'project' : desktopProjectPanelOpen
+    const pendingDeleteCanvas = useMemo(
+        () => canvases.find((entry) => entry.id === pendingDeleteCanvasId) ?? null,
+        [canvases, pendingDeleteCanvasId]
+    )
 
     const setMagicBuilderVisible = useCallback((visible: boolean) => {
         if (mob.isMobile) {
@@ -208,6 +214,20 @@ export function CanvasView() {
         })
         return Array.from(grouped.entries()).sort((a, b) => b[1].length - a[1].length)
     }, [canvas])
+
+    const focusTrailNodes = useMemo(() => {
+        if (!canvas) return [] as CanvasNode[]
+        const nodeById = new globalThis.Map<string, CanvasNode>()
+        canvas.nodes.forEach((node) => nodeById.set(node.id, node))
+        return focusTrail
+            .map((id) => nodeById.get(id) ?? null)
+            .filter((node): node is CanvasNode => Boolean(node))
+    }, [canvas, focusTrail])
+
+    const projectSelectionNodes = useMemo(() => {
+        if (!canvas || projectSelectionIds.size === 0) return [] as CanvasNode[]
+        return canvas.nodes.filter((node) => projectSelectionIds.has(node.id))
+    }, [canvas, projectSelectionIds])
 
     const selectedNodeRelations = useMemo(() => {
         if (!canvas || !selectedNodeId) {
@@ -492,6 +512,40 @@ export function CanvasView() {
         })
     }, [focusTrail, jumpToNode])
 
+    const toggleProjectSelection = useCallback((nodeId: string) => {
+        setProjectSelectionIds((prev) => {
+            const next = new Set(prev)
+            if (next.has(nodeId)) next.delete(nodeId)
+            else next.add(nodeId)
+            return next
+        })
+    }, [])
+
+    const clearProjectSelection = useCallback(() => {
+        setProjectSelectionIds(new Set())
+    }, [])
+
+    const applyProjectSelectionStatus = useCallback((status: ProjectStatus) => {
+        if (!canvas || projectSelectionIds.size === 0) return
+        const state = useCanvas.getState()
+        canvas.nodes.forEach((node) => {
+            if (!projectSelectionIds.has(node.id)) return
+            state.updateNode(node.id, {
+                pm: {
+                    ...(node.pm || {}),
+                    status,
+                },
+            })
+        })
+    }, [canvas, projectSelectionIds])
+
+    const focusProjectSelection = useCallback(() => {
+        const first = projectSelectionNodes[0]
+        if (!first) return
+        setFocusNodeOnly(true)
+        jumpToNode(first.id)
+    }, [jumpToNode, projectSelectionNodes])
+
     const exportCanvas = useCallback(
         () => exportCanvasFiles(canvas, viewport),
         [canvas, viewport]
@@ -611,7 +665,7 @@ export function CanvasView() {
                                         {c.name}
                                     </span>
                                     <span style={{ fontSize: 10, opacity: 0.35, background: 'rgba(255,255,255,0.08)', padding: '1px 5px', borderRadius: 4 }}>{c.nodes.length}</span>
-                                    <button onClick={(e) => { e.stopPropagation(); if (confirm(`Delete "${c.name}"?`)) deleteCanvas(c.id) }}
+                                    <button onClick={(e) => { e.stopPropagation(); setPendingDeleteCanvasId(c.id) }}
                                         className="nx-interactive nx-bounce-target nx-icon-fade"
                                         style={{ background: 'none', border: 'none', color: '#FF3B30', ['--nx-idle-opacity' as any]: 0.28, padding: 2 }}
                                     ><X size={11} /></button>
@@ -673,7 +727,7 @@ export function CanvasView() {
                                                 <div style={{ fontSize:isCompactMobile ? 10 : 11, opacity:0.45, marginTop:2 }}>{c.nodes.length} nodes · {c.connections.length} links</div>
                                             </div>
                                         </div>
-                                        <button onClick={e=>{ e.stopPropagation(); if(confirm(`Delete "${c.name}"?`)) deleteCanvas(c.id) }}
+                                        <button onClick={e=>{ e.stopPropagation(); setPendingDeleteCanvasId(c.id) }}
                                             style={{ background:'rgba(255,59,48,0.12)', border:'1px solid rgba(255,59,48,0.36)', cursor:'pointer', color:'#FF3B30', padding:'0 12px', borderRadius:10, fontWeight:700 }}>
                                             <X size={16}/>
                                         </button>
@@ -861,6 +915,63 @@ export function CanvasView() {
                                             </span>
                                         </button>
                                     ))}
+                                </div>
+                            </motion.div>
+                        </>
+                    )}
+                </AnimatePresence>
+
+                <AnimatePresence>
+                    {pendingDeleteCanvas && (
+                        <>
+                            <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                onClick={() => setPendingDeleteCanvasId(null)}
+                                style={{ position:'fixed', inset:0, zIndex:224, background:'rgba(0,0,0,0.5)', backdropFilter:'blur(5px)' }}
+                            />
+                            <motion.div
+                                initial={{ y:'100%' }}
+                                animate={{ y:0 }}
+                                exit={{ y:'100%' }}
+                                transition={{ type:'spring', stiffness:360, damping:30 }}
+                                style={{
+                                    position:'fixed',
+                                    left:0,
+                                    right:0,
+                                    bottom:0,
+                                    zIndex:225,
+                                    padding:'12px 14px calc(var(--sat-bottom, 0px) + 14px)',
+                                    borderRadius:'18px 18px 0 0',
+                                    border:'1px solid rgba(255,255,255,0.12)',
+                                    borderBottom:'none',
+                                    background:t.mode==='dark'?'rgba(14,14,26,0.98)':'rgba(248,248,255,0.98)',
+                                    backdropFilter:'blur(22px)',
+                                }}
+                            >
+                                <div style={{ width:34, height:4, borderRadius:999, background:'rgba(255,255,255,0.22)', margin:'0 auto 12px' }} />
+                                <div style={{ fontSize:14, fontWeight:800, marginBottom:4 }}>Canvas löschen?</div>
+                                <div style={{ fontSize:12, opacity:0.65, lineHeight:1.35, marginBottom:14 }}>
+                                    „{pendingDeleteCanvas.name}” wird inklusive Nodes und Links entfernt. Diese Aktion ersetzt den nativen Confirm-Dialog, damit der Touch-Flow kontrolliert bleibt.
+                                </div>
+                                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
+                                    <button
+                                        onClick={() => setPendingDeleteCanvasId(null)}
+                                        style={{ padding:'11px 12px', borderRadius:12, border:'1px solid rgba(255,255,255,0.14)', background:'rgba(255,255,255,0.06)', color:'inherit', fontSize:13, fontWeight:700 }}
+                                    >
+                                        Abbrechen
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            deleteCanvas(pendingDeleteCanvas.id)
+                                            setPendingDeleteCanvasId(null)
+                                            closeMobileCanvasSheets('none')
+                                        }}
+                                        style={{ padding:'11px 12px', borderRadius:12, border:'1px solid rgba(255,59,48,0.4)', background:'rgba(255,59,48,0.16)', color:'#ff453a', fontSize:13, fontWeight:800 }}
+                                    >
+                                        Löschen
+                                    </button>
                                 </div>
                             </motion.div>
                         </>
@@ -1303,6 +1414,67 @@ export function CanvasView() {
                                 ))}
                             </div>
 
+                            {projectSelectionNodes.length > 0 && (
+                                <div style={{ border: `1px solid rgba(${rgb},0.28)`, borderRadius: 10, padding: 9, marginBottom: 10, background: `rgba(${rgb},0.08)` }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                                        <div style={{ fontSize: 11, fontWeight: 800, color: t.accent }}>{projectSelectionNodes.length} selected</div>
+                                        <button onClick={clearProjectSelection} style={{ marginLeft: 'auto', border: 'none', background: 'transparent', color: 'inherit', opacity: 0.6, fontSize: 10, cursor: 'pointer' }}>Clear</button>
+                                    </div>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
+                                        <button onClick={() => applyProjectSelectionStatus('done')} style={{ padding: '6px 7px', borderRadius: 8, border: `1px solid ${PM_STATUS_COLOR.done}55`, background: `${PM_STATUS_COLOR.done}22`, color: PM_STATUS_COLOR.done, fontSize: 10, fontWeight: 800, cursor: 'pointer' }}>Done</button>
+                                        <button onClick={() => applyProjectSelectionStatus('blocked')} style={{ padding: '6px 7px', borderRadius: 8, border: `1px solid ${PM_STATUS_COLOR.blocked}55`, background: `${PM_STATUS_COLOR.blocked}22`, color: PM_STATUS_COLOR.blocked, fontSize: 10, fontWeight: 800, cursor: 'pointer' }}>Blocked</button>
+                                        <button onClick={focusProjectSelection} style={{ padding: '6px 7px', borderRadius: 8, border: `1px solid rgba(${rgb},0.35)`, background: `rgba(${rgb},0.13)`, color: t.accent, fontSize: 10, fontWeight: 800, cursor: 'pointer' }}>Focus</button>
+                                    </div>
+                                </div>
+                            )}
+
+                            {focusTrailNodes.length > 0 && (
+                                <div style={{ border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: 8, marginBottom: 10, background: 'rgba(255,255,255,0.035)' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 6 }}>
+                                        <div style={{ fontSize: 10, fontWeight: 800, opacity: 0.62, textTransform: 'uppercase', letterSpacing: 0.5 }}>Focus Trail</div>
+                                        <button
+                                            onClick={() => { setFocusTrail([]); setFocusTrailIndex(-1) }}
+                                            style={{ border: 'none', background: 'transparent', color: 'inherit', opacity: 0.55, fontSize: 10, cursor: 'pointer' }}
+                                        >
+                                            Clear
+                                        </button>
+                                    </div>
+                                    <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 2 }}>
+                                        {focusTrailNodes.slice(-8).map((node, index, visibleTrail) => {
+                                            const absoluteIndex = focusTrailNodes.length - visibleTrail.length + index
+                                            const active = absoluteIndex === focusTrailIndex
+                                            return (
+                                                <button
+                                                    key={`focus-trail-${node.id}-${absoluteIndex}`}
+                                                    onClick={() => {
+                                                        setFocusTrailIndex(absoluteIndex)
+                                                        jumpToNode(node.id, { recordTrail: false })
+                                                    }}
+                                                    style={{
+                                                        flex: '0 0 auto',
+                                                        maxWidth: 128,
+                                                        padding: '5px 8px',
+                                                        borderRadius: 999,
+                                                        border: `1px solid ${active ? t.accent : 'rgba(255,255,255,0.12)'}`,
+                                                        background: active ? `rgba(${rgb},0.16)` : 'rgba(255,255,255,0.05)',
+                                                        color: active ? t.accent : 'inherit',
+                                                        fontSize: 10,
+                                                        fontWeight: 700,
+                                                        cursor: 'pointer',
+                                                        overflow: 'hidden',
+                                                        textOverflow: 'ellipsis',
+                                                        whiteSpace: 'nowrap',
+                                                    }}
+                                                    title={node.title}
+                                                >
+                                                    {node.title || 'Untitled'}
+                                                </button>
+                                            )
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+
                             <div style={{ display: 'flex', gap: 6, overflowX: 'auto', marginBottom: 10 }}>
                                 <button onClick={() => setPmStatusFilter('all')} style={{ fontSize: 10, padding: '4px 7px', borderRadius: 999, border: `1px solid ${pmStatusFilter === 'all' ? t.accent : 'rgba(255,255,255,0.15)'}`, background: pmStatusFilter === 'all' ? `rgba(${rgb},0.16)` : 'rgba(255,255,255,0.04)', color: pmStatusFilter === 'all' ? t.accent : 'inherit', cursor: 'pointer' }}>all</button>
                                 {PM_STATUS_ORDER.map(st => (
@@ -1327,16 +1499,29 @@ export function CanvasView() {
                                     {projectSearchNodes.length === 0 ? (
                                         <div style={{ fontSize: 11, opacity: 0.55 }}>Keine Treffer.</div>
                                     ) : (
-                                        projectSearchNodes.map((node) => (
-                                            <button
+                                        projectSearchNodes.map((node) => {
+                                            const selected = projectSelectionIds.has(node.id)
+                                            return (
+                                            <div
                                                 key={`search-${node.id}`}
-                                                onClick={() => jumpToNode(node.id)}
-                                                style={{ textAlign: 'left', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, background: 'rgba(255,255,255,0.04)', color: 'inherit', cursor: 'pointer', padding: '5px 7px' }}
+                                                style={{ display: 'flex', alignItems: 'stretch', gap: 6, border: `1px solid ${selected ? t.accent : 'rgba(255,255,255,0.1)'}`, borderRadius: 8, background: selected ? `rgba(${rgb},0.12)` : 'rgba(255,255,255,0.04)', color: 'inherit', overflow: 'hidden' }}
                                             >
-                                                <div style={{ fontSize: 11, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{node.title || 'Untitled'}</div>
-                                                <div style={{ fontSize: 10, opacity: 0.58 }}>{node.type}{node.pm?.status ? ` · ${node.pm.status}` : ''}{node.pm?.priority ? ` · ${node.pm.priority}` : ''}</div>
-                                            </button>
-                                        ))
+                                                <button
+                                                    onClick={() => toggleProjectSelection(node.id)}
+                                                    aria-label={selected ? 'Remove from bulk selection' : 'Add to bulk selection'}
+                                                    style={{ width: 32, border: 'none', borderRight: '1px solid rgba(255,255,255,0.08)', background: selected ? `rgba(${rgb},0.18)` : 'rgba(255,255,255,0.035)', color: selected ? t.accent : 'inherit', cursor: 'pointer', fontSize: 11, fontWeight: 800 }}
+                                                >
+                                                    {selected ? '✓' : '+'}
+                                                </button>
+                                                <button
+                                                    onClick={() => jumpToNode(node.id)}
+                                                    style={{ flex: 1, minWidth: 0, textAlign: 'left', border: 'none', background: 'transparent', color: 'inherit', cursor: 'pointer', padding: '5px 7px' }}
+                                                >
+                                                    <div style={{ fontSize: 11, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{node.title || 'Untitled'}</div>
+                                                    <div style={{ fontSize: 10, opacity: 0.58 }}>{node.type}{node.pm?.status ? ` · ${node.pm.status}` : ''}{node.pm?.priority ? ` · ${node.pm.priority}` : ''}</div>
+                                                </button>
+                                            </div>
+                                        )})
                                     )}
                                 </div>
                             </div>

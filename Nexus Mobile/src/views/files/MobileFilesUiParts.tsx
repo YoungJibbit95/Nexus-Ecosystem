@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { createPortal } from 'react-dom'
 import { motion } from 'framer-motion'
 import { ArrowRight, Check, Edit3, MoreVertical, Package, Plus, Trash2 } from 'lucide-react'
 import { Glass } from '../../components/Glass'
@@ -63,18 +64,42 @@ export function WorkspaceModal({ ws, onClose }: { ws?: Workspace; onClose: () =>
       initial={{opacity:0}}
       animate={{opacity:1}}
       exit={{opacity:0}}
-      style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.6)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:200, backdropFilter:'blur(8px)' }}
+      style={{
+        position:'fixed',
+        inset:0,
+        background:'rgba(0,0,0,0.6)',
+        display:'flex',
+        alignItems: mob.isMobile ? 'flex-end' : 'center',
+        justifyContent:'center',
+        zIndex:200,
+        backdropFilter:'blur(8px)',
+      }}
       onClick={onClose}
     >
-      <motion.div initial={{scale:0.9,y:20}} animate={{scale:1,y:0}} exit={{scale:0.9,y:20}} onClick={e=>e.stopPropagation()}>
-        <Glass glow style={{ width:420, maxWidth: mob.isMobile ? '92vw' : 420, padding:24 }}>
+      <motion.div
+        initial={mob.isMobile ? { y:'100%' } : { scale:0.9,y:20 }}
+        animate={mob.isMobile ? { y:0 } : { scale:1,y:0 }}
+        exit={mob.isMobile ? { y:'100%' } : { scale:0.9,y:20 }}
+        transition={{ type:'spring', stiffness:360, damping:30 }}
+        onClick={e=>e.stopPropagation()}
+        style={{ width: mob.isMobile ? '100%' : 'auto' }}
+      >
+        <Glass glow style={{
+          width: mob.isMobile ? '100vw' : 420,
+          maxWidth: mob.isMobile ? '100vw' : 420,
+          maxHeight: mob.isMobile ? '86vh' : undefined,
+          overflowY: mob.isMobile ? 'auto' : undefined,
+          padding: mob.isMobile ? '14px 14px calc(var(--sat-bottom, 0px) + 14px)' : 24,
+          borderRadius: mob.isMobile ? '18px 18px 0 0' : undefined,
+        }}>
+          {mob.isMobile && <div style={{ width:34, height:4, borderRadius:999, background:'rgba(255,255,255,0.22)', margin:'0 auto 12px' }} />}
           <div style={{ fontSize:16, fontWeight:800, marginBottom:20 }}>{ws?'Edit Workspace':'New Workspace'}</div>
 
           <div style={{ marginBottom:14 }}>
             <label style={{ fontSize:11, opacity:0.5, display:'block', marginBottom:5, textTransform:'uppercase', letterSpacing:0.5 }}>Name</label>
             <div style={{ display:'flex', gap:10, alignItems:'center' }}>
               <div style={{ fontSize:28 }}>{icon}</div>
-              <input autoFocus value={name} onChange={e=>setName(e.target.value)} onKeyDown={e=>e.key==='Enter'&&save()} placeholder="My Workspace" style={{ flex:1, padding:'8px 11px', borderRadius:9, background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.12)', outline:'none', fontSize:14, fontWeight:700, color:'inherit' }} />
+              <input autoFocus={!mob.isMobile} value={name} onChange={e=>setName(e.target.value)} onKeyDown={e=>e.key==='Enter'&&save()} placeholder="My Workspace" style={{ flex:1, padding:'8px 11px', borderRadius:9, background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.12)', outline:'none', fontSize:14, fontWeight:700, color:'inherit' }} />
             </div>
           </div>
 
@@ -128,6 +153,7 @@ export function FileCard({
 }) {
   const meta = TYPE_META[item.type]
   const Icon = meta.icon
+  const mob = useMobile()
   const [menu, setMenu] = useState(false)
   const [hovered, setHovered] = useState(false)
   const [focused, setFocused] = useState(false)
@@ -161,6 +187,20 @@ export function FileCard({
       setCode(item.id)
     }
   }
+
+  const mobileMenu = menu && mob.isMobile && typeof document !== 'undefined'
+    ? createPortal(
+        <>
+          <div onClick={(e)=>{ e.stopPropagation(); setMenu(false) }} style={{ position:'fixed', inset:0, zIndex:220, background:'rgba(0,0,0,0.45)', backdropFilter:'blur(4px)' }} />
+          <div style={{ position:'fixed', left:10, right:10, bottom:'calc(var(--sat-bottom, 0px) + 10px)', zIndex:221, background:'rgba(20,20,30,0.97)', backdropFilter:'blur(16px)', borderRadius:16, padding:10, border:'1px solid rgba(255,255,255,0.12)', boxShadow:'0 14px 36px rgba(0,0,0,0.45)' }} onClick={e=>e.stopPropagation()}>
+            <div style={{ fontSize:12, fontWeight:800, margin:'2px 4px 8px', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{item.title}</div>
+            <MenuItem icon={<ArrowRight size={13}/>} label="Open" onClick={()=>{open();setMenu(false)}}/>
+            <MenuItem icon={<Package size={13}/>} label="Add to Workspace" onClick={()=>{onAssign();setMenu(false)}}/>
+          </div>
+        </>,
+        document.body,
+      )
+    : null
 
   const timeAgo = (iso: string) => {
     const d = (Date.now() - new Date(iso).getTime()) / 1000
@@ -239,7 +279,7 @@ export function FileCard({
       onPointerUp={() => setPressed(false)}
       onPointerCancel={() => setPressed(false)}
     >
-    <Glass hover glow style={{ padding:14, cursor:'pointer', position:'relative', overflow:'hidden' }} onDoubleClick={open}>
+    <Glass hover glow style={{ padding:14, cursor:'pointer', position:'relative', overflow: menu && mob.isMobile ? 'visible' : 'hidden', zIndex: menu && mob.isMobile ? 230 : undefined }} onDoubleClick={open}>
       <SurfaceHighlight highlight={interaction.highlight} inset={1} radius={10}>
         <div
           style={{
@@ -274,11 +314,12 @@ export function FileCard({
         <span style={{ fontSize:10, padding:'2px 7px', borderRadius:10, background:`${meta.color}20`, color:meta.color, fontWeight:700 }}>{meta.label}</span>
         <span style={{ fontSize:10, opacity:0.4 }}>{timeAgo(item.updated)}</span>
       </div>
-      {menu && (
-        <div style={{ position:'absolute', top:10, right:30, zIndex:50, background:'rgba(20,20,30,0.95)', backdropFilter:'blur(12px)', borderRadius:10, padding:6, border:'1px solid rgba(255,255,255,0.1)', minWidth:140, boxShadow:'0 8px 24px rgba(0,0,0,0.4)' }} onClick={e=>e.stopPropagation()}>
-          <MenuItem icon={<ArrowRight size={12}/>} label="Open" onClick={()=>{open();setMenu(false)}}/>
-          <MenuItem icon={<Package size={12}/>} label="Add to Workspace" onClick={()=>{onAssign();setMenu(false)}}/>
-        </div>
+      {mobileMenu}
+      {menu && !mob.isMobile && (
+          <div style={{ position:'absolute', top:10, right:30, zIndex:50, background:'rgba(20,20,30,0.95)', backdropFilter:'blur(12px)', borderRadius:10, padding:6, border:'1px solid rgba(255,255,255,0.1)', minWidth:140, boxShadow:'0 8px 24px rgba(0,0,0,0.4)' }} onClick={e=>e.stopPropagation()}>
+            <MenuItem icon={<ArrowRight size={12}/>} label="Open" onClick={()=>{open();setMenu(false)}}/>
+            <MenuItem icon={<Package size={12}/>} label="Add to Workspace" onClick={()=>{onAssign();setMenu(false)}}/>
+          </div>
       )}
     </Glass>
     </motion.div>
@@ -333,13 +374,22 @@ export function WorkspaceCard({ ws, active, onSelect, onEdit, onDelete, itemCoun
 
 export function AssignModal({ item, onClose }: { item: FileItem; onClose: () => void }) {
   const { workspaces, addItemToWorkspace, removeItemFromWorkspace } = useWorkspaces()
+  const mob = useMobile()
 
   return (
     <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}
-      style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:200, backdropFilter:'blur(6px)' }}
+      style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', display:'flex', alignItems:mob.isMobile?'flex-end':'center', justifyContent:'center', zIndex:200, backdropFilter:'blur(6px)' }}
       onClick={onClose}>
-      <motion.div initial={{scale:0.9,y:20}} animate={{scale:1,y:0}} exit={{scale:0.9,y:20}} onClick={e=>e.stopPropagation()}>
-        <Glass style={{ width:360, maxWidth: '92vw', padding:20 }} glow>
+      <motion.div
+        initial={mob.isMobile ? { y:'100%' } : { scale:0.9,y:20 }}
+        animate={mob.isMobile ? { y:0 } : { scale:1,y:0 }}
+        exit={mob.isMobile ? { y:'100%' } : { scale:0.9,y:20 }}
+        transition={{ type:'spring', stiffness:360, damping:30 }}
+        onClick={e=>e.stopPropagation()}
+        style={{ width: mob.isMobile ? '100%' : 'auto' }}
+      >
+        <Glass style={{ width:mob.isMobile?'100vw':360, maxWidth: mob.isMobile ? '100vw' : '92vw', maxHeight:mob.isMobile?'82vh':undefined, overflowY:mob.isMobile?'auto':undefined, padding:mob.isMobile?'14px 14px calc(var(--sat-bottom, 0px) + 14px)':20, borderRadius:mob.isMobile?'18px 18px 0 0':undefined }} glow>
+          {mob.isMobile && <div style={{ width:34, height:4, borderRadius:999, background:'rgba(255,255,255,0.22)', margin:'0 auto 12px' }} />}
           <div style={{ fontSize:15, fontWeight:800, marginBottom:6 }}>Add to Workspace</div>
           <div style={{ fontSize:12, opacity:0.5, marginBottom:16 }}>"{item.title}"</div>
           {workspaces.map(ws => {

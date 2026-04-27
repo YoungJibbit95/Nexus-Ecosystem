@@ -834,6 +834,7 @@ export function RemindersView({ setView }: { setView?: (viewId: string) => void 
   const [controlBusy, setControlBusy] = useState<'permissions' | 'reschedule' | 'settings' | null>(null)
   const [controlCenterOpen, setControlCenterOpen] = useState(false)
   const [mobileFilterSheetOpen, setMobileFilterSheetOpen] = useState(false)
+  const [fallbackInfoOpen, setFallbackInfoOpen] = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
 
   // Tick every 30s
@@ -1198,7 +1199,7 @@ export function RemindersView({ setView }: { setView?: (viewId: string) => void 
             <Settings2 size={11}/> {controlBusy === 'settings' ? 'Öffne…' : 'Systemeinstellungen'}
           </button>
           <button
-            onClick={() => alert('Fallback aktiviert sich, wenn Local Notifications nicht verfügbar sind oder Permissions fehlen. Erinnerungen werden dann per In-App-Poller geprüft.')}
+            onClick={() => setFallbackInfoOpen(true)}
             style={{ padding:'5px 9px', borderRadius:8, border:'1px solid rgba(255,255,255,0.14)', background:'rgba(255,255,255,0.06)', color:'inherit', fontSize:10, fontWeight:700, cursor:'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}
           >
             <LifeBuoy size={11}/> Fallback erklären
@@ -1415,7 +1416,7 @@ export function RemindersView({ setView }: { setView?: (viewId: string) => void 
               <Settings2 size={11}/> {controlBusy === 'settings' ? 'Öffne…' : 'System'}
             </button>
             <button
-              onClick={() => alert('Fallback aktiviert sich, wenn Local Notifications nicht verfügbar sind oder Permissions fehlen. Erinnerungen werden dann per In-App-Poller geprüft.')}
+              onClick={() => setFallbackInfoOpen(true)}
               style={{ padding:'6px 9px', borderRadius:8, border:'1px solid rgba(255,255,255,0.14)', background:'rgba(255,255,255,0.06)', color:'inherit', fontSize:11, fontWeight:700, cursor:'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}
             >
               <LifeBuoy size={11}/> Fallback
@@ -1446,6 +1447,41 @@ export function RemindersView({ setView }: { setView?: (viewId: string) => void 
               </button>
             ))}
           </div>
+        </div>
+      </MobileSheet>
+
+      <MobileSheet
+        open={fallbackInfoOpen}
+        onClose={() => setFallbackInfoOpen(false)}
+        title="Reminder fallback"
+        mode="bottom"
+      >
+        <div style={{ padding: '10px 12px 14px', display: 'grid', gap: 10 }}>
+          <div style={{ borderRadius: 12, border: '1px solid rgba(255,159,10,0.28)', background: 'rgba(255,159,10,0.1)', padding: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, fontWeight: 800, color: '#ff9f0a', marginBottom: 5 }}>
+              <LifeBuoy size={14} />
+              Fallback ist ein kontrollierter Sicherungsmodus
+            </div>
+            <div style={{ fontSize: 11, opacity: 0.72, lineHeight: 1.45 }}>
+              Wenn Local Notifications fehlen, Permissions nicht erteilt sind oder der native Bridge-Check fehlschlägt, prüft Nexus offene Erinnerungen in der App per Poller. Das ist weniger stark als native Notifications, verhindert aber stumme Ausfälle im aktiven App-Kontext.
+            </div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <div style={{ borderRadius: 10, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.04)', padding: 9 }}>
+              <div style={{ fontSize: 10, opacity: 0.55, marginBottom: 3 }}>Native Bridge</div>
+              <div style={{ fontSize: 12, fontWeight: 800, color: serviceState.nativeAvailable ? '#30d158' : '#ff453a' }}>{serviceState.nativeAvailable ? 'Available' : 'Unavailable'}</div>
+            </div>
+            <div style={{ borderRadius: 10, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.04)', padding: 9 }}>
+              <div style={{ fontSize: 10, opacity: 0.55, marginBottom: 3 }}>Active Mode</div>
+              <div style={{ fontSize: 12, fontWeight: 800, color: fallbackMode ? '#ff9f0a' : '#30d158' }}>{fallbackMode ? 'Fallback' : 'Native'}</div>
+            </div>
+          </div>
+          <button
+            onClick={() => setFallbackInfoOpen(false)}
+            style={{ width: '100%', padding: '10px 12px', borderRadius: 11, border: `1px solid rgba(${rgb},0.3)`, background: `rgba(${rgb},0.14)`, color: t.accent, fontSize: 12, fontWeight: 800 }}
+          >
+            Verstanden
+          </button>
         </div>
       </MobileSheet>
 
