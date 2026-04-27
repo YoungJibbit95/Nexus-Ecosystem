@@ -301,6 +301,7 @@ export function CodeView() {
   const [mobileExplorerOpen, setMobileExplorerOpen] = useState(false)
   const [mobileDrawer, setMobileDrawer] = useState<'none' | 'preview' | 'terminal'>('none')
   const [mobileActionSheetOpen, setMobileActionSheetOpen] = useState(false)
+  const [pendingDeleteFileId, setPendingDeleteFileId] = useState<string | null>(null)
   const [runHistory, setRunHistory] = useState<
     Array<{ fileId: string; fileName: string; at: string; ok: boolean; ms: number }>
   >([])
@@ -311,6 +312,7 @@ export function CodeView() {
     .map((id) => codes.find((c) => c.id === id))
     .filter(Boolean) as CodeFile[]
   const active = codes.find((c) => c.id === activeCodeId)
+  const pendingDeleteFile = codes.find((c) => c.id === pendingDeleteFileId) ?? null
   const lang = active ? getLang(active.lang) : null
   const hasPreview = Boolean(active && ['html', 'css', 'markdown'].includes(active.lang))
 
@@ -571,7 +573,7 @@ export function CodeView() {
                 motionId={`mobile-code-delete-${f.id}`}
                 onClick={(e) => {
                   e.stopPropagation()
-                  if (confirm(`Delete "${f.name}"?`)) delCode(f.id)
+                  setPendingDeleteFileId(f.id)
                 }}
                 intent="danger"
                 idleOpacity={0.28}
@@ -906,6 +908,38 @@ export function CodeView() {
       </AnimatePresence>
 
       <AnimatePresence>
+        {pendingDeleteFile ? (
+          <MobileSheet
+            open={Boolean(pendingDeleteFile)}
+            onClose={() => setPendingDeleteFileId(null)}
+            title="Delete file"
+            mode="bottom"
+          >
+            <div style={{ padding: '10px 12px 14px', display: 'grid', gap: 10 }}>
+              <div style={{ borderRadius: 12, border: '1px solid rgba(255,69,58,0.28)', background: 'rgba(255,69,58,0.1)', padding: 10 }}>
+                <div style={{ fontSize: 13, fontWeight: 800, color: '#ff453a', marginBottom: 4 }}>Delete “{pendingDeleteFile.name}”?</div>
+                <div style={{ fontSize: 11, opacity: 0.68, lineHeight: 1.4 }}>
+                  This removes the file from the embedded CodeView workspace. Use this sheet instead of a native confirm so the mobile flow stays touch-safe.
+                </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                <button onClick={() => setPendingDeleteFileId(null)} style={{ padding: '10px 12px', borderRadius: 11, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.06)', color: 'inherit', fontSize: 12, fontWeight: 800 }}>
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    delCode(pendingDeleteFile.id)
+                    setPendingDeleteFileId(null)
+                  }}
+                  style={{ padding: '10px 12px', borderRadius: 11, border: '1px solid rgba(255,69,58,0.4)', background: 'rgba(255,69,58,0.16)', color: '#ff453a', fontSize: 12, fontWeight: 800 }}
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </MobileSheet>
+        ) : null}
+
         {newOpen ? (
           <motion.div
             initial={{ opacity: 0 }}
