@@ -16,7 +16,7 @@ Dieses Repository enthaelt die produktiven Clients, Shared Core Runtime-Logik un
 - [Nexus Code Mobile README](./Nexus%20Code%20Mobile/README.md)
 - [Nexus Native Installer README](./Nexus%20Installer/README.md)
 - [@nexus/core README](./packages/nexus-core/README.md)
-- [Nexus Wiki README](https://youngjibbit95.github.io/Nexus-Ecosystem/)
+- [Nexus Wiki](https://youngjibbit95.github.io/Nexus-Ecosystem/)
 - [nexusproject.dev](https://nexusproject.dev)
 
 ## Product Surface
