@@ -1,8 +1,9 @@
 # Nexus Ecosystem
 
-[![Apps](https://img.shields.io/badge/apps-4-0ea5e9)](./README.md)
-[![Shared%20Core](https://img.shields.io/badge/shared-core%20render%20%2B%20motion-14b8a6)](./packages/nexus-core/README.md)
-![Repo Views](https://komarev.com/ghpvc/?username=YoungJibbit95&repo=Nexus-Ecosystem&style=for-the-badge)
+![Last Commit](https://img.shields.io/github/last-commit/YoungJibbit95/Adventura?style=flat-square)
+![Repo Size](https://img.shields.io/github/repo-size/YoungJibbit95/Adventura?style=flat-square)
+![Issues](https://img.shields.io/github/issues/YoungJibbit95/Adventura?style=flat-square)
+![Visitors](https://komarev.com/ghpvc/?username=YoungJibbit95-Adventura&label=repo%20views&color=8b5cf6&style=flat-square)
 
 Nexus ist ein Multi-App Workspace-System fuer Planung, Entwicklung und Daily Operations.
 Dieses Repository enthaelt die produktiven Clients, Shared Core Runtime-Logik und die Wiki-/Website-Dokumentation.
@@ -15,8 +16,8 @@ Dieses Repository enthaelt die produktiven Clients, Shared Core Runtime-Logik un
 - [Nexus Code Mobile README](./Nexus%20Code%20Mobile/README.md)
 - [Nexus Native Installer README](./Nexus%20Installer/README.md)
 - [@nexus/core README](./packages/nexus-core/README.md)
-- [Nexus Wiki README](./Nexus%20Wiki/README.md)
-- [nexusproject.dev README](./nexusproject.dev/README.md)
+- [Nexus Wiki README]((https://youngjibbit95.github.io/Nexus-Ecosystem/))
+- [nexusproject.dev](https://nexusproject.dev)
 
 ## Product Surface
 
