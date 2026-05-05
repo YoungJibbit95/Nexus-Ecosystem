@@ -57,7 +57,7 @@ import {
   preloadMainViews,
 } from "./app/viewPreload";
 
-const CONTROL_API_BASE_URL = "https://nexus-api.cloud";
+const DEFAULT_CONTROL_API_BASE_URL = "https://nexus-api.cloud";
 const MAIN_BOOT_PRELOAD_TIMEOUT_MS = 6_000;
 const MAIN_BOOT_PRELOAD_TIMEOUT_LOW_POWER_MS = 8_500;
 const MAIN_BOOT_VIEW_WARMUP_TIMEOUT_MS = 2_800;
@@ -76,6 +76,201 @@ const isLowPowerDevice = () => {
 };
 const isOfflineBootstrapResourceError = (errorCodeRaw: unknown) =>
   isOfflineControlErrorCode(String(errorCodeRaw || "INVALID_PAYLOAD"));
+
+const resolveControlApiBaseUrl = () => {
+  const env = (import.meta as any).env || {};
+  const raw = String(
+    env.VITE_NEXUS_CONTROL_URL ||
+      env.VITE_NEXUS_CONTROL_API_BASE_URL ||
+      env.VITE_CONTROL_API_BASE_URL ||
+      DEFAULT_CONTROL_API_BASE_URL,
+  ).trim();
+  return (raw || DEFAULT_CONTROL_API_BASE_URL).replace(/\/+$/, "");
+};
+
+const resolveControlIngestKey = () => {
+  const raw = String(
+    ((import.meta as any).env || {}).VITE_NEXUS_CONTROL_INGEST_KEY || "",
+  ).trim();
+  if (!raw || raw.startsWith("REPLACE_")) return undefined;
+  return raw;
+};
+
+const MAIN_AUTH_SESSION_STORAGE_KEY = "nx-main-api-session-v1";
+const MAIN_DEVICE_ID_STORAGE_KEY = "nx-main-device-id-v1";
+
+type MainAuthMode = "login" | "register";
+
+type MainAuthSession = {
+  token: string;
+  expiresAt: number;
+  user: {
+    id: string;
+    username: string;
+    role: string;
+    email: string | null;
+    requestedTier: string;
+    emailVerified: boolean;
+  };
+};
+
+const resolveMainAuthUserTier = (
+  requestedTier: string | undefined,
+): "free" | "paid" | undefined => {
+  const raw = String(requestedTier || "").trim().toLowerCase();
+  if (!raw) return undefined;
+  return raw === "free" ? "free" : "paid";
+};
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+const parseMainAuthSession = (payload: unknown): MainAuthSession | null => {
+  const candidate = isRecord(payload) && isRecord(payload.item) ? payload.item : payload;
+  if (!isRecord(candidate)) return null;
+
+  const token = typeof candidate.token === "string" ? candidate.token.trim() : "";
+  const expiresAt =
+    typeof candidate.expiresAt === "number" && Number.isFinite(candidate.expiresAt)
+      ? candidate.expiresAt
+      : 0;
+  const user = candidate.user;
+  if (!token || expiresAt <= Date.now() + 15_000 || !isRecord(user)) return null;
+
+  const id = typeof user.id === "string" ? user.id : "";
+  const username = typeof user.username === "string" ? user.username : "";
+  const role = typeof user.role === "string" ? user.role : "";
+  if (!id || !username || !role) return null;
+
+  return {
+    token,
+    expiresAt,
+    user: {
+      id,
+      username,
+      role,
+      email: typeof user.email === "string" ? user.email : null,
+      requestedTier:
+        typeof user.requestedTier === "string" ? user.requestedTier : "free",
+      emailVerified: user.emailVerified === true,
+    },
+  };
+};
+
+const readStoredMainAuthSession = (): MainAuthSession | null => {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.sessionStorage.getItem(MAIN_AUTH_SESSION_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = parseMainAuthSession(JSON.parse(raw));
+    if (!parsed) {
+      window.sessionStorage.removeItem(MAIN_AUTH_SESSION_STORAGE_KEY);
+    }
+    return parsed;
+  } catch {
+    window.sessionStorage.removeItem(MAIN_AUTH_SESSION_STORAGE_KEY);
+    return null;
+  }
+};
+
+const storeMainAuthSession = (session: MainAuthSession) => {
+  if (typeof window === "undefined") return;
+  window.sessionStorage.setItem(
+    MAIN_AUTH_SESSION_STORAGE_KEY,
+    JSON.stringify(session),
+  );
+};
+
+const clearStoredMainAuthSession = () => {
+  if (typeof window === "undefined") return;
+  window.sessionStorage.removeItem(MAIN_AUTH_SESSION_STORAGE_KEY);
+};
+
+const getMainDeviceId = () => {
+  if (typeof window === "undefined") return "nx-main-device";
+  try {
+    const existing = window.localStorage.getItem(MAIN_DEVICE_ID_STORAGE_KEY);
+    if (existing) return existing;
+    const bytes = new Uint8Array(12);
+    window.crypto?.getRandomValues?.(bytes);
+    const generated = `nx-main-${Array.from(bytes)
+      .map((byte) => byte.toString(16).padStart(2, "0"))
+      .join("")}`;
+    window.localStorage.setItem(MAIN_DEVICE_ID_STORAGE_KEY, generated);
+    return generated;
+  } catch {
+    return `nx-main-${Date.now().toString(36)}`;
+  }
+};
+
+const requestMainAuthSession = async (input: {
+  mode: MainAuthMode;
+  baseUrl: string;
+  identifier: string;
+  email: string;
+  username: string;
+  password: string;
+}) => {
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), 9_000);
+  const endpoint = input.mode === "login" ? "/auth/login" : "/auth/register";
+  const body =
+    input.mode === "login"
+      ? {
+          identifier: input.identifier.trim(),
+          password: input.password,
+        }
+      : {
+          email: input.email.trim().toLowerCase(),
+          username: input.username.trim() || undefined,
+          password: input.password,
+          source: "nexus-main",
+        };
+
+  try {
+    const response = await fetch(`${input.baseUrl}${endpoint}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        "X-Nexus-Device-Id": getMainDeviceId(),
+        "X-Nexus-Device-Label": "Nexus Main",
+      },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const details = isRecord(payload) ? payload.details : null;
+      const detailMessage = Array.isArray(details)
+        ? details.map((entry) => String(entry)).join(", ")
+        : typeof details === "string"
+          ? details
+          : "";
+      throw new Error(
+        detailMessage ||
+          (isRecord(payload) && typeof payload.error === "string"
+            ? payload.error
+            : `HTTP_${response.status}`),
+      );
+    }
+    const session = parseMainAuthSession(payload);
+    if (!session) {
+      throw new Error("Auth-Antwort ist unvollstaendig.");
+    }
+    return session;
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
+};
+
+const isMainAuthBootstrapFailure = (reason: string | null) =>
+  Boolean(
+    reason &&
+      /(HTTP_401|HTTP_403|INGEST_UNAUTHORIZED|UNAUTHORIZED|INVALID_CREDENTIALS|DEVICE_NOT_VERIFIED|DEVICE_ID_REQUIRED)/.test(
+        reason,
+      ),
+  );
 
 const withTimeoutResult = async <T,>(
   promise: Promise<T>,
@@ -155,6 +350,17 @@ export default function App() {
   const [bootProgress, setBootProgress] = useState(0);
   const [bootStage, setBootStage] = useState("Nexus Runtime wird gestartet...");
   const [bootFailure, setBootFailure] = useState<string | null>(null);
+  const [bootAttempt, setBootAttempt] = useState(0);
+  const [authSession, setAuthSession] = useState<MainAuthSession | null>(() =>
+    readStoredMainAuthSession(),
+  );
+  const [authMode, setAuthMode] = useState<MainAuthMode>("login");
+  const [authIdentifier, setAuthIdentifier] = useState("");
+  const [authEmail, setAuthEmail] = useState("");
+  const [authUsername, setAuthUsername] = useState("");
+  const [authPassword, setAuthPassword] = useState("");
+  const [authPending, setAuthPending] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
   const [remoteDensity, setRemoteDensity] = useState<
     "compact" | "comfortable" | "spacious" | null
   >(null);
@@ -187,6 +393,7 @@ export default function App() {
     () => buildMotionRuntime(t, { lowPowerMode }),
     [lowPowerMode, t],
   );
+  const controlApiBaseUrl = useMemo(() => resolveControlApiBaseUrl(), []);
 
   useEffect(() => {
     if (!sidebarAutoHideEnabled) {
@@ -226,22 +433,20 @@ export default function App() {
     t.qol?.reducedMotion,
   ]);
 
-  const viewAccessContext = useMemo(
-    () =>
-      resolveNexusControlUserContext({
-        userId: (import.meta as any).env?.VITE_NEXUS_USER_ID as
-          | string
-          | undefined,
-        username: (import.meta as any).env?.VITE_NEXUS_USERNAME as
-          | string
-          | undefined,
-        userTier: (import.meta as any).env?.VITE_NEXUS_USER_TIER as
-          | "free"
-          | "paid"
-          | undefined,
-      }),
-    [],
-  );
+  const viewAccessContext = useMemo(() => {
+    const env = (import.meta as any).env || {};
+    return resolveNexusControlUserContext({
+      userId:
+        authSession?.user.id ||
+        (env.VITE_NEXUS_USER_ID as string | undefined),
+      username:
+        authSession?.user.username ||
+        (env.VITE_NEXUS_USERNAME as string | undefined),
+      userTier:
+        resolveMainAuthUserTier(authSession?.user.requestedTier) ||
+        (env.VITE_NEXUS_USER_TIER as "free" | "paid" | undefined),
+    });
+  }, [authSession]);
 
   const emitViewFilterDebugEvents = useCallback(
     (events: Array<{ viewId: string; reason: string }> | undefined) => {
@@ -339,9 +544,15 @@ export default function App() {
   );
 
   useEffect(() => {
-    const controlBaseUrl = CONTROL_API_BASE_URL;
-    const controlIngestKey = (import.meta as any).env
-      ?.VITE_NEXUS_CONTROL_INGEST_KEY as string | undefined;
+    const controlBaseUrl = controlApiBaseUrl;
+    const controlIngestKey = resolveControlIngestKey();
+    const controlToken = authSession?.token || "";
+
+    if (authSession && authSession.expiresAt <= Date.now() + 15_000) {
+      clearStoredMainAuthSession();
+      setAuthSession(null);
+      return;
+    }
 
     const runtime = createNexusRuntime({
       appId: "main",
@@ -349,6 +560,7 @@ export default function App() {
       control: {
         enabled: Boolean(controlBaseUrl),
         baseUrl: controlBaseUrl,
+        token: controlToken,
         ingestKey: controlIngestKey,
         sampleRate: 0.35,
         flushIntervalMs: 12_000,
@@ -424,6 +636,7 @@ export default function App() {
     const viewWarmupBudgetMs = lowPowerMode
       ? MAIN_BOOT_VIEW_WARMUP_TIMEOUT_LOW_POWER_MS
       : MAIN_BOOT_VIEW_WARMUP_TIMEOUT_MS;
+    setBootReady(false);
     setBootFailure(null);
     setBootProgress(8);
     setBootStage("Nexus Runtime wird gestartet...");
@@ -609,6 +822,10 @@ export default function App() {
             : "CONTROL_API_UNAVAILABLE";
         console.error("Nexus Main bootstrap failed", error);
         if (!active) return;
+        if (isMainAuthBootstrapFailure(reason) && authSession) {
+          clearStoredMainAuthSession();
+          setAuthSession(null);
+        }
         setBootFailure(reason);
       } finally {
         if (active) {
@@ -627,6 +844,9 @@ export default function App() {
     };
   }, [
     applyLiveBundle,
+    authSession,
+    bootAttempt,
+    controlApiBaseUrl,
     lowPowerMode,
     resolveBundleViews,
     storeWarmupAccess,
@@ -816,6 +1036,56 @@ export default function App() {
     } catch {}
   }, []);
 
+  const handleMainAuthSubmit = useCallback(
+    async (event: React.FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+      setAuthPending(true);
+      setAuthError(null);
+      try {
+        const session = await requestMainAuthSession({
+          mode: authMode,
+          baseUrl: controlApiBaseUrl,
+          identifier: authIdentifier,
+          email: authEmail,
+          username: authUsername,
+          password: authPassword,
+        });
+        storeMainAuthSession(session);
+        setAuthSession(session);
+        setAuthIdentifier(session.user.email || session.user.username);
+        setAuthEmail(session.user.email || "");
+        setAuthUsername(session.user.username);
+        setAuthPassword("");
+        setBootFailure(null);
+        setBootReady(false);
+        setBootAttempt((attempt) => attempt + 1);
+      } catch (error) {
+        const message =
+          error instanceof Error && error.message
+            ? error.message
+            : "Login fehlgeschlagen. Bitte pruefe deine Eingaben.";
+        setAuthError(message);
+      } finally {
+        setAuthPending(false);
+      }
+    },
+    [
+      authEmail,
+      authIdentifier,
+      authMode,
+      authPassword,
+      authUsername,
+      controlApiBaseUrl,
+    ],
+  );
+
+  const authSubmitDisabled =
+    authPending ||
+    authPassword.trim().length < 8 ||
+    (authMode === "login"
+      ? authIdentifier.trim().length === 0
+      : authEmail.trim().length === 0);
+
   if (!bootReady) {
     return (
       <BootSequenceScreen
@@ -829,6 +1099,7 @@ export default function App() {
   }
 
   if (bootFailure) {
+    const authFailure = isMainAuthBootstrapFailure(bootFailure);
     return (
       <div
         style={{
@@ -837,33 +1108,307 @@ export default function App() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: "linear-gradient(135deg, #1a0909 0%, #0c111b 100%)",
-          color: "#ffe5e2",
+          background:
+            "radial-gradient(circle at 20% 10%, rgba(20,184,166,0.22), transparent 34%), radial-gradient(circle at 80% 20%, rgba(251,146,60,0.16), transparent 30%), linear-gradient(135deg, #061018 0%, #0c111b 100%)",
+          color: "#e6fffb",
           fontFamily: "system-ui, sans-serif",
           padding: 24,
         }}
       >
         <div
           style={{
-            maxWidth: 660,
-            borderRadius: 16,
-            border: "1px solid rgba(255,69,58,0.45)",
-            background: "rgba(255,69,58,0.12)",
-            padding: 18,
-            fontSize: 14,
-            lineHeight: 1.5,
+            width: "min(980px, 100%)",
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 320px), 1fr))",
+            gap: 18,
           }}
         >
-          <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 8 }}>
-            API-Startpruefung fehlgeschlagen
+          <div
+            style={{
+              borderRadius: 24,
+              border: authFailure
+                ? "1px solid rgba(45,212,191,0.38)"
+                : "1px solid rgba(251,113,133,0.42)",
+              background: "rgba(8,16,28,0.74)",
+              boxShadow: "0 24px 80px rgba(0,0,0,0.36)",
+              padding: 24,
+              fontSize: 14,
+              lineHeight: 1.55,
+            }}
+          >
+            <div
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                borderRadius: 999,
+                border: "1px solid rgba(45,212,191,0.26)",
+                background: "rgba(20,184,166,0.1)",
+                color: "#99f6e4",
+                padding: "5px 10px",
+                fontSize: 12,
+                fontWeight: 800,
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+              }}
+            >
+              Hosted API Boot
+            </div>
+            <div style={{ fontSize: 26, fontWeight: 900, marginTop: 18 }}>
+              API-Startpruefung braucht eine Session
+            </div>
+            <p style={{ color: "#b6c8d5", marginTop: 10, marginBottom: 0 }}>
+              Nexus Main fragt weiter Katalog, Layout und Release von der API
+              ab. Bei <code>401</code>/<code>403</code> wird jetzt nicht mehr
+              stumpf gestoppt, sondern du kannst dich anmelden oder ein Konto
+              erstellen. Danach startet der gleiche API-Bootflow erneut mit
+              Bearer-Token.
+            </p>
+            <div
+              style={{
+                marginTop: 18,
+                borderRadius: 16,
+                border: "1px solid rgba(148,163,184,0.2)",
+                background: "rgba(15,23,42,0.72)",
+                padding: 14,
+                color: "#cbd5e1",
+              }}
+            >
+              <div style={{ color: "#e2e8f0", fontWeight: 800 }}>
+                Diagnose
+              </div>
+              <div style={{ marginTop: 8 }}>
+                API: <code>{controlApiBaseUrl}</code>
+              </div>
+              <div style={{ marginTop: 6 }}>
+                Reason: <code>{bootFailure}</code>
+              </div>
+              <div style={{ marginTop: 10, color: "#94a3b8" }}>
+                Kein Offline-Bypass: die App laedt erst weiter, wenn der
+                Hosted-API-Boot erfolgreich ist.
+              </div>
+            </div>
           </div>
-          <div>
-            Nexus Main wurde kontrolliert gestoppt, weil der Hosted-API-Bootflow
-            nicht erfolgreich war.
-          </div>
-          <div style={{ marginTop: 8 }}>
-            Reason: <code>{bootFailure}</code>
-          </div>
+
+          <form
+            onSubmit={handleMainAuthSubmit}
+            style={{
+              borderRadius: 24,
+              border: "1px solid rgba(45,212,191,0.34)",
+              background: "rgba(2,8,23,0.82)",
+              boxShadow: "0 24px 80px rgba(0,0,0,0.34)",
+              padding: 22,
+              fontSize: 14,
+            }}
+          >
+            <div style={{ fontSize: 20, fontWeight: 900 }}>
+              {authMode === "login" ? "Einloggen" : "Konto erstellen"}
+            </div>
+            <div style={{ color: "#94a3b8", marginTop: 6 }}>
+              Gleiche Account-API wie auf nexusproject.dev.
+            </div>
+
+            <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setAuthMode("login");
+                  setAuthError(null);
+                }}
+                style={{
+                  flex: 1,
+                  border: "1px solid rgba(45,212,191,0.35)",
+                  borderRadius: 14,
+                  background:
+                    authMode === "login"
+                      ? "rgba(20,184,166,0.22)"
+                      : "rgba(15,23,42,0.72)",
+                  color: authMode === "login" ? "#ccfbf1" : "#94a3b8",
+                  fontWeight: 800,
+                  padding: "10px 12px",
+                  cursor: "pointer",
+                }}
+              >
+                Login
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setAuthMode("register");
+                  setAuthError(null);
+                }}
+                style={{
+                  flex: 1,
+                  border: "1px solid rgba(125,211,252,0.32)",
+                  borderRadius: 14,
+                  background:
+                    authMode === "register"
+                      ? "rgba(14,165,233,0.2)"
+                      : "rgba(15,23,42,0.72)",
+                  color: authMode === "register" ? "#e0f2fe" : "#94a3b8",
+                  fontWeight: 800,
+                  padding: "10px 12px",
+                  cursor: "pointer",
+                }}
+              >
+                Registrieren
+              </button>
+            </div>
+
+            {authMode === "login" ? (
+              <label style={{ display: "block", marginTop: 16 }}>
+                <span style={{ color: "#cbd5e1", fontWeight: 800 }}>
+                  E-Mail oder Benutzername
+                </span>
+                <input
+                  value={authIdentifier}
+                  onChange={(event) => setAuthIdentifier(event.target.value)}
+                  autoComplete="username"
+                  placeholder="name@example.com"
+                  style={{
+                    width: "100%",
+                    boxSizing: "border-box",
+                    marginTop: 7,
+                    borderRadius: 14,
+                    border: "1px solid rgba(148,163,184,0.28)",
+                    background: "rgba(15,23,42,0.92)",
+                    color: "#f8fafc",
+                    padding: "12px 13px",
+                    outline: "none",
+                  }}
+                />
+              </label>
+            ) : (
+              <>
+                <label style={{ display: "block", marginTop: 16 }}>
+                  <span style={{ color: "#cbd5e1", fontWeight: 800 }}>
+                    E-Mail
+                  </span>
+                  <input
+                    value={authEmail}
+                    onChange={(event) => setAuthEmail(event.target.value)}
+                    type="email"
+                    autoComplete="email"
+                    placeholder="name@example.com"
+                    style={{
+                      width: "100%",
+                      boxSizing: "border-box",
+                      marginTop: 7,
+                      borderRadius: 14,
+                      border: "1px solid rgba(148,163,184,0.28)",
+                      background: "rgba(15,23,42,0.92)",
+                      color: "#f8fafc",
+                      padding: "12px 13px",
+                      outline: "none",
+                    }}
+                  />
+                </label>
+                <label style={{ display: "block", marginTop: 12 }}>
+                  <span style={{ color: "#cbd5e1", fontWeight: 800 }}>
+                    Benutzername optional
+                  </span>
+                  <input
+                    value={authUsername}
+                    onChange={(event) => setAuthUsername(event.target.value)}
+                    autoComplete="username"
+                    placeholder="nexus-user"
+                    style={{
+                      width: "100%",
+                      boxSizing: "border-box",
+                      marginTop: 7,
+                      borderRadius: 14,
+                      border: "1px solid rgba(148,163,184,0.28)",
+                      background: "rgba(15,23,42,0.92)",
+                      color: "#f8fafc",
+                      padding: "12px 13px",
+                      outline: "none",
+                    }}
+                  />
+                </label>
+              </>
+            )}
+
+            <label style={{ display: "block", marginTop: 12 }}>
+              <span style={{ color: "#cbd5e1", fontWeight: 800 }}>
+                Passwort
+              </span>
+              <input
+                value={authPassword}
+                onChange={(event) => setAuthPassword(event.target.value)}
+                type="password"
+                autoComplete={
+                  authMode === "login" ? "current-password" : "new-password"
+                }
+                minLength={8}
+                placeholder="mind. 8 Zeichen"
+                style={{
+                  width: "100%",
+                  boxSizing: "border-box",
+                  marginTop: 7,
+                  borderRadius: 14,
+                  border: "1px solid rgba(148,163,184,0.28)",
+                  background: "rgba(15,23,42,0.92)",
+                  color: "#f8fafc",
+                  padding: "12px 13px",
+                  outline: "none",
+                }}
+              />
+            </label>
+
+            {authError ? (
+              <div
+                style={{
+                  marginTop: 12,
+                  borderRadius: 14,
+                  border: "1px solid rgba(251,113,133,0.34)",
+                  background: "rgba(127,29,29,0.32)",
+                  color: "#fecaca",
+                  padding: "10px 12px",
+                }}
+              >
+                {authError}
+              </div>
+            ) : null}
+
+            <button
+              type="submit"
+              disabled={authSubmitDisabled}
+              style={{
+                width: "100%",
+                marginTop: 16,
+                border: 0,
+                borderRadius: 16,
+                background:
+                  "linear-gradient(135deg, #14b8a6 0%, #38bdf8 100%)",
+                color: "#00131a",
+                fontWeight: 900,
+                padding: "13px 14px",
+                cursor: authSubmitDisabled ? "not-allowed" : "pointer",
+                opacity: authSubmitDisabled ? 0.55 : 1,
+              }}
+            >
+              {authPending
+                ? "Verbinde mit API..."
+                : authMode === "login"
+                  ? "Einloggen und Boot erneut pruefen"
+                  : "Konto erstellen und Boot starten"}
+            </button>
+
+            <a
+              href="https://nexusproject.dev/?page=login"
+              target="_blank"
+              rel="noreferrer"
+              style={{
+                display: "block",
+                marginTop: 14,
+                color: "#7dd3fc",
+                textAlign: "center",
+                textDecoration: "none",
+                fontWeight: 800,
+              }}
+            >
+              Account lieber auf nexusproject.dev oeffnen
+            </a>
+          </form>
         </div>
       </div>
     );

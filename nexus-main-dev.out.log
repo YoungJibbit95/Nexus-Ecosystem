@@ -1,0 +1,24 @@
+
+> nexus-ecosystem@1.0.0 dev:main
+> node ./tools/dev-main.mjs
+
+
+> nexus@5.0.0 electron:dev
+> concurrently -k "vite" "wait-on http://localhost:5173 && electron . --dev"
+
+[0] [2m00:04:07[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m Re-optimizing dependencies because vite config has changed
+[0] 
+[0]   [32m[1mVITE[22m v8.0.8[39m  [2mready in [0m[1m1638[22m[2m[0m ms[22m
+[0] 
+[0]   [32m➜[39m  [1mLocal[22m:   [36mhttp://localhost:[1m5173[22m/[39m
+[0] [2m  [32m➜[39m  [1mNetwork[22m[2m: use [22m[1m--host[22m[2m to expose[22m
+[0] [2m00:04:09[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [optimizer] bundling dependencies...
+[1] 
+[1] [Nexus Main] window shown: ready-to-show
+[0] [2m00:04:12[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22mNexus Main bootstrap failed Error: CONTROL_API_BOOTSTRAP_FAILED (catalog:HTTP_401, layout:HTTP_401, release:HTTP_401)
+[0]     at http://localhost:5173/src/App.tsx:347:13
+[0] [2m00:04:12[22m [31m[1m[vite][22m[39m [31m[2m(client)[22m[39m [2m[console.error] [22mNexus Main bootstrap failed Error: CONTROL_API_BOOTSTRAP_FAILED (catalog:HTTP_401, layout:HTTP_401, release:HTTP_401)
+[0]     at http://localhost:5173/src/App.tsx:347:13
+[1] wait-on http://localhost:5173 && electron . --dev exited with code 0
+--> Sending SIGTERM to other processes..
+[0] vite exited with code 1
