@@ -2,7 +2,7 @@
 
 [![Apps](https://img.shields.io/badge/apps-4-0ea5e9)](./README.md)
 [![Shared%20Core](https://img.shields.io/badge/shared-core%20render%20%2B%20motion-14b8a6)](./packages/nexus-core/README.md)
-![Repo Views](https://komarev.com/ghpvc/?username=YoungJibbit95&repo=Nexus-Ecosystem&color=0ea5e9)
+![Repo Views](https://komarev.com/ghpvc/?username=YoungJibbit95&repo=Nexus-Ecosystem&style=for-the-badge)
 
 Nexus ist ein Multi-App Workspace-System fuer Planung, Entwicklung und Daily Operations.
 Dieses Repository enthaelt die produktiven Clients, Shared Core Runtime-Logik und die Wiki-/Website-Dokumentation.
