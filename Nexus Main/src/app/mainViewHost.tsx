@@ -1,5 +1,8 @@
 import React, { Suspense } from "react";
+import type { NexusResolvedViewCommand } from "@nexus/core";
+import { shallow } from "zustand/shallow";
 import type { View } from "../components/Sidebar";
+import { useApp } from "../store/appStore";
 import { ViewErrorBoundary } from "../components/ViewErrorBoundary";
 import { NexusV6ViewShell } from "./NexusV6ViewShell";
 import {
@@ -168,6 +171,38 @@ export function MainViewHost({
     [view],
     mountedViews.filter((entry) => availableViews.includes(entry)),
   );
+  const { addNote, addTask, addRem } = useApp((state) => ({
+    addNote: state.addNote,
+    addTask: state.addTask,
+    addRem: state.addRem,
+  }), shallow);
+  const handleShellCommand = React.useCallback(
+    (command: NexusResolvedViewCommand) => {
+      switch (command.commandId) {
+        case "dashboard.quick-capture":
+        case "notes.new-note":
+          addNote();
+          onRequestViewChange("notes");
+          return true;
+        case "tasks.new-task":
+          addTask("New Task", "todo");
+          onRequestViewChange("tasks");
+          return true;
+        case "reminders.new-reminder":
+          addRem({
+            title: "New Reminder",
+            msg: "Created from Nexus command",
+            datetime: new Date(Date.now() + 60 * 60_000).toISOString(),
+            repeat: "none",
+          });
+          onRequestViewChange("reminders");
+          return true;
+        default:
+          return false;
+      }
+    },
+    [addNote, addRem, addTask, onRequestViewChange],
+  );
 
   return (
     <div
@@ -200,6 +235,7 @@ export function MainViewHost({
             reducedMotion={reducedMotion}
             onRequestViewChange={onRequestViewChange}
             onPrefetchView={onPrefetchView}
+            onExecuteCommand={handleShellCommand}
           >
             <Suspense
               fallback={

@@ -40,6 +40,7 @@
     "verify:single-react": "node ./tools/verify-single-react.mjs",
     "verify:ecosystem": "node ./tools/verify-ecosystem.mjs",
     "verify:encoding": "node ./tools/verify-encoding.mjs",
+    "release:gate": "node ./tools/release-gate.mjs",
     "measure:startup-sync": "node ./tools/measure-startup-sync.mjs",
     "doctor:release": "node ./tools/release-doctor.mjs",
     "doctor:release:hosted": "node ./tools/release-doctor.mjs --hosted-ui",

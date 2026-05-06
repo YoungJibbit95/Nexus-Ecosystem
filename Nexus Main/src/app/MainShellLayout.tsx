@@ -82,10 +82,6 @@ export function MainShellLayout({
     shortcuts: [],
     statusSignals: ["debug"],
   };
-  const primaryAction =
-    activeViewManifest?.actions.find(
-      (action) => action.id === activeViewManifest.defaultActionId,
-    ) ?? activeViewManifest?.actions.find((action) => action.placement === "primary");
 
   const toolbarEl = toolbarVisible ? (
     <div
@@ -280,27 +276,6 @@ export function MainShellLayout({
             }}
           >
             {!toolbarBottom ? toolbarEl : null}
-            <div className="nx-view-context-bar" aria-label="Aktiver View-Kontext">
-              <div className="nx-view-context-main">
-                <div className="nx-view-context-kicker">
-                  Workbench / {viewContract.category}
-                </div>
-                <div className="nx-view-context-title-row">
-                  <strong>{viewContract.title}</strong>
-                  <span>{viewContract.subtitle}</span>
-                </div>
-              </div>
-              <div className="nx-view-context-pills" aria-label="View Contract">
-                {primaryAction ? (
-                  <span className="nx-context-pill nx-context-pill--primary">
-                    Primary: {primaryAction.title}
-                  </span>
-                ) : null}
-                <span className="nx-context-pill">
-                  Mode: {viewContract.desktopMode}
-                </span>
-              </div>
-            </div>
             <motion.div
               initial={motionRuntime.pageInitial}
               animate={motionRuntime.pageAnimate}
@@ -331,12 +306,6 @@ export function MainShellLayout({
               </div>
               <div className="nx-status-chip">
                 Release: {releaseId || "local fallback"}
-              </div>
-              <div className="nx-status-chip">
-                Motion: {motionRuntime?.profile || "balanced"}
-              </div>
-              <div className="nx-status-chip">
-                Views: {availableViews.length}
               </div>
               {viewGuardState.checking ? (
                 <div className="nx-status-chip nx-status-chip--busy">

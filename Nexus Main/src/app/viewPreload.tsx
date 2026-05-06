@@ -1,9 +1,12 @@
 import { lazy } from 'react';
-import { getFallbackViewsForApp } from '@nexus/core';
-import type { View } from '../components/Sidebar';
+import {
+  MAIN_HEAVY_PRELOAD_VIEW_SET,
+  MAIN_PRELOAD_PRIORITY,
+  MAIN_VIEW_IDS,
+  type View,
+} from './mainViewRegistry';
 import { DashboardView as DashboardViewComponent } from '../views/DashboardView';
 
-const IS_DEV = (import.meta as any).env?.DEV;
 const loadDashboardView = () => Promise.resolve({ DashboardView: DashboardViewComponent });
 const loadNotesView = () => import('../views/NotesView');
 const loadCodeView = () => import('../views/CodeView');
@@ -60,13 +63,7 @@ export const NexusToolbar = lazy(() =>
   loadNexusToolbar().then((m) => ({ default: m.NexusToolbar })),
 );
 
-const BASE_VIEW_IDS = getFallbackViewsForApp('main') as View[];
-export const VIEW_IDS: View[] = Array.from(
-  new Set<View>([
-    ...BASE_VIEW_IDS,
-    ...(IS_DEV ? (['diagnostics'] as View[]) : []),
-  ]),
-);
+export const VIEW_IDS: View[] = MAIN_VIEW_IDS;
 
 export const VIEW_CHUNK_PRELOADERS: Record<View, () => Promise<unknown>> = {
   dashboard: loadDashboardView,
@@ -83,21 +80,6 @@ export const VIEW_CHUNK_PRELOADERS: Record<View, () => Promise<unknown>> = {
   diagnostics: loadRenderDiagnosticsView,
 };
 
-const MAIN_PRELOAD_PRIORITY: View[] = [
-  'dashboard',
-  'notes',
-  'tasks',
-  'reminders',
-  'settings',
-  'files',
-  'info',
-  'flux',
-  'canvas',
-  'code',
-  'devtools',
-  'diagnostics',
-];
-const MAIN_HEAVY_PRELOAD_VIEWS = new Set<View>(['code', 'canvas', 'devtools']);
 const MAIN_PRELOAD_PROMISES = new WeakMap<
   () => Promise<unknown>,
   Promise<unknown>
@@ -167,7 +149,7 @@ export const preloadMainViews = async (
   const includeDeferred = Boolean(options.includeDeferred);
   const allowHeavy = options.allowHeavy === true;
   const loaders = orderMainPreloadViews(views)
-    .filter((viewId) => allowHeavy || !MAIN_HEAVY_PRELOAD_VIEWS.has(viewId))
+    .filter((viewId) => allowHeavy || !MAIN_HEAVY_PRELOAD_VIEW_SET.has(viewId))
     .map((viewId) => VIEW_CHUNK_PRELOADERS[viewId])
     .filter(
       (loader): loader is () => Promise<unknown> =>

@@ -1,7 +1,13 @@
 import type { View } from "../components/Sidebar";
-import { getFallbackViewsForApp } from "@nexus/core";
 import { isOfflineControlErrorCode } from "@nexus/api";
 import { VIEW_IDS } from "./viewPreload";
+import {
+  MAIN_BOOT_PRIORITY_VIEW_IDS,
+  MAIN_CORE_VIEW_IDS,
+  MAIN_CRITICAL_PRELOAD_VIEW_IDS,
+  MAIN_HEAVY_PRELOAD_VIEW_SET as MAIN_REGISTRY_HEAVY_PRELOAD_VIEW_SET,
+  MAIN_PERSISTENT_VIEW_CACHE_IDS,
+} from "./mainViewRegistry";
 
 export const CONTROL_API_BASE_URL = "https://nexus-api.cloud";
 export const MAIN_BOOT_PRELOAD_TIMEOUT_MS = 6_000;
@@ -46,7 +52,7 @@ export const withTimeoutResult = async <T,>(
   }
 };
 
-export const MAIN_CORE_FALLBACK_VIEWS: View[] = getFallbackViewsForApp("main")
+export const MAIN_CORE_FALLBACK_VIEWS: View[] = MAIN_CORE_VIEW_IDS
   .map((candidate) => candidate as View)
   .filter((candidate) => VIEW_IDS.includes(candidate));
 
@@ -60,35 +66,10 @@ export const MAIN_SAFE_STARTUP_VIEWS: View[] =
   withDevDiagnosticsView(
     MAIN_CORE_FALLBACK_VIEWS.length > 0 ? MAIN_CORE_FALLBACK_VIEWS : VIEW_IDS,
   );
-export const MAIN_CRITICAL_PRELOAD_VIEWS: View[] = [
-  "dashboard",
-  "notes",
-  "tasks",
-  "settings",
-  "reminders",
-];
-export const MAIN_BOOT_PRIORITY_VIEWS: View[] = [
-  "dashboard",
-  "notes",
-  "tasks",
-  "settings",
-  "reminders",
-  "files",
-];
-export const MAIN_HEAVY_PRELOAD_VIEW_SET = new Set<View>([
-  "code",
-  "canvas",
-  "devtools",
-]);
-export const MAIN_PERSISTENT_VIEW_CACHE: View[] = [
-  "dashboard",
-  "notes",
-  "tasks",
-  "settings",
-  "files",
-  "canvas",
-  "code",
-];
+export const MAIN_CRITICAL_PRELOAD_VIEWS: View[] = MAIN_CRITICAL_PRELOAD_VIEW_IDS;
+export const MAIN_BOOT_PRIORITY_VIEWS: View[] = MAIN_BOOT_PRIORITY_VIEW_IDS;
+export const MAIN_HEAVY_PRELOAD_VIEW_SET = MAIN_REGISTRY_HEAVY_PRELOAD_VIEW_SET;
+export const MAIN_PERSISTENT_VIEW_CACHE: View[] = MAIN_PERSISTENT_VIEW_CACHE_IDS;
 
 export const mergeUniqueViews = (...groups: View[][]): View[] => {
   const ordered = groups.flat();

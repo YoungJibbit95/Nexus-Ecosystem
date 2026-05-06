@@ -63,6 +63,28 @@ export const englishEntryTranslations = {
       'Unsafe views remain blocked when contracts do not match.',
     ],
   },
+  'runtime-core-view-v2': {
+    title: 'Core View Runtime v2',
+    summary: 'Core View Runtime v2 defines Layout Schema, Panel Engine and Command Registry as the shared foundation for Nexus v6 surfaces.',
+    guide: g([
+      ['1. Maintain manifests', 'Model new views in NEXUS_VIEW_MANIFESTS first, including actions, panels, modes and status signals.'],
+      ['2. Resolve layout', 'resolveNexusViewLayout and buildNexusPanelEngine provide shell, inspector and responsive rules.'],
+      ['3. Wire commands', 'resolveNexusViewCommandRegistry provides enabled/disabled state; real view handlers are registered per surface.'],
+    ]),
+    points: [
+      'Layout Schema v2 makes desktop, tablet and mobile comparable.',
+      'Panel Engine separates rail, sheet, inline and inspector panels.',
+      'Command execution stays safe because Core centralizes disabled-state and handler resolution.',
+      'Nexus Main already uses this runtime in NexusV6ViewShell.',
+      'Main View Registry v2 feeds Sidebar, preload and boot priorities from one source.',
+      'The first shell commands create notes, tasks and reminders directly from the v6 shell.',
+    ],
+    commands: [
+      'npm --prefix "packages/nexus-core" run build',
+      'npm --prefix "Nexus Main" run build',
+    ],
+    tags: ['runtime', 'view-manifest', 'layout-schema', 'commands', 'panels'],
+  },
   'security-owner-signatures': {
     title: 'Security Governance and Access Protection',
     summary: 'Access to critical management functions follows clear role and approval rules.',
@@ -119,6 +141,28 @@ export const englishEntryTranslations = {
       'Compatibility is treated as a release condition.',
       'Cross-app parity is part of the success criteria.',
     ],
+  },
+  'release-view-smoke-matrix': {
+    title: 'Release View Smoke Matrix',
+    summary: 'The View Smoke Matrix documents the UI flows that must be visibly confirmed for every Nexus v6 view before an RC.',
+    guide: g([
+      ['1. Start the gate', 'Run release:gate first so the build, contract and encoding baseline is green.'],
+      ['2. Smoke-test views', 'Open, operate and reload every required view on Desktop Main and Mobile using the matrix.'],
+      ['3. Store evidence', 'Save screenshots or short videos per view in the RC evidence folder and link open risks.'],
+    ]),
+    points: [
+      'Open, create/edit, persist/reload, offline/API fallback and touch/keyboard are required columns.',
+      'Animated UI must not move active click targets.',
+      'Premium, admin and DevTools surfaces must be visibly gated.',
+      'The matrix proves operability; it does not replace API contract or attack tests.',
+    ],
+    commands: [
+      'npm run release:gate -- --fast',
+      'npm run release:gate',
+      'npm run release:gate -- --with-api-contract',
+      'docs/VIEW_SMOKE_MATRIX.md',
+    ],
+    tags: ['release', 'smoke', 'view-qa', 'rc'],
   },
   'main-dashboard-guide': {
     title: 'Nexus Main: Dashboard Guide',
