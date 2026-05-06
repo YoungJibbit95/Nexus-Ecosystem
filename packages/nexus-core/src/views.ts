@@ -450,6 +450,380 @@ export const buildNexusViewCommandRegistry = (
     })),
   )
 
+export type NexusViewLayoutSurface = 'desktop' | 'tablet' | 'mobile'
+
+export type NexusViewLayoutDensity = 'compact' | 'comfortable' | 'spacious'
+
+export type NexusViewChromeLevel = 'full' | 'focused' | 'immersive'
+
+export type NexusViewContentPriority =
+  | 'balanced'
+  | 'content-first'
+  | 'creation-first'
+  | 'diagnostic'
+
+export type NexusViewAnimationProfile = 'none' | 'calm' | 'standard' | 'spatial'
+
+export type NexusResolvedPanelPresentation = 'rail' | 'sheet' | 'inline' | 'hidden'
+
+export type NexusResolvedViewPanel = NexusViewPanelManifest & {
+  state: NexusViewPanelState
+  visible: boolean
+  presentation: NexusResolvedPanelPresentation
+  rail: NexusViewPanelPlacement | 'none'
+  priority: number
+  isInspectorCandidate: boolean
+}
+
+export type NexusViewLayoutSchemaV2 = {
+  version: 2
+  viewId: NexusViewId
+  surface: NexusViewLayoutSurface
+  surfaceMode: NexusViewSurfaceMode | 'stack'
+  density: NexusViewLayoutDensity
+  chrome: NexusViewChromeLevel
+  contentPriority: NexusViewContentPriority
+  columns: 1 | 2 | 3
+  minContentWidth: number
+  inspectorDefaultOpen: boolean
+  animationProfile: NexusViewAnimationProfile
+  panels: NexusResolvedViewPanel[]
+  primaryPanelId: string | null
+  statusSignals: string[]
+  focusTargets: string[]
+  commandPlacements: Record<NexusViewActionPlacement, string[]>
+}
+
+export type NexusViewLayoutOptions = {
+  viewId: string
+  surface?: NexusViewLayoutSurface
+  density?: NexusViewLayoutDensity
+  focusMode?: boolean
+  inspectorOpen?: boolean
+  activePanelId?: string | null
+  reducedMotion?: boolean
+}
+
+const CONTENT_PRIORITY_BY_MODE: Record<
+  NexusViewSurfaceMode | 'stack',
+  NexusViewContentPriority
+> = {
+  dashboard: 'balanced',
+  library: 'balanced',
+  editor: 'content-first',
+  board: 'balanced',
+  agenda: 'balanced',
+  canvas: 'creation-first',
+  browser: 'content-first',
+  flow: 'creation-first',
+  settings: 'balanced',
+  status: 'balanced',
+  diagnostics: 'diagnostic',
+  stack: 'content-first',
+}
+
+const getSurfaceMode = (
+  manifest: NexusViewManifest,
+  surface: NexusViewLayoutSurface,
+) => (surface === 'mobile' ? manifest.mobileMode : manifest.desktopMode)
+
+const getColumnCount = (
+  mode: NexusViewSurfaceMode | 'stack',
+  surface: NexusViewLayoutSurface,
+  focusMode: boolean,
+): 1 | 2 | 3 => {
+  if (focusMode || surface === 'mobile') return 1
+  if (surface === 'tablet') return mode === 'canvas' || mode === 'board' ? 2 : 1
+  if (mode === 'dashboard' || mode === 'board' || mode === 'canvas') return 2
+  return 1
+}
+
+const getMinimumContentWidth = (
+  mode: NexusViewSurfaceMode | 'stack',
+  surface: NexusViewLayoutSurface,
+) => {
+  if (surface === 'mobile') return 320
+  if (mode === 'canvas' || mode === 'editor' || mode === 'browser') return 760
+  if (mode === 'board' || mode === 'dashboard') return 680
+  return 560
+}
+
+const getAnimationProfile = (
+  mode: NexusViewSurfaceMode | 'stack',
+  surface: NexusViewLayoutSurface,
+  reducedMotion: boolean,
+): NexusViewAnimationProfile => {
+  if (reducedMotion) return 'none'
+  if (surface === 'mobile') return 'calm'
+  if (mode === 'canvas' || mode === 'flow') return 'spatial'
+  return 'standard'
+}
+
+const toCommandPlacements = (
+  commands: readonly NexusViewCommandManifest[],
+): Record<NexusViewActionPlacement, string[]> => ({
+  primary: commands
+    .filter((command) => command.placement === 'primary')
+    .map((command) => command.commandId),
+  toolbar: commands
+    .filter((command) => command.placement === 'toolbar')
+    .map((command) => command.commandId),
+  command: commands
+    .filter((command) => command.placement === 'command')
+    .map((command) => command.commandId),
+  context: commands
+    .filter((command) => command.placement === 'context')
+    .map((command) => command.commandId),
+})
+
+export const resolveNexusViewPanels = ({
+  viewId,
+  surface = 'desktop',
+  focusMode = false,
+  inspectorOpen = false,
+  activePanelId = null,
+}: NexusViewLayoutOptions): NexusResolvedViewPanel[] => {
+  const manifest = getNexusViewManifest(viewId)
+  if (!manifest) return []
+
+  return manifest.panels.map((panel, index) => {
+    const presentation: NexusResolvedPanelPresentation =
+      surface === 'mobile'
+        ? panel.mobilePresentation
+        : panel.placement === 'bottom'
+          ? 'inline'
+          : 'rail'
+    const hiddenByFocus = focusMode && panel.placement !== 'bottom'
+    const isActive = activePanelId === panel.id
+    const shouldOpenForInspector =
+      inspectorOpen && (panel.placement === 'right' || panel.mobilePresentation === 'sheet')
+    const state: NexusViewPanelState = hiddenByFocus
+      ? 'hidden'
+      : isActive || shouldOpenForInspector
+        ? 'open'
+        : panel.defaultState
+    const visible =
+      !hiddenByFocus &&
+      presentation !== 'hidden' &&
+      state !== 'hidden' &&
+      (state === 'open' || presentation === 'inline')
+
+    return {
+      ...panel,
+      state,
+      visible,
+      presentation,
+      rail: presentation === 'rail' ? panel.placement : 'none',
+      priority: index + 1,
+      isInspectorCandidate:
+        panel.placement === 'right' || panel.mobilePresentation === 'sheet',
+    }
+  })
+}
+
+export const resolveNexusViewLayout = (
+  options: NexusViewLayoutOptions,
+): NexusViewLayoutSchemaV2 | null => {
+  const manifest = getNexusViewManifest(options.viewId)
+  if (!manifest) return null
+
+  const surface = options.surface ?? 'desktop'
+  const density = options.density ?? 'comfortable'
+  const focusMode = Boolean(options.focusMode)
+  const mode = getSurfaceMode(manifest, surface)
+  const panels = resolveNexusViewPanels(options)
+  const commands = buildNexusViewCommandRegistry([manifest.id])
+  const primaryPanel =
+    panels.find((panel) => panel.id === options.activePanelId && panel.visible) ??
+    panels.find((panel) => panel.visible && panel.state === 'open') ??
+    panels.find((panel) => panel.visible) ??
+    null
+
+  return {
+    version: 2,
+    viewId: manifest.id,
+    surface,
+    surfaceMode: mode,
+    density,
+    chrome: focusMode ? 'focused' : mode === 'canvas' ? 'immersive' : 'full',
+    contentPriority: CONTENT_PRIORITY_BY_MODE[mode],
+    columns: getColumnCount(mode, surface, focusMode),
+    minContentWidth: getMinimumContentWidth(mode, surface),
+    inspectorDefaultOpen: panels.some(
+      (panel) => panel.isInspectorCandidate && panel.state === 'open',
+    ),
+    animationProfile: getAnimationProfile(mode, surface, Boolean(options.reducedMotion)),
+    panels,
+    primaryPanelId: primaryPanel?.id ?? null,
+    statusSignals: manifest.statusSignals,
+    focusTargets: [
+      manifest.defaultActionId,
+      ...manifest.actions
+        .filter((action) => action.placement === 'toolbar')
+        .map((action) => action.id),
+    ],
+    commandPlacements: toCommandPlacements(commands),
+  }
+}
+
+export type NexusViewCommandContext = {
+  activeView?: string
+  hasSelection?: boolean
+  readOnly?: boolean
+  entitlementState?: 'allowed' | 'blocked' | 'unknown'
+  availableViews?: readonly string[]
+}
+
+export type NexusResolvedViewCommand = NexusViewCommandManifest & {
+  enabled: boolean
+  disabledReason?: 'requires-selection' | 'read-only' | 'entitlement-blocked' | 'view-unavailable'
+  scope: 'view' | 'global'
+  priority: number
+  placementRank: number
+}
+
+const MUTATING_INTENTS = new Set<NexusViewActionIntent>([
+  'create',
+  'edit',
+  'organize',
+  'run',
+  'settings',
+])
+
+const PREMIUM_VIEW_IDS = new Set<NexusViewId>(['canvas', 'code', 'devtools', 'flux'])
+
+const PLACEMENT_RANK: Record<NexusViewActionPlacement, number> = {
+  primary: 0,
+  toolbar: 1,
+  command: 2,
+  context: 3,
+}
+
+const resolveCommandDisabledReason = (
+  command: NexusViewCommandManifest,
+  context: NexusViewCommandContext,
+): NexusResolvedViewCommand['disabledReason'] | undefined => {
+  const availableViews = context.availableViews
+    ? new Set(toUniqueViewList(context.availableViews))
+    : null
+  if (availableViews && !availableViews.has(command.viewId)) return 'view-unavailable'
+  if (command.requiresSelection && !context.hasSelection) return 'requires-selection'
+  if (context.readOnly && MUTATING_INTENTS.has(command.intent)) return 'read-only'
+  if (context.entitlementState === 'blocked' && PREMIUM_VIEW_IDS.has(command.viewId)) {
+    return 'entitlement-blocked'
+  }
+  return undefined
+}
+
+export const resolveNexusViewCommandRegistry = ({
+  views = NEXUS_VIEW_ORDER,
+  activeView,
+  hasSelection = false,
+  readOnly = false,
+  entitlementState = 'unknown',
+  availableViews,
+}: NexusViewCommandContext & { views?: readonly string[] } = {}): NexusResolvedViewCommand[] =>
+  buildNexusViewCommandRegistry(views)
+    .map((command, index) => {
+      const disabledReason = resolveCommandDisabledReason(command, {
+        activeView,
+        hasSelection,
+        readOnly,
+        entitlementState,
+        availableViews,
+      })
+      return {
+        ...command,
+        enabled: !disabledReason,
+        disabledReason,
+        scope: activeView === command.viewId ? ('view' as const) : ('global' as const),
+        priority: index + PLACEMENT_RANK[command.placement] * 100,
+        placementRank: PLACEMENT_RANK[command.placement],
+      }
+    })
+    .sort((a, b) => a.priority - b.priority)
+
+export const resolveDefaultNexusViewCommand = (
+  viewId: string,
+  context: NexusViewCommandContext = {},
+) => {
+  const manifest = getNexusViewManifest(viewId)
+  if (!manifest) return null
+  const commands = resolveNexusViewCommandRegistry({
+    ...context,
+    views: [manifest.id],
+    activeView: manifest.id,
+  })
+  return (
+    commands.find((command) => command.id === manifest.defaultActionId) ??
+    commands.find((command) => command.placement === 'primary') ??
+    null
+  )
+}
+
+export type NexusViewCommandHandler = (
+  command: NexusResolvedViewCommand,
+  context: NexusViewCommandContext,
+) => void | Promise<void>
+
+export type NexusViewCommandHandlers = Partial<Record<string, NexusViewCommandHandler>>
+
+export type NexusViewCommandExecutionResult =
+  | { ok: true; command: NexusResolvedViewCommand }
+  | {
+      ok: false
+      commandId: string
+      command?: NexusResolvedViewCommand
+      reason: 'not-found' | 'disabled' | 'no-handler'
+    }
+
+export const executeNexusViewCommand = async ({
+  commandId,
+  registry,
+  handlers = {},
+  context = {},
+}: {
+  commandId: string
+  registry: readonly NexusResolvedViewCommand[]
+  handlers?: NexusViewCommandHandlers
+  context?: NexusViewCommandContext
+}): Promise<NexusViewCommandExecutionResult> => {
+  const command = registry.find((candidate) => candidate.commandId === commandId)
+  if (!command) return { ok: false, commandId, reason: 'not-found' }
+  if (!command.enabled) return { ok: false, commandId, command, reason: 'disabled' }
+
+  const handler =
+    handlers[command.commandId] ??
+    handlers[`${command.viewId}.*`] ??
+    handlers['*']
+  if (!handler) return { ok: false, commandId, command, reason: 'no-handler' }
+
+  await handler(command, context)
+  return { ok: true, command }
+}
+
+export const buildNexusPanelEngine = (options: NexusViewLayoutOptions) => {
+  const layout = resolveNexusViewLayout(options)
+  const panels = layout?.panels ?? []
+  const activePanel =
+    panels.find((panel) => panel.id === options.activePanelId && panel.visible) ??
+    panels.find((panel) => panel.id === layout?.primaryPanelId) ??
+    null
+
+  return {
+    layout,
+    panels,
+    activePanel,
+    railPanels: panels.filter((panel) => panel.presentation === 'rail' && panel.visible),
+    sheetPanels: panels.filter((panel) => panel.presentation === 'sheet'),
+    inlinePanels: panels.filter((panel) => panel.presentation === 'inline' && panel.visible),
+    inspectorPanels: panels.filter((panel) => panel.isInspectorCandidate),
+    hasVisibleInspector: panels.some(
+      (panel) => panel.isInspectorCandidate && panel.visible,
+    ),
+  }
+}
+
 export const orderViewsForNavigation = (views: readonly string[]) => {
   const available = new Set(toUniqueViewList(views))
   return NEXUS_VIEW_ORDER.filter((viewId) => available.has(viewId))

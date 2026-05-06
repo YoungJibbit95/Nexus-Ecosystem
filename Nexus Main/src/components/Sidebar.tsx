@@ -1,9 +1,6 @@
 import React from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import {
-  Bell, Code2, Columns, FileText, GitBranch, HardDrive, Info,
-  Settings, Terminal, Zap, BarChart3, Wrench, Plus, Circle
-} from 'lucide-react'
+import { Terminal, Zap, Plus, Circle } from 'lucide-react'
 import { Glass } from './Glass'
 import { useTheme } from '../store/themeStore'
 import { useTerminal } from '../store/terminalStore'
@@ -14,37 +11,14 @@ import { LiquidGlassButton } from './LiquidGlassButton'
 import { shallow } from 'zustand/shallow'
 import { SurfaceHighlight } from './render/SurfaceHighlight'
 import { useInteractiveSurfaceMotion } from '../render/useInteractiveSurfaceMotion'
+import {
+  MAIN_FOOTER_VIEW_ITEMS,
+  MAIN_PRIMARY_VIEW_ITEMS,
+  type MainViewRegistryItem,
+  type View,
+} from '../app/mainViewRegistry'
 
-export type View =
-  | 'dashboard'
-  | 'notes'
-  | 'code'
-  | 'tasks'
-  | 'reminders'
-  | 'canvas'
-  | 'files'
-  | 'flux'
-  | 'devtools'
-  | 'diagnostics'
-  | 'settings'
-  | 'info'
-
-const MAIN_ITEMS: { id: View; icon: any; label: string; color: string }[] = [
-  { id: 'dashboard', icon: BarChart3, label: 'Dashboard', color: '#0a84ff' },
-  { id: 'notes', icon: FileText, label: 'Notizen', color: '#34c759' },
-  { id: 'code', icon: Code2, label: 'Code', color: '#bf5af2' },
-  { id: 'tasks', icon: Columns, label: 'Tasks', color: '#ff9f0a' },
-  { id: 'reminders', icon: Bell, label: 'Reminders', color: '#ff453a' },
-  { id: 'canvas', icon: GitBranch, label: 'Canvas', color: '#64d2ff' },
-  { id: 'files', icon: HardDrive, label: 'Dateien', color: '#5e5ce6' },
-  { id: 'devtools', icon: Wrench, label: 'DevTools', color: '#ff6b35' },
-  { id: 'flux', icon: Zap, label: 'Flux', color: '#ffd60a' },
-]
-
-const FOOTER_ITEMS: { id: View; icon: any; label: string }[] = [
-  { id: 'settings', icon: Settings, label: 'Settings' },
-  { id: 'info', icon: Info, label: 'Info' },
-]
+export type { View } from '../app/mainViewRegistry'
 
 const clampNumber = (value: number, min: number, max: number) =>
   Math.max(min, Math.min(max, value))
@@ -301,13 +275,12 @@ export function Sidebar({
     terminalOpen: s.isOpen,
     setTerminalOpen: s.setOpen,
   }), shallow)
-  const { notes, tasks, reminders, addNote, addTask, addRem } = useApp((s) => ({
+  const { notes, tasks, reminders, addNote, addTask } = useApp((s) => ({
     notes: s.notes,
     tasks: s.tasks,
     reminders: s.reminders,
     addNote: s.addNote,
     addTask: s.addTask,
-    addRem: s.addRem,
   }), shallow)
   const rgb = hexToRgb(t.accent)
   const [terminalHovered, setTerminalHovered] = React.useState(false)
@@ -348,8 +321,8 @@ export function Sidebar({
     Array.isArray(availableViews) && availableViews.length > 0
       ? availableViews
       : [
-        ...MAIN_ITEMS.map((item) => item.id),
-        ...FOOTER_ITEMS.map((item) => item.id),
+        ...MAIN_PRIMARY_VIEW_ITEMS.map((item) => item.id),
+        ...MAIN_FOOTER_VIEW_ITEMS.map((item) => item.id),
       ],
   )
   const terminalInteraction = useInteractiveSurfaceMotion({
@@ -393,8 +366,8 @@ export function Sidebar({
   const sidebarTintBg = t.mode === 'dark'
     ? `linear-gradient(180deg, rgba(${rgb},${sidebarAccentBg ? 0.22 : 0.14}), rgba(${rgb},${sidebarAccentBg ? 0.1 : 0.06}) 46%, rgba(${hexToRgb(t.accent2)},${sidebarAccentBg ? 0.1 : 0.05}) 100%)`
     : `linear-gradient(180deg, rgba(${rgb},${sidebarAccentBg ? 0.12 : 0.08}), rgba(${hexToRgb(t.accent2)},${sidebarAccentBg ? 0.08 : 0.05}) 100%)`
-  const visibleMainItems = MAIN_ITEMS.filter((item) => allowedViews.has(item.id))
-  const visibleFooterItems = FOOTER_ITEMS.filter((item) => allowedViews.has(item.id))
+  const visibleMainItems = MAIN_PRIMARY_VIEW_ITEMS.filter((item) => allowedViews.has(item.id))
+  const visibleFooterItems = MAIN_FOOTER_VIEW_ITEMS.filter((item) => allowedViews.has(item.id))
   const pendingTasks = tasks.filter((tk) => tk.status !== 'done').length
   const overdueReminders = reminders.filter((r) => !r.done && new Date(r.snoozeUntil || r.datetime) < new Date()).length
 
@@ -461,31 +434,29 @@ export function Sidebar({
 
             <div
               style={{
-                borderRadius: 10,
-                border: '1px solid rgba(255,255,255,0.08)',
-                background: 'rgba(255,255,255,0.04)',
-                padding: '8px 9px',
-                display: 'grid',
-                gridTemplateColumns: '1fr 1fr 1fr',
-                gap: 8,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 7,
+                minHeight: 24,
                 marginBottom: 8,
+                color: t.mode === 'dark' ? 'rgba(255,255,255,0.54)' : 'rgba(0,0,0,0.52)',
+                fontSize: 10,
+                fontWeight: 720,
+                letterSpacing: '0.01em',
               }}
             >
-              <div>
-                <div style={{ fontSize: 10, opacity: 0.4 }}>Notes</div>
-                <div style={{ fontSize: 14, fontWeight: 800 }}>{notes.length}</div>
-              </div>
-              <div>
-                <div style={{ fontSize: 10, opacity: 0.4 }}>Tasks</div>
-                <div style={{ fontSize: 14, fontWeight: 800, color: pendingTasks ? '#ff9f0a' : undefined }}>{pendingTasks}</div>
-              </div>
-              <div>
-                <div style={{ fontSize: 10, opacity: 0.4 }}>Due</div>
-                <div style={{ fontSize: 14, fontWeight: 800, color: overdueReminders ? '#ff453a' : undefined }}>{overdueReminders}</div>
-              </div>
+              <span>{notes.length} notes</span>
+              <span style={{ opacity: 0.34 }}>•</span>
+              <span style={{ color: pendingTasks ? '#ff9f0a' : undefined }}>{pendingTasks} tasks</span>
+              {overdueReminders ? (
+                <>
+                  <span style={{ opacity: 0.34 }}>•</span>
+                  <span style={{ color: '#ff453a' }}>{overdueReminders} due</span>
+                </>
+              ) : null}
             </div>
 
-            <div style={{ display: 'flex', gap: 6, marginBottom: 4 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 4 }}>
               {isLiquidSidebar ? (
                 <LiquidGlassButton
                   className="nx-bounce-target"
@@ -499,8 +470,8 @@ export function Sidebar({
                   style={{
                     flex: 1,
                     fontSize: 11,
-                    fontWeight: 700,
-                    padding: '6px 0',
+                    fontWeight: 760,
+                    padding: '7px 0',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -525,8 +496,8 @@ export function Sidebar({
                     borderRadius: 8,
                     cursor: 'pointer',
                     fontSize: 11,
-                    fontWeight: 700,
-                    padding: '6px 0',
+                    fontWeight: 760,
+                    padding: '7px 0',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -549,8 +520,8 @@ export function Sidebar({
                   style={{
                     flex: 1,
                     fontSize: 11,
-                    fontWeight: 700,
-                    padding: '6px 0',
+                    fontWeight: 760,
+                    padding: '7px 0',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -575,8 +546,8 @@ export function Sidebar({
                     borderRadius: 8,
                     cursor: 'pointer',
                     fontSize: 11,
-                    fontWeight: 700,
-                    padding: '6px 0',
+                    fontWeight: 760,
+                    padding: '7px 0',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -592,7 +563,7 @@ export function Sidebar({
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1, minHeight: 0 }}>
-        {visibleMainItems.map((item, idx) => {
+        {visibleMainItems.map((item: MainViewRegistryItem, idx) => {
           const row = (
             <NavRow
               id={item.id}
@@ -625,14 +596,14 @@ export function Sidebar({
       <div style={{ height: 1, margin: '6px 2px', background: 'rgba(255,255,255,0.08)' }} />
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-        {visibleFooterItems.map((item, idx) => {
+        {visibleFooterItems.map((item: MainViewRegistryItem, idx) => {
           const row = (
             <NavRow
               id={item.id}
               active={view === item.id}
               icon={item.icon}
               label={item.label}
-              color={t.accent}
+              color={item.color || t.accent}
               iconOnly={iconOnly}
               alignRight={isRight}
               onClick={() => onChange(item.id)}
@@ -747,40 +718,6 @@ export function Sidebar({
           )}
         </LiquidGlassButton>
       </div>
-
-      {!iconOnly && (
-        <button
-          className="nx-bounce-target"
-          onClick={() => {
-            addRem({
-              title: 'Quick Reminder',
-              msg: 'Created from sidebar',
-              datetime: new Date(Date.now() + 60 * 60000).toISOString(),
-              repeat: 'none',
-            })
-            onChange('reminders')
-          }}
-          style={{
-            marginTop: 6,
-            width: '100%',
-            borderRadius: 8,
-            border: '1px solid rgba(255,255,255,0.08)',
-            background: 'rgba(255,255,255,0.04)',
-            color: 'inherit',
-            fontSize: 11,
-            fontWeight: 650,
-            padding: '6px 10px',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 6,
-            opacity: 0.75,
-          }}
-        >
-          <Plus size={11} /> Reminder in 1h
-        </button>
-      )}
     </Glass>
   )
 }

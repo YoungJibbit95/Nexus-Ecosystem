@@ -9,8 +9,15 @@ Arbeitsstand nach Start der Abarbeitung:
 - `verify:single-react` und `verify:ecosystem` bestehen; Ecosystem-Gate meldet 23/23 Checks.
 - Erste UI-Shell-Konsolidierung fuer Nexus Main ist umgesetzt: Main nutzt `MainShellLayout`/`MainViewHost`, View Error Boundaries sitzen im Host, der alte Inline-Shell-Block ist entfernt, und Boot-/View-Konstanten liegen wieder in `mainAppConfig.ts`.
 - `packages/nexus-core` hat ein erstes View Manifest v2 fuer alle Kernviews inklusive Actions, Panels, Responsive Modes, Status-Signalen und ableitbarer Command Registry.
-- Nexus Main nutzt dieses Manifest sichtbar in einer gemeinsamen Context-Bar plus Bottom-Status-Bar fuer View, Release, Motion und Access State.
+- `packages/nexus-core` hat ein eigenes Package-Gate mit Typecheck, Manifest-Test und Build-Script.
+- Core View Runtime v2 ist erweitert: Layout Schema v2, Panel Engine, resolved Command Registry und sicherer Command Execution Hook sind angelegt und in Nexus Main sichtbar angebunden.
+- Nexus Main hat eine zentrale `mainViewRegistry.ts`: Sidebar, View Preload, Boot-Prioritaeten, Heavy-View-Liste und persistenter View-Cache haengen jetzt an derselben Registry.
+- Erste echte Shell-Commands sind angebunden: Quick Capture/New Note/New Task/New Reminder erzeugen Daten und wechseln in die passende View; alle weiteren Commands werden als `nexus:view-command` Event weitergereicht.
+- UI-Cleanup fuer Nexus Main ist nachgezogen: doppelte Context-Bar entfernt, v6-Header kompakter, Sidebar-Topbereich vereinfacht, Statusleiste reduziert und Hover-Transforms fuer zentrale Klickziele weiter entschaerft.
+- Nexus Main nutzt dieses Manifest sichtbar in der `NexusV6ViewShell`, einer reduzierten Statusleiste und manifest-basierten View-Actions.
 - Ein Encoding-Gate (`npm run verify:encoding`) sucht jetzt in Source und Docs nach typischen Mojibake-Signaturen und besteht aktuell.
+- Ein zentrales RC-Gate (`npm run release:gate`) und ein GitHub Actions Release-Gate sind angelegt.
+- Die View-Smoke-Matrix ist als Markdown-Dokument und Wiki-Eintrag uebernommen.
 - Grosser Nexus-v6-UI-Schnitt ist gestartet: Nexus Main und Nexus Mobile stehen auf Version `6.0.0`; alle Main-Views laufen durch eine neue `NexusV6ViewShell` mit einheitlichem Header, Fokusmodus, funktionaler Quick-View-Navigation, Inspector Rail, Panel-/Action-Modell und Status-Signalen.
 - v6-UI wurde weiter entschlackt: Main-Content bekommt mehr Raum, die Inspector Rail startet geschlossen, das sichtbare Action/Activity-Modell wurde entfernt, Quick Navigation sitzt kompakt im Header und die Shell nutzt staerker transparente blurry Gradient-/Glow-Surfaces.
 - Globales Main-Design ist enger an `nexusproject.dev` angelehnt: Space-Base, Cyan/Indigo/Violet-Produktpalette, cosmic glass panels, feines Grid, Text-Glow und Product-Page-aehnliche Radial-Glows sind in die v6-Shell uebernommen.
@@ -45,11 +52,11 @@ Release-Ampel:
 | Nexus Mobile | Gelb | Build repariert, Version `6.0.0`, Core-Manifest-Aenderung erneut bestaetigt; View-Smokes und Login/Register-Paritaet offen. |
 | Nexus Code | Gelb | Build repariert; Filesystem-Hardening, Packaging und Artifact-Namen offen. |
 | Nexus Code Mobile | Gelb | Build repariert; Mobile IDE Smoke, Packaging und Artifact-Namen offen. |
-| Nexus Core | Gelb | Gute gemeinsame Runtime, aber mehr Contract- und Package-Gates noetig. |
+| Nexus Core | Gelb/Gruen | Gemeinsame Runtime ist deutlich reifer: Package-Gate, Layout Schema v2, Panel Engine und Command Registry sind angelegt; view-spezifische Handler bleiben offen. |
 | Nexus API / Control Plane | Gelb | Sicherheitsbaseline stark, aber Release-Daten und Secrets muessen bereinigt werden. |
 | Nexus Wiki | Gruen/Gelb | Build, Budget und i18n bestehen; braucht Release-Links und visuelle QA. |
 | Website | Gruen/Gelb | Build, Budget und API-Integration bestehen; Payment-E2E bleibt bewusst offen. |
-| Gesamt | Gelb fuer RC-Vorbereitung | Build- und Website-P0 geschlossen; API-Datenhygiene, Smokes, Signing und RC-Gate offen. |
+| Gesamt | Gelb fuer RC-Vorbereitung | Build- und Website-P0 geschlossen; RC-Gate ist angelegt, API-Datenhygiene, Smoke-Ausfuehrung und Signing bleiben offen. |
 
 ## Gepruefte Kommandos
 
@@ -59,6 +66,9 @@ Aus `F:\Coding\Nexus Workspace\Nexus-Ecosystem`:
 npm run verify:single-react
 npm run verify:ecosystem
 npm run doctor:release
+npm run release:gate
+npm run release:gate -- --fast
+npm --prefix "packages/nexus-core" run build
 npm --prefix "Nexus Main" run build
 npm --prefix "Nexus Mobile" run build
 npm --prefix "Nexus Code" run build
@@ -83,6 +93,8 @@ Ergebnisse:
 | `verify:single-react` | Pass | Eine React-Instanz im Ecosystem erkannt. |
 | `verify:ecosystem` | Pass | 23/23 Checks bestanden: Runtime-Nutzung, View-Validierung, Live Sync, interne API-Pfade. |
 | `verify:encoding` | Pass | Source und Docs sind frei von typischen Mojibake-Signaturen. |
+| Core Package Gate | Pass | `packages/nexus-core` prueft TypeScript und View Manifest v2. |
+| `release:gate -- --fast` | Pass | Schneller RC-Gate-Pfad fuer Single React, Encoding, Ecosystem und Core Package. |
 | `doctor:release` | Warn | Hosted API erreichbar, Android/JDK ok; macOS Notarization env und `xcrun notarytool` fehlen. |
 | Main Build | Pass | Nach Nexus-v6-ViewShell, Version `6.0.0`, Core-Manifest-Context und App-Config-Cleanup erneut gruen. |
 | Mobile Build | Pass | Nach Version `6.0.0` und Core-Manifest-Erweiterung erneut gruen. |
@@ -97,8 +109,8 @@ Ergebnisse:
 Nicht ausgefuehrt:
 
 - Live-Payment-E2E der Website, weil dieser Pfad echte Sessions gegen eine API erzeugen kann.
-- Voller API Contract/Attack-Test der Control Plane in diesem Auditlauf. Diese Tests gehoeren in den RC-Gate.
-- Visuelle Browser-Smokes fuer alle Views. Noetig vor Release, aber kein Ersatz fuer die Build-Blocker.
+- Voller API Contract/Attack-Test der Control Plane in diesem Auditlauf. Diese Tests haengen am RC-Gate mit `npm run release:gate -- --with-api-contract`.
+- Visuelle Browser-Smokes fuer alle Views. Die Matrix ist dokumentiert, die reale Ausfuehrung bleibt noetig vor Release.
 
 ## View-Analyse Main und Mobile
 
@@ -277,7 +289,7 @@ Wichtig: Die Engine soll den Views nicht die Gestaltung wegnehmen. Sie soll wied
 Status 2026-05-06:
 
 - View Manifest v2 ist als erster Core-Schnitt angelegt: Kernviews beschreiben Titel, Navigation, Actions, Panels, Desktop-/Mobile-Modes, Shortcuts und Status-Signale.
-- Nexus Main rendert daraus eine gemeinsame Context-Bar, Statusinformationen und eine `NexusV6ViewShell` fuer alle Views.
+- Nexus Main rendert daraus manifest-basierte Statusinformationen und eine `NexusV6ViewShell` fuer alle Views.
 - Die v6-Shell erweitert jede Main-View um Fokusmodus, manifest-basierte Quick Navigation, Inspector Rail, Action-Modell, Panel-Uebersicht, Status-Signale und responsive Fallbacks.
 - Noch offen sind Layout Schema v2, echte Command-Ausfuehrung, Panel Engine und die vollstaendige Migration von Sidebar/Toolbar/ViewPreload auf dieselbe Registry.
 
@@ -604,7 +616,14 @@ Fertigstellen:
    - Production verlangt env-basierte Secrets.
    - Runbook und Deployment stimmen ueberein.
 
-5. RC Gate als ein Kommando oder CI-Workflow definieren.
+5. ~~RC Gate als ein Kommando oder CI-Workflow definieren.~~
+
+   Status 2026-05-06:
+
+   - Erledigt als `npm run release:gate`.
+   - Fast-Modus fuer schnelle lokale RC-Vorpruefung: `npm run release:gate -- --fast`.
+   - API Contract/Attack Tests sind optional zuschaltbar: `npm run release:gate -- --with-api-contract`.
+   - GitHub Actions Workflow `.github/workflows/release-gate.yml` ist angelegt.
 
    Mindestumfang:
 
@@ -642,12 +661,14 @@ Fertigstellen:
 
    Status 2026-05-06:
 
-   - Erster Shell-Schnitt in Nexus Main umgesetzt: `MainShellLayout` plus `MainViewHost`, gemeinsame Context-Bar, Bottom-Status-Bar, Error Boundaries und stabile View-Mount-Schicht.
+   - Erster Shell-Schnitt in Nexus Main umgesetzt: `MainShellLayout` plus `MainViewHost`, reduzierte Status-Bar, Error Boundaries und stabile View-Mount-Schicht.
    - Zweiter v6-Schnitt umgesetzt: `NexusV6ViewShell` rahmt alle Main-Views mit modernem Header, Fokusmodus, kompakter Quick Navigation, optionaler Inspector Rail, Panel-Modell und responsiven Regeln.
    - Refinement umgesetzt: Content-Flaeche priorisiert, Inspector standardmaessig geschlossen, sichtbares Action/Activity-Modell entfernt, transparente blurry Gradient-/Glow-Surfaces verstaerkt.
    - Product-Page-Angleichung umgesetzt: Main nutzt die `nexusproject.dev`-artige Space-/Cosmic-Palette, Cyan/Indigo/Violet-Glows, Grid/Noise-Anmutung, glass panels und Avenir/Plus-Jakarta/Outfit-nahe Typografie.
    - Notes-Refinement umgesetzt: Header/Orb sind kompakter, Notes Library, Editor, Preview, Formatting Toolbar und Statuszeile nutzen ein klareres v6-Schreiblayout mit stabileren Flaechen und responsivem Stack.
+   - UI-Cleanup umgesetzt: globale Context-Bar entfernt, Status-Bar auf Kerninfos reduziert, Sidebar-Metriken und Quick Actions schlanker gemacht, v6-Header-Actions reduziert und Hover-Bewegungen fuer Actions/Panels stabilisiert.
    - Core liefert erste View-Manifeste fuer gemeinsame Titel, Actions, Panels, Modes und Statussignale.
+   - Core liefert jetzt Layout Schema v2, Panel Engine, resolved Command Registry und einen Execution Hook; `NexusV6ViewShell` nutzt diese Daten fuer Inspector, Commands und Layout-Diagnose.
    - Dashboard/Notes/Tasks/Canvas muessen noch tiefer auf gemeinsame ViewShell-/Toolbar-/Inspector-Primitiven migriert werden.
 
 2. Main-App-Struktur konsolidieren.
@@ -663,7 +684,8 @@ Fertigstellen:
    - `App.tsx` nutzt die zentrale Shell/Host-Komposition und enthaelt keinen zweiten toten Inline-Shell-Renderblock mehr.
    - Alle Main-View-Instanzen laufen durch `NexusV6ViewShell`; Quick Navigation prewarmt Ziel-Views ueber die bestehende Preload-Pipeline.
    - Boot- und Preload-Konstanten sind in `mainAppConfig.ts` gebuendelt.
-   - Die vollstaendige Registry-Zusammenfuehrung fuer Sidebar, Toolbar, Preload und Core-Manifest bleibt offen.
+   - `mainViewRegistry.ts` zentralisiert Core-Manifest-Metadaten, Icons, Main/Footer/Developer-Gruppen, Preload-Prioritaeten, Heavy-Views und persistente View-Caches.
+   - Sidebar, `viewPreload.tsx` und `mainAppConfig.ts` nutzen diese Registry; Toolbar/Command Palette und Mobile sollen als naechstes folgen.
 
 3. Encoding und Copy bereinigen.
 
@@ -901,11 +923,11 @@ Ein Nexus Release Candidate ist fertig, wenn:
 3. ~~Website `import.meta.env` Node-Fallback fixen.~~
 4. API Daten und Git-Hygiene bereinigen.
 5. API Contract/Attack Tests laufen lassen.
-6. Gemeinsame View-Shell, Tokens und UI-Komponenten definieren. Status: in Arbeit, Main nutzt jetzt `MainShellLayout`/`MainViewHost`, `NexusV6ViewShell`, zentrale Context-Bar, zentrale Status-Bar, v6-Tokens und Core-View-Manifeste; v6-Shell ist auf mehr Content-Space, transparente Blur/Gradient-Glows, optionalen Inspector und kompaktere Header getrimmt.
-7. Core um View Manifest v2, Layout Schema v2, Command Registry und Panel Engine erweitern. Status: Teil erledigt, View Manifest v2 und ableitbare Command-Liste sind angelegt; Layout Schema v2, echte Command-Ausfuehrung und Panel Engine bleiben offen.
-8. Dashboard, Notes, Tasks und Canvas als erste Views auf die neue Shell migrieren. Status: Basis erledigt, alle Main-Views laufen durch `NexusV6ViewShell`; Notes hat zusaetzlich ein internes v6-Layout-Refinement erhalten, tiefere Toolbar-/Inspector-Migration bleibt offen.
-9. Main-App-Registry konsolidieren oder tote Host-Dateien entfernen. Status: in Arbeit, zentrale Host-Dateien werden genutzt, toter Inline-Shell-Code ist entfernt, Boot-/Preload-Konfig liegt in `mainAppConfig.ts`; Sidebar/Toolbar/ViewPreload sollen noch voll auf die Registry.
+6. Gemeinsame View-Shell, Tokens und UI-Komponenten definieren. Status: in Arbeit, Main nutzt jetzt `MainShellLayout`/`MainViewHost`, `NexusV6ViewShell`, reduzierte Status-Bar, v6-Tokens und Core-View-Manifeste; v6-Shell ist auf mehr Content-Space, transparente Blur/Gradient-Glows, optionalen Inspector und kompaktere Header getrimmt.
+7. ~~Core um View Manifest v2, Layout Schema v2, Command Registry und Panel Engine erweitern.~~ Erledigt als Core-Grundlage: `packages/nexus-core/src/views.ts` liefert Layout Schema v2, Panel Engine, resolved Command Registry und `executeNexusViewCommand`; Nexus Main nutzt diese Daten in `NexusV6ViewShell`. Offen bleibt die view-spezifische Handler-Anbindung pro Feature.
+8. Dashboard, Notes, Tasks und Canvas als erste Views auf die neue Shell migrieren. Status: Basis erledigt, alle Main-Views laufen durch `NexusV6ViewShell`; Notes hat zusaetzlich ein internes v6-Layout-Refinement erhalten, globale Shell/Sidebar/Status-Bar sind cleaner und ruhiger, tiefere Toolbar-/Inspector-Migration bleibt offen.
+9. Main-App-Registry konsolidieren oder tote Host-Dateien entfernen. Status: grosser Teil erledigt, zentrale Host-Dateien werden genutzt, toter Inline-Shell-Code ist entfernt, Boot-/Preload-Konfig liegt in `mainAppConfig.ts`, und `mainViewRegistry.ts` speist Sidebar, ViewPreload, Boot-Prioritaeten, Heavy-View-Liste und persistenten Cache. Offen: Toolbar/Command Palette und Mobile voll auf Registry ziehen.
 10. ~~Encoding-Artefakte repo-weit suchen und Gate ergaenzen.~~ Erledigt: `npm run verify:encoding` scannt Source/Docs und besteht aktuell.
-11. View-Smoke-Matrix als Markdown oder Testplan ins Wiki uebernehmen.
-12. Release CI Job definieren.
+11. ~~View-Smoke-Matrix als Markdown oder Testplan ins Wiki uebernehmen.~~ Erledigt: `docs/VIEW_SMOKE_MATRIX.md` plus Wiki-Eintrag `release-view-smoke-matrix`.
+12. ~~Release CI Job definieren.~~ Erledigt: `npm run release:gate` plus `.github/workflows/release-gate.yml`.
 13. Signing/Notarization/Android Keystore final dokumentieren.

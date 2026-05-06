@@ -1,0 +1,46 @@
+name: Release Gate
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+jobs:
+  release-gate:
+    name: Release Gate
+    runs-on: windows-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            packages/nexus-core/package-lock.json
+            Nexus Main/package-lock.json
+            Nexus Mobile/package-lock.json
+            Nexus Code/package-lock.json
+            Nexus Code Mobile/package-lock.json
+            Nexus Wiki/package-lock.json
+
+      - name: Install package dependencies
+        shell: pwsh
+        run: |
+          npm install --prefix "packages/nexus-core"
+          npm ci --prefix "Nexus Main"
+          npm ci --prefix "Nexus Mobile"
+          npm ci --prefix "Nexus Code"
+          npm ci --prefix "Nexus Code Mobile"
+          npm ci --prefix "Nexus Wiki"
+
+      - name: Run release gate
+        run: npm run release:gate -- --ci --skip-doctor --skip-website

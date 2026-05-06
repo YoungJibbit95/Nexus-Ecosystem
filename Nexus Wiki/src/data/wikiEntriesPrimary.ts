@@ -90,6 +90,38 @@ export const wikiEntriesPrimary: WikiEntry[] = [
     sources: ['docs/DEVELOPER_GUIDE.md', 'docs/USER_GUIDE.md'],
   },
   {
+    id: 'runtime-core-view-v2',
+    title: 'Core View Runtime v2',
+    app: 'runtime',
+    category: 'runtime',
+    summary:
+      'Core View Runtime v2 definiert Layout Schema, Panel Engine und Command Registry als gemeinsame Grundlage fuer Nexus-v6-Surfaces.',
+    guide: [
+      { title: '1. Manifest pflegen', detail: 'Neue Views zuerst in NEXUS_VIEW_MANIFESTS mit Actions, Panels, Modes und Statussignalen modellieren.' },
+      { title: '2. Layout aufloesen', detail: 'resolveNexusViewLayout und buildNexusPanelEngine liefern Shell, Inspector und Responsive-Regeln.' },
+      { title: '3. Commands anbinden', detail: 'resolveNexusViewCommandRegistry liefert Enabled/Disabled-State; echte View-Handler werden pro Surface registriert.' },
+    ],
+    points: [
+      'Layout Schema v2 macht Desktop, Tablet und Mobile vergleichbar.',
+      'Panel Engine trennt Rail, Sheet, Inline und Inspector Panels.',
+      'Command Execution bleibt sicher, weil Core Disabled-State und Handler-Aufloesung zentral prueft.',
+      'Nexus Main nutzt diese Runtime bereits in der NexusV6ViewShell.',
+      'Main View Registry v2 speist Sidebar, Preload und Boot-Prioritaeten aus einer Quelle.',
+      'Erste Shell Commands erzeugen Notes, Tasks und Reminders direkt aus der v6-Shell.',
+    ],
+    commands: [
+      'npm --prefix "packages/nexus-core" run build',
+      'npm --prefix "Nexus Main" run build',
+    ],
+    tags: ['runtime', 'view-manifest', 'layout-schema', 'commands', 'panels'],
+    sources: [
+      'docs/CORE_VIEW_RUNTIME_V2.md',
+      'docs/MAIN_VIEW_REGISTRY_V2.md',
+      'packages/nexus-core/src/views.ts',
+      'Nexus Main/src/app/mainViewRegistry.ts',
+    ],
+  },
+  {
     id: 'security-owner-signatures',
     title: 'Security Governance und Zugriffsschutz',
     app: 'control',
@@ -171,6 +203,8 @@ export const wikiEntriesPrimary: WikiEntry[] = [
       'Cross-App Paritaet ist Teil des Zielkriteriums.',
     ],
     commands: [
+      'npm run release:gate -- --fast',
+      'npm run release:gate',
       'npm run verify:ecosystem',
       'npm --prefix "./Nexus Main" run build',
       'npm --prefix "./Nexus Mobile" run build',
@@ -178,7 +212,34 @@ export const wikiEntriesPrimary: WikiEntry[] = [
       'npm --prefix "./Nexus Code Mobile" run build',
     ],
     tags: ['release', 'verify', 'build', 'promotion'],
-    sources: ['docs/DEVELOPER_GUIDE.md'],
+    sources: ['docs/DEVELOPER_GUIDE.md', 'docs/VIEW_SMOKE_MATRIX.md'],
+  },
+  {
+    id: 'release-view-smoke-matrix',
+    title: 'Release View-Smoke-Matrix',
+    app: 'ecosystem',
+    category: 'ops',
+    summary:
+      'Die View-Smoke-Matrix dokumentiert pro Nexus-v6-View, welche UI-Flows vor einem RC sichtbar bestaetigt werden muessen.',
+    guide: [
+      { title: '1. Gate starten', detail: 'Zuerst release:gate ausfuehren, damit Build-, Contract- und Encoding-Basis gruen ist.' },
+      { title: '2. Views smoke-testen', detail: 'Danach jede Pflichtview auf Desktop Main und Mobile anhand der Matrix oeffnen, bedienen und neu laden.' },
+      { title: '3. Evidence sichern', detail: 'Screenshots oder kurze Videos pro View im RC-Evidence-Ordner ablegen und offene Risiken verlinken.' },
+    ],
+    points: [
+      'Open, Create/Edit, Persist/Reload, Offline/API-Fallback und Touch/Keyboard sind Pflichtspalten.',
+      'Animierte UI darf aktive Klickziele nicht verschieben.',
+      'Premium-, Admin- und DevTools-Flaechen muessen sichtbar gegated sein.',
+      'Die Matrix beweist Bedienbarkeit; sie ersetzt keine API Contract oder Attack Tests.',
+    ],
+    commands: [
+      'npm run release:gate -- --fast',
+      'npm run release:gate',
+      'npm run release:gate -- --with-api-contract',
+      'docs/VIEW_SMOKE_MATRIX.md',
+    ],
+    tags: ['release', 'smoke', 'view-qa', 'rc'],
+    sources: ['docs/VIEW_SMOKE_MATRIX.md', 'docs/NEXUS_COMPLETION_PLAN.md'],
   },
   {
     id: 'main-dashboard-guide',

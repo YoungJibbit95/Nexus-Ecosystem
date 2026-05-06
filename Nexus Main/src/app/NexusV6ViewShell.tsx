@@ -1,7 +1,10 @@
 import React from "react";
 import {
+  buildNexusPanelEngine,
   getNexusViewManifest,
   getNexusViewManifests,
+  resolveNexusViewCommandRegistry,
+  type NexusResolvedViewCommand,
   type NexusViewManifest,
 } from "@nexus/core";
 import type { View } from "../components/Sidebar";
@@ -13,6 +16,7 @@ type Props = {
   reducedMotion: boolean;
   onRequestViewChange: (viewId: View | string) => void;
   onPrefetchView: (viewId: View) => void;
+  onExecuteCommand?: (command: NexusResolvedViewCommand) => boolean | void;
   children: React.ReactNode;
 };
 
@@ -65,7 +69,7 @@ const sameCategoryViews = (
         manifest.category === contract.category ||
         manifest.navigationGroup === contract.navigationGroup,
     )
-    .slice(0, 4);
+    .slice(0, 3);
 
 export function NexusV6ViewShell({
   viewId,
@@ -74,6 +78,7 @@ export function NexusV6ViewShell({
   reducedMotion,
   onRequestViewChange,
   onPrefetchView,
+  onExecuteCommand,
   children,
 }: Props) {
   const contract = React.useMemo(() => resolveViewContract(viewId), [viewId]);
@@ -83,23 +88,85 @@ export function NexusV6ViewShell({
   );
   const [inspectorOpen, setInspectorOpen] = React.useState(false);
   const [focusMode, setFocusMode] = React.useState(false);
-  const [activePanelId, setActivePanelId] = React.useState(
-    contract.panels[0]?.id ?? null,
-  );
+  const [activePanelId, setActivePanelId] = React.useState<string | null>(null);
+  const [lastCommandId, setLastCommandId] = React.useState<string | null>(null);
 
   React.useEffect(() => {
-    setActivePanelId(contract.panels[0]?.id ?? null);
+    setActivePanelId(null);
     setInspectorOpen(false);
     setFocusMode(false);
-  }, [contract.id, contract.panels]);
+    setLastCommandId(null);
+  }, [contract.id]);
 
+  const panelEngine = React.useMemo(
+    () =>
+      buildNexusPanelEngine({
+        viewId,
+        surface: "desktop",
+        density: "comfortable",
+        focusMode,
+        inspectorOpen,
+        activePanelId,
+        reducedMotion,
+      }),
+    [activePanelId, focusMode, inspectorOpen, reducedMotion, viewId],
+  );
+  const layout = panelEngine.layout;
+  const activePanel = panelEngine.activePanel;
+  const commandRegistry = React.useMemo(
+    () =>
+      resolveNexusViewCommandRegistry({
+        views: [viewId],
+        activeView: viewId,
+        hasSelection: false,
+        availableViews,
+      }),
+    [availableViews, viewId],
+  );
   const primaryAction =
-    contract.actions.find((action) => action.id === contract.defaultActionId) ??
-    contract.actions.find((action) => action.placement === "primary") ??
+    commandRegistry.find((command) => command.id === contract.defaultActionId) ??
+    commandRegistry.find((command) => command.placement === "primary") ??
     null;
-  const toolbarActions = contract.actions
-    .filter((action) => action.id !== primaryAction?.id)
-    .slice(0, 3);
+  const toolbarActions = commandRegistry
+    .filter((command) => command.commandId !== primaryAction?.commandId)
+    .slice(0, 2);
+  const lastCommand = commandRegistry.find(
+    (command) => command.commandId === lastCommandId,
+  );
+
+  const runShellCommand = React.useCallback(
+    (command: NexusResolvedViewCommand) => {
+      setLastCommandId(command.commandId);
+      if (command.disabledReason || command.requiresSelection) {
+        setInspectorOpen(true);
+        return;
+      }
+
+      const handled = onExecuteCommand?.(command);
+      if (handled) return;
+
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("nexus:view-command", {
+            detail: {
+              commandId: command.commandId,
+              actionId: command.id,
+              viewId: command.viewId,
+              intent: command.intent,
+              placement: command.placement,
+            },
+          }),
+        );
+      }
+
+      if (command.id === "focus-mode") {
+        setFocusMode((next) => !next);
+        return;
+      }
+      setInspectorOpen(true);
+    },
+    [onExecuteCommand],
+  );
 
   return (
     <section
@@ -109,12 +176,14 @@ export function NexusV6ViewShell({
       data-focus={focusMode ? "true" : "false"}
       data-inspector={inspectorOpen ? "open" : "closed"}
       data-reduced-motion={reducedMotion ? "true" : "false"}
+      data-layout-version={layout?.version ?? "local"}
+      data-chrome={layout?.chrome ?? "full"}
       style={{ ["--nx-v6-view-accent" as any]: contract.accent }}
     >
       <header className="nx-v6-view-header">
         <div className="nx-v6-title-cluster">
           <div className="nx-v6-eyebrow">
-            Nexus v6 / {contract.category} / {contract.desktopMode}
+            {contract.category} / {layout?.contentPriority ?? contract.desktopMode}
           </div>
           <div className="nx-v6-title-row">
             <span className="nx-v6-orb" aria-hidden="true" />
@@ -138,11 +207,7 @@ export function NexusV6ViewShell({
                   {manifest.navLabel}
                 </button>
               ))
-            ) : (
-              <span className="nx-v6-quick-nav-empty">
-                Lokaler View
-              </span>
-            )}
+            ) : null}
           </div>
         </div>
 
@@ -151,8 +216,9 @@ export function NexusV6ViewShell({
             <button
               type="button"
               className="nx-v6-action nx-v6-action--primary"
-              title={primaryAction.shortcut || primaryAction.intent}
-              onClick={() => setInspectorOpen(true)}
+              title={primaryAction.disabledReason || primaryAction.shortcut || primaryAction.intent}
+              aria-disabled={primaryAction.enabled ? undefined : "true"}
+              onClick={() => runShellCommand(primaryAction)}
             >
               {primaryAction.title}
             </button>
@@ -162,8 +228,9 @@ export function NexusV6ViewShell({
               key={action.id}
               type="button"
               className="nx-v6-action"
-              title={action.shortcut || action.intent}
-              onClick={() => setInspectorOpen(true)}
+              title={action.disabledReason || action.shortcut || action.intent}
+              aria-disabled={action.enabled ? undefined : "true"}
+              onClick={() => runShellCommand(action)}
             >
               {action.title}
             </button>
@@ -174,7 +241,7 @@ export function NexusV6ViewShell({
             aria-pressed={focusMode}
             onClick={() => setFocusMode((next) => !next)}
           >
-            {focusMode ? "Chrome anzeigen" : "Fokus"}
+            {focusMode ? "Zurueck" : "Fokus"}
           </button>
           <button
             type="button"
@@ -182,7 +249,7 @@ export function NexusV6ViewShell({
             aria-pressed={inspectorOpen}
             onClick={() => setInspectorOpen((next) => !next)}
           >
-            Inspector
+            Panels
           </button>
         </div>
       </header>
@@ -195,16 +262,16 @@ export function NexusV6ViewShell({
             <div className="nx-v6-inspector-section">
               <div className="nx-v6-section-label">Panels</div>
               <div className="nx-v6-panel-list">
-                {contract.panels.length > 0 ? (
-                  contract.panels.map((panel) => (
+                {panelEngine.panels.length > 0 ? (
+                  panelEngine.panels.map((panel) => (
                     <button
                       key={panel.id}
                       type="button"
-                      className={panel.id === activePanelId ? "is-active" : undefined}
+                      className={panel.id === activePanel?.id ? "is-active" : undefined}
                       onClick={() => setActivePanelId(panel.id)}
                     >
                       <strong>{panel.title}</strong>
-                      <span>{panel.placement} / {panel.mobilePresentation}</span>
+                      <span>{panel.state} / {panel.presentation} / {panel.rail}</span>
                     </button>
                   ))
                 ) : (
@@ -216,7 +283,7 @@ export function NexusV6ViewShell({
             <div className="nx-v6-inspector-section">
               <div className="nx-v6-section-label">Signals</div>
               <div className="nx-v6-signal-grid">
-                {contract.statusSignals.map((signal) => (
+                {(layout?.statusSignals ?? contract.statusSignals).map((signal) => (
                   <span key={signal}>{signal}</span>
                 ))}
               </div>
@@ -225,8 +292,11 @@ export function NexusV6ViewShell({
             <div className="nx-v6-inspector-section">
               <div className="nx-v6-section-label">Responsive</div>
               <div className="nx-v6-responsive-card">
-                <span>Desktop: {contract.desktopMode}</span>
-                <span>Mobile: {contract.mobileMode}</span>
+                <span>Layout: v{layout?.version ?? "local"} / {layout?.contentPriority ?? contract.desktopMode}</span>
+                <span>Columns: {layout?.columns ?? 1} / min {layout?.minContentWidth ?? 560}px</span>
+                <span>Chrome: {layout?.chrome ?? "full"} / motion {layout?.animationProfile ?? "standard"}</span>
+                <span>Active panel: {activePanel?.title ?? "none"}</span>
+                <span>Last command: {lastCommand?.title ?? "none"}</span>
                 <span>Shortcuts: {contract.shortcuts.length || "none"}</span>
               </div>
             </div>
