@@ -79,6 +79,7 @@ export const useWorkspaceRuntimeSync = () => {
   const markBootHydrated = useWorkspaceFs((state) => state.markBootHydrated)
 
   const writeTimerRef = useRef<number | null>(null)
+  const delayedFlushTimerRef = useRef<number | null>(null)
   const writingRef = useRef(false)
   const pendingFlushRef = useRef(false)
   const lastFingerprintRef = useRef('')
@@ -156,7 +157,11 @@ export const useWorkspaceRuntimeSync = () => {
         const now = Date.now()
         const minIntervalRemaining = AUTOSYNC_MIN_INTERVAL_MS - (now - lastWriteAtRef.current)
         if (minIntervalRemaining > 0) {
-          window.setTimeout(() => {
+          if (delayedFlushTimerRef.current) {
+            window.clearTimeout(delayedFlushTimerRef.current)
+          }
+          delayedFlushTimerRef.current = window.setTimeout(() => {
+            delayedFlushTimerRef.current = null
             pendingFlushRef.current = true
             flushSnapshot().catch((error) => {
               console.warn('[workspace-runtime] delayed flush failed', error)
@@ -209,6 +214,10 @@ export const useWorkspaceRuntimeSync = () => {
       if (writeTimerRef.current) {
         window.clearTimeout(writeTimerRef.current)
         writeTimerRef.current = null
+      }
+      if (delayedFlushTimerRef.current) {
+        window.clearTimeout(delayedFlushTimerRef.current)
+        delayedFlushTimerRef.current = null
       }
       for (const unsubscribe of unsubscribers) {
         unsubscribe()
