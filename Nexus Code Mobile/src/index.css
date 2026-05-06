@@ -1,3 +1,5 @@
+@config "../tailwind.config.js";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -79,7 +81,8 @@
     }
 
     * {
-        @apply border-border outline-ring/50;
+        border-color: hsl(var(--border));
+        outline-color: hsl(var(--ring) / 0.5);
         /* Prevent text size adjustment on mobile rotation */
         -webkit-text-size-adjust: 100%;
     }
@@ -132,7 +135,7 @@
     /* Active touch feedback */
     .touch-active:active {
         opacity: 0.7;
-        transform: scale(0.96);
+        transform: translateZ(0);
     }
 
     @media (max-width: 768px) {
@@ -144,7 +147,10 @@
 
 @layer utilities {
     .nexus-glass {
-        @apply bg-white/5 backdrop-blur-md border border-white/10;
+        background-color: rgb(255 255 255 / 0.05);
+        border: 1px solid rgb(255 255 255 / 0.1);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
     }
 
     .nexus-bg {

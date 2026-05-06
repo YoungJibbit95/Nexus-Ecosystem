@@ -118,12 +118,12 @@ const pickBackground = (value: unknown): Partial<BackgroundConfig> => {
   const out: Partial<BackgroundConfig> = {};
   const mode = asEnum(
     value.mode,
-    ["solid", "gradient", "animated-gradient", "mesh", "noise", "aurora"] as const,
+    ["solid", "gradient", "animated-gradient", "mesh", "noise", "aurora", "spotlight", "prism", "horizon", "constellation"] as const,
   );
   if (mode) out.mode = mode;
   const panelBgMode = asEnum(
     value.panelBgMode,
-    ["glass", "solid", "gradient", "noise", "dots", "grid", "carbon", "circuit"] as const,
+    ["glass", "solid", "gradient", "noise", "dots", "grid", "carbon", "circuit", "linen", "hologram", "mist", "stripes"] as const,
   );
   if (panelBgMode) out.panelBgMode = panelBgMode;
   const stops = asStops(value.stops);

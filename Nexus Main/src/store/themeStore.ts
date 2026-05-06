@@ -4,8 +4,8 @@ import { createStoreManagerStorage } from './persistence/storeManager'
 
 export type GlowMode = 'ambient' | 'outline' | 'focus' | 'gradient' | 'pulse' | 'off'
 export type BlendMode = 'normal' | 'screen' | 'multiply' | 'overlay'
-export type BgMode = 'solid' | 'gradient' | 'animated-gradient' | 'mesh' | 'noise' | 'aurora'
-export type PanelBgMode = 'glass' | 'solid' | 'gradient' | 'noise' | 'dots' | 'grid' | 'carbon' | 'circuit'
+export type BgMode = 'solid' | 'gradient' | 'animated-gradient' | 'mesh' | 'noise' | 'aurora' | 'spotlight' | 'prism' | 'horizon' | 'constellation'
+export type PanelBgMode = 'glass' | 'solid' | 'gradient' | 'noise' | 'dots' | 'grid' | 'carbon' | 'circuit' | 'linen' | 'hologram' | 'mist' | 'stripes'
 
 export interface GlowConfig {
   mode: GlowMode
@@ -492,6 +492,44 @@ const sanitizeGlowRenderer = (value: unknown): GlassmorphismConfig['glowRenderer
   value === 'three' ? 'three' : 'css'
 )
 
+const sanitizeBgMode = (value: unknown, fallback: BgMode): BgMode => {
+  if (
+    value === 'solid' ||
+    value === 'gradient' ||
+    value === 'animated-gradient' ||
+    value === 'mesh' ||
+    value === 'noise' ||
+    value === 'aurora' ||
+    value === 'spotlight' ||
+    value === 'prism' ||
+    value === 'horizon' ||
+    value === 'constellation'
+  ) {
+    return value
+  }
+  return fallback
+}
+
+const sanitizePanelBgMode = (value: unknown, fallback: PanelBgMode): PanelBgMode => {
+  if (
+    value === 'glass' ||
+    value === 'solid' ||
+    value === 'gradient' ||
+    value === 'noise' ||
+    value === 'dots' ||
+    value === 'grid' ||
+    value === 'carbon' ||
+    value === 'circuit' ||
+    value === 'linen' ||
+    value === 'hologram' ||
+    value === 'mist' ||
+    value === 'stripes'
+  ) {
+    return value
+  }
+  return fallback
+}
+
 const sanitizeSidebarStyle = (
   value: unknown,
   fallback: Theme['sidebarStyle'],
@@ -571,6 +609,12 @@ const sanitizeThemeSnapshot = (persistedRaw: unknown, current: Theme): Theme => 
   mergedGlassmorphism.glassDepth = Number.isFinite(Number(mergedGlassmorphism.glassDepth))
     ? Math.max(0.1, Math.min(3, Number(mergedGlassmorphism.glassDepth)))
     : current.glassmorphism.glassDepth
+  const mergedBackground = mergeConfig(current.background, persisted.background)
+  mergedBackground.mode = sanitizeBgMode(mergedBackground.mode, current.background.mode)
+  mergedBackground.panelBgMode = sanitizePanelBgMode(
+    mergedBackground.panelBgMode,
+    current.background.panelBgMode,
+  )
   const mergedQol = sanitizeQolConfig(persisted.qol, current.qol)
 
   return {
@@ -590,7 +634,7 @@ const sanitizeThemeSnapshot = (persistedRaw: unknown, current: Theme): Theme => 
     notes: mergeConfig(current.notes, persisted.notes),
     glow: mergeConfig(current.glow, persisted.glow),
     gradient: mergeConfig(current.gradient, persisted.gradient),
-    background: mergeConfig(current.background, persisted.background),
+    background: mergedBackground,
     blur: mergeConfig(current.blur, persisted.blur),
     glassmorphism: mergedGlassmorphism,
     visual: mergeConfig(current.visual, persisted.visual),

@@ -16,6 +16,8 @@ const withAndroid =
   !args.has("--skip-android");
 const withInstallers =
   args.has("--with-installers") || !args.has("--skip-installers");
+const withLinuxInstallers =
+  withInstallers && !args.has("--skip-linux-installers");
 const strictAndroid = args.has("--strict-android");
 const strictInstallers = args.has("--strict-installers");
 const withControlPlane =
@@ -32,6 +34,7 @@ const APPS = [
     electron: {
       installerScript: "electron:build:host",
       installerScriptMac: "electron:build:installers",
+      installerScriptLinux: "electron:build:linux",
       releaseDir: "release",
     },
     artifacts: [
@@ -58,6 +61,7 @@ const APPS = [
     electron: {
       installerScript: "electron:build:host",
       installerScriptMac: "electron:build:installers",
+      installerScriptLinux: "electron:build:linux",
       releaseDir: "release",
     },
     artifacts: [
@@ -274,6 +278,7 @@ const INSTALLER_EXTENSIONS = new Set([
   ".zip",
   ".appimage",
   ".deb",
+  ".rpm",
 ]);
 
 const collectInstallerArtifacts = async (releaseRoot) => {
@@ -299,9 +304,26 @@ const buildElectronInstallersForApp = async (app, warnings) => {
     process.platform === "darwin"
       ? app.electron.installerScriptMac || app.electron.installerScript
       : app.electron.installerScript;
+  const linuxInstallerScript = app.electron.installerScriptLinux;
+  const shouldRunLinuxInstaller =
+    withLinuxInstallers && linuxInstallerScript && process.platform === "win32";
 
+  let hostSucceeded = false;
   try {
     runNpmCommand(["--prefix", appRoot, "run", installerScript], { cwd: ROOT });
+    hostSucceeded = true;
+
+    if (shouldRunLinuxInstaller) {
+      try {
+        runNpmCommand(["--prefix", appRoot, "run", linuxInstallerScript], {
+          cwd: ROOT,
+        });
+      } catch (error) {
+        const linuxMessage = `[${app.name}] Linux-Installer-Build fehlgeschlagen: ${error.message}`;
+        if (strictInstallers) throw new Error(linuxMessage);
+        warnings.push(linuxMessage);
+      }
+    }
 
     const installerArtifacts = await collectInstallerArtifacts(releaseRoot);
     if (installerArtifacts.length === 0) {
@@ -312,7 +334,7 @@ const buildElectronInstallersForApp = async (app, warnings) => {
 
     return {
       attempted: true,
-      succeeded: true,
+      succeeded: hostSucceeded,
       installerArtifacts,
     };
   } catch (error) {

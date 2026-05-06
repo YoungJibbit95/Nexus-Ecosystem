@@ -29,11 +29,11 @@ export function TitleBar({
         WebkitBackdropFilter: 'blur(24px) saturate(180%)',
         borderBottom: `1px solid ${t.mode === 'dark' ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.65)'}`,
         boxShadow: t.mode === 'dark' ? 'inset 0 1px 0 rgba(255,255,255,0.25)' : 'inset 0 1px 0 rgba(255,255,255,0.9)',
-        ['-webkit-app-region' as any]: 'drag',
+        ['WebkitAppRegion' as any]: 'drag',
         userSelect: 'none',
       }}
     >
-      <div style={{ display: 'flex', gap: 8, ['-webkit-app-region' as any]: 'no-drag' }}>
+      <div style={{ display: 'flex', gap: 8, ['WebkitAppRegion' as any]: 'no-drag' }}>
         <button
           onClick={() => window.api?.window.close()}
           style={{ width: 12, height: 12, borderRadius: '50%', background: '#ff5f57', border: 'none', cursor: 'pointer' }}
@@ -62,7 +62,7 @@ export function TitleBar({
             marginLeft: 'auto',
             display: 'flex',
             alignItems: 'center',
-            ['-webkit-app-region' as any]: 'no-drag',
+            ['WebkitAppRegion' as any]: 'no-drag',
           }}
         >
           <button

@@ -2,9 +2,9 @@
 // Edit these values to reposition/resize Island and Spotlight UI without touching component JSX.
 export const TOOLBAR_LAYOUT_CONFIG = {
   spotlight: {
-    anchorX: "55%",
+    anchorX: "45%",
     translateX: "-50%",
-    panelTopPx: 76,
+    panelTopPx: 66,
     panelWidth: "min(640px, 78vw)",
   },
   fullWidth: {

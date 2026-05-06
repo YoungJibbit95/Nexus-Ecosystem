@@ -79,14 +79,25 @@ export function InteractiveActionButton({
     },
     onPointerDown: (event: React.PointerEvent<HTMLButtonElement>) => {
       setPressed(true);
+      try {
+        event.currentTarget.setPointerCapture(event.pointerId);
+      } catch {
+        // Pointer capture is best-effort; the stable hit target still protects clicks.
+      }
       onPointerDown?.(event);
     },
     onPointerUp: (event: React.PointerEvent<HTMLButtonElement>) => {
       setPressed(false);
+      try {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      } catch {}
       onPointerUp?.(event);
     },
     onPointerCancel: (event: React.PointerEvent<HTMLButtonElement>) => {
       setPressed(false);
+      try {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      } catch {}
       onPointerCancel?.(event);
     },
   };
@@ -96,8 +107,6 @@ export function InteractiveActionButton({
       {...(rest as any)}
       {...events}
       className={`nx-motion-managed ${rest.className || ""}`.trim()}
-      animate={interaction.content.animate}
-      transition={interaction.content.transition}
       style={{
         position: "relative",
         overflow: "hidden",
@@ -117,7 +126,9 @@ export function InteractiveActionButton({
           }}
         />
       </SurfaceHighlight>
-      <span
+      <motion.span
+        animate={interaction.content.animate}
+        transition={interaction.content.transition}
         style={{
           position: "relative",
           zIndex: 1,
@@ -130,7 +141,7 @@ export function InteractiveActionButton({
         }}
       >
         {children}
-      </span>
+      </motion.span>
     </motion.button>
   );
 }

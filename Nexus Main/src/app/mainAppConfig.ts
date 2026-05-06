@@ -49,8 +49,17 @@ export const withTimeoutResult = async <T,>(
 export const MAIN_CORE_FALLBACK_VIEWS: View[] = getFallbackViewsForApp("main")
   .map((candidate) => candidate as View)
   .filter((candidate) => VIEW_IDS.includes(candidate));
+
+export const withDevDiagnosticsView = (views: View[]): View[] => {
+  const baseViews = views.filter((candidate) => candidate !== "diagnostics");
+  if (!(import.meta as any).env?.DEV) return baseViews;
+  return [...baseViews, "diagnostics"];
+};
+
 export const MAIN_SAFE_STARTUP_VIEWS: View[] =
-  MAIN_CORE_FALLBACK_VIEWS.length > 0 ? MAIN_CORE_FALLBACK_VIEWS : VIEW_IDS;
+  withDevDiagnosticsView(
+    MAIN_CORE_FALLBACK_VIEWS.length > 0 ? MAIN_CORE_FALLBACK_VIEWS : VIEW_IDS,
+  );
 export const MAIN_CRITICAL_PRELOAD_VIEWS: View[] = [
   "dashboard",
   "notes",

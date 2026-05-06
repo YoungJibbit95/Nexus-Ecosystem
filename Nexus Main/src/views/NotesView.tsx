@@ -686,13 +686,13 @@ export function NotesView() {
   }), [t.accent])
 
   return (
-    <div className="flex h-full gap-3 p-3 relative" style={{ minHeight: 0 }}>
+    <div className="nx-notes-v6 flex h-full gap-3 p-3 relative" style={{ minHeight: 0 }}>
 
       {/* ── SIDEBAR ── */}
       {!focusMode && (
-        <Glass className="flex flex-col shrink-0" style={{ width: 220, overflow: 'hidden', minHeight: 0 }}>
+        <Glass className="nx-notes-sidebar flex flex-col shrink-0" style={{ width: 252, overflow: 'hidden', minHeight: 0 }}>
           {/* Header */}
-          <div className="flex items-center justify-between px-3 py-2.5 shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+          <div className="nx-notes-sidebar-header flex items-center justify-between px-3 py-2.5 shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
             <span style={{ fontSize: 12, fontWeight: 700, opacity: 0.85 }}>Notes</span>
             <div className="flex gap-0.5" style={{ position: 'relative' }}>
               <InteractiveActionButton
@@ -970,11 +970,11 @@ export function NotesView() {
           </div>
 
           {/* Scrollable list — overflow-y:auto always shows scrollbar when needed */}
-          <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '6px', minHeight: 0 }}>
+          <div className="nx-notes-list" style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '6px', minHeight: 0 }}>
             {filteredNotes.map((n) => (
               <div
                 key={n.id} onClick={() => setNote(n.id)} role="button" tabIndex={0}
-                className="group nx-surface-row"
+                className="group nx-surface-row nx-notes-list-row"
                 data-active={n.id === activeNoteId ? 'true' : 'false'}
                 style={{
                   padding: '8px 10px', borderRadius: 9, cursor: 'pointer', marginBottom: 2,
@@ -1030,10 +1030,10 @@ export function NotesView() {
 
       {/* ── MAIN PANEL ── */}
       {active ? (
-        <div className="flex-1 flex flex-col gap-2" style={{ minHeight: 0, overflow: 'visible' }}>
+        <div className="nx-notes-main flex-1 flex flex-col gap-2" style={{ minHeight: 0, overflow: 'visible' }}>
 
           {/* Header bar */}
-          <Glass className="flex items-center gap-2 px-3 py-2 shrink-0">
+          <Glass className="nx-notes-editor-header flex items-center gap-2 px-3 py-2 shrink-0">
             <input
               className="flex-1 bg-transparent outline-none font-semibold"
               style={{ fontSize: 14, minWidth: 0 }}
@@ -1041,7 +1041,7 @@ export function NotesView() {
               onChange={e => updateNote(active.id, { title: e.target.value })}
               placeholder="Titel..."
             />
-            <div className="flex gap-0.5 items-center shrink-0">
+            <div className="nx-notes-mode-actions flex gap-0.5 items-center shrink-0">
               {/* View mode */}
               {(['edit', 'split', 'preview'] as const).map(m => (
                 <InteractiveActionButton key={m} onClick={() => setMode(m)} title={m}
@@ -1160,7 +1160,7 @@ export function NotesView() {
               </div>
             </div>
             {(activeHeadings.length > 0 || activeOutgoing.length > 0 || activeIncoming.length > 0 || activeUnresolved.length > 0 || activeRelatedNotes.length > 0) && (
-              <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              <div className="nx-notes-context-strip" style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                 {activeHeadings.slice(0, 4).map((heading) => (
                   <InteractiveActionButton
                     key={heading.id}
@@ -1232,7 +1232,7 @@ export function NotesView() {
 
           {/* Formatting toolbar */}
           {(mode === 'edit' || mode === 'split') && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 2, padding: '0 4px', flexWrap: 'wrap', opacity: 0.9 }}>
+            <div className="nx-notes-format-toolbar" style={{ display: 'flex', alignItems: 'center', gap: 2, padding: '0 4px', flexWrap: 'wrap', opacity: 0.9 }}>
               <FmtBtn icon={Heading}      tooltip="H2"           action={() => insertFormat('\n## ', '', 'Überschrift')} />
               <FmtBtn icon={Bold}         tooltip="Fett (Ctrl+B)" action={() => insertFormat('**', '**', 'fett')} />
               <FmtBtn icon={Italic}       tooltip="Kursiv (Ctrl+I)" action={() => insertFormat('*', '*', 'kursiv')} />
@@ -1328,14 +1328,14 @@ export function NotesView() {
           )}
 
           {/* ── EDITOR / PREVIEW ── */}
-          <div style={{ display: 'flex', gap: 10, flex: 1, minHeight: 0, overflow: 'visible' }}>
+          <div className="nx-notes-editor-grid" style={{ display: 'flex', gap: 10, flex: 1, minHeight: 0, overflow: 'visible' }}>
 
             {/* Editor */}
             {(mode === 'edit' || mode === 'split') && (
-              <Glass className="flex-1 flex flex-col" style={{ minHeight: 0, overflow: 'hidden' }}>
+              <Glass className="nx-notes-editor-pane flex-1 flex flex-col" style={{ minHeight: 0, overflow: 'hidden' }}>
                 {t.editor.lineNumbers ? (
                   <div style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}>
-                    <div style={{
+                    <div className="nx-notes-line-numbers" style={{
                       flexShrink: 0, paddingTop: 20, paddingBottom: 20, paddingLeft: 10, paddingRight: 6,
                       textAlign: 'right', userSelect: 'none',
                       fontSize: t.notes.fontSize - 1,
@@ -1401,9 +1401,9 @@ export function NotesView() {
 
             {/* Preview — always has a visible scrollbar */}
             {(mode === 'preview' || mode === 'split') && (
-              <Glass className="flex-1 flex flex-col" style={{ minHeight: 0, overflow: 'visible', background: `linear-gradient(150deg, rgba(${rgb},0.32), rgba(${hexToRgb(t.accent2)},0.2) 58%, rgba(255,255,255,0.03))` }} glow gradient>
+              <Glass className="nx-notes-preview-pane flex-1 flex flex-col" style={{ minHeight: 0, overflow: 'visible', background: `linear-gradient(150deg, rgba(${rgb},0.32), rgba(${hexToRgb(t.accent2)},0.2) 58%, rgba(255,255,255,0.03))` }} glow gradient>
                 {/* The scrollable div is direct child of the Glass content wrapper (which is flex-col) */}
-                <div style={{
+                <div className="nx-notes-preview-scroll" style={{
                   flex: 1, overflowY: 'scroll', overflowX: 'hidden',
                   padding: 20, minHeight: 0,
                 }}>
@@ -1414,7 +1414,7 @@ export function NotesView() {
           </div>
 
           {/* Status bar */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '2px 8px', fontSize: 10, opacity: 0.38, flexShrink: 0 }}>
+          <div className="nx-notes-status" style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '2px 8px', fontSize: 10, opacity: 0.38, flexShrink: 0 }}>
             <span>{stats.words} W</span>
             <span>{stats.chars} Z</span>
             <span>{stats.lines} L</span>

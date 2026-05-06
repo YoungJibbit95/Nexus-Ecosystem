@@ -63,7 +63,7 @@ export const useInteractiveSurfaceMotion = (
     budgetPriority,
     areaHint,
     motionClassHint: family,
-    transformOwnerHint: "surface",
+    transformOwnerHint: "child",
     filterOwnerHint: "none",
     opacityOwnerHint: "surface",
   });

@@ -4,6 +4,7 @@ import { Sidebar, type View } from "../components/Sidebar";
 import { TitleBar } from "../components/TitleBar";
 import { hexToRgb } from "../lib/utils";
 import { NexusTerminal, NexusToolbar } from "./viewPreload";
+import { getNexusViewManifest } from "@nexus/core";
 
 type ViewGuardState = {
   checking: boolean;
@@ -30,9 +31,12 @@ type Props = {
   availableViews: View[];
   viewGuardState: ViewGuardState;
   motionRuntime: any;
+  showDiagnosticsButton?: boolean;
+  releaseId?: string | null;
   onRequestViewChange: (viewId: View | string) => void;
   onPrefetchView: (viewId: View) => void;
   onSidebarAutoPeek: (next: boolean) => void;
+  onOpenDiagnostics?: () => void;
   mainViewNode: React.ReactNode;
 };
 
@@ -54,11 +58,35 @@ export function MainShellLayout({
   availableViews,
   viewGuardState,
   motionRuntime,
+  showDiagnosticsButton = false,
+  releaseId = null,
   onRequestViewChange,
   onPrefetchView,
   onSidebarAutoPeek,
+  onOpenDiagnostics,
   mainViewNode,
 }: Props) {
+  const activeViewManifest = React.useMemo(
+    () => getNexusViewManifest(view),
+    [view],
+  );
+  const viewContract = activeViewManifest ?? {
+    title: view === "diagnostics" ? "Diagnostics" : String(view),
+    subtitle: "Lokaler Entwicklungs-View",
+    category: "system",
+    desktopMode: "diagnostics",
+    mobileMode: "stack",
+    defaultActionId: "inspect",
+    actions: [],
+    panels: [],
+    shortcuts: [],
+    statusSignals: ["debug"],
+  };
+  const primaryAction =
+    activeViewManifest?.actions.find(
+      (action) => action.id === activeViewManifest.defaultActionId,
+    ) ?? activeViewManifest?.actions.find((action) => action.placement === "primary");
+
   const toolbarEl = toolbarVisible ? (
     <div
       style={{
@@ -66,13 +94,14 @@ export function MainShellLayout({
         zIndex: 500,
         display: "flex",
         justifyContent: "center",
-        padding: toolbarBottom ? "0 0 6px" : "6px 0 0",
+        padding: toolbarBottom ? "0 0 5px" : "5px 0 0",
         pointerEvents: "none",
       }}
     >
       <div style={{ pointerEvents: "auto", width: "100%" }}>
         <Suspense fallback={null}>
           <NexusToolbar
+            activeView={view}
             setView={(v: any) => {
               onRequestViewChange(v);
             }}
@@ -117,18 +146,22 @@ export function MainShellLayout({
           height: "calc(100% / var(--nx-ui-scale, 1))",
           transform: "scale(var(--nx-ui-scale, 1))",
           transformOrigin: "top left",
-          borderRadius: 18,
+          borderRadius: 16,
           border:
             t.mode === "dark"
-              ? "1px solid rgba(255,255,255,0.12)"
-              : "1px solid rgba(0,0,0,0.1)",
+              ? "1px solid rgba(255,255,255,0.1)"
+              : "1px solid rgba(0,0,0,0.085)",
           boxShadow:
             t.mode === "dark"
-              ? "0 28px 80px rgba(0,0,0,0.52), 0 0 0 1px rgba(255,255,255,0.04) inset"
-              : "0 20px 60px rgba(28,31,42,0.16), 0 0 0 1px rgba(255,255,255,0.6) inset",
+              ? "0 22px 56px rgba(0,0,0,0.46), 0 0 0 1px rgba(255,255,255,0.035) inset"
+              : "0 18px 44px rgba(28,31,42,0.13), 0 0 0 1px rgba(255,255,255,0.54) inset",
         }}
       >
-        <TitleBar />
+        <TitleBar
+          showDiagnosticsButton={showDiagnosticsButton}
+          onOpenDiagnostics={onOpenDiagnostics}
+          releaseId={releaseId}
+        />
         <div
           style={{
             display: "flex",
@@ -189,9 +222,9 @@ export function MainShellLayout({
           <div
             style={{
               position: "absolute",
-              top: 64,
-              left: 16,
-              right: 16,
+              top: 56,
+              left: 12,
+              right: 12,
               zIndex: 1200,
               pointerEvents: "none",
             }}
@@ -247,6 +280,27 @@ export function MainShellLayout({
             }}
           >
             {!toolbarBottom ? toolbarEl : null}
+            <div className="nx-view-context-bar" aria-label="Aktiver View-Kontext">
+              <div className="nx-view-context-main">
+                <div className="nx-view-context-kicker">
+                  Workbench / {viewContract.category}
+                </div>
+                <div className="nx-view-context-title-row">
+                  <strong>{viewContract.title}</strong>
+                  <span>{viewContract.subtitle}</span>
+                </div>
+              </div>
+              <div className="nx-view-context-pills" aria-label="View Contract">
+                {primaryAction ? (
+                  <span className="nx-context-pill nx-context-pill--primary">
+                    Primary: {primaryAction.title}
+                  </span>
+                ) : null}
+                <span className="nx-context-pill">
+                  Mode: {viewContract.desktopMode}
+                </span>
+              </div>
+            </div>
             <motion.div
               initial={motionRuntime.pageInitial}
               animate={motionRuntime.pageAnimate}
@@ -271,6 +325,30 @@ export function MainShellLayout({
                 />
               ) : null}
             </Suspense>
+            <div className="nx-app-status-bar" role="status" aria-live="polite">
+              <div className="nx-status-chip nx-status-chip--strong">
+                View: {viewContract.title}
+              </div>
+              <div className="nx-status-chip">
+                Release: {releaseId || "local fallback"}
+              </div>
+              <div className="nx-status-chip">
+                Motion: {motionRuntime?.profile || "balanced"}
+              </div>
+              <div className="nx-status-chip">
+                Views: {availableViews.length}
+              </div>
+              {viewGuardState.checking ? (
+                <div className="nx-status-chip nx-status-chip--busy">
+                  Zugriff wird geprueft
+                </div>
+              ) : null}
+              {viewGuardState.blockedView ? (
+                <div className="nx-status-chip nx-status-chip--danger">
+                  Blockiert: {viewGuardState.blockedView}
+                </div>
+              ) : null}
+            </div>
             {toolbarBottom ? toolbarEl : null}
           </div>
         </div>

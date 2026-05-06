@@ -1,5 +1,5 @@
 export type NexusAppId = 'main' | 'mobile' | 'code' | 'code-mobile' | 'control'
-export type NexusUserTier = 'free' | 'paid'
+export type NexusUserTier = 'free' | 'pro' | 'lifetime' | 'lifetime_pro'
 
 export type NexusEventType =
   | 'heartbeat'
