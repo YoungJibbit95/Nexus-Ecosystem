@@ -87,7 +87,6 @@ body {
    ══════════════════════════════════════════════════════════════ */
 :where(button, [role='button'], .nx-interactive):not(:disabled):not([aria-disabled='true']) {
   transition:
-    transform var(--nx-motion-quick, 170ms) var(--nx-motion-hover-ease, cubic-bezier(0.2, 0.86, 0.3, 1)),
     opacity var(--nx-motion-quick, 170ms) ease,
     background-color var(--nx-motion-regular, 210ms) ease,
     color var(--nx-motion-regular, 210ms) ease,
@@ -99,17 +98,17 @@ body {
   transform: translateZ(0);
   transform-origin: center center;
   backface-visibility: hidden;
-  will-change: transform, opacity;
+  will-change: opacity;
 }
 
 @media (hover: hover) and (pointer: fine) {
   :where(button, [role='button'], .nx-interactive):not(:disabled):not([aria-disabled='true']):not(.nx-sidebar-nav-row):not(.nx-motion-managed):not(.nx-toolbar-navchip):not(.nx-toolbar-command):not(.nx-icon-btn):hover {
-    transform: scale(calc(var(--nx-hover-scale, 1.007) + var(--nx-hover-extra-scale, 0)));
+    transform: translateZ(0);
   }
 }
 
 :where(button, [role='button'], .nx-interactive):not(:disabled):not([aria-disabled='true']):not(.nx-sidebar-nav-row):not(.nx-motion-managed):not(.nx-toolbar-navchip):not(.nx-toolbar-command):not(.nx-icon-btn):active {
-  transform: scale(var(--nx-press-scale, 0.985));
+  transform: translateZ(0);
   transition-timing-function: var(--nx-motion-press-ease, cubic-bezier(0.25, 1, 0.5, 1));
 }
 
@@ -153,6 +152,13 @@ body {
   }
 }
 
+:where(button, [role='button'], .nx-interactive):not(:disabled):not([aria-disabled='true']):not(.nx-sidebar-nav-row):not(.nx-motion-managed):not(.nx-toolbar-navchip):not(.nx-toolbar-command):not(.nx-icon-btn):active::before {
+  opacity: 0.85;
+  transform: scale(0.985);
+  transition-duration: calc(var(--nx-motion-quick, 170ms) * 0.62);
+  transition-timing-function: var(--nx-motion-press-ease, cubic-bezier(0.25, 1, 0.5, 1));
+}
+
 .nx-sidebar-nav-row {
   transition: background-color var(--nx-motion-regular, 210ms) ease;
 }
@@ -168,11 +174,11 @@ button.nx-sidebar-nav-row:active {
   overflow: hidden;
   transform-origin: 50% 50%;
   transition:
-    transform var(--nx-motion-quick, 170ms) var(--nx-motion-hover-ease, cubic-bezier(0.2, 0.86, 0.3, 1)),
     box-shadow var(--nx-motion-regular, 210ms) var(--nx-motion-settle-ease, ease),
     background-color var(--nx-motion-regular, 210ms) var(--nx-motion-settle-ease, ease),
     border-color var(--nx-motion-quick, 170ms) var(--nx-motion-settle-ease, ease),
     color var(--nx-motion-quick, 170ms) var(--nx-motion-settle-ease, ease);
+  transform: translateZ(0);
 }
 
 .nx-bounce-target:not(.nx-sidebar-nav-row)::before {
@@ -202,7 +208,7 @@ button.nx-sidebar-nav-row:active {
 }
 
 .nx-bounce-target:hover {
-  transform: scale(calc(var(--nx-hover-scale, 1.007) + var(--nx-hover-extra-scale, 0) * 0.65));
+  transform: translateZ(0);
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -216,6 +222,13 @@ button.nx-sidebar-nav-row:active {
     opacity: 0;
     transform: scale(0.9);
   }
+}
+
+.nx-bounce-target:not(.nx-sidebar-nav-row):active::before {
+  opacity: 0.82;
+  transform: scale(0.985);
+  transition-duration: calc(var(--nx-motion-quick, 170ms) * 0.62);
+  transition-timing-function: var(--nx-motion-press-ease, cubic-bezier(0.25, 1, 0.5, 1));
 }
 
 .nx-sidebar-surface,
@@ -361,14 +374,22 @@ button.nx-sidebar-nav-row:active {
 }
 
 @media (hover: hover) and (pointer: fine) {
-  :where(.nx-motion-hover-soft, .nx-motion-hover-medium, .nx-motion-hover-strong):hover {
+  :where(.nx-motion-hover-soft, .nx-motion-hover-medium, .nx-motion-hover-strong):not(button):not([role='button']):hover {
     transform: scale(calc(1 + var(--nx-hover-extra-scale, 0) * var(--nx-hover-mult, 0.5)));
+  }
+
+  :where(button, [role='button']):where(.nx-motion-hover-soft, .nx-motion-hover-medium, .nx-motion-hover-strong):hover {
+    transform: translateZ(0);
   }
 }
 
-:where(.nx-motion-hover-soft, .nx-motion-hover-medium, .nx-motion-hover-strong):active {
+:where(.nx-motion-hover-soft, .nx-motion-hover-medium, .nx-motion-hover-strong):not(button):not([role='button']):active {
   transform: scale(var(--nx-press-scale, 0.985));
   transition-timing-function: var(--nx-motion-press-ease, cubic-bezier(0.25, 1, 0.5, 1));
+}
+
+:where(button, [role='button']):where(.nx-motion-hover-soft, .nx-motion-hover-medium, .nx-motion-hover-strong):active {
+  transform: translateZ(0);
 }
 
 [data-nx-motion-reduced='1'] :where(.nx-bounce-target, .nx-motion-hover-soft, .nx-motion-hover-medium, .nx-motion-hover-strong) {
@@ -938,10 +959,11 @@ html { font-size: var(--nx-font-size, 14px); }
     transform: none !important;
   }
 
-  /* Better tap scale feedback */
+  /* Better tap feedback without moving the real hit target. */
   [data-nx-touch='coarse'] :where(button, [role='button'], .nx-interactive):not(:disabled):not([aria-disabled='true']):active {
-    transform: scale(0.992) !important;
-    transition: transform calc(var(--nx-motion-quick, 170ms) * 0.5) !important;
+    opacity: 0.88;
+    transform: none !important;
+    transition: opacity calc(var(--nx-motion-quick, 170ms) * 0.5) !important;
   }
 
   [data-nx-touch='coarse'] .nx-surface-row,

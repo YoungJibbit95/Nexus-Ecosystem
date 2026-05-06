@@ -11,10 +11,10 @@ import {
 import { buildViewAccessCacheKey, getViewValidationErrorReason } from './common'
 
 const OFFLINE_FREE_VIEWS_BY_APP: Record<string, Set<string>> = {
-  main: new Set(['dashboard', 'notes', 'tasks', 'reminders', 'canvas', 'files', 'settings', 'info']),
-  mobile: new Set(['dashboard', 'notes', 'tasks', 'reminders', 'canvas', 'files', 'settings', 'info']),
-  code: new Set(['editor']),
-  'code-mobile': new Set(['editor']),
+  main: new Set(['dashboard', 'notes', 'tasks', 'reminders', 'files', 'settings', 'info']),
+  mobile: new Set([]),
+  code: new Set([]),
+  'code-mobile': new Set([]),
 }
 
 const isOfflineFreeViewAllowed = (appId: string, viewId: string) => {
@@ -169,7 +169,7 @@ export const validateViewAccess = async (
         allowed: offlineAllowed,
         reason: offlineAllowed ? 'OFFLINE_FREE_TIER_ALLOW' : 'OFFLINE_FREE_TIER_BLOCKED',
         paywallEnabled: !offlineAllowed,
-        requiredTier: offlineAllowed ? null : 'paid',
+        requiredTier: offlineAllowed ? null : 'pro',
         userTier: 'free',
         userTierSource: 'offline',
       })

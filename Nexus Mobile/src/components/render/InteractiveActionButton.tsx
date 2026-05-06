@@ -106,6 +106,11 @@ export function InteractiveActionButton({
     },
     onPointerDown: (event: React.PointerEvent<HTMLButtonElement>) => {
       setPressed(true);
+      try {
+        event.currentTarget.setPointerCapture(event.pointerId);
+      } catch {
+        // Pointer capture is best-effort; the stable hit target still protects taps.
+      }
       if (event.pointerType && event.pointerType !== "mouse") {
         setHovered(false);
       }
@@ -113,6 +118,9 @@ export function InteractiveActionButton({
     },
     onPointerUp: (event: React.PointerEvent<HTMLButtonElement>) => {
       setPressed(false);
+      try {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      } catch {}
       if (event.pointerType && event.pointerType !== "mouse") {
         setHovered(false);
       }
@@ -120,6 +128,9 @@ export function InteractiveActionButton({
     },
     onPointerCancel: (event: React.PointerEvent<HTMLButtonElement>) => {
       setPressed(false);
+      try {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      } catch {}
       if (event.pointerType && event.pointerType !== "mouse") {
         setHovered(false);
       }
@@ -132,8 +143,6 @@ export function InteractiveActionButton({
       {...(rest as any)}
       {...events}
       className={`nx-motion-managed nx-mobile-touch-button ${rest.className || ""}`.trim()}
-      animate={interaction.content.animate}
-      transition={interaction.content.transition}
       style={{
         minHeight: "var(--nx-touch-target, 40px)",
         position: "relative",
@@ -156,7 +165,9 @@ export function InteractiveActionButton({
           }}
         />
       </SurfaceHighlight>
-      <span
+      <motion.span
+        animate={interaction.content.animate}
+        transition={interaction.content.transition}
         style={{
           position: "relative",
           zIndex: 1,
@@ -169,7 +180,7 @@ export function InteractiveActionButton({
         }}
       >
         {children}
-      </span>
+      </motion.span>
     </motion.button>
   );
 }

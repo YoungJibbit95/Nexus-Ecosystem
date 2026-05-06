@@ -1,6 +1,6 @@
 import React from "react";
 import { applyMotionProfile } from "../../lib/motionEngine";
-import type { BgMode, Theme } from "../../store/themeStore";
+import type { BgMode, PanelBgMode, Theme } from "../../store/themeStore";
 import { MODULES, MOTION_PROFILES, EXPERIENCE_PRESETS } from "./settingsConstants";
 import {
   FontLibrary,
@@ -422,6 +422,149 @@ export function SettingsModulePanels({
                 ) : null}
 
                 <ModuleCard
+                  title="Glow Lab"
+                  desc="Mehr Glow-Varianten, aber mit sicheren Performance-Grenzen"
+                >
+                  <Segmented
+                    label="Glow Mode"
+                    value={t.glow.mode}
+                    options={[
+                      "ambient",
+                      "outline",
+                      "focus",
+                      "gradient",
+                      "pulse",
+                      "off",
+                    ]}
+                    onChange={(value) =>
+                      t.setGlow({ mode: value as Theme["glow"]["mode"] })
+                    }
+                  />
+                  <div style={{ marginTop: 10 }}>
+                    <Row>
+                      <Slider
+                        label="Glow Intensity"
+                        value={t.glow.intensity}
+                        min={0}
+                        max={1.35}
+                        step={0.05}
+                        onChange={(value) => t.setGlow({ intensity: value })}
+                      />
+                      <Slider
+                        label="Glow Radius"
+                        value={t.glow.radius}
+                        min={6}
+                        max={56}
+                        step={1}
+                        unit="px"
+                        onChange={(value) => t.setGlow({ radius: value })}
+                      />
+                    </Row>
+                  </div>
+                  <div style={{ marginTop: 10 }}>
+                    <Row>
+                      <Slider
+                        label="Glow Spread"
+                        value={t.glow.spread}
+                        min={0}
+                        max={18}
+                        step={1}
+                        unit="px"
+                        onChange={(value) => t.setGlow({ spread: value })}
+                      />
+                      <Slider
+                        label="Glow Speed"
+                        value={t.glow.animationSpeed}
+                        min={0.2}
+                        max={3}
+                        step={0.1}
+                        unit="x"
+                        onChange={(value) => t.setGlow({ animationSpeed: value })}
+                      />
+                    </Row>
+                  </div>
+                  <div style={{ marginTop: 10 }}>
+                    <Row>
+                      <Toggle
+                        label="Gradient Glow"
+                        checked={Boolean(t.glow.gradientGlow)}
+                        onChange={(next) => t.setGlow({ gradientGlow: next })}
+                      />
+                      <Toggle
+                        label="Animated Glow"
+                        checked={Boolean(t.glow.animated)}
+                        onChange={(next) => t.setGlow({ animated: next })}
+                      />
+                    </Row>
+                  </div>
+                  <div style={{ marginTop: 10 }}>
+                    <Row>
+                      <div>
+                        <div style={{ fontSize: 11, opacity: 0.62, marginBottom: 6 }}>
+                          Glow Color A
+                        </div>
+                        <input
+                          type="color"
+                          value={t.glow.gradientColor1}
+                          onChange={(event) =>
+                            t.setGlow({
+                              color: event.target.value,
+                              gradientColor1: event.target.value,
+                            })
+                          }
+                          style={{
+                            width: "100%",
+                            height: 38,
+                            borderRadius: 10,
+                            border: "1px solid rgba(255,255,255,0.14)",
+                            background: "transparent",
+                          }}
+                        />
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 11, opacity: 0.62, marginBottom: 6 }}>
+                          Glow Color B
+                        </div>
+                        <input
+                          type="color"
+                          value={t.glow.gradientColor2}
+                          onChange={(event) =>
+                            t.setGlow({ gradientColor2: event.target.value })
+                          }
+                          style={{
+                            width: "100%",
+                            height: 38,
+                            borderRadius: 10,
+                            border: "1px solid rgba(255,255,255,0.14)",
+                            background: "transparent",
+                          }}
+                        />
+                      </div>
+                    </Row>
+                  </div>
+                  {showAdvancedSettings ? (
+                    <div style={{ marginTop: 10 }}>
+                      <Row>
+                        <Toggle
+                          label="Border Glow"
+                          checked={Boolean(t.glassmorphism.borderGlow)}
+                          onChange={(next) =>
+                            t.setGlassmorphism({ borderGlow: next })
+                          }
+                        />
+                        <Toggle
+                          label="Inner Shadow"
+                          checked={Boolean(t.glassmorphism.innerShadow)}
+                          onChange={(next) =>
+                            t.setGlassmorphism({ innerShadow: next })
+                          }
+                        />
+                      </Row>
+                    </div>
+                  ) : null}
+                </ModuleCard>
+
+                <ModuleCard
                   title="Release Freeze"
                   desc="Glow und feste Toolbar-Geometrie sind im Release-Zyklus eingefroren."
                 >
@@ -459,7 +602,32 @@ export function SettingsModulePanels({
                   ) : null}
                 </ModuleCard>
 
-                <ModuleCard title="Background">
+                <ModuleCard
+                  title="Panel Texture"
+                  desc="Muster und Tints fuer Panels, Cards und Sidebars"
+                >
+                  <Segmented
+                    label="Panel Background"
+                    value={t.background.panelBgMode}
+                    options={[
+                      "glass",
+                      "solid",
+                      "gradient",
+                      "mist",
+                      "hologram",
+                      "linen",
+                      "dots",
+                      "grid",
+                      "stripes",
+                      "noise",
+                      "carbon",
+                      "circuit",
+                    ]}
+                    onChange={(mode) => t.setPanelBgMode(mode as PanelBgMode)}
+                  />
+                </ModuleCard>
+
+                <ModuleCard title="App Background">
                   <Segmented
                     label="Background Mode"
                     value={t.background.mode}
@@ -470,9 +638,51 @@ export function SettingsModulePanels({
                       "mesh",
                       "aurora",
                       "noise",
+                      "spotlight",
+                      "prism",
+                      "horizon",
+                      "constellation",
                     ]}
                     onChange={(mode) => t.setBackgroundMode(mode as BgMode)}
                   />
+                  <div style={{ marginTop: 10 }}>
+                    <Row>
+                      <Slider
+                        label="Mesh / Glow Strength"
+                        value={t.background.meshIntensity}
+                        min={0.05}
+                        max={0.85}
+                        step={0.05}
+                        onChange={(value) =>
+                          t.setBackground({ meshIntensity: value })
+                        }
+                      />
+                      <Slider
+                        label="Noise Opacity"
+                        value={t.background.noiseOpacity}
+                        min={0}
+                        max={0.16}
+                        step={0.01}
+                        onChange={(value) =>
+                          t.setBackground({ noiseOpacity: value })
+                        }
+                      />
+                    </Row>
+                  </div>
+                  <div style={{ marginTop: 10 }}>
+                    <Row>
+                      <Toggle
+                        label="Vignette"
+                        checked={Boolean(t.background.vignette)}
+                        onChange={(next) => t.setBackground({ vignette: next })}
+                      />
+                      <Toggle
+                        label="Scanlines"
+                        checked={Boolean(t.background.scanlines)}
+                        onChange={(next) => t.setBackground({ scanlines: next })}
+                      />
+                    </Row>
+                  </div>
                 </ModuleCard>
               </>
             ) : null}

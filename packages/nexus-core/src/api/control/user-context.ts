@@ -22,6 +22,8 @@ const normalizeTier = (value: unknown): NexusUserTier | undefined => {
   const raw = toCleanString(value)?.toLowerCase()
   if (!raw) return undefined
   if (raw === 'free') return 'free'
+  if (raw === 'lifetime_pro' || raw === 'lifetime-pro' || raw === 'pro_lifetime') return 'lifetime_pro'
+  if (raw === 'lifetime') return 'lifetime'
   if (
     raw === 'paid' ||
     raw === 'pro' ||
@@ -29,10 +31,9 @@ const normalizeTier = (value: unknown): NexusUserTier | undefined => {
     raw === 'plus' ||
     raw === 'business' ||
     raw === 'enterprise' ||
-    raw === 'lifetime' ||
     raw === 'owner' ||
     raw === 'admin'
-  ) return 'paid'
+  ) return 'pro'
   return undefined
 }
 
@@ -79,8 +80,14 @@ const normalizeBoolean = (value: unknown): boolean | undefined => {
 const normalizeStatusTier = (value: unknown): NexusUserTier | undefined => {
   const raw = toCleanString(value)?.toLowerCase()
   if (!raw) return undefined
-  if (['active', 'trial', 'trialing', 'paid', 'premium', 'plus', 'pro', 'business', 'enterprise', 'lifetime'].includes(raw)) {
-    return 'paid'
+  if (['lifetime_pro', 'lifetime-pro', 'pro_lifetime'].includes(raw)) {
+    return 'lifetime_pro'
+  }
+  if (raw === 'lifetime') {
+    return 'lifetime'
+  }
+  if (['active', 'trial', 'trialing', 'paid', 'premium', 'plus', 'pro', 'business', 'enterprise'].includes(raw)) {
+    return 'pro'
   }
   if (['free', 'inactive', 'expired', 'cancelled', 'canceled', 'unpaid', 'none'].includes(raw)) {
     return 'free'
@@ -90,8 +97,15 @@ const normalizeStatusTier = (value: unknown): NexusUserTier | undefined => {
 
 const resolveTierFromWebsiteSession = (value: unknown): NexusUserTier | undefined => {
   if (!isRecord(value)) return undefined
+  const expiresAt = typeof value.expiresAt === 'number' ? value.expiresAt : undefined
+  if (expiresAt != null && Number.isFinite(expiresAt) && expiresAt <= Date.now()) return undefined
+
   const rootTier = normalizeTier(value.tier)
     || normalizeTier(value.planTier)
+    || normalizeTier(value.paymentTier)
+    || normalizeTier(value.requestedTier)
+    || normalizeTier(value.billingRole)
+    || normalizeTier(value.paymentRole)
     || normalizeTier((value.plan as UnknownRecord | undefined)?.tier)
     || normalizeTier((value.subscription as UnknownRecord | undefined)?.tier)
   if (rootTier) return rootTier
@@ -106,18 +120,22 @@ const resolveTierFromWebsiteSession = (value: unknown): NexusUserTier | undefine
   const paidFlag = normalizeBoolean(value.isPaid)
     ?? normalizeBoolean((value.payment as UnknownRecord | undefined)?.active)
     ?? normalizeBoolean((value.subscription as UnknownRecord | undefined)?.active)
-  if (paidFlag != null) return paidFlag ? 'paid' : 'free'
+  if (paidFlag != null) return paidFlag ? 'pro' : 'free'
 
   if (!isRecord(value.user)) return undefined
   const user = value.user
   return (
     normalizeTier(user.tier)
     || normalizeTier(user.planTier)
+    || normalizeTier(user.paymentTier)
+    || normalizeTier(user.requestedTier)
+    || normalizeTier(user.billingRole)
+    || normalizeTier(user.paymentRole)
     || normalizeTier(user.role)
     || normalizeStatusTier(user.status)
     || normalizeStatusTier((user.plan as UnknownRecord | undefined)?.status)
     || normalizeStatusTier((user.subscription as UnknownRecord | undefined)?.status)
-    || (normalizeBoolean(user.isPaid) ? 'paid' : normalizeBoolean(user.isPaid) === false ? 'free' : undefined)
+    || (normalizeBoolean(user.isPaid) ? 'pro' : normalizeBoolean(user.isPaid) === false ? 'free' : undefined)
   )
 }
 
@@ -137,6 +155,10 @@ const resolveStoredContext = (): NexusControlUserContext => {
 
     const websiteSession = readStorageJson(storage, WEBSITE_SESSION_STORAGE_KEY)
     if (isRecord(websiteSession)) {
+      const expiresAt = typeof websiteSession.expiresAt === 'number' ? websiteSession.expiresAt : undefined
+      if (expiresAt != null && Number.isFinite(expiresAt) && expiresAt <= Date.now()) {
+        continue
+      }
       const sessionUser = isRecord(websiteSession.user) ? websiteSession.user : undefined
       result.userId = result.userId
         || toCleanString(websiteSession.userId)
@@ -174,7 +196,7 @@ const resolveStoredContext = (): NexusControlUserContext => {
         const rawFlag = storage.getItem(key)
         const parsedFlag = normalizeBoolean(rawFlag)
         if (parsedFlag == null) continue
-        result.userTier = parsedFlag ? 'paid' : 'free'
+        result.userTier = parsedFlag ? 'pro' : 'free'
         break
       }
     }

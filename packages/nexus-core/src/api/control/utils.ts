@@ -24,7 +24,7 @@ export const isBrowser = typeof window !== 'undefined'
 export const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value))
 export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
-const VALID_TIERS: NexusUserTier[] = ['free', 'paid']
+const VALID_TIERS: NexusUserTier[] = ['free', 'pro', 'lifetime', 'lifetime_pro']
 const VALID_RELEASE_CHANNELS: NexusReleaseChannel[] = ['staging', 'production']
 
 export const normalizeViewId = (value: string) => String(value || '')
@@ -40,7 +40,14 @@ export const normalizeUserId = (value: string) => String(value || '')
   .slice(0, 64)
 
 export const normalizeUserTier = (value: string | undefined): NexusUserTier | null => {
-  const normalized = String(value || '').trim().toLowerCase() as NexusUserTier
+  const raw = String(value || '').trim().toLowerCase()
+  const normalized = (
+    raw === 'paid' || raw === 'premium' || raw === 'plus' || raw === 'business' || raw === 'enterprise'
+      ? 'pro'
+      : raw === 'lifetime-pro' || raw === 'pro_lifetime'
+        ? 'lifetime_pro'
+        : raw
+  ) as NexusUserTier
   return VALID_TIERS.includes(normalized) ? normalized : null
 }
 

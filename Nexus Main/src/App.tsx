@@ -4,15 +4,11 @@ import React, {
   useMemo,
   useRef,
   useCallback,
-  Suspense,
 } from "react";
-import { motion } from "framer-motion";
 import { useTheme, GLOBAL_FONTS } from "./store/themeStore";
 import { useTerminal } from "./store/terminalStore";
-import { Sidebar, View } from "./components/Sidebar";
-import { TitleBar } from "./components/TitleBar";
+import type { View } from "./components/Sidebar";
 import { BootSequenceScreen } from "./components/BootSequenceScreen";
-import { ViewErrorBoundary } from "./components/ViewErrorBoundary";
 import { buildBackground } from "./lib/visualUtils";
 import { hexToRgb } from "./lib/utils";
 import { installRuntimeLagProbe } from "./lib/runtimeLagProbe";
@@ -24,58 +20,42 @@ import {
   applyPanelDensity,
   applyTypographyScale,
   buildLiveViewModel,
-  getFallbackViewsForApp,
   resolveNexusControlUserContext,
   resolveLayoutProfile,
   sanitizeGlobalFont,
 } from "@nexus/core";
 import {
   createNexusRuntime,
-  isOfflineControlErrorCode,
   type NexusLiveBundle,
   type NexusRuntime,
+  type NexusUserTier,
   type NexusViewAccessResult,
 } from "@nexus/api";
 import {
-  CanvasView,
-  CodeView,
-  DashboardView,
-  DevToolsView,
-  FilesView,
-  FluxView,
-  InfoView,
-  RenderDiagnosticsView,
-  NexusTerminal,
-  NexusToolbar,
-  NotesView,
-  RemindersView,
-  SettingsView,
-  TasksView,
   VIEW_CHUNK_PRELOADERS,
   VIEW_IDS,
   orderMainPreloadViews,
   preloadMainViews,
 } from "./app/viewPreload";
-
-const DEFAULT_CONTROL_API_BASE_URL = "https://nexus-api.cloud";
-const MAIN_BOOT_PRELOAD_TIMEOUT_MS = 6_000;
-const MAIN_BOOT_PRELOAD_TIMEOUT_LOW_POWER_MS = 8_500;
-const MAIN_BOOT_VIEW_WARMUP_TIMEOUT_MS = 2_800;
-const MAIN_BOOT_VIEW_WARMUP_TIMEOUT_LOW_POWER_MS = 4_200;
-const isLowPowerDevice = () => {
-  if (typeof window === "undefined" || typeof navigator === "undefined") {
-    return false;
-  }
-
-  const reducedMotion = window.matchMedia?.(
-    "(prefers-reduced-motion: reduce)",
-  ).matches;
-  const cores = Number(navigator.hardwareConcurrency || 8);
-  const memory = Number((navigator as any).deviceMemory || 8);
-  return Boolean(reducedMotion) || cores <= 4 || memory <= 4;
-};
-const isOfflineBootstrapResourceError = (errorCodeRaw: unknown) =>
-  isOfflineControlErrorCode(String(errorCodeRaw || "INVALID_PAYLOAD"));
+import { MainShellLayout } from "./app/MainShellLayout";
+import { MainViewHost } from "./app/mainViewHost";
+import {
+  CONTROL_API_BASE_URL as DEFAULT_CONTROL_API_BASE_URL,
+  MAIN_BOOT_PRELOAD_TIMEOUT_LOW_POWER_MS,
+  MAIN_BOOT_PRELOAD_TIMEOUT_MS,
+  MAIN_BOOT_PRIORITY_VIEWS,
+  MAIN_BOOT_VIEW_WARMUP_TIMEOUT_LOW_POWER_MS,
+  MAIN_BOOT_VIEW_WARMUP_TIMEOUT_MS,
+  MAIN_CRITICAL_PRELOAD_VIEWS,
+  MAIN_HEAVY_PRELOAD_VIEW_SET,
+  MAIN_PERSISTENT_VIEW_CACHE,
+  MAIN_SAFE_STARTUP_VIEWS,
+  isLowPowerDevice,
+  isOfflineBootstrapResourceError,
+  mergeUniqueViews,
+  withTimeoutResult,
+  withDevDiagnosticsView,
+} from "./app/mainAppConfig";
 
 const resolveControlApiBaseUrl = () => {
   const env = (import.meta as any).env || {};
@@ -97,6 +77,7 @@ const resolveControlIngestKey = () => {
 };
 
 const MAIN_AUTH_SESSION_STORAGE_KEY = "nx-main-api-session-v1";
+const MAIN_AUTH_REMEMBER_STORAGE_KEY = "nx-main-api-session-remember-v1";
 const MAIN_DEVICE_ID_STORAGE_KEY = "nx-main-device-id-v1";
 
 type MainAuthMode = "login" | "register";
@@ -104,6 +85,7 @@ type MainAuthMode = "login" | "register";
 type MainAuthSession = {
   token: string;
   expiresAt: number;
+  rememberSession?: boolean;
   user: {
     id: string;
     username: string;
@@ -116,10 +98,15 @@ type MainAuthSession = {
 
 const resolveMainAuthUserTier = (
   requestedTier: string | undefined,
-): "free" | "paid" | undefined => {
+): NexusUserTier | undefined => {
   const raw = String(requestedTier || "").trim().toLowerCase();
   if (!raw) return undefined;
-  return raw === "free" ? "free" : "paid";
+  if (raw === "free") return "free";
+  if (raw === "lifetime_pro" || raw === "lifetime-pro" || raw === "pro_lifetime") {
+    return "lifetime_pro";
+  }
+  if (raw === "lifetime") return "lifetime";
+  return "pro";
 };
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -145,6 +132,7 @@ const parseMainAuthSession = (payload: unknown): MainAuthSession | null => {
   return {
     token,
     expiresAt,
+    rememberSession: candidate.rememberSession === true,
     user: {
       id,
       username,
@@ -159,31 +147,46 @@ const parseMainAuthSession = (payload: unknown): MainAuthSession | null => {
 
 const readStoredMainAuthSession = (): MainAuthSession | null => {
   if (typeof window === "undefined") return null;
-  try {
-    const raw = window.sessionStorage.getItem(MAIN_AUTH_SESSION_STORAGE_KEY);
+
+  const read = (storage: Storage | null) => {
+    if (!storage) return null;
+    const raw = storage.getItem(MAIN_AUTH_SESSION_STORAGE_KEY);
     if (!raw) return null;
     const parsed = parseMainAuthSession(JSON.parse(raw));
     if (!parsed) {
-      window.sessionStorage.removeItem(MAIN_AUTH_SESSION_STORAGE_KEY);
+      storage.removeItem(MAIN_AUTH_SESSION_STORAGE_KEY);
     }
     return parsed;
+  };
+
+  try {
+    return read(window.sessionStorage) || read(window.localStorage);
   } catch {
     window.sessionStorage.removeItem(MAIN_AUTH_SESSION_STORAGE_KEY);
+    window.localStorage.removeItem(MAIN_AUTH_SESSION_STORAGE_KEY);
     return null;
   }
 };
 
-const storeMainAuthSession = (session: MainAuthSession) => {
+const readStoredMainAuthPreference = () => {
+  if (typeof window === "undefined") return false;
+  return window.localStorage.getItem(MAIN_AUTH_REMEMBER_STORAGE_KEY) === "1";
+};
+
+const storeMainAuthSession = (session: MainAuthSession, rememberSession = false) => {
   if (typeof window === "undefined") return;
-  window.sessionStorage.setItem(
-    MAIN_AUTH_SESSION_STORAGE_KEY,
-    JSON.stringify(session),
-  );
+  const payload = JSON.stringify({ ...session, rememberSession });
+  const primary = rememberSession ? window.localStorage : window.sessionStorage;
+  const secondary = rememberSession ? window.sessionStorage : window.localStorage;
+  primary.setItem(MAIN_AUTH_SESSION_STORAGE_KEY, payload);
+  secondary.removeItem(MAIN_AUTH_SESSION_STORAGE_KEY);
+  window.localStorage.setItem(MAIN_AUTH_REMEMBER_STORAGE_KEY, rememberSession ? "1" : "0");
 };
 
 const clearStoredMainAuthSession = () => {
   if (typeof window === "undefined") return;
   window.sessionStorage.removeItem(MAIN_AUTH_SESSION_STORAGE_KEY);
+  window.localStorage.removeItem(MAIN_AUTH_SESSION_STORAGE_KEY);
 };
 
 const getMainDeviceId = () => {
@@ -210,6 +213,7 @@ const requestMainAuthSession = async (input: {
   email: string;
   username: string;
   password: string;
+  rememberSession: boolean;
 }) => {
   const controller = new AbortController();
   const timeoutId = window.setTimeout(() => controller.abort(), 9_000);
@@ -219,11 +223,13 @@ const requestMainAuthSession = async (input: {
       ? {
           identifier: input.identifier.trim(),
           password: input.password,
+          rememberSession: input.rememberSession,
         }
       : {
           email: input.email.trim().toLowerCase(),
           username: input.username.trim() || undefined,
           password: input.password,
+          rememberSession: input.rememberSession,
           source: "nexus-main",
         };
 
@@ -272,77 +278,9 @@ const isMainAuthBootstrapFailure = (reason: string | null) =>
       ),
   );
 
-const withTimeoutResult = async <T,>(
-  promise: Promise<T>,
-  timeoutMs: number,
-): Promise<{ timedOut: true } | { timedOut: false; value: T }> => {
-  let timeoutHandle: number | null = null;
-  const timeoutPromise = new Promise<{ timedOut: true }>((resolve) => {
-    timeoutHandle = window.setTimeout(
-      () => resolve({ timedOut: true }),
-      timeoutMs,
-    );
-  });
-
-  try {
-    const result = await Promise.race([
-      promise.then((value) => ({ timedOut: false as const, value })),
-      timeoutPromise,
-    ]);
-    return result;
-  } finally {
-    if (timeoutHandle !== null) {
-      clearTimeout(timeoutHandle);
-    }
-  }
-};
-
-const MAIN_CORE_FALLBACK_VIEWS: View[] = getFallbackViewsForApp("main")
-  .map((candidate) => candidate as View)
-  .filter((candidate) => VIEW_IDS.includes(candidate));
-const withDevDiagnosticsView = (views: View[]): View[] => {
-  const baseViews = views.filter((candidate) => candidate !== "diagnostics");
-  if (!(import.meta as any).env?.DEV) return baseViews;
-  return [...baseViews, "diagnostics"];
-};
-const MAIN_SAFE_STARTUP_VIEWS: View[] =
-  withDevDiagnosticsView(
-    MAIN_CORE_FALLBACK_VIEWS.length > 0 ? MAIN_CORE_FALLBACK_VIEWS : VIEW_IDS,
-  );
-const MAIN_CRITICAL_PRELOAD_VIEWS: View[] = [
-  "dashboard",
-  "notes",
-  "tasks",
-  "settings",
-  "reminders",
-];
-const MAIN_BOOT_PRIORITY_VIEWS: View[] = [
-  "dashboard",
-  "notes",
-  "tasks",
-  "settings",
-  "reminders",
-  "files",
-];
-const MAIN_HEAVY_PRELOAD_VIEW_SET = new Set<View>([
-  "code",
-  "canvas",
-  "devtools",
-]);
-const mergeUniqueViews = (...groups: View[][]): View[] => {
-  const ordered = groups.flat();
-  const seen = new Set<View>();
-  const result: View[] = [];
-  for (const viewId of ordered) {
-    if (seen.has(viewId)) continue;
-    seen.add(viewId);
-    result.push(viewId);
-  }
-  return result;
-};
-
 export default function App() {
   const [view, setView] = useState<View>("dashboard");
+  const [mountedViews, setMountedViews] = useState<View[]>(["dashboard"]);
   const [availableViews, setAvailableViews] = useState<View[]>(
     MAIN_SAFE_STARTUP_VIEWS,
   );
@@ -359,6 +297,9 @@ export default function App() {
   const [authEmail, setAuthEmail] = useState("");
   const [authUsername, setAuthUsername] = useState("");
   const [authPassword, setAuthPassword] = useState("");
+  const [authRememberSession, setAuthRememberSession] = useState(() =>
+    readStoredMainAuthPreference(),
+  );
   const [authPending, setAuthPending] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const [remoteDensity, setRemoteDensity] = useState<
@@ -393,7 +334,37 @@ export default function App() {
     () => buildMotionRuntime(t, { lowPowerMode }),
     [lowPowerMode, t],
   );
+  const motionCssVars = useMemo(
+    () =>
+      ({
+        "--nx-motion-quick": `${motionRuntime.quickMs}ms`,
+        "--nx-motion-regular": `${motionRuntime.regularMs}ms`,
+        "--nx-motion-hover-ease": motionRuntime.hoverEase,
+        "--nx-motion-press-ease": motionRuntime.pressEase,
+        "--nx-motion-settle-ease": motionRuntime.settleEase,
+        "--nx-hover-lift": `${motionRuntime.hoverLiftPx}px`,
+        "--nx-hover-scale": `${motionRuntime.hoverScale}`,
+        "--nx-press-scale": `${motionRuntime.pressScale}`,
+        "--nx-hover-extra-scale": `${motionRuntime.hoverExtraScale}`,
+      }) as React.CSSProperties,
+    [motionRuntime],
+  );
   const controlApiBaseUrl = useMemo(() => resolveControlApiBaseUrl(), []);
+
+  useEffect(() => {
+    setMountedViews((prev) => {
+      const filtered = prev.filter((entry) => availableViews.includes(entry));
+      const next = availableViews.includes(view)
+        ? mergeUniqueViews([view], filtered)
+        : filtered;
+      const keepAlive = next.filter((entry) =>
+        MAIN_PERSISTENT_VIEW_CACHE.includes(entry),
+      );
+      return keepAlive.length > 0
+        ? keepAlive.slice(0, MAIN_PERSISTENT_VIEW_CACHE.length)
+        : [availableViews[0] || "dashboard"];
+    });
+  }, [availableViews, view]);
 
   useEffect(() => {
     if (!sidebarAutoHideEnabled) {
@@ -444,7 +415,7 @@ export default function App() {
         (env.VITE_NEXUS_USERNAME as string | undefined),
       userTier:
         resolveMainAuthUserTier(authSession?.user.requestedTier) ||
-        (env.VITE_NEXUS_USER_TIER as "free" | "paid" | undefined),
+        resolveMainAuthUserTier(env.VITE_NEXUS_USER_TIER as string | undefined),
     });
   }, [authSession]);
 
@@ -937,7 +908,7 @@ export default function App() {
         setViewGuardState({
           checking: false,
           blockedView: next,
-          requiredTier: cachedAccess.requiredTier || "paid",
+          requiredTier: cachedAccess.requiredTier || "pro",
           reason: cachedAccess.reason || "PAYWALL_BLOCKED",
         });
         return;
@@ -977,64 +948,13 @@ export default function App() {
       setViewGuardState({
         checking: false,
         blockedView: next,
-        requiredTier: access.requiredTier || "paid",
+        requiredTier: access.requiredTier || "pro",
         reason: access.reason || "PAYWALL_BLOCKED",
       });
       setView(previousView);
     },
     [availableViews, preloadViewChunk, view, viewAccessContext],
   );
-
-  const motionPreset = useMemo(() => {
-    const style = t.animations?.entranceStyle ?? "fade";
-    if (lowPowerMode || !(t.animations?.pageTransitions ?? true)) {
-      return {
-        initial: false as const,
-        animate: { opacity: 1 },
-        exit: undefined,
-      };
-    }
-
-    switch (style) {
-      case "slide":
-        return {
-          initial: { opacity: 0, x: 16 },
-          animate: { opacity: 1, x: 0 },
-          exit: { opacity: 0, x: -16 },
-        };
-      case "scale":
-        return {
-          initial: { opacity: 0, scale: 0.985 },
-          animate: { opacity: 1, scale: 1 },
-          exit: { opacity: 0, scale: 1.01 },
-        };
-      case "bounce":
-        return {
-          initial: { opacity: 0, y: 18, scale: 0.98 },
-          animate: { opacity: 1, y: 0, scale: 1 },
-          exit: { opacity: 0, y: -10, scale: 0.99 },
-        };
-      case "flip":
-        return {
-          initial: { opacity: 0, rotateX: -8, y: 10 },
-          animate: { opacity: 1, rotateX: 0, y: 0 },
-          exit: { opacity: 0, rotateX: 8, y: -10 },
-        };
-      default:
-        return {
-          initial: { opacity: 0, y: 8 },
-          animate: { opacity: 1, y: 0 },
-          exit: { opacity: 0, y: -8 },
-        };
-    }
-  }, [lowPowerMode, t.animations]);
-
-  const resetDashboardViewState = useCallback(() => {
-    try {
-      localStorage.removeItem("nx-dashboard-layout-v3");
-      localStorage.removeItem("nx-dashboard-layout-v2");
-    } catch {}
-  }, []);
 
   const handleMainAuthSubmit = useCallback(
     async (event: React.FormEvent<HTMLFormElement>) => {
@@ -1049,8 +969,9 @@ export default function App() {
           email: authEmail,
           username: authUsername,
           password: authPassword,
+          rememberSession: authRememberSession,
         });
-        storeMainAuthSession(session);
+        storeMainAuthSession(session, authRememberSession);
         setAuthSession(session);
         setAuthIdentifier(session.user.email || session.user.username);
         setAuthEmail(session.user.email || "");
@@ -1074,6 +995,7 @@ export default function App() {
       authIdentifier,
       authMode,
       authPassword,
+      authRememberSession,
       authUsername,
       controlApiBaseUrl,
     ],
@@ -1354,6 +1276,46 @@ export default function App() {
               />
             </label>
 
+            <label
+              style={{
+                display: "flex",
+                alignItems: "flex-start",
+                gap: 10,
+                marginTop: 12,
+                borderRadius: 16,
+                border: "1px solid rgba(148,163,184,0.2)",
+                background: "rgba(15,23,42,0.54)",
+                padding: "10px 12px",
+                color: "#cbd5e1",
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={authRememberSession}
+                onChange={(event) => setAuthRememberSession(event.target.checked)}
+                style={{
+                  marginTop: 2,
+                  accentColor: "#22d3ee",
+                }}
+              />
+              <span>
+                <span style={{ display: "block", fontWeight: 900 }}>
+                  Auf diesem Geraet angemeldet bleiben
+                </span>
+                <span
+                  style={{
+                    display: "block",
+                    marginTop: 3,
+                    color: "#94a3b8",
+                    fontSize: 12,
+                    lineHeight: 1.45,
+                  }}
+                >
+                  Speichert nur den API-Session-Token, niemals dein Passwort.
+                </span>
+              </span>
+            </label>
+
             {authError ? (
               <div
                 style={{
@@ -1428,369 +1390,54 @@ export default function App() {
         : 0
       : t.sidebarWidth;
 
-  const renderActiveView = (viewId: View): React.ReactNode => {
-    switch (viewId) {
-      case "dashboard":
-        return (
-          <ViewErrorBoundary
-            viewId="dashboard"
-            onReset={resetDashboardViewState}
-          >
-            <DashboardView
-              setView={(v: any) => {
-                void requestViewChange(v);
-              }}
-            />
-          </ViewErrorBoundary>
-        );
-      case "notes":
-        return <NotesView />;
-      case "code":
-        return <CodeView />;
-      case "tasks":
-        return <TasksView />;
-      case "reminders":
-        return <RemindersView />;
-      case "canvas":
-        return <CanvasView />;
-      case "files":
-        return <FilesView />;
-      case "flux":
-        return <FluxView />;
-      case "settings":
-        return <SettingsView />;
-      case "info":
-        return <InfoView />;
-      case "devtools":
-        return <DevToolsView />;
-      case "diagnostics":
-        if ((import.meta as any).env?.DEV) {
-          return <RenderDiagnosticsView />;
-        }
-        return (
-          <ViewErrorBoundary
-            viewId="dashboard"
-            onReset={resetDashboardViewState}
-          >
-            <DashboardView
-              setView={(v: any) => {
-                void requestViewChange(v);
-              }}
-            />
-          </ViewErrorBoundary>
-        );
-      default:
-        return (
-          <ViewErrorBoundary
-            viewId="dashboard"
-            onReset={resetDashboardViewState}
-          >
-            <DashboardView
-              setView={(v: any) => {
-                void requestViewChange(v);
-              }}
-            />
-          </ViewErrorBoundary>
-        );
-    }
-  };
-
-  const toolbarEl = toolbarVisible ? (
-    <div
-      style={{
-        position: "relative",
-        zIndex: 500,
-        display: "flex",
-        justifyContent: "center",
-        padding: toolbarBottom ? "0 0 6px" : "6px 0 0",
-        pointerEvents: "none",
+  const mainViewNode = (
+    <MainViewHost
+      view={view}
+      mountedViews={mountedViews}
+      availableViews={availableViews}
+      reducedMotion={Boolean(t.qol?.reducedMotion)}
+      onRequestViewChange={(nextView) => {
+        void requestViewChange(nextView);
       }}
-    >
-      <div style={{ pointerEvents: "auto", width: "100%" }}>
-        <Suspense fallback={null}>
-          <NexusToolbar
-            activeView={view}
-            setView={(v: any) => {
-              void requestViewChange(v);
-            }}
-          />
-        </Suspense>
-      </div>
-    </div>
-  ) : null;
+      onPrefetchView={(nextView) => {
+        void preloadViewChunk(nextView);
+      }}
+      onOpenWalkthrough={() => {}}
+    />
+  );
 
   return (
-    <div
-      className="nx-app-shell"
-      style={{
-        color: t.mode === "dark" ? "#f8f8fc" : "#15161d",
-        ...bgStyles,
-        fontSize: `var(--nx-font-size, 14px)`,
+    <MainShellLayout
+      theme={t}
+      lowPowerMode={lowPowerMode}
+      motionCssVars={motionCssVars}
+      backgroundStyles={bgStyles}
+      accentRgb={accentRgb}
+      accent2Rgb={accent2Rgb}
+      sidebarLeft={sidebarLeft}
+      sidebarAutoHideEnabled={sidebarAutoHideEnabled}
+      sidebarExpanded={sidebarExpanded}
+      effectiveSidebarWidth={effectiveSidebarWidth}
+      toolbarBottom={toolbarBottom}
+      toolbarVisible={toolbarVisible}
+      terminalOpen={terminalOpen}
+      view={view}
+      availableViews={availableViews}
+      viewGuardState={viewGuardState}
+      motionRuntime={motionRuntime}
+      showDiagnosticsButton={Boolean((import.meta as any).env?.DEV)}
+      releaseId={liveReleaseId}
+      onRequestViewChange={(nextView) => {
+        void requestViewChange(nextView);
       }}
-    >
-      <div
-        aria-hidden="true"
-        className="nx-ambient-layer"
-        style={{
-          background: lowPowerMode
-            ? `linear-gradient(160deg, rgba(${accentRgb},0.1), rgba(${accent2Rgb},0.08))`
-            : `
-            radial-gradient(650px circle at 10% 14%, rgba(${accentRgb},0.2), transparent 55%),
-            radial-gradient(580px circle at 88% 14%, rgba(${accent2Rgb},0.18), transparent 60%),
-            radial-gradient(520px circle at 60% 95%, rgba(${accentRgb},0.14), transparent 65%)
-          `,
-        }}
-      />
-
-      <div
-        className="nx-shell-window"
-        style={{
-          width: "calc(100% / var(--nx-ui-scale, 1))",
-          height: "calc(100% / var(--nx-ui-scale, 1))",
-          transform: "scale(var(--nx-ui-scale, 1))",
-          transformOrigin: "top left",
-          borderRadius: 18,
-          border:
-            t.mode === "dark"
-              ? "1px solid rgba(255,255,255,0.12)"
-              : "1px solid rgba(0,0,0,0.1)",
-          boxShadow:
-            t.mode === "dark"
-              ? "0 28px 80px rgba(0,0,0,0.52), 0 0 0 1px rgba(255,255,255,0.04) inset"
-              : "0 20px 60px rgba(28,31,42,0.16), 0 0 0 1px rgba(255,255,255,0.6) inset",
-        }}
-      >
-        <TitleBar
-          showDiagnosticsButton={Boolean((import.meta as any).env?.DEV)}
-          onOpenDiagnostics={() => {
-            void requestViewChange("diagnostics");
-          }}
-          releaseId={liveReleaseId}
-        />
-        <div
-          style={{
-            display: "flex",
-            flex: 1,
-            overflow: "hidden",
-            minHeight: 0,
-            flexDirection: sidebarLeft ? "row" : "row-reverse",
-            position: "relative",
-          }}
-        >
-          <div
-            style={{
-              width: effectiveSidebarWidth,
-              flexShrink: 0,
-              height: "100%",
-              transition: "width 220ms cubic-bezier(0.2, 0.8, 0.2, 1)",
-              overflow: "hidden",
-              pointerEvents:
-                sidebarAutoHideEnabled && !sidebarExpanded ? "none" : "auto",
-            }}
-            onMouseEnter={() => {
-              if (sidebarAutoHideEnabled) setSidebarExpanded(true);
-            }}
-            onMouseLeave={() => {
-              if (sidebarAutoHideEnabled) setSidebarExpanded(false);
-            }}
-          >
-            <Sidebar
-              view={view}
-              availableViews={availableViews}
-              onChange={(v: any) => {
-                void requestViewChange(v);
-              }}
-              onPrefetch={(v: any) => {
-                void preloadViewChunk(v);
-              }}
-            />
-          </div>
-          {sidebarAutoHideEnabled && !sidebarExpanded ? (
-            <div
-              onMouseEnter={() => setSidebarExpanded(true)}
-              style={{
-                position: "absolute",
-                top: 0,
-                bottom: 0,
-                [sidebarLeft ? "left" : "right"]: 0,
-                width: 14,
-                zIndex: 55,
-                cursor: "ew-resize",
-                background: sidebarLeft
-                  ? "linear-gradient(90deg, rgba(255,255,255,0.14), transparent)"
-                  : "linear-gradient(270deg, rgba(255,255,255,0.14), transparent)",
-                opacity: 0.48,
-              }}
-            />
-          ) : null}
-          <div
-            style={{
-              position: "absolute",
-              top: 64,
-              left: 16,
-              right: 16,
-              zIndex: 1200,
-              pointerEvents: "none",
-            }}
-          >
-            {viewGuardState.checking ? (
-              <div
-                style={{
-                  pointerEvents: "none",
-                  borderRadius: 10,
-                  padding: "8px 10px",
-                  fontSize: 12,
-                  fontWeight: 700,
-                  background:
-                    t.mode === "dark"
-                      ? "rgba(6,12,24,0.82)"
-                      : "rgba(255,255,255,0.88)",
-                  border: `1px solid rgba(${hexToRgb(t.accent)},0.34)`,
-                  color: t.accent,
-                  boxShadow: `0 8px 24px rgba(${hexToRgb(t.accent)},0.2)`,
-                }}
-              >
-                Validiere View-Zugriff...
-              </div>
-            ) : null}
-            {viewGuardState.blockedView ? (
-              <div
-                style={{
-                  pointerEvents: "none",
-                  marginTop: 8,
-                  borderRadius: 10,
-                  padding: "9px 10px",
-                  fontSize: 12,
-                  fontWeight: 700,
-                  background: "rgba(255,69,58,0.14)",
-                  border: "1px solid rgba(255,69,58,0.45)",
-                  color: t.mode === "dark" ? "#ffd8d2" : "#5e1810",
-                  boxShadow: "0 8px 26px rgba(255,69,58,0.18)",
-                }}
-              >
-                View gesperrt: `{viewGuardState.blockedView}` erfordert Tier `
-                {viewGuardState.requiredTier || "paid"}` (
-                {viewGuardState.reason || "PAYWALL_BLOCKED"}).
-              </div>
-            ) : null}
-
-          </div>
-          <div
-            style={{
-              flex: 1,
-              overflow: "hidden",
-              display: "flex",
-              flexDirection: "column",
-              position: "relative",
-              minHeight: 0,
-              background:
-                t.mode === "dark"
-                  ? "rgba(7,8,13,0.42)"
-                  : "rgba(255,255,255,0.42)",
-            }}
-          >
-            {!toolbarBottom && toolbarEl}
-            <motion.div
-              initial={motionPreset.initial}
-              animate={motionPreset.animate}
-              exit={motionPreset.exit}
-              transition={{
-                duration:
-                  (lowPowerMode ? 0.12 : 0.2) /
-                  Math.max(t.visual.animationSpeed || 1, 0.1),
-                ease: "easeInOut",
-              }}
-              style={{
-                flex: 1,
-                overflow: "hidden",
-                height: "100%",
-                minHeight: 0,
-                position: "relative",
-              }}
-            >
-              <div
-                style={{
-                  position: "relative",
-                  height: "100%",
-                  minHeight: 0,
-                  overflow: "hidden",
-                }}
-              >
-                <Suspense
-                  fallback={
-                    <div
-                      style={{
-                        height: "100%",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        opacity: 0.6,
-                        fontSize: 13,
-                        fontWeight: 600,
-                      }}
-                    >
-                      Loading view...
-                    </div>
-                  }
-                >
-                  {renderActiveView(view)}
-                </Suspense>
-              </div>
-            </motion.div>
-            <Suspense fallback={null}>
-              {terminalOpen ? (
-                <NexusTerminal
-                  setView={(v: any) => {
-                    void requestViewChange(v);
-                  }}
-                />
-              ) : null}
-            </Suspense>
-            {toolbarBottom && toolbarEl}
-          </div>
-        </div>
-      </div>
-
-      {!lowPowerMode && t.background.vignette && (
-        <div
-          aria-hidden="true"
-          style={{
-            position: "fixed",
-            inset: 0,
-            pointerEvents: "none",
-            zIndex: 1,
-            background: `radial-gradient(circle at center, transparent 54%, rgba(0,0,0,${t.background.vignetteStrength * 0.56}) 100%)`,
-          }}
-        />
-      )}
-
-      {!!t.background.overlayOpacity && (
-        <div
-          aria-hidden="true"
-          style={{
-            position: "fixed",
-            inset: 0,
-            pointerEvents: "none",
-            zIndex: 1,
-            background: `rgba(0,0,0,${t.background.overlayOpacity})`,
-          }}
-        />
-      )}
-
-      {!lowPowerMode && t.background.scanlines && (
-        <div
-          aria-hidden="true"
-          style={{
-            position: "fixed",
-            inset: 0,
-            pointerEvents: "none",
-            zIndex: 1,
-            opacity: t.mode === "dark" ? 0.1 : 0.07,
-            backgroundImage:
-              "repeating-linear-gradient(to bottom, rgba(255,255,255,0.08), rgba(255,255,255,0.08) 1px, transparent 1px, transparent 3px)",
-          }}
-        />
-      )}
-    </div>
+      onPrefetchView={(nextView) => {
+        void preloadViewChunk(nextView);
+      }}
+      onSidebarAutoPeek={setSidebarExpanded}
+      onOpenDiagnostics={() => {
+        void requestViewChange("diagnostics");
+      }}
+      mainViewNode={mainViewNode}
+    />
   );
 }

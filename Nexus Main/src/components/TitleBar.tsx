@@ -17,9 +17,9 @@ export function TitleBar({
   const showDiagnostics = Boolean(showDiagnosticsButton && onOpenDiagnostics)
 
   const actions = [
-    { id: 'close', color: '#ff5f57', icon: <X size={9} />, run: () => window.api?.window.close() },
-    { id: 'minimize', color: '#febc2e', icon: <Minus size={9} />, run: () => window.api?.window.minimize() },
-    { id: 'maximize', color: '#28c840', icon: <Maximize2 size={9} />, run: () => window.api?.window.maximize() },
+    { id: 'close', color: '#ff5f57', icon: <X size={8} />, run: () => window.api?.window.close() },
+    { id: 'minimize', color: '#febc2e', icon: <Minus size={8} />, run: () => window.api?.window.minimize() },
+    { id: 'maximize', color: '#28c840', icon: <Maximize2 size={8} />, run: () => window.api?.window.maximize() },
   ]
 
   return (
@@ -28,16 +28,16 @@ export function TitleBar({
         position: 'relative',
         display: 'flex',
         alignItems: 'center',
-        height: 44,
-        padding: '0 14px',
+        height: 38,
+        padding: '0 11px',
         flexShrink: 0,
-        borderBottom: isDark ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)',
+        borderBottom: isDark ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(0,0,0,0.065)',
         background: isDark
-          ? 'linear-gradient(to bottom, rgba(27,30,45,0.7), rgba(15,18,30,0.45))'
-          : 'linear-gradient(to bottom, rgba(255,255,255,0.92), rgba(245,248,255,0.72))',
+          ? 'linear-gradient(to bottom, rgba(27,30,45,0.58), rgba(15,18,30,0.36))'
+          : 'linear-gradient(to bottom, rgba(255,255,255,0.88), rgba(245,248,255,0.64))',
       }}
     >
-      <div style={{ position: 'absolute', inset: 0, ['-webkit-app-region' as any]: 'drag' }} />
+      <div style={{ position: 'absolute', inset: 0, ['WebkitAppRegion' as any]: 'drag' }} />
 
       <div
         style={{
@@ -45,8 +45,8 @@ export function TitleBar({
           zIndex: 2,
           display: 'flex',
           alignItems: 'center',
-          gap: 8,
-          ['-webkit-app-region' as any]: 'no-drag',
+          gap: 7,
+          ['WebkitAppRegion' as any]: 'no-drag',
         }}
       >
         {actions.map((action) => (
@@ -58,8 +58,8 @@ export function TitleBar({
             title={action.id}
             aria-label={action.id}
             style={{
-              width: 14,
-              height: 14,
+              width: 12,
+              height: 12,
               borderRadius: 999,
               border: 'none',
               cursor: 'pointer',
@@ -67,9 +67,9 @@ export function TitleBar({
               alignItems: 'center',
               justifyContent: 'center',
               background: action.color,
-              boxShadow: hovered === action.id ? `0 0 14px ${action.color}88` : 'none',
-              transition: 'box-shadow 140ms ease, transform 140ms ease',
-              transform: hovered === action.id ? 'scale(1.06)' : 'scale(1)',
+              boxShadow: hovered === action.id ? `0 0 10px ${action.color}7a` : 'none',
+              transition: 'box-shadow 140ms ease, opacity 140ms ease',
+              transform: 'translateZ(0)',
               color: '#1b1b1d',
             }}
           >
@@ -85,8 +85,8 @@ export function TitleBar({
           transform: 'translateX(-50%)',
           display: 'flex',
           alignItems: 'center',
-          gap: 8,
-          fontSize: 11,
+          gap: 7,
+          fontSize: 10,
           fontWeight: 700,
           letterSpacing: '0.1em',
           textTransform: 'uppercase',
@@ -97,11 +97,11 @@ export function TitleBar({
       >
         <span
           style={{
-            width: 8,
-            height: 8,
+            width: 6,
+            height: 6,
             borderRadius: 999,
             background: `linear-gradient(135deg, ${t.accent}, ${t.accent2})`,
-            boxShadow: `0 0 10px ${t.accent}88`,
+            boxShadow: `0 0 8px ${t.accent}80`,
           }}
         />
         Nexus Workspace
@@ -114,37 +114,37 @@ export function TitleBar({
           marginLeft: 'auto',
           display: 'flex',
           alignItems: 'center',
-          gap: 8,
-          ['-webkit-app-region' as any]: 'no-drag',
+          gap: 6,
+          ['WebkitAppRegion' as any]: 'no-drag',
         }}
       >
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: 6,
-            fontSize: 10,
+            gap: 5,
+            fontSize: 9.5,
             fontWeight: 700,
-            padding: '4px 8px',
+            padding: '3px 7px',
             borderRadius: 999,
             border: isDark ? '1px solid rgba(255,255,255,0.09)' : '1px solid rgba(0,0,0,0.09)',
             background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
             opacity: 0.8,
           }}
         >
-          <Command size={10} />
-          Shift x2 Spotlight
+          <Command size={9} />
+          Shift x2
         </div>
         {releaseId ? (
           <div
             style={{
               display: 'inline-flex',
               alignItems: 'center',
-              gap: 5,
-              fontSize: 10,
+              gap: 4,
+              fontSize: 9.5,
               fontWeight: 800,
               letterSpacing: '0.04em',
-              padding: '4px 8px',
+              padding: '3px 7px',
               borderRadius: 999,
               border: isDark ? `1px solid ${t.accent}55` : `1px solid ${t.accent}66`,
               background: isDark
@@ -153,13 +153,13 @@ export function TitleBar({
               color: t.accent,
               boxShadow: `0 8px 18px ${t.accent}28`,
               whiteSpace: 'nowrap',
-              maxWidth: 220,
+              maxWidth: 180,
               overflow: 'hidden',
               textOverflow: 'ellipsis',
             }}
             title={`Live Release ${releaseId}`}
           >
-            <Cloud size={11} />
+            <Cloud size={10} />
             <span style={{ opacity: 0.86 }}>Release</span>
             <span style={{ opacity: 0.96 }}>{releaseId}</span>
           </div>
@@ -169,8 +169,8 @@ export function TitleBar({
             title="Open Diagnostics"
             onClick={onOpenDiagnostics}
             style={{
-              height: 28,
-              borderRadius: 8,
+              height: 24,
+              borderRadius: 7,
               border: isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.1)',
               background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
               color: 'inherit',
@@ -179,15 +179,15 @@ export function TitleBar({
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: 6,
-              padding: '0 10px',
-              fontSize: 10,
+              gap: 5,
+              padding: '0 8px',
+              fontSize: 9.5,
               fontWeight: 700,
               textTransform: 'uppercase',
               letterSpacing: '0.05em',
             }}
           >
-            <Activity size={12} />
+            <Activity size={11} />
             Diagnostics
           </button>
         ) : null}
@@ -195,9 +195,9 @@ export function TitleBar({
           title="Search"
           onClick={() => window.dispatchEvent(new CustomEvent('nx-open-spotlight', { detail: { query: '' } }))}
           style={{
-            width: 28,
-            height: 28,
-            borderRadius: 8,
+            width: 24,
+            height: 24,
+            borderRadius: 7,
             border: isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.1)',
             background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
             color: 'inherit',
@@ -208,7 +208,7 @@ export function TitleBar({
             justifyContent: 'center',
           }}
         >
-          <Search size={13} />
+          <Search size={12} />
         </button>
       </div>
     </div>

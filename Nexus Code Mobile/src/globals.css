@@ -227,22 +227,22 @@ textarea,
 }
 
 :where(button, [role='button'], .nx-interactive):not(:disabled):not([aria-disabled='true']) {
-    transform: translateZ(0);
+    transform: translateZ(0) !important;
     backface-visibility: hidden;
-    will-change: transform;
+    will-change: opacity;
     cursor: pointer;
 }
 
 @media (hover: hover) and (pointer: fine) {
     :where(button, [role='button'], .nx-interactive):not(:disabled):not([aria-disabled='true']):hover {
-        transform: scale(var(--nx-hover-scale, 1.007));
         opacity: 0.98;
+        transform: translateZ(0) !important;
     }
 }
 
 :where(button, [role='button'], .nx-interactive):not(:disabled):not([aria-disabled='true']):active {
-    transform: scale(var(--nx-press-scale, 0.985));
     opacity: 0.95;
+    transform: translateZ(0) !important;
 }
 
 @keyframes nx-typing-pulse {

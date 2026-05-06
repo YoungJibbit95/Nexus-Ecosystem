@@ -1,3 +1,5 @@
+@config "../tailwind.config.js";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -72,7 +74,8 @@
 
 @layer base {
     * {
-        @apply border-border outline-ring/50;
+        border-color: hsl(var(--border));
+        outline-color: hsl(var(--ring) / 0.5);
     }
 
     body {
@@ -86,7 +89,10 @@
 }
 @layer utilities {
     .nexus-glass {
-        @apply bg-white/5 backdrop-blur-md border border-white/10;
+        background-color: rgb(255 255 255 / 0.05);
+        border: 1px solid rgb(255 255 255 / 0.1);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
     }
 
     .nexus-bg {

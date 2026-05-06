@@ -157,6 +157,63 @@ export function buildBackground(bg: BackgroundConfig, solidColor: string, mode: 
       }
     }
 
+    case 'spotlight': {
+      const c1 = bg.stops[0]?.color || '#007AFF'
+      const c2 = bg.stops[1]?.color || '#5E5CE6'
+      const intensity = Math.max(0.08, Math.min(0.5, bg.meshIntensity))
+      return {
+        background: solidColor,
+        backgroundImage: [
+          `radial-gradient(720px circle at 18% 16%, ${c1}${Math.round(intensity * 255).toString(16).padStart(2, '0')}, transparent 62%)`,
+          `radial-gradient(620px circle at 84% 22%, ${c2}${Math.round(intensity * 210).toString(16).padStart(2, '0')}, transparent 60%)`,
+          `linear-gradient(180deg, ${mode === 'dark' ? 'rgba(3,7,18,0.12)' : 'rgba(255,255,255,0.34)'}, transparent 55%)`,
+        ].join(', '),
+      }
+    }
+
+    case 'prism': {
+      const c1 = bg.stops[0]?.color || '#007AFF'
+      const c2 = bg.stops[1]?.color || '#5E5CE6'
+      const c3 = bg.stops[2]?.color || '#22D3EE'
+      return {
+        background: solidColor,
+        backgroundImage: [
+          `conic-gradient(from ${bg.angle}deg at 50% 50%, ${c1}24, ${c2}20, ${c3}18, ${c1}24)`,
+          `radial-gradient(circle at 50% 120%, ${mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)'}, transparent 44%)`,
+        ].join(', '),
+        backgroundSize: bg.animated ? '180% 180%' : '100% 100%',
+        animation: bg.animated ? `nexus-gradient-shift ${bg.animationSpeed * 5}s ease infinite` : undefined,
+      }
+    }
+
+    case 'horizon': {
+      const c1 = bg.stops[0]?.color || '#007AFF'
+      const c2 = bg.stops[1]?.color || '#5E5CE6'
+      return {
+        background: solidColor,
+        backgroundImage: [
+          `linear-gradient(180deg, transparent 0%, ${c1}18 48%, ${c2}22 100%)`,
+          `radial-gradient(900px ellipse at 50% 105%, ${c2}2f, transparent 68%)`,
+        ].join(', '),
+      }
+    }
+
+    case 'constellation': {
+      const c1 = bg.stops[0]?.color || '#64D2FF'
+      const c2 = bg.stops[1]?.color || '#BF5AF2'
+      return {
+        background: solidColor,
+        backgroundImage: [
+          `radial-gradient(circle at 12% 22%, ${c1}8a 1px, transparent 2px)`,
+          `radial-gradient(circle at 74% 18%, ${c2}78 1px, transparent 2px)`,
+          `radial-gradient(circle at 38% 66%, ${c1}70 1px, transparent 2px)`,
+          `radial-gradient(circle at 88% 72%, ${c2}66 1px, transparent 2px)`,
+          `linear-gradient(115deg, transparent 0 48%, ${c1}16 49%, transparent 50% 100%)`,
+        ].join(', '),
+        backgroundSize: '220px 180px, 260px 210px, 240px 200px, 300px 260px, 360px 280px',
+      }
+    }
+
     default:
       return { background: solidColor }
   }

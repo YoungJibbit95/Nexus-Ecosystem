@@ -431,8 +431,9 @@ export const Glass = memo(forwardRef<HTMLDivElement, GlassProps>(function Glass(
   }, [t.animations.rippleClick, onClick])
 
   const bgSize = panelBgMode !== 'glass' ? getPanelBgSize(panelBgMode) : undefined
-  const allowHoverLift = hover && type !== 'sidebar' && renderDynamicEnabled && renderAllowsHoverMotion
   const isInteractiveSurface = Boolean(type !== 'sidebar' && (hover || onClick || onDoubleClick) && !showGlow)
+  const ownsPointerDown = Boolean(onClick || onDoubleClick)
+  const allowHoverLift = hover && type !== 'sidebar' && !ownsPointerDown && renderDynamicEnabled && renderAllowsHoverMotion
   const useCssHoverBounce = isInteractiveSurface && !(allowHoverLift && t.animations.hoverLift)
   const baseBackdropFilter = `blur(${(!lowPowerMode && !balancedMode && (t.glassmorphism as any).animatedBlur) ? effectiveBlurCapped * 1.2 : effectiveBlurCapped}px) saturate(${effectiveSaturate}%)${glassMode === 'frosted' ? ' brightness(0.94)' : glassMode === 'mirror' ? ' brightness(1.08)' : glassMode === 'plasma' ? ' brightness(0.97)' : ''}`
   const webkitBaseBackdropFilter = `blur(${effectiveBlurCapped}px) saturate(${effectiveSaturate}%)${glassMode === 'frosted' ? ' brightness(0.94)' : glassMode === 'mirror' ? ' brightness(1.08)' : ''}`

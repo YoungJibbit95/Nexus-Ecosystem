@@ -1,5 +1,7 @@
 import React, { Suspense } from "react";
 import type { View } from "../components/Sidebar";
+import { ViewErrorBoundary } from "../components/ViewErrorBoundary";
+import { NexusV6ViewShell } from "./NexusV6ViewShell";
 import {
   CanvasView,
   CodeView,
@@ -21,8 +23,29 @@ type Props = {
   availableViews: View[];
   reducedMotion: boolean;
   onRequestViewChange: (viewId: View | string) => void;
+  onPrefetchView: (viewId: View) => void;
   onOpenWalkthrough: () => void;
 };
+
+const resetDashboardViewState = () => {
+  try {
+    localStorage.removeItem("nx-dashboard-layout-v3");
+    localStorage.removeItem("nx-dashboard-layout-v2");
+  } catch {}
+};
+
+const withViewBoundary = (
+  viewId: View,
+  node: React.ReactNode,
+  opts?: { withDashboardReset?: boolean },
+) => (
+  <ViewErrorBoundary
+    viewId={viewId}
+    onReset={opts?.withDashboardReset ? resetDashboardViewState : undefined}
+  >
+    {node}
+  </ViewErrorBoundary>
+);
 
 const mergeUniqueViews = (...groups: View[][]): View[] => {
   const ordered = groups.flat();
@@ -43,75 +66,91 @@ const renderActiveView = (
 ): React.ReactNode => {
   switch (viewId) {
     case "dashboard":
-      return (
+      return withViewBoundary(
+        "dashboard",
         <DashboardView
           setView={(nextView: string) => {
             onRequestViewChange(nextView);
           }}
-        />
+        />,
+        { withDashboardReset: true },
       );
     case "notes":
-      return <NotesView />;
+      return withViewBoundary("notes", <NotesView />);
     case "code":
-      return <CodeView />;
+      return withViewBoundary("code", <CodeView />);
     case "tasks":
-      return (
+      return withViewBoundary(
+        "tasks",
         <TasksView
           setView={(nextView: string) => {
             onRequestViewChange(nextView);
           }}
-        />
+        />,
       );
     case "reminders":
-      return (
+      return withViewBoundary(
+        "reminders",
         <RemindersView
           setView={(nextView: string) => {
             onRequestViewChange(nextView);
           }}
-        />
+        />,
       );
     case "canvas":
-      return <CanvasView />;
+      return withViewBoundary("canvas", <CanvasView />);
     case "files":
-      return (
+      return withViewBoundary(
+        "files",
         <FilesView
           setView={(nextView: string) => {
             onRequestViewChange(nextView);
           }}
-        />
+        />,
       );
     case "flux":
-      return (
+      return withViewBoundary(
+        "flux",
         <FluxView
           setView={(nextView: string) => {
             onRequestViewChange(nextView);
           }}
-        />
+        />,
       );
     case "settings":
-      return <SettingsView onOpenWalkthrough={onOpenWalkthrough} />;
+      return withViewBoundary(
+        "settings",
+        <SettingsView onOpenWalkthrough={onOpenWalkthrough} />,
+      );
     case "info":
-      return <InfoView onOpenWalkthrough={onOpenWalkthrough} />;
+      return withViewBoundary(
+        "info",
+        <InfoView onOpenWalkthrough={onOpenWalkthrough} />,
+      );
     case "devtools":
-      return <DevToolsView />;
+      return withViewBoundary("devtools", <DevToolsView />);
     case "diagnostics":
       if ((import.meta as any).env?.DEV) {
-        return <RenderDiagnosticsView />;
+        return withViewBoundary("diagnostics", <RenderDiagnosticsView />);
       }
-      return (
+      return withViewBoundary(
+        "dashboard",
         <DashboardView
           setView={(nextView: string) => {
             onRequestViewChange(nextView);
           }}
-        />
+        />,
+        { withDashboardReset: true },
       );
     default:
-      return (
+      return withViewBoundary(
+        "dashboard",
         <DashboardView
           setView={(nextView: string) => {
             onRequestViewChange(nextView);
           }}
-        />
+        />,
+        { withDashboardReset: true },
       );
   }
 };
@@ -122,6 +161,7 @@ export function MainViewHost({
   availableViews,
   reducedMotion,
   onRequestViewChange,
+  onPrefetchView,
   onOpenWalkthrough,
 }: Props) {
   const renderedViews = mergeUniqueViews(
@@ -153,27 +193,27 @@ export function MainViewHost({
                 : undefined,
           }}
         >
-          <Suspense
-            fallback={
-              viewId === view ? (
-                <div
-                  style={{
-                    height: "100%",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    opacity: 0.6,
-                    fontSize: 13,
-                    fontWeight: 600,
-                  }}
-                >
-                  Loading view...
-                </div>
-              ) : null
-            }
+          <NexusV6ViewShell
+            viewId={viewId}
+            availableViews={availableViews}
+            active={viewId === view}
+            reducedMotion={reducedMotion}
+            onRequestViewChange={onRequestViewChange}
+            onPrefetchView={onPrefetchView}
           >
-            {renderActiveView(viewId, onRequestViewChange, onOpenWalkthrough)}
-          </Suspense>
+            <Suspense
+              fallback={
+                viewId === view ? (
+                  <div className="nx-view-loading-state">
+                    <span className="nx-view-loading-dot" aria-hidden="true" />
+                    Lade View...
+                  </div>
+                ) : null
+              }
+            >
+              {renderActiveView(viewId, onRequestViewChange, onOpenWalkthrough)}
+            </Suspense>
+          </NexusV6ViewShell>
         </div>
       ))}
     </div>

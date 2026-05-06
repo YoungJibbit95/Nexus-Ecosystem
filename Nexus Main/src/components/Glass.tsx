@@ -74,6 +74,14 @@ function getPanelBg(mode: string, accent: string, bg: string, isDark: boolean): 
       return `repeating-linear-gradient(45deg, rgba(${rgb},0.03) 0px, rgba(${rgb},0.03) 1px, transparent 1px, transparent 8px), repeating-linear-gradient(-45deg, rgba(${rgb},0.03) 0px, rgba(${rgb},0.03) 1px, transparent 1px, transparent 8px)`
     case 'circuit':
       return `linear-gradient(rgba(${rgb},0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(${rgb},0.06) 1px, transparent 1px), radial-gradient(circle at 50% 50%, rgba(${rgb},0.08) 2px, transparent 2px)`
+    case 'linen':
+      return `repeating-linear-gradient(0deg, rgba(255,255,255,${isDark ? 0.035 : 0.28}) 0 1px, transparent 1px 5px), repeating-linear-gradient(90deg, rgba(${rgb},0.035) 0 1px, transparent 1px 7px)`
+    case 'hologram':
+      return `linear-gradient(135deg, rgba(${rgb},0.18), transparent 52%), conic-gradient(from 140deg at 80% 20%, rgba(${rgb},0.18), transparent, rgba(255,255,255,${isDark ? 0.08 : 0.32}), transparent)`
+    case 'mist':
+      return `radial-gradient(420px ellipse at 18% 14%, rgba(${rgb},0.18), transparent 62%), linear-gradient(145deg, rgba(255,255,255,${isDark ? 0.07 : 0.72}), rgba(${rgb},${isDark ? 0.05 : 0.08}))`
+    case 'stripes':
+      return `repeating-linear-gradient(135deg, rgba(${rgb},0.08) 0 1px, transparent 1px 12px), linear-gradient(145deg, rgba(255,255,255,${isDark ? 0.06 : 0.72}), transparent)`
     case 'gradient':
       return `linear-gradient(135deg, rgba(${rgb},0.14) 0%, transparent 60%)`
     case 'solid':
@@ -88,6 +96,9 @@ function getPanelBgSize(mode: string): string {
     case 'dots': return '20px 20px'
     case 'grid': return '20px 20px'
     case 'circuit': return '20px 20px, 20px 20px, 20px 20px'
+    case 'linen': return '12px 12px, 18px 18px'
+    case 'stripes': return '24px 24px, auto'
+    case 'hologram': return '180% 180%, 220% 220%'
     default: return 'auto'
   }
 }
@@ -431,8 +442,9 @@ export const Glass = memo(forwardRef<HTMLDivElement, GlassProps>(function Glass(
   }, [t.animations.rippleClick, onClick])
 
   const bgSize = panelBgMode !== 'glass' ? getPanelBgSize(panelBgMode) : undefined
-  const allowHoverLift = hover && type !== 'sidebar' && renderDynamicEnabled && renderAllowsHoverMotion
   const isInteractiveSurface = Boolean(type !== 'sidebar' && (hover || onClick || onDoubleClick) && !showGlow)
+  const ownsPointerDown = Boolean(onClick || onDoubleClick)
+  const allowHoverLift = hover && type !== 'sidebar' && !ownsPointerDown && renderDynamicEnabled && renderAllowsHoverMotion
   const useCssHoverBounce = isInteractiveSurface && !(allowHoverLift && t.animations.hoverLift)
   const baseBackdropFilter = `blur(${(!lowPowerMode && !balancedMode && (t.glassmorphism as any).animatedBlur) ? effectiveBlurCapped * 1.2 : effectiveBlurCapped}px) saturate(${effectiveSaturate}%)${glassMode === 'frosted' ? ' brightness(0.94)' : glassMode === 'mirror' ? ' brightness(1.08)' : glassMode === 'plasma' ? ' brightness(0.97)' : ''}`
   const webkitBaseBackdropFilter = `blur(${effectiveBlurCapped}px) saturate(${effectiveSaturate}%)${glassMode === 'frosted' ? ' brightness(0.94)' : glassMode === 'mirror' ? ' brightness(1.08)' : ''}`
