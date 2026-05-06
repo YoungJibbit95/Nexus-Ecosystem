@@ -38,6 +38,7 @@ import {
   createNexusRuntime,
   type NexusLiveBundle,
   type NexusRuntime,
+  type NexusUserTier,
   type NexusViewAccessResult,
 } from '@nexus/api'
 import {
@@ -75,6 +76,19 @@ const withDevDiagnosticsView = (views: View[]): View[] => {
   return [...baseViews, 'diagnostics']
 }
 type CoreView = keyof typeof NEXUS_VIEW_META
+
+const resolveMobileAuthUserTier = (
+  requestedTier: string | undefined,
+): NexusUserTier | undefined => {
+  const raw = String(requestedTier || '').trim().toLowerCase()
+  if (!raw) return undefined
+  if (raw === 'free') return 'free'
+  if (raw === 'lifetime_pro' || raw === 'lifetime-pro' || raw === 'pro_lifetime') {
+    return 'lifetime_pro'
+  }
+  if (raw === 'lifetime') return 'lifetime'
+  return 'pro'
+}
 
 export default function App() {
   const [view, setView] = useState<View>('dashboard')
@@ -197,7 +211,9 @@ export default function App() {
   const viewAccessContext = useMemo(() => resolveNexusControlUserContext({
     userId: (import.meta as any).env?.VITE_NEXUS_USER_ID as string | undefined,
     username: (import.meta as any).env?.VITE_NEXUS_USERNAME as string | undefined,
-    userTier: (import.meta as any).env?.VITE_NEXUS_USER_TIER as 'free' | 'paid' | undefined,
+    userTier: resolveMobileAuthUserTier(
+      (import.meta as any).env?.VITE_NEXUS_USER_TIER as string | undefined,
+    ),
   }), [])
 
   const emitViewFilterDebugEvents = useCallback((events: Array<{ viewId: string; reason: string }> | undefined) => {
