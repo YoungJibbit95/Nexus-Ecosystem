@@ -1,25 +1,97 @@
-# Nexus Ecosystem
+<div align="center">
 
-![Last Commit](https://img.shields.io/github/last-commit/YoungJibbit95/Adventura?style=flat-square)
-![Repo Size](https://img.shields.io/github/repo-size/YoungJibbit95/Adventura?style=flat-square)
-![Issues](https://img.shields.io/github/issues/YoungJibbit95/Adventura?style=flat-square)
-![Visitors](https://komarev.com/ghpvc/?username=YoungJibbit95-Adventura&label=repo%20views&color=8b5cf6&style=flat-square)
+<img width="120" src="https://raw.githubusercontent.com/github/explore/main/topics/react/react.png" />
 
-Nexus ist ein Multi-App Workspace-System fuer Planung, Entwicklung und Daily Operations.
-Dieses Repository enthaelt die produktiven Clients, Shared Core Runtime-Logik und die Wiki-/Website-Dokumentation.
+# ✨ NEXUS ECOSYSTEM ✨
 
-## Quick Links
+### Multi-App Workspace System for Planning, Development & Daily Operations
 
-- [Nexus Main README](./Nexus%20Main/README.md)
-- [Nexus Mobile README](./Nexus%20Mobile/README.md)
-- [Nexus Code README](./Nexus%20Code/README.md)
-- [Nexus Code Mobile README](./Nexus%20Code%20Mobile/README.md)
-- [Nexus Native Installer README](./Nexus%20Installer/README.md)
-- [@nexus/core README](./packages/nexus-core/README.md)
-- [Nexus Wiki](https://youngjibbit95.github.io/Nexus-Ecosystem/)
-- [nexusproject.dev](https://nexusproject.dev)
+<p align="center">
+  <img src="https://img.shields.io/github/last-commit/YoungJibbit95/Adventura?style=for-the-badge&color=8b5cf6" />
+  <img src="https://img.shields.io/github/repo-size/YoungJibbit95/Adventura?style=for-the-badge&color=6366f1" />
+  <img src="https://img.shields.io/github/issues/YoungJibbit95/Adventura?style=for-the-badge&color=ec4899" />
+  <img src="https://komarev.com/ghpvc/?username=YoungJibbit95-Adventura&label=repo%20views&color=8b5cf6&style=for-the-badge" />
+</p>
 
-## Product Surface
+<p align="center">
+  <img src="https://img.shields.io/badge/Workspace-Ecosystem-8b5cf6?style=flat-square" />
+  <img src="https://img.shields.io/badge/React-19.2.x-61dafb?style=flat-square&logo=react&logoColor=black" />
+  <img src="https://img.shields.io/badge/Electron-Desktop-47848f?style=flat-square&logo=electron&logoColor=white" />
+  <img src="https://img.shields.io/badge/Capacitor-Mobile-119eff?style=flat-square&logo=capacitor&logoColor=white" />
+  <img src="https://img.shields.io/badge/TypeScript-5.x-3178c6?style=flat-square&logo=typescript&logoColor=white" />
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Build-Passing-22c55e?style=flat-square" />
+  <img src="https://img.shields.io/badge/Status-Active-a855f7?style=flat-square" />
+  <img src="https://img.shields.io/badge/Architecture-Shared_Core-0ea5e9?style=flat-square" />
+  <img src="https://img.shields.io/badge/Platform-Cross_Device-f97316?style=flat-square" />
+</p>
+
+</div>
+
+---
+
+<div align="center">
+
+## 🌌 Overview
+
+</div>
+
+> Nexus ist ein Multi-App Workspace-System fuer Planung, Entwicklung und Daily Operations.  
+> Dieses Repository enthaelt die produktiven Clients, Shared Core Runtime-Logik und die Wiki-/Website-Dokumentation.
+
+---
+
+<div align="center">
+
+# 🚀 Quick Links
+
+</div>
+
+<table align="center">
+<tr>
+<td align="center" width="50%">
+
+### 🧠 Workspace
+
+| Surface | Link |
+| --- | --- |
+| Nexus Main README | [Open](./Nexus%20Main/README.md) |
+| Nexus Mobile README | [Open](./Nexus%20Mobile/README.md) |
+| @nexus/core README | [Open](./packages/nexus-core/README.md) |
+
+</td>
+<td align="center" width="50%">
+
+### 💻 Development
+
+| Surface | Link |
+| --- | --- |
+| Nexus Code README | [Open](./Nexus%20Code/README.md) |
+| Nexus Code Mobile README | [Open](./Nexus%20Code%20Mobile/README.md) |
+| Nexus Native Installer README | [Open](./Nexus%20Installer/README.md) |
+
+</td>
+</tr>
+</table>
+
+<div align="center">
+
+| Docs | Link |
+| --- | --- |
+| 📚 Nexus Wiki | [Visit](https://youngjibbit95.github.io/Nexus-Ecosystem/) |
+| 🌍 nexusproject.dev | [Visit](https://nexusproject.dev) |
+
+</div>
+
+---
+
+<div align="center">
+
+# 🧱 Product Surface
+
+</div>
 
 | App | Platform | Primary Scope | Stack |
 | --- | --- | --- | --- |
@@ -28,7 +100,13 @@ Dieses Repository enthaelt die produktiven Clients, Shared Core Runtime-Logik un
 | `Nexus Code` | Desktop IDE | editor, run/debug, terminal, project workflow | Electron + React + Vite |
 | `Nexus Code Mobile` | Android/iOS IDE | mobile coding and project ops | Capacitor + React + Vite |
 
-## Core View Matrix (Main/Mobile)
+---
+
+<div align="center">
+
+# 🧠 Core View Matrix (Main/Mobile)
+
+</div>
 
 | View | Primary Job | Key Capabilities |
 | --- | --- | --- |
@@ -44,7 +122,13 @@ Dieses Repository enthaelt die produktiven Clients, Shared Core Runtime-Logik un
 | `settings` | system controls | appearance, typography, panel behavior, motion/render controls |
 | `info` | in-app docs | architecture, diagnostics explanation, view guides and release notes |
 
-## Architecture
+---
+
+<div align="center">
+
+# 🏗️ Architecture
+
+</div>
 
 ```mermaid
 flowchart LR
@@ -56,22 +140,55 @@ flowchart LR
   F["Nexus Wiki + Website"] --> E
 ```
 
-## Render and Motion Pipeline
+---
 
-All clients are aligned to the shared runtime model in `@nexus/core`.
+<div align="center">
 
-- Render pipeline phases:
-  `Measure -> Resolve -> Allocate -> Commit -> Cleanup`
-- Surface/effect resolution:
-  `surfaceClass`, `effectClass`, `budgetPriority`, `visibilityState`, `interactionState`
-- Motion capability/degradation:
-  `full`, `rich-reduced`, `composed-light`, `critical-only`, `static-safe`
-- Guardrails:
-  `transform`, `filter`, and `opacity` ownership is centrally coordinated to prevent conflicts.
+# 🎞️ Render and Motion Pipeline
+
+</div>
+
+> All clients are aligned to the shared runtime model in `@nexus/core`.
+
+### Render pipeline phases
+
+```txt
+Measure -> Resolve -> Allocate -> Commit -> Cleanup
+```
+
+### Surface/effect resolution
+
+```txt
+surfaceClass
+effectClass
+budgetPriority
+visibilityState
+interactionState
+```
+
+### Motion capability/degradation
+
+```txt
+full
+rich-reduced
+composed-light
+critical-only
+static-safe
+```
+
+### Guardrails
+
+> `transform`, `filter`, and `opacity` ownership is centrally coordinated to prevent conflicts.
 
 This keeps UX smooth while still degrading safely under low power, reduced motion, or lag pressure.
 
-## Repository Map
+---
+
+<div align="center">
+
+# 🗂️ Repository Map
+
+</div>
 
 | Area | Purpose |
 | --- | --- |
@@ -86,7 +203,13 @@ This keeps UX smooth while still degrading safely under low power, reduced motio
 | `Nexus Wiki/` | wiki site source |
 | `nexusproject.dev/` | website source |
 
-## Getting Started
+---
+
+<div align="center">
+
+# ⚡ Getting Started
+
+</div>
 
 ```bash
 git clone https://github.com/YoungJibbit95/Nexus-Ecosystem.git
@@ -94,7 +217,13 @@ cd Nexus-Ecosystem
 npm run setup
 ```
 
-## Development
+---
+
+<div align="center">
+
+# 🛠️ Development
+
+</div>
 
 ```bash
 npm run dev:all
@@ -105,7 +234,13 @@ npm run dev:code
 npm run dev:code-mobile:web
 ```
 
-## Build and Verify
+---
+
+<div align="center">
+
+# 📦 Build and Verify
+
+</div>
 
 ```bash
 npm run build:ecosystem
@@ -114,41 +249,113 @@ npm run verify:ecosystem
 npm run doctor:release
 ```
 
-## Dependency Baseline (April 2026)
+---
 
-Major dependency refresh is applied across all 4 apps and validated with full builds plus verify scripts.
+<div align="center">
 
-- React / React DOM: `19.2.x`
-- Framer Motion: `12.38.x`
-- Lucide React: `1.8.x`
-- Monaco Editor: `0.55.x`
-- Three.js: `0.184.x`
-- Zustand: `5.0.x`
-- React Markdown: `10.1.x`
+# 📚 Dependency Baseline (April 2026)
 
-Security checks (high severity, production deps) currently report `0 vulnerabilities` for:
+</div>
+
+> Major dependency refresh is applied across all 4 apps and validated with full builds plus verify scripts.
+
+| Dependency | Version |
+| --- | --- |
+| React / React DOM | `19.2.x` |
+| Framer Motion | `12.38.x` |
+| Lucide React | `1.8.x` |
+| Monaco Editor | `0.55.x` |
+| Three.js | `0.184.x` |
+| Zustand | `5.0.x` |
+| React Markdown | `10.1.x` |
+
+---
+
+<div align="center">
+
+# 🔐 Security Status
+
+</div>
+
+### Security checks (high severity, production deps) currently report `0 vulnerabilities` for:
 
 - `Nexus Main`
 - `Nexus Mobile`
 - `Nexus Code`
 - `Nexus Code Mobile`
 
-## Environment
+---
 
-Production API host:
+<div align="center">
 
-- `VITE_NEXUS_CONTROL_URL=https://nexus-api.cloud`
-- `VITE_NEXUS_CONTROL_INGEST_KEY=<per-app key>`
+# 🌍 Environment
 
-Optional overrides:
+</div>
 
-- `VITE_NEXUS_USER_ID`
-- `VITE_NEXUS_USERNAME`
-- `VITE_NEXUS_USER_TIER`
+## Production API host
 
-## Security Boundary
+```env
+VITE_NEXUS_CONTROL_URL=https://nexus-api.cloud
+VITE_NEXUS_CONTROL_INGEST_KEY=<per-app key>
+```
 
-This repository does not include the private backend implementation.
+## Optional overrides
 
-- in repo: clients, shared core, wiki, web/docs, tooling
-- out of repo: backend services, infra, private secrets
+```env
+VITE_NEXUS_USER_ID
+VITE_NEXUS_USERNAME
+VITE_NEXUS_USER_TIER
+```
+
+---
+
+<div align="center">
+
+# 🛡️ Security Boundary
+
+</div>
+
+> This repository does not include the private backend implementation.
+
+| Included in repo | Excluded from repo |
+| --- | --- |
+| clients | backend services |
+| shared core | infrastructure |
+| wiki | private secrets |
+| web/docs |  |
+
+---
+
+<details>
+<summary><b>✨ Ecosystem Summary</b></summary>
+
+<br>
+
+```txt
+Nexus Main        -> Workspace System
+Nexus Mobile      -> Mobile Workspace
+Nexus Code        -> Desktop IDE
+Nexus Code Mobile -> Mobile IDE
+@nexus/core       -> Shared Runtime + Motion Pipeline
+```
+
+</details>
+
+---
+
+<div align="center">
+
+## ✨ Nexus Ecosystem
+
+### Unified Workspace Infrastructure
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Built%20with-React-black?style=for-the-badge&logo=react" />
+  <img src="https://img.shields.io/badge/Powered%20by-TypeScript-3178c6?style=for-the-badge&logo=typescript&logoColor=white" />
+  <img src="https://img.shields.io/badge/Desktop-Electron-47848f?style=for-the-badge&logo=electron&logoColor=white" />
+  <img src="https://img.shields.io/badge/Mobile-Capacitor-119eff?style=for-the-badge&logo=capacitor&logoColor=white" />
+</p>
+
+<img src="https://capsule-render.vercel.app/api?type=waving&color=8b5cf6&height=120&section=footer"/>
+
+</div>
