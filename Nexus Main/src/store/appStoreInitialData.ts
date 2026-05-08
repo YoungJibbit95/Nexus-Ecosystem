@@ -2,229 +2,507 @@ import type { CodeFile, Note, Reminder, Task } from './appStore'
 
 type TimestampFactory = () => string
 
-const WELCOME_NOTE_CONTENT = `# 👋 Willkommen bei Nexus
-___
+export const NEXUS_README_GUIDE_VERSION = 'readme-dividers-all-sections-v6-2026-05-08'
+const NEXUS_README_GUIDE_MARKER = `<!-- nexus-guide-version: ${NEXUS_README_GUIDE_VERSION} -->`
 
-> Warum fünf verschiedene Apps jonglieren, wenn eine alles kann?
+const addMarkdownSectionDividers = (content: string) => {
+  const lines = content.split('\n')
+  const dividedLines: string[] = []
 
-Nexus wurde entwickelt, um deinen gesamten Workflow in einer einzigen, klaren Umgebung zu bündeln – ohne Chaos, ohne Kontextwechsel, ohne unnötige Reibung.
+  lines.forEach((line) => {
+    const isSectionHeading = line.startsWith('## ')
 
----
+    if (isSectionHeading) {
+      const previousContentLine = [...dividedLines].reverse().find(entry => entry.trim().length > 0)?.trim()
+      if (previousContentLine && previousContentLine !== '---') {
+        if (dividedLines[dividedLines.length - 1]?.trim() !== '') {
+          dividedLines.push('')
+        }
+        dividedLines.push('---', '')
+      }
+    }
 
-## ❓ Was ist Nexus?
+    dividedLines.push(line)
+  })
 
-Nexus ist eine modulare Productivity-Suite, die Struktur, Kreativität und Technik in einem System vereint.
+  return dividedLines.join('\n')
+}
 
-### 🎯 Die Idee dahinter
+const WELCOME_NOTE_CONTENT = addMarkdownSectionDividers([
+  '# ✨ Willkommen in Nexus v6',
+  '',
+  NEXUS_README_GUIDE_MARKER,
+  '',
+  '> 🧭 Ein Workspace fuer Denken, Planen, Umsetzen und Review.',
+  '',
+  'Nexus v6 ist auf klare Arbeitsflaechen ausgelegt: weniger Chrome, mehr Fokus, stabile Klickziele und ein gemeinsamer API-/Release-Bootflow.',
+  '',
+  'Diese Welcome-Datei ist dein Startpunkt im Notes-Bereich. Sie zeigt nicht nur Features, sondern auch wie Nexus gedacht ist: erst Klarheit schaffen, dann Arbeit bewegen, dann sauber releasen.',
+  '',
+  '## 🚦 Release-Kompass',
+  '',
+  '| Bereich | Status | Warum es wichtig ist |',
+  '| --- | --- | --- |',
+  '| 🔐 Login + API | Pflicht | Nexus startet mit Catalog, Layout und Release aus der API. |',
+  '| 🧠 Notes + Canvas | Kern | Wissen bleibt schreibbar, verlinkbar und visuell greifbar. |',
+  '| ✅ Tasks + Flux | Kern | Arbeit wird priorisiert, triagiert und nicht versehentlich abgeschlossen. |',
+  '| 📦 Builds | Release | Windows, macOS und Linux AppImage sind als Installer-Ziele definiert. |',
+  '',
+  '```nexus-callout',
+  'tip',
+  'Wenn du nur eine Sache pruefst: Account einloggen, Dashboard oeffnen, Note bearbeiten, Task bewegen, Canvas-Node erstellen.',
+  '```',
+  '',
+  '## 🚀 Schnellstart',
+  '',
+  '- 🏠 Dashboard: Heute, Continue, Runtime Health und Layout Editing.',
+  '- 📝 Notes: Markdown, Magic Blocks, Tags, Links, Backlinks, Emojis und Split Preview.',
+  '- ✅ Tasks: Board, Focus, Due Soon, High Priority, Blocked und Batch Triage.',
+  '- ⏰ Reminders: Snooze, Wiederholung und Task-/Note-Kontext.',
+  '- 📁 Files: Workspace-Hub fuer Notes, Code, Tasks, Reminders und Canvas.',
+  '- 🕸️ Canvas: Obsidian-naeherer Knowledge Graph mit Jump, Outline, Wiki-Links und Magic Templates.',
+  '- ⚡ Flux: Ops Queue, Bottlenecks und sichere Triage-Actions.',
+  '- 💻 Code: Scratch-Dateien, Run/Preview und Output-History.',
+  '- 🎛️ Settings: Themes, Glow, Panel/App Backgrounds und Accessibility.',
+  '',
+  '## 🔐 Account und Login',
+  '',
+  '1. 🌐 Account auf nexusproject.dev erstellen.',
+  '2. 🔑 In Nexus Main mit denselben Login-Daten anmelden.',
+  '3. 🛡️ Optional "angemeldet bleiben" aktivieren, damit Nexus den Session-Token sicher persistiert.',
+  '4. 📡 Die App fragt beim Start Catalog, Layout und Release von der API ab.',
+  '',
+  '```nexus-steps',
+  '1 | Account erstellen',
+  '2 | App anmelden',
+  '3 | Workspace pruefen',
+  '4 | Dashboard, Notes, Tasks und Canvas kurz testen',
+  '```',
+  '',
+  '## 🧩 Empfohlener Workflow',
+  '',
+  '1. 🏠 Starte im Dashboard.',
+  '2. 📝 Erfasse Ideen in Notes oder Canvas.',
+  '3. ✅ Ziehe echte Arbeit in Tasks und Reminders.',
+  '4. ⚡ Nutze Flux fuer Triage und Engpaesse.',
+  '5. 📁 Ordne Dateien und Exporte in Files.',
+  '',
+  '## ✨ Was ist neu in v6?',
+  '',
+  '- 🪟 Kompaktere globale View-Shell ohne grossen Orb.',
+  '- 📝 Notes hat mehr Editor-/Preview-Flaeche, Emoji Picker und ein kleineres Command-System.',
+  '- ✅ Tasks ist ruhiger, dichter und stabiler klickbar.',
+  '- 🕸️ Canvas startet fokussierter, mit Jump Search und sauberem Double-click Quick Add.',
+  '- ⚡ Flux triagiert dringende Arbeit, statt laufende Tasks heimlich auf Done zu setzen.',
+  '- ℹ️ InfoView und Starter-Readmes sind auf den aktuellen Funktionsstand aktualisiert.',
+  '',
+  '```nexus-progress',
+  'Release Readiness | 78',
+  'UI Polish | 86',
+  'Docs + Guides | 82',
+  'Installer Setup | 72',
+  '```',
+  '',
+  'Willkommen im neuen Nexus Workspace. 🚀',
+].join('\n'))
 
-Produktivität bedeutet nicht „mehr machen“.
-Produktivität bedeutet **klar denken, schnell handeln, organisiert bleiben**.
+const VIEWS_GUIDE_CONTENT = addMarkdownSectionDividers([
+  '# 🧭 Nexus v6 View und Feature Guide',
+  '',
+  NEXUS_README_GUIDE_MARKER,
+  '',
+  'Diese Notiz beschreibt jede Hauptview und ihre wichtigsten Funktionen.',
+  '',
+  '## 🗺️ View Map',
+  '',
+  '| View | Fokus | Typischer erster Klick |',
+  '| --- | --- | --- |',
+  '| 🏠 Dashboard | Heute + Systemstatus | Continue oder Quick Capture |',
+  '| 📝 Notes | Schreiben + Wissen | Neue Note oder Split Preview |',
+  '| ✅ Tasks | Arbeit bewegen | Focus Mode oder Board |',
+  '| 🕸️ Canvas | Struktur sehen | Ctrl/Cmd + P oder Magic Builder |',
+  '| ⚡ Flux | Engpaesse loesen | Queue Preset oder Bottleneck |',
+  '',
+  '```nexus-callout',
+  'info',
+  'Die Views sind auf grosse Hauptflaechen ausgelegt: Controls sollen helfen, aber nicht den Arbeitsraum fressen.',
+  '```',
+  '',
+  '## 🏠 Dashboard',
+  '',
+  '- 📅 Today Layer: schnelle Sicht auf aktuelle Arbeit.',
+  '- ↩️ Continue Lane: dort weitermachen, wo du zuletzt warst.',
+  '- 📡 Runtime Health: API, Release und lokale App-Signale.',
+  '- 🧱 Layout Editor: Widgets per Drag verschieben, swappen, verstecken und wiederherstellen.',
+  '',
+  '## 📝 Notes',
+  '',
+  '- ✍️ Markdown Editor mit Preview und Split Mode.',
+  '- 🏷️ Tags, Pinning, Search, Sort und Import/Export.',
+  '- 🔗 Wikilinks und Backlinks fuer Wissensnetze.',
+  '- 🧙 Magic Blocks fuer strukturierte Readmes, Statusseiten und Showcases.',
+  '- 😊 Emoji Picker mit Kategorien, Suche und Alias-Begriffen.',
+  '',
+  '## ✅ Tasks',
+  '',
+  '- 📋 Board mit To Do, In Progress und Done.',
+  '- 🎯 Work Modes: Board, My Day/Focus, Due Soon, High Priority, Blocked.',
+  '- 🔗 Linked Notes, Reminders, Tags, Deadlines und Dependencies.',
+  '- 🧹 Batch Mode fuer Status, Priority, Tags und Delete.',
+  '',
+  '## ⏰ Reminders',
+  '',
+  '- 📌 Einmalig oder wiederholend planen.',
+  '- 💤 Snooze fuer schnelle Triage.',
+  '- 🔗 Verknuepfung mit Tasks und Notes.',
+  '- 🟢 Health/Fallback Status fuer Zuverlaessigkeit.',
+  '',
+  '## 📁 Files',
+  '',
+  '- 🧰 Workspace-Hub fuer alle lokalen Items.',
+  '- ⭐ Recent, Pinned, Unassigned und Workspace-Views.',
+  '- 📤 Import/Export und Zuordnung zu Projekten.',
+  '',
+  '## 🕸️ Canvas',
+  '',
+  '- 🗺️ Infinite Canvas mit Pan, Zoom und Grid.',
+  '- 🧩 Node-Typen fuer Projekt, Goal, Milestone, Decision, Risk, Task, Checklist, Markdown, Code und Reminder.',
+  '- 🔎 Ctrl+P Jump Search, Project Panel, Outline und Relations.',
+  '- 🔗 [[Wiki Links]] koennen Nodes automatisch verbinden.',
+  '- 🪄 Magic Templates erzeugen grosse Strukturen schneller.',
+  '',
+  '## ⚡ Flux',
+  '',
+  '- 📊 Ops Score aus Tasks, Reminders, Blockern und Aktivitaet.',
+  '- 🧭 Queue Presets: Overdue, Due Soon, High Priority, Focus, Reminder Triage, Task Backlog.',
+  '- 🚧 Bottlenecks fuehren zu echten Zielobjekten.',
+  '- 🛡️ Triage Urgent startet nur To-do Tasks und markiert laufende Arbeit nicht automatisch Done.',
+  '',
+  '## 💻 Code',
+  '',
+  '- 🧑‍💻 Embedded Editor fuer Scratch-Dateien und kleine Projekte.',
+  '- ▶️ Quick Open, Run/Preview und Output-History.',
+  '- 🐍 JavaScript/TypeScript und Python-Beispiele.',
+  '',
+  '## 🎛️ Settings',
+  '',
+  '- 🌈 Theme, Glow, Panel Backgrounds und App Backgrounds.',
+  '- ♿ Accessibility, Reduced Motion und UI-Dichte.',
+  '- 🛡️ Sichere Theme Import/Export Guards.',
+  '',
+  '## ⌨️ Terminal',
+  '',
+  '- 🧭 Command-Hub fuer Navigation, Create-Flows, Canvas Templates und Suche.',
+  '- 💬 Nutze `help`, `views`, `goto <view>`, `new note`, `new task`, `canvas template`.',
+  '',
+  '```nexus-grid',
+  'Schreiben | Notes, Markdown, Emojis, Readmes',
+  'Planen | Tasks, Reminders, Dashboard',
+  'Denken | Canvas, Links, Outline',
+  'Ausliefern | Flux, Files, Code, Release Checks',
+  '```',
+].join('\n'))
 
-Nexus gibt dir dafür die Werkzeuge.
+const MARKDOWN_SHOWCASE_CONTENT = addMarkdownSectionDividers([
+  '# 🪄 Notes Magic und Markdown Showcase',
+  '',
+  NEXUS_README_GUIDE_MARKER,
+  '',
+  'Diese Notiz ist ein Testfeld fuer alles, was Nexus Notes schoen rendern soll: Text, Emojis, Tabellen, Checklisten, Magic Blocks und kleine Release-Dashboards.',
+  '',
+  '## ✍️ Klassisches Markdown',
+  '',
+  '**Bold**, *italic*, ~~strikethrough~~ und `inline code` mit kleinen Status-Badges wie `ready`, `blocked`, `review`.',
+  '',
+  '> 💡 Ein Quote-Block fuer Entscheidungen, Meeting Notes oder Hervorhebungen.',
+  '',
+  '- 🌱 Idee sammeln',
+  '- 🧱 Struktur bauen',
+  '- 🚀 Release pruefen',
+  '',
+  '- [x] ✅ Erledigte Checkbox',
+  '- [ ] 🔎 Offene Checkbox',
+  '- [ ] 🧪 Browser-Smoke aufnehmen',
+  '',
+  '| Feature | Status | View | Emoji |',
+  '| --- | --- | --- | --- |',
+  '| Magic Blocks | Ready | Notes | 🪄 |',
+  '| Jump Search | Ready | Canvas | 🔎 |',
+  '| Triage Safety | Ready | Flux | 🛡️ |',
+  '| Installer Targets | Configured | Release | 📦 |',
+  '',
+  '---',
+  '',
+  '## 📚 Nexus List',
+  '',
+  '```nexus-list',
+  'View | Hauptnutzen',
+  'Notes | Wissen schreiben und verlinken',
+  'Tasks | Arbeit priorisieren',
+  'Canvas | Zusammenhaenge visualisieren',
+  'Flux | Engpaesse erkennen',
+  '```',
+  '',
+  '## ✅ Nexus Checklist',
+  '',
+  '```nexus-checklist',
+  '✨ Welcome aktualisieren | done',
+  '✅ Tasks UI polieren | done',
+  '🕸️ Canvas Jump Flow testen | todo',
+  '📦 Release Gate ausfuehren | todo',
+  '```',
+  '',
+  '## 📈 Nexus Progress',
+  '',
+  '```nexus-progress',
+  'UI Polish | 82',
+  'Docs | 74',
+  'Release Readiness | 63',
+  '```',
+  '',
+  '## 🗓️ Nexus Timeline',
+  '',
+  '```nexus-timeline',
+  '🔎 Discover | Produktflaechen pruefen',
+  '🎨 Design | Shell, Tasks, Canvas und Notes verdichten',
+  '🧱 Build | Implementieren und Gates laufen lassen',
+  '🚀 Release | API, Website und Installer deployen',
+  '```',
+  '',
+  '## 📋 Nexus Kanban',
+  '',
+  '```nexus-kanban',
+  'Backlog | 🧪 Browser-Smokes, Mobile QA',
+  'Doing | 🎨 v6 UI Polish, Docs',
+  'Done | 🔐 Login Flow, Payment Guards, Notes Redesign',
+  '```',
+  '',
+  '## 📊 Nexus Metrics',
+  '',
+  '```nexus-metrics',
+  'Open Tasks | 12 | orange',
+  'Due Reminders | 3 | red',
+  'Build Health | 98% | green',
+  'API Bootflow | 100% | green',
+  '```',
+  '',
+  '## 🪜 Nexus Steps',
+  '',
+  '```nexus-steps',
+  '1 | 🌐 Account auf der Website erstellen',
+  '2 | 🔑 In Nexus Main anmelden',
+  '3 | 📁 Workspace in Files setzen',
+  '4 | 🏠 Dashboard und Notes als Startpunkt nutzen',
+  '```',
+  '',
+  '## 🧩 Nexus Grid',
+  '',
+  '```nexus-grid',
+  '📝 Notes | Markdown, Magic, Links',
+  '🕸️ Canvas | Nodes, Edges, Templates',
+  '✅ Tasks | Focus, Board, Batch',
+  '⚡ Flux | Queue, Bottlenecks, Triage',
+  '```',
+  '',
+  '## 🪪 Nexus Card',
+  '',
+  '```nexus-card',
+  'title: Nexus v6 Release Surface',
+  'accent: cyan',
+  'body: Weniger Chrome, mehr Inhalt und stabilere Interaktionen.',
+  '```',
+  '',
+  '## 🚨 Nexus Alert',
+  '',
+  '```nexus-alert',
+  'warning',
+  'Vor einem echten Release immer Build, Encoding Check, Release Gate und Browser-Smoke ausfuehren.',
+  '```',
+  '',
+  '## 💬 Nexus Callout',
+  '',
+  '```nexus-callout',
+  'tip',
+  'Nutze [[🕸️ Canvas Guide]] und [[✅ Tasks und Flux Guide]], um Nexus wie einen echten Workspace aufzubauen.',
+  '```',
+  '',
+  '## 🧭 Nexus Quadrant',
+  '',
+  '```nexus-quadrant',
+  '🔥 Urgent + Important | API/Login/Release Gate',
+  '⭐ Important | UI Polish, Docs, Installer',
+  '🧪 Urgent | Browser Smoke Failures',
+  '🌙 Later | Nice-to-have Themes',
+  '```',
+  '',
+  '## 🧪 Code Fence',
+  '',
+  '```ts',
+  'const releaseCheck = {',
+  '  login: "api-required",',
+  '  targets: ["win", "mac", "linux-AppImage"],',
+  '  notes: "emoji-rich markdown guides",',
+  '}',
+  '```',
+].join('\n'))
 
----
+const CANVAS_GUIDE_CONTENT = addMarkdownSectionDividers([
+  '# 🕸️ Canvas Guide',
+  '',
+  NEXUS_README_GUIDE_MARKER,
+  '',
+  'Canvas ist dein visueller Knowledge Graph. Es soll leicht wie ein Whiteboard sein, aber strukturiert wie Obsidian.',
+  '',
+  '```nexus-callout',
+  'tip',
+  'Starte mit einer Hub-Node, verlinke sie mit [[Wiki Links]] und nutze Ctrl/Cmd + P, sobald die Map groesser wird.',
+  '```',
+  '',
+  '## 🎮 Bedienung',
+  '',
+  '- 🖱️ Hintergrund ziehen: Pan.',
+  '- 🖐️ Trackpad/Scroll: Pan.',
+  '- 🔍 Pinch oder Ctrl/Cmd + Scroll: Zoom.',
+  '- ➕ Doppelklick auf leere Flaeche: Quick Add.',
+  '- 🔎 Ctrl/Cmd + P: Node Jump / Project Search.',
+  '- 🪄 Ctrl/Cmd + M: Magic Builder.',
+  '- 🎯 F: Auswahl fokussieren oder Fit View.',
+  '- 🧭 P: Project Panel.',
+  '- #️⃣ G: Grid wechseln.',
+  '',
+  '## 🧠 Obsidian-aehnlicher Workflow',
+  '',
+  '1. 🏠 Starte mit einer Hub-Node.',
+  '2. 🧩 Erstelle Project, Goal, Milestone, Decision und Risk Nodes.',
+  '3. 🔗 Nutze [[Wiki Links]], um verwandte Nodes automatisch zu verbinden.',
+  '4. 🔎 Oeffne Ctrl+P, wenn du die Orientierung verlierst.',
+  '5. 🎯 Nutze Focus Only, wenn ein lokales Teilnetz wichtiger ist als die gesamte Map.',
+  '',
+  '## 🧩 Node-Typen',
+  '',
+  '| Typ | Nutzen | Emoji |',
+  '| --- | --- | --- |',
+  '| Project | grosser Arbeitsbereich | 🗂️ |',
+  '| Goal | Zielbild oder Outcome | 🎯 |',
+  '| Decision | getroffene Entscheidung | ✅ |',
+  '| Risk | Warnung oder Blocker | ⚠️ |',
+  '| Markdown | Mini-Dokument im Graph | 📝 |',
+  '| Code | Snippet oder Experiment | 💻 |',
+  '',
+  '## 🪄 Canvas Magic',
+  '',
+  '```nexus-timeline',
+  '🔎 Research | Problem verstehen',
+  '🧱 Build | Struktur anlegen',
+  '🔗 Connect | Nodes verlinken',
+  '🧾 Review | Export und Dokumentation',
+  '```',
+  '',
+  '```nexus-kanban',
+  'Ideas | 🌱 Rohmaterial sammeln',
+  'Structure | 🧩 Clustern und verbinden',
+  'Ready | 🚀 Als Task oder Doc uebergeben',
+  '```',
+  '',
+  '```nexus-checklist',
+  'Hub-Node erstellen | done',
+  '3 wichtige Links setzen | todo',
+  'Focus Only testen | todo',
+  'Canvas als Bild/Struktur dokumentieren | todo',
+  '```',
+].join('\n'))
 
-## 🚀 Wofür kannst du Nexus nutzen?
+const OPS_GUIDE_CONTENT = addMarkdownSectionDividers([
+  '# ✅ Tasks und Flux Guide',
+  '',
+  NEXUS_README_GUIDE_MARKER,
+  '',
+  'Tasks ist die operative Arbeitsebene. Flux ist der Triage- und Engpass-Layer darueber.',
+  '',
+  '## 🎛️ Tasks Work Modes',
+  '',
+  '| Mode | Sinn | Wann nutzen? |',
+  '| --- | --- | --- |',
+  '| 📋 Board | volle Statussicht | Planung und Wochenreview |',
+  '| 🎯 My Day / Focus | heute wichtige Arbeit | morgens und vor Deep Work |',
+  '| ⏳ Due Soon | Deadlines in 48 Stunden | wenn es eng wird |',
+  '| 🔥 High Priority | kritische offene Arbeit | Release- oder API-Blocker |',
+  '| 🚧 Blocked | Blocker und Dependencies | wenn Arbeit nicht weiterkommt |',
+  '',
+  '## 🪪 Task-Karten',
+  '',
+  '- 🎚️ Farbige Priority-Leiste.',
+  '- ⏰ Deadline und Overdue Zustand.',
+  '- 🧾 Subtasks, Reminder Count und Linked Note.',
+  '- 🚧 Blocked und Dependency Count.',
+  '- 🏷️ Tags fuer Filter und Kontext.',
+  '',
+  '## 🛡️ Flux Safety',
+  '',
+  '- ▶️ Start Backlog verschiebt Top-To-do Tasks nach In Progress.',
+  '- 🔥 Triage Urgent startet nur To-do Tasks.',
+  '- 🧑‍⚖️ Laufende Tasks werden zur Review geoeffnet, nicht automatisch erledigt.',
+  '- ✅ Reminder koennen in Flux bewusst als Done markiert werden.',
+  '',
+  '```nexus-alert',
+  'warning',
+  'Flux soll Arbeit sichtbar machen, nicht heimlich veraendern. Kritische Statuswechsel muessen nachvollziehbar bleiben.',
+  '```',
+  '',
+  '## 📊 Mini Ops Dashboard',
+  '',
+  '```nexus-metrics',
+  'Focus Tasks | 4 | cyan',
+  'Blocked Items | 2 | red',
+  'Due Soon | 5 | orange',
+  'Queue Health | 87% | green',
+  '```',
+  '',
+  '```nexus-checklist',
+  '🎯 Offene Tasks priorisieren | todo',
+  '🚧 Blocker klaeren | todo',
+  '⏰ Reminder triagieren | todo',
+  '⚡ Flux Queue am Ende des Tages pruefen | todo',
+  '```',
+].join('\n'))
 
-Egal ob du …
-
-- 📂 Projekte planst
-- 📝 strukturierte Notizen schreibst
-- 💡 brainstormst oder Ideen sammelst
-- 💻 Code entwickelst und testest
-- ⏰ Erinnerungen verwaltest
-- 🧠 komplexe Zusammenhänge visualisierst
-
-**Nexus passt sich deinem Workflow an – nicht andersherum.**
-
----
-
-# ⚙️ Features? Mehr als genug.
-___
-
-## 🔷 Canvas View
-Infinite Canvas mit Pan & Zoom.
-Erstelle visuelle Strukturen mit Widgets, verbinde Elemente und denke frei – ohne Grenzen.
-
-## 📝 Notes View
-Markdown-Editor mit Toolbar, Split-View, Pinning, Volltextsuche und Tag-System.
-Schnell schreiben. Klar strukturieren. Sofort wiederfinden.
-
-## 💻 Code Editor
-Monaco-basiert mit Projekt-Sidebar und integrierter REPL für JS/TS sowie Python (Pyodide).
-Schreiben. Testen. Iterieren – direkt in Nexus.
-
-## 🔔 Reminders
-Intelligente Erinnerungen mit Toasts, Audio, Snooze-Funktion, Wiederholungen und Überfällig-Markierung.
-
-## ⚙️ Settings & Visual Engine
-Theme-Presets, Typografie, Glow-System, Glassmorphism, Blur-Optionen und individuelle Farbgestaltung.
-
----
-
-## 🔥 Weitere Highlights
-
-- 💾 **Autosave** – Deine Arbeit wird automatisch gespeichert
-- 📑 **Tab Management** – Schnelle Navigation zwischen Modulen
-- 🔗 **Backlinks & Connections** – Verknüpfe Notizen, Canvas-Elemente und Tasks intelligent
-- 🎨 **Custom Gradients & Glow Control** – Visuelle Anpassung bis ins Detail
-
----
-
-## 💡 Warum Nexus?
-
-Weil Produktivität nicht fragmentiert sein sollte.
-Weil dein Workflow fließen sollte.
-Weil Fokus wichtiger ist als Feature-Overload.
-
----
-
-## Willkommen in deinem neuen Arbeitsraum.
-
-**Genieße dein produktiveres Setup mit Nexus.** 🚀
-`
-
-const NOTES_GUIDE_CONTENT = `# Notes Guide
-
-Diese Notiz zeigt alle wichtigen Notes-Funktionen in Nexus.
-
-## Essentials
-- Split / Preview Mode
-- Autosave + Manual Save
-- Tags, Pinning, Search, Sort
-- Markdown Import/Export (.md)
-
-## Keybinds
-- \`Cmd/Ctrl + S\` speichern
-- \`Cmd/Ctrl + B\` fett
-- \`Cmd/Ctrl + I\` kursiv
-- \`Cmd/Ctrl + K\` link
-- \`Cmd/Ctrl + Z / Y\` undo/redo
-- \`Tab\` einrücken
-
-## Magic Blocks
-\`\`\`nexus-list
-Editor | Markdown + Magic + Split View
-Import | .md Datei direkt in Notes laden
-Export | .md Datei aus Notes speichern
-\`\`\`
-
-\`\`\`nexus-checklist
-Notiz erstellen | done
-Tag hinzufügen | done
-Magic Block einsetzen | todo
-\`\`\`
-
-\`\`\`nexus-progress
-Produktivität | 72
-Dokumentation | 88
-Projekt-Status | 54
-\`\`\`
-`
-
-const CANVAS_GUIDE_CONTENT = `# Canvas Guide
-
-Diese Notiz erklärt die Canvas-Features und den empfohlenen Workflow.
-
-## Canvas Controls
-- Drag auf Hintergrund: Pan
-- Trackpad/Scroll: Pan
-- Pinch oder \`Ctrl/Cmd + Scroll\`: Zoom
-- \`F\`: Fit/Focus
-- \`G\`: Grid wechseln
-- \`P\`: Project Panel
-- \`Cmd/Ctrl + M\`: Magic Builder
-
-## Node Typen
-- Project / Goal / Milestone
-- Decision / Risk / Task / Checklist
-- Markdown / Code / Text / Reminder
-
-## Magic in Canvas Markdown
-\`\`\`nexus-timeline
-Discovery | Ziele definieren
-Build | Umsetzung + Review
-Launch | Übergabe + Monitoring
-\`\`\`
-
-\`\`\`nexus-kanban
-Backlog | Ideen sammeln
-Doing | Umsetzung
-Done | Abgeschlossen
-\`\`\`
-
-\`\`\`nexus-alert
-info
-Tipp: Für große Projekte zuerst ein Magic Template nutzen, dann feinjustieren.
-\`\`\`
-`
-
-const PYTHON_EXAMPLE_CONTENT = `# Nexus Python Sandbox 🚀
-
-print("Nexus Python Environment Ready")
-
-# -----------------------------
-# Data Model
-# -----------------------------
-class Project:
-    def __init__(self, name: str, priority: int):
-        self.name = name
-        self.priority = priority
-        self.completed = False
-
-    def complete(self):
-        self.completed = True
-
-    def __repr__(self):
-        status = "✔" if self.completed else "✘"
-        return f"{self.name} (Priority: {self.priority}) [{status}]"
-
-# -----------------------------
-# State
-# -----------------------------
-projects = []
-
-def add_project(name: str, priority: int):
-    p = Project(name, priority)
-    projects.append(p)
-    return p
-
-def list_projects():
-    print("\\nCurrent Projects:")
-    for p in sorted(projects, key=lambda x: x.priority):
-        print(p)
-
-# -----------------------------
-# Functional Example
-# -----------------------------
-def priority_summary():
-    return {p.name: p.priority for p in projects}
-
-# -----------------------------
-# Async Example (Pyodide Safe)
-# -----------------------------
-import asyncio
-
-async def simulate_deploy():
-    print("\\nDeploying...")
-    await asyncio.sleep(0.5)
-    print("Deployment finished.")
-
-# -----------------------------
-# Demo Execution
-# -----------------------------
-p1 = add_project("Build Nexus", 1)
-p2 = add_project("Write Docs", 3)
-p3 = add_project("Optimize UI", 2)
-
-p1.complete()
-
-list_projects()
-
-print("\\nPriority Map:", priority_summary())
-
-await simulate_deploy()
-`
+const PYTHON_EXAMPLE_CONTENT = [
+  '# Nexus Python Sandbox',
+  '',
+  'print("Nexus Python Environment Ready")',
+  '',
+  'class Project:',
+  '    def __init__(self, name: str, priority: int):',
+  '        self.name = name',
+  '        self.priority = priority',
+  '        self.completed = False',
+  '',
+  '    def complete(self):',
+  '        self.completed = True',
+  '',
+  '    def __repr__(self):',
+  '        status = "done" if self.completed else "open"',
+  '        return f"{self.name} (Priority: {self.priority}) [{status}]"',
+  '',
+  'projects = []',
+  '',
+  'def add_project(name: str, priority: int):',
+  '    project = Project(name, priority)',
+  '    projects.append(project)',
+  '    return project',
+  '',
+  'def list_projects():',
+  '    print("\\nCurrent Projects:")',
+  '    for project in sorted(projects, key=lambda item: item.priority):',
+  '        print(project)',
+  '',
+  'p1 = add_project("Build Nexus v6", 1)',
+  'p2 = add_project("Write Docs", 3)',
+  'p3 = add_project("Polish UI", 2)',
+  '',
+  'p1.complete()',
+  'list_projects()',
+].join('\n')
 
 export type InitialAppData = {
   notes: Note[]
@@ -241,28 +519,46 @@ export const createInitialAppData = (now: TimestampFactory): InitialAppData => {
   const stamp = now()
   const notes: Note[] = [
     {
-      id: 'w',
-      title: '👋 Willkommen bei Nexus',
+      id: 'welcome-v6-release',
+      title: '✨ Willkommen in Nexus v6',
       content: WELCOME_NOTE_CONTENT,
-      tags: ['welcome'],
+      tags: ['welcome', 'v6', 'release'],
       created: stamp,
       updated: stamp,
       dirty: false,
     },
     {
-      id: 'notes-guide',
-      title: '📝 Notes Feature Guide',
-      content: NOTES_GUIDE_CONTENT,
-      tags: ['guide', 'notes', 'magic'],
+      id: 'views-guide-v6-release',
+      title: '🧭 Nexus v6 View Guide',
+      content: VIEWS_GUIDE_CONTENT,
+      tags: ['guide', 'views', 'v6', 'release'],
       created: stamp,
       updated: stamp,
       dirty: false,
     },
     {
-      id: 'canvas-guide',
-      title: '🧠 Canvas Feature Guide',
+      id: 'markdown-showcase-v6-release',
+      title: '🪄 Notes Magic und Markdown Showcase',
+      content: MARKDOWN_SHOWCASE_CONTENT,
+      tags: ['guide', 'notes', 'magic', 'markdown', 'release'],
+      created: stamp,
+      updated: stamp,
+      dirty: false,
+    },
+    {
+      id: 'canvas-guide-v6-release',
+      title: '🕸️ Canvas Guide',
       content: CANVAS_GUIDE_CONTENT,
-      tags: ['guide', 'canvas', 'workflow'],
+      tags: ['guide', 'canvas', 'obsidian', 'release'],
+      created: stamp,
+      updated: stamp,
+      dirty: false,
+    },
+    {
+      id: 'ops-guide-v6-release',
+      title: '✅ Tasks und Flux Guide',
+      content: OPS_GUIDE_CONTENT,
+      tags: ['guide', 'tasks', 'flux', 'release'],
       created: stamp,
       updated: stamp,
       dirty: false,
@@ -285,28 +581,42 @@ export const createInitialAppData = (now: TimestampFactory): InitialAppData => {
   const tasks: Task[] = [
     {
       id: 'task-welcome-1',
-      title: 'Workspace-Ordner in FilesView auswählen',
-      desc: 'Damit Export/Import im selben Projektordner funktioniert.',
+      title: 'Workspace in FilesView auswaehlen',
+      desc: 'Damit Import, Export und Projektordner im selben Arbeitskontext liegen.',
       status: 'todo',
       priority: 'high',
       tags: ['workspace', 'setup'],
       subtasks: [
-        { id: 'task-welcome-1-sub-1', title: 'Ordner wählen', done: false },
+        { id: 'task-welcome-1-sub-1', title: 'Ordner waehlen', done: false },
         { id: 'task-welcome-1-sub-2', title: 'Workspace laden', done: false },
       ],
       created: stamp,
       updated: stamp,
+      linkedNoteId: 'views-guide-v6-release',
     },
     {
       id: 'task-welcome-2',
       title: 'Canvas Magic Template testen',
-      desc: 'Meeting Hub oder Delivery Map erzeugen und anpassen.',
+      desc: 'Meeting Hub oder Delivery Map erzeugen und mit [[🕸️ Canvas Guide]] verlinken.',
       status: 'doing',
       priority: 'mid',
       tags: ['canvas', 'magic'],
       subtasks: [],
       created: stamp,
       updated: stamp,
+      linkedNoteId: 'canvas-guide-v6-release',
+    },
+    {
+      id: 'task-welcome-3',
+      title: 'Flux Queue reviewen',
+      desc: 'Pruefe, ob Tasks und Reminders sauber in der Ops Queue auftauchen.',
+      status: 'todo',
+      priority: 'mid',
+      tags: ['flux', 'triage'],
+      subtasks: [],
+      created: stamp,
+      updated: stamp,
+      linkedNoteId: 'ops-guide-v6-release',
     },
   ]
 
@@ -314,17 +624,25 @@ export const createInitialAppData = (now: TimestampFactory): InitialAppData => {
     {
       id: 'rem-welcome-1',
       title: 'Nexus Setup Review',
-      msg: 'Prüfe Dashboard, Notes, Canvas und Files nach dem ersten Setup.',
+      msg: 'Pruefe Dashboard, Notes, Canvas, Tasks, Flux und Files nach dem ersten Setup.',
       datetime: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
       repeat: 'none',
       done: false,
+      linkedNoteId: 'welcome-v6-release',
+      linkedTaskId: 'task-welcome-1',
     },
   ]
 
   return {
     notes,
-    openNoteIds: ['w', 'notes-guide', 'canvas-guide'],
-    activeNoteId: 'w',
+    openNoteIds: [
+      'welcome-v6-release',
+      'views-guide-v6-release',
+      'markdown-showcase-v6-release',
+      'canvas-guide-v6-release',
+      'ops-guide-v6-release',
+    ],
+    activeNoteId: 'welcome-v6-release',
     codes,
     openCodeIds: [],
     activeCodeId: null,

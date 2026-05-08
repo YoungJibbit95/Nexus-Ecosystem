@@ -67,7 +67,7 @@ export function CanvasStage({
   reduceNodeEffects: boolean;
 }) {
   return (
-    <div style={{ flex: 1, position: "relative", overflow: "hidden" }}>
+    <div className="nx-canvas-stage-wrap" style={{ flex: 1, position: "relative", overflow: "hidden" }}>
       {connectingFrom && (
         <div
           style={{
@@ -129,9 +129,39 @@ export function CanvasStage({
         </div>
       )}
 
+      {!connectingFrom && (
+        <div
+          className="nx-canvas-hint-pill"
+          style={{
+            position: "absolute",
+            left: 14,
+            bottom: 14,
+            zIndex: 190,
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            padding: "6px 10px",
+            borderRadius: 999,
+            background: mode === "dark" ? "rgba(6,10,24,0.52)" : "rgba(255,255,255,0.68)",
+            border: "1px solid rgba(255,255,255,0.12)",
+            backdropFilter: "blur(14px)",
+            fontSize: 10,
+            fontWeight: 700,
+            opacity: 0.72,
+            pointerEvents: "none",
+          }}
+        >
+          Double-click empty space to add
+          <span style={{ opacity: 0.42 }}>/</span>
+          Ctrl+P jump
+          <span style={{ opacity: 0.42 }}>/</span>
+          [[wiki]] auto-link
+        </div>
+      )}
+
       <div
         ref={canvasRef}
-        className="w-full h-full relative nx-canvas-grid"
+        className="w-full h-full relative nx-canvas-grid nx-canvas-stage-surface"
         style={{
           cursor: connectingFrom ? "crosshair" : panning || wheelPanning ? "grabbing" : "grab",
           transition: panning || wheelPanning ? "none" : "background-position 0.08s ease-out, background-size 0.12s ease-out",
@@ -156,9 +186,7 @@ export function CanvasStage({
         onDoubleClick={(e) => {
           const target = e.target as HTMLElement;
           const isCanvasBackground =
-            target === e.currentTarget ||
-            target.id === "nexus-canvas-inner" ||
-            Boolean(target.closest("#nexus-canvas-inner"));
+            target === e.currentTarget || target.dataset.canvasScene === "true";
           if (!isCanvasBackground) return;
           const rect = canvasRef.current?.getBoundingClientRect();
           if (!rect) return;
@@ -169,6 +197,7 @@ export function CanvasStage({
         }}
       >
         <div
+          data-canvas-scene="true"
           style={{
             position: "absolute",
             left: 0,

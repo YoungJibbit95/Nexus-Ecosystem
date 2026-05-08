@@ -61,14 +61,14 @@ export function SettingsView({
     const blob = new Blob([payload], { type: "application/json" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = "nexus-theme-v5.json";
+    a.download = "nexus-theme-v6.json";
     a.click();
     URL.revokeObjectURL(a.href);
     setTransferFeedback({
       kind: "success",
       title: "Theme exportiert",
       details: [
-        "Datei: nexus-theme-v5.json",
+        "Datei: nexus-theme-v6.json",
         "Export enthält stabile Settings plus optionale Advanced-Felder.",
       ],
     });
@@ -215,6 +215,7 @@ export function SettingsView({
 
   return (
     <div
+      className="nx-settings-v6 nx-release-view"
       style={{
         display: "flex",
         gap: 10,
@@ -229,6 +230,7 @@ export function SettingsView({
       }}
     >
       <aside
+        className="nx-settings-sidebar"
         style={{
           width: "clamp(236px, 24vw, 290px)",
           borderRadius: 20,
@@ -265,10 +267,10 @@ export function SettingsView({
             Settings
           </div>
           <div style={{ fontSize: 16, fontWeight: 800, marginTop: 2 }}>
-            ⚙️ Nexus Settings
+            ⚙️ Nexus Settings v6
           </div>
           <div style={{ fontSize: 11, opacity: 0.55, marginTop: 2 }}>
-            Passe Nexus nach deinen Vorlieben an
+            Erst Preset wählen, dann sauber feinjustieren.
           </div>
         </div>
 
@@ -536,6 +538,7 @@ export function SettingsView({
       </aside>
 
       <section
+        className="nx-settings-content"
         style={{
           flex: 1,
           minWidth: 0,
@@ -558,6 +561,7 @@ export function SettingsView({
           style={{ position: "sticky", top: 0, zIndex: 10, paddingBottom: 10 }}
         >
           <div
+            className="nx-settings-content-header"
             style={{
               borderRadius: 13,
               border: "1px solid rgba(255,255,255,0.12)",

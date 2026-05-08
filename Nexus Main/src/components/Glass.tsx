@@ -1,7 +1,7 @@
 import React, { CSSProperties, memo, useState, forwardRef, useCallback, useRef, useEffect, useMemo } from 'react'
 import { useTheme } from '../store/themeStore'
 import { hexToRgb } from '../lib/utils'
-import { getShadowStyles } from '../lib/visualUtils'
+import { buildPanelSurfaceTokens, getShadowStyles } from '../lib/visualUtils'
 import { ThreePanelEffect } from './ThreePanelEffect'
 import { useRenderSurfaceBudget } from '../render/useRenderSurfaceBudget'
 import { useSurfaceMotionRuntime } from '../render/useSurfaceMotionRuntime'
@@ -69,7 +69,7 @@ function getPanelBg(mode: string, accent: string, bg: string, isDark: boolean): 
         ? `linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px)`
         : `linear-gradient(rgba(0,0,0,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.06) 1px, transparent 1px)`
     case 'noise':
-      return `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.08'/%3E%3C/svg%3E")`
+      return `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.64' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E")`
     case 'carbon':
       return `repeating-linear-gradient(45deg, rgba(${rgb},0.03) 0px, rgba(${rgb},0.03) 1px, transparent 1px, transparent 8px), repeating-linear-gradient(-45deg, rgba(${rgb},0.03) 0px, rgba(${rgb},0.03) 1px, transparent 1px, transparent 8px)`
     case 'circuit':
@@ -303,12 +303,19 @@ export const Glass = memo(forwardRef<HTMLDivElement, GlassProps>(function Glass(
 
   // Background
   let bg: string
+  let bgSize: string | undefined
+  let bgBlendMode: string | undefined
   if (panelBgMode !== 'glass') {
-    const patternBg = getPanelBg(panelBgMode, t.accent, t.bg, isDark)
-    const solidBase = glassMode === 'matte'
-      ? (isDark ? 'rgba(14,14,22,0.84)' : 'rgba(250,250,252,0.94)')
-      : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.68)')
-    bg = patternBg ? `${patternBg}` : solidBase
+    const panelTokens = buildPanelSurfaceTokens({
+      mode: panelBgMode,
+      accent: t.accent,
+      accent2: t.accent2,
+      appBg: t.bg,
+      colorMode: t.mode,
+    })
+    bg = panelTokens.background
+    bgSize = panelTokens.backgroundSize
+    bgBlendMode = panelTokens.backgroundBlendMode
   } else {
     const themeTintStrength = type === 'sidebar' ? 0.22 : type === 'modal' ? 0.18 : 0.16
     const themeTint = `linear-gradient(145deg, rgba(${accentRgb},${themeTintStrength}), rgba(${accent2Rgb},${Math.max(themeTintStrength - 0.04, 0.06)}) 58%, rgba(${accentRgb},0.035))`
@@ -441,7 +448,6 @@ export const Glass = memo(forwardRef<HTMLDivElement, GlassProps>(function Glass(
     onClick?.(e)
   }, [t.animations.rippleClick, onClick])
 
-  const bgSize = panelBgMode !== 'glass' ? getPanelBgSize(panelBgMode) : undefined
   const isInteractiveSurface = Boolean(type !== 'sidebar' && (hover || onClick || onDoubleClick) && !showGlow)
   const ownsPointerDown = Boolean(onClick || onDoubleClick)
   const allowHoverLift = hover && type !== 'sidebar' && !ownsPointerDown && renderDynamicEnabled && renderAllowsHoverMotion
@@ -481,6 +487,7 @@ export const Glass = memo(forwardRef<HTMLDivElement, GlassProps>(function Glass(
         '--nx-blur-speed': `${4 / Math.max((t.glassmorphism as any).animatedBlurSpeed || 3, 0.5)}s`,
         background: bg,
         backgroundSize: bgSize,
+        backgroundBlendMode: bgBlendMode,
         backdropFilter: normalizedPanelRenderer === 'glass-shader'
           ? `blur(${Math.max(4, Math.floor(effectiveBlurCapped * 0.35))}px) saturate(${Math.round(effectiveSaturate * 0.92)}%)`
           : baseBackdropFilter,
@@ -568,9 +575,9 @@ export const Glass = memo(forwardRef<HTMLDivElement, GlassProps>(function Glass(
       {t.blur.noiseOverlay && !lowPowerMode && (
         <div aria-hidden="true" style={{
           position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 2,
-          opacity: t.blur.noiseOpacity * 8,
-          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
-          backgroundSize: '150px 150px',
+          opacity: Math.min(0.18, t.blur.noiseOpacity * 3.2),
+          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.54' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
+          backgroundSize: '220px 220px',
           mixBlendMode: isDark ? 'screen' : 'multiply',
         }} />
       )}

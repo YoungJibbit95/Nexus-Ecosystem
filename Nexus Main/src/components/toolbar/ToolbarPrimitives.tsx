@@ -258,8 +258,9 @@ export function ToolbarStatusPill({
     <div
       style={{
         borderRadius: 999,
-        border: "1px solid rgba(255,255,255,0.08)",
-        background: "rgba(255,255,255,0.035)",
+        border: "1px solid var(--nx-v6-line, rgba(255,255,255,0.08))",
+        background: "var(--nx-v6-control-bg, rgba(255,255,255,0.035))",
+        color: "var(--nx-v6-text, inherit)",
         padding: "3px 7px",
         display: "inline-flex",
         alignItems: "center",
@@ -351,13 +352,13 @@ export function ToolbarUtilityButton({
     borderRadius: 999,
     border:
       Comp === "button"
-        ? `1px solid ${active ? "rgba(255,255,255,0.24)" : "rgba(255,255,255,0.08)"}`
+        ? `1px solid ${active ? `rgba(${hexToRgb(t.accent)},0.28)` : "var(--nx-v6-line, rgba(255,255,255,0.08))"}`
         : undefined,
     background:
       Comp === "button"
         ? active
           ? `rgba(${hexToRgb(t.accent)},0.16)`
-          : "rgba(255,255,255,0.035)"
+          : "var(--nx-v6-control-bg, rgba(255,255,255,0.035))"
         : undefined,
     color: active ? t.accent : undefined,
     transform: `translate(${cx(offset)}px, ${cy(offset)}px)`,
@@ -454,8 +455,9 @@ export function ToolbarOverflowButton({
         width: 28,
         height: 28,
         borderRadius: 999,
-        border: "1px solid rgba(255,255,255,0.08)",
-        background: "rgba(255,255,255,0.035)",
+        border: "1px solid var(--nx-v6-line, rgba(255,255,255,0.08))",
+        background: "var(--nx-v6-control-bg, rgba(255,255,255,0.035))",
+        color: "var(--nx-v6-text, inherit)",
         display: "inline-flex",
         alignItems: "center",
         justifyContent: "center",

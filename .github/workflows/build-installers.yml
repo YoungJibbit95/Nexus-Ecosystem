@@ -29,6 +29,12 @@ jobs:
             app_dir: "Nexus Main"
             target: "win"
             npm_script: "electron:build:win"
+          - os: ubuntu-latest
+            app_name: "Nexus Main"
+            app_slug: "nexus-main"
+            app_dir: "Nexus Main"
+            target: "linux"
+            npm_script: "electron:build:linux"
           - os: macos-latest
             app_name: "Nexus Code"
             app_slug: "nexus-code"
@@ -41,6 +47,12 @@ jobs:
             app_dir: "Nexus Code"
             target: "win"
             npm_script: "electron:build:win"
+          - os: ubuntu-latest
+            app_name: "Nexus Code"
+            app_slug: "nexus-code"
+            app_dir: "Nexus Code"
+            target: "linux"
+            npm_script: "electron:build:linux"
 
     steps:
       - name: Checkout
@@ -73,3 +85,5 @@ jobs:
             ${{ matrix.app_dir }}/release/**/*.zip
             ${{ matrix.app_dir }}/release/**/*.exe
             ${{ matrix.app_dir }}/release/**/*.msi
+            ${{ matrix.app_dir }}/release/**/*.AppImage
+            ${{ matrix.app_dir }}/release/**/*.deb

@@ -15,7 +15,7 @@
     "typecheck": "tsc -p ./jsconfig.json",
     "preview": "vite preview",
     "electron:dev": "cross-env ELECTRON_DEV=true concurrently -n VITE,ELECTRON -c cyan,magenta \"vite\" \"wait-on http://localhost:5175 && electron .\"",
-    "electron:build": "npm run build && electron-builder",
+    "electron:build": "npm run electron:build:host",
     "pack": "vite build && electron-builder --dir",
     "dist": "vite build && electron-builder",
     "electron:pack:win": "npm exec electron-builder -- --win",
@@ -25,7 +25,8 @@
     "electron:build:mac": "npm run build && npm run electron:pack:mac",
     "electron:build:linux": "npm run build && npm run electron:pack:linux",
     "electron:build:host": "node ../tools/electron-build-host.mjs --app \"Nexus Code\" --mac-script electron:build:mac --win-script electron:build:win --linux-script electron:build:linux",
-    "electron:build:installers": "npm run build && npm run electron:pack:mac && npm run electron:pack:win && npm run electron:pack:linux"
+    "electron:build:installers": "npm run build && npm run electron:pack:mac && npm run electron:pack:win && npm run electron:pack:linux",
+    "electron:build:all-platforms": "npm run electron:build:installers"
   },
   "dependencies": {
     "@hello-pangea/dnd": "^18.0.1",
@@ -171,7 +172,7 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "allowElevation": true,
-      "artifactName": "Nexus_Code_Setup.exe",
+      "artifactName": "Nexus_Code_Setup_${version}.exe",
       "installerIcon": "assets/icons/NexusCodeLogo.ico",
       "uninstallerIcon": "assets/icons/NexusCodeLogo.ico"
     },

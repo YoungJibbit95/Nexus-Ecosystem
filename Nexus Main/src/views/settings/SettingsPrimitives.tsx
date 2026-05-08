@@ -1,5 +1,5 @@
 import React from "react";
-import { GLOBAL_FONTS, PRESETS, PRESET_PREVIEWS, useTheme } from "../../store/themeStore";
+import { GLOBAL_FONTS, PRESETS, PRESET_DETAILS, PRESET_PREVIEWS, useTheme } from "../../store/themeStore";
 import { hexToRgb } from "../../lib/utils";
 
 export function ModuleCard({
@@ -122,58 +122,105 @@ export function ThemeLibraryGrid({
           accent2: "#5E5CE6",
           bg: "#12141f",
         };
+        const detail = PRESET_DETAILS[name] || {
+          emoji: preview.mode === "light" ? "☀️" : "🌙",
+          description: "Abgestimmtes Nexus v6 Theme.",
+          mood: "v6",
+          surface: "glass",
+        };
         return (
           <button
             key={name}
             onClick={() => onApply(name)}
             style={{
-              borderRadius: 12,
+              minHeight: 132,
+              borderRadius: 14,
               border: "1px solid rgba(255,255,255,0.12)",
-              background: `linear-gradient(135deg, ${preview.bg} 0%, color-mix(in srgb, ${preview.bg} 78%, ${preview.accent} 22%) 100%)`,
-              padding: 9,
+              background: `radial-gradient(90px circle at 12% 10%, color-mix(in srgb, ${preview.accent} 42%, transparent), transparent 68%), radial-gradient(120px circle at 92% 0%, color-mix(in srgb, ${preview.accent2} 30%, transparent), transparent 70%), linear-gradient(135deg, ${preview.bg} 0%, color-mix(in srgb, ${preview.bg} 78%, ${preview.accent} 22%) 100%)`,
+              padding: 10,
               textAlign: "left",
               cursor: "pointer",
               display: "grid",
-              gap: 7,
+              gap: 8,
+              alignContent: "space-between",
+              boxShadow:
+                preview.mode === "dark"
+                  ? "inset 0 1px 0 rgba(255,255,255,0.08), 0 12px 28px rgba(0,0,0,0.18)"
+                  : "inset 0 1px 0 rgba(255,255,255,0.7), 0 12px 22px rgba(15,23,42,0.08)",
             }}
           >
-            <div style={{ display: "flex", gap: 6 }}>
-              <span
-                style={{
-                  width: 14,
-                  height: 14,
-                  borderRadius: 999,
-                  background: preview.accent,
-                  border: "1px solid rgba(255,255,255,0.35)",
-                }}
-              />
-              <span
-                style={{
-                  width: 14,
-                  height: 14,
-                  borderRadius: 999,
-                  background: preview.accent2,
-                  border: "1px solid rgba(255,255,255,0.35)",
-                }}
-              />
-              <span
-                style={{
-                  width: 14,
-                  height: 14,
-                  borderRadius: 999,
-                  background: preview.bg,
-                  border: "1px solid rgba(255,255,255,0.35)",
-                }}
-              />
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+              <div style={{ display: "flex", gap: 6 }}>
+                <span
+                  style={{
+                    width: 15,
+                    height: 15,
+                    borderRadius: 999,
+                    background: preview.accent,
+                    border: "1px solid rgba(255,255,255,0.35)",
+                  }}
+                />
+                <span
+                  style={{
+                    width: 15,
+                    height: 15,
+                    borderRadius: 999,
+                    background: preview.accent2,
+                    border: "1px solid rgba(255,255,255,0.35)",
+                  }}
+                />
+                <span
+                  style={{
+                    width: 15,
+                    height: 15,
+                    borderRadius: 999,
+                    background: preview.bg,
+                    border: "1px solid rgba(255,255,255,0.35)",
+                  }}
+                />
+              </div>
+              <span style={{ fontSize: 18, lineHeight: 1 }}>{detail.emoji}</span>
             </div>
-            <div
-              style={{
-                fontSize: 12,
-                fontWeight: 800,
-                color: preview.mode === "light" ? "#111827" : "#eef2ff",
-              }}
-            >
-              {name}
+            <div>
+              <div
+                style={{
+                  fontSize: 12.5,
+                  fontWeight: 900,
+                  color: preview.mode === "light" ? "#111827" : "#eef2ff",
+                }}
+              >
+                {name}
+              </div>
+              <div
+                style={{
+                  marginTop: 4,
+                  fontSize: 10.5,
+                  lineHeight: 1.35,
+                  color: preview.mode === "light" ? "rgba(17,24,39,0.7)" : "rgba(238,242,255,0.72)",
+                }}
+              >
+                {detail.description}
+              </div>
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+              {[detail.mood, detail.surface].map((tag) => (
+                <span
+                  key={`${name}-${tag}`}
+                  style={{
+                    borderRadius: 999,
+                    border: preview.mode === "light" ? "1px solid rgba(15,23,42,0.12)" : "1px solid rgba(255,255,255,0.14)",
+                    background: preview.mode === "light" ? "rgba(255,255,255,0.52)" : "rgba(0,0,0,0.22)",
+                    color: preview.mode === "light" ? "rgba(17,24,39,0.72)" : "rgba(238,242,255,0.74)",
+                    fontSize: 9,
+                    fontWeight: 800,
+                    padding: "2px 6px",
+                    textTransform: "uppercase",
+                    letterSpacing: 0.35,
+                  }}
+                >
+                  {tag}
+                </span>
+              ))}
             </div>
           </button>
         );

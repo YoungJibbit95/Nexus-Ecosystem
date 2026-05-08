@@ -19,12 +19,10 @@ import {
 } from 'lucide-react'
 import { Glass } from '../components/Glass'
 import { InteractiveIconButton } from '../components/render/InteractiveIconButton'
-import { SurfaceHighlight } from '../components/render/SurfaceHighlight'
 import { useApp, Task, Reminder, Note } from '../store/appStore'
 import { useTheme } from '../store/themeStore'
 import { hexToRgb } from '../lib/utils'
 import { useRenderSurfaceBudget } from '../render/useRenderSurfaceBudget'
-import { useInteractiveSurfaceMotion } from '../render/useInteractiveSurfaceMotion'
 import { useSurfaceMotionRuntime } from '../render/useSurfaceMotionRuntime'
 import { motion, AnimatePresence } from 'framer-motion'
 import { DndProvider, useDrag, useDrop } from 'react-dnd'
@@ -34,9 +32,9 @@ import { shallow } from 'zustand/shallow'
 const PRIORITY_COLOR = { low: '#30d158', mid: '#ffd60a', high: '#ff453a' }
 const PRIORITY_LABEL = { low: 'Low', mid: 'Medium', high: 'High' }
 const COLS: { id: 'todo'|'doing'|'done'; label: string; emoji: string; color: string }[] = [
-  { id: 'todo',  label: 'To Do',       emoji: '📋', color: '#007AFF' },
-  { id: 'doing', label: 'In Progress', emoji: '⚡', color: '#FF9F0A' },
-  { id: 'done',  label: 'Done',        emoji: '✅', color: '#30D158' },
+  { id: 'todo',  label: 'To Do',       emoji: '01', color: '#007AFF' },
+  { id: 'doing', label: 'In Progress', emoji: '02', color: '#FF9F0A' },
+  { id: 'done',  label: 'Done',        emoji: '03', color: '#30D158' },
 ]
 
 const TASK_WORK_MODES = ['board', 'focus', 'due-soon', 'high-priority', 'blocked'] as const
@@ -126,6 +124,7 @@ const applyTaskWorkMode = (tasks: Task[], mode: TaskWorkMode, taskMap: Map<strin
 
 function StatsBar({ tasks }: { tasks: Task[] }) {
   const t = useTheme()
+  const rgb = hexToRgb(t.accent)
   const total    = tasks.length
   const done     = tasks.filter((task) => task.status === 'done').length
   const overdue  = tasks.filter((task) => isTaskOverdue(task)).length
@@ -134,12 +133,12 @@ function StatsBar({ tasks }: { tasks: Task[] }) {
   const pct      = total ? Math.round((done / total) * 100) : 0
 
   return (
-    <div style={{ display:'flex', alignItems:'center', gap:16, padding:'8px 18px', borderBottom:'1px solid rgba(255,255,255,0.07)', background:'rgba(0,0,0,0.1)', flexShrink:0 }}>
-      <div style={{ display:'flex', alignItems:'center', gap:6, flex:1 }}>
-        <div style={{ height:5, flex:1, borderRadius:3, background:'rgba(255,255,255,0.08)', overflow:'hidden' }}>
-          <div style={{ width:`${pct}%`, height:'100%', borderRadius:3, background:`linear-gradient(90deg, ${t.accent}, ${t.accent2})`, transition:'width 0.5s ease' }} />
+    <div className="nx-tasks-stats-bar nx-release-strip" style={{ display:'flex', alignItems:'center', gap:8, padding:'6px 10px', borderBottom:'1px solid rgba(255,255,255,0.055)', background:'rgba(255,255,255,0.025)', flexShrink:0, minHeight:36 }}>
+      <div style={{ display:'flex', alignItems:'center', gap:7, flex:'1 1 220px', minWidth:180 }}>
+        <span style={{ fontSize:10, fontWeight:900, letterSpacing:0.6, textTransform:'uppercase', color:t.accent }}>Flow {pct}%</span>
+        <div style={{ height:4, flex:1, borderRadius:999, background:'rgba(255,255,255,0.07)', overflow:'hidden', boxShadow:'inset 0 0 0 1px rgba(255,255,255,0.04)' }}>
+          <div style={{ width:`${pct}%`, height:'100%', borderRadius:999, background:`linear-gradient(90deg, ${t.accent}, ${t.accent2})`, transition:'width 0.28s ease', boxShadow:`0 0 16px rgba(${rgb},0.28)` }} />
         </div>
-        <span style={{ fontSize:11, fontWeight:700, color:t.accent, minWidth:30 }}>{pct}%</span>
       </div>
       {[
         { label:'Total', val:total, color:'inherit' },
@@ -148,9 +147,9 @@ function StatsBar({ tasks }: { tasks: Task[] }) {
         { label:'High', val:high, color: high > 0 ? '#ff9f0a' : 'inherit' },
         { label:'Blocked', val:blocked, color: blocked > 0 ? '#ff453a' : 'inherit' },
       ].map((stat) => (
-        <div key={stat.label} style={{ textAlign:'center', fontSize:10 }}>
-          <div style={{ fontWeight:800, fontSize:15, color:stat.color, lineHeight:1 }}>{stat.val}</div>
-          <div style={{ opacity:0.45, marginTop:2 }}>{stat.label}</div>
+        <div key={stat.label} style={{ display:'flex', alignItems:'center', gap:5, padding:'4px 7px', borderRadius:999, border:'1px solid rgba(255,255,255,0.09)', background:'rgba(255,255,255,0.045)', fontSize:10, whiteSpace:'nowrap' }}>
+          <strong style={{ color:stat.color, fontSize:12, lineHeight:1 }}>{stat.val}</strong>
+          <span style={{ opacity:0.58 }}>{stat.label}</span>
         </div>
       ))}
     </div>
@@ -187,63 +186,21 @@ function TaskCard({
   const t = useTheme()
   const rgb = hexToRgb(t.accent)
   const [, drag] = useDrag({ type: 'TASK', item: tk })
-  const [hovered, setHovered] = useState(false)
-  const [focused, setFocused] = useState(false)
-  const [pressed, setPressed] = useState(false)
-  const interaction = useInteractiveSurfaceMotion({
-    id: `tasks-card-${tk.id}`,
-    hovered,
-    focused,
-    selected: tk.status === 'doing' || selected,
-    pressed,
-    surfaceClass: 'panel-surface',
-    effectClass: 'status-highlight',
-    budgetPriority: tk.status === 'doing' || selected ? 'high' : 'normal',
-    areaHint: 160,
-    family: 'content',
-  })
 
   const overdue = isTaskOverdue(tk)
   const subDone  = (tk.subtasks || []).filter((sub) => sub.done).length
   const subTotal = (tk.subtasks || []).length
 
   return (
-    <div ref={drag as any} style={{ cursor: batchMode ? 'default' : 'grab', marginBottom:8 }}>
+    <div ref={drag as any} className="nx-task-card-wrap" style={{ cursor: batchMode ? 'default' : 'grab', marginBottom:7 }}>
       <motion.div
         className="nx-motion-managed"
-        animate={interaction.content.animate}
-        transition={interaction.content.transition}
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => {
-          setHovered(false)
-          setPressed(false)
-        }}
-        onFocusCapture={() => setFocused(true)}
-        onBlurCapture={() => {
-          setFocused(false)
-          setPressed(false)
-        }}
-        onPointerDown={() => setPressed(true)}
-        onPointerUp={() => setPressed(false)}
-        onPointerCancel={() => setPressed(false)}
+        animate={{ opacity: tk.status === 'done' ? 0.68 : 1 }}
+        transition={{ duration: 0.12, ease: 'easeOut' }}
       >
-        <Glass glow style={{ padding:'11px 13px', transition:'all 0.15s', position:'relative', overflow:'hidden' }} onDoubleClick={onEdit}>
-          <SurfaceHighlight highlight={interaction.highlight} inset={1} radius={10}>
-            <div
-              style={{
-                position: 'absolute',
-                inset: 0,
-                borderRadius: 10,
-                border: `1px solid rgba(${rgb},0.22)`,
-                background: selected
-                  ? `radial-gradient(circle at 50% 50%, rgba(${rgb},0.22), rgba(${rgb},0.08) 68%, rgba(${rgb},0.03) 100%)`
-                  : `radial-gradient(circle at 50% 50%, rgba(${rgb},0.18), rgba(${rgb},0.06) 68%, rgba(${rgb},0.02) 100%)`,
-              }}
-            />
-          </SurfaceHighlight>
-
-          <div style={{ display:'flex', gap:10 }}>
-            <div style={{ width:3, borderRadius:2, background:PRIORITY_COLOR[tk.priority], flexShrink:0, alignSelf:'stretch' }} />
+        <Glass className="nx-task-card" glow={selected || tk.status === 'doing' || overdue} style={{ padding:'9px 10px', transition:'border-color 0.15s ease, background 0.15s ease', position:'relative', overflow:'hidden', borderRadius:12 }} onDoubleClick={onEdit}>
+          <div style={{ display:'flex', gap:9 }}>
+            <div style={{ width:4, borderRadius:999, background:PRIORITY_COLOR[tk.priority], flexShrink:0, alignSelf:'stretch', boxShadow:`0 0 14px ${PRIORITY_COLOR[tk.priority]}55` }} />
             <div style={{ flex:1, minWidth:0 }}>
               <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:8 }}>
                 <div style={{ display:'flex', alignItems:'flex-start', gap:8, minWidth:0, flex:1 }}>
@@ -268,7 +225,7 @@ function TaskCard({
                       {selected && <Check size={10} />}
                     </button>
                   )}
-                  <span style={{ fontSize:13, fontWeight:600, lineHeight:1.4, opacity: tk.status==='done'?0.45:1, textDecoration: tk.status==='done'?'line-through':undefined, overflow:'hidden', textOverflow:'ellipsis' }}>
+                  <span style={{ fontSize:12.5, fontWeight:760, lineHeight:1.35, opacity: tk.status==='done'?0.45:1, textDecoration: tk.status==='done'?'line-through':undefined, overflow:'hidden', textOverflow:'ellipsis', letterSpacing:-0.1 }}>
                     {tk.title}
                   </span>
                 </div>
@@ -288,7 +245,7 @@ function TaskCard({
                 </div>
               )}
 
-              <div style={{ display:'flex', flexWrap:'wrap', alignItems:'center', gap:6, marginTop:7 }}>
+              <div style={{ display:'flex', flexWrap:'wrap', alignItems:'center', gap:5, marginTop:7 }}>
                 {tk.deadline && (
                   <span style={{ display:'flex', alignItems:'center', gap:3, fontSize:10, padding:'2px 7px', borderRadius:10, background: overdue ? 'rgba(255,69,58,0.15)' : 'rgba(255,255,255,0.07)', color: overdue ? '#ff453a' : 'inherit', border: overdue ? '1px solid rgba(255,69,58,0.3)' : '1px solid transparent' }}>
                     <Calendar size={9}/> {new Date(tk.deadline).toLocaleDateString()}
@@ -348,7 +305,7 @@ function DropCol({ id, children }: { id: string; children: React.ReactNode }) {
   })
 
   return (
-    <div ref={drop as any} style={{ flex:1, transition:'background 0.15s', borderRadius:12, background: isOver?'rgba(255,255,255,0.04)':'transparent', padding:'2px' }}>
+    <div ref={drop as any} style={{ flex:1, minHeight:'100%', transition:'background 0.15s ease, box-shadow 0.15s ease', borderRadius:14, background: isOver?'rgba(255,255,255,0.045)':'rgba(255,255,255,0.012)', padding:'3px', boxShadow:isOver?'inset 0 0 0 1px rgba(255,255,255,0.12)':'inset 0 0 0 1px rgba(255,255,255,0.035)' }}>
       {children}
     </div>
   )
@@ -1064,11 +1021,11 @@ export function TasksView({ setView }: { setView?: (viewId: string) => void } = 
 
   return (
     <DndProvider backend={HTML5Backend}>
-      <div style={{ display:'flex', flexDirection:'column', height:'100%', overflow:'hidden' }}>
-        <div style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px', borderBottom:'1px solid rgba(255,255,255,0.07)', flexShrink:0, background:'rgba(0,0,0,0.1)' }}>
-          <div style={{ position:'relative', flex:1, maxWidth:320 }}>
+      <div className="nx-tasks-v6 nx-release-view" style={{ display:'flex', flexDirection:'column', height:'100%', overflow:'hidden', background:'linear-gradient(140deg, rgba(255,255,255,0.018), rgba(255,255,255,0.006))' }}>
+        <div className="nx-tasks-toolbar nx-release-toolbar" style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 10px 5px', flexShrink:0, background:'transparent' }}>
+          <div style={{ position:'relative', flex:'1 1 420px', maxWidth:460 }}>
             <Search size={13} style={{ position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', opacity:0.4 }}/>
-            <input ref={searchInputRef} value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search tasks…" style={{ width:'100%', padding:'7px 10px 7px 32px', borderRadius:9, background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.1)', outline:'none', fontSize:12, color:'inherit' }}/>
+            <input ref={searchInputRef} value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search tasks..." style={{ width:'100%', padding:'7px 10px 7px 32px', borderRadius:999, background:'rgba(255,255,255,0.055)', border:'1px solid rgba(255,255,255,0.105)', outline:'none', fontSize:12, color:'inherit' }}/>
           </div>
 
           <button onClick={() => setFilterPanel((state) => !state)} style={{ display:'flex', alignItems:'center', gap:5, padding:'7px 11px', borderRadius:9, background: filterPanel||filterPri.length||filterTag?`rgba(${rgb},0.15)`:'rgba(255,255,255,0.07)', border:`1px solid ${filterPanel||filterPri.length||filterTag?t.accent:'rgba(255,255,255,0.1)'}`, cursor:'pointer', fontSize:12, color: filterPri.length||filterTag?t.accent:'inherit', fontWeight:600 }}>
@@ -1084,7 +1041,7 @@ export function TasksView({ setView }: { setView?: (viewId: string) => void } = 
           </button>
         </div>
 
-        <div style={{ display:'flex', alignItems:'center', gap:7, padding:'8px 14px', borderBottom:'1px solid rgba(255,255,255,0.06)', flexShrink:0, background:'rgba(0,0,0,0.07)', flexWrap:'wrap' }}>
+        <div className="nx-tasks-mode-strip nx-release-strip" style={{ display:'flex', alignItems:'center', gap:6, padding:'0 10px 7px', borderBottom:'1px solid rgba(255,255,255,0.055)', flexShrink:0, background:'transparent', flexWrap:'wrap' }}>
           {TASK_WORK_MODES.map((mode) => {
             const active = mode === workMode
             const meta = TASK_WORK_MODE_META[mode]
@@ -1096,10 +1053,10 @@ export function TasksView({ setView }: { setView?: (viewId: string) => void } = 
                   display:'flex',
                   alignItems:'center',
                   gap:5,
-                  padding:'5px 9px',
+                  padding:'4px 9px',
                   borderRadius:999,
                   border: `1px solid ${active ? t.accent : 'rgba(255,255,255,0.12)'}`,
-                  background: active ? `rgba(${rgb},0.16)` : 'rgba(255,255,255,0.06)',
+                  background: active ? `rgba(${rgb},0.16)` : 'rgba(255,255,255,0.045)',
                   color: active ? t.accent : 'inherit',
                   fontSize:11,
                   fontWeight:700,
@@ -1123,7 +1080,7 @@ export function TasksView({ setView }: { setView?: (viewId: string) => void } = 
               transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
               style={{ overflow:'hidden', flexShrink:0 }}
             >
-              <div style={{ padding:'8px 14px', borderBottom:'1px solid rgba(255,255,255,0.06)', background:'rgba(0,0,0,0.07)', display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
+              <div className="nx-tasks-batch-bar nx-release-strip" style={{ padding:'8px 14px', borderBottom:'1px solid rgba(255,255,255,0.06)', background:'rgba(0,0,0,0.07)', display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
                 <span style={{ fontSize:11, padding:'3px 8px', borderRadius:999, background:'rgba(255,255,255,0.08)', border:'1px solid rgba(255,255,255,0.12)' }}>
                   {selectedCount} selected
                 </span>
@@ -1155,7 +1112,7 @@ export function TasksView({ setView }: { setView?: (viewId: string) => void } = 
               transition={{ duration: Math.max(0.12, filterPanelRuntime.timings.regularMs / 1000), ease: filterPanelRuntime.timings.framerEase }}
               style={{ overflow:'hidden', flexShrink:0 }}
             >
-              <div style={{ padding:'10px 16px', borderBottom:'1px solid rgba(255,255,255,0.07)', display:'flex', flexWrap:'wrap', gap:10, background:'rgba(0,0,0,0.08)' }}>
+              <div className="nx-tasks-filter-bar nx-release-strip" style={{ padding:'10px 16px', borderBottom:'1px solid rgba(255,255,255,0.07)', display:'flex', flexWrap:'wrap', gap:10, background:'rgba(0,0,0,0.08)' }}>
                 <div>
                   <div style={{ fontSize:10, opacity:0.45, marginBottom:5, fontWeight:700, textTransform:'uppercase', letterSpacing:0.5 }}>Priority</div>
                   <div style={{ display:'flex', gap:5 }}>
@@ -1188,7 +1145,7 @@ export function TasksView({ setView }: { setView?: (viewId: string) => void } = 
 
         <StatsBar tasks={tasks} />
 
-        <div style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 14px', borderBottom:'1px solid rgba(255,255,255,0.06)', background:'rgba(0,0,0,0.06)', flexWrap:'wrap' }}>
+        <div className="nx-tasks-quick-strip nx-release-strip" style={{ display:'flex', alignItems:'center', gap:7, padding:'6px 10px', borderBottom:'1px solid rgba(255,255,255,0.055)', background:'rgba(255,255,255,0.018)', flexWrap:'wrap' }}>
           <span style={{ fontSize:10, padding:'3px 8px', borderRadius:999, background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.1)' }}>
             <strong>{dueSoonCount}</strong> <span style={{ opacity:0.6 }}>Due &lt; 48h</span>
           </span>
@@ -1205,18 +1162,18 @@ export function TasksView({ setView }: { setView?: (viewId: string) => void } = 
           </div>
         </div>
 
-        <div style={{ flex:1, display:'flex', gap:12, padding:14, overflow:'visible', minHeight:0 }}>
+        <div className="nx-tasks-board" style={{ flex:1, display:'flex', gap:10, padding:10, overflow:'visible', minHeight:0 }}>
           {COLS.map((column) => {
             if (!showDone && column.id === 'done') return null
 
             const items = filtered.filter((task) => task.status === column.id)
 
             return (
-              <div key={column.id} style={{ flex:1, display:'flex', flexDirection:'column', minWidth:0, minHeight:0 }}>
-                <Glass style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'10px 14px', marginBottom:8, flexShrink:0 }}>
+              <div key={column.id} className="nx-tasks-column" style={{ flex:1, display:'flex', flexDirection:'column', minWidth:0, minHeight:0 }}>
+                <Glass className="nx-tasks-column-header" style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'8px 10px', marginBottom:7, flexShrink:0, borderRadius:12, background:`linear-gradient(90deg, ${column.color}12, rgba(255,255,255,0.035))` }}>
                   <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                    <span style={{ fontSize:15 }}>{column.emoji}</span>
-                    <span style={{ fontSize:13, fontWeight:700 }}>{column.label}</span>
+                    <span style={{ fontSize:9, fontWeight:900, color:column.color, padding:'2px 5px', borderRadius:999, border:`1px solid ${column.color}44`, background:`${column.color}16` }}>{column.emoji}</span>
+                    <span style={{ fontSize:12, fontWeight:820, letterSpacing:-0.1 }}>{column.label}</span>
                     <span style={{ fontSize:11, padding:'2px 8px', borderRadius:10, background:`${column.color}1a`, color:column.color, fontWeight:700 }}>{items.length}</span>
                   </div>
                   <InteractiveIconButton motionId={`task-col-add-${column.id}`} intent="accent" idleOpacity={0.7} radius={6} style={{ padding: '3px 5px' }} onClick={() => setNewStatus(column.id)}>
@@ -1224,10 +1181,10 @@ export function TasksView({ setView }: { setView?: (viewId: string) => void } = 
                   </InteractiveIconButton>
                 </Glass>
 
-                <div style={{ flex:1, overflowY:'auto', padding:'4px 8px 10px' }}>
+                <div className="nx-tasks-column-list" style={{ flex:1, overflowY:'auto', padding:'4px 8px 10px' }}>
                   <DropCol id={column.id}>
                     {items.length === 0 ? (
-                      <div style={{ height:80, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', border:'2px dashed rgba(255,255,255,0.07)', borderRadius:10, fontSize:12, opacity:0.3, gap:5 }}>
+                      <div className="nx-release-empty" style={{ height:94, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', border:'1px dashed rgba(255,255,255,0.11)', borderRadius:12, fontSize:12, opacity:0.42, gap:5, background:'rgba(255,255,255,0.018)' }}>
                         <span>Drop tasks here</span>
                       </div>
                     ) : items.map((task) => {

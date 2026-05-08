@@ -373,7 +373,7 @@ export function CodeView() {
   );
 
   return (
-    <div style={{ display: "flex", height: "100%", overflow: "hidden" }}>
+    <div className="nx-code-v6 nx-release-view" style={{ display: "flex", height: "100%", overflow: "hidden" }}>
       <CodeExplorerSidebar
         codes={folderScopedCodes}
         activeCodeId={activeCodeId}

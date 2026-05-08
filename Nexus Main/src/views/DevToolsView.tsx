@@ -782,9 +782,9 @@ export function DevToolsView() {
   const [tab, setTab]     = useState<'builder'|'calc'>('builder')
 
   return (
-    <div style={{ display:'flex',flexDirection:'column',height:'100%',overflow:'hidden' }}>
+    <div className="nx-devtools-v6 nx-release-view" style={{ display:'flex',flexDirection:'column',height:'100%',overflow:'hidden' }}>
       {/* Header */}
-      <div style={{ display:'flex',alignItems:'center',gap:12,padding:'9px 16px',borderBottom:'1px solid rgba(255,255,255,0.07)',flexShrink:0,background:'rgba(0,0,0,0.1)' }}>
+      <div className="nx-devtools-toolbar nx-release-toolbar" style={{ display:'flex',alignItems:'center',gap:12,padding:'9px 16px',borderBottom:'1px solid rgba(255,255,255,0.07)',flexShrink:0,background:'rgba(0,0,0,0.1)' }}>
         <div>
           <div style={{ fontSize:15,fontWeight:900,background:`linear-gradient(135deg,${t.accent},${t.accent2})`,WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent' }}>🛠️ DevTools</div>
           <div style={{ fontSize:9,opacity:0.35,marginTop:1,textTransform:'uppercase',letterSpacing:1 }}>Web Builder · Element Designer · Calculator</div>

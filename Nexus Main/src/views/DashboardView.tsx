@@ -240,7 +240,7 @@ export function DashboardView({ setView }: { setView?: (v: string) => void }) {
 
   return (
     <div
-      className="h-full overflow-y-auto custom-scrollbar"
+      className="nx-dashboard-v6 nx-release-view h-full overflow-y-auto custom-scrollbar"
       style={{ padding: "10px 14px 16px", position: "relative" }}
     >
       <div

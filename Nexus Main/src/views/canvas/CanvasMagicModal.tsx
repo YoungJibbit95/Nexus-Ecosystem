@@ -80,9 +80,9 @@ const MAGIC_TEMPLATES: {
   },
   {
     id: "ai-project",
-    label: "AI Project Generator",
-    desc: "Prompt erzeugt eine strukturierte Multi-Node-Projektmap.",
-    icon: "🤖",
+    label: "Project Brief Builder",
+    desc: "Ein kurzes Briefing wird zu Goals, Milestones, Risiken und naechsten Schritten.",
+    icon: "📋",
     color: "#5E5CE6",
   },
 ];
@@ -352,12 +352,12 @@ export function CanvasMagicModal({
                       marginBottom: 6,
                     }}
                   >
-                    AI Prompt
+                    Project Brief
                   </div>
                   <textarea
                     value={aiPrompt}
                     onChange={(e) => setAiPrompt(e.target.value)}
-                    placeholder="z. B. Multi-Platform Note-App mit AI Search, Sync und Team-Collab..."
+                    placeholder="z. B. Multi-Platform Note-App mit smarter Suche, Sync und Team-Collab..."
                     rows={4}
                     style={{
                       width: "100%",
@@ -425,7 +425,7 @@ export function CanvasMagicModal({
               </div>
               <div style={{ fontSize: 12, lineHeight: 1.55, opacity: 0.82 }}>
                 {template === "ai-project"
-                  ? "Erzeugt aus Prompt + Depth eine Multi-Node-Map (Goals, Milestones, Risks, Execution) statt nur eines Hubs."
+                  ? "Erzeugt aus Briefing + Detailtiefe eine Multi-Node-Map mit Goals, Milestones, Risks und Execution."
                   : "Erzeugt ein einzelnes großes Hub-Widget mit Magic-Markdown-Struktur als zentralen Canvas-Anker."}
               </div>
               <div

@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react'
-import { GlowConfig, GradientConfig, BlurConfig, BackgroundConfig, GlassmorphismConfig, AnimationsConfig, BgMode, Theme } from '../store/themeStore'
+import { GlowConfig, GradientConfig, BlurConfig, BackgroundConfig, GlassmorphismConfig, AnimationsConfig, BgMode, Theme, PanelBgMode } from '../store/themeStore'
 import { hexToRgb } from './utils'
 
 type ReactCSS = CSSProperties
@@ -222,6 +222,96 @@ export function buildBackground(bg: BackgroundConfig, solidColor: string, mode: 
 // ═══════════════════════════════════════════════════════════════
 // GLASSMORPHISM UTILITIES
 // ═══════════════════════════════════════════════════════════════
+
+export type PanelSurfaceTokens = {
+  background: string
+  backgroundSize?: string
+  backgroundBlendMode?: string
+}
+
+export function buildPanelSurfaceTokens(input: {
+  mode: PanelBgMode
+  accent: string
+  accent2?: string
+  appBg?: string
+  colorMode: 'dark' | 'light'
+}): PanelSurfaceTokens {
+  const accentRgb = hexToRgb(input.accent)
+  const accent2Rgb = hexToRgb(input.accent2 || input.accent)
+  const isDark = input.colorMode === 'dark'
+  const base = isDark
+    ? 'linear-gradient(145deg, rgba(8,13,28,0.84), rgba(4,7,18,0.76))'
+    : 'linear-gradient(145deg, rgba(255,255,255,0.94), rgba(240,244,253,0.88))'
+  const tint = `radial-gradient(520px circle at 10% -8%, rgba(${accentRgb},${isDark ? 0.16 : 0.1}), transparent 60%), radial-gradient(460px circle at 100% 0%, rgba(${accent2Rgb},${isDark ? 0.12 : 0.08}), transparent 64%)`
+  const glassSheen = isDark
+    ? 'linear-gradient(150deg, rgba(255,255,255,0.085), rgba(255,255,255,0.024))'
+    : 'linear-gradient(150deg, rgba(255,255,255,0.76), rgba(255,255,255,0.42))'
+
+  switch (input.mode) {
+    case 'solid':
+      return {
+        background: `${tint}, ${base}`,
+        backgroundSize: '100% 100%, 100% 100%, 100% 100%',
+      }
+    case 'gradient':
+      return {
+        background: `linear-gradient(135deg, rgba(${accentRgb},${isDark ? 0.22 : 0.13}), rgba(${accent2Rgb},${isDark ? 0.16 : 0.1}) 48%, transparent 78%), ${glassSheen}, ${base}`,
+        backgroundSize: '100% 100%',
+      }
+    case 'mist':
+      return {
+        background: `radial-gradient(700px ellipse at 18% 10%, rgba(${accentRgb},${isDark ? 0.22 : 0.14}), transparent 62%), radial-gradient(620px ellipse at 82% 92%, rgba(${accent2Rgb},${isDark ? 0.16 : 0.1}), transparent 68%), ${glassSheen}, ${base}`,
+      }
+    case 'hologram':
+      return {
+        background: `conic-gradient(from 142deg at 82% 16%, rgba(${accentRgb},0.2), transparent 20%, rgba(${accent2Rgb},0.16), transparent 58%, rgba(255,255,255,${isDark ? 0.09 : 0.34}), transparent), linear-gradient(135deg, rgba(${accentRgb},0.1), transparent 58%), ${base}`,
+        backgroundSize: '180% 180%, 100% 100%, 100% 100%',
+        backgroundBlendMode: isDark ? 'screen, normal, normal' : 'multiply, normal, normal',
+      }
+    case 'linen':
+      return {
+        background: `repeating-linear-gradient(0deg, rgba(255,255,255,${isDark ? 0.028 : 0.38}) 0 1px, transparent 1px 7px), repeating-linear-gradient(90deg, rgba(${accentRgb},${isDark ? 0.028 : 0.06}) 0 1px, transparent 1px 9px), ${glassSheen}, ${base}`,
+        backgroundSize: '16px 16px, 22px 22px, 100% 100%, 100% 100%',
+      }
+    case 'dots':
+      return {
+        background: `radial-gradient(circle, rgba(${accentRgb},${isDark ? 0.22 : 0.15}) 0 1px, transparent 1.6px), ${tint}, ${base}`,
+        backgroundSize: '22px 22px, 100% 100%, 100% 100%',
+      }
+    case 'grid':
+      return {
+        background: `linear-gradient(rgba(${accentRgb},${isDark ? 0.12 : 0.08}) 1px, transparent 1px), linear-gradient(90deg, rgba(${accent2Rgb},${isDark ? 0.1 : 0.07}) 1px, transparent 1px), ${tint}, ${base}`,
+        backgroundSize: '28px 28px, 28px 28px, 100% 100%, 100% 100%',
+      }
+    case 'stripes':
+      return {
+        background: `repeating-linear-gradient(135deg, rgba(${accentRgb},${isDark ? 0.095 : 0.06}) 0 1px, transparent 1px 15px), linear-gradient(145deg, rgba(${accent2Rgb},${isDark ? 0.08 : 0.05}), transparent 60%), ${base}`,
+        backgroundSize: '30px 30px, 100% 100%, 100% 100%',
+      }
+    case 'noise':
+      return {
+        background: `url("data:image/svg+xml,%3Csvg viewBox='0 0 220 220' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.72' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E"), ${tint}, ${base}`,
+        backgroundSize: '180px 180px, 100% 100%, 100% 100%',
+        backgroundBlendMode: isDark ? 'screen, normal, normal' : 'multiply, normal, normal',
+      }
+    case 'carbon':
+      return {
+        background: `repeating-linear-gradient(45deg, rgba(${accentRgb},0.075) 0 1px, transparent 1px 10px), repeating-linear-gradient(-45deg, rgba(${accent2Rgb},0.055) 0 1px, transparent 1px 10px), ${glassSheen}, ${base}`,
+        backgroundSize: '18px 18px, 18px 18px, 100% 100%, 100% 100%',
+      }
+    case 'circuit':
+      return {
+        background: `linear-gradient(rgba(${accentRgb},0.12) 1px, transparent 1px), linear-gradient(90deg, rgba(${accent2Rgb},0.09) 1px, transparent 1px), radial-gradient(circle at 50% 50%, rgba(${accentRgb},0.18) 0 1.5px, transparent 2px), ${base}`,
+        backgroundSize: '34px 34px, 34px 34px, 68px 68px, 100% 100%',
+      }
+    case 'glass':
+    default:
+      return {
+        background: `${tint}, ${glassSheen}, ${base}`,
+        backgroundSize: '100% 100%',
+      }
+  }
+}
 
 export function getGlassmorphismStyles(
   glass: GlassmorphismConfig,

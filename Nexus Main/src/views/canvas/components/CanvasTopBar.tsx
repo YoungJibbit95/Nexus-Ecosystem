@@ -110,13 +110,17 @@ export function CanvasTopBar({
 }) {
   return (
     <div
+      className="nx-canvas-topbar"
       style={{
         flexShrink: 0,
         borderBottom: `1px solid ${
           mode === "dark" ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)"
         }`,
-        background: mode === "dark" ? "rgba(255,255,255,0.025)" : "rgba(255,255,255,0.6)",
-        backdropFilter: "blur(16px)",
+        background:
+          mode === "dark"
+            ? `linear-gradient(90deg, rgba(${rgb},0.09), rgba(255,255,255,0.018))`
+            : "rgba(255,255,255,0.66)",
+        backdropFilter: "blur(14px)",
         overflowX: "auto",
         overflowY: "visible",
         position: "relative",
@@ -124,12 +128,13 @@ export function CanvasTopBar({
       }}
     >
       <div
+        className="nx-canvas-topbar-inner"
         style={{
           display: "flex",
           alignItems: "center",
           gap: 4,
           minWidth: "max-content",
-          padding: "5px 8px",
+          padding: "4px 7px",
           position: "relative",
         }}
       >
@@ -163,6 +168,7 @@ export function CanvasTopBar({
             />
           ) : (
             <span
+              className="nx-canvas-title-chip"
               onDoubleClick={() => setEditCanvasName(true)}
               style={{
                 fontWeight: 600,
@@ -180,6 +186,30 @@ export function CanvasTopBar({
               {canvas.name}
             </span>
           ))}
+
+        <button
+          type="button"
+          className="nx-canvas-jump-button"
+          onClick={openProjectSearch}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 5,
+            marginLeft: 2,
+            padding: "4px 9px",
+            borderRadius: 999,
+            border: `1px solid rgba(${rgb},0.24)`,
+            background: showProjectPanel ? `rgba(${rgb},0.18)` : "rgba(255,255,255,0.045)",
+            color: showProjectPanel ? accent : "inherit",
+            fontSize: 10,
+            fontWeight: 800,
+            cursor: "pointer",
+          }}
+          title="Quick Switch / Node Search (Ctrl+P)"
+        >
+          <Search size={11} />
+          Jump
+        </button>
 
         <div
           style={{
@@ -216,14 +246,6 @@ export function CanvasTopBar({
 
         <div style={{ flex: 1 }} />
 
-        <ToolBtn
-          icon={Search}
-          tooltip="Quick Switch / Node Search (Ctrl+P)"
-          onClick={openProjectSearch}
-          accent={accent}
-          rgb={rgb}
-          active={showProjectPanel}
-        />
         <ToolBtn
           icon={CheckSquare}
           tooltip={showProjectPanel ? "Project Panel schliessen" : "Project Panel oeffnen"}
@@ -291,6 +313,7 @@ export function CanvasTopBar({
           active={snapToGrid}
         />
         <select
+          className="nx-canvas-layout-select"
           value={layoutMode}
           onChange={(e) => {
             const nextMode = e.target.value as "mindmap" | "timeline" | "board";
@@ -360,6 +383,7 @@ export function CanvasTopBar({
           rgb={rgb}
         />
         <span
+          className="nx-canvas-zoom-chip"
           style={{
             fontSize: 11,
             fontFamily: "monospace",
@@ -389,7 +413,7 @@ export function CanvasTopBar({
         />
         <ToolBtn
           icon={FileDown}
-          tooltip="Canvas exportieren (JSON + AI-Markdown)"
+          tooltip="Canvas exportieren (JSON + Markdown Snapshot)"
           onClick={exportCanvas}
           accent={accent}
           rgb={rgb}

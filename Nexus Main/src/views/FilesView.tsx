@@ -332,8 +332,9 @@ export function FilesView({ setView }: FilesViewProps = {}) {
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
+    <div className="nx-files-v6 nx-release-view" style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
       <div
+        className="nx-files-header nx-release-toolbar"
         style={{
           padding: "10px 12px 8px",
           borderBottom: "1px solid rgba(255,255,255,0.08)",
@@ -520,6 +521,7 @@ export function FilesView({ setView }: FilesViewProps = {}) {
           }}
         >
           <div
+            className="nx-files-filter-strip nx-release-strip"
             style={{
               padding: "14px 12px 10px",
               display: "flex",
@@ -709,6 +711,7 @@ export function FilesView({ setView }: FilesViewProps = {}) {
 
         <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0 }}>
           <div
+            className="nx-files-stats-strip nx-release-strip"
             style={{
               display: "flex",
               alignItems: "center",
@@ -924,9 +927,10 @@ export function FilesView({ setView }: FilesViewProps = {}) {
             </span>
           </div>
 
-          <div style={{ flex: 1, overflowY: "auto", padding: 12 }}>
+          <div className="nx-files-content-grid" style={{ flex: 1, overflowY: "auto", padding: 12 }}>
             {displayItems.length === 0 ? (
               <div
+                className="nx-release-empty"
                 style={{
                   display: "flex",
                   flexDirection: "column",

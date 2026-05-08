@@ -5,7 +5,7 @@ import {
   Bold, Italic, Heading, List, ListOrdered, Quote, Code, Link,
   Download, Clock, Hash, Eye, Edit3, Minus, Strikethrough,
   Maximize2, Minimize2, Wand2, Sparkles, Bell, Zap, Calendar, CreditCard,
-  ChevronDown, Table, Upload, MoreHorizontal, ListTree, ArrowUpRight, CheckSquare2, AlarmClock, Orbit
+  ChevronDown, Table, Upload, MoreHorizontal, ListTree, ArrowUpRight, CheckSquare2, AlarmClock, Orbit, Smile
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Glass } from '../components/Glass'
@@ -36,6 +36,66 @@ const NOTE_UNDO_SNAPSHOT_INTERVAL_MS = 260
 const MAX_RENDERED_LINE_NUMBERS = 4_000
 const NOTES_IMPORT_INPUT_ID = 'nx-notes-import-markdown'
 const NOTES_UI_STATE_KEY = 'nx-notes-ui-state-v1'
+const EMOJI_GROUPS = [
+  { id: 'smileys', label: 'Smileys', keywords: 'faces people emotions', emojis: '😀 😃 😄 😁 😆 😅 😂 🤣 🥲 ☺️ 😊 😇 🙂 🙃 😉 😌 😍 🥰 😘 😗 😙 😚 😋 😛 😝 😜 🤪 🤨 🧐 🤓 😎 🥸 🤩 🥳 🙂‍↕️ 🙂‍↔️ 😏 😒 😞 😔 😟 😕 🙁 ☹️ 😣 😖 😫 😩 🥺 😢 😭 😮‍💨 😤 😠 😡 🤬 🤯 😳 🥵 🥶 😱 😨 😰 😥 😓 🫣 🤗 🫡 🤔 🫢 🤭 🤫 🤥 😶 😶‍🌫️ 😐 😑 😬 🫨 🫠 🙄 😯 😦 😧 😮 😲 🥱 😴 🤤 😪 😵 😵‍💫 🫥 🤐 🥴 🤢 🤮 🤧 😷 🤒 🤕'.split(' ') },
+  { id: 'hands', label: 'Hands', keywords: 'hands gestures body', emojis: '👋 🤚 🖐️ ✋ 🖖 🫱 🫲 🫳 🫴 👌 🤌 🤏 ✌️ 🤞 🫰 🤟 🤘 🤙 👈 👉 👆 🖕 👇 ☝️ 🫵 👍 👎 ✊ 👊 🤛 🤜 👏 🙌 🫶 👐 🤲 🤝 🙏 ✍️ 💅 🤳 💪 🦾 🦿 🦵 🦶 👂 🦻 👃 🧠 🫀 🫁 🦷 🦴 👀 👁️ 👅 👄 🫦'.split(' ') },
+  { id: 'people', label: 'People', keywords: 'people roles work', emojis: '👶 🧒 👦 👧 🧑 👱 👨 🧔 👩 🧓 👴 👵 🙍 🙎 🙅 🙆 💁 🙋 🧏 🙇 🤦 🤷 👮 🕵️ 💂 🥷 👷 🧑‍⚕️ 🧑‍🎓 🧑‍🏫 🧑‍⚖️ 🧑‍🌾 🧑‍🍳 🧑‍🔧 🧑‍🏭 🧑‍💼 🧑‍🔬 🧑‍💻 🧑‍🎤 🧑‍🎨 🧑‍✈️ 🧑‍🚀 🧑‍🚒 🧙 🧚 🧛 🧜 🧝 🧞 🧟 🧌 💃 🕺 🕴️ 🧘 🧗 🏃 🚶 🧎 🧍 👯 🧖 🧗‍♀️ 🧗‍♂️'.split(' ') },
+  { id: 'heart', label: 'Hearts', keywords: 'love symbols glow', emojis: '❤️ 🩷 🧡 💛 💚 💙 🩵 💜 🤎 🖤 🩶 🤍 💔 ❤️‍🔥 ❤️‍🩹 ❣️ 💕 💞 💓 💗 💖 💘 💝 💟 ☮️ ✝️ ☪️ 🕉️ ☸️ ✡️ 🔯 🕎 ☯️ ☦️ 🛐 ⛎ ♈ ♉ ♊ ♋ ♌ ♍ ♎ ♏ ♐ ♑ ♒ ♓'.split(' ') },
+  { id: 'work', label: 'Work', keywords: 'productivity tasks notes office', emojis: '💡 📌 📍 ✏️ 📝 📒 📓 📔 📕 📗 📘 📙 📚 📖 🔖 🧾 📋 📁 📂 🗂️ 🗃️ 🗄️ 📇 🗒️ 🗓️ 📆 📅 🕒 ⏰ ⏱️ ⏲️ 🧭 🎯 ✅ ☑️ ✔️ ❌ ❎ ➕ ➖ ➗ ✖️ 🔍 🔎 🔒 🔓 🔑 🛠️ ⚙️ 🧰 🧲 🧪 🧬 🔬 🔭 📡'.split(' ') },
+  { id: 'tech', label: 'Tech', keywords: 'code computer devices', emojis: '💻 🖥️ 🖨️ ⌨️ 🖱️ 🖲️ 💽 💾 💿 📀 🧮 🎛️ 🎚️ 🎙️ 🎧 📱 ☎️ 📞 📟 📠 🔋 🪫 🔌 💡 🔦 🕯️ 🪔 🧯 🛜 📶 🛰️ 🚀 🛸 🤖 👾 🎮 🕹️ 🧩 🧠 ⚡ 🔥 ✨ 🌟 ⭐ 💫'.split(' ') },
+  { id: 'nature', label: 'Nature', keywords: 'animals plants weather', emojis: '🐶 🐱 🐭 🐹 🐰 🦊 🐻 🐼 🐨 🐯 🦁 🐮 🐷 🐸 🐵 🐔 🐧 🐦 🐤 🦆 🦅 🦉 🦇 🐺 🐗 🐴 🦄 🐝 🪱 🐛 🦋 🐌 🐞 🐜 🪰 🪲 🕷️ 🦂 🦟 🦠 🌵 🎄 🌲 🌳 🌴 🪵 🌱 🌿 ☘️ 🍀 🎍 🪴 🎋 🍃 🍂 🍁 🍄 🌾 💐 🌷 🌹 🥀 🌺 🌸 🌼 🌻 🌞 🌝 🌛 🌜 🌚 🌕 🌖 🌗 🌘 🌑 🌒 🌓 🌔 🌙 🌎 🌍 🌏 🪐 💫 ⭐ 🌟 ✨ ⚡ ☄️ 💥 🔥 🌈 ☀️ ⛅ 🌤️ 🌦️ 🌧️ ⛈️ 🌩️ 🌨️ ❄️ ☃️ ⛄ 🌬️ 💨 💧 💦 ☔'.split(' ') },
+  { id: 'food', label: 'Food', keywords: 'food drink', emojis: '🍏 🍎 🍐 🍊 🍋 🍌 🍉 🍇 🍓 🫐 🍈 🍒 🍑 🥭 🍍 🥥 🥝 🍅 🫒 🥑 🍆 🥔 🥕 🌽 🌶️ 🫑 🥒 🥬 🥦 🧄 🧅 🥜 🫘 🌰 🫚 🫛 🍞 🥐 🥖 🫓 🥨 🥯 🥞 🧇 🧀 🍖 🍗 🥩 🥓 🍔 🍟 🍕 🌭 🥪 🌮 🌯 🫔 🥙 🧆 🥚 🍳 🥘 🍲 🫕 🥣 🥗 🍿 🧈 🧂 🥫 🍱 🍘 🍙 🍚 🍛 🍜 🍝 🍠 🍢 🍣 🍤 🍥 🥮 🍡 🥟 🥠 🥡 🦪 🍦 🍧 🍨 🍩 🍪 🎂 🍰 🧁 🥧 🍫 🍬 🍭 🍮 🍯 🍼 🥛 ☕ 🫖 🍵 🍶 🍾 🍷 🍸 🍹 🍺 🍻 🥂 🥃 🫗 🥤 🧋 🧃 🧉 🧊'.split(' ') },
+  { id: 'travel', label: 'Travel', keywords: 'places transport', emojis: '🚗 🚕 🚙 🚌 🚎 🏎️ 🚓 🚑 🚒 🚐 🛻 🚚 🚛 🚜 🏍️ 🛵 🚲 🛴 🛹 🛼 🚁 ✈️ 🛩️ 🛫 🛬 🪂 💺 🚀 🛸 🚉 🚊 🚝 🚄 🚅 🚈 🚂 🚆 🚇 🚋 🚃 🚟 🚠 🚡 🛰️ 🛶 ⛵ 🚤 🛥️ 🛳️ ⛴️ 🚢 ⚓ 🛟 🗺️ 🗿 🗽 🗼 🏰 🏯 🏟️ 🎡 🎢 🎠 ⛲ ⛱️ 🏖️ 🏝️ 🏜️ 🌋 ⛰️ 🏔️ 🗻 🏕️ ⛺ 🛖 🏠 🏡 🏘️ 🏚️ 🏗️ 🏭 🏢 🏬 🏣 🏤 🏥 🏦 🏨 🏪 🏫 🏩 💒 🏛️ ⛪ 🕌 🕍 🛕 🕋'.split(' ') },
+  { id: 'objects', label: 'Objects', keywords: 'objects tools', emojis: '🎁 🎈 🎏 🎀 🧧 🎊 🎉 🎎 🪩 🪅 🎐 🧸 🪄 🧿 🪬 🕹️ 🧩 🧵 🪡 🧶 🪢 👓 🕶️ 🥽 🥼 🦺 👔 👕 👖 🧣 🧤 🧥 🧦 👗 👘 🥻 🩱 🩲 🩳 👙 👚 👛 👜 👝 🛍️ 🎒 🩴 👞 👟 🥾 🥿 👠 👡 🩰 👢 👑 👒 🎩 🎓 🧢 🪖 ⛑️ 📿 💄 💍 💎 🔇 🔈 🔉 🔊 📢 📣 📯 🔔 🔕 🎼 🎵 🎶 🎙️ 🎤 🎧 📻 🎷 🪗 🎸 🎹 🎺 🎻 🪕 🥁 🪘'.split(' ') },
+  { id: 'symbols', label: 'Symbols', keywords: 'arrows ui signs', emojis: '⬆️ ↗️ ➡️ ↘️ ⬇️ ↙️ ⬅️ ↖️ ↕️ ↔️ ↩️ ↪️ ⤴️ ⤵️ 🔃 🔄 🔙 🔚 🔛 🔜 🔝 🛐 ⚛️ 🕉️ ✡️ ☸️ ☯️ ✝️ ☦️ ☪️ ☮️ 🕎 🔯 ♈ ♉ ♊ ♋ ♌ ♍ ♎ ♏ ♐ ♑ ♒ ♓ ⛎ 🔀 🔁 🔂 ▶️ ⏩ ⏭️ ⏯️ ◀️ ⏪ ⏮️ 🔼 ⏫ 🔽 ⏬ ⏸️ ⏹️ ⏺️ ⏏️ 🎦 🔅 🔆 📶 🛜 📳 📴 ♀️ ♂️ ⚧️ ✖️ ➕ ➖ ➗ 🟰 ♾️ ‼️ ⁉️ ❓ ❔ ❕ ❗ 〰️ 💱 💲 ⚕️ ♻️ ⚜️ 🔱 📛 🔰 ⭕ ✅ ☑️ ✔️ ❌ ❎ ➰ ➿ 〽️ ✳️ ✴️ ❇️ ©️ ®️ ™️'.split(' ') },
+  { id: 'flags', label: 'Flags', keywords: 'flags countries', emojis: '🏁 🚩 🎌 🏴 🏳️ 🏳️‍🌈 🏳️‍⚧️ 🏴‍☠️ 🇦🇩 🇦🇪 🇦🇫 🇦🇬 🇦🇮 🇦🇱 🇦🇲 🇦🇴 🇦🇶 🇦🇷 🇦🇸 🇦🇹 🇦🇺 🇦🇼 🇦🇽 🇦🇿 🇧🇦 🇧🇧 🇧🇩 🇧🇪 🇧🇫 🇧🇬 🇧🇭 🇧🇮 🇧🇯 🇧🇱 🇧🇲 🇧🇳 🇧🇴 🇧🇶 🇧🇷 🇧🇸 🇧🇹 🇧🇻 🇧🇼 🇧🇾 🇧🇿 🇨🇦 🇨🇨 🇨🇩 🇨🇫 🇨🇬 🇨🇭 🇨🇮 🇨🇰 🇨🇱 🇨🇲 🇨🇳 🇨🇴 🇨🇵 🇨🇷 🇨🇺 🇨🇻 🇨🇼 🇨🇽 🇨🇾 🇨🇿 🇩🇪 🇩🇯 🇩🇰 🇩🇲 🇩🇴 🇩🇿 🇪🇨 🇪🇪 🇪🇬 🇪🇭 🇪🇷 🇪🇸 🇪🇹 🇪🇺 🇫🇮 🇫🇯 🇫🇰 🇫🇲 🇫🇴 🇫🇷 🇬🇦 🇬🇧 🇬🇩 🇬🇪 🇬🇫 🇬🇬 🇬🇭 🇬🇮 🇬🇱 🇬🇲 🇬🇳 🇬🇵 🇬🇶 🇬🇷 🇬🇸 🇬🇹 🇬🇺 🇬🇼 🇬🇾 🇭🇰 🇭🇲 🇭🇳 🇭🇷 🇭🇹 🇭🇺 🇮🇨 🇮🇩 🇮🇪 🇮🇱 🇮🇲 🇮🇳 🇮🇴 🇮🇶 🇮🇷 🇮🇸 🇮🇹 🇯🇪 🇯🇲 🇯🇴 🇯🇵 🇰🇪 🇰🇬 🇰🇭 🇰🇮 🇰🇲 🇰🇳 🇰🇵 🇰🇷 🇰🇼 🇰🇾 🇰🇿 🇱🇦 🇱🇧 🇱🇨 🇱🇮 🇱🇰 🇱🇷 🇱🇸 🇱🇹 🇱🇺 🇱🇻 🇱🇾 🇲🇦 🇲🇨 🇲🇩 🇲🇪 🇲🇫 🇲🇬 🇲🇭 🇲🇰 🇲🇱 🇲🇲 🇲🇳 🇲🇴 🇲🇵 🇲🇶 🇲🇷 🇲🇸 🇲🇹 🇲🇺 🇲🇻 🇲🇼 🇲🇽 🇲🇾 🇲🇿 🇳🇦 🇳🇨 🇳🇪 🇳🇫 🇳🇬 🇳🇮 🇳🇱 🇳🇴 🇳🇵 🇳🇷 🇳🇺 🇳🇿 🇴🇲 🇵🇦 🇵🇪 🇵🇫 🇵🇬 🇵🇭 🇵🇰 🇵🇱 🇵🇲 🇵🇳 🇵🇷 🇵🇸 🇵🇹 🇵🇼 🇵🇾 🇶🇦 🇷🇪 🇷🇴 🇷🇸 🇷🇺 🇷🇼 🇸🇦 🇸🇧 🇸🇨 🇸🇩 🇸🇪 🇸🇬 🇸🇭 🇸🇮 🇸🇯 🇸🇰 🇸🇱 🇸🇲 🇸🇳 🇸🇴 🇸🇷 🇸🇸 🇸🇹 🇸🇻 🇸🇽 🇸🇾 🇸🇿 🇹🇦 🇹🇨 🇹🇩 🇹🇫 🇹🇬 🇹🇭 🇹🇯 🇹🇰 🇹🇱 🇹🇲 🇹🇳 🇹🇴 🇹🇷 🇹🇹 🇹🇻 🇹🇼 🇹🇿 🇺🇦 🇺🇬 🇺🇲 🇺🇳 🇺🇸 🇺🇾 🇺🇿 🇻🇦 🇻🇨 🇻🇪 🇻🇬 🇻🇮 🇻🇳 🇻🇺 🇼🇫 🇼🇸 🇽🇰 🇾🇪 🇾🇹 🇿🇦 🇿🇲 🇿🇼'.split(' ') },
+] as const
+const EXTRA_EMOJI_GROUPS = [
+  { id: 'activities', label: 'Activities', keywords: 'sports games activity feiern celebration trophy award musik music art kunst hobbies spiel spielen sport medaille', emojis: '⚽ 🏀 🏈 ⚾ 🥎 🎾 🏐 🏉 🥏 🎱 🪀 🏓 🏸 🏒 🏑 🥍 🏏 🪃 🥅 ⛳ 🪁 🏹 🎣 🤿 🥊 🥋 🎽 🛹 🛼 🛷 ⛸️ 🥌 🎿 ⛷️ 🏂 🪂 🏋️ 🤼 🤸 ⛹️ 🤺 🤾 🏌️ 🏇 🧘 🏄 🏊 🤽 🚣 🧗 🚵 🚴 🏆 🥇 🥈 🥉 🏅 🎖️ 🏵️ 🎗️ 🎫 🎟️ 🎪 🤹 🎭 🩰 🎨 🎬 🎤 🎧 🎼 🎹 🥁 🪘 🎷 🎺 🪗 🎸 🪕 🎻 🎲 ♟️ 🎯 🎳 🎮 🎰 🧩'.split(' ') },
+  { id: 'shapes', label: 'Shapes', keywords: 'farben colors shapes kreis quadrat circle square symbol ui marker punkt status', emojis: '🔴 🟠 🟡 🟢 🔵 🟣 🟤 ⚫ ⚪ 🟥 🟧 🟨 🟩 🟦 🟪 🟫 ⬛ ⬜ ◼️ ◻️ ◾ ◽ ▪️ ▫️ 🔶 🔷 🔸 🔹 🔺 🔻 💠 🔘 🔳 🔲 🧿 🪩 ❤️ 🧡 💛 💚 💙 💜 🤎 🖤 🤍 💯 🔥 ✨ ⭐ 🌟 💫 ⚡'.split(' ') },
+  { id: 'money', label: 'Money', keywords: 'money payment billing abo subscription preis price cash bank shop ecommerce lizenz license kauf buy', emojis: '💰 🪙 💴 💵 💶 💷 💸 💳 🧾 💹 🏦 🏧 💱 💲 🛒 🛍️ 🏷️ 📦 📬 📮 📯 ✉️ 📧 📨 📩 📤 📥 📭 📪 📫 📬 🔐 🔏 🔑 🪪 📜 📝 ✅'.split(' ') },
+  { id: 'health', label: 'Health', keywords: 'health medical safety sicherheit warning alert bug fix danger support care', emojis: '⚕️ 🩺 💊 💉 🩸 🧬 🦠 🧫 🧪 🌡️ 🤒 🤕 😷 🤧 🤢 🤮 🧼 🧽 🧴 🪥 🚿 🛁 🧯 🦺 ⚠️ 🚨 🛑 ⛔ ☢️ ☣️ 🛡️ 🔒 🔓 🔍 🧰 🛠️'.split(' ') },
+  { id: 'time', label: 'Time', keywords: 'time date calendar clock reminder termin deadline zeit datum schedule', emojis: '⏰ ⏱️ ⏲️ 🕰️ ⌛ ⏳ 📅 📆 🗓️ 📌 📍 🔔 🔕 🕛 🕧 🕐 🕜 🕑 🕝 🕒 🕞 🕓 🕟 🕔 🕠 🕕 🕡 🕖 🕢 🕗 🕣 🕘 🕤 🕙 🕥 🕚 🕦'.split(' ') },
+] as const
+const NOTES_EMOJI_GROUPS = [...EMOJI_GROUPS, ...EXTRA_EMOJI_GROUPS] as const
+const EMOJI_SEARCH_ALIASES = [
+  { terms: 'rocket rakete launch deploy start ship release', emojis: '🚀 🛸 ✨'.split(' ') },
+  { terms: 'heart herz love liebe favorite favourite fave', emojis: '❤️ 🩷 🧡 💛 💚 💙 🩵 💜 🖤 🤍 💖 💗 💘'.split(' ') },
+  { terms: 'todo done check task aufgabe erledigt fertig success ok yes', emojis: '✅ ☑️ ✔️ 📋 📝 🎯'.split(' ') },
+  { terms: 'bug error warning danger alert fehler warnung fix security sicherheit', emojis: '🐛 ⚠️ 🚨 ❌ 🛑 🛡️ 🔒 🧰'.split(' ') },
+  { terms: 'idea light bulb idee denk denken concept concepting', emojis: '💡 🧠 ✨ 📌'.split(' ') },
+  { terms: 'note notes doc docs document markdown readme schreiben schreiben text', emojis: '📝 📒 📓 📚 📖 🔖 📌 ✏️'.split(' ') },
+  { terms: 'code dev developer computer laptop terminal tech programmieren', emojis: '💻 🖥️ ⌨️ 🤖 ⚙️ 🧩'.split(' ') },
+  { terms: 'calendar reminder date time deadline termin zeit heute today', emojis: '📅 🗓️ ⏰ 🔔 ⏳ 📌'.split(' ') },
+  { terms: 'money payment pay abo subscription billing preis price lizenz license', emojis: '💰 🪙 💳 🧾 🏦 🏷️'.split(' ') },
+  { terms: 'happy smile lachen lol joy freude grinsen', emojis: '😀 😄 😁 😂 🤣 😊 🥳'.split(' ') },
+  { terms: 'sad cry traurig weinen upset', emojis: '😞 😢 😭 🥺 😔'.split(' ') },
+  { terms: 'fire lit hot urgent priority wichtig high', emojis: '🔥 ⚡ 🚨 ⭐ 💯'.split(' ') },
+  { terms: 'star favorite glow magic magie sparkle premium', emojis: '⭐ 🌟 ✨ 💫 🪄 💎'.split(' ') },
+  { terms: 'admin control settings gear config tool werkzeug', emojis: '⚙️ 🛠️ 🧰 🔧 🛡️'.split(' ') },
+  { terms: 'canvas map graph mindmap nodes connection link network', emojis: '🧠 🗺️ 🔗 🧩 🕸️ 📍'.split(' ') },
+  { terms: 'file folder files ordner datei download upload export import', emojis: '📁 📂 🗂️ 📦 ⬇️ ⬆️ 💾'.split(' ') },
+  { terms: 'search find suche finden lupe filter', emojis: '🔍 🔎 🧭 📌'.split(' ') },
+  { terms: 'mobile phone handy smartphone call message', emojis: '📱 ☎️ 💬 📲'.split(' ') },
+] as const
+const EMOJI_ALIAS_TEXT = (() => {
+  const map = new Map<string, string>()
+  EMOJI_SEARCH_ALIASES.forEach((entry) => {
+    entry.emojis.forEach((emoji) => {
+      map.set(emoji, `${map.get(emoji) || ''} ${entry.terms}`)
+    })
+  })
+  return map
+})()
+const normalizeEmojiQueryText = (value: string) =>
+  value
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/ä/g, 'ae')
+    .replace(/ö/g, 'oe')
+    .replace(/ü/g, 'ue')
+    .replace(/ß/g, 'ss')
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   Boolean(value) && typeof value === 'object' && !Array.isArray(value)
@@ -86,6 +146,10 @@ export function NotesView() {
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null)
   const [showMagic, setShowMagic] = useState(false)
   const [notesHeaderMenuOpen, setNotesHeaderMenuOpen] = useState(false)
+  const [notesBlocksMenuOpen, setNotesBlocksMenuOpen] = useState(false)
+  const [notesEmojiMenuOpen, setNotesEmojiMenuOpen] = useState(false)
+  const [emojiQuery, setEmojiQuery] = useState('')
+  const [emojiCategory, setEmojiCategory] = useState<(typeof NOTES_EMOJI_GROUPS)[number]['id']>('smileys')
   const [showQuickSwitch, setShowQuickSwitch] = useState(false)
   const [quickSwitchQuery, setQuickSwitchQuery] = useState('')
   const [quickSwitchCursor, setQuickSwitchCursor] = useState(0)
@@ -370,12 +434,41 @@ export function NotesView() {
     }, 10)
   }, [active])
 
+  const insertPlainText = useCallback((text: string) => {
+    if (!active) return
+    const ta = editorRef.current
+    const currentContent = draftContentRef.current
+    const sel = savedSel.current
+    const start = sel?.start ?? (ta?.selectionStart ?? currentContent.length)
+    const end = sel?.end ?? (ta?.selectionEnd ?? currentContent.length)
+    savedSel.current = null
+
+    const newContent = currentContent.substring(0, start) + text + currentContent.substring(end)
+    handleChange(newContent)
+
+    setTimeout(() => {
+      if (!ta) return
+      const nextCursor = start + text.length
+      ta.focus()
+      ta.selectionStart = nextCursor
+      ta.selectionEnd = nextCursor
+    }, 10)
+  }, [active])
+
   // Save cursor position before magic menu opens
   const handleMagicOpen = () => {
     if (editorRef.current) {
       savedSel.current = { start: editorRef.current.selectionStart, end: editorRef.current.selectionEnd }
     }
     setShowMagic(true)
+  }
+
+  const handleEmojiMenuOpen = () => {
+    if (editorRef.current) {
+      savedSel.current = { start: editorRef.current.selectionStart, end: editorRef.current.selectionEnd }
+    }
+    setNotesEmojiMenuOpen((open) => !open)
+    setNotesBlocksMenuOpen(false)
   }
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -448,6 +541,40 @@ export function NotesView() {
     () => rankNotesForQuery(notes, deferredQuickSwitchQuery, 12),
     [notes, deferredQuickSwitchQuery],
   )
+  const activeEmojiGroup = useMemo(
+    () => NOTES_EMOJI_GROUPS.find((group) => group.id === emojiCategory) ?? NOTES_EMOJI_GROUPS[0],
+    [emojiCategory],
+  )
+  const emojiResults = useMemo(() => {
+    const queryTokens = normalizeEmojiQueryText(emojiQuery)
+      .split(/\s+/)
+      .map((token) => token.trim())
+      .filter(Boolean)
+
+    if (queryTokens.length === 0) {
+      return Array.from(new Set(activeEmojiGroup.emojis)).slice(0, 240)
+    }
+
+    const scored = NOTES_EMOJI_GROUPS
+      .flatMap((group) =>
+        group.emojis.map((emoji) => {
+          const searchable = normalizeEmojiQueryText(
+            `${emoji} ${group.label} ${group.keywords} ${EMOJI_ALIAS_TEXT.get(emoji) || ''}`,
+          )
+          const score = queryTokens.reduce((sum, token) => {
+            if (emoji === token) return sum + 12
+            if (searchable.includes(token)) return sum + (group.id === emojiCategory ? 3 : 2)
+            return sum
+          }, 0)
+          return { emoji, score }
+        }),
+      )
+      .filter((entry) => entry.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .map((entry) => entry.emoji)
+
+    return Array.from(new Set(scored)).slice(0, 360)
+  }, [activeEmojiGroup, emojiQuery])
 
   const lineNumbersText = active ? analysis.lineNumbersText : '1'
 
@@ -663,14 +790,14 @@ export function NotesView() {
       motionId={`notes-fmt-${tooltip.replace(/\s+/g, '-').toLowerCase()}`}
       onClick={action}
       title={tooltip}
-      idleOpacity={0.72}
-      radius={7}
+      idleOpacity={0.68}
+      radius={999}
       style={{
-        padding: '5px',
+        padding: '4px',
         color: t.accent,
       }}
     >
-      <Icon size={14} />
+      <Icon size={13} />
     </InteractiveIconButton>
   )
 
@@ -686,15 +813,15 @@ export function NotesView() {
   }), [t.accent])
 
   return (
-    <div className="nx-notes-v6 flex h-full gap-3 p-3 relative" style={{ minHeight: 0 }}>
+    <div className="nx-notes-v6 nx-release-view flex h-full gap-2 p-2 relative" style={{ minHeight: 0 }}>
 
       {/* ── SIDEBAR ── */}
       {!focusMode && (
-        <Glass className="nx-notes-sidebar flex flex-col shrink-0" style={{ width: 252, overflow: 'hidden', minHeight: 0 }}>
+        <Glass className="nx-notes-sidebar flex flex-col shrink-0" style={{ width: 302, overflow: 'hidden', minHeight: 0 }}>
           {/* Header */}
-          <div className="nx-notes-sidebar-header flex items-center justify-between px-3 py-2.5 shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+          <div className="nx-notes-sidebar-header flex items-center justify-between px-4 py-3 shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
             <span style={{ fontSize: 12, fontWeight: 700, opacity: 0.85 }}>Notes</span>
-            <div className="flex gap-0.5" style={{ position: 'relative' }}>
+            <div className="flex gap-1.5" style={{ position: 'relative' }}>
               <InteractiveActionButton
                 onClick={() => setShowSearch(!showSearch)}
                 title="Suchen"
@@ -921,7 +1048,7 @@ export function NotesView() {
           </div>
 
           {showSearch && (
-            <div className="px-3 py-2 shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+            <div className="px-4 py-3 shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
               <input
                 autoFocus placeholder="Suchen..." value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
@@ -935,7 +1062,7 @@ export function NotesView() {
           )}
 
           {allTags.length > 0 && (
-            <div className="px-3 py-2 shrink-0 flex flex-wrap gap-1" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+            <div className="px-4 py-3 shrink-0 flex flex-wrap gap-1.5" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
               {allTags.slice(0, 8).map(tag => (
                 <InteractiveActionButton key={tag} onClick={() => setTagFilter(tagFilter === tag ? null : tag)}
                   motionId={`notes-tag-filter-${tag}`}
@@ -952,7 +1079,7 @@ export function NotesView() {
             </div>
           )}
 
-          <div className="px-2 py-1 shrink-0 flex gap-0.5" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+          <div className="px-4 py-3 shrink-0 flex gap-1.5" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
             {(['updated', 'title', 'created'] as const).map(s => (
               <InteractiveActionButton key={s} onClick={() => setSortBy(s)}
                 motionId={`notes-sort-${s}`}
@@ -960,7 +1087,7 @@ export function NotesView() {
                 areaHint={52}
                 radius={6}
                 style={{
-                padding: '3px 8px', borderRadius: 6, fontSize: 10, border: 'none', cursor: 'pointer',
+                padding: '4px 9px', borderRadius: 7, fontSize: 10.5, border: 'none', cursor: 'pointer',
                 background: sortBy === s ? `rgba(${rgb},0.15)` : 'transparent',
                 color: sortBy === s ? t.accent : 'inherit', transition: 'all 0.15s',
               }}>
@@ -970,34 +1097,34 @@ export function NotesView() {
           </div>
 
           {/* Scrollable list — overflow-y:auto always shows scrollbar when needed */}
-          <div className="nx-notes-list" style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '6px', minHeight: 0 }}>
+          <div className="nx-notes-list" style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '12px', minHeight: 0 }}>
             {filteredNotes.map((n) => (
               <div
                 key={n.id} onClick={() => setNote(n.id)} role="button" tabIndex={0}
                 className="group nx-surface-row nx-notes-list-row"
                 data-active={n.id === activeNoteId ? 'true' : 'false'}
                 style={{
-                  padding: '8px 10px', borderRadius: 9, cursor: 'pointer', marginBottom: 2,
+                  padding: '13px 14px', borderRadius: 14, cursor: 'pointer', marginBottom: 9,
                   background: n.id === activeNoteId ? 'rgba(255,255,255,0.1)' : 'transparent',
                   borderLeft: `2px solid ${n.id === activeNoteId ? t.accent : 'transparent'}`,
                   position: 'relative',
                   ['--nx-row-hover-bg' as any]: 'rgba(255,255,255,0.05)',
                 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, fontWeight: 500 }}>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13, fontWeight: 650 }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
                     {n.dirty && <span style={{ color: t.accent, fontSize: 7, flexShrink: 0 }}>●</span>}
                     {n.title}
                   </span>
                   {n.pinned && <Pin size={9} style={{ color: '#FFCC00', flexShrink: 0 }} />}
                 </div>
-                <div style={{ fontSize: 10, opacity: 0.45, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {n.content.replace(/[#*`]/g, '').slice(0, 45)}…
+                <div style={{ fontSize: 11, opacity: 0.54, marginTop: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {n.content.replace(/[#*`]/g, '').slice(0, 64)}…
                 </div>
                 {n.tags.length > 0 && (
-                  <div style={{ display: 'flex', gap: 3, marginTop: 4, flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', gap: 5, marginTop: 8, flexWrap: 'wrap' }}>
                     {n.tags.slice(0, 3).map(tag => (
-                      <span key={tag} style={{ fontSize: 9, padding: '1px 6px', borderRadius: 10, background: `rgba(${rgb},0.12)`, color: t.accent }}>{tag}</span>
+                      <span key={tag} style={{ fontSize: 9.5, padding: '2px 7px', borderRadius: 10, background: `rgba(${rgb},0.12)`, color: t.accent }}>{tag}</span>
                     ))}
                   </div>
                 )}
@@ -1035,7 +1162,7 @@ export function NotesView() {
           {/* Header bar */}
           <Glass className="nx-notes-editor-header flex items-center gap-2 px-3 py-2 shrink-0">
             <input
-              className="flex-1 bg-transparent outline-none font-semibold"
+              className="nx-notes-title-input flex-1 bg-transparent outline-none font-semibold"
               style={{ fontSize: 14, minWidth: 0 }}
               value={active.title}
               onChange={e => updateNote(active.id, { title: e.target.value })}
@@ -1099,25 +1226,25 @@ export function NotesView() {
             </div>
           </Glass>
 
-          <Glass className="shrink-0" style={{ padding: '7px 10px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <div className="nx-notes-command-strip shrink-0">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
               {[
                 { label: 'Words', val: noteStats.words },
                 { label: 'Read', val: `${noteStats.readMins}m` },
                 { label: 'Links', val: noteStats.links },
                 { label: 'Tasks', val: noteStats.tasks },
               ].map((entry) => (
-                <span key={entry.label} style={{ fontSize: 10, padding: '3px 8px', borderRadius: 999, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                <span key={entry.label} className="nx-notes-stat-pill">
                   <strong style={{ fontWeight: 800 }}>{entry.val}</strong> <span style={{ opacity: 0.6 }}>{entry.label}</span>
                 </span>
               ))}
-              <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              <div className="nx-notes-strip-actions">
                 <InteractiveActionButton
                   onClick={openQuickSwitch}
                   motionId="notes-workflow-switch"
                   areaHint={62}
-                  radius={8}
-                  style={{ padding: '4px 8px', borderRadius: 8, border: `1px solid rgba(${rgb},0.3)`, background: `rgba(${rgb},0.14)`, color: t.accent, fontSize: 10, fontWeight: 700, cursor: 'pointer' }}
+                  radius={999}
+                  style={{ padding: '3px 8px', borderRadius: 999, border: `1px solid rgba(${rgb},0.22)`, background: `rgba(${rgb},0.1)`, color: t.accent, fontSize: 10, fontWeight: 760, cursor: 'pointer' }}
                 >
                   <ArrowUpRight size={11} /> Jump
                 </InteractiveActionButton>
@@ -1125,8 +1252,8 @@ export function NotesView() {
                   onClick={() => insertWorkflowTemplate('daily')}
                   motionId="notes-workflow-daily"
                   areaHint={56}
-                  radius={8}
-                  style={{ padding: '4px 8px', borderRadius: 8, border: `1px solid rgba(${rgb},0.3)`, background: `rgba(${rgb},0.14)`, color: t.accent, fontSize: 10, fontWeight: 700, cursor: 'pointer' }}
+                  radius={999}
+                  style={{ padding: '3px 8px', borderRadius: 999, border: `1px solid rgba(${rgb},0.2)`, background: `rgba(${rgb},0.08)`, color: t.accent, fontSize: 10, fontWeight: 760, cursor: 'pointer' }}
                 >
                   Daily
                 </InteractiveActionButton>
@@ -1134,33 +1261,15 @@ export function NotesView() {
                   onClick={convertNoteToTask}
                   motionId="notes-workflow-task"
                   areaHint={62}
-                  radius={8}
-                  style={{ padding: '4px 8px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.06)', color: 'inherit', fontSize: 10, fontWeight: 700, cursor: 'pointer' }}
+                  radius={999}
+                  style={{ padding: '3px 8px', borderRadius: 999, border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.035)', color: 'inherit', fontSize: 10, fontWeight: 760, cursor: 'pointer' }}
                 >
                   <CheckSquare2 size={11} /> Task
-                </InteractiveActionButton>
-                <InteractiveActionButton
-                  onClick={convertNoteToReminder}
-                  motionId="notes-workflow-reminder"
-                  areaHint={76}
-                  radius={8}
-                  style={{ padding: '4px 8px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.06)', color: 'inherit', fontSize: 10, fontWeight: 700, cursor: 'pointer' }}
-                >
-                  <AlarmClock size={11} /> Reminder
-                </InteractiveActionButton>
-                <InteractiveActionButton
-                  onClick={convertNoteToCanvas}
-                  motionId="notes-workflow-canvas"
-                  areaHint={72}
-                  radius={8}
-                  style={{ padding: '4px 8px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.06)', color: 'inherit', fontSize: 10, fontWeight: 700, cursor: 'pointer' }}
-                >
-                  <Orbit size={11} /> Canvas
                 </InteractiveActionButton>
               </div>
             </div>
             {(activeHeadings.length > 0 || activeOutgoing.length > 0 || activeIncoming.length > 0 || activeUnresolved.length > 0 || activeRelatedNotes.length > 0) && (
-              <div className="nx-notes-context-strip" style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              <div className="nx-notes-context-strip">
                 {activeHeadings.slice(0, 4).map((heading) => (
                   <InteractiveActionButton
                     key={heading.id}
@@ -1228,11 +1337,11 @@ export function NotesView() {
                 ))}
               </div>
             )}
-          </Glass>
+          </div>
 
           {/* Formatting toolbar */}
           {(mode === 'edit' || mode === 'split') && (
-            <div className="nx-notes-format-toolbar" style={{ display: 'flex', alignItems: 'center', gap: 2, padding: '0 4px', flexWrap: 'wrap', opacity: 0.9 }}>
+            <div className="nx-notes-format-toolbar" style={{ display: 'flex', alignItems: 'center', gap: 2, padding: '0 4px', flexWrap: 'wrap', opacity: 1 }}>
               <FmtBtn icon={Heading}      tooltip="H2"           action={() => insertFormat('\n## ', '', 'Überschrift')} />
               <FmtBtn icon={Bold}         tooltip="Fett (Ctrl+B)" action={() => insertFormat('**', '**', 'fett')} />
               <FmtBtn icon={Italic}       tooltip="Kursiv (Ctrl+I)" action={() => insertFormat('*', '*', 'kursiv')} />
@@ -1244,11 +1353,148 @@ export function NotesView() {
               <FmtBtn icon={ListOrdered}  tooltip="Num. Liste"   action={() => insertFormat('\n1. ', '', 'Eintrag')} />
               <FmtBtn icon={Table}        tooltip="Tabelle"      action={() => insertFormat('\n| Kopf | Kopf |\n| --- | --- |\n| Zelle | Zelle |\n')} />
               <FmtBtn icon={Minus}        tooltip="Trennlinie"   action={() => insertFormat('\n---\n', '')} />
-              <FmtBtn icon={Bell}         tooltip="Callout Block" action={() => insertFormat('\n```nexus-callout\ninfo | Hinweis\nKurzinfo oder Entscheidung notieren.\n```\n')} />
-              <FmtBtn icon={Zap}          tooltip="Kanban Block" action={() => insertFormat('\n```nexus-kanban\nBacklog | Aufgabe sammeln\nDoing | Umsetzung\nReview | QA/Abnahme\nDone | Fertig\n```\n')} />
-              <FmtBtn icon={Calendar}     tooltip="Timeline Block" action={() => insertFormat('\n```nexus-timeline\nHeute | Kickoff\nMorgen | Umsetzung\nDiese Woche | Review\n```\n')} />
-              <FmtBtn icon={CreditCard}   tooltip="Card Block" action={() => insertFormat('\n```nexus-card\nhttps://images.unsplash.com/photo-1618005182384?w=600 | Titel | Kurze Beschreibung\n```\n')} />
+              <div style={{ position: 'relative' }}>
+                <InteractiveActionButton
+                  onClick={() => setNotesBlocksMenuOpen((open) => !open)}
+                  motionId="notes-blocks-menu"
+                  selected={notesBlocksMenuOpen}
+                  areaHint={64}
+                  radius={999}
+                  style={{
+                    padding: '4px 8px',
+                    borderRadius: 999,
+                    border: `1px solid rgba(${rgb},0.2)`,
+                    background: notesBlocksMenuOpen ? `rgba(${rgb},0.12)` : 'rgba(255,255,255,0.035)',
+                    color: notesBlocksMenuOpen ? t.accent : 'inherit',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 5,
+                    fontSize: 10,
+                    fontWeight: 760,
+                  }}
+                >
+                  <Sparkles size={11} /> Blocks
+                </InteractiveActionButton>
+                {notesBlocksMenuOpen ? (
+                  <div className="nx-notes-blocks-menu">
+                    {[
+                      { icon: Bell, label: 'Callout', action: () => insertFormat('\n```nexus-callout\ninfo | Hinweis\nKurzinfo oder Entscheidung notieren.\n```\n') },
+                      { icon: Zap, label: 'Kanban', action: () => insertFormat('\n```nexus-kanban\nBacklog | Aufgabe sammeln\nDoing | Umsetzung\nReview | QA/Abnahme\nDone | Fertig\n```\n') },
+                      { icon: Calendar, label: 'Timeline', action: () => insertFormat('\n```nexus-timeline\nHeute | Kickoff\nMorgen | Umsetzung\nDiese Woche | Review\n```\n') },
+                      { icon: CreditCard, label: 'Card', action: () => insertFormat('\n```nexus-card\nhttps://images.unsplash.com/photo-1618005182384?w=600 | Titel | Kurze Beschreibung\n```\n') },
+                    ].map((entry) => {
+                      const Icon = entry.icon
+                      return (
+                        <InteractiveActionButton
+                          key={entry.label}
+                          onClick={() => {
+                            entry.action()
+                            setNotesBlocksMenuOpen(false)
+                          }}
+                          motionId={`notes-block-${entry.label.toLowerCase()}`}
+                          areaHint={64}
+                          radius={9}
+                          style={{
+                            width: '100%',
+                            border: 'none',
+                            borderRadius: 9,
+                            background: 'transparent',
+                            color: 'inherit',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 8,
+                            padding: '7px 9px',
+                            fontSize: 11,
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          <Icon size={12} /> {entry.label}
+                        </InteractiveActionButton>
+                      )
+                    })}
+                  </div>
+                ) : null}
+              </div>
               <FmtBtn icon={ChevronDown}  tooltip="Details/Toggle" action={() => insertFormat('\n<details>\n<summary>Mehr anzeigen</summary>\n\nDetails hier ergänzen...\n\n</details>\n')} />
+              <div style={{ position: 'relative' }}>
+                <InteractiveActionButton
+                  onClick={handleEmojiMenuOpen}
+                  motionId="notes-emoji-menu"
+                  selected={notesEmojiMenuOpen}
+                  areaHint={64}
+                  radius={999}
+                  style={{
+                    padding: '4px 8px',
+                    borderRadius: 999,
+                    border: `1px solid rgba(${rgb},0.2)`,
+                    background: notesEmojiMenuOpen ? `rgba(${rgb},0.14)` : 'rgba(255,255,255,0.035)',
+                    color: notesEmojiMenuOpen ? t.accent : 'inherit',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 5,
+                    fontSize: 10,
+                    fontWeight: 760,
+                  }}
+                  title="Emoji Picker"
+                >
+                  <Smile size={11} /> Emojis
+                </InteractiveActionButton>
+                {notesEmojiMenuOpen ? (
+                  <div className="nx-notes-emoji-menu">
+                    <div className="nx-notes-emoji-menu-head">
+                      <div>
+                        <strong>Emoji Library</strong>
+                        <span>{emojiResults.length} sichtbar / {NOTES_EMOJI_GROUPS.length} Kategorien</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setNotesEmojiMenuOpen(false)}
+                        aria-label="Emoji-Menü schließen"
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
+                    <div className="nx-notes-emoji-search">
+                      <Search size={11} />
+                      <input
+                        value={emojiQuery}
+                        onChange={(event) => setEmojiQuery(event.target.value)}
+                        placeholder="Suche: rakete, todo, herz, bug, money..."
+                      />
+                    </div>
+                    <div className="nx-notes-emoji-cats">
+                      {NOTES_EMOJI_GROUPS.map((group) => (
+                        <button
+                          key={group.id}
+                          type="button"
+                          data-active={emojiCategory === group.id ? 'true' : 'false'}
+                          onClick={() => {
+                            setEmojiCategory(group.id)
+                            setEmojiQuery('')
+                          }}
+                        >
+                          {group.label}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="nx-notes-emoji-grid">
+                      {emojiResults.map((emoji) => (
+                        <button
+                          key={`${emojiCategory}-${emoji}`}
+                          type="button"
+                          onClick={() => insertPlainText(emoji)}
+                          title={emoji}
+                        >
+                          {emoji}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
 
               <div style={{ width: 1, height: 14, background: 'rgba(255,255,255,0.1)', margin: '0 4px' }} />
 
@@ -1258,19 +1504,19 @@ export function NotesView() {
                   onClick={handleMagicOpen}
                   motionId="notes-open-magic"
                   selected={showMagic}
-                  areaHint={78}
-                  radius={8}
+                  areaHint={64}
+                  radius={999}
                   style={{
-                    padding: '4px 10px', borderRadius: 8, border: `1px solid ${t.accent}${showMagic ? '60' : '30'}`,
-                    background: showMagic ? `linear-gradient(135deg, ${t.accent}30, ${t.accent2}30)` : `linear-gradient(135deg, ${t.accent}18, ${t.accent2}18)`,
-                    color: t.accent, cursor: 'pointer', fontSize: 11, fontWeight: 800,
-                    letterSpacing: '0.06em', textTransform: 'uppercase',
+                    padding: '4px 9px', borderRadius: 999, border: `1px solid ${t.accent}${showMagic ? '50' : '26'}`,
+                    background: showMagic ? `linear-gradient(135deg, ${t.accent}24, ${t.accent2}22)` : `linear-gradient(135deg, ${t.accent}12, ${t.accent2}10)`,
+                    color: t.accent, cursor: 'pointer', fontSize: 10, fontWeight: 800,
+                    letterSpacing: '0.04em',
                     display: 'flex', alignItems: 'center', gap: 5,
-                    boxShadow: showMagic ? `0 0 16px ${t.accent}28` : 'none',
+                    boxShadow: showMagic ? `0 0 12px ${t.accent}22` : 'none',
                     transition: 'all 0.18s ease',
                   }}
                 >
-                  <Wand2 size={12} style={{ transform: showMagic ? 'rotate(12deg) scale(1.15)' : 'none', transition: 'transform 0.2s' }} />
+                  <Wand2 size={11} style={{ transform: showMagic ? 'rotate(10deg) scale(1.08)' : 'none', transition: 'transform 0.2s' }} />
                   Magic
                 </InteractiveActionButton>
               </div>
@@ -1328,7 +1574,7 @@ export function NotesView() {
           )}
 
           {/* ── EDITOR / PREVIEW ── */}
-          <div className="nx-notes-editor-grid" style={{ display: 'flex', gap: 10, flex: 1, minHeight: 0, overflow: 'visible' }}>
+          <div className="nx-notes-editor-grid" style={{ display: 'flex', gap: 7, flex: 1, minHeight: 0, overflow: 'visible' }}>
 
             {/* Editor */}
             {(mode === 'edit' || mode === 'split') && (
@@ -1361,7 +1607,7 @@ export function NotesView() {
                       ref={editorRef}
                       style={{
                         flex: 1, background: 'transparent', resize: 'none', outline: 'none',
-                        padding: '20px 16px 20px 4px',
+                        padding: '16px 14px 16px 4px',
                         overflowY: 'auto', overflowX: 'hidden', minHeight: 0,
                         fontSize: t.notes.fontSize,
                         fontFamily: `"${t.notes.fontFamily}", ui-monospace, Menlo, monospace`,
@@ -1382,7 +1628,7 @@ export function NotesView() {
                     ref={editorRef}
                     style={{
                       flex: 1, background: 'transparent', resize: 'none', outline: 'none',
-                      padding: 20, overflowY: 'auto', overflowX: 'hidden', minHeight: 0,
+                      padding: 16, overflowY: 'auto', overflowX: 'hidden', minHeight: 0,
                       fontSize: t.notes.fontSize,
                       fontFamily: `"${t.notes.fontFamily}", ui-monospace, Menlo, monospace`,
                       lineHeight: t.notes.lineHeight,
@@ -1405,7 +1651,7 @@ export function NotesView() {
                 {/* The scrollable div is direct child of the Glass content wrapper (which is flex-col) */}
                 <div className="nx-notes-preview-scroll" style={{
                   flex: 1, overflowY: 'scroll', overflowX: 'hidden',
-                  padding: 20, minHeight: 0,
+                  padding: 16, minHeight: 0,
                 }}>
                   <NexusMarkdown content={deferredDraftContent} components={mdComponents} />
                 </div>

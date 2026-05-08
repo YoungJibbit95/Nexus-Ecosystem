@@ -173,7 +173,12 @@ export function useDashboardLayoutEditing(editLayout: boolean) {
   }, []);
 
   const setWidgetGrid = useCallback(
-    (id: WidgetId, cell: GridCell, originCell?: GridCell) => {
+    (
+      id: WidgetId,
+      cell: GridCell,
+      originCell?: GridCell,
+      targetWidgetId?: WidgetId | null,
+    ) => {
       commitLayout((current) => {
         const dragged = current.find((widget) => widget.id === id);
         if (!dragged) return current;
@@ -189,22 +194,58 @@ export function useDashboardLayoutEditing(editLayout: boolean) {
           if (widget.span === 2) return true;
           return widget.x === nextCell.x;
         });
+        const explicitTarget = targetWidgetId
+          ? current.find((widget) => widget.visible && widget.id === targetWidgetId)
+          : null;
+        const target = explicitTarget && explicitTarget.id !== id ? explicitTarget : occupant;
 
-        return reorderLayoutByGrid(
-          current.map((widget) => {
-            if (widget.id === id) {
-              return { ...widget, x: nextCell.x, y: nextCell.y };
-            }
-            if (occupant && widget.id === occupant.id) {
-              return {
-                ...widget,
-                x: clampX(safeOrigin.x, widget.span),
-                y: Math.max(1, Math.min(maxRow, safeOrigin.y)),
-              };
-            }
-            return widget;
-          }),
+        if (target) {
+          return reorderLayoutByGrid(
+            current.map((widget) => {
+              if (widget.id === id) {
+                return {
+                  ...widget,
+                  order: target.order,
+                  x: clampX(target.x, widget.span),
+                  y: target.y,
+                };
+              }
+              if (widget.id === target.id) {
+                return {
+                  ...widget,
+                  order: dragged.order,
+                  x: clampX(safeOrigin.x, widget.span),
+                  y: Math.max(1, Math.min(maxRow, safeOrigin.y)),
+                };
+              }
+              return widget;
+            }),
+          );
+        }
+
+        const visibleWithoutDragged = current
+          .filter((widget) => widget.visible && widget.id !== id)
+          .sort((a, b) => a.y - b.y || a.x - b.x);
+        const insertAt = visibleWithoutDragged.findIndex(
+          (widget) => widget.y > nextCell.y || (widget.y === nextCell.y && widget.x >= nextCell.x),
         );
+        const nextVisible = [...visibleWithoutDragged];
+        nextVisible.splice(insertAt === -1 ? nextVisible.length : insertAt, 0, {
+          ...dragged,
+          x: nextCell.x,
+          y: nextCell.y,
+        });
+        const reOrderedVisible = nextVisible.map((widget, index) => ({
+          ...widget,
+          order: index,
+        }));
+        const hidden = current
+          .filter((widget) => !widget.visible)
+          .map((widget, index) => ({
+            ...widget,
+            order: reOrderedVisible.length + index,
+          }));
+        return reorderLayoutByGrid([...reOrderedVisible, ...hidden]);
       });
     },
     [commitLayout],
@@ -226,7 +267,10 @@ export function useDashboardLayoutEditing(editLayout: boolean) {
       const relY = clientY - bounds.top;
       const visibleCount = normalizeLayout(widgets).filter((widget) => widget.visible).length;
       const maxRow = getSnapRowLimit(visibleCount);
-      const rowStep = SNAP_ROW_HEIGHT + 16;
+      const computed = window.getComputedStyle(gridRef.current);
+      const rowGap =
+        Number.parseFloat(computed.rowGap || computed.gap || "10") || 10;
+      const rowStep = SNAP_ROW_HEIGHT + rowGap;
       const x = clampX(relX > bounds.width / 2 ? 2 : 1, span);
       const y = Math.max(1, Math.min(maxRow, Math.floor(relY / rowStep) + 1));
       return { x, y };
@@ -294,7 +338,12 @@ export function useDashboardLayoutEditing(editLayout: boolean) {
     const handlePointerEnd = () => {
       const committed = dragPreviewRef.current ?? dragState;
       if (committed) {
-        setWidgetGrid(committed.widgetId, committed.targetCell, committed.originCell);
+        setWidgetGrid(
+          committed.widgetId,
+          committed.targetCell,
+          committed.originCell,
+          committed.targetWidgetId,
+        );
       }
       clearDragState();
     };

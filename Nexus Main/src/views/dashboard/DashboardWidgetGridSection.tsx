@@ -475,7 +475,7 @@ export function DashboardWidgetGridSection({
       {editLayout ? (
         <div style={{ marginTop: 10, textAlign: "center", fontSize: 10, opacity: 0.32 }}>
           <Sparkles size={10} style={{ display: "inline", marginRight: 5 }} />
-          Widget-Swap: Ziehe ein Widget direkt auf ein anderes fuer einen Platztausch.
+          Widget-Swap: Ziehe ein Widget auf ein anderes, auch ueber Zeilen hinweg.
         </div>
       ) : null}
     </>

@@ -1,5 +1,6 @@
 import React from "react";
 import { applyMotionProfile } from "../../lib/motionEngine";
+import { buildPanelSurfaceTokens } from "../../lib/visualUtils";
 import type { BgMode, PanelBgMode, Theme } from "../../store/themeStore";
 import { MODULES, MOTION_PROFILES, EXPERIENCE_PRESETS } from "./settingsConstants";
 import {
@@ -17,6 +18,21 @@ import {
   ModuleId,
   RendererMode,
 } from "./settingsTypes";
+
+const PANEL_TEXTURE_PRESETS: { value: PanelBgMode; label: string; desc: string }[] = [
+  { value: "glass", label: "Glass", desc: "klarer v6 Standard" },
+  { value: "solid", label: "Solid", desc: "ruhig und lesbar" },
+  { value: "gradient", label: "Gradient", desc: "farbiger Produkt-Look" },
+  { value: "mist", label: "Mist", desc: "weicher Glow-Nebel" },
+  { value: "hologram", label: "Hologram", desc: "schimmernd, aber kontrolliert" },
+  { value: "linen", label: "Linen", desc: "feine Paper-Struktur" },
+  { value: "dots", label: "Dots", desc: "leichte Orientierungspunkte" },
+  { value: "grid", label: "Grid", desc: "technisch und sauber" },
+  { value: "stripes", label: "Stripes", desc: "subtile Flow-Linien" },
+  { value: "carbon", label: "Carbon", desc: "dunkle Struktur" },
+  { value: "circuit", label: "Circuit", desc: "dev-orientiert, nicht verspielt" },
+  { value: "noise", label: "Soft Noise", desc: "sehr dezent, nicht grainy" },
+];
 
 type SettingsModulePanelsProps = {
   module: ModuleId;
@@ -69,7 +85,7 @@ export function SettingsModulePanels({
               <>
                 <ModuleCard
                   title="Quick Presets"
-                  desc="Weniger Micromanagement, mehr klare Ergebnisse"
+                  desc="Erst die Richtung wählen, danach nur noch feinjustieren"
                 >
                   <div
                     style={{
@@ -110,7 +126,7 @@ export function SettingsModulePanels({
 
                 <ModuleCard
                   title="Theme Library"
-                  desc="Jedes Theme zeigt Farbe vor dem Anwenden"
+                  desc="Mehr v6-Themes mit Stimmung, Oberfläche und klarer Vorschau"
                 >
                   <ThemeLibraryGrid
                     onApply={(name) => {
@@ -118,6 +134,26 @@ export function SettingsModulePanels({
                       toast(`Theme aktiv: ${name}`);
                     }}
                   />
+                </ModuleCard>
+
+                <ModuleCard
+                  title="Release-ready Design Check"
+                  desc="Kurzer Reality-Check, bevor ein Look in Screenshots oder Builds geht"
+                >
+                  <div
+                    style={{
+                      display: "grid",
+                      gap: 7,
+                      fontSize: 11,
+                      lineHeight: 1.5,
+                      opacity: 0.74,
+                    }}
+                  >
+                    <div>✅ Text bleibt auf hellen und dunklen Themes gut lesbar.</div>
+                    <div>🧊 Panel Texture ist sichtbar, aber nicht körnig oder unruhig.</div>
+                    <div>🖱️ Motion verschiebt keine aktiven Klickziele unter dem Cursor.</div>
+                    <div>🔐 Import/Export bleibt schema-geprüft und übernimmt keine eingefrorenen Engine-Felder.</div>
+                  </div>
                 </ModuleCard>
 
                 <ModuleCard title="Brand Colors & Mode">
@@ -604,27 +640,85 @@ export function SettingsModulePanels({
 
                 <ModuleCard
                   title="Panel Texture"
-                  desc="Muster und Tints fuer Panels, Cards und Sidebars"
+                  desc="Saubere v6-Presets mit echter Vorschau. Jede Option hat Basis, Tint und Pattern-Layer."
                 >
                   <Segmented
                     label="Panel Background"
                     value={t.background.panelBgMode}
-                    options={[
-                      "glass",
-                      "solid",
-                      "gradient",
-                      "mist",
-                      "hologram",
-                      "linen",
-                      "dots",
-                      "grid",
-                      "stripes",
-                      "noise",
-                      "carbon",
-                      "circuit",
-                    ]}
+                    options={PANEL_TEXTURE_PRESETS.map((item) => ({
+                      value: item.value,
+                      label: item.label,
+                    }))}
                     onChange={(mode) => t.setPanelBgMode(mode as PanelBgMode)}
                   />
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))",
+                      gap: 8,
+                      marginTop: 10,
+                    }}
+                  >
+                    {PANEL_TEXTURE_PRESETS.map((preset) => {
+                      const active = t.background.panelBgMode === preset.value;
+                      const preview = buildPanelSurfaceTokens({
+                        mode: preset.value,
+                        accent: t.accent,
+                        accent2: t.accent2,
+                        appBg: t.bg,
+                        colorMode: t.mode,
+                      });
+                      return (
+                        <button
+                          key={preset.value}
+                          onClick={() => t.setPanelBgMode(preset.value)}
+                          style={{
+                            minHeight: 88,
+                            borderRadius: 14,
+                            border: active
+                              ? `1px solid rgba(${rgb},0.48)`
+                              : "1px solid rgba(255,255,255,0.13)",
+                            background: preview.background,
+                            backgroundSize: preview.backgroundSize,
+                            backgroundBlendMode: preview.backgroundBlendMode,
+                            boxShadow: active
+                              ? `0 0 0 1px rgba(${rgb},0.18), 0 12px 28px rgba(${rgb},0.18)`
+                              : "inset 0 1px 0 rgba(255,255,255,0.08)",
+                            color: "inherit",
+                            cursor: "pointer",
+                            padding: 10,
+                            textAlign: "left",
+                            overflow: "hidden",
+                            position: "relative",
+                          }}
+                        >
+                          <span
+                            aria-hidden="true"
+                            style={{
+                              position: "absolute",
+                              inset: 0,
+                              background:
+                                "linear-gradient(180deg, rgba(0,0,0,0.02), rgba(0,0,0,0.16))",
+                              pointerEvents: "none",
+                            }}
+                          />
+                          <span style={{ position: "relative", display: "grid", gap: 4 }}>
+                            <strong style={{ fontSize: 12, fontWeight: 860 }}>
+                              {preset.label}
+                            </strong>
+                            <span style={{ fontSize: 10.5, opacity: 0.68, lineHeight: 1.35 }}>
+                              {preset.desc}
+                            </span>
+                            {active ? (
+                              <span style={{ marginTop: 4, fontSize: 10, color: t.accent, fontWeight: 800 }}>
+                                Aktiv
+                              </span>
+                            ) : null}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </ModuleCard>
 
                 <ModuleCard title="App Background">
@@ -857,7 +951,7 @@ export function SettingsModulePanels({
               <>
                 <ModuleCard
                   title="Motion Profiles"
-                  desc="Neue Motion Engine ersetzt alten Motion-Tab vollständig"
+                  desc="Motion darf hochwertig wirken, aber niemals Klickziele wegschieben"
                 >
                   <div
                     style={{

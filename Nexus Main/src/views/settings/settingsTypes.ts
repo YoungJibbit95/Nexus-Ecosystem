@@ -12,7 +12,7 @@ export type RendererMode = Theme["glassmorphism"]["panelRenderer"];
 export type GlowRendererMode = Theme["glassmorphism"]["glowRenderer"];
 
 export type ExperiencePreset = {
-  id: "focus" | "balanced" | "cinematic";
+  id: "focus" | "balanced" | "studio" | "performance" | "cinematic";
   title: string;
   desc: string;
   apply: (theme: Theme) => void;

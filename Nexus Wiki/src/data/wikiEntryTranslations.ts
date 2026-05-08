@@ -243,7 +243,7 @@ export const englishEntryTranslations = {
     ],
   },
   'main-markdown-widget-atlas-v5': {
-    title: 'Markdown Widget Atlas v5: Notes + Canvas',
+    title: 'Markdown Widget Atlas v6: Notes + Canvas',
     summary: 'Current map for standard Markdown, Notes Magic Widgets and Canvas-specific Markdown nodes including nexus-kanban.',
     guide: g([
       ['1. Choose the surface', 'Use Notes for long documents, guides and knowledge pages; use Canvas for visual project nodes and boards.'],
@@ -316,13 +316,13 @@ export const englishEntryTranslations = {
   },
   'main-canvas-magic-menu-guide': {
     title: 'Nexus Main: Canvas Magic Builder Guide',
-    summary: 'The Canvas Magic Builder creates complete project structures for Mindmap, Roadmap, Sprint, Risk Matrix, Decision Flow and AI Project.',
+    summary: 'The Canvas Magic Builder creates useful project structures for mindmaps, roadmaps, sprints, risk matrices, decision flows and project briefs.',
     guide: g([
       ['1. Choose a template', 'Select the matching structure type inside the modal.'],
-      ['2. Set parameters', 'Set title, includeNotes/includeTasks and, for AI Project, prompt plus depth.'],
+      ['2. Set parameters', 'Set title, includeNotes/includeTasks and, for project briefs, prompt plus depth.'],
       ['3. Generate structure', 'Create the template and then apply fit-view/layout.'],
     ]),
-    points: ['Template families: mindmap, roadmap, sprint, risk-matrix, decision-flow and ai-project.', 'AI Project uses prompt + depth (light/balanced/deep) to create goals, milestones, risks and tasks.', 'Auto-layout modes mindmap, timeline and board help clean up after generation.', 'AI Project creates goals, milestones, risks, decision context and delivery tasks.', 'Risk Matrix places nodes by impact/probability.', 'Decision Flow creates options, tradeoff risk and expected outcome.'],
+    points: ['Template families: mindmap, roadmap, sprint, risk-matrix, decision-flow and project-brief.', 'Project briefs use prompt + depth (light/balanced/deep) to draft goals, milestones, risks and tasks.', 'Auto-layout modes mindmap, timeline and board help clean up after generation.', 'Project briefs create goals, milestones, risks, decision context and delivery tasks.', 'Risk Matrix places nodes by impact/probability.', 'Decision Flow creates options, tradeoff risk and expected outcome.'],
   },
   'main-canvas-markdown-reference': {
     title: 'Nexus Main: Canvas Markdown Reference',
@@ -351,7 +351,7 @@ export const englishEntryTranslations = {
       ['2. Search items', 'Use search and type filters across all content.'],
       ['3. Assign and open', 'Assign items to workspaces and open them directly with double click.'],
     ]),
-    points: ['Workspace modal supports visual icon/color selection.', 'Assign modal allows mapping to multiple workspaces.', 'List and grid modes support different work densities.', 'Workspace handoff connects Files, Dashboard and Mobile context for seamless continuation.'],
+    points: ['Workspace modal supports visual icon/color selection.', 'Assign modal allows mapping to multiple workspaces.', 'List and grid modes support different work densities.', 'Workspace handoff keeps Files, Dashboard and Mobile context understandable across devices.'],
   },
   'main-flux-guide': {
     title: 'Nexus Main: FluxView Guide',
@@ -375,13 +375,23 @@ export const englishEntryTranslations = {
   },
   'main-info-view-guide': {
     title: 'Nexus Main: InfoView Guide',
-    summary: 'InfoView is the internal product documentation in Nexus Main with changelog, feature guides, shortcuts and terminal reference.',
+    summary: 'InfoView is the Nexus v6 in-app handbook with app overview, dedicated view guide tabs, changelog, shortcuts and release smokes.',
     guide: g([
-      ['1. Check release state', 'Read the changelog block to understand active version and main changes.'],
-      ['2. Read view guides', 'Per view, access the core purpose and recommended usage flow.'],
-      ['3. Apply commands', 'Move shortcuts and terminal commands directly into the workflow.'],
+      ['1. Read the overview', 'The top sections explain what Nexus v6 is, why the API bootflow matters and how the shell is meant to work.'],
+      ['2. Open a view tab', 'Every Main view has its own guide tab with usage flow, quality bar, release check and related Wiki topics.'],
+      ['3. Use the release check', 'Before builds, compare changelog, smoke checks, security notes and the copy/paste reference against the real app state.'],
     ]),
-    points: ['InfoView is the densest in-app knowledge source for Main.', 'Sections are organized as collapsible accordions.', 'Guides cover Dashboard, Notes, Canvas, Settings and Terminal.'],
+    points: ['InfoView is intentionally written like product documentation for people, not generic marketing copy.', 'Dedicated guide tabs cover Dashboard, Notes, Tasks, Reminders, Files, Canvas, Flux, Code, Settings, Info, DevTools and Render Diagnostics.', 'Each tab includes daily flow, features, shortcuts, quality bar, practical tip and related Wiki topics.'],
+  },
+  'main-infoview-view-tabs-v6': {
+    title: 'Nexus Main: InfoView View Guide Tabs v6',
+    summary: 'InfoView now has real guide tabs for every Main view instead of only broad feature cards.',
+    guide: g([
+      ['1. Pick a tab', 'Choose Dashboard, Notes, Tasks, Reminders, Files, Canvas, Flux, Code, Settings, Info, DevTools or Render Diagnostics.'],
+      ['2. Read the usage flow', 'Each tab explains the practical order of use so users do not need to jump between code, wiki and app.'],
+      ['3. Check release readiness', 'Quality Bar and Release Check make the RC expectations for that view explicit.'],
+    ]),
+    points: ['View tabs are horizontally scrollable and stay compact.', 'Copy is shorter, more direct and action-oriented.', 'Wiki topics connect InfoView to longer Nexus Wiki entries.', 'The copy/paste reference remains available for quick QA notes.'],
   },
   'main-keybind-matrix': {
     title: 'Nexus Main: Keybind Matrix',
@@ -395,13 +405,13 @@ export const englishEntryTranslations = {
   },
   'main-settings-overview': {
     title: 'Nexus Main: Settings Full Guide',
-    summary: 'Settings is a hub for Theme, Glass, Glow, Background, Layout, Workspace, Motion and Editor with live preview and JSON export/import.',
+    summary: 'Settings is the v6 hub for Theme Library, Panel Backgrounds, App Backgrounds, Motion, Layout, Workspace, Editor and safe theme import/export.',
     guide: g([
-      ['1. Choose a tab', 'Use sidebar and tab search to open the relevant settings area.'],
-      ['2. Test live', 'Observe changes directly in the live preview.'],
-      ['3. Save configuration', 'Save, export or import a theme/configuration.'],
+      ['1. Choose a preset', 'Start from an Experience Preset or a Theme Library card so the visual direction is clear.'],
+      ['2. Check visually', 'Review Panel Texture, App Background, Glow and Motion directly in the interface.'],
+      ['3. Save safely', 'Export as nexus-theme-v6.json or import with schema guards and allowlists for release-frozen fields.'],
     ]),
-    points: ['UX profiles: focus, cinematic, compact.', 'Quick toggles: reduced motion, high contrast, toolbar visibility.', 'Workspace reset actions for Spotlight, Terminal and Dashboard.'],
+    points: ['Experience Presets: Focus, Balanced, Studio, Performance and Cinematic.', 'Theme Library includes more varied looks such as Nexus Product Glow, Calm Linen, Obsidian Graph, Studio Neutral and High Contrast Focus.', 'Panel Backgrounds have real previews with base, tint and pattern layers.', 'Quick toggles: reduced motion, high contrast, toolbar visibility.', 'Workspace reset actions for Spotlight, Terminal and Dashboard remain separated.'],
   },
   'main-settings-theme-glass': {
     title: 'Nexus Main: Theme and Glass Tabs',
@@ -454,8 +464,8 @@ export const englishEntryTranslations = {
     points: ['Canvas commands trigger layout/template/focus events directly in the view.', 'Macro recursion guard blocks infinite loops.', 'Undo/redo manages the command timeline separately.'],
   },
   'ecosystem-why-native-guide': {
-    title: 'Why Nexus Feels Native',
-    summary: 'Nexus feels consistent because render, motion and surface rules are maintained centrally as a product system.',
+    title: 'Why Nexus Feels Calm and Consistent',
+    summary: 'Nexus feels consistent because render, motion and surface rules are maintained centrally and can be reduced per view.',
     guide: g([
       ['1. Understand the shared engine', 'UI decisions run through shared render and motion blocks instead of isolated per-view styling.'],
       ['2. Degrade instead of breaking', 'On weaker hardware the system reduces complexity qualitatively instead of shutting things off randomly.'],
@@ -504,14 +514,14 @@ export const englishEntryTranslations = {
     points: ['Dev panel provides surface table and optional bounds overlay.', 'Toolbar Preview Matrix simulates slot visibility for multiple modes and widths.', 'Diagnostics help optimize UI quality with facts instead of gut feeling.'],
   },
   'main-infoview-product-brain': {
-    title: 'Nexus Main: InfoView as Product Brain',
-    summary: 'InfoView is the compact in-app knowledge layer for changelog, view loops, keybinds and operational commands.',
+    title: 'Nexus Main: InfoView as App Handbook',
+    summary: 'InfoView is the compact in-app knowledge layer for view guides, changelog, keybinds, release smokes and honest product boundaries.',
     guide: g([
       ['1. Get release context', 'Check the changelog for current stability, performance and UX changes.'],
-      ['2. Understand view loops', 'Guide accordions provide each surface with core purpose, typical steps and shortcuts.'],
+      ['2. Understand view loops', 'Guide tabs provide each surface with core purpose, typical steps, quality bar and shortcuts.'],
       ['3. Translate into workflow', 'Move terminal and Spotlight commands into the daily routine.'],
     ]),
-    points: ['InfoView stays intentionally denser and more action-oriented than Website and Wiki.', 'Section structure makes product knowledge accessible inside the app without context switches.', 'Guides, keybinds and changelog are built as one connected work context.'],
+    points: ['InfoView stays intentionally denser and more action-oriented than Website and Wiki.', 'Section structure and view tabs make product knowledge accessible inside the app without context switches.', 'Guides, keybinds, release smokes and changelog are built as one connected work context.'],
   },
   'ecosystem-workflow-surface-philosophy': {
     title: 'Today / Continue Workflow Surface Philosophy',

@@ -98,7 +98,7 @@ export function CanvasView() {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [connectingFrom, setConnectingFrom] = useState<string | null>(null);
   const [editCanvasName, setEditCanvasName] = useState(false);
-  const [showCanvasList, setShowCanvasList] = useState(true);
+  const [showCanvasList, setShowCanvasList] = useState(false);
   const [gridMode, setGridMode] = useState<"dots" | "lines" | "none">("dots");
   const [showMiniMap, setShowMiniMap] = useState(true);
   const [canvasSize, setCanvasSize] = useState({ w: 800, h: 600 });
@@ -603,6 +603,7 @@ export function CanvasView() {
 
   return (
     <div
+      className="nx-canvas-v6 nx-release-view"
       style={{
         width: "100%",
         height: "100%",
@@ -625,6 +626,7 @@ export function CanvasView() {
 
       {/* ── Main Canvas ── */}
       <div
+        className="nx-canvas-main"
         style={{
           flex: 1,
           display: "flex",

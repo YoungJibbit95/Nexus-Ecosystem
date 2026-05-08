@@ -300,7 +300,9 @@ export function FluxView({ setView }: { setView?: (view: string) => void } = {})
       })
       .slice(0, 2)
 
-    urgentTasks.forEach((task) => moveTask(task.id, task.status === 'todo' ? 'doing' : 'done'))
+    urgentTasks.forEach((task) => {
+      if (task.status === 'todo') moveTask(task.id, 'doing')
+    })
 
     reminders
       .filter((reminder) => !reminder.done && parseTs(reminder.snoozeUntil || reminder.datetime) <= nowTs)
@@ -539,8 +541,14 @@ export function FluxView({ setView }: { setView?: (view: string) => void } = {})
         color: TYPE_META.task.color,
         openLabel: 'Open',
         open: openTasksView,
-        resolveLabel: task.status === 'todo' ? 'Start' : 'Done',
-        resolve: () => moveTask(task.id, task.status === 'todo' ? 'doing' : 'done'),
+        resolveLabel: task.status === 'todo' ? 'Start' : 'Review',
+        resolve: () => {
+          if (task.status === 'todo') {
+            moveTask(task.id, 'doing')
+            return
+          }
+          openTasksView()
+        },
       }
     })
 
@@ -631,8 +639,8 @@ export function FluxView({ setView }: { setView?: (view: string) => void } = {})
   const activePresetMeta = PRESET_META[preset]
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, height: '100%', padding: 14, minHeight: 0 }}>
-      <Glass style={{ padding: '14px 16px', flexShrink: 0 }} glow>
+    <div className="nx-flux-v6 nx-release-view" style={{ display: 'flex', flexDirection: 'column', gap: 12, height: '100%', padding: 14, minHeight: 0 }}>
+      <Glass className="nx-flux-hero nx-release-toolbar" style={{ padding: '14px 16px', flexShrink: 0 }} glow>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 20, fontWeight: 900 }}>
@@ -644,7 +652,7 @@ export function FluxView({ setView }: { setView?: (view: string) => void } = {})
               {[
                 'Ctrl+F Search',
                 'Ctrl+Shift+N/C/T/R Quick Create',
-                'Ctrl+Shift+D Resolve Urgent',
+                'Ctrl+Shift+D Triage Urgent',
                 'Ctrl+Shift+B Start Backlog',
                 '1-4 Filter',
                 'F Focus Mode',
@@ -702,7 +710,7 @@ export function FluxView({ setView }: { setView?: (view: string) => void } = {})
         </div>
       </Glass>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))', gap: 10, flexShrink: 0 }}>
+      <div className="nx-flux-metric-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))', gap: 10, flexShrink: 0 }}>
         {[
           {
             label: `Ops Score · ${opsSignal.label}`,
@@ -721,14 +729,14 @@ export function FluxView({ setView }: { setView?: (view: string) => void } = {})
             color: lastActivityAgeMinutes != null && lastActivityAgeMinutes > 180 ? '#FF453A' : '#30D158',
           },
         ].map((metric) => (
-          <Glass key={metric.label} style={{ padding: '10px 12px' }}>
+          <Glass key={metric.label} className="nx-flux-metric-card" style={{ padding: '10px 12px' }}>
             <div style={{ fontSize: 10, opacity: 0.58, textTransform: 'uppercase', letterSpacing: 0.6 }}>{metric.label}</div>
             <div style={{ fontSize: 24, fontWeight: 900, color: metric.color, lineHeight: 1.1 }}>{metric.value}</div>
           </Glass>
         ))}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(250px, 340px) minmax(0,1fr)', gap: 12, flex: 1, minHeight: 0 }}>
+      <div className="nx-flux-work-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(250px, 340px) minmax(0,1fr)', gap: 12, flex: 1, minHeight: 0 }}>
         <Glass style={{ padding: '12px', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 8 }}>
             <div style={{ fontSize: 12, fontWeight: 800 }}>Action Queue</div>
@@ -838,7 +846,7 @@ export function FluxView({ setView }: { setView?: (view: string) => void } = {})
               }}
               title="Cmd/Ctrl+Shift+D"
             >
-              Resolve Urgent
+              Triage Urgent
             </button>
             <button
               onClick={startTopPriorityTasks}

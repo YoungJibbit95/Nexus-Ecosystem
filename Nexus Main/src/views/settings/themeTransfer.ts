@@ -12,7 +12,7 @@ import type {
 } from "../../store/themeStore";
 
 export type ThemeTransferPayload = {
-  version: "v5";
+  version: "v5" | "v6";
   mode: Theme["mode"];
   accent: string;
   accent2: string;
@@ -552,7 +552,7 @@ const sanitizeQolPatch = (patch: Partial<QOLConfig>): Partial<QOLConfig> => {
 
 export function buildThemeTransferPayload(theme: Theme): ThemeTransferPayload {
   return {
-    version: "v5",
+    version: "v6",
     mode: theme.mode,
     accent: theme.accent,
     accent2: theme.accent2,
@@ -599,7 +599,8 @@ export function parseThemeTransferPayload(rawInput: unknown): ThemeTransferParse
     warnings.push("toolbar.height wird nicht mehr importiert und wurde ignoriert.");
   }
 
-  if (asEnum(rawInput.version, ["v5"] as const) === "v5") payload.version = "v5";
+  const version = asEnum(rawInput.version, ["v5", "v6"] as const);
+  if (version) payload.version = version;
 
   const mode = asEnum(rawInput.mode, ["dark", "light"] as const);
   if (mode) payload.mode = mode;

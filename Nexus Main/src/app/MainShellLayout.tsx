@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { Sidebar, type View } from "../components/Sidebar";
 import { TitleBar } from "../components/TitleBar";
 import { hexToRgb } from "../lib/utils";
+import { buildPanelSurfaceTokens } from "../lib/visualUtils";
 import { NexusTerminal, NexusToolbar } from "./viewPreload";
 import { getNexusViewManifest } from "@nexus/core";
 
@@ -66,9 +67,21 @@ export function MainShellLayout({
   onOpenDiagnostics,
   mainViewNode,
 }: Props) {
+  const isDark = t.mode === "dark";
   const activeViewManifest = React.useMemo(
     () => getNexusViewManifest(view),
     [view],
+  );
+  const panelSurfaceTokens = React.useMemo(
+    () =>
+      buildPanelSurfaceTokens({
+        mode: t.background?.panelBgMode || "glass",
+        accent: t.accent,
+        accent2: t.accent2,
+        appBg: t.bg,
+        colorMode: t.mode,
+      }),
+    [t.accent, t.accent2, t.background?.panelBgMode, t.bg, t.mode],
   );
   const viewContract = activeViewManifest ?? {
     title: view === "diagnostics" ? "Diagnostics" : String(view),
@@ -110,13 +123,56 @@ export function MainShellLayout({
   return (
     <div
       className="nx-app-shell nx-motion-root"
+      data-nx-color-mode={t.mode}
       data-nx-motion-profile={motionRuntime?.profile || "balanced"}
       data-nx-motion-reduced={motionRuntime?.reduced ? "1" : "0"}
       style={{
         ...motionCssVars,
         ["--nx-shell-accent-rgb" as any]: accentRgb,
         ["--nx-shell-accent2-rgb" as any]: accent2Rgb,
-        color: t.mode === "dark" ? "#f8f8fc" : "#15161d",
+        ["--nx-panel-bg" as any]: panelSurfaceTokens.background,
+        ["--nx-panel-bg-size" as any]: panelSurfaceTokens.backgroundSize || "100% 100%",
+        ["--nx-panel-bg-blend" as any]: panelSurfaceTokens.backgroundBlendMode || "normal",
+        ["--nx-app-shell-aura-bg" as any]: isDark
+          ? "radial-gradient(circle at 20% 8%, rgba(34, 211, 238, 0.18), transparent 34%), radial-gradient(circle at 84% 4%, rgba(129, 140, 248, 0.2), transparent 36%), radial-gradient(circle at 54% 92%, rgba(16, 185, 129, 0.1), transparent 42%), linear-gradient(180deg, rgba(8, 9, 26, 0.28), rgba(8, 9, 26, 0.66))"
+          : "radial-gradient(circle at 20% 8%, rgba(34, 211, 238, 0.16), transparent 34%), radial-gradient(circle at 84% 4%, rgba(129, 140, 248, 0.14), transparent 36%), radial-gradient(circle at 54% 92%, rgba(16, 185, 129, 0.08), transparent 42%), linear-gradient(180deg, rgba(255, 255, 255, 0.38), rgba(245, 248, 255, 0.5))",
+        ["--nx-app-shell-grid-bg" as any]: isDark
+          ? "linear-gradient(rgba(129, 140, 248, 0.11) 1px, transparent 1px), linear-gradient(90deg, rgba(34, 211, 238, 0.08) 1px, transparent 1px)"
+          : "linear-gradient(rgba(15, 23, 42, 0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(37, 99, 235, 0.055) 1px, transparent 1px)",
+        ["--nx-app-shell-grid-opacity" as any]: isDark ? 0.045 : 0.035,
+        ["--nx-shell-window-bg" as any]: isDark
+          ? "linear-gradient(145deg, rgba(15, 23, 42, 0.72), rgba(8, 13, 32, 0.54)), radial-gradient(circle at top left, rgba(34, 211, 238, 0.08), transparent 42%), radial-gradient(circle at bottom right, rgba(129, 140, 248, 0.08), transparent 42%)"
+          : "linear-gradient(145deg, rgba(255, 255, 255, 0.9), rgba(244, 247, 255, 0.76)), radial-gradient(circle at top left, rgba(34, 211, 238, 0.11), transparent 42%), radial-gradient(circle at bottom right, rgba(99, 102, 241, 0.08), transparent 42%)",
+        ["--nx-shell-window-aura-bg" as any]: isDark
+          ? "linear-gradient(180deg, rgba(255,255,255,0.1), transparent 18%), radial-gradient(640px circle at -6% -20%, rgba(34, 211, 238, 0.2), transparent 52%), radial-gradient(780px circle at 120% -30%, rgba(167, 139, 250, 0.18), transparent 60%)"
+          : "linear-gradient(180deg, rgba(255,255,255,0.72), transparent 22%), radial-gradient(640px circle at -6% -20%, rgba(34, 211, 238, 0.13), transparent 52%), radial-gradient(780px circle at 120% -30%, rgba(99, 102, 241, 0.11), transparent 60%)",
+        ["--nx-shell-window-grid-bg" as any]: isDark
+          ? "linear-gradient(rgba(255, 255, 255, 0.045) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px)"
+          : "linear-gradient(rgba(15, 23, 42, 0.055) 1px, transparent 1px), linear-gradient(90deg, rgba(15, 23, 42, 0.04) 1px, transparent 1px)",
+        ["--nx-shell-window-grid-opacity" as any]: isDark ? 0.055 : 0.04,
+        ["--nx-v6-surface" as any]: isDark ? "rgba(15, 23, 42, 0.58)" : "rgba(255, 255, 255, 0.72)",
+        ["--nx-v6-surface-strong" as any]: isDark ? "rgba(8, 13, 32, 0.62)" : "rgba(248, 250, 252, 0.88)",
+        ["--nx-v6-line" as any]: isDark ? "rgba(255, 255, 255, 0.1)" : "rgba(15, 23, 42, 0.12)",
+        ["--nx-v6-line-soft" as any]: isDark ? "rgba(255, 255, 255, 0.065)" : "rgba(15, 23, 42, 0.08)",
+        ["--nx-v6-text" as any]: isDark ? "rgba(255, 255, 255, 0.92)" : "rgba(15, 23, 42, 0.94)",
+        ["--nx-v6-muted" as any]: isDark ? "rgba(255, 255, 255, 0.62)" : "rgba(15, 23, 42, 0.66)",
+        ["--nx-v6-faint" as any]: isDark ? "rgba(255, 255, 255, 0.4)" : "rgba(15, 23, 42, 0.48)",
+        ["--nx-v6-control-text" as any]: isDark ? "rgba(255, 255, 255, 0.78)" : "rgba(15, 23, 42, 0.78)",
+        ["--nx-v6-control-hover-text" as any]: isDark ? "rgba(255, 255, 255, 0.96)" : "rgba(15, 23, 42, 0.96)",
+        ["--nx-v6-control-bg" as any]: isDark ? "rgba(255, 255, 255, 0.055)" : "rgba(15, 23, 42, 0.045)",
+        ["--nx-v6-control-bg-hover" as any]: isDark ? "rgba(255, 255, 255, 0.07)" : "rgba(15, 23, 42, 0.065)",
+        ["--nx-v6-strong-text" as any]: isDark ? "rgba(255, 255, 255, 0.9)" : "rgba(2, 6, 23, 0.94)",
+        ["--nx-v6-primary-text" as any]: isDark ? "rgba(255, 255, 255, 0.96)" : "rgba(2, 6, 23, 0.94)",
+        ["--nx-v6-grid-line-a" as any]: isDark ? "rgba(255, 255, 255, 0.042)" : "rgba(15, 23, 42, 0.045)",
+        ["--nx-v6-grid-line-b" as any]: isDark ? "rgba(255, 255, 255, 0.032)" : "rgba(15, 23, 42, 0.032)",
+        ["--nx-status-bar-bg" as any]: isDark
+          ? "linear-gradient(180deg, rgba(255, 255, 255, 0.018), rgba(255, 255, 255, 0.01)), rgba(4, 6, 13, 0.2)"
+          : "linear-gradient(180deg, rgba(255, 255, 255, 0.86), rgba(248, 250, 252, 0.76)), rgba(255, 255, 255, 0.38)",
+        ["--nx-status-bar-border" as any]: isDark ? "rgba(255, 255, 255, 0.055)" : "rgba(15, 23, 42, 0.09)",
+        ["--nx-status-text" as any]: isDark ? "rgba(255, 255, 255, 0.52)" : "rgba(15, 23, 42, 0.58)",
+        ["--nx-status-strong-text" as any]: isDark ? "rgba(255, 255, 255, 0.72)" : "rgba(15, 23, 42, 0.78)",
+        color: isDark ? "#f8f8fc" : "#111827",
+        colorScheme: t.mode,
         ...backgroundStyles,
         fontSize: "var(--nx-font-size, 14px)",
       }}

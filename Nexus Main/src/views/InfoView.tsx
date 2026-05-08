@@ -1,557 +1,1173 @@
-import React, { useState } from "react";
-import { useTheme } from "../store/themeStore";
+import React, { useMemo, useState } from "react";
 import {
   BookOpen,
-  Code2,
   FileText,
-  CheckSquare,
-  Bell,
-  Layout,
-  Settings,
-  Terminal,
-  Keyboard,
-  Zap,
   GitBranch,
+  Keyboard,
   Layers,
-  HardDrive,
-  Wrench,
-  BarChart3,
   Monitor,
-  Star,
+  ShieldCheck,
+  SlidersHorizontal,
   Sparkles,
+  Star,
 } from "lucide-react";
-import { Acc, Badge, Card, Code, Grid2, H, P, hexRgb } from "./info/InfoPrimitives";
+import { useTheme } from "../store/themeStore";
+import {
+  Acc,
+  Badge,
+  Card,
+  Code,
+  Grid2,
+  H,
+  P,
+  hexRgb,
+} from "./info/InfoPrimitives";
 
-export function InfoView({ onOpenWalkthrough }: { onOpenWalkthrough?: () => void } = {}) {
+type ViewDoc = {
+  emoji: string;
+  icon: string;
+  title: string;
+  purpose: string;
+  mainUse: string[];
+  features: string[];
+  shortcuts?: string[];
+  releaseCheck: string;
+  guideTitle: string;
+  guideIntro: string;
+  dailyFlow: string[];
+  qualityBar: string;
+  proTip: string;
+  wikiTopics: string[];
+};
+
+const VIEW_DOCS: ViewDoc[] = [
+  {
+    emoji: "🏠",
+    icon: "DB",
+    title: "Dashboard",
+    purpose:
+      "Der ruhige Startpunkt: Heute lesen, weiterarbeiten und neue Gedanken schnell parken.",
+    mainUse: [
+      "Today Layer checken",
+      "Continue Lane öffnen",
+      "Quick Capture nutzen",
+      "Layout Editor starten",
+    ],
+    features: [
+      "Runtime/API Health",
+      "Widget Grid",
+      "Drag/drop Swap",
+      "Hidden Widgets Tray",
+      "mobile angepasste Cards",
+    ],
+    shortcuts: ["Ctrl+1", "Edit Layout", "Quick Capture"],
+    releaseCheck:
+      "Dashboard muss ohne Boot-Loop laden und sein Layout nach Reload behalten.",
+    guideTitle: "Dashboard Guide",
+    guideIntro:
+      "Starte hier, wenn du wissen willst, was heute wirklich wichtig ist. Das Dashboard soll nicht voll wirken, sondern entscheiden helfen.",
+    dailyFlow: [
+      "Erst den Today Layer lesen: Fälliges, Blocker und offene Arbeit.",
+      "Dann die Continue Lane nutzen, um ohne Suchen in den letzten Kontext zurückzukommen.",
+      "Neue Gedanken über Quick Capture aufnehmen, statt sofort die View zu wechseln.",
+      "Layout nur dann bearbeiten, wenn ein Widget gerade dauerhaft stört oder fehlt.",
+    ],
+    qualityBar:
+      "Ein gutes Dashboard fühlt sich nach weniger Chaos an: klare Priorität, kein Widget-Rauschen, keine verlorene Arbeit nach Reload.",
+    proTip:
+      "Wenn du release-testest, ziehe ein Widget hoch/runter, lade neu und prüfe, ob Position und Sichtbarkeit gleich bleiben.",
+    wikiTopics: [
+      "main-dashboard-guide",
+      "Today Layer",
+      "Quick Capture",
+      "Dashboard Layout v2",
+    ],
+  },
+  {
+    emoji: "📝",
+    icon: "NO",
+    title: "Notes",
+    purpose:
+      "Die interne Wissensbasis für Markdown, Guides, Backlinks, Emojis und Magic Blocks.",
+    mainUse: [
+      "Note erstellen",
+      "Guide lesen",
+      "Markdown schreiben",
+      "Preview/Split nutzen",
+      "Tags und Pins pflegen",
+    ],
+    features: [
+      "Command Strip",
+      "Advanced Blocks Menu",
+      "Emoji Picker",
+      "Import/Export",
+      "Autosave/Manual Save",
+    ],
+    shortcuts: ["Ctrl+P", "Ctrl+F", "Ctrl+S", "Ctrl+B", "Ctrl+I", "Ctrl+K"],
+    releaseCheck:
+      "Editor, Blocks-Menü und Emoji Picker dürfen keine Klickziele verdecken.",
+    guideTitle: "Notes Guide",
+    guideIntro:
+      "Notes ist der Ort für echte Arbeitsnotizen, nicht nur Demo-Markdown. Schreibe roh, strukturiere später, und nutze Magic Blocks nur dort, wo sie Lesbarkeit bringen.",
+    dailyFlow: [
+      "Links eine Note wählen oder mit dem New-Button eine neue Notiz anlegen.",
+      "Im Editor erst den Inhalt schreiben, dann mit Tags, Pins und Überschriften aufräumen.",
+      "Split nutzen, wenn du Tabellen, Callouts oder Magic Blocks prüfst.",
+      "Emoji-Menü und Blocks-Menü bewusst als kleine Helfer nutzen, nicht als Platzfresser.",
+    ],
+    qualityBar:
+      "Notes ist releasebereit, wenn Sidebar, Editor, Toolbar, Blocks-Menü und Emoji Picker gleichzeitig bedienbar bleiben.",
+    proTip:
+      "Für Doku-Notizen funktionieren kurze H2s plus ein Callout pro Abschnitt deutlich besser als lange Textwände.",
+    wikiTopics: [
+      "main-notes-guide",
+      "main-notes-markdown-reference",
+      "main-notes-magic-menu-guide",
+      "Wikilinks",
+    ],
+  },
+  {
+    emoji: "✅",
+    icon: "TA",
+    title: "Tasks",
+    purpose:
+      "Der Arbeitsmodus für Board, Focus, Deadlines, Prioritäten, Blocker und Batch Triage.",
+    mainUse: [
+      "Tasks erstellen",
+      "Status bewegen",
+      "Focus Mode nutzen",
+      "Batch Mode für Triage verwenden",
+    ],
+    features: [
+      "To Do/Doing/Done Board",
+      "Due Soon",
+      "High Priority",
+      "Blocked",
+      "Linked Notes",
+      "Subtasks",
+    ],
+    shortcuts: ["1..5", "B", "H", "N", "T", "E", "G"],
+    releaseCheck:
+      "Task-Karten müssen ruhig, klickstabil und ohne innere Fremd-Rechtecke wirken.",
+    guideTitle: "Tasks Guide",
+    guideIntro:
+      "Tasks soll dir Arbeit sortieren, nicht mehr Arbeit machen. Die View ist für klare nächste Schritte gebaut: was ist offen, was läuft, was blockiert?",
+    dailyFlow: [
+      "Neue Aufgabe kurz formulieren, später Details ergänzen.",
+      "Status bewusst wechseln: To Do, Doing und Done sind Produktentscheidungen.",
+      "Blocker und Priorität nutzen, wenn eine Aufgabe sonst in der Liste versinkt.",
+      "Focus Mode öffnen, wenn ein einzelner Task gerade wichtiger ist als das Board.",
+    ],
+    qualityBar:
+      "Tasks ist gut, wenn du eine Aufgabe auch in voller Karte noch sicher anklicken, verschieben und bearbeiten kannst.",
+    proTip:
+      "Bei großen Boards lieber erst filtern und dann triagieren; Batch-Mode ist für Ordnung, nicht für blindes Wegklicken.",
+    wikiTopics: [
+      "main-tasks-guide",
+      "Task Board",
+      "Flux Triage",
+      "Linked Notes",
+    ],
+  },
+  {
+    emoji: "⏰",
+    icon: "RE",
+    title: "Reminders",
+    purpose:
+      "Zeitbasierte Follow-ups mit Wiederholung, Snooze und Kontext zu Tasks oder Notes.",
+    mainUse: [
+      "Reminder planen",
+      "Overdue triagieren",
+      "Snooze setzen",
+      "Task/Note verlinken",
+    ],
+    features: [
+      "daily/weekly/monthly Repeat",
+      "Snooze all overdue",
+      "Notification Health",
+      "Done Cleanup",
+    ],
+    shortcuts: ["Ctrl+4", "Snooze", "Health"],
+    releaseCheck:
+      "Overdue- und Fallback-Zustände müssen auch ohne Notification Permission lesbar bleiben.",
+    guideTitle: "Reminders Guide",
+    guideIntro:
+      "Reminders ist dein kleiner Vertrag mit der Zukunft. Wichtig ist nicht die Anzahl der Erinnerungen, sondern ob sie beim Wiederauftauchen noch verständlich sind.",
+    dailyFlow: [
+      "Reminder mit konkretem Verb schreiben: anrufen, prüfen, deployen, bezahlen.",
+      "Bei Overdue erst entscheiden: erledigen, snoozen oder in Task umwandeln.",
+      "Wiederholungen nur für echte Routinen nutzen.",
+      "Notification Health prüfen, wenn Erinnerungen nicht sichtbar auftauchen.",
+    ],
+    qualityBar:
+      "Die View passt, wenn Overdue nicht bedrohlich wirkt, sondern schnell sortierbar bleibt.",
+    proTip:
+      "Ein Reminder ohne Kontext altert schlecht. Linke wichtige Reminder lieber mit Task oder Note.",
+    wikiTopics: [
+      "main-reminders-guide",
+      "Reminder Health",
+      "Snooze",
+      "Repeat Rules",
+    ],
+  },
+  {
+    emoji: "📁",
+    icon: "FI",
+    title: "Files",
+    purpose:
+      "Workspace-Hub für lokale Inhalte, Exporte, Imports und Projektzuordnung.",
+    mainUse: [
+      "Workspace setzen",
+      "Items durchsuchen",
+      "Import/Export nutzen",
+      "Dateien zuordnen",
+    ],
+    features: [
+      "Recent",
+      "Pinned",
+      "Unassigned",
+      "Workspace Views",
+      "Context Menus",
+      "Sync Status",
+    ],
+    shortcuts: ["Ctrl+5", "Import", "Export"],
+    releaseCheck:
+      "Downloads und Exports müssen eindeutig benannt sein und dürfen keine lokalen Secrets enthalten.",
+    guideTitle: "Files Guide",
+    guideIntro:
+      "Files ist die Brücke zwischen Nexus und deinem echten Projektordner. Die View soll helfen, Dinge zu finden und sauber zuzuordnen.",
+    dailyFlow: [
+      "Zuerst Workspace setzen, damit Imports und Exports nicht irgendwo landen.",
+      "Recent und Pinned nutzen, um aktive Dateien nicht jedes Mal neu zu suchen.",
+      "Unassigned regelmäßig aufräumen, wenn Dateien keinem Projektkontext zugeordnet sind.",
+      "Vor Export kurz prüfen, ob Dateiname und Ziel wirklich stimmen.",
+    ],
+    qualityBar:
+      "Files ist releasebereit, wenn lokale Aktionen klar benannt sind und der Nutzer nie raten muss, was gerade mit einer Datei passiert.",
+    proTip:
+      "Für Website-Downloads gehören Installer in einen klaren Release-Ordner, nicht in zufällige Workspace-Exports.",
+    wikiTopics: [
+      "main-files-guide",
+      "Workspace Sync",
+      "Downloads",
+      "Import Export",
+    ],
+  },
+  {
+    emoji: "🧩",
+    icon: "CV",
+    title: "Canvas",
+    purpose:
+      "Ein Obsidian-naher Knowledge Graph mit Nodes, Edges, Wiki-Links, Jump Search und Templates.",
+    mainUse: [
+      "Node anlegen",
+      "Nodes verbinden",
+      "Ctrl+P Jump Search",
+      "Magic Builder",
+      "Focus/Fit View",
+    ],
+    features: [
+      "Pan/Zoom/Grid",
+      "Project Panel",
+      "Outline",
+      "Relations",
+      "Auto Layout",
+      "JSON/Markdown Export",
+    ],
+    shortcuts: ["Ctrl+P", "Ctrl+M", "Ctrl+0", "F", "P", "G", "+", "-"],
+    releaseCheck:
+      "Pan, Zoom und Drag dürfen nicht mit Buttons kollidieren; Double-click Add nur auf leerer Fläche.",
+    guideTitle: "Canvas Guide",
+    guideIntro:
+      "Canvas ist für Denken mit Raum. Nutze es für Beziehungen, Entscheidungen und Projektbilder, die in einer linearen Note schnell eng werden.",
+    dailyFlow: [
+      "Mit einem zentralen Node starten, nicht mit zwanzig kleinen Knoten.",
+      "Wiki-Links nutzen, wenn Canvas und Notes denselben Begriff teilen sollen.",
+      "Jump Search verwenden, sobald der Canvas groß wird.",
+      "Auto Layout nur als Aufräumhilfe einsetzen, danach bewusst nachjustieren.",
+    ],
+    qualityBar:
+      "Canvas ist gut, wenn du zoomen, ziehen, verbinden und Buttons anklicken kannst, ohne dass Elemente unter dem Cursor wegrutschen.",
+    proTip:
+      "Für Release-Smokes immer leerer Canvas, großer Canvas und verbundenes Node-Set testen.",
+    wikiTopics: [
+      "main-canvas-guide",
+      "main-canvas-magic-builder-guide",
+      "Canvas Magic",
+      "Wikilinks",
+    ],
+  },
+  {
+    emoji: "⚡",
+    icon: "FL",
+    title: "Flux",
+    purpose:
+      "Der Ops- und Engpass-Layer über Tasks, Reminders, Blocker und aktive Arbeit.",
+    mainUse: [
+      "Queue Slices filtern",
+      "Bottlenecks öffnen",
+      "Backlog starten",
+      "Reminder triagieren",
+    ],
+    features: [
+      "Ops Score",
+      "Overdue/Due Soon",
+      "High Priority",
+      "Focus",
+      "Reminder Triage",
+      "Task Backlog",
+    ],
+    shortcuts: ["Ctrl+F", "Ctrl+Shift+B", "Ctrl+Shift+D", "Ctrl+Shift+R"],
+    releaseCheck:
+      "Flux darf laufende Tasks nicht heimlich erledigen; Statuswechsel müssen bewusst bleiben.",
+    guideTitle: "Flux Guide",
+    guideIntro:
+      "Flux ist die nüchterne Sicht auf Druck im System. Es soll dir Engpässe zeigen, ohne dir Entscheidungen abzunehmen, die du bewusst treffen musst.",
+    dailyFlow: [
+      "Queue nach überfällig, blockiert oder hohe Priorität filtern.",
+      "Bottlenecks öffnen und nur echte Ursachen bearbeiten.",
+      "Urgent Flow nutzen, um To-do nach Doing zu ziehen oder laufende Arbeit zur Review zu öffnen.",
+      "Reminder-Triage machen, bevor Overdue zur Dauerwolke wird.",
+    ],
+    qualityBar:
+      "Flux ist sicher, wenn jede Automatik nachvollziehbar bleibt und nichts still auf Done springt.",
+    proTip:
+      "Flux ist kein Ersatz für Planung; es zeigt nur, wo Planung gerade brennt.",
+    wikiTopics: [
+      "main-flux-guide",
+      "Urgent Flow",
+      "Reminder Triage",
+      "Ops Score",
+    ],
+  },
+  {
+    emoji: "💻",
+    icon: "CO",
+    title: "Code",
+    purpose:
+      "Embedded Scratch-/Code-Editor für Snippets, kleine Projekte, Run/Preview und Output-History.",
+    mainUse: [
+      "Datei öffnen",
+      "Code schreiben",
+      "Run/Preview starten",
+      "Output prüfen",
+    ],
+    features: [
+      "Monaco Editor",
+      "Quick Open",
+      "JS/TS/Python Beispiele",
+      "Output History",
+      "Code App Tier-Gating",
+    ],
+    shortcuts: ["Ctrl+P", "Ctrl+Enter", "Ctrl+S"],
+    releaseCheck:
+      "Filesystem- und Run-Flows müssen klar begrenzt und auditierbar bleiben.",
+    guideTitle: "Code Guide",
+    guideIntro:
+      "Code in Nexus Main ist für schnelle technische Skizzen und kleine Ausführungen gedacht. Für große Arbeit bleibt Nexus Code die stärkere IDE-Surface.",
+    dailyFlow: [
+      "Snippet oder kleine Datei öffnen, bevor du den großen Editor brauchst.",
+      "Run/Preview bewusst starten und Output prüfen.",
+      "Output-History nutzen, wenn ein Experiment mehrere Schritte hat.",
+      "Bei Projektarbeit in Nexus Code wechseln.",
+    ],
+    qualityBar:
+      "Code ist releaseklar, wenn Run, Save, Output und Tier-Gating ohne versteckte Nebenwirkungen funktionieren.",
+    proTip:
+      "Nenne Scratch-Dateien so, dass du sie später wiedererkennst; `test2` rächt sich schneller als man denkt.",
+    wikiTopics: [
+      "main-code-guide",
+      "Nexus Code",
+      "Code App Tier",
+      "Output History",
+    ],
+  },
+  {
+    emoji: "🎛️",
+    icon: "SE",
+    title: "Settings",
+    purpose:
+      "Kontrollzentrum für Theme, Glow, Panel/App Backgrounds, Motion, Accessibility, Layout und Workspace.",
+    mainUse: [
+      "Theme wählen",
+      "Panel Texture prüfen",
+      "Motion Profil setzen",
+      "Workspace Wartung nutzen",
+    ],
+    features: [
+      "Theme Import/Export",
+      "Panel Preview Cards",
+      "Glow Lab",
+      "App Background",
+      "Reduced Motion",
+      "Danger-safe Reset",
+    ],
+    shortcuts: ["Ctrl+9", "Advanced", "Experimental"],
+    releaseCheck:
+      "Jede sichtbare Option braucht reale Wirkung oder klaren Schutz/Disabled-Kontext.",
+    guideTitle: "Settings Guide",
+    guideIntro:
+      "Settings ist kein Spielzeugkasten ohne Boden. Die wichtigsten Optionen sind vorne, riskantere Engine-Regler bleiben bewusst hinter Advanced und Experimental.",
+    dailyFlow: [
+      "Erst Experience Preset wählen: Focus, Balanced, Studio, Performance oder Cinematic.",
+      "Dann Theme Library nutzen und nur bei Bedarf Farben selbst anpassen.",
+      "Panel Texture mit echter Vorschau prüfen, nicht blind durchschalten.",
+      "Motion an Hardware und persönliche Ruhe anpassen.",
+    ],
+    qualityBar:
+      "Settings ist releasefertig, wenn Import/Export sicher ist und jede Option erklärt, was sie tut.",
+    proTip:
+      "Für Screenshots eignet sich ein ruhiges Theme plus Mist/Solid Panel besser als maximaler Glow.",
+    wikiTopics: [
+      "main-settings-overview",
+      "main-settings-theme-glass",
+      "main-settings-glow-background",
+      "Theme Library",
+    ],
+  },
+  {
+    emoji: "📚",
+    icon: "IN",
+    title: "Info",
+    purpose:
+      "Diese Dokumentations- und Referenzview für App, Views, Releasevertrag und Smoke-Check.",
+    mainUse: [
+      "Feature-Überblick lesen",
+      "View-Guides nachschlagen",
+      "Shortcuts prüfen",
+      "Release-Checks verfolgen",
+    ],
+    features: [
+      "App Guide",
+      "View Guide Tabs",
+      "Architecture",
+      "Shortcuts",
+      "Smoke Matrix Summary",
+    ],
+    shortcuts: ["Ctrl+0", "Info"],
+    releaseCheck:
+      "InfoView muss den aktuellen Stand abbilden und darf keine alten v5-Versprechen zeigen.",
+    guideTitle: "Info Guide",
+    guideIntro:
+      "InfoView ist das Handbuch direkt in der App. Wenn du vergisst, wie eine View gedacht ist, sollst du nicht im Repo suchen müssen.",
+    dailyFlow: [
+      "Oben den Überblick lesen, wenn du Nexus jemandem erklärst.",
+      "View-Guide-Tabs nutzen, wenn du eine konkrete Ansicht testen oder verstehen willst.",
+      "Release- und Smoke-Check vor Builds oder Deploys öffnen.",
+      "Shortcuts nachschlagen, wenn du schneller durch die App willst.",
+    ],
+    qualityBar:
+      "InfoView ist gut, wenn sie wie echte Produktdoku klingt und denselben Stand wie Wiki, Website und Notes beschreibt.",
+    proTip:
+      "Beim Release immer zuerst nach v5, Platzhaltern und übertriebenen Produktversprechen suchen.",
+    wikiTopics: [
+      "main-info-view-guide",
+      "main-infoview-product-brain",
+      "InfoView",
+      "Release Docs",
+    ],
+  },
+  {
+    emoji: "🛠️",
+    icon: "DV",
+    title: "DevTools",
+    purpose:
+      "Developer-/Admin-nahe Diagnose, Builder, Recipes, Export-Hilfen und Release-Health-Arbeit.",
+    mainUse: [
+      "Diagnostics lesen",
+      "Artifacts exportieren",
+      "UI Builder testen",
+      "Logs ohne Secrets prüfen",
+    ],
+    features: [
+      "Builder",
+      "Calculator",
+      "Recipes",
+      "Visual Diagnostics",
+      "Export Panels",
+      "Feature Catalog Kontext",
+    ],
+    shortcuts: ["Dev only", "Admin/Debug"],
+    releaseCheck:
+      "In Release nicht prominent für normale User; keine Secrets in UI, Logs oder Exporten.",
+    guideTitle: "DevTools Guide",
+    guideIntro:
+      "DevTools ist für Arbeit am Produkt, nicht für normale Nutzerführung. Die View darf stark sein, muss aber sauber gegated und verständlich bleiben.",
+    dailyFlow: [
+      "Diagnostics und Builder nur öffnen, wenn du wirklich am System arbeitest.",
+      "Exports prüfen, bevor du sie weiterverwendest.",
+      "Logs immer auf Secrets und private Pfade kontrollieren.",
+      "Für normale Nutzer DevTools nicht als Feature verkaufen.",
+    ],
+    qualityBar:
+      "DevTools ist releasefähig, wenn Admin-/Debug-Kontext sichtbar bleibt und keine sensiblen Daten austreten.",
+    proTip:
+      "DevTools darf intern mächtig sein; öffentlich sollte es leise und kontrolliert bleiben.",
+    wikiTopics: [
+      "main-devtools-guide",
+      "Visual Builder",
+      "Feature Catalog",
+      "Diagnostics",
+    ],
+  },
+  {
+    emoji: "📈",
+    icon: "RD",
+    title: "Render Diagnostics",
+    purpose:
+      "Diagnosefläche für Render-, Motion- und Performance-Zustände im Entwicklungsmodus.",
+    mainUse: [
+      "Frame/Render Signale prüfen",
+      "Motion Budget bewerten",
+      "UI Regressions debuggen",
+    ],
+    features: [
+      "Render Surface Budget",
+      "Motion Runtime",
+      "Diagnostics Button",
+      "Support Kontext",
+    ],
+    shortcuts: ["Diagnostics"],
+    releaseCheck:
+      "Nur gated sichtbar und für Support nutzbar, nicht als normale Produktview verkaufen.",
+    guideTitle: "Render Diagnostics Guide",
+    guideIntro:
+      "Diese View ist der Blick unter die Motorhaube. Sie hilft, UI-Gefühl mit echten Render- und Motion-Signalen abzugleichen.",
+    dailyFlow: [
+      "Diagnostics öffnen, wenn Animation, Blur oder Toolbar-Verhalten komisch wirkt.",
+      "Budget, Surface-Klassen und Degradation-Level prüfen.",
+      "Auffällige Invariants notieren und mit konkreten Views reproduzieren.",
+      "Nach UI-Änderungen kurz prüfen, ob Motion/Render nicht überdreht.",
+    ],
+    qualityBar:
+      "Diagnostics ist nützlich, wenn es Ursachen zeigt, ohne normale Nutzer mit Entwicklungsrauschen zu belasten.",
+    proTip:
+      "Wenn etwas 'grainy' oder hektisch wirkt, hier zuerst Motion/Surface-Degradation gegenprüfen.",
+    wikiTopics: [
+      "main-render-diagnostics-guide",
+      "Render Pipeline",
+      "Motion Engine",
+      "Surface Classes",
+    ],
+  },
+];
+
+const MAGIC_BLOCKS = [
+  "nexus-list",
+  "nexus-checklist",
+  "nexus-progress",
+  "nexus-timeline",
+  "nexus-kanban",
+  "nexus-metrics",
+  "nexus-steps",
+  "nexus-grid",
+  "nexus-card",
+  "nexus-alert",
+  "nexus-callout",
+  "nexus-quadrant",
+];
+
+function PillButton({
+  active,
+  label,
+  onClick,
+}: {
+  active: boolean;
+  label: string;
+  onClick: () => void;
+}) {
   const t = useTheme();
   const rgb = hexRgb(t.accent);
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        borderRadius: 999,
+        border: active
+          ? `1px solid rgba(${rgb},0.42)`
+          : "1px solid rgba(255,255,255,0.12)",
+        background: active ? `rgba(${rgb},0.16)` : "rgba(255,255,255,0.04)",
+        color: active ? t.accent : "inherit",
+        cursor: "pointer",
+        fontSize: 11,
+        fontWeight: 820,
+        padding: "7px 10px",
+        whiteSpace: "nowrap",
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
+export function InfoView({
+  onOpenWalkthrough,
+}: { onOpenWalkthrough?: () => void } = {}) {
+  const t = useTheme();
+  const rgb = hexRgb(t.accent);
+  const [activeGuide, setActiveGuide] = useState(VIEW_DOCS[0].title);
   const [open, setOpen] = useState<Record<string, boolean>>({
     about: true,
-    architecture: true,
-    diagnostics: true,
-    guide: true,
-    changelog: true,
-    dashboard: false,
-    notes: false,
-    code: false,
-    tasks: false,
-    reminders: false,
-    canvas: false,
-    files: false,
-    flux: false,
-    devtools: false,
+    docs: true,
+    views: true,
+    notes: true,
+    accounts: true,
     settings: false,
+    architecture: false,
+    release: false,
     shortcuts: false,
-    terminal: false,
+    changelog: true,
   });
 
-  const tog = (k: string) => setOpen((s) => ({ ...s, [k]: !s[k] }));
+  const viewCount = VIEW_DOCS.length;
+  const activeView =
+    VIEW_DOCS.find((view) => view.title === activeGuide) ?? VIEW_DOCS[0];
+  const tog = (key: string) =>
+    setOpen((state) => ({ ...state, [key]: !state[key] }));
+  const viewDocsText = useMemo(
+    () =>
+      VIEW_DOCS.map(
+        (view) =>
+          `${view.emoji} ${view.title}: ${view.purpose}\nFlow: ${view.dailyFlow.join(" -> ")}\nFeatures: ${view.features.join(", ")}\nRelease: ${view.releaseCheck}`,
+      ).join("\n\n"),
+    [],
+  );
 
   return (
-    <div style={{ height: "100%", overflowY: "auto", padding: "20px 22px" }}>
-      <div style={{ maxWidth: 820, margin: "0 auto" }}>
+    <div style={{ height: "100%", overflowY: "auto", padding: "16px 18px" }}>
+      <div style={{ maxWidth: 1120, margin: "0 auto" }}>
         <div
           style={{
-            marginBottom: 28,
-            padding: "24px 28px",
-            borderRadius: 18,
-            background: `linear-gradient(135deg, rgba(${rgb},0.12) 0%, transparent 60%)`,
-            border: `1px solid rgba(${rgb},0.2)`,
+            marginBottom: 16,
+            padding: "22px 24px",
+            borderRadius: 20,
+            background: `radial-gradient(560px circle at 8% 0%, rgba(${rgb},0.2), transparent 60%), radial-gradient(480px circle at 92% 0%, rgba(${hexRgb(t.accent2)},0.16), transparent 62%), linear-gradient(135deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02))`,
+            border: `1px solid rgba(${rgb},0.24)`,
+            boxShadow: `0 18px 54px rgba(0,0,0,0.18), 0 0 60px rgba(${rgb},0.08)`,
             position: "relative",
             overflow: "hidden",
           }}
         >
-          <div
-            style={{
-              position: "absolute",
-              top: -30,
-              right: -30,
-              width: 140,
-              height: 140,
-              borderRadius: "50%",
-              background: `radial-gradient(circle, rgba(${rgb},0.2), transparent)`,
-              filter: "blur(30px)",
-            }}
-          />
-          <div style={{ position: "relative" }}>
+          <div style={{ position: "relative", zIndex: 1 }}>
             <div
               style={{
-                fontSize: 32,
-                fontWeight: 900,
-                marginBottom: 6,
+                fontSize: 31,
+                fontWeight: 950,
+                marginBottom: 5,
                 background: `linear-gradient(135deg, ${t.accent}, ${t.accent2})`,
                 WebkitBackgroundClip: "text",
                 WebkitTextFillColor: "transparent",
+                letterSpacing: -1.2,
               }}
             >
-              NEXUS v5.0
+              📚 Nexus v6 Handbuch
             </div>
-            <div style={{ fontSize: 13, opacity: 0.55, marginBottom: 16 }}>
-              Productivity Suite · Workspace Edition · 22. April 2026
+            <div style={{ fontSize: 12, opacity: 0.68, marginBottom: 12 }}>
+              Menschlich geschriebene App-Doku · eigene Guides pro View ·
+              API-connected Bootflow · 8. Mai 2026
             </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-              <Badge label="Notes" color={t.accent} />
-              <Badge label="Code" color="#BF5AF2" />
-              <Badge label="Tasks" color="#FF9F0A" />
-              <Badge label="Reminders" color="#FF453A" />
-              <Badge label="Canvas" color="#30D158" />
-              <Badge label="Files" color="#64D2FF" />
-              <Badge label="Flux" color="#FFD60A" />
-              <Badge label="DevTools" color="#FF6B35" />
-              <Badge label="Settings" color="#5E5CE6" />
+              <Badge label={`🧭 ${viewCount} View-Guides`} color={t.accent} />
+              <Badge label="🔐 Hosted API required" color="#64d2ff" />
+              <Badge label="✨ v6 Release Docs" color="#30d158" />
+              <Badge label="✅ Smoke-ready" color="#ff9f0a" />
             </div>
             {onOpenWalkthrough ? (
-              <div style={{ marginTop: 12 }}>
-                <button
-                  type="button"
-                  onClick={onOpenWalkthrough}
-                  style={{
-                    borderRadius: 9,
-                    border: `1px solid rgba(${rgb},0.32)`,
-                    background: `rgba(${rgb},0.14)`,
-                    color: t.accent,
-                    fontSize: 11,
-                    fontWeight: 800,
-                    padding: "6px 10px",
-                    cursor: "pointer",
-                  }}
-                >
-                  Walkthrough öffnen
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={onOpenWalkthrough}
+                style={{
+                  marginTop: 12,
+                  borderRadius: 999,
+                  border: `1px solid rgba(${rgb},0.32)`,
+                  background: `rgba(${rgb},0.14)`,
+                  color: t.accent,
+                  fontSize: 11,
+                  fontWeight: 850,
+                  padding: "6px 11px",
+                  cursor: "pointer",
+                }}
+              >
+                🚀 Walkthrough öffnen
+              </button>
             ) : null}
           </div>
         </div>
 
-        <Acc title="Changelog" icon={Star} open={open.changelog} onToggle={() => tog("changelog")} badge="v5.0">
+        <Acc
+          title="🌌 Was ist Nexus v6?"
+          icon={BookOpen}
+          open={open.about}
+          onToggle={() => tog("about")}
+          badge="START"
+        >
           <P>
-            Dieser Changelog dokumentiert nur produktiv sichtbare Änderungen. Keine Preview-Claims, keine
-            "in Arbeit"-Versprechen als fertige Features.
+            Nexus ist ein API-verbundener Workspace für Notizen, Aufgaben,
+            Erinnerungen, Dateien, Canvas, Code-Skizzen und Release-Arbeit. Die
+            App soll nicht wie eine Demo starten, sondern wie ein echter
+            Arbeitsplatz: erst wird Catalog/Layout/Release gegen die Hosted API
+            geprüft, danach öffnet sich der lokale Workspace.
           </P>
-          {[
-            {
-              icon: "🧩",
-              title: "Dashboard finalisiert",
-              color: "#FF9F0A",
-              items: [
-                "In-Grid-Editing als primärer Flow (kein alter Snap-Board-Zwang mehr)",
-                "Widget-Swap, Hidden Widgets Tray, Presets, Undo/Redo, Lock stabilisiert",
-                "Safe-Mode für Widget-Renderfehler, damit kein kompletter View-Ausfall entsteht",
-              ],
-            },
-            {
-              icon: "🧠",
-              title: "Canvas produktiver",
-              color: "#30D158",
-              items: [
-                "Find/Jump-to-Node, Outline/Navigator und Bulk-Actions im Project Panel",
-                "Magic-Template-Resolver gehärtet (inkl. ai-project Guard-Pfad)",
-                "Stabilere Focus/Fit-Transitions und bessere Node-Interaktion",
-              ],
-            },
-            {
-              icon: "⚙️",
-              title: "Settings klarer",
-              color: "#64D2FF",
-              items: [
-                "Stabile vs. Advanced/Experimental Controls getrennt",
-                "Theme Import/Export mit Guard/Allowlist statt rohem JSON-Durchreichen",
-                "Release-Freeze für Toolbar/Spotlight/Glow in Settings sichtbar respektiert",
-              ],
-            },
-            {
-              icon: "📘",
-              title: "InfoView als Source of Truth",
-              color: "#FF6B35",
-              items: [
-                "Doku-Drift gegen reale Views reduziert",
-                "Render-/Motion-Erklärung präzisiert (keine Overclaims)",
-                "Desktop/Mobile-Inhalte enger angeglichen",
-              ],
-            },
-          ].map((section) => (
+          <Grid2>
+            <Card
+              icon="📝"
+              title="Denken"
+              desc="Notes und Canvas halten Ideen, Entscheidungen, Risiken, Links und Knowledge-Graph-Strukturen zusammen."
+            />
+            <Card
+              icon="✅"
+              title="Planen"
+              desc="Dashboard, Tasks und Reminders machen aus offenen Gedanken konkrete nächste Schritte."
+            />
+            <Card
+              icon="💻"
+              title="Umsetzen"
+              desc="Code, Files und Terminal helfen bei Snippets, Projektdateien, Exports und schneller Navigation."
+            />
+            <Card
+              icon="🔎"
+              title="Review"
+              desc="Flux, Info, DevTools und Diagnostics zeigen Engpässe, Release-Gates und technische Risiken."
+            />
+          </Grid2>
+        </Acc>
+
+        <Acc
+          title="🧱 Gesamte App-Struktur"
+          icon={Layers}
+          open={open.docs}
+          onToggle={() => tog("docs")}
+          badge="MAP"
+        >
+          <P>
+            Nexus v6 ist content-first gedacht: Navigation und Status helfen,
+            aber die Hauptfläche bleibt der Star. Chrome, Panels und Inspector
+            sollen Arbeit sichtbar machen, nicht den Platz auffressen.
+          </P>
+          <Grid2>
+            <Card
+              icon="🧭"
+              title="v6 Shell"
+              desc="Einheitlicher View-Frame mit Fokusmodus, kompakter Quick Navigation, optionalem Inspector und Status-Signalen."
+            />
+            <Card
+              icon="🔄"
+              title="Runtime"
+              desc="createNexusRuntime verbindet API Boot, View Access, Feature Catalog, Layout Schema, Release und Capability-Kontext."
+            />
+            <Card
+              icon="💾"
+              title="Lokale Daten"
+              desc="Notes, Tasks, Reminders, Code, Folders und Aktivität bleiben lokal erhalten und werden beim Start sicher gemerged."
+            />
+            <Card
+              icon="🎨"
+              title="Design-System"
+              desc="Theme, Glow, Panel Background, App Background, Motion Profile, Typography und Accessibility laufen über Settings."
+            />
+            <Card
+              icon="👤"
+              title="Account"
+              desc="Website-Account und Nexus-Login teilen denselben API-Kontext. Remember me speichert Token, nicht Passwort."
+            />
+            <Card
+              icon="🚢"
+              title="Release"
+              desc="Build, Encoding, Ecosystem Verify, Release Gate und View-Smokes bleiben Teil des Release-Vertrags."
+            />
+          </Grid2>
+        </Acc>
+
+        <Acc
+          title="🧭 Eigene Guide-Tabs für jede View"
+          icon={Monitor}
+          open={open.views}
+          onToggle={() => tog("views")}
+          badge="VIEW GUIDES"
+        >
+          <P>
+            Jede View hat jetzt einen eigenen Guide-Tab mit Bedienfolge,
+            Qualitätsgrenze, Release-Check und passenden Wiki-Themen. Die Karten
+            darunter bleiben als schnelle Übersicht, aber die Tabs sind der
+            eigentliche Arbeitsguide.
+          </P>
+          <div
+            style={{
+              display: "flex",
+              gap: 7,
+              overflowX: "auto",
+              padding: "2px 0 10px",
+              marginBottom: 10,
+            }}
+          >
+            {VIEW_DOCS.map((view) => (
+              <PillButton
+                key={view.title}
+                active={activeView.title === view.title}
+                label={`${view.emoji} ${view.title}`}
+                onClick={() => setActiveGuide(view.title)}
+              />
+            ))}
+          </div>
+          <div
+            style={{
+              borderRadius: 16,
+              border: `1px solid rgba(${rgb},0.24)`,
+              background: `linear-gradient(135deg, rgba(${rgb},0.11), rgba(${hexRgb(t.accent2)},0.07)), rgba(255,255,255,0.035)`,
+              padding: "15px 16px",
+              marginBottom: 12,
+            }}
+          >
             <div
-              key={section.title}
               style={{
-                padding: "14px 16px",
-                borderRadius: 11,
-                background: "rgba(255,255,255,0.03)",
-                border: `1px solid ${section.color}22`,
+                display: "flex",
+                flexWrap: "wrap",
+                gap: 8,
+                alignItems: "center",
                 marginBottom: 8,
               }}
             >
-              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8, color: section.color }}>
-                {section.icon} {section.title}
+              <div style={{ fontSize: 22, fontWeight: 930 }}>
+                {activeView.emoji} {activeView.guideTitle}
               </div>
-              <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
-                {section.items.map((item, i) => (
-                  <li
-                    key={i}
-                    style={{
-                      fontSize: 12,
-                      opacity: 0.72,
-                      lineHeight: 1.6,
-                      paddingLeft: 14,
-                      position: "relative",
-                      marginBottom: 3,
-                    }}
-                  >
-                    <span style={{ position: "absolute", left: 2, color: section.color }}>·</span>
-                    {item}
-                  </li>
-                ))}
-              </ul>
+              <Badge label={`📌 ${activeView.title}`} color={t.accent} />
+              <Badge label="🧪 Release relevant" color="#ff9f0a" />
             </div>
-          ))}
-          <div
-            style={{
-              marginTop: 16,
-              padding: "10px 16px",
-              borderRadius: 10,
-              background: "rgba(48,209,88,0.08)",
-              border: "1px solid rgba(48,209,88,0.2)",
-              fontSize: 11,
-              color: "#30d158",
-              textAlign: "center",
-              fontWeight: 700,
-            }}
-          >
-            ✓ Production channel · Electron v28 · Vite 5 · React 18 · Zustand · Monaco
+            <P>{activeView.guideIntro}</P>
+            <Grid2>
+              <Card
+                icon="🪜"
+                title="So nutzt du die View"
+                desc={activeView.dailyFlow
+                  .map((item, index) => `${index + 1}. ${item}`)
+                  .join(" ")}
+              />
+              <Card
+                icon="✨"
+                title="Wichtigste Features"
+                desc={activeView.features.join(" / ")}
+                keys={activeView.shortcuts}
+              />
+              <Card
+                icon="✅"
+                title="Qualitätsgrenze"
+                desc={activeView.qualityBar}
+              />
+              <Card
+                icon="💡"
+                title="Praktischer Tipp"
+                desc={activeView.proTip}
+              />
+              <Card
+                icon="🧪"
+                title="Release-Check"
+                desc={activeView.releaseCheck}
+              />
+              <Card
+                icon="🔎"
+                title="Wiki-Themen"
+                desc={activeView.wikiTopics.join(" / ")}
+              />
+            </Grid2>
           </div>
-        </Acc>
-
-        <Acc title="Was ist Nexus?" icon={BookOpen} open={open.about} onToggle={() => tog("about")}>
-          <P>
-            Nexus ist eine lokale Productivity-Suite für Wissensarbeit, Planung, Ausführung und Review. Die
-            Stärke liegt in der Kombination aus Notes/Code/Tasks/Reminders/Canvas mit gemeinsamem Workspace-
-            und Motion-/Render-Vertrag.
-          </P>
+          <H>🗂️ Alle Views auf einen Blick</H>
           <Grid2>
-            <Card icon="📝" title="Notes" desc="Markdown + Wissensnavigation mit Links, Backlinks und strukturierten Blocks." />
-            <Card icon="💻" title="Code" desc="Leichter Embedded-Editor mit Quick Open, Run/Preview und Output-History." />
-            <Card icon="✅" title="Tasks" desc="Kanban + Focus/Saved Views + Linked Context zu Notes/Reminders." />
-            <Card icon="🔔" title="Reminders" desc="Triage-orientiert mit recurrence, snooze und Health/Fallback-Kontext." />
-            <Card icon="🧠" title="Canvas" desc="Strukturierte Wissensfläche mit Find/Jump, Outline und Fokusfahrten." />
-            <Card icon="🗂️" title="Files" desc="Content- und Workspace-Hub über Note/Code/Task/Reminder/Canvas." />
-            <Card icon="⚡" title="Flux" desc="Ops-Layer mit Queue-Slices, Bottlenecks und Drilldown-Aktionen." />
-            <Card icon="🛠️" title="DevTools" desc="Builder/Recipe- und Export-Tools für produktive UI-Arbeit." />
-            <Card icon="⚙️" title="Settings" desc="Stabile Alltags-Settings plus klar getrennte Advanced/Experimental Sektionen." />
+            {VIEW_DOCS.map((view) => (
+              <Card
+                key={view.title}
+                icon={view.emoji}
+                title={view.title}
+                desc={`${view.purpose} Hauptflows: ${view.mainUse.join(" / ")}. Release: ${view.releaseCheck}`}
+                keys={view.shortcuts}
+              />
+            ))}
           </Grid2>
-          <Code>{`Nexus v5.0 — Stack
-━━━━━━━━━━━━━━━━━━━━━━━━━
-Frontend:  React 18 + Vite 5
-State:     Zustand (persisted stores)
-Editor:    Monaco + Textarea fallback
-Runtime:   Electron v28
-Core:      @nexus/core (render + motion + shared contracts)`}</Code>
+          <H>📋 Copy/Paste View Reference</H>
+          <Code>{viewDocsText}</Code>
         </Acc>
 
         <Acc
-          title="Nexus Engine & Architektur"
-          icon={Monitor}
-          open={open.architecture}
-          onToggle={() => tog("architecture")}
-          badge="CORE"
+          title="📝 Notes, Markdown und interne Guides"
+          icon={FileText}
+          open={open.notes}
+          onToggle={() => tog("notes")}
+          badge="DOCS"
         >
           <P>
-            Render und Motion laufen zentral über den Shared Core. Der Rollout ist weit fortgeschritten;
-            einzelne Legacy-Adapter bestehen noch in Randbereichen. Ziel bleibt kontrollierte Konsolidierung
-            ohne fragile Big-Bang-Rewrites.
+            Notes ist die interne Dokumentationszentrale. Die Starter-Readmes
+            umfassen Welcome, View Guide, Markdown/Magic Showcase, Canvas Guide
+            sowie Tasks/Flux Guide. Neue Seed-Docs werden additiv ergänzt;
+            unveränderte Welcome-Seeds werden automatisch auf den aktuellen
+            Stand gehoben.
           </P>
-          <Grid2>
-            <Card icon="🧭" title="Render Pipeline" desc="Measure → Resolve → Allocate → Commit → Cleanup." />
-            <Card icon="🎞️" title="Motion-Vertrag" desc="Render begrenzt Komplexität, Motion setzt sie qualitätskontrolliert um." />
-            <Card icon="🧱" title="Surface/Effekt-Klassen" desc="Klare Klassen statt lokalem Mischbetrieb aus Blur/Shader/Hover-Workarounds." />
-            <Card icon="🛡️" title="Guardrails" desc="Transform/Filter/Opacity Ownership + Bounds-Integrity für stabile Interaktion." />
-            <Card icon="📉" title="Degradation" desc="Low Power / Reduced Motion / Last reduzieren Komplexität statt UX-Brüche zu erzeugen." />
-            <Card icon="📚" title="Ehrliche Doku" desc="InfoView beschreibt den realen Stand, nicht einen theoretischen Zielzustand." />
-          </Grid2>
-          <Code>{`@nexus/core/render
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-1) Measure   -> Sichtbarkeit + Kontext erfassen
-2) Resolve   -> Capability + Invariants bestimmen
-3) Allocate  -> Budget für dynamic/shader/burst vergeben
-4) Commit    -> Änderungen gezielt ausrollen
-5) Cleanup   -> Diagnostics + Cache/Stability aktualisieren
-
-Prinzip:
-- Render entscheidet was ein Surface tragen darf
-- Motion entscheidet wie es ausgeführt wird
-- Views konsumieren den Vertrag statt lokale Parallel-Engines zu bauen`}</Code>
-        </Acc>
-
-        <Acc
-          title="Diagnostics & Source of Truth"
-          icon={BarChart3}
-          open={open.diagnostics}
-          onToggle={() => tog("diagnostics")}
-          badge="DEV"
-        >
           <Grid2>
             <Card
-              icon="📊"
-              title="Render Diagnostics"
-              desc="Dev-View mit Render-Tier, Budget-Status, Surface-Zählung und Pipeline-Gesundheit."
+              icon="📄"
+              title="Markdown Elemente"
+              desc="Headings, Listen, Tabellen, Checklisten, Links, Quotes, Code, Details, Trennlinien und Inline-Code."
             />
             <Card
-              icon="🎚️"
-              title="Motion Diagnostics"
-              desc="Motion-Capability, Degradation-Level und aktive Choreography-Pfade nachvollziehen."
+              icon="🪄"
+              title="Magic Blocks"
+              desc={`Unterstützt: ${MAGIC_BLOCKS.join(", ")}.`}
+            />
+            <Card
+              icon="😀"
+              title="Emoji Picker"
+              desc="Kategorien, Scroll, Suche, Alias-Begriffe und eine größere Emoji-Auswahl für schnelle visuelle Struktur."
+            />
+            <Card
+              icon="🔗"
+              title="Wikilinks"
+              desc="[[Wiki Links]] und Backlinks verbinden Notes, Canvas und Tasks zu einem echten Workspace-Kontext."
+            />
+          </Grid2>
+          <Code>{`Empfohlene Notes-Guide-Dateien
+- ✨ Willkommen in Nexus v6
+- 🧭 Nexus v6 View Guide
+- 🪄 Notes Magic und Markdown Showcase
+- 🧩 Canvas Guide
+- ✅ Tasks und Flux Guide`}</Code>
+        </Acc>
+
+        <Acc
+          title="🔐 Account, API, Tiers und Release-Zugriff"
+          icon={ShieldCheck}
+          open={open.accounts}
+          onToggle={() => tog("accounts")}
+          badge="SECURITY"
+        >
+          <P>
+            Nexus Main startet mit API-Abfrage. Wenn Catalog, Layout oder
+            Release wegen 401/403 blockieren, zeigt die App Login/Register statt
+            eines leeren Screens und prüft den Bootflow nach Anmeldung erneut.
+          </P>
+          <Grid2>
+            <Card
+              icon="🔑"
+              title="Login"
+              desc="Mit Website-Account anmelden. Remember me speichert nur den Session-Token, niemals das Passwort."
+            />
+            <Card
+              icon="👤"
+              title="Register"
+              desc="Account kann auf der Website oder direkt in Nexus Main erstellt werden; danach gilt derselbe API-Bootflow."
+            />
+            <Card
+              icon="💳"
+              title="Tier Modell"
+              desc="Free: Main Basics. Pro/Lifetime: Canvas, Code, DevTools und Mobile Access je nach Freigabe. Lifetime Pro ergänzt Flux/Top Features."
+            />
+            <Card
+              icon="🛡️"
+              title="Admin Sicherheit"
+              desc="Admins dürfen nicht selbst entstehen. Rollen/Freigaben gehören in Control Plane/Admin-Kontext."
+            />
+            <Card
+              icon="📦"
+              title="Release Manifest"
+              desc="Catalog, Layout und Release sind Runtime-Vertrag. Kein stiller Offline-Bypass für Hosted Boot."
+            />
+            <Card
+              icon="⬇️"
+              title="Downloads"
+              desc="Website-Downloads zeigen Main/Code Installer pro Plattform; Artefakte gehören in public/downloads oder Release-Storage."
+            />
+          </Grid2>
+        </Acc>
+
+        <Acc
+          title="🎛️ Settings, Design und Panel Background"
+          icon={SlidersHorizontal}
+          open={open.settings}
+          onToggle={() => tog("settings")}
+        >
+          <P>
+            Settings steuert das visuelle System. Panel Backgrounds sind echte
+            Surface-Presets mit Basis-Layer, Tint und Pattern, damit Shell,
+            Notes, Glass Panels und Settings-Vorschau denselben Look sprechen.
+          </P>
+          <Grid2>
+            <Card
+              icon="🎨"
+              title="Theme Library"
+              desc="Vordefinierte v6-Themes mit Preview, Beschreibung, Accent/Accent2/BG und sicherem Apply Flow."
+            />
+            <Card
+              icon="🧊"
+              title="Panel Background"
+              desc="Glass, Solid, Gradient, Mist, Hologram, Linen, Dots, Grid, Stripes, Carbon, Circuit und Soft Noise."
+            />
+            <Card
+              icon="🌌"
+              title="App Background"
+              desc="Solid, Gradient, Animated Gradient, Mesh, Aurora, Noise, Spotlight, Prism, Horizon und Constellation."
             />
             <Card
               icon="✨"
-              title="Why Nexus feels smooth"
-              desc="Kurze Wege, capability-aware transitions, material-settle und keine unkoordinierten Doppelmotionen."
+              title="Glow Lab"
+              desc="Ambient, Outline, Focus, Gradient, Pulse, Border Glow, Inner Shadow und sichere Performance-Grenzen."
             />
             <Card
-              icon="🗺️"
-              title="Docs Map"
-              desc="READMEs + Wiki + InfoView bilden gemeinsam den Source-of-Truth-Pfad."
+              icon="🎬"
+              title="Motion Engine"
+              desc="Minimal, Balanced, Expressive, Cinematic mit Reduced Motion und stabileren Klickzielen."
+            />
+            <Card
+              icon="♿"
+              title="Accessibility"
+              desc="High Contrast, Tooltips, Auto Accent Contrast, Font Size und Density."
             />
           </Grid2>
-          <Code>{`Source of Truth Reihenfolge
-1) Produktverhalten in der laufenden App
-2) Shared contracts in packages/nexus-core
-3) App-README und Workspace-README
-4) InfoView als in-app Referenz
-5) Wiki/Website als externe Spiegelung
-
-Hinweis:
-Wenn Doku und Runtime abweichen, gilt immer die Runtime.`}</Code>
         </Acc>
 
-        <Acc title="Komplette View-Referenz" icon={Layers} open={open.guide} onToggle={() => tog("guide")} badge="ALL VIEWS">
+        <Acc
+          title="✅ Release- und Smoke-Check"
+          icon={Star}
+          open={open.release}
+          onToggle={() => tog("release")}
+        >
           <P>
-            Kurzreferenz für reale Kernnutzung. Fokus auf häufige Flows und verlässliche Shortcuts.
+            Vor Release reicht ein Build allein nicht. Jede Hauptview braucht
+            einen kurzen visuellen Smoke: öffnen, erstellen/bearbeiten,
+            speichern/reloaden, API-Fallback sehen und Hauptflow mit
+            Maus/Tastatur bedienen.
           </P>
           <Grid2>
-            <Card icon="📊" title="Dashboard" desc="Today + Continue + Runtime Health + In-Grid Layout Editing." keys={["Layout bearbeiten", "Swap Widgets", "Hidden Tray"]} />
+            <Card
+              icon="🏗️"
+              title="Builds"
+              desc="Nexus Main, Mobile, Code, Code Mobile, Website, Wiki und Core Package Gate."
+            />
+            <Card
+              icon="🧪"
+              title="Verify"
+              desc="verify:single-react, verify:encoding, verify:ecosystem und release:gate."
+            />
+            <Card
+              icon="💿"
+              title="Installer"
+              desc="Windows NSIS, macOS DMG auf macOS Runner, Linux AppImage/deb für Main und Code."
+            />
+            <Card
+              icon="🛡️"
+              title="Security"
+              desc="Keine Secrets im Bundle, API Daten sauber, Admin/Rollen nur kontrolliert, DevTools gated."
+            />
+            <Card
+              icon="📚"
+              title="Docs"
+              desc="InfoView, Notes Guides, Website, Wiki und Release Notes müssen denselben Stand beschreiben."
+            />
+            <Card
+              icon="📸"
+              title="Evidence"
+              desc="Screenshots/Videos pro RC in docs/release-evidence/<version>/ sammeln."
+            />
+          </Grid2>
+        </Acc>
+
+        <Acc
+          title="⌨️ Tastenkürzel und Command-Hub"
+          icon={Keyboard}
+          open={open.shortcuts}
+          onToggle={() => tog("shortcuts")}
+        >
+          <Grid2>
+            <Card
+              icon="🧭"
+              title="Global"
+              desc="Navigation, View-Wechsel und Fokus."
+              keys={["Ctrl+1..9", "Ctrl+[", "Ctrl+]", "Esc"]}
+            />
             <Card
               icon="📝"
               title="Notes"
-              desc="Wissensarbeit mit Outline, Linking, Magic Blocks und schnellem Wechsel."
-              keys={["Cmd/Ctrl+P", "Cmd/Ctrl+F", "Cmd/Ctrl+S", "Cmd/Ctrl+B", "Cmd/Ctrl+K", "Cmd/Ctrl+1/2/3"]}
-            />
-            <Card icon="💻" title="CodeView" desc="Quick Open, Run/Preview, Output-History und Monaco-Fallback." keys={["Cmd/Ctrl+P", "Cmd/Ctrl+Enter", "Cmd/Ctrl+S"]} />
-            <Card icon="✅" title="Tasks" desc="Board + Focus Views + Linked Context + Batch-Flows." />
-            <Card icon="🔔" title="Reminders" desc="Recurrence/Snooze/Triage mit Task-/Note-Kontext." />
-            <Card icon="🧠" title="Canvas" desc="Find/Jump, Outline, Multi-Select/Bulk, Focus/Fit und Magic Builder." keys={["Cmd/Ctrl+P", "Cmd/Ctrl+M", "Cmd/Ctrl+0 (reset)", "F", "P"]} />
-            <Card icon="🗂️" title="Files" desc="Workspace-Hub mit Canvas-Items, Smart Views und Assign-Flows." />
-            <Card icon="⚡" title="Flux" desc="Ops Score + Bottlenecks + Drilldown-Actions auf echte Ziele." />
-            <Card icon="🛠️" title="DevTools" desc="Builder/Recipe/Export für wiederverwendbare Artefakte." />
-            <Card icon="⚙️" title="Settings" desc="Stable Settings zuerst, Advanced/Experimental kontrolliert getrennt." />
-            <Card icon="📈" title="Render Diagnostics" desc="Dev-only Analyseview für Render/Motion-Zustände." />
-            <Card icon="⌘" title="Terminal" desc="Command-Hub für Navigation, Suche und schnelle Aktionen." keys={["Enter", "Tab", "ArrowUp/Down", "Esc"]} />
-          </Grid2>
-        </Acc>
-
-        <Acc title="Dashboard — In-Grid Editor" icon={Layout} open={open.dashboard} onToggle={() => tog("dashboard")} badge="UPDATED">
-          <P>
-            Dashboard wird direkt im Grid bearbeitet. Kein separater Sidebar-Editor als Hauptworkflow.
-          </P>
-          <Grid2>
-            <Card icon="🔁" title="Widget-Swap" desc="Widget auf Widget ziehen, Positionen werden direkt getauscht." />
-            <Card icon="🧰" title="Inline-Chrome" desc="Drag Handle, 1w/2w, Visible/Hidden direkt pro Karte im Edit Mode." />
-            <Card icon="🎛️" title="Action Bar" desc="Undo/Redo, Preset, Lock, Reset zentral in der Floating Action Bar." />
-            <Card icon="📦" title="Hidden Widgets Tray" desc="Ausgeblendete Widgets bleiben erreichbar und rückholbar." />
-            <Card icon="🛟" title="Safe Mode" desc="Einzelne Widget-Fehler führen nicht mehr zu leerem Dashboard." />
-            <Card icon="⚡" title="Today/Capture" desc="Note/Task/Reminder/Canvas Quick Capture direkt aus Today Layer." />
-          </Grid2>
-        </Acc>
-
-        <Acc title="Notes — Wissensoberfläche" icon={FileText} open={open.notes} onToggle={() => tog("notes")}> 
-          <P>
-            Notes ist mehr als Editor: schnelle Navigation, strukturiertes Markdown und verlinkter Kontext.
-          </P>
-          <Grid2>
-            <Card icon="🧭" title="Navigation" desc="Quick Switch/Filter/Tags und strukturierte Notizlisten." />
-            <Card icon="🔗" title="Linking" desc="Wikilinks, Backlinks und verwandte Inhalte für Wissensnetze." />
-            <Card icon="🪄" title="Magic Blocks" desc="Voller nexus-* Satz für Listen, Checklisten, Alerts, Callouts, Progress, Timelines, Grid, Cards, Kanban, Metrics, Steps und Quadrants." />
-            <Card icon="📚" title="Markdown Extras" desc="Zusätzlich Tabellen, Trennlinien, Details/Toggle-Blöcke, Links und klassisches Inline-/Block-Markdown." />
-            <Card icon="💾" title="Autosave + History" desc="Draft-Commit, Undo/Redo und stabiler Dirty-State." />
-            <Card
-              icon="⌨️"
-              title="Shortcut-Flow"
-              desc="Quick Switch, Search und Moduswechsel direkt über Keyboard."
-              keys={["Cmd/Ctrl+P", "Cmd/Ctrl+F", "Cmd/Ctrl+1/2/3", "Cmd/Ctrl+S", "Cmd/Ctrl+B/I/K"]}
-            />
-          </Grid2>
-          <Code>{`Unterstützte Magic-Blocks (Notes + Canvas Markdown)
-- nexus-list
-- nexus-checklist
-- nexus-alert
-- nexus-callout
-- nexus-progress
-- nexus-timeline
-- nexus-grid
-- nexus-card
-- nexus-kanban
-- nexus-badge
-- nexus-metrics
-- nexus-steps
-- nexus-quadrant
-
-Inline Badge Syntax
-- \`b:Label|magic\`
-- \`b:Ready|success\`
-- \`b:Warnung|warning\``}</Code>
-        </Acc>
-
-        <Acc title="CodeView — Embedded Coding" icon={Code2} open={open.code} onToggle={() => tog("code")}> 
-          <Grid2>
-            <Card icon="📂" title="Quick Open" desc="Dateien schnell via Shortcut öffnen und zwischen offenen Tabs wechseln." keys={["Cmd/Ctrl+P"]} />
-            <Card icon="▶️" title="Run / Preview" desc="JS/TS-Run, HTML/CSS-Preview, JSON-Validation und klare Output-Trennung." keys={["Cmd/Ctrl+Enter"]} />
-            <Card icon="🧪" title="Run History" desc="Letzte Läufe mit Status und Dauer für schnelle Wiederholung." />
-            <Card icon="🛟" title="Monaco Fallback" desc="Wenn Monaco nicht lädt, bleibt ein funktionaler Fallback-Editor aktiv." />
-          </Grid2>
-        </Acc>
-
-        <Acc title="Tasks" icon={CheckSquare} open={open.tasks} onToggle={() => tog("tasks")}> 
-          <Grid2>
-            <Card icon="🎯" title="Focus Views" desc="My Day, Due Soon und Priority-orientierte Arbeitsmodi." />
-            <Card icon="🔗" title="Linked Context" desc="Direkte Sprünge zu verknüpften Notes/Reminders (und optional Canvas)." />
-            <Card icon="🧱" title="Blocker/Dependency" desc="Abhängigkeiten sichtbar machen, statt nur Statuslisten zu pflegen." />
-            <Card icon="🧺" title="Batch Actions" desc="Mehrfachauswahl für Status/Priorität/Tag-Operationen." />
-          </Grid2>
-        </Acc>
-
-        <Acc title="Reminders" icon={Bell} open={open.reminders} onToggle={() => tog("reminders")}> 
-          <Grid2>
-            <Card icon="🔁" title="Recurrence" desc="Wiederholungen mit verständlicher Zusammenfassung und Edit-Flow." />
-            <Card icon="💤" title="Snooze" desc="Schnelle Presets für tägliche Triage ohne Modal-Overhead." />
-            <Card icon="🔗" title="Linked Context" desc="Task-/Note-Kontext direkt auf Reminder-Karten und im Detaildialog." />
-            <Card icon="🛡️" title="Reliability" desc="Health/Fallback-Status erklärt klar, ob Reminder zuverlässig ausgelöst werden." />
-          </Grid2>
-        </Acc>
-
-        <Acc title="Canvas — Strukturierte Wissensfläche" icon={GitBranch} open={open.canvas} onToggle={() => tog("canvas")}> 
-          <P>
-            Canvas ist für Orientierung und Wissensarbeit ausgelegt: Suche, Navigator, Fokusfahrten und
-            strukturierte Node-Typen statt nur "unendliche Fläche".
-          </P>
-          <Grid2>
-            <Card icon="🔎" title="Find / Jump to Node" desc="Schnell nach Titel/Typ/Tags suchen und direkt auf Node fokussieren." />
-            <Card icon="🗺️" title="Outline / Navigator" desc="Projektpanel mit Node-Gruppen, klickbarem Jump und Fokusmodus." />
-            <Card icon="🧺" title="Multi-Select / Bulk" desc="Mehrere Nodes wählen und gemeinsam Status/Priority/Tags setzen oder löschen." />
-            <Card icon="🎥" title="Camera Focus / Fit" desc="Fokusfahrten und Fit-View als orientierende Übergänge statt harte Sprünge." />
-            <Card icon="🪄" title="Magic Templates" desc="Hub-first Templates plus ai-project Prompt-Flow für Multi-Node-Strukturen." />
-            <Card icon="📐" title="Node Resize + Node Zoom" desc="Getrennte Handles für Rahmen-Größe und Inhalts-Zoom pro Node." />
-          </Grid2>
-          <Card
-            title="Canvas Controls"
-            desc=""
-            keys={[
-              "Space Hold Pan",
-              "Cmd/Ctrl+P Quick Switch",
-              "Cmd/Ctrl+M Magic",
-              "Cmd/Ctrl+0 Reset Viewport",
-              "1 / 2 / 3 Layout",
-              "F Focus/Fit",
-              "P Project Panel",
-              "G Grid",
-              "+ / - Zoom",
-              "Delete Node",
-              "Esc Reset Selection",
-            ]}
-          />
-        </Acc>
-
-        <Acc title="Files & Workspaces" icon={HardDrive} open={open.files} onToggle={() => tog("files")}> 
-          <P>
-            Files verbindet Content-Browser, Workspace-Organisation und Import/Export/Handoff-Workflows.
-          </P>
-          <Grid2>
-            <Card icon="📦" title="Alle Item-Typen" desc="Note, Code, Task, Reminder und Canvas als reguläre Files-Items." />
-            <Card icon="🧠" title="Smart Views" desc="Workspace, Recent, Pinned und Unassigned für schnelle Selektion." />
-            <Card icon="🔁" title="Assign Flows" desc="Einzel- und Batch-Zuordnung von Items zu Workspaces." />
-            <Card icon="💾" title="Disk + Runtime Flows" desc="Desktop-Sync und Mobile-Handoff mit Import/Review/Merge-Pfaden." />
-          </Grid2>
-        </Acc>
-
-        <Acc title="Flux — Ops Tool" icon={Zap} open={open.flux} onToggle={() => tog("flux")}> 
-          <Grid2>
-            <Card icon="🧭" title="Queue Slices" desc="Ops-Presets wie Overdue, Due Soon, Focus und Backlog-Triage." />
-            <Card icon="🚨" title="Bottleneck Drilldowns" desc="Engpässe verweisen auf konkrete Zielobjekte statt nur Statuszahlen." />
-            <Card icon="⚡" title="Action Flows" desc="Open task/reminder/note/code direkt aus Queue und Activity heraus." />
-            <Card icon="📈" title="Ops Score" desc="Hilfswert mit erklärter Aussagekraft statt pseudo-präziser Kennzahl." />
-          </Grid2>
-        </Acc>
-
-        <Acc title="DevTools" icon={Wrench} open={open.devtools} onToggle={() => tog("devtools")}> 
-          <Grid2>
-            <Card icon="🧪" title="Builder Outputs" desc="Snippet/Recipe/Component/Prototype als wiederverwendbare Artefakte." />
-            <Card icon="📚" title="Artifact Library" desc="Saved Recipes + Recent Builds statt rein temporärem Playground-Output." />
-            <Card icon="📋" title="Export/Copy Flows" desc="Apply-to-code und Exporte für echten Tooling-Workflow." />
-            <Card icon="🧭" title="QA Utility" desc="Pragmatische Perf/Accessibility-Hinweise in produktiven Flows." />
-          </Grid2>
-        </Acc>
-
-        <Acc title="Settings — Stable zuerst" icon={Settings} open={open.settings} onToggle={() => tog("settings")}> 
-          <P>
-            Settings priorisiert stabile Alltagssteuerung. Advanced/Experimental ist getrennt und klar markiert.
-          </P>
-          <Grid2>
-            <Card icon="✅" title="Stable Controls" desc="Theme, Layout, Accessibility, Editor-Defaults und Workspace-Maintenance." />
-            <Card icon="🧪" title="Advanced / Experimental" desc="Engine-nahe Optionen mit klarer Kennzeichnung und geringerem Prominenzgrad." />
-            <Card icon="🧱" title="Release Freeze" desc="Glow/harte Geometrie bleiben eingefroren; Toolbar Mode/Position/Style bleiben bewusst editierbar." />
-            <Card icon="🛡️" title="Theme Import Guard" desc="Schema/Allowlist/Defaults verhindern kaputte oder veraltete JSON-Imports." />
-          </Grid2>
-          <Card title="Maintenance" desc="Walkthrough, Spotlight Reset, Terminal Reset und Dashboard Reset sind getrennt erklärt." />
-        </Acc>
-
-        <Acc title="Tastenkürzel" icon={Keyboard} open={open.shortcuts} onToggle={() => tog("shortcuts")}> 
-          <Grid2>
-            <Card title="Global" desc="" keys={["Cmd/Ctrl+1..9", "Cmd/Ctrl+[ / ]", "Esc"]} />
-            <Card
-              title="Notes"
-              desc=""
+              desc="Schreiben, Suchen, Formatieren und Speichern."
               keys={[
-                "Cmd/Ctrl+P",
-                "Cmd/Ctrl+F",
-                "Cmd/Ctrl+1/2/3",
-                "Cmd/Ctrl+S",
-                "Cmd/Ctrl+B",
-                "Cmd/Ctrl+I",
-                "Cmd/Ctrl+K",
-                "Tab indent",
+                "Ctrl+P",
+                "Ctrl+F",
+                "Ctrl+S",
+                "Ctrl+B",
+                "Ctrl+I",
+                "Ctrl+K",
               ]}
             />
-            <Card title="CodeView" desc="" keys={["Cmd/Ctrl+P", "Cmd/Ctrl+Enter", "Cmd/Ctrl+S"]} />
-            <Card title="Canvas" desc="" keys={["Cmd/Ctrl+P", "Cmd/Ctrl+M", "Cmd/Ctrl+0 (reset)", "1/2/3", "F", "P", "G", "+ / -", "Delete", "Esc"]} />
-            <Card title="Flux" desc="" keys={["Cmd/Ctrl+F", "Cmd/Ctrl+Shift+N/C/T/R", "1..4", "0"]} />
-            <Card title="Terminal" desc="" keys={["Enter", "Tab", "ArrowUp/Down", "Esc", "Ctrl+L"]} />
+            <Card
+              icon="✅"
+              title="Tasks"
+              desc="Arbeitsmodi und Triage."
+              keys={["1..5", "B", "H", "N", "T", "E", "G"]}
+            />
+            <Card
+              icon="🧩"
+              title="Canvas"
+              desc="Knowledge-Graph Navigation."
+              keys={["Ctrl+P", "Ctrl+M", "Ctrl+0", "F", "P", "G", "+", "-"]}
+            />
+            <Card
+              icon="⚡"
+              title="Flux"
+              desc="Ops und Quick Actions."
+              keys={[
+                "Ctrl+F",
+                "Ctrl+Shift+N/C/T/R",
+                "Ctrl+Shift+B",
+                "Ctrl+Shift+D",
+              ]}
+            />
+            <Card
+              icon="⌨️"
+              title="Terminal"
+              desc="Command Hub für Navigation, Create-Flows, Macros und Suche."
+              keys={["Enter", "Tab", "ArrowUp/Down", "Esc", "Ctrl+L"]}
+            />
           </Grid2>
         </Acc>
 
-        <Acc title="Terminal" icon={Terminal} open={open.terminal} onToggle={() => tog("terminal")}> 
-          <P>
-            Terminal ist der schnelle Command-Hub für Navigation, Create-Flows und Canvas/Spotlight-Aktionen.
-          </P>
-          <Code>{`help
-views | ls
-goto <view>
-new note|task|reminder|code
-search <query>
-spotlight <query>
-canvas list
-canvas new <name>
-canvas template <preset> <name>
-canvas focus
-theme <name>
-profile <focus|cinematic|compact|default>
-macro start/stop/run
-undo | redo
-clear`}</Code>
-          <H>Warum nutzen?</H>
+        <Acc
+          title="✨ v6 Changelog"
+          icon={Sparkles}
+          open={open.changelog}
+          onToggle={() => tog("changelog")}
+          badge="CURRENT"
+        >
           <Grid2>
-            <Card icon="⚡" title="Schneller als UI-Klickpfade" desc="Direkte Befehle für wiederkehrende Flows in einem Schritt." />
-            <Card icon="🧩" title="Bridge zu Canvas/Spotlight" desc="Sinnvoll für Template- und Fokus-Aktionen während aktiver Arbeit." />
-            <Card icon="📜" title="History + Macros" desc="Wiederholen komplexer Befehlsfolgen ohne manuelle Re-Klicks." />
-            <Card icon="🧼" title="Kontrollierter Zustand" desc="Clear/Undo/Redo halten den Command-Kontext nachvollziehbar." />
+            <Card
+              icon="🖥️"
+              title="Content-first Shell"
+              desc="Kompakter Header, weniger Orb/Chrome, Inspector weniger dominant, mehr Fläche für Main Content."
+            />
+            <Card
+              icon="📝"
+              title="Notes v6"
+              desc="Command Strip, größerer Editor, Advanced Blocks, Emoji Picker, bessere Guides und Welcome-Migration."
+            />
+            <Card
+              icon="✅"
+              title="Tasks v6"
+              desc="Ruhigere Board-Steuerung, stabile Karten, weniger innere Rechtecke, bessere Drop-Zonen."
+            />
+            <Card
+              icon="🧩"
+              title="Canvas v6"
+              desc="Obsidian-näherer Jump/Search-Flow, Double-click Quick Add, Wiki-Linking, ruhigere Toolbar-Ziele."
+            />
+            <Card
+              icon="⚡"
+              title="Flux Safety"
+              desc="Triage startet To-do Tasks oder öffnet laufende Arbeit, statt heimlich Done zu setzen."
+            />
+            <Card
+              icon="🎨"
+              title="Theme & Docs Polish"
+              desc="Neue v6-Theme Library, bessere Panel-Vorschau, weniger generische Texte und Guide-Tabs pro View."
+            />
           </Grid2>
         </Acc>
 
-        <div style={{ height: 40 }} />
+        <div style={{ height: 36 }} />
       </div>
     </div>
   );

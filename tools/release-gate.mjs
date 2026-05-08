@@ -143,6 +143,7 @@ for (const step of steps) {
     cwd: step.cwd,
     stdio: 'inherit',
     shell: false,
+    windowsVerbatimArguments: process.platform === 'win32',
     env: buildChildEnv(),
   })
 
@@ -189,7 +190,7 @@ function toRunnableCommand(command, args) {
   }
 
   const commandLine = ['npm', ...args].map(quoteCmdArg).join(' ')
-  return { command: 'cmd.exe', args: ['/d', '/s', '/c', commandLine] }
+  return { command: 'cmd.exe', args: ['/d', '/c', commandLine] }
 }
 
 function quoteCmdArg(value) {

@@ -56,20 +56,20 @@ export const MODULES: {
 
 export const MOTION_PROFILES: { id: MotionProfile; label: string; desc: string }[] = [
   { id: "minimal", label: "Minimal", desc: "Nahezu statisch, maximale Ruhe" },
-  { id: "balanced", label: "Balanced", desc: "Schnell und modern für Alltag" },
+  { id: "balanced", label: "Balanced", desc: "Schnell, ruhig und alltagstauglich" },
   { id: "expressive", label: "Expressive", desc: "Mehr Tiefe, mehr Reaktion" },
   {
     id: "cinematic",
     label: "Cinematic",
-    desc: "Maximaler Eye-Candy bei genug Leistung",
+    desc: "Maximaler Showcase-Look bei genug Leistung",
   },
 ];
 
 export const EXPERIENCE_PRESETS: ExperiencePreset[] = [
   {
     id: "focus",
-    title: "Focus",
-    desc: "Weniger Effekt, maximale Klarheit",
+    title: "🧘 Focus",
+    desc: "Ruhig, klar und ohne visuelles Gewusel",
     apply: (t) => {
       t.setMode("dark");
       t.setQOL({
@@ -92,12 +92,13 @@ export const EXPERIENCE_PRESETS: ExperiencePreset[] = [
       });
       t.setBlur({ panelBlur: 14, sidebarBlur: 14, modalBlur: 18 });
       t.setGlassmorphism({ panelRenderer: "blur", glowRenderer: "css" });
+      t.setPanelBgMode("solid");
     },
   },
   {
     id: "balanced",
-    title: "Balanced",
-    desc: "Empfohlen: guter Mix aus Style und Performance",
+    title: "✨ Balanced",
+    desc: "Empfohlen: guter Mix aus Style, Lesbarkeit und Performance",
     apply: (t) => {
       t.setQOL({
         reducedMotion: false,
@@ -119,13 +120,75 @@ export const EXPERIENCE_PRESETS: ExperiencePreset[] = [
       });
       t.setBlur({ panelBlur: 18, sidebarBlur: 18, modalBlur: 22 });
       t.setGlassmorphism({ panelRenderer: "blur", glowRenderer: "css" });
+      t.setPanelBgMode("glass");
       applyMotionProfile(t, "balanced");
     },
   },
   {
+    id: "studio",
+    title: "🎚️ Studio",
+    desc: "Clean für reale Arbeit, Screenshots und QA",
+    apply: (t) => {
+      t.preset("Studio Neutral");
+      t.setQOL({
+        reducedMotion: false,
+        panelDensity: "comfortable",
+        quickActions: true,
+      });
+      t.setAnimations({
+        pageTransitions: true,
+        hoverLift: true,
+        rippleClick: false,
+        glowPulse: false,
+      });
+      t.setGlow({
+        mode: "focus",
+        intensity: 0.28,
+        radius: 16,
+        animated: false,
+        gradientGlow: false,
+      });
+      t.setBlur({ panelBlur: 12, sidebarBlur: 14, modalBlur: 18 });
+      t.setGlassmorphism({ panelRenderer: "blur", glowRenderer: "css" });
+      t.setPanelBgMode("solid");
+      applyMotionProfile(t, "balanced");
+    },
+  },
+  {
+    id: "performance",
+    title: "⚙️ Performance",
+    desc: "Für schwächere Geräte und lange Sessions",
+    apply: (t) => {
+      t.preset("High Contrast Focus");
+      t.setQOL({
+        reducedMotion: true,
+        panelDensity: "compact",
+        quickActions: true,
+      });
+      t.setAnimations({
+        pageTransitions: false,
+        hoverLift: false,
+        rippleClick: false,
+        glowPulse: false,
+        particleEffects: false,
+      });
+      t.setGlow({
+        mode: "focus",
+        intensity: 0.24,
+        radius: 12,
+        animated: false,
+        gradientGlow: false,
+      });
+      t.setBlur({ panelBlur: 8, sidebarBlur: 8, modalBlur: 12 });
+      t.setGlassmorphism({ panelRenderer: "blur", glowRenderer: "css" });
+      t.setPanelBgMode("solid");
+      applyMotionProfile(t, "minimal");
+    },
+  },
+  {
     id: "cinematic",
-    title: "Cinematic",
-    desc: "Starke visuelle Tiefe und Glow",
+    title: "🎬 Cinematic",
+    desc: "Starke Tiefe und Glow, bewusst als Showcase",
     apply: (t) => {
       t.setQOL({
         reducedMotion: false,
@@ -150,6 +213,7 @@ export const EXPERIENCE_PRESETS: ExperiencePreset[] = [
         panelRenderer: "glass-shader",
         glowRenderer: "three",
       });
+      t.setPanelBgMode("mist");
       applyMotionProfile(t, "cinematic");
     },
   },

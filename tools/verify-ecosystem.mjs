@@ -26,6 +26,17 @@ const readFileSafe = async (filePath) => {
   }
 }
 
+const readJsonSafe = async (filePath) => {
+  const content = await readFileSafe(filePath)
+  if (!content) return null
+
+  try {
+    return JSON.parse(content)
+  } catch {
+    return null
+  }
+}
+
 const exists = async (targetPath) => {
   try {
     await fs.access(targetPath)
@@ -36,6 +47,19 @@ const exists = async (targetPath) => {
 }
 
 const CONTROL_UI_PRESENT = await exists(CONTROL_UI_ROOT)
+
+const normalizeElectronTargets = (targetConfig) => {
+  const targets = Array.isArray(targetConfig) ? targetConfig : [targetConfig]
+  return targets
+    .map((item) => (typeof item === 'string' ? item : item?.target))
+    .filter(Boolean)
+    .map((item) => String(item).toLowerCase())
+}
+
+const hasElectronTarget = (packageJson, platform, target) => {
+  const normalizedTarget = String(target).toLowerCase()
+  return normalizeElectronTargets(packageJson?.build?.[platform]?.target).includes(normalizedTarget)
+}
 
 const listFilesRecursive = async (dir, out = []) => {
   const entries = await fs.readdir(dir, { withFileTypes: true })
@@ -184,6 +208,24 @@ const run = async () => {
       pattern: /packages\/nexus-core\/src\/api/,
       message: 'Nexus Code Mobile Alias zeigt auf internes API Package',
     },
+    {
+      id: 'installer-workflow-main-linux-appimage',
+      file: path.join(ROOT, '.github/workflows/build-installers.yml'),
+      pattern: /app_name:\s*"Nexus Main"[\s\S]*?target:\s*"linux"[\s\S]*?npm_script:\s*"electron:build:linux"/,
+      message: 'Installer-Workflow baut Nexus Main Linux AppImage',
+    },
+    {
+      id: 'installer-workflow-code-linux-appimage',
+      file: path.join(ROOT, '.github/workflows/build-installers.yml'),
+      pattern: /app_name:\s*"Nexus Code"[\s\S]*?target:\s*"linux"[\s\S]*?npm_script:\s*"electron:build:linux"/,
+      message: 'Installer-Workflow baut Nexus Code Linux AppImage',
+    },
+    {
+      id: 'installer-workflow-uploads-linux-artifacts',
+      file: path.join(ROOT, '.github/workflows/build-installers.yml'),
+      pattern: /\*\*\/\*\.AppImage[\s\S]*?\*\*\/\*\.deb/,
+      message: 'Installer-Workflow laedt Linux AppImage/deb Artefakte hoch',
+    },
   ]
 
   if (CONTROL_UI_PRESENT) {
@@ -232,6 +274,97 @@ const run = async () => {
       details: ok ? path.relative(ROOT, check.file) : `missing-pattern in ${path.relative(ROOT, check.file)}`,
     })
   }
+
+  const mainPackage = await readJsonSafe(path.join(ROOT, 'Nexus Main/package.json'))
+  const codePackage = await readJsonSafe(path.join(ROOT, 'Nexus Code/package.json'))
+  const electronPackagingChecks = [
+    {
+      id: 'main-electron-build-scripts',
+      ok:
+        mainPackage?.scripts?.['electron:build'] === 'npm run electron:build:host' &&
+        mainPackage?.scripts?.['electron:build:all-platforms'] === 'npm run electron:build:installers' &&
+        /--linux\s+AppImage\b/.test(String(mainPackage?.scripts?.['electron:pack:linux'] || '')),
+      message: 'Nexus Main hat Host-Build und expliziten All-Platform-Installer-Build',
+      details: [
+        mainPackage?.scripts?.['electron:build'],
+        mainPackage?.scripts?.['electron:build:all-platforms'],
+        mainPackage?.scripts?.['electron:pack:linux'],
+      ].join(' | '),
+    },
+    {
+      id: 'main-product-v6',
+      ok: mainPackage?.build?.productName === 'Nexus v6',
+      message: 'Nexus Main Installer-Produktname ist v6',
+      details: mainPackage?.build?.productName || 'missing',
+    },
+    {
+      id: 'main-installer-targets',
+      ok:
+        hasElectronTarget(mainPackage, 'win', 'nsis') &&
+        hasElectronTarget(mainPackage, 'mac', 'dmg') &&
+        hasElectronTarget(mainPackage, 'linux', 'AppImage'),
+      message: 'Nexus Main baut Windows, macOS und Linux AppImage Targets',
+      details: `win=${hasElectronTarget(mainPackage, 'win', 'nsis')} mac=${hasElectronTarget(mainPackage, 'mac', 'dmg')} linuxAppImage=${hasElectronTarget(mainPackage, 'linux', 'AppImage')}`,
+    },
+    {
+      id: 'main-installer-artifact-names',
+      ok:
+        /Nexus_Main.+\.AppImage/.test(String(mainPackage?.build?.appImage?.artifactName || '')) &&
+        /Nexus_Main.+\.dmg/.test(String(mainPackage?.build?.dmg?.artifactName || '')) &&
+        /Nexus_Main.+\.exe/.test(String(mainPackage?.build?.nsis?.artifactName || '')) &&
+        !/v5/i.test(
+          [
+            mainPackage?.build?.productName,
+            mainPackage?.build?.dmg?.title,
+            mainPackage?.build?.dmg?.artifactName,
+            mainPackage?.build?.nsis?.artifactName,
+          ].join(' '),
+        ),
+      message: 'Nexus Main Artefakte sind v6-/Main-benannt und nicht mehr v5',
+      details: [
+        mainPackage?.build?.appImage?.artifactName,
+        mainPackage?.build?.dmg?.artifactName,
+        mainPackage?.build?.nsis?.artifactName,
+      ].join(' | '),
+    },
+    {
+      id: 'code-electron-build-scripts',
+      ok:
+        codePackage?.scripts?.['electron:build'] === 'npm run electron:build:host' &&
+        codePackage?.scripts?.['electron:build:all-platforms'] === 'npm run electron:build:installers' &&
+        /--linux\s+AppImage\b/.test(String(codePackage?.scripts?.['electron:pack:linux'] || '')),
+      message: 'Nexus Code hat Host-Build und expliziten All-Platform-Installer-Build',
+      details: [
+        codePackage?.scripts?.['electron:build'],
+        codePackage?.scripts?.['electron:build:all-platforms'],
+        codePackage?.scripts?.['electron:pack:linux'],
+      ].join(' | '),
+    },
+    {
+      id: 'code-installer-targets',
+      ok:
+        hasElectronTarget(codePackage, 'win', 'nsis') &&
+        hasElectronTarget(codePackage, 'mac', 'dmg') &&
+        hasElectronTarget(codePackage, 'linux', 'AppImage'),
+      message: 'Nexus Code baut Windows, macOS und Linux AppImage Targets',
+      details: `win=${hasElectronTarget(codePackage, 'win', 'nsis')} mac=${hasElectronTarget(codePackage, 'mac', 'dmg')} linuxAppImage=${hasElectronTarget(codePackage, 'linux', 'AppImage')}`,
+    },
+    {
+      id: 'code-installer-artifact-names',
+      ok:
+        /Nexus_Code.+\.AppImage/.test(String(codePackage?.build?.appImage?.artifactName || '')) &&
+        /Nexus_Code.+\.dmg/.test(String(codePackage?.build?.dmg?.artifactName || '')) &&
+        /Nexus_Code.+\.exe/.test(String(codePackage?.build?.nsis?.artifactName || '')),
+      message: 'Nexus Code Artefakte sind versionierte Download-Dateien',
+      details: [
+        codePackage?.build?.appImage?.artifactName,
+        codePackage?.build?.dmg?.artifactName,
+        codePackage?.build?.nsis?.artifactName,
+      ].join(' | '),
+    },
+  ]
+
+  checks.push(...electronPackagingChecks)
 
   const forbiddenPatterns = [
     /\.\.\/API\//,

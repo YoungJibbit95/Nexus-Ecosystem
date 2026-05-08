@@ -31,10 +31,12 @@ export function TitleBar({
         height: 38,
         padding: '0 11px',
         flexShrink: 0,
+        color: isDark ? 'rgba(255,255,255,0.88)' : 'rgba(17,24,39,0.92)',
         borderBottom: isDark ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(0,0,0,0.065)',
         background: isDark
           ? 'linear-gradient(to bottom, rgba(27,30,45,0.58), rgba(15,18,30,0.36))'
-          : 'linear-gradient(to bottom, rgba(255,255,255,0.88), rgba(245,248,255,0.64))',
+          : 'linear-gradient(to bottom, rgba(255,255,255,0.94), rgba(245,248,255,0.78))',
+        boxShadow: isDark ? undefined : 'inset 0 1px 0 rgba(255,255,255,0.72)',
       }}
     >
       <div style={{ position: 'absolute', inset: 0, ['WebkitAppRegion' as any]: 'drag' }} />

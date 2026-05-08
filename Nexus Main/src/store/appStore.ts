@@ -2,7 +2,7 @@ import { createWithEqualityFn as create } from 'zustand/traditional'
 import { persist } from 'zustand/middleware'
 import { genId } from '../lib/utils'
 import { createIndexedDbStorage } from './persistence/indexedDbStorage'
-import { createInitialAppData } from './appStoreInitialData'
+import { NEXUS_README_GUIDE_VERSION, createInitialAppData } from './appStoreInitialData'
 
 /* ============================================================
    TYPES
@@ -172,6 +172,54 @@ interface Store {
 
 const now = () => new Date().toISOString()
 const INITIAL_APP_DATA = createInitialAppData(now)
+const WELCOME_GUIDE_NOTE = INITIAL_APP_DATA.notes.find(note => note.id === 'welcome-v6-release')
+const LEGACY_WELCOME_NOTE_IDS = new Set(['welcome', 'welcome-v6', 'welcome-v6-release'])
+const SEED_README_NOTES_BY_ID = new Map(INITIAL_APP_DATA.notes.map(note => [note.id, note]))
+
+const isWelcomeSeedNote = (note: Note) => (
+  LEGACY_WELCOME_NOTE_IDS.has(note.id) ||
+  (note.tags?.includes('welcome') && /willkommen/i.test(note.title))
+)
+
+const refreshSeedGuideNotes = (notes: Note[]) => {
+  if (!WELCOME_GUIDE_NOTE) return notes
+  return notes.map(note => {
+    const seedNote = SEED_README_NOTES_BY_ID.get(note.id) || (isWelcomeSeedNote(note) ? WELCOME_GUIDE_NOTE : undefined)
+    const alreadyCurrent = note.content.includes(NEXUS_README_GUIDE_VERSION)
+    if (!seedNote || alreadyCurrent || note.dirty) return note
+    return {
+      ...note,
+      title: seedNote.title,
+      content: seedNote.content,
+      tags: Array.from(new Set([...(note.tags || []), ...seedNote.tags])),
+      updated: now(),
+      dirty: false,
+    }
+  })
+}
+
+const ensureV6ReadmeNotes = (notes: Note[] | undefined) => {
+  const existingNotes = Array.isArray(notes) ? notes : []
+  const seen = new Set(existingNotes.map(note => note.id))
+  const hasRefreshableLegacyWelcome = existingNotes.some(note => isWelcomeSeedNote(note) && !note.dirty)
+  const missingSeedNotes = INITIAL_APP_DATA.notes.filter(note => {
+    if (seen.has(note.id)) return false
+    if (note.id === 'welcome-v6-release' && hasRefreshableLegacyWelcome) return false
+    return true
+  })
+  const withSeedNotes = missingSeedNotes.length ? [...missingSeedNotes, ...existingNotes] : existingNotes
+  return refreshSeedGuideNotes(withSeedNotes)
+}
+
+const mergeV6OpenNotes = (openNoteIds: string[] | undefined, notes: Note[]) => {
+  const existingOpenIds = Array.isArray(openNoteIds) ? openNoteIds : []
+  const noteIds = new Set(notes.map(note => note.id))
+  const seedOpenIds = INITIAL_APP_DATA.openNoteIds.filter(id => noteIds.has(id))
+  return [
+    ...seedOpenIds,
+    ...existingOpenIds.filter(id => noteIds.has(id) && !seedOpenIds.includes(id)),
+  ]
+}
 
 /* ============================================================
    STORE
@@ -583,10 +631,22 @@ export const useApp = create<Store>()(
         folders: state.folders,
         activities: state.activities,
       }),
-      merge: (persistedState, currentState) => ({
-        ...currentState,
-        ...(persistedState as Partial<Store>),
-      }),
+      merge: (persistedState, currentState) => {
+        const persisted = (persistedState as Partial<Store> | undefined) ?? {}
+        const notes = ensureV6ReadmeNotes(persisted.notes ?? currentState.notes)
+        const openNoteIds = mergeV6OpenNotes(persisted.openNoteIds ?? currentState.openNoteIds, notes)
+        const activeNoteId = persisted.activeNoteId && notes.some(note => note.id === persisted.activeNoteId)
+          ? persisted.activeNoteId
+          : INITIAL_APP_DATA.activeNoteId
+
+        return {
+          ...currentState,
+          ...persisted,
+          notes,
+          openNoteIds,
+          activeNoteId,
+        }
+      },
     }
   )
 )
