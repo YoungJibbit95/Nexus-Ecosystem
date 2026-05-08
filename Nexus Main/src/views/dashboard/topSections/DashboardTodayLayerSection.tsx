@@ -48,16 +48,17 @@ export function DashboardTodayLayerSection({
         delay: heroMotion.timings.materialDelayMs / 1000,
         ease: heroFramerEase,
       }}
-      style={{ marginBottom: 16, position: "relative", zIndex: 24 }}
+      style={{ marginBottom: 10, position: "relative", zIndex: 24 }}
     >
       <Glass
         gradient
         style={{
-          padding: "14px 16px",
+          padding: "10px 12px",
+          borderRadius: 18,
           overflow: "visible",
           position: "relative",
           zIndex: 24,
-          background: `linear-gradient(145deg, rgba(${rgb},0.34), rgba(${hexToRgb(t.accent2)},0.22) 58%, rgba(255,255,255,0.03))`,
+          background: `linear-gradient(145deg, rgba(${rgb},0.2), rgba(${hexToRgb(t.accent2)},0.13) 58%, rgba(255,255,255,0.03))`,
         }}
       >
         <div
@@ -65,7 +66,7 @@ export function DashboardTodayLayerSection({
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            gap: 12,
+            gap: 8,
             flexWrap: "wrap",
           }}
         >
@@ -73,18 +74,18 @@ export function DashboardTodayLayerSection({
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 10,
+              gap: 8,
               flexWrap: "wrap",
             }}
           >
-            <span style={{ fontSize: 12, fontWeight: 800, color: t.accent }}>
+            <span style={{ fontSize: 11, fontWeight: 800, color: t.accent }}>
               Today Layer
             </span>
             <span style={{ fontSize: 11, opacity: 0.72 }}>
-              Open Tasks: <b>{todaySummary.openTaskCount}</b>
+              Tasks: <b>{todaySummary.openTaskCount}</b>
             </span>
             <span style={{ fontSize: 11, opacity: 0.72 }}>
-              Due Today: <b>{todaySummary.dueTodayCount}</b>
+              Due: <b>{todaySummary.dueTodayCount}</b>
             </span>
             <span
               style={{
@@ -96,13 +97,13 @@ export function DashboardTodayLayerSection({
               Overdue: <b>{todaySummary.overdueCount}</b>
             </span>
           </div>
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
             <DashboardActionButton
               onClick={() => setView?.("tasks")}
               liquidColor="#ff9f0a"
               style={{
-                padding: "6px 10px",
-                borderRadius: 8,
+                padding: "5px 9px",
+                borderRadius: 999,
                 border: "1px solid rgba(255,255,255,0.14)",
                 background: "rgba(255,255,255,0.06)",
                 color: "inherit",
@@ -117,8 +118,8 @@ export function DashboardTodayLayerSection({
               onClick={() => setView?.("reminders")}
               liquidColor={t.accent}
               style={{
-                padding: "6px 10px",
-                borderRadius: 8,
+                padding: "5px 9px",
+                borderRadius: 999,
                 border: `1px solid rgba(${rgb},0.25)`,
                 background: `rgba(${rgb},0.12)`,
                 color: t.accent,
@@ -134,8 +135,8 @@ export function DashboardTodayLayerSection({
                 onClick={() => setTodayMenuOpen((open) => !open)}
                 liquidColor={todayMenuOpen ? t.accent : t.accent2}
                 style={{
-                  padding: "6px 8px",
-                  borderRadius: 8,
+                  padding: "5px 8px",
+                  borderRadius: 999,
                   border: "1px solid rgba(255,255,255,0.14)",
                   background: todayMenuOpen
                     ? `rgba(${rgb},0.12)`
@@ -149,7 +150,7 @@ export function DashboardTodayLayerSection({
                   gap: 5,
                 }}
               >
-                Mehr <MoreHorizontal size={12} />
+                More <MoreHorizontal size={12} />
               </DashboardActionButton>
               {todayMenuOpen ? (
                 <div
@@ -198,8 +199,8 @@ export function DashboardTodayLayerSection({
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            gap: 12,
-            marginTop: 12,
+            gap: 10,
+            marginTop: 9,
             flexWrap: "wrap",
           }}
         >
@@ -216,7 +217,7 @@ export function DashboardTodayLayerSection({
                 fontSize: 10,
                 opacity: 0.56,
                 textTransform: "uppercase",
-                letterSpacing: 0.6,
+                letterSpacing: 0.5,
               }}
             >
               Quick Capture
@@ -225,7 +226,7 @@ export function DashboardTodayLayerSection({
               onClick={() => runCaptureIntent("note")}
               liquidColor={t.accent}
               style={{
-                padding: "5px 10px",
+                padding: "4px 9px",
                 borderRadius: 999,
                 border: `1px solid rgba(${rgb},0.24)`,
                 background: `rgba(${rgb},0.14)`,
@@ -241,7 +242,7 @@ export function DashboardTodayLayerSection({
               onClick={() => runCaptureIntent("task")}
               liquidColor="#ff9f0a"
               style={{
-                padding: "5px 10px",
+                padding: "4px 9px",
                 borderRadius: 999,
                 border: "1px solid rgba(255,159,10,0.28)",
                 background: "rgba(255,159,10,0.14)",
@@ -257,7 +258,7 @@ export function DashboardTodayLayerSection({
               onClick={() => runCaptureIntent("reminder")}
               liquidColor="#ff453a"
               style={{
-                padding: "5px 10px",
+                padding: "4px 9px",
                 borderRadius: 999,
                 border: "1px solid rgba(255,69,58,0.3)",
                 background: "rgba(255,69,58,0.13)",
@@ -274,7 +275,7 @@ export function DashboardTodayLayerSection({
                 onClick={() => setCaptureMenuOpen((open) => !open)}
                 liquidColor={captureMenuOpen ? t.accent : t.accent2}
                 style={{
-                  padding: "5px 9px",
+                  padding: "4px 8px",
                   borderRadius: 999,
                   border: "1px solid rgba(255,255,255,0.14)",
                   background: captureMenuOpen
@@ -289,7 +290,7 @@ export function DashboardTodayLayerSection({
                   gap: 4,
                 }}
               >
-                Mehr <MoreHorizontal size={11} />
+                More <MoreHorizontal size={11} />
               </DashboardActionButton>
               {captureMenuOpen ? (
                 <div
@@ -341,7 +342,7 @@ export function DashboardTodayLayerSection({
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 10,
+              gap: 8,
               flexWrap: "wrap",
             }}
           >
@@ -350,7 +351,7 @@ export function DashboardTodayLayerSection({
                 fontSize: 10,
                 opacity: 0.56,
                 textTransform: "uppercase",
-                letterSpacing: 0.6,
+                letterSpacing: 0.5,
               }}
             >
               Workspace
@@ -374,7 +375,7 @@ export function DashboardTodayLayerSection({
                 whiteSpace: "nowrap",
               }}
             >
-              {workspaceRoot ? `Root: ${workspaceRoot}` : "Root: nicht gesetzt"} ·{" "}
+              {workspaceRoot ? `Root: ${workspaceRoot}` : "Root: nicht gesetzt"} /{" "}
               {lastSyncLabel}
             </span>
           </div>
@@ -394,8 +395,8 @@ const todayMenuButtonStyle: React.CSSProperties = {
   display: "flex",
   alignItems: "center",
   gap: 8,
-  padding: "8px 10px",
-  fontSize: 12,
+  padding: "7px 9px",
+  fontSize: 11,
   fontWeight: 650,
 };
 
@@ -409,7 +410,7 @@ const captureMenuButtonStyle: React.CSSProperties = {
   display: "flex",
   alignItems: "center",
   gap: 8,
-  padding: "8px 10px",
-  fontSize: 12,
+  padding: "7px 9px",
+  fontSize: 11,
   fontWeight: 650,
 };

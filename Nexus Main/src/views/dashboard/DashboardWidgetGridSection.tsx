@@ -80,7 +80,7 @@ export function DashboardWidgetGridSection({
           display: "grid",
           gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
           gridAutoRows: `minmax(${snapRowHeight}px, auto)`,
-          gap: 16,
+          gap: 10,
           alignItems: "stretch",
         }}
       >
@@ -103,7 +103,7 @@ export function DashboardWidgetGridSection({
             </div>
             <div style={{ fontSize: 11, opacity: 0.65, maxWidth: 420 }}>
               Das gespeicherte Dashboard-Layout hat aktuell alle Widgets
-              ausgeblendet. Du kannst das Layout hier direkt zurücksetzen.
+              ausgeblendet. Du kannst das Layout hier direkt zuruecksetzen.
             </div>
             <DashboardActionButton
               onClick={resetLayout}
@@ -137,13 +137,13 @@ export function DashboardWidgetGridSection({
                 y: 0,
                 scale:
                   dragState?.widgetId === w.id
-                    ? 1.02
+                    ? 1.006
                     : dragState?.targetWidgetId === w.id
-                      ? 1.01
+                      ? 1.003
                       : !editLayout &&
                           contentMotion.allowHover &&
                           hoverWidgetId === w.id
-                        ? Math.max(1.002, contentMotion.hoverScale + 0.002)
+                        ? 1
                         : 1,
               }}
               transition={{
@@ -183,7 +183,7 @@ export function DashboardWidgetGridSection({
                 gridRow: `${w.y} / span 1`,
                 minHeight: 0,
                 position: "relative",
-                borderRadius: 12,
+                borderRadius: 16,
                 border:
                   editLayout &&
                   dragWidgetId &&
@@ -198,15 +198,15 @@ export function DashboardWidgetGridSection({
                 <div
                   style={{
                     position: "absolute",
-                    top: 7,
-                    left: 7,
-                    right: 7,
+                    top: 6,
+                    left: 6,
+                    right: 6,
                     zIndex: 2,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "space-between",
                     gap: 6,
-                    padding: "4px 6px",
+                    padding: "3px 5px",
                     borderRadius: 999,
                     background: "rgba(0,0,0,0.35)",
                     border: "1px solid rgba(255,255,255,0.12)",
@@ -343,7 +343,7 @@ export function DashboardWidgetGridSection({
             style={{
               gridColumn: `${dropCell.x} / span ${draggedWidget?.span ?? 1}`,
               gridRow: `${dropCell.y} / span 1`,
-              borderRadius: 12,
+              borderRadius: 16,
               border: `1px dashed ${t.accent}`,
               background: `linear-gradient(135deg, rgba(${hexToRgb(t.accent)},0.16), rgba(${hexToRgb(t.accent2)},0.1))`,
               boxShadow: `0 0 20px rgba(${hexToRgb(t.accent)},0.3)`,
@@ -411,12 +411,12 @@ export function DashboardWidgetGridSection({
             duration: Math.max(0.14, contentMotion.timings.materialMs / 1000),
             ease: contentFramerEase,
           }}
-          style={{ marginTop: 12 }}
+          style={{ marginTop: 10 }}
         >
           <Glass
             style={{
-              padding: "10px 12px",
-              borderRadius: 12,
+              padding: "8px 10px",
+              borderRadius: 16,
               border: "1px solid rgba(255,255,255,0.12)",
               background: "rgba(255,255,255,0.04)",
             }}
@@ -472,10 +472,12 @@ export function DashboardWidgetGridSection({
           </Glass>
         </motion.div>
       ) : null}
-      <div style={{ marginTop: 12, textAlign: "center", fontSize: 10, opacity: 0.32 }}>
-        <Sparkles size={10} style={{ display: "inline", marginRight: 5 }} />
-        Widget-Swap: Ziehe ein Widget direkt auf ein anderes für einen Platztausch.
-      </div>
+      {editLayout ? (
+        <div style={{ marginTop: 10, textAlign: "center", fontSize: 10, opacity: 0.32 }}>
+          <Sparkles size={10} style={{ display: "inline", marginRight: 5 }} />
+          Widget-Swap: Ziehe ein Widget direkt auf ein anderes fuer einen Platztausch.
+        </div>
+      ) : null}
     </>
   );
 }

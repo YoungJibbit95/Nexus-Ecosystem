@@ -1,6 +1,6 @@
 import React from "react";
 import { motion } from "framer-motion";
-import { Code, FileText, CheckSquare, GitBranch, Layout } from "lucide-react";
+import { CheckSquare, FileText, Layout } from "lucide-react";
 import { hexToRgb } from "../../../lib/utils";
 import { QuickChip } from "../dashboardUi";
 import { DashboardActionButton } from "../DashboardActionButton";
@@ -32,13 +32,13 @@ export function DashboardHeaderHero({
 }) {
   return (
     <motion.div
-      initial={heroMotion.allowEntry ? { opacity: 0, y: -10, scale: 0.996 } : false}
+      initial={heroMotion.allowEntry ? { opacity: 0, y: -8, scale: 0.998 } : false}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{
-        duration: Math.max(0.16, heroMotion.timings.transformMs / 1000),
+        duration: Math.max(0.14, heroMotion.timings.transformMs / 1000),
         ease: heroFramerEase,
       }}
-      style={{ marginBottom: 24 }}
+      style={{ marginBottom: 10 }}
     >
       <div
         style={{
@@ -46,46 +46,48 @@ export function DashboardHeaderHero({
           alignItems: "flex-end",
           justifyContent: "space-between",
           flexWrap: "wrap",
-          gap: 12,
+          gap: 10,
         }}
       >
-        <div>
+        <div style={{ minWidth: 0 }}>
           <div
             style={{
-              fontSize: 11,
-              opacity: 0.4,
-              fontWeight: 600,
+              fontSize: 10,
+              opacity: 0.5,
+              fontWeight: 720,
               textTransform: "uppercase",
-              letterSpacing: "0.15em",
-              marginBottom: 4,
+              letterSpacing: "0.14em",
+              marginBottom: 3,
             }}
           >
             {today}
           </div>
           <h1
             style={{
-              fontSize: 30,
+              margin: 0,
+              fontSize: 24,
               fontWeight: 900,
-              letterSpacing: "-0.03em",
+              letterSpacing: "-0.035em",
               lineHeight: 1,
               background: `linear-gradient(135deg, #fff 30%, ${t.accent})`,
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
             }}
           >
-            {greeting} ✦
+            {greeting}
           </h1>
-          <p style={{ fontSize: 12, opacity: 0.4, marginTop: 6 }}>
-            {pendingTasks > 0 ? `${pendingTasks} offene Tasks` : "Alle Tasks erledigt ✓"}
-            {overdueReminders > 0 &&
-              ` · ${overdueReminders} überfällige Erinnerung${overdueReminders > 1 ? "en" : ""}`}
+          <p style={{ fontSize: 11, opacity: 0.5, marginTop: 4 }}>
+            {pendingTasks > 0 ? `${pendingTasks} offene Tasks` : "Alle Tasks erledigt"}
+            {overdueReminders > 0
+              ? ` / ${overdueReminders} ueberfaellige Erinnerung${overdueReminders > 1 ? "en" : ""}`
+              : ""}
           </p>
         </div>
 
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
           <QuickChip
             icon={FileText}
-            label="Neue Notiz"
+            label="New Note"
             color={t.accent}
             onClick={() => setView?.("notes")}
           />
@@ -95,18 +97,6 @@ export function DashboardHeaderHero({
             color="#FF9F0A"
             onClick={() => setView?.("tasks")}
           />
-          <QuickChip
-            icon={Code}
-            label="Code"
-            color="#30D158"
-            onClick={() => setView?.("code")}
-          />
-          <QuickChip
-            icon={GitBranch}
-            label="Canvas"
-            color={t.accent2}
-            onClick={() => setView?.("canvas")}
-          />
           <DashboardActionButton
             onClick={() => setEditLayout((v) => !v)}
             liquidColor={editLayout ? t.accent : t.accent2}
@@ -114,24 +104,23 @@ export function DashboardHeaderHero({
               display: "inline-flex",
               alignItems: "center",
               gap: 6,
-              padding: "7px 12px",
+              padding: "6px 10px",
               borderRadius: 999,
               border: `1px solid ${editLayout ? t.accent : "rgba(255,255,255,0.14)"}`,
               background: editLayout
                 ? `rgba(${hexToRgb(t.accent)},0.17)`
                 : "rgba(255,255,255,0.05)",
               color: editLayout ? t.accent : "inherit",
-              fontSize: 12,
-              fontWeight: 700,
+              fontSize: 11,
+              fontWeight: 760,
               cursor: "pointer",
             }}
           >
             <Layout size={12} />
-            {editLayout ? "Editor aktiv" : "Layout bearbeiten"}
+            {editLayout ? "Edit on" : "Layout"}
           </DashboardActionButton>
         </div>
       </div>
     </motion.div>
   );
 }
-

@@ -241,11 +241,11 @@ export function DashboardView({ setView }: { setView?: (v: string) => void }) {
   return (
     <div
       className="h-full overflow-y-auto custom-scrollbar"
-      style={{ padding: "14px 24px 20px", position: "relative" }}
+      style={{ padding: "10px 14px 16px", position: "relative" }}
     >
       <div
         style={{
-          maxWidth: 1140,
+          maxWidth: 1440,
           margin: "0 auto",
         }}
       >
