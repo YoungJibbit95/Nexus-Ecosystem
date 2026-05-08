@@ -416,7 +416,7 @@ export function IslandToolbarLayout(props: IslandToolbarLayoutProps) {
           style={{
             width: "100%",
             height: "100%",
-            borderRadius: expanded ? 22 : 18,
+            borderRadius: expanded ? 18 : 999,
             padding: expanded
               ? islandCfg.glassPaddingExpanded
               : islandCfg.glassPaddingCollapsed,
@@ -456,7 +456,7 @@ export function IslandToolbarLayout(props: IslandToolbarLayoutProps) {
               style={{
                 display: "flex",
                 alignItems: "center",
-                gap: expanded ? 6 : 10,
+                gap: expanded ? 5 : 8,
                 minWidth: 0,
                 flex: 1,
               }}
@@ -467,13 +467,13 @@ export function IslandToolbarLayout(props: IslandToolbarLayoutProps) {
                   style={{
                     display: "flex",
                     alignItems: "center",
-                    gap: 6,
+                    gap: 5,
                     minWidth: 0,
                     flex: 1,
                     overflowX: "auto",
                     overflowY: "hidden",
                     height: "100%",
-                    paddingRight: 12,
+                    paddingRight: 8,
                     position: "relative",
                     zIndex: 1,
                   }}
@@ -496,7 +496,7 @@ export function IslandToolbarLayout(props: IslandToolbarLayoutProps) {
                   style={{
                     display: "inline-flex",
                     alignItems: "center",
-                    gap: 8,
+                    gap: 6,
                     minWidth: 0,
                     whiteSpace: "nowrap",
                   }}
@@ -504,14 +504,14 @@ export function IslandToolbarLayout(props: IslandToolbarLayoutProps) {
                   <span
                     style={{
                       marginLeft: 0,
-                      fontSize: 11,
-                      fontWeight: 600,
-                      letterSpacing: "0.08em",
+                      fontSize: 10,
+                      fontWeight: 720,
+                      letterSpacing: "0.06em",
                       textTransform: "none",
                       opacity: 0.82,
                     }}
                   >
-                    Hover to expand
+                    Workspace views
                   </span>
                   {/*<span style={{ fontSize: 10, opacity: 0.55 }}>Shift x2</span>*/}
                 </div>

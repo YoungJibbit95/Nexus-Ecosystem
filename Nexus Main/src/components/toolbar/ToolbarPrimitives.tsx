@@ -34,26 +34,26 @@ export function IslandToolbarBrand({
       style={{
         display: "inline-flex",
         alignItems: "center",
-        gap: compact ? 8 : 10,
+        gap: compact ? 6 : 8,
         minWidth: 0,
         transform: `translate(${cx(offset)}px, ${cy(offset)}px)`,
       }}
     >
       <div
         style={{
-          width: compact ? 24 : 28,
-          height: compact ? 24 : 28,
-          borderRadius: compact ? 9 : 11,
-          background: `radial-gradient(circle at 30% 25%, rgba(${rgb},0.42), rgba(${rgb},0.12))`,
-          border: `1px solid rgba(${rgb},0.52)`,
-          boxShadow: `0 10px 24px rgba(${rgb},0.22)`,
+          width: compact ? 21 : 24,
+          height: compact ? 21 : 24,
+          borderRadius: compact ? 8 : 10,
+          background: `radial-gradient(circle at 30% 25%, rgba(${rgb},0.34), rgba(${rgb},0.1))`,
+          border: `1px solid rgba(${rgb},0.42)`,
+          boxShadow: `0 8px 18px rgba(${rgb},0.16)`,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           flexShrink: 0,
         }}
       >
-        <Sparkles size={compact ? 11 : 12} style={{ color: t.accent }} />
+        <Sparkles size={compact ? 10 : 11} style={{ color: t.accent }} />
       </div>
       <div
         style={{
@@ -65,18 +65,18 @@ export function IslandToolbarBrand({
       >
         <span
           style={{
-            fontSize: 11,
+            fontSize: 10,
             fontWeight: 800,
             letterSpacing: "0.08em",
             textTransform: "uppercase",
             whiteSpace: "nowrap",
           }}
         >
-          Nexus Dock
+          Nexus
         </span>
         {!compact ? (
           <span style={{ fontSize: 9, opacity: 0.5, whiteSpace: "nowrap" }}>
-            Island Scene
+            Command Dock
           </span>
         ) : null}
       </div>
@@ -100,28 +100,28 @@ export function FullWidthToolbarBrand({
       style={{
         display: "inline-flex",
         alignItems: "center",
-        gap: compact ? 8 : 10,
+        gap: compact ? 6 : 8,
         minWidth: 0,
         transform: `translate(${cx(offset)}px, ${cy(offset)}px)`,
       }}
     >
       <div
         style={{
-          height: compact ? 24 : 28,
-          borderRadius: compact ? 8 : 10,
-          border: `1px solid rgba(${rgb},0.46)`,
-          background: `linear-gradient(125deg, rgba(${rgb},0.28), rgba(${rgb},0.08))`,
-          padding: compact ? "0 8px" : "0 10px",
+          height: compact ? 22 : 24,
+          borderRadius: compact ? 8 : 9,
+          border: `1px solid rgba(${rgb},0.38)`,
+          background: `linear-gradient(125deg, rgba(${rgb},0.22), rgba(${rgb},0.07))`,
+          padding: compact ? "0 7px" : "0 9px",
           display: "inline-flex",
           alignItems: "center",
           justifyContent: "center",
-          boxShadow: `0 8px 22px rgba(${rgb},0.2)`,
+          boxShadow: `0 7px 16px rgba(${rgb},0.14)`,
           flexShrink: 0,
         }}
       >
         <span
           style={{
-            fontSize: compact ? 10 : 11,
+            fontSize: compact ? 9 : 10,
             fontWeight: 900,
             letterSpacing: "0.1em",
             color: t.accent,
@@ -133,18 +133,18 @@ export function FullWidthToolbarBrand({
       <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
         <span
           style={{
-            fontSize: 11,
+            fontSize: 10,
             fontWeight: 800,
             letterSpacing: "0.06em",
             textTransform: "uppercase",
             whiteSpace: "nowrap",
           }}
         >
-          Nexus Dock
+          Nexus
         </span>
         {!compact ? (
           <span style={{ fontSize: 9, opacity: 0.5, whiteSpace: "nowrap" }}>
-            Full Width Rail
+            Workspace
           </span>
         ) : null}
       </div>
@@ -222,7 +222,7 @@ export function ToolbarStatusCluster({
       style={{
         display: "inline-flex",
         alignItems: "center",
-        gap: compact ? 5 : 7,
+        gap: compact ? 4 : 5,
         transform: `translate(${cx(offset)}px, ${cy(offset)}px)`,
       }}
     >
@@ -257,21 +257,21 @@ export function ToolbarStatusPill({
   return (
     <div
       style={{
-        borderRadius: 8,
-        border: "1px solid rgba(255,255,255,0.09)",
-        background: "rgba(255,255,255,0.05)",
-        padding: "4px 8px",
+        borderRadius: 999,
+        border: "1px solid rgba(255,255,255,0.08)",
+        background: "rgba(255,255,255,0.035)",
+        padding: "3px 7px",
         display: "inline-flex",
         alignItems: "center",
-        gap: 6,
+        gap: 5,
       }}
     >
-      <span style={{ fontSize: 10, opacity: 0.46, fontWeight: 700 }}>
+      <span style={{ fontSize: 9, opacity: 0.46, fontWeight: 700 }}>
         {label}
       </span>
       <span
         style={{
-          fontSize: 11,
+          fontSize: 10,
           fontWeight: 800,
           color,
           fontFamily: mono ? "monospace" : "inherit",
@@ -309,19 +309,19 @@ export function ToolbarNavChip({
       style={{
         display: "inline-flex",
         alignItems: "center",
-        gap: compact ? 0 : dense ? 4 : 6,
-        borderRadius: 10,
+        gap: compact ? 0 : dense ? 4 : 5,
+        borderRadius: 999,
         border: "1px solid transparent",
-        background: active ? `rgba(${rgb},0.22)` : "transparent",
+        background: active ? `rgba(${rgb},0.16)` : "transparent",
         color: active ? color : "inherit",
-        padding: compact ? "6px 8px" : dense ? "5px 7px" : "6px 9px",
-        fontSize: dense ? 10 : 11,
+        padding: compact ? "5px 7px" : dense ? "4px 7px" : "5px 8px",
+        fontSize: dense ? 10 : 10.5,
         fontWeight: 700,
         whiteSpace: "nowrap",
         cursor: "pointer",
       }}
     >
-      <Icon size={dense ? 12 : 13} style={{ opacity: active ? 1 : 0.72 }} />
+      <Icon size={dense ? 11 : 12} style={{ opacity: active ? 1 : 0.72 }} />
       {!compact ? label : null}
     </button>
   );
@@ -344,20 +344,20 @@ export function ToolbarUtilityButton({
 }) {
   const Comp = pickButtonRenderer(t) as any;
   const commonStyle: React.CSSProperties = {
-    width: 32,
-    height: 32,
-    minHeight: 32,
+    width: 28,
+    height: 28,
+    minHeight: 28,
     padding: 0,
-    borderRadius: 10,
+    borderRadius: 999,
     border:
       Comp === "button"
-        ? `1px solid ${active ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.1)"}`
+        ? `1px solid ${active ? "rgba(255,255,255,0.24)" : "rgba(255,255,255,0.08)"}`
         : undefined,
     background:
       Comp === "button"
         ? active
-          ? `rgba(${hexToRgb(t.accent)},0.2)`
-          : "rgba(255,255,255,0.04)"
+          ? `rgba(${hexToRgb(t.accent)},0.16)`
+          : "rgba(255,255,255,0.035)"
         : undefined,
     color: active ? t.accent : undefined,
     transform: `translate(${cx(offset)}px, ${cy(offset)}px)`,
@@ -399,11 +399,11 @@ export function ToolbarCommandTrigger({
 }) {
   const Comp = pickButtonRenderer(t) as any;
   const content = condensed ? (
-    <Command size={14} style={{ opacity: 0.9 }} />
+    <Command size={13} style={{ opacity: 0.9 }} />
   ) : (
     <>
-      <Search size={14} />
-      <span style={{ fontSize: 11, fontWeight: 700 }}>Search</span>
+      <Search size={13} />
+      <span style={{ fontSize: 10, fontWeight: 700 }}>Search</span>
     </>
   );
 
@@ -414,21 +414,21 @@ export function ToolbarCommandTrigger({
       title="Open command panel"
       aria-label="Open command panel"
       style={{
-        minHeight: 32,
-        borderRadius: 10,
-        padding: condensed ? 0 : "0 10px",
-        width: condensed ? 32 : undefined,
-        gap: condensed ? 0 : 7,
+        minHeight: 28,
+        borderRadius: 999,
+        padding: condensed ? 0 : "0 9px",
+        width: condensed ? 28 : undefined,
+        gap: condensed ? 0 : 6,
         display: "inline-flex",
         alignItems: "center",
         justifyContent: "center",
         border:
           Comp === "button"
-            ? `1px solid rgba(${hexToRgb(t.accent)},0.3)`
+            ? `1px solid rgba(${hexToRgb(t.accent)},0.24)`
             : undefined,
         background:
           Comp === "button"
-            ? `linear-gradient(130deg, rgba(${hexToRgb(t.accent)},0.22), rgba(${hexToRgb(t.accent2)},0.08))`
+            ? `linear-gradient(130deg, rgba(${hexToRgb(t.accent)},0.16), rgba(${hexToRgb(t.accent2)},0.07))`
             : undefined,
         color: t.accent,
       }}
@@ -451,17 +451,17 @@ export function ToolbarOverflowButton({
       title="More actions"
       onClick={onClick}
       style={{
-        width: 32,
-        height: 32,
-        borderRadius: 10,
-        border: "1px solid rgba(255,255,255,0.12)",
-        background: "rgba(255,255,255,0.04)",
+        width: 28,
+        height: 28,
+        borderRadius: 999,
+        border: "1px solid rgba(255,255,255,0.08)",
+        background: "rgba(255,255,255,0.035)",
         display: "inline-flex",
         alignItems: "center",
         justifyContent: "center",
       }}
     >
-      <MoreHorizontal size={14} style={{ color: t.accent, opacity: 0.86 }} />
+      <MoreHorizontal size={13} style={{ color: t.accent, opacity: 0.86 }} />
     </button>
   );
 }
@@ -484,7 +484,7 @@ export function ToolbarTerminalButton({
       active={active}
       onClick={onClick}
       offset={offset}
-      icon={<Terminal size={15} style={{ opacity: active ? 1 : 0.65 }} />}
+      icon={<Terminal size={14} style={{ opacity: active ? 1 : 0.65 }} />}
     />
   );
 }

@@ -1,6 +1,6 @@
 # Nexus Fertigstellungs- und Releaseplan
 
-Stand: 2026-05-06
+Stand: 2026-05-07
 
 Arbeitsstand nach Start der Abarbeitung:
 
@@ -22,6 +22,7 @@ Arbeitsstand nach Start der Abarbeitung:
 - v6-UI wurde weiter entschlackt: Main-Content bekommt mehr Raum, die Inspector Rail startet geschlossen, das sichtbare Action/Activity-Modell wurde entfernt, Quick Navigation sitzt kompakt im Header und die Shell nutzt staerker transparente blurry Gradient-/Glow-Surfaces.
 - Globales Main-Design ist enger an `nexusproject.dev` angelehnt: Space-Base, Cyan/Indigo/Violet-Produktpalette, cosmic glass panels, feines Grid, Text-Glow und Product-Page-aehnliche Radial-Glows sind in die v6-Shell uebernommen.
 - Notes hat einen gezielten v6-Layout-Schnitt erhalten: kompaktere globale Topbar, mehr Schreibraum, breitere Library, bessere Editor-/Preview-Panes, glaeserne Toolbars und responsives Stack-Verhalten.
+- Weiterer Nexus-v6-UI-Schritt ist umgesetzt: Dashboard-Hero, Today Layer, Resume-Lane, Widget Grid, globale Shell-Abstaende, View-Enhancer-Bar und Nexus Toolbar sind dichter, ruhiger und content-first ausgerichtet; Drag-/Hover-Scale ist fuer Dashboard-Widgets stabilisiert.
 
 Scope dieser Analyse:
 
@@ -133,7 +134,7 @@ Die Views sind nicht nur Platzhalter. Viele Dateien sind umfangreich implementie
 
 | View | Main | Mobile | Release-Einschaetzung | Fertigstellen |
 | --- | --- | --- | --- | --- |
-| Dashboard | Implementiert | Implementiert | Gute Startflaeche, Layout-/Statuslogik vorhanden. | Persistenz, leerer Zustand, Widget-Konfiguration und Sync-Fehler per Smoke testen. |
+| Dashboard | Implementiert | Implementiert | Gute Startflaeche, Layout-/Statuslogik vorhanden; Desktop ist jetzt kompakter, content-first und stabiler bei Widget-Drag/Hover. | Persistenz, leerer Zustand, Widget-Konfiguration und Sync-Fehler per Smoke testen. |
 | Notes | Stark implementiert | Stark implementiert | Editor, Magic-/Markdown-/Organisationslogik vorhanden. | Encoding-Probleme bereinigen, Import/Export und Konfliktfaelle testen. |
 | Tasks | Stark implementiert | Stark implementiert | Board-/Listen-/Produktivitaetsflows vorhanden. | Drag/drop, Filter, Persistenz und mobile Touch-Flows testen. |
 | Reminders | Implementiert | Stark implementiert | Mobile wirkt sehr weit, Desktop braucht Notification-Smoke. | Reminder-Erstellung, Faelligkeit, Snooze, lokale Notifications und Zeitzonen testen. |
@@ -618,7 +619,7 @@ Fertigstellen:
 
 5. ~~RC Gate als ein Kommando oder CI-Workflow definieren.~~
 
-   Status 2026-05-06:
+   Status 2026-05-07:
 
    - Erledigt als `npm run release:gate`.
    - Fast-Modus fuer schnelle lokale RC-Vorpruefung: `npm run release:gate -- --fast`.
@@ -659,17 +660,19 @@ Fertigstellen:
    - Keine Textueberlaeufe, keine verschachtelten Cards, keine springenden Toolbars.
    - Primaeraktionen, Filter, Suche und Statusfeedback sind einheitlich.
 
-   Status 2026-05-06:
+   Status 2026-05-07:
 
    - Erster Shell-Schnitt in Nexus Main umgesetzt: `MainShellLayout` plus `MainViewHost`, reduzierte Status-Bar, Error Boundaries und stabile View-Mount-Schicht.
    - Zweiter v6-Schnitt umgesetzt: `NexusV6ViewShell` rahmt alle Main-Views mit modernem Header, Fokusmodus, kompakter Quick Navigation, optionaler Inspector Rail, Panel-Modell und responsiven Regeln.
    - Refinement umgesetzt: Content-Flaeche priorisiert, Inspector standardmaessig geschlossen, sichtbares Action/Activity-Modell entfernt, transparente blurry Gradient-/Glow-Surfaces verstaerkt.
    - Product-Page-Angleichung umgesetzt: Main nutzt die `nexusproject.dev`-artige Space-/Cosmic-Palette, Cyan/Indigo/Violet-Glows, Grid/Noise-Anmutung, glass panels und Avenir/Plus-Jakarta/Outfit-nahe Typografie.
    - Notes-Refinement umgesetzt: Header/Orb sind kompakter, Notes Library, Editor, Preview, Formatting Toolbar und Statuszeile nutzen ein klareres v6-Schreiblayout mit stabileren Flaechen und responsivem Stack.
+   - Dashboard-/Shell-Refinement umgesetzt: Dashboard-Hero, Today Layer, Resume-Lane und Widget Grid sind dichter und uebersichtlicher; globale v6-Abstaende, View Header, Workbench-Gaps, View-Enhancer-Bar und Nexus Toolbar sind kompakter und geben Main-Content/Controls mehr Flaeche.
+   - Interaktionsstabilitaet verbessert: Dashboard-Widget-Drag nutzt nur noch minimale Scale-Werte, Hover-Scale wurde im Grid neutralisiert und der Widget-Swap-Hinweis erscheint nur im Layout-Edit-Modus.
    - UI-Cleanup umgesetzt: globale Context-Bar entfernt, Status-Bar auf Kerninfos reduziert, Sidebar-Metriken und Quick Actions schlanker gemacht, v6-Header-Actions reduziert und Hover-Bewegungen fuer Actions/Panels stabilisiert.
    - Core liefert erste View-Manifeste fuer gemeinsame Titel, Actions, Panels, Modes und Statussignale.
    - Core liefert jetzt Layout Schema v2, Panel Engine, resolved Command Registry und einen Execution Hook; `NexusV6ViewShell` nutzt diese Daten fuer Inspector, Commands und Layout-Diagnose.
-   - Dashboard/Notes/Tasks/Canvas muessen noch tiefer auf gemeinsame ViewShell-/Toolbar-/Inspector-Primitiven migriert werden.
+   - Dashboard und Notes haben sichtbare v6-Refinements; Tasks und Canvas muessen noch tiefer auf gemeinsame ViewShell-/Toolbar-/Inspector-Primitiven migriert werden.
 
 2. Main-App-Struktur konsolidieren.
 
@@ -923,9 +926,9 @@ Ein Nexus Release Candidate ist fertig, wenn:
 3. ~~Website `import.meta.env` Node-Fallback fixen.~~
 4. API Daten und Git-Hygiene bereinigen.
 5. API Contract/Attack Tests laufen lassen.
-6. Gemeinsame View-Shell, Tokens und UI-Komponenten definieren. Status: in Arbeit, Main nutzt jetzt `MainShellLayout`/`MainViewHost`, `NexusV6ViewShell`, reduzierte Status-Bar, v6-Tokens und Core-View-Manifeste; v6-Shell ist auf mehr Content-Space, transparente Blur/Gradient-Glows, optionalen Inspector und kompaktere Header getrimmt.
+6. Gemeinsame View-Shell, Tokens und UI-Komponenten definieren. Status: in Arbeit, Main nutzt jetzt `MainShellLayout`/`MainViewHost`, `NexusV6ViewShell`, reduzierte Status-Bar, v6-Tokens und Core-View-Manifeste; v6-Shell, View-Enhancer und Nexus Toolbar sind auf mehr Content-Space, transparente Blur/Gradient-Glows, optionalen Inspector, kompaktere Header und stabilere Controls getrimmt.
 7. ~~Core um View Manifest v2, Layout Schema v2, Command Registry und Panel Engine erweitern.~~ Erledigt als Core-Grundlage: `packages/nexus-core/src/views.ts` liefert Layout Schema v2, Panel Engine, resolved Command Registry und `executeNexusViewCommand`; Nexus Main nutzt diese Daten in `NexusV6ViewShell`. Offen bleibt die view-spezifische Handler-Anbindung pro Feature.
-8. Dashboard, Notes, Tasks und Canvas als erste Views auf die neue Shell migrieren. Status: Basis erledigt, alle Main-Views laufen durch `NexusV6ViewShell`; Notes hat zusaetzlich ein internes v6-Layout-Refinement erhalten, globale Shell/Sidebar/Status-Bar sind cleaner und ruhiger, tiefere Toolbar-/Inspector-Migration bleibt offen.
+8. Dashboard, Notes, Tasks und Canvas als erste Views auf die neue Shell migrieren. Status: Basis erledigt, alle Main-Views laufen durch `NexusV6ViewShell`; Dashboard und Notes haben zusaetzlich interne v6-Layout-Refinements erhalten, globale Shell/Sidebar/Toolbar/Status-Bar sind cleaner und ruhiger, Dashboard-Widget-Animationen sind klickstabiler, tiefere Tasks-/Canvas-Toolbar-/Inspector-Migration bleibt offen.
 9. Main-App-Registry konsolidieren oder tote Host-Dateien entfernen. Status: grosser Teil erledigt, zentrale Host-Dateien werden genutzt, toter Inline-Shell-Code ist entfernt, Boot-/Preload-Konfig liegt in `mainAppConfig.ts`, und `mainViewRegistry.ts` speist Sidebar, ViewPreload, Boot-Prioritaeten, Heavy-View-Liste und persistenten Cache. Offen: Toolbar/Command Palette und Mobile voll auf Registry ziehen.
 10. ~~Encoding-Artefakte repo-weit suchen und Gate ergaenzen.~~ Erledigt: `npm run verify:encoding` scannt Source/Docs und besteht aktuell.
 11. ~~View-Smoke-Matrix als Markdown oder Testplan ins Wiki uebernehmen.~~ Erledigt: `docs/VIEW_SMOKE_MATRIX.md` plus Wiki-Eintrag `release-view-smoke-matrix`.

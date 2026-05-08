@@ -25,22 +25,22 @@ export function DashboardContinueSection({
         delay: 0.04,
         ease: contentFramerEase,
       }}
-      style={{ marginBottom: 14 }}
+      style={{ marginBottom: 10 }}
     >
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "1.3fr 1fr",
-          gap: 12,
+          gridTemplateColumns: "minmax(0, 1fr) minmax(280px, 0.42fr)",
+          gap: 10,
         }}
       >
-        <Glass style={{ padding: "12px 14px" }}>
+        <Glass style={{ padding: "10px 12px", borderRadius: 16 }}>
           <div
             style={{
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
-              marginBottom: 8,
+              marginBottom: 7,
             }}
           >
             <span
@@ -52,32 +52,32 @@ export function DashboardContinueSection({
                 letterSpacing: 0.5,
               }}
             >
-              Continue / Resume
+              Resume
             </span>
             <span style={{ fontSize: 10, opacity: 0.52 }}>
-              {resumeLane.length} aktive Einstiegspunkte
+              {resumeLane.length} Einstiegspunkte
             </span>
           </div>
           <div
             style={{
               display: "grid",
               gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-              gap: 8,
+              gap: 7,
             }}
           >
-            {resumeLane.slice(0, 4).map((entry) => (
+            {resumeLane.slice(0, 3).map((entry) => (
               <DashboardActionButton
                 key={`${entry.label}-${entry.title}`}
                 onClick={entry.action}
                 liquidColor={t.accent}
                 style={{
-                  borderRadius: 10,
+                  borderRadius: 12,
                   border: "1px solid rgba(255,255,255,0.12)",
                   background: "rgba(255,255,255,0.04)",
                   color: "inherit",
                   textAlign: "left",
                   cursor: "pointer",
-                  padding: "8px 9px",
+                  padding: "7px 8px",
                   display: "flex",
                   flexDirection: "column",
                   gap: 3,

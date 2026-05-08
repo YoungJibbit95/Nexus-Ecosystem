@@ -90,7 +90,7 @@ export function MainShellLayout({
         zIndex: 500,
         display: "flex",
         justifyContent: "center",
-        padding: toolbarBottom ? "0 0 5px" : "5px 0 0",
+        padding: toolbarBottom ? "0 0 3px" : "3px 0 0",
         pointerEvents: "none",
       }}
     >
@@ -142,7 +142,7 @@ export function MainShellLayout({
           height: "calc(100% / var(--nx-ui-scale, 1))",
           transform: "scale(var(--nx-ui-scale, 1))",
           transformOrigin: "top left",
-          borderRadius: 16,
+          borderRadius: 14,
           border:
             t.mode === "dark"
               ? "1px solid rgba(255,255,255,0.1)"
@@ -272,7 +272,7 @@ export function MainShellLayout({
               flexDirection: "column",
               position: "relative",
               minHeight: 0,
-              background: t.mode === "dark" ? "rgba(7,8,13,0.26)" : "rgba(255,255,255,0.3)",
+              background: t.mode === "dark" ? "rgba(7,8,13,0.18)" : "rgba(255,255,255,0.24)",
             }}
           >
             {!toolbarBottom ? toolbarEl : null}
