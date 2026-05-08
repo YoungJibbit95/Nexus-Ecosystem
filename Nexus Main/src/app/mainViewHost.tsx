@@ -5,6 +5,7 @@ import type { View } from "../components/Sidebar";
 import { useApp } from "../store/appStore";
 import { ViewErrorBoundary } from "../components/ViewErrorBoundary";
 import { NexusV6ViewShell } from "./NexusV6ViewShell";
+import { isMainDiagnosticsEnabled } from "./mainViewRegistry";
 import {
   CanvasView,
   CodeView,
@@ -133,7 +134,7 @@ const renderActiveView = (
     case "devtools":
       return withViewBoundary("devtools", <DevToolsView />);
     case "diagnostics":
-      if ((import.meta as any).env?.DEV) {
+      if (isMainDiagnosticsEnabled()) {
         return withViewBoundary("diagnostics", <RenderDiagnosticsView />);
       }
       return withViewBoundary(
@@ -170,7 +171,7 @@ export function MainViewHost({
   const renderedViews = mergeUniqueViews(
     [view],
     mountedViews.filter((entry) => availableViews.includes(entry)),
-  );
+  ).filter((entry) => entry !== "diagnostics" || isMainDiagnosticsEnabled());
   const { addNote, addTask, addRem } = useApp((state) => ({
     addNote: state.addNote,
     addTask: state.addTask,

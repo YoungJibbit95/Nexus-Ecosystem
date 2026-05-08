@@ -163,6 +163,16 @@ export function Card({ title, icon, desc, keys }: { title: string; icon?: string
   const t = useTheme();
   const [hovered, setHovered] = useState(false);
   const [focused, setFocused] = useState(false);
+  const titleWords: string[] = title.toLowerCase().match(/[a-z0-9]+/g) ?? [];
+  const normalizedIcon = (icon || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
+  const titleAcronym = titleWords.map((word) => word[0]).join("");
+  const iconLooksLikeBadge = Boolean(icon && /^[a-z0-9]{1,4}$/i.test(icon.trim()));
+  const iconRepeatsTitle = iconLooksLikeBadge && normalizedIcon.length > 0 && (
+    titleWords.includes(normalizedIcon) ||
+    titleWords[0]?.startsWith(normalizedIcon) ||
+    titleAcronym === normalizedIcon
+  );
+  const shouldShowIcon = Boolean(icon) && !iconRepeatsTitle;
   const interaction = useInteractiveSurfaceMotion({
     id: `info-card-${title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
     hovered,
@@ -204,8 +214,39 @@ export function Card({ title, icon, desc, keys }: { title: string; icon?: string
         />
       </SurfaceHighlight>
       <div style={{ position: "relative", zIndex: 1 }}>
-        <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 5, color: t.accent }}>
-          {icon} {title}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            fontSize: 13,
+            fontWeight: 700,
+            marginBottom: 5,
+            color: t.accent,
+          }}
+        >
+          {shouldShowIcon && (
+            <span
+              aria-hidden="true"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                minWidth: iconLooksLikeBadge ? 20 : 16,
+                height: iconLooksLikeBadge ? 16 : "auto",
+                padding: iconLooksLikeBadge ? "1px 5px" : 0,
+                borderRadius: iconLooksLikeBadge ? 5 : 0,
+                background: iconLooksLikeBadge ? `rgba(${hexRgb(t.accent)},0.12)` : undefined,
+                border: iconLooksLikeBadge ? `1px solid rgba(${hexRgb(t.accent)},0.22)` : undefined,
+                fontSize: iconLooksLikeBadge ? 9 : 13,
+                fontWeight: 800,
+                lineHeight: 1,
+              }}
+            >
+              {icon}
+            </span>
+          )}
+          <span>{title}</span>
         </div>
         <div style={{ fontSize: 12, opacity: 0.68, lineHeight: 1.6 }}>{desc}</div>
         {keys && (

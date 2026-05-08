@@ -3,28 +3,29 @@
 Interaktive Referenzdokumentation fuer das Nexus Ecosystem (React + Vite).
 Die Wiki ist die tiefe technische Ebene zwischen Repo-README, In-App-InfoView und Produktwebsite.
 
-Aktueller Stand: `Nexus Wiki Layout v5` mit Atlas-/Roadmap-Navigation, sticky Suche, App-/Kategorie-Filtern,
-Markdown-Lab, View-Matrix und UI-Engine-Referenzen.
+Aktueller Stand: `Nexus Wiki Layout v6` mit Atlas-/Roadmap-Navigation, sticky Suche, App-/Kategorie-Filtern,
+Markdown-Lab, View-Matrix, InfoView-Guide-Tabs und UI-Engine-Referenzen.
 
 ## Rolle im Doku-System
 
 - `README.md` (Root): Einstieg + Architekturrahmen
-- `InfoView` (Main/Mobile): kompakte In-App-Hilfe
+- `InfoView` (Main/Mobile): kompakte In-App-Hilfe mit eigenen Guide-Tabs pro View
 - `Nexus Wiki`: detaillierte technische Referenz und View-Matrix
 - `nexusproject.dev`: Produkt-/Story-Kommunikation
 
 ## Inhaltsschwerpunkte
 
 - Getting Started, App-Rollen und Release-Gates
-- Nexus Main View Guides fuer Dashboard, Notes, Tasks, Reminders, Canvas, Files, Flux, DevTools, Settings und Info
+- Nexus Main View Guides fuer Dashboard, Notes, Tasks, Reminders, Files, Canvas, Flux, Code, DevTools, Settings und Info
 - Mobile-, Code-, Code-Mobile- und Control-Guides mit aktuellen Keybinds
-- Markdown Lab fuer Notes + Canvas inklusive `nexus-list`, `nexus-alert`, `nexus-progress`, `nexus-timeline`, `nexus-grid`, `nexus-card`, `nexus-kanban` und Inline Badges
+- Markdown Lab v6 fuer Notes + Canvas inklusive `nexus-list`, `nexus-alert`, `nexus-progress`, `nexus-timeline`, `nexus-grid`, `nexus-card`, `nexus-kanban` und Inline Badges
 - Render Pipeline (Measure/Resolve/Allocate/Commit/Cleanup)
 - Motion Engine und Degradation-Strategien
 - Surface-/Effect-Klassen
 - Diagnostics- und Performance-Prinzipien
 - View-Atlas ueber Main/Mobile/Code/Code Mobile/Control
 - Workspace-, Handoff- und Reminder-Flow-Referenzen
+- Settings-v6-Referenz fuer Theme Library, Panel Backgrounds, App Backgrounds, Glow, Motion und sichere Theme-Transfers
 
 ## UI/UX Stand
 

@@ -400,7 +400,7 @@ export const wikiEntriesPrimary: WikiEntry[] = [
   },
   {
     id: 'main-markdown-widget-atlas-v5',
-    title: 'Markdown Widget Atlas v5: Notes + Canvas',
+    title: 'Markdown Widget Atlas v6: Notes + Canvas',
     app: 'main',
     category: 'markdown',
     summary:
@@ -565,7 +565,7 @@ export const wikiEntriesPrimary: WikiEntry[] = [
       'Terminal + Spotlight koennen Canvas-Commands direkt triggern (layout/template/focus).',
     ],
     commands: ['Space (hold pan)', 'Delete', 'Esc', 'Ctrl/Cmd+0', '+ / =', '-', 'G', 'F', 'P', 'Ctrl/Cmd+M'],
-    tags: ['canvas', 'nodes', 'connections', 'auto-layout', 'ai-project'],
+    tags: ['canvas', 'nodes', 'connections', 'auto-layout', 'project-brief'],
     sources: [
       'Nexus Main/src/views/CanvasView.tsx',
       'Nexus Main/src/views/canvas/components/CanvasTopBar.tsx',
@@ -580,22 +580,22 @@ export const wikiEntriesPrimary: WikiEntry[] = [
     app: 'main',
     category: 'view',
     summary:
-      'Der Canvas Magic Builder erzeugt komplette Projektstrukturen fuer Mindmap, Roadmap, Sprint, Risk Matrix, Decision Flow und AI Project.',
+      'Der Canvas Magic Builder erzeugt brauchbare Projektstrukturen fuer Mindmap, Roadmap, Sprint, Risk Matrix, Decision Flow und Project Briefs.',
     guide: [
       { title: '1. Template waehlen', detail: 'Im Modal den passenden Strukturtyp auswaehlen.' },
-      { title: '2. Parameter setzen', detail: 'Titel, includeNotes/includeTasks und bei AI Projekt Prompt + Depth setzen.' },
+      { title: '2. Parameter setzen', detail: 'Titel, includeNotes/includeTasks und bei Project Briefs Prompt + Depth setzen.' },
       { title: '3. Generierung ausfuehren', detail: 'Template erzeugen und anschliessend fit-view/layout anwenden.' },
     ],
     points: [
-      'Template-Familien: mindmap, roadmap, sprint, risk-matrix, decision-flow und ai-project.',
-      'AI Project nutzt Prompt + Depth (light/balanced/deep), um passende Goals, Milestones, Risks und Tasks anzulegen.',
+      'Template-Familien: mindmap, roadmap, sprint, risk-matrix, decision-flow und project-brief.',
+      'Project Briefs nutzen Prompt + Depth (light/balanced/deep), um Goals, Milestones, Risiken und Tasks vorzustrukturieren.',
       'Auto-Layout Modi mindmap, timeline und board helfen nach der Generierung beim Aufraeumen.',
-      'AI Project erzeugt Goals, Milestones, Risks, Decision Kontext und Delivery Tasks.',
+      'Project Briefs erzeugen Goals, Milestones, Risiken, Decision-Kontext und Delivery Tasks.',
       'Risk Matrix verteilt Nodes nach Impact/Wahrscheinlichkeit.',
       'Decision Flow erstellt Optionen, Tradeoff Risk und Expected Outcome.',
     ],
     commands: ['Canvas Toolbar -> Magic Builder', 'Terminal: canvas template <type> [name]'],
-    tags: ['canvas-magic', 'templates', 'ai-project', 'pm'],
+    tags: ['canvas-magic', 'templates', 'project-brief', 'pm'],
     sources: ['Nexus Main/src/views/canvas/CanvasMagicModal.tsx', 'Nexus Main/src/views/CanvasView.tsx'],
   },
   {
@@ -727,20 +727,42 @@ export const wikiEntriesPrimary: WikiEntry[] = [
     app: 'main',
     category: 'view',
     summary:
-      'InfoView ist die interne Produktdokumentation in Nexus Main mit Changelog, Feature-Guides, Shortcuts und Terminal-Referenz.',
+      'InfoView ist das In-App-Handbuch fuer Nexus v6: App-Ueberblick, eigene View-Guide-Tabs, Changelog, Shortcuts und Release-Smokes.',
     guide: [
-      { title: '1. Release Stand pruefen', detail: 'Im Changelog Block aktive Version und Schwerpunkt-Aenderungen nachvollziehen.' },
-      { title: '2. View Guides lesen', detail: 'Pro View die Kernfunktion und empfohlene Bedienfolge abrufen.' },
-      { title: '3. Commands uebernehmen', detail: 'Shortcuts und Terminal-Kommandos direkt in den Workflow uebertragen.' },
+      { title: '1. Ueberblick lesen', detail: 'Oben klaert InfoView, was Nexus v6 ist, warum der API-Bootflow wichtig ist und wie die Shell gedacht ist.' },
+      { title: '2. View-Tab oeffnen', detail: 'Jede Main-View hat einen eigenen Guide-Tab mit Bedienfolge, Qualitaetsgrenze, Release-Check und Wiki-Themen.' },
+      { title: '3. Release-Check nutzen', detail: 'Vor Builds Changelog, Smoke-Check, Security-Hinweise und Copy/Paste-Referenz gegen den echten App-Stand pruefen.' },
     ],
     points: [
-      'InfoView ist die dichteste In-App Wissensquelle fuer Main.',
-      'Sections sind als aufklappbare Accordeons organisiert.',
-      'Guides decken Dashboard, Notes, Canvas, Settings und Terminal ab.',
+      'InfoView klingt absichtlich wie Produktdoku fuer Menschen, nicht wie generischer Marketingtext.',
+      'Eigene Guide-Tabs decken Dashboard, Notes, Tasks, Reminders, Files, Canvas, Flux, Code, Settings, Info, DevTools und Render Diagnostics ab.',
+      'Jeder Tab nennt Daily Flow, Features, Shortcuts, Qualitaetsgrenze, praktischen Tipp und passende Wiki-Themen.',
     ],
     commands: ['goto info', 'views', 'help'],
     tags: ['infoview', 'guides', 'changelog', 'shortcuts'],
     sources: ['Nexus Main/src/views/InfoView.tsx'],
+  },
+  {
+    id: 'main-infoview-view-tabs-v6',
+    title: 'Nexus Main: InfoView View-Guide-Tabs v6',
+    app: 'main',
+    category: 'view',
+    summary:
+      'Die InfoView enthaelt jetzt echte Guide-Tabs fuer jede einzelne Main-View statt nur allgemeiner Feature-Karten.',
+    guide: [
+      { title: '1. Tab auswaehlen', detail: 'Im Bereich View-Dokumentation die gewuenschte View anklicken: Dashboard, Notes, Tasks, Reminders, Files, Canvas, Flux, Code, Settings, Info, DevTools oder Render Diagnostics.' },
+      { title: '2. Bedienfolge lesen', detail: 'Jeder Tab beschreibt die sinnvolle Reihenfolge fuer den Alltag, damit Nutzer nicht zwischen Code, Wiki und App springen muessen.' },
+      { title: '3. Release-Reife pruefen', detail: 'Quality Bar und Release-Check zeigen, woran diese View vor einem RC konkret gemessen wird.' },
+    ],
+    points: [
+      'View-Tabs sind horizontal scrollbar und bleiben kompakt.',
+      'Texte sind kuerzer, direkter und handlungsnaeher geschrieben.',
+      'Wiki-Themen verbinden InfoView mit den laengeren Nexus-Wiki-Eintraegen.',
+      'Die Copy/Paste-Referenz bleibt fuer schnelle QA-Notizen erhalten.',
+    ],
+    commands: ['goto info', 'InfoView -> View Guide Tabs', 'docs search: infoview'],
+    tags: ['infoview', 'view-tabs', 'docs-v6', 'release-docs'],
+    sources: ['Nexus Main/src/views/InfoView.tsx', 'Nexus Wiki/src/data/wikiEntriesPrimary.ts'],
   },
   {
     id: 'main-keybind-matrix',
@@ -789,16 +811,18 @@ export const wikiEntriesPrimary: WikiEntry[] = [
     app: 'main',
     category: 'settings',
     summary:
-      'Settings ist ein Hub aus Theme, Glass, Glow, Background, Layout, Workspace, Motion und Editor mit Live Preview und JSON Export/Import.',
+      'Settings ist der v6-Hub fuer Theme Library, Panel Backgrounds, App Backgrounds, Motion, Layout, Workspace, Editor und sicheren Theme-Import/Export.',
     guide: [
-      { title: '1. Tab waehlen', detail: 'Ueber Sidebar und Tab-Suche den relevanten Einstellungsbereich oeffnen.' },
-      { title: '2. Live testen', detail: 'Aenderungen direkt im Live Preview beobachten.' },
-      { title: '3. Konfiguration sichern', detail: 'Theme speichern, exportieren oder importieren.' },
+      { title: '1. Preset waehlen', detail: 'Erst ein Experience Preset oder ein Theme aus der Library anwenden, damit die Richtung stimmt.' },
+      { title: '2. Sichtbar pruefen', detail: 'Panel Texture, App Background, Glow und Motion direkt in der Oberflaeche kontrollieren.' },
+      { title: '3. Sicher sichern', detail: 'Theme als nexus-theme-v6.json exportieren oder importieren; Schema-Guard und Allowlist schuetzen eingefrorene Felder.' },
     ],
     points: [
-      'UX Profiles: focus, cinematic, compact.',
+      'Experience Presets: Focus, Balanced, Studio, Performance und Cinematic.',
+      'Theme Library enthaelt deutlich abwechslungsreichere Looks wie Nexus Product Glow, Calm Linen, Obsidian Graph, Studio Neutral und High Contrast Focus.',
+      'Panel Backgrounds haben echte Vorschau mit Basis-, Tint- und Pattern-Layer.',
       'Quick Toggles: reduced motion, high contrast, toolbar visibility.',
-      'Workspace Reset Aktionen fuer Spotlight, Terminal und Dashboard.',
+      'Workspace Reset Aktionen fuer Spotlight, Terminal und Dashboard bleiben bewusst getrennt.',
     ],
     commands: ['Save Theme', 'Export JSON', 'Import JSON'],
     tags: ['settings', 'theme', 'preview', 'profiles'],
@@ -918,11 +942,11 @@ export const wikiEntriesPrimary: WikiEntry[] = [
   },
   {
     id: 'ecosystem-why-native-guide',
-    title: 'Warum Nexus native wirkt',
+    title: 'Warum Nexus ruhig und konsistent wirkt',
     app: 'ecosystem',
     category: 'overview',
     summary:
-      'Nexus fuehlt sich konsistent an, weil Render-, Motion- und Surface-Regeln zentral als Produktsystem gepflegt werden.',
+      'Nexus fuehlt sich konsistent an, weil Render-, Motion- und Surface-Regeln zentral gepflegt und pro View gedrosselt werden koennen.',
     guide: [
       { title: '1. Gemeinsame Engine verstehen', detail: 'UI-Entscheidungen laufen ueber gemeinsame Render- und Motion-Bausteine statt pro View isoliert.' },
       { title: '2. Degradation statt Bruch', detail: 'Bei schwacher Hardware reduziert das System Komplexitaet qualitativ, nicht willkuerlich.' },
@@ -1043,20 +1067,20 @@ export const wikiEntriesPrimary: WikiEntry[] = [
   },
   {
     id: 'main-infoview-product-brain',
-    title: 'Nexus Main: InfoView als Product Brain',
+    title: 'Nexus Main: InfoView als App-Handbuch',
     app: 'main',
     category: 'view',
     summary:
-      'InfoView ist die kompakte In-App Wissensschicht fuer Changelog, View-Loops, Keybinds und operative Kommandos.',
+      'InfoView ist die kompakte In-App Wissensschicht fuer View-Guides, Changelog, Keybinds, Release-Smokes und ehrliche Produktgrenzen.',
     guide: [
       { title: '1. Release-Kontext holen', detail: 'Changelog auf aktuelle Stabilitaets-, Performance- und UX-Aenderungen pruefen.' },
-      { title: '2. View-Loop verstehen', detail: 'Guide-Accordeons liefern pro Surface Kernnutzen, typische Schritte und Shortcuts.' },
+      { title: '2. View-Loop verstehen', detail: 'Guide-Tabs liefern pro Surface Kernnutzen, typische Schritte, Quality Bar und Shortcuts.' },
       { title: '3. In Workflow uebersetzen', detail: 'Terminal- und Spotlight-Kommandos direkt in den taeglichen Ablauf uebernehmen.' },
     ],
     points: [
-      'InfoView bleibt bewusst dichter und handlungsnäher als Website und Wiki.',
-      'Section-Struktur macht Produktwissen ohne Kontextwechsel in der App abrufbar.',
-      'Guides, Keybinds und Changelog sind als zusammenhaengender Arbeitskontext aufgebaut.',
+      'InfoView bleibt bewusst dichter und handlungsnaeher als Website und Wiki.',
+      'Section-Struktur und View-Tabs machen Produktwissen ohne Kontextwechsel in der App abrufbar.',
+      'Guides, Keybinds, Release-Smokes und Changelog sind als zusammenhaengender Arbeitskontext aufgebaut.',
     ],
     commands: ['goto info', 'views', 'help', 'profile <focus|cinematic|compact|default>'],
     tags: ['infoview', 'product-brain', 'in-app-docs'],

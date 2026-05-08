@@ -78,7 +78,7 @@ const HELP_TEXT = [
   'canvas list                        List canvases with node count',
   'canvas new [name]                  Create and open a new canvas',
   'canvas layout <mode>               Apply canvas layout (mindmap/timeline/board)',
-  'canvas template <type> [name]      Build template (mindmap/roadmap/sprint/risk/decision/ai)',
+  'canvas template <type> [name]      Build template (mindmap/roadmap/sprint/risk/decision/brief)',
   'canvas focus                       Fit current canvas in view',
   'theme list                         List available presets',
   'theme <preset>                     Apply a theme preset',
@@ -118,7 +118,7 @@ const formatSearchSection = (title: string, lines: string[]) =>
   lines.length ? `${title}:\n${lines.join('\n')}` : ''
 
 const DEFAULT_TERMINAL_HISTORY: TerminalLine[] = [
-  { type: 'output', text: 'Nexus Terminal [Version 5.0]', timestamp: new Date().toISOString() },
+  { type: 'output', text: 'Nexus Terminal [Version 6.0]', timestamp: new Date().toISOString() },
   { type: 'output', text: 'Type "help" for available commands.', timestamp: new Date().toISOString() },
 ]
 
@@ -293,13 +293,15 @@ export const useTerminal = create<TerminalState>()(
               flow: 'decision-flow',
               ai: 'ai-project',
               aiproject: 'ai-project',
+              brief: 'ai-project',
+              projectbrief: 'ai-project',
             }
             const template = map[rawType]
             if (!template) {
-              add('warn', 'Usage: canvas template <mindmap|roadmap|sprint|risk|decision|ai> [name]')
+              add('warn', 'Usage: canvas template <mindmap|roadmap|sprint|risk|decision|brief> [name]')
               return
             }
-            const name = args.slice(2).join(' ').trim() || `Terminal ${template}`
+            const name = args.slice(2).join(' ').trim() || (template === 'ai-project' ? 'Terminal Project Brief' : `Terminal ${template}`)
             if (!useCanvas.getState().canvases.length) {
               useCanvas.getState().addCanvas(name)
             }

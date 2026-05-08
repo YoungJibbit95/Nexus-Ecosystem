@@ -9,6 +9,7 @@ import { useTheme, GLOBAL_FONTS } from "./store/themeStore";
 import { useTerminal } from "./store/terminalStore";
 import type { View } from "./components/Sidebar";
 import { BootSequenceScreen } from "./components/BootSequenceScreen";
+import { WelcomeWalkthrough } from "./components/WelcomeWalkthrough";
 import { buildBackground } from "./lib/visualUtils";
 import { hexToRgb } from "./lib/utils";
 import { installRuntimeLagProbe } from "./lib/runtimeLagProbe";
@@ -49,6 +50,7 @@ import {
   MAIN_CRITICAL_PRELOAD_VIEWS,
   MAIN_HEAVY_PRELOAD_VIEW_SET,
   MAIN_PERSISTENT_VIEW_CACHE,
+  MAIN_WALKTHROUGH_STORAGE_KEY,
   MAIN_SAFE_STARTUP_VIEWS,
   isLowPowerDevice,
   isOfflineBootstrapResourceError,
@@ -56,6 +58,7 @@ import {
   withTimeoutResult,
   withDevDiagnosticsView,
 } from "./app/mainAppConfig";
+import { isMainDiagnosticsEnabled } from "./app/mainViewRegistry";
 
 const resolveControlApiBaseUrl = () => {
   const env = (import.meta as any).env || {};
@@ -302,6 +305,7 @@ export default function App() {
   );
   const [authPending, setAuthPending] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [walkthroughOpen, setWalkthroughOpen] = useState(false);
   const [remoteDensity, setRemoteDensity] = useState<
     "compact" | "comfortable" | "spacious" | null
   >(null);
@@ -329,6 +333,7 @@ export default function App() {
     Partial<Record<View, NexusViewAccessResult>>
   >({});
   const guardRequestSeq = useRef(0);
+  const walkthroughPromptedRef = useRef(false);
   const lowPowerMode = useMemo(() => isLowPowerDevice(), []);
   const motionRuntime = useMemo(
     () => buildMotionRuntime(t, { lowPowerMode }),
@@ -527,7 +532,7 @@ export default function App() {
 
     const runtime = createNexusRuntime({
       appId: "main",
-      appVersion: "5.0.0",
+        appVersion: "6.0.0",
       control: {
         enabled: Boolean(controlBaseUrl),
         baseUrl: controlBaseUrl,
@@ -874,7 +879,7 @@ export default function App() {
   const requestViewChange = useCallback(
     async (nextRaw: unknown) => {
       const next = String(nextRaw || "").toLowerCase() as View;
-      if (next === "diagnostics" && !(import.meta as any).env?.DEV) return;
+      if (next === "diagnostics" && !isMainDiagnosticsEnabled()) return;
       if (!availableViews.includes(next)) return;
       if (next === view) return;
 
@@ -954,6 +959,39 @@ export default function App() {
       setView(previousView);
     },
     [availableViews, preloadViewChunk, view, viewAccessContext],
+  );
+
+  useEffect(() => {
+    if (!bootReady || bootFailure || walkthroughPromptedRef.current) return;
+    walkthroughPromptedRef.current = true;
+    try {
+      if (window.localStorage.getItem(MAIN_WALKTHROUGH_STORAGE_KEY) === "complete") {
+        return;
+      }
+    } catch {
+      // If storage is blocked, still show the guide once in memory.
+    }
+    setWalkthroughOpen(true);
+  }, [bootFailure, bootReady]);
+
+  const handleOpenWalkthrough = useCallback(() => {
+    setWalkthroughOpen(true);
+  }, []);
+
+  const handleCloseWalkthrough = useCallback(() => {
+    setWalkthroughOpen(false);
+    try {
+      window.localStorage.setItem(MAIN_WALKTHROUGH_STORAGE_KEY, "complete");
+    } catch {
+      // LocalStorage can be unavailable in hardened environments.
+    }
+  }, []);
+
+  const handleWalkthroughOpenView = useCallback(
+    (nextView: View) => {
+      void requestViewChange(nextView);
+    },
+    [requestViewChange],
   );
 
   const handleMainAuthSubmit = useCallback(
@@ -1402,42 +1440,50 @@ export default function App() {
       onPrefetchView={(nextView) => {
         void preloadViewChunk(nextView);
       }}
-      onOpenWalkthrough={() => {}}
+      onOpenWalkthrough={handleOpenWalkthrough}
     />
   );
 
   return (
-    <MainShellLayout
-      theme={t}
-      lowPowerMode={lowPowerMode}
-      motionCssVars={motionCssVars}
-      backgroundStyles={bgStyles}
-      accentRgb={accentRgb}
-      accent2Rgb={accent2Rgb}
-      sidebarLeft={sidebarLeft}
-      sidebarAutoHideEnabled={sidebarAutoHideEnabled}
-      sidebarExpanded={sidebarExpanded}
-      effectiveSidebarWidth={effectiveSidebarWidth}
-      toolbarBottom={toolbarBottom}
-      toolbarVisible={toolbarVisible}
-      terminalOpen={terminalOpen}
-      view={view}
-      availableViews={availableViews}
-      viewGuardState={viewGuardState}
-      motionRuntime={motionRuntime}
-      showDiagnosticsButton={Boolean((import.meta as any).env?.DEV)}
-      releaseId={liveReleaseId}
-      onRequestViewChange={(nextView) => {
-        void requestViewChange(nextView);
-      }}
-      onPrefetchView={(nextView) => {
-        void preloadViewChunk(nextView);
-      }}
-      onSidebarAutoPeek={setSidebarExpanded}
-      onOpenDiagnostics={() => {
-        void requestViewChange("diagnostics");
-      }}
-      mainViewNode={mainViewNode}
-    />
+    <>
+      <MainShellLayout
+        theme={t}
+        lowPowerMode={lowPowerMode}
+        motionCssVars={motionCssVars}
+        backgroundStyles={bgStyles}
+        accentRgb={accentRgb}
+        accent2Rgb={accent2Rgb}
+        sidebarLeft={sidebarLeft}
+        sidebarAutoHideEnabled={sidebarAutoHideEnabled}
+        sidebarExpanded={sidebarExpanded}
+        effectiveSidebarWidth={effectiveSidebarWidth}
+        toolbarBottom={toolbarBottom}
+        toolbarVisible={toolbarVisible}
+        terminalOpen={terminalOpen}
+        view={view}
+        availableViews={availableViews}
+        viewGuardState={viewGuardState}
+        motionRuntime={motionRuntime}
+        showDiagnosticsButton={isMainDiagnosticsEnabled()}
+        releaseId={liveReleaseId}
+        onRequestViewChange={(nextView) => {
+          void requestViewChange(nextView);
+        }}
+        onPrefetchView={(nextView) => {
+          void preloadViewChunk(nextView);
+        }}
+        onSidebarAutoPeek={setSidebarExpanded}
+        onOpenDiagnostics={() => {
+          void requestViewChange("diagnostics");
+        }}
+        mainViewNode={mainViewNode}
+      />
+      <WelcomeWalkthrough
+        open={walkthroughOpen}
+        availableViews={availableViews}
+        onClose={handleCloseWalkthrough}
+        onOpenView={handleWalkthroughOpenView}
+      />
+    </>
   );
 }

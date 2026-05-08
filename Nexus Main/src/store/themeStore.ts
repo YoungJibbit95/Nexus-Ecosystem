@@ -363,6 +363,70 @@ const P: Record<string, DeepPartial<Theme>> = {
     blur: { strength: 16, noiseOverlay: false, noiseOpacity: 0.02, sidebarBlur: 16, panelBlur: 13, modalBlur: 20 },
     background: { mode: 'gradient', stops: [{ color: '#05110a', position: 0, opacity: 1 }, { color: '#0a1a12', position: 100, opacity: 1 }], angle: 170, animated: false, animationSpeed: 4, noiseOpacity: 0.02, meshIntensity: 0.2 },
   },
+  'Nexus Product Glow': {
+    mode: 'dark', accent: '#36D8FF', accent2: '#7C5CFF', bg: '#07111f',
+    glow: { mode: 'gradient', color: '#36D8FF', intensity: 0.76, radius: 28, spread: 7, blendMode: 'screen', gradientGlow: true, gradientColor1: '#36D8FF', gradientColor2: '#7C5CFF', gradientAngle: 128, animated: true, animationSpeed: 0.75 },
+    blur: { strength: 22, noiseOverlay: false, noiseOpacity: 0.018, sidebarBlur: 21, panelBlur: 18, modalBlur: 26 },
+    background: { mode: 'prism', stops: [{ color: '#36D8FF', position: 0, opacity: 0.12 }, { color: '#7C5CFF', position: 52, opacity: 0.1 }, { color: '#07111f', position: 100, opacity: 1 }], angle: 132, animated: true, animationSpeed: 5, noiseOpacity: 0.02, meshIntensity: 0.42, panelBgMode: 'mist' },
+    glassmorphism: { borderOpacity: 0.22, borderGlow: true, borderGlowIntensity: 0.58, saturation: 175, tintColor: '#36D8FF', tintOpacity: 0.04, frostedGlass: true, chromaticAberration: false, glowOutline: true, glowColor1: '#36D8FF', glowColor2: '#7C5CFF', glowOutlineStrength: 12 },
+  },
+  'Calm Linen': {
+    mode: 'light', accent: '#7C5A32', accent2: '#D18645', bg: '#f6efe3',
+    glow: { mode: 'focus', color: '#B87835', intensity: 0.24, radius: 14, spread: 2, blendMode: 'normal', gradientGlow: false, gradientColor1: '#7C5A32', gradientColor2: '#D18645', gradientAngle: 135, animated: false, animationSpeed: 1 },
+    blur: { strength: 12, noiseOverlay: false, noiseOpacity: 0.006, sidebarBlur: 12, panelBlur: 10, modalBlur: 16 },
+    background: { mode: 'gradient', stops: [{ color: '#f6efe3', position: 0, opacity: 1 }, { color: '#eee1cf', position: 100, opacity: 1 }], angle: 155, animated: false, animationSpeed: 4, noiseOpacity: 0.006, meshIntensity: 0.12, panelBgMode: 'linen' },
+    glassmorphism: { borderOpacity: 0.14, borderGlow: false, borderGlowIntensity: 0.25, saturation: 130, tintColor: '#D18645', tintOpacity: 0.018, frostedGlass: false, chromaticAberration: false, glowOutline: false, glowColor1: '#7C5A32', glowColor2: '#D18645', glowOutlineStrength: 8 },
+  },
+  'Obsidian Graph': {
+    mode: 'dark', accent: '#FFB86B', accent2: '#7DD3FC', bg: '#080b10',
+    glow: { mode: 'outline', color: '#FFB86B', intensity: 0.58, radius: 23, spread: 5, blendMode: 'screen', gradientGlow: true, gradientColor1: '#FFB86B', gradientColor2: '#7DD3FC', gradientAngle: 118, animated: false, animationSpeed: 1 },
+    blur: { strength: 17, noiseOverlay: false, noiseOpacity: 0.015, sidebarBlur: 17, panelBlur: 13, modalBlur: 21 },
+    background: { mode: 'spotlight', stops: [{ color: '#FFB86B', position: 0, opacity: 0.1 }, { color: '#7DD3FC', position: 70, opacity: 0.07 }, { color: '#080b10', position: 100, opacity: 1 }], angle: 145, animated: false, animationSpeed: 4, noiseOpacity: 0.018, meshIntensity: 0.26, panelBgMode: 'grid' },
+  },
+  'Studio Neutral': {
+    mode: 'light', accent: '#2557D6', accent2: '#00A9A5', bg: '#f4f5f7',
+    glow: { mode: 'focus', color: '#2557D6', intensity: 0.26, radius: 14, spread: 2, blendMode: 'normal', gradientGlow: false, gradientColor1: '#2557D6', gradientColor2: '#00A9A5', gradientAngle: 135, animated: false, animationSpeed: 1 },
+    blur: { strength: 13, noiseOverlay: false, noiseOpacity: 0.004, sidebarBlur: 13, panelBlur: 10, modalBlur: 18 },
+    background: { mode: 'solid', stops: [{ color: '#f4f5f7', position: 0, opacity: 1 }, { color: '#e9edf4', position: 100, opacity: 1 }], angle: 170, animated: false, animationSpeed: 4, noiseOpacity: 0.004, meshIntensity: 0.1, panelBgMode: 'solid' },
+  },
+  'Aqua Bloom': {
+    mode: 'light', accent: '#0087A8', accent2: '#7C3AED', bg: '#edfaff',
+    glow: { mode: 'ambient', color: '#0087A8', intensity: 0.36, radius: 18, spread: 3, blendMode: 'normal', gradientGlow: true, gradientColor1: '#0087A8', gradientColor2: '#7C3AED', gradientAngle: 126, animated: false, animationSpeed: 1 },
+    blur: { strength: 17, noiseOverlay: false, noiseOpacity: 0.006, sidebarBlur: 17, panelBlur: 13, modalBlur: 20 },
+    background: { mode: 'mesh', stops: [{ color: '#0087A8', position: 0, opacity: 0.11 }, { color: '#7C3AED', position: 65, opacity: 0.08 }, { color: '#edfaff', position: 100, opacity: 1 }], angle: 145, animated: false, animationSpeed: 4, noiseOpacity: 0.008, meshIntensity: 0.28, panelBgMode: 'hologram' },
+  },
+  'High Contrast Focus': {
+    mode: 'dark', accent: '#FFD60A', accent2: '#FFFFFF', bg: '#030303',
+    glow: { mode: 'focus', color: '#FFD60A', intensity: 0.42, radius: 16, spread: 2, blendMode: 'screen', gradientGlow: false, gradientColor1: '#FFD60A', gradientColor2: '#FFFFFF', gradientAngle: 135, animated: false, animationSpeed: 1 },
+    blur: { strength: 10, noiseOverlay: false, noiseOpacity: 0, sidebarBlur: 10, panelBlur: 8, modalBlur: 14 },
+    background: { mode: 'solid', stops: [{ color: '#030303', position: 0, opacity: 1 }, { color: '#101010', position: 100, opacity: 1 }], angle: 135, animated: false, animationSpeed: 4, noiseOpacity: 0, meshIntensity: 0.05, panelBgMode: 'solid' },
+    glassmorphism: { borderOpacity: 0.32, borderGlow: false, borderGlowIntensity: 0.2, saturation: 115, tintColor: '#FFD60A', tintOpacity: 0.018, frostedGlass: false, chromaticAberration: false, glowOutline: false, glowColor1: '#FFD60A', glowColor2: '#FFFFFF', glowOutlineStrength: 8 },
+    qol: { highContrast: true, reducedMotion: true, panelDensity: 'comfortable', quickActions: true },
+  },
+  'Velvet Dusk': {
+    mode: 'dark', accent: '#F472B6', accent2: '#FBBF24', bg: '#17091a',
+    glow: { mode: 'ambient', color: '#F472B6', intensity: 0.64, radius: 25, spread: 6, blendMode: 'screen', gradientGlow: true, gradientColor1: '#F472B6', gradientColor2: '#FBBF24', gradientAngle: 118, animated: false, animationSpeed: 1 },
+    blur: { strength: 19, noiseOverlay: false, noiseOpacity: 0.018, sidebarBlur: 19, panelBlur: 15, modalBlur: 23 },
+    background: { mode: 'aurora', stops: [{ color: '#F472B6', position: 0, opacity: 0.13 }, { color: '#FBBF24', position: 58, opacity: 0.08 }, { color: '#17091a', position: 100, opacity: 1 }], angle: 138, animated: true, animationSpeed: 5, noiseOpacity: 0.02, meshIntensity: 0.34, panelBgMode: 'mist' },
+  },
+  'Blueprint Grid': {
+    mode: 'dark', accent: '#60A5FA', accent2: '#22D3EE', bg: '#061225',
+    glow: { mode: 'outline', color: '#60A5FA', intensity: 0.54, radius: 21, spread: 5, blendMode: 'screen', gradientGlow: true, gradientColor1: '#60A5FA', gradientColor2: '#22D3EE', gradientAngle: 125, animated: false, animationSpeed: 1 },
+    blur: { strength: 15, noiseOverlay: false, noiseOpacity: 0.012, sidebarBlur: 15, panelBlur: 12, modalBlur: 19 },
+    background: { mode: 'gradient', stops: [{ color: '#061225', position: 0, opacity: 1 }, { color: '#0b2242', position: 100, opacity: 1 }], angle: 160, animated: false, animationSpeed: 4, noiseOpacity: 0.012, meshIntensity: 0.2, panelBgMode: 'grid' },
+  },
+  'Cappuccino': {
+    mode: 'light', accent: '#9A5C2E', accent2: '#4F46E5', bg: '#fbf4ea',
+    glow: { mode: 'focus', color: '#9A5C2E', intensity: 0.28, radius: 15, spread: 2, blendMode: 'normal', gradientGlow: true, gradientColor1: '#9A5C2E', gradientColor2: '#4F46E5', gradientAngle: 132, animated: false, animationSpeed: 1 },
+    blur: { strength: 14, noiseOverlay: false, noiseOpacity: 0.006, sidebarBlur: 14, panelBlur: 11, modalBlur: 18 },
+    background: { mode: 'horizon', stops: [{ color: '#fbf4ea', position: 0, opacity: 1 }, { color: '#ead8c2', position: 100, opacity: 1 }], angle: 165, animated: false, animationSpeed: 4, noiseOpacity: 0.006, meshIntensity: 0.16, panelBgMode: 'linen' },
+  },
+  'Monochrome Glass': {
+    mode: 'dark', accent: '#E5E7EB', accent2: '#94A3B8', bg: '#090b0f',
+    glow: { mode: 'outline', color: '#E5E7EB', intensity: 0.38, radius: 18, spread: 3, blendMode: 'screen', gradientGlow: false, gradientColor1: '#E5E7EB', gradientColor2: '#94A3B8', gradientAngle: 135, animated: false, animationSpeed: 1 },
+    blur: { strength: 20, noiseOverlay: false, noiseOpacity: 0.01, sidebarBlur: 20, panelBlur: 16, modalBlur: 24 },
+    background: { mode: 'spotlight', stops: [{ color: '#E5E7EB', position: 0, opacity: 0.08 }, { color: '#94A3B8', position: 65, opacity: 0.05 }, { color: '#090b0f', position: 100, opacity: 1 }], angle: 155, animated: false, animationSpeed: 4, noiseOpacity: 0.01, meshIntensity: 0.16, panelBgMode: 'glass' },
+  },
 }
 
 // ── Defaults ──────────────────────────────────────────────────────────────────
@@ -713,6 +777,11 @@ export const useTheme = create<Theme>()(
           blur: { ...s.blur, ...p.blur },
           background: { ...s.background, ...p.background },
           glassmorphism: { ...s.glassmorphism, ...p.glassmorphism },
+          visual: { ...s.visual, ...p.visual },
+          animations: { ...s.animations, ...p.animations },
+          editor: { ...s.editor, ...p.editor },
+          notes: { ...s.notes, ...p.notes },
+          qol: { ...s.qol, ...p.qol },
         }))
       },
     }),
@@ -729,6 +798,44 @@ export const useTheme = create<Theme>()(
 )
 
 export const PRESETS = Object.keys(P)
+
+export type PresetDetail = {
+  emoji: string
+  description: string
+  mood: string
+  surface: string
+}
+
+const PRESET_COPY: Record<string, PresetDetail> = {
+  'macOS Dark': { emoji: '🖥️', description: 'Klassischer dunkler Apple-naher Arbeitslook.', mood: 'daily driver', surface: 'glass' },
+  'Neon Ultra': { emoji: '🧪', description: 'Laut, bunt und bewusst experimentell.', mood: 'showcase', surface: 'animated' },
+  'Ocean Wave': { emoji: '🌊', description: 'Kühle Blautöne für lange, ruhige Sessions.', mood: 'calm', surface: 'gradient' },
+  'Light Clean': { emoji: '☁️', description: 'Heller, einfacher Standard für viel Text.', mood: 'clean', surface: 'solid' },
+  'Cyberpunk': { emoji: '⚡', description: 'Kontrastreiches Gelb/Pink für Demo-Momente.', mood: 'bold', surface: 'animated' },
+  'Graphite Pro': { emoji: '🪨', description: 'Dunkel, professionell und screenshot-tauglich.', mood: 'pro', surface: 'gradient' },
+  'Nexus Product Glow': { emoji: '✨', description: 'Am nächsten an der Nexus-Product-Page: blau, glowy, aber noch lesbar.', mood: 'product', surface: 'mist' },
+  'Calm Linen': { emoji: '📜', description: 'Warmer Paper-Look für Notes und lange Doku.', mood: 'reading', surface: 'linen' },
+  'Obsidian Graph': { emoji: '🧩', description: 'Dunkler Canvas-/Graph-Look mit klarer Struktur.', mood: 'thinking', surface: 'grid' },
+  'Studio Neutral': { emoji: '🎚️', description: 'Zurückhaltendes UI für reale Arbeit und QA.', mood: 'release', surface: 'solid' },
+  'Aqua Bloom': { emoji: '🫧', description: 'Helles Aqua mit leichtem Hologramm-Schimmer.', mood: 'fresh', surface: 'hologram' },
+  'High Contrast Focus': { emoji: '♿', description: 'Sehr klar, reduziert und kontraststark.', mood: 'accessibility', surface: 'solid' },
+  'Velvet Dusk': { emoji: '🌆', description: 'Weicher Abendlook mit warmem Akzent.', mood: 'cozy', surface: 'mist' },
+  'Blueprint Grid': { emoji: '📐', description: 'Technischer Grid-Look für Planung und Dev-Flows.', mood: 'technical', surface: 'grid' },
+  'Cappuccino': { emoji: '☕', description: 'Heller, warmer Workspace ohne kaltes Dashboard-Gefühl.', mood: 'warm', surface: 'linen' },
+  'Monochrome Glass': { emoji: '⚪', description: 'Fast farblos, clean und sehr ruhig.', mood: 'minimal', surface: 'glass' },
+}
+
+export const PRESET_DETAILS = PRESETS.reduce<Record<string, PresetDetail>>((acc, presetName) => {
+  acc[presetName] = PRESET_COPY[presetName] ?? {
+    emoji: P[presetName]?.mode === 'light' ? '☀️' : '🌙',
+    description: P[presetName]?.mode === 'light'
+      ? 'Helles v6 Theme mit sauberer Grundlesbarkeit.'
+      : 'Dunkles v6 Theme mit abgestimmtem Glow und Panel-Kontrast.',
+    mood: P[presetName]?.mode === 'light' ? 'light' : 'dark',
+    surface: String(P[presetName]?.background?.panelBgMode ?? 'glass'),
+  }
+  return acc
+}, {})
 
 export const PRESET_PREVIEWS = PRESETS.reduce<
   Record<string, { mode: 'dark' | 'light'; accent: string; accent2: string; bg: string }>

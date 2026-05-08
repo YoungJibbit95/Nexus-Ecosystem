@@ -3,6 +3,7 @@ import {
   MAIN_HEAVY_PRELOAD_VIEW_SET,
   MAIN_PRELOAD_PRIORITY,
   MAIN_VIEW_IDS,
+  isMainDiagnosticsEnabled,
   type View,
 } from './mainViewRegistry';
 import { DashboardView as DashboardViewComponent } from '../views/DashboardView';
@@ -65,7 +66,7 @@ export const NexusToolbar = lazy(() =>
 
 export const VIEW_IDS: View[] = MAIN_VIEW_IDS;
 
-export const VIEW_CHUNK_PRELOADERS: Record<View, () => Promise<unknown>> = {
+export const VIEW_CHUNK_PRELOADERS: Partial<Record<View, () => Promise<unknown>>> = {
   dashboard: loadDashboardView,
   notes: loadNotesView,
   code: loadCodeView,
@@ -77,7 +78,9 @@ export const VIEW_CHUNK_PRELOADERS: Record<View, () => Promise<unknown>> = {
   settings: loadSettingsView,
   info: loadInfoView,
   devtools: loadDevToolsView,
-  diagnostics: loadRenderDiagnosticsView,
+  ...(isMainDiagnosticsEnabled()
+    ? { diagnostics: loadRenderDiagnosticsView }
+    : {}),
 };
 
 const MAIN_PRELOAD_PROMISES = new WeakMap<

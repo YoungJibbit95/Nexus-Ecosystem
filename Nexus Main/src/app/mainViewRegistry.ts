@@ -36,7 +36,9 @@ export type MainViewRegistryItem = {
   devOnly?: boolean;
 };
 
-const IS_DEV = (import.meta as any).env?.DEV;
+export const MAIN_DIAGNOSTICS_ENABLED = Boolean((import.meta as any).env?.DEV);
+
+export const isMainDiagnosticsEnabled = () => MAIN_DIAGNOSTICS_ENABLED;
 
 const MAIN_VIEW_ICON_MAP: Record<NexusViewId, LucideIcon> = {
   dashboard: BarChart3,
@@ -96,7 +98,7 @@ export const MAIN_CORE_VIEW_IDS: NexusViewId[] = orderViewsForNavigation(
 
 export const MAIN_VIEW_IDS: View[] = [
   ...MAIN_CORE_VIEW_IDS,
-  ...(IS_DEV ? (["diagnostics"] as View[]) : []),
+  ...(MAIN_DIAGNOSTICS_ENABLED ? (["diagnostics"] as View[]) : []),
 ];
 
 export const MAIN_VIEW_REGISTRY: Record<View, MainViewRegistryItem> = {
@@ -154,12 +156,12 @@ export const MAIN_PERSISTENT_VIEW_CACHE_IDS: View[] = MAIN_PRELOAD_PRIORITY.filt
 export const MAIN_PRIMARY_VIEW_ITEMS = MAIN_PRELOAD_PRIORITY
   .map(getMainViewRegistryItem)
   .filter((item) => item.group === "main" || item.group === "developer")
-  .filter((item) => !item.devOnly || IS_DEV);
+  .filter((item) => !item.devOnly || MAIN_DIAGNOSTICS_ENABLED);
 
 export const MAIN_FOOTER_VIEW_ITEMS = MAIN_PRELOAD_PRIORITY
   .map(getMainViewRegistryItem)
   .filter((item) => item.group === "footer")
-  .filter((item) => !item.devOnly || IS_DEV);
+  .filter((item) => !item.devOnly || MAIN_DIAGNOSTICS_ENABLED);
 
 export const normalizeMainViews = (views: readonly string[]): View[] => {
   const allowed = new Set(MAIN_VIEW_IDS);

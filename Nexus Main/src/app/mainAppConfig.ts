@@ -7,6 +7,7 @@ import {
   MAIN_CRITICAL_PRELOAD_VIEW_IDS,
   MAIN_HEAVY_PRELOAD_VIEW_SET as MAIN_REGISTRY_HEAVY_PRELOAD_VIEW_SET,
   MAIN_PERSISTENT_VIEW_CACHE_IDS,
+  isMainDiagnosticsEnabled,
 } from "./mainViewRegistry";
 
 export const CONTROL_API_BASE_URL = "https://nexus-api.cloud";
@@ -14,7 +15,7 @@ export const MAIN_BOOT_PRELOAD_TIMEOUT_MS = 6_000;
 export const MAIN_BOOT_PRELOAD_TIMEOUT_LOW_POWER_MS = 8_500;
 export const MAIN_BOOT_VIEW_WARMUP_TIMEOUT_MS = 2_800;
 export const MAIN_BOOT_VIEW_WARMUP_TIMEOUT_LOW_POWER_MS = 4_200;
-export const MAIN_WALKTHROUGH_STORAGE_KEY = "nx-main-walkthrough-v1";
+export const MAIN_WALKTHROUGH_STORAGE_KEY = "nx-main-walkthrough-v2";
 
 export const isLowPowerDevice = () => {
   if (typeof window === "undefined" || typeof navigator === "undefined") {
@@ -58,7 +59,7 @@ export const MAIN_CORE_FALLBACK_VIEWS: View[] = MAIN_CORE_VIEW_IDS
 
 export const withDevDiagnosticsView = (views: View[]): View[] => {
   const baseViews = views.filter((candidate) => candidate !== "diagnostics");
-  if (!(import.meta as any).env?.DEV) return baseViews;
+  if (!isMainDiagnosticsEnabled()) return baseViews;
   return [...baseViews, "diagnostics"];
 };
 

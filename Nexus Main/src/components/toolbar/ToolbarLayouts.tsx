@@ -152,9 +152,9 @@ export function FullWidthToolbarLayout(props: SharedLayoutProps) {
           width: "100%",
           height: fullCfg.height,
           borderRadius: 0,
-          borderTop: isBottom ? "1px solid rgba(255,255,255,0.08)" : undefined,
+          borderTop: isBottom ? "1px solid var(--nx-v6-line, rgba(255,255,255,0.08))" : undefined,
           borderBottom: !isBottom
-            ? "1px solid rgba(255,255,255,0.08)"
+            ? "1px solid var(--nx-v6-line, rgba(255,255,255,0.08))"
             : undefined,
           padding: `0 ${horizontalPadding}px`,
           overflow: "visible",

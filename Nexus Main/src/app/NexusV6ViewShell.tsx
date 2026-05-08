@@ -186,7 +186,6 @@ export function NexusV6ViewShell({
             {contract.category} / {layout?.contentPriority ?? contract.desktopMode}
           </div>
           <div className="nx-v6-title-row">
-            <span className="nx-v6-orb" aria-hidden="true" />
             <div className="nx-v6-title-copy">
               <h1>{contract.title}</h1>
               <p>{contract.subtitle}</p>
@@ -249,7 +248,7 @@ export function NexusV6ViewShell({
             aria-pressed={inspectorOpen}
             onClick={() => setInspectorOpen((next) => !next)}
           >
-            Panels
+            Details
           </button>
         </div>
       </header>
@@ -290,7 +289,7 @@ export function NexusV6ViewShell({
             </div>
 
             <div className="nx-v6-inspector-section">
-              <div className="nx-v6-section-label">Responsive</div>
+              <div className="nx-v6-section-label">View Health</div>
               <div className="nx-v6-responsive-card">
                 <span>Layout: v{layout?.version ?? "local"} / {layout?.contentPriority ?? contract.desktopMode}</span>
                 <span>Columns: {layout?.columns ?? 1} / min {layout?.minContentWidth ?? 560}px</span>

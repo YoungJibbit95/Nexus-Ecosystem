@@ -128,7 +128,7 @@ const sectionMeta: Record<SectionId, Record<Language, { title: string; subtitle:
         "Alle Main-Views inklusive NotesView, Canvas, Dashboard, Tasks, Reminders, Files, Flux, DevTools, Info und Security-Guards.",
       bullets: [
         "📝 Ausfuehrliche NotesView + Markdown + Magic Menue Dokumentation.",
-        "🧩 Canvas 2.x inklusive Magic Builder und AI-Project-Flow.",
+        "🧩 Canvas v6 inklusive Magic Builder, Project Briefs und Wiki-Link-Flow.",
         "⚡ Settings, Workflows, Terminal-Kommandos und View Guards komplett abgedeckt.",
       ],
     },
@@ -138,7 +138,7 @@ const sectionMeta: Record<SectionId, Record<Language, { title: string; subtitle:
         "All Main views including NotesView, Canvas, Dashboard, Tasks, Reminders, Files, Flux, DevTools, Info and security guards.",
       bullets: [
         "📝 Detailed NotesView, Markdown and Magic Menu documentation.",
-        "🧩 Canvas 2.x including Magic Builder and AI project flow.",
+        "🧩 Canvas v6 including Magic Builder, project briefs and wiki-link flow.",
         "⚡ Settings, workflows, terminal commands and view guards fully covered.",
       ],
     },
@@ -211,7 +211,7 @@ const sectionMeta: Record<SectionId, Record<Language, { title: string; subtitle:
   },
   "markdown-lab": {
     de: {
-      title: "Markdown Lab v5 (Notes + Canvas) 📝",
+      title: "Markdown Lab v6 (Notes + Canvas) 📝",
       subtitle:
         "Sammelpunkt fuer Standard-Markdown, Notes Magic Widgets, Canvas Markdown Nodes und aktuelle Nexus-Blocksyntax.",
       bullets: [
@@ -221,7 +221,7 @@ const sectionMeta: Record<SectionId, Record<Language, { title: string; subtitle:
       ],
     },
     en: {
-      title: "Markdown Lab v5 (Notes + Canvas) 📝",
+      title: "Markdown Lab v6 (Notes + Canvas) 📝",
       subtitle:
         "Single reference point for standard Markdown, Notes Magic widgets, Canvas Markdown nodes and current Nexus block syntax.",
       bullets: [
@@ -397,7 +397,7 @@ const uiCopy: Record<
     tableCode: "Code",
     tableCodeMobile: "Code Mobile",
     tableControl: "Control",
-    footerLayout: "Nexus Wiki Layout v5",
+    footerLayout: "Nexus Wiki Layout v6",
     copied: "Kopiert",
     copyError: "Kopieren fehlgeschlagen",
     entryCount: "Eintraege",
@@ -438,7 +438,7 @@ const uiCopy: Record<
     tableCode: "Code",
     tableCodeMobile: "Code Mobile",
     tableControl: "Control",
-    footerLayout: "Nexus Wiki Layout v5",
+    footerLayout: "Nexus Wiki Layout v6",
     copied: "Copied",
     copyError: "Copy failed",
     entryCount: "entries",

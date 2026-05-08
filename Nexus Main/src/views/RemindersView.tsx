@@ -217,10 +217,10 @@ export function RemindersView({ setView }: { setView?: (viewId: string) => void 
   }, [filtered, filter, now])
 
   return (
-    <div style={{ display:'flex', flexDirection:'column', height:'100%', overflow:'hidden' }}>
+    <div className="nx-reminders-v6 nx-release-view" style={{ display:'flex', flexDirection:'column', height:'100%', overflow:'hidden' }}>
 
       {/* ── Header ── */}
-      <div style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px', borderBottom:'1px solid rgba(255,255,255,0.07)', flexShrink:0, background:'rgba(0,0,0,0.1)' }}>
+      <div className="nx-reminders-toolbar nx-release-toolbar" style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px', borderBottom:'1px solid rgba(255,255,255,0.07)', flexShrink:0, background:'rgba(0,0,0,0.1)' }}>
         <div style={{ position:'relative', flex:1, maxWidth:280 }}>
           <Search size={13} style={{ position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', opacity:0.4 }}/>
           <input ref={searchInputRef} value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search reminders…" style={{ width:'100%', padding:'7px 10px 7px 32px', borderRadius:9, background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.1)', outline:'none', fontSize:12, color:'inherit' }}/>
@@ -240,7 +240,7 @@ export function RemindersView({ setView }: { setView?: (viewId: string) => void 
       </div>
 
       {/* ── Stats strip ── */}
-      <div style={{ display:'flex', alignItems:'center', gap:14, padding:'8px 18px', borderBottom:'1px solid rgba(255,255,255,0.07)', background:'rgba(0,0,0,0.06)', flexShrink:0 }}>
+      <div className="nx-reminders-stats nx-release-strip" style={{ display:'flex', alignItems:'center', gap:14, padding:'8px 18px', borderBottom:'1px solid rgba(255,255,255,0.07)', background:'rgba(0,0,0,0.06)', flexShrink:0 }}>
         {[
           { label:'Upcoming', val:upcoming.length, color:t.accent },
           { label:'Overdue',  val:overdue.length,  color: overdue.length?'#ff453a':'inherit' },
@@ -254,7 +254,7 @@ export function RemindersView({ setView }: { setView?: (viewId: string) => void 
         ))}
       </div>
 
-      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, padding:'8px 14px', borderBottom:'1px solid rgba(255,255,255,0.06)', background:'rgba(0,0,0,0.05)', flexWrap:'wrap' }}>
+      <div className="nx-reminders-today-strip nx-release-strip" style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, padding:'8px 14px', borderBottom:'1px solid rgba(255,255,255,0.06)', background:'rgba(0,0,0,0.05)', flexWrap:'wrap' }}>
         <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
           <span style={{ fontSize:10, opacity:0.55, fontWeight:700, letterSpacing:0.4, textTransform:'uppercase' }}>Today Layer</span>
           <span style={{ fontSize:11, opacity:0.72 }}>Open Tasks: <b>{todaySummary.openTaskCount}</b></span>

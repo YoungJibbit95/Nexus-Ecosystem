@@ -211,21 +211,21 @@ export function buildToolbarCommands({
     },
     {
       id: "canvas-template-ai-project",
-      label: "Canvas template: AI Project",
+      label: "Canvas template: Project Brief",
       type: "command",
       color: "#5E5CE6",
       icon: Sparkles,
-      hint: "Generate roadmap and PM map from AI prompt",
-      keywords: ["canvas", "template", "ai", "project", "generator"],
+      hint: "Build a roadmap and PM map from a short brief",
+      keywords: ["canvas", "template", "ai", "brief", "project", "generator"],
       action: () => {
-        if (!canvases.length) addCanvas("AI Project");
+        if (!canvases.length) addCanvas("Project Brief");
         setView?.("canvas");
         window.dispatchEvent(
           new CustomEvent("nx-canvas-command", {
             detail: {
               action: "template",
               template: "ai-project",
-              title: "AI Project",
+              title: "Project Brief",
               includeNotes: true,
               includeTasks: true,
             },
