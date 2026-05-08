@@ -61,6 +61,25 @@ const hasElectronTarget = (packageJson, platform, target) => {
   return normalizeElectronTargets(packageJson?.build?.[platform]?.target).includes(normalizedTarget)
 }
 
+const hasLinuxIconSet = async (appDir, packageJson) => {
+  const iconPath = String(packageJson?.build?.linux?.icon || '').trim()
+  if (iconPath !== 'assets/icons') return false
+
+  const sizes = [16, 32, 48, 64, 128, 256, 512]
+  const results = await Promise.all(
+    sizes.map(async (size) => {
+      const filePath = path.join(ROOT, appDir, 'assets/icons', `${size}x${size}.png`)
+      try {
+        const stat = await fs.stat(filePath)
+        return stat.isFile() && stat.size > 0
+      } catch {
+        return false
+      }
+    }),
+  )
+  return results.every(Boolean)
+}
+
 const listFilesRecursive = async (dir, out = []) => {
   const entries = await fs.readdir(dir, { withFileTypes: true })
   for (const entry of entries) {
@@ -277,6 +296,8 @@ const run = async () => {
 
   const mainPackage = await readJsonSafe(path.join(ROOT, 'Nexus Main/package.json'))
   const codePackage = await readJsonSafe(path.join(ROOT, 'Nexus Code/package.json'))
+  const mainHasLinuxIcons = await hasLinuxIconSet('Nexus Main', mainPackage)
+  const codeHasLinuxIcons = await hasLinuxIconSet('Nexus Code', codePackage)
   const electronPackagingChecks = [
     {
       id: 'main-electron-build-scripts',
@@ -328,6 +349,12 @@ const run = async () => {
       ].join(' | '),
     },
     {
+      id: 'main-linux-icon-set',
+      ok: mainHasLinuxIcons,
+      message: 'Nexus Main hat PNG-Icons fuer Linux/AppImage',
+      details: mainHasLinuxIcons ? 'assets/icons/{16,32,48,64,128,256,512}x*.png' : 'missing linux icon set',
+    },
+    {
       id: 'code-electron-build-scripts',
       ok:
         codePackage?.scripts?.['electron:build'] === 'npm run electron:build:host' &&
@@ -361,6 +388,12 @@ const run = async () => {
         codePackage?.build?.dmg?.artifactName,
         codePackage?.build?.nsis?.artifactName,
       ].join(' | '),
+    },
+    {
+      id: 'code-linux-icon-set',
+      ok: codeHasLinuxIcons,
+      message: 'Nexus Code hat PNG-Icons fuer Linux/AppImage',
+      details: codeHasLinuxIcons ? 'assets/icons/{16,32,48,64,128,256,512}x*.png' : 'missing linux icon set',
     },
   ]
 

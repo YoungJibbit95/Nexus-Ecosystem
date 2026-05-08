@@ -22,6 +22,12 @@ Use this before pushing tags, uploading installers, or deploying the VPS stack.
 If binaries are too large for Git, upload them during deploy and keep the same
 server paths under `/downloads/...`.
 
+## Installer Builds
+
+- Build Windows installers on Windows: `npm run build:main` and `npm run build:code`.
+- Build macOS installers on macOS or the GitHub installer workflow.
+- Build Linux AppImage/deb on Ubuntu or the GitHub installer workflow. Windows can fail AppImage packaging if symlink creation is blocked by Windows privileges, even when the app and icon set are valid.
+
 ## VPS Deploy Inputs
 
 - SSH host, user, port, and target path.

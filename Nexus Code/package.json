@@ -177,6 +177,7 @@
       "uninstallerIcon": "assets/icons/NexusCodeLogo.ico"
     },
     "linux": {
+      "icon": "assets/icons",
       "target": [
         {
           "target": "AppImage",
