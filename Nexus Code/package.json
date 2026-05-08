@@ -20,7 +20,7 @@
     "dist": "vite build && electron-builder",
     "electron:pack:win": "npm exec electron-builder -- --win",
     "electron:pack:mac": "node ../tools/electron-pack-mac.mjs -- electron-builder --mac",
-    "electron:pack:linux": "npm exec electron-builder -- --linux AppImage deb",
+    "electron:pack:linux": "node ../tools/electron-pack-linux.mjs -- electron-builder --linux AppImage deb",
     "electron:build:win": "npm run build && npm run electron:pack:win",
     "electron:build:mac": "npm run build && npm run electron:pack:mac",
     "electron:build:linux": "npm run build && npm run electron:pack:linux",

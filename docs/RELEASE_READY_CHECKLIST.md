@@ -26,7 +26,7 @@ server paths under `/downloads/...`.
 
 - Build Windows installers on Windows: `npm run build:main` and `npm run build:code`.
 - Build macOS installers on macOS or the GitHub installer workflow.
-- Build Linux AppImage/deb on Ubuntu or the GitHub installer workflow. Windows can fail AppImage packaging if symlink creation is blocked by Windows privileges, even when the app and icon set are valid.
+- Build Linux AppImage/deb on Ubuntu or the GitHub installer workflow. The local Windows wrapper skips Linux packaging when Symlink-Rechte fehlen; set `NEXUS_STRICT_LINUX_PACKAGING=true` if a local release script must fail instead of skipping.
 
 ## VPS Deploy Inputs
 
