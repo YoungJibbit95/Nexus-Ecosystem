@@ -119,6 +119,7 @@ const STEPS: WalkthroughStep[] = [
     ],
     cards: [
       { title: "Schnellstart", body: "Account, Workspace, erste Note, erste Task und erste Canvas-Node reichen fuer einen guten Start." },
+      { title: "Template Packs", body: "Info bietet Starter Kits fuer Notes, Task Boards, Canvas Layouts, Code Snippets und Flux Workflows." },
       { title: "Spaeter fortsetzen", body: "Du kannst den Walkthrough erneut oeffnen und offene Punkte nachholen." },
     ],
     setupTasks: [
@@ -170,6 +171,13 @@ const STEPS: WalkthroughStep[] = [
         detail: "Baue eine Hub-Node und haenge Goal, Risk, Decision oder Task Nodes daran.",
         view: "canvas",
         actionLabel: "Canvas",
+      },
+      {
+        id: "template-pack",
+        title: "Ein Template Pack als Startpunkt kopieren",
+        detail: "Oeffne Info -> Template Packs und kopiere ein Pack fuer Note, Board, Canvas, Code oder Flux.",
+        view: "info",
+        actionLabel: "Templates",
       },
       {
         id: "info-guide",
