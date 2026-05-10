@@ -201,6 +201,7 @@ export const wikiEntriesPrimary: WikiEntry[] = [
       'Dieser Flow verhindert Contract Drift und Runtime-Brueche.',
       'Kompatibilitaet wird als Releasebedingung behandelt.',
       'Cross-App Paritaet ist Teil des Zielkriteriums.',
+      'Die Release Ready Checklist ist der operative Startpunkt fuer RC-Freigaben.',
     ],
     commands: [
       'npm run release:gate -- --fast',
@@ -210,9 +211,10 @@ export const wikiEntriesPrimary: WikiEntry[] = [
       'npm --prefix "./Nexus Mobile" run build',
       'npm --prefix "./Nexus Code" run build',
       'npm --prefix "./Nexus Code Mobile" run build',
+      'docs/RELEASE_READY_CHECKLIST.md',
     ],
     tags: ['release', 'verify', 'build', 'promotion'],
-    sources: ['docs/DEVELOPER_GUIDE.md', 'docs/VIEW_SMOKE_MATRIX.md'],
+    sources: ['docs/DEVELOPER_GUIDE.md', 'docs/VIEW_SMOKE_MATRIX.md', 'docs/RELEASE_READY_CHECKLIST.md'],
   },
   {
     id: 'release-view-smoke-matrix',
@@ -240,6 +242,98 @@ export const wikiEntriesPrimary: WikiEntry[] = [
     ],
     tags: ['release', 'smoke', 'view-qa', 'rc'],
     sources: ['docs/VIEW_SMOKE_MATRIX.md', 'docs/NEXUS_COMPLETION_PLAN.md'],
+  },
+  {
+    id: 'release-ready-checklist',
+    title: 'Release Ready Checklist',
+    app: 'ecosystem',
+    category: 'ops',
+    summary:
+      'Die Release Ready Checklist ist der zentrale RC-Ablauf fuer lokale Validierung, Installer, API-Daten, Visual Evidence, Public Docs und Security Gates.',
+    guide: [
+      { title: '1. Lokal validieren', detail: 'Builds, verify:ecosystem, release:gate und Wiki build:ci ausfuehren, bevor Artefakte oder Deployments freigegeben werden.' },
+      { title: '2. Daten und Installer pruefen', detail: 'API-Datenhygiene, Download-Pfade, Checksums und OS-spezifische Installer-Regeln abgleichen.' },
+      { title: '3. Security + Public Story abnehmen', detail: 'Admin-Gates, Remember-Me, Entitlements, Website-Texte und Wiki-Links pruefen.' },
+    ],
+    points: [
+      'Die Checkliste verbindet Build, Deploy, Security, Website und Wiki in einem Ablauf.',
+      'API Contract/Attack Tests sind fuer einen public RC Pflicht.',
+      'Known Issues werden bewusst neben den Gates gepflegt, damit Risiken sichtbar bleiben.',
+      'Visual Evidence ist Teil der RC-Definition, nicht nur optionales Marketingmaterial.',
+    ],
+    commands: [
+      'npm run release:gate -- --fast',
+      'npm run release:gate -- --with-api-contract',
+      'npm --prefix "Nexus Wiki" run build:ci',
+      'docs/RELEASE_READY_CHECKLIST.md',
+    ],
+    tags: ['release-checklist', 'rc', 'validation', 'security', 'downloads'],
+    sources: ['docs/RELEASE_READY_CHECKLIST.md', 'docs/KNOWN_ISSUES.md', 'docs/RELEASE_EVIDENCE_GUIDE.md'],
+  },
+  {
+    id: 'release-known-issues',
+    title: 'Known Issues und RC-Risiken',
+    app: 'ecosystem',
+    category: 'ops',
+    summary:
+      'Known Issues dokumentiert harte Blocker, akzeptierte interne RC-Einschraenkungen und Regeln fuer offene Risiken.',
+    guide: [
+      { title: '1. Blocker pruefen', detail: 'API-Datenhygiene, Contract/Attack Tests, View Evidence und Signing zuerst bewerten.' },
+      { title: '2. Einschraenkungen markieren', detail: 'Interne RC-Ausnahmen wie Linux Packaging auf Windows oder Live-Payment-E2E klar benennen.' },
+      { title: '3. Risiken verlinken', detail: 'Jede offene Abweichung bekommt Repro, Evidence, Owner und Akzeptanzstatus.' },
+    ],
+    points: [
+      'Keine bekannte Luecke bleibt nur im Chat oder in lokalen Notizen.',
+      'Public Release darf keine harten Known-Issue-Blocker offen haben.',
+      'Secrets und private Betriebswerte werden nicht in Known Issues dokumentiert.',
+      'Das Dokument ist bewusst kurz genug, um vor jedem RC wirklich gelesen zu werden.',
+    ],
+    commands: ['docs/KNOWN_ISSUES.md', 'docs/VIEW_SMOKE_MATRIX.md', 'docs/RELEASE_READY_CHECKLIST.md'],
+    tags: ['known-issues', 'risk', 'rc', 'release-readiness'],
+    sources: ['docs/KNOWN_ISSUES.md', 'docs/NEXUS_COMPLETION_PLAN.md'],
+  },
+  {
+    id: 'release-visual-evidence-guide',
+    title: 'Visual Evidence Guide fuer Main, Mobile, Code und Control',
+    app: 'ecosystem',
+    category: 'ops',
+    summary:
+      'Der Visual Evidence Guide definiert, welche Screenshots und kurzen Videos pro Surface gesammelt werden, damit UI-Qualitaet beweisbar bleibt.',
+    guide: [
+      { title: '1. Surface-Set abdecken', detail: 'Main, Mobile, Code, Code Mobile, Control, Website und Wiki bekommen eigene Evidence-Ordner.' },
+      { title: '2. Pflichtbilder aufnehmen', detail: 'Dashboard/Notes/Tasks/Canvas, Mobile Login/Settings, Code Editor/Problems und Control Live Sync/Paywalls dokumentieren.' },
+      { title: '3. Quality Bar anwenden', detail: 'Content-Space, stabile Klickziele, Light Theme Kontrast, Empty/Error States und Secret-Freiheit pruefen.' },
+    ],
+    points: [
+      'Screenshots sind Release-Beweise und duerfen lesbar gross sein.',
+      'Videos sind sinnvoll fuer Canvas Move/Zoom, Drag/Drop, Mobile Navigation und Terminal/Run-Loops.',
+      'Evidence folgt einer festen Ordner- und Dateinamensstruktur.',
+      'Jedes Bild wird vor Public Upload auf private Daten und Tokens geprueft.',
+    ],
+    commands: ['docs/RELEASE_EVIDENCE_GUIDE.md', 'docs/release-evidence/<version>/rc-log.md'],
+    tags: ['visual-evidence', 'screenshots', 'qa', 'main', 'mobile', 'code', 'control'],
+    sources: ['docs/RELEASE_EVIDENCE_GUIDE.md', 'docs/VIEW_SMOKE_MATRIX.md'],
+  },
+  {
+    id: 'release-completion-plan',
+    title: 'Completion Plan und Release Roadmap',
+    app: 'ecosystem',
+    category: 'ops',
+    summary:
+      'Der Completion Plan bleibt die grosse Arbeitsliste fuer UI, API, Packaging, Security und Public Docs bis zum Nexus v6 RC.',
+    guide: [
+      { title: '1. Status lesen', detail: 'Ampel, Blocker, Phase-Liste und Naechste-konkrete-Arbeitsliste zeigen den echten Release-Stand.' },
+      { title: '2. Arbeitspaket waehlen', detail: 'Grosse Schritte bevorzugen: Datenhygiene, Contract Tests, View-Smokes, Signing oder UI-Shell-Extraktion.' },
+      { title: '3. Nach Umsetzung streichen', detail: 'Erledigte Punkte im Completion Plan markieren und passende Wiki-/Checklist-Links aktualisieren.' },
+    ],
+    points: [
+      'Der Plan ersetzt kein Issue-Board, gibt aber den aktuellen Release-Pfad vor.',
+      'Wiki, Website und InfoView muessen nach groesseren Feature-Schritten synchron bleiben.',
+      'Definition of Done bleibt: Builds, Gates, Secrets, Smokes, Signing und ehrliche Public Docs.',
+    ],
+    commands: ['docs/NEXUS_COMPLETION_PLAN.md', 'docs/RELEASE_READY_CHECKLIST.md', 'docs/KNOWN_ISSUES.md'],
+    tags: ['completion-plan', 'roadmap', 'release', 'todo'],
+    sources: ['docs/NEXUS_COMPLETION_PLAN.md'],
   },
   {
     id: 'main-dashboard-guide',
