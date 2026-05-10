@@ -1,6 +1,6 @@
 # Nexus Fertigstellungs- und Releaseplan
 
-Stand: 2026-05-08
+Stand: 2026-05-10
 
 Arbeitsstand nach Start der Abarbeitung:
 
@@ -34,6 +34,8 @@ Arbeitsstand nach Start der Abarbeitung:
 - Notes-Starter-Readmes haben einen weiteren Release-Guide-Pass erhalten: neue v6-Release-IDs, mehr Emoji-Struktur, Tabellen, Callouts, Checklisten, Metrics, Steps, Grid, Code-Fence und Magic-Block-Beispiele fuer alle Guide-Notizen.
 - Wiki/Release-Doku wurde fuer Phase 4 verbunden: Release Ready Checklist, Known Issues, Completion Plan und Visual Evidence Guide sind jetzt eigene Wiki-Eintraege; `docs/KNOWN_ISSUES.md` und `docs/RELEASE_EVIDENCE_GUIDE.md` legen RC-Risiken und Screenshot-/Video-Evidence sauber fest.
 - Electron Packaging ist weiter gehaertet: Main/Code haben explizite All-Platform-Installer-Skripte, v6-/versionierte Artefaktnamen, Linux-AppImage-Targets und die Installer-GitHub-Action baut jetzt macOS, Windows und Linux fuer Main und Code.
+- NexusAPI hat einen Release-Daten-Hygiene-Pass erhalten: Runtime-JSON, lokale Dist-Daten, `.DS_Store` und Rust-Targets sind aus Git entfernt und ignoriert; Node/Rust Owner-Bootstrap verlangt fuer Production ein explizites `NEXUS_OWNER_BOOTSTRAP_PASSWORD`; Dev-User bleiben hinter `NEXUS_ENABLE_DEV_BOOTSTRAP_USERS`; `verify:release-data`, Runbook und env-Beispiel dokumentieren die neue Grenze.
+- API-Node-Smoke ist erneut gelaufen: `build:node`, `verify:release-data` und `test:attack` bestehen; der lokale Rust-Check ist auf diesem Windows-Workspace nur durch fehlendes MSVC-`link.exe` blockiert.
 
 Scope dieser Analyse:
 
@@ -52,7 +54,7 @@ Hinweis: Dependency-Diffs und frisch aktualisierte Lockfiles wurden auf Wunsch n
 
 Nexus ist funktional breit angelegt und in der Architektur deutlich weiter als ein Prototyp: Die Views sind in Desktop und Mobile fast vollstaendig vorhanden, `nexus-core` kapselt Runtime, Live Sync, View-Validierung und Control API sauber, die Control Plane hat eine ernsthafte Sicherheitsbaseline, Wiki und Website bauen erfolgreich.
 
-Der aktuelle Stand ist trotzdem noch nicht releasefertig fuer App-Binaries. Die vorherigen Build-Blocker fuer Main, Mobile, Nexus Code und Code Mobile sind geschlossen; die naechsten Release-Gates sind API-Datenhygiene, fehlende Ende-zu-Ende-Smokes fuer alle Views, macOS Signing/Notarization und Packaging-/RC-Automatisierung.
+Der aktuelle Stand ist trotzdem noch nicht releasefertig fuer App-Binaries. Die vorherigen Build-Blocker fuer Main, Mobile, Nexus Code und Code Mobile sind geschlossen; die naechsten Release-Gates sind Hosted/Node-vs-Rust-API-Evidence, fehlende Ende-zu-Ende-Smokes fuer alle Views, macOS Signing/Notarization und Packaging-/RC-Automatisierung.
 
 Zusaetzlich sollte vor einem grossen Public Release ein sichtbarer UI-/UX-Schub eingeplant werden. Die Views sind funktional breit, brauchen aber ein staerkeres gemeinsames Layout-System, bessere reaktive Zustaende, klarere Primaeraktionen, konsistente Panel-/Toolbar-Strukturen und Core-Features, die komplexere und schoenere Oberflaechen ermoeglichen.
 
@@ -65,10 +67,10 @@ Release-Ampel:
 | Nexus Code | Gelb | Build repariert; Filesystem-Hardening, Packaging und Artifact-Namen offen. |
 | Nexus Code Mobile | Gelb | Build repariert; Mobile IDE Smoke, Packaging und Artifact-Namen offen. |
 | Nexus Core | Gelb/Gruen | Gemeinsame Runtime ist deutlich reifer: Package-Gate, Layout Schema v2, Panel Engine und Command Registry sind angelegt; view-spezifische Handler bleiben offen. |
-| Nexus API / Control Plane | Gelb | Sicherheitsbaseline stark, aber Release-Daten und Secrets muessen bereinigt werden. |
+| Nexus API / Control Plane | Gelb/Gruen | Repo-/Dist-Datenhygiene ist geschlossen, Owner-Bootstrap ist env-pflichtig und Node Attack Smoke besteht; Hosted/Node-vs-Rust-Contract-Evidence bleibt offen. |
 | Nexus Wiki | Gruen/Gelb | Build, Budget und i18n bestehen; Release-Links, Known Issues, Checklist und Visual Evidence Guide sind verbunden; echte Browser-/Mobile-QA bleibt offen. |
 | Website | Gruen/Gelb | Build, Budget und API-Integration bestehen; Payment-E2E bleibt bewusst offen. |
-| Gesamt | Gelb fuer RC-Vorbereitung | Build- und Website-P0 geschlossen; RC-Gate ist angelegt, API-Datenhygiene, Smoke-Ausfuehrung und Signing bleiben offen. |
+| Gesamt | Gelb fuer RC-Vorbereitung | Build-, Website- und API-Datenhygiene-P0 sind geschlossen; RC-Gate ist angelegt, Hosted/API-Contract-Evidence, View-Smokes und Signing bleiben offen. |
 
 ## Gepruefte Kommandos
 
@@ -98,6 +100,16 @@ npm run build:ci
 npm run test:api:integration
 ```
 
+Aus `F:\Coding\Nexus Workspace\NexusAPI`:
+
+```powershell
+npm --prefix "API/nexus-control-plane" run build:node
+npm --prefix "API/nexus-control-plane" run verify:release-data
+npm --prefix "API/nexus-control-plane" run test:attack
+cargo fmt --manifest-path "API\nexus-control-plane\rust\Cargo.toml"
+cargo check --manifest-path "API\nexus-control-plane\rust\Cargo.toml"
+```
+
 Ergebnisse:
 
 | Check | Ergebnis | Notiz |
@@ -117,11 +129,16 @@ Ergebnisse:
 | Website Build | Pass | Vite Build erfolgreich. |
 | Website Build CI | Pass | Build und Bundle Budget bestehen. |
 | Website API Integration | Pass | `apiHostPolicy.ts` liest Vite Env defensiv und faellt in Node/tsx auf `process.env`/Defaults zurueck. |
+| API Node Build | Pass | `dist` wird neu erzeugt, aber Runtime-JSON wird nicht mehr in `dist/data` kopiert. |
+| API Release Data Gate | Pass | Keine verbotenen getrackten Runtime-JSONs, Rust-Targets, Logs oder `.DS_Store`; lokale Runtime-JSONs werden nur als ignored Warnung gemeldet. |
+| API Attack Smoke | Pass | 23/23 Checks: Login/Register/Session, Signed Mutation, Replay-Schutz, Rate Limit, CORS, Webhooks und Owner-Gates. |
+| Rust Format | Pass | `cargo fmt` auf Control-Plane-Rust-Code ausgefuehrt. |
+| Rust Check | Blockiert lokal | Windows-Workspace hat kein MSVC-`link.exe`; Ubuntu/VPS/GitHub-Runner muss den Rust-Build verifizieren. |
 
 Nicht ausgefuehrt:
 
 - Live-Payment-E2E der Website, weil dieser Pfad echte Sessions gegen eine API erzeugen kann.
-- Voller API Contract/Attack-Test der Control Plane in diesem Auditlauf. Diese Tests haengen am RC-Gate mit `npm run release:gate -- --with-api-contract`.
+- Voller Node-vs-Rust-API-Contract und Hosted/Staging-Contract-Gate. Node Attack Smoke ist gruen, aber der lokale Rust-Contract ist durch fehlendes MSVC-`link.exe` blockiert.
 - Visuelle Browser-Smokes fuer alle Views. Die Matrix ist dokumentiert, die reale Ausfuehrung bleibt noetig vor Release.
 
 ## View-Analyse Main und Mobile
@@ -415,15 +432,17 @@ Staerken:
 
 Risiken:
 
-- Release-Daten wirken noch nicht sauber getrennt von Dev-Daten.
-- In `data/users.json` sind neben Owner auch Admin/Developer/Viewer Seeds vorhanden.
-- In `data/policies.json` sind lokale Ingest-Key-Werte erkennbar. Selbst wenn sie nur lokal sind, gehoeren Keys nicht in release-relevante Repo-Daten.
-- Rust `target`-/Buildartefakte und Logs muessen aus Release-Repos und Commits herausgehalten werden.
-- Der volle Node-vs-Rust-Contract-Gate wurde in diesem Audit nicht ausgefuehrt.
+- ~~Release-Daten wirken noch nicht sauber getrennt von Dev-Daten.~~ Geschlossen am 2026-05-10 im NexusAPI-Commit `f307229`: Runtime-JSONs werden ignoriert und nicht mehr nach `dist` kopiert.
+- ~~In `data/users.json` sind neben Owner auch Admin/Developer/Viewer Seeds vorhanden.~~ Geschlossen fuer Git/Dist; Dev-User bleiben nur per `NEXUS_ENABLE_DEV_BOOTSTRAP_USERS`.
+- ~~In `data/policies.json` sind lokale Ingest-Key-Werte erkennbar.~~ Geschlossen fuer Git/Dist; Production muss env-/Secret-basierte Keys nutzen.
+- ~~Rust `target`-/Buildartefakte und Logs muessen aus Release-Repos und Commits herausgehalten werden.~~ Geschlossen fuer Git; `.gitignore` und `verify:release-data` sichern das ab.
+- Der volle Node-vs-Rust-Contract-Gate und ein Hosted/Staging-Contractlauf bleiben offen.
 
 Fertigstellen:
 
 1. Release-Daten bereinigen:
+
+   Status 2026-05-10: erledigt fuer Repo, Dist und Bootstrap-Defaults im NexusAPI-Commit `f307229`.
 
    - Keine lokalen Ingest Keys im Repo.
    - Keine Default-Produktionspasswoerter.
@@ -432,6 +451,8 @@ Fertigstellen:
    - Produktionsdaten in Secret Store oder deploy-spezifischen Volumes halten.
 
 2. Git-Hygiene:
+
+   Status 2026-05-10: erledigt fuer Runtime-JSON, Dist-Runtime-Daten, Rust-Targets, Logs und `.DS_Store`; `verify:release-data` ist als Guard vorhanden.
 
    - `target/`, Logs, Runtime-Dumps und lokale Daten in `.gitignore` pruefen.
    - Bereits versionierte Buildartefakte gezielt entfernen, falls sie im Repo liegen.
@@ -620,7 +641,9 @@ Fertigstellen:
    npm run test:api:integration
    ```
 
-4. API Release-Daten bereinigen.
+4. ~~API Release-Daten bereinigen.~~
+
+   Erledigt am 2026-05-10 im NexusAPI-Commit `f307229`: Runtime-JSONs, lokale Dist-Daten, `.DS_Store` und Rust-Targets sind aus Git entfernt; `.gitignore` und `verify:release-data` verhindern Rueckfaelle; Node/Rust Owner-Bootstrap erzeugt in Production keinen Admin mehr ohne explizites `NEXUS_OWNER_BOOTSTRAP_PASSWORD`.
 
    Akzeptanz:
 
@@ -942,8 +965,8 @@ Ein Nexus Release Candidate ist fertig, wenn:
 1. ~~Main/Mobile TypeScript und CSS Build fixen.~~
 2. ~~Code/Code Mobile Tailwind 4 Build fixen.~~
 3. ~~Website `import.meta.env` Node-Fallback fixen.~~
-4. API Daten und Git-Hygiene bereinigen.
-5. API Contract/Attack Tests laufen lassen.
+4. ~~API Daten und Git-Hygiene bereinigen.~~ Erledigt im NexusAPI-Commit `f307229`; `verify:release-data` und Runbook sind aktualisiert.
+5. API Contract/Attack Tests laufen lassen. Status: teilweise erledigt, Node `test:attack` besteht mit 23/23 Checks; offen bleiben Node-vs-Rust-Contract und Hosted/Staging-Evidence, weil lokales Rust-Checken auf diesem Windows-Workspace am fehlenden MSVC-`link.exe` haengt.
 6. Gemeinsame View-Shell, Tokens und UI-Komponenten definieren. Status: in Arbeit, Main nutzt jetzt `MainShellLayout`/`MainViewHost`, `NexusV6ViewShell`, reduzierte Status-Bar, v6-Tokens und Core-View-Manifeste; v6-Shell, View-Enhancer, Notes Command-Strip und Nexus Toolbar sind auf mehr Content-Space, transparente Blur/Gradient-Glows, optionalen Inspector, kompaktere Header und stabilere Controls getrimmt.
 7. ~~Core um View Manifest v2, Layout Schema v2, Command Registry und Panel Engine erweitern.~~ Erledigt als Core-Grundlage: `packages/nexus-core/src/views.ts` liefert Layout Schema v2, Panel Engine, resolved Command Registry und `executeNexusViewCommand`; Nexus Main nutzt diese Daten in `NexusV6ViewShell`. Offen bleibt die view-spezifische Handler-Anbindung pro Feature.
 8. Dashboard, Notes, Tasks und Canvas als erste Views auf die neue Shell migrieren. Status: Basis erledigt, alle Main-Views laufen durch `NexusV6ViewShell`; Dashboard und Notes haben zusaetzlich interne v6-Layout-Refinements erhalten, globale Shell/Sidebar/Toolbar/Status-Bar sind cleaner und ruhiger, Dashboard-Widget-Animationen und vertikales Widget-Swapping sind verbessert; Tasks und Canvas haben jetzt ebenfalls einen sichtbaren v6-Polish-Schnitt mit mehr Content-Flaeche, kleineren Controls, stabileren Klickzielen, Obsidian-naeherem Canvas-Jump-Flow und Flux-Safety-Hardening erhalten. Offen bleibt die gemeinsame Toolbar-/Inspector-Primitive-Extraktion.

@@ -8,8 +8,7 @@ Dieses Dokument ist die ehrliche RC-Liste. Alles hier ist entweder ein bewusst a
 
 | Bereich | Status | Risiko | Naechster Schritt |
 | --- | --- | --- | --- |
-| API Release-Daten | Offen | Lokale Seed-/Dev-Daten und Ingest-Key-Platzhalter duerfen nicht in produktive Datensaetze gelangen. | Production-Daten nur aus env/Secret Store laden, Repo-Daten bereinigen, Dist-Daten neu erzeugen. |
-| API Contract/Attack Tests | Offen | Hosted API kann funktional laufen, ohne dass Signed Mutations, Rate Limits und Owner-Gates beweissicher getestet sind. | `npm run release:gate -- --with-api-contract` gegen Staging/Hosted ausfuehren und Ergebnis dokumentieren. |
+| API Contract/Attack Tests | Teilweise | Node Attack Smoke ist gruen, aber Hosted API kann funktional laufen, ohne dass Node-vs-Rust-Paritaet und Staging-Evidence beweissicher dokumentiert sind. | `npm run release:gate -- --with-api-contract` gegen Staging/Hosted ausfuehren und Ergebnis dokumentieren. |
 | View-Smoke Evidence | Offen | Builds koennen gruen sein, obwohl einzelne Views visuell oder interaktiv brechen. | `docs/VIEW_SMOKE_MATRIX.md` pro View abarbeiten und Evidence unter `docs/release-evidence/<version>/` speichern. |
 | Signing/Notarization | Offen | macOS/Windows/Android Artefakte sind ohne finale Signatur nicht public-release-faehig. | Signatur-Runbook finalisieren, Secrets in CI setzen, Installer auf sauberem System smoke-testen. |
 
@@ -17,6 +16,7 @@ Dieses Dokument ist die ehrliche RC-Liste. Alles hier ist entweder ein bewusst a
 
 | Bereich | Einschraenkung | Akzeptanz fuer internen RC |
 | --- | --- | --- |
+| API Runtime-Daten | Repo-/Dist-Hygiene ist seit NexusAPI `f307229` geschlossen; produktive Daten muessen trotzdem aus Env/Secret Store, DB oder persistentem `NEXUS_CONTROL_DATA_DIR` kommen. | Akzeptiert, wenn `verify:release-data` gruen ist und Deployment-Secrets nicht im Repo liegen. |
 | Linux Packaging auf Windows | AppImage/deb Builds werden auf Windows ohne Symlink-Rechte bewusst uebersprungen. | Akzeptiert, solange Ubuntu/GitHub Actions die Linux-Artefakte baut. |
 | Live Payment E2E | Live-Zahlungsfluss wird nicht lokal ausgefuehrt. | Akzeptiert nur fuer Test-/Staging-Rollen; public Release braucht Provider-Smoke. |
 | Control UI | Control ist Admin-/Ops-Flaeche und nicht Teil der Product-Page App-Auswahl. | Akzeptiert, wenn Zugriff und Links nur fuer Admin/Ops-Kontext sichtbar sind. |
