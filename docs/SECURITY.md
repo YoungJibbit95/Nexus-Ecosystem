@@ -104,6 +104,16 @@ Empfehlung:
 - Keine globalen Session-Overrides (`defaultSession`, `webRequest`, `setProxy`)
 - IPC Dateizugriffe nur in erlaubten Root-Pfaden (`NEXUS_ALLOWED_FS_ROOTS`) mit Groessenlimits
 
+### Electron-Haertung (Nexus Code)
+
+- `contextIsolation: true`, `sandbox: true`, `nodeIntegration: false`, `webSecurity: true`
+- WebViews, Permission Requests und ungepruefte Navigation werden im Main Process geblockt
+- Datei-IPC ist workspace-basiert: erst `openFolder`, dann nur Pfade innerhalb registrierter Workspace Roots
+- Datei-Bridge hat Groessenlimits und schuetzt `.git`, `.hg` und `.svn` vor Rename/Delete/Write
+- Terminal-IPC validiert Session-IDs, begrenzt parallele Sessions und startet nur innerhalb des ausgewaehlten Workspace Roots
+- Netzwerk-/System-Konfigurationsbefehle sowie offensichtliche destruktive Systembefehle werden vor dem Spawn blockiert
+- `verify:ecosystem` prueft diese Electron-Sicherheitsgrenzen statisch mit
+
 ### Lokale Netzwerkgrenzen
 
 - Interne Server binden ausschliesslich an `127.0.0.1`

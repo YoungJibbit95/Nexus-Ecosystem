@@ -76,3 +76,5 @@ server paths under `/downloads/...`.
 - Download binaries are checksummed before public upload.
 - Control, DevTools, diagnostics, and admin-only views are hidden or gated for normal packaged-mode users.
 - Account persistence uses explicit remember-me behavior and never stores raw passwords client-side.
+- Nexus Code Electron file/terminal IPC stays restricted to user-selected workspace roots.
+- Nexus Code external navigation, WebViews and permission prompts are denied by default.

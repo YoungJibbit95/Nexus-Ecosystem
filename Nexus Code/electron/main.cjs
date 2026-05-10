@@ -1,12 +1,18 @@
-const { app, BrowserWindow, ipcMain, shell, Menu, dialog } = require("electron");
+const { app, BrowserWindow, ipcMain, shell, Menu, dialog, session } = require("electron");
 const path = require("path");
 const fs = require("fs").promises;
 const { spawn, execSync } = require("child_process");
-const os = require("os");
 
 const DEV = process.env.ELECTRON_DEV === "true";
 const DEV_URL = "http://localhost:5175";
 const WINDOW_SHOW_FALLBACK_MS = 4_500;
+const MAX_PATH_LENGTH = 4096;
+const MAX_FILE_BYTES = 20 * 1024 * 1024;
+const MAX_WRITE_BYTES = 20 * 1024 * 1024;
+const MAX_TERMINAL_COMMAND_LENGTH = 8_000;
+const MAX_TERMINAL_INPUT_LENGTH = 64_000;
+const MAX_TERMINAL_SESSIONS = 8;
+const PROTECTED_WORKSPACE_NAMES = new Set([".git", ".hg", ".svn"]);
 const NETWORK_MUTATION_PATTERNS = [
   /\bnetworksetup\b/i,
   /\bscutil\b/i,
@@ -22,9 +28,23 @@ const NETWORK_MUTATION_PATTERNS = [
   /\/etc\/resolv\.conf\b/i,
   /\bgsettings\b.+\bproxy\b/i,
 ];
+const DANGEROUS_TERMINAL_PATTERNS = [
+  /\brm\s+(-[^\s]*r[^\s]*f|-rf|-fr)\s+(\/|~|\$HOME)\b/i,
+  /\bRemove-Item\b[\s\S]*\b-Recurse\b[\s\S]*\b-Force\b[\s\S]*(C:\\|\/|~|\$HOME)/i,
+  /\bdel\s+\/[sqf]+\s+(C:\\|\\|\/)/i,
+  /\brmdir\s+\/s\s+(C:\\|\\|\/)/i,
+  /\bformat\b\s+[A-Z]:/i,
+  /\bdiskpart\b/i,
+  /\bbcdedit\b/i,
+  /\bshutdown\b/i,
+  /\breboot\b/i,
+  /\bmkfs\.[a-z0-9]+\b/i,
+  /\bdd\s+.*\bof=\/dev\/(sd|nvme|disk)/i,
+];
 
 let mainWindow = null;
 const activeProcesses = new Map();
+const allowedWorkspaceRoots = new Map();
 
 const buildRendererFailureHtml = (reason, details) => {
   const safeReason = String(reason || "RENDERER_LOAD_FAILED")
@@ -35,6 +55,134 @@ const buildRendererFailureHtml = (reason, details) => {
     .replace(/>/g, "&gt;");
   return `data:text/html;charset=utf-8,<!doctype html><html><head><meta charset="utf-8"/><title>Nexus Code Start Error</title><style>body{margin:0;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial,sans-serif;background:linear-gradient(135deg,#15090a,#0d1320);color:#ffe2df;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px}section{max-width:780px;border:1px solid rgba(255,69,58,.42);background:rgba(255,69,58,.14);border-radius:14px;padding:18px;line-height:1.5}h1{margin:0 0 8px;font-size:20px}code{display:block;margin-top:8px;padding:8px 10px;border-radius:8px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.15);white-space:pre-wrap;word-break:break-word}</style></head><body><section><h1>Nexus Code konnte nicht geladen werden</h1><div>Die Renderer-Oberflaeche ist beim Start fehlgeschlagen. Bitte sende den Fehlercode an den Ecosystem Manager.</div><code>${safeReason}${safeDetails ? `\\n${safeDetails}` : ""}</code></section></body></html>`;
 };
+
+const normalizePathKey = (value) => {
+  const resolved = path.resolve(String(value || ""));
+  return process.platform === "win32" ? resolved.toLowerCase() : resolved;
+};
+
+const assertPathInput = (value, label = "path") => {
+  if (typeof value !== "string" || value.trim().length === 0) {
+    throw new Error(`${label} must be a non-empty string`);
+  }
+
+  if (value.length > MAX_PATH_LENGTH || value.includes("\0")) {
+    throw new Error(`${label} is not allowed`);
+  }
+
+  return value;
+};
+
+const assertTerminalId = (value) => {
+  const id = Number(value);
+  if (!Number.isSafeInteger(id) || id < 0 || id > 1_000_000) {
+    throw new Error("Invalid terminal session id");
+  }
+  return id;
+};
+
+const isPathInsideOrSame = (candidatePath, rootPath) => {
+  const candidate = normalizePathKey(candidatePath);
+  const root = normalizePathKey(rootPath);
+  if (candidate === root) return true;
+  const rootWithSeparator = root.endsWith(path.sep) ? root : `${root}${path.sep}`;
+  return candidate.startsWith(rootWithSeparator);
+};
+
+const listAllowedWorkspaceRoots = () => Array.from(allowedWorkspaceRoots.values());
+
+const findAllowedRootForCanonicalPath = (canonicalPath) => (
+  listAllowedWorkspaceRoots().find((root) => isPathInsideOrSame(canonicalPath, root)) || null
+);
+
+const registerWorkspaceRoot = async (dirPath) => {
+  const candidate = path.resolve(assertPathInput(dirPath, "workspace root"));
+  const realPath = await fs.realpath(candidate);
+  const stats = await fs.stat(realPath);
+  if (!stats.isDirectory()) {
+    throw new Error("Selected workspace root is not a directory");
+  }
+
+  allowedWorkspaceRoots.set(normalizePathKey(realPath), realPath);
+  return realPath;
+};
+
+const assertWorkspaceReady = () => {
+  if (allowedWorkspaceRoots.size === 0) {
+    throw new Error("Bitte zuerst einen Workspace-Ordner auswaehlen.");
+  }
+};
+
+const resolveWorkspacePath = async (targetPath, options = {}) => {
+  const { allowMissing = false, allowRoot = true, expected = "any" } = options;
+  assertWorkspaceReady();
+
+  const requested = path.resolve(assertPathInput(targetPath));
+  let canonical = requested;
+
+  try {
+    canonical = await fs.realpath(requested);
+  } catch (error) {
+    if (!allowMissing) throw error;
+    const parentPath = path.dirname(requested);
+    const parentCanonical = await fs.realpath(parentPath);
+    canonical = path.join(parentCanonical, path.basename(requested));
+  }
+
+  const root = findAllowedRootForCanonicalPath(canonical);
+  if (!root) {
+    throw new Error("Path outside selected workspace.");
+  }
+
+  if (!allowRoot && normalizePathKey(canonical) === normalizePathKey(root)) {
+    throw new Error("Workspace root itself cannot be modified.");
+  }
+
+  const stats = allowMissing
+    ? await fs.stat(canonical).catch(() => null)
+    : await fs.stat(canonical);
+
+  if (expected === "file" && (!stats || !stats.isFile())) {
+    throw new Error("Expected a file inside the selected workspace.");
+  }
+
+  if (expected === "directory" && (!stats || !stats.isDirectory())) {
+    throw new Error("Expected a directory inside the selected workspace.");
+  }
+
+  return { requested, canonical, root, stats };
+};
+
+const resolveWritableWorkspacePath = async (targetPath) => {
+  assertWorkspaceReady();
+
+  const requested = path.resolve(assertPathInput(targetPath));
+  const existing = await fs.stat(requested).catch(() => null);
+  if (existing) {
+    return resolveWorkspacePath(requested, { allowRoot: false });
+  }
+
+  const parent = await resolveWorkspacePath(path.dirname(requested), {
+    allowRoot: true,
+    expected: "directory",
+  });
+  const canonical = path.join(parent.canonical, path.basename(requested));
+
+  if (!findAllowedRootForCanonicalPath(canonical)) {
+    throw new Error("Target path outside selected workspace.");
+  }
+
+  return { requested, canonical, root: parent.root, stats: null };
+};
+
+const assertNotProtectedWorkspacePath = (canonicalPath) => {
+  const segments = canonicalPath.split(/[\\/]+/);
+  if (segments.some((segment) => PROTECTED_WORKSPACE_NAMES.has(segment))) {
+    throw new Error("Protected workspace metadata cannot be modified.");
+  }
+};
+
+const byteLength = (value) => Buffer.byteLength(String(value ?? ""), "utf8");
 
 const shouldEnableGpuSwitches = process.env.NEXUS_FORCE_GPU_SWITCHES === "1";
 
@@ -76,7 +224,23 @@ const isAllowedNavigation = (url) => {
   return url.startsWith("file://");
 };
 
-const isExternalHttpUrl = (url) => /^https?:\/\//i.test(String(url || ""));
+const isExternalHttpUrl = (url) => {
+  try {
+    const parsed = new URL(String(url || ""));
+    if (parsed.protocol === "https:") return true;
+    if (!DEV || parsed.protocol !== "http:") return false;
+    return ["localhost", "127.0.0.1", "::1"].includes(parsed.hostname);
+  } catch {
+    return false;
+  }
+};
+
+const configureSessionSecurity = () => {
+  session.defaultSession.setPermissionRequestHandler((_webContents, _permission, callback) => {
+    callback(false);
+  });
+  session.defaultSession.setPermissionCheckHandler(() => false);
+};
 
 const resolveShellLaunch = (command) => {
   if (process.platform === "win32") {
@@ -98,6 +262,12 @@ const isBlockedNetworkMutationCommand = (command) => {
   return NETWORK_MUTATION_PATTERNS.some((pattern) => pattern.test(raw));
 };
 
+const isBlockedDangerousTerminalCommand = (command) => {
+  const raw = String(command || "").trim();
+  if (!raw) return false;
+  return DANGEROUS_TERMINAL_PATTERNS.some((pattern) => pattern.test(raw));
+};
+
 const terminateActiveProcesses = () => {
   for (const [id, proc] of activeProcesses.entries()) {
     try {
@@ -108,14 +278,20 @@ const terminateActiveProcesses = () => {
 };
 
 const resolveTerminalWorkingDirectory = async (candidatePath) => {
-  if (!candidatePath || typeof candidatePath !== "string") return os.homedir();
-  try {
-    const stats = await fs.stat(candidatePath);
-    if (stats.isDirectory()) return candidatePath;
-    return path.dirname(candidatePath);
-  } catch {
-    return os.homedir();
-  }
+  assertWorkspaceReady();
+  const fallbackRoot = listAllowedWorkspaceRoots()[0];
+  const selectedPath = typeof candidatePath === "string" && candidatePath.trim()
+    ? candidatePath
+    : fallbackRoot;
+  const safePath = await resolveWorkspacePath(selectedPath, { allowRoot: true });
+
+  if (safePath.stats?.isDirectory()) return safePath.canonical;
+
+  const parentPath = await resolveWorkspacePath(path.dirname(safePath.canonical), {
+    allowRoot: true,
+    expected: "directory",
+  });
+  return parentPath.canonical;
 };
 
 const openSystemTerminal = async (candidatePath) => {
@@ -150,6 +326,27 @@ const openSystemTerminal = async (candidatePath) => {
     await shell.openPath(cwd);
     return false;
   }
+};
+
+const registerWebContentsGuards = () => {
+  app.on("web-contents-created", (_event, contents) => {
+    contents.on("will-attach-webview", (event) => {
+      event.preventDefault();
+    });
+
+    contents.on("will-navigate", (event, url) => {
+      if (!isAllowedNavigation(url)) {
+        event.preventDefault();
+      }
+    });
+
+    contents.setWindowOpenHandler(({ url }) => {
+      if (isExternalHttpUrl(url)) {
+        shell.openExternal(url).catch(() => {});
+      }
+      return { action: "deny" };
+    });
+  });
 };
 
 function createWindow() {
@@ -270,7 +467,7 @@ function createWindow() {
   mainWindow.on("leave-full-screen", () => mainWindow?.webContents.send("window:fullscreen", false));
 }
 
-// ── IPC: window controls ───────────────────────────────────────────────────
+// IPC: window controls
 
 ipcMain.on("window:minimize",  () => mainWindow?.minimize());
 ipcMain.on("window:maximize",  () => {
@@ -281,7 +478,7 @@ ipcMain.on("window:close",     () => mainWindow?.close());
 
 ipcMain.handle("window:is-maximized", () => mainWindow?.isMaximized() ?? false);
 
-// ── IPC: File System ───────────────────────────────────────────────────────
+// IPC: file system
 
 ipcMain.handle("dialog:open-folder", async () => {
   if (!mainWindow) return null;
@@ -289,25 +486,36 @@ ipcMain.handle("dialog:open-folder", async () => {
     properties: ["openDirectory"],
   });
   if (result.canceled) return null;
-  return result.filePaths[0];
+  return registerWorkspaceRoot(result.filePaths[0]);
 });
 
-ipcMain.handle("fs:read-directory", async (event, dirPath) => {
+ipcMain.handle("fs:read-directory", async (_event, dirPath) => {
   try {
-    const entries = await fs.readdir(dirPath, { withFileTypes: true });
-    const files = await Promise.all(
-      entries.map(async (entry) => {
-        const fullPath = path.join(dirPath, entry.name);
-        const stats = await fs.stat(fullPath);
-        return {
+    const safeDir = await resolveWorkspacePath(dirPath, {
+      allowRoot: true,
+      expected: "directory",
+    });
+    const entries = await fs.readdir(safeDir.canonical, { withFileTypes: true });
+    const files = [];
+
+    for (const entry of entries) {
+      const fullPath = path.join(safeDir.canonical, entry.name);
+      try {
+        const canonical = await fs.realpath(fullPath);
+        if (!findAllowedRootForCanonicalPath(canonical)) continue;
+        const stats = await fs.stat(canonical);
+        files.push({
           name: entry.name,
           path: fullPath,
-          isDirectory: entry.isDirectory(),
+          isDirectory: stats.isDirectory(),
           size: stats.size,
           modified: stats.mtime,
-        };
-      })
-    );
+        });
+      } catch {
+        // Ignore broken links and files that disappeared while listing.
+      }
+    }
+
     return files;
   } catch (error) {
     console.error("FS Error:", error);
@@ -315,18 +523,34 @@ ipcMain.handle("fs:read-directory", async (event, dirPath) => {
   }
 });
 
-ipcMain.handle("fs:read-file", async (event, filePath) => {
+ipcMain.handle("fs:read-file", async (_event, filePath) => {
   try {
-    return await fs.readFile(filePath, "utf-8");
+    const safeFile = await resolveWorkspacePath(filePath, {
+      allowRoot: false,
+      expected: "file",
+    });
+
+    if ((safeFile.stats?.size || 0) > MAX_FILE_BYTES) {
+      throw new Error("File is too large for the Nexus Code bridge.");
+    }
+
+    return await fs.readFile(safeFile.canonical, "utf-8");
   } catch (error) {
     console.error("FS Read Error:", error);
     throw error;
   }
 });
 
-ipcMain.handle("fs:write-file", async (event, filePath, content) => {
+ipcMain.handle("fs:write-file", async (_event, filePath, content) => {
   try {
-    await fs.writeFile(filePath, content, "utf-8");
+    const body = String(content ?? "");
+    if (byteLength(body) > MAX_WRITE_BYTES) {
+      throw new Error("File content is too large for the Nexus Code bridge.");
+    }
+
+    const safeFile = await resolveWritableWorkspacePath(filePath);
+    assertNotProtectedWorkspacePath(safeFile.canonical);
+    await fs.writeFile(safeFile.canonical, body, "utf-8");
     return true;
   } catch (error) {
     console.error("FS Write Error:", error);
@@ -334,9 +558,11 @@ ipcMain.handle("fs:write-file", async (event, filePath, content) => {
   }
 });
 
-ipcMain.handle("fs:mkdir", async (event, dirPath) => {
+ipcMain.handle("fs:mkdir", async (_event, dirPath) => {
   try {
-    await fs.mkdir(dirPath, { recursive: true });
+    const safeDir = await resolveWritableWorkspacePath(dirPath);
+    assertNotProtectedWorkspacePath(safeDir.canonical);
+    await fs.mkdir(safeDir.canonical, { recursive: true });
     return true;
   } catch (error) {
     console.error("FS Mkdir Error:", error);
@@ -344,9 +570,11 @@ ipcMain.handle("fs:mkdir", async (event, dirPath) => {
   }
 });
 
-ipcMain.handle("fs:delete", async (event, targetPath) => {
+ipcMain.handle("fs:delete", async (_event, targetPath) => {
   try {
-    await fs.rm(targetPath, { recursive: true, force: true });
+    const safeTarget = await resolveWorkspacePath(targetPath, { allowRoot: false });
+    assertNotProtectedWorkspacePath(safeTarget.canonical);
+    await fs.rm(safeTarget.canonical, { recursive: true, force: true });
     return true;
   } catch (error) {
     console.error("FS Delete Error:", error);
@@ -354,9 +582,18 @@ ipcMain.handle("fs:delete", async (event, targetPath) => {
   }
 });
 
-ipcMain.handle("fs:rename", async (event, oldPath, newPath) => {
+ipcMain.handle("fs:rename", async (_event, oldPath, newPath) => {
   try {
-    await fs.rename(oldPath, newPath);
+    const safeOld = await resolveWorkspacePath(oldPath, { allowRoot: false });
+    const safeNew = await resolveWritableWorkspacePath(newPath);
+
+    if (normalizePathKey(safeOld.root) !== normalizePathKey(safeNew.root)) {
+      throw new Error("Rename must stay inside the same workspace root.");
+    }
+
+    assertNotProtectedWorkspacePath(safeOld.canonical);
+    assertNotProtectedWorkspacePath(safeNew.canonical);
+    await fs.rename(safeOld.canonical, safeNew.canonical);
     return true;
   } catch (error) {
     console.error("FS Rename Error:", error);
@@ -373,27 +610,53 @@ ipcMain.handle("system:open-terminal", async (_event, cwd) => {
   }
 });
 
-// ── IPC: Terminal (Real Shell) ─────────────────────────────────────────────
+// IPC: terminal (real shell)
 
-ipcMain.on("terminal:run", (event, { id, command, cwd }) => {
+const sendTerminalMessage = (sender, id, channel, payload) => {
   try {
-    const normalized = String(command || "").trim();
+    sender.send(`terminal:${channel}:${id}`, payload);
+  } catch {}
+};
+
+ipcMain.on("terminal:run", async (event, payload = {}) => {
+  let id = 0;
+  try {
+    id = assertTerminalId(payload.id);
+    const normalized = String(payload.command || "").trim();
 
     if (!normalized) {
-      event.sender.send(`terminal:output:${id}`, {
+      sendTerminalMessage(event.sender, id, "output", {
         type: "error",
         text: "Kein Befehl uebergeben.",
       });
-      event.sender.send(`terminal:exit:${id}`, 1);
+      sendTerminalMessage(event.sender, id, "exit", 1);
+      return;
+    }
+
+    if (byteLength(normalized) > MAX_TERMINAL_COMMAND_LENGTH) {
+      sendTerminalMessage(event.sender, id, "output", {
+        type: "error",
+        text: "Command is too large for the Nexus Code terminal bridge.",
+      });
+      sendTerminalMessage(event.sender, id, "exit", 126);
       return;
     }
 
     if (isBlockedNetworkMutationCommand(normalized)) {
-      event.sender.send(`terminal:output:${id}`, {
+      sendTerminalMessage(event.sender, id, "output", {
         type: "error",
         text: "Blocked: network/system configuration commands are disabled in this app.",
       });
-      event.sender.send(`terminal:exit:${id}`, 126);
+      sendTerminalMessage(event.sender, id, "exit", 126);
+      return;
+    }
+
+    if (isBlockedDangerousTerminalCommand(normalized)) {
+      sendTerminalMessage(event.sender, id, "output", {
+        type: "error",
+        text: "Blocked: destructive system-level commands are disabled in this app.",
+      });
+      sendTerminalMessage(event.sender, id, "exit", 126);
       return;
     }
 
@@ -405,45 +668,62 @@ ipcMain.on("terminal:run", (event, { id, command, cwd }) => {
       activeProcesses.delete(id);
     }
 
+    if (!running && activeProcesses.size >= MAX_TERMINAL_SESSIONS) {
+      sendTerminalMessage(event.sender, id, "output", {
+        type: "error",
+        text: "Too many terminal sessions are running.",
+      });
+      sendTerminalMessage(event.sender, id, "exit", 126);
+      return;
+    }
+
+    const resolvedCwd = await resolveTerminalWorkingDirectory(payload.cwd);
     const shellLaunch = resolveShellLaunch(normalized);
     const proc = spawn(shellLaunch.binary, shellLaunch.args, {
-      cwd: cwd || os.homedir(),
+      cwd: resolvedCwd,
       env: { ...process.env, FORCE_COLOR: "1" },
       stdio: ["pipe", "pipe", "pipe"],
       windowsHide: true,
     });
 
     activeProcesses.set(id, proc);
-    event.sender.send(`terminal:ready:${id}`);
+    sendTerminalMessage(event.sender, id, "ready");
 
     proc.stdout.on("data", (data) => {
-      event.sender.send(`terminal:output:${id}`, { type: "output", text: data.toString() });
+      sendTerminalMessage(event.sender, id, "output", { type: "output", text: data.toString() });
     });
 
     proc.stderr.on("data", (data) => {
-      event.sender.send(`terminal:output:${id}`, { type: "error", text: data.toString() });
+      sendTerminalMessage(event.sender, id, "output", { type: "error", text: data.toString() });
     });
 
     proc.on("error", (error) => {
-      event.sender.send(`terminal:output:${id}`, { type: "error", text: `Failed to start: ${error.message}` });
-      event.sender.send(`terminal:exit:${id}`, 1);
+      sendTerminalMessage(event.sender, id, "output", { type: "error", text: `Failed to start: ${error.message}` });
+      sendTerminalMessage(event.sender, id, "exit", 1);
       activeProcesses.delete(id);
     });
 
     proc.on("close", (code) => {
       const exitCode = typeof code === "number" ? code : 1;
-      event.sender.send(`terminal:output:${id}`, { type: "system", text: `\nProcess exited with code ${exitCode}` });
-      event.sender.send(`terminal:exit:${id}`, exitCode);
+      sendTerminalMessage(event.sender, id, "output", { type: "system", text: `\nProcess exited with code ${exitCode}` });
+      sendTerminalMessage(event.sender, id, "exit", exitCode);
       activeProcesses.delete(id);
     });
   } catch (error) {
-    event.sender.send(`terminal:output:${id}`, { type: "error", text: `Failed to start: ${error.message}` });
-    event.sender.send(`terminal:exit:${id}`, 1);
+    sendTerminalMessage(event.sender, id, "output", { type: "error", text: `Failed to start: ${error.message}` });
+    sendTerminalMessage(event.sender, id, "exit", 1);
   }
 });
 
-ipcMain.on("terminal:kill", (event, id) => {
-  const proc = activeProcesses.get(id);
+ipcMain.on("terminal:kill", (_event, id) => {
+  let terminalId = null;
+  try {
+    terminalId = assertTerminalId(id);
+  } catch {
+    return;
+  }
+
+  const proc = activeProcesses.get(terminalId);
   if (proc) {
     try {
       proc.kill("SIGTERM");
@@ -460,21 +740,28 @@ ipcMain.on("terminal:kill", (event, id) => {
 });
 
 ipcMain.on("terminal:input", (_event, payload) => {
-  const id = payload?.id;
+  let id = null;
+  try {
+    id = assertTerminalId(payload?.id);
+  } catch {
+    return;
+  }
+
   const input = payload?.input;
-  if (typeof id !== "number") return;
   const proc = activeProcesses.get(id);
   if (!proc || proc.killed) return;
   try {
     const text = String(input ?? "");
-    if (text.length === 0) return;
+    if (text.length === 0 || byteLength(text) > MAX_TERMINAL_INPUT_LENGTH) return;
     proc.stdin?.write(text);
   } catch {}
 });
 
-// ── App lifecycle ──────────────────────────────────────────────────────────
+// App lifecycle
 
 app.whenReady().then(() => {
+  configureSessionSecurity();
+  registerWebContentsGuards();
   createWindow();
 
   app.on("activate", () => {

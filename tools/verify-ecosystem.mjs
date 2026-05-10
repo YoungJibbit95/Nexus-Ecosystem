@@ -245,6 +245,36 @@ const run = async () => {
       pattern: /\*\*\/\*\.AppImage[\s\S]*?\*\*\/\*\.deb/,
       message: 'Installer-Workflow laedt Linux AppImage/deb Artefakte hoch',
     },
+    {
+      id: 'code-electron-secure-webprefs',
+      file: path.join(ROOT, 'Nexus Code/electron/main.cjs'),
+      pattern: /contextIsolation:\s*true[\s\S]*?nodeIntegration:\s*false[\s\S]*?sandbox:\s*true[\s\S]*?webSecurity:\s*true[\s\S]*?allowRunningInsecureContent:\s*false[\s\S]*?webviewTag:\s*false/,
+      message: 'Nexus Code Electron Window nutzt sichere WebPreferences',
+    },
+    {
+      id: 'code-electron-workspace-fs-sandbox',
+      file: path.join(ROOT, 'Nexus Code/electron/main.cjs'),
+      pattern: /MAX_FILE_BYTES[\s\S]*?MAX_WRITE_BYTES[\s\S]*?allowedWorkspaceRoots[\s\S]*?registerWorkspaceRoot[\s\S]*?resolveWorkspacePath[\s\S]*?resolveWritableWorkspacePath/,
+      message: 'Nexus Code begrenzt Datei-IPC auf ausgewaehlte Workspace Roots',
+    },
+    {
+      id: 'code-electron-terminal-sandbox',
+      file: path.join(ROOT, 'Nexus Code/electron/main.cjs'),
+      pattern: /MAX_TERMINAL_SESSIONS[\s\S]*?DANGEROUS_TERMINAL_PATTERNS[\s\S]*?isBlockedDangerousTerminalCommand[\s\S]*?resolveTerminalWorkingDirectory[\s\S]*?payload\.cwd/,
+      message: 'Nexus Code Terminal-IPC hat Workspace-CWD, Session-Limit und Blocklist',
+    },
+    {
+      id: 'code-electron-navigation-guards',
+      file: path.join(ROOT, 'Nexus Code/electron/main.cjs'),
+      pattern: /isExternalHttpUrl[\s\S]*?setPermissionRequestHandler[\s\S]*?setPermissionCheckHandler[\s\S]*?will-attach-webview/,
+      message: 'Nexus Code blockt Permissions, Webviews und unsichere Navigation',
+    },
+    {
+      id: 'code-electron-preload-validation',
+      file: path.join(ROOT, 'Nexus Code/electron/preload.cjs'),
+      pattern: /sanitizePath[\s\S]*?sanitizeTerminalId[\s\S]*?sanitizeText[\s\S]*?terminalChannel/,
+      message: 'Nexus Code Preload validiert Pfade, Payloads und Terminal Channels',
+    },
   ]
 
   if (CONTROL_UI_PRESENT) {

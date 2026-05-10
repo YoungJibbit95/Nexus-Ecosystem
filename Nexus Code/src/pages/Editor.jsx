@@ -1,5 +1,5 @@
 import React, { Suspense, useState, useEffect, useCallback, useRef } from "react";
-import { AlertTriangle, RotateCcw, AlertCircle } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 import TitleBar from "../components/editor/TitleBar";
 import Sidebar from "../components/editor/Sidebar";
 import FileExplorer from "../components/editor/FileExplorer";

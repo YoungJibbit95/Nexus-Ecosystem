@@ -35,6 +35,17 @@ Core alignment goals:
 - reduced local raw animation drift
 - stable packaged-runtime behavior
 
+## Security Boundaries
+
+Nexus Code treats the opened project folder as the local trust boundary.
+
+- Electron runs with `contextIsolation`, `sandbox`, `nodeIntegration: false`, `webSecurity` and blocked WebViews.
+- The renderer can only use the preload bridge; raw Node APIs are not exposed.
+- `openFolder` registers an allowed workspace root, and all file IPC (`read`, `write`, `mkdir`, `delete`, `rename`) is resolved through that root.
+- File reads/writes have bridge-size limits and cannot modify workspace metadata folders like `.git`.
+- The integrated terminal starts only inside a selected workspace root, has a small session cap, validates channel IDs, and blocks network/system configuration plus obvious destructive system commands.
+- Popups, external links and permission prompts are denied by default; production only opens `https:` links externally.
+
 ## Development
 
 Inside app folder:

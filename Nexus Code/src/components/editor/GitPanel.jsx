@@ -2,17 +2,14 @@ import React, { useState, useEffect } from "react";
 import {
   GitBranch,
   GitFork,
-  GitCommit,
   RefreshCw,
   Check,
   Plus,
   Minus,
   ChevronDown,
   Upload,
-  Download,
   AlertCircle,
   Clock,
-  Key,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Octokit } from "octokit";
