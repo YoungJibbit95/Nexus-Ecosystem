@@ -218,17 +218,84 @@ const copyText = async (text: string) => {
   return ok;
 };
 
-const downloadJson = (payload: unknown) => {
+const downloadJson = (payload: unknown, name = "nexus-release-health") => {
   if (typeof document === "undefined") return;
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `nexus-release-health-${new Date().toISOString().slice(0, 10)}.json`;
+  link.download = `${name}-${new Date().toISOString().slice(0, 10)}.json`;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
+};
+
+const bucketNumber = (value: number, buckets: number[]) => {
+  const safeValue = Number.isFinite(value) ? value : 0;
+  const bucket = buckets.find((candidate) => safeValue <= candidate);
+  return bucket ? `<=${bucket}` : `>${buckets[buckets.length - 1]}`;
+};
+
+const collectRuntimeSnapshot = () => {
+  if (typeof window === "undefined" || typeof navigator === "undefined") {
+    return {
+      environment: "server-render",
+      platform: "unknown",
+      language: "unknown",
+      online: false,
+      viewport: {
+        widthBucket: "unknown",
+        heightBucket: "unknown",
+        pixelRatioBucket: "unknown",
+      },
+      hardware: {
+        coresBucket: "unknown",
+        memoryBucket: "unknown",
+        reducedMotion: false,
+      },
+      storage: { knownKeysPresent: [], nexusKeyCount: 0 },
+    };
+  }
+
+  const knownKeys = [
+    RELEASE_HEALTH_STORAGE_KEY,
+    "nx-main-walkthrough-v2",
+    "nx-theme-store-v6",
+    "nx-app-store-v6",
+    "nx-workspace-store-v6",
+  ];
+  const localStorageKeys = (() => {
+    try {
+      return Array.from({ length: window.localStorage.length }, (_, index) => window.localStorage.key(index) || "")
+        .filter(Boolean)
+        .filter((key) => key.startsWith("nx-"));
+    } catch {
+      return [];
+    }
+  })();
+
+  return {
+    environment: "renderer",
+    platform: navigator.platform || "unknown",
+    language: navigator.language || "unknown",
+    online: navigator.onLine,
+    viewport: {
+      widthBucket: bucketNumber(window.innerWidth, [720, 1024, 1440, 1920]),
+      heightBucket: bucketNumber(window.innerHeight, [640, 900, 1200]),
+      pixelRatioBucket: bucketNumber(window.devicePixelRatio || 1, [1, 1.5, 2, 3]),
+    },
+    hardware: {
+      coresBucket: bucketNumber(Number(navigator.hardwareConcurrency || 0), [2, 4, 8, 12]),
+      memoryBucket: bucketNumber(Number((navigator as any).deviceMemory || 0), [2, 4, 8, 16]),
+      reducedMotion: window.matchMedia?.("(prefers-reduced-motion: reduce)").matches || false,
+    },
+    storage: {
+      knownKeysPresent: knownKeys.filter((key) => localStorageKeys.includes(key)),
+      nexusKeyCount: localStorageKeys.length,
+      valuesExported: false,
+    },
+  };
 };
 
 const statusCardStyle = (rgb: string): React.CSSProperties => ({
@@ -261,6 +328,7 @@ export function ReleaseHealthDashboard() {
   const rgb2 = hexToRgb(t.accent2);
   const [checkedIds, setCheckedIds] = useState(() => readCheckedIds());
   const [copied, setCopied] = useState(false);
+  const [supportCopied, setSupportCopied] = useState(false);
 
   const completedChecks = RELEASE_CHECKS.filter((item) => checkedIds.has(item.id));
   const openChecks = RELEASE_CHECKS.filter((item) => !checkedIds.has(item.id));
@@ -281,6 +349,7 @@ export function ReleaseHealthDashboard() {
       })),
     [],
   );
+  const runtimeSnapshot = useMemo(() => collectRuntimeSnapshot(), []);
 
   const snapshot = useMemo(
     () => ({
@@ -305,6 +374,40 @@ export function ReleaseHealthDashboard() {
     [completedChecks, openBlockers, openChecks, openEvidence, openRequired, score, viewSummary],
   );
 
+  const supportBundle = useMemo(
+    () => ({
+      kind: "nexus-redacted-support-diagnostics",
+      app: "Nexus Main",
+      version: APP_VERSION,
+      generatedAt: new Date().toISOString(),
+      privacy: {
+        redacted: true,
+        includesSecrets: false,
+        includesNoteContent: false,
+        includesFilePaths: false,
+        includesLocalStorageValues: false,
+      },
+      runtime: runtimeSnapshot,
+      releaseHealth: {
+        score,
+        openBlockers,
+        openRequired,
+        openEvidence,
+        completedCount: completedChecks.length,
+        totalCount: RELEASE_CHECKS.length,
+      },
+      openChecks: openChecks.map((item) => ({
+        id: item.id,
+        group: item.group,
+        severity: item.severity,
+        title: item.title,
+      })),
+      viewMap: viewSummary,
+      gateCommands: COMMANDS,
+    }),
+    [completedChecks.length, openBlockers, openChecks, openEvidence, openRequired, runtimeSnapshot, score, viewSummary],
+  );
+
   const markdownReport = useMemo(() => {
     const lines = [
       `# Nexus v6 Release Health`,
@@ -325,6 +428,32 @@ export function ReleaseHealthDashboard() {
     return lines.join("\n");
   }, [completedChecks.length, openBlockers, openChecks, openEvidence, openRequired, score]);
 
+  const supportMarkdown = useMemo(() => {
+    const lines = [
+      `# Nexus Support Diagnostics`,
+      ``,
+      `- App: Nexus Main ${APP_VERSION}`,
+      `- Generated: ${supportBundle.generatedAt}`,
+      `- Privacy: redacted, no secrets, no note content, no file paths, no localStorage values`,
+      `- Platform: ${supportBundle.runtime.platform || "unknown"}`,
+      `- Online: ${supportBundle.runtime.online ? "yes" : "no"}`,
+      `- Viewport: ${supportBundle.runtime.viewport?.widthBucket || "unknown"} x ${supportBundle.runtime.viewport?.heightBucket || "unknown"}`,
+      `- Release score: ${score}%`,
+      `- Open blockers: ${openBlockers}`,
+      `- Open required: ${openRequired}`,
+      ``,
+      `## What changed?`,
+      `Describe the user-visible problem, the view, and the exact click/input sequence here.`,
+      ``,
+      `## Open checks`,
+      ...openChecks.map((item) => `- [${severityLabel[item.severity]}] ${item.title}`),
+      ``,
+      `## Local gates to attach`,
+      ...COMMANDS.map((command) => `- \`${command}\``),
+    ];
+    return lines.join("\n");
+  }, [openBlockers, openChecks, openRequired, score, supportBundle]);
+
   const toggleCheck = (id: string) => {
     const next = new Set(checkedIds);
     if (next.has(id)) next.delete(id);
@@ -344,6 +473,14 @@ export function ReleaseHealthDashboard() {
       if (!ok) return;
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1400);
+    });
+  };
+
+  const copySupportIssue = () => {
+    void copyText(supportMarkdown).then((ok) => {
+      if (!ok) return;
+      setSupportCopied(true);
+      window.setTimeout(() => setSupportCopied(false), 1400);
     });
   };
 
@@ -421,9 +558,17 @@ export function ReleaseHealthDashboard() {
                   {copied ? <CheckCircle2 size={14} /> : <Copy size={14} />}
                   {copied ? "Copied" : "Copy report"}
                 </button>
-                <button onClick={() => downloadJson(snapshot)} style={smallButton(false, rgb)}>
+                <button onClick={copySupportIssue} style={smallButton(supportCopied, rgb)}>
+                  {supportCopied ? <CheckCircle2 size={14} /> : <ClipboardCheck size={14} />}
+                  {supportCopied ? "Issue copied" : "Issue report"}
+                </button>
+                <button onClick={() => downloadJson(snapshot, "nexus-release-health")} style={smallButton(false, rgb)}>
                   <Download size={14} />
-                  JSON
+                  Release JSON
+                </button>
+                <button onClick={() => downloadJson(supportBundle, "nexus-support-diagnostics-redacted")} style={smallButton(false, rgb)}>
+                  <ShieldCheck size={14} />
+                  Support JSON
                 </button>
                 <button
                   onClick={() => window.open("https://youngjibbit95.github.io/Nexus-Ecosystem/", "_blank", "noopener,noreferrer")}

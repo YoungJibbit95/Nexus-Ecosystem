@@ -478,7 +478,7 @@ export const englishEntryTranslations = {
       ['3. Reuse output', 'Copy CSS/Tailwind snippets into the target project.'],
       ['4. Check release state', 'Use the Release tab to close blockers, required checks, evidence and gate commands in one focused RC pass.'],
     ]),
-    points: ['Explorer allows new files, rename and delete.', 'Editor supports tab indentation and language-specific colors.', 'Calculator covers spacing/color/typography/layout/animation calculations.', 'Release Health shows API/auth, view smokes, packaging, signing, security and evidence in one persistent checklist.'],
+    points: ['Explorer allows new files, rename and delete.', 'Editor supports tab indentation and language-specific colors.', 'Calculator covers spacing/color/typography/layout/animation calculations.', 'Release Health shows API/auth, view smokes, packaging, signing, security and evidence in one persistent checklist.', 'Support Diagnostics exports redacted runtime and RC signals without secrets, content, file paths or localStorage values.'],
   },
   'main-info-view-guide': {
     title: 'Nexus Main: InfoView Guide',

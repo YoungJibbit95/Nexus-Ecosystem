@@ -6,7 +6,7 @@ Arbeitsstand nach Start der Abarbeitung:
 
 - P0 Build-Basis fuer Main, Mobile, Nexus Code und Code Mobile ist repariert und erneut verifiziert.
 - Website API Integration ist Node/tsx-sicher repariert und besteht.
-- `verify:single-react`, `verify:encoding` und `verify:ecosystem` bestehen; Ecosystem-Gate meldet 49/49 Checks.
+- `verify:single-react`, `verify:encoding` und `verify:ecosystem` bestehen; Ecosystem-Gate meldet 50/50 Checks.
 - Erste UI-Shell-Konsolidierung fuer Nexus Main ist umgesetzt: Main nutzt `MainShellLayout`/`MainViewHost`, View Error Boundaries sitzen im Host, der alte Inline-Shell-Block ist entfernt, und Boot-/View-Konstanten liegen wieder in `mainAppConfig.ts`.
 - `packages/nexus-core` hat ein erstes View Manifest v2 fuer alle Kernviews inklusive Actions, Panels, Responsive Modes, Status-Signalen und ableitbarer Command Registry.
 - `packages/nexus-core` hat ein eigenes Package-Gate mit Typecheck, Manifest-Test und Build-Script.
@@ -41,7 +41,7 @@ Arbeitsstand nach Start der Abarbeitung:
 - Lokale Evidence nach Nexus-Code-Security-Pass: `node --check` fuer Main/Preload, `npm --prefix "Nexus Code" run lint`, `npm run verify:encoding`, `npm run verify:ecosystem`, `npm run release:gate -- --fast` und `npm --prefix "Nexus Code" run build` bestehen.
 - Signing/Notarization ist fuer den naechsten RC vorbereitet: Main/Code nutzen macOS Hardened Runtime mit Entitlements, der Installer-Workflow hat ein Signing-Secret-Gate, macOS-Notarization via `notarytool`/`stapler`, SHA256SUMS Uploads und `tools/verify-signing-env.mjs`.
 - Lokale Evidence nach Signing-Pass: `npm run verify:signing`, `npm run verify:ecosystem`, `npm run release:gate -- --fast`, `npm --prefix "Nexus Main" run build`, `npm --prefix "Nexus Code" run build`, `npm --prefix "Nexus Wiki" run build:ci` und ein Temp-Smoke fuer `tools/generate-installer-checksums.mjs` bestehen.
-- DevTools hat jetzt ein eigenes Release Health Dashboard: API/Auth, View-Smokes, Packaging, Signing, Security und Evidence sind als persistente Checkliste, Score-Karten, Runtime-View-Map, Gate-Kommandos, Markdown-Report und JSON-Export direkt in Nexus Main sichtbar.
+- DevTools hat jetzt ein eigenes Release Health Dashboard: API/Auth, View-Smokes, Packaging, Signing, Security und Evidence sind als persistente Checkliste, Score-Karten, Runtime-View-Map, Gate-Kommandos, Markdown-Report sowie redigierter Support-Diagnostics-Export direkt in Nexus Main sichtbar.
 
 Scope dieser Analyse:
 
@@ -839,15 +839,17 @@ Fertigstellen:
    - Notes/Tasks/Canvas kurz initialisieren
    - API Login optional verbinden
 
-3. Diagnose-Export fuer Support.
+3. ~~Diagnose-Export fuer Support.~~
 
-   Ein Button erzeugt ein redigiertes Paket:
+   Erledigt: DevTools Release Health erzeugt ein redigiertes Support-Diagnostics-Bundle und eine kopierbare Issue-Vorlage. Es exportiert keine Secrets, keine Note-Inhalte, keine Dateipfade und keine LocalStorage-Werte.
+
+   Enthalten sind:
 
    - App Version
-   - Runtime Status
-   - Feature Catalog Version
-   - View Validation Result
-   - letzte Fehler ohne Secrets
+   - Runtime-/Renderer-Status als grobe Buckets
+   - Release Health Score und offene Checks
+   - Runtime View Map
+   - Gate-Kommandos fuer Reproduktion
 
 4. Staging/Canary Channel.
 
