@@ -148,8 +148,10 @@
     "mac": {
       "icon": "assets/icons/NexusCodeLogo.icns",
       "category": "public.app-category.developer-tools",
-      "hardenedRuntime": false,
+      "hardenedRuntime": true,
       "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist",
       "target": [
         {
           "target": "dmg",

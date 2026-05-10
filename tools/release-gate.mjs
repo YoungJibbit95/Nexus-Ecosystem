@@ -17,6 +17,7 @@ const skipWebsite = args.has('--skip-website')
 const skipApps = args.has('--skip-apps')
 const skipWiki = args.has('--skip-wiki')
 const withApiContract = args.has('--with-api-contract')
+const signingRequired = args.has('--signing-required')
 
 const sibling = (name) => path.join(WORKSPACE, name)
 const hasPackage = (dir) => existsSync(path.join(dir, 'package.json'))
@@ -36,6 +37,15 @@ const steps = [
     name: 'ecosystem contracts',
     cwd: ROOT,
     command: [npmBin, ['run', 'verify:ecosystem']],
+  },
+  {
+    name: signingRequired ? 'signing environment (required)' : 'signing environment (optional)',
+    cwd: ROOT,
+    command: [
+      npmBin,
+      ['run', signingRequired ? 'verify:signing:required' : 'verify:signing'],
+    ],
+    optional: !signingRequired,
   },
   {
     name: 'nexus-core package gate',

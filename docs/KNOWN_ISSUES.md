@@ -10,7 +10,7 @@ Dieses Dokument ist die ehrliche RC-Liste. Alles hier ist entweder ein bewusst a
 | --- | --- | --- | --- |
 | API Contract/Attack Tests | Teilweise | Node Attack Smoke ist gruen und das NexusAPI CI-Gate ist in `0428020` erweitert, aber Hosted API kann funktional laufen, ohne dass ein konkreter GitHub-/Staging-Run als Evidence dokumentiert ist. | `Control Plane Release Gate` auf GitHub pruefen und `npm run release:gate -- --with-api-contract` gegen Staging/Hosted ausfuehren. |
 | View-Smoke Evidence | Offen | Builds koennen gruen sein, obwohl einzelne Views visuell oder interaktiv brechen. | `docs/VIEW_SMOKE_MATRIX.md` pro View abarbeiten und Evidence unter `docs/release-evidence/<version>/` speichern. |
-| Signing/Notarization | Offen | macOS/Windows/Android Artefakte sind ohne finale Signatur nicht public-release-faehig. | Signatur-Runbook finalisieren, Secrets in CI setzen, Installer auf sauberem System smoke-testen. |
+| Signing/Notarization | Teilweise | Signing-Gate, macOS Hardened Runtime/Entitlements, Notarytool-Pfad und Checksums sind vorbereitet; echte Secrets und erfolgreiche Public-Runner-Evidence fehlen noch. | GitHub Secrets setzen, `Build Electron Installers` mit `signing_required=true`/`notarize_macos=true` laufen lassen und Evidence speichern. |
 
 ## Bekannte Release-Einschraenkungen
 
@@ -35,4 +35,5 @@ Dieses Dokument ist die ehrliche RC-Liste. Alles hier ist entweder ein bewusst a
 - `docs/RELEASE_READY_CHECKLIST.md`
 - `docs/VIEW_SMOKE_MATRIX.md`
 - `docs/RELEASE_EVIDENCE_GUIDE.md`
+- `docs/SIGNING_AND_NOTARIZATION.md`
 - `docs/NEXUS_COMPLETION_PLAN.md`

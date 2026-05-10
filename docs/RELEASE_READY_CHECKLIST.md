@@ -78,3 +78,12 @@ server paths under `/downloads/...`.
 - Account persistence uses explicit remember-me behavior and never stores raw passwords client-side.
 - Nexus Code Electron file/terminal IPC stays restricted to user-selected workspace roots.
 - Nexus Code external navigation, WebViews and permission prompts are denied by default.
+
+## Signing Gate
+
+- `npm run verify:signing` is warning-only for internal RC checks.
+- Public installer runs use `NEXUS_SIGNING_REQUIRED=true` or workflow input `signing_required=true`.
+- macOS public installer runs use `NEXUS_MAC_NOTARIZE=true` or workflow input `notarize_macos=true`.
+- Main and Code macOS configs keep Hardened Runtime enabled with `build/entitlements.mac.plist`.
+- `SHA256SUMS.txt` is generated and uploaded with every installer artifact set.
+- See `docs/SIGNING_AND_NOTARIZATION.md` before publishing public binaries.

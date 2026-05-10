@@ -246,6 +246,36 @@ const run = async () => {
       message: 'Installer-Workflow laedt Linux AppImage/deb Artefakte hoch',
     },
     {
+      id: 'installer-workflow-signing-gate',
+      file: path.join(ROOT, '.github/workflows/build-installers.yml'),
+      pattern: /signing_required[\s\S]*?Verify signing configuration[\s\S]*?verify-signing-env\.mjs[\s\S]*?NEXUS_SIGNING_REQUIRED/,
+      message: 'Installer-Workflow prueft Signing-Secrets vor Public Release Builds',
+    },
+    {
+      id: 'installer-workflow-checksums',
+      file: path.join(ROOT, '.github/workflows/build-installers.yml'),
+      pattern: /Generate checksums[\s\S]*?generate-installer-checksums\.mjs[\s\S]*?upload-artifact[\s\S]*?SHA256SUMS\.txt/,
+      message: 'Installer-Workflow erzeugt SHA256SUMS fuer Download-Artefakte',
+    },
+    {
+      id: 'mac-pack-notarization',
+      file: path.join(ROOT, 'tools/electron-pack-mac.mjs'),
+      pattern: /NEXUS_MAC_NOTARIZE[\s\S]*?notarytool[\s\S]*?stapler[\s\S]*?staple/,
+      message: 'macOS Pack-Script kann DMGs notarizen und staplen',
+    },
+    {
+      id: 'signing-env-verifier',
+      file: path.join(ROOT, 'tools/verify-signing-env.mjs'),
+      pattern: /MAC_CSC_LINK[\s\S]*?APPLE_TEAM_ID[\s\S]*?WIN_CSC_LINK[\s\S]*?ANDROID_KEYSTORE_BASE64/,
+      message: 'Signing-Env-Verifier deckt macOS, Windows und Android Secrets ab',
+    },
+    {
+      id: 'wiki-signing-runbook-entry',
+      file: path.join(ROOT, 'Nexus Wiki/src/data/wikiEntriesPrimary.ts'),
+      pattern: /release-signing-notarization[\s\S]*?Signing und Notarization Runbook[\s\S]*?docs\/SIGNING_AND_NOTARIZATION\.md/,
+      message: 'Nexus Wiki enthaelt Signing/Notarization Runbook',
+    },
+    {
       id: 'code-electron-secure-webprefs',
       file: path.join(ROOT, 'Nexus Code/electron/main.cjs'),
       pattern: /contextIsolation:\s*true[\s\S]*?nodeIntegration:\s*false[\s\S]*?sandbox:\s*true[\s\S]*?webSecurity:\s*true[\s\S]*?allowRunningInsecureContent:\s*false[\s\S]*?webviewTag:\s*false/,
@@ -385,6 +415,19 @@ const run = async () => {
       details: mainHasLinuxIcons ? 'assets/icons/{16,32,48,64,128,256,512}x*.png' : 'missing linux icon set',
     },
     {
+      id: 'main-mac-signing-config',
+      ok:
+        mainPackage?.build?.mac?.hardenedRuntime === true &&
+        mainPackage?.build?.mac?.entitlements === 'build/entitlements.mac.plist' &&
+        mainPackage?.build?.mac?.entitlementsInherit === 'build/entitlements.mac.plist' &&
+        (await exists(path.join(ROOT, 'Nexus Main/build/entitlements.mac.plist'))),
+      message: 'Nexus Main macOS Build nutzt Hardened Runtime und Entitlements',
+      details: JSON.stringify({
+        hardenedRuntime: mainPackage?.build?.mac?.hardenedRuntime,
+        entitlements: mainPackage?.build?.mac?.entitlements,
+      }),
+    },
+    {
       id: 'code-electron-build-scripts',
       ok:
         codePackage?.scripts?.['electron:build'] === 'npm run electron:build:host' &&
@@ -424,6 +467,19 @@ const run = async () => {
       ok: codeHasLinuxIcons,
       message: 'Nexus Code hat PNG-Icons fuer Linux/AppImage',
       details: codeHasLinuxIcons ? 'assets/icons/{16,32,48,64,128,256,512}x*.png' : 'missing linux icon set',
+    },
+    {
+      id: 'code-mac-signing-config',
+      ok:
+        codePackage?.build?.mac?.hardenedRuntime === true &&
+        codePackage?.build?.mac?.entitlements === 'build/entitlements.mac.plist' &&
+        codePackage?.build?.mac?.entitlementsInherit === 'build/entitlements.mac.plist' &&
+        (await exists(path.join(ROOT, 'Nexus Code/build/entitlements.mac.plist'))),
+      message: 'Nexus Code macOS Build nutzt Hardened Runtime und Entitlements',
+      details: JSON.stringify({
+        hardenedRuntime: codePackage?.build?.mac?.hardenedRuntime,
+        entitlements: codePackage?.build?.mac?.entitlements,
+      }),
     },
   ]
 
