@@ -6,7 +6,7 @@ Arbeitsstand nach Start der Abarbeitung:
 
 - P0 Build-Basis fuer Main, Mobile, Nexus Code und Code Mobile ist repariert und erneut verifiziert.
 - Website API Integration ist Node/tsx-sicher repariert und besteht.
-- `verify:single-react`, `verify:encoding` und `verify:ecosystem` bestehen; Ecosystem-Gate meldet 51/51 Checks.
+- `verify:single-react`, `verify:encoding` und `verify:ecosystem` bestehen; Ecosystem-Gate meldet 53/53 Checks.
 - Erste UI-Shell-Konsolidierung fuer Nexus Main ist umgesetzt: Main nutzt `MainShellLayout`/`MainViewHost`, View Error Boundaries sitzen im Host, der alte Inline-Shell-Block ist entfernt, und Boot-/View-Konstanten liegen wieder in `mainAppConfig.ts`.
 - `packages/nexus-core` hat ein erstes View Manifest v2 fuer alle Kernviews inklusive Actions, Panels, Responsive Modes, Status-Signalen und ableitbarer Command Registry.
 - `packages/nexus-core` hat ein eigenes Package-Gate mit Typecheck, Manifest-Test und Build-Script.
@@ -43,6 +43,7 @@ Arbeitsstand nach Start der Abarbeitung:
 - Lokale Evidence nach Signing-Pass: `npm run verify:signing`, `npm run verify:ecosystem`, `npm run release:gate -- --fast`, `npm --prefix "Nexus Main" run build`, `npm --prefix "Nexus Code" run build`, `npm --prefix "Nexus Wiki" run build:ci` und ein Temp-Smoke fuer `tools/generate-installer-checksums.mjs` bestehen.
 - DevTools hat jetzt ein eigenes Release Health Dashboard: API/Auth, View-Smokes, Packaging, Signing, Security und Evidence sind als persistente Checkliste, Score-Karten, Runtime-View-Map, Gate-Kommandos, Markdown-Report sowie redigierter Support-Diagnostics-Export direkt in Nexus Main sichtbar.
 - Gefuehrtes Onboarding ist ausgebaut: Der First-Start-Walkthrough hat eine persistente Setup-Checkliste fuer Website-Account, App-Login/Remember-Me, Workspace-Ordner, Import, erste Note, Task/Reminder, Canvas-Hub und InfoView.
+- Runtime Channel Guardrails sind im Client angelegt: Stable nutzt canonical Production API, Canary/Dev sind nur in Dev/Admin-Override-Kontext sichtbar, der Bootflow nutzt denselben Channel fuer Catalog/Layout/Release und Release Health zeigt Channel/API/Warnungen.
 
 Scope dieser Analyse:
 
@@ -860,9 +861,12 @@ Fertigstellen:
 
 4. Staging/Canary Channel.
 
+   Client-Grundstein erledigt: `resolveMainRuntimeChannelConfig` trennt Stable, Canary und Dev, blockt lokale Overrides ausserhalb von Dev/Admin-Kontext, markiert Canary als signed-manifest-pflichtig und gibt Channel/API im Bootflow sowie Release Health sichtbar aus.
+
    - Stable: nur canonical production API.
    - Canary: explizite Staging API per signiertem Manifest.
    - Dev: local API erlaubt, aber sichtbar markiert.
+   - Offen fuer Public RC: Signaturpruefung des Canary-Manifests server-/control-seitig hart erzwingen und als Evidence dokumentieren.
 
 5. Template Packs.
 

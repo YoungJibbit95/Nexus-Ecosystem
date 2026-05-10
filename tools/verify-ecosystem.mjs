@@ -308,7 +308,7 @@ const run = async () => {
     {
       id: 'main-devtools-release-health-dashboard',
       file: path.join(ROOT, 'Nexus Main/src/views/devtools/ReleaseHealthDashboard.tsx'),
-      pattern: /RELEASE_HEALTH_STORAGE_KEY[\s\S]*?release:gate -- --signing-required[\s\S]*?VIEW_IDS[\s\S]*?CONTROL_API_BASE_URL/,
+      pattern: /RELEASE_HEALTH_STORAGE_KEY[\s\S]*?release:gate -- --signing-required[\s\S]*?resolveMainRuntimeChannelConfig[\s\S]*?VIEW_IDS/,
       message: 'Nexus Main DevTools hat Release Health Dashboard',
     },
     {
@@ -328,6 +328,18 @@ const run = async () => {
       file: path.join(ROOT, 'Nexus Main/src/components/WelcomeWalkthrough.tsx'),
       pattern: /WALKTHROUGH_SETUP_STORAGE_KEY[\s\S]*?Account auf der Website erstellen[\s\S]*?Workspace-Ordner festlegen[\s\S]*?Erste Projekt-Note schreiben[\s\S]*?Canvas-Hub[\s\S]*?Start-Checkliste/,
       message: 'Nexus Main hat gefuehrtes First-Start-Onboarding mit Setup-Checkliste',
+    },
+    {
+      id: 'main-runtime-channel-config',
+      file: path.join(ROOT, 'Nexus Main/src/app/mainAppConfig.ts'),
+      pattern: /MAIN_RUNTIME_CHANNEL_STORAGE_KEY[\s\S]*?MainRuntimeChannel[\s\S]*?production[\s\S]*?canary[\s\S]*?dev[\s\S]*?requiresSignedManifest/,
+      message: 'Nexus Main hat Stable/Canary/Dev Runtime Channel Konfiguration',
+    },
+    {
+      id: 'main-runtime-channel-bootstrap',
+      file: path.join(ROOT, 'Nexus Main/src/App.tsx'),
+      pattern: /resolveMainRuntimeChannelConfig[\s\S]*?runtimeChannel[\s\S]*?liveSync:[\s\S]*?channel:\s*runtimeChannel[\s\S]*?fetchCatalog\(\{[\s\S]*?channel:\s*runtimeChannel[\s\S]*?fetchCurrentRelease/,
+      message: 'Nexus Main Bootflow nutzt sichtbaren Runtime Channel fuer Live Sync und API Bootstrap',
     },
   ]
 

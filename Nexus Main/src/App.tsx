@@ -41,7 +41,6 @@ import {
 import { MainShellLayout } from "./app/MainShellLayout";
 import { MainViewHost } from "./app/mainViewHost";
 import {
-  CONTROL_API_BASE_URL as DEFAULT_CONTROL_API_BASE_URL,
   MAIN_BOOT_PRELOAD_TIMEOUT_LOW_POWER_MS,
   MAIN_BOOT_PRELOAD_TIMEOUT_MS,
   MAIN_BOOT_PRIORITY_VIEWS,
@@ -55,21 +54,11 @@ import {
   isLowPowerDevice,
   isOfflineBootstrapResourceError,
   mergeUniqueViews,
+  resolveMainRuntimeChannelConfig,
   withTimeoutResult,
   withDevDiagnosticsView,
 } from "./app/mainAppConfig";
 import { isMainDiagnosticsEnabled } from "./app/mainViewRegistry";
-
-const resolveControlApiBaseUrl = () => {
-  const env = (import.meta as any).env || {};
-  const raw = String(
-    env.VITE_NEXUS_CONTROL_URL ||
-      env.VITE_NEXUS_CONTROL_API_BASE_URL ||
-      env.VITE_CONTROL_API_BASE_URL ||
-      DEFAULT_CONTROL_API_BASE_URL,
-  ).trim();
-  return (raw || DEFAULT_CONTROL_API_BASE_URL).replace(/\/+$/, "");
-};
 
 const resolveControlIngestKey = () => {
   const raw = String(
@@ -354,7 +343,9 @@ export default function App() {
       }) as React.CSSProperties,
     [motionRuntime],
   );
-  const controlApiBaseUrl = useMemo(() => resolveControlApiBaseUrl(), []);
+  const runtimeChannelConfig = useMemo(() => resolveMainRuntimeChannelConfig(), []);
+  const controlApiBaseUrl = runtimeChannelConfig.apiBaseUrl;
+  const runtimeChannel = runtimeChannelConfig.liveSyncChannel;
 
   useEffect(() => {
     setMountedViews((prev) => {
@@ -556,7 +547,7 @@ export default function App() {
       },
       liveSync: {
         enabled: Boolean(controlBaseUrl),
-        channel: "production",
+        channel: runtimeChannel,
         immediate: false,
         onUpdate: (event) => {
           applyLiveBundle(event.bundle);
@@ -637,23 +628,23 @@ export default function App() {
 
     void (async () => {
       try {
-        setBootStep(24, "Lade API Katalog, Layout und Release...");
+        setBootStep(24, `Lade API Katalog, Layout und Release (${runtimeChannelConfig.label})...`);
         const [catalogResult, layoutResult, releaseResult] = await Promise.all([
           runtime.control.fetchCatalog({
             appId: "main",
-            channel: "production",
+            channel: runtimeChannel,
             forceRefresh: false,
             cacheTtlMs: 120_000,
           }),
           runtime.control.fetchLayoutSchema({
             appId: "main",
-            channel: "production",
+            channel: runtimeChannel,
             forceRefresh: false,
             cacheTtlMs: 120_000,
           }),
           runtime.control.fetchCurrentRelease({
             appId: "main",
-            channel: "production",
+            channel: runtimeChannel,
             forceRefresh: false,
             cacheTtlMs: 60_000,
           }),
@@ -685,7 +676,7 @@ export default function App() {
           failedResources.length === 0
             ? {
                 appId: "main",
-                channel: "production",
+                channel: runtimeChannel,
                 catalog: catalogResult.item,
                 layoutSchema: layoutResult.item,
                 release: releaseResult.item,
@@ -825,6 +816,8 @@ export default function App() {
     controlApiBaseUrl,
     lowPowerMode,
     resolveBundleViews,
+    runtimeChannel,
+    runtimeChannelConfig.label,
     storeWarmupAccess,
     viewAccessContext,
   ]);
@@ -1140,8 +1133,17 @@ export default function App() {
                 API: <code>{controlApiBaseUrl}</code>
               </div>
               <div style={{ marginTop: 6 }}>
+                Channel: <code>{runtimeChannelConfig.label}</code>
+                {runtimeChannelConfig.requiresSignedManifest ? " · signed manifest required" : ""}
+              </div>
+              <div style={{ marginTop: 6 }}>
                 Reason: <code>{bootFailure}</code>
               </div>
+              {runtimeChannelConfig.warning ? (
+                <div style={{ marginTop: 8, color: "#fbbf24" }}>
+                  {runtimeChannelConfig.warning}
+                </div>
+              ) : null}
               <div style={{ marginTop: 10, color: "#94a3b8" }}>
                 Kein Offline-Bypass: die App laedt erst weiter, wenn der
                 Hosted-API-Boot erfolgreich ist.

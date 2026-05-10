@@ -18,6 +18,7 @@ Use this before pushing tags, uploading installers, or deploying the VPS stack.
 ## API Data Hygiene
 
 - Production runtime values come from environment variables, service secrets, or the managed database layer only.
+- Nexus Main Stable channel uses the canonical production API; Canary/Dev channel overrides must be visible and limited to dev/admin override context.
 - No local ingest keys, admin passwords, seed tokens, or dev-only user data are committed into release-relevant JSON/dist data.
 - Staging and production datasets are separated and documented before promotion.
 - API release data is regenerated after cleanup and checked before VPS deploy.

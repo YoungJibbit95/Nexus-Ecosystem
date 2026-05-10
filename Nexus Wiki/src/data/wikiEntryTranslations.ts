@@ -47,7 +47,10 @@ export const englishEntryTranslations = {
       'Shared Core orchestrates effective views per app.',
       'Layout profiles control desktop/mobile behavior such as density and navigation.',
       'Compatibility checks block incompatible client versions before rollout.',
+      'Nexus Main separates Stable, Canary and Dev runtime channels and surfaces the active channel in boot/release-health context.',
     ],
+    commands: ['npm run verify:ecosystem', 'Control UI -> Live Sync', 'VITE_NEXUS_RUNTIME_CHANNEL=canary'],
+    tags: ['live-sync', 'catalog', 'schema', 'promotion', 'runtime-channel'],
   },
   'runtime-compatibility': {
     title: 'Compatibility and Version Gates',
