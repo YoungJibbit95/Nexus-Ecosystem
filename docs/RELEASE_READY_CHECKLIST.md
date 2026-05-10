@@ -12,6 +12,7 @@ Use this before pushing tags, uploading installers, or deploying the VPS stack.
 - `Nexus-Ecosystem`: run `npm run release:gate -- --with-api-contract` before a public RC.
 - `Nexus Wiki`: run `npm --prefix "Nexus Wiki" run build:ci`.
 - `nexus-control-plane`: run `cargo fmt --check` and `cargo check` when the Windows MSVC linker is installed.
+- GitHub Actions: `Control Plane Release Gate` in `YoungJibbit95/NexusAPI` must be green for the release commit.
 
 ## API Data Hygiene
 
@@ -19,6 +20,7 @@ Use this before pushing tags, uploading installers, or deploying the VPS stack.
 - No local ingest keys, admin passwords, seed tokens, or dev-only user data are committed into release-relevant JSON/dist data.
 - Staging and production datasets are separated and documented before promotion.
 - API release data is regenerated after cleanup and checked before VPS deploy.
+- `npm --prefix "./API/nexus-control-plane" run verify:release-data` is green locally or in CI.
 - `docs/KNOWN_ISSUES.md` is updated if any data or secret hygiene risk remains accepted for an internal RC.
 
 ## Website Downloads
