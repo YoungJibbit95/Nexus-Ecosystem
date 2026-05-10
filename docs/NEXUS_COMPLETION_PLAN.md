@@ -32,6 +32,7 @@ Arbeitsstand nach Start der Abarbeitung:
 - Settings und Nexus Wiki haben einen v6-Polish-Pass erhalten: neue abwechslungsreiche Theme-Presets, reichere Theme-Library-Cards, sichere `nexus-theme-v6.json` Exporte, aktualisierte Wiki-v6-Labels und neue InfoView-Guide-Tab-Doku.
 - Sichtbare v5-/KI-Platzhalter sind weiter bereinigt: App-Titel, Terminal-Intro, Main-Guides, Architektur-Doc, Paritaetsmatrix, Wiki-README, Canvas Magic und Wiki-Tags sprechen jetzt v6/Project-Brief statt alten v5-/AI-Project-Begriffen.
 - Notes-Starter-Readmes haben einen weiteren Release-Guide-Pass erhalten: neue v6-Release-IDs, mehr Emoji-Struktur, Tabellen, Callouts, Checklisten, Metrics, Steps, Grid, Code-Fence und Magic-Block-Beispiele fuer alle Guide-Notizen.
+- Wiki/Release-Doku wurde fuer Phase 4 verbunden: Release Ready Checklist, Known Issues, Completion Plan und Visual Evidence Guide sind jetzt eigene Wiki-Eintraege; `docs/KNOWN_ISSUES.md` und `docs/RELEASE_EVIDENCE_GUIDE.md` legen RC-Risiken und Screenshot-/Video-Evidence sauber fest.
 - Electron Packaging ist weiter gehaertet: Main/Code haben explizite All-Platform-Installer-Skripte, v6-/versionierte Artefaktnamen, Linux-AppImage-Targets und die Installer-GitHub-Action baut jetzt macOS, Windows und Linux fuer Main und Code.
 
 Scope dieser Analyse:
@@ -65,7 +66,7 @@ Release-Ampel:
 | Nexus Code Mobile | Gelb | Build repariert; Mobile IDE Smoke, Packaging und Artifact-Namen offen. |
 | Nexus Core | Gelb/Gruen | Gemeinsame Runtime ist deutlich reifer: Package-Gate, Layout Schema v2, Panel Engine und Command Registry sind angelegt; view-spezifische Handler bleiben offen. |
 | Nexus API / Control Plane | Gelb | Sicherheitsbaseline stark, aber Release-Daten und Secrets muessen bereinigt werden. |
-| Nexus Wiki | Gruen/Gelb | Build, Budget und i18n bestehen; braucht Release-Links und visuelle QA. |
+| Nexus Wiki | Gruen/Gelb | Build, Budget und i18n bestehen; Release-Links, Known Issues, Checklist und Visual Evidence Guide sind verbunden; echte Browser-/Mobile-QA bleibt offen. |
 | Website | Gruen/Gelb | Build, Budget und API-Integration bestehen; Payment-E2E bleibt bewusst offen. |
 | Gesamt | Gelb fuer RC-Vorbereitung | Build- und Website-P0 geschlossen; RC-Gate ist angelegt, API-Datenhygiene, Smoke-Ausfuehrung und Signing bleiben offen. |
 
@@ -503,14 +504,15 @@ Status:
 - Build erfolgreich.
 - `build:ci` erfolgreich.
 - Perf Budget erfolgreich.
-- i18n Check erfolgreich mit 67 Entries und 67 Translations.
+- i18n Check erfolgreich mit 74 Entries und 74 Translations.
 - Suche und Filter wirken als ernsthafte Docs-Oberflaeche statt als statische Linkliste.
+- Release Ready Checklist, Known Issues, Completion Plan und Visual Evidence Guide sind eigene Wiki-Eintraege.
 
 Fertigstellen:
 
-1. Diese Completion-/Release-Plan-Datei im Wiki verlinken.
-2. Known Issues und Release Checklist als eigene Wiki-Eintraege aufnehmen.
-3. Screenshots oder kurze visuelle Guides fuer Main, Mobile, Code und Control ergaenzen.
+1. ~~Diese Completion-/Release-Plan-Datei im Wiki verlinken.~~ Erledigt: Wiki-Eintrag `release-completion-plan`.
+2. ~~Known Issues und Release Checklist als eigene Wiki-Eintraege aufnehmen.~~ Erledigt: `release-known-issues` und `release-ready-checklist`.
+3. ~~Screenshots oder kurze visuelle Guides fuer Main, Mobile, Code und Control ergaenzen.~~ Erledigt: `release-visual-evidence-guide` plus `docs/RELEASE_EVIDENCE_GUIDE.md`.
 4. Encoding-Artefakte in sichtbaren Texten entfernen.
 5. Mobile Browser Smoke:
 
@@ -882,8 +884,8 @@ Schritte:
 
 1. Website Integrationstest reparieren.
 2. Website Browser-Smoke laufen lassen.
-3. Wiki Known Issues und Release Checklist verlinken.
-4. Screenshots oder kurze visuelle Belege ergaenzen.
+3. ~~Wiki Known Issues und Release Checklist verlinken.~~ Erledigt: neue Wiki-Entries fuer Checklist, Known Issues und Completion Plan.
+4. ~~Screenshots oder kurze visuelle Belege ergaenzen.~~ Erledigt: Visual Evidence Guide definiert Pflichtbelege fuer Main, Mobile, Code, Code Mobile, Control, Website und Wiki.
 5. Build CI fuer beide erneut ausfuehren.
 
 Exit-Kriterium:

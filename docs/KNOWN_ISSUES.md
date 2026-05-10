@@ -1,0 +1,37 @@
+# Nexus v6 Known Issues
+
+Stand: 2026-05-10
+
+Dieses Dokument ist die ehrliche RC-Liste. Alles hier ist entweder ein bewusst akzeptiertes Risiko fuer einen internen RC oder ein Blocker fuer einen oeffentlichen Release.
+
+## Harte RC-Blocker
+
+| Bereich | Status | Risiko | Naechster Schritt |
+| --- | --- | --- | --- |
+| API Release-Daten | Offen | Lokale Seed-/Dev-Daten und Ingest-Key-Platzhalter duerfen nicht in produktive Datensaetze gelangen. | Production-Daten nur aus env/Secret Store laden, Repo-Daten bereinigen, Dist-Daten neu erzeugen. |
+| API Contract/Attack Tests | Offen | Hosted API kann funktional laufen, ohne dass Signed Mutations, Rate Limits und Owner-Gates beweissicher getestet sind. | `npm run release:gate -- --with-api-contract` gegen Staging/Hosted ausfuehren und Ergebnis dokumentieren. |
+| View-Smoke Evidence | Offen | Builds koennen gruen sein, obwohl einzelne Views visuell oder interaktiv brechen. | `docs/VIEW_SMOKE_MATRIX.md` pro View abarbeiten und Evidence unter `docs/release-evidence/<version>/` speichern. |
+| Signing/Notarization | Offen | macOS/Windows/Android Artefakte sind ohne finale Signatur nicht public-release-faehig. | Signatur-Runbook finalisieren, Secrets in CI setzen, Installer auf sauberem System smoke-testen. |
+
+## Bekannte Release-Einschraenkungen
+
+| Bereich | Einschraenkung | Akzeptanz fuer internen RC |
+| --- | --- | --- |
+| Linux Packaging auf Windows | AppImage/deb Builds werden auf Windows ohne Symlink-Rechte bewusst uebersprungen. | Akzeptiert, solange Ubuntu/GitHub Actions die Linux-Artefakte baut. |
+| Live Payment E2E | Live-Zahlungsfluss wird nicht lokal ausgefuehrt. | Akzeptiert nur fuer Test-/Staging-Rollen; public Release braucht Provider-Smoke. |
+| Control UI | Control ist Admin-/Ops-Flaeche und nicht Teil der Product-Page App-Auswahl. | Akzeptiert, wenn Zugriff und Links nur fuer Admin/Ops-Kontext sichtbar sind. |
+| DevTools/Diagnostics | DevTools und Render Diagnostics sind hilfreich, aber fuer normale Nutzer riskant. | Akzeptiert nur, wenn sie in packaged Release durch Developer/Admin-Kontext gegated sind. |
+
+## Doku- und Evidence-Regeln
+
+- Jede bekannte Einschraenkung bekommt einen Eintrag hier oder im RC-Log.
+- Jede View-Smoke-Abweichung bekommt View, Surface, Build-Version, Screenshot/Video und Repro-Schritte.
+- Public Website und Wiki duerfen nur Features versprechen, die durch Build, Smoke oder bewusstes Known-Issue-Label abgedeckt sind.
+- Secrets, konkrete Passwoerter und private Betriebswerte gehoeren nicht in dieses Dokument.
+
+## Verweise
+
+- `docs/RELEASE_READY_CHECKLIST.md`
+- `docs/VIEW_SMOKE_MATRIX.md`
+- `docs/RELEASE_EVIDENCE_GUIDE.md`
+- `docs/NEXUS_COMPLETION_PLAN.md`

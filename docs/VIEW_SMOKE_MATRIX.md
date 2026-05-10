@@ -1,6 +1,6 @@
 # Nexus View Smoke Matrix
 
-Stand: 2026-05-06
+Stand: 2026-05-10
 
 Diese Matrix ist das manuelle Release-Protokoll fuer alle Hauptviews. Sie ersetzt keine Unit-, Contract- oder Build-Tests, sondern beweist kurz vor einem RC, dass die UI wirklich bedienbar ist.
 
@@ -50,3 +50,5 @@ npm run release:gate -- --with-api-contract
 - Screenshots/Videos gehoeren pro RC in `docs/release-evidence/<version>/`.
 - Dateinamen folgen `surface-view-state.ext`, zum Beispiel `main-notes-editor.png` oder `mobile-canvas-zoom.mp4`.
 - Jedes bekannte Risiko wird im RC-Log verlinkt, nicht nur in Chatverlauf oder lokalen Notizen beschrieben.
+- Detailregeln fuer Pflichtbilder, Dateinamen und RC-Log stehen in `docs/RELEASE_EVIDENCE_GUIDE.md`.
+- Offene oder akzeptierte Risiken werden in `docs/KNOWN_ISSUES.md` gespiegelt.
