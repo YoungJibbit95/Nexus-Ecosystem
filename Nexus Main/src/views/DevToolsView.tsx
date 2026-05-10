@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react'
-import { Copy, Check, RefreshCw, Play, Code2, Calculator, Monitor, Tablet, Smartphone, Download, Trash2, Edit3, MoreVertical, Layout, Sliders, Save } from 'lucide-react'
+import { Copy, Check, RefreshCw, Play, Code2, Calculator, Monitor, Tablet, Smartphone, Download, Trash2, Edit3, MoreVertical, Layout, Sliders, Save, Rocket } from 'lucide-react'
 import {
   DEFAULT_DEVTOOLS_WEB_FILES,
   extractDevToolsCodeBundles,
@@ -17,6 +17,7 @@ import { VisualBuilder } from './devtools/VisualBuilder'
 import { DevToolsArtifactLibraryPanel } from './devtools/DevToolsArtifactLibraryPanel'
 import { useDevToolsArtifactLibrary } from './devtools/useDevToolsArtifactLibrary'
 import { DevToolsCalculatorSection } from './devtools/DevToolsCalculatorSection'
+import { ReleaseHealthDashboard } from './devtools/ReleaseHealthDashboard'
 
 // ── useCopy ────────────────────────────────────────────────────────────────
 function useCopy() {
@@ -779,7 +780,7 @@ function WebBuilder() {
 // ── Main ───────────────────────────────────────────────────────────────────
 export function DevToolsView() {
   const t = useTheme()
-  const [tab, setTab]     = useState<'builder'|'calc'>('builder')
+  const [tab, setTab]     = useState<'builder'|'calc'|'release'>('builder')
 
   return (
     <div className="nx-devtools-v6 nx-release-view" style={{ display:'flex',flexDirection:'column',height:'100%',overflow:'hidden' }}>
@@ -787,7 +788,7 @@ export function DevToolsView() {
       <div className="nx-devtools-toolbar nx-release-toolbar" style={{ display:'flex',alignItems:'center',gap:12,padding:'9px 16px',borderBottom:'1px solid rgba(255,255,255,0.07)',flexShrink:0,background:'rgba(0,0,0,0.1)' }}>
         <div>
           <div style={{ fontSize:15,fontWeight:900,background:`linear-gradient(135deg,${t.accent},${t.accent2})`,WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent' }}>🛠️ DevTools</div>
-          <div style={{ fontSize:9,opacity:0.35,marginTop:1,textTransform:'uppercase',letterSpacing:1 }}>Web Builder · Element Designer · Calculator</div>
+          <div style={{ fontSize:9,opacity:0.35,marginTop:1,textTransform:'uppercase',letterSpacing:1 }}>Web Builder · Element Designer · Calculator · Release Health</div>
         </div>
         <div style={{ display:'flex',background:'rgba(255,255,255,0.06)',borderRadius:10,overflow:'hidden',marginLeft:'auto' }}>
           <button onClick={()=>setTab('builder')} style={{ padding:'6px 14px',background:tab==='builder'?t.accent:'transparent',border:'none',cursor:'pointer',fontSize:11,fontWeight:700,color:tab==='builder'?'#fff':'inherit',opacity:tab==='builder'?1:0.55,display:'flex',alignItems:'center',gap:5 }}>
@@ -796,11 +797,14 @@ export function DevToolsView() {
           <button onClick={()=>setTab('calc')} style={{ padding:'6px 14px',background:tab==='calc'?t.accent:'transparent',border:'none',cursor:'pointer',fontSize:11,fontWeight:700,color:tab==='calc'?'#fff':'inherit',opacity:tab==='calc'?1:0.55,display:'flex',alignItems:'center',gap:5 }}>
             <Calculator size={12}/> Calculator
           </button>
+          <button onClick={()=>setTab('release')} style={{ padding:'6px 14px',background:tab==='release'?t.accent:'transparent',border:'none',cursor:'pointer',fontSize:11,fontWeight:700,color:tab==='release'?'#fff':'inherit',opacity:tab==='release'?1:0.55,display:'flex',alignItems:'center',gap:5 }}>
+            <Rocket size={12}/> Release
+          </button>
         </div>
       </div>
 
       <div style={{ flex:1,overflow:'hidden',display:'flex',flexDirection:'column',minHeight:0 }}>
-        {tab==='builder' ? <WebBuilder /> : <DevToolsCalculatorSection />}
+        {tab==='builder' ? <WebBuilder /> : tab==='calc' ? <DevToolsCalculatorSection /> : <ReleaseHealthDashboard />}
       </div>
     </div>
   )

@@ -305,6 +305,18 @@ const run = async () => {
       pattern: /sanitizePath[\s\S]*?sanitizeTerminalId[\s\S]*?sanitizeText[\s\S]*?terminalChannel/,
       message: 'Nexus Code Preload validiert Pfade, Payloads und Terminal Channels',
     },
+    {
+      id: 'main-devtools-release-health-dashboard',
+      file: path.join(ROOT, 'Nexus Main/src/views/devtools/ReleaseHealthDashboard.tsx'),
+      pattern: /RELEASE_HEALTH_STORAGE_KEY[\s\S]*?release:gate -- --signing-required[\s\S]*?VIEW_IDS[\s\S]*?CONTROL_API_BASE_URL/,
+      message: 'Nexus Main DevTools hat Release Health Dashboard',
+    },
+    {
+      id: 'main-devtools-release-health-tab',
+      file: path.join(ROOT, 'Nexus Main/src/views/DevToolsView.tsx'),
+      pattern: /ReleaseHealthDashboard[\s\S]*?'builder'\|'calc'\|'release'[\s\S]*?setTab\('release'\)[\s\S]*?<ReleaseHealthDashboard \/>/,
+      message: 'DevTools verlinkt Release Health Tab',
+    },
   ]
 
   if (CONTROL_UI_PRESENT) {

@@ -471,13 +471,14 @@ export const englishEntryTranslations = {
   },
   'main-devtools-guide': {
     title: 'Nexus Main: DevTools Guide',
-    summary: 'DevTools combines Visual Builder, FS-like editor and UI calculator for quick frontend exploration.',
+    summary: 'DevTools combines Visual Builder, FS-like editor, UI calculator and Release Health for quick frontend and RC work.',
     guide: g([
       ['1. Build structure', 'Edit HTML/CSS/JS base files in the integrated file area.'],
       ['2. Iterate styles', 'Use builder controls for spacing, border, background, glow, blur and typography.'],
       ['3. Reuse output', 'Copy CSS/Tailwind snippets into the target project.'],
+      ['4. Check release state', 'Use the Release tab to close blockers, required checks, evidence and gate commands in one focused RC pass.'],
     ]),
-    points: ['Explorer allows new files, rename and delete.', 'Editor supports tab indentation and language-specific colors.', 'Calculator covers spacing/color/typography/layout/animation calculations.'],
+    points: ['Explorer allows new files, rename and delete.', 'Editor supports tab indentation and language-specific colors.', 'Calculator covers spacing/color/typography/layout/animation calculations.', 'Release Health shows API/auth, view smokes, packaging, signing, security and evidence in one persistent checklist.'],
   },
   'main-info-view-guide': {
     title: 'Nexus Main: InfoView Guide',
