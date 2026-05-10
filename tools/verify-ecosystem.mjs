@@ -317,6 +317,12 @@ const run = async () => {
       pattern: /ReleaseHealthDashboard[\s\S]*?'builder'\|'calc'\|'release'[\s\S]*?setTab\('release'\)[\s\S]*?<ReleaseHealthDashboard \/>/,
       message: 'DevTools verlinkt Release Health Tab',
     },
+    {
+      id: 'main-devtools-support-diagnostics-export',
+      file: path.join(ROOT, 'Nexus Main/src/views/devtools/ReleaseHealthDashboard.tsx'),
+      pattern: /nexus-redacted-support-diagnostics[\s\S]*?includesSecrets:\s*false[\s\S]*?includesLocalStorageValues:\s*false[\s\S]*?nexus-support-diagnostics-redacted/,
+      message: 'DevTools exportiert redigierte Support-Diagnostics ohne Secrets',
+    },
   ]
 
   if (CONTROL_UI_PRESENT) {

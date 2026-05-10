@@ -50,7 +50,7 @@ server paths under `/downloads/...`.
 - Verify that animated UI does not move active click targets during hover, press, drag, or panel transitions.
 - Verify Light Theme text/chrome contrast separately from the dark default.
 - Link any unresolved issue in `docs/KNOWN_ISSUES.md`.
-- Export the DevTools Release Health JSON snapshot if any blocker or required check is accepted for an internal RC.
+- Export the DevTools Release Health JSON snapshot and redacted Support Diagnostics JSON if any blocker or required check is accepted for an internal RC.
 
 ## Public Docs and Wiki
 

@@ -839,9 +839,10 @@ export const wikiEntriesPrimary: WikiEntry[] = [
       'Editor unterstuetzt Tab-Einrueckung und Language-spezifische Farben.',
       'Calculator deckt spacing/color/typography/layout/animation Berechnungen ab.',
       'Release Health zeigt API/Auth, View-Smokes, Packaging, Signing, Security und Evidence in einer persistenten Checkliste.',
+      'Support Diagnostics exportiert redigierte Runtime- und RC-Signale ohne Secrets, Inhalte, Dateipfade oder LocalStorage-Werte.',
     ],
-    commands: ['Copy CSS', 'Copy Tailwind', 'New html/css/js file', 'Copy release report', 'Export release JSON'],
-    tags: ['devtools', 'builder', 'calculator', 'css', 'release-health'],
+    commands: ['Copy CSS', 'Copy Tailwind', 'New html/css/js file', 'Copy release report', 'Export release JSON', 'Export support diagnostics'],
+    tags: ['devtools', 'builder', 'calculator', 'css', 'release-health', 'diagnostics'],
     sources: ['Nexus Main/src/views/DevToolsView.tsx', 'Nexus Main/src/views/devtools/ReleaseHealthDashboard.tsx', 'Nexus Main/src/views/InfoView.tsx'],
   },
   {
