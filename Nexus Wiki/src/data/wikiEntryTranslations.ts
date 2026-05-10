@@ -483,6 +483,16 @@ export const englishEntryTranslations = {
     ]),
     points: ['The setup checklist stores only completed task IDs locally, never account data, passwords, file paths or content.', 'Each checklist item can open the matching view or account page directly.', 'The walkthrough stays beginner-friendly: orient first, then work, then polish.', 'The Ecosystem gate statically checks that guided onboarding remains present.'],
   },
+  'main-template-packs': {
+    title: 'Nexus Main: Template Packs',
+    summary: 'Template Packs are the central starter-kit layer for Notes, Task Boards, Canvas Layouts, Code Snippets and Flux Workflows.',
+    guide: g([
+      ['1. Choose a category', 'Open Info -> Template Packs and switch between Notes, Task Boards, Canvas Layouts, Code Snippets and Flux Workflows.'],
+      ['2. Review the pack', 'Read summary, target view, tier, tags, payload preview and quick start before copying.'],
+      ['3. Reuse the markdown', 'Use Copy Pack Markdown and paste the starter into Notes, Tasks, Canvas, Code or Flux.'],
+    ]),
+    points: ['The catalog lives centrally in Nexus Main/src/app/nexusTemplatePacks.ts and replaces scattered examples with curated starters.', 'InfoView filters packs by category and copies each pack as Markdown.', 'Packs cover Free, Pro and Lifetime Pro contexts without confusing client UX with server-side entitlements.', 'The first-start walkthrough points new users toward Template Packs for faster real workflows.'],
+  },
   'main-devtools-guide': {
     title: 'Nexus Main: DevTools Guide',
     summary: 'DevTools combines Visual Builder, FS-like editor, UI calculator and Release Health for quick frontend and RC work.',

@@ -846,6 +846,32 @@ export const wikiEntriesPrimary: WikiEntry[] = [
     sources: ['Nexus Main/src/components/WelcomeWalkthrough.tsx', 'docs/RELEASE_READY_CHECKLIST.md'],
   },
   {
+    id: 'main-template-packs',
+    title: 'Nexus Main: Template Packs',
+    app: 'main',
+    category: 'workflow',
+    summary:
+      'Template Packs sind die zentrale Starter-Kit-Schicht fuer Notes, Task Boards, Canvas Layouts, Code Snippets und Flux Workflows.',
+    guide: [
+      { title: '1. Kategorie waehlen', detail: 'In Info -> Template Packs zwischen Notes, Task Boards, Canvas Layouts, Code Snippets und Flux Workflows wechseln.' },
+      { title: '2. Passenden Pack pruefen', detail: 'Summary, Ziel-View, Tier, Tags, Payload Preview und Quick Start lesen, bevor du kopierst.' },
+      { title: '3. Markdown uebernehmen', detail: 'Copy Pack Markdown nutzen und den Starter in Notes, Tasks, Canvas, Code oder Flux als Arbeitsbasis einsetzen.' },
+    ],
+    points: [
+      'Der Katalog liegt zentral in Nexus Main/src/app/nexusTemplatePacks.ts und ersetzt verstreute Beispieltexte durch kuratierte Startpunkte.',
+      'InfoView zeigt Packs filterbar nach Kategorie und kopiert jeden Pack als Markdown.',
+      'Die Packs decken Free-, Pro- und Lifetime-Pro-Kontexte ab, ohne Client-Sicherheit mit echten Entitlements zu verwechseln.',
+      'Der First-Start-Walkthrough verweist auf Template Packs, damit neue Nutzer schneller zu einem echten Workflow kommen.',
+    ],
+    commands: ['Info -> Template Packs', 'Copy pack Markdown', 'verify:ecosystem main-template-pack-catalog'],
+    tags: ['templates', 'starter-kits', 'notes', 'tasks', 'canvas', 'code', 'flux'],
+    sources: [
+      'Nexus Main/src/app/nexusTemplatePacks.ts',
+      'Nexus Main/src/views/InfoView.tsx',
+      'Nexus Main/src/components/WelcomeWalkthrough.tsx',
+    ],
+  },
+  {
     id: 'main-devtools-guide',
     title: 'Nexus Main: DevTools Guide',
     app: 'main',

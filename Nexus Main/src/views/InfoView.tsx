@@ -13,6 +13,13 @@ import {
 } from "lucide-react";
 import { useTheme } from "../store/themeStore";
 import {
+  NEXUS_TEMPLATE_PACKS,
+  NEXUS_TEMPLATE_PACK_CATEGORIES,
+  buildNexusTemplatePackMarkdown,
+  type NexusTemplatePackCategory,
+  type NexusTemplatePackItem,
+} from "../app/nexusTemplatePacks";
+import {
   Acc,
   Badge,
   Card,
@@ -601,16 +608,149 @@ function PillButton({
   );
 }
 
+async function writeTextToClipboard(text: string) {
+  if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return true;
+  }
+
+  if (typeof document === "undefined") return false;
+
+  const node = document.createElement("textarea");
+  node.value = text;
+  node.setAttribute("readonly", "true");
+  node.style.position = "fixed";
+  node.style.left = "-9999px";
+  document.body.appendChild(node);
+  node.select();
+  const copied = document.execCommand("copy");
+  document.body.removeChild(node);
+  return copied;
+}
+
+function TemplatePackCard({
+  pack,
+  accent,
+  copied,
+  onCopy,
+}: {
+  pack: NexusTemplatePackItem;
+  accent: string;
+  copied: boolean;
+  onCopy: () => void;
+}) {
+  const accentRgb = hexRgb(accent);
+  const tierLabel = pack.tier.replace("_", " ").toUpperCase();
+
+  return (
+    <div
+      style={{
+        minHeight: 260,
+        borderRadius: 16,
+        border: `1px solid rgba(${accentRgb},0.26)`,
+        background: `radial-gradient(420px circle at 0% 0%, rgba(${accentRgb},0.14), transparent 58%), linear-gradient(135deg, rgba(255,255,255,0.055), rgba(255,255,255,0.02))`,
+        boxShadow: `0 18px 42px rgba(0,0,0,0.14), inset 0 1px 0 rgba(255,255,255,0.06)`,
+        padding: 15,
+        display: "flex",
+        flexDirection: "column",
+        gap: 10,
+      }}
+    >
+      <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 14, fontWeight: 900, color: accent, marginBottom: 3 }}>
+            {pack.title}
+          </div>
+          <div style={{ fontSize: 11, opacity: 0.62 }}>
+            {pack.targetView} starter kit
+          </div>
+        </div>
+        <Badge label={tierLabel} color={accent} />
+      </div>
+      <div style={{ fontSize: 12, lineHeight: 1.58, opacity: 0.76 }}>{pack.summary}</div>
+      <div
+        style={{
+          padding: "9px 10px",
+          borderRadius: 12,
+          background: `rgba(${accentRgb},0.08)`,
+          border: `1px solid rgba(${accentRgb},0.16)`,
+          fontSize: 11,
+          lineHeight: 1.5,
+        }}
+      >
+        <strong style={{ color: accent }}>Best for:</strong> {pack.bestFor}
+      </div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+        {pack.tags.map((tag) => (
+          <span
+            key={tag}
+            style={{
+              borderRadius: 999,
+              border: "1px solid rgba(255,255,255,0.1)",
+              background: "rgba(255,255,255,0.045)",
+              padding: "3px 7px",
+              fontSize: 10,
+              opacity: 0.78,
+            }}
+          >
+            #{tag}
+          </span>
+        ))}
+      </div>
+      <div
+        style={{
+          borderRadius: 12,
+          background: "rgba(0,0,0,0.22)",
+          border: "1px solid rgba(255,255,255,0.08)",
+          padding: "9px 10px",
+          fontFamily: "'Fira Code', monospace",
+          fontSize: 10.5,
+          lineHeight: 1.55,
+          color: `rgba(${accentRgb},0.92)`,
+          whiteSpace: "pre-wrap",
+        }}
+      >
+        {pack.payloadPreview.slice(0, 5).join("\n")}
+      </div>
+      <button
+        type="button"
+        onClick={onCopy}
+        style={{
+          marginTop: "auto",
+          borderRadius: 999,
+          border: `1px solid rgba(${accentRgb},0.34)`,
+          background: copied ? `rgba(${hexRgb("#30d158")},0.16)` : `rgba(${accentRgb},0.13)`,
+          color: copied ? "#30d158" : accent,
+          cursor: "pointer",
+          fontSize: 11,
+          fontWeight: 850,
+          padding: "8px 10px",
+          boxShadow: copied ? "none" : `0 0 28px rgba(${accentRgb},0.12)`,
+        }}
+      >
+        {copied ? "Copied Markdown" : "Copy pack Markdown"}
+      </button>
+      <div style={{ fontSize: 10, opacity: 0.48 }}>
+        Quick start: {pack.quickStart[0]}
+      </div>
+    </div>
+  );
+}
+
 export function InfoView({
   onOpenWalkthrough,
 }: { onOpenWalkthrough?: () => void } = {}) {
   const t = useTheme();
   const rgb = hexRgb(t.accent);
   const [activeGuide, setActiveGuide] = useState(VIEW_DOCS[0].title);
+  const [activeTemplateCategory, setActiveTemplateCategory] =
+    useState<NexusTemplatePackCategory>("notes");
+  const [copiedTemplateId, setCopiedTemplateId] = useState<string | null>(null);
   const [open, setOpen] = useState<Record<string, boolean>>({
     about: true,
     docs: true,
     views: true,
+    templates: true,
     notes: true,
     accounts: true,
     settings: false,
@@ -623,8 +763,21 @@ export function InfoView({
   const viewCount = VIEW_DOCS.length;
   const activeView =
     VIEW_DOCS.find((view) => view.title === activeGuide) ?? VIEW_DOCS[0];
+  const activeTemplateCategoryMeta =
+    NEXUS_TEMPLATE_PACK_CATEGORIES.find((category) => category.id === activeTemplateCategory) ??
+    NEXUS_TEMPLATE_PACK_CATEGORIES[0];
+  const visibleTemplatePacks = useMemo(
+    () => NEXUS_TEMPLATE_PACKS.filter((pack) => pack.category === activeTemplateCategory),
+    [activeTemplateCategory],
+  );
   const tog = (key: string) =>
     setOpen((state) => ({ ...state, [key]: !state[key] }));
+  const copyTemplatePack = async (pack: NexusTemplatePackItem) => {
+    const copied = await writeTextToClipboard(buildNexusTemplatePackMarkdown(pack));
+    if (!copied) return;
+    setCopiedTemplateId(pack.id);
+    window.setTimeout(() => setCopiedTemplateId(null), 1600);
+  };
   const viewDocsText = useMemo(
     () =>
       VIEW_DOCS.map(
@@ -777,6 +930,128 @@ export function InfoView({
               desc="Build, Encoding, Ecosystem Verify, Release Gate und View-Smokes bleiben Teil des Release-Vertrags."
             />
           </Grid2>
+        </Acc>
+
+        <Acc
+          title="Template Packs"
+          icon={GitBranch}
+          open={open.templates}
+          onToggle={() => tog("templates")}
+          badge={`${NEXUS_TEMPLATE_PACKS.length} PACKS`}
+        >
+          <P>
+            Template Packs sind die neue Starter-Kit-Schicht fuer Nexus v6.
+            Statt verstreuter Beispiele findest du hier saubere Startpunkte fuer
+            Notes, Task Boards, Canvas Layouts, Code Snippets und Flux
+            Workflows. Jeder Pack laesst sich als Markdown kopieren und in die
+            passende View uebernehmen.
+          </P>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit,minmax(170px,1fr))",
+              gap: 8,
+              marginBottom: 12,
+            }}
+          >
+            {NEXUS_TEMPLATE_PACK_CATEGORIES.map((category) => {
+              const count = NEXUS_TEMPLATE_PACKS.filter((pack) => pack.category === category.id).length;
+              const active = activeTemplateCategory === category.id;
+              return (
+                <button
+                  key={category.id}
+                  type="button"
+                  onClick={() => setActiveTemplateCategory(category.id)}
+                  style={{
+                    minHeight: 82,
+                    textAlign: "left",
+                    borderRadius: 15,
+                    border: active
+                      ? `1px solid rgba(${hexRgb(category.accent)},0.42)`
+                      : "1px solid rgba(255,255,255,0.09)",
+                    background: active
+                      ? `linear-gradient(135deg, rgba(${hexRgb(category.accent)},0.16), rgba(255,255,255,0.035))`
+                      : "rgba(255,255,255,0.035)",
+                    color: "inherit",
+                    cursor: "pointer",
+                    padding: "11px 12px",
+                    boxShadow: active ? `0 0 34px rgba(${hexRgb(category.accent)},0.14)` : "none",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: 8,
+                      marginBottom: 6,
+                    }}
+                  >
+                    <strong style={{ color: category.accent, fontSize: 12 }}>
+                      {category.label}
+                    </strong>
+                    <span
+                      style={{
+                        borderRadius: 999,
+                        border: `1px solid rgba(${hexRgb(category.accent)},0.28)`,
+                        background: `rgba(${hexRgb(category.accent)},0.12)`,
+                        color: category.accent,
+                        padding: "2px 7px",
+                        fontSize: 10,
+                        fontWeight: 850,
+                      }}
+                    >
+                      {count}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 11, lineHeight: 1.45, opacity: 0.66 }}>
+                    {category.summary}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+          <div
+            style={{
+              borderRadius: 16,
+              border: `1px solid rgba(${hexRgb(activeTemplateCategoryMeta.accent)},0.2)`,
+              background: `linear-gradient(135deg, rgba(${hexRgb(activeTemplateCategoryMeta.accent)},0.08), rgba(255,255,255,0.025))`,
+              padding: 14,
+              marginBottom: 12,
+            }}
+          >
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+              <strong style={{ color: activeTemplateCategoryMeta.accent }}>
+                {activeTemplateCategoryMeta.label}
+              </strong>
+              <span style={{ fontSize: 12, opacity: 0.65 }}>{activeTemplateCategoryMeta.summary}</span>
+            </div>
+          </div>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit,minmax(270px,1fr))",
+              gap: 10,
+              marginBottom: 12,
+            }}
+          >
+            {visibleTemplatePacks.map((pack) => (
+              <TemplatePackCard
+                key={pack.id}
+                pack={pack}
+                accent={activeTemplateCategoryMeta.accent}
+                copied={copiedTemplateId === pack.id}
+                onCopy={() => void copyTemplatePack(pack)}
+              />
+            ))}
+          </div>
+          <H>Template Pack Coverage</H>
+          <Code>
+            {NEXUS_TEMPLATE_PACK_CATEGORIES.map((category) => {
+              const packs = NEXUS_TEMPLATE_PACKS.filter((pack) => pack.category === category.id);
+              return `${category.label}: ${packs.map((pack) => pack.title).join(" / ")}`;
+            }).join("\n")}
+          </Code>
         </Acc>
 
         <Acc

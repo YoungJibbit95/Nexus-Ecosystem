@@ -341,6 +341,18 @@ const run = async () => {
       pattern: /resolveMainRuntimeChannelConfig[\s\S]*?runtimeChannel[\s\S]*?liveSync:[\s\S]*?channel:\s*runtimeChannel[\s\S]*?fetchCatalog\(\{[\s\S]*?channel:\s*runtimeChannel[\s\S]*?fetchCurrentRelease/,
       message: 'Nexus Main Bootflow nutzt sichtbaren Runtime Channel fuer Live Sync und API Bootstrap',
     },
+    {
+      id: 'main-template-pack-catalog',
+      file: path.join(ROOT, 'Nexus Main/src/app/nexusTemplatePacks.ts'),
+      pattern: /NEXUS_TEMPLATE_PACKS[\s\S]*?category:\s*"notes"[\s\S]*?category:\s*"tasks"[\s\S]*?category:\s*"canvas"[\s\S]*?category:\s*"code"[\s\S]*?category:\s*"flux"[\s\S]*?buildNexusTemplatePackMarkdown/,
+      message: 'Nexus Main hat zentralen Template Pack Katalog',
+    },
+    {
+      id: 'main-infoview-template-packs',
+      file: path.join(ROOT, 'Nexus Main/src/views/InfoView.tsx'),
+      pattern: /NEXUS_TEMPLATE_PACKS[\s\S]*?buildNexusTemplatePackMarkdown[\s\S]*?Copy pack Markdown[\s\S]*?Template Packs[\s\S]*?visibleTemplatePacks/,
+      message: 'InfoView zeigt kopierbare Template Packs',
+    },
   ]
 
   if (CONTROL_UI_PRESENT) {

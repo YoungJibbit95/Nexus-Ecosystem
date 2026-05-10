@@ -46,6 +46,7 @@ server paths under `/downloads/...`.
 ## Visual Smoke and Evidence
 
 - First-start Walkthrough: clear `nx-main-walkthrough-v2` locally or use Settings/Info reopen flow, then verify the Setup checklist can open website/account, Files, Notes, Tasks, Canvas and Info without losing progress.
+- InfoView Template Packs: open `Info -> Template Packs`, switch every category, and copy one Notes, Tasks, Canvas, Code and Flux pack as Markdown.
 - Run the manual matrix in `docs/VIEW_SMOKE_MATRIX.md`.
 - Store screenshots/videos under `docs/release-evidence/<version>/` using `docs/RELEASE_EVIDENCE_GUIDE.md`.
 - Cover Main, Mobile, Code, Code Mobile, Control, Website, and Wiki.
