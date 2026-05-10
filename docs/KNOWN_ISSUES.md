@@ -17,6 +17,7 @@ Dieses Dokument ist die ehrliche RC-Liste. Alles hier ist entweder ein bewusst a
 | Bereich | Einschraenkung | Akzeptanz fuer internen RC |
 | --- | --- | --- |
 | API Runtime-Daten | Repo-/Dist-Hygiene ist seit NexusAPI `f307229` geschlossen; produktive Daten muessen trotzdem aus Env/Secret Store, DB oder persistentem `NEXUS_CONTROL_DATA_DIR` kommen. | Akzeptiert, wenn `verify:release-data` gruen ist und Deployment-Secrets nicht im Repo liegen. |
+| Nexus Code Electron Security | Datei-/Terminal-IPC ist nun workspace-basiert gehaertet; ein echter packaged IDE-Smoke mit Test-Workspace bleibt als Evidence offen. | Akzeptiert fuer internen RC, wenn `verify:ecosystem` gruen ist und Explorer/Terminal im Test-Workspace funktionieren. |
 | Linux Packaging auf Windows | AppImage/deb Builds werden auf Windows ohne Symlink-Rechte bewusst uebersprungen. | Akzeptiert, solange Ubuntu/GitHub Actions die Linux-Artefakte baut. |
 | Live Payment E2E | Live-Zahlungsfluss wird nicht lokal ausgefuehrt. | Akzeptiert nur fuer Test-/Staging-Rollen; public Release braucht Provider-Smoke. |
 | Control UI | Control ist Admin-/Ops-Flaeche und nicht Teil der Product-Page App-Auswahl. | Akzeptiert, wenn Zugriff und Links nur fuer Admin/Ops-Kontext sichtbar sind. |

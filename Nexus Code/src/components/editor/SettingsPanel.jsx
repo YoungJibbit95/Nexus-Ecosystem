@@ -1,16 +1,12 @@
 import React from "react";
 import {
   ArrowLeft,
-  Palette,
-  Type,
-  Code2,
-  Monitor,
   Zap,
   Sparkles,
 } from "lucide-react";
 import { motion } from "framer-motion";
 
-/* ── Lightweight native replacements for the UI-kit components ───────────── */
+/* Lightweight native replacements for the UI-kit components. */
 
 import {
   NativeInput,

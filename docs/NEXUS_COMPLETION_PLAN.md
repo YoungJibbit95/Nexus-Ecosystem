@@ -6,7 +6,7 @@ Arbeitsstand nach Start der Abarbeitung:
 
 - P0 Build-Basis fuer Main, Mobile, Nexus Code und Code Mobile ist repariert und erneut verifiziert.
 - Website API Integration ist Node/tsx-sicher repariert und besteht.
-- `verify:single-react` und `verify:ecosystem` bestehen; Ecosystem-Gate meldet 33/33 Checks.
+- `verify:single-react`, `verify:encoding` und `verify:ecosystem` bestehen; Ecosystem-Gate meldet 40/40 Checks.
 - Erste UI-Shell-Konsolidierung fuer Nexus Main ist umgesetzt: Main nutzt `MainShellLayout`/`MainViewHost`, View Error Boundaries sitzen im Host, der alte Inline-Shell-Block ist entfernt, und Boot-/View-Konstanten liegen wieder in `mainAppConfig.ts`.
 - `packages/nexus-core` hat ein erstes View Manifest v2 fuer alle Kernviews inklusive Actions, Panels, Responsive Modes, Status-Signalen und ableitbarer Command Registry.
 - `packages/nexus-core` hat ein eigenes Package-Gate mit Typecheck, Manifest-Test und Build-Script.
@@ -37,6 +37,8 @@ Arbeitsstand nach Start der Abarbeitung:
 - NexusAPI hat einen Release-Daten-Hygiene-Pass erhalten: Runtime-JSON, lokale Dist-Daten, `.DS_Store` und Rust-Targets sind aus Git entfernt und ignoriert; Node/Rust Owner-Bootstrap verlangt fuer Production ein explizites `NEXUS_OWNER_BOOTSTRAP_PASSWORD`; Dev-User bleiben hinter `NEXUS_ENABLE_DEV_BOOTSTRAP_USERS`; `verify:release-data`, Runbook und env-Beispiel dokumentieren die neue Grenze.
 - API-Node-Smoke ist erneut gelaufen: `build:node`, `verify:release-data` und `test:attack` bestehen; der lokale Rust-Check ist auf diesem Windows-Workspace nur durch fehlendes MSVC-`link.exe` blockiert.
 - NexusAPI CI wurde zum Control Plane Release Gate erweitert: Commit `0428020` fuehrt auf Ubuntu Release-Datenhygiene, Node-Dist-Build, Rust-Format, Rust-Release-Build, Attack-Smoke und Node-vs-Rust-Contract aus; finaler GitHub-Run bleibt als Evidence zu pruefen.
+- Nexus Code Electron Security ist angeglichen: Datei-IPC laeuft nur noch in per `openFolder` registrierten Workspace Roots, Terminal-CWD ist workspace-gebunden, Preload validiert Payloads, Permissions/WebViews/Navigation sind gehaertet und `verify:ecosystem` prueft die Grenzen statisch.
+- Lokale Evidence nach Nexus-Code-Security-Pass: `node --check` fuer Main/Preload, `npm --prefix "Nexus Code" run lint`, `npm run verify:encoding`, `npm run verify:ecosystem`, `npm run release:gate -- --fast` und `npm --prefix "Nexus Code" run build` bestehen.
 
 Scope dieser Analyse:
 
@@ -65,7 +67,7 @@ Release-Ampel:
 | --- | --- | --- |
 | Nexus Main | Gelb | Build repariert, Version `6.0.0`, alle Views laufen durch `NexusV6ViewShell`; View-Smokes und tiefere ViewShell-Migration offen. |
 | Nexus Mobile | Gelb | Build repariert, Version `6.0.0`, Core-Manifest-Aenderung erneut bestaetigt; View-Smokes und Login/Register-Paritaet offen. |
-| Nexus Code | Gelb | Build repariert; Filesystem-Hardening, Packaging und Artifact-Namen offen. |
+| Nexus Code | Gelb/Gruen | Build repariert; Filesystem-/Terminal-Hardening ist umgesetzt und im Ecosystem-Gate verankert; packaged IDE-Smoke und Signing bleiben offen. |
 | Nexus Code Mobile | Gelb | Build repariert; Mobile IDE Smoke, Packaging und Artifact-Namen offen. |
 | Nexus Core | Gelb/Gruen | Gemeinsame Runtime ist deutlich reifer: Package-Gate, Layout Schema v2, Panel Engine und Command Registry sind angelegt; view-spezifische Handler bleiben offen. |
 | Nexus API / Control Plane | Gelb/Gruen | Repo-/Dist-Datenhygiene ist geschlossen, Owner-Bootstrap ist env-pflichtig und Node Attack Smoke besteht; Hosted/Node-vs-Rust-Contract-Evidence bleibt offen. |
@@ -774,13 +776,21 @@ Fertigstellen:
    - Lokale Evidence: `test:attack` besteht mit 23/23 Checks.
    - Offen: GitHub-Run fuer `0428020` bzw. naechsten Release-Candidate als Evidence speichern und Hosted/Staging-Contractlauf dokumentieren.
 
-6. Electron Security fuer Nexus Code angleichen.
+6. ~~Electron Security fuer Nexus Code angleichen.~~
 
    Ziel:
 
    - Context Isolation, Sandbox und Navigation bleiben hart.
    - Filesystem-Mutationen laufen nur innerhalb erlaubter Roots.
    - Terminal-Ausfuehrung bleibt begrenzt und auditierbar.
+
+   Status 2026-05-10:
+
+   - `Nexus Code/electron/main.cjs` registriert Workspace Roots nur ueber `dialog:open-folder`.
+   - Datei-IPC (`read-directory`, `read-file`, `write-file`, `mkdir`, `delete`, `rename`) prueft Canonical Paths gegen diese Roots und schuetzt Workspace-Metadaten.
+   - Terminal-IPC validiert Session-IDs, begrenzt parallele Sessions, startet nur in Workspace-CWDs und blockt Netzwerk-/Systemmutationen sowie offensichtlich destruktive Befehle.
+   - `preload.cjs` normalisiert Pfade, Textgroessen und Terminal-Channels, bevor Payloads den Main Process erreichen.
+   - `verify:ecosystem` enthaelt statische Checks fuer WebPreferences, Workspace-FS-Sandbox, Terminal-Sandbox, Navigation Guards und Preload-Validation.
 
 7. Signing und Notarization.
 

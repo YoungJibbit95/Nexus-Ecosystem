@@ -1,6 +1,6 @@
 import React from "react";
 import { AlertCircle, AlertTriangle, Info, XCircle, Search } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 
 export default function ProblemsPanel({ problems, onSelectProblem }) {
   const [filter, setFilter] = React.useState("all"); // all, error, warning

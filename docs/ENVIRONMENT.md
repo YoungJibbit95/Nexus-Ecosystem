@@ -61,6 +61,13 @@ VITE_NEXUS_CONTROL_INGEST_KEY=REPLACE_WITH_APP_INGEST_KEY
   - steuert, aus welchen Root-Pfaden IPC `fs:read`/`fs:write` zugelassen ist
   - default: Home-Verzeichnis des aktuellen Users
 
+## Nexus Code (Electron Security)
+
+- Nexus Code nutzt keine globale Env-Root-Liste.
+- Erlaubte Datei-/Terminal-Roots entstehen erst durch den Nutzerflow `openFolder`.
+- Dateioperationen und Terminal-CWD werden danach gegen diese Workspace Roots geprueft.
+- Fuer Release-Smokes deshalb zuerst einen Test-Workspace oeffnen, dann Explorer, Save, Rename, Delete und Terminal-Run pruefen.
+
 ## Hinweise
 
 - Ingest Keys werden ueber Policies verwaltet (`/api/v1/policies`).
