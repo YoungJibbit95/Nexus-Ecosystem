@@ -293,6 +293,33 @@ export const wikiEntriesPrimary: WikiEntry[] = [
     sources: ['docs/KNOWN_ISSUES.md', 'docs/NEXUS_COMPLETION_PLAN.md'],
   },
   {
+    id: 'release-signing-notarization',
+    title: 'Signing und Notarization Runbook',
+    app: 'ecosystem',
+    category: 'ops',
+    summary:
+      'Das Signing Runbook trennt interne unsigned RCs von public Releases mit Zertifikaten, macOS Notarization und SHA256SUMS.',
+    guide: [
+      { title: '1. RC-Modus waehlen', detail: 'Interne RCs duerfen warnend laufen; Public Releases setzen signing_required=true und notarize_macos=true.' },
+      { title: '2. Secrets pruefen', detail: 'macOS, Windows und Android Secrets vor dem Installer-Build ueber verify-signing-env validieren.' },
+      { title: '3. Evidence speichern', detail: 'GitHub Run, SHA256SUMS, Notarytool Log und Signatur-Smoke im Release Evidence Ordner ablegen.' },
+    ],
+    points: [
+      'Main und Code nutzen macOS Hardened Runtime mit Entitlements.',
+      'macOS DMGs koennen per notarytool eingereicht und danach gestapled werden.',
+      'Windows und Android Signing bleiben secret-gated statt hardcoded.',
+      'Checksums werden mit den Installer-Artefakten hochgeladen.',
+    ],
+    commands: [
+      'npm run verify:signing',
+      'npm run verify:signing:required',
+      'npm run release:gate -- --signing-required',
+      'docs/SIGNING_AND_NOTARIZATION.md',
+    ],
+    tags: ['signing', 'notarization', 'installers', 'release', 'checksums'],
+    sources: ['docs/SIGNING_AND_NOTARIZATION.md', 'docs/RELEASE_READY_CHECKLIST.md'],
+  },
+  {
     id: 'release-visual-evidence-guide',
     title: 'Visual Evidence Guide fuer Main, Mobile, Code und Control',
     app: 'ecosystem',

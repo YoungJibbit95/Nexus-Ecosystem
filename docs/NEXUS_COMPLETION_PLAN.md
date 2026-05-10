@@ -6,7 +6,7 @@ Arbeitsstand nach Start der Abarbeitung:
 
 - P0 Build-Basis fuer Main, Mobile, Nexus Code und Code Mobile ist repariert und erneut verifiziert.
 - Website API Integration ist Node/tsx-sicher repariert und besteht.
-- `verify:single-react`, `verify:encoding` und `verify:ecosystem` bestehen; Ecosystem-Gate meldet 40/40 Checks.
+- `verify:single-react`, `verify:encoding` und `verify:ecosystem` bestehen; Ecosystem-Gate meldet 47/47 Checks.
 - Erste UI-Shell-Konsolidierung fuer Nexus Main ist umgesetzt: Main nutzt `MainShellLayout`/`MainViewHost`, View Error Boundaries sitzen im Host, der alte Inline-Shell-Block ist entfernt, und Boot-/View-Konstanten liegen wieder in `mainAppConfig.ts`.
 - `packages/nexus-core` hat ein erstes View Manifest v2 fuer alle Kernviews inklusive Actions, Panels, Responsive Modes, Status-Signalen und ableitbarer Command Registry.
 - `packages/nexus-core` hat ein eigenes Package-Gate mit Typecheck, Manifest-Test und Build-Script.
@@ -39,6 +39,8 @@ Arbeitsstand nach Start der Abarbeitung:
 - NexusAPI CI wurde zum Control Plane Release Gate erweitert: Commit `0428020` fuehrt auf Ubuntu Release-Datenhygiene, Node-Dist-Build, Rust-Format, Rust-Release-Build, Attack-Smoke und Node-vs-Rust-Contract aus; finaler GitHub-Run bleibt als Evidence zu pruefen.
 - Nexus Code Electron Security ist angeglichen: Datei-IPC laeuft nur noch in per `openFolder` registrierten Workspace Roots, Terminal-CWD ist workspace-gebunden, Preload validiert Payloads, Permissions/WebViews/Navigation sind gehaertet und `verify:ecosystem` prueft die Grenzen statisch.
 - Lokale Evidence nach Nexus-Code-Security-Pass: `node --check` fuer Main/Preload, `npm --prefix "Nexus Code" run lint`, `npm run verify:encoding`, `npm run verify:ecosystem`, `npm run release:gate -- --fast` und `npm --prefix "Nexus Code" run build` bestehen.
+- Signing/Notarization ist fuer den naechsten RC vorbereitet: Main/Code nutzen macOS Hardened Runtime mit Entitlements, der Installer-Workflow hat ein Signing-Secret-Gate, macOS-Notarization via `notarytool`/`stapler`, SHA256SUMS Uploads und `tools/verify-signing-env.mjs`.
+- Lokale Evidence nach Signing-Pass: `npm run verify:signing`, `npm run verify:ecosystem`, `npm run release:gate -- --fast`, `npm --prefix "Nexus Main" run build`, `npm --prefix "Nexus Code" run build`, `npm --prefix "Nexus Wiki" run build:ci` und ein Temp-Smoke fuer `tools/generate-installer-checksums.mjs` bestehen.
 
 Scope dieser Analyse:
 
@@ -73,7 +75,7 @@ Release-Ampel:
 | Nexus API / Control Plane | Gelb/Gruen | Repo-/Dist-Datenhygiene ist geschlossen, Owner-Bootstrap ist env-pflichtig und Node Attack Smoke besteht; Hosted/Node-vs-Rust-Contract-Evidence bleibt offen. |
 | Nexus Wiki | Gruen/Gelb | Build, Budget und i18n bestehen; Release-Links, Known Issues, Checklist und Visual Evidence Guide sind verbunden; echte Browser-/Mobile-QA bleibt offen. |
 | Website | Gruen/Gelb | Build, Budget und API-Integration bestehen; Payment-E2E bleibt bewusst offen. |
-| Gesamt | Gelb fuer RC-Vorbereitung | Build-, Website- und API-Datenhygiene-P0 sind geschlossen; RC-Gate ist angelegt, Hosted/API-Contract-Evidence, View-Smokes und Signing bleiben offen. |
+| Gesamt | Gelb fuer RC-Vorbereitung | Build-, Website-, API-Datenhygiene-, Electron-Security- und Signing-Infrastruktur sind geschlossen; Hosted/API-Contract-Evidence, View-Smokes und echte Signing-Runner-Evidence bleiben offen. |
 
 ## Gepruefte Kommandos
 
@@ -85,6 +87,9 @@ npm run verify:ecosystem
 npm run doctor:release
 npm run release:gate
 npm run release:gate -- --fast
+npm run verify:signing
+npm --prefix "Nexus Wiki" run build:ci
+node tools/generate-installer-checksums.mjs --dir <release-dir>
 npm --prefix "packages/nexus-core" run build
 npm --prefix "Nexus Main" run build
 npm --prefix "Nexus Mobile" run build
@@ -800,6 +805,15 @@ Fertigstellen:
    - macOS `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID` gesetzt.
    - `xcrun notarytool` im macOS Build Runner vorhanden.
    - Android Signing/Keystore dokumentiert.
+
+   Status 2026-05-10:
+
+   - Main/Code macOS Package-Konfiguration nutzt jetzt `hardenedRuntime: true` plus `build/entitlements.mac.plist`.
+   - `tools/electron-pack-mac.mjs` kann bei `NEXUS_MAC_NOTARIZE=true` DMGs mit `xcrun notarytool submit --wait` notarizen und danach staplen.
+   - `tools/verify-signing-env.mjs` prueft macOS-, Windows- und Android-Signing-Secrets; `npm run verify:signing` ist optional/warnend, `npm run verify:signing:required` failt hart.
+   - `.github/workflows/build-installers.yml` hat `signing_required`/`notarize_macos` Inputs, prueft Secrets vor dem Build und erzeugt `SHA256SUMS.txt`.
+   - Doku: `docs/SIGNING_AND_NOTARIZATION.md`.
+   - Offen: Secrets wirklich in GitHub setzen und einen signierten/notarisierten Runner als Evidence speichern.
 
 8. Control UI Deployment klaeren.
 

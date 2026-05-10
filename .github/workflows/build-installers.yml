@@ -2,12 +2,27 @@ name: Build Electron Installers
 
 on:
   workflow_dispatch:
+    inputs:
+      signing_required:
+        description: "Fail if platform signing secrets are missing"
+        required: false
+        type: boolean
+        default: false
+      notarize_macos:
+        description: "Submit macOS DMGs to Apple notarytool"
+        required: false
+        type: boolean
+        default: false
   release:
     types:
       - published
 
 permissions:
   contents: read
+
+concurrency:
+  group: build-installers-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   build-installers:
@@ -61,7 +76,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
           cache-dependency-path: "${{ matrix.app_dir }}/package-lock.json"
 
@@ -69,9 +84,34 @@ jobs:
         working-directory: "${{ matrix.app_dir }}"
         run: npm ci
 
+      - name: Verify signing configuration
+        env:
+          NEXUS_SIGNING_TARGET: "${{ matrix.target }}"
+          NEXUS_SIGNING_REQUIRED: "${{ github.event_name == 'release' || inputs.signing_required }}"
+          NEXUS_MAC_NOTARIZE: "${{ matrix.target == 'mac' && (github.event_name == 'release' || inputs.notarize_macos) }}"
+          MAC_CSC_LINK: "${{ secrets.MAC_CSC_LINK }}"
+          MAC_CSC_KEY_PASSWORD: "${{ secrets.MAC_CSC_KEY_PASSWORD }}"
+          WIN_CSC_LINK: "${{ secrets.WIN_CSC_LINK }}"
+          WIN_CSC_KEY_PASSWORD: "${{ secrets.WIN_CSC_KEY_PASSWORD }}"
+          APPLE_ID: "${{ secrets.APPLE_ID }}"
+          APPLE_APP_SPECIFIC_PASSWORD: "${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}"
+          APPLE_TEAM_ID: "${{ secrets.APPLE_TEAM_ID }}"
+        run: node ./tools/verify-signing-env.mjs --target=${{ matrix.target }}
+
       - name: Build installer
         working-directory: "${{ matrix.app_dir }}"
+        env:
+          NEXUS_SIGNING_REQUIRED: "${{ github.event_name == 'release' || inputs.signing_required }}"
+          NEXUS_MAC_NOTARIZE: "${{ matrix.target == 'mac' && (github.event_name == 'release' || inputs.notarize_macos) }}"
+          CSC_LINK: "${{ matrix.target == 'mac' && secrets.MAC_CSC_LINK || matrix.target == 'win' && secrets.WIN_CSC_LINK || '' }}"
+          CSC_KEY_PASSWORD: "${{ matrix.target == 'mac' && secrets.MAC_CSC_KEY_PASSWORD || matrix.target == 'win' && secrets.WIN_CSC_KEY_PASSWORD || '' }}"
+          APPLE_ID: "${{ secrets.APPLE_ID }}"
+          APPLE_APP_SPECIFIC_PASSWORD: "${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}"
+          APPLE_TEAM_ID: "${{ secrets.APPLE_TEAM_ID }}"
         run: npm run ${{ matrix.npm_script }}
+
+      - name: Generate checksums
+        run: node ./tools/generate-installer-checksums.mjs --dir "${{ matrix.app_dir }}/release"
 
       - name: Upload installers
         uses: actions/upload-artifact@v4
@@ -87,3 +127,4 @@ jobs:
             ${{ matrix.app_dir }}/release/**/*.msi
             ${{ matrix.app_dir }}/release/**/*.AppImage
             ${{ matrix.app_dir }}/release/**/*.deb
+            ${{ matrix.app_dir }}/release/**/SHA256SUMS.txt

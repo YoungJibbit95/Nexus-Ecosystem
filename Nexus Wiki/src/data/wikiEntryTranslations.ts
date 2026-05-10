@@ -215,6 +215,28 @@ export const englishEntryTranslations = {
     commands: ['docs/KNOWN_ISSUES.md', 'docs/VIEW_SMOKE_MATRIX.md', 'docs/RELEASE_READY_CHECKLIST.md'],
     tags: ['known-issues', 'risk', 'rc', 'release-readiness'],
   },
+  'release-signing-notarization': {
+    title: 'Signing and Notarization Runbook',
+    summary: 'The signing runbook separates internal unsigned RCs from public releases with certificates, macOS notarization and SHA256SUMS.',
+    guide: g([
+      ['1. Choose RC mode', 'Internal RCs may run warning-only; public releases set signing_required=true and notarize_macos=true.'],
+      ['2. Check secrets', 'Validate macOS, Windows and Android secrets through verify-signing-env before installer builds.'],
+      ['3. Save evidence', 'Store the GitHub run, SHA256SUMS, notarytool log and signature smoke in the release evidence folder.'],
+    ]),
+    points: [
+      'Main and Code use macOS Hardened Runtime with entitlements.',
+      'macOS DMGs can be submitted through notarytool and stapled afterwards.',
+      'Windows and Android signing stay secret-gated instead of hardcoded.',
+      'Checksums are uploaded with installer artifacts.',
+    ],
+    commands: [
+      'npm run verify:signing',
+      'npm run verify:signing:required',
+      'npm run release:gate -- --signing-required',
+      'docs/SIGNING_AND_NOTARIZATION.md',
+    ],
+    tags: ['signing', 'notarization', 'installers', 'release', 'checksums'],
+  },
   'release-visual-evidence-guide': {
     title: 'Visual Evidence Guide for Main, Mobile, Code and Control',
     summary: 'The Visual Evidence Guide defines which screenshots and short videos are collected per surface so UI quality stays provable.',

@@ -10,6 +10,10 @@ references
 **/release/
 **/build/
 **/.next/
+!Nexus Main/build/
+!Nexus Main/build/entitlements.mac.plist
+!Nexus Code/build/
+!Nexus Code/build/entitlements.mac.plist
 
 # Electron / package artifacts
 **/*.dmg
