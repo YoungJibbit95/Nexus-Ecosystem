@@ -13,6 +13,7 @@ Use this before pushing tags, uploading installers, or deploying the VPS stack.
 - `Nexus Wiki`: run `npm --prefix "Nexus Wiki" run build:ci`.
 - `nexus-control-plane`: run `cargo fmt --check` and `cargo check` when the Windows MSVC linker is installed.
 - GitHub Actions: `Control Plane Release Gate` in `YoungJibbit95/NexusAPI` must be green for the release commit.
+- Nexus Main DevTools: open `Release`, close or document every blocker/required item, then copy the Markdown report into the RC notes.
 
 ## API Data Hygiene
 
@@ -49,6 +50,7 @@ server paths under `/downloads/...`.
 - Verify that animated UI does not move active click targets during hover, press, drag, or panel transitions.
 - Verify Light Theme text/chrome contrast separately from the dark default.
 - Link any unresolved issue in `docs/KNOWN_ISSUES.md`.
+- Export the DevTools Release Health JSON snapshot if any blocker or required check is accepted for an internal RC.
 
 ## Public Docs and Wiki
 

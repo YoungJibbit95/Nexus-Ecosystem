@@ -827,20 +827,22 @@ export const wikiEntriesPrimary: WikiEntry[] = [
     app: 'main',
     category: 'view',
     summary:
-      'DevTools kombiniert Visual Builder, FS-like Editor und UI Calculator fuer schnelle Frontend-Ausarbeitung.',
+      'DevTools kombiniert Visual Builder, FS-like Editor, UI Calculator und Release Health fuer schnelle Frontend- und RC-Arbeit.',
     guide: [
       { title: '1. Struktur bauen', detail: 'HTML/CSS/JS Basis in integrierten Files bearbeiten.' },
       { title: '2. Styles iterieren', detail: 'Builder Controls fuer spacing, border, background, glow, blur und typo nutzen.' },
       { title: '3. Output uebernehmen', detail: 'CSS/Tailwind Snippets kopieren und in Zielprojekt einsetzen.' },
+      { title: '4. Release pruefen', detail: 'Im Release-Tab Blocker, Required Checks, Evidence und Gate-Kommandos als fokussierten RC-Pass abarbeiten.' },
     ],
     points: [
       'Explorer erlaubt neue Dateien, Rename und Delete.',
       'Editor unterstuetzt Tab-Einrueckung und Language-spezifische Farben.',
       'Calculator deckt spacing/color/typography/layout/animation Berechnungen ab.',
+      'Release Health zeigt API/Auth, View-Smokes, Packaging, Signing, Security und Evidence in einer persistenten Checkliste.',
     ],
-    commands: ['Copy CSS', 'Copy Tailwind', 'New html/css/js file'],
-    tags: ['devtools', 'builder', 'calculator', 'css'],
-    sources: ['Nexus Main/src/views/DevToolsView.tsx', 'Nexus Main/src/views/InfoView.tsx'],
+    commands: ['Copy CSS', 'Copy Tailwind', 'New html/css/js file', 'Copy release report', 'Export release JSON'],
+    tags: ['devtools', 'builder', 'calculator', 'css', 'release-health'],
+    sources: ['Nexus Main/src/views/DevToolsView.tsx', 'Nexus Main/src/views/devtools/ReleaseHealthDashboard.tsx', 'Nexus Main/src/views/InfoView.tsx'],
   },
   {
     id: 'main-info-view-guide',
