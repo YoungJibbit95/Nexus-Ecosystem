@@ -822,6 +822,29 @@ export const wikiEntriesPrimary: WikiEntry[] = [
     sources: ['Nexus Main/src/views/FluxView.tsx'],
   },
   {
+    id: 'main-guided-onboarding',
+    title: 'Nexus Main: Gefuehrtes Onboarding',
+    app: 'main',
+    category: 'workflow',
+    summary:
+      'Der First-Start-Walkthrough fuehrt neue Nutzer mit einer abhakbaren Setup-Checkliste durch Account, Login, Workspace, Import und die ersten Kernviews.',
+    guide: [
+      { title: '1. Account klaeren', detail: 'Website-Account oeffnen, Tier verstehen und anschliessend in Nexus Main anmelden.' },
+      { title: '2. Workspace vorbereiten', detail: 'Files oeffnen, Workspace-Ordner festlegen und vorhandene Daten erst danach importieren.' },
+      { title: '3. Erste Arbeit anlegen', detail: 'Eine Projekt-Note, eine Task/Reminder-Kombination und einen Canvas-Hub erstellen.' },
+      { title: '4. Orientierung behalten', detail: 'InfoView als Handbuch merken und offene Setup-Punkte spaeter im Walkthrough nachholen.' },
+    ],
+    points: [
+      'Die Setup-Checkliste speichert nur erledigte Task-IDs lokal, keine Accountdaten, Passwoerter, Dateipfade oder Inhalte.',
+      'Jeder Checklistenpunkt kann direkt die passende View oder die Account-Seite oeffnen.',
+      'Der Walkthrough bleibt bewusst freundlich und anfaengergeeignet: erst orientieren, dann arbeiten, dann polieren.',
+      'Das Ecosystem-Gate prueft statisch, dass die gefuehrte Onboarding-Checkliste vorhanden bleibt.',
+    ],
+    commands: ['First Start', 'Settings/Info -> Walkthrough erneut oeffnen', 'localStorage: nx-main-walkthrough-setup-v1'],
+    tags: ['onboarding', 'first-start', 'walkthrough', 'account', 'workspace'],
+    sources: ['Nexus Main/src/components/WelcomeWalkthrough.tsx', 'docs/RELEASE_READY_CHECKLIST.md'],
+  },
+  {
     id: 'main-devtools-guide',
     title: 'Nexus Main: DevTools Guide',
     app: 'main',

@@ -417,6 +417,118 @@ body { background: #08091a; color-scheme: dark light; }
   line-height: 1.55;
 }
 
+.nx-walkthrough-setup-card {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 20px;
+  border: 1px solid color-mix(in srgb, var(--nx-walkthrough-accent, #22d3ee) 24%, transparent);
+  background:
+    radial-gradient(520px circle at 0% 0%, color-mix(in srgb, var(--nx-walkthrough-accent, #22d3ee) 15%, transparent), transparent 58%),
+    rgba(255, 255, 255, 0.04);
+}
+
+.nx-walkthrough-setup-head,
+.nx-walkthrough-setup-item,
+.nx-walkthrough-setup-actions {
+  display: flex;
+  align-items: center;
+}
+
+.nx-walkthrough-setup-head {
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.nx-walkthrough-setup-head > div {
+  display: grid;
+  gap: 3px;
+}
+
+.nx-walkthrough-setup-head strong {
+  font-size: 17px;
+  font-weight: 950;
+  letter-spacing: -0.03em;
+}
+
+.nx-walkthrough-setup-head span {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.58);
+}
+
+.nx-walkthrough-setup-progress {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.075);
+}
+
+.nx-walkthrough-setup-progress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--nx-walkthrough-accent, #22d3ee), var(--nx-walkthrough-accent2, #818cf8));
+  box-shadow: 0 0 24px color-mix(in srgb, var(--nx-walkthrough-accent, #22d3ee) 30%, transparent);
+  transition: width 180ms ease;
+}
+
+.nx-walkthrough-setup-list {
+  display: grid;
+  gap: 8px;
+}
+
+.nx-walkthrough-setup-item {
+  gap: 10px;
+  padding: 10px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(2, 6, 23, 0.18);
+}
+
+.nx-walkthrough-setup-item.is-done {
+  border-color: color-mix(in srgb, #22c55e 36%, transparent);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, #22c55e 12%, transparent), rgba(255, 255, 255, 0.035));
+}
+
+.nx-walkthrough-setup-check {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 11px;
+  border: 1px solid color-mix(in srgb, var(--nx-walkthrough-accent, #22d3ee) 25%, transparent);
+  background: rgba(255, 255, 255, 0.055);
+  color: #22c55e;
+  cursor: pointer;
+}
+
+.nx-walkthrough-setup-item > div:not(.nx-walkthrough-setup-actions) {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+  flex: 1;
+}
+
+.nx-walkthrough-setup-item strong {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.nx-walkthrough-setup-item span {
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.58);
+}
+
+.nx-walkthrough-setup-actions {
+  flex-shrink: 0;
+  gap: 7px;
+  justify-content: flex-end;
+}
+
 .nx-walkthrough-action-row {
   justify-content: space-between;
   gap: 12px;
@@ -515,6 +627,16 @@ body { background: #08091a; color-scheme: dark light; }
 
   .nx-walkthrough-grid {
     grid-template-columns: 1fr;
+  }
+
+  .nx-walkthrough-setup-head,
+  .nx-walkthrough-setup-item {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .nx-walkthrough-setup-actions {
+    justify-content: flex-start;
   }
 
   .nx-walkthrough-footer {

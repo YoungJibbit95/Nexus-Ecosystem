@@ -469,6 +469,17 @@ export const englishEntryTranslations = {
     ]),
     points: ['Action Queue fuses open tasks and reminders and dynamically scores severity.', 'Quick Actions create note/code/task/reminder without changing views.', 'Focus Mode filters to critical items and speeds up incident handling.', 'Activity Stream stays filterable by all/note/code/task/reminder.'],
   },
+  'main-guided-onboarding': {
+    title: 'Nexus Main: Guided Onboarding',
+    summary: 'The first-start walkthrough guides new users through account, login, workspace, import and the first core views with a checkable setup list.',
+    guide: g([
+      ['1. Confirm the account', 'Open the website account area, understand the tier and then sign into Nexus Main.'],
+      ['2. Prepare the workspace', 'Open Files, select a workspace folder and import existing data only after that.'],
+      ['3. Create first work', 'Create one project note, one task/reminder combination and one Canvas hub.'],
+      ['4. Keep orientation', 'Use InfoView as the handbook and return to the walkthrough later for unfinished setup items.'],
+    ]),
+    points: ['The setup checklist stores only completed task IDs locally, never account data, passwords, file paths or content.', 'Each checklist item can open the matching view or account page directly.', 'The walkthrough stays beginner-friendly: orient first, then work, then polish.', 'The Ecosystem gate statically checks that guided onboarding remains present.'],
+  },
   'main-devtools-guide': {
     title: 'Nexus Main: DevTools Guide',
     summary: 'DevTools combines Visual Builder, FS-like editor, UI calculator and Release Health for quick frontend and RC work.',
