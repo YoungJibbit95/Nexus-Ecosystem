@@ -12,12 +12,12 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import {
-  CONTROL_API_BASE_URL,
   MAIN_BOOT_PRIORITY_VIEWS,
   MAIN_CRITICAL_PRELOAD_VIEWS,
   MAIN_HEAVY_PRELOAD_VIEW_SET,
   MAIN_PERSISTENT_VIEW_CACHE,
   MAIN_SAFE_STARTUP_VIEWS,
+  resolveMainRuntimeChannelConfig,
 } from "../../app/mainAppConfig";
 import { VIEW_IDS } from "../../app/viewPreload";
 import { Glass } from "../../components/Glass";
@@ -326,6 +326,7 @@ export function ReleaseHealthDashboard() {
   const t = useTheme();
   const rgb = hexToRgb(t.accent);
   const rgb2 = hexToRgb(t.accent2);
+  const runtimeChannelConfig = useMemo(() => resolveMainRuntimeChannelConfig(), []);
   const [checkedIds, setCheckedIds] = useState(() => readCheckedIds());
   const [copied, setCopied] = useState(false);
   const [supportCopied, setSupportCopied] = useState(false);
@@ -356,7 +357,11 @@ export function ReleaseHealthDashboard() {
       app: "Nexus Main",
       version: APP_VERSION,
       generatedAt: new Date().toISOString(),
-      controlApi: CONTROL_API_BASE_URL,
+      controlApi: runtimeChannelConfig.apiBaseUrl,
+      runtimeChannel: runtimeChannelConfig.channel,
+      runtimeChannelLabel: runtimeChannelConfig.label,
+      runtimeChannelSource: runtimeChannelConfig.source,
+      requiresSignedManifest: runtimeChannelConfig.requiresSignedManifest,
       score,
       openBlockers,
       openRequired,
@@ -371,7 +376,7 @@ export function ReleaseHealthDashboard() {
       views: viewSummary,
       commands: COMMANDS,
     }),
-    [completedChecks, openBlockers, openChecks, openEvidence, openRequired, score, viewSummary],
+    [completedChecks, openBlockers, openChecks, openEvidence, openRequired, runtimeChannelConfig, score, viewSummary],
   );
 
   const supportBundle = useMemo(
@@ -413,7 +418,8 @@ export function ReleaseHealthDashboard() {
       `# Nexus v6 Release Health`,
       ``,
       `- App: Nexus Main ${APP_VERSION}`,
-      `- API: ${CONTROL_API_BASE_URL}`,
+      `- API: ${runtimeChannelConfig.apiBaseUrl}`,
+      `- Runtime channel: ${runtimeChannelConfig.label}`,
       `- Score: ${score}% (${completedChecks.length}/${RELEASE_CHECKS.length})`,
       `- Open blockers: ${openBlockers}`,
       `- Open required: ${openRequired}`,
@@ -426,7 +432,7 @@ export function ReleaseHealthDashboard() {
       ...COMMANDS.map((command) => `- \`${command}\``),
     ];
     return lines.join("\n");
-  }, [completedChecks.length, openBlockers, openChecks, openEvidence, openRequired, score]);
+  }, [completedChecks.length, openBlockers, openChecks, openEvidence, openRequired, runtimeChannelConfig.apiBaseUrl, runtimeChannelConfig.label, score]);
 
   const supportMarkdown = useMemo(() => {
     const lines = [
@@ -634,8 +640,13 @@ export function ReleaseHealthDashboard() {
               <ShieldCheck size={14} color="#32d74b" />
               Control API
             </div>
-            <div style={{ marginTop: 12, fontSize: 13, fontWeight: 950, wordBreak: "break-word" }}>{CONTROL_API_BASE_URL}</div>
-            <div style={{ fontSize: 11, opacity: 0.54, marginTop: 5 }}>Nexus Main {APP_VERSION}</div>
+            <div style={{ marginTop: 12, fontSize: 13, fontWeight: 950, wordBreak: "break-word" }}>{runtimeChannelConfig.apiBaseUrl}</div>
+            <div style={{ fontSize: 11, opacity: 0.54, marginTop: 5 }}>
+              {runtimeChannelConfig.label} · Nexus Main {APP_VERSION}
+            </div>
+            {runtimeChannelConfig.warning ? (
+              <div style={{ fontSize: 10.5, color: "#fbbf24", marginTop: 5, lineHeight: 1.35 }}>{runtimeChannelConfig.warning}</div>
+            ) : null}
           </div>
         </div>
 
