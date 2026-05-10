@@ -31,6 +31,15 @@ type WalkthroughCard = {
   body: string;
 };
 
+type WalkthroughSetupTask = {
+  id: string;
+  title: string;
+  detail: string;
+  view?: View;
+  externalHref?: string;
+  actionLabel?: string;
+};
+
 type WalkthroughStep = {
   id: string;
   eyebrow: string;
@@ -45,7 +54,10 @@ type WalkthroughStep = {
   externalHref?: string;
   externalLabel?: string;
   markdownExample?: string[];
+  setupTasks?: WalkthroughSetupTask[];
 };
+
+const WALKTHROUGH_SETUP_STORAGE_KEY = "nx-main-walkthrough-setup-v1";
 
 const STEPS: WalkthroughStep[] = [
   {
@@ -89,6 +101,83 @@ const STEPS: WalkthroughStep[] = [
       { title: "Free", body: "Dashboard, Notes, Tasks, Reminders und Files als Basis-Workspace." },
       { title: "Pro / Lifetime", body: "Canvas, Code, DevTools und Mobile Access fuer groessere Workflows." },
       { title: "Lifetime Pro", body: "Erweiterte Pro-Flaechen inklusive Flux und kuenftige Premium-Systeme." },
+    ],
+  },
+  {
+    id: "setup",
+    eyebrow: "Setup",
+    title: "Dein gefuehrter Startlauf",
+    summary:
+      "Wenn du diese Checkliste einmal durchgehst, hast du Account, Workspace, erste Daten und die wichtigsten Views praktisch beruehrt. Du musst nicht alles sofort erledigen: Nexus merkt sich deinen Fortschritt lokal auf diesem Geraet.",
+    view: "dashboard",
+    icon: CheckCircle2,
+    accent: "#06b6d4",
+    bullets: [
+      "Arbeite die Punkte der Reihe nach ab, wenn du Nexus frisch einrichtest.",
+      "Jeder Punkt fuehrt dich direkt zur passenden View oder zur Account-Seite.",
+      "Die Checkliste speichert nur erledigt/nicht erledigt, keine Account- oder Workspace-Daten.",
+    ],
+    cards: [
+      { title: "Schnellstart", body: "Account, Workspace, erste Note, erste Task und erste Canvas-Node reichen fuer einen guten Start." },
+      { title: "Spaeter fortsetzen", body: "Du kannst den Walkthrough erneut oeffnen und offene Punkte nachholen." },
+    ],
+    setupTasks: [
+      {
+        id: "account-page",
+        title: "Account auf der Website erstellen oder pruefen",
+        detail: "Oeffne nexusproject.dev, erstelle deinen Account und merke dir, welches Tier freigeschaltet ist.",
+        externalHref: "https://nexusproject.dev/?page=account",
+        actionLabel: "Website",
+      },
+      {
+        id: "app-login",
+        title: "In der App anmelden und Remember-Me bewusst setzen",
+        detail: "Nutze denselben Account in Nexus Main. Remember-Me speichert nur den Session-Token, nicht dein Passwort.",
+        view: "settings",
+        actionLabel: "Login/Settings",
+      },
+      {
+        id: "workspace-folder",
+        title: "Workspace-Ordner festlegen",
+        detail: "Lege in Files einen nachvollziehbaren Ordner fuer Exporte, Assets und Projektdateien fest.",
+        view: "files",
+        actionLabel: "Files",
+      },
+      {
+        id: "import-data",
+        title: "Vorhandene Daten optional importieren",
+        detail: "Wenn du schon Markdown, Projektdateien oder Exporte hast, importiere sie erst nach dem Workspace-Ordner.",
+        view: "files",
+        actionLabel: "Import",
+      },
+      {
+        id: "first-note",
+        title: "Erste Projekt-Note schreiben",
+        detail: "Erstelle eine kleine Startnotiz mit Ziel, naechstem Schritt und einem Link wie [[Projekt Hub]].",
+        view: "notes",
+        actionLabel: "Notes",
+      },
+      {
+        id: "first-task",
+        title: "Eine Task und einen Reminder anlegen",
+        detail: "Mache aus der Startnotiz eine konkrete Aufgabe und haenge bei Bedarf eine Erinnerung dran.",
+        view: "tasks",
+        actionLabel: "Tasks",
+      },
+      {
+        id: "first-canvas",
+        title: "Canvas-Hub fuer das Projekt erstellen",
+        detail: "Baue eine Hub-Node und haenge Goal, Risk, Decision oder Task Nodes daran.",
+        view: "canvas",
+        actionLabel: "Canvas",
+      },
+      {
+        id: "info-guide",
+        title: "InfoView als Handbuch merken",
+        detail: "Oeffne Info, wenn du spaeter View-Guides, Shortcuts oder Release-Hinweise suchst.",
+        view: "info",
+        actionLabel: "Info",
+      },
     ],
   },
   {
@@ -320,6 +409,25 @@ const STEPS: WalkthroughStep[] = [
 
 const clampStepIndex = (index: number) => Math.max(0, Math.min(STEPS.length - 1, index));
 
+const readSetupTaskIds = () => {
+  if (typeof window === "undefined") return new Set<string>();
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(WALKTHROUGH_SETUP_STORAGE_KEY) || "[]");
+    return new Set<string>(Array.isArray(parsed) ? parsed.filter((item) => typeof item === "string") : []);
+  } catch {
+    return new Set<string>();
+  }
+};
+
+const writeSetupTaskIds = (ids: Set<string>) => {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(WALKTHROUGH_SETUP_STORAGE_KEY, JSON.stringify([...ids]));
+  } catch {
+    // Onboarding progress is a local convenience, not a critical dependency.
+  }
+};
+
 export function WelcomeWalkthrough({
   open,
   onClose,
@@ -333,10 +441,14 @@ export function WelcomeWalkthrough({
 }) {
   const t = useTheme();
   const [index, setIndex] = useState(0);
+  const [setupTaskIds, setSetupTaskIds] = useState(() => readSetupTaskIds());
   const step = useMemo(() => STEPS[clampStepIndex(index)], [index]);
   const availableSet = useMemo(() => new Set(availableViews), [availableViews]);
   const canOpenStepView = Boolean(step.view && (availableViews.length === 0 || availableSet.has(step.view)));
   const Icon = step.icon;
+  const setupTasks = step.setupTasks || [];
+  const setupDoneCount = setupTasks.filter((task) => setupTaskIds.has(task.id)).length;
+  const setupPercent = setupTasks.length > 0 ? Math.round((setupDoneCount / setupTasks.length) * 100) : 0;
 
   useEffect(() => {
     if (open) setIndex(0);
@@ -348,6 +460,20 @@ export function WelcomeWalkthrough({
   }, [canOpenStepView, onOpenView, open, step.view]);
 
   if (!open) return null;
+
+  const toggleSetupTask = (id: string, checked?: boolean) => {
+    const next = new Set(setupTaskIds);
+    if (checked ?? !next.has(id)) next.add(id);
+    else next.delete(id);
+    setSetupTaskIds(next);
+    writeSetupTaskIds(next);
+  };
+
+  const resetSetupTasks = () => {
+    const next = new Set<string>();
+    setSetupTaskIds(next);
+    writeSetupTaskIds(next);
+  };
 
   return (
     <div
@@ -475,6 +601,74 @@ export function WelcomeWalkthrough({
                       Mini-Beispiel fuer Notes Magic
                     </div>
                     <pre>{step.markdownExample.join("\n")}</pre>
+                  </div>
+                ) : null}
+
+                {setupTasks.length > 0 ? (
+                  <div className="nx-walkthrough-setup-card">
+                    <div className="nx-walkthrough-setup-head">
+                      <div>
+                        <div className="nx-walkthrough-panel-label">Start-Checkliste</div>
+                        <strong>{setupDoneCount}/{setupTasks.length} erledigt</strong>
+                        <span>{setupPercent}% deines Erststarts sind vorbereitet.</span>
+                      </div>
+                      <button type="button" className="nx-walkthrough-secondary-action" onClick={resetSetupTasks}>
+                        Zuruecksetzen
+                      </button>
+                    </div>
+                    <div className="nx-walkthrough-setup-progress" aria-hidden="true">
+                      <span style={{ width: `${setupPercent}%` }} />
+                    </div>
+                    <div className="nx-walkthrough-setup-list">
+                      {setupTasks.map((task) => {
+                        const done = setupTaskIds.has(task.id);
+                        const taskViewAvailable = Boolean(task.view && (availableViews.length === 0 || availableSet.has(task.view)));
+                        return (
+                          <div className={`nx-walkthrough-setup-item${done ? " is-done" : ""}`} key={task.id}>
+                            <button
+                              type="button"
+                              className="nx-walkthrough-setup-check"
+                              onClick={() => toggleSetupTask(task.id)}
+                              aria-label={`${task.title} ${done ? "als offen markieren" : "als erledigt markieren"}`}
+                            >
+                              {done ? <CheckCircle2 size={16} /> : null}
+                            </button>
+                            <div>
+                              <strong>{task.title}</strong>
+                              <span>{task.detail}</span>
+                            </div>
+                            <div className="nx-walkthrough-setup-actions">
+                              {task.externalHref ? (
+                                <a
+                                  className="nx-walkthrough-secondary-action"
+                                  href={task.externalHref}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  onClick={() => toggleSetupTask(task.id, true)}
+                                >
+                                  <Monitor size={13} />
+                                  {task.actionLabel || "Oeffnen"}
+                                </a>
+                              ) : null}
+                              {task.view ? (
+                                <button
+                                  type="button"
+                                  className="nx-walkthrough-secondary-action"
+                                  disabled={!taskViewAvailable}
+                                  onClick={() => {
+                                    if (task.view && taskViewAvailable) onOpenView(task.view);
+                                    toggleSetupTask(task.id, true);
+                                  }}
+                                >
+                                  <FolderOpen size={13} />
+                                  {task.actionLabel || task.view}
+                                </button>
+                              ) : null}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 ) : null}
 

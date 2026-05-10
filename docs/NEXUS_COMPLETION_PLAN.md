@@ -6,7 +6,7 @@ Arbeitsstand nach Start der Abarbeitung:
 
 - P0 Build-Basis fuer Main, Mobile, Nexus Code und Code Mobile ist repariert und erneut verifiziert.
 - Website API Integration ist Node/tsx-sicher repariert und besteht.
-- `verify:single-react`, `verify:encoding` und `verify:ecosystem` bestehen; Ecosystem-Gate meldet 50/50 Checks.
+- `verify:single-react`, `verify:encoding` und `verify:ecosystem` bestehen; Ecosystem-Gate meldet 51/51 Checks.
 - Erste UI-Shell-Konsolidierung fuer Nexus Main ist umgesetzt: Main nutzt `MainShellLayout`/`MainViewHost`, View Error Boundaries sitzen im Host, der alte Inline-Shell-Block ist entfernt, und Boot-/View-Konstanten liegen wieder in `mainAppConfig.ts`.
 - `packages/nexus-core` hat ein erstes View Manifest v2 fuer alle Kernviews inklusive Actions, Panels, Responsive Modes, Status-Signalen und ableitbarer Command Registry.
 - `packages/nexus-core` hat ein eigenes Package-Gate mit Typecheck, Manifest-Test und Build-Script.
@@ -42,6 +42,7 @@ Arbeitsstand nach Start der Abarbeitung:
 - Signing/Notarization ist fuer den naechsten RC vorbereitet: Main/Code nutzen macOS Hardened Runtime mit Entitlements, der Installer-Workflow hat ein Signing-Secret-Gate, macOS-Notarization via `notarytool`/`stapler`, SHA256SUMS Uploads und `tools/verify-signing-env.mjs`.
 - Lokale Evidence nach Signing-Pass: `npm run verify:signing`, `npm run verify:ecosystem`, `npm run release:gate -- --fast`, `npm --prefix "Nexus Main" run build`, `npm --prefix "Nexus Code" run build`, `npm --prefix "Nexus Wiki" run build:ci` und ein Temp-Smoke fuer `tools/generate-installer-checksums.mjs` bestehen.
 - DevTools hat jetzt ein eigenes Release Health Dashboard: API/Auth, View-Smokes, Packaging, Signing, Security und Evidence sind als persistente Checkliste, Score-Karten, Runtime-View-Map, Gate-Kommandos, Markdown-Report sowie redigierter Support-Diagnostics-Export direkt in Nexus Main sichtbar.
+- Gefuehrtes Onboarding ist ausgebaut: Der First-Start-Walkthrough hat eine persistente Setup-Checkliste fuer Website-Account, App-Login/Remember-Me, Workspace-Ordner, Import, erste Note, Task/Reminder, Canvas-Hub und InfoView.
 
 Scope dieser Analyse:
 
@@ -830,14 +831,20 @@ Fertigstellen:
 
    Erledigt: Nexus Main DevTools hat einen Release-Health-Tab mit API/Base-Status, View-Smoke-Checkliste, Packaging/Signing-Gates, Runtime-View-Map, Report-Copy und JSON-Export. `verify:ecosystem` prueft Dashboard und Tab statisch mit.
 
-2. Gefuehrtes Onboarding.
+2. ~~Gefuehrtes Onboarding.~~
 
-   Erster Start mit:
+   Erledigt: `WelcomeWalkthrough` fuehrt neue Nutzer nicht nur textlich durch Nexus, sondern gibt ihnen eine lokal gespeicherte Start-Checkliste mit direkten Aktionen in Website/Views.
 
-   - Workspace auswaehlen
-   - Daten importieren
-   - Notes/Tasks/Canvas kurz initialisieren
-   - API Login optional verbinden
+   Enthalten:
+
+   - Website-Account erstellen oder pruefen
+   - App-Login und Remember-Me bewusst setzen
+   - Workspace-Ordner festlegen
+   - Vorhandene Daten optional importieren
+   - Erste Projekt-Note schreiben
+   - Task/Reminder initialisieren
+   - Canvas-Hub erstellen
+   - InfoView als Handbuch oeffnen
 
 3. ~~Diagnose-Export fuer Support.~~
 

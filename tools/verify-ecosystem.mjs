@@ -323,6 +323,12 @@ const run = async () => {
       pattern: /nexus-redacted-support-diagnostics[\s\S]*?includesSecrets:\s*false[\s\S]*?includesLocalStorageValues:\s*false[\s\S]*?nexus-support-diagnostics-redacted/,
       message: 'DevTools exportiert redigierte Support-Diagnostics ohne Secrets',
     },
+    {
+      id: 'main-guided-onboarding-checklist',
+      file: path.join(ROOT, 'Nexus Main/src/components/WelcomeWalkthrough.tsx'),
+      pattern: /WALKTHROUGH_SETUP_STORAGE_KEY[\s\S]*?Account auf der Website erstellen[\s\S]*?Workspace-Ordner festlegen[\s\S]*?Erste Projekt-Note schreiben[\s\S]*?Canvas-Hub[\s\S]*?Start-Checkliste/,
+      message: 'Nexus Main hat gefuehrtes First-Start-Onboarding mit Setup-Checkliste',
+    },
   ]
 
   if (CONTROL_UI_PRESENT) {
