@@ -365,6 +365,18 @@ const run = async () => {
       pattern: /before-restore[\s\S]*?Backup und Restore[\s\S]*?Import Preview[\s\S]*?Restore anwenden[\s\S]*?Lokale Backup-Versionen/,
       message: 'Settings zeigt Backup/Restore mit Import Preview und Safety Backup',
     },
+    {
+      id: 'main-devtools-feature-flag-control-core',
+      file: path.join(ROOT, 'Nexus Main/src/app/controlFeatureFlags.ts'),
+      pattern: /CONTROL_FEATURE_FLAGS_SCHEMA_VERSION[\s\S]*?createFeatureCatalogDraft[\s\S]*?validateFeatureCatalogDraft[\s\S]*?validateLayoutSchemaDraft[\s\S]*?createReleaseRolloutPlan[\s\S]*?buildFeatureFlagEditorReport/,
+      message: 'Nexus Main hat lokale Control Feature-Flag Draft-, Validierungs- und Rollout-Logik',
+    },
+    {
+      id: 'main-devtools-feature-flag-control-ui',
+      file: path.join(ROOT, 'Nexus Main/src/views/devtools/FeatureFlagControlPanel.tsx'),
+      pattern: /Feature Catalog Draft[\s\S]*?Local admin preview[\s\S]*?Validate[\s\S]*?Rollout Plan[\s\S]*?Audit Trail/,
+      message: 'DevTools zeigt Feature Flag Editor mit Validation, Rollout und Audit',
+    },
   ]
 
   if (CONTROL_UI_PRESENT) {
