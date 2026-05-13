@@ -493,6 +493,16 @@ export const englishEntryTranslations = {
     ]),
     points: ['The catalog lives centrally in Nexus Main/src/app/nexusTemplatePacks.ts and replaces scattered examples with curated starters.', 'InfoView filters packs by category and copies each pack as Markdown.', 'Packs cover Free, Pro and Lifetime Pro contexts without confusing client UX with server-side entitlements.', 'The first-start walkthrough points new users toward Template Packs for faster real workflows.'],
   },
+  'main-workspace-backup-restore': {
+    title: 'Nexus Main: Backup and Restore',
+    summary: 'Settings > Workspace includes a Backup/Restore center for versioned workspace snapshots with import preview and conflict list.',
+    guide: g([
+      ['1. Create a backup', 'Save a local backup for quick rollback or export it as JSON.'],
+      ['2. Review imports', 'Import backup JSON and inspect preview, counts, new IDs and conflicts before applying.'],
+      ['3. Apply restore', 'Before restore, Nexus automatically creates a before-restore safety backup.'],
+    ]),
+    points: ['Backups include notes, code files, tasks, reminders, folders, canvas boards, workspace mapping, terminal macros and theme.', 'Auth tokens, passwords and API secrets are not exported.', 'Local backups are versioned in IndexedDB and rotated to the latest eight snapshots.', 'The conflict list detects matching IDs with changed content before replacing local workspace data.'],
+  },
   'main-devtools-guide': {
     title: 'Nexus Main: DevTools Guide',
     summary: 'DevTools combines Visual Builder, FS-like editor, UI calculator and Release Health for quick frontend and RC work.',

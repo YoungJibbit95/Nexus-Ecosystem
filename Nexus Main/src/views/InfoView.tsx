@@ -1270,6 +1270,11 @@ export function InfoView({
               desc="Vordefinierte v6-Themes mit Preview, Beschreibung, Accent/Accent2/BG und sicherem Apply Flow."
             />
             <Card
+              icon="BK"
+              title="Backup Restore"
+              desc="Workspace Snapshots mit lokalen Versionen, JSON Export/Import, Preview, Konfliktliste und Safety-Backup vor Restore."
+            />
+            <Card
               icon="🧊"
               title="Panel Background"
               desc="Glass, Solid, Gradient, Mist, Hologram, Linen, Dots, Grid, Stripes, Carbon, Circuit und Soft Noise."

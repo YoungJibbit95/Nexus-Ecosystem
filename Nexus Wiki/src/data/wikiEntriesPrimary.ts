@@ -872,6 +872,32 @@ export const wikiEntriesPrimary: WikiEntry[] = [
     ],
   },
   {
+    id: 'main-workspace-backup-restore',
+    title: 'Nexus Main: Backup und Restore',
+    app: 'main',
+    category: 'workflow',
+    summary:
+      'Settings > Workspace enthaelt ein Backup/Restore Center fuer versionierte Workspace Snapshots mit Import Preview und Konfliktliste.',
+    guide: [
+      { title: '1. Backup erstellen', detail: 'Lokales Backup fuer schnelle Rollbacks speichern oder als JSON exportieren.' },
+      { title: '2. Import pruefen', detail: 'Backup JSON importieren und erst Preview, Counts, neue IDs sowie Konflikte ansehen.' },
+      { title: '3. Restore anwenden', detail: 'Vor dem Restore erzeugt Nexus automatisch ein before-restore Safety-Backup.' },
+    ],
+    points: [
+      'Backups enthalten Notes, Code Files, Tasks, Reminders, Folders, Canvas Boards, Workspace Mapping, Terminal-Makros und Theme.',
+      'Auth-Tokens, Passwoerter und API-Secrets werden nicht exportiert.',
+      'Lokale Backups werden versioniert in IndexedDB abgelegt und auf die letzten acht Snapshots rotiert.',
+      'Die Konfliktliste erkennt gleiche IDs mit geaendertem Inhalt vor dem Ersetzen lokaler Workspace-Daten.',
+    ],
+    commands: ['Settings -> Workspace -> Lokales Backup', 'Backup exportieren', 'Backup importieren', 'Restore anwenden'],
+    tags: ['backup', 'restore', 'workspace', 'import-preview', 'indexeddb'],
+    sources: [
+      'Nexus Main/src/app/workspaceBackup.ts',
+      'Nexus Main/src/views/settings/SettingsBackupRestorePanel.tsx',
+      'Nexus Main/src/views/settings/SettingsWorkspaceModule.tsx',
+    ],
+  },
+  {
     id: 'main-devtools-guide',
     title: 'Nexus Main: DevTools Guide',
     app: 'main',

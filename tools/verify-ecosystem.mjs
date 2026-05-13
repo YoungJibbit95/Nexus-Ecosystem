@@ -353,6 +353,18 @@ const run = async () => {
       pattern: /NEXUS_TEMPLATE_PACKS[\s\S]*?buildNexusTemplatePackMarkdown[\s\S]*?Copy pack Markdown[\s\S]*?Template Packs[\s\S]*?visibleTemplatePacks/,
       message: 'InfoView zeigt kopierbare Template Packs',
     },
+    {
+      id: 'main-workspace-backup-core',
+      file: path.join(ROOT, 'Nexus Main/src/app/workspaceBackup.ts'),
+      pattern: /WORKSPACE_BACKUP_SCHEMA_VERSION[\s\S]*?createWorkspaceBackupSnapshot[\s\S]*?createWorkspaceBackupPreview[\s\S]*?conflicts[\s\S]*?listWorkspaceBackups[\s\S]*?readWorkspaceBackup[\s\S]*?saveWorkspaceBackup/,
+      message: 'Nexus Main hat versionierte Workspace Backup/Restore Core-Logik',
+    },
+    {
+      id: 'main-settings-backup-restore-ui',
+      file: path.join(ROOT, 'Nexus Main/src/views/settings/SettingsBackupRestorePanel.tsx'),
+      pattern: /before-restore[\s\S]*?Backup und Restore[\s\S]*?Import Preview[\s\S]*?Restore anwenden[\s\S]*?Lokale Backup-Versionen/,
+      message: 'Settings zeigt Backup/Restore mit Import Preview und Safety Backup',
+    },
   ]
 
   if (CONTROL_UI_PRESENT) {
