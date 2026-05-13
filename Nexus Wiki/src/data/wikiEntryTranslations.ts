@@ -503,16 +503,27 @@ export const englishEntryTranslations = {
     ]),
     points: ['Backups include notes, code files, tasks, reminders, folders, canvas boards, workspace mapping, terminal macros and theme.', 'Auth tokens, passwords and API secrets are not exported.', 'Local backups are versioned in IndexedDB and rotated to the latest eight snapshots.', 'The conflict list detects matching IDs with changed content before replacing local workspace data.'],
   },
+  'main-devtools-feature-flag-control': {
+    title: 'Nexus Main: Feature Flag Control Drafts',
+    summary: 'DevTools includes a local feature flag editor for catalog drafts, layout validation, rollout planning and audit preparation.',
+    guide: g([
+      ['1. Review the feature', 'Open DevTools -> Feature Flags, select a feature and check rollout, risk, percent and notes.'],
+      ['2. Validate schema', 'Validate the layout schema JSON against whitelist, screens, components and minClientVersion.'],
+      ['3. Hand off the report', 'Export or copy the report, then perform real production release through the hosted Control Plane.'],
+    ]),
+    points: ['The editor is local and safe for release prep because it does not perform production mutations.', 'Feature Catalog, Layout Guard, rollout stages and audit trail share one draft state.', 'Production remains a server concern with admin auth, server audit and rollback token.', 'verify:ecosystem statically checks both the core logic and DevTools tab.'],
+  },
   'main-devtools-guide': {
     title: 'Nexus Main: DevTools Guide',
-    summary: 'DevTools combines Visual Builder, FS-like editor, UI calculator and Release Health for quick frontend and RC work.',
+    summary: 'DevTools combines Visual Builder, FS-like editor, UI calculator, Release Health and Feature Flag Drafts for quick frontend and RC work.',
     guide: g([
       ['1. Build structure', 'Edit HTML/CSS/JS base files in the integrated file area.'],
       ['2. Iterate styles', 'Use builder controls for spacing, border, background, glow, blur and typography.'],
       ['3. Reuse output', 'Copy CSS/Tailwind snippets into the target project.'],
       ['4. Check release state', 'Use the Release tab to close blockers, required checks, evidence and gate commands in one focused RC pass.'],
+      ['5. Prepare flags', 'Use the Feature Flags tab to validate local catalog/layout drafts and export a report.'],
     ]),
-    points: ['Explorer allows new files, rename and delete.', 'Editor supports tab indentation and language-specific colors.', 'Calculator covers spacing/color/typography/layout/animation calculations.', 'Release Health shows API/auth, view smokes, packaging, signing, security and evidence in one persistent checklist.', 'Support Diagnostics exports redacted runtime and RC signals without secrets, content, file paths or localStorage values.'],
+    points: ['Explorer allows new files, rename and delete.', 'Editor supports tab indentation and language-specific colors.', 'Calculator covers spacing/color/typography/layout/animation calculations.', 'Release Health shows API/auth, view smokes, packaging, signing, security and evidence in one persistent checklist.', 'Feature Flags provides local Control drafts with Layout Guard, rollout plan and audit trail.', 'Support Diagnostics exports redacted runtime and RC signals without secrets, content, file paths or localStorage values.'],
   },
   'main-info-view-guide': {
     title: 'Nexus Main: InfoView Guide',

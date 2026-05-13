@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react'
-import { Copy, Check, RefreshCw, Play, Code2, Calculator, Monitor, Tablet, Smartphone, Download, Trash2, Edit3, MoreVertical, Layout, Sliders, Save, Rocket } from 'lucide-react'
+import { Copy, Check, RefreshCw, Play, Code2, Calculator, Monitor, Tablet, Smartphone, Download, Trash2, Edit3, MoreVertical, Layout, Sliders, Save, Rocket, Flag } from 'lucide-react'
 import {
   DEFAULT_DEVTOOLS_WEB_FILES,
   extractDevToolsCodeBundles,
@@ -18,6 +18,7 @@ import { DevToolsArtifactLibraryPanel } from './devtools/DevToolsArtifactLibrary
 import { useDevToolsArtifactLibrary } from './devtools/useDevToolsArtifactLibrary'
 import { DevToolsCalculatorSection } from './devtools/DevToolsCalculatorSection'
 import { ReleaseHealthDashboard } from './devtools/ReleaseHealthDashboard'
+import { FeatureFlagControlPanel } from './devtools/FeatureFlagControlPanel'
 
 // ── useCopy ────────────────────────────────────────────────────────────────
 function useCopy() {
@@ -780,7 +781,7 @@ function WebBuilder() {
 // ── Main ───────────────────────────────────────────────────────────────────
 export function DevToolsView() {
   const t = useTheme()
-  const [tab, setTab]     = useState<'builder'|'calc'|'release'>('builder')
+  const [tab, setTab]     = useState<'builder'|'calc'|'release'|'flags'>('builder')
 
   return (
     <div className="nx-devtools-v6 nx-release-view" style={{ display:'flex',flexDirection:'column',height:'100%',overflow:'hidden' }}>
@@ -800,11 +801,20 @@ export function DevToolsView() {
           <button onClick={()=>setTab('release')} style={{ padding:'6px 14px',background:tab==='release'?t.accent:'transparent',border:'none',cursor:'pointer',fontSize:11,fontWeight:700,color:tab==='release'?'#fff':'inherit',opacity:tab==='release'?1:0.55,display:'flex',alignItems:'center',gap:5 }}>
             <Rocket size={12}/> Release
           </button>
+          <button onClick={()=>setTab('flags')} style={{ padding:'6px 14px',background:tab==='flags'?t.accent:'transparent',border:'none',cursor:'pointer',fontSize:11,fontWeight:700,color:tab==='flags'?'#fff':'inherit',opacity:tab==='flags'?1:0.55,display:'flex',alignItems:'center',gap:5 }}>
+            <Flag size={12}/> Feature Flags
+          </button>
         </div>
       </div>
 
       <div style={{ flex:1,overflow:'hidden',display:'flex',flexDirection:'column',minHeight:0 }}>
-        {tab==='builder' ? <WebBuilder /> : tab==='calc' ? <DevToolsCalculatorSection /> : <ReleaseHealthDashboard />}
+        {tab==='builder'
+          ? <WebBuilder />
+          : tab==='calc'
+            ? <DevToolsCalculatorSection />
+            : tab==='flags'
+              ? <FeatureFlagControlPanel />
+              : <ReleaseHealthDashboard />}
       </div>
     </div>
   )

@@ -6,7 +6,7 @@ Arbeitsstand nach Start der Abarbeitung:
 
 - P0 Build-Basis fuer Main, Mobile, Nexus Code und Code Mobile ist repariert und erneut verifiziert.
 - Website API Integration ist Node/tsx-sicher repariert und besteht.
-- `verify:single-react`, `verify:encoding` und `verify:ecosystem` bestehen; Ecosystem-Gate meldet 57/57 Checks.
+- `verify:single-react`, `verify:encoding` und `verify:ecosystem` bestehen; Ecosystem-Gate meldet 59/59 Checks.
 - Erste UI-Shell-Konsolidierung fuer Nexus Main ist umgesetzt: Main nutzt `MainShellLayout`/`MainViewHost`, View Error Boundaries sitzen im Host, der alte Inline-Shell-Block ist entfernt, und Boot-/View-Konstanten liegen wieder in `mainAppConfig.ts`.
 - `packages/nexus-core` hat ein erstes View Manifest v2 fuer alle Kernviews inklusive Actions, Panels, Responsive Modes, Status-Signalen und ableitbarer Command Registry.
 - `packages/nexus-core` hat ein eigenes Package-Gate mit Typecheck, Manifest-Test und Build-Script.
@@ -44,6 +44,7 @@ Arbeitsstand nach Start der Abarbeitung:
 - DevTools hat jetzt ein eigenes Release Health Dashboard: API/Auth, View-Smokes, Packaging, Signing, Security und Evidence sind als persistente Checkliste, Score-Karten, Runtime-View-Map, Gate-Kommandos, Markdown-Report sowie redigierter Support-Diagnostics-Export direkt in Nexus Main sichtbar.
 - Gefuehrtes Onboarding ist ausgebaut: Der First-Start-Walkthrough hat eine persistente Setup-Checkliste fuer Website-Account, App-Login/Remember-Me, Workspace-Ordner, Import, erste Note, Task/Reminder, Canvas-Hub und InfoView.
 - Runtime Channel Guardrails sind im Client angelegt: Stable nutzt canonical Production API, Canary/Dev sind nur in Dev/Admin-Override-Kontext sichtbar, der Bootflow nutzt denselben Channel fuer Catalog/Layout/Release und Release Health zeigt Channel/API/Warnungen.
+- DevTools hat jetzt einen lokalen Control Feature-Flag Editor: Feature Catalog Drafts, Layout Schema Guard, stufenweiser Rollout-Plan, Import/Export, Validierung und lokaler Audit Trail sind als Admin-Vorbereitung sichtbar; echte Production-Mutationen bleiben beim Hosted Control Plane.
 
 Scope dieser Analyse:
 
@@ -886,7 +887,9 @@ Fertigstellen:
    - Versionierte lokale Backups.
    - Import Preview mit Konfliktliste.
 
-7. Control Feature-Flag Editor.
+7. ~~Control Feature-Flag Editor.~~
+
+   Erledigt: DevTools hat jetzt einen Feature-Flags-Tab mit lokalem Catalog-Draft, Feature Toggle/Edit, Layout-Schema-JSON-Guard, stufenweisem Rollout-Plan, Report Export/Copy, Import/Reset und Audit Trail. `verify:ecosystem` prueft Core-Logik und DevTools-UI statisch mit. Hinweis: Das ist bewusst eine lokale Admin-/Release-Vorbereitung; Production-Schreibzugriffe muessen weiter ueber Hosted Control Plane mit Admin-Auth, Server-Audit und Rollback-Token laufen.
 
    - Feature Catalog editieren
    - Layout Schema validieren

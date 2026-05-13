@@ -493,6 +493,7 @@ const VIEW_DOCS: ViewDoc[] = [
       "Visual Diagnostics",
       "Export Panels",
       "Feature Catalog Kontext",
+      "Feature Flag Drafts",
     ],
     shortcuts: ["Dev only", "Admin/Debug"],
     releaseCheck:
@@ -512,6 +513,7 @@ const VIEW_DOCS: ViewDoc[] = [
       "DevTools darf intern mächtig sein; öffentlich sollte es leise und kontrolliert bleiben.",
     wikiTopics: [
       "main-devtools-guide",
+      "main-devtools-feature-flag-control",
       "Visual Builder",
       "Feature Catalog",
       "Diagnostics",
