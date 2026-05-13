@@ -7,12 +7,14 @@ import {
   TerminalSquare,
 } from "lucide-react";
 import { ModuleCard, Row } from "./SettingsPrimitives";
+import { SettingsBackupRestorePanel } from "./SettingsBackupRestorePanel";
 
 type SettingsWorkspaceModuleProps = {
   onOpenWalkthrough?: () => void;
   clearSpotlight: () => void;
   clearTerminalWorkspace: () => void;
   resetDashboardLayout: () => void;
+  toast: (text: string) => void;
 };
 
 export function SettingsWorkspaceModule({
@@ -20,6 +22,7 @@ export function SettingsWorkspaceModule({
   clearSpotlight,
   clearTerminalWorkspace,
   resetDashboardLayout,
+  toast,
 }: SettingsWorkspaceModuleProps) {
   const runWithConfirm = (message: string, action: () => void) => {
     if (!window.confirm(message)) return;
@@ -61,6 +64,8 @@ export function SettingsWorkspaceModule({
           <Sparkles size={13} /> Walkthrough erneut öffnen
         </button>
       </ModuleCard>
+
+      <SettingsBackupRestorePanel toast={toast} />
 
       <ModuleCard
         title="Support"

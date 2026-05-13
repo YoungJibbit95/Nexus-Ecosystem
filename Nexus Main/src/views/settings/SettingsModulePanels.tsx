@@ -1190,6 +1190,7 @@ export function SettingsModulePanels({
                 clearSpotlight={clearSpotlight}
                 clearTerminalWorkspace={clearTerminalWorkspace}
                 resetDashboardLayout={resetDashboardLayout}
+                toast={toast}
               />
             ) : null}
     </>
