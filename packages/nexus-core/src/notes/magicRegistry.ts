@@ -246,6 +246,28 @@ export const NOTES_MAGIC_DEFINITIONS: NotesMagicDefinition[] = [
     template: "\n```nexus-callout\n{{header}}\n{{msg}}\n```\n",
   },
   {
+    id: "nexus-details",
+    label: "Details",
+    icon: "details",
+    desc: "Aufklappbarer Abschnitt ohne rohes HTML im Editor",
+    color: "#5E5CE6",
+    fields: [
+      {
+        key: "title",
+        label: "Titel",
+        multiline: false,
+        placeholder: "Mehr anzeigen",
+      },
+      {
+        key: "body",
+        label: "Details",
+        multiline: true,
+        placeholder: "Zusatzinformationen, Notizen oder Kontext.",
+      },
+    ],
+    template: "\n```nexus-details\n{{title}}\n{{body}}\n```\n",
+  },
+  {
     id: "nexus-daily-brief",
     label: "Daily Brief",
     icon: "🧭",

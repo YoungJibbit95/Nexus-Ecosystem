@@ -47,6 +47,7 @@ server paths under `/downloads/...`.
 
 - First-start Walkthrough: clear `nx-main-walkthrough-v2` locally or use Settings/Info reopen flow, then verify the Setup checklist can open website/account, Files, Notes, Tasks, Canvas and Info without losing progress.
 - InfoView Template Packs: open `Info -> Template Packs`, switch every category, and copy one Notes, Tasks, Canvas, Code and Flux pack as Markdown.
+- Notes Editor QoL: test normal Enter/new lines, Toolbar H2/Bold/List/Table/Details, Blocks menu, Emoji insert and Preview render; Details must insert `nexus-details`, not raw `<details>` HTML.
 - Settings Backup/Restore: create a local backup, export JSON, import the JSON again, verify the preview/conflict list, and confirm a before-restore safety backup is created before applying.
 - DevTools Feature Flags: open `DevTools -> Feature Flags`, toggle one local draft, validate catalog/layout, export the report and verify the audit trail records the change without claiming production mutation.
 - Run the manual matrix in `docs/VIEW_SMOKE_MATRIX.md`.

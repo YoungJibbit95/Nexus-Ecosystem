@@ -304,11 +304,12 @@ export const englishEntryTranslations = {
       'Sorting: updated, title, created; pinned notes are prioritized.',
       'Focus mode hides the sidebar and expands the writing surface.',
       'Notes settings control font size, line height, word wrap, tab size and autosave.',
+      'Editor QoL: Enter/new lines stay inside the textarea, and toolbar/emoji/blocks keep cursor position.',
     ],
   },
   'main-notes-magic-menu-guide': {
     title: 'Nexus Main: Notes Magic Menu Guide',
-    summary: 'The Magic Menu creates structured Markdown snippets (List, Alert, Progress, Timeline, Grid, Card, Badge) through the UI.',
+    summary: 'The Magic Menu creates structured Markdown snippets (List, Alert, Progress, Timeline, Grid, Card, Details, Badge) through the UI.',
     guide: g([
       ['1. Keep cursor position', 'Select the target area in the editor, then open the Magic button.'],
       ['2. Choose an element', 'Select the type on the left and fill the form fields.'],
@@ -318,12 +319,14 @@ export const englishEntryTranslations = {
       'The modal is lazy-loaded for better initial performance.',
       'Selection is stored before opening and restored after insert.',
       'Badge syntax gives fast inline highlights.',
+      'Details/Toggle uses `nexus-details`, so raw HTML does not land in the editor.',
     ],
     commands: ['Magic button in Notes toolbar', 'ESC to close'],
     markdownSnippets: [
       { label: 'nexus-list', description: 'Label/detail rows', snippet: '```nexus-list\nAlpha | First point\nBeta | Second point\n```' },
       { label: 'nexus-alert', description: 'info/success/warning/error', snippet: '```nexus-alert\nwarning\nImportant warning for the team.\n```' },
       { label: 'inline badge', description: 'Inline badge syntax', snippet: '`b:Nexus|magic`' },
+      { label: 'nexus-details', description: 'Expandable details without HTML in the editor', snippet: '```nexus-details\nShow more\nAdd detail text, links or checklists here.\n```' },
     ],
   },
   'main-notes-markdown-reference': {
@@ -337,7 +340,8 @@ export const englishEntryTranslations = {
     points: [
       'Toolbar actions quickly create H2, bold, italic, strikethrough, quote, list, table and horizontal rule.',
       'Inline code renders special badge syntax b:label|variant.',
-      'Widget renderers: list, alert, progress, timeline, grid and card.',
+      'Widget renderers: list, alert, progress, timeline, grid, card and details.',
+      'Details/Toggle stays Markdown-only through `nexus-details` and renders as an expandable area only in Preview/Canvas.',
     ],
     markdownSnippets: [
       { label: 'Tables', description: 'GFM tables', snippet: '| Field | Value |\n| --- | --- |\n| Status | active |\n| Owner | Product |' },
@@ -347,6 +351,7 @@ export const englishEntryTranslations = {
       { label: 'Timeline', description: 'Roadmap flow', snippet: '```nexus-timeline\nW1 | Discovery\nW2 | Build\nW3 | QA\nW4 | Release\n```' },
       { label: 'nexus-grid', description: 'Multi-column grid with row content', snippet: '```nexus-grid\n2\nAPI\nUI\nQA\nRollout\n```' },
       { label: 'nexus-card', description: 'Card with image URL, title and description', snippet: '```nexus-card\nhttps://images.unsplash.com/photo-1462331940025-496dfbfc7564?w=1200 | Nexus Milestone | Production readiness complete.\n```' },
+      { label: 'nexus-details', description: 'Expandable area for extra context', snippet: '```nexus-details\nRelease notes\n- Build checked\n- Smoke open\n- Roll out after API health\n```' },
       { label: 'Inline Badge', description: 'Inline markers for status hints', snippet: '`b:Premium|success` and `b:Blocked|error`' },
       { label: 'Task list', description: 'Standard Markdown task checks', snippet: '- [x] Release Build\n- [ ] Control Promotion\n- [ ] Post-Deploy Smoke' },
     ],
@@ -361,7 +366,7 @@ export const englishEntryTranslations = {
     ]),
     points: [
       'Standard Markdown remains the base: headings, tables, task lists, quotes, links, code and horizontal rules.',
-      'Notes Magic Widgets: nexus-list, nexus-alert, nexus-progress, nexus-timeline, nexus-grid, nexus-card and inline badge syntax.',
+      'Notes Magic Widgets: nexus-list, nexus-alert, nexus-progress, nexus-timeline, nexus-grid, nexus-card, nexus-details and inline badge syntax.',
       'Canvas adds compact PM nodes and nexus-kanban for sprint and standup boards.',
       'All widgets are text-based, copyable and useful for README, InfoView and Wiki handoff.',
     ],
@@ -373,6 +378,7 @@ export const englishEntryTranslations = {
       { label: 'nexus-timeline roadmap', description: 'Linear roadmap in Notes or Canvas nodes.', snippet: '```nexus-timeline\nNow | Stabilization\nNext | Mobile parity\nLater | Release promotion\n```' },
       { label: 'nexus-grid feature map', description: 'Compact grid for view and feature groups.', snippet: '```nexus-grid\n3\nDashboard\nNotes\nTasks\nReminders\nCanvas\nFiles\n```' },
       { label: 'nexus-card product proof', description: 'Card for milestones, decisions or product proof.', snippet: '```nexus-card\nhttps://images.unsplash.com/photo-1446776811953-b23d57bd21aa?w=1200 | Render Pipeline | Measure, Resolve, Allocate, Commit, Cleanup.\n```' },
+      { label: 'nexus-details release notes', description: 'Expandable extra context without raw HTML in Markdown.', snippet: '```nexus-details\nQA details\n- Notes Enter smoke passed\n- Check toolbar inserts\n- Review Preview and Canvas\n```' },
       { label: 'nexus-kanban Canvas sprint', description: 'Canvas-specific board block for sprint and standup nodes.', snippet: '```nexus-kanban\nTodo | Wiki Markdown Refresh\nDoing | Mobile Overflow Check\nReview | Build + Search Smoke\nDone | Push GitHub Pages\n```' },
       { label: 'Inline Badge', description: 'Small status markers inside text.', snippet: '`b:Ready|success` `b:Blocked|error` `b:Review|warning` `b:Magic|magic`' },
     ],
@@ -438,10 +444,10 @@ export const englishEntryTranslations = {
     summary: 'Markdown nodes in Canvas render Nexus blocks for structured project information and visualization directly inside the node.',
     guide: g([
       ['1. Create a Markdown node', 'Use node type markdown or text fields with fenced blocks.'],
-      ['2. Use Nexus renderers', 'Use nexus-list/progress/alert/timeline/grid/card/kanban.'],
+      ['2. Use Nexus renderers', 'Use nexus-list/progress/alert/timeline/grid/card/details/kanban.'],
       ['3. Combine layout', 'Connect Markdown nodes with goal/risk/decision nodes.'],
     ]),
-    points: ['Canvas has compact renderers for dense cards.', 'nexus-kanban is available for sprint and standup flows.', 'Ideal for context boards beside PM nodes.'],
+    points: ['Canvas has compact renderers for dense cards.', 'nexus-details keeps expandable context readable inside project nodes.', 'nexus-kanban is available for sprint and standup flows.', 'Ideal for context boards beside PM nodes.'],
     markdownSnippets: [
       { label: 'Compact List', description: 'Owner/context in dense nodes', snippet: '```nexus-list\nOwner | Product\nBudget | TBD\nDependencies | API, Design, QA\n```' },
       { label: 'Progress Board', description: 'Multiple delivery bars in one node', snippet: '```nexus-progress\nScope | 70\nReadiness | 55\nRisks mitigated | 40\n```' },
@@ -450,6 +456,7 @@ export const englishEntryTranslations = {
       { label: 'Risk Alert', description: 'Risk hint inside the node', snippet: '```nexus-alert\nwarning\nAssign a mitigation owner for every critical risk.\n```' },
       { label: 'Context Grid', description: 'Context fields in grid form', snippet: '```nexus-grid\n2\nScope\nDependencies\nAssumptions\nKPIs\n```' },
       { label: 'Decision Card', description: 'Option with tradeoff metadata', snippet: '```nexus-card\nOption A|Fast start|Higher technical risk\n```' },
+      { label: 'Expandable Context', description: 'Dense notes that stay readable in one node', snippet: '```nexus-details\nDecision context\nUse this for rationale, links and follow-up checks.\n```' },
     ],
   },
   'main-files-guide': {

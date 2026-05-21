@@ -409,6 +409,7 @@ export const wikiEntriesPrimary: WikiEntry[] = [
       'Sortierung: updated, title, created; Pinning wird priorisiert.',
       'Fokusmodus blendet Sidebar aus und vergroessert Schreibflaeche.',
       'Notes Settings steuern Schriftgroesse, Zeilenhoehe, Word Wrap, Tab Size, Autosave.',
+      'Editor-QoL: Enter/Zeilenumbrueche bleiben im Textfeld, Toolbar/Emoji/Blocks behalten die Cursorposition.',
     ],
     commands: ['Ctrl+S', 'Ctrl+B', 'Ctrl+I', 'Ctrl+K', 'Ctrl+Z', 'Ctrl+Y', 'Tab'],
     tags: ['notes', 'editor', 'preview', 'autosave', 'tags'],
@@ -420,7 +421,7 @@ export const wikiEntriesPrimary: WikiEntry[] = [
     app: 'main',
     category: 'view',
     summary:
-      'Das Magic Menue erzeugt strukturierte Markdown Snippets (List, Alert, Progress, Timeline, Grid, Card, Badge) per UI.',
+      'Das Magic Menue erzeugt strukturierte Markdown Snippets (List, Alert, Progress, Timeline, Grid, Card, Details, Badge) per UI.',
     guide: [
       { title: '1. Cursorposition sichern', detail: 'Im Editor den Zielbereich markieren, dann Magic Button klicken.' },
       { title: '2. Element waehlen', detail: 'Typ links auswaehlen und Felder im Formular fuellen.' },
@@ -430,6 +431,7 @@ export const wikiEntriesPrimary: WikiEntry[] = [
       'Modal laedt lazy fuer bessere Initialperformance.',
       'Selection wird vor dem Oeffnen gespeichert und nach Insert wiederhergestellt.',
       'Badge nutzt Inline Syntax fuer schnelle Hervorhebungen.',
+      'Details/Toggle nutzt `nexus-details`, damit im Editor kein rohes HTML landet.',
     ],
     commands: ['Magic Button in Notes Toolbar', 'ESC zum Schliessen'],
     tags: ['magic-menu', 'widgets', 'markdown-builder'],
@@ -450,6 +452,11 @@ export const wikiEntriesPrimary: WikiEntry[] = [
         description: 'Inline Badge Syntax',
         snippet: '`b:Nexus|magic`',
       },
+      {
+        label: 'nexus-details',
+        description: 'Aufklappbare Details ohne HTML im Editor',
+        snippet: '```nexus-details\nMehr anzeigen\nDetailtext, Links oder Checklisten hier ergaenzen.\n```',
+      },
     ],
   },
   {
@@ -467,7 +474,8 @@ export const wikiEntriesPrimary: WikiEntry[] = [
     points: [
       'Toolbar erzeugt schnell H2, Bold, Italic, Strikethrough, Quote, List, Table und Horizontal Rule.',
       'Inline Code rendert special badge syntax b:label|variant.',
-      'Widget Renderers: list, alert, progress, timeline, grid, card.',
+      'Widget Renderers: list, alert, progress, timeline, grid, card, details.',
+      'Details/Toggle bleibt Markdown-only ueber `nexus-details` und rendert erst in Preview/Canvas als aufklappbarer Bereich.',
     ],
     commands: ['Ctrl/Cmd+B', 'Ctrl/Cmd+I', 'Ctrl/Cmd+K', 'Ctrl/Cmd+S', 'Ctrl/Cmd+Z', 'Ctrl/Cmd+Y', 'Tab'],
     tags: ['markdown', 'notes', 'syntax', 'widgets'],
@@ -509,6 +517,11 @@ export const wikiEntriesPrimary: WikiEntry[] = [
         snippet: '```nexus-card\nhttps://images.unsplash.com/photo-1462331940025-496dfbfc7564?w=1200 | Nexus Milestone | Production readiness complete.\n```',
       },
       {
+        label: 'nexus-details',
+        description: 'Aufklappbarer Bereich fuer Zusatzinfos',
+        snippet: '```nexus-details\nRelease Notes\n- Build geprueft\n- Smoke offen\n- Rollout nach API Health\n```',
+      },
+      {
         label: 'Inline Badge',
         description: 'Inline Marker fuer Statushinweise',
         snippet: '`b:Premium|success` und `b:Blocked|error`',
@@ -534,7 +547,7 @@ export const wikiEntriesPrimary: WikiEntry[] = [
     ],
     points: [
       'Standard Markdown bleibt Basis: Headings, Tabellen, Tasklisten, Zitate, Links, Code und horizontale Trenner.',
-      'Notes Magic Widgets: nexus-list, nexus-alert, nexus-progress, nexus-timeline, nexus-grid, nexus-card plus Inline Badge Syntax.',
+      'Notes Magic Widgets: nexus-list, nexus-alert, nexus-progress, nexus-timeline, nexus-grid, nexus-card, nexus-details plus Inline Badge Syntax.',
       'Canvas ergaenzt diese Darstellung um kompakte PM-Nodes und nexus-kanban fuer Sprint- und Standup-Boards.',
       'Alle Widgets sind textbasiert, kopierbar und dadurch gut fuer README-, InfoView- und Wiki-Handoff geeignet.',
     ],
@@ -549,6 +562,7 @@ export const wikiEntriesPrimary: WikiEntry[] = [
       'nexus-timeline',
       'nexus-grid',
       'nexus-card',
+      'nexus-details',
       'nexus-kanban',
     ],
     sources: [
@@ -587,6 +601,11 @@ export const wikiEntriesPrimary: WikiEntry[] = [
         label: 'nexus-card Produktbeleg',
         description: 'Card fuer Milestones, Decisions oder Produktbeweise.',
         snippet: '```nexus-card\nhttps://images.unsplash.com/photo-1446776811953-b23d57bd21aa?w=1200 | Render Pipeline | Measure, Resolve, Allocate, Commit, Cleanup.\n```',
+      },
+      {
+        label: 'nexus-details Release Notizen',
+        description: 'Aufklappbare Zusatzinfos ohne rohes HTML im Markdown.',
+        snippet: '```nexus-details\nQA Details\n- Notes Enter Smoke bestanden\n- Toolbar Inserts pruefen\n- Preview und Canvas gegenlesen\n```',
       },
       {
         label: 'nexus-kanban Canvas Sprint',
@@ -729,16 +748,17 @@ export const wikiEntriesPrimary: WikiEntry[] = [
       'Markdown Nodes in Canvas rendern Nexus Blöcke fuer strukturierte Projektinformationen und Visualisierung direkt im Node.',
     guide: [
       { title: '1. Markdown Node erstellen', detail: 'Node type markdown oder Textfeld mit fenced blocks nutzen.' },
-      { title: '2. Nexus Renderer einsetzen', detail: 'nexus-list/progress/alert/timeline/grid/card/kanban verwenden.' },
+      { title: '2. Nexus Renderer einsetzen', detail: 'nexus-list/progress/alert/timeline/grid/card/details/kanban verwenden.' },
       { title: '3. Layout kombinieren', detail: 'Markdown Nodes mit goal/risk/decision nodes verbinden.' },
     ],
     points: [
       'Canvas hat eigene kompakte Renderer fuer dichte Karten.',
+      'nexus-details haelt aufklappbaren Kontext auch in Projekt-Nodes lesbar.',
       'nexus-kanban ist fuer Sprint/Standup Flows verfuegbar.',
       'Ideal fuer Context Boards neben PM Nodes.',
     ],
     commands: ['canvas template sprint', 'canvas template decision'],
-    tags: ['canvas', 'markdown', 'nexus-kanban', 'project-context'],
+    tags: ['canvas', 'markdown', 'nexus-details', 'nexus-kanban', 'project-context'],
     sources: ['packages/nexus-core/src/canvas/CanvasMagicRenderers.tsx', 'Nexus Main/src/views/CanvasView.tsx'],
     markdownSnippets: [
       {
@@ -775,6 +795,11 @@ export const wikiEntriesPrimary: WikiEntry[] = [
         label: 'Decision Card',
         description: 'Option inkl. Tradeoff-Meta',
         snippet: '```nexus-card\nOption A|Schneller Start|Mehr technisches Risiko\n```',
+      },
+      {
+        label: 'Expandable Context',
+        description: 'Dichte Notizen, die in einem Node lesbar bleiben',
+        snippet: '```nexus-details\nDecision context\nUse this for rationale, links and follow-up checks.\n```',
       },
     ],
   },

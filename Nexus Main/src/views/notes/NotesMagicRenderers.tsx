@@ -430,6 +430,40 @@ function MagicKanban({ content, accent }: { content: string; accent: string }) {
   )
 }
 
+function MagicDetails({ content, accent }: { content: string; accent: string }) {
+  const lines = content.trim().split('\n')
+  const title = lines[0]?.trim() || 'Mehr anzeigen'
+  const body = lines.slice(1).join('\n').trim() || 'Details ergaenzen'
+  return (
+    <details className="nx-magic-fade" style={{
+      margin: '12px 0',
+      borderRadius: 12,
+      border: `1px solid ${accent}33`,
+      background: `${accent}12`,
+      padding: '9px 11px',
+    }}>
+      <summary style={{
+        cursor: 'pointer',
+        fontSize: 12,
+        fontWeight: 800,
+        color: accent,
+        listStyle: 'none',
+      }}>
+        {title}
+      </summary>
+      <div style={{
+        marginTop: 8,
+        fontSize: 12,
+        lineHeight: 1.6,
+        opacity: 0.82,
+        whiteSpace: 'pre-wrap',
+      }}>
+        {body}
+      </div>
+    </details>
+  )
+}
+
 function renderInlineBadge(text: string, accent: string) {
   if (!text.startsWith('b:')) {
     return <code style={{ fontFamily: 'monospace', background: 'rgba(255,255,255,0.08)', padding: '2px 6px', borderRadius: 4, fontSize: '0.85em' }}>{text}</code>
@@ -465,6 +499,7 @@ export function NexusCodeBlock({ className, children, accent }: { className?: st
   if (lang === 'nexus-quadrant') return <MagicQuadrant content={content} accent={accent} />
   if (lang === 'nexus-callout')  return <MagicCallout content={content} />
   if (lang === 'nexus-kanban')   return <MagicKanban content={content} accent={accent} />
+  if (lang === 'nexus-details')  return <MagicDetails content={content} accent={accent} />
 
   return (
     <pre style={{
