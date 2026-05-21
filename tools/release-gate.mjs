@@ -207,5 +207,5 @@ function quoteCmdArg(value) {
   const text = String(value)
   if (text.length === 0) return '""'
   if (!/[\s&()^<>|"]/u.test(text)) return text
-  return `"${text.replace(/"/gu, '\\"')}"`
+  return `"${text.replace(/(\\*)("|$)/gu, '$1$1\\$2')}"`
 }
