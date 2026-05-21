@@ -377,6 +377,30 @@ const run = async () => {
       pattern: /Feature Catalog Draft[\s\S]*?Local admin preview[\s\S]*?Validate[\s\S]*?Rollout Plan[\s\S]*?Audit Trail/,
       message: 'DevTools zeigt Feature Flag Editor mit Validation, Rollout und Audit',
     },
+    {
+      id: 'main-notes-editor-qol',
+      file: path.join(ROOT, 'Nexus Main/src/views/NotesView.tsx'),
+      pattern: /rememberEditorSelection[\s\S]*?normalizeMarkdownInsert[\s\S]*?nexus-details[\s\S]*?quickSwitchInputRef[\s\S]*?isEditableTarget\(target\)[\s\S]*?type="button"/,
+      message: 'Notes schuetzt Editor-Zeilenumbrueche, Toolbar-Selection und Markdown-only Details',
+    },
+    {
+      id: 'main-magic-details-renderer',
+      file: path.join(ROOT, 'Nexus Main/src/views/notes/NotesMagicRenderers.tsx'),
+      pattern: /function MagicDetails[\s\S]*?nexus-details[\s\S]*?MagicDetails/,
+      message: 'Notes rendert nexus-details ohne rohes HTML im Editor',
+    },
+    {
+      id: 'main-interactive-buttons-default-type',
+      file: path.join(ROOT, 'Nexus Main/src/components/render/InteractiveActionButton.tsx'),
+      pattern: /type=\{rest\.type \|\| "button"\}/,
+      message: 'Interaktive Action Buttons defaulten auf type=button',
+    },
+    {
+      id: 'main-interactive-icon-buttons-default-type',
+      file: path.join(ROOT, 'Nexus Main/src/components/render/InteractiveIconButton.tsx'),
+      pattern: /type=\{rest\.type \|\| "button"\}/,
+      message: 'Interaktive Icon Buttons defaulten auf type=button',
+    },
   ]
 
   if (CONTROL_UI_PRESENT) {

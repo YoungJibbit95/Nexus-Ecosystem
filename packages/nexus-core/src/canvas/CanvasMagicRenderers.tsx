@@ -918,6 +918,59 @@ function CanvasMagicCallout({ content, accent, onChange }: MagicBlockProps) {
   );
 }
 
+function CanvasMagicDetails({ content, accent, onChange }: MagicBlockProps) {
+  const rgb = hexToRgb(accent);
+  const lines = content.trim().split("\n");
+  const title = lines[0]?.trim() || "Mehr anzeigen";
+  const body = lines.slice(1).join("\n").trim() || "Details ergaenzen";
+  return (
+    <details
+      open
+      style={{
+        borderRadius: 8,
+        border: `1px solid rgba(${rgb},0.28)`,
+        background: `rgba(${rgb},0.1)`,
+        padding: 8,
+      }}
+    >
+      <summary
+        style={{
+          cursor: "pointer",
+          color: accent,
+          fontSize: 10,
+          fontWeight: 800,
+          marginBottom: 6,
+        }}
+      >
+        {title}
+      </summary>
+      {onChange ? (
+        <textarea
+          className="node-interactive"
+          value={body}
+          onChange={(e) => onChange(normalizeContent([title, e.target.value].join("\n")))}
+          style={{
+            width: "100%",
+            minHeight: 68,
+            resize: "vertical",
+            border: `1px solid rgba(${rgb},0.24)`,
+            borderRadius: 6,
+            background: "rgba(0,0,0,0.2)",
+            color: "inherit",
+            fontSize: 10,
+            lineHeight: 1.45,
+            padding: "5px 6px",
+            outline: "none",
+            fontFamily: "'Fira Code', monospace",
+          }}
+        />
+      ) : (
+        <div style={{ fontSize: 10, lineHeight: 1.5, opacity: 0.86, whiteSpace: "pre-wrap" }}>{body}</div>
+      )}
+    </details>
+  );
+}
+
 export function CanvasNexusCodeBlock({
   className,
   children,
@@ -1079,6 +1132,12 @@ export function CanvasNexusCodeBlock({
           "Quick Wins | Hoher Impact, geringer Aufwand\nBig Bets | Hoher Impact, hoher Aufwand\nFill-ins | Niedriger Impact, geringer Aufwand\nAvoid | Niedriger Impact, hoher Aufwand",
       },
     ],
+    "nexus-details": [
+      {
+        label: "Template",
+        apply: () => "Mehr anzeigen\nDetails hier ergaenzen.",
+      },
+    ],
   };
 
   const wrap = (label: string, body: ReactNode) => (
@@ -1188,6 +1247,16 @@ export function CanvasNexusCodeBlock({
     return wrap(
       "Quadrant",
       <CanvasMagicQuadrant
+        content={content}
+        accent={accent}
+        onChange={onChange}
+      />,
+    );
+  }
+  if (lang === "nexus-details") {
+    return wrap(
+      "Details",
+      <CanvasMagicDetails
         content={content}
         accent={accent}
         onChange={onChange}

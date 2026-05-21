@@ -1,12 +1,12 @@
 # Nexus Fertigstellungs- und Releaseplan
 
-Stand: 2026-05-10
+Stand: 2026-05-21
 
 Arbeitsstand nach Start der Abarbeitung:
 
 - P0 Build-Basis fuer Main, Mobile, Nexus Code und Code Mobile ist repariert und erneut verifiziert.
 - Website API Integration ist Node/tsx-sicher repariert und besteht.
-- `verify:single-react`, `verify:encoding` und `verify:ecosystem` bestehen; Ecosystem-Gate meldet 59/59 Checks.
+- `verify:single-react`, `verify:encoding` und `verify:ecosystem` bestehen; Ecosystem-Gate meldet 63/63 Checks.
 - Erste UI-Shell-Konsolidierung fuer Nexus Main ist umgesetzt: Main nutzt `MainShellLayout`/`MainViewHost`, View Error Boundaries sitzen im Host, der alte Inline-Shell-Block ist entfernt, und Boot-/View-Konstanten liegen wieder in `mainAppConfig.ts`.
 - `packages/nexus-core` hat ein erstes View Manifest v2 fuer alle Kernviews inklusive Actions, Panels, Responsive Modes, Status-Signalen und ableitbarer Command Registry.
 - `packages/nexus-core` hat ein eigenes Package-Gate mit Typecheck, Manifest-Test und Build-Script.
@@ -45,6 +45,7 @@ Arbeitsstand nach Start der Abarbeitung:
 - Gefuehrtes Onboarding ist ausgebaut: Der First-Start-Walkthrough hat eine persistente Setup-Checkliste fuer Website-Account, App-Login/Remember-Me, Workspace-Ordner, Import, erste Note, Task/Reminder, Canvas-Hub und InfoView.
 - Runtime Channel Guardrails sind im Client angelegt: Stable nutzt canonical Production API, Canary/Dev sind nur in Dev/Admin-Override-Kontext sichtbar, der Bootflow nutzt denselben Channel fuer Catalog/Layout/Release und Release Health zeigt Channel/API/Warnungen.
 - DevTools hat jetzt einen lokalen Control Feature-Flag Editor: Feature Catalog Drafts, Layout Schema Guard, stufenweiser Rollout-Plan, Import/Export, Validierung und lokaler Audit Trail sind als Admin-Vorbereitung sichtbar; echte Production-Mutationen bleiben beim Hosted Control Plane.
+- Notes Editor QoL ist stabilisiert: Enter/Zeilenumbrueche werden nicht mehr von globalen QuickSwitch-Handlern geschluckt, Toolbar-/Blocks-/Emoji-Buttons behalten die Textarea-Selection, Details/Toggle erzeugt `nexus-details` statt rohem HTML und interaktive Buttons defaulten appweit auf `type=button`.
 
 Scope dieser Analyse:
 
@@ -895,6 +896,15 @@ Fertigstellen:
    - Layout Schema validieren
    - Release Rollout stufenweise promoten
    - Audit Log sichtbar machen
+
+8. ~~Notes Editor QoL und Markdown Details.~~
+
+   Erledigt: Notes schuetzt normale Enter-/Zeilenumbruch-Eingaben gegen globale QuickSwitch-Handler, Toolbar-/Blocks-/Emoji-Buttons behalten die Textarea-Selection, Details/Toggle erzeugt `nexus-details` statt rohem HTML, Notes und Canvas rendern den Block sauber und interaktive Buttons defaulten appweit auf `type=button`.
+
+   - Zeilenumbrueche im Editor stabil
+   - Markdown-only Details statt HTML-Snippet
+   - Selection-safe Toolbar Inserts
+   - Appweite Button-Submit-Fallen reduziert
 
 ## Empfohlener Fertigstellungsablauf
 

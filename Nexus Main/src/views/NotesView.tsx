@@ -372,6 +372,12 @@ export function NotesView() {
     lineNumbersEl.style.transform = `translateY(${-area.scrollTop}px)`
   }, [])
 
+  const rememberEditorSelection = useCallback(() => {
+    const textarea = editorRef.current
+    if (!textarea) return
+    savedSel.current = { start: textarea.selectionStart, end: textarea.selectionEnd }
+  }, [])
+
   useEffect(() => {
     syncLineNumberScroll()
   }, [draftContent, syncLineNumberScroll])
@@ -409,6 +415,14 @@ export function NotesView() {
   )
 
   // ── Insert format helper — uses saved selection if textarea lost focus ──
+  const normalizeMarkdownInsert = useCallback((text: string) => {
+    const blockLanguages = ['nexus-callout', 'nexus-alert', 'nexus-kanban', 'nexus-timeline', 'nexus-card', 'nexus-details']
+    if (blockLanguages.some((lang) => text.includes(`\`\`\`${lang}`))) {
+      return `\n${text.trim()}\n`
+    }
+    return text
+  }, [])
+
   const insertFormat = useCallback((prefix: string, suffix: string = '', placeholder: string = '') => {
     if (!active) return
     const ta = editorRef.current
@@ -422,17 +436,19 @@ export function NotesView() {
     const selected = currentContent.substring(start, end) || placeholder
     const before = currentContent.substring(0, start)
     const after  = currentContent.substring(end)
-    const newContent = before + prefix + selected + suffix + after
+    const inserted = normalizeMarkdownInsert(prefix + selected + suffix)
+    const newContent = before + inserted + after
     handleChange(newContent)
 
     // Restore focus + cursor
     setTimeout(() => {
       if (!ta) return
       ta.focus()
-      ta.selectionStart = start + prefix.length
-      ta.selectionEnd   = start + prefix.length + selected.length
+      const cursorStart = start + normalizeMarkdownInsert(prefix).length
+      ta.selectionStart = cursorStart
+      ta.selectionEnd   = cursorStart + selected.length
     }, 10)
-  }, [active])
+  }, [active, normalizeMarkdownInsert])
 
   const insertPlainText = useCallback((text: string) => {
     if (!active) return
@@ -457,16 +473,12 @@ export function NotesView() {
 
   // Save cursor position before magic menu opens
   const handleMagicOpen = () => {
-    if (editorRef.current) {
-      savedSel.current = { start: editorRef.current.selectionStart, end: editorRef.current.selectionEnd }
-    }
+    rememberEditorSelection()
     setShowMagic(true)
   }
 
   const handleEmojiMenuOpen = () => {
-    if (editorRef.current) {
-      savedSel.current = { start: editorRef.current.selectionStart, end: editorRef.current.selectionEnd }
-    }
+    rememberEditorSelection()
     setNotesEmojiMenuOpen((open) => !open)
     setNotesBlocksMenuOpen(false)
   }
@@ -742,6 +754,11 @@ export function NotesView() {
   useEffect(() => {
     if (!showQuickSwitch) return
     const onKeyDown = (event: KeyboardEvent) => {
+      const target = event.target
+      const isQuickSwitchInput = target === quickSwitchInputRef.current
+      if (isEditableTarget(target) && !isQuickSwitchInput) {
+        return
+      }
       if (event.key === 'Escape') {
         event.preventDefault()
         closeQuickSwitch()
@@ -787,8 +804,13 @@ export function NotesView() {
   // Small formatting button
   const FmtBtn = ({ icon: Icon, tooltip, action }: { icon: any; tooltip: string; action: () => void }) => (
     <InteractiveIconButton
+      type="button"
       motionId={`notes-fmt-${tooltip.replace(/\s+/g, '-').toLowerCase()}`}
       onClick={action}
+      onMouseDown={(event) => {
+        event.preventDefault()
+        rememberEditorSelection()
+      }}
       title={tooltip}
       idleOpacity={0.68}
       radius={999}
@@ -1355,7 +1377,12 @@ export function NotesView() {
               <FmtBtn icon={Minus}        tooltip="Trennlinie"   action={() => insertFormat('\n---\n', '')} />
               <div style={{ position: 'relative' }}>
                 <InteractiveActionButton
+                  type="button"
                   onClick={() => setNotesBlocksMenuOpen((open) => !open)}
+                  onMouseDown={(event) => {
+                    event.preventDefault()
+                    rememberEditorSelection()
+                  }}
                   motionId="notes-blocks-menu"
                   selected={notesBlocksMenuOpen}
                   areaHint={64}
@@ -1387,6 +1414,7 @@ export function NotesView() {
                       const Icon = entry.icon
                       return (
                         <InteractiveActionButton
+                          type="button"
                           key={entry.label}
                           onClick={() => {
                             entry.action()
@@ -1417,10 +1445,15 @@ export function NotesView() {
                   </div>
                 ) : null}
               </div>
-              <FmtBtn icon={ChevronDown}  tooltip="Details/Toggle" action={() => insertFormat('\n<details>\n<summary>Mehr anzeigen</summary>\n\nDetails hier ergänzen...\n\n</details>\n')} />
+              <FmtBtn icon={ChevronDown}  tooltip="Details/Toggle" action={() => insertFormat('\n```nexus-details\nMehr anzeigen\nDetails hier ergaenzen...\n```\n')} />
               <div style={{ position: 'relative' }}>
                 <InteractiveActionButton
+                  type="button"
                   onClick={handleEmojiMenuOpen}
+                  onMouseDown={(event) => {
+                    event.preventDefault()
+                    rememberEditorSelection()
+                  }}
                   motionId="notes-emoji-menu"
                   selected={notesEmojiMenuOpen}
                   areaHint={64}

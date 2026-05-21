@@ -99,6 +99,7 @@ export function InteractiveIconButton({
     <motion.button
       {...(rest as any)}
       {...events}
+      type={rest.type || "button"}
       className={`nx-motion-managed ${rest.className || ""}`.trim()}
       style={{
         background: "none",
