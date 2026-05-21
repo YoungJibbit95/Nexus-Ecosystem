@@ -4,6 +4,13 @@
 # Node
 **/node_modules/
 
+docs/NEXUS_COMPLETION_PLAN.md
+docs/RELEASE_EVIDENCE_GUIDE.md
+docs/RELEASE_READY_CHECKLIST.md
+docs/KNOWN_ISSUES.md
+docs/CONTROL_PLANE_HOSTED_SETUP.md
+docs/SECURITY.md
+
 references
 # Build outputs
 **/dist/
