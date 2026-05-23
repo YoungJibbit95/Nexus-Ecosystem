@@ -30,7 +30,7 @@ jobs:
           cache-dependency-path: Nexus Wiki/package-lock.json
 
       - name: Setup Pages
-        uses: actions/configure-pages@v5
+        uses: actions/configure-pages@v6
 
       - name: Install wiki dependencies
         run: npm --prefix "Nexus Wiki" ci
