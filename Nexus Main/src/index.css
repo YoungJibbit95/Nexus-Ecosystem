@@ -1113,12 +1113,36 @@ body { background: #08091a; color-scheme: dark light; }
 
 .nx-v6-signal-grid span {
   border: 1px solid color-mix(in srgb, var(--nx-v6-view-accent, #0a84ff) 34%, var(--nx-v6-line-soft, rgba(255, 255, 255, 0.08)));
-  border-radius: 999px;
+  border-radius: var(--nx-ui-radius-pill, 999px);
   padding: 5px 8px;
   color: var(--nx-v6-control-text, rgba(255, 255, 255, 0.72));
   background: color-mix(in srgb, var(--nx-v6-view-accent, #0a84ff) 11%, var(--nx-v6-control-bg, rgba(255, 255, 255, 0.04)));
-  font-size: 10px;
+  font-size: var(--nx-ui-font-meta, 10px);
   font-weight: 720;
+}
+
+.nx-v6-signal-grid span[data-tone="success"] {
+  color: var(--nx-ui-success, #30d158);
+  border-color: color-mix(in srgb, var(--nx-ui-success, #30d158) 35%, transparent);
+  background: color-mix(in srgb, var(--nx-ui-success, #30d158) 12%, transparent);
+}
+
+.nx-v6-signal-grid span[data-tone="info"] {
+  color: var(--nx-ui-info, #64d2ff);
+  border-color: color-mix(in srgb, var(--nx-ui-info, #64d2ff) 35%, transparent);
+  background: color-mix(in srgb, var(--nx-ui-info, #64d2ff) 12%, transparent);
+}
+
+.nx-v6-signal-grid span[data-tone="warning"] {
+  color: var(--nx-ui-warning, #ffd60a);
+  border-color: color-mix(in srgb, var(--nx-ui-warning, #ffd60a) 35%, transparent);
+  background: color-mix(in srgb, var(--nx-ui-warning, #ffd60a) 12%, transparent);
+}
+
+.nx-v6-signal-grid span[data-tone="danger"] {
+  color: var(--nx-ui-danger, #ff453a);
+  border-color: color-mix(in srgb, var(--nx-ui-danger, #ff453a) 35%, transparent);
+  background: color-mix(in srgb, var(--nx-ui-danger, #ff453a) 12%, transparent);
 }
 
 .nx-v6-view-shell[data-focus="true"] .nx-v6-view-header,

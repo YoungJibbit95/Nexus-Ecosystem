@@ -1182,6 +1182,30 @@ html { font-size: var(--nx-font-size, 14px); }
   white-space: nowrap;
 }
 
+.nx-mobile-v6-status span[data-tone="success"] {
+  color: var(--nx-ui-success, #30d158);
+  border: 1px solid color-mix(in srgb, var(--nx-ui-success, #30d158) 30%, transparent);
+  background: color-mix(in srgb, var(--nx-ui-success, #30d158) 12%, rgba(255,255,255,0.04));
+}
+
+.nx-mobile-v6-status span[data-tone="info"] {
+  color: var(--nx-ui-info, #64d2ff);
+  border: 1px solid color-mix(in srgb, var(--nx-ui-info, #64d2ff) 30%, transparent);
+  background: color-mix(in srgb, var(--nx-ui-info, #64d2ff) 12%, rgba(255,255,255,0.04));
+}
+
+.nx-mobile-v6-status span[data-tone="warning"] {
+  color: var(--nx-ui-warning, #ffd60a);
+  border: 1px solid color-mix(in srgb, var(--nx-ui-warning, #ffd60a) 30%, transparent);
+  background: color-mix(in srgb, var(--nx-ui-warning, #ffd60a) 12%, rgba(255,255,255,0.04));
+}
+
+.nx-mobile-v6-status span[data-tone="danger"] {
+  color: var(--nx-ui-danger, #ff453a);
+  border: 1px solid color-mix(in srgb, var(--nx-ui-danger, #ff453a) 30%, transparent);
+  background: color-mix(in srgb, var(--nx-ui-danger, #ff453a) 12%, rgba(255,255,255,0.04));
+}
+
 .nx-mobile-v6-sheet {
   position: absolute;
   right: 8px;

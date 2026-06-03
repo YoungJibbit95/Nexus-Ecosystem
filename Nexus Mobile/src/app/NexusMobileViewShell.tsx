@@ -1,11 +1,14 @@
 import React from "react";
 import {
   buildNexusViewCssVars,
+  buildNexusViewStatusChips,
   buildNexusPanelEngine,
   getNexusViewManifest,
   getNexusViewManifests,
+  resolveNexusViewState,
   resolveNexusViewUiTokens,
   resolveNexusViewCommandRegistry,
+  type NexusResolvedViewState,
   type NexusResolvedViewCommand,
   type NexusViewManifest,
 } from "@nexus/core";
@@ -103,11 +106,13 @@ export function NexusMobileViewShell({
   const [sheetOpen, setSheetOpen] = React.useState(false);
   const [activePanelId, setActivePanelId] = React.useState<string | null>(null);
   const [lastCommandId, setLastCommandId] = React.useState<string | null>(null);
+  const [shellState, setShellState] = React.useState<NexusResolvedViewState | null>(null);
 
   React.useEffect(() => {
     setSheetOpen(false);
     setActivePanelId(null);
     setLastCommandId(null);
+    setShellState(null);
   }, [contract.id]);
 
   const panelEngine = React.useMemo(
@@ -149,17 +154,39 @@ export function NexusMobileViewShell({
   const lastCommand = commandRegistry.find(
     (command) => command.commandId === lastCommandId,
   );
+  const resolvedShellState = React.useMemo(
+    () => shellState ?? resolveNexusViewState({ viewId, loading: !active }),
+    [active, shellState, viewId],
+  );
+  const statusChips = React.useMemo(
+    () =>
+      buildNexusViewStatusChips({
+        state: resolvedShellState,
+        signals: layout?.statusSignals ?? contract.statusSignals,
+        maxItems: 4,
+      }),
+    [contract.statusSignals, layout?.statusSignals, resolvedShellState],
+  );
 
   const runShellCommand = React.useCallback(
     (command: NexusResolvedViewCommand) => {
       setLastCommandId(command.commandId);
       if (!command.enabled || command.requiresSelection) {
+        setShellState(
+          resolveNexusViewState({
+            viewId,
+            blockedReason: command.disabledReason || "requires-selection",
+          }),
+        );
         setSheetOpen(true);
         return;
       }
 
       const handled = onExecuteCommand?.(command);
-      if (handled) return;
+      if (handled) {
+        setShellState(resolveNexusViewState({ viewId, saved: true }));
+        return;
+      }
 
       if (typeof window !== "undefined") {
         window.dispatchEvent(
@@ -174,9 +201,10 @@ export function NexusMobileViewShell({
           }),
         );
       }
+      setShellState(resolveNexusViewState({ viewId, dirty: true }));
       setSheetOpen(true);
     },
-    [onExecuteCommand],
+    [onExecuteCommand, viewId],
   );
 
   return (
@@ -187,6 +215,7 @@ export function NexusMobileViewShell({
       data-sheet={sheetOpen ? "open" : "closed"}
       data-layout-version={layout?.version ?? "local"}
       data-chrome={layout?.chrome ?? "full"}
+      data-state={resolvedShellState.kind}
       style={{
         ...uiCssVars,
         ["--nx-mobile-v6-accent" as any]: contract.accent,
@@ -258,8 +287,10 @@ export function NexusMobileViewShell({
       <div className="nx-mobile-v6-content">{children}</div>
 
       <footer className="nx-mobile-v6-status" aria-label="View Status">
-        {(layout?.statusSignals ?? contract.statusSignals).slice(0, 4).map((signal) => (
-          <span key={signal}>{signal}</span>
+        {statusChips.map((chip) => (
+          <span key={chip.id} data-tone={chip.tone} title={chip.description}>
+            {chip.label}
+          </span>
         ))}
       </footer>
 
@@ -295,6 +326,7 @@ export function NexusMobileViewShell({
           </div>
 
           <div className="nx-mobile-v6-sheet-grid">
+            <span>State: {resolvedShellState.label}</span>
             <span>Columns: {layout?.columns ?? 1}</span>
             <span>Min width: {layout?.minContentWidth ?? 320}px</span>
             <span>Last command: {lastCommand?.title ?? "none"}</span>

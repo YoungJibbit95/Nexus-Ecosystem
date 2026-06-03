@@ -1,11 +1,14 @@
 import React from "react";
 import {
   buildNexusViewCssVars,
+  buildNexusViewStatusChips,
   buildNexusPanelEngine,
   getNexusViewManifest,
   getNexusViewManifests,
+  resolveNexusViewState,
   resolveNexusViewUiTokens,
   resolveNexusViewCommandRegistry,
+  type NexusResolvedViewState,
   type NexusResolvedViewCommand,
   type NexusViewManifest,
 } from "@nexus/core";
@@ -106,12 +109,14 @@ export function NexusV6ViewShell({
   const [focusMode, setFocusMode] = React.useState(false);
   const [activePanelId, setActivePanelId] = React.useState<string | null>(null);
   const [lastCommandId, setLastCommandId] = React.useState<string | null>(null);
+  const [shellState, setShellState] = React.useState<NexusResolvedViewState | null>(null);
 
   React.useEffect(() => {
     setActivePanelId(null);
     setInspectorOpen(false);
     setFocusMode(false);
     setLastCommandId(null);
+    setShellState(null);
   }, [contract.id]);
 
   const panelEngine = React.useMemo(
@@ -149,17 +154,39 @@ export function NexusV6ViewShell({
   const lastCommand = commandRegistry.find(
     (command) => command.commandId === lastCommandId,
   );
+  const resolvedShellState = React.useMemo(
+    () => shellState ?? resolveNexusViewState({ viewId, loading: !active }),
+    [active, shellState, viewId],
+  );
+  const statusChips = React.useMemo(
+    () =>
+      buildNexusViewStatusChips({
+        state: resolvedShellState,
+        signals: layout?.statusSignals ?? contract.statusSignals,
+        maxItems: inspectorOpen ? 7 : 4,
+      }),
+    [contract.statusSignals, inspectorOpen, layout?.statusSignals, resolvedShellState],
+  );
 
   const runShellCommand = React.useCallback(
     (command: NexusResolvedViewCommand) => {
       setLastCommandId(command.commandId);
       if (command.disabledReason || command.requiresSelection) {
+        setShellState(
+          resolveNexusViewState({
+            viewId,
+            blockedReason: command.disabledReason || "requires-selection",
+          }),
+        );
         setInspectorOpen(true);
         return;
       }
 
       const handled = onExecuteCommand?.(command);
-      if (handled) return;
+      if (handled) {
+        setShellState(resolveNexusViewState({ viewId, saved: true }));
+        return;
+      }
 
       if (typeof window !== "undefined") {
         window.dispatchEvent(
@@ -177,11 +204,13 @@ export function NexusV6ViewShell({
 
       if (command.id === "focus-mode") {
         setFocusMode((next) => !next);
+        setShellState(resolveNexusViewState({ viewId, saved: true }));
         return;
       }
+      setShellState(resolveNexusViewState({ viewId, dirty: true }));
       setInspectorOpen(true);
     },
-    [onExecuteCommand],
+    [onExecuteCommand, viewId],
   );
 
   return (
@@ -194,6 +223,7 @@ export function NexusV6ViewShell({
       data-reduced-motion={reducedMotion ? "true" : "false"}
       data-layout-version={layout?.version ?? "local"}
       data-chrome={layout?.chrome ?? "full"}
+      data-state={resolvedShellState.kind}
       style={{
         ...uiCssVars,
         ["--nx-v6-view-accent" as any]: contract.accent,
@@ -301,8 +331,10 @@ export function NexusV6ViewShell({
             <div className="nx-v6-inspector-section">
               <div className="nx-v6-section-label">Signals</div>
               <div className="nx-v6-signal-grid">
-                {(layout?.statusSignals ?? contract.statusSignals).map((signal) => (
-                  <span key={signal}>{signal}</span>
+                {statusChips.map((chip) => (
+                  <span key={chip.id} data-tone={chip.tone} title={chip.description}>
+                    {chip.label}
+                  </span>
                 ))}
               </div>
             </div>
@@ -310,6 +342,7 @@ export function NexusV6ViewShell({
             <div className="nx-v6-inspector-section">
               <div className="nx-v6-section-label">View Health</div>
               <div className="nx-v6-responsive-card">
+                <span>State: {resolvedShellState.label} / {resolvedShellState.kind}</span>
                 <span>Layout: v{layout?.version ?? "local"} / {layout?.contentPriority ?? contract.desktopMode}</span>
                 <span>Columns: {layout?.columns ?? 1} / min {layout?.minContentWidth ?? 560}px</span>
                 <span>Chrome: {layout?.chrome ?? "full"} / motion {layout?.animationProfile ?? "standard"}</span>
