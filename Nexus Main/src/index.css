@@ -753,9 +753,9 @@ body { background: #08091a; color-scheme: dark light; }
   min-height: 0;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
-  gap: 4px;
-  padding: 4px;
-  color: var(--nx-v6-text);
+  gap: var(--nx-ui-space-xs, 4px);
+  padding: var(--nx-ui-space-xs, 4px);
+  color: var(--nx-ui-text, var(--nx-v6-text));
   overflow: hidden;
   isolation: isolate;
 }
@@ -776,18 +776,18 @@ body { background: #08091a; color-scheme: dark light; }
 }
 
 .nx-v6-view-shell[data-active="true"][data-reduced-motion="false"] {
-  animation: nx-v6-frame-in var(--nx-motion-regular, 210ms) cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: nx-v6-frame-in var(--nx-ui-motion-regular, var(--nx-motion-regular, 210ms)) var(--nx-ui-motion-easing, cubic-bezier(0.22, 1, 0.36, 1)) both;
 }
 
 .nx-v6-view-header {
-  min-height: 29px;
+  min-height: var(--nx-ui-toolbar-height, 34px);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 6px;
-  padding: 3px 5px 3px 8px;
-  border: 1px solid var(--nx-v6-line-soft, rgba(255, 255, 255, 0.055));
-  border-radius: 12px;
+  gap: var(--nx-ui-space-sm, 6px);
+  padding: var(--nx-ui-space-xs, 4px) var(--nx-ui-space-sm, 8px);
+  border: 1px solid var(--nx-ui-border, var(--nx-v6-line-soft, rgba(255, 255, 255, 0.055)));
+  border-radius: var(--nx-ui-radius-panel, 8px);
   background:
     linear-gradient(90deg, color-mix(in srgb, var(--nx-v6-view-accent, #22d3ee) 8%, transparent), transparent 48%),
     var(--nx-panel-bg, rgba(15, 23, 42, 0.24));
@@ -809,10 +809,10 @@ body { background: #08091a; color-scheme: dark light; }
 
 .nx-v6-eyebrow {
   display: none;
-  color: var(--nx-v6-faint);
-  font-size: 8px;
+  color: var(--nx-ui-text-muted, var(--nx-v6-faint));
+  font-size: var(--nx-ui-font-meta, 10px);
   font-weight: 860;
-  letter-spacing: 0.12em;
+  letter-spacing: 0;
   text-transform: uppercase;
 }
 
@@ -829,12 +829,12 @@ body { background: #08091a; color-scheme: dark light; }
 
 .nx-v6-title-copy h1 {
   margin: 0;
-  color: var(--nx-v6-text);
+  color: var(--nx-ui-text, var(--nx-v6-text));
   text-shadow: 0 0 14px color-mix(in srgb, var(--nx-v6-view-accent, #22d3ee) 12%, transparent);
-  font-size: clamp(12px, 0.92vw, 14px);
+  font-size: var(--nx-ui-font-panel-title, 14px);
   line-height: 1;
   font-weight: 880;
-  letter-spacing: -0.045em;
+  letter-spacing: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -843,10 +843,10 @@ body { background: #08091a; color-scheme: dark light; }
 .nx-v6-title-copy p {
   display: none;
   margin-top: 2px;
-  color: var(--nx-v6-muted);
-  font-size: 9px;
+  color: var(--nx-ui-text-muted, var(--nx-v6-muted));
+  font-size: var(--nx-ui-font-meta, 10px);
   font-weight: 620;
-  letter-spacing: -0.01em;
+  letter-spacing: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -869,24 +869,24 @@ body { background: #08091a; color-scheme: dark light; }
 .nx-v6-action,
 .nx-v6-quick-nav button {
   appearance: none;
-  border: 1px solid var(--nx-v6-line, rgba(255, 255, 255, 0.095));
-  border-radius: 999px;
+  border: 1px solid var(--nx-ui-border, var(--nx-v6-line, rgba(255, 255, 255, 0.095)));
+  border-radius: var(--nx-ui-radius-pill, 999px);
   color: var(--nx-v6-control-text, rgba(255, 255, 255, 0.76));
   background: var(--nx-v6-control-bg, rgba(255, 255, 255, 0.055));
   font: inherit;
-  font-size: 10.5px;
+  font-size: var(--nx-ui-font-meta, 10.5px);
   font-weight: 780;
-  letter-spacing: -0.01em;
+  letter-spacing: 0;
   cursor: pointer;
   transition:
-    border-color var(--nx-motion-quick, 170ms) ease,
-    background var(--nx-motion-quick, 170ms) ease,
-    color var(--nx-motion-quick, 170ms) ease;
+    border-color var(--nx-ui-motion-quick, var(--nx-motion-quick, 170ms)) ease,
+    background var(--nx-ui-motion-quick, var(--nx-motion-quick, 170ms)) ease,
+    color var(--nx-ui-motion-quick, var(--nx-motion-quick, 170ms)) ease;
 }
 
 .nx-v6-action {
-  min-height: 22px;
-  padding: 3px 7px;
+  min-height: calc(var(--nx-ui-toolbar-height, 34px) - 10px);
+  padding: var(--nx-ui-space-xs, 3px) var(--nx-ui-space-sm, 7px);
 }
 
 .nx-v6-action:hover,
@@ -906,9 +906,9 @@ body { background: #08091a; color-scheme: dark light; }
 
 .nx-v6-action--primary {
   color: var(--nx-v6-primary-text, rgba(255, 255, 255, 0.96));
-  border-color: rgba(34, 211, 238, 0.42);
+  border-color: color-mix(in srgb, var(--nx-ui-accent, var(--nx-v6-view-accent, #22d3ee)) 44%, transparent);
   background:
-    linear-gradient(135deg, rgba(99, 102, 241, 0.86), rgba(34, 211, 238, 0.82));
+    linear-gradient(135deg, color-mix(in srgb, var(--nx-ui-accent, #22d3ee) 82%, #6366f1), color-mix(in srgb, var(--nx-ui-accent, #22d3ee) 88%, #ffffff));
   box-shadow:
     0 0 40px rgba(34, 211, 238, 0.22),
     0 0 80px rgba(129, 140, 248, 0.12);

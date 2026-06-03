@@ -6,7 +6,9 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const ROOT = path.resolve(__dirname, '..')
 const viewsPath = path.join(ROOT, 'packages', 'nexus-core', 'src', 'views.ts')
+const designTokensPath = path.join(ROOT, 'packages', 'nexus-core', 'src', 'ui', 'designTokens.ts')
 const source = readFileSync(viewsPath, 'utf8')
+const designTokensSource = readFileSync(designTokensPath, 'utf8')
 
 const requiredViews = [
   'dashboard',
@@ -45,6 +47,12 @@ expect(source.includes('export const buildAdaptiveViewWarmupPlan'), 'Missing ada
 expect(source.includes('defaultActionId'), 'Manifests must expose defaultActionId')
 expect(source.includes('mobileMode'), 'Manifests must expose mobileMode')
 expect(source.includes('statusSignals'), 'Manifests must expose statusSignals')
+expect(designTokensSource.includes('export const resolveNexusViewUiTokens'), 'Missing UI token resolver')
+expect(designTokensSource.includes('export const buildNexusViewCssVars'), 'Missing UI CSS var builder')
+expect(designTokensSource.includes('NexusViewUiTokenSet'), 'Missing UI token set type')
+expect(designTokensSource.includes('--nx-ui-accent'), 'Missing UI accent CSS var')
+expect(designTokensSource.includes('--nx-ui-touch-target'), 'Missing UI touch target CSS var')
+expect(designTokensSource.includes('--nx-ui-motion-panel'), 'Missing UI motion panel CSS var')
 
 const mojibakePatterns = ['Ã', 'Â', 'â€™', 'â€œ', 'â€', '�']
 for (const pattern of mojibakePatterns) {

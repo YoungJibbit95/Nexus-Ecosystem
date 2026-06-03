@@ -1021,17 +1021,17 @@ html { font-size: var(--nx-font-size, 14px); }
   height: 100%;
   min-height: 0;
   overflow: hidden;
-  background: color-mix(in srgb, var(--nx-mobile-v6-accent) 5%, transparent);
+  background: color-mix(in srgb, var(--nx-ui-accent, var(--nx-mobile-v6-accent)) 5%, var(--nx-ui-background, transparent));
 }
 
 .nx-mobile-v6-header {
   flex: 0 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 10px 12px 8px;
-  border-bottom: 1px solid rgba(255,255,255,0.09);
-  background: rgba(8,10,18,0.62);
+  gap: var(--nx-ui-space-sm, 8px);
+  padding: var(--nx-ui-space-md, 10px) var(--nx-ui-space-md, 12px) var(--nx-ui-space-sm, 8px);
+  border-bottom: 1px solid var(--nx-ui-border, rgba(255,255,255,0.09));
+  background: var(--nx-ui-surface, rgba(8,10,18,0.62));
   backdrop-filter: blur(16px) saturate(150%);
   -webkit-backdrop-filter: blur(16px) saturate(150%);
 }
@@ -1042,8 +1042,8 @@ html { font-size: var(--nx-font-size, 14px); }
 
 .nx-mobile-v6-eyebrow {
   margin-bottom: 3px;
-  color: color-mix(in srgb, var(--nx-mobile-v6-accent) 70%, currentColor);
-  font-size: 10px;
+  color: color-mix(in srgb, var(--nx-ui-accent, var(--nx-mobile-v6-accent)) 70%, currentColor);
+  font-size: var(--nx-ui-font-meta, 10px);
   font-weight: 800;
   letter-spacing: 0;
   text-transform: uppercase;
@@ -1053,7 +1053,7 @@ html { font-size: var(--nx-font-size, 14px); }
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 10px;
+  gap: var(--nx-ui-space-md, 10px);
   min-width: 0;
 }
 
@@ -1062,7 +1062,7 @@ html { font-size: var(--nx-font-size, 14px); }
   max-width: 100%;
   overflow: hidden;
   color: inherit;
-  font-size: 18px;
+  font-size: var(--nx-ui-font-view-title, 18px);
   font-weight: 900;
   letter-spacing: 0;
   line-height: 1.05;
@@ -1074,8 +1074,8 @@ html { font-size: var(--nx-font-size, 14px); }
   margin: 3px 0 0;
   max-width: min(72vw, 520px);
   overflow: hidden;
-  color: rgba(255,255,255,0.62);
-  font-size: 11px;
+  color: var(--nx-ui-text-muted, rgba(255,255,255,0.62));
+  font-size: var(--nx-ui-font-meta, 11px);
   font-weight: 650;
   line-height: 1.25;
   text-overflow: ellipsis;
@@ -1088,41 +1088,41 @@ html { font-size: var(--nx-font-size, 14px); }
 .nx-mobile-v6-sheet-header button,
 .nx-mobile-v6-panel-list button {
   border: 1px solid rgba(255,255,255,0.12);
-  border-radius: 8px;
-  background: rgba(255,255,255,0.06);
+  border-radius: var(--nx-ui-radius-control, 8px);
+  background: color-mix(in srgb, var(--nx-ui-surface-elevated, rgba(255,255,255,0.06)) 72%, transparent);
   color: inherit;
   font: inherit;
   font-weight: 800;
 }
 
 .nx-mobile-v6-details-button {
-  min-height: 30px;
-  padding: 6px 9px;
-  color: color-mix(in srgb, var(--nx-mobile-v6-accent) 70%, white);
-  font-size: 11px;
+  min-height: var(--nx-ui-statusbar-height, 30px);
+  padding: var(--nx-ui-space-xs, 6px) var(--nx-ui-space-sm, 9px);
+  color: color-mix(in srgb, var(--nx-ui-accent, var(--nx-mobile-v6-accent)) 70%, white);
+  font-size: var(--nx-ui-font-meta, 11px);
   white-space: nowrap;
 }
 
 .nx-mobile-v6-actions,
 .nx-mobile-v6-related {
   display: flex;
-  gap: 6px;
+  gap: var(--nx-ui-space-sm, 6px);
   min-width: 0;
   overflow-x: auto;
   overscroll-behavior-x: contain;
 }
 
 .nx-mobile-v6-action {
-  min-height: 32px;
-  padding: 7px 10px;
+  min-height: var(--nx-ui-toolbar-height, 32px);
+  padding: var(--nx-ui-space-xs, 7px) var(--nx-ui-space-md, 10px);
   color: rgba(255,255,255,0.82);
-  font-size: 11px;
+  font-size: var(--nx-ui-font-meta, 11px);
   white-space: nowrap;
 }
 
 .nx-mobile-v6-action--primary {
-  border-color: color-mix(in srgb, var(--nx-mobile-v6-accent) 58%, transparent);
-  background: color-mix(in srgb, var(--nx-mobile-v6-accent) 22%, rgba(255,255,255,0.05));
+  border-color: color-mix(in srgb, var(--nx-ui-accent, var(--nx-mobile-v6-accent)) 58%, transparent);
+  background: color-mix(in srgb, var(--nx-ui-accent, var(--nx-mobile-v6-accent)) 22%, rgba(255,255,255,0.05));
   color: white;
 }
 
@@ -1134,10 +1134,10 @@ html { font-size: var(--nx-font-size, 14px); }
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-height: 28px;
-  padding: 5px 8px;
+  min-height: calc(var(--nx-ui-toolbar-height, 32px) - 4px);
+  padding: var(--nx-ui-space-xs, 5px) var(--nx-ui-space-sm, 8px);
   color: rgba(255,255,255,0.72);
-  font-size: 10px;
+  font-size: var(--nx-ui-font-meta, 10px);
   white-space: nowrap;
 }
 
@@ -1162,8 +1162,8 @@ html { font-size: var(--nx-font-size, 14px); }
   flex: 0 0 auto;
   display: flex;
   gap: 6px;
-  min-height: 30px;
-  padding: 5px 10px calc(5px + env(safe-area-inset-bottom, 0px));
+  min-height: var(--nx-ui-statusbar-height, 30px);
+  padding: var(--nx-ui-space-xs, 5px) var(--nx-ui-space-md, 10px) calc(var(--nx-ui-space-xs, 5px) + env(safe-area-inset-bottom, 0px));
   overflow-x: auto;
   border-top: 1px solid rgba(255,255,255,0.08);
   background: rgba(6,8,14,0.58);
@@ -1174,10 +1174,10 @@ html { font-size: var(--nx-font-size, 14px); }
   align-items: center;
   min-height: 20px;
   padding: 3px 7px;
-  border-radius: 999px;
+  border-radius: var(--nx-ui-radius-pill, 999px);
   background: rgba(255,255,255,0.07);
   color: rgba(255,255,255,0.68);
-  font-size: 10px;
+  font-size: var(--nx-ui-font-meta, 10px);
   font-weight: 800;
   white-space: nowrap;
 }
@@ -1191,8 +1191,8 @@ html { font-size: var(--nx-font-size, 14px); }
   max-height: min(48vh, 390px);
   overflow: auto;
   border: 1px solid color-mix(in srgb, var(--nx-mobile-v6-accent) 28%, rgba(255,255,255,0.16));
-  border-radius: 14px;
-  background: rgba(10,12,20,0.94);
+  border-radius: var(--nx-ui-radius-sheet, 14px);
+  background: var(--nx-ui-surface-elevated, rgba(10,12,20,0.94));
   box-shadow: 0 18px 42px rgba(0,0,0,0.38);
   backdrop-filter: blur(18px) saturate(150%);
   -webkit-backdrop-filter: blur(18px) saturate(150%);
@@ -1218,7 +1218,7 @@ html { font-size: var(--nx-font-size, 14px); }
 .nx-mobile-v6-panel-list strong {
   display: block;
   overflow: hidden;
-  font-size: 12px;
+  font-size: var(--nx-ui-font-panel-title, 12px);
   line-height: 1.2;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1229,20 +1229,20 @@ html { font-size: var(--nx-font-size, 14px); }
 .nx-mobile-v6-sheet-grid span {
   display: block;
   color: rgba(255,255,255,0.58);
-  font-size: 10px;
+  font-size: var(--nx-ui-font-meta, 10px);
   font-weight: 700;
 }
 
 .nx-mobile-v6-sheet-header button {
-  min-height: 28px;
+  min-height: calc(var(--nx-ui-toolbar-height, 32px) - 4px);
   padding: 5px 8px;
   color: color-mix(in srgb, var(--nx-mobile-v6-accent) 70%, white);
-  font-size: 11px;
+  font-size: var(--nx-ui-font-meta, 11px);
 }
 
 .nx-mobile-v6-panel-list {
   display: grid;
-  gap: 6px;
+  gap: var(--nx-ui-space-sm, 6px);
   padding: 0 12px 10px;
 }
 
@@ -1255,14 +1255,14 @@ html { font-size: var(--nx-font-size, 14px); }
 }
 
 .nx-mobile-v6-panel-list button.is-active {
-  border-color: color-mix(in srgb, var(--nx-mobile-v6-accent) 48%, transparent);
-  background: color-mix(in srgb, var(--nx-mobile-v6-accent) 18%, rgba(255,255,255,0.05));
+  border-color: color-mix(in srgb, var(--nx-ui-accent, var(--nx-mobile-v6-accent)) 48%, transparent);
+  background: color-mix(in srgb, var(--nx-ui-accent, var(--nx-mobile-v6-accent)) 18%, rgba(255,255,255,0.05));
 }
 
 .nx-mobile-v6-sheet-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px;
+  gap: var(--nx-ui-space-sm, 6px);
   padding: 0 12px 12px;
 }
 
@@ -1270,7 +1270,7 @@ html { font-size: var(--nx-font-size, 14px); }
   min-width: 0;
   overflow: hidden;
   padding: 7px 8px;
-  border-radius: 8px;
+  border-radius: var(--nx-ui-radius-control, 8px);
   background: rgba(255,255,255,0.06);
   text-overflow: ellipsis;
   white-space: nowrap;

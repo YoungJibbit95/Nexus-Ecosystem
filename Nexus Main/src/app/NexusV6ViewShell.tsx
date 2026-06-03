@@ -1,8 +1,10 @@
 import React from "react";
 import {
+  buildNexusViewCssVars,
   buildNexusPanelEngine,
   getNexusViewManifest,
   getNexusViewManifests,
+  resolveNexusViewUiTokens,
   resolveNexusViewCommandRegistry,
   type NexusResolvedViewCommand,
   type NexusViewManifest,
@@ -85,6 +87,20 @@ export function NexusV6ViewShell({
   const relatedViews = React.useMemo(
     () => sameCategoryViews(viewId, availableViews, contract),
     [availableViews, contract, viewId],
+  );
+  const uiCssVars = React.useMemo(
+    () =>
+      buildNexusViewCssVars(
+        resolveNexusViewUiTokens({
+          viewId,
+          surface: "desktop",
+          density: "comfortable",
+          themeMode: "dark",
+          accent: contract.accent,
+          reducedMotion,
+        }),
+      ),
+    [contract.accent, reducedMotion, viewId],
   );
   const [inspectorOpen, setInspectorOpen] = React.useState(false);
   const [focusMode, setFocusMode] = React.useState(false);
@@ -178,7 +194,10 @@ export function NexusV6ViewShell({
       data-reduced-motion={reducedMotion ? "true" : "false"}
       data-layout-version={layout?.version ?? "local"}
       data-chrome={layout?.chrome ?? "full"}
-      style={{ ["--nx-v6-view-accent" as any]: contract.accent }}
+      style={{
+        ...uiCssVars,
+        ["--nx-v6-view-accent" as any]: contract.accent,
+      }}
     >
       <header className="nx-v6-view-header">
         <div className="nx-v6-title-cluster">

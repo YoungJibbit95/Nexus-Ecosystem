@@ -1,8 +1,10 @@
 import React from "react";
 import {
+  buildNexusViewCssVars,
   buildNexusPanelEngine,
   getNexusViewManifest,
   getNexusViewManifests,
+  resolveNexusViewUiTokens,
   resolveNexusViewCommandRegistry,
   type NexusResolvedViewCommand,
   type NexusViewManifest,
@@ -83,6 +85,20 @@ export function NexusMobileViewShell({
   const relatedViews = React.useMemo(
     () => resolveRelatedViews(viewId, availableViews, contract),
     [availableViews, contract, viewId],
+  );
+  const uiCssVars = React.useMemo(
+    () =>
+      buildNexusViewCssVars(
+        resolveNexusViewUiTokens({
+          viewId,
+          surface: "mobile",
+          density: "compact",
+          themeMode: "dark",
+          accent: contract.accent,
+          reducedMotion,
+        }),
+      ),
+    [contract.accent, reducedMotion, viewId],
   );
   const [sheetOpen, setSheetOpen] = React.useState(false);
   const [activePanelId, setActivePanelId] = React.useState<string | null>(null);
@@ -171,7 +187,10 @@ export function NexusMobileViewShell({
       data-sheet={sheetOpen ? "open" : "closed"}
       data-layout-version={layout?.version ?? "local"}
       data-chrome={layout?.chrome ?? "full"}
-      style={{ ["--nx-mobile-v6-accent" as any]: contract.accent }}
+      style={{
+        ...uiCssVars,
+        ["--nx-mobile-v6-accent" as any]: contract.accent,
+      }}
     >
       <header className="nx-mobile-v6-header">
         <div className="nx-mobile-v6-title-cluster">
