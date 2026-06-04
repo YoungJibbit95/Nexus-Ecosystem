@@ -752,7 +752,7 @@ body { background: #08091a; color-scheme: dark light; }
   height: 100%;
   min-height: 0;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) auto;
   gap: var(--nx-ui-space-xs, 4px);
   padding: var(--nx-ui-space-xs, 4px);
   color: var(--nx-ui-text, var(--nx-v6-text));
@@ -1145,9 +1145,127 @@ body { background: #08091a; color-scheme: dark light; }
   background: color-mix(in srgb, var(--nx-ui-danger, #ff453a) 12%, transparent);
 }
 
+.nx-v6-status-bar {
+  min-height: var(--nx-ui-statusbar-height, 28px);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--nx-ui-space-sm, 8px);
+  padding: 3px var(--nx-ui-space-sm, 8px);
+  border: 1px solid var(--nx-ui-border, rgba(255, 255, 255, 0.08));
+  border-radius: var(--nx-ui-radius-panel, 8px);
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--nx-ui-accent, #22d3ee) 7%, transparent), transparent 46%),
+    color-mix(in srgb, var(--nx-ui-surface, rgba(10, 12, 20, 0.72)) 86%, transparent);
+  box-shadow:
+    0 8px 22px rgba(0, 0, 0, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.nx-v6-status-primary {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--nx-ui-space-sm, 8px);
+}
+
+.nx-v6-status-primary > span,
+.nx-v6-status-chip-row > span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 20px;
+  max-width: 180px;
+  overflow: hidden;
+  border: 1px solid var(--nx-ui-border, rgba(255, 255, 255, 0.1));
+  border-radius: var(--nx-ui-radius-pill, 999px);
+  padding: 2px 8px;
+  color: var(--nx-ui-text-muted, rgba(255, 255, 255, 0.7));
+  background: rgba(255, 255, 255, 0.05);
+  font-size: var(--nx-ui-font-meta, 10px);
+  font-weight: 820;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nx-v6-status-primary strong,
+.nx-v6-status-primary em {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nx-v6-status-primary strong {
+  color: var(--nx-ui-text, rgba(255, 255, 255, 0.88));
+  font-size: var(--nx-ui-font-meta, 11px);
+  font-style: normal;
+  font-weight: 820;
+}
+
+.nx-v6-status-primary em {
+  color: var(--nx-ui-text-muted, rgba(255, 255, 255, 0.58));
+  font-size: var(--nx-ui-font-meta, 10px);
+  font-style: normal;
+  font-weight: 650;
+}
+
+.nx-v6-status-chip-row {
+  min-width: 0;
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--nx-ui-space-xs, 4px);
+  overflow: hidden;
+}
+
+.nx-v6-status-primary span[data-tone="success"],
+.nx-v6-status-chip-row span[data-tone="success"] {
+  color: var(--nx-ui-success, #30d158);
+  border-color: color-mix(in srgb, var(--nx-ui-success, #30d158) 34%, transparent);
+  background: color-mix(in srgb, var(--nx-ui-success, #30d158) 11%, transparent);
+}
+
+.nx-v6-status-primary span[data-tone="info"],
+.nx-v6-status-chip-row span[data-tone="info"] {
+  color: var(--nx-ui-info, #64d2ff);
+  border-color: color-mix(in srgb, var(--nx-ui-info, #64d2ff) 34%, transparent);
+  background: color-mix(in srgb, var(--nx-ui-info, #64d2ff) 11%, transparent);
+}
+
+.nx-v6-status-primary span[data-tone="warning"],
+.nx-v6-status-chip-row span[data-tone="warning"] {
+  color: var(--nx-ui-warning, #ffd60a);
+  border-color: color-mix(in srgb, var(--nx-ui-warning, #ffd60a) 34%, transparent);
+  background: color-mix(in srgb, var(--nx-ui-warning, #ffd60a) 11%, transparent);
+}
+
+.nx-v6-status-primary span[data-tone="danger"],
+.nx-v6-status-chip-row span[data-tone="danger"] {
+  color: var(--nx-ui-danger, #ff453a);
+  border-color: color-mix(in srgb, var(--nx-ui-danger, #ff453a) 34%, transparent);
+  background: color-mix(in srgb, var(--nx-ui-danger, #ff453a) 11%, transparent);
+}
+
+@media (max-width: 960px) {
+  .nx-v6-status-bar {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .nx-v6-status-primary em {
+    display: none;
+  }
+
+  .nx-v6-status-chip-row {
+    justify-content: flex-start;
+  }
+}
+
 .nx-v6-view-shell[data-focus="true"] .nx-v6-view-header,
 .nx-v6-view-shell[data-focus="true"] .nx-v6-quick-nav,
-.nx-v6-view-shell[data-focus="true"] .nx-v6-inspector-rail {
+.nx-v6-view-shell[data-focus="true"] .nx-v6-inspector-rail,
+.nx-v6-view-shell[data-focus="true"] .nx-v6-status-bar {
   display: none;
 }
 

@@ -354,6 +354,25 @@ export function NexusV6ViewShell({
           </aside>
         ) : null}
       </div>
+
+      <footer
+        className="nx-v6-status-bar"
+        aria-label={`${contract.title} Status`}
+        aria-live={resolvedShellState.ariaLive}
+      >
+        <div className="nx-v6-status-primary">
+          <span data-tone={resolvedShellState.tone}>{resolvedShellState.label}</span>
+          <strong>{resolvedShellState.title}</strong>
+          <em>{resolvedShellState.description}</em>
+        </div>
+        <div className="nx-v6-status-chip-row" aria-label="View Signale">
+          {statusChips.map((chip) => (
+            <span key={chip.id} data-tone={chip.tone} title={chip.description}>
+              {chip.label}
+            </span>
+          ))}
+        </div>
+      </footer>
     </section>
   );
 }
