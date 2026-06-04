@@ -263,6 +263,63 @@ export const shouldAutoDismissNexusViewState = (
   )
 }
 
+export type NexusViewTransitionOptions = {
+  currentViewId: string
+  targetViewId: string
+  targetViewLabel?: string
+  state: NexusResolvedViewState
+  force?: boolean
+}
+
+export type NexusResolvedViewTransition = {
+  allowed: boolean
+  currentViewId: string
+  targetViewId: string
+  targetViewLabel: string
+  behavior: NexusViewStateBehavior
+  blockedReason?: string
+  feedbackState?: NexusResolvedViewState
+}
+
+export const resolveNexusViewTransition = ({
+  currentViewId,
+  targetViewId,
+  targetViewLabel,
+  state,
+  force = false,
+}: NexusViewTransitionOptions): NexusResolvedViewTransition => {
+  const behavior = resolveNexusViewStateBehavior(state)
+  const normalizedTargetLabel = String(targetViewLabel || targetViewId).trim() || targetViewId
+
+  if (force || currentViewId === targetViewId || !behavior.blocksNavigation) {
+    return {
+      allowed: true,
+      currentViewId,
+      targetViewId,
+      targetViewLabel: normalizedTargetLabel,
+      behavior,
+    }
+  }
+
+  const blockedReason =
+    state.kind === 'dirty'
+      ? `Wechsel zu ${normalizedTargetLabel} wartet, bis die ungesicherten Aenderungen gesichert oder verworfen werden.`
+      : `Wechsel zu ${normalizedTargetLabel} wartet: ${state.description}`
+
+  return {
+    allowed: false,
+    currentViewId,
+    targetViewId,
+    targetViewLabel: normalizedTargetLabel,
+    behavior,
+    blockedReason,
+    feedbackState: resolveNexusViewState({
+      viewId: currentViewId,
+      blockedReason,
+    }),
+  }
+}
+
 export type NexusViewStatusChip = {
   id: string
   label: string

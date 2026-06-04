@@ -7,6 +7,7 @@ import {
   getNexusViewManifests,
   resolveNexusViewState,
   resolveNexusViewStateBehavior,
+  resolveNexusViewTransition,
   resolveNexusViewUiTokens,
   resolveNexusViewCommandRegistry,
   type NexusResolvedViewState,
@@ -41,6 +42,12 @@ type MobileViewContract = NexusViewManifest | {
   panels: NexusViewManifest["panels"];
   shortcuts: string[];
   statusSignals: string[];
+};
+
+type PendingViewChange = {
+  viewId: View | string;
+  label: string;
+  reason: string;
 };
 
 const resolveViewContract = (viewId: View): MobileViewContract =>
@@ -108,12 +115,14 @@ export function NexusMobileViewShell({
   const [activePanelId, setActivePanelId] = React.useState<string | null>(null);
   const [lastCommandId, setLastCommandId] = React.useState<string | null>(null);
   const [shellState, setShellState] = React.useState<NexusResolvedViewState | null>(null);
+  const [pendingViewChange, setPendingViewChange] = React.useState<PendingViewChange | null>(null);
 
   React.useEffect(() => {
     setSheetOpen(false);
     setActivePanelId(null);
     setLastCommandId(null);
     setShellState(null);
+    setPendingViewChange(null);
   }, [contract.id]);
 
   const panelEngine = React.useMemo(
@@ -188,6 +197,53 @@ export function NexusMobileViewShell({
 
     return () => window.clearTimeout(timeoutId);
   }, [shellState, shellStateBehavior.autoDismissMs]);
+
+  React.useEffect(() => {
+    if (!shellStateBehavior.blocksNavigation) {
+      setPendingViewChange(null);
+    }
+  }, [shellStateBehavior.blocksNavigation]);
+
+  const forcePendingViewChange = React.useCallback(() => {
+    if (!pendingViewChange) return;
+    const nextView = pendingViewChange.viewId;
+    setPendingViewChange(null);
+    setShellState(null);
+    onRequestViewChange(nextView);
+  }, [onRequestViewChange, pendingViewChange]);
+
+  const requestShellViewChange = React.useCallback(
+    (nextView: View | string, label?: string) => {
+      const targetViewId = String(nextView);
+      const transition = resolveNexusViewTransition({
+        currentViewId: viewId,
+        targetViewId,
+        targetViewLabel: label,
+        state: resolvedShellState,
+      });
+
+      if (transition.allowed) {
+        setPendingViewChange(null);
+        onRequestViewChange(nextView);
+        return;
+      }
+
+      setPendingViewChange({
+        viewId: nextView,
+        label: transition.targetViewLabel,
+        reason: transition.blockedReason ?? resolvedShellState.description,
+      });
+      setShellState(
+        transition.feedbackState ??
+          resolveNexusViewState({
+            viewId,
+            blockedReason: transition.blockedReason,
+          }),
+      );
+      setSheetOpen(true);
+    },
+    [onRequestViewChange, resolvedShellState, viewId],
+  );
 
   const runShellCommand = React.useCallback(
     (command: NexusResolvedViewCommand) => {
@@ -296,7 +352,7 @@ export function NexusMobileViewShell({
               <button
                 key={manifest.id}
                 type="button"
-                onClick={() => onRequestViewChange(manifest.id)}
+                onClick={() => requestShellViewChange(manifest.id, manifest.navLabel)}
               >
                 <span style={{ background: manifest.accent }} />
                 {manifest.navLabel}
@@ -346,6 +402,15 @@ export function NexusMobileViewShell({
             ) : null}
           </div>
 
+          {pendingViewChange ? (
+            <div className="nx-mobile-v6-pending-nav" title={pendingViewChange.reason}>
+              <span>Wechsel zu {pendingViewChange.label} wartet</span>
+              <button type="button" onClick={forcePendingViewChange}>
+                Trotzdem wechseln
+              </button>
+            </div>
+          ) : null}
+
           <div className="nx-mobile-v6-panel-list">
             {panelEngine.panels.length > 0 ? (
               panelEngine.panels.map((panel) => (
@@ -373,6 +438,7 @@ export function NexusMobileViewShell({
             <span>Columns: {layout?.columns ?? 1}</span>
             <span>Min width: {layout?.minContentWidth ?? 320}px</span>
             <span>Last command: {lastCommand?.title ?? "none"}</span>
+            <span>Pending view: {pendingViewChange?.label ?? "none"}</span>
             <span>Shortcuts: {contract.shortcuts.length || "none"}</span>
           </div>
         </aside>

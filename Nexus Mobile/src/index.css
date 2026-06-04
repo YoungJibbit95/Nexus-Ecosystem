@@ -1361,6 +1361,43 @@ html { font-size: var(--nx-font-size, 14px); }
   white-space: nowrap;
 }
 
+.nx-mobile-v6-pending-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--nx-ui-space-sm, 8px);
+  min-width: 0;
+  margin: 0 12px 10px;
+  padding: 8px;
+  border: 1px solid color-mix(in srgb, var(--nx-ui-warning, #ffd60a) 28%, rgba(255,255,255,0.12));
+  border-radius: var(--nx-ui-radius-panel, 12px);
+  background: color-mix(in srgb, var(--nx-ui-warning, #ffd60a) 10%, rgba(255,255,255,0.055));
+}
+
+.nx-mobile-v6-pending-nav span {
+  min-width: 0;
+  overflow: hidden;
+  color: color-mix(in srgb, var(--nx-ui-warning, #ffd60a) 74%, white);
+  font-size: var(--nx-ui-font-meta, 10px);
+  font-weight: 780;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nx-mobile-v6-pending-nav button {
+  min-height: 28px;
+  flex: 0 0 auto;
+  border: 1px solid color-mix(in srgb, var(--nx-ui-warning, #ffd60a) 34%, transparent);
+  border-radius: var(--nx-ui-radius-control, 8px);
+  padding: 5px 8px;
+  color: color-mix(in srgb, var(--nx-ui-warning, #ffd60a) 72%, white);
+  background: color-mix(in srgb, var(--nx-ui-warning, #ffd60a) 12%, rgba(255,255,255,0.05));
+  font: inherit;
+  font-size: var(--nx-ui-font-meta, 10px);
+  font-weight: 820;
+  white-space: nowrap;
+}
+
 .nx-mobile-v6-panel-list {
   display: grid;
   gap: var(--nx-ui-space-sm, 6px);
@@ -1424,8 +1461,14 @@ html { font-size: var(--nx-font-size, 14px); }
   }
 
   .nx-mobile-v6-state-card > span,
-  .nx-mobile-v6-state-card button {
+  .nx-mobile-v6-state-card button,
+  .nx-mobile-v6-pending-nav button {
     justify-self: start;
+  }
+
+  .nx-mobile-v6-pending-nav {
+    align-items: stretch;
+    flex-direction: column;
   }
 }
 

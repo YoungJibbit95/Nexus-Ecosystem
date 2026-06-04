@@ -58,10 +58,12 @@ expect(designTokensSource.includes('--nx-ui-motion-panel'), 'Missing UI motion p
 expect(viewStateSource.includes('export const resolveNexusViewState'), 'Missing view state resolver')
 expect(viewStateSource.includes('export const resolveNexusViewStateBehavior'), 'Missing view state behavior resolver')
 expect(viewStateSource.includes('export const shouldAutoDismissNexusViewState'), 'Missing transient view state helper')
+expect(viewStateSource.includes('export const resolveNexusViewTransition'), 'Missing view transition guard')
 expect(viewStateSource.includes('export const buildNexusViewStatusChips'), 'Missing status chip builder')
 expect(viewStateSource.includes("'offline'"), 'Missing offline view state')
 expect(viewStateSource.includes("'blocked'"), 'Missing blocked view state')
 expect(viewStateSource.includes('blocksNavigation'), 'Missing navigation blocking behavior')
+expect(viewStateSource.includes('feedbackState'), 'Missing transition feedback state')
 expect(viewStateSource.includes("'assertive'"), 'Missing assertive aria-live state')
 
 const mojibakePatterns = ['Ã', 'Â', 'â€™', 'â€œ', 'â€', '�']
