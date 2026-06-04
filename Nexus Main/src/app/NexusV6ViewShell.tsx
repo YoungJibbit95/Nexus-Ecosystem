@@ -6,6 +6,7 @@ import {
   getNexusViewManifest,
   getNexusViewManifests,
   resolveNexusViewState,
+  resolveNexusViewStateBehavior,
   resolveNexusViewUiTokens,
   resolveNexusViewCommandRegistry,
   type NexusResolvedViewState,
@@ -158,6 +159,10 @@ export function NexusV6ViewShell({
     () => shellState ?? resolveNexusViewState({ viewId, loading: !active }),
     [active, shellState, viewId],
   );
+  const shellStateBehavior = React.useMemo(
+    () => resolveNexusViewStateBehavior(resolvedShellState),
+    [resolvedShellState],
+  );
   const statusChips = React.useMemo(
     () =>
       buildNexusViewStatusChips({
@@ -167,6 +172,22 @@ export function NexusV6ViewShell({
       }),
     [contract.statusSignals, inspectorOpen, layout?.statusSignals, resolvedShellState],
   );
+
+  React.useEffect(() => {
+    if (
+      !shellState ||
+      !shellStateBehavior.autoDismissMs ||
+      typeof window === "undefined"
+    ) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setShellState((current) => (current === shellState ? null : current));
+    }, shellStateBehavior.autoDismissMs);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [shellState, shellStateBehavior.autoDismissMs]);
 
   const runShellCommand = React.useCallback(
     (command: NexusResolvedViewCommand) => {
@@ -224,6 +245,7 @@ export function NexusV6ViewShell({
       data-layout-version={layout?.version ?? "local"}
       data-chrome={layout?.chrome ?? "full"}
       data-state={resolvedShellState.kind}
+      data-state-persistent={shellStateBehavior.persistent ? "true" : "false"}
       style={{
         ...uiCssVars,
         ["--nx-v6-view-accent" as any]: contract.accent,
@@ -343,6 +365,10 @@ export function NexusV6ViewShell({
               <div className="nx-v6-section-label">View Health</div>
               <div className="nx-v6-responsive-card">
                 <span>State: {resolvedShellState.label} / {resolvedShellState.kind}</span>
+                <span>
+                  Behavior: {shellStateBehavior.persistent ? "persistent" : "transient"} /{" "}
+                  {shellStateBehavior.autoDismissMs ? `${shellStateBehavior.autoDismissMs}ms` : "manual"}
+                </span>
                 <span>Layout: v{layout?.version ?? "local"} / {layout?.contentPriority ?? contract.desktopMode}</span>
                 <span>Columns: {layout?.columns ?? 1} / min {layout?.minContentWidth ?? 560}px</span>
                 <span>Chrome: {layout?.chrome ?? "full"} / motion {layout?.animationProfile ?? "standard"}</span>
@@ -359,6 +385,7 @@ export function NexusV6ViewShell({
         className="nx-v6-status-bar"
         aria-label={`${contract.title} Status`}
         aria-live={resolvedShellState.ariaLive}
+        data-attention={shellStateBehavior.attention}
       >
         <div className="nx-v6-status-primary">
           <span data-tone={resolvedShellState.tone}>{resolvedShellState.label}</span>

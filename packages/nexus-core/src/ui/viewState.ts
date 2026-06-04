@@ -28,6 +28,15 @@ export type NexusResolvedViewState = {
   ariaLive: 'off' | 'polite' | 'assertive'
 }
 
+export type NexusViewStateAttention = 'none' | 'polite' | 'assertive'
+
+export type NexusViewStateBehavior = {
+  persistent: boolean
+  autoDismissMs: number | null
+  blocksNavigation: boolean
+  attention: NexusViewStateAttention
+}
+
 export type NexusViewStateOptions = {
   viewId: string
   loading?: boolean
@@ -179,6 +188,79 @@ export const resolveNexusViewState = ({
     retryable: false,
     ariaLive: 'off',
   }
+}
+
+const NEXUS_VIEW_STATE_BEHAVIOR: Record<NexusViewStateKind, NexusViewStateBehavior> = {
+  ready: {
+    persistent: false,
+    autoDismissMs: 1200,
+    blocksNavigation: false,
+    attention: 'none',
+  },
+  loading: {
+    persistent: false,
+    autoDismissMs: 2600,
+    blocksNavigation: false,
+    attention: 'polite',
+  },
+  empty: {
+    persistent: true,
+    autoDismissMs: null,
+    blocksNavigation: false,
+    attention: 'none',
+  },
+  dirty: {
+    persistent: true,
+    autoDismissMs: null,
+    blocksNavigation: true,
+    attention: 'polite',
+  },
+  saving: {
+    persistent: false,
+    autoDismissMs: null,
+    blocksNavigation: true,
+    attention: 'polite',
+  },
+  saved: {
+    persistent: false,
+    autoDismissMs: 1800,
+    blocksNavigation: false,
+    attention: 'polite',
+  },
+  offline: {
+    persistent: true,
+    autoDismissMs: null,
+    blocksNavigation: false,
+    attention: 'polite',
+  },
+  error: {
+    persistent: true,
+    autoDismissMs: null,
+    blocksNavigation: true,
+    attention: 'assertive',
+  },
+  blocked: {
+    persistent: true,
+    autoDismissMs: null,
+    blocksNavigation: true,
+    attention: 'polite',
+  },
+}
+
+export const resolveNexusViewStateBehavior = (
+  state: NexusResolvedViewState,
+): NexusViewStateBehavior => NEXUS_VIEW_STATE_BEHAVIOR[state.kind]
+
+export const shouldAutoDismissNexusViewState = (
+  state: NexusResolvedViewState,
+): boolean => {
+  const behavior = resolveNexusViewStateBehavior(state)
+  return (
+    !behavior.persistent &&
+    typeof behavior.autoDismissMs === 'number' &&
+    Number.isFinite(behavior.autoDismissMs) &&
+    behavior.autoDismissMs > 0
+  )
 }
 
 export type NexusViewStatusChip = {

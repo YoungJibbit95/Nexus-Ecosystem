@@ -6,6 +6,7 @@ import {
   getNexusViewManifest,
   getNexusViewManifests,
   resolveNexusViewState,
+  resolveNexusViewStateBehavior,
   resolveNexusViewUiTokens,
   resolveNexusViewCommandRegistry,
   type NexusResolvedViewState,
@@ -158,6 +159,10 @@ export function NexusMobileViewShell({
     () => shellState ?? resolveNexusViewState({ viewId, loading: !active }),
     [active, shellState, viewId],
   );
+  const shellStateBehavior = React.useMemo(
+    () => resolveNexusViewStateBehavior(resolvedShellState),
+    [resolvedShellState],
+  );
   const statusChips = React.useMemo(
     () =>
       buildNexusViewStatusChips({
@@ -167,6 +172,22 @@ export function NexusMobileViewShell({
       }),
     [contract.statusSignals, layout?.statusSignals, resolvedShellState],
   );
+
+  React.useEffect(() => {
+    if (
+      !shellState ||
+      !shellStateBehavior.autoDismissMs ||
+      typeof window === "undefined"
+    ) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setShellState((current) => (current === shellState ? null : current));
+    }, shellStateBehavior.autoDismissMs);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [shellState, shellStateBehavior.autoDismissMs]);
 
   const runShellCommand = React.useCallback(
     (command: NexusResolvedViewCommand) => {
@@ -216,6 +237,7 @@ export function NexusMobileViewShell({
       data-layout-version={layout?.version ?? "local"}
       data-chrome={layout?.chrome ?? "full"}
       data-state={resolvedShellState.kind}
+      data-state-persistent={shellStateBehavior.persistent ? "true" : "false"}
       style={{
         ...uiCssVars,
         ["--nx-mobile-v6-accent" as any]: contract.accent,
@@ -307,7 +329,11 @@ export function NexusMobileViewShell({
             </button>
           </div>
 
-          <div className="nx-mobile-v6-state-card" aria-live={resolvedShellState.ariaLive}>
+          <div
+            className="nx-mobile-v6-state-card"
+            aria-live={resolvedShellState.ariaLive}
+            data-attention={shellStateBehavior.attention}
+          >
             <span data-tone={resolvedShellState.tone}>{resolvedShellState.label}</span>
             <div>
               <strong>{resolvedShellState.title}</strong>
@@ -340,6 +366,10 @@ export function NexusMobileViewShell({
 
           <div className="nx-mobile-v6-sheet-grid">
             <span>State: {resolvedShellState.label}</span>
+            <span>
+              Behavior: {shellStateBehavior.persistent ? "persistent" : "transient"} /{" "}
+              {shellStateBehavior.autoDismissMs ? `${shellStateBehavior.autoDismissMs}ms` : "manual"}
+            </span>
             <span>Columns: {layout?.columns ?? 1}</span>
             <span>Min width: {layout?.minContentWidth ?? 320}px</span>
             <span>Last command: {lastCommand?.title ?? "none"}</span>
