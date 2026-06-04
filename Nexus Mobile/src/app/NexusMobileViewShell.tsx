@@ -307,6 +307,19 @@ export function NexusMobileViewShell({
             </button>
           </div>
 
+          <div className="nx-mobile-v6-state-card" aria-live={resolvedShellState.ariaLive}>
+            <span data-tone={resolvedShellState.tone}>{resolvedShellState.label}</span>
+            <div>
+              <strong>{resolvedShellState.title}</strong>
+              <p>{resolvedShellState.description}</p>
+            </div>
+            {resolvedShellState.actionLabel ? (
+              <button type="button" onClick={() => setSheetOpen(true)}>
+                {resolvedShellState.actionLabel}
+              </button>
+            ) : null}
+          </div>
+
           <div className="nx-mobile-v6-panel-list">
             {panelEngine.panels.length > 0 ? (
               panelEngine.panels.map((panel) => (
