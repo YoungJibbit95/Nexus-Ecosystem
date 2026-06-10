@@ -38,7 +38,7 @@
 
 </div>
 
-> Nexus ist ein Multi-App Workspace-System fuer Planung, Entwicklung und Daily Operations.  
+> Nexus ist ein Multi-App Workspace-System für Planung, Entwicklung und Daily Operations.  
 > Dieses Repository enthaelt die produktiven Clients, Shared Core Runtime-Logik und die Wiki-/Website-Dokumentation.
 
 ---
