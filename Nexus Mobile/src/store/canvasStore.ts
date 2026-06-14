@@ -176,6 +176,160 @@ const DEFAULT_NODE_COLORS: Record<NodeType, string> = {
   project: '#00C7BE',
 }
 
+const VALID_PROJECT_STATUSES = new Set<ProjectStatus>([
+  'idea',
+  'backlog',
+  'todo',
+  'doing',
+  'review',
+  'done',
+  'blocked',
+])
+const VALID_PROJECT_PRIORITIES = new Set<ProjectPriority>(['low', 'mid', 'high', 'critical'])
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  Boolean(value && typeof value === 'object')
+
+const isNodeType = (value: unknown): value is NodeType =>
+  typeof value === 'string' && value in DEFAULT_NODE_SIZES
+
+const clampNumber = (value: unknown, fallback: number, min: number, max: number) => {
+  const numeric = typeof value === 'number' ? value : Number(value)
+  if (!Number.isFinite(numeric)) return fallback
+  return Math.min(max, Math.max(min, numeric))
+}
+
+const normalizeViewport = (viewport: Partial<Viewport> | undefined): Viewport => ({
+  panX: clampNumber(viewport?.panX, 0, -500_000, 500_000),
+  panY: clampNumber(viewport?.panY, 0, -500_000, 500_000),
+  zoom: clampNumber(viewport?.zoom, 1, 0.15, 3),
+})
+
+const normalizeString = (value: unknown, fallback = '', maxLength = 80_000) => {
+  const text = typeof value === 'string' ? value : value == null ? fallback : String(value)
+  return text.length > maxLength ? text.slice(0, maxLength) : text
+}
+
+const normalizeColor = (value: unknown, fallback: string) => {
+  const text = normalizeString(value, fallback, 32).trim()
+  return /^#[0-9a-f]{3,8}$/i.test(text) ? text : fallback
+}
+
+const normalizeChecklistItems = (value: unknown): ChecklistItem[] | undefined => {
+  if (!Array.isArray(value)) return undefined
+  return value
+    .filter(isRecord)
+    .slice(0, 240)
+    .map((item, index) => ({
+      id: normalizeString(item.id, `item-${index}`, 96),
+      text: normalizeString(item.text, '', 1_000),
+      done: Boolean(item.done),
+    }))
+}
+
+const normalizeTags = (value: unknown): string[] | undefined => {
+  if (!Array.isArray(value)) return undefined
+  return value
+    .map((entry) => normalizeString(entry, '', 80).trim())
+    .filter(Boolean)
+    .slice(0, 40)
+}
+
+const normalizeProjectMeta = (value: unknown): CanvasProjectMeta | undefined => {
+  if (!isRecord(value)) return undefined
+  const meta: CanvasProjectMeta = {}
+  if (VALID_PROJECT_STATUSES.has(value.status as ProjectStatus)) {
+    meta.status = value.status as ProjectStatus
+  }
+  if (VALID_PROJECT_PRIORITIES.has(value.priority as ProjectPriority)) {
+    meta.priority = value.priority as ProjectPriority
+  }
+  if (typeof value.owner === 'string') meta.owner = normalizeString(value.owner, '', 120)
+  if (typeof value.dueDate === 'string') meta.dueDate = value.dueDate
+  if (value.estimate != null) meta.estimate = clampNumber(value.estimate, 0, 0, 10_000)
+  if (value.progress != null) meta.progress = clampNumber(value.progress, 0, 0, 100)
+  const tags = normalizeTags(value.tags)
+  if (tags) meta.tags = tags
+  if (typeof value.milestone === 'string') meta.milestone = normalizeString(value.milestone, '', 160)
+  if (typeof value.blockedReason === 'string') {
+    meta.blockedReason = normalizeString(value.blockedReason, '', 1_000)
+  }
+  return Object.keys(meta).length > 0 ? meta : undefined
+}
+
+const normalizeCanvasNode = (value: unknown, index = 0): CanvasNode | null => {
+  if (!isRecord(value)) return null
+  const type = isNodeType(value.type) ? value.type : 'text'
+  const size = DEFAULT_NODE_SIZES[type]
+  const node: CanvasNode = {
+    id: normalizeString(value.id, `node-${index}-${genId()}`, 120),
+    type,
+    title: normalizeString(value.title, DEFAULT_NODE_TITLES[type], 240),
+    x: clampNumber(value.x, index * 32, -100_000, 100_000),
+    y: clampNumber(value.y, index * 28, -100_000, 100_000),
+    width: clampNumber(value.width, size.w, 120, 1_600),
+    height: clampNumber(value.height, size.h, 80, 1_400),
+    nodeScale: clampNumber(value.nodeScale, 1, 0.25, 2.5),
+    content: normalizeString(value.content, '', 120_000),
+    color: normalizeColor(value.color, DEFAULT_NODE_COLORS[type]),
+  }
+
+  const items = normalizeChecklistItems(value.items)
+  if (items) node.items = items
+  if (typeof value.codeLang === 'string') node.codeLang = normalizeString(value.codeLang, '', 40)
+  if (typeof value.linkedNoteId === 'string') node.linkedNoteId = value.linkedNoteId
+  if (typeof value.linkedCodeId === 'string') node.linkedCodeId = value.linkedCodeId
+  if (typeof value.linkedTaskId === 'string') node.linkedTaskId = value.linkedTaskId
+  if (typeof value.linkedReminderId === 'string') node.linkedReminderId = value.linkedReminderId
+  const pm = normalizeProjectMeta(value.pm)
+  if (pm) node.pm = pm
+  return node
+}
+
+const normalizeCanvasNodes = (value: unknown): CanvasNode[] => {
+  if (!Array.isArray(value)) return []
+  const seenIds = new Set<string>()
+  return value
+    .map((entry, index) => normalizeCanvasNode(entry, index))
+    .filter((node): node is CanvasNode => Boolean(node))
+    .map((node) => {
+      if (!seenIds.has(node.id)) {
+        seenIds.add(node.id)
+        return node
+      }
+      const uniqueId = `${node.id}-${genId()}`
+      seenIds.add(uniqueId)
+      return { ...node, id: uniqueId }
+    })
+}
+
+const normalizeCanvasConnections = (
+  value: unknown,
+  nodeIds: Set<string>,
+): CanvasConnection[] => {
+  if (!Array.isArray(value)) return []
+  const seen = new Set<string>()
+  return value
+    .filter(isRecord)
+    .map((entry, index) => {
+      const fromId = normalizeString(entry.fromId, '', 120)
+      const toId = normalizeString(entry.toId, '', 120)
+      if (!nodeIds.has(fromId) || !nodeIds.has(toId) || fromId === toId) return null
+      const pairKey = `${fromId}->${toId}`
+      if (seen.has(pairKey)) return null
+      seen.add(pairKey)
+      const connection: CanvasConnection = {
+        id: normalizeString(entry.id, `conn-${index}-${genId()}`, 120),
+        fromId,
+        toId,
+      }
+      if (typeof entry.color === 'string') connection.color = normalizeColor(entry.color, '#64D2FF')
+      if (typeof entry.label === 'string') connection.label = normalizeString(entry.label, '', 120)
+      return connection
+    })
+    .filter((entry): entry is CanvasConnection => Boolean(entry))
+}
+
 type QueuedNodePatch = {
   canvasId: string
   nodeId: string
@@ -218,7 +372,7 @@ const scheduleQueuedNodePatchFlush = (set: (updater: (state: CanvasStore) => Can
           const patch = patchByNode.get(node.id)
           if (!patch) return node
           canvasChanged = true
-          return { ...node, ...patch }
+          return normalizeCanvasNode({ ...node, ...patch }) ?? node
         })
         if (!canvasChanged) continue
         nextCanvases[i] = { ...canvas, nodes: nextNodes, updated: now() }
@@ -262,14 +416,18 @@ const sanitizePersistedCanvases = (value: unknown): Canvas[] => {
   if (!Array.isArray(value)) return []
   return value
     .filter((entry) => entry && typeof entry === 'object')
-    .map((entry: any) => ({
-      id: typeof entry.id === 'string' ? entry.id : genId(),
-      name: typeof entry.name === 'string' ? entry.name : 'Canvas',
-      nodes: Array.isArray(entry.nodes) ? entry.nodes : [],
-      connections: Array.isArray(entry.connections) ? entry.connections : [],
-      created: typeof entry.created === 'string' ? entry.created : now(),
-      updated: typeof entry.updated === 'string' ? entry.updated : now(),
-    }))
+    .map((entry: any) => {
+      const nodes = normalizeCanvasNodes(entry.nodes)
+      const nodeIds = new Set(nodes.map((node) => node.id))
+      return {
+        id: typeof entry.id === 'string' ? entry.id : genId(),
+        name: normalizeString(entry.name, 'Canvas', 180),
+        nodes,
+        connections: normalizeCanvasConnections(entry.connections, nodeIds),
+        created: typeof entry.created === 'string' ? entry.created : now(),
+        updated: typeof entry.updated === 'string' ? entry.updated : now(),
+      }
+    })
 }
 
 const resolveCanvasNodeScale = (): number => {
@@ -437,10 +595,14 @@ export const useCanvas = create<CanvasStore>()(
       }
     }),
 
-    setActiveCanvas: (id) => set({
-      activeCanvasId: id,
-      viewport: { panX: 0, panY: 0, zoom: 1 },
-    }),
+    setActiveCanvas: (id) => set(s => (
+      s.canvases.some(c => c.id === id)
+        ? {
+          activeCanvasId: id,
+          viewport: { panX: 0, panY: 0, zoom: 1 },
+        }
+        : s
+    )),
 
     renameCanvas: (id, name) => set(s => ({
       canvases: s.canvases.map(c =>
@@ -451,42 +613,43 @@ export const useCanvas = create<CanvasStore>()(
     // ─── Node CRUD ───
 
     addNode: (type, x, y) => {
-      const sz = resolveNodeSizeForViewport(type)
-      const vp = get().viewport
+      const nodeType = isNodeType(type) ? type : 'text'
+      const sz = resolveNodeSizeForViewport(nodeType)
+      const vp = normalizeViewport(get().viewport)
       // Place node near center of visible area if no position given
       const center = resolveViewportCenter(vp)
       const nx = x ?? center.x + Math.random() * 36 - 18
       const ny = y ?? center.y + Math.random() * 36 - 18
       const defaultProps: Partial<CanvasNode> = (() => {
-        if (type === 'checklist') return { items: [] }
-        if (type === 'code') return { content: '// code here...', codeLang: 'javascript' }
-        if (type === 'goal') return { content: 'Worum geht es bei diesem Ziel?' }
-        if (type === 'milestone') return { content: 'Definition of done, Scope, Deliverables' }
-        if (type === 'decision') return { content: 'Option A vs Option B\nKriterien:\n- Impact\n- Risiko\n- Aufwand' }
-        if (type === 'risk') return { content: 'Risiko:\nEintrittswahrscheinlichkeit:\nMitigation:' }
-        if (type === 'project') return { content: 'Projektziel, Scope, Stakeholder, KPI' }
+        if (nodeType === 'checklist') return { items: [] }
+        if (nodeType === 'code') return { content: '// code here...', codeLang: 'javascript' }
+        if (nodeType === 'goal') return { content: 'Worum geht es bei diesem Ziel?' }
+        if (nodeType === 'milestone') return { content: 'Definition of done, Scope, Deliverables' }
+        if (nodeType === 'decision') return { content: 'Option A vs Option B\nKriterien:\n- Impact\n- Risiko\n- Aufwand' }
+        if (nodeType === 'risk') return { content: 'Risiko:\nEintrittswahrscheinlichkeit:\nMitigation:' }
+        if (nodeType === 'project') return { content: 'Projektziel, Scope, Stakeholder, KPI' }
         return {}
       })()
       const node: CanvasNode = {
         id: genId(),
-        type,
-        title: DEFAULT_NODE_TITLES[type],
+        type: nodeType,
+        title: DEFAULT_NODE_TITLES[nodeType],
         x: nx,
         y: ny,
         width: sz.w,
         height: sz.h,
         nodeScale: 1,
         content: '',
-        color: DEFAULT_NODE_COLORS[type],
+        color: DEFAULT_NODE_COLORS[nodeType],
         ...defaultProps,
         pm: {
-          status: type === 'task' || type === 'goal' || type === 'milestone' || type === 'decision' || type === 'project'
+          status: nodeType === 'task' || nodeType === 'goal' || nodeType === 'milestone' || nodeType === 'decision' || nodeType === 'project'
             ? 'todo'
-            : type === 'risk'
+            : nodeType === 'risk'
               ? 'blocked'
               : 'idea',
           priority: 'mid',
-          progress: type === 'task' || type === 'goal' || type === 'project' ? 0 : undefined,
+          progress: nodeType === 'task' || nodeType === 'goal' || nodeType === 'project' ? 0 : undefined,
           tags: [],
         },
       }
@@ -519,7 +682,19 @@ export const useCanvas = create<CanvasStore>()(
     moveNode: (id, x, y) => set(s => ({
       canvases: s.canvases.map(c =>
         c.id === s.activeCanvasId
-          ? { ...c, nodes: c.nodes.map(n => n.id === id ? { ...n, x, y } : n), updated: now() }
+          ? {
+            ...c,
+            nodes: c.nodes.map(n =>
+              n.id === id
+                ? {
+                  ...n,
+                  x: clampNumber(x, n.x, -100_000, 100_000),
+                  y: clampNumber(y, n.y, -100_000, 100_000),
+                }
+                : n
+            ),
+            updated: now(),
+          }
           : c
       ),
     })),
@@ -527,7 +702,19 @@ export const useCanvas = create<CanvasStore>()(
     resizeNode: (id, width, height) => set(s => ({
       canvases: s.canvases.map(c =>
         c.id === s.activeCanvasId
-          ? { ...c, nodes: c.nodes.map(n => n.id === id ? { ...n, width: Math.max(160, width), height: Math.max(80, height) } : n), updated: now() }
+          ? {
+            ...c,
+            nodes: c.nodes.map(n =>
+              n.id === id
+                ? {
+                  ...n,
+                  width: clampNumber(width, n.width, 120, 1_600),
+                  height: clampNumber(height, n.height, 80, 1_400),
+                }
+                : n
+            ),
+            updated: now(),
+          }
           : c
       ),
     })),
@@ -539,6 +726,8 @@ export const useCanvas = create<CanvasStore>()(
       // Prevent duplicate connections
       const canvas = get().getActiveCanvas()
       if (!canvas) return
+      const nodeIds = new Set(canvas.nodes.map((node) => node.id))
+      if (!nodeIds.has(fromId) || !nodeIds.has(toId)) return
       if (canvas.connections.some(c => (c.fromId === fromId && c.toId === toId) || (c.fromId === toId && c.toId === fromId))) return
 
       const conn: CanvasConnection = { id: genId(), fromId, toId }
@@ -569,8 +758,19 @@ export const useCanvas = create<CanvasStore>()(
 
     // ─── Viewport ───
 
-    setPan: (panX, panY) => set({ viewport: { ...get().viewport, panX, panY } }),
-    setZoom: (zoom) => set({ viewport: { ...get().viewport, zoom: Math.max(0.15, Math.min(3, zoom)) } }),
+    setPan: (panX, panY) => set({
+      viewport: normalizeViewport({
+        ...get().viewport,
+        panX,
+        panY,
+      }),
+    }),
+    setZoom: (zoom) => set({
+      viewport: normalizeViewport({
+        ...get().viewport,
+        zoom,
+      }),
+    }),
     resetViewport: () => set({ viewport: { panX: 0, panY: 0, zoom: 1 } }),
 
     // ─── Checklist Helpers ───
@@ -643,7 +843,10 @@ export const useCanvas = create<CanvasStore>()(
     }),
     merge: (persistedState, currentState) => {
       const persisted = (persistedState || {}) as Partial<CanvasStore>
-      const canvases = sanitizePersistedCanvases((persisted as any).canvases)
+      const rawCanvases = (persisted as any).canvases
+      const canvases = Array.isArray(rawCanvases)
+        ? sanitizePersistedCanvases(rawCanvases)
+        : currentState.canvases
       const preferredActive =
         typeof persisted.activeCanvasId === 'string' ? persisted.activeCanvasId : null
       const hasPreferredActive = preferredActive

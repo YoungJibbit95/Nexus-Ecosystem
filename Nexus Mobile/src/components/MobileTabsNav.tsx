@@ -3,21 +3,21 @@ import type { View } from "./Sidebar";
 import { useTheme } from "../store/themeStore";
 import { hexToRgb } from "../lib/utils";
 import { useMobile } from "../lib/useMobile";
-import { NEXUS_VIEW_META } from "@nexus/core";
+import { getNexusViewManifest, NEXUS_VIEW_META } from "@nexus/core";
 
-const VIEW_GLYPH: Record<string, string> = {
-  dashboard: "◉",
-  notes: "✎",
+const TAB_SHORT_LABELS: Record<string, string> = {
+  dashboard: "Da",
+  notes: "No",
   code: "</>",
-  tasks: "✓",
-  reminders: "⏰",
-  canvas: "◌",
-  files: "▣",
-  flux: "⚡",
-  devtools: "⌘",
-  diagnostics: "◈",
-  settings: "⚙",
-  info: "i",
+  tasks: "Ta",
+  reminders: "Re",
+  canvas: "Ca",
+  files: "Fi",
+  flux: "Fl",
+  devtools: "Dv",
+  diagnostics: "Dx",
+  settings: "Se",
+  info: "In",
 };
 
 export function MobileTabsNav({
@@ -30,7 +30,6 @@ export function MobileTabsNav({
   onChange: (next: View) => void;
 }) {
   const t = useTheme();
-  const accentRgb = hexToRgb(t.accent);
   const mob = useMobile();
   const isTiny = mob.isMobile && Math.min(mob.screenW, mob.screenH) <= 430;
   const isTight = mob.isMobile && mob.screenH <= 900;
@@ -45,8 +44,8 @@ export function MobileTabsNav({
         padding: isLandscape
           ? (isTiny ? "1px 4px 1px" : "2px 5px 2px")
           : isTight
-          ? (isTiny ? "2px 5px 2px" : "3px 6px 2px")
-          : (isTiny ? "3px 6px 2px" : "5px 8px 3px"),
+            ? (isTiny ? "2px 5px 2px" : "3px 6px 2px")
+            : (isTiny ? "3px 6px 2px" : "5px 8px 3px"),
         borderBottom: "1px solid rgba(255,255,255,0.08)",
         background:
           t.mode === "dark"
@@ -59,35 +58,47 @@ export function MobileTabsNav({
       <div
         style={{
           display: "flex",
-          gap: isLandscape ? (isTiny ? 2 : 3) : (isTight ? (isTiny ? 3 : 4) : (isTiny ? 4 : 6)),
+          gap: isLandscape
+            ? (isTiny ? 2 : 3)
+            : (isTight ? (isTiny ? 3 : 4) : (isTiny ? 4 : 6)),
           overflowX: "auto",
           paddingBottom: isLandscape ? 0 : (isTight ? 0 : (isTiny ? 0 : 1)),
         }}
       >
         {availableViews.map((viewId) => {
           const active = viewId === view;
+          const manifest = getNexusViewManifest(viewId);
           const meta = NEXUS_VIEW_META[viewId];
           const title =
+            manifest?.navLabel ||
             meta?.title ||
             viewId.charAt(0).toUpperCase() + viewId.slice(1).replace(/-/g, " ");
+          const tabAccent = manifest?.accent || t.accent;
+          const tabAccentRgb = hexToRgb(tabAccent);
+          const badgeSize = isTiny ? 20 : 22;
+
           return (
             <button
               className="nx-mobile-touch-button nx-mobile-tab-chip"
               key={viewId}
               onClick={() => onChange(viewId)}
               style={{
-                borderRadius: isLandscape ? (isTiny ? 6 : 7) : (isTight ? (isTiny ? 7 : 8) : (isTiny ? 8 : 9)),
-                border: `1px solid ${active ? `rgba(${accentRgb},0.38)` : "rgba(255,255,255,0.12)"}`,
+                borderRadius: isLandscape
+                  ? (isTiny ? 6 : 7)
+                  : (isTight ? (isTiny ? 7 : 8) : (isTiny ? 8 : 9)),
+                border: `1px solid ${active ? `rgba(${tabAccentRgb},0.42)` : "rgba(255,255,255,0.12)"}`,
                 background: active
-                  ? `linear-gradient(135deg, rgba(${accentRgb},0.24), rgba(${accentRgb},0.12))`
+                  ? `linear-gradient(135deg, rgba(${tabAccentRgb},0.24), rgba(${tabAccentRgb},0.12))`
                   : "rgba(255,255,255,0.04)",
-                color: active ? t.accent : "inherit",
-              padding: isLandscape
+                color: active ? tabAccent : "inherit",
+                padding: isLandscape
                   ? (isTiny ? "2px 5px" : "3px 6px")
                   : isTight
-                  ? (isTiny ? "3px 6px" : "4px 7px")
-                  : (isTiny ? "4px 7px" : "5px 8px"),
-                fontSize: isLandscape ? (isTiny ? 8 : 9) : (isTight ? (isTiny ? 8 : 9) : (isTiny ? 9 : 10)),
+                    ? (isTiny ? "3px 6px" : "4px 7px")
+                    : (isTiny ? "4px 7px" : "5px 8px"),
+                fontSize: isLandscape
+                  ? (isTiny ? 8 : 9)
+                  : (isTight ? (isTiny ? 8 : 9) : (isTiny ? 9 : 10)),
                 fontWeight: 700,
                 cursor: "pointer",
                 whiteSpace: "nowrap",
@@ -98,8 +109,26 @@ export function MobileTabsNav({
                 WebkitTapHighlightColor: "transparent",
               }}
             >
-              <span style={{ opacity: active ? 1 : 0.7 }}>
-                {VIEW_GLYPH[viewId] || "•"}
+              <span
+                aria-hidden="true"
+                style={{
+                  width: badgeSize,
+                  height: badgeSize,
+                  minWidth: badgeSize,
+                  borderRadius: 7,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  background: active
+                    ? `rgba(${tabAccentRgb},0.18)`
+                    : "rgba(255,255,255,0.06)",
+                  color: active ? tabAccent : "currentColor",
+                  fontSize: viewId === "code" ? 8 : 9,
+                  fontWeight: 900,
+                  opacity: active ? 1 : 0.72,
+                }}
+              >
+                {TAB_SHORT_LABELS[viewId] || title.slice(0, 2)}
               </span>
               {!isLandscape ? title : null}
             </button>

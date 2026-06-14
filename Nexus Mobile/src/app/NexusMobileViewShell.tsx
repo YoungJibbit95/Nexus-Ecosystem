@@ -22,12 +22,11 @@ type Props = {
   active: boolean;
   reducedMotion: boolean;
   onRequestViewChange: (viewId: View | string) => void;
-  onPrefetchView: (viewId: View) => void;
   onExecuteCommand?: (command: NexusResolvedViewCommand) => boolean | void;
   children: React.ReactNode;
 };
 
-type ViewContract = NexusViewManifest | {
+type MobileViewContract = NexusViewManifest | {
   id: string;
   title: string;
   subtitle: string;
@@ -51,11 +50,11 @@ type PendingViewChange = {
   reason: string;
 };
 
-const resolveViewContract = (viewId: View): ViewContract =>
+const resolveViewContract = (viewId: View): MobileViewContract =>
   getNexusViewManifest(viewId) ?? {
     id: viewId,
     title: viewId === "diagnostics" ? "Diagnostics" : String(viewId),
-    subtitle: "Lokaler v6 Entwicklungs-View",
+    subtitle: "Mobile Debug View",
     navLabel: String(viewId),
     category: "system",
     navigationGroup: "developer",
@@ -70,10 +69,10 @@ const resolveViewContract = (viewId: View): ViewContract =>
     statusSignals: ["debug"],
   };
 
-const sameCategoryViews = (
+const resolveRelatedViews = (
   viewId: View,
   availableViews: View[],
-  contract: ViewContract,
+  contract: MobileViewContract,
 ) =>
   getNexusViewManifests(availableViews)
     .filter((manifest) => manifest.id !== viewId)
@@ -84,19 +83,18 @@ const sameCategoryViews = (
     )
     .slice(0, 3);
 
-export function NexusV6ViewShell({
+export function NexusMobileViewShell({
   viewId,
   availableViews,
   active,
   reducedMotion,
   onRequestViewChange,
-  onPrefetchView,
   onExecuteCommand,
   children,
 }: Props) {
   const contract = React.useMemo(() => resolveViewContract(viewId), [viewId]);
   const relatedViews = React.useMemo(
-    () => sameCategoryViews(viewId, availableViews, contract),
+    () => resolveRelatedViews(viewId, availableViews, contract),
     [availableViews, contract, viewId],
   );
   const uiCssVars = React.useMemo(
@@ -104,8 +102,8 @@ export function NexusV6ViewShell({
       buildNexusViewCssVars(
         resolveNexusViewUiTokens({
           viewId,
-          surface: "desktop",
-          density: "comfortable",
+          surface: "mobile",
+          density: "compact",
           themeMode: "dark",
           accent: contract.accent,
           reducedMotion,
@@ -113,17 +111,15 @@ export function NexusV6ViewShell({
       ),
     [contract.accent, reducedMotion, viewId],
   );
-  const [inspectorOpen, setInspectorOpen] = React.useState(false);
-  const [focusMode, setFocusMode] = React.useState(false);
+  const [sheetOpen, setSheetOpen] = React.useState(false);
   const [activePanelId, setActivePanelId] = React.useState<string | null>(null);
   const [lastCommandId, setLastCommandId] = React.useState<string | null>(null);
   const [shellState, setShellState] = React.useState<NexusResolvedViewState | null>(null);
   const [pendingViewChange, setPendingViewChange] = React.useState<PendingViewChange | null>(null);
 
   React.useEffect(() => {
+    setSheetOpen(false);
     setActivePanelId(null);
-    setInspectorOpen(false);
-    setFocusMode(false);
     setLastCommandId(null);
     setShellState(null);
     setPendingViewChange(null);
@@ -133,17 +129,15 @@ export function NexusV6ViewShell({
     () =>
       buildNexusPanelEngine({
         viewId,
-        surface: "desktop",
-        density: "comfortable",
-        focusMode,
-        inspectorOpen,
+        surface: "mobile",
+        density: "compact",
+        inspectorOpen: sheetOpen,
         activePanelId,
         reducedMotion,
       }),
-    [activePanelId, focusMode, inspectorOpen, reducedMotion, viewId],
+    [activePanelId, reducedMotion, sheetOpen, viewId],
   );
   const layout = panelEngine.layout;
-  const activePanel = panelEngine.activePanel;
   const commandRegistry = React.useMemo(
     () =>
       resolveNexusViewCommandRegistry({
@@ -160,7 +154,13 @@ export function NexusV6ViewShell({
     null;
   const toolbarActions = commandRegistry
     .filter((command) => command.commandId !== primaryAction?.commandId)
+    .filter((command) => command.placement === "toolbar" || command.placement === "command")
     .slice(0, 2);
+  const activePanel =
+    panelEngine.activePanel ??
+    panelEngine.sheetPanels.find((panel) => panel.visible) ??
+    panelEngine.inlinePanels[0] ??
+    null;
   const lastCommand = commandRegistry.find(
     (command) => command.commandId === lastCommandId,
   );
@@ -177,9 +177,9 @@ export function NexusV6ViewShell({
       buildNexusViewStatusChips({
         state: resolvedShellState,
         signals: layout?.statusSignals ?? contract.statusSignals,
-        maxItems: inspectorOpen ? 7 : 4,
+        maxItems: 4,
       }),
-    [contract.statusSignals, inspectorOpen, layout?.statusSignals, resolvedShellState],
+    [contract.statusSignals, layout?.statusSignals, resolvedShellState],
   );
 
   React.useEffect(() => {
@@ -240,7 +240,7 @@ export function NexusV6ViewShell({
             blockedReason: transition.blockedReason,
           }),
       );
-      setInspectorOpen(true);
+      setSheetOpen(true);
     },
     [onRequestViewChange, resolvedShellState, viewId],
   );
@@ -248,14 +248,14 @@ export function NexusV6ViewShell({
   const runShellCommand = React.useCallback(
     (command: NexusResolvedViewCommand) => {
       setLastCommandId(command.commandId);
-      if (command.disabledReason || command.requiresSelection) {
+      if (!command.enabled || command.requiresSelection) {
         setShellState(
           resolveNexusViewState({
             viewId,
             blockedReason: command.disabledReason || "requires-selection",
           }),
         );
-        setInspectorOpen(true);
+        setSheetOpen(true);
         return;
       }
 
@@ -267,7 +267,7 @@ export function NexusV6ViewShell({
 
       if (typeof window !== "undefined") {
         window.dispatchEvent(
-          new CustomEvent("nexus:view-command", {
+          new CustomEvent("nexus:mobile-view-command", {
             detail: {
               commandId: command.commandId,
               actionId: command.id,
@@ -278,70 +278,53 @@ export function NexusV6ViewShell({
           }),
         );
       }
-
-      if (command.id === "focus-mode") {
-        setFocusMode((next) => !next);
-        setShellState(resolveNexusViewState({ viewId, saved: true }));
-        return;
-      }
       setShellState(resolveNexusViewState({ viewId, dirty: true }));
-      setInspectorOpen(true);
+      setSheetOpen(true);
     },
     [onExecuteCommand, viewId],
   );
 
   return (
     <section
-      className="nx-v6-view-shell"
+      className="nx-mobile-v6-view-shell"
       data-view={viewId}
       data-active={active ? "true" : "false"}
-      data-focus={focusMode ? "true" : "false"}
-      data-inspector={inspectorOpen ? "open" : "closed"}
-      data-reduced-motion={reducedMotion ? "true" : "false"}
+      data-sheet={sheetOpen ? "open" : "closed"}
       data-layout-version={layout?.version ?? "local"}
       data-chrome={layout?.chrome ?? "full"}
       data-state={resolvedShellState.kind}
       data-state-persistent={shellStateBehavior.persistent ? "true" : "false"}
       style={{
         ...uiCssVars,
-        ["--nx-v6-view-accent" as any]: contract.accent,
+        ["--nx-mobile-v6-accent" as any]: contract.accent,
       }}
     >
-      <header className="nx-v6-view-header">
-        <div className="nx-v6-title-cluster">
-          <div className="nx-v6-eyebrow">
-            {contract.category} / {layout?.contentPriority ?? contract.desktopMode}
+      <header className="nx-mobile-v6-header">
+        <div className="nx-mobile-v6-title-cluster">
+          <div className="nx-mobile-v6-eyebrow">
+            {contract.category} / {layout?.surfaceMode ?? contract.mobileMode}
           </div>
-          <div className="nx-v6-title-row">
-            <div className="nx-v6-title-copy">
+          <div className="nx-mobile-v6-title-row">
+            <div>
               <h1>{contract.title}</h1>
               <p>{contract.subtitle}</p>
             </div>
-          </div>
-          <div className="nx-v6-quick-nav" aria-label="Verwandte Views">
-            {relatedViews.length > 0 ? (
-              relatedViews.map((manifest) => (
-                <button
-                  key={manifest.id}
-                  type="button"
-                  onClick={() => requestShellViewChange(manifest.id, manifest.navLabel)}
-                  onMouseEnter={() => {
-                    onPrefetchView(manifest.id as View);
-                  }}
-                >
-                  <span style={{ background: manifest.accent }} />
-                  {manifest.navLabel}
-                </button>
-              ))
-            ) : null}
+            <button
+              type="button"
+              className="nx-mobile-v6-details-button"
+              aria-pressed={sheetOpen}
+              onClick={() => setSheetOpen((next) => !next)}
+            >
+              Details
+            </button>
           </div>
         </div>
 
-        <div className="nx-v6-header-actions" aria-label="v6 View Actions">
+        <div className="nx-mobile-v6-actions" aria-label="Mobile View Actions">
           {primaryAction ? (
             <button
               type="button"
-              className="nx-v6-action nx-v6-action--primary"
+              className="nx-mobile-v6-action nx-mobile-v6-action--primary"
               title={primaryAction.disabledReason || primaryAction.shortcut || primaryAction.intent}
               aria-disabled={primaryAction.enabled ? undefined : "true"}
               onClick={() => runShellCommand(primaryAction)}
@@ -351,9 +334,9 @@ export function NexusV6ViewShell({
           ) : null}
           {toolbarActions.map((action) => (
             <button
-              key={action.id}
+              key={action.commandId}
               type="button"
-              className="nx-v6-action"
+              className="nx-mobile-v6-action"
               title={action.disabledReason || action.shortcut || action.intent}
               aria-disabled={action.enabled ? undefined : "true"}
               onClick={() => runShellCommand(action)}
@@ -361,111 +344,105 @@ export function NexusV6ViewShell({
               {action.title}
             </button>
           ))}
-          <button
-            type="button"
-            className="nx-v6-action"
-            aria-pressed={focusMode}
-            onClick={() => setFocusMode((next) => !next)}
-          >
-            {focusMode ? "Zurueck" : "Fokus"}
-          </button>
-          <button
-            type="button"
-            className="nx-v6-action"
-            aria-pressed={inspectorOpen}
-            onClick={() => setInspectorOpen((next) => !next)}
-          >
-            Details
-          </button>
         </div>
+
+        {relatedViews.length > 0 ? (
+          <nav className="nx-mobile-v6-related" aria-label="Related Views">
+            {relatedViews.map((manifest) => (
+              <button
+                key={manifest.id}
+                type="button"
+                onClick={() => requestShellViewChange(manifest.id, manifest.navLabel)}
+              >
+                <span style={{ background: manifest.accent }} />
+                {manifest.navLabel}
+              </button>
+            ))}
+          </nav>
+        ) : null}
       </header>
 
-      <div className="nx-v6-workbench">
-        <div className="nx-v6-content-frame">{children}</div>
+      <div className="nx-mobile-v6-content">{children}</div>
 
-        {inspectorOpen ? (
-          <aside className="nx-v6-inspector-rail" aria-label={`${contract.title} Inspector`}>
-            <div className="nx-v6-inspector-section">
-              <div className="nx-v6-section-label">Panels</div>
-              <div className="nx-v6-panel-list">
-                {panelEngine.panels.length > 0 ? (
-                  panelEngine.panels.map((panel) => (
-                    <button
-                      key={panel.id}
-                      type="button"
-                      className={panel.id === activePanel?.id ? "is-active" : undefined}
-                      onClick={() => setActivePanelId(panel.id)}
-                    >
-                      <strong>{panel.title}</strong>
-                      <span>{panel.state} / {panel.presentation} / {panel.rail}</span>
-                    </button>
-                  ))
-                ) : (
-                  <span>Keine Panels definiert.</span>
-                )}
-              </div>
+      <footer className="nx-mobile-v6-status" aria-label="View Status">
+        {statusChips.map((chip) => (
+          <span key={chip.id} data-tone={chip.tone} title={chip.description}>
+            {chip.label}
+          </span>
+        ))}
+      </footer>
+
+      {sheetOpen ? (
+        <aside className="nx-mobile-v6-sheet" aria-label={`${contract.title} Details`}>
+          <div className="nx-mobile-v6-sheet-handle" aria-hidden="true" />
+          <div className="nx-mobile-v6-sheet-header">
+            <div>
+              <strong>{activePanel?.title ?? "View Context"}</strong>
+              <span>{layout?.contentPriority ?? "balanced"} / {layout?.animationProfile ?? "calm"}</span>
             </div>
-
-            <div className="nx-v6-inspector-section">
-              <div className="nx-v6-section-label">Signals</div>
-              <div className="nx-v6-signal-grid">
-                {statusChips.map((chip) => (
-                  <span key={chip.id} data-tone={chip.tone} title={chip.description}>
-                    {chip.label}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            <div className="nx-v6-inspector-section">
-              <div className="nx-v6-section-label">View Health</div>
-              <div className="nx-v6-responsive-card">
-                <span>State: {resolvedShellState.label} / {resolvedShellState.kind}</span>
-                <span>
-                  Behavior: {shellStateBehavior.persistent ? "persistent" : "transient"} /{" "}
-                  {shellStateBehavior.autoDismissMs ? `${shellStateBehavior.autoDismissMs}ms` : "manual"}
-                </span>
-                <span>Layout: v{layout?.version ?? "local"} / {layout?.contentPriority ?? contract.desktopMode}</span>
-                <span>Columns: {layout?.columns ?? 1} / min {layout?.minContentWidth ?? 560}px</span>
-                <span>Chrome: {layout?.chrome ?? "full"} / motion {layout?.animationProfile ?? "standard"}</span>
-                <span>Active panel: {activePanel?.title ?? "none"}</span>
-                <span>Last command: {lastCommand?.title ?? "none"}</span>
-                <span>Pending view: {pendingViewChange?.label ?? "none"}</span>
-                <span>Shortcuts: {contract.shortcuts.length || "none"}</span>
-              </div>
-            </div>
-          </aside>
-        ) : null}
-      </div>
-
-      <footer
-        className="nx-v6-status-bar"
-        aria-label={`${contract.title} Status`}
-        aria-live={resolvedShellState.ariaLive}
-        data-attention={shellStateBehavior.attention}
-        data-pending-view={pendingViewChange ? "true" : "false"}
-      >
-        <div className="nx-v6-status-primary">
-          <span data-tone={resolvedShellState.tone}>{resolvedShellState.label}</span>
-          <strong>{resolvedShellState.title}</strong>
-          <em>{resolvedShellState.description}</em>
-        </div>
-        {pendingViewChange ? (
-          <div className="nx-v6-pending-nav" title={pendingViewChange.reason}>
-            <span>Wechsel zu {pendingViewChange.label} wartet</span>
-            <button type="button" onClick={forcePendingViewChange}>
-              Trotzdem wechseln
+            <button type="button" onClick={() => setSheetOpen(false)}>
+              Schliessen
             </button>
           </div>
-        ) : null}
-        <div className="nx-v6-status-chip-row" aria-label="View Signale">
-          {statusChips.map((chip) => (
-            <span key={chip.id} data-tone={chip.tone} title={chip.description}>
-              {chip.label}
+
+          <div
+            className="nx-mobile-v6-state-card"
+            aria-live={resolvedShellState.ariaLive}
+            data-attention={shellStateBehavior.attention}
+          >
+            <span data-tone={resolvedShellState.tone}>{resolvedShellState.label}</span>
+            <div>
+              <strong>{resolvedShellState.title}</strong>
+              <p>{resolvedShellState.description}</p>
+            </div>
+            {resolvedShellState.actionLabel ? (
+              <button type="button" onClick={() => setSheetOpen(true)}>
+                {resolvedShellState.actionLabel}
+              </button>
+            ) : null}
+          </div>
+
+          {pendingViewChange ? (
+            <div className="nx-mobile-v6-pending-nav" title={pendingViewChange.reason}>
+              <span>Wechsel zu {pendingViewChange.label} wartet</span>
+              <button type="button" onClick={forcePendingViewChange}>
+                Trotzdem wechseln
+              </button>
+            </div>
+          ) : null}
+
+          <div className="nx-mobile-v6-panel-list">
+            {panelEngine.panels.length > 0 ? (
+              panelEngine.panels.map((panel) => (
+                <button
+                  key={panel.id}
+                  type="button"
+                  className={panel.id === activePanel?.id ? "is-active" : undefined}
+                  onClick={() => setActivePanelId(panel.id)}
+                >
+                  <strong>{panel.title}</strong>
+                  <span>{panel.state} / {panel.presentation}</span>
+                </button>
+              ))
+            ) : (
+              <span>Keine Panels definiert.</span>
+            )}
+          </div>
+
+          <div className="nx-mobile-v6-sheet-grid">
+            <span>State: {resolvedShellState.label}</span>
+            <span>
+              Behavior: {shellStateBehavior.persistent ? "persistent" : "transient"} /{" "}
+              {shellStateBehavior.autoDismissMs ? `${shellStateBehavior.autoDismissMs}ms` : "manual"}
             </span>
-          ))}
-        </div>
-      </footer>
+            <span>Columns: {layout?.columns ?? 1}</span>
+            <span>Min width: {layout?.minContentWidth ?? 320}px</span>
+            <span>Last command: {lastCommand?.title ?? "none"}</span>
+            <span>Pending view: {pendingViewChange?.label ?? "none"}</span>
+            <span>Shortcuts: {contract.shortcuts.length || "none"}</span>
+          </div>
+        </aside>
+      ) : null}
     </section>
   );
 }
