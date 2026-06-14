@@ -1,6 +1,9 @@
 import React, { Suspense } from "react";
+import type { NexusResolvedViewCommand } from "@nexus/core";
 import type { View } from "../components/Sidebar";
 import { ViewErrorBoundary } from "../components/ViewErrorBoundary";
+import { useApp } from "../store/appStore";
+import { NexusMobileViewShell } from "./NexusMobileViewShell";
 import {
   CanvasView,
   CodeView,
@@ -161,6 +164,9 @@ export function MobileViewHost({
   reducedMotion,
   onRequestViewChange,
 }: Props) {
+  const addNote = useApp((state) => state.addNote);
+  const addTask = useApp((state) => state.addTask);
+  const addRem = useApp((state) => state.addRem);
   const prefersStaticLayering = isLikelyIOSWebkit();
   const useSingleActiveLayer = prefersStaticLayering && reducedMotion;
   const allowViewEnterAnimation = !reducedMotion && !useSingleActiveLayer;
@@ -236,28 +242,60 @@ export function MobileViewHost({
               ) : null
             }
           >
-            <div
-              className="nx-mobile-view-content"
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                height: "100%",
-                minHeight: 0,
-                overflow: "hidden",
+            <NexusMobileViewShell
+              viewId={viewId}
+              availableViews={availableViews}
+              active={viewId === view}
+              reducedMotion={reducedMotion}
+              onRequestViewChange={onRequestViewChange}
+              onExecuteCommand={(command: NexusResolvedViewCommand) => {
+                switch (command.commandId) {
+                  case "dashboard.quick-capture":
+                  case "notes.new-note":
+                    addNote();
+                    onRequestViewChange("notes");
+                    return true;
+                  case "tasks.new-task":
+                    addTask("New Task", "todo");
+                    onRequestViewChange("tasks");
+                    return true;
+                  case "reminders.new-reminder":
+                    addRem({
+                      title: "New Reminder",
+                      msg: "Created from Nexus mobile command",
+                      datetime: new Date(Date.now() + 60 * 60_000).toISOString(),
+                      repeat: "none",
+                    });
+                    onRequestViewChange("reminders");
+                    return true;
+                  default:
+                    return false;
+                }
               }}
             >
               <div
-                className="nx-mobile-view-root"
+                className="nx-mobile-view-content"
                 style={{
-                  flex: 1,
+                  display: "flex",
+                  flexDirection: "column",
+                  height: "100%",
                   minHeight: 0,
                   overflow: "hidden",
-                  position: "relative",
                 }}
               >
-                {renderActiveView(viewId, onRequestViewChange)}
+                <div
+                  className="nx-mobile-view-root"
+                  style={{
+                    flex: 1,
+                    minHeight: 0,
+                    overflow: "hidden",
+                    position: "relative",
+                  }}
+                >
+                  {renderActiveView(viewId, onRequestViewChange)}
+                </div>
               </div>
-            </div>
+            </NexusMobileViewShell>
           </Suspense>
         </div>
       ))}

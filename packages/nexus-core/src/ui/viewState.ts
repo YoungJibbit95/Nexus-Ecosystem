@@ -1,0 +1,357 @@
+export type NexusViewStateKind =
+  | 'ready'
+  | 'loading'
+  | 'empty'
+  | 'dirty'
+  | 'saving'
+  | 'saved'
+  | 'offline'
+  | 'error'
+  | 'blocked'
+
+export type NexusViewStateTone =
+  | 'neutral'
+  | 'info'
+  | 'success'
+  | 'warning'
+  | 'danger'
+
+export type NexusResolvedViewState = {
+  viewId: string
+  kind: NexusViewStateKind
+  tone: NexusViewStateTone
+  label: string
+  title: string
+  description: string
+  actionLabel?: string
+  retryable: boolean
+  ariaLive: 'off' | 'polite' | 'assertive'
+}
+
+export type NexusViewStateAttention = 'none' | 'polite' | 'assertive'
+
+export type NexusViewStateBehavior = {
+  persistent: boolean
+  autoDismissMs: number | null
+  blocksNavigation: boolean
+  attention: NexusViewStateAttention
+}
+
+export type NexusViewStateOptions = {
+  viewId: string
+  loading?: boolean
+  empty?: boolean
+  dirty?: boolean
+  saving?: boolean
+  saved?: boolean
+  offline?: boolean
+  error?: unknown
+  blockedReason?: string | null
+  itemLabel?: string
+}
+
+const toErrorMessage = (error: unknown) => {
+  if (!error) return ''
+  if (error instanceof Error && error.message) return error.message
+  if (typeof error === 'string') return error
+  return 'Unbekannter Fehler'
+}
+
+export const resolveNexusViewState = ({
+  viewId,
+  loading = false,
+  empty = false,
+  dirty = false,
+  saving = false,
+  saved = false,
+  offline = false,
+  error,
+  blockedReason,
+  itemLabel = 'Eintraege',
+}: NexusViewStateOptions): NexusResolvedViewState => {
+  const errorMessage = toErrorMessage(error)
+
+  if (errorMessage) {
+    return {
+      viewId,
+      kind: 'error',
+      tone: 'danger',
+      label: 'Fehler',
+      title: 'View konnte nicht sauber reagieren',
+      description: errorMessage,
+      actionLabel: 'Erneut versuchen',
+      retryable: true,
+      ariaLive: 'assertive',
+    }
+  }
+
+  if (blockedReason) {
+    return {
+      viewId,
+      kind: 'blocked',
+      tone: 'warning',
+      label: 'Blockiert',
+      title: 'Aktion ist gerade nicht verfuegbar',
+      description: blockedReason,
+      actionLabel: 'Details anzeigen',
+      retryable: false,
+      ariaLive: 'polite',
+    }
+  }
+
+  if (loading) {
+    return {
+      viewId,
+      kind: 'loading',
+      tone: 'info',
+      label: 'Laedt',
+      title: 'View wird vorbereitet',
+      description: 'Daten, Layout und Interaktionen werden aufgebaut.',
+      retryable: false,
+      ariaLive: 'polite',
+    }
+  }
+
+  if (saving) {
+    return {
+      viewId,
+      kind: 'saving',
+      tone: 'info',
+      label: 'Speichert',
+      title: 'Aenderungen werden gespeichert',
+      description: 'Die UI bleibt bedienbar, waehrend Nexus den Zustand sichert.',
+      retryable: false,
+      ariaLive: 'polite',
+    }
+  }
+
+  if (offline) {
+    return {
+      viewId,
+      kind: 'offline',
+      tone: 'warning',
+      label: 'Offline',
+      title: 'Offline Queue aktiv',
+      description: 'Aenderungen bleiben lokal und werden spaeter synchronisiert.',
+      retryable: true,
+      actionLabel: 'Sync pruefen',
+      ariaLive: 'polite',
+    }
+  }
+
+  if (dirty) {
+    return {
+      viewId,
+      kind: 'dirty',
+      tone: 'warning',
+      label: 'Ungesichert',
+      title: 'Nicht gespeicherte Aenderungen',
+      description: 'Diese View hat lokale Aenderungen, die noch bestaetigt werden muessen.',
+      retryable: false,
+      ariaLive: 'polite',
+    }
+  }
+
+  if (saved) {
+    return {
+      viewId,
+      kind: 'saved',
+      tone: 'success',
+      label: 'Gesichert',
+      title: 'Aenderung abgeschlossen',
+      description: 'Die letzte Aktion wurde von der Shell angenommen.',
+      retryable: false,
+      ariaLive: 'polite',
+    }
+  }
+
+  if (empty) {
+    return {
+      viewId,
+      kind: 'empty',
+      tone: 'neutral',
+      label: 'Leer',
+      title: `Noch keine ${itemLabel}`,
+      description: 'Die View kann sofort mit der Primaeraktion gestartet werden.',
+      retryable: false,
+      ariaLive: 'off',
+    }
+  }
+
+  return {
+    viewId,
+    kind: 'ready',
+    tone: 'success',
+    label: 'Bereit',
+    title: 'View ist bereit',
+    description: 'Layout, Actions und Statussignale sind verfuegbar.',
+    retryable: false,
+    ariaLive: 'off',
+  }
+}
+
+const NEXUS_VIEW_STATE_BEHAVIOR: Record<NexusViewStateKind, NexusViewStateBehavior> = {
+  ready: {
+    persistent: false,
+    autoDismissMs: 1200,
+    blocksNavigation: false,
+    attention: 'none',
+  },
+  loading: {
+    persistent: false,
+    autoDismissMs: 2600,
+    blocksNavigation: false,
+    attention: 'polite',
+  },
+  empty: {
+    persistent: true,
+    autoDismissMs: null,
+    blocksNavigation: false,
+    attention: 'none',
+  },
+  dirty: {
+    persistent: true,
+    autoDismissMs: null,
+    blocksNavigation: true,
+    attention: 'polite',
+  },
+  saving: {
+    persistent: false,
+    autoDismissMs: null,
+    blocksNavigation: true,
+    attention: 'polite',
+  },
+  saved: {
+    persistent: false,
+    autoDismissMs: 1800,
+    blocksNavigation: false,
+    attention: 'polite',
+  },
+  offline: {
+    persistent: true,
+    autoDismissMs: null,
+    blocksNavigation: false,
+    attention: 'polite',
+  },
+  error: {
+    persistent: true,
+    autoDismissMs: null,
+    blocksNavigation: true,
+    attention: 'assertive',
+  },
+  blocked: {
+    persistent: true,
+    autoDismissMs: null,
+    blocksNavigation: true,
+    attention: 'polite',
+  },
+}
+
+export const resolveNexusViewStateBehavior = (
+  state: NexusResolvedViewState,
+): NexusViewStateBehavior => NEXUS_VIEW_STATE_BEHAVIOR[state.kind]
+
+export const shouldAutoDismissNexusViewState = (
+  state: NexusResolvedViewState,
+): boolean => {
+  const behavior = resolveNexusViewStateBehavior(state)
+  return (
+    !behavior.persistent &&
+    typeof behavior.autoDismissMs === 'number' &&
+    Number.isFinite(behavior.autoDismissMs) &&
+    behavior.autoDismissMs > 0
+  )
+}
+
+export type NexusViewTransitionOptions = {
+  currentViewId: string
+  targetViewId: string
+  targetViewLabel?: string
+  state: NexusResolvedViewState
+  force?: boolean
+}
+
+export type NexusResolvedViewTransition = {
+  allowed: boolean
+  currentViewId: string
+  targetViewId: string
+  targetViewLabel: string
+  behavior: NexusViewStateBehavior
+  blockedReason?: string
+  feedbackState?: NexusResolvedViewState
+}
+
+export const resolveNexusViewTransition = ({
+  currentViewId,
+  targetViewId,
+  targetViewLabel,
+  state,
+  force = false,
+}: NexusViewTransitionOptions): NexusResolvedViewTransition => {
+  const behavior = resolveNexusViewStateBehavior(state)
+  const normalizedTargetLabel = String(targetViewLabel || targetViewId).trim() || targetViewId
+
+  if (force || currentViewId === targetViewId || !behavior.blocksNavigation) {
+    return {
+      allowed: true,
+      currentViewId,
+      targetViewId,
+      targetViewLabel: normalizedTargetLabel,
+      behavior,
+    }
+  }
+
+  const blockedReason =
+    state.kind === 'dirty'
+      ? `Wechsel zu ${normalizedTargetLabel} wartet, bis die ungesicherten Aenderungen gesichert oder verworfen werden.`
+      : `Wechsel zu ${normalizedTargetLabel} wartet: ${state.description}`
+
+  return {
+    allowed: false,
+    currentViewId,
+    targetViewId,
+    targetViewLabel: normalizedTargetLabel,
+    behavior,
+    blockedReason,
+    feedbackState: resolveNexusViewState({
+      viewId: currentViewId,
+      blockedReason,
+    }),
+  }
+}
+
+export type NexusViewStatusChip = {
+  id: string
+  label: string
+  tone: NexusViewStateTone
+  description?: string
+}
+
+export const buildNexusViewStatusChips = ({
+  state,
+  signals = [],
+  maxItems = 4,
+}: {
+  state: NexusResolvedViewState
+  signals?: readonly string[]
+  maxItems?: number
+}): NexusViewStatusChip[] => {
+  const normalizedSignals = Array.from(
+    new Set(signals.map((signal) => String(signal || '').trim()).filter(Boolean)),
+  )
+  const signalChips = normalizedSignals.map((signal) => ({
+    id: `signal:${signal}`,
+    label: signal,
+    tone: 'neutral' as const,
+  }))
+
+  return [
+    {
+      id: `state:${state.kind}`,
+      label: state.label,
+      tone: state.tone,
+      description: state.description,
+    },
+    ...signalChips,
+  ].slice(0, Math.max(1, Math.floor(maxItems)))
+}

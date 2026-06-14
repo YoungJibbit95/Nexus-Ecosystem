@@ -6,7 +6,11 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const ROOT = path.resolve(__dirname, '..')
 const viewsPath = path.join(ROOT, 'packages', 'nexus-core', 'src', 'views.ts')
+const designTokensPath = path.join(ROOT, 'packages', 'nexus-core', 'src', 'ui', 'designTokens.ts')
+const viewStatePath = path.join(ROOT, 'packages', 'nexus-core', 'src', 'ui', 'viewState.ts')
 const source = readFileSync(viewsPath, 'utf8')
+const designTokensSource = readFileSync(designTokensPath, 'utf8')
+const viewStateSource = readFileSync(viewStatePath, 'utf8')
 
 const requiredViews = [
   'dashboard',
@@ -45,6 +49,22 @@ expect(source.includes('export const buildAdaptiveViewWarmupPlan'), 'Missing ada
 expect(source.includes('defaultActionId'), 'Manifests must expose defaultActionId')
 expect(source.includes('mobileMode'), 'Manifests must expose mobileMode')
 expect(source.includes('statusSignals'), 'Manifests must expose statusSignals')
+expect(designTokensSource.includes('export const resolveNexusViewUiTokens'), 'Missing UI token resolver')
+expect(designTokensSource.includes('export const buildNexusViewCssVars'), 'Missing UI CSS var builder')
+expect(designTokensSource.includes('NexusViewUiTokenSet'), 'Missing UI token set type')
+expect(designTokensSource.includes('--nx-ui-accent'), 'Missing UI accent CSS var')
+expect(designTokensSource.includes('--nx-ui-touch-target'), 'Missing UI touch target CSS var')
+expect(designTokensSource.includes('--nx-ui-motion-panel'), 'Missing UI motion panel CSS var')
+expect(viewStateSource.includes('export const resolveNexusViewState'), 'Missing view state resolver')
+expect(viewStateSource.includes('export const resolveNexusViewStateBehavior'), 'Missing view state behavior resolver')
+expect(viewStateSource.includes('export const shouldAutoDismissNexusViewState'), 'Missing transient view state helper')
+expect(viewStateSource.includes('export const resolveNexusViewTransition'), 'Missing view transition guard')
+expect(viewStateSource.includes('export const buildNexusViewStatusChips'), 'Missing status chip builder')
+expect(viewStateSource.includes("'offline'"), 'Missing offline view state')
+expect(viewStateSource.includes("'blocked'"), 'Missing blocked view state')
+expect(viewStateSource.includes('blocksNavigation'), 'Missing navigation blocking behavior')
+expect(viewStateSource.includes('feedbackState'), 'Missing transition feedback state')
+expect(viewStateSource.includes("'assertive'"), 'Missing assertive aria-live state')
 
 const mojibakePatterns = ['Ã', 'Â', 'â€™', 'â€œ', 'â€', '�']
 for (const pattern of mojibakePatterns) {
