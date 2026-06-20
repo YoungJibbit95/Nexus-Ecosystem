@@ -5,7 +5,7 @@ import { useApp } from '../store/appStore'
 import { useTheme } from '../store/themeStore'
 import { hexToRgb } from '../lib/utils'
 import { AnimatePresence } from 'framer-motion'
-import { computeTodayLayerSummary } from '@nexus/core'
+import { calculateNexusViewQuality, computeTodayLayerSummary } from '@nexus/core'
 import {
   QUIET_HOURS_KEY,
   REMINDER_TEMPLATES,
@@ -105,6 +105,32 @@ export function RemindersView({ setView }: { setView?: (viewId: string) => void 
     () => computeTodayLayerSummary(tasks, reminders, now),
     [tasks, reminders, now],
   )
+  const activeFilterCount = useMemo(() => {
+    let count = 0
+    if (search.trim()) count += 1
+    if (filter !== 'upcoming') count += 1
+    return count
+  }, [filter, search])
+
+  const staleDoneCount = useMemo(() => {
+    const cutoff = Date.now() - 14 * 24 * 60 * 60 * 1000
+    return done.filter((reminder) => new Date(reminder.datetime).getTime() < cutoff).length
+  }, [done])
+
+  const reminderQuality = useMemo(() => calculateNexusViewQuality({
+    totalItems: reminders.length,
+    visibleItems: filtered.length,
+    searchActive: Boolean(search.trim()),
+    filtersActive: activeFilterCount,
+    overdueItems: overdue.length,
+    staleItems: staleDoneCount,
+    synced: notifyAvailable,
+  }), [activeFilterCount, filtered.length, notifyAvailable, overdue.length, reminders.length, search, staleDoneCount])
+
+  const resetReminderView = useCallback(() => {
+    setSearch('')
+    setFilter('upcoming')
+  }, [])
 
   const runHealthCheck = useCallback(() => {
     setLastHealthCheckAt(new Date().toISOString())
@@ -254,6 +280,24 @@ export function RemindersView({ setView }: { setView?: (viewId: string) => void 
         ))}
       </div>
 
+
+      <div className="nx-view-quality-strip nx-reminders-quality-strip" style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:10, padding:'8px 14px', borderBottom:'1px solid rgba(255,255,255,0.06)', background:'rgba(0,0,0,0.045)', flexShrink:0, flexWrap:'wrap' }}>
+        <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap', minWidth:0 }}>
+          <span className={`nx-view-quality-badge nx-view-quality-badge--${reminderQuality.tone}`} style={{ fontSize:10, fontWeight:800 }}>
+            {reminderQuality.score}% {reminderQuality.label}
+          </span>
+          <span style={{ fontSize:11, opacity:0.68 }}>{reminderQuality.summary}</span>
+        </div>
+        <div className="nx-view-quality-metrics" style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
+          <span style={{ fontSize:10, opacity:0.68 }}>Visible: <b>{filtered.length}</b></span>
+          <span style={{ fontSize:10, opacity:0.68 }}>Stale done: <b>{staleDoneCount}</b></span>
+          {activeFilterCount > 0 ? (
+            <button onClick={resetReminderView} style={{ padding:'4px 8px', borderRadius:8, border:'1px solid rgba(255,255,255,0.14)', background:'rgba(255,255,255,0.05)', color:'inherit', cursor:'pointer', fontSize:10, fontWeight:750 }}>
+              Reset view
+            </button>
+          ) : null}
+        </div>
+      </div>
       <div className="nx-reminders-today-strip nx-release-strip" style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, padding:'8px 14px', borderBottom:'1px solid rgba(255,255,255,0.06)', background:'rgba(0,0,0,0.05)', flexWrap:'wrap' }}>
         <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
           <span style={{ fontSize:10, opacity:0.55, fontWeight:700, letterSpacing:0.4, textTransform:'uppercase' }}>Today Layer</span>

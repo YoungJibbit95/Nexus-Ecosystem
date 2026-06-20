@@ -16,6 +16,7 @@ import { asObjectArray } from "./dashboard/dashboardViewUtils";
 import { buildDashboardWidgetContent } from "./dashboard/widgetContent";
 import { useDashboardLayoutEditing } from "./dashboard/useDashboardLayoutEditing";
 import { useDashboardDerivedData } from "./dashboard/useDashboardDerivedData";
+import { calculateNexusViewQuality } from "@nexus/core";
 
 export function DashboardView({ setView }: { setView?: (v: string) => void }) {
   const t = useTheme();
@@ -207,6 +208,18 @@ export function DashboardView({ setView }: { setView?: (v: string) => void }) {
     accent: t.accent,
     accent2: t.accent2,
   });
+  const dashboardQuality = useMemo(() => {
+    const blockedTasks = tasks.filter((task) => String(task.status || '').toLowerCase().includes('block')).length;
+    return calculateNexusViewQuality({
+      totalItems: notes.length + tasks.length + codes.length + reminders.length + canvases.length,
+      visibleItems: visibleWidgets.length,
+      overdueItems: overdueReminders,
+      blockedItems: blockedTasks,
+      staleItems: hiddenWidgets.length,
+      workspaceReady: Boolean(activeWorkspace || workspaceRoot),
+      synced: Boolean(lastSyncLabel),
+    });
+  }, [activeWorkspace, canvases.length, codes.length, hiddenWidgets.length, lastSyncLabel, notes.length, overdueReminders, reminders.length, tasks, visibleWidgets.length, workspaceRoot]);
 
   let widgetContent: Partial<Record<string, React.ReactNode>> = {};
   let widgetContentBuildError: string | null = null;
@@ -278,6 +291,45 @@ export function DashboardView({ setView }: { setView?: (v: string) => void }) {
           resetLayout={resetLayout}
         />
 
+
+        <div
+          className="nx-view-quality-strip nx-dashboard-quality-strip"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 10,
+            marginBottom: 12,
+            padding: "9px 12px",
+            borderRadius: 10,
+            border: "1px solid rgba(255,255,255,0.08)",
+            background: "rgba(255,255,255,0.035)",
+            flexWrap: "wrap",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", minWidth: 0 }}>
+            <span className={`nx-view-quality-badge nx-view-quality-badge--${dashboardQuality.tone}`} style={{ fontSize: 10, fontWeight: 800 }}>
+              {dashboardQuality.score}% {dashboardQuality.label}
+            </span>
+            <span style={{ fontSize: 11, opacity: 0.68 }}>{dashboardQuality.summary}</span>
+          </div>
+          <div className="nx-view-quality-metrics" style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            {dashboardQuality.metrics.map((metric) => (
+              <span key={metric.id} style={{ fontSize: 10, opacity: 0.68 }}>
+                {metric.label}: <b>{metric.value}</b>
+              </span>
+            ))}
+            {dashboardQuality.actions.slice(0, 2).map((action) => (
+              <button
+                key={action}
+                onClick={() => setEditLayout(true)}
+                style={{ padding: "4px 8px", borderRadius: 8, border: `1px solid rgba(${rgb},0.24)`, background: `rgba(${rgb},0.1)`, color: t.accent, cursor: "pointer", fontSize: 10, fontWeight: 750 }}
+              >
+                {action}
+              </button>
+            ))}
+          </div>
+        </div>
         <DashboardWidgetGridSection
           gridRef={gridRef}
           visibleWidgets={visibleWidgets}
