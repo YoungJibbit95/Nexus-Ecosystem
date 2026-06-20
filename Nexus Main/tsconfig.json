@@ -10,15 +10,13 @@
     "noEmit": true,
     "jsx": "react-jsx",
     "strict": false,
-    "ignoreDeprecations": "6.0",
-    "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
       "@nexus/core": ["../packages/nexus-core/src/index.ts"],
       "@nexus/core/*": ["../packages/nexus-core/src/*"],
       "@nexus/api": ["../packages/nexus-core/src/api/index.ts"],
-      "@nexus/api/*": ["../packages/nexus-core/src/api/*"]
-    }
+      "@nexus/api/*": ["../packages/nexus-core/src/api/*"],
+    },
   },
-  "include": ["src"]
+  "include": ["src"],
 }
