@@ -1,7 +1,3 @@
-/** @jsxRuntime classic */
-/** @jsx h */
-/** @jsxFrag Fragment */
-
 import { useEffect, useMemo, useState } from "react";
 import {
   CanvasMagicAlert,
@@ -18,19 +14,6 @@ import {
 
 
 type ReactNode = any;
-
-const Fragment = Symbol.for("react.fragment");
-const h = (type: any, props: any, ...children: any[]) => ({
-  $$typeof: Symbol.for("react.element"),
-  type,
-  key: props?.key ?? null,
-  ref: props?.ref ?? null,
-  props: {
-    ...(props || {}),
-    children: children.length <= 1 ? children[0] : children,
-  },
-  _owner: null,
-});
 
 declare namespace JSX {
   interface IntrinsicElements {
