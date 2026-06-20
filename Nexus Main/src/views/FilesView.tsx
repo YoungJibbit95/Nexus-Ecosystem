@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence } from "framer-motion";
 import {
   Download,
@@ -29,6 +29,7 @@ import type {
   ViewMode,
 } from "./files/filesTypes";
 import { useWorkspaceSync } from "./files/useWorkspaceSync";
+import { calculateNexusViewQuality } from "@nexus/core";
 
 type FilesViewProps = {
   setView?: (view: string) => void;
@@ -212,6 +213,39 @@ export function FilesView({ setView }: FilesViewProps = {}) {
     () => allItems.filter((item) => !isItemAssigned(item)).length,
     [allItems, isItemAssigned],
   );
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (search.trim()) count += 1;
+    if (typeFilter !== "all") count += 1;
+    if (folderFilter !== "all") count += 1;
+    if (smartView !== "all") count += 1;
+    if (tab === "workspaces") count += 1;
+    return count;
+  }, [folderFilter, search, smartView, tab, typeFilter]);
+
+  const staleItemCount = useMemo(() => {
+    const staleAfterMs = 30 * 24 * 60 * 60 * 1000;
+    const nowMs = Date.now();
+    return allItems.filter((item) => nowMs - new Date(item.updated).getTime() > staleAfterMs).length;
+  }, [allItems]);
+
+  const fileQuality = useMemo(() => calculateNexusViewQuality({
+    totalItems: allItems.length,
+    visibleItems: displayItems.length,
+    searchActive: Boolean(search.trim()),
+    filtersActive: activeFilterCount,
+    staleItems: staleItemCount,
+    synced: !syncing,
+    workspaceReady: Boolean(workspaceRoot) || !autoSync,
+  }), [activeFilterCount, allItems.length, autoSync, displayItems.length, search, staleItemCount, syncing, workspaceRoot]);
+
+  const resetFileFilters = useCallback(() => {
+    setSearch("");
+    setTypeFilter("all");
+    setFolderFilter("all");
+    setSmartView(activeWs ? "workspace" : "all");
+    setTab(activeWs ? "workspaces" : "all");
+  }, [activeWs]);
 
   useEffect(() => {
     if (!headerMenuOpen) return;
@@ -427,7 +461,7 @@ export function FilesView({ setView }: FilesViewProps = {}) {
                     radius={8}
                     style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", border: "none", borderRadius: 8, background: "transparent", color: "inherit", cursor: "pointer", fontSize: 12, fontWeight: 650 }}
                   >
-                    <FolderOpen size={12} /> Workspace Ordner wählen
+                    <FolderOpen size={12} /> Workspace Ordner waehlen
                   </InteractiveActionButton>
                   <InteractiveActionButton
                     onClick={() => {
@@ -508,8 +542,9 @@ export function FilesView({ setView }: FilesViewProps = {}) {
         </div>
       </div>
 
-      <div style={{ display: "flex", flex: 1, minHeight: 0, overflow: "hidden" }}>
+      <div className="nx-files-body" style={{ display: "flex", flex: 1, minHeight: 0, overflow: "hidden" }}>
         <div
+          className="nx-files-sidebar"
           style={{
             width: 270,
             flexShrink: 0,
@@ -709,7 +744,7 @@ export function FilesView({ setView }: FilesViewProps = {}) {
           </div>
         </div>
 
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0 }}>
+        <div className="nx-files-main" style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0 }}>
           <div
             className="nx-files-stats-strip nx-release-strip"
             style={{
@@ -745,7 +780,7 @@ export function FilesView({ setView }: FilesViewProps = {}) {
                 ref={searchInputRef}
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                placeholder="Search…"
+                placeholder="Search..."
                 style={{
                   padding: "6px 10px 6px 28px",
                   borderRadius: 9,
@@ -927,6 +962,43 @@ export function FilesView({ setView }: FilesViewProps = {}) {
             </span>
           </div>
 
+
+          <div
+            className="nx-view-quality-strip nx-files-quality-strip"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 10,
+              padding: "8px 14px",
+              borderBottom: "1px solid rgba(255,255,255,0.06)",
+              background: "rgba(0,0,0,0.045)",
+              flexShrink: 0,
+              flexWrap: "wrap",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flexWrap: "wrap" }}>
+              <span className={`nx-view-quality-badge nx-view-quality-badge--${fileQuality.tone}`} style={{ fontSize: 10, fontWeight: 800 }}>
+                {fileQuality.score}% {fileQuality.label}
+              </span>
+              <span style={{ fontSize: 11, opacity: 0.68 }}>{fileQuality.summary}</span>
+            </div>
+            <div className="nx-view-quality-metrics" style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              {fileQuality.metrics.slice(0, 3).map((metric) => (
+                <span key={metric.id} style={{ fontSize: 10, opacity: 0.68 }}>
+                  {metric.label}: <b>{metric.value}</b>
+                </span>
+              ))}
+              {(activeFilterCount > 0 || displayItems.length === 0) ? (
+                <button
+                  onClick={resetFileFilters}
+                  style={{ padding: "4px 8px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.14)", background: "rgba(255,255,255,0.05)", color: "inherit", cursor: "pointer", fontSize: 10, fontWeight: 750 }}
+                >
+                  Reset view
+                </button>
+              ) : null}
+            </div>
+          </div>
           <div className="nx-files-content-grid" style={{ flex: 1, overflowY: "auto", padding: 12 }}>
             {displayItems.length === 0 ? (
               <div
@@ -948,7 +1020,7 @@ export function FilesView({ setView }: FilesViewProps = {}) {
                   </div>
                   <div style={{ fontSize: 12, opacity: 0.6 }}>
                     {activeWs
-                      ? "Add files to this workspace via the ⋮ menu on any file"
+                      ? "Add files to this workspace via the menu on any file"
                       : "Create notes, code files, tasks, reminders, or canvases to see them here"}
                   </div>
                 </div>

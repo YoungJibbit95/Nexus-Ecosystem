@@ -3371,3 +3371,167 @@ html { font-size: var(--nx-font-size, 14px); }
     max-height: 210px;
   }
 }
+/* Production polish: quieter surfaces, view quality strips, and responsive utility layouts. */
+.nx-release-view,
+.nx-dashboard-v6,
+.nx-files-v6,
+.nx-reminders-v6 {
+  background:
+    linear-gradient(145deg, rgba(6, 10, 20, 0.72), rgba(8, 12, 24, 0.56)),
+    radial-gradient(760px circle at 14% -18%, rgba(var(--nx-shell-accent-rgb, 34, 211, 238), 0.045), transparent 64%),
+    radial-gradient(680px circle at 94% 0%, rgba(var(--nx-shell-accent2-rgb, 129, 140, 248), 0.04), transparent 62%) !important;
+}
+
+.nx-release-toolbar,
+.nx-release-strip,
+.nx-view-quality-strip {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.036), rgba(255, 255, 255, 0.018)),
+    rgba(5, 8, 17, 0.34) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.052) !important;
+  backdrop-filter: blur(8px) saturate(108%) !important;
+  -webkit-backdrop-filter: blur(8px) saturate(108%) !important;
+}
+
+.nx-v6-content-frame::after {
+  opacity: 0.22 !important;
+  background-size: 220px 220px !important;
+}
+
+.nx-view-quality-strip {
+  min-height: 38px;
+  scrollbar-gutter: stable;
+}
+
+.nx-view-quality-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 21px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  background: rgba(255, 255, 255, 0.055);
+  color: var(--nx-v6-text, rgba(255, 255, 255, 0.9));
+  white-space: nowrap;
+}
+
+.nx-view-quality-badge--ready,
+.nx-view-quality-badge--focused {
+  border-color: rgba(48, 209, 88, 0.28);
+  background: rgba(48, 209, 88, 0.11);
+  color: #7ee69b;
+}
+
+.nx-view-quality-badge--attention,
+.nx-view-quality-badge--empty {
+  border-color: rgba(255, 204, 0, 0.28);
+  background: rgba(255, 204, 0, 0.1);
+  color: #ffd666;
+}
+
+.nx-view-quality-badge--blocked {
+  border-color: rgba(255, 69, 58, 0.34);
+  background: rgba(255, 69, 58, 0.11);
+  color: #ff9a91;
+}
+
+.nx-view-quality-metrics > * {
+  flex: 0 0 auto;
+}
+
+.nx-files-body,
+.nx-reminders-v6,
+.nx-dashboard-v6 {
+  min-width: 0;
+}
+
+.nx-files-sidebar {
+  max-width: min(32vw, 286px);
+}
+
+.nx-files-main {
+  min-width: 0;
+}
+
+.nx-files-quality-strip,
+.nx-reminders-quality-strip,
+.nx-dashboard-quality-strip {
+  overflow-x: auto;
+}
+
+.nx-app-shell[data-nx-color-mode="light"] .nx-release-view,
+.nx-app-shell[data-nx-color-mode="light"] .nx-dashboard-v6,
+.nx-app-shell[data-nx-color-mode="light"] .nx-files-v6,
+.nx-app-shell[data-nx-color-mode="light"] .nx-reminders-v6 {
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.93), rgba(246, 249, 255, 0.78)),
+    radial-gradient(760px circle at 10% -16%, rgba(var(--nx-shell-accent-rgb, 34, 211, 238), 0.075), transparent 64%),
+    radial-gradient(680px circle at 94% 0%, rgba(var(--nx-shell-accent2-rgb, 99, 102, 241), 0.055), transparent 62%) !important;
+}
+
+.nx-app-shell[data-nx-color-mode="light"] .nx-release-toolbar,
+.nx-app-shell[data-nx-color-mode="light"] .nx-release-strip,
+.nx-app-shell[data-nx-color-mode="light"] .nx-view-quality-strip {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.76), rgba(247, 250, 255, 0.55)),
+    rgba(255, 255, 255, 0.56) !important;
+}
+
+@media (max-width: 1060px) {
+  .nx-files-body {
+    flex-direction: column !important;
+    overflow: auto !important;
+  }
+
+  .nx-files-sidebar {
+    width: 100% !important;
+    max-width: none !important;
+    max-height: 220px;
+    border-right: 0 !important;
+    border-bottom: 1px solid var(--nx-v6-line-soft, rgba(255, 255, 255, 0.08));
+  }
+
+  .nx-files-main {
+    min-height: 560px;
+  }
+
+  .nx-files-stats-strip,
+  .nx-files-quality-strip,
+  .nx-reminders-toolbar,
+  .nx-reminders-stats,
+  .nx-reminders-quality-strip,
+  .nx-reminders-today-strip {
+    flex-wrap: nowrap !important;
+    overflow-x: auto;
+  }
+}
+
+@media (max-width: 720px) {
+  .nx-files-header > div:first-child,
+  .nx-files-stats-strip,
+  .nx-view-quality-strip {
+    align-items: flex-start !important;
+  }
+
+  .nx-files-content-grid {
+    padding: 10px !important;
+  }
+
+  .nx-files-content-grid > div[style*="grid-template-columns"] {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .nx-reminders-v6 > div[style*="padding:'12px 14px'"],
+  .nx-reminders-v6 > div[style*="padding: '12px 14px'"] {
+    padding: 10px !important;
+  }
+
+  .nx-dashboard-v6 {
+    padding: 8px !important;
+  }
+
+  .nx-dashboard-quality-strip,
+  .nx-view-quality-strip {
+    border-radius: 8px !important;
+  }
+}
