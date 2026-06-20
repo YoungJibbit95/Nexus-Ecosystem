@@ -3175,3 +3175,199 @@ html { font-size: var(--nx-font-size, 14px); }
   .nx-ve-actions { justify-content: flex-start; }
   .nx-view-enhancer-foot { padding: 0 8px 6px; }
 }
+
+/* Production polish pass: calmer surfaces, stronger overflow rules, responsive workbench. */
+.nx-app-shell {
+  min-width: 0;
+  background-color: #070b16;
+}
+
+.nx-app-shell::before {
+  opacity: 0.72;
+}
+
+.nx-app-shell::after {
+  background-size: 86px 86px;
+  opacity: min(var(--nx-app-shell-grid-opacity, 0.018), 0.018);
+}
+
+.nx-ambient-layer {
+  opacity: 0.42;
+  filter: blur(46px) saturate(105%);
+}
+
+.nx-shell-window {
+  max-width: 100vw;
+  max-height: 100dvh;
+  border-radius: clamp(8px, 1vw, 14px) !important;
+  backdrop-filter: blur(14px) saturate(1.05);
+  -webkit-backdrop-filter: blur(14px) saturate(1.05);
+}
+
+.nx-shell-window::before {
+  opacity: 0.52;
+}
+
+.nx-shell-window::after {
+  background-size: 120px 120px;
+  opacity: min(var(--nx-shell-window-grid-opacity, 0.018), 0.018);
+}
+
+.nx-v6-view-shell,
+.nx-release-view,
+.nx-dashboard-v6,
+.nx-tasks-v6,
+.nx-files-v6,
+.nx-reminders-v6,
+.nx-code-v6,
+.nx-devtools-v6,
+.nx-settings-v6,
+.nx-info-v6,
+.nx-flux-v6,
+.nx-canvas-v6 {
+  min-width: 0;
+  min-height: 0;
+}
+
+.nx-v6-view-shell::before {
+  opacity: 0.46;
+}
+
+.nx-v6-content-frame,
+.nx-v6-inspector-rail,
+.nx-release-toolbar,
+.nx-release-strip,
+.nx-canvas-topbar,
+.nx-settings-sidebar,
+.nx-settings-content,
+.nx-tasks-column,
+.nx-task-card {
+  backdrop-filter: blur(10px) saturate(112%) !important;
+  -webkit-backdrop-filter: blur(10px) saturate(112%) !important;
+}
+
+.nx-v6-content-frame::after {
+  background-size: 160px 160px !important;
+  opacity: 0.003 !important;
+}
+
+.nx-v6-workbench {
+  grid-template-columns: minmax(0, 1fr) minmax(210px, clamp(210px, 22vw, 300px));
+  gap: clamp(5px, 0.8vw, 10px);
+}
+
+.nx-v6-view-shell[data-inspector="closed"] .nx-v6-workbench,
+.nx-v6-view-shell[data-focus="true"] .nx-v6-workbench {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.nx-v6-view-header,
+.nx-release-toolbar,
+.nx-release-strip,
+.nx-tasks-toolbar,
+.nx-tasks-mode-strip,
+.nx-tasks-quick-strip {
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.nx-v6-view-header::-webkit-scrollbar,
+.nx-release-toolbar::-webkit-scrollbar,
+.nx-release-strip::-webkit-scrollbar,
+.nx-tasks-toolbar::-webkit-scrollbar,
+.nx-tasks-mode-strip::-webkit-scrollbar,
+.nx-tasks-quick-strip::-webkit-scrollbar {
+  display: none;
+}
+
+.nx-v6-title-cluster,
+.nx-v6-header-actions,
+.nx-v6-quick-nav,
+.nx-release-toolbar > *,
+.nx-release-strip > * {
+  min-width: 0;
+}
+
+.nx-release-view :where(input, textarea, select),
+.nx-v6-view-shell :where(input, textarea, select) {
+  max-width: 100%;
+}
+
+.nx-files-content-grid,
+.nx-dashboard-v6 > div,
+.nx-info-v6 > div,
+.nx-settings-v6,
+.nx-flux-work-grid {
+  min-width: 0;
+}
+
+@media (max-width: 1280px) {
+  .nx-v6-view-shell[data-inspector="open"] .nx-v6-workbench {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .nx-v6-inspector-rail {
+    display: none;
+  }
+
+  .nx-dashboard-v6 {
+    padding-inline: 8px !important;
+  }
+}
+
+@media (max-width: 980px) {
+  .nx-shell-window {
+    border-radius: 0 !important;
+    border-left: 0 !important;
+    border-right: 0 !important;
+  }
+
+  .nx-v6-view-shell {
+    padding: 3px;
+  }
+
+  .nx-v6-view-header {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .nx-v6-title-cluster {
+    flex: 1 1 260px;
+  }
+
+  .nx-v6-header-actions {
+    flex: 1 1 100%;
+    justify-content: flex-start;
+  }
+
+  .nx-tasks-board,
+  .nx-files-content-grid,
+  .nx-flux-work-grid {
+    overflow: auto !important;
+  }
+}
+
+@media (max-width: 720px) {
+  .nx-v6-title-copy p,
+  .nx-v6-quick-nav,
+  .nx-app-status-bar .nx-status-chip:not(.nx-status-chip--strong) {
+    display: none !important;
+  }
+
+  .nx-release-toolbar,
+  .nx-release-strip,
+  .nx-tasks-toolbar,
+  .nx-tasks-mode-strip,
+  .nx-tasks-quick-strip {
+    flex-wrap: nowrap !important;
+  }
+
+  .nx-canvas-main {
+    border-left: 0;
+  }
+
+  .nx-settings-sidebar {
+    max-height: 210px;
+  }
+}

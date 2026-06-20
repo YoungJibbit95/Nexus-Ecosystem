@@ -589,6 +589,46 @@ export function CanvasView() {
       setQuickAddPos(null)
     }, [canvasSize, closeMobileCanvasSheets, fitView, setMagicBuilderVisible, viewport])
 
+    const createEmptyTextCanvas = useCallback(() => {
+      const run = () => {
+        const state = useCanvas.getState()
+        const vp = state.viewport
+        const zoom = Math.max(0.15, vp.zoom)
+        const x = Math.round((-vp.panX + canvasSize.w * 0.5) / zoom)
+        const y = Math.round((-vp.panY + canvasSize.h * 0.42) / zoom)
+        state.addNode('text', x, y)
+        const active = state.getActiveCanvas()
+        const created = active?.nodes[active.nodes.length - 1]
+        if (created) setSelectedNodeId(created.id)
+        closeMobileCanvasSheets('none')
+        setQuickAddPos(null)
+      }
+      if (!useCanvas.getState().getActiveCanvas()) {
+        addCanvas('Neues Canvas')
+        requestAnimationFrame(run)
+        return
+      }
+      run()
+    }, [addCanvas, canvasSize.h, canvasSize.w, closeMobileCanvasSheets])
+
+    const createEmptyStarterTemplate = useCallback(() => {
+      if (!useCanvas.getState().getActiveCanvas()) {
+        addCanvas('Canvas Starter')
+        requestAnimationFrame(() => createMagicHubPreset('mindmap'))
+        return
+      }
+      createMagicHubPreset('mindmap')
+    }, [addCanvas, createMagicHubPreset])
+
+    const openEmptyCanvasTools = useCallback(() => {
+      const openTools = () => closeMobileCanvasSheets('tools')
+      if (!useCanvas.getState().getActiveCanvas()) {
+        addCanvas('Neues Canvas')
+        requestAnimationFrame(openTools)
+        return
+      }
+      openTools()
+    }, [addCanvas, closeMobileCanvasSheets])
     const handleHubQuickAction = useCallback((
       hubNode: CanvasNode,
       action: CanvasMagicHubQuickActionId,
@@ -629,7 +669,16 @@ export function CanvasView() {
 
     // Empty state
     if (canvases.length === 0) {
-        return <CanvasEmptyState addCanvas={addCanvas} accent={t.accent} accent2={t.accent2} rgb={rgb} />
+        return (
+            <CanvasEmptyState
+                accent={t.accent}
+                accent2={t.accent2}
+                rgb={rgb}
+                onCreateText={createEmptyTextCanvas}
+                onUseTemplate={createEmptyStarterTemplate}
+                onOpenTools={openEmptyCanvasTools}
+            />
+        )
     }
 
     return (
@@ -1288,6 +1337,17 @@ export function CanvasView() {
                                 />
                             ))}
                         </div>
+                        {canvas && canvas.nodes.length === 0 && (
+                            <CanvasEmptyState
+                                overlay
+                                accent={t.accent}
+                                accent2={t.accent2}
+                                rgb={rgb}
+                                onCreateText={createEmptyTextCanvas}
+                                onUseTemplate={createEmptyStarterTemplate}
+                                onOpenTools={openEmptyCanvasTools}
+                            />
+                        )}
                     </div>
 
                     {/* Quick Add Context Menu */}

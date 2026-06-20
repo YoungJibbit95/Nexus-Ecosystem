@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { safeJsonParse } from "@nexus/core/settings";
 import { Download, RotateCcw, ShieldCheck, Trash2, Upload } from "lucide-react";
 import { useApp } from "../../store/appStore";
 import { useCanvas } from "../../store/canvasStore";
@@ -161,17 +162,18 @@ export function SettingsBackupRestorePanel({ toast }: SettingsBackupRestorePanel
     }
     const reader = new FileReader();
     reader.onload = () => {
-      try {
-        const parsed = parseWorkspaceBackupSnapshot(JSON.parse(String(reader.result || "{}")));
-        if (!parsed.ok) {
-          toast(parsed.message);
-          return;
-        }
-        showPreview(parsed.snapshot, "file");
-        toast("Import Preview bereit");
-      } catch {
+      const data = safeJsonParse<unknown>(String(reader.result || "{}"), null);
+      if (!data) {
         toast("Backup JSON konnte nicht gelesen werden");
+        return;
       }
+      const parsed = parseWorkspaceBackupSnapshot(data);
+      if (!parsed.ok) {
+        toast(parsed.message);
+        return;
+      }
+      showPreview(parsed.snapshot, "file");
+      toast("Import Preview bereit");
     };
     reader.readAsText(file);
   };

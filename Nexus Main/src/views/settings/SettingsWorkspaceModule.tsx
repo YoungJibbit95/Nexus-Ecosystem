@@ -1,19 +1,41 @@
 import React from "react";
 import {
   Command,
+  Download,
   LayoutGrid,
   RotateCcw,
   Sparkles,
   TerminalSquare,
+  Upload,
 } from "lucide-react";
 import { ModuleCard, Row } from "./SettingsPrimitives";
 import { SettingsBackupRestorePanel } from "./SettingsBackupRestorePanel";
+
+const actionButtonStyle = (accent?: string): React.CSSProperties => ({
+  borderRadius: 11,
+  border: accent ? `1px solid ${accent}55` : "1px solid rgba(255,255,255,0.12)",
+  background: accent ? `${accent}18` : "rgba(255,255,255,0.04)",
+  color: accent || "inherit",
+  padding: "10px 11px",
+  cursor: "pointer",
+  fontSize: 12,
+  fontWeight: 700,
+  display: "flex",
+  alignItems: "center",
+  gap: 7,
+});
 
 type SettingsWorkspaceModuleProps = {
   onOpenWalkthrough?: () => void;
   clearSpotlight: () => void;
   clearTerminalWorkspace: () => void;
   resetDashboardLayout: () => void;
+  onExportSettings: () => void;
+  onImportSettings: (file: File) => void;
+  onResetAppearanceSettings: () => void;
+  onResetLayoutSettings: () => void;
+  onResetMotionSettings: () => void;
+  onResetAllSettings: () => void;
   toast: (text: string) => void;
 };
 
@@ -22,6 +44,12 @@ export function SettingsWorkspaceModule({
   clearSpotlight,
   clearTerminalWorkspace,
   resetDashboardLayout,
+  onExportSettings,
+  onImportSettings,
+  onResetAppearanceSettings,
+  onResetLayoutSettings,
+  onResetMotionSettings,
+  onResetAllSettings,
   toast,
 }: SettingsWorkspaceModuleProps) {
   const runWithConfirm = (message: string, action: () => void) => {
@@ -67,6 +95,49 @@ export function SettingsWorkspaceModule({
 
       <SettingsBackupRestorePanel toast={toast} />
 
+      <ModuleCard
+        title="Settings Daten"
+        desc="Kanonischer Export und validierter Import fuer Design, Layout und Performance."
+      >
+        <Row>
+          <button onClick={onExportSettings} style={actionButtonStyle()}>
+            <Download size={13} /> Settings exportieren
+          </button>
+          <label style={actionButtonStyle()}>
+            <Upload size={13} /> Settings importieren
+            <input
+              type="file"
+              accept="application/json,.json"
+              hidden
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) onImportSettings(file);
+                event.currentTarget.value = "";
+              }}
+            />
+          </label>
+        </Row>
+      </ModuleCard>
+
+      <ModuleCard
+        title="Settings Reset"
+        desc="Gezielte Resets ohne Workspace-Daten oder Backups anzufassen."
+      >
+        <div style={{ display: "grid", gap: 8 }}>
+          <button onClick={() => runWithConfirm("Appearance wirklich zuruecksetzen?", onResetAppearanceSettings)} style={actionButtonStyle()}>
+            <RotateCcw size={13} /> Appearance zuruecksetzen
+          </button>
+          <button onClick={() => runWithConfirm("Layout wirklich zuruecksetzen?", onResetLayoutSettings)} style={actionButtonStyle()}>
+            <LayoutGrid size={13} /> Layout zuruecksetzen
+          </button>
+          <button onClick={() => runWithConfirm("Motion wirklich zuruecksetzen?", onResetMotionSettings)} style={actionButtonStyle()}>
+            <RotateCcw size={13} /> Motion zuruecksetzen
+          </button>
+          <button onClick={() => runWithConfirm("Alle Settings wirklich zuruecksetzen?", onResetAllSettings)} style={actionButtonStyle("#ff453a")}>
+            <RotateCcw size={13} /> Alle Settings zuruecksetzen
+          </button>
+        </div>
+      </ModuleCard>
       <ModuleCard
         title="Support"
         desc="Direkte Wartung von Spotlight- und Command-Daten."
