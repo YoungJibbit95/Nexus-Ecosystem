@@ -7,10 +7,10 @@
 ### Multi-App Workspace System for Planning, Development & Daily Operations
 
 <p align="center">
-  <img src="https://img.shields.io/github/last-commit/YoungJibbit95/Adventura?style=for-the-badge&color=8b5cf6" />
-  <img src="https://img.shields.io/github/repo-size/YoungJibbit95/Adventura?style=for-the-badge&color=6366f1" />
-  <img src="https://img.shields.io/github/issues/YoungJibbit95/Adventura?style=for-the-badge&color=ec4899" />
-  <img src="https://komarev.com/ghpvc/?username=YoungJibbit95-Adventura&label=repo%20views&color=8b5cf6&style=for-the-badge" />
+  <img src="https://img.shields.io/github/last-commit/YoungJibbit95/Nexus-Ecosystem?style=for-the-badge&color=8b5cf6" />
+  <img src="https://img.shields.io/github/repo-size/YoungJibbit95/Nexus-Ecosystem?style=for-the-badge&color=6366f1" />
+  <img src="https://img.shields.io/github/issues/YoungJibbit95/Nexus-Ecosystem?style=for-the-badge&color=ec4899" />
+  <img src="https://komarev.com/ghpvc/?username=YoungJibbit95-Nexus-Ecosystem&label=repo%20views&color=8b5cf6&style=for-the-badge" />
 </p>
 
 <p align="center">
@@ -38,7 +38,7 @@
 
 </div>
 
-> Nexus ist ein Multi-App Workspace-System fuer Planung, Entwicklung und Daily Operations.  
+> Nexus ist ein Multi-App Workspace-System für Planung, Entwicklung und Daily Operations.  
 > Dieses Repository enthaelt die produktiven Clients, Shared Core Runtime-Logik und die Wiki-/Website-Dokumentation.
 
 ---
