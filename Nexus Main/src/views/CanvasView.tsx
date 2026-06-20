@@ -7,24 +7,26 @@ import React, {
   useEffect,
   useMemo,
 } from "react";
-import { Plus } from "lucide-react";
 import {
   useCanvas,
-  CanvasNode,
-  CanvasConnection,
-  CanvasNodeStatus,
+  type Canvas,
+  type CanvasNode,
+  type CanvasConnection,
+  type CanvasNodeStatus,
 } from "../store/canvasStore";
 import { useTheme } from "../store/themeStore";
 import { hexToRgb } from "../lib/utils";
 import { shallow } from "zustand/shallow";
 import type { MagicTemplateId } from "./canvas/CanvasMagicModal";
 import { animateCanvasViewport } from "@nexus/core";
+import { safeJsonParse } from "@nexus/core/settings";
 import { MiniMap } from "./canvas/components/MiniMap";
 import { CanvasQuickAddMenu } from "./canvas/components/CanvasQuickAddMenu";
 import { CanvasProjectPanel } from "./canvas/components/CanvasProjectPanel";
 import { CanvasSidebar } from "./canvas/components/CanvasSidebar";
 import { CanvasTopBar } from "./canvas/components/CanvasTopBar";
 import { CanvasStage } from "./canvas/components/CanvasStage";
+import { CanvasEmptyState } from "./canvas/components/CanvasEmptyState";
 import {
   BOARD_LANES,
   CANVAS_NODE_OVERSCAN_MAX_PX,
@@ -38,7 +40,11 @@ import {
   buildCanvasLayoutGuides,
   type CanvasLayoutMode,
 } from "./canvas/canvasAutoLayout";
-import { createCanvasExportArtifacts, triggerTextDownload } from "./canvas/canvasExport";
+import {
+  createCanvasExportArtifacts,
+  parseCanvasImportPayload,
+  triggerTextDownload,
+} from "./canvas/canvasExport";
 import { useCanvasPanAndWheel } from "./canvas/useCanvasPanAndWheel";
 import { useCanvasKeyboardShortcuts } from "./canvas/useCanvasKeyboardShortcuts";
 import { useCanvasNodeActions } from "./canvas/useCanvasNodeActions";
@@ -93,6 +99,8 @@ export function CanvasView() {
     setActiveCanvas(canvases[0].id)
   }, [canvas, canvases, setActiveCanvas]);
   const canvasRef = useRef<HTMLDivElement>(null);
+  const canvasImportInputRef = useRef<HTMLInputElement>(null);
+  const canvasNoticeTimerRef = useRef<number | null>(null);
 
   const [spaceHeld, setSpaceHeld] = useState(false);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
@@ -115,6 +123,7 @@ export function CanvasView() {
     "all" | CanvasNodeStatus
   >("all");
   const [focusNodeOnly, setFocusNodeOnly] = useState(false);
+  const [canvasNotice, setCanvasNotice] = useState<string | null>(null);
 
   const cameraAnimationCancelRef = useRef<(() => void) | null>(null);
 
@@ -271,26 +280,29 @@ export function CanvasView() {
     [t.qol.reducedMotion],
   );
 
-  const resolveFitViewport = useCallback(() => {
-    if (!canvas || canvas.nodes.length === 0) return null;
-    const minX = Math.min(...canvas.nodes.map((n) => n.x));
-    const maxX = Math.max(...canvas.nodes.map((n) => n.x + n.width));
-    const minY = Math.min(...canvas.nodes.map((n) => n.y));
-    const maxY = Math.max(...canvas.nodes.map((n) => n.y + n.height));
-    const pad = 60;
-    const zoom = Math.min(
-      (canvasSize.w - pad * 2) / Math.max(100, maxX - minX),
-      (canvasSize.h - pad * 2) / Math.max(100, maxY - minY),
-      1.5,
-    );
-    const centerX = (minX + maxX) * 0.5;
-    const centerY = (minY + maxY) * 0.5;
-    return {
-      zoom,
-      panX: canvasSize.w * 0.5 - centerX * zoom,
-      panY: canvasSize.h * 0.5 - centerY * zoom,
-    };
-  }, [canvas, canvasSize.h, canvasSize.w]);
+  const resolveFitViewport = useCallback(
+    (targetCanvas: Canvas | null | undefined = canvas) => {
+      if (!targetCanvas || targetCanvas.nodes.length === 0) return null;
+      const minX = Math.min(...targetCanvas.nodes.map((n) => n.x));
+      const maxX = Math.max(...targetCanvas.nodes.map((n) => n.x + n.width));
+      const minY = Math.min(...targetCanvas.nodes.map((n) => n.y));
+      const maxY = Math.max(...targetCanvas.nodes.map((n) => n.y + n.height));
+      const pad = 60;
+      const zoom = Math.min(
+        (canvasSize.w - pad * 2) / Math.max(100, maxX - minX),
+        (canvasSize.h - pad * 2) / Math.max(100, maxY - minY),
+        1.5,
+      );
+      const centerX = (minX + maxX) * 0.5;
+      const centerY = (minY + maxY) * 0.5;
+      return {
+        zoom,
+        panX: canvasSize.w * 0.5 - centerX * zoom,
+        panY: canvasSize.h * 0.5 - centerY * zoom,
+      };
+    },
+    [canvas, canvasSize.h, canvasSize.w],
+  );
 
   const resolveFocusViewport = useCallback(
     (nodeId: string) => {
@@ -310,6 +322,10 @@ export function CanvasView() {
     () => () => {
       cameraAnimationCancelRef.current?.();
       cameraAnimationCancelRef.current = null;
+      if (canvasNoticeTimerRef.current) {
+        window.clearTimeout(canvasNoticeTimerRef.current);
+        canvasNoticeTimerRef.current = null;
+      }
     },
     [],
   );
@@ -327,6 +343,19 @@ export function CanvasView() {
     });
   }, [canvasSize.h, canvasSize.w]);
 
+  const showCanvasNotice = useCallback((message: string) => {
+    setCanvasNotice(message);
+    if (canvasNoticeTimerRef.current) window.clearTimeout(canvasNoticeTimerRef.current);
+    canvasNoticeTimerRef.current = window.setTimeout(() => {
+      setCanvasNotice(null);
+      canvasNoticeTimerRef.current = null;
+    }, 3600);
+  }, []);
+
+  const openCanvasImport = useCallback(() => {
+    canvasImportInputRef.current?.click();
+  }, []);
+
   const safeCreateCanvas = useCallback(() => {
     try {
       addCanvas();
@@ -339,8 +368,9 @@ export function CanvasView() {
       });
     } catch (error) {
       console.error("[Canvas] create canvas failed", error);
+      showCanvasNotice("Canvas konnte nicht erstellt werden.");
     }
-  }, [addCanvas]);
+  }, [addCanvas, showCanvasNotice]);
 
   const setZoomCentered = useCallback(
     (nextZoom: number) => {
@@ -423,7 +453,55 @@ export function CanvasView() {
       exportFiles.markdownContent,
       "text/markdown;charset=utf-8",
     );
-  }, [canvas, viewport]);
+    showCanvasNotice("Canvas als JSON und Markdown exportiert.");
+  }, [canvas, showCanvasNotice, viewport]);
+
+  const importCanvasFile = useCallback(
+    (file: File | null | undefined) => {
+      if (!file) return;
+      if (!file.name.toLowerCase().endsWith(".json")) {
+        showCanvasNotice("Bitte eine Canvas-JSON-Datei waehlen.");
+        return;
+      }
+      if (file.size > 10 * 1024 * 1024) {
+        showCanvasNotice("Canvas Import ist zu gross fuer den direkten Restore.");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        const parsed = safeJsonParse<unknown>(String(reader.result || ""), null);
+        if (!parsed) {
+          showCanvasNotice("Canvas JSON konnte nicht gelesen werden.");
+          return;
+        }
+        const result = parseCanvasImportPayload(parsed);
+        if (result.ok === false) {
+          showCanvasNotice(result.message);
+          return;
+        }
+        const nextViewport = result.viewport ?? resolveFitViewport(result.canvas) ?? {
+          panX: 0,
+          panY: 0,
+          zoom: 1,
+        };
+        useCanvas.setState((state) => ({
+          canvases: [result.canvas, ...state.canvases.filter((entry) => entry.id !== result.canvas.id)],
+          activeCanvasId: result.canvas.id,
+          viewport: nextViewport,
+        }));
+        setSelectedNodeId(result.canvas.nodes[0]?.id ?? null);
+        setQuickAddPos(null);
+        showCanvasNotice(
+          result.warnings.length
+            ? `Canvas importiert (${result.warnings.length} Hinweise bereinigt).`
+            : "Canvas importiert.",
+        );
+      };
+      reader.onerror = () => showCanvasNotice("Canvas Import wurde abgebrochen.");
+      reader.readAsText(file);
+    },
+    [resolveFitViewport, showCanvasNotice],
+  );
 
   const {
     addWidgetNode,
@@ -444,6 +522,46 @@ export function CanvasView() {
     viewport,
   });
 
+  const createTextNodeAtCenter = useCallback(() => {
+    const run = () => {
+      const state = useCanvas.getState();
+      const vp = state.viewport;
+      const zoom = Math.max(0.15, vp.zoom);
+      const x = Math.round((-vp.panX + canvasSize.w * 0.5) / zoom);
+      const y = Math.round((-vp.panY + canvasSize.h * 0.42) / zoom);
+      addWidgetNode("text", x, y);
+      const active = useCanvas.getState().getActiveCanvas();
+      const created = active?.nodes[active.nodes.length - 1];
+      if (created) setSelectedNodeId(created.id);
+      setQuickAddPos(null);
+      showCanvasNotice("Text-Node erstellt.");
+    };
+    if (!useCanvas.getState().getActiveCanvas()) {
+      addCanvas("Neues Canvas");
+      requestAnimationFrame(run);
+      return;
+    }
+    run();
+  }, [addCanvas, addWidgetNode, canvasSize.h, canvasSize.w, showCanvasNotice]);
+
+  const createStarterTemplateAtCenter = useCallback(() => {
+    const run = () => {
+      createMagicTemplate({
+        template: "mindmap",
+        title: "Canvas Starter",
+        includeNotes: true,
+        includeTasks: true,
+      });
+      setQuickAddPos(null);
+      showCanvasNotice("Starter-Template eingefuegt.");
+    };
+    if (!useCanvas.getState().getActiveCanvas()) {
+      addCanvas("Canvas Starter");
+      requestAnimationFrame(run);
+      return;
+    }
+    run();
+  }, [addCanvas, createMagicTemplate, showCanvasNotice]);
   const applyAutoLayout = useCallback(
     (mode: CanvasLayoutMode, opts?: { fitView?: boolean }) => {
       const state = useCanvas.getState();
@@ -538,65 +656,66 @@ export function CanvasView() {
       );
   }, [createMagicTemplate, applyAutoLayout, fitView]);
 
+  const renderCanvasImportInput = () => (
+    <input
+      ref={canvasImportInputRef}
+      type="file"
+      accept="application/json,.json"
+      hidden
+      onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.currentTarget.files?.[0];
+        event.currentTarget.value = "";
+        importCanvasFile(file);
+      }}
+    />
+  );
+
+  const renderCanvasNotice = () =>
+    canvasNotice ? (
+      <div
+        style={{
+          position: "absolute",
+          right: 16,
+          bottom: 16,
+          zIndex: 420,
+          maxWidth: 340,
+          padding: "9px 12px",
+          borderRadius: 10,
+          border: `1px solid rgba(${rgb},0.28)`,
+          background: t.mode === "dark" ? "rgba(12,14,24,0.92)" : "rgba(255,255,255,0.92)",
+          color: "inherit",
+          fontSize: 12,
+          fontWeight: 700,
+          boxShadow: "0 10px 32px rgba(0,0,0,0.22)",
+          backdropFilter: "blur(18px)",
+          pointerEvents: "none",
+        }}
+      >
+        {canvasNotice}
+      </div>
+    ) : null;
   // Empty state
   if (canvases.length === 0) {
     return (
       <div
+        className="nx-canvas-v6 nx-release-view"
         style={{
           width: "100%",
           height: "100%",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: 20,
+          position: "relative",
+          overflow: "hidden",
         }}
       >
-        <div
-          style={{
-            fontSize: 72,
-            opacity: 0.12,
-            background: `linear-gradient(135deg, ${t.accent}, ${t.accent2})`,
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-            animation: "nexus-float 3s ease-in-out infinite",
-          }}
-        >
-          ✦
-        </div>
-        <div style={{ fontSize: 18, fontWeight: 700, opacity: 0.7 }}>
-          Kein Canvas vorhanden
-        </div>
-        <div
-          style={{
-            fontSize: 13,
-            opacity: 0.4,
-            maxWidth: 300,
-            textAlign: "center",
-          }}
-        >
-          Erstelle ein neues Canvas, um Ideen, Pläne und Mindmaps visuell zu
-          organisieren.
-        </div>
-        <button
-          onClick={safeCreateCanvas}
-          className="nx-interactive nx-bounce-target"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            padding: "12px 28px",
-            borderRadius: 14,
-            border: "none",
-            background: `linear-gradient(135deg, ${t.accent}, ${t.accent2})`,
-            color: "#fff",
-            fontWeight: 700,
-            fontSize: 15,
-            boxShadow: `0 6px 24px rgba(${rgb}, 0.35)`,
-          }}
-        >
-          <Plus size={20} /> Neues Canvas
-        </button>
+        <CanvasEmptyState
+          accent={t.accent}
+          accent2={t.accent2}
+          rgb={rgb}
+          onCreateText={createTextNodeAtCenter}
+          onUseTemplate={createStarterTemplateAtCenter}
+          onImportRestore={openCanvasImport}
+        />
+        {renderCanvasImportInput()}
+        {renderCanvasNotice()}
       </div>
     );
   }
@@ -711,6 +830,27 @@ export function CanvasView() {
           reduceNodeEffects={reduceNodeEffects}
         />
 
+        {canvas && canvas.nodes.length === 0 && (
+          <div
+            style={{
+              position: "absolute",
+              inset: "54px 0 0",
+              zIndex: 120,
+              pointerEvents: "none",
+            }}
+          >
+            <CanvasEmptyState
+              accent={t.accent}
+              accent2={t.accent2}
+              rgb={rgb}
+              onCreateText={createTextNodeAtCenter}
+              onUseTemplate={createStarterTemplateAtCenter}
+              onImportRestore={openCanvasImport}
+            />
+          </div>
+        )}
+        {renderCanvasImportInput()}
+        {renderCanvasNotice()}
           <CanvasQuickAddMenu
             quickAddPos={quickAddPos}
             canvasSize={canvasSize}

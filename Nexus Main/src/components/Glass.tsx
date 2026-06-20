@@ -47,9 +47,9 @@ const ensureFakeGlassFilter = () => {
   svg.innerHTML = `
     <defs>
       <filter id="nx-fake-glass-filter" x="-20%" y="-20%" width="140%" height="140%">
-        <feTurbulence type="fractalNoise" baseFrequency="0.008 0.012" numOctaves="2" seed="9" result="noise" />
-        <feGaussianBlur in="noise" stdDeviation="1.4" result="blurNoise" />
-        <feDisplacementMap in="SourceGraphic" in2="blurNoise" scale="6" xChannelSelector="R" yChannelSelector="G" />
+        <feTurbulence type="fractalNoise" baseFrequency="0.004 0.006" numOctaves="1" seed="9" result="noise" />
+        <feGaussianBlur in="noise" stdDeviation="0.9" result="blurNoise" />
+        <feDisplacementMap in="SourceGraphic" in2="blurNoise" scale="2.4" xChannelSelector="R" yChannelSelector="G" />
       </filter>
     </defs>
   `
@@ -69,7 +69,7 @@ function getPanelBg(mode: string, accent: string, bg: string, isDark: boolean): 
         ? `linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px)`
         : `linear-gradient(rgba(0,0,0,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.06) 1px, transparent 1px)`
     case 'noise':
-      return `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.64' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E")`
+      return `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.32' numOctaves='1' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.016'/%3E%3C/svg%3E")`
     case 'carbon':
       return `repeating-linear-gradient(45deg, rgba(${rgb},0.03) 0px, rgba(${rgb},0.03) 1px, transparent 1px, transparent 8px), repeating-linear-gradient(-45deg, rgba(${rgb},0.03) 0px, rgba(${rgb},0.03) 1px, transparent 1px, transparent 8px)`
     case 'circuit':
@@ -575,9 +575,9 @@ export const Glass = memo(forwardRef<HTMLDivElement, GlassProps>(function Glass(
       {t.blur.noiseOverlay && !lowPowerMode && (
         <div aria-hidden="true" style={{
           position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 2,
-          opacity: Math.min(0.18, t.blur.noiseOpacity * 3.2),
-          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.54' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
-          backgroundSize: '220px 220px',
+          opacity: Math.min(0.045, t.blur.noiseOpacity * 0.9),
+          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.28' numOctaves='1' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
+          backgroundSize: '360px 360px',
           mixBlendMode: isDark ? 'screen' : 'multiply',
         }} />
       )}

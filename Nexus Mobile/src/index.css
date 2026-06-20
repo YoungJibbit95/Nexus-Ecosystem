@@ -1525,3 +1525,91 @@ textarea, input, [contenteditable], .nx-prose {
     border-radius: 16px !important;
   }
 }
+
+/* Production polish pass: cleaner mobile surfaces and safer window-size handling. */
+:root {
+  --nx-ios-blur: 18px;
+  --nx-ios-sat: 150%;
+}
+
+html,
+body,
+#root {
+  max-width: 100vw;
+  max-height: 100dvh;
+}
+
+.nx-mobile-frame,
+.nx-mobile-main,
+.nx-mobile-main-stage,
+.nx-mobile-view-host,
+.nx-mobile-view-layer,
+.nx-mobile-view-content,
+.nx-mobile-view-root,
+.nx-mobile-view-screen,
+.nx-mobile-v6-view-shell,
+.nx-mobile-v6-content {
+  min-width: 0;
+  min-height: 0;
+}
+
+.nx-mobile-v6-header,
+.nx-mobile-v6-status,
+.nx-mobile-v6-sheet,
+.nx-ios-surface,
+.nx-motion-panel:not(.nx-toolbar-surface) {
+  backdrop-filter: blur(12px) saturate(118%) !important;
+  -webkit-backdrop-filter: blur(12px) saturate(118%) !important;
+}
+
+.nx-mobile-v6-header {
+  background: rgba(8, 10, 18, 0.72);
+}
+
+.nx-mobile-v6-actions,
+.nx-mobile-v6-related,
+.nx-mobile-row-scroll {
+  scrollbar-width: none;
+}
+
+.nx-mobile-v6-actions::-webkit-scrollbar,
+.nx-mobile-v6-related::-webkit-scrollbar,
+.nx-mobile-row-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.nx-mobile-view-screen :where(input, textarea, select) {
+  max-width: 100%;
+}
+
+@media (max-width: 430px), (max-height: 760px) {
+  :root {
+    --nx-touch-target: 38px;
+    --nx-radius: 10px;
+    --nx-font-size: 12.5px;
+  }
+
+  .nx-mobile-v6-header {
+    gap: 6px;
+    padding: 7px 9px 6px;
+  }
+
+  .nx-mobile-v6-status {
+    min-height: 24px;
+    padding-top: 3px;
+  }
+
+  .nx-mobile-v6-sheet {
+    max-height: min(58vh, 420px);
+  }
+
+  .nx-mobile-view-screen {
+    overflow: hidden;
+  }
+}
+
+@media (min-width: 768px) {
+  .nx-mobile-view-screen {
+    max-width: 100%;
+  }
+}

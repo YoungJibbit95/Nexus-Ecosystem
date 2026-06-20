@@ -31,6 +31,12 @@ type SettingsModulePanelsProps = {
   clearSpotlight: () => void;
   clearTerminalWorkspace: () => void;
   resetDashboardLayout: () => void;
+  onExportSettings: () => void;
+  onImportSettings: (file: File) => void;
+  onResetAppearanceSettings: () => void;
+  onResetLayoutSettings: () => void;
+  onResetMotionSettings: () => void;
+  onResetAllSettings: () => void;
 };
 
 export function SettingsModulePanels({
@@ -46,6 +52,12 @@ export function SettingsModulePanels({
   clearSpotlight,
   clearTerminalWorkspace,
   resetDashboardLayout,
+  onExportSettings,
+  onImportSettings,
+  onResetAppearanceSettings,
+  onResetLayoutSettings,
+  onResetMotionSettings,
+  onResetAllSettings,
 }: SettingsModulePanelsProps) {
   const panelModeHelp: Record<RendererMode, { label: string; desc: string }> = {
     blur: {
@@ -420,44 +432,6 @@ export function SettingsModulePanels({
                     </div>
                   </ModuleCard>
                 ) : null}
-
-                <ModuleCard
-                  title="Release Freeze"
-                  desc="Glow und feste Toolbar-Geometrie sind im Release-Zyklus eingefroren."
-                >
-                  <div style={{ fontSize: 11, opacity: 0.72, lineHeight: 1.5 }}>
-                    Alltagseinstellungen bleiben aktiv. Toolbar Mode/Position/Sichtbarkeit
-                    sind weiterhin editierbar, während engine-nahe Glow- und harte
-                    Geometrie-Parameter absichtlich begrenzt bleiben.
-                  </div>
-                  {showExperimentalSettings ? (
-                    <div
-                      style={{
-                        marginTop: 9,
-                        borderRadius: 10,
-                        border: "1px solid rgba(255,159,10,0.34)",
-                        background: "rgba(255,159,10,0.08)",
-                        padding: "8px 10px",
-                        fontSize: 11,
-                        display: "grid",
-                        gap: 3,
-                      }}
-                    >
-                      <div>
-                        Glow mode: <strong>{t.glow.mode}</strong>
-                      </div>
-                      <div>
-                        Glow engine: <strong>{glowRenderer}</strong>
-                      </div>
-                      <div>
-                        Radius / Intensity:{" "}
-                        <strong>
-                          {t.glow.radius}px / {t.glow.intensity.toFixed(2)}
-                        </strong>
-                      </div>
-                    </div>
-                  ) : null}
-                </ModuleCard>
 
                 <ModuleCard title="Background">
                   <Segmented
@@ -886,6 +860,12 @@ export function SettingsModulePanels({
                 clearSpotlight={clearSpotlight}
                 clearTerminalWorkspace={clearTerminalWorkspace}
                 resetDashboardLayout={resetDashboardLayout}
+                onExportSettings={onExportSettings}
+                onImportSettings={onImportSettings}
+                onResetAppearanceSettings={onResetAppearanceSettings}
+                onResetLayoutSettings={onResetLayoutSettings}
+                onResetMotionSettings={onResetMotionSettings}
+                onResetAllSettings={onResetAllSettings}
               />
             ) : null}
     </>
