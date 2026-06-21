@@ -35,3 +35,19 @@ Projektboard: `https://github.com/users/YoungJibbit95/projects/2`
 - Card 13: Shared Core Live-Sync Orchestrator (Main/Mobile + Code/Code-Mobile)
 - Card 14: Control UI Live-Sync Builder + Promotion Flow
 - Card 15: Contract-Parity-E2E Workflow + Smoke Tests
+
+## Stand 2026-06-21 - Security Canvas Release Batch
+
+Abgearbeitet fuer Main/Mobile:
+
+- Dependency-Security: `npm audit --json` meldet fuer `Nexus Main` und `Nexus Mobile` jeweils `0` Vulnerabilities.
+- Build-Gate: `npm --prefix "Nexus Main" run build` und `npm --prefix "Nexus Mobile" run build` laufen erfolgreich vom Repo-Root.
+- Canvas UX: UI-Prefs fuer Grid, Minimap, Snap, Layout, Sidebar und Project Panel werden geteilt validiert und sicher persistiert.
+- Canvas Responsiveness: Minimap rendert adaptiv nicht mehr auf zu engen Viewports und bleibt auf Mobile aus kleinen Layouts raus.
+- Build-Stabilitaet: Vite-Configs nutzen explizit `root: __dirname`, damit Prefix-Builds nicht vom aktuellen Shell-CWD abhaengen.
+
+Naechste Project-Cards:
+
+- Canvas Inspector/Selection v2: Multi-Select, Inspector-Bearbeitung und reduzierte Node-Chrome-Dichte.
+- Notes Stabilitaet: Store/Persistence-Splitting, Import-Validation und Editor-Sidebar-Entlastung.
+- Bundle Performance: Monaco/Three weiter lazy-loaden und grosse Main-Chunks aufteilen.
