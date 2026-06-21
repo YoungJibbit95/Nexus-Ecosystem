@@ -7,3 +7,4 @@ export * from "./engine/canvasLayoutEngine";
 export * from "./engine/canvasConnectionEngine";
 export * from "./engine/canvasExport";
 export * from "./engine/canvasTemplates";
+export * from "./canvasUiPreferences";

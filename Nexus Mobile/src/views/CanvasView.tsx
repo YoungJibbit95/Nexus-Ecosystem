@@ -16,6 +16,11 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { CanvasNexusCodeBlock } from '@nexus/core/canvas/CanvasMagicRenderers'
 import {
+    loadCanvasUiPreferences,
+    saveCanvasUiPreferences,
+    shouldRenderCanvasMiniMap,
+} from '@nexus/core/canvas'
+import {
     CANVAS_MAGIC_HUB_TEMPLATES,
     getCanvasMagicHubQuickAction,
     type CanvasMagicHubQuickActionId,
@@ -47,6 +52,8 @@ import {
 } from './canvas/mobileCanvasConfig'
 import { useCanvasWheelGestures } from './canvas/useCanvasWheelGestures'
 
+const CANVAS_UI_PREFS_KEY = 'nexus-mobile-canvas-ui-v2'
+
 // ─── CONSTANTS ───
 
 // ─── CONNECTION LINE ───
@@ -67,16 +74,25 @@ export function CanvasView() {
 
     const canvas = getActiveCanvas()
     const canvasRef = useRef<HTMLDivElement>(null)
+    const initialCanvasUiPrefsRef = useRef<ReturnType<typeof loadCanvasUiPreferences> | null>(null)
+    if (!initialCanvasUiPrefsRef.current) {
+        initialCanvasUiPrefsRef.current = loadCanvasUiPreferences(CANVAS_UI_PREFS_KEY, {
+            showSidebar: !mob.isMobile,
+            showProjectPanel: false,
+            snapToGrid: true,
+        })
+    }
+    const initialCanvasUiPrefs = initialCanvasUiPrefsRef.current
 
     const [panning, setPanning] = useState(false)
     const [spaceHeld, setSpaceHeld] = useState(false)
     const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
     const [connectingFrom, setConnectingFrom] = useState<string | null>(null)
     const [editCanvasName, setEditCanvasName] = useState(false)
-    const [showCanvasSidebar, setShowCanvasSidebar] = useState(true)
+    const [showCanvasSidebar, setShowCanvasSidebar] = useState(initialCanvasUiPrefs.showSidebar)
     const [mobileSheet, setMobileSheet] = useState<MobileCanvasSheet>('none')
-    const [gridMode, setGridMode] = useState<'dots' | 'lines' | 'none'>('dots')
-    const [showMiniMap, setShowMiniMap] = useState(true)
+    const [gridMode, setGridMode] = useState<'dots' | 'lines' | 'none'>(initialCanvasUiPrefs.gridMode)
+    const [showMiniMap, setShowMiniMap] = useState(initialCanvasUiPrefs.showMiniMap)
     const [canvasSize, setCanvasSize] = useState({ w: 800, h: 600 })
     const [quickAddPos, setQuickAddPos] = useState<{ x: number, y: number } | null>(null)
     const [desktopMagicBuilderOpen, setDesktopMagicBuilderOpen] = useState(false)
@@ -89,7 +105,7 @@ export function CanvasView() {
     // Mobile-specific state
     const [touchStartDist, setTouchStartDist] = useState<number | null>(null)
     const [touchStartZoom, setTouchStartZoom] = useState(1)
-    const [desktopProjectPanelOpen, setDesktopProjectPanelOpen] = useState(false)
+    const [desktopProjectPanelOpen, setDesktopProjectPanelOpen] = useState(initialCanvasUiPrefs.showProjectPanel)
     const [pmStatusFilter, setPmStatusFilter] = useState<'all' | ProjectStatus>('all')
     const [focusNodeOnly, setFocusNodeOnly] = useState(false)
     const [projectSearchQuery, setProjectSearchQuery] = useState('')
@@ -328,6 +344,13 @@ export function CanvasView() {
         || viewport.zoom < 0.35
         || (canvas?.connections.length ?? 0) > 140
     const miniMapNodes = (canvas && canvas.nodes.length > 320) ? visibleNodes : (canvas?.nodes ?? [])
+    const shouldShowMiniMap = shouldRenderCanvasMiniMap({
+        userPreference: showMiniMap,
+        width: canvasSize.w,
+        height: canvasSize.h,
+        isMobile: mob.isMobile,
+        nodeCount: miniMapNodes.length,
+    })
     const quickAddMenuMetrics = useMemo(() => {
         const width = mob.isMobile
             ? Math.max(220, Math.min(280, canvasSize.w - 16))
@@ -358,6 +381,18 @@ export function CanvasView() {
         obs.observe(canvasRef.current)
         return () => obs.disconnect()
     }, [])
+
+    useEffect(() => {
+        saveCanvasUiPreferences(CANVAS_UI_PREFS_KEY, {
+            version: 1,
+            gridMode,
+            showMiniMap,
+            snapToGrid: true,
+            layoutMode: 'mindmap',
+            showSidebar: showCanvasSidebar,
+            showProjectPanel: desktopProjectPanelOpen,
+        })
+    }, [desktopProjectPanelOpen, gridMode, showCanvasSidebar, showMiniMap])
 
     // Mobile should not boot with any sheet open by default.
     useEffect(() => {
@@ -1411,7 +1446,7 @@ export function CanvasView() {
                     )}
 
                     {/* Mini-map */}
-                    {showMiniMap && miniMapNodes.length > 0 && (
+                    {shouldShowMiniMap && (
                         <CanvasMiniMap nodes={miniMapNodes} viewport={viewport} canvasW={canvasSize.w} canvasH={canvasSize.h} />
                     )}
 
@@ -1692,7 +1727,7 @@ export function CanvasView() {
                             position: 'absolute', bottom: 16, left: '50%', transform: 'translateX(-50%)',
                             fontSize: 10, opacity: 0.35, pointerEvents: 'none',
                             background: 'rgba(0,0,0,0.4)', padding: '2px 8px', borderRadius: 6, fontFamily: 'monospace',
-                        }}>{Math.round(viewport.zoom * 100)}% · Scroll = Pan · Pinch/Ctrl + Scroll = Zoom · Render {visibleNodes.length}/{canvas?.nodes.length ?? 0}</div>
+                        }}>{Math.round(viewport.zoom * 100)}% | Scroll: Pan | Ctrl/Pinch: Zoom | Render {visibleNodes.length}/{canvas?.nodes.length ?? 0}</div>
                     )}
                 </div>
             </div>

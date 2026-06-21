@@ -40,7 +40,7 @@
 | Notes | Voller Editor + Magic | Voller Editor + Magic | Gleichwertig |
 | Tasks | Kanban/Listen-Flow | Kanban/Listen-Flow | Gleichwertig |
 | Reminders | Filter/Stats/Today Layer/Snooze | Filter/Stats/Today Layer/Snooze + native local notifications | Mobile erweitert |
-| Canvas | Volle Canvas-Primitives + Templates | Canvas + mobile Bottom-Sheet Flows | Mobile angepasst |
+| Canvas | Volle Canvas-Primitives + Templates + persistente UI-Prefs | Canvas + mobile Bottom-Sheet Flows + adaptive Minimap | Paritaetsnah, UI adaptiv |
 | Files | Workspace-Root + FS Import/Export + Runtime Snapshot | Runtime Snapshot Import/Export/Share | Bewusst differenziert (plattformgerecht) |
 | Code | Voller Desktop-Codeflow | Mobile Codeflow | Paritaetsnah (UX variiert) |
 | Settings | Voller Settings-Stack + Walkthrough Reopen | Mobile Settings-Stack | Funktionsparitaet, UI-spezifisch |
@@ -57,3 +57,9 @@
 5. Quick-Capture in Main/Mobile pruefen (`note/task/reminder/code/canvas`)
 6. `runtime.json` Export aus Main und Import auf Mobile pruefen
 7. Navigation-Schema pruefen (`bottom-nav`, `tabs`, `sidebar`) inkl. Phone/Tablet
+
+## Release-Update 2026-06-21
+
+- Main/Mobile Security-Audit: `0` Vulnerabilities nach Dependency- und Override-Updates.
+- Main/Mobile Build-Gate: Prefix-Builds vom Repo-Root erfolgreich validiert.
+- Canvas-Paritaet: gemeinsame UI-Preference-Validierung in `@nexus/core/canvas`, sichere Persistenz und adaptive Minimap fuer kleine Viewports.

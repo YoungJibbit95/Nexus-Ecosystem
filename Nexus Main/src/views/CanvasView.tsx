@@ -18,7 +18,12 @@ import { useTheme } from "../store/themeStore";
 import { hexToRgb } from "../lib/utils";
 import { shallow } from "zustand/shallow";
 import type { MagicTemplateId } from "./canvas/CanvasMagicModal";
-import { animateCanvasViewport } from "@nexus/core";
+import {
+  animateCanvasViewport,
+  loadCanvasUiPreferences,
+  saveCanvasUiPreferences,
+  shouldRenderCanvasMiniMap,
+} from "@nexus/core";
 import { safeJsonParse } from "@nexus/core/settings";
 import { MiniMap } from "./canvas/components/MiniMap";
 import { CanvasQuickAddMenu } from "./canvas/components/CanvasQuickAddMenu";
@@ -49,10 +54,11 @@ import { useCanvasPanAndWheel } from "./canvas/useCanvasPanAndWheel";
 import { useCanvasKeyboardShortcuts } from "./canvas/useCanvasKeyboardShortcuts";
 import { useCanvasNodeActions } from "./canvas/useCanvasNodeActions";
 
+const CANVAS_UI_PREFS_KEY = "nexus-main-canvas-ui-v2";
+
 const CanvasMagicModal = lazy(() =>
   import("./canvas/CanvasMagicModal").then((m) => ({ default: m.CanvasMagicModal })),
 );
-
 export function CanvasView() {
   const t = useTheme();
   const rgb = hexToRgb(t.accent);
@@ -101,23 +107,31 @@ export function CanvasView() {
   const canvasRef = useRef<HTMLDivElement>(null);
   const canvasImportInputRef = useRef<HTMLInputElement>(null);
   const canvasNoticeTimerRef = useRef<number | null>(null);
+  const initialCanvasUiPrefsRef = useRef<ReturnType<typeof loadCanvasUiPreferences> | null>(null);
+  if (!initialCanvasUiPrefsRef.current) {
+    initialCanvasUiPrefsRef.current = loadCanvasUiPreferences(CANVAS_UI_PREFS_KEY, {
+      showSidebar: false,
+      showProjectPanel: false,
+    });
+  }
+  const initialCanvasUiPrefs = initialCanvasUiPrefsRef.current;
 
   const [spaceHeld, setSpaceHeld] = useState(false);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [connectingFrom, setConnectingFrom] = useState<string | null>(null);
   const [editCanvasName, setEditCanvasName] = useState(false);
-  const [showCanvasList, setShowCanvasList] = useState(false);
-  const [gridMode, setGridMode] = useState<"dots" | "lines" | "none">("dots");
-  const [showMiniMap, setShowMiniMap] = useState(true);
+  const [showCanvasList, setShowCanvasList] = useState(initialCanvasUiPrefs.showSidebar);
+  const [gridMode, setGridMode] = useState<"dots" | "lines" | "none">(initialCanvasUiPrefs.gridMode);
+  const [showMiniMap, setShowMiniMap] = useState(initialCanvasUiPrefs.showMiniMap);
   const [canvasSize, setCanvasSize] = useState({ w: 800, h: 600 });
   const [quickAddPos, setQuickAddPos] = useState<{
     x: number;
     y: number;
   } | null>(null);
-  const [snapToGrid, setSnapToGrid] = useState(true);
+  const [snapToGrid, setSnapToGrid] = useState(initialCanvasUiPrefs.snapToGrid);
   const [showMagicBuilder, setShowMagicBuilder] = useState(false);
-  const [layoutMode, setLayoutMode] = useState<CanvasLayoutMode>("mindmap");
-  const [showProjectPanel, setShowProjectPanel] = useState(false);
+  const [layoutMode, setLayoutMode] = useState<CanvasLayoutMode>(initialCanvasUiPrefs.layoutMode);
+  const [showProjectPanel, setShowProjectPanel] = useState(initialCanvasUiPrefs.showProjectPanel);
   const [projectSearchFocusToken, setProjectSearchFocusToken] = useState(0);
   const [pmStatusFilter, setPmStatusFilter] = useState<
     "all" | CanvasNodeStatus
@@ -246,6 +260,12 @@ export function CanvasView() {
     (canvas?.connections.length ?? 0) > 140;
   const miniMapNodes =
     canvas && canvas.nodes.length > 320 ? visibleNodes : canvas?.nodes ?? [];
+  const shouldShowMiniMap = shouldRenderCanvasMiniMap({
+    userPreference: showMiniMap,
+    width: canvasSize.w,
+    height: canvasSize.h,
+    nodeCount: miniMapNodes.length,
+  });
 
   // Track canvas size
   useEffect(() => {
@@ -258,6 +278,18 @@ export function CanvasView() {
     obs.observe(canvasRef.current);
     return () => obs.disconnect();
   }, []);
+
+  useEffect(() => {
+    saveCanvasUiPreferences(CANVAS_UI_PREFS_KEY, {
+      version: 1,
+      gridMode,
+      showMiniMap,
+      snapToGrid,
+      layoutMode,
+      showSidebar: showCanvasList,
+      showProjectPanel,
+    });
+  }, [gridMode, layoutMode, showCanvasList, showMiniMap, showProjectPanel, snapToGrid]);
 
   const runViewportTransition = useCallback(
     (
@@ -885,7 +917,7 @@ export function CanvasView() {
           />
 
           {/* Mini-map */}
-          {showMiniMap && miniMapNodes.length > 0 && (
+          {shouldShowMiniMap && (
             <MiniMap
               nodes={miniMapNodes}
               viewport={viewport}
@@ -912,7 +944,7 @@ export function CanvasView() {
                 fontFamily: "monospace",
               }}
             >
-              {Math.round(viewport.zoom * 100)}% · Scroll = Pan · Pinch/Ctrl + Scroll = Zoom · F = Focus · G = Grid · P = Project Panel · Render {visibleNodes.length}/{canvas?.nodes.length ?? 0}
+              {Math.round(viewport.zoom * 100)}% | Scroll: Pan | Ctrl/Pinch: Zoom | F: Fokus | Render {visibleNodes.length}/{canvas?.nodes.length ?? 0}
             </div>
           )}
         </div>

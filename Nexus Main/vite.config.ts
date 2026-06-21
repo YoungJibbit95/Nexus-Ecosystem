@@ -20,6 +20,7 @@ const resolveMonacoChunk = (id: string) => {
 };
 
 export default defineConfig({
+  root: __dirname,
   plugins: [react()],
   base: "./",
   resolve: {
