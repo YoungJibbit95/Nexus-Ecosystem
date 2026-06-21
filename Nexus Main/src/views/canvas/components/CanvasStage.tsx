@@ -151,11 +151,11 @@ export function CanvasStage({
             pointerEvents: "none",
           }}
         >
-          Double-click empty space to add
+          Doppelklick: Element
           <span style={{ opacity: 0.42 }}>/</span>
-          Ctrl+P jump
+          Ctrl+P Suche
           <span style={{ opacity: 0.42 }}>/</span>
-          [[wiki]] auto-link
+          [[wiki]] Auto-Link
         </div>
       )}
 

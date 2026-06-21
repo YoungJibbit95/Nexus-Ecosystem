@@ -18,6 +18,31 @@ export const MAIN_BOOT_VIEW_WARMUP_TIMEOUT_MS = 2_800;
 export const MAIN_BOOT_VIEW_WARMUP_TIMEOUT_LOW_POWER_MS = 4_200;
 export const MAIN_WALKTHROUGH_STORAGE_KEY = "nx-main-walkthrough-v2";
 
+const HARD_BOOT_FAILURE_CODES = new Set([
+  "HTTP_401",
+  "HTTP_403",
+  "INGEST_UNAUTHORIZED",
+  "UNAUTHORIZED",
+  "INVALID_CREDENTIALS",
+  "DEVICE_NOT_VERIFIED",
+  "DEVICE_ID_REQUIRED",
+]);
+
+const RECOVERABLE_BOOT_FAILURE_CODES = new Set([
+  "INVALID_PAYLOAD",
+  "INVALID_JSON",
+  "INVALID_SCHEMA",
+  "PARSE_ERROR",
+  "EMPTY_PAYLOAD",
+  "MISSING_PAYLOAD",
+  "TIMEOUT",
+  "NETWORK",
+  "ABORTED",
+  "ABORT_ERR",
+  "NO_BASE_URL",
+  "HTTP_404",
+]);
+
 export type MainRuntimeChannel = "production" | "canary" | "dev";
 
 export type MainRuntimeChannelConfig = {
@@ -139,6 +164,39 @@ export const isLowPowerDevice = () => {
 
 export const isOfflineBootstrapResourceError = (errorCodeRaw: unknown) =>
   isOfflineControlErrorCode(String(errorCodeRaw || "INVALID_PAYLOAD"));
+
+export const normalizeBootstrapErrorCode = (errorCodeRaw: unknown) =>
+  String(errorCodeRaw || "INVALID_PAYLOAD")
+    .trim()
+    .toUpperCase();
+
+export const isHardBootstrapResourceError = (errorCodeRaw: unknown) =>
+  HARD_BOOT_FAILURE_CODES.has(normalizeBootstrapErrorCode(errorCodeRaw));
+
+export const isRecoverableBootstrapResourceError = (errorCodeRaw: unknown) => {
+  const code = normalizeBootstrapErrorCode(errorCodeRaw);
+  if (!code) return true;
+  if (isOfflineControlErrorCode(code)) return true;
+  if (RECOVERABLE_BOOT_FAILURE_CODES.has(code)) return true;
+  if (HARD_BOOT_FAILURE_CODES.has(code)) return false;
+  if (code.includes("TIMEOUT") || code.includes("ABORT")) return true;
+  if (/^HTTP_5\d{2}$/.test(code)) return true;
+  return false;
+};
+
+export const describeBootstrapFailureKind = (errorCodeRaw: unknown) => {
+  const code = normalizeBootstrapErrorCode(errorCodeRaw);
+  if (isOfflineControlErrorCode(code)) return "offline";
+  if (code === "TIMEOUT" || code.includes("TIMEOUT") || code.includes("ABORT")) {
+    return "timeout";
+  }
+  if (code === "NETWORK") return "network";
+  if (HARD_BOOT_FAILURE_CODES.has(code)) return "auth";
+  if (RECOVERABLE_BOOT_FAILURE_CODES.has(code)) return "payload";
+  if (/^HTTP_5\d{2}$/.test(code)) return "server";
+  if (/^HTTP_4\d{2}$/.test(code)) return "client";
+  return "unknown";
+};
 
 export const withTimeoutResult = async <T,>(
   promise: Promise<T>,

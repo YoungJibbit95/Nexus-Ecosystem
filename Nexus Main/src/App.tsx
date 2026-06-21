@@ -52,7 +52,8 @@ import {
   MAIN_WALKTHROUGH_STORAGE_KEY,
   MAIN_SAFE_STARTUP_VIEWS,
   isLowPowerDevice,
-  isOfflineBootstrapResourceError,
+  describeBootstrapFailureKind,
+  isRecoverableBootstrapResourceError,
   mergeUniqueViews,
   resolveMainRuntimeChannelConfig,
   withTimeoutResult,
@@ -662,14 +663,28 @@ export default function App() {
           }));
 
         if (failedResources.length > 0) {
-          const offlineOnly = failedResources.every((entry) =>
-            isOfflineBootstrapResourceError(entry.errorCode),
+          const blockingResources = failedResources.filter(
+            (entry) => !isRecoverableBootstrapResourceError(entry.errorCode),
           );
-          if (!offlineOnly) {
+          if (blockingResources.length > 0) {
             throw new Error(
-              `CONTROL_API_BOOTSTRAP_FAILED (${failedResources.map((entry) => `${entry.resource}:${entry.errorCode}`).join(", ")})`,
+              `CONTROL_API_BOOTSTRAP_FAILED (${blockingResources.map((entry) => `${entry.resource}:${entry.errorCode}`).join(", ")})`,
             );
           }
+
+          const fallbackKinds = Array.from(
+            new Set(
+              failedResources.map((entry) => describeBootstrapFailureKind(entry.errorCode)),
+            ),
+          );
+          console.warn(
+            "Nexus Main bootstrap using safe startup views",
+            failedResources,
+          );
+          setBootStep(
+            38,
+            `API ${fallbackKinds.join("/")} - starte lokale Kern-Views...`,
+          );
         }
 
         const bundle: NexusLiveBundle | null =
@@ -1053,6 +1068,12 @@ export default function App() {
 
   if (bootFailure) {
     const authFailure = isMainAuthBootstrapFailure(bootFailure);
+    const bootFailureTitle = authFailure
+      ? "API-Startpruefung braucht eine Session"
+      : "API-Startpruefung blockiert den Boot";
+    const bootFailureCopy = authFailure
+      ? "Nexus Main fragt Katalog, Layout und Release von der API ab. Bei 401/403 kannst du dich anmelden oder ein Konto erstellen; danach startet der gleiche API-Bootflow erneut mit Bearer-Token."
+      : "Recoverable API-Probleme starten jetzt mit lokalen Kern-Views. Dieser Screen erscheint nur noch bei harten Auth-, Berechtigungs- oder Startup-Blockern.";
     return (
       <div
         style={{
@@ -1106,16 +1127,8 @@ export default function App() {
             >
               Hosted API Boot
             </div>
-            <div style={{ fontSize: 26, fontWeight: 900, marginTop: 18 }}>
-              API-Startpruefung braucht eine Session
-            </div>
-            <p style={{ color: "#b6c8d5", marginTop: 10, marginBottom: 0 }}>
-              Nexus Main fragt weiter Katalog, Layout und Release von der API
-              ab. Bei <code>401</code>/<code>403</code> wird jetzt nicht mehr
-              stumpf gestoppt, sondern du kannst dich anmelden oder ein Konto
-              erstellen. Danach startet der gleiche API-Bootflow erneut mit
-              Bearer-Token.
-            </p>
+            <div style={{ fontSize: 26, fontWeight: 900, marginTop: 18 }}>{bootFailureTitle}</div>
+            <p style={{ color: "#b6c8d5", marginTop: 10, marginBottom: 0 }}>{bootFailureCopy}</p>
             <div
               style={{
                 marginTop: 18,
@@ -1134,7 +1147,7 @@ export default function App() {
               </div>
               <div style={{ marginTop: 6 }}>
                 Channel: <code>{runtimeChannelConfig.label}</code>
-                {runtimeChannelConfig.requiresSignedManifest ? " · signed manifest required" : ""}
+                {runtimeChannelConfig.requiresSignedManifest ? " - signed manifest required" : ""}
               </div>
               <div style={{ marginTop: 6 }}>
                 Reason: <code>{bootFailure}</code>
@@ -1145,8 +1158,7 @@ export default function App() {
                 </div>
               ) : null}
               <div style={{ marginTop: 10, color: "#94a3b8" }}>
-                Kein Offline-Bypass: die App laedt erst weiter, wenn der
-                Hosted-API-Boot erfolgreich ist.
+                Lokaler Safe-Startup ist fuer recoverable API-Probleme aktiv. Harte Boot-Blocker muessen vor Release geklaert werden.
               </div>
             </div>
           </div>
