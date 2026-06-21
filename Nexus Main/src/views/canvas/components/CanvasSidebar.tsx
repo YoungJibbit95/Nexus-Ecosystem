@@ -31,7 +31,7 @@ export function CanvasSidebar({
   return (
     <Glass
       type="panel"
-      className="shrink-0"
+      className="nx-canvas-sidebar shrink-0"
       style={{
         width: 188,
         height: "100%",

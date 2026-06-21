@@ -3394,7 +3394,7 @@ html { font-size: var(--nx-font-size, 14px); }
 }
 
 .nx-v6-content-frame::after {
-  opacity: 0.22 !important;
+  opacity: 0.006 !important;
   background-size: 220px 220px !important;
 }
 
@@ -3533,5 +3533,208 @@ html { font-size: var(--nx-font-size, 14px); }
   .nx-dashboard-quality-strip,
   .nx-view-quality-strip {
     border-radius: 8px !important;
+  }
+}
+/* Release readiness pass: adaptive app polish. */
+.nx-app-shell {
+  padding: clamp(0px, 0.35vw, 4px);
+}
+
+.nx-app-shell::before,
+.nx-shell-window::before {
+  filter: blur(8px) saturate(102%);
+}
+
+.nx-ambient-layer {
+  opacity: 0.34;
+}
+
+.nx-v6-view-header,
+.nx-v6-status-bar,
+.nx-app-status-bar,
+.nx-notes-command-strip,
+.nx-notes-format-toolbar,
+.nx-canvas-topbar {
+  scrollbar-gutter: stable;
+}
+
+.nx-v6-content-frame {
+  border-radius: clamp(10px, 1.2vw, 18px);
+}
+
+.nx-v6-content-frame::after {
+  opacity: 0.006 !important;
+}
+
+.nx-v6-inspector-rail {
+  max-width: min(30vw, 300px);
+}
+
+.nx-canvas-v6,
+.nx-canvas-main,
+.nx-canvas-stage-wrap,
+.nx-notes-v6,
+.nx-notes-main,
+.nx-notes-editor-grid,
+.nx-notes-editor-pane,
+.nx-notes-preview-pane {
+  min-width: 0;
+  min-height: 0;
+}
+
+.nx-canvas-v6 {
+  position: relative;
+}
+
+.nx-canvas-sidebar {
+  width: clamp(196px, 19vw, 260px) !important;
+  max-width: 34vw;
+}
+
+.nx-canvas-topbar {
+  min-height: 42px;
+}
+
+.nx-canvas-topbar-inner {
+  min-width: max-content;
+  padding-block: 6px !important;
+}
+
+.nx-canvas-stage-wrap {
+  isolation: isolate;
+}
+
+.nx-canvas-stage-surface {
+  background-blend-mode: normal;
+}
+
+.nx-canvas-hint-pill,
+.nx-canvas-zoom-toast {
+  max-width: min(620px, calc(100% - 28px));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nx-notes-sidebar {
+  max-width: min(34vw, 340px);
+}
+
+.nx-notes-main {
+  overflow: hidden !important;
+}
+
+.nx-notes-command-strip,
+.nx-notes-format-toolbar,
+.nx-notes-context-strip,
+.nx-notes-status {
+  max-width: 100%;
+}
+
+.nx-notes-command-strip,
+.nx-notes-format-toolbar {
+  overflow-x: auto !important;
+  overflow-y: visible !important;
+}
+
+.nx-notes-command-strip::-webkit-scrollbar,
+.nx-notes-format-toolbar::-webkit-scrollbar,
+.nx-canvas-topbar::-webkit-scrollbar {
+  height: 0;
+}
+
+@media (max-width: 1180px) {
+  .nx-v6-view-shell[data-inspector="open"] .nx-v6-workbench {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .nx-v6-inspector-rail {
+    display: none !important;
+  }
+}
+
+@media (max-width: 920px) {
+  .nx-canvas-sidebar {
+    position: absolute !important;
+    inset: 0 auto 0 0;
+    z-index: 360;
+    width: min(82vw, 286px) !important;
+    max-width: none;
+    box-shadow: 18px 0 42px rgba(0, 0, 0, 0.32);
+  }
+
+  .nx-canvas-topbar-inner {
+    gap: 5px !important;
+  }
+
+  .nx-notes-v6 {
+    padding: 6px !important;
+  }
+
+  .nx-notes-sidebar {
+    width: 100% !important;
+    max-width: none;
+    max-height: min(260px, 36dvh);
+  }
+
+  .nx-notes-editor-grid {
+    flex-direction: column;
+    overflow: auto !important;
+  }
+
+  .nx-notes-editor-pane,
+  .nx-notes-preview-pane {
+    flex-basis: auto;
+    min-height: min(360px, 46dvh);
+  }
+}
+
+@media (max-width: 720px), (max-height: 620px) {
+  .nx-app-shell {
+    padding: 0;
+  }
+
+  .nx-shell-window {
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .nx-v6-view-shell {
+    gap: 3px;
+    padding: 2px;
+  }
+
+  .nx-v6-title-row h1 {
+    font-size: 16px !important;
+  }
+
+  .nx-v6-header-actions,
+  .nx-v6-status-chip-row,
+  .nx-app-status-bar {
+    overflow-x: auto;
+    flex-wrap: nowrap !important;
+  }
+
+  .nx-canvas-hint-pill {
+    display: none !important;
+  }
+
+  .nx-canvas-zoom-toast {
+    left: 10px !important;
+    right: 10px !important;
+    bottom: 10px !important;
+    transform: none !important;
+    text-align: center;
+  }
+
+  .nx-notes-command-strip,
+  .nx-notes-format-toolbar {
+    flex-wrap: nowrap !important;
+  }
+
+  .nx-notes-status {
+    gap: 8px !important;
+    overflow-x: auto;
+    white-space: nowrap;
   }
 }

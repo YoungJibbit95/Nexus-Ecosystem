@@ -836,7 +836,7 @@ export function CanvasView() {
               position: "absolute",
               inset: "54px 0 0",
               zIndex: 120,
-              pointerEvents: "none",
+              pointerEvents: "auto",
             }}
           >
             <CanvasEmptyState
@@ -897,6 +897,7 @@ export function CanvasView() {
           {/* Zoom tooltip */}
           {viewport.zoom !== 1 && (
             <div
+              className="nx-canvas-zoom-toast"
               style={{
                 position: "absolute",
                 bottom: 16,
