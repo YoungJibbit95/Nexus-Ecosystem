@@ -548,7 +548,7 @@ const NodeWidget = React.memo(function NodeWidget({
               </span>
             )}
 
-            {!editTitle && (
+            {!editTitle && (isSelected || hovered) && (
               <span
                 title={widgetDescription}
                 style={{
