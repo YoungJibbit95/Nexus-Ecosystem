@@ -131,8 +131,10 @@ export function MainShellLayout({
         ["--nx-shell-accent-rgb" as any]: accentRgb,
         ["--nx-shell-accent2-rgb" as any]: accent2Rgb,
         ["--nx-panel-bg" as any]: panelSurfaceTokens.background,
-        ["--nx-panel-bg-size" as any]: panelSurfaceTokens.backgroundSize || "100% 100%",
-        ["--nx-panel-bg-blend" as any]: panelSurfaceTokens.backgroundBlendMode || "normal",
+        ["--nx-panel-bg-size" as any]:
+          panelSurfaceTokens.backgroundSize || "100% 100%",
+        ["--nx-panel-bg-blend" as any]:
+          panelSurfaceTokens.backgroundBlendMode || "normal",
         ["--nx-app-shell-aura-bg" as any]: isDark
           ? "radial-gradient(circle at 20% 8%, rgba(34, 211, 238, 0.18), transparent 34%), radial-gradient(circle at 84% 4%, rgba(129, 140, 248, 0.2), transparent 36%), radial-gradient(circle at 54% 92%, rgba(16, 185, 129, 0.1), transparent 42%), linear-gradient(180deg, rgba(8, 9, 26, 0.28), rgba(8, 9, 26, 0.66))"
           : "radial-gradient(circle at 20% 8%, rgba(34, 211, 238, 0.16), transparent 34%), radial-gradient(circle at 84% 4%, rgba(129, 140, 248, 0.14), transparent 36%), radial-gradient(circle at 54% 92%, rgba(16, 185, 129, 0.08), transparent 42%), linear-gradient(180deg, rgba(255, 255, 255, 0.38), rgba(245, 248, 255, 0.5))",
@@ -150,27 +152,63 @@ export function MainShellLayout({
           ? "linear-gradient(rgba(255, 255, 255, 0.045) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px)"
           : "linear-gradient(rgba(15, 23, 42, 0.055) 1px, transparent 1px), linear-gradient(90deg, rgba(15, 23, 42, 0.04) 1px, transparent 1px)",
         ["--nx-shell-window-grid-opacity" as any]: isDark ? 0.055 : 0.04,
-        ["--nx-v6-surface" as any]: isDark ? "rgba(15, 23, 42, 0.58)" : "rgba(255, 255, 255, 0.72)",
-        ["--nx-v6-surface-strong" as any]: isDark ? "rgba(8, 13, 32, 0.62)" : "rgba(248, 250, 252, 0.88)",
-        ["--nx-v6-line" as any]: isDark ? "rgba(255, 255, 255, 0.1)" : "rgba(15, 23, 42, 0.12)",
-        ["--nx-v6-line-soft" as any]: isDark ? "rgba(255, 255, 255, 0.065)" : "rgba(15, 23, 42, 0.08)",
-        ["--nx-v6-text" as any]: isDark ? "rgba(255, 255, 255, 0.92)" : "rgba(15, 23, 42, 0.94)",
-        ["--nx-v6-muted" as any]: isDark ? "rgba(255, 255, 255, 0.62)" : "rgba(15, 23, 42, 0.66)",
-        ["--nx-v6-faint" as any]: isDark ? "rgba(255, 255, 255, 0.4)" : "rgba(15, 23, 42, 0.48)",
-        ["--nx-v6-control-text" as any]: isDark ? "rgba(255, 255, 255, 0.78)" : "rgba(15, 23, 42, 0.78)",
-        ["--nx-v6-control-hover-text" as any]: isDark ? "rgba(255, 255, 255, 0.96)" : "rgba(15, 23, 42, 0.96)",
-        ["--nx-v6-control-bg" as any]: isDark ? "rgba(255, 255, 255, 0.055)" : "rgba(15, 23, 42, 0.045)",
-        ["--nx-v6-control-bg-hover" as any]: isDark ? "rgba(255, 255, 255, 0.07)" : "rgba(15, 23, 42, 0.065)",
-        ["--nx-v6-strong-text" as any]: isDark ? "rgba(255, 255, 255, 0.9)" : "rgba(2, 6, 23, 0.94)",
-        ["--nx-v6-primary-text" as any]: isDark ? "rgba(255, 255, 255, 0.96)" : "rgba(2, 6, 23, 0.94)",
-        ["--nx-v6-grid-line-a" as any]: isDark ? "rgba(255, 255, 255, 0.042)" : "rgba(15, 23, 42, 0.045)",
-        ["--nx-v6-grid-line-b" as any]: isDark ? "rgba(255, 255, 255, 0.032)" : "rgba(15, 23, 42, 0.032)",
+        ["--nx-v6-surface" as any]: isDark
+          ? "rgba(15, 23, 42, 0.58)"
+          : "rgba(255, 255, 255, 0.72)",
+        ["--nx-v6-surface-strong" as any]: isDark
+          ? "rgba(8, 13, 32, 0.62)"
+          : "rgba(248, 250, 252, 0.88)",
+        ["--nx-v6-line" as any]: isDark
+          ? "rgba(255, 255, 255, 0.1)"
+          : "rgba(15, 23, 42, 0.12)",
+        ["--nx-v6-line-soft" as any]: isDark
+          ? "rgba(255, 255, 255, 0.065)"
+          : "rgba(15, 23, 42, 0.08)",
+        ["--nx-v6-text" as any]: isDark
+          ? "rgba(255, 255, 255, 0.92)"
+          : "rgba(15, 23, 42, 0.94)",
+        ["--nx-v6-muted" as any]: isDark
+          ? "rgba(255, 255, 255, 0.62)"
+          : "rgba(15, 23, 42, 0.66)",
+        ["--nx-v6-faint" as any]: isDark
+          ? "rgba(255, 255, 255, 0.4)"
+          : "rgba(15, 23, 42, 0.48)",
+        ["--nx-v6-control-text" as any]: isDark
+          ? "rgba(255, 255, 255, 0.78)"
+          : "rgba(15, 23, 42, 0.78)",
+        ["--nx-v6-control-hover-text" as any]: isDark
+          ? "rgba(255, 255, 255, 0.96)"
+          : "rgba(15, 23, 42, 0.96)",
+        ["--nx-v6-control-bg" as any]: isDark
+          ? "rgba(255, 255, 255, 0.055)"
+          : "rgba(15, 23, 42, 0.045)",
+        ["--nx-v6-control-bg-hover" as any]: isDark
+          ? "rgba(255, 255, 255, 0.07)"
+          : "rgba(15, 23, 42, 0.065)",
+        ["--nx-v6-strong-text" as any]: isDark
+          ? "rgba(255, 255, 255, 0.9)"
+          : "rgba(2, 6, 23, 0.94)",
+        ["--nx-v6-primary-text" as any]: isDark
+          ? "rgba(255, 255, 255, 0.96)"
+          : "rgba(2, 6, 23, 0.94)",
+        ["--nx-v6-grid-line-a" as any]: isDark
+          ? "rgba(255, 255, 255, 0.042)"
+          : "rgba(15, 23, 42, 0.045)",
+        ["--nx-v6-grid-line-b" as any]: isDark
+          ? "rgba(255, 255, 255, 0.032)"
+          : "rgba(15, 23, 42, 0.032)",
         ["--nx-status-bar-bg" as any]: isDark
           ? "linear-gradient(180deg, rgba(255, 255, 255, 0.018), rgba(255, 255, 255, 0.01)), rgba(4, 6, 13, 0.2)"
           : "linear-gradient(180deg, rgba(255, 255, 255, 0.86), rgba(248, 250, 252, 0.76)), rgba(255, 255, 255, 0.38)",
-        ["--nx-status-bar-border" as any]: isDark ? "rgba(255, 255, 255, 0.055)" : "rgba(15, 23, 42, 0.09)",
-        ["--nx-status-text" as any]: isDark ? "rgba(255, 255, 255, 0.52)" : "rgba(15, 23, 42, 0.58)",
-        ["--nx-status-strong-text" as any]: isDark ? "rgba(255, 255, 255, 0.72)" : "rgba(15, 23, 42, 0.78)",
+        ["--nx-status-bar-border" as any]: isDark
+          ? "rgba(255, 255, 255, 0.055)"
+          : "rgba(15, 23, 42, 0.09)",
+        ["--nx-status-text" as any]: isDark
+          ? "rgba(255, 255, 255, 0.52)"
+          : "rgba(15, 23, 42, 0.58)",
+        ["--nx-status-strong-text" as any]: isDark
+          ? "rgba(255, 255, 255, 0.72)"
+          : "rgba(15, 23, 42, 0.78)",
         color: isDark ? "#f8f8fc" : "#111827",
         colorScheme: t.mode,
         ...backgroundStyles,
@@ -233,7 +271,8 @@ export function MainShellLayout({
               transition: "width 220ms cubic-bezier(0.2, 0.8, 0.2, 1)",
               transitionDuration: `${motionRuntime.quickMs}ms`,
               overflow: "hidden",
-              pointerEvents: sidebarAutoHideEnabled && !sidebarExpanded ? "none" : "auto",
+              pointerEvents:
+                sidebarAutoHideEnabled && !sidebarExpanded ? "none" : "auto",
             }}
             onMouseEnter={() => {
               if (sidebarAutoHideEnabled) onSidebarAutoPeek(true);
@@ -289,7 +328,10 @@ export function MainShellLayout({
                   padding: "8px 10px",
                   fontSize: 12,
                   fontWeight: 700,
-                  background: t.mode === "dark" ? "rgba(6,12,24,0.82)" : "rgba(255,255,255,0.88)",
+                  background:
+                    t.mode === "dark"
+                      ? "rgba(6,12,24,0.82)"
+                      : "rgba(255,255,255,0.88)",
                   border: `1px solid rgba(${hexToRgb(t.accent)},0.34)`,
                   color: t.accent,
                   boxShadow: `0 8px 24px rgba(${hexToRgb(t.accent)},0.2)`,
@@ -328,7 +370,10 @@ export function MainShellLayout({
               flexDirection: "column",
               position: "relative",
               minHeight: 0,
-              background: t.mode === "dark" ? "rgba(7,8,13,0.18)" : "rgba(255,255,255,0.24)",
+              background:
+                t.mode === "dark"
+                  ? "rgba(7,8,13,0.18)"
+                  : "rgba(255,255,255,0.24)",
             }}
           >
             {!toolbarBottom ? toolbarEl : null}
@@ -356,7 +401,7 @@ export function MainShellLayout({
                 />
               ) : null}
             </Suspense>
-            <div className="nx-app-status-bar" role="status" aria-live="polite">
+            {/*<div className="nx-app-status-bar" role="status" aria-live="polite">
               <div className="nx-status-chip nx-status-chip--strong">
                 View: {viewContract.title}
               </div>
@@ -373,7 +418,7 @@ export function MainShellLayout({
                   Blockiert: {viewGuardState.blockedView}
                 </div>
               ) : null}
-            </div>
+            </div>*/}
             {toolbarBottom ? toolbarEl : null}
           </div>
         </div>
