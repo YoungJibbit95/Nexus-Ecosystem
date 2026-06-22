@@ -27,23 +27,25 @@ type Props = {
   children: React.ReactNode;
 };
 
-type ViewContract = NexusViewManifest | {
-  id: string;
-  title: string;
-  subtitle: string;
-  navLabel: string;
-  category: string;
-  navigationGroup: string;
-  icon: string;
-  accent: string;
-  desktopMode: string;
-  mobileMode: string;
-  defaultActionId: string;
-  actions: NexusViewManifest["actions"];
-  panels: NexusViewManifest["panels"];
-  shortcuts: string[];
-  statusSignals: string[];
-};
+type ViewContract =
+  | NexusViewManifest
+  | {
+      id: string;
+      title: string;
+      subtitle: string;
+      navLabel: string;
+      category: string;
+      navigationGroup: string;
+      icon: string;
+      accent: string;
+      desktopMode: string;
+      mobileMode: string;
+      defaultActionId: string;
+      actions: NexusViewManifest["actions"];
+      panels: NexusViewManifest["panels"];
+      shortcuts: string[];
+      statusSignals: string[];
+    };
 
 type PendingViewChange = {
   viewId: View | string;
@@ -117,8 +119,10 @@ export function NexusV6ViewShell({
   const [focusMode, setFocusMode] = React.useState(false);
   const [activePanelId, setActivePanelId] = React.useState<string | null>(null);
   const [lastCommandId, setLastCommandId] = React.useState<string | null>(null);
-  const [shellState, setShellState] = React.useState<NexusResolvedViewState | null>(null);
-  const [pendingViewChange, setPendingViewChange] = React.useState<PendingViewChange | null>(null);
+  const [shellState, setShellState] =
+    React.useState<NexusResolvedViewState | null>(null);
+  const [pendingViewChange, setPendingViewChange] =
+    React.useState<PendingViewChange | null>(null);
 
   React.useEffect(() => {
     setActivePanelId(null);
@@ -155,7 +159,9 @@ export function NexusV6ViewShell({
     [availableViews, viewId],
   );
   const primaryAction =
-    commandRegistry.find((command) => command.id === contract.defaultActionId) ??
+    commandRegistry.find(
+      (command) => command.id === contract.defaultActionId,
+    ) ??
     commandRegistry.find((command) => command.placement === "primary") ??
     null;
   const toolbarActions = commandRegistry
@@ -179,7 +185,12 @@ export function NexusV6ViewShell({
         signals: layout?.statusSignals ?? contract.statusSignals,
         maxItems: inspectorOpen ? 7 : 4,
       }),
-    [contract.statusSignals, inspectorOpen, layout?.statusSignals, resolvedShellState],
+    [
+      contract.statusSignals,
+      inspectorOpen,
+      layout?.statusSignals,
+      resolvedShellState,
+    ],
   );
 
   React.useEffect(() => {
@@ -310,7 +321,8 @@ export function NexusV6ViewShell({
       <header className="nx-v6-view-header">
         <div className="nx-v6-title-cluster">
           <div className="nx-v6-eyebrow">
-            {contract.category} / {layout?.contentPriority ?? contract.desktopMode}
+            {contract.category} /{" "}
+            {layout?.contentPriority ?? contract.desktopMode}
           </div>
           <div className="nx-v6-title-row">
             <div className="nx-v6-title-copy">
@@ -319,21 +331,23 @@ export function NexusV6ViewShell({
             </div>
           </div>
           <div className="nx-v6-quick-nav" aria-label="Verwandte Views">
-            {relatedViews.length > 0 ? (
-              relatedViews.map((manifest) => (
-                <button
-                  key={manifest.id}
-                  type="button"
-                  onClick={() => requestShellViewChange(manifest.id, manifest.navLabel)}
-                  onMouseEnter={() => {
-                    onPrefetchView(manifest.id as View);
-                  }}
-                >
-                  <span style={{ background: manifest.accent }} />
-                  {manifest.navLabel}
-                </button>
-              ))
-            ) : null}
+            {relatedViews.length > 0
+              ? relatedViews.map((manifest) => (
+                  <button
+                    key={manifest.id}
+                    type="button"
+                    onClick={() =>
+                      requestShellViewChange(manifest.id, manifest.navLabel)
+                    }
+                    onMouseEnter={() => {
+                      onPrefetchView(manifest.id as View);
+                    }}
+                  >
+                    <span style={{ background: manifest.accent }} />
+                    {manifest.navLabel}
+                  </button>
+                ))
+              : null}
           </div>
         </div>
 
@@ -342,7 +356,11 @@ export function NexusV6ViewShell({
             <button
               type="button"
               className="nx-v6-action nx-v6-action--primary"
-              title={primaryAction.disabledReason || primaryAction.shortcut || primaryAction.intent}
+              title={
+                primaryAction.disabledReason ||
+                primaryAction.shortcut ||
+                primaryAction.intent
+              }
               aria-disabled={primaryAction.enabled ? undefined : "true"}
               onClick={() => runShellCommand(primaryAction)}
             >
@@ -384,7 +402,10 @@ export function NexusV6ViewShell({
         <div className="nx-v6-content-frame">{children}</div>
 
         {inspectorOpen ? (
-          <aside className="nx-v6-inspector-rail" aria-label={`${contract.title} Inspector`}>
+          <aside
+            className="nx-v6-inspector-rail"
+            aria-label={`${contract.title} Inspector`}
+          >
             <div className="nx-v6-inspector-section">
               <div className="nx-v6-section-label">Panels</div>
               <div className="nx-v6-panel-list">
@@ -393,11 +414,15 @@ export function NexusV6ViewShell({
                     <button
                       key={panel.id}
                       type="button"
-                      className={panel.id === activePanel?.id ? "is-active" : undefined}
+                      className={
+                        panel.id === activePanel?.id ? "is-active" : undefined
+                      }
                       onClick={() => setActivePanelId(panel.id)}
                     >
                       <strong>{panel.title}</strong>
-                      <span>{panel.state} / {panel.presentation} / {panel.rail}</span>
+                      <span>
+                        {panel.state} / {panel.presentation} / {panel.rail}
+                      </span>
                     </button>
                   ))
                 ) : (
@@ -410,7 +435,11 @@ export function NexusV6ViewShell({
               <div className="nx-v6-section-label">Signals</div>
               <div className="nx-v6-signal-grid">
                 {statusChips.map((chip) => (
-                  <span key={chip.id} data-tone={chip.tone} title={chip.description}>
+                  <span
+                    key={chip.id}
+                    data-tone={chip.tone}
+                    title={chip.description}
+                  >
                     {chip.label}
                   </span>
                 ))}
@@ -420,14 +449,28 @@ export function NexusV6ViewShell({
             <div className="nx-v6-inspector-section">
               <div className="nx-v6-section-label">View Health</div>
               <div className="nx-v6-responsive-card">
-                <span>State: {resolvedShellState.label} / {resolvedShellState.kind}</span>
                 <span>
-                  Behavior: {shellStateBehavior.persistent ? "persistent" : "transient"} /{" "}
-                  {shellStateBehavior.autoDismissMs ? `${shellStateBehavior.autoDismissMs}ms` : "manual"}
+                  State: {resolvedShellState.label} / {resolvedShellState.kind}
                 </span>
-                <span>Layout: v{layout?.version ?? "local"} / {layout?.contentPriority ?? contract.desktopMode}</span>
-                <span>Columns: {layout?.columns ?? 1} / min {layout?.minContentWidth ?? 560}px</span>
-                <span>Chrome: {layout?.chrome ?? "full"} / motion {layout?.animationProfile ?? "standard"}</span>
+                <span>
+                  Behavior:{" "}
+                  {shellStateBehavior.persistent ? "persistent" : "transient"} /{" "}
+                  {shellStateBehavior.autoDismissMs
+                    ? `${shellStateBehavior.autoDismissMs}ms`
+                    : "manual"}
+                </span>
+                <span>
+                  Layout: v{layout?.version ?? "local"} /{" "}
+                  {layout?.contentPriority ?? contract.desktopMode}
+                </span>
+                <span>
+                  Columns: {layout?.columns ?? 1} / min{" "}
+                  {layout?.minContentWidth ?? 560}px
+                </span>
+                <span>
+                  Chrome: {layout?.chrome ?? "full"} / motion{" "}
+                  {layout?.animationProfile ?? "standard"}
+                </span>
                 <span>Active panel: {activePanel?.title ?? "none"}</span>
                 <span>Last command: {lastCommand?.title ?? "none"}</span>
                 <span>Pending view: {pendingViewChange?.label ?? "none"}</span>
@@ -438,7 +481,7 @@ export function NexusV6ViewShell({
         ) : null}
       </div>
 
-      <footer
+      {/*<footer
         className="nx-v6-status-bar"
         aria-label={`${contract.title} Status`}
         aria-live={resolvedShellState.ariaLive}
@@ -446,7 +489,9 @@ export function NexusV6ViewShell({
         data-pending-view={pendingViewChange ? "true" : "false"}
       >
         <div className="nx-v6-status-primary">
-          <span data-tone={resolvedShellState.tone}>{resolvedShellState.label}</span>
+          <span data-tone={resolvedShellState.tone}>
+            {resolvedShellState.label}
+          </span>
           <strong>{resolvedShellState.title}</strong>
           <em>{resolvedShellState.description}</em>
         </div>
@@ -465,7 +510,7 @@ export function NexusV6ViewShell({
             </span>
           ))}
         </div>
-      </footer>
+      </footer>*/}
     </section>
   );
 }
