@@ -130,9 +130,9 @@ export function MobileSettingsShell({
         kind: "error",
         title: "Import fehlgeschlagen",
         fileName: file.name,
-        details: ["Datei ist größer als 2MB und wurde nicht geladen."],
+        details: ["Datei ist groesser als 2MB und wurde nicht geladen."],
       });
-      toast("Theme-Datei zu groß");
+      toast("Theme-Datei zu gross");
       return;
     }
     const reader = new FileReader();
@@ -144,7 +144,7 @@ export function MobileSettingsShell({
             kind: "error",
             title: "Import fehlgeschlagen",
             fileName: file.name,
-            details: ["Datei konnte nicht als gÃ¼ltiges JSON gelesen werden."],
+            details: ["Datei konnte nicht als gueltiges JSON gelesen werden."],
           });
           toast("Import fehlgeschlagen");
           return;

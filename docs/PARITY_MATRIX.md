@@ -50,16 +50,23 @@
 
 ## Release-Check fuer Paritaet
 
-1. `npm --prefix "./Nexus Main" run build`
-2. `npm --prefix "./Nexus Mobile" run build`
-3. `npm --prefix "./Nexus Code" run build`
-4. `npm --prefix "./Nexus Code Mobile" run build`
-5. Quick-Capture in Main/Mobile pruefen (`note/task/reminder/code/canvas`)
-6. `runtime.json` Export aus Main und Import auf Mobile pruefen
-7. Navigation-Schema pruefen (`bottom-nav`, `tabs`, `sidebar`) inkl. Phone/Tablet
+1. `npm run release:main-mobile`
+2. Quick-Capture in Main/Mobile pruefen (`note/task/reminder/code/canvas`)
+3. `runtime.json` Export aus Main und Import auf Mobile pruefen
+4. Navigation-Schema pruefen (`bottom-nav`, `tabs`, `sidebar`) inkl. Phone/Tablet
+5. Canvas Smoke pruefen: Main Inspector, Mobile Gesten, kleine Viewports
+6. Settings Smoke pruefen: Export, Import, Section Reset
+
+Fuer Full-Ecosystem Releases bleibt `npm run release:gate` zusaetzlich Pflicht.
 
 ## Release-Update 2026-06-21
 
 - Main/Mobile Security-Audit: `0` Vulnerabilities nach Dependency- und Override-Updates.
 - Main/Mobile Build-Gate: Prefix-Builds vom Repo-Root erfolgreich validiert.
 - Canvas-Paritaet: gemeinsame UI-Preference-Validierung in `@nexus/core/canvas`, sichere Persistenz und adaptive Minimap fuer kleine Viewports.
+
+## Release-Update 2026-06-22
+
+- Main/Mobile Gate: `release:main-mobile` fokussiert die release-relevanten Main/Mobile Checks und blendet Code/Code Mobile bewusst aus.
+- Canvas-Paritaet: Main hat den Inspector-v2 Startpunkt; Mobile braucht als naechstes das Bottom-Sheet Gegenstueck.
+- Release-Liste: `docs/MAIN_MOBILE_RELEASE_CHECKLIST.md` ist die operative Main/Mobile Liste fuer Canvas, Settings, Notes und Manual Smoke.
