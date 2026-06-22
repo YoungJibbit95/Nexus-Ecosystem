@@ -32,6 +32,7 @@ import { CanvasSidebar } from "./canvas/components/CanvasSidebar";
 import { CanvasTopBar } from "./canvas/components/CanvasTopBar";
 import { CanvasStage } from "./canvas/components/CanvasStage";
 import { CanvasEmptyState } from "./canvas/components/CanvasEmptyState";
+import { CanvasInspector } from "./canvas/components/CanvasInspector";
 import {
   BOARD_LANES,
   CANVAS_NODE_OVERSCAN_MAX_PX,
@@ -266,6 +267,11 @@ export function CanvasView() {
     height: canvasSize.h,
     nodeCount: miniMapNodes.length,
   });
+  const shouldShowInspector =
+    Boolean(selectedNode) &&
+    !showProjectPanel &&
+    canvasSize.w >= 980 &&
+    canvasSize.h >= 520;
 
   // Track canvas size
   useEffect(() => {
@@ -914,6 +920,35 @@ export function CanvasView() {
             setSelectedNodeId={setSelectedNodeId}
             focusNode={focusNode}
             searchFocusToken={projectSearchFocusToken}
+          />
+
+          <CanvasInspector
+            node={shouldShowInspector ? selectedNode : null}
+            mode={t.mode}
+            accent={t.accent}
+            rgb={rgb}
+            onUpdateNode={(patch) => {
+              if (!selectedNode) return;
+              useCanvas.getState().updateNode(selectedNode.id, patch);
+            }}
+            onMoveNode={(x, y) => {
+              if (!selectedNode) return;
+              useCanvas.getState().moveNode(selectedNode.id, x, y);
+            }}
+            onResizeNode={(width, height) => {
+              if (!selectedNode) return;
+              useCanvas.getState().resizeNode(selectedNode.id, width, height);
+            }}
+            onDuplicateNode={duplicateSelectedNode}
+            onDeleteNode={() => {
+              if (!selectedNode) return;
+              useCanvas.getState().deleteNode(selectedNode.id);
+              setSelectedNodeId(null);
+            }}
+            onFocusNode={() => {
+              if (selectedNode) focusNode(selectedNode.id);
+            }}
+            onClose={() => setSelectedNodeId(null)}
           />
 
           {/* Mini-map */}

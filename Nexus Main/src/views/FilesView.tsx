@@ -521,6 +521,8 @@ export function FilesView({ setView }: FilesViewProps = {}) {
           </span>
           <button
             onClick={() => setAutoSync(!autoSync)}
+            aria-pressed={autoSync}
+            title="Auto-Sync umschalten"
             style={{
               padding: "4px 8px",
               borderRadius: 999,
@@ -771,7 +773,7 @@ export function FilesView({ setView }: FilesViewProps = {}) {
               <div style={{ fontSize: 14, fontWeight: 800, flex: 1 }}>All Files</div>
             )}
 
-            <div style={{ position: "relative" }}>
+            <div className="nx-files-search" style={{ position: "relative" }}>
               <Search
                 size={12}
                 style={{ position: "absolute", left: 9, top: "50%", transform: "translateY(-50%)", opacity: 0.4 }}
@@ -781,6 +783,7 @@ export function FilesView({ setView }: FilesViewProps = {}) {
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder="Search..."
+                aria-label="Files durchsuchen"
                 style={{
                   padding: "6px 10px 6px 28px",
                   borderRadius: 9,
@@ -794,13 +797,14 @@ export function FilesView({ setView }: FilesViewProps = {}) {
               />
             </div>
 
-            <div style={{ display: "flex", background: "rgba(255,255,255,0.06)", borderRadius: 8, overflow: "hidden" }}>
+            <div className="nx-files-type-filter" style={{ display: "flex", background: "rgba(255,255,255,0.06)", borderRadius: 8, overflow: "hidden" }}>
               {(["all", "note", "code", "task", "reminder", "canvas"] as const).map((filter) => (
                 <InteractiveActionButton
                   key={filter}
                   onClick={() => setTypeFilter(filter)}
                   motionId={`files-type-filter-${filter}`}
                   selected={typeFilter === filter}
+                  aria-label={`Filter ${filter}`}
                   areaHint={58}
                   radius={8}
                   style={{
@@ -824,6 +828,7 @@ export function FilesView({ setView }: FilesViewProps = {}) {
             <select
               value={folderFilter}
               onChange={(event) => setFolderFilter(event.target.value)}
+              aria-label="Ordnerfilter"
               style={{
                 padding: "6px 8px",
                 borderRadius: 8,
@@ -844,11 +849,12 @@ export function FilesView({ setView }: FilesViewProps = {}) {
               ))}
             </select>
 
-            <div style={{ display: "flex", background: "rgba(255,255,255,0.06)", borderRadius: 8, overflow: "hidden" }}>
+            <div className="nx-files-view-switcher" style={{ display: "flex", background: "rgba(255,255,255,0.06)", borderRadius: 8, overflow: "hidden" }}>
               <InteractiveActionButton
                 onClick={() => setViewMode("grid")}
                 motionId="files-view-mode-grid"
                 selected={viewMode === "grid"}
+                aria-label="Grid view"
                 areaHint={50}
                 radius={8}
                 style={{
@@ -868,6 +874,7 @@ export function FilesView({ setView }: FilesViewProps = {}) {
                 onClick={() => setViewMode("list")}
                 motionId="files-view-mode-list"
                 selected={viewMode === "list"}
+                aria-label="List view"
                 areaHint={50}
                 radius={8}
                 style={{
