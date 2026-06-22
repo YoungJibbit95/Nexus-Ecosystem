@@ -18,6 +18,8 @@ const skipApps = args.has('--skip-apps')
 const skipWiki = args.has('--skip-wiki')
 const withApiContract = args.has('--with-api-contract')
 const signingRequired = args.has('--signing-required')
+const mainMobileOnly = args.has('--main-mobile-only')
+const withMainMobileAudit = args.has('--with-main-mobile-audit') || mainMobileOnly
 
 const sibling = (name) => path.join(WORKSPACE, name)
 const hasPackage = (dir) => existsSync(path.join(dir, 'package.json'))
@@ -54,7 +56,7 @@ const steps = [
   },
 ]
 
-if (!fast && !skipDoctor) {
+if (!mainMobileOnly && !fast && !skipDoctor) {
   steps.push({
     name: 'release doctor',
     cwd: ROOT,
@@ -75,20 +77,40 @@ if (!fast && !skipApps) {
       cwd: ROOT,
       command: [npmBin, ['--prefix', 'Nexus Mobile', 'run', 'build']],
     },
-    {
-      name: 'Nexus Code build',
-      cwd: ROOT,
-      command: [npmBin, ['--prefix', 'Nexus Code', 'run', 'build']],
-    },
-    {
-      name: 'Nexus Code Mobile build',
-      cwd: ROOT,
-      command: [npmBin, ['--prefix', 'Nexus Code Mobile', 'run', 'build']],
-    },
   )
 
+  if (!mainMobileOnly) {
+    steps.push(
+      {
+        name: 'Nexus Code build',
+        cwd: ROOT,
+        command: [npmBin, ['--prefix', 'Nexus Code', 'run', 'build']],
+      },
+      {
+        name: 'Nexus Code Mobile build',
+        cwd: ROOT,
+        command: [npmBin, ['--prefix', 'Nexus Code Mobile', 'run', 'build']],
+      },
+    )
+  }
+
+  if (withMainMobileAudit) {
+    steps.push(
+      {
+        name: 'Nexus Main dependency audit',
+        cwd: ROOT,
+        command: [npmBin, ['--prefix', 'Nexus Main', 'audit', '--audit-level=moderate']],
+      },
+      {
+        name: 'Nexus Mobile dependency audit',
+        cwd: ROOT,
+        command: [npmBin, ['--prefix', 'Nexus Mobile', 'audit', '--audit-level=moderate']],
+      },
+    )
+  }
+
   const controlDir = sibling('Nexus Control')
-  if (hasPackage(controlDir)) {
+  if (!mainMobileOnly && hasPackage(controlDir)) {
     steps.push({
       name: 'Nexus Control build',
       cwd: controlDir,
@@ -97,7 +119,7 @@ if (!fast && !skipApps) {
   }
 }
 
-if (!fast && !skipWiki) {
+if (!mainMobileOnly && !fast && !skipWiki) {
   steps.push({
     name: 'Nexus Wiki CI build',
     cwd: ROOT,
@@ -106,7 +128,7 @@ if (!fast && !skipWiki) {
 }
 
 const websiteDir = sibling('nexusproject.dev')
-if (!fast && !skipWebsite && hasPackage(websiteDir)) {
+if (!mainMobileOnly && !fast && !skipWebsite && hasPackage(websiteDir)) {
   steps.push(
     {
       name: 'nexusproject.dev CI build',
@@ -122,7 +144,7 @@ if (!fast && !skipWebsite && hasPackage(websiteDir)) {
 }
 
 const apiDir = path.join(sibling('NexusAPI'), 'API', 'nexus-control-plane')
-if (withApiContract && hasPackage(apiDir)) {
+if (!mainMobileOnly && withApiContract && hasPackage(apiDir)) {
   steps.push(
     {
       name: 'Control Plane contract tests',
@@ -140,7 +162,7 @@ if (withApiContract && hasPackage(apiDir)) {
 const summary = []
 const startedAt = Date.now()
 
-console.log(`[release:gate] mode=${fast ? 'fast' : 'full'} ci=${ci ? 'yes' : 'no'}`)
+console.log(`[release:gate] mode=${mainMobileOnly ? 'main-mobile' : fast ? 'fast' : 'full'} ci=${ci ? 'yes' : 'no'}`)
 
 for (const step of steps) {
   const [command, commandArgs] = step.command
@@ -153,7 +175,7 @@ for (const step of steps) {
     cwd: step.cwd,
     stdio: 'inherit',
     shell: false,
-    windowsVerbatimArguments: process.platform === 'win32',
+    windowsVerbatimArguments: Boolean(runnable.windowsVerbatimArguments),
     env: buildChildEnv(),
   })
 
@@ -197,6 +219,17 @@ function buildChildEnv() {
 function toRunnableCommand(command, args) {
   if (process.platform !== 'win32' || command !== 'npm') {
     return { command, args }
+  }
+
+  const bundledNpmCli = path.join(
+    path.dirname(process.execPath),
+    'node_modules',
+    'npm',
+    'bin',
+    'npm-cli.js',
+  )
+  if (existsSync(bundledNpmCli)) {
+    return { command: process.execPath, args: [bundledNpmCli, ...args] }
   }
 
   const commandLine = ['npm', ...args].map(quoteCmdArg).join(' ')

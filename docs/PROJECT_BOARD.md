@@ -51,3 +51,21 @@ Naechste Project-Cards:
 - Canvas Inspector/Selection v2: Multi-Select, Inspector-Bearbeitung und reduzierte Node-Chrome-Dichte.
 - Notes Stabilitaet: Store/Persistence-Splitting, Import-Validation und Editor-Sidebar-Entlastung.
 - Bundle Performance: Monaco/Three weiter lazy-loaden und grosse Main-Chunks aufteilen.
+
+## Stand 2026-06-22 - Main/Mobile Release Gate + Canvas Inspector
+
+Abgearbeitet fuer Main/Mobile:
+
+- Release-Gate: `npm run release:main-mobile` prueft jetzt nur Main/Mobile relevante Gates plus `@nexus/core`.
+- Dependency-Security: Main/Mobile Audits ab `moderate` sind Teil des neuen Gates.
+- Canvas UX: Desktop Inspector fuer ausgewaehlte Nodes ist eingebunden und reduziert Bearbeitungsdruck im Node-Chrome.
+- Canvas Polish: Node-Typ-Badges erscheinen nur noch bei Hover/Auswahl, die Arbeitsflaeche wirkt ruhiger.
+- Files Responsiveness: Workspace-/Files-Layout bricht auf kleineren Fenstern besser um.
+- Release-Liste: `docs/MAIN_MOBILE_RELEASE_CHECKLIST.md` ist die neue operative Checkliste fuer Main/Mobile.
+
+Naechste Project-Cards:
+
+- Canvas Selection/History v2: Multi-Select, Gruppenbewegung, Undo/Redo und Snap-to-grid.
+- Mobile Canvas Inspector: Bottom-Sheet Inspector, Pinch Zoom und Touch-Gesten angleichen.
+- Settings Core Integration: Main/Mobile ModulePanels weiter reduzieren und gemeinsame Primitives aus `@nexus/core/settings` nutzen.
+- Notes Release Hardening: Store-Splitting, Import-Validation und Editor-Performance.
