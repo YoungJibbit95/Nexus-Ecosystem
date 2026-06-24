@@ -209,9 +209,18 @@ export function DashboardView({ setView }: { setView?: (v: string) => void }) {
     accent2: t.accent2,
   });
   const dashboardQuality = useMemo(() => {
-    const blockedTasks = tasks.filter((task) => String(task.status || '').toLowerCase().includes('block')).length;
+    const blockedTasks = tasks.filter((task) =>
+      String(task.status || "")
+        .toLowerCase()
+        .includes("block"),
+    ).length;
     return calculateNexusViewQuality({
-      totalItems: notes.length + tasks.length + codes.length + reminders.length + canvases.length,
+      totalItems:
+        notes.length +
+        tasks.length +
+        codes.length +
+        reminders.length +
+        canvases.length,
       visibleItems: visibleWidgets.length,
       overdueItems: overdueReminders,
       blockedItems: blockedTasks,
@@ -219,7 +228,19 @@ export function DashboardView({ setView }: { setView?: (v: string) => void }) {
       workspaceReady: Boolean(activeWorkspace || workspaceRoot),
       synced: Boolean(lastSyncLabel),
     });
-  }, [activeWorkspace, canvases.length, codes.length, hiddenWidgets.length, lastSyncLabel, notes.length, overdueReminders, reminders.length, tasks, visibleWidgets.length, workspaceRoot]);
+  }, [
+    activeWorkspace,
+    canvases.length,
+    codes.length,
+    hiddenWidgets.length,
+    lastSyncLabel,
+    notes.length,
+    overdueReminders,
+    reminders.length,
+    tasks,
+    visibleWidgets.length,
+    workspaceRoot,
+  ]);
 
   let widgetContent: Partial<Record<string, React.ReactNode>> = {};
   let widgetContentBuildError: string | null = null;
@@ -291,8 +312,7 @@ export function DashboardView({ setView }: { setView?: (v: string) => void }) {
           resetLayout={resetLayout}
         />
 
-
-        <div
+        {/*<div
           className="nx-view-quality-strip nx-dashboard-quality-strip"
           style={{
             display: "flex",
@@ -329,7 +349,7 @@ export function DashboardView({ setView }: { setView?: (v: string) => void }) {
               </button>
             ))}
           </div>
-        </div>
+        </div>*/}
         <DashboardWidgetGridSection
           gridRef={gridRef}
           visibleWidgets={visibleWidgets}

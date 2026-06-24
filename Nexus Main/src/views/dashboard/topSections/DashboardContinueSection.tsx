@@ -27,7 +27,7 @@ export function DashboardContinueSection({
       }}
       style={{ marginBottom: 10 }}
     >
-      <div
+      {/*<div
         style={{
           display: "grid",
           gridTemplateColumns: "minmax(0, 1fr) minmax(280px, 0.42fr)",
@@ -143,7 +143,7 @@ export function DashboardContinueSection({
         </Glass>
 
         <DashboardRuntimeHealthCard />
-      </div>
+      </div>*/}
     </motion.div>
   );
 }
