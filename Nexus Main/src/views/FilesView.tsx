@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { AnimatePresence } from "framer-motion";
 import {
   Download,
@@ -17,11 +23,7 @@ import { useTheme } from "../store/themeStore";
 import { useWorkspaces, type Workspace } from "../store/workspaceStore";
 import { hexToRgb } from "../lib/utils";
 import { InteractiveActionButton } from "../components/render/InteractiveActionButton";
-import {
-  AssignModal,
-  FileCard,
-  WorkspaceModal,
-} from "./files/FilesUiParts";
+import { AssignModal, FileCard, WorkspaceModal } from "./files/FilesUiParts";
 import type {
   FileItem,
   ItemType,
@@ -38,14 +40,26 @@ type FilesViewProps = {
 export function FilesView({ setView }: FilesViewProps = {}) {
   const t = useTheme();
   const rgb = hexToRgb(t.accent);
-  const { notes, codes, tasks, reminders, folders, openNote, setNote, openCode, setCode } = useApp();
+  const {
+    notes,
+    codes,
+    tasks,
+    reminders,
+    folders,
+    openNote,
+    setNote,
+    openCode,
+    setCode,
+  } = useApp();
   const { canvases, setActiveCanvas } = useCanvas();
   const { workspaces, activeWorkspaceId, setActive } = useWorkspaces();
 
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<"all" | ItemType>("all");
   const [smartView, setSmartView] = useState<SmartViewMode>("all");
-  const [folderFilter, setFolderFilter] = useState<"all" | "none" | string>("all");
+  const [folderFilter, setFolderFilter] = useState<"all" | "none" | string>(
+    "all",
+  );
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [tab, setTab] = useState<"all" | "workspaces">("all");
   const [newWsOpen, setNewWsOpen] = useState(false);
@@ -185,7 +199,9 @@ export function FilesView({ setView }: FilesViewProps = {}) {
     }
     if (smartView === "recent") {
       const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
-      items = items.filter((item) => new Date(item.updated).getTime() >= cutoff);
+      items = items.filter(
+        (item) => new Date(item.updated).getTime() >= cutoff,
+      );
     }
     if (smartView === "pinned") {
       items = items.filter((item) => item.pinned);
@@ -195,7 +211,16 @@ export function FilesView({ setView }: FilesViewProps = {}) {
     }
 
     return items;
-  }, [activeWs, allItems, folderFilter, isItemAssigned, search, smartView, tab, typeFilter]);
+  }, [
+    activeWs,
+    allItems,
+    folderFilter,
+    isItemAssigned,
+    search,
+    smartView,
+    tab,
+    typeFilter,
+  ]);
 
   const wsItemCount = (workspace: Workspace) =>
     workspace.noteIds.length +
@@ -226,18 +251,33 @@ export function FilesView({ setView }: FilesViewProps = {}) {
   const staleItemCount = useMemo(() => {
     const staleAfterMs = 30 * 24 * 60 * 60 * 1000;
     const nowMs = Date.now();
-    return allItems.filter((item) => nowMs - new Date(item.updated).getTime() > staleAfterMs).length;
+    return allItems.filter(
+      (item) => nowMs - new Date(item.updated).getTime() > staleAfterMs,
+    ).length;
   }, [allItems]);
 
-  const fileQuality = useMemo(() => calculateNexusViewQuality({
-    totalItems: allItems.length,
-    visibleItems: displayItems.length,
-    searchActive: Boolean(search.trim()),
-    filtersActive: activeFilterCount,
-    staleItems: staleItemCount,
-    synced: !syncing,
-    workspaceReady: Boolean(workspaceRoot) || !autoSync,
-  }), [activeFilterCount, allItems.length, autoSync, displayItems.length, search, staleItemCount, syncing, workspaceRoot]);
+  const fileQuality = useMemo(
+    () =>
+      calculateNexusViewQuality({
+        totalItems: allItems.length,
+        visibleItems: displayItems.length,
+        searchActive: Boolean(search.trim()),
+        filtersActive: activeFilterCount,
+        staleItems: staleItemCount,
+        synced: !syncing,
+        workspaceReady: Boolean(workspaceRoot) || !autoSync,
+      }),
+    [
+      activeFilterCount,
+      allItems.length,
+      autoSync,
+      displayItems.length,
+      search,
+      staleItemCount,
+      syncing,
+      workspaceRoot,
+    ],
+  );
 
   const resetFileFilters = useCallback(() => {
     setSearch("");
@@ -366,7 +406,15 @@ export function FilesView({ setView }: FilesViewProps = {}) {
   };
 
   return (
-    <div className="nx-files-v6 nx-release-view" style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
+    <div
+      className="nx-files-v6 nx-release-view"
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        height: "100%",
+        overflow: "hidden",
+      }}
+    >
       <div
         className="nx-files-header nx-release-toolbar"
         style={{
@@ -385,12 +433,21 @@ export function FilesView({ setView }: FilesViewProps = {}) {
           }}
         >
           <div>
-            <div style={{ fontSize: 16, fontWeight: 800 }}>Files & Workspaces</div>
+            <div style={{ fontSize: 16, fontWeight: 800 }}>
+              Files & Workspaces
+            </div>
             <div style={{ fontSize: 11, opacity: 0.55 }}>
               {allItems.length} Items · {workspaces.length} Workspaces
             </div>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              flexWrap: "wrap",
+            }}
+          >
             <InteractiveActionButton
               onClick={() => setNewWsOpen(true)}
               motionId="files-create-workspace"
@@ -433,7 +490,8 @@ export function FilesView({ setView }: FilesViewProps = {}) {
                   gap: 5,
                 }}
               >
-                <FolderOpen size={12} /> Workspace Flow <MoreHorizontal size={12} />
+                <FolderOpen size={12} /> Workspace Flow{" "}
+                <MoreHorizontal size={12} />
               </InteractiveActionButton>
               {headerMenuOpen ? (
                 <div
@@ -459,7 +517,20 @@ export function FilesView({ setView }: FilesViewProps = {}) {
                     motionId="files-workspace-select-root"
                     areaHint={76}
                     radius={8}
-                    style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", border: "none", borderRadius: 8, background: "transparent", color: "inherit", cursor: "pointer", fontSize: 12, fontWeight: 650 }}
+                    style={{
+                      width: "100%",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      padding: "8px 10px",
+                      border: "none",
+                      borderRadius: 8,
+                      background: "transparent",
+                      color: "inherit",
+                      cursor: "pointer",
+                      fontSize: 12,
+                      fontWeight: 650,
+                    }}
                   >
                     <FolderOpen size={12} /> Workspace Ordner waehlen
                   </InteractiveActionButton>
@@ -472,7 +543,22 @@ export function FilesView({ setView }: FilesViewProps = {}) {
                     motionId="files-workspace-import"
                     areaHint={76}
                     radius={8}
-                    style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", border: "none", borderRadius: 8, background: "transparent", color: "inherit", cursor: loadingWorkspace || syncing ? "not-allowed" : "pointer", opacity: loadingWorkspace || syncing ? 0.5 : 1, fontSize: 12, fontWeight: 650 }}
+                    style={{
+                      width: "100%",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      padding: "8px 10px",
+                      border: "none",
+                      borderRadius: 8,
+                      background: "transparent",
+                      color: "inherit",
+                      cursor:
+                        loadingWorkspace || syncing ? "not-allowed" : "pointer",
+                      opacity: loadingWorkspace || syncing ? 0.5 : 1,
+                      fontSize: 12,
+                      fontWeight: 650,
+                    }}
                   >
                     <Upload size={12} /> Import workspace
                   </InteractiveActionButton>
@@ -485,7 +571,22 @@ export function FilesView({ setView }: FilesViewProps = {}) {
                     motionId="files-workspace-export"
                     areaHint={76}
                     radius={8}
-                    style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", border: "none", borderRadius: 8, background: "transparent", color: "inherit", cursor: loadingWorkspace || syncing ? "not-allowed" : "pointer", opacity: loadingWorkspace || syncing ? 0.5 : 1, fontSize: 12, fontWeight: 650 }}
+                    style={{
+                      width: "100%",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      padding: "8px 10px",
+                      border: "none",
+                      borderRadius: 8,
+                      background: "transparent",
+                      color: "inherit",
+                      cursor:
+                        loadingWorkspace || syncing ? "not-allowed" : "pointer",
+                      opacity: loadingWorkspace || syncing ? 0.5 : 1,
+                      fontSize: 12,
+                      fontWeight: 650,
+                    }}
                   >
                     <Download size={12} /> Export workspace
                   </InteractiveActionButton>
@@ -495,7 +596,14 @@ export function FilesView({ setView }: FilesViewProps = {}) {
           </div>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            flexWrap: "wrap",
+          }}
+        >
           <span
             style={{
               padding: "3px 8px",
@@ -505,7 +613,8 @@ export function FilesView({ setView }: FilesViewProps = {}) {
               fontSize: 10,
             }}
           >
-            Workspace: {activeWs ? `${activeWs.icon} ${activeWs.name}` : "All Files"}
+            Workspace:{" "}
+            {activeWs ? `${activeWs.icon} ${activeWs.name}` : "All Files"}
           </span>
           <span
             style={{
@@ -527,7 +636,9 @@ export function FilesView({ setView }: FilesViewProps = {}) {
               padding: "4px 8px",
               borderRadius: 999,
               border: `1px solid ${autoSync ? `rgba(${rgb},0.34)` : "rgba(255,255,255,0.14)"}`,
-              background: autoSync ? `rgba(${rgb},0.12)` : "rgba(255,255,255,0.04)",
+              background: autoSync
+                ? `rgba(${rgb},0.12)`
+                : "rgba(255,255,255,0.04)",
               color: autoSync ? t.accent : "inherit",
               fontSize: 10,
               fontWeight: 700,
@@ -544,7 +655,10 @@ export function FilesView({ setView }: FilesViewProps = {}) {
         </div>
       </div>
 
-      <div className="nx-files-body" style={{ display: "flex", flex: 1, minHeight: 0, overflow: "hidden" }}>
+      <div
+        className="nx-files-body"
+        style={{ display: "flex", flex: 1, minHeight: 0, overflow: "hidden" }}
+      >
         <div
           className="nx-files-sidebar"
           style={{
@@ -568,9 +682,12 @@ export function FilesView({ setView }: FilesViewProps = {}) {
             }}
           >
             <div>
-              <div style={{ fontSize: 13, fontWeight: 800, marginBottom: 1 }}>Workspaces</div>
+              <div style={{ fontSize: 13, fontWeight: 800, marginBottom: 1 }}>
+                Workspaces
+              </div>
               <div style={{ fontSize: 10, opacity: 0.4 }}>
-                {workspaces.length} workspace{workspaces.length !== 1 ? "s" : ""}
+                {workspaces.length} workspace
+                {workspaces.length !== 1 ? "s" : ""}
               </div>
             </div>
           </div>
@@ -594,7 +711,9 @@ export function FilesView({ setView }: FilesViewProps = {}) {
                 padding: "9px 10px",
                 borderRadius: 10,
                 marginBottom: 4,
-                background: !activeWorkspaceId ? `rgba(${rgb},0.12)` : "transparent",
+                background: !activeWorkspaceId
+                  ? `rgba(${rgb},0.12)`
+                  : "transparent",
                 border: !activeWorkspaceId
                   ? `1px solid rgba(${rgb},0.2)`
                   : "1px solid transparent",
@@ -618,10 +737,18 @@ export function FilesView({ setView }: FilesViewProps = {}) {
                 🗂️
               </div>
               <div style={{ flex: 1, textAlign: "left" }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: !activeWorkspaceId ? t.accent : "inherit" }}>
+                <div
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 700,
+                    color: !activeWorkspaceId ? t.accent : "inherit",
+                  }}
+                >
                   All Files
                 </div>
-                <div style={{ fontSize: 10, opacity: 0.45 }}>{allItems.length} items</div>
+                <div style={{ fontSize: 10, opacity: 0.45 }}>
+                  {allItems.length} items
+                </div>
               </div>
             </InteractiveActionButton>
 
@@ -667,7 +794,10 @@ export function FilesView({ setView }: FilesViewProps = {}) {
                       width: "100%",
                       padding: "9px 10px",
                       borderRadius: 10,
-                      background: activeWorkspaceId === ws.id ? `${ws.color}18` : "transparent",
+                      background:
+                        activeWorkspaceId === ws.id
+                          ? `${ws.color}18`
+                          : "transparent",
                       border:
                         activeWorkspaceId === ws.id
                           ? `1px solid ${ws.color}44`
@@ -712,12 +842,15 @@ export function FilesView({ setView }: FilesViewProps = {}) {
                           overflow: "hidden",
                           textOverflow: "ellipsis",
                           whiteSpace: "nowrap",
-                          color: activeWorkspaceId === ws.id ? ws.color : "inherit",
+                          color:
+                            activeWorkspaceId === ws.id ? ws.color : "inherit",
                         }}
                       >
                         {ws.name}
                       </div>
-                      <div style={{ fontSize: 10, opacity: 0.45 }}>{wsItemCount(ws)} items</div>
+                      <div style={{ fontSize: 10, opacity: 0.45 }}>
+                        {wsItemCount(ws)} items
+                      </div>
                     </div>
                     <InteractiveActionButton
                       onClick={(event) => {
@@ -746,7 +879,16 @@ export function FilesView({ setView }: FilesViewProps = {}) {
           </div>
         </div>
 
-        <div className="nx-files-main" style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0 }}>
+        <div
+          className="nx-files-main"
+          style={{
+            flex: 1,
+            display: "flex",
+            flexDirection: "column",
+            overflow: "hidden",
+            minWidth: 0,
+          }}
+        >
           <div
             className="nx-files-stats-strip nx-release-strip"
             style={{
@@ -760,23 +902,48 @@ export function FilesView({ setView }: FilesViewProps = {}) {
             }}
           >
             {activeWs ? (
-              <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1 }}>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  flex: 1,
+                }}
+              >
                 <span style={{ fontSize: 20 }}>{activeWs.icon}</span>
                 <div>
-                  <div style={{ fontSize: 14, fontWeight: 800, color: activeWs.color }}>{activeWs.name}</div>
+                  <div
+                    style={{
+                      fontSize: 14,
+                      fontWeight: 800,
+                      color: activeWs.color,
+                    }}
+                  >
+                    {activeWs.name}
+                  </div>
                   {activeWs.description ? (
-                    <div style={{ fontSize: 11, opacity: 0.5 }}>{activeWs.description}</div>
+                    <div style={{ fontSize: 11, opacity: 0.5 }}>
+                      {activeWs.description}
+                    </div>
                   ) : null}
                 </div>
               </div>
             ) : (
-              <div style={{ fontSize: 14, fontWeight: 800, flex: 1 }}>All Files</div>
+              <div style={{ fontSize: 14, fontWeight: 800, flex: 1 }}>
+                All Files
+              </div>
             )}
 
             <div className="nx-files-search" style={{ position: "relative" }}>
               <Search
                 size={12}
-                style={{ position: "absolute", left: 9, top: "50%", transform: "translateY(-50%)", opacity: 0.4 }}
+                style={{
+                  position: "absolute",
+                  left: 9,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  opacity: 0.4,
+                }}
               />
               <input
                 ref={searchInputRef}
@@ -797,8 +964,18 @@ export function FilesView({ setView }: FilesViewProps = {}) {
               />
             </div>
 
-            <div className="nx-files-type-filter" style={{ display: "flex", background: "rgba(255,255,255,0.06)", borderRadius: 8, overflow: "hidden" }}>
-              {(["all", "note", "code", "task", "reminder", "canvas"] as const).map((filter) => (
+            <div
+              className="nx-files-type-filter"
+              style={{
+                display: "flex",
+                background: "rgba(255,255,255,0.06)",
+                borderRadius: 8,
+                overflow: "hidden",
+              }}
+            >
+              {(
+                ["all", "note", "code", "task", "reminder", "canvas"] as const
+              ).map((filter) => (
                 <InteractiveActionButton
                   key={filter}
                   onClick={() => setTypeFilter(filter)}
@@ -809,7 +986,8 @@ export function FilesView({ setView }: FilesViewProps = {}) {
                   radius={8}
                   style={{
                     padding: "5px 9px",
-                    background: typeFilter === filter ? t.accent : "transparent",
+                    background:
+                      typeFilter === filter ? t.accent : "transparent",
                     border: "none",
                     cursor: "pointer",
                     fontSize: 10,
@@ -849,7 +1027,15 @@ export function FilesView({ setView }: FilesViewProps = {}) {
               ))}
             </select>
 
-            <div className="nx-files-view-switcher" style={{ display: "flex", background: "rgba(255,255,255,0.06)", borderRadius: 8, overflow: "hidden" }}>
+            <div
+              className="nx-files-view-switcher"
+              style={{
+                display: "flex",
+                background: "rgba(255,255,255,0.06)",
+                borderRadius: 8,
+                overflow: "hidden",
+              }}
+            >
               <InteractiveActionButton
                 onClick={() => setViewMode("grid")}
                 motionId="files-view-mode-grid"
@@ -927,7 +1113,10 @@ export function FilesView({ setView }: FilesViewProps = {}) {
                   padding: "5px 9px",
                   borderRadius: 8,
                   border: `1px solid ${smartView === entry.id ? t.accent : "rgba(255,255,255,0.14)"}`,
-                  background: smartView === entry.id ? `rgba(${rgb},0.14)` : "rgba(255,255,255,0.06)",
+                  background:
+                    smartView === entry.id
+                      ? `rgba(${rgb},0.14)`
+                      : "rgba(255,255,255,0.06)",
                   color: smartView === entry.id ? t.accent : "inherit",
                   fontSize: 10,
                   fontWeight: 700,
@@ -957,10 +1146,27 @@ export function FilesView({ setView }: FilesViewProps = {}) {
               { label: "Reminders", val: reminders.length, color: "#FF453A" },
               { label: "Canvas", val: canvases.length, color: "#30D158" },
             ].map((entry) => (
-              <div key={entry.label} style={{ fontSize: 10, display: "flex", alignItems: "center", gap: 5 }}>
-                <div style={{ width: 6, height: 6, borderRadius: "50%", background: entry.color }} />
+              <div
+                key={entry.label}
+                style={{
+                  fontSize: 10,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 5,
+                }}
+              >
+                <div
+                  style={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: "50%",
+                    background: entry.color,
+                  }}
+                />
                 <span style={{ opacity: 0.5 }}>{entry.label}</span>
-                <span style={{ fontWeight: 700, color: entry.color }}>{entry.val}</span>
+                <span style={{ fontWeight: 700, color: entry.color }}>
+                  {entry.val}
+                </span>
               </div>
             ))}
             <div style={{ flex: 1 }} />
@@ -969,8 +1175,7 @@ export function FilesView({ setView }: FilesViewProps = {}) {
             </span>
           </div>
 
-
-          <div
+          {/*<div
             className="nx-view-quality-strip nx-files-quality-strip"
             style={{
               display: "flex",
@@ -1005,8 +1210,11 @@ export function FilesView({ setView }: FilesViewProps = {}) {
                 </button>
               ) : null}
             </div>
-          </div>
-          <div className="nx-files-content-grid" style={{ flex: 1, overflowY: "auto", padding: 12 }}>
+          </div>*/}
+          <div
+            className="nx-files-content-grid"
+            style={{ flex: 1, overflowY: "auto", padding: 12 }}
+          >
             {displayItems.length === 0 ? (
               <div
                 className="nx-release-empty"
@@ -1020,10 +1228,18 @@ export function FilesView({ setView }: FilesViewProps = {}) {
                   opacity: 0.4,
                 }}
               >
-                <Layers size={48} strokeWidth={1} style={{ color: t.accent, opacity: 0.4 }} />
+                <Layers
+                  size={48}
+                  strokeWidth={1}
+                  style={{ color: t.accent, opacity: 0.4 }}
+                />
                 <div style={{ textAlign: "center" }}>
-                  <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>
-                    {activeWs ? `No files in "${activeWs.name}"` : "No files yet"}
+                  <div
+                    style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}
+                  >
+                    {activeWs
+                      ? `No files in "${activeWs.name}"`
+                      : "No files yet"}
                   </div>
                   <div style={{ fontSize: 12, opacity: 0.6 }}>
                     {activeWs
@@ -1033,7 +1249,13 @@ export function FilesView({ setView }: FilesViewProps = {}) {
                 </div>
               </div>
             ) : viewMode === "grid" ? (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px,1fr))", gap: 10 }}>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fill, minmax(220px,1fr))",
+                  gap: 10,
+                }}
+              >
                 {displayItems.map((item) => (
                   <FileCard
                     key={item.id}
@@ -1064,9 +1286,23 @@ export function FilesView({ setView }: FilesViewProps = {}) {
       </div>
 
       <AnimatePresence>
-        {newWsOpen ? <WorkspaceModal key="new" onClose={() => setNewWsOpen(false)} /> : null}
-        {editWs ? <WorkspaceModal key={editWs.id} ws={editWs} onClose={() => setEditWs(null)} /> : null}
-        {assignItem ? <AssignModal key={assignItem.id} item={assignItem} onClose={() => setAssignItem(null)} /> : null}
+        {newWsOpen ? (
+          <WorkspaceModal key="new" onClose={() => setNewWsOpen(false)} />
+        ) : null}
+        {editWs ? (
+          <WorkspaceModal
+            key={editWs.id}
+            ws={editWs}
+            onClose={() => setEditWs(null)}
+          />
+        ) : null}
+        {assignItem ? (
+          <AssignModal
+            key={assignItem.id}
+            item={assignItem}
+            onClose={() => setAssignItem(null)}
+          />
+        ) : null}
       </AnimatePresence>
     </div>
   );
