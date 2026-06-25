@@ -63,50 +63,67 @@ const STEPS: WalkthroughStep[] = [
   {
     id: "hello",
     eyebrow: "Start",
-    title: "Willkommen in Nexus v6",
+    title: "Willkommen in Nexus",
     summary:
-      "Nexus ist dein lokaler Workspace fuer Denken, Planen, Schreiben, Strukturieren und Ausliefern. Dieser Rundgang zeigt dir die wichtigsten Orte, ohne Vorwissen vorauszusetzen.",
+      "Nexus ist dein persönlicher Workspace zum Denken, Planen, Schreiben und Strukturieren. Dieser Rundgang zeigt dir die wichtigsten Orte und erklärt dir, wie du am besten mit Nexus arbeiten kannst.",
     view: "dashboard",
     icon: Sparkles,
     accent: "#22d3ee",
     bullets: [
-      "Die App startet API-connected: Catalog, Layout und Release werden vor dem Workspace geladen.",
-      "Deine eigentlichen Arbeitsdaten bleiben lokal im Workspace und werden nicht durch den Walkthrough veraendert.",
-      "Du kannst spaeter jederzeit ueber Info oder Settings wieder hierher zurueckkommen.",
+      "Die App startet API-connected: Somit können wir feststellen, welche Tier dein Account verwenden darf. Zudem ist dies nötig um spätere Cloud-Connections zu ermöglichen.",
+      "Deine eigentlichen Arbeitsdaten und Dateien bleiben jedoch lokal im Workspace.",
+      "Du kannst später jederzeit über die Info-View oder Settings wieder hierher zurückkommen.",
     ],
     cards: [
-      { title: "Erst orientieren", body: "Dashboard und Info zeigen dir, wo du bist und was gerade wichtig ist." },
-      { title: "Dann arbeiten", body: "Notes, Tasks, Reminders, Files und Canvas sind die taeglichen Hauptflaechen." },
-      { title: "Dann verfeinern", body: "Settings, Flux, Code und DevTools helfen beim Polieren, Automatisieren und Releasen." },
+      {
+        title: "Erst orientieren",
+        body: "Dashboard und Info zeigen dir, wo du bist und was gerade wichtig ist.",
+      },
+      {
+        title: "Dann arbeiten",
+        body: "Notes, Tasks, Reminders und Dateien sind die täglichen Hauptflächen.",
+      },
+      {
+        title: "Dann verfeinern",
+        body: "Settings zum einstellen von Themes und Layouts, Flux, Code und DevTools helfen beim Polieren, Automatisieren und Releasen. Letztere sind jedoch nicht im Free-Modell enthalten.",
+      },
     ],
   },
   {
     id: "account",
     eyebrow: "Account",
-    title: "Website-Account und App-Login",
+    title: "Account und App-Login",
     summary:
-      "Du kannst deinen Account auf nexusproject.dev erstellen und dich mit denselben Daten in Nexus Main anmelden. Die Website ist fuer Account-Verwaltung, Abos, Lizenzen und Downloads gedacht.",
+      "Du kannst deinen Account auf nexusproject.dev erstellen und dich mit denselben Daten in Nexus anmelden. Die Website ist für Account-Verwaltung, Abos, Lizenzen und Downloads gedacht. Infos zum Projekt findest du dort auch.",
     view: "settings",
     icon: ShieldCheck,
     accent: "#34d399",
     externalHref: "https://nexusproject.dev/?page=account",
-    externalLabel: "Account-Seite oeffnen",
+    externalLabel: "Account-Seite öffnen",
     bullets: [
       "Auf der Website erstellst du deinen Account, verwaltest Abo, Lizenz und Tier.",
       "In der App meldest du dich mit demselben Account an, damit der API-Bootflow freigegeben wird.",
-      "\"Angemeldet bleiben\" speichert nur den API-Session-Token auf diesem Geraet, niemals dein Passwort.",
-      "Admin- und Rollenrechte kommen aus der Control Plane. Niemand wird durch Registrierung automatisch Admin.",
+      '"Angemeldet bleiben" speichert nur den API-Session-Token auf diesem Gerät, niemals dein Passwort.',
     ],
     cards: [
-      { title: "Free", body: "Dashboard, Notes, Tasks, Reminders und Files als Basis-Workspace." },
-      { title: "Pro / Lifetime", body: "Canvas, Code, DevTools und Mobile Access fuer groessere Workflows." },
-      { title: "Lifetime Pro", body: "Erweiterte Pro-Flaechen inklusive Flux und kuenftige Premium-Systeme." },
+      {
+        title: "Free",
+        body: "Dashboard, Notes, Tasks, Reminders und Files als Basis-Workspace.",
+      },
+      {
+        title: "Pro / Lifetime",
+        body: "Canvas, Code, DevTools und Mobile Access fuer grössere Workflows.",
+      },
+      {
+        title: "Lifetime Pro",
+        body: "Erweiterte Pro-Flächen inklusive Flux und künftige Systeme wie zb. Clouds für Unternehmen.",
+      },
     ],
   },
   {
     id: "setup",
     eyebrow: "Setup",
-    title: "Dein gefuehrter Startlauf",
+    title: "Dann fangen wir mal an...",
     summary:
       "Wenn du diese Checkliste einmal durchgehst, hast du Account, Workspace, erste Daten und die wichtigsten Views praktisch beruehrt. Du musst nicht alles sofort erledigen: Nexus merkt sich deinen Fortschritt lokal auf diesem Geraet.",
     view: "dashboard",
@@ -118,71 +135,89 @@ const STEPS: WalkthroughStep[] = [
       "Die Checkliste speichert nur erledigt/nicht erledigt, keine Account- oder Workspace-Daten.",
     ],
     cards: [
-      { title: "Schnellstart", body: "Account, Workspace, erste Note, erste Task und erste Canvas-Node reichen fuer einen guten Start." },
-      { title: "Template Packs", body: "Info bietet Starter Kits fuer Notes, Task Boards, Canvas Layouts, Code Snippets und Flux Workflows." },
-      { title: "Spaeter fortsetzen", body: "Du kannst den Walkthrough erneut oeffnen und offene Punkte nachholen." },
+      {
+        title: "Schnellstart",
+        body: "Account, Workspace, erste Note, erste Task und erste Canvas-Node reichen fuer einen guten Start.",
+      },
+      {
+        title: "Template Packs",
+        body: "Info bietet Starter Kits fuer Notes, Task Boards, Canvas Layouts, Code Snippets und Flux Workflows.",
+      },
+      {
+        title: "Spaeter fortsetzen",
+        body: "Du kannst den Walkthrough erneut oeffnen und offene Punkte nachholen.",
+      },
     ],
     setupTasks: [
       {
         id: "account-page",
         title: "Account auf der Website erstellen oder pruefen",
-        detail: "Oeffne nexusproject.dev, erstelle deinen Account und merke dir, welches Tier freigeschaltet ist.",
+        detail:
+          "Oeffne nexusproject.dev, erstelle deinen Account und merke dir, welches Tier freigeschaltet ist.",
         externalHref: "https://nexusproject.dev/?page=account",
         actionLabel: "Website",
       },
       {
         id: "app-login",
         title: "In der App anmelden und Remember-Me bewusst setzen",
-        detail: "Nutze denselben Account in Nexus Main. Remember-Me speichert nur den Session-Token, nicht dein Passwort.",
+        detail:
+          "Nutze denselben Account in Nexus Main. Remember-Me speichert nur den Session-Token, nicht dein Passwort.",
         view: "settings",
         actionLabel: "Login/Settings",
       },
       {
         id: "workspace-folder",
         title: "Workspace-Ordner festlegen",
-        detail: "Lege in Files einen nachvollziehbaren Ordner fuer Exporte, Assets und Projektdateien fest.",
+        detail:
+          "Lege in Files einen nachvollziehbaren Ordner fuer Exporte, Assets und Projektdateien fest.",
         view: "files",
         actionLabel: "Files",
       },
       {
         id: "import-data",
         title: "Vorhandene Daten optional importieren",
-        detail: "Wenn du schon Markdown, Projektdateien oder Exporte hast, importiere sie erst nach dem Workspace-Ordner.",
+        detail:
+          "Wenn du schon Markdown, Projektdateien oder Exporte hast, importiere sie erst nach dem Workspace-Ordner.",
         view: "files",
         actionLabel: "Import",
       },
       {
         id: "first-note",
         title: "Erste Projekt-Note schreiben",
-        detail: "Erstelle eine kleine Startnotiz mit Ziel, naechstem Schritt und einem Link wie [[Projekt Hub]].",
+        detail:
+          "Erstelle eine kleine Startnotiz mit Ziel, naechstem Schritt und einem Link wie [[Projekt Hub]].",
         view: "notes",
         actionLabel: "Notes",
       },
       {
         id: "first-task",
         title: "Eine Task und einen Reminder anlegen",
-        detail: "Mache aus der Startnotiz eine konkrete Aufgabe und haenge bei Bedarf eine Erinnerung dran.",
+        detail:
+          "Mache aus der Startnotiz eine konkrete Aufgabe und haenge bei Bedarf eine Erinnerung dran.",
         view: "tasks",
         actionLabel: "Tasks",
       },
       {
         id: "first-canvas",
         title: "Canvas-Hub fuer das Projekt erstellen",
-        detail: "Baue eine Hub-Node und haenge Goal, Risk, Decision oder Task Nodes daran.",
+        detail:
+          "Baue eine Hub-Node und haenge Goal, Risk, Decision oder Task Nodes daran.",
         view: "canvas",
         actionLabel: "Canvas",
       },
       {
         id: "template-pack",
         title: "Ein Template Pack als Startpunkt kopieren",
-        detail: "Oeffne Info -> Template Packs und kopiere ein Pack fuer Note, Board, Canvas, Code oder Flux.",
+        detail:
+          "Oeffne Info -> Template Packs und kopiere ein Pack fuer Note, Board, Canvas, Code oder Flux.",
         view: "info",
         actionLabel: "Templates",
       },
       {
         id: "info-guide",
         title: "InfoView als Handbuch merken",
-        detail: "Oeffne Info, wenn du spaeter View-Guides, Shortcuts oder Release-Hinweise suchst.",
+        detail:
+          "Oeffne Info, wenn du spaeter View-Guides, Shortcuts oder Release-Hinweise suchst.",
         view: "info",
         actionLabel: "Info",
       },
@@ -203,8 +238,14 @@ const STEPS: WalkthroughStep[] = [
       "Der Layout Editor laesst dich Widgets verschieben, tauschen und ausblenden.",
     ],
     cards: [
-      { title: "Wenn du neu bist", body: "Starte hier, pruefe offene Tasks und erstelle eine erste Notiz oder Aufgabe." },
-      { title: "Wenn du wiederkommst", body: "Nutze Continue, statt dich durch alle Views zu klicken." },
+      {
+        title: "Wenn du neu bist",
+        body: "Starte hier, pruefe offene Tasks und erstelle eine erste Notiz oder Aufgabe.",
+      },
+      {
+        title: "Wenn du wiederkommst",
+        body: "Nutze Continue, statt dich durch alle Views zu klicken.",
+      },
     ],
     keybinds: ["Quick Capture", "Layout bearbeiten", "Continue"],
   },
@@ -223,8 +264,14 @@ const STEPS: WalkthroughStep[] = [
       "Der Emoji Picker und Blocks/Magic-Menue sind fuer schnellere, schoenere Dokumente gedacht.",
     ],
     cards: [
-      { title: "Starter-Readmes", body: "Willkommen, View Guide, Canvas Guide, Ops Guide und Markdown Showcase sind direkt enthalten." },
-      { title: "Verlinkung", body: "Mit [[Wiki Links]] kannst du Notes und Canvas-Strukturen gedanklich verbinden." },
+      {
+        title: "Starter-Readmes",
+        body: "Willkommen, View Guide, Canvas Guide, Ops Guide und Markdown Showcase sind direkt enthalten.",
+      },
+      {
+        title: "Verlinkung",
+        body: "Mit [[Wiki Links]] kannst du Notes und Canvas-Strukturen gedanklich verbinden.",
+      },
     ],
     keybinds: ["Ctrl/Cmd + S", "Ctrl/Cmd + B", "Ctrl/Cmd + K"],
   },
@@ -243,8 +290,14 @@ const STEPS: WalkthroughStep[] = [
       "Tipp: Starte mit dem Markdown Showcase in Notes und kopiere dir gute Blocks in eigene Projekt-Notizen.",
     ],
     cards: [
-      { title: "Fuer Planung", body: "Kanban, Steps und Checklists machen aus Rohtext klare naechste Schritte." },
-      { title: "Fuer Review", body: "Metrics, Progress und Callouts zeigen Status, Risiken und Entscheidungen auf einen Blick." },
+      {
+        title: "Fuer Planung",
+        body: "Kanban, Steps und Checklists machen aus Rohtext klare naechste Schritte.",
+      },
+      {
+        title: "Fuer Review",
+        body: "Metrics, Progress und Callouts zeigen Status, Risiken und Entscheidungen auf einen Blick.",
+      },
     ],
     markdownExample: [
       "```nexus-checklist",
@@ -269,8 +322,14 @@ const STEPS: WalkthroughStep[] = [
       "Tasks, Reminders und Notes koennen miteinander verknuepft werden.",
     ],
     cards: [
-      { title: "Anfaenger-Workflow", body: "Schreibe eine Idee in Notes, mache daraus eine Task, haenge bei Bedarf einen Reminder dran." },
-      { title: "Saubere Triage", body: "Blocked, Deadline, Priority und Tags zeigen dir, was wirklich Aufmerksamkeit braucht." },
+      {
+        title: "Anfaenger-Workflow",
+        body: "Schreibe eine Idee in Notes, mache daraus eine Task, haenge bei Bedarf einen Reminder dran.",
+      },
+      {
+        title: "Saubere Triage",
+        body: "Blocked, Deadline, Priority und Tags zeigen dir, was wirklich Aufmerksamkeit braucht.",
+      },
     ],
     keybinds: ["Neue Task", "Snooze", "Batch Mode"],
   },
@@ -289,8 +348,14 @@ const STEPS: WalkthroughStep[] = [
       "Import/Export bleibt manuell moeglich, Auto-Sync kann spaeter dazukommen.",
     ],
     cards: [
-      { title: "Empfohlen", body: "Erstelle einen Ordner wie Nexus Workspace und nutze ihn fuer Notes, Code, Assets und Exporte." },
-      { title: "Sicher", body: "Der Walkthrough aendert keine Dateien. Du entscheidest selbst, welchen Ordner Nexus nutzt." },
+      {
+        title: "Empfohlen",
+        body: "Erstelle einen Ordner wie Nexus Workspace und nutze ihn fuer Notes, Code, Assets und Exporte.",
+      },
+      {
+        title: "Sicher",
+        body: "Der Walkthrough aendert keine Dateien. Du entscheidest selbst, welchen Ordner Nexus nutzt.",
+      },
     ],
   },
   {
@@ -308,8 +373,14 @@ const STEPS: WalkthroughStep[] = [
       "Magic Templates erzeugen Meeting Hubs, Delivery Maps und Projekt-Strukturen schneller.",
     ],
     cards: [
-      { title: "Guter Start", body: "Baue eine Hub-Node, dann Goal, Risk, Decision und Task-Nodes drumherum." },
-      { title: "Obsidian-Gefuehl", body: "[[Wiki Links]] helfen, Notes und Nodes logisch zu verbinden." },
+      {
+        title: "Guter Start",
+        body: "Baue eine Hub-Node, dann Goal, Risk, Decision und Task-Nodes drumherum.",
+      },
+      {
+        title: "Obsidian-Gefuehl",
+        body: "[[Wiki Links]] helfen, Notes und Nodes logisch zu verbinden.",
+      },
     ],
     keybinds: ["Ctrl/Cmd + P", "Ctrl/Cmd + M", "F", "G"],
   },
@@ -328,8 +399,14 @@ const STEPS: WalkthroughStep[] = [
       "Flux markiert laufende Tasks nicht heimlich Done. Kritische Statuswechsel bleiben bewusst.",
     ],
     cards: [
-      { title: "Wann nutzen?", body: "Wenn viele offene Dinge da sind und du nicht weisst, womit du anfangen sollst." },
-      { title: "Release-tauglich", body: "Triage hilft, aber macht keine unsichtbaren Veraenderungen an laufender Arbeit." },
+      {
+        title: "Wann nutzen?",
+        body: "Wenn viele offene Dinge da sind und du nicht weisst, womit du anfangen sollst.",
+      },
+      {
+        title: "Release-tauglich",
+        body: "Triage hilft, aber macht keine unsichtbaren Veraenderungen an laufender Arbeit.",
+      },
     ],
   },
   {
@@ -347,8 +424,14 @@ const STEPS: WalkthroughStep[] = [
       "Je nach Tier oder API-Freigabe koennen diese Views gesperrt sein.",
     ],
     cards: [
-      { title: "Prototyping", body: "Nutze Code fuer kleine Tests, bevor du daraus echte Projektdateien machst." },
-      { title: "Admin/Dev Kontext", body: "DevTools bleibt bewusst getrennt von normalen Arbeitsviews." },
+      {
+        title: "Prototyping",
+        body: "Nutze Code fuer kleine Tests, bevor du daraus echte Projektdateien machst.",
+      },
+      {
+        title: "Admin/Dev Kontext",
+        body: "DevTools bleibt bewusst getrennt von normalen Arbeitsviews.",
+      },
     ],
     keybinds: ["Run", "Preview", "Output"],
   },
@@ -367,8 +450,14 @@ const STEPS: WalkthroughStep[] = [
       "Info enthaelt Guides pro View, Architektur, Release-Hinweise und Troubleshooting.",
     ],
     cards: [
-      { title: "Wenn etwas komisch aussieht", body: "Pruefe Panel Background, App Background, Glow und Motion Profile in Settings." },
-      { title: "Wenn du etwas suchst", body: "Info ist der Ort fuer View-Guides, Features und die groesseren Nexus-Konzepte." },
+      {
+        title: "Wenn etwas komisch aussieht",
+        body: "Pruefe Panel Background, App Background, Glow und Motion Profile in Settings.",
+      },
+      {
+        title: "Wenn du etwas suchst",
+        body: "Info ist der Ort fuer View-Guides, Features und die groesseren Nexus-Konzepte.",
+      },
     ],
   },
   {
@@ -387,8 +476,14 @@ const STEPS: WalkthroughStep[] = [
       "Release Gates pruefen Build, Encoding, Ecosystem-Vertraege und Installer-Ziele.",
     ],
     cards: [
-      { title: "Merksatz", body: "Notes sammelt Wissen, Tasks bewegt Arbeit, Canvas zeigt Struktur, Flux entscheidet Fokus." },
-      { title: "Guter erster Test", body: "Login, Dashboard, Note, Task, Reminder, Canvas-Node und Files-Workspace einmal durchgehen." },
+      {
+        title: "Merksatz",
+        body: "Notes sammelt Wissen, Tasks bewegt Arbeit, Canvas zeigt Struktur, Flux entscheidet Fokus.",
+      },
+      {
+        title: "Guter erster Test",
+        body: "Login, Dashboard, Note, Task, Reminder, Canvas-Node und Files-Workspace einmal durchgehen.",
+      },
     ],
   },
   {
@@ -409,19 +504,32 @@ const STEPS: WalkthroughStep[] = [
       "6. Info offen lassen, wenn du spaeter etwas nachschlagen willst.",
     ],
     cards: [
-      { title: "Keine Angst vor Settings", body: "Du kannst spaeter alles optisch anpassen, ohne deine Arbeitsdaten zu resetten." },
-      { title: "Guides bleiben da", body: "Die Starter-Readmes in Notes und die InfoView wachsen mit Nexus weiter." },
+      {
+        title: "Keine Angst vor Settings",
+        body: "Du kannst spaeter alles optisch anpassen, ohne deine Arbeitsdaten zu resetten.",
+      },
+      {
+        title: "Guides bleiben da",
+        body: "Die Starter-Readmes in Notes und die InfoView wachsen mit Nexus weiter.",
+      },
     ],
   },
 ];
 
-const clampStepIndex = (index: number) => Math.max(0, Math.min(STEPS.length - 1, index));
+const clampStepIndex = (index: number) =>
+  Math.max(0, Math.min(STEPS.length - 1, index));
 
 const readSetupTaskIds = () => {
   if (typeof window === "undefined") return new Set<string>();
   try {
-    const parsed = JSON.parse(window.localStorage.getItem(WALKTHROUGH_SETUP_STORAGE_KEY) || "[]");
-    return new Set<string>(Array.isArray(parsed) ? parsed.filter((item) => typeof item === "string") : []);
+    const parsed = JSON.parse(
+      window.localStorage.getItem(WALKTHROUGH_SETUP_STORAGE_KEY) || "[]",
+    );
+    return new Set<string>(
+      Array.isArray(parsed)
+        ? parsed.filter((item) => typeof item === "string")
+        : [],
+    );
   } catch {
     return new Set<string>();
   }
@@ -430,7 +538,10 @@ const readSetupTaskIds = () => {
 const writeSetupTaskIds = (ids: Set<string>) => {
   if (typeof window === "undefined") return;
   try {
-    window.localStorage.setItem(WALKTHROUGH_SETUP_STORAGE_KEY, JSON.stringify([...ids]));
+    window.localStorage.setItem(
+      WALKTHROUGH_SETUP_STORAGE_KEY,
+      JSON.stringify([...ids]),
+    );
   } catch {
     // Onboarding progress is a local convenience, not a critical dependency.
   }
@@ -452,11 +563,18 @@ export function WelcomeWalkthrough({
   const [setupTaskIds, setSetupTaskIds] = useState(() => readSetupTaskIds());
   const step = useMemo(() => STEPS[clampStepIndex(index)], [index]);
   const availableSet = useMemo(() => new Set(availableViews), [availableViews]);
-  const canOpenStepView = Boolean(step.view && (availableViews.length === 0 || availableSet.has(step.view)));
+  const canOpenStepView = Boolean(
+    step.view && (availableViews.length === 0 || availableSet.has(step.view)),
+  );
   const Icon = step.icon;
   const setupTasks = step.setupTasks || [];
-  const setupDoneCount = setupTasks.filter((task) => setupTaskIds.has(task.id)).length;
-  const setupPercent = setupTasks.length > 0 ? Math.round((setupDoneCount / setupTasks.length) * 100) : 0;
+  const setupDoneCount = setupTasks.filter((task) =>
+    setupTaskIds.has(task.id),
+  ).length;
+  const setupPercent =
+    setupTasks.length > 0
+      ? Math.round((setupDoneCount / setupTasks.length) * 100)
+      : 0;
 
   useEffect(() => {
     if (open) setIndex(0);
@@ -507,20 +625,32 @@ export function WelcomeWalkthrough({
             </div>
             <div>
               <div className="nx-walkthrough-kicker">Nexus v6 Erststart</div>
-              <div className="nx-walkthrough-title">Kompletter Workspace-Walkthrough</div>
+              <div className="nx-walkthrough-title">
+                Kompletter Workspace-Walkthrough
+              </div>
             </div>
           </div>
 
-          <button className="nx-walkthrough-close" type="button" onClick={onClose} aria-label="Walkthrough schliessen">
+          <button
+            className="nx-walkthrough-close"
+            type="button"
+            onClick={onClose}
+            aria-label="Walkthrough schliessen"
+          >
             <X size={15} />
           </button>
         </div>
 
         <div className="nx-walkthrough-shell">
-          <aside className="nx-walkthrough-rail" aria-label="Walkthrough Kapitel">
+          <aside
+            className="nx-walkthrough-rail"
+            aria-label="Walkthrough Kapitel"
+          >
             <div className="nx-walkthrough-rail-note">
               <BookOpen size={15} />
-              <span>Fuehrt dich einmal durch Account, Views, Markdown und Systeme.</span>
+              <span>
+                Fuehrt dich einmal durch Account, Views, Markdown und Systeme.
+              </span>
             </div>
             <div className="nx-walkthrough-step-list">
               {STEPS.map((item, itemIndex) => {
@@ -581,7 +711,9 @@ export function WelcomeWalkthrough({
 
                 <div className="nx-walkthrough-grid">
                   <div className="nx-walkthrough-panel nx-walkthrough-panel-main">
-                    <div className="nx-walkthrough-panel-label">Was du wissen solltest</div>
+                    <div className="nx-walkthrough-panel-label">
+                      Was du wissen solltest
+                    </div>
                     <ul>
                       {step.bullets.map((bullet) => (
                         <li key={bullet}>
@@ -594,7 +726,10 @@ export function WelcomeWalkthrough({
 
                   <div className="nx-walkthrough-card-stack">
                     {step.cards.map((card) => (
-                      <div className="nx-walkthrough-mini-card" key={card.title}>
+                      <div
+                        className="nx-walkthrough-mini-card"
+                        key={card.title}
+                      >
                         <strong>{card.title}</strong>
                         <span>{card.body}</span>
                       </div>
@@ -616,23 +751,43 @@ export function WelcomeWalkthrough({
                   <div className="nx-walkthrough-setup-card">
                     <div className="nx-walkthrough-setup-head">
                       <div>
-                        <div className="nx-walkthrough-panel-label">Start-Checkliste</div>
-                        <strong>{setupDoneCount}/{setupTasks.length} erledigt</strong>
-                        <span>{setupPercent}% deines Erststarts sind vorbereitet.</span>
+                        <div className="nx-walkthrough-panel-label">
+                          Start-Checkliste
+                        </div>
+                        <strong>
+                          {setupDoneCount}/{setupTasks.length} erledigt
+                        </strong>
+                        <span>
+                          {setupPercent}% deines Erststarts sind vorbereitet.
+                        </span>
                       </div>
-                      <button type="button" className="nx-walkthrough-secondary-action" onClick={resetSetupTasks}>
+                      <button
+                        type="button"
+                        className="nx-walkthrough-secondary-action"
+                        onClick={resetSetupTasks}
+                      >
                         Zuruecksetzen
                       </button>
                     </div>
-                    <div className="nx-walkthrough-setup-progress" aria-hidden="true">
+                    <div
+                      className="nx-walkthrough-setup-progress"
+                      aria-hidden="true"
+                    >
                       <span style={{ width: `${setupPercent}%` }} />
                     </div>
                     <div className="nx-walkthrough-setup-list">
                       {setupTasks.map((task) => {
                         const done = setupTaskIds.has(task.id);
-                        const taskViewAvailable = Boolean(task.view && (availableViews.length === 0 || availableSet.has(task.view)));
+                        const taskViewAvailable = Boolean(
+                          task.view &&
+                          (availableViews.length === 0 ||
+                            availableSet.has(task.view)),
+                        );
                         return (
-                          <div className={`nx-walkthrough-setup-item${done ? " is-done" : ""}`} key={task.id}>
+                          <div
+                            className={`nx-walkthrough-setup-item${done ? " is-done" : ""}`}
+                            key={task.id}
+                          >
                             <button
                               type="button"
                               className="nx-walkthrough-setup-check"
@@ -664,7 +819,8 @@ export function WelcomeWalkthrough({
                                   className="nx-walkthrough-secondary-action"
                                   disabled={!taskViewAvailable}
                                   onClick={() => {
-                                    if (task.view && taskViewAvailable) onOpenView(task.view);
+                                    if (task.view && taskViewAvailable)
+                                      onOpenView(task.view);
                                     toggleSetupTask(task.id, true);
                                   }}
                                 >
@@ -688,8 +844,12 @@ export function WelcomeWalkthrough({
                       </span>
                     ))}
                     {step.view ? (
-                      <span className={`nx-walkthrough-chip${canOpenStepView ? "" : " is-muted"}`}>
-                        {canOpenStepView ? `View: ${step.view}` : `View gesperrt/nicht geladen: ${step.view}`}
+                      <span
+                        className={`nx-walkthrough-chip${canOpenStepView ? "" : " is-muted"}`}
+                      >
+                        {canOpenStepView
+                          ? `View: ${step.view}`
+                          : `View gesperrt/nicht geladen: ${step.view}`}
                       </span>
                     ) : null}
                   </div>
@@ -712,7 +872,8 @@ export function WelcomeWalkthrough({
                         className="nx-walkthrough-secondary-action"
                         disabled={!canOpenStepView}
                         onClick={() => {
-                          if (step.view && canOpenStepView) onOpenView(step.view);
+                          if (step.view && canOpenStepView)
+                            onOpenView(step.view);
                         }}
                       >
                         <FolderOpen size={13} />
@@ -738,8 +899,12 @@ export function WelcomeWalkthrough({
           </button>
 
           <div className="nx-walkthrough-footer-center">
-            <span>{Math.round(((index + 1) / STEPS.length) * 100)}% gelesen</span>
-            <span>Du kannst den Guide spaeter in Info oder Settings erneut oeffnen.</span>
+            <span>
+              {Math.round(((index + 1) / STEPS.length) * 100)}% gelesen
+            </span>
+            <span>
+              Du kannst den Guide spaeter in Info oder Settings erneut oeffnen.
+            </span>
           </div>
 
           {index < STEPS.length - 1 ? (
@@ -752,7 +917,11 @@ export function WelcomeWalkthrough({
               <ArrowRight size={14} />
             </button>
           ) : (
-            <button type="button" className="nx-walkthrough-primary-action" onClick={onClose}>
+            <button
+              type="button"
+              className="nx-walkthrough-primary-action"
+              onClick={onClose}
+            >
               Fertig starten
               <CheckCircle2 size={14} />
             </button>
