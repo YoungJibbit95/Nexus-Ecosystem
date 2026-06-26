@@ -1789,10 +1789,7 @@ export function NotesView() {
           style={{ minHeight: 0, overflow: "visible" }}
         >
           {/* Header bar */}
-          <Glass
-            className="nx-notes-editor-header flex items-center gap-2 px-3 py-2 shrink-0"
-            style={{ paddingTop: "30px" }}
-          >
+          <Glass className="nx-notes-editor-header flex items-center gap-2 px-3 py-2 shrink-0">
             <input
               className="nx-notes-title-input flex-1 bg-transparent outline-none font-semibold"
               style={{ fontSize: 14, minWidth: 0 }}
