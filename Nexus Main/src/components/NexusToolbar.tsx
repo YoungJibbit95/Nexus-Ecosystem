@@ -41,6 +41,7 @@ export function NexusToolbar({
     spotlightAnchorX,
     activeToolbarView,
     pendingTasks,
+    doneTasks,
     overdueReminders,
     timeStr,
     islandCompact,
@@ -90,6 +91,7 @@ export function NexusToolbar({
         t={t}
         rgb={rgb}
         pendingTasks={pendingTasks}
+        doneTasks={doneTasks}
         overdueReminders={overdueReminders}
         timeStr={timeStr}
         terminal={terminal}
@@ -112,6 +114,7 @@ export function NexusToolbar({
         t={t}
         rgb={rgb}
         pendingTasks={pendingTasks}
+        doneTasks={doneTasks}
         overdueReminders={overdueReminders}
         timeStr={timeStr}
         terminal={terminal}
@@ -132,6 +135,7 @@ export function NexusToolbar({
       t={t}
       rgb={rgb}
       pendingTasks={pendingTasks}
+      doneTasks={doneTasks}
       overdueReminders={overdueReminders}
       timeStr={timeStr}
       terminal={terminal}

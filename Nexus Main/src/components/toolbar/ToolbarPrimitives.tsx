@@ -203,6 +203,7 @@ export function SpotlightToolbarBrand({
 export function ToolbarStatusCluster({
   t,
   pendingTasks,
+  doneTasks,
   overdueReminders,
   timeStr,
   compact,
@@ -211,6 +212,7 @@ export function ToolbarStatusCluster({
 }: {
   t: ToolbarTheme;
   pendingTasks: number;
+  doneTasks: number;
   overdueReminders: number;
   timeStr: string;
   compact?: boolean;
@@ -230,6 +232,11 @@ export function ToolbarStatusCluster({
         label={compact ? "T" : "Tasks"}
         value={pendingTasks}
         color={pendingTasks > 0 ? "#ff9f0a" : undefined}
+      />
+      <ToolbarStatusPill
+        label={compact ? "✓" : "Done"}
+        value={doneTasks}
+        color={doneTasks > 0 ? "#30d158" : undefined}
       />
       <ToolbarStatusPill
         label={compact ? "D" : "Due"}

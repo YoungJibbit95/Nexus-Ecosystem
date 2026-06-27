@@ -27,6 +27,7 @@ type SharedLayoutProps = {
   t: ToolbarTheme;
   rgb: string;
   pendingTasks: number;
+  doneTasks: number;
   overdueReminders: number;
   timeStr: string;
   terminal: TerminalState;
@@ -76,6 +77,7 @@ export function FullWidthToolbarLayout(props: SharedLayoutProps) {
     t,
     rgb,
     pendingTasks,
+    doneTasks,
     overdueReminders,
     timeStr,
     terminal,
@@ -255,7 +257,18 @@ export function FullWidthToolbarLayout(props: SharedLayoutProps) {
                   whiteSpace: "nowrap",
                 }}
               >
-                {statusCompact ? `T ${pendingTasks}` : `Tasks ${pendingTasks}`}
+                {statusCompact ? `T ${pendingTasks}` : `Offen ${pendingTasks}`}
+              </span>
+              <span
+                style={{
+                  fontSize: statusCompact ? 10 : 11,
+                  fontWeight: 800,
+                  color: doneTasks > 0 ? "#30d158" : "inherit",
+                  opacity: doneTasks > 0 ? 1 : 0.52,
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {statusCompact ? `✓ ${doneTasks}` : `Done ${doneTasks}`}
               </span>
               <span
                 style={{
@@ -347,6 +360,7 @@ export function IslandToolbarLayout(props: IslandToolbarLayoutProps) {
     t,
     rgb,
     pendingTasks,
+    doneTasks,
     overdueReminders,
     timeStr,
     terminal,
@@ -538,6 +552,7 @@ export function IslandToolbarLayout(props: IslandToolbarLayoutProps) {
               <ToolbarStatusCluster
                 t={t}
                 pendingTasks={pendingTasks}
+                doneTasks={doneTasks}
                 overdueReminders={overdueReminders}
                 timeStr={timeStr}
                 compact={compactStatus}

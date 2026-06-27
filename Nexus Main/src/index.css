@@ -4047,14 +4047,19 @@ button:focus-visible {
 }
 
 /* ── Font size from root ── */
-*,
-*::before,
-*::after {
-    /* Inherit from html element so --nx-font-size works everywhere */
-    font-size: inherit;
-}
 html {
+    font-size: 14px;
+}
+
+body {
     font-size: var(--nx-font-size, 14px);
+}
+
+button,
+input,
+textarea,
+select {
+    font: inherit;
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -4820,5 +4825,118 @@ html {
         gap: 8px !important;
         overflow-x: auto;
         white-space: nowrap;
+    }
+}
+
+/* Release polish: global shell tokens, safer surfaces and popovers. */
+.nx-app-shell {
+    --nx-app-grain-opacity: 0.028;
+    --nx-effective-radius: var(--nx-panel-radius, var(--nx-radius, 14px));
+}
+
+.nx-app-shell[data-sidebar-style="rail"] .nx-sidebar-surface {
+    width: 100% !important;
+}
+
+.nx-sidebar-rail {
+    min-width: 0;
+}
+
+.nx-app-shell[data-sidebar-style="rail"] .nx-sidebar-surface nav,
+.nx-app-shell[data-sidebar-style="rail"] .nx-sidebar-surface .space-y-1 {
+    align-items: center;
+}
+
+.nx-app-shell[data-sidebar-style="rail"] .nx-sidebar-surface span:not([data-rail-visible="true"]) {
+    white-space: nowrap;
+}
+
+.nx-shell-window,
+.Glass,
+.nx-ios-surface,
+.nx-motion-panel,
+.nx-view-enhancer,
+.nx-v6-view-shell,
+.nx-sidebar-surface {
+    border-radius: var(--nx-effective-radius);
+}
+
+.Glass,
+.nx-ios-surface,
+.nx-motion-panel,
+.nx-sidebar-surface,
+.nx-toolbar-surface {
+    background: var(--nx-panel-bg, rgba(10, 15, 30, 0.72)) !important;
+    background-size: var(--nx-panel-bg-size, 100% 100%) !important;
+    background-blend-mode: var(--nx-panel-bg-blend, normal) !important;
+}
+
+.nx-app-shell[data-panel-bg-mode="dots"] .Glass,
+.nx-app-shell[data-panel-bg-mode="grid"] .Glass,
+.nx-app-shell[data-panel-bg-mode="circuit"] .Glass,
+.nx-app-shell[data-panel-bg-mode="hologram"] .Glass,
+.nx-app-shell[data-panel-bg-mode="linen"] .Glass,
+.nx-app-shell[data-panel-bg-mode="stripes"] .Glass,
+.nx-app-shell[data-panel-bg-mode="carbon"] .Glass,
+.nx-app-shell[data-panel-bg-mode="noise"] .Glass {
+    background-attachment: local !important;
+}
+
+.nx-ambient-layer {
+    opacity: 0.76;
+}
+
+.nx-app-shell::after,
+.nx-shell-window::after {
+    opacity: var(--nx-app-grain-opacity, 0.028) !important;
+}
+
+.nx-notes-blocks-menu,
+.nx-notes-emoji-menu {
+    position: fixed !important;
+    left: clamp(14px, 50vw - 260px, calc(100vw - 540px)) !important;
+    top: auto !important;
+    bottom: clamp(76px, 9vh, 118px) !important;
+    z-index: 12000 !important;
+    max-width: calc(100vw - 28px);
+    max-height: min(520px, calc(100dvh - 112px));
+    overflow: auto;
+}
+
+.nx-notes-blocks-menu {
+    width: min(210px, calc(100vw - 28px));
+}
+
+.nx-notes-emoji-menu {
+    width: min(520px, calc(100vw - 28px));
+}
+
+.nx-notes-emoji-grid {
+    max-height: min(320px, 38dvh);
+    overflow: auto;
+    overscroll-behavior: contain;
+}
+
+.nx-notes-editor-pane,
+.nx-notes-preview-pane {
+    min-width: min(420px, 100%);
+}
+
+.nx-notes-content-split {
+    gap: clamp(10px, 1.4vw, 18px);
+}
+
+@media (max-width: 1040px) {
+    .nx-notes-editor-pane,
+    .nx-notes-preview-pane {
+        min-width: 0;
+    }
+}
+
+@media (max-height: 650px) {
+    .nx-notes-blocks-menu,
+    .nx-notes-emoji-menu {
+        bottom: 54px !important;
+        max-height: calc(100dvh - 74px);
     }
 }

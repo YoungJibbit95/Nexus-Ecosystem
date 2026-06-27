@@ -374,7 +374,7 @@ export function Sidebar({
   return (
     <Glass
       type="sidebar"
-      className="flex flex-col"
+      className={`flex flex-col ${isRail ? 'nx-sidebar-rail' : ''}`}
       style={{
         height: isFloating ? 'calc(100% - 14px)' : '100%',
         margin: isFloating ? 7 : 0,

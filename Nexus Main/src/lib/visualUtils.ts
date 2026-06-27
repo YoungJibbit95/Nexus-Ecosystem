@@ -290,8 +290,8 @@ export function buildPanelSurfaceTokens(input: {
       }
     case 'noise':
       return {
-        background: `url("data:image/svg+xml,%3Csvg viewBox='0 0 220 220' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.72' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E"), ${tint}, ${base}`,
-        backgroundSize: '180px 180px, 100% 100%, 100% 100%',
+        background: `url("data:image/svg+xml,%3Csvg viewBox='0 0 220 220' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.58' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.024'/%3E%3C/svg%3E"), ${tint}, ${base}`,
+        backgroundSize: '220px 220px, 100% 100%, 100% 100%',
         backgroundBlendMode: isDark ? 'screen, normal, normal' : 'multiply, normal, normal',
       }
     case 'carbon':

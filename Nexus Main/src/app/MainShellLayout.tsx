@@ -83,6 +83,8 @@ export function MainShellLayout({
       }),
     [t.accent, t.accent2, t.background?.panelBgMode, t.bg, t.mode],
   );
+  const safeFontSize = Math.max(12, Math.min(18, Number(t.qol?.fontSize) || 14));
+  const safePanelRadius = Math.max(4, Math.min(32, Number(t.visual?.panelRadius) || 14));
   const viewContract = activeViewManifest ?? {
     title: view === "diagnostics" ? "Diagnostics" : String(view),
     subtitle: "Lokaler Entwicklungs-View",
@@ -124,10 +126,16 @@ export function MainShellLayout({
     <div
       className="nx-app-shell nx-motion-root"
       data-nx-color-mode={t.mode}
+      data-sidebar-style={t.sidebarStyle || "default"}
+      data-panel-bg-mode={t.background?.panelBgMode || "glass"}
+      data-app-bg-mode={t.background?.mode || "solid"}
       data-nx-motion-profile={motionRuntime?.profile || "balanced"}
       data-nx-motion-reduced={motionRuntime?.reduced ? "1" : "0"}
       style={{
         ...motionCssVars,
+        ["--nx-font-size" as any]: `${safeFontSize}px`,
+        ["--nx-radius" as any]: `${safePanelRadius}px`,
+        ["--nx-panel-radius" as any]: `${safePanelRadius}px`,
         ["--nx-shell-accent-rgb" as any]: accentRgb,
         ["--nx-shell-accent2-rgb" as any]: accent2Rgb,
         ["--nx-panel-bg" as any]: panelSurfaceTokens.background,
@@ -236,7 +244,7 @@ export function MainShellLayout({
           height: "calc(100% / var(--nx-ui-scale, 1))",
           transform: "scale(var(--nx-ui-scale, 1))",
           transformOrigin: "top left",
-          borderRadius: 14,
+          borderRadius: safePanelRadius,
           border:
             t.mode === "dark"
               ? "1px solid rgba(255,255,255,0.1)"
