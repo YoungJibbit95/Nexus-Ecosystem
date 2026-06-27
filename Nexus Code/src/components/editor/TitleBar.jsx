@@ -130,7 +130,7 @@ export default function TitleBar({
       label: "Datei",
       items: [
         { label: "Neue Datei", shortcut: "Ctrl+N", action: safeNewFile },
-        { label: "Ordner öffnen...", shortcut: "Ctrl+O", action: onOpenFolder },
+        { label: "Ordner oeffnen...", shortcut: "Ctrl+O", action: onOpenFolder },
         { label: "Workspace speichern", shortcut: "Ctrl+S", action: safeSaveAll },
         { label: "Trennen", disabled: true },
         { label: "Beenden", shortcut: "Alt+F4", action: safeClose },
@@ -187,9 +187,9 @@ export default function TitleBar({
             onMouseLeave={() => setHoveredBtn(null)}
           >
             {[
-              { id: "close", color: "#ff5f57", symbol: "✕", action: safeClose },
-              { id: "min", color: "#febc2e", symbol: "−", action: safeMinimize },
-              { id: "max", color: "#28c840", symbol: isMaximized ? "⊟" : "⊞", action: safeMaximize },
+              { id: "close", color: "#ff5f57", symbol: "x", action: safeClose },
+              { id: "min", color: "#febc2e", symbol: "-", action: safeMinimize },
+              { id: "max", color: "#28c840", symbol: isMaximized ? "[]" : "+", action: safeMaximize },
             ].map((btn) => (
               <motion.button
                 key={btn.id}
@@ -238,7 +238,7 @@ export default function TitleBar({
         <span
           className="text-[10px] text-gray-500 tracking-[0.2em] font-bold uppercase truncate max-w-[50vw]"
         >
-          {workspaceName ? `Nexus Code — ${workspaceName}` : "Nexus Code"}
+          {workspaceName ? `Nexus Code - ${workspaceName}` : "Nexus Code"}
         </span>
       </div>
 

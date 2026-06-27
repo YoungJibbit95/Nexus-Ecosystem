@@ -1,12 +1,17 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
+  Blocks,
   FileCode2,
+  FolderOpen,
   GitBranch,
   ListChecks,
+  Maximize2,
   Palette,
+  PanelLeft,
   Search,
   Settings,
   Terminal,
+  TriangleAlert,
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 
@@ -16,18 +21,42 @@ const COMMANDS = [
     label: "Neues File erstellen",
     icon: FileCode2,
     shortcut: "Ctrl+N",
+    keywords: "create file datei typescript javascript",
+  },
+  {
+    id: "open-folder",
+    label: "Workspace Ordner oeffnen",
+    icon: FolderOpen,
+    shortcut: "Ctrl+O",
+    keywords: "folder workspace project",
+  },
+  {
+    id: "open-explorer",
+    label: "Explorer anzeigen",
+    icon: PanelLeft,
+    shortcut: "Ctrl+B",
+    keywords: "files sidebar tree explorer",
+  },
+  {
+    id: "open-search",
+    label: "Suche anzeigen",
+    icon: Search,
+    shortcut: "Ctrl+Shift+F",
+    keywords: "find search workspace",
   },
   {
     id: "change-theme",
     label: "Theme aendern...",
     icon: Palette,
     shortcut: "Ctrl+K Ctrl+T",
+    keywords: "appearance color theme",
   },
   {
     id: "toggle-terminal",
     label: "Terminal Session umschalten",
     icon: Terminal,
     shortcut: "Ctrl+`",
+    keywords: "shell console cli tasks",
   },
   {
     id: "terminal-task-runner",
@@ -35,18 +64,42 @@ const COMMANDS = [
     label: "Terminal: Task Runner oeffnen",
     icon: ListChecks,
     shortcut: "",
+    keywords: "npm test build run command",
   },
   {
     id: "github-sync",
     label: "Git: Source Control oeffnen",
     icon: GitBranch,
     shortcut: "",
+    keywords: "source control commit stage diff branch",
+  },
+  {
+    id: "open-problems",
+    label: "Problems anzeigen",
+    icon: TriangleAlert,
+    shortcut: "",
+    keywords: "diagnostics errors warnings",
+  },
+  {
+    id: "open-extensions",
+    label: "Extensions anzeigen",
+    icon: Blocks,
+    shortcut: "",
+    keywords: "plugins add language tools",
+  },
+  {
+    id: "toggle-zen",
+    label: "Zen Mode umschalten",
+    icon: Maximize2,
+    shortcut: "Ctrl+K Z",
+    keywords: "focus layout distraction free",
   },
   {
     id: "open-settings",
     label: "Einstellungen oeffnen",
     icon: Settings,
     shortcut: "Ctrl+,",
+    keywords: "preferences settings config",
   },
 ];
 
@@ -63,9 +116,12 @@ export default function CommandPalette({ isOpen, onClose, onAction }) {
     }
   }, [isOpen]);
 
-  const filtered = COMMANDS.filter((command) =>
-    command.label.toLowerCase().includes(query.toLowerCase()),
-  );
+  const normalizedQuery = query.trim().toLowerCase();
+  const filtered = COMMANDS.filter((command) => {
+    if (!normalizedQuery) return true;
+    const haystack = `${command.label} ${command.keywords || ""}`.toLowerCase();
+    return haystack.includes(normalizedQuery);
+  });
 
   useEffect(() => {
     if (selectedIndex >= filtered.length) {
@@ -117,7 +173,7 @@ export default function CommandPalette({ isOpen, onClose, onAction }) {
               damping: 30,
               mass: 0.8,
             }}
-            className="fixed top-[20%] left-1/2 w-full max-w-xl nexus-glass rounded-xl shadow-2xl z-[1000] overflow-hidden"
+            className="fixed top-[16%] left-1/2 w-[min(44rem,calc(100vw-1.5rem))] nexus-glass rounded-xl shadow-2xl z-[1000] overflow-hidden"
           >
             <div className="flex items-center gap-3 px-4 py-3 border-b border-white/5">
               <Search size={18} className="text-gray-500" />
@@ -131,7 +187,7 @@ export default function CommandPalette({ isOpen, onClose, onAction }) {
               />
             </div>
 
-            <div className="max-h-[300px] overflow-y-auto p-2">
+            <div className="max-h-[420px] overflow-y-auto p-2">
               {filtered.map((command, index) => {
                 const Icon = command.icon;
                 const active = index === selectedIndex;
