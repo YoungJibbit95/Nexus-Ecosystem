@@ -14,8 +14,10 @@ import {
   createElectronLspTransport,
   hasElectronLspBridge,
   lspCompletionListToMonaco,
+  lspDefinitionToMonaco,
   lspDiagnosticsToMonacoMarkers,
   lspHoverToMonaco,
+  lspTextEditsToMonaco,
 } from "../../ide/lsp/index.js";
 
 const IGNORED_DIAGNOSTIC_CODES = new Set([2307, 2792, 1208, 2339, 2580, 2304]);
@@ -209,6 +211,8 @@ export default function CodeEditor({
   const lspVersionRef = useRef(1);
   const lspCompletionProviderDisposableRef = useRef(null);
   const lspHoverProviderDisposableRef = useRef(null);
+  const lspDefinitionProviderDisposableRef = useRef(null);
+  const lspFormattingProviderDisposableRef = useRef(null);
   const markerTimerRef = useRef(null);
   const markerHashRef = useRef("");
   const changeEmitTimerRef = useRef(null);
@@ -382,6 +386,10 @@ export default function CodeEditor({
     lspCompletionProviderDisposableRef.current = null;
     lspHoverProviderDisposableRef.current?.dispose?.();
     lspHoverProviderDisposableRef.current = null;
+    lspDefinitionProviderDisposableRef.current?.dispose?.();
+    lspDefinitionProviderDisposableRef.current = null;
+    lspFormattingProviderDisposableRef.current?.dispose?.();
+    lspFormattingProviderDisposableRef.current = null;
   }, []);
 
   const clearLspMarkers = useCallback(() => {
@@ -732,6 +740,45 @@ export default function CodeEditor({
             return lspHoverToMonaco(hover);
           } catch {
             return null;
+          }
+        },
+      });
+
+    lspDefinitionProviderDisposableRef.current =
+      monaco.languages.registerDefinitionProvider(language, {
+        provideDefinition: async (_model, position) => {
+          const engine = lspEngineRef.current;
+          const documentUri = lspDocumentUriRef.current;
+          const getDefinition = engine?.lspService?.getDefinition;
+          if (!engine || !documentUri || typeof getDefinition !== "function") return [];
+          try {
+            const definitions = await getDefinition(documentUri, position);
+            return lspDefinitionToMonaco(monaco, definitions);
+          } catch {
+            return [];
+          }
+        },
+      });
+
+    lspFormattingProviderDisposableRef.current =
+      monaco.languages.registerDocumentFormattingEditProvider(language, {
+        displayName: "Nexus LSP",
+        provideDocumentFormattingEdits: async (model, options) => {
+          const engine = lspEngineRef.current;
+          const documentUri = lspDocumentUriRef.current;
+          const formatDocument = engine?.lspService?.formatDocument;
+          if (!engine || !documentUri || typeof formatDocument !== "function") return [];
+          try {
+            const value = model.getValue();
+            lspVersionRef.current += 1;
+            await engine.updateDocument(documentUri, value, {
+              version: lspVersionRef.current,
+              dirty: true,
+            });
+            const edits = await formatDocument(documentUri, options);
+            return lspTextEditsToMonaco(edits);
+          } catch {
+            return [];
           }
         },
       });

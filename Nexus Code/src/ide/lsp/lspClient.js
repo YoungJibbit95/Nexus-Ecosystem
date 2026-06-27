@@ -2,8 +2,11 @@ import {
   EMPTY_COMPLETION_LIST,
   LSP_METHODS,
   normalizeCompletionList,
+  normalizeDefinition,
   normalizeDiagnostics,
   normalizeHover,
+  normalizeTextEdits,
+  toLspFormattingOptions,
   toLspPosition,
   toTextDocumentIdentifier,
   toTextDocumentItem,
@@ -118,6 +121,34 @@ export function createLspClient(options = {}) {
         null,
       );
       return normalizeHover(result);
+    },
+
+    async getDefinition(document, position) {
+      if (!document?.uri) return [];
+      const result = await safeRequest(
+        transport,
+        LSP_METHODS.DEFINITION,
+        {
+          textDocument: toTextDocumentIdentifier(document),
+          position: toLspPosition(position),
+        },
+        [],
+      );
+      return normalizeDefinition(result);
+    },
+
+    async formatDocument(document, options = {}) {
+      if (!document?.uri) return [];
+      const result = await safeRequest(
+        transport,
+        LSP_METHODS.FORMATTING,
+        {
+          textDocument: toTextDocumentIdentifier(document),
+          options: toLspFormattingOptions(options),
+        },
+        [],
+      );
+      return normalizeTextEdits(result);
     },
 
     async getDiagnostics(document, context = {}) {

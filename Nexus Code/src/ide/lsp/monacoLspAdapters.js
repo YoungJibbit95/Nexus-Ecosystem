@@ -57,6 +57,20 @@ function completionRange(item, fallbackRange) {
   return fallbackRange;
 }
 
+function parseMonacoUri(monaco, uri) {
+  if (!uri) return null;
+  if (typeof uri === "object") return uri;
+  try {
+    return monaco.Uri.parse(String(uri));
+  } catch {
+    return null;
+  }
+}
+
+function hasRange(value) {
+  return Boolean(value?.start && value?.end);
+}
+
 export function lspCompletionListToMonaco(monaco, completionList, fallbackRange) {
   const items = Array.isArray(completionList?.items)
     ? completionList.items
@@ -98,6 +112,69 @@ export function lspHoverToMonaco(hover) {
     contents: [{ value }],
     range: hover.range ? fromLspRange(hover.range) : undefined,
   };
+}
+
+export function lspDefinitionToMonaco(monaco, definitionResult) {
+  const locations = Array.isArray(definitionResult)
+    ? definitionResult
+    : definitionResult
+      ? [definitionResult]
+      : [];
+
+  return locations
+    .map((location) => {
+      if (!location || typeof location !== "object") return null;
+      const isLocationLink =
+        "targetUri" in location ||
+        "targetRange" in location ||
+        "targetSelectionRange" in location;
+      const uri = parseMonacoUri(monaco, location.targetUri || location.uri);
+      const range =
+        location.targetRange ||
+        location.range ||
+        location.targetSelectionRange;
+
+      if (!uri || !hasRange(range)) return null;
+
+      if (isLocationLink) {
+        return {
+          uri,
+          range: fromLspRange(range),
+          originSelectionRange: hasRange(location.originSelectionRange)
+            ? fromLspRange(location.originSelectionRange)
+            : undefined,
+          targetSelectionRange: hasRange(location.targetSelectionRange)
+            ? fromLspRange(location.targetSelectionRange)
+            : undefined,
+        };
+      }
+
+      return {
+        uri,
+        range: fromLspRange(range),
+      };
+    })
+    .filter(Boolean);
+}
+
+export function lspTextEditsToMonaco(textEdits = []) {
+  const edits = Array.isArray(textEdits)
+    ? textEdits
+    : Array.isArray(textEdits?.edits)
+      ? textEdits.edits
+      : [];
+
+  return edits
+    .map((edit) => {
+      if (!hasRange(edit?.range)) return null;
+      const text = typeof edit.newText === "string" ? edit.newText : edit.text;
+      if (typeof text !== "string") return null;
+      return {
+        range: fromLspRange(edit.range),
+        text,
+      };
+    })
+    .filter(Boolean);
 }
 
 export function lspDiagnosticsToMonacoMarkers(monaco, diagnostics = []) {
