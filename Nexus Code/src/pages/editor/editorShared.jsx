@@ -55,6 +55,7 @@ export const DEFAULT_SETTINGS = {
   minimap: true,
   line_numbers: true,
   auto_save: true,
+  lsp_enabled: true,
   line_height: 1.6,
   primary_accent: defaultResolvedTheme.colors.primary,
   secondary_accent: defaultResolvedTheme.colors.secondary,

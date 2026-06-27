@@ -1,5 +1,6 @@
 export const LSP_METHODS = Object.freeze({
   INITIALIZE: "initialize",
+  INITIALIZED: "initialized",
   DID_OPEN: "textDocument/didOpen",
   DID_CHANGE: "textDocument/didChange",
   DID_CLOSE: "textDocument/didClose",

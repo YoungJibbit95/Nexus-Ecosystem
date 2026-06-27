@@ -6,6 +6,7 @@ const { createGitService } = require("./services/gitService.cjs");
 const { createSecureTokenStore } = require("./services/secureTokenStore.cjs");
 const { createGithubAuthService } = require("./services/githubAuthService.cjs");
 const { createGithubService } = require("./services/githubService.cjs");
+const { createLspProcessService } = require("./services/lspProcessService.cjs");
 const { redactSensitiveText } = require("./services/processRunner.cjs");
 
 const DEV = process.env.ELECTRON_DEV === "true";
@@ -56,6 +57,14 @@ const tokenStore = createSecureTokenStore({
 });
 const githubAuthService = createGithubAuthService({ tokenStore });
 const githubService = createGithubService({ tokenStore });
+const lspProcessService = createLspProcessService({
+  onNotification: (sessionId, payload) => {
+    mainWindow?.webContents.send(`lsp:notification:${sessionId}`, payload);
+  },
+  onStatus: (sessionId, payload) => {
+    mainWindow?.webContents.send(`lsp:status:${sessionId}`, payload);
+  },
+});
 
 const buildRendererFailureHtml = (reason, details) => {
   const safeReason = String(reason || "RENDERER_LOAD_FAILED")
@@ -327,6 +336,15 @@ const resolveGitWorkingDirectory = async (candidatePath) => {
     expected: "directory",
   });
   return parentPath.canonical;
+};
+
+const resolveLspWorkspaceRoot = async (candidatePath) => {
+  const cwd = await resolveTerminalWorkingDirectory(candidatePath);
+  const safePath = await resolveWorkspacePath(cwd, {
+    allowRoot: true,
+    expected: "directory",
+  });
+  return safePath.canonical;
 };
 
 const openSystemTerminal = async (candidatePath) => {
@@ -707,6 +725,47 @@ ipcMain.handle("github:rate-limit", async () => toIpcResponse(async () => (
   githubService.getRateLimit()
 )));
 
+// IPC: Language Server Protocol
+
+ipcMain.handle("lsp:start", async (_event, payload = {}) => toIpcResponse(async () => {
+  const workspaceRoot = await resolveLspWorkspaceRoot(payload.workspacePath);
+  return lspProcessService.startSession({
+    languageId: payload.languageId,
+    workspaceRoot,
+  });
+}));
+
+ipcMain.handle("lsp:request", async (_event, payload = {}) => toIpcResponse(async () => (
+  lspProcessService.request(
+    payload.sessionId,
+    String(payload.method || ""),
+    payload.params || {},
+    { timeoutMs: payload.timeoutMs },
+  )
+)));
+
+ipcMain.handle("lsp:stop", async (_event, payload = {}) => toIpcResponse(async () => (
+  lspProcessService.stopSession(payload.sessionId)
+)));
+
+ipcMain.handle("lsp:list", async () => toIpcResponse(async () => (
+  lspProcessService.listSessions()
+)));
+
+ipcMain.handle("lsp:servers", async () => toIpcResponse(async () => (
+  lspProcessService.listServerStatus()
+)));
+
+ipcMain.on("lsp:notify", (_event, payload = {}) => {
+  try {
+    lspProcessService.notify(
+      payload.sessionId,
+      String(payload.method || ""),
+      payload.params || {},
+    );
+  } catch {}
+});
+
 // IPC: terminal (real shell)
 
 const sendTerminalMessage = (sender, id, channel, payload) => {
@@ -872,6 +931,7 @@ app.on("window-all-closed", () => {
 
 app.on("before-quit", () => {
   terminateActiveProcesses();
+  lspProcessService.dispose();
 });
 
 // Prevent multiple instances

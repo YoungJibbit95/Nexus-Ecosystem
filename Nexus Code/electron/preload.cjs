@@ -7,6 +7,8 @@ const MAX_WRITE_BYTES = 20 * 1024 * 1024;
 const MAX_TERMINAL_COMMAND_LENGTH = 8_000;
 const MAX_TERMINAL_INPUT_LENGTH = 64_000;
 const MAX_BRIDGE_OPTION_BYTES = 64 * 1024;
+const MAX_LSP_METHOD_LENGTH = 128;
+const MAX_LSP_PAYLOAD_BYTES = 2 * 1024 * 1024;
 
 const noop = () => {};
 
@@ -77,6 +79,41 @@ const sanitizeBridgeOptions = (value, label = "options") => {
 };
 
 const terminalChannel = (type, id) => `terminal:${type}:${sanitizeTerminalId(id)}`;
+
+const sanitizeLspSessionId = (value) => {
+  const id = String(value ?? "").trim();
+  if (!/^lsp_[a-z0-9_#+.-]{1,64}_[a-f0-9]{16}$/i.test(id)) {
+    throw new Error("Invalid LSP session id");
+  }
+  return id;
+};
+
+const sanitizeLspLanguageId = (value) => {
+  const id = String(value ?? "").trim().toLowerCase();
+  if (!/^[a-z0-9_#+.-]{1,64}$/.test(id)) {
+    throw new Error("Invalid LSP language id");
+  }
+  return id;
+};
+
+const sanitizeLspMethod = (value) => {
+  const method = sanitizeText(value, MAX_LSP_METHOD_LENGTH, "LSP method").trim();
+  if (!/^[a-zA-Z0-9_$./-]+$/.test(method)) {
+    throw new Error("Invalid LSP method");
+  }
+  return method;
+};
+
+const sanitizeJsonPayload = (value, label = "LSP payload") => {
+  if (value === undefined || value === null) return {};
+  const json = JSON.stringify(value);
+  if (Buffer.byteLength(json, "utf8") > MAX_LSP_PAYLOAD_BYTES) {
+    throw new Error(`${label} is too large`);
+  }
+  return JSON.parse(json);
+};
+
+const lspChannel = (type, sessionId) => `lsp:${type}:${sanitizeLspSessionId(sessionId)}`;
 
 const onIpc = (channel, callback, mapper = (_event, value) => value) => {
   const safeCallback = assertCallback(callback);
@@ -165,6 +202,29 @@ contextBridge.exposeInMainWorld("electronAPI", {
     sanitizeBridgeOptions(options, "githubListRepositories options"),
   ),
   githubGetRateLimit: () => ipcRenderer.invoke("github:rate-limit"),
+
+  lspStart: (payload = {}) => ipcRenderer.invoke("lsp:start", {
+    languageId: sanitizeLspLanguageId(payload.languageId),
+    workspacePath: sanitizePath(payload.workspacePath, "workspacePath"),
+  }),
+  lspRequest: (payload = {}) => ipcRenderer.invoke("lsp:request", {
+    sessionId: sanitizeLspSessionId(payload.sessionId),
+    method: sanitizeLspMethod(payload.method),
+    params: sanitizeJsonPayload(payload.params),
+    timeoutMs: Number.isFinite(Number(payload.timeoutMs)) ? Number(payload.timeoutMs) : undefined,
+  }),
+  lspNotify: (payload = {}) => ipcRenderer.send("lsp:notify", {
+    sessionId: sanitizeLspSessionId(payload.sessionId),
+    method: sanitizeLspMethod(payload.method),
+    params: sanitizeJsonPayload(payload.params),
+  }),
+  lspStop: (payload = {}) => ipcRenderer.invoke("lsp:stop", {
+    sessionId: sanitizeLspSessionId(payload.sessionId),
+  }),
+  lspList: () => ipcRenderer.invoke("lsp:list"),
+  lspListServers: () => ipcRenderer.invoke("lsp:servers"),
+  onLspNotification: (sessionId, callback) => onIpc(lspChannel("notification", sessionId), callback),
+  onLspStatus: (sessionId, callback) => onIpc(lspChannel("status", sessionId), callback),
 
   terminalRun: (payload = {}) => ipcRenderer.send("terminal:run", {
     id: sanitizeTerminalId(payload.id),

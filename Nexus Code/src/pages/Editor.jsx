@@ -1332,6 +1332,8 @@ export default function Editor() {
                       code={currentCode}
                       onChange={handleCodeChange}
                       fileName={activeFile.name}
+                      filePath={activeFile.fsPath || null}
+                      workspacePath={workspacePath}
                       onMarkersChange={(m) => setProblems(m)}
                       fontSize={settings.font_size || 14}
                       showLineNumbers={settings.line_numbers !== false}

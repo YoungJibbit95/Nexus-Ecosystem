@@ -21,6 +21,13 @@ import {
 } from './settingsShared';
 import { resolveNexusTheme } from '../../theme/nexusThemeResolver.js';
 
+function unwrapIpcResponse(result) {
+  if (result && typeof result === "object" && "ok" in result) {
+    return result.ok ? result.data : [];
+  }
+  return result || [];
+}
+
 export default function SettingsPanel({
   settings,
   onSettingsChange,
@@ -28,6 +35,7 @@ export default function SettingsPanel({
   onClose,
 }) {
   const [activeSection, setActiveSection] = React.useState("theme");
+  const [lspServers, setLspServers] = React.useState([]);
   const resolvedTheme = React.useMemo(
     () => resolveNexusTheme(settings),
     [settings],
@@ -65,6 +73,25 @@ export default function SettingsPanel({
       root.style.setProperty(name, value);
     });
   }, [scopedThemeVars]);
+
+  React.useEffect(() => {
+    let mounted = true;
+    const api = typeof window !== "undefined" ? window.electronAPI : null;
+    if (!api?.lspListServers) return undefined;
+    api
+      .lspListServers()
+      .then((result) => {
+        if (!mounted) return;
+        const servers = unwrapIpcResponse(result);
+        setLspServers(Array.isArray(servers) ? servers : []);
+      })
+      .catch(() => {
+        if (mounted) setLspServers([]);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const updateSetting = (key, value) => {
     onSettingsChange({ ...settings, [key]: value });
@@ -599,6 +626,63 @@ export default function SettingsPanel({
                   onCheckedChange={(v) => updateSetting("auto_save", v)}
                 />
               </div>
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <NativeLabel>Language Server</NativeLabel>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Nutzt installierte LSP-Server fuer Completion, Hover und Diagnostics.
+                  </p>
+                </div>
+                <NativeSwitch
+                  checked={settings.lsp_enabled !== false}
+                  onCheckedChange={(v) => updateSetting("lsp_enabled", v)}
+                />
+              </div>
+              {lspServers.length > 0 && (
+                <div
+                  className="rounded-lg border p-3"
+                  style={{
+                    background: "rgba(255,255,255,0.025)",
+                    borderColor: "var(--nexus-border)",
+                  }}
+                >
+                  <div className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-gray-500">
+                    LSP Tools
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {lspServers.map((server) => (
+                      <div
+                        key={server.languageId}
+                        className="flex items-center justify-between gap-2 rounded-md px-2 py-1.5"
+                        style={{
+                          background: server.available
+                            ? "rgba(34,197,94,0.08)"
+                            : "rgba(148,163,184,0.06)",
+                          border: server.available
+                            ? "1px solid rgba(34,197,94,0.18)"
+                            : "1px solid rgba(148,163,184,0.12)",
+                        }}
+                        title={
+                          server.available
+                            ? server.resolvedPath || server.command
+                            : `Install or set ${server.envName}`
+                        }
+                      >
+                        <span className="min-w-0 truncate text-xs text-gray-300">
+                          {server.languageId}
+                        </span>
+                        <span
+                          className={`shrink-0 text-[10px] font-medium ${
+                            server.available ? "text-green-300" : "text-gray-500"
+                          }`}
+                        >
+                          {server.available ? "available" : "missing"}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div className="flex items-center justify-between">
                 <NativeLabel>
                   Zeilenhöhe: {settings.line_height || 1.6}
