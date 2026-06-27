@@ -229,6 +229,21 @@ export type PanelSurfaceTokens = {
   backgroundBlendMode?: string
 }
 
+export type AppShellSurfaceTokens = {
+  rootBackgroundColor: string
+  auraBackground: string
+  auraOpacity: number
+  gridBackground: string
+  gridOpacity: number
+  windowBackground: string
+  windowAuraBackground: string
+  windowGridBackground: string
+  windowGridOpacity: number
+}
+
+const colorWithOpacity = (color: string, opacity: number) =>
+  `${color}${Math.round(Math.max(0, Math.min(1, opacity)) * 255).toString(16).padStart(2, '0')}`
+
 export function buildPanelSurfaceTokens(input: {
   mode: PanelBgMode
   accent: string
@@ -310,6 +325,115 @@ export function buildPanelSurfaceTokens(input: {
         background: `${tint}, ${glassSheen}, ${base}`,
         backgroundSize: '100% 100%',
       }
+  }
+}
+
+export function buildAppShellSurfaceTokens(input: {
+  background: BackgroundConfig
+  accent: string
+  accent2?: string
+  appBg: string
+  colorMode: 'dark' | 'light'
+}): AppShellSurfaceTokens {
+  const accentRgb = hexToRgb(input.accent)
+  const accent2Rgb = hexToRgb(input.accent2 || input.accent)
+  const isDark = input.colorMode === 'dark'
+  const bg = input.background
+  const stopA = bg.stops[0]?.color || input.accent
+  const stopB = bg.stops[1]?.color || input.accent2 || input.accent
+  const stopC = bg.stops[2]?.color || (isDark ? '#22D3EE' : '#2563EB')
+  const rootBackgroundColor = input.appBg
+  const defaultAura = isDark
+    ? 'radial-gradient(circle at 20% 8%, rgba(34, 211, 238, 0.18), transparent 34%), radial-gradient(circle at 84% 4%, rgba(129, 140, 248, 0.2), transparent 36%), radial-gradient(circle at 54% 92%, rgba(16, 185, 129, 0.1), transparent 42%), linear-gradient(180deg, rgba(8, 9, 26, 0.28), rgba(8, 9, 26, 0.66))'
+    : 'radial-gradient(circle at 20% 8%, rgba(34, 211, 238, 0.16), transparent 34%), radial-gradient(circle at 84% 4%, rgba(129, 140, 248, 0.14), transparent 36%), radial-gradient(circle at 54% 92%, rgba(16, 185, 129, 0.08), transparent 42%), linear-gradient(180deg, rgba(255, 255, 255, 0.38), rgba(245, 248, 255, 0.5))'
+  const defaultGrid = isDark
+    ? 'linear-gradient(rgba(129, 140, 248, 0.11) 1px, transparent 1px), linear-gradient(90deg, rgba(34, 211, 238, 0.08) 1px, transparent 1px)'
+    : 'linear-gradient(rgba(15, 23, 42, 0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(37, 99, 235, 0.055) 1px, transparent 1px)'
+  const defaultWindow = isDark
+    ? 'linear-gradient(145deg, rgba(15, 23, 42, 0.72), rgba(8, 13, 32, 0.54)), radial-gradient(circle at top left, rgba(34, 211, 238, 0.08), transparent 42%), radial-gradient(circle at bottom right, rgba(129, 140, 248, 0.08), transparent 42%)'
+    : 'linear-gradient(145deg, rgba(255, 255, 255, 0.9), rgba(244, 247, 255, 0.76)), radial-gradient(circle at top left, rgba(34, 211, 238, 0.11), transparent 42%), radial-gradient(circle at bottom right, rgba(99, 102, 241, 0.08), transparent 42%)'
+  const defaultWindowAura = isDark
+    ? 'linear-gradient(180deg, rgba(255,255,255,0.1), transparent 18%), radial-gradient(640px circle at -6% -20%, rgba(34, 211, 238, 0.2), transparent 52%), radial-gradient(780px circle at 120% -30%, rgba(167, 139, 250, 0.18), transparent 60%)'
+    : 'linear-gradient(180deg, rgba(255,255,255,0.72), transparent 22%), radial-gradient(640px circle at -6% -20%, rgba(34, 211, 238, 0.13), transparent 52%), radial-gradient(780px circle at 120% -30%, rgba(99, 102, 241, 0.11), transparent 60%)'
+  const defaultWindowGrid = isDark
+    ? 'linear-gradient(rgba(255, 255, 255, 0.045) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px)'
+    : 'linear-gradient(rgba(15, 23, 42, 0.055) 1px, transparent 1px), linear-gradient(90deg, rgba(15, 23, 42, 0.04) 1px, transparent 1px)'
+
+  const base: AppShellSurfaceTokens = {
+    rootBackgroundColor,
+    auraBackground: defaultAura,
+    auraOpacity: isDark ? 0.72 : 0.58,
+    gridBackground: defaultGrid,
+    gridOpacity: isDark ? 0.045 : 0.035,
+    windowBackground: defaultWindow,
+    windowAuraBackground: defaultWindowAura,
+    windowGridBackground: defaultWindowGrid,
+    windowGridOpacity: isDark ? 0.055 : 0.04,
+  }
+
+  switch (bg.mode) {
+    case 'gradient':
+    case 'animated-gradient':
+      return {
+        ...base,
+        auraBackground: `radial-gradient(740px circle at 10% 6%, ${colorWithOpacity(stopA, isDark ? 0.28 : 0.17)}, transparent 58%), radial-gradient(780px circle at 92% 4%, ${colorWithOpacity(stopB, isDark ? 0.24 : 0.14)}, transparent 60%), linear-gradient(${bg.angle}deg, ${colorWithOpacity(stopA, 0.16)}, ${colorWithOpacity(stopB, 0.12)}, transparent 72%)`,
+        auraOpacity: bg.mode === 'animated-gradient' ? 0.78 : 0.68,
+        windowBackground: `linear-gradient(145deg, ${isDark ? 'rgba(5, 9, 22, 0.6)' : 'rgba(255, 255, 255, 0.82)'}, ${isDark ? 'rgba(10, 14, 34, 0.46)' : 'rgba(246, 249, 255, 0.68)'}), radial-gradient(circle at 0% 0%, ${colorWithOpacity(stopA, isDark ? 0.16 : 0.1)}, transparent 48%), radial-gradient(circle at 100% 0%, ${colorWithOpacity(stopB, isDark ? 0.14 : 0.08)}, transparent 48%)`,
+      }
+    case 'mesh':
+      return {
+        ...base,
+        auraBackground: `radial-gradient(620px ellipse at 15% 20%, ${colorWithOpacity(stopA, 0.32)}, transparent 62%), radial-gradient(520px ellipse at 78% 28%, ${colorWithOpacity(stopB, 0.24)}, transparent 60%), radial-gradient(560px ellipse at 52% 88%, rgba(${accentRgb},0.16), transparent 65%)`,
+        auraOpacity: Math.max(0.58, Math.min(0.86, 0.5 + bg.meshIntensity * 0.44)),
+        windowAuraBackground: `radial-gradient(720px circle at 0% -10%, ${colorWithOpacity(stopA, isDark ? 0.2 : 0.12)}, transparent 58%), radial-gradient(700px circle at 108% -12%, ${colorWithOpacity(stopB, isDark ? 0.16 : 0.09)}, transparent 60%)`,
+      }
+    case 'noise':
+      return {
+        ...base,
+        auraBackground: `${defaultAura}, url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.52' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.08'/%3E%3C/svg%3E")`,
+        auraOpacity: 0.5,
+        gridOpacity: 0.012,
+        windowGridOpacity: 0.012,
+      }
+    case 'aurora':
+      return {
+        ...base,
+        auraBackground: `radial-gradient(900px ellipse at 0% 34%, ${colorWithOpacity(stopA, 0.34)}, transparent 66%), radial-gradient(820px ellipse at 96% 12%, ${colorWithOpacity(stopB, 0.26)}, transparent 62%), radial-gradient(760px ellipse at 48% 108%, ${colorWithOpacity(stopC, 0.2)}, transparent 68%)`,
+        auraOpacity: 0.82,
+        windowAuraBackground: `linear-gradient(180deg, rgba(255,255,255,${isDark ? 0.08 : 0.62}), transparent 20%), radial-gradient(660px circle at 8% -18%, ${colorWithOpacity(stopA, isDark ? 0.22 : 0.13)}, transparent 58%), radial-gradient(660px circle at 96% -12%, ${colorWithOpacity(stopB, isDark ? 0.16 : 0.1)}, transparent 62%)`,
+      }
+    case 'spotlight':
+      return {
+        ...base,
+        auraBackground: `radial-gradient(820px circle at 18% 16%, rgba(${accentRgb},0.3), transparent 62%), radial-gradient(720px circle at 82% 18%, rgba(${accent2Rgb},0.22), transparent 60%), linear-gradient(180deg, rgba(255,255,255,${isDark ? 0.02 : 0.24}), transparent 70%)`,
+        auraOpacity: 0.76,
+      }
+    case 'prism':
+      return {
+        ...base,
+        auraBackground: `conic-gradient(from ${bg.angle}deg at 50% 46%, ${colorWithOpacity(stopA, 0.24)}, ${colorWithOpacity(stopB, 0.2)}, ${colorWithOpacity(stopC, 0.16)}, ${colorWithOpacity(stopA, 0.24)}), radial-gradient(circle at 50% 50%, transparent 24%, rgba(0,0,0,${isDark ? 0.18 : 0.03}) 74%)`,
+        auraOpacity: 0.64,
+        gridOpacity: 0.018,
+        windowGridOpacity: 0.018,
+      }
+    case 'horizon':
+      return {
+        ...base,
+        auraBackground: `linear-gradient(180deg, transparent 0 28%, ${colorWithOpacity(stopA, 0.16)} 55%, ${colorWithOpacity(stopB, 0.24)} 100%), radial-gradient(980px ellipse at 50% 108%, ${colorWithOpacity(stopB, 0.3)}, transparent 68%)`,
+        auraOpacity: 0.7,
+        windowAuraBackground: `linear-gradient(180deg, rgba(255,255,255,${isDark ? 0.06 : 0.5}), transparent 28%), radial-gradient(900px ellipse at 50% 110%, ${colorWithOpacity(stopB, isDark ? 0.2 : 0.12)}, transparent 66%)`,
+      }
+    case 'constellation':
+      return {
+        ...base,
+        auraBackground: `radial-gradient(circle at 12% 22%, ${colorWithOpacity(stopA, 0.7)} 1px, transparent 2px), radial-gradient(circle at 74% 18%, ${colorWithOpacity(stopB, 0.58)} 1px, transparent 2px), radial-gradient(circle at 38% 66%, ${colorWithOpacity(stopA, 0.5)} 1px, transparent 2px), radial-gradient(circle at 88% 72%, ${colorWithOpacity(stopB, 0.5)} 1px, transparent 2px), ${defaultAura}`,
+        gridBackground: `linear-gradient(115deg, transparent 0 48%, ${colorWithOpacity(stopA, 0.12)} 49%, transparent 50% 100%), ${defaultGrid}`,
+        gridOpacity: 0.08,
+        windowGridOpacity: 0.045,
+      }
+    case 'solid':
+    default:
+      return base
   }
 }
 

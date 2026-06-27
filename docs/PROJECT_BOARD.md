@@ -87,3 +87,16 @@ Naechste Project-Cards:
 - Notes Data Split: Editor-Drafts, Magic/Emoji-Daten und Import-Validation modularisieren.
 - Website Evidence Refresh: neue Screenshots und API/Website Contract-Smokes nach dem Stabilitaetsblock.
 - DevTools UX Polish: weniger cramped, bessere Gruppen, klare Release-/Security-Gates.
+
+## Stand 2026-06-27 - Follow-up UI/Deploy Batch
+
+Abgearbeitet:
+
+- Main App Backgrounds: App-Background-Modi wirken jetzt ueber Shell-/Window-Tokens sichtbar statt nur im verdeckten Root-Layer.
+- Notes UX: Emoji-/Blocks-Menues werden als Portal-Popover gerendert, Magic/Emoji/Blocks schliessen sich gegenseitig.
+- DevTools UX: Element-Designer-Labels sind bereinigt, Builder/Designer/Preview stapeln responsiv und bleiben bei kleinen Fenstern bedienbar.
+- Verification: `Nexus Main` Build und Single-React-Check laufen gruen.
+
+Blockiert:
+
+- API Live-Deploy: `NexusAPI` `main` ist gemerged und Release Gate ist gruen, aber `srv1513091.hstgr.cloud` akzeptiert die lokal vorhandenen SSH-Keys nicht. Der Live-Contract bleibt auf der alten Runtime, bis der VPS-Key/Zugang autorisiert ist.

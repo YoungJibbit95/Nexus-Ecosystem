@@ -244,14 +244,14 @@ function SelCtrl({ label, value, options, onChange }: any) {
 }
 
 const ELEM_TABS = [
-  { id:'size',    label:'📐 Size' },
-  { id:'spacing', label:'↔ Spacing' },
-  { id:'border',  label:'⬜ Border' },
-  { id:'bg',      label:'🎨 Background' },
-  { id:'shadow',  label:'🌑 Shadow' },
-  { id:'glow',    label:'✨ Glow' },
-  { id:'blur',    label:'🌫 Blur' },
-  { id:'text',    label:'🔤 Text' },
+  { id:'size',    label:'Size' },
+  { id:'spacing', label:'Spacing' },
+  { id:'border',  label:'Border' },
+  { id:'bg',      label:'Background' },
+  { id:'shadow',  label:'Shadow' },
+  { id:'glow',    label:'Glow' },
+  { id:'blur',    label:'Blur' },
+  { id:'text',    label:'Text' },
 ]
 
 function ElementDesigner() {
@@ -278,9 +278,9 @@ function ElementDesigner() {
   }, [e])
 
   return (
-    <div style={{ display:'flex', gap:14, height:'100%', overflow:'hidden' }}>
+    <div className="nx-devtools-designer" style={{ display:'flex', gap:14, height:'100%', overflow:'hidden' }}>
       {/* Controls */}
-      <div style={{ width:260, flexShrink:0, display:'flex', flexDirection:'column', overflow:'hidden' }}>
+      <div className="nx-devtools-designer-controls" style={{ width:260, flexShrink:0, display:'flex', flexDirection:'column', overflow:'hidden' }}>
         {/* Tab strip */}
         <div style={{ display:'flex', flexWrap:'wrap', gap:3, marginBottom:10, flexShrink:0 }}>
           {ELEM_TABS.map(tb=>(
@@ -350,10 +350,10 @@ function ElementDesigner() {
       </div>
 
       {/* Preview + code output */}
-      <div style={{ flex:1, display:'flex', flexDirection:'column', gap:10, overflow:'hidden', minHeight:0 }}>
+      <div className="nx-devtools-designer-preview" style={{ flex:1, display:'flex', flexDirection:'column', gap:10, overflow:'hidden', minHeight:0 }}>
         {/* Preview */}
         <Glass style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', background:'rgba(0,0,0,0.25)', position:'relative', overflow:'visible', minHeight:120 }}>
-          <div style={{ position:'absolute', top:8, left:12, fontSize:9, opacity:0.3, fontWeight:800, textTransform:'uppercase', letterSpacing:0.5 }}>Preview — &lt;{e.tag}&gt;</div>
+          <div style={{ position:'absolute', top:8, left:12, fontSize:9, opacity:0.3, fontWeight:800, textTransform:'uppercase', letterSpacing:0.5 }}>Preview - &lt;{e.tag}&gt;</div>
           <div style={{ position:'absolute', top:6, right:10, display:'flex', gap:5 }}>
             <button onClick={()=>setE({...DEFAULT_ELEM,bgColor:t.accent,bgColor2:t.accent2,glowColor:t.accent})} className="nx-interactive nx-bounce-target nx-icon-fade" style={{ background:'none', border:'none', ['--nx-idle-opacity' as any]:0.4, padding:'2px 6px', borderRadius:5, color:'inherit', fontSize:9, display:'flex', alignItems:'center', gap:3 }}>
               <RefreshCw size={9}/> Reset
@@ -439,7 +439,7 @@ function WebBuilder() {
 
   useEffect(() => {
     const h = (e: MessageEvent) => {
-      if(e.data?.type==='__c__') setCOut(e.data.logs.map((l:any)=>(l.t==='err'?'❌ ':l.t==='warn'?'⚠️ ':'')+l.m))
+      if(e.data?.type==='__c__') setCOut(e.data.logs.map((l:any)=>(l.t==='err'?'ERR ':l.t==='warn'?'WARN ':'')+l.m))
     }
     window.addEventListener('message',h)
     return ()=>window.removeEventListener('message',h)
@@ -646,9 +646,9 @@ function WebBuilder() {
   }
 
   return (
-    <div style={{ display:'flex', flexDirection:'column', height:'100%', overflow:'hidden' }}>
+    <div className="nx-devtools-builder" style={{ display:'flex', flexDirection:'column', height:'100%', overflow:'hidden' }}>
       {/* Toolbar */}
-      <div style={{ display:'flex', alignItems:'center', gap:8, padding:'7px 12px', borderBottom:'1px solid rgba(255,255,255,0.07)', flexShrink:0, background:'rgba(0,0,0,0.1)', flexWrap:'wrap' }}>
+      <div className="nx-devtools-builder-toolbar" style={{ display:'flex', alignItems:'center', gap:8, padding:'7px 12px', borderBottom:'1px solid rgba(255,255,255,0.07)', flexShrink:0, background:'rgba(0,0,0,0.1)', flexWrap:'wrap' }}>
         {/* Sub-tabs: Code vs Designer */}
         <div style={{ display:'flex', background:'rgba(255,255,255,0.06)', borderRadius:9, overflow:'hidden' }}>
           <button onClick={()=>setSubTab('code')} style={{ padding:'5px 12px', background:subTab==='code'?t.accent:'transparent', border:'none', cursor:'pointer', fontSize:11, fontWeight:700, color:subTab==='code'?'#fff':'inherit', opacity:subTab==='code'?1:0.55, display:'flex', alignItems:'center', gap:5 }}>
@@ -713,10 +713,10 @@ function WebBuilder() {
       </div>
 
       {/* Body */}
-      <div style={{ flex:1, display:'flex', overflow:'hidden', minHeight:0 }}>
+      <div className="nx-devtools-builder-body" style={{ flex:1, display:'flex', overflow:'hidden', minHeight:0 }}>
         {subTab === 'code' ? <>
           {/* File tree sidebar */}
-          <div style={{ width:230, flexShrink:0, borderRight:'1px solid rgba(255,255,255,0.07)', background:'rgba(0,0,0,0.12)', overflow:'hidden', display:'flex', flexDirection:'column' }}>
+          <div className="nx-devtools-file-panel" style={{ width:230, flexShrink:0, borderRight:'1px solid rgba(255,255,255,0.07)', background:'rgba(0,0,0,0.12)', overflow:'hidden', display:'flex', flexDirection:'column' }}>
             <div style={{ display:'flex', padding:'8px 8px 0', gap:4 }}>
               <button onClick={() => setLeftPane('files')} style={{ flex:1, padding:'5px 8px', borderRadius:7, border:`1px solid ${leftPane==='files'?`rgba(${rgb},0.24)`:'rgba(255,255,255,0.1)'}`, background:leftPane==='files'?`rgba(${rgb},0.12)`:'rgba(255,255,255,0.03)', color:leftPane==='files'?t.accent:'inherit', fontSize:10, fontWeight:700, cursor:'pointer' }}>
                 Files
@@ -741,12 +741,12 @@ function WebBuilder() {
           </div>
 
           {/* Active file editor */}
-          <div style={{ flex:'0 0 45%', display:'flex', flexDirection:'column', overflow:'hidden', minHeight:0, borderRight:'1px solid rgba(255,255,255,0.07)' }}>
+          <div className="nx-devtools-code-panel" style={{ flex:'0 0 45%', display:'flex', flexDirection:'column', overflow:'hidden', minHeight:0, borderRight:'1px solid rgba(255,255,255,0.07)' }}>
             {activeFile && <CodePane value={activeFile.content} onChange={v=>updateFile(activeFile.id,v)} lang={activeFile.type}/>}
           </div>
 
           {/* Preview + console */}
-          <div style={{ flex:1, display:'flex', flexDirection:'column', overflow:'hidden', minHeight:0 }}>
+          <div className="nx-devtools-preview-panel" style={{ flex:1, display:'flex', flexDirection:'column', overflow:'hidden', minHeight:0 }}>
             <div style={{ flex:1, overflow:'hidden', display:'flex', alignItems:'center', justifyContent:'center', background:'rgba(0,0,0,0.18)', padding:vp!=='desktop'?10:0 }}>
               <div style={{ width:vpWidth, height:'100%', maxHeight:'100%', transition:'width 0.3s ease', boxShadow:vp!=='desktop'?'0 8px 40px rgba(0,0,0,0.6)':undefined, borderRadius:vp!=='desktop'?12:0, overflow:'hidden', border:'1px solid rgba(255,255,255,0.08)', background:'radial-gradient(circle at 18% 0%, rgba(56, 87, 140, 0.28), rgba(3, 6, 18, 0.95) 60%)' }}>
                 <iframe ref={iframeRef} style={{ width:'100%', height:'100%', border:'none', background:'transparent', display:'block', colorScheme:'dark' }} sandbox="allow-scripts" title="Preview"/>
@@ -754,16 +754,16 @@ function WebBuilder() {
             </div>
             {consoleOut.length>0 && (
               <div style={{ flexShrink:0, maxHeight:90, overflowY:'auto', borderTop:'1px solid rgba(255,255,255,0.07)', background:'rgba(0,0,0,0.28)', padding:'5px 12px' }}>
-                {consoleOut.map((line,i)=><div key={i} style={{ fontSize:11, fontFamily:'monospace', lineHeight:1.6, color:line.startsWith('❌')?'#ff453a':line.startsWith('⚠️')?'#ffd60a':'inherit', opacity:0.85 }}>{line}</div>)}
+                {consoleOut.map((line,i)=><div key={i} style={{ fontSize:11, fontFamily:'monospace', lineHeight:1.6, color:line.startsWith('ERR')?'#ff453a':line.startsWith('WARN')?'#ffd60a':'inherit', opacity:0.85 }}>{line}</div>)}
               </div>
             )}
           </div>
         </> : subTab === 'designer' ? <>
           {/* Designer + Preview split */}
-          <div style={{ width:'55%', flexShrink:0, padding:'12px 14px', overflow:'auto', borderRight:'1px solid rgba(255,255,255,0.07)' }}>
+          <div className="nx-devtools-element-panel" style={{ width:'55%', flexShrink:0, padding:'12px 14px', overflow:'auto', borderRight:'1px solid rgba(255,255,255,0.07)' }}>
             <ElementDesigner/>
           </div>
-          <div style={{ flex:1, overflow:'hidden', display:'flex', alignItems:'center', justifyContent:'center', background:'rgba(0,0,0,0.18)', padding:vp!=='desktop'?10:0 }}>
+          <div className="nx-devtools-preview-panel" style={{ flex:1, overflow:'hidden', display:'flex', alignItems:'center', justifyContent:'center', background:'rgba(0,0,0,0.18)', padding:vp!=='desktop'?10:0 }}>
             <div style={{ width:vpWidth, height:'100%', maxHeight:'100%', transition:'width 0.3s ease', boxShadow:vp!=='desktop'?'0 8px 40px rgba(0,0,0,0.6)':undefined, borderRadius:vp!=='desktop'?12:0, overflow:'hidden', border:'1px solid rgba(255,255,255,0.08)', background:'radial-gradient(circle at 18% 0%, rgba(56, 87, 140, 0.28), rgba(3, 6, 18, 0.95) 60%)' }}>
               <iframe ref={iframeRef} style={{ width:'100%', height:'100%', border:'none', background:'transparent', display:'block', colorScheme:'dark' }} sandbox="allow-scripts" title="Preview"/>
             </div>
@@ -788,10 +788,10 @@ export function DevToolsView() {
       {/* Header */}
       <div className="nx-devtools-toolbar nx-release-toolbar" style={{ display:'flex',alignItems:'center',gap:12,padding:'9px 16px',borderBottom:'1px solid rgba(255,255,255,0.07)',flexShrink:0,background:'rgba(0,0,0,0.1)' }}>
         <div>
-          <div style={{ fontSize:15,fontWeight:900,background:`linear-gradient(135deg,${t.accent},${t.accent2})`,WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent' }}>🛠️ DevTools</div>
-          <div style={{ fontSize:9,opacity:0.35,marginTop:1,textTransform:'uppercase',letterSpacing:1 }}>Web Builder · Element Designer · Calculator · Release Health</div>
+          <div style={{ fontSize:15,fontWeight:900,background:`linear-gradient(135deg,${t.accent},${t.accent2})`,WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent' }}>DevTools</div>
+          <div style={{ fontSize:9,opacity:0.35,marginTop:1,textTransform:'uppercase',letterSpacing:1 }}>Web Builder / Element Designer / Calculator / Release Health</div>
         </div>
-        <div style={{ display:'flex',background:'rgba(255,255,255,0.06)',borderRadius:10,overflow:'hidden',marginLeft:'auto' }}>
+        <div className="nx-devtools-tabs" style={{ display:'flex',background:'rgba(255,255,255,0.06)',borderRadius:10,overflow:'hidden',marginLeft:'auto' }}>
           <button onClick={()=>setTab('builder')} style={{ padding:'6px 14px',background:tab==='builder'?t.accent:'transparent',border:'none',cursor:'pointer',fontSize:11,fontWeight:700,color:tab==='builder'?'#fff':'inherit',opacity:tab==='builder'?1:0.55,display:'flex',alignItems:'center',gap:5 }}>
             <Code2 size={12}/> Builder
           </button>

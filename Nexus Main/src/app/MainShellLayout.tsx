@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { Sidebar, type View } from "../components/Sidebar";
 import { TitleBar } from "../components/TitleBar";
 import { hexToRgb } from "../lib/utils";
-import { buildPanelSurfaceTokens } from "../lib/visualUtils";
+import { buildAppShellSurfaceTokens, buildPanelSurfaceTokens } from "../lib/visualUtils";
 import { NexusTerminal, NexusToolbar } from "./viewPreload";
 import { getNexusViewManifest } from "@nexus/core";
 
@@ -83,6 +83,17 @@ export function MainShellLayout({
       }),
     [t.accent, t.accent2, t.background?.panelBgMode, t.bg, t.mode],
   );
+  const appShellSurfaceTokens = React.useMemo(
+    () =>
+      buildAppShellSurfaceTokens({
+        background: t.background,
+        accent: t.accent,
+        accent2: t.accent2,
+        appBg: t.bg,
+        colorMode: t.mode,
+      }),
+    [t.accent, t.accent2, t.background, t.bg, t.mode],
+  );
   const safeFontSize = Math.max(12, Math.min(18, Number(t.qol?.fontSize) || 14));
   const safePanelRadius = Math.max(4, Math.min(32, Number(t.visual?.panelRadius) || 14));
   const viewContract = activeViewManifest ?? {
@@ -143,23 +154,15 @@ export function MainShellLayout({
           panelSurfaceTokens.backgroundSize || "100% 100%",
         ["--nx-panel-bg-blend" as any]:
           panelSurfaceTokens.backgroundBlendMode || "normal",
-        ["--nx-app-shell-aura-bg" as any]: isDark
-          ? "radial-gradient(circle at 20% 8%, rgba(34, 211, 238, 0.18), transparent 34%), radial-gradient(circle at 84% 4%, rgba(129, 140, 248, 0.2), transparent 36%), radial-gradient(circle at 54% 92%, rgba(16, 185, 129, 0.1), transparent 42%), linear-gradient(180deg, rgba(8, 9, 26, 0.28), rgba(8, 9, 26, 0.66))"
-          : "radial-gradient(circle at 20% 8%, rgba(34, 211, 238, 0.16), transparent 34%), radial-gradient(circle at 84% 4%, rgba(129, 140, 248, 0.14), transparent 36%), radial-gradient(circle at 54% 92%, rgba(16, 185, 129, 0.08), transparent 42%), linear-gradient(180deg, rgba(255, 255, 255, 0.38), rgba(245, 248, 255, 0.5))",
-        ["--nx-app-shell-grid-bg" as any]: isDark
-          ? "linear-gradient(rgba(129, 140, 248, 0.11) 1px, transparent 1px), linear-gradient(90deg, rgba(34, 211, 238, 0.08) 1px, transparent 1px)"
-          : "linear-gradient(rgba(15, 23, 42, 0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(37, 99, 235, 0.055) 1px, transparent 1px)",
-        ["--nx-app-shell-grid-opacity" as any]: isDark ? 0.045 : 0.035,
-        ["--nx-shell-window-bg" as any]: isDark
-          ? "linear-gradient(145deg, rgba(15, 23, 42, 0.72), rgba(8, 13, 32, 0.54)), radial-gradient(circle at top left, rgba(34, 211, 238, 0.08), transparent 42%), radial-gradient(circle at bottom right, rgba(129, 140, 248, 0.08), transparent 42%)"
-          : "linear-gradient(145deg, rgba(255, 255, 255, 0.9), rgba(244, 247, 255, 0.76)), radial-gradient(circle at top left, rgba(34, 211, 238, 0.11), transparent 42%), radial-gradient(circle at bottom right, rgba(99, 102, 241, 0.08), transparent 42%)",
-        ["--nx-shell-window-aura-bg" as any]: isDark
-          ? "linear-gradient(180deg, rgba(255,255,255,0.1), transparent 18%), radial-gradient(640px circle at -6% -20%, rgba(34, 211, 238, 0.2), transparent 52%), radial-gradient(780px circle at 120% -30%, rgba(167, 139, 250, 0.18), transparent 60%)"
-          : "linear-gradient(180deg, rgba(255,255,255,0.72), transparent 22%), radial-gradient(640px circle at -6% -20%, rgba(34, 211, 238, 0.13), transparent 52%), radial-gradient(780px circle at 120% -30%, rgba(99, 102, 241, 0.11), transparent 60%)",
-        ["--nx-shell-window-grid-bg" as any]: isDark
-          ? "linear-gradient(rgba(255, 255, 255, 0.045) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px)"
-          : "linear-gradient(rgba(15, 23, 42, 0.055) 1px, transparent 1px), linear-gradient(90deg, rgba(15, 23, 42, 0.04) 1px, transparent 1px)",
-        ["--nx-shell-window-grid-opacity" as any]: isDark ? 0.055 : 0.04,
+        ["--nx-app-root-bg" as any]: appShellSurfaceTokens.rootBackgroundColor,
+        ["--nx-app-shell-aura-bg" as any]: appShellSurfaceTokens.auraBackground,
+        ["--nx-app-shell-aura-opacity" as any]: appShellSurfaceTokens.auraOpacity,
+        ["--nx-app-shell-grid-bg" as any]: appShellSurfaceTokens.gridBackground,
+        ["--nx-app-shell-grid-opacity" as any]: appShellSurfaceTokens.gridOpacity,
+        ["--nx-shell-window-bg" as any]: appShellSurfaceTokens.windowBackground,
+        ["--nx-shell-window-aura-bg" as any]: appShellSurfaceTokens.windowAuraBackground,
+        ["--nx-shell-window-grid-bg" as any]: appShellSurfaceTokens.windowGridBackground,
+        ["--nx-shell-window-grid-opacity" as any]: appShellSurfaceTokens.windowGridOpacity,
         ["--nx-v6-surface" as any]: isDark
           ? "rgba(15, 23, 42, 0.58)"
           : "rgba(255, 255, 255, 0.72)",

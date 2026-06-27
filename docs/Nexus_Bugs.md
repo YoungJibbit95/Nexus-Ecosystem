@@ -38,7 +38,8 @@ InfoView mit Suche, View-Guides und Referenzen erweitern | true
 ```nexus-checklist
 Leistungsanzeige fuer Glass Optionen in Settings adden | true
 Notes UI weniger cramped und nutzerfreundlicher machen | true
-DevTools UI weiter verdichten und besser gruppieren | false
+DevTools UI weiter verdichten und besser gruppieren | true
+App Backgrounds sichtbarer machen, damit Settings-Aenderungen im Shell-Look wirklich ankommen | true
 ```
 
 ---
