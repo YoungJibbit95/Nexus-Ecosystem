@@ -1,15 +1,16 @@
+````md
 <div align="center">
 
 <img width="120" src="https://raw.githubusercontent.com/github/explore/main/topics/react/react.png" />
 
-# ✨ NEXUS ECOSYSTEM ✨
-
-### Multi-App Workspace System for Planning, Development & Daily Operations
+<img src="https://capsule-render.vercel.app/api?type=waving&color=0:6366f1,50:8b5cf6,100:ec4899&height=180&section=header&text=NEXUS%20ECOSYSTEM&fontSize=42&fontColor=ffffff&animation=fadeIn&fontAlignY=35&desc=Multi-App%20Workspace%20System%20for%20Planning,%20Development%20%26%20Daily%20Operations&descAlignY=58&descSize=14" />
 
 <p align="center">
   <img src="https://img.shields.io/github/last-commit/YoungJibbit95/Nexus-Ecosystem?style=for-the-badge&color=8b5cf6" />
   <img src="https://img.shields.io/github/repo-size/YoungJibbit95/Nexus-Ecosystem?style=for-the-badge&color=6366f1" />
   <img src="https://img.shields.io/github/issues/YoungJibbit95/Nexus-Ecosystem?style=for-the-badge&color=ec4899" />
+  <img src="https://img.shields.io/github/stars/YoungJibbit95/Nexus-Ecosystem?style=for-the-badge&color=facc15" />
+  <img src="https://img.shields.io/github/forks/YoungJibbit95/Nexus-Ecosystem?style=for-the-badge&color=22c55e" />
   <img src="https://komarev.com/ghpvc/?username=YoungJibbit95-Nexus-Ecosystem&label=repo%20views&color=8b5cf6&style=for-the-badge" />
 </p>
 
@@ -28,6 +29,20 @@
   <img src="https://img.shields.io/badge/Platform-Cross_Device-f97316?style=flat-square" />
 </p>
 
+<p align="center">
+  <a href="#-overview">Overview</a>
+  ·
+  <a href="#-quick-links">Quick Links</a>
+  ·
+  <a href="#%EF%B8%8F-architecture">Architecture</a>
+  ·
+  <a href="#-getting-started">Getting Started</a>
+  ·
+  <a href="#-security-status">Security</a>
+</p>
+
+<img src="https://readme-typing-svg.demolab.com?font=Inter&weight=700&size=22&pause=1200&color=8B5CF6&center=true&vCenter=true&width=900&lines=Unified+Workspace+Infrastructure;Desktop+%2B+Mobile+%2B+IDE+%2B+Shared+Core;Planning%2C+Development+%26+Daily+Operations" />
+
 </div>
 
 ---
@@ -40,6 +55,16 @@
 
 > Nexus ist ein Multi-App Workspace-System für Planung, Entwicklung und Daily Operations.  
 > Dieses Repository enthaelt die produktiven Clients, Shared Core Runtime-Logik und die Wiki-/Website-Dokumentation.
+
+<div align="center">
+
+<img src="https://github-readme-stats.vercel.app/api/pin/?username=YoungJibbit95&repo=Nexus-Ecosystem&theme=tokyonight&hide_border=true&border_radius=16" />
+
+<br />
+
+<img src="https://github-readme-activity-graph.vercel.app/graph?username=YoungJibbit95&theme=react-dark&hide_border=true&radius=16&area=true&custom_title=Nexus%20Ecosystem%20Commit%20Graph" />
+
+</div>
 
 ---
 
@@ -138,7 +163,13 @@ flowchart LR
   E["InfoView (in-app docs)"] --> A
   E --> B
   F["Nexus Wiki + Website"] --> E
-```
+````
+
+<div align="center">
+
+<img src="https://skillicons.dev/icons?i=react,ts,electron,vite,nodejs,rust,github,md" />
+
+</div>
 
 ---
 
@@ -190,18 +221,18 @@ This keeps UX smooth while still degrading safely under low power, reduced motio
 
 </div>
 
-| Area | Purpose |
-| --- | --- |
-| `Nexus Main/` | desktop workspace app |
-| `Nexus Mobile/` | mobile workspace app |
-| `Nexus Code/` | desktop IDE app |
-| `Nexus Code Mobile/` | mobile IDE app |
-| `Nexus Installer/` | native Rust installer for build+install from GitHub |
-| `packages/nexus-core/` | shared render/motion/runtime contracts |
-| `packages/nexus-api/` | shared API clients/contracts |
-| `tools/` | verify/release guard scripts |
-| `Nexus Wiki/` | wiki site source |
-| `nexusproject.dev/` | website source |
+| Area                   | Purpose                                             |
+| ---------------------- | --------------------------------------------------- |
+| `Nexus Main/`          | desktop workspace app                               |
+| `Nexus Mobile/`        | mobile workspace app                                |
+| `Nexus Code/`          | desktop IDE app                                     |
+| `Nexus Code Mobile/`   | mobile IDE app                                      |
+| `Nexus Installer/`     | native Rust installer for build+install from GitHub |
+| `packages/nexus-core/` | shared render/motion/runtime contracts              |
+| `packages/nexus-api/`  | shared API clients/contracts                        |
+| `tools/`               | verify/release guard scripts                        |
+| `Nexus Wiki/`          | wiki site source                                    |
+| `nexusproject.dev/`    | website source                                      |
 
 ---
 
@@ -259,15 +290,15 @@ npm run doctor:release
 
 > Major dependency refresh is applied across all 4 apps and validated with full builds plus verify scripts.
 
-| Dependency | Version |
-| --- | --- |
-| React / React DOM | `19.2.x` |
-| Framer Motion | `12.38.x` |
-| Lucide React | `1.8.x` |
-| Monaco Editor | `0.55.x` |
-| Three.js | `0.184.x` |
-| Zustand | `5.0.x` |
-| React Markdown | `10.1.x` |
+| Dependency        | Version   |
+| ----------------- | --------- |
+| React / React DOM | `19.2.x`  |
+| Framer Motion     | `12.38.x` |
+| Lucide React      | `1.8.x`   |
+| Monaco Editor     | `0.55.x`  |
+| Three.js          | `0.184.x` |
+| Zustand           | `5.0.x`   |
+| React Markdown    | `10.1.x`  |
 
 ---
 
@@ -279,10 +310,10 @@ npm run doctor:release
 
 ### Security checks (high severity, production deps) currently report `0 vulnerabilities` for:
 
-- `Nexus Main`
-- `Nexus Mobile`
-- `Nexus Code`
-- `Nexus Code Mobile`
+* `Nexus Main`
+* `Nexus Mobile`
+* `Nexus Code`
+* `Nexus Code Mobile`
 
 ---
 
@@ -318,11 +349,11 @@ VITE_NEXUS_USER_TIER
 > This repository does not include the private backend implementation.
 
 | Included in repo | Excluded from repo |
-| --- | --- |
-| clients | backend services |
-| shared core | infrastructure |
-| wiki | private secrets |
-| web/docs |  |
+| ---------------- | ------------------ |
+| clients          | backend services   |
+| shared core      | infrastructure     |
+| wiki             | private secrets    |
+| web/docs         |                    |
 
 ---
 
@@ -356,6 +387,7 @@ Nexus Code Mobile -> Mobile IDE
   <img src="https://img.shields.io/badge/Mobile-Capacitor-119eff?style=for-the-badge&logo=capacitor&logoColor=white" />
 </p>
 
-<img src="https://capsule-render.vercel.app/api?type=waving&color=8b5cf6&height=120&section=footer"/>
+<img src="https://capsule-render.vercel.app/api?type=waving&color=0:ec4899,50:8b5cf6,100:6366f1&height=120&section=footer"/>
 
 </div>
+```
