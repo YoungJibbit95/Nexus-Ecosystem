@@ -110,8 +110,8 @@ Abgearbeitet:
 - Settings Performance: Glass Performance zeigt Kostentreiber fuer Blur, Glass, Motion und Background plus Release-Safe/Balanced Presets.
 - Notes UX: Tags sind aus der Format-Leiste raus und sitzen kompakt in der Statuszeile; Editor/Preview bekommen mehr Raum.
 - GitHub Automation: Main UI Gate, Website CI, API Dependabot und VPS Autoupdate Workflow sind angelegt.
-- Nexus Code Dependency Security: ESLint auf kompatible 9er Linie zurueckgezogen, Overrides fuer DOMPurify/brace-expansion/minimatch aktualisiert und Audit-Findings in `Nexus Code` auf 0 reduziert.
-- Verification: Main Build, Single-React, Website Typecheck/Build-Budget/API-Integration, Nexus Code Build und npm Audits fuer Main/Website/API/Nexus Code sind gruen.
+- Nexus Code Dependency Security: ESLint auf kompatible 9er Linie zurueckgezogen, Overrides fuer DOMPurify/brace-expansion/minimatch aktualisiert und Audit-Findings in `Nexus Code` sowie `Nexus Code Mobile` auf 0 reduziert.
+- Verification: Main Build, Single-React, Website Typecheck/Build-Budget/API-Integration, Nexus Code/Code Mobile Build und npm Audits fuer Main/Website/API/Nexus Code/Nexus Code Mobile sind gruen.
 
 Blockiert:
 
