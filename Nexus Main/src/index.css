@@ -836,7 +836,7 @@ body {
         linear-gradient(180deg, rgba(8, 9, 26, 0.28), rgba(8, 9, 26, 0.66))
     );
     filter: blur(10px);
-    opacity: 0.92;
+    opacity: var(--nx-app-shell-aura-opacity, 0.82);
 }
 
 .nx-app-shell::after {
@@ -4236,11 +4236,11 @@ select {
 /* Production polish pass: calmer surfaces, stronger overflow rules, responsive workbench. */
 .nx-app-shell {
     min-width: 0;
-    background-color: #070b16;
+    background-color: var(--nx-app-root-bg, #070b16);
 }
 
 .nx-app-shell::before {
-    opacity: 0.72;
+    opacity: min(var(--nx-app-shell-aura-opacity, 0.72), 0.82);
 }
 
 .nx-app-shell::after {
@@ -4938,5 +4938,147 @@ select {
     .nx-notes-emoji-menu {
         bottom: 54px !important;
         max-height: calc(100dvh - 74px);
+    }
+}
+
+/* Release polish follow-up: Notes portal menus and DevTools workbench responsiveness. */
+.nx-notes-blocks-menu,
+.nx-notes-emoji-menu {
+    color: rgba(255, 255, 255, 0.9);
+    box-shadow:
+        0 24px 60px rgba(0, 0, 0, 0.42),
+        inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.nx-notes-blocks-menu {
+    display: grid;
+    gap: 3px;
+}
+
+.nx-notes-command-strip,
+.nx-notes-format-toolbar {
+    scrollbar-width: none;
+}
+
+.nx-notes-command-strip::-webkit-scrollbar,
+.nx-notes-format-toolbar::-webkit-scrollbar {
+    display: none;
+}
+
+.nx-notes-editor-grid {
+    gap: clamp(10px, 1.2vw, 16px) !important;
+}
+
+.nx-notes-editor-pane textarea,
+.nx-notes-preview-scroll {
+    scrollbar-gutter: stable;
+}
+
+.nx-notes-editor-pane textarea {
+    padding-block: clamp(16px, 1.8vw, 24px) !important;
+}
+
+.nx-devtools-v6 {
+    min-width: 0;
+}
+
+.nx-devtools-toolbar {
+    flex-wrap: wrap;
+    row-gap: 8px;
+}
+
+.nx-devtools-tabs {
+    min-width: min(100%, 480px);
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.nx-devtools-tabs button {
+    min-height: 30px;
+}
+
+.nx-devtools-builder,
+.nx-devtools-builder-body,
+.nx-devtools-designer {
+    min-width: 0;
+    min-height: 0;
+}
+
+.nx-devtools-file-panel,
+.nx-devtools-code-panel,
+.nx-devtools-preview-panel,
+.nx-devtools-element-panel,
+.nx-devtools-designer-controls,
+.nx-devtools-designer-preview {
+    min-width: 0;
+}
+
+@media (max-width: 1180px) {
+    .nx-devtools-builder-body {
+        flex-direction: column;
+        overflow: auto !important;
+    }
+
+    .nx-devtools-file-panel,
+    .nx-devtools-code-panel,
+    .nx-devtools-preview-panel,
+    .nx-devtools-element-panel {
+        width: auto !important;
+        flex: 0 0 auto !important;
+        min-height: 220px;
+        border-right: 0 !important;
+        border-bottom: 1px solid var(--nx-v6-line-soft, rgba(255, 255, 255, 0.07));
+    }
+
+    .nx-devtools-preview-panel {
+        min-height: min(420px, 48dvh);
+    }
+
+    .nx-devtools-designer {
+        flex-direction: column;
+        overflow: auto !important;
+    }
+
+    .nx-devtools-designer-controls,
+    .nx-devtools-designer-preview {
+        width: auto !important;
+        flex: 0 0 auto !important;
+    }
+}
+
+@media (max-width: 760px) {
+    .nx-devtools-toolbar > div:first-child {
+        flex: 1 1 100%;
+    }
+
+    .nx-devtools-tabs {
+        width: 100%;
+        margin-left: 0 !important;
+        justify-content: stretch;
+    }
+
+    .nx-devtools-tabs button {
+        flex: 1 1 46%;
+        justify-content: center;
+    }
+
+    .nx-devtools-builder-toolbar {
+        gap: 6px !important;
+    }
+
+    .nx-devtools-builder-toolbar > div,
+    .nx-devtools-builder-toolbar > label,
+    .nx-devtools-builder-toolbar > button {
+        flex-wrap: wrap;
+    }
+
+    .nx-notes-editor-header,
+    .nx-notes-command-strip,
+    .nx-notes-format-toolbar {
+        padding-inline: 8px !important;
+    }
+
+    .nx-notes-editor-grid {
+        overflow: auto !important;
     }
 }

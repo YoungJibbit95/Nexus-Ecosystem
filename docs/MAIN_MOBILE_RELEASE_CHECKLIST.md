@@ -33,9 +33,10 @@ Der Gate prueft:
 | Canvas Main | In Arbeit | Inspector v2 ist drin, danach Multi-Select/History/Snap vollenden |
 | Canvas Mobile | In Arbeit | Mobile Gestures und Bottom-Sheet Inspector angleichen |
 | Settings Shared Core | In Arbeit | Main/Mobile Bridge weiter reduzieren und Import-Validation ausbauen; Radius/Font/Panel-Token sind in Main stabilisiert |
-| Notes | In Arbeit | Persistenz/Import/Editor-Performance aufteilen; Popover/Toolbar/Editor-Raum sind poliert |
+| Notes | In Arbeit | Persistenz/Import/Editor-Performance aufteilen; Portal-Popover/Toolbar/Editor-Raum sind poliert |
+| DevTools | In Arbeit | Responsive Builder/Designer-Splits sind poliert, naechster Schritt ist Artifact-Workflow QA |
 | Files/Workspace Handoff | In Arbeit | Runtime Snapshot Flow mit Mobile Roundtrip testen |
-| Website/API Nutzerzahlen | In Arbeit | Aktive Nutzer bleiben getrennt von technischen Clients; Contract-Smokes weiter ausbauen |
+| Website/API Nutzerzahlen | In Arbeit | Aktive Nutzer bleiben getrennt von technischen Clients; Live-Deploy braucht autorisierten VPS-Zugang |
 
 ## Canvas Release Liste
 
@@ -62,6 +63,7 @@ Der Gate prueft:
 - [x] Font Size clampen und global layout-sicher machen
 - [x] Panel Radius ueber Shell/Glass Tokens sichtbar verdrahten
 - [x] Panel Backgrounds fuer App Panels/Sidebar sichtbar reparieren
+- [x] App Backgrounds ueber Shell-/Window-Tokens sichtbar machen
 - [x] Glass Performance Anzeige in Settings einfuehren
 
 ## Notes Release Liste
@@ -69,6 +71,7 @@ Der Gate prueft:
 - [x] UI-State-Import ist gegen defekte LocalStorage-Werte geschuetzt
 - [x] Emoji- und Blocks-Menues schweben ueber der Toolbar statt Layout zu vergroessern
 - [x] Magic Button schliesst konkurrierende Notes-Popover
+- [x] Emoji-/Blocks-Menues werden per Portal gerendert und haengen nicht mehr im Toolbar-Layout
 - [x] InfoView hat Suche und bessere Referenzen fuer Views/Markdown/Terminal
 - [ ] Notes Store von Editor-Draft-State trennen
 - [ ] Markdown/Emoji/Magic Daten in kleinere Module auslagern
@@ -84,6 +87,15 @@ Der Gate prueft:
 - [x] Nexus Control Dashboard zeigt im Nutzer-Slot echte aktive Nutzer
 - [ ] Website Screenshots nach UI-Stabilisierung neu capturen
 - [ ] API Contract-Test fuer fehlende Nutzer-Metriken um Fallbacks erweitern
+- [ ] VPS `srv1513091.hstgr.cloud` deployen/restarten, sobald SSH-Key oder Hostinger-Zugang autorisiert ist
+
+## DevTools Release Liste
+
+- [x] Sichtbare Mojibake-/Emoji-Labels im Element Designer entfernen
+- [x] Builder-, Preview- und Designer-Panels auf schmalen Fenstern stapeln statt quetschen
+- [x] DevTools Header/Tabs umbrechen sauber und bleiben bedienbar
+- [ ] Artifact Library Load/Save/Export einmal manuell mit echtem Projekt testen
+- [ ] Release Health Dashboard an Live-API Deploy-Status anbinden
 
 ## Manual Smoke
 
@@ -95,6 +107,7 @@ Der Gate prueft:
 - Main Files: Search, Filter, Workspace zuweisen, Snapshot Export
 - Website: API, Developer, Account, Pricing, Glow-Toggle und Live-Metriken pruefen
 - API/Control: aktive Nutzer vs. technische Clients getrennt anzeigen
+- DevTools: Builder Code/Designer/Visual in 760px, 1180px und Fullscreen pruefen
 - Mobile: Start, Dashboard, Notes, Canvas, Files, Settings einmal oeffnen
 - Mobile Files: Runtime Snapshot importieren/exportieren/teilen
 - Mobile Canvas: Pan, Zoom, Node Edit, kleine Viewports
@@ -103,4 +116,5 @@ Der Gate prueft:
 
 - GitHub meldet weiterhin repo-weite Dependabot Findings ausserhalb des Main/Mobile-Audit-Gates.
 - Voller Runtime-Smoke kann durch Hosted-Control-API Auth (`HTTP_401`) begrenzt sein.
+- Live-API-Deploy ist aktuell durch fehlende SSH-Autorisierung fuer `srv1513091.hstgr.cloud` blockiert; GitHub `main` ist gruen, aber der VPS hat die alte Runtime noch nicht neu gestartet.
 - Code/Code Mobile bleiben ausserhalb dieses Main/Mobile Gates und brauchen ein separates Security-/Release-Fenster.

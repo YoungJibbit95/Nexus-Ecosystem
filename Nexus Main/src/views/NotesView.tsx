@@ -820,6 +820,7 @@ export function NotesView() {
     rememberEditorSelection();
     setNotesEmojiMenuOpen((open) => !open);
     setNotesBlocksMenuOpen(false);
+    setShowMagic(false);
   };
 
   useEffect(() => {
@@ -2235,6 +2236,7 @@ export function NotesView() {
                   onClick={() => {
                     setNotesBlocksMenuOpen((open) => !open);
                     setNotesEmojiMenuOpen(false);
+                    setShowMagic(false);
                   }}
                   onMouseDown={(event) => {
                     event.preventDefault();
@@ -2262,8 +2264,9 @@ export function NotesView() {
                 >
                   <Sparkles size={11} /> Blocks
                 </InteractiveActionButton>
-                {notesBlocksMenuOpen ? (
-                  <div className="nx-notes-blocks-menu">
+                {notesBlocksMenuOpen && typeof document !== "undefined"
+                  ? createPortal(
+                      <div className="nx-notes-blocks-menu" role="menu">
                     {[
                       {
                         icon: Bell,
@@ -2329,8 +2332,10 @@ export function NotesView() {
                         </InteractiveActionButton>
                       );
                     })}
-                  </div>
-                ) : null}
+                      </div>,
+                      document.body,
+                    )
+                  : null}
               </div>
               <FmtBtn
                 icon={ChevronDown}
@@ -2372,8 +2377,9 @@ export function NotesView() {
                 >
                   <Smile size={11} /> Emojis
                 </InteractiveActionButton>
-                {notesEmojiMenuOpen ? (
-                  <div className="nx-notes-emoji-menu">
+                {notesEmojiMenuOpen && typeof document !== "undefined"
+                  ? createPortal(
+                      <div className="nx-notes-emoji-menu" role="dialog" aria-label="Emoji Library">
                     <div className="nx-notes-emoji-menu-head">
                       <div>
                         <strong>Emoji Library</strong>
@@ -2385,7 +2391,7 @@ export function NotesView() {
                       <button
                         type="button"
                         onClick={() => setNotesEmojiMenuOpen(false)}
-                        aria-label="Emoji-Menü schließen"
+                        aria-label="Emoji-Menue schliessen"
                       >
                         <X size={12} />
                       </button>
@@ -2427,8 +2433,10 @@ export function NotesView() {
                         </button>
                       ))}
                     </div>
-                  </div>
-                ) : null}
+                      </div>,
+                      document.body,
+                    )
+                  : null}
               </div>
 
               <div
