@@ -4,7 +4,6 @@
 
 <img width="112" src="https://raw.githubusercontent.com/github/explore/main/topics/react/react.png" alt="React logo" />
 
-<img width="100%" src="https://capsule-render.vercel.app/api?type=waving&color=0:6366f1,48:8b5cf6,100:ec4899&height=220&section=header&text=NEXUS%20ECOSYSTEM&fontSize=46&fontColor=ffffff&animation=fadeIn&fontAlignY=34&desc=Multi-App%20Workspace%20System%20for%20Planning%2C%20Development%20%26%20Daily%20Operations&descAlignY=56&descSize=15" alt="Nexus Ecosystem header" />
 
 <p>
   <a href="https://github.com/YoungJibbit95/Nexus-Ecosystem/stargazers"><img src="https://img.shields.io/github/stars/YoungJibbit95/Nexus-Ecosystem?style=for-the-badge&logo=github&color=facc15&labelColor=18181b" alt="GitHub stars" /></a>
