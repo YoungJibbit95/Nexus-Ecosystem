@@ -124,4 +124,4 @@ Der Gate prueft:
 - GitHub meldet weiterhin repo-weite Dependabot Findings ausserhalb des Main/Mobile-Audit-Gates.
 - Voller Runtime-Smoke kann durch Hosted-Control-API Auth (`HTTP_401`) begrenzt sein.
 - Live-API-Deploy ist aktuell durch fehlende SSH-/GitHub-Secrets fuer `srv1513091.hstgr.cloud` blockiert; GitHub `main` ist gruen, aber der VPS hat die alte Runtime noch nicht neu gestartet.
-- Code/Code Mobile bleiben ausserhalb dieses Main/Mobile Gates und brauchen ein separates Release-Fenster; `Nexus Code` Dependency-Audit ist seit dem 2026-06-27 Security-Fix wieder sauber.
+- Code/Code Mobile bleiben ausserhalb dieses Main/Mobile Gates und brauchen ein separates Release-Fenster; `Nexus Code` und `Nexus Code Mobile` Dependency-Audits sind seit dem 2026-06-27 Security-Fix wieder sauber.
