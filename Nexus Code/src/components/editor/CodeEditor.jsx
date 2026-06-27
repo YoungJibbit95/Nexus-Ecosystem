@@ -1,65 +1,72 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import Editor, { useMonaco } from "@monaco-editor/react";
-import { ensureMonacoWorkers } from "../../lib/monacoWorkers";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import CodeMirror from "@uiw/react-codemirror";
+import {
+  drawSelection,
+  dropCursor,
+  EditorView,
+  highlightActiveLine,
+  highlightActiveLineGutter,
+  highlightSpecialChars,
+  keymap,
+  lineNumbers,
+  placeholder,
+  rectangularSelection,
+} from "@codemirror/view";
+import { EditorState, Compartment } from "@codemirror/state";
+import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
+import {
+  autocompletion,
+  closeBrackets,
+  closeBracketsKeymap,
+  completionKeymap,
+} from "@codemirror/autocomplete";
+import {
+  bracketMatching,
+  defaultHighlightStyle,
+  foldGutter,
+  foldKeymap,
+  indentOnInput,
+  syntaxHighlighting,
+} from "@codemirror/language";
+import { lintGutter, lintKeymap, setDiagnostics } from "@codemirror/lint";
+import { searchKeymap, highlightSelectionMatches } from "@codemirror/search";
+import { javascript } from "@codemirror/lang-javascript";
+import { json } from "@codemirror/lang-json";
+import { html } from "@codemirror/lang-html";
+import { css } from "@codemirror/lang-css";
+import { markdown } from "@codemirror/lang-markdown";
+import { python } from "@codemirror/lang-python";
+import { java } from "@codemirror/lang-java";
+import { cpp } from "@codemirror/lang-cpp";
+import { php } from "@codemirror/lang-php";
+import { rust } from "@codemirror/lang-rust";
+import { sql } from "@codemirror/lang-sql";
+import { xml } from "@codemirror/lang-xml";
 import { THEMES as EDITOR_THEMES } from "../../pages/editor/editorShared.jsx";
 import { createEditorEngine } from "../../ide/editor/editorEngine.js";
-import { createMonacoModelPath } from "../../ide/editor/monacoModelUri.js";
+import { createDocumentUriDescriptor } from "../../ide/editor/documentUri.js";
 import {
   detectLanguageId,
-  detectMonacoLanguageId,
   getLanguageDisplayName,
   isLspReadyLanguage,
+  LANGUAGE_IDS,
 } from "../../ide/languages/languageIds.js";
 import {
   createElectronLspTransport,
   hasElectronLspBridge,
-  lspCompletionListToMonaco,
-  lspDefinitionToMonaco,
-  lspDiagnosticsToMonacoMarkers,
-  lspHoverToMonaco,
-  lspTextEditsToMonaco,
 } from "../../ide/lsp/index.js";
 
-const IGNORED_DIAGNOSTIC_CODES = new Set([2307, 2792, 1208, 2339, 2580, 2304]);
-const EDITOR_CHANGE_EMIT_INTERVAL_MS = 60;
-const CURSOR_INFO_UPDATE_MS = 50;
+const EDITOR_CHANGE_EMIT_INTERVAL_MS = 48;
+const CURSOR_INFO_UPDATE_MS = 45;
 const LINE_COUNT_UPDATE_MS = 80;
-const LARGE_FILE_CHAR_THRESHOLD = 180_000;
+const LARGE_FILE_CHAR_THRESHOLD = 220_000;
 const COMPACT_VIEWPORT_WIDTH = 920;
 const DEFAULT_EDITOR_FONT_STACK =
   "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace";
-const TRANSPARENT_EDITOR_SELECTORS = [
-  ".monaco-editor",
-  ".monaco-editor .margin",
-  ".monaco-editor .monaco-editor-background",
-  ".monaco-editor-background",
-  ".monaco-editor .inputarea.ime-input",
-  ".monaco-editor .scroll-decoration",
-  ".monaco-editor .minimap",
-  ".monaco-editor .overflow-guard",
-];
 
-function extractRgbTuple(value) {
-  if (!value || typeof value !== "string") return null;
-  const hexMatch = value.match(/#([0-9a-fA-F]{6})/);
-  if (hexMatch) {
-    const hex = hexMatch[1];
-    return [
-      Number.parseInt(hex.slice(0, 2), 16),
-      Number.parseInt(hex.slice(2, 4), 16),
-      Number.parseInt(hex.slice(4, 6), 16),
-    ];
-  }
-  const rgbMatch = value.match(
-    /rgba?\(\s*([0-9.]+)\s*,\s*([0-9.]+)\s*,\s*([0-9.]+)/i,
-  );
-  if (!rgbMatch) return null;
-  return [
-    Number.parseFloat(rgbMatch[1]),
-    Number.parseFloat(rgbMatch[2]),
-    Number.parseFloat(rgbMatch[3]),
-  ];
-}
+const cmThemeCompartment = new Compartment();
+const languageCompartment = new Compartment();
+const diagnosticsCompartment = new Compartment();
 
 function clampNumber(value, min, max, fallback) {
   const numeric = Number(value);
@@ -81,9 +88,7 @@ function resolveEditorFontSize(settings, fallbackFontSize) {
 function resolveEditorLineHeight(settings, resolvedFontSize) {
   const raw = clampNumber(settings.line_height, 1.2, 34, 1.55);
   const pixelValue = raw <= 3 ? raw * resolvedFontSize : raw;
-  return Math.round(
-    Math.max(resolvedFontSize + 4, Math.min(40, pixelValue)),
-  );
+  return Math.round(Math.max(resolvedFontSize + 4, Math.min(40, pixelValue)));
 }
 
 function resolveEditorLetterSpacing(settings) {
@@ -91,9 +96,7 @@ function resolveEditorLetterSpacing(settings) {
 }
 
 function resolveEditorTabSize(settings, fallbackTabSize) {
-  return Math.round(
-    clampNumber(settings.tab_size ?? fallbackTabSize, 2, 8, 4),
-  );
+  return Math.round(clampNumber(settings.tab_size ?? fallbackTabSize, 2, 8, 4));
 }
 
 function resolveEditorFontFamily(settings) {
@@ -102,57 +105,283 @@ function resolveEditorFontFamily(settings) {
   return `'${configured.replace(/'/g, "")}', ${DEFAULT_EDITOR_FONT_STACK}`;
 }
 
-function buildStableThemeName(themeId, accent) {
-  const base =
-    String(themeId || "dark")
-      .replace(/[^a-z0-9_-]/gi, "")
-      .slice(0, 32) || "dark";
-  const accentToken =
-    String(accent || "8000ff")
-      .replace(/[^a-z0-9]/gi, "")
-      .slice(0, 24) || "accent";
-  return `nexus-${base}-${accentToken}`;
+function safeHex(value, fallback) {
+  const normalized = String(value || "").trim();
+  return /^#[0-9a-f]{6}$/i.test(normalized) ? normalized : fallback;
 }
 
-function pickReadableColorSource(...values) {
-  for (const value of values) {
-    const normalized = typeof value === "string" ? value.trim() : "";
-    if (!normalized) continue;
-    if (extractRgbTuple(normalized)) return normalized;
-  }
-  for (const value of values) {
-    const normalized = typeof value === "string" ? value.trim() : "";
-    if (normalized) return normalized;
-  }
-  return "#0b1020";
+function hexToRgba(value, alpha) {
+  const hex = safeHex(value, "#8b5cf6").slice(1);
+  const r = Number.parseInt(hex.slice(0, 2), 16);
+  const g = Number.parseInt(hex.slice(2, 4), 16);
+  const b = Number.parseInt(hex.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
-function getLuminance(rgb) {
-  if (!rgb) return 0;
-  const channels = rgb.map((v) => {
-    const normalized = Math.max(0, Math.min(255, v)) / 255;
-    return normalized <= 0.03928
-      ? normalized / 12.92
-      : ((normalized + 0.055) / 1.055) ** 2.4;
+function createNexusCodeMirrorTheme(settings, compactViewport, editorFontSize, editorLineHeight) {
+  const theme = EDITOR_THEMES[settings.theme] || EDITOR_THEMES.nexus_vibrant;
+  const accent = safeHex(settings.primary_accent || theme.accent, "#8b5cf6");
+  const text = safeHex(theme.text, "#f3f4f6");
+  const selection = theme.selection || hexToRgba(accent, 0.26);
+  const panelSurface = "var(--nexus-panel-surface)";
+  const letterSpacing = resolveEditorLetterSpacing(settings);
+
+  return EditorView.theme(
+    {
+      "&": {
+        height: "100%",
+        minHeight: 0,
+        background: "transparent",
+        color: text,
+        fontFamily: resolveEditorFontFamily(settings),
+        fontSize: `${editorFontSize}px`,
+        letterSpacing: `${letterSpacing}px`,
+      },
+      ".cm-scroller": {
+        height: "100%",
+        overflow: "auto",
+        fontFamily: "inherit",
+        lineHeight: `${editorLineHeight}px`,
+        background: "transparent",
+      },
+      ".cm-content": {
+        minHeight: "100%",
+        padding: `${compactViewport ? 14 : 20}px ${compactViewport ? 14 : 24}px`,
+        caretColor: accent,
+      },
+      ".cm-line": {
+        padding: "0 2px",
+      },
+      ".cm-gutters": {
+        background: "rgba(0,0,0,0.12)",
+        color: "#7d8598",
+        borderRight: "1px solid rgba(255,255,255,0.05)",
+      },
+      ".cm-lineNumbers .cm-gutterElement": {
+        padding: compactViewport ? "0 8px 0 10px" : "0 12px 0 14px",
+        minWidth: compactViewport ? "2.4rem" : "3rem",
+      },
+      ".cm-activeLine": {
+        backgroundColor: "rgba(255,255,255,0.045)",
+      },
+      ".cm-activeLineGutter": {
+        backgroundColor: hexToRgba(accent, 0.1),
+        color: "#d8b4fe",
+      },
+      ".cm-selectionBackground, .cm-content ::selection": {
+        backgroundColor: selection,
+      },
+      ".cm-cursor": {
+        borderLeftColor: accent,
+        borderLeftWidth: settings.cursor_style === "block" ? "0.55em" : "2px",
+      },
+      ".cm-matchingBracket, .cm-nonmatchingBracket": {
+        outline: `1px solid ${hexToRgba(accent, 0.55)}`,
+        backgroundColor: hexToRgba(accent, 0.12),
+      },
+      ".cm-panels, .cm-tooltip, .cm-tooltip-autocomplete": {
+        background: panelSurface,
+        backdropFilter: "var(--nexus-panel-filter)",
+        border: "1px solid var(--nexus-border)",
+        borderRadius: "8px",
+        overflow: "hidden",
+      },
+      ".cm-tooltip": {
+        color: "var(--nexus-text)",
+        boxShadow: "0 18px 55px rgba(0,0,0,0.35)",
+      },
+      ".cm-tooltip-autocomplete ul li[aria-selected]": {
+        background: hexToRgba(accent, 0.18),
+        color: "#fff",
+      },
+      ".cm-searchMatch": {
+        backgroundColor: "rgba(250,204,21,0.24)",
+        outline: "1px solid rgba(250,204,21,0.25)",
+      },
+      ".cm-searchMatch.cm-searchMatch-selected": {
+        backgroundColor: hexToRgba(accent, 0.32),
+      },
+      ".cm-diagnostic": {
+        borderRadius: "4px",
+      },
+      ".cm-foldGutter .cm-gutterElement": {
+        color: "#64748b",
+      },
+      ".cm-placeholder": {
+        color: "#64748b",
+      },
+    },
+    { dark: true },
+  );
+}
+
+function getLanguageExtension(languageId, fileName) {
+  const lowerName = String(fileName || "").toLowerCase();
+  switch (languageId) {
+    case LANGUAGE_IDS.JAVASCRIPT:
+      return javascript({ jsx: lowerName.endsWith(".jsx") });
+    case LANGUAGE_IDS.TYPESCRIPT:
+      return javascript({ typescript: true, jsx: lowerName.endsWith(".tsx") });
+    case LANGUAGE_IDS.JSON:
+    case LANGUAGE_IDS.JSONC:
+      return json();
+    case LANGUAGE_IDS.HTML:
+    case LANGUAGE_IDS.VUE:
+    case LANGUAGE_IDS.SVELTE:
+    case LANGUAGE_IDS.ASTRO:
+      return html({ matchClosingTags: true });
+    case LANGUAGE_IDS.CSS:
+    case LANGUAGE_IDS.SCSS:
+    case LANGUAGE_IDS.LESS:
+      return css();
+    case LANGUAGE_IDS.MARKDOWN:
+    case LANGUAGE_IDS.MDX:
+      return markdown();
+    case LANGUAGE_IDS.PYTHON:
+      return python();
+    case LANGUAGE_IDS.JAVA:
+      return java();
+    case LANGUAGE_IDS.C:
+    case LANGUAGE_IDS.CPP:
+    case LANGUAGE_IDS.CSHARP:
+      return cpp();
+    case LANGUAGE_IDS.PHP:
+      return php();
+    case LANGUAGE_IDS.RUST:
+      return rust();
+    case LANGUAGE_IDS.SQL:
+      return sql();
+    case LANGUAGE_IDS.XML:
+      return xml();
+    default:
+      return [];
+  }
+}
+
+function countLines(value) {
+  if (!value) return 1;
+  let lines = 1;
+  for (let index = 0; index < value.length; index += 1) {
+    if (value.charCodeAt(index) === 10) lines += 1;
+  }
+  return lines;
+}
+
+function cmPosToLspPosition(doc, pos) {
+  const line = doc.lineAt(pos);
+  return {
+    lineNumber: line.number,
+    column: pos - line.from + 1,
+  };
+}
+
+function lspSeverityToProblemSeverity(severity) {
+  if (severity === 1 || severity === "error") return 8;
+  if (severity === 2 || severity === "warning") return 4;
+  return 2;
+}
+
+function lspDiagnosticsToProblems(diagnostics, resource) {
+  return (diagnostics || []).slice(0, 140).map((diagnostic) => {
+    const range = diagnostic.range || {};
+    const start = range.start || {};
+    const end = range.end || {};
+    return {
+      message: diagnostic.message || "Diagnostic",
+      source: diagnostic.source || "nexus-lsp",
+      code: diagnostic.code,
+      severity: lspSeverityToProblemSeverity(diagnostic.severity),
+      startLineNumber: Number(start.line ?? 0) + 1,
+      startColumn: Number(start.character ?? 0) + 1,
+      endLineNumber: Number(end.line ?? start.line ?? 0) + 1,
+      endColumn: Number(end.character ?? start.character ?? 0) + 1,
+      resource,
+    };
   });
-  return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
 }
 
-function normalizeEditorTextColor(value, background) {
-  const bg = extractRgbTuple(background);
-  const fg = extractRgbTuple(value);
-  if (!bg) return "#f3f4f6";
-  // Keep editor text bright by default; only switch to dark on very bright surfaces.
-  if (getLuminance(bg) < 0.72) return "#f3f4f6";
-  if (fg && getLuminance(fg) > 0.42) return value;
-  return "#111827";
+function lspDiagnosticsToCodeMirror(diagnostics, view) {
+  const doc = view?.state?.doc;
+  if (!doc) return [];
+  return (diagnostics || []).slice(0, 180).map((diagnostic) => {
+    const range = diagnostic.range || {};
+    const startLine = Math.max(1, Number(range.start?.line ?? 0) + 1);
+    const endLine = Math.max(1, Number(range.end?.line ?? range.start?.line ?? 0) + 1);
+    const safeStartLine = Math.min(doc.lines, startLine);
+    const safeEndLine = Math.min(doc.lines, endLine);
+    const startInfo = doc.line(safeStartLine);
+    const endInfo = doc.line(safeEndLine);
+    const from = Math.min(
+      doc.length,
+      startInfo.from + Math.max(0, Number(range.start?.character ?? 0)),
+    );
+    const to = Math.max(
+      from,
+      Math.min(doc.length, endInfo.from + Math.max(0, Number(range.end?.character ?? 0))),
+    );
+    return {
+      from,
+      to: to || Math.min(doc.length, from + 1),
+      severity: diagnostic.severity === 1 ? "error" : diagnostic.severity === 2 ? "warning" : "info",
+      message: diagnostic.message || "Diagnostic",
+      source: diagnostic.source || "nexus-lsp",
+    };
+  });
 }
 
-function isIgnoredDiagnosticCode(rawCode) {
-  const normalized =
-    typeof rawCode === "object" && rawCode !== null ? rawCode.value : rawCode;
-  const numeric = Number(normalized);
-  return Number.isFinite(numeric) && IGNORED_DIAGNOSTIC_CODES.has(numeric);
+function normalizeCompletionLabel(item) {
+  if (typeof item?.label === "string") return item.label;
+  if (item?.label?.label) return item.label.label;
+  return String(item?.insertText || item?.textEdit?.newText || "completion");
+}
+
+function completionType(kind) {
+  const numeric = Number(kind);
+  if ([3, 7, 8, 9, 22].includes(numeric)) return "function";
+  if ([5, 6, 10, 11, 12, 13].includes(numeric)) return "variable";
+  if ([14, 15, 16, 17, 18, 19].includes(numeric)) return "keyword";
+  if ([20, 21].includes(numeric)) return "constant";
+  if ([24, 25].includes(numeric)) return "type";
+  return "text";
+}
+
+function createSnippetCompletions(context) {
+  const word = context.matchBefore(/[\w-]*/);
+  const from = word ? word.from : context.pos;
+  return {
+    from,
+    options: [
+      {
+        label: "nexus-component",
+        type: "function",
+        detail: "Nexus React component",
+        apply: [
+          "import React from 'react';",
+          "import { motion } from 'framer-motion';",
+          "",
+          "export default function ComponentName() {",
+          "  return (",
+          "    <motion.div className=\"nexus-glass p-6 rounded-lg\">",
+          "      <h1>Hello Nexus</h1>",
+          "    </motion.div>",
+          "  );",
+          "}",
+        ].join("\n"),
+      },
+      {
+        label: "clg",
+        type: "function",
+        detail: "console.log",
+        apply: "console.log();",
+      },
+      {
+        label: "useState",
+        type: "function",
+        detail: "React state hook",
+        apply: "const [value, setValue] = useState(null);",
+      },
+    ],
+  };
 }
 
 export default function CodeEditor({
@@ -169,27 +398,18 @@ export default function CodeEditor({
   onMarkersChange,
   settings = /** @type {any} */ ({}),
 }) {
-  useEffect(() => {
-    ensureMonacoWorkers();
-  }, []);
-
-  const monaco = useMonaco();
   const resourcePath = filePath || fileName;
   const nexusLanguageId = useMemo(
     () => detectLanguageId(resourcePath),
-    [resourcePath],
-  );
-  const language = useMemo(
-    () => detectMonacoLanguageId(resourcePath),
     [resourcePath],
   );
   const languageLabel = useMemo(
     () => getLanguageDisplayName(nexusLanguageId),
     [nexusLanguageId],
   );
-  const modelPath = useMemo(
+  const documentDescriptor = useMemo(
     () =>
-      createMonacoModelPath({
+      createDocumentUriDescriptor({
         fileName,
         fsPath: filePath,
         workspacePath,
@@ -197,38 +417,28 @@ export default function CodeEditor({
     [fileName, filePath, workspacePath],
   );
   const [cursorInfo, setCursorInfo] = useState({ line: 1, col: 1 });
-  const [lineCount, setLineCount] = useState(1);
+  const [lineCount, setLineCount] = useState(() => countLines(code || ""));
   const [compactViewport, setCompactViewport] = useState(getCompactViewport);
   const [lspStatus, setLspStatus] = useState({
     state: "idle",
     label: "LSP",
     message: "",
   });
-  const editorRef = useRef(null);
+  const editorViewRef = useRef(null);
   const codeRef = useRef(code || "");
   const lspEngineRef = useRef(null);
   const lspDocumentUriRef = useRef(null);
   const lspVersionRef = useRef(1);
-  const lspCompletionProviderDisposableRef = useRef(null);
-  const lspHoverProviderDisposableRef = useRef(null);
-  const lspDefinitionProviderDisposableRef = useRef(null);
-  const lspFormattingProviderDisposableRef = useRef(null);
-  const markerTimerRef = useRef(null);
-  const markerHashRef = useRef("");
   const changeEmitTimerRef = useRef(null);
   const pendingChangeRef = useRef(null);
   const cursorTimerRef = useRef(null);
   const pendingCursorInfoRef = useRef({ line: 1, col: 1 });
   const lineCountTimerRef = useRef(null);
   const pendingLineCountRef = useRef(1);
-  const markerListenerDisposableRef = useRef(null);
-  const cursorListenerDisposableRef = useRef(null);
-  const blurListenerDisposableRef = useRef(null);
-  const contentListenerDisposableRef = useRef(null);
+  const diagnosticsHashRef = useRef("");
   const installedExtensions = Array.isArray(settings.extensions_installed)
     ? settings.extensions_installed
     : [];
-  const hasPrettier = installedExtensions.includes("prettier");
   const hasRainbowBrackets = installedExtensions.includes("rainbow-brackets");
   const isLargeFile = typeof code === "string" && code.length > LARGE_FILE_CHAR_THRESHOLD;
   const canUseLsp =
@@ -249,168 +459,78 @@ export default function CodeEditor({
     () => resolveEditorTabSize(settings, tabSize),
     [settings.tab_size, tabSize],
   );
-  const editorOptions = useMemo(
-    () => ({
-      fontSize: editorFontSize,
-      fontFamily: resolveEditorFontFamily(settings),
-      fontWeight: String(settings.font_weight || "400"),
-      letterSpacing: resolveEditorLetterSpacing(settings),
-      lineHeight: editorLineHeight,
-      lineNumbers: showLineNumbers ? "on" : "off",
-      lineDecorationsWidth: compactViewport ? 8 : 14,
-      glyphMargin: false,
-      tabSize: editorTabSize,
-      insertSpaces: true,
-      detectIndentation: true,
-      wordWrap: wordWrap ? "on" : "off",
-      wrappingIndent: "same",
-      minimap: {
-        enabled: (settings.minimap === true || minimap === true) && !isLargeFile && !compactViewport,
-        renderCharacters: false,
-        maxColumn: 90,
-      },
-      cursorBlinking: settings.cursor_blinking || "solid",
-      cursorSmoothCaretAnimation: settings.smooth_caret === true ? "on" : "off",
-      cursorStyle: settings.cursor_style || "line",
-      renderWhitespace: settings.render_whitespace || "none",
-      renderControlCharacters: false,
-      formatOnPaste: hasPrettier || settings.format_on_paste === true,
-      formatOnType: hasPrettier || settings.format_on_type === true,
-      stickyScroll: { enabled: settings.sticky_scroll === true && !compactViewport },
-      smoothScrolling: !isLargeFile,
-      automaticLayout: true,
-      largeFileOptimizations: true,
-      renderValidationDecorations: "editable",
-      padding: {
-        top: compactViewport ? 14 : 20,
-        bottom: compactViewport ? 14 : 20,
-      },
-      scrollBeyondLastLine: false,
-      renderLineHighlight: settings.line_highlight || "all",
-      renderLineHighlightOnlyWhenFocus: false,
-      bracketPairColorization: {
-        enabled: hasRainbowBrackets || settings.bracket_colorization === true,
-      },
-      guides: {
-        bracketPairs: !isLargeFile,
-        indentation: true,
-        highlightActiveIndentation: !isLargeFile,
-      },
-      fontLigatures: settings.font_ligatures !== false,
-      selectionHighlight: !isLargeFile,
-      occurrencesHighlight: "off",
-      codeLens: false,
-      folding: !isLargeFile,
-      foldingHighlight: !isLargeFile,
-      links: false,
-      colorDecorators: !isLargeFile,
-      hover: {
-        delay: 350,
-        sticky: true,
-      },
-      quickSuggestions: !isLargeFile,
-      inlayHints: { enabled: "off" },
-      fixedOverflowWidgets: true,
-      hideCursorInOverviewRuler: isLargeFile,
-      overviewRulerLanes: isLargeFile ? 0 : 2,
-      mouseWheelScrollSensitivity: 1,
-      fastScrollSensitivity: 4,
-      scrollbar: {
-        verticalScrollbarSize: compactViewport ? 7 : 9,
-        horizontalScrollbarSize: compactViewport ? 7 : 9,
-        useShadows: false,
-        verticalHasArrows: false,
-        horizontalHasArrows: false,
-        alwaysConsumeMouseWheel: false,
-      },
-    }),
-    [
-      compactViewport,
-      editorFontSize,
-      editorLineHeight,
-      editorTabSize,
-      hasPrettier,
-      hasRainbowBrackets,
-      isLargeFile,
-      minimap,
-      settings.bracket_colorization,
-      settings.cursor_blinking,
-      settings.cursor_style,
-      settings.font_family,
-      settings.font_ligatures,
-      settings.font_weight,
-      settings.format_on_paste,
-      settings.format_on_type,
-      settings.letter_spacing,
-      settings.line_highlight,
-      settings.minimap,
-      settings.render_whitespace,
-      settings.smooth_caret,
-      settings.sticky_scroll,
-      showLineNumbers,
-      wordWrap,
-    ],
+  const showDiagnostics = settings.validation_decorations !== false;
+
+  const flushPendingChange = useCallback(() => {
+    if (changeEmitTimerRef.current) {
+      window.clearTimeout(changeEmitTimerRef.current);
+      changeEmitTimerRef.current = null;
+    }
+    if (pendingChangeRef.current === null) return;
+    const nextValue = pendingChangeRef.current;
+    pendingChangeRef.current = null;
+    onChange(nextValue);
+  }, [onChange]);
+
+  const scheduleLineCountUpdate = useCallback((nextCount) => {
+    const normalized = Math.max(1, Number(nextCount || 1));
+    pendingLineCountRef.current = normalized;
+    if (lineCountTimerRef.current) return;
+    lineCountTimerRef.current = window.setTimeout(() => {
+      lineCountTimerRef.current = null;
+      const next = pendingLineCountRef.current;
+      setLineCount((prev) => (prev === next ? prev : next));
+    }, LINE_COUNT_UPDATE_MS);
+  }, []);
+
+  const scheduleCursorInfoUpdate = useCallback((line, col) => {
+    pendingCursorInfoRef.current = { line, col };
+    if (cursorTimerRef.current) return;
+    cursorTimerRef.current = window.setTimeout(() => {
+      cursorTimerRef.current = null;
+      const next = pendingCursorInfoRef.current;
+      setCursorInfo((prev) =>
+        prev.line === next.line && prev.col === next.col ? prev : next,
+      );
+    }, CURSOR_INFO_UPDATE_MS);
+  }, []);
+
+  const emitEditorChange = useCallback(
+    (value) => {
+      pendingChangeRef.current = value;
+      if (changeEmitTimerRef.current) return;
+      changeEmitTimerRef.current = window.setTimeout(() => {
+        changeEmitTimerRef.current = null;
+        if (pendingChangeRef.current === null) return;
+        const nextValue = pendingChangeRef.current;
+        pendingChangeRef.current = null;
+        onChange(nextValue);
+      }, EDITOR_CHANGE_EMIT_INTERVAL_MS);
+    },
+    [onChange],
   );
 
-  const forceTransparentEditorShell = useCallback(() => {
-    const editor = editorRef.current;
-    const domNode = editor?.getDomNode?.();
-    if (!domNode) return;
-    domNode.classList.add("nx-code-monaco-mounted");
-    TRANSPARENT_EDITOR_SELECTORS.forEach((selector) => {
-      domNode.querySelectorAll(selector).forEach((node) => {
-        const el = /** @type {HTMLElement} */ (node);
-        if (el.style.backgroundColor !== "transparent") {
-          el.style.backgroundColor = "transparent";
-        }
-        if (el.style.backgroundImage !== "none") {
-          el.style.backgroundImage = "none";
-        }
-      });
-    });
-  }, []);
-
-  const disposeEditorListeners = useCallback(() => {
-    markerListenerDisposableRef.current?.dispose?.();
-    markerListenerDisposableRef.current = null;
-    cursorListenerDisposableRef.current?.dispose?.();
-    cursorListenerDisposableRef.current = null;
-    blurListenerDisposableRef.current?.dispose?.();
-    blurListenerDisposableRef.current = null;
-    contentListenerDisposableRef.current?.dispose?.();
-    contentListenerDisposableRef.current = null;
-  }, []);
-
-  const disposeLspProviders = useCallback(() => {
-    lspCompletionProviderDisposableRef.current?.dispose?.();
-    lspCompletionProviderDisposableRef.current = null;
-    lspHoverProviderDisposableRef.current?.dispose?.();
-    lspHoverProviderDisposableRef.current = null;
-    lspDefinitionProviderDisposableRef.current?.dispose?.();
-    lspDefinitionProviderDisposableRef.current = null;
-    lspFormattingProviderDisposableRef.current?.dispose?.();
-    lspFormattingProviderDisposableRef.current = null;
-  }, []);
-
-  const clearLspMarkers = useCallback(() => {
-    if (!monaco) return;
-    const model = editorRef.current?.getModel?.();
-    if (model) {
-      monaco.editor.setModelMarkers(model, "nexus-lsp", []);
-    }
-  }, [monaco]);
-
-  const disposeLspEngine = useCallback(() => {
-    lspEngineRef.current?.dispose?.();
-    lspEngineRef.current = null;
-    lspDocumentUriRef.current = null;
-    lspVersionRef.current = 1;
-    clearLspMarkers();
-  }, [clearLspMarkers]);
+  const updateProblems = useCallback(
+    (diagnostics) => {
+      if (!onMarkersChange) return;
+      const problems = lspDiagnosticsToProblems(diagnostics, documentDescriptor.path);
+      const hash = problems
+        .map(
+          (problem) =>
+            `${problem.severity}|${problem.startLineNumber}|${problem.startColumn}|${problem.message}`,
+        )
+        .join("::");
+      if (hash === diagnosticsHashRef.current) return;
+      diagnosticsHashRef.current = hash;
+      onMarkersChange(problems);
+    },
+    [documentDescriptor.path, onMarkersChange],
+  );
 
   useEffect(() => {
     codeRef.current = code || "";
-  }, [code]);
+    setLineCount(countLines(code || ""));
+  }, [code, fileName]);
 
   useEffect(() => {
     let frame = 0;
@@ -429,188 +549,28 @@ export default function CodeEditor({
   }, []);
 
   useEffect(() => {
-    if (monaco) {
-      try {
-        const activeTheme = EDITOR_THEMES[settings.theme] || EDITOR_THEMES.nexus_vibrant;
-        const rootStyles = getComputedStyle(document.documentElement);
-        const cssEditorText =
-          rootStyles.getPropertyValue("--nexus-editor-foreground").trim() ||
-          rootStyles.getPropertyValue("--nexus-text").trim();
-        const cssEditorSurface =
-          rootStyles.getPropertyValue("--nexus-panel-surface").trim() ||
-          rootStyles.getPropertyValue("--nexus-bg-value").trim();
-        const monacoBase = "vs-dark";
-        const editorTextColor = normalizeEditorTextColor(
-          pickReadableColorSource(cssEditorText, activeTheme.text, "#f3f4f6"),
-          cssEditorSurface,
-        );
-        const editorLineNumberColor = "#9ca3af";
-        const editorWidgetBackground = "#0a0a0f";
-        const themeName = buildStableThemeName(
-          settings.theme,
-          settings.primary_accent || activeTheme.accent,
-        );
-
-        monaco.editor.defineTheme(themeName, {
-          base: monacoBase,
-          inherit: true,
-          rules: [
-            { token: "comment", foreground: String(activeTheme.comment || "#6a9955").replace('#', ''), fontStyle: "italic" },
-            { token: "keyword", foreground: String(activeTheme.keyword || "#569cd6").replace('#', '') },
-            { token: "string", foreground: String(activeTheme.string || "#ce9178").replace('#', '') },
-            { token: "number", foreground: String(activeTheme.number || "#b5cea8").replace('#', '') },
-            { token: "identifier.function", foreground: String(activeTheme.function || "#61afef").replace('#', '') },
-            { token: "type", foreground: String(activeTheme.keyword || "#569cd6").replace('#', '') },
-          ],
-          colors: {
-            "editor.background": "#00000000",
-            "editorGutter.background": "#00000000",
-            "minimap.background": "#00000000",
-            "editorOverviewRuler.background": "#00000000",
-            "editor.lineHighlightBorder": "#00000000",
-            "editor.foreground": editorTextColor,
-            "editor.selectionBackground": activeTheme.selection || "#264f78",
-            "editorLineNumber.foreground": editorLineNumberColor,
-            "editor.lineHighlightBackground": "#ffffff0a",
-            "editorCursor.foreground": activeTheme.accent || "#8000ff",
-            "editorWidget.background": editorWidgetBackground,
-          },
-        });
-        monaco.editor.setTheme(themeName);
-        requestAnimationFrame(() => forceTransparentEditorShell());
-      } catch (err) {
-        console.error("Monaco Theme Definition Error:", err);
-        // Fallback to a built-in theme if definition fails
-        monaco.editor.setTheme("vs-dark");
-        requestAnimationFrame(() => forceTransparentEditorShell());
-      }
-    }
-  }, [
-    monaco,
-    settings.primary_accent,
-    settings.theme,
-    settings.background,
-    settings.panel_background_mode,
-    settings.panel_blur_strength,
-    forceTransparentEditorShell,
-  ]);
-
-  // Compiler options for TS/JSX
-  useEffect(() => {
-    if (monaco) {
-      try {
-        // @ts-ignore
-        const tsDefaults = monaco.languages.typescript.typescriptDefaults;
-        // @ts-ignore
-        const jsDefaults = monaco.languages.typescript.javascriptDefaults;
-
-        tsDefaults.setCompilerOptions({
-          // @ts-ignore
-          target: monaco.languages.typescript.ScriptTarget.ESNext,
-          allowNonTsExtensions: true,
-          // @ts-ignore
-          moduleResolution: monaco.languages.typescript.ModuleResolutionKind.NodeJs,
-          // @ts-ignore
-          module: monaco.languages.typescript.ModuleKind.CommonJS,
-          noEmit: true,
-          esModuleInterop: true,
-          allowSyntheticDefaultImports: true,
-          // @ts-ignore
-          jsx: monaco.languages.typescript.JsxEmit.React,
-          reactNamespace: "React",
-          allowJs: true,
-        });
-
-        jsDefaults.setCompilerOptions({
-          // @ts-ignore
-          target: monaco.languages.typescript.ScriptTarget.ESNext,
-          noEmit: true,
-          allowJs: true,
-          // @ts-ignore
-          jsx: monaco.languages.typescript.JsxEmit.React,
-        });
-
-        tsDefaults.setDiagnosticsOptions({
-          noSemanticValidation: true,
-          noSyntaxValidation: false,
-          noSuggestionDiagnostics: true,
-          // 2580: Cannot find name 'require'
-          // 2304: Cannot find name 'module', 'process', etc.
-          // 2307: Cannot find module (import/require)
-          diagnosticCodesToIgnore: [...IGNORED_DIAGNOSTIC_CODES],
-        });
-        if (typeof jsDefaults?.setDiagnosticsOptions === "function") {
-          jsDefaults.setDiagnosticsOptions({
-            noSemanticValidation: true,
-            noSyntaxValidation: false,
-            noSuggestionDiagnostics: true,
-            diagnosticCodesToIgnore: [...IGNORED_DIAGNOSTIC_CODES],
-          });
-        }
-      } catch (err) {
-        console.error("Monaco TS Config Error:", err);
-      }
-    }
-  }, [monaco]);
-
-  // Snippets integration
-  useEffect(() => {
-    if (monaco) {
-      const snippets = [
-        {
-          label: "nexus-component",
-          kind: monaco.languages.CompletionItemKind.Snippet,
-          insertText: [
-            "import React from 'react';",
-            "import { motion } from 'framer-motion';",
-            "",
-            "export default function ${1:ComponentName}() {",
-            "  return (",
-            "    <motion.div",
-            "      initial={{ opacity: 0, y: 10 }}",
-            "      animate={{ opacity: 1, y: 0 }}",
-            "      className=\"nexus-glass p-6 rounded-2xl\"",
-            "    >",
-            "      <h1 className=\"text-2xl font-bold\">${2:Hello World}</h1>",
-            "    </motion.div>",
-            "  );",
-            "}",
-          ].join("\n"),
-          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-          documentation: "Create a premium Nexus UI component",
-        },
-        {
-          label: "clg",
-          kind: monaco.languages.CompletionItemKind.Snippet,
-          insertText: "console.log(${1:object});",
-          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-          documentation: "Console log",
-        },
-      ];
-
-      const disposable = monaco.languages.registerCompletionItemProvider("javascript", {
-        provideCompletionItems: (model, position) => {
-          const word = model.getWordUntilPosition(position);
-          const range = {
-            startLineNumber: position.lineNumber,
-            endLineNumber: position.lineNumber,
-            startColumn: word.startColumn,
-            endColumn: word.endColumn,
-          };
-          return {
-            suggestions: snippets.map((s) => ({ ...s, range })),
-          };
-        },
-      });
-
-      return () => disposable.dispose();
-    }
-  }, [monaco]);
+    const view = editorViewRef.current;
+    if (!view || !settings._revealLine) return;
+    const { line, col } = settings._revealLine;
+    const safeLine = Math.max(1, Math.min(view.state.doc.lines, Number(line || 1)));
+    const lineInfo = view.state.doc.line(safeLine);
+    const pos = Math.min(lineInfo.to, lineInfo.from + Math.max(0, Number(col || 1) - 1));
+    view.dispatch({
+      selection: { anchor: pos },
+      effects: EditorView.scrollIntoView(pos, { y: "center" }),
+    });
+    view.focus();
+  }, [settings._revealLine]);
 
   useEffect(() => {
-    disposeLspEngine();
+    const previous = lspEngineRef.current;
+    previous?.dispose?.();
+    lspEngineRef.current = null;
+    lspDocumentUriRef.current = null;
+    lspVersionRef.current = 1;
+    updateProblems([]);
 
-    if (!monaco || !canUseLsp) {
+    if (!canUseLsp) {
       setLspStatus({
         state: isLargeFile ? "disabled" : "idle",
         label: "LSP",
@@ -632,16 +592,16 @@ export default function CodeEditor({
         });
       },
       onDiagnostics: ({ uri, diagnostics }) => {
-        if (!active || !monaco) return;
-        if (uri && lspDocumentUriRef.current && uri !== lspDocumentUriRef.current) {
-          return;
+        if (!active) return;
+        if (uri && lspDocumentUriRef.current && uri !== lspDocumentUriRef.current) return;
+        const view = editorViewRef.current;
+        if (view && showDiagnostics) {
+          view.dispatch(setDiagnostics(view.state, lspDiagnosticsToCodeMirror(diagnostics, view)));
         }
-        const model = editorRef.current?.getModel?.();
-        if (!model) return;
-        const markers = lspDiagnosticsToMonacoMarkers(monaco, diagnostics || []);
-        monaco.editor.setModelMarkers(model, "nexus-lsp", markers);
+        updateProblems(diagnostics || []);
       },
     });
+
     const engine = createEditorEngine({
       lsp: {
         transports: {
@@ -650,12 +610,7 @@ export default function CodeEditor({
       },
     });
     lspEngineRef.current = engine;
-    lspVersionRef.current = 1;
-    setLspStatus({
-      state: "starting",
-      label: languageLabel,
-      message: "",
-    });
+    setLspStatus({ state: "starting", label: languageLabel, message: "" });
 
     engine
       .openDocument({
@@ -685,364 +640,252 @@ export default function CodeEditor({
 
     return () => {
       active = false;
-      disposeLspEngine();
+      engine.dispose();
+      if (lspEngineRef.current === engine) {
+        lspEngineRef.current = null;
+      }
+      lspDocumentUriRef.current = null;
     };
   }, [
     canUseLsp,
-    disposeLspEngine,
     fileName,
     filePath,
     isLargeFile,
     languageLabel,
-    monaco,
     nexusLanguageId,
+    showDiagnostics,
+    updateProblems,
     workspacePath,
   ]);
 
   useEffect(() => {
-    disposeLspProviders();
-    if (!monaco || !canUseLsp) return undefined;
-
-    lspCompletionProviderDisposableRef.current =
-      monaco.languages.registerCompletionItemProvider(language, {
-        triggerCharacters: [".", ":", "<", "/", "\"", "'", "@", "#"],
-        provideCompletionItems: async (model, position, context) => {
-          const engine = lspEngineRef.current;
-          const documentUri = lspDocumentUriRef.current;
-          if (!engine || !documentUri) return { suggestions: [] };
-          const word = model.getWordUntilPosition(position);
-          const fallbackRange = {
-            startLineNumber: position.lineNumber,
-            endLineNumber: position.lineNumber,
-            startColumn: word.startColumn,
-            endColumn: word.endColumn,
-          };
-          try {
-            const completions = await engine.getCompletions(documentUri, position, {
-              triggerKind: context?.triggerKind,
-              triggerCharacter: context?.triggerCharacter,
-            });
-            return lspCompletionListToMonaco(monaco, completions, fallbackRange);
-          } catch {
-            return { suggestions: [] };
-          }
-        },
-      });
-
-    lspHoverProviderDisposableRef.current =
-      monaco.languages.registerHoverProvider(language, {
-        provideHover: async (_model, position) => {
-          const engine = lspEngineRef.current;
-          const documentUri = lspDocumentUriRef.current;
-          if (!engine || !documentUri) return null;
-          try {
-            const hover = await engine.getHover(documentUri, position);
-            return lspHoverToMonaco(hover);
-          } catch {
-            return null;
-          }
-        },
-      });
-
-    lspDefinitionProviderDisposableRef.current =
-      monaco.languages.registerDefinitionProvider(language, {
-        provideDefinition: async (_model, position) => {
-          const engine = lspEngineRef.current;
-          const documentUri = lspDocumentUriRef.current;
-          const getDefinition = engine?.lspService?.getDefinition;
-          if (!engine || !documentUri || typeof getDefinition !== "function") return [];
-          try {
-            const definitions = await getDefinition(documentUri, position);
-            return lspDefinitionToMonaco(monaco, definitions);
-          } catch {
-            return [];
-          }
-        },
-      });
-
-    lspFormattingProviderDisposableRef.current =
-      monaco.languages.registerDocumentFormattingEditProvider(language, {
-        displayName: "Nexus LSP",
-        provideDocumentFormattingEdits: async (model, options) => {
-          const engine = lspEngineRef.current;
-          const documentUri = lspDocumentUriRef.current;
-          const formatDocument = engine?.lspService?.formatDocument;
-          if (!engine || !documentUri || typeof formatDocument !== "function") return [];
-          try {
-            const value = model.getValue();
-            lspVersionRef.current += 1;
-            await engine.updateDocument(documentUri, value, {
-              version: lspVersionRef.current,
-              dirty: true,
-            });
-            const edits = await formatDocument(documentUri, options);
-            return lspTextEditsToMonaco(edits);
-          } catch {
-            return [];
-          }
-        },
-      });
-
     return () => {
-      disposeLspProviders();
-    };
-  }, [canUseLsp, disposeLspProviders, language, monaco]);
-
-  useEffect(() => {
-    if (editorRef.current && settings._revealLine) {
-      const { line, col } = settings._revealLine;
-      editorRef.current.revealLineInCenter(line);
-      editorRef.current.setPosition({ lineNumber: line, column: col });
-      editorRef.current.focus();
-    }
-  }, [settings._revealLine]);
-
-  const flushPendingChange = useCallback(() => {
-    if (changeEmitTimerRef.current) {
-      window.clearTimeout(changeEmitTimerRef.current);
-      changeEmitTimerRef.current = null;
-    }
-    if (pendingChangeRef.current === null) return;
-    const nextValue = pendingChangeRef.current;
-    pendingChangeRef.current = null;
-    onChange(nextValue);
-  }, [onChange]);
-
-  const flushCursorInfo = useCallback(() => {
-    if (cursorTimerRef.current) {
-      window.clearTimeout(cursorTimerRef.current);
-      cursorTimerRef.current = null;
-    }
-    const next = pendingCursorInfoRef.current;
-    setCursorInfo((prev) =>
-      prev.line === next.line && prev.col === next.col ? prev : next,
-    );
-  }, []);
-
-  const scheduleCursorInfoUpdate = useCallback((line, col) => {
-    pendingCursorInfoRef.current = { line, col };
-    if (cursorTimerRef.current) return;
-    cursorTimerRef.current = window.setTimeout(() => {
-      cursorTimerRef.current = null;
-      const next = pendingCursorInfoRef.current;
-      setCursorInfo((prev) =>
-        prev.line === next.line && prev.col === next.col ? prev : next,
-      );
-    }, CURSOR_INFO_UPDATE_MS);
-  }, []);
-
-  const scheduleLineCountUpdate = useCallback((nextCount) => {
-    const normalized = Math.max(1, Number(nextCount || 1));
-    pendingLineCountRef.current = normalized;
-    if (lineCountTimerRef.current) return;
-    lineCountTimerRef.current = window.setTimeout(() => {
-      lineCountTimerRef.current = null;
-      const next = pendingLineCountRef.current;
-      setLineCount((prev) => (prev === next ? prev : next));
-    }, LINE_COUNT_UPDATE_MS);
-  }, []);
-
-  const emitEditorChange = useCallback((value) => {
-    pendingChangeRef.current = value;
-    if (changeEmitTimerRef.current) return;
-    changeEmitTimerRef.current = window.setTimeout(() => {
-      changeEmitTimerRef.current = null;
-      if (pendingChangeRef.current === null) return;
-      const nextValue = pendingChangeRef.current;
-      pendingChangeRef.current = null;
-      onChange(nextValue);
-    }, EDITOR_CHANGE_EMIT_INTERVAL_MS);
-  }, [onChange]);
-
-  useEffect(() => {
-    return () => {
-      disposeEditorListeners();
-      disposeLspProviders();
-      disposeLspEngine();
-      if (markerTimerRef.current) {
-        window.clearTimeout(markerTimerRef.current);
-        markerTimerRef.current = null;
-      }
-      if (cursorTimerRef.current) {
-        window.clearTimeout(cursorTimerRef.current);
-        cursorTimerRef.current = null;
-      }
-      if (lineCountTimerRef.current) {
-        window.clearTimeout(lineCountTimerRef.current);
-        lineCountTimerRef.current = null;
-      }
+      lspEngineRef.current?.dispose?.();
+      lspEngineRef.current = null;
+      if (changeEmitTimerRef.current) window.clearTimeout(changeEmitTimerRef.current);
+      if (cursorTimerRef.current) window.clearTimeout(cursorTimerRef.current);
+      if (lineCountTimerRef.current) window.clearTimeout(lineCountTimerRef.current);
       flushPendingChange();
-      flushCursorInfo();
     };
+  }, [flushPendingChange]);
+
+  const completionSource = useCallback(
+    async (context) => {
+      const snippets = createSnippetCompletions(context);
+      const engine = lspEngineRef.current;
+      const documentUri = lspDocumentUriRef.current;
+      const shouldAskLsp =
+        engine &&
+        documentUri &&
+        (context.explicit || /[.\w:/<#@"'-]$/.test(context.state.sliceDoc(Math.max(0, context.pos - 1), context.pos)));
+
+      if (!shouldAskLsp) {
+        return context.explicit ? snippets : null;
+      }
+
+      try {
+        const position = cmPosToLspPosition(context.state.doc, context.pos);
+        const completionList = await engine.getCompletions(documentUri, position, {
+          triggerKind: context.explicit ? 1 : 2,
+        });
+        const word = context.matchBefore(/[\w$-]*/);
+        const from = word ? word.from : context.pos;
+        const options = (completionList?.items || []).slice(0, 80).map((item) => {
+          const label = normalizeCompletionLabel(item);
+          return {
+            label,
+            type: completionType(item.kind),
+            detail: item.detail || item.labelDetails?.detail || "",
+            info: item.documentation?.value || item.documentation || "",
+            apply: item.insertText || item.textEdit?.newText || label,
+          };
+        });
+        return {
+          from,
+          options: [...snippets.options, ...options],
+          validFor: /^[\w$-]*$/,
+        };
+      } catch {
+        return snippets;
+      }
+    },
+    [],
+  );
+
+  const cmTheme = useMemo(
+    () => createNexusCodeMirrorTheme(settings, compactViewport, editorFontSize, editorLineHeight),
+    [
+      compactViewport,
+      editorFontSize,
+      editorLineHeight,
+      settings.cursor_style,
+      settings.font_family,
+      settings.font_weight,
+      settings.letter_spacing,
+      settings.primary_accent,
+      settings.theme,
+    ],
+  );
+
+  const baseExtensions = useMemo(() => {
+    const extensions = [
+      history(),
+      closeBrackets(),
+      drawSelection(),
+      dropCursor(),
+      highlightActiveLine(),
+      highlightSpecialChars(),
+      indentOnInput(),
+      rectangularSelection(),
+      bracketMatching(),
+      syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+      keymap.of([
+        indentWithTab,
+        ...closeBracketsKeymap,
+        ...defaultKeymap,
+        ...historyKeymap,
+        ...completionKeymap,
+        ...searchKeymap,
+        ...foldKeymap,
+        ...lintKeymap,
+      ]),
+      EditorState.tabSize.of(editorTabSize),
+      wordWrap ? EditorView.lineWrapping : [],
+      EditorView.updateListener.of((update) => {
+        if (update.docChanged) {
+          const nextValue = update.state.doc.toString();
+          codeRef.current = nextValue;
+          emitEditorChange(nextValue);
+          scheduleLineCountUpdate(update.state.doc.lines);
+          const engine = lspEngineRef.current;
+          const documentUri = lspDocumentUriRef.current;
+          if (engine && documentUri) {
+            lspVersionRef.current += 1;
+            engine
+              .updateDocument(documentUri, nextValue, {
+                version: lspVersionRef.current,
+                dirty: true,
+              })
+              .catch(() => {});
+          }
+        }
+        if (update.selectionSet || update.focusChanged) {
+          const head = update.state.selection.main.head;
+          const line = update.state.doc.lineAt(head);
+          scheduleCursorInfoUpdate(line.number, head - line.from + 1);
+        }
+      }),
+      EditorView.domEventHandlers({
+        blur: () => flushPendingChange(),
+      }),
+      autocompletion({
+        override: [completionSource],
+        activateOnTyping: !isLargeFile,
+        closeOnBlur: false,
+      }),
+      highlightSelectionMatches(),
+      placeholder("Schreib Code, Markdown, JSON oder Notizen direkt hier..."),
+      cmThemeCompartment.of(cmTheme),
+      languageCompartment.of(getLanguageExtension(nexusLanguageId, fileName)),
+      diagnosticsCompartment.of(showDiagnostics ? [lintGutter()] : []),
+    ];
+
+    if (showLineNumbers) {
+      extensions.push(lineNumbers(), highlightActiveLineGutter());
+    }
+    if (!compactViewport && !isLargeFile) extensions.push(foldGutter());
+    return extensions;
   }, [
-    disposeEditorListeners,
-    disposeLspEngine,
-    disposeLspProviders,
+    cmTheme,
+    compactViewport,
+    completionSource,
+    editorTabSize,
+    emitEditorChange,
+    fileName,
     flushPendingChange,
-    flushCursorInfo,
+    isLargeFile,
+    nexusLanguageId,
+    scheduleCursorInfoUpdate,
+    scheduleLineCountUpdate,
+    showDiagnostics,
+    showLineNumbers,
+    wordWrap,
   ]);
 
-  const handleEditorChange = (value) => {
-    const nextValue = value || "";
-    codeRef.current = nextValue;
-    emitEditorChange(nextValue);
-    const engine = lspEngineRef.current;
-    const documentUri = lspDocumentUriRef.current;
-    if (engine && documentUri) {
-      lspVersionRef.current += 1;
-      engine
-        .updateDocument(documentUri, nextValue, {
-          version: lspVersionRef.current,
-          dirty: true,
-        })
-        .catch(() => {});
-    }
-  };
+  const handleCreateEditor = useCallback((view) => {
+    editorViewRef.current = view;
+    setLineCount(view.state.doc.lines);
+    const head = view.state.selection.main.head;
+    const line = view.state.doc.lineAt(head);
+    setCursorInfo({ line: line.number, col: head - line.from + 1 });
+  }, []);
 
-  const handleEditorDidMount = (editor, _monaco) => {
-    editorRef.current = editor;
-    disposeEditorListeners();
-    setLineCount(Math.max(1, Number(editor.getModel()?.getLineCount?.() || 1)));
+  const handleChange = useCallback(
+    (value) => {
+      codeRef.current = value || "";
+    },
+    [],
+  );
 
-    const refreshEditorShell = () => {
-      editor.layout();
-      forceTransparentEditorShell();
-    };
-    requestAnimationFrame(refreshEditorShell);
-    if (document.fonts?.ready) {
-      document.fonts.ready
-        .then(() => requestAnimationFrame(refreshEditorShell))
-        .catch(() => {});
-    } else {
-      window.setTimeout(refreshEditorShell, 220);
-    }
-
-    cursorListenerDisposableRef.current = editor.onDidChangeCursorPosition((e) => {
-      scheduleCursorInfoUpdate(e.position.lineNumber, e.position.column);
-    });
-    contentListenerDisposableRef.current = editor.onDidChangeModelContent(() => {
-      const nextCount = editor.getModel()?.getLineCount?.() || 1;
-      scheduleLineCountUpdate(nextCount);
-    });
-    blurListenerDisposableRef.current = editor.onDidBlurEditorText(() => {
-      flushPendingChange();
-      flushCursorInfo();
-    });
-
-    // Listen for markers (errors, warnings)
-    if (_monaco) {
-      const updateMarkers = () => {
-        const modelUri = editor.getModel()?.uri;
-        if (!modelUri) {
-          if (onMarkersChange && markerHashRef.current !== "__empty__") {
-            markerHashRef.current = "__empty__";
-            onMarkersChange([]);
-          }
-          return;
-        }
-        const markers = _monaco.editor
-          .getModelMarkers({ resource: modelUri })
-          .filter((marker) => {
-            if (marker?.severity < _monaco.MarkerSeverity.Error) return false;
-            if (isIgnoredDiagnosticCode(marker?.code)) return false;
-            return true;
-          })
-          .slice(0, 120);
-        if (onMarkersChange) {
-          const hash = markers
-            .map(
-              (marker) =>
-                `${marker.severity}|${String(marker.code || "")}|${marker.startLineNumber}|${marker.startColumn}|${marker.endLineNumber}|${marker.endColumn}|${marker.message || ""}`,
-            )
-            .join("::");
-          if (hash === markerHashRef.current) return;
-          markerHashRef.current = hash;
-          if (markerTimerRef.current) {
-            window.clearTimeout(markerTimerRef.current);
-          }
-          markerTimerRef.current = window.setTimeout(() => {
-            markerTimerRef.current = null;
-            onMarkersChange(markers);
-          }, 220);
-        }
-      };
-
-      markerListenerDisposableRef.current = _monaco.editor.onDidChangeMarkers(() => {
-        updateMarkers();
-      });
-
-      // Initial check
-      updateMarkers();
-    }
-  };
-
-  useEffect(() => {
-    const editorLineCount = editorRef.current?.getModel?.()?.getLineCount?.();
-    if (Number.isFinite(editorLineCount) && editorLineCount > 0) {
-      setLineCount(editorLineCount);
-      return;
-    }
-    if (!code) {
-      setLineCount(1);
-      return;
-    }
-    let lines = 1;
-    for (let i = 0; i < code.length; i += 1) {
-      if (code.charCodeAt(i) === 10) lines += 1;
-    }
-    setLineCount(lines);
-  }, [code, fileName]);
-
-  useEffect(() => {
-    requestAnimationFrame(() => forceTransparentEditorShell());
-  }, [settings.theme, settings.primary_accent, forceTransparentEditorShell]);
+  const engineLabel = "CodeMirror 6";
+  const lspTone =
+    lspStatus.state === "running"
+      ? "text-green-400"
+      : lspStatus.state === "starting"
+        ? "text-amber-400"
+        : lspStatus.state === "unavailable"
+          ? "text-red-400"
+          : "text-gray-600";
 
   return (
-    <div className="nx-code-editor-shell flex-1 flex flex-col min-h-0 w-full relative overflow-hidden bg-transparent" style={{ background: "transparent" }}>
+    <div
+      className="nx-code-editor-shell flex-1 flex flex-col min-h-0 w-full relative overflow-hidden bg-transparent"
+      style={{ background: "transparent" }}
+      data-editor-engine="codemirror"
+    >
       <div className="nx-code-editor-canvas flex-1 min-h-0 w-full relative overflow-hidden">
-        <Editor
+        <CodeMirror
+          value={code || ""}
           height="100%"
           width="100%"
-          path={modelPath}
-          language={language}
-          value={code}
-          onChange={handleEditorChange}
-          onMount={handleEditorDidMount}
-          options={editorOptions}
-          loading={
-            <div className="flex items-center justify-center h-full w-full bg-transparent text-purple-500/50 font-mono text-sm">
-              <span className="animate-pulse tracking-widest text-xs uppercase" style={{ color: "var(--primary)" }}>Editor wird geladen...</span>
-            </div>
-          }
+          extensions={baseExtensions}
+          onChange={handleChange}
+          onCreateEditor={handleCreateEditor}
+          basicSetup={false}
+          indentWithTab
+          editable
         />
       </div>
 
-      {/* Status Bar */}
       <div
         className="nx-code-editor-status h-6 flex items-center justify-between gap-3 px-3 shrink-0 select-none backdrop-blur-md border-t border-white/5 z-10"
         style={{ background: "rgba(0,0,0,0.3)" }}
       >
         <div className="flex items-center gap-3 min-w-0">
-          <span className="text-[10px] text-gray-400 font-medium">
+          <span className="text-[10px] text-gray-400 font-medium truncate">
             {languageLabel}
           </span>
-          <span className="text-[10px] text-gray-500">UTF-8</span>
+          <span className="text-[10px] text-gray-500">{engineLabel}</span>
           <span
-            className={`text-[10px] font-medium ${
-              lspStatus.state === "running"
-                ? "text-green-400"
-                : lspStatus.state === "starting"
-                  ? "text-amber-400"
-                  : lspStatus.state === "unavailable"
-                    ? "text-red-400"
-                    : "text-gray-600"
-            }`}
+            className={`text-[10px] font-medium ${lspTone}`}
             title={lspStatus.message || lspStatus.label || "Language Server"}
           >
             LSP {lspStatus.state}
           </span>
-          {settings.sticky_scroll && (
-             <span className="text-[10px] text-purple-500 font-bold opacity-60">STICKY</span>
+          {isLargeFile && (
+            <span className="text-[10px] text-amber-400/80 font-semibold">
+              LARGE
+            </span>
+          )}
+          {hasRainbowBrackets && (
+            <span className="text-[10px] text-purple-400 font-semibold opacity-70">
+              BRACKETS
+            </span>
+          )}
+          {minimap && !compactViewport && (
+            <span className="text-[10px] text-gray-600">
+              minimap retired
+            </span>
           )}
         </div>
         <div className="flex items-center gap-3 shrink-0">

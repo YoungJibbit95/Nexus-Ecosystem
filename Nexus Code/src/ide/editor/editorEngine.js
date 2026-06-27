@@ -5,7 +5,7 @@ import {
   isLspReadyLanguage as resolveLspReadyLanguage,
   normalizeLanguageId,
 } from "../languages/languageIds.js";
-import { createDocumentUriDescriptor } from "./monacoModelUri.js";
+import { createDocumentUriDescriptor } from "./documentUri.js";
 
 export const EDITOR_ENGINE_CONTRACT_VERSION = "0.1.0";
 
@@ -18,7 +18,7 @@ export const EDITOR_ENGINE_EVENTS = Object.freeze({
 
 export const EDITOR_ENGINE_CAPABILITIES = Object.freeze({
   languageRegistry: true,
-  monacoModelUris: true,
+  documentUris: true,
   lspCompletion: true,
   lspHover: true,
   lspDiagnostics: true,

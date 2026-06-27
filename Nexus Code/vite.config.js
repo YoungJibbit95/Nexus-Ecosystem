@@ -6,6 +6,17 @@ const CHUNK_GROUPS = {
   react: ["react", "react-dom"],
   motion: ["framer-motion"],
   router: ["react-router-dom"],
+  "codemirror-react": ["@uiw/react-codemirror"],
+  "codemirror-core": [
+    "codemirror",
+    "@codemirror/state",
+    "@codemirror/view",
+    "@codemirror/commands",
+    "@codemirror/search",
+    "@codemirror/autocomplete",
+    "@codemirror/language",
+    "@codemirror/lint",
+  ],
   radix: [
     "@radix-ui/react-dialog",
     "@radix-ui/react-dropdown-menu",
@@ -16,23 +27,27 @@ const CHUNK_GROUPS = {
   ],
 };
 
-const resolveMonacoChunk = (id) => {
-  if (!id.includes("monaco-editor")) return null;
-  if (id.includes("monaco-editor/esm/vs/editor/")) return "monaco-core";
-  if (id.includes("monaco-editor/esm/vs/base/")) return "monaco-base";
-  if (id.includes("monaco-editor/esm/vs/language/typescript/"))
-    return "monaco-ts";
-  if (id.includes("monaco-editor/esm/vs/language/json/")) return "monaco-json";
-  if (id.includes("monaco-editor/esm/vs/language/css/")) return "monaco-css";
-  if (id.includes("monaco-editor/esm/vs/language/html/")) return "monaco-html";
-  if (id.includes("monaco-editor/esm/vs/language/")) return "monaco-lang";
-  return "monaco-misc";
-};
+const CODEMIRROR_LANGUAGE_CHUNKS = [
+  ["@codemirror/lang-javascript", "cm-lang-js"],
+  ["@codemirror/lang-json", "cm-lang-json"],
+  ["@codemirror/lang-html", "cm-lang-html"],
+  ["@codemirror/lang-css", "cm-lang-css"],
+  ["@codemirror/lang-markdown", "cm-lang-md"],
+  ["@codemirror/lang-python", "cm-lang-python"],
+  ["@codemirror/lang-java", "cm-lang-java"],
+  ["@codemirror/lang-cpp", "cm-lang-cpp"],
+  ["@codemirror/lang-php", "cm-lang-php"],
+  ["@codemirror/lang-rust", "cm-lang-rust"],
+  ["@codemirror/lang-sql", "cm-lang-sql"],
+  ["@codemirror/lang-xml", "cm-lang-xml"],
+  ["@codemirror/legacy-modes", "cm-lang-legacy"],
+];
 
 const manualChunks = (id) => {
   if (!id.includes("node_modules")) return undefined;
-  const monacoChunk = resolveMonacoChunk(id);
-  if (monacoChunk) return monacoChunk;
+  for (const [dep, chunkName] of CODEMIRROR_LANGUAGE_CHUNKS) {
+    if (id.includes(`/node_modules/${dep}/`)) return chunkName;
+  }
   for (const [chunkName, deps] of Object.entries(CHUNK_GROUPS)) {
     if (deps.some((dep) => id.includes(`/node_modules/${dep}/`))) {
       return chunkName;

@@ -12,7 +12,6 @@ import TitleBar from "../components/editor/TitleBar";
 import Sidebar from "../components/editor/Sidebar";
 import FileExplorer from "../components/editor/FileExplorer";
 import TabBar from "../components/editor/TabBar";
-import CodeEditor from "../components/editor/CodeEditor";
 import Terminal from "../components/editor/Terminal";
 import WelcomeScreen from "../components/editor/WelcomeScreen";
 import SearchPanel from "../components/editor/SearchPanel";
@@ -39,6 +38,12 @@ import {
   resolveNexusTheme,
 } from './editor/editorShared.jsx';
 import {
+  getBottomPanelClassName,
+  getPanelMeta,
+  getShellModeLabel,
+  getSidePanelClassName,
+} from "./editor/editorShellLayout";
+import {
   beginPerfMetric,
   endPerfMetric,
 } from "../lib/perfMetrics";
@@ -62,7 +67,9 @@ const WORKSPACE_AUTOSAVE_MS = 5_200;
 const LOCAL_AUTOSAVE_MS = 6_200;
 const CODE_COMPACT_VIEWPORT_WIDTH = 980;
 const loadSettingsPanel = () => import("../components/editor/SettingsPanel");
+const loadCodeEditor = () => import("../components/editor/CodeEditor");
 const SettingsPanel = React.lazy(() => loadSettingsPanel());
+const CodeEditor = React.lazy(() => loadCodeEditor());
 
 function getIsCompactCodeViewport() {
   if (typeof window === "undefined") return false;
@@ -139,6 +146,37 @@ function StatusItem({ icon: Icon, label, value, tone = "muted", onClick, title }
       {Icon ? <Icon size={12} className="shrink-0" /> : null}
       <span className="truncate">{value || label}</span>
     </Comp>
+  );
+}
+
+function SidePanelFrame({ panelId, onClose, children }) {
+  const meta = getPanelMeta(panelId);
+
+  return (
+    <div className="flex h-full min-h-0 flex-col overflow-hidden">
+      <div
+        className="flex h-11 shrink-0 items-center gap-3 border-b border-white/5 px-3"
+        style={{ background: "rgba(0,0,0,0.14)" }}
+      >
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-[11px] font-semibold uppercase text-[var(--nexus-text)]">
+            {meta.title}
+          </div>
+          <div className="truncate text-[10px] text-[var(--nexus-muted)]">
+            {meta.detail}
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-white/10 text-gray-500 transition-colors hover:border-white/20 hover:bg-white/10 hover:text-gray-200"
+          title="Panel schliessen"
+        >
+          <XCircle size={13} />
+        </button>
+      </div>
+      <div className="min-h-0 flex-1 overflow-hidden">{children}</div>
+    </div>
   );
 }
 
@@ -441,33 +479,81 @@ export default function Editor() {
   }, [flushEditorBuffer]);
 
   const handleToggleZenMode = useCallback(() => {
+    setShowSettings(false);
     setSettings((prev) => ({ ...prev, zen_mode: !prev.zen_mode }));
   }, []);
 
   const handleToggleSidebarVisibility = useCallback(() => {
+    setShowSettings(false);
     setSettings((prev) => ({
       ...prev,
       sidebar_visible: !prev.sidebar_visible,
+      zen_mode: prev.sidebar_visible ? prev.zen_mode : false,
     }));
   }, []);
 
   const handleToggleSidebar = useCallback(() => {
+    setShowSettings(false);
+    setSettings((prev) =>
+      prev.sidebar_visible
+        ? prev
+        : {
+            ...prev,
+            sidebar_visible: true,
+            zen_mode: false,
+          },
+    );
     setActivePanel((prev) => (prev ? null : "explorer"));
   }, []);
 
   const handleToggleTerminalPanel = useCallback(() => {
+    setShowSettings(false);
     setBottomTab("terminal");
     setTerminalOpen((prev) => (bottomTab === "terminal" ? !prev : true));
   }, [bottomTab]);
 
   const handleOpenTerminalPanel = useCallback(() => {
+    setShowSettings(false);
     setBottomTab("terminal");
     setTerminalOpen(true);
   }, []);
 
   const handleOpenProblemsPanel = useCallback(() => {
+    setShowSettings(false);
     setBottomTab("problems");
     setTerminalOpen(true);
+  }, []);
+
+  const handleOpenWorkbenchPanel = useCallback((panelId) => {
+    setShowSettings(false);
+    setSettings((prev) => ({
+      ...prev,
+      sidebar_visible: true,
+      zen_mode: false,
+    }));
+    setActivePanel(panelId);
+  }, []);
+
+  const handleSidebarPanelChange = useCallback((panelId) => {
+    setShowSettings(false);
+    if (panelId) {
+      setSettings((prev) => ({
+        ...prev,
+        sidebar_visible: true,
+        zen_mode: false,
+      }));
+    }
+    setActivePanel(panelId);
+  }, []);
+
+  const handleFocusEditor = useCallback(() => {
+    setShowSettings(false);
+    setActivePanel(null);
+  }, []);
+
+  const handleOpenSettingsPanel = useCallback(() => {
+    setActivePanel(null);
+    setShowSettings(true);
   }, []);
 
   const handleOpenFolder = useCallback(async () => {
@@ -500,6 +586,11 @@ export default function Editor() {
           };
         });
         setFiles(rootFiles);
+        setSettings((prev) => ({
+          ...prev,
+          sidebar_visible: true,
+          zen_mode: false,
+        }));
         setActivePanel("explorer");
       }
     } catch (err) {
@@ -718,18 +809,6 @@ export default function Editor() {
         -webkit-backdrop-filter: var(--nexus-panel-filter);
         box-shadow: var(--nexus-panel-outline);
       }
-      .monaco-editor,
-      .monaco-editor .margin,
-      .monaco-editor .monaco-editor-background,
-      .monaco-editor-background,
-      .monaco-editor .inputarea.ime-input,
-      .monaco-editor .overflow-guard,
-      .monaco-editor .minimap,
-      .monaco-editor .scroll-decoration {
-        background: transparent !important;
-        background-color: transparent !important;
-        background-image: none !important;
-      }
       ::-webkit-scrollbar { width: 10px; height: 10px; }
       ::-webkit-scrollbar-track { background: transparent; }
       ::-webkit-scrollbar-thumb {
@@ -826,26 +905,41 @@ export default function Editor() {
         return;
       }
 
-      // Ctrl+B — toggle sidebar
-      if (hasPrimaryMod && key === "b") {
+      // Ctrl+O - open workspace folder
+      if (hasPrimaryMod && key === "o") {
         e.preventDefault();
-        setActivePanel((prev) => (prev ? null : "explorer"));
+        handleOpenFolder();
         return;
       }
 
-      // Ctrl+` — toggle terminal
+      // Ctrl+B - toggle active side panel
+      if (hasPrimaryMod && key === "b") {
+        e.preventDefault();
+        handleToggleSidebar();
+        return;
+      }
+
+      // Ctrl+Shift+` - open terminal
+      if (hasPrimaryMod && e.shiftKey && e.key === "`") {
+        e.preventDefault();
+        handleOpenTerminalPanel();
+        return;
+      }
+
+      // Ctrl+` - toggle terminal
       if (hasPrimaryMod && e.key === "`") {
         e.preventDefault();
         handleToggleTerminalPanel();
         return;
       }
 
-      // Ctrl+Shift+` — open terminal
-      if (hasPrimaryMod && e.shiftKey && e.key === "`") {
+      // Ctrl+Shift+F - open workspace search
+      if (hasPrimaryMod && e.shiftKey && key === "f") {
         e.preventDefault();
-        handleOpenTerminalPanel();
+        handleOpenWorkbenchPanel("search");
         return;
       }
+
 
       // Ctrl+W — close active tab
       if (hasPrimaryMod && key === "w") {
@@ -857,7 +951,7 @@ export default function Editor() {
       // Ctrl+, — settings
       if (hasPrimaryMod && key === ",") {
         e.preventDefault();
-        setShowSettings(true);
+        handleOpenSettingsPanel();
         return;
       }
 
@@ -900,8 +994,12 @@ export default function Editor() {
     };
   }, [
     activeTabId,
+    handleOpenFolder,
+    handleOpenSettingsPanel,
     handleOpenTerminalPanel,
+    handleOpenWorkbenchPanel,
     handleTabClose,
+    handleToggleSidebar,
     handleToggleTerminalPanel,
     setTabModified,
   ]);
@@ -1208,59 +1306,34 @@ export default function Editor() {
 
   const handleCommandPaletteAction = useCallback(
     (actionId, payload) => {
-      switch (actionId) {
-        case "open-file":
-          handleFileSelect(payload);
-          break;
-        case "new-file":
-          handleCreateFileRequest("typescript", "language");
-          break;
-        case "open-folder":
-          handleOpenFolder();
-          break;
-        case "open-explorer":
-          setShowSettings(false);
-          setActivePanel("explorer");
-          break;
-        case "open-search":
-          setShowSettings(false);
-          setActivePanel("search");
-          break;
-        case "change-theme":
-          setShowSettings(true);
-          break;
-        case "toggle-terminal":
-          handleToggleTerminalPanel();
-          break;
-        case "open-problems":
-          handleOpenProblemsPanel();
-          break;
-        case "open-extensions":
-          setShowSettings(false);
-          setActivePanel("extensions");
-          break;
-        case "toggle-zen":
-          handleToggleZenMode();
-          break;
-        case "open-settings":
-          setShowSettings(true);
-          break;
-        case "toggle-sidebar":
-          setActivePanel((prev) => (prev ? null : "explorer"));
-          break;
-        case "github-sync":
-          setShowSettings(false);
-          setActivePanel("git");
-          break;
-        default:
-          break;
-      }
+      const commandHandlers = {
+        "open-file": () => handleFileSelect(payload),
+        "new-file": () => handleCreateFileRequest("typescript", "language"),
+        "open-folder": handleOpenFolder,
+        "open-explorer": () => handleOpenWorkbenchPanel("explorer"),
+        "open-search": () => handleOpenWorkbenchPanel("search"),
+        "change-theme": handleOpenSettingsPanel,
+        "toggle-terminal": handleToggleTerminalPanel,
+        "open-problems": handleOpenProblemsPanel,
+        "open-extensions": () => handleOpenWorkbenchPanel("extensions"),
+        "toggle-zen": handleToggleZenMode,
+        "open-settings": handleOpenSettingsPanel,
+        "toggle-sidebar": handleToggleSidebar,
+        "github-sync": () => handleOpenWorkbenchPanel("git"),
+        "focus-editor": handleFocusEditor,
+      };
+
+      commandHandlers[actionId]?.();
     },
     [
       handleCreateFileRequest,
       handleFileSelect,
+      handleFocusEditor,
       handleOpenFolder,
       handleOpenProblemsPanel,
+      handleOpenSettingsPanel,
+      handleOpenWorkbenchPanel,
+      handleToggleSidebar,
       handleToggleTerminalPanel,
       handleToggleZenMode,
     ],
@@ -1284,9 +1357,26 @@ export default function Editor() {
   const fileExtensionLabel = getFileExtensionLabel(activeFile);
   const statusStripVisible = settings.status_bar_visible !== false;
   const bottomPanelVisible = terminalOpen;
+  const zenMode = Boolean(settings.zen_mode);
+  const sidebarVisible = settings.sidebar_visible !== false;
+  const sidebarSide = settings.sidebar_position === "right" ? "right" : "left";
+  const sideRailVisible = !zenMode && sidebarVisible;
+  const shellModeLabel = getShellModeLabel({
+    showSettings,
+    zenMode,
+    activePanel,
+  });
+  const activePanelMeta = getPanelMeta(activePanel);
+  const sidePanelClassName = getSidePanelClassName({
+    compact: isCompactViewport,
+    side: sidebarSide,
+  });
+  const bottomPanelClassName = getBottomPanelClassName();
 
   return (
-    <div className={`nx-code-shell h-screen flex flex-col overflow-hidden bg-transparent text-[#e5e7eb] font-sans ${isCompactViewport ? "nx-code-shell-compact" : ""}`}>
+    <div
+      className={`nx-code-shell h-screen min-h-0 flex flex-col overflow-hidden bg-transparent text-[#e5e7eb] font-sans ${isCompactViewport ? "nx-code-shell-compact" : ""}`}
+    >
       <TitleBar
         compact={isCompactViewport}
         onNewFile={() => handleCreateFileRequest("typescript", "language")}
@@ -1297,16 +1387,24 @@ export default function Editor() {
         onToggleZenMode={handleToggleZenMode}
         onToggleTerminal={handleToggleTerminalPanel}
         onOpenCommandPalette={() => setCommandPaletteOpen(true)}
-        onOpenSettings={() => setShowSettings(true)}
+        onOpenSettings={handleOpenSettingsPanel}
+        onFocusEditor={handleFocusEditor}
+        sidebarVisible={sideRailVisible}
+        zenMode={zenMode}
+        terminalOpen={bottomPanelVisible}
+        shellModeLabel={shellModeLabel}
+        activePanelLabel={activePanelMeta.title}
         workspaceName={
           workspacePath ? workspacePath.split(/[\\/]/).pop() : null
         }
       />
 
-      <div className="nx-code-workbench flex-1 flex overflow-hidden min-h-0 relative">
-        {!settings.zen_mode &&
-          settings.sidebar_visible &&
-          settings.sidebar_position === "left" && (
+      <div
+        className="nx-code-workbench flex-1 min-h-0 overflow-hidden relative"
+        style={{ background: "rgba(0,0,0,0.08)" }}
+      >
+        <div className="flex h-full min-h-0 overflow-hidden">
+        {sideRailVisible && sidebarSide === "left" && (
             <div
               className="nx-code-rail relative z-40 h-full min-h-0 overflow-visible flex flex-col border-r border-white/5 shrink-0 nexus-panel-surface"
               style={{
@@ -1318,15 +1416,18 @@ export default function Editor() {
             >
               <Sidebar
                 activePanel={activePanel}
-                setActivePanel={setActivePanel}
-                onOpenSettings={() => setShowSettings(true)}
+                setActivePanel={handleSidebarPanelChange}
+                onOpenSettings={handleOpenSettingsPanel}
+                side={sidebarSide}
+                compact={isCompactViewport}
+                problemCount={problems.length}
               />
             </div>
-          )}
+        )}
 
         {showSettings ? (
           <div
-            className={`nx-code-settings-host flex-1 min-w-0 ${isCompactViewport ? "m-2 rounded-xl" : "m-4 rounded-2xl"} overflow-hidden animate-in fade-in zoom-in duration-300 border border-white/5 nexus-panel-surface`}
+            className={`nx-code-settings-host flex-1 min-w-0 min-h-0 ${isCompactViewport ? "m-2 rounded-lg" : "m-3 rounded-lg"} overflow-hidden animate-in fade-in zoom-in duration-300 border border-white/10 nexus-panel-surface`}
             style={{
               background: "var(--nexus-panel-surface)",
               backdropFilter: "var(--nexus-panel-filter)",
@@ -1353,86 +1454,94 @@ export default function Editor() {
           <>
             {/* Side Panels */}
             <AnimatePresence mode="wait">
-              {!settings.zen_mode && activePanel && (
+              {!zenMode && activePanel && (
                 <motion.div
-                  initial={{ opacity: 0, x: settings.sidebar_position === "right" ? 20 : -20 }}
+                  initial={{ opacity: 0, x: sidebarSide === "right" ? 20 : -20 }}
                   animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: settings.sidebar_position === "right" ? 20 : -20 }}
+                  exit={{ opacity: 0, x: sidebarSide === "right" ? 20 : -20 }}
                   transition={{ type: "tween", duration: 0.18, ease: [0.2, 0.7, 0.2, 1] }}
-                  className={`nx-code-side-panel ${isCompactViewport ? "absolute top-0 bottom-0 left-14 w-[min(22rem,calc(100vw-3.5rem))] shadow-2xl" : "relative w-[min(20rem,30vw)] min-w-[17rem] max-w-[22rem]"} z-30 min-h-0 border-r border-white/5 overflow-visible`}
+                  className={`nx-code-side-panel ${sidePanelClassName} z-30 min-h-0 overflow-hidden border-x border-white/5`}
                   style={{
                     background: "var(--nexus-panel-surface)",
                     backdropFilter: "var(--nexus-panel-filter)",
                     boxShadow: isCompactViewport ? "0 18px 48px rgba(0,0,0,0.35)" : "none",
-                    order: settings.sidebar_position === "right" ? 30 : 5,
+                    order: sidebarSide === "right" ? 30 : 5,
                     willChange: "transform, opacity",
                   }}
                 >
-                  {activePanel === "explorer" && (
-                    <FileExplorer
-                      files={files}
-                      activeFileId={activeTabId}
-                      onFileSelect={handleFileSelect}
-                      onCreateFile={handleCreateFile}
-                      onCreateFolder={handleCreateFolder}
-                      onRenameFile={handleRenameFile}
-                      onDeleteFile={handleDeleteFile}
-                      onToggleFolder={handleToggleFolder}
-                      workspacePath={workspacePath}
-                    />
-                  )}
-                  {activePanel === "search" && (
-                    <SearchPanel
-                      files={files}
-                      onFileSelect={handleFileSelect}
-                    />
-                  )}
-                  {activePanel === "git" && <GitPanel files={files} />}
-                  {activePanel === "debug" && (
-                    <DebugPanel
-                      activeFile={activeFile}
-                      _code={currentCode}
-                      problems={problems}
-                    />
-                  )}
-                  {activePanel === "extensions" && (
-                    <ExtensionsPanel
-                      onInstalledChange={(installedList) => {
-                        setSettings((prev) => ({
-                          ...prev,
-                          extensions_installed: Array.isArray(installedList)
-                            ? installedList
-                            : [],
-                        }));
-                      }}
-                    />
-                  )}
-                  {activePanel === "problems" && (
-                    <ProblemsPanel
-                      problems={problems}
-                      onSelectProblem={(p) => {
-                        if (activeTabId) {
+                  <SidePanelFrame
+                    panelId={activePanel}
+                    onClose={() => setActivePanel(null)}
+                  >
+                    {activePanel === "explorer" && (
+                      <FileExplorer
+                        files={files}
+                        activeFileId={activeTabId}
+                        onFileSelect={handleFileSelect}
+                        onCreateFile={handleCreateFile}
+                        onCreateFolder={handleCreateFolder}
+                        onRenameFile={handleRenameFile}
+                        onDeleteFile={handleDeleteFile}
+                        onToggleFolder={handleToggleFolder}
+                        workspacePath={workspacePath}
+                      />
+                    )}
+                    {activePanel === "search" && (
+                      <SearchPanel
+                        files={files}
+                        onFileSelect={handleFileSelect}
+                      />
+                    )}
+                    {activePanel === "git" && <GitPanel files={files} />}
+                    {activePanel === "debug" && (
+                      <DebugPanel
+                        activeFile={activeFile}
+                        _code={currentCode}
+                        problems={problems}
+                      />
+                    )}
+                    {activePanel === "extensions" && (
+                      <ExtensionsPanel
+                        onInstalledChange={(installedList) => {
                           setSettings((prev) => ({
                             ...prev,
-                            _revealLine: {
-                              line: p.startLineNumber,
-                              col: p.startColumn,
-                              timestamp: Date.now(),
-                            },
+                            extensions_installed: Array.isArray(installedList)
+                              ? installedList
+                              : [],
                           }));
-                        }
-                      }}
-                    />
-                  )}
+                        }}
+                      />
+                    )}
+                    {activePanel === "problems" && (
+                      <ProblemsPanel
+                        problems={problems}
+                        onSelectProblem={(p) => {
+                          if (activeTabId) {
+                            setSettings((prev) => ({
+                              ...prev,
+                              _revealLine: {
+                                line: p.startLineNumber,
+                                col: p.startColumn,
+                                timestamp: Date.now(),
+                              },
+                            }));
+                          }
+                        }}
+                      />
+                    )}
+                  </SidePanelFrame>
                 </motion.div>
               )}
             </AnimatePresence>
 
             {/* Main Editor Area */}
-            <div className="nx-code-main flex-1 flex flex-col min-w-0 min-h-0 bg-transparent" style={{ order: 20 }}>
+            <div
+              className="nx-code-main flex-1 flex flex-col min-w-0 min-h-0 bg-transparent"
+              style={{ order: 20 }}
+            >
               <div
-                className="h-10 border-b border-white/5 shrink-0"
-                style={{ background: "rgba(0,0,0,0.18)" }}
+                className="h-11 border-b border-white/5 shrink-0"
+                style={{ background: "rgba(0,0,0,0.16)" }}
               >
                 <TabBar
                   tabs={openTabs}
@@ -1443,6 +1552,10 @@ export default function Editor() {
                   onSaveAll={handleSaveAll}
                   onToggleTerminal={handleToggleTerminalPanel}
                   onOpenCommandPalette={() => setCommandPaletteOpen(true)}
+                  bottomPanelOpen={bottomPanelVisible}
+                  bottomTab={bottomTab}
+                  compact={isCompactViewport}
+                  zenMode={zenMode}
                 />
               </div>
 
@@ -1451,13 +1564,14 @@ export default function Editor() {
                   {problems.length > 0 && (
                     <button
                       onClick={handleOpenProblemsPanel}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 rounded-full backdrop-blur-md transition-all group"
+                      className="flex h-8 items-center gap-1.5 rounded-md border border-red-500/30 bg-red-500/10 px-2.5 text-[10px] font-semibold text-red-300 backdrop-blur-md transition-colors hover:bg-red-500/20"
+                      title="Problems anzeigen"
                     >
                       <AlertCircle
                         size={14}
-                        className="text-red-500 group-hover:scale-110 transition-transform"
+                        className="text-red-400"
                       />
-                      <span className="text-[10px] font-bold text-red-500">
+                      <span className="hidden sm:inline">
                         {problems.length} Problems
                       </span>
                     </button>
@@ -1466,27 +1580,35 @@ export default function Editor() {
 
                 <ErrorBoundary>
                   {activeTabId && activeFile ? (
-                    <CodeEditor
-                      code={currentCode}
-                      onChange={handleCodeChange}
-                      fileName={activeFile.name}
-                      filePath={activeFile.fsPath || null}
-                      workspacePath={workspacePath}
-                      onMarkersChange={(m) => setProblems(m)}
-                      fontSize={settings.font_size || 14}
-                      showLineNumbers={settings.line_numbers !== false}
-                      tabSize={settings.tab_size || 4}
-                      wordWrap={settings.word_wrap || false}
-                      minimap={settings.minimap !== false}
-                      settings={settings}
-                    />
+                    <Suspense
+                      fallback={
+                        <div className="flex h-full w-full items-center justify-center bg-transparent text-xs uppercase tracking-[0.18em] text-gray-600">
+                          Editor wird geladen...
+                        </div>
+                      }
+                    >
+                      <CodeEditor
+                        code={currentCode}
+                        onChange={handleCodeChange}
+                        fileName={activeFile.name}
+                        filePath={activeFile.fsPath || null}
+                        workspacePath={workspacePath}
+                        onMarkersChange={(m) => setProblems(m)}
+                        fontSize={settings.font_size || 14}
+                        showLineNumbers={settings.line_numbers !== false}
+                        tabSize={settings.tab_size || 4}
+                        wordWrap={settings.word_wrap || false}
+                        minimap={settings.minimap !== false}
+                        settings={settings}
+                      />
+                    </Suspense>
                   ) : (
                     <WelcomeScreen
                       onNewFile={() =>
                         handleCreateFileRequest("typescript", "language")
                       }
                       onOpenFolder={handleOpenFolder}
-                      onOpenSettings={() => setShowSettings(true)}
+                      onOpenSettings={handleOpenSettingsPanel}
                     />
                   )}
                 </ErrorBoundary>
@@ -1494,7 +1616,7 @@ export default function Editor() {
 
               {(statusStripVisible || bottomPanelVisible) && (
                 <div
-                  className="shrink-0 border-t border-white/5 min-h-0"
+                  className="shrink-0 border-t border-white/5 min-h-0 overflow-hidden"
                   style={{
                     background: "var(--nexus-panel-surface)",
                     backdropFilter: "var(--nexus-panel-filter)",
@@ -1502,7 +1624,7 @@ export default function Editor() {
                 >
                   {statusStripVisible && (
                     <div
-                      className="nx-code-status-strip h-8 px-2 flex items-center gap-2 border-b border-white/5 overflow-hidden"
+                      className="nx-code-status-strip h-8 px-2.5 flex items-center gap-2 border-b border-white/5 overflow-hidden"
                       style={{ background: "rgba(0,0,0,0.18)" }}
                     >
                       <StatusItem
@@ -1567,16 +1689,18 @@ export default function Editor() {
                     </div>
                   )}
                   {bottomPanelVisible && bottomTab === "terminal" && (
-                    <Terminal
-                      isOpen
-                      onToggle={handleToggleTerminalPanel}
-                      activeFile={activeFile}
-                      code={currentCode}
-                      workspacePath={workspacePath}
-                    />
+                    <div className={bottomPanelClassName}>
+                      <Terminal
+                        isOpen
+                        onToggle={handleToggleTerminalPanel}
+                        activeFile={activeFile}
+                        code={currentCode}
+                        workspacePath={workspacePath}
+                      />
+                    </div>
                   )}
                   {bottomPanelVisible && bottomTab === "problems" && (
-                    <div className="h-64 min-h-0 border-t border-white/5">
+                    <div className={`${bottomPanelClassName} border-t border-white/5`}>
                       <ProblemsPanel
                         problems={problems}
                         onSelectProblem={(p) => {
@@ -1597,9 +1721,7 @@ export default function Editor() {
               )}
             </div>
 
-            {!settings.zen_mode &&
-              settings.sidebar_visible &&
-              settings.sidebar_position === "right" && (
+            {sideRailVisible && sidebarSide === "right" && (
                 <div
                   className="relative z-40 h-full min-h-0 overflow-visible flex flex-col border-l border-white/5 shrink-0 nexus-panel-surface"
                   style={{
@@ -1611,13 +1733,17 @@ export default function Editor() {
                 >
                   <Sidebar
                     activePanel={activePanel}
-                    setActivePanel={setActivePanel}
-                    onOpenSettings={() => setShowSettings(true)}
+                    setActivePanel={handleSidebarPanelChange}
+                    onOpenSettings={handleOpenSettingsPanel}
+                    side={sidebarSide}
+                    compact={isCompactViewport}
+                    problemCount={problems.length}
                   />
                 </div>
               )}
           </>
         )}
+        </div>
       </div>
 
       <CommandPalette

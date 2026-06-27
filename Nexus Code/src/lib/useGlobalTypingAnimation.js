@@ -3,7 +3,7 @@ import { useEffect } from "react";
 const SELECTOR =
   'input, textarea, [contenteditable="true"], [contenteditable=""]';
 const EXCLUDED_ANCESTOR_SELECTOR =
-  ".monaco-editor, .nx-code-editor-shell, .xterm, [data-skip-typing-animation='true']";
+  ".cm-editor, .nx-code-editor-shell, .xterm, [data-skip-typing-animation='true']";
 
 export function useGlobalTypingAnimation(enabled) {
   useEffect(() => {

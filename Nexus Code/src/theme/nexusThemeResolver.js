@@ -71,8 +71,60 @@ function hexToHslString(value, fallback) {
   )}%`;
 }
 
-function monacoHex(value, fallback) {
+function tokenHex(value, fallback) {
   return normalizeHexColor(value, fallback).replace("#", "");
+}
+
+function readNumberSetting(value, fallback) {
+  const next = Number(value);
+  return Number.isFinite(next) ? next : fallback;
+}
+
+function resolveEffectBudget(settings = {}) {
+  const profile = settings.visual_performance_profile || "balanced";
+  const panelMode = settings.panel_background_mode || "blur";
+  const panelBlur = clamp(readNumberSetting(settings.panel_blur_strength, 16), 0, 32);
+  const glowIntensityPercent = clamp(
+    readNumberSetting(settings.glow_intensity, 28),
+    0,
+    100,
+  );
+  const glowRadius = clamp(readNumberSetting(settings.glow_radius, 14), 0, 48);
+  const reduceEffects =
+    profile === "performance" ||
+    settings.smooth_caret === false ||
+    (panelBlur <= 8 && glowIntensityPercent <= 14);
+  const blurScale =
+    panelMode === "glass-shader" ? 0.55 : panelMode === "fake-glass" ? 0.5 : 0.42;
+  const maxBlur =
+    panelMode === "glass-shader" ? 14 : panelMode === "fake-glass" ? 12 : 10;
+  const panelFilter =
+    reduceEffects || panelBlur <= 0
+      ? "none"
+      : `blur(${Math.round(clamp(panelBlur * blurScale, 4, maxBlur))}px) saturate(${
+          panelMode === "glass-shader" ? 136 : panelMode === "fake-glass" ? 128 : 118
+        }%)`;
+  const settingsFilter =
+    reduceEffects || panelBlur <= 0
+      ? "none"
+      : `blur(${Math.round(clamp(panelBlur * 0.45, 4, 8))}px) saturate(112%)`;
+  const glowAlpha = reduceEffects
+    ? clamp(glowIntensityPercent / 100 * 0.18, 0.04, 0.12)
+    : clamp(0.08 + (glowIntensityPercent / 100) * 0.36, 0.06, 0.36);
+
+  return {
+    profile,
+    panelMode,
+    panelBlur,
+    panelFilter,
+    settingsFilter,
+    glowIntensityPercent,
+    glowRadius,
+    glowAlpha,
+    reduceEffects,
+    motionQuick: reduceEffects ? "80ms" : "170ms",
+    motionRegular: reduceEffects ? "120ms" : "210ms",
+  };
 }
 
 const nexusZedSyntax = {
@@ -101,7 +153,7 @@ export const THEME_PRESETS = Object.freeze({
     muted: "#8b93a7",
     accent: FALLBACK_PRIMARY,
     accent2: FALLBACK_SECONDARY,
-    glow: hexToRgba(FALLBACK_PRIMARY, 0.18),
+    glow: hexToRgba(FALLBACK_PRIMARY, 0.16),
     selection: "rgba(124, 140, 255, 0.22)",
     syntax: nexusZedSyntax,
     swatches: ["#0b0d14", FALLBACK_PRIMARY, "#8bd5ca"],
@@ -127,7 +179,7 @@ export const THEME_PRESETS = Object.freeze({
     muted: "#8b8b98",
     accent: "#ff00ff",
     accent2: "#00ffff",
-    glow: "rgba(255, 0, 255, 0.34)",
+    glow: "rgba(255, 0, 255, 0.22)",
     selection: "rgba(255, 0, 255, 0.22)",
     syntax: {
       comment: "#ff7bd580",
@@ -152,7 +204,7 @@ export const THEME_PRESETS = Object.freeze({
     muted: "#8aa3bf",
     accent: "#0ea5e9",
     accent2: "#6366f1",
-    glow: "rgba(14, 165, 233, 0.24)",
+    glow: "rgba(14, 165, 233, 0.18)",
     selection: "rgba(30, 58, 138, 0.7)",
     syntax: {
       comment: "#94a3b8",
@@ -177,7 +229,7 @@ export const THEME_PRESETS = Object.freeze({
     muted: "#9ca3af",
     accent: "#a855f7",
     accent2: "#6d28d9",
-    glow: "rgba(168, 85, 247, 0.24)",
+    glow: "rgba(168, 85, 247, 0.18)",
     selection: "rgba(59, 7, 100, 0.75)",
     syntax: {
       comment: "#a78bfa",
@@ -202,7 +254,7 @@ export const THEME_PRESETS = Object.freeze({
     muted: "#8892bf",
     accent: "#bd93f9",
     accent2: "#ff79c6",
-    glow: "rgba(189, 147, 249, 0.24)",
+    glow: "rgba(189, 147, 249, 0.18)",
     selection: "#44475a",
     syntax: {
       comment: "#6272a4",
@@ -428,7 +480,7 @@ export function getBackgroundPresetOptions() {
   });
 }
 
-export function createMonacoThemeDefinition(resolvedTheme) {
+export function createEditorSyntaxThemeDefinition(resolvedTheme) {
   const theme =
     resolvedTheme?.theme ||
     getThemePreset(resolvedTheme?.settings?.theme || resolvedTheme?.themeId);
@@ -446,18 +498,18 @@ export function createMonacoThemeDefinition(resolvedTheme) {
     rules: [
       {
         token: "comment",
-        foreground: monacoHex(syntax.comment, nexusZedSyntax.comment),
+        foreground: tokenHex(syntax.comment, nexusZedSyntax.comment),
         fontStyle: "italic",
       },
-      { token: "keyword", foreground: monacoHex(syntax.keyword, nexusZedSyntax.keyword) },
-      { token: "string", foreground: monacoHex(syntax.string, nexusZedSyntax.string) },
-      { token: "number", foreground: monacoHex(syntax.number, nexusZedSyntax.number) },
+      { token: "keyword", foreground: tokenHex(syntax.keyword, nexusZedSyntax.keyword) },
+      { token: "string", foreground: tokenHex(syntax.string, nexusZedSyntax.string) },
+      { token: "number", foreground: tokenHex(syntax.number, nexusZedSyntax.number) },
       {
         token: "identifier.function",
-        foreground: monacoHex(syntax.function, nexusZedSyntax.function),
+        foreground: tokenHex(syntax.function, nexusZedSyntax.function),
       },
-      { token: "type", foreground: monacoHex(syntax.type, syntax.keyword) },
-      { token: "operator", foreground: monacoHex(syntax.operator, syntax.variable) },
+      { token: "type", foreground: tokenHex(syntax.type, syntax.keyword) },
+      { token: "operator", foreground: tokenHex(syntax.operator, syntax.variable) },
     ],
     colors: {
       "editor.background": "#00000000",
@@ -481,21 +533,36 @@ export function createMonacoThemeDefinition(resolvedTheme) {
 export function resolveNexusTheme(settings = {}) {
   const theme = getThemePreset(settings.theme);
   const background = getBackgroundPreset(settings.background);
+  const effectBudget = resolveEffectBudget(settings);
   const primary = normalizeHexColor(settings.primary_accent, theme.accent);
   const secondary = normalizeHexColor(settings.secondary_accent, theme.accent2);
   const backgroundValue = background ? background.value : theme.bg_value;
   const backgroundType = background ? background.type : theme.bg_type;
   const surface = background ? background.surface : theme.surface;
   const border = background ? background.border : theme.border;
+  const panelSurface =
+    effectBudget.panelMode === "glass-shader"
+      ? `linear-gradient(135deg, ${hexToRgba(primary, 0.12)}, ${surface})`
+      : effectBudget.panelMode === "fake-glass"
+        ? `linear-gradient(135deg, rgba(255, 255, 255, 0.055), ${surface})`
+        : surface;
   const primaryRgb = hexToRgbString(primary);
   const secondaryRgb = hexToRgbString(secondary, FALLBACK_SECONDARY);
   const primaryHsl = hexToHslString(primary);
   const secondaryHsl = hexToHslString(secondary, FALLBACK_SECONDARY);
+  const accentGlow = hexToRgba(primary, effectBudget.glowAlpha);
+  const panelShadow =
+    effectBudget.reduceEffects || effectBudget.glowIntensityPercent <= 0
+      ? "0 10px 24px rgba(0, 0, 0, 0.2)"
+      : `0 14px 32px rgba(0, 0, 0, 0.24), 0 0 ${Math.round(
+          effectBudget.glowRadius,
+        )}px ${hexToRgba(primary, Math.min(effectBudget.glowAlpha, 0.18))}`;
 
   const colors = {
     background: backgroundValue,
     backgroundType,
     surface,
+    panelSurface,
     border,
     text: theme.text,
     muted: theme.muted,
@@ -505,7 +572,7 @@ export function resolveNexusTheme(settings = {}) {
     secondaryRgb,
     primaryHsl,
     secondaryHsl,
-    glow: hexToRgba(primary, 0.18),
+    glow: accentGlow,
     selection: theme.selection,
     onPrimary: "#ffffff",
     ...theme.semantic,
@@ -518,7 +585,15 @@ export function resolveNexusTheme(settings = {}) {
     "--nexus-bg-value": backgroundValue,
     "--nexus-surface": surface,
     "--nexus-sidebar": surface,
-    "--nexus-panel-surface": surface,
+    "--nexus-titlebar": surface,
+    "--nexus-side-panel": surface,
+    "--nexus-editor-bg": backgroundType === "solid" ? backgroundValue : "#07080d",
+    "--nexus-editor-surface": surface,
+    "--nexus-panel-surface": panelSurface,
+    "--nexus-panel-border": border,
+    "--nexus-panel-filter": effectBudget.panelFilter,
+    "--nexus-settings-filter": effectBudget.settingsFilter,
+    "--nexus-panel-shadow": panelShadow,
     "--nexus-border": border,
     "--nexus-glass": surface,
     "--nexus-glass-border": border,
@@ -535,6 +610,12 @@ export function resolveNexusTheme(settings = {}) {
     "--nexus-purple": primary,
     "--nexus-purple-glow": colors.glow,
     "--nexus-accent-glow": colors.glow,
+    "--nexus-glow-radius": `${effectBudget.glowRadius}px`,
+    "--nexus-glow-radius-sm": `${Math.max(4, Math.round(effectBudget.glowRadius * 0.45))}px`,
+    "--nexus-glow-intensity": `${effectBudget.glowIntensityPercent}%`,
+    "--nexus-blur-radius": `${effectBudget.panelBlur}px`,
+    "--nx-motion-quick": effectBudget.motionQuick,
+    "--nx-motion-regular": effectBudget.motionRegular,
     "--nexus-selection": colors.selection,
     "--nexus-comment": theme.syntax.comment,
     "--nexus-keyword": theme.syntax.keyword,
@@ -552,6 +633,7 @@ export function resolveNexusTheme(settings = {}) {
     name: theme.name,
     theme,
     background,
+    effectBudget,
     colors,
     syntax: theme.syntax,
     cssVars,
@@ -559,6 +641,6 @@ export function resolveNexusTheme(settings = {}) {
 
   return {
     ...resolved,
-    monaco: createMonacoThemeDefinition(resolved),
+    editorSyntax: createEditorSyntaxThemeDefinition(resolved),
   };
 }

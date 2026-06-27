@@ -69,7 +69,7 @@ export function NativeSwitch({ checked, onCheckedChange }) {
           ? "linear-gradient(135deg,var(--nexus-primary, #7c8cff),var(--nexus-accent-2, #2dd4bf))"
           : "rgba(255,255,255,0.1)",
         boxShadow: checked
-          ? "0 0 6px var(--nexus-accent-glow, rgba(124,140,255,0.18))"
+          ? "0 0 var(--nexus-glow-radius-sm, 6px) var(--nexus-accent-glow, rgba(124,140,255,0.16))"
           : "none",
       }}
     >
@@ -117,6 +117,66 @@ export const backgrounds = [
   ...getBackgroundPresetOptions(),
 ];
 
+export const visualPerformanceProfiles = [
+  {
+    id: "performance",
+    label: "Performance",
+    description: "Wenig Blur, kein Panel-Glow, reduzierte Animation.",
+    settings: {
+      panel_background_mode: "blur",
+      glow_renderer: "css",
+      panel_blur_strength: 8,
+      panel_glow_outline: false,
+      glow_intensity: 12,
+      glow_radius: 8,
+      text_glow: false,
+      icon_glow: false,
+      border_glow: false,
+      cursor_glow: false,
+      smooth_caret: false,
+      visual_performance_profile: "performance",
+    },
+  },
+  {
+    id: "balanced",
+    label: "Ausgewogen",
+    description: "Produktionsnaher Standard mit ruhigem Glass-Look.",
+    settings: {
+      panel_background_mode: "blur",
+      glow_renderer: "css",
+      panel_blur_strength: 16,
+      panel_glow_outline: false,
+      glow_intensity: 28,
+      glow_radius: 14,
+      text_glow: false,
+      icon_glow: false,
+      border_glow: false,
+      cursor_glow: true,
+      smooth_caret: true,
+      visual_performance_profile: "balanced",
+    },
+  },
+  {
+    id: "quality",
+    label: "Qualitaet",
+    description: "Mehr Tiefe und Akzentlicht, aber ohne harte Neon-Bloom.",
+    settings: {
+      panel_background_mode: "fake-glass",
+      glow_renderer: "css",
+      panel_blur_strength: 22,
+      panel_glow_outline: true,
+      glow_intensity: 42,
+      glow_radius: 20,
+      text_glow: false,
+      icon_glow: true,
+      border_glow: true,
+      cursor_glow: true,
+      smooth_caret: true,
+      visual_performance_profile: "quality",
+    },
+  },
+];
+
 export const fonts = [
   "JetBrains Mono",
   "Fira Code",
@@ -130,10 +190,10 @@ export const fonts = [
 
 export const settingSections = [
   { id: "theme", label: "Theme", icon: Palette },
-  { id: "panel", label: "Panel Background", icon: Sparkles },
-  { id: "background", label: "Background", icon: Monitor },
+  { id: "panel", label: "Panels", icon: Sparkles },
+  { id: "background", label: "Hintergrund", icon: Monitor },
   { id: "editor", label: "Editor", icon: Code2 },
   { id: "font", label: "Schriftart", icon: Type },
-  { id: "glow", label: "Glow Effects", icon: Zap },
+  { id: "glow", label: "Glow", icon: Zap },
   { id: "appearance", label: "Darstellung", icon: Monitor },
 ];

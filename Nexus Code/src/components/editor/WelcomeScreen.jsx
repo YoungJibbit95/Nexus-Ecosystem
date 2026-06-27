@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo } from "react";
 import {
   Braces,
   CheckCircle2,
@@ -20,12 +20,12 @@ const containerVariants = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
-    transition: { staggerChildren: 0.06, delayChildren: 0.08 },
+    transition: { staggerChildren: 0.05, delayChildren: 0.06 },
   },
 };
 
 const itemVariants = {
-  hidden: { opacity: 0, y: 10 },
+  hidden: { opacity: 0, y: 8 },
   visible: {
     opacity: 1,
     y: 0,
@@ -35,7 +35,7 @@ const itemVariants = {
 
 const actionItems = [
   { icon: Plus, label: "Neue Datei", action: "new" },
-  { icon: FolderOpen, label: "Ordner öffnen", action: "folder" },
+  { icon: FolderOpen, label: "Ordner oeffnen", action: "folder" },
   { icon: Settings, label: "Setup", action: "settings" },
 ];
 
@@ -49,32 +49,30 @@ const capabilityIcons = {
 };
 
 function ActionCard({ icon: Icon, label, onClick }) {
-  const [hovered, setHovered] = useState(false);
-
   return (
     <motion.button
+      type="button"
       variants={itemVariants}
-      whileHover={{ y: -2 }}
-      whileTap={{ scale: 0.98 }}
-      onHoverStart={() => setHovered(true)}
-      onHoverEnd={() => setHovered(false)}
+      whileHover={{ y: -1 }}
+      whileTap={{ scale: 0.99 }}
       onClick={onClick}
-      className="group flex min-h-[6.25rem] flex-col items-start justify-between rounded-lg p-4 text-left transition-colors"
+      className="group flex min-h-[4.75rem] items-center gap-3 rounded-lg p-3 text-left transition-colors"
       style={{
-        background: hovered
-          ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.12)"
-          : "rgba(255,255,255,0.035)",
-        border: hovered
-          ? "1px solid rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.34)"
-          : "1px solid var(--nexus-border)",
+        background: "rgba(255,255,255,0.035)",
+        border: "1px solid var(--nexus-border)",
       }}
     >
-      <Icon
-        size={20}
-        className="transition-transform group-hover:scale-105"
-        style={{ color: "var(--nexus-primary, var(--primary))" }}
-      />
-      <span className="text-sm font-medium text-[var(--nexus-text)]">
+      <span
+        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border"
+        style={{
+          background: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.1)",
+          borderColor: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.2)",
+          color: "var(--nexus-primary, var(--primary))",
+        }}
+      >
+        <Icon size={18} />
+      </span>
+      <span className="min-w-0 truncate text-sm font-semibold text-[var(--nexus-text)]">
         {label}
       </span>
     </motion.button>
@@ -88,9 +86,9 @@ function StatusPill({ capability }) {
 
   return (
     <div
-      className="flex items-center gap-2 rounded-md px-3 py-2"
+      className="flex min-h-[3.25rem] items-center gap-2 rounded-md px-3 py-2"
       style={{
-        background: "rgba(255,255,255,0.035)",
+        background: "rgba(255,255,255,0.03)",
         border: "1px solid var(--nexus-border)",
       }}
     >
@@ -103,7 +101,7 @@ function StatusPill({ capability }) {
         <div className="truncate text-xs font-medium text-[var(--nexus-text)]">
           {capability.label}
         </div>
-        <div className="text-[10px] uppercase tracking-wide text-[var(--nexus-muted)]">
+        <div className="truncate text-[10px] uppercase tracking-wide text-[var(--nexus-muted)]">
           {statusLabel}
         </div>
       </div>
@@ -118,7 +116,7 @@ export default function WelcomeScreen({
 }) {
   const releaseSnapshot = useMemo(getNexusCodeIdeReleaseSnapshot, []);
   const visibleCapabilities =
-    releaseSnapshot.capability.visibleCapabilities.slice(0, 4);
+    releaseSnapshot.capability.visibleCapabilities.slice(0, 6);
 
   const handleAction = (action) => {
     if (action === "new") onNewFile?.();
@@ -137,16 +135,20 @@ export default function WelcomeScreen({
         variants={containerVariants}
         initial="hidden"
         animate="visible"
-        className="mx-auto flex min-h-full w-full max-w-5xl flex-col justify-center gap-8 px-5 py-8 sm:px-8 lg:px-10"
+        className="mx-auto flex min-h-full w-full max-w-6xl flex-col justify-center gap-5 px-5 py-6 sm:px-8 lg:px-10"
       >
-        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-end">
-          <div className="min-w-0">
-            <motion.div
-              variants={itemVariants}
-              className="mb-5 flex items-center gap-3"
-            >
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-stretch">
+          <motion.div
+            variants={itemVariants}
+            className="flex min-w-0 flex-col justify-between rounded-lg p-5"
+            style={{
+              background: "rgba(255,255,255,0.025)",
+              border: "1px solid var(--nexus-border)",
+            }}
+          >
+            <div className="flex items-center gap-3">
               <div
-                className="flex h-10 w-10 items-center justify-center rounded-lg border text-lg font-semibold"
+                className="flex h-11 w-11 items-center justify-center rounded-lg border text-sm font-semibold"
                 style={{
                   background: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.1)",
                   borderColor:
@@ -154,22 +156,19 @@ export default function WelcomeScreen({
                   color: "var(--nexus-primary, var(--primary))",
                 }}
               >
-                N
+                NC
               </div>
               <div className="min-w-0">
-                <h1 className="text-2xl font-semibold tracking-normal text-[var(--nexus-text)] sm:text-3xl">
+                <h1 className="text-2xl font-semibold tracking-normal text-[var(--nexus-text)]">
                   Nexus Code
                 </h1>
-                <p className="mt-1 text-sm text-[var(--nexus-muted)]">
-                  IDE-Fundament im Recode, direkt im Nexus-Ecosystem.
+                <p className="mt-1 truncate text-sm text-[var(--nexus-muted)]">
+                  {releaseSnapshot.language.fullIdeLabel}
                 </p>
               </div>
-            </motion.div>
+            </div>
 
-            <motion.div
-              variants={itemVariants}
-              className="grid grid-cols-1 gap-3 sm:grid-cols-3"
-            >
+            <div className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-3">
               {actionItems.map((item) => (
                 <ActionCard
                   key={item.action}
@@ -178,8 +177,8 @@ export default function WelcomeScreen({
                   onClick={() => handleAction(item.action)}
                 />
               ))}
-            </motion.div>
-          </div>
+            </div>
+          </motion.div>
 
           <motion.div
             variants={itemVariants}
@@ -197,7 +196,7 @@ export default function WelcomeScreen({
                 {releaseSnapshot.capability.foundationReady}
               </span>
               <span className="pb-1 text-sm text-[var(--nexus-muted)]">
-                von {releaseSnapshot.capability.totalCapabilities} Bausteinen
+                / {releaseSnapshot.capability.totalCapabilities}
               </span>
             </div>
             <p className="mt-3 text-xs leading-relaxed text-[var(--nexus-muted)]">
@@ -208,26 +207,11 @@ export default function WelcomeScreen({
 
         <motion.div
           variants={itemVariants}
-          className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4"
+          className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3"
         >
           {visibleCapabilities.map((capability) => (
             <StatusPill key={capability.id} capability={capability} />
           ))}
-        </motion.div>
-
-        <motion.div
-          variants={itemVariants}
-          className="rounded-lg px-4 py-3 text-xs leading-relaxed text-[var(--nexus-muted)]"
-          style={{
-            background: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.06)",
-            border: "1px solid rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.16)",
-          }}
-        >
-          Zielsprachen fuer den ersten IDE-Ausbau:{" "}
-          <span className="text-[var(--nexus-text)]">
-            {releaseSnapshot.language.fullIdeLabel}
-          </span>
-          . Weitere Sprachen bleiben zuerst Syntax- oder LSP-Next-Support.
         </motion.div>
       </motion.div>
     </motion.div>
