@@ -1,13 +1,53 @@
-import React, { useState, useEffect, useRef } from "react";
-import { Command, Search, FileCode2, Palette, Terminal, Settings } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import React, { useEffect, useRef, useState } from "react";
+import {
+  FileCode2,
+  GitBranch,
+  ListChecks,
+  Palette,
+  Search,
+  Settings,
+  Terminal,
+} from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
 
 const COMMANDS = [
-  { id: "new-file", label: "Neues File erstellen", icon: FileCode2, shortcut: "Ctrl+N" },
-  { id: "change-theme", label: "Theme ändern...", icon: Palette, shortcut: "Ctrl+K Ctrl+T" },
-  { id: "toggle-terminal", label: "Terminal umschalten", icon: Terminal, shortcut: "Ctrl+`" },
-  { id: "open-settings", label: "Einstellungen öffnen", icon: Settings, shortcut: "Ctrl+," },
-  { id: "github-sync", label: "GitHub: Repository synchronisieren", icon: Command, shortcut: "" },
+  {
+    id: "new-file",
+    label: "Neues File erstellen",
+    icon: FileCode2,
+    shortcut: "Ctrl+N",
+  },
+  {
+    id: "change-theme",
+    label: "Theme aendern...",
+    icon: Palette,
+    shortcut: "Ctrl+K Ctrl+T",
+  },
+  {
+    id: "toggle-terminal",
+    label: "Terminal Session umschalten",
+    icon: Terminal,
+    shortcut: "Ctrl+`",
+  },
+  {
+    id: "terminal-task-runner",
+    actionId: "toggle-terminal",
+    label: "Terminal: Task Runner oeffnen",
+    icon: ListChecks,
+    shortcut: "",
+  },
+  {
+    id: "github-sync",
+    label: "Git: Source Control oeffnen",
+    icon: GitBranch,
+    shortcut: "",
+  },
+  {
+    id: "open-settings",
+    label: "Einstellungen oeffnen",
+    icon: Settings,
+    shortcut: "Ctrl+,",
+  },
 ];
 
 export default function CommandPalette({ isOpen, onClose, onAction }) {
@@ -19,34 +59,39 @@ export default function CommandPalette({ isOpen, onClose, onAction }) {
     if (isOpen) {
       setQuery("");
       setSelectedIndex(0);
-      setTimeout(() => inputRef.current?.focus(), 50);
+      window.setTimeout(() => inputRef.current?.focus(), 50);
     }
   }, [isOpen]);
 
-  const filtered = COMMANDS.filter(c => 
-    c.label.toLowerCase().includes(query.toLowerCase())
+  const filtered = COMMANDS.filter((command) =>
+    command.label.toLowerCase().includes(query.toLowerCase()),
   );
 
   useEffect(() => {
     if (selectedIndex >= filtered.length) {
       setSelectedIndex(Math.max(0, filtered.length - 1));
     }
-  }, [filtered, selectedIndex]);
+  }, [filtered.length, selectedIndex]);
 
-  const handleKeyDown = (e) => {
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
-      setSelectedIndex(prev => (prev + 1) % filtered.length);
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault();
-      setSelectedIndex(prev => (prev - 1 + filtered.length) % filtered.length);
-    } else if (e.key === "Enter") {
-      e.preventDefault();
-      if (filtered[selectedIndex]) {
-        onAction(filtered[selectedIndex].id);
-        onClose();
-      }
-    } else if (e.key === "Escape") {
+  const runCommand = (command) => {
+    if (!command) return;
+    onAction(command.actionId || command.id);
+    onClose();
+  };
+
+  const handleKeyDown = (event) => {
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      if (filtered.length === 0) return;
+      setSelectedIndex((prev) => (prev + 1) % filtered.length);
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      if (filtered.length === 0) return;
+      setSelectedIndex((prev) => (prev - 1 + filtered.length) % filtered.length);
+    } else if (event.key === "Enter") {
+      event.preventDefault();
+      runCommand(filtered[selectedIndex]);
+    } else if (event.key === "Escape") {
       onClose();
     }
   };
@@ -66,7 +111,12 @@ export default function CommandPalette({ isOpen, onClose, onAction }) {
             initial={{ opacity: 0, scale: 0.95, y: -20, x: "-50%" }}
             animate={{ opacity: 1, scale: 1, y: 0, x: "-50%" }}
             exit={{ opacity: 0, scale: 0.95, y: -20, x: "-50%" }}
-            transition={{ type: "spring", stiffness: 300, damping: 30, mass: 0.8 }}
+            transition={{
+              type: "spring",
+              stiffness: 300,
+              damping: 30,
+              mass: 0.8,
+            }}
             className="fixed top-[20%] left-1/2 w-full max-w-xl nexus-glass rounded-xl shadow-2xl z-[1000] overflow-hidden"
           >
             <div className="flex items-center gap-3 px-4 py-3 border-b border-white/5">
@@ -74,35 +124,39 @@ export default function CommandPalette({ isOpen, onClose, onAction }) {
               <input
                 ref={inputRef}
                 value={query}
-                onChange={(e) => setQuery(e.target.value)}
+                onChange={(event) => setQuery(event.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="Befehl eingeben oder suchen..."
                 className="flex-1 bg-transparent text-sm text-gray-200 outline-none"
               />
             </div>
-            
+
             <div className="max-h-[300px] overflow-y-auto p-2">
-              {filtered.map((cmd, i) => {
-                const Icon = cmd.icon;
-                const active = i === selectedIndex;
+              {filtered.map((command, index) => {
+                const Icon = command.icon;
+                const active = index === selectedIndex;
                 return (
                   <motion.button
-                    key={cmd.id}
-                    onMouseEnter={() => setSelectedIndex(i)}
-                    onClick={() => {
-                      onAction(cmd.id);
-                      onClose();
-                    }}
+                    key={command.id}
+                    onMouseEnter={() => setSelectedIndex(index)}
+                    onClick={() => runCommand(command)}
                     className={`w-full flex items-center justify-between px-3 py-2 rounded-lg transition-colors ${
-                      active ? "bg-purple-600/20 text-purple-300" : "text-gray-400 hover:bg-white/5"
+                      active
+                        ? "bg-purple-600/20 text-purple-300"
+                        : "text-gray-400 hover:bg-white/5"
                     }`}
                   >
                     <div className="flex items-center gap-3">
-                      <Icon size={16} className={active ? "text-purple-400" : "text-gray-500"} />
-                      <span className="text-sm font-medium">{cmd.label}</span>
+                      <Icon
+                        size={16}
+                        className={active ? "text-purple-400" : "text-gray-500"}
+                      />
+                      <span className="text-sm font-medium">{command.label}</span>
                     </div>
-                    {cmd.shortcut && (
-                      <span className="text-[10px] font-mono opacity-50">{cmd.shortcut}</span>
+                    {command.shortcut && (
+                      <span className="text-[10px] font-mono opacity-50">
+                        {command.shortcut}
+                      </span>
                     )}
                   </motion.button>
                 );

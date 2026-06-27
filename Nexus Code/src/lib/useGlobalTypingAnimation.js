@@ -2,6 +2,8 @@ import { useEffect } from "react";
 
 const SELECTOR =
   'input, textarea, [contenteditable="true"], [contenteditable=""]';
+const EXCLUDED_ANCESTOR_SELECTOR =
+  ".monaco-editor, .nx-code-editor-shell, .xterm, [data-skip-typing-animation='true']";
 
 export function useGlobalTypingAnimation(enabled) {
   useEffect(() => {
@@ -31,6 +33,9 @@ export function useGlobalTypingAnimation(enabled) {
       const target = event.target;
       if (!target || typeof target.matches !== "function") return;
       if (!target.matches(SELECTOR)) return;
+      if (typeof target.closest === "function" && target.closest(EXCLUDED_ANCESTOR_SELECTOR)) {
+        return;
+      }
       pulse(target);
     };
 

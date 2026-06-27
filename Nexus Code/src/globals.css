@@ -1,11 +1,20 @@
 :root {
-    --nexus-purple: #8b5cf6;
-    --nexus-purple-glow: rgba(139, 92, 246, 0.5);
-    --nexus-bg: #03030b;
-    --nexus-sidebar: #060614;
-    --nexus-border: rgba(139, 92, 246, 0.15);
-    --nexus-glass: rgba(13, 13, 30, 0.7);
-    --nexus-glass-border: rgba(255, 255, 255, 0.05);
+    --nexus-primary: #7c8cff;
+    --nexus-primary-rgb: 124, 140, 255;
+    --nexus-primary-hsl: 233 100% 74%;
+    --nexus-primary-foreground: #ffffff;
+    --nexus-accent-2: #2dd4bf;
+    --nexus-accent-2-rgb: 45, 212, 191;
+    --nexus-accent-2-hsl: 172 66% 50%;
+    --nexus-purple: var(--nexus-primary);
+    --nexus-purple-glow: rgba(var(--nexus-primary-rgb), 0.18);
+    --nexus-accent-glow: rgba(var(--nexus-primary-rgb), 0.18);
+    --nexus-bg: #07080d;
+    --nexus-sidebar: rgba(17, 20, 29, 0.82);
+    --nexus-border: rgba(142, 153, 183, 0.16);
+    --nexus-glass: rgba(17, 20, 29, 0.82);
+    --nexus-glass-border: rgba(142, 153, 183, 0.16);
+    --primary-rgb: var(--nexus-primary-rgb);
     --nx-motion-quick: 170ms;
     --nx-motion-regular: 210ms;
     --nx-hover-scale: 1.007;
@@ -22,11 +31,11 @@
     background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-    background: rgba(128, 0, 255, 0.2);
+    background: rgba(var(--nexus-primary-rgb), 0.18);
     border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-    background: rgba(128, 0, 255, 0.35);
+    background: rgba(var(--nexus-primary-rgb), 0.3);
 }
 
 textarea {
@@ -46,8 +55,8 @@ textarea {
     -webkit-backdrop-filter: blur(16px) saturate(190%);
     border: 1px solid var(--nexus-glass-border);
     box-shadow:
-        0 16px 38px rgba(0, 0, 0, 0.3),
-        inset 0 1px 0 rgba(255, 255, 255, 0.24);
+        0 14px 32px rgba(0, 0, 0, 0.26),
+        inset 0 1px 0 rgba(255, 255, 255, 0.16);
 }
 
 .glass-card {
@@ -58,8 +67,8 @@ textarea {
     border: 1px solid rgba(255, 255, 255, 0.11);
     border-radius: 12px;
     box-shadow:
-        0 10px 26px rgba(0, 0, 0, 0.24),
-        inset 0 1px 0 rgba(255, 255, 255, 0.18);
+        0 10px 22px rgba(0, 0, 0, 0.22),
+        inset 0 1px 0 rgba(255, 255, 255, 0.14);
 }
 
 .reduce-motion *,
@@ -94,11 +103,11 @@ textarea {
 @keyframes cursor-breathing {
     0%, 100% {
         opacity: 1;
-        box-shadow: 0 0 8px var(--nexus-purple-glow);
+        box-shadow: 0 0 5px var(--nexus-purple-glow);
     }
     50% {
-        opacity: 0.3;
-        box-shadow: 0 0 2px var(--nexus-purple-glow);
+        opacity: 0.54;
+        box-shadow: 0 0 1px var(--nexus-purple-glow);
     }
 }
 
@@ -110,9 +119,8 @@ textarea {
 /* Glow text utility */
 .text-glow {
     text-shadow:
-        0 0 10px currentColor,
-        0 0 20px currentColor,
-        0 0 30px currentColor;
+        0 0 6px currentColor,
+        0 0 14px rgba(var(--nexus-primary-rgb), 0.2);
     animation: glow-pulse 2s ease-in-out infinite;
 }
 
@@ -120,28 +128,27 @@ textarea {
     0%,
     100% {
         text-shadow:
-            0 0 10px currentColor,
-            0 0 20px currentColor;
+            0 0 5px currentColor,
+            0 0 12px rgba(var(--nexus-primary-rgb), 0.16);
     }
     50% {
         text-shadow:
-            0 0 15px currentColor,
-            0 0 30px currentColor,
-            0 0 40px currentColor;
+            0 0 8px currentColor,
+            0 0 18px rgba(var(--nexus-primary-rgb), 0.22);
     }
 }
 
 .text-glow-sm {
     text-shadow:
-        0 0 5px currentColor,
-        0 0 10px currentColor;
+        0 0 4px currentColor,
+        0 0 8px rgba(var(--nexus-primary-rgb), 0.14);
 }
 
 .text-glow-lg {
     text-shadow:
-        0 0 15px currentColor,
-        0 0 30px currentColor,
-        0 0 45px currentColor;
+        0 0 8px currentColor,
+        0 0 18px rgba(var(--nexus-primary-rgb), 0.2),
+        0 0 28px rgba(var(--nexus-primary-rgb), 0.12);
     animation: glow-pulse-lg 2s ease-in-out infinite;
 }
 
@@ -149,25 +156,24 @@ textarea {
     0%,
     100% {
         text-shadow:
-            0 0 15px currentColor,
-            0 0 30px currentColor,
-            0 0 45px currentColor;
+            0 0 8px currentColor,
+            0 0 18px rgba(var(--nexus-primary-rgb), 0.2),
+            0 0 28px rgba(var(--nexus-primary-rgb), 0.12);
     }
     50% {
         text-shadow:
-            0 0 20px currentColor,
-            0 0 40px currentColor,
-            0 0 60px currentColor,
-            0 0 80px currentColor;
+            0 0 10px currentColor,
+            0 0 24px rgba(var(--nexus-primary-rgb), 0.24),
+            0 0 36px rgba(var(--nexus-primary-rgb), 0.14);
     }
 }
 
 /* Box glow utilities */
 .box-glow {
     box-shadow:
-        0 0 20px rgba(128, 0, 255, 0.3),
-        0 0 40px rgba(128, 0, 255, 0.2),
-        inset 0 0 20px rgba(128, 0, 255, 0.1);
+        0 0 14px rgba(var(--nexus-primary-rgb), 0.18),
+        0 0 28px rgba(var(--nexus-primary-rgb), 0.1),
+        inset 0 0 14px rgba(var(--nexus-primary-rgb), 0.06);
     animation: box-glow-pulse 2s ease-in-out infinite;
 }
 
@@ -175,30 +181,30 @@ textarea {
     0%,
     100% {
         box-shadow:
-            0 0 20px rgba(128, 0, 255, 0.3),
-            0 0 40px rgba(128, 0, 255, 0.2),
-            inset 0 0 20px rgba(128, 0, 255, 0.1);
+            0 0 14px rgba(var(--nexus-primary-rgb), 0.18),
+            0 0 28px rgba(var(--nexus-primary-rgb), 0.1),
+            inset 0 0 14px rgba(var(--nexus-primary-rgb), 0.06);
     }
     50% {
         box-shadow:
-            0 0 30px rgba(128, 0, 255, 0.4),
-            0 0 60px rgba(128, 0, 255, 0.3),
-            inset 0 0 30px rgba(128, 0, 255, 0.15);
+            0 0 20px rgba(var(--nexus-primary-rgb), 0.22),
+            0 0 38px rgba(var(--nexus-primary-rgb), 0.12),
+            inset 0 0 18px rgba(var(--nexus-primary-rgb), 0.08);
     }
 }
 
 .box-glow-sm {
     box-shadow:
-        0 0 10px rgba(128, 0, 255, 0.2),
-        0 0 20px rgba(128, 0, 255, 0.1);
+        0 0 8px rgba(var(--nexus-primary-rgb), 0.16),
+        0 0 16px rgba(var(--nexus-primary-rgb), 0.08);
 }
 
 .box-glow-lg {
     box-shadow:
-        0 0 30px rgba(128, 0, 255, 0.4),
-        0 0 60px rgba(128, 0, 255, 0.3),
-        0 0 90px rgba(128, 0, 255, 0.2),
-        inset 0 0 30px rgba(128, 0, 255, 0.15);
+        0 0 22px rgba(var(--nexus-primary-rgb), 0.22),
+        0 0 42px rgba(var(--nexus-primary-rgb), 0.14),
+        0 0 64px rgba(var(--nexus-primary-rgb), 0.08),
+        inset 0 0 22px rgba(var(--nexus-primary-rgb), 0.08);
 }
 
 .nx-code-sidebar-btn:hover {
@@ -210,6 +216,57 @@ textarea {
     transform: translateZ(0);
     contain: paint;
     backface-visibility: hidden;
+}
+
+/* Nexus editor uses hex accents; these keep Tailwind primary utilities off hsl(var(--primary)). */
+.bg-primary,
+.focus\:bg-primary:focus,
+.aria-selected\:bg-primary[aria-selected="true"],
+.data-\[state\=checked\]\:bg-primary[data-state="checked"] {
+    background-color: var(--nexus-primary, #7c8cff) !important;
+}
+
+.bg-primary\/10 {
+    background-color: rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.1) !important;
+}
+
+.bg-primary\/20 {
+    background-color: rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.2) !important;
+}
+
+.hover\:bg-primary\/80:hover {
+    background-color: rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.8) !important;
+}
+
+.hover\:bg-primary\/90:hover {
+    background-color: rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.9) !important;
+}
+
+.hover\:bg-primary:hover,
+.focus\:bg-primary:focus {
+    background-color: var(--nexus-primary, #7c8cff) !important;
+}
+
+.text-primary,
+.hover\:text-primary:hover,
+.focus\:text-primary:focus {
+    color: var(--nexus-primary, #7c8cff) !important;
+}
+
+.text-primary-foreground,
+.hover\:text-primary-foreground:hover,
+.focus\:text-primary-foreground:focus,
+.data-\[state\=checked\]\:text-primary-foreground[data-state="checked"],
+.aria-selected\:text-primary-foreground[aria-selected="true"] {
+    color: var(--nexus-primary-foreground, #ffffff) !important;
+}
+
+.border-primary {
+    border-color: var(--nexus-primary, #7c8cff) !important;
+}
+
+.border-primary\/50 {
+    border-color: rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.5) !important;
 }
 
 /* Smooth transitions (scoped, avoids global layout thrash in large editor trees) */
@@ -266,4 +323,212 @@ textarea.nx-typing-active,
 [contenteditable=""].nx-typing-active {
     animation: nx-typing-pulse 170ms cubic-bezier(0.2, 0.95, 0.3, 1);
     will-change: opacity, text-shadow;
+}
+
+.nx-code-shell {
+    isolation: isolate;
+    contain: layout paint style;
+    color: var(--nexus-text, #e5e7eb);
+    background: transparent;
+}
+
+.nx-code-workbench,
+.nx-code-main,
+.nx-code-editor-shell,
+.nx-code-editor-canvas {
+    min-width: 0;
+    min-height: 0;
+}
+
+.nx-code-main,
+.nx-code-editor-shell,
+.nx-code-editor-canvas {
+    contain: layout paint;
+}
+
+.nx-code-titlebar {
+    min-width: 0;
+    color: var(--nexus-text, #e5e7eb);
+}
+
+.nx-code-rail {
+    width: 3.5rem;
+    max-width: 3.5rem;
+}
+
+.nx-code-side-panel {
+    color: var(--nexus-text, #e5e7eb);
+    contain: layout paint;
+}
+
+.nx-code-settings-host {
+    min-height: 0;
+}
+
+.nx-code-settings-panel {
+    min-width: 0;
+}
+
+.nx-code-settings-nav {
+    scrollbar-width: thin;
+}
+
+.nx-code-settings-content {
+    scrollbar-width: thin;
+}
+
+.nx-code-settings-content :where(.flex.items-center.justify-between) {
+    gap: 1rem;
+}
+
+.nx-code-tabbar {
+    min-width: 0;
+    contain: layout paint;
+}
+
+.nx-code-tabbar-actions {
+    min-width: max-content;
+}
+
+.nx-code-tab-scroll {
+    scrollbar-width: thin;
+    overscroll-behavior-x: contain;
+}
+
+.nx-code-tab {
+    min-width: 7.5rem;
+    max-width: clamp(9rem, 19vw, 15rem);
+    transition: background-color var(--nx-motion-quick, 170ms) ease, border-color var(--nx-motion-quick, 170ms) ease, opacity var(--nx-motion-quick, 170ms) ease;
+}
+
+.nx-code-tab:hover {
+    background: rgba(255, 255, 255, 0.07) !important;
+}
+
+.nx-code-editor-status {
+    overflow: hidden;
+    color: var(--nexus-muted, #9ca3af);
+}
+
+.nx-code-monaco-mounted,
+.nx-code-monaco-mounted .monaco-editor,
+.nx-code-monaco-mounted .monaco-editor .margin,
+.nx-code-monaco-mounted .monaco-editor .monaco-editor-background,
+.nx-code-monaco-mounted .monaco-editor-background,
+.nx-code-monaco-mounted .monaco-editor .inputarea.ime-input,
+.nx-code-monaco-mounted .monaco-editor .overflow-guard,
+.nx-code-monaco-mounted .monaco-editor .minimap,
+.nx-code-monaco-mounted .monaco-editor .scroll-decoration {
+    background: transparent !important;
+    background-color: transparent !important;
+    background-image: none !important;
+}
+
+.nx-code-monaco-mounted .monaco-editor .view-lines {
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+}
+
+.nx-code-monaco-mounted .monaco-editor .view-line span,
+.nx-code-monaco-mounted .monaco-editor .mtk1 {
+    text-shadow: none;
+}
+
+.nx-code-problems-float {
+    pointer-events: none;
+}
+
+.nx-code-problems-float > * {
+    pointer-events: auto;
+}
+
+@media (max-width: 980px) {
+    .nx-code-shell-compact .nx-code-rail {
+        width: 3.25rem;
+        max-width: 3.25rem;
+    }
+
+    .nx-code-shell-compact .nx-code-side-panel {
+        max-width: calc(100vw - 3.25rem);
+    }
+
+    .nx-code-shell-compact .nx-code-tabbar-actions {
+        padding-left: 0.375rem;
+        padding-right: 0.375rem;
+    }
+
+    .nx-code-shell-compact .nx-code-tab {
+        min-width: 6.5rem;
+        max-width: 10rem;
+        padding-left: 0.625rem;
+        padding-right: 0.625rem;
+    }
+
+    .nx-code-shell-compact .nx-code-problems-float {
+        top: 0.5rem;
+        right: 0.5rem;
+    }
+
+    .nx-code-shell-compact .nx-code-editor-status {
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
+    }
+}
+
+@media (max-width: 720px) {
+    .nx-code-titlebar {
+        height: 2.5rem;
+    }
+
+    .nx-code-tab {
+        min-width: 5.5rem;
+        max-width: 8.5rem;
+    }
+
+    .nx-code-editor-status {
+        font-size: 0.625rem;
+    }
+
+    .nx-code-settings-panel {
+        flex-direction: column;
+    }
+
+    .nx-code-settings-nav {
+        width: 100%;
+        max-height: 8.5rem;
+        border-right: 0 !important;
+        border-bottom: 1px solid var(--nexus-border);
+    }
+
+    .nx-code-settings-nav > button,
+    .nx-code-settings-nav > div + button {
+        flex: 0 0 auto;
+    }
+
+    .nx-code-settings-content :where(.flex.items-center.justify-between) {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .text-glow,
+    .text-glow-lg,
+    .box-glow,
+    .box-glow-lg,
+    .cursor-pulse .monaco-cursor {
+        animation: none !important;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .text-glow,
+    .text-glow-lg,
+    .box-glow,
+    .box-glow-lg,
+    .cursor-pulse .monaco-cursor,
+    input.nx-typing-active,
+    textarea.nx-typing-active,
+    [contenteditable="true"].nx-typing-active,
+    [contenteditable=""].nx-typing-active {
+        animation: none !important;
+    }
 }

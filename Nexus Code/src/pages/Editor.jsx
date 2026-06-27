@@ -28,6 +28,7 @@ import {
   loadSettingsFromStorage,
   saveFilesToStorage,
   saveSettingsToStorage,
+  resolveNexusTheme,
 } from './editor/editorShared.jsx';
 import {
   beginPerfMetric,
@@ -51,8 +52,14 @@ const SETTINGS_PERSIST_DEBOUNCE_MS = 900;
 const EDITOR_BUFFER_COMMIT_MS = 8_000;
 const WORKSPACE_AUTOSAVE_MS = 5_200;
 const LOCAL_AUTOSAVE_MS = 6_200;
+const CODE_COMPACT_VIEWPORT_WIDTH = 980;
 const loadSettingsPanel = () => import("../components/editor/SettingsPanel");
 const SettingsPanel = React.lazy(() => loadSettingsPanel());
+
+function getIsCompactCodeViewport() {
+  if (typeof window === "undefined") return false;
+  return window.innerWidth < CODE_COMPACT_VIEWPORT_WIDTH;
+}
 
 function isEditableEventTarget(target) {
   if (!(target instanceof HTMLElement)) return false;
@@ -155,6 +162,9 @@ export default function Editor() {
   const isElectron = typeof window !== "undefined" && !!window.electronAPI;
   const [activePanel, setActivePanel] = useState("explorer");
   const [showSettings, setShowSettings] = useState(false);
+  const [isCompactViewport, setIsCompactViewport] = useState(
+    getIsCompactCodeViewport,
+  );
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [spotlightOpen, setSpotlightOpen] = useState(false);
   const lastShiftTime = useRef(0);
@@ -183,6 +193,22 @@ export default function Editor() {
   const initialPanelRef = useRef("explorer");
   const firstViewSwitchTrackedRef = useRef(false);
   const settingsOpenTrackedRef = useRef(false);
+
+  useEffect(() => {
+    let frame = 0;
+    const handleResize = () => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(() => {
+        const next = getIsCompactCodeViewport();
+        setIsCompactViewport((prev) => (prev === next ? prev : next));
+      });
+    };
+    window.addEventListener("resize", handleResize, { passive: true });
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener("resize", handleResize);
+    };
+  }, []);
 
   useEffect(() => {
     const timerId = window.setTimeout(() => {
@@ -443,8 +469,15 @@ export default function Editor() {
   );
   useEffect(() => {
     const root = document.documentElement;
-    const theme = THEMES[settings.theme] || THEMES.nexus_vibrant;
-    const accent = settings.primary_accent || theme.accent;
+    const resolvedTheme = resolveNexusTheme(settings);
+    for (const [name, value] of Object.entries(resolvedTheme.cssVars || {})) {
+      root.style.setProperty(name, value);
+    }
+
+    const theme = THEMES[resolvedTheme.id] || THEMES.nexus_vibrant;
+    const accent = resolvedTheme.colors.primary || settings.primary_accent || theme.accent;
+    const secondaryAccent =
+      resolvedTheme.colors.secondary || settings.secondary_accent || theme.accent2;
     const panelMode = settings.panel_background_mode || "blur";
     const panelBlur = Number(settings.panel_blur_strength || 22);
 
@@ -519,6 +552,14 @@ export default function Editor() {
     root.style.setProperty("--nexus-editor-foreground", safeEditorText);
 
     // Accents & Glows
+    root.style.setProperty("--nexus-primary", accent);
+    root.style.setProperty("--nexus-primary-rgb", resolvedTheme.colors.primaryRgb);
+    root.style.setProperty("--nexus-primary-hsl", resolvedTheme.colors.primaryHsl);
+    root.style.setProperty("--nexus-accent-2", secondaryAccent);
+    root.style.setProperty("--nexus-accent-2-rgb", resolvedTheme.colors.secondaryRgb);
+    root.style.setProperty("--nexus-accent-2-hsl", resolvedTheme.colors.secondaryHsl);
+    root.style.setProperty("--nexus-secondary-accent", secondaryAccent);
+    root.style.setProperty("--primary-rgb", resolvedTheme.colors.primaryRgb);
     root.style.setProperty("--primary", accent);
     root.style.setProperty("--nexus-purple", accent);
     root.style.setProperty(
@@ -544,6 +585,10 @@ export default function Editor() {
 
     // Topology
     root.style.setProperty(
+      "--nexus-font-family",
+      settings.font_family || "Inter",
+    );
+    root.style.setProperty(
       "--nexus-font-weight",
       settings.font_weight || "400",
     );
@@ -561,7 +606,7 @@ export default function Editor() {
         ? `background: ${bgValue} fixed no-repeat !important; background-size: cover !important;`
         : `background: ${bgValue} !important;`;
 
-    styleTag.innerHTML = `
+    const nextThemeStyles = `
       :root {
         --nexus-bg-value: ${bgValue};
         --nexus-bg-type: ${bgType};
@@ -609,7 +654,23 @@ export default function Editor() {
       ::-webkit-scrollbar-thumb:hover { background: var(--nexus-scrollbar-hover); background-clip: padding-box; }
       ::selection { background: var(--nexus-selection); color: white; }
     `;
-  }, [settings]);
+    if (styleTag.textContent !== nextThemeStyles) {
+      styleTag.textContent = nextThemeStyles;
+    }
+  }, [
+    settings.background,
+    settings.font_family,
+    settings.font_weight,
+    settings.glow_intensity,
+    settings.glow_radius,
+    settings.glow_renderer,
+    settings.panel_background_mode,
+    settings.panel_blur_strength,
+    settings.panel_glow_outline,
+    settings.primary_accent,
+    settings.secondary_accent,
+    settings.theme,
+  ]);
 
   const openFileTab = useCallback((file) => {
     setOpenTabs((prev) => {
@@ -1087,8 +1148,9 @@ export default function Editor() {
   const currentCode = activeTabId ? editorCode : "";
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden bg-transparent text-[#e5e7eb] font-sans">
+    <div className={`nx-code-shell h-screen flex flex-col overflow-hidden bg-transparent text-[#e5e7eb] font-sans ${isCompactViewport ? "nx-code-shell-compact" : ""}`}>
       <TitleBar
+        compact={isCompactViewport}
         onNewFile={() => handleCreateFileRequest("typescript", "language")}
         onSaveAll={handleSaveAll}
         onOpenFolder={handleOpenFolder}
@@ -1103,16 +1165,17 @@ export default function Editor() {
         }
       />
 
-      <div className="flex-1 flex overflow-hidden min-h-0">
+      <div className="nx-code-workbench flex-1 flex overflow-hidden min-h-0 relative">
         {!settings.zen_mode &&
           settings.sidebar_visible &&
           settings.sidebar_position === "left" && (
             <div
-              className="relative z-40 h-full min-h-0 overflow-visible flex flex-col border-r border-white/5 shrink-0 nexus-panel-surface"
+              className="nx-code-rail relative z-40 h-full min-h-0 overflow-visible flex flex-col border-r border-white/5 shrink-0 nexus-panel-surface"
               style={{
                 background: "var(--nexus-panel-surface)",
                 backdropFilter: "var(--nexus-panel-filter)",
                 boxShadow: "var(--nexus-panel-outline)",
+                order: 0,
               }}
             >
               <Sidebar
@@ -1125,11 +1188,12 @@ export default function Editor() {
 
         {showSettings ? (
           <div
-            className="flex-1 m-4 rounded-2xl overflow-hidden animate-in fade-in zoom-in duration-300 border border-white/5 nexus-panel-surface"
+            className={`nx-code-settings-host flex-1 min-w-0 ${isCompactViewport ? "m-2 rounded-xl" : "m-4 rounded-2xl"} overflow-hidden animate-in fade-in zoom-in duration-300 border border-white/5 nexus-panel-surface`}
             style={{
               background: "var(--nexus-panel-surface)",
               backdropFilter: "var(--nexus-panel-filter)",
               boxShadow: "var(--nexus-panel-outline)",
+              order: 20,
             }}
           >
             <Suspense
@@ -1153,12 +1217,18 @@ export default function Editor() {
             <AnimatePresence mode="wait">
               {!settings.zen_mode && activePanel && (
                 <motion.div
-                  initial={{ opacity: 0, x: -20 }}
+                  initial={{ opacity: 0, x: settings.sidebar_position === "right" ? 20 : -20 }}
                   animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
+                  exit={{ opacity: 0, x: settings.sidebar_position === "right" ? 20 : -20 }}
                   transition={{ type: "tween", duration: 0.18, ease: [0.2, 0.7, 0.2, 1] }}
-                  className="relative z-20 w-72 min-h-0 border-r border-white/5 overflow-visible"
-                  style={{ background: "rgba(255,255,255,0.01)", willChange: "transform, opacity" }}
+                  className={`nx-code-side-panel ${isCompactViewport ? "absolute top-0 bottom-0 left-14 w-[min(22rem,calc(100vw-3.5rem))] shadow-2xl" : "relative w-[min(20rem,30vw)] min-w-[17rem] max-w-[22rem]"} z-30 min-h-0 border-r border-white/5 overflow-visible`}
+                  style={{
+                    background: "var(--nexus-panel-surface)",
+                    backdropFilter: "var(--nexus-panel-filter)",
+                    boxShadow: isCompactViewport ? "0 18px 48px rgba(0,0,0,0.35)" : "none",
+                    order: settings.sidebar_position === "right" ? 30 : 5,
+                    willChange: "transform, opacity",
+                  }}
                 >
                   {activePanel === "explorer" && (
                     <FileExplorer
@@ -1221,9 +1291,9 @@ export default function Editor() {
             </AnimatePresence>
 
             {/* Main Editor Area */}
-            <div className="flex-1 flex flex-col min-w-0 min-h-0 bg-transparent">
+            <div className="nx-code-main flex-1 flex flex-col min-w-0 min-h-0 bg-transparent" style={{ order: 20 }}>
               <div
-                className="h-9 border-b border-white/5 shrink-0"
+                className="h-10 border-b border-white/5 shrink-0"
                 style={{ background: "rgba(0,0,0,0.18)" }}
               >
                 <TabBar
@@ -1239,7 +1309,7 @@ export default function Editor() {
               </div>
 
               <div className="flex-1 relative overflow-hidden flex flex-col min-h-0">
-                <div className="absolute top-4 right-4 z-50 flex gap-2">
+                <div className="nx-code-problems-float absolute top-3 right-3 z-40 flex gap-2">
                   {problems.length > 0 && (
                     <button
                       onClick={() => setActivePanel("problems")}
@@ -1310,6 +1380,7 @@ export default function Editor() {
                     background: "var(--nexus-panel-surface)",
                     backdropFilter: "var(--nexus-panel-filter)",
                     boxShadow: "var(--nexus-panel-outline)",
+                    order: 40,
                   }}
                 >
                   <Sidebar

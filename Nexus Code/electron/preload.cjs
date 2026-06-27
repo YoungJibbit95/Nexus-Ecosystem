@@ -6,6 +6,7 @@ const MAX_PATH_LENGTH = 4096;
 const MAX_WRITE_BYTES = 20 * 1024 * 1024;
 const MAX_TERMINAL_COMMAND_LENGTH = 8_000;
 const MAX_TERMINAL_INPUT_LENGTH = 64_000;
+const MAX_BRIDGE_OPTION_BYTES = 64 * 1024;
 
 const noop = () => {};
 
@@ -42,6 +43,37 @@ const sanitizeText = (value, maxBytes, label) => {
     throw new Error(`${label} is too large`);
   }
   return text;
+};
+
+const sanitizeBridgeOptions = (value, label = "options") => {
+  if (value === undefined || value === null) return {};
+  if (typeof value !== "object" || Array.isArray(value)) {
+    throw new Error(`${label} must be an object`);
+  }
+
+  const result = {};
+  for (const [key, item] of Object.entries(value)) {
+    const safeKey = sanitizeText(key, 128, `${label} key`);
+    if (item === undefined) continue;
+    if (item === null || typeof item === "boolean") {
+      result[safeKey] = item;
+      continue;
+    }
+    if (typeof item === "number") {
+      if (!Number.isFinite(item)) throw new Error(`${safeKey} must be finite`);
+      result[safeKey] = item;
+      continue;
+    }
+    if (typeof item === "string") {
+      result[safeKey] = sanitizeText(item, MAX_BRIDGE_OPTION_BYTES, safeKey);
+      continue;
+    }
+    if (Array.isArray(item)) {
+      result[safeKey] = item.map((entry) => sanitizeText(entry, MAX_BRIDGE_OPTION_BYTES, safeKey));
+      continue;
+    }
+  }
+  return result;
 };
 
 const terminalChannel = (type, id) => `terminal:${type}:${sanitizeTerminalId(id)}`;
@@ -81,6 +113,58 @@ contextBridge.exposeInMainWorld("electronAPI", {
     sanitizePath(newPath, "newPath"),
   ),
   openSystemTerminal: (cwd) => ipcRenderer.invoke("system:open-terminal", sanitizeOptionalPath(cwd)),
+
+  gitStatus: (repoPath) => ipcRenderer.invoke("git:status", sanitizePath(repoPath, "repoPath")),
+  gitDiff: (repoPath, options = {}) => ipcRenderer.invoke(
+    "git:diff",
+    sanitizePath(repoPath, "repoPath"),
+    sanitizeBridgeOptions(options, "gitDiff options"),
+  ),
+  gitStage: (repoPath, options = {}) => ipcRenderer.invoke(
+    "git:stage",
+    sanitizePath(repoPath, "repoPath"),
+    sanitizeBridgeOptions(options, "gitStage options"),
+  ),
+  gitUnstage: (repoPath, options = {}) => ipcRenderer.invoke(
+    "git:unstage",
+    sanitizePath(repoPath, "repoPath"),
+    sanitizeBridgeOptions(options, "gitUnstage options"),
+  ),
+  gitCommit: (repoPath, options = {}) => ipcRenderer.invoke(
+    "git:commit",
+    sanitizePath(repoPath, "repoPath"),
+    sanitizeBridgeOptions(options, "gitCommit options"),
+  ),
+  gitBranch: (repoPath, options = {}) => ipcRenderer.invoke(
+    "git:branch",
+    sanitizePath(repoPath, "repoPath"),
+    sanitizeBridgeOptions(options, "gitBranch options"),
+  ),
+  gitLog: (repoPath, options = {}) => ipcRenderer.invoke(
+    "git:log",
+    sanitizePath(repoPath, "repoPath"),
+    sanitizeBridgeOptions(options, "gitLog options"),
+  ),
+  gitRemotes: (repoPath) => ipcRenderer.invoke("git:remotes", sanitizePath(repoPath, "repoPath")),
+
+  githubGetAuthStatus: () => ipcRenderer.invoke("github:auth-status"),
+  githubStartDeviceFlow: (options = {}) => ipcRenderer.invoke(
+    "github:device-flow:start",
+    sanitizeBridgeOptions(options, "githubStartDeviceFlow options"),
+  ),
+  githubPollDeviceFlow: (flow) => ipcRenderer.invoke(
+    "github:device-flow:poll",
+    typeof flow === "object" && flow !== null
+      ? sanitizeBridgeOptions(flow, "githubPollDeviceFlow options")
+      : { flowId: sanitizeText(flow, 256, "flowId") },
+  ),
+  githubSignOut: () => ipcRenderer.invoke("github:sign-out"),
+  githubGetViewer: () => ipcRenderer.invoke("github:viewer"),
+  githubListRepositories: (options = {}) => ipcRenderer.invoke(
+    "github:repositories",
+    sanitizeBridgeOptions(options, "githubListRepositories options"),
+  ),
+  githubGetRateLimit: () => ipcRenderer.invoke("github:rate-limit"),
 
   terminalRun: (payload = {}) => ipcRenderer.send("terminal:run", {
     id: sanitizeTerminalId(payload.id),

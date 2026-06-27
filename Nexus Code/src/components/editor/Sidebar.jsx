@@ -1,13 +1,14 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
-  FileCode2,
-  Settings,
-  Search,
-  GitBranch,
-  Bug,
-  Blocks,
   AlertCircle,
+  Blocks,
+  Bug,
+  FileCode2,
+  GitBranch,
+  Search,
+  Settings,
 } from "lucide-react";
+import { getGitCapability } from "../../pages/editor/gitPanelModel";
 
 const SIDEBAR_ITEMS = [
   { icon: FileCode2, label: "Explorer", id: "explorer" },
@@ -18,13 +19,15 @@ const SIDEBAR_ITEMS = [
   { icon: Blocks, label: "Extensions", id: "extensions" },
 ];
 
-function SidebarButton({ item, isActive, onClick }) {
+function SidebarButton({ item, isActive, onClick, gitCapability }) {
   const Icon = item.icon;
+  const gitReady = item.id === "git" && gitCapability.available;
+  const title = gitReady ? `${item.label} - ${gitCapability.label}` : item.label;
 
   return (
     <button
       onClick={onClick}
-      title={item.label}
+      title={title}
       className="nx-code-sidebar-btn relative w-10 h-10 flex items-center justify-center rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-purple-500"
       style={{
         background: isActive
@@ -49,6 +52,15 @@ function SidebarButton({ item, isActive, onClick }) {
         />
       ) : null}
       <Icon size={19} strokeWidth={isActive ? 2 : 1.75} />
+      {gitReady ? (
+        <span
+          className="absolute right-2 top-2 w-1.5 h-1.5 rounded-full"
+          style={{
+            background: "#22c55e",
+            boxShadow: "0 0 8px rgba(34,197,94,0.65)",
+          }}
+        />
+      ) : null}
     </button>
   );
 }
@@ -58,6 +70,17 @@ export default function Sidebar({
   setActivePanel,
   onOpenSettings,
 }) {
+  const [gitCapability, setGitCapability] = useState(getGitCapability);
+
+  useEffect(() => {
+    setGitCapability(getGitCapability());
+    const intervalId = window.setInterval(() => {
+      setGitCapability(getGitCapability());
+    }, 4000);
+
+    return () => window.clearInterval(intervalId);
+  }, []);
+
   return (
     <div
       className="w-14 h-full min-h-0 flex flex-col items-center pt-3 pb-1 gap-1 shrink-0 relative"
@@ -69,10 +92,7 @@ export default function Sidebar({
         willChange: "transform, opacity",
       }}
     >
-      {/* ── Logo mark ─────────────────────────────────────────────── */}
-      <div
-        className="mb-3 flex flex-col items-center gap-0.5 select-none"
-      >
+      <div className="mb-3 flex flex-col items-center gap-0.5 select-none">
         <span
           className="text-purple-400 font-bold leading-none"
           style={{
@@ -80,7 +100,7 @@ export default function Sidebar({
             textShadow: "0 0 10px rgba(168,85,247,0.55)",
           }}
         >
-          ✦
+          *
         </span>
         <span
           className="text-purple-400/60 font-bold tracking-widest"
@@ -90,7 +110,6 @@ export default function Sidebar({
         </span>
       </div>
 
-      {/* ── Thin divider ──────────────────────────────────────────── */}
       <div
         className="w-6 mb-1 shrink-0 rounded-full"
         style={{
@@ -100,7 +119,6 @@ export default function Sidebar({
         }}
       />
 
-      {/* ── Nav items ─────────────────────────────────────────────── */}
       <div className="flex flex-col items-center gap-0.5">
         {SIDEBAR_ITEMS.map((item) => (
           <div
@@ -117,15 +135,14 @@ export default function Sidebar({
               onClick={() =>
                 setActivePanel(activePanel === item.id ? null : item.id)
               }
+              gitCapability={gitCapability}
             />
           </div>
         ))}
       </div>
 
-      {/* ── Spacer ────────────────────────────────────────────────── */}
       <div className="flex-1" />
 
-      {/* ── Thin divider ──────────────────────────────────────────── */}
       <div
         className="w-6 mb-1 shrink-0 rounded-full"
         style={{
@@ -135,7 +152,6 @@ export default function Sidebar({
         }}
       />
 
-      {/* ── Settings button ───────────────────────────────────────── */}
       <button
         onClick={onOpenSettings}
         className="nx-code-sidebar-btn w-10 h-10 flex items-center justify-center rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-purple-500"

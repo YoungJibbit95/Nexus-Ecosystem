@@ -19,6 +19,7 @@ import {
   settingSections,
   themes,
 } from './settingsShared';
+import { resolveNexusTheme } from '../../theme/nexusThemeResolver.js';
 
 export default function SettingsPanel({
   settings,
@@ -27,6 +28,43 @@ export default function SettingsPanel({
   onClose,
 }) {
   const [activeSection, setActiveSection] = React.useState("theme");
+  const resolvedTheme = React.useMemo(
+    () => resolveNexusTheme(settings),
+    [settings],
+  );
+  const activeThemeId = resolvedTheme.id;
+  const primaryAccent = resolvedTheme.colors.primary;
+  const secondaryAccent = resolvedTheme.colors.secondary;
+  const scopedThemeVars = React.useMemo(() => {
+    const cssVars = resolvedTheme.cssVars;
+    return {
+      "--nexus-primary": cssVars["--nexus-primary"],
+      "--nexus-primary-rgb": cssVars["--nexus-primary-rgb"],
+      "--nexus-primary-hsl": cssVars["--nexus-primary-hsl"],
+      "--nexus-primary-foreground": cssVars["--nexus-primary-foreground"],
+      "--nexus-accent-2": cssVars["--nexus-accent-2"],
+      "--nexus-accent-2-rgb": cssVars["--nexus-accent-2-rgb"],
+      "--nexus-accent-2-hsl": cssVars["--nexus-accent-2-hsl"],
+      "--nexus-accent-glow": cssVars["--nexus-accent-glow"],
+      "--nexus-comment": cssVars["--nexus-comment"],
+      "--nexus-keyword": cssVars["--nexus-keyword"],
+      "--nexus-string": cssVars["--nexus-string"],
+      "--nexus-number": cssVars["--nexus-number"],
+      "--nexus-function": cssVars["--nexus-function"],
+      "--nexus-variable": cssVars["--nexus-variable"],
+      "--nexus-type": cssVars["--nexus-type"],
+      "--nexus-operator": cssVars["--nexus-operator"],
+      "--primary-rgb": cssVars["--primary-rgb"],
+    };
+  }, [resolvedTheme]);
+
+  React.useEffect(() => {
+    if (typeof document === "undefined") return;
+    const root = document.documentElement;
+    Object.entries(scopedThemeVars).forEach(([name, value]) => {
+      root.style.setProperty(name, value);
+    });
+  }, [scopedThemeVars]);
 
   const updateSetting = (key, value) => {
     onSettingsChange({ ...settings, [key]: value });
@@ -36,10 +74,11 @@ export default function SettingsPanel({
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="flex-1 flex overflow-hidden rounded-2xl border border-white/5"
+      className="nx-code-settings-panel flex-1 flex overflow-hidden rounded-xl sm:rounded-2xl border border-white/5 min-w-0"
       style={{
+        ...scopedThemeVars,
         background: "var(--nexus-surface)",
-        backdropFilter: "blur(20px)",
+        backdropFilter: "blur(14px)",
         borderColor: "var(--nexus-border)",
       }}
     >
@@ -48,7 +87,7 @@ export default function SettingsPanel({
         initial={{ x: -220, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
         transition={{ duration: 0.4 }}
-        className="w-52 flex flex-col shrink-0 p-4"
+        className="nx-code-settings-nav w-44 sm:w-52 flex flex-col shrink-0 p-3 sm:p-4 overflow-y-auto"
         style={{ borderRight: "1px solid var(--nexus-border)" }}
       >
         <motion.button
@@ -84,11 +123,15 @@ export default function SettingsPanel({
               whileHover={{ x: 5, scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               onClick={() => setActiveSection(section.id)}
-              className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-left mb-1 relative"
+              className="flex items-center gap-2.5 px-2.5 sm:px-3 py-2 rounded-lg text-left mb-1 relative min-w-0"
               style={{
-                background: isActive ? "rgba(128,0,255,0.15)" : "transparent",
-                color: isActive ? "#c084fc" : "#9ca3af",
-                boxShadow: isActive ? "0 0 15px rgba(128,0,255,0.2)" : "none",
+                background: isActive
+                  ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.12)"
+                  : "transparent",
+                color: isActive ? "var(--nexus-primary, #7c8cff)" : "#9ca3af",
+                boxShadow: isActive
+                  ? "0 8px 22px rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.1)"
+                  : "none",
                 transition: "all 0.3s ease",
               }}
             >
@@ -97,14 +140,15 @@ export default function SettingsPanel({
                   layoutId="settingsActiveIndicator"
                   className="absolute left-1 top-1 bottom-1 w-0.5 rounded-full"
                   style={{
-                    background: "#8000ff",
-                    boxShadow: "0 0 10px #8000ff",
+                    background: "var(--nexus-primary, #7c8cff)",
+                    boxShadow:
+                      "0 0 8px rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.35)",
                   }}
                   transition={{ type: "spring", stiffness: 300, damping: 30 }}
                 />
               )}
               <Icon size={16} />{" "}
-              <span className="text-sm">{section.label}</span>
+              <span className="text-sm truncate">{section.label}</span>
             </motion.button>
           );
         })}
@@ -116,7 +160,7 @@ export default function SettingsPanel({
         initial={{ opacity: 0, x: 20 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.3 }}
-        className="flex-1 overflow-y-auto p-8 max-w-2xl"
+        className="nx-code-settings-content flex-1 min-w-0 overflow-y-auto p-4 sm:p-6 xl:p-8 max-w-none"
       >
         {activeSection === "theme" && (
           <div className="space-y-8">
@@ -131,23 +175,28 @@ export default function SettingsPanel({
               <span className="text-xs text-gray-500 uppercase tracking-widest">
                 Live Preview
               </span>
-              <div className="flex gap-4 mt-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
                 <div
                   className="flex-1 rounded-lg p-4 border"
                   style={{
-                    background: "rgba(128,0,255,0.06)",
-                    borderColor: settings.primary_accent + "33",
+                    background:
+                      "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.06)",
+                    borderColor:
+                      "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.2)",
                   }}
                 >
                   <span
                     className="text-xs font-semibold"
-                    style={{ color: settings.primary_accent }}
+                    style={{ color: primaryAccent }}
                   >
                     Panel A
                   </span>
                   <div
                     className="h-px my-2"
-                    style={{ background: settings.primary_accent + "33" }}
+                    style={{
+                      background:
+                        "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.2)",
+                    }}
                   />{" "}
                   <span className="text-xs text-gray-500">Sample text</span>
                 </div>
@@ -168,15 +217,16 @@ export default function SettingsPanel({
               <div className="flex items-center gap-3 mt-4">
                 <button
                   className="px-4 py-1.5 rounded-lg text-xs font-semibold text-white"
-                  style={{ background: settings.primary_accent }}
+                  style={{ background: primaryAccent }}
                 >
                   Primary
                 </button>
                 <button
                   className="px-4 py-1.5 rounded-lg text-xs font-semibold border"
                   style={{
-                    color: settings.primary_accent,
-                    borderColor: settings.primary_accent + "44",
+                    color: primaryAccent,
+                    borderColor:
+                      "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.28)",
                   }}
                 >
                   Ghost
@@ -189,7 +239,7 @@ export default function SettingsPanel({
               <span className="text-xs text-gray-500 uppercase tracking-widest">
                 Presets
               </span>
-              <div className="grid grid-cols-3 gap-3 mt-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 mt-3">
                 {themes.map((t, index) => (
                   <motion.button
                     key={t.id}
@@ -205,21 +255,23 @@ export default function SettingsPanel({
                         ...settings,
                         theme: t.id,
                         background: null,
+                        primary_accent: t.accent,
+                        secondary_accent: t.accent2,
                       });
                     }}
                     className="p-3 rounded-xl border transition-all"
                     style={{
                       background:
-                        settings.theme === t.id
-                          ? "color-mix(in srgb, var(--primary) 15%, transparent)"
+                        activeThemeId === t.id
+                          ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.1)"
                           : "rgba(255,255,255,0.02)",
                       borderColor:
-                        settings.theme === t.id
-                          ? "color-mix(in srgb, var(--primary) 30%, transparent)"
+                        activeThemeId === t.id
+                          ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.26)"
                           : "rgba(255,255,255,0.05)",
                       boxShadow:
-                        settings.theme === t.id
-                          ? `0 0 20px ${t.colors[0]}33`
+                        activeThemeId === t.id
+                          ? `0 10px 26px rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.1)`
                           : "none",
                       transition: "all 0.3s ease",
                     }}
@@ -235,12 +287,12 @@ export default function SettingsPanel({
                         <motion.div
                           key={i}
                           animate={
-                            settings.theme === t.id
+                            activeThemeId === t.id
                               ? {
                                   boxShadow: [
-                                    `0 0 5px ${c}`,
-                                    `0 0 10px ${c}`,
-                                    `0 0 5px ${c}`,
+                                    `0 0 0 ${c}`,
+                                    `0 0 5px ${c}66`,
+                                    `0 0 0 ${c}`,
                                   ],
                                 }
                               : {}
@@ -261,7 +313,7 @@ export default function SettingsPanel({
               <span className="text-xs text-gray-500 uppercase tracking-widest">
                 Farben
               </span>
-              <div className="grid grid-cols-2 gap-4 mt-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">
                 <div>
                   <NativeLabel className="text-gray-400 mb-1.5 block">
                     Primary Accent
@@ -269,10 +321,10 @@ export default function SettingsPanel({
                   <div className="flex items-center gap-2">
                     <div
                       className="w-8 h-8 rounded-lg border border-white/10"
-                      style={{ background: settings.primary_accent }}
+                      style={{ background: primaryAccent }}
                     />
                     <NativeInput
-                      value={settings.primary_accent || "#8000ff"}
+                      value={settings.primary_accent || primaryAccent}
                       onChange={(e) =>
                         updateSetting("primary_accent", e.target.value)
                       }
@@ -288,10 +340,10 @@ export default function SettingsPanel({
                   <div className="flex items-center gap-2">
                     <div
                       className="w-8 h-8 rounded-lg border border-white/10"
-                      style={{ background: settings.secondary_accent }}
+                      style={{ background: secondaryAccent }}
                     />
                     <NativeInput
-                      value={settings.secondary_accent || "#0033ff"}
+                      value={settings.secondary_accent || secondaryAccent}
                       onChange={(e) =>
                         updateSetting("secondary_accent", e.target.value)
                       }
@@ -310,7 +362,7 @@ export default function SettingsPanel({
               <span className="text-xs text-gray-400 uppercase tracking-widest">
                 Hintergrund
               </span>
-              <div className="grid grid-cols-3 gap-3 mt-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 mt-3">
                 <motion.button
                   whileHover={{ scale: 1.05, y: -3 }}
                   whileTap={{ scale: 0.95 }}
@@ -318,10 +370,10 @@ export default function SettingsPanel({
                   className="p-3 rounded-xl border"
                   style={{
                     background: !settings.background
-                      ? "rgba(128,0,255,0.1)"
+                      ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.1)"
                       : "rgba(255,255,255,0.02)",
                     borderColor: !settings.background
-                      ? "#8000ff44"
+                      ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.26)"
                       : "rgba(255,255,255,0.05)",
                   }}
                 >
@@ -341,15 +393,15 @@ export default function SettingsPanel({
                     style={{
                       background:
                         settings.background === bg.id
-                          ? "rgba(128,0,255,0.1)"
+                          ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.1)"
                           : "rgba(255,255,255,0.02)",
                       borderColor:
                         settings.background === bg.id
-                          ? "#8000ff44"
+                          ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.26)"
                           : "rgba(255,255,255,0.05)",
                       boxShadow:
                         settings.background === bg.id
-                          ? `0 0 20px ${bg.colors[2]}33`
+                          ? `0 10px 24px rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.1)`
                           : "none",
                       transition: "all 0.3s ease",
                     }}
@@ -387,8 +439,10 @@ export default function SettingsPanel({
             <div
               className="rounded-xl p-6 border"
               style={{
-                background: "rgba(128,0,255,0.04)",
-                borderColor: "rgba(128,0,255,0.1)",
+                background:
+                  "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.04)",
+                borderColor:
+                  "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.1)",
               }}
             >
               <div className="flex items-center gap-3 mb-4">
@@ -404,7 +458,7 @@ export default function SettingsPanel({
               </p>
             </div>
 
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
               {[
                 { id: "blur", label: "Blur" },
                 { id: "fake-glass", label: "Fake Glass" },
@@ -417,9 +471,13 @@ export default function SettingsPanel({
                     onClick={() => updateSetting("panel_background_mode", mode.id)}
                     className="p-3 rounded-xl border text-left"
                     style={{
-                      background: active ? "rgba(128,0,255,0.12)" : "rgba(255,255,255,0.02)",
-                      borderColor: active ? "rgba(128,0,255,0.35)" : "rgba(255,255,255,0.08)",
-                      color: active ? "#c084fc" : "#9ca3af",
+                      background: active
+                        ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.12)"
+                        : "rgba(255,255,255,0.02)",
+                      borderColor: active
+                        ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.3)"
+                        : "rgba(255,255,255,0.08)",
+                      color: active ? primaryAccent : "#9ca3af",
                     }}
                   >
                     <div className="text-xs font-semibold">{mode.label}</div>
@@ -684,7 +742,8 @@ export default function SettingsPanel({
                 className="mt-4 p-4 rounded-lg border"
                 style={{
                   background: "#0a0a20",
-                  borderColor: "rgba(128,0,255,0.1)",
+                  borderColor:
+                    "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.12)",
                 }}
               >
                 <p
@@ -701,7 +760,7 @@ export default function SettingsPanel({
 
             <div>
               <NativeLabel>Schriftstärke</NativeLabel>
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 {[400, 500, 600, 700].map((weight) => (
                   <motion.button
                     key={weight}
@@ -712,15 +771,15 @@ export default function SettingsPanel({
                     style={{
                       background:
                         (settings.font_weight || 400) === weight
-                          ? "rgba(128,0,255,0.15)"
+                          ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.14)"
                           : "rgba(255,255,255,0.02)",
                       borderColor:
                         (settings.font_weight || 400) === weight
-                          ? "#8000ff44"
+                          ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.28)"
                           : "rgba(255,255,255,0.05)",
                       color:
                         (settings.font_weight || 400) === weight
-                          ? "#c084fc"
+                          ? primaryAccent
                           : "#9ca3af",
                       fontWeight: weight,
                     }}
@@ -768,15 +827,21 @@ export default function SettingsPanel({
             <div
               className="rounded-xl p-6 border"
               style={{
-                background: "rgba(128,0,255,0.04)",
-                borderColor: "rgba(128,0,255,0.1)",
+                background:
+                  "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.04)",
+                borderColor:
+                  "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.1)",
               }}
             >
               <div className="flex items-center gap-3 mb-4">
                 <Zap
                   size={16}
                   className="text-purple-400"
-                  style={{ filter: "drop-shadow(0 0 6px #a855f7)" }}
+                  style={{
+                    color: primaryAccent,
+                    filter:
+                      "drop-shadow(0 0 4px rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.24))",
+                  }}
                 />{" "}
                 <span className="text-sm text-gray-300 font-medium">
                   Glow Effekte
@@ -841,10 +906,10 @@ export default function SettingsPanel({
 
             <div>
               <NativeLabel>
-                Glow Intensität: {settings.glow_intensity || 50}%
+                Glow Intensität: {settings.glow_intensity ?? 28}%
               </NativeLabel>
               <NativeSlider
-                value={[settings.glow_intensity || 50]}
+                value={[settings.glow_intensity ?? 28]}
                 onValueChange={([v]) => updateSetting("glow_intensity", v)}
                 min={0}
                 max={100}
@@ -854,10 +919,10 @@ export default function SettingsPanel({
             </div>
             <div>
               <NativeLabel>
-                Glow Radius: {settings.glow_radius || 24}px
+                Glow Radius: {settings.glow_radius ?? 14}px
               </NativeLabel>
               <NativeSlider
-                value={[settings.glow_radius || 24]}
+                value={[settings.glow_radius ?? 14]}
                 onValueChange={([v]) => updateSetting("glow_radius", v)}
                 min={0}
                 max={64}
@@ -866,19 +931,20 @@ export default function SettingsPanel({
               />
             </div>
 
-            <div className="mt-6 grid grid-cols-2 gap-3">
+            <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div
                 className="p-4 rounded-lg border text-center"
                 style={{
                   background: "#0a0a20",
-                  borderColor: "rgba(128,0,255,0.2)",
+                  borderColor:
+                    "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.18)",
                 }}
               >
                 <motion.span
                   className={`text-lg font-bold ${settings.text_glow ? "text-glow" : ""}`}
                   style={{
-                    color: "#a855f7",
-                    opacity: (settings.glow_intensity || 50) / 100,
+                    color: primaryAccent,
+                    opacity: (settings.glow_intensity ?? 28) / 100,
                   }}
                 >
                   Text Glow
@@ -888,10 +954,11 @@ export default function SettingsPanel({
                 className="p-4 rounded-lg border flex items-center justify-center"
                 style={{
                   background: "#0a0a20",
-                  borderColor: "rgba(128,0,255,0.2)",
+                  borderColor:
+                    "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.18)",
                   boxShadow:
                     settings.border_glow !== false
-                      ? `0 0 ${Math.round(((settings.glow_radius || 24) * (settings.glow_intensity || 50)) / 120)}px rgba(128,0,255,0.5)`
+                      ? `0 0 ${Math.round(((settings.glow_radius ?? 14) * (settings.glow_intensity ?? 28)) / 160)}px rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.24)`
                       : "none",
                 }}
               >
@@ -906,8 +973,10 @@ export default function SettingsPanel({
             <div
               className="rounded-xl p-6 border"
               style={{
-                background: "rgba(128,0,255,0.04)",
-                borderColor: "rgba(128,0,255,0.1)",
+                background:
+                  "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.04)",
+                borderColor:
+                  "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.1)",
               }}
             >
               <div className="flex items-center gap-3 mb-4">

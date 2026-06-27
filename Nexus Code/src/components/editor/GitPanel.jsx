@@ -1,25 +1,51 @@
-import React, { useState, useEffect } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  AlertCircle,
+  Check,
+  ChevronDown,
+  Clock,
   GitBranch,
   GitFork,
-  RefreshCw,
-  Check,
-  Plus,
   Minus,
-  ChevronDown,
+  Plus,
+  RefreshCw,
+  Server,
+  ShieldCheck,
+  Trash2,
   Upload,
-  AlertCircle,
-  Clock,
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Octokit } from "octokit";
+import { AnimatePresence, motion } from "framer-motion";
+import {
+  buildFallbackGitStatus,
+  clearDeprecatedGithubToken,
+  commitLocalGit,
+  getGitCapability,
+  getGithubBackendCapability,
+  inferWorkspaceRoot,
+  loadGithubAuthStatus,
+  loadGithubCommitHistory,
+  loadGithubRepositories,
+  loadGithubSession,
+  loadLocalGitHistory,
+  loadLocalGitStatus,
+  pullLocalGit,
+  pushLocalGit,
+  readGithubSettings,
+  saveGithubRepositorySettings,
+  pollGithubDeviceFlow,
+  signOutGithub,
+  stageGitPath,
+  startGithubDeviceFlow,
+  unstageGitPath,
+} from "../../pages/editor/gitPanelModel";
 
 const STATUS_META = {
-  M: { label: "Modified", color: "#fbbf24", bg: "rgba(251,191,36,0.1)" },
-  A: { label: "Added", color: "#22c55e", bg: "rgba(34,197,94,0.1)" },
-  D: { label: "Deleted", color: "#ef4444", bg: "rgba(239,68,68,0.1)" },
-  R: { label: "Renamed", color: "#3b82f6", bg: "rgba(59,130,246,0.1)" },
-  U: { label: "Untracked", color: "#9ca3af", bg: "rgba(156,163,175,0.1)" },
+  M: { label: "Modified", color: "#fbbf24" },
+  A: { label: "Added", color: "#22c55e" },
+  D: { label: "Deleted", color: "#ef4444" },
+  R: { label: "Renamed", color: "#3b82f6" },
+  C: { label: "Conflict", color: "#f97316" },
+  U: { label: "Untracked", color: "#9ca3af" },
 };
 
 function SectionHeader({
@@ -54,8 +80,8 @@ function SectionHeader({
       )}
       {action && (
         <span
-          onClick={(e) => {
-            e.stopPropagation();
+          onClick={(event) => {
+            event.stopPropagation();
             action();
           }}
           className="text-[10px] text-purple-400 hover:text-purple-300 opacity-0 group-hover:opacity-100 transition-opacity ml-1"
@@ -64,6 +90,42 @@ function SectionHeader({
         </span>
       )}
     </button>
+  );
+}
+
+function CapabilityPill({ icon: Icon, label, tone = "neutral", title }) {
+  const palette =
+    tone === "ready"
+      ? {
+          color: "#86efac",
+          background: "rgba(34,197,94,0.1)",
+          border: "rgba(34,197,94,0.22)",
+        }
+      : tone === "warn"
+        ? {
+            color: "#fbbf24",
+            background: "rgba(251,191,36,0.08)",
+            border: "rgba(251,191,36,0.22)",
+          }
+        : {
+            color: "#94a3b8",
+            background: "rgba(148,163,184,0.07)",
+            border: "rgba(148,163,184,0.14)",
+          };
+
+  return (
+    <div
+      title={title || label}
+      className="flex items-center gap-1.5 px-2 py-1 rounded-full min-w-0"
+      style={{
+        color: palette.color,
+        background: palette.background,
+        border: `1px solid ${palette.border}`,
+      }}
+    >
+      <Icon size={10} className="shrink-0" />
+      <span className="text-[10px] font-medium truncate">{label}</span>
+    </div>
   );
 }
 
@@ -76,9 +138,9 @@ function FileRow({ file, staged, onToggle }) {
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: -8, height: 0 }}
       whileHover={{ x: 2 }}
-      onClick={() => onToggle(file.id)}
+      onClick={() => onToggle(file)}
       className="w-full flex items-center gap-2 px-3 py-1 group cursor-pointer"
-      title={meta.label}
+      title={`${meta.label}: ${file.path || file.name}`}
     >
       <span
         className="text-[10px] font-bold w-4 shrink-0 text-center"
@@ -89,6 +151,11 @@ function FileRow({ file, staged, onToggle }) {
       <span className="text-xs text-gray-400 truncate flex-1 text-left group-hover:text-gray-200 transition-colors font-mono">
         {file.name}
       </span>
+      {(file.additions > 0 || file.deletions > 0) && (
+        <span className="text-[10px] text-gray-600 font-mono shrink-0">
+          +{file.additions} -{file.deletions}
+        </span>
+      )}
       <motion.div
         animate={{ scale: staged ? 1 : 0.4, opacity: staged ? 1 : 0 }}
         transition={{ duration: 0.15 }}
@@ -112,13 +179,34 @@ function FileRow({ file, staged, onToggle }) {
   );
 }
 
+function getRepoFullName(repo) {
+  return repo?.full_name || repo?.fullName || repo?.nameWithOwner || repo?.name || "";
+}
+
 export default function GitPanel({ files }) {
   const [commitMsg, setCommitMsg] = useState("");
   const [staged, setStaged] = useState(new Set());
+  const [status, setStatus] = useState(() => buildFallbackGitStatus(files));
   const [history, setHistory] = useState([]);
-  const [branch, setBranch] = useState("main");
+  const [historySource, setHistorySource] = useState("Local");
+  const [gitCapability, setGitCapability] = useState(getGitCapability);
+  const [githubCapability, setGithubCapability] = useState(
+    getGithubBackendCapability,
+  );
+  const [githubSettings, setGithubSettings] = useState(readGithubSettings);
+  const [githubAuth, setGithubAuth] = useState({
+    authenticated: false,
+    connected: false,
+  });
+  const [githubFlow, setGithubFlow] = useState(null);
+  const [githubUser, setGithubUser] = useState(null);
+  const [repos, setRepos] = useState([]);
+  const [loadingRepos, setLoadingRepos] = useState(false);
+  const [authBusy, setAuthBusy] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [committing, setCommitting] = useState(false);
   const [committed, setCommitted] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
   const [sections, setSections] = useState({
     changes: true,
     staged: true,
@@ -126,124 +214,297 @@ export default function GitPanel({ files }) {
     settings: false,
   });
 
-  const [githubToken, setGithubToken] = useState(
-    localStorage.getItem("github_token") || "",
-  );
-  const [githubRepo, setGithubRepo] = useState(
-    localStorage.getItem("github_repo") || "",
-  );
-  const [githubOwner, setGithubOwner] = useState(
-    localStorage.getItem("github_owner") || "",
-  );
-  const [githubUser, setGithubUser] = useState(null);
-  const [errorMsg, setErrorMsg] = useState("");
+  const workspaceRoot = useMemo(() => inferWorkspaceRoot(files), [files]);
+  const branch = status.branch || "main";
+  const changedFiles = status.files || [];
+  const unstagedFiles = changedFiles.filter((file) => !staged.has(file.id));
+  const stagedFiles = changedFiles.filter((file) => staged.has(file.id));
+  const hasLocalGit = gitCapability.available;
+  const canPush = gitCapability.methods.includes("push");
 
-  const saveGithubSettings = (token, owner, repo) => {
-    localStorage.setItem("github_token", token);
-    localStorage.setItem("github_owner", owner);
-    localStorage.setItem("github_repo", repo);
-    setGithubToken(token);
-    setGithubOwner(owner);
-    setGithubRepo(repo);
-    verifyGithubToken(token);
-  };
-
-  const [repos, setRepos] = useState([]);
-  const [loadingRepos, setLoadingRepos] = useState(false);
-
-  const verifyGithubToken = async (token) => {
-    if (!token) return;
-    try {
-      const octokit = new Octokit({ auth: token });
-      const { data } = await octokit.rest.users.getAuthenticated();
-      setGithubUser(data);
-      setErrorMsg("");
-      
-      // Auto-fetch repos for the authenticated user
-      fetchRepos(token);
-      
-      if (githubOwner && githubRepo) {
-        fetchHistory(token, githubOwner, githubRepo);
+  const refreshHistory = useCallback(
+    async (settings = readGithubSettings()) => {
+      try {
+        const localHistory = await loadLocalGitHistory({
+          cwd: workspaceRoot,
+          limit: 12,
+        });
+        if (localHistory.length > 0) {
+          setHistory(localHistory);
+          setHistorySource("Local");
+          return;
+        }
+      } catch {
+        // A missing log bridge is fine while IPC catches up.
       }
-    } catch (error) {
-      console.error(error);
-      setGithubUser(null);
-      setErrorMsg("Invalid GitHub Token");
-    }
-  };
 
-  const fetchRepos = async (token) => {
+      if (!settings.owner || !settings.repo) return;
+      try {
+        const remoteHistory = await loadGithubCommitHistory(
+          settings.owner,
+          settings.repo,
+          10,
+        );
+        if (remoteHistory.length > 0) {
+          setHistory(remoteHistory);
+          setHistorySource("GitHub");
+        }
+      } catch {
+        // The GitHub backend may not be connected yet.
+      }
+    },
+    [workspaceRoot],
+  );
+
+  const refreshGitStatus = useCallback(
+    async ({ silent = false } = {}) => {
+      const capability = getGitCapability();
+      setGitCapability(capability);
+      if (!silent) setRefreshing(true);
+
+      try {
+        if (capability.available) {
+          const nextStatus = await loadLocalGitStatus({ cwd: workspaceRoot });
+          setStatus(nextStatus);
+          setStaged(
+            new Set(nextStatus.files.filter((file) => file.staged).map((file) => file.id)),
+          );
+          setErrorMsg("");
+          await refreshHistory();
+        } else {
+          const fallback = buildFallbackGitStatus(files);
+          setStatus(fallback);
+          setStaged((prev) => {
+            const availableIds = new Set(fallback.files.map((file) => file.id));
+            return new Set([...prev].filter((id) => availableIds.has(id)));
+          });
+        }
+      } catch (error) {
+        console.error("Git status failed", error);
+        setStatus(buildFallbackGitStatus(files));
+        setErrorMsg(error?.message || "Git status failed");
+      } finally {
+        if (!silent) setRefreshing(false);
+      }
+    },
+    [files, refreshHistory, workspaceRoot],
+  );
+
+  const refreshGithubBackend = useCallback(async () => {
+    const capability = getGithubBackendCapability();
+    setGithubCapability(capability);
+    const nextSettings = readGithubSettings();
+    setGithubSettings((prev) =>
+      prev.owner === nextSettings.owner &&
+      prev.repo === nextSettings.repo &&
+      prev.legacyTokenPresent === nextSettings.legacyTokenPresent
+        ? prev
+        : nextSettings,
+    );
+
+    if (!capability.available) return;
+
     setLoadingRepos(true);
     try {
-      const octokit = new Octokit({ auth: token });
-      const { data } = await octokit.rest.repos.listForAuthenticatedUser({
-        sort: "updated",
-        per_page: 50,
-      });
-      setRepos(data);
+      const authStatus = await loadGithubAuthStatus();
+      setGithubAuth(authStatus);
+      if (!authStatus.authenticated) {
+        setGithubUser(null);
+        setRepos([]);
+        setErrorMsg("");
+        return;
+      }
+
+      const session = authStatus.session || (await loadGithubSession());
+      setGithubUser(session || null);
+      const nextRepos = await loadGithubRepositories();
+      setRepos(nextRepos);
+      setErrorMsg("");
     } catch (error) {
-      console.error("Failed to fetch repos", error);
+      console.error("GitHub backend failed", error);
+      setGithubUser(null);
+      setRepos([]);
+      setErrorMsg(error?.message || "Secure GitHub backend unavailable");
     } finally {
       setLoadingRepos(false);
     }
-  };
-
-  const fetchHistory = async (token, owner, repo) => {
-    if (!token || !owner || !repo) return;
-    try {
-      const octokit = new Octokit({ auth: token });
-      const { data } = await octokit.rest.repos.listCommits({
-        owner,
-        repo,
-        per_page: 10,
-      });
-      setHistory(
-        data.map((commit) => ({
-          hash: commit.sha.substring(0, 7),
-          message: commit.commit.message,
-          author: commit.commit.author.name,
-          time: new Date(commit.commit.author.date).toLocaleString(),
-        })),
-      );
-    } catch (error) {
-      console.error("Failed to fetch history", error);
-    }
-  };
-
-  useEffect(() => {
-    if (githubToken) {
-      verifyGithubToken(githubToken);
-    }
   }, []);
 
-  // Use all files as 'Modified' or 'Added' for simulation if no real git status exists
-  // Ideally, this should be tracked against the last fetched commit
-  const changedFiles = files.map((f, i) => ({
-    ...f,
-    status: f.content ? "M" : "A", // Simplification
-  }));
+  useEffect(() => {
+    refreshGitStatus();
+    refreshGithubBackend();
+  }, [refreshGitStatus, refreshGithubBackend]);
 
-  const unstagedFiles = changedFiles.filter((f) => !staged.has(f.id));
-  const stagedFiles = changedFiles.filter((f) => staged.has(f.id));
-
-  const toggleStage = (id) =>
-    setStaged((prev) => {
-      const s = new Set(prev);
-      s.has(id) ? s.delete(id) : s.add(id);
-      return s;
-    });
-
-  const stageAll = () => setStaged(new Set(changedFiles.map((f) => f.id)));
-  const unstageAll = () => setStaged(new Set());
+  useEffect(() => {
+    if (!hasLocalGit) {
+      setStatus(buildFallbackGitStatus(files));
+    }
+  }, [files, hasLocalGit]);
 
   const toggleSection = (key) =>
     setSections((prev) => ({ ...prev, [key]: !prev[key] }));
 
+  const toggleStage = async (file) => {
+    const nextStaged = !staged.has(file.id);
+    setStaged((prev) => {
+      const next = new Set(prev);
+      if (nextStaged) next.add(file.id);
+      else next.delete(file.id);
+      return next;
+    });
+
+    if (!hasLocalGit || file.source !== "git") return;
+
+    try {
+      if (nextStaged) {
+        await stageGitPath(file.path || file.name, { cwd: workspaceRoot });
+      } else {
+        await unstageGitPath(file.path || file.name, { cwd: workspaceRoot });
+      }
+      await refreshGitStatus({ silent: true });
+    } catch (error) {
+      console.error("Git stage failed", error);
+      setErrorMsg(error?.message || "Git stage failed");
+      setStaged((prev) => {
+        const next = new Set(prev);
+        if (nextStaged) next.delete(file.id);
+        else next.add(file.id);
+        return next;
+      });
+    }
+  };
+
+  const stageAll = async () => {
+    const nextIds = new Set(changedFiles.map((file) => file.id));
+    setStaged(nextIds);
+    if (!hasLocalGit) return;
+
+    try {
+      await stageGitPath(
+        changedFiles.map((file) => file.path || file.name),
+        { cwd: workspaceRoot },
+      );
+      await refreshGitStatus({ silent: true });
+    } catch (error) {
+      console.error("Git stage all failed", error);
+      setErrorMsg(error?.message || "Git stage all failed");
+    }
+  };
+
+  const unstageAll = async () => {
+    const previous = staged;
+    setStaged(new Set());
+    if (!hasLocalGit) return;
+
+    try {
+      await unstageGitPath(
+        stagedFiles.map((file) => file.path || file.name),
+        { cwd: workspaceRoot },
+      );
+      await refreshGitStatus({ silent: true });
+    } catch (error) {
+      console.error("Git unstage all failed", error);
+      setErrorMsg(error?.message || "Git unstage all failed");
+      setStaged(previous);
+    }
+  };
+
+  const handleSaveGithubSettings = (owner, repo) => {
+    saveGithubRepositorySettings(owner, repo);
+    const next = { ...readGithubSettings(), owner, repo };
+    setGithubSettings(next);
+    refreshHistory(next);
+  };
+
+  const handleRepositorySelect = (value) => {
+    const [owner, repo] = value.split("/");
+    if (!owner || !repo) return;
+    handleSaveGithubSettings(owner, repo);
+  };
+
+  const handleClearLegacyToken = () => {
+    clearDeprecatedGithubToken();
+    setGithubSettings(readGithubSettings());
+  };
+
+  const handleStartGithubAuth = async () => {
+    if (!githubCapability.available || authBusy) return;
+    setAuthBusy(true);
+    setErrorMsg("");
+    try {
+      const flow = await startGithubDeviceFlow();
+      setGithubFlow(flow);
+      if (flow?.verificationUriComplete) {
+        window.open(flow.verificationUriComplete, "_blank", "noopener,noreferrer");
+      }
+    } catch (error) {
+      console.error("GitHub auth start failed", error);
+      setErrorMsg(error?.message || "GitHub auth start failed");
+    } finally {
+      setAuthBusy(false);
+    }
+  };
+
+  const handlePollGithubAuth = async () => {
+    if (!githubFlow?.flowId || authBusy) return;
+    setAuthBusy(true);
+    setErrorMsg("");
+    try {
+      const result = await pollGithubDeviceFlow({ flowId: githubFlow.flowId });
+      if (result?.authenticated) {
+        setGithubFlow(null);
+        await refreshGithubBackend();
+      } else {
+        setErrorMsg("GitHub wartet noch auf deine Bestaetigung.");
+      }
+    } catch (error) {
+      console.error("GitHub auth poll failed", error);
+      setErrorMsg(error?.message || "GitHub auth poll failed");
+    } finally {
+      setAuthBusy(false);
+    }
+  };
+
+  const handleGithubSignOut = async () => {
+    if (!githubCapability.available || authBusy) return;
+    setAuthBusy(true);
+    setErrorMsg("");
+    try {
+      await signOutGithub();
+      setGithubAuth({ authenticated: false, connected: true });
+      setGithubUser(null);
+      setGithubFlow(null);
+      setRepos([]);
+    } catch (error) {
+      console.error("GitHub sign out failed", error);
+      setErrorMsg(error?.message || "GitHub sign out failed");
+    } finally {
+      setAuthBusy(false);
+    }
+  };
+
+  const handlePull = async () => {
+    if (!hasLocalGit) {
+      setErrorMsg("Local Git IPC is not connected.");
+      return;
+    }
+    setRefreshing(true);
+    try {
+      await pullLocalGit({ cwd: workspaceRoot });
+      await refreshGitStatus({ silent: true });
+      setErrorMsg("");
+    } catch (error) {
+      console.error("Git pull failed", error);
+      setErrorMsg(error?.message || "Git pull failed");
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   const handleCommitAndPush = async () => {
     if (!commitMsg.trim() || staged.size === 0 || committing) return;
-    if (!githubToken || !githubOwner || !githubRepo) {
-      setErrorMsg("GitHub settings incomplete");
-      setSections({ ...sections, settings: true });
+    if (!hasLocalGit) {
+      setErrorMsg("Local Git IPC is required for commit/push.");
       return;
     }
 
@@ -251,69 +512,19 @@ export default function GitPanel({ files }) {
     setErrorMsg("");
 
     try {
-      const octokit = new Octokit({ auth: githubToken });
+      await commitLocalGit(commitMsg.trim(), { cwd: workspaceRoot });
+      if (canPush) {
+        await pushLocalGit({ cwd: workspaceRoot });
+      }
 
-      // 1. Get current commit object
-      const { data: refData } = await octokit.rest.git.getRef({
-        owner: githubOwner,
-        repo: githubRepo,
-        ref: `heads/${branch}`,
-      });
-      const commitSha = refData.object.sha;
-
-      const { data: commitData } = await octokit.rest.git.getCommit({
-        owner: githubOwner,
-        repo: githubRepo,
-        commit_sha: commitSha,
-      });
-
-      // 2. Create tree with staged files
-      const tree = stagedFiles.map((file) => ({
-        path: file.name,
-        mode: "100644",
-        type: "blob",
-        content: file.content || "",
-      }));
-
-      const { data: treeData } = await octokit.rest.git.createTree({
-        owner: githubOwner,
-        repo: githubRepo,
-        base_tree: commitData.tree.sha,
-        tree,
-      });
-
-      // 3. Create commit
-      const { data: newCommitData } = await octokit.rest.git.createCommit({
-        owner: githubOwner,
-        repo: githubRepo,
-        message: commitMsg.trim(),
-        tree: treeData.sha,
-        parents: [commitSha],
-      });
-
-      // 4. Update reference
-      await octokit.rest.git.updateRef({
-        owner: githubOwner,
-        repo: githubRepo,
-        ref: `heads/${branch}`,
-        sha: newCommitData.sha,
-      });
-
-      const newEntry = {
-        hash: newCommitData.sha.substring(0, 7),
-        message: commitMsg.trim(),
-        author: githubUser?.login || "You",
-        time: "Just now",
-      };
-
-      setHistory((prev) => [newEntry, ...prev]);
       setCommitMsg("");
       setStaged(new Set());
       setCommitted(true);
-      setTimeout(() => setCommitted(false), 2000);
+      window.setTimeout(() => setCommitted(false), 2000);
+      await refreshGitStatus({ silent: true });
     } catch (error) {
-      console.error(error);
-      setErrorMsg(error.message || "Commit failed");
+      console.error("Commit failed", error);
+      setErrorMsg(error?.message || "Commit failed");
     } finally {
       setCommitting(false);
     }
@@ -321,6 +532,9 @@ export default function GitPanel({ files }) {
 
   const canCommit =
     commitMsg.trim().length > 0 && staged.size > 0 && !committing;
+  const selectedRepo = githubSettings.repo
+    ? `${githubSettings.owner}/${githubSettings.repo}`
+    : "";
 
   return (
     <motion.div
@@ -334,7 +548,6 @@ export default function GitPanel({ files }) {
         borderRight: "1px solid rgba(255, 255, 255, 0.05)",
       }}
     >
-      {/* ── Header ───────────────────────────────────────────── */}
       <div className="px-3 pt-3 pb-2 shrink-0 flex items-center justify-between">
         <span className="text-[11px] font-semibold text-gray-500 tracking-widest uppercase">
           Source Control
@@ -343,28 +556,33 @@ export default function GitPanel({ files }) {
           <motion.button
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
-            onClick={() => fetchHistory(githubToken, githubOwner, githubRepo)}
-            title="Refresh"
+            onClick={() => refreshGitStatus()}
+            title="Refresh local Git status"
             className="p-1 rounded hover:bg-white/[0.06] text-gray-500 hover:text-gray-300 transition-colors"
           >
-            <RefreshCw size={12} />
+            <RefreshCw
+              size={12}
+              className={refreshing ? "animate-spin text-purple-400" : ""}
+            />
           </motion.button>
           <motion.button
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
             onClick={() => toggleSection("settings")}
-            title="Settings"
+            title="Git providers"
             className="p-1 rounded hover:bg-white/[0.06] text-gray-500 hover:text-gray-300 transition-colors"
           >
-            <GitFork size={12} className={githubUser ? "text-green-400" : ""} />
+            <GitFork
+              size={12}
+              className={githubCapability.available ? "text-green-400" : ""}
+            />
           </motion.button>
         </div>
       </div>
 
-      {/* ── Branch pill ──────────────────────────────────────── */}
-      <div className="px-3 pb-4 shrink-0">
+      <div className="px-3 pb-3 shrink-0 space-y-2">
         <div
-          className="flex items-center gap-2 px-3 py-2 rounded-xl transition-all hover:bg-white/[0.05] cursor-pointer"
+          className="flex items-center gap-2 px-3 py-2 rounded-xl transition-all hover:bg-white/[0.05]"
           style={{
             background: "rgba(139, 92, 246, 0.05)",
             border: "1px solid rgba(139, 92, 246, 0.1)",
@@ -374,25 +592,39 @@ export default function GitPanel({ files }) {
           <span className="text-xs text-gray-200 font-medium flex-1 truncate">
             {branch}
           </span>
-          {githubUser && (
-            <img 
-              src={githubUser.avatar_url} 
-              alt={githubUser.login}
-              className="w-4 h-4 rounded-full border border-purple-500/30"
-            />
+          {status.ahead > 0 && (
+            <span className="text-[10px] text-green-400">+{status.ahead}</span>
           )}
+          {status.behind > 0 && (
+            <span className="text-[10px] text-amber-400">-{status.behind}</span>
+          )}
+        </div>
+        <div className="grid grid-cols-2 gap-1.5">
+          <CapabilityPill
+            icon={GitBranch}
+            label={gitCapability.label}
+            tone={gitCapability.available ? "ready" : "warn"}
+            title={
+              gitCapability.available
+                ? `Using ${gitCapability.label}`
+                : "No local Git bridge detected; showing editor-file preview."
+            }
+          />
+          <CapabilityPill
+            icon={Server}
+            label={githubCapability.label}
+            tone={githubCapability.available ? "ready" : "neutral"}
+            title="GitHub access is expected through a secure backend/session."
+          />
         </div>
       </div>
 
-      {/* ── Divider ──────────────────────────────────────────── */}
       <div
         className="mx-3 mb-1 shrink-0"
         style={{ height: "1px", background: "rgba(128,0,255,0.08)" }}
       />
 
-      {/* ── Scrollable body ──────────────────────────────────── */}
       <div className="flex-1 overflow-y-auto">
-        {/* Settings */}
         <AnimatePresence>
           {sections.settings && (
             <motion.div
@@ -404,34 +636,134 @@ export default function GitPanel({ files }) {
               className="px-3 pb-3"
             >
               <div className="space-y-2 p-2 rounded-lg bg-black/20 border border-white/5">
-                <input
-                  type="password"
-                  placeholder="GitHub Token (Classic)"
-                  className="w-full bg-black/40 text-xs px-2 py-1.5 rounded border border-white/10 outline-none focus:border-purple-500/50"
-                  defaultValue={githubToken}
-                  onChange={(e) => setGithubToken(e.target.value)}
-                />
+                <div className="flex items-start gap-2 rounded-lg border border-green-500/15 bg-green-500/5 px-2 py-2">
+                  <ShieldCheck size={13} className="text-green-400 shrink-0 mt-0.5" />
+                  <div className="min-w-0">
+                    <p className="text-[11px] text-gray-300 font-semibold">
+                      Secure GitHub Backend
+                    </p>
+                    <p className="text-[10px] text-gray-500 leading-snug">
+                      GitHub tokens stay out of the renderer. This panel reads
+                      repository data from a backend/session when available.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="rounded-lg border border-white/5 bg-black/20 px-2 py-2">
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">
+                      GitHub Auth
+                    </span>
+                    <span
+                      className={`text-[10px] ${
+                        githubAuth.authenticated
+                          ? "text-green-300"
+                          : githubCapability.available
+                            ? "text-amber-300"
+                            : "text-gray-500"
+                      }`}
+                    >
+                      {githubAuth.authenticated
+                        ? "Connected"
+                        : githubCapability.available
+                          ? "Ready"
+                          : "Unavailable"}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    <button
+                      type="button"
+                      disabled={!githubCapability.available || authBusy}
+                      onClick={handleStartGithubAuth}
+                      className="rounded bg-green-600/15 py-1.5 text-xs text-green-200 transition-colors hover:bg-green-600/25 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      Connect
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!githubCapability.available || authBusy}
+                      onClick={handleGithubSignOut}
+                      className="rounded bg-white/[0.04] py-1.5 text-xs text-gray-300 transition-colors hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      Sign out
+                    </button>
+                  </div>
+                  {githubFlow && (
+                    <div className="mt-2 rounded border border-purple-500/20 bg-purple-500/5 p-2">
+                      <div className="text-[10px] text-gray-400">
+                        Code bei GitHub eingeben:
+                      </div>
+                      <div className="mt-1 font-mono text-sm font-semibold tracking-widest text-purple-200">
+                        {githubFlow.userCode}
+                      </div>
+                      <div className="mt-2 grid grid-cols-2 gap-1.5">
+                        <a
+                          href={
+                            githubFlow.verificationUriComplete ||
+                            githubFlow.verificationUri
+                          }
+                          target="_blank"
+                          rel="noreferrer"
+                          className="rounded bg-purple-600/20 py-1.5 text-center text-xs text-purple-200 transition-colors hover:bg-purple-600/30"
+                        >
+                          Open
+                        </a>
+                        <button
+                          type="button"
+                          disabled={authBusy}
+                          onClick={handlePollGithubAuth}
+                          className="rounded bg-white/[0.04] py-1.5 text-xs text-gray-300 transition-colors hover:bg-white/[0.08] disabled:opacity-40"
+                        >
+                          Verify
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {githubSettings.legacyTokenPresent && (
+                  <div className="flex items-center gap-2 rounded-lg border border-amber-500/20 bg-amber-500/5 px-2 py-2">
+                    <AlertCircle size={13} className="text-amber-400 shrink-0" />
+                    <span className="text-[10px] text-amber-200/80 flex-1">
+                      Legacy localStorage token detected. It is deprecated and
+                      no longer used automatically.
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleClearLegacyToken}
+                      className="p-1 rounded hover:bg-white/10 text-amber-200"
+                      title="Remove deprecated local token"
+                    >
+                      <Trash2 size={11} />
+                    </button>
+                  </div>
+                )}
+
                 <div className="flex flex-col gap-1.5">
-                  <span className="text-[10px] text-gray-500 uppercase font-semibold px-1">Repository</span>
+                  <span className="text-[10px] text-gray-500 uppercase font-semibold px-1">
+                    Repository
+                  </span>
                   {loadingRepos ? (
                     <div className="w-full bg-black/40 text-xs px-2 py-2 rounded border border-white/10 animate-pulse text-gray-500">
-                      Repositories laden...
+                      Loading repositories...
                     </div>
                   ) : repos.length > 0 ? (
                     <select
                       className="w-full bg-black/40 text-xs px-2 py-1.5 rounded border border-white/10 outline-none focus:border-purple-500/50 text-gray-200"
-                      value={githubRepo ? `${githubOwner}/${githubRepo}` : ""}
-                      onChange={(e) => {
-                        const [owner, name] = e.target.value.split("/");
-                        saveGithubSettings(githubToken, owner, name);
-                      }}
+                      value={selectedRepo}
+                      onChange={(event) => handleRepositorySelect(event.target.value)}
                     >
-                      <option value="" disabled>Repository auswählen</option>
-                      {repos.map((r) => (
-                        <option key={r.id} value={r.full_name}>
-                          {r.full_name}
-                        </option>
-                      ))}
+                      <option value="" disabled>
+                        Select repository
+                      </option>
+                      {repos.map((repo) => {
+                        const fullName = getRepoFullName(repo);
+                        return (
+                          <option key={repo.id || fullName} value={fullName}>
+                            {fullName}
+                          </option>
+                        );
+                      })}
                     </select>
                   ) : (
                     <>
@@ -439,40 +771,76 @@ export default function GitPanel({ files }) {
                         type="text"
                         placeholder="Owner / Username"
                         className="w-full bg-black/40 text-xs px-2 py-1.5 rounded border border-white/10 outline-none focus:border-purple-500/50"
-                        defaultValue={githubOwner}
-                        onChange={(e) => setGithubOwner(e.target.value)}
+                        value={githubSettings.owner}
+                        onChange={(event) =>
+                          setGithubSettings((prev) => ({
+                            ...prev,
+                            owner: event.target.value,
+                          }))
+                        }
                       />
                       <input
                         type="text"
                         placeholder="Repository Name"
                         className="w-full bg-black/40 text-xs px-2 py-1.5 rounded border border-white/10 outline-none focus:border-purple-500/50"
-                        defaultValue={githubRepo}
-                        onChange={(e) => setGithubRepo(e.target.value)}
+                        value={githubSettings.repo}
+                        onChange={(event) =>
+                          setGithubSettings((prev) => ({
+                            ...prev,
+                            repo: event.target.value,
+                          }))
+                        }
                       />
                     </>
                   )}
                 </div>
-                <button
-                  onClick={() =>
-                    saveGithubSettings(githubToken, githubOwner, githubRepo)
-                  }
-                  className="w-full bg-purple-600/20 hover:bg-purple-600/40 text-purple-300 text-xs py-1.5 rounded transition-colors"
-                >
-                  Save Settings
-                </button>
+
+                <div className="grid grid-cols-2 gap-1.5">
+                  <button
+                    onClick={() =>
+                      handleSaveGithubSettings(
+                        githubSettings.owner,
+                        githubSettings.repo,
+                      )
+                    }
+                    className="bg-purple-600/20 hover:bg-purple-600/40 text-purple-300 text-xs py-1.5 rounded transition-colors"
+                  >
+                    Save Repo
+                  </button>
+                  <button
+                    onClick={refreshGithubBackend}
+                    className="bg-white/[0.04] hover:bg-white/[0.08] text-gray-300 text-xs py-1.5 rounded transition-colors"
+                  >
+                    Check Backend
+                  </button>
+                </div>
+
+                {githubUser && (
+                  <div className="flex items-center gap-2 pt-1">
+                    {githubUser.avatar_url && (
+                      <img
+                        src={githubUser.avatar_url}
+                        alt={githubUser.login || "GitHub user"}
+                        className="w-5 h-5 rounded-full border border-green-500/30"
+                      />
+                    )}
+                    <span className="text-[10px] text-green-300 truncate">
+                      Connected as {githubUser.login || githubUser.name || "GitHub user"}
+                    </span>
+                  </div>
+                )}
               </div>
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* Changes */}
         <SectionHeader
-          title="Änderungen"
+          title="Changes"
           count={unstagedFiles.length}
           expanded={sections.changes}
           onToggle={() => toggleSection("changes")}
           action={unstagedFiles.length > 0 ? stageAll : null}
-          actionLabel="Alle +"
+          actionLabel="All +"
         />
         <AnimatePresence>
           {sections.changes && (
@@ -495,21 +863,20 @@ export default function GitPanel({ files }) {
               </AnimatePresence>
               {unstagedFiles.length === 0 && (
                 <p className="px-7 pb-2 text-[11px] text-gray-600">
-                  Keine lokalen Änderungen
+                  No local changes
                 </p>
               )}
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* Staged */}
         <SectionHeader
-          title="Gestaged"
+          title="Staged"
           count={stagedFiles.length}
           expanded={sections.staged}
           onToggle={() => toggleSection("staged")}
           action={stagedFiles.length > 0 ? unstageAll : null}
-          actionLabel="Alle –"
+          actionLabel="All -"
         />
         <AnimatePresence>
           {sections.staged && (
@@ -532,14 +899,13 @@ export default function GitPanel({ files }) {
               </AnimatePresence>
               {stagedFiles.length === 0 && (
                 <p className="px-7 pb-2 text-[11px] text-gray-600">
-                  Keine gestagten Dateien
+                  No staged files
                 </p>
               )}
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* ── Commit box ───────────────────────────────────────── */}
         <div className="px-3 py-3">
           <AnimatePresence>
             {errorMsg && (
@@ -563,12 +929,13 @@ export default function GitPanel({ files }) {
 
           <textarea
             value={commitMsg}
-            onChange={(e) => setCommitMsg(e.target.value)}
-            onKeyDown={(e) => {
-              if ((e.ctrlKey || e.metaKey) && e.key === "Enter")
+            onChange={(event) => setCommitMsg(event.target.value)}
+            onKeyDown={(event) => {
+              if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
                 handleCommitAndPush();
+              }
             }}
-            placeholder="Commit-Nachricht (Ctrl+Enter)…"
+            placeholder="Commit message (Ctrl+Enter)..."
             rows={3}
             className="w-full resize-none rounded-lg px-2.5 py-2 text-xs font-mono outline-none placeholder:text-gray-700 transition-all"
             style={{
@@ -581,84 +948,99 @@ export default function GitPanel({ files }) {
             }}
           />
 
-          <motion.button
-            whileHover={canCommit ? { scale: 1.02, y: -1 } : {}}
-            whileTap={canCommit ? { scale: 0.97 } : {}}
-            onClick={handleCommitAndPush}
-            disabled={!canCommit}
-            className="mt-2 w-full flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-semibold text-white transition-all"
-            style={{
-              background: canCommit
-                ? "linear-gradient(135deg, #8000ff, #0033ff)"
-                : "rgba(255,255,255,0.06)",
-              color: canCommit ? "#fff" : "#4b5563",
-              boxShadow: canCommit ? "0 0 16px rgba(128,0,255,0.3)" : "none",
-              cursor: canCommit ? "pointer" : "not-allowed",
-            }}
-          >
-            <AnimatePresence mode="wait">
-              {committing ? (
-                <motion.div
-                  key="spin"
-                  initial={{ opacity: 0, scale: 0.5 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.5 }}
-                >
+          <div className="grid grid-cols-[1fr_auto] gap-1.5 mt-2">
+            <motion.button
+              whileHover={canCommit ? { scale: 1.02, y: -1 } : {}}
+              whileTap={canCommit ? { scale: 0.97 } : {}}
+              onClick={handleCommitAndPush}
+              disabled={!canCommit}
+              className="w-full flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-semibold text-white transition-all"
+              style={{
+                background: canCommit
+                  ? "linear-gradient(135deg, #8000ff, #0033ff)"
+                  : "rgba(255,255,255,0.06)",
+                color: canCommit ? "#fff" : "#4b5563",
+                boxShadow: canCommit ? "0 0 16px rgba(128,0,255,0.3)" : "none",
+                cursor: canCommit ? "pointer" : "not-allowed",
+              }}
+            >
+              <AnimatePresence mode="wait">
+                {committing ? (
                   <motion.div
-                    animate={{ rotate: 360 }}
-                    transition={{
-                      duration: 0.7,
-                      repeat: Infinity,
-                      ease: "linear",
-                    }}
+                    key="spin"
+                    initial={{ opacity: 0, scale: 0.5 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.5 }}
                   >
-                    <RefreshCw size={13} />
+                    <motion.div
+                      animate={{ rotate: 360 }}
+                      transition={{
+                        duration: 0.7,
+                        repeat: Infinity,
+                        ease: "linear",
+                      }}
+                    >
+                      <RefreshCw size={13} />
+                    </motion.div>
                   </motion.div>
-                </motion.div>
-              ) : committed ? (
-                <motion.div
-                  key="done"
-                  initial={{ opacity: 0, scale: 0.5 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="flex items-center gap-1.5"
-                >
-                  <Check size={13} className="text-green-400" />
-                  <span className="text-green-400">Pushed!</span>
-                </motion.div>
-              ) : (
-                <motion.div
-                  key="idle"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="flex items-center gap-1.5"
-                >
-                  <Upload size={13} />
-                  <span>
-                    Commit & Push
-                    {stagedFiles.length > 0 ? ` (${stagedFiles.length})` : ""}
-                  </span>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </motion.button>
+                ) : committed ? (
+                  <motion.div
+                    key="done"
+                    initial={{ opacity: 0, scale: 0.5 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="flex items-center gap-1.5"
+                  >
+                    <Check size={13} className="text-green-400" />
+                    <span className="text-green-400">
+                      {canPush ? "Pushed" : "Committed"}
+                    </span>
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="idle"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="flex items-center gap-1.5"
+                  >
+                    <Upload size={13} />
+                    <span>
+                      {canPush ? "Commit & Push" : "Commit"}
+                      {stagedFiles.length > 0 ? ` (${stagedFiles.length})` : ""}
+                    </span>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.button>
+            <button
+              type="button"
+              onClick={handlePull}
+              disabled={!hasLocalGit || refreshing}
+              className="px-2 rounded-lg text-[10px] font-semibold transition-colors"
+              style={{
+                border: "1px solid rgba(255,255,255,0.1)",
+                color: hasLocalGit ? "#cbd5e1" : "#475569",
+                background: "rgba(255,255,255,0.03)",
+                cursor: hasLocalGit ? "pointer" : "not-allowed",
+              }}
+              title="Pull with the local Git bridge"
+            >
+              Pull
+            </button>
+          </div>
         </div>
 
-        {/* Divider */}
         <div
           className="mx-3 mb-1"
           style={{ height: "1px", background: "rgba(128,0,255,0.08)" }}
         />
 
-        {/* Commit history */}
         <SectionHeader
-          title="Verlauf (Remote)"
+          title={`History (${historySource})`}
           count={history.length}
           expanded={sections.history}
           onToggle={() => toggleSection("history")}
-          action={null}
-          actionLabel={null}
         />
         <AnimatePresence>
           {sections.history && (
@@ -671,17 +1053,17 @@ export default function GitPanel({ files }) {
               className="pb-3"
             >
               {history.length > 0 ? (
-                history.map((entry, i) => (
+                history.map((entry, index) => (
                   <motion.div
-                    key={entry.hash}
+                    key={`${entry.hash}-${index}`}
                     initial={{ opacity: 0, x: -8 }}
                     animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: i * 0.05 }}
+                    transition={{ delay: index * 0.05 }}
                     className="group relative flex gap-3 px-4 py-2 hover:bg-white/[0.02] cursor-default"
                   >
                     <div className="flex flex-col items-center pt-1.5">
                       <div className="w-1.5 h-1.5 rounded-full bg-purple-500/50" />
-                      {i !== history.length - 1 && (
+                      {index !== history.length - 1 && (
                         <div className="w-px h-full bg-purple-500/20 mt-1" />
                       )}
                     </div>
@@ -698,7 +1080,7 @@ export default function GitPanel({ files }) {
                         </span>
                         <div className="flex items-center gap-1 text-[10px] text-gray-600 ml-auto shrink-0">
                           <Clock size={10} />
-                          {entry.time}
+                          {entry.time || "recent"}
                         </div>
                       </div>
                     </div>
@@ -706,7 +1088,7 @@ export default function GitPanel({ files }) {
                 ))
               ) : (
                 <div className="px-7 py-2 text-[11px] text-gray-600">
-                  Kein Verlauf gefunden oder nicht verbunden.
+                  No history found. Connect local Git IPC or a secure GitHub backend.
                 </div>
               )}
             </motion.div>
