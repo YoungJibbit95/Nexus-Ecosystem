@@ -3,8 +3,6 @@
 <div align="center">
 
 <img width="112" src="https://raw.githubusercontent.com/github/explore/main/topics/react/react.png" alt="React logo" />
-
-
 <p>
   <a href="https://github.com/YoungJibbit95/Nexus-Ecosystem/stargazers"><img src="https://img.shields.io/github/stars/YoungJibbit95/Nexus-Ecosystem?style=for-the-badge&logo=github&color=facc15&labelColor=18181b" alt="GitHub stars" /></a>
   <a href="https://github.com/YoungJibbit95/Nexus-Ecosystem/network/members"><img src="https://img.shields.io/github/forks/YoungJibbit95/Nexus-Ecosystem?style=for-the-badge&logo=github&color=22c55e&labelColor=18181b" alt="GitHub forks" /></a>
