@@ -1,2 +1,2 @@
 export * from "./editorEngine.js";
-export * from "./monacoModelUri.js";
+export * from "./documentUri.js";

@@ -6,8 +6,8 @@ export default function ProblemsPanel({ problems, onSelectProblem }) {
   const [filter, setFilter] = React.useState("all"); // all, error, warning
 
   const filteredProblems = problems.filter(p => {
-    if (filter === "error") return p.severity === 8; // Monaco Error severity
-    if (filter === "warning") return p.severity === 4; // Monaco Warning severity
+    if (filter === "error") return p.severity === 8;
+    if (filter === "warning") return p.severity === 4;
     return true;
   });
 
@@ -16,7 +16,7 @@ export default function ProblemsPanel({ problems, onSelectProblem }) {
 
   // Group by file
   const grouped = filteredProblems.reduce((acc, p) => {
-    // Monaco resource can be a URI object
+    // Some editor engines expose resources as URI-like objects.
     const file = (p.resource && p.resource.path) ? p.resource.path : (p.resource || "Unknown File");
     if (!acc[file]) acc[file] = [];
     acc[file].push(p);

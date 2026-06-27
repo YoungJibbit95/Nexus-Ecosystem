@@ -10,10 +10,24 @@
     --nexus-purple-glow: rgba(var(--nexus-primary-rgb), 0.18);
     --nexus-accent-glow: rgba(var(--nexus-primary-rgb), 0.18);
     --nexus-bg: #07080d;
+    --nexus-surface: rgba(17, 20, 29, 0.82);
     --nexus-sidebar: rgba(17, 20, 29, 0.82);
+    --nexus-titlebar: rgba(17, 20, 29, 0.82);
+    --nexus-side-panel: rgba(17, 20, 29, 0.82);
+    --nexus-editor-bg: #07080d;
+    --nexus-editor-surface: rgba(17, 20, 29, 0.82);
+    --nexus-panel-surface: rgba(17, 20, 29, 0.82);
+    --nexus-panel-border: rgba(142, 153, 183, 0.16);
+    --nexus-panel-filter: blur(7px) saturate(118%);
+    --nexus-settings-filter: blur(7px) saturate(112%);
+    --nexus-panel-shadow: 0 14px 32px rgba(0, 0, 0, 0.24);
     --nexus-border: rgba(142, 153, 183, 0.16);
     --nexus-glass: rgba(17, 20, 29, 0.82);
     --nexus-glass-border: rgba(142, 153, 183, 0.16);
+    --nexus-glow-radius: 14px;
+    --nexus-glow-radius-sm: 6px;
+    --nexus-glow-intensity: 28%;
+    --nexus-blur-radius: 16px;
     --primary-rgb: var(--nexus-primary-rgb);
     --nx-motion-quick: 170ms;
     --nx-motion-regular: 210ms;
@@ -49,26 +63,27 @@ textarea {
 /* Glassmorphism */
 .glass {
     background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.03) 42%, rgba(0, 0, 0, 0.08) 100%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.075), rgba(255, 255, 255, 0.025) 42%, rgba(0, 0, 0, 0.08) 100%),
         var(--nexus-glass);
-    backdrop-filter: blur(16px) saturate(190%);
-    -webkit-backdrop-filter: blur(16px) saturate(190%);
+    backdrop-filter: var(--nexus-panel-filter, blur(7px) saturate(118%));
+    -webkit-backdrop-filter: var(--nexus-panel-filter, blur(7px) saturate(118%));
     border: 1px solid var(--nexus-glass-border);
     box-shadow:
-        0 14px 32px rgba(0, 0, 0, 0.26),
-        inset 0 1px 0 rgba(255, 255, 255, 0.16);
+        var(--nexus-panel-shadow, 0 14px 32px rgba(0, 0, 0, 0.24)),
+        inset 0 1px 0 rgba(255, 255, 255, 0.11);
 }
 
 .glass-card {
     background:
-        linear-gradient(175deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.02)),
+        linear-gradient(175deg, rgba(255, 255, 255, 0.065), rgba(255, 255, 255, 0.02)),
         rgba(255, 255, 255, 0.03);
-    backdrop-filter: blur(10px) saturate(180%);
+    backdrop-filter: var(--nexus-settings-filter, blur(7px) saturate(112%));
+    -webkit-backdrop-filter: var(--nexus-settings-filter, blur(7px) saturate(112%));
     border: 1px solid rgba(255, 255, 255, 0.11);
     border-radius: 12px;
     box-shadow:
-        0 10px 22px rgba(0, 0, 0, 0.22),
-        inset 0 1px 0 rgba(255, 255, 255, 0.14);
+        0 10px 22px rgba(0, 0, 0, 0.2),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
 .reduce-motion *,
@@ -76,6 +91,26 @@ textarea {
 .reduce-motion *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
+}
+
+.reduce-motion {
+    --nexus-panel-filter: none;
+    --nexus-settings-filter: none;
+    --nexus-panel-shadow: 0 8px 18px rgba(0, 0, 0, 0.2);
+    --nexus-glow-radius: 6px;
+    --nexus-glow-radius-sm: 3px;
+    --nx-motion-quick: 1ms;
+    --nx-motion-regular: 1ms;
+}
+
+.reduce-motion .glass,
+.reduce-motion .glass-card,
+.reduce-motion .nx-code-settings-panel,
+.reduce-motion .nx-code-side-panel,
+.reduce-motion .nx-code-editor-status {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    box-shadow: var(--nexus-panel-shadow) !important;
 }
 
 @keyframes nx-view-enter {
@@ -94,117 +129,112 @@ textarea {
         cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-/* Monaco Cursor Animation */
-.cursor-pulse .monaco-cursor {
-    animation: cursor-breathing 1.2s ease-in-out infinite !important;
+/* Editor Cursor Animation */
+.cursor-pulse .cm-cursor {
+    animation: cursor-breathing 1.6s ease-in-out infinite !important;
     width: 2px !important;
 }
 
 @keyframes cursor-breathing {
     0%, 100% {
         opacity: 1;
-        box-shadow: 0 0 5px var(--nexus-purple-glow);
+        box-shadow: 0 0 var(--nexus-glow-radius-sm, 5px) var(--nexus-purple-glow);
     }
     50% {
-        opacity: 0.54;
+        opacity: 0.72;
         box-shadow: 0 0 1px var(--nexus-purple-glow);
     }
 }
 
-/* Ensure no offset in Monaco */
-.monaco-editor, .monaco-editor .inputarea.ime-input {
+/* Ensure no offset in embedded editors */
+.cm-editor {
     font-family: 'JetBrains Mono', monospace !important;
 }
 
 /* Glow text utility */
 .text-glow {
     text-shadow:
-        0 0 6px currentColor,
-        0 0 14px rgba(var(--nexus-primary-rgb), 0.2);
-    animation: glow-pulse 2s ease-in-out infinite;
+        0 0 var(--nexus-glow-radius-sm, 5px) currentColor,
+        0 0 var(--nexus-glow-radius, 14px) rgba(var(--nexus-primary-rgb), 0.14);
+    animation: glow-pulse 2.8s ease-in-out infinite;
 }
 
 @keyframes glow-pulse {
     0%,
     100% {
         text-shadow:
-            0 0 5px currentColor,
-            0 0 12px rgba(var(--nexus-primary-rgb), 0.16);
+            0 0 var(--nexus-glow-radius-sm, 5px) currentColor,
+            0 0 var(--nexus-glow-radius, 14px) rgba(var(--nexus-primary-rgb), 0.12);
     }
     50% {
         text-shadow:
-            0 0 8px currentColor,
-            0 0 18px rgba(var(--nexus-primary-rgb), 0.22);
+            0 0 var(--nexus-glow-radius-sm, 6px) currentColor,
+            0 0 calc(var(--nexus-glow-radius, 14px) + 4px) rgba(var(--nexus-primary-rgb), 0.16);
     }
 }
 
 .text-glow-sm {
     text-shadow:
-        0 0 4px currentColor,
-        0 0 8px rgba(var(--nexus-primary-rgb), 0.14);
+        0 0 3px currentColor,
+        0 0 var(--nexus-glow-radius-sm, 6px) rgba(var(--nexus-primary-rgb), 0.1);
 }
 
 .text-glow-lg {
     text-shadow:
-        0 0 8px currentColor,
-        0 0 18px rgba(var(--nexus-primary-rgb), 0.2),
-        0 0 28px rgba(var(--nexus-primary-rgb), 0.12);
-    animation: glow-pulse-lg 2s ease-in-out infinite;
+        0 0 var(--nexus-glow-radius-sm, 6px) currentColor,
+        0 0 var(--nexus-glow-radius, 14px) rgba(var(--nexus-primary-rgb), 0.16),
+        0 0 calc(var(--nexus-glow-radius, 14px) + 14px) rgba(var(--nexus-primary-rgb), 0.08);
+    animation: glow-pulse-lg 3s ease-in-out infinite;
 }
 
 @keyframes glow-pulse-lg {
     0%,
     100% {
         text-shadow:
-            0 0 8px currentColor,
-            0 0 18px rgba(var(--nexus-primary-rgb), 0.2),
-            0 0 28px rgba(var(--nexus-primary-rgb), 0.12);
+            0 0 var(--nexus-glow-radius-sm, 6px) currentColor,
+            0 0 var(--nexus-glow-radius, 14px) rgba(var(--nexus-primary-rgb), 0.15),
+            0 0 calc(var(--nexus-glow-radius, 14px) + 14px) rgba(var(--nexus-primary-rgb), 0.08);
     }
     50% {
         text-shadow:
-            0 0 10px currentColor,
-            0 0 24px rgba(var(--nexus-primary-rgb), 0.24),
-            0 0 36px rgba(var(--nexus-primary-rgb), 0.14);
+            0 0 calc(var(--nexus-glow-radius-sm, 6px) + 2px) currentColor,
+            0 0 calc(var(--nexus-glow-radius, 14px) + 6px) rgba(var(--nexus-primary-rgb), 0.18),
+            0 0 calc(var(--nexus-glow-radius, 14px) + 20px) rgba(var(--nexus-primary-rgb), 0.1);
     }
 }
 
 /* Box glow utilities */
 .box-glow {
     box-shadow:
-        0 0 14px rgba(var(--nexus-primary-rgb), 0.18),
-        0 0 28px rgba(var(--nexus-primary-rgb), 0.1),
-        inset 0 0 14px rgba(var(--nexus-primary-rgb), 0.06);
-    animation: box-glow-pulse 2s ease-in-out infinite;
+        0 0 var(--nexus-glow-radius, 14px) rgba(var(--nexus-primary-rgb), 0.14),
+        inset 0 0 var(--nexus-glow-radius-sm, 6px) rgba(var(--nexus-primary-rgb), 0.04);
+    animation: box-glow-pulse 3s ease-in-out infinite;
 }
 
 @keyframes box-glow-pulse {
     0%,
     100% {
         box-shadow:
-            0 0 14px rgba(var(--nexus-primary-rgb), 0.18),
-            0 0 28px rgba(var(--nexus-primary-rgb), 0.1),
-            inset 0 0 14px rgba(var(--nexus-primary-rgb), 0.06);
+            0 0 var(--nexus-glow-radius, 14px) rgba(var(--nexus-primary-rgb), 0.14),
+            inset 0 0 var(--nexus-glow-radius-sm, 6px) rgba(var(--nexus-primary-rgb), 0.04);
     }
     50% {
         box-shadow:
-            0 0 20px rgba(var(--nexus-primary-rgb), 0.22),
-            0 0 38px rgba(var(--nexus-primary-rgb), 0.12),
-            inset 0 0 18px rgba(var(--nexus-primary-rgb), 0.08);
+            0 0 calc(var(--nexus-glow-radius, 14px) + 6px) rgba(var(--nexus-primary-rgb), 0.16),
+            inset 0 0 var(--nexus-glow-radius, 14px) rgba(var(--nexus-primary-rgb), 0.06);
     }
 }
 
 .box-glow-sm {
     box-shadow:
-        0 0 8px rgba(var(--nexus-primary-rgb), 0.16),
-        0 0 16px rgba(var(--nexus-primary-rgb), 0.08);
+        0 0 var(--nexus-glow-radius-sm, 6px) rgba(var(--nexus-primary-rgb), 0.12);
 }
 
 .box-glow-lg {
     box-shadow:
-        0 0 22px rgba(var(--nexus-primary-rgb), 0.22),
-        0 0 42px rgba(var(--nexus-primary-rgb), 0.14),
-        0 0 64px rgba(var(--nexus-primary-rgb), 0.08),
-        inset 0 0 22px rgba(var(--nexus-primary-rgb), 0.08);
+        0 0 var(--nexus-glow-radius, 14px) rgba(var(--nexus-primary-rgb), 0.17),
+        0 0 calc(var(--nexus-glow-radius, 14px) + 20px) rgba(var(--nexus-primary-rgb), 0.09),
+        inset 0 0 var(--nexus-glow-radius-sm, 6px) rgba(var(--nexus-primary-rgb), 0.05);
 }
 
 .nx-code-sidebar-btn:hover {
@@ -329,7 +359,7 @@ textarea.nx-typing-active,
     isolation: isolate;
     contain: layout paint style;
     color: var(--nexus-text, #e5e7eb);
-    background: transparent;
+    background: var(--nexus-bg-value, transparent);
 }
 
 .nx-code-workbench,
@@ -349,6 +379,8 @@ textarea.nx-typing-active,
 .nx-code-titlebar {
     min-width: 0;
     color: var(--nexus-text, #e5e7eb);
+    background: var(--nexus-titlebar, var(--nexus-surface, rgba(17, 20, 29, 0.82)));
+    border-color: var(--nexus-border, rgba(142, 153, 183, 0.16));
 }
 
 .nx-code-rail {
@@ -359,14 +391,18 @@ textarea.nx-typing-active,
 .nx-code-side-panel {
     color: var(--nexus-text, #e5e7eb);
     contain: layout paint;
+    background: var(--nexus-side-panel, var(--nexus-surface, rgba(17, 20, 29, 0.82)));
+    border-color: var(--nexus-border, rgba(142, 153, 183, 0.16));
 }
 
 .nx-code-settings-host {
     min-height: 0;
+    background: var(--nexus-editor-bg, transparent);
 }
 
 .nx-code-settings-panel {
     min-width: 0;
+    box-shadow: var(--nexus-panel-shadow, 0 14px 32px rgba(0, 0, 0, 0.24));
 }
 
 .nx-code-settings-nav {
@@ -384,6 +420,8 @@ textarea.nx-typing-active,
 .nx-code-tabbar {
     min-width: 0;
     contain: layout paint;
+    background: var(--nexus-editor-surface, var(--nexus-surface, rgba(17, 20, 29, 0.82)));
+    border-color: var(--nexus-border, rgba(142, 153, 183, 0.16));
 }
 
 .nx-code-tabbar-actions {
@@ -408,29 +446,25 @@ textarea.nx-typing-active,
 .nx-code-editor-status {
     overflow: hidden;
     color: var(--nexus-muted, #9ca3af);
+    background: var(--nexus-editor-surface, rgba(17, 20, 29, 0.82));
+    border-color: var(--nexus-border, rgba(142, 153, 183, 0.16));
 }
 
-.nx-code-monaco-mounted,
-.nx-code-monaco-mounted .monaco-editor,
-.nx-code-monaco-mounted .monaco-editor .margin,
-.nx-code-monaco-mounted .monaco-editor .monaco-editor-background,
-.nx-code-monaco-mounted .monaco-editor-background,
-.nx-code-monaco-mounted .monaco-editor .inputarea.ime-input,
-.nx-code-monaco-mounted .monaco-editor .overflow-guard,
-.nx-code-monaco-mounted .monaco-editor .minimap,
-.nx-code-monaco-mounted .monaco-editor .scroll-decoration {
+.cm-editor,
+.cm-editor .cm-scroller,
+.cm-editor .cm-content,
+.cm-editor .cm-gutters {
     background: transparent !important;
     background-color: transparent !important;
     background-image: none !important;
 }
 
-.nx-code-monaco-mounted .monaco-editor .view-lines {
+.cm-editor .cm-line {
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
 }
 
-.nx-code-monaco-mounted .monaco-editor .view-line span,
-.nx-code-monaco-mounted .monaco-editor .mtk1 {
+.cm-editor .cm-line span {
     text-shadow: none;
 }
 
@@ -514,7 +548,7 @@ textarea.nx-typing-active,
     .text-glow-lg,
     .box-glow,
     .box-glow-lg,
-    .cursor-pulse .monaco-cursor {
+    .cursor-pulse .cm-cursor {
         animation: none !important;
     }
 }
@@ -524,7 +558,7 @@ textarea.nx-typing-active,
     .text-glow-lg,
     .box-glow,
     .box-glow-lg,
-    .cursor-pulse .monaco-cursor,
+    .cursor-pulse .cm-cursor,
     input.nx-typing-active,
     textarea.nx-typing-active,
     [contenteditable="true"].nx-typing-active,

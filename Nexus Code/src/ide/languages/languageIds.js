@@ -1,9 +1,9 @@
 /**
  * Central language registry for Nexus Code.
  *
- * The registry intentionally separates Nexus language ids from Monaco ids so
- * future editor services can keep stable ids even when Monaco uses a fallback
- * grammar for a file type.
+ * The registry intentionally separates Nexus language ids from editor grammar
+ * ids so future editor services can keep stable ids even when an engine uses a
+ * fallback grammar for a file type.
  */
 
 /**
@@ -13,7 +13,7 @@
  * @property {string[]} extensions
  * @property {string[]} filenames
  * @property {string[]} aliases
- * @property {string} [monacoLanguageId]
+ * @property {string} [editorGrammarId]
  * @property {boolean} [lspReady]
  */
 
@@ -233,7 +233,7 @@ const definitions = [
     extensions: ["jsonc"],
     filenames: ["tsconfig.json", "jsconfig.json", ".eslintrc", ".babelrc"],
     aliases: ["jsonc"],
-    monacoLanguageId: "json",
+    editorGrammarId: "json",
   },
   {
     id: LANGUAGE_IDS.MARKDOWN,
@@ -304,7 +304,7 @@ const definitions = [
     extensions: ["cmake"],
     filenames: ["cmakelists.txt"],
     aliases: ["cmake"],
-    monacoLanguageId: "plaintext",
+    editorGrammarId: "plaintext",
   },
   {
     id: LANGUAGE_IDS.TOML,
@@ -312,7 +312,7 @@ const definitions = [
     extensions: ["toml"],
     filenames: [],
     aliases: ["toml"],
-    monacoLanguageId: "ini",
+    editorGrammarId: "ini",
   },
   {
     id: LANGUAGE_IDS.INI,
@@ -404,7 +404,7 @@ const definitions = [
     extensions: ["v", "vh"],
     filenames: [],
     aliases: ["verilog"],
-    monacoLanguageId: "systemverilog",
+    editorGrammarId: "systemverilog",
   },
   {
     id: LANGUAGE_IDS.SOLIDITY,
@@ -447,7 +447,7 @@ const definitions = [
     extensions: ["vue"],
     filenames: [],
     aliases: ["vue"],
-    monacoLanguageId: "html",
+    editorGrammarId: "html",
   },
   {
     id: LANGUAGE_IDS.SVELTE,
@@ -455,7 +455,7 @@ const definitions = [
     extensions: ["svelte"],
     filenames: [],
     aliases: ["svelte"],
-    monacoLanguageId: "html",
+    editorGrammarId: "html",
   },
   {
     id: LANGUAGE_IDS.ASTRO,
@@ -463,7 +463,7 @@ const definitions = [
     extensions: ["astro"],
     filenames: [],
     aliases: ["astro"],
-    monacoLanguageId: "html",
+    editorGrammarId: "html",
   },
   {
     id: LANGUAGE_IDS.MDX,
@@ -471,7 +471,7 @@ const definitions = [
     extensions: ["mdx"],
     filenames: [],
     aliases: ["mdx"],
-    monacoLanguageId: "markdown",
+    editorGrammarId: "markdown",
   },
   {
     id: LANGUAGE_IDS.CSV,
@@ -479,7 +479,7 @@ const definitions = [
     extensions: ["csv", "tsv"],
     filenames: [],
     aliases: ["csv", "tsv"],
-    monacoLanguageId: "plaintext",
+    editorGrammarId: "plaintext",
   },
   {
     id: LANGUAGE_IDS.DIFF,
@@ -487,7 +487,7 @@ const definitions = [
     extensions: ["diff", "patch"],
     filenames: [],
     aliases: ["diff", "patch"],
-    monacoLanguageId: "plaintext",
+    editorGrammarId: "plaintext",
   },
   {
     id: LANGUAGE_IDS.LOG,
@@ -495,7 +495,7 @@ const definitions = [
     extensions: ["log"],
     filenames: [],
     aliases: ["log"],
-    monacoLanguageId: "plaintext",
+    editorGrammarId: "plaintext",
   },
   {
     id: LANGUAGE_IDS.ENV,
@@ -503,7 +503,7 @@ const definitions = [
     extensions: ["env"],
     filenames: [".env", ".env.local", ".env.development", ".env.production"],
     aliases: ["env", "dotenv"],
-    monacoLanguageId: "shell",
+    editorGrammarId: "shell",
   },
 ].map((definition) => Object.freeze(definition));
 
@@ -576,9 +576,9 @@ export function getLanguageDisplayName(languageId) {
   return getLanguageDefinition(languageId)?.label || "Plain Text";
 }
 
-export function getMonacoLanguageId(languageId) {
+export function getEditorGrammarId(languageId) {
   const definition = getLanguageDefinition(languageId);
-  return definition?.monacoLanguageId || definition?.id || LANGUAGE_IDS.PLAINTEXT;
+  return definition?.editorGrammarId || definition?.id || LANGUAGE_IDS.PLAINTEXT;
 }
 
 export function isLspReadyLanguage(languageId) {
@@ -605,8 +605,8 @@ export function detectLanguageId(resourcePath, fallback = LANGUAGE_IDS.PLAINTEXT
   return detectLanguageDefinition(resourcePath, fallback)?.id || fallback;
 }
 
-export function detectMonacoLanguageId(resourcePath, fallback = LANGUAGE_IDS.PLAINTEXT) {
-  return getMonacoLanguageId(detectLanguageId(resourcePath, fallback));
+export function detectEditorGrammarId(resourcePath, fallback = LANGUAGE_IDS.PLAINTEXT) {
+  return getEditorGrammarId(detectLanguageId(resourcePath, fallback));
 }
 
 export function listLanguageDefinitions() {

@@ -4,7 +4,7 @@ import {
   Zap,
   Sparkles,
 } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 
 /* Lightweight native replacements for the UI-kit components. */
 
@@ -18,6 +18,7 @@ import {
   fonts,
   settingSections,
   themes,
+  visualPerformanceProfiles,
 } from './settingsShared';
 import { resolveNexusTheme } from '../../theme/nexusThemeResolver.js';
 
@@ -28,6 +29,28 @@ function unwrapIpcResponse(result) {
   return result || [];
 }
 
+function resolveVisualProfileId(settings = {}) {
+  if (settings.visual_performance_profile) {
+    return settings.visual_performance_profile;
+  }
+  if (
+    settings.panel_blur_strength <= 10 ||
+    settings.smooth_caret === false ||
+    settings.cursor_glow === false
+  ) {
+    return "performance";
+  }
+  if (
+    settings.panel_background_mode === "fake-glass" ||
+    settings.panel_background_mode === "glass-shader" ||
+    settings.glow_intensity >= 40 ||
+    settings.panel_glow_outline
+  ) {
+    return "quality";
+  }
+  return "balanced";
+}
+
 export default function SettingsPanel({
   settings,
   onSettingsChange,
@@ -36,6 +59,7 @@ export default function SettingsPanel({
 }) {
   const [activeSection, setActiveSection] = React.useState("theme");
   const [lspServers, setLspServers] = React.useState([]);
+  const prefersReducedMotion = useReducedMotion();
   const resolvedTheme = React.useMemo(
     () => resolveNexusTheme(settings),
     [settings],
@@ -43,9 +67,16 @@ export default function SettingsPanel({
   const activeThemeId = resolvedTheme.id;
   const primaryAccent = resolvedTheme.colors.primary;
   const secondaryAccent = resolvedTheme.colors.secondary;
+  const visualProfileId = resolveVisualProfileId(settings);
+  const shouldReduceMotion =
+    prefersReducedMotion || visualProfileId === "performance";
+  const motionTransition = shouldReduceMotion
+    ? { duration: 0 }
+    : { duration: 0.22, ease: [0.22, 1, 0.36, 1] };
   const scopedThemeVars = React.useMemo(() => {
     const cssVars = resolvedTheme.cssVars;
     return {
+      ...cssVars,
       "--nexus-primary": cssVars["--nexus-primary"],
       "--nexus-primary-rgb": cssVars["--nexus-primary-rgb"],
       "--nexus-primary-hsl": cssVars["--nexus-primary-hsl"],
@@ -94,47 +125,66 @@ export default function SettingsPanel({
   }, []);
 
   const updateSetting = (key, value) => {
-    onSettingsChange({ ...settings, [key]: value });
+    const next = { ...settings, [key]: value };
+    if (
+      key !== "visual_performance_profile" &&
+      visualPerformanceProfiles.some((profile) =>
+        Object.prototype.hasOwnProperty.call(profile.settings, key),
+      )
+    ) {
+      next.visual_performance_profile = "custom";
+    }
+    onSettingsChange(next);
+  };
+
+  const applyVisualProfile = (profile) => {
+    onSettingsChange({ ...settings, ...profile.settings });
   };
 
   return (
     <motion.div
-      initial={{ opacity: 0 }}
+      initial={shouldReduceMotion ? false : { opacity: 0 }}
       animate={{ opacity: 1 }}
+      transition={motionTransition}
       className="nx-code-settings-panel flex-1 flex overflow-hidden rounded-xl sm:rounded-2xl border border-white/5 min-w-0"
       style={{
         ...scopedThemeVars,
-        background: "var(--nexus-surface)",
-        backdropFilter: "blur(14px)",
+        background: "var(--nexus-panel-surface)",
+        backdropFilter: "var(--nexus-settings-filter, blur(8px) saturate(115%))",
+        WebkitBackdropFilter:
+          "var(--nexus-settings-filter, blur(8px) saturate(115%))",
         borderColor: "var(--nexus-border)",
       }}
     >
       {/* Settings Sidebar */}
       <motion.div
-        initial={{ x: -220, opacity: 0 }}
-        animate={{ x: 0, opacity: 1 }}
-        transition={{ duration: 0.4 }}
+        initial={shouldReduceMotion ? false : { x: -220, opacity: 0 }}
+        animate={shouldReduceMotion ? undefined : { x: 0, opacity: 1 }}
+        transition={motionTransition}
         className="nx-code-settings-nav w-44 sm:w-52 flex flex-col shrink-0 p-3 sm:p-4 overflow-y-auto"
-        style={{ borderRight: "1px solid var(--nexus-border)" }}
+        style={{
+          background: "var(--nexus-sidebar)",
+          borderRight: "1px solid var(--nexus-border)",
+        }}
       >
         <motion.button
-          whileHover={{ x: -5 }}
-          whileTap={{ scale: 0.95 }}
+          whileHover={shouldReduceMotion ? undefined : { x: -3 }}
+          whileTap={shouldReduceMotion ? undefined : { scale: 0.98 }}
           onClick={onClose}
           className="flex items-center gap-2 text-gray-400 hover:text-gray-200 mb-6"
         >
-          <ArrowLeft size={16} /> <span className="text-sm">Zurück</span>
+          <ArrowLeft size={16} /> <span className="text-sm">Zurueck</span>
         </motion.button>
 
         <div className="flex items-center justify-between mb-3">
           <span className="text-xs font-semibold text-gray-500 tracking-widest uppercase">
-            SETTINGS
+            EINSTELLUNGEN
           </span>
           <button
             onClick={onResetSettings}
             className="text-[10px] text-red-500/60 hover:text-red-500 font-bold uppercase tracking-tighter transition-colors"
           >
-            Reset All
+            Alles zuruecksetzen
           </button>
         </div>
 
@@ -144,11 +194,15 @@ export default function SettingsPanel({
           return (
             <motion.button
               key={section.id}
-              initial={{ x: -20, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              transition={{ delay: 0.1 + index * 0.05 }}
-              whileHover={{ x: 5, scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
+              initial={shouldReduceMotion ? false : { x: -12, opacity: 0 }}
+              animate={shouldReduceMotion ? undefined : { x: 0, opacity: 1 }}
+              transition={
+                shouldReduceMotion
+                  ? { duration: 0 }
+                  : { delay: 0.06 + index * 0.025, duration: 0.18 }
+              }
+              whileHover={shouldReduceMotion ? undefined : { x: 5 }}
+              whileTap={shouldReduceMotion ? undefined : { scale: 0.99 }}
               onClick={() => setActiveSection(section.id)}
               className="flex items-center gap-2.5 px-2.5 sm:px-3 py-2 rounded-lg text-left mb-1 relative min-w-0"
               style={{
@@ -169,9 +223,13 @@ export default function SettingsPanel({
                   style={{
                     background: "var(--nexus-primary, #7c8cff)",
                     boxShadow:
-                      "0 0 8px rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.35)",
+                      "0 0 6px rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.28)",
                   }}
-                  transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                  transition={
+                    shouldReduceMotion
+                      ? { duration: 0 }
+                      : { type: "spring", stiffness: 300, damping: 30 }
+                  }
                 />
               )}
               <Icon size={16} />{" "}
@@ -184,9 +242,9 @@ export default function SettingsPanel({
       {/* Settings Content */}
       <motion.div
         key={activeSection}
-        initial={{ opacity: 0, x: 20 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.3 }}
+        initial={shouldReduceMotion ? false : { opacity: 0, x: 20 }}
+        animate={shouldReduceMotion ? undefined : { opacity: 1, x: 0 }}
+        transition={motionTransition}
         className="nx-code-settings-content flex-1 min-w-0 overflow-y-auto p-4 sm:p-6 xl:p-8 max-w-none"
       >
         {activeSection === "theme" && (
@@ -200,7 +258,7 @@ export default function SettingsPanel({
               }}
             >
               <span className="text-xs text-gray-500 uppercase tracking-widest">
-                Live Preview
+                Live-Vorschau
               </span>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
                 <div
@@ -225,7 +283,7 @@ export default function SettingsPanel({
                         "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.2)",
                     }}
                   />{" "}
-                  <span className="text-xs text-gray-500">Sample text</span>
+                  <span className="text-xs text-gray-500">Beispieltext</span>
                 </div>
                 <div
                   className="flex-1 rounded-lg p-4 border"
@@ -238,7 +296,7 @@ export default function SettingsPanel({
                     Panel B
                   </span>
                   <div className="h-px my-2 bg-white/10" />{" "}
-                  <span className="text-xs text-gray-500">Sample text</span>
+                  <span className="text-xs text-gray-500">Beispieltext</span>
                 </div>
               </div>
               <div className="flex items-center gap-3 mt-4">
@@ -246,7 +304,7 @@ export default function SettingsPanel({
                   className="px-4 py-1.5 rounded-lg text-xs font-semibold text-white"
                   style={{ background: primaryAccent }}
                 >
-                  Primary
+                  Primaer
                 </button>
                 <button
                   className="px-4 py-1.5 rounded-lg text-xs font-semibold border"
@@ -256,7 +314,7 @@ export default function SettingsPanel({
                       "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.28)",
                   }}
                 >
-                  Ghost
+                  Sekundaer
                 </button>
               </div>
             </div>
@@ -264,19 +322,21 @@ export default function SettingsPanel({
             {/* Theme Presets */}
             <div>
               <span className="text-xs text-gray-500 uppercase tracking-widest">
-                Presets
+                Vorlagen
               </span>
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 mt-3">
                 {themes.map((t, index) => (
                   <motion.button
                     key={t.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{
-                      delay: 0.1 + index * 0.05,
-                    }}
-                    whileHover={{ scale: 1.05, y: -3 }}
-                    whileTap={{ scale: 0.95 }}
+                    initial={shouldReduceMotion ? false : { opacity: 0, y: 10 }}
+                    animate={shouldReduceMotion ? undefined : { opacity: 1, y: 0 }}
+                    transition={
+                      shouldReduceMotion
+                        ? { duration: 0 }
+                        : { delay: 0.06 + index * 0.025, duration: 0.18 }
+                    }
+                    whileHover={shouldReduceMotion ? undefined : { y: -2 }}
+                    whileTap={shouldReduceMotion ? undefined : { scale: 0.99 }}
                     onClick={() => {
                       onSettingsChange({
                         ...settings,
@@ -314,7 +374,7 @@ export default function SettingsPanel({
                         <motion.div
                           key={i}
                           animate={
-                            activeThemeId === t.id
+                            activeThemeId === t.id && !shouldReduceMotion
                               ? {
                                   boxShadow: [
                                     `0 0 0 ${c}`,
@@ -324,7 +384,11 @@ export default function SettingsPanel({
                                 }
                               : {}
                           }
-                          transition={{ duration: 2, repeat: Infinity }}
+                          transition={
+                            shouldReduceMotion
+                              ? { duration: 0 }
+                              : { duration: 2.8, repeat: Infinity }
+                          }
                           className="w-4 h-4 rounded-full"
                           style={{ background: c }}
                         />
@@ -343,7 +407,7 @@ export default function SettingsPanel({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">
                 <div>
                   <NativeLabel className="text-gray-400 mb-1.5 block">
-                    Primary Accent
+                    Primaerakzent
                   </NativeLabel>
                   <div className="flex items-center gap-2">
                     <div
@@ -362,7 +426,7 @@ export default function SettingsPanel({
                 </div>
                 <div>
                   <NativeLabel className="text-gray-400 mb-1.5 block">
-                    Secondary Accent
+                    Sekundaerakzent
                   </NativeLabel>
                   <div className="flex items-center gap-2">
                     <div
@@ -391,8 +455,8 @@ export default function SettingsPanel({
               </span>
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 mt-3">
                 <motion.button
-                  whileHover={{ scale: 1.05, y: -3 }}
-                  whileTap={{ scale: 0.95 }}
+                  whileHover={shouldReduceMotion ? undefined : { y: -2 }}
+                  whileTap={shouldReduceMotion ? undefined : { scale: 0.99 }}
                   onClick={() => updateSetting("background", null)}
                   className="p-3 rounded-xl border"
                   style={{
@@ -405,7 +469,7 @@ export default function SettingsPanel({
                   }}
                 >
                   <span className="text-xs font-semibold text-gray-300">
-                    Default
+                    Standard
                   </span>
                   <p className="text-[9px] text-gray-500 mt-1">Vom Theme</p>
                 </motion.button>
@@ -413,8 +477,8 @@ export default function SettingsPanel({
                 {backgrounds.map((bg) => (
                   <motion.button
                     key={bg.id}
-                    whileHover={{ scale: 1.05, y: -3 }}
-                    whileTap={{ scale: 0.95 }}
+                    whileHover={shouldReduceMotion ? undefined : { y: -2 }}
+                    whileTap={shouldReduceMotion ? undefined : { scale: 0.99 }}
                     onClick={() => updateSetting("background", bg.id)}
                     className="p-3 rounded-xl border"
                     style={{
@@ -475,21 +539,55 @@ export default function SettingsPanel({
               <div className="flex items-center gap-3 mb-4">
                 <Sparkles size={16} className="text-purple-400" />
                 <span className="text-sm text-gray-300 font-medium">
-                  Panel Background
+                  Panel- und Effektprofil
                 </span>
               </div>
               <p className="text-xs text-gray-500 leading-relaxed">
-                Wähle zwischen Blur, Fake Glass und Glass-Shader Look.
-                Glow-Renderer steuert, ob die Outline klassisch per CSS oder
-                in einer intensiveren Variante gerendert wird.
+                Waehle ein Profil fuer Blur, Glow und Animation. Die Details
+                bleiben darunter einzeln anpassbar.
               </p>
+            </div>
+
+            <div>
+              <span className="text-xs text-gray-500 uppercase tracking-widest">
+                Performance-Profil
+              </span>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
+                {visualPerformanceProfiles.map((profile) => {
+                  const active = visualProfileId === profile.id;
+                  return (
+                    <button
+                      key={profile.id}
+                      onClick={() => applyVisualProfile(profile)}
+                      className="p-3 rounded-xl border text-left"
+                      style={{
+                        background: active
+                          ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.12)"
+                          : "rgba(255,255,255,0.025)",
+                        borderColor: active
+                          ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.28)"
+                          : "rgba(255,255,255,0.08)",
+                        color: active ? primaryAccent : "#d1d5db",
+                        boxShadow: active
+                          ? "0 8px 20px rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.08)"
+                          : "none",
+                      }}
+                    >
+                      <div className="text-xs font-semibold">{profile.label}</div>
+                      <p className="mt-1 text-[10px] leading-snug text-gray-500">
+                        {profile.description}
+                      </p>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
               {[
                 { id: "blur", label: "Blur" },
                 { id: "fake-glass", label: "Fake Glass" },
-                { id: "glass-shader", label: "Glass" },
+                { id: "glass-shader", label: "Glass Shader" },
               ].map((mode) => {
                 const active = (settings.panel_background_mode || "blur") === mode.id;
                 return (
@@ -509,9 +607,9 @@ export default function SettingsPanel({
                   >
                     <div className="text-xs font-semibold">{mode.label}</div>
                     <div className="text-[10px] opacity-70 mt-1">
-                      {mode.id === "blur" && "Klassisch, günstig, stabil"}
-                      {mode.id === "fake-glass" && "CSS + Filter Distortion"}
-                      {mode.id === "glass-shader" && "Intensiver Gradient-Glass Look"}
+                      {mode.id === "blur" && "Klassisch, guenstig, stabil"}
+                      {mode.id === "fake-glass" && "Leichter CSS-Glass-Look"}
+                      {mode.id === "glass-shader" && "Mehr Tiefe, hoeheres Budget"}
                     </div>
                   </button>
                 );
@@ -526,19 +624,19 @@ export default function SettingsPanel({
                 className="w-36"
               >
                 <option value="css">CSS</option>
-                <option value="three">Three-Style</option>
+                <option value="three">Intensiv</option>
               </NativeSelect>
             </div>
 
             <div>
               <NativeLabel>
-                Panel Blur Stärke: {settings.panel_blur_strength || 22}px
+                Panel Blur Staerke: {settings.panel_blur_strength ?? 16}px
               </NativeLabel>
               <NativeSlider
-                value={[settings.panel_blur_strength || 22]}
+                value={[settings.panel_blur_strength ?? 16]}
                 onValueChange={([v]) => updateSetting("panel_blur_strength", v)}
                 min={0}
-                max={40}
+                max={32}
                 step={2}
                 className="w-full"
               />
@@ -548,11 +646,11 @@ export default function SettingsPanel({
               <div>
                 <NativeLabel>Glow Outline</NativeLabel>
                 <p className="text-xs text-gray-500 mt-0.5">
-                  Zeichnet die Leuchtkante um Panels statt im Inneren.
+                  Zeichnet eine ruhige Akzentkante um Panels.
                 </p>
               </div>
               <NativeSwitch
-                checked={settings.panel_glow_outline !== false}
+                checked={settings.panel_glow_outline === true}
                 onCheckedChange={(v) => updateSetting("panel_glow_outline", v)}
               />
             </div>
@@ -563,7 +661,7 @@ export default function SettingsPanel({
           <div className="space-y-6">
             <div>
               <NativeLabel>
-                Schriftgröße: {settings.font_size || 14}px
+                Schriftgroesse: {settings.font_size || 14}px
               </NativeLabel>
               <NativeSlider
                 value={[settings.font_size || 14]}
@@ -593,7 +691,7 @@ export default function SettingsPanel({
             </div>
 
             <div>
-              <NativeLabel>Tab-Größe: {settings.tab_size || 4}</NativeLabel>
+              <NativeLabel>Tab-Groesse: {settings.tab_size || 4}</NativeLabel>
               <NativeSlider
                 value={[settings.tab_size || 4]}
                 onValueChange={([v]) => updateSetting("tab_size", v)}
@@ -630,7 +728,7 @@ export default function SettingsPanel({
                 <div>
                   <NativeLabel>Language Server</NativeLabel>
                   <p className="text-xs text-gray-500 mt-0.5">
-                    Nutzt installierte LSP-Server fuer Completion, Hover und Diagnostics.
+                    Nutzt installierte LSP-Server fuer Vorschlaege, Hover und Diagnose.
                   </p>
                 </div>
                 <NativeSwitch
@@ -665,7 +763,7 @@ export default function SettingsPanel({
                         title={
                           server.available
                             ? server.resolvedPath || server.command
-                            : `Install or set ${server.envName}`
+                            : `${server.envName} installieren oder setzen`
                         }
                       >
                         <span className="min-w-0 truncate text-xs text-gray-300">
@@ -676,7 +774,7 @@ export default function SettingsPanel({
                             server.available ? "text-green-300" : "text-gray-500"
                           }`}
                         >
-                          {server.available ? "available" : "missing"}
+                          {server.available ? "bereit" : "fehlt"}
                         </span>
                       </div>
                     ))}
@@ -685,7 +783,7 @@ export default function SettingsPanel({
               )}
               <div className="flex items-center justify-between">
                 <NativeLabel>
-                  Zeilenhöhe: {settings.line_height || 1.6}
+                  Zeilenhoehe: {settings.line_height || 1.6}
                 </NativeLabel>
                 <NativeSlider
                   value={[settings.line_height || 1.6]}
@@ -716,14 +814,14 @@ export default function SettingsPanel({
                 </NativeSelect>
               </div>
               <div className="flex items-center justify-between">
-                <NativeLabel>Smooth Caret Animation</NativeLabel>
+                <NativeLabel>Sanfte Cursor-Animation</NativeLabel>
                 <NativeSwitch
                   checked={settings.smooth_caret !== false}
                   onCheckedChange={(v) => updateSetting("smooth_caret", v)}
                 />
               </div>
               <div className="flex items-center justify-between">
-                <NativeLabel>Cursor Stil</NativeLabel>
+                <NativeLabel>Cursor-Stil</NativeLabel>
                 <NativeSelect
                   value={settings.cursor_style || "line"}
                   onValueChange={(v) => updateSetting("cursor_style", v)}
@@ -735,7 +833,7 @@ export default function SettingsPanel({
                 </NativeSelect>
               </div>
               <div className="flex items-center justify-between">
-                <NativeLabel>Cursor Blinken</NativeLabel>
+                <NativeLabel>Cursor-Blinken</NativeLabel>
                 <NativeSelect
                   value={settings.cursor_blinking || "solid"}
                   onValueChange={(v) => updateSetting("cursor_blinking", v)}
@@ -761,7 +859,7 @@ export default function SettingsPanel({
                 </NativeSelect>
               </div>
               <div className="flex items-center justify-between">
-                <NativeLabel>Bracket Colorization</NativeLabel>
+                <NativeLabel>Klammerfarben</NativeLabel>
                 <NativeSwitch
                   checked={settings.bracket_colorization !== false}
                   onCheckedChange={(v) =>
@@ -770,21 +868,21 @@ export default function SettingsPanel({
                 />
               </div>
               <div className="flex items-center justify-between">
-                <NativeLabel>Font Ligatures</NativeLabel>
+                <NativeLabel>Schrift-Ligaturen</NativeLabel>
                 <NativeSwitch
                   checked={settings.font_ligatures !== false}
                   onCheckedChange={(v) => updateSetting("font_ligatures", v)}
                 />
               </div>
               <div className="flex items-center justify-between">
-                <NativeLabel>Format on Paste</NativeLabel>
+                <NativeLabel>Beim Einfuegen formatieren</NativeLabel>
                 <NativeSwitch
                   checked={settings.format_on_paste !== false}
                   onCheckedChange={(v) => updateSetting("format_on_paste", v)}
                 />
               </div>
               <div className="flex items-center justify-between">
-                <NativeLabel>Sticky Scroll</NativeLabel>
+                <NativeLabel>Fixierter Kontext</NativeLabel>
                 <NativeSwitch
                   checked={settings.sticky_scroll || false}
                   onCheckedChange={(v) => updateSetting("sticky_scroll", v)}
@@ -812,7 +910,7 @@ export default function SettingsPanel({
 
             <div>
               <NativeLabel>
-                Schriftgröße: {settings.font_size || 14}px
+                Schriftgroesse: {settings.font_size || 14}px
               </NativeLabel>
               <NativeSlider
                 value={[settings.font_size || 14]}
@@ -843,13 +941,13 @@ export default function SettingsPanel({
             </div>
 
             <div>
-              <NativeLabel>Schriftstärke</NativeLabel>
+              <NativeLabel>Schriftstaerke</NativeLabel>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 {[400, 500, 600, 700].map((weight) => (
                   <motion.button
                     key={weight}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
+                    whileHover={shouldReduceMotion ? undefined : { y: -1 }}
+                    whileTap={shouldReduceMotion ? undefined : { scale: 0.99 }}
                     onClick={() => updateSetting("font_weight", weight)}
                     className="p-2 rounded-lg border text-sm"
                     style={{
@@ -890,7 +988,7 @@ export default function SettingsPanel({
             </div>
 
             <div>
-              <NativeLabel>Zeilenhöhe</NativeLabel>
+              <NativeLabel>Zeilenhoehe</NativeLabel>
               <NativeSlider
                 value={[settings.line_height || 1.65]}
                 onValueChange={([v]) => updateSetting("line_height", v)}
@@ -932,8 +1030,8 @@ export default function SettingsPanel({
                 </span>
               </div>
               <p className="text-xs text-gray-500 leading-relaxed">
-                Aktiviere Leuchten und Glow-Effekte für Text, Icons und
-                UI-Elemente für ein moderneres Aussehen.
+                Aktiviere dezente Glow-Effekte fuer Text, Icons und
+                UI-Elemente.
               </p>
             </div>
 
@@ -970,19 +1068,19 @@ export default function SettingsPanel({
                   </p>
                 </div>
                 <NativeSwitch
-                  checked={settings.border_glow !== false}
+                  checked={settings.border_glow === true}
                   onCheckedChange={(v) => updateSetting("border_glow", v)}
                 />
               </div>
               <div className="flex items-center justify-between">
                 <div>
-                  <NativeLabel>Cursor Glow</NativeLabel>
+                  <NativeLabel>Cursor-Glow</NativeLabel>
                   <p className="text-xs text-gray-500 mt-0.5">
                     Leuchtender Cursor im Editor
                   </p>
                 </div>
                 <NativeSwitch
-                  checked={settings.cursor_glow !== false}
+                  checked={settings.cursor_glow === true}
                   onCheckedChange={(v) => updateSetting("cursor_glow", v)}
                 />
               </div>
@@ -990,7 +1088,7 @@ export default function SettingsPanel({
 
             <div>
               <NativeLabel>
-                Glow Intensität: {settings.glow_intensity ?? 28}%
+                Glow Intensitaet: {settings.glow_intensity ?? 28}%
               </NativeLabel>
               <NativeSlider
                 value={[settings.glow_intensity ?? 28]}
@@ -1041,7 +1139,7 @@ export default function SettingsPanel({
                   borderColor:
                     "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.18)",
                   boxShadow:
-                    settings.border_glow !== false
+                    settings.border_glow === true
                       ? `0 0 ${Math.round(((settings.glow_radius ?? 14) * (settings.glow_intensity ?? 28)) / 160)}px rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.24)`
                       : "none",
                 }}
@@ -1066,11 +1164,11 @@ export default function SettingsPanel({
               <div className="flex items-center gap-3 mb-4">
                 <Sparkles size={16} className="text-purple-400" />{" "}
                 <span className="text-sm text-gray-300 font-medium">
-                  Nexus Code Theme Engine
+                  Nexus Code Theme-System
                 </span>
               </div>
               <p className="text-xs text-gray-500 leading-relaxed">
-                Passe das Erscheinungsbild deines Editors an. Wähle aus
+                Passe das Erscheinungsbild deines Editors an. Waehle aus
                 vordefinierten Themes oder erstelle dein eigenes mit
                 benutzerdefinierten Farben.
               </p>
@@ -1110,10 +1208,10 @@ export default function SettingsPanel({
 
             <div className="pt-4 border-t border-white/5">
               <NativeLabel className="text-gray-400 mb-2 block text-[10px] uppercase tracking-widest">
-                Theme Modus
+                Theme-Modus
               </NativeLabel>
               <p className="text-xs text-gray-500 leading-relaxed">
-                Der Theme-Modus wird vollständig durch Preset und Accent-Farben gesteuert.
+                Der Theme-Modus wird vollstaendig durch Preset und Accent-Farben gesteuert.
                 Nicht-funktionale Umschalter wurden entfernt.
               </p>
             </div>

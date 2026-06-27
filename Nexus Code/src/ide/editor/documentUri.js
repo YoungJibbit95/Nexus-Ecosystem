@@ -117,8 +117,8 @@ export function createUntitledUriString(label = "untitled") {
  */
 
 /**
- * Builds a stable Monaco model descriptor. Relative inputs keep their relative
- * model path for compatibility with the existing @monaco-editor/react usage.
+ * Builds a stable document URI descriptor for editor engines and language
+ * services. Relative inputs keep a stable model path for local workspace files.
  *
  * @param {EditorModelUriInput|string} input
  * @returns {EditorModelUriDescriptor}
@@ -148,22 +148,6 @@ export function createDocumentUriDescriptor(input = {}) {
     scheme: getScheme(uri),
     isFsPath: hasFsPath,
   };
-}
-
-export function createMonacoModelPath(input = {}) {
-  return createDocumentUriDescriptor(input).modelPath;
-}
-
-export function createMonacoUri(monaco, input = {}) {
-  const descriptor = createDocumentUriDescriptor(input);
-  if (!monaco?.Uri) return descriptor.uri;
-  if (descriptor.fsPath && typeof monaco.Uri.file === "function") {
-    return monaco.Uri.file(descriptor.fsPath);
-  }
-  if (typeof monaco.Uri.parse === "function") {
-    return monaco.Uri.parse(descriptor.uri);
-  }
-  return descriptor.uri;
 }
 
 export function getModelUriString(modelOrDescriptor) {

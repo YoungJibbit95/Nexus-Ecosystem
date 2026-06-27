@@ -1,4 +1,15 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import {
+  Command,
+  FilePlus2,
+  FolderOpen,
+  Maximize2,
+  Minimize2,
+  PanelLeft,
+  Save,
+  Settings,
+  TerminalSquare,
+} from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 /** @type {any} */
@@ -9,12 +20,13 @@ const MACOS_TRAFFIC_LIGHT_SAFE_WIDTH = 78;
 
 function MenuButton({ label, items, activeMenu, setActiveMenu }) {
   const isOpen = activeMenu === label;
-  
+
   return (
     <div className="relative" onMouseEnter={() => activeMenu && setActiveMenu(label)}>
       <button
+        type="button"
         onClick={() => setActiveMenu(isOpen ? null : label)}
-        className="px-3 py-1 text-[11px] font-medium text-gray-400 hover:text-white hover:bg-white/5 rounded-md transition-all outline-none"
+        className="h-7 rounded-md px-2 text-[11px] font-medium text-gray-400 outline-none transition-colors hover:bg-white/5 hover:text-white focus-visible:ring-2 focus-visible:ring-purple-500/60"
         // @ts-ignore
         style={{ WebkitAppRegion: "no-drag" }}
       >
@@ -24,36 +36,50 @@ function MenuButton({ label, items, activeMenu, setActiveMenu }) {
       <AnimatePresence>
         {isOpen && (
           <>
-            <div 
-              className="fixed inset-0 z-40" 
+            <div
+              className="fixed inset-0 z-40"
               onClick={() => setActiveMenu(null)}
               // @ts-ignore
               style={{ WebkitAppRegion: "no-drag" }}
             />
             <motion.div
-              initial={{ opacity: 0, y: 5, scale: 0.95 }}
+              initial={{ opacity: 0, y: 6, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 5, scale: 0.95 }}
-              transition={{ type: "spring", stiffness: 400, damping: 30 }}
-              className="absolute top-full left-0 mt-1 min-w-[160px] p-1 bg-black/80 backdrop-blur-2xl border border-white/5 rounded-xl shadow-2xl z-50 overflow-hidden"
+              exit={{ opacity: 0, y: 6, scale: 0.98 }}
+              transition={{ duration: 0.14 }}
+              className="absolute left-0 top-full z-50 mt-1 min-w-[190px] overflow-hidden rounded-lg border border-white/10 bg-black/85 p-1 shadow-2xl backdrop-blur-xl"
               // @ts-ignore
               style={{ WebkitAppRegion: "no-drag" }}
             >
-              {items.map((item, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => {
-                    item.action();
-                    setActiveMenu(null);
-                  }}
-                  disabled={item.disabled}
-                  className={`w-full flex items-center justify-between px-3 py-1.5 text-[11px] rounded-lg transition-colors
-                    ${item.disabled ? "opacity-30 cursor-not-allowed" : "hover:bg-white/5 text-gray-300 hover:text-white"}`}
-                >
-                  <span>{item.label}</span>
-                  {item.shortcut && <span className="text-[9px] opacity-40 ml-4 font-mono">{item.shortcut}</span>}
-                </button>
-              ))}
+              {items.map((item, idx) => {
+                const Icon = item.icon;
+                return (
+                  <button
+                    key={`${item.label}-${idx}`}
+                    type="button"
+                    onClick={() => {
+                      item.action?.();
+                      setActiveMenu(null);
+                    }}
+                    disabled={item.disabled}
+                    className={`flex h-8 w-full items-center justify-between gap-3 rounded-md px-2.5 text-[11px] transition-colors ${
+                      item.disabled
+                        ? "cursor-not-allowed text-gray-600"
+                        : "text-gray-300 hover:bg-white/[0.07] hover:text-white"
+                    }`}
+                  >
+                    <span className="flex min-w-0 items-center gap-2">
+                      {Icon ? <Icon size={13} className="shrink-0" /> : null}
+                      <span className="truncate">{item.label}</span>
+                    </span>
+                    {item.shortcut ? (
+                      <span className="shrink-0 font-mono text-[9px] text-gray-500">
+                        {item.shortcut}
+                      </span>
+                    ) : null}
+                  </button>
+                );
+              })}
             </motion.div>
           </>
         )}
@@ -62,18 +88,44 @@ function MenuButton({ label, items, activeMenu, setActiveMenu }) {
   );
 }
 
-export default function TitleBar({ 
+function CommandButton({ icon: Icon, label, active, onClick, title }) {
+  return (
+    <button
+      type="button"
+      aria-pressed={active}
+      title={title || label}
+      onClick={onClick}
+      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-white/10 text-gray-400 transition-colors hover:border-white/20 hover:bg-white/10 hover:text-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500/60"
+      style={{
+        background: active
+          ? "color-mix(in srgb, var(--primary) 15%, transparent)"
+          : "rgba(255,255,255,0.02)",
+        color: active ? "var(--primary)" : undefined,
+      }}
+    >
+      <Icon size={15} />
+    </button>
+  );
+}
+
+export default function TitleBar({
   compact = false,
   onNewFile,
   onSaveAll,
-  onOpenFolder, 
-  onToggleSidebar, 
-  onToggleSidebarVisibility, 
-  onToggleZenMode, 
-  onToggleTerminal, 
+  onOpenFolder,
+  onToggleSidebar,
+  onToggleSidebarVisibility,
+  onToggleZenMode,
+  onToggleTerminal,
   onOpenCommandPalette,
   onOpenSettings,
-  workspaceName 
+  onFocusEditor,
+  sidebarVisible = true,
+  zenMode = false,
+  terminalOpen = false,
+  shellModeLabel = "Focus",
+  activePanelLabel = "Explorer",
+  workspaceName,
 }) {
   const [isMaximized, setIsMaximized] = useState(false);
   const [hoveredBtn, setHoveredBtn] = useState(null);
@@ -81,14 +133,14 @@ export default function TitleBar({
   const menuHostRef = useRef(null);
 
   useEffect(() => {
-    if (!isElectron) return;
+    if (!isElectron) return undefined;
     win.electronAPI.isMaximized().then(setIsMaximized).catch(() => {});
     const unsub1 = win.electronAPI.onMaximized(setIsMaximized);
     return () => unsub1?.();
   }, []);
 
   useEffect(() => {
-    if (!activeMenu) return;
+    if (!activeMenu) return undefined;
 
     const closeMenu = () => setActiveMenu(null);
     const onPointerDownCapture = (event) => {
@@ -119,53 +171,49 @@ export default function TitleBar({
 
   const safeNewFile = onNewFile || (() => {});
   const safeSaveAll = onSaveAll || (() => {});
+  const safeOpenFolder = onOpenFolder || (() => {});
   const safeOpenSettings = onOpenSettings || (() => {});
+  const safeCommandPalette = onOpenCommandPalette || (() => {});
+  const safeFocusEditor = onFocusEditor || (() => {});
   const safeClose = () => win.electronAPI?.close?.();
   const safeMinimize = () => win.electronAPI?.minimize?.();
   const safeMaximize = () => win.electronAPI?.maximize?.();
   const showWindowControls = !isMacOS;
 
-  const MENUS = [
+  const menus = [
     {
       label: "Datei",
       items: [
-        { label: "Neue Datei", shortcut: "Ctrl+N", action: safeNewFile },
-        { label: "Ordner oeffnen...", shortcut: "Ctrl+O", action: onOpenFolder },
-        { label: "Workspace speichern", shortcut: "Ctrl+S", action: safeSaveAll },
-        { label: "Trennen", disabled: true },
+        { label: "Neue Datei", shortcut: "Ctrl+N", action: safeNewFile, icon: FilePlus2 },
+        { label: "Ordner oeffnen", shortcut: "Ctrl+O", action: safeOpenFolder, icon: FolderOpen },
+        { label: "Alle speichern", shortcut: "Ctrl+S", action: safeSaveAll, icon: Save },
         { label: "Beenden", shortcut: "Alt+F4", action: safeClose },
-      ]
+      ],
     },
     {
       label: "Ansicht",
       items: [
-        { label: "Explorer umschalten", shortcut: "Ctrl+B", action: onToggleSidebar },
-        { label: "Sidebar umschalten", action: onToggleSidebarVisibility },
-        { label: "Zen Modus", shortcut: "Ctrl+K Z", action: onToggleZenMode },
-        { label: "Terminal", shortcut: "Ctrl+`", action: onToggleTerminal },
-      ]
+        { label: "Fokus Editor", action: safeFocusEditor, icon: Minimize2 },
+        { label: "Aktives Panel", shortcut: "Ctrl+B", action: onToggleSidebar, icon: PanelLeft },
+        { label: "Rail anzeigen", action: onToggleSidebarVisibility, icon: PanelLeft },
+        { label: "Zen Mode", shortcut: "Ctrl+K Z", action: onToggleZenMode, icon: Maximize2 },
+      ],
     },
     {
-      label: "Terminal",
+      label: "Tools",
       items: [
-        { label: "Neues Terminal", shortcut: "Ctrl+Shift+`", action: onToggleTerminal },
-        { label: "Terminal umschalten", shortcut: "Ctrl+`", action: onToggleTerminal },
-        { label: "Terminal leeren", action: onToggleTerminal },
-      ]
+        { label: "Terminal", shortcut: "Ctrl+`", action: onToggleTerminal, icon: TerminalSquare },
+        { label: "Befehlspalette", shortcut: "F1", action: safeCommandPalette, icon: Command },
+        { label: "Einstellungen", shortcut: "Ctrl+,", action: safeOpenSettings, icon: Settings },
+      ],
     },
-    {
-      label: "Extras",
-      items: [
-        { label: "Befehlspalette...", shortcut: "F1", action: onOpenCommandPalette },
-        { label: "Einstellungen", shortcut: "Ctrl+,", action: safeOpenSettings },
-        { label: "Tastenkombinationen", action: onOpenCommandPalette },
-      ]
-    }
   ];
+
+  const workspaceLabel = workspaceName || "Kein Workspace";
 
   return (
     <div
-      className={`nx-code-titlebar h-10 flex items-center justify-between ${compact ? "px-2" : "px-4"} shrink-0 select-none border-b border-white/5 relative z-50`}
+      className={`nx-code-titlebar flex h-11 shrink-0 select-none items-center justify-between gap-2 border-b border-white/5 ${compact ? "px-2" : "px-3"} relative z-50`}
       style={{
         background: "var(--nexus-surface)",
         borderBottom: "1px solid var(--nexus-border)",
@@ -175,12 +223,12 @@ export default function TitleBar({
       }}
     >
       <div
-        className="flex items-center gap-1.5 shrink-0 min-w-0 pr-2 sm:pr-4"
+        className="flex min-w-0 shrink-0 items-center gap-1.5"
         style={{ paddingLeft: isMacOS ? MACOS_TRAFFIC_LIGHT_SAFE_WIDTH : 0 }}
       >
         {showWindowControls && (
           <div
-            className="flex items-center gap-1.5 mr-2"
+            className="mr-2 flex items-center gap-1.5"
             // @ts-ignore
             style={{ WebkitAppRegion: "no-drag" }}
             onMouseEnter={() => setHoveredBtn("group")}
@@ -193,9 +241,10 @@ export default function TitleBar({
             ].map((btn) => (
               <motion.button
                 key={btn.id}
+                type="button"
                 whileTap={{ scale: 0.85 }}
                 onClick={btn.action}
-                className="w-3 h-3 rounded-full flex items-center justify-center focus:outline-none"
+                className="flex h-3 w-3 items-center justify-center rounded-full focus:outline-none"
                 style={{
                   background: btn.color,
                   boxShadow:
@@ -205,7 +254,7 @@ export default function TitleBar({
               >
                 <motion.span
                   animate={{ opacity: hoveredBtn === "group" ? 1 : 0 }}
-                  className="text-white font-bold leading-none pointer-events-none"
+                  className="pointer-events-none font-bold leading-none text-white"
                   style={{ fontSize: 7, marginTop: "0.5px" }}
                 >
                   {btn.symbol}
@@ -215,18 +264,17 @@ export default function TitleBar({
           </div>
         )}
 
-        {/* Menu Bar */}
         <div
           ref={menuHostRef}
-          className={`nx-code-menu-host items-center gap-1 ${compact ? "hidden sm:flex" : "flex"}`}
+          className={`nx-code-menu-host items-center gap-0.5 ${compact ? "hidden md:flex" : "flex"}`}
           // @ts-ignore
           style={{ WebkitAppRegion: "no-drag" }}
         >
-          {MENUS.map(menu => (
-            <MenuButton 
-              key={menu.label} 
-              label={menu.label} 
-              items={menu.items} 
+          {menus.map((menu) => (
+            <MenuButton
+              key={menu.label}
+              label={menu.label}
+              items={menu.items}
               activeMenu={activeMenu}
               setActiveMenu={setActiveMenu}
             />
@@ -234,16 +282,59 @@ export default function TitleBar({
         </div>
       </div>
 
-      <div className="flex-1 flex items-center justify-center pointer-events-none mx-2 sm:mx-8 overflow-hidden">
-        <span
-          className="text-[10px] text-gray-500 tracking-[0.2em] font-bold uppercase truncate max-w-[50vw]"
-        >
-          {workspaceName ? `Nexus Code - ${workspaceName}` : "Nexus Code"}
+      <button
+        type="button"
+        onClick={safeCommandPalette}
+        className="mx-1 flex h-8 min-w-0 flex-1 items-center justify-center gap-2 rounded-md border border-white/10 bg-white/[0.035] px-3 text-left transition-colors hover:border-white/20 hover:bg-white/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500/60 sm:max-w-[38rem]"
+        // @ts-ignore
+        style={{ WebkitAppRegion: "no-drag" }}
+        title="Befehlspalette oeffnen"
+      >
+        <Command size={14} className="shrink-0 text-gray-500" />
+        <span className="min-w-0 truncate text-[11px] font-semibold text-gray-300">
+          Nexus Code
+          <span className="hidden text-gray-500 sm:inline"> / {workspaceLabel}</span>
         </span>
-      </div>
+        <span className="hidden shrink-0 rounded border border-white/10 px-1.5 py-0.5 font-mono text-[9px] text-gray-500 md:inline">
+          {shellModeLabel}
+        </span>
+      </button>
 
-      <div className="w-12 shrink-0 flex items-center justify-end">
-        {/* Placeholder for future right-side icons like Sync, GitHub, etc. */}
+      <div
+        className="flex shrink-0 items-center gap-1"
+        // @ts-ignore
+        style={{ WebkitAppRegion: "no-drag" }}
+      >
+        <span className="hidden max-w-[8rem] truncate pr-1 text-[10px] text-gray-500 lg:block">
+          {activePanelLabel}
+        </span>
+        <CommandButton
+          icon={PanelLeft}
+          label="Sidebar"
+          active={sidebarVisible}
+          onClick={onToggleSidebar}
+          title="Panel umschalten"
+        />
+        <CommandButton
+          icon={TerminalSquare}
+          label="Terminal"
+          active={terminalOpen}
+          onClick={onToggleTerminal}
+        />
+        <CommandButton
+          icon={zenMode ? Minimize2 : Maximize2}
+          label="Zen"
+          active={zenMode}
+          onClick={onToggleZenMode}
+          title={zenMode ? "Zen Mode verlassen" : "Zen Mode"}
+        />
+        <CommandButton
+          icon={Settings}
+          label="Settings"
+          active={shellModeLabel === "Settings"}
+          onClick={safeOpenSettings}
+          title="Einstellungen"
+        />
       </div>
     </div>
   );

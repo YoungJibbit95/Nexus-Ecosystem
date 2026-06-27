@@ -1,4 +1,4 @@
-import { createFileUriString } from "../editor/monacoModelUri.js";
+import { createFileUriString } from "../editor/documentUri.js";
 
 const DEFAULT_CLIENT_CAPABILITIES = Object.freeze({
   textDocument: {

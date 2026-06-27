@@ -14,10 +14,21 @@ import { installRuntimeLagProbe } from "./lib/runtimeLagProbe";
 import { useGlobalTypingAnimation } from "./lib/useGlobalTypingAnimation";
 
 const CONTROL_API_BASE_URL = "https://nexus-api.cloud";
+const NEXUS_CODE_APP_ID = "code";
+const NEXUS_CODE_CHANNEL = "production";
 const CODE_BOOT_PRELOAD_TIMEOUT_MS = 6_500;
 const CODE_BOOT_PRELOAD_TIMEOUT_LOW_POWER_MS = 9_000;
-const isOfflineBootstrapResourceError = (errorCodeRaw) =>
-  isOfflineControlErrorCode(String(errorCodeRaw || "INVALID_PAYLOAD"));
+const AUTH_LIMITED_CONTROL_CODES = new Set(["HTTP_401", "HTTP_403"]);
+const normalizeControlErrorCode = (errorCodeRaw) =>
+  String(errorCodeRaw || "INVALID_PAYLOAD").trim().toUpperCase() || "INVALID_PAYLOAD";
+const classifyControlBootstrapIssue = (errorCodeRaw) => {
+  const errorCode = normalizeControlErrorCode(errorCodeRaw);
+  if (AUTH_LIMITED_CONTROL_CODES.has(errorCode)) return "limited";
+  if (isOfflineControlErrorCode(errorCode)) return "offline";
+  return "fatal";
+};
+const isRecoverableBootstrapIssue = (errorCodeRaw) =>
+  classifyControlBootstrapIssue(errorCodeRaw) !== "fatal";
 const STARTUP_TTI_METRIC = "code.startup_tti";
 const loadEditorPage = () => import("./pages/Editor");
 const Editor = lazy(() => loadEditorPage());
@@ -57,6 +68,170 @@ const isLowPowerDevice = () => {
   const cores = Number(navigator.hardwareConcurrency || 8);
   const memory = Number(navigator.deviceMemory || 8);
   return Boolean(reducedMotion) || cores <= 4 || memory <= 4;
+};
+
+const localFallbackTimestamp = () => new Date().toISOString();
+
+const buildCodeFallbackCatalog = (channel = NEXUS_CODE_CHANNEL) => {
+  const generatedAt = localFallbackTimestamp();
+  return {
+    schemaVersion: "2.0.0",
+    featureVersion: "local-fallback",
+    channel,
+    generatedAt,
+    compatMatrix: {
+      [NEXUS_CODE_APP_ID]: ">=0.0.0",
+    },
+    features: [
+      {
+        featureId: "core.editor",
+        name: "Editor",
+        description: "Local fallback feature for Nexus Code editor",
+        version: "local-fallback",
+        appTargets: [NEXUS_CODE_APP_ID],
+        rollout: "stable",
+        stable: true,
+        requires: [],
+        tags: ["local-fallback", "order:1"],
+        updatedAt: generatedAt,
+      },
+    ],
+  };
+};
+
+const buildCodeFallbackLayoutSchema = (channel = NEXUS_CODE_CHANNEL) => ({
+  schemaVersion: "2.0.0",
+  featureVersion: "local-fallback",
+  channel,
+  appId: NEXUS_CODE_APP_ID,
+  minClientVersion: "0.0.0",
+  compatMatrix: {
+    [NEXUS_CODE_APP_ID]: ">=0.0.0",
+  },
+  layoutProfile: {
+    id: "desktop-default",
+    mode: "desktop",
+    density: "comfortable",
+    navigation: "sidebar",
+    tokens: {
+      source: "local-fallback",
+    },
+  },
+  componentWhitelist: ["view-shell", "status-strip", "code-editor"],
+  screens: [
+    {
+      id: "editor",
+      title: "Editor",
+      enabled: true,
+      components: [
+        {
+          id: "editor-shell",
+          type: "view-shell",
+          props: {
+            viewId: "editor",
+            source: "local-fallback",
+          },
+        },
+      ],
+    },
+  ],
+  updatedAt: localFallbackTimestamp(),
+});
+
+const buildCodeFallbackRelease = (channel = NEXUS_CODE_CHANNEL) => {
+  const createdAt = localFallbackTimestamp();
+  const id = `local_${NEXUS_CODE_APP_ID}_${channel}`;
+  return {
+    id,
+    appId: NEXUS_CODE_APP_ID,
+    channel,
+    schemaVersion: "2.0.0",
+    featureVersion: "local-fallback",
+    minClientVersion: "0.0.0",
+    snapshotDigest: `digest_${id}_fallback`,
+    schemaDigest: `digest_${id}_schema_fallback`,
+    catalogDigest: `digest_${id}_catalog_fallback`,
+    sourceReleaseId: null,
+    rollbackToken: `rollback_${id}`,
+    note: "Local fallback release for degraded Control API startup",
+    createdAt,
+    promotedBy: "local-fallback",
+  };
+};
+
+const buildCodeFallbackBundle = ({
+  channel = NEXUS_CODE_CHANNEL,
+  catalog = null,
+  layoutSchema = null,
+  release = null,
+} = {}) => ({
+  appId: NEXUS_CODE_APP_ID,
+  channel,
+  catalog: catalog || buildCodeFallbackCatalog(channel),
+  layoutSchema: layoutSchema || buildCodeFallbackLayoutSchema(channel),
+  release: release || buildCodeFallbackRelease(channel),
+});
+
+const summarizeBootstrapMode = (issues) => {
+  if (!Array.isArray(issues) || issues.length === 0) return "online";
+  const modes = new Set(issues.map((issue) => issue.mode));
+  if (modes.has("limited")) return "limited";
+  if (modes.size === 1 && modes.has("offline")) return "offline";
+  return "degraded";
+};
+
+const buildControlStatus = (mode, details, fallbackReason = "") => {
+  const safeDetails = Array.isArray(details) ? details.filter(Boolean) : [];
+  if (mode === "online") {
+    return {
+      mode: "online",
+      title: "Control API verbunden",
+      message: "Live Katalog, Layout und Release sind aktiv.",
+      details: [],
+    };
+  }
+
+  const title = mode === "limited"
+    ? "Control API limited"
+    : mode === "offline"
+      ? "Control API offline"
+      : "Control API degraded";
+  const message = mode === "limited"
+    ? "Hosted Auth ist nicht verfuegbar. Nexus Code startet mit lokalen Runtime-Daten."
+    : mode === "offline"
+      ? "Hosted Control ist nicht erreichbar. Nexus Code startet mit lokalen Runtime-Daten."
+      : "Control Bootstrap ist eingeschraenkt. Nexus Code nutzt lokale Fallback-Daten.";
+
+  return {
+    mode,
+    title,
+    message: fallbackReason ? `${message} ${fallbackReason}` : message,
+    details: safeDetails,
+  };
+};
+
+const formatBootstrapIssues = (issues) =>
+  issues.map((issue) => `${issue.resource}:${issue.errorCode}`);
+
+const classifyViewAccessDegradation = (reasonRaw, currentMode) => {
+  const reason = String(reasonRaw || "").trim().toUpperCase();
+  if (!reason) return null;
+  if (reason.includes("HTTP_401") || reason.includes("HTTP_403")) return "limited";
+  if (
+    reason.includes("OFFLINE")
+    || reason.includes("TIMEOUT")
+    || reason.includes("HTTP_408")
+    || reason.includes("HTTP_425")
+    || reason.includes("HTTP_429")
+    || reason.includes("HTTP_500")
+    || reason.includes("HTTP_502")
+    || reason.includes("HTTP_503")
+    || reason.includes("HTTP_504")
+  ) {
+    return "offline";
+  }
+  if (reason.includes("NETWORK_ERROR") && currentMode !== "online") return "degraded";
+  return null;
 };
 
 function NexusBridge({ runtime }) {
@@ -171,7 +346,9 @@ function App() {
   const [bootReady, setBootReady] = useState(false);
   const [bootProgress, setBootProgress] = useState(0);
   const [bootStage, setBootStage] = useState("Nexus Runtime wird gestartet...");
-  const [bootFailure, setBootFailure] = useState(null);
+  const [controlStatus, setControlStatus] = useState(() =>
+    buildControlStatus("online", []),
+  );
   const [releaseState, setReleaseState] = useState({
     releaseId: null,
     compatible: true,
@@ -274,7 +451,7 @@ function App() {
     const preloadBudgetMs = lowPowerMode
       ? CODE_BOOT_PRELOAD_TIMEOUT_LOW_POWER_MS
       : CODE_BOOT_PRELOAD_TIMEOUT_MS;
-    setBootFailure(null);
+    setControlStatus(buildControlStatus("online", []));
     setBootReady(false);
     setViewGuardState({
       checking: true,
@@ -285,6 +462,7 @@ function App() {
     setBootProgress(8);
     setBootStage("Nexus Runtime wird gestartet...");
     const uiWarmupPromise = warmupCodeUiModules();
+    let bootControlStatus = buildControlStatus("online", []);
 
     const setBootStep = (progress, stage) => {
       if (!active) return;
@@ -293,7 +471,7 @@ function App() {
     };
 
     void runtime.control.reportCapabilities({
-      appId: "code",
+      appId: NEXUS_CODE_APP_ID,
       appVersion: "1.0.0",
       platform: "desktop",
       supports: {
@@ -319,20 +497,20 @@ function App() {
         setBootStep(26, "Lade API Katalog, Layout und Release...");
         const [catalogResult, layoutResult, releaseResult] = await Promise.all([
           runtime.control.fetchCatalog({
-            appId: "code",
-            channel: "production",
+            appId: NEXUS_CODE_APP_ID,
+            channel: NEXUS_CODE_CHANNEL,
             forceRefresh: false,
             cacheTtlMs: 120_000,
           }),
           runtime.control.fetchLayoutSchema({
-            appId: "code",
-            channel: "production",
+            appId: NEXUS_CODE_APP_ID,
+            channel: NEXUS_CODE_CHANNEL,
             forceRefresh: false,
             cacheTtlMs: 120_000,
           }),
           runtime.control.fetchCurrentRelease({
-            appId: "code",
-            channel: "production",
+            appId: NEXUS_CODE_APP_ID,
+            channel: NEXUS_CODE_CHANNEL,
             forceRefresh: false,
             cacheTtlMs: 60_000,
           }),
@@ -346,29 +524,49 @@ function App() {
           .filter(([, errorCode, item]) => Boolean(errorCode) || !item)
           .map(([resource, errorCode]) => ({
             resource: String(resource),
-            errorCode: String(errorCode || "INVALID_PAYLOAD"),
+            errorCode: normalizeControlErrorCode(errorCode),
+            mode: classifyControlBootstrapIssue(errorCode),
           }));
 
         if (failedResources.length > 0) {
-          const offlineOnly = failedResources.every((entry) =>
-            isOfflineBootstrapResourceError(entry.errorCode),
+          const recoverableOnly = failedResources.every((entry) =>
+            isRecoverableBootstrapIssue(entry.errorCode),
           );
-          if (!offlineOnly) {
+          if (!recoverableOnly) {
             throw new Error(
               `CONTROL_API_BOOTSTRAP_FAILED (${failedResources.map((entry) => `${entry.resource}:${entry.errorCode}`).join(", ")})`,
             );
           }
+
+          const statusMode = summarizeBootstrapMode(failedResources);
+          const details = formatBootstrapIssues(failedResources);
+          bootControlStatus = buildControlStatus(statusMode, details);
+          setControlStatus(bootControlStatus);
+          setBootStep(
+            58,
+            statusMode === "limited"
+              ? "Hosted Auth eingeschraenkt, lokale Runtime-Daten aktiv..."
+              : "Control API offline, lokale Runtime-Daten aktiv...",
+          );
         }
 
         if (failedResources.length === 0) {
           setBootStep(66, "Pruefe Release-Kompatibilitaet...");
           applyBundle({
-            appId: "code",
-            channel: "production",
+            appId: NEXUS_CODE_APP_ID,
+            channel: NEXUS_CODE_CHANNEL,
             catalog: catalogResult.item,
             layoutSchema: layoutResult.item,
             release: releaseResult.item,
           });
+        } else {
+          setBootStep(66, "Pruefe lokale Release-Kompatibilitaet...");
+          applyBundle(buildCodeFallbackBundle({
+            channel: NEXUS_CODE_CHANNEL,
+            catalog: catalogResult.item,
+            layoutSchema: layoutResult.item,
+            release: releaseResult.item,
+          }));
         }
         setBootStep(72, "Validiere Editor-Zugriff...");
         const editorAccess = await runtime.control.validateViewAccess("editor", {
@@ -376,15 +574,41 @@ function App() {
           ...viewAccessContext,
         });
         if (!active) return;
-        setViewGuardState({
-          checking: false,
-          blocked: !editorAccess.allowed,
-          reason: editorAccess.reason || null,
-          requiredTier: editorAccess.requiredTier || null,
-        });
+        const accessDegradationMode = !editorAccess.allowed
+          ? classifyViewAccessDegradation(editorAccess.reason, bootControlStatus.mode)
+          : null;
+        if (accessDegradationMode) {
+          const details = [
+            ...(bootControlStatus.details || []),
+            `access:${editorAccess.reason || "VIEW_VALIDATION_UNAVAILABLE"}`,
+          ];
+          bootControlStatus = buildControlStatus(
+            accessDegradationMode === "degraded" ? "degraded" : accessDegradationMode,
+            details,
+            "Remote View-Validation wurde lokal freigegeben.",
+          );
+          setControlStatus(bootControlStatus);
+          setViewGuardState({
+            checking: false,
+            blocked: false,
+            reason: editorAccess.reason || null,
+            requiredTier: editorAccess.requiredTier || null,
+          });
+        } else {
+          setViewGuardState({
+            checking: false,
+            blocked: !editorAccess.allowed,
+            reason: editorAccess.reason || null,
+            requiredTier: editorAccess.requiredTier || null,
+          });
+        }
         if (!editorAccess.allowed) {
-          setBootStep(100, "Editor-Zugriff gesperrt");
-          return;
+          if (accessDegradationMode) {
+            setBootStep(76, "Editor-Zugriff lokal freigegeben...");
+          } else {
+            setBootStep(100, "Editor-Zugriff gesperrt");
+            return;
+          }
         }
         setBootStep(76, "Lade Editor-Module und Runtime...");
         const warmupResult = await withTimeoutResult(uiWarmupPromise, preloadBudgetMs);
@@ -403,7 +627,7 @@ function App() {
             : "CONTROL_API_UNAVAILABLE";
         console.error("Nexus Code bootstrap failed", error);
         if (!active) return;
-        setBootFailure(reason);
+        setControlStatus(buildControlStatus("degraded", [reason]));
       } finally {
         if (active) {
           setViewGuardState((prev) => ({
@@ -417,9 +641,10 @@ function App() {
     })();
 
     const unsubscribe = runtime.control.subscribeReleaseUpdates(
-      { appId: "code", channel: "production", pollIntervalMs: 30_000 },
+      { appId: NEXUS_CODE_APP_ID, channel: NEXUS_CODE_CHANNEL, pollIntervalMs: 30_000 },
       (event) => {
         applyBundle(event.bundle);
+        setControlStatus(buildControlStatus("online", []));
       },
     );
 
@@ -528,8 +753,9 @@ function App() {
   return (
     <Router>
       <NexusBridge runtime={runtime} />
-      {bootFailure ? (
+      {controlStatus.mode !== "online" ? (
         <div
+          role="status"
           style={{
             position: "fixed",
             top: 10,
@@ -537,16 +763,28 @@ function App() {
             transform: "translateX(-50%)",
             zIndex: 4000,
             borderRadius: 10,
-            border: "1px solid rgba(255,69,58,0.38)",
-            background: "rgba(255,69,58,0.12)",
-            color: "#ffd8d2",
+            border: controlStatus.mode === "limited"
+              ? "1px solid rgba(255,191,64,0.44)"
+              : "1px solid rgba(112,165,255,0.38)",
+            background: controlStatus.mode === "limited"
+              ? "rgba(255,191,64,0.14)"
+              : "rgba(40,112,255,0.14)",
+            color: controlStatus.mode === "limited" ? "#fff3d0" : "#d7e6ff",
             padding: "8px 12px",
             fontSize: 12,
             fontWeight: 700,
             maxWidth: "min(92vw, 720px)",
+            lineHeight: 1.35,
+            boxShadow: "0 14px 34px rgba(0,0,0,0.24)",
           }}
         >
-          API Bootstrap eingeschraenkt: {bootFailure}
+          <span>{controlStatus.title}: </span>
+          <span>{controlStatus.message}</span>
+          {controlStatus.details.length > 0 ? (
+            <span style={{ display: "block", marginTop: 2, opacity: 0.78 }}>
+              Details: <code>{controlStatus.details.join(", ")}</code>
+            </span>
+          ) : null}
         </div>
       ) : null}
       <Routes>
