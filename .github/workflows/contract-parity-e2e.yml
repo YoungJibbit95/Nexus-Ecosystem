@@ -23,6 +23,9 @@ jobs:
         with:
           node-version: 20
 
+      - name: Install Nexus Core deps
+        run: npm --prefix "./packages/nexus-core" ci
+
       - name: Install Nexus Main deps
         run: npm --prefix "./Nexus Main" ci
 
