@@ -1,70 +1,85 @@
 # Nexus Bugs und Todo Listen
 
+Stand: 2026-06-27
+
 ## Notes Bugs
 
-```nexus-list
-- Notes Emojis Menü soll nicht extenden und scrollable machen sondern ein seperates darüber hoverndes menü aufrufen
--Magic Menü wird gerendert aber die Bar in der sein button ist buggt im Menü
+```nexus-checklist
+Notes Emojis Menue soll nicht extenden, sondern als schwebendes Menue ueber der Toolbar erscheinen | true
+Magic Menue oeffnet ohne dass offene Emoji-/Block-Menues die Toolbar zerlegen | true
 ```
 
 ## Notes Todo
 
 ```nexus-checklist
-Dokumentation in InfoView einfacher und besser machen aber detailreich lassen, alles muss dokumentiert sein aber klar und verständlich | false
-
+Dokumentation in InfoView einfacher und besser machen aber detailreich lassen | true
+Notes Split und Edit View mehr Raum geben damit man den Text besser sehen kann | true
+Buttons und Bars uebersichtlicher und einfacher zu verstehen machen | true
+Notes Store von Editor-Draft-State trennen | false
+Markdown/Emoji/Magic Daten in kleinere Module auslagern | false
 ```
 
-___
+---
+
 ## Globale Bugs
 
-```nexus-list
-- Global Schriftgröße verändern vebuggt die ganze UI
-- Verbuggte Panel Hintergründe (Sidebar): Linen, Dots, Grid, Stripes, Carbon, Circuit, Soft Noise
-- Verbuggte Panel Hintergründe (App Panels): Hologram,  Dots (werden nicht gerendert), Grid (wird nicht gerendert), Circuit (wird nicht gerendert bzw niocht richtig), Soft Noise (wird nicht gerendert bzw ändert nichts)
-- App Hintergründe werden nicht richtig gerendert bzw änderrn fast nichts visuell
-- Sidebar Rail modus geht nicht
-- Panel Radius Slider in den Settings geht nicht global 
-- Nexus Toolbar zeigt done tasks nicht in der badge an selbst wenn welche erledigt sind
-- Dashboard LAyout Editor lässt die Widgets beim Draggen zitttern, soll smoother aussehen
-- InfoView braucht große Updates
-- InfoView zeigt bei weitem nicht alle Markdown Optionen, Commands fürs terminal und allgemein nicht alle App Funktionen
+```nexus-checklist
+Global Schriftgroesse clampen, damit der Slider die UI nicht zerlegt | true
+Panel Hintergruende fuer Sidebar/App Panels sichtbar verdrahten | true
+Sidebar Rail Modus als echte Rail mit stabiler Breite behandeln | true
+Panel Radius Slider global ueber Shell/Glass Tokens anwenden | true
+Nexus Toolbar zeigt offene und erledigte Tasks an | true
+Dashboard Layout Editor beim Draggen per rAF/Position-Layout beruhigen | true
+InfoView mit Suche, View-Guides und Referenzen erweitern | true
 ```
+
 ## Global Todo
 
 ```nexus-checklist
-- Leistungsanzeige für Glass Optionen in den Settings adden | false
-- Notes UI und DevTools UI übersichtlicher, weniger cramped und nutzerfreundlicher machen | false
-
-
+Leistungsanzeige fuer Glass Optionen in Settings adden | true
+Notes UI weniger cramped und nutzerfreundlicher machen | true
+DevTools UI weiter verdichten und besser gruppieren | false
 ```
 
-___
+---
+
 ## Nutzeranmerkungen
-___
-### Testperson 1
-```nexus-list
-- TP 1 sagt es macht Spaß mit der App zu arbeiten 
-- TP 1 sagt vieles "funktioneiert" einfach
-- TP 1 fand die Website informationstechnisch gut
-- Screenshots nicht aktuell das fand TP 1 nicht gut
-- TP 1 sagt informationen müssen immer aktuell sein und user müssen sich selbst helfen können
-- Dokumentation ist sehr wichtig und noch nicht einfach gwenug zu verstehen sagt TP 1
 
+### Testperson 1
+
+```nexus-list
+- TP 1 sagt es macht Spass mit der App zu arbeiten.
+- TP 1 sagt vieles funktioniert einfach.
+- TP 1 fand die Website informationstechnisch gut.
+- Screenshots sind nicht aktuell und bleiben als eigenes Folgepaket offen.
+- Informationen muessen aktuell bleiben und Nutzer muessen sich selbst helfen koennen.
+- Dokumentation ist wichtig und muss einfacher verstaendlich sein.
 ```
-___
+
+---
+
 ## Website und API Bugs
 
-```nexus-list
-Website Login Page:
-- Emial bestätigt zeigt eine grüne Haken Badge an wenn nein da steht
-API Bugs:
-- Control Page lädt nicht die echten Nutzerzahlöen bzw zeigt nicht die aktuellen Nutzer online an
-- Website zeigt die Control Infos auch nicht korrekt an und Nutzer werden falsch oder gar nicht online angezeigt bei den API Health daten
+```nexus-checklist
+Website Login Page: E-Mail bestaetigt zeigt bei Nein keinen gruenen Haken mehr | true
+API: Metrics Summary liefert echte aktive Nutzer separat von technischen Clients | true
+Control Page zeigt echte aktive Nutzer statt Online Apps im Nutzer-Metric-Slot | true
+Website nutzt fuer aktive Nutzer echte Nutzer-Metriken und labelt technische Clients separat | true
 ```
 
 ## Website und API Todo
 
 ```nexus-checklist
-- Leuchten das dem Mauszeiger folgt Togglebar mit Checkbox oben links machen | false
+Maus-Glow Toggle mit Checkbox oben links machen | true
+Website-Text ab API/Developer/Account/Pricing konkreter und weniger Beta-lastig halten | true
+Screenshots nach Stabilitaetsblock neu capturen | false
 ```
 
+---
+
+## Nexus Launcher Plan
+
+Der Launcher bleibt ein eigener Meilenstein nach dem Release-Polish-Block. Ziel:
+Installer fuer Nexus Desktop-Produkte, Orientierung am Nexus Main Design,
+Installation von Nexus Main und Nexus Code je nach Tier, Auto-Update-Option fuer
+GitHub Download/Build/Install und klarer Status fuer fehlende Berechtigungen.

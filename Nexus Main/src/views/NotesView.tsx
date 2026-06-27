@@ -811,6 +811,8 @@ export function NotesView() {
   // Save cursor position before magic menu opens
   const handleMagicOpen = () => {
     rememberEditorSelection();
+    setNotesEmojiMenuOpen(false);
+    setNotesBlocksMenuOpen(false);
     setShowMagic(true);
   };
 
@@ -819,6 +821,33 @@ export function NotesView() {
     setNotesEmojiMenuOpen((open) => !open);
     setNotesBlocksMenuOpen(false);
   };
+
+  useEffect(() => {
+    if (!notesEmojiMenuOpen && !notesBlocksMenuOpen) return;
+    const handleDismiss = (event: MouseEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (
+        target?.closest?.(
+          ".nx-notes-emoji-menu, .nx-notes-blocks-menu, [data-notes-popover-trigger]",
+        )
+      ) {
+        return;
+      }
+      setNotesEmojiMenuOpen(false);
+      setNotesBlocksMenuOpen(false);
+    };
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setNotesEmojiMenuOpen(false);
+      setNotesBlocksMenuOpen(false);
+    };
+    window.addEventListener("mousedown", handleDismiss);
+    window.addEventListener("keydown", handleEscape);
+    return () => {
+      window.removeEventListener("mousedown", handleDismiss);
+      window.removeEventListener("keydown", handleEscape);
+    };
+  }, [notesBlocksMenuOpen, notesEmojiMenuOpen]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -2200,10 +2229,13 @@ export function NotesView() {
                 tooltip="Trennlinie"
                 action={() => insertFormat("\n---\n", "")}
               />
-              <div style={{ position: "relative" }}>
+              <div data-notes-popover-trigger="blocks" style={{ position: "relative" }}>
                 <InteractiveActionButton
                   type="button"
-                  onClick={() => setNotesBlocksMenuOpen((open) => !open)}
+                  onClick={() => {
+                    setNotesBlocksMenuOpen((open) => !open);
+                    setNotesEmojiMenuOpen(false);
+                  }}
                   onMouseDown={(event) => {
                     event.preventDefault();
                     rememberEditorSelection();
@@ -2309,7 +2341,7 @@ export function NotesView() {
                   )
                 }
               />
-              <div style={{ position: "relative" }}>
+              <div data-notes-popover-trigger="emoji" style={{ position: "relative" }}>
                 <InteractiveActionButton
                   type="button"
                   onClick={handleEmojiMenuOpen}

@@ -197,7 +197,8 @@ export function useNexusToolbarModel({
     };
   }, []);
 
-  const pendingTasks = app.tasks.filter((task) => task.status !== "done").length;
+  const doneTasks = app.tasks.filter((task) => task.status === "done").length;
+  const pendingTasks = Math.max(0, app.tasks.length - doneTasks);
   const overdueReminders = app.reminders.filter(
     (reminder) => !reminder.done && new Date(reminder.snoozeUntil || reminder.datetime) < new Date(),
   ).length;
@@ -411,6 +412,7 @@ export function useNexusToolbarModel({
     spotlightAnchorX,
     activeToolbarView,
     pendingTasks,
+    doneTasks,
     overdueReminders,
     timeStr,
     islandCompact,

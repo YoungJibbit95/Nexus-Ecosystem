@@ -635,6 +635,31 @@ const sanitizeToolbarConfig = (
   }
 }
 
+const clampFiniteNumber = (
+  value: unknown,
+  min: number,
+  max: number,
+  fallback: number,
+): number => {
+  const next = Number(value)
+  if (!Number.isFinite(next)) return fallback
+  return Math.max(min, Math.min(max, next))
+}
+
+const sanitizeVisualConfig = (
+  value: unknown,
+  fallback: VisualConfig,
+): VisualConfig => {
+  const merged = mergeConfig(fallback, value)
+  return {
+    ...merged,
+    panelRadius: clampFiniteNumber(merged.panelRadius, 4, 32, fallback.panelRadius),
+    shadowDepth: clampFiniteNumber(merged.shadowDepth, 0, 1, fallback.shadowDepth),
+    animationSpeed: clampFiniteNumber(merged.animationSpeed, 0.5, 2, fallback.animationSpeed),
+    borderThickness: clampFiniteNumber(merged.borderThickness, 0, 4, fallback.borderThickness),
+  }
+}
+
 const sanitizeQolConfig = (
   value: unknown,
   fallback: QOLConfig,
@@ -652,6 +677,7 @@ const sanitizeQolConfig = (
       : 'balanced'
   return {
     ...merged,
+    fontSize: clampFiniteNumber(merged.fontSize, 12, 18, fallback.fontSize),
     panelDensity,
     motionProfile,
     autoAccentContrast: typeof merged.autoAccentContrast === 'boolean' ? merged.autoAccentContrast : true,
@@ -660,9 +686,12 @@ const sanitizeQolConfig = (
 
 const sanitizeThemeSnapshot = (persistedRaw: unknown, current: Theme): Theme => {
   const persisted = isRecord(persistedRaw) ? (persistedRaw as Partial<Theme>) : {}
+  const sidebarStyle = sanitizeSidebarStyle(persisted.sidebarStyle, current.sidebarStyle)
   const sidebarWidthRaw = Number(persisted.sidebarWidth)
+  const sidebarMin = sidebarStyle === 'rail' ? 64 : 180
+  const sidebarMax = sidebarStyle === 'rail' ? 104 : 420
   const sidebarWidth = Number.isFinite(sidebarWidthRaw)
-    ? Math.max(180, Math.min(420, sidebarWidthRaw))
+    ? Math.max(sidebarMin, Math.min(sidebarMax, sidebarWidthRaw))
     : current.sidebarWidth
   const mergedGlassmorphism = mergeConfig(current.glassmorphism, persisted.glassmorphism)
   mergedGlassmorphism.panelRenderer = sanitizePanelRenderer(mergedGlassmorphism.panelRenderer)
@@ -691,7 +720,7 @@ const sanitizeThemeSnapshot = (persistedRaw: unknown, current: Theme): Theme => 
     globalFont: typeof persisted.globalFont === 'string' && persisted.globalFont.length > 0 ? persisted.globalFont : current.globalFont,
     sidebarWidth,
     sidebarPosition: persisted.sidebarPosition === 'right' ? 'right' : 'left',
-    sidebarStyle: sanitizeSidebarStyle(persisted.sidebarStyle, current.sidebarStyle),
+    sidebarStyle,
     sidebarLabels: typeof persisted.sidebarLabels === 'boolean' ? persisted.sidebarLabels : current.sidebarLabels,
     sidebarAccentBg: typeof persisted.sidebarAccentBg === 'boolean' ? persisted.sidebarAccentBg : current.sidebarAccentBg,
     toolbar: sanitizeToolbarConfig(persisted.toolbar, current.toolbar),
@@ -701,7 +730,7 @@ const sanitizeThemeSnapshot = (persistedRaw: unknown, current: Theme): Theme => 
     background: mergedBackground,
     blur: mergeConfig(current.blur, persisted.blur),
     glassmorphism: mergedGlassmorphism,
-    visual: mergeConfig(current.visual, persisted.visual),
+    visual: sanitizeVisualConfig(persisted.visual, current.visual),
     animations: mergeConfig(current.animations, persisted.animations),
     editor: mergeConfig(current.editor, persisted.editor),
     qol: mergedQol,
@@ -753,15 +782,27 @@ export const useTheme = create<Theme>()(
       setBackground: (b) => set((s) => ({ background: { ...s.background, ...b } })),
       setBlur: (b) => set((s) => ({ blur: { ...s.blur, ...b } })),
       setGlassmorphism: (g) => set((s) => ({ glassmorphism: { ...s.glassmorphism, ...g } })),
-      setVisual: (v) => set((s) => ({ visual: { ...s.visual, ...v } })),
+      setVisual: (v) => set((s) => ({ visual: sanitizeVisualConfig(v, s.visual) })),
       setAnimations: (a) => set((s) => ({ animations: { ...s.animations, ...a } })),
       setEditor: (e) => set((s) => ({ editor: { ...s.editor, ...e } })),
       setNotes: (n) => set((s) => ({ notes: { ...s.notes, ...n } })),
       setQOL: (q) => set((s) => ({ qol: sanitizeQolConfig(q, s.qol) })),
       setGlobalFont: (globalFont) => set({ globalFont }),
-      setSidebarWidth: (sidebarWidth) => set({ sidebarWidth }),
+      setSidebarWidth: (sidebarWidth) => set((s) => ({
+        sidebarWidth: clampFiniteNumber(
+          sidebarWidth,
+          s.sidebarStyle === 'rail' ? 64 : 180,
+          s.sidebarStyle === 'rail' ? 104 : 420,
+          s.sidebarWidth,
+        ),
+      })),
       setSidebarPosition: (sidebarPosition) => set({ sidebarPosition }),
-      setSidebarStyle: (sidebarStyle) => set({ sidebarStyle }),
+      setSidebarStyle: (sidebarStyle) => set((s) => ({
+        sidebarStyle,
+        sidebarWidth: sidebarStyle === 'rail'
+          ? clampFiniteNumber(s.sidebarWidth, 64, 104, 76)
+          : clampFiniteNumber(s.sidebarWidth, 180, 420, 240),
+      })),
       setSidebarLabels: (sidebarLabels) => set({ sidebarLabels }),
       setSidebarAccentBg: (sidebarAccentBg) => set({ sidebarAccentBg }),
       setSidebarAutoHide: (v) => set((s) => ({ qol: { ...s.qol, sidebarAutoHide: v } })),

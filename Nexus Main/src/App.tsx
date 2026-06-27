@@ -1434,13 +1434,20 @@ export default function App() {
   const sidebarLeft = (t as any).sidebarPosition !== "right";
   const toolbarBottom = t.toolbar?.position !== "top";
   const toolbarVisible = t.toolbar?.visible !== false;
+  const sidebarStyle = (t as any).sidebarStyle ?? "default";
+  const baseSidebarWidth =
+    sidebarStyle === "rail"
+      ? Math.max(64, Math.min(96, Number(t.sidebarWidth) || 76))
+      : sidebarStyle === "minimal"
+        ? Math.max(92, Math.min(128, Number(t.sidebarWidth) || 112))
+        : Math.max(180, Math.min(420, Number(t.sidebarWidth) || 240));
   const effectiveSidebarWidth = sidebarHidden
     ? 0
     : sidebarAutoHideEnabled
       ? sidebarExpanded
-        ? t.sidebarWidth
+        ? baseSidebarWidth
         : 0
-      : t.sidebarWidth;
+      : baseSidebarWidth;
 
   const mainViewNode = (
     <MainViewHost

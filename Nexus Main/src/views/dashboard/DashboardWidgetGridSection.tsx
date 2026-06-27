@@ -126,14 +126,14 @@ export function DashboardWidgetGridSection({
           visibleWidgets.map((w, idx) => (
             <motion.div
               key={w.id}
-              layout
+              layout={dragState?.widgetId === w.id ? false : "position"}
               initial={
                 contentMotion.allowEntry
                   ? { opacity: 0, y: 7, scale: 0.998 }
                   : false
               }
               animate={{
-                opacity: 1,
+                opacity: dragState?.widgetId === w.id ? 0.54 : 1,
                 y: 0,
                 scale:
                   dragState?.widgetId === w.id
@@ -184,6 +184,7 @@ export function DashboardWidgetGridSection({
                 minHeight: 0,
                 position: "relative",
                 borderRadius: 16,
+                willChange: dragState ? "transform, opacity" : undefined,
                 border:
                   editLayout &&
                   dragWidgetId &&

@@ -125,7 +125,7 @@ const STEPS: WalkthroughStep[] = [
     eyebrow: "Setup",
     title: "Dann fangen wir mal an...",
     summary:
-      "Wenn du diese Checkliste einmal durchgehst, hast du Account, Workspace, erste Daten und die wichtigsten Views praktisch beruehrt. Du musst nicht alles sofort erledigen: Nexus merkt sich deinen Fortschritt lokal auf diesem Geraet.",
+      "Wenn du diese Checkliste einmal durchgehst, hast du Account, Workspace, erste Dateien und die wichtigsten Views praktisch berührt. Du musst nicht alles sofort erledigen: Nexus merkt sich deinen Fortschritt lokal auf diesem Geraet.",
     view: "dashboard",
     icon: CheckCircle2,
     accent: "#06b6d4",

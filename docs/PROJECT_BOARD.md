@@ -69,3 +69,21 @@ Naechste Project-Cards:
 - Mobile Canvas Inspector: Bottom-Sheet Inspector, Pinch Zoom und Touch-Gesten angleichen.
 - Settings Core Integration: Main/Mobile ModulePanels weiter reduzieren und gemeinsame Primitives aus `@nexus/core/settings` nutzen.
 - Notes Release Hardening: Store-Splitting, Import-Validation und Editor-Performance.
+
+## Stand 2026-06-27 - Release Polish Testperson Batch
+
+Abgearbeitet:
+
+- Notes UX: Emoji-/Block-Menues schweben ueber der Toolbar, Magic schliesst konkurrierende Popover, Split/Edit bekommt mehr Raum.
+- Globale UI: Font Size wird geclamped, Panel Radius wirkt ueber Shell/Glass Tokens, Rail-Breite ist stabilisiert.
+- Settings: Panel Backgrounds werden sichtbar ueber Surface Tokens gerendert; Glass Performance Score zeigt Belastung durch Blur/Shader/Motion.
+- Toolbar/Dashboard: Task-Badge trennt offen/done, Dashboard-Drag nutzt rAF und stabileres Position-Layout.
+- InfoView: Suche und bessere View-/Markdown-/Terminal-Referenzen fuer Selbsthilfe und Testpersonen-Doku.
+- Website/API: E-Mail-Badge korrigiert, echte aktive Nutzer von technischen Clients getrennt, Control Dashboard labelt Active Users (15m), Maus-Glow Toggle ergaenzt.
+
+Naechste Project-Cards:
+
+- Canvas Selection/History v2: Multi-Select, Gruppenbewegung, Undo/Redo, Snap-to-grid.
+- Notes Data Split: Editor-Drafts, Magic/Emoji-Daten und Import-Validation modularisieren.
+- Website Evidence Refresh: neue Screenshots und API/Website Contract-Smokes nach dem Stabilitaetsblock.
+- DevTools UX Polish: weniger cramped, bessere Gruppen, klare Release-/Security-Gates.

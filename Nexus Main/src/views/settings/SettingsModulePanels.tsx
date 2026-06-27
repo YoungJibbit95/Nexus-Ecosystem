@@ -90,6 +90,38 @@ export function SettingsModulePanels({
     },
   };
   const activePanelHelp = panelModeHelp[panelRenderer];
+  const glassPerformance = React.useMemo(() => {
+    let score = 100;
+    score -= Math.max(0, (Number(t.blur?.panelBlur) || 0) - 12) * 1.6;
+    score -= Math.max(0, (Number(t.blur?.sidebarBlur) || 0) - 12) * 1.1;
+    score -= Math.max(0, (Number(t.glassmorphism?.glassDepth) || 1) - 1) * 8;
+    score -= Math.max(0, (Number(t.glassmorphism?.saturation) || 120) - 140) * 0.12;
+    if (t.glassmorphism?.animatedBlur) score -= 14;
+    if (panelRenderer === "glass-shader") score -= 18;
+    if (glowRenderer === "three") score -= 10;
+    if (t.background?.animated) score -= 8;
+    if (t.animations?.particleEffects) score -= 7;
+    if (t.animations?.glowPulse) score -= 4;
+    const value = Math.max(0, Math.min(100, Math.round(score)));
+    const level =
+      value >= 78
+        ? { label: "Sehr gut", color: "#30d158", text: "Alltagstauglich auch auf mittleren Geraeten." }
+        : value >= 58
+          ? { label: "Okay", color: "#ffcc00", text: "Sieht gut aus, kann auf schwacher Hardware spuerbar werden." }
+          : { label: "Schwer", color: "#ff453a", text: "Fuer Release-Smokes lieber Blur, Shader und Animationen reduzieren." };
+    return { value, ...level };
+  }, [
+    glowRenderer,
+    panelRenderer,
+    t.animations?.glowPulse,
+    t.animations?.particleEffects,
+    t.background?.animated,
+    t.blur?.panelBlur,
+    t.blur?.sidebarBlur,
+    t.glassmorphism?.animatedBlur,
+    t.glassmorphism?.glassDepth,
+    t.glassmorphism?.saturation,
+  ]);
 
   return (
     <>
@@ -590,6 +622,57 @@ export function SettingsModulePanels({
                       </Row>
                     </div>
                   ) : null}
+                </ModuleCard>
+
+                <ModuleCard
+                  title="Glass Performance"
+                  desc="Schaetzung fuer aktuelle Blur-, Shader-, Glow- und Motion-Optionen."
+                >
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "minmax(0,1fr) auto",
+                      gap: 12,
+                      alignItems: "center",
+                    }}
+                  >
+                    <div>
+                      <div
+                        style={{
+                          height: 10,
+                          borderRadius: 999,
+                          background: "rgba(255,255,255,0.08)",
+                          overflow: "hidden",
+                          border: "1px solid rgba(255,255,255,0.08)",
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: `${glassPerformance.value}%`,
+                            height: "100%",
+                            borderRadius: 999,
+                            background: `linear-gradient(90deg, ${glassPerformance.color}, rgba(${rgb},0.75))`,
+                          }}
+                        />
+                      </div>
+                      <div style={{ marginTop: 8, fontSize: 11, opacity: 0.72, lineHeight: 1.45 }}>
+                        {glassPerformance.text}
+                      </div>
+                    </div>
+                    <div
+                      style={{
+                        minWidth: 88,
+                        textAlign: "right",
+                        color: glassPerformance.color,
+                        fontWeight: 900,
+                      }}
+                    >
+                      <div style={{ fontSize: 22 }}>{glassPerformance.value}</div>
+                      <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                        {glassPerformance.label}
+                      </div>
+                    </div>
+                  </div>
                 </ModuleCard>
 
                 <ModuleCard

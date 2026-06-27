@@ -36,6 +36,8 @@ export function useDashboardLayoutEditing(editLayout: boolean) {
 
   const gridRef = useRef<HTMLDivElement>(null);
   const dragPreviewRef = useRef<PointerDragState | null>(null);
+  const dragMoveFrameRef = useRef<number | null>(null);
+  const dragMoveEventRef = useRef<{ clientX: number; clientY: number } | null>(null);
 
   useEffect(() => {
     if (!editLayout) return;
@@ -168,6 +170,11 @@ export function useDashboardLayoutEditing(editLayout: boolean) {
   );
 
   const clearDragState = useCallback(() => {
+    if (dragMoveFrameRef.current !== null) {
+      window.cancelAnimationFrame(dragMoveFrameRef.current);
+      dragMoveFrameRef.current = null;
+    }
+    dragMoveEventRef.current = null;
     setDragState(null);
     dragPreviewRef.current = null;
   }, []);
@@ -309,8 +316,17 @@ export function useDashboardLayoutEditing(editLayout: boolean) {
     if (!editLayout || !dragState) return;
 
     const handlePointerMove = (event: PointerEvent) => {
+      dragMoveEventRef.current = {
+        clientX: event.clientX,
+        clientY: event.clientY,
+      };
+      if (dragMoveFrameRef.current !== null) return;
+      dragMoveFrameRef.current = window.requestAnimationFrame(() => {
+        dragMoveFrameRef.current = null;
+        const latestEvent = dragMoveEventRef.current;
+        if (!latestEvent) return;
       const targetElement = document
-        .elementFromPoint(event.clientX, event.clientY)
+        .elementFromPoint(latestEvent.clientX, latestEvent.clientY)
         ?.closest("[data-dashboard-widget-id]") as HTMLElement | null;
       const targetWidgetId = (targetElement?.dataset.dashboardWidgetId as WidgetId | undefined) ?? null;
       const current = normalizeLayout(widgets);
@@ -323,16 +339,17 @@ export function useDashboardLayoutEditing(editLayout: boolean) {
             x: clampX(targetWidget.x, dragState.span),
             y: targetWidget.y,
           } as GridCell)
-        : resolveGridCellFromPointer(event.clientX, event.clientY, dragState.span) ?? dragState.targetCell;
+        : resolveGridCellFromPointer(latestEvent.clientX, latestEvent.clientY, dragState.span) ?? dragState.targetCell;
       const nextDrag: PointerDragState = {
         ...dragState,
-        clientX: event.clientX,
-        clientY: event.clientY,
+        clientX: latestEvent.clientX,
+        clientY: latestEvent.clientY,
         targetCell: pointerCell,
         targetWidgetId: targetWidget?.id ?? null,
       };
       dragPreviewRef.current = nextDrag;
       setDragState(nextDrag);
+      });
     };
 
     const handlePointerEnd = () => {
@@ -355,6 +372,10 @@ export function useDashboardLayoutEditing(editLayout: boolean) {
       window.removeEventListener("pointermove", handlePointerMove);
       window.removeEventListener("pointerup", handlePointerEnd);
       window.removeEventListener("pointercancel", handlePointerEnd);
+      if (dragMoveFrameRef.current !== null) {
+        window.cancelAnimationFrame(dragMoveFrameRef.current);
+        dragMoveFrameRef.current = null;
+      }
     };
   }, [clearDragState, dragState, editLayout, resolveGridCellFromPointer, setWidgetGrid, widgets]);
 

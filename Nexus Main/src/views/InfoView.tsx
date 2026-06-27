@@ -6,6 +6,7 @@ import {
   Keyboard,
   Layers,
   Monitor,
+  Search,
   ShieldCheck,
   SlidersHorizontal,
   Sparkles,
@@ -576,6 +577,33 @@ const MAGIC_BLOCKS = [
   "nexus-quadrant",
 ];
 
+const MARKDOWN_REFERENCE = [
+  { title: "Text", body: "# H1, ## H2, **bold**, *italic*, `inline code`, > quote" },
+  { title: "Listen", body: "- Bullet, 1. Numbered, - [ ] Checklist, - [x] Done" },
+  { title: "Links", body: "[Label](https://...), [[Wiki Link]], ![Alt](image.png)" },
+  { title: "Struktur", body: "---, Tabellen, fenced code blocks, details blocks" },
+  { title: "Nexus Blocks", body: MAGIC_BLOCKS.join(", ") },
+];
+
+const TERMINAL_REFERENCE = [
+  "help",
+  "views / ls",
+  "goto <view>",
+  "spotlight [query]",
+  "search <query>",
+  "canvas list / new / layout / template / focus",
+  "theme list / theme <preset>",
+  "profile focus / cinematic / compact / default",
+  "mode dark / mode light",
+  "new note / new task / new reminder",
+  "stats / today / calc <expression>",
+  "macro start / stop / list / show / run / delete",
+  "undo / redo / history",
+  "terminal open / close / toggle",
+  "clear / cls / exit",
+  "time / date / now",
+];
+
 function PillButton({
   active,
   label,
@@ -748,6 +776,7 @@ export function InfoView({
   const [activeTemplateCategory, setActiveTemplateCategory] =
     useState<NexusTemplatePackCategory>("notes");
   const [copiedTemplateId, setCopiedTemplateId] = useState<string | null>(null);
+  const [infoSearch, setInfoSearch] = useState("");
   const [open, setOpen] = useState<Record<string, boolean>>({
     about: true,
     docs: true,
@@ -755,6 +784,7 @@ export function InfoView({
     templates: true,
     notes: true,
     accounts: true,
+    reference: true,
     settings: false,
     architecture: false,
     release: false,
@@ -788,6 +818,28 @@ export function InfoView({
       ).join("\n\n"),
     [],
   );
+  const infoSearchResults = useMemo(() => {
+    const query = infoSearch.trim().toLowerCase();
+    if (!query) return [];
+    const docs = VIEW_DOCS.map((view) => ({
+      type: "View",
+      title: view.title,
+      body: `${view.purpose} ${view.features.join(" ")} ${view.shortcuts?.join(" ") || ""}`,
+    }));
+    const markdown = MARKDOWN_REFERENCE.map((item) => ({
+      type: "Markdown",
+      title: item.title,
+      body: item.body,
+    }));
+    const terminal = TERMINAL_REFERENCE.map((command) => ({
+      type: "Terminal",
+      title: command,
+      body: "Terminal command",
+    }));
+    return [...docs, ...markdown, ...terminal]
+      .filter((item) => `${item.type} ${item.title} ${item.body}`.toLowerCase().includes(query))
+      .slice(0, 8);
+  }, [infoSearch]);
 
   return (
     <div style={{ height: "100%", overflowY: "auto", padding: "16px 18px" }}>
@@ -933,6 +985,94 @@ export function InfoView({
             />
           </Grid2>
         </Acc>
+
+        <div
+          style={{
+            marginBottom: 14,
+            borderRadius: 16,
+            border: `1px solid rgba(${rgb},0.18)`,
+            background: "rgba(255,255,255,0.045)",
+            padding: 12,
+            display: "grid",
+            gap: 10,
+          }}
+        >
+          <label
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 9,
+              borderRadius: 12,
+              border: "1px solid rgba(255,255,255,0.1)",
+              background: "rgba(0,0,0,0.18)",
+              padding: "10px 12px",
+            }}
+          >
+            <Search size={15} style={{ color: t.accent, flexShrink: 0 }} />
+            <input
+              value={infoSearch}
+              onChange={(event) => setInfoSearch(event.target.value)}
+              placeholder="Handbuch durchsuchen: Canvas, Markdown, Terminal, Settings..."
+              style={{
+                width: "100%",
+                minWidth: 0,
+                border: "none",
+                outline: "none",
+                background: "transparent",
+                color: "inherit",
+                fontSize: 13,
+                fontWeight: 650,
+              }}
+            />
+          </label>
+          {infoSearchResults.length > 0 ? (
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit,minmax(210px,1fr))",
+                gap: 8,
+              }}
+            >
+              {infoSearchResults.map((item) => (
+                <button
+                  key={`${item.type}-${item.title}`}
+                  type="button"
+                  onClick={() => {
+                    if (item.type === "View") {
+                      setActiveGuide(item.title);
+                      setOpen((state) => ({ ...state, views: true }));
+                      return;
+                    }
+                    setOpen((state) => ({ ...state, reference: true, notes: true }));
+                  }}
+                  style={{
+                    textAlign: "left",
+                    borderRadius: 12,
+                    border: "1px solid rgba(255,255,255,0.1)",
+                    background: "rgba(255,255,255,0.04)",
+                    color: "inherit",
+                    cursor: "pointer",
+                    padding: 10,
+                  }}
+                >
+                  <div style={{ fontSize: 10, color: t.accent, fontWeight: 850, textTransform: "uppercase" }}>
+                    {item.type}
+                  </div>
+                  <div style={{ marginTop: 3, fontSize: 13, fontWeight: 850 }}>
+                    {item.title}
+                  </div>
+                  <div style={{ marginTop: 3, fontSize: 11, opacity: 0.62, lineHeight: 1.45 }}>
+                    {item.body.slice(0, 120)}
+                  </div>
+                </button>
+              ))}
+            </div>
+          ) : infoSearch.trim() ? (
+            <div style={{ fontSize: 12, opacity: 0.62 }}>
+              Kein Treffer. Versuch einen View-Namen, Markdown-Block oder Terminal-Befehl.
+            </div>
+          ) : null}
+        </div>
 
         <Acc
           title="Template Packs"
@@ -1187,6 +1327,7 @@ export function InfoView({
             <Card
               icon="🪄"
               title="Magic Blocks"
+              keys={TERMINAL_REFERENCE.slice(0, 6)}
               desc={`Unterstützt: ${MAGIC_BLOCKS.join(", ")}.`}
             />
             <Card
