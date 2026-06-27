@@ -474,7 +474,7 @@ const DEFAULT_BG: BackgroundConfig = {
   mode: 'solid',
   stops: [{ color: '#007AFF', position: 0, opacity: 0.15 }, { color: '#5E5CE6', position: 100, opacity: 0.15 }],
   angle: 135, animated: false, animationSpeed: 4, noiseOpacity: 0.03, meshIntensity: 0.3,
-  overlayOpacity: 0, vignette: false, vignetteStrength: 0.4,
+  overlayOpacity: 0.7, vignette: false, vignetteStrength: 0.4,
   scanlines: false, panelBgMode: 'glass',
 }
 
@@ -684,6 +684,27 @@ const sanitizeQolConfig = (
   }
 }
 
+const sanitizeBackgroundConfig = (
+  value: unknown,
+  fallback: BackgroundConfig,
+): BackgroundConfig => {
+  const merged = mergeConfig(fallback, value)
+  return {
+    ...merged,
+    mode: sanitizeBgMode(merged.mode, fallback.mode),
+    panelBgMode: sanitizePanelBgMode(merged.panelBgMode, fallback.panelBgMode),
+    angle: clampFiniteNumber(merged.angle, 0, 360, fallback.angle),
+    animationSpeed: clampFiniteNumber(merged.animationSpeed, 2, 10, fallback.animationSpeed),
+    noiseOpacity: clampFiniteNumber(merged.noiseOpacity, 0, 0.16, fallback.noiseOpacity),
+    meshIntensity: clampFiniteNumber(merged.meshIntensity, 0.05, 0.9, fallback.meshIntensity),
+    overlayOpacity: clampFiniteNumber(merged.overlayOpacity, 0.25, 1, fallback.overlayOpacity),
+    vignetteStrength: clampFiniteNumber(merged.vignetteStrength, 0, 1, fallback.vignetteStrength),
+    animated: typeof merged.animated === 'boolean' ? merged.animated : fallback.animated,
+    vignette: typeof merged.vignette === 'boolean' ? merged.vignette : fallback.vignette,
+    scanlines: typeof merged.scanlines === 'boolean' ? merged.scanlines : fallback.scanlines,
+  }
+}
+
 const sanitizeThemeSnapshot = (persistedRaw: unknown, current: Theme): Theme => {
   const persisted = isRecord(persistedRaw) ? (persistedRaw as Partial<Theme>) : {}
   const sidebarStyle = sanitizeSidebarStyle(persisted.sidebarStyle, current.sidebarStyle)
@@ -702,12 +723,7 @@ const sanitizeThemeSnapshot = (persistedRaw: unknown, current: Theme): Theme => 
   mergedGlassmorphism.glassDepth = Number.isFinite(Number(mergedGlassmorphism.glassDepth))
     ? Math.max(0.1, Math.min(3, Number(mergedGlassmorphism.glassDepth)))
     : current.glassmorphism.glassDepth
-  const mergedBackground = mergeConfig(current.background, persisted.background)
-  mergedBackground.mode = sanitizeBgMode(mergedBackground.mode, current.background.mode)
-  mergedBackground.panelBgMode = sanitizePanelBgMode(
-    mergedBackground.panelBgMode,
-    current.background.panelBgMode,
-  )
+  const mergedBackground = sanitizeBackgroundConfig(persisted.background, current.background)
   const mergedQol = sanitizeQolConfig(persisted.qol, current.qol)
 
   return {
@@ -779,7 +795,7 @@ export const useTheme = create<Theme>()(
       setColors: (c) => set(c),
       setGlow: (g) => set((s) => ({ glow: { ...s.glow, ...g } })),
       setGradient: (g) => set((s) => ({ gradient: { ...s.gradient, ...g } })),
-      setBackground: (b) => set((s) => ({ background: { ...s.background, ...b } })),
+      setBackground: (b) => set((s) => ({ background: sanitizeBackgroundConfig(b, s.background) })),
       setBlur: (b) => set((s) => ({ blur: { ...s.blur, ...b } })),
       setGlassmorphism: (g) => set((s) => ({ glassmorphism: { ...s.glassmorphism, ...g } })),
       setVisual: (v) => set((s) => ({ visual: sanitizeVisualConfig(v, s.visual) })),

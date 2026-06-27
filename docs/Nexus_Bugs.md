@@ -17,6 +17,7 @@ Notes Split und Edit View mehr Raum geben damit man den Text besser sehen kann |
 Buttons und Bars uebersichtlicher und einfacher zu verstehen machen | true
 Notes Store von Editor-Draft-State trennen | false
 Markdown/Emoji/Magic Daten in kleinere Module auslagern | false
+Notes Tags aus der Format-Leiste nehmen und in eine kompakte Status-Leiste verschieben | true
 ```
 
 ---
@@ -40,6 +41,9 @@ Leistungsanzeige fuer Glass Optionen in Settings adden | true
 Notes UI weniger cramped und nutzerfreundlicher machen | true
 DevTools UI weiter verdichten und besser gruppieren | true
 App Backgrounds sichtbarer machen, damit Settings-Aenderungen im Shell-Look wirklich ankommen | true
+App Backgrounds optional animierbar machen und in Settings steuerbar machen | true
+Glass Performance Anzeige mit Kostentreibern und Release-Safe/Balanced Presets ausbauen | true
+GitHub UI-Gates fuer Main, Website und API-Deploy-Automation ergaenzen | true
 ```
 
 ---
@@ -74,6 +78,8 @@ Website nutzt fuer aktive Nutzer echte Nutzer-Metriken und labelt technische Cli
 Maus-Glow Toggle mit Checkbox oben links machen | true
 Website-Text ab API/Developer/Account/Pricing konkreter und weniger Beta-lastig halten | true
 Screenshots nach Stabilitaetsblock neu capturen | false
+VPS Autoupdate Deploy ueber GitHub Actions starten | true
+GitHub Deploy-Secrets fuer `srv1513091.hstgr.cloud` setzen und Live-API neu starten | false
 ```
 
 ---

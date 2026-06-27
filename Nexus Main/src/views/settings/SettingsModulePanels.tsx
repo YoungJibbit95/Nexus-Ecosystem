@@ -91,17 +91,52 @@ export function SettingsModulePanels({
   };
   const activePanelHelp = panelModeHelp[panelRenderer];
   const glassPerformance = React.useMemo(() => {
-    let score = 100;
-    score -= Math.max(0, (Number(t.blur?.panelBlur) || 0) - 12) * 1.6;
-    score -= Math.max(0, (Number(t.blur?.sidebarBlur) || 0) - 12) * 1.1;
-    score -= Math.max(0, (Number(t.glassmorphism?.glassDepth) || 1) - 1) * 8;
-    score -= Math.max(0, (Number(t.glassmorphism?.saturation) || 120) - 140) * 0.12;
-    if (t.glassmorphism?.animatedBlur) score -= 14;
-    if (panelRenderer === "glass-shader") score -= 18;
-    if (glowRenderer === "three") score -= 10;
-    if (t.background?.animated) score -= 8;
-    if (t.animations?.particleEffects) score -= 7;
-    if (t.animations?.glowPulse) score -= 4;
+    const drivers = [
+      {
+        id: "blur",
+        label: "Blur",
+        cost:
+          Math.max(0, (Number(t.blur?.panelBlur) || 0) - 12) * 1.6 +
+          Math.max(0, (Number(t.blur?.sidebarBlur) || 0) - 12) * 1.1,
+        detail: `Panel ${t.blur?.panelBlur ?? 0}px / Sidebar ${t.blur?.sidebarBlur ?? 0}px`,
+      },
+      {
+        id: "glass",
+        label: "Glass",
+        cost:
+          Math.max(0, (Number(t.glassmorphism?.glassDepth) || 1) - 1) * 8 +
+          Math.max(0, (Number(t.glassmorphism?.saturation) || 120) - 140) * 0.12 +
+          (t.glassmorphism?.animatedBlur ? 14 : 0) +
+          (panelRenderer === "glass-shader" ? 18 : 0),
+        detail:
+          panelRenderer === "glass-shader"
+            ? "Shader + Tiefe"
+            : t.glassmorphism?.animatedBlur
+              ? "Animierter Blur"
+              : "CSS Blur",
+      },
+      {
+        id: "motion",
+        label: "Motion",
+        cost:
+          (glowRenderer === "three" ? 10 : 0) +
+          (t.animations?.particleEffects ? 7 : 0) +
+          (t.animations?.glowPulse ? 4 : 0) +
+          (t.animations?.floatEffect ? 3 : 0),
+        detail: glowRenderer === "three" ? "Three Glow aktiv" : "CSS Motion",
+      },
+      {
+        id: "background",
+        label: "Background",
+        cost:
+          (t.background?.animated ? 8 : 0) +
+          Math.max(0, (Number(t.background?.meshIntensity) || 0) - 0.42) * 14 +
+          Math.max(0, (Number(t.background?.noiseOpacity) || 0) - 0.05) * 80,
+        detail: t.background?.animated ? "animiert" : "statisch",
+      },
+    ];
+    const totalCost = drivers.reduce((sum, driver) => sum + driver.cost, 0);
+    const score = 100 - totalCost;
     const value = Math.max(0, Math.min(100, Math.round(score)));
     const level =
       value >= 78
@@ -109,19 +144,68 @@ export function SettingsModulePanels({
         : value >= 58
           ? { label: "Okay", color: "#ffcc00", text: "Sieht gut aus, kann auf schwacher Hardware spuerbar werden." }
           : { label: "Schwer", color: "#ff453a", text: "Fuer Release-Smokes lieber Blur, Shader und Animationen reduzieren." };
-    return { value, ...level };
+    return {
+      value,
+      ...level,
+      drivers: drivers
+        .map((driver) => ({ ...driver, value: Math.max(0, Math.round(driver.cost)) }))
+        .sort((a, b) => b.value - a.value),
+    };
   }, [
     glowRenderer,
     panelRenderer,
     t.animations?.glowPulse,
     t.animations?.particleEffects,
     t.background?.animated,
+    t.background?.meshIntensity,
+    t.background?.noiseOpacity,
     t.blur?.panelBlur,
     t.blur?.sidebarBlur,
     t.glassmorphism?.animatedBlur,
     t.glassmorphism?.glassDepth,
     t.glassmorphism?.saturation,
   ]);
+
+  const applyReleaseSafeVisuals = React.useCallback(() => {
+    t.setGlassmorphism({
+      panelRenderer: "blur",
+      glowRenderer: "css",
+      animatedBlur: false,
+      glassDepth: 0.7,
+      saturation: 140,
+      borderGlowIntensity: 0.32,
+    });
+    t.setBlur({ panelBlur: 12, sidebarBlur: 12, modalBlur: 18, noiseOverlay: false });
+    t.setBackground({
+      animated: false,
+      overlayOpacity: 0.58,
+      meshIntensity: 0.28,
+      noiseOpacity: 0.015,
+      scanlines: false,
+    });
+    t.setAnimations({
+      particleEffects: false,
+      glowPulse: false,
+      floatEffect: false,
+      borderFlow: false,
+    });
+    toast("Release Safe Visuals angewendet");
+  }, [t, toast]);
+
+  const applyBalancedVisuals = React.useCallback(() => {
+    t.setGlassmorphism({
+      panelRenderer: "blur",
+      glowRenderer: "css",
+      animatedBlur: false,
+      glassDepth: 1,
+      saturation: 170,
+      borderGlowIntensity: 0.46,
+    });
+    t.setBlur({ panelBlur: 16, sidebarBlur: 16, modalBlur: 22 });
+    t.setBackground({ overlayOpacity: 0.72, meshIntensity: 0.42, noiseOpacity: 0.02 });
+    t.setAnimations({ particleEffects: false, glowPulse: false });
+    toast("Balanced Visuals angewendet");
+  }, [t, toast]);
 
   return (
     <>
@@ -626,7 +710,7 @@ export function SettingsModulePanels({
 
                 <ModuleCard
                   title="Glass Performance"
-                  desc="Schaetzung fuer aktuelle Blur-, Shader-, Glow- und Motion-Optionen."
+                  desc="Schaetzung fuer aktuelle Blur-, Shader-, Glow-, Background- und Motion-Optionen."
                 >
                   <div
                     style={{
@@ -658,6 +742,44 @@ export function SettingsModulePanels({
                       <div style={{ marginTop: 8, fontSize: 11, opacity: 0.72, lineHeight: 1.45 }}>
                         {glassPerformance.text}
                       </div>
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "repeat(auto-fit,minmax(120px,1fr))",
+                          gap: 7,
+                          marginTop: 10,
+                        }}
+                      >
+                        {glassPerformance.drivers.map((driver) => (
+                          <div
+                            key={driver.id}
+                            style={{
+                              borderRadius: 10,
+                              border: "1px solid rgba(255,255,255,0.09)",
+                              background: "rgba(255,255,255,0.035)",
+                              padding: "7px 8px",
+                            }}
+                          >
+                            <div
+                              style={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                gap: 8,
+                                fontSize: 10,
+                                fontWeight: 820,
+                              }}
+                            >
+                              <span>{driver.label}</span>
+                              <span style={{ color: driver.value > 14 ? "#ff9f0a" : "rgba(255,255,255,0.58)" }}>
+                                {driver.value}
+                              </span>
+                            </div>
+                            <div style={{ marginTop: 3, fontSize: 9.5, opacity: 0.58, lineHeight: 1.3 }}>
+                              {driver.detail}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                     <div
                       style={{
@@ -672,6 +794,40 @@ export function SettingsModulePanels({
                         {glassPerformance.label}
                       </div>
                     </div>
+                  </div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
+                    <button
+                      type="button"
+                      onClick={applyReleaseSafeVisuals}
+                      style={{
+                        borderRadius: 999,
+                        border: "1px solid rgba(48,209,88,0.34)",
+                        background: "rgba(48,209,88,0.12)",
+                        color: "#30d158",
+                        padding: "7px 11px",
+                        fontSize: 11,
+                        fontWeight: 820,
+                        cursor: "pointer",
+                      }}
+                    >
+                      Release Safe
+                    </button>
+                    <button
+                      type="button"
+                      onClick={applyBalancedVisuals}
+                      style={{
+                        borderRadius: 999,
+                        border: `1px solid rgba(${rgb},0.34)`,
+                        background: `rgba(${rgb},0.12)`,
+                        color: t.accent,
+                        padding: "7px 11px",
+                        fontSize: 11,
+                        fontWeight: 820,
+                        cursor: "pointer",
+                      }}
+                    >
+                      Balanced
+                    </button>
                   </div>
                 </ModuleCard>
 
@@ -779,6 +935,16 @@ export function SettingsModulePanels({
                   <div style={{ marginTop: 10 }}>
                     <Row>
                       <Slider
+                        label="Background Visibility"
+                        value={t.background.overlayOpacity}
+                        min={0.25}
+                        max={1}
+                        step={0.05}
+                        onChange={(value) =>
+                          t.setBackground({ overlayOpacity: value })
+                        }
+                      />
+                      <Slider
                         label="Mesh / Glow Strength"
                         value={t.background.meshIntensity}
                         min={0.05}
@@ -796,6 +962,26 @@ export function SettingsModulePanels({
                         step={0.01}
                         onChange={(value) =>
                           t.setBackground({ noiseOpacity: value })
+                        }
+                      />
+                    </Row>
+                  </div>
+                  <div style={{ marginTop: 10 }}>
+                    <Row>
+                      <Toggle
+                        label="Animate Background"
+                        desc="Bewegt Aura und Window-Layer; fuer Release-Smokes abschaltbar."
+                        checked={Boolean(t.background.animated)}
+                        onChange={(next) => t.setBackground({ animated: next })}
+                      />
+                      <Slider
+                        label="Animation Speed"
+                        value={t.background.animationSpeed}
+                        min={2}
+                        max={10}
+                        step={1}
+                        onChange={(value) =>
+                          t.setBackground({ animationSpeed: value })
                         }
                       />
                     </Row>

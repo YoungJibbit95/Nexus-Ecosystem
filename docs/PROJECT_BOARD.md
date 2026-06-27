@@ -100,3 +100,18 @@ Abgearbeitet:
 Blockiert:
 
 - API Live-Deploy: `NexusAPI` `main` ist gemerged und Release Gate ist gruen, aber `srv1513091.hstgr.cloud` akzeptiert die lokal vorhandenen SSH-Keys nicht. Der Live-Contract bleibt auf der alten Runtime, bis der VPS-Key/Zugang autorisiert ist.
+
+## Stand 2026-06-27 - Theme/Automation Polish Batch
+
+Abgearbeitet:
+
+- Theme Engine: App Backgrounds sind sichtbar staerker, koennen animiert/deaktiviert werden und bekommen Visibility/Speed-Regler.
+- Sidebar/Panel Themeing: Sidebar mischt Theme-Tint und Panel-Texture, damit Presets farblich nicht mehr in grauem Glas verschwinden.
+- Settings Performance: Glass Performance zeigt Kostentreiber fuer Blur, Glass, Motion und Background plus Release-Safe/Balanced Presets.
+- Notes UX: Tags sind aus der Format-Leiste raus und sitzen kompakt in der Statuszeile; Editor/Preview bekommen mehr Raum.
+- GitHub Automation: Main UI Gate, Website CI, API Dependabot und VPS Autoupdate Workflow sind angelegt.
+- Verification: Main Build, Single-React, Website Typecheck/Build-Budget/API-Integration und npm Audits fuer Main/Website/API sind gruen.
+
+Blockiert:
+
+- API Live-Deploy: `youngjibbit95/NexusAPI` hat keine `NEXUS_VPS_*` Secrets; der neue Workflow kann den VPS erst starten, wenn Host/User/SSH-Key im Repo gesetzt sind.

@@ -1,0 +1,66 @@
+name: Main UI Gate
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - 'Nexus Main/**'
+      - 'packages/nexus-core/**'
+      - 'tools/verify-single-react.mjs'
+      - '.github/workflows/main-ui-gate.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'Nexus Main/**'
+      - 'packages/nexus-core/**'
+      - 'tools/verify-single-react.mjs'
+      - '.github/workflows/main-ui-gate.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: main-ui-gate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  main-ui:
+    name: Desktop UI build and audit
+    runs-on: windows-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: |
+            Nexus Main/package-lock.json
+            packages/nexus-core/package-lock.json
+
+      - name: Install Nexus Core
+        shell: pwsh
+        run: npm --prefix "packages/nexus-core" install
+
+      - name: Install Main dependencies
+        shell: pwsh
+        run: npm --prefix "Nexus Main" ci
+
+      - name: Verify single React runtime
+        shell: pwsh
+        run: npm run verify:single-react
+
+      - name: Build Nexus Main
+        shell: pwsh
+        run: npm --prefix "Nexus Main" run build
+
+      - name: Audit Main dependencies
+        shell: pwsh
+        run: npm --prefix "Nexus Main" audit --audit-level=moderate
