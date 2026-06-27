@@ -20,6 +20,13 @@ const DEFAULT_CLIENT_CAPABILITIES = Object.freeze({
       dynamicRegistration: false,
       contentFormat: ["markdown", "plaintext"],
     },
+    definition: {
+      dynamicRegistration: false,
+      linkSupport: true,
+    },
+    formatting: {
+      dynamicRegistration: false,
+    },
     publishDiagnostics: {
       relatedInformation: true,
       versionSupport: true,

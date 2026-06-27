@@ -6,6 +6,8 @@ export const LSP_METHODS = Object.freeze({
   DID_CLOSE: "textDocument/didClose",
   COMPLETION: "textDocument/completion",
   HOVER: "textDocument/hover",
+  DEFINITION: "textDocument/definition",
+  FORMATTING: "textDocument/formatting",
   DIAGNOSTIC: "textDocument/diagnostic",
 });
 
@@ -100,10 +102,41 @@ export function normalizeHover(result) {
   return result;
 }
 
+export function normalizeDefinition(result) {
+  if (!result) return [];
+  if (Array.isArray(result)) return result.filter(Boolean);
+  return [result].filter(Boolean);
+}
+
+export function normalizeTextEdits(result) {
+  if (!result) return [];
+  if (Array.isArray(result)) return result.filter(Boolean);
+  if (Array.isArray(result.edits)) return result.edits.filter(Boolean);
+  if (Array.isArray(result.items)) return result.items.filter(Boolean);
+  return [];
+}
+
 export function normalizeDiagnostics(result) {
   if (!result) return [];
   if (Array.isArray(result)) return result;
   if (Array.isArray(result.items)) return result.items;
   if (Array.isArray(result.diagnostics)) return result.diagnostics;
   return [];
+}
+
+export function toLspFormattingOptions(options = {}) {
+  const tabSize = Number(options.tabSize);
+  return {
+    tabSize: Number.isFinite(tabSize) && tabSize > 0 ? tabSize : 2,
+    insertSpaces: options.insertSpaces !== false,
+    ...(typeof options.trimTrailingWhitespace === "boolean"
+      ? { trimTrailingWhitespace: options.trimTrailingWhitespace }
+      : {}),
+    ...(typeof options.insertFinalNewline === "boolean"
+      ? { insertFinalNewline: options.insertFinalNewline }
+      : {}),
+    ...(typeof options.trimFinalNewlines === "boolean"
+      ? { trimFinalNewlines: options.trimFinalNewlines }
+      : {}),
+  };
 }

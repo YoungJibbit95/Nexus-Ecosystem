@@ -132,6 +132,22 @@ export function createLspService(options = {}) {
       return client.getHover(document, position, context);
     },
 
+    async getDefinition(documentOrUri, position, context = {}) {
+      const document = resolveDocument(documentOrUri);
+      if (!document) return [];
+      const client = ensureClient(document.languageId);
+      if (!client) return [];
+      return client.getDefinition(document, position, context);
+    },
+
+    async formatDocument(documentOrUri, options = {}) {
+      const document = resolveDocument(documentOrUri);
+      if (!document) return [];
+      const client = ensureClient(document.languageId);
+      if (!client) return [];
+      return client.formatDocument(document, options);
+    },
+
     onDiagnostics(listener) {
       diagnosticsListeners.add(listener);
       return () => diagnosticsListeners.delete(listener);
