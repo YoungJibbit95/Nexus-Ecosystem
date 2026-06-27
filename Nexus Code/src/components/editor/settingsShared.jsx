@@ -1,5 +1,9 @@
 import React from 'react';
 import { Palette, Type, Code2, Monitor, Zap, Sparkles } from 'lucide-react';
+import {
+  getBackgroundPresetOptions,
+  getThemePresetOptions,
+} from '../../theme/nexusThemeResolver.js';
 
 export function NativeLabel({ children, className = "" }) {
   return (
@@ -47,7 +51,7 @@ export function NativeSlider({
       value={current}
       onChange={(e) => onValueChange([Number(e.target.value)])}
       className={`w-full h-1.5 rounded-full appearance-none cursor-pointer ${className}`}
-      style={{ accentColor: "#8000ff" }}
+      style={{ accentColor: "var(--nexus-primary, #7c8cff)" }}
     />
   );
 }
@@ -62,9 +66,11 @@ export function NativeSwitch({ checked, onCheckedChange }) {
       className="relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full transition-colors duration-200 focus:outline-none"
       style={{
         background: checked
-          ? "linear-gradient(135deg,#8000ff,#0033ff)"
+          ? "linear-gradient(135deg,var(--nexus-primary, #7c8cff),var(--nexus-accent-2, #2dd4bf))"
           : "rgba(255,255,255,0.1)",
-        boxShadow: checked ? "0 0 8px rgba(128,0,255,0.4)" : "none",
+        boxShadow: checked
+          ? "0 0 6px var(--nexus-accent-glow, rgba(124,140,255,0.18))"
+          : "none",
       }}
     >
       <span
@@ -104,66 +110,11 @@ export function NativeSelect({ value, onValueChange, children, className = "" })
 }
 
 export const themes = [
-  {
-    id: "nexus_vibrant",
-    name: "Nexus Vibrant",
-    colors: ["#8000ff", "#61afef", "#c678dd"], // accent, function, keyword
-  },
-  {
-    id: "neon_pink",
-    name: "Neon Pink",
-    colors: ["#ff00ff", "#ffffff", "#00ffff"],
-  },
-  {
-    id: "ocean_light",
-    name: "Ocean Light",
-    colors: ["#0ea5e9", "#eef2ff", "#10b981"],
-  },
-  {
-    id: "midnight_mystery",
-    name: "Midnight Mystery",
-    colors: ["#a855f7", "#f3f4f6", "#3b0764"],
-  },
-  {
-    id: "dracula_classic",
-    name: "Dracula Classic",
-    colors: ["#bd93f9", "#f8f8f2", "#ff79c6"],
-  },
-  {
-    id: "void_pitch",
-    name: "Void Pitch",
-    colors: ["#ffffff", "#ffffff", "#888888"],
-  },
+  ...getThemePresetOptions(),
 ];
 
 export const backgrounds = [
-  {
-    id: "nexus_dark",
-    name: "Nexus Dark",
-    colors: ["#03030b", "#060614", "#8000ff"],
-  },
-  {
-    id: "neon_ultra",
-    name: "Neon Ultra",
-    colors: ["#050010", "#1a0033", "#ff00ff"],
-  },
-  {
-    id: "ocean_wave",
-    name: "Ocean Wave",
-    colors: ["#000814", "#001d3d", "#0ea5e9"],
-  },
-  {
-    id: "midnight_purple",
-    name: "Midnight Purple",
-    colors: ["#1a0b2e", "#03030b", "#a855f7"],
-  },
-  {
-    id: "cyber_sunset",
-    name: "Cyber Sunset",
-    colors: ["#120458", "#ff0055", "#ff0055"],
-  },
-  { id: "dracula", name: "Dracula", colors: ["#282a36", "#343746", "#bd93f9"] },
-  { id: "void", name: "Void", colors: ["#000000", "#0a0a0a", "#ffffff"] },
+  ...getBackgroundPresetOptions(),
 ];
 
 export const fonts = [

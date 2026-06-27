@@ -89,13 +89,13 @@ export default function TabBar({
 
   return (
     <div
-      className="flex items-center h-10 shrink-0 border-b border-white/5"
+      className="nx-code-tabbar flex items-center h-10 shrink-0 border-b border-white/5"
       style={{
         background: "rgba(0,0,0,0.12)",
         borderBottom: "1px solid var(--nexus-border)",
       }}
     >
-      <div className="flex items-center gap-1 px-2 shrink-0 border-r border-white/5">
+      <div className="nx-code-tabbar-actions flex items-center gap-1 px-2 shrink-0 border-r border-white/5">
         <div className="relative" ref={menuRef}>
           <ActionButton
             title="Neue Datei"
@@ -111,7 +111,7 @@ export default function TabBar({
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 8, scale: 0.98 }}
                 transition={{ duration: 0.16 }}
-                className="absolute left-0 top-full mt-2 z-50 w-64 rounded-xl border border-white/10 bg-black/85 backdrop-blur-xl shadow-2xl p-2"
+                className="absolute left-0 top-full mt-2 z-50 w-[min(18rem,calc(100vw-1rem))] rounded-xl border border-white/10 bg-black/90 backdrop-blur-xl shadow-2xl p-2"
               >
                 <div className="px-2 pb-2 text-[10px] uppercase tracking-widest text-gray-500 font-bold">
                   Datei-Typ wählen
@@ -178,14 +178,13 @@ export default function TabBar({
         </ActionButton>
       </div>
 
-      <div className="flex-1 min-w-0 h-full overflow-x-auto">
+      <div className="nx-code-tab-scroll flex-1 min-w-0 h-full overflow-x-auto">
         {tabsCount === 0 ? (
           <div className="h-full px-3 flex items-center text-[11px] text-gray-500">
             Keine Datei geöffnet
           </div>
         ) : (
           <div className="h-full flex items-center">
-            <AnimatePresence mode="popLayout">
               {tabs.map((tab) => {
                 if (!tab || !tab.name) return null;
                 const ext = getExt(tab.name);
@@ -193,14 +192,10 @@ export default function TabBar({
                 const isActive = tab.id === activeTabId;
 
                 return (
-                  <motion.div
+                  <div
                     key={tab.id}
-                    initial={{ width: 0, opacity: 0, y: -8 }}
-                    animate={{ width: "auto", opacity: 1, y: 0 }}
-                    exit={{ width: 0, opacity: 0, x: -20 }}
-                    transition={{ type: "spring", stiffness: 320, damping: 34 }}
                     onClick={() => onTabSelect(tab.id)}
-                    className="flex items-center gap-2 px-3 h-full cursor-pointer group relative shrink-0"
+                    className="nx-code-tab flex items-center gap-2 px-3 h-full cursor-pointer group relative shrink-0"
                     style={{
                       background: isActive ? "rgba(255,255,255,0.05)" : "transparent",
                       borderBottom: isActive
@@ -215,7 +210,7 @@ export default function TabBar({
                       {ext.toUpperCase() || "TXT"}
                     </span>
                     <span
-                      className="text-xs max-w-[180px] truncate"
+                      className="text-xs max-w-[clamp(7rem,16vw,12rem)] truncate"
                       style={{
                         color: isActive ? "var(--nexus-text)" : "var(--nexus-muted)",
                       }}
@@ -237,10 +232,9 @@ export default function TabBar({
                     >
                       <X size={12} className="text-gray-500" />
                     </button>
-                  </motion.div>
+                  </div>
                 );
               })}
-            </AnimatePresence>
           </div>
         )}
       </div>

@@ -2,6 +2,11 @@ const { app, BrowserWindow, ipcMain, shell, Menu, dialog, session } = require("e
 const path = require("path");
 const fs = require("fs").promises;
 const { spawn, execSync } = require("child_process");
+const { createGitService } = require("./services/gitService.cjs");
+const { createSecureTokenStore } = require("./services/secureTokenStore.cjs");
+const { createGithubAuthService } = require("./services/githubAuthService.cjs");
+const { createGithubService } = require("./services/githubService.cjs");
+const { redactSensitiveText } = require("./services/processRunner.cjs");
 
 const DEV = process.env.ELECTRON_DEV === "true";
 const DEV_URL = "http://localhost:5175";
@@ -45,6 +50,12 @@ const DANGEROUS_TERMINAL_PATTERNS = [
 let mainWindow = null;
 const activeProcesses = new Map();
 const allowedWorkspaceRoots = new Map();
+const gitService = createGitService();
+const tokenStore = createSecureTokenStore({
+  getUserDataPath: () => app.getPath("userData"),
+});
+const githubAuthService = createGithubAuthService({ tokenStore });
+const githubService = createGithubService({ tokenStore });
 
 const buildRendererFailureHtml = (reason, details) => {
   const safeReason = String(reason || "RENDERER_LOAD_FAILED")
@@ -184,6 +195,19 @@ const assertNotProtectedWorkspacePath = (canonicalPath) => {
 
 const byteLength = (value) => Buffer.byteLength(String(value ?? ""), "utf8");
 
+const toIpcResponse = async (operation) => {
+  try {
+    const data = await operation();
+    return { ok: true, data, error: null };
+  } catch (error) {
+    return {
+      ok: false,
+      data: null,
+      error: redactSensitiveText(error?.message || "Unknown IPC error"),
+    };
+  }
+};
+
 const shouldEnableGpuSwitches = process.env.NEXUS_FORCE_GPU_SWITCHES === "1";
 
 const isRosettaTranslated = () => {
@@ -285,6 +309,17 @@ const resolveTerminalWorkingDirectory = async (candidatePath) => {
     : fallbackRoot;
   const safePath = await resolveWorkspacePath(selectedPath, { allowRoot: true });
 
+  if (safePath.stats?.isDirectory()) return safePath.canonical;
+
+  const parentPath = await resolveWorkspacePath(path.dirname(safePath.canonical), {
+    allowRoot: true,
+    expected: "directory",
+  });
+  return parentPath.canonical;
+};
+
+const resolveGitWorkingDirectory = async (candidatePath) => {
+  const safePath = await resolveWorkspacePath(candidatePath, { allowRoot: true });
   if (safePath.stats?.isDirectory()) return safePath.canonical;
 
   const parentPath = await resolveWorkspacePath(path.dirname(safePath.canonical), {
@@ -609,6 +644,68 @@ ipcMain.handle("system:open-terminal", async (_event, cwd) => {
     return { ok: false, error: error?.message || "Unknown terminal launch error" };
   }
 });
+
+// IPC: Git and GitHub foundations
+
+ipcMain.handle("git:status", async (_event, repoPath) => toIpcResponse(async () => (
+  gitService.status(await resolveGitWorkingDirectory(repoPath))
+)));
+
+ipcMain.handle("git:diff", async (_event, repoPath, options = {}) => toIpcResponse(async () => (
+  gitService.diff(await resolveGitWorkingDirectory(repoPath), options || {})
+)));
+
+ipcMain.handle("git:stage", async (_event, repoPath, options = {}) => toIpcResponse(async () => (
+  gitService.stage(await resolveGitWorkingDirectory(repoPath), options || {})
+)));
+
+ipcMain.handle("git:unstage", async (_event, repoPath, options = {}) => toIpcResponse(async () => (
+  gitService.unstage(await resolveGitWorkingDirectory(repoPath), options || {})
+)));
+
+ipcMain.handle("git:commit", async (_event, repoPath, options = {}) => toIpcResponse(async () => (
+  gitService.commit(await resolveGitWorkingDirectory(repoPath), options || {})
+)));
+
+ipcMain.handle("git:branch", async (_event, repoPath, options = {}) => toIpcResponse(async () => (
+  gitService.branch(await resolveGitWorkingDirectory(repoPath), options || {})
+)));
+
+ipcMain.handle("git:log", async (_event, repoPath, options = {}) => toIpcResponse(async () => (
+  gitService.log(await resolveGitWorkingDirectory(repoPath), options || {})
+)));
+
+ipcMain.handle("git:remotes", async (_event, repoPath) => toIpcResponse(async () => (
+  gitService.remotes(await resolveGitWorkingDirectory(repoPath))
+)));
+
+ipcMain.handle("github:auth-status", async () => toIpcResponse(async () => (
+  githubAuthService.getAuthStatus()
+)));
+
+ipcMain.handle("github:device-flow:start", async (_event, options = {}) => toIpcResponse(async () => (
+  githubAuthService.startDeviceFlow(options || {})
+)));
+
+ipcMain.handle("github:device-flow:poll", async (_event, options = {}) => toIpcResponse(async () => (
+  githubAuthService.pollDeviceFlow(options || {})
+)));
+
+ipcMain.handle("github:sign-out", async () => toIpcResponse(async () => (
+  githubAuthService.signOut()
+)));
+
+ipcMain.handle("github:viewer", async () => toIpcResponse(async () => (
+  githubService.getViewer()
+)));
+
+ipcMain.handle("github:repositories", async (_event, options = {}) => toIpcResponse(async () => (
+  githubService.listRepositories(options || {})
+)));
+
+ipcMain.handle("github:rate-limit", async () => toIpcResponse(async () => (
+  githubService.getRateLimit()
+)));
 
 // IPC: terminal (real shell)
 

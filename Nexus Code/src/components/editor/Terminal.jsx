@@ -1,34 +1,39 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  Check,
   ChevronDown,
   Copy,
-  Trash2,
+  ExternalLink,
   Play,
   Plus,
-  X,
   Terminal as TerminalIcon,
-  Check,
-  ExternalLink,
+  Trash2,
+  X,
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
-
-/* ─── Simulated command responses ───────────────────────────────────────── */
+import { AnimatePresence, motion } from "framer-motion";
+import {
+  createTerminalSession,
+  createWelcomeEntries,
+  disposeMaybe,
+  getTaskRunnerItems,
+  getTerminalBridge,
+  normalizeTerminalEntry,
+  resolveRunCommandForFile,
+  updateSessionLastCommand,
+} from "../../pages/editor/terminalModel";
 
 const SIMULATED_RESPONSES = {
   help: [
-    { type: "output", text: "Verfügbare Befehle:" },
-    { type: "output", text: "  help          — Hilfe anzeigen" },
-    { type: "output", text: "  clear         — Terminal leeren" },
-    { type: "output", text: "  ls            — Dateien auflisten" },
-    { type: "output", text: "  pwd           — Aktuelles Verzeichnis" },
-    { type: "output", text: "  echo <text>   — Text ausgeben" },
-    { type: "output", text: "  date          — Datum und Uhrzeit" },
-    { type: "output", text: "  node <file>   — Node.js ausführen" },
-    { type: "output", text: "  python <file> — Python ausführen" },
-    { type: "output", text: "  java <class>  — Java ausführen" },
-    { type: "output", text: "  npm <cmd>     — npm Befehl" },
-    { type: "output", text: "  git <cmd>     — Git Befehl" },
-    { type: "output", text: "  version       — Nexus Code Version" },
+    { type: "output", text: "Verfuegbare Befehle:" },
+    { type: "output", text: "  help          - Hilfe anzeigen" },
+    { type: "output", text: "  clear         - Terminal leeren" },
+    { type: "output", text: "  ls            - Dateien auflisten" },
+    { type: "output", text: "  pwd           - Aktuelles Verzeichnis" },
+    { type: "output", text: "  echo <text>   - Text ausgeben" },
+    { type: "output", text: "  date          - Datum und Uhrzeit" },
+    { type: "output", text: "  npm <cmd>     - npm Befehl" },
+    { type: "output", text: "  git <cmd>     - Git Befehl" },
+    { type: "output", text: "  version       - Nexus Code Version" },
   ],
   ls: [
     { type: "output", text: "main.java    example.py    app.js    styles.css" },
@@ -42,10 +47,8 @@ const SIMULATED_RESPONSES = {
   ],
   pwd: [{ type: "output", text: "/workspace/nexus-code" }],
   version: [
-    { type: "output", text: "✦ Nexus Code v1.0.0" },
-    { type: "output", text: "  Node.js  v20.11.0" },
-    { type: "output", text: "  npm      v10.2.4" },
-    { type: "output", text: "  Python   v3.12.1" },
+    { type: "output", text: "Nexus Code v1.1" },
+    { type: "output", text: "  Terminal sessions + task runner ready" },
   ],
   "git status": [
     { type: "output", text: "On branch main" },
@@ -68,57 +71,43 @@ const SIMULATED_RESPONSES = {
     { type: "output", text: "  develop" },
     { type: "output", text: "  feature/search-panel" },
   ],
-  "npm install": [
-    { type: "output", text: "npm warn deprecated react-leaflet@4.2.1" },
-    { type: "output", text: "added 284 packages in 3.2s" },
-    { type: "output", text: "" },
-    { type: "success", text: "✓ 284 packages are up to date." },
-  ],
   "npm run dev": [
     { type: "output", text: "" },
-    { type: "output", text: "  VITE v6.1.0  ready in 312 ms" },
+    { type: "output", text: "  VITE ready in 312 ms" },
     { type: "output", text: "" },
-    { type: "success", text: "  ➜  Local:   http://localhost:5173/" },
-    { type: "output", text: "  ➜  Network: use --host to expose" },
+    { type: "success", text: "  Local:   http://localhost:5173/" },
   ],
   "npm run build": [
-    { type: "output", text: "vite v6.1.0 building for production..." },
-    { type: "output", text: "✓ 42 modules transformed." },
-    { type: "output", text: "dist/index.html                  0.46 kB" },
-    {
-      type: "output",
-      text: "dist/assets/index-DiwrgTda.css  12.08 kB │ gzip:   3.11 kB",
-    },
-    {
-      type: "output",
-      text: "dist/assets/index-BXHM2Qna.js  241.30 kB │ gzip:  77.64 kB",
-    },
-    { type: "success", text: "✓ built in 1.24s" },
+    { type: "output", text: "vite building for production..." },
+    { type: "output", text: "42 modules transformed." },
+    { type: "success", text: "built in 1.24s" },
+  ],
+  "npm test": [
+    { type: "output", text: "No tests configured in simulated terminal." },
+  ],
+  "npm run lint": [
+    { type: "output", text: "eslint . --quiet" },
+    { type: "success", text: "No issues found in simulated terminal." },
+  ],
+  "npm run typecheck": [
+    { type: "output", text: "tsc -p ./jsconfig.json" },
+    { type: "success", text: "Typecheck completed in simulated terminal." },
   ],
   "node app.js": [
     { type: "output", text: "Hello, Developer! Welcome to Nexus Code." },
-    { type: "output", text: "Even doubled: [4, 8, 12, 16, 20]" },
-    { type: "output", text: "" },
     { type: "success", text: "Process exited with code 0" },
   ],
   "python example.py": [
-    { type: "output", text: "Fibonacci: [0, 1, 1, 2, 3, 5, 8, 13, 21, 34]" },
-    { type: "output", text: "8" },
-    { type: "output", text: "28" },
-    { type: "output", text: "Squares: [1, 4, 9, 16, 25, 36, 49, 64, 81, 100]" },
+    { type: "output", text: "Fibonacci: [0, 1, 1, 2, 3, 5, 8]" },
     { type: "success", text: "Process exited with code 0" },
   ],
   "java Main": [
     { type: "output", text: "Hello, World!" },
-    { type: "output", text: "Sum 1-10: 55" },
-    { type: "output", text: " - Apple" },
-    { type: "output", text: " - Banana" },
-    { type: "output", text: " - Cherry" },
     { type: "success", text: "Process exited with code 0" },
   ],
   whoami: [{ type: "output", text: "developer" }],
   date: [{ type: "output", text: new Date().toLocaleString("de-DE") }],
-  uname: [{ type: "output", text: "NexusOS 1.0.0 (Chromium-based runtime)" }],
+  uname: [{ type: "output", text: "NexusOS 1.1.0 (Chromium runtime)" }],
 };
 
 function getResponse(cmd) {
@@ -126,7 +115,6 @@ function getResponse(cmd) {
 
   if (SIMULATED_RESPONSES[trimmed]) return SIMULATED_RESPONSES[trimmed];
 
-  // Dynamic responses
   if (trimmed.startsWith("echo ")) {
     const text = cmd
       .trim()
@@ -134,32 +122,28 @@ function getResponse(cmd) {
       .replace(/^["']|["']$/g, "");
     return [{ type: "output", text }];
   }
+
   if (trimmed.startsWith("git commit -m ")) {
     const msg = cmd
       .trim()
       .slice(14)
       .replace(/^["']|["']$/g, "");
     return [
-      { type: "output", text: "[main a1b2c3d] " + msg },
-      {
-        type: "output",
-        text: " 2 files changed, 14 insertions(+), 3 deletions(-)",
-      },
+      { type: "output", text: `[main a1b2c3d] ${msg}` },
+      { type: "output", text: " 2 files changed, 14 insertions(+), 3 deletions(-)" },
     ];
   }
+
   if (trimmed.startsWith("npm install ") || trimmed.startsWith("npm i ")) {
     const pkg = cmd.trim().split(" ").pop();
     return [
       { type: "output", text: `added 1 package: ${pkg}` },
-      { type: "success", text: "✓ done" },
+      { type: "success", text: "done" },
     ];
   }
-  if (trimmed === "clear" || trimmed === "cls") {
-    return null; // special case handled outside
-  }
-  if (trimmed.startsWith("cd ")) {
-    return [{ type: "output", text: "" }];
-  }
+
+  if (trimmed === "clear" || trimmed === "cls") return null;
+  if (trimmed.startsWith("cd ")) return [{ type: "output", text: "" }];
   if (trimmed.startsWith("cat ")) {
     const file = cmd.trim().slice(4);
     return [{ type: "error", text: `cat: ${file}: Datei nicht gefunden` }];
@@ -170,377 +154,422 @@ function getResponse(cmd) {
   }
   if (trimmed.startsWith("rm ")) {
     const target = cmd.trim().slice(3);
-    return [
-      { type: "warn", text: `Warnung: '${target}' entfernt (simuliert)` },
-    ];
+    return [{ type: "warn", text: `Warnung: '${target}' entfernt (simuliert)` }];
   }
-  if (trimmed === "" || trimmed === " ") {
-    return [];
-  }
+  if (!trimmed) return [];
 
   return [
     { type: "error", text: `command not found: ${cmd.trim().split(" ")[0]}` },
-    { type: "output", text: "Tippe 'help' für verfügbare Befehle." },
+    { type: "output", text: "Tippe 'help' fuer verfuegbare Befehle." },
   ];
 }
 
-/* ─── Tab component ──────────────────────────────────────────────────────── */
+export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }) {
+  const initialSessionRef = useRef(null);
+  if (!initialSessionRef.current) {
+    initialSessionRef.current = createTerminalSession();
+  }
 
-let _tabId = 1;
-function makeTab(name = "bash") {
-  return { id: _tabId++, name };
-}
-
-function resolveRunCommandForFile(activeFile) {
-  const fileName = activeFile?.name || "";
-  const ext = fileName.includes(".") ? fileName.split(".").pop()?.toLowerCase() : "";
-  if (!ext) return "";
-  if (ext === "js" || ext === "mjs" || ext === "cjs") return `node ${fileName}`;
-  if (ext === "ts" || ext === "tsx") return `npx tsx ${fileName}`;
-  if (ext === "py") return `python ${fileName}`;
-  if (ext === "java") return `java ${fileName.replace(".java", "")}`;
-  if (ext === "sh") return `bash ${fileName}`;
-  return "";
-}
-
-/* ─── Main component ─────────────────────────────────────────────────────── */
-
-export default function Terminal({ isOpen, onToggle, activeFile, code, workspacePath }) {
-  const [tabs, setTabs] = useState([makeTab()]);
-  const [activeTabId, setActiveTabId] = useState(1);
-  const [histories, setHistories] = useState({
-    1: [
-      { id: 1, type: "system", text: "✦ Nexus Code Terminal v1.0" },
-      { id: 2, type: "system", text: "Tippe 'help' für verfügbare Befehle." },
-    ],
-  });
-  const [inputs, setInputs] = useState({ 1: "" });
-  const [cmdHistories, setCmdHistories] = useState({ 1: [] });
+  const [sessions, setSessions] = useState(() => [initialSessionRef.current]);
+  const [activeSessionId, setActiveSessionId] = useState(
+    () => initialSessionRef.current.id,
+  );
+  const [histories, setHistories] = useState(() => ({
+    [initialSessionRef.current.id]: createWelcomeEntries(initialSessionRef.current),
+  }));
+  const [inputs, setInputs] = useState(() => ({
+    [initialSessionRef.current.id]: "",
+  }));
+  const [cmdHistories, setCmdHistories] = useState(() => ({
+    [initialSessionRef.current.id]: [],
+  }));
   const [cmdIndex, setCmdIndex] = useState({});
   const [copied, setCopied] = useState(false);
   const [terminalLaunchBusy, setTerminalLaunchBusy] = useState(false);
-  const [runningByTab, setRunningByTab] = useState({});
+  const [runningBySession, setRunningBySession] = useState({});
 
   const scrollRef = useRef(null);
   const inputRef = useRef(null);
   const entryIdRef = useRef(10);
 
-  // Auto-scroll
+  const currentHistory = histories[activeSessionId] || [];
+  const currentInput = inputs[activeSessionId] || "";
+  const isRunning = Boolean(runningBySession[activeSessionId]);
+  const activeSession =
+    sessions.find((session) => session.id === activeSessionId) || sessions[0];
+  const runActiveFileCommand = resolveRunCommandForFile(activeFile);
+  const taskItems = useMemo(() => getTaskRunnerItems(activeFile), [activeFile]);
+  const quickTasks = taskItems.filter((task) => task.quick);
+  const bridgeInfo = getTerminalBridge();
+
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [histories, activeTabId]);
+  }, [histories, activeSessionId]);
 
-  // Focus input when terminal opens
   useEffect(() => {
     if (isOpen) {
-      setTimeout(() => inputRef.current?.focus(), 80);
+      window.setTimeout(() => inputRef.current?.focus(), 80);
     }
   }, [isOpen]);
 
-  const addEntries = useCallback((tabId, entries) => {
+  const setInput = useCallback((sessionId, value) => {
+    setInputs((prev) => ({ ...prev, [sessionId]: value }));
+  }, []);
+
+  const addEntries = useCallback((sessionId, entries) => {
     setHistories((prev) => ({
       ...prev,
-      [tabId]: [
-        ...(prev[tabId] || []),
-        ...entries.map((e) => ({
-          ...e,
+      [sessionId]: [
+        ...(prev[sessionId] || []),
+        ...entries.map((entry) => ({
+          ...normalizeTerminalEntry(entry),
           id: ++entryIdRef.current,
         })),
       ],
     }));
   }, []);
 
-  const addCommandHistory = useCallback((tabId, cmd) => {
+  const addCommandHistory = useCallback((sessionId, cmd) => {
     setCmdHistories((prev) => {
-      const current = prev[tabId] || [];
+      const current = prev[sessionId] || [];
       const next = [cmd, ...current.filter((item) => item !== cmd)];
-      return { ...prev, [tabId]: next.slice(0, 100) };
+      return { ...prev, [sessionId]: next.slice(0, 100) };
     });
-    setCmdIndex((prev) => ({ ...prev, [tabId]: -1 }));
+    setCmdIndex((prev) => ({ ...prev, [sessionId]: -1 }));
   }, []);
 
-  const setTabRunning = useCallback((tabId, running) => {
-    setRunningByTab((prev) => ({ ...prev, [tabId]: running }));
+  const setSessionRunning = useCallback((sessionId, running) => {
+    setRunningBySession((prev) => ({ ...prev, [sessionId]: running }));
   }, []);
 
-  // Terminal Output Listeners
   useEffect(() => {
-    // @ts-ignore
-    const api = window.electronAPI;
-    if (!api) return undefined;
+    const bridge = getTerminalBridge();
+    if (!bridge.available) return undefined;
 
-    const unsubscribes = tabs.map((tab) => {
-      const unsubOutput = api.onTerminalOutput?.(tab.id, (data) => {
-        addEntries(tab.id, [data]);
+    const unsubscribes = sessions.map((session) => {
+      const unsubOutput = bridge.onOutput?.(session.id, (data) => {
+        addEntries(session.id, [data]);
       });
-      const unsubExit = api.onTerminalExit?.(tab.id, () => {
-        setTabRunning(tab.id, false);
+      const unsubExit = bridge.onExit?.(session.id, () => {
+        setSessionRunning(session.id, false);
       });
-      const unsubReady = api.onTerminalReady?.(tab.id, () => {
-        setTabRunning(tab.id, true);
+      const unsubReady = bridge.onReady?.(session.id, () => {
+        setSessionRunning(session.id, true);
       });
 
       return () => {
-        unsubOutput?.();
-        unsubExit?.();
-        unsubReady?.();
+        disposeMaybe(unsubOutput);
+        disposeMaybe(unsubExit);
+        disposeMaybe(unsubReady);
       };
     });
 
-    return () => unsubscribes.forEach((unsub) => unsub());
-  }, [tabs, addEntries, setTabRunning]);
+    return () => unsubscribes.forEach((unsubscribe) => unsubscribe());
+  }, [sessions, addEntries, setSessionRunning]);
 
-  const setInput = useCallback((tabId, value) => {
-    setInputs((prev) => ({ ...prev, [tabId]: value }));
-  }, []);
+  const executeCommandInSession = useCallback(
+    (sessionId, rawInput, metadata = {}) => {
+      const cmd = String(rawInput || "").trim();
+      const cmdLower = cmd.toLowerCase();
+      const sessionRunning = Boolean(runningBySession[sessionId]);
+      if (sessionRunning || !cmd) return;
 
-  const currentHistory = histories[activeTabId] || [];
-  const currentInput = inputs[activeTabId] || "";
-  const isRunning = Boolean(runningByTab[activeTabId]);
-  const runActiveFileCommand = resolveRunCommandForFile(activeFile);
-  const quickCommands = [
-    { label: "git status", command: "git status" },
-    { label: "npm run dev", command: "npm run dev" },
-    { label: "npm run build", command: "npm run build" },
-  ];
+      if (cmdLower === "clear" || cmdLower === "cls") {
+        setHistories((prev) => ({ ...prev, [sessionId]: [] }));
+        setInput(sessionId, "");
+        return;
+      }
 
-  const executeCommand = useCallback((rawInput) => {
-    const tabId = activeTabId;
-    const cmd = String(rawInput || "").trim();
-    const cmdLower = cmd.toLowerCase();
-    const tabRunning = Boolean(runningByTab[tabId]);
-    if (tabRunning) return;
+      addEntries(sessionId, [{ type: "input", text: `$ ${cmd}` }]);
+      addCommandHistory(sessionId, cmd);
+      setInput(sessionId, "");
+      setSessions((prev) => updateSessionLastCommand(prev, sessionId, cmd));
 
-    if (!cmd) return;
+      const bridge = getTerminalBridge();
+      if (bridge.available && bridge.run) {
+        setSessionRunning(sessionId, true);
+        try {
+          const maybePromise = bridge.run({
+            id: sessionId,
+            sessionId,
+            command: cmd,
+            cwd: workspacePath || null,
+            taskId: metadata.taskId || null,
+          });
+          maybePromise?.catch?.((error) => {
+            addEntries(sessionId, [
+              {
+                type: "error",
+                text: error?.message || "Terminal command failed.",
+              },
+            ]);
+            setSessionRunning(sessionId, false);
+          });
+        } catch (error) {
+          addEntries(sessionId, [
+            { type: "error", text: error?.message || "Terminal command failed." },
+          ]);
+          setSessionRunning(sessionId, false);
+        }
+      } else {
+        setSessionRunning(sessionId, true);
+        window.setTimeout(() => {
+          const responses = getResponse(cmd);
+          if (responses) addEntries(sessionId, responses);
+          setSessionRunning(sessionId, false);
+        }, 500);
+      }
+    },
+    [
+      addCommandHistory,
+      addEntries,
+      runningBySession,
+      setInput,
+      setSessionRunning,
+      workspacePath,
+    ],
+  );
 
-    // Handle clear specially
-    if (cmdLower === "clear" || cmdLower === "cls") {
-      setHistories((prev) => ({ ...prev, [tabId]: [] }));
-      setInput(tabId, "");
-      return;
-    }
+  const executeCommand = useCallback(
+    (rawInput) => executeCommandInSession(activeSessionId, rawInput),
+    [activeSessionId, executeCommandInSession],
+  );
 
-    addEntries(tabId, [{ type: "input", text: `$ ${cmd}` }]);
-    addCommandHistory(tabId, cmd);
-    setInput(tabId, "");
+  const openSession = useCallback((options = {}) => {
+    const session = createTerminalSession({
+      cwd: workspacePath || null,
+      ...options,
+    });
+    setSessions((prev) => [...prev, session]);
+    setHistories((prev) => ({
+      ...prev,
+      [session.id]: createWelcomeEntries(session).map((entry) => ({
+        ...entry,
+        id: ++entryIdRef.current,
+      })),
+    }));
+    setInputs((prev) => ({ ...prev, [session.id]: "" }));
+    setCmdHistories((prev) => ({ ...prev, [session.id]: [] }));
+    setActiveSessionId(session.id);
+    return session;
+  }, [workspacePath]);
 
-    // @ts-ignore
-    const api = window.electronAPI;
-    if (api?.terminalRun) {
-      setTabRunning(tabId, true);
-      api.terminalRun({
-        id: tabId,
-        command: cmd,
-        cwd: workspacePath || null,
+  const runTask = useCallback(
+    (task) => {
+      if (!task || task.disabled || !task.command) return;
+      const session = openSession({
+        name: task.shortLabel || task.label,
+        kind: "task",
+        taskId: task.id,
       });
-    } else {
-      // Fallback for non-electron (simulated)
-      setTabRunning(tabId, true);
-      setTimeout(() => {
-        const responses = getResponse(cmd);
-        if (responses) addEntries(tabId, responses);
-        setTabRunning(tabId, false);
-      }, 500);
-    }
-  }, [activeTabId, runningByTab, addEntries, addCommandHistory, setInput, setTabRunning, workspacePath]);
+      window.setTimeout(() => {
+        executeCommandInSession(session.id, task.command, { taskId: task.id });
+      }, 0);
+    },
+    [executeCommandInSession, openSession],
+  );
 
   const handleRun = useCallback(() => {
     const commandText = String(currentInput || "").trim();
     if (!commandText) return;
 
     if (isRunning) {
-      addEntries(activeTabId, [{ type: "input", text: `$ ${commandText}` }]);
-      // @ts-ignore
-      const api = window.electronAPI;
-      if (api?.terminalInput) {
-        api.terminalInput({ id: activeTabId, input: `${commandText}\n` });
+      addEntries(activeSessionId, [{ type: "input", text: `$ ${commandText}` }]);
+      const bridge = getTerminalBridge();
+      if (bridge.input) {
+        bridge.input({ id: activeSessionId, sessionId: activeSessionId, input: `${commandText}\n` });
       } else {
-        addEntries(activeTabId, [
-          { type: "warn", text: "stdin forwarding ist in dieser Runtime nicht verfügbar." },
+        addEntries(activeSessionId, [
+          { type: "warn", text: "stdin forwarding ist in dieser Runtime nicht verfuegbar." },
         ]);
       }
-      setInput(activeTabId, "");
+      setInput(activeSessionId, "");
       return;
     }
 
     executeCommand(commandText);
-  }, [activeTabId, addEntries, currentInput, executeCommand, isRunning, setInput]);
+  }, [
+    activeSessionId,
+    addEntries,
+    currentInput,
+    executeCommand,
+    isRunning,
+    setInput,
+  ]);
 
   const handleStopRunning = useCallback(() => {
     if (!isRunning) return;
-    // @ts-ignore
-    if (window.electronAPI?.terminalKill) {
-      // @ts-ignore
-      window.electronAPI.terminalKill(activeTabId);
-    }
-    addEntries(activeTabId, [{ type: "warn", text: "^C (manuell beendet)" }]);
-    setTabRunning(activeTabId, false);
+    const bridge = getTerminalBridge();
+    bridge.kill?.(activeSessionId);
+    addEntries(activeSessionId, [{ type: "warn", text: "^C (manuell beendet)" }]);
+    setSessionRunning(activeSessionId, false);
     inputRef.current?.focus();
-  }, [activeTabId, addEntries, isRunning, setTabRunning]);
+  }, [activeSessionId, addEntries, isRunning, setSessionRunning]);
 
   const handleKeyDown = useCallback(
-    (e) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
+    (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
         handleRun();
         return;
       }
 
-      // Command history navigation
-      const hist = cmdHistories[activeTabId] || [];
-      const idx = cmdIndex[activeTabId] ?? -1;
+      const hist = cmdHistories[activeSessionId] || [];
+      const idx = cmdIndex[activeSessionId] ?? -1;
 
-      if (e.key === "ArrowUp") {
-        e.preventDefault();
+      if (event.key === "ArrowUp") {
+        event.preventDefault();
         const newIdx = Math.min(idx + 1, hist.length - 1);
-        setCmdIndex((prev) => ({ ...prev, [activeTabId]: newIdx }));
-        if (hist[newIdx] !== undefined) setInput(activeTabId, hist[newIdx]);
-        return;
-      }
-      if (e.key === "ArrowDown") {
-        e.preventDefault();
-        const newIdx = Math.max(idx - 1, -1);
-        setCmdIndex((prev) => ({ ...prev, [activeTabId]: newIdx }));
-        setInput(activeTabId, newIdx === -1 ? "" : (hist[newIdx] ?? ""));
+        setCmdIndex((prev) => ({ ...prev, [activeSessionId]: newIdx }));
+        if (hist[newIdx] !== undefined) setInput(activeSessionId, hist[newIdx]);
         return;
       }
 
-      // Ctrl+C — cancel / kill
-      if (e.key === "c" && e.ctrlKey) {
-        e.preventDefault();
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        const newIdx = Math.max(idx - 1, -1);
+        setCmdIndex((prev) => ({ ...prev, [activeSessionId]: newIdx }));
+        setInput(activeSessionId, newIdx === -1 ? "" : (hist[newIdx] ?? ""));
+        return;
+      }
+
+      if (event.key === "c" && event.ctrlKey) {
+        event.preventDefault();
         if (isRunning) {
           handleStopRunning();
         } else {
-          addEntries(activeTabId, [{ type: "input", text: `$ ${currentInput}^C` }]);
-          setInput(activeTabId, "");
+          addEntries(activeSessionId, [
+            { type: "input", text: `$ ${currentInput}^C` },
+          ]);
+          setInput(activeSessionId, "");
         }
         return;
       }
 
-      // Ctrl+L — clear
-      if (e.key === "l" && e.ctrlKey) {
-        e.preventDefault();
-        setHistories((prev) => ({ ...prev, [activeTabId]: [] }));
+      if (event.key === "l" && event.ctrlKey) {
+        event.preventDefault();
+        setHistories((prev) => ({ ...prev, [activeSessionId]: [] }));
         return;
       }
 
-      // Tab completion (basic)
-      if (e.key === "Tab") {
-        e.preventDefault();
+      if (event.key === "Tab") {
+        event.preventDefault();
         const cmds = Object.keys(SIMULATED_RESPONSES);
         const match = cmds.find(
-          (c) => c.startsWith(currentInput) && c !== currentInput,
+          (command) => command.startsWith(currentInput) && command !== currentInput,
         );
-        if (match) setInput(activeTabId, match);
-        return;
+        if (match) setInput(activeSessionId, match);
       }
     },
-    [handleRun, cmdHistories, cmdIndex, activeTabId, currentInput, addEntries, handleStopRunning, isRunning, setInput],
+    [
+      activeSessionId,
+      addEntries,
+      cmdHistories,
+      cmdIndex,
+      currentInput,
+      handleRun,
+      handleStopRunning,
+      isRunning,
+      setInput,
+    ],
   );
 
   const handleCopy = async () => {
-    const text = currentHistory.map((h) => h.text).join("\n");
+    const text = currentHistory.map((entry) => entry.text).join("\n");
     try {
       await navigator.clipboard.writeText(text);
       setCopied(true);
-      setTimeout(() => setCopied(false), 1600);
-    } catch (_) {}
+      window.setTimeout(() => setCopied(false), 1600);
+    } catch {}
   };
 
   const handleClear = () => {
-    setHistories((prev) => ({ ...prev, [activeTabId]: [] }));
+    setHistories((prev) => ({ ...prev, [activeSessionId]: [] }));
     inputRef.current?.focus();
   };
 
   const handleOpenSystemTerminal = useCallback(async () => {
-    // @ts-ignore
-    const api = window.electronAPI;
-    if (!api?.openSystemTerminal) {
-      addEntries(activeTabId, [
-        { type: "warn", text: "System Terminal Link ist in dieser Runtime nicht verfügbar." },
+    const bridge = getTerminalBridge();
+    if (!bridge.openSystemTerminal) {
+      addEntries(activeSessionId, [
+        { type: "warn", text: "System Terminal Link ist in dieser Runtime nicht verfuegbar." },
       ]);
       return;
     }
 
     setTerminalLaunchBusy(true);
     try {
-      const result = await api.openSystemTerminal(workspacePath || undefined);
-      if (result?.ok) {
-        addEntries(activeTabId, [
+      const result = await bridge.openSystemTerminal(workspacePath || undefined);
+      if (result?.ok || result === true) {
+        addEntries(activeSessionId, [
           {
             type: "success",
-            text: `System Terminal geöffnet (${workspacePath || "~"}).`,
+            text: `System Terminal geoeffnet (${workspacePath || "~"}).`,
           },
         ]);
       } else {
-        addEntries(activeTabId, [
+        addEntries(activeSessionId, [
           {
             type: "error",
-            text: `System Terminal konnte nicht geöffnet werden: ${result?.error || "Unbekannter Fehler"}`,
+            text: `System Terminal konnte nicht geoeffnet werden: ${result?.error || "Unbekannter Fehler"}`,
           },
         ]);
       }
     } catch (error) {
-      addEntries(activeTabId, [
+      addEntries(activeSessionId, [
         {
           type: "error",
-          text: `System Terminal konnte nicht geöffnet werden: ${error?.message || "Unbekannter Fehler"}`,
+          text: `System Terminal konnte nicht geoeffnet werden: ${error?.message || "Unbekannter Fehler"}`,
         },
       ]);
     } finally {
       setTerminalLaunchBusy(false);
     }
-  }, [activeTabId, addEntries, workspacePath]);
+  }, [activeSessionId, addEntries, workspacePath]);
 
-  const addTab = () => {
-    const tab = makeTab();
-    setTabs((prev) => [...prev, tab]);
-    setHistories((prev) => ({
-      ...prev,
-      [tab.id]: [
-        {
-          id: ++entryIdRef.current,
-          type: "system",
-          text: "✦ Nexus Code Terminal v1.0",
-        },
-        {
-          id: ++entryIdRef.current,
-          type: "system",
-          text: "Tippe 'help' für verfügbare Befehle.",
-        },
-      ],
-    }));
-    setInputs((prev) => ({ ...prev, [tab.id]: "" }));
-    setCmdHistories((prev) => ({ ...prev, [tab.id]: [] }));
-    setActiveTabId(tab.id);
+  const addSession = () => {
+    openSession({ name: "bash", kind: "shell" });
   };
 
-  const closeTab = (tabId) => {
-    if (tabs.length === 1) return;
+  const closeSession = (sessionId) => {
+    if (sessions.length === 1) return;
 
-    // @ts-ignore
-    if (runningByTab[tabId] && window.electronAPI?.terminalKill) {
-      // @ts-ignore
-      window.electronAPI.terminalKill(tabId);
+    if (runningBySession[sessionId]) {
+      getTerminalBridge().kill?.(sessionId);
     }
 
-    setRunningByTab((prev) => {
+    setRunningBySession((prev) => {
       const next = { ...prev };
-      delete next[tabId];
+      delete next[sessionId];
+      return next;
+    });
+    setHistories((prev) => {
+      const next = { ...prev };
+      delete next[sessionId];
+      return next;
+    });
+    setInputs((prev) => {
+      const next = { ...prev };
+      delete next[sessionId];
+      return next;
+    });
+    setCmdHistories((prev) => {
+      const next = { ...prev };
+      delete next[sessionId];
       return next;
     });
 
-    setTabs((prev) => {
-      const remaining = prev.filter((t) => t.id !== tabId);
-      if (activeTabId === tabId)
-        setActiveTabId(remaining[remaining.length - 1].id);
+    setSessions((prev) => {
+      const remaining = prev.filter((session) => session.id !== sessionId);
+      if (activeSessionId === sessionId) {
+        setActiveSessionId(remaining[remaining.length - 1].id);
+      }
       return remaining;
     });
   };
 
-  /* ── Entry colour helper ─────────────────────────────────────────────── */
   const entryColor = (type) => {
     switch (type) {
       case "system":
@@ -560,7 +589,6 @@ export default function Terminal({ isOpen, onToggle, activeFile, code, workspace
     }
   };
 
-  /* ── Collapsed bar ────────────────────────────────────────────────────── */
   if (!isOpen) {
     return (
       <motion.button
@@ -584,20 +612,17 @@ export default function Terminal({ isOpen, onToggle, activeFile, code, workspace
           </span>
         </motion.div>
         <ChevronDown size={12} className="text-gray-600 rotate-180 ml-0.5" />
-        {activeFile && (
-          <span className="text-[10px] text-gray-700 ml-auto font-mono">
-            {activeFile.name}
-          </span>
-        )}
+        <span className="text-[10px] text-gray-700 ml-auto font-mono truncate">
+          {activeSession?.name || activeFile?.name || bridgeInfo.label}
+        </span>
       </motion.button>
     );
   }
 
-  /* ── Expanded terminal ────────────────────────────────────────────────── */
   return (
     <motion.div
       initial={{ height: 0, opacity: 0 }}
-      animate={{ height: 220, opacity: 1 }}
+      animate={{ height: 260, opacity: 1 }}
       exit={{ height: 0, opacity: 0 }}
       transition={{ duration: 0.28, ease: [0.4, 0, 0.2, 1] }}
       className="flex flex-col shrink-0"
@@ -607,23 +632,24 @@ export default function Terminal({ isOpen, onToggle, activeFile, code, workspace
         overflow: "hidden",
       }}
     >
-      {/* ── Title bar ──────────────────────────────────────────────── */}
       <div
         className="flex items-center shrink-0"
         style={{ borderBottom: "1px solid var(--nexus-border)" }}
       >
-        {/* Tab strip */}
         <div className="flex items-center flex-1 overflow-x-auto min-w-0 h-8">
-          {tabs.map((tab) => {
-            const isActive = tab.id === activeTabId;
+          {sessions.map((session) => {
+            const isActive = session.id === activeSessionId;
+            const sessionRunning = Boolean(runningBySession[session.id]);
             return (
               <motion.div
-                key={tab.id}
+                key={session.id}
                 layout
-                onClick={() => setActiveTabId(tab.id)}
+                onClick={() => setActiveSessionId(session.id)}
                 className="flex items-center gap-1.5 px-3 h-full cursor-pointer select-none group shrink-0 relative"
                 style={{
-                  background: isActive ? "color-mix(in srgb, var(--primary) 10%, transparent)" : "transparent",
+                  background: isActive
+                    ? "color-mix(in srgb, var(--primary) 10%, transparent)"
+                    : "transparent",
                   borderRight: "1px solid var(--nexus-border)",
                 }}
               >
@@ -640,23 +666,39 @@ export default function Terminal({ isOpen, onToggle, activeFile, code, workspace
                 )}
                 <TerminalIcon
                   size={10}
-                  style={{ color: isActive ? "var(--primary)" : "var(--nexus-muted)" }}
+                  style={{
+                    color: isActive ? "var(--primary)" : "var(--nexus-muted)",
+                  }}
                 />
                 <span
-                  className="text-[11px] font-mono"
-                  style={{ color: isActive ? "var(--nexus-text)" : "var(--nexus-muted)" }}
+                  className="text-[11px] font-mono max-w-[9rem] truncate"
+                  style={{
+                    color: isActive ? "var(--nexus-text)" : "var(--nexus-muted)",
+                  }}
                 >
-                  {tab.name}
+                  {session.name}
                 </span>
-                {tabs.length > 1 && (
+                <span
+                  className="text-[8px] uppercase tracking-wide"
+                  style={{
+                    color: sessionRunning
+                      ? "#86efac"
+                      : session.kind === "task"
+                        ? "#a78bfa"
+                        : "#64748b",
+                  }}
+                >
+                  {sessionRunning ? "run" : session.kind}
+                </span>
+                {sessions.length > 1 && (
                   <motion.button
                     initial={{ opacity: 0, scale: 0.6 }}
                     whileHover={{ opacity: 1, scale: 1.15 }}
                     animate={{ opacity: 0 }}
                     className="group-hover:opacity-100 p-0.5 rounded hover:bg-white/10"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      closeTab(tab.id);
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      closeSession(session.id);
                     }}
                     style={{ transition: "opacity 0.15s ease" }}
                   >
@@ -667,19 +709,17 @@ export default function Terminal({ isOpen, onToggle, activeFile, code, workspace
             );
           })}
 
-          {/* New tab button */}
           <motion.button
             whileHover={{ scale: 1.12, color: "var(--primary)" }}
             whileTap={{ scale: 0.9 }}
-            onClick={addTab}
-            title="Neues Terminal"
+            onClick={addSession}
+            title="Neue Terminal Session"
             className="h-full px-2.5 flex items-center text-gray-600 hover:text-purple-400 transition-colors shrink-0"
           >
             <Plus size={11} />
           </motion.button>
         </div>
 
-        {/* Toolbar */}
         <div className="flex items-center gap-0.5 px-2 shrink-0">
           <motion.button
             whileHover={{ scale: 1.1 }}
@@ -699,11 +739,7 @@ export default function Terminal({ isOpen, onToggle, activeFile, code, workspace
                   <Check size={11} className="text-green-400" />
                 </motion.div>
               ) : (
-                <motion.div
-                  key="copy"
-                  initial={{ scale: 1 }}
-                  animate={{ scale: 1 }}
-                >
+                <motion.div key="copy" initial={{ scale: 1 }} animate={{ scale: 1 }}>
                   <Copy size={11} className="text-gray-500" />
                 </motion.div>
               )}
@@ -714,7 +750,7 @@ export default function Terminal({ isOpen, onToggle, activeFile, code, workspace
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
             onClick={handleClear}
-            title="Löschen (Ctrl+L)"
+            title="Loeschen (Ctrl+L)"
             className="p-1.5 rounded hover:bg-white/[0.06] transition-colors"
           >
             <Trash2 size={11} className="text-gray-500" />
@@ -741,7 +777,7 @@ export default function Terminal({ isOpen, onToggle, activeFile, code, workspace
             whileTap={{ scale: 0.92 }}
             onClick={handleOpenSystemTerminal}
             disabled={terminalLaunchBusy}
-            title="System Terminal öffnen"
+            title="System Terminal oeffnen"
             className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-semibold transition-colors"
             style={{
               border: "1px solid rgba(255,255,255,0.12)",
@@ -754,13 +790,19 @@ export default function Terminal({ isOpen, onToggle, activeFile, code, workspace
             <span className="hidden sm:inline">System</span>
           </motion.button>
 
-          {/* Run active file */}
           {activeFile && runActiveFileCommand && (
             <motion.button
               whileHover={{ scale: 1.05, y: -1 }}
               whileTap={{ scale: 0.95 }}
-              onClick={() => executeCommand(runActiveFileCommand)}
-              title={`${activeFile.name} ausführen`}
+              onClick={() =>
+                runTask({
+                  id: "run-active-file",
+                  label: "Run Active File",
+                  shortLabel: activeFile.name,
+                  command: runActiveFileCommand,
+                })
+              }
+              title={`${activeFile.name} ausfuehren`}
               className="flex items-center gap-1 px-2 py-1 rounded text-[11px] font-semibold text-white ml-1"
               style={{
                 background: "linear-gradient(135deg, #8000ff, #0033ff)",
@@ -776,7 +818,7 @@ export default function Terminal({ isOpen, onToggle, activeFile, code, workspace
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
             onClick={onToggle}
-            title="Schließen"
+            title="Schliessen"
             className="p-1.5 rounded hover:bg-white/[0.06] transition-colors ml-0.5"
           >
             <ChevronDown size={12} className="text-gray-500" />
@@ -788,27 +830,47 @@ export default function Terminal({ isOpen, onToggle, activeFile, code, workspace
         className="flex items-center gap-1 px-3 py-1 shrink-0 overflow-x-auto"
         style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}
       >
-        {quickCommands.map((item) => (
+        <select
+          value=""
+          onChange={(event) => {
+            const task = taskItems.find((item) => item.id === event.target.value);
+            runTask(task);
+          }}
+          className="px-2 py-0.5 rounded text-[10px] font-semibold bg-black/30 border border-white/10 text-gray-300 outline-none"
+          title="Task Runner"
+        >
+          <option value="">Tasks</option>
+          {taskItems.map((task) => (
+            <option key={task.id} value={task.id} disabled={task.disabled}>
+              {task.label}
+            </option>
+          ))}
+        </select>
+
+        {quickTasks.map((task) => (
           <button
-            key={item.command}
+            key={task.id}
             type="button"
-            onClick={() => executeCommand(item.command)}
-            disabled={isRunning}
+            onClick={() => runTask(task)}
+            disabled={task.disabled}
             className="px-2 py-0.5 rounded text-[10px] font-mono whitespace-nowrap transition-colors"
             style={{
               border: "1px solid rgba(255,255,255,0.1)",
-              color: isRunning ? "#64748b" : "#cbd5e1",
-              background: "rgba(255,255,255,0.02)",
-              cursor: isRunning ? "not-allowed" : "pointer",
+              color: task.disabled ? "#64748b" : "#cbd5e1",
+              background: task.kind === "task" ? "rgba(168,85,247,0.07)" : "rgba(255,255,255,0.02)",
+              cursor: task.disabled ? "not-allowed" : "pointer",
             }}
-            title={isRunning ? "Quick Commands sind während laufender Prozesse deaktiviert" : `Ausführen: ${item.command}`}
+            title={task.disabled ? "Task aktuell nicht verfuegbar" : `Task ausfuehren: ${task.command}`}
           >
-            {item.label}
+            {task.shortLabel}
           </button>
         ))}
+
+        <span className="text-[10px] text-gray-700 ml-auto shrink-0">
+          {bridgeInfo.label}
+        </span>
       </div>
 
-      {/* ── Output area ────────────────────────────────────────────── */}
       <div
         ref={scrollRef}
         className="flex-1 overflow-y-auto px-4 py-2 font-mono"
@@ -835,7 +897,6 @@ export default function Terminal({ isOpen, onToggle, activeFile, code, workspace
           ))}
         </AnimatePresence>
 
-        {/* Running indicator */}
         <AnimatePresence>
           {isRunning && (
             <motion.div
@@ -845,28 +906,27 @@ export default function Terminal({ isOpen, onToggle, activeFile, code, workspace
               className="flex items-center gap-1.5"
               style={{ fontSize: "12px", color: "#4b5563" }}
             >
-              {[0, 1, 2].map((i) => (
+              {[0, 1, 2].map((index) => (
                 <motion.span
-                  key={i}
+                  key={index}
                   animate={{ opacity: [0.2, 1, 0.2] }}
                   transition={{
                     duration: 0.8,
                     repeat: Infinity,
-                    delay: i * 0.2,
+                    delay: index * 0.2,
                   }}
                   className="inline-block w-1 h-1 rounded-full"
                   style={{ background: "var(--primary)" }}
                 />
               ))}
               <span className="text-[11px] text-gray-500 ml-1">
-                Prozess läuft … Enter sendet Eingabe, Ctrl+C stoppt
+                Prozess laeuft ... Enter sendet Eingabe, Ctrl+C stoppt
               </span>
             </motion.div>
           )}
         </AnimatePresence>
       </div>
 
-      {/* ── Input row ──────────────────────────────────────────────── */}
       <div
         className="flex items-center gap-2 px-4 py-2 shrink-0"
         style={{ borderTop: "1px solid rgba(128,0,255,0.07)" }}
@@ -883,7 +943,7 @@ export default function Terminal({ isOpen, onToggle, activeFile, code, workspace
         <input
           ref={inputRef}
           value={currentInput}
-          onChange={(e) => setInput(activeTabId, e.target.value)}
+          onChange={(event) => setInput(activeSessionId, event.target.value)}
           onKeyDown={handleKeyDown}
           spellCheck={false}
           autoComplete="off"
@@ -898,8 +958,8 @@ export default function Terminal({ isOpen, onToggle, activeFile, code, workspace
           }}
           placeholder={
             isRunning
-              ? "Prozess läuft … Eingabe wird an stdin gesendet"
-              : "Befehl eingeben… (↑↓ Verlauf, Tab Vervollständigung)"
+              ? "Prozess laeuft ... Eingabe wird an stdin gesendet"
+              : "Befehl eingeben... (Pfeile: Verlauf, Tab: Vervollstaendigung)"
           }
         />
       </div>

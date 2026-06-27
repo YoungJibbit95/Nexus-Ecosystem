@@ -169,12 +169,12 @@
     },
     "nsis": {
       "oneClick": false,
-      "perMachine": true,
+      "perMachine": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "allowElevation": true,
-      "artifactName": "Nexus_Code_Setup_${version}.exe",
+      "allowElevation": false,
+      "artifactName": "Nexus_Code_User_Setup_${version}.exe",
       "installerIcon": "assets/icons/NexusCodeLogo.ico",
       "uninstallerIcon": "assets/icons/NexusCodeLogo.ico"
     },

@@ -1,64 +1,28 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import Editor, { useMonaco } from "@monaco-editor/react";
 import { ensureMonacoWorkers } from "../../lib/monacoWorkers";
+import { THEMES as EDITOR_THEMES } from "../../pages/editor/editorShared.jsx";
+import { createMonacoModelPath } from "../../ide/editor/monacoModelUri.js";
+import { detectMonacoLanguageId } from "../../ide/languages/languageIds.js";
 
 const IGNORED_DIAGNOSTIC_CODES = new Set([2307, 2792, 1208, 2339, 2580, 2304]);
 const EDITOR_CHANGE_EMIT_INTERVAL_MS = 60;
 const CURSOR_INFO_UPDATE_MS = 50;
 const LINE_COUNT_UPDATE_MS = 80;
-
-function getLanguage(fileName) {
-  if (!fileName) return "plaintext";
-  const ext = fileName.split(".").pop()?.toLowerCase() || "";
-  const map = {
-    js: "javascript",
-    jsx: "javascript",
-    ts: "typescript",
-    tsx: "typescript",
-    py: "python",
-    html: "html",
-    css: "css",
-    scss: "scss",
-    less: "less",
-    json: "json",
-    md: "markdown",
-    rs: "rust",
-    go: "go",
-    cpp: "cpp",
-    c: "cpp",
-    java: "java",
-    cs: "csharp",
-    php: "php",
-    sql: "sql",
-    yaml: "yaml",
-    yml: "yaml",
-    xml: "xml",
-    sh: "shell",
-    bash: "shell",
-    ps1: "powershell",
-    lua: "lua",
-    r: "r",
-    sv: "systemverilog",
-    v: "verilog",
-    rb: "ruby",
-    pl: "perl",
-    swift: "swift",
-    kotlin: "kotlin",
-    dart: "dart",
-    dockerfile: "dockerfile",
-    makefile: "makefile",
-  };
-  return map[ext] || "plaintext";
-}
-
-const THEMES = {
-  nexus_vibrant: { text: "#e5e7eb", accent: "#8000ff", selection: "rgba(128,0,255,0.2)", comment: "#6a9955", keyword: "#c678dd", string: "#98c379", number: "#d19a66", function: "#61afef" },
-  neon_pink: { text: "#ffffff", accent: "#ff00ff", selection: "#4b1e4b", comment: "#ff00ff80", keyword: "#00ffff", string: "#ffff00", number: "#ff00ff", function: "#ff00ff" },
-  ocean_light: { text: "#eef2ff", accent: "#0ea5e9", selection: "#1e3a8a", comment: "#94a3b8", keyword: "#0ea5e9", string: "#10b981", number: "#f59e0b", function: "#6366f1" },
-  midnight_mystery: { text: "#f3f4f6", accent: "#a855f7", selection: "#3b0764", comment: "#a78bfa", keyword: "#d8b4fe", string: "#fbcfe8", number: "#e9d5ff", function: "#a78bfa" },
-  dracula_classic: { text: "#f8f8f2", accent: "#bd93f9", selection: "#44475a", comment: "#6272a4", keyword: "#ff79c6", string: "#f1fa8c", number: "#bd93f9", function: "#50fa7b" },
-  void_pitch: { text: "#ffffff", accent: "#ffffff", selection: "#333333", comment: "#888888", keyword: "#ffffff", string: "#aaaaaa", number: "#eeeeee", function: "#dddddd" },
-};
+const LARGE_FILE_CHAR_THRESHOLD = 180_000;
+const COMPACT_VIEWPORT_WIDTH = 920;
+const DEFAULT_EDITOR_FONT_STACK =
+  "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace";
+const TRANSPARENT_EDITOR_SELECTORS = [
+  ".monaco-editor",
+  ".monaco-editor .margin",
+  ".monaco-editor .monaco-editor-background",
+  ".monaco-editor-background",
+  ".monaco-editor .inputarea.ime-input",
+  ".monaco-editor .scroll-decoration",
+  ".monaco-editor .minimap",
+  ".monaco-editor .overflow-guard",
+];
 
 function extractRgbTuple(value) {
   if (!value || typeof value !== "string") return null;
@@ -80,6 +44,59 @@ function extractRgbTuple(value) {
     Number.parseFloat(rgbMatch[2]),
     Number.parseFloat(rgbMatch[3]),
   ];
+}
+
+function clampNumber(value, min, max, fallback) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return fallback;
+  return Math.max(min, Math.min(max, numeric));
+}
+
+function getCompactViewport() {
+  if (typeof window === "undefined") return false;
+  return window.innerWidth < COMPACT_VIEWPORT_WIDTH;
+}
+
+function resolveEditorFontSize(settings, fallbackFontSize) {
+  return Math.round(
+    clampNumber(settings.font_size ?? fallbackFontSize, 11, 22, 14),
+  );
+}
+
+function resolveEditorLineHeight(settings, resolvedFontSize) {
+  const raw = clampNumber(settings.line_height, 1.2, 34, 1.55);
+  const pixelValue = raw <= 3 ? raw * resolvedFontSize : raw;
+  return Math.round(
+    Math.max(resolvedFontSize + 4, Math.min(40, pixelValue)),
+  );
+}
+
+function resolveEditorLetterSpacing(settings) {
+  return clampNumber(settings.letter_spacing, 0, 1.5, 0);
+}
+
+function resolveEditorTabSize(settings, fallbackTabSize) {
+  return Math.round(
+    clampNumber(settings.tab_size ?? fallbackTabSize, 2, 8, 4),
+  );
+}
+
+function resolveEditorFontFamily(settings) {
+  const configured = String(settings.font_family || "").trim();
+  if (!configured) return DEFAULT_EDITOR_FONT_STACK;
+  return `'${configured.replace(/'/g, "")}', ${DEFAULT_EDITOR_FONT_STACK}`;
+}
+
+function buildStableThemeName(themeId, accent) {
+  const base =
+    String(themeId || "dark")
+      .replace(/[^a-z0-9_-]/gi, "")
+      .slice(0, 32) || "dark";
+  const accentToken =
+    String(accent || "8000ff")
+      .replace(/[^a-z0-9]/gi, "")
+      .slice(0, 24) || "accent";
+  return `nexus-${base}-${accentToken}`;
 }
 
 function pickReadableColorSource(...values) {
@@ -140,9 +157,11 @@ export default function CodeEditor({
   }, []);
 
   const monaco = useMonaco();
-  const language = getLanguage(fileName);
+  const language = useMemo(() => detectMonacoLanguageId(fileName), [fileName]);
+  const modelPath = useMemo(() => createMonacoModelPath({ fileName }), [fileName]);
   const [cursorInfo, setCursorInfo] = useState({ line: 1, col: 1 });
   const [lineCount, setLineCount] = useState(1);
+  const [compactViewport, setCompactViewport] = useState(getCompactViewport);
   const editorRef = useRef(null);
   const markerTimerRef = useRef(null);
   const markerHashRef = useRef("");
@@ -161,26 +180,136 @@ export default function CodeEditor({
     : [];
   const hasPrettier = installedExtensions.includes("prettier");
   const hasRainbowBrackets = installedExtensions.includes("rainbow-brackets");
+  const isLargeFile = typeof code === "string" && code.length > LARGE_FILE_CHAR_THRESHOLD;
+  const editorFontSize = useMemo(
+    () => resolveEditorFontSize(settings, fontSize),
+    [fontSize, settings.font_size],
+  );
+  const editorLineHeight = useMemo(
+    () => resolveEditorLineHeight(settings, editorFontSize),
+    [editorFontSize, settings.line_height],
+  );
+  const editorTabSize = useMemo(
+    () => resolveEditorTabSize(settings, tabSize),
+    [settings.tab_size, tabSize],
+  );
+  const editorOptions = useMemo(
+    () => ({
+      fontSize: editorFontSize,
+      fontFamily: resolveEditorFontFamily(settings),
+      fontWeight: String(settings.font_weight || "400"),
+      letterSpacing: resolveEditorLetterSpacing(settings),
+      lineHeight: editorLineHeight,
+      lineNumbers: showLineNumbers ? "on" : "off",
+      lineDecorationsWidth: compactViewport ? 8 : 14,
+      glyphMargin: false,
+      tabSize: editorTabSize,
+      insertSpaces: true,
+      detectIndentation: true,
+      wordWrap: wordWrap ? "on" : "off",
+      wrappingIndent: "same",
+      minimap: {
+        enabled: (settings.minimap === true || minimap === true) && !isLargeFile && !compactViewport,
+        renderCharacters: false,
+        maxColumn: 90,
+      },
+      cursorBlinking: settings.cursor_blinking || "solid",
+      cursorSmoothCaretAnimation: settings.smooth_caret === true ? "on" : "off",
+      cursorStyle: settings.cursor_style || "line",
+      renderWhitespace: settings.render_whitespace || "none",
+      renderControlCharacters: false,
+      formatOnPaste: hasPrettier || settings.format_on_paste === true,
+      formatOnType: hasPrettier || settings.format_on_type === true,
+      stickyScroll: { enabled: settings.sticky_scroll === true && !compactViewport },
+      smoothScrolling: !isLargeFile,
+      automaticLayout: true,
+      largeFileOptimizations: true,
+      renderValidationDecorations: "editable",
+      padding: {
+        top: compactViewport ? 14 : 20,
+        bottom: compactViewport ? 14 : 20,
+      },
+      scrollBeyondLastLine: false,
+      renderLineHighlight: settings.line_highlight || "all",
+      renderLineHighlightOnlyWhenFocus: false,
+      bracketPairColorization: {
+        enabled: hasRainbowBrackets || settings.bracket_colorization === true,
+      },
+      guides: {
+        bracketPairs: !isLargeFile,
+        indentation: true,
+        highlightActiveIndentation: !isLargeFile,
+      },
+      fontLigatures: settings.font_ligatures !== false,
+      selectionHighlight: !isLargeFile,
+      occurrencesHighlight: "off",
+      codeLens: false,
+      folding: !isLargeFile,
+      foldingHighlight: !isLargeFile,
+      links: false,
+      colorDecorators: !isLargeFile,
+      hover: {
+        delay: 350,
+        sticky: true,
+      },
+      quickSuggestions: !isLargeFile,
+      inlayHints: { enabled: "off" },
+      fixedOverflowWidgets: true,
+      hideCursorInOverviewRuler: isLargeFile,
+      overviewRulerLanes: isLargeFile ? 0 : 2,
+      mouseWheelScrollSensitivity: 1,
+      fastScrollSensitivity: 4,
+      scrollbar: {
+        verticalScrollbarSize: compactViewport ? 7 : 9,
+        horizontalScrollbarSize: compactViewport ? 7 : 9,
+        useShadows: false,
+        verticalHasArrows: false,
+        horizontalHasArrows: false,
+        alwaysConsumeMouseWheel: false,
+      },
+    }),
+    [
+      compactViewport,
+      editorFontSize,
+      editorLineHeight,
+      editorTabSize,
+      hasPrettier,
+      hasRainbowBrackets,
+      isLargeFile,
+      minimap,
+      settings.bracket_colorization,
+      settings.cursor_blinking,
+      settings.cursor_style,
+      settings.font_family,
+      settings.font_ligatures,
+      settings.font_weight,
+      settings.format_on_paste,
+      settings.format_on_type,
+      settings.letter_spacing,
+      settings.line_highlight,
+      settings.minimap,
+      settings.render_whitespace,
+      settings.smooth_caret,
+      settings.sticky_scroll,
+      showLineNumbers,
+      wordWrap,
+    ],
+  );
 
   const forceTransparentEditorShell = useCallback(() => {
     const editor = editorRef.current;
     const domNode = editor?.getDomNode?.();
     if (!domNode) return;
-    const selectors = [
-      ".monaco-editor",
-      ".monaco-editor .margin",
-      ".monaco-editor .monaco-editor-background",
-      ".monaco-editor-background",
-      ".monaco-editor .inputarea.ime-input",
-      ".monaco-editor .scroll-decoration",
-      ".monaco-editor .minimap",
-      ".monaco-editor .overflow-guard",
-    ];
-    selectors.forEach((selector) => {
+    domNode.classList.add("nx-code-monaco-mounted");
+    TRANSPARENT_EDITOR_SELECTORS.forEach((selector) => {
       domNode.querySelectorAll(selector).forEach((node) => {
         const el = /** @type {HTMLElement} */ (node);
-        el.style.backgroundColor = "transparent";
-        el.style.backgroundImage = "none";
+        if (el.style.backgroundColor !== "transparent") {
+          el.style.backgroundColor = "transparent";
+        }
+        if (el.style.backgroundImage !== "none") {
+          el.style.backgroundImage = "none";
+        }
       });
     });
   }, []);
@@ -197,9 +326,25 @@ export default function CodeEditor({
   }, []);
 
   useEffect(() => {
+    let frame = 0;
+    const onResize = () => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(() => {
+        const next = getCompactViewport();
+        setCompactViewport((prev) => (prev === next ? prev : next));
+      });
+    };
+    window.addEventListener("resize", onResize, { passive: true });
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener("resize", onResize);
+    };
+  }, []);
+
+  useEffect(() => {
     if (monaco) {
       try {
-        const activeTheme = THEMES[settings.theme] || THEMES.nexus_vibrant;
+        const activeTheme = EDITOR_THEMES[settings.theme] || EDITOR_THEMES.nexus_vibrant;
         const rootStyles = getComputedStyle(document.documentElement);
         const cssEditorText =
           rootStyles.getPropertyValue("--nexus-editor-foreground").trim() ||
@@ -214,10 +359,10 @@ export default function CodeEditor({
         );
         const editorLineNumberColor = "#9ca3af";
         const editorWidgetBackground = "#0a0a0f";
-        const accentColor = String(settings.primary_accent || activeTheme.accent || "#8000ff").replace('#', '');
-        // Monaco theme names must be strictly alphanumeric (plus - and _)
-        const safeThemeBase = String(settings.theme || 'dark').replace(/[^a-z0-9]/gi, '');
-        const themeName = `nexus-${safeThemeBase}-${accentColor}`;
+        const themeName = buildStableThemeName(
+          settings.theme,
+          settings.primary_accent || activeTheme.accent,
+        );
 
         monaco.editor.defineTheme(themeName, {
           base: monacoBase,
@@ -245,10 +390,7 @@ export default function CodeEditor({
           },
         });
         monaco.editor.setTheme(themeName);
-        requestAnimationFrame(() => {
-          forceTransparentEditorShell();
-          editorRef.current?.layout?.();
-        });
+        requestAnimationFrame(() => forceTransparentEditorShell());
       } catch (err) {
         console.error("Monaco Theme Definition Error:", err);
         // Fallback to a built-in theme if definition fails
@@ -473,12 +615,18 @@ export default function CodeEditor({
     disposeEditorListeners();
     setLineCount(Math.max(1, Number(editor.getModel()?.getLineCount?.() || 1)));
 
-    // Fix for "versetzt" (offset) issue: refresh layout after a short delay
-    // to ensure fonts are fully loaded.
-    setTimeout(() => {
+    const refreshEditorShell = () => {
       editor.layout();
       forceTransparentEditorShell();
-    }, 500);
+    };
+    requestAnimationFrame(refreshEditorShell);
+    if (document.fonts?.ready) {
+      document.fonts.ready
+        .then(() => requestAnimationFrame(refreshEditorShell))
+        .catch(() => {});
+    } else {
+      window.setTimeout(refreshEditorShell, 220);
+    }
 
     cursorListenerDisposableRef.current = editor.onDidChangeCursorPosition((e) => {
       scheduleCursorInfoUpdate(e.position.lineNumber, e.position.column);
@@ -561,60 +709,20 @@ export default function CodeEditor({
   }, [settings.theme, settings.primary_accent, forceTransparentEditorShell]);
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 w-full relative overflow-hidden bg-transparent" style={{ background: "transparent" }}>
-      <div className="flex-1 min-h-0 w-full relative overflow-hidden">
+    <div className="nx-code-editor-shell flex-1 flex flex-col min-h-0 w-full relative overflow-hidden bg-transparent" style={{ background: "transparent" }}>
+      <div className="nx-code-editor-canvas flex-1 min-h-0 w-full relative overflow-hidden">
         <Editor
           height="100%"
           width="100%"
-          path={fileName}
+          path={modelPath}
           language={language}
           value={code}
           onChange={handleEditorChange}
           onMount={handleEditorDidMount}
-          options={{
-            fontSize: settings.font_size || 14,
-            fontFamily: settings.font_family
-              ? `'${settings.font_family}', 'JetBrains Mono', monospace`
-              : "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
-            fontWeight: settings.font_weight || "400",
-            letterSpacing: settings.letter_spacing || 0,
-            lineHeight: settings.line_height || 1.6,
-            lineNumbers: showLineNumbers ? "on" : "off",
-            tabSize: settings.tab_size || 4,
-            wordWrap: wordWrap ? "on" : "off",
-            minimap: { enabled: settings.minimap === true },
-            cursorBlinking: settings.cursor_blinking || "solid", 
-            cursorSmoothCaretAnimation: settings.smooth_caret === true ? "on" : "off",
-            cursorStyle: settings.cursor_style || "line",
-            renderWhitespace: settings.render_whitespace || "none",
-            formatOnPaste: hasPrettier || settings.format_on_paste === true,
-            stickyScroll: { enabled: settings.sticky_scroll || false },
-            smoothScrolling: true,
-            padding: { top: 20, bottom: 20 },
-            scrollBeyondLastLine: false,
-            renderLineHighlight: settings.line_highlight || "all",
-            bracketPairColorization: {
-              enabled: hasRainbowBrackets || settings.bracket_colorization === true,
-            },
-            guides: { bracketPairs: true, indentation: true },
-            fontLigatures: settings.font_ligatures !== false,
-            formatOnType: hasPrettier || settings.format_on_type === true,
-            selectionHighlight: false,
-            occurrencesHighlight: "off",
-            codeLens: false,
-            inlayHints: { enabled: "off" },
-            fixedOverflowWidgets: true,
-            scrollbar: {
-              verticalScrollbarSize: 8,
-              horizontalScrollbarSize: 8,
-              useShadows: false,
-              verticalHasArrows: false,
-              horizontalHasArrows: false,
-            },
-          }}
+          options={editorOptions}
           loading={
             <div className="flex items-center justify-center h-full w-full bg-transparent text-purple-500/50 font-mono text-sm">
-              <span className="animate-pulse tracking-widest text-xs uppercase" style={{ color: "var(--primary)" }}>Initializing Engine...</span>
+              <span className="animate-pulse tracking-widest text-xs uppercase" style={{ color: "var(--primary)" }}>Editor wird geladen...</span>
             </div>
           }
         />
@@ -622,10 +730,10 @@ export default function CodeEditor({
 
       {/* Status Bar */}
       <div
-        className="h-6 flex items-center justify-between px-3 shrink-0 select-none backdrop-blur-md border-t border-white/5 z-10"
+        className="nx-code-editor-status h-6 flex items-center justify-between gap-3 px-3 shrink-0 select-none backdrop-blur-md border-t border-white/5 z-10"
         style={{ background: "rgba(0,0,0,0.3)" }}
       >
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3 min-w-0">
           <span className="text-[10px] text-gray-400 font-medium">
             {language.toUpperCase() || "TEXT"}
           </span>
@@ -634,7 +742,7 @@ export default function CodeEditor({
              <span className="text-[10px] text-purple-500 font-bold opacity-60">STICKY</span>
           )}
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3 shrink-0">
           <span className="text-[10px] text-gray-400">
             Ln {cursorInfo.line}, Col {cursorInfo.col}
           </span>

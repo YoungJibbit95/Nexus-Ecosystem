@@ -3,6 +3,8 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
+      "@nexus/core": ["../packages/nexus-core/src/index.ts"],
+      "@nexus/core/*": ["../packages/nexus-core/src/*"],
       "@nexus/api": ["../packages/nexus-core/src/api/index.ts"],
       "@nexus/api/*": ["../packages/nexus-core/src/api/*"]
     },
@@ -20,7 +22,9 @@
   },
   "include": [
     "src/components/**/*.js",
+    "src/ide/**/*.js",
     "src/pages/**/*.jsx",
+    "src/pages/editor/**/*.js",
     "src/types/**/*.d.ts",
     "src/Layout.jsx"
   ],

@@ -63,6 +63,7 @@ function MenuButton({ label, items, activeMenu, setActiveMenu }) {
 }
 
 export default function TitleBar({ 
+  compact = false,
   onNewFile,
   onSaveAll,
   onOpenFolder, 
@@ -163,21 +164,18 @@ export default function TitleBar({
   ];
 
   return (
-    <motion.div
-      initial={{ y: -20, opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
-      transition={{ type: "spring", stiffness: 300, damping: 30 }}
-      className="h-10 flex items-center justify-between px-4 shrink-0 select-none border-b border-white/5 relative z-50"
+    <div
+      className={`nx-code-titlebar h-10 flex items-center justify-between ${compact ? "px-2" : "px-4"} shrink-0 select-none border-b border-white/5 relative z-50`}
       style={{
         background: "var(--nexus-surface)",
         borderBottom: "1px solid var(--nexus-border)",
-        backdropFilter: "blur(20px)",
+        backdropFilter: "blur(14px)",
         // @ts-ignore
         WebkitAppRegion: isElectron ? "drag" : "no-drag",
       }}
     >
       <div
-        className="flex items-center gap-1.5 shrink-0 min-w-0 pr-4"
+        className="flex items-center gap-1.5 shrink-0 min-w-0 pr-2 sm:pr-4"
         style={{ paddingLeft: isMacOS ? MACOS_TRAFFIC_LIGHT_SAFE_WIDTH : 0 }}
       >
         {showWindowControls && (
@@ -220,7 +218,7 @@ export default function TitleBar({
         {/* Menu Bar */}
         <div
           ref={menuHostRef}
-          className="flex items-center gap-1"
+          className={`nx-code-menu-host items-center gap-1 ${compact ? "hidden sm:flex" : "flex"}`}
           // @ts-ignore
           style={{ WebkitAppRegion: "no-drag" }}
         >
@@ -236,7 +234,7 @@ export default function TitleBar({
         </div>
       </div>
 
-      <div className="flex-1 flex items-center justify-center pointer-events-none mx-8 overflow-hidden">
+      <div className="flex-1 flex items-center justify-center pointer-events-none mx-2 sm:mx-8 overflow-hidden">
         <span
           className="text-[10px] text-gray-500 tracking-[0.2em] font-bold uppercase truncate max-w-[50vw]"
         >
@@ -247,6 +245,6 @@ export default function TitleBar({
       <div className="w-12 shrink-0 flex items-center justify-end">
         {/* Placeholder for future right-side icons like Sync, GitHub, etc. */}
       </div>
-    </motion.div>
+    </div>
   );
 }
