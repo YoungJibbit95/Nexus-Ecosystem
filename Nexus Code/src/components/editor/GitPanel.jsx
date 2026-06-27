@@ -26,7 +26,9 @@ import {
   loadGithubCommitHistory,
   loadGithubRepositories,
   loadGithubSession,
+  loadLocalGitDiff,
   loadLocalGitHistory,
+  loadLocalGitRemotes,
   loadLocalGitStatus,
   pullLocalGit,
   pushLocalGit,
@@ -38,6 +40,8 @@ import {
   startGithubDeviceFlow,
   unstageGitPath,
 } from "../../pages/editor/gitPanelModel";
+
+const DIFF_LINE_LIMIT = 220;
 
 const STATUS_META = {
   M: { label: "Modified", color: "#fbbf24" },
@@ -55,41 +59,46 @@ function SectionHeader({
   onToggle,
   action,
   actionLabel,
+  actionDisabled = false,
+  actionTitle,
 }) {
   return (
-    <button
-      onClick={onToggle}
-      className="w-full flex items-center gap-1.5 px-3 py-1.5 group hover:bg-white/[0.03] transition-colors"
-    >
-      <motion.div
-        animate={{ rotate: expanded ? 0 : -90 }}
-        transition={{ duration: 0.18 }}
+    <div className="flex items-center gap-1 px-2 py-1.5">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="min-w-0 flex flex-1 items-center gap-1.5 rounded-md px-1 py-1 hover:bg-white/[0.03] transition-colors"
       >
-        <ChevronDown size={11} className="text-gray-600" />
-      </motion.div>
-      <span className="text-[10px] font-semibold text-gray-500 tracking-widest uppercase flex-1 text-left">
-        {title}
-      </span>
-      {count != null && count > 0 && (
-        <span
-          className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
-          style={{ background: "rgba(128,0,255,0.15)", color: "#a855f7" }}
+        <motion.div
+          animate={{ rotate: expanded ? 0 : -90 }}
+          transition={{ duration: 0.18 }}
         >
-          {count}
+          <ChevronDown size={11} className="text-gray-600" />
+        </motion.div>
+        <span className="text-[10px] font-semibold text-gray-500 tracking-widest uppercase flex-1 text-left truncate">
+          {title}
         </span>
-      )}
+        {count != null && count > 0 && (
+          <span
+            className="text-[10px] font-bold px-1.5 py-0.5 rounded-md"
+            style={{ background: "rgba(128,0,255,0.15)", color: "#a855f7" }}
+          >
+            {count}
+          </span>
+        )}
+      </button>
       {action && (
-        <span
-          onClick={(event) => {
-            event.stopPropagation();
-            action();
-          }}
-          className="text-[10px] text-purple-400 hover:text-purple-300 opacity-0 group-hover:opacity-100 transition-opacity ml-1"
+        <button
+          type="button"
+          onClick={action}
+          disabled={actionDisabled}
+          title={actionTitle || actionLabel}
+          className="shrink-0 rounded-md border border-white/10 bg-white/[0.04] px-2 py-1 text-[10px] font-semibold text-gray-300 transition-colors hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-40"
         >
           {actionLabel}
-        </span>
+        </button>
       )}
-    </button>
+    </div>
   );
 }
 
@@ -116,7 +125,7 @@ function CapabilityPill({ icon: Icon, label, tone = "neutral", title }) {
   return (
     <div
       title={title || label}
-      className="flex items-center gap-1.5 px-2 py-1 rounded-full min-w-0"
+      className="flex items-center gap-1.5 px-2 py-1 rounded-md min-w-0"
       style={{
         color: palette.color,
         background: palette.background,
@@ -129,53 +138,258 @@ function CapabilityPill({ icon: Icon, label, tone = "neutral", title }) {
   );
 }
 
-function FileRow({ file, staged, onToggle }) {
-  const meta = STATUS_META[file.status] || STATUS_META.U;
+function SummaryTile({ label, value, tone = "neutral", title }) {
+  const color =
+    tone === "good"
+      ? "#86efac"
+      : tone === "warn"
+        ? "#fbbf24"
+        : tone === "hot"
+          ? "#fca5a5"
+          : "#cbd5e1";
+
   return (
-    <motion.button
+    <div
+      title={title}
+      className="min-w-0 rounded-md border border-white/5 bg-black/20 px-2 py-1.5"
+    >
+      <div className="text-[9px] uppercase tracking-wide text-gray-600">
+        {label}
+      </div>
+      <div
+        className="mt-0.5 truncate text-[11px] font-semibold"
+        style={{ color }}
+      >
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function EmptyState({ title, detail, tone = "muted" }) {
+  const isGood = tone === "good";
+  return (
+    <div className="mx-3 mb-2 rounded-lg border border-white/5 bg-black/15 px-3 py-3">
+      <div className="flex items-start gap-2">
+        {isGood ? (
+          <Check size={13} className="mt-0.5 shrink-0 text-green-400" />
+        ) : (
+          <AlertCircle size={13} className="mt-0.5 shrink-0 text-gray-500" />
+        )}
+        <div className="min-w-0">
+          <p
+            className={`text-xs font-semibold ${
+              isGood ? "text-green-200" : "text-gray-300"
+            }`}
+          >
+            {title}
+          </p>
+          {detail && (
+            <p className="mt-1 text-[11px] leading-snug text-gray-600">
+              {detail}
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FileRow({ file, staged, selected, busy, onSelect, onToggle }) {
+  const meta = STATUS_META[file.status] || STATUS_META.U;
+  const actionLabel = staged ? "Unstage" : "Stage";
+  const scopeLabel =
+    file.changeScope === "untracked"
+      ? "Untracked"
+      : file.changeScope === "conflict"
+        ? "Conflict"
+        : staged
+          ? "Index"
+          : "Working tree";
+
+  return (
+    <motion.div
       layout
       initial={{ opacity: 0, x: -8 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: -8, height: 0 }}
-      whileHover={{ x: 2 }}
-      onClick={() => onToggle(file)}
-      className="w-full flex items-center gap-2 px-3 py-1 group cursor-pointer"
-      title={`${meta.label}: ${file.path || file.name}`}
+      className="px-2 pb-1"
     >
-      <span
-        className="text-[10px] font-bold w-4 shrink-0 text-center"
-        style={{ color: meta.color }}
+      <div
+        className="group flex items-center rounded-md border transition-colors"
+        style={{
+          background: selected ? "rgba(139,92,246,0.12)" : "rgba(255,255,255,0.015)",
+          borderColor: selected ? "rgba(168,85,247,0.35)" : "rgba(255,255,255,0.04)",
+        }}
       >
-        {file.status}
-      </span>
-      <span className="text-xs text-gray-400 truncate flex-1 text-left group-hover:text-gray-200 transition-colors font-mono">
-        {file.name}
-      </span>
-      {(file.additions > 0 || file.deletions > 0) && (
-        <span className="text-[10px] text-gray-600 font-mono shrink-0">
-          +{file.additions} -{file.deletions}
-        </span>
+        <button
+          type="button"
+          onClick={() => onSelect(file)}
+          className="min-w-0 flex flex-1 items-center gap-2 px-2 py-1.5 text-left"
+          title={`${meta.label}: ${file.path || file.name}`}
+        >
+          <span
+            className="text-[10px] font-bold w-4 shrink-0 text-center"
+            style={{ color: meta.color }}
+          >
+            {file.status}
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-xs font-mono text-gray-300 group-hover:text-gray-100">
+              {file.name}
+            </span>
+            <span className="block truncate text-[10px] text-gray-600">
+              {scopeLabel}
+              {file.originalPath ? ` from ${file.originalPath}` : ""}
+            </span>
+          </span>
+          {(file.additions > 0 || file.deletions > 0) && (
+            <span className="text-[10px] text-gray-600 font-mono shrink-0">
+              +{file.additions} -{file.deletions}
+            </span>
+          )}
+        </button>
+        <button
+          type="button"
+          onClick={() => onToggle(file)}
+          disabled={busy}
+          title={`${actionLabel} ${file.path || file.name}`}
+          className="mr-1 flex h-6 shrink-0 items-center gap-1 rounded-md border border-white/10 bg-white/[0.04] px-1.5 text-[10px] font-semibold text-gray-300 transition-colors hover:bg-white/[0.08] disabled:cursor-wait disabled:opacity-50"
+        >
+          {busy ? (
+            <RefreshCw size={10} className="animate-spin" />
+          ) : staged ? (
+            <Minus size={10} className="text-red-300" />
+          ) : (
+            <Plus size={10} className="text-green-300" />
+          )}
+          <span>{actionLabel}</span>
+        </button>
+      </div>
+    </motion.div>
+  );
+}
+
+function DiffViewer({
+  selectedFile,
+  diffText,
+  diffLoading,
+  diffError,
+  canDiff,
+  hasLocalGit,
+}) {
+  const lines = useMemo(() => diffText.split(/\r?\n/), [diffText]);
+  const visibleLines = lines.slice(0, DIFF_LINE_LIMIT);
+  const truncated = lines.length > DIFF_LINE_LIMIT;
+
+  if (!selectedFile) {
+    return (
+      <EmptyState
+        title="Select a changed file"
+        detail="Choose a staged or unstaged entry to inspect the diff returned by the local Git bridge."
+      />
+    );
+  }
+
+  if (!hasLocalGit || selectedFile.source !== "git") {
+    return (
+      <EmptyState
+        title="Diff unavailable in preview mode"
+        detail="Connect the Electron Git IPC bridge to read real repository diffs."
+      />
+    );
+  }
+
+  if (!canDiff) {
+    return (
+      <EmptyState
+        title="Diff method not exposed"
+        detail="The current Git bridge can report status, but it does not expose a file diff method."
+      />
+    );
+  }
+
+  return (
+    <div className="mx-3 mb-3 overflow-hidden rounded-lg border border-white/5 bg-black/20">
+      <div className="flex items-center gap-2 border-b border-white/5 px-2.5 py-2">
+        <span
+          className="h-2 w-2 shrink-0 rounded-full"
+          style={{
+            background: (STATUS_META[selectedFile.status] || STATUS_META.U).color,
+          }}
+        />
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-xs font-semibold text-gray-200">
+            {selectedFile.path || selectedFile.name}
+          </p>
+          <p className="truncate text-[10px] text-gray-600">
+            {selectedFile.staged ? "Staged diff" : "Working tree diff"}
+          </p>
+        </div>
+        {diffLoading && <RefreshCw size={12} className="animate-spin text-purple-300" />}
+      </div>
+
+      {diffError ? (
+        <div className="flex items-start gap-2 px-3 py-3">
+          <AlertCircle size={13} className="mt-0.5 shrink-0 text-red-400" />
+          <p className="text-[11px] leading-snug text-red-300/80">{diffError}</p>
+        </div>
+      ) : diffLoading ? (
+        <div className="space-y-1.5 px-3 py-3">
+          <div className="h-2 w-5/6 animate-pulse rounded bg-white/10" />
+          <div className="h-2 w-2/3 animate-pulse rounded bg-white/10" />
+          <div className="h-2 w-4/5 animate-pulse rounded bg-white/10" />
+        </div>
+      ) : diffText.trim().length === 0 ? (
+        <div className="px-3 py-3 text-[11px] leading-snug text-gray-600">
+          No line diff returned for this file state. Untracked files usually
+          need to be staged before Git can provide a patch.
+        </div>
+      ) : (
+        <div className="max-h-64 overflow-auto px-0 py-2 text-[10px] leading-5">
+          {visibleLines.map((line, index) => {
+            const added = line.startsWith("+") && !line.startsWith("+++");
+            const removed = line.startsWith("-") && !line.startsWith("---");
+            const hunk = line.startsWith("@@");
+            const header = line.startsWith("diff --git") || line.startsWith("index ");
+            const color = added
+              ? "#86efac"
+              : removed
+                ? "#fca5a5"
+                : hunk
+                  ? "#c4b5fd"
+                  : header
+                    ? "#93c5fd"
+                    : "#94a3b8";
+            const background = added
+              ? "rgba(34,197,94,0.08)"
+              : removed
+                ? "rgba(239,68,68,0.08)"
+                : hunk
+                  ? "rgba(139,92,246,0.08)"
+                  : "transparent";
+
+            return (
+              <div
+                key={`${index}-${line}`}
+                className="grid grid-cols-[34px_1fr] gap-2 px-2 font-mono"
+                style={{ color, background }}
+              >
+                <span className="select-none text-right text-gray-700">
+                  {index + 1}
+                </span>
+                <span className="whitespace-pre-wrap break-words">{line || " "}</span>
+              </div>
+            );
+          })}
+          {truncated && (
+            <div className="px-3 pt-2 text-[10px] text-amber-300">
+              Diff truncated after {DIFF_LINE_LIMIT} lines.
+            </div>
+          )}
+        </div>
       )}
-      <motion.div
-        animate={{ scale: staged ? 1 : 0.4, opacity: staged ? 1 : 0 }}
-        transition={{ duration: 0.15 }}
-        className="w-4 h-4 rounded flex items-center justify-center shrink-0"
-        style={{ background: staged ? "rgba(34,197,94,0.2)" : "transparent" }}
-      >
-        <Check size={9} className="text-green-400" />
-      </motion.div>
-      <motion.div
-        initial={{ opacity: 0 }}
-        whileHover={{ opacity: 1 }}
-        className="shrink-0"
-      >
-        {staged ? (
-          <Minus size={11} className="text-red-400/70" />
-        ) : (
-          <Plus size={11} className="text-green-400/70" />
-        )}
-      </motion.div>
-    </motion.button>
+    </div>
   );
 }
 
@@ -183,10 +397,19 @@ function getRepoFullName(repo) {
   return repo?.full_name || repo?.fullName || repo?.nameWithOwner || repo?.name || "";
 }
 
+function uniqueFilePaths(files) {
+  return Array.from(
+    new Set(files.map((file) => file.path || file.name).filter(Boolean)),
+  );
+}
+
 export default function GitPanel({ files }) {
   const [commitMsg, setCommitMsg] = useState("");
   const [staged, setStaged] = useState(new Set());
   const [status, setStatus] = useState(() => buildFallbackGitStatus(files));
+  const [remotes, setRemotes] = useState([]);
+  const [remoteLoading, setRemoteLoading] = useState(false);
+  const [remoteError, setRemoteError] = useState("");
   const [history, setHistory] = useState([]);
   const [historySource, setHistorySource] = useState("Local");
   const [gitCapability, setGitCapability] = useState(getGitCapability);
@@ -207,20 +430,71 @@ export default function GitPanel({ files }) {
   const [committing, setCommitting] = useState(false);
   const [committed, setCommitted] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [selectedFileId, setSelectedFileId] = useState(null);
+  const [diffText, setDiffText] = useState("");
+  const [diffLoading, setDiffLoading] = useState(false);
+  const [diffError, setDiffError] = useState("");
+  const [stageBusyIds, setStageBusyIds] = useState(new Set());
+  const [bulkAction, setBulkAction] = useState("");
   const [sections, setSections] = useState({
     changes: true,
     staged: true,
+    diff: true,
     history: false,
     settings: false,
   });
 
   const workspaceRoot = useMemo(() => inferWorkspaceRoot(files), [files]);
   const branch = status.branch || "main";
-  const changedFiles = status.files || [];
-  const unstagedFiles = changedFiles.filter((file) => !staged.has(file.id));
-  const stagedFiles = changedFiles.filter((file) => staged.has(file.id));
+  const changedFiles = useMemo(() => status.files || [], [status.files]);
+  const unstagedFiles = useMemo(
+    () => changedFiles.filter((file) => !staged.has(file.id)),
+    [changedFiles, staged],
+  );
+  const stagedFiles = useMemo(
+    () => changedFiles.filter((file) => staged.has(file.id)),
+    [changedFiles, staged],
+  );
   const hasLocalGit = gitCapability.available;
-  const canPush = gitCapability.methods.includes("push");
+  const canDiff = hasLocalGit && gitCapability.methods.includes("diff");
+  const canPull = hasLocalGit && gitCapability.methods.includes("pull");
+  const canPush = hasLocalGit && gitCapability.methods.includes("push");
+  const clean = changedFiles.length === 0 || status.clean;
+  const selectedFile = useMemo(
+    () => changedFiles.find((file) => file.id === selectedFileId) || null,
+    [changedFiles, selectedFileId],
+  );
+
+  const primaryRemote = useMemo(() => {
+    const upstreamRemote = status.upstream?.split("/")?.[0];
+    return (
+      remotes.find((remote) => remote.name === upstreamRemote) ||
+      remotes.find((remote) => remote.name === "origin") ||
+      remotes[0] ||
+      null
+    );
+  }, [remotes, status.upstream]);
+
+  const remoteLabel = primaryRemote?.name || status.upstream?.split("/")?.[0] || "No remote";
+  const remoteDetail =
+    status.upstream ||
+    primaryRemote?.fetchUrl ||
+    (remoteLoading ? "Loading remotes..." : "No upstream configured");
+  const syncLabel =
+    status.ahead > 0 || status.behind > 0
+      ? `${status.ahead} ahead / ${status.behind} behind`
+      : "Up to date";
+  const syncTone = status.behind > 0 ? "warn" : status.ahead > 0 ? "good" : "neutral";
+
+  const commitDisabledReason = !hasLocalGit
+    ? "Local Git IPC is required to commit."
+    : stagedFiles.length === 0
+      ? "Stage at least one file to commit."
+      : commitMsg.trim().length === 0
+        ? "Write a commit message."
+        : canPush
+          ? "Ready to commit and push."
+          : "Ready to commit.";
 
   const refreshHistory = useCallback(
     async (settings = readGithubSettings()) => {
@@ -256,6 +530,30 @@ export default function GitPanel({ files }) {
     [workspaceRoot],
   );
 
+  const refreshLocalRemotes = useCallback(
+    async (capability = getGitCapability(), { silent = false } = {}) => {
+      if (!capability.available || !capability.methods.includes("remotes")) {
+        setRemotes([]);
+        setRemoteError("");
+        return;
+      }
+
+      if (!silent) setRemoteLoading(true);
+      try {
+        const nextRemotes = await loadLocalGitRemotes({ cwd: workspaceRoot });
+        setRemotes(nextRemotes);
+        setRemoteError("");
+      } catch (error) {
+        console.error("Git remotes failed", error);
+        setRemotes([]);
+        setRemoteError(error?.message || "Git remote lookup failed");
+      } finally {
+        if (!silent) setRemoteLoading(false);
+      }
+    },
+    [workspaceRoot],
+  );
+
   const refreshGitStatus = useCallback(
     async ({ silent = false } = {}) => {
       const capability = getGitCapability();
@@ -267,13 +565,20 @@ export default function GitPanel({ files }) {
           const nextStatus = await loadLocalGitStatus({ cwd: workspaceRoot });
           setStatus(nextStatus);
           setStaged(
-            new Set(nextStatus.files.filter((file) => file.staged).map((file) => file.id)),
+            new Set(
+              nextStatus.files
+                .filter((file) => file.staged)
+                .map((file) => file.id),
+            ),
           );
           setErrorMsg("");
+          await refreshLocalRemotes(capability, { silent: true });
           await refreshHistory();
         } else {
           const fallback = buildFallbackGitStatus(files);
           setStatus(fallback);
+          setRemotes([]);
+          setRemoteError("");
           setStaged((prev) => {
             const availableIds = new Set(fallback.files.map((file) => file.id));
             return new Set([...prev].filter((id) => availableIds.has(id)));
@@ -282,12 +587,13 @@ export default function GitPanel({ files }) {
       } catch (error) {
         console.error("Git status failed", error);
         setStatus(buildFallbackGitStatus(files));
+        setRemotes([]);
         setErrorMsg(error?.message || "Git status failed");
       } finally {
         if (!silent) setRefreshing(false);
       }
     },
-    [files, refreshHistory, workspaceRoot],
+    [files, refreshHistory, refreshLocalRemotes, workspaceRoot],
   );
 
   const refreshGithubBackend = useCallback(async () => {
@@ -341,11 +647,76 @@ export default function GitPanel({ files }) {
     }
   }, [files, hasLocalGit]);
 
+  useEffect(() => {
+    setSelectedFileId((current) =>
+      changedFiles.some((file) => file.id === current)
+        ? current
+        : changedFiles[0]?.id || null,
+    );
+  }, [changedFiles]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const filePath = selectedFile?.path || selectedFile?.name;
+
+    setDiffText("");
+    setDiffError("");
+
+    if (!selectedFile || !filePath) {
+      setDiffLoading(false);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    if (!hasLocalGit || selectedFile.source !== "git" || !canDiff) {
+      setDiffLoading(false);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    setDiffLoading(true);
+    loadLocalGitDiff({
+      cwd: workspaceRoot,
+      paths: [filePath],
+      staged: selectedFile.staged,
+      context: 4,
+    })
+      .then((nextDiff) => {
+        if (!cancelled) setDiffText(nextDiff);
+      })
+      .catch((error) => {
+        console.error("Git diff failed", error);
+        if (!cancelled) {
+          setDiffError(error?.message || "Git diff failed");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setDiffLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    canDiff,
+    hasLocalGit,
+    selectedFile?.id,
+    selectedFile?.name,
+    selectedFile?.path,
+    selectedFile?.source,
+    selectedFile?.staged,
+    workspaceRoot,
+  ]);
+
   const toggleSection = (key) =>
     setSections((prev) => ({ ...prev, [key]: !prev[key] }));
 
   const toggleStage = async (file) => {
     const nextStaged = !staged.has(file.id);
+    setSelectedFileId(file.id);
+    setStageBusyIds((prev) => new Set(prev).add(file.id));
     setStaged((prev) => {
       const next = new Set(prev);
       if (nextStaged) next.add(file.id);
@@ -353,7 +724,14 @@ export default function GitPanel({ files }) {
       return next;
     });
 
-    if (!hasLocalGit || file.source !== "git") return;
+    if (!hasLocalGit || file.source !== "git") {
+      setStageBusyIds((prev) => {
+        const next = new Set(prev);
+        next.delete(file.id);
+        return next;
+      });
+      return;
+    }
 
     try {
       if (nextStaged) {
@@ -371,41 +749,62 @@ export default function GitPanel({ files }) {
         else next.add(file.id);
         return next;
       });
+    } finally {
+      setStageBusyIds((prev) => {
+        const next = new Set(prev);
+        next.delete(file.id);
+        return next;
+      });
     }
   };
 
   const stageAll = async () => {
-    const nextIds = new Set(changedFiles.map((file) => file.id));
-    setStaged(nextIds);
-    if (!hasLocalGit) return;
+    if (unstagedFiles.length === 0 || bulkAction) return;
+    const previous = staged;
+    setBulkAction("stage");
+    setStaged((prev) => {
+      const next = new Set(prev);
+      unstagedFiles.forEach((file) => next.add(file.id));
+      return next;
+    });
+
+    if (!hasLocalGit) {
+      setBulkAction("");
+      return;
+    }
 
     try {
-      await stageGitPath(
-        changedFiles.map((file) => file.path || file.name),
-        { cwd: workspaceRoot },
-      );
+      await stageGitPath(uniqueFilePaths(unstagedFiles), { cwd: workspaceRoot });
       await refreshGitStatus({ silent: true });
     } catch (error) {
       console.error("Git stage all failed", error);
       setErrorMsg(error?.message || "Git stage all failed");
+      setStaged(previous);
+    } finally {
+      setBulkAction("");
     }
   };
 
   const unstageAll = async () => {
+    if (stagedFiles.length === 0 || bulkAction) return;
     const previous = staged;
+    setBulkAction("unstage");
     setStaged(new Set());
-    if (!hasLocalGit) return;
+
+    if (!hasLocalGit) {
+      setBulkAction("");
+      return;
+    }
 
     try {
-      await unstageGitPath(
-        stagedFiles.map((file) => file.path || file.name),
-        { cwd: workspaceRoot },
-      );
+      await unstageGitPath(uniqueFilePaths(stagedFiles), { cwd: workspaceRoot });
       await refreshGitStatus({ silent: true });
     } catch (error) {
       console.error("Git unstage all failed", error);
       setErrorMsg(error?.message || "Git unstage all failed");
       setStaged(previous);
+    } finally {
+      setBulkAction("");
     }
   };
 
@@ -484,8 +883,8 @@ export default function GitPanel({ files }) {
   };
 
   const handlePull = async () => {
-    if (!hasLocalGit) {
-      setErrorMsg("Local Git IPC is not connected.");
+    if (!canPull) {
+      setErrorMsg("Local Git pull is not exposed by this bridge.");
       return;
     }
     setRefreshing(true);
@@ -501,10 +900,15 @@ export default function GitPanel({ files }) {
     }
   };
 
+  const canCommit =
+    hasLocalGit &&
+    commitMsg.trim().length > 0 &&
+    stagedFiles.length > 0 &&
+    !committing;
+
   const handleCommitAndPush = async () => {
-    if (!commitMsg.trim() || staged.size === 0 || committing) return;
-    if (!hasLocalGit) {
-      setErrorMsg("Local Git IPC is required for commit/push.");
+    if (!canCommit) {
+      if (!hasLocalGit) setErrorMsg("Local Git IPC is required for commit.");
       return;
     }
 
@@ -530,8 +934,6 @@ export default function GitPanel({ files }) {
     }
   };
 
-  const canCommit =
-    commitMsg.trim().length > 0 && staged.size > 0 && !committing;
   const selectedRepo = githubSettings.repo
     ? `${githubSettings.owner}/${githubSettings.repo}`
     : "";
@@ -557,8 +959,9 @@ export default function GitPanel({ files }) {
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
             onClick={() => refreshGitStatus()}
+            disabled={refreshing}
             title="Refresh local Git status"
-            className="p-1 rounded hover:bg-white/[0.06] text-gray-500 hover:text-gray-300 transition-colors"
+            className="p-1 rounded-md hover:bg-white/[0.06] text-gray-500 hover:text-gray-300 transition-colors disabled:cursor-wait disabled:opacity-60"
           >
             <RefreshCw
               size={12}
@@ -570,7 +973,7 @@ export default function GitPanel({ files }) {
             whileTap={{ scale: 0.9 }}
             onClick={() => toggleSection("settings")}
             title="Git providers"
-            className="p-1 rounded hover:bg-white/[0.06] text-gray-500 hover:text-gray-300 transition-colors"
+            className="p-1 rounded-md hover:bg-white/[0.06] text-gray-500 hover:text-gray-300 transition-colors"
           >
             <GitFork
               size={12}
@@ -582,23 +985,52 @@ export default function GitPanel({ files }) {
 
       <div className="px-3 pb-3 shrink-0 space-y-2">
         <div
-          className="flex items-center gap-2 px-3 py-2 rounded-xl transition-all hover:bg-white/[0.05]"
+          className="rounded-lg p-2.5"
           style={{
             background: "rgba(139, 92, 246, 0.05)",
-            border: "1px solid rgba(139, 92, 246, 0.1)",
+            border: "1px solid rgba(139, 92, 246, 0.12)",
           }}
         >
-          <GitBranch size={14} className="text-purple-400 shrink-0" />
-          <span className="text-xs text-gray-200 font-medium flex-1 truncate">
-            {branch}
-          </span>
-          {status.ahead > 0 && (
-            <span className="text-[10px] text-green-400">+{status.ahead}</span>
-          )}
-          {status.behind > 0 && (
-            <span className="text-[10px] text-amber-400">-{status.behind}</span>
+          <div className="flex items-start gap-2">
+            <GitBranch size={14} className="mt-0.5 text-purple-400 shrink-0" />
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <span className="truncate text-xs font-semibold text-gray-100">
+                  {branch}
+                </span>
+                {status.detached && (
+                  <span className="rounded bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-semibold text-amber-300">
+                    Detached
+                  </span>
+                )}
+              </div>
+              <div className="mt-1 flex min-w-0 items-center gap-1.5 text-[10px] text-gray-500">
+                <Server size={10} className="shrink-0" />
+                <span className="shrink-0 text-gray-400">{remoteLabel}</span>
+                <span className="truncate">{remoteDetail}</span>
+              </div>
+            </div>
+          </div>
+          <div className="mt-2 grid grid-cols-3 gap-1.5">
+            <SummaryTile
+              label="Status"
+              value={clean ? "Clean" : `${changedFiles.length} changed`}
+              tone={clean ? "good" : "warn"}
+            />
+            <SummaryTile
+              label="Staged"
+              value={stagedFiles.length}
+              tone={stagedFiles.length > 0 ? "good" : "neutral"}
+            />
+            <SummaryTile label="Sync" value={syncLabel} tone={syncTone} />
+          </div>
+          {remoteError && (
+            <p className="mt-2 truncate text-[10px] text-amber-300/80">
+              {remoteError}
+            </p>
           )}
         </div>
+
         <div className="grid grid-cols-2 gap-1.5">
           <CapabilityPill
             icon={GitBranch}
@@ -675,7 +1107,7 @@ export default function GitPanel({ files }) {
                       type="button"
                       disabled={!githubCapability.available || authBusy}
                       onClick={handleStartGithubAuth}
-                      className="rounded bg-green-600/15 py-1.5 text-xs text-green-200 transition-colors hover:bg-green-600/25 disabled:cursor-not-allowed disabled:opacity-40"
+                      className="rounded-md bg-green-600/15 py-1.5 text-xs text-green-200 transition-colors hover:bg-green-600/25 disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       Connect
                     </button>
@@ -683,13 +1115,13 @@ export default function GitPanel({ files }) {
                       type="button"
                       disabled={!githubCapability.available || authBusy}
                       onClick={handleGithubSignOut}
-                      className="rounded bg-white/[0.04] py-1.5 text-xs text-gray-300 transition-colors hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-40"
+                      className="rounded-md bg-white/[0.04] py-1.5 text-xs text-gray-300 transition-colors hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       Sign out
                     </button>
                   </div>
                   {githubFlow && (
-                    <div className="mt-2 rounded border border-purple-500/20 bg-purple-500/5 p-2">
+                    <div className="mt-2 rounded-md border border-purple-500/20 bg-purple-500/5 p-2">
                       <div className="text-[10px] text-gray-400">
                         Code bei GitHub eingeben:
                       </div>
@@ -704,7 +1136,7 @@ export default function GitPanel({ files }) {
                           }
                           target="_blank"
                           rel="noreferrer"
-                          className="rounded bg-purple-600/20 py-1.5 text-center text-xs text-purple-200 transition-colors hover:bg-purple-600/30"
+                          className="rounded-md bg-purple-600/20 py-1.5 text-center text-xs text-purple-200 transition-colors hover:bg-purple-600/30"
                         >
                           Open
                         </a>
@@ -712,7 +1144,7 @@ export default function GitPanel({ files }) {
                           type="button"
                           disabled={authBusy}
                           onClick={handlePollGithubAuth}
-                          className="rounded bg-white/[0.04] py-1.5 text-xs text-gray-300 transition-colors hover:bg-white/[0.08] disabled:opacity-40"
+                          className="rounded-md bg-white/[0.04] py-1.5 text-xs text-gray-300 transition-colors hover:bg-white/[0.08] disabled:opacity-40"
                         >
                           Verify
                         </button>
@@ -731,7 +1163,7 @@ export default function GitPanel({ files }) {
                     <button
                       type="button"
                       onClick={handleClearLegacyToken}
-                      className="p-1 rounded hover:bg-white/10 text-amber-200"
+                      className="p-1 rounded-md hover:bg-white/10 text-amber-200"
                       title="Remove deprecated local token"
                     >
                       <Trash2 size={11} />
@@ -744,12 +1176,12 @@ export default function GitPanel({ files }) {
                     Repository
                   </span>
                   {loadingRepos ? (
-                    <div className="w-full bg-black/40 text-xs px-2 py-2 rounded border border-white/10 animate-pulse text-gray-500">
+                    <div className="w-full bg-black/40 text-xs px-2 py-2 rounded-md border border-white/10 animate-pulse text-gray-500">
                       Loading repositories...
                     </div>
                   ) : repos.length > 0 ? (
                     <select
-                      className="w-full bg-black/40 text-xs px-2 py-1.5 rounded border border-white/10 outline-none focus:border-purple-500/50 text-gray-200"
+                      className="w-full bg-black/40 text-xs px-2 py-1.5 rounded-md border border-white/10 outline-none focus:border-purple-500/50 text-gray-200"
                       value={selectedRepo}
                       onChange={(event) => handleRepositorySelect(event.target.value)}
                     >
@@ -770,7 +1202,7 @@ export default function GitPanel({ files }) {
                       <input
                         type="text"
                         placeholder="Owner / Username"
-                        className="w-full bg-black/40 text-xs px-2 py-1.5 rounded border border-white/10 outline-none focus:border-purple-500/50"
+                        className="w-full bg-black/40 text-xs px-2 py-1.5 rounded-md border border-white/10 outline-none focus:border-purple-500/50"
                         value={githubSettings.owner}
                         onChange={(event) =>
                           setGithubSettings((prev) => ({
@@ -782,7 +1214,7 @@ export default function GitPanel({ files }) {
                       <input
                         type="text"
                         placeholder="Repository Name"
-                        className="w-full bg-black/40 text-xs px-2 py-1.5 rounded border border-white/10 outline-none focus:border-purple-500/50"
+                        className="w-full bg-black/40 text-xs px-2 py-1.5 rounded-md border border-white/10 outline-none focus:border-purple-500/50"
                         value={githubSettings.repo}
                         onChange={(event) =>
                           setGithubSettings((prev) => ({
@@ -803,13 +1235,13 @@ export default function GitPanel({ files }) {
                         githubSettings.repo,
                       )
                     }
-                    className="bg-purple-600/20 hover:bg-purple-600/40 text-purple-300 text-xs py-1.5 rounded transition-colors"
+                    className="bg-purple-600/20 hover:bg-purple-600/40 text-purple-300 text-xs py-1.5 rounded-md transition-colors"
                   >
                     Save Repo
                   </button>
                   <button
                     onClick={refreshGithubBackend}
-                    className="bg-white/[0.04] hover:bg-white/[0.08] text-gray-300 text-xs py-1.5 rounded transition-colors"
+                    className="bg-white/[0.04] hover:bg-white/[0.08] text-gray-300 text-xs py-1.5 rounded-md transition-colors"
                   >
                     Check Backend
                   </button>
@@ -834,13 +1266,21 @@ export default function GitPanel({ files }) {
           )}
         </AnimatePresence>
 
+        {refreshing && (
+          <div className="mx-3 mb-1 flex items-center gap-2 rounded-md border border-purple-500/10 bg-purple-500/5 px-2 py-1.5 text-[10px] text-purple-200">
+            <RefreshCw size={11} className="animate-spin" />
+            Refreshing repository status...
+          </div>
+        )}
+
         <SectionHeader
           title="Changes"
           count={unstagedFiles.length}
           expanded={sections.changes}
           onToggle={() => toggleSection("changes")}
           action={unstagedFiles.length > 0 ? stageAll : null}
-          actionLabel="All +"
+          actionLabel={bulkAction === "stage" ? "Staging" : "Stage all"}
+          actionDisabled={Boolean(bulkAction)}
         />
         <AnimatePresence>
           {sections.changes && (
@@ -857,14 +1297,23 @@ export default function GitPanel({ files }) {
                     key={file.id}
                     file={file}
                     staged={false}
+                    selected={selectedFileId === file.id}
+                    busy={stageBusyIds.has(file.id)}
+                    onSelect={(nextFile) => setSelectedFileId(nextFile.id)}
                     onToggle={toggleStage}
                   />
                 ))}
               </AnimatePresence>
               {unstagedFiles.length === 0 && (
-                <p className="px-7 pb-2 text-[11px] text-gray-600">
-                  No local changes
-                </p>
+                <EmptyState
+                  title={clean ? "Working tree clean" : "No unstaged changes"}
+                  detail={
+                    clean
+                      ? "There are no local file changes in this workspace."
+                      : "All current changes are staged."
+                  }
+                  tone={clean ? "good" : "muted"}
+                />
               )}
             </motion.div>
           )}
@@ -876,7 +1325,8 @@ export default function GitPanel({ files }) {
           expanded={sections.staged}
           onToggle={() => toggleSection("staged")}
           action={stagedFiles.length > 0 ? unstageAll : null}
-          actionLabel="All -"
+          actionLabel={bulkAction === "unstage" ? "Unstaging" : "Unstage all"}
+          actionDisabled={Boolean(bulkAction)}
         />
         <AnimatePresence>
           {sections.staged && (
@@ -893,15 +1343,46 @@ export default function GitPanel({ files }) {
                     key={file.id}
                     file={file}
                     staged
+                    selected={selectedFileId === file.id}
+                    busy={stageBusyIds.has(file.id)}
+                    onSelect={(nextFile) => setSelectedFileId(nextFile.id)}
                     onToggle={toggleStage}
                   />
                 ))}
               </AnimatePresence>
               {stagedFiles.length === 0 && (
-                <p className="px-7 pb-2 text-[11px] text-gray-600">
-                  No staged files
-                </p>
+                <EmptyState
+                  title="Nothing staged"
+                  detail="Stage one or more files to enable the commit action."
+                />
               )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <SectionHeader
+          title="Diff Preview"
+          count={selectedFile ? 1 : null}
+          expanded={sections.diff}
+          onToggle={() => toggleSection("diff")}
+        />
+        <AnimatePresence>
+          {sections.diff && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.2 }}
+              style={{ overflow: "hidden" }}
+            >
+              <DiffViewer
+                selectedFile={selectedFile}
+                diffText={diffText}
+                diffLoading={diffLoading}
+                diffError={diffError}
+                canDiff={canDiff}
+                hasLocalGit={hasLocalGit}
+              />
             </motion.div>
           )}
         </AnimatePresence>
@@ -927,6 +1408,14 @@ export default function GitPanel({ files }) {
             )}
           </AnimatePresence>
 
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <span className="text-[10px] font-semibold uppercase tracking-widest text-gray-500">
+              Commit
+            </span>
+            <span className="text-[10px] text-gray-500">
+              {stagedFiles.length} staged
+            </span>
+          </div>
           <textarea
             value={commitMsg}
             onChange={(event) => setCommitMsg(event.target.value)}
@@ -948,12 +1437,18 @@ export default function GitPanel({ files }) {
             }}
           />
 
+          <div className="mt-1.5 flex items-center justify-between gap-2 text-[10px] text-gray-600">
+            <span className="truncate">{commitDisabledReason}</span>
+            <span>{commitMsg.trim().length}/64000</span>
+          </div>
+
           <div className="grid grid-cols-[1fr_auto] gap-1.5 mt-2">
             <motion.button
               whileHover={canCommit ? { scale: 1.02, y: -1 } : {}}
               whileTap={canCommit ? { scale: 0.97 } : {}}
               onClick={handleCommitAndPush}
               disabled={!canCommit}
+              title={commitDisabledReason}
               className="w-full flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-semibold text-white transition-all"
               style={{
                 background: canCommit
@@ -1016,13 +1511,13 @@ export default function GitPanel({ files }) {
             <button
               type="button"
               onClick={handlePull}
-              disabled={!hasLocalGit || refreshing}
+              disabled={!canPull || refreshing}
               className="px-2 rounded-lg text-[10px] font-semibold transition-colors"
               style={{
                 border: "1px solid rgba(255,255,255,0.1)",
-                color: hasLocalGit ? "#cbd5e1" : "#475569",
+                color: canPull ? "#cbd5e1" : "#475569",
                 background: "rgba(255,255,255,0.03)",
-                cursor: hasLocalGit ? "pointer" : "not-allowed",
+                cursor: canPull ? "pointer" : "not-allowed",
               }}
               title="Pull with the local Git bridge"
             >

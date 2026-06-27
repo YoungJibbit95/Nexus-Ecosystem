@@ -1,5 +1,13 @@
-import React, { Suspense, useState, useEffect, useCallback, useRef } from "react";
-import { AlertCircle } from "lucide-react";
+import React, { Suspense, useState, useEffect, useCallback, useMemo, useRef } from "react";
+import {
+  AlertCircle,
+  AlertTriangle,
+  CircleDot,
+  FileText,
+  Folder,
+  TerminalSquare,
+  XCircle,
+} from "lucide-react";
 import TitleBar from "../components/editor/TitleBar";
 import Sidebar from "../components/editor/Sidebar";
 import FileExplorer from "../components/editor/FileExplorer";
@@ -68,6 +76,70 @@ function isEditableEventTarget(target) {
     'input, textarea, [contenteditable="true"], [role="textbox"]',
   );
   return Boolean(editable);
+}
+
+function getPathBasename(value) {
+  if (!value) return "";
+  const parts = String(value).split(/[\\/]/).filter(Boolean);
+  return parts[parts.length - 1] || "";
+}
+
+function getRelativePathLabel(file, workspacePath) {
+  const rawPath = file?.fsPath || file?.name || "";
+  if (!rawPath) return "Keine Datei";
+  if (!workspacePath || !file?.fsPath) return rawPath;
+  const normalizedWorkspace = String(workspacePath).replace(/[\\/]+$/, "");
+  const normalizedPath = String(file.fsPath);
+  if (normalizedPath.toLowerCase().startsWith(normalizedWorkspace.toLowerCase())) {
+    const relative = normalizedPath
+      .slice(normalizedWorkspace.length)
+      .replace(/^[\\/]+/, "");
+    return relative || getPathBasename(normalizedPath);
+  }
+  return getPathBasename(normalizedPath) || normalizedPath;
+}
+
+function getFileExtensionLabel(file) {
+  const name = file?.name || file?.fsPath || "";
+  const extension = String(name).split(".").pop()?.toUpperCase();
+  if (!extension || extension === String(name).toUpperCase()) return "TXT";
+  return extension.slice(0, 8);
+}
+
+function getProblemSummary(problems) {
+  return problems.reduce(
+    (acc, problem) => {
+      if (problem?.severity === 8) acc.errors += 1;
+      else if (problem?.severity === 4) acc.warnings += 1;
+      else acc.infos += 1;
+      return acc;
+    },
+    { errors: 0, warnings: 0, infos: 0 },
+  );
+}
+
+function StatusItem({ icon: Icon, label, value, tone = "muted", onClick, title }) {
+  const toneClass =
+    tone === "danger"
+      ? "text-red-300 border-red-500/20 bg-red-500/10"
+      : tone === "warning"
+        ? "text-amber-200 border-amber-500/20 bg-amber-500/10"
+        : tone === "active"
+          ? "text-white border-white/15 bg-white/10"
+          : "text-gray-400 border-white/10 bg-white/[0.025]";
+  const Comp = onClick ? "button" : "div";
+
+  return (
+    <Comp
+      type={onClick ? "button" : undefined}
+      onClick={onClick}
+      title={title || label}
+      className={`h-6 min-w-0 rounded-md border px-2 flex items-center gap-1.5 text-[10px] font-medium ${toneClass} ${onClick ? "hover:bg-white/10 transition-colors" : ""}`}
+    >
+      {Icon ? <Icon size={12} className="shrink-0" /> : null}
+      <span className="truncate">{value || label}</span>
+    </Comp>
+  );
 }
 
 function extractRgbTuple(value) {
@@ -381,6 +453,21 @@ export default function Editor() {
 
   const handleToggleSidebar = useCallback(() => {
     setActivePanel((prev) => (prev ? null : "explorer"));
+  }, []);
+
+  const handleToggleTerminalPanel = useCallback(() => {
+    setBottomTab("terminal");
+    setTerminalOpen((prev) => (bottomTab === "terminal" ? !prev : true));
+  }, [bottomTab]);
+
+  const handleOpenTerminalPanel = useCallback(() => {
+    setBottomTab("terminal");
+    setTerminalOpen(true);
+  }, []);
+
+  const handleOpenProblemsPanel = useCallback(() => {
+    setBottomTab("problems");
+    setTerminalOpen(true);
   }, []);
 
   const handleOpenFolder = useCallback(async () => {
@@ -749,14 +836,14 @@ export default function Editor() {
       // Ctrl+` — toggle terminal
       if (hasPrimaryMod && e.key === "`") {
         e.preventDefault();
-        setTerminalOpen((prev) => !prev);
+        handleToggleTerminalPanel();
         return;
       }
 
       // Ctrl+Shift+` — open terminal
       if (hasPrimaryMod && e.shiftKey && e.key === "`") {
         e.preventDefault();
-        setTerminalOpen(true);
+        handleOpenTerminalPanel();
         return;
       }
 
@@ -811,7 +898,13 @@ export default function Editor() {
       window.removeEventListener("keydown", handler);
       window.removeEventListener("keyup", shiftHandler);
     };
-  }, [activeTabId, handleTabClose, setTabModified]);
+  }, [
+    activeTabId,
+    handleOpenTerminalPanel,
+    handleTabClose,
+    handleToggleTerminalPanel,
+    setTabModified,
+  ]);
 
   const handleCreateFile = useCallback(
     async (name, parentId = null) => {
@@ -1106,7 +1199,7 @@ export default function Editor() {
   }, []);
 
   const handleResetSettings = useCallback(() => {
-    if (confirm("Möchtest du wirklich alle Einstellungen zurücksetzen?")) {
+    if (confirm("Moechtest du wirklich alle Einstellungen zuruecksetzen?")) {
       setSettings(DEFAULT_SETTINGS);
       localStorage.removeItem(SETTINGS_STORAGE_KEY);
       window.location.reload();
@@ -1122,11 +1215,32 @@ export default function Editor() {
         case "new-file":
           handleCreateFileRequest("typescript", "language");
           break;
+        case "open-folder":
+          handleOpenFolder();
+          break;
+        case "open-explorer":
+          setShowSettings(false);
+          setActivePanel("explorer");
+          break;
+        case "open-search":
+          setShowSettings(false);
+          setActivePanel("search");
+          break;
         case "change-theme":
           setShowSettings(true);
           break;
         case "toggle-terminal":
-          setTerminalOpen((prev) => !prev);
+          handleToggleTerminalPanel();
+          break;
+        case "open-problems":
+          handleOpenProblemsPanel();
+          break;
+        case "open-extensions":
+          setShowSettings(false);
+          setActivePanel("extensions");
+          break;
+        case "toggle-zen":
+          handleToggleZenMode();
           break;
         case "open-settings":
           setShowSettings(true);
@@ -1135,17 +1249,41 @@ export default function Editor() {
           setActivePanel((prev) => (prev ? null : "explorer"));
           break;
         case "github-sync":
+          setShowSettings(false);
           setActivePanel("git");
           break;
         default:
           break;
       }
     },
-    [handleCreateFileRequest, handleFileSelect],
+    [
+      handleCreateFileRequest,
+      handleFileSelect,
+      handleOpenFolder,
+      handleOpenProblemsPanel,
+      handleToggleTerminalPanel,
+      handleToggleZenMode,
+    ],
   );
 
   const activeFile = files.find((f) => f.id === activeTabId);
   const currentCode = activeTabId ? editorCode : "";
+  const activeTab = openTabs.find((tab) => tab.id === activeTabId);
+  const modifiedTabsCount = useMemo(
+    () => openTabs.filter((tab) => tab.modified).length,
+    [openTabs],
+  );
+  const problemSummary = useMemo(() => getProblemSummary(problems), [problems]);
+  const activePathLabel = useMemo(
+    () => getRelativePathLabel(activeFile, workspacePath),
+    [activeFile, workspacePath],
+  );
+  const workspaceLabel = workspacePath
+    ? getPathBasename(workspacePath)
+    : "Kein Workspace";
+  const fileExtensionLabel = getFileExtensionLabel(activeFile);
+  const statusStripVisible = settings.status_bar_visible !== false;
+  const bottomPanelVisible = terminalOpen;
 
   return (
     <div className={`nx-code-shell h-screen flex flex-col overflow-hidden bg-transparent text-[#e5e7eb] font-sans ${isCompactViewport ? "nx-code-shell-compact" : ""}`}>
@@ -1157,7 +1295,7 @@ export default function Editor() {
         onToggleSidebar={handleToggleSidebar}
         onToggleSidebarVisibility={handleToggleSidebarVisibility}
         onToggleZenMode={handleToggleZenMode}
-        onToggleTerminal={() => setTerminalOpen(!terminalOpen)}
+        onToggleTerminal={handleToggleTerminalPanel}
         onOpenCommandPalette={() => setCommandPaletteOpen(true)}
         onOpenSettings={() => setShowSettings(true)}
         workspaceName={
@@ -1303,7 +1441,7 @@ export default function Editor() {
                   onTabClose={handleTabClose}
                   onCreateFile={handleCreateFileRequest}
                   onSaveAll={handleSaveAll}
-                  onToggleTerminal={() => setTerminalOpen((prev) => !prev)}
+                  onToggleTerminal={handleToggleTerminalPanel}
                   onOpenCommandPalette={() => setCommandPaletteOpen(true)}
                 />
               </div>
@@ -1312,7 +1450,7 @@ export default function Editor() {
                 <div className="nx-code-problems-float absolute top-3 right-3 z-40 flex gap-2">
                   {problems.length > 0 && (
                     <button
-                      onClick={() => setActivePanel("problems")}
+                      onClick={handleOpenProblemsPanel}
                       className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 rounded-full backdrop-blur-md transition-all group"
                     >
                       <AlertCircle
@@ -1354,7 +1492,7 @@ export default function Editor() {
                 </ErrorBoundary>
               </div>
 
-              {settings.status_bar_visible !== false && (
+              {(statusStripVisible || bottomPanelVisible) && (
                 <div
                   className="shrink-0 border-t border-white/5 min-h-0"
                   style={{
@@ -1362,13 +1500,99 @@ export default function Editor() {
                     backdropFilter: "var(--nexus-panel-filter)",
                   }}
                 >
-                  <Terminal
-                    isOpen={terminalOpen}
-                    onToggle={() => setTerminalOpen(!terminalOpen)}
-                    activeFile={activeFile}
-                    code={currentCode}
-                    workspacePath={workspacePath}
-                  />
+                  {statusStripVisible && (
+                    <div
+                      className="nx-code-status-strip h-8 px-2 flex items-center gap-2 border-b border-white/5 overflow-hidden"
+                      style={{ background: "rgba(0,0,0,0.18)" }}
+                    >
+                      <StatusItem
+                        icon={Folder}
+                        label="Workspace"
+                        value={workspaceLabel}
+                        title={workspacePath || "Kein Workspace ausgewaehlt"}
+                      />
+                      <StatusItem
+                        icon={FileText}
+                        label="Datei"
+                        value={activePathLabel}
+                        title={activePathLabel}
+                      />
+                      <StatusItem
+                        icon={CircleDot}
+                        label="Typ"
+                        value={fileExtensionLabel}
+                      />
+                      {modifiedTabsCount > 0 ? (
+                        <StatusItem
+                          tone="warning"
+                          label="Ungespeichert"
+                          value={`${modifiedTabsCount} modified`}
+                          title="Geaenderte Tabs"
+                        />
+                      ) : (
+                        <StatusItem
+                          label="Saved"
+                          value={activeTab ? "saved" : "idle"}
+                        />
+                      )}
+                      <div className="flex-1 min-w-0" />
+                      <StatusItem
+                        icon={XCircle}
+                        tone={problemSummary.errors > 0 ? "danger" : "muted"}
+                        label="Errors"
+                        value={`${problemSummary.errors}`}
+                        onClick={handleOpenProblemsPanel}
+                      />
+                      <StatusItem
+                        icon={AlertTriangle}
+                        tone={problemSummary.warnings > 0 ? "warning" : "muted"}
+                        label="Warnings"
+                        value={`${problemSummary.warnings}`}
+                        onClick={handleOpenProblemsPanel}
+                      />
+                      <StatusItem
+                        icon={TerminalSquare}
+                        tone={bottomPanelVisible && bottomTab === "terminal" ? "active" : "muted"}
+                        label="Terminal"
+                        value="Terminal"
+                        onClick={handleToggleTerminalPanel}
+                      />
+                      <StatusItem
+                        icon={AlertCircle}
+                        tone={bottomPanelVisible && bottomTab === "problems" ? "active" : "muted"}
+                        label="Problems"
+                        value="Problems"
+                        onClick={handleOpenProblemsPanel}
+                      />
+                    </div>
+                  )}
+                  {bottomPanelVisible && bottomTab === "terminal" && (
+                    <Terminal
+                      isOpen
+                      onToggle={handleToggleTerminalPanel}
+                      activeFile={activeFile}
+                      code={currentCode}
+                      workspacePath={workspacePath}
+                    />
+                  )}
+                  {bottomPanelVisible && bottomTab === "problems" && (
+                    <div className="h-64 min-h-0 border-t border-white/5">
+                      <ProblemsPanel
+                        problems={problems}
+                        onSelectProblem={(p) => {
+                          if (!activeTabId) return;
+                          setSettings((prev) => ({
+                            ...prev,
+                            _revealLine: {
+                              line: p.startLineNumber,
+                              col: p.startColumn,
+                              timestamp: Date.now(),
+                            },
+                          }));
+                        }}
+                      />
+                    </div>
+                  )}
                 </div>
               )}
             </div>

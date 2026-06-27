@@ -102,6 +102,7 @@ export function getGitProvider() {
         pull: ["pull", "gitPull"],
         log: ["log", "history", "gitLog"],
         branches: ["branches", "gitBranches"],
+        remotes: ["remotes", "gitRemotes"],
       },
     },
   ]);
@@ -121,6 +122,7 @@ function statusCode(value) {
   const raw = String(value || "").trim().toUpperCase();
   if (!raw) return "M";
   if (raw === "??" || raw === "U" || raw === "UNTRACKED") return "U";
+  if (raw.includes("U") || raw === "AA" || raw === "DD") return "C";
   if (raw.startsWith("MOD")) return "M";
   if (raw.startsWith("ADD") || raw === "A") return "A";
   if (raw.startsWith("DEL") || raw === "D") return "D";
@@ -129,7 +131,18 @@ function statusCode(value) {
   return raw[0] || "M";
 }
 
+function isStatusPresent(value) {
+  const raw = String(value ?? "");
+  return raw.length > 0 && raw !== " " && raw !== "?";
+}
+
+function isConflictStatus(value) {
+  const raw = String(value || "").trim().toUpperCase();
+  return raw.includes("U") || raw === "AA" || raw === "DD";
+}
+
 function normalizePathName(file, index) {
+  if (typeof file === "string") return file;
   return (
     file?.path ||
     file?.filePath ||
@@ -140,9 +153,10 @@ function normalizePathName(file, index) {
   );
 }
 
-function normalizeGitFile(file, index, stagedDefault = false) {
+function normalizeGitFile(file, index, stagedDefault = false, overrides = {}) {
   const path = normalizePathName(file, index);
   const status =
+    overrides.status ||
     file?.status ||
     file?.workingTreeStatus ||
     file?.workingTree ||
@@ -150,18 +164,102 @@ function normalizeGitFile(file, index, stagedDefault = false) {
     file?.index ||
     file?.type ||
     "M";
+  const code = statusCode(status);
+  const staged = Boolean(overrides.staged ?? file?.staged ?? file?.isStaged ?? stagedDefault);
+  const changeScope =
+    overrides.changeScope || file?.changeScope || (staged ? "staged" : "worktree");
+  const baseId = file?.id || `git:${path}`;
 
   return {
-    id: file?.id || `git:${path}:${statusCode(status)}:${stagedDefault ? "staged" : "worktree"}`,
+    id: `${baseId}:${code}:${changeScope}`,
     name: file?.name || path,
     path,
-    status: statusCode(status),
-    staged: Boolean(file?.staged ?? file?.isStaged ?? stagedDefault),
+    status: code,
+    staged,
+    unstaged: Boolean(overrides.unstaged ?? file?.unstaged ?? (!staged && changeScope !== "staged")),
+    changeScope,
+    indexStatus: overrides.indexStatus ?? file?.indexStatus ?? file?.index ?? null,
+    workingTreeStatus:
+      overrides.workingTreeStatus ?? file?.workingTreeStatus ?? file?.workingTree ?? null,
+    originalPath: file?.originalPath || file?.oldPath || null,
     additions: Number(file?.additions || file?.added || 0),
     deletions: Number(file?.deletions || file?.deleted || 0),
     source: "git",
     raw: file,
   };
+}
+
+function normalizeGitFileEntries(file, index, stagedDefault = false) {
+  const rawStatus = String(file?.status || "");
+  const indexStatus = file?.indexStatus ?? file?.index ?? rawStatus[0];
+  const workingTreeStatus = file?.workingTreeStatus ?? file?.workingTree ?? rawStatus[1];
+  const hasSplitStatus =
+    file &&
+    (Object.prototype.hasOwnProperty.call(file, "index") ||
+      Object.prototype.hasOwnProperty.call(file, "workingTree") ||
+      Object.prototype.hasOwnProperty.call(file, "indexStatus") ||
+      Object.prototype.hasOwnProperty.call(file, "workingTreeStatus") ||
+      Object.prototype.hasOwnProperty.call(file, "unstaged") ||
+      Object.prototype.hasOwnProperty.call(file, "untracked"));
+
+  if (!hasSplitStatus) {
+    return [normalizeGitFile(file, index, stagedDefault)];
+  }
+
+  if (file?.untracked || rawStatus.trim() === "??") {
+    return [
+      normalizeGitFile(file, index, false, {
+        status: "U",
+        staged: false,
+        unstaged: true,
+        changeScope: "untracked",
+        indexStatus: "?",
+        workingTreeStatus: "?",
+      }),
+    ];
+  }
+
+  if (isConflictStatus(rawStatus)) {
+    return [
+      normalizeGitFile(file, index, false, {
+        status: "C",
+        staged: false,
+        unstaged: true,
+        changeScope: "conflict",
+        indexStatus,
+        workingTreeStatus,
+      }),
+    ];
+  }
+
+  const entries = [];
+  if (isStatusPresent(indexStatus)) {
+    entries.push(
+      normalizeGitFile(file, index, true, {
+        status: indexStatus,
+        staged: true,
+        unstaged: false,
+        changeScope: "staged",
+        indexStatus,
+        workingTreeStatus,
+      }),
+    );
+  }
+
+  if (isStatusPresent(workingTreeStatus)) {
+    entries.push(
+      normalizeGitFile(file, index, false, {
+        status: workingTreeStatus,
+        staged: false,
+        unstaged: true,
+        changeScope: "worktree",
+        indexStatus,
+        workingTreeStatus,
+      }),
+    );
+  }
+
+  return entries.length > 0 ? entries : [normalizeGitFile(file, index, stagedDefault)];
 }
 
 function parsePorcelainStatus(text) {
@@ -194,7 +292,7 @@ export function normalizeGitStatus(result) {
   if (typeof data === "string") {
     files = parsePorcelainStatus(data);
   } else if (Array.isArray(data)) {
-    files = data.map((file, index) => normalizeGitFile(file, index));
+    files = data.flatMap((file, index) => normalizeGitFileEntries(file, index));
   } else {
     const staged = data.staged || data.stagedFiles || data.index || [];
     const unstaged = data.unstaged || data.unstagedFiles || data.worktree || [];
@@ -208,32 +306,87 @@ export function normalizeGitStatus(result) {
       [];
 
     if (Array.isArray(allFiles) && allFiles.length > 0) {
-      files = allFiles.map((file, index) => normalizeGitFile(file, index));
+      files = allFiles.flatMap((file, index) => normalizeGitFileEntries(file, index));
     } else {
       files = [
-        ...staged.map((file, index) => normalizeGitFile(file, index, true)),
-        ...unstaged.map((file, index) => normalizeGitFile(file, index, false)),
-        ...untracked.map((file, index) =>
+        ...staged.flatMap((file, index) => normalizeGitFileEntries(file, index, true)),
+        ...unstaged.flatMap((file, index) => normalizeGitFileEntries(file, index, false)),
+        ...untracked.flatMap((file, index) =>
           normalizeGitFile({ ...file, status: "U" }, index, false),
         ),
       ];
     }
   }
 
+  const branchInfo =
+    data.branch && typeof data.branch === "object"
+      ? data.branch
+      : {
+          current:
+            data.branch ||
+            data.currentBranch ||
+            data.current ||
+            data.head ||
+            data.ref ||
+            null,
+          upstream: data.upstream || data.tracking || data.remote || null,
+        };
+
   return {
-    branch:
-      data.branch ||
-      data.currentBranch ||
-      data.current ||
-      data.head ||
-      data.ref ||
-      "main",
-    ahead: Number(data.ahead || data.aheadBy || 0),
-    behind: Number(data.behind || data.behindBy || 0),
+    branch: branchInfo.current || "main",
+    upstream: data.upstream || data.tracking || branchInfo.upstream || null,
+    detached: Boolean(data.detached ?? branchInfo.detached),
+    initial: Boolean(data.initial ?? branchInfo.initial),
+    ahead: Number(data.ahead ?? data.aheadBy ?? branchInfo.ahead ?? 0),
+    behind: Number(data.behind ?? data.behindBy ?? branchInfo.behind ?? 0),
     clean: Boolean(data.clean ?? data.isClean ?? files.length === 0),
     files,
     raw: result,
   };
+}
+
+function redactRemoteUrl(url) {
+  return String(url || "")
+    .replace(/(https?:\/\/)([^/\s:@]+):([^@\s/]+)@/gi, "$1***:***@")
+    .replace(/(https?:\/\/)([^@\s/]+)@/gi, "$1***@");
+}
+
+export function normalizeGitRemotes(result) {
+  const data = result?.data || result || {};
+  const remotes = typeof data === "string"
+    ? String(data)
+        .split(/\r?\n/)
+        .map((line) => {
+          const match = /^([^\s]+)\s+(.+?)\s+\((fetch|push)\)$/.exec(line.trim());
+          if (!match) return null;
+          const [, name, url, type] = match;
+          return { name, [`${type}Url`]: redactRemoteUrl(url) };
+        })
+        .filter(Boolean)
+    : Array.isArray(data)
+      ? data
+      : data.remotes || data.items || [];
+
+  const byName = new Map();
+  for (const remote of remotes) {
+    const name = remote?.name || remote?.remote || "origin";
+    const existing = byName.get(name) || { name, fetchUrl: null, pushUrl: null };
+    existing.fetchUrl = redactRemoteUrl(
+      remote?.fetchUrl || remote?.fetch || remote?.url || existing.fetchUrl,
+    );
+    existing.pushUrl = redactRemoteUrl(
+      remote?.pushUrl || remote?.push || remote?.url || existing.pushUrl,
+    );
+    byName.set(name, existing);
+  }
+
+  return Array.from(byName.values());
+}
+
+export function normalizeGitDiff(result) {
+  const data = result?.data ?? result ?? "";
+  if (typeof data === "string") return data;
+  return String(data.diff || data.patch || data.text || data.stdout || "");
 }
 
 export function normalizeGitHistory(result) {
@@ -275,6 +428,24 @@ export async function loadLocalGitHistory(options = {}) {
     { limit: options.limit },
   ]);
   return normalizeGitHistory(result);
+}
+
+export async function loadLocalGitRemotes(options = {}) {
+  const provider = getGitProvider();
+  if (!provider || !getMethod(provider, "remotes")) return [];
+  const result = await callProvider(provider, "remotes", options, [options.cwd]);
+  return normalizeGitRemotes(result);
+}
+
+export async function loadLocalGitDiff(options = {}) {
+  const provider = getGitProvider();
+  if (!provider || !getMethod(provider, "diff")) {
+    throw new Error("This Git bridge does not expose file diffs.");
+  }
+  const paths = options.paths || options.pathspecs || [options.path].filter(Boolean);
+  const payload = { ...options, paths };
+  const result = await callProvider(provider, "diff", payload, [options.cwd, payload]);
+  return normalizeGitDiff(result);
 }
 
 export async function stageGitPath(path, options = {}) {

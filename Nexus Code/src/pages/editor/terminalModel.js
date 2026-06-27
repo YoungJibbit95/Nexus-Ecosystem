@@ -1,7 +1,70 @@
 let nextSessionId = 1;
 
+export const TERMINAL_OUTPUT_LIMIT = 700;
+export const TERMINAL_ENTRY_TEXT_LIMIT = 4000;
+
 const isBrowser = () => typeof window !== "undefined";
 const isFunction = (value) => typeof value === "function";
+
+const ANSI_PATTERN =
+  /[\x1B\x9B][[\]()#;?]*(?:(?:(?:[a-zA-Z\d]*(?:;[a-zA-Z\d]*)*)?\x07)|(?:(?:\d{1,4}(?:;\d{0,4})*)?[\dA-PR-TZcf-nq-uy=><~]))/g;
+
+export const TERMINAL_COMMON_COMMANDS = [
+  {
+    id: "git-status",
+    label: "git status",
+    command: "git status",
+    group: "Git",
+  },
+  {
+    id: "git-branch",
+    label: "git branch",
+    command: "git branch",
+    group: "Git",
+  },
+  {
+    id: "npm-dev",
+    label: "npm dev",
+    command: "npm run dev",
+    group: "NPM",
+  },
+  {
+    id: "npm-build",
+    label: "npm build",
+    command: "npm run build",
+    group: "NPM",
+  },
+  {
+    id: "npm-lint",
+    label: "npm lint",
+    command: "npm run lint",
+    group: "NPM",
+  },
+  {
+    id: "npm-test",
+    label: "npm test",
+    command: "npm test",
+    group: "NPM",
+  },
+  {
+    id: "pwd",
+    label: "pwd",
+    command: "pwd",
+    group: "Shell",
+  },
+  {
+    id: "ls",
+    label: "ls -la",
+    command: "ls -la",
+    group: "Shell",
+  },
+  {
+    id: "clear",
+    label: "clear",
+    command: "clear",
+    group: "Shell",
+  },
+];
 
 export const TERMINAL_TASKS = [
   {
@@ -70,16 +133,22 @@ export function createTerminalSession(options = {}) {
     kind: options.kind || "shell",
     cwd: options.cwd || null,
     taskId: options.taskId || null,
+    status: options.status || "idle",
+    lastExitCode: options.lastExitCode ?? null,
     lastCommand: options.lastCommand || "",
+    lastStartedAt: options.lastStartedAt || null,
+    lastEndedAt: options.lastEndedAt || null,
     createdAt: options.createdAt || new Date().toISOString(),
   };
 }
 
 export function createWelcomeEntries(session) {
   const label = session?.kind === "task" ? "Task Runner" : "Terminal";
+  const cwd = formatTerminalPath(session?.cwd);
   return [
     { id: 1, type: "system", text: `Nexus Code ${label} v1.1` },
     { id: 2, type: "system", text: "Tippe 'help' fuer verfuegbare Befehle." },
+    { id: 3, type: "status", status: "idle", text: `cwd ${cwd}` },
   ];
 }
 
@@ -89,11 +158,12 @@ export function resolveRunCommandForFile(activeFile) {
     ? fileName.split(".").pop()?.toLowerCase()
     : "";
   if (!ext) return "";
-  if (ext === "js" || ext === "mjs" || ext === "cjs") return `node ${fileName}`;
-  if (ext === "ts" || ext === "tsx") return `npx tsx ${fileName}`;
-  if (ext === "py") return `python ${fileName}`;
+  const shellFileName = quoteShellToken(fileName);
+  if (ext === "js" || ext === "mjs" || ext === "cjs") return `node ${shellFileName}`;
+  if (ext === "ts" || ext === "tsx") return `npx tsx ${shellFileName}`;
+  if (ext === "py") return `python ${shellFileName}`;
   if (ext === "java") return `java ${fileName.replace(".java", "")}`;
-  if (ext === "sh") return `bash ${fileName}`;
+  if (ext === "sh") return `bash ${shellFileName}`;
   return "";
 }
 
@@ -112,6 +182,39 @@ export function getTaskRunnerItems(activeFile) {
       disabled: task.id === "run-active-file" && !command,
     };
   });
+}
+
+export function getCommandSuggestions({ activeFile, history = [], limit = 9 } = {}) {
+  const runFileCommand = resolveRunCommandForFile(activeFile);
+  const recent = history
+    .filter(Boolean)
+    .slice(0, 5)
+    .map((command, index) => ({
+      id: `recent-${index}-${command}`,
+      label: command.length > 22 ? `${command.slice(0, 22)}...` : command,
+      command,
+      group: "Recent",
+      recent: true,
+    }));
+  const runFile = runFileCommand
+    ? [
+        {
+          id: "run-active-file-suggestion",
+          label: "run file",
+          command: runFileCommand,
+          group: "File",
+        },
+      ]
+    : [];
+
+  const seen = new Set();
+  return [...recent, ...runFile, ...TERMINAL_COMMON_COMMANDS]
+    .filter((item) => {
+      if (!item.command || seen.has(item.command)) return false;
+      seen.add(item.command);
+      return true;
+    })
+    .slice(0, limit);
 }
 
 export function getTerminalBridge() {
@@ -158,13 +261,163 @@ export function getTerminalBridge() {
   return { available: false, provider: "fallback", label: "Simulated terminal" };
 }
 
+export function stripAnsiSequences(text) {
+  return String(text ?? "").replace(ANSI_PATTERN, "");
+}
+
 export function normalizeTerminalEntry(entry) {
-  if (typeof entry === "string") return { type: "output", text: entry };
+  if (typeof entry === "string") {
+    return { type: "output", text: stripAnsiSequences(entry) };
+  }
+  const text = stripAnsiSequences(entry?.text ?? entry?.data ?? entry?.message ?? "");
   return {
     type: entry?.type || "output",
-    text: String(entry?.text ?? entry?.data ?? ""),
     ...entry,
+    text,
   };
+}
+
+export function normalizeTerminalEntries(entry) {
+  const normalized = normalizeTerminalEntry(entry);
+  const text = String(normalized.text ?? "");
+
+  if (normalized.type === "input" || normalized.type === "status") {
+    return [{ ...normalized, text }];
+  }
+
+  const normalizedNewlines = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  const lines = normalizedNewlines.includes("\n")
+    ? normalizedNewlines.split("\n")
+    : [normalizedNewlines];
+
+  return lines.flatMap((line) => {
+    if (line.length <= TERMINAL_ENTRY_TEXT_LIMIT) {
+      return [{ ...normalized, text: line }];
+    }
+
+    const chunks = [];
+    for (let index = 0; index < line.length; index += TERMINAL_ENTRY_TEXT_LIMIT) {
+      chunks.push({
+        ...normalized,
+        text: line.slice(index, index + TERMINAL_ENTRY_TEXT_LIMIT),
+      });
+    }
+    return chunks;
+  });
+}
+
+export function createTerminalStatusEntry(status, text, details = {}) {
+  return {
+    type: "status",
+    status,
+    text,
+    timestamp: new Date().toISOString(),
+    ...details,
+  };
+}
+
+export function trimTerminalEntries(
+  entries,
+  limit = TERMINAL_OUTPUT_LIMIT,
+  createTrimEntry,
+) {
+  const previousHidden = entries.reduce(
+    (total, entry) => total + (entry?.trimMarker ? Number(entry.omittedCount) || 0 : 0),
+    0,
+  );
+  const cleanEntries = entries.filter((entry) => !entry?.trimMarker);
+  if (cleanEntries.length <= limit) return cleanEntries;
+
+  const keptCount = Math.max(1, limit - 1);
+  const omitted = previousHidden + cleanEntries.length - keptCount;
+  const marker =
+    createTrimEntry?.(omitted) || {
+      type: "system",
+      trimMarker: true,
+      omittedCount: omitted,
+      text: `${omitted} older terminal lines hidden.`,
+    };
+
+  return [marker, ...cleanEntries.slice(cleanEntries.length - keptCount)];
+}
+
+export function updateTerminalSession(sessions, sessionId, patch) {
+  return sessions.map((session) =>
+    session.id === sessionId ? { ...session, ...patch } : session,
+  );
+}
+
+export function markSessionRunning(sessions, sessionId, command, cwd) {
+  return updateTerminalSession(sessions, sessionId, {
+    status: "running",
+    cwd: cwd || sessions.find((session) => session.id === sessionId)?.cwd || null,
+    lastCommand: command || "",
+    lastExitCode: null,
+    lastStartedAt: new Date().toISOString(),
+    lastEndedAt: null,
+  });
+}
+
+export function markSessionExited(sessions, sessionId, exitCode) {
+  const code = Number.isFinite(Number(exitCode)) ? Number(exitCode) : 1;
+  return updateTerminalSession(sessions, sessionId, {
+    status: code === 0 ? "success" : "error",
+    lastExitCode: code,
+    lastEndedAt: new Date().toISOString(),
+  });
+}
+
+export function markSessionStopped(sessions, sessionId) {
+  return updateTerminalSession(sessions, sessionId, {
+    status: "stopped",
+    lastExitCode: null,
+    lastEndedAt: new Date().toISOString(),
+  });
+}
+
+export function getSessionStatusMeta(session, isRunning = false) {
+  if (isRunning || session?.status === "running") {
+    return {
+      label: "Running",
+      tone: "running",
+      detail: session?.lastCommand || "Process active",
+    };
+  }
+
+  if (typeof session?.lastExitCode === "number") {
+    return {
+      label: session.lastExitCode === 0 ? "Exited 0" : `Exit ${session.lastExitCode}`,
+      tone: session.lastExitCode === 0 ? "success" : "error",
+      detail: session?.lastCommand || "Process finished",
+    };
+  }
+
+  if (session?.status === "stopped") {
+    return {
+      label: "Stopped",
+      tone: "warning",
+      detail: session?.lastCommand || "Process stopped",
+    };
+  }
+
+  return {
+    label: "Ready",
+    tone: session?.kind === "task" ? "task" : "idle",
+    detail: session?.lastCommand || "Awaiting command",
+  };
+}
+
+export function formatTerminalPath(path) {
+  if (!path) return "~";
+  const value = String(path);
+  if (value.length <= 46) return value;
+
+  const normalized = value.replace(/\\/g, "/");
+  const parts = normalized.split("/").filter(Boolean);
+  if (parts.length <= 3) return value;
+
+  const prefix = normalized.startsWith("/") ? "/" : "";
+  return `${prefix}${parts[0]}/.../${parts.slice(-2).join("/")}`;
 }
 
 export function updateSessionLastCommand(sessions, sessionId, command) {
@@ -190,4 +443,11 @@ export function canUseTerminalBridge() {
 
 export function disposeMaybe(dispose) {
   if (isFunction(dispose)) dispose();
+}
+
+function quoteShellToken(value) {
+  const text = String(value || "");
+  if (!text) return text;
+  if (/^[\w./:-]+$/.test(text)) return text;
+  return `"${text.replace(/(["\\$`])/g, "\\$1")}"`;
 }
