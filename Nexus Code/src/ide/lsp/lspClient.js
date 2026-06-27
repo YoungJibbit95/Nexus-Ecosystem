@@ -41,15 +41,20 @@ export function createLspClient(options = {}) {
     async initialize(capabilities = {}) {
       if (initialized) return { capabilities: options.capabilities || {} };
       initialized = true;
+      const initializeParams = {
+        processId: null,
+        capabilities,
+        clientInfo: { name: "Nexus Code", version: "0.2.0" },
+        ...(transport?.initializeParams || {}),
+        ...(options.initializeParams || {}),
+      };
       const result = await safeRequest(
         transport,
         LSP_METHODS.INITIALIZE,
-        {
-          capabilities,
-          clientInfo: { name: "Nexus Code", version: "0.1.0" },
-        },
+        initializeParams,
         { capabilities: options.capabilities || {} },
       );
+      await safeNotify(transport, LSP_METHODS.INITIALIZED, {});
       return result || { capabilities: {} };
     },
 
@@ -132,6 +137,7 @@ export function createLspClient(options = {}) {
     dispose() {
       documents.clear();
       initialized = false;
+      transport?.dispose?.();
     },
   };
 }

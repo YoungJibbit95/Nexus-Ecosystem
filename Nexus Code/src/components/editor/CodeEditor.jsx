@@ -2,8 +2,21 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from "react"
 import Editor, { useMonaco } from "@monaco-editor/react";
 import { ensureMonacoWorkers } from "../../lib/monacoWorkers";
 import { THEMES as EDITOR_THEMES } from "../../pages/editor/editorShared.jsx";
+import { createEditorEngine } from "../../ide/editor/editorEngine.js";
 import { createMonacoModelPath } from "../../ide/editor/monacoModelUri.js";
-import { detectMonacoLanguageId } from "../../ide/languages/languageIds.js";
+import {
+  detectLanguageId,
+  detectMonacoLanguageId,
+  getLanguageDisplayName,
+  isLspReadyLanguage,
+} from "../../ide/languages/languageIds.js";
+import {
+  createElectronLspTransport,
+  hasElectronLspBridge,
+  lspCompletionListToMonaco,
+  lspDiagnosticsToMonacoMarkers,
+  lspHoverToMonaco,
+} from "../../ide/lsp/index.js";
 
 const IGNORED_DIAGNOSTIC_CODES = new Set([2307, 2792, 1208, 2339, 2580, 2304]);
 const EDITOR_CHANGE_EMIT_INTERVAL_MS = 60;
@@ -144,6 +157,8 @@ export default function CodeEditor({
   code,
   onChange,
   fileName,
+  filePath = null,
+  workspacePath = null,
   fontSize = 14,
   showLineNumbers = true,
   tabSize = 4,
@@ -157,12 +172,43 @@ export default function CodeEditor({
   }, []);
 
   const monaco = useMonaco();
-  const language = useMemo(() => detectMonacoLanguageId(fileName), [fileName]);
-  const modelPath = useMemo(() => createMonacoModelPath({ fileName }), [fileName]);
+  const resourcePath = filePath || fileName;
+  const nexusLanguageId = useMemo(
+    () => detectLanguageId(resourcePath),
+    [resourcePath],
+  );
+  const language = useMemo(
+    () => detectMonacoLanguageId(resourcePath),
+    [resourcePath],
+  );
+  const languageLabel = useMemo(
+    () => getLanguageDisplayName(nexusLanguageId),
+    [nexusLanguageId],
+  );
+  const modelPath = useMemo(
+    () =>
+      createMonacoModelPath({
+        fileName,
+        fsPath: filePath,
+        workspacePath,
+      }),
+    [fileName, filePath, workspacePath],
+  );
   const [cursorInfo, setCursorInfo] = useState({ line: 1, col: 1 });
   const [lineCount, setLineCount] = useState(1);
   const [compactViewport, setCompactViewport] = useState(getCompactViewport);
+  const [lspStatus, setLspStatus] = useState({
+    state: "idle",
+    label: "LSP",
+    message: "",
+  });
   const editorRef = useRef(null);
+  const codeRef = useRef(code || "");
+  const lspEngineRef = useRef(null);
+  const lspDocumentUriRef = useRef(null);
+  const lspVersionRef = useRef(1);
+  const lspCompletionProviderDisposableRef = useRef(null);
+  const lspHoverProviderDisposableRef = useRef(null);
   const markerTimerRef = useRef(null);
   const markerHashRef = useRef("");
   const changeEmitTimerRef = useRef(null);
@@ -181,6 +227,12 @@ export default function CodeEditor({
   const hasPrettier = installedExtensions.includes("prettier");
   const hasRainbowBrackets = installedExtensions.includes("rainbow-brackets");
   const isLargeFile = typeof code === "string" && code.length > LARGE_FILE_CHAR_THRESHOLD;
+  const canUseLsp =
+    settings.lsp_enabled !== false &&
+    !isLargeFile &&
+    Boolean(workspacePath) &&
+    isLspReadyLanguage(nexusLanguageId) &&
+    hasElectronLspBridge();
   const editorFontSize = useMemo(
     () => resolveEditorFontSize(settings, fontSize),
     [fontSize, settings.font_size],
@@ -324,6 +376,33 @@ export default function CodeEditor({
     contentListenerDisposableRef.current?.dispose?.();
     contentListenerDisposableRef.current = null;
   }, []);
+
+  const disposeLspProviders = useCallback(() => {
+    lspCompletionProviderDisposableRef.current?.dispose?.();
+    lspCompletionProviderDisposableRef.current = null;
+    lspHoverProviderDisposableRef.current?.dispose?.();
+    lspHoverProviderDisposableRef.current = null;
+  }, []);
+
+  const clearLspMarkers = useCallback(() => {
+    if (!monaco) return;
+    const model = editorRef.current?.getModel?.();
+    if (model) {
+      monaco.editor.setModelMarkers(model, "nexus-lsp", []);
+    }
+  }, [monaco]);
+
+  const disposeLspEngine = useCallback(() => {
+    lspEngineRef.current?.dispose?.();
+    lspEngineRef.current = null;
+    lspDocumentUriRef.current = null;
+    lspVersionRef.current = 1;
+    clearLspMarkers();
+  }, [clearLspMarkers]);
+
+  useEffect(() => {
+    codeRef.current = code || "";
+  }, [code]);
 
   useEffect(() => {
     let frame = 0;
@@ -521,6 +600,148 @@ export default function CodeEditor({
   }, [monaco]);
 
   useEffect(() => {
+    disposeLspEngine();
+
+    if (!monaco || !canUseLsp) {
+      setLspStatus({
+        state: isLargeFile ? "disabled" : "idle",
+        label: "LSP",
+        message: isLargeFile ? "large file" : "",
+      });
+      return undefined;
+    }
+
+    let active = true;
+    const transport = createElectronLspTransport({
+      languageId: nexusLanguageId,
+      workspacePath,
+      onStatus: (status) => {
+        if (!active) return;
+        setLspStatus({
+          state: status?.state || "running",
+          label: status?.label || languageLabel,
+          message: status?.message || "",
+        });
+      },
+      onDiagnostics: ({ uri, diagnostics }) => {
+        if (!active || !monaco) return;
+        if (uri && lspDocumentUriRef.current && uri !== lspDocumentUriRef.current) {
+          return;
+        }
+        const model = editorRef.current?.getModel?.();
+        if (!model) return;
+        const markers = lspDiagnosticsToMonacoMarkers(monaco, diagnostics || []);
+        monaco.editor.setModelMarkers(model, "nexus-lsp", markers);
+      },
+    });
+    const engine = createEditorEngine({
+      lsp: {
+        transports: {
+          [nexusLanguageId]: transport,
+        },
+      },
+    });
+    lspEngineRef.current = engine;
+    lspVersionRef.current = 1;
+    setLspStatus({
+      state: "starting",
+      label: languageLabel,
+      message: "",
+    });
+
+    engine
+      .openDocument({
+        fileName,
+        fsPath: filePath,
+        workspacePath,
+        languageId: nexusLanguageId,
+        value: codeRef.current,
+        version: lspVersionRef.current,
+      })
+      .then((document) => {
+        if (!active) return;
+        lspDocumentUriRef.current = document.uri;
+        setLspStatus((prev) => ({
+          ...prev,
+          state: prev.state === "unavailable" ? prev.state : "running",
+        }));
+      })
+      .catch((error) => {
+        if (!active) return;
+        setLspStatus({
+          state: "unavailable",
+          label: languageLabel,
+          message: error?.message || "LSP unavailable",
+        });
+      });
+
+    return () => {
+      active = false;
+      disposeLspEngine();
+    };
+  }, [
+    canUseLsp,
+    disposeLspEngine,
+    fileName,
+    filePath,
+    isLargeFile,
+    languageLabel,
+    monaco,
+    nexusLanguageId,
+    workspacePath,
+  ]);
+
+  useEffect(() => {
+    disposeLspProviders();
+    if (!monaco || !canUseLsp) return undefined;
+
+    lspCompletionProviderDisposableRef.current =
+      monaco.languages.registerCompletionItemProvider(language, {
+        triggerCharacters: [".", ":", "<", "/", "\"", "'", "@", "#"],
+        provideCompletionItems: async (model, position, context) => {
+          const engine = lspEngineRef.current;
+          const documentUri = lspDocumentUriRef.current;
+          if (!engine || !documentUri) return { suggestions: [] };
+          const word = model.getWordUntilPosition(position);
+          const fallbackRange = {
+            startLineNumber: position.lineNumber,
+            endLineNumber: position.lineNumber,
+            startColumn: word.startColumn,
+            endColumn: word.endColumn,
+          };
+          try {
+            const completions = await engine.getCompletions(documentUri, position, {
+              triggerKind: context?.triggerKind,
+              triggerCharacter: context?.triggerCharacter,
+            });
+            return lspCompletionListToMonaco(monaco, completions, fallbackRange);
+          } catch {
+            return { suggestions: [] };
+          }
+        },
+      });
+
+    lspHoverProviderDisposableRef.current =
+      monaco.languages.registerHoverProvider(language, {
+        provideHover: async (_model, position) => {
+          const engine = lspEngineRef.current;
+          const documentUri = lspDocumentUriRef.current;
+          if (!engine || !documentUri) return null;
+          try {
+            const hover = await engine.getHover(documentUri, position);
+            return lspHoverToMonaco(hover);
+          } catch {
+            return null;
+          }
+        },
+      });
+
+    return () => {
+      disposeLspProviders();
+    };
+  }, [canUseLsp, disposeLspProviders, language, monaco]);
+
+  useEffect(() => {
     if (editorRef.current && settings._revealLine) {
       const { line, col } = settings._revealLine;
       editorRef.current.revealLineInCenter(line);
@@ -589,6 +810,8 @@ export default function CodeEditor({
   useEffect(() => {
     return () => {
       disposeEditorListeners();
+      disposeLspProviders();
+      disposeLspEngine();
       if (markerTimerRef.current) {
         window.clearTimeout(markerTimerRef.current);
         markerTimerRef.current = null;
@@ -604,10 +827,29 @@ export default function CodeEditor({
       flushPendingChange();
       flushCursorInfo();
     };
-  }, [disposeEditorListeners, flushPendingChange, flushCursorInfo]);
+  }, [
+    disposeEditorListeners,
+    disposeLspEngine,
+    disposeLspProviders,
+    flushPendingChange,
+    flushCursorInfo,
+  ]);
 
   const handleEditorChange = (value) => {
-    emitEditorChange(value || "");
+    const nextValue = value || "";
+    codeRef.current = nextValue;
+    emitEditorChange(nextValue);
+    const engine = lspEngineRef.current;
+    const documentUri = lspDocumentUriRef.current;
+    if (engine && documentUri) {
+      lspVersionRef.current += 1;
+      engine
+        .updateDocument(documentUri, nextValue, {
+          version: lspVersionRef.current,
+          dirty: true,
+        })
+        .catch(() => {});
+    }
   };
 
   const handleEditorDidMount = (editor, _monaco) => {
@@ -735,9 +977,23 @@ export default function CodeEditor({
       >
         <div className="flex items-center gap-3 min-w-0">
           <span className="text-[10px] text-gray-400 font-medium">
-            {language.toUpperCase() || "TEXT"}
+            {languageLabel}
           </span>
           <span className="text-[10px] text-gray-500">UTF-8</span>
+          <span
+            className={`text-[10px] font-medium ${
+              lspStatus.state === "running"
+                ? "text-green-400"
+                : lspStatus.state === "starting"
+                  ? "text-amber-400"
+                  : lspStatus.state === "unavailable"
+                    ? "text-red-400"
+                    : "text-gray-600"
+            }`}
+            title={lspStatus.message || lspStatus.label || "Language Server"}
+          >
+            LSP {lspStatus.state}
+          </span>
           {settings.sticky_scroll && (
              <span className="text-[10px] text-purple-500 font-bold opacity-60">STICKY</span>
           )}

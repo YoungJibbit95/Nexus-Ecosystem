@@ -22,7 +22,7 @@ export const EDITOR_ENGINE_CAPABILITIES = Object.freeze({
   lspCompletion: true,
   lspHover: true,
   lspDiagnostics: true,
-  externalServerProcesses: false,
+  externalServerProcesses: true,
 });
 
 /**

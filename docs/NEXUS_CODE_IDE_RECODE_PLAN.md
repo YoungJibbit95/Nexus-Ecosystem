@@ -23,7 +23,12 @@ Nexus Code wird eine vollstaendige IDE im bestehenden Nexus-Code-Produkt. Die Ap
 
 ## Phase 2: LSP & Completion
 
-- Electron-Main verwaltet Language-Server-Prozesse.
+- Electron-Main verwaltet Language-Server-Prozesse. Foundation ist umgesetzt:
+  - JSON-RPC ueber stdio mit `Content-Length` Framing.
+  - Workspace-sandboxed Serverstart aus dem ausgewaehlten Ordner.
+  - Renderer-Transport ueber sichere IPC-Bridge.
+  - Monaco Completion, Hover und Diagnostics Provider.
+  - Fehlerfall bleibt stabil, wenn Server nicht installiert sind.
 - Tier 1:
   - TypeScript/JavaScript via `typescript-language-server`
   - Python via `pyright-langserver`
@@ -75,6 +80,7 @@ Nexus Code wird eine vollstaendige IDE im bestehenden Nexus-Code-Produkt. Die Ap
 ## Erste Arbeitspakete
 
 - EditorEngine/LSP-Contract und Language Registry.
+- Electron-LSP-Prozessdienst, Renderer-Transport und Monaco-Provider.
 - Electron Git/GitHub Backend.
 - Renderer-GitPanel und Terminal-Modelle.
 - Nexus-x-Zed Theme-Resolver.
