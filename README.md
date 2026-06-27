@@ -12,10 +12,11 @@
 </p>
 
 <p>
-  <img src="https://img.shields.io/github/last-commit/YoungJibbit95/Nexus-Ecosystem?style=flat-square&logo=git&color=7aa2f7&labelColor=1a1b27" alt="Last commit" />
-  <img src="https://img.shields.io/github/repo-size/YoungJibbit95/Nexus-Ecosystem?style=flat-square&logo=github&color=bb9af7&labelColor=1a1b27" alt="Repository size" />
-  <img src="https://img.shields.io/github/issues/YoungJibbit95/Nexus-Ecosystem?style=flat-square&logo=github&color=f7768e&labelColor=1a1b27" alt="Open issues" />
-  <img src="https://img.shields.io/github/stars/YoungJibbit95/Nexus-Ecosystem?style=flat-square&logo=github&color=e0af68&labelColor=1a1b27" alt="GitHub stars" />
+  <img src="https://komarev.com/ghpvc/?username=YoungJibbit95-Nexus-Ecosystem&label=repository%20views&color=7aa2f7&style=flat" alt="Repository views" />
+  <img src="https://img.shields.io/github/last-commit/YoungJibbit95/Nexus-Ecosystem?style=flat&logo=git&color=7dcfff&labelColor=1a1b27" alt="Last commit" />
+  <img src="https://img.shields.io/github/stars/YoungJibbit95/Nexus-Ecosystem?style=flat&logo=github&color=e0af68&labelColor=1a1b27" alt="GitHub stars" />
+  <img src="https://img.shields.io/github/issues/YoungJibbit95/Nexus-Ecosystem?style=flat&logo=github&color=f7768e&labelColor=1a1b27" alt="Open issues" />
+  <img src="https://img.shields.io/github/repo-size/YoungJibbit95/Nexus-Ecosystem?style=flat&logo=github&color=bb9af7&labelColor=1a1b27" alt="Repository size" />
 </p>
 
 <a href="#overview">Overview</a>
@@ -40,27 +41,79 @@
 
 ## Overview
 
+<sub>A connected workspace for planning, building and operating across desktop and mobile.</sub>
+
 </div>
 
+<br />
+
+<table>
+<tr>
+<td width="33%" align="center">
+
+### 🧠 One Workspace
+
+Notes, tasks, reminders, canvas, files and operational workflows in one connected environment.
+
+<img src="https://img.shields.io/badge/SURFACE-Workspace-7aa2f7?style=flat&labelColor=1a1b27" alt="Workspace surface" />
+
+</td>
+<td width="33%" align="center">
+
+### 📱 Cross-Platform
+
+Dedicated Electron and Capacitor clients provide focused desktop and mobile experiences.
+
+<img src="https://img.shields.io/badge/TARGETS-Desktop%20%2B%20Mobile-7dcfff?style=flat&labelColor=1a1b27" alt="Desktop and mobile targets" />
+
+</td>
+<td width="33%" align="center">
+
+### ⚙️ Shared Foundation
+
+Runtime, rendering, motion and API contracts stay aligned through reusable shared packages.
+
+<img src="https://img.shields.io/badge/FOUNDATION-Shared%20Core-bb9af7?style=flat&labelColor=1a1b27" alt="Shared core foundation" />
+
+</td>
+</tr>
+</table>
+
 > [!IMPORTANT]
-> Nexus ist ein Multi-App Workspace-System für Planung, Entwicklung und Daily Operations.  
-> Dieses Repository enthaelt die produktiven Clients, Shared Core Runtime-Logik und die Wiki-/Website-Dokumentation.
+> **Nexus Ecosystem** contains four production clients, a shared runtime, native installation tooling and the public documentation surfaces. The private backend implementation and secrets remain outside this repository.
 
 <div align="center">
 
-<p>
-  <img src="https://img.shields.io/badge/PRODUCT%20CLIENTS-4-7aa2f7?style=for-the-badge&labelColor=1a1b27" alt="Four product clients" />
-  <img src="https://img.shields.io/badge/TARGETS-DESKTOP%20%2B%20MOBILE-7dcfff?style=for-the-badge&labelColor=1a1b27" alt="Desktop and mobile targets" />
-  <img src="https://img.shields.io/badge/RUNTIME-SHARED%20CORE-bb9af7?style=for-the-badge&labelColor=1a1b27" alt="Shared core runtime" />
-</p>
+<a href="https://github.com/YoungJibbit95/Nexus-Ecosystem">
+  <img width="470" src="https://github-readme-stats.vercel.app/api/pin/?username=YoungJibbit95&repo=Nexus-Ecosystem&theme=tokyonight&hide_border=true&border_radius=14&show_owner=true&description_lines_count=2" alt="Nexus Ecosystem repository card" />
+</a>
+
+<br /><br />
+
+### Repository Pulse
+
+<sub>Live repository metadata, refreshed automatically.</sub>
+
+<br />
 
 <p>
-  <img src="https://img.shields.io/badge/React-19.2.x-7dcfff?style=flat-square&logo=react&logoColor=c0caf5&labelColor=1a1b27" alt="React" />
-  <img src="https://img.shields.io/badge/TypeScript-5.x-7aa2f7?style=flat-square&logo=typescript&logoColor=c0caf5&labelColor=1a1b27" alt="TypeScript" />
-  <img src="https://img.shields.io/badge/Electron-Desktop-73daca?style=flat-square&logo=electron&logoColor=c0caf5&labelColor=1a1b27" alt="Electron" />
-  <img src="https://img.shields.io/badge/Capacitor-Mobile-bb9af7?style=flat-square&logo=capacitor&logoColor=c0caf5&labelColor=1a1b27" alt="Capacitor" />
-  <img src="https://img.shields.io/badge/Rust-Native%20Installer-f7768e?style=flat-square&logo=rust&logoColor=c0caf5&labelColor=1a1b27" alt="Rust" />
+  <img src="https://img.shields.io/github/commit-activity/m/YoungJibbit95/Nexus-Ecosystem?style=flat&logo=github&color=7aa2f7&labelColor=1a1b27" alt="Monthly commit activity" />
+  <img src="https://img.shields.io/github/contributors/YoungJibbit95/Nexus-Ecosystem?style=flat&logo=github&color=7dcfff&labelColor=1a1b27" alt="Contributors" />
+  <img src="https://img.shields.io/github/forks/YoungJibbit95/Nexus-Ecosystem?style=flat&logo=github&color=9ece6a&labelColor=1a1b27" alt="GitHub forks" />
+  <img src="https://img.shields.io/github/issues-pr/YoungJibbit95/Nexus-Ecosystem?style=flat&logo=github&color=bb9af7&labelColor=1a1b27" alt="Open pull requests" />
+  <img src="https://img.shields.io/github/languages/top/YoungJibbit95/Nexus-Ecosystem?style=flat&logo=typescript&color=73daca&labelColor=1a1b27" alt="Top language" />
+  <img src="https://img.shields.io/github/license/YoungJibbit95/Nexus-Ecosystem?style=flat&logo=opensourceinitiative&color=e0af68&labelColor=1a1b27" alt="Repository license" />
 </p>
+
+<br />
+
+<img src="https://img.shields.io/badge/PRODUCT%20CLIENTS-4-7aa2f7?style=for-the-badge&labelColor=1a1b27" alt="Four product clients" />
+<img src="https://img.shields.io/badge/DELIVERY-DESKTOP%20%2B%20MOBILE-7dcfff?style=for-the-badge&labelColor=1a1b27" alt="Desktop and mobile delivery" />
+<img src="https://img.shields.io/badge/FOUNDATION-SHARED%20RUNTIME-bb9af7?style=for-the-badge&labelColor=1a1b27" alt="Shared runtime foundation" />
+
+<br /><br />
+
+<img src="https://skillicons.dev/icons?i=react,ts,electron,vite,nodejs,rust,github,md&theme=dark" alt="Nexus technology stack" />
 
 </div>
 
@@ -72,36 +125,100 @@
 
 ## Ecosystem
 
-<sub>One shared runtime across workspace, mobile and development surfaces.</sub>
-
-<br /><br />
-
-<a href="./Nexus%20Main/README.md"><img src="https://img.shields.io/badge/NEXUS%20MAIN-DESKTOP%20WORKSPACE-7aa2f7?style=for-the-badge&logo=electron&logoColor=c0caf5&labelColor=1a1b27" alt="Nexus Main README" /></a>
-<a href="./Nexus%20Mobile/README.md"><img src="https://img.shields.io/badge/NEXUS%20MOBILE-MOBILE%20WORKSPACE-7dcfff?style=for-the-badge&logo=capacitor&logoColor=c0caf5&labelColor=1a1b27" alt="Nexus Mobile README" /></a>
-
-<br />
-
-<a href="./Nexus%20Code/README.md"><img src="https://img.shields.io/badge/NEXUS%20CODE-DESKTOP%20IDE-bb9af7?style=for-the-badge&logo=visualstudiocode&logoColor=c0caf5&labelColor=1a1b27" alt="Nexus Code README" /></a>
-<a href="./Nexus%20Code%20Mobile/README.md"><img src="https://img.shields.io/badge/CODE%20MOBILE-MOBILE%20IDE-73daca?style=for-the-badge&logo=androidstudio&logoColor=c0caf5&labelColor=1a1b27" alt="Nexus Code Mobile README" /></a>
-
-<br />
-
-<a href="./packages/nexus-core/README.md"><img src="https://img.shields.io/badge/@NEXUS%2FCORE-SHARED%20RUNTIME-e0af68?style=for-the-badge&logo=npm&logoColor=c0caf5&labelColor=1a1b27" alt="Nexus Core README" /></a>
-<a href="./Nexus%20Installer/README.md"><img src="https://img.shields.io/badge/NATIVE%20INSTALLER-RUST-f7768e?style=for-the-badge&logo=rust&logoColor=c0caf5&labelColor=1a1b27" alt="Nexus Installer README" /></a>
+<sub>Purpose-built clients connected by one shared technical foundation.</sub>
 
 </div>
 
 <br />
 
-| App | Platform | Primary Scope | Stack |
-| --- | --- | --- | --- |
-| `Nexus Main` | Desktop | planning, notes, tasks, canvas, workspace | Electron + React + Vite |
-| `Nexus Mobile` | Android / iOS | mobile parity for core workspace flows | Capacitor + React + Vite |
-| `Nexus Code` | Desktop IDE | editor, run/debug, terminal, project workflow | Electron + React + Vite |
-| `Nexus Code Mobile` | Android / iOS IDE | mobile coding and project ops | Capacitor + React + Vite |
+<table>
+<tr>
+<td width="50%" align="center">
+
+### 🖥️ Nexus Main
+
+**Desktop workspace** for planning, knowledge, tasks, canvas and daily operations.
+
+<p>
+  <img src="https://img.shields.io/badge/Electron-Desktop-7aa2f7?style=flat&logo=electron&logoColor=c0caf5&labelColor=1a1b27" alt="Electron desktop" />
+  <img src="https://img.shields.io/badge/React-Workspace-7dcfff?style=flat&logo=react&logoColor=c0caf5&labelColor=1a1b27" alt="React workspace" />
+</p>
+
+<a href="./Nexus%20Main/README.md"><img src="https://img.shields.io/badge/OPEN%20APP%20README-7aa2f7?style=for-the-badge&logo=readme&logoColor=c0caf5&labelColor=1a1b27" alt="Open Nexus Main README" /></a>
+
+</td>
+<td width="50%" align="center">
+
+### 📱 Nexus Mobile
+
+**Mobile workspace** with core workflow parity for Android and iOS.
+
+<p>
+  <img src="https://img.shields.io/badge/Capacitor-Mobile-bb9af7?style=flat&logo=capacitor&logoColor=c0caf5&labelColor=1a1b27" alt="Capacitor mobile" />
+  <img src="https://img.shields.io/badge/Targets-Android%20%2B%20iOS-73daca?style=flat&logo=android&logoColor=c0caf5&labelColor=1a1b27" alt="Android and iOS" />
+</p>
+
+<a href="./Nexus%20Mobile/README.md"><img src="https://img.shields.io/badge/OPEN%20APP%20README-bb9af7?style=for-the-badge&logo=readme&logoColor=c0caf5&labelColor=1a1b27" alt="Open Nexus Mobile README" /></a>
+
+</td>
+</tr>
+<tr>
+<td width="50%" align="center">
+
+### 💻 Nexus Code
+
+**Desktop IDE** for editing, running, debugging and project workflows.
+
+<p>
+  <img src="https://img.shields.io/badge/Electron-Desktop%20IDE-7aa2f7?style=flat&logo=electron&logoColor=c0caf5&labelColor=1a1b27" alt="Electron desktop IDE" />
+  <img src="https://img.shields.io/badge/Monaco-Code%20Editor-bb9af7?style=flat&logo=visualstudiocode&logoColor=c0caf5&labelColor=1a1b27" alt="Monaco code editor" />
+</p>
+
+<a href="./Nexus%20Code/README.md"><img src="https://img.shields.io/badge/OPEN%20IDE%20README-7aa2f7?style=for-the-badge&logo=readme&logoColor=c0caf5&labelColor=1a1b27" alt="Open Nexus Code README" /></a>
+
+</td>
+<td width="50%" align="center">
+
+### 📲 Nexus Code Mobile
+
+**Mobile IDE** for lightweight coding and remote project operations.
+
+<p>
+  <img src="https://img.shields.io/badge/Capacitor-Mobile%20IDE-bb9af7?style=flat&logo=capacitor&logoColor=c0caf5&labelColor=1a1b27" alt="Capacitor mobile IDE" />
+  <img src="https://img.shields.io/badge/Workflow-Code%20Anywhere-73daca?style=flat&logo=githubcodespaces&logoColor=c0caf5&labelColor=1a1b27" alt="Code anywhere workflow" />
+</p>
+
+<a href="./Nexus%20Code%20Mobile/README.md"><img src="https://img.shields.io/badge/OPEN%20IDE%20README-bb9af7?style=for-the-badge&logo=readme&logoColor=c0caf5&labelColor=1a1b27" alt="Open Nexus Code Mobile README" /></a>
+
+</td>
+</tr>
+</table>
+
+<table>
+<tr>
+<td width="50%" align="center">
+
+### 🔗 `@nexus/core`
+
+Shared runtime contracts for rendering, motion, diagnostics and synchronized client behavior.
+
+<a href="./packages/nexus-core/README.md"><img src="https://img.shields.io/badge/EXPLORE%20SHARED%20CORE-e0af68?style=for-the-badge&logo=npm&logoColor=c0caf5&labelColor=1a1b27" alt="Explore Nexus Core" /></a>
+
+</td>
+<td width="50%" align="center">
+
+### 🦀 Native Installer
+
+Rust-based installation tooling for native build and install workflows from GitHub.
+
+<a href="./Nexus%20Installer/README.md"><img src="https://img.shields.io/badge/EXPLORE%20INSTALLER-f7768e?style=for-the-badge&logo=rust&logoColor=c0caf5&labelColor=1a1b27" alt="Explore native installer" /></a>
+
+</td>
+</tr>
+</table>
 
 <details>
-<summary><b>Core View Matrix — Main / Mobile</b></summary>
+<summary><b>Explore the Main / Mobile view matrix</b></summary>
 
 <br />
 
@@ -129,61 +246,118 @@
 
 ## Architecture
 
-<sub>Product clients share runtime contracts, API integration and documentation surfaces.</sub>
+<sub>Three clear layers keep product surfaces independent while preserving shared behavior.</sub>
 
 </div>
 
+<br />
+
+<table>
+<tr>
+<td width="33%" align="center">
+
+### 01 · Client Layer
+
+Four dedicated product clients deliver workspace and IDE experiences across desktop and mobile.
+
+<img src="https://img.shields.io/badge/CLIENTS-4-7aa2f7?style=flat&labelColor=1a1b27" alt="Four clients" />
+
+</td>
+<td width="33%" align="center">
+
+### 02 · Runtime Layer
+
+`@nexus/core` and `@nexus/api` centralize shared behavior, contracts and integration logic.
+
+<img src="https://img.shields.io/badge/PACKAGES-Core%20%2B%20API-bb9af7?style=flat&labelColor=1a1b27" alt="Core and API packages" />
+
+</td>
+<td width="33%" align="center">
+
+### 03 · Service Layer
+
+Private API services and public documentation complete the production ecosystem.
+
+<img src="https://img.shields.io/badge/SERVICES-Private%20%2B%20Public-f7768e?style=flat&labelColor=1a1b27" alt="Private and public services" />
+
+</td>
+</tr>
+</table>
+
 ```mermaid
-flowchart LR
-  subgraph Clients[Product Clients]
-    A["Nexus Main / Mobile"]
-    B["Nexus Code / Code Mobile"]
+flowchart TB
+  subgraph CLIENTS["01 · Product Clients"]
+    direction LR
+    A["Nexus Main"]
+    B["Nexus Mobile"]
+    C["Nexus Code"]
+    D["Nexus Code Mobile"]
   end
 
-  subgraph Runtime[Shared Runtime]
-    C["@nexus/core"]
-    G["@nexus/api"]
+  subgraph RUNTIME["02 · Shared Runtime"]
+    direction LR
+    E["@nexus/core"]
+    F["@nexus/api"]
   end
 
-  subgraph Services[Services & Documentation]
-    D["nexus-api.cloud"]
-    E["InfoView / In-App Docs"]
-    F["Nexus Wiki + Website"]
+  subgraph SERVICES["03 · Services & Documentation"]
+    direction LR
+    G["nexus-api.cloud"]
+    H["InfoView / In-App Docs"]
+    I["Nexus Wiki + Website"]
   end
 
-  A --> C
-  B --> C
-  C --> G
-  G --> D
-  E --> A
-  E --> B
-  F --> E
+  A --> E
+  B --> E
+  C --> E
+  D --> E
+  E --> F
+  F --> G
+  H --> A
+  H --> B
+  H --> C
+  H --> D
+  I --> H
 ```
 
 <div align="center">
 
-<img src="https://img.shields.io/badge/CLIENTS-4-7aa2f7?style=for-the-badge&labelColor=1a1b27" alt="Four clients" />
-<img src="https://img.shields.io/badge/RUNTIME-SHARED%20CORE-bb9af7?style=for-the-badge&labelColor=1a1b27" alt="Shared core runtime" />
-<img src="https://img.shields.io/badge/API-PRIVATE%20BACKEND-f7768e?style=for-the-badge&labelColor=1a1b27" alt="Private backend" />
+<img src="https://img.shields.io/badge/FRONTEND-React%20%2B%20TypeScript-7dcfff?style=for-the-badge&logo=react&logoColor=c0caf5&labelColor=1a1b27" alt="React and TypeScript frontend" />
+<img src="https://img.shields.io/badge/DESKTOP-Electron-7aa2f7?style=for-the-badge&logo=electron&logoColor=c0caf5&labelColor=1a1b27" alt="Electron desktop" />
+<img src="https://img.shields.io/badge/MOBILE-Capacitor-bb9af7?style=for-the-badge&logo=capacitor&logoColor=c0caf5&labelColor=1a1b27" alt="Capacitor mobile" />
+<img src="https://img.shields.io/badge/NATIVE-Rust-f7768e?style=for-the-badge&logo=rust&logoColor=c0caf5&labelColor=1a1b27" alt="Rust native tooling" />
 
 </div>
 
-### Render and Motion Pipeline
+### Render & Motion Runtime
 
 > [!NOTE]
-> All clients are aligned to the shared runtime model in `@nexus/core`.
+> Every client follows the same runtime model in `@nexus/core`, allowing visual quality to scale down safely without changing product behavior.
 
-| Stage | Runtime Model |
+<div align="center">
+
+<img src="https://img.shields.io/badge/MEASURE-1-7aa2f7?style=flat&labelColor=1a1b27" alt="Measure phase" />
+→
+<img src="https://img.shields.io/badge/RESOLVE-2-7dcfff?style=flat&labelColor=1a1b27" alt="Resolve phase" />
+→
+<img src="https://img.shields.io/badge/ALLOCATE-3-bb9af7?style=flat&labelColor=1a1b27" alt="Allocate phase" />
+→
+<img src="https://img.shields.io/badge/COMMIT-4-73daca?style=flat&labelColor=1a1b27" alt="Commit phase" />
+→
+<img src="https://img.shields.io/badge/CLEANUP-5-9ece6a?style=flat&labelColor=1a1b27" alt="Cleanup phase" />
+
+</div>
+
+<br />
+
+| Runtime concern | Shared model |
 | --- | --- |
-| Pipeline | `Measure → Resolve → Allocate → Commit → Cleanup` |
 | Surface resolution | `surfaceClass · effectClass · budgetPriority · visibilityState · interactionState` |
 | Motion degradation | `full → rich-reduced → composed-light → critical-only → static-safe` |
 | Guardrails | Central ownership of `transform`, `filter` and `opacity` |
 
-This keeps UX smooth while still degrading safely under low power, reduced motion, or lag pressure.
-
 <details>
-<summary><b>Repository Map</b></summary>
+<summary><b>Explore the repository map</b></summary>
 
 <br />
 
@@ -324,12 +498,6 @@ VITE_NEXUS_USER_TIER
 ## Development Activity
 
 <sub>Commit history, contribution flow and repository development overview.</sub>
-
-<br /><br />
-
-<a href="https://github.com/YoungJibbit95/Nexus-Ecosystem">
-  <img width="470" src="https://github-readme-stats.vercel.app/api/pin/?username=YoungJibbit95&repo=Nexus-Ecosystem&theme=tokyonight&hide_border=true&border_radius=14&show_owner=true" alt="Nexus Ecosystem repository card" />
-</a>
 
 <br /><br />
 
