@@ -4240,12 +4240,12 @@ select {
 }
 
 .nx-app-shell::before {
-    opacity: min(var(--nx-app-shell-aura-opacity, 0.72), 0.82);
+    opacity: var(--nx-app-shell-aura-opacity, 0.76);
 }
 
 .nx-app-shell::after {
     background-size: 86px 86px;
-    opacity: min(var(--nx-app-shell-grid-opacity, 0.018), 0.018);
+    opacity: var(--nx-app-shell-grid-opacity, 0.035);
 }
 
 .nx-ambient-layer {
@@ -4262,12 +4262,12 @@ select {
 }
 
 .nx-shell-window::before {
-    opacity: 0.52;
+    opacity: 0.68;
 }
 
 .nx-shell-window::after {
     background-size: 120px 120px;
-    opacity: min(var(--nx-shell-window-grid-opacity, 0.018), 0.018);
+    opacity: var(--nx-shell-window-grid-opacity, 0.035);
 }
 
 .nx-v6-view-shell,
@@ -4288,6 +4288,29 @@ select {
 
 .nx-v6-view-shell::before {
     opacity: 0.46;
+}
+
+.nx-app-shell[data-app-bg-animated="true"]::before {
+    background-size: 145% 145%;
+    animation: nexus-aurora-shift var(--nx-app-bg-animation-duration, 18s) ease-in-out infinite alternate;
+}
+
+.nx-app-shell[data-app-bg-animated="true"] .nx-shell-window::before {
+    background-size: 130% 130%;
+    animation: nexus-gradient-shift calc(var(--nx-app-bg-animation-duration, 18s) * 1.25) ease-in-out infinite;
+}
+
+.nx-v6-content-frame,
+.nx-v6-inspector-rail,
+.nx-dashboard-v6,
+.nx-devtools-v6,
+.nx-settings-v6,
+.nx-info-v6,
+.nx-files-v6,
+.nx-reminders-v6,
+.nx-code-v6,
+.nx-canvas-v6 {
+    contain: layout paint;
 }
 
 .nx-v6-content-frame,
@@ -5080,5 +5103,121 @@ select {
 
     .nx-notes-editor-grid {
         overflow: auto !important;
+    }
+}
+
+/* Notes workspace space pass: prioritize writing/reading area over chrome. */
+.nx-notes-v6 {
+    gap: 6px !important;
+    padding: 6px !important;
+}
+
+.nx-notes-sidebar {
+    width: clamp(238px, 18vw, 286px) !important;
+}
+
+.nx-notes-list {
+    padding: 8px !important;
+}
+
+.nx-notes-list-row {
+    margin-bottom: 7px !important;
+    padding: 10px 11px !important;
+}
+
+.nx-notes-editor-header {
+    min-height: 38px !important;
+    padding: 4px 6px !important;
+}
+
+.nx-notes-title-input {
+    min-height: 28px !important;
+    padding: 4px 10px !important;
+}
+
+.nx-notes-command-strip {
+    padding: 4px 6px !important;
+    border-radius: 12px !important;
+}
+
+.nx-notes-format-toolbar {
+    min-height: 27px !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    overflow-y: visible !important;
+    padding: 2px 5px !important;
+    border-radius: 12px !important;
+}
+
+.nx-notes-format-toolbar > * {
+    flex: 0 0 auto;
+}
+
+.nx-notes-toolbar-tags {
+    display: none !important;
+}
+
+.nx-notes-status-tags {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+    max-width: min(46vw, 520px);
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 1px 0;
+}
+
+.nx-notes-status-tags::-webkit-scrollbar {
+    height: 0;
+}
+
+.nx-notes-status-tags > * {
+    flex: 0 0 auto;
+}
+
+.nx-notes-editor-grid .nx-notes-editor-pane {
+    flex: 1.35 1 0 !important;
+}
+
+.nx-notes-editor-grid .nx-notes-preview-pane {
+    flex: 1 1 0 !important;
+}
+
+.nx-notes-editor-pane textarea {
+    padding-inline: clamp(18px, 2.2vw, 30px) !important;
+}
+
+.nx-notes-preview-scroll {
+    padding: clamp(18px, 2vw, 28px) !important;
+}
+
+.nx-notes-status {
+    flex-wrap: nowrap !important;
+    min-height: 17px !important;
+    padding-block: 1px !important;
+}
+
+@media (max-width: 1180px) {
+    .nx-notes-sidebar {
+        width: clamp(220px, 24vw, 270px) !important;
+    }
+}
+
+@media (max-width: 980px) {
+    .nx-notes-sidebar {
+        width: 100% !important;
+        max-height: 220px !important;
+    }
+
+    .nx-notes-status {
+        align-items: flex-start !important;
+        flex-wrap: wrap !important;
+    }
+
+    .nx-notes-status-tags {
+        order: 10;
+        flex-basis: 100%;
+        max-width: 100%;
     }
 }

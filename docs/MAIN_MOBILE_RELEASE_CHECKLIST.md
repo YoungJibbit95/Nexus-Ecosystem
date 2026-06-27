@@ -32,11 +32,11 @@ Der Gate prueft:
 | Dependency Security Main/Mobile | Gate-ready | Audits bleiben Teil von `release:main-mobile` |
 | Canvas Main | In Arbeit | Inspector v2 ist drin, danach Multi-Select/History/Snap vollenden |
 | Canvas Mobile | In Arbeit | Mobile Gestures und Bottom-Sheet Inspector angleichen |
-| Settings Shared Core | In Arbeit | Main/Mobile Bridge weiter reduzieren und Import-Validation ausbauen; Radius/Font/Panel-Token sind in Main stabilisiert |
-| Notes | In Arbeit | Persistenz/Import/Editor-Performance aufteilen; Portal-Popover/Toolbar/Editor-Raum sind poliert |
+| Settings Shared Core | In Arbeit | Main/Mobile Bridge weiter reduzieren und Import-Validation ausbauen; Radius/Font/Panel-Token, sichtbare Backgrounds, Animation-Toggle und Performance-Presets sind in Main stabilisiert |
+| Notes | In Arbeit | Persistenz/Import/Editor-Performance aufteilen; Portal-Popover/Toolbar/Editor-Raum und Status-Tags sind poliert |
 | DevTools | In Arbeit | Responsive Builder/Designer-Splits sind poliert, naechster Schritt ist Artifact-Workflow QA |
 | Files/Workspace Handoff | In Arbeit | Runtime Snapshot Flow mit Mobile Roundtrip testen |
-| Website/API Nutzerzahlen | In Arbeit | Aktive Nutzer bleiben getrennt von technischen Clients; Live-Deploy braucht autorisierten VPS-Zugang |
+| Website/API Nutzerzahlen | In Arbeit | Aktive Nutzer bleiben getrennt von technischen Clients; GitHub Deploy-Workflow ist angelegt, Live-Deploy braucht autorisierte VPS-Secrets |
 
 ## Canvas Release Liste
 
@@ -64,7 +64,9 @@ Der Gate prueft:
 - [x] Panel Radius ueber Shell/Glass Tokens sichtbar verdrahten
 - [x] Panel Backgrounds fuer App Panels/Sidebar sichtbar reparieren
 - [x] App Backgrounds ueber Shell-/Window-Tokens sichtbar machen
+- [x] App Background Visibility, Animation Toggle und Speed in Settings steuerbar machen
 - [x] Glass Performance Anzeige in Settings einfuehren
+- [x] Glass Performance Kostentreiber plus Release-Safe/Balanced Presets ergaenzen
 
 ## Notes Release Liste
 
@@ -72,6 +74,8 @@ Der Gate prueft:
 - [x] Emoji- und Blocks-Menues schweben ueber der Toolbar statt Layout zu vergroessern
 - [x] Magic Button schliesst konkurrierende Notes-Popover
 - [x] Emoji-/Blocks-Menues werden per Portal gerendert und haengen nicht mehr im Toolbar-Layout
+- [x] Tags aus der Format-Leiste in die Statuszeile verschieben
+- [x] Schreib-/Preview-Flaechen gegen Toolbar-Chrome priorisieren
 - [x] InfoView hat Suche und bessere Referenzen fuer Views/Markdown/Terminal
 - [ ] Notes Store von Editor-Draft-State trennen
 - [ ] Markdown/Emoji/Magic Daten in kleinere Module auslagern
@@ -85,8 +89,11 @@ Der Gate prueft:
 - [x] Maus-Glow ist oben links abschaltbar
 - [x] `activeUsers`/`activeUsers15m` wird von technischen Clients getrennt
 - [x] Nexus Control Dashboard zeigt im Nutzer-Slot echte aktive Nutzer
+- [x] GitHub VPS Autoupdate Workflow fuer `srv1513091.hstgr.cloud` anlegen
+- [x] Website CI mit Typecheck, Build-Budget, Audit und API-Integration anlegen
 - [ ] Website Screenshots nach UI-Stabilisierung neu capturen
 - [ ] API Contract-Test fuer fehlende Nutzer-Metriken um Fallbacks erweitern
+- [ ] GitHub Secrets `NEXUS_VPS_HOST`, `NEXUS_VPS_USER`, `NEXUS_VPS_SSH_KEY` setzen
 - [ ] VPS `srv1513091.hstgr.cloud` deployen/restarten, sobald SSH-Key oder Hostinger-Zugang autorisiert ist
 
 ## DevTools Release Liste
@@ -116,5 +123,5 @@ Der Gate prueft:
 
 - GitHub meldet weiterhin repo-weite Dependabot Findings ausserhalb des Main/Mobile-Audit-Gates.
 - Voller Runtime-Smoke kann durch Hosted-Control-API Auth (`HTTP_401`) begrenzt sein.
-- Live-API-Deploy ist aktuell durch fehlende SSH-Autorisierung fuer `srv1513091.hstgr.cloud` blockiert; GitHub `main` ist gruen, aber der VPS hat die alte Runtime noch nicht neu gestartet.
+- Live-API-Deploy ist aktuell durch fehlende SSH-/GitHub-Secrets fuer `srv1513091.hstgr.cloud` blockiert; GitHub `main` ist gruen, aber der VPS hat die alte Runtime noch nicht neu gestartet.
 - Code/Code Mobile bleiben ausserhalb dieses Main/Mobile Gates und brauchen ein separates Security-/Release-Fenster.

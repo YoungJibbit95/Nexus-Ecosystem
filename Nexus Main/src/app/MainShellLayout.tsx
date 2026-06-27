@@ -140,6 +140,7 @@ export function MainShellLayout({
       data-sidebar-style={t.sidebarStyle || "default"}
       data-panel-bg-mode={t.background?.panelBgMode || "glass"}
       data-app-bg-mode={t.background?.mode || "solid"}
+      data-app-bg-animated={t.background?.animated ? "true" : "false"}
       data-nx-motion-profile={motionRuntime?.profile || "balanced"}
       data-nx-motion-reduced={motionRuntime?.reduced ? "1" : "0"}
       style={{
@@ -159,6 +160,10 @@ export function MainShellLayout({
         ["--nx-app-shell-aura-opacity" as any]: appShellSurfaceTokens.auraOpacity,
         ["--nx-app-shell-grid-bg" as any]: appShellSurfaceTokens.gridBackground,
         ["--nx-app-shell-grid-opacity" as any]: appShellSurfaceTokens.gridOpacity,
+        ["--nx-app-bg-animation-duration" as any]: `${Math.max(
+          8,
+          Math.min(42, Number(t.background?.animationSpeed || 4) * 4),
+        )}s`,
         ["--nx-shell-window-bg" as any]: appShellSurfaceTokens.windowBackground,
         ["--nx-shell-window-aura-bg" as any]: appShellSurfaceTokens.windowAuraBackground,
         ["--nx-shell-window-grid-bg" as any]: appShellSurfaceTokens.windowGridBackground,

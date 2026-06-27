@@ -2491,7 +2491,7 @@ export function NotesView() {
               <div style={{ flex: 1 }} />
 
               {/* Tags */}
-              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <div className="nx-notes-toolbar-tags" style={{ display: "flex", alignItems: "center", gap: 4 }}>
                 <Hash size={10} style={{ opacity: 0.35 }} />
                 {active.tags.map((tag) => (
                   <InteractiveActionButton
@@ -2729,16 +2729,99 @@ export function NotesView() {
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 16,
+              gap: 10,
               padding: "2px 8px",
               fontSize: 10,
-              opacity: 0.38,
               flexShrink: 0,
             }}
           >
-            <span>{stats.words} W</span>
-            <span>{stats.chars} Z</span>
-            <span>{stats.lines} L</span>
+            <span style={{ opacity: 0.44 }}>{stats.words} W</span>
+            <span style={{ opacity: 0.44 }}>{stats.chars} Z</span>
+            <span style={{ opacity: 0.44 }}>{stats.lines} L</span>
+            <div className="nx-notes-status-tags">
+              <Hash size={10} style={{ opacity: 0.45 }} />
+              {active.tags.map((tag) => (
+                <InteractiveActionButton
+                  key={tag}
+                  onClick={() =>
+                    updateNote(active.id, {
+                      tags: active.tags.filter((t) => t !== tag),
+                    })
+                  }
+                  motionId={`notes-remove-tag-status-${tag}`}
+                  areaHint={46}
+                  radius={20}
+                  style={{
+                    fontSize: 10,
+                    padding: "2px 8px",
+                    borderRadius: 20,
+                    cursor: "pointer",
+                    border: `1px solid rgba(${rgb},0.18)`,
+                    background: `rgba(${rgb},0.1)`,
+                    color: t.accent,
+                    transition: "opacity 0.15s",
+                  }}
+                  title="Tag entfernen"
+                >
+                  {tag} x
+                </InteractiveActionButton>
+              ))}
+              {editingTags ? (
+                <input
+                  autoFocus
+                  value={newTag}
+                  onChange={(e) => setNewTag(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && newTag.trim()) {
+                      if (!active.tags.includes(newTag.trim()))
+                        updateNote(active.id, {
+                          tags: [...active.tags, newTag.trim()],
+                        });
+                      setNewTag("");
+                      setEditingTags(false);
+                    }
+                    if (e.key === "Escape") {
+                      setEditingTags(false);
+                      setNewTag("");
+                    }
+                  }}
+                  onBlur={() => {
+                    setEditingTags(false);
+                    setNewTag("");
+                  }}
+                  style={{
+                    fontSize: 10,
+                    padding: "2px 8px",
+                    borderRadius: 20,
+                    width: 78,
+                    background: "rgba(255,255,255,0.06)",
+                    border: "1px solid rgba(255,255,255,0.1)",
+                    outline: "none",
+                    color: "inherit",
+                  }}
+                  placeholder="tag..."
+                />
+              ) : (
+                <InteractiveActionButton
+                  onClick={() => setEditingTags(true)}
+                  motionId="notes-add-tag-status"
+                  className="nx-icon-fade"
+                  areaHint={46}
+                  radius={14}
+                  style={{
+                    fontSize: 10,
+                    ["--nx-idle-opacity" as any]: 0.58,
+                    background: "rgba(255,255,255,0.035)",
+                    border: "1px solid rgba(255,255,255,0.08)",
+                    color: "inherit",
+                    borderRadius: 999,
+                    padding: "2px 8px",
+                  }}
+                >
+                  + Tag
+                </InteractiveActionButton>
+              )}
+            </div>
             <div style={{ flex: 1 }} />
             {draftDirty && (
               <span style={{ color: t.accent, opacity: 1 }}>
@@ -2746,11 +2829,11 @@ export function NotesView() {
               </span>
             )}
             {lastSavedAt && !draftDirty && (
-              <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <span style={{ display: "flex", alignItems: "center", gap: 4, opacity: 0.44 }}>
                 <Clock size={9} /> {lastSavedAt}
               </span>
             )}
-            <span>{fmtDt(new Date(active.created))}</span>
+            <span style={{ opacity: 0.44 }}>{fmtDt(new Date(active.created))}</span>
           </div>
         </div>
       ) : (

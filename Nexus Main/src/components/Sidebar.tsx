@@ -364,8 +364,8 @@ export function Sidebar({
   const iconOnly = isRail || isMinimal || t.sidebarWidth < 165 || !showLabels
   const sidebarAccentBg = Boolean((t as any).sidebarAccentBg)
   const sidebarTintBg = t.mode === 'dark'
-    ? `linear-gradient(180deg, rgba(${rgb},${sidebarAccentBg ? 0.22 : 0.14}), rgba(${rgb},${sidebarAccentBg ? 0.1 : 0.06}) 46%, rgba(${hexToRgb(t.accent2)},${sidebarAccentBg ? 0.1 : 0.05}) 100%)`
-    : `linear-gradient(180deg, rgba(${rgb},${sidebarAccentBg ? 0.12 : 0.08}), rgba(${hexToRgb(t.accent2)},${sidebarAccentBg ? 0.08 : 0.05}) 100%)`
+    ? `linear-gradient(180deg, rgba(${rgb},${sidebarAccentBg ? 0.34 : 0.22}), rgba(${rgb},${sidebarAccentBg ? 0.16 : 0.1}) 46%, rgba(${hexToRgb(t.accent2)},${sidebarAccentBg ? 0.18 : 0.1}) 100%)`
+    : `linear-gradient(180deg, rgba(${rgb},${sidebarAccentBg ? 0.2 : 0.13}), rgba(${hexToRgb(t.accent2)},${sidebarAccentBg ? 0.16 : 0.1}) 100%)`
   const visibleMainItems = MAIN_PRIMARY_VIEW_ITEMS.filter((item) => allowedViews.has(item.id))
   const visibleFooterItems = MAIN_FOOTER_VIEW_ITEMS.filter((item) => allowedViews.has(item.id))
   const pendingTasks = tasks.filter((tk) => tk.status !== 'done').length
@@ -381,7 +381,9 @@ export function Sidebar({
         borderRadius: isFloating ? 16 : 0,
         borderRight: !isRight && !isFloating ? (t.mode === 'dark' ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)') : undefined,
         borderLeft: isRight && !isFloating ? (t.mode === 'dark' ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)') : undefined,
-        background: sidebarTintBg,
+        background: `${sidebarTintBg}, var(--nx-panel-bg, rgba(10, 15, 30, 0.72))`,
+        backgroundSize: `100% 100%, var(--nx-panel-bg-size, 100% 100%)`,
+        backgroundBlendMode: `screen, var(--nx-panel-bg-blend, normal)`,
         padding: iconOnly ? '12px 6px' : '12px 10px',
         gap: 4,
       }}
