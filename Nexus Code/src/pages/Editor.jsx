@@ -63,12 +63,20 @@ import {
   openWorkbenchDockPanel,
   saveWorkbenchLayoutToStorage,
   setWorkbenchDockSize,
+  setWorkbenchPanelSnapZone,
   toggleWorkbenchDockPanel,
+  WORKBENCH_SNAP_ZONES,
 } from "./editor/workbenchDockModel";
 import {
   beginPerfMetric,
   endPerfMetric,
 } from "../lib/perfMetrics";
+import {
+  getGithubPlatformCapability,
+  loadGithubIssues,
+  loadGithubProjectsV2,
+  loadGithubPullRequests,
+} from "./editor/githubWorkbenchModel";
 
 const LANGUAGE_EXTENSIONS = {
   typescript: "ts",
@@ -257,8 +265,10 @@ function SidePanelSizeControl({ value, onChange }) {
 function BottomDockControls({
   size,
   presetId,
+  activePanelId,
   onSizeChange,
   onPresetChange,
+  onDockPanel,
   onClose,
   compact = false,
 }) {
@@ -324,6 +334,25 @@ function BottomDockControls({
       >
         <XCircle size={13} />
       </button>
+      {activePanelId ? (
+        <div
+          className="grid h-7 w-[3.5rem] shrink-0 grid-cols-2 overflow-hidden rounded-md border border-white/10 bg-white/[0.03]"
+          role="group"
+          aria-label="Bottom panel dock zone"
+        >
+          {["left", "right"].map((zone) => (
+            <button
+              key={zone}
+              type="button"
+              onClick={() => onDockPanel?.(activePanelId, zone)}
+              title={`Panel nach ${zone} docken`}
+              className="flex min-w-0 items-center justify-center text-[10px] font-bold text-[var(--nexus-muted)] transition hover:bg-white/[0.07] hover:text-gray-200"
+            >
+              {zone === "left" ? "L" : "R"}
+            </button>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -334,8 +363,15 @@ function SidePanelFrame({
   children,
   sidePanelSize,
   onSidePanelSizeChange,
+  onDockPanel,
+  snapZone,
 }) {
   const meta = getPanelMeta(panelId);
+  const dockActions = [
+    ["left", "L"],
+    ["right", "R"],
+    ["bottom", "B"],
+  ];
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
@@ -355,6 +391,24 @@ function SidePanelFrame({
           value={sidePanelSize}
           onChange={onSidePanelSizeChange}
         />
+        <div className="hidden h-7 shrink-0 grid-cols-3 overflow-hidden rounded-md border border-white/10 bg-white/[0.03] xl:grid">
+          {dockActions.map(([zone, label]) => (
+            <button
+              key={zone}
+              type="button"
+              onClick={() => onDockPanel?.(panelId, zone)}
+              title={`Panel nach ${zone} docken`}
+              aria-pressed={snapZone === zone}
+              className={`flex min-w-0 items-center justify-center px-2 text-[10px] font-bold transition ${
+                snapZone === zone
+                  ? "bg-white/12 text-white"
+                  : "text-[var(--nexus-muted)] hover:bg-white/[0.07] hover:text-gray-200"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
         <button
           type="button"
           onClick={onClose}
@@ -365,6 +419,277 @@ function SidePanelFrame({
         </button>
       </div>
       <div className="min-h-0 flex-1 overflow-hidden">{children}</div>
+    </div>
+  );
+}
+
+function WorkbenchPlaceholderPanel({
+  panelId,
+  workspacePath,
+  accountSession,
+  onOpenGit,
+  onOpenAccount,
+}) {
+  const meta = getPanelMeta(panelId);
+  const panelCopy = {
+    issues: {
+      eyebrow: "GitHub Issues",
+      title: "Aufgaben direkt im Projekt bearbeiten",
+      body: "Issues bekommen hier Suche, Labels, Assignees, Kommentare und Project-Zuordnung. Der Service-Layer ist vorbereitet, sobald GitHub verbunden ist.",
+      primary: "GitHub verbinden",
+      secondary: "Account pruefen",
+    },
+    prs: {
+      eyebrow: "Pull Requests",
+      title: "Reviews, Checks und Merge-Flows an einem Ort",
+      body: "Pull Requests werden als IDE-Fluss aufgebaut: Diff lesen, Review kommentieren, Checks pruefen und Merge-Aktionen bewusst bestaetigen.",
+      primary: "Git Panel oeffnen",
+      secondary: "Account pruefen",
+    },
+    projects: {
+      eyebrow: "GitHub Projects",
+      title: "Boards mit Codearbeit verbinden",
+      body: "Projects v2 werden fuer User- und Org-Boards vorbereitet, inklusive Items, Feldern und Zuordnung von Issues oder Pull Requests.",
+      primary: "GitHub verbinden",
+      secondary: "Account pruefen",
+    },
+  };
+  const copy = panelCopy[panelId] || {
+    eyebrow: meta.title,
+    title: meta.detail,
+    body: "Dieses Panel wird gerade als Teil der modularen Nexus-Code-Workbench vorbereitet.",
+    primary: "Git Panel oeffnen",
+    secondary: "Account pruefen",
+  };
+  const accountLabel = accountSession?.username || accountSession?.userId || "Kein Account";
+  const workspaceLabel = workspacePath ? getPathBasename(workspacePath) : "Kein Workspace";
+
+  return (
+    <div className="flex h-full min-h-0 flex-col overflow-hidden p-3">
+      <div
+        className="flex min-h-0 flex-1 flex-col justify-between gap-4 rounded-2xl border p-4"
+        style={{
+          borderColor: "rgba(255,255,255,0.08)",
+          background:
+            "linear-gradient(145deg, rgba(255,255,255,0.075), rgba(255,255,255,0.025))",
+          boxShadow: "inset 0 1px 0 rgba(255,255,255,0.08)",
+        }}
+      >
+        <div className="min-w-0">
+          <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--nexus-muted)]">
+            {copy.eyebrow}
+          </div>
+          <h3 className="mt-3 text-xl font-black leading-tight tracking-normal text-[var(--nexus-text)]">
+            {copy.title}
+          </h3>
+          <p className="mt-3 text-sm leading-6 text-[var(--nexus-muted)]">
+            {copy.body}
+          </p>
+        </div>
+        <div className="grid gap-2">
+          <div className="grid grid-cols-2 gap-2 text-[11px]">
+            <div className="min-w-0 rounded-xl border border-white/[0.07] bg-white/[0.035] p-3">
+              <div className="font-bold text-[var(--nexus-muted)]">Workspace</div>
+              <div className="mt-1 break-words text-[var(--nexus-text)]">{workspaceLabel}</div>
+            </div>
+            <div className="min-w-0 rounded-xl border border-white/[0.07] bg-white/[0.035] p-3">
+              <div className="font-bold text-[var(--nexus-muted)]">Account</div>
+              <div className="mt-1 break-words text-[var(--nexus-text)]">{accountLabel}</div>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={onOpenGit}
+              className="min-h-11 rounded-xl border border-[rgba(var(--nexus-primary-rgb,124,140,255),0.34)] bg-[rgba(var(--nexus-primary-rgb,124,140,255),0.14)] px-3 text-sm font-bold text-[var(--nexus-text)] transition hover:bg-[rgba(var(--nexus-primary-rgb,124,140,255),0.22)]"
+            >
+              {copy.primary}
+            </button>
+            <button
+              type="button"
+              onClick={onOpenAccount}
+              className="min-h-11 rounded-xl border border-white/[0.09] bg-white/[0.04] px-3 text-sm font-bold text-[var(--nexus-muted)] transition hover:bg-white/[0.08] hover:text-[var(--nexus-text)]"
+            >
+              {copy.secondary}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function getWorkspaceRepositoryGuess(workspacePath) {
+  if (!workspacePath) {
+    return {
+      owner: "",
+      repo: "",
+      label: "",
+    };
+  }
+  const parts = String(workspacePath).split(/[\\/]/).filter(Boolean);
+  const repo = parts[parts.length - 1] || "";
+  const owner = parts[parts.length - 2] || "";
+  return {
+    owner,
+    repo,
+    label: owner && repo ? `${owner}/${repo}` : repo,
+  };
+}
+
+function GithubWorkbenchPanel({
+  panelId,
+  workspacePath,
+  accountSession,
+  onOpenGit,
+  onOpenAccount,
+}) {
+  const capability = useMemo(getGithubPlatformCapability, []);
+  const repositoryGuess = useMemo(
+    () => getWorkspaceRepositoryGuess(workspacePath),
+    [workspacePath],
+  );
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [repoDraft, setRepoDraft] = useState(repositoryGuess.label);
+
+  useEffect(() => {
+    setRepoDraft(repositoryGuess.label);
+  }, [repositoryGuess.label]);
+
+  const [owner, repo] = useMemo(() => {
+    const parts = String(repoDraft || "").split("/").map((part) => part.trim()).filter(Boolean);
+    return [parts[0] || repositoryGuess.owner, parts[1] || repositoryGuess.repo];
+  }, [repoDraft, repositoryGuess.owner, repositoryGuess.repo]);
+
+  const loadPanelData = useCallback(async () => {
+    if (!capability.available) {
+      setError("GitHub Bridge ist in dieser Runtime nicht verfuegbar.");
+      setItems([]);
+      return;
+    }
+    if ((panelId === "issues" || panelId === "prs") && (!owner || !repo)) {
+      setError("Bitte Repository als owner/repo angeben.");
+      setItems([]);
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+    try {
+      let result = [];
+      if (panelId === "issues") {
+        result = await loadGithubIssues({ owner, repo, state: "open", perPage: 20 });
+      } else if (panelId === "prs") {
+        result = await loadGithubPullRequests({ owner, repo, state: "open", perPage: 20 });
+      } else if (panelId === "projects") {
+        result = await loadGithubProjectsV2({ owner: owner || accountSession?.username, first: 20 });
+      }
+      setItems(Array.isArray(result) ? result : result?.items || result?.nodes || []);
+    } catch (loadError) {
+      setError(loadError?.message || "GitHub Daten konnten nicht geladen werden.");
+      setItems([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [accountSession?.username, capability.available, owner, panelId, repo]);
+
+  useEffect(() => {
+    void loadPanelData();
+  }, [loadPanelData]);
+
+  const meta = getPanelMeta(panelId);
+  const actionLabel = panelId === "issues"
+    ? "Issues neu laden"
+    : panelId === "prs"
+      ? "Pull Requests neu laden"
+      : "Projects neu laden";
+
+  return (
+    <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden p-3">
+      <div className="grid gap-2 rounded-2xl border border-white/[0.08] bg-white/[0.035] p-3">
+        <div className="flex min-w-0 items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--nexus-muted)]">
+              {meta.title}
+            </div>
+            <div className="mt-1 text-sm font-black text-[var(--nexus-text)]">
+              {capability.label}
+            </div>
+          </div>
+          <span className="shrink-0 rounded-full border border-white/[0.09] bg-black/20 px-2 py-1 text-[10px] font-bold text-[var(--nexus-muted)]">
+            {capability.available ? `${capability.methods.length} API` : "offline"}
+          </span>
+        </div>
+        <div className="grid grid-cols-[1fr_auto] gap-2">
+          <input
+            value={repoDraft}
+            onChange={(event) => setRepoDraft(event.target.value)}
+            placeholder="owner/repo"
+            className="min-h-10 min-w-0 rounded-xl border border-white/[0.09] bg-black/20 px-3 text-sm text-[var(--nexus-text)] outline-none transition focus:border-[rgba(var(--nexus-primary-rgb,124,140,255),0.4)]"
+            disabled={panelId === "projects"}
+          />
+          <button
+            type="button"
+            onClick={loadPanelData}
+            disabled={loading}
+            className="min-h-10 rounded-xl border border-[rgba(var(--nexus-primary-rgb,124,140,255),0.34)] bg-[rgba(var(--nexus-primary-rgb,124,140,255),0.14)] px-3 text-xs font-bold text-[var(--nexus-text)] transition hover:bg-[rgba(var(--nexus-primary-rgb,124,140,255),0.22)] disabled:cursor-wait disabled:opacity-60"
+          >
+            {loading ? "Laedt..." : actionLabel}
+          </button>
+        </div>
+      </div>
+
+      {error ? (
+        <WorkbenchPlaceholderPanel
+          panelId={panelId}
+          workspacePath={workspacePath}
+          accountSession={accountSession}
+          onOpenGit={onOpenGit}
+          onOpenAccount={onOpenAccount}
+        />
+      ) : (
+        <div className="min-h-0 flex-1 overflow-auto rounded-2xl border border-white/[0.08] bg-black/15 p-2">
+          {items.length === 0 ? (
+            <div className="flex h-full min-h-[12rem] items-center justify-center rounded-xl border border-dashed border-white/[0.08] p-5 text-center text-sm leading-6 text-[var(--nexus-muted)]">
+              {loading ? "GitHub Daten werden geladen..." : "Keine Eintraege gefunden oder noch kein Repository verbunden."}
+            </div>
+          ) : (
+            <div className="grid gap-2">
+              {items.slice(0, 24).map((item, index) => {
+                const title = item.title || item.name || item.content?.title || item.node?.title || `Eintrag ${index + 1}`;
+                const number = item.number || item.content?.number || item.node?.number;
+                const state = item.state || item.content?.state || item.node?.state || item.closedAt ? "closed" : "open";
+                const href = item.html_url || item.url || item.content?.url || item.node?.url;
+                return (
+                  <a
+                    key={item.id || item.node_id || item.url || `${title}-${index}`}
+                    href={href || undefined}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="block rounded-xl border border-white/[0.07] bg-white/[0.035] p-3 text-left transition hover:border-[rgba(var(--nexus-primary-rgb,124,140,255),0.28)] hover:bg-white/[0.065]"
+                  >
+                    <div className="flex min-w-0 items-start gap-2">
+                      <span className="shrink-0 rounded-full bg-white/[0.07] px-2 py-0.5 text-[10px] font-black uppercase text-[var(--nexus-muted)]">
+                        {number ? `#${number}` : state}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="break-words text-sm font-bold leading-5 text-[var(--nexus-text)]">
+                          {title}
+                        </div>
+                        <div className="mt-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--nexus-muted)]">
+                          {state}
+                        </div>
+                      </div>
+                    </div>
+                  </a>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -817,6 +1142,35 @@ export default function Editor({
   const handleApplyWorkbenchLayoutPreset = useCallback((presetId) => {
     setWorkbenchLayout((prev) => applyWorkbenchLayoutPreset(prev, presetId));
   }, []);
+
+  const handleDockWorkbenchPanel = useCallback((panelId, snapZone) => {
+    const normalizedZone = WORKBENCH_SNAP_ZONES[snapZone] || snapZone;
+    setWorkbenchLayout((prev) => setWorkbenchPanelSnapZone(prev, panelId, normalizedZone));
+    setShowSettings(false);
+    if (normalizedZone === WORKBENCH_SNAP_ZONES.bottom) {
+      setActivePanel(null);
+      setBottomTab(panelId);
+      setTerminalOpen(true);
+      return;
+    }
+    if (
+      normalizedZone === WORKBENCH_SNAP_ZONES.left ||
+      normalizedZone === WORKBENCH_SNAP_ZONES.right
+    ) {
+      setActivePanel(panelId);
+      setTerminalOpen((prev) => (bottomTab === panelId ? false : prev));
+      setSettings((prev) => ({
+        ...prev,
+        sidebar_visible: true,
+        zen_mode: false,
+      }));
+      return;
+    }
+    if (normalizedZone === WORKBENCH_SNAP_ZONES.hidden) {
+      setActivePanel((prev) => (prev === panelId ? null : prev));
+      setTerminalOpen((prev) => (bottomTab === panelId ? false : prev));
+    }
+  }, [bottomTab]);
 
   const handleProblemSelect = useCallback(
     (problem) => {
@@ -1884,10 +2238,7 @@ export default function Editor({
   const visibleWorkbenchPanel =
     visibleActivePanel || (!showSettings && bottomPanelVisible ? bottomTab : null);
   const activityBarPanelId =
-    visibleActivePanel ||
-    (!showSettings && bottomPanelVisible && bottomTab === "problems"
-      ? "problems"
-      : null);
+    visibleActivePanel || (!showSettings && bottomPanelVisible ? bottomTab : null);
   const shellModeLabel = getShellModeLabel({
     showSettings,
     zenMode,
@@ -2028,6 +2379,8 @@ export default function Editor({
                     onClose={handleCloseActivePanel}
                     sidePanelSize={normalizedWorkbenchLayout.sidePanelSize}
                     onSidePanelSizeChange={handleSetSidePanelSize}
+                    onDockPanel={handleDockWorkbenchPanel}
+                    snapZone={sidePanelSlot.snapZone}
                   >
                     {visibleActivePanel === "explorer" && (
                       <FileExplorer
@@ -2052,6 +2405,17 @@ export default function Editor({
                       />
                     )}
                     {visibleActivePanel === "git" && <GitPanel files={files} />}
+                    {(visibleActivePanel === "issues" ||
+                      visibleActivePanel === "prs" ||
+                      visibleActivePanel === "projects") && (
+                      <GithubWorkbenchPanel
+                        panelId={visibleActivePanel}
+                        workspacePath={workspacePath}
+                        accountSession={accountSession}
+                        onOpenGit={() => handleOpenWorkbenchPanel("git")}
+                        onOpenAccount={() => handleOpenWorkbenchPanel("account")}
+                      />
+                    )}
                     {visibleActivePanel === "debug" && (
                       <DebugPanel
                         activeFile={activeFile}
@@ -2256,8 +2620,10 @@ export default function Editor({
                             compact={isCompactViewport}
                             size={normalizedWorkbenchLayout.bottomPanelSize}
                             presetId={normalizedWorkbenchLayout.presetId}
+                            activePanelId={bottomTab}
                             onSizeChange={handleSetBottomPanelSize}
                             onPresetChange={handleApplyWorkbenchLayoutPreset}
+                            onDockPanel={handleDockWorkbenchPanel}
                             onClose={handleCloseBottomPanel}
                           />
                         )}
@@ -2283,10 +2649,18 @@ export default function Editor({
                             code={currentCode}
                             workspacePath={workspacePath}
                           />
-                        ) : (
+                        ) : bottomTab === "problems" ? (
                           <ProblemsPanel
                             problems={problems}
                             onSelectProblem={handleProblemSelect}
+                          />
+                        ) : (
+                          <GithubWorkbenchPanel
+                            panelId={bottomTab}
+                            workspacePath={workspacePath}
+                            accountSession={accountSession}
+                            onOpenGit={() => handleOpenWorkbenchPanel("git")}
+                            onOpenAccount={() => handleOpenWorkbenchPanel("account")}
                           />
                         )}
                       </div>

@@ -15,15 +15,15 @@ import {
   NEXUS_CODE_CHANNEL,
   buildControlStatus,
   classifyControlBootstrapIssue,
-  classifyViewAccessDegradation,
   collectBootstrapIssues,
   formatBootstrapIssues,
-  isRecoverableBootstrapIssue,
   summarizeBootstrapMode,
 } from "./app/controlStatus";
 import {
   clearNexusAccountSession,
+  getAccountSessionState,
   loadNexusAccountSession,
+  normalizeAccountSession,
   saveNexusAccountSession,
 } from "./app/accountSession";
 import { testNexusApiConnection } from "./app/nexusApiClient";
@@ -74,107 +74,10 @@ const isLowPowerDevice = () => {
   return Boolean(reducedMotion) || cores <= 4 || memory <= 4;
 };
 
-const localFallbackTimestamp = () => new Date().toISOString();
-
-const buildCodeFallbackCatalog = (channel = NEXUS_CODE_CHANNEL) => {
-  const generatedAt = localFallbackTimestamp();
-  return {
-    schemaVersion: "2.0.0",
-    featureVersion: "local-fallback",
-    channel,
-    generatedAt,
-    compatMatrix: {
-      [NEXUS_CODE_APP_ID]: ">=0.0.0",
-    },
-    features: [
-      {
-        featureId: "core.editor",
-        name: "Editor",
-        description: "Local fallback feature for Nexus Code editor",
-        version: "local-fallback",
-        appTargets: [NEXUS_CODE_APP_ID],
-        rollout: "stable",
-        stable: true,
-        requires: [],
-        tags: ["local-fallback", "order:1"],
-        updatedAt: generatedAt,
-      },
-    ],
-  };
+const isStrictAccountReady = (sessionRaw) => {
+  const sessionState = getAccountSessionState(sessionRaw);
+  return sessionState.hasToken && sessionState.hasIdentity;
 };
-
-const buildCodeFallbackLayoutSchema = (channel = NEXUS_CODE_CHANNEL) => ({
-  schemaVersion: "2.0.0",
-  featureVersion: "local-fallback",
-  channel,
-  appId: NEXUS_CODE_APP_ID,
-  minClientVersion: "0.0.0",
-  compatMatrix: {
-    [NEXUS_CODE_APP_ID]: ">=0.0.0",
-  },
-  layoutProfile: {
-    id: "desktop-default",
-    mode: "desktop",
-    density: "comfortable",
-    navigation: "sidebar",
-    tokens: {
-      source: "local-fallback",
-    },
-  },
-  componentWhitelist: ["view-shell", "status-strip", "code-editor"],
-  screens: [
-    {
-      id: "editor",
-      title: "Editor",
-      enabled: true,
-      components: [
-        {
-          id: "editor-shell",
-          type: "view-shell",
-          props: {
-            viewId: "editor",
-            source: "local-fallback",
-          },
-        },
-      ],
-    },
-  ],
-  updatedAt: localFallbackTimestamp(),
-});
-
-const buildCodeFallbackRelease = (channel = NEXUS_CODE_CHANNEL) => {
-  const createdAt = localFallbackTimestamp();
-  const id = `local_${NEXUS_CODE_APP_ID}_${channel}`;
-  return {
-    id,
-    appId: NEXUS_CODE_APP_ID,
-    channel,
-    schemaVersion: "2.0.0",
-    featureVersion: "local-fallback",
-    minClientVersion: "0.0.0",
-    snapshotDigest: `digest_${id}_fallback`,
-    schemaDigest: `digest_${id}_schema_fallback`,
-    catalogDigest: `digest_${id}_catalog_fallback`,
-    sourceReleaseId: null,
-    rollbackToken: `rollback_${id}`,
-    note: "Local fallback release for degraded Control API startup",
-    createdAt,
-    promotedBy: "local-fallback",
-  };
-};
-
-const buildCodeFallbackBundle = ({
-  channel = NEXUS_CODE_CHANNEL,
-  catalog = null,
-  layoutSchema = null,
-  release = null,
-} = {}) => ({
-  appId: NEXUS_CODE_APP_ID,
-  channel,
-  catalog: catalog || buildCodeFallbackCatalog(channel),
-  layoutSchema: layoutSchema || buildCodeFallbackLayoutSchema(channel),
-  release: release || buildCodeFallbackRelease(channel),
-});
 
 function NexusBridge({ runtime }) {
   const location = useLocation();
@@ -271,6 +174,287 @@ function BootSequenceScreen({ progress, stage }) {
   );
 }
 
+function AccountGateScreen({
+  session,
+  controlStatus,
+  viewGuardState,
+  onSubmit,
+  onClear,
+}) {
+  const [draft, setDraft] = useState(() => normalizeAccountSession(session));
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState(null);
+
+  useEffect(() => {
+    setDraft(normalizeAccountSession(session));
+  }, [session]);
+
+  const updateDraft = (field, value) => {
+    setDraft((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+    setMessage(null);
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    const normalizedDraft = normalizeAccountSession(draft);
+    if (!isStrictAccountReady(normalizedDraft)) {
+      setMessage({
+        tone: "warning",
+        title: "Nexus Session unvollstaendig",
+        detail: "Access Token und User ID oder Username sind erforderlich.",
+      });
+      return;
+    }
+
+    setBusy(true);
+    try {
+      const result = await onSubmit?.(normalizedDraft);
+      if (result?.ok) {
+        setMessage({
+          tone: "success",
+          title: "Session validiert",
+          detail: "Nexus Code startet mit der validierten API Session.",
+        });
+        return;
+      }
+      setMessage({
+        tone: "danger",
+        title: result?.message || "Login fehlgeschlagen",
+        detail: (result?.details || []).join(", ") || "Die API Session konnte nicht validiert werden.",
+      });
+    } catch (error) {
+      setMessage({
+        tone: "danger",
+        title: "Login fehlgeschlagen",
+        detail: error?.message || "Die API Session konnte nicht validiert werden.",
+      });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const gateDetails = [
+    ...(controlStatus?.details || []),
+    viewGuardState?.reason ? `access:${viewGuardState.reason}` : "",
+  ].filter(Boolean);
+  const notice = message || {
+    tone: viewGuardState?.blocked ? "danger" : "info",
+    title: viewGuardState?.blocked
+      ? "Nexus Code ist durch den Account-Gate gesperrt"
+      : "Melde dich mit deiner Nexus API Session an",
+    detail:
+      gateDetails.length > 0
+        ? gateDetails.join(", ")
+        : "Ohne validierte API Session wird die Workbench nicht gerendert.",
+  };
+  const noticeColor = notice.tone === "success"
+    ? "rgba(45,212,191,0.2)"
+    : notice.tone === "warning"
+      ? "rgba(251,191,36,0.22)"
+      : notice.tone === "danger"
+        ? "rgba(248,113,113,0.24)"
+        : "rgba(124,140,255,0.2)";
+
+  return (
+    <div
+      style={{
+        width: "100%",
+        minHeight: "100dvh",
+        display: "grid",
+        placeItems: "center",
+        padding: "clamp(18px, 4vw, 48px)",
+        background:
+          "radial-gradient(circle at 18% 10%, rgba(124,140,255,0.32), transparent 34%), radial-gradient(circle at 84% 18%, rgba(45,212,191,0.2), transparent 36%), linear-gradient(135deg, #050711 0%, #111733 48%, #061f23 100%)",
+        color: "#edf4ff",
+        fontFamily: "Inter, Segoe UI, system-ui, sans-serif",
+      }}
+    >
+      <form
+        onSubmit={handleSubmit}
+        style={{
+          width: "min(940px, 100%)",
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 320px), 1fr))",
+          gap: 18,
+          alignItems: "stretch",
+        }}
+      >
+        <section
+          style={{
+            minWidth: 0,
+            borderRadius: 28,
+            border: "1px solid rgba(255,255,255,0.12)",
+            background: "linear-gradient(145deg, rgba(255,255,255,0.09), rgba(255,255,255,0.035))",
+            boxShadow: "0 24px 90px rgba(0,0,0,0.42), inset 0 1px 0 rgba(255,255,255,0.12)",
+            padding: "clamp(22px, 3.6vw, 34px)",
+            overflow: "hidden",
+          }}
+        >
+          <div
+            style={{
+              width: 52,
+              height: 52,
+              borderRadius: 18,
+              display: "grid",
+              placeItems: "center",
+              border: "1px solid rgba(124,140,255,0.42)",
+              background: "linear-gradient(135deg, rgba(124,140,255,0.3), rgba(45,212,191,0.14))",
+              color: "#dbe7ff",
+              fontWeight: 800,
+              letterSpacing: 0,
+            }}
+          >
+            NC
+          </div>
+          <h1
+            style={{
+              margin: "24px 0 0",
+              fontSize: "clamp(34px, 5vw, 58px)",
+              lineHeight: 0.96,
+              letterSpacing: 0,
+            }}
+          >
+            Nexus Code
+          </h1>
+          <p
+            style={{
+              margin: "14px 0 0",
+              maxWidth: 390,
+              color: "rgba(237,244,255,0.68)",
+              fontSize: 14,
+              lineHeight: 1.65,
+            }}
+          >
+            Die IDE startet erst, wenn Account, Release und View-Zugriff live ueber die Nexus API validiert wurden.
+          </p>
+          <div
+            style={{
+              marginTop: 22,
+              borderRadius: 18,
+              border: `1px solid ${noticeColor}`,
+              background: "rgba(0,0,0,0.18)",
+              padding: 14,
+            }}
+          >
+            <div style={{ fontSize: 13, fontWeight: 800 }}>{notice.title}</div>
+            <div style={{ marginTop: 4, color: "rgba(237,244,255,0.62)", fontSize: 12, lineHeight: 1.5 }}>
+              {notice.detail}
+            </div>
+          </div>
+        </section>
+
+        <section
+          style={{
+            minWidth: 0,
+            borderRadius: 28,
+            border: "1px solid rgba(255,255,255,0.12)",
+            background: "rgba(7,11,24,0.72)",
+            backdropFilter: "blur(24px) saturate(135%)",
+            WebkitBackdropFilter: "blur(24px) saturate(135%)",
+            boxShadow: "0 24px 90px rgba(0,0,0,0.38)",
+            padding: 20,
+          }}
+        >
+          <div style={{ display: "grid", gap: 12 }}>
+            {[
+              ["endpoint", "API Endpoint", "https://nexus-api.cloud"],
+              ["token", "Access Token", "Nexus API token"],
+              ["userId", "User ID", "user id"],
+              ["username", "Username", "username"],
+            ].map(([field, label, placeholder]) => (
+              <label key={field} style={{ display: "grid", gap: 6, minWidth: 0 }}>
+                <span style={{ fontSize: 11, fontWeight: 800, color: "rgba(237,244,255,0.54)" }}>
+                  {label}
+                </span>
+                <input
+                  value={draft[field] || ""}
+                  onChange={(event) => updateDraft(field, event.target.value)}
+                  type={field === "token" ? "password" : "text"}
+                  placeholder={placeholder}
+                  autoCapitalize="off"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  style={{
+                    minHeight: 44,
+                    borderRadius: 14,
+                    border: "1px solid rgba(255,255,255,0.11)",
+                    background: "rgba(255,255,255,0.055)",
+                    color: "#f5f7ff",
+                    padding: "0 13px",
+                    outline: "none",
+                    minWidth: 0,
+                  }}
+                />
+              </label>
+            ))}
+            <label style={{ display: "grid", gap: 6, minWidth: 0 }}>
+              <span style={{ fontSize: 11, fontWeight: 800, color: "rgba(237,244,255,0.54)" }}>
+                Tier
+              </span>
+              <select
+                value={draft.userTier || "free"}
+                onChange={(event) => updateDraft("userTier", event.target.value)}
+                style={{
+                  minHeight: 44,
+                  borderRadius: 14,
+                  border: "1px solid rgba(255,255,255,0.11)",
+                  background: "rgba(255,255,255,0.055)",
+                  color: "#f5f7ff",
+                  padding: "0 13px",
+                  outline: "none",
+                }}
+              >
+                <option value="free">free</option>
+                <option value="pro">pro</option>
+                <option value="lifetime">lifetime</option>
+                <option value="lifetime_pro">lifetime_pro</option>
+              </select>
+            </label>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 10, marginTop: 18 }}>
+            <button
+              type="submit"
+              disabled={busy}
+              style={{
+                minHeight: 46,
+                borderRadius: 16,
+                border: "1px solid rgba(124,140,255,0.44)",
+                background: "linear-gradient(135deg, rgba(124,140,255,0.32), rgba(45,212,191,0.18))",
+                color: "#f7f8ff",
+                fontWeight: 850,
+                cursor: busy ? "wait" : "pointer",
+              }}
+            >
+              {busy ? "Validiere..." : "Einloggen und starten"}
+            </button>
+            <button
+              type="button"
+              onClick={onClear}
+              disabled={busy}
+              style={{
+                minHeight: 46,
+                borderRadius: 16,
+                border: "1px solid rgba(255,255,255,0.12)",
+                background: "rgba(255,255,255,0.045)",
+                color: "rgba(237,244,255,0.72)",
+                padding: "0 14px",
+                fontWeight: 750,
+                cursor: busy ? "wait" : "pointer",
+              }}
+            >
+              Zuruecksetzen
+            </button>
+          </div>
+        </section>
+      </form>
+    </div>
+  );
+}
+
 function App() {
   const [accountSession, setAccountSession] = useState(loadNexusAccountSession);
   const controlBaseUrl = accountSession.endpoint || DEFAULT_CONTROL_API_BASE_URL;
@@ -285,6 +469,10 @@ function App() {
         userTier: accountSession.userTier || import.meta.env?.VITE_NEXUS_USER_TIER,
       }),
     [accountSession.userId, accountSession.username, accountSession.userTier],
+  );
+  const strictAccountReady = useMemo(
+    () => isStrictAccountReady(accountSession),
+    [accountSession],
   );
   useGlobalTypingAnimation(!lowPowerMode);
   const [bootReady, setBootReady] = useState(false);
@@ -326,6 +514,37 @@ function App() {
       if (result?.mode) {
         setControlStatus(buildControlStatus(result.mode, result.details || [], result.message || ""));
       }
+      return result;
+    },
+    [],
+  );
+
+  const handleAccountGateSubmit = useCallback(
+    async (draftSession) => {
+      const result = await testNexusApiConnection(draftSession);
+      if (result?.mode) {
+        setControlStatus(buildControlStatus(result.mode, result.details || [], result.message || ""));
+      }
+      if (!result?.ok) {
+        return result;
+      }
+      const saved = saveNexusAccountSession(draftSession);
+      setAccountSession(saved);
+      setReleaseState({
+        releaseId: null,
+        compatible: true,
+        reasons: [],
+      });
+      setViewGuardState({
+        checking: true,
+        blocked: false,
+        reason: null,
+        requiredTier: null,
+      });
+      setBootReady(false);
+      setBootProgress(0);
+      setBootStage("Nexus Runtime wird gestartet...");
+      setControlStatus(buildControlStatus("online", []));
       return result;
     },
     [],
@@ -424,7 +643,6 @@ function App() {
     const preloadBudgetMs = lowPowerMode
       ? CODE_BOOT_PRELOAD_TIMEOUT_LOW_POWER_MS
       : CODE_BOOT_PRELOAD_TIMEOUT_MS;
-    setControlStatus(buildControlStatus("online", []));
     setBootReady(false);
     setViewGuardState({
       checking: true,
@@ -442,6 +660,33 @@ function App() {
       setBootProgress((prev) => Math.max(prev, progress));
       setBootStage(stage);
     };
+
+    if (!strictAccountReady) {
+      setControlStatus(buildControlStatus(
+        "limited",
+        ["account:SESSION_REQUIRED"],
+        "Nexus Code bleibt gesperrt, bis ein Token und eine Nutzeridentitaet gespeichert sind.",
+      ));
+      setReleaseState({
+        releaseId: null,
+        compatible: true,
+        reasons: [],
+      });
+      setViewGuardState({
+        checking: false,
+        blocked: true,
+        reason: "ACCOUNT_SESSION_REQUIRED",
+        requiredTier: "free",
+      });
+      setBootProgress(100);
+      setBootStage("Nexus Account erforderlich");
+      setBootReady(true);
+      return () => {
+        active = false;
+      };
+    }
+
+    setControlStatus(buildControlStatus("online", []));
 
     void runtime.control.reportCapabilities({
       appId: NEXUS_CODE_APP_ID,
@@ -496,86 +741,50 @@ function App() {
         });
 
         if (failedResources.length > 0) {
-          const recoverableOnly = failedResources.every((entry) =>
-            isRecoverableBootstrapIssue(entry.errorCode),
-          );
-          if (!recoverableOnly) {
-            throw new Error(
-              `CONTROL_API_BOOTSTRAP_FAILED (${failedResources.map((entry) => `${entry.resource}:${entry.errorCode}`).join(", ")})`,
-            );
-          }
-
           const statusMode = summarizeBootstrapMode(failedResources);
           const details = formatBootstrapIssues(failedResources);
-          bootControlStatus = buildControlStatus(statusMode, details);
+          bootControlStatus = buildControlStatus(
+            statusMode === "fatal" ? "degraded" : statusMode,
+            details,
+            "Nexus Code bleibt gesperrt, weil der Bootstrap nicht live validiert werden konnte.",
+          );
           setControlStatus(bootControlStatus);
-          setBootStep(
-            58,
-            statusMode === "limited"
-              ? "Hosted Auth eingeschraenkt, lokale Runtime-Daten aktiv..."
-              : "Control API offline, lokale Runtime-Daten aktiv...",
+          throw new Error(
+            `CONTROL_API_BOOTSTRAP_FAILED (${failedResources.map((entry) => `${entry.resource}:${entry.errorCode}`).join(", ")})`,
           );
         }
 
-        if (failedResources.length === 0) {
-          setBootStep(66, "Pruefe Release-Kompatibilitaet...");
-          applyBundle({
-            appId: NEXUS_CODE_APP_ID,
-            channel: NEXUS_CODE_CHANNEL,
-            catalog: catalogResult.item,
-            layoutSchema: layoutResult.item,
-            release: releaseResult.item,
-          });
-        } else {
-          setBootStep(66, "Pruefe lokale Release-Kompatibilitaet...");
-          applyBundle(buildCodeFallbackBundle({
-            channel: NEXUS_CODE_CHANNEL,
-            catalog: catalogResult.item,
-            layoutSchema: layoutResult.item,
-            release: releaseResult.item,
-          }));
-        }
+        setBootStep(66, "Pruefe Release-Kompatibilitaet...");
+        applyBundle({
+          appId: NEXUS_CODE_APP_ID,
+          channel: NEXUS_CODE_CHANNEL,
+          catalog: catalogResult.item,
+          layoutSchema: layoutResult.item,
+          release: releaseResult.item,
+        });
         setBootStep(72, "Validiere Editor-Zugriff...");
         const editorAccess = await runtime.control.validateViewAccess("editor", {
           forceRefresh: false,
           ...viewAccessContext,
         });
         if (!active) return;
-        const accessDegradationMode = !editorAccess.allowed
-          ? classifyViewAccessDegradation(editorAccess.reason, bootControlStatus.mode)
-          : null;
-        if (accessDegradationMode) {
-          const details = [
-            ...(bootControlStatus.details || []),
-            `access:${editorAccess.reason || "VIEW_VALIDATION_UNAVAILABLE"}`,
-          ];
-          bootControlStatus = buildControlStatus(
-            accessDegradationMode === "degraded" ? "degraded" : accessDegradationMode,
-            details,
-            "Remote View-Validation wurde lokal freigegeben.",
-          );
-          setControlStatus(bootControlStatus);
-          setViewGuardState({
-            checking: false,
-            blocked: false,
-            reason: editorAccess.reason || null,
-            requiredTier: editorAccess.requiredTier || null,
-          });
-        } else {
-          setViewGuardState({
-            checking: false,
-            blocked: !editorAccess.allowed,
-            reason: editorAccess.reason || null,
-            requiredTier: editorAccess.requiredTier || null,
-          });
-        }
+        setViewGuardState({
+          checking: false,
+          blocked: !editorAccess.allowed,
+          reason: editorAccess.reason || null,
+          requiredTier: editorAccess.requiredTier || null,
+        });
         if (!editorAccess.allowed) {
-          if (accessDegradationMode) {
-            setBootStep(76, "Editor-Zugriff lokal freigegeben...");
-          } else {
-            setBootStep(100, "Editor-Zugriff gesperrt");
-            return;
-          }
+          setControlStatus(buildControlStatus(
+            "limited",
+            [
+              ...(bootControlStatus.details || []),
+              `access:${editorAccess.reason || "VIEW_VALIDATION_DENIED"}`,
+            ],
+            "Nexus Code bleibt gesperrt, bis der View-Zugriff erlaubt ist.",
+          ));
+          setBootStep(100, "Editor-Zugriff gesperrt");
+          return;
         }
         setBootStep(76, "Lade Editor-Module und Runtime...");
         const warmupResult = await withTimeoutResult(uiWarmupPromise, preloadBudgetMs);
@@ -594,7 +803,17 @@ function App() {
             : "CONTROL_API_UNAVAILABLE";
         console.error("Nexus Code bootstrap failed", error);
         if (!active) return;
-        setControlStatus(buildControlStatus("degraded", [reason]));
+        setControlStatus(buildControlStatus(
+          "degraded",
+          [reason],
+          "Nexus Code bleibt gesperrt, weil der Bootstrap fehlgeschlagen ist.",
+        ));
+        setViewGuardState({
+          checking: false,
+          blocked: true,
+          reason,
+          requiredTier: "free",
+        });
       } finally {
         if (active) {
           setViewGuardState((prev) => ({
@@ -636,7 +855,7 @@ function App() {
       active = false;
       unsubscribe();
     };
-  }, [runtime, viewAccessContext]);
+  }, [runtime, strictAccountReady, viewAccessContext]);
 
   useEffect(() => {
     if (!bootReady || startupMetricDoneRef.current) return;
@@ -649,6 +868,18 @@ function App() {
     });
     return () => window.cancelAnimationFrame(frame);
   }, [bootReady]);
+
+  if (!strictAccountReady || (bootReady && viewGuardState.blocked)) {
+    return (
+      <AccountGateScreen
+        session={accountSession}
+        controlStatus={controlStatus}
+        viewGuardState={viewGuardState}
+        onSubmit={handleAccountGateSubmit}
+        onClear={handleClearAccountSession}
+      />
+    );
+  }
 
   if (!bootReady) {
     return <BootSequenceScreen progress={bootProgress} stage={bootStage} />;

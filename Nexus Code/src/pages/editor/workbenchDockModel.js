@@ -1,19 +1,49 @@
-export const WORKBENCH_DOCK_STORAGE_KEY = "nexus-code.workbench-layout.v1";
+export const WORKBENCH_DOCK_STORAGE_KEY_V1 = "nexus-code.workbench-layout.v1";
+export const WORKBENCH_DOCK_STORAGE_KEY = "nexus-code.workbench-layout.v2";
 export const WORKBENCH_LAYOUT_STORAGE_KEY = WORKBENCH_DOCK_STORAGE_KEY;
+export const WORKBENCH_DOCK_LEGACY_STORAGE_KEYS = Object.freeze([
+  WORKBENCH_DOCK_STORAGE_KEY_V1,
+]);
 export const WORKBENCH_DOCK_VERSION = 2;
 export const WORKBENCH_CUSTOM_PRESET_ID = "custom";
+
+export const WORKBENCH_SNAP_ZONES = Object.freeze({
+  left: "left",
+  right: "right",
+  bottom: "bottom",
+  hidden: "hidden",
+});
 
 export const WORKBENCH_ZONES = Object.freeze({
   activityBar: "activity-bar",
   sidePanel: "side-panel",
   editor: "editor",
   bottomPanel: "bottom-panel",
+  left: WORKBENCH_SNAP_ZONES.left,
+  right: WORKBENCH_SNAP_ZONES.right,
+  bottom: WORKBENCH_SNAP_ZONES.bottom,
+  hidden: WORKBENCH_SNAP_ZONES.hidden,
 });
 
 export const WORKBENCH_PANEL_PLACEMENTS = Object.freeze({
   side: "side",
   bottom: "bottom",
+  hidden: "hidden",
 });
+
+export const WORKBENCH_PANEL_IDS = Object.freeze([
+  "explorer",
+  "search",
+  "git",
+  "issues",
+  "prs",
+  "projects",
+  "extensions",
+  "account",
+  "debug",
+  "problems",
+  "terminal",
+]);
 
 export const SIDE_PANEL_SIZE_SEQUENCE = Object.freeze([
   "focus",
@@ -123,16 +153,42 @@ export const BOTTOM_PANEL_SIZES = Object.freeze({
   }),
 });
 
-export const DEFAULT_PANEL_PLACEMENTS = Object.freeze({
-  explorer: WORKBENCH_PANEL_PLACEMENTS.side,
-  search: WORKBENCH_PANEL_PLACEMENTS.side,
-  git: WORKBENCH_PANEL_PLACEMENTS.side,
-  debug: WORKBENCH_PANEL_PLACEMENTS.side,
-  extensions: WORKBENCH_PANEL_PLACEMENTS.side,
-  account: WORKBENCH_PANEL_PLACEMENTS.side,
-  terminal: WORKBENCH_PANEL_PLACEMENTS.bottom,
-  problems: WORKBENCH_PANEL_PLACEMENTS.bottom,
+export const DEFAULT_PANEL_ZONES = Object.freeze({
+  explorer: WORKBENCH_SNAP_ZONES.left,
+  search: WORKBENCH_SNAP_ZONES.left,
+  git: WORKBENCH_SNAP_ZONES.left,
+  issues: WORKBENCH_SNAP_ZONES.right,
+  prs: WORKBENCH_SNAP_ZONES.right,
+  projects: WORKBENCH_SNAP_ZONES.right,
+  extensions: WORKBENCH_SNAP_ZONES.left,
+  account: WORKBENCH_SNAP_ZONES.left,
+  debug: WORKBENCH_SNAP_ZONES.left,
+  problems: WORKBENCH_SNAP_ZONES.bottom,
+  terminal: WORKBENCH_SNAP_ZONES.bottom,
 });
+
+function getPlacementForSnapZone(zone) {
+  if (zone === WORKBENCH_SNAP_ZONES.bottom) {
+    return WORKBENCH_PANEL_PLACEMENTS.bottom;
+  }
+  if (zone === WORKBENCH_SNAP_ZONES.hidden) {
+    return WORKBENCH_PANEL_PLACEMENTS.hidden;
+  }
+  return WORKBENCH_PANEL_PLACEMENTS.side;
+}
+
+function createPanelPlacementsFromZones(panelZones) {
+  return WORKBENCH_PANEL_IDS.reduce((acc, panelId) => {
+    acc[panelId] = getPlacementForSnapZone(
+      panelZones[panelId] || DEFAULT_PANEL_ZONES[panelId],
+    );
+    return acc;
+  }, {});
+}
+
+export const DEFAULT_PANEL_PLACEMENTS = Object.freeze(
+  createPanelPlacementsFromZones(DEFAULT_PANEL_ZONES),
+);
 
 export const WORKBENCH_LAYOUT_PRESETS = Object.freeze({
   focus: Object.freeze({
@@ -172,23 +228,33 @@ export const DEFAULT_WORKBENCH_LAYOUT = Object.freeze({
   sidePanelSize: "comfortable",
   bottomPanelSize: "comfortable",
   bottomPanelPlacement: WORKBENCH_PANEL_PLACEMENTS.bottom,
+  panelZones: DEFAULT_PANEL_ZONES,
   panelPlacements: DEFAULT_PANEL_PLACEMENTS,
 });
 
-const SIDE_PANEL_IDS = Object.freeze(
-  Object.entries(DEFAULT_PANEL_PLACEMENTS)
-    .filter(([, placement]) => placement === WORKBENCH_PANEL_PLACEMENTS.side)
-    .map(([panelId]) => panelId),
-);
-
-const BOTTOM_PANEL_IDS = Object.freeze(
-  Object.entries(DEFAULT_PANEL_PLACEMENTS)
-    .filter(([, placement]) => placement === WORKBENCH_PANEL_PLACEMENTS.bottom)
-    .map(([panelId]) => panelId),
-);
+const SNAP_ZONE_ALIASES = Object.freeze({
+  "side-panel": WORKBENCH_SNAP_ZONES.left,
+  leftPanel: WORKBENCH_SNAP_ZONES.left,
+  leftSidebar: WORKBENCH_SNAP_ZONES.left,
+  rightPanel: WORKBENCH_SNAP_ZONES.right,
+  rightSidebar: WORKBENCH_SNAP_ZONES.right,
+  "bottom-panel": WORKBENCH_SNAP_ZONES.bottom,
+  panel: WORKBENCH_SNAP_ZONES.left,
+  none: WORKBENCH_SNAP_ZONES.hidden,
+  off: WORKBENCH_SNAP_ZONES.hidden,
+});
 
 function isObject(value) {
   return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
+
+function getStorage() {
+  if (typeof window === "undefined" || !window.localStorage) return null;
+  return window.localStorage;
+}
+
+function hasPanelId(panelId) {
+  return WORKBENCH_PANEL_IDS.includes(panelId);
 }
 
 function normalizeRegistryId(value, registry, fallback, aliases = {}) {
@@ -208,32 +274,96 @@ function normalizePresetId(value) {
   );
 }
 
-function normalizePanelPlacement(value, fallback = WORKBENCH_PANEL_PLACEMENTS.side) {
-  return value === WORKBENCH_PANEL_PLACEMENTS.bottom
-    ? WORKBENCH_PANEL_PLACEMENTS.bottom
-    : fallback;
+function getDefaultSideSnapZone(panelId) {
+  return DEFAULT_PANEL_ZONES[panelId] === WORKBENCH_SNAP_ZONES.right
+    ? WORKBENCH_SNAP_ZONES.right
+    : WORKBENCH_SNAP_ZONES.left;
 }
 
-function normalizePanelPlacements(value) {
+function normalizeSnapZone(value, fallback = WORKBENCH_SNAP_ZONES.left) {
+  const resolved = SNAP_ZONE_ALIASES[value] || value;
+  if (
+    resolved === WORKBENCH_SNAP_ZONES.left ||
+    resolved === WORKBENCH_SNAP_ZONES.right ||
+    resolved === WORKBENCH_SNAP_ZONES.bottom ||
+    resolved === WORKBENCH_SNAP_ZONES.hidden
+  ) {
+    return resolved;
+  }
+  return fallback;
+}
+
+function normalizePanelZone(panelId, value) {
+  const fallback = DEFAULT_PANEL_ZONES[panelId] || WORKBENCH_SNAP_ZONES.left;
+  if (value === WORKBENCH_PANEL_PLACEMENTS.side) {
+    return getDefaultSideSnapZone(panelId);
+  }
+  return normalizeSnapZone(value, fallback);
+}
+
+function normalizePanelPlacement(value, fallback = WORKBENCH_PANEL_PLACEMENTS.side) {
+  if (value === WORKBENCH_PANEL_PLACEMENTS.side) {
+    return WORKBENCH_PANEL_PLACEMENTS.side;
+  }
+  if (value === WORKBENCH_PANEL_PLACEMENTS.bottom) {
+    return WORKBENCH_PANEL_PLACEMENTS.bottom;
+  }
+  if (value === WORKBENCH_PANEL_PLACEMENTS.hidden) {
+    return WORKBENCH_PANEL_PLACEMENTS.hidden;
+  }
+  return fallback;
+}
+
+function normalizePanelZones(value, legacyPlacements) {
   const source = isObject(value) ? value : {};
-  return Object.entries(DEFAULT_PANEL_PLACEMENTS).reduce((acc, [panelId, fallback]) => {
-    acc[panelId] = normalizePanelPlacement(source[panelId], fallback);
+  const placementSource = isObject(legacyPlacements) ? legacyPlacements : {};
+
+  return WORKBENCH_PANEL_IDS.reduce((acc, panelId) => {
+    if (Object.prototype.hasOwnProperty.call(source, panelId)) {
+      acc[panelId] = normalizePanelZone(panelId, source[panelId]);
+      return acc;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(placementSource, panelId)) {
+      const placement = normalizePanelPlacement(
+        placementSource[panelId],
+        DEFAULT_PANEL_PLACEMENTS[panelId],
+      );
+      acc[panelId] = placement === WORKBENCH_PANEL_PLACEMENTS.side
+        ? getDefaultSideSnapZone(panelId)
+        : normalizePanelZone(panelId, placement);
+      return acc;
+    }
+
+    acc[panelId] = DEFAULT_PANEL_ZONES[panelId];
     return acc;
   }, {});
 }
 
 function getPresetSeed(presetId) {
-  return WORKBENCH_LAYOUT_PRESETS[presetId] || WORKBENCH_LAYOUT_PRESETS[DEFAULT_WORKBENCH_LAYOUT.presetId];
+  return (
+    WORKBENCH_LAYOUT_PRESETS[presetId] ||
+    WORKBENCH_LAYOUT_PRESETS[DEFAULT_WORKBENCH_LAYOUT.presetId]
+  );
+}
+
+function getPanelZonesSource(source) {
+  if (isObject(source.panelZones)) return source.panelZones;
+  if (isObject(source.panelSnapZones)) return source.panelSnapZones;
+  if (isObject(source.snapZones)) return source.snapZones;
+  return null;
 }
 
 export function normalizeWorkbenchLayout(layout = {}) {
   const source = isObject(layout) ? layout : {};
   const presetId = normalizePresetId(source.presetId);
   const preset = getPresetSeed(presetId);
+  const panelZones = normalizePanelZones(
+    getPanelZonesSource(source),
+    source.panelPlacements,
+  );
 
   return {
-    ...DEFAULT_WORKBENCH_LAYOUT,
-    ...source,
     version: WORKBENCH_DOCK_VERSION,
     presetId,
     sidePanelSize: normalizeRegistryId(
@@ -249,33 +379,102 @@ export function normalizeWorkbenchLayout(layout = {}) {
       BOTTOM_PANEL_SIZE_ALIASES,
     ),
     bottomPanelPlacement: WORKBENCH_PANEL_PLACEMENTS.bottom,
-    panelPlacements: normalizePanelPlacements(source.panelPlacements),
+    panelZones,
+    panelPlacements: createPanelPlacementsFromZones(panelZones),
   };
 }
 
-export function loadWorkbenchLayoutFromStorage() {
-  if (typeof window === "undefined" || !window.localStorage) {
-    return normalizeWorkbenchLayout();
-  }
+export function getDefaultWorkbenchLayout() {
+  return normalizeWorkbenchLayout();
+}
 
+export function resetWorkbenchLayout() {
+  return getDefaultWorkbenchLayout();
+}
+
+function parseStoredLayout(raw) {
+  if (!raw) return null;
   try {
-    const raw = window.localStorage.getItem(WORKBENCH_DOCK_STORAGE_KEY);
-    return normalizeWorkbenchLayout(raw ? JSON.parse(raw) : null);
+    const parsed = JSON.parse(raw);
+    return isObject(parsed) ? parsed : null;
   } catch {
-    return normalizeWorkbenchLayout();
+    return null;
   }
 }
 
-export function saveWorkbenchLayoutToStorage(layout) {
-  if (typeof window === "undefined" || !window.localStorage) return;
+function readStoredLayout(storage, key) {
   try {
-    window.localStorage.setItem(
-      WORKBENCH_DOCK_STORAGE_KEY,
-      JSON.stringify(normalizeWorkbenchLayout(layout)),
-    );
+    return parseStoredLayout(storage.getItem(key));
+  } catch {
+    return null;
+  }
+}
+
+function persistMigratedWorkbenchLayout(storage, layout) {
+  try {
+    storage.setItem(WORKBENCH_DOCK_STORAGE_KEY, JSON.stringify(layout));
+    for (const legacyKey of WORKBENCH_DOCK_LEGACY_STORAGE_KEYS) {
+      storage.removeItem(legacyKey);
+    }
   } catch {
     // Non-critical: layout preferences should never block editor rendering.
   }
+}
+
+export function loadWorkbenchLayoutFromStorage() {
+  const storage = getStorage();
+  if (!storage) {
+    return normalizeWorkbenchLayout();
+  }
+
+  const storedV2 = readStoredLayout(storage, WORKBENCH_DOCK_STORAGE_KEY);
+  if (storedV2) {
+    return normalizeWorkbenchLayout(storedV2);
+  }
+
+  for (const legacyKey of WORKBENCH_DOCK_LEGACY_STORAGE_KEYS) {
+    const legacyLayout = readStoredLayout(storage, legacyKey);
+    if (legacyLayout) {
+      const migrated = normalizeWorkbenchLayout(legacyLayout);
+      persistMigratedWorkbenchLayout(storage, migrated);
+      return migrated;
+    }
+  }
+
+  return normalizeWorkbenchLayout();
+}
+
+export function saveWorkbenchLayoutToStorage(layout) {
+  const storage = getStorage();
+  if (!storage) return;
+  try {
+    storage.setItem(
+      WORKBENCH_DOCK_STORAGE_KEY,
+      JSON.stringify(normalizeWorkbenchLayout(layout)),
+    );
+    for (const legacyKey of WORKBENCH_DOCK_LEGACY_STORAGE_KEYS) {
+      storage.removeItem(legacyKey);
+    }
+  } catch {
+    // Non-critical: layout preferences should never block editor rendering.
+  }
+}
+
+export function resetWorkbenchLayoutStorage() {
+  const resetLayout = getDefaultWorkbenchLayout();
+  const storage = getStorage();
+  if (!storage) return resetLayout;
+
+  try {
+    storage.removeItem(WORKBENCH_DOCK_STORAGE_KEY);
+    for (const legacyKey of WORKBENCH_DOCK_LEGACY_STORAGE_KEYS) {
+      storage.removeItem(legacyKey);
+    }
+  } catch {
+    // Reset should still return an in-memory default if storage is unavailable.
+  }
+
+  return resetLayout;
 }
 
 export function getSidePanelSize(sizeId) {
@@ -387,23 +586,68 @@ export function applyWorkbenchLayoutPreset(layout, presetId) {
   });
 }
 
-export function getWorkbenchPanelPlacement(panelId, layout) {
+export function getWorkbenchPanelSnapZone(panelId, layout) {
+  if (!hasPanelId(panelId)) return WORKBENCH_SNAP_ZONES.hidden;
   const normalized = normalizeWorkbenchLayout(layout);
-  return (
-    normalized.panelPlacements[panelId] ||
-    DEFAULT_PANEL_PLACEMENTS[panelId] ||
-    WORKBENCH_PANEL_PLACEMENTS.side
+  return normalized.panelZones[panelId] || DEFAULT_PANEL_ZONES[panelId];
+}
+
+export function setWorkbenchPanelSnapZone(layout, panelId, snapZone) {
+  if (!hasPanelId(panelId)) return normalizeWorkbenchLayout(layout);
+  const normalized = normalizeWorkbenchLayout(layout);
+  const panelZones = {
+    ...normalized.panelZones,
+    [panelId]: normalizePanelZone(panelId, snapZone),
+  };
+
+  return normalizeWorkbenchLayout({
+    ...normalized,
+    presetId: WORKBENCH_CUSTOM_PRESET_ID,
+    panelZones,
+  });
+}
+
+export function hideWorkbenchPanel(layout, panelId) {
+  return setWorkbenchPanelSnapZone(
+    layout,
+    panelId,
+    WORKBENCH_SNAP_ZONES.hidden,
+  );
+}
+
+export function getWorkbenchPanelPlacement(panelId, layout) {
+  return getPlacementForSnapZone(getWorkbenchPanelSnapZone(panelId, layout));
+}
+
+export function setWorkbenchPanelPlacement(layout, panelId, placement) {
+  if (placement === WORKBENCH_PANEL_PLACEMENTS.bottom) {
+    return setWorkbenchPanelSnapZone(layout, panelId, WORKBENCH_SNAP_ZONES.bottom);
+  }
+  if (placement === WORKBENCH_PANEL_PLACEMENTS.hidden) {
+    return setWorkbenchPanelSnapZone(layout, panelId, WORKBENCH_SNAP_ZONES.hidden);
+  }
+  return setWorkbenchPanelSnapZone(
+    layout,
+    panelId,
+    getDefaultSideSnapZone(panelId),
+  );
+}
+
+function getPanelIdsForPlacement(layout, placement) {
+  const normalized = normalizeWorkbenchLayout(layout);
+  return WORKBENCH_PANEL_IDS.filter(
+    (panelId) => getPlacementForSnapZone(normalized.panelZones[panelId]) === placement,
   );
 }
 
 function getBottomPanelId(panelId, fallback = "terminal") {
-  return BOTTOM_PANEL_IDS.includes(panelId) ? panelId : fallback;
+  return hasPanelId(panelId) ? panelId : fallback;
 }
 
 export function createWorkbenchDockState(state = {}) {
   const bottomTab = getBottomPanelId(state.bottomTab, "terminal");
   return {
-    activePanel: state.activePanel || null,
+    activePanel: hasPanelId(state.activePanel) ? state.activePanel : null,
     bottomTab,
     bottomPanelOpen: Boolean(state.bottomPanelOpen),
   };
@@ -411,7 +655,20 @@ export function createWorkbenchDockState(state = {}) {
 
 export function openWorkbenchDockPanel(state, panelId, layout) {
   const current = createWorkbenchDockState(state);
-  const placement = getWorkbenchPanelPlacement(panelId, layout);
+  if (!hasPanelId(panelId)) return current;
+
+  const snapZone = getWorkbenchPanelSnapZone(panelId, layout);
+  const placement = getPlacementForSnapZone(snapZone);
+
+  if (placement === WORKBENCH_PANEL_PLACEMENTS.hidden) {
+    return {
+      ...current,
+      activePanel: null,
+      dockTarget: WORKBENCH_ZONES.hidden,
+      snapZone,
+      sidebarRequired: false,
+    };
+  }
 
   if (placement === WORKBENCH_PANEL_PLACEMENTS.bottom) {
     return {
@@ -420,6 +677,7 @@ export function openWorkbenchDockPanel(state, panelId, layout) {
       bottomTab: getBottomPanelId(panelId),
       bottomPanelOpen: true,
       dockTarget: WORKBENCH_ZONES.bottomPanel,
+      snapZone,
       sidebarRequired: false,
     };
   }
@@ -428,13 +686,21 @@ export function openWorkbenchDockPanel(state, panelId, layout) {
     ...current,
     activePanel: panelId,
     dockTarget: WORKBENCH_ZONES.sidePanel,
+    snapZone,
     sidebarRequired: true,
   };
 }
 
 export function toggleWorkbenchDockPanel(state, panelId, layout) {
   const current = createWorkbenchDockState(state);
-  const placement = getWorkbenchPanelPlacement(panelId, layout);
+  if (!hasPanelId(panelId)) return current;
+
+  const snapZone = getWorkbenchPanelSnapZone(panelId, layout);
+  const placement = getPlacementForSnapZone(snapZone);
+
+  if (placement === WORKBENCH_PANEL_PLACEMENTS.hidden) {
+    return openWorkbenchDockPanel(current, panelId, layout);
+  }
 
   if (placement === WORKBENCH_PANEL_PLACEMENTS.bottom) {
     const nextBottomTab = getBottomPanelId(panelId);
@@ -445,6 +711,7 @@ export function toggleWorkbenchDockPanel(state, panelId, layout) {
       bottomTab: nextBottomTab,
       bottomPanelOpen: !shouldClose,
       dockTarget: WORKBENCH_ZONES.bottomPanel,
+      snapZone,
       sidebarRequired: false,
     };
   }
@@ -476,33 +743,53 @@ export function closeWorkbenchSideDock(state = {}) {
   };
 }
 
+function getSideSlotSide(activePanel, fallbackSide, layout) {
+  if (!activePanel) return fallbackSide;
+  const snapZone = getWorkbenchPanelSnapZone(activePanel, layout);
+  if (snapZone === WORKBENCH_SNAP_ZONES.right) {
+    return WORKBENCH_SNAP_ZONES.right;
+  }
+  return WORKBENCH_SNAP_ZONES.left;
+}
+
 export function getWorkbenchSlots({
   sidebarSide = "left",
   activePanel = null,
   bottomPanel = null,
   layout,
 } = {}) {
-  const side = sidebarSide === "right" ? "right" : "left";
+  const railSide = sidebarSide === "right" ? "right" : "left";
   const normalized = normalizeWorkbenchLayout(layout);
+  const sidePanelSnapZone = activePanel
+    ? getWorkbenchPanelSnapZone(activePanel, normalized)
+    : null;
+  const bottomPanelSnapZone = bottomPanel
+    ? getWorkbenchPanelSnapZone(bottomPanel, normalized)
+    : null;
   const sidePanelPlacement = activePanel
-    ? getWorkbenchPanelPlacement(activePanel, normalized)
+    ? getPlacementForSnapZone(sidePanelSnapZone)
     : null;
   const bottomPanelPlacement = bottomPanel
-    ? getWorkbenchPanelPlacement(bottomPanel, normalized)
+    ? getPlacementForSnapZone(bottomPanelSnapZone)
     : null;
+  const side = getSideSlotSide(activePanel, railSide, normalized);
 
   return {
     activityBar: {
       dockId: WORKBENCH_ZONES.activityBar,
       zone: WORKBENCH_ZONES.activityBar,
-      side,
-      order: side === "right" ? 40 : 0,
+      side: railSide,
+      order: railSide === "right" ? 40 : 0,
       canDrop: false,
-      accepts: SIDE_PANEL_IDS,
+      accepts: WORKBENCH_PANEL_IDS.filter(
+        (panelId) =>
+          getWorkbenchPanelSnapZone(panelId, normalized) !== WORKBENCH_SNAP_ZONES.hidden,
+      ),
     },
     sidePanel: {
       dockId: WORKBENCH_ZONES.sidePanel,
       zone: WORKBENCH_ZONES.sidePanel,
+      snapZone: sidePanelSnapZone || side,
       panelId: sidePanelPlacement === WORKBENCH_PANEL_PLACEMENTS.side ? activePanel : null,
       placement: WORKBENCH_PANEL_PLACEMENTS.side,
       side,
@@ -510,7 +797,10 @@ export function getWorkbenchSlots({
       size: normalized.sidePanelSize,
       axis: "horizontal",
       canDrop: true,
-      accepts: SIDE_PANEL_IDS,
+      accepts: getPanelIdsForPlacement(
+        normalized,
+        WORKBENCH_PANEL_PLACEMENTS.side,
+      ),
     },
     editor: {
       dockId: WORKBENCH_ZONES.editor,
@@ -522,13 +812,17 @@ export function getWorkbenchSlots({
     bottomPanel: {
       dockId: WORKBENCH_ZONES.bottomPanel,
       zone: WORKBENCH_ZONES.bottomPanel,
+      snapZone: WORKBENCH_SNAP_ZONES.bottom,
       panelId: bottomPanelPlacement === WORKBENCH_PANEL_PLACEMENTS.bottom ? bottomPanel : null,
-      placement: normalized.bottomPanelPlacement,
+      placement: WORKBENCH_PANEL_PLACEMENTS.bottom,
       order: 50,
       size: normalized.bottomPanelSize,
       axis: "vertical",
       canDrop: true,
-      accepts: BOTTOM_PANEL_IDS,
+      accepts: getPanelIdsForPlacement(
+        normalized,
+        WORKBENCH_PANEL_PLACEMENTS.bottom,
+      ),
     },
   };
 }

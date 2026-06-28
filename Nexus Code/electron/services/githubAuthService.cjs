@@ -4,7 +4,8 @@ const crypto = require("crypto");
 
 const GITHUB_DEVICE_CODE_URL = "https://github.com/login/device/code";
 const GITHUB_ACCESS_TOKEN_URL = "https://github.com/login/oauth/access_token";
-const DEFAULT_SCOPES = ["repo", "read:user", "user:email"];
+const REQUIRED_SCOPES = ["repo", "read:user", "user:email", "project"];
+const DEFAULT_SCOPES = REQUIRED_SCOPES;
 const TOKEN_SERVICE = "github";
 const USER_AGENT = "Nexus-Code-Electron";
 
@@ -20,11 +21,29 @@ const normalizeScopes = (value) => {
   const scopes = Array.isArray(value)
     ? value
     : String(value || DEFAULT_SCOPES.join(" ")).split(/[\s,]+/);
-  return scopes
+  const requested = scopes
     .map((scope) => String(scope || "").trim())
     .filter(Boolean)
     .filter((scope, index, all) => all.indexOf(scope) === index)
     .slice(0, 20);
+  return Array.from(new Set([...requested, ...REQUIRED_SCOPES])).slice(0, 20);
+};
+
+const parseScopeList = (value) => String(value || "")
+  .split(/[\s,]+/)
+  .map((scope) => scope.trim())
+  .filter(Boolean);
+
+const resolveScopeStatus = (metadata) => {
+  const scopeText = metadata?.metadata?.scope || metadata?.scope || "";
+  const grantedScopes = parseScopeList(scopeText);
+  const missingScopes = REQUIRED_SCOPES.filter((scope) => !grantedScopes.includes(scope));
+  return {
+    requiredScopes: REQUIRED_SCOPES,
+    grantedScopes,
+    missingScopes,
+    hasRequiredScopes: missingScopes.length === 0,
+  };
 };
 
 const postGithubForm = async (url, fields) => {
@@ -62,6 +81,7 @@ const createGithubAuthService = ({ tokenStore }) => {
         return {
           authenticated: false,
           metadata: null,
+          ...resolveScopeStatus(null),
         };
       }
 
@@ -76,6 +96,7 @@ const createGithubAuthService = ({ tokenStore }) => {
         authenticated: Boolean(token),
         metadata,
         unavailable,
+        ...resolveScopeStatus(metadata),
       };
     },
 
@@ -168,5 +189,6 @@ const createGithubAuthService = ({ tokenStore }) => {
 
 module.exports = {
   TOKEN_SERVICE,
+  REQUIRED_SCOPES,
   createGithubAuthService,
 };

@@ -1,12 +1,13 @@
 export const FILE_TREE_LIMITS = {
-  maxRows: 1800,
-  maxChildrenPerFolder: 700,
-  rowHeight: 32,
-  virtualizeAfter: 160,
-  overscanRows: 14,
-  maxRenderedRows: 260,
+  maxRows: 2200,
+  maxChildrenPerFolder: 900,
+  rowHeight: 28,
+  virtualizeAfter: 120,
+  overscanRows: 12,
+  maxRenderedRows: 220,
 };
 
+/** @type {Record<string, { label: string, color: string, group: string }>} */
 const EXTENSION_META = {
   js: { label: "JS", color: "#facc15", group: "source" },
   jsx: { label: "JSX", color: "#61dafb", group: "source" },
@@ -23,6 +24,8 @@ const EXTENSION_META = {
   c: { label: "C", color: "#3b82f6", group: "source" },
   cpp: { label: "CPP", color: "#3b82f6", group: "source" },
   h: { label: "H", color: "#3b82f6", group: "source" },
+  dockerfile: { label: "DOCKER", color: "#38bdf8", group: "config" },
+  mk: { label: "MAKE", color: "#94a3b8", group: "config" },
   css: { label: "CSS", color: "#38bdf8", group: "style" },
   scss: { label: "SCSS", color: "#ec4899", group: "style" },
   html: { label: "HTML", color: "#f97316", group: "markup" },
@@ -42,16 +45,34 @@ const EXTENSION_META = {
   webp: { label: "WEBP", color: "#14b8a6", group: "media" },
 };
 
+/** @type {Record<string, string>} */
+const SPECIAL_EXTENSION_BY_NAME = {
+  ".env": "env",
+  ".env.local": "env",
+  ".env.development": "env",
+  ".env.production": "env",
+  dockerfile: "dockerfile",
+  makefile: "mk",
+};
+
 const collator = new Intl.Collator(undefined, {
   numeric: true,
   sensitivity: "base",
 });
 
+function getPathBasename(value) {
+  const parts = String(value || "").split(/[\\/]/).filter(Boolean);
+  return parts[parts.length - 1] || "";
+}
+
 export function getFileExtension(name) {
   if (!name || typeof name !== "string") return "";
   const trimmed = name.trim();
-  if (!trimmed || (trimmed.startsWith(".") && trimmed.indexOf(".", 1) === -1)) {
-    return "";
+  if (!trimmed) return "";
+  const lowerName = trimmed.toLowerCase();
+  if (SPECIAL_EXTENSION_BY_NAME[lowerName]) return SPECIAL_EXTENSION_BY_NAME[lowerName];
+  if (trimmed.startsWith(".") && trimmed.indexOf(".", 1) === -1) {
+    return trimmed.slice(1).toLowerCase();
   }
   const index = trimmed.lastIndexOf(".");
   return index > 0 && index < trimmed.length - 1
@@ -76,9 +97,13 @@ function normalizeSearch(value) {
 }
 
 function normalizeNode(input, index) {
-  const name = String(input?.name || input?.fsPath || input?.path || "untitled");
+  const rawPath = input?.fsPath || input?.path || "";
+  const name = String(input?.name || getPathBasename(rawPath) || "untitled");
   const id = String(input?.id || input?.fsPath || input?.path || `${name}:${index}`);
-  const type = input?.type === "folder" || input?.isDirectory ? "folder" : "file";
+  const type =
+    input?.type === "folder" || input?.type === "directory" || input?.isDirectory
+      ? "folder"
+      : "file";
   const parentId = input?.parentId == null || input?.parentId === "" ? null : String(input.parentId);
   const meta = getFileMeta(name);
 
@@ -99,7 +124,7 @@ function normalizeNode(input, index) {
   };
 }
 
-function compareNodes(a, b) {
+export function compareFileTreeNodes(a, b) {
   if (a.isFolder !== b.isFolder) return a.isFolder ? -1 : 1;
   if (a.isFile && b.isFile) {
     const extensionRankA = a.extension ? 0 : 1;
@@ -113,6 +138,25 @@ function compareNodes(a, b) {
   return a.sourceIndex - b.sourceIndex;
 }
 
+function getLimitedChildren(children, maxChildrenPerFolder) {
+  const limitedChildren = children.slice(0, maxChildrenPerFolder);
+  const omitted = Math.max(0, children.length - limitedChildren.length);
+  return { limitedChildren, omitted };
+}
+
+function createOverflowNode(parentId, omitted) {
+  const safeParentId = parentId || "root";
+  return {
+    id: `${safeParentId}::overflow:${omitted}`,
+    name: `${omitted} more items hidden`,
+    type: "overflow",
+    isFolder: false,
+    isFile: false,
+    extensionLabel: "CAP",
+    extensionColor: "#f59e0b",
+  };
+}
+
 export function createFileNodesFromEntries(entries = [], options = {}) {
   const parentId = options.parentId == null ? null : String(options.parentId);
   const existingIds = options.existingIds instanceof Set ? options.existingIds : new Set();
@@ -122,11 +166,14 @@ export function createFileNodesFromEntries(entries = [], options = {}) {
   for (let index = 0; index < rawEntries.length; index += 1) {
     const entry = rawEntries[index] || {};
     const fsPath = entry.path || entry.fsPath || "";
-    const name = String(entry.name || fsPath || "untitled");
+    const name = String(entry.name || getPathBasename(fsPath) || "untitled");
     const id = String(entry.id || (fsPath ? `fs_${fsPath}` : `${parentId || "root"}:${name}:${index}`));
     if (existingIds.has(id)) continue;
 
-    const type = entry.type === "folder" || entry.isDirectory ? "folder" : "file";
+    const type =
+      entry.type === "folder" || entry.type === "directory" || entry.isDirectory
+        ? "folder"
+        : "file";
     const extension = getFileExtension(name);
     nodes.push(
       normalizeNode(
@@ -146,7 +193,7 @@ export function createFileNodesFromEntries(entries = [], options = {}) {
     );
   }
 
-  nodes.sort(compareNodes);
+  nodes.sort(compareFileTreeNodes);
   return nodes;
 }
 
@@ -222,19 +269,30 @@ export function createFileTreeModel(files = [], options = {}) {
     childCountById.set(parentId, (childCountById.get(parentId) || 0) + 1);
   }
 
-  rootItems.sort(compareNodes);
+  rootItems.sort(compareFileTreeNodes);
   for (const children of childrenByParent.values()) {
-    children.sort(compareNodes);
+    children.sort(compareFileTreeNodes);
   }
 
   const visibleSearchIds = collectVisibleSearchIds(nodes, byId, query);
   const rows = [];
-  const pushStack = rootItems
-    .slice()
-    .reverse()
-    .map((node) => ({ node, depth: 0 }));
+  const visibleRootItems = visibleSearchIds
+    ? rootItems.filter((node) => visibleSearchIds.has(node.id))
+    : rootItems;
+  const rootLimit = getLimitedChildren(visibleRootItems, maxChildrenPerFolder);
+  const rootStackItems = rootLimit.limitedChildren.map((node) => ({ node, depth: 0 }));
+  let hiddenByChildLimit = rootLimit.omitted;
+
+  if (rootLimit.omitted > 0) {
+    rootStackItems.push({
+      node: createOverflowNode(null, rootLimit.omitted),
+      depth: 0,
+      overflowCount: rootLimit.omitted,
+    });
+  }
+
+  const pushStack = rootStackItems.slice().reverse();
   let hiddenByRowLimit = 0;
-  let hiddenByChildLimit = 0;
 
   while (pushStack.length > 0) {
     const { node, depth, overflowCount = 0 } = pushStack.pop();
@@ -276,21 +334,15 @@ export function createFileTreeModel(files = [], options = {}) {
     const visibleChildren = visibleSearchIds
       ? children.filter((child) => visibleSearchIds.has(child.id))
       : children;
-    const limitedChildren = visibleChildren.slice(0, maxChildrenPerFolder);
-    const omitted = Math.max(0, visibleChildren.length - limitedChildren.length);
+    const { limitedChildren, omitted } = getLimitedChildren(
+      visibleChildren,
+      maxChildrenPerFolder,
+    );
     hiddenByChildLimit += omitted;
 
     if (omitted > 0) {
       pushStack.push({
-        node: {
-          id: `${node.id}::overflow`,
-          name: `${omitted} more items hidden`,
-          type: "overflow",
-          isFolder: false,
-          isFile: false,
-          extensionLabel: "CAP",
-          extensionColor: "#f59e0b",
-        },
+        node: createOverflowNode(node.id, omitted),
         depth: depth + 1,
         overflowCount: omitted,
       });

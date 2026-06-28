@@ -16,6 +16,18 @@ export const PANEL_META = {
     title: "Problems",
     detail: "Diagnose und Hinweise",
   },
+  issues: {
+    title: "Issues",
+    detail: "GitHub Aufgaben",
+  },
+  prs: {
+    title: "Pull Requests",
+    detail: "Reviews und Merge-Flows",
+  },
+  projects: {
+    title: "Projects",
+    detail: "GitHub Boards",
+  },
   terminal: {
     title: "Terminal",
     detail: "Workspace shell",

@@ -210,10 +210,20 @@ const toIpcResponse = async (operation) => {
     const data = await operation();
     return { ok: true, data, error: null };
   } catch (error) {
+    const safeError = redactSensitiveText(error?.message || "Unknown IPC error");
+    let errorDetails = null;
+    if (typeof error?.toIpcError === "function") {
+      try {
+        errorDetails = JSON.parse(redactSensitiveText(JSON.stringify(error.toIpcError())));
+      } catch {
+        errorDetails = null;
+      }
+    }
     return {
       ok: false,
       data: null,
-      error: redactSensitiveText(error?.message || "Unknown IPC error"),
+      error: safeError,
+      errorDetails,
     };
   }
 };
@@ -740,6 +750,90 @@ ipcMain.handle("github:repositories", async (_event, options = {}) => toIpcRespo
 
 ipcMain.handle("github:rate-limit", async () => toIpcResponse(async () => (
   githubService.getRateLimit()
+)));
+
+ipcMain.handle("github:issues:list", async (_event, options = {}) => toIpcResponse(async () => (
+  githubService.listIssues(options || {})
+)));
+
+ipcMain.handle("github:issues:get", async (_event, options = {}) => toIpcResponse(async () => (
+  githubService.getIssue(options || {})
+)));
+
+ipcMain.handle("github:issues:create", async (_event, options = {}) => toIpcResponse(async () => (
+  githubService.createIssue(options || {})
+)));
+
+ipcMain.handle("github:issues:update", async (_event, options = {}) => toIpcResponse(async () => (
+  githubService.updateIssue(options || {})
+)));
+
+ipcMain.handle("github:issues:comments", async (_event, options = {}) => toIpcResponse(async () => (
+  githubService.listIssueComments(options || {})
+)));
+
+ipcMain.handle("github:issues:comment", async (_event, options = {}) => toIpcResponse(async () => (
+  githubService.createIssueComment(options || {})
+)));
+
+ipcMain.handle("github:pulls:list", async (_event, options = {}) => toIpcResponse(async () => (
+  githubService.listPullRequests(options || {})
+)));
+
+ipcMain.handle("github:pulls:get", async (_event, options = {}) => toIpcResponse(async () => (
+  githubService.getPullRequest(options || {})
+)));
+
+ipcMain.handle("github:pulls:create", async (_event, options = {}) => toIpcResponse(async () => (
+  githubService.createPullRequest(options || {})
+)));
+
+ipcMain.handle("github:pulls:update", async (_event, options = {}) => toIpcResponse(async () => (
+  githubService.updatePullRequest(options || {})
+)));
+
+ipcMain.handle("github:pulls:files", async (_event, options = {}) => toIpcResponse(async () => (
+  githubService.listPullRequestFiles(options || {})
+)));
+
+ipcMain.handle("github:pulls:commits", async (_event, options = {}) => toIpcResponse(async () => (
+  githubService.listPullRequestCommits(options || {})
+)));
+
+ipcMain.handle("github:pulls:reviews", async (_event, options = {}) => toIpcResponse(async () => (
+  githubService.listPullRequestReviews(options || {})
+)));
+
+ipcMain.handle("github:pulls:review:create", async (_event, options = {}) => toIpcResponse(async () => (
+  githubService.createPullRequestReview(options || {})
+)));
+
+ipcMain.handle("github:pulls:merge", async (_event, options = {}) => toIpcResponse(async () => (
+  githubService.mergePullRequest(options || {})
+)));
+
+ipcMain.handle("github:pulls:update-branch", async (_event, options = {}) => toIpcResponse(async () => (
+  githubService.updatePullRequestBranch(options || {})
+)));
+
+ipcMain.handle("github:projects-v2:list", async (_event, options = {}) => toIpcResponse(async () => (
+  githubService.listProjectsV2(options || {})
+)));
+
+ipcMain.handle("github:projects-v2:get", async (_event, options = {}) => toIpcResponse(async () => (
+  githubService.getProjectV2(options || {})
+)));
+
+ipcMain.handle("github:projects-v2:items", async (_event, options = {}) => toIpcResponse(async () => (
+  githubService.listProjectV2Items(options || {})
+)));
+
+ipcMain.handle("github:projects-v2:item:add", async (_event, options = {}) => toIpcResponse(async () => (
+  githubService.addProjectV2ItemById(options || {})
+)));
+
+ipcMain.handle("github:projects-v2:item-field:update", async (_event, options = {}) => toIpcResponse(async () => (
+  githubService.updateProjectV2ItemFieldValue(options || {})
 )));
 
 // IPC: Language Server Protocol
