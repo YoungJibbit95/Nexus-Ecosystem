@@ -1,14 +1,21 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
+  Activity,
   AlertTriangle,
   BadgeCheck,
   Blocks,
   Check,
   ChevronDown,
+  Command,
+  Database,
   Download,
+  Eye,
   FileJson2,
   Filter,
+  Languages,
+  ListChecks,
   PackageCheck,
+  Palette,
   Power,
   RefreshCw,
   Search,
@@ -26,6 +33,7 @@ import {
   filterExtensions,
   formatContributionPreview,
   getExtensionStats,
+  getExtensionRuntimeOverview,
   installExtension,
   loadExtensionRegistryState,
   resolveExtensions,
@@ -40,6 +48,48 @@ const tabStyles = {
   enabled: "Aktiv",
   local: "Lokal",
 };
+
+const contributionIcons = {
+  commands: Command,
+  views: Eye,
+  languages: Languages,
+  themes: Palette,
+};
+
+const storageHealthLabels = {
+  ok: "Registry ok",
+  migrated: "Migration bereit",
+  default: "Defaults aktiv",
+  degraded: "Registry pruefen",
+  unavailable: "Nur Sitzung",
+};
+
+function getMessageTone(level) {
+  if (level === "error") {
+    return {
+      icon: "text-red-300",
+      text: "text-red-200",
+      background: "rgba(248,113,113,0.1)",
+      border: "rgba(248,113,113,0.22)",
+    };
+  }
+
+  if (level === "info") {
+    return {
+      icon: "text-sky-300",
+      text: "text-sky-200",
+      background: "rgba(56,189,248,0.08)",
+      border: "rgba(56,189,248,0.18)",
+    };
+  }
+
+  return {
+    icon: "text-amber-300",
+    text: "text-amber-200",
+    background: "rgba(251,191,36,0.08)",
+    border: "rgba(251,191,36,0.2)",
+  };
+}
 
 function SegmentButton({ active, children, onClick }) {
   return (
@@ -111,21 +161,21 @@ function StatPill({ label, value }) {
 }
 
 function SystemMessage({ message }) {
-  const isError = message.level === "error";
+  const tone = getMessageTone(message.level);
   return (
     <div
       className="flex min-w-0 items-start gap-2 rounded-md border px-2 py-1.5"
       style={{
-        background: isError ? "rgba(248,113,113,0.1)" : "rgba(251,191,36,0.08)",
-        borderColor: isError ? "rgba(248,113,113,0.22)" : "rgba(251,191,36,0.2)",
+        background: tone.background,
+        borderColor: tone.border,
       }}
     >
       <AlertTriangle
         size={12}
-        className={`mt-0.5 shrink-0 ${isError ? "text-red-300" : "text-amber-300"}`}
+        className={`mt-0.5 shrink-0 ${tone.icon}`}
       />
       <div className="min-w-0">
-        <p className={`truncate text-[10px] font-semibold ${isError ? "text-red-200" : "text-amber-200"}`}>
+        <p className={`truncate text-[10px] font-semibold ${tone.text}`}>
           {message.message}
         </p>
         {message.detail ? (
@@ -168,14 +218,159 @@ function ToggleSwitch({ checked, onClick, disabled }) {
   );
 }
 
+function ContributionOverview({ overview, stats, storageHealth }) {
+  const activationTypes = Object.entries(overview.activation.byType);
+  const healthLabel = storageHealthLabels[storageHealth] || storageHealthLabels.default;
+
+  return (
+    <div className="mt-3 space-y-1.5">
+      <div className="grid grid-cols-2 gap-1.5">
+        {overview.contributionPoints.map((point) => {
+          const Icon = contributionIcons[point.point] || ListChecks;
+          return (
+            <div
+              key={point.point}
+              className="min-w-0 rounded-md border px-2 py-1.5"
+              style={{
+                background: "rgba(255,255,255,0.026)",
+                borderColor: "rgba(255,255,255,0.06)",
+              }}
+            >
+              <div className="flex min-w-0 items-center justify-between gap-2">
+                <span className="flex min-w-0 items-center gap-1.5 text-[10px] font-semibold text-gray-300">
+                  <Icon size={11} className="shrink-0 text-[var(--nexus-muted)]" />
+                  <span className="truncate">{point.label}</span>
+                </span>
+                <span className="font-mono text-[11px] text-[var(--nexus-text)]">
+                  {point.count}
+                </span>
+              </div>
+              <p className="mt-0.5 truncate text-[9px] text-[var(--nexus-muted)]">
+                {point.items.slice(0, 2).join(", ") || "Noch keine aktiven Beitraege"}
+              </p>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="grid grid-cols-2 gap-1.5">
+        <div
+          className="flex min-w-0 items-center gap-2 rounded-md border px-2 py-1.5"
+          style={{
+            background: "rgba(255,255,255,0.024)",
+            borderColor: "rgba(255,255,255,0.055)",
+          }}
+        >
+          <Activity size={12} className="shrink-0 text-[var(--nexus-muted)]" />
+          <div className="min-w-0">
+            <p className="truncate text-[10px] font-semibold text-gray-300">
+              {stats.activationEvents} Activation Events
+            </p>
+            <p className="truncate text-[9px] text-[var(--nexus-muted)]">
+              {activationTypes.map(([type, entries]) => `${type} ${entries.length}`).join(", ") ||
+                "keine aktiven Trigger"}
+            </p>
+          </div>
+        </div>
+
+        <div
+          className="flex min-w-0 items-center gap-2 rounded-md border px-2 py-1.5"
+          style={{
+            background: "rgba(255,255,255,0.024)",
+            borderColor: "rgba(255,255,255,0.055)",
+          }}
+        >
+          <Database size={12} className="shrink-0 text-[var(--nexus-muted)]" />
+          <div className="min-w-0">
+            <p className="truncate text-[10px] font-semibold text-gray-300">{healthLabel}</p>
+            <p className="truncate text-[9px] text-[var(--nexus-muted)]">
+              {stats.errors > 0 ? `${stats.errors} Fehlerzustand` : "Manifest-Index stabil"}
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ActivationEventList({ events }) {
+  if (!events.length) {
+    return (
+      <p className="rounded border border-white/[0.05] bg-white/[0.025] px-1.5 py-1 text-[10px] text-[var(--nexus-muted)]">
+        Keine Aktivierungsereignisse deklariert.
+      </p>
+    );
+  }
+
+  return (
+    <div className="grid gap-1">
+      {events.slice(0, 4).map((event) => (
+        <div
+          key={event.id}
+          className="flex min-w-0 items-center justify-between gap-2 rounded border border-white/[0.05] bg-white/[0.025] px-1.5 py-1 text-[10px]"
+        >
+          <span className="min-w-0 truncate text-gray-300">{event.label}</span>
+          <span className="shrink-0 rounded bg-white/[0.04] px-1 text-[9px] uppercase text-[var(--nexus-muted)]">
+            {event.type}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ContributionDetailList({ summaries }) {
+  if (!summaries.length) {
+    return (
+      <p className="rounded border border-white/[0.05] bg-white/[0.025] px-1.5 py-1 text-[10px] text-[var(--nexus-muted)]">
+        Dieses Manifest deklariert keine Contributions.
+      </p>
+    );
+  }
+
+  return (
+    <div className="grid gap-1">
+      {summaries.map((summary) => (
+        <div
+          key={summary.point}
+          className="grid min-w-0 grid-cols-[6.5rem_1fr] gap-2 rounded border border-white/[0.05] bg-white/[0.025] px-1.5 py-1 text-[10px]"
+        >
+          <span className="truncate font-semibold text-gray-300">{summary.label}</span>
+          <span className="min-w-0 truncate text-gray-500">
+            {formatContributionPreview(summary, 4)}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function ExtensionCard({ extension, onInstall, onRemove, onToggleEnabled, index }) {
   const [busy, setBusy] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const manifestIssues = [...extension.manifestErrors, ...extension.manifestWarnings];
+  const runtimeIssue =
+    extension.lastError &&
+    !manifestIssues.some((issue) => issue.message === extension.lastError)
+      ? {
+          level: "error",
+          code: "runtime.lastError",
+          message: extension.lastError,
+          detail: extension.disabledReason || "Runtime state recorded in extension registry.",
+        }
+      : null;
+  const visibleIssues = runtimeIssue ? [...manifestIssues, runtimeIssue] : manifestIssues;
   const manifestBlocked = extension.manifestErrors.length > 0;
   const primaryContributions = extension.contributionSummary
     .filter((summary) => summary.primary)
     .slice(0, 4);
+  const statusLabel = manifestBlocked
+    ? "Blockiert"
+    : !extension.installed
+      ? "Verfuegbar"
+      : extension.enabled
+        ? "Aktiv"
+        : "Pausiert";
 
   const runAction = (action) => {
     if (busy) return;
@@ -193,13 +388,13 @@ function ExtensionCard({ extension, onInstall, onRemove, onToggleEnabled, index 
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 8, height: 0 }}
       transition={{ delay: Math.min(index * 0.025, 0.18), duration: 0.2 }}
-      className="group rounded-lg p-2.5"
+      className="group rounded-md p-2.5"
       style={{
         background: extension.installed
-          ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.055)"
+          ? "rgba(255,255,255,0.034)"
           : "rgba(255,255,255,0.024)",
         border: extension.enabled
-          ? "1px solid rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.24)"
+          ? "1px solid rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.18)"
           : "1px solid rgba(255,255,255,0.065)",
       }}
     >
@@ -242,6 +437,7 @@ function ExtensionCard({ extension, onInstall, onRemove, onToggleEnabled, index 
             <span className="truncate">{extension.publisher}</span>
             <span>v{extension.version}</span>
             <span className="uppercase">{extension.source}</span>
+            <span>{statusLabel}</span>
           </div>
           <p className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-gray-400">
             {extension.description}
@@ -360,24 +556,25 @@ function ExtensionCard({ extension, onInstall, onRemove, onToggleEnabled, index 
                   <div className="truncate">path: {extension.localPath}</div>
                 ) : null}
               </div>
-              {extension.contributionSummary.length > 0 ? (
-                <div className="mt-2 grid gap-1">
-                  {extension.contributionSummary.slice(0, 5).map((summary) => (
-                    <div
-                      key={summary.point}
-                      className="flex min-w-0 items-center justify-between gap-2 rounded border border-white/[0.05] bg-white/[0.025] px-1.5 py-1 text-[10px]"
-                    >
-                      <span className="shrink-0 font-semibold text-gray-300">{summary.label}</span>
-                      <span className="min-w-0 truncate text-right text-gray-500">
-                        {formatContributionPreview(summary, 3)}
-                      </span>
-                    </div>
-                  ))}
+              <div className="mt-2 grid gap-2">
+                <div>
+                  <div className="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase text-[var(--nexus-muted)]">
+                    <ListChecks size={11} />
+                    Contributions
+                  </div>
+                  <ContributionDetailList summaries={extension.contributionSummary.slice(0, 6)} />
                 </div>
-              ) : null}
-              {manifestIssues.length > 0 ? (
+                <div>
+                  <div className="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase text-[var(--nexus-muted)]">
+                    <Activity size={11} />
+                    Activation
+                  </div>
+                  <ActivationEventList events={extension.activationSummary} />
+                </div>
+              </div>
+              {visibleIssues.length > 0 ? (
                 <div className="mt-2 grid gap-1">
-                  {manifestIssues.slice(0, 3).map((issue) => (
+                  {visibleIssues.slice(0, 3).map((issue) => (
                     <div
                       key={`${issue.code}-${issue.message}`}
                       className={`rounded border px-1.5 py-1 text-[10px] ${
@@ -409,7 +606,13 @@ export default function ExtensionsPanel({ onInstalledChange }) {
     ...initialRegistryState.diagnostics,
     ...initialRegistryState.migrations,
   ]);
-  const [storageStatus, setStorageStatus] = useState(null);
+  const [saveStatus, setSaveStatus] = useState(null);
+  const [storageHealth, setStorageHealth] = useState(
+    () => initialRegistryState.storageHealth || "default",
+  );
+  const [persistReason, setPersistReason] = useState(() =>
+    initialRegistryState.needsPersist ? "migration" : null,
+  );
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("all");
   const [source, setSource] = useState("all");
@@ -419,9 +622,10 @@ export default function ExtensionsPanel({ onInstalledChange }) {
 
   const extensions = useMemo(() => resolveExtensions(records), [records]);
   const stats = useMemo(() => getExtensionStats(records), [records]);
+  const runtimeOverview = useMemo(() => getExtensionRuntimeOverview(records), [records]);
   const storageMessages = useMemo(
-    () => [...registryMessages, ...(storageStatus?.diagnostics || [])],
-    [registryMessages, storageStatus],
+    () => [...registryMessages, ...(saveStatus?.diagnostics || [])],
+    [registryMessages, saveStatus],
   );
 
   const filteredExtensions = useMemo(() => {
@@ -438,14 +642,21 @@ export default function ExtensionsPanel({ onInstalledChange }) {
   }, [category, contribution, extensions, query, quickTab, source, stateFilter]);
 
   useEffect(() => {
-    const saveResult = saveExtensionRegistry(records);
-    setStorageStatus(saveResult.ok ? null : saveResult);
     const detail = createExtensionEventDetail(records);
     onInstalledChange?.(detail.installed);
     window.dispatchEvent(new CustomEvent("nx-code-extensions-changed", { detail }));
   }, [onInstalledChange, records]);
 
+  useEffect(() => {
+    if (!persistReason) return;
+    const saveResult = saveExtensionRegistry(records);
+    setSaveStatus(saveResult.diagnostics.length > 0 ? saveResult : null);
+    setStorageHealth(saveResult.ok ? "ok" : "degraded");
+    setPersistReason(null);
+  }, [persistReason, records]);
+
   const applyRecords = (updater) => {
+    setPersistReason("user");
     setRecords((current) => updater(current));
   };
 
@@ -504,6 +715,12 @@ export default function ExtensionsPanel({ onInstalledChange }) {
           <StatPill label="Lokal" value={stats.local} />
           <StatPill label="Fehler" value={stats.errors} />
         </div>
+
+        <ContributionOverview
+          overview={runtimeOverview}
+          stats={stats}
+          storageHealth={storageHealth}
+        />
 
         {storageMessages.length > 0 ? (
           <div className="mt-2 grid gap-1">
@@ -602,7 +819,7 @@ export default function ExtensionsPanel({ onInstalledChange }) {
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-3 py-2.5">
+      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-3 py-2.5">
         <AnimatePresence mode="popLayout">
           {filteredExtensions.map((extension, index) => (
             <ExtensionCard

@@ -532,7 +532,7 @@ export default function GitPanel({ files }) {
 
   const refreshLocalRemotes = useCallback(
     async (capability = getGitCapability(), { silent = false } = {}) => {
-      if (!capability.available || !capability.methods.includes("remotes")) {
+      if (!workspaceRoot || !capability.available || !capability.methods.includes("remotes")) {
         setRemotes([]);
         setRemoteError("");
         return;
@@ -561,7 +561,7 @@ export default function GitPanel({ files }) {
       if (!silent) setRefreshing(true);
 
       try {
-        if (capability.available) {
+        if (capability.available && workspaceRoot) {
           const nextStatus = await loadLocalGitStatus({ cwd: workspaceRoot });
           setStatus(nextStatus);
           setStaged(
@@ -669,7 +669,7 @@ export default function GitPanel({ files }) {
       };
     }
 
-    if (!hasLocalGit || selectedFile.source !== "git" || !canDiff) {
+    if (!workspaceRoot || !hasLocalGit || selectedFile.source !== "git" || !canDiff) {
       setDiffLoading(false);
       return () => {
         cancelled = true;

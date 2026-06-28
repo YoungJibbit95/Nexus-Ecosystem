@@ -1,17 +1,10 @@
 export const FILE_TREE_LIMITS = {
   maxRows: 1800,
   maxChildrenPerFolder: 700,
-};
-
-const GROUP_ORDER = {
-  source: 10,
-  style: 20,
-  markup: 30,
-  data: 40,
-  docs: 50,
-  media: 60,
-  config: 70,
-  other: 90,
+  rowHeight: 32,
+  virtualizeAfter: 160,
+  overscanRows: 14,
+  maxRenderedRows: 260,
 };
 
 const EXTENSION_META = {
@@ -109,9 +102,9 @@ function normalizeNode(input, index) {
 function compareNodes(a, b) {
   if (a.isFolder !== b.isFolder) return a.isFolder ? -1 : 1;
   if (a.isFile && b.isFile) {
-    const groupA = GROUP_ORDER[a.extensionGroup] || GROUP_ORDER.other;
-    const groupB = GROUP_ORDER[b.extensionGroup] || GROUP_ORDER.other;
-    if (groupA !== groupB) return groupA - groupB;
+    const extensionRankA = a.extension ? 0 : 1;
+    const extensionRankB = b.extension ? 0 : 1;
+    if (extensionRankA !== extensionRankB) return extensionRankA - extensionRankB;
     const extensionCompare = collator.compare(a.extension, b.extension);
     if (extensionCompare !== 0) return extensionCompare;
   }
