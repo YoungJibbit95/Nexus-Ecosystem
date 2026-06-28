@@ -363,7 +363,9 @@ export function DashboardTodayLayerSection({
                 color: activeWorkspace?.color || t.accent,
               }}
             >
-              {activeWorkspace ? `${activeWorkspace.icon} ${activeWorkspace.name}` : "Global"}
+              {activeWorkspace
+                ? `${activeWorkspace.icon} ${activeWorkspace.name}`
+                : "Global"}
             </span>
             <span
               style={{
@@ -375,8 +377,8 @@ export function DashboardTodayLayerSection({
                 whiteSpace: "nowrap",
               }}
             >
-              {workspaceRoot ? `Root: ${workspaceRoot}` : "Root: nicht gesetzt"} /{" "}
-              {lastSyncLabel}
+              {workspaceRoot ? `Root: ${workspaceRoot}` : "Root: nicht gesetzt"}{" "}
+              / {lastSyncLabel}
             </span>
           </div>
         </div>

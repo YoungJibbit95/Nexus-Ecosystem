@@ -1,3 +1,6 @@
+<<<<<<< HEAD
+export * from "./workbenchDockModel";
+=======
 export const WORKBENCH_LAYOUT_STORAGE_KEY = "nexus-code.workbench-layout.v1";
 
 export const WORKBENCH_ZONES = Object.freeze({
@@ -248,3 +251,4 @@ export function getWorkbenchSlots({
     },
   };
 }
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803

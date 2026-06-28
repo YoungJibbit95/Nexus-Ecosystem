@@ -1,21 +1,14 @@
-import React from "react";
-import { motion } from "framer-motion";
-import { Glass } from "../../../components/Glass";
-import { DashboardActionButton } from "../DashboardActionButton";
-import { DashboardRuntimeHealthCard } from "./DashboardRuntimeHealthCard";
 import type { DashboardResumeEntry } from "./types";
 
-export function DashboardContinueSection({
-  contentMotion,
-  contentFramerEase,
-  t,
-  resumeLane,
-}: {
+export function DashboardContinueSection(_props: {
   contentMotion: any;
   contentFramerEase: any;
   t: any;
   resumeLane: DashboardResumeEntry[];
 }) {
+<<<<<<< HEAD
+  return null;
+=======
   {
     /*return (
     <motion.div
@@ -140,4 +133,5 @@ export function DashboardContinueSection({
     </motion.div>
   );*/
   }
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
 }

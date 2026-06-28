@@ -5914,6 +5914,8 @@ select {
     scrollbar-gutter: stable;
 }
 
+<<<<<<< HEAD
+=======
 .nx-dashboard-priority-rail {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -6099,6 +6101,7 @@ select {
     white-space: nowrap;
 }
 
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
 .nx-dashboard-resume-grid {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(280px, 0.42fr);
@@ -6183,8 +6186,7 @@ select {
 }
 
 .nx-files-quality-strip,
-.nx-reminders-quality-strip,
-.nx-dashboard-quality-strip {
+.nx-reminders-quality-strip {
     overflow-x: auto;
 }
 
@@ -6223,19 +6225,25 @@ select {
 }
 
 @media (max-width: 1060px) {
+<<<<<<< HEAD
+=======
     .nx-dashboard-priority-rail {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
     .nx-dashboard-quality-strip,
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
     .nx-dashboard-resume-grid {
         grid-template-columns: minmax(0, 1fr);
     }
 
+<<<<<<< HEAD
+=======
     .nx-dashboard-quality-actions {
         justify-content: flex-start;
     }
 
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
     .nx-files-body {
         flex-direction: column !important;
         overflow: auto !important;
@@ -6266,6 +6274,8 @@ select {
 }
 
 @media (max-width: 720px) {
+<<<<<<< HEAD
+=======
     .nx-dashboard-priority-rail {
         grid-template-columns: minmax(0, 1fr);
     }
@@ -6275,10 +6285,13 @@ select {
     }
 
     .nx-dashboard-signal-grid,
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
     .nx-dashboard-resume-list {
         grid-template-columns: minmax(0, 1fr);
     }
 
+<<<<<<< HEAD
+=======
     .nx-dashboard-quality-strip {
         padding: 8px !important;
     }
@@ -6287,6 +6300,7 @@ select {
         display: none;
     }
 
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
     .nx-files-header > div:first-child,
     .nx-files-stats-strip,
     .nx-view-quality-strip {
@@ -6310,7 +6324,6 @@ select {
         padding: 8px !important;
     }
 
-    .nx-dashboard-quality-strip,
     .nx-view-quality-strip {
         border-radius: 8px !important;
     }
@@ -7101,6 +7114,104 @@ select {
     flex-wrap: nowrap !important;
     min-height: 17px !important;
     padding-block: 1px !important;
+}
+
+.nx-notes-workbar {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 5px !important;
+    overflow: visible !important;
+    position: relative;
+    z-index: 6200;
+}
+
+.nx-notes-workbar-main,
+.nx-notes-workbar-tools,
+.nx-notes-workbar .nx-notes-command-strip > div:first-child {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+}
+
+.nx-notes-workbar-main {
+    gap: 7px;
+}
+
+.nx-notes-workbar-tools {
+    gap: 6px;
+    overflow-x: auto;
+    overflow-y: visible;
+    padding: 1px 0 0;
+    scrollbar-width: none;
+}
+
+.nx-notes-workbar-tools::-webkit-scrollbar {
+    height: 0;
+}
+
+.nx-notes-workbar .nx-notes-title-input {
+    flex: 1 1 260px;
+}
+
+.nx-notes-workbar .nx-notes-command-strip,
+.nx-notes-workbar .nx-notes-format-toolbar {
+    flex: 0 0 auto;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+.nx-notes-workbar .nx-notes-command-strip {
+    min-width: max-content;
+}
+
+.nx-notes-workbar .nx-notes-command-strip > div:first-child {
+    gap: 5px !important;
+    flex-wrap: nowrap !important;
+}
+
+.nx-notes-workbar .nx-notes-format-toolbar {
+    display: flex !important;
+    align-items: center;
+    gap: 2px;
+    min-width: max-content;
+    overflow: visible !important;
+}
+
+.nx-notes-workbar .nx-notes-context-strip {
+    margin-top: 4px !important;
+    padding-top: 4px !important;
+    opacity: 0.68;
+}
+
+.nx-notes-workbar .nx-notes-stat-pill {
+    padding: 2px 6px !important;
+    border-color: rgba(255, 255, 255, 0.06) !important;
+    background: rgba(255, 255, 255, 0.026) !important;
+}
+
+.nx-notes-workbar input:not(.nx-notes-title-input) {
+    font-size: 10px !important;
+    font-weight: 650 !important;
+    letter-spacing: 0 !important;
+}
+
+.nx-notes-sidebar {
+    width: clamp(218px, 17vw, 258px) !important;
+}
+
+.nx-notes-editor-grid {
+    gap: 6px !important;
+}
+
+.nx-notes-status {
+    opacity: 0.66;
 }
 
 @media (max-width: 1180px) {
