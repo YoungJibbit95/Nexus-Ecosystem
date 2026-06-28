@@ -20,9 +20,19 @@ const withApiContract = args.has('--with-api-contract')
 const signingRequired = args.has('--signing-required')
 const mainMobileOnly = args.has('--main-mobile-only')
 const withMainMobileAudit = args.has('--with-main-mobile-audit') || mainMobileOnly
+const withControlDesktopPack = args.has('--with-control-desktop-pack')
 
 const sibling = (name) => path.join(WORKSPACE, name)
 const hasPackage = (dir) => existsSync(path.join(dir, 'package.json'))
+const resolveControlUiRootSync = () => {
+  const candidates = [
+    process.env.NEXUS_CONTROL_UI_ROOT,
+    sibling('Nexus Control'),
+    path.join(sibling('NexusAPI'), 'Nexus Control'),
+  ].filter(Boolean)
+
+  return candidates.find((candidate) => hasPackage(candidate)) || null
+}
 
 const steps = [
   {
@@ -61,7 +71,6 @@ if (!mainMobileOnly && !fast && !skipDoctor) {
     name: 'release doctor',
     cwd: ROOT,
     command: [npmBin, ['run', ci ? 'doctor:release:hosted' : 'doctor:release']],
-    optional: ci,
   })
 }
 
@@ -109,8 +118,8 @@ if (!fast && !skipApps) {
     )
   }
 
-  const controlDir = sibling('Nexus Control')
-  if (!mainMobileOnly && hasPackage(controlDir)) {
+  const controlDir = resolveControlUiRootSync()
+  if (!mainMobileOnly && controlDir && hasPackage(controlDir)) {
     steps.push({
       name: 'Nexus Control build',
       cwd: controlDir,
@@ -120,11 +129,18 @@ if (!fast && !skipApps) {
 }
 
 if (!mainMobileOnly && !fast && !skipWiki) {
-  steps.push({
-    name: 'Nexus Wiki CI build',
-    cwd: ROOT,
-    command: [npmBin, ['--prefix', 'Nexus Wiki', 'run', 'build:ci']],
-  })
+  steps.push(
+    {
+      name: 'Nexus Wiki dependency audit',
+      cwd: ROOT,
+      command: [npmBin, ['--prefix', 'Nexus Wiki', 'audit', '--audit-level=moderate']],
+    },
+    {
+      name: 'Nexus Wiki CI build',
+      cwd: ROOT,
+      command: [npmBin, ['--prefix', 'Nexus Wiki', 'run', 'build:ci']],
+    },
+  )
 }
 
 const websiteDir = sibling('nexusproject.dev')
@@ -144,6 +160,32 @@ if (!mainMobileOnly && !fast && !skipWebsite && hasPackage(websiteDir)) {
 }
 
 const apiDir = path.join(sibling('NexusAPI'), 'API', 'nexus-control-plane')
+const controlDesktopDir = path.join(sibling('NexusAPI'), 'Nexus Control Desktop')
+
+if (!mainMobileOnly && hasPackage(controlDesktopDir)) {
+  steps.push(
+    {
+      name: 'Control Desktop main syntax',
+      cwd: controlDesktopDir,
+      command: [process.execPath, ['--check', 'src/main.cjs']],
+    },
+    {
+      name: 'Control Desktop preload syntax',
+      cwd: controlDesktopDir,
+      command: [process.execPath, ['--check', 'src/preload.cjs']],
+    },
+  )
+
+  if (withControlDesktopPack) {
+    steps.push({
+      name: 'Control Desktop directory pack',
+      cwd: controlDesktopDir,
+      command: [npmBin, ['run', 'pack']],
+      optional: true,
+    })
+  }
+}
+
 if (!mainMobileOnly && withApiContract && hasPackage(apiDir)) {
   steps.push(
     {

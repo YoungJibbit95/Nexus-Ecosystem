@@ -35,6 +35,9 @@ jobs:
       - name: Install wiki dependencies
         run: npm --prefix "Nexus Wiki" ci
 
+      - name: Audit wiki dependencies
+        run: npm --prefix "Nexus Wiki" audit --audit-level=moderate
+
       - name: Build wiki
         run: npm --prefix "Nexus Wiki" run build
 

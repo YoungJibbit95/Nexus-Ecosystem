@@ -188,7 +188,7 @@ export function FeatureFlagControlPanel() {
   const cardStyle: React.CSSProperties = {
     border: "1px solid rgba(255,255,255,0.1)",
     background: `linear-gradient(145deg, rgba(${rgb},0.12), rgba(255,255,255,0.045))`,
-    borderRadius: 20,
+    borderRadius: 14,
     boxShadow: `0 22px 70px rgba(${rgb},0.08)`,
   };
 
@@ -198,7 +198,7 @@ export function FeatureFlagControlPanel() {
     justifyContent: "center",
     gap: 7,
     padding: "8px 11px",
-    borderRadius: 12,
+    borderRadius: 8,
     border: `1px solid ${active ? `rgba(${rgb},0.42)` : "rgba(255,255,255,0.12)"}`,
     background: active ? `linear-gradient(135deg, rgba(${rgb},0.38), rgba(${rgb2},0.28))` : "rgba(255,255,255,0.06)",
     color: active ? "#fff" : "inherit",
@@ -208,9 +208,9 @@ export function FeatureFlagControlPanel() {
   });
 
   return (
-    <div style={{ flex: 1, minHeight: 0, overflow: "auto", padding: 16 }}>
-      <div style={{ display: "grid", gridTemplateColumns: "minmax(280px, 0.9fr) minmax(420px, 1.4fr) minmax(280px, 0.9fr)", gap: 14, minHeight: "100%" }}>
-        <Glass style={{ ...cardStyle, padding: 16, display: "flex", flexDirection: "column", minHeight: 0 }}>
+    <div className="nx-devtools-flags" style={{ flex: 1, minHeight: 0, overflow: "auto", padding: 16 }}>
+      <div className="nx-devtools-flags-grid" style={{ display: "grid", gridTemplateColumns: "minmax(280px, 0.9fr) minmax(420px, 1.4fr) minmax(280px, 0.9fr)", gap: 14, minHeight: "100%" }}>
+        <Glass className="nx-devtools-panel-card nx-devtools-flags-list" style={{ ...cardStyle, padding: 16, display: "flex", flexDirection: "column", minHeight: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
             <div style={{ width: 38, height: 38, borderRadius: 14, display: "grid", placeItems: "center", background: `rgba(${rgb},0.18)`, color: t.accent }}>
               <Flag size={18} />
@@ -221,13 +221,13 @@ export function FeatureFlagControlPanel() {
             </div>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 12 }}>
+          <div className="nx-devtools-metric-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 12 }}>
             {[
               ["Enabled", report.summary.enabled],
               ["Beta", report.summary.beta],
               ["Issues", report.summary.issues],
             ].map(([label, value]) => (
-              <div key={label} style={{ border: "1px solid rgba(255,255,255,0.1)", borderRadius: 14, padding: "10px 11px", background: "rgba(0,0,0,0.12)" }}>
+              <div key={label} style={{ border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "10px 11px", background: "rgba(0,0,0,0.12)" }}>
                 <div style={{ fontSize: 9, opacity: 0.48, textTransform: "uppercase", fontWeight: 900 }}>{label}</div>
                 <div style={{ fontSize: 24, fontWeight: 950, color: label === "Issues" && Number(value) > 0 ? "#ffb340" : t.accent }}>{value}</div>
               </div>
@@ -243,7 +243,7 @@ export function FeatureFlagControlPanel() {
                   textAlign: "left",
                   border: `1px solid ${selectedFeature?.featureId === feature.featureId ? `rgba(${rgb},0.46)` : "rgba(255,255,255,0.1)"}`,
                   background: selectedFeature?.featureId === feature.featureId ? `rgba(${rgb},0.16)` : "rgba(255,255,255,0.045)",
-                  borderRadius: 16,
+                  borderRadius: 10,
                   padding: 12,
                   color: "inherit",
                   cursor: "pointer",
@@ -266,7 +266,7 @@ export function FeatureFlagControlPanel() {
           </div>
         </Glass>
 
-        <Glass style={{ ...cardStyle, padding: 16, display: "flex", flexDirection: "column", minHeight: 0 }}>
+        <Glass className="nx-devtools-panel-card nx-devtools-flags-editor" style={{ ...cardStyle, padding: 16, display: "flex", flexDirection: "column", minHeight: 0 }}>
           {selectedFeature && (
             <>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 14, marginBottom: 14 }}>
@@ -279,7 +279,7 @@ export function FeatureFlagControlPanel() {
                 </button>
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
+              <div className="nx-devtools-field-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
                 <label style={{ fontSize: 10, opacity: 0.72, fontWeight: 900 }}>
                   Rollout
                   <select value={selectedFeature.rollout} onChange={(event) => updateSelected({ rollout: event.target.value as any })} style={inputStyle}>
@@ -307,7 +307,7 @@ export function FeatureFlagControlPanel() {
                 <textarea value={selectedFeature.note} onChange={(event) => updateSelected({ note: event.target.value })} style={{ ...inputStyle, minHeight: 68, resize: "vertical", lineHeight: 1.5 }} />
               </label>
 
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
+              <div className="nx-devtools-action-row" style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
                 <button onClick={saveSelected} style={buttonStyle(true)}><CheckCircle2 size={13} /> Save</button>
                 <button onClick={validateAndSave} style={buttonStyle()}><ClipboardCheck size={13} /> Validate</button>
                 <button onClick={copyReport} style={buttonStyle()}><ClipboardCheck size={13} /> Copy report</button>
@@ -323,7 +323,7 @@ export function FeatureFlagControlPanel() {
                 </div>
               )}
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, minHeight: 0, marginTop: 14 }}>
+              <div className="nx-devtools-validation-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, minHeight: 0, marginTop: 14 }}>
                 <div style={{ minHeight: 0 }}>
                   <div style={sectionTitle}><AlertTriangle size={12} /> Validation</div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 190, overflow: "auto" }}>
@@ -354,7 +354,7 @@ export function FeatureFlagControlPanel() {
 
               <div style={{ marginTop: 14, minHeight: 0 }}>
                 <div style={sectionTitle}>Layout Schema Guard</div>
-                <div style={{ display: "grid", gridTemplateColumns: "1.25fr 0.75fr", gap: 10, minHeight: 190 }}>
+                <div className="nx-devtools-layout-schema-grid" style={{ display: "grid", gridTemplateColumns: "1.25fr 0.75fr", gap: 10, minHeight: 190 }}>
                   <textarea value={layoutText} onChange={(event) => setLayoutText(event.target.value)} spellCheck={false} style={{ ...inputStyle, minHeight: 190, resize: "vertical", fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace", fontSize: 10, lineHeight: 1.5 }} />
                   <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 210, overflow: "auto" }}>
                     {layoutIssues.map((issue, index) => (
@@ -369,7 +369,7 @@ export function FeatureFlagControlPanel() {
           )}
         </Glass>
 
-        <Glass style={{ ...cardStyle, padding: 16, display: "flex", flexDirection: "column", minHeight: 0 }}>
+        <Glass className="nx-devtools-panel-card nx-devtools-flags-audit" style={{ ...cardStyle, padding: 16, display: "flex", flexDirection: "column", minHeight: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
             <ShieldCheck size={18} color={t.accent} />
             <div>
@@ -406,7 +406,7 @@ const inputStyle: React.CSSProperties = {
   color: "inherit",
   outline: "none",
   border: "1px solid rgba(255,255,255,0.12)",
-  borderRadius: 12,
+  borderRadius: 8,
   background: "rgba(0,0,0,0.18)",
   padding: "9px 10px",
   fontSize: 11,
@@ -427,7 +427,7 @@ const sectionTitle: React.CSSProperties = {
 
 const emptyStyle: React.CSSProperties = {
   border: "1px solid rgba(48,209,88,0.22)",
-  borderRadius: 14,
+  borderRadius: 10,
   padding: 11,
   background: "rgba(48,209,88,0.08)",
   fontSize: 11,
@@ -436,7 +436,7 @@ const emptyStyle: React.CSSProperties = {
 
 const issueStyle = (issue: ControlFeatureFlagValidationIssue): React.CSSProperties => ({
   border: `1px solid ${issue.severity === "error" ? "rgba(255,69,58,0.25)" : issue.severity === "warning" ? "rgba(255,179,64,0.25)" : "rgba(43,212,255,0.22)"}`,
-  borderRadius: 14,
+  borderRadius: 10,
   padding: 10,
   background: "rgba(0,0,0,0.13)",
   fontSize: 10,

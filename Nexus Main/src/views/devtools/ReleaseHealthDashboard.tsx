@@ -300,7 +300,7 @@ const collectRuntimeSnapshot = () => {
 
 const statusCardStyle = (rgb: string): React.CSSProperties => ({
   padding: "14px 15px",
-  borderRadius: 18,
+  borderRadius: 10,
   border: `1px solid rgba(${rgb},0.18)`,
   background: `linear-gradient(145deg, rgba(${rgb},0.12), rgba(255,255,255,0.04))`,
   boxShadow: `0 18px 45px rgba(${rgb},0.09)`,
@@ -313,7 +313,7 @@ const smallButton = (active = false, rgb = "0,122,255"): React.CSSProperties => 
   justifyContent: "center",
   gap: 7,
   padding: "8px 12px",
-  borderRadius: 12,
+  borderRadius: 8,
   border: `1px solid ${active ? `rgba(${rgb},0.36)` : "rgba(255,255,255,0.12)"}`,
   background: active ? `rgba(${rgb},0.2)` : "rgba(255,255,255,0.055)",
   color: active ? "#fff" : "inherit",
@@ -499,6 +499,7 @@ export function ReleaseHealthDashboard() {
 
   return (
     <div
+      className="nx-devtools-release"
       style={{
         flex: 1,
         minHeight: 0,
@@ -507,15 +508,16 @@ export function ReleaseHealthDashboard() {
         background: `radial-gradient(circle at 16% 6%, rgba(${rgb},0.18), transparent 34%), radial-gradient(circle at 88% 0%, rgba(${rgb2},0.16), transparent 32%), rgba(3,8,22,0.18)`,
       }}
     >
-      <div style={{ maxWidth: 1480, margin: "0 auto", display: "flex", flexDirection: "column", gap: 16 }}>
+      <div className="nx-devtools-release-stack" style={{ maxWidth: 1480, margin: "0 auto", display: "flex", flexDirection: "column", gap: 16 }}>
         <Glass
+          className="nx-devtools-release-hero"
           type="panel"
           glow
           gradient
           performanceProfile="balanced"
           style={{
             padding: 20,
-            borderRadius: 26,
+            borderRadius: 16,
             overflow: "hidden",
             position: "relative",
           }}
@@ -528,7 +530,7 @@ export function ReleaseHealthDashboard() {
               background: `linear-gradient(120deg, rgba(${rgb},0.16), transparent 48%, rgba(${rgb2},0.14))`,
             }}
           />
-          <div style={{ position: "relative", display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto", gap: 18 }}>
+          <div className="nx-devtools-release-hero-grid" style={{ position: "relative", display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto", gap: 18 }}>
             <div>
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
                 <span
@@ -553,13 +555,11 @@ export function ReleaseHealthDashboard() {
                 </div>
               </div>
               <div style={{ maxWidth: 780, fontSize: 13, lineHeight: 1.65, opacity: 0.75 }}>
-                This cockpit turns the final Nexus v6 release pass into one focused operating surface. Keep it open while
-                testing accounts, checking roles, building installers and collecting evidence so the release decision stays
-                visible instead of scattered across terminals, docs and memory.
+                Focused release decisioning for account smokes, role gates, installers, security checks and evidence exports.
               </div>
             </div>
             <div style={{ minWidth: 280, display: "grid", gap: 10 }}>
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, flexWrap: "wrap" }}>
+              <div className="nx-devtools-release-actions" style={{ display: "flex", justifyContent: "flex-end", gap: 8, flexWrap: "wrap" }}>
                 <button onClick={copyReport} style={smallButton(copied, rgb)}>
                   {copied ? <CheckCircle2 size={14} /> : <Copy size={14} />}
                   {copied ? "Copied" : "Copy report"}
@@ -587,7 +587,7 @@ export function ReleaseHealthDashboard() {
               <div
                 style={{
                   padding: "12px 14px",
-                  borderRadius: 18,
+                  borderRadius: 12,
                   border: `1px solid rgba(${rgb},0.2)`,
                   background: "rgba(0,0,0,0.22)",
                   textAlign: "right",
@@ -602,8 +602,8 @@ export function ReleaseHealthDashboard() {
           </div>
         </Glass>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(150px, 1fr))", gap: 12 }}>
-          <div style={statusCardStyle(rgb)}>
+        <div className="nx-devtools-release-stats" style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(150px, 1fr))", gap: 12 }}>
+          <div className="nx-devtools-release-stat" style={statusCardStyle(rgb)}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, opacity: 0.68, fontSize: 11, fontWeight: 900 }}>
               <Activity size={14} color={t.accent} />
               Health Score
@@ -611,7 +611,7 @@ export function ReleaseHealthDashboard() {
             <div style={{ marginTop: 10, fontSize: 34, fontWeight: 950, color: score >= 85 ? "#32d74b" : t.accent }}>{score}%</div>
             <div style={{ fontSize: 11, opacity: 0.54 }}>{completedChecks.length}/{RELEASE_CHECKS.length} checks closed</div>
           </div>
-          <div style={statusCardStyle(rgb)}>
+          <div className="nx-devtools-release-stat" style={statusCardStyle(rgb)}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, opacity: 0.68, fontSize: 11, fontWeight: 900 }}>
               <AlertTriangle size={14} color="#ff453a" />
               Blockers
@@ -619,7 +619,7 @@ export function ReleaseHealthDashboard() {
             <div style={{ marginTop: 10, fontSize: 34, fontWeight: 950, color: openBlockers ? "#ff453a" : "#32d74b" }}>{openBlockers}</div>
             <div style={{ fontSize: 11, opacity: 0.54 }}>must be zero for release</div>
           </div>
-          <div style={statusCardStyle(rgb)}>
+          <div className="nx-devtools-release-stat" style={statusCardStyle(rgb)}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, opacity: 0.68, fontSize: 11, fontWeight: 900 }}>
               <PackageCheck size={14} color="#ff9f0a" />
               Required
@@ -627,7 +627,7 @@ export function ReleaseHealthDashboard() {
             <div style={{ marginTop: 10, fontSize: 34, fontWeight: 950, color: openRequired ? "#ff9f0a" : "#32d74b" }}>{openRequired}</div>
             <div style={{ fontSize: 11, opacity: 0.54 }}>packaging, roles, motion</div>
           </div>
-          <div style={statusCardStyle(rgb)}>
+          <div className="nx-devtools-release-stat" style={statusCardStyle(rgb)}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, opacity: 0.68, fontSize: 11, fontWeight: 900 }}>
               <ClipboardCheck size={14} color={t.accent2} />
               Evidence
@@ -635,7 +635,7 @@ export function ReleaseHealthDashboard() {
             <div style={{ marginTop: 10, fontSize: 34, fontWeight: 950 }}>{openEvidence}</div>
             <div style={{ fontSize: 11, opacity: 0.54 }}>docs, screenshots, QA proof</div>
           </div>
-          <div style={statusCardStyle(rgb)}>
+          <div className="nx-devtools-release-stat" style={statusCardStyle(rgb)}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, opacity: 0.68, fontSize: 11, fontWeight: 900 }}>
               <ShieldCheck size={14} color="#32d74b" />
               Control API
@@ -650,8 +650,8 @@ export function ReleaseHealthDashboard() {
           </div>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.15fr) minmax(360px, 0.85fr)", gap: 14, alignItems: "start" }}>
-          <Glass type="panel" gradient style={{ padding: 16, borderRadius: 22 }}>
+        <div className="nx-devtools-release-main-grid" style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.15fr) minmax(360px, 0.85fr)", gap: 14, alignItems: "start" }}>
+          <Glass type="panel" gradient style={{ padding: 16, borderRadius: 14 }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 14 }}>
               <div>
                 <div style={{ fontSize: 16, fontWeight: 950 }}>Release checklist</div>
@@ -690,7 +690,7 @@ export function ReleaseHealthDashboard() {
                               alignItems: "center",
                               gap: 11,
                               padding: "12px 13px",
-                              borderRadius: 16,
+                              borderRadius: 10,
                               border: `1px solid ${active ? `rgba(${rgb},0.28)` : "rgba(255,255,255,0.09)"}`,
                               background: active
                                 ? `linear-gradient(135deg, rgba(${rgb},0.18), rgba(50,215,75,0.08))`
@@ -740,7 +740,7 @@ export function ReleaseHealthDashboard() {
           </Glass>
 
           <div style={{ display: "grid", gap: 14 }}>
-            <Glass type="panel" gradient style={{ padding: 16, borderRadius: 22 }}>
+            <Glass type="panel" gradient style={{ padding: 16, borderRadius: 14 }}>
               <div style={{ fontSize: 16, fontWeight: 950, marginBottom: 4 }}>Runtime view map</div>
               <div style={{ fontSize: 11, opacity: 0.55, marginBottom: 13 }}>
                 Shows the app shell preload strategy that matters for first-start QA and performance regressions.
@@ -770,7 +770,7 @@ export function ReleaseHealthDashboard() {
               </div>
             </Glass>
 
-            <Glass type="panel" gradient style={{ padding: 16, borderRadius: 22 }}>
+            <Glass type="panel" gradient style={{ padding: 16, borderRadius: 14 }}>
               <div style={{ fontSize: 16, fontWeight: 950, marginBottom: 4 }}>Gate commands</div>
               <div style={{ fontSize: 11, opacity: 0.55, marginBottom: 12 }}>
                 These are the commands that should be green before deployment or public download promotion.
@@ -787,7 +787,7 @@ export function ReleaseHealthDashboard() {
                       justifyContent: "space-between",
                       gap: 12,
                       padding: "10px 12px",
-                      borderRadius: 14,
+                      borderRadius: 10,
                       border: "1px solid rgba(255,255,255,0.1)",
                       background: "rgba(0,0,0,0.2)",
                       color: "inherit",

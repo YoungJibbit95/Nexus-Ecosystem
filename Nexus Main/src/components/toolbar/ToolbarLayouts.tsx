@@ -1,7 +1,7 @@
 import React from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Glass } from "../Glass";
-import { VIEW_ITEMS, type ViewId } from "./constants";
+import { VIEW_ITEMS, type ToolbarViewItem, type ViewId } from "./constants";
 import { TOOLBAR_LAYOUT_CONFIG } from "./layoutConfig";
 import {
   FullWidthToolbarBrand,
@@ -38,6 +38,7 @@ type SharedLayoutProps = {
   setView?: (v: any) => void;
   motionRuntime: any;
   activeView?: ViewId;
+  viewItems?: ToolbarViewItem[];
 };
 
 type IslandToolbarLayoutProps = SharedLayoutProps & {
@@ -92,7 +93,7 @@ export function FullWidthToolbarLayout(props: SharedLayoutProps) {
 
   const fullCfg = TOOLBAR_LAYOUT_CONFIG.fullWidth;
   const { ref, width } = useElementWidth();
-  const navItems = VIEW_ITEMS;
+  const navItems = props.viewItems?.length ? props.viewItems : VIEW_ITEMS;
   const measuredWidth =
     width > 0
       ? width
@@ -392,7 +393,7 @@ export function IslandToolbarLayout(props: IslandToolbarLayoutProps) {
         ),
       )
     : Math.round(Math.max(146, Math.min(width * 0.22, 210)));
-  const visibleNavItems = VIEW_ITEMS;
+  const visibleNavItems = props.viewItems?.length ? props.viewItems : VIEW_ITEMS;
   const compactStatus = !expanded || islandCompact || width < 1220;
   const showIslandTime = expanded && !compactStatus && width >= 1320;
   const toolbarMotion = getMotionFamilyRuntime(motionRuntime, "toolbar");

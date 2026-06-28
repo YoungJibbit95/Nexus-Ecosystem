@@ -2,6 +2,17 @@ import type { NexusConnectionEvent, NexusPeerStatus } from '../types'
 import { getPayloadBytes, isBrowser, isValidEvent, isValidTarget, isValidType, now, uid } from './constants'
 import type { ConnectionListener, NexusConnectionOptions } from './options'
 
+const clampInteger = (value: unknown, fallback: number, min: number, max: number) => {
+  const normalized = Math.floor(Number(value ?? fallback))
+  if (!Number.isFinite(normalized)) return fallback
+  return Math.max(min, Math.min(max, normalized))
+}
+
+const normalizeTextOption = (value: unknown, fallback: string) => {
+  const normalized = String(value || '').trim()
+  return normalized || fallback
+}
+
 export class NexusConnectionManager {
   private appId: NexusConnectionOptions['appId']
   private channelName: string
@@ -22,13 +33,13 @@ export class NexusConnectionManager {
 
   constructor(options: NexusConnectionOptions) {
     this.appId = options.appId
-    this.channelName = options.channelName ?? 'nexus-ecosystem-bus'
-    this.heartbeatMs = options.heartbeatMs ?? 15_000
-    this.staleAfterMs = options.staleAfterMs ?? 45_000
-    this.storageKey = options.storageKey ?? '__nexus_ecosystem_bus__'
-    this.maxRecentEventIds = options.maxRecentEventIds ?? 1_200
-    this.maxPayloadBytes = options.maxPayloadBytes ?? 16_000
-    this.maxEventAgeMs = options.maxEventAgeMs ?? 5 * 60_000
+    this.channelName = normalizeTextOption(options.channelName, 'nexus-ecosystem-bus')
+    this.heartbeatMs = clampInteger(options.heartbeatMs, 15_000, 1_000, 120_000)
+    this.staleAfterMs = clampInteger(options.staleAfterMs, 45_000, this.heartbeatMs * 2, 10 * 60_000)
+    this.storageKey = normalizeTextOption(options.storageKey, '__nexus_ecosystem_bus__')
+    this.maxRecentEventIds = clampInteger(options.maxRecentEventIds, 1_200, 100, 10_000)
+    this.maxPayloadBytes = clampInteger(options.maxPayloadBytes, 16_000, 1_024, 256_000)
+    this.maxEventAgeMs = clampInteger(options.maxEventAgeMs, 5 * 60_000, 1_000, 60 * 60_000)
     this.debug = options.debug ?? false
   }
 
@@ -126,8 +137,11 @@ export class NexusConnectionManager {
   private handleIncoming(rawEvent: unknown) {
     if (!isValidEvent(rawEvent)) return
     const event = rawEvent as NexusConnectionEvent
+    const eventAgeMs = now() - event.timestamp
+    if (event.id.length > 128) return
+    if (Math.abs(eventAgeMs) > this.maxEventAgeMs) return
+    if (getPayloadBytes(event.payload) > this.maxPayloadBytes) return
     if (this.hasSeenEvent(event.id) || event.source === this.appId) return
-    if (now() - event.timestamp > this.maxEventAgeMs) return
     this.markEventSeen(event.id)
     if (event.target !== 'all' && event.target !== this.appId) return
     if (event.type === 'heartbeat') this.peers.set(event.source, event.timestamp)

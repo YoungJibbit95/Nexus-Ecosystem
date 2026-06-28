@@ -40,6 +40,14 @@ import {
   startGithubDeviceFlow,
   unstageGitPath,
 } from "../../pages/editor/gitPanelModel";
+import {
+  PanelBadge,
+  PanelBody,
+  PanelHeader,
+  PanelIconButton,
+  PanelShell,
+  PanelState,
+} from "./panels/PanelChrome.jsx";
 
 const DIFF_LINE_LIMIT = 220;
 
@@ -404,9 +412,10 @@ function uniqueFilePaths(files) {
 }
 
 export default function GitPanel({ files }) {
+  const fileList = useMemo(() => (Array.isArray(files) ? files : []), [files]);
   const [commitMsg, setCommitMsg] = useState("");
   const [staged, setStaged] = useState(new Set());
-  const [status, setStatus] = useState(() => buildFallbackGitStatus(files));
+  const [status, setStatus] = useState(() => buildFallbackGitStatus(fileList));
   const [remotes, setRemotes] = useState([]);
   const [remoteLoading, setRemoteLoading] = useState(false);
   const [remoteError, setRemoteError] = useState("");
@@ -444,8 +453,9 @@ export default function GitPanel({ files }) {
     settings: false,
   });
 
-  const workspaceRoot = useMemo(() => inferWorkspaceRoot(files), [files]);
-  const branch = status.branch || "main";
+  const workspaceRoot = useMemo(() => inferWorkspaceRoot(fileList), [fileList]);
+  const hasWorkspace = Boolean(workspaceRoot);
+  const branch = hasWorkspace ? status.branch || "main" : "No workspace";
   const changedFiles = useMemo(() => status.files || [], [status.files]);
   const unstagedFiles = useMemo(
     () => changedFiles.filter((file) => !staged.has(file.id)),
@@ -455,7 +465,7 @@ export default function GitPanel({ files }) {
     () => changedFiles.filter((file) => staged.has(file.id)),
     [changedFiles, staged],
   );
-  const hasLocalGit = gitCapability.available;
+  const hasLocalGit = hasWorkspace && gitCapability.available;
   const canDiff = hasLocalGit && gitCapability.methods.includes("diff");
   const canPull = hasLocalGit && gitCapability.methods.includes("pull");
   const canPush = hasLocalGit && gitCapability.methods.includes("push");
@@ -475,18 +485,26 @@ export default function GitPanel({ files }) {
     );
   }, [remotes, status.upstream]);
 
-  const remoteLabel = primaryRemote?.name || status.upstream?.split("/")?.[0] || "No remote";
+  const remoteLabel = hasWorkspace
+    ? primaryRemote?.name || status.upstream?.split("/")?.[0] || "No remote"
+    : "Workspace closed";
   const remoteDetail =
-    status.upstream ||
-    primaryRemote?.fetchUrl ||
-    (remoteLoading ? "Loading remotes..." : "No upstream configured");
+    !hasWorkspace
+      ? "Open a folder to inspect Git status."
+      : status.upstream ||
+        primaryRemote?.fetchUrl ||
+        (remoteLoading ? "Loading remotes..." : "No upstream configured");
   const syncLabel =
-    status.ahead > 0 || status.behind > 0
+    !hasWorkspace
+      ? "No workspace"
+      : status.ahead > 0 || status.behind > 0
       ? `${status.ahead} ahead / ${status.behind} behind`
       : "Up to date";
   const syncTone = status.behind > 0 ? "warn" : status.ahead > 0 ? "good" : "neutral";
 
-  const commitDisabledReason = !hasLocalGit
+  const commitDisabledReason = !hasWorkspace
+    ? "Open a workspace to commit."
+    : !hasLocalGit
     ? "Local Git IPC is required to commit."
     : stagedFiles.length === 0
       ? "Stage at least one file to commit."
@@ -498,18 +516,20 @@ export default function GitPanel({ files }) {
 
   const refreshHistory = useCallback(
     async (settings = readGithubSettings()) => {
-      try {
-        const localHistory = await loadLocalGitHistory({
-          cwd: workspaceRoot,
-          limit: 12,
-        });
-        if (localHistory.length > 0) {
-          setHistory(localHistory);
-          setHistorySource("Local");
-          return;
+      if (workspaceRoot) {
+        try {
+          const localHistory = await loadLocalGitHistory({
+            cwd: workspaceRoot,
+            limit: 12,
+          });
+          if (localHistory.length > 0) {
+            setHistory(localHistory);
+            setHistorySource("Local");
+            return;
+          }
+        } catch {
+          // A missing log bridge is fine while IPC catches up.
         }
-      } catch {
-        // A missing log bridge is fine while IPC catches up.
       }
 
       if (!settings.owner || !settings.repo) return;
@@ -575,7 +595,7 @@ export default function GitPanel({ files }) {
           await refreshLocalRemotes(capability, { silent: true });
           await refreshHistory();
         } else {
-          const fallback = buildFallbackGitStatus(files);
+          const fallback = buildFallbackGitStatus(fileList);
           setStatus(fallback);
           setRemotes([]);
           setRemoteError("");
@@ -586,14 +606,14 @@ export default function GitPanel({ files }) {
         }
       } catch (error) {
         console.error("Git status failed", error);
-        setStatus(buildFallbackGitStatus(files));
+        setStatus(buildFallbackGitStatus(fileList));
         setRemotes([]);
         setErrorMsg(error?.message || "Git status failed");
       } finally {
         if (!silent) setRefreshing(false);
       }
     },
-    [files, refreshHistory, refreshLocalRemotes, workspaceRoot],
+    [fileList, refreshHistory, refreshLocalRemotes, workspaceRoot],
   );
 
   const refreshGithubBackend = useCallback(async () => {
@@ -638,14 +658,14 @@ export default function GitPanel({ files }) {
 
   useEffect(() => {
     refreshGitStatus();
-    refreshGithubBackend();
-  }, [refreshGitStatus, refreshGithubBackend]);
+    if (workspaceRoot) refreshGithubBackend();
+  }, [refreshGitStatus, refreshGithubBackend, workspaceRoot]);
 
   useEffect(() => {
     if (!hasLocalGit) {
-      setStatus(buildFallbackGitStatus(files));
+      setStatus(buildFallbackGitStatus(fileList));
     }
-  }, [files, hasLocalGit]);
+  }, [fileList, hasLocalGit]);
 
   useEffect(() => {
     setSelectedFileId((current) =>
@@ -724,7 +744,7 @@ export default function GitPanel({ files }) {
       return next;
     });
 
-    if (!hasLocalGit || file.source !== "git") {
+    if (!workspaceRoot || !hasLocalGit || file.source !== "git") {
       setStageBusyIds((prev) => {
         const next = new Set(prev);
         next.delete(file.id);
@@ -768,7 +788,7 @@ export default function GitPanel({ files }) {
       return next;
     });
 
-    if (!hasLocalGit) {
+    if (!workspaceRoot || !hasLocalGit) {
       setBulkAction("");
       return;
     }
@@ -791,7 +811,7 @@ export default function GitPanel({ files }) {
     setBulkAction("unstage");
     setStaged(new Set());
 
-    if (!hasLocalGit) {
+    if (!workspaceRoot || !hasLocalGit) {
       setBulkAction("");
       return;
     }
@@ -883,6 +903,10 @@ export default function GitPanel({ files }) {
   };
 
   const handlePull = async () => {
+    if (!workspaceRoot) {
+      setErrorMsg("Open a workspace to pull.");
+      return;
+    }
     if (!canPull) {
       setErrorMsg("Local Git pull is not exposed by this bridge.");
       return;
@@ -901,6 +925,7 @@ export default function GitPanel({ files }) {
   };
 
   const canCommit =
+    hasWorkspace &&
     hasLocalGit &&
     commitMsg.trim().length > 0 &&
     stagedFiles.length > 0 &&
@@ -908,7 +933,8 @@ export default function GitPanel({ files }) {
 
   const handleCommitAndPush = async () => {
     if (!canCommit) {
-      if (!hasLocalGit) setErrorMsg("Local Git IPC is required for commit.");
+      if (!hasWorkspace) setErrorMsg("Open a workspace to commit.");
+      else if (!hasLocalGit) setErrorMsg("Local Git IPC is required for commit.");
       return;
     }
 
@@ -939,49 +965,35 @@ export default function GitPanel({ files }) {
     : "";
 
   return (
-    <motion.div
-      initial={{ x: -260, opacity: 0 }}
-      animate={{ x: 0, opacity: 1 }}
-      transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
-      className="w-72 flex flex-col shrink-0 overflow-hidden"
-      style={{
-        background: "rgba(6, 6, 20, 0.4)",
-        backdropFilter: "blur(20px)",
-        borderRight: "1px solid rgba(255, 255, 255, 0.05)",
-      }}
-    >
-      <div className="px-3 pt-3 pb-2 shrink-0 flex items-center justify-between">
-        <span className="text-[11px] font-semibold text-gray-500 tracking-widest uppercase">
-          Source Control
-        </span>
-        <div className="flex items-center gap-1">
-          <motion.button
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            onClick={() => refreshGitStatus()}
-            disabled={refreshing}
-            title="Refresh local Git status"
-            className="p-1 rounded-md hover:bg-white/[0.06] text-gray-500 hover:text-gray-300 transition-colors disabled:cursor-wait disabled:opacity-60"
-          >
-            <RefreshCw
-              size={12}
-              className={refreshing ? "animate-spin text-purple-400" : ""}
-            />
-          </motion.button>
-          <motion.button
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            onClick={() => toggleSection("settings")}
-            title="Git providers"
-            className="p-1 rounded-md hover:bg-white/[0.06] text-gray-500 hover:text-gray-300 transition-colors"
-          >
-            <GitFork
-              size={12}
-              className={githubCapability.available ? "text-green-400" : ""}
-            />
-          </motion.button>
-        </div>
-      </div>
+    <PanelShell ariaLabel="Source Control">
+      <PanelHeader
+        icon={GitBranch}
+        title="Source Control"
+        subtitle={hasWorkspace ? workspaceRoot : "Open a folder to inspect changes"}
+        status={
+          <PanelBadge tone={!hasWorkspace ? "warning" : clean ? "success" : "accent"}>
+            {branch}
+          </PanelBadge>
+        }
+        actions={
+          <>
+            <PanelIconButton
+              onClick={() => refreshGitStatus()}
+              disabled={refreshing || !hasWorkspace}
+              label="Refresh local Git status"
+            >
+              <RefreshCw className={refreshing ? "animate-spin text-purple-400" : ""} />
+            </PanelIconButton>
+            <PanelIconButton
+              onClick={() => toggleSection("settings")}
+              label="Git providers"
+              active={sections.settings}
+            >
+              <GitFork className={githubCapability.available ? "text-green-400" : ""} />
+            </PanelIconButton>
+          </>
+        }
+      />
 
       <div className="px-3 pb-3 shrink-0 space-y-2">
         <div
@@ -1056,7 +1068,16 @@ export default function GitPanel({ files }) {
         style={{ height: "1px", background: "rgba(128,0,255,0.08)" }}
       />
 
-      <div className="flex-1 overflow-y-auto">
+      <PanelBody className="px-0 py-1">
+        {!hasWorkspace && (
+          <PanelState
+            icon={GitBranch}
+            tone="warning"
+            title="Open a workspace"
+            detail="Source Control stays idle until a folder with files is selected. Provider settings remain available."
+          />
+        )}
+
         <AnimatePresence>
           {sections.settings && (
             <motion.div
@@ -1273,6 +1294,8 @@ export default function GitPanel({ files }) {
           </div>
         )}
 
+        {hasWorkspace && (
+          <>
         <SectionHeader
           title="Changes"
           count={unstagedFiles.length}
@@ -1589,7 +1612,9 @@ export default function GitPanel({ files }) {
             </motion.div>
           )}
         </AnimatePresence>
-      </div>
-    </motion.div>
+          </>
+        )}
+      </PanelBody>
+    </PanelShell>
   );
 }

@@ -10,6 +10,7 @@ import {
   Save,
   Download,
   Upload,
+  Search,
 } from "lucide-react";
 import { useTheme } from "../../store/themeStore";
 import { useTerminal } from "../../store/terminalStore";
@@ -50,6 +51,7 @@ export function SettingsShell({
   const [msg, setMsg] = useState<string | null>(null);
   const [presetEditorOpen, setPresetEditorOpen] = useState(false);
   const [presetNameDraft, setPresetNameDraft] = useState("");
+  const [moduleQuery, setModuleQuery] = useState("");
   const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
   const [showExperimentalSettings, setShowExperimentalSettings] = useState(false);
   const [transferFeedback, setTransferFeedback] =
@@ -64,11 +66,17 @@ export function SettingsShell({
 
   const downloadJson = (fileName: string, payload: string) => {
     const blob = new Blob([payload], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
+    a.href = url;
     a.download = fileName;
+    a.style.display = "none";
+    document.body.appendChild(a);
     a.click();
-    URL.revokeObjectURL(a.href);
+    window.setTimeout(() => {
+      URL.revokeObjectURL(url);
+      a.remove();
+    }, 0);
   };
   const toast = (text: string) => {
     if (toastTimerRef.current !== null) {
@@ -187,6 +195,15 @@ export function SettingsShell({
         toast("Import fehlgeschlagen");
       }
     };
+    reader.onerror = () => {
+      setTransferFeedback({
+        kind: "error",
+        title: "Import fehlgeschlagen",
+        fileName: file.name,
+        details: ["Datei konnte vom Browser nicht gelesen werden."],
+      });
+      toast("Import fehlgeschlagen");
+    };
     reader.readAsText(file);
   };
 
@@ -205,10 +222,22 @@ export function SettingsShell({
 
   const importSettings = (file: File) => {
     if (!file.name.toLowerCase().endsWith(".json")) {
+      setTransferFeedback({
+        kind: "error",
+        title: "Settings Import fehlgeschlagen",
+        fileName: file.name,
+        details: ["Nur JSON-Dateien sind erlaubt."],
+      });
       toast("Nur JSON-Dateien sind erlaubt");
       return;
     }
     if (file.size > 2 * 1024 * 1024) {
+      setTransferFeedback({
+        kind: "error",
+        title: "Settings Import fehlgeschlagen",
+        fileName: file.name,
+        details: ["Datei ist groesser als 2MB und wurde nicht geladen."],
+      });
       toast("Settings-Datei zu gross");
       return;
     }
@@ -247,6 +276,15 @@ export function SettingsShell({
           : ["Alle validierten Settings wurden angewendet."],
       });
       toast(parsed.warnings.length ? "Settings importiert mit Fallbacks" : "Settings importiert");
+    };
+    reader.onerror = () => {
+      setTransferFeedback({
+        kind: "error",
+        title: "Settings Import fehlgeschlagen",
+        fileName: file.name,
+        details: ["Datei konnte vom Browser nicht gelesen werden."],
+      });
+      toast("Settings Import fehlgeschlagen");
     };
     reader.readAsText(file);
   };
@@ -321,6 +359,26 @@ export function SettingsShell({
   };
 
   const activeModule = MODULES.find((m) => m.id === module);
+  const normalizedModuleQuery = moduleQuery.trim().toLowerCase();
+  const visibleModules = useMemo(
+    () =>
+      normalizedModuleQuery
+        ? MODULES.filter((item) =>
+            `${item.id} ${item.title} ${item.desc}`
+              .toLowerCase()
+              .includes(normalizedModuleQuery),
+          )
+        : MODULES,
+    [normalizedModuleQuery],
+  );
+  const settingsSummary = [
+    { label: "Mode", value: t.mode },
+    { label: "Density", value: t.qol?.panelDensity ?? "comfortable" },
+    { label: "Motion", value: t.qol?.motionProfile ?? "balanced" },
+    { label: "Panel", value: panelRenderer },
+    { label: "Bg", value: t.background?.mode ?? "solid" },
+    { label: "Glass", value: `${Math.round((t.background?.overlayOpacity ?? 0.7) * 100)}%` },
+  ];
 
   return (
     <div
@@ -333,9 +391,8 @@ export function SettingsShell({
         padding: 12,
         fontFamily: t.globalFont,
         background:
-          t.mode === "dark"
-            ? "linear-gradient(180deg, rgba(10,12,19,0.96), rgba(10,12,19,0.92))"
-            : "linear-gradient(180deg, #f5f6fb, #eceef7)",
+          "radial-gradient(900px circle at 12% -18%, rgba(var(--nx-shell-accent-rgb, 34, 211, 238), 0.08), transparent 64%), transparent",
+        ["--nx-settings-accent-rgb" as any]: rgb,
       }}
     >
       <aside
@@ -344,14 +401,15 @@ export function SettingsShell({
           width: "clamp(236px, 24vw, 290px)",
           borderRadius: 20,
           border: "1px solid rgba(255,255,255,0.12)",
-          background:
-            t.mode === "dark"
-              ? "linear-gradient(180deg, rgba(24,26,34,0.9), rgba(17,20,28,0.84))"
-              : "linear-gradient(180deg, rgba(255,255,255,0.95), rgba(246,247,252,0.92))",
+          background: "var(--nx-panel-bg, rgba(14,18,30,0.42))",
+          backgroundSize: "var(--nx-panel-bg-size, 100% 100%)",
+          backgroundBlendMode: "var(--nx-panel-bg-blend, normal)",
           boxShadow:
             t.mode === "dark"
-              ? "0 14px 38px rgba(0,0,0,0.34)"
+              ? "0 14px 38px rgba(0,0,0,0.22)"
               : "0 14px 30px rgba(40,52,78,0.14)",
+          backdropFilter: `blur(${Math.max(8, Math.min(26, t.blur.sidebarBlur))}px) saturate(${Math.max(120, Math.min(220, t.glassmorphism.saturation))}%)`,
+          WebkitBackdropFilter: `blur(${Math.max(8, Math.min(26, t.blur.sidebarBlur))}px) saturate(${Math.max(120, Math.min(220, t.glassmorphism.saturation))}%)`,
           padding: "12px 10px",
           display: "flex",
           flexDirection: "column",
@@ -384,6 +442,83 @@ export function SettingsShell({
         </div>
 
         <div
+          className="nx-settings-summary"
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+            gap: 6,
+            marginBottom: 8,
+          }}
+        >
+          {settingsSummary.map((entry) => (
+            <div
+              key={entry.label}
+              style={{
+                minWidth: 0,
+                borderRadius: 9,
+                border: "1px solid rgba(255,255,255,0.1)",
+                background: "rgba(255,255,255,0.035)",
+                padding: "6px 7px",
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 9,
+                  opacity: 0.45,
+                  textTransform: "uppercase",
+                  letterSpacing: 0.6,
+                }}
+              >
+                {entry.label}
+              </div>
+              <div
+                style={{
+                  marginTop: 2,
+                  fontSize: 11,
+                  fontWeight: 780,
+                  color: entry.label === "Mode" ? t.accent : "inherit",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {entry.value}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <label
+          className="nx-settings-module-search"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 7,
+            borderRadius: 11,
+            border: "1px solid rgba(255,255,255,0.12)",
+            background: "rgba(255,255,255,0.045)",
+            padding: "8px 9px",
+            marginBottom: 8,
+          }}
+        >
+          <Search size={13} style={{ opacity: 0.5, flexShrink: 0 }} />
+          <input
+            value={moduleQuery}
+            onChange={(event) => setModuleQuery(event.target.value)}
+            placeholder="Settings suchen..."
+            style={{
+              width: "100%",
+              minWidth: 0,
+              border: "none",
+              outline: "none",
+              background: "transparent",
+              color: "inherit",
+              fontSize: 12,
+            }}
+          />
+        </label>
+
+        <div
           style={{
             flex: 1,
             minHeight: 0,
@@ -394,7 +529,7 @@ export function SettingsShell({
             paddingRight: 4,
           }}
         >
-          {MODULES.map((item) => {
+          {visibleModules.map((item) => {
             const active = item.id === module;
             return (
               <button
@@ -435,6 +570,21 @@ export function SettingsShell({
               </button>
             );
           })}
+          {visibleModules.length === 0 ? (
+            <div
+              style={{
+                borderRadius: 11,
+                border: "1px dashed rgba(255,255,255,0.14)",
+                background: "rgba(255,255,255,0.025)",
+                padding: "12px 10px",
+                fontSize: 11,
+                lineHeight: 1.45,
+                opacity: 0.62,
+              }}
+            >
+              Kein Settings-Modul passt zur Suche.
+            </div>
+          ) : null}
         </div>
 
         <div
@@ -655,14 +805,15 @@ export function SettingsShell({
           overflowY: "auto",
           borderRadius: 20,
           border: "1px solid rgba(255,255,255,0.12)",
-          background:
-            t.mode === "dark"
-              ? "linear-gradient(180deg, rgba(20,22,32,0.93), rgba(14,16,24,0.88))"
-              : "linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,249,254,0.95))",
+          background: "var(--nx-panel-bg, rgba(14,18,30,0.42))",
+          backgroundSize: "var(--nx-panel-bg-size, 100% 100%)",
+          backgroundBlendMode: "var(--nx-panel-bg-blend, normal)",
           boxShadow:
             t.mode === "dark"
-              ? "0 14px 38px rgba(0,0,0,0.3)"
+              ? "0 14px 38px rgba(0,0,0,0.2)"
               : "0 14px 30px rgba(40,52,78,0.12)",
+          backdropFilter: `blur(${Math.max(8, Math.min(28, t.blur.panelBlur))}px) saturate(${Math.max(120, Math.min(220, t.glassmorphism.saturation))}%)`,
+          WebkitBackdropFilter: `blur(${Math.max(8, Math.min(28, t.blur.panelBlur))}px) saturate(${Math.max(120, Math.min(220, t.glassmorphism.saturation))}%)`,
           padding: "14px clamp(12px, 2vw, 22px) 20px",
         }}
       >
@@ -674,7 +825,10 @@ export function SettingsShell({
             style={{
               borderRadius: 13,
               border: "1px solid rgba(255,255,255,0.12)",
-              background: "rgba(20,22,30,0.5)",
+              background:
+                t.mode === "dark"
+                  ? "rgba(8, 12, 24, 0.34)"
+                  : "rgba(255,255,255,0.54)",
               backdropFilter: "blur(14px)",
               WebkitBackdropFilter: "blur(14px)",
               padding: "10px 12px",
@@ -701,6 +855,22 @@ export function SettingsShell({
               </div>
               <div style={{ fontSize: 11, opacity: 0.62, marginTop: 2 }}>
                 {activeModule?.desc}
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  gap: 6,
+                  flexWrap: "wrap",
+                  marginTop: 8,
+                  fontSize: 10,
+                  opacity: 0.72,
+                }}
+              >
+                <span>Preset zuerst, Detailregler danach</span>
+                <span style={{ opacity: 0.38 }}>/</span>
+                <span>
+                  {showAdvancedSettings ? "Advanced sichtbar" : "Einfacher Modus"}
+                </span>
               </div>
             </div>
             <div

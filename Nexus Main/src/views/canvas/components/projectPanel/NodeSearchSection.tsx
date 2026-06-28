@@ -1,5 +1,5 @@
 import React from "react";
-import { Search } from "lucide-react";
+import { Search, X } from "lucide-react";
 import { type CanvasNode } from "../../../../store/canvasStore";
 import { formatNodeMeta } from "./helpers";
 
@@ -12,6 +12,7 @@ type NodeSearchSectionProps = {
   bulkToggle: (nodeId: string) => void;
   jumpToNode: (nodeId: string) => void;
   searchInputRef?: React.RefObject<HTMLInputElement | null>;
+  totalNodeCount: number;
 };
 
 export function NodeSearchSection({
@@ -23,92 +24,76 @@ export function NodeSearchSection({
   bulkToggle,
   jumpToNode,
   searchInputRef,
+  totalNodeCount,
 }: NodeSearchSectionProps) {
+  const hasQuery = searchQuery.trim().length > 0;
+  const resultLabel = hasQuery
+    ? `${searchedNodes.length}/${totalNodeCount} matches`
+    : `${searchedNodes.length}/${totalNodeCount} shown`;
+
   return (
-    <div
-      style={{
-        border: "1px solid rgba(255,255,255,0.12)",
-        borderRadius: 10,
-        padding: 10,
-        marginBottom: 10,
-        background: "rgba(255,255,255,0.04)",
-      }}
-    >
-      <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 8 }}>
-        <Search size={12} style={{ opacity: 0.7 }} />
-        <div style={{ fontSize: 11, fontWeight: 700 }}>Find / Jump to Node</div>
+    <section className="nx-canvas-project-section">
+      <div className="nx-canvas-project-section-title">
+        <Search size={12} />
+        <span>Search</span>
+        <small>{resultLabel}</small>
       </div>
-      <input
-        ref={searchInputRef}
-        value={searchQuery}
-        onChange={(event) => setSearchQuery(event.target.value)}
-        placeholder="Titel, Typ, Tag oder Inhalt…"
-        style={{
-          width: "100%",
-          fontSize: 11,
-          padding: "7px 8px",
-          borderRadius: 8,
-          background: "rgba(255,255,255,0.08)",
-          border: "1px solid rgba(255,255,255,0.14)",
-          color: "inherit",
-          marginBottom: 8,
-        }}
-      />
-      <div style={{ maxHeight: 162, overflow: "auto", display: "flex", flexDirection: "column", gap: 6 }}>
+      <label className="nx-canvas-project-search-box">
+        <Search size={13} />
+        <input
+          ref={searchInputRef}
+          value={searchQuery}
+          onChange={(event) => setSearchQuery(event.target.value)}
+          placeholder="Title, type, tag, owner, content..."
+          className="nx-canvas-project-input"
+        />
+        {hasQuery ? (
+          <button
+            type="button"
+            onClick={() => setSearchQuery("")}
+            title="Suche leeren"
+            aria-label="Suche leeren"
+          >
+            <X size={12} />
+          </button>
+        ) : null}
+      </label>
+      <div className="nx-canvas-project-result-list">
         {searchedNodes.length === 0 ? (
-          <div style={{ fontSize: 11, opacity: 0.55 }}>Keine Treffer.</div>
+          <div className="nx-canvas-project-empty">Keine Treffer.</div>
         ) : (
           searchedNodes.map((node) => {
             const checked = Boolean(bulkSelected[node.id]);
             return (
-              <div
-                key={node.id}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 7,
-                  border: "1px solid rgba(255,255,255,0.1)",
-                  borderRadius: 8,
-                  background: "rgba(255,255,255,0.04)",
-                  padding: "5px 7px",
-                }}
-              >
+              <div key={node.id} className="nx-canvas-project-result">
                 <input
                   type="checkbox"
                   checked={checked}
                   onChange={() => bulkToggle(node.id)}
-                  style={{ width: 12, height: 12, accentColor: accent, cursor: "pointer" }}
+                  className="nx-canvas-project-result-check"
+                  style={{ accentColor: accent }}
+                  aria-label={`${node.title || "Untitled"} fuer Bulk Edit markieren`}
                 />
                 <button
+                  type="button"
                   onClick={() => jumpToNode(node.id)}
-                  style={{
-                    flex: 1,
-                    textAlign: "left",
-                    border: "none",
-                    background: "transparent",
-                    color: "inherit",
-                    cursor: "pointer",
-                    minWidth: 0,
-                  }}
+                  className="nx-canvas-project-result-button"
                 >
-                  <div
-                    style={{
-                      fontSize: 11,
-                      fontWeight: 700,
-                      overflow: "hidden",
-                      whiteSpace: "nowrap",
-                      textOverflow: "ellipsis",
-                    }}
-                  >
-                    {node.title || "Untitled"}
-                  </div>
-                  <div style={{ fontSize: 10, opacity: 0.58 }}>{formatNodeMeta(node)}</div>
+                  <strong>{node.title || "Untitled"}</strong>
+                  <span>{formatNodeMeta(node)}</span>
+                  {(node.owner || node.tags?.length) ? (
+                    <small>
+                      {[node.owner ? `owner: ${node.owner}` : "", ...(node.tags || []).slice(0, 2)]
+                        .filter(Boolean)
+                        .join(" / ")}
+                    </small>
+                  ) : null}
                 </button>
               </div>
             );
           })
         )}
       </div>
-    </div>
+    </section>
   );
 }

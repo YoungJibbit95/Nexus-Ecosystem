@@ -5,50 +5,100 @@ import {
   Link2,
   LogOut,
   Save,
+  ShieldCheck,
   Trash2,
   UserRound,
   Wifi,
 } from "lucide-react";
 import { getAccountSessionState, normalizeAccountSession } from "../../app/accountSession";
+import {
+  PANEL_INPUT_CLASS,
+  PANEL_SELECT_CLASS,
+  PanelBadge,
+  PanelBody,
+  PanelFooter,
+  PanelHeader,
+  PanelMetric,
+  PanelShell,
+} from "./panels/PanelChrome.jsx";
 
-const STATUS_TONE = {
-  online: "border-emerald-400/30 bg-emerald-500/[0.12] text-emerald-100",
-  limited: "border-amber-400/35 bg-amber-500/[0.12] text-amber-100",
-  offline: "border-sky-400/30 bg-sky-500/[0.12] text-sky-100",
-  degraded: "border-orange-400/30 bg-orange-500/[0.12] text-orange-100",
+const STATUS_META = {
+  online: {
+    tone: "success",
+    icon: CheckCircle2,
+    label: "Online",
+    color: "#86efac",
+    background: "rgba(34,197,94,0.1)",
+    border: "rgba(34,197,94,0.22)",
+  },
+  limited: {
+    tone: "warning",
+    icon: ShieldCheck,
+    label: "Limited",
+    color: "#fbbf24",
+    background: "rgba(251,191,36,0.09)",
+    border: "rgba(251,191,36,0.24)",
+  },
+  offline: {
+    tone: "muted",
+    icon: UserRound,
+    label: "Offline",
+    color: "#93c5fd",
+    background: "rgba(59,130,246,0.08)",
+    border: "rgba(59,130,246,0.2)",
+  },
+  degraded: {
+    tone: "danger",
+    icon: ShieldCheck,
+    label: "Degraded",
+    color: "#fdba74",
+    background: "rgba(249,115,22,0.1)",
+    border: "rgba(249,115,22,0.24)",
+  },
 };
 
-const FIELD_CLASS =
-  "h-9 w-full min-w-0 rounded-md border border-white/10 bg-black/[0.24] px-3 text-[12px] text-[var(--nexus-text,#f4f4f5)] outline-none transition-colors placeholder:text-zinc-500 focus:border-sky-400/50 focus:bg-black/[0.32]";
+function Field({ icon: Icon, label, children }) {
+  return (
+    <label className="block min-w-0">
+      <span className="mb-1.5 flex min-w-0 items-center gap-1.5 px-0.5 text-[10px] font-semibold uppercase tracking-wide text-gray-500">
+        <Icon size={12} className="shrink-0" />
+        <span className="truncate">{label}</span>
+      </span>
+      {children}
+    </label>
+  );
+}
 
-function IconButton({ children, label, onClick, disabled = false, tone = "default" }) {
-  const toneClass = tone === "danger"
-    ? "border-red-400/25 text-red-100 hover:bg-red-500/[0.15]"
-    : "border-white/10 text-zinc-200 hover:bg-white/10";
-
+function AccountButton({ children, onClick, disabled, tone = "default", title }) {
+  const danger = tone === "danger";
+  const primary = tone === "primary";
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
-      title={label}
-      aria-label={label}
-      className={`inline-flex h-9 min-w-9 max-w-full items-center justify-center gap-2 rounded-md border px-2.5 text-[12px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-45 ${toneClass}`}
+      title={title}
+      className="flex h-8 min-w-0 items-center justify-center gap-1.5 rounded-md border px-2.5 text-[11px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-45"
+      style={{
+        background: primary
+          ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.16)"
+          : danger
+            ? "rgba(239,68,68,0.1)"
+            : "rgba(255,255,255,0.04)",
+        borderColor: primary
+          ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.28)"
+          : danger
+            ? "rgba(239,68,68,0.24)"
+            : "rgba(255,255,255,0.09)",
+        color: primary
+          ? "var(--nexus-primary, #7c8cff)"
+          : danger
+            ? "#fca5a5"
+            : "#d1d5db",
+      }}
     >
       {children}
     </button>
-  );
-}
-
-function Field({ icon: Icon, label, children }) {
-  return (
-    <label className="block min-w-0">
-      <span className="mb-1.5 flex min-w-0 items-center gap-1.5 px-0.5 text-[10px] font-semibold uppercase text-zinc-400">
-        <Icon size={12} />
-        <span className="truncate">{label}</span>
-      </span>
-      {children}
-    </label>
   );
 }
 
@@ -73,12 +123,14 @@ export default function AccountPanel({
   }, [normalizedSession]);
 
   const statusMode = testResult?.mode || controlStatus?.mode || "offline";
-  const statusTone = STATUS_TONE[statusMode] || STATUS_TONE.degraded;
+  const statusMeta = STATUS_META[statusMode] || STATUS_META.degraded;
+  const StatusIcon = statusMeta.icon;
   const accountLabel = sessionState.hasIdentity
     ? normalizedSession.username || normalizedSession.userId
     : sessionState.hasToken
       ? "Token session"
-      : "Lokale Session";
+      : "Local session";
+  const details = testResult?.details || controlStatus?.details || [];
 
   const updateDraft = (field, value) => {
     setDraft((prev) => ({
@@ -105,46 +157,68 @@ export default function AccountPanel({
     try {
       const result = await onTestConnection(draft);
       setTestResult(result);
+    } catch (error) {
+      setTestResult({
+        mode: "degraded",
+        message: error?.message || "Connection test failed.",
+        details: [],
+      });
     } finally {
       setBusy(false);
     }
   };
 
   return (
-    <section
-      className="nx-code-account-panel isolate flex h-full min-h-0 w-full max-w-full flex-col overflow-hidden bg-transparent text-zinc-100"
-      aria-label="Nexus Account"
-    >
-      <div className="nx-code-account-panel-header flex min-h-14 w-full shrink-0 items-center gap-3 border-b border-white/5 px-4 py-2 text-left">
-        <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-md border ${statusTone}`}>
-          {statusMode === "online" ? <CheckCircle2 size={16} /> : <UserRound size={16} />}
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-[12px] font-bold text-[var(--nexus-text,#f4f4f5)]">{accountLabel}</span>
-          <span className="block truncate text-[10px] text-zinc-400">
-            {controlStatus?.title || "Control API Status"} - {statusMode}
-          </span>
-        </span>
-        <span className="flex h-7 shrink-0 items-center rounded-md border border-white/[0.07] bg-white/[0.03] px-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-400">
-          Panel
-        </span>
-      </div>
+    <PanelShell ariaLabel="Nexus Account">
+      <PanelHeader
+        icon={UserRound}
+        title="Account"
+        subtitle={`${controlStatus?.title || "Control API"} - ${statusMeta.label}`}
+        status={<PanelBadge tone={statusMeta.tone}>{statusMeta.label}</PanelBadge>}
+      >
+        <div className="grid grid-cols-3 gap-1.5">
+          <PanelMetric
+            label="Identity"
+            value={sessionState.hasIdentity ? "Set" : "Local"}
+            tone={sessionState.hasIdentity ? "success" : "muted"}
+          />
+          <PanelMetric
+            label="Token"
+            value={sessionState.hasToken ? "Present" : "Empty"}
+            tone={sessionState.hasToken ? "accent" : "muted"}
+          />
+          <PanelMetric label="Tier" value={draft.userTier || "free"} tone="accent" />
+        </div>
+      </PanelHeader>
 
-      <div className="nx-code-account-panel-body custom-scrollbar min-h-0 flex-1 overflow-y-auto px-4 pb-4 pt-3">
-        <div className={`mb-3 max-w-full overflow-hidden rounded-md border px-3 py-2 text-[11px] leading-5 ${statusTone}`}>
-          <div className="break-words font-semibold">{testResult?.message || controlStatus?.message || "Lokale Session bereit."}</div>
-          {(testResult?.details || controlStatus?.details || []).length > 0 ? (
-            <div className="mt-1 break-words opacity-75">
-              {(testResult?.details || controlStatus?.details || []).join(", ")}
+      <PanelBody className="px-3 py-3">
+        <div
+          className="mb-3 rounded-lg border px-3 py-2"
+          style={{
+            background: statusMeta.background,
+            borderColor: statusMeta.border,
+          }}
+        >
+          <div className="flex min-w-0 items-start gap-2">
+            <StatusIcon size={15} className="mt-0.5 shrink-0" style={{ color: statusMeta.color }} />
+            <div className="min-w-0 flex-1">
+              <p className="break-words text-[12px] font-semibold" style={{ color: statusMeta.color }}>
+                {testResult?.message || controlStatus?.message || "Local session ready."}
+              </p>
+              {details.length > 0 ? (
+                <p className="mt-1 break-words text-[10px] text-gray-400">
+                  {details.join(", ")}
+                </p>
+              ) : null}
             </div>
-          ) : null}
+          </div>
         </div>
 
         <div className="grid gap-3">
           <Field icon={Link2} label="API Endpoint">
             <input
-              className={FIELD_CLASS}
-              value={draft.endpoint}
+              className={PANEL_INPUT_CLASS}
+              value={draft.endpoint || ""}
               onChange={(event) => updateDraft("endpoint", event.target.value)}
               placeholder="https://nexus-api.cloud"
               autoCapitalize="off"
@@ -155,8 +229,8 @@ export default function AccountPanel({
 
           <Field icon={KeyRound} label="Access Token">
             <input
-              className={FIELD_CLASS}
-              value={draft.token}
+              className={PANEL_INPUT_CLASS}
+              value={draft.token || ""}
               onChange={(event) => updateDraft("token", event.target.value)}
               placeholder="Nexus API token"
               type="password"
@@ -166,11 +240,11 @@ export default function AccountPanel({
             />
           </Field>
 
-          <div className="grid grid-cols-1 gap-3">
+          <div className="grid grid-cols-2 gap-2">
             <Field icon={UserRound} label="User ID">
               <input
-                className={FIELD_CLASS}
-                value={draft.userId}
+                className={PANEL_INPUT_CLASS}
+                value={draft.userId || ""}
                 onChange={(event) => updateDraft("userId", event.target.value)}
                 placeholder="local-user"
                 autoCapitalize="off"
@@ -178,11 +252,12 @@ export default function AccountPanel({
                 spellCheck={false}
               />
             </Field>
-            <Field icon={UserRound} label="Tier">
+            <Field icon={ShieldCheck} label="Tier">
               <select
-                className={FIELD_CLASS}
-                value={draft.userTier}
+                className={PANEL_SELECT_CLASS}
+                value={draft.userTier || "free"}
                 onChange={(event) => updateDraft("userTier", event.target.value)}
+                style={{ colorScheme: "dark" }}
               >
                 <option value="free">free</option>
                 <option value="pro">pro</option>
@@ -194,8 +269,8 @@ export default function AccountPanel({
 
           <Field icon={UserRound} label="Username">
             <input
-              className={FIELD_CLASS}
-              value={draft.username}
+              className={PANEL_INPUT_CLASS}
+              value={draft.username || ""}
               onChange={(event) => updateDraft("username", event.target.value)}
               placeholder="nexus-user"
               autoCapitalize="off"
@@ -204,28 +279,28 @@ export default function AccountPanel({
             />
           </Field>
         </div>
+      </PanelBody>
 
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-          <div className="flex min-w-0 flex-wrap gap-2">
-            <IconButton label="Test Connection" onClick={handleTest} disabled={busy}>
-              <Wifi size={15} />
-              <span className="hidden sm:inline">{busy ? "Testing" : "Test"}</span>
-            </IconButton>
-            <IconButton label="Save Session" onClick={handleSave}>
-              <Save size={15} />
-              <span className="hidden sm:inline">Save</span>
-            </IconButton>
-          </div>
-          <div className="flex shrink-0 gap-2">
-            <IconButton label="Clear Fields" onClick={() => setDraft(normalizeAccountSession({}))}>
-              <Trash2 size={15} />
-            </IconButton>
-            <IconButton label="Logout" onClick={handleClear} tone="danger">
-              <LogOut size={15} />
-            </IconButton>
-          </div>
+      <PanelFooter>
+        <div className="grid grid-cols-2 gap-1.5">
+          <AccountButton onClick={handleTest} disabled={busy || !onTestConnection} title="Test connection">
+            <Wifi size={14} />
+            {busy ? "Testing" : "Test"}
+          </AccountButton>
+          <AccountButton onClick={handleSave} tone="primary" title="Save session">
+            <Save size={14} />
+            Save
+          </AccountButton>
+          <AccountButton onClick={() => setDraft(normalizeAccountSession({}))} title="Clear fields">
+            <Trash2 size={14} />
+            Clear
+          </AccountButton>
+          <AccountButton onClick={handleClear} tone="danger" title="Logout">
+            <LogOut size={14} />
+            Logout
+          </AccountButton>
         </div>
-      </div>
-    </section>
+      </PanelFooter>
+    </PanelShell>
   );
 }

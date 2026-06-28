@@ -80,8 +80,16 @@ export function MainShellLayout({
         accent2: t.accent2,
         appBg: t.bg,
         colorMode: t.mode,
+        backgroundVisibility: t.background?.overlayOpacity,
       }),
-    [t.accent, t.accent2, t.background?.panelBgMode, t.bg, t.mode],
+    [
+      t.accent,
+      t.accent2,
+      t.background?.overlayOpacity,
+      t.background?.panelBgMode,
+      t.bg,
+      t.mode,
+    ],
   );
   const appShellSurfaceTokens = React.useMemo(
     () =>
@@ -124,6 +132,7 @@ export function MainShellLayout({
         <Suspense fallback={null}>
           <NexusToolbar
             activeView={view}
+            availableViews={availableViews}
             setView={(v: any) => {
               onRequestViewChange(v);
             }}

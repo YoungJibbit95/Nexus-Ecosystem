@@ -44,6 +44,37 @@ export const resolvePrivateApiRoot = (root) => {
   return path.join(root, DEFAULT_API_CLIENT_DIR)
 }
 
+export const resolveControlUiRoot = async ({ root, required = false, quiet = true } = {}) => {
+  if (!root) throw new Error('resolveControlUiRoot benoetigt root')
+
+  const configured = String(process.env.NEXUS_CONTROL_UI_ROOT || '').trim()
+  const candidates = [
+    configured,
+    path.resolve(root, '..', 'Nexus Control'),
+    path.resolve(root, '..', 'NexusAPI', 'Nexus Control'),
+    path.resolve(root, 'NexusAPI', 'Nexus Control'),
+  ].filter(Boolean)
+
+  for (const candidate of candidates) {
+    const packagePath = path.join(candidate, 'package.json')
+    if (await exists(packagePath)) {
+      if (!quiet) {
+        console.log(`[control-ui] Source: ${path.relative(root, candidate) || candidate}`)
+      }
+      return candidate
+    }
+  }
+
+  if (required) {
+    throw new Error(
+      'Nexus Control UI nicht gefunden. Setze NEXUS_CONTROL_UI_ROOT oder lege das Projekt als '
+      + '../Nexus Control bzw. ../NexusAPI/Nexus Control ab.'
+    )
+  }
+
+  return null
+}
+
 export const resolveApiSource = async ({ root, quiet = true } = {}) => {
   if (!root) throw new Error('resolveApiSource benoetigt root')
 

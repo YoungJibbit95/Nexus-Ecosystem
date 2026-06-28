@@ -134,9 +134,9 @@
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "perMachine": true,
-      "allowElevation": true,
-      "artifactName": "Nexus_Main_Setup_${version}.exe",
+      "perMachine": false,
+      "allowElevation": false,
+      "artifactName": "Nexus_Main_User_Setup_${version}.exe",
       "installerIcon": "assets/icons/NexusLogo1.ico",
       "uninstallerIcon": "assets/icons/NexusLogo1.ico"
     }

@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react'
-import { Copy, Check, RefreshCw, Play, Code2, Calculator, Monitor, Tablet, Smartphone, Download, Trash2, Edit3, MoreVertical, Layout, Sliders, Save, Rocket, Flag } from 'lucide-react'
+import { Copy, Check, RefreshCw, Play, Code2, Calculator, Monitor, Tablet, Smartphone, Download, Trash2, Edit3, MoreVertical, Layout, Sliders, Save, Rocket, Flag, Search } from 'lucide-react'
 import {
   DEFAULT_DEVTOOLS_WEB_FILES,
   extractDevToolsCodeBundles,
@@ -59,6 +59,71 @@ function useCopy() {
   }
 
   return { copy, copied: k }
+}
+
+function ToolbarGroup({ label, children, grow = false }: { label: string; children: React.ReactNode; grow?: boolean }) {
+  return (
+    <div
+      className="nx-devtools-toolbar-group"
+      data-grow={grow ? 'true' : 'false'}
+      style={{
+        display:'flex',
+        alignItems:'center',
+        gap:7,
+        padding:'5px',
+        border:'1px solid rgba(255,255,255,0.08)',
+        borderRadius:10,
+        background:'rgba(255,255,255,0.035)',
+        minWidth:0,
+        flex:grow ? '1 1 260px' : '0 0 auto',
+      }}
+    >
+      <span
+        className="nx-devtools-toolbar-group-label"
+        style={{ fontSize:9, fontWeight:900, opacity:0.44, textTransform:'uppercase', letterSpacing:0.8, padding:'0 2px', whiteSpace:'nowrap' }}
+      >
+        {label}
+      </span>
+      <div className="nx-devtools-toolbar-group-actions" style={{ display:'flex', alignItems:'center', gap:5, minWidth:0, flexWrap:'wrap' }}>
+        {children}
+      </div>
+    </div>
+  )
+}
+
+function PreviewFrame({
+  viewport,
+  viewportWidth,
+  iframeRef,
+}: {
+  viewport: 'desktop'|'tablet'|'mobile'
+  viewportWidth: string
+  iframeRef: React.RefObject<HTMLIFrameElement | null>
+}) {
+  return (
+    <div
+      className="nx-devtools-preview-stage"
+      style={{ flex:1, overflow:'hidden', display:'flex', alignItems:'center', justifyContent:'center', background:'rgba(0,0,0,0.18)', padding:viewport!=='desktop'?10:0, minHeight:0 }}
+    >
+      <div
+        className="nx-devtools-device-frame"
+        data-viewport={viewport}
+        style={{
+          width:viewportWidth,
+          height:'100%',
+          maxHeight:'100%',
+          transition:'width 0.3s ease',
+          boxShadow:viewport!=='desktop'?'0 8px 40px rgba(0,0,0,0.6)':undefined,
+          borderRadius:viewport!=='desktop'?12:0,
+          overflow:'hidden',
+          border:'1px solid rgba(255,255,255,0.08)',
+          background:'radial-gradient(circle at 18% 0%, rgba(56, 87, 140, 0.28), rgba(3, 6, 18, 0.95) 60%)',
+        }}
+      >
+        <iframe ref={iframeRef} style={{ width:'100%', height:'100%', border:'none', background:'transparent', display:'block', colorScheme:'dark' }} sandbox="allow-scripts" title="DevTools preview"/>
+      </div>
+    </div>
+  )
 }
 
 // ── Code editor textarea ────────────────────────────────────────────────────
@@ -254,6 +319,18 @@ const ELEM_TABS = [
   { id:'text',    label:'Text' },
 ]
 
+const BUILDER_MODES: Array<{ id: DevToolsBuilderSubTab; label: string; summary: string; Icon: React.ComponentType<{ size?: number }> }> = [
+  { id:'code', label:'Code', summary:'Files + live preview', Icon:Code2 },
+  { id:'designer', label:'Designer', summary:'Element CSS lab', Icon:Sliders },
+  { id:'visual', label:'Visual', summary:'No-code layout canvas', Icon:Layout },
+]
+
+const VIEWPORT_MODES: Array<{ id: 'desktop'|'tablet'|'mobile'; label: string; Icon: React.ComponentType<{ size?: number }> }> = [
+  { id:'desktop', label:'Desktop', Icon:Monitor },
+  { id:'tablet', label:'Tablet', Icon:Tablet },
+  { id:'mobile', label:'Mobile', Icon:Smartphone },
+]
+
 function ElementDesigner() {
   const t = useTheme()
   const rgb = hexToRgb(t.accent)
@@ -407,6 +484,8 @@ function WebBuilder() {
   const activeFile = files.find(f=>f.id===activeId) || files[0]
   const vpWidth = vp==='desktop'?'100%':vp==='tablet'?'768px':'375px'
   const bundles = useMemo(() => extractDevToolsCodeBundles(files), [files])
+  const activeMode = BUILDER_MODES.find((mode) => mode.id === subTab) ?? BUILDER_MODES[0]
+  const fileCountLabel = `${files.length} file${files.length === 1 ? '' : 's'}`
 
   const updateFile = (id: string, content: string) =>
     setFiles(fs => fs.map(f => f.id===id ? {...f, content} : f))
@@ -624,11 +703,17 @@ function WebBuilder() {
 
   const downloadArtifactJson = useCallback((artifact: DevToolsArtifact) => {
     const safeTitle = artifact.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || artifact.kind
+    const url = URL.createObjectURL(new Blob([JSON.stringify(artifact, null, 2)], { type: 'application/json' }))
     const a = document.createElement('a')
-    a.href = URL.createObjectURL(new Blob([JSON.stringify(artifact, null, 2)], { type: 'application/json' }))
+    a.href = url
     a.download = `nexus-${artifact.kind}-${safeTitle}.json`
+    a.style.display = 'none'
+    document.body.appendChild(a)
     a.click()
-    URL.revokeObjectURL(a.href)
+    window.setTimeout(() => {
+      URL.revokeObjectURL(url)
+      a.remove()
+    }, 0)
   }, [])
 
   useEffect(()=>{
@@ -639,49 +724,62 @@ function WebBuilder() {
   },[files,autoRun,run])
 
   const downloadProject = () => {
+    const url = URL.createObjectURL(new Blob([buildSrc()],{type:'text/html'}))
     const a=document.createElement('a')
-    a.href=URL.createObjectURL(new Blob([buildSrc()],{type:'text/html'}))
-    a.download='nexus-project.html'; a.click()
-    URL.revokeObjectURL(a.href)
+    a.href=url
+    a.download='nexus-project.html'
+    a.style.display='none'
+    document.body.appendChild(a)
+    a.click()
+    window.setTimeout(() => {
+      URL.revokeObjectURL(url)
+      a.remove()
+    }, 0)
   }
 
   return (
     <div className="nx-devtools-builder" style={{ display:'flex', flexDirection:'column', height:'100%', overflow:'hidden' }}>
       {/* Toolbar */}
-      <div className="nx-devtools-builder-toolbar" style={{ display:'flex', alignItems:'center', gap:8, padding:'7px 12px', borderBottom:'1px solid rgba(255,255,255,0.07)', flexShrink:0, background:'rgba(0,0,0,0.1)', flexWrap:'wrap' }}>
-        {/* Sub-tabs: Code vs Designer */}
-        <div style={{ display:'flex', background:'rgba(255,255,255,0.06)', borderRadius:9, overflow:'hidden' }}>
-          <button onClick={()=>setSubTab('code')} style={{ padding:'5px 12px', background:subTab==='code'?t.accent:'transparent', border:'none', cursor:'pointer', fontSize:11, fontWeight:700, color:subTab==='code'?'#fff':'inherit', opacity:subTab==='code'?1:0.55, display:'flex', alignItems:'center', gap:5 }}>
-            <Code2 size={12}/> Code
-          </button>
-          <button onClick={()=>setSubTab('designer')} style={{ padding:'5px 12px', background:subTab==='designer'?t.accent:'transparent', border:'none', cursor:'pointer', fontSize:11, fontWeight:700, color:subTab==='designer'?'#fff':'inherit', opacity:subTab==='designer'?1:0.55, display:'flex', alignItems:'center', gap:5 }}>
-            <Sliders size={12}/> Designer
-          </button>
-          <button onClick={()=>setSubTab('visual')} style={{ padding:'5px 12px', background:subTab==='visual'?t.accent:'transparent', border:'none', cursor:'pointer', fontSize:11, fontWeight:700, color:subTab==='visual'?'#fff':'inherit', opacity:subTab==='visual'?1:0.55, display:'flex', alignItems:'center', gap:5 }}>
-            <Layout size={12}/> Visual
-          </button>
-        </div>
+      <div className="nx-devtools-builder-toolbar" style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 12px', borderBottom:'1px solid rgba(255,255,255,0.07)', flexShrink:0, background:'rgba(0,0,0,0.12)', flexWrap:'wrap' }}>
+        <ToolbarGroup label="Mode">
+          {BUILDER_MODES.map(({ id, label, Icon }) => (
+            <button
+              key={id}
+              onClick={()=>setSubTab(id)}
+              aria-pressed={subTab===id}
+              title={label}
+              className="nx-devtools-segment-button"
+              style={{ padding:'6px 10px', borderRadius:7, background:subTab===id?t.accent:'transparent', border:'none', cursor:'pointer', fontSize:11, fontWeight:800, color:subTab===id?'#fff':'inherit', opacity:subTab===id?1:0.62, display:'flex', alignItems:'center', gap:5 }}
+            >
+              <Icon size={12}/> {label}
+            </button>
+          ))}
+        </ToolbarGroup>
 
-        <div style={{ height:18, width:1, background:'rgba(255,255,255,0.1)' }}/>
-
-        {/* Viewport */}
-        <div style={{ display:'flex', background:'rgba(255,255,255,0.06)', borderRadius:8, overflow:'hidden' }}>
-          {([['desktop',Monitor],['tablet',Tablet],['mobile',Smartphone]] as const).map(([v,Icon])=>(
-            <button key={v} onClick={()=>setVp(v as any)} style={{ padding:'5px 8px', background:vp===v?`rgba(${rgb},0.2)`:'transparent', border:'none', cursor:'pointer', color:vp===v?t.accent:'inherit', opacity:vp===v?1:0.45, display:'flex', alignItems:'center' }}>
+        <ToolbarGroup label="Preview">
+          {VIEWPORT_MODES.map(({ id, label, Icon }) => (
+            <button
+              key={id}
+              onClick={()=>setVp(id)}
+              aria-pressed={vp===id}
+              title={label}
+              className="nx-devtools-icon-button"
+              style={{ width:30, height:28, borderRadius:7, background:vp===id?`rgba(${rgb},0.2)`:'transparent', border:'none', cursor:'pointer', color:vp===id?t.accent:'inherit', opacity:vp===id?1:0.48, display:'grid', placeItems:'center' }}
+            >
               <Icon size={13}/>
             </button>
           ))}
-        </div>
+          <label className="nx-devtools-switch" style={{ display:'flex', alignItems:'center', gap:5, fontSize:10, opacity:0.72, cursor:'pointer', padding:'0 4px' }}>
+            <input type="checkbox" checked={autoRun} onChange={e=>setAutoRun(e.target.checked)} style={{ cursor:'pointer' }}/> Auto
+          </label>
+        </ToolbarGroup>
 
-        <label style={{ display:'flex', alignItems:'center', gap:4, fontSize:10, opacity:0.6, cursor:'pointer' }}>
-          <input type="checkbox" checked={autoRun} onChange={e=>setAutoRun(e.target.checked)} style={{ cursor:'pointer' }}/> Auto-run
-        </label>
-
-        <div style={{ display:'flex', alignItems:'center', gap:6, marginLeft:8 }}>
+        <ToolbarGroup label="Artifacts" grow>
           <select
             value={saveKind}
             onChange={(event) => setSaveKind(event.target.value as DevToolsArtifactKind)}
-            style={{ padding:'5px 6px', borderRadius:7, background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.1)', color:'inherit', fontSize:10, fontWeight:700 }}
+            title="Artifact type"
+            style={{ padding:'6px 7px', borderRadius:7, background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.1)', color:'inherit', fontSize:10, fontWeight:800 }}
           >
             <option value="recipe">Recipe</option>
             <option value="snippet">Snippet</option>
@@ -693,37 +791,45 @@ function WebBuilder() {
             value={saveLabel}
             onChange={(event) => setSaveLabel(event.target.value)}
             placeholder="Optional name"
-            style={{ width:120, padding:'5px 7px', borderRadius:7, background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.1)', color:'inherit', fontSize:10 }}
+            className="nx-devtools-save-name"
+            style={{ width:140, minWidth:0, padding:'6px 8px', borderRadius:7, background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.1)', color:'inherit', fontSize:10 }}
           />
           <button
             onClick={saveCurrentArtifact}
-            style={{ display:'flex', alignItems:'center', gap:4, padding:'5px 10px', borderRadius:7, background:`rgba(${rgb},0.18)`, border:`1px solid rgba(${rgb},0.28)`, cursor:'pointer', fontSize:10, fontWeight:700, color:t.accent }}
+            style={{ display:'flex', alignItems:'center', gap:4, padding:'6px 10px', borderRadius:7, background:`rgba(${rgb},0.18)`, border:`1px solid rgba(${rgb},0.28)`, cursor:'pointer', fontSize:10, fontWeight:800, color:t.accent }}
           >
             <Save size={11}/> Save
           </button>
-        </div>
+        </ToolbarGroup>
 
-        <div style={{ flex:1 }}/>
-        <button onClick={downloadProject} style={{ display:'flex', alignItems:'center', gap:4, padding:'5px 10px', borderRadius:7, background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.1)', cursor:'pointer', fontSize:10, fontWeight:600 }}>
-          <Download size={11}/> Export
-        </button>
-        <button onClick={run} style={{ display:'flex', alignItems:'center', gap:5, padding:'5px 13px', borderRadius:8, background:t.accent, border:'none', cursor:'pointer', fontSize:11, fontWeight:700, color:'#fff', boxShadow:`0 2px 12px rgba(${rgb},0.4)` }}>
-          <Play size={11} fill="currentColor"/> Run
-        </button>
+        <ToolbarGroup label="Actions">
+          <button onClick={downloadProject} style={{ display:'flex', alignItems:'center', gap:4, padding:'6px 10px', borderRadius:7, background:'rgba(255,255,255,0.07)', border:'1px solid rgba(255,255,255,0.1)', cursor:'pointer', fontSize:10, fontWeight:700, color:'inherit' }}>
+            <Download size={11}/> Export
+          </button>
+          <button onClick={run} style={{ display:'flex', alignItems:'center', gap:5, padding:'6px 13px', borderRadius:8, background:t.accent, border:'none', cursor:'pointer', fontSize:11, fontWeight:800, color:'#fff', boxShadow:`0 2px 12px rgba(${rgb},0.4)` }}>
+            <Play size={11} fill="currentColor"/> Run
+          </button>
+        </ToolbarGroup>
       </div>
 
       {/* Body */}
       <div className="nx-devtools-builder-body" style={{ flex:1, display:'flex', overflow:'hidden', minHeight:0 }}>
         {subTab === 'code' ? <>
           {/* File tree sidebar */}
-          <div className="nx-devtools-file-panel" style={{ width:230, flexShrink:0, borderRight:'1px solid rgba(255,255,255,0.07)', background:'rgba(0,0,0,0.12)', overflow:'hidden', display:'flex', flexDirection:'column' }}>
-            <div style={{ display:'flex', padding:'8px 8px 0', gap:4 }}>
-              <button onClick={() => setLeftPane('files')} style={{ flex:1, padding:'5px 8px', borderRadius:7, border:`1px solid ${leftPane==='files'?`rgba(${rgb},0.24)`:'rgba(255,255,255,0.1)'}`, background:leftPane==='files'?`rgba(${rgb},0.12)`:'rgba(255,255,255,0.03)', color:leftPane==='files'?t.accent:'inherit', fontSize:10, fontWeight:700, cursor:'pointer' }}>
-                Files
-              </button>
-              <button onClick={() => setLeftPane('library')} style={{ flex:1, padding:'5px 8px', borderRadius:7, border:`1px solid ${leftPane==='library'?`rgba(${rgb},0.24)`:'rgba(255,255,255,0.1)'}`, background:leftPane==='library'?`rgba(${rgb},0.12)`:'rgba(255,255,255,0.03)', color:leftPane==='library'?t.accent:'inherit', fontSize:10, fontWeight:700, cursor:'pointer' }}>
-                Library ({artifacts.length})
-              </button>
+          <div className="nx-devtools-file-panel" style={{ width:248, flexShrink:0, borderRight:'1px solid rgba(255,255,255,0.07)', background:'rgba(0,0,0,0.12)', overflow:'hidden', display:'flex', flexDirection:'column' }}>
+            <div style={{ padding:'9px 10px 5px', borderBottom:'1px solid rgba(255,255,255,0.06)' }}>
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, marginBottom:7 }}>
+                <span style={{ fontSize:10, fontWeight:900, opacity:0.52, textTransform:'uppercase', letterSpacing:0.8 }}>Project</span>
+                <span style={{ fontSize:10, opacity:0.48 }}>{fileCountLabel}</span>
+              </div>
+              <div className="nx-devtools-pane-tabs" style={{ display:'flex', gap:4 }}>
+                <button onClick={() => setLeftPane('files')} aria-pressed={leftPane==='files'} style={{ flex:1, padding:'6px 8px', borderRadius:7, border:`1px solid ${leftPane==='files'?`rgba(${rgb},0.24)`:'rgba(255,255,255,0.1)'}`, background:leftPane==='files'?`rgba(${rgb},0.12)`:'rgba(255,255,255,0.03)', color:leftPane==='files'?t.accent:'inherit', fontSize:10, fontWeight:800, cursor:'pointer' }}>
+                  Files
+                </button>
+                <button onClick={() => setLeftPane('library')} aria-pressed={leftPane==='library'} style={{ flex:1, padding:'6px 8px', borderRadius:7, border:`1px solid ${leftPane==='library'?`rgba(${rgb},0.24)`:'rgba(255,255,255,0.1)'}`, background:leftPane==='library'?`rgba(${rgb},0.12)`:'rgba(255,255,255,0.03)', color:leftPane==='library'?t.accent:'inherit', fontSize:10, fontWeight:800, cursor:'pointer' }}>
+                  Library ({artifacts.length})
+                </button>
+              </div>
             </div>
             <div style={{ flex:1, minHeight:0 }}>
               {leftPane === 'files' ? (
@@ -741,19 +847,38 @@ function WebBuilder() {
           </div>
 
           {/* Active file editor */}
-          <div className="nx-devtools-code-panel" style={{ flex:'0 0 45%', display:'flex', flexDirection:'column', overflow:'hidden', minHeight:0, borderRight:'1px solid rgba(255,255,255,0.07)' }}>
+          <div className="nx-devtools-code-panel" style={{ flex:'0 0 42%', display:'flex', flexDirection:'column', overflow:'hidden', minHeight:0, borderRight:'1px solid rgba(255,255,255,0.07)' }}>
+            <div className="nx-devtools-panel-header" style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:10, padding:'8px 12px', borderBottom:'1px solid rgba(255,255,255,0.07)', background:'rgba(0,0,0,0.12)', flexShrink:0 }}>
+              <div style={{ minWidth:0 }}>
+                <div style={{ fontSize:11, fontWeight:900, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{activeFile?.name ?? 'No file selected'}</div>
+                <div style={{ fontSize:9, opacity:0.46, textTransform:'uppercase', letterSpacing:0.7 }}>{activeFile?.type ?? 'file'}</div>
+              </div>
+              {activeFile && (
+                <button
+                  onClick={() => copy(activeFile.content, 'active-file')}
+                  style={{ display:'flex', alignItems:'center', gap:5, padding:'5px 8px', borderRadius:7, border:'1px solid rgba(255,255,255,0.1)', background:copied==='active-file'?`rgba(${rgb},0.14)`:'rgba(255,255,255,0.05)', color:copied==='active-file'?t.accent:'inherit', cursor:'pointer', fontSize:10, fontWeight:800 }}
+                >
+                  {copied==='active-file'?<Check size={11}/>:<Copy size={11}/>} Copy
+                </button>
+              )}
+            </div>
             {activeFile && <CodePane value={activeFile.content} onChange={v=>updateFile(activeFile.id,v)} lang={activeFile.type}/>}
           </div>
 
           {/* Preview + console */}
           <div className="nx-devtools-preview-panel" style={{ flex:1, display:'flex', flexDirection:'column', overflow:'hidden', minHeight:0 }}>
-            <div style={{ flex:1, overflow:'hidden', display:'flex', alignItems:'center', justifyContent:'center', background:'rgba(0,0,0,0.18)', padding:vp!=='desktop'?10:0 }}>
-              <div style={{ width:vpWidth, height:'100%', maxHeight:'100%', transition:'width 0.3s ease', boxShadow:vp!=='desktop'?'0 8px 40px rgba(0,0,0,0.6)':undefined, borderRadius:vp!=='desktop'?12:0, overflow:'hidden', border:'1px solid rgba(255,255,255,0.08)', background:'radial-gradient(circle at 18% 0%, rgba(56, 87, 140, 0.28), rgba(3, 6, 18, 0.95) 60%)' }}>
-                <iframe ref={iframeRef} style={{ width:'100%', height:'100%', border:'none', background:'transparent', display:'block', colorScheme:'dark' }} sandbox="allow-scripts" title="Preview"/>
+            <div className="nx-devtools-panel-header" style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:10, padding:'8px 12px', borderBottom:'1px solid rgba(255,255,255,0.07)', background:'rgba(0,0,0,0.12)', flexShrink:0 }}>
+              <div style={{ minWidth:0 }}>
+                <div style={{ fontSize:11, fontWeight:900 }}>{activeMode.label} Preview</div>
+                <div style={{ fontSize:9, opacity:0.46 }}>{activeMode.summary} / {vp}</div>
               </div>
+              <button onClick={run} style={{ display:'flex', alignItems:'center', gap:5, padding:'5px 9px', borderRadius:7, background:`rgba(${rgb},0.16)`, border:`1px solid rgba(${rgb},0.24)`, color:t.accent, cursor:'pointer', fontSize:10, fontWeight:800 }}>
+                <Play size={11} fill="currentColor"/> Run
+              </button>
             </div>
+            <PreviewFrame viewport={vp} viewportWidth={vpWidth} iframeRef={iframeRef} />
             {consoleOut.length>0 && (
-              <div style={{ flexShrink:0, maxHeight:90, overflowY:'auto', borderTop:'1px solid rgba(255,255,255,0.07)', background:'rgba(0,0,0,0.28)', padding:'5px 12px' }}>
+              <div style={{ flexShrink:0, maxHeight:96, overflowY:'auto', borderTop:'1px solid rgba(255,255,255,0.07)', background:'rgba(0,0,0,0.28)', padding:'6px 12px' }}>
                 {consoleOut.map((line,i)=><div key={i} style={{ fontSize:11, fontFamily:'monospace', lineHeight:1.6, color:line.startsWith('ERR')?'#ff453a':line.startsWith('WARN')?'#ffd60a':'inherit', opacity:0.85 }}>{line}</div>)}
               </div>
             )}
@@ -763,13 +888,20 @@ function WebBuilder() {
           <div className="nx-devtools-element-panel" style={{ width:'55%', flexShrink:0, padding:'12px 14px', overflow:'auto', borderRight:'1px solid rgba(255,255,255,0.07)' }}>
             <ElementDesigner/>
           </div>
-          <div className="nx-devtools-preview-panel" style={{ flex:1, overflow:'hidden', display:'flex', alignItems:'center', justifyContent:'center', background:'rgba(0,0,0,0.18)', padding:vp!=='desktop'?10:0 }}>
-            <div style={{ width:vpWidth, height:'100%', maxHeight:'100%', transition:'width 0.3s ease', boxShadow:vp!=='desktop'?'0 8px 40px rgba(0,0,0,0.6)':undefined, borderRadius:vp!=='desktop'?12:0, overflow:'hidden', border:'1px solid rgba(255,255,255,0.08)', background:'radial-gradient(circle at 18% 0%, rgba(56, 87, 140, 0.28), rgba(3, 6, 18, 0.95) 60%)' }}>
-              <iframe ref={iframeRef} style={{ width:'100%', height:'100%', border:'none', background:'transparent', display:'block', colorScheme:'dark' }} sandbox="allow-scripts" title="Preview"/>
+          <div className="nx-devtools-preview-panel" style={{ flex:1, overflow:'hidden', display:'flex', flexDirection:'column', minHeight:0 }}>
+            <div className="nx-devtools-panel-header" style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:10, padding:'8px 12px', borderBottom:'1px solid rgba(255,255,255,0.07)', background:'rgba(0,0,0,0.12)', flexShrink:0 }}>
+              <div style={{ minWidth:0 }}>
+                <div style={{ fontSize:11, fontWeight:900 }}>Project Preview</div>
+                <div style={{ fontSize:9, opacity:0.46 }}>Current builder files / {vp}</div>
+              </div>
+              <button onClick={run} style={{ display:'flex', alignItems:'center', gap:5, padding:'5px 9px', borderRadius:7, background:`rgba(${rgb},0.16)`, border:`1px solid rgba(${rgb},0.24)`, color:t.accent, cursor:'pointer', fontSize:10, fontWeight:800 }}>
+                <Play size={11} fill="currentColor"/> Run
+              </button>
             </div>
+            <PreviewFrame viewport={vp} viewportWidth={vpWidth} iframeRef={iframeRef} />
           </div>
         </> : (
-          <div style={{ flex:1, minHeight:0, overflow:'hidden', padding:12 }}>
+          <div className="nx-devtools-visual-pane" style={{ flex:1, minHeight:0, overflow:'hidden', padding:12 }}>
             <VisualBuilder onApplyToCode={applyVisualBuilderToCode} />
           </div>
         )}
@@ -779,32 +911,222 @@ function WebBuilder() {
 }
 
 // ── Main ───────────────────────────────────────────────────────────────────
+const DEVTOOLS_TABS = [
+  {
+    id: 'builder',
+    label: 'Builder',
+    summary: 'Code, Visual Builder und Live Preview',
+    Icon: Code2,
+  },
+  {
+    id: 'calc',
+    label: 'Calculator',
+    summary: 'Layout-, Motion- und CSS-Rechner',
+    Icon: Calculator,
+  },
+  {
+    id: 'release',
+    label: 'Release',
+    summary: 'QA Gates, Release Health und Smoke-Status',
+    Icon: Rocket,
+  },
+  {
+    id: 'flags',
+    label: 'Feature Flags',
+    summary: 'Rollout-Entscheidungen und lokale Flag-Drafts',
+    Icon: Flag,
+  },
+] as const
+
+type DevToolsTab = (typeof DEVTOOLS_TABS)[number]['id']
+
+const DEVTOOLS_COMMANDS: Array<{
+  id: DevToolsTab
+  tone: 'build' | 'calc' | 'release' | 'flags'
+  action: string
+  detail: string
+  keywords: string
+}> = [
+  {
+    id: 'builder',
+    tone: 'build',
+    action: 'Open builder workbench',
+    detail: 'Files, artifact library, live preview and visual builder in one place.',
+    keywords: 'code builder html css js visual preview artifact component prototype',
+  },
+  {
+    id: 'calc',
+    tone: 'calc',
+    action: 'Open calculators',
+    detail: 'Layout, scale, motion and CSS helpers for fast UI decisions.',
+    keywords: 'calculator layout spacing scale motion css clamp grid',
+  },
+  {
+    id: 'release',
+    tone: 'release',
+    action: 'Open release health',
+    detail: 'QA gates, smoke status and exportable release evidence.',
+    keywords: 'release qa gates smoke evidence health deploy checklist',
+  },
+  {
+    id: 'flags',
+    tone: 'flags',
+    action: 'Open feature flags',
+    detail: 'Draft rollout settings, risks and validation before shipping.',
+    keywords: 'feature flags rollout control risk validation catalog',
+  },
+]
+
 export function DevToolsView() {
   const t = useTheme()
-  const [tab, setTab]     = useState<'builder'|'calc'|'release'|'flags'>('builder')
+  const [tab, setTab] = useState<DevToolsTab>('builder')
+  const [commandQuery, setCommandQuery] = useState('')
+  const activeTab = DEVTOOLS_TABS.find((entry) => entry.id === tab) ?? DEVTOOLS_TABS[0]
+  const ActiveIcon = activeTab.Icon
+  const titleRgb = hexToRgb(t.accent)
+  const commandResults = useMemo(() => {
+    const query = commandQuery.trim().toLowerCase()
+    const enriched = DEVTOOLS_COMMANDS.map((command) => ({
+      ...command,
+      tab: DEVTOOLS_TABS.find((entry) => entry.id === command.id) ?? DEVTOOLS_TABS[0],
+    }))
+    if (!query) return enriched
+    return enriched.filter(({ tab, action, detail, keywords }) =>
+      `${tab.label} ${tab.summary} ${action} ${detail} ${keywords}`
+        .toLowerCase()
+        .includes(query),
+    )
+  }, [commandQuery])
 
   return (
     <div className="nx-devtools-v6 nx-release-view" style={{ display:'flex',flexDirection:'column',height:'100%',overflow:'hidden' }}>
       {/* Header */}
-      <div className="nx-devtools-toolbar nx-release-toolbar" style={{ display:'flex',alignItems:'center',gap:12,padding:'9px 16px',borderBottom:'1px solid rgba(255,255,255,0.07)',flexShrink:0,background:'rgba(0,0,0,0.1)' }}>
-        <div>
-          <div style={{ fontSize:15,fontWeight:900,background:`linear-gradient(135deg,${t.accent},${t.accent2})`,WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent' }}>DevTools</div>
-          <div style={{ fontSize:9,opacity:0.35,marginTop:1,textTransform:'uppercase',letterSpacing:1 }}>Web Builder / Element Designer / Calculator / Release Health</div>
+      <div className="nx-devtools-toolbar nx-release-toolbar" style={{ display:'flex',alignItems:'center',gap:12,padding:'10px 16px',borderBottom:'1px solid rgba(255,255,255,0.07)',flexShrink:0,background:'rgba(0,0,0,0.12)', flexWrap:'wrap' }}>
+        <div className="nx-devtools-titleblock" style={{ display:'flex', alignItems:'center', gap:10, minWidth:0 }}>
+          <div style={{ width:34, height:34, borderRadius:11, display:'grid', placeItems:'center', color:t.accent, background:`rgba(${titleRgb},0.14)`, border:`1px solid rgba(${titleRgb},0.2)` }}>
+            <ActiveIcon size={16}/>
+          </div>
+          <div style={{ minWidth:0 }}>
+            <div style={{ fontSize:15,fontWeight:950,background:`linear-gradient(135deg,${t.accent},${t.accent2})`,WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent' }}>DevTools</div>
+            <div className="nx-devtools-active-summary" style={{ fontSize:10,opacity:0.58,marginTop:2 }}>{activeTab.summary}</div>
+          </div>
         </div>
-        <div className="nx-devtools-tabs" style={{ display:'flex',background:'rgba(255,255,255,0.06)',borderRadius:10,overflow:'hidden',marginLeft:'auto' }}>
-          <button onClick={()=>setTab('builder')} style={{ padding:'6px 14px',background:tab==='builder'?t.accent:'transparent',border:'none',cursor:'pointer',fontSize:11,fontWeight:700,color:tab==='builder'?'#fff':'inherit',opacity:tab==='builder'?1:0.55,display:'flex',alignItems:'center',gap:5 }}>
-            <Code2 size={12}/> Builder
-          </button>
-          <button onClick={()=>setTab('calc')} style={{ padding:'6px 14px',background:tab==='calc'?t.accent:'transparent',border:'none',cursor:'pointer',fontSize:11,fontWeight:700,color:tab==='calc'?'#fff':'inherit',opacity:tab==='calc'?1:0.55,display:'flex',alignItems:'center',gap:5 }}>
-            <Calculator size={12}/> Calculator
-          </button>
-          <button onClick={()=>setTab('release')} style={{ padding:'6px 14px',background:tab==='release'?t.accent:'transparent',border:'none',cursor:'pointer',fontSize:11,fontWeight:700,color:tab==='release'?'#fff':'inherit',opacity:tab==='release'?1:0.55,display:'flex',alignItems:'center',gap:5 }}>
-            <Rocket size={12}/> Release
-          </button>
-          <button onClick={()=>setTab('flags')} style={{ padding:'6px 14px',background:tab==='flags'?t.accent:'transparent',border:'none',cursor:'pointer',fontSize:11,fontWeight:700,color:tab==='flags'?'#fff':'inherit',opacity:tab==='flags'?1:0.55,display:'flex',alignItems:'center',gap:5 }}>
-            <Flag size={12}/> Feature Flags
-          </button>
+        <label
+          className="nx-devtools-command-search"
+          style={{
+            flex:'1 1 260px',
+            maxWidth:420,
+            minWidth:180,
+            display:'flex',
+            alignItems:'center',
+            gap:8,
+            border:'1px solid rgba(255,255,255,0.1)',
+            borderRadius:10,
+            background:'rgba(255,255,255,0.045)',
+            padding:'7px 10px',
+          }}
+        >
+          <Search size={13} style={{ opacity:0.52, flexShrink:0 }}/>
+          <input
+            value={commandQuery}
+            onChange={(event) => setCommandQuery(event.target.value)}
+            placeholder="DevTools suchen..."
+            style={{
+              width:'100%',
+              minWidth:0,
+              border:'none',
+              outline:'none',
+              background:'transparent',
+              color:'inherit',
+              fontSize:11,
+              fontWeight:700,
+            }}
+          />
+        </label>
+        <div className="nx-devtools-tabs" style={{ display:'flex',background:'rgba(255,255,255,0.05)',borderRadius:10,overflow:'hidden',marginLeft:'auto',padding:3,border:'1px solid rgba(255,255,255,0.08)' }}>
+          {DEVTOOLS_TABS.map(({ id, label, Icon }) => (
+            <button
+              key={id}
+              onClick={() => setTab(id)}
+              aria-pressed={tab === id}
+              title={label}
+              className="nx-devtools-tab"
+              style={{ padding:'6px 12px',borderRadius:7,background:tab===id?t.accent:'transparent',border:'none',cursor:'pointer',fontSize:11,fontWeight:800,color:tab===id?'#fff':'inherit',opacity:tab===id?1:0.62,display:'flex',alignItems:'center',gap:5 }}
+            >
+              <Icon size={12}/> {label}
+            </button>
+          ))}
         </div>
+      </div>
+
+      <div
+        className="nx-devtools-command-center"
+        style={{
+          display:'grid',
+          gridTemplateColumns:'repeat(auto-fit,minmax(190px,1fr))',
+          gap:8,
+          padding:'10px 12px',
+          borderBottom:'1px solid rgba(255,255,255,0.07)',
+          background:'linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0.012))',
+          flexShrink:0,
+        }}
+      >
+        {commandResults.map(({ id, tone, action, detail, tab: item }) => {
+          const Icon = item.Icon
+          const active = tab === id
+          const toneColor =
+            tone === 'release'
+              ? '#ff9f0a'
+              : tone === 'flags'
+                ? '#30d158'
+                : tone === 'calc'
+                  ? '#bf5af2'
+                  : t.accent
+          return (
+            <button
+              key={id}
+              type="button"
+              onClick={() => {
+                setTab(id)
+                setCommandQuery('')
+              }}
+              className="nx-devtools-command-card"
+              data-active={active ? 'true' : 'false'}
+              style={{
+                minWidth:0,
+                minHeight:88,
+                borderRadius:12,
+                border:`1px solid ${active ? `rgba(${titleRgb},0.36)` : 'rgba(255,255,255,0.1)'}`,
+                background:active
+                  ? `linear-gradient(145deg, rgba(${titleRgb},0.18), rgba(255,255,255,0.035))`
+                  : 'rgba(255,255,255,0.032)',
+                color:'inherit',
+                padding:'10px 11px',
+                textAlign:'left',
+                cursor:'pointer',
+                display:'grid',
+                gap:7,
+              }}
+            >
+              <span style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, minWidth:0 }}>
+                <span style={{ display:'flex', alignItems:'center', gap:7, minWidth:0 }}>
+                  <span style={{ width:26, height:26, borderRadius:8, display:'grid', placeItems:'center', color:toneColor, background:'rgba(255,255,255,0.055)', border:`1px solid ${toneColor}33`, flexShrink:0 }}>
+                    <Icon size={13}/>
+                  </span>
+                  <strong style={{ fontSize:12, fontWeight:900, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{item.label}</strong>
+                </span>
+                {active ? <span style={{ fontSize:9, fontWeight:900, color:t.accent, textTransform:'uppercase' }}>Active</span> : null}
+              </span>
+              <span style={{ fontSize:10.5, opacity:0.66, lineHeight:1.35 }}>{detail}</span>
+              <span style={{ fontSize:10, fontWeight:850, color:toneColor }}>{action}</span>
+            </button>
+          )
+        })}
+        {commandResults.length === 0 ? (
+          <div style={{ borderRadius:12, border:'1px dashed rgba(255,255,255,0.16)', padding:'14px 12px', fontSize:11, opacity:0.62 }}>
+            Kein DevTools-Bereich passt zur Suche.
+          </div>
+        ) : null}
       </div>
 
       <div style={{ flex:1,overflow:'hidden',display:'flex',flexDirection:'column',minHeight:0 }}>

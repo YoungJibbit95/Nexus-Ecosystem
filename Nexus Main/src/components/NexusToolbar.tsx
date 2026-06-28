@@ -14,10 +14,12 @@ export function NexusToolbar({
   spotlightMode: forceSpotlight,
   setView,
   activeView,
+  availableViews,
 }: {
   spotlightMode?: boolean;
   setView?: (v: any) => void;
   activeView?: string;
+  availableViews?: string[];
 }) {
   const {
     t,
@@ -54,7 +56,8 @@ export function NexusToolbar({
     pinnedCommands,
     recentCommands,
     quickActionCommands,
-  } = useNexusToolbarModel({ forceSpotlight, setView, activeView });
+    viewItems,
+  } = useNexusToolbarModel({ forceSpotlight, setView, activeView, availableViews });
 
   const panel = (
     <Suspense fallback={null}>
@@ -80,6 +83,7 @@ export function NexusToolbar({
         pinnedCommands={pinnedCommands}
         recentCommands={recentCommands}
         quickActions={quickActionCommands}
+        viewItems={viewItems}
       />
     </Suspense>
   );
@@ -125,6 +129,7 @@ export function NexusToolbar({
         setView={setView}
         motionRuntime={motionRuntime}
         activeView={activeToolbarView}
+        viewItems={viewItems}
       />
     );
   }
@@ -152,6 +157,7 @@ export function NexusToolbar({
       setView={setView}
       motionRuntime={motionRuntime}
       activeView={activeToolbarView}
+      viewItems={viewItems}
     />
   );
 }
