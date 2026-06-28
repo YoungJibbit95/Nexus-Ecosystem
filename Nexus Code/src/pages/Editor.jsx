@@ -669,6 +669,14 @@ export default function Editor({
     setCommandPaletteOpen(true);
   }, []);
 
+  const handleCloseCommandPalette = useCallback(() => {
+    setCommandPaletteOpen(false);
+  }, []);
+
+  const handleCloseSpotlight = useCallback(() => {
+    setSpotlightOpen(false);
+  }, []);
+
   const handleSetSidePanelSize = useCallback((sizeId) => {
     setWorkbenchLayout((prev) =>
       normalizeWorkbenchLayout({
@@ -1874,7 +1882,7 @@ export default function Editor({
         ) : (
           <>
             {/* Side Panels */}
-            <AnimatePresence mode="wait">
+            <AnimatePresence initial={false} mode="wait">
               {sidePanelVisible && (
                 <motion.div
                   initial={{ opacity: 0 }}
@@ -2181,13 +2189,13 @@ export default function Editor({
 
       <CommandPalette
         isOpen={commandPaletteOpen}
-        onClose={() => setCommandPaletteOpen(false)}
+        onClose={handleCloseCommandPalette}
         onAction={handleCommandPaletteAction}
       />
 
       <SpotlightSearch
         isOpen={spotlightOpen}
-        onClose={() => setSpotlightOpen(false)}
+        onClose={handleCloseSpotlight}
         onAction={handleCommandPaletteAction}
         files={files}
       />
