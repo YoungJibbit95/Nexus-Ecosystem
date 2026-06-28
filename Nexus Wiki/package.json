@@ -20,7 +20,7 @@
     "motion": "^12.38.0",
     "nexus-workspace": "file:../..",
     "react": "^19.2.5",
-    "react-dom": "^19.2.5",
+    "react-dom": "^19.2.7",
     "three": "^0.184.0",
     "vite": "^8.0.10"
   },
