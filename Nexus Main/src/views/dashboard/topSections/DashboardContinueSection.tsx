@@ -16,7 +16,8 @@ export function DashboardContinueSection({
   t: any;
   resumeLane: DashboardResumeEntry[];
 }) {
-  return (
+  {
+    /*return (
     <motion.div
       initial={contentMotion.allowEntry ? { opacity: 0, y: 8 } : false}
       animate={{ opacity: 1, y: 0 }}
@@ -27,14 +28,11 @@ export function DashboardContinueSection({
       }}
       style={{ marginBottom: 10 }}
     >
-      {/*<div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "minmax(0, 1fr) minmax(280px, 0.42fr)",
-          gap: 10,
-        }}
-      >
-        <Glass style={{ padding: "10px 12px", borderRadius: 16 }}>
+      <div className="nx-dashboard-resume-grid">
+        <Glass
+          className="nx-dashboard-resume-card"
+          style={{ padding: "10px 12px", borderRadius: 16 }}
+        >
           <div
             style={{
               display: "flex",
@@ -58,15 +56,10 @@ export function DashboardContinueSection({
               {resumeLane.length} Einstiegspunkte
             </span>
           </div>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-              gap: 7,
-            }}
-          >
+          <div className="nx-dashboard-resume-list">
             {resumeLane.slice(0, 3).map((entry) => (
               <DashboardActionButton
+                className="nx-dashboard-resume-item"
                 key={`${entry.label}-${entry.title}`}
                 onClick={entry.action}
                 liquidColor={t.accent}
@@ -143,7 +136,8 @@ export function DashboardContinueSection({
         </Glass>
 
         <DashboardRuntimeHealthCard />
-      </div>*/}
+      </div>
     </motion.div>
-  );
+  );*/
+  }
 }

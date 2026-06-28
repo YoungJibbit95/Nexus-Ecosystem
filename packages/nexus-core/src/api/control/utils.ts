@@ -3,21 +3,38 @@ import type { NexusReleaseChannel, NexusUserTier } from '../types'
 export const now = () => Date.now()
 export const NEXUS_CONTROL_CANONICAL_URL = 'https://nexus-api.cloud'
 const NEXUS_CONTROL_CANONICAL_HOST = 'nexus-api.cloud'
+const LOOPBACK_CONTROL_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]', '::1'])
 
-export const normalizeBaseUrl = (baseUrl?: string) => {
+const normalizeControlPathname = (pathname: string) => {
+  const trimmed = String(pathname || '').trim()
+  if (!trimmed || trimmed === '/') return ''
+  return trimmed.replace(/\/+$/, '')
+}
+
+export const normalizeControlBaseUrl = (
+  baseUrl?: string,
+  fallback = NEXUS_CONTROL_CANONICAL_URL,
+) => {
+  const fallbackUrl = String(fallback || '').trim()
   const raw = String(baseUrl || '').trim()
-  if (!raw) return NEXUS_CONTROL_CANONICAL_URL
+  if (!raw) return fallbackUrl
 
   try {
     const parsed = new URL(raw)
-    if (parsed.protocol !== 'https:') return NEXUS_CONTROL_CANONICAL_URL
-    if (parsed.hostname !== NEXUS_CONTROL_CANONICAL_HOST) return NEXUS_CONTROL_CANONICAL_URL
-    if (parsed.username || parsed.password || parsed.search || parsed.hash) return NEXUS_CONTROL_CANONICAL_URL
-    return NEXUS_CONTROL_CANONICAL_URL
+    const hostname = parsed.hostname.toLowerCase()
+    const canonicalHosted = parsed.protocol === 'https:' && hostname === NEXUS_CONTROL_CANONICAL_HOST
+    const loopbackDev = (parsed.protocol === 'http:' || parsed.protocol === 'https:')
+      && LOOPBACK_CONTROL_HOSTS.has(hostname)
+    if (!canonicalHosted && !loopbackDev) return fallbackUrl
+    if (parsed.username || parsed.password || parsed.search || parsed.hash) return fallbackUrl
+
+    return `${parsed.protocol}//${parsed.host}${normalizeControlPathname(parsed.pathname)}`
   } catch {
-    return NEXUS_CONTROL_CANONICAL_URL
+    return fallbackUrl
   }
 }
+
+export const normalizeBaseUrl = (baseUrl?: string) => normalizeControlBaseUrl(baseUrl)
 
 export const isBrowser = typeof window !== 'undefined'
 

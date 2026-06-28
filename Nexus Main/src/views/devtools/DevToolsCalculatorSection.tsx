@@ -112,10 +112,34 @@ const CALC_CATS: CalculatorCategory[] = [
 
 function useCopy() {
   const [copied, setCopied] = useState<string | null>(null);
+  const fallbackCopy = (text: string) => {
+    try {
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      textarea.setAttribute("readonly", "true");
+      textarea.style.position = "fixed";
+      textarea.style.top = "-9999px";
+      document.body.appendChild(textarea);
+      textarea.select();
+      const ok = document.execCommand("copy");
+      document.body.removeChild(textarea);
+      return ok;
+    } catch {
+      return false;
+    }
+  };
   const copy = (text: string, key: string) => {
-    navigator.clipboard.writeText(text);
-    setCopied(key);
-    window.setTimeout(() => setCopied(null), 1600);
+    const markCopied = () => {
+      setCopied(key);
+      window.setTimeout(() => setCopied(null), 1600);
+    };
+    if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+      void navigator.clipboard.writeText(text).then(markCopied).catch(() => {
+        if (fallbackCopy(text)) markCopied();
+      });
+      return;
+    }
+    if (fallbackCopy(text)) markCopied();
   };
   return { copied, copy };
 }
@@ -137,9 +161,10 @@ function CalcItem({ item }: { item: CalculatorItem }) {
   }
   return (
     <div
+      className="nx-devtools-calc-card"
       style={{
         padding: "11px 13px",
-        borderRadius: 11,
+        borderRadius: 9,
         background: "rgba(255,255,255,0.03)",
         border: "1px solid rgba(255,255,255,0.07)",
       }}
@@ -259,6 +284,7 @@ export function DevToolsCalculatorSection({ compact = false }: { compact?: boole
 
   return (
     <div
+      className="nx-devtools-calculator"
       style={{
         display: "flex",
         flexDirection: compact ? "column" : "row",
@@ -267,6 +293,7 @@ export function DevToolsCalculatorSection({ compact = false }: { compact?: boole
       }}
     >
       <div
+        className="nx-devtools-calculator-nav"
         style={{
           width: compact ? "100%" : 130,
           height: compact ? "auto" : undefined,
@@ -285,6 +312,7 @@ export function DevToolsCalculatorSection({ compact = false }: { compact?: boole
           <button
             key={category.cat}
             onClick={() => setCalcCat(index)}
+            aria-pressed={calcCat === index}
             style={{
               padding: "7px 9px",
               borderRadius: 8,
@@ -303,9 +331,14 @@ export function DevToolsCalculatorSection({ compact = false }: { compact?: boole
           </button>
         ))}
       </div>
-      <div style={{ flex: 1, overflowY: "auto", padding: "12px 14px" }}>
+      <div style={{ flex: 1, overflowY: "auto", padding: "12px 14px", minWidth: 0 }}>
         <div
+          className="nx-devtools-calculator-heading"
           style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 8,
             fontSize: 10,
             fontWeight: 800,
             opacity: 0.35,
@@ -314,9 +347,10 @@ export function DevToolsCalculatorSection({ compact = false }: { compact?: boole
             marginBottom: 10,
           }}
         >
-          {CALC_CATS[calcCat].cat}
+          <span>{CALC_CATS[calcCat].cat}</span>
+          <span>{CALC_CATS[calcCat].items.length} tools</span>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+        <div className="nx-devtools-calculator-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
           {CALC_CATS[calcCat].items.map((item) => (
             <CalcItem key={item.name} item={item} />
           ))}

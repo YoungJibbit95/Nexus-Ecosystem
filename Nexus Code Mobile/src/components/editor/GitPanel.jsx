@@ -2,17 +2,14 @@ import React, { useState, useEffect } from "react";
 import {
   GitBranch,
   GitFork,
-  GitCommit,
   RefreshCw,
   Check,
   Plus,
   Minus,
   ChevronDown,
   Upload,
-  Download,
   AlertCircle,
   Clock,
-  Key,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Octokit } from "octokit";
@@ -129,9 +126,7 @@ export default function GitPanel({ files }) {
     settings: false,
   });
 
-  const [githubToken, setGithubToken] = useState(
-    localStorage.getItem("github_token") || "",
-  );
+  const [githubToken, setGithubToken] = useState("");
   const [githubRepo, setGithubRepo] = useState(
     localStorage.getItem("github_repo") || "",
   );
@@ -141,8 +136,16 @@ export default function GitPanel({ files }) {
   const [githubUser, setGithubUser] = useState(null);
   const [errorMsg, setErrorMsg] = useState("");
 
+  const clearPersistedGithubToken = () => {
+    try {
+      localStorage.removeItem("github_token");
+    } catch (error) {
+      console.warn("Failed to clear legacy GitHub token storage", error);
+    }
+  };
+
   const saveGithubSettings = (token, owner, repo) => {
-    localStorage.setItem("github_token", token);
+    clearPersistedGithubToken();
     localStorage.setItem("github_owner", owner);
     localStorage.setItem("github_repo", repo);
     setGithubToken(token);
@@ -214,6 +217,7 @@ export default function GitPanel({ files }) {
   };
 
   useEffect(() => {
+    clearPersistedGithubToken();
     if (githubToken) {
       verifyGithubToken(githubToken);
     }
@@ -409,9 +413,9 @@ export default function GitPanel({ files }) {
               <div className="space-y-2 p-2 rounded-lg bg-black/20 border border-white/5">
                 <input
                   type="password"
-                  placeholder="GitHub Token (Classic)"
+                  placeholder="GitHub Token (not stored)"
                   className="w-full bg-black/40 text-xs px-2 py-1.5 rounded border border-white/10 outline-none focus:border-purple-500/50"
-                  defaultValue={githubToken}
+                  value={githubToken}
                   onChange={(e) => setGithubToken(e.target.value)}
                 />
                 <div className="flex flex-col gap-1.5">
@@ -461,7 +465,7 @@ export default function GitPanel({ files }) {
                   }
                   className="w-full bg-purple-600/20 hover:bg-purple-600/40 text-purple-300 text-xs py-1.5 rounded transition-colors"
                 >
-                  Save Settings
+                  Use token for this session
                 </button>
               </div>
             </motion.div>

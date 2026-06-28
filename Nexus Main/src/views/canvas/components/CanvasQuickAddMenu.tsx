@@ -1,6 +1,14 @@
-import React from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import { AlertCircle, Calendar, FileText, Search, Wand2, X } from "lucide-react";
 import type { NodeType } from "../../../store/canvasStore";
-import type { CanvasWidgetPreset } from "../constants";
+import type { CanvasWidgetCategory, CanvasWidgetPreset } from "../constants";
+
+const categoryOrder: CanvasWidgetCategory[] = [
+  "Capture",
+  "Execution",
+  "Planning",
+  "Control",
+];
 
 export function CanvasQuickAddMenu({
   quickAddPos,
@@ -27,242 +35,210 @@ export function CanvasQuickAddMenu({
   createStarterPack: (origin?: { x: number; y: number }) => void;
   createMagicTemplate: (payload: any) => void;
 }) {
+  const [query, setQuery] = useState("");
+
+  useEffect(() => {
+    if (!quickAddPos) setQuery("");
+  }, [quickAddPos]);
+
+  useEffect(() => {
+    if (!quickAddPos) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setQuickAddPos(null);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [quickAddPos, setQuickAddPos]);
+
+  const normalizedQuery = query.trim().toLowerCase();
+  const filteredWidgets = useMemo(() => {
+    if (!normalizedQuery) return widgets;
+    return widgets.filter((widget) =>
+      [
+        widget.label,
+        widget.description,
+        widget.category,
+        widget.type,
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(normalizedQuery),
+    );
+  }, [normalizedQuery, widgets]);
+
+  const groupedWidgets = useMemo(
+    () =>
+      categoryOrder
+        .map((category) => ({
+          category,
+          items: filteredWidgets.filter((widget) => widget.category === category),
+        }))
+        .filter((group) => group.items.length > 0),
+    [filteredWidgets],
+  );
+
   if (!quickAddPos) return null;
 
-  const menuW = 316;
-  const menuH = Math.min(640, 228 + widgets.length * 56);
+  const menuW = Math.max(224, Math.min(360, canvasSize.w - 16));
+  const menuH = Math.max(300, Math.min(560, canvasSize.h - 16));
   const clampedX = Math.max(8, Math.min(quickAddPos.x, canvasSize.w - menuW - 8));
   const clampedY = Math.max(8, Math.min(quickAddPos.y, canvasSize.h - menuH - 8));
 
-  const getCanvasPoint = () => ({
-    x: (-viewport.panX + quickAddPos.x) / viewport.zoom,
-    y: (-viewport.panY + quickAddPos.y) / viewport.zoom,
-  });
+  const getCanvasPoint = () => {
+    const zoom = Math.max(0.15, viewport.zoom);
+    return {
+      x: (-viewport.panX + quickAddPos.x) / zoom,
+      y: (-viewport.panY + quickAddPos.y) / zoom,
+    };
+  };
+
+  const closeMenu = () => setQuickAddPos(null);
+
+  const packButtons = [
+    {
+      label: "Starter",
+      detail: "Core nodes",
+      icon: FileText,
+      onClick: () => createStarterPack(getCanvasPoint()),
+      primary: true,
+    },
+    {
+      label: "Mindmap",
+      detail: "Ideas",
+      icon: Wand2,
+      onClick: () =>
+        createMagicTemplate({
+          template: "mindmap",
+          title: "Mindmap Pack",
+          includeNotes: true,
+          includeTasks: true,
+        }),
+    },
+    {
+      label: "Roadmap",
+      detail: "Milestones",
+      icon: Calendar,
+      onClick: () =>
+        createMagicTemplate({
+          template: "roadmap",
+          title: "Roadmap Pack",
+          includeNotes: true,
+          includeTasks: true,
+        }),
+    },
+    {
+      label: "Risk",
+      detail: "Matrix",
+      icon: AlertCircle,
+      onClick: () =>
+        createMagicTemplate({
+          template: "risk-matrix",
+          title: "Risk Pack",
+          includeNotes: true,
+          includeTasks: true,
+        }),
+    },
+  ];
 
   return (
     <div
+      className="nx-canvas-quick-add"
+      data-mode={mode}
       style={{
         position: "absolute",
         top: clampedY,
         left: clampedX,
         zIndex: 300,
-        background: mode === "dark" ? "#1a1a2e" : "#fff",
-        border: `1px solid ${
-          mode === "dark" ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)"
-        }`,
-        borderRadius: 12,
-        padding: 6,
-        width: menuW - 12,
+        width: menuW,
         maxHeight: menuH,
-        overflowY: "auto",
-        boxShadow: "0 8px 32px rgba(0,0,0,0.3)",
-        animation: "nexus-scale-in 0.15s cubic-bezier(0.4,0,0.2,1) both",
+        ["--nx-canvas-accent-rgb" as any]: rgb,
+        ["--nx-canvas-accent" as any]: accent,
       }}
-      onClick={(e) => e.stopPropagation()}
+      onClick={(event) => event.stopPropagation()}
     >
-      <div
-        style={{
-          fontSize: 10,
-          fontWeight: 700,
-          opacity: 0.5,
-          padding: "4px 8px",
-          textTransform: "uppercase",
-        }}
-      >
-        Add Element
-      </div>
-      <div
-        style={{
-          fontSize: 9,
-          fontWeight: 700,
-          opacity: 0.45,
-          padding: "2px 8px 6px",
-          textTransform: "uppercase",
-        }}
-      >
-        Quick Packs
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, padding: "0 6px 8px" }}>
+      <header className="nx-canvas-quick-add-header">
+        <div>
+          <div className="nx-canvas-quick-add-title">Add to canvas</div>
+          <div className="nx-canvas-quick-add-subtitle">Packs und Nodes</div>
+        </div>
         <button
-          onClick={() => {
-            createStarterPack(getCanvasPoint());
-            setQuickAddPos(null);
-          }}
-          className="nx-interactive nx-bounce-target"
-          style={{
-            border: `1px solid rgba(${rgb},0.3)`,
-            borderRadius: 8,
-            background: `rgba(${rgb},0.12)`,
-            color: accent,
-            fontSize: 11,
-            fontWeight: 700,
-            padding: "8px 6px",
-            cursor: "pointer",
-          }}
+          type="button"
+          className="nx-canvas-icon-button"
+          onClick={closeMenu}
+          title="Schliessen"
+          aria-label="Quick Add schliessen"
         >
-          Starter Pack
+          <X size={14} />
         </button>
-        <button
-          onClick={() => {
-            createMagicTemplate({
-              template: "mindmap",
-              title: "Mindmap Pack",
-              includeNotes: true,
-              includeTasks: true,
-            });
-            setQuickAddPos(null);
-          }}
-          className="nx-interactive nx-bounce-target"
-          style={{
-            border: "1px solid rgba(255,255,255,0.2)",
-            borderRadius: 8,
-            background: "rgba(255,255,255,0.07)",
-            color: "inherit",
-            fontSize: 11,
-            fontWeight: 700,
-            padding: "8px 6px",
-            cursor: "pointer",
-          }}
-        >
-          Mindmap
-        </button>
-        <button
-          onClick={() => {
-            createMagicTemplate({
-              template: "roadmap",
-              title: "Roadmap Pack",
-              includeNotes: true,
-              includeTasks: true,
-            });
-            setQuickAddPos(null);
-          }}
-          className="nx-interactive nx-bounce-target"
-          style={{
-            border: "1px solid rgba(255,255,255,0.2)",
-            borderRadius: 8,
-            background: "rgba(255,255,255,0.07)",
-            color: "inherit",
-            fontSize: 11,
-            fontWeight: 700,
-            padding: "8px 6px",
-            cursor: "pointer",
-          }}
-        >
-          Roadmap
-        </button>
-        <button
-          onClick={() => {
-            createMagicTemplate({
-              template: "risk-matrix",
-              title: "Risk Pack",
-              includeNotes: true,
-              includeTasks: true,
-            });
-            setQuickAddPos(null);
-          }}
-          className="nx-interactive nx-bounce-target"
-          style={{
-            border: "1px solid rgba(255,255,255,0.2)",
-            borderRadius: 8,
-            background: "rgba(255,255,255,0.07)",
-            color: "inherit",
-            fontSize: 11,
-            fontWeight: 700,
-            padding: "8px 6px",
-            cursor: "pointer",
-          }}
-        >
-          Risk Matrix
-        </button>
-      </div>
-      <div
-        style={{
-          height: 1,
-          background: "rgba(255,255,255,0.1)",
-          margin: "0 8px 6px",
-        }}
-      />
-      {widgets.map(({ type, icon: WIcon, label, description, category, accent: widgetAccent }) => (
-        <button
-          key={type}
-          onClick={() => {
-            const point = getCanvasPoint();
-            addWidgetNode(type, point.x, point.y);
-            setQuickAddPos(null);
-          }}
-          className="nx-surface-row"
-          data-active="false"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            width: "100%",
-            padding: "8px 10px",
-            border: "none",
-            borderRadius: 10,
-            cursor: "pointer",
-            fontSize: 12,
-            background: "transparent",
-            color: mode === "dark" ? "#fff" : "#000",
-            textAlign: "left",
-            ["--nx-row-hover-bg" as any]: "rgba(128,128,128,0.1)",
-          }}
-        >
-          <span
-            style={{
-              width: 24,
-              height: 24,
-              borderRadius: 8,
-              background: `${widgetAccent}22`,
-              color: widgetAccent,
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              flexShrink: 0,
+      </header>
+
+      <label className="nx-canvas-quick-add-search">
+        <Search size={13} />
+        <input
+          autoFocus
+          value={query}
+          onChange={(event) => setQuery(event.currentTarget.value)}
+          placeholder="Node suchen..."
+        />
+      </label>
+
+      <section className="nx-canvas-quick-pack-grid" aria-label="Quick packs">
+        {packButtons.map(({ label, detail, icon: Icon, onClick, primary }) => (
+          <button
+            key={label}
+            type="button"
+            className="nx-canvas-quick-pack"
+            data-primary={primary ? "true" : "false"}
+            onClick={() => {
+              onClick();
+              closeMenu();
             }}
           >
-            <WIcon size={14} />
-          </span>
-          <span
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: 1,
-              minWidth: 0,
-              flex: 1,
-            }}
-          >
-            <span style={{ fontWeight: 700, fontSize: 12, lineHeight: 1.25 }}>{label}</span>
-            <span
-              style={{
-                fontSize: 10,
-                opacity: 0.64,
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-              }}
-            >
-              {description}
+            <Icon size={14} />
+            <span>
+              <strong>{label}</strong>
+              <small>{detail}</small>
             </span>
-          </span>
-          <span
-            style={{
-              fontSize: 9,
-              fontWeight: 700,
-              padding: "2px 6px",
-              borderRadius: 999,
-              border: `1px solid ${widgetAccent}55`,
-              color: widgetAccent,
-              background: `${widgetAccent}1a`,
-              textTransform: "uppercase",
-              letterSpacing: 0.4,
-              flexShrink: 0,
-            }}
-          >
-            {category}
-          </span>
-        </button>
-      ))}
+          </button>
+        ))}
+      </section>
+
+      <div className="nx-canvas-quick-add-list">
+        {groupedWidgets.length === 0 ? (
+          <div className="nx-canvas-quick-add-empty">Keine Elemente gefunden.</div>
+        ) : (
+          groupedWidgets.map(({ category, items }) => (
+            <section key={category} className="nx-canvas-quick-add-category">
+              <div className="nx-canvas-quick-add-category-title">{category}</div>
+              {items.map(({ type, icon: WIcon, label, description, accent: widgetAccent }) => (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => {
+                    const point = getCanvasPoint();
+                    addWidgetNode(type, point.x, point.y);
+                    closeMenu();
+                  }}
+                  className="nx-surface-row nx-canvas-quick-add-row"
+                  data-active="false"
+                  style={{
+                    ["--nx-row-hover-bg" as any]: `rgba(${rgb},0.1)`,
+                    ["--nx-widget-accent" as any]: widgetAccent,
+                  }}
+                >
+                  <span className="nx-canvas-quick-add-icon">
+                    <WIcon size={14} />
+                  </span>
+                  <span className="nx-canvas-quick-add-copy">
+                    <strong>{label}</strong>
+                    <small>{description}</small>
+                  </span>
+                </button>
+              ))}
+            </section>
+          ))
+        )}
+      </div>
     </div>
   );
 }

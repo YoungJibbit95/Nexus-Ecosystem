@@ -34,6 +34,11 @@
     --nexus-glow-radius-sm: 6px;
     --nexus-glow-intensity: 28%;
     --nexus-blur-radius: 16px;
+    --nexus-radius-xs: 0.375rem;
+    --nexus-radius-sm: 0.5rem;
+    --nexus-radius-md: 0.625rem;
+    --nexus-radius-lg: 0.875rem;
+    --nexus-radius-xl: 1rem;
     --primary-rgb: var(--nexus-primary-rgb);
     --nx-motion-quick: 170ms;
     --nx-motion-regular: 210ms;
@@ -375,6 +380,26 @@ textarea.nx-typing-active,
     font-family: inherit;
 }
 
+.nx-code-shell :where(button, [role="button"]) {
+    transition-duration: var(--nx-motion-quick, 170ms);
+    transition-timing-function: cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.nx-code-shell :where(button:not(:disabled), [role="button"]):focus-visible {
+    outline: none;
+    box-shadow:
+        0 0 0 1px rgba(var(--nexus-primary-rgb), 0.32),
+        0 0 0 4px rgba(var(--nexus-primary-rgb), 0.12);
+}
+
+.nx-code-shell :where(.nexus-panel-surface, .glass, .glass-card, .nx-code-side-panel, .nx-code-settings-host, .nx-code-editor-status) {
+    border-radius: var(--nexus-radius-md, 0.625rem);
+}
+
+.nx-code-shell :where(.nx-code-menu-trigger, .nx-code-command-button, .nx-code-status-item, .nx-code-window-button) {
+    border-radius: var(--nexus-radius-sm, 0.5rem);
+}
+
 .nx-code-workbench,
 .nx-code-main,
 .nx-code-editor-shell,
@@ -385,6 +410,23 @@ textarea.nx-typing-active,
 
 .nx-code-workbench {
     isolation: isolate;
+}
+
+.nx-code-workbench::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background:
+        radial-gradient(circle at 18% 10%, rgba(var(--nexus-primary-rgb), 0.12), transparent 29rem),
+        radial-gradient(circle at 84% 18%, rgba(var(--nexus-accent-2-rgb), 0.08), transparent 25rem);
+    opacity: 0.72;
+}
+
+.nx-code-workbench > * {
+    position: relative;
+    z-index: 1;
 }
 
 .nx-code-main,
@@ -422,7 +464,7 @@ textarea.nx-typing-active,
     height: 1.75rem;
     padding: 0.125rem;
     border: 1px solid rgba(255, 255, 255, 0.06);
-    border-radius: 0.5rem;
+    border-radius: var(--nexus-radius-sm, 0.5rem);
     background: rgba(255, 255, 255, 0.026);
 }
 
@@ -478,7 +520,7 @@ textarea.nx-typing-active,
     padding: 0.125rem;
     gap: 0.125rem;
     border: 1px solid rgba(255, 255, 255, 0.06);
-    border-radius: 0.5rem;
+    border-radius: var(--nexus-radius-sm, 0.5rem);
     background: rgba(255, 255, 255, 0.026);
 }
 
@@ -792,8 +834,63 @@ textarea.nx-typing-active,
     gap: 1rem;
 }
 
+.nx-code-launchpad {
+    min-width: 0;
+    min-height: min-content;
+}
+
+.nx-code-launchpad-stage,
+.nx-code-launchpad-action,
+.nx-code-launchpad-metric,
+.nx-code-launchpad-signal,
+.nx-code-launchpad-status-card {
+    min-width: 0;
+    border-radius: 0.5rem;
+    backdrop-filter: blur(18px) saturate(122%);
+    -webkit-backdrop-filter: blur(18px) saturate(122%);
+}
+
+.nx-code-launchpad-command-strip {
+    min-width: 0;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.055);
+}
+
+.nx-code-sidebar-rail {
+    width: 4.25rem;
+    max-width: 4.25rem;
+    contain: layout paint;
+}
+
+.nx-code-sidebar-rail-button,
+.nx-code-sidebar-settings,
+.nx-code-sidebar-orb {
+    width: 3.125rem;
+    border-radius: 0.5rem;
+}
+
+.nx-code-sidebar-rail-button {
+    min-height: 3.125rem;
+}
+
+.nx-code-sidebar-icon-frame {
+    line-height: 1;
+}
+
+.nx-code-sidebar-label {
+    width: 100%;
+    text-align: center;
+    letter-spacing: 0;
+}
+
+.nx-code-sidebar-badge {
+    pointer-events: none;
+}
+
 .nx-code-tabbar {
     min-width: 0;
+    min-height: 2.625rem;
+    height: 2.625rem;
+    flex: 0 0 2.625rem;
     contain: layout paint;
     background: var(--nexus-editor-surface, var(--nexus-surface, rgba(17, 20, 29, 0.82)));
     border-color: var(--nexus-border, rgba(142, 153, 183, 0.16));
@@ -801,11 +898,19 @@ textarea.nx-typing-active,
 
 .nx-code-tabbar-actions {
     min-width: max-content;
+    height: 100%;
+    align-items: center;
 }
 
 .nx-code-tab-scroll {
+    height: 100%;
     scrollbar-width: thin;
     overscroll-behavior-x: contain;
+}
+
+.nx-code-tabbar-empty {
+    min-height: 100%;
+    align-items: center;
 }
 
 .nx-code-tab {
@@ -816,6 +921,35 @@ textarea.nx-typing-active,
 
 .nx-code-tab:hover {
     background: rgba(255, 255, 255, 0.07) !important;
+}
+
+.nx-code-explorer-header,
+.nx-code-git-panel-header {
+    min-width: 0;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.038), rgba(255, 255, 255, 0.012)),
+        rgba(255, 255, 255, 0.018);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045);
+}
+
+.nx-code-explorer-heading,
+.nx-code-explorer-workspace,
+.nx-code-git-panel-toolbar {
+    min-width: 0;
+}
+
+.nx-code-explorer-toolbar {
+    min-height: 2rem;
+}
+
+.nx-code-file-tree-row {
+    min-height: 2rem;
+    height: 2rem;
+}
+
+.nx-code-file-tree-row :where(button) {
+    min-width: 1.5rem;
+    min-height: 1.5rem;
 }
 
 .nx-code-editor-status {

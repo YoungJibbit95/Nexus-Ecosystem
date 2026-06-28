@@ -684,6 +684,67 @@ const sanitizeQolConfig = (
   }
 }
 
+const sanitizeGlassMode = (
+  value: unknown,
+  fallback: GlassmorphismConfig['glassMode'],
+): GlassmorphismConfig['glassMode'] => {
+  if (
+    value === 'frosted' ||
+    value === 'crystal' ||
+    value === 'neon' ||
+    value === 'matte' ||
+    value === 'mirror' ||
+    value === 'plasma'
+  ) return value
+  return fallback
+}
+
+const sanitizeBlurConfig = (
+  value: unknown,
+  fallback: BlurConfig,
+): BlurConfig => {
+  const merged = mergeConfig(fallback, value)
+  return {
+    ...merged,
+    strength: clampFiniteNumber(merged.strength, 0, 48, fallback.strength),
+    noiseOpacity: clampFiniteNumber(merged.noiseOpacity, 0, 0.16, fallback.noiseOpacity),
+    sidebarBlur: clampFiniteNumber(merged.sidebarBlur, 0, 40, fallback.sidebarBlur),
+    panelBlur: clampFiniteNumber(merged.panelBlur, 0, 40, fallback.panelBlur),
+    modalBlur: clampFiniteNumber(merged.modalBlur, 0, 52, fallback.modalBlur),
+    noiseOverlay: typeof merged.noiseOverlay === 'boolean' ? merged.noiseOverlay : fallback.noiseOverlay,
+  }
+}
+
+const sanitizeGlassmorphismConfig = (
+  value: unknown,
+  fallback: GlassmorphismConfig,
+): GlassmorphismConfig => {
+  const merged = mergeConfig(fallback, value)
+  return {
+    ...merged,
+    borderOpacity: clampFiniteNumber(merged.borderOpacity, 0, 0.65, fallback.borderOpacity),
+    borderGlowIntensity: clampFiniteNumber(merged.borderGlowIntensity, 0, 1.2, fallback.borderGlowIntensity),
+    saturation: clampFiniteNumber(merged.saturation, 80, 240, fallback.saturation),
+    tintColor: typeof merged.tintColor === 'string' && merged.tintColor.length > 0 ? merged.tintColor : fallback.tintColor,
+    tintOpacity: clampFiniteNumber(merged.tintOpacity, 0, 0.18, fallback.tintOpacity),
+    glowColor1: typeof merged.glowColor1 === 'string' && merged.glowColor1.length > 0 ? merged.glowColor1 : fallback.glowColor1,
+    glowColor2: typeof merged.glowColor2 === 'string' && merged.glowColor2.length > 0 ? merged.glowColor2 : fallback.glowColor2,
+    glowOutlineStrength: clampFiniteNumber(merged.glowOutlineStrength, 0, 32, fallback.glowOutlineStrength),
+    glassMode: sanitizeGlassMode(merged.glassMode, fallback.glassMode),
+    glassDepth: clampFiniteNumber(merged.glassDepth, 0.1, 3, fallback.glassDepth),
+    animatedBlurSpeed: clampFiniteNumber(merged.animatedBlurSpeed, 1, 10, fallback.animatedBlurSpeed),
+    panelRenderer: sanitizePanelRenderer(merged.panelRenderer),
+    glowRenderer: sanitizeGlowRenderer(merged.glowRenderer),
+    borderGlow: typeof merged.borderGlow === 'boolean' ? merged.borderGlow : fallback.borderGlow,
+    frostedGlass: typeof merged.frostedGlass === 'boolean' ? merged.frostedGlass : fallback.frostedGlass,
+    chromaticAberration: typeof merged.chromaticAberration === 'boolean' ? merged.chromaticAberration : fallback.chromaticAberration,
+    glowOutline: typeof merged.glowOutline === 'boolean' ? merged.glowOutline : fallback.glowOutline,
+    innerShadow: typeof merged.innerShadow === 'boolean' ? merged.innerShadow : fallback.innerShadow,
+    reflectionLine: typeof merged.reflectionLine === 'boolean' ? merged.reflectionLine : fallback.reflectionLine,
+    animatedBlur: typeof merged.animatedBlur === 'boolean' ? merged.animatedBlur : fallback.animatedBlur,
+  }
+}
+
 const sanitizeBackgroundConfig = (
   value: unknown,
   fallback: BackgroundConfig,
@@ -714,16 +775,9 @@ const sanitizeThemeSnapshot = (persistedRaw: unknown, current: Theme): Theme => 
   const sidebarWidth = Number.isFinite(sidebarWidthRaw)
     ? Math.max(sidebarMin, Math.min(sidebarMax, sidebarWidthRaw))
     : current.sidebarWidth
-  const mergedGlassmorphism = mergeConfig(current.glassmorphism, persisted.glassmorphism)
-  mergedGlassmorphism.panelRenderer = sanitizePanelRenderer(mergedGlassmorphism.panelRenderer)
-  mergedGlassmorphism.glowRenderer = sanitizeGlowRenderer(mergedGlassmorphism.glowRenderer)
-  mergedGlassmorphism.reflectionLine = typeof mergedGlassmorphism.reflectionLine === 'boolean'
-    ? mergedGlassmorphism.reflectionLine
-    : current.glassmorphism.reflectionLine
-  mergedGlassmorphism.glassDepth = Number.isFinite(Number(mergedGlassmorphism.glassDepth))
-    ? Math.max(0.1, Math.min(3, Number(mergedGlassmorphism.glassDepth)))
-    : current.glassmorphism.glassDepth
+  const mergedGlassmorphism = sanitizeGlassmorphismConfig(persisted.glassmorphism, current.glassmorphism)
   const mergedBackground = sanitizeBackgroundConfig(persisted.background, current.background)
+  const mergedBlur = sanitizeBlurConfig(persisted.blur, current.blur)
   const mergedQol = sanitizeQolConfig(persisted.qol, current.qol)
 
   return {
@@ -744,7 +798,7 @@ const sanitizeThemeSnapshot = (persistedRaw: unknown, current: Theme): Theme => 
     glow: mergeConfig(current.glow, persisted.glow),
     gradient: mergeConfig(current.gradient, persisted.gradient),
     background: mergedBackground,
-    blur: mergeConfig(current.blur, persisted.blur),
+    blur: mergedBlur,
     glassmorphism: mergedGlassmorphism,
     visual: sanitizeVisualConfig(persisted.visual, current.visual),
     animations: mergeConfig(current.animations, persisted.animations),
@@ -796,8 +850,8 @@ export const useTheme = create<Theme>()(
       setGlow: (g) => set((s) => ({ glow: { ...s.glow, ...g } })),
       setGradient: (g) => set((s) => ({ gradient: { ...s.gradient, ...g } })),
       setBackground: (b) => set((s) => ({ background: sanitizeBackgroundConfig(b, s.background) })),
-      setBlur: (b) => set((s) => ({ blur: { ...s.blur, ...b } })),
-      setGlassmorphism: (g) => set((s) => ({ glassmorphism: { ...s.glassmorphism, ...g } })),
+      setBlur: (b) => set((s) => ({ blur: sanitizeBlurConfig(b, s.blur) })),
+      setGlassmorphism: (g) => set((s) => ({ glassmorphism: sanitizeGlassmorphismConfig(g, s.glassmorphism) })),
       setVisual: (v) => set((s) => ({ visual: sanitizeVisualConfig(v, s.visual) })),
       setAnimations: (a) => set((s) => ({ animations: { ...s.animations, ...a } })),
       setEditor: (e) => set((s) => ({ editor: { ...s.editor, ...e } })),
@@ -822,8 +876,8 @@ export const useTheme = create<Theme>()(
       setSidebarLabels: (sidebarLabels) => set({ sidebarLabels }),
       setSidebarAccentBg: (sidebarAccentBg) => set({ sidebarAccentBg }),
       setSidebarAutoHide: (v) => set((s) => ({ qol: { ...s.qol, sidebarAutoHide: v } })),
-      setBackgroundMode: (m) => set((s) => ({ background: { ...s.background, mode: m } })),
-      setPanelBgMode: (m) => set((s) => ({ background: { ...s.background, panelBgMode: m } })),
+      setBackgroundMode: (m) => set((s) => ({ background: sanitizeBackgroundConfig({ mode: m }, s.background) })),
+      setPanelBgMode: (m) => set((s) => ({ background: sanitizeBackgroundConfig({ panelBgMode: m }, s.background) })),
       setToolbar: (tb) => set((s) => ({ toolbar: { ...s.toolbar, ...tb } })),
 
       preset: (n) => {
@@ -831,14 +885,14 @@ export const useTheme = create<Theme>()(
         if (p) set((s) => ({
           ...s, ...p,
           glow: { ...s.glow, ...p.glow },
-          blur: { ...s.blur, ...p.blur },
-          background: { ...s.background, ...p.background },
-          glassmorphism: { ...s.glassmorphism, ...p.glassmorphism },
-          visual: { ...s.visual, ...p.visual },
+          blur: sanitizeBlurConfig(p.blur, s.blur),
+          background: sanitizeBackgroundConfig(p.background, s.background),
+          glassmorphism: sanitizeGlassmorphismConfig(p.glassmorphism, s.glassmorphism),
+          visual: sanitizeVisualConfig(p.visual, s.visual),
           animations: { ...s.animations, ...p.animations },
           editor: { ...s.editor, ...p.editor },
           notes: { ...s.notes, ...p.notes },
-          qol: { ...s.qol, ...p.qol },
+          qol: sanitizeQolConfig(p.qol, s.qol),
         }))
       },
     }),

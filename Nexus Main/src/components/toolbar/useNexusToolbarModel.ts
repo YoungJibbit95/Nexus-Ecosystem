@@ -12,6 +12,7 @@ import {
   SPOTLIGHT_PINS_KEY,
   SPOTLIGHT_RECENTS_KEY,
   parseStoredList,
+  type ToolbarViewItem,
   type ViewId,
 } from "./constants";
 import { TOOLBAR_LAYOUT_CONFIG } from "./layoutConfig";
@@ -24,12 +25,14 @@ type UseNexusToolbarModelArgs = {
   forceSpotlight?: boolean;
   setView?: (view: any) => void;
   activeView?: string;
+  availableViews?: string[];
 };
 
 export function useNexusToolbarModel({
   forceSpotlight,
   setView,
   activeView,
+  availableViews,
 }: UseNexusToolbarModelArgs) {
   const t = useTheme();
   const terminal = useTerminal(
@@ -79,12 +82,19 @@ export function useNexusToolbarModel({
   const reducedMotion = t.qol?.reducedMotion ?? false;
   const spotlightAnchorX = TOOLBAR_LAYOUT_CONFIG.spotlight.anchorX;
   const motionRuntime = useMemo(() => buildMotionRuntime(t), [t]);
+  const viewItems = useMemo<ToolbarViewItem[]>(() => {
+    if (!Array.isArray(availableViews) || availableViews.length === 0) {
+      return [...VIEW_ITEMS];
+    }
+    const allowed = new Set(availableViews);
+    return VIEW_ITEMS.filter((item) => allowed.has(item.id));
+  }, [availableViews]);
   const activeToolbarView = useMemo(
     () =>
-      activeView && VIEW_ITEMS.some((item) => item.id === activeView)
+      activeView && viewItems.some((item) => item.id === activeView)
         ? (activeView as ViewId)
         : undefined,
-    [activeView],
+    [activeView, viewItems],
   );
 
   useEffect(() => {
@@ -262,8 +272,9 @@ export function useNexusToolbarModel({
         addCanvas,
         runCaptureIntent,
         setView,
+        viewItems,
       }),
-    [addCanvas, app, canvases, runCaptureIntent, setView, terminal, t],
+    [addCanvas, app, canvases, runCaptureIntent, setView, terminal, t, viewItems],
   );
 
   useEffect(() => {
@@ -348,10 +359,11 @@ export function useNexusToolbarModel({
         app,
         canvases,
         setView,
+        viewItems,
         runCaptureIntent,
         runTerminalCommand,
       }),
-    [search, commands, app, canvases, setView, runCaptureIntent, runTerminalCommand],
+    [search, commands, app, canvases, setView, viewItems, runCaptureIntent, runTerminalCommand],
   );
 
   const list = search ? suggestions : commandList;
@@ -411,6 +423,7 @@ export function useNexusToolbarModel({
     reducedMotion,
     spotlightAnchorX,
     activeToolbarView,
+    viewItems,
     pendingTasks,
     doneTasks,
     overdueReminders,

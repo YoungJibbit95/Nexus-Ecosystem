@@ -1,7 +1,7 @@
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { spawnNpm, spawnProcess } from './lib/process-utils.mjs'
-import { resolveHostedControlUrl } from './lib/api-source.mjs'
+import { resolveControlUiRoot, resolveHostedControlUrl } from './lib/api-source.mjs'
 import {
   describeListeningProcess,
   isLikelyMainViteProcess,
@@ -18,17 +18,20 @@ const includeControlUi = !cliArgs.has('--without-control-plane')
   && !cliArgs.has('--apps-only')
 
 const hostedControlUrl = resolveHostedControlUrl()
-const skipOpen = String(process.env.NEXUS_CONTROL_NO_OPEN || '').toLowerCase() === 'true'
+const skipOpen = cliArgs.has('--no-open')
+  || String(process.env.NEXUS_CONTROL_NO_OPEN || '').toLowerCase() === 'true'
 const openControlUrl = String(process.env.NEXUS_DEV_OPEN_CONTROL || 'true').toLowerCase() !== 'false'
 
 const SERVICES = []
 
 if (includeControlUi) {
+  const controlUiRoot = await resolveControlUiRoot({ root: ROOT, required: true, quiet: false })
   SERVICES.push(
     {
       id: 'control-ui',
       label: 'Control UI',
-      args: ['--prefix', '../Nexus Control', 'run', 'dev'],
+      cwd: controlUiRoot,
+      args: ['run', 'dev'],
       port: Number(process.env.NEXUS_CONTROL_UI_PORT || 5180),
       url: `http://localhost:${Number(process.env.NEXUS_CONTROL_UI_PORT || 5180)}`,
     },
@@ -59,7 +62,7 @@ const LOOPBACK_HOSTS = ['127.0.0.1', '::1']
 
 const run = (service, args) => {
   const child = spawnNpm(args, {
-    cwd: ROOT,
+    cwd: service.cwd || ROOT,
     env: process.env,
     stdio: 'inherit',
   })

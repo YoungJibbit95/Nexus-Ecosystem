@@ -67,9 +67,13 @@ export function CanvasStage({
   reduceNodeEffects: boolean;
 }) {
   return (
-    <div className="nx-canvas-stage-wrap" style={{ flex: 1, position: "relative", overflow: "hidden" }}>
+    <div
+      className="nx-canvas-stage-wrap"
+      style={{ flex: 1, position: "relative", overflow: "hidden" }}
+    >
       {connectingFrom && (
         <div
+          className="nx-canvas-connection-banner"
           style={{
             position: "absolute",
             bottom: 20,
@@ -93,6 +97,7 @@ export function CanvasStage({
           <Link size={14} style={{ color: accent }} />
           Klicke auf einen anderen Node zum Verbinden
           <button
+            type="button"
             onClick={() => setConnectingFrom(null)}
             style={{
               background: "rgba(255,255,255,0.12)",
@@ -111,6 +116,7 @@ export function CanvasStage({
 
       {spaceHeld && (
         <div
+          className="nx-canvas-pan-banner"
           style={{
             position: "absolute",
             top: 12,
@@ -125,7 +131,7 @@ export function CanvasStage({
             pointerEvents: "none",
           }}
         >
-          Space + Drag (optional) · Hintergrund ziehen zum Pannen
+          Canvas pan active
         </div>
       )}
 
@@ -151,11 +157,11 @@ export function CanvasStage({
             pointerEvents: "none",
           }}
         >
-          Doppelklick: Element
+          Canvas ready
           <span style={{ opacity: 0.42 }}>/</span>
-          Ctrl+P Suche
+          Add nodes
           <span style={{ opacity: 0.42 }}>/</span>
-          [[wiki]] Auto-Link
+          Link ideas
         </div>
       )}
 
@@ -183,16 +189,16 @@ export function CanvasStage({
         }}
         onMouseDown={onCanvasMouseDown}
         onWheel={onCanvasWheel}
-        onDoubleClick={(e) => {
-          const target = e.target as HTMLElement;
+        onDoubleClick={(event) => {
+          const target = event.target as HTMLElement;
           const isCanvasBackground =
-            target === e.currentTarget || target.dataset.canvasScene === "true";
+            target === event.currentTarget || target.dataset.canvasScene === "true";
           if (!isCanvasBackground) return;
           const rect = canvasRef.current?.getBoundingClientRect();
           if (!rect) return;
           setQuickAddPos({
-            x: e.clientX - rect.left,
-            y: e.clientY - rect.top,
+            x: event.clientX - rect.left,
+            y: event.clientY - rect.top,
           });
         }}
       >

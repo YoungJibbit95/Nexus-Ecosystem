@@ -1,6 +1,6 @@
 import React from "react";
 import { applyMotionProfile } from "../../lib/motionEngine";
-import { buildPanelSurfaceTokens } from "../../lib/visualUtils";
+import { buildBackground, buildPanelSurfaceTokens } from "../../lib/visualUtils";
 import type { BgMode, PanelBgMode, Theme } from "../../store/themeStore";
 import { MODULES, MOTION_PROFILES, EXPERIENCE_PRESETS } from "./settingsConstants";
 import {
@@ -90,6 +90,104 @@ export function SettingsModulePanels({
     },
   };
   const activePanelHelp = panelModeHelp[panelRenderer];
+  const liveBackgroundPreview = React.useMemo(
+    () => buildBackground(t.background, t.bg, t.mode),
+    [t.background, t.bg, t.mode],
+  );
+  const livePanelPreview = React.useMemo(
+    () =>
+      buildPanelSurfaceTokens({
+        mode: t.background.panelBgMode,
+        accent: t.accent,
+        accent2: t.accent2,
+        appBg: t.bg,
+        colorMode: t.mode,
+        backgroundVisibility: t.background.overlayOpacity,
+      }),
+    [
+      t.accent,
+      t.accent2,
+      t.background.overlayOpacity,
+      t.background.panelBgMode,
+      t.bg,
+      t.mode,
+    ],
+  );
+  const panelBalance = React.useMemo(() => {
+    const backgroundVisibility = Math.max(
+      0,
+      Math.min(1, Number(t.background?.overlayOpacity) || 0),
+    );
+    const panelBlur = Math.max(0, Number(t.blur?.panelBlur) || 0);
+    const sidebarBlur = Math.max(0, Number(t.blur?.sidebarBlur) || 0);
+    const tintOpacity = Math.max(0, Number(t.glassmorphism?.tintOpacity) || 0);
+    const meshIntensity = Math.max(0, Number(t.background?.meshIntensity) || 0);
+    const texture = t.background?.panelBgMode ?? "glass";
+    const issues: string[] = [];
+    let score = 100;
+
+    if (backgroundVisibility < 0.55) {
+      score -= 24;
+      issues.push("Background ist hinter Panels zu stark gedimmt");
+    }
+    if (backgroundVisibility > 0.9 && panelBlur < 16) {
+      score -= 18;
+      issues.push("Sehr transparente Panels brauchen mehr Blur");
+    }
+    if (panelBlur > 28 || sidebarBlur > 28) {
+      score -= 12;
+      issues.push("Blur ist fuer Alltag und Mobile recht schwer");
+    }
+    if (tintOpacity > 0.08) {
+      score -= 10;
+      issues.push("Panel Tint ueberdeckt Background-Farben");
+    }
+    if (meshIntensity > 0.72 && backgroundVisibility > 0.82) {
+      score -= 8;
+      issues.push("Background Glow konkurriert mit Panel-Inhalten");
+    }
+    if ((texture === "carbon" || texture === "circuit") && t.mode === "dark") {
+      score -= 5;
+      issues.push("Texture ist visuell dicht fuer lange Sessions");
+    }
+
+    const value = Math.max(0, Math.min(100, Math.round(score)));
+    const level =
+      value >= 82
+        ? {
+            label: "Balanced",
+            color: "#30d158",
+            text: "Panels zeigen den App Background und bleiben gut lesbar.",
+          }
+        : value >= 62
+          ? {
+              label: "Tune",
+              color: "#ffcc00",
+              text: "Der Look ist nutzbar, aber ein Auto-Tune wuerde ihn ruhiger machen.",
+            }
+          : {
+              label: "Fix",
+              color: "#ff453a",
+              text: "Der Materialmix verdeckt entweder den Background oder kostet Lesbarkeit.",
+            };
+
+    return {
+      value,
+      ...level,
+      backgroundVisibility,
+      panelBlur,
+      issues: issues.slice(0, 3),
+    };
+  }, [
+    t.background?.meshIntensity,
+    t.background?.overlayOpacity,
+    t.background?.panelBgMode,
+    t.blur?.panelBlur,
+    t.blur?.sidebarBlur,
+    t.glassmorphism?.tintOpacity,
+    t.mode,
+  ]);
+
   const glassPerformance = React.useMemo(() => {
     const drivers = [
       {
@@ -205,6 +303,142 @@ export function SettingsModulePanels({
     t.setBackground({ overlayOpacity: 0.72, meshIntensity: 0.42, noiseOpacity: 0.02 });
     t.setAnimations({ particleEffects: false, glowPulse: false });
     toast("Balanced Visuals angewendet");
+  }, [t, toast]);
+
+  const applyTransparentPanels = React.useCallback(() => {
+    t.setBackground({
+      overlayOpacity: 0.94,
+      meshIntensity: 0.5,
+      panelBgMode: "glass",
+    });
+    t.setGlassmorphism({
+      panelRenderer: "blur",
+      tintOpacity: 0.01,
+      borderOpacity: 0.2,
+      saturation: 180,
+      glassDepth: 0.85,
+    });
+    t.setBlur({ panelBlur: 20, sidebarBlur: 18, modalBlur: 24 });
+    t.setVisual({ shadowDepth: 0.42 });
+    toast("Transparente Panels angewendet");
+  }, [t, toast]);
+
+  const applyBackgroundFirstPanels = React.useCallback(() => {
+    t.setBackground({
+      overlayOpacity: 1,
+      meshIntensity: 0.62,
+      noiseOpacity: Math.min(0.035, t.background.noiseOpacity),
+      panelBgMode: "glass",
+      animated: t.background.mode === "animated-gradient" || t.background.mode === "aurora",
+    });
+    t.setGlassmorphism({
+      panelRenderer: "blur",
+      tintOpacity: 0.006,
+      borderOpacity: 0.18,
+      saturation: 190,
+      glassDepth: 0.72,
+      animatedBlur: false,
+    });
+    t.setBlur({ panelBlur: 22, sidebarBlur: 20, modalBlur: 26 });
+    t.setVisual({ shadowDepth: 0.34 });
+    toast("Background First Panels angewendet");
+  }, [t, toast]);
+
+  const applyReadablePanels = React.useCallback(() => {
+    t.setBackground({
+      overlayOpacity: 0.68,
+      meshIntensity: 0.34,
+      panelBgMode: "mist",
+    });
+    t.setGlassmorphism({
+      panelRenderer: "blur",
+      tintOpacity: 0.028,
+      borderOpacity: 0.18,
+      saturation: 160,
+      glassDepth: 0.95,
+    });
+    t.setBlur({ panelBlur: 15, sidebarBlur: 15, modalBlur: 22 });
+    t.setVisual({ shadowDepth: 0.5 });
+    toast("Readable Panels angewendet");
+  }, [t, toast]);
+
+  const applySolidFocusPanels = React.useCallback(() => {
+    t.setBackground({
+      overlayOpacity: 0.38,
+      meshIntensity: 0.18,
+      panelBgMode: "solid",
+    });
+    t.setGlassmorphism({
+      panelRenderer: "blur",
+      tintOpacity: 0.045,
+      borderOpacity: 0.14,
+      saturation: 135,
+      glassDepth: 0.7,
+    });
+    t.setBlur({ panelBlur: 10, sidebarBlur: 10, modalBlur: 16 });
+    t.setVisual({ shadowDepth: 0.32 });
+    toast("Solid Focus Panels angewendet");
+  }, [t, toast]);
+
+  const applyPanelAutoTune = React.useCallback(() => {
+    t.setBackground({
+      overlayOpacity: 0.78,
+      meshIntensity: Math.min(0.5, Math.max(0.3, t.background.meshIntensity)),
+      noiseOpacity: Math.min(0.04, t.background.noiseOpacity),
+      panelBgMode: t.background.panelBgMode === "solid" ? "mist" : t.background.panelBgMode,
+    });
+    t.setGlassmorphism({
+      panelRenderer: "blur",
+      tintOpacity: Math.min(0.04, Math.max(0.018, t.glassmorphism.tintOpacity)),
+      borderOpacity: Math.max(0.16, Math.min(0.28, t.glassmorphism.borderOpacity)),
+      saturation: Math.max(145, Math.min(185, t.glassmorphism.saturation)),
+      animatedBlur: false,
+    });
+    t.setBlur({
+      panelBlur: Math.max(15, Math.min(20, t.blur.panelBlur)),
+      sidebarBlur: Math.max(14, Math.min(18, t.blur.sidebarBlur)),
+      modalBlur: Math.max(20, Math.min(24, t.blur.modalBlur)),
+    });
+    toast("Panel Material automatisch ausbalanciert");
+  }, [t, toast]);
+
+  const applyMoreBackgroundVisibility = React.useCallback(() => {
+    t.setBackground({
+      overlayOpacity: 0.9,
+      meshIntensity: Math.max(0.42, t.background.meshIntensity),
+      panelBgMode: t.background.panelBgMode === "solid" ? "glass" : t.background.panelBgMode,
+    });
+    t.setGlassmorphism({
+      panelRenderer: "blur",
+      tintOpacity: Math.min(0.024, t.glassmorphism.tintOpacity),
+      borderOpacity: Math.max(0.18, t.glassmorphism.borderOpacity),
+      saturation: Math.max(165, t.glassmorphism.saturation),
+    });
+    t.setBlur({
+      panelBlur: Math.max(18, t.blur.panelBlur),
+      sidebarBlur: Math.max(16, t.blur.sidebarBlur),
+    });
+    toast("Background Sichtbarkeit erhoeht");
+  }, [t, toast]);
+
+  const applyReadabilityBoost = React.useCallback(() => {
+    t.setBackground({
+      overlayOpacity: 0.62,
+      meshIntensity: Math.min(0.34, t.background.meshIntensity),
+      panelBgMode: "mist",
+    });
+    t.setGlassmorphism({
+      panelRenderer: "blur",
+      tintOpacity: Math.max(0.032, Math.min(0.055, t.glassmorphism.tintOpacity)),
+      saturation: Math.min(165, t.glassmorphism.saturation),
+      animatedBlur: false,
+    });
+    t.setBlur({
+      panelBlur: 14,
+      sidebarBlur: 14,
+      modalBlur: Math.max(18, Math.min(22, t.blur.modalBlur)),
+    });
+    toast("Lesbarkeit verstaerkt");
   }, [t, toast]);
 
   return (
@@ -404,6 +638,73 @@ export function SettingsModulePanels({
                   title="Panel Background"
                   desc="Stabiler Panel-Look für den Alltag. Tieferes Tuning liegt unter Advanced."
                 >
+                  <div
+                    className="nx-settings-material-presets"
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "repeat(auto-fit,minmax(170px,1fr))",
+                      gap: 8,
+                      marginBottom: 12,
+                    }}
+                  >
+                    {[
+                      {
+                        label: "Background First",
+                        desc: "maximale Background-Sichtbarkeit mit stabilem Blur",
+                        action: applyBackgroundFirstPanels,
+                      },
+                      {
+                        label: "Transparent Glass",
+                        desc: "Background sichtbar, Panels bleiben lesbar",
+                        action: applyTransparentPanels,
+                      },
+                      {
+                        label: "Readable Mist",
+                        desc: "ruhige Balance fuer lange Sessions",
+                        action: applyReadablePanels,
+                      },
+                      {
+                        label: "Solid Focus",
+                        desc: "maximale Lesbarkeit, wenig Ablenkung",
+                        action: applySolidFocusPanels,
+                      },
+                    ].map((preset) => (
+                      <button
+                        key={preset.label}
+                        type="button"
+                        onClick={preset.action}
+                        className="nx-settings-material-preset"
+                        style={{
+                          minHeight: 72,
+                          borderRadius: 12,
+                          border: "1px solid rgba(255,255,255,0.12)",
+                          background:
+                            "linear-gradient(145deg, rgba(255,255,255,0.08), rgba(255,255,255,0.025)), var(--nx-panel-bg, rgba(255,255,255,0.04))",
+                          backgroundSize: "var(--nx-panel-bg-size, 100% 100%)",
+                          backgroundBlendMode:
+                            "screen, var(--nx-panel-bg-blend, normal)",
+                          color: "inherit",
+                          textAlign: "left",
+                          padding: "10px 11px",
+                          cursor: "pointer",
+                        }}
+                      >
+                        <div style={{ fontSize: 12, fontWeight: 860 }}>
+                          {preset.label}
+                        </div>
+                        <div
+                          style={{
+                            marginTop: 4,
+                            fontSize: 10.5,
+                            opacity: 0.64,
+                            lineHeight: 1.35,
+                          }}
+                        >
+                          {preset.desc}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
                   <Segmented
                     label="Mode"
                     value={panelRenderer}
@@ -421,6 +722,118 @@ export function SettingsModulePanels({
                   <div style={{ marginTop: 8, fontSize: 11, opacity: 0.68 }}>
                     <strong style={{ opacity: 0.92 }}>{activePanelHelp.label}:</strong>{" "}
                     {activePanelHelp.desc}
+                  </div>
+                  <div
+                    className="nx-settings-panel-health"
+                    style={{
+                      marginTop: 10,
+                      borderRadius: 12,
+                      border: "1px solid rgba(255,255,255,0.12)",
+                      background:
+                        "linear-gradient(145deg, rgba(255,255,255,0.075), rgba(255,255,255,0.022)), rgba(255,255,255,0.026)",
+                      padding: 10,
+                      display: "grid",
+                      gridTemplateColumns: "auto minmax(0,1fr)",
+                      gap: 10,
+                      alignItems: "center",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: 64,
+                        height: 64,
+                        borderRadius: 16,
+                        display: "grid",
+                        placeItems: "center",
+                        border: `1px solid ${panelBalance.color}66`,
+                        background: `radial-gradient(circle at 50% 20%, ${panelBalance.color}26, transparent 64%), rgba(255,255,255,0.035)`,
+                        color: panelBalance.color,
+                        fontWeight: 920,
+                      }}
+                    >
+                      {panelBalance.value}
+                    </div>
+                    <div style={{ minWidth: 0 }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          flexWrap: "wrap",
+                          gap: 8,
+                          alignItems: "baseline",
+                          justifyContent: "space-between",
+                        }}
+                      >
+                        <strong style={{ fontSize: 12 }}>
+                          Material Balance:{" "}
+                          <span style={{ color: panelBalance.color }}>
+                            {panelBalance.label}
+                          </span>
+                        </strong>
+                        <span style={{ fontSize: 10.5, opacity: 0.62 }}>
+                          BG {Math.round(panelBalance.backgroundVisibility * 100)}% / Blur{" "}
+                          {panelBalance.panelBlur}px
+                        </span>
+                      </div>
+                      <div
+                        style={{
+                          marginTop: 5,
+                          fontSize: 10.8,
+                          lineHeight: 1.42,
+                          opacity: 0.7,
+                        }}
+                      >
+                        {panelBalance.text}
+                      </div>
+                      {panelBalance.issues.length > 0 ? (
+                        <div
+                          style={{
+                            marginTop: 7,
+                            display: "grid",
+                            gap: 4,
+                            fontSize: 10.5,
+                            opacity: 0.66,
+                          }}
+                        >
+                          {panelBalance.issues.map((issue) => (
+                            <span key={issue}>- {issue}</span>
+                          ))}
+                        </div>
+                      ) : null}
+                      <div
+                        className="nx-settings-panel-health-actions"
+                        style={{
+                          display: "flex",
+                          flexWrap: "wrap",
+                          gap: 7,
+                          marginTop: 9,
+                        }}
+                      >
+                        {[
+                          ["Auto Tune", applyPanelAutoTune],
+                          ["More Background", applyMoreBackgroundVisibility],
+                          ["Readability", applyReadabilityBoost],
+                        ].map(([label, action]) => (
+                          <button
+                            key={label as string}
+                            type="button"
+                            onClick={action as () => void}
+                            className="nx-settings-panel-health-action"
+                            style={{
+                              borderRadius: 999,
+                              border: "1px solid rgba(255,255,255,0.13)",
+                              background: "rgba(255,255,255,0.045)",
+                              color: "inherit",
+                              padding: "6px 9px",
+                              fontSize: 10.5,
+                              fontWeight: 820,
+                              cursor: "pointer",
+                            }}
+                          >
+                            {label as string}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                   {!showAdvancedSettings ? (
                     <div
@@ -860,6 +1273,7 @@ export function SettingsModulePanels({
                         accent2: t.accent2,
                         appBg: t.bg,
                         colorMode: t.mode,
+                        backgroundVisibility: t.background.overlayOpacity,
                       });
                       return (
                         <button
@@ -935,7 +1349,7 @@ export function SettingsModulePanels({
                   <div style={{ marginTop: 10 }}>
                     <Row>
                       <Slider
-                        label="Background Visibility"
+                        label="Background Through Panels"
                         value={t.background.overlayOpacity}
                         min={0.25}
                         max={1}
@@ -965,6 +1379,214 @@ export function SettingsModulePanels({
                         }
                       />
                     </Row>
+                  </div>
+                  <div
+                    style={{
+                      marginTop: 10,
+                      borderRadius: 12,
+                      border: "1px solid rgba(255,255,255,0.12)",
+                      background:
+                        "linear-gradient(145deg, rgba(255,255,255,0.08), rgba(255,255,255,0.018)), var(--nx-panel-bg, rgba(255,255,255,0.04))",
+                      backgroundSize: "var(--nx-panel-bg-size, 100% 100%)",
+                      backgroundBlendMode:
+                        "screen, var(--nx-panel-bg-blend, normal)",
+                      padding: 12,
+                      display: "grid",
+                      gap: 8,
+                    }}
+                  >
+                    <div style={{ fontSize: 11, fontWeight: 850 }}>
+                      Live Material Preview
+                    </div>
+                    <div
+                      className="nx-settings-live-material-stage"
+                      style={{
+                        ...liveBackgroundPreview,
+                        minHeight: 176,
+                        borderRadius: 14,
+                        border: "1px solid rgba(255,255,255,0.12)",
+                        overflow: "hidden",
+                        position: "relative",
+                        padding: 12,
+                        display: "grid",
+                        alignItems: "end",
+                      }}
+                    >
+                      <div
+                        aria-hidden="true"
+                        style={{
+                          position: "absolute",
+                          inset: 0,
+                          background:
+                            "linear-gradient(180deg, rgba(0,0,0,0.02), rgba(0,0,0,0.16)), radial-gradient(260px circle at 12% 10%, rgba(255,255,255,0.16), transparent 58%)",
+                          pointerEvents: "none",
+                        }}
+                      />
+                      <div
+                        className="nx-settings-live-material-grid"
+                        style={{
+                          position: "relative",
+                          display: "grid",
+                          gridTemplateColumns: "minmax(0,1.35fr) minmax(112px,0.65fr)",
+                          gap: 10,
+                          alignItems: "stretch",
+                        }}
+                      >
+                        <div
+                          className="nx-settings-live-panel-sample"
+                          style={{
+                            minHeight: 122,
+                            borderRadius: 13,
+                            border: `1px solid rgba(${rgb},0.22)`,
+                            background: livePanelPreview.background,
+                            backgroundSize: livePanelPreview.backgroundSize,
+                            backgroundBlendMode:
+                              livePanelPreview.backgroundBlendMode,
+                            backdropFilter: `blur(${Math.max(8, Math.min(28, t.blur.panelBlur))}px) saturate(${Math.max(120, Math.min(220, t.glassmorphism.saturation))}%)`,
+                            WebkitBackdropFilter: `blur(${Math.max(8, Math.min(28, t.blur.panelBlur))}px) saturate(${Math.max(120, Math.min(220, t.glassmorphism.saturation))}%)`,
+                            boxShadow:
+                              "0 18px 34px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.12)",
+                            padding: 12,
+                            display: "grid",
+                            alignContent: "space-between",
+                            gap: 10,
+                          }}
+                        >
+                          <div>
+                            <div
+                              style={{
+                                fontSize: 10,
+                                opacity: 0.56,
+                                textTransform: "uppercase",
+                                letterSpacing: 0.6,
+                              }}
+                            >
+                              Active Panel
+                            </div>
+                            <div
+                              style={{
+                                marginTop: 3,
+                                fontSize: 14,
+                                fontWeight: 880,
+                              }}
+                            >
+                              {t.background.panelBgMode} / {panelRenderer}
+                            </div>
+                          </div>
+                          <div style={{ display: "grid", gap: 6 }}>
+                            {[0.92, 0.66, 0.42].map((width, index) => (
+                              <span
+                                key={width}
+                                style={{
+                                  width: `${Math.round(width * 100)}%`,
+                                  height: index === 0 ? 7 : 6,
+                                  borderRadius: 999,
+                                  background:
+                                    index === 0
+                                      ? `rgba(${rgb},0.42)`
+                                      : "rgba(255,255,255,0.18)",
+                                }}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                        <div
+                          style={{
+                            display: "grid",
+                            gap: 8,
+                            alignContent: "stretch",
+                          }}
+                        >
+                          {[
+                            ["BG", `${Math.round(t.background.overlayOpacity * 100)}%`],
+                            ["Blur", `${t.blur.panelBlur}px`],
+                            ["Tint", t.glassmorphism.tintOpacity.toFixed(2)],
+                          ].map(([label, value]) => (
+                            <div
+                              key={label}
+                              style={{
+                                borderRadius: 11,
+                                border: "1px solid rgba(255,255,255,0.12)",
+                                background: "rgba(255,255,255,0.08)",
+                                backdropFilter: "blur(10px)",
+                                WebkitBackdropFilter: "blur(10px)",
+                                padding: "9px 10px",
+                              }}
+                            >
+                              <div
+                                style={{
+                                  fontSize: 9,
+                                  opacity: 0.58,
+                                  textTransform: "uppercase",
+                                  letterSpacing: 0.6,
+                                }}
+                              >
+                                {label}
+                              </div>
+                              <div
+                                style={{
+                                  marginTop: 2,
+                                  fontSize: 13,
+                                  fontWeight: 880,
+                                  color: label === "BG" ? t.accent : "inherit",
+                                }}
+                              >
+                                {value}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "repeat(auto-fit,minmax(130px,1fr))",
+                        gap: 8,
+                      }}
+                    >
+                      {[
+                        ["Background", `${Math.round(t.background.overlayOpacity * 100)}%`],
+                        ["Panel", t.background.panelBgMode],
+                        ["Blur", `${t.blur.panelBlur}px`],
+                        ["Tint", t.glassmorphism.tintOpacity.toFixed(2)],
+                      ].map(([label, value]) => (
+                        <div
+                          key={label}
+                          style={{
+                            borderRadius: 10,
+                            border: "1px solid rgba(255,255,255,0.1)",
+                            background: "rgba(255,255,255,0.04)",
+                            padding: "8px 9px",
+                            minWidth: 0,
+                          }}
+                        >
+                          <div
+                            style={{
+                              fontSize: 9,
+                              opacity: 0.48,
+                              textTransform: "uppercase",
+                              letterSpacing: 0.6,
+                            }}
+                          >
+                            {label}
+                          </div>
+                          <div
+                            style={{
+                              marginTop: 2,
+                              fontSize: 12,
+                              fontWeight: 820,
+                              color: label === "Background" ? t.accent : "inherit",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            {value}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                   <div style={{ marginTop: 10 }}>
                     <Row>

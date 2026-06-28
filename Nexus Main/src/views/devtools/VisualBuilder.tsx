@@ -179,6 +179,31 @@ const escapeHtml = (value: string) =>
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;')
+const writeClipboard = async (text: string) => {
+  try {
+    if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text)
+      return true
+    }
+  } catch {
+    // Fall through to the document fallback below.
+  }
+  if (typeof document === 'undefined') return false
+  try {
+    const textarea = document.createElement('textarea')
+    textarea.value = text
+    textarea.setAttribute('readonly', 'true')
+    textarea.style.position = 'fixed'
+    textarea.style.top = '-9999px'
+    document.body.appendChild(textarea)
+    textarea.select()
+    const ok = document.execCommand('copy')
+    document.body.removeChild(textarea)
+    return ok
+  } catch {
+    return false
+  }
+}
 function toMarkup(elements: BuilderElement[]): BuilderPayload {
   const sorted = [...elements].sort((a, b) => a.y - b.y || a.x - b.x)
   const html: string[] = []
@@ -325,8 +350,8 @@ export function VisualBuilder({ onApplyToCode }: VisualBuilderProps) {
   }, [elements, onApplyToCode, syncCopiedState])
   const copyCss = useCallback(async () => {
     const payload = toMarkup(elements)
-    await navigator.clipboard.writeText(payload.css)
-    syncCopiedState('css')
+    const ok = await writeClipboard(payload.css)
+    if (ok) syncCopiedState('css')
   }, [elements, syncCopiedState])
   const flushDrag = useCallback(() => {
     frameRef.current = 0
@@ -391,9 +416,12 @@ export function VisualBuilder({ onApplyToCode }: VisualBuilderProps) {
     { type: 'input', label: 'Input', icon: AlignJustify },
     { type: 'image', label: 'Image', icon: ImageIcon },
   ]
+  const selectedSummary = selected ? `${selected.type} / ${Math.round(selected.width)} x ${Math.round(selected.height)}` : `${elements.length} elements`
+
   return (
-    <div style={{ display: 'flex', gap: 12, height: '100%', overflow: 'hidden' }}>
+    <div className="nx-devtools-visual-builder" style={{ display: 'flex', gap: 12, height: '100%', overflow: 'hidden' }}>
       <Glass
+        className="nx-devtools-visual-rail"
         style={{
           width: 210,
           flexShrink: 0,
@@ -435,21 +463,6 @@ export function VisualBuilder({ onApplyToCode }: VisualBuilderProps) {
         </div>
         <div style={{ height: 1, background: 'rgba(255,255,255,0.08)', margin: '12px 0' }} />
         <div style={{ display: 'grid', gap: 6 }}>
-          <button
-            onClick={autoLayout}
-            style={{
-              padding: '8px 10px',
-              borderRadius: 8,
-              border: '1px solid rgba(255,255,255,0.12)',
-              background: 'rgba(255,255,255,0.04)',
-              color: 'inherit',
-              cursor: 'pointer',
-              fontSize: 11,
-              fontWeight: 650,
-            }}
-          >
-            Auto Layout
-          </button>
           <button
             onClick={duplicateSelected}
             disabled={!selected}
@@ -533,6 +546,7 @@ export function VisualBuilder({ onApplyToCode }: VisualBuilderProps) {
         </div>
       </Glass>
       <Glass
+        className="nx-devtools-visual-workspace"
         style={{
           flex: 1,
           minWidth: 0,
@@ -542,6 +556,32 @@ export function VisualBuilder({ onApplyToCode }: VisualBuilderProps) {
           border: '1px solid rgba(255,255,255,0.08)',
         }}
       >
+        <div className="nx-devtools-visual-canvasbar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 10 }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 12, fontWeight: 950 }}>Visual canvas</div>
+            <div style={{ fontSize: 10, opacity: 0.52, marginTop: 2 }}>1600 x 960 / {selectedSummary}</div>
+          </div>
+          <button
+            onClick={autoLayout}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6,
+              padding: '7px 10px',
+              borderRadius: 8,
+              border: '1px solid rgba(255,255,255,0.12)',
+              background: 'rgba(255,255,255,0.05)',
+              color: 'inherit',
+              cursor: 'pointer',
+              fontSize: 10,
+              fontWeight: 800,
+            }}
+          >
+            <Layout size={12} />
+            Auto Layout
+          </button>
+        </div>
         <div
           ref={canvasRef}
           style={{
@@ -617,6 +657,7 @@ export function VisualBuilder({ onApplyToCode }: VisualBuilderProps) {
         </div>
       </Glass>
       <Glass
+        className="nx-devtools-visual-inspector"
         style={{
           width: 255,
           flexShrink: 0,
@@ -626,8 +667,11 @@ export function VisualBuilder({ onApplyToCode }: VisualBuilderProps) {
           border: '1px solid rgba(255,255,255,0.08)',
         }}
       >
-        <div style={{ fontSize: 10, letterSpacing: 0.9, textTransform: 'uppercase', opacity: 0.45, marginBottom: 8 }}>
-          Inspector
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 8 }}>
+          <div style={{ fontSize: 10, letterSpacing: 0.9, textTransform: 'uppercase', opacity: 0.45 }}>
+            Inspector
+          </div>
+          <div style={{ fontSize: 9, opacity: 0.52, textAlign: 'right' }}>{selected ? selected.type : 'None'}</div>
         </div>
         {!selected ? (
           <div style={{ fontSize: 12, opacity: 0.6, lineHeight: 1.6 }}>

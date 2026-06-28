@@ -15,8 +15,8 @@ Magic Menue oeffnet ohne dass offene Emoji-/Block-Menues die Toolbar zerlegen | 
 Dokumentation in InfoView einfacher und besser machen aber detailreich lassen | true
 Notes Split und Edit View mehr Raum geben damit man den Text besser sehen kann | true
 Buttons und Bars uebersichtlicher und einfacher zu verstehen machen | true
-Notes Store von Editor-Draft-State trennen | false
-Markdown/Emoji/Magic Daten in kleinere Module auslagern | false
+Notes Store von Editor-Draft-State trennen | true
+Markdown/Emoji/Magic Daten in kleinere Module auslagern | true
 Notes Tags aus der Format-Leiste nehmen und in eine kompakte Status-Leiste verschieben | true
 ```
 
