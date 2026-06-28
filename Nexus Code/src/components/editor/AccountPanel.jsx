@@ -1,8 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
   CheckCircle2,
-  ChevronDown,
-  ChevronUp,
   KeyRound,
   Link2,
   LogOut,
@@ -67,7 +65,6 @@ export default function AccountPanel({
     [normalizedSession],
   );
   const [draft, setDraft] = useState(normalizedSession);
-  const [expanded, setExpanded] = useState(!sessionState.hasToken);
   const [busy, setBusy] = useState(false);
   const [testResult, setTestResult] = useState(null);
 
@@ -94,14 +91,12 @@ export default function AccountPanel({
   const handleSave = () => {
     const saved = onSaveSession?.(draft);
     setDraft(normalizeAccountSession(saved || draft));
-    setExpanded(false);
   };
 
   const handleClear = () => {
     const cleared = onClearSession?.();
     setDraft(normalizeAccountSession(cleared || {}));
     setTestResult(null);
-    setExpanded(true);
   };
 
   const handleTest = async () => {
@@ -120,11 +115,7 @@ export default function AccountPanel({
       className="nx-code-account-panel isolate flex h-full min-h-0 w-full max-w-full flex-col overflow-hidden bg-transparent text-zinc-100"
       aria-label="Nexus Account"
     >
-      <button
-        type="button"
-        onClick={() => setExpanded((prev) => !prev)}
-        className="flex min-h-14 w-full shrink-0 items-center gap-3 border-b border-white/5 px-4 py-2 text-left transition-colors hover:bg-white/[0.04]"
-      >
+      <div className="nx-code-account-panel-header flex min-h-14 w-full shrink-0 items-center gap-3 border-b border-white/5 px-4 py-2 text-left">
         <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-md border ${statusTone}`}>
           {statusMode === "online" ? <CheckCircle2 size={16} /> : <UserRound size={16} />}
         </span>
@@ -134,109 +125,107 @@ export default function AccountPanel({
             {controlStatus?.title || "Control API Status"} - {statusMode}
           </span>
         </span>
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-zinc-400">
-          {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+        <span className="flex h-7 shrink-0 items-center rounded-md border border-white/[0.07] bg-white/[0.03] px-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-400">
+          Panel
         </span>
-      </button>
+      </div>
 
-      {expanded ? (
-        <div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto px-4 pb-4 pt-3">
-          <div className={`mb-3 max-w-full overflow-hidden rounded-md border px-3 py-2 text-[11px] leading-5 ${statusTone}`}>
-            <div className="break-words font-semibold">{testResult?.message || controlStatus?.message || "Lokale Session bereit."}</div>
-            {(testResult?.details || controlStatus?.details || []).length > 0 ? (
-              <div className="mt-1 break-words opacity-75">
-                {(testResult?.details || controlStatus?.details || []).join(", ")}
-              </div>
-            ) : null}
-          </div>
-
-          <div className="grid gap-3">
-            <Field icon={Link2} label="API Endpoint">
-              <input
-                className={FIELD_CLASS}
-                value={draft.endpoint}
-                onChange={(event) => updateDraft("endpoint", event.target.value)}
-                placeholder="https://nexus-api.cloud"
-                autoCapitalize="off"
-                autoCorrect="off"
-                spellCheck={false}
-              />
-            </Field>
-
-            <Field icon={KeyRound} label="Access Token">
-              <input
-                className={FIELD_CLASS}
-                value={draft.token}
-                onChange={(event) => updateDraft("token", event.target.value)}
-                placeholder="Nexus API token"
-                type="password"
-                autoCapitalize="off"
-                autoCorrect="off"
-                spellCheck={false}
-              />
-            </Field>
-
-            <div className="grid grid-cols-1 gap-3">
-              <Field icon={UserRound} label="User ID">
-                <input
-                  className={FIELD_CLASS}
-                  value={draft.userId}
-                  onChange={(event) => updateDraft("userId", event.target.value)}
-                  placeholder="local-user"
-                  autoCapitalize="off"
-                  autoCorrect="off"
-                  spellCheck={false}
-                />
-              </Field>
-              <Field icon={UserRound} label="Tier">
-                <select
-                  className={FIELD_CLASS}
-                  value={draft.userTier}
-                  onChange={(event) => updateDraft("userTier", event.target.value)}
-                >
-                  <option value="free">free</option>
-                  <option value="pro">pro</option>
-                  <option value="lifetime">lifetime</option>
-                  <option value="lifetime_pro">lifetime_pro</option>
-                </select>
-              </Field>
+      <div className="nx-code-account-panel-body custom-scrollbar min-h-0 flex-1 overflow-y-auto px-4 pb-4 pt-3">
+        <div className={`mb-3 max-w-full overflow-hidden rounded-md border px-3 py-2 text-[11px] leading-5 ${statusTone}`}>
+          <div className="break-words font-semibold">{testResult?.message || controlStatus?.message || "Lokale Session bereit."}</div>
+          {(testResult?.details || controlStatus?.details || []).length > 0 ? (
+            <div className="mt-1 break-words opacity-75">
+              {(testResult?.details || controlStatus?.details || []).join(", ")}
             </div>
+          ) : null}
+        </div>
 
-            <Field icon={UserRound} label="Username">
+        <div className="grid gap-3">
+          <Field icon={Link2} label="API Endpoint">
+            <input
+              className={FIELD_CLASS}
+              value={draft.endpoint}
+              onChange={(event) => updateDraft("endpoint", event.target.value)}
+              placeholder="https://nexus-api.cloud"
+              autoCapitalize="off"
+              autoCorrect="off"
+              spellCheck={false}
+            />
+          </Field>
+
+          <Field icon={KeyRound} label="Access Token">
+            <input
+              className={FIELD_CLASS}
+              value={draft.token}
+              onChange={(event) => updateDraft("token", event.target.value)}
+              placeholder="Nexus API token"
+              type="password"
+              autoCapitalize="off"
+              autoCorrect="off"
+              spellCheck={false}
+            />
+          </Field>
+
+          <div className="grid grid-cols-1 gap-3">
+            <Field icon={UserRound} label="User ID">
               <input
                 className={FIELD_CLASS}
-                value={draft.username}
-                onChange={(event) => updateDraft("username", event.target.value)}
-                placeholder="nexus-user"
+                value={draft.userId}
+                onChange={(event) => updateDraft("userId", event.target.value)}
+                placeholder="local-user"
                 autoCapitalize="off"
                 autoCorrect="off"
                 spellCheck={false}
               />
+            </Field>
+            <Field icon={UserRound} label="Tier">
+              <select
+                className={FIELD_CLASS}
+                value={draft.userTier}
+                onChange={(event) => updateDraft("userTier", event.target.value)}
+              >
+                <option value="free">free</option>
+                <option value="pro">pro</option>
+                <option value="lifetime">lifetime</option>
+                <option value="lifetime_pro">lifetime_pro</option>
+              </select>
             </Field>
           </div>
 
-          <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-            <div className="flex min-w-0 flex-wrap gap-2">
-              <IconButton label="Test Connection" onClick={handleTest} disabled={busy}>
-                <Wifi size={15} />
-                <span className="hidden sm:inline">{busy ? "Testing" : "Test"}</span>
-              </IconButton>
-              <IconButton label="Save Session" onClick={handleSave}>
-                <Save size={15} />
-                <span className="hidden sm:inline">Save</span>
-              </IconButton>
-            </div>
-            <div className="flex shrink-0 gap-2">
-              <IconButton label="Clear Fields" onClick={() => setDraft(normalizeAccountSession({}))}>
-                <Trash2 size={15} />
-              </IconButton>
-              <IconButton label="Logout" onClick={handleClear} tone="danger">
-                <LogOut size={15} />
-              </IconButton>
-            </div>
+          <Field icon={UserRound} label="Username">
+            <input
+              className={FIELD_CLASS}
+              value={draft.username}
+              onChange={(event) => updateDraft("username", event.target.value)}
+              placeholder="nexus-user"
+              autoCapitalize="off"
+              autoCorrect="off"
+              spellCheck={false}
+            />
+          </Field>
+        </div>
+
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+          <div className="flex min-w-0 flex-wrap gap-2">
+            <IconButton label="Test Connection" onClick={handleTest} disabled={busy}>
+              <Wifi size={15} />
+              <span className="hidden sm:inline">{busy ? "Testing" : "Test"}</span>
+            </IconButton>
+            <IconButton label="Save Session" onClick={handleSave}>
+              <Save size={15} />
+              <span className="hidden sm:inline">Save</span>
+            </IconButton>
+          </div>
+          <div className="flex shrink-0 gap-2">
+            <IconButton label="Clear Fields" onClick={() => setDraft(normalizeAccountSession({}))}>
+              <Trash2 size={15} />
+            </IconButton>
+            <IconButton label="Logout" onClick={handleClear} tone="danger">
+              <LogOut size={15} />
+            </IconButton>
           </div>
         </div>
-      ) : null}
+      </div>
     </section>
   );
 }

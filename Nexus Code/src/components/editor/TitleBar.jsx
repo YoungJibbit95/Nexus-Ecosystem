@@ -1,14 +1,19 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
+  ChevronDown,
   Command,
   FilePlus2,
   FolderOpen,
   Maximize2,
+  Menu,
+  Minus,
   Minimize2,
   PanelLeft,
   Save,
   Settings,
+  Square,
   TerminalSquare,
+  X,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -17,6 +22,35 @@ const win = typeof window !== "undefined" ? window : {};
 const isElectron = !!win.electronAPI;
 const isMacOS = isElectron && win.electronAPI?.platform === "darwin";
 const MACOS_TRAFFIC_LIGHT_SAFE_WIDTH = 78;
+const COMPACT_MENU_ID = "__compact_menu__";
+
+function MenuItemButton({ item, onSelect }) {
+  const Icon = item.icon;
+
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        item.action?.();
+        onSelect();
+      }}
+      disabled={item.disabled}
+      className={`nx-code-menu-item ${
+        item.disabled ? "is-disabled" : ""
+      }`}
+    >
+      <span className="flex min-w-0 items-center gap-2">
+        {Icon ? <Icon size={13} className="shrink-0" /> : null}
+        <span className="truncate">{item.label}</span>
+      </span>
+      {item.shortcut ? (
+        <span className="shrink-0 text-[9px] font-semibold tabular-nums text-gray-500">
+          {item.shortcut}
+        </span>
+      ) : null}
+    </button>
+  );
+}
 
 function MenuButton({ label, items, activeMenu, setActiveMenu }) {
   const isOpen = activeMenu === label;
@@ -25,8 +59,10 @@ function MenuButton({ label, items, activeMenu, setActiveMenu }) {
     <div className="relative" onMouseEnter={() => activeMenu && setActiveMenu(label)}>
       <button
         type="button"
+        aria-haspopup="menu"
+        aria-expanded={isOpen}
         onClick={() => setActiveMenu(isOpen ? null : label)}
-        className="h-6 rounded-md px-1.5 text-[11px] font-medium text-gray-400 outline-none transition-colors hover:bg-white/5 hover:text-white focus-visible:ring-2 focus-visible:ring-purple-500/60"
+        className="nx-code-menu-trigger"
         // @ts-ignore
         style={{ WebkitAppRegion: "no-drag" }}
       >
@@ -47,39 +83,85 @@ function MenuButton({ label, items, activeMenu, setActiveMenu }) {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 6, scale: 0.98 }}
               transition={{ duration: 0.14 }}
-              className="absolute left-0 top-full z-50 mt-1 min-w-[190px] overflow-hidden rounded-lg border border-white/10 bg-black/85 p-1 shadow-2xl backdrop-blur-xl"
+              className="nx-code-menu-dropdown absolute left-0 top-full z-50 mt-1 min-w-[200px] overflow-hidden p-1"
+              role="menu"
               // @ts-ignore
               style={{ WebkitAppRegion: "no-drag" }}
             >
-              {items.map((item, idx) => {
-                const Icon = item.icon;
-                return (
-                  <button
-                    key={`${item.label}-${idx}`}
-                    type="button"
-                    onClick={() => {
-                      item.action?.();
-                      setActiveMenu(null);
-                    }}
-                    disabled={item.disabled}
-                    className={`flex h-8 w-full items-center justify-between gap-3 rounded-md px-2.5 text-[11px] transition-colors ${
-                      item.disabled
-                        ? "cursor-not-allowed text-gray-600"
-                        : "text-gray-300 hover:bg-white/[0.07] hover:text-white"
-                    }`}
-                  >
-                    <span className="flex min-w-0 items-center gap-2">
-                      {Icon ? <Icon size={13} className="shrink-0" /> : null}
-                      <span className="truncate">{item.label}</span>
-                    </span>
-                    {item.shortcut ? (
-                      <span className="shrink-0 font-mono text-[9px] text-gray-500">
-                        {item.shortcut}
-                      </span>
-                    ) : null}
-                  </button>
-                );
-              })}
+              {items.map((item, idx) => (
+                <MenuItemButton
+                  key={`${item.label}-${idx}`}
+                  item={item}
+                  onSelect={() => setActiveMenu(null)}
+                />
+              ))}
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function CompactMenuButton({ menus, activeMenu, setActiveMenu }) {
+  const isOpen = activeMenu === COMPACT_MENU_ID;
+
+  return (
+    <div
+      className="relative"
+      onMouseEnter={() => activeMenu && setActiveMenu(COMPACT_MENU_ID)}
+    >
+      <button
+        type="button"
+        aria-haspopup="menu"
+        aria-expanded={isOpen}
+        onClick={() => setActiveMenu(isOpen ? null : COMPACT_MENU_ID)}
+        className="nx-code-menu-trigger nx-code-menu-trigger-compact"
+        title="Menue"
+        // @ts-ignore
+        style={{ WebkitAppRegion: "no-drag" }}
+      >
+        <Menu size={14} />
+        <span className="sr-only">Menue</span>
+        <ChevronDown size={12} />
+      </button>
+
+      <AnimatePresence>
+        {isOpen && (
+          <>
+            <div
+              className="fixed inset-0 z-40"
+              onClick={() => setActiveMenu(null)}
+              // @ts-ignore
+              style={{ WebkitAppRegion: "no-drag" }}
+            />
+            <motion.div
+              initial={{ opacity: 0, y: 6, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 6, scale: 0.98 }}
+              transition={{ duration: 0.14 }}
+              className="nx-code-menu-dropdown absolute left-0 top-full z-50 mt-1 w-[15.5rem] overflow-hidden p-1"
+              role="menu"
+              // @ts-ignore
+              style={{ WebkitAppRegion: "no-drag" }}
+            >
+              {menus.map((menu, menuIndex) => (
+                <div
+                  key={menu.label}
+                  className={menuIndex > 0 ? "mt-1 border-t border-white/[0.06] pt-1" : ""}
+                >
+                  <div className="px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.14em] text-gray-500">
+                    {menu.label}
+                  </div>
+                  {menu.items.map((item, itemIndex) => (
+                    <MenuItemButton
+                      key={`${menu.label}-${item.label}-${itemIndex}`}
+                      item={item}
+                      onSelect={() => setActiveMenu(null)}
+                    />
+                  ))}
+                </div>
+              ))}
             </motion.div>
           </>
         )}
@@ -95,7 +177,7 @@ function CommandButton({ icon: Icon, label, active, onClick, title }) {
       aria-pressed={active}
       title={title || label}
       onClick={onClick}
-      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-white/10 text-gray-400 transition-colors hover:border-white/20 hover:bg-white/10 hover:text-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500/60"
+      className="nx-code-command-button flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-gray-400 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500/60"
       style={{
         background: active
           ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.15)"
@@ -128,7 +210,6 @@ export default function TitleBar({
   workspaceName,
 }) {
   const [isMaximized, setIsMaximized] = useState(false);
-  const [hoveredBtn, setHoveredBtn] = useState(null);
   const [activeMenu, setActiveMenu] = useState(null);
   const menuHostRef = useRef(null);
 
@@ -179,6 +260,11 @@ export default function TitleBar({
   const safeMinimize = () => win.electronAPI?.minimize?.();
   const safeMaximize = () => win.electronAPI?.maximize?.();
   const showWindowControls = !isMacOS;
+  const windowControls = [
+    { id: "min", label: "Minimieren", icon: Minus, color: "#f59e0b", action: safeMinimize },
+    { id: "max", label: isMaximized ? "Wiederherstellen" : "Maximieren", icon: Square, color: "#22c55e", action: safeMaximize },
+    { id: "close", label: "Schliessen", icon: X, color: "#ef4444", action: safeClose },
+  ];
 
   const menus = [
     {
@@ -213,7 +299,7 @@ export default function TitleBar({
 
   return (
     <div
-      className={`nx-code-titlebar relative z-[60] flex h-10 shrink-0 select-none items-center justify-between gap-1.5 overflow-visible border-b border-white/5 ${compact ? "px-2" : "px-3"}`}
+      className={`nx-code-titlebar relative z-[60] flex h-10 shrink-0 select-none items-center justify-between gap-2 overflow-visible border-b border-white/5 ${compact ? "px-2" : "px-3"}`}
       style={{
         background: "var(--nexus-surface)",
         borderBottom: "1px solid var(--nexus-border)",
@@ -223,69 +309,72 @@ export default function TitleBar({
       }}
     >
       <div
-        className="flex min-w-0 shrink-0 items-center gap-1"
+        className="flex min-w-0 flex-1 basis-0 items-center gap-2"
         style={{ paddingLeft: isMacOS ? MACOS_TRAFFIC_LIGHT_SAFE_WIDTH : 0 }}
       >
         {showWindowControls && (
           <div
-            className="mr-2 flex items-center gap-1.5"
+            className="nx-code-window-controls flex shrink-0 items-center gap-1"
             // @ts-ignore
             style={{ WebkitAppRegion: "no-drag" }}
-            onMouseEnter={() => setHoveredBtn("group")}
-            onMouseLeave={() => setHoveredBtn(null)}
           >
-            {[
-              { id: "close", color: "#ff5f57", symbol: "x", action: safeClose },
-              { id: "min", color: "#febc2e", symbol: "-", action: safeMinimize },
-              { id: "max", color: "#28c840", symbol: isMaximized ? "[]" : "+", action: safeMaximize },
-            ].map((btn) => (
+            {windowControls.map((btn) => {
+              const Icon = btn.icon;
+              return (
               <motion.button
                 key={btn.id}
                 type="button"
                 whileTap={{ scale: 0.85 }}
                 onClick={btn.action}
-                className="flex h-3 w-3 items-center justify-center rounded-full focus:outline-none"
-                style={{
-                  background: btn.color,
-                  boxShadow:
-                    hoveredBtn === "group" ? `0 0 6px ${btn.color}80` : "none",
-                  cursor: "pointer",
-                }}
+                title={btn.label}
+                aria-label={btn.label}
+                data-control={btn.id}
+                className="nx-code-window-button"
+                style={{ "--window-accent": btn.color }}
               >
-                <motion.span
-                  animate={{ opacity: hoveredBtn === "group" ? 1 : 0 }}
-                  className="pointer-events-none font-bold leading-none text-white"
-                  style={{ fontSize: 7, marginTop: "0.5px" }}
-                >
-                  {btn.symbol}
-                </motion.span>
+                <span className="nx-code-window-dot" />
+                <Icon size={11} className="nx-code-window-icon" />
               </motion.button>
-            ))}
+              );
+            })}
           </div>
         )}
 
         <div
           ref={menuHostRef}
-          className={`nx-code-menu-host items-center gap-0.5 ${compact ? "hidden lg:flex" : "flex"}`}
+          className="flex min-w-0 items-center gap-1"
           // @ts-ignore
           style={{ WebkitAppRegion: "no-drag" }}
         >
-          {menus.map((menu) => (
-            <MenuButton
-              key={menu.label}
-              label={menu.label}
-              items={menu.items}
+          <div
+            className={`nx-code-menu-host nx-code-menu-cluster items-center ${compact ? "hidden xl:flex" : "flex"}`}
+          >
+            {menus.map((menu) => (
+              <MenuButton
+                key={menu.label}
+                label={menu.label}
+                items={menu.items}
+                activeMenu={activeMenu}
+                setActiveMenu={setActiveMenu}
+              />
+            ))}
+          </div>
+          <div
+            className={`nx-code-menu-host nx-code-menu-compact-host items-center ${compact ? "flex xl:hidden" : "hidden"}`}
+          >
+            <CompactMenuButton
+              menus={menus}
               activeMenu={activeMenu}
               setActiveMenu={setActiveMenu}
             />
-          ))}
+          </div>
         </div>
       </div>
 
       <button
         type="button"
         onClick={safeCommandPalette}
-        className="mx-1 flex h-7 min-w-0 flex-1 items-center justify-center gap-2 rounded-md border border-white/10 bg-white/[0.03] px-2.5 text-left transition-colors hover:border-white/20 hover:bg-white/[0.055] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500/60 sm:max-w-[32rem]"
+        className="nx-code-command-center mx-1 flex h-7 min-w-[8rem] flex-[1.25] items-center justify-center gap-2 rounded-md px-2.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500/60 sm:max-w-[32rem]"
         // @ts-ignore
         style={{ WebkitAppRegion: "no-drag" }}
         title="Befehlspalette oeffnen"
@@ -295,13 +384,13 @@ export default function TitleBar({
           Nexus Code
           <span className="hidden text-gray-500 md:inline"> / {workspaceLabel}</span>
         </span>
-        <span className="hidden shrink-0 rounded border border-white/10 px-1.5 py-0.5 font-mono text-[9px] text-gray-500 xl:inline">
+        <span className="hidden shrink-0 rounded-md border border-white/10 px-1.5 py-0.5 text-[9px] font-semibold tabular-nums text-gray-500 xl:inline">
           {shellModeLabel}
         </span>
       </button>
 
       <div
-        className="flex shrink-0 items-center gap-0.5"
+        className="flex min-w-0 flex-1 basis-0 items-center justify-end gap-1"
         // @ts-ignore
         style={{ WebkitAppRegion: "no-drag" }}
       >

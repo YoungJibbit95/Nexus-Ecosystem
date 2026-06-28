@@ -15,7 +15,7 @@
     "typecheck": "tsc -p ./jsconfig.json",
     "preview": "vite preview",
     "electron:ensure": "node ./scripts/ensure-electron.cjs",
-    "electron:dev": "node ./scripts/ensure-electron.cjs && cross-env ELECTRON_DEV=true concurrently -n VITE,ELECTRON -c cyan,magenta \"vite\" \"wait-on http://localhost:5175 && electron .\"",
+    "electron:dev": "node ./scripts/ensure-electron.cjs && cross-env ELECTRON_DEV=true NEXUS_CODE_DEV_URL=http://127.0.0.1:5175 concurrently -n VITE,ELECTRON -c cyan,magenta \"vite --host 127.0.0.1\" \"wait-on http://127.0.0.1:5175 && electron .\"",
     "electron:build": "npm run electron:build:host",
     "pack": "vite build && electron-builder --dir",
     "dist": "vite build && electron-builder",

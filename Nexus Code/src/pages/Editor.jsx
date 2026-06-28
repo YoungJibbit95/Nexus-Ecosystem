@@ -41,7 +41,9 @@ import {
 import { createFileNodesFromEntries } from "./editor/fileTreeModel";
 import {
   getBottomPanelClassName,
+  getMainEditorClassName,
   getPanelMeta,
+  getRailClassName,
   getShellModeLabel,
   getSidePanelClassName,
 } from "./editor/editorShellLayout";
@@ -164,7 +166,16 @@ function getProblemSummary(problems) {
   );
 }
 
-function StatusItem({ icon: Icon, label, value, tone = "muted", onClick, title }) {
+function StatusItem({
+  icon: Icon,
+  label,
+  value,
+  tone = "muted",
+  onClick,
+  title,
+  iconOnly = false,
+  className = "",
+}) {
   const toneClass =
     tone === "danger"
       ? "text-red-300 border-red-500/20 bg-red-500/10"
@@ -180,10 +191,14 @@ function StatusItem({ icon: Icon, label, value, tone = "muted", onClick, title }
       type={onClick ? "button" : undefined}
       onClick={onClick}
       title={title || label}
-      className={`h-6 min-w-0 rounded-md border px-2 flex items-center gap-1.5 text-[10px] font-medium ${toneClass} ${onClick ? "hover:bg-white/10 transition-colors" : ""}`}
+      className={`nx-code-status-item h-7 min-w-0 max-w-full rounded-md border px-2 flex items-center justify-center gap-1.5 text-[10px] font-medium leading-none ${toneClass} ${onClick ? "hover:bg-white/10 transition-colors" : ""} ${iconOnly ? "nx-code-status-item-icon w-7 px-0" : ""} ${className}`}
     >
       {Icon ? <Icon size={12} className="shrink-0" /> : null}
-      <span className="truncate">{value || label}</span>
+      {iconOnly ? (
+        <span className="sr-only">{value || label}</span>
+      ) : (
+        <span className="truncate">{value || label}</span>
+      )}
     </Comp>
   );
 }
@@ -1536,52 +1551,58 @@ export default function Editor({
   const sidebarVisible = settings.sidebar_visible !== false;
   const sidebarSide = settings.sidebar_position === "right" ? "right" : "left";
   const sideRailVisible = !zenMode && sidebarVisible;
+  const sidePanelVisible = Boolean(!showSettings && sideRailVisible && activePanel);
+  const visibleActivePanel = sidePanelVisible ? activePanel : null;
   const shellModeLabel = getShellModeLabel({
     showSettings,
     zenMode,
-    activePanel,
+    activePanel: visibleActivePanel,
   });
-  const activePanelMeta = getPanelMeta(activePanel);
+  const activePanelMeta = getPanelMeta(visibleActivePanel);
   const sidePanelClassName = getSidePanelClassName({
     compact: isCompactViewport,
-    side: sidebarSide,
   });
-  const bottomPanelClassName = getBottomPanelClassName();
+  const mainEditorClassName = getMainEditorClassName();
+  const bottomPanelClassName = getBottomPanelClassName({
+    compact: isCompactViewport,
+  });
 
   return (
     <div
       className={`nx-code-shell h-screen min-h-0 flex flex-col overflow-hidden bg-transparent text-[#e5e7eb] font-sans ${isCompactViewport ? "nx-code-shell-compact" : ""}`}
     >
-      <TitleBar
-        compact={isCompactViewport}
-        onNewFile={() => handleCreateFileRequest("typescript", "language")}
-        onSaveAll={handleSaveAll}
-        onOpenFolder={handleOpenFolder}
-        onToggleSidebar={handleToggleSidebar}
-        onToggleSidebarVisibility={handleToggleSidebarVisibility}
-        onToggleZenMode={handleToggleZenMode}
-        onToggleTerminal={handleToggleTerminalPanel}
-        onOpenCommandPalette={() => setCommandPaletteOpen(true)}
-        onOpenSettings={handleOpenSettingsPanel}
-        onFocusEditor={handleFocusEditor}
-        sidebarVisible={sideRailVisible}
-        zenMode={zenMode}
-        terminalOpen={bottomPanelVisible}
-        shellModeLabel={shellModeLabel}
-        activePanelLabel={activePanelMeta.title}
-        workspaceName={
-          workspacePath ? workspacePath.split(/[\\/]/).pop() : null
-        }
-      />
+      <div className="nx-code-titlebar-wrap relative z-50 shrink-0">
+        <TitleBar
+          compact={isCompactViewport}
+          onNewFile={() => handleCreateFileRequest("typescript", "language")}
+          onSaveAll={handleSaveAll}
+          onOpenFolder={handleOpenFolder}
+          onToggleSidebar={handleToggleSidebar}
+          onToggleSidebarVisibility={handleToggleSidebarVisibility}
+          onToggleZenMode={handleToggleZenMode}
+          onToggleTerminal={handleToggleTerminalPanel}
+          onOpenCommandPalette={() => setCommandPaletteOpen(true)}
+          onOpenSettings={handleOpenSettingsPanel}
+          onFocusEditor={handleFocusEditor}
+          sidebarVisible={sideRailVisible}
+          zenMode={zenMode}
+          terminalOpen={bottomPanelVisible}
+          shellModeLabel={shellModeLabel}
+          activePanelLabel={visibleActivePanel ? activePanelMeta.title : "Editor"}
+          workspaceName={
+            workspacePath ? workspacePath.split(/[\\/]/).pop() : null
+          }
+        />
+      </div>
 
       <div
         className="nx-code-workbench flex-1 min-h-0 overflow-hidden relative"
         style={{ background: "rgba(0,0,0,0.08)" }}
       >
-        <div className="flex h-full min-h-0 overflow-hidden">
+        <div className="flex h-full min-h-0 w-full overflow-hidden">
         {sideRailVisible && sidebarSide === "left" && (
             <div
-              className="nx-code-rail relative z-40 h-full min-h-0 overflow-visible flex flex-col border-r border-white/5 shrink-0 nexus-panel-surface"
+              className={getRailClassName("left")}
               style={{
                 background: "var(--nexus-panel-surface)",
                 backdropFilter: "var(--nexus-panel-filter)",
@@ -1630,19 +1651,32 @@ export default function Editor({
           <>
             {/* Side Panels */}
             <AnimatePresence mode="wait">
-              {!zenMode && activePanel && (
+              {sidePanelVisible && (
                 <motion.div
-                  initial={{ opacity: 0, x: sidebarSide === "right" ? 20 : -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: sidebarSide === "right" ? 20 : -20 }}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
                   transition={{ type: "tween", duration: 0.18, ease: [0.2, 0.7, 0.2, 1] }}
                   className={`nx-code-side-panel ${sidePanelClassName} z-30 min-h-0 overflow-hidden border-x border-white/5`}
                   style={{
+                    position: isCompactViewport ? "absolute" : "relative",
+                    top: isCompactViewport ? 0 : "auto",
+                    right: isCompactViewport && sidebarSide === "right" ? "3.25rem" : "auto",
+                    bottom: isCompactViewport ? 0 : "auto",
+                    left: isCompactViewport && sidebarSide !== "right" ? "3.25rem" : "auto",
+                    height: "100%",
+                    width: isCompactViewport
+                      ? "min(22rem, calc(100vw - 3.25rem))"
+                      : undefined,
+                    maxWidth: isCompactViewport
+                      ? "calc(100vw - 3.25rem)"
+                      : undefined,
+                    flexShrink: isCompactViewport ? undefined : 0,
                     background: "var(--nexus-panel-surface)",
                     backdropFilter: "var(--nexus-panel-filter)",
                     boxShadow: isCompactViewport ? "0 18px 48px rgba(0,0,0,0.35)" : "none",
                     order: sidebarSide === "right" ? 30 : 5,
-                    willChange: "transform, opacity",
+                    willChange: "opacity",
                   }}
                 >
                   <SidePanelFrame
@@ -1724,7 +1758,7 @@ export default function Editor({
 
             {/* Main Editor Area */}
             <div
-              className="nx-code-main flex-1 flex flex-col min-w-0 min-h-0 bg-transparent"
+              className={mainEditorClassName}
               style={{ order: 20 }}
             >
               <div
@@ -1804,7 +1838,7 @@ export default function Editor({
 
               {(statusStripVisible || bottomPanelVisible) && (
                 <div
-                  className="shrink-0 border-t border-white/5 min-h-0 overflow-hidden"
+                  className="nx-code-bottom-stack shrink-0 border-t border-white/5 min-h-0 overflow-hidden"
                   style={{
                     background: "var(--nexus-panel-surface)",
                     backdropFilter: "var(--nexus-panel-filter)",
@@ -1812,68 +1846,82 @@ export default function Editor({
                 >
                   {statusStripVisible && (
                     <div
-                      className="nx-code-status-strip h-8 px-2.5 flex items-center gap-2 border-b border-white/5 overflow-hidden"
+                      className="nx-code-status-strip min-h-10 px-3 py-1.5 flex items-center gap-2 border-b border-white/5 overflow-hidden"
                       style={{ background: "rgba(0,0,0,0.18)" }}
                     >
-                      <StatusItem
-                        icon={Folder}
-                        label="Workspace"
-                        value={workspaceLabel}
-                        title={workspacePath || "Kein Workspace ausgewaehlt"}
-                      />
-                      <StatusItem
-                        icon={FileText}
-                        label="Datei"
-                        value={activePathLabel}
-                        title={activePathLabel}
-                      />
-                      <StatusItem
-                        icon={CircleDot}
-                        label="Typ"
-                        value={fileExtensionLabel}
-                      />
-                      {modifiedTabsCount > 0 ? (
+                      <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden">
                         <StatusItem
-                          tone="warning"
-                          label="Ungespeichert"
-                          value={`${modifiedTabsCount} modified`}
-                          title="Geaenderte Tabs"
+                          icon={Folder}
+                          label="Workspace"
+                          value={workspaceLabel}
+                          title={workspacePath || "Kein Workspace ausgewaehlt"}
+                          className={isCompactViewport ? "max-w-[8.5rem]" : "max-w-[14rem]"}
                         />
-                      ) : (
                         <StatusItem
-                          label="Saved"
-                          value={activeTab ? "saved" : "idle"}
+                          icon={FileText}
+                          label="Datei"
+                          value={activePathLabel}
+                          title={activePathLabel}
+                          className="flex-1"
                         />
-                      )}
-                      <div className="flex-1 min-w-0" />
-                      <StatusItem
-                        icon={XCircle}
-                        tone={problemSummary.errors > 0 ? "danger" : "muted"}
-                        label="Errors"
-                        value={`${problemSummary.errors}`}
-                        onClick={handleOpenProblemsPanel}
-                      />
-                      <StatusItem
-                        icon={AlertTriangle}
-                        tone={problemSummary.warnings > 0 ? "warning" : "muted"}
-                        label="Warnings"
-                        value={`${problemSummary.warnings}`}
-                        onClick={handleOpenProblemsPanel}
-                      />
-                      <StatusItem
-                        icon={TerminalSquare}
-                        tone={bottomPanelVisible && bottomTab === "terminal" ? "active" : "muted"}
-                        label="Terminal"
-                        value="Terminal"
-                        onClick={handleToggleTerminalPanel}
-                      />
-                      <StatusItem
-                        icon={AlertCircle}
-                        tone={bottomPanelVisible && bottomTab === "problems" ? "active" : "muted"}
-                        label="Problems"
-                        value="Problems"
-                        onClick={handleOpenProblemsPanel}
-                      />
+                        {!isCompactViewport && (
+                          <StatusItem
+                            icon={CircleDot}
+                            label="Typ"
+                            value={fileExtensionLabel}
+                          />
+                        )}
+                        {modifiedTabsCount > 0 ? (
+                          <StatusItem
+                            tone="warning"
+                            label="Ungespeichert"
+                            value={`${modifiedTabsCount} modified`}
+                            title="Geaenderte Tabs"
+                            className="shrink-0"
+                          />
+                        ) : (
+                          !isCompactViewport && (
+                            <StatusItem
+                              label="Saved"
+                              value={activeTab ? "saved" : "idle"}
+                            />
+                          )
+                        )}
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1.5 pl-1">
+                        <StatusItem
+                          icon={XCircle}
+                          tone={problemSummary.errors > 0 ? "danger" : "muted"}
+                          label="Errors"
+                          value={`${problemSummary.errors}`}
+                          onClick={handleOpenProblemsPanel}
+                          iconOnly={isCompactViewport}
+                        />
+                        <StatusItem
+                          icon={AlertTriangle}
+                          tone={problemSummary.warnings > 0 ? "warning" : "muted"}
+                          label="Warnings"
+                          value={`${problemSummary.warnings}`}
+                          onClick={handleOpenProblemsPanel}
+                          iconOnly={isCompactViewport}
+                        />
+                        <StatusItem
+                          icon={TerminalSquare}
+                          tone={bottomPanelVisible && bottomTab === "terminal" ? "active" : "muted"}
+                          label="Terminal"
+                          value="Terminal"
+                          onClick={handleToggleTerminalPanel}
+                          iconOnly={isCompactViewport}
+                        />
+                        <StatusItem
+                          icon={AlertCircle}
+                          tone={bottomPanelVisible && bottomTab === "problems" ? "active" : "muted"}
+                          label="Problems"
+                          value="Problems"
+                          onClick={handleOpenProblemsPanel}
+                          iconOnly={isCompactViewport}
+                        />
+                      </div>
                     </div>
                   )}
                   {bottomPanelVisible && bottomTab === "terminal" && (
@@ -1911,7 +1959,7 @@ export default function Editor({
 
             {sideRailVisible && sidebarSide === "right" && (
                 <div
-                  className="relative z-40 h-full min-h-0 overflow-visible flex flex-col border-l border-white/5 shrink-0 nexus-panel-surface"
+                  className={getRailClassName("right")}
                   style={{
                     background: "var(--nexus-panel-surface)",
                     backdropFilter: "var(--nexus-panel-filter)",

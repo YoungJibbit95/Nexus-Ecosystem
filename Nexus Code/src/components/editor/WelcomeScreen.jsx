@@ -34,9 +34,9 @@ const itemVariants = {
 };
 
 const actionItems = [
-  { icon: Plus, label: "Neue Datei", action: "new" },
-  { icon: FolderOpen, label: "Ordner oeffnen", action: "folder" },
-  { icon: Settings, label: "Setup", action: "settings" },
+  { icon: Plus, label: "Neue Datei", action: "new", primary: true },
+  { icon: FolderOpen, label: "Ordner oeffnen", action: "folder", primary: true },
+  { icon: Settings, label: "Setup", action: "settings", primary: false },
 ];
 
 const capabilityIcons = {
@@ -48,23 +48,29 @@ const capabilityIcons = {
   editor: FileCode2,
 };
 
-function ActionButton({ icon: Icon, label, onClick }) {
+function ActionButton({ icon: Icon, label, onClick, primary = false }) {
   return (
     <motion.button
       type="button"
       variants={itemVariants}
-      whileHover={{ x: 2 }}
+      whileHover={{ y: -1 }}
       whileTap={{ scale: 0.99 }}
       onClick={onClick}
-      className="group flex h-10 min-w-0 items-center gap-2 rounded-md px-2.5 text-left outline-none transition-colors hover:bg-white/[0.055] focus-visible:ring-2 focus-visible:ring-purple-500/60"
+      className={`group flex h-11 min-w-0 items-center gap-2 rounded-md px-3 text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-purple-500/60 ${
+        primary ? "nx-code-welcome-action-primary" : "nx-code-welcome-action"
+      }`}
       style={{
-        border: "1px solid rgba(255,255,255,0.065)",
-        background: "rgba(255,255,255,0.025)",
+        border: primary
+          ? "1px solid rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.34)"
+          : "1px solid rgba(255,255,255,0.075)",
+        background: primary
+          ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.16)"
+          : "rgba(255,255,255,0.026)",
       }}
     >
       <Icon
         size={15}
-        className="shrink-0 text-[var(--nexus-primary,#7c8cff)]"
+        className={`shrink-0 ${primary ? "text-white" : "text-[var(--nexus-primary,#7c8cff)]"}`}
       />
       <span className="min-w-0 truncate text-xs font-semibold text-[var(--nexus-text)]">
         {label}
@@ -81,7 +87,7 @@ function CapabilityRow({ capability }) {
   return (
     <motion.div
       variants={itemVariants}
-      className="grid min-h-[2.4rem] grid-cols-[1.15rem_minmax(0,1fr)_minmax(4.75rem,max-content)] items-center gap-2 border-b border-white/[0.055] py-2 last:border-b-0"
+      className="nx-code-capability-row grid min-h-[2.35rem] grid-cols-[1.15rem_minmax(0,1fr)_minmax(4.75rem,max-content)] items-center gap-2 border-b border-white/[0.045] py-2 last:border-b-0"
     >
       <Icon
         size={14}
@@ -91,7 +97,7 @@ function CapabilityRow({ capability }) {
       <div className="min-w-0 truncate text-xs font-medium text-[var(--nexus-text)]">
         {capability.label}
       </div>
-      <div className="min-w-0 justify-self-end truncate rounded border border-white/[0.07] bg-white/[0.025] px-2 py-0.5 text-right text-[9px] font-semibold uppercase tracking-wide text-[var(--nexus-muted)]">
+      <div className="nx-code-capability-badge min-w-0 justify-self-end truncate rounded-md border border-white/[0.07] bg-white/[0.024] px-2 py-0.5 text-right text-[9px] font-semibold uppercase tracking-[0.1em] text-[var(--nexus-muted)]">
         {statusLabel}
       </div>
     </motion.div>
@@ -124,11 +130,11 @@ export default function WelcomeScreen({
         variants={containerVariants}
         initial="hidden"
         animate="visible"
-        className="mx-auto flex min-h-full w-full max-w-5xl flex-col justify-start gap-5 px-5 py-6 sm:px-8 md:justify-center lg:px-10"
+        className="nx-code-welcome mx-auto flex w-full max-w-4xl flex-col justify-start gap-4 px-4 py-7 sm:px-6 lg:px-8"
       >
         <motion.section
           variants={itemVariants}
-          className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-start"
+          className="nx-code-welcome-hero grid gap-5 rounded-lg border border-white/[0.07] p-4 sm:p-5 lg:grid-cols-[minmax(0,1fr)_16.5rem] lg:items-start"
         >
           <div className="min-w-0">
             <div className="mb-4 flex items-center gap-3">
@@ -144,10 +150,10 @@ export default function WelcomeScreen({
                 NC
               </div>
               <div className="min-w-0">
-                <h1 className="text-3xl font-semibold tracking-normal text-[var(--nexus-text)] sm:text-4xl">
+                <h1 className="text-3xl font-semibold tracking-normal text-[var(--nexus-text)] sm:text-[2.45rem]">
                   Nexus Code
                 </h1>
-                <p className="mt-1 truncate text-sm text-[var(--nexus-muted)]">
+                <p className="mt-1 max-w-xl truncate text-sm text-[var(--nexus-muted)]">
                   {releaseSnapshot.language.fullIdeLabel}
                 </p>
               </div>
@@ -161,12 +167,13 @@ export default function WelcomeScreen({
               }}
             />
 
-            <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
+            <div className="nx-code-welcome-actions mt-4 grid grid-cols-1 gap-2">
               {actionItems.map((item) => (
                 <ActionButton
                   key={item.action}
                   icon={item.icon}
                   label={item.label}
+                  primary={item.primary}
                   onClick={() => handleAction(item.action)}
                 />
               ))}
@@ -175,7 +182,7 @@ export default function WelcomeScreen({
 
           <motion.div
             variants={itemVariants}
-            className="rounded-lg border border-white/[0.07] bg-white/[0.026] p-3"
+            className="nx-code-welcome-release rounded-lg border border-white/[0.07] p-3"
           >
             <div className="flex items-center justify-between gap-3">
               <div className="text-[10px] font-semibold uppercase tracking-wide text-[var(--nexus-muted)]">
@@ -201,7 +208,7 @@ export default function WelcomeScreen({
 
         <motion.section
           variants={itemVariants}
-          className="rounded-lg border border-white/[0.06] bg-white/[0.018] px-3"
+          className="nx-code-welcome-capabilities rounded-lg border border-white/[0.06] px-3"
         >
           {visibleCapabilities.map((capability) => (
             <CapabilityRow key={capability.id} capability={capability} />

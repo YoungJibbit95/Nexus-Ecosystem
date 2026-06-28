@@ -1,5 +1,6 @@
 const { app, BrowserWindow, ipcMain, shell, Menu, dialog, session } = require("electron");
 const path = require("path");
+const os = require("os");
 const fs = require("fs").promises;
 const { spawn, execSync } = require("child_process");
 const { createGitService } = require("./services/gitService.cjs");
@@ -10,7 +11,7 @@ const { createLspProcessService } = require("./services/lspProcessService.cjs");
 const { redactSensitiveText } = require("./services/processRunner.cjs");
 
 const DEV = process.env.ELECTRON_DEV === "true";
-const DEV_URL = "http://localhost:5175";
+const DEV_URL = process.env.NEXUS_CODE_DEV_URL || "http://127.0.0.1:5175";
 const WINDOW_SHOW_FALLBACK_MS = 4_500;
 const MAX_PATH_LENGTH = 4096;
 const MAX_FILE_BYTES = 20 * 1024 * 1024;
@@ -242,6 +243,11 @@ if (shouldEnableGpuSwitches) {
   app.commandLine.appendSwitch("enable-native-gpu-memory-buffers");
 }
 
+if (DEV) {
+  app.setPath("userData", path.join(os.tmpdir(), `nexus-code-dev-${process.pid}`));
+  app.commandLine.appendSwitch("disable-http-cache");
+}
+
 if (isRosettaTranslated()) {
   console.warn(
     "[Nexus Code] running under Rosetta translation (x64 on Apple Silicon). " +
@@ -418,7 +424,7 @@ function createWindow() {
       preload: path.join(__dirname, "preload.cjs"),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: true,
+      sandbox: !DEV,
       backgroundThrottling: false,
       webSecurity: true,
       allowRunningInsecureContent: false,

@@ -1,6 +1,6 @@
 export const EXTENSIONS_STORAGE_KEY = "nexus-code-extension-registry";
 export const LEGACY_EXTENSIONS_STORAGE_KEY = "nexus-code-installed-extensions";
-export const EXTENSION_REGISTRY_VERSION = 2;
+export const EXTENSION_REGISTRY_VERSION = 3;
 
 export const EXTENSION_CATEGORIES = [
   { id: "all", label: "Alle" },
@@ -42,6 +42,13 @@ export const EXTENSION_CONTRIBUTION_FILTERS = [
 const DEFAULT_INSTALLED_IDS = ["nexus-theme-core", "prettier", "eslint"];
 const CORE_CONTRIBUTION_POINTS = ["commands", "languages", "themes", "views"];
 
+export const EXTENSION_RUNTIME_CONTRIBUTION_POINTS = [
+  { point: "commands", label: "Commands" },
+  { point: "views", label: "Views" },
+  { point: "languages", label: "Languages" },
+  { point: "themes", label: "Themes" },
+];
+
 const CONTRIBUTION_POINT_LABELS = {
   commands: "Commands",
   languages: "Languages",
@@ -68,6 +75,14 @@ function getErrorMessage(error) {
 
 function createDiagnostic(level, code, message, detail) {
   return { level, code, message, detail: detail || "" };
+}
+
+function normalizeOptionalString(value) {
+  return typeof value === "string" && value.trim() ? value : null;
+}
+
+function normalizeTimestamp(value) {
+  return typeof value === "string" && value.trim() ? value : null;
 }
 
 function humanizeIdentifier(value) {
@@ -297,6 +312,36 @@ export function describeActivationEvent(event) {
     };
   }
 
+  if (prefix === "onDebug" && value) {
+    return {
+      id: event,
+      type: "debug",
+      label: `Debug: ${value}`,
+      detail: "Loads when this debug adapter is requested.",
+      valid: true,
+    };
+  }
+
+  if (prefix === "onTaskType" && value) {
+    return {
+      id: event,
+      type: "task",
+      label: `Task: ${value}`,
+      detail: "Loads when this task type is resolved.",
+      valid: true,
+    };
+  }
+
+  if (prefix === "onUri" && value) {
+    return {
+      id: event,
+      type: "uri",
+      label: `URI: ${value}`,
+      detail: "Loads when this URI authority is opened.",
+      valid: true,
+    };
+  }
+
   return {
     id: event,
     type: "unknown",
@@ -304,6 +349,58 @@ export function describeActivationEvent(event) {
     detail: "Unknown activation event.",
     valid: false,
   };
+}
+
+function createContributionLookup(contributes) {
+  return {
+    commands: new Set((contributes.commands || []).map((entry) => entry.command)),
+    languages: new Set((contributes.languages || []).map((entry) => entry.id)),
+    themes: new Set((contributes.themes || []).map((entry) => entry.id)),
+    views: new Set((contributes.views || []).map((entry) => entry.id)),
+  };
+}
+
+function validateActivationBindings(manifest, diagnostics) {
+  const lookup = createContributionLookup(manifest.contributes || {});
+
+  for (const event of manifest.activationEvents || []) {
+    const activation = describeActivationEvent(event);
+    const value = String(event || "").split(":").slice(1).join(":");
+    if (!activation.valid || !value) continue;
+
+    if (activation.type === "command" && !lookup.commands.has(value)) {
+      diagnostics.push(
+        createDiagnostic(
+          "warning",
+          "manifest.activationEvents.command_missing",
+          `Activation command '${value}' is not contributed.`,
+          "The command may still be registered at runtime, but it is hidden from the command palette manifest.",
+        ),
+      );
+    }
+
+    if (activation.type === "language" && !lookup.languages.has(value)) {
+      diagnostics.push(
+        createDiagnostic(
+          "warning",
+          "manifest.activationEvents.language_missing",
+          `Activation language '${value}' is not contributed.`,
+          "Add a language contribution or use a workspace/command activation event.",
+        ),
+      );
+    }
+
+    if (activation.type === "view" && !lookup.views.has(value)) {
+      diagnostics.push(
+        createDiagnostic(
+          "warning",
+          "manifest.activationEvents.view_missing",
+          `Activation view '${value}' is not contributed.`,
+          "Add a view contribution so activation can be planned from the UI.",
+        ),
+      );
+    }
+  }
 }
 
 function validateExtensionManifest(manifest) {
@@ -407,6 +504,8 @@ function validateExtensionManifest(manifest) {
         );
       }
     }
+
+    validateActivationBindings(manifest, diagnostics);
   }
 
   return diagnostics;
@@ -863,10 +962,10 @@ function readJsonStorage(key) {
   }
 }
 
-function writeJsonStorage(key, value) {
+function writeJsonStorage(key, value, level = "error") {
   if (!hasStorage()) {
     return createDiagnostic(
-      "error",
+      level,
       "storage.unavailable",
       "localStorage is not available.",
       "Extension changes are kept in memory only.",
@@ -878,7 +977,7 @@ function writeJsonStorage(key, value) {
     return null;
   } catch (error) {
     return createDiagnostic(
-      "error",
+      level,
       "storage.write_failed",
       `Could not write ${key}.`,
       getErrorMessage(error),
@@ -886,18 +985,35 @@ function writeJsonStorage(key, value) {
   }
 }
 
+function getExtensionContributionPoints(extension) {
+  return extension.contributionSummary.map((summary) => summary.point).sort();
+}
+
+function getRecordLastError(extension, raw) {
+  const persistedError = normalizeOptionalString(raw.lastError);
+  if (persistedError) return persistedError;
+  return extension.manifestErrors[0]?.message || null;
+}
+
+function normalizeDisabledReason(extension, raw, installed, enabled, requestedEnabled) {
+  if (!installed || enabled) return null;
+  const persistedReason = normalizeOptionalString(raw.disabledReason);
+  if (persistedReason) return persistedReason;
+  if (extension.manifestErrors.length > 0) return "manifest_error";
+  return requestedEnabled ? "runtime_error" : "user";
+}
+
 function createDefaultRecords() {
   return DEFAULT_INSTALLED_IDS.reduce((records, id) => {
     const extension = EXTENSION_BY_ID.get(id);
     if (!extension) return records;
-    records[id] = {
-      schemaVersion: EXTENSION_REGISTRY_VERSION,
+    records[id] = normalizeKnownRecord(extension, {
       installed: true,
       enabled: true,
       installedAt: "bundled",
       source: extension.source,
       version: extension.version,
-    };
+    });
     return records;
   }, {});
 }
@@ -911,15 +1027,24 @@ function inferInstalled(rawRecord) {
 function normalizeKnownRecord(extension, rawRecord) {
   const installed = inferInstalled(rawRecord);
   const raw = rawRecord && typeof rawRecord === "object" ? rawRecord : {};
+  const requestedEnabled = raw.enabled !== false;
+  const enabled = installed ? requestedEnabled && !extension.manifestErrors.length : false;
 
   return {
     schemaVersion: EXTENSION_REGISTRY_VERSION,
     installed,
-    enabled: installed ? raw.enabled !== false && !extension.manifestErrors.length : false,
-    installedAt: typeof raw.installedAt === "string" ? raw.installedAt : null,
+    enabled,
+    installedAt: normalizeTimestamp(raw.installedAt),
     source: extension.source,
     version: extension.version,
-    lastError: typeof raw.lastError === "string" ? raw.lastError : null,
+    disabledReason: normalizeDisabledReason(extension, raw, installed, enabled, requestedEnabled),
+    lastError: installed ? getRecordLastError(extension, raw) : null,
+    lastActivatedAt: normalizeTimestamp(raw.lastActivatedAt),
+    activationEvents: extension.activationEvents,
+    contributionPoints: getExtensionContributionPoints(extension),
+    manifestVersion: extension.manifest.manifestVersion,
+    localPath: extension.localPath || normalizeOptionalString(raw.localPath),
+    updatedAt: normalizeTimestamp(raw.updatedAt),
   };
 }
 
@@ -939,11 +1064,18 @@ function normalizeUnknownRecord(id, rawRecord, diagnostics, registrySource) {
     schemaVersion: EXTENSION_REGISTRY_VERSION,
     installed: true,
     enabled: false,
-    installedAt: typeof raw.installedAt === "string" ? raw.installedAt : registrySource,
-    source: typeof raw.source === "string" ? raw.source : "local",
-    version: typeof raw.version === "string" ? raw.version : "0.0.0",
+    installedAt: normalizeTimestamp(raw.installedAt) || registrySource,
+    source: normalizeOptionalString(raw.source) || "local",
+    version: normalizeOptionalString(raw.version) || "0.0.0",
     missingManifest: true,
-    lastError: "Manifest missing",
+    disabledReason: "manifest_missing",
+    lastError: normalizeOptionalString(raw.lastError) || "Manifest missing",
+    lastActivatedAt: normalizeTimestamp(raw.lastActivatedAt),
+    activationEvents: toStringArray(raw.activationEvents),
+    contributionPoints: toStringArray(raw.contributionPoints),
+    manifestVersion: 0,
+    localPath: normalizeOptionalString(raw.localPath),
+    updatedAt: normalizeTimestamp(raw.updatedAt),
   };
 }
 
@@ -971,15 +1103,14 @@ function normalizeLegacyIds(ids, registrySource, diagnostics) {
   for (const id of ids) {
     const extension = EXTENSION_BY_ID.get(id);
     if (extension) {
-      normalized[id] = {
-        schemaVersion: EXTENSION_REGISTRY_VERSION,
+      normalized[id] = normalizeKnownRecord(extension, {
         installed: true,
         enabled: !extension.manifestErrors.length,
         installedAt: registrySource,
         source: extension.source,
         version: extension.version,
         lastError: null,
-      };
+      });
       continue;
     }
 
@@ -996,7 +1127,7 @@ function migratePersistedRegistry(value, registrySource, diagnostics, migrations
       createDiagnostic(
         "info",
         "storage.migrated_legacy_array",
-        "Legacy extension list migrated to registry v2.",
+        `Legacy extension list migrated to registry v${EXTENSION_REGISTRY_VERSION}.`,
         `${value.length} installed id(s) imported from ${registrySource}.`,
       ),
     );
@@ -1005,7 +1136,40 @@ function migratePersistedRegistry(value, registrySource, diagnostics, migrations
 
   if (!value || typeof value !== "object") return null;
 
-  const version = Number.isFinite(value.version) ? value.version : 0;
+  const legacyInstalledIds = Array.isArray(value.installed)
+    ? value.installed
+    : Array.isArray(value.extensions)
+      ? value.extensions
+      : null;
+
+  if (legacyInstalledIds) {
+    const records = normalizeLegacyIds(toStringArray(legacyInstalledIds), registrySource, diagnostics);
+    const disabledIds = new Set(
+      toStringArray(value.disabled || value.disabledExtensions || value.paused),
+    );
+
+    for (const id of disabledIds) {
+      if (!records[id]) continue;
+      records[id] = {
+        ...records[id],
+        enabled: false,
+        disabledReason: "legacy_disabled",
+      };
+    }
+
+    migrations.push(
+      createDiagnostic(
+        "info",
+        "storage.migrated_legacy_object",
+        `Legacy extension object migrated to registry v${EXTENSION_REGISTRY_VERSION}.`,
+        `${Object.keys(records).length} extension record(s) imported from ${registrySource}.`,
+      ),
+    );
+    return records;
+  }
+
+  const versionNumber = Number(value.version);
+  const version = Number.isFinite(versionNumber) ? versionNumber : 0;
   const rawRecords =
     value.records && typeof value.records === "object" && !Array.isArray(value.records)
       ? value.records
@@ -1053,7 +1217,10 @@ export function loadExtensionRegistryState() {
       records: createDefaultRecords(),
       diagnostics,
       migrations,
+      needsPersist: false,
+      sourceKey: "memory",
       storageAvailable: false,
+      storageHealth: "unavailable",
     };
   }
 
@@ -1070,7 +1237,15 @@ export function loadExtensionRegistryState() {
   } else if (current.found) {
     const records = migratePersistedRegistry(current.value, EXTENSIONS_STORAGE_KEY, diagnostics, migrations);
     if (records) {
-      return { records, diagnostics, migrations, storageAvailable: true };
+      return {
+        records,
+        diagnostics,
+        migrations,
+        needsPersist: migrations.length > 0,
+        sourceKey: EXTENSIONS_STORAGE_KEY,
+        storageAvailable: true,
+        storageHealth: migrations.length > 0 ? "migrated" : "ok",
+      };
     }
   }
 
@@ -1092,15 +1267,28 @@ export function loadExtensionRegistryState() {
       migrations,
     );
     if (records) {
-      return { records, diagnostics, migrations, storageAvailable: true };
+      return {
+        records,
+        diagnostics,
+        migrations,
+        needsPersist: true,
+        sourceKey: LEGACY_EXTENSIONS_STORAGE_KEY,
+        storageAvailable: true,
+        storageHealth: current.error || legacy.error ? "degraded" : "migrated",
+      };
     }
   }
+
+  const usingDefaultsAfterError = Boolean(current.error || legacy.error);
 
   return {
     records: createDefaultRecords(),
     diagnostics,
     migrations,
+    needsPersist: !usingDefaultsAfterError,
+    sourceKey: "defaults",
     storageAvailable: true,
+    storageHealth: usingDefaultsAfterError ? "degraded" : "default",
   };
 }
 
@@ -1121,17 +1309,24 @@ export function saveExtensionRegistry(records) {
     updatedAt: new Date().toISOString(),
   };
   const primaryError = writeJsonStorage(EXTENSIONS_STORAGE_KEY, payload);
-  const legacyError = writeJsonStorage(LEGACY_EXTENSIONS_STORAGE_KEY, getInstalledExtensionIds(normalized));
-  const errors = [primaryError, legacyError].filter(Boolean);
+  const legacyError = writeJsonStorage(
+    LEGACY_EXTENSIONS_STORAGE_KEY,
+    getInstalledExtensionIds(normalized),
+    "warning",
+  );
 
-  if (errors.length > 0) {
+  if (primaryError) {
     return {
       ok: false,
-      diagnostics: errors,
+      diagnostics: [primaryError, legacyError].filter(Boolean),
     };
   }
 
-  return { ok: true, diagnostics: [] };
+  return {
+    ok: true,
+    diagnostics: legacyError ? [legacyError] : [],
+    persistedAt: payload.updatedAt,
+  };
 }
 
 export function getInstalledExtensionIds(records) {
@@ -1199,6 +1394,10 @@ function createMissingManifestExtension(id, record) {
     installed: true,
     enabled: false,
     installedAt: record?.installedAt || null,
+    disabledReason: record?.disabledReason || "manifest_missing",
+    lastError: record?.lastError || "Manifest missing",
+    lastActivatedAt: record?.lastActivatedAt || null,
+    health: "error",
     searchableText: `${id} missing manifest local`.toLowerCase(),
   };
 }
@@ -1229,6 +1428,10 @@ export function resolveExtensions(records) {
       installed: record.installed,
       enabled: record.enabled,
       installedAt: record.installedAt,
+      disabledReason: record.disabledReason,
+      lastError: record.lastError,
+      lastActivatedAt: record.lastActivatedAt,
+      contributionPoints: record.contributionPoints,
       health: extension.manifestErrors.length > 0 ? "error" : extension.manifestWarnings.length > 0 ? "warning" : "ok",
       searchableText,
     };
@@ -1270,6 +1473,8 @@ export function filterExtensions(
 export function getExtensionStats(records) {
   const installed = getInstalledExtensionIds(records);
   const enabled = getEnabledExtensionIds(records);
+  const contributions = collectExtensionContributions(records);
+  const activationPlan = collectExtensionActivationPlan(records);
   const updates = EXTENSION_CATALOG.filter(
     (extension) => records?.[extension.id]?.installed && extension.updateAvailable,
   );
@@ -1289,6 +1494,11 @@ export function getExtensionStats(records) {
     updates: updates.length,
     local: local + unknownInstalled.length,
     errors: invalidInstalled + unknownInstalled.length,
+    commands: contributions.commands?.length || 0,
+    views: contributions.views?.length || 0,
+    languages: contributions.languages?.length || 0,
+    themes: contributions.themes?.length || 0,
+    activationEvents: activationPlan.events.length,
   };
 }
 
@@ -1297,15 +1507,15 @@ export function installExtension(records, extensionId) {
   if (!extension || extension.manifestErrors.length > 0) return records;
   return {
     ...records,
-    [extensionId]: {
-      schemaVersion: EXTENSION_REGISTRY_VERSION,
+    [extensionId]: normalizeKnownRecord(extension, {
       installed: true,
       enabled: true,
       installedAt: new Date().toISOString(),
       source: extension.source,
       version: extension.version,
       lastError: null,
-    },
+      updatedAt: new Date().toISOString(),
+    }),
   };
 }
 
@@ -1319,9 +1529,18 @@ export function uninstallExtension(records, extensionId) {
       installed: false,
       enabled: false,
       installedAt: null,
+      disabledReason: "uninstalled",
       source: extension?.source || current.source || "local",
       version: extension?.version || current.version || "0.0.0",
       lastError: null,
+      lastActivatedAt: null,
+      activationEvents: extension?.activationEvents || toStringArray(current.activationEvents),
+      contributionPoints: extension
+        ? getExtensionContributionPoints(extension)
+        : toStringArray(current.contributionPoints),
+      manifestVersion: extension?.manifest?.manifestVersion || current.manifestVersion || 0,
+      localPath: extension?.localPath || normalizeOptionalString(current.localPath),
+      updatedAt: new Date().toISOString(),
     },
   };
 }
@@ -1336,6 +1555,9 @@ export function setExtensionEnabled(records, extensionId, enabled) {
     [extensionId]: {
       ...current,
       enabled: Boolean(enabled),
+      disabledReason: enabled ? null : "user",
+      lastError: enabled ? null : current.lastError,
+      updatedAt: new Date().toISOString(),
     },
   };
 }
@@ -1361,6 +1583,52 @@ export function collectExtensionContributions(records) {
   return contributions;
 }
 
+export function collectExtensionActivationPlan(records) {
+  const events = [];
+  const byType = {};
+
+  for (const extension of EXTENSION_CATALOG) {
+    const record = normalizeKnownRecord(extension, records?.[extension.id]);
+    if (!record.installed || !record.enabled || extension.manifestErrors.length > 0) continue;
+
+    for (const activation of extension.activationSummary) {
+      if (!activation.valid) continue;
+      const eventEntry = {
+        ...activation,
+        extensionId: extension.id,
+        extensionName: extension.displayName,
+      };
+      events.push(eventEntry);
+      byType[activation.type] ||= [];
+      byType[activation.type].push(eventEntry);
+    }
+  }
+
+  return { events, byType };
+}
+
+export function getExtensionRuntimeOverview(records) {
+  const contributions = collectExtensionContributions(records);
+  const activation = collectExtensionActivationPlan(records);
+  const contributionPoints = EXTENSION_RUNTIME_CONTRIBUTION_POINTS.map(({ point, label }) => {
+    const entries = contributions[point] || [];
+    const extensionNames = [...new Set(entries.map((entry) => entry.extensionName))];
+    return {
+      point,
+      label,
+      count: entries.length,
+      extensions: extensionNames,
+      items: entries.map((entry) => getContributionItemLabel(point, entry)).filter(Boolean),
+    };
+  });
+
+  return {
+    contributionPoints,
+    activation,
+    enabledExtensionCount: getEnabledExtensionIds(records).length,
+  };
+}
+
 export function createExtensionEventDetail(records) {
   const resolved = resolveExtensions(records);
   const enabledExtensions = resolved.filter((extension) => extension.installed && extension.enabled);
@@ -1376,6 +1644,7 @@ export function createExtensionEventDetail(records) {
       events: extension.activationSummary,
     })),
     contributions: collectExtensionContributions(records),
+    runtime: getExtensionRuntimeOverview(records),
     diagnostics: resolved.flatMap((extension) =>
       extension.manifestDiagnostics.map((diagnostic) => ({
         ...diagnostic,

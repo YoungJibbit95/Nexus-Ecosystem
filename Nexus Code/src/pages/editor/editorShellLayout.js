@@ -30,11 +30,13 @@ export const PANEL_META = {
 };
 
 export const PANEL_BOUNDS = {
-  compactWidth: "w-[min(24rem,calc(100vw-3.5rem))]",
+  railWidth: "w-14",
+  compactWidth: "w-[min(22rem,calc(100vw-3.25rem))]",
   desktopWidth: "w-[clamp(18rem,24vw,23rem)]",
   desktopMinWidth: "min-w-[18rem]",
   desktopMaxWidth: "max-w-[23rem]",
-  bottomHeight: "h-[clamp(15rem,34vh,22.5rem)]",
+  bottomHeight: "h-[clamp(14rem,32vh,21rem)]",
+  compactBottomHeight: "h-[min(18rem,42vh)]",
 };
 
 export function getPanelMeta(panelId) {
@@ -51,12 +53,12 @@ export function getShellModeLabel({ showSettings, zenMode, activePanel }) {
   return "Focus";
 }
 
-export function getSidePanelClassName({ compact, side = "left" }) {
-  const compactEdge = side === "right" ? "right-14" : "left-14";
+export function getSidePanelClassName({ compact }) {
   if (compact) {
     return [
-      "absolute top-0 bottom-0",
-      compactEdge,
+      "relative",
+      "h-full",
+      "shrink-0",
       PANEL_BOUNDS.compactWidth,
       "shadow-2xl",
     ].join(" ");
@@ -70,6 +72,27 @@ export function getSidePanelClassName({ compact, side = "left" }) {
   ].join(" ");
 }
 
-export function getBottomPanelClassName() {
-  return `${PANEL_BOUNDS.bottomHeight} min-h-0 overflow-hidden`;
+export function getRailClassName(side = "left") {
+  const borderClass = side === "right" ? "border-l" : "border-r";
+  return [
+    "nx-code-rail",
+    PANEL_BOUNDS.railWidth,
+    "relative z-40 h-full min-h-0 overflow-visible flex flex-col",
+    `${borderClass} border-white/5 shrink-0 nexus-panel-surface`,
+  ].join(" ");
+}
+
+export function getMainEditorClassName() {
+  return [
+    "nx-code-main",
+    "min-w-0 flex-1",
+    "flex flex-col min-h-0 bg-transparent",
+  ].join(" ");
+}
+
+export function getBottomPanelClassName({ compact = false } = {}) {
+  const heightClass = compact
+    ? PANEL_BOUNDS.compactBottomHeight
+    : PANEL_BOUNDS.bottomHeight;
+  return `nx-code-bottom-panel ${heightClass} min-h-0 overflow-hidden`;
 }

@@ -51,6 +51,8 @@ function SidebarButton({
       : accountMode === "limited"
         ? "#f59e0b"
         : "#38bdf8";
+  const badgeEdge = side === "right" ? "left-1.5" : "right-1.5";
+  const dotEdge = side === "right" ? "left-2" : "right-2";
 
   return (
     <button
@@ -58,7 +60,7 @@ function SidebarButton({
       onClick={onClick}
       title={title}
       aria-pressed={isActive}
-      className="nx-code-sidebar-btn relative flex h-10 w-10 items-center justify-center rounded-md outline-none transition-colors hover:bg-white/[0.06] focus-visible:ring-2 focus-visible:ring-purple-500/60"
+      className="nx-code-sidebar-btn relative isolate flex h-10 w-10 items-center justify-center rounded-md outline-none transition-colors hover:bg-white/[0.06] focus-visible:ring-2 focus-visible:ring-purple-500/60"
       style={{
         background: isActive
           ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.14)"
@@ -81,7 +83,7 @@ function SidebarButton({
       <Icon size={19} strokeWidth={isActive ? 2.1 : 1.8} />
       {gitReady ? (
         <span
-          className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full"
+          className={`nx-code-sidebar-badge absolute ${dotEdge} top-2 h-1.5 w-1.5 rounded-full`}
           style={{
             background: "#22c55e",
             boxShadow: "0 0 8px rgba(34,197,94,0.65)",
@@ -89,13 +91,13 @@ function SidebarButton({
         />
       ) : null}
       {hasProblemBadge ? (
-        <span className="absolute right-1.5 top-1.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-red-500 px-1 text-[8px] font-bold leading-none text-white shadow-sm shadow-black/30">
+        <span className={`nx-code-sidebar-badge absolute ${badgeEdge} top-1.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-red-500 px-1 text-[8px] font-bold leading-none text-white shadow-sm shadow-black/30`}>
           {Math.min(problemCount, 9)}
         </span>
       ) : null}
       {item.id === "extensions" && extensionStats.enabled > 0 ? (
         <span
-          className="absolute bottom-1.5 right-1.5 h-1.5 w-1.5 rounded-full"
+          className={`nx-code-sidebar-badge absolute bottom-1.5 ${badgeEdge} h-1.5 w-1.5 rounded-full`}
           style={{
             background: "var(--nexus-primary, #7c8cff)",
             boxShadow: "0 0 7px rgba(124,140,255,0.7)",
@@ -104,7 +106,7 @@ function SidebarButton({
       ) : null}
       {item.id === "account" ? (
         <span
-          className="absolute bottom-1.5 right-1.5 h-1.5 w-1.5 rounded-full"
+          className={`nx-code-sidebar-badge absolute bottom-1.5 ${badgeEdge} h-1.5 w-1.5 rounded-full`}
           style={{
             background: accountTone,
             boxShadow: `0 0 7px ${accountTone}`,

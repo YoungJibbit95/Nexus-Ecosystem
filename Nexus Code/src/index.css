@@ -93,12 +93,13 @@
     }
 
     body {
+        margin: 0;
         background-color: var(--nexus-bg, #03030b) !important;
         background-image: var(--nexus-bg-image, none) !important;
         background-attachment: fixed !important;
         background-size: cover !important;
         color: var(--nexus-text, #e5e7eb) !important;
-        font-family: 'Inter', sans-serif;
+        font-family: "Inter", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
         text-rendering: geometricPrecision;
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
