@@ -15,6 +15,7 @@ import {
   UserRound,
   Wifi,
 } from "lucide-react";
+<<<<<<< HEAD
 import {
   getAccountSessionState,
   normalizeAccountSession,
@@ -22,6 +23,10 @@ import {
 } from "../../app/accountSession";
 import {
   PanelActionButton,
+=======
+import { getAccountSessionState, normalizeAccountSession } from "../../app/accountSession";
+import {
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
   PANEL_INPUT_CLASS,
   PANEL_SELECT_CLASS,
   PanelBadge,
@@ -29,6 +34,7 @@ import {
   PanelFooter,
   PanelHeader,
   PanelMetric,
+<<<<<<< HEAD
   PanelNotice,
   PanelShell,
 } from "./panels/PanelChrome.jsx";
@@ -36,6 +42,11 @@ import {
 const HOSTED_ENDPOINT = "https://nexus-api.cloud";
 const LOCAL_ENDPOINT = "http://127.0.0.1:17890";
 
+=======
+  PanelShell,
+} from "./panels/PanelChrome.jsx";
+
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
 const STATUS_META = {
   online: {
     tone: "success",
@@ -146,6 +157,7 @@ export default function AccountPanel({
       ? "Token session"
       : "Local session";
   const details = testResult?.details || controlStatus?.details || [];
+<<<<<<< HEAD
   const normalizedDraftEndpoint = normalizeNexusApiEndpoint(draft.endpoint);
   const endpointWillNormalize =
     Boolean(draft.endpoint) && normalizedDraftEndpoint !== String(draft.endpoint || "").trim();
@@ -153,6 +165,8 @@ export default function AccountPanel({
   const savedLabel = normalizedSession.savedAt
     ? new Date(normalizedSession.savedAt).toLocaleString()
     : "Not saved";
+=======
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
 
   const updateDraft = (field, value) => {
     setDraft((prev) => ({
@@ -202,7 +216,11 @@ export default function AccountPanel({
         subtitle={`${accountLabel} - ${controlStatus?.title || "Control API"} - ${statusMeta.label}`}
         status={<PanelBadge tone={statusMeta.tone}>{statusMeta.label}</PanelBadge>}
       >
+<<<<<<< HEAD
         <div className="grid grid-cols-2 gap-1.5">
+=======
+        <div className="grid grid-cols-3 gap-1.5">
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
           <PanelMetric
             label="Identity"
             value={sessionState.hasIdentity ? "Set" : "Local"}
@@ -214,12 +232,39 @@ export default function AccountPanel({
             tone={sessionState.hasToken ? "accent" : "muted"}
           />
           <PanelMetric label="Tier" value={draft.userTier || "free"} tone="accent" />
+<<<<<<< HEAD
           <PanelMetric
             label="Saved"
             value={normalizedSession.savedAt ? "Yes" : "No"}
             tone={normalizedSession.savedAt ? "success" : "muted"}
             title={savedLabel}
           />
+=======
+        </div>
+      </PanelHeader>
+
+      <PanelBody className="px-3 py-3">
+        <div
+          className="mb-3 rounded-lg border px-3 py-2"
+          style={{
+            background: statusMeta.background,
+            borderColor: statusMeta.border,
+          }}
+        >
+          <div className="flex min-w-0 items-start gap-2">
+            <StatusIcon size={15} className="mt-0.5 shrink-0" style={{ color: statusMeta.color }} />
+            <div className="min-w-0 flex-1">
+              <p className="break-words text-[12px] font-semibold" style={{ color: statusMeta.color }}>
+                {testResult?.message || controlStatus?.message || "Local session ready."}
+              </p>
+              {details.length > 0 ? (
+                <p className="mt-1 break-words text-[10px] text-gray-400">
+                  {details.join(", ")}
+                </p>
+              ) : null}
+            </div>
+          </div>
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
         </div>
       </PanelHeader>
 
@@ -273,6 +318,7 @@ export default function AccountPanel({
           </Field>
 
           <Field icon={KeyRound} label="Access Token">
+<<<<<<< HEAD
             <div className="grid grid-cols-[1fr_auto] gap-1.5">
               <input
                 className={PANEL_INPUT_CLASS}
@@ -293,6 +339,18 @@ export default function AccountPanel({
                 {showToken ? <EyeOff size={14} /> : <Eye size={14} />}
               </button>
             </div>
+=======
+            <input
+              className={PANEL_INPUT_CLASS}
+              value={draft.token || ""}
+              onChange={(event) => updateDraft("token", event.target.value)}
+              placeholder="Nexus API token"
+              type="password"
+              autoCapitalize="off"
+              autoCorrect="off"
+              spellCheck={false}
+            />
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
           </Field>
 
           <div className="grid grid-cols-2 gap-2">
@@ -337,6 +395,7 @@ export default function AccountPanel({
       </PanelBody>
 
       <PanelFooter>
+<<<<<<< HEAD
         <div className="mb-2 flex items-center justify-between gap-2 text-[10px] text-gray-500">
           <span className="flex min-w-0 items-center gap-1 truncate">
             <Clock size={10} className="shrink-0" />
@@ -370,6 +429,26 @@ export default function AccountPanel({
             Logout
           </AccountButton>
         </div>
+=======
+        <div className="grid grid-cols-2 gap-1.5">
+          <AccountButton onClick={handleTest} disabled={busy || !onTestConnection} title="Test connection">
+            <Wifi size={14} />
+            {busy ? "Testing" : "Test"}
+          </AccountButton>
+          <AccountButton onClick={handleSave} tone="primary" title="Save session">
+            <Save size={14} />
+            Save
+          </AccountButton>
+          <AccountButton onClick={() => setDraft(normalizeAccountSession({}))} title="Clear fields">
+            <Trash2 size={14} />
+            Clear
+          </AccountButton>
+          <AccountButton onClick={handleClear} tone="danger" title="Logout">
+            <LogOut size={14} />
+            Logout
+          </AccountButton>
+        </div>
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
       </PanelFooter>
     </PanelShell>
   );

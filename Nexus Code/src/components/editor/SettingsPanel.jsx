@@ -6,14 +6,20 @@ import {
   Cpu,
   Eye,
   Gauge,
+<<<<<<< HEAD
   Info,
+=======
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
   Palette,
   PanelLeft,
   RefreshCcw,
   Search,
   Settings2,
   Sparkles,
+<<<<<<< HEAD
   X,
+=======
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
   Zap,
 } from "lucide-react";
 import { motion, useReducedMotion } from "framer-motion";
@@ -48,7 +54,11 @@ const SETTING_SECTIONS = [
     eyebrow: "Text",
     icon: Code2,
     description: "Typing, Layout, Hilfen und CodeMirror-Verhalten.",
+<<<<<<< HEAD
     keywords: "font line height letter spacing wrap minimap diagnostics autocomplete lsp whitespace cursor bracket tab",
+=======
+    keywords: "font line height wrap minimap diagnostics autocomplete lsp whitespace cursor bracket tab",
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
   },
   {
     id: "workbench",
@@ -56,7 +66,11 @@ const SETTING_SECTIONS = [
     eyebrow: "Shell",
     icon: PanelLeft,
     description: "Sidebar, Statusleiste, Zen Mode, Autosave und Panel-Verhalten.",
+<<<<<<< HEAD
     keywords: "sidebar visible status bar zen autosave workbench panels background",
+=======
+    keywords: "sidebar status bar zen autosave workbench panels background",
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
   },
   {
     id: "theme",
@@ -72,7 +86,11 @@ const SETTING_SECTIONS = [
     eyebrow: "Budget",
     icon: Gauge,
     description: "Blur/Glow-Budget, LSP, Diagnostics und Rendering-Kosten.",
+<<<<<<< HEAD
     keywords: "performance visual profile blur glow outline lsp diagnostics autocomplete minimap renderer hints budget",
+=======
+    keywords: "performance visual profile blur glow lsp diagnostics autocomplete minimap renderer",
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
   },
   {
     id: "animations",
@@ -80,7 +98,11 @@ const SETTING_SECTIONS = [
     eyebrow: "Motion",
     icon: Zap,
     description: "Reduced Motion, Cursor-Animationen und Glow-Bewegung.",
+<<<<<<< HEAD
     keywords: "animation motion reduce speed duration caret cursor blink glow",
+=======
+    keywords: "animation motion reduce caret cursor blink glow",
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
   },
 ];
 
@@ -163,6 +185,7 @@ const SETTING_INDEX = [
     keywords: "font weight bold medium typography",
   },
   {
+<<<<<<< HEAD
     id: "letter_spacing",
     section: "editor",
     label: "Letter Spacing",
@@ -170,6 +193,8 @@ const SETTING_INDEX = [
     keywords: "letter spacing tracking character typografie font editor",
   },
   {
+=======
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
     id: "tab_size",
     section: "editor",
     label: "Tab-Groesse",
@@ -247,6 +272,7 @@ const SETTING_INDEX = [
     keywords: "sidebar workbench rail left right",
   },
   {
+<<<<<<< HEAD
     id: "sidebar_visible",
     section: "workbench",
     label: "Sidebar Sichtbarkeit",
@@ -254,6 +280,8 @@ const SETTING_INDEX = [
     keywords: "sidebar visible activity rail panel hide show workbench",
   },
   {
+=======
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
     id: "status_bar_visible",
     section: "workbench",
     label: "Statusleiste",
@@ -303,6 +331,7 @@ const SETTING_INDEX = [
     keywords: "glow renderer css three performance",
   },
   {
+<<<<<<< HEAD
     id: "panel_glow_outline",
     section: "performance",
     label: "Panel Glow Outline",
@@ -310,6 +339,8 @@ const SETTING_INDEX = [
     keywords: "panel glow outline border light performance",
   },
   {
+=======
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
     id: "reduce_motion",
     section: "animations",
     label: "Reduce Motion",
@@ -324,6 +355,7 @@ const SETTING_INDEX = [
     keywords: "animations motion transition",
   },
   {
+<<<<<<< HEAD
     id: "animation_speed",
     section: "animations",
     label: "Animation Speed",
@@ -331,6 +363,8 @@ const SETTING_INDEX = [
     keywords: "animation speed motion duration transition tempo",
   },
   {
+=======
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
     id: "smooth_caret",
     section: "animations",
     label: "Sanfte Cursor-Animation",
@@ -422,7 +456,11 @@ function settingMatchesSearch(settingId, sectionId, query) {
 }
 
 function sectionMatchesSearch(section, query) {
+<<<<<<< HEAD
   if (!query || !section) return false;
+=======
+  if (!query) return false;
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
   return [
     section.label,
     section.eyebrow,
@@ -459,6 +497,7 @@ function getNumberSetting(settings, key, fallback) {
   return Number.isFinite(value) ? value : fallback;
 }
 
+<<<<<<< HEAD
 function clampNumber(value, min, max, fallback) {
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) return fallback;
@@ -558,6 +597,8 @@ function buildPerformanceHints(settings = {}, visualProfileId, lspServers = []) 
   return hints.slice(0, 4);
 }
 
+=======
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
 function SettingsHeader({ title, eyebrow, description, icon: Icon }) {
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -636,6 +677,7 @@ function ValueBadge({ children }) {
   );
 }
 
+<<<<<<< HEAD
 function SearchResultSummary({
   query,
   totalMatches,
@@ -783,6 +825,8 @@ function PerformanceHintList({ hints }) {
   );
 }
 
+=======
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
 function ColorControl({ value, fallback, onChange, label }) {
   const current = value || fallback;
   return (
@@ -858,11 +902,17 @@ function PresetButton({
 
 function ThemePreview({
   settings,
+<<<<<<< HEAD
   themeName,
   primaryAccent,
   secondaryAccent,
   radius,
   animationSpeed,
+=======
+  primaryAccent,
+  secondaryAccent,
+  radius,
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
   shouldReduceMotion,
 }) {
   const glowIntensity = getNumberSetting(settings, "glow_intensity", 28);
@@ -870,21 +920,27 @@ function ThemePreview({
   const blurStrength = getNumberSetting(settings, "panel_blur_strength", 16);
   const fontSize = getNumberSetting(settings, "font_size", 14);
   const lineHeight = getNumberSetting(settings, "line_height", 1.6);
+<<<<<<< HEAD
   const letterSpacing = getNumberSetting(settings, "letter_spacing", 0);
   const sidebarVisible = settings.sidebar_visible !== false;
   const statusVisible = settings.status_bar_visible !== false;
   const sidebarRight = settings.sidebar_position === "right";
   const cursorStyle = settings.cursor_style || "line";
+=======
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
   const previewShadow =
     glowIntensity > 0
       ? `0 0 ${Math.max(4, Math.round((glowRadius * glowIntensity) / 90))}px rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.24)`
       : "none";
+<<<<<<< HEAD
   const cursorShape =
     cursorStyle === "block"
       ? "h-5 w-2.5"
       : cursorStyle === "underline"
         ? "h-0.5 w-4 self-end"
         : "h-5 w-0.5";
+=======
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
 
   return (
     <motion.div
@@ -899,7 +955,11 @@ function ThemePreview({
       }}
     >
       <div
+<<<<<<< HEAD
         className="flex flex-wrap items-center justify-between gap-3 border-b border-white/5 px-4 py-3"
+=======
+        className="flex items-center justify-between border-b border-white/5 px-4 py-3"
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
         style={{
           background: `linear-gradient(135deg, rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.14), rgba(var(--nexus-accent-2-rgb, 45, 212, 191), 0.06))`,
           backdropFilter: blurStrength > 0 ? `blur(${Math.min(12, blurStrength)}px)` : "none",
@@ -918,6 +978,7 @@ function ThemePreview({
             settings.preview.tsx
           </span>
         </div>
+<<<<<<< HEAD
         <div className="flex flex-wrap items-center gap-2 text-[10px] text-gray-500">
           <span>{themeName}</span>
           <span>{settings.word_wrap ? "Wrap" : "No Wrap"}</span>
@@ -996,6 +1057,43 @@ function ThemePreview({
           <span>{settings.auto_save !== false ? "Auto Save" : "Manual Save"}</span>
         </div>
       ) : null}
+=======
+        <span className="text-[10px] text-gray-500">
+          {settings.word_wrap ? "Wrap" : "No Wrap"}
+        </span>
+      </div>
+      <div className="grid grid-cols-[3.5rem_1fr]">
+        <div className="border-r border-white/5 px-3 py-4 text-right font-mono text-[11px] leading-6 text-gray-600">
+          <div>1</div>
+          <div>2</div>
+          <div>3</div>
+        </div>
+        <div
+          className="min-w-0 px-4 py-4 font-mono text-gray-300"
+          style={{
+            fontFamily: settings.font_family || "JetBrains Mono",
+            fontSize,
+            lineHeight,
+          }}
+        >
+          <div>
+            <span style={{ color: "var(--nexus-keyword)" }}>const</span>{" "}
+            <span style={{ color: "var(--nexus-variable)" }}>theme</span>{" "}
+            <span style={{ color: "var(--nexus-operator)" }}>=</span>{" "}
+            <span style={{ color: "var(--nexus-string)" }}>"Nexus"</span>;
+          </div>
+          <div>
+            <span style={{ color: "var(--nexus-function)" }}>applyGlow</span>
+            <span style={{ color: "var(--nexus-text)" }}>(</span>
+            <span style={{ color: "var(--nexus-number)" }}>{glowIntensity}</span>
+            <span style={{ color: "var(--nexus-text)" }}>)</span>;
+          </div>
+          <div className="text-gray-500">
+            // blur {blurStrength}px, radius {radius}px
+          </div>
+        </div>
+      </div>
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
     </motion.div>
   );
 }
@@ -1021,7 +1119,10 @@ export default function SettingsPanel({
   const visualProfileId = resolveVisualProfileId(settings);
   const reducedBySetting = settings.reduce_motion === true;
   const animationsEnabled = settings.animations_enabled !== false;
+<<<<<<< HEAD
   const animationSpeed = clampNumber(settings.animation_speed, 0.5, 1.8, 1);
+=======
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
   const shouldReduceMotion =
     prefersReducedMotion ||
     reducedBySetting ||
@@ -1029,9 +1130,14 @@ export default function SettingsPanel({
     visualProfileId === "performance";
   const motionTransition = shouldReduceMotion
     ? { duration: 0 }
+<<<<<<< HEAD
     : { duration: 0.22 / animationSpeed, ease: [0.22, 1, 0.36, 1] };
   const radius = getNumberSetting(settings, "ui_radius", 10);
   const letterSpacing = clampNumber(settings.letter_spacing, 0, 1.5, 0);
+=======
+    : { duration: 0.22, ease: [0.22, 1, 0.36, 1] };
+  const radius = getNumberSetting(settings, "ui_radius", 10);
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
   const scopedThemeVars = React.useMemo(() => {
     const cssVars = resolvedTheme.cssVars;
     return {
@@ -1056,10 +1162,13 @@ export default function SettingsPanel({
       "--nexus-settings-radius": `${radius}px`,
     };
   }, [resolvedTheme, radius]);
+<<<<<<< HEAD
   const themeTokens = React.useMemo(
     () => createThemeTokenList(resolvedTheme),
     [resolvedTheme],
   );
+=======
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
 
   const sectionMatchCounts = React.useMemo(
     () =>
@@ -1086,6 +1195,7 @@ export default function SettingsPanel({
     (sum, count) => sum + count,
     0,
   );
+<<<<<<< HEAD
   const searchResults = React.useMemo(
     () => getSearchResults(searchTerm),
     [searchTerm],
@@ -1094,6 +1204,8 @@ export default function SettingsPanel({
     () => buildPerformanceHints(settings, visualProfileId, lspServers),
     [lspServers, settings, visualProfileId],
   );
+=======
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
 
   React.useEffect(() => {
     if (typeof document === "undefined") return;
@@ -1270,6 +1382,7 @@ export default function SettingsPanel({
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
               placeholder="Settings suchen"
+<<<<<<< HEAD
               className="h-9 w-full rounded-md border border-white/10 bg-white/[0.035] pl-8 pr-8 text-xs text-gray-200 outline-none transition-colors placeholder:text-gray-600 focus:border-[rgba(var(--nexus-primary-rgb),0.45)]"
             />
             {searchQuery ? (
@@ -1282,6 +1395,10 @@ export default function SettingsPanel({
                 <X size={12} />
               </button>
             ) : null}
+=======
+              className="h-9 w-full rounded-md border border-white/10 bg-white/[0.035] pl-8 pr-2 text-xs text-gray-200 outline-none transition-colors placeholder:text-gray-600 focus:border-[rgba(var(--nexus-primary-rgb),0.45)]"
+            />
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
           </div>
           {searchTerm ? (
             <div className="mt-2 text-[10px] text-gray-500">
@@ -1387,6 +1504,7 @@ export default function SettingsPanel({
               />
             )}
 
+<<<<<<< HEAD
             {searchTerm ? (
               <SearchResultSummary
                 query={searchQuery}
@@ -1400,6 +1518,8 @@ export default function SettingsPanel({
               />
             ) : null}
 
+=======
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
             {renderIfVisible("theme-editor", () => (
               <section key="theme-editor" className="space-y-5">
                 {searchTerm ? (
@@ -1412,11 +1532,17 @@ export default function SettingsPanel({
                 ) : null}
                 <ThemePreview
                   settings={settings}
+<<<<<<< HEAD
                   themeName={resolvedTheme.name}
                   primaryAccent={primaryAccent}
                   secondaryAccent={secondaryAccent}
                   radius={radius}
                   animationSpeed={animationSpeed}
+=======
+                  primaryAccent={primaryAccent}
+                  secondaryAccent={secondaryAccent}
+                  radius={radius}
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
                   shouldReduceMotion={shouldReduceMotion}
                 />
                 <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
@@ -1452,7 +1578,10 @@ export default function SettingsPanel({
                         onChange={(value) => updateSetting("secondary_accent", value)}
                       />
                     </SettingRow>
+<<<<<<< HEAD
                     <ThemeTokenGrid tokens={themeTokens} />
+=======
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
                     <SettingRow
                       id="ui_radius"
                       sectionId="theme-editor"
@@ -1595,6 +1724,7 @@ export default function SettingsPanel({
                       </div>
                     </SettingRow>
                     <SettingRow
+<<<<<<< HEAD
                       id="letter_spacing"
                       sectionId="editor"
                       searchQuery={searchTerm}
@@ -1613,6 +1743,8 @@ export default function SettingsPanel({
                       </div>
                     </SettingRow>
                     <SettingRow
+=======
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
                       id="word_wrap"
                       sectionId="editor"
                       searchQuery={searchTerm}
@@ -1755,6 +1887,7 @@ export default function SettingsPanel({
                       </div>
                     </SettingRow>
                     <SettingRow
+<<<<<<< HEAD
                       id="letter_spacing"
                       sectionId="editor"
                       searchQuery={searchTerm}
@@ -1773,6 +1906,8 @@ export default function SettingsPanel({
                       </div>
                     </SettingRow>
                     <SettingRow
+=======
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
                       id="font_weight"
                       sectionId="editor"
                       searchQuery={searchTerm}
@@ -1971,6 +2106,7 @@ export default function SettingsPanel({
                       </NativeSelect>
                     </SettingRow>
                     <SettingRow
+<<<<<<< HEAD
                       id="sidebar_visible"
                       sectionId="workbench"
                       searchQuery={searchTerm}
@@ -1984,6 +2120,8 @@ export default function SettingsPanel({
                       />
                     </SettingRow>
                     <SettingRow
+=======
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
                       id="status_bar_visible"
                       sectionId="workbench"
                       searchQuery={searchTerm}
@@ -2166,6 +2304,7 @@ export default function SettingsPanel({
                       </NativeSelect>
                     </SettingRow>
                     <SettingRow
+<<<<<<< HEAD
                       id="panel_glow_outline"
                       sectionId="performance"
                       searchQuery={searchTerm}
@@ -2179,6 +2318,8 @@ export default function SettingsPanel({
                       />
                     </SettingRow>
                     <SettingRow
+=======
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
                       id="panel_blur_strength"
                       sectionId="theme-editor"
                       searchQuery={searchTerm}
@@ -2242,12 +2383,15 @@ export default function SettingsPanel({
                     {renderLspServers()}
                   </SettingsGroup>
                 </div>
+<<<<<<< HEAD
                 <SettingsGroup
                   title="Live Budget Hinweise"
                   description="Schnelle Diagnose aus deinen aktuellen Visual- und Language-Settings."
                 >
                   <PerformanceHintList hints={performanceHints} />
                 </SettingsGroup>
+=======
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
               </section>
             ))}
 
@@ -2295,6 +2439,7 @@ export default function SettingsPanel({
                       />
                     </SettingRow>
                     <SettingRow
+<<<<<<< HEAD
                       id="animation_speed"
                       sectionId="animations"
                       searchQuery={searchTerm}
@@ -2313,6 +2458,8 @@ export default function SettingsPanel({
                       </div>
                     </SettingRow>
                     <SettingRow
+=======
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
                       id="smooth_caret"
                       sectionId="animations"
                       searchQuery={searchTerm}

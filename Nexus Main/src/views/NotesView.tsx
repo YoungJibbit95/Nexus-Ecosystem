@@ -1386,6 +1386,7 @@ export function NotesView() {
           className="nx-notes-main flex-1 flex flex-col gap-2"
           style={{ minHeight: 0, overflow: "visible" }}
         >
+<<<<<<< HEAD
           {/* Compact workbar */}
           <Glass className="nx-notes-workbar nx-notes-editor-header shrink-0">
             <div className="nx-notes-workbar-main">
@@ -1407,6 +1408,28 @@ export function NotesView() {
                 <span>{modeLabel}</span>
               </div>
               <div className="nx-notes-mode-actions flex gap-0.5 items-center shrink-0">
+=======
+          {/* Header bar */}
+          <Glass className="nx-notes-editor-header flex items-center gap-2 px-3 py-2 shrink-0">
+            <input
+              className="nx-notes-title-input flex-1 bg-transparent outline-none font-semibold"
+              style={{ fontSize: 14, minWidth: 0 }}
+              value={active.title}
+              onChange={(e) => updateNote(active.id, { title: e.target.value })}
+              placeholder="Notiztitel..."
+            />
+            <div className="nx-notes-editor-meta" aria-live="polite">
+              <span
+                data-state={draftDirty ? "dirty" : "saved"}
+                title={saveStatusLabel}
+              >
+                {saveStatusLabel}
+              </span>
+              <span>{autosaveLabel}</span>
+              <span>{modeLabel}</span>
+            </div>
+            <div className="nx-notes-mode-actions flex gap-0.5 items-center shrink-0">
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
               {/* View mode */}
               {(["edit", "split", "preview"] as const).map((m) => (
                 <InteractiveActionButton

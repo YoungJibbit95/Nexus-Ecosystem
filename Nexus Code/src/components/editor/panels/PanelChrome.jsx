@@ -187,6 +187,7 @@ export function PanelIconButton({
   );
 }
 
+<<<<<<< HEAD
 export function PanelActionButton({
   children,
   icon: Icon,
@@ -217,6 +218,8 @@ export function PanelActionButton({
   );
 }
 
+=======
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
 export function PanelBadge({ children, tone = "muted", title }) {
   const toneStyle = toneStyles[tone] || toneStyles.muted;
   return (
@@ -258,6 +261,7 @@ export function PanelMetric({ label, value, tone = "muted", title }) {
   );
 }
 
+<<<<<<< HEAD
 export function PanelNotice({
   icon: Icon = AlertCircle,
   title,
@@ -309,6 +313,8 @@ export function PanelNotice({
   );
 }
 
+=======
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
 export function PanelState({
   icon: Icon = AlertCircle,
   title,
