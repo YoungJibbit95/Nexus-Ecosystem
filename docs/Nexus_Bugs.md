@@ -12,6 +12,8 @@ Magic Menue oeffnet ohne dass offene Emoji-/Block-Menues die Toolbar zerlegen | 
 ## Notes Todo
 
 ```nexus-checklist
+Reminders und Tasks Magic Elemente und Verknüpfung hinzufügen | true
+Alle Magic Elemente auf der View Seite per Mausklick auch editierbar machen | true
 Dokumentation in InfoView einfacher und besser machen aber detailreich lassen | true
 Notes Split und Edit View mehr Raum geben damit man den Text besser sehen kann | true
 Buttons und Bars uebersichtlicher und einfacher zu verstehen machen | true
@@ -37,6 +39,7 @@ InfoView mit Suche, View-Guides und Referenzen erweitern | true
 ## Global Todo
 
 ```nexus-checklist
+Calender View hinzufügen die mit Notes, Reminders, Tasks, Flux, Code verknüpft ist | true
 Leistungsanzeige fuer Glass Optionen in Settings adden | true
 Notes UI weniger cramped und nutzerfreundlicher machen | true
 DevTools UI weiter verdichten und besser gruppieren | true
@@ -68,6 +71,7 @@ GitHub UI-Gates fuer Main, Website und API-Deploy-Automation ergaenzen | true
 ```nexus-checklist
 Website Login Page: E-Mail bestaetigt zeigt bei Nein keinen gruenen Haken mehr | true
 API: Metrics Summary liefert echte aktive Nutzer separat von technischen Clients | true
+API ist komplett broken, Logins funktionieren nicht mehr, irgendwas ist komplett kaputt | false
 Control Page zeigt echte aktive Nutzer statt Online Apps im Nutzer-Metric-Slot | true
 Website nutzt fuer aktive Nutzer echte Nutzer-Metriken und labelt technische Clients separat | true
 ```

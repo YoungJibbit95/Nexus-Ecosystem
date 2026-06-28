@@ -11,7 +11,7 @@ import {
 import { buildViewAccessCacheKey, getViewValidationErrorReason } from './common'
 
 const OFFLINE_FREE_VIEWS_BY_APP: Record<string, Set<string>> = {
-  main: new Set(['dashboard', 'notes', 'tasks', 'reminders', 'files', 'settings', 'info']),
+  main: new Set(['dashboard', 'calendar', 'notes', 'tasks', 'reminders', 'files', 'settings', 'info']),
   mobile: new Set([]),
   code: new Set([]),
   'code-mobile': new Set([]),

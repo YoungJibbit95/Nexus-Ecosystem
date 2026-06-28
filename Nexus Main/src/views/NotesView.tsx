@@ -62,7 +62,11 @@ import { useApp } from "../store/appStore";
 import { useCanvas } from "../store/canvasStore";
 import { useTheme } from "../store/themeStore";
 import { hexToRgb, fmtDt } from "../lib/utils";
-import { NexusCodeBlock, NexusInlineCode } from "./notes/NotesMagicRenderers";
+import {
+  NexusCodeBlock,
+  NexusInlineCode,
+  type NotesMagicPlanningActions,
+} from "./notes/NotesMagicRenderers";
 import { useNotesAnalysis } from "./notes/useNotesAnalysis";
 import { useNotesDraftState } from "./notes/useNotesDraftState";
 import {
@@ -70,6 +74,14 @@ import {
   type NotesEmojiCategoryId,
 } from "./notes/useNotesEmojiPicker";
 import { NotesSettingsModal } from "./notes/NotesSettingsModal";
+import {
+  findNotesMagicFence,
+  parseNotesReminderMagic,
+  parseNotesTaskMagic,
+  replaceNotesMagicFenceContent,
+  serializeNotesReminderMagic,
+  serializeNotesTaskMagic,
+} from "./notes/notesMagicPlanning";
 import { shallow } from "zustand/shallow";
 import {
   buildNoteKnowledgeGraph,
@@ -99,10 +111,19 @@ const isEditableTarget = (target: EventTarget | null): boolean => {
     tag === "select"
   );
 };
+
+const resolveReminderDatetime = (value: string) => {
+  const trimmed = value.trim();
+  const parsed = trimmed ? new Date(trimmed) : null;
+  if (parsed && !Number.isNaN(parsed.getTime())) return parsed.toISOString();
+  return new Date(Date.now() + 60 * 60 * 1000).toISOString();
+};
 export function NotesView() {
   const {
     notes,
     activeNoteId,
+    tasks,
+    reminders,
     addNote,
     updateNote,
     delNote,
@@ -115,6 +136,8 @@ export function NotesView() {
     (s) => ({
       notes: s.notes,
       activeNoteId: s.activeNoteId,
+      tasks: s.tasks,
+      reminders: s.reminders,
       addNote: s.addNote,
       updateNote: s.updateNote,
       delNote: s.delNote,
@@ -333,6 +356,8 @@ export function NotesView() {
       "nexus-timeline",
       "nexus-card",
       "nexus-details",
+      "nexus-task",
+      "nexus-reminder",
     ];
     if (blockLanguages.some((lang) => text.includes(`\`\`\`${lang}`))) {
       return `\n${text.trim()}\n`;
@@ -637,6 +662,31 @@ export function NotesView() {
     [mode, syncLineNumberScroll, t.notes.fontSize, t.notes.lineHeight],
   );
 
+  const focusMagicFenceInEditor = useCallback(
+    (lang: string, content: string) => {
+      const range = findNotesMagicFence(draftContentRef.current, lang, content);
+      if (!range) return;
+      if (mode === "preview") {
+        setMode("split");
+      }
+      window.setTimeout(() => {
+        requestAnimationFrame(() => {
+          const textarea = editorRef.current;
+          if (!textarea) return;
+          textarea.focus();
+          textarea.selectionStart = range.start;
+          textarea.selectionEnd = range.end;
+          const contentBefore = draftContentRef.current.slice(0, range.start);
+          const line = (contentBefore.match(/\n/g)?.length ?? 0) + 1;
+          const lineHeightPx = t.notes.fontSize * t.notes.lineHeight;
+          textarea.scrollTop = Math.max(0, (line - 4) * lineHeightPx);
+          syncLineNumberScroll(textarea);
+        });
+      }, 0);
+    },
+    [mode, syncLineNumberScroll, t.notes.fontSize, t.notes.lineHeight],
+  );
+
   const insertWorkflowTemplate = useCallback(
     (kind: "daily" | "meeting" | "project") => {
       if (!active) return;
@@ -690,6 +740,89 @@ export function NotesView() {
       linkedNoteId: active.id,
     });
   }, [active, addRem]);
+
+  const createLinkedTaskFromMagic = useCallback(
+    (content: string) => {
+      if (!active) return;
+      const payload = parseNotesTaskMagic(content);
+      if (payload.linkedTaskId) return;
+
+      const beforeTaskIds = new Set(
+        useApp.getState().tasks.map((task) => task.id),
+      );
+      addTask(payload.title, payload.status, payload.desc, payload.priority);
+
+      const created = useApp
+        .getState()
+        .tasks.find((task) => !beforeTaskIds.has(task.id));
+      if (!created) return;
+
+      updateTask(created.id, {
+        deadline: payload.deadline?.trim() || undefined,
+        linkedNoteId: active.id,
+        notes: `Erstellt aus Notes Magic: ${active.title || "Untitled"}`,
+        tags: Array.from(new Set([...(created.tags || []), "notes"])),
+      });
+
+      const nextBlock = serializeNotesTaskMagic({
+        ...payload,
+        linkedTaskId: created.id,
+      });
+      const nextContent = replaceNotesMagicFenceContent(
+        draftContentRef.current,
+        "nexus-task",
+        content,
+        nextBlock,
+      );
+      if (nextContent !== draftContentRef.current) {
+        handleChange(nextContent);
+      }
+    },
+    [active, addTask, handleChange, updateTask],
+  );
+
+  const createLinkedReminderFromMagic = useCallback(
+    (content: string) => {
+      if (!active) return;
+      const payload = parseNotesReminderMagic(content);
+      if (payload.linkedReminderId) return;
+
+      const beforeReminderIds = new Set(
+        useApp.getState().reminders.map((reminder) => reminder.id),
+      );
+      const datetime = resolveReminderDatetime(payload.datetime);
+
+      addRem({
+        title: payload.title,
+        msg: payload.msg,
+        datetime,
+        repeat: payload.repeat,
+        linkedNoteId: active.id,
+        linkedTaskId: payload.linkedTaskId,
+      });
+
+      const created = useApp
+        .getState()
+        .reminders.find((reminder) => !beforeReminderIds.has(reminder.id));
+      if (!created) return;
+
+      const nextBlock = serializeNotesReminderMagic({
+        ...payload,
+        datetime: created.datetime,
+        linkedReminderId: created.id,
+      });
+      const nextContent = replaceNotesMagicFenceContent(
+        draftContentRef.current,
+        "nexus-reminder",
+        content,
+        nextBlock,
+      );
+      if (nextContent !== draftContentRef.current) {
+        handleChange(nextContent);
+      }
+    },
+    [active, addRem, handleChange],
+  );
 
   const convertNoteToCanvas = useCallback(() => {
     if (!active) return;
@@ -854,21 +987,100 @@ export function NotesView() {
   );
 
   // ReactMarkdown components — passed accent via closure
+  const magicPlanningActions = useMemo<NotesMagicPlanningActions>(
+    () => ({
+      tasks,
+      reminders,
+      onCreateTask: createLinkedTaskFromMagic,
+      onCreateReminder: createLinkedReminderFromMagic,
+    }),
+    [createLinkedReminderFromMagic, createLinkedTaskFromMagic, reminders, tasks],
+  );
+
   const mdComponents = useMemo(
     () => ({
       code({ className, children }: any) {
         // In react-markdown v9, fenced code blocks get className='language-xxx'
         if (className?.startsWith("language-")) {
-          return (
-            <NexusCodeBlock className={className} accent={t.accent}>
+          const lang = className.replace("language-", "");
+          const raw = Array.isArray(children)
+            ? children.join("")
+            : String(children ?? "");
+          const content = raw.replace(/\n$/, "");
+          const renderedBlock = (
+            <NexusCodeBlock
+              className={className}
+              accent={t.accent}
+              planning={magicPlanningActions}
+            >
               {children}
             </NexusCodeBlock>
           );
+          if (lang.startsWith("nexus-")) {
+            const editBlock = () => focusMagicFenceInEditor(lang, content);
+            return (
+              <div
+                role="button"
+                tabIndex={0}
+                title="Magic Element bearbeiten"
+                onClick={(event) => {
+                  const target = event.target as HTMLElement | null;
+                  if (
+                    target?.closest?.(
+                      "button, a, input, textarea, select, summary",
+                    )
+                  ) {
+                    return;
+                  }
+                  editBlock();
+                }}
+                onKeyDown={(event) => {
+                  if (event.key !== "Enter" && event.key !== " ") return;
+                  event.preventDefault();
+                  editBlock();
+                }}
+                style={{
+                  position: "relative",
+                  outline: "none",
+                  borderRadius: 12,
+                }}
+              >
+                <button
+                  type="button"
+                  aria-label="Magic Element bearbeiten"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    editBlock();
+                  }}
+                  style={{
+                    position: "absolute",
+                    top: 6,
+                    right: 6,
+                    zIndex: 2,
+                    width: 24,
+                    height: 24,
+                    borderRadius: 999,
+                    border: `1px solid rgba(${rgb},0.28)`,
+                    background: "rgba(10,12,22,0.72)",
+                    color: t.accent,
+                    display: "grid",
+                    placeItems: "center",
+                    cursor: "pointer",
+                    opacity: 0.76,
+                  }}
+                >
+                  <Edit3 size={11} />
+                </button>
+                {renderedBlock}
+              </div>
+            );
+          }
+          return renderedBlock;
         }
         return <NexusInlineCode accent={t.accent}>{children}</NexusInlineCode>;
       },
     }),
-    [t.accent],
+    [focusMagicFenceInEditor, magicPlanningActions, rgb, t.accent],
   );
 
   return (
@@ -1386,9 +1598,8 @@ export function NotesView() {
           className="nx-notes-main flex-1 flex flex-col gap-2"
           style={{ minHeight: 0, overflow: "visible" }}
         >
-<<<<<<< HEAD
           {/* Compact workbar */}
-          <Glass className="nx-notes-workbar nx-notes-editor-header shrink-0">
+          <Glass className="nx-notes-workbar nx-notes-editor-header nx-notes-unified-status-action shrink-0">
             <div className="nx-notes-workbar-main">
               <input
                 className="nx-notes-title-input flex-1 bg-transparent outline-none font-semibold"
@@ -1406,30 +1617,11 @@ export function NotesView() {
                 </span>
                 <span>{autosaveLabel}</span>
                 <span>{modeLabel}</span>
+                <span title={`Erstellt ${fmtDt(new Date(active.created))}`}>
+                  {fmtDt(new Date(active.created))}
+                </span>
               </div>
               <div className="nx-notes-mode-actions flex gap-0.5 items-center shrink-0">
-=======
-          {/* Header bar */}
-          <Glass className="nx-notes-editor-header flex items-center gap-2 px-3 py-2 shrink-0">
-            <input
-              className="nx-notes-title-input flex-1 bg-transparent outline-none font-semibold"
-              style={{ fontSize: 14, minWidth: 0 }}
-              value={active.title}
-              onChange={(e) => updateNote(active.id, { title: e.target.value })}
-              placeholder="Notiztitel..."
-            />
-            <div className="nx-notes-editor-meta" aria-live="polite">
-              <span
-                data-state={draftDirty ? "dirty" : "saved"}
-                title={saveStatusLabel}
-              >
-                {saveStatusLabel}
-              </span>
-              <span>{autosaveLabel}</span>
-              <span>{modeLabel}</span>
-            </div>
-            <div className="nx-notes-mode-actions flex gap-0.5 items-center shrink-0">
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
               {/* View mode */}
               {(["edit", "split", "preview"] as const).map((m) => (
                 <InteractiveActionButton
@@ -1564,11 +1756,13 @@ export function NotesView() {
                 display: "flex",
                 alignItems: "center",
                 gap: 6,
-                flexWrap: "wrap",
+                flexWrap: "nowrap",
               }}
             >
               {[
                 { label: "Words", val: noteStats.words },
+                { label: "Chars", val: stats.chars },
+                { label: "Lines", val: stats.lines },
                 { label: "Read", val: `${noteStats.readMins}m` },
                 { label: "Links", val: noteStats.links },
                 { label: "Tasks", val: noteStats.tasks },
@@ -1891,6 +2085,22 @@ export function NotesView() {
                         action: () =>
                           insertFormat(
                             "\n```nexus-kanban\nBacklog | Aufgabe sammeln\nDoing | Umsetzung\nReview | QA/Abnahme\nDone | Fertig\n```\n",
+                          ),
+                      },
+                      {
+                        icon: CheckSquare2,
+                        label: "Task",
+                        action: () =>
+                          insertFormat(
+                            "\n```nexus-task\nNeue Task | todo | mid | \nBeschreibung oder Done-Kriterium...\n```\n",
+                          ),
+                      },
+                      {
+                        icon: AlarmClock,
+                        label: "Reminder",
+                        action: () =>
+                          insertFormat(
+                            "\n```nexus-reminder\nFollow-up | +1h | none\nWoran soll Nexus erinnern?\n```\n",
                           ),
                       },
                       {

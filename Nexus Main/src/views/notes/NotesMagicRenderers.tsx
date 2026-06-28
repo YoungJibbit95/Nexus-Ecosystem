@@ -1,4 +1,44 @@
 import React from 'react'
+import type { Reminder, Task } from '../../store/appStore'
+import {
+  parseNotesReminderMagic,
+  parseNotesTaskMagic,
+} from './notesMagicPlanning'
+
+export type NotesMagicPlanningActions = {
+  tasks: Task[]
+  reminders: Reminder[]
+  onCreateTask?: (content: string) => void
+  onCreateReminder?: (content: string) => void
+}
+
+function formatMagicDate(value?: string) {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return date.toLocaleString(undefined, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  })
+}
+
+function MagicMetaPill({ children, accent }: { children: React.ReactNode; accent: string }) {
+  return (
+    <span style={{
+      borderRadius: 999,
+      border: `1px solid ${accent}40`,
+      background: `${accent}18`,
+      color: accent,
+      fontSize: 10,
+      fontWeight: 800,
+      padding: '2px 7px',
+      textTransform: 'uppercase',
+      letterSpacing: '0.04em',
+    }}>
+      {children}
+    </span>
+  )
+}
 
 function MagicList({ content, accent }: { content: string; accent: string }) {
   const rows = content.trim().split('\n').filter(Boolean)
@@ -464,6 +504,225 @@ function MagicDetails({ content, accent }: { content: string; accent: string }) 
   )
 }
 
+function MagicLinkedTask({
+  content,
+  accent,
+  planning,
+}: {
+  content: string
+  accent: string
+  planning?: NotesMagicPlanningActions
+}) {
+  const payload = React.useMemo(() => parseNotesTaskMagic(content), [content])
+  const linkedTask = payload.linkedTaskId
+    ? planning?.tasks.find((task) => task.id === payload.linkedTaskId)
+    : undefined
+  const status = linkedTask?.status ?? payload.status
+  const priority = linkedTask?.priority ?? payload.priority
+  const deadline = linkedTask?.deadline ?? payload.deadline
+  const desc = linkedTask?.desc || payload.desc
+
+  return (
+    <div className="nx-magic-fade" style={{
+      margin: '12px 0',
+      borderRadius: 12,
+      border: `1px solid ${linkedTask ? accent + '44' : 'rgba(255,255,255,0.11)'}`,
+      background: `linear-gradient(145deg, ${accent}14, rgba(255,255,255,0.035))`,
+      padding: '11px 12px',
+    }}>
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 10,
+        marginBottom: 8,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
+          <span style={{
+            width: 18,
+            height: 18,
+            borderRadius: 5,
+            border: `1px solid ${accent}55`,
+            display: 'grid',
+            placeItems: 'center',
+            color: accent,
+            fontSize: 11,
+            fontWeight: 900,
+            flexShrink: 0,
+          }}>
+            T
+          </span>
+          <span style={{ fontSize: 12, fontWeight: 800, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {linkedTask?.title || payload.title}
+          </span>
+        </div>
+        <div style={{ display: 'flex', gap: 5, flexShrink: 0 }}>
+          <MagicMetaPill accent={accent}>{status}</MagicMetaPill>
+          <MagicMetaPill accent={priority === 'high' ? '#FF453A' : accent}>{priority}</MagicMetaPill>
+        </div>
+      </div>
+
+      {desc && (
+        <div style={{
+          fontSize: 12,
+          lineHeight: 1.55,
+          opacity: 0.72,
+          whiteSpace: 'pre-wrap',
+          marginBottom: 8,
+        }}>
+          {desc}
+        </div>
+      )}
+
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 8,
+        flexWrap: 'wrap',
+      }}>
+        <div style={{ fontSize: 11, opacity: 0.58 }}>
+          {linkedTask
+            ? `Linked Task: ${linkedTask.id}`
+            : deadline
+              ? `Faellig: ${deadline}`
+              : 'Noch nicht als echte Task verknuepft'}
+        </div>
+        <button
+          type="button"
+          disabled={Boolean(linkedTask) || !planning?.onCreateTask}
+          onClick={(event) => {
+            event.stopPropagation()
+            planning?.onCreateTask?.(content)
+          }}
+          style={{
+            border: `1px solid ${accent}38`,
+            borderRadius: 999,
+            background: linkedTask ? `${accent}14` : `${accent}22`,
+            color: accent,
+            cursor: linkedTask || !planning?.onCreateTask ? 'default' : 'pointer',
+            fontSize: 11,
+            fontWeight: 800,
+            padding: '5px 9px',
+            opacity: linkedTask ? 0.62 : 1,
+          }}
+        >
+          {linkedTask ? 'Verknuepft' : 'Task erstellen'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function MagicLinkedReminder({
+  content,
+  accent,
+  planning,
+}: {
+  content: string
+  accent: string
+  planning?: NotesMagicPlanningActions
+}) {
+  const payload = React.useMemo(() => parseNotesReminderMagic(content), [content])
+  const linkedReminder = payload.linkedReminderId
+    ? planning?.reminders.find((reminder) => reminder.id === payload.linkedReminderId)
+    : undefined
+  const datetime = linkedReminder?.datetime ?? payload.datetime
+  const repeat = linkedReminder?.repeat ?? payload.repeat
+  const msg = linkedReminder?.msg || payload.msg
+
+  return (
+    <div className="nx-magic-fade" style={{
+      margin: '12px 0',
+      borderRadius: 12,
+      border: `1px solid ${linkedReminder ? accent + '44' : 'rgba(255,255,255,0.11)'}`,
+      background: `linear-gradient(145deg, ${accent}16, rgba(255,255,255,0.035))`,
+      padding: '11px 12px',
+    }}>
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 10,
+        marginBottom: 8,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
+          <span style={{
+            width: 18,
+            height: 18,
+            borderRadius: 5,
+            border: `1px solid ${accent}55`,
+            display: 'grid',
+            placeItems: 'center',
+            color: accent,
+            fontSize: 11,
+            fontWeight: 900,
+            flexShrink: 0,
+          }}>
+            R
+          </span>
+          <span style={{ fontSize: 12, fontWeight: 800, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {linkedReminder?.title || payload.title}
+          </span>
+        </div>
+        <div style={{ display: 'flex', gap: 5, flexShrink: 0 }}>
+          <MagicMetaPill accent={accent}>{repeat}</MagicMetaPill>
+          {linkedReminder?.done && <MagicMetaPill accent="#30D158">done</MagicMetaPill>}
+        </div>
+      </div>
+
+      {msg && (
+        <div style={{
+          fontSize: 12,
+          lineHeight: 1.55,
+          opacity: 0.72,
+          whiteSpace: 'pre-wrap',
+          marginBottom: 8,
+        }}>
+          {msg}
+        </div>
+      )}
+
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 8,
+        flexWrap: 'wrap',
+      }}>
+        <div style={{ fontSize: 11, opacity: 0.58 }}>
+          {linkedReminder
+            ? `Linked Reminder: ${linkedReminder.id}`
+            : datetime
+              ? `Zeitpunkt: ${formatMagicDate(datetime)}`
+              : 'Noch nicht als echter Reminder verknuepft'}
+        </div>
+        <button
+          type="button"
+          disabled={Boolean(linkedReminder) || !planning?.onCreateReminder}
+          onClick={(event) => {
+            event.stopPropagation()
+            planning?.onCreateReminder?.(content)
+          }}
+          style={{
+            border: `1px solid ${accent}38`,
+            borderRadius: 999,
+            background: linkedReminder ? `${accent}14` : `${accent}22`,
+            color: accent,
+            cursor: linkedReminder || !planning?.onCreateReminder ? 'default' : 'pointer',
+            fontSize: 11,
+            fontWeight: 800,
+            padding: '5px 9px',
+            opacity: linkedReminder ? 0.62 : 1,
+          }}
+        >
+          {linkedReminder ? 'Verknuepft' : 'Reminder erstellen'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 function renderInlineBadge(text: string, accent: string) {
   if (!text.startsWith('b:')) {
     return <code style={{ fontFamily: 'monospace', background: 'rgba(255,255,255,0.08)', padding: '2px 6px', borderRadius: 4, fontSize: '0.85em' }}>{text}</code>
@@ -482,7 +741,17 @@ function renderInlineBadge(text: string, accent: string) {
   )
 }
 
-export function NexusCodeBlock({ className, children, accent }: { className?: string; children: React.ReactNode; accent: string }) {
+export function NexusCodeBlock({
+  className,
+  children,
+  accent,
+  planning,
+}: {
+  className?: string
+  children: React.ReactNode
+  accent: string
+  planning?: NotesMagicPlanningActions
+}) {
   const lang = (className || '').replace('language-', '')
   const raw = Array.isArray(children) ? children.join('') : String(children ?? '')
   const content = raw.replace(/\n$/, '')
@@ -500,6 +769,8 @@ export function NexusCodeBlock({ className, children, accent }: { className?: st
   if (lang === 'nexus-callout')  return <MagicCallout content={content} />
   if (lang === 'nexus-kanban')   return <MagicKanban content={content} accent={accent} />
   if (lang === 'nexus-details')  return <MagicDetails content={content} accent={accent} />
+  if (lang === 'nexus-task')     return <MagicLinkedTask content={content} accent={accent} planning={planning} />
+  if (lang === 'nexus-reminder') return <MagicLinkedReminder content={content} accent={accent} planning={planning} />
 
   return (
     <pre style={{
