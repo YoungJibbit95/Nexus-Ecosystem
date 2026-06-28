@@ -23,6 +23,10 @@ export const PANEL_META = {
     title: "Extensions",
     detail: "IDE Module",
   },
+  account: {
+    title: "Account",
+    detail: "Nexus API & Login",
+  },
 };
 
 export const PANEL_BOUNDS = {

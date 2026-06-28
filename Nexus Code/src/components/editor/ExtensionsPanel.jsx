@@ -1,792 +1,651 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
-  Blocks,
-  Search,
-  Download,
-  Star,
-  Trash2,
-  RefreshCw,
-  ChevronDown,
-  X,
-  Zap,
-  Shield,
-  Palette,
-  Code2,
-  GitBranch,
-  Terminal,
-  Globe,
-  Package,
-  TrendingUp,
+  AlertTriangle,
   BadgeCheck,
+  Blocks,
+  Check,
+  ChevronDown,
+  Download,
+  FileJson2,
+  Filter,
+  PackageCheck,
+  Power,
+  RefreshCw,
+  Search,
+  SlidersHorizontal,
+  Trash2,
+  X,
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
+import {
+  EXTENSION_CATEGORIES,
+  EXTENSION_CONTRIBUTION_FILTERS,
+  EXTENSION_SOURCES,
+  EXTENSION_STATE_FILTERS,
+  createExtensionEventDetail,
+  filterExtensions,
+  formatContributionPreview,
+  getExtensionStats,
+  installExtension,
+  loadExtensionRegistryState,
+  resolveExtensions,
+  saveExtensionRegistry,
+  setExtensionEnabled,
+  uninstallExtension,
+} from "../../pages/editor/extensionSystem";
 
-/* ─── Extension data ─────────────────────────────────────────────────────── */
+const tabStyles = {
+  all: "Alle",
+  installed: "Installiert",
+  enabled: "Aktiv",
+  local: "Lokal",
+};
 
-const ALL_EXTENSIONS = [
-  {
-    id: "prettier",
-    name: "Prettier",
-    publisher: "Prettier",
-    description: "Opinionated code formatter supporting many languages.",
-    version: "3.2.5",
-    rating: 4.9,
-    downloads: "2.1M",
-    category: "formatter",
-    icon: "✦",
-    iconColor: "#f97316",
-    tags: ["formatting", "javascript", "typescript", "css"],
-    verified: true,
-    featured: true,
-  },
-  {
-    id: "eslint",
-    name: "ESLint",
-    publisher: "Microsoft",
-    description: "Integrates ESLint into the editor for instant feedback.",
-    version: "2.4.4",
-    rating: 4.8,
-    downloads: "1.8M",
-    category: "linter",
-    icon: "⚡",
-    iconColor: "#a855f7",
-    tags: ["linting", "javascript", "typescript"],
-    verified: true,
-    featured: true,
-  },
-  {
-    id: "gitlens",
-    name: "GitLens",
-    publisher: "GitKraken",
-    description:
-      "Supercharge Git inside your editor with blame, history & more.",
-    version: "14.9.0",
-    rating: 4.9,
-    downloads: "1.5M",
-    category: "git",
-    icon: "◈",
-    iconColor: "#f59e0b",
-    tags: ["git", "version control", "blame"],
-    verified: true,
-    featured: true,
-  },
-  {
-    id: "github-copilot",
-    name: "GitHub Copilot",
-    publisher: "GitHub",
-    description:
-      "AI pair programmer that suggests code completions in real time.",
-    version: "1.212.0",
-    rating: 4.7,
-    downloads: "3.2M",
-    category: "ai",
-    icon: "◎",
-    iconColor: "#6b7280",
-    tags: ["ai", "autocomplete", "copilot"],
-    verified: true,
-    featured: true,
-  },
-  {
-    id: "tailwind-intellisense",
-    name: "Tailwind CSS IntelliSense",
-    publisher: "Tailwind Labs",
-    description:
-      "Intelligent Tailwind CSS tooling with autocomplete and preview.",
-    version: "0.10.5",
-    rating: 4.9,
-    downloads: "980K",
-    category: "css",
-    icon: "◉",
-    iconColor: "#06b6d4",
-    tags: ["tailwind", "css", "autocomplete"],
-    verified: true,
-    featured: false,
-  },
-  {
-    id: "docker",
-    name: "Docker",
-    publisher: "Microsoft",
-    description:
-      "Makes it easy to create, manage, and debug containerized apps.",
-    version: "1.29.2",
-    rating: 4.6,
-    downloads: "740K",
-    category: "devops",
-    icon: "▣",
-    iconColor: "#2496ed",
-    tags: ["docker", "containers", "devops"],
-    verified: true,
-    featured: false,
-  },
-  {
-    id: "error-lens",
-    name: "Error Lens",
-    publisher: "usernamehw",
-    description: "Improve highlighting of errors, warnings and infos inline.",
-    version: "3.16.0",
-    rating: 4.8,
-    downloads: "620K",
-    category: "linter",
-    icon: "◆",
-    iconColor: "#ef4444",
-    tags: ["errors", "warnings", "diagnostics"],
-    verified: false,
-    featured: false,
-  },
-  {
-    id: "material-icons",
-    name: "Material Icon Theme",
-    publisher: "Philipp Kief",
-    description: "Material Design icons for files and folders in the explorer.",
-    version: "5.1.0",
-    rating: 4.9,
-    downloads: "1.2M",
-    category: "theme",
-    icon: "◐",
-    iconColor: "#4caf50",
-    tags: ["icons", "theme", "material"],
-    verified: false,
-    featured: false,
-  },
-  {
-    id: "rest-client",
-    name: "REST Client",
-    publisher: "Huachao Mao",
-    description:
-      "Send HTTP requests and view responses directly in the editor.",
-    version: "0.25.1",
-    rating: 4.7,
-    downloads: "430K",
-    category: "tools",
-    icon: "⬡",
-    iconColor: "#8b5cf6",
-    tags: ["http", "rest", "api"],
-    verified: false,
-    featured: false,
-  },
-  {
-    id: "live-share",
-    name: "Live Share",
-    publisher: "Microsoft",
-    description:
-      "Real-time collaborative development from the comfort of your editor.",
-    version: "1.0.5931",
-    rating: 4.5,
-    downloads: "860K",
-    category: "collaboration",
-    icon: "⬟",
-    iconColor: "#3b82f6",
-    tags: ["collaboration", "sharing", "pair programming"],
-    verified: true,
-    featured: false,
-  },
-  {
-    id: "rainbow-brackets",
-    name: "Rainbow Brackets",
-    publisher: "2gua",
-    description: "A rainbow brackets extension for paired brackets.",
-    version: "0.0.6",
-    rating: 4.6,
-    downloads: "390K",
-    category: "theme",
-    icon: "◇",
-    iconColor: "#ec4899",
-    tags: ["brackets", "colors", "readability"],
-    verified: false,
-    featured: false,
-  },
-  {
-    id: "code-spell",
-    name: "Code Spell Checker",
-    publisher: "Street Side Software",
-    description: "Spelling checker for source code and comments.",
-    version: "3.0.1",
-    rating: 4.7,
-    downloads: "510K",
-    category: "linter",
-    icon: "⬢",
-    iconColor: "#22c55e",
-    tags: ["spelling", "linting", "comments"],
-    verified: false,
-    featured: false,
-  },
-  {
-    id: "nexus-flux",
-    name: "Nexus Flux",
-    publisher: "Nexus Team",
-    description: "Hyper-dynamic activity feed and workflow optimization for power users.",
-    version: "1.0.2",
-    rating: 5.0,
-    downloads: "12K",
-    category: "tools",
-    icon: "⚡",
-    iconColor: "#8000ff",
-    tags: ["workflow", "nexus", "activity"],
-    verified: true,
-    featured: true,
-  },
-  {
-    id: "glitch-theme",
-    name: "Glitch Theme",
-    publisher: "CyberPunk",
-    description: "A cyber-vibrant theme with glitch animations and neon highlights.",
-    version: "2.1.0",
-    rating: 4.9,
-    downloads: "45K",
-    category: "theme",
-    icon: "◈",
-    iconColor: "#ec4899",
-    tags: ["glitch", "neon", "cyan"],
-    verified: false,
-    featured: true,
-  },
-];
-
-const CATEGORIES = [
-  { id: "all", label: "Alle", icon: Blocks },
-  { id: "ai", label: "KI", icon: Zap },
-  { id: "formatter", label: "Formatter", icon: Code2 },
-  { id: "linter", label: "Linter", icon: Shield },
-  { id: "git", label: "Git", icon: GitBranch },
-  { id: "theme", label: "Themes", icon: Palette },
-  { id: "tools", label: "Tools", icon: Terminal },
-  { id: "devops", label: "DevOps", icon: Globe },
-  { id: "collaboration", label: "Zusammenarbeit", icon: Package },
-];
-
-const EXTENSIONS_STORAGE_KEY = "nexus-code-installed-extensions";
-
-/* ─── Sub-components ─────────────────────────────────────────────────────── */
-
-function StarRating({ rating }) {
-  const full = Math.floor(rating);
-  const frac = rating - full;
+function SegmentButton({ active, children, onClick }) {
   return (
-    <span className="flex items-center gap-0.5">
-      {Array.from({ length: 5 }).map((_, i) => (
-        <Star
-          key={i}
-          size={9}
+    <button
+      type="button"
+      onClick={onClick}
+      className="relative h-7 rounded-md px-2 text-[11px] font-semibold outline-none transition-colors focus-visible:ring-2 focus-visible:ring-purple-500/60"
+      style={{
+        color: active ? "var(--nexus-text)" : "var(--nexus-muted)",
+      }}
+    >
+      {active ? (
+        <motion.span
+          layoutId="extension-segment"
+          className="absolute inset-0 rounded-md"
           style={{
-            fill:
-              i < full
-                ? "#fbbf24"
-                : i === full && frac >= 0.5
-                  ? "#fbbf2480"
-                  : "transparent",
-            color:
-              i < full || (i === full && frac >= 0.5) ? "#fbbf24" : "#374151",
+            background: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.16)",
+            border: "1px solid rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.24)",
           }}
         />
-      ))}
-      <span className="text-[10px] text-gray-500 ml-0.5">{rating}</span>
-    </span>
+      ) : null}
+      <span className="relative z-10">{children}</span>
+    </button>
   );
 }
 
-function ExtensionCard({ ext, installed, onInstall, onUninstall, index }) {
-  const [loading, setLoading] = useState(false);
+function SelectFilter({ icon: Icon, value, options, onChange, title }) {
+  return (
+    <label
+      className="flex h-8 min-w-0 flex-1 items-center gap-1.5 rounded-md border px-2"
+      style={{
+        background: "rgba(255,255,255,0.035)",
+        borderColor: "var(--nexus-border)",
+      }}
+      title={title}
+    >
+      <Icon size={12} className="shrink-0 text-[var(--nexus-muted)]" />
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="min-w-0 flex-1 bg-transparent text-[11px] font-medium text-[var(--nexus-text)] outline-none"
+        style={{ colorScheme: "dark" }}
+      >
+        {options.map((option) => (
+          <option key={option.id} value={option.id}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
 
-  const handleAction = () => {
-    if (loading) return;
-    setLoading(true);
-    setTimeout(() => {
-      installed ? onUninstall(ext.id) : onInstall(ext.id);
-      setLoading(false);
-    }, 700);
+function StatPill({ label, value }) {
+  return (
+    <div
+      className="flex min-w-0 items-center justify-between gap-2 rounded-md px-2 py-1.5"
+      style={{
+        background: "rgba(255,255,255,0.028)",
+        border: "1px solid rgba(255,255,255,0.055)",
+      }}
+    >
+      <span className="truncate text-[10px] text-[var(--nexus-muted)]">{label}</span>
+      <span className="font-mono text-[11px] font-semibold text-[var(--nexus-text)]">
+        {value}
+      </span>
+    </div>
+  );
+}
+
+function SystemMessage({ message }) {
+  const isError = message.level === "error";
+  return (
+    <div
+      className="flex min-w-0 items-start gap-2 rounded-md border px-2 py-1.5"
+      style={{
+        background: isError ? "rgba(248,113,113,0.1)" : "rgba(251,191,36,0.08)",
+        borderColor: isError ? "rgba(248,113,113,0.22)" : "rgba(251,191,36,0.2)",
+      }}
+    >
+      <AlertTriangle
+        size={12}
+        className={`mt-0.5 shrink-0 ${isError ? "text-red-300" : "text-amber-300"}`}
+      />
+      <div className="min-w-0">
+        <p className={`truncate text-[10px] font-semibold ${isError ? "text-red-200" : "text-amber-200"}`}>
+          {message.message}
+        </p>
+        {message.detail ? (
+          <p className="truncate text-[10px] text-[var(--nexus-muted)]">{message.detail}</p>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function ToggleSwitch({ checked, onClick, disabled }) {
+  return (
+    <button
+      type="button"
+      aria-pressed={checked}
+      disabled={disabled}
+      onClick={onClick}
+      className="relative h-5 w-9 shrink-0 rounded-full outline-none transition-opacity focus-visible:ring-2 focus-visible:ring-purple-500/60 disabled:cursor-not-allowed disabled:opacity-40"
+      style={{
+        background: checked
+          ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.35)"
+          : "rgba(255,255,255,0.08)",
+        border: checked
+          ? "1px solid rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.42)"
+          : "1px solid rgba(255,255,255,0.12)",
+      }}
+      title={checked ? "Extension pausieren" : "Extension aktivieren"}
+    >
+      <motion.span
+        layout
+        className="absolute top-0.5 h-4 w-4 rounded-full"
+        animate={{ left: checked ? 17 : 2 }}
+        transition={{ type: "spring", stiffness: 520, damping: 34 }}
+        style={{
+          background: checked ? "var(--nexus-primary, #7c8cff)" : "#6b7280",
+          boxShadow: checked ? "0 0 10px rgba(124,140,255,0.34)" : "none",
+        }}
+      />
+    </button>
+  );
+}
+
+function ExtensionCard({ extension, onInstall, onRemove, onToggleEnabled, index }) {
+  const [busy, setBusy] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const manifestIssues = [...extension.manifestErrors, ...extension.manifestWarnings];
+  const manifestBlocked = extension.manifestErrors.length > 0;
+  const primaryContributions = extension.contributionSummary
+    .filter((summary) => summary.primary)
+    .slice(0, 4);
+
+  const runAction = (action) => {
+    if (busy) return;
+    setBusy(true);
+    window.setTimeout(() => {
+      action();
+      setBusy(false);
+    }, 180);
   };
 
   return (
-    <motion.div
+    <motion.article
       layout
-      initial={{ opacity: 0, y: 6 }}
+      initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: 6, height: 0 }}
-      transition={{ delay: index * 0.04, duration: 0.25 }}
-      className="group relative rounded-xl p-3 cursor-default"
+      exit={{ opacity: 0, y: 8, height: 0 }}
+      transition={{ delay: Math.min(index * 0.025, 0.18), duration: 0.2 }}
+      className="group rounded-lg p-2.5"
       style={{
-        background: installed
-          ? "rgba(128,0,255,0.06)"
-          : "rgba(255,255,255,0.025)",
-        border: installed
-          ? "1px solid rgba(128,0,255,0.2)"
-          : "1px solid rgba(255,255,255,0.06)",
-        transition: "border-color 0.2s ease, background 0.2s ease",
-      }}
-      whileHover={{
-        borderColor: installed
-          ? "rgba(128,0,255,0.35)"
-          : "rgba(255,255,255,0.1)",
+        background: extension.installed
+          ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.055)"
+          : "rgba(255,255,255,0.024)",
+        border: extension.enabled
+          ? "1px solid rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.24)"
+          : "1px solid rgba(255,255,255,0.065)",
       }}
     >
-      {ext.featured && !installed && (
-        <div
-          className="absolute top-2 right-2 text-[9px] font-bold px-1.5 py-0.5 rounded-full"
-          style={{
-            background: "rgba(251,191,36,0.12)",
-            color: "#fbbf24",
-            border: "1px solid rgba(251,191,36,0.25)",
-          }}
-        >
-          Featured
-        </div>
-      )}
-
       <div className="flex items-start gap-2.5">
-        {/* Icon */}
         <div
-          className="w-9 h-9 rounded-lg flex items-center justify-center text-base shrink-0 font-bold"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border text-[11px] font-bold"
           style={{
-            background: ext.iconColor + "18",
-            border: `1px solid ${ext.iconColor}30`,
-            color: ext.iconColor,
+            background: `${extension.iconColor}18`,
+            borderColor: `${extension.iconColor}40`,
+            color: extension.iconColor,
           }}
         >
-          {ext.icon}
+          {extension.icon}
         </div>
 
-        {/* Info */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5 mb-0.5">
-            <span className="text-xs font-semibold text-gray-200 truncate">
-              {ext.name}
-            </span>
-            {ext.verified && (
-              <BadgeCheck
-                size={12}
-                className="shrink-0"
-                style={{ color: "#3b82f6" }}
-              />
-            )}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5">
+            <h3 className="min-w-0 truncate text-xs font-semibold text-[var(--nexus-text)]">
+              {extension.displayName}
+            </h3>
+            {extension.verified ? (
+              <BadgeCheck size={12} className="shrink-0 text-sky-400" />
+            ) : null}
+            {extension.updateAvailable && extension.installed ? (
+              <span className="shrink-0 rounded border border-amber-400/25 bg-amber-400/10 px-1 text-[9px] font-semibold text-amber-300">
+                Update
+              </span>
+            ) : null}
+            {manifestBlocked ? (
+              <span className="shrink-0 rounded border border-red-400/25 bg-red-400/10 px-1 text-[9px] font-semibold text-red-300">
+                Manifest
+              </span>
+            ) : extension.manifestWarnings.length > 0 ? (
+              <span className="shrink-0 rounded border border-amber-400/25 bg-amber-400/10 px-1 text-[9px] font-semibold text-amber-300">
+                Warnung
+              </span>
+            ) : null}
           </div>
-          <p className="text-[10px] text-gray-600 mb-1 truncate">
-            {ext.publisher} · v{ext.version}
-          </p>
-          <p className="text-[11px] text-gray-500 leading-relaxed line-clamp-2">
-            {ext.description}
-          </p>
-
-          {/* Meta row */}
-          <div className="flex items-center gap-3 mt-2">
-            <StarRating rating={ext.rating} />
-            <span className="flex items-center gap-1 text-[10px] text-gray-600">
-              <Download size={9} />
-              {ext.downloads}
-            </span>
+          <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] text-[var(--nexus-muted)]">
+            <span className="truncate">{extension.publisher}</span>
+            <span>v{extension.version}</span>
+            <span className="uppercase">{extension.source}</span>
           </div>
+          <p className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-gray-400">
+            {extension.description}
+          </p>
         </div>
+
+        <ToggleSwitch
+          checked={extension.enabled}
+          disabled={!extension.installed || busy || manifestBlocked}
+          onClick={() => runAction(() => onToggleEnabled(extension.id, !extension.enabled))}
+        />
       </div>
 
-      {/* Action button */}
-      <div className="mt-2.5 flex items-center justify-between">
-        <div className="flex flex-wrap gap-1">
-          {ext.tags.slice(0, 2).map((tag) => (
-            <span
-              key={tag}
-              className="text-[9px] px-1.5 py-0.5 rounded-full"
+      <div className="mt-2 flex flex-wrap gap-1">
+        {extension.capabilities.slice(0, 3).map((capability) => (
+          <span
+            key={capability}
+            className="rounded border border-white/[0.07] bg-white/[0.035] px-1.5 py-0.5 text-[9px] text-gray-400"
+          >
+            {capability}
+          </span>
+        ))}
+        {primaryContributions.map((summary) => (
+          <span
+            key={summary.point}
+            title={formatContributionPreview(summary, 4)}
+            className="rounded border border-sky-400/15 bg-sky-400/10 px-1.5 py-0.5 text-[9px] text-sky-200"
+          >
+            {summary.label}: {summary.count}
+          </span>
+        ))}
+      </div>
+
+      <div className="mt-2 flex items-center justify-between gap-2">
+        <button
+          type="button"
+          onClick={() => setExpanded((value) => !value)}
+          className="flex min-w-0 items-center gap-1 rounded-md px-1 py-0.5 text-[10px] font-medium text-[var(--nexus-muted)] transition-colors hover:bg-white/[0.05] hover:text-gray-200"
+        >
+          <ChevronDown
+            size={11}
+            className={`transition-transform ${expanded ? "rotate-180" : ""}`}
+          />
+          Manifest
+        </button>
+
+        {extension.installed ? (
+          <div className="flex items-center gap-1.5">
+            <span className="hidden items-center gap-1 text-[10px] text-emerald-300 sm:flex">
+              <PackageCheck size={11} />
+              {extension.enabled ? "Aktiv" : "Pausiert"}
+            </span>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => runAction(() => onRemove(extension.id))}
+              className="flex h-7 items-center gap-1 rounded-md border border-red-400/20 bg-red-400/10 px-2 text-[10px] font-semibold text-red-300 transition-colors hover:bg-red-400/15 disabled:opacity-50"
+            >
+              {busy ? <RefreshCw size={11} className="animate-spin" /> : <Trash2 size={11} />}
+              Entfernen
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            disabled={busy || manifestBlocked}
+            onClick={() => runAction(() => onInstall(extension.id))}
+            className="flex h-7 items-center gap-1 rounded-md border px-2 text-[10px] font-semibold transition-colors disabled:opacity-50"
+            title={manifestBlocked ? "Installation blockiert: Manifest fehlerhaft" : "Installieren"}
+            style={{
+              background: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.14)",
+              borderColor: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.28)",
+              color: "var(--nexus-primary, #7c8cff)",
+            }}
+          >
+            {busy ? <RefreshCw size={11} className="animate-spin" /> : <Download size={11} />}
+            Installieren
+          </button>
+        )}
+      </div>
+
+      <AnimatePresence initial={false}>
+        {expanded ? (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden"
+          >
+            <div
+              className="mt-2 rounded-md p-2"
               style={{
-                background: "rgba(255,255,255,0.05)",
-                color: "#6b7280",
-                border: "1px solid rgba(255,255,255,0.06)",
+                background: "rgba(0,0,0,0.22)",
+                border: "1px solid rgba(255,255,255,0.055)",
               }}
             >
-              {tag}
-            </span>
-          ))}
-        </div>
-
-        <motion.button
-          whileHover={!loading ? { scale: 1.05 } : {}}
-          whileTap={!loading ? { scale: 0.95 } : {}}
-          onClick={handleAction}
-          className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all shrink-0 ml-2"
-          style={
-            installed
-              ? {
-                  background: "rgba(239,68,68,0.08)",
-                  border: "1px solid rgba(239,68,68,0.2)",
-                  color: "#f87171",
-                }
-              : {
-                  background: "linear-gradient(135deg, #8000ff22, #0033ff22)",
-                  border: "1px solid rgba(128,0,255,0.3)",
-                  color: "#a855f7",
-                }
-          }
-        >
-          <AnimatePresence mode="wait">
-            {loading ? (
-              <motion.div
-                key="loading"
-                initial={{ opacity: 0, scale: 0.6 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.6 }}
-              >
-                <motion.div
-                  animate={{ rotate: 360 }}
-                  transition={{
-                    duration: 0.7,
-                    repeat: Infinity,
-                    ease: "linear",
-                  }}
-                >
-                  <RefreshCw size={11} />
-                </motion.div>
-              </motion.div>
-            ) : installed ? (
-              <motion.div
-                key="uninstall"
-                initial={{ opacity: 0, scale: 0.6 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.6 }}
-                className="flex items-center gap-1"
-              >
-                <Trash2 size={11} />
-                Entfernen
-              </motion.div>
-            ) : (
-              <motion.div
-                key="install"
-                initial={{ opacity: 0, scale: 0.6 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.6 }}
-                className="flex items-center gap-1"
-              >
-                <Download size={11} />
-                Installieren
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </motion.button>
-      </div>
-    </motion.div>
+              <div className="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase text-[var(--nexus-muted)]">
+                <FileJson2 size={11} />
+                {extension.manifest.name}
+              </div>
+              <div className="grid gap-1 text-[10px] text-gray-400">
+                <div className="truncate">
+                  engine: {extension.manifest.engines?.nexusCode || "unbekannt"}
+                </div>
+                <div className="truncate">
+                  activation:{" "}
+                  {extension.activationSummary.map((event) => event.label).join(", ") || "manual"}
+                </div>
+                <div className="truncate">
+                  contributes:{" "}
+                  {extension.contributionSummary
+                    .map((summary) => `${summary.label} ${summary.count}`)
+                    .join(", ") || "none"}
+                </div>
+                {extension.localPath ? (
+                  <div className="truncate">path: {extension.localPath}</div>
+                ) : null}
+              </div>
+              {extension.contributionSummary.length > 0 ? (
+                <div className="mt-2 grid gap-1">
+                  {extension.contributionSummary.slice(0, 5).map((summary) => (
+                    <div
+                      key={summary.point}
+                      className="flex min-w-0 items-center justify-between gap-2 rounded border border-white/[0.05] bg-white/[0.025] px-1.5 py-1 text-[10px]"
+                    >
+                      <span className="shrink-0 font-semibold text-gray-300">{summary.label}</span>
+                      <span className="min-w-0 truncate text-right text-gray-500">
+                        {formatContributionPreview(summary, 3)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+              {manifestIssues.length > 0 ? (
+                <div className="mt-2 grid gap-1">
+                  {manifestIssues.slice(0, 3).map((issue) => (
+                    <div
+                      key={`${issue.code}-${issue.message}`}
+                      className={`rounded border px-1.5 py-1 text-[10px] ${
+                        issue.level === "error"
+                          ? "border-red-400/20 bg-red-400/10 text-red-200"
+                          : "border-amber-400/20 bg-amber-400/10 text-amber-200"
+                      }`}
+                    >
+                      <span className="font-semibold">{issue.message}</span>
+                      {issue.detail ? (
+                        <span className="ml-1 text-[var(--nexus-muted)]">{issue.detail}</span>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+    </motion.article>
   );
 }
 
-/* ─── Main component ─────────────────────────────────────────────────────── */
-
 export default function ExtensionsPanel({ onInstalledChange }) {
+  const [initialRegistryState] = useState(() => loadExtensionRegistryState());
+  const [records, setRecords] = useState(() => initialRegistryState.records);
+  const [registryMessages] = useState(() => [
+    ...initialRegistryState.diagnostics,
+    ...initialRegistryState.migrations,
+  ]);
+  const [storageStatus, setStorageStatus] = useState(null);
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("all");
-  const [installed, setInstalled] = useState(() => {
-    try {
-      const raw = localStorage.getItem(EXTENSIONS_STORAGE_KEY);
-      if (!raw) return new Set(["prettier", "eslint", "gitlens"]);
-      const parsed = JSON.parse(raw);
-      if (!Array.isArray(parsed)) return new Set(["prettier", "eslint", "gitlens"]);
-      return new Set(parsed.filter((id) => typeof id === "string"));
-    } catch {
-      return new Set(["prettier", "eslint", "gitlens"]);
-    }
-  });
-  const [activeTab, setActiveTab] = useState("marketplace"); // "marketplace" | "installed"
-  const [showCategories, setShowCategories] = useState(false);
+  const [source, setSource] = useState("all");
+  const [stateFilter, setStateFilter] = useState("all");
+  const [contribution, setContribution] = useState("all");
+  const [quickTab, setQuickTab] = useState("all");
 
-  const handleInstall = (id) => setInstalled((prev) => new Set([...prev, id]));
-  const handleUninstall = (id) =>
-    setInstalled((prev) => {
-      const s = new Set(prev);
-      s.delete(id);
-      return s;
+  const extensions = useMemo(() => resolveExtensions(records), [records]);
+  const stats = useMemo(() => getExtensionStats(records), [records]);
+  const storageMessages = useMemo(
+    () => [...registryMessages, ...(storageStatus?.diagnostics || [])],
+    [registryMessages, storageStatus],
+  );
+
+  const filteredExtensions = useMemo(() => {
+    const tabState =
+      quickTab === "installed" ? "installed" : quickTab === "enabled" ? "enabled" : stateFilter;
+    const tabSource = quickTab === "local" ? "local" : source;
+    return filterExtensions(extensions, {
+      query,
+      category,
+      source: tabSource,
+      state: tabState,
+      contribution,
     });
+  }, [category, contribution, extensions, query, quickTab, source, stateFilter]);
 
   useEffect(() => {
-    const installedList = Array.from(installed);
-    localStorage.setItem(
-      EXTENSIONS_STORAGE_KEY,
-      JSON.stringify(installedList),
-    );
-    onInstalledChange?.(installedList);
-    window.dispatchEvent(
-      new CustomEvent("nx-code-extensions-changed", {
-        detail: { installed: installedList },
-      }),
-    );
-  }, [installed, onInstalledChange]);
+    const saveResult = saveExtensionRegistry(records);
+    setStorageStatus(saveResult.ok ? null : saveResult);
+    const detail = createExtensionEventDetail(records);
+    onInstalledChange?.(detail.installed);
+    window.dispatchEvent(new CustomEvent("nx-code-extensions-changed", { detail }));
+  }, [onInstalledChange, records]);
 
-  const filtered = useMemo(() => {
-    let list =
-      activeTab === "installed"
-        ? ALL_EXTENSIONS.filter((e) => installed.has(e.id))
-        : ALL_EXTENSIONS.filter((e) => !installed.has(e.id));
+  const applyRecords = (updater) => {
+    setRecords((current) => updater(current));
+  };
 
-    if (category !== "all") {
-      list = list.filter((e) => e.category === category);
-    }
-
-    if (query.trim()) {
-      const q = query.toLowerCase();
-      list = list.filter(
-        (e) =>
-          e.name.toLowerCase().includes(q) ||
-          e.description.toLowerCase().includes(q) ||
-          e.publisher.toLowerCase().includes(q) ||
-          e.tags.some((t) => t.includes(q)),
-      );
-    }
-
-    return list;
-  }, [query, category, activeTab, installed]);
-
-  const installedCount = installed.size;
+  const clearFilters = () => {
+    setQuery("");
+    setCategory("all");
+    setSource("all");
+    setStateFilter("all");
+    setContribution("all");
+    setQuickTab("all");
+  };
 
   return (
-    <motion.div
-      initial={{ x: -260, opacity: 0 }}
+    <motion.aside
+      initial={{ x: -20, opacity: 0 }}
       animate={{ x: 0, opacity: 1 }}
-      transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
-      className="w-72 h-full min-h-0 flex flex-col shrink-0 overflow-hidden"
+      transition={{ duration: 0.24 }}
+      className="flex h-full min-h-0 w-full flex-col overflow-hidden"
       style={{
-        background: "rgba(6, 6, 20, 0.4)",
-        backdropFilter: "blur(20px)",
-        borderRight: "1px solid rgba(255, 255, 255, 0.05)",
+        background: "rgba(6, 8, 18, 0.54)",
+        backdropFilter: "blur(18px)",
       }}
     >
-      {/* ── Header ──────────────────────────────────────────────────── */}
-      <div className="px-3 pt-3 pb-2 shrink-0">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-1.5">
-            <Blocks size={13} className="text-purple-400" />
-            <span className="text-[11px] font-semibold text-gray-500 tracking-widest uppercase">
-              Extensions
-            </span>
-          </div>
-          {installedCount > 0 && (
-            <motion.span
-              key={installedCount}
-              initial={{ scale: 1.4 }}
-              animate={{ scale: 1 }}
-              className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
+      <div className="shrink-0 border-b border-white/[0.06] px-3 pb-2.5 pt-3">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-2">
+            <div
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border"
               style={{
-                background: "rgba(128,0,255,0.15)",
-                color: "#a855f7",
+                background: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.1)",
+                borderColor: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.22)",
+                color: "var(--nexus-primary, #7c8cff)",
               }}
             >
-              {installedCount} installiert
-            </motion.span>
-          )}
+              <Blocks size={16} />
+            </div>
+            <div className="min-w-0">
+              <h2 className="truncate text-sm font-semibold text-[var(--nexus-text)]">
+                Extensions
+              </h2>
+              <p className="truncate text-[10px] text-[var(--nexus-muted)]">
+                {stats.enabled} aktiv, {stats.installed} installiert
+              </p>
+            </div>
+          </div>
+          {stats.updates > 0 ? (
+            <span className="rounded-md border border-amber-400/25 bg-amber-400/10 px-2 py-1 text-[10px] font-semibold text-amber-300">
+              {stats.updates} Update
+            </span>
+          ) : null}
         </div>
 
-        {/* Tab switcher */}
+        <div className="mt-3 grid grid-cols-4 gap-1.5">
+          <StatPill label="Gesamt" value={stats.total} />
+          <StatPill label="Aktiv" value={stats.enabled} />
+          <StatPill label="Lokal" value={stats.local} />
+          <StatPill label="Fehler" value={stats.errors} />
+        </div>
+
+        {storageMessages.length > 0 ? (
+          <div className="mt-2 grid gap-1">
+            {storageMessages.slice(0, 2).map((message, index) => (
+              <SystemMessage key={`${message.code}-${index}`} message={message} />
+            ))}
+            {storageMessages.length > 2 ? (
+              <div className="truncate rounded-md border border-white/[0.06] bg-white/[0.03] px-2 py-1 text-[10px] text-[var(--nexus-muted)]">
+                +{storageMessages.length - 2} weitere Registry-Hinweise
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
         <div
-          className="flex rounded-lg p-0.5 gap-0.5"
+          className="mt-3 flex gap-0.5 rounded-lg p-0.5"
           style={{ background: "rgba(255,255,255,0.04)" }}
         >
-          {[
-            { id: "marketplace", label: "Marketplace" },
-            { id: "installed", label: `Installiert (${installedCount})` },
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className="flex-1 py-1.5 rounded-md text-[11px] font-semibold transition-all relative"
-              style={{
-                color: activeTab === tab.id ? "#e5e7eb" : "#6b7280",
-              }}
-            >
-              {activeTab === tab.id && (
-                <motion.div
-                  layoutId="extTabIndicator"
-                  className="absolute inset-0 rounded-md"
-                  style={{ background: "rgba(128,0,255,0.18)" }}
-                  transition={{ type: "spring", stiffness: 350, damping: 30 }}
-                />
-              )}
-              <span className="relative z-10">{tab.label}</span>
-            </button>
+          {Object.entries(tabStyles).map(([id, label]) => (
+            <SegmentButton key={id} active={quickTab === id} onClick={() => setQuickTab(id)}>
+              {label}
+            </SegmentButton>
           ))}
         </div>
       </div>
 
-      {/* ── Search ──────────────────────────────────────────────────── */}
-      <div className="px-3 pb-2 shrink-0">
+      <div className="shrink-0 space-y-2 border-b border-white/[0.05] px-3 py-2.5">
         <div
-          className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5"
+          className="flex h-8 items-center gap-2 rounded-md border px-2"
           style={{
-            background: "rgba(255,255,255,0.05)",
-            border: query
-              ? "1px solid rgba(128,0,255,0.35)"
-              : "1px solid rgba(255,255,255,0.07)",
-            transition: "border-color 0.2s ease",
+            background: "rgba(255,255,255,0.04)",
+            borderColor: query
+              ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.34)"
+              : "var(--nexus-border)",
           }}
         >
-          <Search size={12} className="text-gray-500 shrink-0" />
+          <Search size={13} className="shrink-0 text-[var(--nexus-muted)]" />
           <input
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Extensions suchen…"
-            className="flex-1 bg-transparent text-xs text-gray-200 placeholder:text-gray-600 outline-none min-w-0"
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Plugin, Capability oder Manifest suchen"
+            className="min-w-0 flex-1 bg-transparent text-xs text-[var(--nexus-text)] outline-none placeholder:text-[var(--nexus-muted)]"
           />
-          {query && (
-            <motion.button
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              whileHover={{ scale: 1.15 }}
-              whileTap={{ scale: 0.9 }}
+          {query ? (
+            <button
+              type="button"
               onClick={() => setQuery("")}
-              className="shrink-0 p-0.5 rounded hover:bg-white/10"
+              className="rounded p-0.5 text-[var(--nexus-muted)] hover:bg-white/[0.07] hover:text-gray-200"
             >
-              <X size={10} className="text-gray-500" />
-            </motion.button>
-          )}
+              <X size={12} />
+            </button>
+          ) : null}
+        </div>
+
+        <div className="grid grid-cols-2 gap-1.5">
+          <SelectFilter
+            icon={Filter}
+            value={category}
+            options={EXTENSION_CATEGORIES}
+            onChange={setCategory}
+            title="Kategorie"
+          />
+          <SelectFilter
+            icon={SlidersHorizontal}
+            value={stateFilter}
+            options={EXTENSION_STATE_FILTERS}
+            onChange={(value) => {
+              setStateFilter(value);
+              if (value !== "all") setQuickTab("all");
+            }}
+            title="Status"
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-1.5">
+          <SelectFilter
+            icon={PackageCheck}
+            value={source}
+            options={EXTENSION_SOURCES}
+            onChange={(value) => {
+              setSource(value);
+              if (value !== "all") setQuickTab("all");
+            }}
+            title="Quelle"
+          />
+          <SelectFilter
+            icon={FileJson2}
+            value={contribution}
+            options={EXTENSION_CONTRIBUTION_FILTERS}
+            onChange={(value) => {
+              setContribution(value);
+              if (value !== "all") setQuickTab("all");
+            }}
+            title="Contribution"
+          />
         </div>
       </div>
 
-      {/* ── Category toggle ─────────────────────────────────────────── */}
-      <div className="px-3 pb-2 shrink-0">
-        <button
-          onClick={() => setShowCategories((p) => !p)}
-          className="flex items-center gap-1.5 text-[11px] text-gray-500 hover:text-gray-300 transition-colors w-full"
-        >
-          <motion.div
-            animate={{ rotate: showCategories ? 0 : -90 }}
-            transition={{ duration: 0.18 }}
-          >
-            <ChevronDown size={11} />
-          </motion.div>
-          <span>
-            Kategorien{" "}
-            {category !== "all" && (
-              <span style={{ color: "#a855f7" }}>
-                · {CATEGORIES.find((c) => c.id === category)?.label}
-              </span>
-            )}
-          </span>
-        </button>
-
-        <AnimatePresence>
-          {showCategories && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.22 }}
-              style={{ overflow: "hidden" }}
-            >
-              <div className="flex flex-wrap gap-1.5 mt-2">
-                {CATEGORIES.map((cat) => {
-                  const Icon = cat.icon;
-                  const active = category === cat.id;
-                  return (
-                    <button
-                      key={cat.id}
-                      onClick={() => {
-                        setCategory(cat.id);
-                        setShowCategories(false);
-                      }}
-                      className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium transition-all"
-                      style={{
-                        background: active
-                          ? "rgba(128,0,255,0.18)"
-                          : "rgba(255,255,255,0.04)",
-                        border: active
-                          ? "1px solid rgba(128,0,255,0.35)"
-                          : "1px solid rgba(255,255,255,0.06)",
-                        color: active ? "#c084fc" : "#9ca3af",
-                      }}
-                    >
-                      <Icon size={10} />
-                      {cat.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-
-      {/* ── Divider ─────────────────────────────────────────────────── */}
-      <div
-        className="mx-3 mb-1 shrink-0"
-        style={{ height: "1px", background: "rgba(128,0,255,0.08)" }}
-      />
-
-      {/* ── Extension list ──────────────────────────────────────────── */}
-      <div className="flex-1 min-h-0 overflow-y-auto px-3 py-2 space-y-2">
+      <div className="min-h-0 flex-1 overflow-y-auto px-3 py-2.5">
         <AnimatePresence mode="popLayout">
-          {filtered.map((ext, i) => (
+          {filteredExtensions.map((extension, index) => (
             <ExtensionCard
-              key={ext.id}
-              ext={ext}
-              index={i}
-              installed={installed.has(ext.id)}
-              onInstall={handleInstall}
-              onUninstall={handleUninstall}
+              key={extension.id}
+              extension={extension}
+              index={index}
+              onInstall={(id) => applyRecords((current) => installExtension(current, id))}
+              onRemove={(id) => applyRecords((current) => uninstallExtension(current, id))}
+              onToggleEnabled={(id, enabled) =>
+                applyRecords((current) => setExtensionEnabled(current, id, enabled))
+              }
             />
           ))}
         </AnimatePresence>
 
-        {/* Empty states */}
-        {filtered.length === 0 && activeTab === "installed" && (
+        {filteredExtensions.length === 0 ? (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="flex flex-col items-center justify-center py-12 text-center"
+            className="flex min-h-[11rem] flex-col items-center justify-center text-center"
           >
-            <motion.div
-              animate={{ opacity: [0.4, 0.8, 0.4] }}
-              transition={{ duration: 2.5, repeat: Infinity }}
-            >
-              <Blocks size={32} className="text-gray-700 mb-3" />
-            </motion.div>
-            <p className="text-xs text-gray-600 mb-1">
-              Keine Extensions installiert
-            </p>
+            <Power size={24} className="mb-3 text-gray-700" />
+            <p className="text-xs font-semibold text-gray-400">Keine Treffer</p>
             <button
-              onClick={() => setActiveTab("marketplace")}
-              className="text-xs text-purple-400 hover:text-purple-300 mt-2 transition-colors"
+              type="button"
+              onClick={clearFilters}
+              className="mt-2 flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-semibold text-[var(--nexus-primary)] hover:bg-white/[0.06]"
             >
-              Marketplace öffnen →
+              <Check size={12} />
+              Filter zuruecksetzen
             </button>
           </motion.div>
-        )}
-
-        {filtered.length === 0 && activeTab === "marketplace" && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="flex flex-col items-center justify-center py-12 text-center"
-          >
-            <Search size={28} className="text-gray-700 mb-3" />
-            <p className="text-xs text-gray-600">Keine Extensions gefunden</p>
-            {query && (
-              <button
-                onClick={() => {
-                  setQuery("");
-                  setCategory("all");
-                }}
-                className="text-xs text-purple-400 hover:text-purple-300 mt-2 transition-colors"
-              >
-                Filter zurücksetzen
-              </button>
-            )}
-          </motion.div>
-        )}
+        ) : null}
       </div>
 
-      {/* ── Footer ──────────────────────────────────────────────────── */}
-      <div
-        className="px-3 py-2 shrink-0 flex items-center justify-between"
-        style={{ borderTop: "1px solid rgba(128,0,255,0.08)" }}
-      >
-        <span className="text-[10px] text-gray-600">
-          {filtered.length} {filtered.length === 1 ? "Extension" : "Extensions"}
-          {category !== "all" && (
-            <>
-              {" "}
-              ·{" "}
-              <span style={{ color: "#a855f7" }}>
-                {CATEGORIES.find((c) => c.id === category)?.label}
-              </span>
-            </>
-          )}
-        </span>
-        <div className="flex items-center gap-1">
-          <TrendingUp size={9} className="text-gray-700" />
-          <span className="text-[10px] text-gray-700">Marketplace</span>
+      <div className="shrink-0 border-t border-white/[0.06] px-3 py-2">
+        <div className="flex items-center justify-between gap-2 text-[10px] text-[var(--nexus-muted)]">
+          <span className="truncate">{filteredExtensions.length} sichtbare Module</span>
+          <span className="truncate">
+            {stats.errors > 0 ? `${stats.errors} fehlerhaft` : `${stats.disabled} pausiert`}
+          </span>
         </div>
       </div>
-    </motion.div>
+    </motion.aside>
   );
 }

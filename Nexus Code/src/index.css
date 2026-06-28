@@ -111,6 +111,41 @@
         height: 100%;
         overflow: hidden;
     }
+
+    *,
+    *::before,
+    *::after {
+        box-sizing: border-box;
+    }
+
+    button,
+    input,
+    select,
+    textarea {
+        font: inherit;
+        letter-spacing: inherit;
+        color: inherit;
+    }
+
+    button {
+        appearance: none;
+        -webkit-appearance: none;
+        background: transparent;
+        border: 0;
+        padding: 0;
+    }
+
+    input,
+    select,
+    textarea {
+        color-scheme: dark;
+        background-color: transparent;
+    }
+
+    select option {
+        background: #0b1020;
+        color: #e5e7eb;
+    }
 }
 @layer utilities {
     .nexus-glass {

@@ -26,7 +26,7 @@ function MenuButton({ label, items, activeMenu, setActiveMenu }) {
       <button
         type="button"
         onClick={() => setActiveMenu(isOpen ? null : label)}
-        className="h-7 rounded-md px-2 text-[11px] font-medium text-gray-400 outline-none transition-colors hover:bg-white/5 hover:text-white focus-visible:ring-2 focus-visible:ring-purple-500/60"
+        className="h-6 rounded-md px-1.5 text-[11px] font-medium text-gray-400 outline-none transition-colors hover:bg-white/5 hover:text-white focus-visible:ring-2 focus-visible:ring-purple-500/60"
         // @ts-ignore
         style={{ WebkitAppRegion: "no-drag" }}
       >
@@ -95,15 +95,15 @@ function CommandButton({ icon: Icon, label, active, onClick, title }) {
       aria-pressed={active}
       title={title || label}
       onClick={onClick}
-      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-white/10 text-gray-400 transition-colors hover:border-white/20 hover:bg-white/10 hover:text-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500/60"
+      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-white/10 text-gray-400 transition-colors hover:border-white/20 hover:bg-white/10 hover:text-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500/60"
       style={{
         background: active
-          ? "color-mix(in srgb, var(--primary) 15%, transparent)"
+          ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.15)"
           : "rgba(255,255,255,0.02)",
-        color: active ? "var(--primary)" : undefined,
+        color: active ? "var(--nexus-primary, #7c8cff)" : undefined,
       }}
     >
-      <Icon size={15} />
+      <Icon size={14} />
     </button>
   );
 }
@@ -213,7 +213,7 @@ export default function TitleBar({
 
   return (
     <div
-      className={`nx-code-titlebar flex h-11 shrink-0 select-none items-center justify-between gap-2 border-b border-white/5 ${compact ? "px-2" : "px-3"} relative z-50`}
+      className={`nx-code-titlebar relative z-[60] flex h-10 shrink-0 select-none items-center justify-between gap-1.5 overflow-visible border-b border-white/5 ${compact ? "px-2" : "px-3"}`}
       style={{
         background: "var(--nexus-surface)",
         borderBottom: "1px solid var(--nexus-border)",
@@ -223,7 +223,7 @@ export default function TitleBar({
       }}
     >
       <div
-        className="flex min-w-0 shrink-0 items-center gap-1.5"
+        className="flex min-w-0 shrink-0 items-center gap-1"
         style={{ paddingLeft: isMacOS ? MACOS_TRAFFIC_LIGHT_SAFE_WIDTH : 0 }}
       >
         {showWindowControls && (
@@ -266,7 +266,7 @@ export default function TitleBar({
 
         <div
           ref={menuHostRef}
-          className={`nx-code-menu-host items-center gap-0.5 ${compact ? "hidden md:flex" : "flex"}`}
+          className={`nx-code-menu-host items-center gap-0.5 ${compact ? "hidden lg:flex" : "flex"}`}
           // @ts-ignore
           style={{ WebkitAppRegion: "no-drag" }}
         >
@@ -285,27 +285,27 @@ export default function TitleBar({
       <button
         type="button"
         onClick={safeCommandPalette}
-        className="mx-1 flex h-8 min-w-0 flex-1 items-center justify-center gap-2 rounded-md border border-white/10 bg-white/[0.035] px-3 text-left transition-colors hover:border-white/20 hover:bg-white/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500/60 sm:max-w-[38rem]"
+        className="mx-1 flex h-7 min-w-0 flex-1 items-center justify-center gap-2 rounded-md border border-white/10 bg-white/[0.03] px-2.5 text-left transition-colors hover:border-white/20 hover:bg-white/[0.055] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500/60 sm:max-w-[32rem]"
         // @ts-ignore
         style={{ WebkitAppRegion: "no-drag" }}
         title="Befehlspalette oeffnen"
       >
-        <Command size={14} className="shrink-0 text-gray-500" />
+        <Command size={13} className="shrink-0 text-gray-500" />
         <span className="min-w-0 truncate text-[11px] font-semibold text-gray-300">
           Nexus Code
-          <span className="hidden text-gray-500 sm:inline"> / {workspaceLabel}</span>
+          <span className="hidden text-gray-500 md:inline"> / {workspaceLabel}</span>
         </span>
-        <span className="hidden shrink-0 rounded border border-white/10 px-1.5 py-0.5 font-mono text-[9px] text-gray-500 md:inline">
+        <span className="hidden shrink-0 rounded border border-white/10 px-1.5 py-0.5 font-mono text-[9px] text-gray-500 xl:inline">
           {shellModeLabel}
         </span>
       </button>
 
       <div
-        className="flex shrink-0 items-center gap-1"
+        className="flex shrink-0 items-center gap-0.5"
         // @ts-ignore
         style={{ WebkitAppRegion: "no-drag" }}
       >
-        <span className="hidden max-w-[8rem] truncate pr-1 text-[10px] text-gray-500 lg:block">
+        <span className="hidden max-w-[7rem] truncate pr-1 text-[10px] text-gray-500 xl:block">
           {activePanelLabel}
         </span>
         <CommandButton

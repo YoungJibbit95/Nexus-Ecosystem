@@ -20,7 +20,7 @@ const containerVariants = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
-    transition: { staggerChildren: 0.05, delayChildren: 0.06 },
+    transition: { staggerChildren: 0.04, delayChildren: 0.05 },
   },
 };
 
@@ -29,7 +29,7 @@ const itemVariants = {
   visible: {
     opacity: 1,
     y: 0,
-    transition: { type: "spring", stiffness: 320, damping: 34 },
+    transition: { type: "spring", stiffness: 340, damping: 34 },
   },
 };
 
@@ -48,64 +48,53 @@ const capabilityIcons = {
   editor: FileCode2,
 };
 
-function ActionCard({ icon: Icon, label, onClick }) {
+function ActionButton({ icon: Icon, label, onClick }) {
   return (
     <motion.button
       type="button"
       variants={itemVariants}
-      whileHover={{ y: -1 }}
+      whileHover={{ x: 2 }}
       whileTap={{ scale: 0.99 }}
       onClick={onClick}
-      className="group flex min-h-[4.75rem] items-center gap-3 rounded-lg p-3 text-left transition-colors"
+      className="group flex h-10 min-w-0 items-center gap-2 rounded-md px-2.5 text-left outline-none transition-colors hover:bg-white/[0.055] focus-visible:ring-2 focus-visible:ring-purple-500/60"
       style={{
-        background: "rgba(255,255,255,0.035)",
-        border: "1px solid var(--nexus-border)",
+        border: "1px solid rgba(255,255,255,0.065)",
+        background: "rgba(255,255,255,0.025)",
       }}
     >
-      <span
-        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border"
-        style={{
-          background: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.1)",
-          borderColor: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.2)",
-          color: "var(--nexus-primary, var(--primary))",
-        }}
-      >
-        <Icon size={18} />
-      </span>
-      <span className="min-w-0 truncate text-sm font-semibold text-[var(--nexus-text)]">
+      <Icon
+        size={15}
+        className="shrink-0 text-[var(--nexus-primary,#7c8cff)]"
+      />
+      <span className="min-w-0 truncate text-xs font-semibold text-[var(--nexus-text)]">
         {label}
       </span>
     </motion.button>
   );
 }
 
-function StatusPill({ capability }) {
+function CapabilityRow({ capability }) {
   const Icon = capabilityIcons[capability.area] || CheckCircle2;
   const statusLabel =
     IDE_CAPABILITY_STATUS_LABELS[capability.status] || capability.status;
 
   return (
-    <div
-      className="flex min-h-[3.25rem] items-center gap-2 rounded-md px-3 py-2"
-      style={{
-        background: "rgba(255,255,255,0.03)",
-        border: "1px solid var(--nexus-border)",
-      }}
+    <motion.div
+      variants={itemVariants}
+      className="grid min-h-[2.4rem] grid-cols-[1.15rem_minmax(0,1fr)_minmax(4.75rem,max-content)] items-center gap-2 border-b border-white/[0.055] py-2 last:border-b-0"
     >
       <Icon
         size={14}
         className="shrink-0"
-        style={{ color: "var(--nexus-primary, var(--primary))" }}
+        style={{ color: "var(--nexus-primary, #7c8cff)" }}
       />
-      <div className="min-w-0">
-        <div className="truncate text-xs font-medium text-[var(--nexus-text)]">
-          {capability.label}
-        </div>
-        <div className="truncate text-[10px] uppercase tracking-wide text-[var(--nexus-muted)]">
-          {statusLabel}
-        </div>
+      <div className="min-w-0 truncate text-xs font-medium text-[var(--nexus-text)]">
+        {capability.label}
       </div>
-    </div>
+      <div className="min-w-0 justify-self-end truncate rounded border border-white/[0.07] bg-white/[0.025] px-2 py-0.5 text-right text-[9px] font-semibold uppercase tracking-wide text-[var(--nexus-muted)]">
+        {statusLabel}
+      </div>
+    </motion.div>
   );
 }
 
@@ -135,31 +124,27 @@ export default function WelcomeScreen({
         variants={containerVariants}
         initial="hidden"
         animate="visible"
-        className="mx-auto flex min-h-full w-full max-w-6xl flex-col justify-center gap-5 px-5 py-6 sm:px-8 lg:px-10"
+        className="mx-auto flex min-h-full w-full max-w-5xl flex-col justify-start gap-5 px-5 py-6 sm:px-8 md:justify-center lg:px-10"
       >
-        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-stretch">
-          <motion.div
-            variants={itemVariants}
-            className="flex min-w-0 flex-col justify-between rounded-lg p-5"
-            style={{
-              background: "rgba(255,255,255,0.025)",
-              border: "1px solid var(--nexus-border)",
-            }}
-          >
-            <div className="flex items-center gap-3">
+        <motion.section
+          variants={itemVariants}
+          className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-start"
+        >
+          <div className="min-w-0">
+            <div className="mb-4 flex items-center gap-3">
               <div
-                className="flex h-11 w-11 items-center justify-center rounded-lg border text-sm font-semibold"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md border text-sm font-semibold"
                 style={{
                   background: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.1)",
                   borderColor:
                     "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.24)",
-                  color: "var(--nexus-primary, var(--primary))",
+                  color: "var(--nexus-primary, #7c8cff)",
                 }}
               >
                 NC
               </div>
               <div className="min-w-0">
-                <h1 className="text-2xl font-semibold tracking-normal text-[var(--nexus-text)]">
+                <h1 className="text-3xl font-semibold tracking-normal text-[var(--nexus-text)] sm:text-4xl">
                   Nexus Code
                 </h1>
                 <p className="mt-1 truncate text-sm text-[var(--nexus-muted)]">
@@ -168,9 +153,17 @@ export default function WelcomeScreen({
               </div>
             </div>
 
-            <div className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-3">
+            <div
+              className="h-px w-full"
+              style={{
+                background:
+                  "linear-gradient(90deg, rgba(var(--nexus-primary-rgb,124,140,255),0.5), rgba(255,255,255,0.08), transparent)",
+              }}
+            />
+
+            <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
               {actionItems.map((item) => (
-                <ActionCard
+                <ActionButton
                   key={item.action}
                   icon={item.icon}
                   label={item.label}
@@ -178,41 +171,42 @@ export default function WelcomeScreen({
                 />
               ))}
             </div>
-          </motion.div>
+          </div>
 
           <motion.div
             variants={itemVariants}
-            className="rounded-lg p-4"
-            style={{
-              background: "rgba(255,255,255,0.035)",
-              border: "1px solid var(--nexus-border)",
-            }}
+            className="rounded-lg border border-white/[0.07] bg-white/[0.026] p-3"
           >
-            <div className="text-xs font-semibold uppercase tracking-wide text-[var(--nexus-muted)]">
-              Release-Stand
+            <div className="flex items-center justify-between gap-3">
+              <div className="text-[10px] font-semibold uppercase tracking-wide text-[var(--nexus-muted)]">
+                Release
+              </div>
+              <div className="min-w-0 max-w-[8rem] shrink-0 truncate rounded border border-emerald-400/20 bg-emerald-400/10 px-2 py-0.5 text-[9px] font-semibold text-emerald-300">
+                Foundation
+              </div>
             </div>
-            <div className="mt-3 flex items-end gap-2">
+            <div className="mt-2 flex items-end gap-2">
               <span className="text-3xl font-semibold text-[var(--nexus-text)]">
                 {releaseSnapshot.capability.foundationReady}
               </span>
-              <span className="pb-1 text-sm text-[var(--nexus-muted)]">
+              <span className="pb-1 text-xs text-[var(--nexus-muted)]">
                 / {releaseSnapshot.capability.totalCapabilities}
               </span>
             </div>
-            <p className="mt-3 text-xs leading-relaxed text-[var(--nexus-muted)]">
+            <p className="mt-2 line-clamp-2 text-[11px] leading-relaxed text-[var(--nexus-muted)]">
               {releaseSnapshot.capability.phaseOne}
             </p>
           </motion.div>
-        </div>
+        </motion.section>
 
-        <motion.div
+        <motion.section
           variants={itemVariants}
-          className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3"
+          className="rounded-lg border border-white/[0.06] bg-white/[0.018] px-3"
         >
           {visibleCapabilities.map((capability) => (
-            <StatusPill key={capability.id} capability={capability} />
+            <CapabilityRow key={capability.id} capability={capability} />
           ))}
-        </motion.div>
+        </motion.section>
       </motion.div>
     </motion.div>
   );
