@@ -4,7 +4,7 @@
 
 <img width="100%" src="https://capsule-render.vercel.app/api?type=waving&color=0:1a1b27,45:24283b,72:7aa2f7,100:bb9af7&height=220&section=header&text=NEXUS%20ECOSYSTEM&fontSize=46&fontColor=c0caf5&animation=fadeIn&fontAlignY=36&desc=Unified%20Workspace%20Infrastructure&descAlignY=57&descSize=16&descColor=7dcfff" alt="Nexus Ecosystem header" />
 
-### Multi-App Workspace System for Planning, Development & Daily Operations
+### Workspace tools for planning, coding and daily work
 
 <p>
   <a href="https://nexusproject.dev"><img src="https://img.shields.io/badge/OPEN%20WEBSITE-nexusproject.dev-7aa2f7?style=for-the-badge&logo=googlechrome&logoColor=c0caf5&labelColor=1a1b27" alt="Open Nexus website" /></a>
@@ -41,7 +41,7 @@
 
 ## Overview
 
-<sub>A connected workspace for planning, building and operating across desktop and mobile.</sub>
+<sub>A connected desktop and mobile workspace for everyday Nexus work.</sub>
 
 </div>
 
@@ -53,7 +53,7 @@
 
 ### 🧠 One Workspace
 
-Notes, tasks, reminders, canvas, files and operational workflows in one connected environment.
+Notes, tasks, reminders, canvas, files and workflows in one place.
 
 <img src="https://img.shields.io/badge/SURFACE-Workspace-7aa2f7?style=flat&labelColor=1a1b27" alt="Workspace surface" />
 
@@ -62,7 +62,7 @@ Notes, tasks, reminders, canvas, files and operational workflows in one connecte
 
 ### 📱 Cross-Platform
 
-Dedicated Electron and Capacitor clients provide focused desktop and mobile experiences.
+Electron and Capacitor clients cover desktop and mobile.
 
 <img src="https://img.shields.io/badge/TARGETS-Desktop%20%2B%20Mobile-7dcfff?style=flat&labelColor=1a1b27" alt="Desktop and mobile targets" />
 
@@ -71,7 +71,7 @@ Dedicated Electron and Capacitor clients provide focused desktop and mobile expe
 
 ### ⚙️ Shared Foundation
 
-Runtime, rendering, motion and API contracts stay aligned through reusable shared packages.
+Shared packages keep runtime, UI behavior and API contracts aligned.
 
 <img src="https://img.shields.io/badge/FOUNDATION-Shared%20Core-bb9af7?style=flat&labelColor=1a1b27" alt="Shared core foundation" />
 
@@ -80,7 +80,7 @@ Runtime, rendering, motion and API contracts stay aligned through reusable share
 </table>
 
 > [!IMPORTANT]
-> **Nexus Ecosystem** contains four production clients, a shared runtime, native installation tooling and the public documentation surfaces. The private backend implementation and secrets remain outside this repository.
+> **Nexus Ecosystem** contains the product clients, shared runtime, installer tooling and public docs. Private backend code and secrets are not part of this repository.
 
 <div align="center">
 
@@ -92,7 +92,7 @@ Runtime, rendering, motion and API contracts stay aligned through reusable share
 
 ### Repository Pulse
 
-<sub>Live repository metadata, refreshed automatically.</sub>
+<sub>Live GitHub metadata.</sub>
 
 <br />
 
@@ -125,7 +125,7 @@ Runtime, rendering, motion and API contracts stay aligned through reusable share
 
 ## Ecosystem
 
-<sub>Purpose-built clients connected by one shared technical foundation.</sub>
+<sub>Four clients on one shared foundation.</sub>
 
 </div>
 
@@ -137,7 +137,7 @@ Runtime, rendering, motion and API contracts stay aligned through reusable share
 
 ### 🖥️ Nexus Main
 
-**Desktop workspace** for planning, knowledge, tasks, canvas and daily operations.
+**Desktop workspace** for notes, tasks, canvas and daily work.
 
 <p>
   <img src="https://img.shields.io/badge/Electron-Desktop-7aa2f7?style=flat&logo=electron&logoColor=c0caf5&labelColor=1a1b27" alt="Electron desktop" />
@@ -151,7 +151,7 @@ Runtime, rendering, motion and API contracts stay aligned through reusable share
 
 ### 📱 Nexus Mobile
 
-**Mobile workspace** with core workflow parity for Android and iOS.
+**Mobile workspace** for the same core workflows on Android and iOS.
 
 <p>
   <img src="https://img.shields.io/badge/Capacitor-Mobile-bb9af7?style=flat&logo=capacitor&logoColor=c0caf5&labelColor=1a1b27" alt="Capacitor mobile" />
@@ -167,7 +167,7 @@ Runtime, rendering, motion and API contracts stay aligned through reusable share
 
 ### 💻 Nexus Code
 
-**Desktop IDE** for editing, running, debugging and project workflows.
+**Desktop IDE** for editing, running and project work.
 
 <p>
   <img src="https://img.shields.io/badge/Electron-Desktop%20IDE-7aa2f7?style=flat&logo=electron&logoColor=c0caf5&labelColor=1a1b27" alt="Electron desktop IDE" />
@@ -181,7 +181,7 @@ Runtime, rendering, motion and API contracts stay aligned through reusable share
 
 ### 📲 Nexus Code Mobile
 
-**Mobile IDE** for lightweight coding and remote project operations.
+**Mobile IDE** for lightweight coding and remote project work.
 
 <p>
   <img src="https://img.shields.io/badge/Capacitor-Mobile%20IDE-bb9af7?style=flat&logo=capacitor&logoColor=c0caf5&labelColor=1a1b27" alt="Capacitor mobile IDE" />
@@ -200,7 +200,7 @@ Runtime, rendering, motion and API contracts stay aligned through reusable share
 
 ### 🔗 `@nexus/core`
 
-Shared runtime contracts for rendering, motion, diagnostics and synchronized client behavior.
+Shared runtime contracts for rendering, motion, diagnostics and client behavior.
 
 <a href="./packages/nexus-core/README.md"><img src="https://img.shields.io/badge/EXPLORE%20SHARED%20CORE-e0af68?style=for-the-badge&logo=npm&logoColor=c0caf5&labelColor=1a1b27" alt="Explore Nexus Core" /></a>
 
@@ -209,7 +209,7 @@ Shared runtime contracts for rendering, motion, diagnostics and synchronized cli
 
 ### 🦀 Native Installer
 
-Rust-based installation tooling for native build and install workflows from GitHub.
+Rust-based tooling for native build and install flows.
 
 <a href="./Nexus%20Installer/README.md"><img src="https://img.shields.io/badge/EXPLORE%20INSTALLER-f7768e?style=for-the-badge&logo=rust&logoColor=c0caf5&labelColor=1a1b27" alt="Explore native installer" /></a>
 
@@ -218,7 +218,7 @@ Rust-based installation tooling for native build and install workflows from GitH
 </table>
 
 <details>
-<summary><b>Explore the Main / Mobile view matrix</b></summary>
+<summary><b>Main / Mobile view matrix</b></summary>
 
 <br />
 
@@ -246,7 +246,7 @@ Rust-based installation tooling for native build and install workflows from GitH
 
 ## Architecture
 
-<sub>Three clear layers keep product surfaces independent while preserving shared behavior.</sub>
+<sub>Clients, shared runtime and services.</sub>
 
 </div>
 
@@ -258,7 +258,7 @@ Rust-based installation tooling for native build and install workflows from GitH
 
 ### 01 · Client Layer
 
-Four dedicated product clients deliver workspace and IDE experiences across desktop and mobile.
+Four product clients cover workspace and IDE use on desktop and mobile.
 
 <img src="https://img.shields.io/badge/CLIENTS-4-7aa2f7?style=flat&labelColor=1a1b27" alt="Four clients" />
 
@@ -267,7 +267,7 @@ Four dedicated product clients deliver workspace and IDE experiences across desk
 
 ### 02 · Runtime Layer
 
-`@nexus/core` and `@nexus/api` centralize shared behavior, contracts and integration logic.
+`@nexus/core` and `@nexus/api` hold shared behavior, contracts and integration logic.
 
 <img src="https://img.shields.io/badge/PACKAGES-Core%20%2B%20API-bb9af7?style=flat&labelColor=1a1b27" alt="Core and API packages" />
 
@@ -276,7 +276,7 @@ Four dedicated product clients deliver workspace and IDE experiences across desk
 
 ### 03 · Service Layer
 
-Private API services and public documentation complete the production ecosystem.
+Private API services and public docs complete the setup.
 
 <img src="https://img.shields.io/badge/SERVICES-Private%20%2B%20Public-f7768e?style=flat&labelColor=1a1b27" alt="Private and public services" />
 
@@ -332,7 +332,7 @@ flowchart TB
 ### Render & Motion Runtime
 
 > [!NOTE]
-> Every client follows the same runtime model in `@nexus/core`, allowing visual quality to scale down safely without changing product behavior.
+> Every client uses the same `@nexus/core` runtime model, so visual effects can scale down without changing behavior.
 
 <div align="center">
 
@@ -357,7 +357,7 @@ flowchart TB
 | Guardrails | Central ownership of `transform`, `filter` and `opacity` |
 
 <details>
-<summary><b>Explore the repository map</b></summary>
+<summary><b>Repository map</b></summary>
 
 <br />
 
@@ -421,11 +421,11 @@ npm run doctor:release
 </div>
 
 <details>
-<summary><b>Dependency Baseline — April 2026</b></summary>
+<summary><b>Dependency baseline — April 2026</b></summary>
 
 <br />
 
-> Major dependency refresh is applied across all 4 apps and validated with full builds plus verify scripts.
+> Dependency updates are applied across all 4 apps and checked with builds plus verify scripts.
 
 | Dependency | Version |
 | --- | --- |
@@ -450,7 +450,7 @@ npm run doctor:release
 </div>
 
 > [!TIP]
-> Security checks for high-severity production dependencies currently report `0 vulnerabilities` across all four product clients.
+> High-severity production dependency checks currently report `0 vulnerabilities` across the four clients.
 
 <div align="center">
 
@@ -497,7 +497,7 @@ VITE_NEXUS_USER_TIER
 
 ## Development Activity
 
-<sub>Commit history, contribution flow and repository development overview.</sub>
+<sub>Commit history and repository activity.</sub>
 
 <br /><br />
 
@@ -529,7 +529,7 @@ VITE_NEXUS_USER_TIER
 
 ### Nexus Ecosystem
 
-**One ecosystem. Every workflow.**
+**Built as one ecosystem.**
 
 <p>
   <a href="https://github.com/YoungJibbit95/Nexus-Ecosystem"><img src="https://img.shields.io/badge/EXPLORE%20THE%20REPOSITORY-1a1b27?style=for-the-badge&logo=github&logoColor=c0caf5" alt="Explore repository" /></a>
