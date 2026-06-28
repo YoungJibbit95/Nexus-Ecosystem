@@ -13,11 +13,16 @@ export function ModuleCard({
 }) {
   return (
     <div
+      className="nx-settings-module-card"
       style={{
-        borderRadius: 16,
-        border: "1px solid rgba(255,255,255,0.1)",
+        borderRadius: "var(--nx-panel-radius, 16px)",
+        border: "1px solid var(--nx-v6-line-soft, rgba(255,255,255,0.1))",
         background:
-          "linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03))",
+          "linear-gradient(180deg, rgba(255,255,255,0.048), rgba(255,255,255,0.012)), var(--nx-panel-bg, rgba(255,255,255,0.028))",
+        backgroundSize: "var(--nx-panel-bg-size, 100% 100%)",
+        backgroundBlendMode: "screen, var(--nx-panel-bg-blend, normal)",
+        backdropFilter: "blur(var(--nx-settings-card-blur, 14px)) saturate(150%)",
+        WebkitBackdropFilter: "blur(var(--nx-settings-card-blur, 14px)) saturate(150%)",
         padding: "14px 14px 12px",
         marginBottom: 12,
       }}
@@ -47,6 +52,17 @@ export function Row({ children }: { children: React.ReactNode }) {
   );
 }
 
+const clampFinite = (
+  value: unknown,
+  min: number,
+  max: number,
+  fallback: number,
+) => {
+  const next = Number(value);
+  if (!Number.isFinite(next)) return fallback;
+  return Math.max(min, Math.min(max, next));
+};
+
 export function Segmented({
   label,
   value,
@@ -60,23 +76,70 @@ export function Segmented({
 }) {
   const t = useTheme();
   const rgb = hexToRgb(t.accent);
+  const labelId = label
+    ? `nx-segmented-${label.replace(/\s+/g, "-").toLowerCase()}`
+    : undefined;
+  const normalizedOptions = options.map((rawOption) =>
+    typeof rawOption === "string"
+      ? { value: rawOption, label: rawOption }
+      : rawOption,
+  );
+  const selectedIndex = normalizedOptions.findIndex(
+    (option) => option.value === value,
+  );
+  const activeIndex = selectedIndex >= 0 ? selectedIndex : 0;
+  const selectByIndex = (index: number) => {
+    const option = normalizedOptions[index];
+    if (option) onChange(option.value);
+  };
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (normalizedOptions.length === 0) return;
+    if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+      event.preventDefault();
+      selectByIndex((activeIndex + 1) % normalizedOptions.length);
+      return;
+    }
+    if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
+      event.preventDefault();
+      selectByIndex(
+        (activeIndex - 1 + normalizedOptions.length) %
+          normalizedOptions.length,
+      );
+      return;
+    }
+    if (event.key === "Home") {
+      event.preventDefault();
+      selectByIndex(0);
+      return;
+    }
+    if (event.key === "End") {
+      event.preventDefault();
+      selectByIndex(normalizedOptions.length - 1);
+    }
+  };
+
   return (
     <div>
       {label ? (
-        <div style={{ fontSize: 11, opacity: 0.6, marginBottom: 6 }}>
+        <div id={labelId} style={{ fontSize: 11, opacity: 0.6, marginBottom: 6 }}>
           {label}
         </div>
       ) : null}
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-        {options.map((rawOption) => {
-          const option =
-            typeof rawOption === "string"
-              ? { value: rawOption, label: rawOption }
-              : rawOption;
+      <div
+        role="radiogroup"
+        aria-labelledby={labelId}
+        onKeyDown={handleKeyDown}
+        style={{ display: "flex", flexWrap: "wrap", gap: 6 }}
+      >
+        {normalizedOptions.map((option, index) => {
           const active = option.value === value;
           return (
             <button
               key={option.value}
+              type="button"
+              role="radio"
+              aria-checked={active}
+              tabIndex={active || (selectedIndex < 0 && index === 0) ? 0 : -1}
               onClick={() => onChange(option.value)}
               style={{
                 padding: "6px 10px",
@@ -301,11 +364,14 @@ export function Toggle({
   const t = useTheme();
   return (
     <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
       onClick={() => onChange(!checked)}
       style={{
         width: "100%",
         textAlign: "left",
-        borderRadius: 12,
+        borderRadius: "min(var(--nx-panel-radius, 12px), 14px)",
         border: `1px solid ${checked ? t.accent : "rgba(255,255,255,0.12)"}`,
         background: checked
           ? `rgba(${hexToRgb(t.accent)},0.16)`
@@ -340,7 +406,11 @@ export function Slider({
   onChange: (value: number) => void;
 }) {
   const t = useTheme();
-  const pct = ((value - min) / (max - min)) * 100;
+  const safeMin = Number.isFinite(min) ? min : 0;
+  const safeMax = Number.isFinite(max) && max > safeMin ? max : safeMin + 1;
+  const safeStep = Number.isFinite(step) && step > 0 ? step : 1;
+  const safeValue = clampFinite(value, safeMin, safeMax, safeMin);
+  const pct = ((safeValue - safeMin) / (safeMax - safeMin)) * 100;
   return (
     <div>
       <div
@@ -352,17 +422,19 @@ export function Slider({
       >
         <div style={{ fontSize: 11, opacity: 0.68 }}>{label}</div>
         <div style={{ fontSize: 11, fontWeight: 700, color: t.accent }}>
-          {Number.isInteger(value) ? value : value.toFixed(2)}
+          {Number.isInteger(safeValue) ? safeValue : safeValue.toFixed(2)}
           {unit}
         </div>
       </div>
       <input
         type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={(event) => onChange(Number(event.target.value))}
+        min={safeMin}
+        max={safeMax}
+        step={safeStep}
+        value={safeValue}
+        onChange={(event) =>
+          onChange(clampFinite(event.target.value, safeMin, safeMax, safeValue))
+        }
         style={{
           width: "100%",
           height: 4,

@@ -424,7 +424,7 @@ function createWindow() {
       preload: path.join(__dirname, "preload.cjs"),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: !DEV,
+      sandbox: true,
       backgroundThrottling: false,
       webSecurity: true,
       allowRunningInsecureContent: false,

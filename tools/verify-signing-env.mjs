@@ -8,12 +8,41 @@ const target = String(targetArg?.split('=')[1] || process.env.NEXUS_SIGNING_TARG
 const required = args.has('--required') || truthy(process.env.NEXUS_SIGNING_REQUIRED)
 const notarizeMac = args.has('--notarize-mac') || truthy(process.env.NEXUS_MAC_NOTARIZE) || required
 
-const targets = target === 'all' ? ['mac', 'win', 'android'] : [target]
+const targets = target === 'all' ? ['mac', 'win', 'android', 'linux'] : [target]
 const failures = []
 const warnings = []
 
-if (!['all', 'mac', 'win', 'windows', 'android', 'linux'].includes(target)) {
+if (!['all', 'mac', 'win', 'windows', 'android', 'linux', 'checksums', 'feed', 'launcher-feed'].includes(target)) {
   failures.push(`Unknown signing target: ${target}`)
+}
+
+if (['all', 'mac', 'win', 'windows', 'linux', 'checksums'].includes(target)) {
+  requireAliases(
+    [
+      [
+        'NEXUS_INSTALLER_CHECKSUM_SIGNING_KEY_PEM',
+        'NEXUS_INSTALLER_CHECKSUM_SIGNING_KEY_BASE64',
+        'NEXUS_INSTALLER_CHECKSUM_SIGNING_KEY_FILE',
+        'NEXUS_LAUNCHER_FEED_SIGNING_KEY_PEM',
+        'NEXUS_LAUNCHER_FEED_SIGNING_KEY_BASE64',
+        'NEXUS_LAUNCHER_FEED_SIGNING_KEY_FILE',
+      ],
+    ],
+    'Installer checksum manifest signing',
+  )
+}
+
+if (['all', 'feed', 'launcher-feed'].includes(target)) {
+  requireAliases(
+    [
+      [
+        'NEXUS_LAUNCHER_FEED_SIGNING_KEY_PEM',
+        'NEXUS_LAUNCHER_FEED_SIGNING_KEY_BASE64',
+        'NEXUS_LAUNCHER_FEED_SIGNING_KEY_FILE',
+      ],
+    ],
+    'Launcher feed signing',
+  )
 }
 
 if (targets.includes('mac')) {
@@ -68,7 +97,7 @@ if (targets.includes('android')) {
 }
 
 if (targets.includes('linux')) {
-  warnings.push('Linux AppImage/deb artifacts are checksum-verified, not code-signed in this workflow')
+  warnings.push('Linux artifacts rely on signed checksum metadata and signed launcher feed validation; no platform-native code-signing gate is available')
 }
 
 if (failures.length > 0) {

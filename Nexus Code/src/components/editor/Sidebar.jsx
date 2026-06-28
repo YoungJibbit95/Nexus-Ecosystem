@@ -7,6 +7,7 @@ import {
   GitBranch,
   Search,
   Settings,
+  Sparkles,
   UserRound,
 } from "lucide-react";
 import { getGitCapability } from "../../pages/editor/gitPanelModel";
@@ -16,14 +17,20 @@ import {
 } from "../../pages/editor/extensionSystem";
 
 const SIDEBAR_ITEMS = [
-  { icon: FileCode2, label: "Explorer", id: "explorer" },
-  { icon: Search, label: "Suche", id: "search" },
-  { icon: AlertCircle, label: "Problems", id: "problems" },
-  { icon: GitBranch, label: "Git", id: "git" },
-  { icon: Bug, label: "Debug", id: "debug" },
-  { icon: Blocks, label: "Extensions", id: "extensions" },
-  { icon: UserRound, label: "Account", id: "account" },
+  { icon: FileCode2, label: "Explorer", railLabel: "Files", id: "explorer" },
+  { icon: Search, label: "Suche", railLabel: "Find", id: "search" },
+  { icon: AlertCircle, label: "Problems", railLabel: "Issues", id: "problems" },
+  { icon: GitBranch, label: "Git", railLabel: "Git", id: "git" },
+  { icon: Bug, label: "Debug", railLabel: "Run", id: "debug" },
+  { icon: Blocks, label: "Extensions", railLabel: "Lab", id: "extensions" },
+  { icon: UserRound, label: "Account", railLabel: "Me", id: "account" },
 ];
+
+function formatBadgeCount(value) {
+  if (value > 99) return "99+";
+  if (value > 9) return "9+";
+  return value;
+}
 
 function SidebarButton({
   item,
@@ -36,6 +43,7 @@ function SidebarButton({
   side,
 }) {
   const Icon = item.icon;
+  const railLabel = item.railLabel || item.label;
   const gitReady = item.id === "git" && gitCapability.available;
   const hasProblemBadge = item.id === "problems" && problemCount > 0;
   const extensionTitle =
@@ -51,8 +59,8 @@ function SidebarButton({
       : accountMode === "limited"
         ? "#f59e0b"
         : "#38bdf8";
-  const badgeEdge = side === "right" ? "left-1.5" : "right-1.5";
-  const dotEdge = side === "right" ? "left-2" : "right-2";
+  const edgeStyle = side === "right" ? { left: 4 } : { right: 4 };
+  const dotEdgeStyle = side === "right" ? { left: 7 } : { right: 7 };
 
   return (
     <button
@@ -60,54 +68,107 @@ function SidebarButton({
       onClick={onClick}
       title={title}
       aria-pressed={isActive}
-      className="nx-code-sidebar-btn relative isolate flex h-10 w-10 items-center justify-center rounded-md outline-none transition-colors hover:bg-white/[0.06] focus-visible:ring-2 focus-visible:ring-purple-500/60"
+      aria-label={title}
+      className="nx-code-sidebar-btn nx-code-sidebar-rail-button group relative isolate flex flex-col items-center justify-center outline-none transition-colors hover:bg-white/[0.06] focus-visible:ring-2 focus-visible:ring-purple-500/60"
       style={{
+        width: 50,
+        minHeight: 50,
+        gap: 3,
+        borderRadius: 8,
+        padding: "5px 4px",
         background: isActive
-          ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.14)"
+          ? "linear-gradient(180deg, rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.17), rgba(255,255,255,0.025))"
           : "transparent",
         color: isActive ? "var(--nexus-primary, #7c8cff)" : "var(--nexus-muted)",
         boxShadow: isActive
-          ? "inset 0 0 0 1px rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.24)"
+          ? "0 0 20px rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.1), inset 0 0 0 1px rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.25)"
           : "none",
       }}
     >
       {isActive ? (
         <span
-          className={`absolute ${indicatorEdge} top-2 bottom-2 w-[2px] rounded-full`}
+          className={`nx-code-sidebar-active-rail absolute ${indicatorEdge} rounded-full`}
           style={{
+            top: 7,
+            bottom: 7,
+            width: 2,
             background: "var(--nexus-primary, #7c8cff)",
             boxShadow: "0 0 8px rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.72)",
           }}
         />
       ) : null}
-      <Icon size={19} strokeWidth={isActive ? 2.1 : 1.8} />
+      <span
+        className="nx-code-sidebar-icon-frame flex shrink-0 items-center justify-center"
+        style={{
+          width: 28,
+          height: 23,
+          borderRadius: 7,
+          background: isActive ? "rgba(255, 255, 255, 0.052)" : "transparent",
+        }}
+      >
+        <Icon size={18} strokeWidth={isActive ? 2.15 : 1.8} />
+      </span>
+      <span
+        className="nx-code-sidebar-label max-w-full truncate text-[9px] font-semibold"
+        style={{
+          color: isActive ? "var(--nexus-text, #eef2f8)" : "var(--nexus-muted)",
+          lineHeight: 1.05,
+        }}
+      >
+        {railLabel}
+      </span>
       {gitReady ? (
         <span
-          className={`nx-code-sidebar-badge absolute ${dotEdge} top-2 h-1.5 w-1.5 rounded-full`}
+          className="nx-code-sidebar-badge nx-code-sidebar-status-dot absolute rounded-full"
           style={{
+            top: 7,
+            width: 8,
+            height: 8,
+            ...dotEdgeStyle,
             background: "#22c55e",
             boxShadow: "0 0 8px rgba(34,197,94,0.65)",
           }}
         />
       ) : null}
       {hasProblemBadge ? (
-        <span className={`nx-code-sidebar-badge absolute ${badgeEdge} top-1.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-red-500 px-1 text-[8px] font-bold leading-none text-white shadow-sm shadow-black/30`}>
-          {Math.min(problemCount, 9)}
+        <span
+          className="nx-code-sidebar-badge nx-code-sidebar-count-badge absolute flex items-center justify-center rounded-full bg-red-500 text-[8px] font-bold leading-none text-white shadow-sm shadow-black/30"
+          style={{
+            top: 4,
+            minWidth: 16,
+            height: 16,
+            padding: "0 4px",
+            ...edgeStyle,
+          }}
+        >
+          {formatBadgeCount(problemCount)}
         </span>
       ) : null}
       {item.id === "extensions" && extensionStats.enabled > 0 ? (
         <span
-          className={`nx-code-sidebar-badge absolute bottom-1.5 ${badgeEdge} h-1.5 w-1.5 rounded-full`}
+          className="nx-code-sidebar-badge nx-code-sidebar-count-badge absolute flex items-center justify-center rounded-full text-[8px] font-bold leading-none"
           style={{
+            bottom: 4,
+            minWidth: 15,
+            height: 15,
+            padding: "0 4px",
+            ...edgeStyle,
             background: "var(--nexus-primary, #7c8cff)",
+            color: "#fff",
             boxShadow: "0 0 7px rgba(124,140,255,0.7)",
           }}
-        />
+        >
+          {formatBadgeCount(extensionStats.enabled)}
+        </span>
       ) : null}
       {item.id === "account" ? (
         <span
-          className={`nx-code-sidebar-badge absolute bottom-1.5 ${badgeEdge} h-1.5 w-1.5 rounded-full`}
+          className="nx-code-sidebar-badge nx-code-sidebar-status-dot absolute rounded-full"
           style={{
+            bottom: 6,
+            width: 8,
+            height: 8,
+            ...edgeStyle,
             background: accountTone,
             boxShadow: `0 0 7px ${accountTone}`,
           }}
@@ -158,35 +219,55 @@ export default function Sidebar({
 
   return (
     <div
-      className="flex h-full min-h-0 w-14 shrink-0 flex-col items-center gap-1 overflow-visible px-2 pb-2 pt-2"
+      className="nx-code-sidebar-rail flex h-full min-h-0 shrink-0 flex-col items-center overflow-visible"
       style={{
-        background: "var(--nexus-surface)",
+        width: compact ? 62 : 68,
+        gap: 7,
+        padding: "8px 6px",
+        background:
+          "linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0.01)), var(--nexus-surface)",
         borderRight: side === "left" ? "1px solid var(--nexus-border)" : 0,
         borderLeft: side === "right" ? "1px solid var(--nexus-border)" : 0,
+        boxShadow:
+          side === "left"
+            ? "inset -1px 0 0 rgba(255,255,255,0.025)"
+            : "inset 1px 0 0 rgba(255,255,255,0.025)",
         zIndex: 40,
       }}
     >
       <div
-        className="mb-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-md border text-[11px] font-semibold"
+        className="nx-code-sidebar-orb flex shrink-0 flex-col items-center justify-center border text-[11px] font-semibold"
         style={{
-          background: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.1)",
-          borderColor: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.2)",
+          width: 50,
+          height: 44,
+          borderRadius: 8,
+          gap: 1,
+          background:
+            "linear-gradient(145deg, rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.16), rgba(255,255,255,0.035))",
+          borderColor: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.24)",
           color: "var(--nexus-primary, #7c8cff)",
+          boxShadow:
+            "0 0 22px rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.12), inset 0 1px 0 rgba(255,255,255,0.06)",
         }}
         title={compact ? "Nexus Code" : "Nexus Code Rail"}
       >
-        NC
+        <Sparkles size={11} />
+        <span>NC</span>
       </div>
 
       <div
-        className="mb-1 h-px w-7 shrink-0"
+        className="h-px shrink-0"
         style={{
+          width: 42,
           background:
             "linear-gradient(90deg, transparent, rgba(255,255,255,0.16), transparent)",
         }}
       />
 
-      <div className="flex min-h-0 flex-1 flex-col items-center gap-1 overflow-y-auto overflow-x-visible py-1">
+      <div
+        className="flex min-h-0 flex-1 flex-col items-center overflow-y-auto overflow-x-visible"
+        style={{ gap: 5, padding: "2px 0" }}
+      >
         {SIDEBAR_ITEMS.map((item) => (
           <SidebarButton
             key={item.id}
@@ -205,8 +286,9 @@ export default function Sidebar({
       </div>
 
       <div
-        className="my-1 h-px w-7 shrink-0"
+        className="h-px shrink-0"
         style={{
+          width: 42,
           background:
             "linear-gradient(90deg, transparent, rgba(255,255,255,0.14), transparent)",
         }}
@@ -215,10 +297,19 @@ export default function Sidebar({
       <button
         type="button"
         onClick={onOpenSettings}
-        className="nx-code-sidebar-btn flex h-10 w-10 items-center justify-center rounded-md text-[var(--nexus-muted)] outline-none transition-colors hover:bg-white/[0.06] hover:text-gray-200 focus-visible:ring-2 focus-visible:ring-purple-500/60"
+        className="nx-code-sidebar-btn nx-code-sidebar-settings flex flex-col items-center justify-center text-[var(--nexus-muted)] outline-none transition-colors hover:bg-white/[0.06] hover:text-gray-200 focus-visible:ring-2 focus-visible:ring-purple-500/60"
+        style={{
+          width: 50,
+          minHeight: 48,
+          gap: 3,
+          borderRadius: 8,
+        }}
         title="Einstellungen"
       >
-        <Settings size={19} strokeWidth={1.8} />
+        <Settings size={18} strokeWidth={1.8} />
+        <span className="max-w-full truncate text-[9px] font-semibold leading-none">
+          Setup
+        </span>
       </button>
     </div>
   );

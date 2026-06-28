@@ -23,10 +23,10 @@ import {
 } from "../../pages/editor/fileTreeModel";
 
 const actionButtonClass =
-  "grid h-7 w-7 shrink-0 place-items-center rounded-md text-gray-500 transition hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40";
+  "grid h-8 w-8 shrink-0 place-items-center rounded-md text-gray-500 transition hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40 [&>svg]:h-4 [&>svg]:w-4";
 
 const rowActionClass =
-  "grid h-5 w-5 shrink-0 place-items-center rounded text-gray-500 transition hover:bg-white/10 hover:text-white";
+  "grid h-6 w-6 shrink-0 place-items-center rounded text-gray-500 transition hover:bg-white/10 hover:text-white [&>svg]:h-3.5 [&>svg]:w-3.5";
 
 const TREE_ROW_HEIGHT = FILE_TREE_LIMITS.rowHeight || 32;
 const TREE_VIRTUALIZE_AFTER = FILE_TREE_LIMITS.virtualizeAfter || 160;
@@ -235,7 +235,7 @@ function TreeRow({
             onStartRename(node.id);
           }
         }}
-        className="group relative flex h-8 min-w-0 cursor-pointer select-none items-center gap-1.5 rounded-md px-2 text-xs outline-none transition hover:bg-white/[0.06] focus:bg-white/[0.08]"
+        className="nx-code-file-tree-row group relative flex h-8 min-w-0 cursor-pointer select-none items-center gap-1.5 overflow-hidden rounded-md px-2 text-xs outline-none transition hover:bg-white/[0.06] focus:bg-white/[0.08]"
         style={{
           paddingLeft: `${indent}px`,
           background: isActive
@@ -288,7 +288,7 @@ function TreeRow({
         )}
 
         {!isRenaming && (
-          <div className="ml-1 hidden shrink-0 items-center gap-0.5 group-hover:flex group-focus-within:flex">
+          <div className="ml-1 flex h-6 w-20 shrink-0 items-center justify-end gap-0.5 opacity-0 transition-opacity pointer-events-none group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100">
             {isFolder && (
               <>
                 <button
@@ -371,6 +371,7 @@ export default function FileExplorer({
   });
 
   const fileList = Array.isArray(files) ? files : [];
+  const hasWorkspace = String(workspacePath || "").trim().length > 0;
   const model = useMemo(
     () => createFileTreeModel(fileList, {
       query: searchQuery,
@@ -433,6 +434,14 @@ export default function FileExplorer({
   }, [deleteConfirmId]);
 
   useEffect(() => {
+    if (hasWorkspace) return;
+    setCreating(null);
+    setRenamingId(null);
+    setDeleteConfirmId(null);
+    setLocalError("");
+  }, [hasWorkspace]);
+
+  useEffect(() => {
     if (pendingScrollRestoreRef.current == null || isLoading || refreshing) return;
     const element = treeViewportRef.current;
     if (!element) return;
@@ -492,6 +501,10 @@ export default function FileExplorer({
   );
 
   const handleRefresh = useCallback(async () => {
+    if (!hasWorkspace) {
+      setLocalError("");
+      return;
+    }
     setLocalError("");
     pendingScrollRestoreRef.current = treeViewportRef.current?.scrollTop || 0;
     setRefreshing(true);
@@ -503,21 +516,23 @@ export default function FileExplorer({
     } finally {
       setRefreshing(false);
     }
-  }, [onRefresh]);
+  }, [hasWorkspace, onRefresh]);
 
   const handleCollapseAll = useCallback(() => {
+    if (!hasWorkspace) return;
     const openFolders = fileList.filter((item) => item?.type === "folder" && item?.isOpen);
     openFolders.slice(0, 500).forEach((folder) => onToggleFolder?.(folder.id));
     setCreating(null);
     setRenamingId(null);
-  }, [fileList, onToggleFolder]);
+  }, [fileList, hasWorkspace, onToggleFolder]);
 
   const handleStartCreate = useCallback(
     (type, parentId = null, shouldOpenParent = false) => {
+      if (!hasWorkspace) return;
       if (shouldOpenParent && parentId) onToggleFolder?.(parentId);
       setCreating({ type, parentId });
     },
-    [onToggleFolder],
+    [hasWorkspace, onToggleFolder],
   );
 
   const toggleSearch = useCallback(() => {
@@ -605,16 +620,18 @@ export default function FileExplorer({
   const hasTreeItems = treeItems.length > 0;
   const isInitialLoading = isLoading && !hasTreeItems;
   const isRefreshingTree = (isLoading || refreshing) && hasTreeItems;
-  const isEmpty = !isLoading && !visibleError && fileList.length === 0 && !creating;
+  const isMissingWorkspace = !isLoading && !visibleError && !hasWorkspace && !creating;
+  const isEmpty = !isLoading && !visibleError && hasWorkspace && fileList.length === 0 && !creating;
   const isSearchEmpty = !isLoading && !visibleError && fileList.length > 0 && model.rows.length === 0 && !creating;
   const isErrorEmpty = !isLoading && Boolean(visibleError) && !hasTreeItems;
   const isBounded = model.stats.hiddenByRowLimit > 0 || model.stats.hiddenByChildLimit > 0;
+  const canEditTree = hasWorkspace && !isLoading;
 
   return (
     <div className="flex h-full w-full flex-col bg-[#060614]/20 text-gray-200">
-      <div className="border-b border-white/5 bg-white/[0.04] p-3">
-        <div className="mb-2 flex min-w-0 flex-wrap items-start justify-between gap-x-3 gap-y-2">
-          <div className="min-w-[8rem] flex-1">
+      <div className="nx-code-explorer-header border-b border-white/5 bg-white/[0.04] px-3 py-3">
+        <div className="nx-code-explorer-heading flex min-w-0 items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
             <div className="text-[10px] font-bold uppercase tracking-widest text-gray-500">
               Explorer
             </div>
@@ -622,31 +639,51 @@ export default function FileExplorer({
               {model.stats.files} files / {model.stats.folders} folders / {model.stats.visibleRows} rows
             </div>
           </div>
-          <div className="flex max-w-[10rem] shrink-0 flex-wrap items-center justify-end gap-1">
-            <ActionIconButton title="Search" onClick={toggleSearch}>
-              {showSearch ? <X size={14} /> : <Search size={14} />}
-            </ActionIconButton>
-            <ActionIconButton title="New file" onClick={() => setCreating({ type: "file", parentId: null })}>
-              <FilePlus2 size={14} />
-            </ActionIconButton>
-            <ActionIconButton title="New folder" onClick={() => setCreating({ type: "folder", parentId: null })}>
-              <FolderPlus size={14} />
-            </ActionIconButton>
-            <ActionIconButton title="Refresh tree" onClick={handleRefresh} disabled={refreshing}>
-              <RefreshCcw size={14} className={refreshing ? "animate-spin" : ""} />
-            </ActionIconButton>
-            <ActionIconButton title="Collapse folders" onClick={handleCollapseAll}>
-              <ChevronsDownUp size={14} />
-            </ActionIconButton>
-          </div>
-        </div>
-        <div className="flex min-w-0 items-center justify-between gap-2">
-          <WorkspaceLabel workspacePath={workspacePath} />
           {virtualWindow.isVirtualized && (
             <span className="shrink-0 rounded border border-white/10 bg-white/[0.04] px-1.5 py-0.5 text-[9px] font-semibold text-gray-500">
               {virtualWindow.renderedRows}/{virtualWindow.totalRows}
             </span>
           )}
+        </div>
+        <div className="nx-code-explorer-workspace mt-2 min-w-0">
+          <WorkspaceLabel workspacePath={workspacePath} />
+        </div>
+        <div
+          className="nx-code-explorer-toolbar mt-3 grid grid-cols-5 justify-items-center gap-1"
+          role="toolbar"
+          aria-label="Explorer actions"
+        >
+          <ActionIconButton title="Search" onClick={toggleSearch}>
+            {showSearch ? <X size={16} /> : <Search size={16} />}
+          </ActionIconButton>
+          <ActionIconButton
+            title="New file"
+            onClick={() => setCreating({ type: "file", parentId: null })}
+            disabled={!canEditTree}
+          >
+            <FilePlus2 size={16} />
+          </ActionIconButton>
+          <ActionIconButton
+            title="New folder"
+            onClick={() => setCreating({ type: "folder", parentId: null })}
+            disabled={!canEditTree}
+          >
+            <FolderPlus size={16} />
+          </ActionIconButton>
+          <ActionIconButton
+            title="Refresh tree"
+            onClick={handleRefresh}
+            disabled={!hasWorkspace || refreshing}
+          >
+            <RefreshCcw size={16} className={refreshing ? "animate-spin" : ""} />
+          </ActionIconButton>
+          <ActionIconButton
+            title="Collapse folders"
+            onClick={handleCollapseAll}
+            disabled={!hasWorkspace || fileList.length === 0}
+          >
+            <ChevronsDownUp size={16} />
+          </ActionIconButton>
         </div>
       </div>
 
@@ -732,11 +769,19 @@ export default function FileExplorer({
           />
         )}
 
+        {!isInitialLoading && isMissingWorkspace && (
+          <EmptyState
+            icon={FolderOpen}
+            title="Open a workspace"
+            detail="Select a folder to populate the explorer."
+          />
+        )}
+
         {!isInitialLoading && isEmpty && (
           <EmptyState
             icon={FolderOpen}
-            title={workspacePath ? "Workspace is empty" : "Open a workspace"}
-            detail={workspacePath ? "Create a file or folder to start." : "Select a folder to populate the explorer."}
+            title="Workspace is empty"
+            detail="Create a file or folder to start."
           />
         )}
 

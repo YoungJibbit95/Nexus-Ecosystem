@@ -8,8 +8,8 @@ export const PRIORITY_OPTIONS: CanvasNodePriority[] = [
 ];
 
 export const formatNodeMeta = (node: CanvasNode) => {
-  const status = node.status ? ` · ${node.status}` : "";
-  const priority = node.priority ? ` · ${node.priority}` : "";
+  const status = node.status ? ` / ${node.status}` : "";
+  const priority = node.priority ? ` / ${node.priority}` : "";
   return `${node.type}${status}${priority}`;
 };
 

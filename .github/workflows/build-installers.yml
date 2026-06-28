@@ -96,6 +96,12 @@ jobs:
           APPLE_ID: "${{ secrets.APPLE_ID }}"
           APPLE_APP_SPECIFIC_PASSWORD: "${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}"
           APPLE_TEAM_ID: "${{ secrets.APPLE_TEAM_ID }}"
+          NEXUS_INSTALLER_CHECKSUM_SIGNING_KEY_PEM: "${{ secrets.NEXUS_INSTALLER_CHECKSUM_SIGNING_KEY_PEM }}"
+          NEXUS_INSTALLER_CHECKSUM_SIGNING_KEY_BASE64: "${{ secrets.NEXUS_INSTALLER_CHECKSUM_SIGNING_KEY_BASE64 }}"
+          NEXUS_INSTALLER_CHECKSUM_SIGNING_KEY_ID: "${{ vars.NEXUS_INSTALLER_CHECKSUM_SIGNING_KEY_ID }}"
+          NEXUS_LAUNCHER_FEED_SIGNING_KEY_PEM: "${{ secrets.NEXUS_LAUNCHER_FEED_SIGNING_KEY_PEM }}"
+          NEXUS_LAUNCHER_FEED_SIGNING_KEY_BASE64: "${{ secrets.NEXUS_LAUNCHER_FEED_SIGNING_KEY_BASE64 }}"
+          NEXUS_LAUNCHER_FEED_SIGNING_KEY_ID: "${{ vars.NEXUS_LAUNCHER_FEED_SIGNING_KEY_ID }}"
         run: node ./tools/verify-signing-env.mjs --target=${{ matrix.target }}
 
       - name: Build installer
@@ -111,6 +117,14 @@ jobs:
         run: npm run ${{ matrix.npm_script }}
 
       - name: Generate checksums
+        env:
+          NEXUS_INSTALLER_CHECKSUM_SIGNATURE_REQUIRED: "${{ github.event_name == 'release' || inputs.signing_required }}"
+          NEXUS_INSTALLER_CHECKSUM_SIGNING_KEY_PEM: "${{ secrets.NEXUS_INSTALLER_CHECKSUM_SIGNING_KEY_PEM }}"
+          NEXUS_INSTALLER_CHECKSUM_SIGNING_KEY_BASE64: "${{ secrets.NEXUS_INSTALLER_CHECKSUM_SIGNING_KEY_BASE64 }}"
+          NEXUS_INSTALLER_CHECKSUM_SIGNING_KEY_ID: "${{ vars.NEXUS_INSTALLER_CHECKSUM_SIGNING_KEY_ID }}"
+          NEXUS_LAUNCHER_FEED_SIGNING_KEY_PEM: "${{ secrets.NEXUS_LAUNCHER_FEED_SIGNING_KEY_PEM }}"
+          NEXUS_LAUNCHER_FEED_SIGNING_KEY_BASE64: "${{ secrets.NEXUS_LAUNCHER_FEED_SIGNING_KEY_BASE64 }}"
+          NEXUS_LAUNCHER_FEED_SIGNING_KEY_ID: "${{ vars.NEXUS_LAUNCHER_FEED_SIGNING_KEY_ID }}"
         run: node ./tools/generate-installer-checksums.mjs --dir "${{ matrix.app_dir }}/release"
 
       - name: Upload installers
@@ -128,3 +142,5 @@ jobs:
             ${{ matrix.app_dir }}/release/**/*.AppImage
             ${{ matrix.app_dir }}/release/**/*.deb
             ${{ matrix.app_dir }}/release/**/SHA256SUMS.txt
+            ${{ matrix.app_dir }}/release/**/SHA256SUMS.txt.sig
+            ${{ matrix.app_dir }}/release/**/SHA256SUMS.metadata.json

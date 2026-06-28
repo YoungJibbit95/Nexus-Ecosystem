@@ -17,6 +17,14 @@ import {
   normalizeSearchOptions,
   searchFiles,
 } from "../../pages/editor/searchPanelModel.js";
+import {
+  PanelBadge,
+  PanelBody,
+  PanelFooter,
+  PanelHeader,
+  PanelShell,
+  PanelState,
+} from "./panels/PanelChrome.jsx";
 
 function HighlightedLine({ match }) {
   const excerpt = match?.excerpt || "";
@@ -87,58 +95,43 @@ function ScopeInput({ label, value, onChange, placeholder }) {
 function SearchState({ state, result, query, fileCount }) {
   if (state === "loading") {
     return (
-      <div className="flex flex-col items-center justify-center px-4 py-10 text-center">
-        <Loader2 size={24} className="mb-3 animate-spin text-purple-400/80" />
-        <p className="text-xs text-gray-500">Suche laeuft...</p>
-        <p className="mt-1 text-[10px] text-gray-700">
-          {fileCount} Dateien im aktuellen Workspace
-        </p>
-      </div>
+      <PanelState
+        icon={Loader2}
+        spinning
+        tone="accent"
+        title="Suche laeuft"
+        detail={`${fileCount} Dateien im aktuellen Workspace`}
+      />
     );
   }
 
   if (state === "error") {
     return (
-      <div className="flex flex-col items-center justify-center px-4 py-10 text-center">
-        <AlertTriangle size={24} className="mb-3 text-amber-400/90" />
-        <p className="text-xs text-gray-500">Suche konnte nicht starten</p>
-        <p className="mt-1 max-w-full truncate text-[10px] text-amber-300/80">
-          {result.error}
-        </p>
-      </div>
+      <PanelState
+        icon={AlertTriangle}
+        tone="danger"
+        title="Suche konnte nicht starten"
+        detail={result.error}
+      />
     );
   }
 
   if (!query) {
     return (
-      <div className="flex flex-col items-center justify-center px-4 py-10 text-center">
-        <motion.div
-          animate={{ opacity: [0.42, 0.8, 0.42] }}
-          transition={{ duration: 2.5, repeat: Infinity }}
-        >
-          <Search size={28} className="mb-3 text-gray-700" />
-        </motion.div>
-        <p className="text-xs text-gray-600">Suchbegriff eingeben</p>
-        <p className="mt-1 text-[10px] text-gray-700">
-          {fileCount} Dateien verfuegbar
-        </p>
-      </div>
+      <PanelState
+        icon={Search}
+        title="Suchbegriff eingeben"
+        detail={`${fileCount} Dateien verfuegbar`}
+      />
     );
   }
 
   return (
-    <div className="flex flex-col items-center justify-center px-4 py-10 text-center">
-      <Search size={24} className="mb-3 text-gray-700" />
-      <p className="text-xs text-gray-600">Keine Treffer fuer</p>
-      <p className="mt-1 max-w-full truncate text-xs font-mono text-gray-500">
-        "{query}"
-      </p>
-      {result.scannedFiles > 0 && (
-        <p className="mt-2 text-[10px] text-gray-700">
-          {result.scannedFiles} Dateien durchsucht
-        </p>
-      )}
-    </div>
+    <PanelState
+      icon={Search}
+      title="Keine Treffer"
+      detail={`"${query}" in ${result.scannedFiles || 0} Dateien durchsucht`}
+    />
   );
 }
 
@@ -280,28 +273,19 @@ export default function SearchPanel({ files = [], onFileSelect }) {
       : `${result.scannedFiles || 0} Dateien durchsucht`;
 
   return (
-    <motion.div
-      initial={{ x: -260, opacity: 0 }}
-      animate={{ x: 0, opacity: 1 }}
-      transition={{ duration: 0.28, ease: [0.4, 0, 0.2, 1] }}
-      className="flex h-full w-full shrink-0 flex-col overflow-hidden"
-      style={{
-        background: "rgba(6, 6, 20, 0.32)",
-        backdropFilter: "blur(20px)",
-      }}
-    >
-      <div className="shrink-0 border-b border-white/5 bg-white/[0.025] px-3 pb-3 pt-3">
-        <div className="mb-2 flex items-center justify-between gap-2">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500">
-            Suche
-          </span>
-          {appliedQuery && (
-            <span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[10px] font-semibold text-gray-500">
+    <PanelShell ariaLabel="Search">
+      <PanelHeader
+        icon={Search}
+        title="Search"
+        subtitle={`${searchableFileCount} Dateien im Workspace`}
+        status={
+          appliedQuery ? (
+            <PanelBadge tone={isLoading ? "accent" : "muted"}>
               {isLoading ? "..." : totalLabel}
-            </span>
-          )}
-        </div>
-
+            </PanelBadge>
+          ) : null
+        }
+      >
         <form onSubmit={submitSearch} className="space-y-2">
           <div
             className="flex items-center gap-1.5 rounded-lg px-2 py-1.5"
@@ -374,9 +358,9 @@ export default function SearchPanel({ files = [], onFileSelect }) {
             />
           </div>
         </form>
-      </div>
+      </PanelHeader>
 
-      <div className="min-h-0 flex-1 overflow-y-auto custom-scrollbar">
+      <PanelBody>
         <AnimatePresence mode="popLayout">
           {showResults &&
             groups.map((group, index) => {
@@ -490,13 +474,10 @@ export default function SearchPanel({ files = [], onFileSelect }) {
             fileCount={searchableFileCount}
           />
         )}
-      </div>
+      </PanelBody>
 
       {(appliedQuery || result.warnings.length > 0) && (
-        <div
-          className="shrink-0 px-3 py-2"
-          style={{ borderTop: "1px solid rgba(128,0,255,0.08)" }}
-        >
+        <PanelFooter>
           <div className="flex items-center justify-between gap-2">
             <span className="truncate text-[10px] text-gray-600">{footerText}</span>
             {result.durationMs > 0 && (
@@ -514,8 +495,8 @@ export default function SearchPanel({ files = [], onFileSelect }) {
               ))}
             </div>
           )}
-        </div>
+        </PanelFooter>
       )}
-    </motion.div>
+    </PanelShell>
   );
 }

@@ -6,6 +6,8 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const ROOT = path.resolve(__dirname, '..')
 const viewsPath = path.join(ROOT, 'packages', 'nexus-core', 'src', 'views.ts')
+const controlUtilsPath = path.join(ROOT, 'packages', 'nexus-core', 'src', 'api', 'control', 'utils.ts')
+const connectionManagerPath = path.join(ROOT, 'packages', 'nexus-core', 'src', 'api', 'connection', 'manager.ts')
 const designTokensPath = path.join(ROOT, 'packages', 'nexus-core', 'src', 'ui', 'designTokens.ts')
 const viewStatePath = path.join(ROOT, 'packages', 'nexus-core', 'src', 'ui', 'viewState.ts')
 const canvasMagicRendererPaths = [
@@ -14,6 +16,8 @@ const canvasMagicRendererPaths = [
   path.join(ROOT, 'packages', 'nexus-core', 'src', 'canvas', 'CanvasMagicBlocksB.tsx'),
 ]
 const source = readFileSync(viewsPath, 'utf8')
+const controlUtilsSource = readFileSync(controlUtilsPath, 'utf8')
+const connectionManagerSource = readFileSync(connectionManagerPath, 'utf8')
 const designTokensSource = readFileSync(designTokensPath, 'utf8')
 const viewStateSource = readFileSync(viewStatePath, 'utf8')
 const canvasMagicRendererSources = canvasMagicRendererPaths.map((filePath) => ({
@@ -74,6 +78,12 @@ expect(viewStateSource.includes("'blocked'"), 'Missing blocked view state')
 expect(viewStateSource.includes('blocksNavigation'), 'Missing navigation blocking behavior')
 expect(viewStateSource.includes('feedbackState'), 'Missing transition feedback state')
 expect(viewStateSource.includes("'assertive'"), 'Missing assertive aria-live state')
+expect(controlUtilsSource.includes('export const normalizeControlBaseUrl'), 'Missing shared Control API base URL normalizer')
+expect(controlUtilsSource.includes('LOOPBACK_CONTROL_HOSTS'), 'Control API URL normalizer must explicitly gate loopback dev hosts')
+expect(controlUtilsSource.includes('parsed.username || parsed.password || parsed.search || parsed.hash'), 'Control API URL normalizer must reject credentials, query, and hash')
+expect(connectionManagerSource.includes('const clampInteger'), 'Connection manager must clamp numeric runtime options')
+expect(connectionManagerSource.includes('Math.abs(eventAgeMs) > this.maxEventAgeMs'), 'Connection manager must reject stale and future-dated incoming events')
+expect(connectionManagerSource.includes('getPayloadBytes(event.payload) > this.maxPayloadBytes'), 'Connection manager must reject oversized incoming payloads')
 
 
 for (const { filePath, source: canvasMagicSource } of canvasMagicRendererSources) {

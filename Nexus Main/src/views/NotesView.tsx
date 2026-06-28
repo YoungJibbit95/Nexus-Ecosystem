@@ -64,6 +64,11 @@ import { useTheme } from "../store/themeStore";
 import { hexToRgb, fmtDt } from "../lib/utils";
 import { NexusCodeBlock, NexusInlineCode } from "./notes/NotesMagicRenderers";
 import { useNotesAnalysis } from "./notes/useNotesAnalysis";
+import { useNotesDraftState } from "./notes/useNotesDraftState";
+import {
+  useNotesEmojiPicker,
+  type NotesEmojiCategoryId,
+} from "./notes/useNotesEmojiPicker";
 import { NotesSettingsModal } from "./notes/NotesSettingsModal";
 import { shallow } from "zustand/shallow";
 import {
@@ -78,271 +83,9 @@ const MagicElementModal = lazy(() =>
     default: m.MagicElementModal,
   })),
 );
-const NOTE_COMMIT_DEBOUNCE_MS = 4_200;
-const NOTE_PREVIEW_DEBOUNCE_MS = 220;
-const NOTE_UNDO_SNAPSHOT_INTERVAL_MS = 260;
 const MAX_RENDERED_LINE_NUMBERS = 4_000;
 const NOTES_IMPORT_INPUT_ID = "nx-notes-import-markdown";
 const NOTES_UI_STATE_KEY = "nx-notes-ui-state-v1";
-const EMOJI_GROUPS = [
-  {
-    id: "smileys",
-    label: "Smileys",
-    keywords: "faces people emotions",
-    emojis:
-      "😀 😃 😄 😁 😆 😅 😂 🤣 🥲 ☺️ 😊 😇 🙂 🙃 😉 😌 😍 🥰 😘 😗 😙 😚 😋 😛 😝 😜 🤪 🤨 🧐 🤓 😎 🥸 🤩 🥳 🙂‍↕️ 🙂‍↔️ 😏 😒 😞 😔 😟 😕 🙁 ☹️ 😣 😖 😫 😩 🥺 😢 😭 😮‍💨 😤 😠 😡 🤬 🤯 😳 🥵 🥶 😱 😨 😰 😥 😓 🫣 🤗 🫡 🤔 🫢 🤭 🤫 🤥 😶 😶‍🌫️ 😐 😑 😬 🫨 🫠 🙄 😯 😦 😧 😮 😲 🥱 😴 🤤 😪 😵 😵‍💫 🫥 🤐 🥴 🤢 🤮 🤧 😷 🤒 🤕".split(
-        " ",
-      ),
-  },
-  {
-    id: "hands",
-    label: "Hands",
-    keywords: "hands gestures body",
-    emojis:
-      "👋 🤚 🖐️ ✋ 🖖 🫱 🫲 🫳 🫴 👌 🤌 🤏 ✌️ 🤞 🫰 🤟 🤘 🤙 👈 👉 👆 🖕 👇 ☝️ 🫵 👍 👎 ✊ 👊 🤛 🤜 👏 🙌 🫶 👐 🤲 🤝 🙏 ✍️ 💅 🤳 💪 🦾 🦿 🦵 🦶 👂 🦻 👃 🧠 🫀 🫁 🦷 🦴 👀 👁️ 👅 👄 🫦".split(
-        " ",
-      ),
-  },
-  {
-    id: "people",
-    label: "People",
-    keywords: "people roles work",
-    emojis:
-      "👶 🧒 👦 👧 🧑 👱 👨 🧔 👩 🧓 👴 👵 🙍 🙎 🙅 🙆 💁 🙋 🧏 🙇 🤦 🤷 👮 🕵️ 💂 🥷 👷 🧑‍⚕️ 🧑‍🎓 🧑‍🏫 🧑‍⚖️ 🧑‍🌾 🧑‍🍳 🧑‍🔧 🧑‍🏭 🧑‍💼 🧑‍🔬 🧑‍💻 🧑‍🎤 🧑‍🎨 🧑‍✈️ 🧑‍🚀 🧑‍🚒 🧙 🧚 🧛 🧜 🧝 🧞 🧟 🧌 💃 🕺 🕴️ 🧘 🧗 🏃 🚶 🧎 🧍 👯 🧖 🧗‍♀️ 🧗‍♂️".split(
-        " ",
-      ),
-  },
-  {
-    id: "heart",
-    label: "Hearts",
-    keywords: "love symbols glow",
-    emojis:
-      "❤️ 🩷 🧡 💛 💚 💙 🩵 💜 🤎 🖤 🩶 🤍 💔 ❤️‍🔥 ❤️‍🩹 ❣️ 💕 💞 💓 💗 💖 💘 💝 💟 ☮️ ✝️ ☪️ 🕉️ ☸️ ✡️ 🔯 🕎 ☯️ ☦️ 🛐 ⛎ ♈ ♉ ♊ ♋ ♌ ♍ ♎ ♏ ♐ ♑ ♒ ♓".split(
-        " ",
-      ),
-  },
-  {
-    id: "work",
-    label: "Work",
-    keywords: "productivity tasks notes office",
-    emojis:
-      "💡 📌 📍 ✏️ 📝 📒 📓 📔 📕 📗 📘 📙 📚 📖 🔖 🧾 📋 📁 📂 🗂️ 🗃️ 🗄️ 📇 🗒️ 🗓️ 📆 📅 🕒 ⏰ ⏱️ ⏲️ 🧭 🎯 ✅ ☑️ ✔️ ❌ ❎ ➕ ➖ ➗ ✖️ 🔍 🔎 🔒 🔓 🔑 🛠️ ⚙️ 🧰 🧲 🧪 🧬 🔬 🔭 📡".split(
-        " ",
-      ),
-  },
-  {
-    id: "tech",
-    label: "Tech",
-    keywords: "code computer devices",
-    emojis:
-      "💻 🖥️ 🖨️ ⌨️ 🖱️ 🖲️ 💽 💾 💿 📀 🧮 🎛️ 🎚️ 🎙️ 🎧 📱 ☎️ 📞 📟 📠 🔋 🪫 🔌 💡 🔦 🕯️ 🪔 🧯 🛜 📶 🛰️ 🚀 🛸 🤖 👾 🎮 🕹️ 🧩 🧠 ⚡ 🔥 ✨ 🌟 ⭐ 💫".split(
-        " ",
-      ),
-  },
-  {
-    id: "nature",
-    label: "Nature",
-    keywords: "animals plants weather",
-    emojis:
-      "🐶 🐱 🐭 🐹 🐰 🦊 🐻 🐼 🐨 🐯 🦁 🐮 🐷 🐸 🐵 🐔 🐧 🐦 🐤 🦆 🦅 🦉 🦇 🐺 🐗 🐴 🦄 🐝 🪱 🐛 🦋 🐌 🐞 🐜 🪰 🪲 🕷️ 🦂 🦟 🦠 🌵 🎄 🌲 🌳 🌴 🪵 🌱 🌿 ☘️ 🍀 🎍 🪴 🎋 🍃 🍂 🍁 🍄 🌾 💐 🌷 🌹 🥀 🌺 🌸 🌼 🌻 🌞 🌝 🌛 🌜 🌚 🌕 🌖 🌗 🌘 🌑 🌒 🌓 🌔 🌙 🌎 🌍 🌏 🪐 💫 ⭐ 🌟 ✨ ⚡ ☄️ 💥 🔥 🌈 ☀️ ⛅ 🌤️ 🌦️ 🌧️ ⛈️ 🌩️ 🌨️ ❄️ ☃️ ⛄ 🌬️ 💨 💧 💦 ☔".split(
-        " ",
-      ),
-  },
-  {
-    id: "food",
-    label: "Food",
-    keywords: "food drink",
-    emojis:
-      "🍏 🍎 🍐 🍊 🍋 🍌 🍉 🍇 🍓 🫐 🍈 🍒 🍑 🥭 🍍 🥥 🥝 🍅 🫒 🥑 🍆 🥔 🥕 🌽 🌶️ 🫑 🥒 🥬 🥦 🧄 🧅 🥜 🫘 🌰 🫚 🫛 🍞 🥐 🥖 🫓 🥨 🥯 🥞 🧇 🧀 🍖 🍗 🥩 🥓 🍔 🍟 🍕 🌭 🥪 🌮 🌯 🫔 🥙 🧆 🥚 🍳 🥘 🍲 🫕 🥣 🥗 🍿 🧈 🧂 🥫 🍱 🍘 🍙 🍚 🍛 🍜 🍝 🍠 🍢 🍣 🍤 🍥 🥮 🍡 🥟 🥠 🥡 🦪 🍦 🍧 🍨 🍩 🍪 🎂 🍰 🧁 🥧 🍫 🍬 🍭 🍮 🍯 🍼 🥛 ☕ 🫖 🍵 🍶 🍾 🍷 🍸 🍹 🍺 🍻 🥂 🥃 🫗 🥤 🧋 🧃 🧉 🧊".split(
-        " ",
-      ),
-  },
-  {
-    id: "travel",
-    label: "Travel",
-    keywords: "places transport",
-    emojis:
-      "🚗 🚕 🚙 🚌 🚎 🏎️ 🚓 🚑 🚒 🚐 🛻 🚚 🚛 🚜 🏍️ 🛵 🚲 🛴 🛹 🛼 🚁 ✈️ 🛩️ 🛫 🛬 🪂 💺 🚀 🛸 🚉 🚊 🚝 🚄 🚅 🚈 🚂 🚆 🚇 🚋 🚃 🚟 🚠 🚡 🛰️ 🛶 ⛵ 🚤 🛥️ 🛳️ ⛴️ 🚢 ⚓ 🛟 🗺️ 🗿 🗽 🗼 🏰 🏯 🏟️ 🎡 🎢 🎠 ⛲ ⛱️ 🏖️ 🏝️ 🏜️ 🌋 ⛰️ 🏔️ 🗻 🏕️ ⛺ 🛖 🏠 🏡 🏘️ 🏚️ 🏗️ 🏭 🏢 🏬 🏣 🏤 🏥 🏦 🏨 🏪 🏫 🏩 💒 🏛️ ⛪ 🕌 🕍 🛕 🕋".split(
-        " ",
-      ),
-  },
-  {
-    id: "objects",
-    label: "Objects",
-    keywords: "objects tools",
-    emojis:
-      "🎁 🎈 🎏 🎀 🧧 🎊 🎉 🎎 🪩 🪅 🎐 🧸 🪄 🧿 🪬 🕹️ 🧩 🧵 🪡 🧶 🪢 👓 🕶️ 🥽 🥼 🦺 👔 👕 👖 🧣 🧤 🧥 🧦 👗 👘 🥻 🩱 🩲 🩳 👙 👚 👛 👜 👝 🛍️ 🎒 🩴 👞 👟 🥾 🥿 👠 👡 🩰 👢 👑 👒 🎩 🎓 🧢 🪖 ⛑️ 📿 💄 💍 💎 🔇 🔈 🔉 🔊 📢 📣 📯 🔔 🔕 🎼 🎵 🎶 🎙️ 🎤 🎧 📻 🎷 🪗 🎸 🎹 🎺 🎻 🪕 🥁 🪘".split(
-        " ",
-      ),
-  },
-  {
-    id: "symbols",
-    label: "Symbols",
-    keywords: "arrows ui signs",
-    emojis:
-      "⬆️ ↗️ ➡️ ↘️ ⬇️ ↙️ ⬅️ ↖️ ↕️ ↔️ ↩️ ↪️ ⤴️ ⤵️ 🔃 🔄 🔙 🔚 🔛 🔜 🔝 🛐 ⚛️ 🕉️ ✡️ ☸️ ☯️ ✝️ ☦️ ☪️ ☮️ 🕎 🔯 ♈ ♉ ♊ ♋ ♌ ♍ ♎ ♏ ♐ ♑ ♒ ♓ ⛎ 🔀 🔁 🔂 ▶️ ⏩ ⏭️ ⏯️ ◀️ ⏪ ⏮️ 🔼 ⏫ 🔽 ⏬ ⏸️ ⏹️ ⏺️ ⏏️ 🎦 🔅 🔆 📶 🛜 📳 📴 ♀️ ♂️ ⚧️ ✖️ ➕ ➖ ➗ 🟰 ♾️ ‼️ ⁉️ ❓ ❔ ❕ ❗ 〰️ 💱 💲 ⚕️ ♻️ ⚜️ 🔱 📛 🔰 ⭕ ✅ ☑️ ✔️ ❌ ❎ ➰ ➿ 〽️ ✳️ ✴️ ❇️ ©️ ®️ ™️".split(
-        " ",
-      ),
-  },
-  {
-    id: "flags",
-    label: "Flags",
-    keywords: "flags countries",
-    emojis:
-      "🏁 🚩 🎌 🏴 🏳️ 🏳️‍🌈 🏳️‍⚧️ 🏴‍☠️ 🇦🇩 🇦🇪 🇦🇫 🇦🇬 🇦🇮 🇦🇱 🇦🇲 🇦🇴 🇦🇶 🇦🇷 🇦🇸 🇦🇹 🇦🇺 🇦🇼 🇦🇽 🇦🇿 🇧🇦 🇧🇧 🇧🇩 🇧🇪 🇧🇫 🇧🇬 🇧🇭 🇧🇮 🇧🇯 🇧🇱 🇧🇲 🇧🇳 🇧🇴 🇧🇶 🇧🇷 🇧🇸 🇧🇹 🇧🇻 🇧🇼 🇧🇾 🇧🇿 🇨🇦 🇨🇨 🇨🇩 🇨🇫 🇨🇬 🇨🇭 🇨🇮 🇨🇰 🇨🇱 🇨🇲 🇨🇳 🇨🇴 🇨🇵 🇨🇷 🇨🇺 🇨🇻 🇨🇼 🇨🇽 🇨🇾 🇨🇿 🇩🇪 🇩🇯 🇩🇰 🇩🇲 🇩🇴 🇩🇿 🇪🇨 🇪🇪 🇪🇬 🇪🇭 🇪🇷 🇪🇸 🇪🇹 🇪🇺 🇫🇮 🇫🇯 🇫🇰 🇫🇲 🇫🇴 🇫🇷 🇬🇦 🇬🇧 🇬🇩 🇬🇪 🇬🇫 🇬🇬 🇬🇭 🇬🇮 🇬🇱 🇬🇲 🇬🇳 🇬🇵 🇬🇶 🇬🇷 🇬🇸 🇬🇹 🇬🇺 🇬🇼 🇬🇾 🇭🇰 🇭🇲 🇭🇳 🇭🇷 🇭🇹 🇭🇺 🇮🇨 🇮🇩 🇮🇪 🇮🇱 🇮🇲 🇮🇳 🇮🇴 🇮🇶 🇮🇷 🇮🇸 🇮🇹 🇯🇪 🇯🇲 🇯🇴 🇯🇵 🇰🇪 🇰🇬 🇰🇭 🇰🇮 🇰🇲 🇰🇳 🇰🇵 🇰🇷 🇰🇼 🇰🇾 🇰🇿 🇱🇦 🇱🇧 🇱🇨 🇱🇮 🇱🇰 🇱🇷 🇱🇸 🇱🇹 🇱🇺 🇱🇻 🇱🇾 🇲🇦 🇲🇨 🇲🇩 🇲🇪 🇲🇫 🇲🇬 🇲🇭 🇲🇰 🇲🇱 🇲🇲 🇲🇳 🇲🇴 🇲🇵 🇲🇶 🇲🇷 🇲🇸 🇲🇹 🇲🇺 🇲🇻 🇲🇼 🇲🇽 🇲🇾 🇲🇿 🇳🇦 🇳🇨 🇳🇪 🇳🇫 🇳🇬 🇳🇮 🇳🇱 🇳🇴 🇳🇵 🇳🇷 🇳🇺 🇳🇿 🇴🇲 🇵🇦 🇵🇪 🇵🇫 🇵🇬 🇵🇭 🇵🇰 🇵🇱 🇵🇲 🇵🇳 🇵🇷 🇵🇸 🇵🇹 🇵🇼 🇵🇾 🇶🇦 🇷🇪 🇷🇴 🇷🇸 🇷🇺 🇷🇼 🇸🇦 🇸🇧 🇸🇨 🇸🇩 🇸🇪 🇸🇬 🇸🇭 🇸🇮 🇸🇯 🇸🇰 🇸🇱 🇸🇲 🇸🇳 🇸🇴 🇸🇷 🇸🇸 🇸🇹 🇸🇻 🇸🇽 🇸🇾 🇸🇿 🇹🇦 🇹🇨 🇹🇩 🇹🇫 🇹🇬 🇹🇭 🇹🇯 🇹🇰 🇹🇱 🇹🇲 🇹🇳 🇹🇴 🇹🇷 🇹🇹 🇹🇻 🇹🇼 🇹🇿 🇺🇦 🇺🇬 🇺🇲 🇺🇳 🇺🇸 🇺🇾 🇺🇿 🇻🇦 🇻🇨 🇻🇪 🇻🇬 🇻🇮 🇻🇳 🇻🇺 🇼🇫 🇼🇸 🇽🇰 🇾🇪 🇾🇹 🇿🇦 🇿🇲 🇿🇼".split(
-        " ",
-      ),
-  },
-] as const;
-const EXTRA_EMOJI_GROUPS = [
-  {
-    id: "activities",
-    label: "Activities",
-    keywords:
-      "sports games activity feiern celebration trophy award musik music art kunst hobbies spiel spielen sport medaille",
-    emojis:
-      "⚽ 🏀 🏈 ⚾ 🥎 🎾 🏐 🏉 🥏 🎱 🪀 🏓 🏸 🏒 🏑 🥍 🏏 🪃 🥅 ⛳ 🪁 🏹 🎣 🤿 🥊 🥋 🎽 🛹 🛼 🛷 ⛸️ 🥌 🎿 ⛷️ 🏂 🪂 🏋️ 🤼 🤸 ⛹️ 🤺 🤾 🏌️ 🏇 🧘 🏄 🏊 🤽 🚣 🧗 🚵 🚴 🏆 🥇 🥈 🥉 🏅 🎖️ 🏵️ 🎗️ 🎫 🎟️ 🎪 🤹 🎭 🩰 🎨 🎬 🎤 🎧 🎼 🎹 🥁 🪘 🎷 🎺 🪗 🎸 🪕 🎻 🎲 ♟️ 🎯 🎳 🎮 🎰 🧩".split(
-        " ",
-      ),
-  },
-  {
-    id: "shapes",
-    label: "Shapes",
-    keywords:
-      "farben colors shapes kreis quadrat circle square symbol ui marker punkt status",
-    emojis:
-      "🔴 🟠 🟡 🟢 🔵 🟣 🟤 ⚫ ⚪ 🟥 🟧 🟨 🟩 🟦 🟪 🟫 ⬛ ⬜ ◼️ ◻️ ◾ ◽ ▪️ ▫️ 🔶 🔷 🔸 🔹 🔺 🔻 💠 🔘 🔳 🔲 🧿 🪩 ❤️ 🧡 💛 💚 💙 💜 🤎 🖤 🤍 💯 🔥 ✨ ⭐ 🌟 💫 ⚡".split(
-        " ",
-      ),
-  },
-  {
-    id: "money",
-    label: "Money",
-    keywords:
-      "money payment billing abo subscription preis price cash bank shop ecommerce lizenz license kauf buy",
-    emojis:
-      "💰 🪙 💴 💵 💶 💷 💸 💳 🧾 💹 🏦 🏧 💱 💲 🛒 🛍️ 🏷️ 📦 📬 📮 📯 ✉️ 📧 📨 📩 📤 📥 📭 📪 📫 📬 🔐 🔏 🔑 🪪 📜 📝 ✅".split(
-        " ",
-      ),
-  },
-  {
-    id: "health",
-    label: "Health",
-    keywords:
-      "health medical safety sicherheit warning alert bug fix danger support care",
-    emojis:
-      "⚕️ 🩺 💊 💉 🩸 🧬 🦠 🧫 🧪 🌡️ 🤒 🤕 😷 🤧 🤢 🤮 🧼 🧽 🧴 🪥 🚿 🛁 🧯 🦺 ⚠️ 🚨 🛑 ⛔ ☢️ ☣️ 🛡️ 🔒 🔓 🔍 🧰 🛠️".split(
-        " ",
-      ),
-  },
-  {
-    id: "time",
-    label: "Time",
-    keywords:
-      "time date calendar clock reminder termin deadline zeit datum schedule",
-    emojis:
-      "⏰ ⏱️ ⏲️ 🕰️ ⌛ ⏳ 📅 📆 🗓️ 📌 📍 🔔 🔕 🕛 🕧 🕐 🕜 🕑 🕝 🕒 🕞 🕓 🕟 🕔 🕠 🕕 🕡 🕖 🕢 🕗 🕣 🕘 🕤 🕙 🕥 🕚 🕦".split(
-        " ",
-      ),
-  },
-] as const;
-const NOTES_EMOJI_GROUPS = [...EMOJI_GROUPS, ...EXTRA_EMOJI_GROUPS] as const;
-const EMOJI_SEARCH_ALIASES = [
-  {
-    terms: "rocket rakete launch deploy start ship release",
-    emojis: "🚀 🛸 ✨".split(" "),
-  },
-  {
-    terms: "heart herz love liebe favorite favourite fave",
-    emojis: "❤️ 🩷 🧡 💛 💚 💙 🩵 💜 🖤 🤍 💖 💗 💘".split(" "),
-  },
-  {
-    terms: "todo done check task aufgabe erledigt fertig success ok yes",
-    emojis: "✅ ☑️ ✔️ 📋 📝 🎯".split(" "),
-  },
-  {
-    terms:
-      "bug error warning danger alert fehler warnung fix security sicherheit",
-    emojis: "🐛 ⚠️ 🚨 ❌ 🛑 🛡️ 🔒 🧰".split(" "),
-  },
-  {
-    terms: "idea light bulb idee denk denken concept concepting",
-    emojis: "💡 🧠 ✨ 📌".split(" "),
-  },
-  {
-    terms:
-      "note notes doc docs document markdown readme schreiben schreiben text",
-    emojis: "📝 📒 📓 📚 📖 🔖 📌 ✏️".split(" "),
-  },
-  {
-    terms: "code dev developer computer laptop terminal tech programmieren",
-    emojis: "💻 🖥️ ⌨️ 🤖 ⚙️ 🧩".split(" "),
-  },
-  {
-    terms: "calendar reminder date time deadline termin zeit heute today",
-    emojis: "📅 🗓️ ⏰ 🔔 ⏳ 📌".split(" "),
-  },
-  {
-    terms:
-      "money payment pay abo subscription billing preis price lizenz license",
-    emojis: "💰 🪙 💳 🧾 🏦 🏷️".split(" "),
-  },
-  {
-    terms: "happy smile lachen lol joy freude grinsen",
-    emojis: "😀 😄 😁 😂 🤣 😊 🥳".split(" "),
-  },
-  {
-    terms: "sad cry traurig weinen upset",
-    emojis: "😞 😢 😭 🥺 😔".split(" "),
-  },
-  {
-    terms: "fire lit hot urgent priority wichtig high",
-    emojis: "🔥 ⚡ 🚨 ⭐ 💯".split(" "),
-  },
-  {
-    terms: "star favorite glow magic magie sparkle premium",
-    emojis: "⭐ 🌟 ✨ 💫 🪄 💎".split(" "),
-  },
-  {
-    terms: "admin control settings gear config tool werkzeug",
-    emojis: "⚙️ 🛠️ 🧰 🔧 🛡️".split(" "),
-  },
-  {
-    terms: "canvas map graph mindmap nodes connection link network",
-    emojis: "🧠 🗺️ 🔗 🧩 🕸️ 📍".split(" "),
-  },
-  {
-    terms: "file folder files ordner datei download upload export import",
-    emojis: "📁 📂 🗂️ 📦 ⬇️ ⬆️ 💾".split(" "),
-  },
-  {
-    terms: "search find suche finden lupe filter",
-    emojis: "🔍 🔎 🧭 📌".split(" "),
-  },
-  {
-    terms: "mobile phone handy smartphone call message",
-    emojis: "📱 ☎️ 💬 📲".split(" "),
-  },
-] as const;
-const EMOJI_ALIAS_TEXT = (() => {
-  const map = new Map<string, string>();
-  EMOJI_SEARCH_ALIASES.forEach((entry) => {
-    entry.emojis.forEach((emoji) => {
-      map.set(emoji, `${map.get(emoji) || ""} ${entry.terms}`);
-    });
-  });
-  return map;
-})();
-const normalizeEmojiQueryText = (value: string) =>
-  value
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/ä/g, "ae")
-    .replace(/ö/g, "oe")
-    .replace(/ü/g, "ue")
-    .replace(/ß/g, "ss");
-
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
 
@@ -356,14 +99,6 @@ const isEditableTarget = (target: EventTarget | null): boolean => {
     tag === "select"
   );
 };
-const runIdle = (task: () => void, timeoutMs = 320) => {
-  if (typeof window !== "undefined" && "requestIdleCallback" in window) {
-    (window as any).requestIdleCallback(task, { timeout: timeoutMs });
-    return;
-  }
-  setTimeout(task, 0);
-};
-
 export function NotesView() {
   const {
     notes,
@@ -408,14 +143,13 @@ export function NotesView() {
   const [editingTags, setEditingTags] = useState(false);
   const [newTag, setNewTag] = useState("");
   const [focusMode, setFocusMode] = useState(false);
-  const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   const [showMagic, setShowMagic] = useState(false);
   const [notesHeaderMenuOpen, setNotesHeaderMenuOpen] = useState(false);
   const [notesBlocksMenuOpen, setNotesBlocksMenuOpen] = useState(false);
   const [notesEmojiMenuOpen, setNotesEmojiMenuOpen] = useState(false);
   const [emojiQuery, setEmojiQuery] = useState("");
   const [emojiCategory, setEmojiCategory] =
-    useState<(typeof NOTES_EMOJI_GROUPS)[number]["id"]>("smileys");
+    useState<NotesEmojiCategoryId>("smileys");
   const [showQuickSwitch, setShowQuickSwitch] = useState(false);
   const [quickSwitchQuery, setQuickSwitchQuery] = useState("");
   const [quickSwitchCursor, setQuickSwitchCursor] = useState(0);
@@ -432,18 +166,24 @@ export function NotesView() {
     () => notes.find((n) => n.id === activeNoteId) ?? notes[0],
     [notes, activeNoteId],
   );
-  const [draftContent, setDraftContent] = useState("");
-  const [draftDirty, setDraftDirty] = useState(false);
-  const [previewContent, setPreviewContent] = useState("");
-  const draftContentRef = useRef("");
-  const undoStackRef = useRef<string[]>([]);
-  const redoStackRef = useRef<string[]>([]);
-  const lastUndoSnapshotAtRef = useRef(0);
-  const commitTimerRef = useRef<number | null>(null);
-  const pendingCommitRef = useRef<{ noteId: string; content: string } | null>(
-    null,
-  );
-  const deferredDraftContent = useDeferredValue(previewContent);
+  const {
+    draftContent,
+    draftContentRef,
+    draftDirty,
+    deferredDraftContent,
+    handleChange,
+    handleRedo,
+    handleUndo,
+    lastSavedAt,
+    markSavedNow,
+    saveActiveNow,
+  } = useNotesDraftState({
+    active,
+    autosave: t.editor.autosave,
+    autosaveInterval: t.editor.autosaveInterval,
+    updateNote,
+    saveNote,
+  });
   const analysis = useNotesAnalysis(
     deferredDraftContent,
     MAX_RENDERED_LINE_NUMBERS,
@@ -524,152 +264,6 @@ export function NotesView() {
     }
   }, [focusMode, mode, searchQuery, showSearch, sortBy, tagFilter]);
 
-  useEffect(() => {
-    draftContentRef.current = draftContent;
-  }, [draftContent]);
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      setPreviewContent(draftContent);
-    }, NOTE_PREVIEW_DEBOUNCE_MS);
-    return () => {
-      window.clearTimeout(timer);
-    };
-  }, [draftContent]);
-
-  const flushPendingCommit = useCallback(() => {
-    const pending = pendingCommitRef.current;
-    if (!pending) return;
-    runIdle(() => {
-      updateNote(pending.noteId, { content: pending.content, dirty: true });
-    });
-    pendingCommitRef.current = null;
-    if (commitTimerRef.current !== null) {
-      window.clearTimeout(commitTimerRef.current);
-      commitTimerRef.current = null;
-    }
-  }, [updateNote]);
-
-  const queueDraftCommit = useCallback(
-    (noteId: string, content: string) => {
-      pendingCommitRef.current = { noteId, content };
-      if (commitTimerRef.current !== null) {
-        window.clearTimeout(commitTimerRef.current);
-      }
-      commitTimerRef.current = window.setTimeout(() => {
-        flushPendingCommit();
-      }, NOTE_COMMIT_DEBOUNCE_MS);
-    },
-    [flushPendingCommit],
-  );
-
-  const saveActiveNow = useCallback(() => {
-    if (!active) return;
-    const currentDraft = draftContentRef.current;
-    if (active.content !== currentDraft) {
-      updateNote(active.id, { content: currentDraft, dirty: true });
-    } else {
-      flushPendingCommit();
-    }
-    saveNote(active.id);
-    setDraftDirty(false);
-    setLastSavedAt(
-      new Date().toLocaleTimeString("de-DE", {
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
-    );
-  }, [active, flushPendingCommit, saveNote, updateNote]);
-
-  useEffect(() => {
-    flushPendingCommit();
-    if (!active) {
-      setDraftContent("");
-      setDraftDirty(false);
-      undoStackRef.current = [];
-      redoStackRef.current = [];
-      return;
-    }
-    setDraftContent(active.content);
-    setPreviewContent(active.content);
-    setDraftDirty(Boolean(active.dirty));
-    undoStackRef.current = [active.content];
-    redoStackRef.current = [];
-    lastUndoSnapshotAtRef.current = Date.now();
-  }, [active?.id, flushPendingCommit]);
-
-  useEffect(
-    () => () => {
-      flushPendingCommit();
-    },
-    [flushPendingCommit],
-  );
-
-  useEffect(() => {
-    if (!t.editor.autosave || !active || !draftDirty) return;
-    const timer = setTimeout(() => {
-      saveActiveNow();
-    }, t.editor.autosaveInterval);
-    return () => clearTimeout(timer);
-  }, [
-    active,
-    draftDirty,
-    saveActiveNow,
-    t.editor.autosave,
-    t.editor.autosaveInterval,
-  ]);
-
-  const handleChange = (value: string) => {
-    if (!active) return;
-    setDraftContent(value);
-    setDraftDirty(true);
-    const undoStack = undoStackRef.current;
-    const last = undoStack[undoStack.length - 1];
-    const nowMs = Date.now();
-    const shouldCapture =
-      last !== value &&
-      (nowMs - lastUndoSnapshotAtRef.current >=
-        NOTE_UNDO_SNAPSHOT_INTERVAL_MS ||
-        Math.abs(value.length - (last?.length ?? 0)) >= 12 ||
-        value.endsWith("\n"));
-    if (shouldCapture) {
-      if (undoStack.length >= 50) {
-        undoStack.shift();
-      }
-      undoStack.push(value);
-      lastUndoSnapshotAtRef.current = nowMs;
-    }
-    redoStackRef.current = [];
-    queueDraftCommit(active.id, value);
-  };
-
-  const handleUndo = () => {
-    if (!active || undoStackRef.current.length <= 1) return;
-    const stack = [...undoStackRef.current];
-    const last = stack.pop()!;
-    redoStackRef.current = [...redoStackRef.current.slice(-50), last];
-    const previous = stack[stack.length - 1] ?? "";
-    undoStackRef.current = stack;
-    setDraftContent(previous);
-    setPreviewContent(previous);
-    setDraftDirty(true);
-    lastUndoSnapshotAtRef.current = Date.now();
-    queueDraftCommit(active.id, previous);
-  };
-
-  const handleRedo = () => {
-    if (!active || redoStackRef.current.length === 0) return;
-    const redo = [...redoStackRef.current];
-    const next = redo.pop()!;
-    redoStackRef.current = redo;
-    undoStackRef.current = [...undoStackRef.current.slice(-50), next];
-    setDraftContent(next);
-    setPreviewContent(next);
-    setDraftDirty(true);
-    lastUndoSnapshotAtRef.current = Date.now();
-    queueDraftCommit(active.id, next);
-  };
-
   const syncLineNumberScroll = useCallback(
     (target?: HTMLTextAreaElement | null) => {
       const area = target ?? editorRef.current;
@@ -725,14 +319,9 @@ export function NotesView() {
       });
       saveNote(createdId);
       setNote(createdId);
-      setLastSavedAt(
-        new Date().toLocaleTimeString("de-DE", {
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
-      );
+      markSavedNow();
     },
-    [addNote, saveNote, setNote, updateNote],
+    [addNote, markSavedNow, saveNote, setNote, updateNote],
   );
 
   // ── Insert format helper — uses saved selection if textarea lost focus ──
@@ -952,42 +541,10 @@ export function NotesView() {
     () => rankNotesForQuery(notes, deferredQuickSwitchQuery, 12),
     [notes, deferredQuickSwitchQuery],
   );
-  const activeEmojiGroup = useMemo(
-    () =>
-      NOTES_EMOJI_GROUPS.find((group) => group.id === emojiCategory) ??
-      NOTES_EMOJI_GROUPS[0],
-    [emojiCategory],
+  const { activeEmojiGroup, emojiGroups, emojiResults } = useNotesEmojiPicker(
+    emojiCategory,
+    emojiQuery,
   );
-  const emojiResults = useMemo(() => {
-    const queryTokens = normalizeEmojiQueryText(emojiQuery)
-      .split(/\s+/)
-      .map((token) => token.trim())
-      .filter(Boolean);
-
-    if (queryTokens.length === 0) {
-      return Array.from(new Set(activeEmojiGroup.emojis)).slice(0, 240);
-    }
-
-    const scored = NOTES_EMOJI_GROUPS.flatMap((group) =>
-      group.emojis.map((emoji) => {
-        const searchable = normalizeEmojiQueryText(
-          `${emoji} ${group.label} ${group.keywords} ${EMOJI_ALIAS_TEXT.get(emoji) || ""}`,
-        );
-        const score = queryTokens.reduce((sum, token) => {
-          if (emoji === token) return sum + 12;
-          if (searchable.includes(token))
-            return sum + (group.id === emojiCategory ? 3 : 2);
-          return sum;
-        }, 0);
-        return { emoji, score };
-      }),
-    )
-      .filter((entry) => entry.score > 0)
-      .sort((a, b) => b.score - a.score)
-      .map((entry) => entry.emoji);
-
-    return Array.from(new Set(scored)).slice(0, 360);
-  }, [activeEmojiGroup, emojiQuery]);
 
   const lineNumbersText = active ? analysis.lineNumbersText : "1";
 
@@ -1254,6 +811,17 @@ export function NotesView() {
     });
     setShowSettings(false);
   };
+
+  const modeLabel =
+    mode === "edit" ? "Edit" : mode === "split" ? "Split" : "Preview";
+  const saveStatusLabel = draftDirty
+    ? "Ungespeichert"
+    : lastSavedAt
+      ? `Gespeichert ${lastSavedAt}`
+      : "Bereit";
+  const autosaveLabel = t.editor.autosave
+    ? `Autosave ${Math.round(t.editor.autosaveInterval / 1000)}s`
+    : "Autosave aus";
 
   // Small formatting button
   const FmtBtn = ({
@@ -1825,15 +1393,31 @@ export function NotesView() {
               style={{ fontSize: 14, minWidth: 0 }}
               value={active.title}
               onChange={(e) => updateNote(active.id, { title: e.target.value })}
-              placeholder="Titel..."
+              placeholder="Notiztitel..."
             />
+            <div className="nx-notes-editor-meta" aria-live="polite">
+              <span
+                data-state={draftDirty ? "dirty" : "saved"}
+                title={saveStatusLabel}
+              >
+                {saveStatusLabel}
+              </span>
+              <span>{autosaveLabel}</span>
+              <span>{modeLabel}</span>
+            </div>
             <div className="nx-notes-mode-actions flex gap-0.5 items-center shrink-0">
               {/* View mode */}
               {(["edit", "split", "preview"] as const).map((m) => (
                 <InteractiveActionButton
                   key={m}
                   onClick={() => setMode(m)}
-                  title={m}
+                  title={
+                    m === "edit"
+                      ? "Nur Editor"
+                      : m === "split"
+                        ? "Editor und Vorschau"
+                        : "Nur Vorschau"
+                  }
                   motionId={`notes-mode-${m}`}
                   selected={mode === m}
                   areaHint={54}
@@ -2385,7 +1969,7 @@ export function NotesView() {
                         <strong>Emoji Library</strong>
                         <span>
                           {emojiResults.length} sichtbar /{" "}
-                          {NOTES_EMOJI_GROUPS.length} Kategorien
+                          {emojiGroups.length} Kategorien
                         </span>
                       </div>
                       <button
@@ -2405,7 +1989,7 @@ export function NotesView() {
                       />
                     </div>
                     <div className="nx-notes-emoji-cats">
-                      {NOTES_EMOJI_GROUPS.map((group) => (
+                      {emojiGroups.map((group) => (
                         <button
                           key={group.id}
                           type="button"

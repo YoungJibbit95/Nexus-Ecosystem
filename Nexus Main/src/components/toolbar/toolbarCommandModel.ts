@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { createCaptureIntent, parseCaptureIntentFromQuery, type CaptureIntent } from "@nexus/core";
 import { PRESETS } from "../../store/themeStore";
-import { VIEW_ITEMS } from "./constants";
+import { VIEW_ITEMS, type ToolbarViewItem } from "./constants";
 import type { CommandItem } from "./types";
 
 type ThemeLike = {
@@ -54,6 +54,7 @@ type BuildToolbarCommandsInput = {
   addCanvas: (name?: string) => void;
   runCaptureIntent: (intent: CaptureIntent) => void;
   setView?: (view: any) => void;
+  viewItems?: ToolbarViewItem[];
 };
 
 export function buildToolbarCommands({
@@ -64,6 +65,7 @@ export function buildToolbarCommands({
   addCanvas,
   runCaptureIntent,
   setView,
+  viewItems = [...VIEW_ITEMS],
 }: BuildToolbarCommandsInput): CommandItem[] {
   return [
     {
@@ -277,7 +279,7 @@ export function buildToolbarCommands({
       action: () =>
         t.setSidebarPosition(t.sidebarPosition === "left" ? "right" : "left"),
     },
-    ...VIEW_ITEMS.map((v) => ({
+    ...viewItems.map((v) => ({
       id: `goto-${v.id}`,
       label: `Go to ${v.label}`,
       type: "command" as const,
@@ -306,6 +308,7 @@ type BuildToolbarSuggestionsInput = {
   app: ToolbarAppLike;
   canvases: Array<any>;
   setView?: (view: any) => void;
+  viewItems?: ToolbarViewItem[];
   runCaptureIntent: (intent: CaptureIntent) => void;
   runTerminalCommand: (command: string) => void;
 };
@@ -316,6 +319,7 @@ export function buildToolbarSuggestions({
   app,
   canvases,
   setView,
+  viewItems = [...VIEW_ITEMS],
   runCaptureIntent,
   runTerminalCommand,
 }: BuildToolbarSuggestionsInput) {
@@ -356,7 +360,7 @@ export function buildToolbarSuggestions({
 
   if (gotoMatch?.[2]?.trim()) {
     const targetQ = gotoMatch[2].trim().toLowerCase();
-    const target = VIEW_ITEMS.find(
+    const target = viewItems.find(
       (view) => view.id.includes(targetQ) || view.label.toLowerCase().includes(targetQ),
     );
     if (target) {

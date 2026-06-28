@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { Glass } from "../Glass";
 import { hexToRgb } from "../../lib/utils";
-import { VIEW_ITEMS } from "./constants";
+import { VIEW_ITEMS, type ToolbarViewItem } from "./constants";
 import type { CommandItem } from "./types";
 
 export function CommandPanel({
@@ -31,6 +31,7 @@ export function CommandPanel({
   pinnedCommands,
   recentCommands,
   quickActions,
+  viewItems = [...VIEW_ITEMS],
 }: {
   isBottom: boolean;
   t: any;
@@ -50,6 +51,7 @@ export function CommandPanel({
   pinnedCommands: CommandItem[];
   recentCommands: CommandItem[];
   quickActions: CommandItem[];
+  viewItems?: ToolbarViewItem[];
 }) {
   return (
     <Glass
@@ -237,7 +239,7 @@ export function CommandPanel({
           <div
             style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 8 }}
           >
-            {VIEW_ITEMS.map((v) => (
+            {viewItems.map((v) => (
               <button
                 key={v.id}
                 onClick={() => {

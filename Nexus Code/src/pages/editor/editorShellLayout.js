@@ -1,3 +1,8 @@
+import {
+  getBottomPanelSize,
+  getSidePanelSize,
+} from "./workbenchLayoutModel";
+
 export const PANEL_META = {
   explorer: {
     title: "Explorer",
@@ -10,6 +15,10 @@ export const PANEL_META = {
   problems: {
     title: "Problems",
     detail: "Diagnose und Hinweise",
+  },
+  terminal: {
+    title: "Terminal",
+    detail: "Workspace shell",
   },
   git: {
     title: "Git",
@@ -31,12 +40,8 @@ export const PANEL_META = {
 
 export const PANEL_BOUNDS = {
   railWidth: "w-14",
-  compactWidth: "w-[min(22rem,calc(100vw-3.25rem))]",
-  desktopWidth: "w-[clamp(18rem,24vw,23rem)]",
-  desktopMinWidth: "min-w-[18rem]",
-  desktopMaxWidth: "max-w-[23rem]",
-  bottomHeight: "h-[clamp(14rem,32vh,21rem)]",
-  compactBottomHeight: "h-[min(18rem,42vh)]",
+  bottomHeight: "h-[clamp(13rem,30vh,19rem)]",
+  compactBottomHeight: "h-[min(17rem,42vh)]",
 };
 
 export function getPanelMeta(panelId) {
@@ -59,17 +64,30 @@ export function getSidePanelClassName({ compact }) {
       "relative",
       "h-full",
       "shrink-0",
-      PANEL_BOUNDS.compactWidth,
       "shadow-2xl",
     ].join(" ");
   }
 
   return [
     "relative",
-    PANEL_BOUNDS.desktopWidth,
-    PANEL_BOUNDS.desktopMinWidth,
-    PANEL_BOUNDS.desktopMaxWidth,
+    "shrink-0",
   ].join(" ");
+}
+
+export function getSidePanelStyle({ compact = false, size } = {}) {
+  const panelSize = getSidePanelSize(size);
+  if (compact) {
+    return {
+      width: panelSize.compactWidth,
+      maxWidth: "calc(100vw - 3.25rem)",
+    };
+  }
+
+  return {
+    width: panelSize.width,
+    minWidth: panelSize.minWidth,
+    maxWidth: panelSize.maxWidth,
+  };
 }
 
 export function getRailClassName(side = "left") {
@@ -90,9 +108,10 @@ export function getMainEditorClassName() {
   ].join(" ");
 }
 
-export function getBottomPanelClassName({ compact = false } = {}) {
+export function getBottomPanelClassName({ compact = false, size } = {}) {
+  const panelSize = getBottomPanelSize(size);
   const heightClass = compact
-    ? PANEL_BOUNDS.compactBottomHeight
-    : PANEL_BOUNDS.bottomHeight;
+    ? panelSize.compactClassName
+    : panelSize.className;
   return `nx-code-bottom-panel ${heightClass} min-h-0 overflow-hidden`;
 }

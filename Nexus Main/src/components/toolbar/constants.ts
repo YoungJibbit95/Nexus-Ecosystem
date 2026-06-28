@@ -27,6 +27,7 @@ export const VIEW_ITEMS = [
 ] as const;
 
 export type ViewId = (typeof VIEW_ITEMS)[number]["id"];
+export type ToolbarViewItem = (typeof VIEW_ITEMS)[number];
 
 export const SPOTLIGHT_PINS_KEY = "nx-spotlight-pins-v1";
 export const SPOTLIGHT_RECENTS_KEY = "nx-spotlight-recents-v1";

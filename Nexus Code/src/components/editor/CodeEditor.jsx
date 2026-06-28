@@ -7,10 +7,12 @@ import {
   highlightActiveLine,
   highlightActiveLineGutter,
   highlightSpecialChars,
+  hoverTooltip,
   keymap,
   lineNumbers,
   placeholder,
   rectangularSelection,
+  scrollPastEnd,
 } from "@codemirror/view";
 import { EditorState, Compartment } from "@codemirror/state";
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
@@ -22,14 +24,13 @@ import {
 } from "@codemirror/autocomplete";
 import {
   bracketMatching,
-  defaultHighlightStyle,
   foldGutter,
   foldKeymap,
   indentOnInput,
   syntaxHighlighting,
 } from "@codemirror/language";
 import { lintGutter, lintKeymap, setDiagnostics } from "@codemirror/lint";
-import { searchKeymap, highlightSelectionMatches } from "@codemirror/search";
+import { search, searchKeymap, highlightSelectionMatches } from "@codemirror/search";
 import { javascript } from "@codemirror/lang-javascript";
 import { json } from "@codemirror/lang-json";
 import { html } from "@codemirror/lang-html";
@@ -55,6 +56,18 @@ import {
   createElectronLspTransport,
   hasElectronLspBridge,
 } from "../../ide/lsp/index.js";
+import {
+  cmPosToLspPosition,
+  createEditorHighlightStyle,
+  createSnippetCompletions,
+  findDiagnosticAtPosition,
+  lspCompletionsToCodeMirror,
+  lspDiagnosticsToCodeMirror,
+  lspDiagnosticsToProblems,
+  lspRangeToCodeMirrorRange,
+  readHoverText,
+  shouldRequestLspCompletion,
+} from "../../pages/editor/editorFeatureModel.js";
 
 const EDITOR_CHANGE_EMIT_INTERVAL_MS = 48;
 const CURSOR_INFO_UPDATE_MS = 45;
@@ -119,9 +132,10 @@ function hexToRgba(value, alpha) {
 }
 
 function createNexusCodeMirrorTheme(settings, compactViewport, editorFontSize, editorLineHeight) {
-  const theme = EDITOR_THEMES[settings.theme] || EDITOR_THEMES.nexus_vibrant;
+  const theme = resolveEditorTheme(settings);
   const accent = safeHex(settings.primary_accent || theme.accent, "#8b5cf6");
   const text = safeHex(theme.text, "#f3f4f6");
+  const muted = safeHex(theme.muted, "#8b93a7");
   const selection = theme.selection || hexToRgba(accent, 0.26);
   const panelSurface = "var(--nexus-panel-surface)";
   const letterSpacing = resolveEditorLetterSpacing(settings);
@@ -135,7 +149,15 @@ function createNexusCodeMirrorTheme(settings, compactViewport, editorFontSize, e
         color: text,
         fontFamily: resolveEditorFontFamily(settings),
         fontSize: `${editorFontSize}px`,
+        fontWeight: String(settings.font_weight || "400"),
         letterSpacing: `${letterSpacing}px`,
+        textRendering: "optimizeLegibility",
+        WebkitFontSmoothing: "antialiased",
+        fontSynthesis: "none",
+        outline: "none",
+      },
+      "&.cm-focused": {
+        outline: "none",
       },
       ".cm-scroller": {
         height: "100%",
@@ -148,13 +170,16 @@ function createNexusCodeMirrorTheme(settings, compactViewport, editorFontSize, e
         minHeight: "100%",
         padding: `${compactViewport ? 14 : 20}px ${compactViewport ? 14 : 24}px`,
         caretColor: accent,
+        color: text,
       },
       ".cm-line": {
         padding: "0 2px",
+        color: "inherit",
+        textRendering: "inherit",
       },
       ".cm-gutters": {
         background: "rgba(0,0,0,0.12)",
-        color: "#7d8598",
+        color: muted,
         borderRight: "1px solid rgba(255,255,255,0.05)",
       },
       ".cm-lineNumbers .cm-gutterElement": {
@@ -166,7 +191,7 @@ function createNexusCodeMirrorTheme(settings, compactViewport, editorFontSize, e
       },
       ".cm-activeLineGutter": {
         backgroundColor: hexToRgba(accent, 0.1),
-        color: "#d8b4fe",
+        color: text,
       },
       ".cm-selectionBackground, .cm-content ::selection": {
         backgroundColor: selection,
@@ -190,9 +215,63 @@ function createNexusCodeMirrorTheme(settings, compactViewport, editorFontSize, e
         color: "var(--nexus-text)",
         boxShadow: "0 18px 55px rgba(0,0,0,0.35)",
       },
+      ".cm-tooltip-autocomplete": {
+        minWidth: compactViewport ? "17rem" : "22rem",
+      },
+      ".cm-tooltip-autocomplete > ul": {
+        maxHeight: compactViewport ? "15rem" : "22rem",
+        fontFamily: "inherit",
+      },
       ".cm-tooltip-autocomplete ul li[aria-selected]": {
         background: hexToRgba(accent, 0.18),
         color: "#fff",
+      },
+      ".cm-completionLabel": {
+        color: text,
+      },
+      ".cm-completionDetail": {
+        color: muted,
+        marginLeft: "0.75rem",
+      },
+      ".cm-completionInfo": {
+        maxWidth: compactViewport ? "18rem" : "28rem",
+        color: text,
+        background: panelSurface,
+        border: "1px solid var(--nexus-border)",
+        borderRadius: "8px",
+        boxShadow: "0 18px 55px rgba(0,0,0,0.35)",
+        whiteSpace: "pre-wrap",
+      },
+      ".cm-panels": {
+        color: text,
+      },
+      ".cm-panels.cm-panels-top": {
+        borderBottom: "1px solid var(--nexus-border)",
+      },
+      ".cm-search": {
+        padding: "6px 8px",
+        display: "flex",
+        flexWrap: "wrap",
+        gap: "6px",
+        alignItems: "center",
+      },
+      ".cm-search input": {
+        minHeight: "1.75rem",
+        borderRadius: "6px",
+        border: "1px solid var(--nexus-border)",
+        background: "rgba(255,255,255,0.055)",
+        color: text,
+        outline: "none",
+      },
+      ".cm-search button": {
+        minHeight: "1.75rem",
+        borderRadius: "6px",
+        border: "1px solid var(--nexus-border)",
+        background: "rgba(255,255,255,0.065)",
+        color: text,
+      },
+      ".cm-search button:hover": {
+        background: hexToRgba(accent, 0.16),
       },
       ".cm-searchMatch": {
         backgroundColor: "rgba(250,204,21,0.24)",
@@ -204,11 +283,51 @@ function createNexusCodeMirrorTheme(settings, compactViewport, editorFontSize, e
       ".cm-diagnostic": {
         borderRadius: "4px",
       },
+      ".cm-diagnostic-error": {
+        textDecorationColor: "#ef4444",
+      },
+      ".cm-diagnostic-warning": {
+        textDecorationColor: "#f59e0b",
+      },
+      ".cm-tooltip.nx-cm-hover-tooltip": {
+        background: "transparent",
+        border: "0",
+        boxShadow: "none",
+      },
+      ".nx-cm-hover-card": {
+        maxWidth: compactViewport ? "18rem" : "32rem",
+        borderRadius: "8px",
+        border: "1px solid var(--nexus-border)",
+        background: panelSurface,
+        backdropFilter: "var(--nexus-panel-filter)",
+        boxShadow: "0 18px 55px rgba(0,0,0,0.35)",
+        overflow: "hidden",
+      },
+      ".nx-cm-hover-title": {
+        padding: "7px 10px 5px",
+        color: muted,
+        fontSize: "10px",
+        fontWeight: 700,
+        textTransform: "uppercase",
+        letterSpacing: "0",
+        borderBottom: "1px solid rgba(255,255,255,0.06)",
+      },
+      ".nx-cm-hover-body": {
+        margin: 0,
+        padding: "9px 10px 10px",
+        color: text,
+        fontFamily: "inherit",
+        fontSize: `${Math.max(11, editorFontSize - 1)}px`,
+        lineHeight: "1.45",
+        whiteSpace: "pre-wrap",
+        overflow: "auto",
+        maxHeight: compactViewport ? "12rem" : "18rem",
+      },
       ".cm-foldGutter .cm-gutterElement": {
-        color: "#64748b",
+        color: muted,
       },
       ".cm-placeholder": {
-        color: "#64748b",
+        color: muted,
       },
     },
     { dark: true },
@@ -267,121 +386,30 @@ function countLines(value) {
   return lines;
 }
 
-function cmPosToLspPosition(doc, pos) {
-  const line = doc.lineAt(pos);
-  return {
-    lineNumber: line.number,
-    column: pos - line.from + 1,
-  };
+function resolveEditorTheme(settings) {
+  return EDITOR_THEMES[settings.theme] || EDITOR_THEMES.nexus_vibrant;
 }
 
-function lspSeverityToProblemSeverity(severity) {
-  if (severity === 1 || severity === "error") return 8;
-  if (severity === 2 || severity === "warning") return 4;
-  return 2;
+function resolveEditorAccent(settings) {
+  const theme = resolveEditorTheme(settings);
+  return safeHex(settings.primary_accent || theme.accent, "#8b5cf6");
 }
 
-function lspDiagnosticsToProblems(diagnostics, resource) {
-  return (diagnostics || []).slice(0, 140).map((diagnostic) => {
-    const range = diagnostic.range || {};
-    const start = range.start || {};
-    const end = range.end || {};
-    return {
-      message: diagnostic.message || "Diagnostic",
-      source: diagnostic.source || "nexus-lsp",
-      code: diagnostic.code,
-      severity: lspSeverityToProblemSeverity(diagnostic.severity),
-      startLineNumber: Number(start.line ?? 0) + 1,
-      startColumn: Number(start.character ?? 0) + 1,
-      endLineNumber: Number(end.line ?? start.line ?? 0) + 1,
-      endColumn: Number(end.character ?? start.character ?? 0) + 1,
-      resource,
-    };
-  });
-}
+function createHoverTooltipDom({ title, text, accent, tone = "default" }) {
+  const dom = document.createElement("div");
+  dom.className = `nx-cm-hover-card nx-cm-hover-card-${tone}`;
+  dom.style.borderTop = `2px solid ${accent}`;
 
-function lspDiagnosticsToCodeMirror(diagnostics, view) {
-  const doc = view?.state?.doc;
-  if (!doc) return [];
-  return (diagnostics || []).slice(0, 180).map((diagnostic) => {
-    const range = diagnostic.range || {};
-    const startLine = Math.max(1, Number(range.start?.line ?? 0) + 1);
-    const endLine = Math.max(1, Number(range.end?.line ?? range.start?.line ?? 0) + 1);
-    const safeStartLine = Math.min(doc.lines, startLine);
-    const safeEndLine = Math.min(doc.lines, endLine);
-    const startInfo = doc.line(safeStartLine);
-    const endInfo = doc.line(safeEndLine);
-    const from = Math.min(
-      doc.length,
-      startInfo.from + Math.max(0, Number(range.start?.character ?? 0)),
-    );
-    const to = Math.max(
-      from,
-      Math.min(doc.length, endInfo.from + Math.max(0, Number(range.end?.character ?? 0))),
-    );
-    return {
-      from,
-      to: to || Math.min(doc.length, from + 1),
-      severity: diagnostic.severity === 1 ? "error" : diagnostic.severity === 2 ? "warning" : "info",
-      message: diagnostic.message || "Diagnostic",
-      source: diagnostic.source || "nexus-lsp",
-    };
-  });
-}
+  const heading = document.createElement("div");
+  heading.className = "nx-cm-hover-title";
+  heading.textContent = title;
 
-function normalizeCompletionLabel(item) {
-  if (typeof item?.label === "string") return item.label;
-  if (item?.label?.label) return item.label.label;
-  return String(item?.insertText || item?.textEdit?.newText || "completion");
-}
+  const body = document.createElement("pre");
+  body.className = "nx-cm-hover-body";
+  body.textContent = text.length > 2600 ? `${text.slice(0, 2600)}\n...` : text;
 
-function completionType(kind) {
-  const numeric = Number(kind);
-  if ([3, 7, 8, 9, 22].includes(numeric)) return "function";
-  if ([5, 6, 10, 11, 12, 13].includes(numeric)) return "variable";
-  if ([14, 15, 16, 17, 18, 19].includes(numeric)) return "keyword";
-  if ([20, 21].includes(numeric)) return "constant";
-  if ([24, 25].includes(numeric)) return "type";
-  return "text";
-}
-
-function createSnippetCompletions(context) {
-  const word = context.matchBefore(/[\w-]*/);
-  const from = word ? word.from : context.pos;
-  return {
-    from,
-    options: [
-      {
-        label: "nexus-component",
-        type: "function",
-        detail: "Nexus React component",
-        apply: [
-          "import React from 'react';",
-          "import { motion } from 'framer-motion';",
-          "",
-          "export default function ComponentName() {",
-          "  return (",
-          "    <motion.div className=\"nexus-glass p-6 rounded-lg\">",
-          "      <h1>Hello Nexus</h1>",
-          "    </motion.div>",
-          "  );",
-          "}",
-        ].join("\n"),
-      },
-      {
-        label: "clg",
-        type: "function",
-        detail: "console.log",
-        apply: "console.log();",
-      },
-      {
-        label: "useState",
-        type: "function",
-        detail: "React state hook",
-        apply: "const [value, setValue] = useState(null);",
-      },
-    ],
-  };
+  dom.append(heading, body);
+  return dom;
 }
 
 export default function CodeEditor({
@@ -424,6 +452,7 @@ export default function CodeEditor({
     label: "LSP",
     message: "",
   });
+  const [editorFocused, setEditorFocused] = useState(false);
   const editorViewRef = useRef(null);
   const codeRef = useRef(code || "");
   const lspEngineRef = useRef(null);
@@ -436,6 +465,7 @@ export default function CodeEditor({
   const lineCountTimerRef = useRef(null);
   const pendingLineCountRef = useRef(1);
   const diagnosticsHashRef = useRef("");
+  const currentDiagnosticsRef = useRef([]);
   const installedExtensions = Array.isArray(settings.extensions_installed)
     ? settings.extensions_installed
     : [];
@@ -460,6 +490,15 @@ export default function CodeEditor({
     [settings.tab_size, tabSize],
   );
   const showDiagnostics = settings.validation_decorations !== false;
+  const editorTheme = useMemo(() => resolveEditorTheme(settings), [settings.theme]);
+  const editorAccent = useMemo(
+    () => resolveEditorAccent(settings),
+    [settings.primary_accent, settings.theme],
+  );
+  const editorHighlightStyle = useMemo(
+    () => createEditorHighlightStyle(editorTheme),
+    [editorTheme],
+  );
 
   const flushPendingChange = useCallback(() => {
     if (changeEmitTimerRef.current) {
@@ -568,7 +607,12 @@ export default function CodeEditor({
     lspEngineRef.current = null;
     lspDocumentUriRef.current = null;
     lspVersionRef.current = 1;
+    currentDiagnosticsRef.current = [];
     updateProblems([]);
+    const currentView = editorViewRef.current;
+    if (currentView) {
+      currentView.dispatch(setDiagnostics(currentView.state, []));
+    }
 
     if (!canUseLsp) {
       setLspStatus({
@@ -594,9 +638,15 @@ export default function CodeEditor({
       onDiagnostics: ({ uri, diagnostics }) => {
         if (!active) return;
         if (uri && lspDocumentUriRef.current && uri !== lspDocumentUriRef.current) return;
+        currentDiagnosticsRef.current = diagnostics || [];
         const view = editorViewRef.current;
-        if (view && showDiagnostics) {
-          view.dispatch(setDiagnostics(view.state, lspDiagnosticsToCodeMirror(diagnostics, view)));
+        if (view) {
+          view.dispatch(
+            setDiagnostics(
+              view.state,
+              showDiagnostics ? lspDiagnosticsToCodeMirror(diagnostics, view) : [],
+            ),
+          );
         }
         updateProblems(diagnostics || []);
       },
@@ -674,10 +724,7 @@ export default function CodeEditor({
       const snippets = createSnippetCompletions(context);
       const engine = lspEngineRef.current;
       const documentUri = lspDocumentUriRef.current;
-      const shouldAskLsp =
-        engine &&
-        documentUri &&
-        (context.explicit || /[.\w:/<#@"'-]$/.test(context.state.sliceDoc(Math.max(0, context.pos - 1), context.pos)));
+      const shouldAskLsp = engine && documentUri && shouldRequestLspCompletion(context);
 
       if (!shouldAskLsp) {
         return context.explicit ? snippets : null;
@@ -688,28 +735,65 @@ export default function CodeEditor({
         const completionList = await engine.getCompletions(documentUri, position, {
           triggerKind: context.explicit ? 1 : 2,
         });
-        const word = context.matchBefore(/[\w$-]*/);
-        const from = word ? word.from : context.pos;
-        const options = (completionList?.items || []).slice(0, 80).map((item) => {
-          const label = normalizeCompletionLabel(item);
-          return {
-            label,
-            type: completionType(item.kind),
-            detail: item.detail || item.labelDetails?.detail || "",
-            info: item.documentation?.value || item.documentation || "",
-            apply: item.insertText || item.textEdit?.newText || label,
-          };
-        });
-        return {
-          from,
-          options: [...snippets.options, ...options],
-          validFor: /^[\w$-]*$/,
-        };
+        return lspCompletionsToCodeMirror(context, completionList, snippets);
       } catch {
         return snippets;
       }
     },
     [],
+  );
+
+  const hoverSource = useCallback(
+    async (view, pos) => {
+      const diagnostic = showDiagnostics
+        ? findDiagnosticAtPosition(currentDiagnosticsRef.current, view, pos)
+        : null;
+      const engine = lspEngineRef.current;
+      const documentUri = lspDocumentUriRef.current;
+      let hoverText = "";
+      let hoverRange = null;
+
+      if (engine && documentUri && !isLargeFile) {
+        try {
+          const hover = await engine.getHover(
+            documentUri,
+            cmPosToLspPosition(view.state.doc, pos),
+            {},
+          );
+          hoverText = readHoverText(hover);
+          hoverRange = lspRangeToCodeMirrorRange(view.state.doc, hover?.range);
+        } catch {
+          hoverText = "";
+        }
+      }
+
+      if (!hoverText && diagnostic) {
+        hoverText = diagnostic.message;
+      }
+      if (!hoverText) return null;
+
+      const word = view.state.wordAt(pos);
+      const tooltipFrom = hoverRange?.from ?? diagnostic?.from ?? word?.from ?? pos;
+      const tooltipTo = hoverRange?.to ?? diagnostic?.to ?? word?.to ?? pos;
+      const diagnosticOnly = diagnostic && hoverText === diagnostic.message;
+      const tone = diagnostic?.severity || "default";
+
+      return {
+        pos: tooltipFrom,
+        end: Math.max(tooltipTo, tooltipFrom + 1),
+        above: true,
+        class: "nx-cm-hover-tooltip",
+        create: () => ({
+          dom: createHoverTooltipDom({
+            title: diagnosticOnly ? "Diagnostic" : "LSP Hover",
+            text: hoverText,
+            accent: editorAccent,
+            tone,
+          }),
+        }),
+      };
+    },
+    [editorAccent, isLargeFile, showDiagnostics],
   );
 
   const cmTheme = useMemo(
@@ -738,7 +822,8 @@ export default function CodeEditor({
       indentOnInput(),
       rectangularSelection(),
       bracketMatching(),
-      syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+      search({ top: true }),
+      syntaxHighlighting(editorHighlightStyle, { fallback: true }),
       keymap.of([
         indentWithTab,
         ...closeBracketsKeymap,
@@ -751,6 +836,7 @@ export default function CodeEditor({
       ]),
       EditorState.tabSize.of(editorTabSize),
       wordWrap ? EditorView.lineWrapping : [],
+      scrollPastEnd(),
       EditorView.updateListener.of((update) => {
         if (update.docChanged) {
           const nextValue = update.state.doc.toString();
@@ -776,14 +862,31 @@ export default function CodeEditor({
         }
       }),
       EditorView.domEventHandlers({
-        blur: () => flushPendingChange(),
+        focus: () => setEditorFocused(true),
+        blur: () => {
+          setEditorFocused(false);
+          flushPendingChange();
+        },
       }),
       autocompletion({
         override: [completionSource],
         activateOnTyping: !isLargeFile,
+        activateOnTypingDelay: 80,
+        selectOnOpen: true,
+        maxRenderedOptions: compactViewport ? 45 : 80,
+        aboveCursor: compactViewport,
+        tooltipClass: () => "nx-cm-completion-tooltip",
         closeOnBlur: false,
       }),
-      highlightSelectionMatches(),
+      hoverTooltip(hoverSource, {
+        hoverTime: 260,
+        hideOnChange: "touch",
+      }),
+      highlightSelectionMatches({
+        highlightWordAroundCursor: !isLargeFile,
+        minSelectionLength: 2,
+        maxMatches: 160,
+      }),
       placeholder("Schreib Code, Markdown, JSON oder Notizen direkt hier..."),
       cmThemeCompartment.of(cmTheme),
       languageCompartment.of(getLanguageExtension(nexusLanguageId, fileName)),
@@ -799,10 +902,12 @@ export default function CodeEditor({
     cmTheme,
     compactViewport,
     completionSource,
+    editorHighlightStyle,
     editorTabSize,
     emitEditorChange,
     fileName,
     flushPendingChange,
+    hoverSource,
     isLargeFile,
     nexusLanguageId,
     scheduleCursorInfoUpdate,
@@ -827,6 +932,22 @@ export default function CodeEditor({
     [],
   );
 
+  const handleCanvasMouseDown = useCallback((event) => {
+    if (event.button !== 0) return;
+    const target = event.target;
+    if (
+      target?.closest?.(
+        ".cm-panel, .cm-tooltip, button, input, textarea, select, [contenteditable='true']",
+      )
+    ) {
+      return;
+    }
+    window.requestAnimationFrame(() => {
+      const view = editorViewRef.current;
+      if (view && !view.hasFocus) view.focus();
+    });
+  }, []);
+
   const engineLabel = "CodeMirror 6";
   const lspTone =
     lspStatus.state === "running"
@@ -842,8 +963,12 @@ export default function CodeEditor({
       className="nx-code-editor-shell flex-1 flex flex-col min-h-0 w-full relative overflow-hidden bg-transparent"
       style={{ background: "transparent" }}
       data-editor-engine="codemirror"
+      data-focused={editorFocused ? "true" : "false"}
     >
-      <div className="nx-code-editor-canvas flex-1 min-h-0 w-full relative overflow-hidden">
+      <div
+        className="nx-code-editor-canvas flex-1 min-h-0 w-full relative overflow-hidden"
+        onMouseDown={handleCanvasMouseDown}
+      >
         <CodeMirror
           value={code || ""}
           height="100%"

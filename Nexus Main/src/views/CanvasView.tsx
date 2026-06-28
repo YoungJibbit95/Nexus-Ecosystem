@@ -711,6 +711,7 @@ export function CanvasView() {
   const renderCanvasNotice = () =>
     canvasNotice ? (
       <div
+        className="nx-canvas-notice"
         style={{
           position: "absolute",
           right: 16,
@@ -727,6 +728,7 @@ export function CanvasView() {
           boxShadow: "0 10px 32px rgba(0,0,0,0.22)",
           backdropFilter: "blur(18px)",
           pointerEvents: "none",
+          ["--nx-canvas-notice-rgb" as any]: rgb,
         }}
       >
         {canvasNotice}
@@ -807,7 +809,6 @@ export function CanvasView() {
           addWidgetNode={addWidgetNode}
           onOpenQuickAddMenu={openQuickAddMenuFromToolbar}
           createStarterPack={() => createStarterPack()}
-          createMagicTemplate={createMagicTemplate}
           openProjectSearch={openProjectSearch}
           showProjectPanel={showProjectPanel}
           setShowProjectPanel={setShowProjectPanel}
@@ -870,11 +871,12 @@ export function CanvasView() {
 
         {canvas && canvas.nodes.length === 0 && (
           <div
+            className="nx-canvas-empty-overlay"
             style={{
               position: "absolute",
               inset: "54px 0 0",
               zIndex: 120,
-              pointerEvents: "auto",
+              pointerEvents: "none",
             }}
           >
             <CanvasEmptyState
@@ -979,7 +981,7 @@ export function CanvasView() {
                 fontFamily: "monospace",
               }}
             >
-              {Math.round(viewport.zoom * 100)}% | Scroll: Pan | Ctrl/Pinch: Zoom | F: Fokus | Render {visibleNodes.length}/{canvas?.nodes.length ?? 0}
+              Zoom {Math.round(viewport.zoom * 100)}% | Visible {visibleNodes.length}/{canvas?.nodes.length ?? 0} | {snapToGrid ? "Snap on" : "Snap off"} | {layoutMode}
             </div>
           )}
         </div>
