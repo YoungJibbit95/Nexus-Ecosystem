@@ -370,6 +370,10 @@ textarea.nx-typing-active,
     min-height: 0;
 }
 
+.nx-code-workbench {
+    isolation: isolate;
+}
+
 .nx-code-main,
 .nx-code-editor-shell,
 .nx-code-editor-canvas {
@@ -377,7 +381,10 @@ textarea.nx-typing-active,
 }
 
 .nx-code-titlebar {
+    flex: 0 0 2.5rem;
     min-width: 0;
+    overflow: visible;
+    z-index: 60;
     color: var(--nexus-text, #e5e7eb);
     background: var(--nexus-titlebar, var(--nexus-surface, rgba(17, 20, 29, 0.82)));
     border-color: var(--nexus-border, rgba(142, 153, 183, 0.16));
@@ -389,10 +396,24 @@ textarea.nx-typing-active,
 }
 
 .nx-code-side-panel {
+    z-index: 30;
     color: var(--nexus-text, #e5e7eb);
     contain: layout paint;
     background: var(--nexus-side-panel, var(--nexus-surface, rgba(17, 20, 29, 0.82)));
     border-color: var(--nexus-border, rgba(142, 153, 183, 0.16));
+}
+
+.nx-code-account-panel {
+    position: relative;
+    z-index: 0;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.025), rgba(0, 0, 0, 0.035)),
+        transparent;
+}
+
+.nx-code-account-panel,
+.nx-code-account-panel > * {
+    min-width: 0;
 }
 
 .nx-code-settings-host {
@@ -483,7 +504,22 @@ textarea.nx-typing-active,
     }
 
     .nx-code-shell-compact .nx-code-side-panel {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        height: auto;
+        width: min(24rem, calc(100vw - 3.25rem));
         max-width: calc(100vw - 3.25rem);
+    }
+
+    .nx-code-shell-compact .nx-code-side-panel.left-14 {
+        left: 3.25rem;
+        right: auto;
+    }
+
+    .nx-code-shell-compact .nx-code-side-panel.right-14 {
+        right: 3.25rem;
+        left: auto;
     }
 
     .nx-code-shell-compact .nx-code-tabbar-actions {

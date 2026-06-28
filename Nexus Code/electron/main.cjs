@@ -554,6 +554,17 @@ ipcMain.handle("fs:read-directory", async (_event, dirPath) => {
     for (const entry of entries) {
       const fullPath = path.join(safeDir.canonical, entry.name);
       try {
+        if (!entry.isSymbolicLink()) {
+          files.push({
+            name: entry.name,
+            path: fullPath,
+            isDirectory: entry.isDirectory(),
+            size: null,
+            modified: null,
+          });
+          continue;
+        }
+
         const canonical = await fs.realpath(fullPath);
         if (!findAllowedRootForCanonicalPath(canonical)) continue;
         const stats = await fs.stat(canonical);

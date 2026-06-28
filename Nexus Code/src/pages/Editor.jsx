@@ -18,6 +18,7 @@ import SearchPanel from "../components/editor/SearchPanel";
 import GitPanel from "../components/editor/GitPanel";
 import DebugPanel from "../components/editor/DebugPanel";
 import ExtensionsPanel from "../components/editor/ExtensionsPanel";
+import AccountPanel from "../components/editor/AccountPanel";
 import CommandPalette from "../components/editor/CommandPalette";
 import SpotlightSearch from "../components/editor/SpotlightSearch";
 import ProblemsPanel from "../components/editor/ProblemsPanel";
@@ -37,6 +38,7 @@ import {
   saveSettingsToStorage,
   resolveNexusTheme,
 } from './editor/editorShared.jsx';
+import { createFileNodesFromEntries } from "./editor/fileTreeModel";
 import {
   getBottomPanelClassName,
   getPanelMeta,
@@ -111,6 +113,43 @@ function getFileExtensionLabel(file) {
   const extension = String(name).split(".").pop()?.toUpperCase();
   if (!extension || extension === String(name).toUpperCase()) return "TXT";
   return extension.slice(0, 8);
+}
+
+function getFileTreeErrorMessage(error, fallback = "Workspace tree could not be read.") {
+  const message = error?.message || String(error || "");
+  return message.trim() || fallback;
+}
+
+function waitForFileTreeFrame() {
+  if (
+    typeof window === "undefined" ||
+    typeof window.requestAnimationFrame !== "function"
+  ) {
+    return Promise.resolve();
+  }
+  return new Promise((resolve) => {
+    window.requestAnimationFrame(() => resolve());
+  });
+}
+
+function mergeFileTreeNode(node, previousById, options = {}) {
+  const previous = previousById.get(node.id);
+  if (!previous) return node;
+
+  const openTabIds = options.openTabIds instanceof Set ? options.openTabIds : null;
+  const shouldPreserveContent =
+    node.type !== "folder" &&
+    previous.content != null &&
+    (!openTabIds || openTabIds.has(node.id));
+
+  return {
+    ...previous,
+    ...node,
+    content: shouldPreserveContent ? previous.content : node.content,
+    createdAt: previous.createdAt || node.createdAt,
+    modifiedAt: previous.modifiedAt || node.modifiedAt,
+    isOpen: node.type === "folder" ? Boolean(previous.isOpen) : Boolean(node.isOpen),
+  };
 }
 
 function getProblemSummary(problems) {
@@ -267,7 +306,13 @@ function ensureReadableEditorTextColor(preferred, background) {
   return "#111827";
 }
 
-export default function Editor() {
+export default function Editor({
+  accountSession = null,
+  controlStatus = null,
+  onSaveAccountSession,
+  onClearAccountSession,
+  onTestAccountConnection,
+} = {}) {
   // @ts-ignore
   const isElectron = typeof window !== "undefined" && !!window.electronAPI;
   const [activePanel, setActivePanel] = useState("explorer");
@@ -289,6 +334,7 @@ export default function Editor() {
   const settingsPersistTimerRef = useRef(null);
   const codeCommitTimerRef = useRef(null);
   const filesRef = useRef([]);
+  const openTabsRef = useRef([]);
   const activeTabIdRef = useRef(null);
   const editorCodeRef = useRef("");
   const previousActiveTabRef = useRef(null);
@@ -300,6 +346,9 @@ export default function Editor() {
 
   const [settings, setSettings] = useState(loadSettingsFromStorage);
   const [workspacePath, setWorkspacePath] = useState(null);
+  const [workspaceLoading, setWorkspaceLoading] = useState(false);
+  const [workspaceError, setWorkspaceError] = useState("");
+  const fileTreeRequestIdRef = useRef(0);
   const initialPanelRef = useRef("explorer");
   const firstViewSwitchTrackedRef = useRef(false);
   const settingsOpenTrackedRef = useRef(false);
@@ -415,6 +464,10 @@ export default function Editor() {
   useEffect(() => {
     filesRef.current = files;
   }, [files]);
+
+  useEffect(() => {
+    openTabsRef.current = openTabs;
+  }, [openTabs]);
 
   useEffect(() => {
     activeTabIdRef.current = activeTabId;
@@ -556,85 +609,206 @@ export default function Editor() {
     setShowSettings(true);
   }, []);
 
+  const readDirectoryNodes = useCallback(
+    async (targetPath, parentId = null, options = {}) => {
+      if (!isElectron || !targetPath) return [];
+      // @ts-ignore
+      const entries = await window.electronAPI.readDir(targetPath);
+      await waitForFileTreeFrame();
+      const existingIds =
+        options.existingIds instanceof Set
+          ? options.existingIds
+          : new Set((options.existingFiles || []).map((file) => file.id));
+      const previousById =
+        options.previousById instanceof Map ? options.previousById : new Map();
+      const openTabIds =
+        options.openTabIds instanceof Set ? options.openTabIds : new Set();
+      return createFileNodesFromEntries(entries, {
+        parentId,
+        existingIds,
+      }).map((node) => mergeFileTreeNode(node, previousById, { openTabIds }));
+    },
+    [isElectron],
+  );
+
+  const handleRefreshWorkspace = useCallback(async () => {
+    if (!workspacePath || !isElectron) {
+      setWorkspaceError("Kein Workspace geoeffnet.");
+      return;
+    }
+    const requestId = fileTreeRequestIdRef.current + 1;
+    fileTreeRequestIdRef.current = requestId;
+    setWorkspaceError("");
+    setWorkspaceLoading(true);
+    try {
+      flushEditorBuffer();
+      await waitForFileTreeFrame();
+
+      const bufferedFiles = filesRef.current.map((file) =>
+        file.id === activeTabIdRef.current
+          ? { ...file, content: editorCodeRef.current }
+          : file,
+      );
+      const previousById = new Map(
+        bufferedFiles.map((file) => [file.id, file]),
+      );
+      const openTabIds = new Set(openTabsRef.current.map((tab) => tab.id));
+      const openFolderIds = new Set(
+        bufferedFiles
+          .filter((file) => file.type === "folder" && file.isOpen && file.fsPath)
+          .map((file) => file.id),
+      );
+      const nextFiles = [];
+      const nextById = new Map();
+
+      const appendDirectory = async (targetPath, parentId = null) => {
+        const nodes = await readDirectoryNodes(targetPath, parentId, {
+          existingIds: new Set(nextById.keys()),
+          previousById,
+          openTabIds,
+        });
+        if (requestId !== fileTreeRequestIdRef.current) return [];
+        for (const node of nodes) {
+          if (nextById.has(node.id)) continue;
+          nextById.set(node.id, node);
+          nextFiles.push(node);
+        }
+        return nodes;
+      };
+
+      const rootFiles = await appendDirectory(workspacePath, null);
+      const folderQueue = rootFiles.filter(
+        (file) => file.type === "folder" && file.fsPath && openFolderIds.has(file.id),
+      );
+
+      while (folderQueue.length > 0) {
+        if (requestId !== fileTreeRequestIdRef.current) return;
+        const folder = folderQueue.shift();
+        const children = await appendDirectory(folder.fsPath, folder.id);
+        for (const child of children) {
+          if (
+            child.type === "folder" &&
+            child.fsPath &&
+            openFolderIds.has(child.id)
+          ) {
+            folderQueue.push(child);
+          }
+        }
+      }
+
+      if (requestId !== fileTreeRequestIdRef.current) return;
+      setFiles(nextFiles);
+      setOpenTabs((prevTabs) => {
+        const nextTabs = prevTabs.filter((tab) => nextById.has(tab.id));
+        if (activeTabIdRef.current && !nextById.has(activeTabIdRef.current)) {
+          setActiveTabId(
+            nextTabs.length > 0 ? nextTabs[nextTabs.length - 1].id : null,
+          );
+        }
+        return nextTabs;
+      });
+      setSettings((prev) => ({
+        ...prev,
+        sidebar_visible: true,
+        zen_mode: false,
+      }));
+      setActivePanel("explorer");
+    } catch (err) {
+      console.error("Refresh workspace failed", err);
+      if (requestId === fileTreeRequestIdRef.current) {
+        setWorkspaceError(
+          getFileTreeErrorMessage(err, "Workspace konnte nicht aktualisiert werden."),
+        );
+      }
+    } finally {
+      if (requestId === fileTreeRequestIdRef.current) {
+        setWorkspaceLoading(false);
+      }
+    }
+  }, [flushEditorBuffer, isElectron, readDirectoryNodes, workspacePath]);
+
   const handleOpenFolder = useCallback(async () => {
     if (!isElectron) return;
+    const requestId = fileTreeRequestIdRef.current + 1;
+    fileTreeRequestIdRef.current = requestId;
+    setWorkspaceError("");
     try {
       // @ts-ignore
       const path = await window.electronAPI.openFolder();
       if (!path) return;
 
+      setWorkspaceLoading(true);
       setWorkspacePath(path);
+      setFiles([]);
       setOpenTabs([]);
       setActiveTabId(null);
 
-      // @ts-ignore
-      const entries = await window.electronAPI.readDir(path);
-      if (Array.isArray(entries)) {
-        const rootFiles = entries.map((entry) => {
-          const id = "fs_" + entry.path;
-          const name = entry.name || "unnamed";
-          return {
-            id,
-            name,
-            type: entry.isDirectory ? "folder" : "file",
-            parentId: null,
-            isOpen: false,
-            fsPath: entry.path,
-            language: entry.isDirectory
-              ? null
-              : name.split(".").pop() || "text",
-          };
-        });
-        setFiles(rootFiles);
-        setSettings((prev) => ({
-          ...prev,
-          sidebar_visible: true,
-          zen_mode: false,
-        }));
-        setActivePanel("explorer");
-      }
+      const rootFiles = await readDirectoryNodes(path, null, {});
+      if (requestId !== fileTreeRequestIdRef.current) return;
+      setFiles(rootFiles);
+      setSettings((prev) => ({
+        ...prev,
+        sidebar_visible: true,
+        zen_mode: false,
+      }));
+      setActivePanel("explorer");
     } catch (err) {
       console.error("Open folder failed", err);
+      if (requestId === fileTreeRequestIdRef.current) {
+        setWorkspaceError(
+          getFileTreeErrorMessage(err, "Workspace konnte nicht geladen werden."),
+        );
+      }
+    } finally {
+      if (requestId === fileTreeRequestIdRef.current) {
+        setWorkspaceLoading(false);
+      }
     }
-  }, [isElectron]);
+  }, [isElectron, readDirectoryNodes]);
 
   const handleToggleFolder = useCallback(
     async (id) => {
-      const folder = files.find((f) => f.id === id);
+      const currentFiles = filesRef.current;
+      const folder = currentFiles.find((f) => f.id === id);
       if (!folder) return;
 
       // Lazy loading for disk folders
       if (!folder.isOpen && folder.fsPath && isElectron) {
-        const hasLoadedChildren = files.some((f) => f.parentId === id);
+        const hasLoadedChildren = currentFiles.some((f) => f.parentId === id);
         if (!hasLoadedChildren) {
+          const requestId = fileTreeRequestIdRef.current + 1;
+          fileTreeRequestIdRef.current = requestId;
+          setWorkspaceError("");
+          setWorkspaceLoading(true);
           try {
-            // @ts-ignore
-            const entries = await window.electronAPI.readDir(folder.fsPath);
-            if (Array.isArray(entries)) {
-              const children = entries
-                .map((entry) => {
-                  const childId = "fs_" + entry.path;
-                  const name = entry.name || "unnamed";
-                  return {
-                    id: childId,
-                    name,
-                    type: entry.isDirectory ? "folder" : "file",
-                    parentId: id,
-                    isOpen: false,
-                    fsPath: entry.path,
-                    language: entry.isDirectory
-                      ? null
-                      : name.split(".").pop() || "text",
-                  };
-                })
-                .filter((child) => !files.some((f) => f.id === child.id));
-
-              if (children.length > 0) {
-                setFiles((prev) => [...prev, ...children]);
-              }
+            const latestFiles = filesRef.current;
+            const children = await readDirectoryNodes(folder.fsPath, id, {
+              existingFiles: latestFiles,
+              previousById: new Map(latestFiles.map((file) => [file.id, file])),
+              openTabIds: new Set(openTabsRef.current.map((tab) => tab.id)),
+            });
+            if (requestId !== fileTreeRequestIdRef.current) return;
+            if (children.length > 0) {
+              setFiles((prev) => {
+                const existingIds = new Set(prev.map((file) => file.id));
+                const newChildren = children.filter(
+                  (child) => !existingIds.has(child.id),
+                );
+                return newChildren.length > 0 ? [...prev, ...newChildren] : prev;
+              });
             }
           } catch (err) {
             console.error("Failed to lazy load folder", err);
+            if (requestId === fileTreeRequestIdRef.current) {
+              setWorkspaceError(
+                getFileTreeErrorMessage(err, "Ordner konnte nicht geladen werden."),
+              );
+            }
+            return;
+          } finally {
+            if (requestId === fileTreeRequestIdRef.current) {
+              setWorkspaceLoading(false);
+            }
           }
         }
       }
@@ -643,7 +817,7 @@ export default function Editor() {
         prev.map((f) => (f.id === id ? { ...f, isOpen: !f.isOpen } : f)),
       );
     },
-    [files, isElectron],
+    [isElectron, readDirectoryNodes],
   );
   useEffect(() => {
     const root = document.documentElement;
@@ -1316,6 +1490,7 @@ export default function Editor() {
         "toggle-terminal": handleToggleTerminalPanel,
         "open-problems": handleOpenProblemsPanel,
         "open-extensions": () => handleOpenWorkbenchPanel("extensions"),
+        "open-account": () => handleOpenWorkbenchPanel("account"),
         "toggle-zen": handleToggleZenMode,
         "open-settings": handleOpenSettingsPanel,
         "toggle-sidebar": handleToggleSidebar,
@@ -1421,6 +1596,7 @@ export default function Editor() {
                 side={sidebarSide}
                 compact={isCompactViewport}
                 problemCount={problems.length}
+                controlStatus={controlStatus}
               />
             </div>
         )}
@@ -1483,7 +1659,10 @@ export default function Editor() {
                         onRenameFile={handleRenameFile}
                         onDeleteFile={handleDeleteFile}
                         onToggleFolder={handleToggleFolder}
+                        onRefresh={handleRefreshWorkspace}
                         workspacePath={workspacePath}
+                        isLoading={workspaceLoading}
+                        error={workspaceError}
                       />
                     )}
                     {activePanel === "search" && (
@@ -1510,6 +1689,15 @@ export default function Editor() {
                               : [],
                           }));
                         }}
+                      />
+                    )}
+                    {activePanel === "account" && (
+                      <AccountPanel
+                        session={accountSession}
+                        controlStatus={controlStatus}
+                        onSaveSession={onSaveAccountSession}
+                        onClearSession={onClearAccountSession}
+                        onTestConnection={onTestAccountConnection}
                       />
                     )}
                     {activePanel === "problems" && (
@@ -1738,6 +1926,7 @@ export default function Editor() {
                     side={sidebarSide}
                     compact={isCompactViewport}
                     problemCount={problems.length}
+                    controlStatus={controlStatus}
                   />
                 </div>
               )}

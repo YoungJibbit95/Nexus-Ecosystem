@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import {
   HashRouter as Router,
@@ -7,28 +7,32 @@ import {
   Navigate,
   useLocation,
 } from "react-router-dom";
-import { createNexusRuntime, isOfflineControlErrorCode } from "@nexus/api";
+import { createNexusRuntime } from "@nexus/api";
 import { resolveNexusControlUserContext } from "@nexus/core";
+import {
+  DEFAULT_CONTROL_API_BASE_URL,
+  NEXUS_CODE_APP_ID,
+  NEXUS_CODE_CHANNEL,
+  buildControlStatus,
+  classifyControlBootstrapIssue,
+  classifyViewAccessDegradation,
+  collectBootstrapIssues,
+  formatBootstrapIssues,
+  isRecoverableBootstrapIssue,
+  summarizeBootstrapMode,
+} from "./app/controlStatus";
+import {
+  clearNexusAccountSession,
+  loadNexusAccountSession,
+  saveNexusAccountSession,
+} from "./app/accountSession";
+import { testNexusApiConnection } from "./app/nexusApiClient";
 import { beginPerfMetric, endPerfMetric, markPerfMetric } from "./lib/perfMetrics";
 import { installRuntimeLagProbe } from "./lib/runtimeLagProbe";
 import { useGlobalTypingAnimation } from "./lib/useGlobalTypingAnimation";
 
-const CONTROL_API_BASE_URL = "https://nexus-api.cloud";
-const NEXUS_CODE_APP_ID = "code";
-const NEXUS_CODE_CHANNEL = "production";
 const CODE_BOOT_PRELOAD_TIMEOUT_MS = 6_500;
 const CODE_BOOT_PRELOAD_TIMEOUT_LOW_POWER_MS = 9_000;
-const AUTH_LIMITED_CONTROL_CODES = new Set(["HTTP_401", "HTTP_403"]);
-const normalizeControlErrorCode = (errorCodeRaw) =>
-  String(errorCodeRaw || "INVALID_PAYLOAD").trim().toUpperCase() || "INVALID_PAYLOAD";
-const classifyControlBootstrapIssue = (errorCodeRaw) => {
-  const errorCode = normalizeControlErrorCode(errorCodeRaw);
-  if (AUTH_LIMITED_CONTROL_CODES.has(errorCode)) return "limited";
-  if (isOfflineControlErrorCode(errorCode)) return "offline";
-  return "fatal";
-};
-const isRecoverableBootstrapIssue = (errorCodeRaw) =>
-  classifyControlBootstrapIssue(errorCodeRaw) !== "fatal";
 const STARTUP_TTI_METRIC = "code.startup_tti";
 const loadEditorPage = () => import("./pages/Editor");
 const Editor = lazy(() => loadEditorPage());
@@ -172,68 +176,6 @@ const buildCodeFallbackBundle = ({
   release: release || buildCodeFallbackRelease(channel),
 });
 
-const summarizeBootstrapMode = (issues) => {
-  if (!Array.isArray(issues) || issues.length === 0) return "online";
-  const modes = new Set(issues.map((issue) => issue.mode));
-  if (modes.has("limited")) return "limited";
-  if (modes.size === 1 && modes.has("offline")) return "offline";
-  return "degraded";
-};
-
-const buildControlStatus = (mode, details, fallbackReason = "") => {
-  const safeDetails = Array.isArray(details) ? details.filter(Boolean) : [];
-  if (mode === "online") {
-    return {
-      mode: "online",
-      title: "Control API verbunden",
-      message: "Live Katalog, Layout und Release sind aktiv.",
-      details: [],
-    };
-  }
-
-  const title = mode === "limited"
-    ? "Control API limited"
-    : mode === "offline"
-      ? "Control API offline"
-      : "Control API degraded";
-  const message = mode === "limited"
-    ? "Hosted Auth ist nicht verfuegbar. Nexus Code startet mit lokalen Runtime-Daten."
-    : mode === "offline"
-      ? "Hosted Control ist nicht erreichbar. Nexus Code startet mit lokalen Runtime-Daten."
-      : "Control Bootstrap ist eingeschraenkt. Nexus Code nutzt lokale Fallback-Daten.";
-
-  return {
-    mode,
-    title,
-    message: fallbackReason ? `${message} ${fallbackReason}` : message,
-    details: safeDetails,
-  };
-};
-
-const formatBootstrapIssues = (issues) =>
-  issues.map((issue) => `${issue.resource}:${issue.errorCode}`);
-
-const classifyViewAccessDegradation = (reasonRaw, currentMode) => {
-  const reason = String(reasonRaw || "").trim().toUpperCase();
-  if (!reason) return null;
-  if (reason.includes("HTTP_401") || reason.includes("HTTP_403")) return "limited";
-  if (
-    reason.includes("OFFLINE")
-    || reason.includes("TIMEOUT")
-    || reason.includes("HTTP_408")
-    || reason.includes("HTTP_425")
-    || reason.includes("HTTP_429")
-    || reason.includes("HTTP_500")
-    || reason.includes("HTTP_502")
-    || reason.includes("HTTP_503")
-    || reason.includes("HTTP_504")
-  ) {
-    return "offline";
-  }
-  if (reason.includes("NETWORK_ERROR") && currentMode !== "online") return "degraded";
-  return null;
-};
-
 function NexusBridge({ runtime }) {
   const location = useLocation();
 
@@ -330,17 +272,19 @@ function BootSequenceScreen({ progress, stage }) {
 }
 
 function App() {
-  const controlBaseUrl = CONTROL_API_BASE_URL;
+  const [accountSession, setAccountSession] = useState(loadNexusAccountSession);
+  const controlBaseUrl = accountSession.endpoint || DEFAULT_CONTROL_API_BASE_URL;
+  const controlToken = accountSession.token || "";
   const controlIngestKey = import.meta.env?.VITE_NEXUS_CONTROL_INGEST_KEY;
   const lowPowerMode = useMemo(() => isLowPowerDevice(), []);
   const viewAccessContext = useMemo(
     () =>
       resolveNexusControlUserContext({
-        userId: import.meta.env?.VITE_NEXUS_USER_ID,
-        username: import.meta.env?.VITE_NEXUS_USERNAME,
-        userTier: import.meta.env?.VITE_NEXUS_USER_TIER,
+        userId: accountSession.userId || import.meta.env?.VITE_NEXUS_USER_ID,
+        username: accountSession.username || import.meta.env?.VITE_NEXUS_USERNAME,
+        userTier: accountSession.userTier || import.meta.env?.VITE_NEXUS_USER_TIER,
       }),
-    [],
+    [accountSession.userId, accountSession.username, accountSession.userTier],
   );
   useGlobalTypingAnimation(!lowPowerMode);
   const [bootReady, setBootReady] = useState(false);
@@ -362,14 +306,40 @@ function App() {
   });
   const startupMetricDoneRef = useRef(false);
 
+  const handleSaveAccountSession = useCallback((nextSession) => {
+    const saved = saveNexusAccountSession(nextSession);
+    setAccountSession(saved);
+    setControlStatus(buildControlStatus("degraded", ["account:SESSION_UPDATED"]));
+    return saved;
+  }, []);
+
+  const handleClearAccountSession = useCallback(() => {
+    const cleared = clearNexusAccountSession();
+    setAccountSession(cleared);
+    setControlStatus(buildControlStatus("limited", ["account:SESSION_CLEARED"]));
+    return cleared;
+  }, []);
+
+  const handleTestAccountConnection = useCallback(
+    async (draftSession) => {
+      const result = await testNexusApiConnection(draftSession);
+      if (result?.mode) {
+        setControlStatus(buildControlStatus(result.mode, result.details || [], result.message || ""));
+      }
+      return result;
+    },
+    [],
+  );
+
   const runtime = useMemo(
     () =>
       createNexusRuntime({
-        appId: "code",
+        appId: NEXUS_CODE_APP_ID,
         appVersion: "1.0.0",
         control: {
           enabled: Boolean(controlBaseUrl),
           baseUrl: controlBaseUrl,
+          token: controlToken,
           ingestKey: controlIngestKey,
           sampleRate: lowPowerMode ? 0.18 : 0.3,
           flushIntervalMs: 12_000,
@@ -380,6 +350,9 @@ function App() {
           readRetryMax: 1,
           readRetryBaseMs: 120,
           readRetryMaxMs: 1_000,
+          defaultUserId: viewAccessContext.userId,
+          defaultUsername: viewAccessContext.username,
+          defaultUserTier: viewAccessContext.userTier,
         },
         performance: {
           collectMemoryMs: lowPowerMode ? 90_000 : 60_000,
@@ -391,7 +364,7 @@ function App() {
           enabled: false,
         },
       }),
-    [controlBaseUrl, controlIngestKey, lowPowerMode],
+    [controlBaseUrl, controlIngestKey, controlToken, lowPowerMode, viewAccessContext],
   );
 
   useEffect(() => {
@@ -484,7 +457,7 @@ function App() {
 
     const applyBundle = (bundle) => {
       if (!active) return;
-      const compatibility = runtime.resolveCompatibility(bundle, "production");
+      const compatibility = runtime.resolveCompatibility(bundle, NEXUS_CODE_CHANNEL);
       setReleaseState({
         releaseId: bundle.release?.id || null,
         compatible: compatibility.compatible,
@@ -516,17 +489,11 @@ function App() {
           }),
         ]);
 
-        const failedResources = [
-          ["catalog", catalogResult.errorCode, catalogResult.item],
-          ["layout", layoutResult.errorCode, layoutResult.item],
-          ["release", releaseResult.errorCode, releaseResult.item],
-        ]
-          .filter(([, errorCode, item]) => Boolean(errorCode) || !item)
-          .map(([resource, errorCode]) => ({
-            resource: String(resource),
-            errorCode: normalizeControlErrorCode(errorCode),
-            mode: classifyControlBootstrapIssue(errorCode),
-          }));
+        const failedResources = collectBootstrapIssues({
+          catalogResult,
+          layoutResult,
+          releaseResult,
+        });
 
         if (failedResources.length > 0) {
           const recoverableOnly = failedResources.every((entry) =>
@@ -643,7 +610,24 @@ function App() {
     const unsubscribe = runtime.control.subscribeReleaseUpdates(
       { appId: NEXUS_CODE_APP_ID, channel: NEXUS_CODE_CHANNEL, pollIntervalMs: 30_000 },
       (event) => {
-        applyBundle(event.bundle);
+        if (event?.errorCode) {
+          const mode = classifyControlBootstrapIssue(event.errorCode);
+          setControlStatus(buildControlStatus(
+            mode === "fatal" ? "degraded" : mode,
+            [`release:${event.errorCode}`],
+          ));
+          return;
+        }
+        const bundle = event?.bundle || {};
+        if (!bundle.catalog && !bundle.layoutSchema && !bundle.release) {
+          setControlStatus(buildControlStatus("degraded", ["release:EMPTY_BUNDLE"]));
+          return;
+        }
+        if (!bundle.catalog || !bundle.layoutSchema || !bundle.release) {
+          setControlStatus(buildControlStatus("degraded", ["release:PARTIAL_BUNDLE"]));
+          return;
+        }
+        applyBundle(bundle);
         setControlStatus(buildControlStatus("online", []));
       },
     );
@@ -753,40 +737,6 @@ function App() {
   return (
     <Router>
       <NexusBridge runtime={runtime} />
-      {controlStatus.mode !== "online" ? (
-        <div
-          role="status"
-          style={{
-            position: "fixed",
-            top: 10,
-            left: "50%",
-            transform: "translateX(-50%)",
-            zIndex: 4000,
-            borderRadius: 10,
-            border: controlStatus.mode === "limited"
-              ? "1px solid rgba(255,191,64,0.44)"
-              : "1px solid rgba(112,165,255,0.38)",
-            background: controlStatus.mode === "limited"
-              ? "rgba(255,191,64,0.14)"
-              : "rgba(40,112,255,0.14)",
-            color: controlStatus.mode === "limited" ? "#fff3d0" : "#d7e6ff",
-            padding: "8px 12px",
-            fontSize: 12,
-            fontWeight: 700,
-            maxWidth: "min(92vw, 720px)",
-            lineHeight: 1.35,
-            boxShadow: "0 14px 34px rgba(0,0,0,0.24)",
-          }}
-        >
-          <span>{controlStatus.title}: </span>
-          <span>{controlStatus.message}</span>
-          {controlStatus.details.length > 0 ? (
-            <span style={{ display: "block", marginTop: 2, opacity: 0.78 }}>
-              Details: <code>{controlStatus.details.join(", ")}</code>
-            </span>
-          ) : null}
-        </div>
-      ) : null}
       <Routes>
         <Route path="/" element={<Navigate to="/editor" replace />} />
         <Route
@@ -814,7 +764,13 @@ function App() {
                   </div>
                 )}
               >
-                <Editor />
+                <Editor
+                  accountSession={accountSession}
+                  controlStatus={controlStatus}
+                  onSaveAccountSession={handleSaveAccountSession}
+                  onClearAccountSession={handleClearAccountSession}
+                  onTestAccountConnection={handleTestAccountConnection}
+                />
               </Suspense>
             </div>
           )}

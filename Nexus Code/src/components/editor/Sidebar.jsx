@@ -7,8 +7,13 @@ import {
   GitBranch,
   Search,
   Settings,
+  UserRound,
 } from "lucide-react";
 import { getGitCapability } from "../../pages/editor/gitPanelModel";
+import {
+  getExtensionStats,
+  loadExtensionRegistry,
+} from "../../pages/editor/extensionSystem";
 
 const SIDEBAR_ITEMS = [
   { icon: FileCode2, label: "Explorer", id: "explorer" },
@@ -17,14 +22,35 @@ const SIDEBAR_ITEMS = [
   { icon: GitBranch, label: "Git", id: "git" },
   { icon: Bug, label: "Debug", id: "debug" },
   { icon: Blocks, label: "Extensions", id: "extensions" },
+  { icon: UserRound, label: "Account", id: "account" },
 ];
 
-function SidebarButton({ item, isActive, onClick, gitCapability, problemCount, side }) {
+function SidebarButton({
+  item,
+  isActive,
+  onClick,
+  gitCapability,
+  problemCount,
+  extensionStats,
+  controlStatus,
+  side,
+}) {
   const Icon = item.icon;
   const gitReady = item.id === "git" && gitCapability.available;
   const hasProblemBadge = item.id === "problems" && problemCount > 0;
-  const title = gitReady ? `${item.label} - ${gitCapability.label}` : item.label;
+  const extensionTitle =
+    item.id === "extensions"
+      ? `${item.label} - ${extensionStats.enabled}/${extensionStats.installed} aktiv`
+      : item.label;
+  const title = gitReady ? `${item.label} - ${gitCapability.label}` : extensionTitle;
   const indicatorEdge = side === "right" ? "right-[2px]" : "left-[2px]";
+  const accountMode = controlStatus?.mode || "offline";
+  const accountTone =
+    accountMode === "online"
+      ? "#22c55e"
+      : accountMode === "limited"
+        ? "#f59e0b"
+        : "#38bdf8";
 
   return (
     <button
@@ -35,11 +61,11 @@ function SidebarButton({ item, isActive, onClick, gitCapability, problemCount, s
       className="nx-code-sidebar-btn relative flex h-10 w-10 items-center justify-center rounded-md outline-none transition-colors hover:bg-white/[0.06] focus-visible:ring-2 focus-visible:ring-purple-500/60"
       style={{
         background: isActive
-          ? "color-mix(in srgb, var(--primary) 14%, transparent)"
+          ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.14)"
           : "transparent",
-        color: isActive ? "var(--primary)" : "var(--nexus-muted)",
+        color: isActive ? "var(--nexus-primary, #7c8cff)" : "var(--nexus-muted)",
         boxShadow: isActive
-          ? "inset 0 0 0 1px color-mix(in srgb, var(--primary) 24%, transparent)"
+          ? "inset 0 0 0 1px rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.24)"
           : "none",
       }}
     >
@@ -47,8 +73,8 @@ function SidebarButton({ item, isActive, onClick, gitCapability, problemCount, s
         <span
           className={`absolute ${indicatorEdge} top-2 bottom-2 w-[2px] rounded-full`}
           style={{
-            background: "var(--primary)",
-            boxShadow: "0 0 8px var(--primary)",
+            background: "var(--nexus-primary, #7c8cff)",
+            boxShadow: "0 0 8px rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.72)",
           }}
         />
       ) : null}
@@ -63,9 +89,27 @@ function SidebarButton({ item, isActive, onClick, gitCapability, problemCount, s
         />
       ) : null}
       {hasProblemBadge ? (
-        <span className="absolute right-1.5 top-1.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-red-500 px-1 text-[8px] font-bold leading-none text-white">
+        <span className="absolute right-1.5 top-1.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-red-500 px-1 text-[8px] font-bold leading-none text-white shadow-sm shadow-black/30">
           {Math.min(problemCount, 9)}
         </span>
+      ) : null}
+      {item.id === "extensions" && extensionStats.enabled > 0 ? (
+        <span
+          className="absolute bottom-1.5 right-1.5 h-1.5 w-1.5 rounded-full"
+          style={{
+            background: "var(--nexus-primary, #7c8cff)",
+            boxShadow: "0 0 7px rgba(124,140,255,0.7)",
+          }}
+        />
+      ) : null}
+      {item.id === "account" ? (
+        <span
+          className="absolute bottom-1.5 right-1.5 h-1.5 w-1.5 rounded-full"
+          style={{
+            background: accountTone,
+            boxShadow: `0 0 7px ${accountTone}`,
+          }}
+        />
       ) : null}
     </button>
   );
@@ -78,8 +122,12 @@ export default function Sidebar({
   side = "left",
   compact = false,
   problemCount = 0,
+  controlStatus = null,
 }) {
   const [gitCapability, setGitCapability] = useState(getGitCapability);
+  const [extensionStats, setExtensionStats] = useState(() =>
+    getExtensionStats(loadExtensionRegistry()),
+  );
 
   useEffect(() => {
     setGitCapability(getGitCapability());
@@ -88,6 +136,22 @@ export default function Sidebar({
     }, 4000);
 
     return () => window.clearInterval(intervalId);
+  }, []);
+
+  useEffect(() => {
+    const syncExtensionStats = (event) => {
+      if (event?.detail?.stats) {
+        setExtensionStats(event.detail.stats);
+        return;
+      }
+      setExtensionStats(getExtensionStats(loadExtensionRegistry()));
+    };
+
+    syncExtensionStats();
+    window.addEventListener("nx-code-extensions-changed", syncExtensionStats);
+    return () => {
+      window.removeEventListener("nx-code-extensions-changed", syncExtensionStats);
+    };
   }, []);
 
   return (
@@ -105,7 +169,7 @@ export default function Sidebar({
         style={{
           background: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.1)",
           borderColor: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.2)",
-          color: "var(--nexus-primary, var(--primary))",
+          color: "var(--nexus-primary, #7c8cff)",
         }}
         title={compact ? "Nexus Code" : "Nexus Code Rail"}
       >
@@ -131,6 +195,8 @@ export default function Sidebar({
             }
             gitCapability={gitCapability}
             problemCount={problemCount}
+            extensionStats={extensionStats}
+            controlStatus={controlStatus}
             side={side}
           />
         ))}
