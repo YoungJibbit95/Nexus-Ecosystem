@@ -3,7 +3,13 @@ import {
   AlertTriangle,
   CaseSensitive,
   ChevronDown,
+  Copy,
+  FileSearch,
+  FolderOpen,
   Loader2,
+  Maximize2,
+  Minimize2,
+  RotateCcw,
   Search,
   X,
 } from "lucide-react";
@@ -18,6 +24,7 @@ import {
   searchFiles,
 } from "../../pages/editor/searchPanelModel.js";
 import {
+  PanelActionButton,
   PanelBadge,
   PanelBody,
   PanelFooter,
@@ -92,7 +99,18 @@ function ScopeInput({ label, value, onChange, placeholder }) {
   );
 }
 
-function SearchState({ state, result, query, fileCount }) {
+function SearchState({ state, result, query, fileCount, hasScopeFilters, onResetScopes }) {
+  if (fileCount === 0) {
+    return (
+      <PanelState
+        icon={FolderOpen}
+        tone="warning"
+        title="Kein Workspace indexiert"
+        detail="Oeffne einen Ordner oder lade Dateien, damit die Suche echte Workspace-Ergebnisse liefern kann."
+      />
+    );
+  }
+
   if (state === "loading") {
     return (
       <PanelState
@@ -120,9 +138,26 @@ function SearchState({ state, result, query, fileCount }) {
     return (
       <PanelState
         icon={Search}
-        title="Suchbegriff eingeben"
-        detail={`${fileCount} Dateien verfuegbar`}
-      />
+        title="Bereit fuer Workspace-Suche"
+        detail={`${fileCount} Dateien verfuegbar. Nutze Include/Exclude, wenn du den Scan eingrenzen willst.`}
+        actionLabel={hasScopeFilters ? "Scopes zuruecksetzen" : undefined}
+        onAction={hasScopeFilters ? onResetScopes : undefined}
+      >
+        <div className="grid grid-cols-3 gap-1.5 text-left">
+          <div className="rounded-md border border-white/[0.06] bg-black/20 px-2 py-1.5">
+            <p className="text-[9px] font-semibold uppercase text-gray-600">Regex</p>
+            <p className="text-[10px] text-gray-400">Pattern-Suche</p>
+          </div>
+          <div className="rounded-md border border-white/[0.06] bg-black/20 px-2 py-1.5">
+            <p className="text-[9px] font-semibold uppercase text-gray-600">Include</p>
+            <p className="text-[10px] text-gray-400">src/*.jsx</p>
+          </div>
+          <div className="rounded-md border border-white/[0.06] bg-black/20 px-2 py-1.5">
+            <p className="text-[9px] font-semibold uppercase text-gray-600">Exclude</p>
+            <p className="text-[10px] text-gray-400">dist,node</p>
+          </div>
+        </div>
+      </PanelState>
     );
   }
 
@@ -130,7 +165,9 @@ function SearchState({ state, result, query, fileCount }) {
     <PanelState
       icon={Search}
       title="Keine Treffer"
-      detail={`"${query}" in ${result.scannedFiles || 0} Dateien durchsucht`}
+      detail={`"${query}" in ${result.scannedFiles || 0} Dateien durchsucht. ${result.skippedFiles || 0} Dateien wurden durch Scopes uebersprungen.`}
+      actionLabel={hasScopeFilters ? "Scopes lockern" : undefined}
+      onAction={hasScopeFilters ? onResetScopes : undefined}
     />
   );
 }
@@ -158,6 +195,8 @@ export default function SearchPanel({ files = [], onFileSelect }) {
   const isLoading = searchState.status === "loading" || isDebouncing;
   const showResults =
     appliedQuery && searchState.status === "ready" && groups.length > 0 && !isDebouncing;
+  const hasWorkspace = searchableFileCount > 0;
+  const hasScopeFilters = Boolean(draft.include.trim() || draft.exclude.trim());
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -258,9 +297,35 @@ export default function SearchPanel({ files = [], onFileSelect }) {
     inputRef.current?.focus();
   };
 
+  const resetScopes = () => {
+    updateDraft({ include: "", exclude: "" });
+  };
+
   const toggleCollapse = (id) => {
     setCollapsed((prev) => ({ ...prev, [id]: !prev[id] }));
   };
+
+  const collapseAll = () => {
+    setCollapsed(
+      Object.fromEntries(groups.map((group) => [group.fileId || group.path, true])),
+    );
+  };
+
+  const expandAll = () => {
+    setCollapsed({});
+  };
+
+  const openFirstResult = () => {
+    const first = groups[0];
+    if (first?.fileId) onFileSelect?.(first.fileId);
+  };
+
+  const copyMatch = useCallback((group, match) => {
+    const text = `${group.path || group.fileName}:${match.lineNumber}:${match.column} ${match.lineText || match.excerpt}`;
+    if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(text).catch(() => {});
+    }
+  }, []);
 
   const totalLabel = result.matchLimitReached
     ? `${result.totalMatches}+`
@@ -277,9 +342,15 @@ export default function SearchPanel({ files = [], onFileSelect }) {
       <PanelHeader
         icon={Search}
         title="Search"
-        subtitle={`${searchableFileCount} Dateien im Workspace`}
+        subtitle={
+          hasWorkspace
+            ? `${searchableFileCount} Dateien im Workspace`
+            : "Workspace-Suche wartet auf Dateien"
+        }
         status={
-          appliedQuery ? (
+          !hasWorkspace ? (
+            <PanelBadge tone="warning">Idle</PanelBadge>
+          ) : appliedQuery ? (
             <PanelBadge tone={isLoading ? "accent" : "muted"}>
               {isLoading ? "..." : totalLabel}
             </PanelBadge>
@@ -361,6 +432,35 @@ export default function SearchPanel({ files = [], onFileSelect }) {
       </PanelHeader>
 
       <PanelBody>
+        {showResults && (
+          <div className="sticky top-0 z-10 border-b border-white/[0.05] bg-[#070816]/95 px-3 py-2 backdrop-blur-md">
+            <div className="mb-2 flex min-w-0 items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p className="truncate text-[11px] font-semibold text-gray-300">
+                  {totalLabel} Treffer in {result.matchedFiles} Dateien
+                </p>
+                <p className="truncate text-[10px] text-gray-600">
+                  {result.scannedFiles} gescannt, {result.skippedFiles} uebersprungen
+                </p>
+              </div>
+              {result.matchLimitReached ? (
+                <PanelBadge tone="warning">limitiert</PanelBadge>
+              ) : null}
+            </div>
+            <div className="grid grid-cols-3 gap-1.5">
+              <PanelActionButton icon={FileSearch} onClick={openFirstResult} tone="accent">
+                Erster
+              </PanelActionButton>
+              <PanelActionButton icon={Minimize2} onClick={collapseAll}>
+                Klappen
+              </PanelActionButton>
+              <PanelActionButton icon={Maximize2} onClick={expandAll}>
+                Oeffnen
+              </PanelActionButton>
+            </div>
+          </div>
+        )}
+
         <AnimatePresence mode="popLayout">
           {showResults &&
             groups.map((group, index) => {
@@ -406,6 +506,16 @@ export default function SearchPanel({ files = [], onFileSelect }) {
                       )}
                     </span>
                     <span
+                      className="shrink-0 rounded-md p-1 text-gray-600 opacity-0 transition-opacity hover:bg-white/[0.07] hover:text-purple-200 group-hover:opacity-100"
+                      title="Datei oeffnen"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onFileSelect?.(group.fileId);
+                      }}
+                    >
+                      <FileSearch size={12} />
+                    </span>
+                    <span
                       className="shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold"
                       style={{
                         background: "rgba(128,0,255,0.15)",
@@ -428,23 +538,35 @@ export default function SearchPanel({ files = [], onFileSelect }) {
                         style={{ overflow: "hidden" }}
                       >
                         {group.matches.map((match, matchIndex) => (
-                          <button
-                            type="button"
+                          <div
                             key={`${match.lineNumber}:${match.column}:${matchIndex}`}
-                            onClick={() => onFileSelect?.(group.fileId)}
-                            className="group flex w-full items-start gap-2 px-3 py-1.5 text-left transition-colors hover:bg-purple-500/[0.07]"
+                            className="group flex items-start gap-1 px-2 py-1 transition-colors hover:bg-purple-500/[0.07]"
                           >
-                            <span
-                              className="mt-0.5 w-12 shrink-0 text-right font-mono text-[10px]"
-                              style={{ color: "#4b5563" }}
-                              title={`Line ${match.lineNumber}, Column ${match.column}`}
+                            <button
+                              type="button"
+                              onClick={() => onFileSelect?.(group.fileId)}
+                              className="flex min-w-0 flex-1 items-start gap-2 rounded-md px-1 py-0.5 text-left"
                             >
-                              {match.lineNumber}:{match.column}
-                            </span>
-                            <span className="min-w-0 flex-1 truncate font-mono text-[11px] leading-relaxed group-hover:text-gray-300">
-                              <HighlightedLine match={match} />
-                            </span>
-                          </button>
+                              <span
+                                className="mt-0.5 w-12 shrink-0 text-right font-mono text-[10px]"
+                                style={{ color: "#4b5563" }}
+                                title={`Line ${match.lineNumber}, Column ${match.column}`}
+                              >
+                                {match.lineNumber}:{match.column}
+                              </span>
+                              <span className="min-w-0 flex-1 truncate font-mono text-[11px] leading-relaxed group-hover:text-gray-300">
+                                <HighlightedLine match={match} />
+                              </span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => copyMatch(group, match)}
+                              className="mt-0.5 shrink-0 rounded-md p-1 text-gray-700 opacity-0 transition-opacity hover:bg-white/[0.08] hover:text-gray-300 group-hover:opacity-100"
+                              title="Trefferzeile kopieren"
+                            >
+                              <Copy size={11} />
+                            </button>
+                          </div>
                         ))}
 
                         {group.perFileLimitReached && (
@@ -472,6 +594,8 @@ export default function SearchPanel({ files = [], onFileSelect }) {
             result={result}
             query={draft.query.trim()}
             fileCount={searchableFileCount}
+            hasScopeFilters={hasScopeFilters}
+            onResetScopes={resetScopes}
           />
         )}
       </PanelBody>
@@ -494,6 +618,16 @@ export default function SearchPanel({ files = [], onFileSelect }) {
                 </div>
               ))}
             </div>
+          )}
+          {hasScopeFilters && (
+            <button
+              type="button"
+              onClick={resetScopes}
+              className="mt-1 flex items-center gap-1 text-[10px] font-semibold text-purple-300/80 hover:text-purple-200"
+            >
+              <RotateCcw size={10} />
+              Include/Exclude zuruecksetzen
+            </button>
           )}
         </PanelFooter>
       )}

@@ -1386,26 +1386,27 @@ export function NotesView() {
           className="nx-notes-main flex-1 flex flex-col gap-2"
           style={{ minHeight: 0, overflow: "visible" }}
         >
-          {/* Header bar */}
-          <Glass className="nx-notes-editor-header flex items-center gap-2 px-3 py-2 shrink-0">
-            <input
-              className="nx-notes-title-input flex-1 bg-transparent outline-none font-semibold"
-              style={{ fontSize: 14, minWidth: 0 }}
-              value={active.title}
-              onChange={(e) => updateNote(active.id, { title: e.target.value })}
-              placeholder="Notiztitel..."
-            />
-            <div className="nx-notes-editor-meta" aria-live="polite">
-              <span
-                data-state={draftDirty ? "dirty" : "saved"}
-                title={saveStatusLabel}
-              >
-                {saveStatusLabel}
-              </span>
-              <span>{autosaveLabel}</span>
-              <span>{modeLabel}</span>
-            </div>
-            <div className="nx-notes-mode-actions flex gap-0.5 items-center shrink-0">
+          {/* Compact workbar */}
+          <Glass className="nx-notes-workbar nx-notes-editor-header shrink-0">
+            <div className="nx-notes-workbar-main">
+              <input
+                className="nx-notes-title-input flex-1 bg-transparent outline-none font-semibold"
+                style={{ fontSize: 14, minWidth: 0 }}
+                value={active.title}
+                onChange={(e) => updateNote(active.id, { title: e.target.value })}
+                placeholder="Notiztitel..."
+              />
+              <div className="nx-notes-editor-meta" aria-live="polite">
+                <span
+                  data-state={draftDirty ? "dirty" : "saved"}
+                  title={saveStatusLabel}
+                >
+                  {saveStatusLabel}
+                </span>
+                <span>{autosaveLabel}</span>
+                <span>{modeLabel}</span>
+              </div>
+              <div className="nx-notes-mode-actions flex gap-0.5 items-center shrink-0">
               {/* View mode */}
               {(["edit", "split", "preview"] as const).map((m) => (
                 <InteractiveActionButton
@@ -1530,9 +1531,10 @@ export function NotesView() {
               >
                 {focusMode ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
               </InteractiveActionButton>
+              </div>
             </div>
-          </Glass>
 
+            <div className="nx-notes-workbar-tools">
           <div className="nx-notes-command-strip shrink-0">
             <div
               style={{
@@ -2159,8 +2161,11 @@ export function NotesView() {
               </div>
             </div>
           )}
+            </div>
+          </Glass>
 
           {/* ── EDITOR / PREVIEW ── */}
+
           <div
             className="nx-notes-editor-grid"
             style={{

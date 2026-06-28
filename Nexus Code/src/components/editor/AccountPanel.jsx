@@ -1,17 +1,27 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
+  AlertTriangle,
   CheckCircle2,
+  Clock,
+  Eye,
+  EyeOff,
   KeyRound,
   Link2,
   LogOut,
+  RotateCcw,
   Save,
   ShieldCheck,
   Trash2,
   UserRound,
   Wifi,
 } from "lucide-react";
-import { getAccountSessionState, normalizeAccountSession } from "../../app/accountSession";
 import {
+  getAccountSessionState,
+  normalizeAccountSession,
+  normalizeNexusApiEndpoint,
+} from "../../app/accountSession";
+import {
+  PanelActionButton,
   PANEL_INPUT_CLASS,
   PANEL_SELECT_CLASS,
   PanelBadge,
@@ -19,8 +29,12 @@ import {
   PanelFooter,
   PanelHeader,
   PanelMetric,
+  PanelNotice,
   PanelShell,
 } from "./panels/PanelChrome.jsx";
+
+const HOSTED_ENDPOINT = "https://nexus-api.cloud";
+const LOCAL_ENDPOINT = "http://127.0.0.1:17890";
 
 const STATUS_META = {
   online: {
@@ -117,6 +131,7 @@ export default function AccountPanel({
   const [draft, setDraft] = useState(normalizedSession);
   const [busy, setBusy] = useState(false);
   const [testResult, setTestResult] = useState(null);
+  const [showToken, setShowToken] = useState(false);
 
   useEffect(() => {
     setDraft(normalizedSession);
@@ -131,6 +146,13 @@ export default function AccountPanel({
       ? "Token session"
       : "Local session";
   const details = testResult?.details || controlStatus?.details || [];
+  const normalizedDraftEndpoint = normalizeNexusApiEndpoint(draft.endpoint);
+  const endpointWillNormalize =
+    Boolean(draft.endpoint) && normalizedDraftEndpoint !== String(draft.endpoint || "").trim();
+  const isDirty = JSON.stringify(draft) !== JSON.stringify(normalizedSession);
+  const savedLabel = normalizedSession.savedAt
+    ? new Date(normalizedSession.savedAt).toLocaleString()
+    : "Not saved";
 
   const updateDraft = (field, value) => {
     setDraft((prev) => ({
@@ -149,6 +171,10 @@ export default function AccountPanel({
     const cleared = onClearSession?.();
     setDraft(normalizeAccountSession(cleared || {}));
     setTestResult(null);
+  };
+
+  const applyEndpointPreset = (endpoint) => {
+    updateDraft("endpoint", endpoint);
   };
 
   const handleTest = async () => {
@@ -176,7 +202,7 @@ export default function AccountPanel({
         subtitle={`${accountLabel} - ${controlStatus?.title || "Control API"} - ${statusMeta.label}`}
         status={<PanelBadge tone={statusMeta.tone}>{statusMeta.label}</PanelBadge>}
       >
-        <div className="grid grid-cols-3 gap-1.5">
+        <div className="grid grid-cols-2 gap-1.5">
           <PanelMetric
             label="Identity"
             value={sessionState.hasIdentity ? "Set" : "Local"}
@@ -188,31 +214,50 @@ export default function AccountPanel({
             tone={sessionState.hasToken ? "accent" : "muted"}
           />
           <PanelMetric label="Tier" value={draft.userTier || "free"} tone="accent" />
+          <PanelMetric
+            label="Saved"
+            value={normalizedSession.savedAt ? "Yes" : "No"}
+            tone={normalizedSession.savedAt ? "success" : "muted"}
+            title={savedLabel}
+          />
         </div>
       </PanelHeader>
 
       <PanelBody className="px-3 py-3">
-        <div
-          className="mb-3 rounded-lg border px-3 py-2"
-          style={{
-            background: statusMeta.background,
-            borderColor: statusMeta.border,
-          }}
-        >
-          <div className="flex min-w-0 items-start gap-2">
-            <StatusIcon size={15} className="mt-0.5 shrink-0" style={{ color: statusMeta.color }} />
-            <div className="min-w-0 flex-1">
-              <p className="break-words text-[12px] font-semibold" style={{ color: statusMeta.color }}>
-                {testResult?.message || controlStatus?.message || "Local session ready."}
-              </p>
-              {details.length > 0 ? (
-                <p className="mt-1 break-words text-[10px] text-gray-400">
-                  {details.join(", ")}
-                </p>
-              ) : null}
-            </div>
-          </div>
+        <PanelNotice
+          icon={StatusIcon}
+          tone={statusMeta.tone}
+          title={testResult?.message || controlStatus?.message || "Local session ready."}
+          detail={details.length > 0 ? details.join(", ") : `${accountLabel} - ${savedLabel}`}
+          className="mb-3"
+        />
+
+        <div className="mb-3 grid grid-cols-2 gap-1.5">
+          <PanelActionButton
+            icon={Link2}
+            onClick={() => applyEndpointPreset(HOSTED_ENDPOINT)}
+            tone={draft.endpoint === HOSTED_ENDPOINT ? "accent" : "muted"}
+          >
+            Hosted API
+          </PanelActionButton>
+          <PanelActionButton
+            icon={Wifi}
+            onClick={() => applyEndpointPreset(LOCAL_ENDPOINT)}
+            tone={draft.endpoint === LOCAL_ENDPOINT ? "accent" : "muted"}
+          >
+            Local API
+          </PanelActionButton>
         </div>
+
+        {endpointWillNormalize ? (
+          <PanelNotice
+            icon={AlertTriangle}
+            tone="warning"
+            title="Endpoint wird normalisiert"
+            detail={`Beim Speichern wird "${draft.endpoint}" zu "${normalizedDraftEndpoint}" bereinigt.`}
+            className="mb-3"
+          />
+        ) : null}
 
         <div className="grid gap-3">
           <Field icon={Link2} label="API Endpoint">
@@ -228,16 +273,26 @@ export default function AccountPanel({
           </Field>
 
           <Field icon={KeyRound} label="Access Token">
-            <input
-              className={PANEL_INPUT_CLASS}
-              value={draft.token || ""}
-              onChange={(event) => updateDraft("token", event.target.value)}
-              placeholder="Nexus API token"
-              type="password"
-              autoCapitalize="off"
-              autoCorrect="off"
-              spellCheck={false}
-            />
+            <div className="grid grid-cols-[1fr_auto] gap-1.5">
+              <input
+                className={PANEL_INPUT_CLASS}
+                value={draft.token || ""}
+                onChange={(event) => updateDraft("token", event.target.value)}
+                placeholder="Nexus API token"
+                type={showToken ? "text" : "password"}
+                autoCapitalize="off"
+                autoCorrect="off"
+                spellCheck={false}
+              />
+              <button
+                type="button"
+                onClick={() => setShowToken((value) => !value)}
+                className="grid h-8 w-8 place-items-center rounded-md border border-white/10 bg-white/[0.04] text-gray-500 transition-colors hover:bg-white/[0.08] hover:text-gray-200"
+                title={showToken ? "Token verbergen" : "Token anzeigen"}
+              >
+                {showToken ? <EyeOff size={14} /> : <Eye size={14} />}
+              </button>
+            </div>
           </Field>
 
           <div className="grid grid-cols-2 gap-2">
@@ -282,6 +337,21 @@ export default function AccountPanel({
       </PanelBody>
 
       <PanelFooter>
+        <div className="mb-2 flex items-center justify-between gap-2 text-[10px] text-gray-500">
+          <span className="flex min-w-0 items-center gap-1 truncate">
+            <Clock size={10} className="shrink-0" />
+            <span className="truncate">{isDirty ? "Unsaved changes" : savedLabel}</span>
+          </span>
+          <button
+            type="button"
+            onClick={() => setDraft(normalizedSession)}
+            disabled={!isDirty}
+            className="flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 font-semibold text-gray-500 transition-colors hover:bg-white/[0.06] hover:text-gray-200 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <RotateCcw size={10} />
+            Revert
+          </button>
+        </div>
         <div className="grid grid-cols-2 gap-1.5">
           <AccountButton onClick={handleTest} disabled={busy || !onTestConnection} title="Test connection">
             <Wifi size={14} />
@@ -289,7 +359,7 @@ export default function AccountPanel({
           </AccountButton>
           <AccountButton onClick={handleSave} tone="primary" title="Save session">
             <Save size={14} />
-            Save
+            {isDirty ? "Save changes" : "Save"}
           </AccountButton>
           <AccountButton onClick={() => setDraft(normalizeAccountSession({}))} title="Clear fields">
             <Trash2 size={14} />

@@ -4,7 +4,6 @@ import {
   AlertTriangle,
   BadgeCheck,
   Blocks,
-  Check,
   ChevronDown,
   Command,
   Database,
@@ -42,10 +41,14 @@ import {
   uninstallExtension,
 } from "../../pages/editor/extensionSystem";
 import {
+  PanelActionButton,
   PanelBadge,
   PanelBody,
   PanelFooter,
+  PanelHeader,
+  PanelMetric,
   PanelShell,
+  PanelState,
 } from "./panels/PanelChrome.jsx";
 
 const tabStyles = {
@@ -146,23 +149,6 @@ function SelectFilter({ icon: Icon, value, options, onChange, title }) {
         ))}
       </select>
     </label>
-  );
-}
-
-function StatPill({ label, value }) {
-  return (
-    <div
-      className="flex min-w-0 items-center justify-between gap-2 rounded-md px-2 py-1.5"
-      style={{
-        background: "rgba(255,255,255,0.028)",
-        border: "1px solid rgba(255,255,255,0.055)",
-      }}
-    >
-      <span className="truncate text-[10px] text-[var(--nexus-muted)]">{label}</span>
-      <span className="font-mono text-[11px] font-semibold text-[var(--nexus-text)]">
-        {value}
-      </span>
-    </div>
   );
 }
 
@@ -496,6 +482,17 @@ function ExtensionCard({ extension, onInstall, onRemove, onToggleEnabled, index 
               <PackageCheck size={11} />
               {extension.enabled ? "Aktiv" : "Pausiert"}
             </span>
+            {extension.updateAvailable ? (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => runAction(() => onInstall(extension.id))}
+                className="flex h-7 items-center gap-1 rounded-md border border-amber-400/20 bg-amber-400/10 px-2 text-[10px] font-semibold text-amber-200 transition-colors hover:bg-amber-400/15 disabled:opacity-50"
+              >
+                {busy ? <RefreshCw size={11} className="animate-spin" /> : <Download size={11} />}
+                Update
+              </button>
+            ) : null}
             <button
               type="button"
               disabled={busy}
@@ -629,6 +626,18 @@ export default function ExtensionsPanel({ onInstalledChange }) {
   const extensions = useMemo(() => resolveExtensions(records), [records]);
   const stats = useMemo(() => getExtensionStats(records), [records]);
   const runtimeOverview = useMemo(() => getExtensionRuntimeOverview(records), [records]);
+  const updateableIds = useMemo(
+    () =>
+      extensions
+        .filter(
+          (extension) =>
+            extension.installed &&
+            extension.updateAvailable &&
+            extension.manifestErrors.length === 0,
+        )
+        .map((extension) => extension.id),
+    [extensions],
+  );
   const storageMessages = useMemo(
     () => [...registryMessages, ...(saveStatus?.diagnostics || [])],
     [registryMessages, saveStatus],
@@ -675,42 +684,46 @@ export default function ExtensionsPanel({ onInstalledChange }) {
     setQuickTab("all");
   };
 
+  const installAllUpdates = () => {
+    if (updateableIds.length === 0) return;
+    applyRecords((current) =>
+      updateableIds.reduce((nextRecords, id) => installExtension(nextRecords, id), current),
+    );
+  };
+
   return (
     <PanelShell ariaLabel="Extensions">
-      <div className="nx-code-extensions-panel-header shrink-0 border-b border-white/[0.06] px-3 pb-2.5 pt-3">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex min-w-0 items-center gap-2">
-            <div
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border"
-              style={{
-                background: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.1)",
-                borderColor: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.22)",
-                color: "var(--nexus-primary, #7c8cff)",
-              }}
-            >
-              <Blocks size={16} />
-            </div>
-            <div className="min-w-0">
-              <h2 className="truncate text-sm font-semibold text-[var(--nexus-text)]">
-                Extensions
-              </h2>
-              <p className="truncate text-[10px] text-[var(--nexus-muted)]">
-                Marketplace, manifest registry and extension host
-              </p>
-            </div>
-          </div>
-          {stats.updates > 0 ? (
-            <PanelBadge tone="warning">
-              {stats.updates} Update
+      <PanelHeader
+        icon={Blocks}
+        title="Extensions"
+        subtitle="Manifest registry, activation plan and extension host"
+        status={
+          stats.updates > 0 ? (
+            <PanelBadge tone="warning">{stats.updates} Update</PanelBadge>
+          ) : (
+            <PanelBadge tone={stats.errors > 0 ? "danger" : "success"}>
+              {stats.errors > 0 ? "Issues" : "Host Ready"}
             </PanelBadge>
-          ) : null}
-        </div>
-
-        <div className="mt-3 grid grid-cols-4 gap-1.5">
-          <StatPill label="Gesamt" value={stats.total} />
-          <StatPill label="Aktiv" value={stats.enabled} />
-          <StatPill label="Lokal" value={stats.local} />
-          <StatPill label="Fehler" value={stats.errors} />
+          )
+        }
+        actions={
+          updateableIds.length > 0 ? (
+            <PanelActionButton
+              icon={RefreshCw}
+              onClick={installAllUpdates}
+              tone="warning"
+              title="Alle verfuegbaren Extension-Updates installieren"
+            >
+              Update
+            </PanelActionButton>
+          ) : null
+        }
+      >
+        <div className="grid grid-cols-4 gap-1.5">
+          <PanelMetric label="Gesamt" value={stats.total} tone="muted" />
+          <PanelMetric label="Aktiv" value={stats.enabled} tone={stats.enabled ? "success" : "muted"} />
+          <PanelMetric label="Lokal" value={stats.local} tone={stats.local ? "accent" : "muted"} />
+          <PanelMetric label="Fehler" value={stats.errors} tone={stats.errors ? "danger" : "muted"} />
         </div>
 
         <ContributionOverview
@@ -742,7 +755,7 @@ export default function ExtensionsPanel({ onInstalledChange }) {
             </SegmentButton>
           ))}
         </div>
-      </div>
+      </PanelHeader>
 
       <div className="shrink-0 space-y-2 border-b border-white/[0.05] px-3 py-2.5">
         <div
@@ -833,22 +846,13 @@ export default function ExtensionsPanel({ onInstalledChange }) {
         </AnimatePresence>
 
         {filteredExtensions.length === 0 ? (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="flex min-h-[11rem] flex-col items-center justify-center text-center"
-          >
-            <Power size={24} className="mb-3 text-gray-700" />
-            <p className="text-xs font-semibold text-gray-400">Keine Treffer</p>
-            <button
-              type="button"
-              onClick={clearFilters}
-              className="mt-2 flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-semibold text-[var(--nexus-primary)] hover:bg-white/[0.06]"
-            >
-              <Check size={12} />
-              Filter zuruecksetzen
-            </button>
-          </motion.div>
+          <PanelState
+            icon={Power}
+            title="Keine Extensions gefunden"
+            detail="Die Registry ist aktiv, aber die aktuellen Filter blenden alle Manifeste aus."
+            actionLabel="Filter zuruecksetzen"
+            onAction={clearFilters}
+          />
         ) : null}
       </PanelBody>
 

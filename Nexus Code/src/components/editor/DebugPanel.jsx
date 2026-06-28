@@ -6,28 +6,39 @@ import {
   Eye,
   Info,
   Layers,
+  Pause,
   Play,
   Plus,
   RotateCcw,
+  Settings2,
   SkipForward,
   Square,
   StepForward,
   Terminal,
+  Trash2,
   X,
   Zap,
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   PANEL_INPUT_CLASS,
+  PANEL_SELECT_CLASS,
   PanelBadge,
   PanelBody,
   PanelFooter,
   PanelHeader,
   PanelMetric,
+  PanelNotice,
   PanelSection,
   PanelShell,
   PanelState,
 } from "./panels/PanelChrome.jsx";
+
+const DEBUG_CONFIGS = [
+  { id: "web", label: "Web App", adapter: "Chrome", args: "--open-devtools" },
+  { id: "node", label: "Node Runtime", adapter: "Node", args: "--inspect" },
+  { id: "tests", label: "Vitest", adapter: "Test Runner", args: "--runInBand" },
+];
 
 const INITIAL_VARIABLES = [
   { id: 1, name: "result", value: "42", type: "number", mutable: true },
@@ -157,7 +168,11 @@ export default function DebugPanel({ activeFile, _code, problems = [] }) {
   const [addingWatch, setAddingWatch] = useState(false);
   const [newBpLine, setNewBpLine] = useState("");
   const [addingBp, setAddingBp] = useState(false);
+  const [launchConfig, setLaunchConfig] = useState("web");
+  const [runtimeArgs, setRuntimeArgs] = useState(DEBUG_CONFIGS[0].args);
+  const [breakOnErrors, setBreakOnErrors] = useState(true);
   const [sections, setSections] = useState({
+    configuration: true,
     controls: true,
     variables: true,
     callstack: false,
@@ -175,6 +190,7 @@ export default function DebugPanel({ activeFile, _code, problems = [] }) {
   const firstSyntaxError = syntaxErrors[0] || null;
   const activeFileName = activeFile?.name || "No active file";
   const watches = variables.filter((item) => item.watch);
+  const selectedConfig = DEBUG_CONFIGS.find((item) => item.id === launchConfig) || DEBUG_CONFIGS[0];
 
   const callstack = useMemo(() => {
     if (!isRunning && !isPaused) return [];
@@ -202,15 +218,23 @@ export default function DebugPanel({ activeFile, _code, problems = [] }) {
   }, []);
 
   const handleStart = () => {
+    if (!activeFile) {
+      addLog("Keine aktive Datei fuer die Debug-Session.", "warn");
+      return;
+    }
     setIsRunning(true);
     setIsPaused(false);
     setPausedLine(null);
-    addLog(`Debug-Session gestartet${activeFile ? `: ${activeFile.name}` : ""}`, "info");
+    addLog(
+      `${selectedConfig.label} gestartet: ${activeFile.name}${runtimeArgs ? ` ${runtimeArgs}` : ""}`,
+      "info",
+    );
     window.setTimeout(() => {
       addLog("Ausfuehrung laeuft", "system");
       const sortedBreakpoints = [...breakpoints].sort((a, b) => a - b);
       const firstBreakpointLine = sortedBreakpoints[0] || null;
-      const pauseLine = firstBreakpointLine || firstSyntaxError?.startLineNumber || null;
+      const pauseLine =
+        firstBreakpointLine || (breakOnErrors ? firstSyntaxError?.startLineNumber : null) || null;
       if (pauseLine) {
         window.setTimeout(() => {
           setIsPaused(true);
@@ -246,6 +270,14 @@ export default function DebugPanel({ activeFile, _code, problems = [] }) {
     setIsPaused(false);
     setPausedLine(null);
     addLog("Debug-Session beendet", "system");
+  };
+
+  const handlePause = () => {
+    if (!isRunning || isPaused) return;
+    const nextLine = pausedLine || breakpoints[0] || firstSyntaxError?.startLineNumber || 1;
+    setIsPaused(true);
+    setPausedLine(nextLine);
+    addLog(`Angehalten bei Zeile ${nextLine}`, "warn");
   };
 
   const handleContinue = () => {
@@ -300,6 +332,16 @@ export default function DebugPanel({ activeFile, _code, problems = [] }) {
         return;
       }
 
+      if (command === "help") {
+        addLog("Commands: clear, vars, help, <variable>, print <value>", "system");
+        return;
+      }
+
+      if (command === "vars") {
+        addLog(variables.map((item) => `${item.name}=${item.value}`).join(", "), "output");
+        return;
+      }
+
       if (command.startsWith("print ") || command.startsWith("console.log(")) {
         addLog(command.replace(/^(print |console\.log\()/, "").replace(/\)$/, ""), "output");
         return;
@@ -313,7 +355,11 @@ export default function DebugPanel({ activeFile, _code, problems = [] }) {
     const name = watchInput.trim();
     if (!name) return;
     const existing = variables.find((item) => item.name === name);
-    if (!existing) {
+    if (existing) {
+      setVariables((prev) =>
+        prev.map((item) => (item.id === existing.id ? { ...item, watch: true } : item)),
+      );
+    } else {
       setVariables((prev) => [
         ...prev,
         {
@@ -329,6 +375,18 @@ export default function DebugPanel({ activeFile, _code, problems = [] }) {
     setWatchInput("");
     setAddingWatch(false);
     addLog(`Watch: ${name}`, "info");
+  };
+
+  const clearConsole = () => {
+    logIdRef.current += 1;
+    setConsoleLog([
+      {
+        id: logIdRef.current,
+        type: "system",
+        text: "Konsole geleert.",
+        time: new Date().toLocaleTimeString("de-DE", { hour12: false }),
+      },
+    ]);
   };
 
   const handleRemoveVariable = (id) => {
@@ -354,15 +412,37 @@ export default function DebugPanel({ activeFile, _code, problems = [] }) {
     setSections((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
-  const statusLabel = isPaused ? "Paused" : isRunning ? "Running" : firstSyntaxError ? "Issues" : "Ready";
-  const statusTone = isPaused ? "warning" : isRunning ? "success" : firstSyntaxError ? "danger" : "muted";
+  const handleConfigChange = (value) => {
+    const nextConfig = DEBUG_CONFIGS.find((item) => item.id === value) || DEBUG_CONFIGS[0];
+    setLaunchConfig(nextConfig.id);
+    setRuntimeArgs(nextConfig.args);
+  };
+
+  const statusLabel = !activeFile
+    ? "No File"
+    : isPaused
+      ? "Paused"
+      : isRunning
+        ? "Running"
+        : firstSyntaxError
+          ? "Issues"
+          : "Ready";
+  const statusTone = !activeFile
+    ? "muted"
+    : isPaused
+      ? "warning"
+      : isRunning
+        ? "success"
+        : firstSyntaxError
+          ? "danger"
+          : "muted";
 
   return (
     <PanelShell ariaLabel="Debug">
       <PanelHeader
         icon={Bug}
         title="Debug"
-        subtitle={activeFileName}
+        subtitle={`${selectedConfig.label} - ${activeFileName}`}
         status={<PanelBadge tone={statusTone}>{statusLabel}</PanelBadge>}
       >
         <div className="grid grid-cols-3 gap-1.5">
@@ -374,15 +454,107 @@ export default function DebugPanel({ activeFile, _code, problems = [] }) {
 
       <PanelBody className="px-0 py-1">
         <PanelSection
+          icon={Settings2}
+          title="Launch Configuration"
+          expanded={sections.configuration}
+          onToggle={() => toggleSection("configuration")}
+        >
+          <div className="grid gap-2 px-3 pb-3">
+            {!activeFile ? (
+              <PanelNotice
+                icon={Bug}
+                tone="warning"
+                title="Keine aktive Datei"
+                detail="Waehle eine Datei im Editor, bevor du eine Debug-Session startest."
+              />
+            ) : null}
+            <div className="grid grid-cols-2 gap-2">
+              <label className="min-w-0">
+                <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-gray-500">
+                  Adapter
+                </span>
+                <select
+                  className={PANEL_SELECT_CLASS}
+                  value={launchConfig}
+                  onChange={(event) => handleConfigChange(event.target.value)}
+                  disabled={isRunning}
+                  style={{ colorScheme: "dark" }}
+                >
+                  {DEBUG_CONFIGS.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="min-w-0">
+                <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-gray-500">
+                  Runtime
+                </span>
+                <div className="flex h-8 items-center rounded-md border border-white/10 bg-white/[0.04] px-2.5 text-[12px] text-gray-300">
+                  {selectedConfig.adapter}
+                </div>
+              </label>
+            </div>
+            <label className="min-w-0">
+              <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-gray-500">
+                Args
+              </span>
+              <input
+                className={PANEL_INPUT_CLASS}
+                value={runtimeArgs}
+                onChange={(event) => setRuntimeArgs(event.target.value)}
+                placeholder="Runtime arguments"
+                disabled={isRunning}
+              />
+            </label>
+            <button
+              type="button"
+              onClick={() => setBreakOnErrors((value) => !value)}
+              className="flex items-center justify-between gap-2 rounded-md border border-white/[0.07] bg-white/[0.035] px-2.5 py-2 text-left"
+            >
+              <span className="min-w-0">
+                <span className="block text-[11px] font-semibold text-gray-300">
+                  Break on diagnostics
+                </span>
+                <span className="block text-[10px] text-gray-600">
+                  {breakOnErrors ? "Pause bei erstem Error" : "Errors nur loggen"}
+                </span>
+              </span>
+              <span
+                className="h-4 w-8 rounded-full border p-0.5"
+                style={{
+                  background: breakOnErrors ? "rgba(168,85,247,0.22)" : "rgba(255,255,255,0.05)",
+                  borderColor: breakOnErrors ? "rgba(168,85,247,0.35)" : "rgba(255,255,255,0.1)",
+                }}
+              >
+                <span
+                  className="block h-3 w-3 rounded-full transition-transform"
+                  style={{
+                    background: breakOnErrors ? "#c084fc" : "#6b7280",
+                    transform: breakOnErrors ? "translateX(14px)" : "translateX(0)",
+                  }}
+                />
+              </span>
+            </button>
+          </div>
+        </PanelSection>
+
+        <PanelSection
           icon={Zap}
           title="Controls"
           expanded={sections.controls}
           onToggle={() => toggleSection("controls")}
         >
           <div className="grid gap-2 px-3 pb-3">
-            <div className="grid grid-cols-2 gap-1.5">
+            <div className="grid grid-cols-3 gap-1.5">
               {!isRunning ? (
-                <DebugButton onClick={handleStart} tone="run" title="Start debug session">
+                <DebugButton
+                  onClick={handleStart}
+                  disabled={!activeFile}
+                  tone="run"
+                  title="Start debug session"
+                >
                   <Play size={13} />
                   Start
                 </DebugButton>
@@ -393,23 +565,27 @@ export default function DebugPanel({ activeFile, _code, problems = [] }) {
                 </DebugButton>
               )}
               <DebugButton
-                onClick={handleContinue}
-                disabled={!isPaused}
-                tone="continue"
-                title="Continue"
+                onClick={isPaused ? handleContinue : handlePause}
+                disabled={!isRunning}
+                tone={isPaused ? "continue" : "muted"}
+                title={isPaused ? "Continue" : "Pause"}
               >
-                <SkipForward size={13} />
-                Continue
+                {isPaused ? <SkipForward size={13} /> : <Pause size={13} />}
+                {isPaused ? "Continue" : "Pause"}
               </DebugButton>
-            </div>
-            <div className="grid grid-cols-2 gap-1.5">
               <DebugButton onClick={handleStepOver} disabled={!isPaused} title="Step over">
                 <StepForward size={13} />
                 Step
               </DebugButton>
+            </div>
+            <div className="grid grid-cols-2 gap-1.5">
               <DebugButton onClick={handleRestart} disabled={!isRunning} title="Restart">
                 <RotateCcw size={13} />
                 Restart
+              </DebugButton>
+              <DebugButton onClick={clearConsole} title="Clear debug console">
+                <Trash2 size={13} />
+                Console
               </DebugButton>
             </div>
 
@@ -426,6 +602,9 @@ export default function DebugPanel({ activeFile, _code, problems = [] }) {
                 />
                 <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-gray-300">
                   {activeFileName}
+                </span>
+                <span className="shrink-0 rounded bg-white/[0.05] px-1.5 py-0.5 text-[10px] text-gray-500">
+                  {selectedConfig.adapter}
                 </span>
                 {pausedLine ? (
                   <span className="shrink-0 rounded bg-amber-400/10 px-1.5 py-0.5 text-[10px] text-amber-200">
@@ -655,8 +834,11 @@ export default function DebugPanel({ activeFile, _code, problems = [] }) {
         <PanelSection
           icon={Terminal}
           title="Debug Console"
+          count={consoleLog.length}
           expanded={sections.console}
           onToggle={() => toggleSection("console")}
+          action={clearConsole}
+          actionLabel="Clear"
         >
           <div className="grid gap-2 px-3 pb-3">
             <div className="max-h-40 overflow-y-auto rounded-lg border border-white/[0.06] bg-black/30 p-2 font-mono">
@@ -688,7 +870,16 @@ export default function DebugPanel({ activeFile, _code, problems = [] }) {
                 >
                   <X size={11} />
                 </button>
-              ) : null}
+              ) : (
+                <button
+                  type="button"
+                  onClick={clearConsole}
+                  className="rounded p-0.5 text-gray-600 hover:bg-white/10 hover:text-gray-300"
+                  title="Clear console"
+                >
+                  <Trash2 size={11} />
+                </button>
+              )}
             </div>
           </div>
         </PanelSection>

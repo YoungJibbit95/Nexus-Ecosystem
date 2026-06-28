@@ -187,6 +187,36 @@ export function PanelIconButton({
   );
 }
 
+export function PanelActionButton({
+  children,
+  icon: Icon,
+  onClick,
+  disabled = false,
+  tone = "muted",
+  type = "button",
+  title,
+  className = "",
+}) {
+  const toneStyle = toneStyles[tone] || toneStyles.muted;
+  return (
+    <button
+      type={type}
+      onClick={onClick}
+      disabled={disabled}
+      title={title}
+      className={`flex h-8 min-w-0 items-center justify-center gap-1.5 rounded-md border px-2.5 text-[11px] font-semibold transition-colors hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-45 ${className}`}
+      style={{
+        color: toneStyle.icon,
+        background: toneStyle.background,
+        borderColor: toneStyle.border,
+      }}
+    >
+      {Icon ? <Icon size={13} className="shrink-0" /> : null}
+      <span className="min-w-0 truncate">{children}</span>
+    </button>
+  );
+}
+
 export function PanelBadge({ children, tone = "muted", title }) {
   const toneStyle = toneStyles[tone] || toneStyles.muted;
   return (
@@ -223,6 +253,57 @@ export function PanelMetric({ label, value, tone = "muted", title }) {
         style={{ color: toneStyle.icon }}
       >
         {value}
+      </div>
+    </div>
+  );
+}
+
+export function PanelNotice({
+  icon: Icon = AlertCircle,
+  title,
+  detail,
+  tone = "muted",
+  children,
+  actionLabel,
+  onAction,
+  className = "",
+}) {
+  const toneStyle = toneStyles[tone] || toneStyles.muted;
+  return (
+    <div
+      className={`rounded-lg border px-3 py-2.5 ${className}`}
+      style={{
+        color: toneStyle.detail,
+        background: toneStyle.background,
+        borderColor: toneStyle.border,
+      }}
+    >
+      <div className="flex min-w-0 items-start gap-2">
+        {Icon ? (
+          <Icon size={14} className="mt-0.5 shrink-0" style={{ color: toneStyle.icon }} />
+        ) : null}
+        <div className="min-w-0 flex-1">
+          {title ? (
+            <p className="break-words text-[12px] font-semibold" style={{ color: toneStyle.title }}>
+              {title}
+            </p>
+          ) : null}
+          {detail ? (
+            <p className="mt-0.5 break-words text-[11px] leading-snug" style={{ color: toneStyle.detail }}>
+              {detail}
+            </p>
+          ) : null}
+          {children ? <div className="mt-2">{children}</div> : null}
+        </div>
+        {actionLabel && onAction ? (
+          <button
+            type="button"
+            onClick={onAction}
+            className="shrink-0 rounded-md border border-white/10 bg-white/[0.05] px-2 py-1 text-[10px] font-semibold text-gray-200 transition-colors hover:bg-white/[0.09]"
+          >
+            {actionLabel}
+          </button>
+        ) : null}
       </div>
     </div>
   );

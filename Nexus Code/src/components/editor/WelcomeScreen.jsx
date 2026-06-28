@@ -1,31 +1,23 @@
 import React, { useMemo } from "react";
 import {
-  Activity,
   ArrowRight,
   Braces,
-  CheckCircle2,
-  CircleDot,
+  Code2,
   Command,
   FileCode2,
   FolderOpen,
-  GitBranch,
-  Layers3,
-  PanelLeftOpen,
+  GitPullRequest,
+  Palette,
   Plus,
+  Search,
   Settings,
   Sparkles,
-  Terminal,
+  TerminalSquare,
   Zap,
 } from "lucide-react";
 import { motion } from "framer-motion";
-import {
-  IDE_CAPABILITY_STATUS_LABELS,
-  getNexusCodeIdeReleaseSnapshot,
-} from "../../ide/ecosystem/ideCapabilityBridge";
-import {
-  WELCOME_WORKSPACE_ITEMS,
-  getWelcomeRecentFiles,
-} from "../../pages/editor/welcomeScreenModel";
+import { getNexusCodeIdeReleaseSnapshot } from "../../ide/ecosystem/ideCapabilityBridge";
+import { getWelcomeRecentFiles } from "../../pages/editor/welcomeScreenModel";
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -48,43 +40,62 @@ const actionItems = [
   {
     icon: Plus,
     label: "New scratch",
-    detail: "TypeScript ready",
+    detail: "Instant TypeScript surface",
     action: "new",
     primary: true,
     tone: "primary",
   },
   {
     icon: FolderOpen,
-    label: "Open workspace",
-    detail: "Local project",
+    label: "Open project",
+    detail: "Folder, tree and Git context",
     action: "folder",
     primary: true,
     tone: "teal",
   },
   {
     icon: Settings,
-    label: "Tune shell",
-    detail: "Editor setup",
+    label: "Tune editor",
+    detail: "Theme, glow and layout",
     action: "settings",
     primary: false,
     tone: "neutral",
   },
 ];
 
-const capabilityIcons = {
-  languages: Braces,
-  terminal: Terminal,
-  git: GitBranch,
-  github: GitBranch,
-  theme: Layers3,
-  editor: FileCode2,
-};
+const flowItems = [
+  {
+    icon: Command,
+    title: "Command-first editing",
+    detail: "Keep navigation, creation and setup one gesture away.",
+    tone: "primary",
+  },
+  {
+    icon: Search,
+    title: "Search and inspect",
+    detail: "Jump from files to symbols, problems and text without panel noise.",
+    tone: "neutral",
+  },
+  {
+    icon: GitPullRequest,
+    title: "Source control flow",
+    detail: "Local changes, branch state and review signals stay readable.",
+    tone: "teal",
+  },
+  {
+    icon: TerminalSquare,
+    title: "Integrated runtime",
+    detail: "Terminal, tasks and project commands are part of the same surface.",
+    tone: "neutral",
+  },
+];
 
-const workspaceIcons = {
-  workspace: PanelLeftOpen,
-  drafts: FileCode2,
-  shell: Command,
-};
+const languageTiles = [
+  { label: "TypeScript", detail: "JS/TS IDE core", tone: "primary" },
+  { label: "Python", detail: "Lint and syntax path", tone: "teal" },
+  { label: "Rust", detail: "Structured editing", tone: "neutral" },
+  { label: "Go", detail: "Fast project work", tone: "neutral" },
+];
 
 const actionTones = {
   primary: {
@@ -119,7 +130,7 @@ function SoftPanel({ children, className = "", style = {} }) {
       variants={itemVariants}
       className={`min-h-0 min-w-0 overflow-hidden ${className}`}
       style={{
-        borderRadius: 8,
+        borderRadius: 18,
         border: "1px solid rgba(255, 255, 255, 0.075)",
         background:
           "linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.016))",
@@ -155,10 +166,10 @@ function ActionButton({
         primary ? "nx-code-welcome-action-primary" : "nx-code-welcome-action"
       }`}
       style={{
-        minHeight: 66,
-        gap: 10,
-        borderRadius: 8,
-        padding: "10px 12px",
+        minHeight: 68,
+        gap: 12,
+        borderRadius: 16,
+        padding: "11px 13px",
         border: `1px solid ${toneStyle.border}`,
         background: toneStyle.bg,
         boxShadow: toneStyle.glow,
@@ -169,7 +180,7 @@ function ActionButton({
         style={{
           width: 36,
           height: 36,
-          borderRadius: 8,
+          borderRadius: 13,
           border: `1px solid ${toneStyle.iconBorder}`,
           background: toneStyle.iconBg,
           color: toneStyle.iconColor,
@@ -202,7 +213,7 @@ function MetricPill({ icon: Icon, label, value, tone = "primary" }) {
       className="flex min-w-0 items-center gap-2"
       style={{
         minHeight: 34,
-        borderRadius: 8,
+        borderRadius: 14,
         border: "1px solid rgba(255, 255, 255, 0.075)",
         background: "rgba(255, 255, 255, 0.035)",
         padding: "6px 9px",
@@ -213,7 +224,7 @@ function MetricPill({ icon: Icon, label, value, tone = "primary" }) {
         style={{
           width: 22,
           height: 22,
-          borderRadius: 7,
+          borderRadius: 9,
           border: `1px solid ${toneStyle.iconBorder}`,
           background: toneStyle.iconBg,
           color: toneStyle.iconColor,
@@ -233,51 +244,6 @@ function MetricPill({ icon: Icon, label, value, tone = "primary" }) {
   );
 }
 
-function WorkspaceCard({ item }) {
-  const Icon = workspaceIcons[item.id] || CircleDot;
-
-  return (
-    <motion.div
-      variants={itemVariants}
-      className="flex min-w-0 items-center gap-2"
-      style={{
-        minHeight: 58,
-        borderRadius: 8,
-        border: "1px solid rgba(255, 255, 255, 0.065)",
-        background: "rgba(0, 0, 0, 0.12)",
-        padding: "9px 10px",
-      }}
-    >
-      <span
-        className="flex shrink-0 items-center justify-center text-[var(--nexus-primary,#7c8cff)]"
-        style={{
-          width: 30,
-          height: 30,
-          borderRadius: 8,
-          border: "1px solid rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.2)",
-          background: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.08)",
-        }}
-      >
-        <Icon size={15} />
-      </span>
-      <div className="min-w-0 flex-1">
-        <div className="flex min-w-0 items-center gap-2">
-          <span className="shrink-0 text-[10px] font-semibold text-[var(--nexus-muted)]">
-            {item.label}
-          </span>
-          <span className="h-px min-w-4 flex-1 bg-white/[0.06]" />
-        </div>
-        <div className="mt-0.5 truncate text-xs font-semibold text-[var(--nexus-text)]">
-          {item.title}
-        </div>
-        <div className="mt-0.5 truncate text-[10px] text-[var(--nexus-muted)]">
-          {item.detail}
-        </div>
-      </div>
-    </motion.div>
-  );
-}
-
 function RecentFiles({ files }) {
   const rows =
     files.length > 0
@@ -285,9 +251,9 @@ function RecentFiles({ files }) {
       : [
           {
             id: "empty",
-            name: "No local recents",
-            detail: "Open a folder or create a scratch",
-            meta: "ready",
+            name: "No local files yet",
+            detail: "Create a scratch or open a project",
+            meta: "local",
           },
         ];
 
@@ -299,8 +265,8 @@ function RecentFiles({ files }) {
             size={14}
             className="shrink-0 text-[var(--nexus-primary,#7c8cff)]"
           />
-          <span className="truncate text-xs font-semibold text-[var(--nexus-text)]">
-            Recent
+        <span className="truncate text-xs font-semibold text-[var(--nexus-text)]">
+            Recent files
           </span>
         </div>
         <span className="shrink-0 text-[10px] font-semibold text-[var(--nexus-muted)]">
@@ -315,7 +281,7 @@ function RecentFiles({ files }) {
             className="flex min-w-0 items-center gap-2"
             style={{
               minHeight: 42,
-              borderRadius: 8,
+              borderRadius: 14,
               border: "1px solid rgba(255, 255, 255, 0.06)",
               background: "rgba(255, 255, 255, 0.026)",
               padding: "7px 9px",
@@ -326,7 +292,7 @@ function RecentFiles({ files }) {
               style={{
                 width: 26,
                 height: 26,
-                borderRadius: 7,
+                borderRadius: 10,
                 border: "1px solid rgba(255, 255, 255, 0.075)",
                 background: "rgba(0, 0, 0, 0.13)",
               }}
@@ -351,21 +317,22 @@ function RecentFiles({ files }) {
   );
 }
 
-function CapabilitySignal({ capability }) {
-  const Icon = capabilityIcons[capability.area] || CheckCircle2;
-  const statusLabel =
-    IDE_CAPABILITY_STATUS_LABELS[capability.status] || capability.status;
+function FlowCard({ icon: Icon, title, detail, tone = "neutral" }) {
+  const toneStyle = actionTones[tone] || actionTones.neutral;
 
   return (
     <motion.div
       variants={itemVariants}
-      className="flex min-w-0 items-center gap-2"
+      whileHover={{ y: -2 }}
+      transition={{ type: "spring", stiffness: 420, damping: 32 }}
+      className="flex min-w-0 items-start gap-2.5"
       style={{
-        minHeight: 42,
-        borderRadius: 8,
-        border: "1px solid rgba(255, 255, 255, 0.06)",
-        background: "rgba(0, 0, 0, 0.11)",
-        padding: "7px 9px",
+        minHeight: 66,
+        borderRadius: 16,
+        border: `1px solid ${toneStyle.border}`,
+        background:
+          "linear-gradient(135deg, rgba(255, 255, 255, 0.042), rgba(255, 255, 255, 0.014))",
+        padding: "10px 11px",
       }}
     >
       <span
@@ -373,125 +340,86 @@ function CapabilitySignal({ capability }) {
         style={{
           width: 27,
           height: 27,
-          borderRadius: 7,
-          border: "1px solid rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.18)",
-          background: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.08)",
-          color: "var(--nexus-primary, #7c8cff)",
+          borderRadius: 10,
+          border: `1px solid ${toneStyle.iconBorder}`,
+          background: toneStyle.iconBg,
+          color: toneStyle.iconColor,
         }}
       >
         <Icon size={14} />
       </span>
       <div className="min-w-0 flex-1">
         <div className="truncate text-xs font-semibold text-[var(--nexus-text)]">
-          {capability.label}
+          {title}
         </div>
-        <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[10px] text-[var(--nexus-muted)]">
-          <CircleDot size={8} className="shrink-0" />
-          <span className="truncate">{statusLabel}</span>
+        <div
+          className="mt-1 text-[10px] leading-relaxed text-[var(--nexus-muted)]"
+          style={{
+            display: "-webkit-box",
+            overflow: "hidden",
+            WebkitBoxOrient: "vertical",
+            WebkitLineClamp: 2,
+          }}
+        >
+          {detail}
         </div>
       </div>
     </motion.div>
   );
 }
 
-function ReadinessPanel({ releaseSnapshot }) {
-  const ready = releaseSnapshot.capability.foundationReady;
-  const total = releaseSnapshot.capability.totalCapabilities;
-  const progress = total > 0 ? Math.round((ready / total) * 100) : 0;
-
+function FlowDeck() {
   return (
-    <SoftPanel
-      className="nx-code-launchpad-readiness"
-      style={{
-        minHeight: 148,
-        padding: 13,
-        border: "1px solid rgba(45, 212, 191, 0.16)",
-        background:
-          "linear-gradient(180deg, rgba(45, 212, 191, 0.07), rgba(255, 255, 255, 0.017))",
-      }}
-    >
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-2">
-          <Activity size={14} className="shrink-0 text-emerald-300" />
-          <span className="truncate text-xs font-semibold text-[var(--nexus-text)]">
-            Readiness
-          </span>
-        </div>
-        <span
-          className="shrink-0 rounded-md px-2 py-1 text-[10px] font-semibold text-emerald-200"
-          style={{
-            border: "1px solid rgba(45, 212, 191, 0.22)",
-            background: "rgba(45, 212, 191, 0.1)",
-          }}
-        >
-          {progress}%
-        </span>
-      </div>
-
-      <div className="mt-3 flex items-end gap-2">
-        <span className="text-4xl font-semibold text-[var(--nexus-text)]">
-          {ready}
-        </span>
-        <span className="pb-1.5 text-xs text-[var(--nexus-muted)]">
-          / {total} foundation-ready
-        </span>
-      </div>
-
-      <div
-        className="mt-3 overflow-hidden"
-        style={{
-          height: 7,
-          borderRadius: 999,
-          background: "rgba(255, 255, 255, 0.07)",
-        }}
-      >
-        <div
-          style={{
-            width: `${progress}%`,
-            height: "100%",
-            borderRadius: 999,
-            background:
-              "linear-gradient(90deg, rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.84), rgba(45, 212, 191, 0.9))",
-            boxShadow: "0 0 14px rgba(45, 212, 191, 0.28)",
-          }}
-        />
-      </div>
-
-      <p
-        className="mt-3 text-[11px] leading-relaxed text-[var(--nexus-muted)]"
-        style={{
-          display: "-webkit-box",
-          overflow: "hidden",
-          WebkitBoxOrient: "vertical",
-          WebkitLineClamp: 2,
-        }}
-      >
-        {releaseSnapshot.capability.phaseOne}
-      </p>
-    </SoftPanel>
-  );
-}
-
-function SignalPanel({ capabilities }) {
-  return (
-    <SoftPanel className="nx-code-launchpad-signals flex flex-col" style={{ padding: 12 }}>
+    <SoftPanel className="nx-code-launchpad-flow flex flex-col" style={{ padding: 12 }}>
       <div className="mb-2 flex min-w-0 items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2">
-          <CheckCircle2
+          <Sparkles
             size={14}
             className="shrink-0 text-[var(--nexus-primary,#7c8cff)]"
           />
           <span className="truncate text-xs font-semibold text-[var(--nexus-text)]">
-            Workbench signals
+            IDE flow
+          </span>
+        </div>
+        <span className="shrink-0 rounded-full border border-white/[0.08] bg-white/[0.03] px-2 py-0.5 text-[10px] font-semibold text-[var(--nexus-muted)]">
+          local first
+        </span>
+      </div>
+      <div className="grid min-h-0 flex-1 gap-2 overflow-hidden sm:grid-cols-2">
+        {flowItems.map((item) => (
+          <FlowCard key={item.title} {...item} />
+        ))}
+      </div>
+    </SoftPanel>
+  );
+}
+
+function LanguageDeck({ fullIdeCount, syntaxCount }) {
+  return (
+    <SoftPanel className="nx-code-launchpad-languages flex flex-col" style={{ padding: 12 }}>
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-2">
+          <Braces
+            size={14}
+            className="shrink-0 text-[var(--nexus-primary,#7c8cff)]"
+          />
+          <span className="truncate text-xs font-semibold text-[var(--nexus-text)]">
+            Language surfaces
           </span>
         </div>
         <span className="shrink-0 text-[10px] font-semibold text-[var(--nexus-muted)]">
-          {capabilities.length} live
+          {fullIdeCount + syntaxCount} modes
         </span>
       </div>
-      <div className="grid min-h-0 flex-1 content-start gap-2 overflow-hidden">
-        {capabilities.map((capability) => (
-          <CapabilitySignal key={capability.id} capability={capability} />
+      <div className="grid min-h-0 flex-1 gap-2 overflow-hidden sm:grid-cols-2">
+        {languageTiles.map((tile) => (
+          <FlowCard
+            key={tile.label}
+            icon={Code2}
+            title={tile.label}
+            detail={tile.detail}
+            tone={tile.tone}
+          />
         ))}
       </div>
     </SoftPanel>
@@ -504,9 +432,7 @@ export default function WelcomeScreen({
   onOpenSettings,
 }) {
   const releaseSnapshot = useMemo(getNexusCodeIdeReleaseSnapshot, []);
-  const visibleCapabilities =
-    releaseSnapshot.capability.visibleCapabilities.slice(0, 4);
-  const recentFiles = useMemo(() => getWelcomeRecentFiles(3), []);
+  const recentFiles = useMemo(() => getWelcomeRecentFiles(4), []);
   const fullIdeCount = releaseSnapshot.language.fullIdeLanguages.length;
   const syntaxCount = releaseSnapshot.language.syntaxFirstLanguages.length;
 
@@ -521,31 +447,31 @@ export default function WelcomeScreen({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ type: "spring", stiffness: 300, damping: 30 }}
-      className="flex-1 min-h-0 overflow-hidden bg-transparent"
+      className="flex min-h-0 flex-1 items-center overflow-hidden bg-transparent"
       style={{
         boxSizing: "border-box",
         height: "100%",
-        padding: "clamp(8px, 1.7vh, 14px) 14px",
+        padding: "clamp(8px, 1.5vh, 14px) clamp(10px, 1.4vw, 18px)",
       }}
     >
       <motion.div
         variants={containerVariants}
         initial="hidden"
         animate="visible"
-        className="nx-code-welcome nx-code-launchpad mx-auto grid min-h-0 w-full"
+        className="nx-code-welcome nx-code-launchpad mx-auto grid min-h-0 w-full overflow-hidden"
         style={{
-          width: "min(100%, 1120px)",
-          height: "min(100%, 600px)",
+          width: "min(100%, 1180px)",
+          height: "min(100%, 620px)",
           gridTemplateRows: "auto minmax(0, 1fr)",
-          gap: 10,
+          gap: 12,
         }}
       >
         <SoftPanel
           className="nx-code-launchpad-header"
           style={{
-            padding: "12px 14px",
+            padding: "14px 16px",
             background:
-              "linear-gradient(135deg, rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.105), rgba(255, 255, 255, 0.032) 46%, rgba(45, 212, 191, 0.047))",
+              "radial-gradient(circle at 16% 16%, rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.18), transparent 42%), linear-gradient(135deg, rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.11), rgba(255, 255, 255, 0.032) 48%, rgba(45, 212, 191, 0.055))",
           }}
         >
           <div className="grid min-w-0 items-center gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(22rem,auto)]">
@@ -553,9 +479,9 @@ export default function WelcomeScreen({
               <div
                 className="nx-code-launchpad-mark flex shrink-0 items-center justify-center border text-sm font-semibold"
                 style={{
-                  width: 46,
-                  height: 46,
-                  borderRadius: 8,
+                  width: 50,
+                  height: 50,
+                  borderRadius: 18,
                   background:
                     "linear-gradient(145deg, rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.17), rgba(255, 255, 255, 0.05))",
                   borderColor:
@@ -574,14 +500,14 @@ export default function WelcomeScreen({
                     className="shrink-0 text-[var(--nexus-primary,#7c8cff)]"
                   />
                   <span className="truncate text-[11px] font-semibold text-[var(--nexus-muted)]">
-                    Nexus x Zed shell
+                    Nexus x Zed editor
                   </span>
                 </div>
-                <h1 className="mt-1 truncate text-3xl font-semibold text-[var(--nexus-text)]">
+                <h1 className="mt-1 truncate text-[clamp(1.75rem,3vw,2.45rem)] font-semibold leading-none text-[var(--nexus-text)]">
                   Nexus Code
                 </h1>
                 <p className="mt-1 truncate text-xs text-[var(--nexus-muted)]">
-                  {releaseSnapshot.language.fullIdeLabel}
+                  Fast local editing with terminal, Git, search and theme control.
                 </p>
               </div>
             </div>
@@ -589,8 +515,8 @@ export default function WelcomeScreen({
             <div className="grid min-w-0 grid-cols-3 gap-2">
               <MetricPill
                 icon={Zap}
-                label="Ready core"
-                value={`${releaseSnapshot.capability.foundationReady}/${releaseSnapshot.capability.totalCapabilities}`}
+                label="Start"
+                value="Local"
                 tone="primary"
               />
               <MetricPill
@@ -600,8 +526,8 @@ export default function WelcomeScreen({
                 tone="neutral"
               />
               <MetricPill
-                icon={Layers3}
-                label="Syntax tier"
+                icon={Palette}
+                label="Syntax"
                 value={syntaxCount}
                 tone="teal"
               />
@@ -613,7 +539,7 @@ export default function WelcomeScreen({
           variants={itemVariants}
           className="grid min-h-0 min-w-0 gap-3"
           style={{
-            gridTemplateColumns: "minmax(0, 1.18fr) minmax(288px, 0.82fr)",
+            gridTemplateColumns: "minmax(0, 0.95fr) minmax(340px, 1.05fr)",
           }}
         >
           <div
@@ -634,42 +560,15 @@ export default function WelcomeScreen({
               ))}
             </div>
 
-            <div className="grid min-h-0 min-w-0 gap-3 lg:grid-cols-[0.9fr_1.1fr]">
-              <SoftPanel
-                className="nx-code-launchpad-workspace flex flex-col"
-                style={{ padding: 12 }}
-              >
-                <div className="mb-2 flex min-w-0 items-center justify-between gap-3">
-                  <div className="flex min-w-0 items-center gap-2">
-                    <PanelLeftOpen
-                      size={14}
-                      className="shrink-0 text-[var(--nexus-primary,#7c8cff)]"
-                    />
-                    <span className="truncate text-xs font-semibold text-[var(--nexus-text)]">
-                      Workspace
-                    </span>
-                  </div>
-                  <span className="shrink-0 text-[10px] font-semibold text-[var(--nexus-muted)]">
-                    focused
-                  </span>
-                </div>
-                <div className="grid min-h-0 flex-1 content-start gap-2 overflow-hidden">
-                  {WELCOME_WORKSPACE_ITEMS.map((item) => (
-                    <WorkspaceCard key={item.id} item={item} />
-                  ))}
-                </div>
-              </SoftPanel>
-
-              <RecentFiles files={recentFiles} />
-            </div>
+            <LanguageDeck fullIdeCount={fullIdeCount} syntaxCount={syntaxCount} />
           </div>
 
           <div
             className="grid min-h-0 min-w-0 gap-3"
-            style={{ gridTemplateRows: "auto minmax(0, 1fr)" }}
+            style={{ gridTemplateRows: "minmax(0, 1fr) minmax(0, 1fr)" }}
           >
-            <ReadinessPanel releaseSnapshot={releaseSnapshot} />
-            <SignalPanel capabilities={visibleCapabilities} />
+            <FlowDeck />
+            <RecentFiles files={recentFiles} />
           </div>
         </motion.div>
       </motion.div>

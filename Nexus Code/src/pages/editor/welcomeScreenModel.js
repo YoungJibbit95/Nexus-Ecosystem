@@ -1,27 +1,6 @@
 const FILES_INDEX_STORAGE_KEY = "nexus-code-files-index-v2";
 const LEGACY_FILES_STORAGE_KEY = "nexus-code-files";
 
-export const WELCOME_WORKSPACE_ITEMS = Object.freeze([
-  {
-    id: "workspace",
-    label: "Workspace",
-    title: "Open local folder",
-    detail: "Tree, terminal cwd and Git context",
-  },
-  {
-    id: "drafts",
-    label: "Recent",
-    title: "Resume local drafts",
-    detail: "Stored scratch files stay close",
-  },
-  {
-    id: "shell",
-    label: "Shell",
-    title: "Tune the workbench",
-    detail: "Theme, editor and runtime surface",
-  },
-]);
-
 function canReadLocalStorage() {
   return (
     typeof window !== "undefined" &&
@@ -61,7 +40,7 @@ function normalizeRecentFile(file, index) {
     id: String(file?.id || `${fileName}-${index}`),
     name: fileName,
     detail,
-    meta: sourcePath ? "workspace" : "draft",
+    meta: sourcePath ? "project" : "draft",
   };
 }
 

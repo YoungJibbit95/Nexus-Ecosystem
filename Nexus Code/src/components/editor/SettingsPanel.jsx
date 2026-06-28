@@ -6,12 +6,14 @@ import {
   Cpu,
   Eye,
   Gauge,
+  Info,
   Palette,
   PanelLeft,
   RefreshCcw,
   Search,
   Settings2,
   Sparkles,
+  X,
   Zap,
 } from "lucide-react";
 import { motion, useReducedMotion } from "framer-motion";
@@ -46,7 +48,7 @@ const SETTING_SECTIONS = [
     eyebrow: "Text",
     icon: Code2,
     description: "Typing, Layout, Hilfen und CodeMirror-Verhalten.",
-    keywords: "font line height wrap minimap diagnostics autocomplete lsp whitespace cursor bracket tab",
+    keywords: "font line height letter spacing wrap minimap diagnostics autocomplete lsp whitespace cursor bracket tab",
   },
   {
     id: "workbench",
@@ -54,7 +56,7 @@ const SETTING_SECTIONS = [
     eyebrow: "Shell",
     icon: PanelLeft,
     description: "Sidebar, Statusleiste, Zen Mode, Autosave und Panel-Verhalten.",
-    keywords: "sidebar status bar zen autosave workbench panels background",
+    keywords: "sidebar visible status bar zen autosave workbench panels background",
   },
   {
     id: "theme",
@@ -70,7 +72,7 @@ const SETTING_SECTIONS = [
     eyebrow: "Budget",
     icon: Gauge,
     description: "Blur/Glow-Budget, LSP, Diagnostics und Rendering-Kosten.",
-    keywords: "performance visual profile blur glow lsp diagnostics autocomplete minimap renderer",
+    keywords: "performance visual profile blur glow outline lsp diagnostics autocomplete minimap renderer hints budget",
   },
   {
     id: "animations",
@@ -78,7 +80,7 @@ const SETTING_SECTIONS = [
     eyebrow: "Motion",
     icon: Zap,
     description: "Reduced Motion, Cursor-Animationen und Glow-Bewegung.",
-    keywords: "animation motion reduce caret cursor blink glow",
+    keywords: "animation motion reduce speed duration caret cursor blink glow",
   },
 ];
 
@@ -161,6 +163,13 @@ const SETTING_INDEX = [
     keywords: "font weight bold medium typography",
   },
   {
+    id: "letter_spacing",
+    section: "editor",
+    label: "Letter Spacing",
+    description: "Zusatzabstand zwischen Zeichen im Code Editor.",
+    keywords: "letter spacing tracking character typografie font editor",
+  },
+  {
     id: "tab_size",
     section: "editor",
     label: "Tab-Groesse",
@@ -238,6 +247,13 @@ const SETTING_INDEX = [
     keywords: "sidebar workbench rail left right",
   },
   {
+    id: "sidebar_visible",
+    section: "workbench",
+    label: "Sidebar Sichtbarkeit",
+    description: "Activity Rail und Side Panel sichtbar halten.",
+    keywords: "sidebar visible activity rail panel hide show workbench",
+  },
+  {
     id: "status_bar_visible",
     section: "workbench",
     label: "Statusleiste",
@@ -287,6 +303,13 @@ const SETTING_INDEX = [
     keywords: "glow renderer css three performance",
   },
   {
+    id: "panel_glow_outline",
+    section: "performance",
+    label: "Panel Glow Outline",
+    description: "Leuchtende Panel-Kante fuer aktives Theme.",
+    keywords: "panel glow outline border light performance",
+  },
+  {
     id: "reduce_motion",
     section: "animations",
     label: "Reduce Motion",
@@ -299,6 +322,13 @@ const SETTING_INDEX = [
     label: "Animationen",
     description: "Mikroanimationen im Settings-Erlebnis ein- oder ausschalten.",
     keywords: "animations motion transition",
+  },
+  {
+    id: "animation_speed",
+    section: "animations",
+    label: "Animation Speed",
+    description: "Tempo der Settings-Transitions und Preview-Bewegung.",
+    keywords: "animation speed motion duration transition tempo",
   },
   {
     id: "smooth_caret",
@@ -392,7 +422,7 @@ function settingMatchesSearch(settingId, sectionId, query) {
 }
 
 function sectionMatchesSearch(section, query) {
-  if (!query) return false;
+  if (!query || !section) return false;
   return [
     section.label,
     section.eyebrow,
@@ -427,6 +457,105 @@ function isVisibleSetting(settingId, sectionId, query) {
 function getNumberSetting(settings, key, fallback) {
   const value = Number(settings?.[key]);
   return Number.isFinite(value) ? value : fallback;
+}
+
+function clampNumber(value, min, max, fallback) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return fallback;
+  return Math.max(min, Math.min(max, numeric));
+}
+
+function formatSettingNumber(value, digits = 2) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return String(value);
+  return numeric.toFixed(digits).replace(/\.?0+$/, "");
+}
+
+function getSectionLabel(sectionId) {
+  return SETTING_SECTIONS.find((section) => section.id === sectionId)?.label || sectionId;
+}
+
+function getSearchResults(query, limit = 6) {
+  if (!query) return [];
+  return SETTING_INDEX
+    .filter((entry) => {
+      const section = SETTING_SECTIONS.find((item) => item.id === entry.section);
+      return sectionMatchesSearch(section, query) || settingMatchesSearch(entry.id, entry.section, query);
+    })
+    .slice(0, limit)
+    .map((entry) => ({
+      ...entry,
+      sectionLabel: getSectionLabel(entry.section),
+    }));
+}
+
+function createThemeTokenList(resolvedTheme) {
+  const cssVars = resolvedTheme?.cssVars || {};
+  const colors = resolvedTheme?.colors || {};
+  const syntax = resolvedTheme?.syntax || {};
+  return [
+    { label: "Primary", varName: "--nexus-primary", value: cssVars["--nexus-primary"] || colors.primary },
+    { label: "Secondary", varName: "--nexus-accent-2", value: cssVars["--nexus-accent-2"] || colors.secondary },
+    { label: "Surface", varName: "--nexus-panel-surface", value: cssVars["--nexus-panel-surface"] || colors.surface },
+    { label: "Border", varName: "--nexus-border", value: cssVars["--nexus-border"] || colors.border },
+    { label: "Text", varName: "--nexus-text", value: cssVars["--nexus-text"] || colors.text },
+    { label: "Muted", varName: "--nexus-muted", value: cssVars["--nexus-muted"] || colors.muted },
+    { label: "Keyword", varName: "--nexus-keyword", value: cssVars["--nexus-keyword"] || syntax.keyword },
+    { label: "String", varName: "--nexus-string", value: cssVars["--nexus-string"] || syntax.string },
+    { label: "Function", varName: "--nexus-function", value: cssVars["--nexus-function"] || syntax.function },
+  ].filter((token) => token.value);
+}
+
+function buildPerformanceHints(settings = {}, visualProfileId, lspServers = []) {
+  const hints = [];
+  const panelBlur = getNumberSetting(settings, "panel_blur_strength", 16);
+  const glowIntensity = getNumberSetting(settings, "glow_intensity", 28);
+  const glowRadius = getNumberSetting(settings, "glow_radius", 14);
+  const missingLspCount = lspServers.filter((server) => !server.available).length;
+
+  if (visualProfileId === "performance") {
+    hints.push({
+      tone: "good",
+      title: "Performance-Profil aktiv",
+      text: "Motion und Glow laufen bereits mit kleinem Budget.",
+    });
+  }
+  if (panelBlur >= 24) {
+    hints.push({
+      tone: "warn",
+      title: "Hoher Blur",
+      text: "Backdrop-Blur ueber 24px kann Panel-Scrolling teurer machen.",
+    });
+  }
+  if (glowIntensity >= 55 || glowRadius >= 34) {
+    hints.push({
+      tone: "warn",
+      title: "Grosses Glow-Feld",
+      text: "Intensitaet oder Radius vergroessern die Paint-Flaeche.",
+    });
+  }
+  if (settings.glow_renderer === "three") {
+    hints.push({
+      tone: "warn",
+      title: "Intensiver Renderer",
+      text: "Nur fuer starke Theme-Previews sinnvoll, CSS bleibt guenstiger.",
+    });
+  }
+  if (settings.lsp_enabled !== false && missingLspCount > 0) {
+    hints.push({
+      tone: "info",
+      title: "LSP teilweise offline",
+      text: `${missingLspCount} Server fehlen; Autocomplete faellt dort leiser zurueck.`,
+    });
+  }
+  if (hints.length === 0) {
+    hints.push({
+      tone: "good",
+      title: "Budget stabil",
+      text: "Blur, Glow und Language Features liegen im ausgewogenen Bereich.",
+    });
+  }
+  return hints.slice(0, 4);
 }
 
 function SettingsHeader({ title, eyebrow, description, icon: Icon }) {
@@ -507,6 +636,153 @@ function ValueBadge({ children }) {
   );
 }
 
+function SearchResultSummary({
+  query,
+  totalMatches,
+  sectionMatchCounts,
+  results,
+  onOpenSetting,
+}) {
+  const matchedSections = SETTING_SECTIONS.filter(
+    (section) => sectionMatchCounts[section.id] > 0,
+  );
+
+  return (
+    <section
+      className="rounded-lg border p-4"
+      style={{
+        background: "rgba(255,255,255,0.026)",
+        borderColor: "var(--nexus-border)",
+      }}
+    >
+      <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-widest text-gray-500">
+            <Search size={13} />
+            <span>Result Hints</span>
+          </div>
+          <p className="mt-2 text-sm text-gray-300">
+            {totalMatches} Treffer fuer "{query}"
+          </p>
+          <p className="mt-1 text-xs leading-5 text-gray-500">
+            Oeffne einen Treffer direkt oder nutze die Kategorien links als gefilterte Karte.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {matchedSections.map((section) => (
+            <span
+              key={section.id}
+              className="rounded-md border px-2 py-1 text-[10px] font-medium text-gray-400"
+              style={{
+                background: "rgba(255,255,255,0.035)",
+                borderColor: "rgba(255,255,255,0.08)",
+              }}
+            >
+              {section.label} {sectionMatchCounts[section.id]}
+            </span>
+          ))}
+        </div>
+      </div>
+      <div className="mt-4 grid grid-cols-1 gap-2 lg:grid-cols-2">
+        {results.map((result) => (
+          <button
+            key={`${result.section}-${result.id}`}
+            type="button"
+            onClick={() => onOpenSetting(result)}
+            className="rounded-md border p-3 text-left transition-colors hover:bg-white/[0.045]"
+            style={{
+              background: "rgba(255,255,255,0.018)",
+              borderColor: "rgba(255,255,255,0.06)",
+            }}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <span className="truncate text-xs font-semibold text-gray-200">
+                {result.label}
+              </span>
+              <span className="shrink-0 rounded bg-white/10 px-1.5 py-0.5 text-[10px] text-gray-500">
+                {result.sectionLabel}
+              </span>
+            </div>
+            <p className="mt-1 line-clamp-2 text-[10px] leading-4 text-gray-500">
+              {result.description}
+            </p>
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function ThemeTokenGrid({ tokens }) {
+  return (
+    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+      {tokens.map((token) => (
+        <div
+          key={token.varName}
+          className="flex min-w-0 items-center gap-2 rounded-md border px-2.5 py-2"
+          style={{
+            background: "rgba(255,255,255,0.018)",
+            borderColor: "rgba(255,255,255,0.06)",
+          }}
+        >
+          <span
+            className="h-6 w-6 shrink-0 rounded-md border border-white/10"
+            style={{ background: token.value }}
+          />
+          <div className="min-w-0">
+            <div className="truncate text-xs font-medium text-gray-300">
+              {token.label}
+            </div>
+            <code className="block truncate text-[10px] text-gray-500">
+              {token.varName}
+            </code>
+          </div>
+          <code className="ml-auto max-w-[7rem] shrink-0 truncate text-[10px] text-gray-500">
+            {token.value}
+          </code>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function PerformanceHintList({ hints }) {
+  return (
+    <div className="grid grid-cols-1 gap-2">
+      {hints.map((hint) => (
+        <div
+          key={`${hint.title}-${hint.text}`}
+          className="flex gap-3 rounded-md border px-3 py-2.5"
+          style={{
+            background:
+              hint.tone === "warn"
+                ? "rgba(245,158,11,0.08)"
+                : hint.tone === "good"
+                  ? "rgba(34,197,94,0.07)"
+                  : "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.08)",
+            borderColor:
+              hint.tone === "warn"
+                ? "rgba(245,158,11,0.18)"
+                : hint.tone === "good"
+                  ? "rgba(34,197,94,0.16)"
+                  : "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.18)",
+          }}
+        >
+          <Info size={14} className="mt-0.5 shrink-0 text-gray-400" />
+          <div className="min-w-0">
+            <div className="text-xs font-semibold text-gray-200">
+              {hint.title}
+            </div>
+            <p className="mt-0.5 text-[10px] leading-4 text-gray-500">
+              {hint.text}
+            </p>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function ColorControl({ value, fallback, onChange, label }) {
   const current = value || fallback;
   return (
@@ -582,9 +858,11 @@ function PresetButton({
 
 function ThemePreview({
   settings,
+  themeName,
   primaryAccent,
   secondaryAccent,
   radius,
+  animationSpeed,
   shouldReduceMotion,
 }) {
   const glowIntensity = getNumberSetting(settings, "glow_intensity", 28);
@@ -592,10 +870,21 @@ function ThemePreview({
   const blurStrength = getNumberSetting(settings, "panel_blur_strength", 16);
   const fontSize = getNumberSetting(settings, "font_size", 14);
   const lineHeight = getNumberSetting(settings, "line_height", 1.6);
+  const letterSpacing = getNumberSetting(settings, "letter_spacing", 0);
+  const sidebarVisible = settings.sidebar_visible !== false;
+  const statusVisible = settings.status_bar_visible !== false;
+  const sidebarRight = settings.sidebar_position === "right";
+  const cursorStyle = settings.cursor_style || "line";
   const previewShadow =
     glowIntensity > 0
       ? `0 0 ${Math.max(4, Math.round((glowRadius * glowIntensity) / 90))}px rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.24)`
       : "none";
+  const cursorShape =
+    cursorStyle === "block"
+      ? "h-5 w-2.5"
+      : cursorStyle === "underline"
+        ? "h-0.5 w-4 self-end"
+        : "h-5 w-0.5";
 
   return (
     <motion.div
@@ -610,7 +899,7 @@ function ThemePreview({
       }}
     >
       <div
-        className="flex items-center justify-between border-b border-white/5 px-4 py-3"
+        className="flex flex-wrap items-center justify-between gap-3 border-b border-white/5 px-4 py-3"
         style={{
           background: `linear-gradient(135deg, rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.14), rgba(var(--nexus-accent-2-rgb, 45, 212, 191), 0.06))`,
           backdropFilter: blurStrength > 0 ? `blur(${Math.min(12, blurStrength)}px)` : "none",
@@ -629,41 +918,84 @@ function ThemePreview({
             settings.preview.tsx
           </span>
         </div>
-        <span className="text-[10px] text-gray-500">
-          {settings.word_wrap ? "Wrap" : "No Wrap"}
-        </span>
-      </div>
-      <div className="grid grid-cols-[3.5rem_1fr]">
-        <div className="border-r border-white/5 px-3 py-4 text-right font-mono text-[11px] leading-6 text-gray-600">
-          <div>1</div>
-          <div>2</div>
-          <div>3</div>
-        </div>
-        <div
-          className="min-w-0 px-4 py-4 font-mono text-gray-300"
-          style={{
-            fontFamily: settings.font_family || "JetBrains Mono",
-            fontSize,
-            lineHeight,
-          }}
-        >
-          <div>
-            <span style={{ color: "var(--nexus-keyword)" }}>const</span>{" "}
-            <span style={{ color: "var(--nexus-variable)" }}>theme</span>{" "}
-            <span style={{ color: "var(--nexus-operator)" }}>=</span>{" "}
-            <span style={{ color: "var(--nexus-string)" }}>"Nexus"</span>;
-          </div>
-          <div>
-            <span style={{ color: "var(--nexus-function)" }}>applyGlow</span>
-            <span style={{ color: "var(--nexus-text)" }}>(</span>
-            <span style={{ color: "var(--nexus-number)" }}>{glowIntensity}</span>
-            <span style={{ color: "var(--nexus-text)" }}>)</span>;
-          </div>
-          <div className="text-gray-500">
-            // blur {blurStrength}px, radius {radius}px
-          </div>
+        <div className="flex flex-wrap items-center gap-2 text-[10px] text-gray-500">
+          <span>{themeName}</span>
+          <span>{settings.word_wrap ? "Wrap" : "No Wrap"}</span>
+          <span>{shouldReduceMotion ? "Motion off" : `${formatSettingNumber(animationSpeed, 2)}x motion`}</span>
         </div>
       </div>
+      <div className="flex min-h-[15rem]">
+        {sidebarVisible && !sidebarRight ? (
+          <div className="flex w-12 shrink-0 flex-col items-center gap-2 border-r border-white/5 py-4">
+            {[primaryAccent, secondaryAccent, "rgba(255,255,255,0.18)"].map((color, index) => (
+              <span
+                key={`${color}-${index}`}
+                className="h-6 w-6 rounded-md border border-white/10"
+                style={{ background: color }}
+              />
+            ))}
+          </div>
+        ) : null}
+        <div className="grid min-w-0 flex-1 grid-cols-[3.5rem_1fr]">
+          <div className="border-r border-white/5 px-3 py-4 text-right font-mono text-[11px] leading-6 text-gray-600">
+            <div>1</div>
+            <div>2</div>
+            <div>3</div>
+            <div>4</div>
+          </div>
+          <div
+            className="min-w-0 px-4 py-4 font-mono text-gray-300"
+            style={{
+              fontFamily: settings.font_family || "JetBrains Mono",
+              fontSize,
+              lineHeight,
+              letterSpacing,
+            }}
+          >
+            <div>
+              <span style={{ color: "var(--nexus-keyword)" }}>const</span>{" "}
+              <span style={{ color: "var(--nexus-variable)" }}>theme</span>{" "}
+              <span style={{ color: "var(--nexus-operator)" }}>=</span>{" "}
+              <span style={{ color: "var(--nexus-string)" }}>"Nexus"</span>;
+            </div>
+            <div>
+              <span style={{ color: "var(--nexus-function)" }}>applyGlow</span>
+              <span style={{ color: "var(--nexus-text)" }}>(</span>
+              <span style={{ color: "var(--nexus-number)" }}>{glowIntensity}</span>
+              <span style={{ color: "var(--nexus-text)" }}>)</span>;
+            </div>
+            <div className="flex items-center gap-1 text-gray-500">
+              <span>// cursor</span>
+              <span
+                className={`${cursorShape} inline-block rounded-sm`}
+                style={{ background: primaryAccent, boxShadow: previewShadow }}
+              />
+              <span>{cursorStyle}</span>
+            </div>
+            <div className="text-gray-500">
+              // blur {blurStrength}px, radius {radius}px, letter {formatSettingNumber(letterSpacing, 2)}px
+            </div>
+          </div>
+        </div>
+        {sidebarVisible && sidebarRight ? (
+          <div className="flex w-12 shrink-0 flex-col items-center gap-2 border-l border-white/5 py-4">
+            {[primaryAccent, secondaryAccent, "rgba(255,255,255,0.18)"].map((color, index) => (
+              <span
+                key={`${color}-${index}`}
+                className="h-6 w-6 rounded-md border border-white/10"
+                style={{ background: color }}
+              />
+            ))}
+          </div>
+        ) : null}
+      </div>
+      {statusVisible ? (
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-white/5 px-4 py-2 text-[10px] text-gray-500">
+          <span>main.tsx</span>
+          <span>{settings.lsp_enabled !== false ? "LSP ready" : "LSP off"}</span>
+          <span>{settings.auto_save !== false ? "Auto Save" : "Manual Save"}</span>
+        </div>
+      ) : null}
     </motion.div>
   );
 }
@@ -689,6 +1021,7 @@ export default function SettingsPanel({
   const visualProfileId = resolveVisualProfileId(settings);
   const reducedBySetting = settings.reduce_motion === true;
   const animationsEnabled = settings.animations_enabled !== false;
+  const animationSpeed = clampNumber(settings.animation_speed, 0.5, 1.8, 1);
   const shouldReduceMotion =
     prefersReducedMotion ||
     reducedBySetting ||
@@ -696,8 +1029,9 @@ export default function SettingsPanel({
     visualProfileId === "performance";
   const motionTransition = shouldReduceMotion
     ? { duration: 0 }
-    : { duration: 0.22, ease: [0.22, 1, 0.36, 1] };
+    : { duration: 0.22 / animationSpeed, ease: [0.22, 1, 0.36, 1] };
   const radius = getNumberSetting(settings, "ui_radius", 10);
+  const letterSpacing = clampNumber(settings.letter_spacing, 0, 1.5, 0);
   const scopedThemeVars = React.useMemo(() => {
     const cssVars = resolvedTheme.cssVars;
     return {
@@ -722,6 +1056,10 @@ export default function SettingsPanel({
       "--nexus-settings-radius": `${radius}px`,
     };
   }, [resolvedTheme, radius]);
+  const themeTokens = React.useMemo(
+    () => createThemeTokenList(resolvedTheme),
+    [resolvedTheme],
+  );
 
   const sectionMatchCounts = React.useMemo(
     () =>
@@ -747,6 +1085,14 @@ export default function SettingsPanel({
   const totalMatches = Object.values(sectionMatchCounts).reduce(
     (sum, count) => sum + count,
     0,
+  );
+  const searchResults = React.useMemo(
+    () => getSearchResults(searchTerm),
+    [searchTerm],
+  );
+  const performanceHints = React.useMemo(
+    () => buildPerformanceHints(settings, visualProfileId, lspServers),
+    [lspServers, settings, visualProfileId],
   );
 
   React.useEffect(() => {
@@ -924,8 +1270,18 @@ export default function SettingsPanel({
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
               placeholder="Settings suchen"
-              className="h-9 w-full rounded-md border border-white/10 bg-white/[0.035] pl-8 pr-2 text-xs text-gray-200 outline-none transition-colors placeholder:text-gray-600 focus:border-[rgba(var(--nexus-primary-rgb),0.45)]"
+              className="h-9 w-full rounded-md border border-white/10 bg-white/[0.035] pl-8 pr-8 text-xs text-gray-200 outline-none transition-colors placeholder:text-gray-600 focus:border-[rgba(var(--nexus-primary-rgb),0.45)]"
             />
+            {searchQuery ? (
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                title="Suche leeren"
+                className="absolute right-2 top-1/2 inline-flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded text-gray-500 transition-colors hover:bg-white/10 hover:text-gray-300"
+              >
+                <X size={12} />
+              </button>
+            ) : null}
           </div>
           {searchTerm ? (
             <div className="mt-2 text-[10px] text-gray-500">
@@ -1031,6 +1387,19 @@ export default function SettingsPanel({
               />
             )}
 
+            {searchTerm ? (
+              <SearchResultSummary
+                query={searchQuery}
+                totalMatches={totalMatches}
+                sectionMatchCounts={sectionMatchCounts}
+                results={searchResults}
+                onOpenSetting={(result) => {
+                  setActiveSection(result.section);
+                  setSearchQuery("");
+                }}
+              />
+            ) : null}
+
             {renderIfVisible("theme-editor", () => (
               <section key="theme-editor" className="space-y-5">
                 {searchTerm ? (
@@ -1043,9 +1412,11 @@ export default function SettingsPanel({
                 ) : null}
                 <ThemePreview
                   settings={settings}
+                  themeName={resolvedTheme.name}
                   primaryAccent={primaryAccent}
                   secondaryAccent={secondaryAccent}
                   radius={radius}
+                  animationSpeed={animationSpeed}
                   shouldReduceMotion={shouldReduceMotion}
                 />
                 <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
@@ -1081,6 +1452,7 @@ export default function SettingsPanel({
                         onChange={(value) => updateSetting("secondary_accent", value)}
                       />
                     </SettingRow>
+                    <ThemeTokenGrid tokens={themeTokens} />
                     <SettingRow
                       id="ui_radius"
                       sectionId="theme-editor"
@@ -1223,6 +1595,24 @@ export default function SettingsPanel({
                       </div>
                     </SettingRow>
                     <SettingRow
+                      id="letter_spacing"
+                      sectionId="editor"
+                      searchQuery={searchTerm}
+                      title={`Letter Spacing: ${formatSettingNumber(letterSpacing, 2)}px`}
+                      description="Wird direkt im CodeMirror Theme angewendet."
+                    >
+                      <div className="flex min-w-[12rem] items-center gap-3">
+                        <NativeSlider
+                          value={[letterSpacing]}
+                          onValueChange={([value]) => updateSetting("letter_spacing", value)}
+                          min={0}
+                          max={1.5}
+                          step={0.05}
+                        />
+                        <ValueBadge>{formatSettingNumber(letterSpacing, 2)}px</ValueBadge>
+                      </div>
+                    </SettingRow>
+                    <SettingRow
                       id="word_wrap"
                       sectionId="editor"
                       searchQuery={searchTerm}
@@ -1362,6 +1752,24 @@ export default function SettingsPanel({
                           step={0.05}
                         />
                         <ValueBadge>{settings.line_height || 1.6}</ValueBadge>
+                      </div>
+                    </SettingRow>
+                    <SettingRow
+                      id="letter_spacing"
+                      sectionId="editor"
+                      searchQuery={searchTerm}
+                      title={`Letter Spacing: ${formatSettingNumber(letterSpacing, 2)}px`}
+                      description="Feintuning fuer dichte Monospace-Schriften."
+                    >
+                      <div className="flex min-w-[12rem] items-center gap-3">
+                        <NativeSlider
+                          value={[letterSpacing]}
+                          onValueChange={([value]) => updateSetting("letter_spacing", value)}
+                          min={0}
+                          max={1.5}
+                          step={0.05}
+                        />
+                        <ValueBadge>{formatSettingNumber(letterSpacing, 2)}px</ValueBadge>
                       </div>
                     </SettingRow>
                     <SettingRow
@@ -1563,6 +1971,19 @@ export default function SettingsPanel({
                       </NativeSelect>
                     </SettingRow>
                     <SettingRow
+                      id="sidebar_visible"
+                      sectionId="workbench"
+                      searchQuery={searchTerm}
+                      title="Sidebar anzeigen"
+                      description="Activity Rail und Side Panel sichtbar halten."
+                      compact
+                    >
+                      <NativeSwitch
+                        checked={settings.sidebar_visible !== false}
+                        onCheckedChange={(value) => updateSetting("sidebar_visible", value)}
+                      />
+                    </SettingRow>
+                    <SettingRow
                       id="status_bar_visible"
                       sectionId="workbench"
                       searchQuery={searchTerm}
@@ -1745,6 +2166,19 @@ export default function SettingsPanel({
                       </NativeSelect>
                     </SettingRow>
                     <SettingRow
+                      id="panel_glow_outline"
+                      sectionId="performance"
+                      searchQuery={searchTerm}
+                      title="Panel Glow Outline"
+                      description="Leuchtende Kante fuer Workbench-Panels und Settings."
+                      compact
+                    >
+                      <NativeSwitch
+                        checked={settings.panel_glow_outline === true}
+                        onCheckedChange={(value) => updateSetting("panel_glow_outline", value)}
+                      />
+                    </SettingRow>
+                    <SettingRow
                       id="panel_blur_strength"
                       sectionId="theme-editor"
                       searchQuery={searchTerm}
@@ -1808,6 +2242,12 @@ export default function SettingsPanel({
                     {renderLspServers()}
                   </SettingsGroup>
                 </div>
+                <SettingsGroup
+                  title="Live Budget Hinweise"
+                  description="Schnelle Diagnose aus deinen aktuellen Visual- und Language-Settings."
+                >
+                  <PerformanceHintList hints={performanceHints} />
+                </SettingsGroup>
               </section>
             ))}
 
@@ -1853,6 +2293,24 @@ export default function SettingsPanel({
                         checked={animationsEnabled}
                         onCheckedChange={(value) => updateSetting("animations_enabled", value)}
                       />
+                    </SettingRow>
+                    <SettingRow
+                      id="animation_speed"
+                      sectionId="animations"
+                      searchQuery={searchTerm}
+                      title={`Animation Speed: ${formatSettingNumber(animationSpeed, 2)}x`}
+                      description="Steuert die Settings-Transition und die Live-Preview."
+                    >
+                      <div className="flex min-w-[12rem] items-center gap-3">
+                        <NativeSlider
+                          value={[animationSpeed]}
+                          onValueChange={([value]) => updateSetting("animation_speed", value)}
+                          min={0.5}
+                          max={1.8}
+                          step={0.1}
+                        />
+                        <ValueBadge>{formatSettingNumber(animationSpeed, 2)}x</ValueBadge>
+                      </div>
                     </SettingRow>
                     <SettingRow
                       id="smooth_caret"

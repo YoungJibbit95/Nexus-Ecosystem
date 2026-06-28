@@ -15,30 +15,39 @@
     --nexus-text: #eef2f8;
     --nexus-muted: #99a3b7;
     --nexus-ui-font-family: "Inter", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-    --nexus-surface: rgba(13, 16, 24, 0.91);
-    --nexus-sidebar: rgba(12, 15, 23, 0.92);
-    --nexus-titlebar: rgba(12, 15, 23, 0.93);
-    --nexus-side-panel: rgba(13, 16, 24, 0.91);
+    --nexus-surface: rgba(13, 16, 24, 0.9);
+    --nexus-sidebar: rgba(12, 15, 23, 0.94);
+    --nexus-titlebar: rgba(12, 15, 23, 0.95);
+    --nexus-side-panel: rgba(13, 16, 24, 0.92);
     --nexus-editor-bg: #07090f;
     --nexus-editor-surface: rgba(12, 15, 23, 0.88);
-    --nexus-panel-surface: rgba(13, 16, 24, 0.9);
-    --nexus-panel-border: rgba(142, 153, 183, 0.16);
-    --nexus-panel-filter: blur(7px) saturate(118%);
-    --nexus-settings-filter: blur(7px) saturate(112%);
-    --nexus-panel-shadow: 0 14px 32px rgba(0, 0, 0, 0.24);
-    --nexus-panel-outline: 0 0 0 1px rgba(142, 153, 183, 0.12), 0 16px 34px rgba(0, 0, 0, 0.2);
+    --nexus-panel-surface: rgba(14, 17, 26, 0.9);
+    --nexus-panel-border: rgba(154, 166, 204, 0.17);
+    --nexus-panel-filter: blur(8px) saturate(116%);
+    --nexus-settings-filter: blur(8px) saturate(114%);
+    --nexus-overlay-filter: blur(12px) saturate(120%);
+    --nexus-panel-shadow: 0 14px 30px rgba(0, 0, 0, 0.23);
+    --nexus-panel-outline: 0 0 0 1px rgba(154, 166, 204, 0.12), 0 16px 32px rgba(0, 0, 0, 0.2);
     --nexus-border: rgba(142, 153, 183, 0.16);
     --nexus-glass: rgba(17, 20, 29, 0.82);
-    --nexus-glass-border: rgba(142, 153, 183, 0.16);
-    --nexus-glow-radius: 14px;
-    --nexus-glow-radius-sm: 6px;
-    --nexus-glow-intensity: 28%;
-    --nexus-blur-radius: 16px;
-    --nexus-radius-xs: 0.375rem;
-    --nexus-radius-sm: 0.5rem;
-    --nexus-radius-md: 0.625rem;
-    --nexus-radius-lg: 0.875rem;
-    --nexus-radius-xl: 1rem;
+    --nexus-glass-border: rgba(154, 166, 204, 0.16);
+    --nexus-control-surface: rgba(255, 255, 255, 0.034);
+    --nexus-control-surface-hover: rgba(255, 255, 255, 0.07);
+    --nexus-control-border: rgba(154, 166, 204, 0.14);
+    --nexus-control-border-hover: rgba(154, 166, 204, 0.25);
+    --nexus-control-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.055);
+    --nexus-focus-ring: 0 0 0 1px rgba(var(--nexus-primary-rgb), 0.34), 0 0 0 4px rgba(var(--nexus-primary-rgb), 0.12);
+    --nexus-glow-radius: 12px;
+    --nexus-glow-radius-sm: 5px;
+    --nexus-glow-intensity: 24%;
+    --nexus-blur-radius: 12px;
+    --nexus-radius-xs: 0.45rem;
+    --nexus-radius-sm: 0.625rem;
+    --nexus-radius-md: 0.75rem;
+    --nexus-radius-lg: 1rem;
+    --nexus-radius-xl: 1.25rem;
+    --nexus-radius-2xl: 1.5rem;
+    --nexus-radius-pill: 9999px;
     --primary-rgb: var(--nexus-primary-rgb);
     --nx-motion-quick: 170ms;
     --nx-motion-regular: 210ms;
@@ -75,6 +84,7 @@
     backdrop-filter: var(--nexus-panel-filter, blur(7px) saturate(118%));
     -webkit-backdrop-filter: var(--nexus-panel-filter, blur(7px) saturate(118%));
     border: 1px solid var(--nexus-glass-border);
+    border-radius: var(--nexus-radius-lg, 1rem);
     box-shadow:
         var(--nexus-panel-shadow, 0 14px 32px rgba(0, 0, 0, 0.24)),
         inset 0 1px 0 rgba(255, 255, 255, 0.11);
@@ -87,7 +97,7 @@
     backdrop-filter: var(--nexus-settings-filter, blur(7px) saturate(112%));
     -webkit-backdrop-filter: var(--nexus-settings-filter, blur(7px) saturate(112%));
     border: 1px solid rgba(255, 255, 255, 0.11);
-    border-radius: 12px;
+    border-radius: var(--nexus-radius-lg, 1rem);
     box-shadow:
         0 10px 22px rgba(0, 0, 0, 0.2),
         inset 0 1px 0 rgba(255, 255, 255, 0.1);
@@ -114,6 +124,7 @@
 .reduce-motion .glass-card,
 .reduce-motion .nx-code-settings-panel,
 .reduce-motion .nx-code-side-panel,
+.reduce-motion .nx-editor-panel-shell,
 .reduce-motion .nx-code-editor-status {
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
@@ -244,21 +255,42 @@
         inset 0 0 var(--nexus-glow-radius-sm, 6px) rgba(var(--nexus-primary-rgb), 0.05);
 }
 
-.nx-code-sidebar-btn:hover {
-    background: rgba(255, 255, 255, 0.05) !important;
-    color: var(--nexus-text) !important;
-}
-
 .nx-code-sidebar-btn {
     transform: translateZ(0);
     contain: paint;
     backface-visibility: hidden;
     isolation: isolate;
+    border: 1px solid transparent;
+    transition:
+        background-color var(--nx-motion-quick, 170ms) ease,
+        border-color var(--nx-motion-quick, 170ms) ease,
+        box-shadow var(--nx-motion-quick, 170ms) ease,
+        color var(--nx-motion-quick, 170ms) ease;
+}
+
+.nx-code-sidebar-btn:hover {
+    background: var(--nexus-control-surface-hover, rgba(255, 255, 255, 0.07)) !important;
+    border-color: rgba(154, 166, 204, 0.12);
+    color: var(--nexus-text) !important;
+    box-shadow: var(--nexus-control-shadow, inset 0 1px 0 rgba(255, 255, 255, 0.055));
+}
+
+.nx-code-sidebar-btn[aria-pressed="true"] {
+    border-color: rgba(var(--nexus-primary-rgb), 0.28);
+    box-shadow:
+        0 0 16px rgba(var(--nexus-primary-rgb), 0.1),
+        inset 0 1px 0 rgba(255, 255, 255, 0.075) !important;
+}
+
+.nx-code-sidebar-active-rail {
+    border-radius: var(--nexus-radius-pill, 9999px);
+    opacity: 0.9;
 }
 
 .nx-code-sidebar-badge {
     pointer-events: none;
     z-index: 2;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.28);
 }
 
 /* Nexus editor uses hex accents; these keep Tailwind primary utilities off hsl(var(--primary)). */
@@ -387,17 +419,43 @@ textarea.nx-typing-active,
 
 .nx-code-shell :where(button:not(:disabled), [role="button"]):focus-visible {
     outline: none;
-    box-shadow:
-        0 0 0 1px rgba(var(--nexus-primary-rgb), 0.32),
-        0 0 0 4px rgba(var(--nexus-primary-rgb), 0.12);
+    box-shadow: var(--nexus-focus-ring);
 }
 
-.nx-code-shell :where(.nexus-panel-surface, .glass, .glass-card, .nx-code-side-panel, .nx-code-settings-host, .nx-code-editor-status) {
-    border-radius: var(--nexus-radius-md, 0.625rem);
+.nx-code-shell :where(input, select, textarea) {
+    min-width: 0;
+    border-radius: var(--nexus-radius-md, 0.75rem) !important;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.014)),
+        rgba(255, 255, 255, 0.024);
+    border-color: var(--nexus-control-border, rgba(154, 166, 204, 0.14)) !important;
+    box-shadow: var(--nexus-control-shadow, inset 0 1px 0 rgba(255, 255, 255, 0.055));
 }
 
-.nx-code-shell :where(.nx-code-menu-trigger, .nx-code-command-button, .nx-code-status-item, .nx-code-window-button) {
-    border-radius: var(--nexus-radius-sm, 0.5rem);
+.nx-code-shell :where(input, select, textarea):focus,
+.nx-code-shell :where(input, select, textarea):focus-visible {
+    outline: none;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.018)),
+        rgba(var(--nexus-primary-rgb), 0.045);
+    border-color: rgba(var(--nexus-primary-rgb), 0.42) !important;
+    box-shadow: var(--nexus-focus-ring);
+}
+
+.nx-code-shell :where(.nexus-panel-surface, .glass, .glass-card, .nx-code-side-panel, .nx-code-settings-host, .nx-code-settings-panel, .nx-code-editor-status, .nx-editor-panel-section, .nx-editor-panel-state, .nx-code-welcome-hero, .nx-code-welcome-capabilities, .nx-code-welcome-release, .nx-code-launchpad-stage, .nx-code-launchpad-action, .nx-code-launchpad-metric, .nx-code-launchpad-signal, .nx-code-launchpad-status-card) {
+    border-radius: var(--nexus-radius-lg, 1rem);
+}
+
+.nx-code-shell :where(.nx-code-menu-trigger, .nx-code-menu-item, .nx-code-command-button, .nx-code-status-item, .nx-code-window-button, .nx-editor-panel-actions > *, .nx-code-file-tree-row) {
+    border-radius: var(--nexus-radius-md, 0.75rem);
+}
+
+.nx-code-shell :where(.nx-code-window-controls, .nx-code-menu-cluster, .nx-code-menu-compact-host, .nx-code-command-center, .nx-code-tabbar-actions) {
+    border-radius: var(--nexus-radius-lg, 1rem);
+}
+
+.nx-code-shell :where(.nx-code-sidebar-rail-button, .nx-code-sidebar-settings, .nx-code-sidebar-orb) {
+    border-radius: var(--nexus-radius-lg, 1rem) !important;
 }
 
 .nx-code-workbench,
@@ -443,9 +501,16 @@ textarea.nx-typing-active,
     overflow: visible;
     z-index: 60;
     color: var(--nexus-text, #e5e7eb);
-    background: var(--nexus-titlebar, var(--nexus-surface, rgba(17, 20, 29, 0.82)));
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.052), rgba(255, 255, 255, 0.015)),
+        var(--nexus-titlebar, var(--nexus-surface, rgba(17, 20, 29, 0.82)));
     border-color: var(--nexus-border, rgba(142, 153, 183, 0.16));
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.055), 0 1px 0 rgba(0, 0, 0, 0.42);
+    border-bottom-left-radius: var(--nexus-radius-lg, 1rem);
+    border-bottom-right-radius: var(--nexus-radius-lg, 1rem);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.075),
+        inset 0 -1px 0 rgba(255, 255, 255, 0.025),
+        0 1px 0 rgba(0, 0, 0, 0.42);
 }
 
 .nx-code-titlebar::after {
@@ -463,9 +528,12 @@ textarea.nx-typing-active,
 .nx-code-window-controls {
     height: 1.75rem;
     padding: 0.125rem;
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    border-radius: var(--nexus-radius-sm, 0.5rem);
-    background: rgba(255, 255, 255, 0.026);
+    border: 1px solid var(--nexus-control-border, rgba(154, 166, 204, 0.14));
+    border-radius: var(--nexus-radius-md, 0.75rem);
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.014)),
+        var(--nexus-control-surface, rgba(255, 255, 255, 0.034));
+    box-shadow: var(--nexus-control-shadow, inset 0 1px 0 rgba(255, 255, 255, 0.055));
 }
 
 .nx-code-window-button {
@@ -475,14 +543,14 @@ textarea.nx-typing-active,
     height: 1.45rem;
     align-items: center;
     justify-content: center;
-    border-radius: 0.375rem;
+    border-radius: var(--nexus-radius-sm, 0.625rem);
     color: #94a3b8;
     outline: none;
 }
 
 .nx-code-window-button:hover,
 .nx-code-window-button:focus-visible {
-    background: rgba(255, 255, 255, 0.07);
+    background: var(--nexus-control-surface-hover, rgba(255, 255, 255, 0.07));
     color: #e5e7eb;
 }
 
@@ -519,9 +587,12 @@ textarea.nx-typing-active,
     height: 1.75rem;
     padding: 0.125rem;
     gap: 0.125rem;
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    border-radius: var(--nexus-radius-sm, 0.5rem);
-    background: rgba(255, 255, 255, 0.026);
+    border: 1px solid var(--nexus-control-border, rgba(154, 166, 204, 0.14));
+    border-radius: var(--nexus-radius-md, 0.75rem);
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.014)),
+        var(--nexus-control-surface, rgba(255, 255, 255, 0.034));
+    box-shadow: var(--nexus-control-shadow, inset 0 1px 0 rgba(255, 255, 255, 0.055));
 }
 
 .nx-code-menu-trigger {
@@ -538,6 +609,10 @@ textarea.nx-typing-active,
     font-weight: 650;
     line-height: 1;
     outline: none;
+    transition:
+        background-color var(--nx-motion-quick, 170ms) ease,
+        color var(--nx-motion-quick, 170ms) ease,
+        box-shadow var(--nx-motion-quick, 170ms) ease;
 }
 
 .nx-code-menu-trigger-compact {
@@ -548,19 +623,20 @@ textarea.nx-typing-active,
 .nx-code-menu-trigger:hover,
 .nx-code-menu-trigger[aria-expanded="true"],
 .nx-code-menu-trigger:focus-visible {
-    background: rgba(255, 255, 255, 0.075);
+    background: var(--nexus-control-surface-hover, rgba(255, 255, 255, 0.07));
     color: var(--nexus-text, #eef2f8);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.055);
 }
 
 .nx-code-menu-dropdown {
-    border: 1px solid rgba(142, 153, 183, 0.16);
-    border-radius: 0.5rem;
+    border: 1px solid var(--nexus-panel-border, rgba(154, 166, 204, 0.17));
+    border-radius: var(--nexus-radius-lg, 1rem);
     background:
         linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.018)),
         rgba(9, 11, 17, 0.96);
-    box-shadow: 0 18px 42px rgba(0, 0, 0, 0.44), inset 0 1px 0 rgba(255, 255, 255, 0.07);
-    backdrop-filter: blur(18px) saturate(126%);
-    -webkit-backdrop-filter: blur(18px) saturate(126%);
+    box-shadow: 0 18px 36px rgba(0, 0, 0, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+    backdrop-filter: var(--nexus-overlay-filter, blur(12px) saturate(120%));
+    -webkit-backdrop-filter: var(--nexus-overlay-filter, blur(12px) saturate(120%));
 }
 
 .nx-code-menu-item {
@@ -570,7 +646,7 @@ textarea.nx-typing-active,
     align-items: center;
     justify-content: space-between;
     gap: 0.75rem;
-    border-radius: 0.375rem;
+    border-radius: var(--nexus-radius-md, 0.75rem);
     padding: 0 0.625rem;
     color: #cbd5e1;
     font-size: 0.6875rem;
@@ -579,7 +655,7 @@ textarea.nx-typing-active,
 
 .nx-code-menu-item:hover,
 .nx-code-menu-item:focus-visible {
-    background: rgba(255, 255, 255, 0.075);
+    background: var(--nexus-control-surface-hover, rgba(255, 255, 255, 0.07));
     color: #f8fafc;
 }
 
@@ -596,30 +672,34 @@ textarea.nx-typing-active,
 .nx-code-command-center {
     height: 1.75rem;
     min-height: 1.75rem;
-    border: 1px solid rgba(142, 153, 183, 0.12);
+    border: 1px solid var(--nexus-control-border, rgba(154, 166, 204, 0.14));
+    border-radius: var(--nexus-radius-pill, 9999px);
     background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.044), rgba(255, 255, 255, 0.018)),
-        rgba(255, 255, 255, 0.024);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.055);
+        linear-gradient(180deg, rgba(255, 255, 255, 0.052), rgba(255, 255, 255, 0.018)),
+        rgba(255, 255, 255, 0.028);
+    box-shadow:
+        var(--nexus-control-shadow, inset 0 1px 0 rgba(255, 255, 255, 0.055)),
+        0 0 18px rgba(var(--nexus-primary-rgb), 0.055);
 }
 
 .nx-code-command-center:hover {
-    border-color: rgba(142, 153, 183, 0.22);
+    border-color: var(--nexus-control-border-hover, rgba(154, 166, 204, 0.25));
     background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.028)),
-        rgba(255, 255, 255, 0.034);
+        linear-gradient(180deg, rgba(255, 255, 255, 0.068), rgba(255, 255, 255, 0.026)),
+        rgba(var(--nexus-primary-rgb), 0.04);
 }
 
 .nx-code-command-button {
     width: 1.75rem;
     height: 1.75rem;
-    border: 1px solid rgba(142, 153, 183, 0.12);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--nexus-control-border, rgba(154, 166, 204, 0.14));
+    background: var(--nexus-control-surface, rgba(255, 255, 255, 0.034));
+    box-shadow: var(--nexus-control-shadow, inset 0 1px 0 rgba(255, 255, 255, 0.055));
 }
 
 .nx-code-command-button:hover {
-    border-color: rgba(142, 153, 183, 0.22);
-    background: rgba(255, 255, 255, 0.075) !important;
+    border-color: var(--nexus-control-border-hover, rgba(154, 166, 204, 0.25));
+    background: var(--nexus-control-surface-hover, rgba(255, 255, 255, 0.07)) !important;
     color: #f3f4f6;
 }
 
@@ -638,6 +718,10 @@ textarea.nx-typing-active,
     min-height: 2.5rem !important;
     padding: 0.375rem 0.75rem;
     box-sizing: border-box;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.026), rgba(255, 255, 255, 0.01)),
+        rgba(5, 7, 12, 0.34);
+    border-color: rgba(154, 166, 204, 0.12) !important;
 }
 
 .nx-code-status-strip > * {
@@ -653,27 +737,62 @@ textarea.nx-typing-active,
     min-height: 1.75rem;
     max-width: 100%;
     padding-inline: 0.5rem;
-    border-radius: 0.375rem;
+    border-radius: var(--nexus-radius-pill, 9999px);
+    border-color: rgba(154, 166, 204, 0.1) !important;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.012)),
+        rgba(255, 255, 255, 0.024);
+    box-shadow: var(--nexus-control-shadow, inset 0 1px 0 rgba(255, 255, 255, 0.055));
     font-size: 0.625rem;
     line-height: 1;
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+.nx-code-status-item:hover {
+    border-color: rgba(154, 166, 204, 0.2) !important;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.018)),
+        rgba(255, 255, 255, 0.04);
+}
+
+.nx-code-status-item > * {
+    min-width: 0;
 }
 
 .nx-code-status-item-icon {
     width: 1.75rem;
     padding-inline: 0;
+    border-radius: var(--nexus-radius-md, 0.75rem);
 }
 
 .nx-code-rail {
     width: 3.5rem;
     max-width: 3.5rem;
+    background: var(--nexus-sidebar, rgba(12, 15, 23, 0.94));
 }
 
 .nx-code-side-panel {
     z-index: 30;
     color: var(--nexus-text, #e5e7eb);
     contain: layout paint;
-    background: var(--nexus-side-panel, var(--nexus-surface, rgba(17, 20, 29, 0.82)));
-    border-color: var(--nexus-border, rgba(142, 153, 183, 0.16));
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.038), rgba(255, 255, 255, 0.012)),
+        var(--nexus-side-panel, var(--nexus-surface, rgba(17, 20, 29, 0.82)));
+    border-color: var(--nexus-border, rgba(142, 153, 183, 0.16)) !important;
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.045),
+        0 14px 28px rgba(0, 0, 0, 0.18);
+}
+
+.nx-code-side-panel.left-14 {
+    border-top-right-radius: var(--nexus-radius-xl, 1.25rem);
+    border-bottom-right-radius: var(--nexus-radius-xl, 1.25rem);
+}
+
+.nx-code-side-panel.right-14 {
+    border-top-left-radius: var(--nexus-radius-xl, 1.25rem);
+    border-bottom-left-radius: var(--nexus-radius-xl, 1.25rem);
 }
 
 .nx-code-account-panel {
@@ -717,7 +836,10 @@ textarea.nx-typing-active,
     background:
         linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.014)),
         rgba(255, 255, 255, 0.018);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.055);
+    border-color: rgba(154, 166, 204, 0.12) !important;
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.055),
+        0 12px 26px rgba(0, 0, 0, 0.14);
 }
 
 .nx-code-welcome-hero {
@@ -725,7 +847,7 @@ textarea.nx-typing-active,
     gap: 1.25rem;
     padding: 1.25rem;
     border: 1px solid rgba(255, 255, 255, 0.07);
-    border-radius: 0.5rem;
+    border-radius: var(--nexus-radius-xl, 1.25rem);
 }
 
 .nx-code-welcome-release {
@@ -734,7 +856,7 @@ textarea.nx-typing-active,
         rgba(255, 255, 255, 0.018);
     padding: 0.75rem;
     border: 1px solid rgba(255, 255, 255, 0.07);
-    border-radius: 0.5rem;
+    border-radius: var(--nexus-radius-lg, 1rem);
 }
 
 .nx-code-welcome-actions {
@@ -750,6 +872,7 @@ textarea.nx-typing-active,
     gap: 0.5rem;
     min-height: 2.75rem;
     padding: 0 0.75rem;
+    border-radius: var(--nexus-radius-lg, 1rem) !important;
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.055);
 }
 
@@ -766,7 +889,7 @@ textarea.nx-typing-active,
 .nx-code-welcome-capabilities {
     padding-inline: 0.75rem;
     border: 1px solid rgba(255, 255, 255, 0.06);
-    border-radius: 0.5rem;
+    border-radius: var(--nexus-radius-lg, 1rem);
     overflow: hidden;
 }
 
@@ -788,7 +911,7 @@ textarea.nx-typing-active,
     justify-self: end;
     max-width: 100%;
     border: 1px solid rgba(255, 255, 255, 0.07);
-    border-radius: 0.375rem;
+    border-radius: var(--nexus-radius-pill, 9999px);
     background: rgba(255, 255, 255, 0.024);
     padding: 0.125rem 0.5rem;
     color: var(--nexus-muted, #99a3b7);
@@ -814,11 +937,17 @@ textarea.nx-typing-active,
 
 .nx-code-settings-host {
     min-height: 0;
-    background: var(--nexus-editor-bg, transparent);
+    background:
+        radial-gradient(circle at 12% 0%, rgba(var(--nexus-primary-rgb), 0.055), transparent 20rem),
+        var(--nexus-editor-bg, transparent);
 }
 
 .nx-code-settings-panel {
     min-width: 0;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.042), rgba(255, 255, 255, 0.012)),
+        var(--nexus-panel-surface, rgba(14, 17, 26, 0.9));
+    border-color: var(--nexus-panel-border, rgba(154, 166, 204, 0.17)) !important;
     box-shadow: var(--nexus-panel-shadow, 0 14px 32px rgba(0, 0, 0, 0.24));
 }
 
@@ -845,9 +974,9 @@ textarea.nx-typing-active,
 .nx-code-launchpad-signal,
 .nx-code-launchpad-status-card {
     min-width: 0;
-    border-radius: 0.5rem;
-    backdrop-filter: blur(18px) saturate(122%);
-    -webkit-backdrop-filter: blur(18px) saturate(122%);
+    border-radius: var(--nexus-radius-lg, 1rem) !important;
+    backdrop-filter: var(--nexus-panel-filter, blur(8px) saturate(116%));
+    -webkit-backdrop-filter: var(--nexus-panel-filter, blur(8px) saturate(116%));
 }
 
 .nx-code-launchpad-command-strip {
@@ -859,13 +988,17 @@ textarea.nx-typing-active,
     width: 4.25rem;
     max-width: 4.25rem;
     contain: layout paint;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.042), rgba(255, 255, 255, 0.012)),
+        var(--nexus-sidebar, rgba(12, 15, 23, 0.94)) !important;
+    border-color: var(--nexus-border, rgba(142, 153, 183, 0.16)) !important;
 }
 
 .nx-code-sidebar-rail-button,
 .nx-code-sidebar-settings,
 .nx-code-sidebar-orb {
     width: 3.125rem;
-    border-radius: 0.5rem;
+    border-radius: var(--nexus-radius-lg, 1rem) !important;
 }
 
 .nx-code-sidebar-rail-button {
@@ -874,6 +1007,7 @@ textarea.nx-typing-active,
 
 .nx-code-sidebar-icon-frame {
     line-height: 1;
+    border-radius: var(--nexus-radius-md, 0.75rem) !important;
 }
 
 .nx-code-sidebar-label {
@@ -886,20 +1020,30 @@ textarea.nx-typing-active,
     pointer-events: none;
 }
 
+.nx-code-sidebar-count-badge,
+.nx-code-sidebar-status-dot {
+    border-radius: var(--nexus-radius-pill, 9999px) !important;
+}
+
 .nx-code-tabbar {
     min-width: 0;
     min-height: 2.625rem;
     height: 2.625rem;
     flex: 0 0 2.625rem;
     contain: layout paint;
-    background: var(--nexus-editor-surface, var(--nexus-surface, rgba(17, 20, 29, 0.82)));
-    border-color: var(--nexus-border, rgba(142, 153, 183, 0.16));
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.026), rgba(255, 255, 255, 0.008)),
+        var(--nexus-editor-surface, var(--nexus-surface, rgba(17, 20, 29, 0.82))) !important;
+    border-color: var(--nexus-border, rgba(142, 153, 183, 0.16)) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
 }
 
 .nx-code-tabbar-actions {
     min-width: max-content;
     height: 100%;
     align-items: center;
+    background: rgba(255, 255, 255, 0.018);
+    border-color: rgba(154, 166, 204, 0.12) !important;
 }
 
 .nx-code-tab-scroll {
@@ -916,11 +1060,24 @@ textarea.nx-typing-active,
 .nx-code-tab {
     min-width: 7.5rem;
     max-width: clamp(9rem, 19vw, 15rem);
-    transition: background-color var(--nx-motion-quick, 170ms) ease, border-color var(--nx-motion-quick, 170ms) ease, opacity var(--nx-motion-quick, 170ms) ease;
+    border-radius: var(--nexus-radius-lg, 1rem) var(--nexus-radius-lg, 1rem) 0 0;
+    transition:
+        background-color var(--nx-motion-quick, 170ms) ease,
+        border-color var(--nx-motion-quick, 170ms) ease,
+        opacity var(--nx-motion-quick, 170ms) ease,
+        box-shadow var(--nx-motion-quick, 170ms) ease;
 }
 
 .nx-code-tab:hover {
-    background: rgba(255, 255, 255, 0.07) !important;
+    background: var(--nexus-control-surface-hover, rgba(255, 255, 255, 0.07)) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045);
+}
+
+.nx-code-tab[aria-selected="true"],
+.nx-code-tab[aria-current="page"] {
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.06),
+        0 -6px 18px rgba(var(--nexus-primary-rgb), 0.055);
 }
 
 .nx-code-explorer-header,
@@ -929,6 +1086,7 @@ textarea.nx-typing-active,
     background:
         linear-gradient(180deg, rgba(255, 255, 255, 0.038), rgba(255, 255, 255, 0.012)),
         rgba(255, 255, 255, 0.018);
+    border-color: rgba(154, 166, 204, 0.12) !important;
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045);
 }
 
@@ -945,6 +1103,7 @@ textarea.nx-typing-active,
 .nx-code-file-tree-row {
     min-height: 2rem;
     height: 2rem;
+    border-radius: var(--nexus-radius-md, 0.75rem) !important;
 }
 
 .nx-code-file-tree-row :where(button) {
@@ -954,7 +1113,12 @@ textarea.nx-typing-active,
 
 .nx-editor-panel-shell {
     color: var(--nexus-text, #e5e7eb);
-    border-radius: 0;
+    border-radius: inherit;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.038), rgba(255, 255, 255, 0.012)),
+        var(--nexus-panel-surface, rgba(14, 17, 26, 0.9)) !important;
+    backdrop-filter: var(--nexus-panel-filter, blur(8px) saturate(116%)) !important;
+    -webkit-backdrop-filter: var(--nexus-panel-filter, blur(8px) saturate(116%)) !important;
 }
 
 .nx-editor-panel-header,
@@ -962,6 +1126,7 @@ textarea.nx-typing-active,
     background:
         linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.012)),
         rgba(0, 0, 0, 0.08);
+    border-color: rgba(154, 166, 204, 0.12) !important;
 }
 
 .nx-editor-panel-body {
@@ -971,12 +1136,17 @@ textarea.nx-typing-active,
 
 .nx-editor-panel-actions > * {
     min-width: 2rem;
+    border-radius: var(--nexus-radius-md, 0.75rem) !important;
 }
 
 .nx-editor-panel-section,
 .nx-editor-panel-state {
-    border-radius: var(--nexus-radius-md, 0.625rem);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+    border-radius: var(--nexus-radius-lg, 1rem) !important;
+    border-color: rgba(154, 166, 204, 0.11) !important;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.032), rgba(255, 255, 255, 0.01)),
+        rgba(255, 255, 255, 0.018);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 .nx-code-extensions-panel-header {
@@ -986,8 +1156,11 @@ textarea.nx-typing-active,
 .nx-code-editor-status {
     overflow: hidden;
     color: var(--nexus-muted, #9ca3af);
-    background: var(--nexus-editor-surface, rgba(17, 20, 29, 0.82));
-    border-color: var(--nexus-border, rgba(142, 153, 183, 0.16));
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.032), rgba(255, 255, 255, 0.01)),
+        var(--nexus-editor-surface, rgba(17, 20, 29, 0.82));
+    border-color: var(--nexus-border, rgba(142, 153, 183, 0.16)) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
 }
 
 .cm-editor,
@@ -1044,6 +1217,7 @@ textarea.nx-typing-active,
     .nx-code-shell-compact .nx-code-tabbar-actions {
         padding-left: 0.375rem;
         padding-right: 0.375rem;
+        gap: 0.375rem;
     }
 
     .nx-code-shell-compact .nx-code-tab {
@@ -1063,6 +1237,21 @@ textarea.nx-typing-active,
         padding-right: 0.5rem;
     }
 
+    .nx-code-shell-compact .nx-code-status-strip {
+        gap: 0.375rem;
+        overflow-x: auto;
+        scrollbar-width: none;
+    }
+
+    .nx-code-shell-compact .nx-code-status-strip::-webkit-scrollbar {
+        display: none;
+    }
+
+    .nx-code-shell-compact .nx-code-status-item {
+        max-width: min(11rem, 42vw);
+        padding-inline: 0.45rem;
+    }
+
     .nx-code-shell-compact .nx-code-welcome-actions {
         grid-template-columns: 1fr;
     }
@@ -1071,15 +1260,22 @@ textarea.nx-typing-active,
 @media (max-width: 720px) {
     .nx-code-titlebar {
         height: 2.5rem;
+        border-bottom-left-radius: var(--nexus-radius-md, 0.75rem);
+        border-bottom-right-radius: var(--nexus-radius-md, 0.75rem);
     }
 
     .nx-code-tab {
         min-width: 5.5rem;
         max-width: 8.5rem;
+        border-radius: var(--nexus-radius-md, 0.75rem) var(--nexus-radius-md, 0.75rem) 0 0;
     }
 
     .nx-code-editor-status {
         font-size: 0.625rem;
+    }
+
+    .nx-code-status-item:not(.nx-code-status-item-icon) {
+        max-width: 8.5rem;
     }
 
     .nx-code-settings-panel {
