@@ -6,57 +6,39 @@ import {
   Eye,
   Info,
   Layers,
-<<<<<<< HEAD
   Pause,
   Play,
   Plus,
   RotateCcw,
   Settings2,
-=======
-  Play,
-  Plus,
-  RotateCcw,
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
   SkipForward,
   Square,
   StepForward,
   Terminal,
-<<<<<<< HEAD
   Trash2,
-=======
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
   X,
   Zap,
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   PANEL_INPUT_CLASS,
-<<<<<<< HEAD
   PANEL_SELECT_CLASS,
-=======
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
   PanelBadge,
   PanelBody,
   PanelFooter,
   PanelHeader,
   PanelMetric,
-<<<<<<< HEAD
   PanelNotice,
-=======
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
   PanelSection,
   PanelShell,
   PanelState,
 } from "./panels/PanelChrome.jsx";
-<<<<<<< HEAD
 
 const DEBUG_CONFIGS = [
   { id: "web", label: "Web App", adapter: "Chrome", args: "--open-devtools" },
   { id: "node", label: "Node Runtime", adapter: "Node", args: "--inspect" },
   { id: "tests", label: "Vitest", adapter: "Test Runner", args: "--runInBand" },
 ];
-=======
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
 
 const INITIAL_VARIABLES = [
   { id: 1, name: "result", value: "42", type: "number", mutable: true },
@@ -208,10 +190,7 @@ export default function DebugPanel({ activeFile, _code, problems = [] }) {
   const firstSyntaxError = syntaxErrors[0] || null;
   const activeFileName = activeFile?.name || "No active file";
   const watches = variables.filter((item) => item.watch);
-<<<<<<< HEAD
   const selectedConfig = DEBUG_CONFIGS.find((item) => item.id === launchConfig) || DEBUG_CONFIGS[0];
-=======
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
 
   const callstack = useMemo(() => {
     if (!isRunning && !isPaused) return [];
@@ -246,14 +225,10 @@ export default function DebugPanel({ activeFile, _code, problems = [] }) {
     setIsRunning(true);
     setIsPaused(false);
     setPausedLine(null);
-<<<<<<< HEAD
     addLog(
       `${selectedConfig.label} gestartet: ${activeFile.name}${runtimeArgs ? ` ${runtimeArgs}` : ""}`,
       "info",
     );
-=======
-    addLog(`Debug-Session gestartet${activeFile ? `: ${activeFile.name}` : ""}`, "info");
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
     window.setTimeout(() => {
       addLog("Ausfuehrung laeuft", "system");
       const sortedBreakpoints = [...breakpoints].sort((a, b) => a - b);
@@ -295,7 +270,6 @@ export default function DebugPanel({ activeFile, _code, problems = [] }) {
     setIsPaused(false);
     setPausedLine(null);
     addLog("Debug-Session beendet", "system");
-<<<<<<< HEAD
   };
 
   const handlePause = () => {
@@ -304,8 +278,6 @@ export default function DebugPanel({ activeFile, _code, problems = [] }) {
     setIsPaused(true);
     setPausedLine(nextLine);
     addLog(`Angehalten bei Zeile ${nextLine}`, "warn");
-=======
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
   };
 
   const handleContinue = () => {
@@ -360,7 +332,6 @@ export default function DebugPanel({ activeFile, _code, problems = [] }) {
         return;
       }
 
-<<<<<<< HEAD
       if (command === "help") {
         addLog("Commands: clear, vars, help, <variable>, print <value>", "system");
         return;
@@ -371,8 +342,6 @@ export default function DebugPanel({ activeFile, _code, problems = [] }) {
         return;
       }
 
-=======
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
       if (command.startsWith("print ") || command.startsWith("console.log(")) {
         addLog(command.replace(/^(print |console\.log\()/, "").replace(/\)$/, ""), "output");
         return;
@@ -386,15 +355,11 @@ export default function DebugPanel({ activeFile, _code, problems = [] }) {
     const name = watchInput.trim();
     if (!name) return;
     const existing = variables.find((item) => item.name === name);
-<<<<<<< HEAD
     if (existing) {
       setVariables((prev) =>
         prev.map((item) => (item.id === existing.id ? { ...item, watch: true } : item)),
       );
     } else {
-=======
-    if (!existing) {
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
       setVariables((prev) => [
         ...prev,
         {
@@ -410,7 +375,6 @@ export default function DebugPanel({ activeFile, _code, problems = [] }) {
     setWatchInput("");
     setAddingWatch(false);
     addLog(`Watch: ${name}`, "info");
-<<<<<<< HEAD
   };
 
   const clearConsole = () => {
@@ -423,8 +387,6 @@ export default function DebugPanel({ activeFile, _code, problems = [] }) {
         time: new Date().toLocaleTimeString("de-DE", { hour12: false }),
       },
     ]);
-=======
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
   };
 
   const handleRemoveVariable = (id) => {
@@ -450,7 +412,6 @@ export default function DebugPanel({ activeFile, _code, problems = [] }) {
     setSections((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
-<<<<<<< HEAD
   const handleConfigChange = (value) => {
     const nextConfig = DEBUG_CONFIGS.find((item) => item.id === value) || DEBUG_CONFIGS[0];
     setLaunchConfig(nextConfig.id);
@@ -475,21 +436,13 @@ export default function DebugPanel({ activeFile, _code, problems = [] }) {
         : firstSyntaxError
           ? "danger"
           : "muted";
-=======
-  const statusLabel = isPaused ? "Paused" : isRunning ? "Running" : firstSyntaxError ? "Issues" : "Ready";
-  const statusTone = isPaused ? "warning" : isRunning ? "success" : firstSyntaxError ? "danger" : "muted";
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
 
   return (
     <PanelShell ariaLabel="Debug">
       <PanelHeader
         icon={Bug}
         title="Debug"
-<<<<<<< HEAD
         subtitle={`${selectedConfig.label} - ${activeFileName}`}
-=======
-        subtitle={activeFileName}
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
         status={<PanelBadge tone={statusTone}>{statusLabel}</PanelBadge>}
       >
         <div className="grid grid-cols-3 gap-1.5">
@@ -501,7 +454,6 @@ export default function DebugPanel({ activeFile, _code, problems = [] }) {
 
       <PanelBody className="px-0 py-1">
         <PanelSection
-<<<<<<< HEAD
           icon={Settings2}
           title="Launch Configuration"
           expanded={sections.configuration}
@@ -589,15 +541,12 @@ export default function DebugPanel({ activeFile, _code, problems = [] }) {
         </PanelSection>
 
         <PanelSection
-=======
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
           icon={Zap}
           title="Controls"
           expanded={sections.controls}
           onToggle={() => toggleSection("controls")}
         >
           <div className="grid gap-2 px-3 pb-3">
-<<<<<<< HEAD
             <div className="grid grid-cols-3 gap-1.5">
               {!isRunning ? (
                 <DebugButton
@@ -606,11 +555,6 @@ export default function DebugPanel({ activeFile, _code, problems = [] }) {
                   tone="run"
                   title="Start debug session"
                 >
-=======
-            <div className="grid grid-cols-2 gap-1.5">
-              {!isRunning ? (
-                <DebugButton onClick={handleStart} tone="run" title="Start debug session">
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
                   <Play size={13} />
                   Start
                 </DebugButton>
@@ -621,7 +565,6 @@ export default function DebugPanel({ activeFile, _code, problems = [] }) {
                 </DebugButton>
               )}
               <DebugButton
-<<<<<<< HEAD
                 onClick={isPaused ? handleContinue : handlePause}
                 disabled={!isRunning}
                 tone={isPaused ? "continue" : "muted"}
@@ -636,33 +579,14 @@ export default function DebugPanel({ activeFile, _code, problems = [] }) {
               </DebugButton>
             </div>
             <div className="grid grid-cols-2 gap-1.5">
-=======
-                onClick={handleContinue}
-                disabled={!isPaused}
-                tone="continue"
-                title="Continue"
-              >
-                <SkipForward size={13} />
-                Continue
-              </DebugButton>
-            </div>
-            <div className="grid grid-cols-2 gap-1.5">
-              <DebugButton onClick={handleStepOver} disabled={!isPaused} title="Step over">
-                <StepForward size={13} />
-                Step
-              </DebugButton>
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
               <DebugButton onClick={handleRestart} disabled={!isRunning} title="Restart">
                 <RotateCcw size={13} />
                 Restart
               </DebugButton>
-<<<<<<< HEAD
               <DebugButton onClick={clearConsole} title="Clear debug console">
                 <Trash2 size={13} />
                 Console
               </DebugButton>
-=======
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
             </div>
 
             <div className="rounded-lg border border-white/[0.06] bg-black/20 px-2.5 py-2">
@@ -679,12 +603,9 @@ export default function DebugPanel({ activeFile, _code, problems = [] }) {
                 <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-gray-300">
                   {activeFileName}
                 </span>
-<<<<<<< HEAD
                 <span className="shrink-0 rounded bg-white/[0.05] px-1.5 py-0.5 text-[10px] text-gray-500">
                   {selectedConfig.adapter}
                 </span>
-=======
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
                 {pausedLine ? (
                   <span className="shrink-0 rounded bg-amber-400/10 px-1.5 py-0.5 text-[10px] text-amber-200">
                     Ln {pausedLine}
@@ -913,10 +834,7 @@ export default function DebugPanel({ activeFile, _code, problems = [] }) {
         <PanelSection
           icon={Terminal}
           title="Debug Console"
-<<<<<<< HEAD
           count={consoleLog.length}
-=======
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
           expanded={sections.console}
           onToggle={() => toggleSection("console")}
           action={clearConsole}
@@ -952,7 +870,6 @@ export default function DebugPanel({ activeFile, _code, problems = [] }) {
                 >
                   <X size={11} />
                 </button>
-<<<<<<< HEAD
               ) : (
                 <button
                   type="button"
@@ -963,9 +880,6 @@ export default function DebugPanel({ activeFile, _code, problems = [] }) {
                   <Trash2 size={11} />
                 </button>
               )}
-=======
-              ) : null}
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
             </div>
           </div>
         </PanelSection>

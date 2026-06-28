@@ -41,7 +41,6 @@ import {
   uninstallExtension,
 } from "../../pages/editor/extensionSystem";
 import {
-<<<<<<< HEAD
   PanelActionButton,
   PanelBadge,
   PanelBody,
@@ -50,12 +49,6 @@ import {
   PanelMetric,
   PanelShell,
   PanelState,
-=======
-  PanelBadge,
-  PanelBody,
-  PanelFooter,
-  PanelShell,
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
 } from "./panels/PanelChrome.jsx";
 
 const tabStyles = {
@@ -691,45 +684,12 @@ export default function ExtensionsPanel({ onInstalledChange }) {
     setQuickTab("all");
   };
 
-<<<<<<< HEAD
   const installAllUpdates = () => {
     if (updateableIds.length === 0) return;
     applyRecords((current) =>
       updateableIds.reduce((nextRecords, id) => installExtension(nextRecords, id), current),
     );
   };
-=======
-  return (
-    <PanelShell ariaLabel="Extensions">
-      <div className="nx-code-extensions-panel-header shrink-0 border-b border-white/[0.06] px-3 pb-2.5 pt-3">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex min-w-0 items-center gap-2">
-            <div
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border"
-              style={{
-                background: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.1)",
-                borderColor: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.22)",
-                color: "var(--nexus-primary, #7c8cff)",
-              }}
-            >
-              <Blocks size={16} />
-            </div>
-            <div className="min-w-0">
-              <h2 className="truncate text-sm font-semibold text-[var(--nexus-text)]">
-                Extensions
-              </h2>
-              <p className="truncate text-[10px] text-[var(--nexus-muted)]">
-                Marketplace, manifest registry and extension host
-              </p>
-            </div>
-          </div>
-          {stats.updates > 0 ? (
-            <PanelBadge tone="warning">
-              {stats.updates} Update
-            </PanelBadge>
-          ) : null}
-        </div>
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
 
   return (
     <PanelShell ariaLabel="Extensions">

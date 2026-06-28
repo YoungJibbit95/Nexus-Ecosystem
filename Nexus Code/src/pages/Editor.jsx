@@ -49,7 +49,6 @@ import {
   getSidePanelStyle,
 } from "./editor/editorShellLayout";
 import {
-<<<<<<< HEAD
   applyWorkbenchLayoutPreset,
   closeWorkbenchBottomDock,
   closeWorkbenchSideDock,
@@ -66,19 +65,6 @@ import {
   setWorkbenchDockSize,
   toggleWorkbenchDockPanel,
 } from "./editor/workbenchDockModel";
-=======
-  WORKBENCH_PANEL_PLACEMENTS,
-  applyWorkbenchLayoutPreset,
-  getNextBottomPanelSize,
-  getNextSidePanelSize,
-  getSidePanelSizeOptions,
-  getWorkbenchPanelPlacement,
-  getWorkbenchSlots,
-  loadWorkbenchLayoutFromStorage,
-  normalizeWorkbenchLayout,
-  saveWorkbenchLayoutToStorage,
-} from "./editor/workbenchLayoutModel";
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
 import {
   beginPerfMetric,
   endPerfMetric,
@@ -103,11 +89,8 @@ const WORKSPACE_AUTOSAVE_MS = 5_200;
 const LOCAL_AUTOSAVE_MS = 6_200;
 const CODE_COMPACT_VIEWPORT_WIDTH = 980;
 const SIDE_PANEL_SIZE_OPTIONS = getSidePanelSizeOptions();
-<<<<<<< HEAD
 const BOTTOM_PANEL_SIZE_OPTIONS = getBottomPanelSizeOptions();
 const WORKBENCH_PRESET_OPTIONS = getWorkbenchLayoutPresetOptions();
-=======
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
 const loadSettingsPanel = () => import("../components/editor/SettingsPanel");
 const loadCodeEditor = () => import("../components/editor/CodeEditor");
 const SettingsPanel = React.lazy(() => loadSettingsPanel());
@@ -271,7 +254,6 @@ function SidePanelSizeControl({ value, onChange }) {
   );
 }
 
-<<<<<<< HEAD
 function BottomDockControls({
   size,
   presetId,
@@ -346,8 +328,6 @@ function BottomDockControls({
   );
 }
 
-=======
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
 function SidePanelFrame({
   panelId,
   onClose,
@@ -857,83 +837,8 @@ export default function Editor({
     setProblems(markers);
   }, []);
 
-  const handleCloseBottomPanel = useCallback(() => {
-    setTerminalOpen(false);
-  }, []);
-
-  const handleCloseActivePanel = useCallback(() => {
-    setActivePanel(null);
-  }, []);
-
-  const handleCloseSettingsPanel = useCallback(() => {
-    setShowSettings(false);
-  }, []);
-
-  const handleOpenCommandPalette = useCallback(() => {
-    setCommandPaletteOpen(true);
-  }, []);
-
-  const handleCloseCommandPalette = useCallback(() => {
-    setCommandPaletteOpen(false);
-  }, []);
-
-  const handleCloseSpotlight = useCallback(() => {
-    setSpotlightOpen(false);
-  }, []);
-
-  const handleSetSidePanelSize = useCallback((sizeId) => {
-    setWorkbenchLayout((prev) =>
-      normalizeWorkbenchLayout({
-        ...prev,
-        sidePanelSize: sizeId,
-      }),
-    );
-  }, []);
-
-  const handleCycleSidePanelSize = useCallback(() => {
-    setWorkbenchLayout((prev) =>
-      normalizeWorkbenchLayout({
-        ...prev,
-        sidePanelSize: getNextSidePanelSize(prev.sidePanelSize),
-      }),
-    );
-  }, []);
-
-  const handleCycleBottomPanelSize = useCallback(() => {
-    setWorkbenchLayout((prev) =>
-      normalizeWorkbenchLayout({
-        ...prev,
-        bottomPanelSize: getNextBottomPanelSize(prev.bottomPanelSize),
-      }),
-    );
-  }, []);
-
-  const handleApplyWorkbenchLayoutPreset = useCallback((presetId) => {
-    setWorkbenchLayout((prev) => applyWorkbenchLayoutPreset(prev, presetId));
-  }, []);
-
-  const handleProblemSelect = useCallback(
-    (problem) => {
-      if (!activeTabId) return;
-      setSettings((prev) => ({
-        ...prev,
-        _revealLine: {
-          line: problem.startLineNumber,
-          col: problem.startColumn,
-          timestamp: Date.now(),
-        },
-      }));
-    },
-    [activeTabId],
-  );
-
-  const handleMarkersChange = useCallback((markers) => {
-    setProblems(markers);
-  }, []);
-
   const handleOpenWorkbenchPanel = useCallback((panelId) => {
     setShowSettings(false);
-<<<<<<< HEAD
     const nextState = openWorkbenchDockPanel(
       getCurrentWorkbenchDockState(),
       panelId,
@@ -941,55 +846,12 @@ export default function Editor({
     );
     applyWorkbenchDockState(nextState);
     if (nextState.sidebarRequired) {
-=======
-    if (
-      getWorkbenchPanelPlacement(panelId, workbenchLayout) ===
-      WORKBENCH_PANEL_PLACEMENTS.bottom
-    ) {
-      setActivePanel(null);
-      setBottomTab(panelId === "problems" ? "problems" : "terminal");
-      setTerminalOpen(true);
-      return;
-    }
-
-    setSettings((prev) => ({
-      ...prev,
-      sidebar_visible: true,
-      zen_mode: false,
-    }));
-    setActivePanel(panelId);
-  }, [workbenchLayout]);
-
-  const handleSidebarPanelChange = useCallback((panelId) => {
-    setShowSettings(false);
-    if (!panelId) {
-      if (!activePanel && bottomTab === "problems" && terminalOpen) {
-        handleCloseBottomPanel();
-        return;
-      }
-      handleCloseActivePanel();
-      return;
-    }
-
-    if (
-      getWorkbenchPanelPlacement(panelId, workbenchLayout) ===
-      WORKBENCH_PANEL_PLACEMENTS.bottom
-    ) {
-      setActivePanel(null);
-      setBottomTab(panelId === "problems" ? "problems" : "terminal");
-      setTerminalOpen(true);
-      return;
-    }
-
-    if (panelId) {
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
       setSettings((prev) => ({
         ...prev,
         sidebar_visible: true,
         zen_mode: false,
       }));
     }
-<<<<<<< HEAD
   }, [
     applyWorkbenchDockState,
     getCurrentWorkbenchDockState,
@@ -1025,12 +887,6 @@ export default function Editor({
     applyWorkbenchDockState,
     bottomTab,
     getCurrentWorkbenchDockState,
-=======
-    setActivePanel(panelId);
-  }, [
-    activePanel,
-    bottomTab,
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
     handleCloseActivePanel,
     handleCloseBottomPanel,
     terminalOpen,
@@ -1954,15 +1810,9 @@ export default function Editor({
         "toggle-sidebar": handleToggleSidebar,
         "github-sync": () => handleOpenWorkbenchPanel("git"),
         "focus-editor": handleFocusEditor,
-<<<<<<< HEAD
         "layout-compact": () => handleApplyWorkbenchLayoutPreset("focus"),
         "layout-balanced": () => handleApplyWorkbenchLayoutPreset("comfortable"),
         "layout-roomy": () => handleApplyWorkbenchLayoutPreset("wide"),
-=======
-        "layout-compact": () => handleApplyWorkbenchLayoutPreset("compact"),
-        "layout-balanced": () => handleApplyWorkbenchLayoutPreset("balanced"),
-        "layout-roomy": () => handleApplyWorkbenchLayoutPreset("roomy"),
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
         "cycle-side-panel-size": handleCycleSidePanelSize,
         "cycle-bottom-panel-size": handleCycleBottomPanelSize,
       };
@@ -2055,13 +1905,10 @@ export default function Editor({
   const bottomPanelClassName = getBottomPanelClassName({
     compact: isCompactViewport,
     size: bottomPanelSlot.size,
-<<<<<<< HEAD
   });
   const bottomPanelStyle = getBottomPanelStyle({
     compact: isCompactViewport,
     size: bottomPanelSlot.size,
-=======
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
   });
 
   return (
@@ -2240,11 +2087,8 @@ export default function Editor({
             {/* Main Editor Area */}
             <div
               className={mainEditorClassName}
-<<<<<<< HEAD
               data-workbench-zone={editorSlot.zone}
               data-workbench-dock-id={editorSlot.dockId}
-=======
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
               style={{ order: editorSlot.order }}
             >
               <div
@@ -2422,7 +2266,6 @@ export default function Editor({
                   )}
                   {bottomPanelVisible && (
                     <div
-<<<<<<< HEAD
                       className={`${bottomPanelClassName} flex flex-col`}
                       style={bottomPanelStyle}
                       data-workbench-zone={bottomPanelSlot.zone}
@@ -2447,26 +2290,6 @@ export default function Editor({
                           />
                         )}
                       </div>
-=======
-                      className={bottomPanelClassName}
-                      data-workbench-zone={bottomPanelSlot.zone}
-                      data-workbench-panel={bottomPanelSlot.panelId}
-                    >
-                      {bottomTab === "terminal" ? (
-                        <Terminal
-                          isOpen
-                          onToggle={handleToggleTerminalPanel}
-                          activeFile={activeFile}
-                          code={currentCode}
-                          workspacePath={workspacePath}
-                        />
-                      ) : (
-                        <ProblemsPanel
-                          problems={problems}
-                          onSelectProblem={handleProblemSelect}
-                        />
-                      )}
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
                     </div>
                   )}
                 </div>

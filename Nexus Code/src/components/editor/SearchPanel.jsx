@@ -24,10 +24,7 @@ import {
   searchFiles,
 } from "../../pages/editor/searchPanelModel.js";
 import {
-<<<<<<< HEAD
   PanelActionButton,
-=======
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
   PanelBadge,
   PanelBody,
   PanelFooter,
@@ -141,7 +138,6 @@ function SearchState({ state, result, query, fileCount, hasScopeFilters, onReset
     return (
       <PanelState
         icon={Search}
-<<<<<<< HEAD
         title="Bereit fuer Workspace-Suche"
         detail={`${fileCount} Dateien verfuegbar. Nutze Include/Exclude, wenn du den Scan eingrenzen willst.`}
         actionLabel={hasScopeFilters ? "Scopes zuruecksetzen" : undefined}
@@ -162,11 +158,6 @@ function SearchState({ state, result, query, fileCount, hasScopeFilters, onReset
           </div>
         </div>
       </PanelState>
-=======
-        title="Suchbegriff eingeben"
-        detail={`${fileCount} Dateien verfuegbar`}
-      />
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
     );
   }
 
@@ -174,13 +165,9 @@ function SearchState({ state, result, query, fileCount, hasScopeFilters, onReset
     <PanelState
       icon={Search}
       title="Keine Treffer"
-<<<<<<< HEAD
       detail={`"${query}" in ${result.scannedFiles || 0} Dateien durchsucht. ${result.skippedFiles || 0} Dateien wurden durch Scopes uebersprungen.`}
       actionLabel={hasScopeFilters ? "Scopes lockern" : undefined}
       onAction={hasScopeFilters ? onResetScopes : undefined}
-=======
-      detail={`"${query}" in ${result.scannedFiles || 0} Dateien durchsucht`}
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
     />
   );
 }
@@ -355,7 +342,6 @@ export default function SearchPanel({ files = [], onFileSelect }) {
       <PanelHeader
         icon={Search}
         title="Search"
-<<<<<<< HEAD
         subtitle={
           hasWorkspace
             ? `${searchableFileCount} Dateien im Workspace`
@@ -365,11 +351,6 @@ export default function SearchPanel({ files = [], onFileSelect }) {
           !hasWorkspace ? (
             <PanelBadge tone="warning">Idle</PanelBadge>
           ) : appliedQuery ? (
-=======
-        subtitle={`${searchableFileCount} Dateien im Workspace`}
-        status={
-          appliedQuery ? (
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
             <PanelBadge tone={isLoading ? "accent" : "muted"}>
               {isLoading ? "..." : totalLabel}
             </PanelBadge>
@@ -449,7 +430,6 @@ export default function SearchPanel({ files = [], onFileSelect }) {
           </div>
         </form>
       </PanelHeader>
-<<<<<<< HEAD
 
       <PanelBody>
         {showResults && (
@@ -481,10 +461,6 @@ export default function SearchPanel({ files = [], onFileSelect }) {
           </div>
         )}
 
-=======
-
-      <PanelBody>
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
         <AnimatePresence mode="popLayout">
           {showResults &&
             groups.map((group, index) => {
@@ -643,7 +619,6 @@ export default function SearchPanel({ files = [], onFileSelect }) {
               ))}
             </div>
           )}
-<<<<<<< HEAD
           {hasScopeFilters && (
             <button
               type="button"
@@ -654,8 +629,6 @@ export default function SearchPanel({ files = [], onFileSelect }) {
               Include/Exclude zuruecksetzen
             </button>
           )}
-=======
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
         </PanelFooter>
       )}
     </PanelShell>

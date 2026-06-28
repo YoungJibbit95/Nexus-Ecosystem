@@ -68,8 +68,353 @@ const COMPLETION_KIND_NAMES = Object.freeze({
   25: "Type parameter",
 });
 
+export const EDITOR_COMMAND_CATEGORY_ORDER = Object.freeze([
+  "file",
+  "navigation",
+  "source-control",
+  "diagnostics",
+  "terminal",
+  "layout",
+  "extensions",
+  "preferences",
+]);
+
+export const EDITOR_COMMAND_CATEGORIES = Object.freeze({
+  file: Object.freeze({
+    id: "file",
+    label: "Files",
+    description: "Dateien und Workspaces",
+    tone: "cyan",
+  }),
+  navigation: Object.freeze({
+    id: "navigation",
+    label: "Navigation",
+    description: "Editor und Workbench bewegen",
+    tone: "emerald",
+  }),
+  "source-control": Object.freeze({
+    id: "source-control",
+    label: "Source Control",
+    description: "Git-Status und Aenderungen",
+    tone: "amber",
+  }),
+  diagnostics: Object.freeze({
+    id: "diagnostics",
+    label: "Diagnostics",
+    description: "Probleme und Hinweise",
+    tone: "rose",
+  }),
+  terminal: Object.freeze({
+    id: "terminal",
+    label: "Terminal",
+    description: "Tasks und CLI",
+    tone: "blue",
+  }),
+  layout: Object.freeze({
+    id: "layout",
+    label: "Layout",
+    description: "Panels, Fokus und Raum",
+    tone: "violet",
+  }),
+  extensions: Object.freeze({
+    id: "extensions",
+    label: "Extensions",
+    description: "Sprachen und Tools",
+    tone: "teal",
+  }),
+  preferences: Object.freeze({
+    id: "preferences",
+    label: "Preferences",
+    description: "Themes und Konto",
+    tone: "slate",
+  }),
+});
+
+export const EDITOR_COMMANDS = Object.freeze([
+  Object.freeze({
+    id: "new-file",
+    actionId: "new-file",
+    label: "Neue Datei erstellen",
+    description: "Lege eine neue TypeScript-Datei im aktuellen Workspace an.",
+    category: "file",
+    shortcut: "Ctrl+N",
+    keywords: Object.freeze(["create", "file", "datei", "typescript", "javascript", "new"]),
+    surfaces: Object.freeze(["palette", "spotlight"]),
+    priority: 100,
+  }),
+  Object.freeze({
+    id: "open-folder",
+    actionId: "open-folder",
+    label: "Workspace-Ordner oeffnen",
+    description: "Waehle einen lokalen Projektordner aus.",
+    category: "file",
+    shortcut: "Ctrl+O",
+    keywords: Object.freeze(["folder", "workspace", "project", "ordner", "open"]),
+    surfaces: Object.freeze(["palette", "spotlight"]),
+    priority: 96,
+  }),
+  Object.freeze({
+    id: "open-explorer",
+    actionId: "open-explorer",
+    label: "Explorer anzeigen",
+    description: "Oeffne den Datei-Explorer der Workbench.",
+    category: "navigation",
+    shortcut: "Ctrl+B",
+    keywords: Object.freeze(["files", "sidebar", "tree", "explorer", "project"]),
+    surfaces: Object.freeze(["palette", "spotlight"]),
+    priority: 92,
+  }),
+  Object.freeze({
+    id: "open-search",
+    actionId: "open-search",
+    label: "Workspace-Suche anzeigen",
+    description: "Durchsuche Dateien und Projektinhalte.",
+    category: "navigation",
+    shortcut: "Ctrl+Shift+F",
+    keywords: Object.freeze(["find", "search", "workspace", "grep", "suche"]),
+    surfaces: Object.freeze(["palette", "spotlight"]),
+    priority: 90,
+  }),
+  Object.freeze({
+    id: "focus-editor",
+    actionId: "focus-editor",
+    label: "Editor fokussieren",
+    description: "Springe direkt zur aktiven Editor-Datei.",
+    category: "navigation",
+    shortcut: "",
+    keywords: Object.freeze(["focus", "cursor", "active", "editor", "code"]),
+    surfaces: Object.freeze(["palette", "spotlight"]),
+    priority: 88,
+  }),
+  Object.freeze({
+    id: "github-sync",
+    actionId: "github-sync",
+    label: "Git: Source Control anzeigen",
+    description: "Pruefe Branch, Staging und lokale Aenderungen.",
+    category: "source-control",
+    shortcut: "",
+    keywords: Object.freeze(["git", "source control", "commit", "stage", "diff", "branch"]),
+    surfaces: Object.freeze(["palette", "spotlight"]),
+    priority: 82,
+  }),
+  Object.freeze({
+    id: "open-problems",
+    actionId: "open-problems",
+    label: "Problems anzeigen",
+    description: "Oeffne Diagnosemeldungen, Fehler und Warnungen.",
+    category: "diagnostics",
+    shortcut: "",
+    keywords: Object.freeze(["problems", "diagnostics", "errors", "warnings", "lint"]),
+    surfaces: Object.freeze(["palette", "spotlight"]),
+    priority: 80,
+  }),
+  Object.freeze({
+    id: "toggle-terminal",
+    actionId: "toggle-terminal",
+    label: "Terminal umschalten",
+    description: "Zeige oder verstecke das integrierte Terminal.",
+    category: "terminal",
+    shortcut: "Ctrl+`",
+    keywords: Object.freeze(["shell", "console", "cli", "terminal", "command"]),
+    surfaces: Object.freeze(["palette", "spotlight"]),
+    priority: 78,
+  }),
+  Object.freeze({
+    id: "terminal-task-runner",
+    actionId: "toggle-terminal",
+    label: "Terminal: Task Runner oeffnen",
+    description: "Bereite npm-, build- oder testbezogene Tasks vor.",
+    category: "terminal",
+    shortcut: "",
+    keywords: Object.freeze(["npm", "test", "build", "run", "task", "runner"]),
+    surfaces: Object.freeze(["palette"]),
+    priority: 70,
+  }),
+  Object.freeze({
+    id: "toggle-zen",
+    actionId: "toggle-zen",
+    label: "Zen Mode umschalten",
+    description: "Reduziere die Workbench auf fokussiertes Arbeiten.",
+    category: "layout",
+    shortcut: "Ctrl+K Z",
+    keywords: Object.freeze(["focus", "layout", "zen", "distraction", "clean"]),
+    surfaces: Object.freeze(["palette", "spotlight"]),
+    priority: 74,
+  }),
+  Object.freeze({
+    id: "toggle-sidebar",
+    actionId: "toggle-sidebar",
+    label: "Sidebar umschalten",
+    description: "Blende die seitliche Workbench-Navigation ein oder aus.",
+    category: "layout",
+    shortcut: "Ctrl+B",
+    keywords: Object.freeze(["sidebar", "panel", "left", "workbench", "toggle"]),
+    surfaces: Object.freeze(["palette", "spotlight"]),
+    priority: 72,
+  }),
+  Object.freeze({
+    id: "layout-balanced",
+    actionId: "layout-balanced",
+    label: "Layout: Balanced",
+    description: "Setze die Workbench auf ein ausgewogenes Layout.",
+    category: "layout",
+    shortcut: "",
+    keywords: Object.freeze(["layout", "balanced", "comfortable", "panels", "workspace"]),
+    surfaces: Object.freeze(["palette"]),
+    priority: 68,
+  }),
+  Object.freeze({
+    id: "layout-compact",
+    actionId: "layout-compact",
+    label: "Layout: Compact Focus",
+    description: "Gib dem Editor mehr Flaeche fuer konzentrierte Arbeit.",
+    category: "layout",
+    shortcut: "",
+    keywords: Object.freeze(["layout", "compact", "focus", "small", "panels"]),
+    surfaces: Object.freeze(["palette"]),
+    priority: 66,
+  }),
+  Object.freeze({
+    id: "layout-roomy",
+    actionId: "layout-roomy",
+    label: "Layout: Roomy",
+    description: "Erweitere Panels und Seitenbereiche fuer Uebersicht.",
+    category: "layout",
+    shortcut: "",
+    keywords: Object.freeze(["layout", "roomy", "wide", "large", "panels"]),
+    surfaces: Object.freeze(["palette"]),
+    priority: 64,
+  }),
+  Object.freeze({
+    id: "cycle-side-panel-size",
+    actionId: "cycle-side-panel-size",
+    label: "Side Panel Groesse wechseln",
+    description: "Wechsle zwischen kompakten und breiten Seitenpanels.",
+    category: "layout",
+    shortcut: "",
+    keywords: Object.freeze(["side", "panel", "size", "width", "layout"]),
+    surfaces: Object.freeze(["palette"]),
+    priority: 60,
+  }),
+  Object.freeze({
+    id: "cycle-bottom-panel-size",
+    actionId: "cycle-bottom-panel-size",
+    label: "Bottom Panel Groesse wechseln",
+    description: "Wechsle die Hoehe des unteren Workbench-Panels.",
+    category: "layout",
+    shortcut: "",
+    keywords: Object.freeze(["bottom", "panel", "size", "height", "terminal"]),
+    surfaces: Object.freeze(["palette"]),
+    priority: 58,
+  }),
+  Object.freeze({
+    id: "open-extensions",
+    actionId: "open-extensions",
+    label: "Extensions anzeigen",
+    description: "Oeffne Erweiterungen, Sprachtools und Integrationen.",
+    category: "extensions",
+    shortcut: "",
+    keywords: Object.freeze(["plugins", "extensions", "languages", "tools", "marketplace"]),
+    surfaces: Object.freeze(["palette", "spotlight"]),
+    priority: 76,
+  }),
+  Object.freeze({
+    id: "change-theme",
+    actionId: "change-theme",
+    label: "Theme wechseln",
+    description: "Oeffne die Darstellungseinstellungen.",
+    category: "preferences",
+    shortcut: "Ctrl+K Ctrl+T",
+    keywords: Object.freeze(["appearance", "color", "theme", "dark", "light"]),
+    surfaces: Object.freeze(["palette", "spotlight"]),
+    priority: 62,
+  }),
+  Object.freeze({
+    id: "open-settings",
+    actionId: "open-settings",
+    label: "Einstellungen oeffnen",
+    description: "Oeffne die Editor- und Workspace-Preferences.",
+    category: "preferences",
+    shortcut: "Ctrl+,",
+    keywords: Object.freeze(["preferences", "settings", "config", "optionen"]),
+    surfaces: Object.freeze(["palette", "spotlight"]),
+    priority: 61,
+  }),
+  Object.freeze({
+    id: "open-account",
+    actionId: "open-account",
+    label: "Account anzeigen",
+    description: "Oeffne Konto- und Profilinformationen.",
+    category: "preferences",
+    shortcut: "",
+    keywords: Object.freeze(["account", "profile", "user", "konto"]),
+    surfaces: Object.freeze(["palette"]),
+    priority: 44,
+  }),
+]);
+
 const SNIPPET_PLACEHOLDER_PATTERN = /\$\{(?:\d+:)?([^}]+)\}|\$\d+/g;
 const WORD_COMPLETION_PATTERN = /^[\w$-]*$/;
+
+function normalizeCommandListValue(value) {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item || "").trim()).filter(Boolean);
+  }
+  if (!value) return [];
+  return String(value)
+    .split(/\s+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+export function getEditorCommandCategory(command) {
+  const categoryId = command?.category || "navigation";
+  return EDITOR_COMMAND_CATEGORIES[categoryId] || EDITOR_COMMAND_CATEGORIES.navigation;
+}
+
+export function normalizeEditorCommand(command, index = 0) {
+  const id = String(command?.id || "").trim();
+  if (!id) return null;
+  const category = getEditorCommandCategory(command);
+  return Object.freeze({
+    id,
+    actionId: String(command?.actionId || id).trim(),
+    label: String(command?.label || id).trim(),
+    description: String(command?.description || "").trim(),
+    category: category.id,
+    shortcut: String(command?.shortcut || "").trim(),
+    keywords: Object.freeze(normalizeCommandListValue(command?.keywords)),
+    surfaces: Object.freeze(normalizeCommandListValue(command?.surfaces || ["palette"])),
+    priority: Number.isFinite(Number(command?.priority))
+      ? Number(command.priority)
+      : Math.max(0, 50 - index),
+    extensionId: command?.extensionId ? String(command.extensionId) : "",
+  });
+}
+
+export function createEditorCommandRegistry(extensionCommands = []) {
+  const registry = new Map();
+  const safeExtensionCommands = Array.isArray(extensionCommands)
+    ? extensionCommands
+    : [];
+  [...EDITOR_COMMANDS, ...safeExtensionCommands].forEach(
+    (command, index) => {
+      const normalized = normalizeEditorCommand(command, index);
+      if (normalized) registry.set(normalized.id, normalized);
+    },
+  );
+
+  return Object.freeze(
+    [...registry.values()].sort((a, b) => {
+      const categoryDelta =
+        EDITOR_COMMAND_CATEGORY_ORDER.indexOf(a.category) -
+        EDITOR_COMMAND_CATEGORY_ORDER.indexOf(b.category);
+      if (categoryDelta !== 0) return categoryDelta;
+      if (b.priority !== a.priority) return b.priority - a.priority;
+      return a.label.localeCompare(b.label);
+    }),
+  );
+}
 
 function normalizeHex(value, fallback) {
   const normalized = String(value || "").trim();

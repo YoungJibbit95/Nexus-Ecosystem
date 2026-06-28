@@ -1,61 +1,55 @@
-import React, { useEffect, useRef, useState } from "react";
-import {
-  Blocks,
-  File,
-  FolderOpen,
-  GitBranch,
-  Layout,
-  Maximize2,
-  Search,
-  Settings,
-  Terminal,
-  TriangleAlert,
-} from "lucide-react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Search } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
+import {
+  createSpotlightResults,
+  groupCommandPaletteItems,
+  normalizeSearchValue,
+} from "../../pages/editor/commandPaletteModel.js";
 
-const QUICK_ACTIONS = [
-  { id: "new-file", label: "Datei erstellen", icon: File, category: "Aktion", keywords: "new create" },
-  { id: "open-folder", label: "Workspace Ordner oeffnen", icon: FolderOpen, category: "Workspace", keywords: "folder project" },
-  { id: "open-explorer", label: "Explorer anzeigen", icon: Layout, category: "Workspace", keywords: "files sidebar tree" },
-  { id: "open-search", label: "Suche anzeigen", icon: Search, category: "Workspace", keywords: "find grep" },
-  { id: "github-sync", label: "Git Source Control", icon: GitBranch, category: "Workspace", keywords: "commit branch diff stage" },
-  { id: "toggle-terminal", label: "Terminal umschalten", icon: Terminal, category: "Aktion", keywords: "shell console cli" },
-  { id: "open-problems", label: "Problems anzeigen", icon: TriangleAlert, category: "Aktion", keywords: "errors warnings diagnostics" },
-  { id: "open-extensions", label: "Extensions anzeigen", icon: Blocks, category: "Aktion", keywords: "plugins languages tools" },
-  { id: "toggle-zen", label: "Zen Mode umschalten", icon: Maximize2, category: "Aktion", keywords: "focus layout" },
-  { id: "open-settings", label: "Einstellungen", icon: Settings, category: "Aktion", keywords: "preferences config theme" },
-];
+const EMPTY_FILES = Object.freeze([]);
+const EMPTY_EXTENSION_COMMANDS = Object.freeze([]);
+const PAGE_STEP = 6;
 
-function getSearchablePath(file) {
-  return `${file?.name || ""} ${file?.fsPath || ""}`.toLowerCase();
+function KeyboardHint({ label }) {
+  return (
+    <span className="rounded-md border border-white/10 bg-white/[0.04] px-1.5 py-0.5 font-mono text-[10px] text-gray-400">
+      {label}
+    </span>
+  );
 }
 
-export default function SpotlightSearch({ isOpen, onClose, onAction, files }) {
+export default function SpotlightSearch({
+  isOpen,
+  onClose,
+  onAction,
+  files = EMPTY_FILES,
+  extensionCommands = EMPTY_EXTENSION_COMMANDS,
+}) {
   const [query, setQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef(null);
+  const resultRefs = useRef([]);
+
+  const results = useMemo(
+    () =>
+      createSpotlightResults({
+        files,
+        query,
+        extensionCommands,
+      }),
+    [extensionCommands, files, query],
+  );
+  const groups = useMemo(() => groupCommandPaletteItems(results), [results]);
+  const normalizedQuery = normalizeSearchValue(query);
 
   useEffect(() => {
     if (isOpen) {
       setQuery("");
       setSelectedIndex(0);
-      setTimeout(() => inputRef.current?.focus(), 50);
+      window.setTimeout(() => inputRef.current?.focus(), 50);
     }
   }, [isOpen]);
-
-  const normalizedQuery = query.trim().toLowerCase();
-  const fileResults = (files || [])
-    .filter((file) => file && file.type === "file" && file.name)
-    .filter((file) => !normalizedQuery || getSearchablePath(file).includes(normalizedQuery))
-    .slice(0, 5)
-    .map((file) => ({ ...file, category: "Dateien" }));
-
-  const actionResults = QUICK_ACTIONS.filter((action) => {
-    if (!normalizedQuery) return true;
-    return `${action.label} ${action.keywords || ""}`.toLowerCase().includes(normalizedQuery);
-  });
-
-  const results = [...actionResults, ...fileResults];
 
   useEffect(() => {
     if (selectedIndex >= results.length) {
@@ -63,31 +57,56 @@ export default function SpotlightSearch({ isOpen, onClose, onAction, files }) {
     }
   }, [results.length, selectedIndex]);
 
-  const runResult = (selected) => {
-    if (!selected) return;
-    if (selected.category === "Dateien") onAction("open-file", selected.id);
-    else onAction(selected.id);
-    onClose();
+  useEffect(() => {
+    resultRefs.current[selectedIndex]?.scrollIntoView({
+      block: "nearest",
+    });
+  }, [results.length, selectedIndex]);
+
+  const moveSelection = (delta) => {
+    if (results.length === 0) return;
+    setSelectedIndex((prev) => (prev + delta + results.length) % results.length);
   };
 
-  const handleKeyDown = (e) => {
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
-      if (results.length > 0) {
-        setSelectedIndex((prev) => (prev + 1) % results.length);
-      }
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault();
-      if (results.length > 0) {
-        setSelectedIndex((prev) => (prev - 1 + results.length) % results.length);
-      }
-    } else if (e.key === "Enter") {
-      e.preventDefault();
+  const runResult = (selected) => {
+    if (!selected) return;
+    if (selected.resultKind === "file") {
+      onAction?.("open-file", selected.payload || selected.id);
+    } else {
+      onAction?.(selected.actionId || selected.id);
+    }
+    onClose?.();
+  };
+
+  const handleKeyDown = (event) => {
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      moveSelection(1);
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      moveSelection(-1);
+    } else if (event.key === "PageDown") {
+      event.preventDefault();
+      moveSelection(PAGE_STEP);
+    } else if (event.key === "PageUp") {
+      event.preventDefault();
+      moveSelection(-PAGE_STEP);
+    } else if (event.key === "Home") {
+      event.preventDefault();
+      setSelectedIndex(0);
+    } else if (event.key === "End") {
+      event.preventDefault();
+      setSelectedIndex(Math.max(0, results.length - 1));
+    } else if (event.key === "Enter") {
+      event.preventDefault();
       runResult(results[selectedIndex]);
-    } else if (e.key === "Escape") {
-      onClose();
+    } else if (event.key === "Escape") {
+      event.preventDefault();
+      onClose?.();
     }
   };
+
+  let visibleIndex = 0;
 
   return (
     <AnimatePresence>
@@ -98,101 +117,158 @@ export default function SpotlightSearch({ isOpen, onClose, onAction, files }) {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-black/40 backdrop-blur-md z-[2000]"
+            className="fixed inset-0 z-[2000] bg-black/45 backdrop-blur-md"
           />
           <motion.div
-            initial={{ opacity: 0, y: -32, scale: 0.98, x: "-50%" }}
+            initial={{ opacity: 0, y: -28, scale: 0.98, x: "-50%" }}
             animate={{ opacity: 1, y: 0, scale: 1, x: "-50%" }}
             exit={{ opacity: 0, y: -20, scale: 0.98, x: "-50%" }}
-            transition={{ type: "spring", stiffness: 400, damping: 30 }}
-            className="fixed top-[14%] left-1/2 w-[min(48rem,calc(100vw-1.5rem))] bg-[#0a0a1a]/88 backdrop-blur-2xl border border-white/10 rounded-xl shadow-[0_32px_64px_rgba(0,0,0,0.45)] z-[2001] overflow-hidden"
-            style={{ border: "1px solid var(--nexus-border)" }}
+            transition={{ type: "spring", stiffness: 390, damping: 32 }}
+            className="fixed left-1/2 top-[10%] z-[2001] w-[min(52rem,calc(100vw-1.5rem))] overflow-hidden rounded-2xl border border-white/10 bg-[#080b14]/95 shadow-[0_32px_90px_rgba(0,0,0,0.52)] backdrop-blur-2xl"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Spotlight Search"
+            style={{ borderColor: "var(--nexus-border, rgba(255,255,255,0.12))" }}
           >
-            <div className="flex items-center gap-4 px-5 py-4 border-b border-white/5">
-              <Search size={20} className="text-purple-400/80" />
-              <input
-                ref={inputRef}
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Suche nach Dateien oder Aktionen..."
-                className="flex-1 min-w-0 bg-transparent text-base text-gray-100 outline-none placeholder:text-gray-600"
-              />
+            <div className="flex items-center gap-4 border-b border-white/10 px-5 py-4">
+              <div className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.045] text-cyan-200">
+                <Search size={20} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <input
+                  ref={inputRef}
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Dateien, Actions oder Workbench-Kommandos suchen..."
+                  className="w-full bg-transparent text-lg font-semibold text-gray-100 outline-none placeholder:text-gray-600"
+                  role="combobox"
+                  aria-expanded="true"
+                  aria-controls="nexus-spotlight-results"
+                  aria-activedescendant={
+                    results[selectedIndex] ? `spotlight-option-${selectedIndex}` : undefined
+                  }
+                />
+                <div className="mt-1 flex items-center gap-2 text-[11px] text-gray-500">
+                  <span>{results.length} Treffer</span>
+                  {normalizedQuery && <span>Commands und Dateien werden gemeinsam gewichtet</span>}
+                </div>
+              </div>
             </div>
 
-            <div className="max-h-[420px] overflow-y-auto custom-scrollbar p-2">
-              {results.length > 0 ? (
-                <div className="flex flex-col gap-0.5">
-                  {results.map((result, index) => {
-                    const active = index === selectedIndex;
-                    const Icon = result.icon || File;
-                    const showCategory = index === 0 || results[index - 1].category !== result.category;
-
+            <div
+              id="nexus-spotlight-results"
+              className="max-h-[480px] overflow-y-auto p-3"
+              role="listbox"
+            >
+              {groups.length > 0 ? (
+                <div className="flex flex-col gap-3">
+                  {groups.map((group) => {
+                    const GroupIcon = group.icon;
                     return (
-                      <React.Fragment key={`${result.category}-${result.id}`}>
-                        {showCategory && (
-                          <div className="px-4 pt-3 pb-1 text-[10px] font-bold text-gray-500/70 uppercase tracking-widest">
-                            {result.category}
-                          </div>
-                        )}
-                        <motion.button
-                          type="button"
-                          onMouseEnter={() => setSelectedIndex(index)}
-                          onClick={() => runResult(result)}
-                          className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-lg transition-all ${
-                            active
-                              ? "bg-purple-500/10 text-white"
-                              : "text-gray-400 hover:bg-white/5"
-                          }`}
-                          style={{
-                            background: active ? "var(--primary)15" : "transparent",
-                          }}
-                        >
-                          <div className="min-w-0 flex items-center gap-4">
-                            <div className={`p-2 rounded-md ${active ? "bg-purple-500/20 text-purple-300" : "bg-white/5 text-gray-600"}`}>
-                              <Icon size={18} />
-                            </div>
-                            <div className="min-w-0 flex flex-col items-start translate-y-[-1px]">
-                              <span className={`max-w-full truncate text-[13px] font-medium ${active ? "text-white" : "text-gray-300"}`}>
-                                {result.name || result.label}
-                              </span>
-                              {result.fsPath && (
-                                <span className="max-w-[min(30rem,55vw)] truncate text-[10px] text-gray-600 font-mono">
-                                  {result.fsPath}
+                      <section key={group.id} className="space-y-1.5">
+                        <div className="flex items-center gap-2 px-2 py-1">
+                          <span className={`size-1.5 rounded-full ${group.tone.dot}`} />
+                          <GroupIcon size={13} className={group.tone.text} />
+                          <span className="text-[11px] font-bold uppercase tracking-[0.22em] text-gray-500">
+                            {group.label}
+                          </span>
+                          <span className="truncate text-[11px] text-gray-600">
+                            {group.description}
+                          </span>
+                        </div>
+                        <div className="grid gap-1">
+                          {group.items.map((result) => {
+                            const Icon = result.icon;
+                            const index = visibleIndex;
+                            const active = index === selectedIndex;
+                            const detail = result.description || result.fsPath || result.categoryMeta?.description;
+                            visibleIndex += 1;
+
+                            return (
+                              <motion.button
+                                id={`spotlight-option-${index}`}
+                                key={`${result.resultKind}-${result.id}-${index}`}
+                                ref={(node) => {
+                                  resultRefs.current[index] = node;
+                                }}
+                                type="button"
+                                onMouseEnter={() => setSelectedIndex(index)}
+                                onClick={() => runResult(result)}
+                                className={`grid min-h-[60px] w-full grid-cols-[2.75rem_minmax(0,1fr)_auto] items-center gap-3 rounded-xl border px-3 text-left transition-all ${
+                                  active
+                                    ? `${result.tone.active} border-white/15 text-white shadow-[0_14px_34px_rgba(0,0,0,0.24)]`
+                                    : "border-transparent text-gray-400 hover:border-white/10 hover:bg-white/[0.045] hover:text-gray-200"
+                                }`}
+                                role="option"
+                                aria-selected={active}
+                              >
+                                <span
+                                  className={`flex size-9 items-center justify-center rounded-lg border ${
+                                    active
+                                      ? result.tone.icon
+                                      : "border-white/10 bg-white/[0.035] text-gray-500"
+                                  }`}
+                                >
+                                  <Icon size={17} />
                                 </span>
-                              )}
-                            </div>
-                          </div>
-                          {active && (
-                            <div className="shrink-0 flex items-center gap-1.5 px-2 py-1 bg-purple-500/20 rounded-md border border-purple-500/20">
-                              <span className="text-[9px] font-bold text-purple-300">OEFFNEN</span>
-                            </div>
-                          )}
-                        </motion.button>
-                      </React.Fragment>
+                                <span className="min-w-0">
+                                  <span className="block truncate text-sm font-semibold">
+                                    {result.label || result.name}
+                                  </span>
+                                  <span className="mt-0.5 block truncate font-mono text-xs text-gray-500">
+                                    {detail}
+                                  </span>
+                                </span>
+                                <span className="flex min-w-[5.75rem] justify-end">
+                                  {result.shortcut ? (
+                                    <span className="rounded-md border border-white/10 bg-black/20 px-2 py-1 font-mono text-[10px] text-gray-400">
+                                      {result.shortcut}
+                                    </span>
+                                  ) : (
+                                    <span className={`rounded-md border px-2 py-1 text-[10px] ${result.tone.chip}`}>
+                                      {result.resultKind === "file" ? "DATEI" : result.categoryMeta.label}
+                                    </span>
+                                  )}
+                                </span>
+                              </motion.button>
+                            );
+                          })}
+                        </div>
+                      </section>
                     );
                   })}
                 </div>
               ) : (
-                <div className="flex flex-col items-center justify-center py-20 opacity-25">
-                  <Search size={48} />
-                  <span className="text-sm mt-4 font-medium italic">Keine Ergebnisse gefunden...</span>
+                <div className="flex min-h-[240px] flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-white/10 bg-white/[0.025] px-6 text-center">
+                  <div className="flex size-12 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-gray-500">
+                    <Search size={22} />
+                  </div>
+                  <div>
+                    <div className="text-sm font-semibold text-gray-300">
+                      Keine Treffer
+                    </div>
+                    <div className="mt-1 max-w-sm text-xs leading-5 text-gray-500">
+                      Suche nach Dateiname, Pfad, Command, Kategorie oder Shortcut.
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
 
-            <div className="px-5 py-3 bg-black/20 border-t border-white/5 flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-1.5">
-                  <div className="px-1.5 py-0.5 bg-white/5 border border-white/10 rounded text-[9px] text-gray-500">Up/Down</div>
-                  <span className="text-[10px] text-gray-600">Navigieren</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <div className="px-1.5 py-0.5 bg-white/5 border border-white/10 rounded text-[9px] text-gray-500">Enter</div>
-                  <span className="text-[10px] text-gray-600">Auswaehlen</span>
-                </div>
+            <div className="flex items-center justify-between border-t border-white/10 bg-black/20 px-5 py-3 text-[11px] text-gray-500">
+              <div className="flex items-center gap-2">
+                <KeyboardHint label="Up" />
+                <KeyboardHint label="Down" />
+                <span>Navigieren</span>
+                <KeyboardHint label="Enter" />
+                <span>Oeffnen</span>
               </div>
-              <span className="text-[10px] text-gray-600">Esc zum Schliessen</span>
+              <div className="flex items-center gap-2">
+                <KeyboardHint label="PgUp" />
+                <KeyboardHint label="PgDn" />
+                <KeyboardHint label="Esc" />
+              </div>
             </div>
           </motion.div>
         </>

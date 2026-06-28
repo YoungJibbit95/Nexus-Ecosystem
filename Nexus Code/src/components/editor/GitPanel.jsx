@@ -42,18 +42,12 @@ import {
   unstageGitPath,
 } from "../../pages/editor/gitPanelModel";
 import {
-<<<<<<< HEAD
   PanelActionButton,
-=======
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
   PanelBadge,
   PanelBody,
   PanelHeader,
   PanelIconButton,
-<<<<<<< HEAD
   PanelNotice,
-=======
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
   PanelShell,
   PanelState,
 } from "./panels/PanelChrome.jsx";
@@ -1001,17 +995,10 @@ export default function GitPanel({ files }) {
       <PanelHeader
         icon={GitBranch}
         title="Source Control"
-<<<<<<< HEAD
         subtitle={hasWorkspace ? workspaceRoot : "Source Control ist idle bis ein Workspace geoeffnet ist"}
         status={
           <PanelBadge tone={!hasWorkspace ? "warning" : clean ? "success" : "accent"}>
             {hasWorkspace ? branch : "Idle"}
-=======
-        subtitle={hasWorkspace ? workspaceRoot : "Open a folder to inspect changes"}
-        status={
-          <PanelBadge tone={!hasWorkspace ? "warning" : clean ? "success" : "accent"}>
-            {branch}
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
           </PanelBadge>
         }
         actions={
@@ -1123,19 +1110,6 @@ export default function GitPanel({ files }) {
           />
         )}
 
-<<<<<<< HEAD
-=======
-      <PanelBody className="px-0 py-1">
-        {!hasWorkspace && (
-          <PanelState
-            icon={GitBranch}
-            tone="warning"
-            title="Open a workspace"
-            detail="Source Control stays idle until a folder with files is selected. Provider settings remain available."
-          />
-        )}
-
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
         <AnimatePresence>
           {sections.settings && (
             <motion.div
