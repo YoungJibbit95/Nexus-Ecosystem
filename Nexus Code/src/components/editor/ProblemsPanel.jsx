@@ -1,5 +1,20 @@
 import React from "react";
+<<<<<<< HEAD
+import {
+  AlertCircle,
+  AlertTriangle,
+  ChevronDown,
+  ChevronUp,
+  Info,
+  Lightbulb,
+  MapPin,
+  RotateCcw,
+  Search,
+  XCircle,
+} from "lucide-react";
+=======
 import { AlertCircle, AlertTriangle, Info, Lightbulb, Search, XCircle } from "lucide-react";
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
 import { motion } from "framer-motion";
 import {
   getProblemFilePath,
@@ -8,14 +23,128 @@ import {
   problemMatchesQuery,
 } from "../../pages/editor/editorFeatureModel.js";
 import {
+<<<<<<< HEAD
+  PanelActionButton,
+=======
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
   PanelBadge,
   PanelBody,
   PanelFooter,
   PanelHeader,
+<<<<<<< HEAD
+  PanelIconButton,
+=======
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
   PanelMetric,
   PanelShell,
   PanelState,
 } from "./panels/PanelChrome.jsx";
+<<<<<<< HEAD
+
+const FILTERS = Object.freeze([
+  { id: "all", label: "ALL" },
+  { id: "error", label: "ERRORS" },
+  { id: "warning", label: "WARNINGS" },
+  { id: "info", label: "INFO" },
+]);
+
+function getSeverityMeta(problem) {
+  const severity = getProblemSeverityId(problem);
+  if (severity === "error") {
+    return {
+      icon: XCircle,
+      label: "Error",
+      iconClass: "text-red-500",
+      dotClass: "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.45)]",
+    };
+  }
+  if (severity === "warning") {
+    return {
+      icon: AlertTriangle,
+      label: "Warning",
+      iconClass: "text-yellow-500",
+      dotClass: "bg-yellow-500 shadow-[0_0_8px_rgba(234,179,8,0.35)]",
+    };
+  }
+  if (severity === "info") {
+    return {
+      icon: Info,
+      label: "Info",
+      iconClass: "text-blue-500",
+      dotClass: "bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.35)]",
+    };
+  }
+  return {
+    icon: Lightbulb,
+    label: "Hint",
+    iconClass: "text-sky-400",
+    dotClass: "bg-sky-400 shadow-[0_0_8px_rgba(56,189,248,0.3)]",
+  };
+}
+
+function getCounts(problems) {
+  return problems.reduce(
+    (acc, problem) => {
+      acc.all += 1;
+      acc[getProblemSeverityId(problem)] += 1;
+      return acc;
+    },
+    { all: 0, error: 0, warning: 0, info: 0, hint: 0 },
+  );
+}
+
+function normalizeProblemList(problems) {
+  return Array.isArray(problems) ? problems.filter(Boolean) : [];
+}
+
+function problemMatchesFilter(problem, filter) {
+  const severity = getProblemSeverityId(problem);
+  if (filter === "all") return true;
+  if (filter === "info") return severity === "info" || severity === "hint";
+  return severity === filter;
+}
+
+function getFileProblemCounts(fileProblems) {
+  return fileProblems.reduce(
+    (acc, item) => {
+      const severity = getProblemSeverityId(item.problem);
+      acc[severity] += 1;
+      return acc;
+    },
+    { error: 0, warning: 0, info: 0, hint: 0 },
+  );
+}
+
+function getFileTone(counts) {
+  if (counts.error > 0) return "danger";
+  if (counts.warning > 0) return "warning";
+  return "muted";
+}
+
+export default function ProblemsPanel({ problems, onSelectProblem }) {
+  const [filter, setFilter] = React.useState("all");
+  const [query, setQuery] = React.useState("");
+  const [activeIndex, setActiveIndex] = React.useState(0);
+  const [collapsedGroups, setCollapsedGroups] = React.useState({});
+  const listRef = React.useRef(null);
+  const normalizedProblems = React.useMemo(
+    () => normalizeProblemList(problems),
+    [problems],
+  );
+  const counts = React.useMemo(
+    () => getCounts(normalizedProblems),
+    [normalizedProblems],
+  );
+
+  const filteredProblems = React.useMemo(
+    () =>
+      normalizedProblems
+        .filter((problem) => problemMatchesFilter(problem, filter))
+        .filter((problem) => problemMatchesQuery(problem, query)),
+    [filter, normalizedProblems, query],
+  );
+
+=======
 
 const FILTERS = Object.freeze([
   { id: "all", label: "ALL" },
@@ -102,6 +231,7 @@ export default function ProblemsPanel({ problems, onSelectProblem }) {
     [filter, normalizedProblems, query],
   );
 
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
   const grouped = React.useMemo(
     () =>
       filteredProblems.reduce((acc, problem, index) => {
@@ -113,6 +243,20 @@ export default function ProblemsPanel({ problems, onSelectProblem }) {
     [filteredProblems],
   );
 
+<<<<<<< HEAD
+  const fileGroups = React.useMemo(
+    () =>
+      Object.entries(grouped).map(([file, fileProblems]) => ({
+        file,
+        fileName: file.split(/[\\/]/).pop() || file,
+        fileProblems,
+        counts: getFileProblemCounts(fileProblems),
+      })),
+    [grouped],
+  );
+
+=======
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
   React.useEffect(() => {
     setActiveIndex(0);
   }, [filter, query, normalizedProblems.length]);
@@ -125,20 +269,58 @@ export default function ProblemsPanel({ problems, onSelectProblem }) {
   const selectProblem = React.useCallback(
     (problem, index) => {
       setActiveIndex(index);
+<<<<<<< HEAD
+      setCollapsedGroups((prev) => ({
+        ...prev,
+        [getProblemFilePath(problem)]: false,
+      }));
+=======
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
       onSelectProblem?.(problem);
     },
     [onSelectProblem],
   );
 
+<<<<<<< HEAD
+  const moveActiveProblem = React.useCallback(
+    (direction) => {
+      if (filteredProblems.length === 0) return;
+      const nextIndex =
+        (activeIndex + direction + filteredProblems.length) % filteredProblems.length;
+      const nextProblem = filteredProblems[nextIndex];
+      setActiveIndex(nextIndex);
+      setCollapsedGroups((prev) => ({
+        ...prev,
+        [getProblemFilePath(nextProblem)]: false,
+      }));
+    },
+    [activeIndex, filteredProblems],
+  );
+
+  const openActiveProblem = React.useCallback(() => {
+    const activeProblem = filteredProblems[activeIndex];
+    if (!activeProblem) return;
+    selectProblem(activeProblem, activeIndex);
+  }, [activeIndex, filteredProblems, selectProblem]);
+
+=======
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
   const handleListKeyDown = React.useCallback(
     (event) => {
       if (filteredProblems.length === 0) return;
       if (event.key === "ArrowDown") {
         event.preventDefault();
+<<<<<<< HEAD
+        moveActiveProblem(1);
+      } else if (event.key === "ArrowUp") {
+        event.preventDefault();
+        moveActiveProblem(-1);
+=======
         setActiveIndex((prev) => Math.min(filteredProblems.length - 1, prev + 1));
       } else if (event.key === "ArrowUp") {
         event.preventDefault();
         setActiveIndex((prev) => Math.max(0, prev - 1));
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
       } else if (event.key === "Home") {
         event.preventDefault();
         setActiveIndex(0);
@@ -147,6 +329,26 @@ export default function ProblemsPanel({ problems, onSelectProblem }) {
         setActiveIndex(filteredProblems.length - 1);
       } else if (event.key === "Enter") {
         event.preventDefault();
+<<<<<<< HEAD
+        openActiveProblem();
+      }
+    },
+    [filteredProblems, moveActiveProblem, openActiveProblem],
+  );
+
+  const toggleGroup = (file) => {
+    setCollapsedGroups((prev) => ({ ...prev, [file]: !prev[file] }));
+  };
+
+  const resetFilters = () => {
+    setFilter("all");
+    setQuery("");
+    setActiveIndex(0);
+  };
+
+  const activeProblem = filteredProblems[activeIndex] || null;
+
+=======
         const problem = filteredProblems[activeIndex];
         if (problem) onSelectProblem?.(problem);
       }
@@ -154,6 +356,7 @@ export default function ProblemsPanel({ problems, onSelectProblem }) {
     [activeIndex, filteredProblems, onSelectProblem],
   );
 
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
   const emptyTitle =
     normalizedProblems.length === 0 ? "Keine Probleme" : "Keine Treffer";
   const emptyDetail =
@@ -174,6 +377,27 @@ export default function ProblemsPanel({ problems, onSelectProblem }) {
             <PanelBadge tone="success">Clean</PanelBadge>
           )
         }
+<<<<<<< HEAD
+        actions={
+          <>
+            <PanelIconButton
+              label="Previous diagnostic"
+              disabled={filteredProblems.length === 0}
+              onClick={() => moveActiveProblem(-1)}
+            >
+              <ChevronUp />
+            </PanelIconButton>
+            <PanelIconButton
+              label="Next diagnostic"
+              disabled={filteredProblems.length === 0}
+              onClick={() => moveActiveProblem(1)}
+            >
+              <ChevronDown />
+            </PanelIconButton>
+          </>
+        }
+=======
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
       >
         <div className="grid grid-cols-3 gap-1.5">
           <PanelMetric label="Errors" value={counts.error} tone={counts.error > 0 ? "danger" : "muted"} />
@@ -230,6 +454,19 @@ export default function ProblemsPanel({ problems, onSelectProblem }) {
             placeholder="Message, file, source oder code"
             className="h-8 w-full rounded-md border border-white/10 bg-white/[0.04] pl-8 pr-2 text-[12px] text-gray-200 outline-none transition-colors placeholder:text-gray-600 focus:border-purple-400/45"
           />
+<<<<<<< HEAD
+          {query ? (
+            <button
+              type="button"
+              onClick={() => setQuery("")}
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded p-1 text-gray-600 transition-colors hover:bg-white/[0.08] hover:text-gray-300"
+              title="Suche leeren"
+            >
+              <RotateCcw size={12} />
+            </button>
+          ) : null}
+=======
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
         </div>
       </PanelHeader>
 
@@ -247,6 +484,51 @@ export default function ProblemsPanel({ problems, onSelectProblem }) {
             title={emptyTitle}
             detail={emptyDetail}
             tone={normalizedProblems.length === 0 ? "success" : "muted"}
+<<<<<<< HEAD
+            actionLabel={normalizedProblems.length > 0 ? "Filter zuruecksetzen" : undefined}
+            onAction={normalizedProblems.length > 0 ? resetFilters : undefined}
+          />
+        ) : (
+          fileGroups.map(({ file, fileName, fileProblems, counts }) => {
+            const collapsed = Boolean(collapsedGroups[file]);
+            const tone = getFileTone(counts);
+            return (
+            <div key={file} className="mb-4 last:mb-0">
+              <button
+                type="button"
+                onClick={() => toggleGroup(file)}
+                className="sticky top-0 z-10 mb-1 flex w-full items-center gap-2 rounded-md border bg-[#060614]/95 px-2 py-1.5 text-left backdrop-blur-md transition-colors hover:bg-white/[0.04]"
+                style={{
+                  borderColor:
+                    tone === "danger"
+                      ? "rgba(239,68,68,0.2)"
+                      : tone === "warning"
+                        ? "rgba(251,191,36,0.18)"
+                        : "rgba(255,255,255,0.06)",
+                }}
+              >
+                <ChevronDown
+                  size={12}
+                  className={`shrink-0 text-gray-600 transition-transform ${collapsed ? "-rotate-90" : ""}`}
+                />
+                <MapPin size={12} className="shrink-0 text-purple-300/70" />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[11px] font-semibold text-gray-300" title={file}>
+                    {fileName}
+                  </span>
+                  {file !== fileName ? (
+                    <span className="block truncate text-[9px] text-gray-600">{file}</span>
+                  ) : null}
+                </span>
+                {counts.error > 0 ? <PanelBadge tone="danger">{counts.error}</PanelBadge> : null}
+                {counts.warning > 0 ? <PanelBadge tone="warning">{counts.warning}</PanelBadge> : null}
+                <PanelBadge tone={tone}>{fileProblems.length}</PanelBadge>
+              </button>
+
+              {!collapsed ? (
+                <div className="space-y-0.5">
+                  {fileProblems.map(({ problem, globalIndex }) => {
+=======
           />
         ) : (
           Object.entries(grouped).map(([file, fileProblems]) => (
@@ -262,6 +544,7 @@ export default function ProblemsPanel({ problems, onSelectProblem }) {
 
               <div className="space-y-0.5">
                 {fileProblems.map(({ problem, globalIndex }) => {
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
                   const meta = getSeverityMeta(problem);
                   const Icon = meta.icon;
                   const active = globalIndex === activeIndex;
@@ -304,14 +587,40 @@ export default function ProblemsPanel({ problems, onSelectProblem }) {
                       </div>
                     </motion.button>
                   );
+<<<<<<< HEAD
+                  })}
+                </div>
+              ) : null}
+            </div>
+            );
+          })
+=======
                 })}
               </div>
             </div>
           ))
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
         )}
       </PanelBody>
 
       <PanelFooter>
+<<<<<<< HEAD
+        <div className="grid gap-2">
+          <div className="flex items-center justify-between gap-2 text-[10px] text-gray-500">
+            <span className="truncate">
+              {filter === "all" ? "Alle Severities" : `Filter: ${filter}`}
+              {activeProblem ? ` - ${getProblemFilePath(activeProblem).split(/[\\/]/).pop()}` : ""}
+            </span>
+            <span className="shrink-0">
+              {counts.error} errors / {counts.warning} warnings
+            </span>
+          </div>
+          {activeProblem ? (
+            <PanelActionButton icon={MapPin} onClick={openActiveProblem} tone="accent">
+              Aktives Problem oeffnen
+            </PanelActionButton>
+          ) : null}
+=======
         <div className="flex items-center justify-between gap-2 text-[10px] text-gray-500">
           <span className="truncate">
             {filter === "all" ? "Alle Severities" : `Filter: ${filter}`}
@@ -319,6 +628,7 @@ export default function ProblemsPanel({ problems, onSelectProblem }) {
           <span className="shrink-0">
             {counts.error} errors / {counts.warning} warnings
           </span>
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
         </div>
       </PanelFooter>
     </PanelShell>

@@ -49,6 +49,24 @@ import {
   getSidePanelStyle,
 } from "./editor/editorShellLayout";
 import {
+<<<<<<< HEAD
+  applyWorkbenchLayoutPreset,
+  closeWorkbenchBottomDock,
+  closeWorkbenchSideDock,
+  cycleWorkbenchDockSize,
+  getBottomPanelSizeOptions,
+  getBottomPanelStyle,
+  getSidePanelSizeOptions,
+  getWorkbenchLayoutPresetOptions,
+  getWorkbenchSlots,
+  loadWorkbenchLayoutFromStorage,
+  normalizeWorkbenchLayout,
+  openWorkbenchDockPanel,
+  saveWorkbenchLayoutToStorage,
+  setWorkbenchDockSize,
+  toggleWorkbenchDockPanel,
+} from "./editor/workbenchDockModel";
+=======
   WORKBENCH_PANEL_PLACEMENTS,
   applyWorkbenchLayoutPreset,
   getNextBottomPanelSize,
@@ -60,6 +78,7 @@ import {
   normalizeWorkbenchLayout,
   saveWorkbenchLayoutToStorage,
 } from "./editor/workbenchLayoutModel";
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
 import {
   beginPerfMetric,
   endPerfMetric,
@@ -84,6 +103,11 @@ const WORKSPACE_AUTOSAVE_MS = 5_200;
 const LOCAL_AUTOSAVE_MS = 6_200;
 const CODE_COMPACT_VIEWPORT_WIDTH = 980;
 const SIDE_PANEL_SIZE_OPTIONS = getSidePanelSizeOptions();
+<<<<<<< HEAD
+const BOTTOM_PANEL_SIZE_OPTIONS = getBottomPanelSizeOptions();
+const WORKBENCH_PRESET_OPTIONS = getWorkbenchLayoutPresetOptions();
+=======
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
 const loadSettingsPanel = () => import("../components/editor/SettingsPanel");
 const loadCodeEditor = () => import("../components/editor/CodeEditor");
 const SettingsPanel = React.lazy(() => loadSettingsPanel());
@@ -247,6 +271,83 @@ function SidePanelSizeControl({ value, onChange }) {
   );
 }
 
+<<<<<<< HEAD
+function BottomDockControls({
+  size,
+  presetId,
+  onSizeChange,
+  onPresetChange,
+  onClose,
+  compact = false,
+}) {
+  if (compact) return null;
+
+  return (
+    <div className="hidden shrink-0 items-center gap-1.5 lg:flex">
+      <div
+        className="grid h-7 w-[5.25rem] shrink-0 grid-cols-3 overflow-hidden rounded-md border border-white/10 bg-white/[0.03]"
+        role="group"
+        aria-label="Workbench layout preset"
+      >
+        {WORKBENCH_PRESET_OPTIONS.map((option) => {
+          const isActive = option.id === presetId;
+          return (
+            <button
+              key={option.id}
+              type="button"
+              onClick={() => onPresetChange(option.id)}
+              aria-pressed={isActive}
+              title={`Layout: ${option.title}`}
+              className={`flex min-w-0 items-center justify-center text-[10px] font-semibold leading-none transition-colors ${
+                isActive
+                  ? "bg-white/12 text-white"
+                  : "text-[var(--nexus-muted)] hover:bg-white/[0.07] hover:text-gray-200"
+              }`}
+            >
+              {option.label.slice(0, 1)}
+            </button>
+          );
+        })}
+      </div>
+      <div
+        className="grid h-7 w-[5.25rem] shrink-0 grid-cols-3 overflow-hidden rounded-md border border-white/10 bg-white/[0.03]"
+        role="group"
+        aria-label="Bottom dock height"
+      >
+        {BOTTOM_PANEL_SIZE_OPTIONS.map((option) => {
+          const isActive = option.id === size;
+          return (
+            <button
+              key={option.id}
+              type="button"
+              onClick={() => onSizeChange(option.id)}
+              aria-pressed={isActive}
+              title={`Dockhoehe: ${option.title}`}
+              className={`flex min-w-0 items-center justify-center text-[10px] font-semibold leading-none transition-colors ${
+                isActive
+                  ? "bg-white/12 text-white"
+                  : "text-[var(--nexus-muted)] hover:bg-white/[0.07] hover:text-gray-200"
+              }`}
+            >
+              {option.label}
+            </button>
+          );
+        })}
+      </div>
+      <button
+        type="button"
+        onClick={onClose}
+        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-white/10 text-gray-500 transition-colors hover:border-white/20 hover:bg-white/10 hover:text-gray-200"
+        title="Bottom Dock schliessen"
+      >
+        <XCircle size={13} />
+      </button>
+    </div>
+  );
+}
+
+=======
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
 function SidePanelFrame({
   panelId,
   onClose,
@@ -635,22 +736,125 @@ export default function Editor({
     setActivePanel((prev) => (prev ? null : "explorer"));
   }, []);
 
+  const getCurrentWorkbenchDockState = useCallback(
+    () => ({
+      activePanel,
+      bottomTab,
+      bottomPanelOpen: terminalOpen,
+    }),
+    [activePanel, bottomTab, terminalOpen],
+  );
+
+  const applyWorkbenchDockState = useCallback((nextState) => {
+    setActivePanel(nextState.activePanel);
+    setBottomTab(nextState.bottomTab);
+    setTerminalOpen(nextState.bottomPanelOpen);
+  }, []);
+
   const handleToggleTerminalPanel = useCallback(() => {
     setShowSettings(false);
-    setBottomTab("terminal");
-    setTerminalOpen((prev) => (bottomTab === "terminal" ? !prev : true));
-  }, [bottomTab]);
+    applyWorkbenchDockState(
+      toggleWorkbenchDockPanel(
+        getCurrentWorkbenchDockState(),
+        "terminal",
+        workbenchLayout,
+      ),
+    );
+  }, [applyWorkbenchDockState, getCurrentWorkbenchDockState, workbenchLayout]);
 
   const handleOpenTerminalPanel = useCallback(() => {
     setShowSettings(false);
-    setBottomTab("terminal");
-    setTerminalOpen(true);
-  }, []);
+    applyWorkbenchDockState(
+      openWorkbenchDockPanel(
+        getCurrentWorkbenchDockState(),
+        "terminal",
+        workbenchLayout,
+      ),
+    );
+  }, [applyWorkbenchDockState, getCurrentWorkbenchDockState, workbenchLayout]);
 
   const handleOpenProblemsPanel = useCallback(() => {
     setShowSettings(false);
-    setBottomTab("problems");
-    setTerminalOpen(true);
+    applyWorkbenchDockState(
+      openWorkbenchDockPanel(
+        getCurrentWorkbenchDockState(),
+        "problems",
+        workbenchLayout,
+      ),
+    );
+  }, [applyWorkbenchDockState, getCurrentWorkbenchDockState, workbenchLayout]);
+
+  const handleCloseBottomPanel = useCallback(() => {
+    applyWorkbenchDockState(
+      closeWorkbenchBottomDock(getCurrentWorkbenchDockState()),
+    );
+  }, [applyWorkbenchDockState, getCurrentWorkbenchDockState]);
+
+  const handleCloseActivePanel = useCallback(() => {
+    applyWorkbenchDockState(closeWorkbenchSideDock(getCurrentWorkbenchDockState()));
+  }, [applyWorkbenchDockState, getCurrentWorkbenchDockState]);
+
+  const handleCloseSettingsPanel = useCallback(() => {
+    setShowSettings(false);
+  }, []);
+
+  const handleOpenCommandPalette = useCallback(() => {
+    setCommandPaletteOpen(true);
+  }, []);
+
+  const handleCloseCommandPalette = useCallback(() => {
+    setCommandPaletteOpen(false);
+  }, []);
+
+  const handleCloseSpotlight = useCallback(() => {
+    setSpotlightOpen(false);
+  }, []);
+
+  const handleSetSidePanelSize = useCallback((sizeId) => {
+    setWorkbenchLayout((prev) =>
+      setWorkbenchDockSize(prev, "side", sizeId),
+    );
+  }, []);
+
+  const handleCycleSidePanelSize = useCallback(() => {
+    setWorkbenchLayout((prev) =>
+      cycleWorkbenchDockSize(prev, "side"),
+    );
+  }, []);
+
+  const handleSetBottomPanelSize = useCallback((sizeId) => {
+    setWorkbenchLayout((prev) =>
+      setWorkbenchDockSize(prev, "bottom", sizeId),
+    );
+  }, []);
+
+  const handleCycleBottomPanelSize = useCallback(() => {
+    setWorkbenchLayout((prev) =>
+      cycleWorkbenchDockSize(prev, "bottom"),
+    );
+  }, []);
+
+  const handleApplyWorkbenchLayoutPreset = useCallback((presetId) => {
+    setWorkbenchLayout((prev) => applyWorkbenchLayoutPreset(prev, presetId));
+  }, []);
+
+  const handleProblemSelect = useCallback(
+    (problem) => {
+      if (!activeTabId) return;
+      setSettings((prev) => ({
+        ...prev,
+        _revealLine: {
+          line: problem.startLineNumber,
+          col: problem.startColumn,
+          timestamp: Date.now(),
+        },
+      }));
+    },
+    [activeTabId],
+  );
+
+  const handleMarkersChange = useCallback((markers) => {
+    setProblems(markers);
   }, []);
 
   const handleCloseBottomPanel = useCallback(() => {
@@ -729,6 +933,15 @@ export default function Editor({
 
   const handleOpenWorkbenchPanel = useCallback((panelId) => {
     setShowSettings(false);
+<<<<<<< HEAD
+    const nextState = openWorkbenchDockPanel(
+      getCurrentWorkbenchDockState(),
+      panelId,
+      workbenchLayout,
+    );
+    applyWorkbenchDockState(nextState);
+    if (nextState.sidebarRequired) {
+=======
     if (
       getWorkbenchPanelPlacement(panelId, workbenchLayout) ===
       WORKBENCH_PANEL_PLACEMENTS.bottom
@@ -769,16 +982,55 @@ export default function Editor({
     }
 
     if (panelId) {
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
       setSettings((prev) => ({
         ...prev,
         sidebar_visible: true,
         zen_mode: false,
       }));
     }
+<<<<<<< HEAD
+  }, [
+    applyWorkbenchDockState,
+    getCurrentWorkbenchDockState,
+    workbenchLayout,
+  ]);
+
+  const handleSidebarPanelChange = useCallback((panelId) => {
+    setShowSettings(false);
+    if (!panelId) {
+      if (!activePanel && bottomTab === "problems" && terminalOpen) {
+        handleCloseBottomPanel();
+        return;
+      }
+      handleCloseActivePanel();
+      return;
+    }
+
+    const nextState = openWorkbenchDockPanel(
+      getCurrentWorkbenchDockState(),
+      panelId,
+      workbenchLayout,
+    );
+    applyWorkbenchDockState(nextState);
+    if (nextState.sidebarRequired) {
+      setSettings((prev) => ({
+        ...prev,
+        sidebar_visible: true,
+        zen_mode: false,
+      }));
+    }
+  }, [
+    activePanel,
+    applyWorkbenchDockState,
+    bottomTab,
+    getCurrentWorkbenchDockState,
+=======
     setActivePanel(panelId);
   }, [
     activePanel,
     bottomTab,
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
     handleCloseActivePanel,
     handleCloseBottomPanel,
     terminalOpen,
@@ -1702,9 +1954,15 @@ export default function Editor({
         "toggle-sidebar": handleToggleSidebar,
         "github-sync": () => handleOpenWorkbenchPanel("git"),
         "focus-editor": handleFocusEditor,
+<<<<<<< HEAD
+        "layout-compact": () => handleApplyWorkbenchLayoutPreset("focus"),
+        "layout-balanced": () => handleApplyWorkbenchLayoutPreset("comfortable"),
+        "layout-roomy": () => handleApplyWorkbenchLayoutPreset("wide"),
+=======
         "layout-compact": () => handleApplyWorkbenchLayoutPreset("compact"),
         "layout-balanced": () => handleApplyWorkbenchLayoutPreset("balanced"),
         "layout-roomy": () => handleApplyWorkbenchLayoutPreset("roomy"),
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
         "cycle-side-panel-size": handleCycleSidePanelSize,
         "cycle-bottom-panel-size": handleCycleBottomPanelSize,
       };
@@ -1797,6 +2055,13 @@ export default function Editor({
   const bottomPanelClassName = getBottomPanelClassName({
     compact: isCompactViewport,
     size: bottomPanelSlot.size,
+<<<<<<< HEAD
+  });
+  const bottomPanelStyle = getBottomPanelStyle({
+    compact: isCompactViewport,
+    size: bottomPanelSlot.size,
+=======
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
   });
 
   return (
@@ -1890,6 +2155,11 @@ export default function Editor({
                   exit={{ opacity: 0 }}
                   transition={{ type: "tween", duration: 0.18, ease: [0.2, 0.7, 0.2, 1] }}
                   className={`nx-code-side-panel ${sidePanelClassName} z-30 min-h-0 overflow-hidden border-x border-white/5`}
+                  data-workbench-zone={sidePanelSlot.zone}
+                  data-workbench-dock-id={sidePanelSlot.dockId}
+                  data-workbench-panel={sidePanelSlot.panelId}
+                  data-workbench-placement={sidePanelSlot.placement}
+                  data-workbench-axis={sidePanelSlot.axis}
                   style={{
                     position: isCompactViewport ? "absolute" : "relative",
                     top: isCompactViewport ? 0 : "auto",
@@ -1970,6 +2240,11 @@ export default function Editor({
             {/* Main Editor Area */}
             <div
               className={mainEditorClassName}
+<<<<<<< HEAD
+              data-workbench-zone={editorSlot.zone}
+              data-workbench-dock-id={editorSlot.dockId}
+=======
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
               style={{ order: editorSlot.order }}
             >
               <div
@@ -2132,11 +2407,47 @@ export default function Editor({
                           onClick={handleOpenProblemsPanel}
                           iconOnly={isCompactViewport}
                         />
+                        {bottomPanelVisible && (
+                          <BottomDockControls
+                            compact={isCompactViewport}
+                            size={normalizedWorkbenchLayout.bottomPanelSize}
+                            presetId={normalizedWorkbenchLayout.presetId}
+                            onSizeChange={handleSetBottomPanelSize}
+                            onPresetChange={handleApplyWorkbenchLayoutPreset}
+                            onClose={handleCloseBottomPanel}
+                          />
+                        )}
                       </div>
                     </div>
                   )}
                   {bottomPanelVisible && (
                     <div
+<<<<<<< HEAD
+                      className={`${bottomPanelClassName} flex flex-col`}
+                      style={bottomPanelStyle}
+                      data-workbench-zone={bottomPanelSlot.zone}
+                      data-workbench-dock-id={bottomPanelSlot.dockId}
+                      data-workbench-panel={bottomPanelSlot.panelId}
+                      data-workbench-placement={bottomPanelSlot.placement}
+                      data-workbench-axis={bottomPanelSlot.axis}
+                    >
+                      <div className="min-h-0 flex-1 overflow-hidden [&>div]:!h-full [&>div]:!min-h-0">
+                        {bottomTab === "terminal" ? (
+                          <Terminal
+                            isOpen
+                            onToggle={handleToggleTerminalPanel}
+                            activeFile={activeFile}
+                            code={currentCode}
+                            workspacePath={workspacePath}
+                          />
+                        ) : (
+                          <ProblemsPanel
+                            problems={problems}
+                            onSelectProblem={handleProblemSelect}
+                          />
+                        )}
+                      </div>
+=======
                       className={bottomPanelClassName}
                       data-workbench-zone={bottomPanelSlot.zone}
                       data-workbench-panel={bottomPanelSlot.panelId}
@@ -2155,6 +2466,7 @@ export default function Editor({
                           onSelectProblem={handleProblemSelect}
                         />
                       )}
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
                     </div>
                   )}
                 </div>

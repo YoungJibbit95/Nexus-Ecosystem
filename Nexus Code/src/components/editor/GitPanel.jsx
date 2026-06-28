@@ -4,6 +4,7 @@ import {
   Check,
   ChevronDown,
   Clock,
+  FolderOpen,
   GitBranch,
   GitFork,
   Minus,
@@ -41,10 +42,18 @@ import {
   unstageGitPath,
 } from "../../pages/editor/gitPanelModel";
 import {
+<<<<<<< HEAD
+  PanelActionButton,
+=======
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
   PanelBadge,
   PanelBody,
   PanelHeader,
   PanelIconButton,
+<<<<<<< HEAD
+  PanelNotice,
+=======
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
   PanelShell,
   PanelState,
 } from "./panels/PanelChrome.jsx";
@@ -438,6 +447,7 @@ export default function GitPanel({ files }) {
   const [refreshing, setRefreshing] = useState(false);
   const [committing, setCommitting] = useState(false);
   const [committed, setCommitted] = useState(false);
+  const [pushAfterCommit, setPushAfterCommit] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [selectedFileId, setSelectedFileId] = useState(null);
   const [diffText, setDiffText] = useState("");
@@ -508,11 +518,11 @@ export default function GitPanel({ files }) {
     ? "Local Git IPC is required to commit."
     : stagedFiles.length === 0
       ? "Stage at least one file to commit."
-      : commitMsg.trim().length === 0
+        : commitMsg.trim().length === 0
         ? "Write a commit message."
-        : canPush
+        : canPush && pushAfterCommit
           ? "Ready to commit and push."
-          : "Ready to commit.";
+          : "Ready to commit locally.";
 
   const refreshHistory = useCallback(
     async (settings = readGithubSettings()) => {
@@ -924,6 +934,28 @@ export default function GitPanel({ files }) {
     }
   };
 
+  const handlePush = async () => {
+    if (!workspaceRoot) {
+      setErrorMsg("Open a workspace to push.");
+      return;
+    }
+    if (!canPush) {
+      setErrorMsg("Local Git push is not exposed by this bridge.");
+      return;
+    }
+    setRefreshing(true);
+    try {
+      await pushLocalGit({ cwd: workspaceRoot });
+      await refreshGitStatus({ silent: true });
+      setErrorMsg("");
+    } catch (error) {
+      console.error("Git push failed", error);
+      setErrorMsg(error?.message || "Git push failed");
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   const canCommit =
     hasWorkspace &&
     hasLocalGit &&
@@ -943,7 +975,7 @@ export default function GitPanel({ files }) {
 
     try {
       await commitLocalGit(commitMsg.trim(), { cwd: workspaceRoot });
-      if (canPush) {
+      if (canPush && pushAfterCommit) {
         await pushLocalGit({ cwd: workspaceRoot });
       }
 
@@ -969,10 +1001,17 @@ export default function GitPanel({ files }) {
       <PanelHeader
         icon={GitBranch}
         title="Source Control"
+<<<<<<< HEAD
+        subtitle={hasWorkspace ? workspaceRoot : "Source Control ist idle bis ein Workspace geoeffnet ist"}
+        status={
+          <PanelBadge tone={!hasWorkspace ? "warning" : clean ? "success" : "accent"}>
+            {hasWorkspace ? branch : "Idle"}
+=======
         subtitle={hasWorkspace ? workspaceRoot : "Open a folder to inspect changes"}
         status={
           <PanelBadge tone={!hasWorkspace ? "warning" : clean ? "success" : "accent"}>
             {branch}
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
           </PanelBadge>
         }
         actions={
@@ -995,6 +1034,7 @@ export default function GitPanel({ files }) {
         }
       />
 
+      {hasWorkspace && (
       <div className="px-3 pb-3 shrink-0 space-y-2">
         <div
           className="rounded-lg p-2.5"
@@ -1062,12 +1102,29 @@ export default function GitPanel({ files }) {
           />
         </div>
       </div>
+      )}
 
-      <div
-        className="mx-3 mb-1 shrink-0"
-        style={{ height: "1px", background: "rgba(128,0,255,0.08)" }}
-      />
+      {hasWorkspace && (
+        <div
+          className="mx-3 mb-1 shrink-0"
+          style={{ height: "1px", background: "rgba(128,0,255,0.08)" }}
+        />
+      )}
 
+      <PanelBody className="px-0 py-1">
+        {!hasWorkspace && !sections.settings && (
+          <PanelState
+            icon={FolderOpen}
+            tone="muted"
+            title="Kein Workspace geoeffnet"
+            detail="Source Control bleibt ruhig, bis ein Ordner mit Dateien geladen ist. Provider-Checks kannst du bei Bedarf separat oeffnen."
+            actionLabel="Provider anzeigen"
+            onAction={() => toggleSection("settings")}
+          />
+        )}
+
+<<<<<<< HEAD
+=======
       <PanelBody className="px-0 py-1">
         {!hasWorkspace && (
           <PanelState
@@ -1078,6 +1135,7 @@ export default function GitPanel({ files }) {
           />
         )}
 
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
         <AnimatePresence>
           {sections.settings && (
             <motion.div
@@ -1417,19 +1475,53 @@ export default function GitPanel({ files }) {
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: "auto" }}
                 exit={{ opacity: 0, height: 0 }}
-                className="flex items-center gap-1.5 mb-2 px-2 py-1.5 rounded-lg"
-                style={{
-                  background: "rgba(239,68,68,0.07)",
-                  border: "1px solid rgba(239,68,68,0.2)",
-                }}
               >
-                <AlertCircle size={11} className="text-red-400 shrink-0" />
-                <span className="text-[10px] text-red-400/80 truncate">
-                  {errorMsg}
-                </span>
+                <PanelNotice
+                  icon={AlertCircle}
+                  tone="danger"
+                  title="Git action failed"
+                  detail={errorMsg}
+                  className="mb-2"
+                />
               </motion.div>
             )}
           </AnimatePresence>
+
+          <div className="mb-3 rounded-lg border border-white/[0.06] bg-black/20 p-2.5">
+            <div className="mb-2 flex min-w-0 items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-500">
+                  Sync
+                </p>
+                <p className="truncate text-[11px] text-gray-400">
+                  {remoteDetail}
+                </p>
+              </div>
+              <PanelBadge tone={syncTone === "warn" ? "warning" : syncTone === "good" ? "success" : "muted"}>
+                {syncLabel}
+              </PanelBadge>
+            </div>
+            <div className="grid grid-cols-2 gap-1.5">
+              <PanelActionButton
+                icon={Download}
+                onClick={handlePull}
+                disabled={!canPull || refreshing}
+                tone={status.behind > 0 ? "warning" : "muted"}
+                title="Pull with the local Git bridge"
+              >
+                Pull
+              </PanelActionButton>
+              <PanelActionButton
+                icon={Upload}
+                onClick={handlePush}
+                disabled={!canPush || refreshing}
+                tone={status.ahead > 0 ? "success" : "muted"}
+                title="Push with the local Git bridge"
+              >
+                Push
+              </PanelActionButton>
+            </div>
+          </div>
 
           <div className="mb-2 flex items-center justify-between gap-2">
             <span className="text-[10px] font-semibold uppercase tracking-widest text-gray-500">
@@ -1465,7 +1557,34 @@ export default function GitPanel({ files }) {
             <span>{commitMsg.trim().length}/64000</span>
           </div>
 
-          <div className="grid grid-cols-[1fr_auto] gap-1.5 mt-2">
+          <button
+            type="button"
+            onClick={() => setPushAfterCommit((value) => !value)}
+            disabled={!canPush}
+            aria-pressed={pushAfterCommit}
+            className="mt-2 flex w-full items-center justify-between gap-2 rounded-md border border-white/[0.07] bg-white/[0.035] px-2.5 py-1.5 text-left text-[10px] transition-colors hover:bg-white/[0.06] disabled:cursor-not-allowed disabled:opacity-45"
+          >
+            <span className="min-w-0 truncate text-gray-400">
+              Nach Commit automatisch pushen
+            </span>
+            <span
+              className="h-4 w-8 rounded-full border p-0.5"
+              style={{
+                background: pushAfterCommit ? "rgba(34,197,94,0.18)" : "rgba(255,255,255,0.05)",
+                borderColor: pushAfterCommit ? "rgba(34,197,94,0.3)" : "rgba(255,255,255,0.1)",
+              }}
+            >
+              <span
+                className="block h-3 w-3 rounded-full transition-transform"
+                style={{
+                  background: pushAfterCommit ? "#86efac" : "#6b7280",
+                  transform: pushAfterCommit ? "translateX(14px)" : "translateX(0)",
+                }}
+              />
+            </span>
+          </button>
+
+          <div className="mt-2">
             <motion.button
               whileHover={canCommit ? { scale: 1.02, y: -1 } : {}}
               whileTap={canCommit ? { scale: 0.97 } : {}}
@@ -1511,7 +1630,7 @@ export default function GitPanel({ files }) {
                   >
                     <Check size={13} className="text-green-400" />
                     <span className="text-green-400">
-                      {canPush ? "Pushed" : "Committed"}
+                      {canPush && pushAfterCommit ? "Pushed" : "Committed"}
                     </span>
                   </motion.div>
                 ) : (
@@ -1524,28 +1643,13 @@ export default function GitPanel({ files }) {
                   >
                     <Upload size={13} />
                     <span>
-                      {canPush ? "Commit & Push" : "Commit"}
+                      {canPush && pushAfterCommit ? "Commit & Push" : "Commit"}
                       {stagedFiles.length > 0 ? ` (${stagedFiles.length})` : ""}
                     </span>
                   </motion.div>
                 )}
               </AnimatePresence>
             </motion.button>
-            <button
-              type="button"
-              onClick={handlePull}
-              disabled={!canPull || refreshing}
-              className="px-2 rounded-lg text-[10px] font-semibold transition-colors"
-              style={{
-                border: "1px solid rgba(255,255,255,0.1)",
-                color: canPull ? "#cbd5e1" : "#475569",
-                background: "rgba(255,255,255,0.03)",
-                cursor: canPull ? "pointer" : "not-allowed",
-              }}
-              title="Pull with the local Git bridge"
-            >
-              Pull
-            </button>
           </div>
         </div>
 

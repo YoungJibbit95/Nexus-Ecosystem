@@ -27,7 +27,6 @@ import { asObjectArray } from "./dashboard/dashboardViewUtils";
 import { buildDashboardWidgetContent } from "./dashboard/widgetContent";
 import { useDashboardLayoutEditing } from "./dashboard/useDashboardLayoutEditing";
 import { useDashboardDerivedData } from "./dashboard/useDashboardDerivedData";
-import { calculateNexusViewQuality } from "@nexus/core";
 
 export function DashboardView({ setView }: { setView?: (v: string) => void }) {
   const t = useTheme();
@@ -219,6 +218,8 @@ export function DashboardView({ setView }: { setView?: (v: string) => void }) {
     accent: t.accent,
     accent2: t.accent2,
   });
+<<<<<<< HEAD
+=======
   const blockedTasks = useMemo(
     () =>
       tasks.filter((task) =>
@@ -287,6 +288,7 @@ export function DashboardView({ setView }: { setView?: (v: string) => void }) {
     setEditLayout(true);
   };
 
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
   let widgetContent: Partial<Record<string, React.ReactNode>> = {};
   let widgetContentBuildError: string | null = null;
   try {
@@ -439,6 +441,8 @@ export function DashboardView({ setView }: { setView?: (v: string) => void }) {
           resetLayout={resetLayout}
         />
 
+<<<<<<< HEAD
+=======
         <section
           className="nx-dashboard-priority-rail"
           aria-label="Dashboard priorities"
@@ -535,6 +539,7 @@ export function DashboardView({ setView }: { setView?: (v: string) => void }) {
             </DashboardActionButton>
           </div>
         </div>
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
         <DashboardWidgetGridSection
           gridRef={gridRef}
           visibleWidgets={visibleWidgets}

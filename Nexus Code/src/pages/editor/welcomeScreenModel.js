@@ -1,6 +1,8 @@
 const FILES_INDEX_STORAGE_KEY = "nexus-code-files-index-v2";
 const LEGACY_FILES_STORAGE_KEY = "nexus-code-files";
 
+<<<<<<< HEAD
+=======
 export const WELCOME_WORKSPACE_ITEMS = Object.freeze([
   {
     id: "workspace",
@@ -22,6 +24,7 @@ export const WELCOME_WORKSPACE_ITEMS = Object.freeze([
   },
 ]);
 
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
 function canReadLocalStorage() {
   return (
     typeof window !== "undefined" &&
@@ -61,7 +64,11 @@ function normalizeRecentFile(file, index) {
     id: String(file?.id || `${fileName}-${index}`),
     name: fileName,
     detail,
+<<<<<<< HEAD
+    meta: sourcePath ? "project" : "draft",
+=======
     meta: sourcePath ? "workspace" : "draft",
+>>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
   };
 }
 
