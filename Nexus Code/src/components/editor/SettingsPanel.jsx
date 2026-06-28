@@ -105,11 +105,25 @@ const SETTING_INDEX = [
     keywords: "glow bloom neon intensity light",
   },
   {
+    id: "glow_radius",
+    section: "theme-editor",
+    label: "Glow Radius",
+    description: "Ausbreitung der Akzentbeleuchtung.",
+    keywords: "glow radius bloom light spread",
+  },
+  {
     id: "panel_blur_strength",
     section: "theme-editor",
     label: "Blur Intensitaet",
     description: "Glass-Blur fuer Settings, Side Panels und Oberflaechen.",
     keywords: "blur glass backdrop performance panel",
+  },
+  {
+    id: "panel_background_mode",
+    section: "workbench",
+    label: "Panel Background",
+    description: "Blur, Fake Glass oder Glass Shader fuer Workbench-Panels.",
+    keywords: "panel background blur glass shader workbench",
   },
   {
     id: "ui_radius",
@@ -140,11 +154,32 @@ const SETTING_INDEX = [
     keywords: "line height spacing editor",
   },
   {
+    id: "font_weight",
+    section: "editor",
+    label: "Schriftstaerke",
+    description: "Gewicht der Editor-Schrift.",
+    keywords: "font weight bold medium typography",
+  },
+  {
+    id: "tab_size",
+    section: "editor",
+    label: "Tab-Groesse",
+    description: "Spaces pro Tab.",
+    keywords: "tab size indentation indent spaces",
+  },
+  {
     id: "word_wrap",
     section: "editor",
     label: "Word Wrap",
     description: "Lange Zeilen umbrechen.",
     keywords: "wrap word line editor",
+  },
+  {
+    id: "line_numbers",
+    section: "editor",
+    label: "Zeilennummern",
+    description: "Line numbers im Gutter anzeigen.",
+    keywords: "line numbers gutter editor",
   },
   {
     id: "minimap",
@@ -166,6 +201,34 @@ const SETTING_INDEX = [
     label: "Autocomplete",
     description: "Language-Server-basierte Vorschlaege, Hover und Diagnose.",
     keywords: "autocomplete completion suggestions lsp hover intellisense",
+  },
+  {
+    id: "render_whitespace",
+    section: "editor",
+    label: "Whitespace anzeigen",
+    description: "Unsichtbare Zeichen markieren.",
+    keywords: "whitespace render spaces tabs invisible",
+  },
+  {
+    id: "bracket_colorization",
+    section: "editor",
+    label: "Klammerfarben",
+    description: "Bracket Colorization im Editor.",
+    keywords: "bracket colorization parentheses braces colors",
+  },
+  {
+    id: "format_on_paste",
+    section: "editor",
+    label: "Beim Einfuegen formatieren",
+    description: "Format-on-paste fuer unterstuetzte Sprachen.",
+    keywords: "format paste formatter editor",
+  },
+  {
+    id: "sticky_scroll",
+    section: "editor",
+    label: "Sticky Scroll",
+    description: "Fixierter Kontext im Editor.",
+    keywords: "sticky scroll context editor",
   },
   {
     id: "sidebar_position",
@@ -250,6 +313,27 @@ const SETTING_INDEX = [
     label: "Cursor-Blinken",
     description: "Blinkverhalten im Code Editor.",
     keywords: "cursor blinking blink phase smooth solid",
+  },
+  {
+    id: "cursor_style",
+    section: "animations",
+    label: "Cursor-Stil",
+    description: "Linie, Block oder Unterstrich.",
+    keywords: "cursor style line block underline",
+  },
+  {
+    id: "cursor_glow",
+    section: "animations",
+    label: "Cursor-Glow",
+    description: "Leuchtender Cursor im Editor.",
+    keywords: "cursor glow caret light",
+  },
+  {
+    id: "icon_glow",
+    section: "animations",
+    label: "Icon Glow",
+    description: "Leuchtende Icons in der Shell.",
+    keywords: "icon glow shell light",
   },
 ];
 
@@ -1058,7 +1142,7 @@ export default function SettingsPanel({
                       </div>
                     </SettingRow>
                     <SettingRow
-                      id="glow_intensity"
+                      id="glow_radius"
                       sectionId="theme-editor"
                       searchQuery={searchTerm}
                       title={`Glow Radius: ${settings.glow_radius ?? 14}px`}
@@ -1281,7 +1365,7 @@ export default function SettingsPanel({
                       </div>
                     </SettingRow>
                     <SettingRow
-                      id="font_family"
+                      id="font_weight"
                       sectionId="editor"
                       searchQuery={searchTerm}
                       title="Schriftstaerke"
@@ -1356,7 +1440,7 @@ export default function SettingsPanel({
                       />
                     </SettingRow>
                     <SettingRow
-                      id="font_size"
+                      id="tab_size"
                       sectionId="editor"
                       searchQuery={searchTerm}
                       title={`Tab-Groesse: ${settings.tab_size || 4}`}
@@ -1374,7 +1458,7 @@ export default function SettingsPanel({
                       </div>
                     </SettingRow>
                     <SettingRow
-                      id="font_size"
+                      id="render_whitespace"
                       sectionId="editor"
                       searchQuery={searchTerm}
                       title="Whitespace anzeigen"
@@ -1391,7 +1475,7 @@ export default function SettingsPanel({
                       </NativeSelect>
                     </SettingRow>
                     <SettingRow
-                      id="font_size"
+                      id="bracket_colorization"
                       sectionId="editor"
                       searchQuery={searchTerm}
                       title="Klammerfarben"
@@ -1406,7 +1490,7 @@ export default function SettingsPanel({
                       />
                     </SettingRow>
                     <SettingRow
-                      id="font_size"
+                      id="format_on_paste"
                       sectionId="editor"
                       searchQuery={searchTerm}
                       title="Beim Einfuegen formatieren"
@@ -1416,6 +1500,32 @@ export default function SettingsPanel({
                       <NativeSwitch
                         checked={settings.format_on_paste !== false}
                         onCheckedChange={(value) => updateSetting("format_on_paste", value)}
+                      />
+                    </SettingRow>
+                    <SettingRow
+                      id="line_numbers"
+                      sectionId="editor"
+                      searchQuery={searchTerm}
+                      title="Zeilennummern"
+                      description="Line numbers im Gutter anzeigen."
+                      compact
+                    >
+                      <NativeSwitch
+                        checked={settings.line_numbers !== false}
+                        onCheckedChange={(value) => updateSetting("line_numbers", value)}
+                      />
+                    </SettingRow>
+                    <SettingRow
+                      id="sticky_scroll"
+                      sectionId="editor"
+                      searchQuery={searchTerm}
+                      title="Sticky Scroll"
+                      description="Fixierten Kontext aktivieren."
+                      compact
+                    >
+                      <NativeSwitch
+                        checked={settings.sticky_scroll || false}
+                        onCheckedChange={(value) => updateSetting("sticky_scroll", value)}
                       />
                     </SettingRow>
                   </SettingsGroup>
@@ -1497,8 +1607,8 @@ export default function SettingsPanel({
 
                   <SettingsGroup title="Panels" description="Glass-Style fuer Workbench-Container.">
                     <SettingRow
-                      id="panel_blur_strength"
-                      sectionId="theme-editor"
+                      id="panel_background_mode"
+                      sectionId="workbench"
                       searchQuery={searchTerm}
                       title="Panel Background"
                       description="Blur, Fake Glass oder intensiver Glass Shader."
@@ -1778,7 +1888,7 @@ export default function SettingsPanel({
                       </NativeSelect>
                     </SettingRow>
                     <SettingRow
-                      id="cursor_blinking"
+                      id="cursor_style"
                       sectionId="animations"
                       searchQuery={searchTerm}
                       title="Cursor-Stil"
@@ -1794,8 +1904,8 @@ export default function SettingsPanel({
                       </NativeSelect>
                     </SettingRow>
                     <SettingRow
-                      id="glow_intensity"
-                      sectionId="theme-editor"
+                      id="cursor_glow"
+                      sectionId="animations"
                       searchQuery={searchTerm}
                       title="Cursor-Glow"
                       description="Leuchtender Cursor im Editor."
@@ -1807,8 +1917,8 @@ export default function SettingsPanel({
                       />
                     </SettingRow>
                     <SettingRow
-                      id="glow_intensity"
-                      sectionId="theme-editor"
+                      id="icon_glow"
+                      sectionId="animations"
                       searchQuery={searchTerm}
                       title="Icon Glow"
                       description="Leuchtende Icons in der Shell."

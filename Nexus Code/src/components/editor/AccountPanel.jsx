@@ -173,7 +173,7 @@ export default function AccountPanel({
       <PanelHeader
         icon={UserRound}
         title="Account"
-        subtitle={`${controlStatus?.title || "Control API"} - ${statusMeta.label}`}
+        subtitle={`${accountLabel} - ${controlStatus?.title || "Control API"} - ${statusMeta.label}`}
         status={<PanelBadge tone={statusMeta.tone}>{statusMeta.label}</PanelBadge>}
       >
         <div className="grid grid-cols-3 gap-1.5">
