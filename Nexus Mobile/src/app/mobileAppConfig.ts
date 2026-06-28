@@ -1,6 +1,6 @@
 import type { View } from "../components/Sidebar";
 import { getFallbackViewsForApp } from "@nexus/core";
-import { isOfflineControlErrorCode } from "@nexus/api";
+import { isOfflineControlErrorCode, normalizeControlBaseUrl } from "@nexus/api";
 import { VIEW_IDS } from "./viewPreload";
 
 const DEFAULT_CONTROL_API_BASE_URL = "https://nexus-api.cloud";
@@ -53,14 +53,19 @@ export const isOfflineBootstrapResourceError = (errorCodeRaw: unknown) =>
 
 export const resolveControlApiBaseUrl = () => {
   const env = (import.meta as any).env || {};
-  const raw = String(
-    env.VITE_NEXUS_CONTROL_API_BASE_URL ||
-      env.VITE_CONTROL_API_BASE_URL ||
-      env.VITE_NEXUS_API_BASE_URL ||
-      DEFAULT_CONTROL_API_BASE_URL,
-  ).trim();
-  if (!raw) return DEFAULT_CONTROL_API_BASE_URL;
-  return raw.replace(/\/+$/, "");
+  const candidates = [
+    env.VITE_NEXUS_CONTROL_API_BASE_URL,
+    env.VITE_CONTROL_API_BASE_URL,
+    env.VITE_NEXUS_API_BASE_URL,
+    env.VITE_NEXUS_CONTROL_URL,
+  ];
+
+  for (const candidate of candidates) {
+    const normalized = normalizeControlBaseUrl(String(candidate || ""), "");
+    if (normalized) return normalized;
+  }
+
+  return DEFAULT_CONTROL_API_BASE_URL;
 };
 
 export const isRecoverableBootstrapResourceError = (errorCodeRaw: unknown) => {

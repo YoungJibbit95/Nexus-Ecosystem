@@ -46,7 +46,7 @@ function ActionButton({ title, onClick, active = false, children }) {
       title={title}
       aria-pressed={active}
       onClick={onClick}
-      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-white/10 text-gray-400 transition-colors hover:border-white/20 hover:bg-white/10 hover:text-gray-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500/60"
+      className="grid h-8 w-8 shrink-0 place-items-center rounded-md border border-white/10 text-gray-400 transition-colors hover:border-white/20 hover:bg-white/10 hover:text-gray-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500/60 [&>svg]:h-4 [&>svg]:w-4"
       style={{
         background: active
           ? "color-mix(in srgb, var(--primary) 14%, transparent)"
@@ -76,6 +76,10 @@ export default function TabBar({
   const [newFileMenuOpen, setNewFileMenuOpen] = useState(false);
   const [customFileName, setCustomFileName] = useState("");
   const menuRef = useRef(null);
+  const safeTabs = useMemo(
+    () => (Array.isArray(tabs) ? tabs.filter((tab) => tab && tab.name) : []),
+    [tabs],
+  );
 
   useEffect(() => {
     if (!newFileMenuOpen) return undefined;
@@ -88,7 +92,7 @@ export default function TabBar({
     return () => window.removeEventListener("pointerdown", onPointerDown);
   }, [newFileMenuOpen]);
 
-  const tabsCount = tabs.length;
+  const tabsCount = safeTabs.length;
   const menuItems = useMemo(() => languagePresets, []);
 
   const submitCustomFile = () => {
@@ -101,20 +105,25 @@ export default function TabBar({
 
   return (
     <div
-      className="nx-code-tabbar flex h-full shrink-0 items-center border-b border-white/5"
+      className="nx-code-tabbar flex h-full min-w-0 shrink-0 items-stretch border-b border-white/5"
       style={{
         background: "rgba(0,0,0,0.12)",
         borderBottom: "1px solid var(--nexus-border)",
+        minHeight: "42px",
       }}
     >
-      <div className="nx-code-tabbar-actions flex h-full shrink-0 items-center gap-1.5 border-r border-white/5 px-2">
+      <div
+        className="nx-code-tabbar-actions flex h-full shrink-0 items-center gap-1.5 border-r border-white/5 px-2"
+        role="toolbar"
+        aria-label="Editor actions"
+      >
         <div className="relative" ref={menuRef}>
           <ActionButton
             title="Neue Datei"
             onClick={() => setNewFileMenuOpen((prev) => !prev)}
             active={newFileMenuOpen}
           >
-            <Plus size={14} />
+            <Plus size={16} />
           </ActionButton>
 
           <AnimatePresence>
@@ -181,7 +190,7 @@ export default function TabBar({
           title="Befehlspalette"
           onClick={() => onOpenCommandPalette?.()}
         >
-          <Search size={13} />
+          <Search size={16} />
         </ActionButton>
 
         <ActionButton
@@ -189,17 +198,17 @@ export default function TabBar({
           onClick={() => onToggleTerminal?.()}
           active={bottomPanelOpen && bottomTab === "terminal"}
         >
-          <TerminalSquare size={13} />
+          <TerminalSquare size={16} />
         </ActionButton>
 
         <ActionButton title="Alle speichern" onClick={() => onSaveAll?.()}>
-          <Save size={13} />
+          <Save size={16} />
         </ActionButton>
       </div>
 
       <div className="nx-code-tab-scroll h-full min-w-0 flex-1 overflow-x-auto">
         {tabsCount === 0 ? (
-          <div className="flex h-full items-center gap-2 px-3 text-[11px] text-gray-500">
+          <div className="nx-code-tabbar-empty flex h-full min-w-0 items-center gap-2 px-3 text-[11px] text-gray-500">
             <Circle size={7} fill="currentColor" />
             <span className="truncate">
               {zenMode ? "Zen Focus" : "Keine Datei geoeffnet"}
@@ -207,17 +216,16 @@ export default function TabBar({
           </div>
         ) : (
           <div className="flex h-full min-w-max items-center">
-            {tabs.map((tab) => {
-              if (!tab || !tab.name) return null;
+            {safeTabs.map((tab) => {
               const ext = getExt(tab.name);
               const color = langColors[ext] || "#6b7280";
               const isActive = tab.id === activeTabId;
 
               return (
                 <button
-                  key={tab.id}
+                  key={tab.id || tab.name}
                   type="button"
-                  onClick={() => onTabSelect(tab.id)}
+                  onClick={() => onTabSelect?.(tab.id)}
                   className="nx-code-tab group relative flex h-full min-w-[9rem] max-w-[15rem] shrink-0 items-center gap-2 border-r border-white/5 px-3 text-left transition-colors hover:bg-white/[0.04]"
                   style={{
                     background: isActive ? "rgba(255,255,255,0.055)" : "transparent",
@@ -227,7 +235,7 @@ export default function TabBar({
                   }}
                 >
                   <span
-                    className="shrink-0 rounded px-1 py-0.5 text-[10px] font-bold"
+                    className="grid h-5 w-10 shrink-0 place-items-center rounded px-1 text-[10px] font-bold leading-none"
                     style={{ background: color + "22", color }}
                   >
                     {ext.toUpperCase() || "TXT"}
@@ -249,7 +257,7 @@ export default function TabBar({
                   <span
                     onClick={(e) => {
                       e.stopPropagation();
-                      onTabClose(tab.id);
+                      onTabClose?.(tab.id);
                     }}
                     role="button"
                     tabIndex={-1}

@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { Copy, Download, FolderOpen, Trash2 } from "lucide-react";
+import { Copy, Download, FolderOpen, MoreVertical, Search, Trash2 } from "lucide-react";
 import {
   formatDevToolsArtifactKind,
   summarizeDevToolsArtifact,
@@ -57,7 +57,8 @@ function ArtifactRow({
       initial={false}
       animate={interaction.content.animate}
       transition={interaction.content.transition}
-      style={{ position: "relative", borderRadius: 10, marginBottom: 6 }}
+      className="nx-devtools-artifact-row"
+      style={{ position: "relative", borderRadius: 9, marginBottom: 6 }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => {
         setHovered(false);
@@ -116,6 +117,8 @@ function ArtifactRow({
           </div>
           <button
             onClick={() => setMenuOpen((prev) => !prev)}
+            aria-expanded={menuOpen}
+            title="Artifact actions"
             className="nx-interactive nx-bounce-target"
             style={{
               background: "none",
@@ -123,12 +126,13 @@ function ArtifactRow({
               color: "inherit",
               opacity: 0.55,
               cursor: "pointer",
-              fontSize: 10,
-              padding: "2px 4px",
+              padding: "4px",
               borderRadius: 5,
+              display: "grid",
+              placeItems: "center",
             }}
           >
-            More
+            <MoreVertical size={13} />
           </button>
         </div>
         {menuOpen ? (
@@ -253,13 +257,27 @@ export function DevToolsArtifactLibraryPanel({
   onDelete,
 }: DevToolsArtifactLibraryPanelProps) {
   const [filter, setFilter] = useState<"all" | DevToolsArtifactKind>("all");
+  const [query, setQuery] = useState("");
   const filtered = useMemo(() => {
-    if (filter === "all") return artifacts;
-    return artifacts.filter((artifact) => artifact.kind === filter);
-  }, [artifacts, filter]);
+    const normalizedQuery = query.trim().toLowerCase();
+    return artifacts.filter((artifact) => {
+      if (filter !== "all" && artifact.kind !== filter) return false;
+      if (!normalizedQuery) return true;
+      const haystack = [
+        artifact.title,
+        artifact.description,
+        artifact.kind,
+        summarizeDevToolsArtifact(artifact),
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(normalizedQuery);
+    });
+  }, [artifacts, filter, query]);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+    <div className="nx-devtools-artifact-library" style={{ display: "flex", flexDirection: "column", height: "100%" }}>
       <div
         style={{
           padding: "10px 10px 6px",
@@ -280,6 +298,34 @@ export function DevToolsArtifactLibraryPanel({
         >
           Saved Artifacts
         </span>
+        <label
+          className="nx-devtools-artifact-search"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            border: "1px solid rgba(255,255,255,0.1)",
+            borderRadius: 8,
+            background: "rgba(255,255,255,0.045)",
+            padding: "6px 8px",
+          }}
+        >
+          <Search size={12} opacity={0.58} />
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search saved work"
+            style={{
+              flex: 1,
+              minWidth: 0,
+              border: "none",
+              outline: "none",
+              background: "transparent",
+              color: "inherit",
+              fontSize: 11,
+            }}
+          />
+        </label>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
           {(["all", "recipe", "snippet", "component", "preset", "prototype"] as const).map(
             (option) => (
@@ -323,8 +369,9 @@ export function DevToolsArtifactLibraryPanel({
               lineHeight: 1.5,
             }}
           >
-            Noch keine gespeicherten Artefakte. Speichere Snippets, Recipes oder
-            Presets direkt aus dem Builder.
+            {artifacts.length === 0
+              ? "Noch keine gespeicherten Artefakte. Speichere Snippets, Recipes oder Presets direkt aus dem Builder."
+              : "Keine Artefakte fuer diesen Filter gefunden."}
           </div>
         ) : (
           filtered.map((artifact) => (

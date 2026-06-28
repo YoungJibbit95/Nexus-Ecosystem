@@ -46,7 +46,20 @@ import {
   getRailClassName,
   getShellModeLabel,
   getSidePanelClassName,
+  getSidePanelStyle,
 } from "./editor/editorShellLayout";
+import {
+  WORKBENCH_PANEL_PLACEMENTS,
+  applyWorkbenchLayoutPreset,
+  getNextBottomPanelSize,
+  getNextSidePanelSize,
+  getSidePanelSizeOptions,
+  getWorkbenchPanelPlacement,
+  getWorkbenchSlots,
+  loadWorkbenchLayoutFromStorage,
+  normalizeWorkbenchLayout,
+  saveWorkbenchLayoutToStorage,
+} from "./editor/workbenchLayoutModel";
 import {
   beginPerfMetric,
   endPerfMetric,
@@ -70,6 +83,7 @@ const EDITOR_BUFFER_COMMIT_MS = 8_000;
 const WORKSPACE_AUTOSAVE_MS = 5_200;
 const LOCAL_AUTOSAVE_MS = 6_200;
 const CODE_COMPACT_VIEWPORT_WIDTH = 980;
+const SIDE_PANEL_SIZE_OPTIONS = getSidePanelSizeOptions();
 const loadSettingsPanel = () => import("../components/editor/SettingsPanel");
 const loadCodeEditor = () => import("../components/editor/CodeEditor");
 const SettingsPanel = React.lazy(() => loadSettingsPanel());
@@ -203,7 +217,43 @@ function StatusItem({
   );
 }
 
-function SidePanelFrame({ panelId, onClose, children }) {
+function SidePanelSizeControl({ value, onChange }) {
+  return (
+    <div
+      className="grid h-7 w-[5.25rem] shrink-0 grid-cols-3 overflow-hidden rounded-md border border-white/10 bg-white/[0.03]"
+      role="group"
+      aria-label="Side panel width"
+    >
+      {SIDE_PANEL_SIZE_OPTIONS.map((option) => {
+        const isActive = option.id === value;
+        return (
+          <button
+            key={option.id}
+            type="button"
+            onClick={() => onChange(option.id)}
+            aria-pressed={isActive}
+            title={`Panelbreite: ${option.title}`}
+            className={`flex min-w-0 items-center justify-center text-[10px] font-semibold leading-none transition-colors ${
+              isActive
+                ? "bg-white/12 text-white"
+                : "text-[var(--nexus-muted)] hover:bg-white/[0.07] hover:text-gray-200"
+            }`}
+          >
+            {option.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function SidePanelFrame({
+  panelId,
+  onClose,
+  children,
+  sidePanelSize,
+  onSidePanelSizeChange,
+}) {
   const meta = getPanelMeta(panelId);
 
   return (
@@ -220,6 +270,10 @@ function SidePanelFrame({ panelId, onClose, children }) {
             {meta.detail}
           </div>
         </div>
+        <SidePanelSizeControl
+          value={sidePanelSize}
+          onChange={onSidePanelSizeChange}
+        />
         <button
           type="button"
           onClick={onClose}
@@ -360,6 +414,9 @@ export default function Editor({
   });
 
   const [settings, setSettings] = useState(loadSettingsFromStorage);
+  const [workbenchLayout, setWorkbenchLayout] = useState(
+    loadWorkbenchLayoutFromStorage,
+  );
   const [workspacePath, setWorkspacePath] = useState(null);
   const [workspaceLoading, setWorkspaceLoading] = useState(false);
   const [workspaceError, setWorkspaceError] = useState("");
@@ -477,6 +534,10 @@ export default function Editor({
   }, [settings]);
 
   useEffect(() => {
+    saveWorkbenchLayoutToStorage(workbenchLayout);
+  }, [workbenchLayout]);
+
+  useEffect(() => {
     filesRef.current = files;
   }, [files]);
 
@@ -592,18 +653,121 @@ export default function Editor({
     setTerminalOpen(true);
   }, []);
 
+  const handleCloseBottomPanel = useCallback(() => {
+    setTerminalOpen(false);
+  }, []);
+
+  const handleCloseActivePanel = useCallback(() => {
+    setActivePanel(null);
+  }, []);
+
+  const handleCloseSettingsPanel = useCallback(() => {
+    setShowSettings(false);
+  }, []);
+
+  const handleOpenCommandPalette = useCallback(() => {
+    setCommandPaletteOpen(true);
+  }, []);
+
+  const handleCloseCommandPalette = useCallback(() => {
+    setCommandPaletteOpen(false);
+  }, []);
+
+  const handleCloseSpotlight = useCallback(() => {
+    setSpotlightOpen(false);
+  }, []);
+
+  const handleSetSidePanelSize = useCallback((sizeId) => {
+    setWorkbenchLayout((prev) =>
+      normalizeWorkbenchLayout({
+        ...prev,
+        sidePanelSize: sizeId,
+      }),
+    );
+  }, []);
+
+  const handleCycleSidePanelSize = useCallback(() => {
+    setWorkbenchLayout((prev) =>
+      normalizeWorkbenchLayout({
+        ...prev,
+        sidePanelSize: getNextSidePanelSize(prev.sidePanelSize),
+      }),
+    );
+  }, []);
+
+  const handleCycleBottomPanelSize = useCallback(() => {
+    setWorkbenchLayout((prev) =>
+      normalizeWorkbenchLayout({
+        ...prev,
+        bottomPanelSize: getNextBottomPanelSize(prev.bottomPanelSize),
+      }),
+    );
+  }, []);
+
+  const handleApplyWorkbenchLayoutPreset = useCallback((presetId) => {
+    setWorkbenchLayout((prev) => applyWorkbenchLayoutPreset(prev, presetId));
+  }, []);
+
+  const handleProblemSelect = useCallback(
+    (problem) => {
+      if (!activeTabId) return;
+      setSettings((prev) => ({
+        ...prev,
+        _revealLine: {
+          line: problem.startLineNumber,
+          col: problem.startColumn,
+          timestamp: Date.now(),
+        },
+      }));
+    },
+    [activeTabId],
+  );
+
+  const handleMarkersChange = useCallback((markers) => {
+    setProblems(markers);
+  }, []);
+
   const handleOpenWorkbenchPanel = useCallback((panelId) => {
     setShowSettings(false);
+    if (
+      getWorkbenchPanelPlacement(panelId, workbenchLayout) ===
+      WORKBENCH_PANEL_PLACEMENTS.bottom
+    ) {
+      setActivePanel(null);
+      setBottomTab(panelId === "problems" ? "problems" : "terminal");
+      setTerminalOpen(true);
+      return;
+    }
+
     setSettings((prev) => ({
       ...prev,
       sidebar_visible: true,
       zen_mode: false,
     }));
     setActivePanel(panelId);
-  }, []);
+  }, [workbenchLayout]);
 
   const handleSidebarPanelChange = useCallback((panelId) => {
     setShowSettings(false);
+    if (!panelId) {
+      if (!activePanel && bottomTab === "problems" && terminalOpen) {
+        handleCloseBottomPanel();
+        return;
+      }
+      handleCloseActivePanel();
+      return;
+    }
+
+    if (
+      getWorkbenchPanelPlacement(panelId, workbenchLayout) ===
+      WORKBENCH_PANEL_PLACEMENTS.bottom
+    ) {
+      setActivePanel(null);
+      setBottomTab(panelId === "problems" ? "problems" : "terminal");
+      setTerminalOpen(true);
+      return;
+    }
+
     if (panelId) {
       setSettings((prev) => ({
         ...prev,
@@ -612,7 +776,14 @@ export default function Editor({
       }));
     }
     setActivePanel(panelId);
-  }, []);
+  }, [
+    activePanel,
+    bottomTab,
+    handleCloseActivePanel,
+    handleCloseBottomPanel,
+    terminalOpen,
+    workbenchLayout,
+  ]);
 
   const handleFocusEditor = useCallback(() => {
     setShowSettings(false);
@@ -1493,6 +1664,26 @@ export default function Editor({
     }
   }, []);
 
+  const handleExtensionsInstalledChange = useCallback((installedList) => {
+    const normalizedList = Array.isArray(installedList) ? installedList : [];
+    setSettings((prev) => {
+      const currentList = Array.isArray(prev.extensions_installed)
+        ? prev.extensions_installed
+        : [];
+      if (
+        currentList.length === normalizedList.length &&
+        currentList.every((value, index) => value === normalizedList[index])
+      ) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        extensions_installed: normalizedList,
+      };
+    });
+  }, []);
+
   const handleCommandPaletteAction = useCallback(
     (actionId, payload) => {
       const commandHandlers = {
@@ -1511,6 +1702,11 @@ export default function Editor({
         "toggle-sidebar": handleToggleSidebar,
         "github-sync": () => handleOpenWorkbenchPanel("git"),
         "focus-editor": handleFocusEditor,
+        "layout-compact": () => handleApplyWorkbenchLayoutPreset("compact"),
+        "layout-balanced": () => handleApplyWorkbenchLayoutPreset("balanced"),
+        "layout-roomy": () => handleApplyWorkbenchLayoutPreset("roomy"),
+        "cycle-side-panel-size": handleCycleSidePanelSize,
+        "cycle-bottom-panel-size": handleCycleBottomPanelSize,
       };
 
       commandHandlers[actionId]?.();
@@ -1519,6 +1715,9 @@ export default function Editor({
       handleCreateFileRequest,
       handleFileSelect,
       handleFocusEditor,
+      handleApplyWorkbenchLayoutPreset,
+      handleCycleBottomPanelSize,
+      handleCycleSidePanelSize,
       handleOpenFolder,
       handleOpenProblemsPanel,
       handleOpenSettingsPanel,
@@ -1551,20 +1750,53 @@ export default function Editor({
   const sidebarVisible = settings.sidebar_visible !== false;
   const sidebarSide = settings.sidebar_position === "right" ? "right" : "left";
   const sideRailVisible = !zenMode && sidebarVisible;
-  const sidePanelVisible = Boolean(!showSettings && sideRailVisible && activePanel);
-  const visibleActivePanel = sidePanelVisible ? activePanel : null;
+  const normalizedWorkbenchLayout = useMemo(
+    () => normalizeWorkbenchLayout(workbenchLayout),
+    [workbenchLayout],
+  );
+  const bottomPanelId = !showSettings && bottomPanelVisible ? bottomTab : null;
+  const workbenchSlots = useMemo(
+    () =>
+      getWorkbenchSlots({
+        sidebarSide,
+        activePanel,
+        bottomPanel: bottomPanelId,
+        layout: normalizedWorkbenchLayout,
+      }),
+    [activePanel, bottomPanelId, normalizedWorkbenchLayout, sidebarSide],
+  );
+  const sidePanelSlot = workbenchSlots.sidePanel;
+  const bottomPanelSlot = workbenchSlots.bottomPanel;
+  const editorSlot = workbenchSlots.editor;
+  const activityBarSlot = workbenchSlots.activityBar;
+  const sidePanelVisible = Boolean(
+    !showSettings && sideRailVisible && sidePanelSlot.panelId,
+  );
+  const visibleActivePanel = sidePanelVisible ? sidePanelSlot.panelId : null;
+  const visibleWorkbenchPanel =
+    visibleActivePanel || (!showSettings && bottomPanelVisible ? bottomTab : null);
+  const activityBarPanelId =
+    visibleActivePanel ||
+    (!showSettings && bottomPanelVisible && bottomTab === "problems"
+      ? "problems"
+      : null);
   const shellModeLabel = getShellModeLabel({
     showSettings,
     zenMode,
-    activePanel: visibleActivePanel,
+    activePanel: visibleWorkbenchPanel,
   });
-  const activePanelMeta = getPanelMeta(visibleActivePanel);
+  const activePanelMeta = getPanelMeta(visibleWorkbenchPanel);
   const sidePanelClassName = getSidePanelClassName({
     compact: isCompactViewport,
+  });
+  const sidePanelStyle = getSidePanelStyle({
+    compact: isCompactViewport,
+    size: sidePanelSlot.size,
   });
   const mainEditorClassName = getMainEditorClassName();
   const bottomPanelClassName = getBottomPanelClassName({
     compact: isCompactViewport,
+    size: bottomPanelSlot.size,
   });
 
   return (
@@ -1581,14 +1813,14 @@ export default function Editor({
           onToggleSidebarVisibility={handleToggleSidebarVisibility}
           onToggleZenMode={handleToggleZenMode}
           onToggleTerminal={handleToggleTerminalPanel}
-          onOpenCommandPalette={() => setCommandPaletteOpen(true)}
+          onOpenCommandPalette={handleOpenCommandPalette}
           onOpenSettings={handleOpenSettingsPanel}
           onFocusEditor={handleFocusEditor}
           sidebarVisible={sideRailVisible}
           zenMode={zenMode}
           terminalOpen={bottomPanelVisible}
           shellModeLabel={shellModeLabel}
-          activePanelLabel={visibleActivePanel ? activePanelMeta.title : "Editor"}
+          activePanelLabel={visibleWorkbenchPanel ? activePanelMeta.title : "Editor"}
           workspaceName={
             workspacePath ? workspacePath.split(/[\\/]/).pop() : null
           }
@@ -1607,11 +1839,11 @@ export default function Editor({
                 background: "var(--nexus-panel-surface)",
                 backdropFilter: "var(--nexus-panel-filter)",
                 boxShadow: "var(--nexus-panel-outline)",
-                order: 0,
+                order: activityBarSlot.order,
               }}
             >
               <Sidebar
-                activePanel={activePanel}
+                activePanel={activityBarPanelId}
                 setActivePanel={handleSidebarPanelChange}
                 onOpenSettings={handleOpenSettingsPanel}
                 side={sidebarSide}
@@ -1643,14 +1875,14 @@ export default function Editor({
                 settings={settings}
                 onSettingsChange={handleSettingsChange}
                 onResetSettings={handleResetSettings}
-                onClose={() => setShowSettings(false)}
+                onClose={handleCloseSettingsPanel}
               />
             </Suspense>
           </div>
         ) : (
           <>
             {/* Side Panels */}
-            <AnimatePresence mode="wait">
+            <AnimatePresence initial={false} mode="wait">
               {sidePanelVisible && (
                 <motion.div
                   initial={{ opacity: 0 }}
@@ -1665,25 +1897,22 @@ export default function Editor({
                     bottom: isCompactViewport ? 0 : "auto",
                     left: isCompactViewport && sidebarSide !== "right" ? "3.25rem" : "auto",
                     height: "100%",
-                    width: isCompactViewport
-                      ? "min(22rem, calc(100vw - 3.25rem))"
-                      : undefined,
-                    maxWidth: isCompactViewport
-                      ? "calc(100vw - 3.25rem)"
-                      : undefined,
+                    ...sidePanelStyle,
                     flexShrink: isCompactViewport ? undefined : 0,
                     background: "var(--nexus-panel-surface)",
                     backdropFilter: "var(--nexus-panel-filter)",
                     boxShadow: isCompactViewport ? "0 18px 48px rgba(0,0,0,0.35)" : "none",
-                    order: sidebarSide === "right" ? 30 : 5,
+                    order: sidePanelSlot.order,
                     willChange: "opacity",
                   }}
                 >
                   <SidePanelFrame
-                    panelId={activePanel}
-                    onClose={() => setActivePanel(null)}
+                    panelId={visibleActivePanel}
+                    onClose={handleCloseActivePanel}
+                    sidePanelSize={normalizedWorkbenchLayout.sidePanelSize}
+                    onSidePanelSizeChange={handleSetSidePanelSize}
                   >
-                    {activePanel === "explorer" && (
+                    {visibleActivePanel === "explorer" && (
                       <FileExplorer
                         files={files}
                         activeFileId={activeTabId}
@@ -1699,33 +1928,26 @@ export default function Editor({
                         error={workspaceError}
                       />
                     )}
-                    {activePanel === "search" && (
+                    {visibleActivePanel === "search" && (
                       <SearchPanel
                         files={files}
                         onFileSelect={handleFileSelect}
                       />
                     )}
-                    {activePanel === "git" && <GitPanel files={files} />}
-                    {activePanel === "debug" && (
+                    {visibleActivePanel === "git" && <GitPanel files={files} />}
+                    {visibleActivePanel === "debug" && (
                       <DebugPanel
                         activeFile={activeFile}
                         _code={currentCode}
                         problems={problems}
                       />
                     )}
-                    {activePanel === "extensions" && (
+                    {visibleActivePanel === "extensions" && (
                       <ExtensionsPanel
-                        onInstalledChange={(installedList) => {
-                          setSettings((prev) => ({
-                            ...prev,
-                            extensions_installed: Array.isArray(installedList)
-                              ? installedList
-                              : [],
-                          }));
-                        }}
+                        onInstalledChange={handleExtensionsInstalledChange}
                       />
                     )}
-                    {activePanel === "account" && (
+                    {visibleActivePanel === "account" && (
                       <AccountPanel
                         session={accountSession}
                         controlStatus={controlStatus}
@@ -1734,21 +1956,10 @@ export default function Editor({
                         onTestConnection={onTestAccountConnection}
                       />
                     )}
-                    {activePanel === "problems" && (
+                    {visibleActivePanel === "problems" && (
                       <ProblemsPanel
                         problems={problems}
-                        onSelectProblem={(p) => {
-                          if (activeTabId) {
-                            setSettings((prev) => ({
-                              ...prev,
-                              _revealLine: {
-                                line: p.startLineNumber,
-                                col: p.startColumn,
-                                timestamp: Date.now(),
-                              },
-                            }));
-                          }
-                        }}
+                        onSelectProblem={handleProblemSelect}
                       />
                     )}
                   </SidePanelFrame>
@@ -1759,7 +1970,7 @@ export default function Editor({
             {/* Main Editor Area */}
             <div
               className={mainEditorClassName}
-              style={{ order: 20 }}
+              style={{ order: editorSlot.order }}
             >
               <div
                 className="h-11 border-b border-white/5 shrink-0"
@@ -1773,7 +1984,7 @@ export default function Editor({
                   onCreateFile={handleCreateFileRequest}
                   onSaveAll={handleSaveAll}
                   onToggleTerminal={handleToggleTerminalPanel}
-                  onOpenCommandPalette={() => setCommandPaletteOpen(true)}
+                  onOpenCommandPalette={handleOpenCommandPalette}
                   bottomPanelOpen={bottomPanelVisible}
                   bottomTab={bottomTab}
                   compact={isCompactViewport}
@@ -1815,7 +2026,7 @@ export default function Editor({
                         fileName={activeFile.name}
                         filePath={activeFile.fsPath || null}
                         workspacePath={workspacePath}
-                        onMarkersChange={(m) => setProblems(m)}
+                        onMarkersChange={handleMarkersChange}
                         fontSize={settings.font_size || 14}
                         showLineNumbers={settings.line_numbers !== false}
                         tabSize={settings.tab_size || 4}
@@ -1924,33 +2135,26 @@ export default function Editor({
                       </div>
                     </div>
                   )}
-                  {bottomPanelVisible && bottomTab === "terminal" && (
-                    <div className={bottomPanelClassName}>
-                      <Terminal
-                        isOpen
-                        onToggle={handleToggleTerminalPanel}
-                        activeFile={activeFile}
-                        code={currentCode}
-                        workspacePath={workspacePath}
-                      />
-                    </div>
-                  )}
-                  {bottomPanelVisible && bottomTab === "problems" && (
-                    <div className={`${bottomPanelClassName} border-t border-white/5`}>
-                      <ProblemsPanel
-                        problems={problems}
-                        onSelectProblem={(p) => {
-                          if (!activeTabId) return;
-                          setSettings((prev) => ({
-                            ...prev,
-                            _revealLine: {
-                              line: p.startLineNumber,
-                              col: p.startColumn,
-                              timestamp: Date.now(),
-                            },
-                          }));
-                        }}
-                      />
+                  {bottomPanelVisible && (
+                    <div
+                      className={bottomPanelClassName}
+                      data-workbench-zone={bottomPanelSlot.zone}
+                      data-workbench-panel={bottomPanelSlot.panelId}
+                    >
+                      {bottomTab === "terminal" ? (
+                        <Terminal
+                          isOpen
+                          onToggle={handleToggleTerminalPanel}
+                          activeFile={activeFile}
+                          code={currentCode}
+                          workspacePath={workspacePath}
+                        />
+                      ) : (
+                        <ProblemsPanel
+                          problems={problems}
+                          onSelectProblem={handleProblemSelect}
+                        />
+                      )}
                     </div>
                   )}
                 </div>
@@ -1964,11 +2168,11 @@ export default function Editor({
                     background: "var(--nexus-panel-surface)",
                     backdropFilter: "var(--nexus-panel-filter)",
                     boxShadow: "var(--nexus-panel-outline)",
-                    order: 40,
+                    order: activityBarSlot.order,
                   }}
                 >
                   <Sidebar
-                    activePanel={activePanel}
+                    activePanel={activityBarPanelId}
                     setActivePanel={handleSidebarPanelChange}
                     onOpenSettings={handleOpenSettingsPanel}
                     side={sidebarSide}
@@ -1985,13 +2189,13 @@ export default function Editor({
 
       <CommandPalette
         isOpen={commandPaletteOpen}
-        onClose={() => setCommandPaletteOpen(false)}
+        onClose={handleCloseCommandPalette}
         onAction={handleCommandPaletteAction}
       />
 
       <SpotlightSearch
         isOpen={spotlightOpen}
-        onClose={() => setSpotlightOpen(false)}
+        onClose={handleCloseSpotlight}
         onAction={handleCommandPaletteAction}
         files={files}
       />

@@ -1,10 +1,20 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { CheckSquare } from "lucide-react";
+import {
+  CalendarClock,
+  CheckSquare,
+  ChevronLeft,
+  ChevronRight,
+  Compass,
+  Layers,
+  Network,
+  Search,
+  SlidersHorizontal,
+  X,
+} from "lucide-react";
 import {
   useCanvas,
   type Canvas,
   type CanvasNode,
-  type CanvasNodePriority,
   type CanvasNodeStatus,
 } from "../../../store/canvasStore";
 import { NodeSearchSection } from "./projectPanel/NodeSearchSection";
@@ -36,6 +46,8 @@ type CanvasProjectPanelProps = {
   searchFocusToken?: number;
 };
 
+type ProjectPanelSection = "search" | "outline" | "bulk" | "details" | "relations" | "timeline";
+
 export function CanvasProjectPanel({
   open,
   canvas,
@@ -55,16 +67,35 @@ export function CanvasProjectPanel({
   focusNode,
   searchFocusToken = 0,
 }: CanvasProjectPanelProps) {
-  if (!open || !canvas) return null;
-
+  const canvasNodes = canvas?.nodes ?? [];
+  const canvasConnections = canvas?.connections ?? [];
   const [searchQuery, setSearchQuery] = useState("");
   const [bulkTagDraft, setBulkTagDraft] = useState("");
   const [bulkSelected, setBulkSelected] = useState<Record<string, true>>({});
   const [focusTrail, setFocusTrail] = useState<string[]>([]);
   const [focusTrailIndex, setFocusTrailIndex] = useState(-1);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const sectionRefs = useRef<Record<ProjectPanelSection, HTMLDivElement | null>>({
+    search: null,
+    outline: null,
+    bulk: null,
+    details: null,
+    relations: null,
+    timeline: null,
+  });
 
   const bulkSelectedIds = useMemo(() => Object.keys(bulkSelected), [bulkSelected]);
+
+  const setSectionRef = useCallback(
+    (section: ProjectPanelSection) => (node: HTMLDivElement | null) => {
+      sectionRefs.current[section] = node;
+    },
+    [],
+  );
+
+  const scrollToSection = useCallback((section: ProjectPanelSection) => {
+    sectionRefs.current[section]?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -132,38 +163,41 @@ export function CanvasProjectPanel({
     if (!tag || bulkSelectedIds.length === 0) return;
     const state = useCanvas.getState();
     bulkSelectedIds.forEach((nodeId) => {
-      const current = canvas.nodes.find((node) => node.id === nodeId);
+      const current = canvasNodes.find((node) => node.id === nodeId);
       if (!current) return;
       const tags = new Set(current.tags || []);
       tags.add(tag);
       state.updateNode(nodeId, { tags: Array.from(tags) });
     });
     setBulkTagDraft("");
-  }, [bulkSelectedIds, bulkTagDraft, canvas.nodes]);
+  }, [bulkSelectedIds, bulkTagDraft, canvasNodes]);
 
   const doneCount = projectNodes.filter((node) => node.status === "done").length;
   const blockedCount = projectNodes.filter((node) => node.status === "blocked").length;
+  const criticalCount = projectNodes.filter((node) => node.priority === "critical").length;
+  const completionPct =
+    projectNodes.length > 0 ? Math.round((doneCount / projectNodes.length) * 100) : 0;
 
   const searchedNodes = useMemo(() => {
     const q = searchQuery.trim();
-    if (!q) return canvas.nodes.slice(0, 18);
-    return canvas.nodes
+    if (!q) return canvasNodes.slice(0, 18);
+    return canvasNodes
       .map((node) => ({ node, score: scoreNodeMatch(node, q) }))
       .filter((entry) => entry.score > 0)
       .sort((a, b) => b.score - a.score)
       .slice(0, 28)
       .map((entry) => entry.node);
-  }, [canvas.nodes, searchQuery]);
+  }, [canvasNodes, searchQuery]);
 
   const outlineGroups = useMemo(() => {
     const groups = new Map<string, CanvasNode[]>();
-    canvas.nodes.forEach((node) => {
+    canvasNodes.forEach((node) => {
       const key = node.type;
       if (!groups.has(key)) groups.set(key, []);
       groups.get(key)?.push(node);
     });
     return Array.from(groups.entries()).sort((a, b) => b[1].length - a[1].length);
-  }, [canvas.nodes]);
+  }, [canvasNodes]);
 
   const jumpToNode = useCallback(
     (nodeId: string, options?: { recordTrail?: boolean }) => {
@@ -189,11 +223,11 @@ export function CanvasProjectPanel({
       return { incoming: [] as CanvasNode[], outgoing: [] as CanvasNode[], local: [] as CanvasNode[] };
     }
     const nodeById = new globalThis.Map<string, CanvasNode>();
-    canvas.nodes.forEach((node) => nodeById.set(node.id, node));
-    const incomingIds = canvas.connections
+    canvasNodes.forEach((node) => nodeById.set(node.id, node));
+    const incomingIds = canvasConnections
       .filter((entry) => entry.toId === selectedNode.id)
       .map((entry) => entry.fromId);
-    const outgoingIds = canvas.connections
+    const outgoingIds = canvasConnections
       .filter((entry) => entry.fromId === selectedNode.id)
       .map((entry) => entry.toId);
     const toNodes = (ids: string[]) =>
@@ -204,7 +238,7 @@ export function CanvasProjectPanel({
     const outgoing = toNodes(outgoingIds);
     const localIds = new Set<string>([...incomingIds, ...outgoingIds]);
     [...localIds].forEach((nodeId) => {
-      canvas.connections.forEach((entry) => {
+      canvasConnections.forEach((entry) => {
         if (entry.fromId === nodeId && entry.toId !== selectedNode.id) localIds.add(entry.toId);
         if (entry.toId === nodeId && entry.fromId !== selectedNode.id) localIds.add(entry.fromId);
       });
@@ -214,7 +248,7 @@ export function CanvasProjectPanel({
       .filter((node): node is CanvasNode => Boolean(node))
       .slice(0, 10);
     return { incoming, outgoing, local };
-  }, [canvas.connections, canvas.nodes, selectedNode]);
+  }, [canvasConnections, canvasNodes, selectedNode]);
 
   const selectNodesFromSearch = useCallback(() => {
     const next: Record<string, true> = {};
@@ -224,199 +258,213 @@ export function CanvasProjectPanel({
     setBulkSelected(next);
   }, [searchedNodes]);
 
+  const directRelationCount = relationSnapshot.incoming.length + relationSnapshot.outgoing.length;
+  const panelSections: Array<{
+    id: ProjectPanelSection;
+    label: string;
+    count: number;
+    Icon: React.ComponentType<{ size?: number }>;
+  }> = [
+    { id: "search", label: "Search", count: searchedNodes.length, Icon: Search },
+    { id: "outline", label: "Outline", count: outlineGroups.length, Icon: Compass },
+    { id: "bulk", label: "Bulk", count: bulkSelectedIds.length, Icon: Layers },
+    { id: "details", label: "Details", count: selectedNode ? 1 : 0, Icon: SlidersHorizontal },
+    { id: "relations", label: "Relations", count: directRelationCount, Icon: Network },
+    { id: "timeline", label: "Timeline", count: timelineNodes.length, Icon: CalendarClock },
+  ];
+
+  if (!open || !canvas) return null;
+
   return (
     <div
+      className="nx-canvas-project-panel"
+      data-mode={mode}
       style={{
         position: "absolute",
         top: 14,
         right: 14,
         zIndex: 210,
-        width: 372,
-        maxHeight: "82%",
+        width: "clamp(392px, 30vw, 460px)",
+        maxHeight: "calc(100% - 28px)",
         overflow: "auto",
-        borderRadius: 14,
-        padding: 12,
+        borderRadius: 8,
+        padding: 10,
         background: mode === "dark" ? "rgba(12,12,22,0.86)" : "rgba(255,255,255,0.92)",
         backdropFilter: "blur(18px)",
         border: "1px solid rgba(255,255,255,0.14)",
         boxShadow: "0 14px 40px rgba(0,0,0,0.35)",
+        ["--nx-canvas-project-rgb" as any]: rgb,
+        ["--nx-canvas-project-accent" as any]: accent,
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-        <CheckSquare size={14} style={{ color: accent }} />
-        <div style={{ fontSize: 12, fontWeight: 800 }}>Project Canvas</div>
-        <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
+      <header className="nx-canvas-project-header">
+        <CheckSquare size={15} style={{ color: accent }} />
+        <div className="nx-canvas-project-title">
+          <strong>Project Canvas</strong>
+          <span>{canvas.name || "Untitled Canvas"}</span>
+        </div>
+        <div className="nx-canvas-project-actions">
           <button
+            type="button"
+            className="nx-canvas-icon-button"
             onClick={() => navigateFocusTrail(-1)}
             disabled={focusTrailIndex <= 0}
-            style={{
-              padding: "4px 7px",
-              borderRadius: 8,
-              border: "1px solid rgba(255,255,255,0.14)",
-              background: "rgba(255,255,255,0.06)",
-              fontSize: 10,
-              cursor: focusTrailIndex > 0 ? "pointer" : "not-allowed",
-              color: "inherit",
-              opacity: focusTrailIndex > 0 ? 1 : 0.45,
-            }}
+            title="Zurueck"
+            aria-label="Vorheriger Fokus"
           >
-            ←
+            <ChevronLeft size={14} />
           </button>
           <button
+            type="button"
+            className="nx-canvas-icon-button"
             onClick={() => navigateFocusTrail(1)}
             disabled={focusTrailIndex >= focusTrail.length - 1}
-            style={{
-              padding: "4px 7px",
-              borderRadius: 8,
-              border: "1px solid rgba(255,255,255,0.14)",
-              background: "rgba(255,255,255,0.06)",
-              fontSize: 10,
-              cursor: focusTrailIndex < focusTrail.length - 1 ? "pointer" : "not-allowed",
-              color: "inherit",
-              opacity: focusTrailIndex < focusTrail.length - 1 ? 1 : 0.45,
-            }}
+            title="Weiter"
+            aria-label="Naechster Fokus"
           >
-            →
+            <ChevronRight size={14} />
           </button>
           <button
+            type="button"
+            className="nx-canvas-project-focus"
+            data-active={focusNodeOnly ? "true" : "false"}
             onClick={onToggleFocusOnly}
             style={{
-              padding: "4px 8px",
-              borderRadius: 8,
               border: `1px solid ${focusNodeOnly ? accent : "rgba(255,255,255,0.14)"}`,
               background: focusNodeOnly ? `rgba(${rgb},0.16)` : "rgba(255,255,255,0.06)",
               color: focusNodeOnly ? accent : "inherit",
-              fontSize: 10,
-              cursor: "pointer",
             }}
           >
             Focus
           </button>
           <button
+            type="button"
+            className="nx-canvas-icon-button"
             onClick={onClose}
-            style={{
-              padding: "4px 8px",
-              borderRadius: 8,
-              border: "1px solid rgba(255,255,255,0.14)",
-              background: "rgba(255,255,255,0.06)",
-              fontSize: 10,
-              cursor: "pointer",
-              color: "inherit",
-            }}
+            title="Panel schliessen"
+            aria-label="Project Panel schliessen"
           >
-            Close
+            <X size={14} />
           </button>
         </div>
-      </div>
+      </header>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(4,1fr)",
-          gap: 6,
-          marginBottom: 10,
-        }}
-      >
+      <nav className="nx-canvas-project-nav" aria-label="Canvas project sections">
+        {panelSections.map(({ id, label, count, Icon }) => (
+          <button key={id} type="button" onClick={() => scrollToSection(id)}>
+            <Icon size={12} />
+            <span>{label}</span>
+            <small>{count}</small>
+          </button>
+        ))}
+      </nav>
+
+      <div className="nx-canvas-project-stats">
         {[
           { label: "Nodes", val: projectNodes.length },
           { label: "Done", val: doneCount },
-          { label: "Blocked", val: blockedCount },
-          { label: "Links", val: canvas.connections.length },
+          { label: "Risk", val: blockedCount + criticalCount },
+          { label: "Links", val: canvasConnections.length },
         ].map((item) => (
-          <div
-            key={item.label}
-            style={{
-              padding: "7px 6px",
-              borderRadius: 9,
-              background: "rgba(255,255,255,0.06)",
-              border: "1px solid rgba(255,255,255,0.08)",
-              textAlign: "center",
-            }}
-          >
-            <div style={{ fontSize: 14, fontWeight: 800 }}>{item.val}</div>
-            <div style={{ fontSize: 9, opacity: 0.55 }}>{item.label}</div>
+          <div key={item.label} className="nx-canvas-project-stat">
+            <div>{item.val}</div>
+            <span>{item.label}</span>
           </div>
         ))}
       </div>
 
-      <div style={{ display: "flex", gap: 6, overflowX: "auto", marginBottom: 10 }}>
+      <div className="nx-canvas-project-progress">
+        <div>
+          <strong>{completionPct}%</strong>
+          <span>
+            {doneCount}/{projectNodes.length || 0} done
+          </span>
+        </div>
+        <div aria-hidden="true">
+          <span style={{ width: `${completionPct}%` }} />
+        </div>
+      </div>
+
+      <div className="nx-canvas-project-filters">
         <button
+          type="button"
           onClick={() => setPmStatusFilter("all")}
-          style={{
-            fontSize: 10,
-            padding: "4px 7px",
-            borderRadius: 999,
-            border: `1px solid ${pmStatusFilter === "all" ? accent : "rgba(255,255,255,0.15)"}`,
-            background: pmStatusFilter === "all" ? `rgba(${rgb},0.16)` : "rgba(255,255,255,0.04)",
-            color: pmStatusFilter === "all" ? accent : "inherit",
-            cursor: "pointer",
-          }}
+          data-active={pmStatusFilter === "all" ? "true" : "false"}
         >
           all
         </button>
         {lanes.map((lane) => (
           <button
+            type="button"
             key={lane.id}
             onClick={() => setPmStatusFilter(lane.id)}
+            data-active={pmStatusFilter === lane.id ? "true" : "false"}
             style={{
-              fontSize: 10,
-              padding: "4px 7px",
-              borderRadius: 999,
-              border: `1px solid ${
-                pmStatusFilter === lane.id ? lane.color : "rgba(255,255,255,0.15)"
-              }`,
-              background: pmStatusFilter === lane.id ? `${lane.color}22` : "rgba(255,255,255,0.04)",
-              color: pmStatusFilter === lane.id ? lane.color : "inherit",
-              cursor: "pointer",
+              ["--nx-canvas-lane-color" as any]: lane.color,
             }}
           >
-            {lane.id}
+            {lane.label}
           </button>
         ))}
       </div>
 
-      <NodeSearchSection
-        accent={accent}
-        searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
-        searchedNodes={searchedNodes}
-        bulkSelected={bulkSelected}
-        bulkToggle={bulkToggle}
-        jumpToNode={jumpToNode}
-        searchInputRef={searchInputRef}
-      />
+      <div ref={setSectionRef("search")} className="nx-canvas-project-anchor">
+        <NodeSearchSection
+          accent={accent}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          searchedNodes={searchedNodes}
+          bulkSelected={bulkSelected}
+          bulkToggle={bulkToggle}
+          jumpToNode={jumpToNode}
+          searchInputRef={searchInputRef}
+          totalNodeCount={canvasNodes.length}
+        />
+      </div>
 
-      <NodeOutlineSection outlineGroups={outlineGroups} jumpToNode={jumpToNode} />
+      <div ref={setSectionRef("outline")} className="nx-canvas-project-anchor">
+        <NodeOutlineSection
+          outlineGroups={outlineGroups}
+          jumpToNode={jumpToNode}
+          totalNodeCount={canvasNodes.length}
+        />
+      </div>
 
-      <NodeBulkActionsSection
-        bulkSelectedIds={bulkSelectedIds}
-        bulkTagDraft={bulkTagDraft}
-        setBulkTagDraft={setBulkTagDraft}
-        setBulkSelectedFromSearch={selectNodesFromSearch}
-        onClearBulkSelection={clearBulkSelection}
-        onApplyStatus={(status) => bulkApplyPatch({ status })}
-        onApplyPriority={(priority) => bulkApplyPatch({ priority })}
-        onApplyTag={bulkApplyTag}
-        onDeleteSelected={bulkDelete}
-      />
+      <div ref={setSectionRef("bulk")} className="nx-canvas-project-anchor">
+        <NodeBulkActionsSection
+          bulkSelectedIds={bulkSelectedIds}
+          bulkTagDraft={bulkTagDraft}
+          setBulkTagDraft={setBulkTagDraft}
+          setBulkSelectedFromSearch={selectNodesFromSearch}
+          onClearBulkSelection={clearBulkSelection}
+          onApplyStatus={(status) => bulkApplyPatch({ status })}
+          onApplyPriority={(priority) => bulkApplyPatch({ priority })}
+          onApplyTag={bulkApplyTag}
+          onDeleteSelected={bulkDelete}
+        />
+      </div>
 
-      {selectedNode ? (
+      <div ref={setSectionRef("details")} className="nx-canvas-project-anchor">
         <SelectedNodeDetailsSection
           selectedNode={selectedNode}
           lanes={lanes}
           updateNode={updateNode}
         />
-      ) : null}
+      </div>
 
-      <NodeRelationsSection
-        selectedNode={selectedNode}
-        incomingNodes={relationSnapshot.incoming}
-        outgoingNodes={relationSnapshot.outgoing}
-        localGraphNodes={relationSnapshot.local}
-        jumpToNode={jumpToNode}
-      />
+      <div ref={setSectionRef("relations")} className="nx-canvas-project-anchor">
+        <NodeRelationsSection
+          selectedNode={selectedNode}
+          incomingNodes={relationSnapshot.incoming}
+          outgoingNodes={relationSnapshot.outgoing}
+          localGraphNodes={relationSnapshot.local}
+          jumpToNode={jumpToNode}
+        />
+      </div>
 
-      <TimelineSection timelineNodes={timelineNodes} jumpToNode={jumpToNode} />
+      <div ref={setSectionRef("timeline")} className="nx-canvas-project-anchor">
+        <TimelineSection timelineNodes={timelineNodes} jumpToNode={jumpToNode} />
+      </div>
     </div>
   );
 }

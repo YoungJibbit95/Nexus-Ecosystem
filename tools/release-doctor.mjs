@@ -1,3 +1,4 @@
+import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
 import { constants as fsConstants } from 'node:fs'
 import { promises as fs } from 'node:fs'
@@ -21,6 +22,9 @@ const requireNotarization = hasArg('--require-notarization')
 const apiUrlInput = readArg('--api-url')
   || String(process.env.NEXUS_CONTROL_PUBLIC_API_URL || '').trim()
   || 'https://nexus-api.cloud'
+const hostedOriginInput = readArg('--hosted-origin')
+  || String(process.env.NEXUS_CONTROL_HOSTED_ORIGIN || '').trim()
+  || 'https://nexusproject.dev'
 
 const checks = []
 const pushCheck = (status, title, details) => checks.push({ status, title, details })
@@ -48,18 +52,63 @@ const normalizeUrl = (value) => {
   }
 }
 
+const normalizeOrigin = (value) => {
+  const raw = String(value || '').trim()
+  if (!raw) return ''
+  try {
+    const parsed = new URL(raw)
+    if (!['http:', 'https:'].includes(parsed.protocol)) return ''
+    if (parsed.username || parsed.password || parsed.search || parsed.hash) return ''
+    return `${parsed.protocol}//${parsed.host}`
+  } catch {
+    return ''
+  }
+}
+
+const resolveTrustedOriginsCount = (item) => {
+  const direct = Number(item?.trustedOriginsCount)
+  if (Number.isFinite(direct)) return direct
+  if (Array.isArray(item?.trustedOrigins)) return item.trustedOrigins.length
+  return 0
+}
+
+const validateHostedBootstrapTrust = (item) => {
+  const originTrusted = item?.originTrusted
+  const trustedOriginsCount = resolveTrustedOriginsCount(item)
+
+  if (originTrusted !== true) {
+    return {
+      ok: false,
+      originTrusted,
+      trustedOriginsCount,
+      reason: `originTrusted ist ${String(originTrusted)} statt true.`,
+    }
+  }
+
+  if (trustedOriginsCount <= 0) {
+    return {
+      ok: false,
+      originTrusted,
+      trustedOriginsCount,
+      reason: 'trustedOriginsCount ist leer oder 0.',
+    }
+  }
+
+  return { ok: true, originTrusted, trustedOriginsCount, reason: '' }
+}
+
 const isLoopbackHost = (host) => {
   const value = String(host || '').trim().toLowerCase()
   return value === 'localhost' || value === '127.0.0.1' || value === '[::1]'
 }
 
-const withTimeout = async (url, timeoutMs = 8_000) => {
+const withTimeout = async (url, timeoutMs = 8_000, headers = {}) => {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), timeoutMs)
   try {
     return await fetch(url, {
       method: 'GET',
-      headers: { accept: 'application/json' },
+      headers: { accept: 'application/json', ...headers },
       signal: controller.signal,
     })
   } finally {
@@ -160,8 +209,15 @@ const checkHostedControlApi = async () => {
     return
   }
 
+  const hostedOrigin = requireHostedUi ? normalizeOrigin(hostedOriginInput) : ''
+  if (requireHostedUi && !hostedOrigin) {
+    pushCheck('FAIL', 'Hosted Control Origin', '--hosted-origin bzw. NEXUS_CONTROL_HOSTED_ORIGIN ist ungueltig.')
+    return
+  }
+  const requestHeaders = hostedOrigin ? { Origin: hostedOrigin } : {}
+
   try {
-    const bootstrapRes = await withTimeout(`${normalized}/api/v1/public/bootstrap`)
+    const bootstrapRes = await withTimeout(`${normalized}/api/v1/public/bootstrap`, 8_000, requestHeaders)
     if (!bootstrapRes.ok) {
       pushCheck('FAIL', 'Hosted Control API Bootstrap', `GET /api/v1/public/bootstrap liefert HTTP ${bootstrapRes.status}.`)
       return
@@ -178,12 +234,20 @@ const checkHostedControlApi = async () => {
     }
 
     const service = bootstrap?.item?.service || 'unknown'
-    const originTrusted = bootstrap?.item?.originTrusted
-    const trustedOriginsCount = bootstrap?.item?.trustedOriginsCount
+    const trust = validateHostedBootstrapTrust(bootstrap.item)
+    if (requireHostedUi && !trust.ok) {
+      pushCheck(
+        'FAIL',
+        'Hosted Control API Bootstrap Trust',
+        `${trust.reason} Gehostete UI benoetigt eine explizit vertrauenswuerdige Origin und mindestens eine konfigurierte Trusted Origin.`,
+      )
+      return
+    }
+
     pushCheck(
       'PASS',
       'Hosted Control API Bootstrap',
-      `API erreichbar (${normalized}), service=${service}, originTrusted=${String(originTrusted)}, trustedOrigins=${String(trustedOriginsCount)}.`,
+      `API erreichbar (${normalized}), origin=${hostedOrigin || 'none'}, service=${service}, originTrusted=${String(trust.originTrusted)}, trustedOrigins=${String(trust.trustedOriginsCount)}.`,
     )
   } catch (error) {
     pushCheck('FAIL', 'Hosted Control API Bootstrap', `Request fehlgeschlagen: ${error.message || error}`)
@@ -208,6 +272,7 @@ const checkHostedControlApi = async () => {
 }
 
 const checkAndroid = async () => {
+  const missingToolStatus = requireHostedUi ? 'WARN' : 'FAIL'
   const apps = [
     { name: 'Nexus Mobile', root: path.join(ROOT, 'Nexus Mobile') },
     { name: 'Nexus Code Mobile', root: path.join(ROOT, 'Nexus Code Mobile') },
@@ -216,7 +281,7 @@ const checkAndroid = async () => {
   for (const app of apps) {
     const sdkPath = await resolveAndroidSdkPath(app.root)
     if (!sdkPath) {
-      pushCheck('FAIL', `${app.name} Android SDK`, 'Kein Android SDK gefunden (env/local.properties/Standardpfade).')
+      pushCheck(missingToolStatus, `${app.name} Android SDK`, 'Kein Android SDK gefunden (env/local.properties/Standardpfade).')
       continue
     }
 
@@ -232,7 +297,7 @@ const checkAndroid = async () => {
 
   const java21Home = await resolveJava21Home()
   if (!java21Home) {
-    pushCheck('FAIL', 'Android Java Toolchain (JDK 21)', 'JDK 21 nicht gefunden. Nexus Code Mobile Gradle Build benoetigt Java 21.')
+    pushCheck(missingToolStatus, 'Android Java Toolchain (JDK 21)', 'JDK 21 nicht gefunden. Nexus Code Mobile Gradle Build benoetigt Java 21.')
   } else {
     pushCheck('PASS', 'Android Java Toolchain (JDK 21)', `JAVA_HOME Kandidat: ${java21Home}`)
   }
@@ -289,6 +354,40 @@ const printResults = () => {
   const fail = checks.filter((item) => item.status === 'FAIL').length
   console.log(`\nRelease Doctor: ${pass} PASS, ${warn} WARN, ${fail} FAIL`)
   return fail
+}
+
+const runSelfTest = () => {
+  assert.equal(
+    validateHostedBootstrapTrust({ originTrusted: true, trustedOriginsCount: 1 }).ok,
+    true,
+    'trusted hosted bootstrap should pass',
+  )
+  assert.equal(
+    validateHostedBootstrapTrust({ originTrusted: true, trustedOrigins: ['https://nexusproject.dev'] }).ok,
+    true,
+    'trustedOrigins array should count as configured origins',
+  )
+  assert.equal(
+    normalizeOrigin('https://nexusproject.dev/docs?x=1'),
+    '',
+    'hosted origin must not contain query data',
+  )
+  assert.match(
+    validateHostedBootstrapTrust({ originTrusted: false, trustedOriginsCount: 1 }).reason,
+    /originTrusted/,
+    'originTrusted=false must fail',
+  )
+  assert.match(
+    validateHostedBootstrapTrust({ originTrusted: true, trustedOriginsCount: 0 }).reason,
+    /trustedOriginsCount/,
+    'empty trusted origin count must fail',
+  )
+  console.log('[release-doctor:self-test] PASS hosted bootstrap trust policy')
+}
+
+if (hasArg('--self-test')) {
+  runSelfTest()
+  process.exit(0)
 }
 
 const main = async () => {

@@ -28,156 +28,75 @@ export function NodeBulkActionsSection({
 }: NodeBulkActionsSectionProps) {
   const hasSelection = bulkSelectedIds.length > 0;
   const hasTagDraft = bulkTagDraft.trim().length > 0;
+
   return (
-    <div
-      style={{
-        border: "1px solid rgba(255,255,255,0.12)",
-        borderRadius: 10,
-        padding: 10,
-        marginBottom: 10,
-        background: "rgba(255,255,255,0.04)",
-      }}
-    >
-      <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 8 }}>
-        <Layers size={12} style={{ opacity: 0.7 }} />
-        <div style={{ fontSize: 11, fontWeight: 700 }}>Multi-Select / Bulk</div>
-        <span style={{ marginLeft: "auto", fontSize: 10, opacity: 0.65 }}>
-          {bulkSelectedIds.length} selected
-        </span>
+    <section className="nx-canvas-project-section">
+      <div className="nx-canvas-project-section-title">
+        <Layers size={12} />
+        <span>Bulk Edit</span>
+        <small>{bulkSelectedIds.length} selected</small>
       </div>
 
-      <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
-        <button
-          onClick={setBulkSelectedFromSearch}
-          style={{
-            fontSize: 10,
-            borderRadius: 8,
-            border: "1px solid rgba(255,255,255,0.14)",
-            background: "rgba(255,255,255,0.08)",
-            color: "inherit",
-            padding: "4px 7px",
-            cursor: "pointer",
-          }}
-        >
-          Select Search
+      <div className="nx-canvas-project-inline-actions">
+        <button type="button" onClick={setBulkSelectedFromSearch}>
+          Select results
         </button>
-        <button
-          onClick={onClearBulkSelection}
-          style={{
-            fontSize: 10,
-            borderRadius: 8,
-            border: "1px solid rgba(255,255,255,0.14)",
-            background: "rgba(255,255,255,0.08)",
-            color: "inherit",
-            padding: "4px 7px",
-            cursor: "pointer",
-          }}
-        >
+        <button type="button" onClick={onClearBulkSelection}>
           Clear
         </button>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 8 }}>
+      <div className="nx-canvas-project-button-grid">
         {(["todo", "doing", "blocked", "done"] as const).map((status) => (
           <button
             key={status}
+            type="button"
             onClick={() => onApplyStatus(status)}
             disabled={!hasSelection}
-            style={{
-              fontSize: 10,
-              borderRadius: 8,
-              border: "1px solid rgba(255,255,255,0.14)",
-              background: "rgba(255,255,255,0.08)",
-              color: "inherit",
-              padding: "4px 7px",
-              cursor: hasSelection ? "pointer" : "default",
-              opacity: hasSelection ? 1 : 0.45,
-            }}
           >
-            status:{status}
+            status: {status}
           </button>
         ))}
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 8 }}>
+      <div className="nx-canvas-project-button-grid">
         {PRIORITY_OPTIONS.map((priority) => (
           <button
             key={priority}
+            type="button"
             onClick={() => onApplyPriority(priority)}
             disabled={!hasSelection}
-            style={{
-              fontSize: 10,
-              borderRadius: 8,
-              border: "1px solid rgba(255,255,255,0.14)",
-              background: "rgba(255,255,255,0.08)",
-              color: "inherit",
-              padding: "4px 7px",
-              cursor: hasSelection ? "pointer" : "default",
-              opacity: hasSelection ? 1 : 0.45,
-            }}
           >
-            priority:{priority}
+            priority: {priority}
           </button>
         ))}
       </div>
 
-      <div style={{ display: "flex", gap: 6 }}>
-        <div style={{ position: "relative", flex: 1 }}>
-          <Tag
-            size={12}
-            style={{ position: "absolute", left: 8, top: 8, opacity: 0.58 }}
-          />
+      <div className="nx-canvas-project-tag-row">
+        <label>
+          <Tag size={12} />
           <input
             value={bulkTagDraft}
             onChange={(event) => setBulkTagDraft(event.target.value)}
-            placeholder="Tag hinzufügen…"
-            style={{
-              width: "100%",
-              fontSize: 10,
-              padding: "6px 7px 6px 24px",
-              borderRadius: 8,
-              background: "rgba(255,255,255,0.08)",
-              border: "1px solid rgba(255,255,255,0.14)",
-              color: "inherit",
-            }}
+            placeholder="Tag hinzufuegen..."
           />
-        </div>
+        </label>
         <button
+          type="button"
           onClick={onApplyTag}
           disabled={!hasSelection || !hasTagDraft}
-          style={{
-            fontSize: 10,
-            borderRadius: 8,
-            border: "1px solid rgba(255,255,255,0.14)",
-            background: "rgba(255,255,255,0.08)",
-            color: "inherit",
-            padding: "6px 8px",
-            cursor: hasSelection && hasTagDraft ? "pointer" : "default",
-            opacity: hasSelection && hasTagDraft ? 1 : 0.45,
-          }}
         >
           Apply
         </button>
         <button
+          type="button"
           onClick={onDeleteSelected}
           disabled={!hasSelection}
-          style={{
-            fontSize: 10,
-            borderRadius: 8,
-            border: "1px solid rgba(255,59,48,0.45)",
-            background: "rgba(255,59,48,0.14)",
-            color: "#ff938a",
-            padding: "6px 8px",
-            cursor: hasSelection ? "pointer" : "default",
-            opacity: hasSelection ? 1 : 0.45,
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 4,
-          }}
+          className="nx-canvas-project-danger"
         >
           <Trash2 size={10} /> Delete
         </button>
       </div>
-    </div>
+    </section>
   );
 }

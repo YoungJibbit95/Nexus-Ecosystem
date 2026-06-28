@@ -1,5 +1,5 @@
 import type { View } from "../components/Sidebar";
-import { isOfflineControlErrorCode } from "@nexus/api";
+import { isOfflineControlErrorCode, normalizeControlBaseUrl } from "@nexus/api";
 import { VIEW_IDS } from "./viewPreload";
 import {
   MAIN_BOOT_PRIORITY_VIEW_IDS,
@@ -56,9 +56,15 @@ export type MainRuntimeChannelConfig = {
   warning: string | null;
 };
 
-const normalizeApiBaseUrl = (value: unknown) => {
-  const raw = String(value || "").trim();
-  return raw.replace(/\/+$/, "");
+const normalizeApiBaseUrl = (value: unknown) =>
+  normalizeControlBaseUrl(String(value || ""), "");
+
+const resolveFirstApiBaseUrl = (...values: unknown[]) => {
+  for (const value of values) {
+    const normalized = normalizeApiBaseUrl(value);
+    if (normalized) return normalized;
+  }
+  return "";
 };
 
 const normalizeRuntimeChannel = (value: unknown): MainRuntimeChannel | null => {
@@ -115,9 +121,11 @@ export const resolveMainRuntimeChannelConfig = (
   }
 
   if (requestedChannel === "canary") {
-    const apiBaseUrl =
-      normalizeApiBaseUrl(env.VITE_NEXUS_CANARY_CONTROL_API_BASE_URL) ||
-      normalizeApiBaseUrl(env.VITE_NEXUS_STAGING_CONTROL_API_BASE_URL) ||
+    const apiBaseUrl = resolveFirstApiBaseUrl(
+      env.VITE_NEXUS_CANARY_CONTROL_API_BASE_URL,
+      env.VITE_NEXUS_STAGING_CONTROL_API_BASE_URL,
+      env.VITE_NEXUS_CONTROL_URL,
+    ) ||
       CONTROL_API_BASE_URL;
     return {
       channel: "canary",
@@ -134,10 +142,12 @@ export const resolveMainRuntimeChannelConfig = (
     };
   }
 
-  const apiBaseUrl =
-    normalizeApiBaseUrl(env.VITE_NEXUS_DEV_CONTROL_API_BASE_URL) ||
-    normalizeApiBaseUrl(env.VITE_NEXUS_CONTROL_API_BASE_URL) ||
-    normalizeApiBaseUrl(env.VITE_CONTROL_API_BASE_URL) ||
+  const apiBaseUrl = resolveFirstApiBaseUrl(
+    env.VITE_NEXUS_DEV_CONTROL_API_BASE_URL,
+    env.VITE_NEXUS_CONTROL_API_BASE_URL,
+    env.VITE_CONTROL_API_BASE_URL,
+    env.VITE_NEXUS_CONTROL_URL,
+  ) ||
     "http://127.0.0.1:4399";
   return {
     channel: "dev",

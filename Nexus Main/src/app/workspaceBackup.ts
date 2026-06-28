@@ -380,9 +380,15 @@ export const saveWorkspaceBackup = async (snapshot: WorkspaceBackupSnapshot) => 
 
 export const downloadWorkspaceBackup = (snapshot: WorkspaceBackupSnapshot) => {
   const blob = new Blob([JSON.stringify(snapshot, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
-  link.href = URL.createObjectURL(blob);
+  link.href = url;
   link.download = `nexus-workspace-backup-${snapshot.createdAt.slice(0, 10)}-${snapshot.checksum}.json`;
+  link.style.display = "none";
+  document.body.appendChild(link);
   link.click();
-  URL.revokeObjectURL(link.href);
+  window.setTimeout(() => {
+    URL.revokeObjectURL(url);
+    link.remove();
+  }, 0);
 };

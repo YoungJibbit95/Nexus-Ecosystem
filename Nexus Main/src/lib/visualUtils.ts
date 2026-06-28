@@ -132,9 +132,10 @@ export function buildBackground(bg: BackgroundConfig, solidColor: string, mode: 
     }
 
     case 'noise': {
+      const noiseOpacity = Math.max(0.006, Math.min(0.035, (Number(bg.noiseOpacity) || 0.02) * 0.58))
       return {
         background: solidColor,
-        backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='${bg.noiseOpacity}'/%3E%3C/svg%3E")`,
+        backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.52' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='${noiseOpacity}'/%3E%3C/svg%3E")`,
       }
     }
 
@@ -244,23 +245,37 @@ export type AppShellSurfaceTokens = {
 const colorWithOpacity = (color: string, opacity: number) =>
   `${color}${Math.round(Math.max(0, Math.min(1, opacity)) * 255).toString(16).padStart(2, '0')}`
 
+const clamp01 = (value: unknown, fallback = 1) => {
+  const next = Number(value)
+  if (!Number.isFinite(next)) return fallback
+  return Math.max(0, Math.min(1, next))
+}
+
 export function buildPanelSurfaceTokens(input: {
   mode: PanelBgMode
   accent: string
   accent2?: string
   appBg?: string
   colorMode: 'dark' | 'light'
+  backgroundVisibility?: number
 }): PanelSurfaceTokens {
   const accentRgb = hexToRgb(input.accent)
   const accent2Rgb = hexToRgb(input.accent2 || input.accent)
   const isDark = input.colorMode === 'dark'
+  const backgroundVisibility = Math.max(0.25, clamp01(input.backgroundVisibility, 0.7))
+  const baseAlpha = isDark
+    ? Math.max(0.12, 0.64 - backgroundVisibility * 0.5)
+    : Math.max(0.34, 0.9 - backgroundVisibility * 0.38)
+  const lowBaseAlpha = Math.max(isDark ? 0.065 : 0.26, baseAlpha - (isDark ? 0.1 : 0.12))
+  const tintAlphaA = isDark ? 0.06 + backgroundVisibility * 0.08 : 0.035 + backgroundVisibility * 0.055
+  const tintAlphaB = isDark ? 0.045 + backgroundVisibility * 0.065 : 0.028 + backgroundVisibility * 0.045
   const base = isDark
-    ? 'linear-gradient(145deg, rgba(8,13,28,0.84), rgba(4,7,18,0.76))'
-    : 'linear-gradient(145deg, rgba(255,255,255,0.94), rgba(240,244,253,0.88))'
-  const tint = `radial-gradient(520px circle at 10% -8%, rgba(${accentRgb},${isDark ? 0.16 : 0.1}), transparent 60%), radial-gradient(460px circle at 100% 0%, rgba(${accent2Rgb},${isDark ? 0.12 : 0.08}), transparent 64%)`
+    ? `linear-gradient(145deg, rgba(8,13,28,${baseAlpha}), rgba(4,7,18,${lowBaseAlpha}))`
+    : `linear-gradient(145deg, rgba(255,255,255,${baseAlpha}), rgba(240,244,253,${lowBaseAlpha}))`
+  const tint = `radial-gradient(520px circle at 10% -8%, rgba(${accentRgb},${tintAlphaA}), transparent 60%), radial-gradient(460px circle at 100% 0%, rgba(${accent2Rgb},${tintAlphaB}), transparent 64%)`
   const glassSheen = isDark
-    ? 'linear-gradient(150deg, rgba(255,255,255,0.085), rgba(255,255,255,0.024))'
-    : 'linear-gradient(150deg, rgba(255,255,255,0.76), rgba(255,255,255,0.42))'
+    ? `linear-gradient(150deg, rgba(255,255,255,${0.035 + backgroundVisibility * 0.028}), rgba(255,255,255,${0.008 + backgroundVisibility * 0.012}))`
+    : `linear-gradient(150deg, rgba(255,255,255,${0.42 + backgroundVisibility * 0.12}), rgba(255,255,255,${0.22 + backgroundVisibility * 0.08}))`
 
   switch (input.mode) {
     case 'solid':
@@ -279,44 +294,44 @@ export function buildPanelSurfaceTokens(input: {
       }
     case 'hologram':
       return {
-        background: `conic-gradient(from 142deg at 82% 16%, rgba(${accentRgb},0.2), transparent 20%, rgba(${accent2Rgb},0.16), transparent 58%, rgba(255,255,255,${isDark ? 0.09 : 0.34}), transparent), linear-gradient(135deg, rgba(${accentRgb},0.1), transparent 58%), ${base}`,
+        background: `conic-gradient(from 142deg at 82% 16%, rgba(${accentRgb},${isDark ? 0.32 : 0.18}), transparent 20%, rgba(${accent2Rgb},${isDark ? 0.24 : 0.14}), transparent 58%, rgba(255,255,255,${isDark ? 0.08 : 0.28}), transparent), linear-gradient(135deg, rgba(${accentRgb},${isDark ? 0.16 : 0.08}), transparent 58%), ${base}`,
         backgroundSize: '180% 180%, 100% 100%, 100% 100%',
         backgroundBlendMode: isDark ? 'screen, normal, normal' : 'multiply, normal, normal',
       }
     case 'linen':
       return {
-        background: `repeating-linear-gradient(0deg, rgba(255,255,255,${isDark ? 0.028 : 0.38}) 0 1px, transparent 1px 7px), repeating-linear-gradient(90deg, rgba(${accentRgb},${isDark ? 0.028 : 0.06}) 0 1px, transparent 1px 9px), ${glassSheen}, ${base}`,
+        background: `repeating-linear-gradient(0deg, rgba(255,255,255,${isDark ? 0.052 : 0.28}) 0 1px, transparent 1px 7px), repeating-linear-gradient(90deg, rgba(${accentRgb},${isDark ? 0.06 : 0.07}) 0 1px, transparent 1px 9px), ${glassSheen}, ${base}`,
         backgroundSize: '16px 16px, 22px 22px, 100% 100%, 100% 100%',
       }
     case 'dots':
       return {
-        background: `radial-gradient(circle, rgba(${accentRgb},${isDark ? 0.22 : 0.15}) 0 1px, transparent 1.6px), ${tint}, ${base}`,
-        backgroundSize: '22px 22px, 100% 100%, 100% 100%',
+        background: `radial-gradient(circle, rgba(${accentRgb},${isDark ? 0.34 : 0.2}) 0 1px, transparent 1.8px), radial-gradient(circle, rgba(${accent2Rgb},${isDark ? 0.18 : 0.12}) 0 1px, transparent 1.7px), ${tint}, ${base}`,
+        backgroundSize: '24px 24px, 48px 48px, 100% 100%, 100% 100%',
       }
     case 'grid':
       return {
-        background: `linear-gradient(rgba(${accentRgb},${isDark ? 0.12 : 0.08}) 1px, transparent 1px), linear-gradient(90deg, rgba(${accent2Rgb},${isDark ? 0.1 : 0.07}) 1px, transparent 1px), ${tint}, ${base}`,
+        background: `linear-gradient(rgba(${accentRgb},${isDark ? 0.18 : 0.11}) 1px, transparent 1px), linear-gradient(90deg, rgba(${accent2Rgb},${isDark ? 0.15 : 0.09}) 1px, transparent 1px), ${tint}, ${base}`,
         backgroundSize: '28px 28px, 28px 28px, 100% 100%, 100% 100%',
       }
     case 'stripes':
       return {
-        background: `repeating-linear-gradient(135deg, rgba(${accentRgb},${isDark ? 0.095 : 0.06}) 0 1px, transparent 1px 15px), linear-gradient(145deg, rgba(${accent2Rgb},${isDark ? 0.08 : 0.05}), transparent 60%), ${base}`,
+        background: `repeating-linear-gradient(135deg, rgba(${accentRgb},${isDark ? 0.16 : 0.09}) 0 1px, transparent 1px 15px), linear-gradient(145deg, rgba(${accent2Rgb},${isDark ? 0.12 : 0.07}), transparent 60%), ${base}`,
         backgroundSize: '30px 30px, 100% 100%, 100% 100%',
       }
     case 'noise':
       return {
-        background: `url("data:image/svg+xml,%3Csvg viewBox='0 0 220 220' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.58' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.024'/%3E%3C/svg%3E"), ${tint}, ${base}`,
+        background: `url("data:image/svg+xml,%3Csvg viewBox='0 0 220 220' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.46' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.014'/%3E%3C/svg%3E"), ${tint}, ${base}`,
         backgroundSize: '220px 220px, 100% 100%, 100% 100%',
         backgroundBlendMode: isDark ? 'screen, normal, normal' : 'multiply, normal, normal',
       }
     case 'carbon':
       return {
-        background: `repeating-linear-gradient(45deg, rgba(${accentRgb},0.075) 0 1px, transparent 1px 10px), repeating-linear-gradient(-45deg, rgba(${accent2Rgb},0.055) 0 1px, transparent 1px 10px), ${glassSheen}, ${base}`,
+        background: `repeating-linear-gradient(45deg, rgba(${accentRgb},${isDark ? 0.13 : 0.08}) 0 1px, transparent 1px 10px), repeating-linear-gradient(-45deg, rgba(${accent2Rgb},${isDark ? 0.1 : 0.06}) 0 1px, transparent 1px 10px), ${glassSheen}, ${base}`,
         backgroundSize: '18px 18px, 18px 18px, 100% 100%, 100% 100%',
       }
     case 'circuit':
       return {
-        background: `linear-gradient(rgba(${accentRgb},0.12) 1px, transparent 1px), linear-gradient(90deg, rgba(${accent2Rgb},0.09) 1px, transparent 1px), radial-gradient(circle at 50% 50%, rgba(${accentRgb},0.18) 0 1.5px, transparent 2px), ${base}`,
+        background: `linear-gradient(rgba(${accentRgb},${isDark ? 0.2 : 0.12}) 1px, transparent 1px), linear-gradient(90deg, rgba(${accent2Rgb},${isDark ? 0.16 : 0.1}) 1px, transparent 1px), radial-gradient(circle at 50% 50%, rgba(${accentRgb},${isDark ? 0.28 : 0.16}) 0 1.5px, transparent 2px), ${base}`,
         backgroundSize: '34px 34px, 34px 34px, 68px 68px, 100% 100%',
       }
     case 'glass':
@@ -343,6 +358,12 @@ export function buildAppShellSurfaceTokens(input: {
     0.42,
     Math.min(1, 0.5 + (Number(bg.overlayOpacity) || 0) * 0.42 + (Number(bg.meshIntensity) || 0.3) * 0.14),
   )
+  const windowAlphaA = isDark
+    ? Math.max(0.22, 0.72 - visibility * 0.42)
+    : Math.max(0.46, 0.9 - visibility * 0.28)
+  const windowAlphaB = isDark
+    ? Math.max(0.12, 0.56 - visibility * 0.38)
+    : Math.max(0.32, 0.78 - visibility * 0.26)
   const tone = (dark: number, light: number) => (isDark ? dark : light) * visibility
   const stopA = bg.stops[0]?.color || input.accent
   const stopB = bg.stops[1]?.color || input.accent2 || input.accent
@@ -355,8 +376,8 @@ export function buildAppShellSurfaceTokens(input: {
     ? 'linear-gradient(rgba(129, 140, 248, 0.11) 1px, transparent 1px), linear-gradient(90deg, rgba(34, 211, 238, 0.08) 1px, transparent 1px)'
     : 'linear-gradient(rgba(15, 23, 42, 0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(37, 99, 235, 0.055) 1px, transparent 1px)'
   const defaultWindow = isDark
-    ? 'linear-gradient(145deg, rgba(15, 23, 42, 0.72), rgba(8, 13, 32, 0.54)), radial-gradient(circle at top left, rgba(34, 211, 238, 0.08), transparent 42%), radial-gradient(circle at bottom right, rgba(129, 140, 248, 0.08), transparent 42%)'
-    : 'linear-gradient(145deg, rgba(255, 255, 255, 0.9), rgba(244, 247, 255, 0.76)), radial-gradient(circle at top left, rgba(34, 211, 238, 0.11), transparent 42%), radial-gradient(circle at bottom right, rgba(99, 102, 241, 0.08), transparent 42%)'
+    ? `linear-gradient(145deg, rgba(15, 23, 42, ${windowAlphaA}), rgba(8, 13, 32, ${windowAlphaB})), radial-gradient(circle at top left, rgba(34, 211, 238, 0.08), transparent 42%), radial-gradient(circle at bottom right, rgba(129, 140, 248, 0.08), transparent 42%)`
+    : `linear-gradient(145deg, rgba(255, 255, 255, ${windowAlphaA}), rgba(244, 247, 255, ${windowAlphaB})), radial-gradient(circle at top left, rgba(34, 211, 238, 0.11), transparent 42%), radial-gradient(circle at bottom right, rgba(99, 102, 241, 0.08), transparent 42%)`
   const defaultWindowAura = isDark
     ? 'linear-gradient(180deg, rgba(255,255,255,0.1), transparent 18%), radial-gradient(640px circle at -6% -20%, rgba(34, 211, 238, 0.2), transparent 52%), radial-gradient(780px circle at 120% -30%, rgba(167, 139, 250, 0.18), transparent 60%)'
     : 'linear-gradient(180deg, rgba(255,255,255,0.72), transparent 22%), radial-gradient(640px circle at -6% -20%, rgba(34, 211, 238, 0.13), transparent 52%), radial-gradient(780px circle at 120% -30%, rgba(99, 102, 241, 0.11), transparent 60%)'
@@ -383,7 +404,7 @@ export function buildAppShellSurfaceTokens(input: {
         ...base,
         auraBackground: `radial-gradient(740px circle at 10% 6%, ${colorWithOpacity(stopA, tone(0.42, 0.24))}, transparent 58%), radial-gradient(780px circle at 92% 4%, ${colorWithOpacity(stopB, tone(0.36, 0.2))}, transparent 60%), linear-gradient(${bg.angle}deg, ${colorWithOpacity(stopA, tone(0.24, 0.16))}, ${colorWithOpacity(stopB, tone(0.2, 0.14))}, transparent 72%)`,
         auraOpacity: bg.mode === 'animated-gradient' ? 0.88 : 0.78,
-        windowBackground: `linear-gradient(145deg, ${isDark ? 'rgba(5, 9, 22, 0.54)' : 'rgba(255, 255, 255, 0.76)'}, ${isDark ? 'rgba(10, 14, 34, 0.4)' : 'rgba(246, 249, 255, 0.62)'}), radial-gradient(circle at 0% 0%, ${colorWithOpacity(stopA, tone(0.28, 0.17))}, transparent 48%), radial-gradient(circle at 100% 0%, ${colorWithOpacity(stopB, tone(0.24, 0.13))}, transparent 48%)`,
+        windowBackground: `linear-gradient(145deg, ${isDark ? `rgba(5, 9, 22, ${windowAlphaA})` : `rgba(255, 255, 255, ${windowAlphaA})`}, ${isDark ? `rgba(10, 14, 34, ${windowAlphaB})` : `rgba(246, 249, 255, ${windowAlphaB})`}), radial-gradient(circle at 0% 0%, ${colorWithOpacity(stopA, tone(0.28, 0.17))}, transparent 48%), radial-gradient(circle at 100% 0%, ${colorWithOpacity(stopB, tone(0.24, 0.13))}, transparent 48%)`,
       }
     case 'mesh':
       return {

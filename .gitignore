@@ -51,3 +51,7 @@ pnpm-debug.log*
 
 # Local build caches
 **/.cache/
+
+# .NET / Avalonia
+**/bin/
+**/obj/

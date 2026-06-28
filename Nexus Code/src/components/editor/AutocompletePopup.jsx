@@ -1,14 +1,45 @@
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
+function getSuggestionLabel(suggestion) {
+  return String(
+    suggestion?.label ||
+      suggestion?.text ||
+      suggestion?.insertText ||
+      suggestion?.detail ||
+      "completion",
+  );
+}
+
+function getSuggestionType(suggestion) {
+  return String(suggestion?.type || suggestion?.kind || "text").toLowerCase();
+}
+
+function getTypeMeta(type) {
+  if (type.includes("keyword")) {
+    return { label: "K", className: "bg-purple-400/15 text-purple-300" };
+  }
+  if (type.includes("function") || type.includes("method")) {
+    return { label: "F", className: "bg-blue-400/15 text-blue-300" };
+  }
+  if (type.includes("class") || type.includes("type")) {
+    return { label: "T", className: "bg-cyan-400/15 text-cyan-300" };
+  }
+  return { label: "V", className: "bg-amber-400/15 text-amber-300" };
+}
+
 export default function AutocompletePopup({
-  suggestions,
+  suggestions = [],
   visible,
-  selectedIndex,
+  selectedIndex = 0,
   onSelect,
-  position,
+  position = { top: 0, left: 0 },
 }) {
-  if (!visible || suggestions.length === 0) return null;
+  const safeSuggestions = Array.isArray(suggestions)
+    ? suggestions.filter(Boolean)
+    : [];
+
+  if (!visible || safeSuggestions.length === 0) return null;
 
   return (
     <AnimatePresence>
@@ -16,49 +47,50 @@ export default function AutocompletePopup({
         initial={{ opacity: 0, y: -4 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -4 }}
-        className="absolute z-50 rounded-lg border shadow-xl overflow-hidden max-h-48 w-64"
+        className="absolute z-50 max-h-64 w-72 overflow-hidden rounded-md border shadow-xl"
         style={{
           top: position.top,
           left: position.left,
-          background: "#12122a",
-          borderColor: "rgba(128,0,255,0.2)",
-          boxShadow: "0 8px 32px rgba(0,0,0,0.5), 0 0 16px rgba(128,0,255,0.1)",
+          background: "var(--nexus-panel-surface, #11141d)",
+          borderColor: "var(--nexus-border, rgba(255,255,255,0.12))",
+          boxShadow: "0 18px 55px rgba(0,0,0,0.35)",
         }}
+        role="listbox"
+        aria-label="Autocomplete suggestions"
       >
-        <div className="overflow-y-auto max-h-48">
-          {suggestions.map((s, i) => (
-            <div
-              key={i}
-              onClick={() => onSelect(s)}
-              className="flex items-center gap-2 px-3 py-1.5 cursor-pointer transition-all text-sm"
-              style={{
-                background:
-                  i === selectedIndex ? "rgba(128,0,255,0.15)" : "transparent",
-                color: i === selectedIndex ? "#e5e7eb" : "#9ca3af",
-              }}
-            >
-              <span
-                className="text-[10px] font-bold px-1 rounded shrink-0"
-                style={{
-                  background:
-                    s.type === "keyword"
-                      ? "#c084fc22"
-                      : s.type === "function"
-                        ? "#60a5fa22"
-                        : "#fbbf2422",
-                  color:
-                    s.type === "keyword"
-                      ? "#c084fc"
-                      : s.type === "function"
-                        ? "#60a5fa"
-                        : "#fbbf24",
-                }}
+        <div className="max-h-64 overflow-y-auto py-1">
+          {safeSuggestions.map((suggestion, index) => {
+            const label = getSuggestionLabel(suggestion);
+            const type = getSuggestionType(suggestion);
+            const meta = getTypeMeta(type);
+            const selected = index === selectedIndex;
+
+            return (
+              <button
+                key={`${label}-${index}`}
+                type="button"
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => onSelect?.(suggestion)}
+                className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm transition-colors ${
+                  selected ? "bg-white/10 text-white" : "text-gray-400 hover:bg-white/5 hover:text-gray-200"
+                }`}
+                role="option"
+                aria-selected={selected}
               >
-                {s.type === "keyword" ? "K" : s.type === "function" ? "F" : "V"}
-              </span>
-              <span className="font-mono truncate">{s.text}</span>
-            </div>
-          ))}
+                <span
+                  className={`shrink-0 rounded px-1 text-[10px] font-bold ${meta.className}`}
+                >
+                  {meta.label}
+                </span>
+                <span className="min-w-0 flex-1 truncate font-mono">{label}</span>
+                {suggestion?.detail && (
+                  <span className="max-w-24 truncate text-[10px] text-gray-500">
+                    {suggestion.detail}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
       </motion.div>
     </AnimatePresence>

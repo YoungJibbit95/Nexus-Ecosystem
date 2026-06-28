@@ -1,12 +1,15 @@
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { resolveApiSource } from './lib/api-source.mjs'
+import { resolveApiSource, resolveControlUiRoot } from './lib/api-source.mjs'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const ROOT = path.resolve(__dirname, '..')
-const CONTROL_UI_ROOT = path.resolve(ROOT, '..', 'Nexus Control')
+const CONTROL_UI_ROOT = await resolveControlUiRoot({ root: ROOT, required: false, quiet: true })
+const CONTROL_DESKTOP_ROOT = path.resolve(
+  process.env.NEXUS_CONTROL_DESKTOP_ROOT || path.join(ROOT, '..', 'NexusAPI', 'Nexus Control Desktop'),
+)
 
 const APP_PATHS = [
   'Nexus Main',
@@ -46,7 +49,8 @@ const exists = async (targetPath) => {
   }
 }
 
-const CONTROL_UI_PRESENT = await exists(CONTROL_UI_ROOT)
+const CONTROL_UI_PRESENT = Boolean(CONTROL_UI_ROOT) && await exists(CONTROL_UI_ROOT)
+const CONTROL_DESKTOP_PRESENT = await exists(CONTROL_DESKTOP_ROOT)
 
 const normalizeElectronTargets = (targetConfig) => {
   const targets = Array.isArray(targetConfig) ? targetConfig : [targetConfig]
@@ -80,6 +84,147 @@ const hasLinuxIconSet = async (appDir, packageJson) => {
   return results.every(Boolean)
 }
 
+const packageLockMatchesRootPackage = (packageJson, packageLock) => {
+  const rootLock = packageLock?.packages?.['']
+  if (!packageJson || !packageLock || !rootLock) return false
+  const packageDevDependencies = packageJson.devDependencies || {}
+  const lockDevDependencies = rootLock.devDependencies || {}
+
+  return packageLock.name === packageJson.name &&
+    packageLock.version === packageJson.version &&
+    rootLock.name === packageJson.name &&
+    rootLock.version === packageJson.version &&
+    Number(packageLock.lockfileVersion) >= 3 &&
+    Object.entries(packageDevDependencies)
+      .every(([name, range]) => lockDevDependencies[name] === range)
+}
+
+const hasPackageScript = (packageJson, name, pattern) => {
+  const script = String(packageJson?.scripts?.[name] || '')
+  return pattern.test(script)
+}
+
+const hasExtraResource = (packageJson, from, to) => {
+  const resources = Array.isArray(packageJson?.build?.extraResources)
+    ? packageJson.build.extraResources
+    : []
+  return resources.some((item) => item?.from === from && item?.to === to)
+}
+
+const addControlDesktopChecks = async (checks, fileChecks) => {
+  if (CONTROL_DESKTOP_PRESENT) {
+    const controlDesktopPackage = await readJsonSafe(path.join(CONTROL_DESKTOP_ROOT, 'package.json'))
+    const controlDesktopLock = await readJsonSafe(path.join(CONTROL_DESKTOP_ROOT, 'package-lock.json'))
+    const controlDesktopRoot = path.relative(ROOT, CONTROL_DESKTOP_ROOT)
+
+    checks.push(
+      {
+        id: 'control-desktop-package-lock',
+        ok: packageLockMatchesRootPackage(controlDesktopPackage, controlDesktopLock),
+        message: 'Control Desktop package-lock passt zum Root Package',
+        details: controlDesktopRoot,
+      },
+      {
+        id: 'control-desktop-pack-scripts',
+        ok:
+          hasPackageScript(controlDesktopPackage, 'build:ui', /npm --prefix "\.\.\/Nexus Control" run build/) &&
+          hasPackageScript(controlDesktopPackage, 'pack', /npm run build:ui && electron-builder --dir/) &&
+          hasPackageScript(controlDesktopPackage, 'dist:win', /electron-builder --win nsis/) &&
+          hasPackageScript(controlDesktopPackage, 'dist:linux', /electron-builder --linux AppImage deb/) &&
+          hasPackageScript(controlDesktopPackage, 'dist:mac', /electron-builder --mac dmg/),
+        message: 'Control Desktop hat reproduzierbare UI-Build, Pack- und Installer-Scripts',
+        details: JSON.stringify(controlDesktopPackage?.scripts || {}),
+      },
+      {
+        id: 'control-desktop-builder-config',
+        ok:
+          controlDesktopPackage?.build?.appId === 'cloud.nexus.admin.control' &&
+          controlDesktopPackage?.build?.productName === 'Nexus Control Admin' &&
+          hasExtraResource(controlDesktopPackage, '../Nexus Control/dist', 'control-ui') &&
+          hasElectronTarget(controlDesktopPackage, 'win', 'nsis') &&
+          hasElectronTarget(controlDesktopPackage, 'mac', 'dmg') &&
+          hasElectronTarget(controlDesktopPackage, 'linux', 'AppImage') &&
+          hasElectronTarget(controlDesktopPackage, 'linux', 'deb'),
+        message: 'Control Desktop electron-builder Config paketiert die gebaute Control UI',
+        details: controlDesktopRoot,
+      },
+      {
+        id: 'control-desktop-electron-deps',
+        ok:
+          Boolean(controlDesktopPackage?.devDependencies?.electron) &&
+          Boolean(controlDesktopPackage?.devDependencies?.['electron-builder']),
+        message: 'Control Desktop pinnt Electron und electron-builder im Package',
+        details: JSON.stringify(controlDesktopPackage?.devDependencies || {}),
+      },
+    )
+
+    const preloadContent = await readFileSafe(path.join(CONTROL_DESKTOP_ROOT, 'src/preload.cjs'))
+    checks.push({
+      id: 'control-desktop-preload-no-node-bridges',
+      ok: Boolean(preloadContent) && !/\bipcRenderer\b|require\(['"](?:node:)?fs['"]\)|require\(['"](?:node:)?child_process['"]\)/.test(preloadContent),
+      message: 'Control Desktop Preload stellt keine Node-, IPC- oder Prozess-Bridges bereit',
+      details: path.relative(ROOT, path.join(CONTROL_DESKTOP_ROOT, 'src/preload.cjs')),
+    })
+
+    fileChecks.push(
+      {
+        id: 'control-desktop-main-security',
+        file: path.join(CONTROL_DESKTOP_ROOT, 'src/main.cjs'),
+        pattern: /contextIsolation:\s*true[\s\S]*?nodeIntegration:\s*false[\s\S]*?sandbox:\s*true[\s\S]*?webSecurity:\s*true[\s\S]*?allowRunningInsecureContent:\s*false[\s\S]*?webviewTag:\s*false/,
+        message: 'Control Desktop BrowserWindow nutzt sichere WebPreferences',
+      },
+      {
+        id: 'control-desktop-navigation-guards',
+        file: path.join(CONTROL_DESKTOP_ROOT, 'src/main.cjs'),
+        pattern: /TRUSTED_REMOTE_ORIGINS[\s\S]*?setWindowOpenHandler[\s\S]*?shell\.openExternal[\s\S]*?will-navigate[\s\S]*?setPermissionRequestHandler/,
+        message: 'Control Desktop blockt Navigation, Popups und Permissions ausserhalb erlaubter Origins',
+      },
+      {
+        id: 'control-desktop-preload-contract',
+        file: path.join(CONTROL_DESKTOP_ROOT, 'src/preload.cjs'),
+        pattern: /contextBridge\.exposeInMainWorld\('nexusControlDesktop'[\s\S]*?Object\.freeze/,
+        message: 'Control Desktop Preload exposed nur einen kleinen Desktop-Marker',
+      },
+    )
+  } else {
+    checks.push({
+      id: 'control-desktop-private-workspace',
+      ok: true,
+      message: 'Control Desktop Workspace ist lokal nicht vorhanden und wird im Ecosystem-Verify uebersprungen',
+      details: CONTROL_DESKTOP_ROOT,
+    })
+  }
+}
+
+const appendFileCheckResults = async (checks, fileChecks) => {
+  for (const check of fileChecks) {
+    const content = await readFileSafe(check.file)
+    const ok = Boolean(content && check.pattern.test(content))
+    checks.push({
+      id: check.id,
+      ok,
+      message: check.message,
+      details: ok ? path.relative(ROOT, check.file) : `missing-pattern in ${path.relative(ROOT, check.file)}`,
+    })
+  }
+}
+
+const printChecks = (checks) => {
+  const passed = checks.filter((item) => item.ok)
+  const failed = checks.filter((item) => !item.ok)
+
+  for (const item of checks) {
+    const icon = item.ok ? 'PASS' : 'FAIL'
+    console.log(`[${icon}] ${item.id}: ${item.message}`)
+    if (item.details) {
+      console.log(`       -> ${item.details}`)
+    }
+  }
+
+  console.log(`\nErgebnis: ${passed.length}/${checks.length} Checks erfolgreich.`)
+  return failed
+}
+
 const listFilesRecursive = async (dir, out = []) => {
   const entries = await fs.readdir(dir, { withFileTypes: true })
   for (const entry of entries) {
@@ -95,7 +240,21 @@ const listFilesRecursive = async (dir, out = []) => {
 }
 
 const run = async () => {
+  if (process.argv.includes('--control-desktop-only')) {
+    const checks = []
+    const fileChecks = []
+    await addControlDesktopChecks(checks, fileChecks)
+    await appendFileCheckResults(checks, fileChecks)
+
+    const failed = printChecks(checks)
+    if (failed.length > 0) {
+      process.exit(1)
+    }
+    return
+  }
+
   const apiSource = await resolveApiSource({ root: ROOT, quiet: true })
+  const rootPackage = await readJsonSafe(path.join(ROOT, 'package.json'))
 
   const checks = [
     {
@@ -116,9 +275,29 @@ const run = async () => {
       message: 'Control API URL ist gesetzt',
       details: String(apiSource.controlBaseUrl || 'unset'),
     },
+    {
+      id: 'release-evidence-script',
+      ok:
+        hasPackageScript(rootPackage, 'release:evidence', /prepare-release-evidence\.mjs/) &&
+        (await exists(path.join(ROOT, 'tools/prepare-release-evidence.mjs'))),
+      message: 'Release Evidence Generator ist als npm Script verdrahtet',
+      details: rootPackage?.scripts?.['release:evidence'] || 'missing',
+    },
   ]
 
   const fileChecks = [
+    {
+      id: 'release-evidence-readme',
+      file: path.join(ROOT, 'docs/release-evidence/README.md'),
+      pattern: /npm run release:evidence[\s\S]*rc-log\.md[\s\S]*smoke-notes\.md[\s\S]*Keine Secrets/,
+      message: 'Release Evidence README beschreibt Log, Smokes und Secret-Regeln',
+    },
+    {
+      id: 'release-evidence-generator-contract',
+      file: path.join(ROOT, 'tools/prepare-release-evidence.mjs'),
+      pattern: /--force[\s\S]*NEXUS_RELEASE_VERSION[\s\S]*screenshots[\s\S]*rc-log\.md[\s\S]*smoke-notes\.md/s,
+      message: 'Release Evidence Generator erstellt Version, Logs und Screenshot-Ordner',
+    },
     {
       id: 'main-app-uses-runtime',
       file: path.join(ROOT, 'Nexus Main/src/App.tsx'),
@@ -314,7 +493,7 @@ const run = async () => {
     {
       id: 'main-devtools-release-health-tab',
       file: path.join(ROOT, 'Nexus Main/src/views/DevToolsView.tsx'),
-      pattern: /ReleaseHealthDashboard[\s\S]*?'builder'\|'calc'\|'release'[\s\S]*?setTab\('release'\)[\s\S]*?<ReleaseHealthDashboard \/>/,
+      pattern: /ReleaseHealthDashboard[\s\S]*?DEVTOOLS_TABS[\s\S]*?id:\s*'release'[\s\S]*?onClick=\{\(\) => setTab\(id\)\}[\s\S]*?<ReleaseHealthDashboard \/>/,
       message: 'DevTools verlinkt Release Health Tab',
     },
     {
@@ -334,6 +513,30 @@ const run = async () => {
       file: path.join(ROOT, 'Nexus Main/src/app/mainAppConfig.ts'),
       pattern: /MAIN_RUNTIME_CHANNEL_STORAGE_KEY[\s\S]*?MainRuntimeChannel[\s\S]*?production[\s\S]*?canary[\s\S]*?dev[\s\S]*?requiresSignedManifest/,
       message: 'Nexus Main hat Stable/Canary/Dev Runtime Channel Konfiguration',
+    },
+    {
+      id: 'main-runtime-url-policy',
+      file: path.join(ROOT, 'Nexus Main/src/app/mainAppConfig.ts'),
+      pattern: /normalizeControlBaseUrl[\s\S]*?VITE_NEXUS_CONTROL_URL[\s\S]*?VITE_NEXUS_DEV_CONTROL_API_BASE_URL/,
+      message: 'Nexus Main Runtime URLs nutzen die gemeinsame Control-API-Policy inkl. Legacy Env',
+    },
+    {
+      id: 'mobile-runtime-url-policy',
+      file: path.join(ROOT, 'Nexus Mobile/src/app/mobileAppConfig.ts'),
+      pattern: /normalizeControlBaseUrl[\s\S]*?VITE_NEXUS_CONTROL_API_BASE_URL[\s\S]*?VITE_NEXUS_CONTROL_URL/,
+      message: 'Nexus Mobile Runtime URLs nutzen die gemeinsame Control-API-Policy inkl. Legacy Env',
+    },
+    {
+      id: 'dev-all-no-open-cross-platform',
+      file: path.join(ROOT, 'package.json'),
+      pattern: /"dev:all:no-open":\s*"node \.\/tools\/dev-ecosystem\.mjs --without-control-plane --no-open"/,
+      message: 'dev:all:no-open nutzt ein Windows-portables CLI-Flag statt Shell-Env-Zuweisung',
+    },
+    {
+      id: 'dev-ecosystem-no-open-flag',
+      file: path.join(ROOT, 'tools/dev-ecosystem.mjs'),
+      pattern: /cliArgs\.has\('--no-open'\)[\s\S]*?NEXUS_CONTROL_NO_OPEN/,
+      message: 'Dev-Ecosystem Script unterstuetzt --no-open und Env-Fallback',
     },
     {
       id: 'main-runtime-channel-bootstrap',
@@ -403,6 +606,8 @@ const run = async () => {
     },
   ]
 
+  await addControlDesktopChecks(checks, fileChecks)
+
   if (CONTROL_UI_PRESENT) {
     fileChecks.push(
       {
@@ -416,6 +621,12 @@ const run = async () => {
         file: path.join(CONTROL_UI_ROOT, 'src/layout/workspace/nav-tabs.js'),
         pattern: /data-tab="livesync"/,
         message: 'Control UI hat Live-Sync-Tab',
+      },
+      {
+        id: 'control-ui-scripts-tab',
+        file: path.join(CONTROL_UI_ROOT, 'src/layout/workspace/nav-tabs.js'),
+        pattern: /data-tab="scripts"/,
+        message: 'Control UI hat Scripts-Tab',
       },
       {
         id: 'control-ui-paywall-save',
@@ -612,18 +823,7 @@ const run = async () => {
     details: forbiddenHits.length === 0 ? 'ok' : forbiddenHits.slice(0, 12).join(', '),
   })
 
-  const passed = checks.filter((item) => item.ok)
-  const failed = checks.filter((item) => !item.ok)
-
-  for (const item of checks) {
-    const icon = item.ok ? 'PASS' : 'FAIL'
-    console.log(`[${icon}] ${item.id}: ${item.message}`)
-    if (item.details) {
-      console.log(`       -> ${item.details}`)
-    }
-  }
-
-  console.log(`\nErgebnis: ${passed.length}/${checks.length} Checks erfolgreich.`)
+  const failed = printChecks(checks)
 
   if (failed.length > 0) {
     process.exit(1)

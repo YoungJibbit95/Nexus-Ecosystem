@@ -15,9 +15,13 @@ export function DashboardRuntimeHealthCard() {
     [],
   );
 
-  return (
-    <Glass style={{ padding: "12px 14px" }}>
-      <div
+  {
+    /*return (
+    <Glass
+      className="nx-dashboard-runtime-card"
+      style={{ padding: "12px 14px" }}
+    >
+      {/*<div
         style={{
           display: "flex",
           alignItems: "center",
@@ -77,8 +81,8 @@ export function DashboardRuntimeHealthCard() {
             <div style={{ fontSize: 11, fontWeight: 700 }}>{value}</div>
           </div>
         ))}
-      </div>
+        </div>
     </Glass>
-  );
+  );*/
+  }
 }
-

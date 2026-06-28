@@ -104,28 +104,41 @@ function getPanelBgSize(mode: string): string {
 }
 
 // ── Glass mode backgrounds ────────────────────────────────────────
-function getGlassModeBg(mode: string, accentRgb: string, accent2Rgb: string, tintRgb: string, tintOpacity: number, isDark: boolean): string {
+function getGlassModeBg(
+  mode: string,
+  accentRgb: string,
+  accent2Rgb: string,
+  tintRgb: string,
+  tintOpacity: number,
+  isDark: boolean,
+  backgroundVisibility: number,
+): string {
   const base = isDark ? '255,255,255' : '0,0,0'
   const inv  = isDark ? '0,0,0' : '255,255,255'
+  const glassAlpha = isDark
+    ? Math.max(0.018, 0.07 - backgroundVisibility * 0.035)
+    : Math.max(0.46, 0.82 - backgroundVisibility * 0.2)
+  const solidDarkAlpha = Math.max(0.44, 0.76 - backgroundVisibility * 0.24)
+  const solidLightAlpha = Math.max(0.58, 0.9 - backgroundVisibility * 0.18)
   switch (mode) {
     case 'plasma':
       return isDark
-        ? 'rgba(255,255,255,0.04)'
-        : 'rgba(255,255,255,0.62)'
+        ? `rgba(255,255,255,${glassAlpha})`
+        : `rgba(255,255,255,${glassAlpha})`
     case 'frosted':
       return isDark
-        ? `linear-gradient(rgba(${tintRgb},${tintOpacity + 0.035}),rgba(${tintRgb},${tintOpacity})), rgba(20,20,35,0.68)`
-        : `rgba(255,255,255,0.84)`
+        ? `linear-gradient(rgba(${tintRgb},${tintOpacity + 0.025}),rgba(${tintRgb},${tintOpacity})), rgba(20,20,35,${solidDarkAlpha})`
+        : `rgba(255,255,255,${solidLightAlpha})`
     case 'crystal':
       return isDark
         ? `linear-gradient(135deg, rgba(${base},0.11) 0%, rgba(${base},0.03) 50%, rgba(${accentRgb},0.05) 100%)`
         : `linear-gradient(135deg, rgba(${inv},0.82) 0%, rgba(${inv},0.66) 100%)`
     case 'neon':
       return isDark
-        ? `linear-gradient(135deg, rgba(${accentRgb},0.12) 0%, rgba(${accentRgb},0.035) 100%), rgba(8,8,18,0.72)`
-        : `linear-gradient(135deg, rgba(${accentRgb},0.08) 0%, rgba(255,255,255,0.82) 100%)`
+        ? `linear-gradient(135deg, rgba(${accentRgb},0.12) 0%, rgba(${accentRgb},0.035) 100%), rgba(8,8,18,${solidDarkAlpha})`
+        : `linear-gradient(135deg, rgba(${accentRgb},0.08) 0%, rgba(255,255,255,${solidLightAlpha}) 100%)`
     case 'matte':
-      return isDark ? `rgba(18,18,28,0.82)` : `rgba(248,248,252,0.9)`
+      return isDark ? `rgba(18,18,28,${Math.min(0.82, solidDarkAlpha + 0.08)})` : `rgba(248,248,252,${Math.min(0.9, solidLightAlpha + 0.06)})`
     case 'mirror':
       return isDark
         ? `linear-gradient(160deg, rgba(${base},0.22) 0%, rgba(${base},0.06) 40%, rgba(${accentRgb},0.1) 100%)`
@@ -133,9 +146,9 @@ function getGlassModeBg(mode: string, accentRgb: string, accent2Rgb: string, tin
     default: // 'default' / 'glass'
       return isDark
         ? tintOpacity > 0
-          ? `linear-gradient(145deg, rgba(${accentRgb},0.12), rgba(${accent2Rgb},0.08) 55%, rgba(${tintRgb},${Math.max(tintOpacity, 0.025)})), rgba(255,255,255,0.05)`
-          : `linear-gradient(145deg, rgba(${accentRgb},0.1), rgba(${accent2Rgb},0.07) 60%), rgba(255,255,255,0.05)`
-        : 'rgba(255,255,255,0.7)'
+          ? `linear-gradient(145deg, rgba(${accentRgb},0.1), rgba(${accent2Rgb},0.06) 55%, rgba(${tintRgb},${Math.max(tintOpacity, 0.014)})), rgba(255,255,255,${glassAlpha})`
+          : `linear-gradient(145deg, rgba(${accentRgb},0.08), rgba(${accent2Rgb},0.05) 60%), rgba(255,255,255,${glassAlpha})`
+        : `rgba(255,255,255,${glassAlpha})`
   }
 }
 
@@ -219,6 +232,7 @@ export const Glass = memo(forwardRef<HTMLDivElement, GlassProps>(function Glass(
   const innerShadow = (t.glassmorphism as any).innerShadow ?? false
   const glassDepth = (t.glassmorphism as any).glassDepth ?? 0.5
   const isToolbarSurface = className.includes('nx-toolbar-surface')
+  const backgroundVisibility = Math.max(0.25, Math.min(1, Number(t.background?.overlayOpacity) || 0.7))
   const shaderEligibleSurface = !isToolbarSurface && type === 'panel'
   const balancedMode = useMemo(() => {
     if (performanceProfile === 'quality') return false
@@ -312,16 +326,18 @@ export const Glass = memo(forwardRef<HTMLDivElement, GlassProps>(function Glass(
       accent2: t.accent2,
       appBg: t.bg,
       colorMode: t.mode,
+      backgroundVisibility,
     })
     bg = panelTokens.background
     bgSize = panelTokens.backgroundSize
     bgBlendMode = panelTokens.backgroundBlendMode
   } else {
-    const themeTintStrength = type === 'sidebar' ? 0.22 : type === 'modal' ? 0.18 : 0.16
-    const themeTint = `linear-gradient(145deg, rgba(${accentRgb},${themeTintStrength}), rgba(${accent2Rgb},${Math.max(themeTintStrength - 0.04, 0.06)}) 58%, rgba(${accentRgb},0.035))`
+    const tintBase = type === 'sidebar' ? 0.145 : type === 'modal' ? 0.125 : 0.105
+    const themeTintStrength = Math.max(isDark ? 0.055 : 0.035, tintBase - backgroundVisibility * (isDark ? 0.045 : 0.03))
+    const themeTint = `linear-gradient(145deg, rgba(${accentRgb},${themeTintStrength}), rgba(${accent2Rgb},${Math.max(themeTintStrength - 0.035, isDark ? 0.035 : 0.025)}) 58%, rgba(${accentRgb},${isDark ? 0.018 : 0.012}))`
     bg = gradient
       ? `linear-gradient(135deg, rgba(${accentRgb},0.18), rgba(${accentRgb},0.06))`
-      : `${themeTint}, ${getGlassModeBg(glassMode, accentRgb, accent2Rgb, tintRgb, t.glassmorphism.tintOpacity, isDark)}`
+      : `${themeTint}, ${getGlassModeBg(glassMode, accentRgb, accent2Rgb, tintRgb, t.glassmorphism.tintOpacity, isDark, backgroundVisibility)}`
   }
 
   // Border

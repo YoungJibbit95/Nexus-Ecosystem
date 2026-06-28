@@ -334,7 +334,7 @@ function App() {
   const runtime = useMemo(
     () =>
       createNexusRuntime({
-        appId: NEXUS_CODE_APP_ID,
+        appId: "code",
         appVersion: "1.0.0",
         control: {
           enabled: Boolean(controlBaseUrl),

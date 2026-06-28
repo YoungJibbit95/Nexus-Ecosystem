@@ -41,6 +41,12 @@ import {
   setExtensionEnabled,
   uninstallExtension,
 } from "../../pages/editor/extensionSystem";
+import {
+  PanelBadge,
+  PanelBody,
+  PanelFooter,
+  PanelShell,
+} from "./panels/PanelChrome.jsx";
 
 const tabStyles = {
   all: "Alle",
@@ -670,17 +676,8 @@ export default function ExtensionsPanel({ onInstalledChange }) {
   };
 
   return (
-    <motion.aside
-      initial={{ x: -20, opacity: 0 }}
-      animate={{ x: 0, opacity: 1 }}
-      transition={{ duration: 0.24 }}
-      className="flex h-full min-h-0 w-full flex-col overflow-hidden"
-      style={{
-        background: "rgba(6, 8, 18, 0.54)",
-        backdropFilter: "blur(18px)",
-      }}
-    >
-      <div className="shrink-0 border-b border-white/[0.06] px-3 pb-2.5 pt-3">
+    <PanelShell ariaLabel="Extensions">
+      <div className="nx-code-extensions-panel-header shrink-0 border-b border-white/[0.06] px-3 pb-2.5 pt-3">
         <div className="flex items-center justify-between gap-2">
           <div className="flex min-w-0 items-center gap-2">
             <div
@@ -698,14 +695,14 @@ export default function ExtensionsPanel({ onInstalledChange }) {
                 Extensions
               </h2>
               <p className="truncate text-[10px] text-[var(--nexus-muted)]">
-                {stats.enabled} aktiv, {stats.installed} installiert
+                Marketplace, manifest registry and extension host
               </p>
             </div>
           </div>
           {stats.updates > 0 ? (
-            <span className="rounded-md border border-amber-400/25 bg-amber-400/10 px-2 py-1 text-[10px] font-semibold text-amber-300">
+            <PanelBadge tone="warning">
               {stats.updates} Update
-            </span>
+            </PanelBadge>
           ) : null}
         </div>
 
@@ -819,7 +816,7 @@ export default function ExtensionsPanel({ onInstalledChange }) {
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-3 py-2.5">
+      <PanelBody className="space-y-2 px-3 py-2.5">
         <AnimatePresence mode="popLayout">
           {filteredExtensions.map((extension, index) => (
             <ExtensionCard
@@ -853,16 +850,16 @@ export default function ExtensionsPanel({ onInstalledChange }) {
             </button>
           </motion.div>
         ) : null}
-      </div>
+      </PanelBody>
 
-      <div className="shrink-0 border-t border-white/[0.06] px-3 py-2">
+      <PanelFooter>
         <div className="flex items-center justify-between gap-2 text-[10px] text-[var(--nexus-muted)]">
           <span className="truncate">{filteredExtensions.length} sichtbare Module</span>
           <span className="truncate">
             {stats.errors > 0 ? `${stats.errors} fehlerhaft` : `${stats.disabled} pausiert`}
           </span>
         </div>
-      </div>
-    </motion.aside>
+      </PanelFooter>
+    </PanelShell>
   );
 }

@@ -1,68 +1,48 @@
-import React, { useState, useRef, useEffect, useMemo } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  AlertTriangle,
+  Bug,
+  Circle,
+  Eye,
+  Info,
+  Layers,
   Play,
+  Plus,
+  RotateCcw,
+  SkipForward,
   Square,
   StepForward,
-  SkipForward,
-  RotateCcw,
-  Plus,
-  Bug,
-  ChevronDown,
-  Circle,
-  AlertTriangle,
-  Info,
-  X,
   Terminal,
-  Layers,
-  Eye,
+  X,
   Zap,
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
-
-/* ─── Mock data ──────────────────────────────────────────────────────────── */
+import { AnimatePresence, motion } from "framer-motion";
+import {
+  PANEL_INPUT_CLASS,
+  PanelBadge,
+  PanelBody,
+  PanelFooter,
+  PanelHeader,
+  PanelMetric,
+  PanelSection,
+  PanelShell,
+  PanelState,
+} from "./panels/PanelChrome.jsx";
 
 const INITIAL_VARIABLES = [
   { id: 1, name: "result", value: "42", type: "number", mutable: true },
-  {
-    id: 2,
-    name: "message",
-    value: '"Hello, World!"',
-    type: "string",
-    mutable: true,
-  },
+  { id: 2, name: "message", value: '"Hello, World!"', type: "string", mutable: true },
   { id: 3, name: "isReady", value: "true", type: "boolean", mutable: false },
-  {
-    id: 4,
-    name: "items",
-    value: "[1, 2, 3, 4, 5]",
-    type: "array",
-    mutable: true,
-  },
-  {
-    id: 5,
-    name: "config",
-    value: "{ debug: false }",
-    type: "object",
-    mutable: true,
-  },
+  { id: 4, name: "items", value: "[1, 2, 3, 4, 5]", type: "array", mutable: true },
+  { id: 5, name: "config", value: "{ debug: false }", type: "object", mutable: true },
+];
+
+const INITIAL_CONSOLE = [
+  { id: 1, type: "system", text: "Nexus Debug Session bereit", time: "10:00:00" },
+  { id: 2, type: "info", text: "Setze Breakpoints und starte die Session.", time: "10:00:00" },
 ];
 
 const MAX_STACK_FRAMES = 4;
-
-const INITIAL_CONSOLE = [
-  {
-    id: 1,
-    type: "system",
-    text: "✦ Nexus Debug Session gestartet",
-    time: "10:00:00",
-  },
-  {
-    id: 2,
-    type: "info",
-    text: "Bereit. Setze Breakpoints und starte.",
-    time: "10:00:00",
-  },
-];
 
 const TYPE_COLORS = {
   number: "#f97316",
@@ -75,80 +55,95 @@ const TYPE_COLORS = {
 };
 
 const CONSOLE_STYLES = {
-  system: { color: "#6b7280", icon: null },
-  info: { color: "#3b82f6", icon: <Info size={9} /> },
-  warn: { color: "#fbbf24", icon: <AlertTriangle size={9} /> },
-  error: { color: "#ef4444", icon: <AlertTriangle size={9} /> },
-  output: { color: "#22c55e", icon: null },
-  input: { color: "#a855f7", icon: null },
+  system: { color: "#7b8496", icon: null },
+  info: { color: "#60a5fa", icon: Info },
+  warn: { color: "#fbbf24", icon: AlertTriangle },
+  error: { color: "#f87171", icon: AlertTriangle },
+  output: { color: "#86efac", icon: null },
+  input: { color: "#c084fc", icon: null },
 };
-
-/* ─── Sub-components ─────────────────────────────────────────────────────── */
-
-function SectionHeader({
-  icon: Icon,
-  title,
-  count = null,
-  expanded,
-  onToggle,
-  children,
-}) {
-  return (
-    <div>
-      <button
-        onClick={onToggle}
-        className="w-full flex items-center gap-1.5 px-3 py-1.5 group hover:bg-white/[0.03] transition-colors"
-      >
-        <motion.div
-          animate={{ rotate: expanded ? 0 : -90 }}
-          transition={{ duration: 0.18 }}
-        >
-          <ChevronDown size={11} className="text-gray-600 shrink-0" />
-        </motion.div>
-        {Icon && <Icon size={12} className="text-purple-400/70 shrink-0" />}
-        <span className="text-[10px] font-semibold text-gray-500 tracking-widest uppercase flex-1 text-left">
-          {title}
-        </span>
-        {count != null && (
-          <span
-            className="text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0"
-            style={{ background: "rgba(128,0,255,0.15)", color: "#a855f7" }}
-          >
-            {count}
-          </span>
-        )}
-      </button>
-
-      <AnimatePresence initial={false}>
-        {expanded && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
-            style={{ overflow: "hidden" }}
-          >
-            {children}
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
 
 function TypeBadge({ type }) {
   const color = TYPE_COLORS[type] || TYPE_COLORS.unknown;
   return (
     <span
-      className="text-[9px] font-bold px-1 py-0.5 rounded shrink-0"
-      style={{ background: color + "20", color }}
+      className="shrink-0 rounded px-1.5 py-0.5 text-[9px] font-bold uppercase"
+      style={{ background: `${color}20`, color }}
     >
       {type}
     </span>
   );
 }
 
-/* ─── Main component ─────────────────────────────────────────────────────── */
+function DebugButton({ children, onClick, disabled, tone = "muted", title }) {
+  const styles =
+    tone === "run"
+      ? {
+          color: "#ffffff",
+          background: "linear-gradient(135deg, #8000ff, #0033ff)",
+          border: "rgba(168,85,247,0.38)",
+          shadow: "0 0 14px rgba(128,0,255,0.26)",
+        }
+      : tone === "stop"
+        ? {
+            color: "#fca5a5",
+            background: "rgba(239,68,68,0.12)",
+            border: "rgba(239,68,68,0.24)",
+            shadow: "none",
+          }
+        : tone === "continue"
+          ? {
+              color: "#86efac",
+              background: "rgba(34,197,94,0.1)",
+              border: "rgba(34,197,94,0.22)",
+              shadow: "none",
+            }
+          : {
+              color: disabled ? "#4b5563" : "#cbd5e1",
+              background: "rgba(255,255,255,0.045)",
+              border: "rgba(255,255,255,0.08)",
+              shadow: "none",
+            };
+
+  return (
+    <motion.button
+      type="button"
+      whileHover={!disabled ? { y: -1 } : {}}
+      whileTap={!disabled ? { scale: 0.97 } : {}}
+      onClick={onClick}
+      disabled={disabled}
+      title={title}
+      className="flex h-8 min-w-0 items-center justify-center gap-1.5 rounded-md border px-2 text-[11px] font-semibold transition-opacity disabled:cursor-not-allowed disabled:opacity-45"
+      style={{
+        color: styles.color,
+        background: styles.background,
+        borderColor: styles.border,
+        boxShadow: styles.shadow,
+      }}
+    >
+      {children}
+    </motion.button>
+  );
+}
+
+function ConsoleEntry({ entry }) {
+  const style = CONSOLE_STYLES[entry.type] || CONSOLE_STYLES.output;
+  const Icon = style.icon;
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: -6 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ duration: 0.14 }}
+      className="flex min-w-0 items-start gap-1.5 leading-relaxed"
+    >
+      {Icon ? <Icon size={10} className="mt-0.5 shrink-0" style={{ color: style.color }} /> : null}
+      <span className="min-w-0 flex-1 break-words text-[10px]" style={{ color: style.color }}>
+        {entry.text}
+      </span>
+      <span className="ml-1 mt-0.5 shrink-0 text-[9px] text-gray-700">{entry.time}</span>
+    </motion.div>
+  );
+}
 
 export default function DebugPanel({ activeFile, _code, problems = [] }) {
   const [isRunning, setIsRunning] = useState(false);
@@ -171,174 +166,153 @@ export default function DebugPanel({ activeFile, _code, problems = [] }) {
   });
 
   const consoleEndRef = useRef(null);
-  const consoleInputRef = useRef(null);
-  let _logId = useRef(consoleLog.length + 1);
+  const logIdRef = useRef(INITIAL_CONSOLE.length);
+
   const syntaxErrors = useMemo(
-    () => problems.filter((item) => Number(item?.severity) === 8),
+    () => (Array.isArray(problems) ? problems : []).filter((item) => Number(item?.severity) === 8),
     [problems],
   );
   const firstSyntaxError = syntaxErrors[0] || null;
+  const activeFileName = activeFile?.name || "No active file";
+  const watches = variables.filter((item) => item.watch);
+
   const callstack = useMemo(() => {
     if (!isRunning && !isPaused) return [];
     const activeLine = Number(pausedLine || breakpoints[0] || 1);
     const fileName = activeFile?.name || "untitled";
-    const frames = [
-      {
-        id: 1,
-        fn: activeFile ? `run(${fileName})` : "run()",
-        file: fileName,
-        line: activeLine,
-        active: true,
-      },
-      {
-        id: 2,
-        fn: "dispatch()",
-        file: "runtime/debug-adapter",
-        line: 44,
-        active: false,
-      },
-      {
-        id: 3,
-        fn: "eventLoop()",
-        file: "runtime/scheduler",
-        line: 18,
-        active: false,
-      },
-      {
-        id: 4,
-        fn: "<entry>",
-        file: fileName,
-        line: 1,
-        active: false,
-      },
-    ];
-    return frames.slice(0, MAX_STACK_FRAMES);
+    return [
+      { id: 1, fn: activeFile ? `run(${fileName})` : "run()", file: fileName, line: activeLine, active: true },
+      { id: 2, fn: "dispatch()", file: "runtime/debug-adapter", line: 44, active: false },
+      { id: 3, fn: "eventLoop()", file: "runtime/scheduler", line: 18, active: false },
+      { id: 4, fn: "<entry>", file: fileName, line: 1, active: false },
+    ].slice(0, MAX_STACK_FRAMES);
   }, [activeFile, breakpoints, isPaused, isRunning, pausedLine]);
 
   useEffect(() => {
-    consoleEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    consoleEndRef.current?.scrollIntoView({ block: "nearest" });
   }, [consoleLog]);
 
-  const addLog = (text, type = "output") => {
+  const addLog = useCallback((text, type = "output") => {
     const now = new Date().toLocaleTimeString("de-DE", { hour12: false });
+    logIdRef.current += 1;
     setConsoleLog((prev) => [
       ...prev,
-      { id: ++_logId.current, type, text, time: now },
-    ]);
-  };
-
-  /* ── Debug controls ──────────────────────────────────────────────────── */
+      { id: logIdRef.current, type, text, time: now },
+    ].slice(-80));
+  }, []);
 
   const handleStart = () => {
     setIsRunning(true);
     setIsPaused(false);
     setPausedLine(null);
-    addLog(
-      "▶ Debug-Session gestartet" + (activeFile ? ` — ${activeFile.name}` : ""),
-      "info",
-    );
-    setTimeout(() => {
-      addLog("Ausführung läuft…", "system");
+    addLog(`Debug-Session gestartet${activeFile ? `: ${activeFile.name}` : ""}`, "info");
+    window.setTimeout(() => {
+      addLog("Ausfuehrung laeuft", "system");
       const sortedBreakpoints = [...breakpoints].sort((a, b) => a - b);
       const firstBreakpointLine = sortedBreakpoints[0] || null;
       const pauseLine = firstBreakpointLine || firstSyntaxError?.startLineNumber || null;
       if (pauseLine) {
-        setTimeout(() => {
+        window.setTimeout(() => {
           setIsPaused(true);
           setPausedLine(pauseLine);
           if (firstBreakpointLine) {
-            addLog(`⏸ Breakpoint bei Zeile ${pauseLine} getroffen`, "warn");
+            addLog(`Breakpoint bei Zeile ${pauseLine} getroffen`, "warn");
           } else {
-            addLog(`⏸ Syntax-Fehler bei Zeile ${pauseLine}: ${firstSyntaxError?.message || "Unbekannter Fehler"}`, "error");
+            addLog(
+              `Fehler bei Zeile ${pauseLine}: ${firstSyntaxError?.message || "Unbekannter Fehler"}`,
+              "error",
+            );
           }
-          addLog("Variablen wurden aktualisiert.", "system");
           setVariables((prev) =>
-            prev.map((v) =>
-              v.name === "result"
-                ? { ...v, value: String(Math.floor(Math.random() * 100)) }
-                : v,
+            prev.map((item) =>
+              item.name === "result"
+                ? { ...item, value: String(Math.floor(Math.random() * 100)) }
+                : item,
             ),
           );
-        }, 1200);
+        }, 900);
       } else {
-        setTimeout(() => {
-          addLog("Ausführung abgeschlossen ✓", "output");
+        window.setTimeout(() => {
+          addLog("Ausfuehrung abgeschlossen", "output");
           setIsRunning(false);
           setPausedLine(null);
-        }, 1800);
+        }, 1200);
       }
-    }, 400);
+    }, 300);
   };
 
   const handleStop = () => {
     setIsRunning(false);
     setIsPaused(false);
     setPausedLine(null);
-    addLog("■ Debug-Session beendet", "system");
+    addLog("Debug-Session beendet", "system");
   };
 
   const handleContinue = () => {
     setIsPaused(false);
-    addLog("▶ Fortfahren…", "info");
-    setTimeout(() => {
-      addLog("Ausführung abgeschlossen ✓", "output");
+    addLog("Fortfahren", "info");
+    window.setTimeout(() => {
+      addLog("Ausfuehrung abgeschlossen", "output");
       setIsRunning(false);
       setPausedLine(null);
-    }, 900);
+    }, 700);
   };
 
   const handleStepOver = () => {
-    addLog("→ Schritt übersprungen", "info");
+    if (!isPaused) return;
+    addLog("Step over", "info");
     setPausedLine((prev) => (Number.isFinite(prev) ? prev + 1 : prev));
     setVariables((prev) =>
-      prev.map((v) => (v.name === "isReady" ? { ...v, value: "true" } : v)),
+      prev.map((item) =>
+        item.name === "isReady" ? { ...item, value: item.value === "true" ? "false" : "true" } : item,
+      ),
     );
   };
 
   const handleRestart = () => {
     handleStop();
-    setTimeout(() => handleStart(), 200);
+    window.setTimeout(() => handleStart(), 180);
   };
-
-  /* ── Console input ────────────────────────────────────────────────────── */
 
   const handleConsoleSubmit = () => {
-    const cmd = consoleInput.trim();
-    if (!cmd) return;
-    addLog(`> ${cmd}`, "input");
+    const command = consoleInput.trim();
+    if (!command) return;
+    addLog(`> ${command}`, "input");
     setConsoleInput("");
 
-    // Simple eval simulation
-    setTimeout(() => {
-      if (cmd === "clear") {
+    window.setTimeout(() => {
+      if (command === "clear") {
+        logIdRef.current += 1;
         setConsoleLog([
           {
-            id: ++_logId.current,
+            id: logIdRef.current,
             type: "system",
             text: "Konsole geleert.",
-            time: new Date().toLocaleTimeString(),
+            time: new Date().toLocaleTimeString("de-DE", { hour12: false }),
           },
         ]);
-      } else if (cmd.startsWith("print ") || cmd.startsWith("console.log(")) {
-        addLog(
-          cmd.replace(/^(print |console\.log\()/, "").replace(/\)$/, ""),
-          "output",
-        );
-      } else if (variables.find((v) => v.name === cmd)) {
-        const v = variables.find((v) => v.name === cmd);
-        addLog(`${cmd} = ${v.value} (${v.type})`, "output");
-      } else {
-        addLog(`[Eval] "${cmd}" → undefined`, "output");
+        return;
       }
+
+      const variable = variables.find((item) => item.name === command);
+      if (variable) {
+        addLog(`${command} = ${variable.value} (${variable.type})`, "output");
+        return;
+      }
+
+      if (command.startsWith("print ") || command.startsWith("console.log(")) {
+        addLog(command.replace(/^(print |console\.log\()/, "").replace(/\)$/, ""), "output");
+        return;
+      }
+
+      addLog(`[Eval] "${command}" -> undefined`, "output");
     }, 100);
   };
-
-  /* ── Watch expressions ───────────────────────────────────────────────── */
 
   const handleAddWatch = () => {
     const name = watchInput.trim();
     if (!name) return;
-    const existing = variables.find((v) => v.name === name);
+    const existing = variables.find((item) => item.name === name);
     if (!existing) {
       setVariables((prev) => [
         ...prev,
@@ -354,594 +328,386 @@ export default function DebugPanel({ activeFile, _code, problems = [] }) {
     }
     setWatchInput("");
     setAddingWatch(false);
-    addLog(`Beobachte: ${name}`, "info");
+    addLog(`Watch: ${name}`, "info");
   };
 
   const handleRemoveVariable = (id) => {
-    setVariables((prev) => prev.filter((v) => v.id !== id));
+    setVariables((prev) => prev.filter((item) => item.id !== id));
   };
-
-  /* ── Breakpoints ─────────────────────────────────────────────────────── */
 
   const handleAddBreakpoint = () => {
     const line = parseInt(newBpLine, 10);
-    if (!isNaN(line) && line > 0 && !breakpoints.includes(line)) {
+    if (!Number.isNaN(line) && line > 0 && !breakpoints.includes(line)) {
       setBreakpoints((prev) => [...prev, line].sort((a, b) => a - b));
-      addLog(`Breakpoint gesetzt bei Zeile ${line}`, "info");
+      addLog(`Breakpoint gesetzt: Zeile ${line}`, "info");
     }
     setNewBpLine("");
     setAddingBp(false);
   };
 
   const handleRemoveBreakpoint = (line) => {
-    setBreakpoints((prev) => prev.filter((l) => l !== line));
-    addLog(`Breakpoint entfernt (Zeile ${line})`, "system");
+    setBreakpoints((prev) => prev.filter((item) => item !== line));
+    addLog(`Breakpoint entfernt: Zeile ${line}`, "system");
   };
 
-  const toggleSection = (key) =>
+  const toggleSection = (key) => {
     setSections((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
 
-  /* ── Render ──────────────────────────────────────────────────────────── */
+  const statusLabel = isPaused ? "Paused" : isRunning ? "Running" : firstSyntaxError ? "Issues" : "Ready";
+  const statusTone = isPaused ? "warning" : isRunning ? "success" : firstSyntaxError ? "danger" : "muted";
 
   return (
-    <motion.div
-      initial={{ x: -260, opacity: 0 }}
-      animate={{ x: 0, opacity: 1 }}
-      transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
-      className="w-64 flex flex-col shrink-0 overflow-hidden"
-      style={{
-        background: "#0c0c1d",
-        borderRight: "1px solid rgba(128,0,255,0.1)",
-      }}
-    >
-      {/* ── Panel header ─────────────────────────────────────────────── */}
-      <div className="px-3 pt-3 pb-2 shrink-0 flex items-center justify-between">
-        <div className="flex items-center gap-1.5">
-          <Bug size={13} className="text-purple-400" />
-          <span className="text-[11px] font-semibold text-gray-500 tracking-widest uppercase">
-            Debug
-          </span>
+    <PanelShell ariaLabel="Debug">
+      <PanelHeader
+        icon={Bug}
+        title="Debug"
+        subtitle={activeFileName}
+        status={<PanelBadge tone={statusTone}>{statusLabel}</PanelBadge>}
+      >
+        <div className="grid grid-cols-3 gap-1.5">
+          <PanelMetric label="Breakpoints" value={breakpoints.length} tone={breakpoints.length ? "danger" : "muted"} />
+          <PanelMetric label="Watches" value={watches.length} tone={watches.length ? "accent" : "muted"} />
+          <PanelMetric label="Errors" value={syntaxErrors.length} tone={syntaxErrors.length ? "danger" : "success"} />
         </div>
+      </PanelHeader>
 
-        {/* Status pill */}
-        <AnimatePresence mode="wait">
-          {isRunning && (
-            <motion.div
-              key={isPaused ? "paused" : "running"}
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.8 }}
-              className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold"
-              style={{
-                background: isPaused
-                  ? "rgba(251,191,36,0.12)"
-                  : "rgba(34,197,94,0.12)",
-                border: isPaused
-                  ? "1px solid rgba(251,191,36,0.25)"
-                  : "1px solid rgba(34,197,94,0.25)",
-                color: isPaused ? "#fbbf24" : "#22c55e",
-              }}
-            >
-              <motion.div
-                animate={!isPaused ? { opacity: [1, 0.3, 1] } : {}}
-                transition={{ duration: 1, repeat: Infinity }}
-                className="w-1.5 h-1.5 rounded-full"
-                style={{ background: isPaused ? "#fbbf24" : "#22c55e" }}
-              />
-              {isPaused ? "Pausiert" : "Läuft"}
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-
-      {/* ── Divider ──────────────────────────────────────────────────── */}
-      <div
-        className="mx-3 mb-1 shrink-0"
-        style={{ height: "1px", background: "rgba(128,0,255,0.08)" }}
-      />
-
-      {/* ── Scrollable body ──────────────────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto">
-        {/* Controls */}
-        <SectionHeader
+      <PanelBody className="px-0 py-1">
+        <PanelSection
           icon={Zap}
-          title="Steuerung"
+          title="Controls"
           expanded={sections.controls}
           onToggle={() => toggleSection("controls")}
         >
-          <div className="px-3 pb-3 flex items-center gap-1.5 flex-wrap">
-            {/* Start / Stop */}
-            {!isRunning ? (
-              <motion.button
-                whileHover={{ scale: 1.05, y: -1 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={handleStart}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white"
-                style={{
-                  background: "linear-gradient(135deg, #8000ff, #0033ff)",
-                  boxShadow: "0 0 12px rgba(128,0,255,0.3)",
-                }}
-              >
-                <Play size={11} /> Starten
-              </motion.button>
-            ) : (
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={handleStop}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold"
-                style={{
-                  background: "rgba(239,68,68,0.12)",
-                  border: "1px solid rgba(239,68,68,0.25)",
-                  color: "#f87171",
-                }}
-              >
-                <Square size={11} /> Stop
-              </motion.button>
-            )}
-
-            {/* Continue (only when paused) */}
-            {isPaused && (
-              <motion.button
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+          <div className="grid gap-2 px-3 pb-3">
+            <div className="grid grid-cols-2 gap-1.5">
+              {!isRunning ? (
+                <DebugButton onClick={handleStart} tone="run" title="Start debug session">
+                  <Play size={13} />
+                  Start
+                </DebugButton>
+              ) : (
+                <DebugButton onClick={handleStop} tone="stop" title="Stop debug session">
+                  <Square size={13} />
+                  Stop
+                </DebugButton>
+              )}
+              <DebugButton
                 onClick={handleContinue}
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold"
-                style={{
-                  background: "rgba(34,197,94,0.1)",
-                  border: "1px solid rgba(34,197,94,0.2)",
-                  color: "#4ade80",
-                }}
-                title="Fortfahren"
+                disabled={!isPaused}
+                tone="continue"
+                title="Continue"
               >
-                <SkipForward size={11} />
-              </motion.button>
-            )}
-
-            {/* Step Over */}
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={handleStepOver}
-              disabled={!isRunning && !isPaused}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs"
-              style={{
-                background: "rgba(255,255,255,0.05)",
-                border: "1px solid rgba(255,255,255,0.07)",
-                color: isRunning ? "#9ca3af" : "#374151",
-                cursor: isRunning ? "pointer" : "not-allowed",
-              }}
-              title="Schritt überspringen"
-            >
-              <StepForward size={11} />
-            </motion.button>
-
-            {/* Restart */}
-            <motion.button
-              whileHover={{ scale: 1.05, rotate: -180 }}
-              whileTap={{ scale: 0.95 }}
-              transition={{ duration: 0.3 }}
-              onClick={handleRestart}
-              disabled={!isRunning}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs"
-              style={{
-                background: "rgba(255,255,255,0.05)",
-                border: "1px solid rgba(255,255,255,0.07)",
-                color: isRunning ? "#9ca3af" : "#374151",
-                cursor: isRunning ? "pointer" : "not-allowed",
-              }}
-              title="Neustart"
-            >
-              <RotateCcw size={11} />
-            </motion.button>
-          </div>
-
-          {/* Active file indicator */}
-          {activeFile && (
-            <div
-              className="mx-3 mb-3 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg"
-              style={{
-                background: "rgba(128,0,255,0.06)",
-                border: "1px solid rgba(128,0,255,0.12)",
-              }}
-            >
-              <div
-                className="w-1.5 h-1.5 rounded-full shrink-0"
-                style={{
-                  background: isRunning ? "#22c55e" : "#374151",
-                  boxShadow: isRunning ? "0 0 6px #22c55e" : "none",
-                }}
-              />
-              <span className="text-[11px] text-gray-400 font-mono truncate">
-                {activeFile.name}
-              </span>
+                <SkipForward size={13} />
+                Continue
+              </DebugButton>
             </div>
-          )}
-          {firstSyntaxError && (
-            <div
-              className="mx-3 mb-3 flex items-start gap-1.5 px-2.5 py-1.5 rounded-lg"
-              style={{
-                background: "rgba(239,68,68,0.08)",
-                border: "1px solid rgba(239,68,68,0.2)",
-              }}
-            >
-              <AlertTriangle size={11} className="text-red-400 mt-0.5 shrink-0" />
-              <div className="min-w-0">
-                <p className="text-[11px] text-red-300 font-semibold">
-                  Syntax-Fehler bei Zeile {firstSyntaxError.startLineNumber}
-                </p>
-                <p className="text-[10px] text-red-200/80 truncate">
-                  {firstSyntaxError.message}
-                </p>
+            <div className="grid grid-cols-2 gap-1.5">
+              <DebugButton onClick={handleStepOver} disabled={!isPaused} title="Step over">
+                <StepForward size={13} />
+                Step
+              </DebugButton>
+              <DebugButton onClick={handleRestart} disabled={!isRunning} title="Restart">
+                <RotateCcw size={13} />
+                Restart
+              </DebugButton>
+            </div>
+
+            <div className="rounded-lg border border-white/[0.06] bg-black/20 px-2.5 py-2">
+              <div className="flex min-w-0 items-center gap-2">
+                <span
+                  className="h-2 w-2 shrink-0 rounded-full"
+                  style={{
+                    background: isRunning ? (isPaused ? "#fbbf24" : "#22c55e") : "#4b5563",
+                    boxShadow: isRunning
+                      ? `0 0 8px ${isPaused ? "rgba(251,191,36,0.4)" : "rgba(34,197,94,0.4)"}`
+                      : "none",
+                  }}
+                />
+                <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-gray-300">
+                  {activeFileName}
+                </span>
+                {pausedLine ? (
+                  <span className="shrink-0 rounded bg-amber-400/10 px-1.5 py-0.5 text-[10px] text-amber-200">
+                    Ln {pausedLine}
+                  </span>
+                ) : null}
               </div>
             </div>
-          )}
-        </SectionHeader>
 
-        {/* ── Variables / Watch ───────────────────────────────────────── */}
-        <SectionHeader
+            {firstSyntaxError ? (
+              <div className="rounded-lg border border-red-400/20 bg-red-400/10 px-2.5 py-2">
+                <div className="flex items-start gap-2">
+                  <AlertTriangle size={13} className="mt-0.5 shrink-0 text-red-300" />
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-semibold text-red-100">
+                      Fehler bei Zeile {firstSyntaxError.startLineNumber}
+                    </p>
+                    <p className="mt-0.5 truncate text-[10px] text-red-200/80">
+                      {firstSyntaxError.message}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+          </div>
+        </PanelSection>
+
+        <PanelSection
           icon={Eye}
-          title="Variablen"
+          title="Variables"
           count={variables.length}
           expanded={sections.variables}
           onToggle={() => toggleSection("variables")}
         >
-          <div className="pb-1">
-            <AnimatePresence mode="popLayout">
-              {variables.map((v) => (
-                <motion.div
-                  key={v.id}
-                  layout
-                  initial={{ opacity: 0, x: -8 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -8, height: 0 }}
-                  transition={{ duration: 0.18 }}
-                  className="flex items-center gap-2 px-3 py-1 group hover:bg-white/[0.03] transition-colors"
-                >
-                  <TypeBadge type={v.type} />
-                  <span className="text-xs text-gray-300 font-mono shrink-0">
-                    {v.name}
-                  </span>
-                  <span className="text-xs text-gray-500 truncate font-mono flex-1 text-right">
-                    {v.value}
-                  </span>
-                  {v.watch && (
-                    <motion.button
-                      initial={{ opacity: 0 }}
-                      whileHover={{ opacity: 1, scale: 1.15 }}
-                      onClick={() => handleRemoveVariable(v.id)}
-                      className="opacity-0 group-hover:opacity-100 shrink-0 p-0.5 rounded hover:bg-red-500/10 transition-opacity"
-                    >
-                      <X size={9} className="text-red-400" />
-                    </motion.button>
-                  )}
-                </motion.div>
-              ))}
-            </AnimatePresence>
+          <div className="pb-2">
+            {variables.length === 0 ? (
+              <PanelState compact title="No variables" detail="Start debugging to populate scope values." />
+            ) : (
+              <AnimatePresence mode="popLayout">
+                {variables.map((item) => (
+                  <motion.div
+                    key={item.id}
+                    layout
+                    initial={{ opacity: 0, x: -8 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -8, height: 0 }}
+                    transition={{ duration: 0.16 }}
+                    className="group flex min-w-0 items-center gap-2 px-3 py-1.5 transition-colors hover:bg-white/[0.035]"
+                  >
+                    <TypeBadge type={item.type} />
+                    <span className="shrink-0 font-mono text-xs text-gray-300">{item.name}</span>
+                    <span className="min-w-0 flex-1 truncate text-right font-mono text-xs text-gray-500">
+                      {item.value}
+                    </span>
+                    {item.watch ? (
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveVariable(item.id)}
+                        className="shrink-0 rounded p-0.5 text-gray-600 opacity-0 transition-opacity hover:bg-red-500/10 hover:text-red-300 group-hover:opacity-100"
+                        title={`Remove ${item.name}`}
+                      >
+                        <X size={11} />
+                      </button>
+                    ) : null}
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            )}
 
-            {/* Add watch expression */}
-            <AnimatePresence>
+            <AnimatePresence initial={false}>
               {addingWatch ? (
                 <motion.div
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: "auto" }}
                   exit={{ opacity: 0, height: 0 }}
-                  className="px-3 py-1.5 flex items-center gap-1.5"
+                  className="grid grid-cols-[1fr_auto] gap-1.5 px-3 py-1.5"
                 >
                   <input
                     autoFocus
                     value={watchInput}
-                    onChange={(e) => setWatchInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") handleAddWatch();
-                      if (e.key === "Escape") {
+                    onChange={(event) => setWatchInput(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") handleAddWatch();
+                      if (event.key === "Escape") {
                         setAddingWatch(false);
                         setWatchInput("");
                       }
                     }}
-                    placeholder="variablenname…"
-                    className="flex-1 bg-transparent text-xs font-mono text-gray-300 outline-none placeholder:text-gray-700 min-w-0"
-                    style={{
-                      borderBottom: "1px solid rgba(128,0,255,0.3)",
-                      paddingBottom: "1px",
-                    }}
+                    placeholder="expression or variable"
+                    className={PANEL_INPUT_CLASS}
                   />
-                  <button
-                    onClick={() => {
-                      setAddingWatch(false);
-                      setWatchInput("");
-                    }}
-                  >
-                    <X
-                      size={10}
-                      className="text-gray-600 hover:text-gray-400"
-                    />
-                  </button>
+                  <DebugButton onClick={handleAddWatch} disabled={!watchInput.trim()} title="Add watch">
+                    <Plus size={13} />
+                  </DebugButton>
                 </motion.div>
               ) : (
                 <button
+                  type="button"
                   onClick={() => setAddingWatch(true)}
-                  className="flex items-center gap-1 px-3 py-1 text-[10px] text-gray-600 hover:text-purple-400 transition-colors"
+                  className="mx-3 mt-1 flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-semibold text-gray-500 transition-colors hover:bg-white/[0.04] hover:text-purple-300"
                 >
-                  <Plus size={10} /> Ausdruck beobachten
+                  <Plus size={11} />
+                  Add watch
                 </button>
               )}
             </AnimatePresence>
           </div>
-        </SectionHeader>
+        </PanelSection>
 
-        {/* ── Call Stack ──────────────────────────────────────────────── */}
-        <SectionHeader
+        <PanelSection
           icon={Layers}
           title="Call Stack"
           count={callstack.length}
           expanded={sections.callstack}
           onToggle={() => toggleSection("callstack")}
         >
-          <div className="pb-1">
-            {callstack.map((frame, i) => (
-              <motion.div
-                key={frame.id}
-                initial={{ opacity: 0, x: -8 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: i * 0.04 }}
-                className="flex items-center gap-2 px-3 py-1.5 group cursor-pointer hover:bg-white/[0.03] transition-colors"
-              >
-                <div
-                  className="w-1.5 h-1.5 rounded-full shrink-0"
-                  style={{
-                    background: frame.active ? "#a855f7" : "#374151",
-                  }}
-                />
-                <div className="flex-1 min-w-0">
-                  <p
-                    className="text-xs font-mono truncate"
-                    style={{ color: frame.active ? "#c084fc" : "#9ca3af" }}
-                  >
-                    {frame.fn}
-                  </p>
-                  <p className="text-[10px] text-gray-600 truncate">
-                    {frame.file}:{frame.line}
-                  </p>
-                </div>
-              </motion.div>
-            ))}
+          <div className="pb-2">
+            {callstack.length === 0 ? (
+              <PanelState compact title="No stack frames" detail="Run or pause a session to inspect frames." />
+            ) : (
+              callstack.map((frame, index) => (
+                <motion.div
+                  key={frame.id}
+                  initial={{ opacity: 0, x: -8 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.035 }}
+                  className="flex min-w-0 items-center gap-2 px-3 py-1.5 transition-colors hover:bg-white/[0.035]"
+                >
+                  <span
+                    className="h-1.5 w-1.5 shrink-0 rounded-full"
+                    style={{ background: frame.active ? "#a855f7" : "#4b5563" }}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-mono text-xs" style={{ color: frame.active ? "#d8b4fe" : "#9ca3af" }}>
+                      {frame.fn}
+                    </p>
+                    <p className="truncate text-[10px] text-gray-600">
+                      {frame.file}:{frame.line}
+                    </p>
+                  </div>
+                </motion.div>
+              ))
+            )}
           </div>
-        </SectionHeader>
+        </PanelSection>
 
-        {/* ── Breakpoints ─────────────────────────────────────────────── */}
-        <SectionHeader
+        <PanelSection
           icon={Circle}
           title="Breakpoints"
           count={breakpoints.length}
           expanded={sections.breakpoints}
           onToggle={() => toggleSection("breakpoints")}
         >
-          <div className="pb-1">
-            <AnimatePresence mode="popLayout">
-              {breakpoints.map((line) => (
-                <motion.div
-                  key={line}
-                  layout
-                  initial={{ opacity: 0, x: -8 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -8, height: 0 }}
-                  transition={{ duration: 0.18 }}
-                  className="flex items-center gap-2 px-3 py-1 group hover:bg-white/[0.03] transition-colors"
-                >
+          <div className="pb-2">
+            {breakpoints.length === 0 ? (
+              <PanelState compact title="No breakpoints" detail="Add a line breakpoint before starting." />
+            ) : (
+              <AnimatePresence mode="popLayout">
+                {breakpoints.map((line) => (
                   <motion.div
-                    animate={{
-                      scale: isRunning && !isPaused ? [1, 1.16, 1] : 1,
-                      opacity: isRunning && !isPaused ? [0.78, 1, 0.78] : 1,
-                    }}
-                    transition={{ duration: 1.2, repeat: Infinity }}
-                    className="w-2 h-2 rounded-full bg-red-500 shrink-0"
-                    style={{ willChange: "transform, opacity" }}
-                  />
-                  <span className="text-xs text-gray-400 font-mono flex-1">
-                    Zeile <span className="text-gray-200">{line}</span>
-                  </span>
-                  {activeFile && (
-                    <span className="text-[10px] text-gray-600 truncate max-w-20">
-                      {activeFile.name}
-                    </span>
-                  )}
-                  <motion.button
-                    initial={{ opacity: 0 }}
-                    whileHover={{ scale: 1.15 }}
-                    onClick={() => handleRemoveBreakpoint(line)}
-                    className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-red-500/10 transition-opacity"
+                    key={line}
+                    layout
+                    initial={{ opacity: 0, x: -8 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -8, height: 0 }}
+                    className="group flex min-w-0 items-center gap-2 px-3 py-1.5 transition-colors hover:bg-white/[0.035]"
                   >
-                    <X size={10} className="text-red-400" />
-                  </motion.button>
-                </motion.div>
-              ))}
-            </AnimatePresence>
+                    <span className="h-2 w-2 shrink-0 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.35)]" />
+                    <span className="min-w-0 flex-1 truncate font-mono text-xs text-gray-300">
+                      {activeFile?.name || "current file"}:{line}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveBreakpoint(line)}
+                      className="shrink-0 rounded p-0.5 text-gray-600 opacity-0 transition-opacity hover:bg-red-500/10 hover:text-red-300 group-hover:opacity-100"
+                      title={`Remove breakpoint ${line}`}
+                    >
+                      <X size={11} />
+                    </button>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            )}
 
-            {/* Add breakpoint */}
-            <AnimatePresence>
+            <AnimatePresence initial={false}>
               {addingBp ? (
                 <motion.div
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: "auto" }}
                   exit={{ opacity: 0, height: 0 }}
-                  className="px-3 py-1.5 flex items-center gap-1.5"
+                  className="grid grid-cols-[1fr_auto] gap-1.5 px-3 py-1.5"
                 >
-                  <Circle size={10} className="text-red-400 shrink-0" />
                   <input
                     autoFocus
                     type="number"
                     min="1"
                     value={newBpLine}
-                    onChange={(e) => setNewBpLine(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") handleAddBreakpoint();
-                      if (e.key === "Escape") {
+                    onChange={(event) => setNewBpLine(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") handleAddBreakpoint();
+                      if (event.key === "Escape") {
                         setAddingBp(false);
                         setNewBpLine("");
                       }
                     }}
-                    placeholder="Zeilennummer…"
-                    className="flex-1 bg-transparent text-xs font-mono text-gray-300 outline-none placeholder:text-gray-700 min-w-0"
-                    style={{
-                      borderBottom: "1px solid rgba(239,68,68,0.3)",
-                      paddingBottom: "1px",
-                    }}
+                    placeholder="line"
+                    className={PANEL_INPUT_CLASS}
                   />
-                  <button
-                    onClick={() => {
-                      setAddingBp(false);
-                      setNewBpLine("");
-                    }}
-                  >
-                    <X
-                      size={10}
-                      className="text-gray-600 hover:text-gray-400"
-                    />
-                  </button>
+                  <DebugButton onClick={handleAddBreakpoint} disabled={!newBpLine} title="Add breakpoint">
+                    <Plus size={13} />
+                  </DebugButton>
                 </motion.div>
               ) : (
                 <button
+                  type="button"
                   onClick={() => setAddingBp(true)}
-                  className="flex items-center gap-1 px-3 py-1 text-[10px] text-gray-600 hover:text-red-400 transition-colors"
+                  className="mx-3 mt-1 flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-semibold text-gray-500 transition-colors hover:bg-white/[0.04] hover:text-red-300"
                 >
-                  <Plus size={10} /> Breakpoint hinzufügen
+                  <Plus size={11} />
+                  Add breakpoint
                 </button>
               )}
             </AnimatePresence>
           </div>
-        </SectionHeader>
+        </PanelSection>
 
-        {/* ── Debug Console ───────────────────────────────────────────── */}
-        <SectionHeader
+        <PanelSection
           icon={Terminal}
-          title="Konsole"
+          title="Debug Console"
           expanded={sections.console}
           onToggle={() => toggleSection("console")}
         >
-          {/* Log output */}
-          <div
-            className="mx-3 mb-2 rounded-lg overflow-hidden"
-            style={{
-              background: "rgba(0,0,0,0.3)",
-              border: "1px solid rgba(255,255,255,0.05)",
-              maxHeight: "140px",
-            }}
-          >
-            <div className="overflow-y-auto max-h-36 p-2 space-y-0.5 font-mono">
-              <AnimatePresence>
-                {consoleLog.map((entry) => {
-                  const style =
-                    CONSOLE_STYLES[entry.type] || CONSOLE_STYLES.output;
-                  return (
-                    <motion.div
-                      key={entry.id}
-                      initial={{ opacity: 0, x: -6 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ duration: 0.15 }}
-                      className="flex items-start gap-1.5 leading-relaxed"
-                    >
-                      {style.icon && (
-                        <span
-                          className="shrink-0 mt-0.5"
-                          style={{ color: style.color }}
-                        >
-                          {style.icon}
-                        </span>
-                      )}
-                      <span
-                        className="text-[10px] break-all flex-1"
-                        style={{ color: style.color }}
-                      >
-                        {entry.text}
-                      </span>
-                      <span className="text-[9px] text-gray-700 shrink-0 mt-0.5 ml-1">
-                        {entry.time}
-                      </span>
-                    </motion.div>
-                  );
-                })}
+          <div className="grid gap-2 px-3 pb-3">
+            <div className="max-h-40 overflow-y-auto rounded-lg border border-white/[0.06] bg-black/30 p-2 font-mono">
+              <AnimatePresence initial={false}>
+                {consoleLog.map((entry) => (
+                  <ConsoleEntry key={entry.id} entry={entry} />
+                ))}
               </AnimatePresence>
               <div ref={consoleEndRef} />
             </div>
-          </div>
 
-          {/* Console input */}
-          <div
-            className="mx-3 mb-3 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg"
-            style={{
-              background: "rgba(0,0,0,0.25)",
-              border: "1px solid rgba(255,255,255,0.06)",
-            }}
-          >
-            <motion.span
-              animate={{ opacity: [0.4, 1, 0.4] }}
-              transition={{ duration: 1.5, repeat: Infinity }}
-              className="text-purple-400 text-xs font-mono shrink-0"
-            >
-              {">"}
-            </motion.span>
-            <input
-              ref={consoleInputRef}
-              value={consoleInput}
-              onChange={(e) => setConsoleInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") handleConsoleSubmit();
-              }}
-              placeholder="Ausdruck eingeben…"
-              className="flex-1 bg-transparent text-[11px] font-mono text-gray-300 outline-none placeholder:text-gray-700 min-w-0"
-            />
-            {consoleInput && (
-              <motion.button
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9 }}
-                onClick={() => setConsoleInput("")}
-              >
-                <X size={9} className="text-gray-600" />
-              </motion.button>
-            )}
+            <div className="grid grid-cols-[auto_1fr_auto] items-center gap-1.5 rounded-lg border border-white/[0.06] bg-black/25 px-2.5 py-1.5">
+              <span className="font-mono text-xs text-purple-300">{">"}</span>
+              <input
+                value={consoleInput}
+                onChange={(event) => setConsoleInput(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") handleConsoleSubmit();
+                }}
+                placeholder="Evaluate expression"
+                className="min-w-0 bg-transparent font-mono text-[11px] text-gray-300 outline-none placeholder:text-gray-700"
+              />
+              {consoleInput ? (
+                <button
+                  type="button"
+                  onClick={() => setConsoleInput("")}
+                  className="rounded p-0.5 text-gray-600 hover:bg-white/10 hover:text-gray-300"
+                  title="Clear console input"
+                >
+                  <X size={11} />
+                </button>
+              ) : null}
+            </div>
           </div>
-        </SectionHeader>
-      </div>
+        </PanelSection>
+      </PanelBody>
 
-      {/* ── Footer status ─────────────────────────────────────────────── */}
-      <div
-        className="px-3 py-2 shrink-0 flex items-center gap-2"
-        style={{ borderTop: "1px solid rgba(128,0,255,0.08)" }}
-      >
-        <div
-          className="w-1.5 h-1.5 rounded-full shrink-0"
-          style={{
-            background: isRunning
-              ? isPaused
-                ? "#fbbf24"
-                : "#22c55e"
-              : "#374151",
-            boxShadow: isRunning
-              ? isPaused
-                ? "0 0 5px #fbbf24"
-                : "0 0 5px #22c55e"
-              : "none",
-          }}
-        />
-        <span className="text-[10px] text-gray-600">
-          {!isRunning
-            ? "Bereit"
-            : isPaused
-              ? `Pausiert — Zeile ${pausedLine ?? breakpoints[0] ?? "?"}`
-              : "Läuft…"}
-        </span>
-        {breakpoints.length > 0 && (
-          <>
-            <span className="text-[10px] text-gray-700 mx-0.5">·</span>
-            <span className="text-[10px] text-red-400/60">
-              {breakpoints.length} BP
-            </span>
-          </>
-        )}
-      </div>
-    </motion.div>
+      <PanelFooter>
+        <div className="flex min-w-0 items-center gap-2 text-[10px] text-gray-500">
+          <span
+            className="h-1.5 w-1.5 shrink-0 rounded-full"
+            style={{ background: isRunning ? (isPaused ? "#fbbf24" : "#22c55e") : "#4b5563" }}
+          />
+          <span className="min-w-0 flex-1 truncate">
+            {!isRunning ? "Debugger ready" : isPaused ? `Paused at line ${pausedLine ?? "?"}` : "Running"}
+          </span>
+          {breakpoints.length > 0 ? (
+            <span className="shrink-0 text-red-300/70">{breakpoints.length} BP</span>
+          ) : null}
+        </div>
+      </PanelFooter>
+    </PanelShell>
   );
 }

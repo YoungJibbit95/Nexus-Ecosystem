@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
+  Activity,
   ChevronDown,
   Command,
   FilePlus2,
@@ -10,7 +11,9 @@ import {
   Minimize2,
   PanelLeft,
   Save,
+  Search,
   Settings,
+  Sparkles,
   Square,
   TerminalSquare,
   X,
@@ -172,21 +175,62 @@ function CompactMenuButton({ menus, activeMenu, setActiveMenu }) {
 
 function CommandButton({ icon: Icon, label, active, onClick, title }) {
   return (
-    <button
+    <motion.button
       type="button"
       aria-pressed={active}
       title={title || label}
       onClick={onClick}
-      className="nx-code-command-button flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-gray-400 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500/60"
+      whileHover={{ y: -1 }}
+      whileTap={{ scale: 0.94 }}
+      className="nx-code-command-button nx-code-titlebar-icon-button flex shrink-0 items-center justify-center text-gray-400 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500/60"
       style={{
+        width: 30,
+        height: 30,
+        borderRadius: 8,
+        border: active
+          ? "1px solid rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.3)"
+          : "1px solid rgba(142, 153, 183, 0.12)",
         background: active
-          ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.15)"
-          : "rgba(255,255,255,0.02)",
+          ? "linear-gradient(135deg, rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.18), rgba(255,255,255,0.035))"
+          : "rgba(255,255,255,0.024)",
         color: active ? "var(--nexus-primary, #7c8cff)" : undefined,
+        boxShadow: active
+          ? "0 0 18px rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.12), inset 0 1px 0 rgba(255,255,255,0.06)"
+          : "inset 0 1px 0 rgba(255,255,255,0.035)",
       }}
     >
       <Icon size={14} />
-    </button>
+    </motion.button>
+  );
+}
+
+function ShellPill({ icon: Icon, label, tone = "muted" }) {
+  const isPrimary = tone === "primary";
+
+  return (
+    <span
+      className="nx-code-titlebar-pill hidden min-w-0 items-center gap-1.5 xl:flex"
+      style={{
+        height: 30,
+        maxWidth: 128,
+        borderRadius: 8,
+        border: isPrimary
+          ? "1px solid rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.22)"
+          : "1px solid rgba(255, 255, 255, 0.075)",
+        background: isPrimary
+          ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.09)"
+          : "rgba(255, 255, 255, 0.025)",
+        color: isPrimary
+          ? "var(--nexus-primary, #7c8cff)"
+          : "var(--nexus-muted, #99a3b7)",
+        padding: "0 9px",
+      }}
+    >
+      <Icon size={12} className="shrink-0" />
+      <span className="min-w-0 truncate text-[10px] font-semibold">
+        {label}
+      </span>
+    </span>
   );
 }
 
@@ -299,11 +343,18 @@ export default function TitleBar({
 
   return (
     <div
-      className={`nx-code-titlebar relative z-[60] flex h-10 shrink-0 select-none items-center justify-between gap-2 overflow-visible border-b border-white/5 ${compact ? "px-2" : "px-3"}`}
+      className={`nx-code-titlebar nx-code-titlebar-pro relative z-[60] flex shrink-0 select-none items-center justify-between overflow-visible ${compact ? "px-2" : "px-3"}`}
       style={{
-        background: "var(--nexus-surface)",
+        height: 40,
+        minHeight: 40,
+        flex: "0 0 40px",
+        gap: 8,
+        background:
+          "linear-gradient(180deg, rgba(255,255,255,0.046), rgba(255,255,255,0.012)), var(--nexus-surface)",
         borderBottom: "1px solid var(--nexus-border)",
-        backdropFilter: "blur(14px)",
+        boxShadow:
+          "inset 0 1px 0 rgba(255,255,255,0.06), 0 1px 0 rgba(0,0,0,0.36)",
+        backdropFilter: "blur(18px) saturate(122%)",
         // @ts-ignore
         WebkitAppRegion: isElectron ? "drag" : "no-drag",
       }}
@@ -341,6 +392,36 @@ export default function TitleBar({
         )}
 
         <div
+          className={`nx-code-titlebar-brand min-w-0 shrink-0 items-center ${compact ? "hidden 2xl:flex" : "hidden lg:flex"}`}
+          style={{
+            height: 30,
+            gap: 7,
+            borderRadius: 8,
+            border: "1px solid rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.16)",
+            background: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.075)",
+            padding: "0 9px 0 6px",
+            boxShadow:
+              "inset 0 1px 0 rgba(255,255,255,0.055), 0 0 20px rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.08)",
+          }}
+        >
+          <span
+            className="flex shrink-0 items-center justify-center"
+            style={{
+              width: 20,
+              height: 20,
+              borderRadius: 6,
+              background: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.16)",
+              color: "var(--nexus-primary, #7c8cff)",
+            }}
+          >
+            <Sparkles size={11} />
+          </span>
+          <span className="truncate text-[11px] font-semibold text-[var(--nexus-text)]">
+            Nexus
+          </span>
+        </div>
+
+        <div
           ref={menuHostRef}
           className="flex min-w-0 items-center gap-1"
           // @ts-ignore
@@ -348,6 +429,12 @@ export default function TitleBar({
         >
           <div
             className={`nx-code-menu-host nx-code-menu-cluster items-center ${compact ? "hidden xl:flex" : "flex"}`}
+            style={{
+              height: 30,
+              borderRadius: 8,
+              background: "rgba(255, 255, 255, 0.028)",
+              backdropFilter: "blur(12px)",
+            }}
           >
             {menus.map((menu) => (
               <MenuButton
@@ -361,6 +448,12 @@ export default function TitleBar({
           </div>
           <div
             className={`nx-code-menu-host nx-code-menu-compact-host items-center ${compact ? "flex xl:hidden" : "hidden"}`}
+            style={{
+              height: 30,
+              borderRadius: 8,
+              background: "rgba(255, 255, 255, 0.028)",
+              backdropFilter: "blur(12px)",
+            }}
           >
             <CompactMenuButton
               menus={menus}
@@ -371,32 +464,65 @@ export default function TitleBar({
         </div>
       </div>
 
-      <button
+      <motion.button
         type="button"
         onClick={safeCommandPalette}
-        className="nx-code-command-center mx-1 flex h-7 min-w-[8rem] flex-[1.25] items-center justify-center gap-2 rounded-md px-2.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500/60 sm:max-w-[32rem]"
+        whileHover={{ y: -1 }}
+        whileTap={{ scale: 0.995 }}
+        className="nx-code-command-center nx-code-command-center-pro mx-1 flex min-w-0 flex-[1.25] items-center justify-center text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500/60"
         // @ts-ignore
-        style={{ WebkitAppRegion: "no-drag" }}
-        title="Befehlspalette oeffnen"
+        style={{
+          height: 30,
+          minHeight: 30,
+          minWidth: compact ? 168 : 220,
+          maxWidth: 560,
+          gap: 9,
+          borderRadius: 8,
+          border: "1px solid rgba(142, 153, 183, 0.16)",
+          background:
+            "linear-gradient(180deg, rgba(255,255,255,0.058), rgba(255,255,255,0.02)), rgba(5, 7, 12, 0.34)",
+          boxShadow:
+            "0 0 24px rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.08), inset 0 1px 0 rgba(255,255,255,0.065)",
+          padding: "0 9px",
+          WebkitAppRegion: "no-drag",
+        }}
+        title="Command Center oeffnen"
       >
-        <Command size={13} className="shrink-0 text-gray-500" />
-        <span className="min-w-0 truncate text-[11px] font-semibold text-gray-300">
-          Nexus Code
+        <span
+          className="flex shrink-0 items-center justify-center"
+          style={{
+            width: 24,
+            height: 24,
+            borderRadius: 7,
+            border: "1px solid rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.22)",
+            background: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.11)",
+            color: "var(--nexus-primary, #7c8cff)",
+          }}
+        >
+          <Search size={13} />
+        </span>
+        <span className="min-w-0 flex-1 truncate text-[11px] font-semibold text-gray-200">
+          Nexus Command
           <span className="hidden text-gray-500 md:inline"> / {workspaceLabel}</span>
         </span>
-        <span className="hidden shrink-0 rounded-md border border-white/10 px-1.5 py-0.5 text-[9px] font-semibold tabular-nums text-gray-500 xl:inline">
+        <span
+          className="hidden shrink-0 rounded-md px-2 py-1 text-[9px] font-semibold tabular-nums text-gray-400 xl:inline"
+          style={{
+            border: "1px solid rgba(255, 255, 255, 0.09)",
+            background: "rgba(0, 0, 0, 0.15)",
+          }}
+        >
           {shellModeLabel}
         </span>
-      </button>
+      </motion.button>
 
       <div
-        className="flex min-w-0 flex-1 basis-0 items-center justify-end gap-1"
+        className="flex min-w-0 flex-1 basis-0 items-center justify-end"
         // @ts-ignore
-        style={{ WebkitAppRegion: "no-drag" }}
+        style={{ gap: 6, WebkitAppRegion: "no-drag" }}
       >
-        <span className="hidden max-w-[7rem] truncate pr-1 text-[10px] text-gray-500 xl:block">
-          {activePanelLabel}
-        </span>
+        <ShellPill icon={Activity} label={activePanelLabel} />
+        <ShellPill icon={Command} label={shellModeLabel} tone="primary" />
         <CommandButton
           icon={PanelLeft}
           label="Sidebar"
