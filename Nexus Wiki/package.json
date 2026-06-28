@@ -15,7 +15,7 @@
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.2.4",
-    "@vitejs/plugin-react": "^6.0.1",
+    "@vitejs/plugin-react": "^6.0.3",
     "lucide-react": "^1.14.0",
     "motion": "^12.38.0",
     "nexus-workspace": "file:../..",
