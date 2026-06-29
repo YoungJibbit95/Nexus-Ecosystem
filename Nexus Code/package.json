@@ -12,6 +12,7 @@
     "build": "tsc -b && vite build",
     "lint": "eslint . --quiet",
     "lint:fix": "eslint . --fix",
+    "smoke:ui": "node ./scripts/run-ui-smoke.mjs",
     "typecheck": "tsc -p ./jsconfig.json",
     "preview": "vite preview",
     "electron:ensure": "node ./scripts/ensure-electron.cjs",

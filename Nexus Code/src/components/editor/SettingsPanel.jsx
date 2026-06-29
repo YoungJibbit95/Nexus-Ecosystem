@@ -72,7 +72,7 @@ const SETTING_SECTIONS = [
     eyebrow: "Budget",
     icon: Gauge,
     description: "Blur/Glow-Budget, LSP, Diagnostics und Rendering-Kosten.",
-    keywords: "performance visual profile blur glow outline lsp diagnostics autocomplete minimap renderer hints budget",
+    keywords: "performance visual profile blur glow outline lsp diagnostics autocomplete minimap renderer hints budget low power fallback battery",
   },
   {
     id: "animations",
@@ -147,6 +147,13 @@ const SETTING_INDEX = [
     label: "Editor Font Size",
     description: "Schriftgroesse in Pixeln.",
     keywords: "font size text zoom editor",
+  },
+  {
+    id: "text_size_preset",
+    section: "editor",
+    label: "Textgroessen Presets",
+    description: "Schnelle Kombinationen aus Font Size, Line Height und Letter Spacing.",
+    keywords: "text size font preset scale compact comfortable presentation line height letter spacing",
   },
   {
     id: "line_height",
@@ -296,6 +303,20 @@ const SETTING_INDEX = [
     keywords: "performance quality balanced profile visual",
   },
   {
+    id: "visual_budget_summary",
+    section: "performance",
+    label: "Visual Budget",
+    description: "Sichtbarer Kostenindikator fuer Blur, Glow, Renderer und Motion.",
+    keywords: "visual budget cost expensive blur glow renderer motion paint performance",
+  },
+  {
+    id: "low_power_fallback",
+    section: "performance",
+    label: "Low-Power Fallback",
+    description: "Reduzierte Visuals, Motion und Minimap fuer schwache Systeme.",
+    keywords: "low power fallback battery reduce motion performance profile minimap",
+  },
+  {
     id: "glow_renderer",
     section: "performance",
     label: "Glow Renderer",
@@ -369,6 +390,33 @@ const SETTING_INDEX = [
 
 const SECTION_IDS = SETTING_SECTIONS.map((section) => section.id);
 const SETTING_INDEX_BY_ID = new Map(SETTING_INDEX.map((entry) => [entry.id, entry]));
+
+const TEXT_SIZE_PRESETS = [
+  {
+    id: "compact",
+    label: "Compact",
+    description: "13px / 1.45 fuer dichte Dateien.",
+    settings: { font_size: 13, line_height: 1.45, letter_spacing: 0 },
+  },
+  {
+    id: "standard",
+    label: "Standard",
+    description: "14px / 1.6 als ruhiger Default.",
+    settings: { font_size: 14, line_height: 1.6, letter_spacing: 0 },
+  },
+  {
+    id: "comfortable",
+    label: "Comfort",
+    description: "16px / 1.7 fuer laengere Sessions.",
+    settings: { font_size: 16, line_height: 1.7, letter_spacing: 0.02 },
+  },
+  {
+    id: "presentation",
+    label: "Present",
+    description: "18px / 1.75 fuer Demos und Reviews.",
+    settings: { font_size: 18, line_height: 1.75, letter_spacing: 0.04 },
+  },
+];
 
 function unwrapIpcResponse(result) {
   if (result && typeof result === "object" && "ok" in result) {
@@ -506,11 +554,92 @@ function createThemeTokenList(resolvedTheme) {
   ].filter((token) => token.value);
 }
 
-function buildPerformanceHints(settings = {}, visualProfileId, lspServers = []) {
+function getTextPresetId(settings = {}) {
+  const fontSize = getNumberSetting(settings, "font_size", 14);
+  const lineHeight = getNumberSetting(settings, "line_height", 1.6);
+  const letterSpacing = getNumberSetting(settings, "letter_spacing", 0);
+  return (
+    TEXT_SIZE_PRESETS.find((preset) => (
+      Math.abs(fontSize - preset.settings.font_size) < 0.01 &&
+      Math.abs(lineHeight - preset.settings.line_height) < 0.01 &&
+      Math.abs(letterSpacing - preset.settings.letter_spacing) < 0.01
+    ))?.id || "custom"
+  );
+}
+
+function buildVisualBudgetSummary(settings = {}, visualProfileId, shouldReduceMotion) {
+  const panelBlur = clampNumber(settings.panel_blur_strength, 0, 32, 16);
+  const glowIntensity = clampNumber(settings.glow_intensity, 0, 100, 28);
+  const glowRadius = clampNumber(settings.glow_radius, 0, 64, 14);
+  const animationSpeed = clampNumber(settings.animation_speed, 0.5, 1.8, 1);
+  const panelMode = settings.panel_background_mode || "blur";
+  const animationsEnabled = settings.animations_enabled !== false;
+  const rendererCost = settings.glow_renderer === "three" ? 18 : 0;
+  const panelModeCost =
+    panelMode === "glass-shader" ? 14 : panelMode === "fake-glass" ? 8 : 2;
+  const motionCost = shouldReduceMotion || !animationsEnabled
+    ? 0
+    : 8 + Math.max(0, animationSpeed - 1) * 10;
+  const featureCost =
+    (settings.panel_glow_outline ? 8 : 0) +
+    (settings.cursor_glow === true ? 4 : 0) +
+    (settings.icon_glow ? 4 : 0) +
+    (settings.minimap !== false ? 5 : 0);
+  const rawScore =
+    (panelBlur / 32) * 24 +
+    (glowIntensity / 100) * 26 +
+    (glowRadius / 64) * 12 +
+    rendererCost +
+    panelModeCost +
+    motionCost +
+    featureCost;
+  const score = Math.round(clampNumber(rawScore, 0, 100, 42));
+  const tier =
+    score >= 70
+      ? "Teuer"
+      : score >= 46
+        ? "Mittel"
+        : visualProfileId === "performance"
+          ? "Low Power"
+          : "Stabil";
+  const tone = score >= 70 ? "warn" : score >= 46 ? "info" : "good";
+  const factors = [
+    { label: "Blur", value: `${panelBlur}px`, hot: panelBlur >= 24 },
+    { label: "Glow", value: `${glowIntensity}% / ${glowRadius}px`, hot: glowIntensity >= 55 || glowRadius >= 34 },
+    { label: "Renderer", value: settings.glow_renderer === "three" ? "Intensiv" : "CSS", hot: settings.glow_renderer === "three" },
+    { label: "Panel", value: panelMode, hot: panelMode === "glass-shader" },
+    { label: "Motion", value: shouldReduceMotion ? "Fallback" : `${formatSettingNumber(animationSpeed, 1)}x`, hot: !shouldReduceMotion && animationSpeed > 1.25 },
+  ];
+
+  return { score, tier, tone, factors };
+}
+
+function buildLowPowerState(settings = {}, visualProfileId, prefersReducedMotion, shouldReduceMotion) {
+  const reasons = [];
+  if (prefersReducedMotion) reasons.push("System reduziert Bewegung");
+  if (settings.reduce_motion === true) reasons.push("Reduce Motion ist aktiv");
+  if (settings.animations_enabled === false) reasons.push("Animationen sind deaktiviert");
+  if (visualProfileId === "performance") reasons.push("Performance-Profil ist aktiv");
+  if (settings.smooth_caret === false) reasons.push("Sanfter Caret ist deaktiviert");
+
+  const active = shouldReduceMotion || visualProfileId === "performance";
+  return {
+    active,
+    title: active ? "Low-Power-Fallback aktiv" : "Low-Power-Fallback bereit",
+    text: active
+      ? "Nexus Code nutzt reduzierte Motion und ein kleineres Effektbudget."
+      : "Ein Klick reduziert Blur, Glow, Motion und Minimap ohne Language Features abzuschalten.",
+    reasons: reasons.length > 0 ? reasons : ["Balanced/Quality Visuals sind aktiv"],
+  };
+}
+
+function buildPerformanceHints(settings = {}, visualProfileId, lspServers = [], shouldReduceMotion = false) {
   const hints = [];
   const panelBlur = getNumberSetting(settings, "panel_blur_strength", 16);
   const glowIntensity = getNumberSetting(settings, "glow_intensity", 28);
   const glowRadius = getNumberSetting(settings, "glow_radius", 14);
+  const animationSpeed = clampNumber(settings.animation_speed, 0.5, 1.8, 1);
+  const panelMode = settings.panel_background_mode || "blur";
   const missingLspCount = lspServers.filter((server) => !server.available).length;
 
   if (visualProfileId === "performance") {
@@ -518,6 +647,13 @@ function buildPerformanceHints(settings = {}, visualProfileId, lspServers = []) 
       tone: "good",
       title: "Performance-Profil aktiv",
       text: "Motion und Glow laufen bereits mit kleinem Budget.",
+    });
+  }
+  if (shouldReduceMotion && visualProfileId !== "performance") {
+    hints.push({
+      tone: "good",
+      title: "Motion-Fallback greift",
+      text: "System- oder Nutzer-Setting reduziert Animationen auch ohne Performance-Profil.",
     });
   }
   if (panelBlur >= 24) {
@@ -534,11 +670,32 @@ function buildPerformanceHints(settings = {}, visualProfileId, lspServers = []) 
       text: "Intensitaet oder Radius vergroessern die Paint-Flaeche.",
     });
   }
+  if (panelMode === "glass-shader") {
+    hints.push({
+      tone: "warn",
+      title: "Glass Shader",
+      text: "Shader-Glass sollte nur fuer starke Maschinen oder kurze Sessions aktiv sein.",
+    });
+  }
   if (settings.glow_renderer === "three") {
     hints.push({
       tone: "warn",
       title: "Intensiver Renderer",
       text: "Nur fuer starke Theme-Previews sinnvoll, CSS bleibt guenstiger.",
+    });
+  }
+  if (settings.panel_glow_outline && glowIntensity >= 35) {
+    hints.push({
+      tone: "info",
+      title: "Outline plus Glow",
+      text: "Panel-Kanten und Glow addieren sich visuell; Balanced reicht meist.",
+    });
+  }
+  if (!shouldReduceMotion && animationSpeed > 1.25) {
+    hints.push({
+      tone: "info",
+      title: "Schnelle Motion",
+      text: "Hoehere Animation Speed wirkt flotter, macht Transitions aber praesenter.",
     });
   }
   if (settings.lsp_enabled !== false && missingLspCount > 0) {
@@ -548,6 +705,17 @@ function buildPerformanceHints(settings = {}, visualProfileId, lspServers = []) 
       text: `${missingLspCount} Server fehlen; Autocomplete faellt dort leiser zurueck.`,
     });
   }
+  if (
+    settings.minimap !== false &&
+    settings.validation_decorations !== false &&
+    settings.lsp_enabled !== false
+  ) {
+    hints.push({
+      tone: "info",
+      title: "Editor-Dienste komplett",
+      text: "Minimap, Diagnostics und LSP sind nuetzlich, aber auf sehr grossen Dateien spuerbar.",
+    });
+  }
   if (hints.length === 0) {
     hints.push({
       tone: "good",
@@ -555,7 +723,7 @@ function buildPerformanceHints(settings = {}, visualProfileId, lspServers = []) 
       text: "Blur, Glow und Language Features liegen im ausgewogenen Bereich.",
     });
   }
-  return hints.slice(0, 4);
+  return hints.slice(0, 5);
 }
 
 function SettingsHeader({ title, eyebrow, description, icon: Icon }) {
@@ -783,6 +951,135 @@ function PerformanceHintList({ hints }) {
   );
 }
 
+function VisualBudgetCard({ summary }) {
+  const toneStyles =
+    summary.tone === "warn"
+      ? {
+          background: "rgba(245,158,11,0.08)",
+          borderColor: "rgba(245,158,11,0.2)",
+          fill: "linear-gradient(90deg, #f59e0b, #ef4444)",
+        }
+      : summary.tone === "good"
+        ? {
+            background: "rgba(34,197,94,0.07)",
+            borderColor: "rgba(34,197,94,0.16)",
+            fill: "linear-gradient(90deg, #22c55e, #2dd4bf)",
+          }
+        : {
+            background: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.08)",
+            borderColor: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.18)",
+            fill: "linear-gradient(90deg, var(--nexus-primary), var(--nexus-accent-2))",
+          };
+
+  return (
+    <section
+      className="rounded-lg border p-4"
+      style={{
+        background: toneStyles.background,
+        borderColor: toneStyles.borderColor,
+      }}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-gray-500">
+            <Gauge size={13} />
+            Visual Budget
+          </div>
+          <div className="mt-2 text-sm font-semibold text-gray-100">
+            {summary.tier}
+          </div>
+        </div>
+        <ValueBadge>{summary.score}/100</ValueBadge>
+      </div>
+      <div className="mt-4 h-2 overflow-hidden rounded-full bg-black/25">
+        <div
+          className="h-full rounded-full"
+          style={{
+            width: `${summary.score}%`,
+            background: toneStyles.fill,
+          }}
+        />
+      </div>
+      <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+        {summary.factors.map((factor) => (
+          <div
+            key={factor.label}
+            className="flex items-center justify-between gap-2 rounded-md border border-white/5 bg-black/10 px-2.5 py-2 text-[10px]"
+          >
+            <span className="text-gray-500">{factor.label}</span>
+            <span className={factor.hot ? "font-semibold text-amber-200" : "text-gray-300"}>
+              {factor.value}
+            </span>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function LowPowerFallbackPanel({ state, onApply, onRestore }) {
+  return (
+    <section
+      className="rounded-lg border p-4"
+      style={{
+        background: state.active
+          ? "rgba(34,197,94,0.07)"
+          : "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.06)",
+        borderColor: state.active
+          ? "rgba(34,197,94,0.16)"
+          : "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.16)",
+      }}
+    >
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-gray-500">
+            <Cpu size={13} />
+            Low Power
+          </div>
+          <h3 className="mt-2 text-sm font-semibold text-gray-100">
+            {state.title}
+          </h3>
+          <p className="mt-1 max-w-xl text-xs leading-5 text-gray-500">
+            {state.text}
+          </p>
+        </div>
+        <div className="flex shrink-0 flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={onApply}
+            className="inline-flex h-8 items-center gap-2 rounded-md border px-3 text-xs font-semibold text-gray-100"
+            style={{
+              background: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.14)",
+              borderColor: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.28)",
+            }}
+          >
+            <Zap size={13} />
+            Anwenden
+          </button>
+          <button
+            type="button"
+            onClick={onRestore}
+            className="inline-flex h-8 items-center gap-2 rounded-md border border-white/10 bg-white/[0.03] px-3 text-xs font-semibold text-gray-300"
+          >
+            <RefreshCcw size={13} />
+            Balanced
+          </button>
+        </div>
+      </div>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {state.reasons.map((reason) => (
+          <span
+            key={reason}
+            className="rounded-full border border-white/10 bg-black/10 px-2 py-1 text-[10px] text-gray-400"
+          >
+            {reason}
+          </span>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function ColorControl({ value, fallback, onChange, label }) {
   const current = value || fallback;
   return (
@@ -800,6 +1097,24 @@ function ColorControl({ value, fallback, onChange, label }) {
         className="h-9 w-full min-w-0 bg-white/5 font-mono text-gray-300"
         style={{ border: "1px solid rgba(255,255,255,0.1)" }}
       />
+    </div>
+  );
+}
+
+function TextPresetGrid({ settings, onApplyPreset, shouldReduceMotion }) {
+  const activePresetId = getTextPresetId(settings);
+  return (
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      {TEXT_SIZE_PRESETS.map((preset) => (
+        <PresetButton
+          key={preset.id}
+          active={activePresetId === preset.id}
+          title={preset.label}
+          description={preset.description}
+          shouldReduceMotion={shouldReduceMotion}
+          onClick={() => onApplyPreset(preset)}
+        />
+      ))}
     </div>
   );
 }
@@ -950,6 +1265,7 @@ function ThemePreview({
               fontSize,
               lineHeight,
               letterSpacing,
+              fontWeight: settings.font_weight || "400",
             }}
           >
             <div>
@@ -1034,6 +1350,10 @@ export default function SettingsPanel({
   const letterSpacing = clampNumber(settings.letter_spacing, 0, 1.5, 0);
   const scopedThemeVars = React.useMemo(() => {
     const cssVars = resolvedTheme.cssVars;
+    const radiusXs = Math.max(4, radius - 6);
+    const radiusSm = Math.max(6, radius - 4);
+    const radiusLg = radius + 4;
+    const radiusXl = radius + 8;
     return {
       ...cssVars,
       "--nexus-primary": cssVars["--nexus-primary"],
@@ -1054,6 +1374,12 @@ export default function SettingsPanel({
       "--nexus-operator": cssVars["--nexus-operator"],
       "--primary-rgb": cssVars["--primary-rgb"],
       "--nexus-settings-radius": `${radius}px`,
+      "--nexus-radius-xs": `${radiusXs}px`,
+      "--nexus-radius-sm": `${radiusSm}px`,
+      "--nexus-radius-md": `${radius}px`,
+      "--nexus-radius-lg": `${radiusLg}px`,
+      "--nexus-radius-xl": `${radiusXl}px`,
+      "--nexus-radius-2xl": `${radiusXl + 4}px`,
     };
   }, [resolvedTheme, radius]);
   const themeTokens = React.useMemo(
@@ -1091,8 +1417,16 @@ export default function SettingsPanel({
     [searchTerm],
   );
   const performanceHints = React.useMemo(
-    () => buildPerformanceHints(settings, visualProfileId, lspServers),
-    [lspServers, settings, visualProfileId],
+    () => buildPerformanceHints(settings, visualProfileId, lspServers, shouldReduceMotion),
+    [lspServers, settings, shouldReduceMotion, visualProfileId],
+  );
+  const visualBudgetSummary = React.useMemo(
+    () => buildVisualBudgetSummary(settings, visualProfileId, shouldReduceMotion),
+    [settings, shouldReduceMotion, visualProfileId],
+  );
+  const lowPowerState = React.useMemo(
+    () => buildLowPowerState(settings, visualProfileId, prefersReducedMotion, shouldReduceMotion),
+    [prefersReducedMotion, settings, shouldReduceMotion, visualProfileId],
   );
 
   React.useEffect(() => {
@@ -1161,6 +1495,50 @@ export default function SettingsPanel({
     },
     [onSettingsChange, settings],
   );
+
+  const applyTextPreset = React.useCallback(
+    (preset) => {
+      updateSettings(preset.settings);
+    },
+    [updateSettings],
+  );
+
+  const applyLowPowerFallback = React.useCallback(() => {
+    const performanceProfile = visualPerformanceProfiles.find(
+      (profile) => profile.id === "performance",
+    );
+    updateSettings({
+      ...(performanceProfile?.settings || {}),
+      reduce_motion: true,
+      animations_enabled: false,
+      animation_speed: 0.75,
+      minimap: false,
+      smooth_caret: false,
+      cursor_glow: false,
+      icon_glow: false,
+      panel_glow_outline: false,
+      glow_renderer: "css",
+      panel_background_mode: "blur",
+      panel_blur_strength: 8,
+      glow_intensity: 12,
+      glow_radius: 8,
+      visual_performance_profile: "performance",
+    });
+  }, [updateSettings]);
+
+  const restoreBalancedVisuals = React.useCallback(() => {
+    const balancedProfile = visualPerformanceProfiles.find(
+      (profile) => profile.id === "balanced",
+    );
+    updateSettings({
+      ...(balancedProfile?.settings || {}),
+      reduce_motion: false,
+      animations_enabled: true,
+      animation_speed: 1,
+      minimap: true,
+      visual_performance_profile: "balanced",
+    });
+  }, [updateSettings]);
 
   const renderIfVisible = (sectionId, render) =>
     visibleSectionIds.includes(sectionId) ? render() : null;
@@ -1420,6 +1798,14 @@ export default function SettingsPanel({
                   shouldReduceMotion={shouldReduceMotion}
                 />
                 <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                  <VisualBudgetCard summary={visualBudgetSummary} />
+                  <LowPowerFallbackPanel
+                    state={lowPowerState}
+                    onApply={applyLowPowerFallback}
+                    onRestore={restoreBalancedVisuals}
+                  />
+                </div>
+                <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
                   <SettingsGroup
                     title="Theme Tokens"
                     description="Direkte Farben und Oberflaechenwerte fuer Nexus Code."
@@ -1538,6 +1924,13 @@ export default function SettingsPanel({
                   title="Editor Essentials"
                   description="Die VS-Code-artigen Editor-Optionen direkt im Theme Editor."
                 >
+                  <div className="mb-3">
+                    <TextPresetGrid
+                      settings={settings}
+                      onApplyPreset={applyTextPreset}
+                      shouldReduceMotion={shouldReduceMotion}
+                    />
+                  </div>
                   <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
                     <SettingRow
                       id="font_family"
@@ -1701,6 +2094,11 @@ export default function SettingsPanel({
                 ) : null}
                 <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
                   <SettingsGroup title="Typography" description="Editor-Schrift und Zeilenmetrik.">
+                    <TextPresetGrid
+                      settings={settings}
+                      onApplyPreset={applyTextPreset}
+                      shouldReduceMotion={shouldReduceMotion}
+                    />
                     <SettingRow
                       id="font_family"
                       sectionId="editor"
@@ -2134,6 +2532,14 @@ export default function SettingsPanel({
                     icon={Gauge}
                   />
                 ) : null}
+                <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                  <VisualBudgetCard summary={visualBudgetSummary} />
+                  <LowPowerFallbackPanel
+                    state={lowPowerState}
+                    onApply={applyLowPowerFallback}
+                    onRestore={restoreBalancedVisuals}
+                  />
+                </div>
                 <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
                   <SettingsGroup title="Visual Performance" description="Schnelle Profile fuer Effektbudget.">
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">

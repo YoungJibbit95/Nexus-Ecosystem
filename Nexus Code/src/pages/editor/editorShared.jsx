@@ -42,12 +42,14 @@ const defaultResolvedTheme = resolveNexusTheme({ theme: DEFAULT_THEME_ID });
 export const DEFAULT_SETTINGS = {
   theme: DEFAULT_THEME_ID,
   background: null,
+  visual_performance_profile: "balanced",
   panel_background_mode: "blur",
   glow_renderer: "css",
   panel_blur_strength: 16,
   panel_glow_outline: false,
   glow_intensity: 28,
   glow_radius: 14,
+  ui_radius: 10,
   font_size: 14,
   font_family: "JetBrains Mono",
   tab_size: 4,
@@ -56,15 +58,24 @@ export const DEFAULT_SETTINGS = {
   line_numbers: true,
   auto_save: true,
   lsp_enabled: true,
+  validation_decorations: true,
   line_height: 1.6,
+  letter_spacing: 0,
   primary_accent: defaultResolvedTheme.colors.primary,
   secondary_accent: defaultResolvedTheme.colors.secondary,
   render_whitespace: "none",
+  reduce_motion: false,
+  animations_enabled: true,
+  animation_speed: 1,
   smooth_caret: true,
   format_on_paste: true,
   sticky_scroll: false,
   cursor_style: "line",
   cursor_blinking: "solid",
+  cursor_glow: true,
+  icon_glow: false,
+  text_glow: false,
+  border_glow: false,
   line_highlight: "all",
   bracket_colorization: true,
   font_ligatures: true,
@@ -75,12 +86,32 @@ export const DEFAULT_SETTINGS = {
   font_weight: "400",
 };
 
+const VISUAL_PROFILE_IDS = new Set(["performance", "balanced", "quality", "custom"]);
+
+function readBoundedNumber(value, min, max, fallback) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return fallback;
+  return Math.max(min, Math.min(max, numeric));
+}
+
 function normalizeEditorSettings(settings) {
   const next = { ...DEFAULT_SETTINGS, ...(settings || {}) };
   next.theme = normalizeThemeId(next.theme);
   if (next.background && !BACKGROUNDS[next.background]) {
     next.background = null;
   }
+  if (!VISUAL_PROFILE_IDS.has(next.visual_performance_profile)) {
+    next.visual_performance_profile = "balanced";
+  }
+  next.panel_blur_strength = readBoundedNumber(next.panel_blur_strength, 0, 32, 16);
+  next.glow_intensity = readBoundedNumber(next.glow_intensity, 0, 100, 28);
+  next.glow_radius = readBoundedNumber(next.glow_radius, 0, 64, 14);
+  next.ui_radius = readBoundedNumber(next.ui_radius, 4, 24, 10);
+  next.font_size = readBoundedNumber(next.font_size, 10, 28, 14);
+  next.line_height = readBoundedNumber(next.line_height, 1.2, 2.5, 1.6);
+  next.letter_spacing = readBoundedNumber(next.letter_spacing, 0, 1.5, 0);
+  next.animation_speed = readBoundedNumber(next.animation_speed, 0.5, 1.8, 1);
+  next.tab_size = readBoundedNumber(next.tab_size, 2, 8, 4);
   return next;
 }
 
