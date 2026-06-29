@@ -60,9 +60,31 @@ const collator = new Intl.Collator(undefined, {
   sensitivity: "base",
 });
 
+function getNodeType(input) {
+  return input?.type === "folder" || input?.type === "directory" || input?.isDirectory
+    ? "folder"
+    : "file";
+}
+
 function getPathBasename(value) {
   const parts = String(value || "").split(/[\\/]/).filter(Boolean);
   return parts[parts.length - 1] || "";
+}
+
+function getNodeSortName(node) {
+  return String(node?.sortName || node?.name || getPathBasename(node?.fsPath || node?.path) || "")
+    .trim()
+    .toLowerCase();
+}
+
+function getNodeExtension(node) {
+  return String(
+    node?.extension || getFileExtension(node?.name || node?.fsPath || node?.path || ""),
+  ).toLowerCase();
+}
+
+function getSourceIndex(node) {
+  return Number.isFinite(node?.sourceIndex) ? node.sourceIndex : 0;
 }
 
 export function getFileExtension(name) {
@@ -96,14 +118,17 @@ function normalizeSearch(value) {
   return String(value || "").trim().toLowerCase();
 }
 
+function normalizeErrorMessage(error) {
+  if (!error) return "";
+  if (typeof error === "string") return error.trim();
+  return String(error.message || error).trim();
+}
+
 function normalizeNode(input, index) {
   const rawPath = input?.fsPath || input?.path || "";
   const name = String(input?.name || getPathBasename(rawPath) || "untitled");
   const id = String(input?.id || input?.fsPath || input?.path || `${name}:${index}`);
-  const type =
-    input?.type === "folder" || input?.type === "directory" || input?.isDirectory
-      ? "folder"
-      : "file";
+  const type = getNodeType(input);
   const parentId = input?.parentId == null || input?.parentId === "" ? null : String(input.parentId);
   const meta = getFileMeta(name);
 
@@ -125,17 +150,21 @@ function normalizeNode(input, index) {
 }
 
 export function compareFileTreeNodes(a, b) {
-  if (a.isFolder !== b.isFolder) return a.isFolder ? -1 : 1;
-  if (a.isFile && b.isFile) {
-    const extensionRankA = a.extension ? 0 : 1;
-    const extensionRankB = b.extension ? 0 : 1;
+  const isFolderA = Boolean(a?.isFolder) || getNodeType(a) === "folder";
+  const isFolderB = Boolean(b?.isFolder) || getNodeType(b) === "folder";
+  if (isFolderA !== isFolderB) return isFolderA ? -1 : 1;
+  if (!isFolderA && !isFolderB) {
+    const extensionA = getNodeExtension(a);
+    const extensionB = getNodeExtension(b);
+    const extensionRankA = extensionA ? 0 : 1;
+    const extensionRankB = extensionB ? 0 : 1;
     if (extensionRankA !== extensionRankB) return extensionRankA - extensionRankB;
-    const extensionCompare = collator.compare(a.extension, b.extension);
+    const extensionCompare = collator.compare(extensionA, extensionB);
     if (extensionCompare !== 0) return extensionCompare;
   }
-  const nameCompare = collator.compare(a.sortName, b.sortName);
+  const nameCompare = collator.compare(getNodeSortName(a), getNodeSortName(b));
   if (nameCompare !== 0) return nameCompare;
-  return a.sourceIndex - b.sourceIndex;
+  return getSourceIndex(a) - getSourceIndex(b);
 }
 
 function getLimitedChildren(children, maxChildrenPerFolder) {
@@ -157,9 +186,33 @@ function createOverflowNode(parentId, omitted) {
   };
 }
 
+export function mergeFileTreeRefreshNode(node, previousById, options = {}) {
+  const previous =
+    previousById instanceof Map && node?.id ? previousById.get(node.id) : null;
+  if (!previous) return node;
+
+  const openTabIds = options.openTabIds instanceof Set ? options.openTabIds : null;
+  const shouldPreserveContent =
+    node.type !== "folder" &&
+    previous.content != null &&
+    (!openTabIds || openTabIds.has(node.id));
+
+  return {
+    ...previous,
+    ...node,
+    content: shouldPreserveContent ? previous.content : node.content,
+    createdAt: previous.createdAt || node.createdAt,
+    modifiedAt: previous.modifiedAt || node.modifiedAt,
+    isOpen: node.type === "folder" ? Boolean(previous.isOpen) : Boolean(node.isOpen),
+  };
+}
+
 export function createFileNodesFromEntries(entries = [], options = {}) {
   const parentId = options.parentId == null ? null : String(options.parentId);
   const existingIds = options.existingIds instanceof Set ? options.existingIds : new Set();
+  const seenIds = new Set(existingIds);
+  const previousById = options.previousById instanceof Map ? options.previousById : null;
+  const openTabIds = options.openTabIds instanceof Set ? options.openTabIds : null;
   const rawEntries = Array.isArray(entries) ? entries : [];
   const nodes = [];
 
@@ -168,28 +221,30 @@ export function createFileNodesFromEntries(entries = [], options = {}) {
     const fsPath = entry.path || entry.fsPath || "";
     const name = String(entry.name || getPathBasename(fsPath) || "untitled");
     const id = String(entry.id || (fsPath ? `fs_${fsPath}` : `${parentId || "root"}:${name}:${index}`));
-    if (existingIds.has(id)) continue;
+    if (seenIds.has(id)) continue;
+    seenIds.add(id);
 
-    const type =
-      entry.type === "folder" || entry.type === "directory" || entry.isDirectory
-        ? "folder"
-        : "file";
+    const type = getNodeType(entry);
     const extension = getFileExtension(name);
+    const node = normalizeNode(
+      {
+        id,
+        name,
+        type,
+        parentId,
+        isOpen: Boolean(entry.isOpen),
+        fsPath: fsPath || null,
+        language: type === "folder" ? null : extension || "text",
+        size: entry.size ?? null,
+        modified: entry.modified ?? null,
+      },
+      index,
+    );
+
     nodes.push(
-      normalizeNode(
-        {
-          id,
-          name,
-          type,
-          parentId,
-          isOpen: Boolean(entry.isOpen),
-          fsPath: fsPath || null,
-          language: type === "folder" ? null : extension || "text",
-          size: entry.size ?? null,
-          modified: entry.modified ?? null,
-        },
-        index,
-      ),
+      previousById
+        ? mergeFileTreeRefreshNode(node, previousById, { openTabIds })
+        : node,
     );
   }
 
@@ -370,5 +425,90 @@ export function createFileTreeModel(files = [], options = {}) {
     },
     isSearching: Boolean(query),
     query,
+  };
+}
+
+export function getFileTreeDisplayState(model, options = {}) {
+  const rows = Array.isArray(model?.rows) ? model.rows : [];
+  const stats = model?.stats || {};
+  const total = Number.isFinite(stats.total) ? stats.total : rows.length;
+  const hasWorkspace = Boolean(options.hasWorkspace);
+  const hasCreatingDraft = Boolean(options.hasCreatingDraft);
+  const isLoading = Boolean(options.isLoading);
+  const isSearching = Boolean(model?.isSearching);
+  const error = normalizeErrorMessage(options.error);
+  const base = {
+    rowCount: rows.length,
+    total,
+    message: "",
+  };
+
+  if (isLoading && rows.length === 0) {
+    return {
+      ...base,
+      kind: "loading",
+      isEmpty: true,
+      message: "Reading workspace entries.",
+    };
+  }
+
+  if (error && rows.length === 0 && !hasCreatingDraft) {
+    return {
+      ...base,
+      kind: "error",
+      isEmpty: true,
+      message: error,
+    };
+  }
+
+  if (error) {
+    return {
+      ...base,
+      kind: "error-inline",
+      isEmpty: false,
+      message: error,
+    };
+  }
+
+  if (!hasWorkspace && !hasCreatingDraft) {
+    return {
+      ...base,
+      kind: "missing-workspace",
+      isEmpty: true,
+      message: "Open a workspace to populate the explorer.",
+    };
+  }
+
+  if (hasWorkspace && total === 0 && !hasCreatingDraft) {
+    return {
+      ...base,
+      kind: "empty",
+      isEmpty: true,
+      message: "Workspace is empty.",
+    };
+  }
+
+  if (isSearching && total > 0 && rows.length === 0 && !hasCreatingDraft) {
+    return {
+      ...base,
+      kind: "search-empty",
+      isEmpty: true,
+      message: "No files matched the current search.",
+    };
+  }
+
+  if (isLoading) {
+    return {
+      ...base,
+      kind: "refreshing",
+      isEmpty: false,
+      message: "Refreshing workspace entries.",
+    };
+  }
+
+  return {
+    ...base,
+    kind: "ready",
+    isEmpty: false,
   };
 }

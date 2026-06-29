@@ -5,11 +5,14 @@ import {
   CheckCircle2,
   CircleDot,
   FolderKanban,
+  GitMerge,
   GitPullRequest,
   Loader2,
   Pencil,
   Plus,
   RefreshCw,
+  ShieldAlert,
+  X,
 } from "lucide-react";
 import {
   PanelActionButton,
@@ -35,9 +38,11 @@ import {
   loadGithubProjectV2Items,
   loadGithubProjectsV2,
   loadGithubPullRequests,
+  mergeGithubPullRequest,
   updateGithubIssue,
   updateGithubProjectV2ItemField,
   updateGithubPullRequest,
+  updateGithubPullRequestBranch,
 } from "../../../pages/editor/githubWorkbenchModel.js";
 
 const PANEL_DEFINITIONS = {
@@ -129,6 +134,13 @@ const DEFAULT_PULL_EDIT = {
   base: "",
 };
 
+const DEFAULT_PULL_SAFETY = {
+  expectedHeadSha: "",
+  mergeMethod: "merge",
+  commitTitle: "",
+  commitMessage: "",
+};
+
 const DEFAULT_PROJECT_ACTION = {
   contentId: "",
   itemId: "",
@@ -138,7 +150,7 @@ const DEFAULT_PROJECT_ACTION = {
 };
 
 const TEXTAREA_CLASS =
-  "min-h-[74px] w-full min-w-0 resize-y rounded-xl border border-white/[0.075] bg-white/[0.035] px-3 py-2 text-[12px] leading-snug text-gray-200 outline-none transition-colors placeholder:text-gray-600 focus:border-purple-300/40 focus:bg-white/[0.052] focus:ring-2 focus:ring-purple-400/10";
+  "min-h-[74px] w-full min-w-0 resize-y rounded-xl border border-white/[0.075] bg-white/[0.035] px-3 py-2 text-[12px] leading-snug text-gray-200 outline-none transition-colors placeholder:text-gray-600 focus:border-purple-300/40 focus:bg-white/[0.052] focus:ring-2 focus:ring-purple-400/10 disabled:cursor-not-allowed disabled:opacity-45";
 
 function getWorkspaceRepositoryGuess(workspacePath) {
   if (!workspacePath) {
@@ -228,13 +240,169 @@ function stateTone(state) {
 
 function getRepoError(repoRef) {
   if (!repoRef.owner || !repoRef.repo) {
-    return "Repository as owner/repo is required.";
+    return "Enter a repository as owner/repo before refreshing or updating GitHub data.";
   }
   return "";
 }
 
+function getRawGithubErrorMessage(error) {
+  if (!error) return "";
+  if (typeof error === "string") return error;
+  return (
+    error.message ||
+    error.error ||
+    error.details?.message ||
+    error.details?.error ||
+    error.details?.response?.message ||
+    ""
+  );
+}
+
+function getGithubErrorStatus(error) {
+  const candidates = [
+    error?.status,
+    error?.statusCode,
+    error?.code,
+    error?.details?.status,
+    error?.details?.statusCode,
+    error?.details?.response?.status,
+  ];
+  const explicitStatus = candidates
+    .map((value) => Number(value))
+    .find((value) => Number.isInteger(value) && value >= 100);
+  if (explicitStatus) return explicitStatus;
+
+  const messageStatus = getRawGithubErrorMessage(error).match(/\b(401|403|404|422|429)\b/);
+  return messageStatus ? Number(messageStatus[1]) : null;
+}
+
+function formatGithubWorkbenchError(error, fallback = "GitHub request failed.") {
+  const rawMessage = getRawGithubErrorMessage(error);
+  const lowerMessage = rawMessage.toLowerCase();
+  const status = getGithubErrorStatus(error);
+  const details = error?.details || {};
+  const missingScopes = details.scopes?.missingScopes || [];
+  const resetAt = details.rateLimit?.resetAt ? formatDate(details.rateLimit.resetAt) : "";
+  const validation = Array.isArray(details.errors)
+    ? details.errors
+      .map((entry) => entry?.message || entry?.code || "")
+      .filter(Boolean)
+      .slice(0, 3)
+      .join("; ")
+    : "";
+  const hint = details.hint && !rawMessage.includes(details.hint) ? ` ${details.hint}` : "";
+  const detail = rawMessage ? ` GitHub said: ${rawMessage}` : "";
+  const docs = details.documentationUrl ? ` Docs: ${details.documentationUrl}` : "";
+
+  if (lowerMessage.includes("bridge is not available")) {
+    return "GitHub bridge is not available in this runtime. Open Nexus Code in the desktop runtime, reconnect the GitHub account, then refresh.";
+  }
+
+  if (lowerMessage.includes("does not expose")) {
+    return "This Nexus runtime does not expose the required GitHub API method yet. Switch to the desktop runtime or update Nexus Code before retrying.";
+  }
+
+  if (
+    status === 401 ||
+    lowerMessage.includes("bad credentials") ||
+    lowerMessage.includes("requires authentication") ||
+    lowerMessage.includes("unauthorized")
+  ) {
+    return `GitHub authentication is missing or expired (401). Open the account panel, reconnect GitHub, then refresh.${detail}`;
+  }
+
+  if (
+    details.code === "GITHUB_RATE_LIMITED" ||
+    details.rateLimit?.remaining === 0 ||
+    status === 429 ||
+    lowerMessage.includes("rate limit") ||
+    lowerMessage.includes("secondary rate") ||
+    lowerMessage.includes("abuse detection")
+  ) {
+    const reset = resetAt ? ` Reset: ${resetAt}.` : "";
+    return `GitHub rate limit was reached. Wait for the limit to reset, then refresh; using a signed-in token with more quota can help.${reset}${hint}${detail}${docs}`;
+  }
+
+  if (
+    details.code === "GITHUB_SCOPE_REQUIRED" ||
+    missingScopes.length > 0 ||
+    lowerMessage.includes("resource not accessible") ||
+    lowerMessage.includes("insufficient") ||
+    lowerMessage.includes("scope") ||
+    lowerMessage.includes("permission")
+  ) {
+    const scopeText = missingScopes.length ? ` Missing scopes: ${missingScopes.join(", ")}.` : "";
+    return `GitHub denied access for this token. Check repository access, Projects v2 scopes, and organization SSO approval before retrying.${scopeText}${hint}${detail}${docs}`;
+  }
+
+  if (status === 403) {
+    return `GitHub rejected the request (403). The token may be missing repository, pull request, or Projects v2 access, or organization SSO may need approval.${hint}${detail}${docs}`;
+  }
+
+  if (status === 404) {
+    return `GitHub could not find this repository, project, issue, or pull request (404), or the current token cannot access it.${hint}${detail}${docs}`;
+  }
+
+  if (status === 422) {
+    const validationText = validation ? ` Validation: ${validation}.` : "";
+    return `GitHub rejected the submitted data (422). Check branch names, required fields, duplicate project items, and selected IDs.${validationText}${hint}${detail}${docs}`;
+  }
+
+  return rawMessage ? `${fallback} ${rawMessage}${hint}${docs}` : `${fallback}${hint}`;
+}
+
+function needsCloseConfirmation(item, nextState) {
+  const currentState = String(item?.state || "open").toLowerCase();
+  return Boolean(item) && currentState !== "closed" && String(nextState || "").toLowerCase() === "closed";
+}
+
 function getResultItem(result, key) {
   return result?.[key] || result?.data?.[key] || result;
+}
+
+function getSetupRequirement({
+  panelId,
+  draftRepoRef,
+  appliedRepoRef,
+  projectOwnerType,
+  draftProjectOwner,
+  appliedProjectOwner,
+}) {
+  if (panelId !== "projects") {
+    if (!draftRepoRef.owner || !draftRepoRef.repo) {
+      return {
+        title: "Choose a repository",
+        detail: "Enter a GitHub repository as owner/repo, then refresh this panel.",
+        actionLabel: "Refresh",
+      };
+    }
+    if (draftRepoRef.label !== appliedRepoRef.label) {
+      return {
+        title: "Repository change is pending",
+        detail: `Refresh to load ${draftRepoRef.label}.`,
+        actionLabel: "Load repository",
+      };
+    }
+  }
+
+  if (panelId === "projects" && projectOwnerType !== "viewer") {
+    if (!draftProjectOwner) {
+      return {
+        title: "Choose a project owner",
+        detail: "Enter a user or organization owner for Projects v2, or switch scope back to Viewer.",
+        actionLabel: "Refresh",
+      };
+    }
+    if (draftProjectOwner !== appliedProjectOwner) {
+      return {
+        title: "Project owner change is pending",
+        detail: `Refresh to load Projects v2 for ${draftProjectOwner}.`,
+        actionLabel: "Load owner",
+      };
+    }
+  }
+
+  return null;
 }
 
 function buildProjectFieldValue(type, rawValue) {
@@ -254,16 +422,60 @@ function pickProjectFieldValueType(field) {
   return "text";
 }
 
-function PanelTextarea({ value, onChange, placeholder, rows = 4 }) {
+function PanelTextarea({ value, onChange, placeholder, rows = 4, disabled = false }) {
   return (
     <textarea
       value={value}
       onChange={onChange}
       placeholder={placeholder}
       rows={rows}
+      disabled={disabled}
       className={TEXTAREA_CLASS}
       style={{ overflowWrap: "anywhere" }}
     />
+  );
+}
+
+function ConfirmationNotice({
+  active,
+  title,
+  detail,
+  confirmLabel,
+  tone = "warning",
+  busy = false,
+  onConfirm,
+  onCancel,
+}) {
+  if (!active) return null;
+
+  return (
+    <PanelNotice
+      className="mt-2"
+      tone={tone}
+      icon={ShieldAlert}
+      title={title}
+      detail={detail}
+    >
+      <div className="flex min-w-0 flex-wrap gap-1.5">
+        <PanelActionButton
+          type="button"
+          tone={tone}
+          onClick={onConfirm}
+          disabled={busy}
+        >
+          {busy ? "Working..." : confirmLabel}
+        </PanelActionButton>
+        <PanelActionButton
+          type="button"
+          tone="muted"
+          icon={X}
+          onClick={onCancel}
+          disabled={busy}
+        >
+          Cancel
+        </PanelActionButton>
+      </div>
+    </PanelNotice>
   );
 }
 
@@ -284,8 +496,8 @@ function RepositoryControls({
 }) {
   return (
     <PanelCard className="mx-3 mt-3 p-3">
-      <div className="flex min-w-0 flex-wrap items-start gap-2">
-        <div className="min-w-[12rem] flex-1">
+      <div className="flex min-w-0 flex-wrap items-start gap-3">
+        <div className="min-w-0 flex-[1_1_13rem]">
           <label className="mb-1 block text-[10px] font-semibold uppercase text-gray-500">
             {panelId === "projects" ? "Owner / repository" : "Repository"}
           </label>
@@ -329,7 +541,7 @@ function RepositoryControls({
           </div>
         )}
 
-        <div className="flex w-full items-end gap-1 sm:w-auto">
+        <div className="flex w-full min-w-0 flex-wrap items-end justify-start gap-1 sm:w-auto sm:justify-end">
           <PanelIconButton
             label={loading ? "Refreshing GitHub data" : definition.loadLabel}
             onClick={onRefresh}
@@ -340,12 +552,14 @@ function RepositoryControls({
           <PanelIconButton
             label="Open Git panel"
             onClick={onOpenGit}
+            disabled={!onOpenGit}
           >
             <GitPullRequest />
           </PanelIconButton>
           <PanelIconButton
             label="Open account panel"
             onClick={onOpenAccount}
+            disabled={!onOpenAccount}
           >
             <Pencil />
           </PanelIconButton>
@@ -375,7 +589,17 @@ function IssueActions({
   busy,
   onCreate,
   onUpdate,
+  confirmAction,
+  onRequestConfirm,
+  onConfirmCancel,
 }) {
+  const createDisabled = Boolean(busy) || !createDraft.title.trim();
+  const closeRequiresConfirm = needsCloseConfirmation(selectedItem, editDraft.state);
+  const updateConfirmActive = confirmAction === "issue-update";
+  const updateBusy = busy === "issue-update";
+  const updateDisabled = Boolean(busy) || !selectedItem;
+  const issueLabel = editDraft.number ? `#${editDraft.number}` : "the selected issue";
+
   return (
     <PanelSection title="Issue actions" icon={Plus} expanded>
       <div className="mx-3 grid gap-3 pb-3">
@@ -413,7 +637,8 @@ function IssueActions({
               type="submit"
               icon={Plus}
               tone="success"
-              disabled={busy === "issue-create" || !createDraft.title.trim()}
+              disabled={createDisabled}
+              className="w-full sm:w-auto"
             >
               {busy === "issue-create" ? "Creating..." : "Create issue"}
             </PanelActionButton>
@@ -421,15 +646,17 @@ function IssueActions({
         </PanelCard>
 
         <PanelCard className="p-3">
-          <div className="mb-2 flex items-center gap-2">
-            <Pencil size={13} className="text-purple-300" />
-            <div className="min-w-0 text-xs font-semibold text-gray-200">
-              Edit selected issue
+          <div className="mb-2 flex min-w-0 flex-wrap items-center gap-2">
+            <Pencil size={13} className="shrink-0 text-purple-300" />
+            <div className="min-w-0 flex-1 text-xs font-semibold text-gray-200">
+              Update selected issue
             </div>
+            <PanelBadge tone="warning">confirm</PanelBadge>
           </div>
           <div className="mb-2">
             <PanelSelect
               value={editDraft.number}
+              disabled={Boolean(busy)}
               onChange={(event) => {
                 const next = items.find((item) => String(item.number) === event.target.value);
                 onSelectItem(next || null);
@@ -443,18 +670,21 @@ function IssueActions({
               ))}
             </PanelSelect>
           </div>
-          <form className="grid gap-2" onSubmit={onUpdate}>
+          <form
+            className="grid gap-2"
+            onSubmit={(event) => onRequestConfirm(event, "issue-update", onUpdate)}
+          >
             <div className="grid gap-2 sm:grid-cols-[1fr_8rem]">
               <PanelInput
                 value={editDraft.title}
                 onChange={(event) => onEditDraftChange({ ...editDraft, title: event.target.value })}
                 placeholder={selectedItem ? "Issue title" : "Select an issue first"}
-                disabled={!selectedItem}
+                disabled={!selectedItem || Boolean(busy)}
               />
               <PanelSelect
                 value={editDraft.state}
                 onChange={(event) => onEditDraftChange({ ...editDraft, state: event.target.value })}
-                disabled={!selectedItem}
+                disabled={!selectedItem || Boolean(busy)}
               >
                 <option value="open">Open</option>
                 <option value="closed">Closed</option>
@@ -464,14 +694,32 @@ function IssueActions({
               value={editDraft.body}
               onChange={(event) => onEditDraftChange({ ...editDraft, body: event.target.value })}
               placeholder="Issue body"
+              disabled={!selectedItem || Boolean(busy)}
+            />
+            <ConfirmationNotice
+              active={updateConfirmActive}
+              tone={closeRequiresConfirm ? "danger" : "warning"}
+              title={closeRequiresConfirm ? "Confirm issue close" : "Confirm issue update"}
+              detail={`This will update ${issueLabel}. Review the title, body, and state before sending it to GitHub.`}
+              confirmLabel={closeRequiresConfirm ? "Close issue now" : "Update issue now"}
+              busy={updateBusy}
+              onConfirm={onUpdate}
+              onCancel={onConfirmCancel}
             />
             <PanelActionButton
               type="submit"
               icon={Pencil}
-              tone="accent"
-              disabled={busy === "issue-update" || !selectedItem}
+              tone={closeRequiresConfirm ? "danger" : "accent"}
+              disabled={updateDisabled}
+              className="w-full sm:w-auto"
             >
-              {busy === "issue-update" ? "Updating..." : "Update issue"}
+              {updateBusy
+                ? "Updating..."
+                : updateConfirmActive
+                  ? "Confirm below"
+                  : closeRequiresConfirm
+                    ? "Review close"
+                    : "Review issue update"}
             </PanelActionButton>
           </form>
         </PanelCard>
@@ -488,10 +736,34 @@ function PullRequestActions({
   onCreateDraftChange,
   editDraft,
   onEditDraftChange,
+  safetyDraft,
+  onSafetyDraftChange,
   busy,
   onCreate,
   onUpdate,
+  onUpdateBranch,
+  onMerge,
+  confirmAction,
+  onRequestConfirm,
+  onConfirmCancel,
 }) {
+  const createDisabled = Boolean(busy) ||
+    !createDraft.title.trim() ||
+    !createDraft.head.trim() ||
+    !createDraft.base.trim();
+  const closeRequiresConfirm = needsCloseConfirmation(selectedItem, editDraft.state);
+  const selectedPullLabel = editDraft.number ? `#${editDraft.number}` : "the selected pull request";
+  const updateConfirmActive = confirmAction === "pull-update";
+  const updateBusy = busy === "pull-update";
+  const branchConfirmActive = confirmAction === "pull-update-branch";
+  const branchBusy = busy === "pull-update-branch";
+  const mergeConfirmActive = confirmAction === "pull-merge";
+  const mergeBusy = busy === "pull-merge";
+  const updateDisabled = Boolean(busy) || !selectedItem;
+  const selectedPullClosed =
+    String(selectedItem?.state || "").toLowerCase() === "closed" || Boolean(selectedItem?.merged);
+  const safetyDisabled = Boolean(busy) || !selectedItem || selectedPullClosed;
+
   return (
     <PanelSection title="Pull request actions" icon={GitPullRequest} expanded>
       <div className="mx-3 grid gap-3 pb-3">
@@ -538,12 +810,8 @@ function PullRequestActions({
               type="submit"
               icon={Plus}
               tone="success"
-              disabled={
-                busy === "pull-create" ||
-                !createDraft.title.trim() ||
-                !createDraft.head.trim() ||
-                !createDraft.base.trim()
-              }
+              disabled={createDisabled}
+              className="w-full sm:w-auto"
             >
               {busy === "pull-create" ? "Creating..." : "Create pull request"}
             </PanelActionButton>
@@ -551,15 +819,17 @@ function PullRequestActions({
         </PanelCard>
 
         <PanelCard className="p-3">
-          <div className="mb-2 flex items-center gap-2">
-            <Pencil size={13} className="text-purple-300" />
-            <div className="min-w-0 text-xs font-semibold text-gray-200">
+          <div className="mb-2 flex min-w-0 flex-wrap items-center gap-2">
+            <Pencil size={13} className="shrink-0 text-purple-300" />
+            <div className="min-w-0 flex-1 text-xs font-semibold text-gray-200">
               Edit selected pull request
             </div>
+            <PanelBadge tone="warning">confirm</PanelBadge>
           </div>
           <div className="mb-2">
             <PanelSelect
               value={editDraft.number}
+              disabled={Boolean(busy)}
               onChange={(event) => {
                 const next = items.find((item) => String(item.number) === event.target.value);
                 onSelectItem(next || null);
@@ -573,18 +843,21 @@ function PullRequestActions({
               ))}
             </PanelSelect>
           </div>
-          <form className="grid gap-2" onSubmit={onUpdate}>
+          <form
+            className="grid gap-2"
+            onSubmit={(event) => onRequestConfirm(event, "pull-update", onUpdate)}
+          >
             <div className="grid gap-2 sm:grid-cols-[1fr_8rem]">
               <PanelInput
                 value={editDraft.title}
                 onChange={(event) => onEditDraftChange({ ...editDraft, title: event.target.value })}
                 placeholder={selectedItem ? "Pull request title" : "Select a pull request first"}
-                disabled={!selectedItem}
+                disabled={!selectedItem || Boolean(busy)}
               />
               <PanelSelect
                 value={editDraft.state}
                 onChange={(event) => onEditDraftChange({ ...editDraft, state: event.target.value })}
-                disabled={!selectedItem}
+                disabled={!selectedItem || Boolean(busy)}
               >
                 <option value="open">Open</option>
                 <option value="closed">Closed</option>
@@ -594,22 +867,154 @@ function PullRequestActions({
               value={editDraft.base}
               onChange={(event) => onEditDraftChange({ ...editDraft, base: event.target.value })}
               placeholder="optional new base branch"
-              disabled={!selectedItem}
+              disabled={!selectedItem || Boolean(busy)}
             />
             <PanelTextarea
               value={editDraft.body}
               onChange={(event) => onEditDraftChange({ ...editDraft, body: event.target.value })}
               placeholder="Pull request body"
+              disabled={!selectedItem || Boolean(busy)}
+            />
+            <ConfirmationNotice
+              active={updateConfirmActive}
+              tone={closeRequiresConfirm ? "danger" : "warning"}
+              title={closeRequiresConfirm ? "Confirm pull request close" : "Confirm pull request update"}
+              detail={`This will update ${selectedPullLabel}. Review title, body, state, and base before sending it to GitHub.`}
+              confirmLabel={closeRequiresConfirm ? "Close pull request now" : "Update pull request now"}
+              busy={updateBusy}
+              onConfirm={onUpdate}
+              onCancel={onConfirmCancel}
             />
             <PanelActionButton
               type="submit"
               icon={Pencil}
-              tone="accent"
-              disabled={busy === "pull-update" || !selectedItem}
+              tone={closeRequiresConfirm ? "danger" : "accent"}
+              disabled={updateDisabled}
+              className="w-full sm:w-auto"
             >
-              {busy === "pull-update" ? "Updating..." : "Update pull request"}
+              {updateBusy
+                ? "Updating..."
+                : updateConfirmActive
+                  ? "Confirm below"
+                  : closeRequiresConfirm
+                    ? "Review close"
+                    : "Review pull request update"}
             </PanelActionButton>
           </form>
+        </PanelCard>
+
+        <PanelCard className="p-3">
+          <div className="mb-2 flex min-w-0 flex-wrap items-center gap-2">
+            <ShieldAlert size={13} className="shrink-0 text-amber-300" />
+            <div className="min-w-0 flex-1 text-xs font-semibold text-gray-200">
+              Merge and branch safety
+            </div>
+            <PanelBadge tone={selectedItem ? "accent" : "muted"}>
+              {selectedItem ? selectedPullLabel : "select PR"}
+            </PanelBadge>
+          </div>
+          <div className="grid gap-3">
+            <form
+              className="grid gap-2 rounded-xl border border-white/[0.06] bg-black/15 p-2.5"
+              onSubmit={(event) => onRequestConfirm(event, "pull-update-branch", onUpdateBranch)}
+            >
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
+                <RefreshCw size={13} className="shrink-0 text-cyan-300" />
+                <div className="min-w-0 flex-1 text-[11px] font-semibold text-gray-300">
+                  Update branch from base
+                </div>
+              </div>
+              <PanelInput
+                value={safetyDraft.expectedHeadSha}
+                onChange={(event) =>
+                  onSafetyDraftChange({ ...safetyDraft, expectedHeadSha: event.target.value })
+                }
+                placeholder={selectedItem?.head?.sha || "optional expected head SHA"}
+                disabled={safetyDisabled}
+              />
+              <ConfirmationNotice
+                active={branchConfirmActive}
+                tone="warning"
+                title="Confirm branch update"
+                detail={`GitHub will update ${selectedPullLabel} from its base branch. Use the expected SHA field when you want to guard against a moving head.`}
+                confirmLabel="Update branch now"
+                busy={branchBusy}
+                onConfirm={onUpdateBranch}
+                onCancel={onConfirmCancel}
+              />
+              <PanelActionButton
+                type="submit"
+                icon={RefreshCw}
+                tone="warning"
+                disabled={safetyDisabled}
+                className="w-full sm:w-auto"
+              >
+                {branchBusy ? "Updating branch..." : branchConfirmActive ? "Confirm below" : "Review branch update"}
+              </PanelActionButton>
+            </form>
+
+            <form
+              className="grid gap-2 rounded-xl border border-red-400/15 bg-red-500/[0.035] p-2.5"
+              onSubmit={(event) => onRequestConfirm(event, "pull-merge", onMerge)}
+            >
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
+                <GitMerge size={13} className="shrink-0 text-red-300" />
+                <div className="min-w-0 flex-1 text-[11px] font-semibold text-gray-300">
+                  Merge pull request
+                </div>
+                <PanelBadge tone="danger">destructive</PanelBadge>
+              </div>
+              <div className="grid gap-2 sm:grid-cols-[9rem_1fr]">
+                <PanelSelect
+                  value={safetyDraft.mergeMethod}
+                  onChange={(event) =>
+                    onSafetyDraftChange({ ...safetyDraft, mergeMethod: event.target.value })
+                  }
+                  disabled={safetyDisabled}
+                >
+                  <option value="merge">Merge commit</option>
+                  <option value="squash">Squash</option>
+                  <option value="rebase">Rebase</option>
+                </PanelSelect>
+                <PanelInput
+                  value={safetyDraft.commitTitle}
+                  onChange={(event) =>
+                    onSafetyDraftChange({ ...safetyDraft, commitTitle: event.target.value })
+                  }
+                  placeholder="optional commit title"
+                  disabled={safetyDisabled}
+                />
+              </div>
+              <PanelTextarea
+                value={safetyDraft.commitMessage}
+                onChange={(event) =>
+                  onSafetyDraftChange({ ...safetyDraft, commitMessage: event.target.value })
+                }
+                placeholder="optional merge commit message"
+                rows={3}
+                disabled={safetyDisabled}
+              />
+              <ConfirmationNotice
+                active={mergeConfirmActive}
+                tone="danger"
+                title="Confirm merge"
+                detail={`This will merge ${selectedPullLabel} using ${safetyDraft.mergeMethod}. Make sure checks and review requirements are satisfied.`}
+                confirmLabel="Merge pull request now"
+                busy={mergeBusy}
+                onConfirm={onMerge}
+                onCancel={onConfirmCancel}
+              />
+              <PanelActionButton
+                type="submit"
+                icon={GitMerge}
+                tone="danger"
+                disabled={safetyDisabled}
+                className="w-full sm:w-auto"
+              >
+                {mergeBusy ? "Merging..." : mergeConfirmActive ? "Confirm below" : "Review merge"}
+              </PanelActionButton>
+            </form>
+          </div>
         </PanelCard>
       </div>
     </PanelSection>
@@ -626,9 +1031,14 @@ function ProjectActions({
   onLoadItems,
   onAddItem,
   onUpdateField,
+  confirmAction,
+  onRequestConfirm,
+  onConfirmCancel,
 }) {
   const fields = selectedProject?.fields || [];
   const selectedField = fields.find((field) => field.id === actionDraft.fieldId);
+  const fieldConfirmActive = confirmAction === "project-update-field";
+  const fieldBusy = busy === "project-update-field";
 
   return (
     <PanelSection title="Project actions" icon={FolderKanban} expanded>
@@ -636,7 +1046,7 @@ function ProjectActions({
         <PanelCard className="p-3">
           <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
             <div className="min-w-0">
-              <div className="text-xs font-semibold text-gray-200">
+              <div className="break-words text-xs font-semibold text-gray-200" style={{ overflowWrap: "anywhere" }}>
                 {selectedProject ? selectedProject.title : "Select a project"}
               </div>
               <div className="mt-1 break-words font-mono text-[10px] text-gray-600">
@@ -647,6 +1057,7 @@ function ProjectActions({
               icon={RefreshCw}
               disabled={!selectedProject || projectItemsState.loading}
               onClick={() => onLoadItems(selectedProject)}
+              className="w-full sm:w-auto"
             >
               {projectItemsState.loading ? "Loading..." : "Load items"}
             </PanelActionButton>
@@ -677,7 +1088,7 @@ function ProjectActions({
                       <PanelBadge tone="muted">
                         {item.content?.type || item.type || "Item"}
                       </PanelBadge>
-                      <div className="min-w-0 flex-1 truncate text-[11px] font-semibold text-gray-300">
+                      <div className="min-w-0 flex-1 break-words text-[11px] font-semibold text-gray-300" style={{ overflowWrap: "anywhere" }}>
                         {item.content?.title || item.id}
                       </div>
                     </div>
@@ -703,13 +1114,14 @@ function ProjectActions({
               value={actionDraft.contentId}
               onChange={(event) => onActionDraftChange({ ...actionDraft, contentId: event.target.value })}
               placeholder="Content node ID"
-              disabled={!selectedProject}
+              disabled={!selectedProject || Boolean(busy)}
             />
             <PanelActionButton
               type="submit"
               icon={Plus}
               tone="success"
-              disabled={busy === "project-add-item" || !selectedProject || !actionDraft.contentId.trim()}
+              disabled={Boolean(busy) || !selectedProject || !actionDraft.contentId.trim()}
+              className="w-full sm:w-auto"
             >
               {busy === "project-add-item" ? "Adding..." : "Add item"}
             </PanelActionButton>
@@ -717,18 +1129,22 @@ function ProjectActions({
         </PanelCard>
 
         <PanelCard className="p-3">
-          <div className="mb-2 flex items-center gap-2">
-            <Pencil size={13} className="text-purple-300" />
-            <div className="min-w-0 text-xs font-semibold text-gray-200">
+          <div className="mb-2 flex min-w-0 flex-wrap items-center gap-2">
+            <Pencil size={13} className="shrink-0 text-purple-300" />
+            <div className="min-w-0 flex-1 text-xs font-semibold text-gray-200">
               Update item field
             </div>
+            <PanelBadge tone="warning">confirm</PanelBadge>
           </div>
-          <form className="grid gap-2" onSubmit={onUpdateField}>
+          <form
+            className="grid gap-2"
+            onSubmit={(event) => onRequestConfirm(event, "project-update-field", onUpdateField)}
+          >
             <PanelInput
               value={actionDraft.itemId}
               onChange={(event) => onActionDraftChange({ ...actionDraft, itemId: event.target.value })}
               placeholder="Project item ID"
-              disabled={!selectedProject}
+              disabled={!selectedProject || Boolean(busy)}
             />
             {fields.length > 0 ? (
               <PanelSelect
@@ -741,7 +1157,7 @@ function ProjectActions({
                     valueType: pickProjectFieldValueType(field),
                   });
                 }}
-                disabled={!selectedProject}
+                disabled={!selectedProject || Boolean(busy)}
               >
                 <option value="">Select field</option>
                 {fields.map((field) => (
@@ -755,14 +1171,14 @@ function ProjectActions({
                 value={actionDraft.fieldId}
                 onChange={(event) => onActionDraftChange({ ...actionDraft, fieldId: event.target.value })}
                 placeholder="Field ID"
-                disabled={!selectedProject}
+                disabled={!selectedProject || Boolean(busy)}
               />
             )}
             <div className="grid gap-2 sm:grid-cols-[10rem_1fr]">
               <PanelSelect
                 value={actionDraft.valueType}
                 onChange={(event) => onActionDraftChange({ ...actionDraft, valueType: event.target.value })}
-                disabled={!selectedProject}
+                disabled={!selectedProject || Boolean(busy)}
               >
                 <option value="text">Text</option>
                 <option value="number">Number</option>
@@ -778,7 +1194,7 @@ function ProjectActions({
                     ? "Option ID, text, number, or YYYY-MM-DD"
                     : "Field value"
                 }
-                disabled={!selectedProject}
+                disabled={!selectedProject || Boolean(busy)}
               />
             </div>
             {selectedField?.options?.length ? (
@@ -787,6 +1203,7 @@ function ProjectActions({
                   <button
                     key={option.id}
                     type="button"
+                    disabled={Boolean(busy)}
                     onClick={() =>
                       onActionDraftChange({
                         ...actionDraft,
@@ -794,26 +1211,37 @@ function ProjectActions({
                         value: option.id,
                       })
                     }
-                    className="rounded-lg border border-white/[0.07] bg-white/[0.035] px-2 py-1 text-[10px] text-gray-400 hover:bg-white/[0.07] hover:text-gray-200"
+                    className="rounded-lg border border-white/[0.07] bg-white/[0.035] px-2 py-1 text-[10px] text-gray-400 hover:bg-white/[0.07] hover:text-gray-200 disabled:cursor-not-allowed disabled:opacity-45"
                   >
                     {option.name}
                   </button>
                 ))}
               </div>
             ) : null}
+            <ConfirmationNotice
+              active={fieldConfirmActive}
+              tone="warning"
+              title="Confirm project field update"
+              detail={`This will update ${actionDraft.fieldId || "the selected field"} on project item ${actionDraft.itemId || "the selected item"}. Verify the item ID, field, and value before sending it to GitHub.`}
+              confirmLabel="Update field now"
+              busy={fieldBusy}
+              onConfirm={onUpdateField}
+              onCancel={onConfirmCancel}
+            />
             <PanelActionButton
               type="submit"
               icon={Pencil}
               tone="accent"
               disabled={
-                busy === "project-update-field" ||
+                Boolean(busy) ||
                 !selectedProject ||
                 !actionDraft.itemId.trim() ||
                 !actionDraft.fieldId.trim() ||
                 !actionDraft.value.trim()
               }
+              className="w-full sm:w-auto"
             >
-              {busy === "project-update-field" ? "Updating..." : "Update field"}
+              {fieldBusy ? "Updating..." : fieldConfirmActive ? "Confirm below" : "Review field update"}
             </PanelActionButton>
           </form>
         </PanelCard>
@@ -851,7 +1279,7 @@ function IssueList({ items, selectedItem, onSelectItem }) {
                 <h3 className="mt-2 break-words text-sm font-semibold leading-snug text-gray-100">
                   {issue.title || "Untitled issue"}
                 </h3>
-                <div className="mt-1 text-[11px] text-gray-500">
+                <div className="mt-1 break-words text-[11px] text-gray-500" style={{ overflowWrap: "anywhere" }}>
                   {issue.state || "open"} by {getUserLogin(issue.author)} - {formatDate(issue.updatedAt)}
                 </div>
               </button>
@@ -918,10 +1346,10 @@ function PullRequestList({ items, selectedItem, onSelectItem }) {
                 <h3 className="mt-2 break-words text-sm font-semibold leading-snug text-gray-100">
                   {pull.title || "Untitled pull request"}
                 </h3>
-                <div className="mt-1 text-[11px] text-gray-500">
+                <div className="mt-1 break-words text-[11px] text-gray-500" style={{ overflowWrap: "anywhere" }}>
                   {state || "open"} by {getUserLogin(pull.author)} - {formatDate(pull.updatedAt)}
                 </div>
-                <div className="mt-2 min-w-0 rounded-xl border border-white/[0.055] bg-black/15 px-2 py-1 text-[10px] text-gray-500">
+                <div className="mt-2 min-w-0 break-words rounded-xl border border-white/[0.055] bg-black/15 px-2 py-1 text-[10px] text-gray-500" style={{ overflowWrap: "anywhere" }}>
                   <span className="font-mono text-gray-400">{pull.head?.ref || "head"}</span>
                   <span> into </span>
                   <span className="font-mono text-gray-400">{pull.base?.ref || "base"}</span>
@@ -963,7 +1391,7 @@ function ProjectList({
             interactive
             className={`p-3 ${selected ? "ring-1 ring-purple-300/35" : ""}`}
           >
-            <div className="flex min-w-0 items-start gap-2">
+            <div className="flex min-w-0 flex-wrap items-start gap-2">
               <button
                 type="button"
                 onClick={() => onSelectProject(project)}
@@ -983,7 +1411,7 @@ function ProjectList({
                 <h3 className="mt-2 break-words text-sm font-semibold leading-snug text-gray-100">
                   {project.title || "Untitled project"}
                 </h3>
-                <div className="mt-1 text-[11px] text-gray-500">
+                <div className="mt-1 break-words text-[11px] text-gray-500" style={{ overflowWrap: "anywhere" }}>
                   {project.owner?.login || "viewer"} - {formatDate(project.updatedAt)}
                 </div>
                 {project.shortDescription ? (
@@ -992,7 +1420,7 @@ function ProjectList({
                   </p>
                 ) : null}
               </button>
-              <div className="flex shrink-0 gap-1">
+              <div className="flex w-full shrink-0 justify-start gap-1 sm:w-auto sm:justify-end">
                 <PanelIconButton
                   label="Load project items"
                   onClick={() => onLoadProjectItems(project)}
@@ -1027,6 +1455,7 @@ function PanelList({
   selectedItem,
   selectedProject,
   projectItemsState,
+  setupRequirement,
   onSelectItem,
   onSelectProject,
   onLoadProjectItems,
@@ -1052,6 +1481,19 @@ function PanelList({
         title={definition.errorTitle}
         detail={state.error}
         actionLabel={definition.loadLabel}
+        onAction={onRefresh}
+      />
+    );
+  }
+
+  if (setupRequirement) {
+    return (
+      <PanelState
+        icon={definition.icon}
+        tone="accent"
+        title={setupRequirement.title}
+        detail={setupRequirement.detail}
+        actionLabel={setupRequirement.actionLabel}
         onAction={onRefresh}
       />
     );
@@ -1141,7 +1583,9 @@ export function GitHubWorkbenchPanel({
   const [issueEditDraft, setIssueEditDraft] = useState(DEFAULT_ISSUE_EDIT);
   const [pullCreateDraft, setPullCreateDraft] = useState(DEFAULT_PULL_CREATE);
   const [pullEditDraft, setPullEditDraft] = useState(DEFAULT_PULL_EDIT);
+  const [pullSafetyDraft, setPullSafetyDraft] = useState(DEFAULT_PULL_SAFETY);
   const [projectActionDraft, setProjectActionDraft] = useState(DEFAULT_PROJECT_ACTION);
+  const [confirmAction, setConfirmAction] = useState("");
 
   const appliedRepoRef = useMemo(
     () => normalizeRepositoryInput(appliedRepoDraft),
@@ -1158,6 +1602,25 @@ export function GitHubWorkbenchPanel({
   const draftProjectOwner = useMemo(
     () => getProjectOwnerDraft(repoDraft, accountSession),
     [accountSession, repoDraft],
+  );
+  const setupRequirement = useMemo(
+    () =>
+      getSetupRequirement({
+        panelId: normalizedPanelId,
+        draftRepoRef,
+        appliedRepoRef,
+        projectOwnerType,
+        draftProjectOwner,
+        appliedProjectOwner: projectOwnerDraft,
+      }),
+    [
+      appliedRepoRef,
+      draftProjectOwner,
+      draftRepoRef,
+      normalizedPanelId,
+      projectOwnerDraft,
+      projectOwnerType,
+    ],
   );
 
   useEffect(() => {
@@ -1188,11 +1651,59 @@ export function GitHubWorkbenchPanel({
         state: selectedItem.state === "closed" ? "closed" : "open",
         base: selectedItem.base?.ref || "",
       });
+      setPullSafetyDraft({
+        ...DEFAULT_PULL_SAFETY,
+        expectedHeadSha: selectedItem.head?.sha || "",
+      });
     }
   }, [normalizedPanelId, selectedItem]);
 
+  useEffect(() => {
+    setConfirmAction("");
+  }, [
+    issueEditDraft.body,
+    issueEditDraft.number,
+    issueEditDraft.state,
+    issueEditDraft.title,
+    normalizedPanelId,
+    projectActionDraft.fieldId,
+    projectActionDraft.itemId,
+    projectActionDraft.value,
+    projectActionDraft.valueType,
+    pullEditDraft.base,
+    pullEditDraft.body,
+    pullEditDraft.number,
+    pullEditDraft.state,
+    pullEditDraft.title,
+    pullSafetyDraft.commitMessage,
+    pullSafetyDraft.commitTitle,
+    pullSafetyDraft.expectedHeadSha,
+    pullSafetyDraft.mergeMethod,
+    selectedItem?.number,
+    selectedProject?.id,
+  ]);
+
+  const requestConfirm = useCallback(
+    (event, actionId, action) => {
+      event?.preventDefault?.();
+      setActionState((current) => ({ ...current, error: "", message: "" }));
+      if (confirmAction === actionId && typeof action === "function") {
+        setConfirmAction("");
+        void action();
+        return;
+      }
+      setConfirmAction(actionId);
+    },
+    [confirmAction],
+  );
+
+  const cancelConfirm = useCallback(() => {
+    setConfirmAction("");
+  }, []);
+
   const runMutation = useCallback(
     async (busy, callback, successMessage) => {
+      setConfirmAction("");
       setActionState({ busy, error: "", message: "" });
       try {
         const result = await callback();
@@ -1204,7 +1715,7 @@ export function GitHubWorkbenchPanel({
       } catch (error) {
         setActionState({
           busy: "",
-          error: error?.message || "GitHub action failed.",
+          error: formatGithubWorkbenchError(error, "GitHub action failed."),
           message: "",
         });
         return null;
@@ -1222,7 +1733,10 @@ export function GitHubWorkbenchPanel({
       setListState({
         ...EMPTY_LIST_STATE,
         loaded: true,
-        error: "GitHub bridge is not available in this runtime.",
+        error: formatGithubWorkbenchError(
+          "GitHub bridge is not available in this runtime.",
+          "GitHub bridge is not available.",
+        ),
       });
       return;
     }
@@ -1233,7 +1747,7 @@ export function GitHubWorkbenchPanel({
         setListState({
           ...EMPTY_LIST_STATE,
           loaded: true,
-          error: repoError,
+          error: "",
         });
         return;
       }
@@ -1247,7 +1761,7 @@ export function GitHubWorkbenchPanel({
       setListState({
         ...EMPTY_LIST_STATE,
         loaded: true,
-        error: "Project owner is required for user or organization scope.",
+        error: "",
       });
       return;
     }
@@ -1303,7 +1817,7 @@ export function GitHubWorkbenchPanel({
       setListState({
         ...EMPTY_LIST_STATE,
         loaded: true,
-        error: error?.message || "GitHub data could not be loaded.",
+        error: formatGithubWorkbenchError(error, "GitHub data could not be loaded."),
       });
     }
   }, [
@@ -1351,14 +1865,14 @@ export function GitHubWorkbenchPanel({
       setProjectItemsState({
         ...EMPTY_PROJECT_ITEMS_STATE,
         loaded: true,
-        error: error?.message || "Project items could not be loaded.",
+        error: formatGithubWorkbenchError(error, "Project items could not be loaded."),
       });
     }
   }, []);
 
   const handleCreateIssue = useCallback(
     async (event) => {
-      event.preventDefault();
+      event?.preventDefault?.();
       const repoError = getRepoError(draftRepoRef);
       if (repoError) {
         setActionState({ busy: "", error: repoError, message: "" });
@@ -1386,10 +1900,18 @@ export function GitHubWorkbenchPanel({
 
   const handleUpdateIssue = useCallback(
     async (event) => {
-      event.preventDefault();
+      event?.preventDefault?.();
       const repoError = getRepoError(draftRepoRef);
       if (repoError) {
         setActionState({ busy: "", error: repoError, message: "" });
+        return;
+      }
+      if (confirmAction !== "issue-update") {
+        setActionState({
+          busy: "",
+          error: "Review and confirm the issue update before sending it to GitHub.",
+          message: "",
+        });
         return;
       }
       const result = await runMutation(
@@ -1408,12 +1930,12 @@ export function GitHubWorkbenchPanel({
       const issue = getResultItem(result, "issue");
       if (issue?.number) setSelectedItem(issue);
     },
-    [draftRepoRef, issueEditDraft, runMutation],
+    [confirmAction, draftRepoRef, issueEditDraft, runMutation],
   );
 
   const handleCreatePullRequest = useCallback(
     async (event) => {
-      event.preventDefault();
+      event?.preventDefault?.();
       const repoError = getRepoError(draftRepoRef);
       if (repoError) {
         setActionState({ busy: "", error: repoError, message: "" });
@@ -1442,10 +1964,18 @@ export function GitHubWorkbenchPanel({
 
   const handleUpdatePullRequest = useCallback(
     async (event) => {
-      event.preventDefault();
+      event?.preventDefault?.();
       const repoError = getRepoError(draftRepoRef);
       if (repoError) {
         setActionState({ busy: "", error: repoError, message: "" });
+        return;
+      }
+      if (confirmAction !== "pull-update") {
+        setActionState({
+          busy: "",
+          error: "Review and confirm the pull request update before sending it to GitHub.",
+          message: "",
+        });
         return;
       }
       const payload = {
@@ -1466,17 +1996,95 @@ export function GitHubWorkbenchPanel({
       const pullRequest = getResultItem(result, "pullRequest");
       if (pullRequest?.number) setSelectedItem(pullRequest);
     },
-    [draftRepoRef, pullEditDraft, runMutation],
+    [confirmAction, draftRepoRef, pullEditDraft, runMutation, selectedItem],
+  );
+
+  const handleUpdatePullRequestBranch = useCallback(
+    async (event) => {
+      event?.preventDefault?.();
+      const repoError = getRepoError(draftRepoRef);
+      if (repoError) {
+        setActionState({ busy: "", error: repoError, message: "" });
+        return;
+      }
+      if (!selectedItem?.number) {
+        setActionState({ busy: "", error: "Select a pull request first.", message: "" });
+        return;
+      }
+      if (confirmAction !== "pull-update-branch") {
+        setActionState({
+          busy: "",
+          error: "Review and confirm the branch update before sending it to GitHub.",
+          message: "",
+        });
+        return;
+      }
+
+      const payload = {
+        owner: draftRepoRef.owner,
+        repo: draftRepoRef.repo,
+        pullNumber: selectedItem.number,
+      };
+      if (pullSafetyDraft.expectedHeadSha.trim()) {
+        payload.expectedHeadSha = pullSafetyDraft.expectedHeadSha.trim();
+      }
+
+      await runMutation(
+        "pull-update-branch",
+        () => updateGithubPullRequestBranch(payload),
+        "Pull request branch update queued.",
+      );
+    },
+    [confirmAction, draftRepoRef, pullSafetyDraft.expectedHeadSha, runMutation, selectedItem],
+  );
+
+  const handleMergePullRequest = useCallback(
+    async (event) => {
+      event?.preventDefault?.();
+      const repoError = getRepoError(draftRepoRef);
+      if (repoError) {
+        setActionState({ busy: "", error: repoError, message: "" });
+        return;
+      }
+      if (!selectedItem?.number) {
+        setActionState({ busy: "", error: "Select a pull request first.", message: "" });
+        return;
+      }
+      if (confirmAction !== "pull-merge") {
+        setActionState({
+          busy: "",
+          error: "Review and confirm the merge before sending it to GitHub.",
+          message: "",
+        });
+        return;
+      }
+
+      const payload = {
+        owner: draftRepoRef.owner,
+        repo: draftRepoRef.repo,
+        pullNumber: selectedItem.number,
+        mergeMethod: pullSafetyDraft.mergeMethod,
+      };
+      if (selectedItem.head?.sha) payload.sha = selectedItem.head.sha;
+      if (pullSafetyDraft.commitTitle.trim()) payload.commitTitle = pullSafetyDraft.commitTitle.trim();
+      if (pullSafetyDraft.commitMessage.trim()) payload.commitMessage = pullSafetyDraft.commitMessage.trim();
+
+      await runMutation(
+        "pull-merge",
+        () => mergeGithubPullRequest(payload),
+        "Pull request merged.",
+      );
+    },
+    [confirmAction, draftRepoRef, pullSafetyDraft, runMutation, selectedItem],
   );
 
   const handleAddProjectItem = useCallback(
     async (event) => {
-      event.preventDefault();
+      event?.preventDefault?.();
       if (!selectedProject?.id) {
         setActionState({ busy: "", error: "Select a project first.", message: "" });
         return;
       }
-
       const result = await runMutation(
         "project-add-item",
         () =>
@@ -1496,9 +2104,17 @@ export function GitHubWorkbenchPanel({
 
   const handleUpdateProjectField = useCallback(
     async (event) => {
-      event.preventDefault();
+      event?.preventDefault?.();
       if (!selectedProject?.id) {
         setActionState({ busy: "", error: "Select a project first.", message: "" });
+        return;
+      }
+      if (confirmAction !== "project-update-field") {
+        setActionState({
+          busy: "",
+          error: "Review and confirm the project field update before sending it to GitHub.",
+          message: "",
+        });
         return;
       }
 
@@ -1518,11 +2134,11 @@ export function GitHubWorkbenchPanel({
       );
       if (result) void loadProjectItems(selectedProject);
     },
-    [loadProjectItems, projectActionDraft, runMutation, selectedProject],
+    [confirmAction, loadProjectItems, projectActionDraft, runMutation, selectedProject],
   );
 
-  const panelCountLabel = listState.loading && listState.loaded
-    ? "refreshing"
+  const panelCountLabel = listState.loading
+    ? listState.loaded ? "refreshing" : "loading"
     : `${listState.items.length} ${definition.itemName}${listState.items.length === 1 ? "" : "s"}`;
 
   return (
@@ -1600,6 +2216,7 @@ export function GitHubWorkbenchPanel({
             selectedItem={selectedItem}
             selectedProject={selectedProject}
             projectItemsState={projectItemsState}
+            setupRequirement={setupRequirement}
             onSelectItem={setSelectedItem}
             onSelectProject={handleSelectProject}
             onLoadProjectItems={loadProjectItems}
@@ -1619,6 +2236,9 @@ export function GitHubWorkbenchPanel({
             busy={actionState.busy}
             onCreate={handleCreateIssue}
             onUpdate={handleUpdateIssue}
+            confirmAction={confirmAction}
+            onRequestConfirm={requestConfirm}
+            onConfirmCancel={cancelConfirm}
           />
         ) : null}
 
@@ -1631,9 +2251,16 @@ export function GitHubWorkbenchPanel({
             onCreateDraftChange={setPullCreateDraft}
             editDraft={pullEditDraft}
             onEditDraftChange={setPullEditDraft}
+            safetyDraft={pullSafetyDraft}
+            onSafetyDraftChange={setPullSafetyDraft}
             busy={actionState.busy}
             onCreate={handleCreatePullRequest}
             onUpdate={handleUpdatePullRequest}
+            onUpdateBranch={handleUpdatePullRequestBranch}
+            onMerge={handleMergePullRequest}
+            confirmAction={confirmAction}
+            onRequestConfirm={requestConfirm}
+            onConfirmCancel={cancelConfirm}
           />
         ) : null}
 
@@ -1648,6 +2275,9 @@ export function GitHubWorkbenchPanel({
             onLoadItems={loadProjectItems}
             onAddItem={handleAddProjectItem}
             onUpdateField={handleUpdateProjectField}
+            confirmAction={confirmAction}
+            onRequestConfirm={requestConfirm}
+            onConfirmCancel={cancelConfirm}
           />
         ) : null}
       </PanelBody>

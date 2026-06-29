@@ -17,6 +17,8 @@ Stand: 2026-06-29
 - [x] Snap-Zones links, rechts, unten und hidden im Modell validieren.
 - [x] Explorer, Search, Git, Issues, PRs, Projects, Extensions, Account, Debug, Problems und Terminal als Dock-Ziele modellieren.
 - [x] Layout-Reset und aktive Dock-Zonen per Command Palette/Bottom-Dock bedienbar machen.
+- [x] Layout-v2 gegen korrupte Storage-Daten, Duplikate und Bucket-Layouts modellseitig absichern.
+- [x] Drop-Preview- und Panel-Move-Helper fuer Snap-Zone-Docking bereitstellen.
 - [ ] Drag-Drop und defekte Persistenzdaten in echten Electron-Viewports visuell testen.
 - [ ] Launchpad ohne Scrollzwang bei 900x512 pruefen.
 
@@ -24,6 +26,7 @@ Stand: 2026-06-29
 
 - [x] File Tree folder-first und danach Dateien nach Extension/Name sortieren.
 - [x] Grosse Trees mit flacher/virtueller Renderliste stabil halten.
+- [x] Open-State, Refresh, Loading, Empty und Error States modellseitig mit IDE-Core-Smoke abdecken.
 - [ ] Open-State, Refresh, Loading, Empty und Error States manuell pruefen.
 - [ ] Editor, Tabs, Search, Problems und Terminal duerfen die Codeflaeche nicht verdraengen.
 - [ ] CodeMirror 6 bleibt Engine; breite Syntax plus LSP-Smoke pruefen.
@@ -37,6 +40,8 @@ Stand: 2026-06-29
 - [x] Pull Requests: Liste, Detail, Diff, Checks, Review-Kommentare, Review Submit, Merge mit Confirm.
 - [x] Projects v2: User/Org Projects, Items, Felder, Issue/PR-Zuordnung.
 - [x] Issues, PRs und Projects als eigene Workbench-Panels mit Loading, Empty, Error, Refresh und Basis-Actions integrieren.
+- [x] Issues, PRs und Projects per Command Palette direkt oeffnen.
+- [x] GitHub-Workbench mit Scope/Auth/Rate-Limit/Validation-Hinweisen und Confirm/Safety-Flows haerten.
 
 ## Pflichtchecks
 
@@ -45,6 +50,8 @@ Stand: 2026-06-29
 - [x] `npm run verify:single-react`
 - [x] `npm --prefix "./Nexus Code" run electron:ensure`
 - [x] `npm --prefix "./Nexus Code" run smoke:ui`
+- [x] `npm --prefix "./Nexus Code" run smoke:ide-core`
+- [x] SSR-Smoke-Struktur: 1440x900, 1024x768, 900x512, 390x900 fuer Workbench, Launchpad, Account und Settings
 - [ ] Visual Smoke: 1440x900
 - [ ] Visual Smoke: 1024x768
 - [ ] Visual Smoke: 900x512
