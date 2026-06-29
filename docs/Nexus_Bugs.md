@@ -1,6 +1,6 @@
 # Nexus Bugs und Todo Listen
 
-Stand: 2026-06-27
+Stand: 2026-06-29
 
 ## Notes Bugs
 
@@ -71,7 +71,7 @@ GitHub UI-Gates fuer Main, Website und API-Deploy-Automation ergaenzen | true
 ```nexus-checklist
 Website Login Page: E-Mail bestaetigt zeigt bei Nein keinen gruenen Haken mehr | true
 API: Metrics Summary liefert echte aktive Nutzer separat von technischen Clients | true
-API ist komplett broken, Logins funktionieren nicht mehr, irgendwas ist komplett kaputt | false
+API ist komplett broken, Logins funktionieren nicht mehr, irgendwas ist komplett kaputt | true
 Control Page zeigt echte aktive Nutzer statt Online Apps im Nutzer-Metric-Slot | true
 Website nutzt fuer aktive Nutzer echte Nutzer-Metriken und labelt technische Clients separat | true
 ```
@@ -83,7 +83,7 @@ Maus-Glow Toggle mit Checkbox oben links machen | true
 Website-Text ab API/Developer/Account/Pricing konkreter und weniger Beta-lastig halten | true
 Screenshots nach Stabilitaetsblock neu capturen | false
 VPS Autoupdate Deploy ueber GitHub Actions starten | true
-GitHub Deploy-Secrets fuer `srv1513091.hstgr.cloud` setzen und Live-API neu starten | false
+GitHub Deploy-Secrets fuer `srv1513091.hstgr.cloud` setzen und Live-API neu starten | true
 ```
 
 ---
