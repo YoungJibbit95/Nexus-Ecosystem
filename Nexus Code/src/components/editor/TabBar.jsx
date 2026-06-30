@@ -16,7 +16,7 @@ const langColors = {
   cpp: "#3b82f6",
   c: "#6b7280",
   rs: "#f97316",
-  go: "#22d3ee",
+  go: "#38bdf8",
   rb: "#ef4444",
   php: "#8b5cf6",
 };
@@ -47,13 +47,16 @@ function ActionButton({ title, onClick, active = false, children }) {
       aria-label={title}
       aria-pressed={active}
       onClick={onClick}
-      className="nx-code-tab-action grid h-8 w-8 shrink-0 place-items-center border border-white/10 text-gray-400 transition-colors hover:border-white/20 hover:bg-white/10 hover:text-gray-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500/60 [&>svg]:h-4 [&>svg]:w-4"
+      className="nx-code-tab-action grid h-7 w-7 shrink-0 place-items-center border border-white/10 text-gray-400 transition-colors hover:border-white/20 hover:bg-white/10 hover:text-gray-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500/60 [&>svg]:h-3.5 [&>svg]:w-3.5"
       style={{
         background: active
-          ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.13)"
-          : "rgba(255,255,255,0.018)",
+          ? "linear-gradient(135deg, rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.14), rgba(var(--nexus-accent-2-rgb, 56, 189, 248), 0.04))"
+          : "rgba(0,0,0,0.14)",
         color: active ? "var(--nexus-primary, #7c8cff)" : undefined,
-        borderRadius: "var(--nexus-radius-lg, 18px)",
+        borderRadius: "var(--nexus-radius-md, 12px)",
+        boxShadow: active
+          ? "0 0 14px rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.08), inset 0 1px 0 rgba(255,255,255,0.04)"
+          : "inset 0 1px 0 rgba(255,255,255,0.025)",
       }}
     >
       {children}
@@ -110,13 +113,14 @@ export default function TabBar({
     <div
       className="nx-code-tabbar flex h-full min-w-0 shrink-0 items-stretch border-b border-white/5"
       style={{
-        background: "rgba(0,0,0,0.09)",
+        background:
+          "linear-gradient(180deg, rgba(255,255,255,0.018), rgba(255,255,255,0.004)), var(--nexus-editor-surface)",
         borderBottom: "1px solid var(--nexus-border)",
-        minHeight: "42px",
+        minHeight: "40px",
       }}
     >
       <div
-        className="nx-code-tabbar-actions flex h-full shrink-0 items-center gap-1.5 border-r border-white/5 px-2"
+        className="nx-code-tabbar-actions flex h-full shrink-0 items-center gap-1 border-r border-white/5 px-2"
         role="toolbar"
         aria-label="Editor actions"
       >
@@ -126,7 +130,7 @@ export default function TabBar({
             onClick={() => setNewFileMenuOpen((prev) => !prev)}
             active={newFileMenuOpen}
           >
-            <Plus size={16} />
+            <Plus size={14} />
           </ActionButton>
 
           <AnimatePresence>
@@ -157,7 +161,7 @@ export default function TabBar({
                     >
                       <span
                         className="inline-block max-w-full font-semibold leading-tight"
-                        style={{ overflowWrap: "anywhere" }}
+                        style={{ overflowWrap: "normal", wordBreak: "normal" }}
                       >
                         {item.label}
                       </span>
@@ -186,7 +190,7 @@ export default function TabBar({
                     <button
                       type="button"
                       onClick={submitCustomFile}
-                      className="nx-code-new-file-create min-h-8 shrink-0 border border-white/15 bg-white/10 px-2.5 text-xs font-semibold hover:bg-white/20"
+                      className="nx-code-new-file-create min-h-8 min-w-[5.6rem] shrink-0 border border-white/15 bg-white/10 px-2.5 text-xs font-semibold hover:bg-white/20"
                       style={{ color: "var(--nexus-text)" }}
                     >
                       Erstellen
@@ -202,7 +206,7 @@ export default function TabBar({
           title="Befehlspalette"
           onClick={() => onOpenCommandPalette?.()}
         >
-          <Search size={16} />
+          <Search size={14} />
         </ActionButton>
 
         <ActionButton
@@ -210,11 +214,11 @@ export default function TabBar({
           onClick={() => onToggleTerminal?.()}
           active={bottomPanelOpen && bottomTab === "terminal"}
         >
-          <TerminalSquare size={16} />
+          <TerminalSquare size={14} />
         </ActionButton>
 
         <ActionButton title="Alle speichern" onClick={() => onSaveAll?.()}>
-          <Save size={16} />
+          <Save size={14} />
         </ActionButton>
       </div>
 
@@ -241,16 +245,18 @@ export default function TabBar({
                   title={tab.name}
                   role="tab"
                   aria-selected={isActive}
-                  className="nx-code-tab group relative flex h-full min-w-[9rem] max-w-[15rem] shrink-0 items-center gap-2 border-r border-white/5 px-3 text-left transition-colors hover:bg-white/[0.04]"
+                  className="nx-code-tab group relative flex h-full min-w-[8.5rem] max-w-[15rem] shrink-0 items-center gap-2 border-r border-white/5 px-3 text-left transition-colors hover:bg-white/[0.04]"
                   style={{
-                    background: isActive ? "rgba(255,255,255,0.045)" : "transparent",
+                    background: isActive
+                      ? "linear-gradient(180deg, rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.09), rgba(var(--nexus-accent-2-rgb, 56, 189, 248), 0.025), rgba(255,255,255,0.012))"
+                      : "transparent",
                     borderBottom: isActive
-                      ? `2px solid ${color}`
+                      ? `2px solid ${color === "#22c55e" ? "var(--nexus-accent-2, #38bdf8)" : color}`
                       : "2px solid transparent",
                   }}
                 >
                   <span
-                    className="nx-code-tab-ext grid h-5 w-10 shrink-0 place-items-center rounded px-1 text-[10px] font-bold leading-none"
+                    className="nx-code-tab-ext grid h-5 w-9 shrink-0 place-items-center rounded px-1 text-[10px] font-bold leading-none"
                     style={{ background: color + "22", color }}
                   >
                     {ext.toUpperCase() || "TXT"}

@@ -58,7 +58,7 @@ function getTypeMeta(type) {
     return {
       label: "S",
       name: "Snippet",
-      className: "bg-emerald-400/15 text-emerald-200 border-emerald-300/20",
+      className: "bg-sky-400/15 text-sky-200 border-sky-300/20",
     };
   }
   if (type.includes("property") || type.includes("field")) {

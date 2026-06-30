@@ -30,22 +30,25 @@ import {
   PanelBody,
   PanelFooter,
   PanelHeader,
-  PanelMetric,
   PanelNotice,
   PanelShell,
 } from "./panels/PanelChrome.jsx";
 
 const HOSTED_ENDPOINT = "https://nexus-api.cloud";
 const LOCAL_ENDPOINT = "http://127.0.0.1:17890";
+const ACCOUNT_FIELD_CLASS =
+  `${PANEL_INPUT_CLASS} !min-h-8 !rounded-xl !border-white/[0.075] !bg-black/20 !px-2.5 !py-1.5 !text-[11px] focus:!border-cyan-300/30 focus:!bg-black/25 focus:!ring-cyan-300/10 placeholder:!text-gray-600`;
+const ACCOUNT_SELECT_CLASS =
+  `${PANEL_SELECT_CLASS} !min-h-8 !rounded-xl !border-white/[0.075] !bg-black/20 !px-2.5 !py-1.5 !text-[11px] focus:!border-cyan-300/30 focus:!bg-black/25 focus:!ring-cyan-300/10`;
 
 const STATUS_META = {
   online: {
     tone: "success",
     icon: CheckCircle2,
     label: "Online",
-    color: "#86efac",
-    background: "rgba(34,197,94,0.1)",
-    border: "rgba(34,197,94,0.22)",
+    color: "#67e8f9",
+    background: "rgba(34,211,238,0.09)",
+    border: "rgba(34,211,238,0.2)",
   },
   limited: {
     tone: "warning",
@@ -76,7 +79,10 @@ const STATUS_META = {
 function Field({ icon: Icon, label, children }) {
   return (
     <label className="block min-w-0">
-      <span className="mb-1.5 flex min-w-0 items-center gap-1.5 px-0.5 text-[10px] font-semibold uppercase tracking-wide text-gray-500">
+      <span
+        className="mb-1 flex min-w-0 items-center gap-1.5 px-0.5 text-[10px] font-semibold uppercase text-gray-500"
+        style={{ letterSpacing: 0 }}
+      >
         <Icon size={12} className="shrink-0" />
         <span className="min-w-0 break-words" style={{ overflowWrap: "anywhere" }}>
           {label}
@@ -87,7 +93,7 @@ function Field({ icon: Icon, label, children }) {
   );
 }
 
-function AccountButton({ children, onClick, disabled, tone = "default", title }) {
+function AccountButton({ children, onClick, disabled, tone = "default", title, className = "" }) {
   const danger = tone === "danger";
   const primary = tone === "primary";
   return (
@@ -96,20 +102,20 @@ function AccountButton({ children, onClick, disabled, tone = "default", title })
       onClick={onClick}
       disabled={disabled}
       title={title}
-      className="nx-code-account-button flex min-h-8 min-w-0 items-center justify-center gap-1.5 rounded-2xl border px-2.5 py-1 text-[11px] font-semibold leading-tight transition-colors disabled:cursor-not-allowed disabled:opacity-45"
+      className={`nx-code-account-button flex min-h-8 min-w-0 max-w-full flex-wrap items-center justify-center gap-1.5 rounded-2xl border px-2.5 py-1 text-center text-[11px] font-semibold leading-tight transition-colors disabled:cursor-not-allowed disabled:opacity-45 [&>svg]:shrink-0 ${className}`}
       style={{
         background: primary
-          ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.13)"
+          ? "rgba(34,211,238,0.1)"
           : danger
-            ? "rgba(239,68,68,0.085)"
-            : "rgba(255,255,255,0.032)",
+            ? "rgba(239,68,68,0.06)"
+            : "rgba(2,6,23,0.26)",
         borderColor: primary
-          ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.22)"
+          ? "rgba(34,211,238,0.18)"
           : danger
-            ? "rgba(239,68,68,0.2)"
-            : "rgba(255,255,255,0.07)",
+            ? "rgba(239,68,68,0.16)"
+            : "rgba(148,163,184,0.1)",
         color: primary
-          ? "var(--nexus-primary, #7c8cff)"
+          ? "#67e8f9"
           : danger
             ? "#fca5a5"
             : "#d1d5db",
@@ -118,6 +124,47 @@ function AccountButton({ children, onClick, disabled, tone = "default", title })
     >
       {children}
     </button>
+  );
+}
+
+function AccountMiniStat({ label, value, tone = "muted", title }) {
+  const toneColor =
+    tone === "accent"
+      ? "#a5b4fc"
+      : tone === "success"
+        ? "#67e8f9"
+        : tone === "warning"
+          ? "#fbbf24"
+          : "#9ca3af";
+
+  return (
+    <div
+      title={title}
+      className="min-w-0 rounded-2xl border border-white/[0.06] bg-black/[0.2] px-2.5 py-1.5"
+      style={{ borderRadius: "var(--nexus-radius-lg, 18px)" }}
+    >
+      <div
+        className="text-[9px] font-semibold uppercase leading-none text-gray-600"
+        style={{ letterSpacing: 0 }}
+      >
+        {label}
+      </div>
+      <div
+        className="mt-1 min-w-0 break-words text-[11px] font-semibold leading-tight"
+        style={{ color: toneColor, overflowWrap: "anywhere" }}
+      >
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function CompactAccountNotice({ className = "", ...props }) {
+  return (
+    <PanelNotice
+      className={`!rounded-2xl !px-2.5 !py-2 ${className}`}
+      {...props}
+    />
   );
 }
 
@@ -163,6 +210,14 @@ export default function AccountPanel({
   const savedLabel = normalizedSession.savedAt
     ? new Date(normalizedSession.savedAt).toLocaleString()
     : "Not saved";
+  const detailPreview = details
+    .filter(Boolean)
+    .slice(0, 3)
+    .join(" - ");
+  const hiddenDetailCount = Math.max(details.length - 3, 0);
+  const statusDetail = detailPreview
+    ? `${detailPreview}${hiddenDetailCount ? ` (+${hiddenDetailCount})` : ""}`
+    : `${accountLabel} - ${savedLabel}`;
 
   const updateDraft = (field, value) => {
     setDraft((prev) => ({
@@ -219,22 +274,22 @@ export default function AccountPanel({
       <PanelHeader
         icon={UserRound}
         title="Account"
-        subtitle={`${accountLabel} - ${controlStatus?.title || "Control API"} - ${statusMeta.label}`}
+        subtitle={`${accountLabel} - ${controlStatus?.title || "Control API"}`}
         status={<PanelBadge tone={statusMeta.tone}>{statusMeta.label}</PanelBadge>}
       >
         <div className="grid grid-cols-2 gap-1.5">
-          <PanelMetric
+          <AccountMiniStat
             label="Mode"
             value={authModeLabel}
             tone={sessionState.hasIdentity ? "success" : "muted"}
           />
-          <PanelMetric
+          <AccountMiniStat
             label="Session"
             value={sessionState.canStartWorkbench ? "Ready" : "Locked"}
             tone={sessionState.hasToken ? "accent" : "muted"}
           />
-          <PanelMetric label="Tier" value={draft.userTier || "free"} tone="accent" />
-          <PanelMetric
+          <AccountMiniStat label="Tier" value={draft.userTier || "free"} tone="accent" />
+          <AccountMiniStat
             label="Saved"
             value={normalizedSession.savedAt ? "Yes" : "No"}
             tone={normalizedSession.savedAt ? "success" : "muted"}
@@ -243,15 +298,15 @@ export default function AccountPanel({
         </div>
       </PanelHeader>
 
-      <PanelBody className="px-3 py-3">
-        <PanelNotice
+      <PanelBody className="px-3 py-2.5">
+        <CompactAccountNotice
           icon={StatusIcon}
           tone={statusMeta.tone}
           title={testResult?.message || controlStatus?.message || "Local session ready."}
-          detail={details.length > 0 ? details.join(", ") : `${accountLabel} - ${savedLabel}`}
-          className="mb-3"
+          detail={statusDetail}
+          className="mb-2"
         />
-        <PanelNotice
+        <CompactAccountNotice
           icon={ShieldCheck}
           tone={sessionState.isLocal ? "teal" : sessionState.canStartWorkbench ? "success" : "warning"}
           title={sessionState.isLocal ? "Lokaler IDE-Modus" : sessionState.canStartWorkbench ? "Nexus Session aktiv" : "Session fehlt"}
@@ -260,10 +315,10 @@ export default function AccountPanel({
             : sessionState.canStartWorkbench
               ? "Die Workbench darf starten; API-Features folgen den Entitlements deiner Nexus Session."
               : "Nutze den Startscreen fuer Username/Passwort Login oder setze hier einen lokalen Workspace."}
-          className="mb-3"
+          className="mb-2.5"
         />
 
-        <div className="nx-code-account-presets mb-3 grid grid-cols-2 gap-1.5">
+        <div className="nx-code-account-presets mb-2.5 grid grid-cols-2 gap-1.5">
           <PanelActionButton
             icon={Link2}
             onClick={() => applyEndpointPreset(HOSTED_ENDPOINT)}
@@ -281,19 +336,19 @@ export default function AccountPanel({
         </div>
 
         {endpointWillNormalize ? (
-          <PanelNotice
+          <CompactAccountNotice
             icon={AlertTriangle}
             tone="warning"
             title="Endpoint wird normalisiert"
             detail={`Beim Speichern wird "${draft.endpoint}" zu "${normalizedDraftEndpoint}" bereinigt.`}
-            className="mb-3"
+            className="mb-2.5"
           />
         ) : null}
 
-        <div className="grid gap-3">
+        <div className="grid gap-2.5">
           <Field icon={Link2} label="API Endpoint">
             <input
-              className={PANEL_INPUT_CLASS}
+              className={ACCOUNT_FIELD_CLASS}
               value={draft.endpoint || ""}
               onChange={(event) => updateDraft("endpoint", event.target.value)}
               placeholder="https://nexus-api.cloud"
@@ -306,7 +361,7 @@ export default function AccountPanel({
           <Field icon={KeyRound} label="Session Token (Advanced)">
             <div className="grid grid-cols-[1fr_auto] gap-1.5">
               <input
-                className={PANEL_INPUT_CLASS}
+                className={ACCOUNT_FIELD_CLASS}
                 value={draft.token || ""}
                 onChange={(event) => updateDraft("token", event.target.value)}
                 placeholder="Nexus API token"
@@ -318,7 +373,7 @@ export default function AccountPanel({
               <button
                 type="button"
                 onClick={() => setShowToken((value) => !value)}
-                className="grid h-8 w-8 place-items-center rounded-2xl border border-white/10 bg-white/[0.035] text-gray-500 transition-colors hover:bg-white/[0.07] hover:text-gray-200"
+                className="grid h-8 w-8 place-items-center rounded-xl border border-white/[0.075] bg-black/20 text-gray-500 transition-colors hover:bg-white/[0.06] hover:text-gray-200"
                 title={showToken ? "Token verbergen" : "Token anzeigen"}
               >
                 {showToken ? <EyeOff size={14} /> : <Eye size={14} />}
@@ -329,7 +384,7 @@ export default function AccountPanel({
           <div className="grid grid-cols-2 gap-2">
             <Field icon={UserRound} label="User ID">
               <input
-                className={PANEL_INPUT_CLASS}
+                className={ACCOUNT_FIELD_CLASS}
                 value={draft.userId || ""}
                 onChange={(event) => updateDraft("userId", event.target.value)}
                 placeholder="local-user"
@@ -340,7 +395,7 @@ export default function AccountPanel({
             </Field>
             <Field icon={ShieldCheck} label="Tier">
               <select
-                className={PANEL_SELECT_CLASS}
+                className={ACCOUNT_SELECT_CLASS}
                 value={draft.userTier || "free"}
                 onChange={(event) => updateDraft("userTier", event.target.value)}
                 style={{ colorScheme: "dark" }}
@@ -355,7 +410,7 @@ export default function AccountPanel({
 
           <Field icon={UserRound} label="Username">
             <input
-              className={PANEL_INPUT_CLASS}
+              className={ACCOUNT_FIELD_CLASS}
               value={draft.username || ""}
               onChange={(event) => updateDraft("username", event.target.value)}
               placeholder="nexus-user"
@@ -367,7 +422,7 @@ export default function AccountPanel({
         </div>
       </PanelBody>
 
-      <PanelFooter>
+      <PanelFooter className="px-3 py-2">
         <div className="mb-2 flex items-center justify-between gap-2 text-[10px] text-gray-500">
           <span className="flex min-w-0 items-center gap-1 truncate">
             <Clock size={10} className="shrink-0" />
@@ -394,13 +449,13 @@ export default function AccountPanel({
           </AccountButton>
           <AccountButton onClick={handleSave} tone="primary" title="Save session">
             <Save size={14} />
-            {isDirty ? "Save changes" : "Save"}
+            Save
           </AccountButton>
           <AccountButton onClick={() => setDraft(normalizeAccountSession({}))} title="Clear fields">
             <Trash2 size={14} />
             Clear
           </AccountButton>
-          <AccountButton onClick={handleClear} tone="danger" title="Logout">
+          <AccountButton onClick={handleClear} tone="danger" title="Logout" className="col-span-2">
             <LogOut size={14} />
             Logout
           </AccountButton>

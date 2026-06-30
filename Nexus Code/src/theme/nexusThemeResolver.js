@@ -4,7 +4,7 @@ export const DEFAULT_THEME_ID = "nexus_vibrant";
 export const ZED_THEME_ALIAS = "nexus_zed";
 
 const FALLBACK_PRIMARY = "#7c8cff";
-const FALLBACK_SECONDARY = "#2dd4bf";
+const FALLBACK_SECONDARY = "#38bdf8";
 
 function normalizeHexColor(value, fallback = FALLBACK_PRIMARY) {
   if (typeof value !== "string") return fallback;
@@ -169,12 +169,12 @@ export const THEME_PRESETS = Object.freeze({
     id: DEFAULT_THEME_ID,
     name: "Nexus Zed",
     legacyName: "Nexus Vibrant",
-    description: "Quiet Nexus depth with Zed-like editor contrast.",
+    description: "Dark Nexus workbench depth with Zed-like editor contrast.",
     bg_type: "gradient",
     bg_value:
-      "linear-gradient(135deg, #07080d 0%, #0b0d14 46%, #10131d 100%)",
-    surface: "rgba(17, 20, 29, 0.82)",
-    border: "rgba(142, 153, 183, 0.16)",
+      "radial-gradient(circle at 42% -10%, rgba(124, 140, 255, 0.12), transparent 34rem), linear-gradient(135deg, #05070c 0%, #090b12 52%, #03050a 100%)",
+    surface: "rgba(10, 13, 20, 0.86)",
+    border: "rgba(120, 132, 164, 0.18)",
     text: "#d7dae0",
     muted: "#8b93a7",
     accent: FALLBACK_PRIMARY,
@@ -182,7 +182,7 @@ export const THEME_PRESETS = Object.freeze({
     glow: hexToRgba(FALLBACK_PRIMARY, 0.16),
     selection: "rgba(124, 140, 255, 0.22)",
     syntax: nexusZedSyntax,
-    swatches: ["#0b0d14", FALLBACK_PRIMARY, "#8bd5ca"],
+    swatches: ["#0b0d14", FALLBACK_PRIMARY, FALLBACK_SECONDARY],
     semantic: {
       canvas: "#07080d",
       raised: "#11141d",
@@ -242,7 +242,7 @@ export const THEME_PRESETS = Object.freeze({
       type: "#67e8f9",
       operator: "#bfdbfe",
     },
-    swatches: ["#000814", "#0ea5e9", "#10b981"],
+    swatches: ["#000814", "#0ea5e9", "#38bdf8"],
   },
   midnight_mystery: {
     id: "midnight_mystery",

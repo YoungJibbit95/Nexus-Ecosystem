@@ -78,11 +78,11 @@ const CATEGORY_TONE_BY_ID = Object.freeze({
     active: "border-cyan-300/25 bg-cyan-300/10",
   }),
   navigation: Object.freeze({
-    dot: "bg-emerald-300",
-    text: "text-emerald-200",
-    chip: "border-emerald-300/20 bg-emerald-300/10 text-emerald-100",
-    icon: "border-emerald-300/15 bg-emerald-300/10 text-emerald-200",
-    active: "border-emerald-300/25 bg-emerald-300/10",
+    dot: "bg-sky-300",
+    text: "text-sky-200",
+    chip: "border-sky-300/20 bg-sky-300/10 text-sky-100",
+    icon: "border-sky-300/15 bg-sky-300/10 text-sky-200",
+    active: "border-sky-300/25 bg-sky-300/10",
   }),
   symbols: Object.freeze({
     dot: "bg-fuchsia-300",
@@ -120,11 +120,11 @@ const CATEGORY_TONE_BY_ID = Object.freeze({
     active: "border-violet-300/25 bg-violet-300/10",
   }),
   extensions: Object.freeze({
-    dot: "bg-teal-300",
-    text: "text-teal-200",
-    chip: "border-teal-300/20 bg-teal-300/10 text-teal-100",
-    icon: "border-teal-300/15 bg-teal-300/10 text-teal-200",
-    active: "border-teal-300/25 bg-teal-300/10",
+    dot: "bg-cyan-300",
+    text: "text-cyan-200",
+    chip: "border-cyan-300/20 bg-cyan-300/10 text-cyan-100",
+    icon: "border-cyan-300/15 bg-cyan-300/10 text-cyan-200",
+    active: "border-cyan-300/25 bg-cyan-300/10",
   }),
   preferences: Object.freeze({
     dot: "bg-slate-300",

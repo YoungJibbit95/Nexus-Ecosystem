@@ -15,7 +15,7 @@ const EXTENSION_META = {
   tsx: { label: "TSX", color: "#3b82f6", group: "source" },
   mjs: { label: "MJS", color: "#facc15", group: "source" },
   cjs: { label: "CJS", color: "#facc15", group: "source" },
-  py: { label: "PY", color: "#22c55e", group: "source" },
+  py: { label: "PY", color: "#38bdf8", group: "source" },
   java: { label: "JAVA", color: "#f97316", group: "source" },
   go: { label: "GO", color: "#22d3ee", group: "source" },
   rs: { label: "RS", color: "#f97316", group: "source" },
@@ -38,11 +38,11 @@ const EXTENSION_META = {
   md: { label: "MD", color: "#a855f7", group: "docs" },
   mdx: { label: "MDX", color: "#a855f7", group: "docs" },
   txt: { label: "TXT", color: "#94a3b8", group: "docs" },
-  png: { label: "PNG", color: "#14b8a6", group: "media" },
-  jpg: { label: "JPG", color: "#14b8a6", group: "media" },
-  jpeg: { label: "JPEG", color: "#14b8a6", group: "media" },
-  svg: { label: "SVG", color: "#14b8a6", group: "media" },
-  webp: { label: "WEBP", color: "#14b8a6", group: "media" },
+  png: { label: "PNG", color: "#60a5fa", group: "media" },
+  jpg: { label: "JPG", color: "#60a5fa", group: "media" },
+  jpeg: { label: "JPEG", color: "#60a5fa", group: "media" },
+  svg: { label: "SVG", color: "#60a5fa", group: "media" },
+  webp: { label: "WEBP", color: "#60a5fa", group: "media" },
 };
 
 /** @type {Record<string, string>} */

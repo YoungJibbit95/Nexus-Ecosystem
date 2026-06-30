@@ -38,6 +38,12 @@ export { resolveNexusTheme };
 export const DEFAULT_FILES = [];
 
 const defaultResolvedTheme = resolveNexusTheme({ theme: DEFAULT_THEME_ID });
+const LEGACY_SECONDARY_ACCENTS = new Set([
+  "#2dd4bf",
+  "#10b981",
+  "#14b8a6",
+  "#22c55e",
+]);
 
 export const DEFAULT_SETTINGS = {
   theme: DEFAULT_THEME_ID,
@@ -99,6 +105,9 @@ function readBoundedNumber(value, min, max, fallback) {
 function normalizeEditorSettings(settings) {
   const next = { ...DEFAULT_SETTINGS, ...(settings || {}) };
   next.theme = normalizeThemeId(next.theme);
+  if (LEGACY_SECONDARY_ACCENTS.has(String(next.secondary_accent || "").toLowerCase())) {
+    next.secondary_accent = DEFAULT_SETTINGS.secondary_accent;
+  }
   if (next.background && !BACKGROUNDS[next.background]) {
     next.background = null;
   }

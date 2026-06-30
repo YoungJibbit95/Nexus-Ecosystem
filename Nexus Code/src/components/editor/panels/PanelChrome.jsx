@@ -7,29 +7,29 @@ const toneStyles = {
     icon: "#8b93a7",
     title: "#d7dae0",
     detail: "#7b8496",
-    background: "rgba(255,255,255,0.026)",
-    border: "rgba(255,255,255,0.052)",
+    background: "rgba(255,255,255,0.022)",
+    border: "rgba(156,178,226,0.075)",
   },
   accent: {
     icon: "var(--nexus-primary, #7c8cff)",
     title: "#ede9fe",
     detail: "#9ca3af",
-    background: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.082)",
+    background: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.074)",
     border: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.18)",
   },
   teal: {
-    icon: "#5eead4",
-    title: "#ccfbf1",
-    detail: "#99f6e4",
-    background: "rgba(45,212,191,0.075)",
-    border: "rgba(45,212,191,0.17)",
+    icon: "#93c5fd",
+    title: "#dbeafe",
+    detail: "#bfdbfe",
+    background: "rgba(56,189,248,0.07)",
+    border: "rgba(56,189,248,0.18)",
   },
   success: {
-    icon: "#86efac",
-    title: "#dcfce7",
-    detail: "#86efac",
-    background: "rgba(34,197,94,0.075)",
-    border: "rgba(34,197,94,0.18)",
+    icon: "#a5b4fc",
+    title: "#e0e7ff",
+    detail: "#c7d2fe",
+    background: "rgba(129,140,248,0.076)",
+    border: "rgba(129,140,248,0.18)",
   },
   warning: {
     icon: "#fbbf24",
@@ -48,10 +48,10 @@ const toneStyles = {
 };
 
 export const PANEL_INPUT_CLASS =
-  "min-h-9 w-full min-w-0 rounded-2xl border border-white/[0.07] bg-white/[0.035] px-3 py-2 text-[12px] leading-snug text-gray-200 outline-none transition-colors placeholder:text-gray-600 focus:border-purple-300/40 focus:bg-white/[0.052] focus:ring-2 focus:ring-purple-400/10";
+  "min-h-9 w-full min-w-0 rounded-2xl border border-white/[0.065] bg-white/[0.026] px-3 py-2 text-[12px] leading-snug text-gray-200 outline-none transition-colors placeholder:text-gray-600 focus:border-purple-300/40 focus:bg-white/[0.046] focus:ring-2 focus:ring-purple-400/10";
 
 export const PANEL_SELECT_CLASS =
-  "min-h-9 w-full min-w-0 rounded-2xl border border-white/[0.07] bg-white/[0.035] px-3 py-2 text-[12px] leading-snug text-gray-200 outline-none transition-colors focus:border-purple-300/40 focus:bg-white/[0.052] focus:ring-2 focus:ring-purple-400/10";
+  "min-h-9 w-full min-w-0 rounded-2xl border border-white/[0.065] bg-white/[0.026] px-3 py-2 text-[12px] leading-snug text-gray-200 outline-none transition-colors focus:border-purple-300/40 focus:bg-white/[0.046] focus:ring-2 focus:ring-purple-400/10";
 
 export function useNexusReducedMotion() {
   const prefersReducedMotion = useReducedMotion();
@@ -110,17 +110,17 @@ export function PanelCard({
       style={{
         color: toneStyle.detail,
         background:
-          "radial-gradient(circle at 12% 0%, rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.038), transparent 12rem), linear-gradient(180deg, rgba(255,255,255,0.044), rgba(255,255,255,0.012))",
+          "radial-gradient(circle at 12% 0%, rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.034), transparent 12rem), linear-gradient(180deg, rgba(255,255,255,0.034), rgba(255,255,255,0.008)), rgba(0,0,0,0.12)",
         borderColor:
           tone === "muted" ? "rgba(255,255,255,0.05)" : toneStyle.border,
-        borderRadius: "var(--nexus-radius-xl, 22px)",
+        borderRadius: "var(--nexus-radius-xl, 18px)",
         boxShadow: reduceMotion
           ? "inset 0 1px 0 rgba(255,255,255,0.04)"
-          : "0 12px 28px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.052)",
-        backdropFilter: reduceMotion ? "none" : "blur(10px) saturate(108%)",
+          : "0 14px 32px rgba(0,0,0,0.22), 0 0 18px rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.024), inset 0 1px 0 rgba(255,255,255,0.046)",
+        backdropFilter: reduceMotion ? "none" : "blur(14px) saturate(112%)",
         WebkitBackdropFilter: reduceMotion
           ? "none"
-          : "blur(10px) saturate(108%)",
+          : "blur(14px) saturate(112%)",
         overflowWrap: "anywhere",
         transition:
           reduceMotion
@@ -149,11 +149,11 @@ export function PanelShell({ children, ariaLabel, className = "", style }) {
       className={`nx-editor-panel-shell relative isolate flex h-full min-h-0 w-full max-w-full flex-col overflow-hidden text-gray-100 ${className}`}
       style={{
         background:
-          "linear-gradient(180deg, rgba(10,13,27,0.68) 0%, rgba(6,8,18,0.64) 100%)",
-        backdropFilter: reduceMotion ? "none" : "blur(12px) saturate(108%)",
+          "linear-gradient(180deg, rgba(5,8,14,0.78) 0%, rgba(3,5,10,0.72) 100%)",
+        backdropFilter: reduceMotion ? "none" : "blur(16px) saturate(112%)",
         WebkitBackdropFilter: reduceMotion
           ? "none"
-          : "blur(12px) saturate(108%)",
+          : "blur(16px) saturate(112%)",
         ...style,
       }}
       aria-label={ariaLabel}
@@ -182,29 +182,29 @@ export function PanelHeader({
 }) {
   return (
     <header
-      className={`nx-editor-panel-header shrink-0 border-b border-white/[0.045] px-3.5 pb-3 pt-3.5 ${className}`}
+      className={`nx-editor-panel-header shrink-0 border-b border-white/[0.04] px-3 pb-2.5 pt-3 ${className}`}
     >
       <div className="flex min-w-0 flex-wrap items-start gap-2.5">
         {Icon ? (
           <div
-            className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border"
+            className="grid h-8 w-8 shrink-0 place-items-center rounded-xl border"
             style={{
               borderRadius: "var(--nexus-radius-lg, 18px)",
-              background: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.075)",
+              background: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.068)",
               borderColor: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.15)",
               color: "var(--nexus-primary, #7c8cff)",
               boxShadow: "0 0 12px rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.055)",
             }}
           >
-            <Icon size={16} />
+            <Icon size={15} />
           </div>
         ) : null}
 
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 flex-wrap items-center gap-2">
             <h2
-              className="min-w-0 break-words text-[13px] font-semibold leading-tight text-gray-100"
-              style={{ overflowWrap: "anywhere" }}
+              className="min-w-0 break-words text-[12px] font-semibold leading-tight text-gray-100"
+              style={{ overflowWrap: "normal", wordBreak: "normal" }}
             >
               {title}
             </h2>
@@ -213,7 +213,7 @@ export function PanelHeader({
           {subtitle ? (
             <p
               className="mt-0.5 min-w-0 break-words text-[10px] leading-snug text-gray-500"
-              style={{ overflowWrap: "anywhere" }}
+              style={{ overflowWrap: "normal", wordBreak: "normal" }}
             >
               {subtitle}
             </p>
@@ -277,9 +277,9 @@ export function PanelIconButton({
       disabled={disabled}
       title={label}
       aria-label={label}
-      className={`grid h-8 w-8 shrink-0 place-items-center rounded-2xl border text-gray-500 transition-colors hover:bg-white/[0.06] hover:text-gray-200 disabled:cursor-not-allowed disabled:opacity-45 [&>svg]:h-4 [&>svg]:w-4 ${className}`}
+      className={`grid h-7 w-7 shrink-0 place-items-center rounded-2xl border text-gray-500 transition-colors hover:bg-white/[0.06] hover:text-gray-200 disabled:cursor-not-allowed disabled:opacity-45 [&>svg]:h-3.5 [&>svg]:w-3.5 ${className}`}
       style={{
-        borderRadius: "var(--nexus-radius-lg, 18px)",
+        borderRadius: "var(--nexus-radius-md, 12px)",
         background: active
           ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.13)"
           : "rgba(255,255,255,0.024)",
@@ -311,16 +311,16 @@ export function PanelActionButton({
       onClick={onClick}
       disabled={disabled}
       title={title}
-      className={`inline-flex min-h-8 max-w-full min-w-0 items-center justify-center gap-1.5 rounded-2xl border px-2.5 py-1.5 text-[11px] font-semibold leading-tight transition-colors hover:bg-white/[0.065] disabled:cursor-not-allowed disabled:opacity-45 ${className}`}
+      className={`inline-flex min-h-8 max-w-full min-w-0 items-center justify-center gap-1.5 rounded-2xl border px-2.5 py-1.5 text-[11px] font-semibold leading-tight transition-colors hover:bg-white/[0.06] disabled:cursor-not-allowed disabled:opacity-45 ${className}`}
       style={{
         color: toneStyle.icon,
         background: toneStyle.background,
         borderColor: toneStyle.border,
-        borderRadius: "var(--nexus-radius-lg, 18px)",
+        borderRadius: "var(--nexus-radius-md, 12px)",
       }}
     >
       {Icon ? <Icon size={13} className="shrink-0" /> : null}
-      <span className="min-w-0 break-words text-center" style={{ overflowWrap: "anywhere" }}>
+      <span className="min-w-0 break-words text-center" style={{ overflowWrap: "normal", wordBreak: "normal" }}>
         {children}
       </span>
     </button>
@@ -339,7 +339,7 @@ export function PanelBadge({ children, tone = "muted", title }) {
         borderColor: toneStyle.border,
       }}
     >
-      <span className="min-w-0 break-words" style={{ overflowWrap: "anywhere" }}>
+      <span className="min-w-0 break-words" style={{ overflowWrap: "normal", wordBreak: "normal" }}>
         {children}
       </span>
     </span>

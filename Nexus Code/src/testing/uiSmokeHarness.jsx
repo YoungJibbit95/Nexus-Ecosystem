@@ -162,15 +162,15 @@ export function createUiSmokeScenarios() {
       id: "workbench-shell",
       title: "Workbench shell with account fixture",
       primaryActions: [
-        "New scratch file",
-        "Open project folder",
-        "Tune editor setup",
+        "Neue Datei",
+        "Projekt oeffnen",
+        "Einrichtung",
       ],
       expectedText: [
         "nx-code-shell",
         "nx-code-workbench",
         "Nexus Code",
-        "New scratch file",
+        "Neue Datei",
       ],
       requiredMarkup: [
         "nx-code-titlebar-wrap",
@@ -200,15 +200,15 @@ export function createUiSmokeScenarios() {
       id: "launchpad",
       title: "Launchpad welcome surface",
       primaryActions: [
-        "New scratch file",
-        "Open project folder",
-        "Tune editor setup",
+        "Neue Datei",
+        "Projekt oeffnen",
+        "Einrichtung",
       ],
       expectedText: [
         "nx-code-launchpad",
-        "Productive flows",
-        "Ready surfaces",
-        "Local editing with terminal",
+        "Produktive Flows",
+        "Schnellstart",
+        "Lokale Bearbeitung",
       ],
       requiredMarkup: [
         "nx-code-welcome",
@@ -217,7 +217,6 @@ export function createUiSmokeScenarios() {
         "nx-code-launchpad-action",
         "nx-code-launchpad-recent",
         "nx-code-launchpad-flow",
-        "nx-code-launchpad-languages",
       ],
       render: (viewport) =>
         renderInViewport(
@@ -340,7 +339,7 @@ export function createUiSmokeScenarios() {
       ],
       expectedText: [
         "GitHub Issues",
-        "Triage, create, and edit repository issues.",
+        "Triage repository issues.",
         "offline",
         "Repository",
         UI_SMOKE_FIXTURE_GITHUB_REPOSITORY,

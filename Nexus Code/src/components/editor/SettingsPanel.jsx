@@ -555,7 +555,7 @@ const THEME_EDITOR_RECIPES = [
     id: "focus",
     label: "Focus",
     description: "Dichte Code-Ansicht mit wenig Effektkosten.",
-    colors: ["#7c8cff", "#2dd4bf", "#11141d"],
+    colors: ["#7c8cff", "#38bdf8", "#11141d"],
     settings: {
       custom_surface: "#10131d",
       custom_input_surface: "#151a24",
@@ -575,7 +575,7 @@ const THEME_EDITOR_RECIPES = [
     id: "glass",
     label: "Glass",
     description: "Mehr Tiefe ohne den intensiven Renderer.",
-    colors: ["#8aadf4", "#8bd5ca", "#151925"],
+    colors: ["#8aadf4", "#38bdf8", "#151925"],
     settings: {
       custom_surface: "#111827",
       custom_input_surface: "#182033",
@@ -1390,7 +1390,7 @@ function VisualBudgetCard({ summary }) {
         ? {
             background: "rgba(34,197,94,0.07)",
             borderColor: "rgba(34,197,94,0.16)",
-            fill: "linear-gradient(90deg, #22c55e, #2dd4bf)",
+            fill: "linear-gradient(90deg, #8b5cf6, #38bdf8)",
           }
         : {
             background: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.08)",
@@ -2379,7 +2379,7 @@ export default function SettingsPanel({
               </span>
               <span
                 className={`shrink-0 text-[10px] font-medium ${
-                  server.available ? "text-green-300" : "text-gray-500"
+                  server.available ? "text-sky-300" : "text-gray-500"
                 }`}
               >
                 {server.available ? "bereit" : "fehlt"}

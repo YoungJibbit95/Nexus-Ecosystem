@@ -26,7 +26,6 @@ import {
   PanelSection,
   PanelSelect,
   PanelShell,
-  PanelState,
 } from "../panels/PanelChrome.jsx";
 import {
   addGithubProjectV2Item,
@@ -48,7 +47,7 @@ import {
 const PANEL_DEFINITIONS = {
   issues: {
     title: "GitHub Issues",
-    subtitle: "Triage, create, and edit repository issues.",
+    subtitle: "Triage repository issues.",
     icon: CircleDot,
     itemName: "issue",
     loadLabel: "Refresh issues",
@@ -61,7 +60,7 @@ const PANEL_DEFINITIONS = {
   },
   prs: {
     title: "Pull Requests",
-    subtitle: "Inspect, create, and update pull requests.",
+    subtitle: "Review and update pull requests.",
     icon: GitPullRequest,
     itemName: "pull request",
     loadLabel: "Refresh PRs",
@@ -74,7 +73,7 @@ const PANEL_DEFINITIONS = {
   },
   projects: {
     title: "GitHub Projects",
-    subtitle: "Browse Projects v2 and prepare item or field actions.",
+    subtitle: "Browse Projects v2.",
     icon: FolderKanban,
     itemName: "project",
     loadLabel: "Refresh projects",
@@ -150,7 +149,161 @@ const DEFAULT_PROJECT_ACTION = {
 };
 
 const TEXTAREA_CLASS =
-  "min-h-[74px] w-full min-w-0 resize-y rounded-xl border border-white/[0.075] bg-white/[0.035] px-3 py-2 text-[12px] leading-snug text-gray-200 outline-none transition-colors placeholder:text-gray-600 focus:border-purple-300/40 focus:bg-white/[0.052] focus:ring-2 focus:ring-purple-400/10 disabled:cursor-not-allowed disabled:opacity-45";
+  "min-h-[68px] w-full min-w-0 resize-y rounded-xl border border-white/[0.075] bg-black/20 px-2.5 py-2 text-[11px] leading-snug text-gray-200 outline-none transition-colors placeholder:text-gray-600 focus:border-cyan-300/30 focus:bg-black/25 focus:ring-2 focus:ring-cyan-300/10 disabled:cursor-not-allowed disabled:opacity-45";
+
+const QUIET_FIELD_CLASS =
+  "!min-h-8 !rounded-xl !border-white/[0.08] !bg-black/20 !px-2.5 !py-1.5 !text-[11px] focus:!border-cyan-300/30 focus:!bg-black/25 focus:!ring-cyan-300/10 placeholder:!text-gray-600";
+const QUIET_CARD_STYLE = {
+  background: "linear-gradient(180deg, rgba(15,23,42,0.5), rgba(2,6,23,0.3))",
+  borderColor: "rgba(148,163,184,0.11)",
+  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.035)",
+  backdropFilter: "none",
+  WebkitBackdropFilter: "none",
+};
+const SELECTED_CARD_STYLE = {
+  borderColor: "rgba(103,232,249,0.24)",
+  boxShadow:
+    "0 0 0 1px rgba(103,232,249,0.14), inset 0 1px 0 rgba(255,255,255,0.04)",
+};
+const NESTED_FORM_CLASS =
+  "grid gap-2 rounded-xl border border-white/[0.06] bg-black/[0.18] p-2.5";
+
+const STATE_TONE_STYLES = {
+  muted: {
+    icon: "#94a3b8",
+    title: "#d1d5db",
+    detail: "#8b93a7",
+    background: "rgba(15,23,42,0.45)",
+    border: "rgba(148,163,184,0.1)",
+  },
+  accent: {
+    icon: "#67e8f9",
+    title: "#dbeafe",
+    detail: "#9ca3af",
+    background: "rgba(8,47,73,0.18)",
+    border: "rgba(103,232,249,0.16)",
+  },
+  danger: {
+    icon: "#fca5a5",
+    title: "#fecaca",
+    detail: "#f1b4b4",
+    background: "rgba(127,29,29,0.16)",
+    border: "rgba(248,113,113,0.16)",
+  },
+  warning: {
+    icon: "#fbbf24",
+    title: "#fde68a",
+    detail: "#d6a94c",
+    background: "rgba(120,53,15,0.14)",
+    border: "rgba(251,191,36,0.16)",
+  },
+};
+
+function QuietCard({
+  children,
+  className = "",
+  selected = false,
+  style,
+  ...props
+}) {
+  return (
+    <PanelCard
+      className={`nx-code-github-quiet-card ${className}`}
+      style={{
+        ...QUIET_CARD_STYLE,
+        ...(selected ? SELECTED_CARD_STYLE : {}),
+        ...style,
+      }}
+      {...props}
+    >
+      {children}
+    </PanelCard>
+  );
+}
+
+function QuietInput({ className = "", style, ...props }) {
+  return (
+    <PanelInput
+      className={`${QUIET_FIELD_CLASS} ${className}`}
+      style={{ overflowWrap: "anywhere", ...style }}
+      {...props}
+    />
+  );
+}
+
+function QuietSelect({ children, className = "", style, ...props }) {
+  return (
+    <PanelSelect
+      className={`${QUIET_FIELD_CLASS} ${className}`}
+      style={{ colorScheme: "dark", overflowWrap: "anywhere", ...style }}
+      {...props}
+    >
+      {children}
+    </PanelSelect>
+  );
+}
+
+function WorkbenchNotice({ className = "", ...props }) {
+  return (
+    <PanelNotice
+      className={`!rounded-xl !px-2.5 !py-2 ${className}`}
+      {...props}
+    />
+  );
+}
+
+function WorkbenchState({
+  icon: Icon = AlertCircle,
+  title,
+  detail,
+  tone = "muted",
+  actionLabel,
+  onAction,
+  spinning = false,
+}) {
+  const toneStyle = STATE_TONE_STYLES[tone] || STATE_TONE_STYLES.muted;
+
+  return (
+    <div
+      className="mx-3 my-2 rounded-2xl border px-3 py-4 text-center"
+      style={{
+        background: toneStyle.background,
+        borderColor: toneStyle.border,
+      }}
+    >
+      {Icon ? (
+        <Icon
+          size={22}
+          className={`mx-auto mb-2 ${spinning ? "animate-spin" : ""}`}
+          style={{ color: toneStyle.icon }}
+        />
+      ) : null}
+      <p
+        className="break-words text-[12px] font-semibold leading-snug"
+        style={{ color: toneStyle.title, overflowWrap: "anywhere" }}
+      >
+        {title}
+      </p>
+      {detail ? (
+        <p
+          className="mx-auto mt-1 max-w-[21rem] break-words text-[11px] leading-snug"
+          style={{ color: toneStyle.detail, overflowWrap: "anywhere" }}
+        >
+          {detail}
+        </p>
+      ) : null}
+      {actionLabel && onAction ? (
+        <PanelActionButton
+          onClick={onAction}
+          tone={tone === "danger" ? "danger" : "muted"}
+          className="mt-3"
+        >
+          {actionLabel}
+        </PanelActionButton>
+      ) : null}
+    </div>
+  );
+}
 
 function getWorkspaceRepositoryGuess(workspacePath) {
   if (!workspacePath) {
@@ -449,7 +602,7 @@ function ConfirmationNotice({
   if (!active) return null;
 
   return (
-    <PanelNotice
+    <WorkbenchNotice
       className="mt-2"
       tone={tone}
       icon={ShieldAlert}
@@ -475,7 +628,7 @@ function ConfirmationNotice({
           Cancel
         </PanelActionButton>
       </div>
-    </PanelNotice>
+    </WorkbenchNotice>
   );
 }
 
@@ -495,86 +648,99 @@ function RepositoryControls({
   onOpenAccount,
 }) {
   return (
-    <PanelCard className="mx-3 mt-3 p-3">
-      <div className="flex min-w-0 flex-wrap items-start gap-3">
-        <div className="min-w-0 flex-[1_1_13rem]">
-          <label className="mb-1 block text-[10px] font-semibold uppercase text-gray-500">
-            {panelId === "projects" ? "Owner / repository" : "Repository"}
-          </label>
-          <PanelInput
-            value={repoDraft}
-            onChange={(event) => onRepoDraftChange(event.target.value)}
-            placeholder={panelId === "projects" ? "owner or owner/repo" : "owner/repo"}
-          />
-          <p className="mt-1 text-[10px] leading-snug text-gray-600">
-            {definition.repoHelp}
-          </p>
+    <QuietCard className="mx-3 mt-2.5 p-2.5">
+      <div className="grid min-w-0 gap-2">
+        <div className="grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_8.5rem]">
+          <div className="min-w-0">
+            <label className="mb-1 block text-[10px] font-semibold uppercase text-gray-500">
+              {panelId === "projects" ? "Owner / repository" : "Repository"}
+            </label>
+            <QuietInput
+              value={repoDraft}
+              onChange={(event) => onRepoDraftChange(event.target.value)}
+              placeholder={panelId === "projects" ? "owner or owner/repo" : "owner/repo"}
+            />
+          </div>
+
+          {panelId === "projects" ? (
+            <div className="min-w-0">
+              <label className="mb-1 block text-[10px] font-semibold uppercase text-gray-500">
+                Scope
+              </label>
+              <QuietSelect
+                value={projectOwnerType}
+                onChange={(event) => onProjectOwnerTypeChange(event.target.value)}
+              >
+                <option value="viewer">Viewer</option>
+                <option value="user">User</option>
+                <option value="organization">Organization</option>
+              </QuietSelect>
+            </div>
+          ) : (
+            <div className="min-w-0">
+              <label className="mb-1 block text-[10px] font-semibold uppercase text-gray-500">
+                State
+              </label>
+              <QuietSelect
+                value={stateFilter}
+                onChange={(event) => onStateFilterChange(event.target.value)}
+              >
+                <option value="open">Open</option>
+                <option value="all">All</option>
+                <option value="closed">Closed</option>
+              </QuietSelect>
+            </div>
+          )}
         </div>
 
-        {panelId === "projects" ? (
-          <div className="w-full min-w-[9rem] sm:w-36">
-            <label className="mb-1 block text-[10px] font-semibold uppercase text-gray-500">
-              Scope
-            </label>
-            <PanelSelect
-              value={projectOwnerType}
-              onChange={(event) => onProjectOwnerTypeChange(event.target.value)}
-            >
-              <option value="viewer">Viewer</option>
-              <option value="user">User</option>
-              <option value="organization">Organization</option>
-            </PanelSelect>
-          </div>
-        ) : (
-          <div className="w-full min-w-[8rem] sm:w-32">
-            <label className="mb-1 block text-[10px] font-semibold uppercase text-gray-500">
-              State
-            </label>
-            <PanelSelect
-              value={stateFilter}
-              onChange={(event) => onStateFilterChange(event.target.value)}
-            >
-              <option value="open">Open</option>
-              <option value="all">All</option>
-              <option value="closed">Closed</option>
-            </PanelSelect>
-          </div>
-        )}
+        <p className="min-w-0 break-words text-[10px] leading-snug text-gray-600" style={{ overflowWrap: "anywhere" }}>
+          {definition.repoHelp}
+        </p>
 
-        <div className="flex w-full min-w-0 flex-wrap items-end justify-start gap-1 sm:w-auto sm:justify-end">
-          <PanelIconButton
-            label={loading ? "Refreshing GitHub data" : definition.loadLabel}
-            onClick={onRefresh}
-            disabled={loading}
-          >
-            <RefreshCw className={loading ? "animate-spin" : ""} />
-          </PanelIconButton>
-          <PanelIconButton
-            label="Open Git panel"
-            onClick={onOpenGit}
-            disabled={!onOpenGit}
-          >
-            <GitPullRequest />
-          </PanelIconButton>
-          <PanelIconButton
-            label="Open account panel"
-            onClick={onOpenAccount}
-            disabled={!onOpenAccount}
-          >
-            <Pencil />
-          </PanelIconButton>
+        <div className="flex min-w-0 items-center justify-between gap-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-1.5 text-[10px] text-gray-500">
+            <span
+              className="h-1.5 w-1.5 shrink-0 rounded-full"
+              style={{
+                background: capability.available ? "#67e8f9" : "#f87171",
+              }}
+            />
+            <span className="min-w-0 break-words" style={{ overflowWrap: "anywhere" }}>
+              {capability.available ? capability.label : "Bridge offline"}
+            </span>
+            <span className="text-gray-700">/</span>
+            <span>{capability.methods.length} methods</span>
+          </div>
+
+          <div className="flex shrink-0 items-center justify-end gap-1">
+            <PanelIconButton
+              label={loading ? "Refreshing GitHub data" : definition.loadLabel}
+              onClick={onRefresh}
+              disabled={loading}
+              className="!h-7 !w-7"
+            >
+              <RefreshCw className={loading ? "animate-spin" : ""} />
+            </PanelIconButton>
+            <PanelIconButton
+              label="Open Git panel"
+              onClick={onOpenGit}
+              disabled={!onOpenGit}
+              className="!h-7 !w-7"
+            >
+              <GitPullRequest />
+            </PanelIconButton>
+            <PanelIconButton
+              label="Open account panel"
+              onClick={onOpenAccount}
+              disabled={!onOpenAccount}
+              className="!h-7 !w-7"
+            >
+              <Pencil />
+            </PanelIconButton>
+          </div>
         </div>
       </div>
-
-      <div className="mt-2 flex min-w-0 flex-wrap items-center gap-1.5">
-        <PanelBadge tone={capability.available ? "success" : "danger"}>
-          {capability.available ? capability.label : "Bridge offline"}
-        </PanelBadge>
-        <PanelBadge tone="muted">
-          {capability.methods.length} methods
-        </PanelBadge>
-      </div>
-    </PanelCard>
+    </QuietCard>
   );
 }
 
@@ -602,16 +768,16 @@ function IssueActions({
 
   return (
     <PanelSection title="Issue actions" icon={Plus} expanded>
-      <div className="mx-3 grid gap-3 pb-3">
-        <PanelCard className="p-3">
+      <div className="mx-3 grid gap-2.5 pb-3">
+        <QuietCard className="p-2.5">
           <div className="mb-2 flex items-center gap-2">
-            <Plus size={13} className="text-green-300" />
+            <Plus size={13} className="text-cyan-300" />
             <div className="min-w-0 text-xs font-semibold text-gray-200">
               Create issue
             </div>
           </div>
           <form className="grid gap-2" onSubmit={onCreate}>
-            <PanelInput
+            <QuietInput
               value={createDraft.title}
               onChange={(event) => onCreateDraftChange({ ...createDraft, title: event.target.value })}
               placeholder="Issue title"
@@ -622,12 +788,12 @@ function IssueActions({
               placeholder="Issue body"
             />
             <div className="grid gap-2 sm:grid-cols-2">
-              <PanelInput
+              <QuietInput
                 value={createDraft.labels}
                 onChange={(event) => onCreateDraftChange({ ...createDraft, labels: event.target.value })}
                 placeholder="labels, comma separated"
               />
-              <PanelInput
+              <QuietInput
                 value={createDraft.assignees}
                 onChange={(event) => onCreateDraftChange({ ...createDraft, assignees: event.target.value })}
                 placeholder="assignees, comma separated"
@@ -643,18 +809,18 @@ function IssueActions({
               {busy === "issue-create" ? "Creating..." : "Create issue"}
             </PanelActionButton>
           </form>
-        </PanelCard>
+        </QuietCard>
 
-        <PanelCard className="p-3">
+        <QuietCard className="p-2.5">
           <div className="mb-2 flex min-w-0 flex-wrap items-center gap-2">
-            <Pencil size={13} className="shrink-0 text-purple-300" />
+            <Pencil size={13} className="shrink-0 text-cyan-200/80" />
             <div className="min-w-0 flex-1 text-xs font-semibold text-gray-200">
               Update selected issue
             </div>
             <PanelBadge tone="warning">confirm</PanelBadge>
           </div>
           <div className="mb-2">
-            <PanelSelect
+            <QuietSelect
               value={editDraft.number}
               disabled={Boolean(busy)}
               onChange={(event) => {
@@ -668,27 +834,27 @@ function IssueActions({
                   #{item.number} {item.title}
                 </option>
               ))}
-            </PanelSelect>
+            </QuietSelect>
           </div>
           <form
             className="grid gap-2"
             onSubmit={(event) => onRequestConfirm(event, "issue-update", onUpdate)}
           >
             <div className="grid gap-2 sm:grid-cols-[1fr_8rem]">
-              <PanelInput
+              <QuietInput
                 value={editDraft.title}
                 onChange={(event) => onEditDraftChange({ ...editDraft, title: event.target.value })}
                 placeholder={selectedItem ? "Issue title" : "Select an issue first"}
                 disabled={!selectedItem || Boolean(busy)}
               />
-              <PanelSelect
+              <QuietSelect
                 value={editDraft.state}
                 onChange={(event) => onEditDraftChange({ ...editDraft, state: event.target.value })}
                 disabled={!selectedItem || Boolean(busy)}
               >
                 <option value="open">Open</option>
                 <option value="closed">Closed</option>
-              </PanelSelect>
+              </QuietSelect>
             </div>
             <PanelTextarea
               value={editDraft.body}
@@ -712,6 +878,7 @@ function IssueActions({
               tone={closeRequiresConfirm ? "danger" : "accent"}
               disabled={updateDisabled}
               className="w-full sm:w-auto"
+              title={closeRequiresConfirm ? "Review issue close" : "Review issue update"}
             >
               {updateBusy
                 ? "Updating..."
@@ -719,10 +886,10 @@ function IssueActions({
                   ? "Confirm below"
                   : closeRequiresConfirm
                     ? "Review close"
-                    : "Review issue update"}
+                    : "Review update"}
             </PanelActionButton>
           </form>
-        </PanelCard>
+        </QuietCard>
       </div>
     </PanelSection>
   );
@@ -766,27 +933,27 @@ function PullRequestActions({
 
   return (
     <PanelSection title="Pull request actions" icon={GitPullRequest} expanded>
-      <div className="mx-3 grid gap-3 pb-3">
-        <PanelCard className="p-3">
+      <div className="mx-3 grid gap-2.5 pb-3">
+        <QuietCard className="p-2.5">
           <div className="mb-2 flex items-center gap-2">
-            <Plus size={13} className="text-green-300" />
+            <Plus size={13} className="text-cyan-300" />
             <div className="min-w-0 text-xs font-semibold text-gray-200">
               Create pull request
             </div>
           </div>
           <form className="grid gap-2" onSubmit={onCreate}>
-            <PanelInput
+            <QuietInput
               value={createDraft.title}
               onChange={(event) => onCreateDraftChange({ ...createDraft, title: event.target.value })}
               placeholder="Pull request title"
             />
             <div className="grid gap-2 sm:grid-cols-2">
-              <PanelInput
+              <QuietInput
                 value={createDraft.head}
                 onChange={(event) => onCreateDraftChange({ ...createDraft, head: event.target.value })}
                 placeholder="head branch, e.g. feature/foo"
               />
-              <PanelInput
+              <QuietInput
                 value={createDraft.base}
                 onChange={(event) => onCreateDraftChange({ ...createDraft, base: event.target.value })}
                 placeholder="base branch"
@@ -802,7 +969,7 @@ function PullRequestActions({
                 type="checkbox"
                 checked={createDraft.draft}
                 onChange={(event) => onCreateDraftChange({ ...createDraft, draft: event.target.checked })}
-                className="h-4 w-4 rounded border-white/10 bg-black/30"
+                className="h-3.5 w-3.5 rounded border-white/10 bg-black/30"
               />
               Open as draft
             </label>
@@ -812,22 +979,23 @@ function PullRequestActions({
               tone="success"
               disabled={createDisabled}
               className="w-full sm:w-auto"
+              title="Create pull request"
             >
-              {busy === "pull-create" ? "Creating..." : "Create pull request"}
+              {busy === "pull-create" ? "Creating..." : "Create PR"}
             </PanelActionButton>
           </form>
-        </PanelCard>
+        </QuietCard>
 
-        <PanelCard className="p-3">
+        <QuietCard className="p-2.5">
           <div className="mb-2 flex min-w-0 flex-wrap items-center gap-2">
-            <Pencil size={13} className="shrink-0 text-purple-300" />
+            <Pencil size={13} className="shrink-0 text-cyan-200/80" />
             <div className="min-w-0 flex-1 text-xs font-semibold text-gray-200">
               Edit selected pull request
             </div>
             <PanelBadge tone="warning">confirm</PanelBadge>
           </div>
           <div className="mb-2">
-            <PanelSelect
+            <QuietSelect
               value={editDraft.number}
               disabled={Boolean(busy)}
               onChange={(event) => {
@@ -841,29 +1009,29 @@ function PullRequestActions({
                   #{item.number} {item.title}
                 </option>
               ))}
-            </PanelSelect>
+            </QuietSelect>
           </div>
           <form
             className="grid gap-2"
             onSubmit={(event) => onRequestConfirm(event, "pull-update", onUpdate)}
           >
             <div className="grid gap-2 sm:grid-cols-[1fr_8rem]">
-              <PanelInput
+              <QuietInput
                 value={editDraft.title}
                 onChange={(event) => onEditDraftChange({ ...editDraft, title: event.target.value })}
                 placeholder={selectedItem ? "Pull request title" : "Select a pull request first"}
                 disabled={!selectedItem || Boolean(busy)}
               />
-              <PanelSelect
+              <QuietSelect
                 value={editDraft.state}
                 onChange={(event) => onEditDraftChange({ ...editDraft, state: event.target.value })}
                 disabled={!selectedItem || Boolean(busy)}
               >
                 <option value="open">Open</option>
                 <option value="closed">Closed</option>
-              </PanelSelect>
+              </QuietSelect>
             </div>
-            <PanelInput
+            <QuietInput
               value={editDraft.base}
               onChange={(event) => onEditDraftChange({ ...editDraft, base: event.target.value })}
               placeholder="optional new base branch"
@@ -891,6 +1059,7 @@ function PullRequestActions({
               tone={closeRequiresConfirm ? "danger" : "accent"}
               disabled={updateDisabled}
               className="w-full sm:w-auto"
+              title={closeRequiresConfirm ? "Review pull request close" : "Review pull request update"}
             >
               {updateBusy
                 ? "Updating..."
@@ -898,12 +1067,12 @@ function PullRequestActions({
                   ? "Confirm below"
                   : closeRequiresConfirm
                     ? "Review close"
-                    : "Review pull request update"}
+                    : "Review update"}
             </PanelActionButton>
           </form>
-        </PanelCard>
+        </QuietCard>
 
-        <PanelCard className="p-3">
+        <QuietCard className="p-2.5">
           <div className="mb-2 flex min-w-0 flex-wrap items-center gap-2">
             <ShieldAlert size={13} className="shrink-0 text-amber-300" />
             <div className="min-w-0 flex-1 text-xs font-semibold text-gray-200">
@@ -915,7 +1084,7 @@ function PullRequestActions({
           </div>
           <div className="grid gap-3">
             <form
-              className="grid gap-2 rounded-xl border border-white/[0.06] bg-black/15 p-2.5"
+              className={NESTED_FORM_CLASS}
               onSubmit={(event) => onRequestConfirm(event, "pull-update-branch", onUpdateBranch)}
             >
               <div className="flex min-w-0 flex-wrap items-center gap-2">
@@ -924,7 +1093,7 @@ function PullRequestActions({
                   Update branch from base
                 </div>
               </div>
-              <PanelInput
+              <QuietInput
                 value={safetyDraft.expectedHeadSha}
                 onChange={(event) =>
                   onSafetyDraftChange({ ...safetyDraft, expectedHeadSha: event.target.value })
@@ -948,13 +1117,14 @@ function PullRequestActions({
                 tone="warning"
                 disabled={safetyDisabled}
                 className="w-full sm:w-auto"
+                title="Review branch update"
               >
-                {branchBusy ? "Updating branch..." : branchConfirmActive ? "Confirm below" : "Review branch update"}
+                {branchBusy ? "Updating..." : branchConfirmActive ? "Confirm below" : "Review branch"}
               </PanelActionButton>
             </form>
 
             <form
-              className="grid gap-2 rounded-xl border border-red-400/15 bg-red-500/[0.035] p-2.5"
+              className={`${NESTED_FORM_CLASS} border-red-400/15 bg-red-500/[0.025]`}
               onSubmit={(event) => onRequestConfirm(event, "pull-merge", onMerge)}
             >
               <div className="flex min-w-0 flex-wrap items-center gap-2">
@@ -965,7 +1135,7 @@ function PullRequestActions({
                 <PanelBadge tone="danger">destructive</PanelBadge>
               </div>
               <div className="grid gap-2 sm:grid-cols-[9rem_1fr]">
-                <PanelSelect
+                <QuietSelect
                   value={safetyDraft.mergeMethod}
                   onChange={(event) =>
                     onSafetyDraftChange({ ...safetyDraft, mergeMethod: event.target.value })
@@ -975,8 +1145,8 @@ function PullRequestActions({
                   <option value="merge">Merge commit</option>
                   <option value="squash">Squash</option>
                   <option value="rebase">Rebase</option>
-                </PanelSelect>
-                <PanelInput
+                </QuietSelect>
+                <QuietInput
                   value={safetyDraft.commitTitle}
                   onChange={(event) =>
                     onSafetyDraftChange({ ...safetyDraft, commitTitle: event.target.value })
@@ -1010,12 +1180,13 @@ function PullRequestActions({
                 tone="danger"
                 disabled={safetyDisabled}
                 className="w-full sm:w-auto"
+                title="Review merge"
               >
                 {mergeBusy ? "Merging..." : mergeConfirmActive ? "Confirm below" : "Review merge"}
               </PanelActionButton>
             </form>
           </div>
-        </PanelCard>
+        </QuietCard>
       </div>
     </PanelSection>
   );
@@ -1042,8 +1213,8 @@ function ProjectActions({
 
   return (
     <PanelSection title="Project actions" icon={FolderKanban} expanded>
-      <div className="mx-3 grid gap-3 pb-3">
-        <PanelCard className="p-3">
+      <div className="mx-3 grid gap-2.5 pb-3">
+        <QuietCard className="p-2.5">
           <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
             <div className="min-w-0">
               <div className="break-words text-xs font-semibold text-gray-200" style={{ overflowWrap: "anywhere" }}>
@@ -1058,13 +1229,14 @@ function ProjectActions({
               disabled={!selectedProject || projectItemsState.loading}
               onClick={() => onLoadItems(selectedProject)}
               className="w-full sm:w-auto"
+              title="Load project items"
             >
               {projectItemsState.loading ? "Loading..." : "Load items"}
             </PanelActionButton>
           </div>
 
           {projectItemsState.error ? (
-            <PanelNotice
+            <WorkbenchNotice
               className="mt-3"
               tone="danger"
               title="Project items failed"
@@ -1075,14 +1247,14 @@ function ProjectActions({
           {projectItemsState.loaded ? (
             <div className="mt-3 grid gap-1.5">
               {projectItems.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-white/[0.08] px-3 py-3 text-[11px] text-gray-600">
+                <div className="rounded-xl border border-dashed border-white/[0.08] bg-black/[0.14] px-3 py-3 text-[11px] text-gray-600">
                   No items returned for this project.
                 </div>
               ) : (
                 projectItems.slice(0, 8).map((item, index) => (
                   <div
                     key={getItemKey(item, index)}
-                    className="rounded-xl border border-white/[0.06] bg-black/15 px-3 py-2"
+                    className="rounded-xl border border-white/[0.06] bg-black/[0.18] px-2.5 py-2"
                   >
                     <div className="flex min-w-0 items-center gap-2">
                       <PanelBadge tone="muted">
@@ -1100,17 +1272,17 @@ function ProjectActions({
               )}
             </div>
           ) : null}
-        </PanelCard>
+        </QuietCard>
 
-        <PanelCard className="p-3">
+        <QuietCard className="p-2.5">
           <div className="mb-2 flex items-center gap-2">
-            <Plus size={13} className="text-green-300" />
+            <Plus size={13} className="text-cyan-300" />
             <div className="min-w-0 text-xs font-semibold text-gray-200">
               Add issue or PR by node ID
             </div>
           </div>
           <form className="grid gap-2" onSubmit={onAddItem}>
-            <PanelInput
+            <QuietInput
               value={actionDraft.contentId}
               onChange={(event) => onActionDraftChange({ ...actionDraft, contentId: event.target.value })}
               placeholder="Content node ID"
@@ -1122,15 +1294,16 @@ function ProjectActions({
               tone="success"
               disabled={Boolean(busy) || !selectedProject || !actionDraft.contentId.trim()}
               className="w-full sm:w-auto"
+              title="Add item"
             >
               {busy === "project-add-item" ? "Adding..." : "Add item"}
             </PanelActionButton>
           </form>
-        </PanelCard>
+        </QuietCard>
 
-        <PanelCard className="p-3">
+        <QuietCard className="p-2.5">
           <div className="mb-2 flex min-w-0 flex-wrap items-center gap-2">
-            <Pencil size={13} className="shrink-0 text-purple-300" />
+            <Pencil size={13} className="shrink-0 text-cyan-200/80" />
             <div className="min-w-0 flex-1 text-xs font-semibold text-gray-200">
               Update item field
             </div>
@@ -1140,14 +1313,14 @@ function ProjectActions({
             className="grid gap-2"
             onSubmit={(event) => onRequestConfirm(event, "project-update-field", onUpdateField)}
           >
-            <PanelInput
+            <QuietInput
               value={actionDraft.itemId}
               onChange={(event) => onActionDraftChange({ ...actionDraft, itemId: event.target.value })}
               placeholder="Project item ID"
               disabled={!selectedProject || Boolean(busy)}
             />
             {fields.length > 0 ? (
-              <PanelSelect
+              <QuietSelect
                 value={actionDraft.fieldId}
                 onChange={(event) => {
                   const field = fields.find((candidate) => candidate.id === event.target.value);
@@ -1165,9 +1338,9 @@ function ProjectActions({
                     {field.name} ({field.dataType || "field"})
                   </option>
                 ))}
-              </PanelSelect>
+              </QuietSelect>
             ) : (
-              <PanelInput
+              <QuietInput
                 value={actionDraft.fieldId}
                 onChange={(event) => onActionDraftChange({ ...actionDraft, fieldId: event.target.value })}
                 placeholder="Field ID"
@@ -1175,7 +1348,7 @@ function ProjectActions({
               />
             )}
             <div className="grid gap-2 sm:grid-cols-[10rem_1fr]">
-              <PanelSelect
+              <QuietSelect
                 value={actionDraft.valueType}
                 onChange={(event) => onActionDraftChange({ ...actionDraft, valueType: event.target.value })}
                 disabled={!selectedProject || Boolean(busy)}
@@ -1183,10 +1356,10 @@ function ProjectActions({
                 <option value="text">Text</option>
                 <option value="number">Number</option>
                 <option value="date">Date</option>
-                <option value="singleSelectOptionId">Single select option</option>
+                <option value="singleSelectOptionId">Single select</option>
                 <option value="iterationId">Iteration</option>
-              </PanelSelect>
-              <PanelInput
+              </QuietSelect>
+              <QuietInput
                 value={actionDraft.value}
                 onChange={(event) => onActionDraftChange({ ...actionDraft, value: event.target.value })}
                 placeholder={
@@ -1211,7 +1384,8 @@ function ProjectActions({
                         value: option.id,
                       })
                     }
-                    className="rounded-lg border border-white/[0.07] bg-white/[0.035] px-2 py-1 text-[10px] text-gray-400 hover:bg-white/[0.07] hover:text-gray-200 disabled:cursor-not-allowed disabled:opacity-45"
+                    className="min-w-0 rounded-lg border border-white/[0.07] bg-black/[0.18] px-2 py-1 text-[10px] text-gray-400 hover:bg-white/[0.06] hover:text-gray-200 disabled:cursor-not-allowed disabled:opacity-45"
+                    style={{ overflowWrap: "anywhere" }}
                   >
                     {option.name}
                   </button>
@@ -1240,11 +1414,12 @@ function ProjectActions({
                 !actionDraft.value.trim()
               }
               className="w-full sm:w-auto"
+              title="Review project field update"
             >
-              {fieldBusy ? "Updating..." : fieldConfirmActive ? "Confirm below" : "Review field update"}
+              {fieldBusy ? "Updating..." : fieldConfirmActive ? "Confirm below" : "Review field"}
             </PanelActionButton>
           </form>
-        </PanelCard>
+        </QuietCard>
       </div>
     </PanelSection>
   );
@@ -1256,10 +1431,11 @@ function IssueList({ items, selectedItem, onSelectItem }) {
       {items.map((issue, index) => {
         const selected = selectedItem?.number === issue.number;
         return (
-          <PanelCard
+          <QuietCard
             key={getItemKey(issue, index)}
             interactive
-            className={`p-3 ${selected ? "ring-1 ring-purple-300/35" : ""}`}
+            selected={selected}
+            className="p-2.5"
           >
             <div className="flex min-w-0 items-start gap-2">
               <button
@@ -1288,7 +1464,7 @@ function IssueList({ items, selectedItem, onSelectItem }) {
                   href={issue.htmlUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="grid h-8 w-8 shrink-0 place-items-center rounded-xl border border-white/[0.07] bg-white/[0.035] text-gray-500 hover:bg-white/[0.08] hover:text-gray-200"
+                  className="grid h-8 w-8 shrink-0 place-items-center rounded-xl border border-white/[0.07] bg-black/20 text-gray-500 hover:bg-white/[0.06] hover:text-gray-200"
                   title="Open on GitHub"
                 >
                   <ArrowUpRight size={14} />
@@ -1300,14 +1476,14 @@ function IssueList({ items, selectedItem, onSelectItem }) {
                 {issue.labels.slice(0, 8).map((label) => (
                   <span
                     key={label.id || label.name}
-                    className="rounded-lg border border-white/[0.06] bg-black/20 px-2 py-0.5 text-[10px] text-gray-400"
+                    className="rounded-lg border border-white/[0.06] bg-black/[0.18] px-2 py-0.5 text-[10px] text-gray-400"
                   >
                     {label.name || label}
                   </span>
                 ))}
               </div>
             ) : null}
-          </PanelCard>
+          </QuietCard>
         );
       })}
     </div>
@@ -1321,10 +1497,11 @@ function PullRequestList({ items, selectedItem, onSelectItem }) {
         const selected = selectedItem?.number === pull.number;
         const state = pull.draft ? "draft" : pull.merged ? "merged" : pull.state;
         return (
-          <PanelCard
+          <QuietCard
             key={getItemKey(pull, index)}
             interactive
-            className={`p-3 ${selected ? "ring-1 ring-purple-300/35" : ""}`}
+            selected={selected}
+            className="p-2.5"
           >
             <div className="flex min-w-0 items-start gap-2">
               <button
@@ -1349,7 +1526,7 @@ function PullRequestList({ items, selectedItem, onSelectItem }) {
                 <div className="mt-1 break-words text-[11px] text-gray-500" style={{ overflowWrap: "anywhere" }}>
                   {state || "open"} by {getUserLogin(pull.author)} - {formatDate(pull.updatedAt)}
                 </div>
-                <div className="mt-2 min-w-0 break-words rounded-xl border border-white/[0.055] bg-black/15 px-2 py-1 text-[10px] text-gray-500" style={{ overflowWrap: "anywhere" }}>
+                <div className="mt-2 min-w-0 break-words rounded-xl border border-white/[0.055] bg-black/[0.18] px-2 py-1 text-[10px] text-gray-500" style={{ overflowWrap: "anywhere" }}>
                   <span className="font-mono text-gray-400">{pull.head?.ref || "head"}</span>
                   <span> into </span>
                   <span className="font-mono text-gray-400">{pull.base?.ref || "base"}</span>
@@ -1360,14 +1537,14 @@ function PullRequestList({ items, selectedItem, onSelectItem }) {
                   href={pull.htmlUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="grid h-8 w-8 shrink-0 place-items-center rounded-xl border border-white/[0.07] bg-white/[0.035] text-gray-500 hover:bg-white/[0.08] hover:text-gray-200"
+                  className="grid h-8 w-8 shrink-0 place-items-center rounded-xl border border-white/[0.07] bg-black/20 text-gray-500 hover:bg-white/[0.06] hover:text-gray-200"
                   title="Open on GitHub"
                 >
                   <ArrowUpRight size={14} />
                 </a>
               ) : null}
             </div>
-          </PanelCard>
+          </QuietCard>
         );
       })}
     </div>
@@ -1386,10 +1563,11 @@ function ProjectList({
       {items.map((project, index) => {
         const selected = selectedProject?.id === project.id;
         return (
-          <PanelCard
+          <QuietCard
             key={getItemKey(project, index)}
             interactive
-            className={`p-3 ${selected ? "ring-1 ring-purple-300/35" : ""}`}
+            selected={selected}
+            className="p-2.5"
           >
             <div className="flex min-w-0 flex-wrap items-start gap-2">
               <button
@@ -1433,7 +1611,7 @@ function ProjectList({
                     href={project.url}
                     target="_blank"
                     rel="noreferrer"
-                    className="grid h-8 w-8 shrink-0 place-items-center rounded-xl border border-white/[0.07] bg-white/[0.035] text-gray-500 hover:bg-white/[0.08] hover:text-gray-200"
+                    className="grid h-8 w-8 shrink-0 place-items-center rounded-xl border border-white/[0.07] bg-black/20 text-gray-500 hover:bg-white/[0.06] hover:text-gray-200"
                     title="Open on GitHub"
                   >
                     <ArrowUpRight size={14} />
@@ -1441,7 +1619,7 @@ function ProjectList({
                 ) : null}
               </div>
             </div>
-          </PanelCard>
+          </QuietCard>
         );
       })}
     </div>
@@ -1463,7 +1641,7 @@ function PanelList({
 }) {
   if (state.loading && !state.loaded) {
     return (
-      <PanelState
+      <WorkbenchState
         icon={Loader2}
         spinning
         tone="accent"
@@ -1475,7 +1653,7 @@ function PanelList({
 
   if (state.error) {
     return (
-      <PanelState
+      <WorkbenchState
         icon={AlertCircle}
         tone="danger"
         title={definition.errorTitle}
@@ -1488,9 +1666,9 @@ function PanelList({
 
   if (setupRequirement) {
     return (
-      <PanelState
+      <WorkbenchState
         icon={definition.icon}
-        tone="accent"
+        tone="muted"
         title={setupRequirement.title}
         detail={setupRequirement.detail}
         actionLabel={setupRequirement.actionLabel}
@@ -1501,7 +1679,7 @@ function PanelList({
 
   if (state.items.length === 0) {
     return (
-      <PanelState
+      <WorkbenchState
         icon={CircleDot}
         tone="muted"
         title={definition.emptyTitle}
@@ -2151,7 +2329,7 @@ export function GitHubWorkbenchPanel({
         title={definition.title}
         subtitle={definition.subtitle}
         status={
-          <PanelBadge tone={capability.available ? "success" : "danger"}>
+          <PanelBadge tone={capability.available ? "muted" : "danger"}>
             {capability.available ? panelCountLabel : "offline"}
           </PanelBadge>
         }
@@ -2160,13 +2338,14 @@ export function GitHubWorkbenchPanel({
             label={listState.loading ? "Refreshing" : definition.loadLabel}
             onClick={refreshPanel}
             disabled={listState.loading}
+            className="!h-8 !w-8"
           >
             <RefreshCw className={listState.loading ? "animate-spin" : ""} />
           </PanelIconButton>
         }
       />
 
-      <PanelBody className="pb-3">
+      <PanelBody className="pb-2">
         <RepositoryControls
           panelId={normalizedPanelId}
           definition={definition}
@@ -2184,14 +2363,14 @@ export function GitHubWorkbenchPanel({
         />
 
         {normalizedPanelId === "projects" && projectOwnerType !== "viewer" ? (
-          <div className="mx-3 mt-2 text-[10px] text-gray-600">
+          <div className="mx-3 mt-2 min-w-0 break-words text-[10px] text-gray-600" style={{ overflowWrap: "anywhere" }}>
             Project owner: {draftProjectOwner || "not set"}
           </div>
         ) : null}
 
         {actionState.error ? (
-          <PanelNotice
-            className="mx-3 mt-3"
+          <WorkbenchNotice
+            className="mx-3 mt-2.5"
             tone="danger"
             title="GitHub action failed"
             detail={actionState.error}
@@ -2199,8 +2378,8 @@ export function GitHubWorkbenchPanel({
         ) : null}
 
         {actionState.message ? (
-          <PanelNotice
-            className="mx-3 mt-3"
+          <WorkbenchNotice
+            className="mx-3 mt-2.5"
             tone="success"
             icon={CheckCircle2}
             title={actionState.message}
@@ -2208,7 +2387,7 @@ export function GitHubWorkbenchPanel({
           />
         ) : null}
 
-        <div className="mt-3">
+        <div className="mt-2.5">
           <PanelList
             panelId={normalizedPanelId}
             definition={definition}

@@ -504,7 +504,7 @@ function ExtensionCard({ extension, onInstall, onRemove, onToggleEnabled, index 
 
         {extension.installed ? (
           <div className="flex items-center gap-1.5">
-            <span className="hidden items-center gap-1 text-[10px] text-emerald-300 sm:flex">
+            <span className="hidden items-center gap-1 text-[10px] text-sky-300 sm:flex">
               <PackageCheck size={11} />
               {extension.enabled ? "Aktiv" : "Pausiert"}
             </span>

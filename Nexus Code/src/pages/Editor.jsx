@@ -1707,9 +1707,10 @@ export default function Editor({
     root.style.setProperty("--nexus-scrollbar-hover", accent + "66");
 
     // Topology
+    root.style.setProperty("--nexus-editor-font-family", settings.font_family || "JetBrains Mono");
     root.style.setProperty(
-      "--nexus-font-family",
-      settings.font_family || "Inter",
+      "--nexus-ui-font-family",
+      '"Inter", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif',
     );
     root.style.setProperty(
       "--nexus-font-weight",
@@ -1741,7 +1742,7 @@ export default function Editor({
         width: 100%;
         ${bgStyle}
         color: var(--nexus-text);
-        font-family: var(--nexus-font-family, 'JetBrains Mono'), monospace;
+        font-family: var(--nexus-ui-font-family, 'Inter', 'Segoe UI', system-ui, sans-serif);
         font-weight: var(--nexus-font-weight, 400);
       }
       #root {

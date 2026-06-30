@@ -184,14 +184,14 @@ export function getTaskRunnerItems(activeFile) {
   });
 }
 
-export function getCommandSuggestions({ activeFile, history = [], limit = 9 } = {}) {
+export function getCommandSuggestions({ activeFile, history = [], limit = 6 } = {}) {
   const runFileCommand = resolveRunCommandForFile(activeFile);
   const recent = history
     .filter(Boolean)
-    .slice(0, 5)
+    .slice(0, 3)
     .map((command, index) => ({
       id: `recent-${index}-${command}`,
-      label: command.length > 22 ? `${command.slice(0, 22)}...` : command,
+      label: command.length > 18 ? `${command.slice(0, 18)}...` : command,
       command,
       group: "Recent",
       recent: true,

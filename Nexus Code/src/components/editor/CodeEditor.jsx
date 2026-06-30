@@ -207,9 +207,13 @@ function createNexusCodeMirrorTheme(
 ) {
   const theme = resolveEditorTheme(settings);
   const accent = safeHex(settings.primary_accent || theme.accent, "#8b5cf6");
+  const editorAccent = "#8b5cf6";
+  const editorAccentBlue = "#60a5fa";
   const text = safeHex(theme.text, "#f3f4f6");
   const muted = safeHex(theme.muted, "#8b93a7");
-  const selection = theme.selection || hexToRgba(accent, 0.26);
+  const selection = hexToRgba(editorAccent, 0.32);
+  const selectionStrong = hexToRgba(editorAccentBlue, 0.36);
+  const selectionSoft = hexToRgba(editorAccent, 0.16);
   const panelSurface = "var(--nexus-panel-surface)";
   const panelFilter = reduceMotion ? "none" : "var(--nexus-panel-filter)";
   const tooltipShadow = reduceMotion
@@ -266,22 +270,27 @@ function createNexusCodeMirrorTheme(
         minWidth: compactViewport ? "2.4rem" : "3rem",
       },
       ".cm-activeLine": {
-        backgroundColor: "rgba(255,255,255,0.045)",
+        backgroundColor: hexToRgba(editorAccent, 0.07),
       },
       ".cm-activeLineGutter": {
-        backgroundColor: hexToRgba(accent, 0.1),
+        backgroundColor: hexToRgba(editorAccent, 0.12),
         color: text,
       },
-      ".cm-selectionBackground, .cm-content ::selection": {
-        backgroundColor: selection,
+      ".cm-selectionLayer .cm-selectionBackground, .cm-selectionBackground, .cm-content ::selection": {
+        backgroundColor: `${selection} !important`,
+        color: `${text} !important`,
+      },
+      ".cm-selectionMatch": {
+        backgroundColor: `${selectionSoft} !important`,
+        outline: `1px solid ${hexToRgba(editorAccentBlue, 0.24)}`,
       },
       ".cm-cursor": {
         borderLeftColor: accent,
         borderLeftWidth: settings.cursor_style === "block" ? "0.55em" : "2px",
       },
       ".cm-matchingBracket, .cm-nonmatchingBracket": {
-        outline: `1px solid ${hexToRgba(accent, 0.55)}`,
-        backgroundColor: hexToRgba(accent, 0.12),
+        outline: `1px solid ${hexToRgba(editorAccentBlue, 0.56)}`,
+        backgroundColor: hexToRgba(editorAccent, 0.13),
       },
       ".cm-panels, .cm-tooltip, .cm-tooltip-autocomplete": {
         background: panelSurface,
@@ -398,11 +407,11 @@ function createNexusCodeMirrorTheme(
         background: hexToRgba(accent, 0.16),
       },
       ".cm-searchMatch": {
-        backgroundColor: "rgba(250,204,21,0.24)",
-        outline: "1px solid rgba(250,204,21,0.25)",
+        backgroundColor: `${selectionSoft} !important`,
+        outline: `1px solid ${hexToRgba(editorAccentBlue, 0.28)}`,
       },
       ".cm-searchMatch.cm-searchMatch-selected": {
-        backgroundColor: hexToRgba(accent, 0.32),
+        backgroundColor: `${selectionStrong} !important`,
       },
       ".cm-diagnostic": {
         borderRadius: "4px",
@@ -1125,7 +1134,7 @@ export default function CodeEditor({
   const engineLabel = "CodeMirror 6";
   const lspTone =
     lspStatus.state === "running"
-      ? "text-green-400"
+      ? "text-sky-300"
       : lspStatus.state === "starting"
         ? "text-amber-400"
         : lspStatus.state === "unavailable"

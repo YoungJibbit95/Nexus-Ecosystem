@@ -1,19 +1,15 @@
 import React, { useMemo } from "react";
 import {
   ArrowRight,
-  Braces,
-  Code2,
   Command,
   FileCode2,
   FolderOpen,
   GitPullRequest,
-  Palette,
   Plus,
   Search,
   Settings,
   Sparkles,
   TerminalSquare,
-  Zap,
 } from "lucide-react";
 import { MotionConfig, motion } from "framer-motion";
 import {
@@ -21,7 +17,6 @@ import {
   PanelCard,
   useNexusReducedMotion,
 } from "./panels/PanelChrome";
-import { getNexusCodeIdeReleaseSnapshot } from "../../ide/ecosystem/ideCapabilityBridge";
 import { getWelcomeRecentFiles } from "../../pages/editor/welcomeScreenModel";
 
 const containerVariants = {
@@ -42,7 +37,7 @@ const itemVariants = {
 };
 
 const wrapText = {
-  overflowWrap: "anywhere",
+  overflowWrap: "normal",
   wordBreak: "normal",
   hyphens: "auto",
 };
@@ -56,22 +51,22 @@ const softClamp = {
 const actionItems = [
   {
     icon: Plus,
-    label: "New scratch file",
-    detail: "Start a clean editing surface instantly.",
+    label: "Neue Datei",
+    detail: "Leere Datei erstellen.",
     action: "new",
     tone: "primary",
   },
   {
     icon: FolderOpen,
-    label: "Open project folder",
-    detail: "Load files, Git state and terminal context.",
+    label: "Projekt oeffnen",
+    detail: "Ordner auswaehlen.",
     action: "folder",
-    tone: "teal",
+    tone: "blue",
   },
   {
     icon: Settings,
-    label: "Tune editor setup",
-    detail: "Theme, glow, layout and workspace feel.",
+    label: "Einrichtung",
+    detail: "Theme und Erweiterungen.",
     action: "settings",
     tone: "neutral",
   },
@@ -81,34 +76,27 @@ const flowItems = [
   {
     icon: Command,
     title: "Command-first work",
-    detail: "Create files, jump across the workspace and keep setup close.",
+    detail: "Dateien oeffnen, Workspace durchsuchen, Setup starten.",
     tone: "primary",
   },
   {
     icon: Search,
     title: "Search and inspect",
-    detail: "Move from files to symbols, problems and text with less panel noise.",
+    detail: "Symbole, Probleme und Text mit der Panel-Ansicht finden.",
     tone: "neutral",
   },
   {
     icon: GitPullRequest,
     title: "Source control flow",
-    detail: "Local changes, branch state and review signals stay readable.",
-    tone: "teal",
+    detail: "Aenderungen, Branch und Review-Signale ruhig scannen.",
+    tone: "blue",
   },
   {
     icon: TerminalSquare,
     title: "Runtime at hand",
-    detail: "Terminal, project commands and editor context share one surface.",
+    detail: "Terminal und Projektbefehle bleiben nah am Editor.",
     tone: "neutral",
   },
-];
-
-const languageTiles = [
-  { label: "TypeScript", detail: "JS/TS IDE core", tone: "primary" },
-  { label: "Python", detail: "Lint and syntax path", tone: "teal" },
-  { label: "Rust", detail: "Structured editing", tone: "neutral" },
-  { label: "Go", detail: "Fast project work", tone: "neutral" },
 ];
 
 const actionTones = {
@@ -120,13 +108,13 @@ const actionTones = {
     iconColor: "var(--nexus-primary, #7c8cff)",
     glow: "0 10px 22px rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.075)",
   },
-  teal: {
-    border: "rgba(45, 212, 191, 0.24)",
-    bg: "linear-gradient(135deg, rgba(45, 212, 191, 0.105), rgba(255, 255, 255, 0.028))",
-    iconBg: "rgba(45, 212, 191, 0.105)",
-    iconBorder: "rgba(45, 212, 191, 0.22)",
-    iconColor: "#5eead4",
-    glow: "0 10px 22px rgba(45, 212, 191, 0.06)",
+  blue: {
+    border: "rgba(96, 165, 250, 0.26)",
+    bg: "linear-gradient(135deg, rgba(96, 165, 250, 0.12), rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.06), rgba(255, 255, 255, 0.026))",
+    iconBg: "rgba(96, 165, 250, 0.12)",
+    iconBorder: "rgba(96, 165, 250, 0.24)",
+    iconColor: "#93c5fd",
+    glow: "0 12px 26px rgba(96, 165, 250, 0.075)",
   },
   neutral: {
     border: "rgba(255, 255, 255, 0.075)",
@@ -153,6 +141,25 @@ function SoftPanel({ children, className = "", style = {}, tone = "muted" }) {
     >
       {children}
     </PanelCard>
+  );
+}
+
+function SectionLabel({ icon: Icon, title, end }) {
+  return (
+    <motion.div
+      variants={itemVariants}
+      className="nx-code-launchpad-section-label flex min-w-0 items-center justify-between gap-3"
+    >
+      <div className="flex min-w-0 items-center gap-2">
+        {Icon ? (
+          <Icon size={13} className="shrink-0 text-[var(--nexus-muted)] opacity-70" />
+        ) : null}
+        <span className="min-w-0 text-[10px] font-semibold uppercase leading-tight text-[var(--nexus-muted)]">
+          {title}
+        </span>
+      </div>
+      {end ? <div className="shrink-0">{end}</div> : null}
+    </motion.div>
   );
 }
 
@@ -241,38 +248,6 @@ function ActionButton({
   );
 }
 
-function MetricPill({ icon: Icon, label, value, tone = "primary" }) {
-  return (
-    <motion.div
-      variants={itemVariants}
-      className="nx-code-launchpad-metric flex min-w-0 items-center gap-2"
-      style={{
-        minHeight: "var(--nx-launchpad-metric-min, 34px)",
-        borderRadius: "var(--nexus-radius-lg, 18px)",
-        border: "1px solid rgba(255, 255, 255, 0.065)",
-        background: "rgba(255, 255, 255, 0.032)",
-        padding: "var(--nx-launchpad-metric-pad, 6px 9px)",
-      }}
-    >
-      <IconFrame icon={Icon} tone={tone} size={12} frameSize={24} radius={10} />
-      <span className="min-w-0">
-        <span
-          className="block text-[10px] font-medium leading-tight text-[var(--nexus-muted)]"
-          style={wrapText}
-        >
-          {label}
-        </span>
-        <span
-          className="block text-xs font-semibold leading-tight text-[var(--nexus-text)]"
-          style={wrapText}
-        >
-          {value}
-        </span>
-      </span>
-    </motion.div>
-  );
-}
-
 function FlowCard({ icon: Icon, title, detail, tone = "neutral", reduceMotion }) {
   const toneStyle = actionTones[tone] || actionTones.neutral;
 
@@ -318,8 +293,8 @@ function RecentFiles({ files }) {
       : [
           {
             id: "empty",
-            name: "No local files yet",
-            detail: "Create a scratch file or open a project folder",
+            name: "Keine lokalen Dateien",
+            detail: "Neue Datei erstellen oder Projekt oeffnen",
             meta: "local",
           },
         ];
@@ -336,7 +311,7 @@ function RecentFiles({ files }) {
             className="text-xs font-semibold leading-tight text-[var(--nexus-text)]"
             style={wrapText}
           >
-            Recent files
+            Letzte Dateien
           </span>
         </div>
         <PanelBadge tone="muted">{files.length || 0}</PanelBadge>
@@ -405,10 +380,10 @@ function FlowDeck({ reduceMotion }) {
             className="text-xs font-semibold leading-tight text-[var(--nexus-text)]"
             style={wrapText}
           >
-            Productive flows
+            Produktive Flows
           </span>
         </div>
-        <PanelBadge tone="success">local first</PanelBadge>
+        <PanelBadge tone="success">lokal</PanelBadge>
       </div>
       <div
         className="nx-code-launchpad-grid grid min-h-0 flex-1 gap-2 overflow-visible"
@@ -424,58 +399,13 @@ function FlowDeck({ reduceMotion }) {
   );
 }
 
-function CapabilityDeck({ fullIdeCount, syntaxCount, reduceMotion }) {
-  return (
-    <SoftPanel className="nx-code-launchpad-languages flex flex-col">
-      <div className="mb-2 flex min-w-0 items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-2">
-          <Braces
-            size={14}
-            className="shrink-0 text-[var(--nexus-primary,#7c8cff)]"
-          />
-          <span
-            className="text-xs font-semibold leading-tight text-[var(--nexus-text)]"
-            style={wrapText}
-          >
-            Ready surfaces
-          </span>
-        </div>
-        <div className="flex min-w-0 flex-wrap justify-end gap-1">
-          <PanelBadge tone="accent">{fullIdeCount} full IDE</PanelBadge>
-          <PanelBadge tone="teal">{syntaxCount} syntax</PanelBadge>
-        </div>
-      </div>
-      <div
-        className="nx-code-launchpad-grid grid min-h-0 flex-1 gap-2 overflow-visible"
-        style={{
-          gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 9.5rem), 1fr))",
-        }}
-      >
-        {languageTiles.map((tile) => (
-          <FlowCard
-            key={tile.label}
-            icon={Code2}
-            title={tile.label}
-            detail={tile.detail}
-            tone={tile.tone}
-            reduceMotion={reduceMotion}
-          />
-        ))}
-      </div>
-    </SoftPanel>
-  );
-}
-
 export default function WelcomeScreen({
   onNewFile,
   onOpenFolder,
   onOpenSettings,
 }) {
   const reduceMotion = useNexusReducedMotion();
-  const releaseSnapshot = useMemo(getNexusCodeIdeReleaseSnapshot, []);
   const recentFiles = useMemo(() => getWelcomeRecentFiles(3), []);
-  const fullIdeCount = releaseSnapshot.language?.fullIdeLanguages?.length || 0;
-  const syntaxCount = releaseSnapshot.language?.syntaxFirstLanguages?.length || 0;
 
   const handleAction = (action) => {
     if (action === "new") onNewFile?.();
@@ -507,89 +437,88 @@ export default function WelcomeScreen({
             minHeight: "100%",
             height: "auto",
             alignContent: "start",
-            gridTemplateRows: "auto minmax(0, 1fr)",
+            gridTemplateRows: "auto auto minmax(0, 1fr)",
             gap: "var(--nx-launchpad-gap, 10px)",
           }}
         >
-          <SoftPanel
+          <motion.section
+            variants={itemVariants}
             className="nx-code-launchpad-header"
             style={{
-              padding: "var(--nx-launchpad-header-pad, 12px 14px)",
-              background:
-                "radial-gradient(circle at 10% 10%, rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.15), transparent 38%), linear-gradient(135deg, rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.095), rgba(255, 255, 255, 0.028) 50%, rgba(45, 212, 191, 0.05))",
+              padding: "var(--nx-launchpad-header-pad, 16px 0 15px)",
+              borderBottom: "1px solid rgba(var(--nexus-accent-2-rgb), 0.18)",
+              boxShadow: "0 1px 0 rgba(var(--nexus-primary-rgb), 0.08)",
             }}
           >
-            <div
-              className="nx-code-launchpad-grid grid min-w-0 items-center gap-3"
-              style={{
-                gridTemplateColumns:
-                  "repeat(auto-fit, minmax(min(100%, 22rem), 1fr))",
-              }}
-            >
-              <div className="flex min-w-0 items-center gap-3">
-                <div
-                  className="nx-code-launchpad-mark flex shrink-0 items-center justify-center border text-sm font-semibold"
-                  style={{
-                    width: "var(--nx-launchpad-mark-size, 46px)",
-                    height: "var(--nx-launchpad-mark-size, 46px)",
-                    borderRadius: "var(--nx-launchpad-mark-radius, 17px)",
-                    background:
-                      "linear-gradient(145deg, rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.15), rgba(255, 255, 255, 0.045))",
-                    borderColor:
-                      "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.24)",
-                    color: "var(--nexus-primary, #7c8cff)",
-                    boxShadow:
-                      "0 0 22px rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.11)",
-                  }}
-                >
-                  NC
-                </div>
-                <div className="min-w-0">
-                  <div className="flex min-w-0 flex-wrap items-center gap-2">
-                    <Sparkles
-                      size={13}
-                      className="shrink-0 text-[var(--nexus-primary,#7c8cff)]"
-                    />
-                    <span
-                      className="text-[11px] font-semibold leading-tight text-[var(--nexus-muted)]"
-                      style={wrapText}
-                    >
-                      Nexus x Zed editor
-                    </span>
-                  </div>
-                  <h1
-                    className="nx-code-launchpad-title mt-1 text-[2rem] font-semibold leading-none text-[var(--nexus-text)]"
-                    style={wrapText}
-                  >
-                    Nexus Code
-                  </h1>
-                  <p
-                    className="mt-1 max-w-[38rem] text-xs leading-snug text-[var(--nexus-muted)]"
-                    style={wrapText}
-                  >
-                    Local editing with terminal, Git, search and theme control.
-                  </p>
-                </div>
-              </div>
-
+            <div className="flex min-w-0 items-center gap-3">
               <div
-                className="grid min-w-0 gap-2"
+                className="nx-code-launchpad-mark flex shrink-0 items-center justify-center border text-sm font-semibold"
                 style={{
-                  gridTemplateColumns:
-                    "repeat(auto-fit, minmax(min(100%, 6.8rem), 1fr))",
+                  width: "var(--nx-launchpad-mark-size, 48px)",
+                  height: "var(--nx-launchpad-mark-size, 48px)",
+                  borderRadius: "var(--nx-launchpad-mark-radius, 17px)",
+                  background:
+                    "linear-gradient(145deg, rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.78), rgba(var(--nexus-accent-2-rgb), 0.72))",
+                  borderColor: "rgba(255, 255, 255, 0.14)",
+                  color: "#fff",
+                  boxShadow:
+                    "0 0 26px rgba(var(--nexus-primary-rgb), 0.28), 0 0 34px rgba(var(--nexus-accent-2-rgb), 0.14)",
                 }}
               >
-                <MetricPill icon={Zap} label="Start" value="Local" tone="primary" />
-                <MetricPill icon={FileCode2} label="Full IDE" value={fullIdeCount} />
-                <MetricPill
-                  icon={Palette}
-                  label="Syntax"
-                  value={syntaxCount}
-                  tone="teal"
-                />
+                N
+              </div>
+              <div className="min-w-0">
+                <div className="flex min-w-0 flex-wrap items-center gap-2">
+                  <Sparkles
+                    size={13}
+                    className="shrink-0 text-[var(--nexus-accent-2,#38bdf8)]"
+                  />
+                  <span
+                    className="text-[10px] font-semibold uppercase leading-tight text-[var(--nexus-accent-2,#38bdf8)]"
+                    style={wrapText}
+                  >
+                    Nexus x 2nd Edition
+                  </span>
+                </div>
+                <h1
+                  className="nx-code-launchpad-title mt-1 text-[2rem] font-semibold leading-none text-[var(--nexus-text)]"
+                  style={wrapText}
+                >
+                  Nexus Code
+                </h1>
+                <p
+                  className="mt-2 max-w-[40rem] text-sm leading-snug text-[var(--nexus-muted)]"
+                  style={wrapText}
+                >
+                  Lokale Bearbeitung mit integriertem Terminal, Git-Unterstuetzung,
+                  Theme-Kontrolle und mehr.
+                </p>
               </div>
             </div>
-          </SoftPanel>
+          </motion.section>
+
+          <div className="grid min-w-0 gap-3 overflow-visible">
+            <SectionLabel title="Schnellstart" />
+            <div
+              className="nx-code-launchpad-grid grid min-w-0 gap-2.5"
+              style={{
+                gridTemplateColumns:
+                  "repeat(auto-fit, minmax(min(100%, 13.5rem), 1fr))",
+              }}
+            >
+              {actionItems.map((item) => (
+                <ActionButton
+                  key={item.action}
+                  icon={item.icon}
+                  label={item.label}
+                  detail={item.detail}
+                  tone={item.tone}
+                  reduceMotion={reduceMotion}
+                  onClick={() => handleAction(item.action)}
+                />
+              ))}
+            </div>
+          </div>
 
           <motion.div
             variants={itemVariants}
@@ -600,43 +529,13 @@ export default function WelcomeScreen({
               gap: "var(--nx-launchpad-gap, 12px)",
             }}
           >
-            <div
-              className="grid min-h-0 min-w-0 gap-3 overflow-visible"
-              style={{ gridTemplateRows: "auto minmax(0, 1fr)" }}
-            >
-              <div
-                className="nx-code-launchpad-grid grid min-w-0 gap-2"
-                style={{
-                  gridTemplateColumns:
-                    "repeat(auto-fit, minmax(min(100%, 8.5rem), 1fr))",
-                }}
-              >
-                {actionItems.map((item) => (
-                  <ActionButton
-                    key={item.action}
-                    icon={item.icon}
-                    label={item.label}
-                    detail={item.detail}
-                    tone={item.tone}
-                    reduceMotion={reduceMotion}
-                    onClick={() => handleAction(item.action)}
-                  />
-                ))}
-              </div>
-
-              <RecentFiles files={recentFiles} />
-            </div>
+            <RecentFiles files={recentFiles} />
 
             <div
               className="grid min-h-0 min-w-0 gap-3 overflow-visible"
-              style={{ gridTemplateRows: "auto auto" }}
+              style={{ gridTemplateRows: "minmax(0, 1fr)" }}
             >
               <FlowDeck reduceMotion={reduceMotion} />
-              <CapabilityDeck
-                fullIdeCount={fullIdeCount}
-                syntaxCount={syntaxCount}
-                reduceMotion={reduceMotion}
-              />
             </div>
           </motion.div>
         </motion.div>

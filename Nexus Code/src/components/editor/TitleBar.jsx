@@ -45,8 +45,8 @@ function MenuItemButton({ item, onSelect }) {
       <span className="flex min-w-0 flex-1 items-center gap-2">
         {Icon ? <Icon size={13} className="shrink-0" /> : null}
         <span
-          className="min-w-0 break-words leading-snug"
-          style={{ overflowWrap: "anywhere" }}
+          className="min-w-0 truncate leading-snug"
+          style={{ overflowWrap: "normal", wordBreak: "normal" }}
         >
           {item.label}
         </span>
@@ -194,22 +194,22 @@ function CommandButton({ icon: Icon, label, active, onClick, title }) {
       transition={{ duration: reduceMotion ? 0 : 0.18, ease: [0.22, 1, 0.36, 1] }}
       className="nx-code-command-button nx-code-titlebar-icon-button flex shrink-0 items-center justify-center text-gray-400 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500/60"
       style={{
-        width: 29,
-        height: 29,
-        borderRadius: "var(--nexus-radius-md, 14px)",
+        width: 27,
+        height: 27,
+        borderRadius: "var(--nexus-radius-md, 12px)",
         border: active
           ? "1px solid rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.26)"
           : "1px solid rgba(142, 153, 183, 0.1)",
         background: active
-          ? "linear-gradient(135deg, rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.14), rgba(255,255,255,0.028))"
-          : "rgba(255,255,255,0.02)",
+          ? "linear-gradient(135deg, rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.145), rgba(var(--nexus-accent-2-rgb, 56, 189, 248), 0.04), rgba(255,255,255,0.014))"
+          : "rgba(0,0,0,0.14)",
         color: active ? "var(--nexus-primary, #7c8cff)" : undefined,
         boxShadow: active
-          ? "0 0 14px rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.08), inset 0 1px 0 rgba(255,255,255,0.055)"
-          : "inset 0 1px 0 rgba(255,255,255,0.035)",
+          ? "0 0 14px rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.085), 0 0 18px rgba(var(--nexus-accent-2-rgb, 56, 189, 248), 0.035), inset 0 1px 0 rgba(255,255,255,0.05)"
+          : "inset 0 1px 0 rgba(255,255,255,0.03)",
       }}
     >
-      <Icon size={14} />
+      <Icon size={13} />
     </motion.button>
   );
 }
@@ -224,13 +224,13 @@ function ShellPill({ icon: Icon, label, tone = "muted" }) {
       style={{
         height: 29,
         maxWidth: 118,
-        borderRadius: "var(--nexus-radius-lg, 18px)",
+        borderRadius: "var(--nexus-radius-md, 12px)",
         border: isPrimary
           ? "1px solid rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.19)"
           : "1px solid rgba(255, 255, 255, 0.06)",
         background: isPrimary
-          ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.075)"
-          : "rgba(255, 255, 255, 0.02)",
+          ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.062)"
+          : "rgba(0, 0, 0, 0.12)",
         color: isPrimary
           ? "var(--nexus-primary, #7c8cff)"
           : "var(--nexus-muted, #99a3b7)",
@@ -357,15 +357,15 @@ export default function TitleBar({
     <div
       className={`nx-code-titlebar nx-code-titlebar-pro relative z-[60] flex shrink-0 select-none items-center justify-between overflow-visible ${compact ? "px-2" : "px-3"}`}
       style={{
-        height: 40,
-        minHeight: 40,
-        flex: "0 0 40px",
+        height: 39,
+        minHeight: 39,
+        flex: "0 0 39px",
         gap: 8,
         background:
-          "linear-gradient(180deg, rgba(255,255,255,0.038), rgba(255,255,255,0.01)), var(--nexus-surface)",
+          "radial-gradient(circle at 50% -36px, rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.06), transparent 180px), linear-gradient(180deg, rgba(255,255,255,0.026), rgba(255,255,255,0.006)), var(--nexus-titlebar)",
         borderBottom: "1px solid var(--nexus-border)",
         boxShadow:
-          "inset 0 1px 0 rgba(255,255,255,0.05), 0 1px 0 rgba(0,0,0,0.32)",
+          "inset 0 1px 0 rgba(255,255,255,0.04), 0 1px 0 rgba(0,0,0,0.48)",
         backdropFilter: "var(--nexus-panel-filter, blur(12px) saturate(118%))",
         // @ts-ignore
         WebkitAppRegion: isElectron ? "drag" : "no-drag",
@@ -405,13 +405,13 @@ export default function TitleBar({
         )}
 
         <div
-          className={`nx-code-titlebar-brand min-w-0 shrink-0 items-center ${compact ? "hidden 2xl:flex" : "hidden lg:flex"}`}
+          className={`nx-code-titlebar-brand min-w-0 shrink-0 items-center ${compact ? "hidden 2xl:flex" : "hidden 2xl:flex"}`}
           style={{
-            height: 30,
+            height: 28,
             gap: 7,
-            borderRadius: "var(--nexus-radius-lg, 18px)",
+            borderRadius: "var(--nexus-radius-md, 12px)",
             border: "1px solid rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.13)",
-            background: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.06)",
+            background: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.055)",
             padding: "0 9px 0 6px",
             boxShadow:
               "inset 0 1px 0 rgba(255,255,255,0.05), 0 0 14px rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.055)",
@@ -422,7 +422,7 @@ export default function TitleBar({
             style={{
               width: 20,
               height: 20,
-              borderRadius: "var(--nexus-radius-sm, 12px)",
+              borderRadius: "var(--nexus-radius-sm, 10px)",
               background: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.16)",
               color: "var(--nexus-primary, #7c8cff)",
             }}
@@ -443,9 +443,9 @@ export default function TitleBar({
           <div
             className={`nx-code-menu-host nx-code-menu-cluster items-center ${compact ? "hidden xl:flex" : "flex"}`}
             style={{
-              height: 30,
-              borderRadius: "var(--nexus-radius-lg, 18px)",
-              background: "rgba(255, 255, 255, 0.028)",
+              height: 28,
+              borderRadius: "var(--nexus-radius-md, 12px)",
+              background: "rgba(0, 0, 0, 0.12)",
               backdropFilter: "blur(12px)",
             }}
           >
@@ -462,9 +462,9 @@ export default function TitleBar({
           <div
             className={`nx-code-menu-host nx-code-menu-compact-host items-center ${compact ? "flex xl:hidden" : "hidden"}`}
             style={{
-              height: 30,
-              borderRadius: "var(--nexus-radius-lg, 18px)",
-              background: "rgba(255, 255, 255, 0.028)",
+              height: 28,
+              borderRadius: "var(--nexus-radius-md, 12px)",
+              background: "rgba(0, 0, 0, 0.12)",
               backdropFilter: "blur(12px)",
             }}
           >
@@ -486,18 +486,18 @@ export default function TitleBar({
         className="nx-code-command-center nx-code-command-center-pro mx-1 flex min-w-0 flex-[1.25] items-center justify-center text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500/60"
         // @ts-ignore
         style={{
-          height: 30,
-          minHeight: 30,
+          height: 29,
+          minHeight: 29,
           flex: "1 1 12rem",
           minWidth: compact ? 132 : 178,
           maxWidth: compact ? 420 : 540,
-          gap: 9,
-          borderRadius: "var(--nexus-radius-pill, 9999px)",
+          gap: 8,
+          borderRadius: "var(--nexus-radius-lg, 15px)",
           border: "1px solid rgba(142, 153, 183, 0.13)",
           background:
-            "linear-gradient(180deg, rgba(255,255,255,0.048), rgba(255,255,255,0.018)), rgba(5, 7, 12, 0.3)",
+            "linear-gradient(180deg, rgba(255,255,255,0.032), rgba(255,255,255,0.008)), rgba(0, 0, 0, 0.22)",
           boxShadow:
-            "0 0 18px rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.055), inset 0 1px 0 rgba(255,255,255,0.058)",
+            "0 0 16px rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.052), 0 0 22px rgba(var(--nexus-accent-2-rgb, 56, 189, 248), 0.026), inset 0 1px 0 rgba(255,255,255,0.048)",
           padding: "0 9px",
           WebkitAppRegion: "no-drag",
         }}
@@ -506,19 +506,20 @@ export default function TitleBar({
         <span
           className="flex shrink-0 items-center justify-center"
           style={{
-            width: 24,
-            height: 24,
-            borderRadius: "var(--nexus-radius-md, 14px)",
+            width: 22,
+            height: 22,
+            borderRadius: "var(--nexus-radius-sm, 10px)",
             border: "1px solid rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.22)",
             background: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.11)",
             color: "var(--nexus-primary, #7c8cff)",
           }}
         >
-          <Search size={13} />
+          <Search size={12} />
         </span>
         <span className="min-w-0 flex-1 truncate text-[11px] font-semibold text-gray-200">
-          Nexus Command
-          <span className="hidden text-gray-500 lg:inline"> / {workspaceLabel}</span>
+          <span>Nexus Command</span>
+          <span className="hidden text-gray-500 md:inline"> - Suche starten...</span>
+          <span className="hidden text-gray-500 2xl:inline"> / {workspaceLabel}</span>
         </span>
         <span
           className="hidden shrink-0 rounded-md px-2 py-1 text-[9px] font-semibold tabular-nums text-gray-400 xl:inline"
