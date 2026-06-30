@@ -7,8 +7,8 @@
     --nexus-accent-2-rgb: 45, 212, 191;
     --nexus-accent-2-hsl: 172 66% 50%;
     --nexus-purple: var(--nexus-primary);
-    --nexus-purple-glow: rgba(var(--nexus-primary-rgb), 0.18);
-    --nexus-accent-glow: rgba(var(--nexus-primary-rgb), 0.18);
+    --nexus-purple-glow: rgba(var(--nexus-primary-rgb), 0.13);
+    --nexus-accent-glow: rgba(var(--nexus-primary-rgb), 0.12);
     --nexus-bg: #07090f;
     --nexus-bg-value: linear-gradient(180deg, #0a0c12 0%, #06070b 100%);
     --nexus-bg-image: linear-gradient(180deg, rgba(255, 255, 255, 0.018), rgba(0, 0, 0, 0.12));
@@ -22,24 +22,24 @@
     --nexus-editor-bg: #07090f;
     --nexus-editor-surface: rgba(12, 15, 23, 0.88);
     --nexus-panel-surface: rgba(14, 17, 26, 0.86);
-    --nexus-panel-border: rgba(166, 178, 216, 0.12);
-    --nexus-panel-filter: blur(14px) saturate(122%);
-    --nexus-settings-filter: blur(14px) saturate(118%);
-    --nexus-overlay-filter: blur(18px) saturate(124%);
-    --nexus-panel-shadow: 0 18px 42px rgba(0, 0, 0, 0.28);
-    --nexus-panel-outline: 0 0 0 1px rgba(166, 178, 216, 0.1), 0 18px 40px rgba(0, 0, 0, 0.24);
-    --nexus-border: rgba(154, 166, 204, 0.12);
+    --nexus-panel-border: rgba(166, 178, 216, 0.1);
+    --nexus-panel-filter: blur(12px) saturate(116%);
+    --nexus-settings-filter: blur(12px) saturate(114%);
+    --nexus-overlay-filter: blur(14px) saturate(118%);
+    --nexus-panel-shadow: 0 14px 34px rgba(0, 0, 0, 0.24);
+    --nexus-panel-outline: 0 0 0 1px rgba(166, 178, 216, 0.08), 0 14px 32px rgba(0, 0, 0, 0.22);
+    --nexus-border: rgba(154, 166, 204, 0.1);
     --nexus-glass: rgba(17, 20, 29, 0.74);
-    --nexus-glass-border: rgba(166, 178, 216, 0.12);
-    --nexus-control-surface: rgba(255, 255, 255, 0.036);
-    --nexus-control-surface-hover: rgba(255, 255, 255, 0.072);
-    --nexus-control-border: rgba(166, 178, 216, 0.11);
-    --nexus-control-border-hover: rgba(190, 199, 226, 0.2);
-    --nexus-control-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    --nexus-glass-border: rgba(166, 178, 216, 0.1);
+    --nexus-control-surface: rgba(255, 255, 255, 0.032);
+    --nexus-control-surface-hover: rgba(255, 255, 255, 0.062);
+    --nexus-control-border: rgba(166, 178, 216, 0.095);
+    --nexus-control-border-hover: rgba(190, 199, 226, 0.17);
+    --nexus-control-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.052);
     --nexus-focus-ring: 0 0 0 1px rgba(var(--nexus-primary-rgb), 0.34), 0 0 0 4px rgba(var(--nexus-primary-rgb), 0.12);
-    --nexus-glow-radius: 12px;
-    --nexus-glow-radius-sm: 5px;
-    --nexus-glow-intensity: 24%;
+    --nexus-glow-radius: 10px;
+    --nexus-glow-radius-sm: 4px;
+    --nexus-glow-intensity: 18%;
     --nexus-blur-radius: 12px;
     --nexus-radius-xs: 0.55rem;
     --nexus-radius-sm: 0.75rem;
@@ -108,7 +108,9 @@
 .reduce-motion *::before,
 .reduce-motion *::after {
     animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
     transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
 }
 
 .reduce-motion {
@@ -135,6 +137,11 @@
 .reduce-motion .nx-code-launchpad-metric,
 .reduce-motion .nx-code-launchpad-signal,
 .reduce-motion .nx-code-launchpad-status-card,
+.reduce-motion .nx-code-command-center,
+.reduce-motion .nx-code-window-controls,
+.reduce-motion .nx-code-menu-cluster,
+.reduce-motion .nx-code-menu-compact-host,
+.reduce-motion .nx-editor-panel-card,
 .reduce-motion .nx-code-menu-dropdown {
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
@@ -524,15 +531,15 @@ textarea.nx-typing-active,
     z-index: 60;
     color: var(--nexus-text, #e5e7eb);
     background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.064), rgba(255, 255, 255, 0.018)),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.052), rgba(255, 255, 255, 0.014)),
         var(--nexus-titlebar, var(--nexus-surface, rgba(17, 20, 29, 0.82)));
     border-color: var(--nexus-border, rgba(142, 153, 183, 0.16));
     border-bottom-left-radius: var(--nexus-radius-xl, 1.375rem);
     border-bottom-right-radius: var(--nexus-radius-xl, 1.375rem);
     box-shadow:
         inset 0 1px 0 rgba(255, 255, 255, 0.075),
-        inset 0 -1px 0 rgba(255, 255, 255, 0.025),
-        0 1px 0 rgba(0, 0, 0, 0.42);
+        inset 0 -1px 0 rgba(255, 255, 255, 0.018),
+        0 1px 0 rgba(0, 0, 0, 0.34);
 }
 
 .nx-code-titlebar::after {
@@ -543,8 +550,8 @@ textarea.nx-typing-active,
     bottom: -1px;
     height: 1px;
     pointer-events: none;
-    background: linear-gradient(90deg, transparent, rgba(var(--nexus-primary-rgb), 0.18), transparent);
-    opacity: 0.5;
+    background: linear-gradient(90deg, transparent, rgba(var(--nexus-primary-rgb), 0.14), transparent);
+    opacity: 0.42;
 }
 
 .nx-code-window-controls {
@@ -585,7 +592,7 @@ textarea.nx-typing-active,
     height: 0.38rem;
     border-radius: 999px;
     background: var(--window-accent, rgba(148, 163, 184, 0.85));
-    box-shadow: 0 0 8px rgba(255, 255, 255, 0.12);
+    box-shadow: 0 0 6px rgba(255, 255, 255, 0.09);
 }
 
 .nx-code-window-icon {
@@ -654,10 +661,10 @@ textarea.nx-typing-active,
     border: 1px solid var(--nexus-panel-border, rgba(154, 166, 204, 0.17));
     border-radius: var(--nexus-radius-xl, 1.375rem);
     background:
-        radial-gradient(circle at 14% 0%, rgba(var(--nexus-primary-rgb), 0.11), transparent 12rem),
-        linear-gradient(180deg, rgba(255, 255, 255, 0.064), rgba(255, 255, 255, 0.02)),
+        radial-gradient(circle at 14% 0%, rgba(var(--nexus-primary-rgb), 0.075), transparent 12rem),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.052), rgba(255, 255, 255, 0.018)),
         rgba(9, 11, 17, 0.92);
-    box-shadow: 0 20px 44px rgba(0, 0, 0, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.075);
+    box-shadow: 0 16px 34px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.062);
     backdrop-filter: var(--nexus-overlay-filter, blur(12px) saturate(120%));
     -webkit-backdrop-filter: var(--nexus-overlay-filter, blur(12px) saturate(120%));
 }
@@ -699,18 +706,18 @@ textarea.nx-typing-active,
     border: 1px solid var(--nexus-control-border, rgba(154, 166, 204, 0.14));
     border-radius: var(--nexus-radius-pill, 9999px);
     background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.052), rgba(255, 255, 255, 0.018)),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.044), rgba(255, 255, 255, 0.016)),
         rgba(255, 255, 255, 0.028);
     box-shadow:
         var(--nexus-control-shadow, inset 0 1px 0 rgba(255, 255, 255, 0.055)),
-        0 0 18px rgba(var(--nexus-primary-rgb), 0.055);
+        0 0 14px rgba(var(--nexus-primary-rgb), 0.045);
 }
 
 .nx-code-command-center:hover {
     border-color: var(--nexus-control-border-hover, rgba(154, 166, 204, 0.25));
     background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.068), rgba(255, 255, 255, 0.026)),
-        rgba(var(--nexus-primary-rgb), 0.04);
+        linear-gradient(180deg, rgba(255, 255, 255, 0.058), rgba(255, 255, 255, 0.022)),
+        rgba(var(--nexus-primary-rgb), 0.035);
 }
 
 .nx-code-command-button {
@@ -841,6 +848,19 @@ textarea.nx-typing-active,
 .nx-code-account-panel-body {
     scrollbar-width: thin;
     scrollbar-color: rgba(var(--nexus-primary-rgb), 0.28) transparent;
+}
+
+.nx-code-account-button {
+    max-width: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    box-shadow: var(--nexus-control-shadow, inset 0 1px 0 rgba(255, 255, 255, 0.052));
+}
+
+.nx-code-account-button:hover:not(:disabled),
+.nx-code-account-button:focus-visible {
+    background: var(--nexus-control-surface-hover, rgba(255, 255, 255, 0.062)) !important;
+    border-color: var(--nexus-control-border-hover, rgba(190, 199, 226, 0.17)) !important;
 }
 
 .nx-code-welcome {
@@ -991,8 +1011,14 @@ textarea.nx-typing-active,
 }
 
 .nx-code-launchpad {
+    --nx-launchpad-gap: clamp(0.5rem, 1.15vh, 0.75rem);
+    --nx-launchpad-panel-pad: clamp(0.55rem, 1.15vh, 0.75rem);
+    --nx-launchpad-header-pad: clamp(0.6rem, 1.25vh, 0.75rem) clamp(0.7rem, 1.35vw, 0.9rem);
+    --nx-launchpad-viewport-pad-y: clamp(0.35rem, 1vh, 0.65rem);
+    --nx-launchpad-viewport-pad-x: clamp(0.5rem, 1.15vw, 0.9rem);
     min-width: 0;
-    min-height: min-content;
+    min-height: 0;
+    align-content: start;
     overflow-x: clip;
     overflow-y: visible;
 }
@@ -1004,8 +1030,8 @@ textarea.nx-typing-active,
 .nx-code-launchpad-status-card {
     min-width: 0;
     border-radius: var(--nexus-radius-xl, 1.375rem) !important;
-    backdrop-filter: var(--nexus-panel-filter, blur(8px) saturate(116%));
-    -webkit-backdrop-filter: var(--nexus-panel-filter, blur(8px) saturate(116%));
+    backdrop-filter: var(--nexus-panel-filter, blur(7px) saturate(112%));
+    -webkit-backdrop-filter: var(--nexus-panel-filter, blur(7px) saturate(112%));
 }
 
 .nx-code-launchpad :where(.nx-code-launchpad-header, .nx-code-launchpad-recent, .nx-code-launchpad-flow, .nx-code-launchpad-languages) {
@@ -1013,15 +1039,18 @@ textarea.nx-typing-active,
 }
 
 .nx-code-launchpad :where(.nx-code-launchpad-action, .nx-code-launchpad-metric, .nx-code-launchpad-signal, .nx-code-launchpad-status-card, .nx-editor-panel-card) {
-    border-color: rgba(166, 178, 216, 0.105) !important;
+    border-color: rgba(166, 178, 216, 0.09) !important;
+    box-shadow:
+        0 10px 22px rgba(0, 0, 0, 0.12),
+        inset 0 1px 0 rgba(255, 255, 255, 0.052);
 }
 
 .nx-code-launchpad :where(.nx-code-launchpad-action, .nx-code-launchpad-metric, .nx-code-launchpad-signal, .nx-code-launchpad-status-card, .nx-editor-panel-card):hover {
     border-color: rgba(var(--nexus-primary-rgb), 0.2) !important;
     box-shadow:
-        0 18px 36px rgba(0, 0, 0, 0.18),
-        0 0 24px rgba(var(--nexus-primary-rgb), 0.075),
-        inset 0 1px 0 rgba(255, 255, 255, 0.065);
+        0 12px 26px rgba(0, 0, 0, 0.15),
+        0 0 16px rgba(var(--nexus-primary-rgb), 0.055),
+        inset 0 1px 0 rgba(255, 255, 255, 0.058);
 }
 
 .nx-code-launchpad-grid,
@@ -1037,6 +1066,14 @@ textarea.nx-typing-active,
 
 .nx-code-launchpad-fineprint {
     line-height: 1.35;
+}
+
+.nx-code-launchpad-title {
+    font-size: clamp(1.5rem, 4.8vh, 2rem) !important;
+}
+
+.nx-code-launchpad-mark {
+    box-shadow: 0 0 16px rgba(var(--nexus-primary-rgb), 0.075) !important;
 }
 
 .nx-code-launchpad-command-strip {
@@ -1136,10 +1173,11 @@ textarea.nx-typing-active,
 .nx-code-new-file-create {
     border-radius: var(--nexus-radius-md, 0.875rem) !important;
     white-space: normal;
+    overflow-wrap: anywhere;
 }
 
 .nx-code-tab {
-    min-width: 7.5rem;
+    min-width: clamp(6.5rem, 13vw, 7.5rem);
     max-width: clamp(9rem, 19vw, 15rem);
     border-radius: var(--nexus-radius-xl, 1.375rem) var(--nexus-radius-xl, 1.375rem) 0 0;
     transition:
@@ -1147,6 +1185,20 @@ textarea.nx-typing-active,
         border-color var(--nx-motion-quick, 170ms) ease,
         opacity var(--nx-motion-quick, 170ms) ease,
         box-shadow var(--nx-motion-quick, 170ms) ease;
+}
+
+.nx-code-tab-ext {
+    letter-spacing: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.nx-code-tab-label {
+    min-width: 2rem;
+}
+
+.nx-code-tab-close {
+    border-radius: var(--nexus-radius-md, 0.875rem) !important;
 }
 
 .nx-code-tab:hover {
@@ -1196,19 +1248,19 @@ textarea.nx-typing-active,
     color: var(--nexus-text, #e5e7eb);
     border-radius: inherit;
     background:
-        radial-gradient(circle at 12% 0%, rgba(var(--nexus-primary-rgb), 0.05), transparent 16rem),
-        linear-gradient(180deg, rgba(255, 255, 255, 0.046), rgba(255, 255, 255, 0.014)),
+        radial-gradient(circle at 12% 0%, rgba(var(--nexus-primary-rgb), 0.035), transparent 16rem),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.038), rgba(255, 255, 255, 0.012)),
         var(--nexus-panel-surface, rgba(14, 17, 26, 0.9)) !important;
-    backdrop-filter: var(--nexus-panel-filter, blur(8px) saturate(116%)) !important;
-    -webkit-backdrop-filter: var(--nexus-panel-filter, blur(8px) saturate(116%)) !important;
+    backdrop-filter: var(--nexus-panel-filter, blur(7px) saturate(112%)) !important;
+    -webkit-backdrop-filter: var(--nexus-panel-filter, blur(7px) saturate(112%)) !important;
 }
 
 .nx-editor-panel-header,
 .nx-editor-panel-footer {
     background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.044), rgba(255, 255, 255, 0.012)),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.036), rgba(255, 255, 255, 0.01)),
         rgba(0, 0, 0, 0.08);
-    border-color: rgba(154, 166, 204, 0.1) !important;
+    border-color: rgba(154, 166, 204, 0.085) !important;
 }
 
 .nx-editor-panel-body {
@@ -1224,9 +1276,9 @@ textarea.nx-typing-active,
 .nx-editor-panel-section,
 .nx-editor-panel-state {
     border-radius: var(--nexus-radius-xl, 1.375rem) !important;
-    border-color: rgba(154, 166, 204, 0.095) !important;
+    border-color: rgba(154, 166, 204, 0.08) !important;
     background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.012)),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.034), rgba(255, 255, 255, 0.01)),
         rgba(255, 255, 255, 0.018);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
@@ -1372,6 +1424,44 @@ textarea.nx-typing-active,
     }
 }
 
+@media (max-height: 640px) and (min-width: 721px) {
+    .nx-code-launchpad {
+        --nx-launchpad-gap: 0.5rem;
+        --nx-launchpad-panel-pad: 0.55rem;
+        --nx-launchpad-header-pad: 0.55rem 0.7rem;
+        --nx-launchpad-action-min: 3.05rem;
+        --nx-launchpad-action-pad: 0.45rem 0.55rem;
+        --nx-launchpad-action-gap: 0.45rem;
+        --nx-launchpad-action-grid: 1.6rem minmax(0, 1fr) 0.75rem;
+        --nx-launchpad-signal-min: 2.95rem;
+        --nx-launchpad-signal-pad: 0.45rem 0.55rem;
+        --nx-launchpad-metric-min: 2rem;
+        --nx-launchpad-metric-pad: 0.35rem 0.45rem;
+        --nx-launchpad-mark-size: 2.25rem;
+        --nx-launchpad-mark-radius: 0.875rem;
+    }
+
+    .nx-code-launchpad-icon {
+        width: 1.6rem !important;
+        height: 1.6rem !important;
+        border-radius: var(--nexus-radius-md, 0.875rem) !important;
+    }
+
+    .nx-code-launchpad-title {
+        font-size: 1.55rem !important;
+    }
+
+    .nx-code-launchpad-fineprint,
+    .nx-code-launchpad-signal .text-\[10px\] {
+        line-height: 1.25;
+    }
+
+    .nx-code-launchpad-status-card {
+        min-height: 2.1rem !important;
+        padding: 0.35rem 0.45rem !important;
+    }
+}
+
 @media (max-width: 720px) {
     .nx-code-titlebar {
         height: 2.5rem;
@@ -1393,6 +1483,9 @@ textarea.nx-typing-active,
 
     .nx-code-launchpad {
         padding-bottom: 0.75rem;
+        --nx-launchpad-gap: 0.625rem;
+        --nx-launchpad-panel-pad: 0.65rem;
+        --nx-launchpad-action-grid: 2rem minmax(0, 1fr) 0.875rem;
     }
 
     .nx-code-launchpad-grid {
@@ -1437,6 +1530,18 @@ textarea.nx-typing-active,
     }
 }
 
+@media (max-width: 420px) {
+    .nx-code-new-file-menu .grid.grid-cols-2,
+    .nx-code-account-presets,
+    .nx-code-account-actions {
+        grid-template-columns: minmax(0, 1fr) !important;
+    }
+
+    .nx-code-command-center {
+        min-width: 8.25rem !important;
+    }
+}
+
 @media (prefers-reduced-motion: reduce) {
     :root {
         --nexus-panel-filter: none;
@@ -1463,7 +1568,9 @@ textarea.nx-typing-active,
     .nx-code-shell *::before,
     .nx-code-shell *::after {
         transition-duration: 0.01ms !important;
+        transition-delay: 0ms !important;
         animation-duration: 0.01ms !important;
+        animation-delay: 0ms !important;
         animation-iteration-count: 1 !important;
         scroll-behavior: auto !important;
     }

@@ -44,14 +44,15 @@ function ActionButton({ title, onClick, active = false, children }) {
     <button
       type="button"
       title={title}
+      aria-label={title}
       aria-pressed={active}
       onClick={onClick}
       className="nx-code-tab-action grid h-8 w-8 shrink-0 place-items-center border border-white/10 text-gray-400 transition-colors hover:border-white/20 hover:bg-white/10 hover:text-gray-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500/60 [&>svg]:h-4 [&>svg]:w-4"
       style={{
         background: active
-          ? "color-mix(in srgb, var(--primary) 14%, transparent)"
-          : "rgba(255,255,255,0.02)",
-        color: active ? "var(--primary)" : undefined,
+          ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.13)"
+          : "rgba(255,255,255,0.018)",
+        color: active ? "var(--nexus-primary, #7c8cff)" : undefined,
         borderRadius: "var(--nexus-radius-lg, 18px)",
       }}
     >
@@ -109,7 +110,7 @@ export default function TabBar({
     <div
       className="nx-code-tabbar flex h-full min-w-0 shrink-0 items-stretch border-b border-white/5"
       style={{
-        background: "rgba(0,0,0,0.12)",
+        background: "rgba(0,0,0,0.09)",
         borderBottom: "1px solid var(--nexus-border)",
         minHeight: "42px",
       }}
@@ -136,6 +137,7 @@ export default function TabBar({
                 exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 8, scale: 0.98 }}
                 transition={{ duration: reduceMotion ? 0 : 0.18, ease: [0.22, 1, 0.36, 1] }}
                 className="nx-code-menu-dropdown nx-code-new-file-menu absolute left-0 top-full z-50 mt-2 w-[min(20rem,calc(100vw-1rem))] border border-white/10 p-2"
+                role="menu"
               >
                 <div className="px-2 pb-2 text-[10px] font-semibold uppercase tracking-wide text-gray-500">
                   Datei-Typ
@@ -151,11 +153,17 @@ export default function TabBar({
                       }}
                       className="nx-code-new-file-option min-w-0 border border-white/5 px-2.5 py-1.5 text-left text-xs transition-colors hover:border-white/15 hover:bg-white/10"
                       style={{ color: "var(--nexus-text)" }}
+                      role="menuitem"
                     >
-                      <span className="font-semibold" style={{ overflowWrap: "anywhere" }}>
+                      <span
+                        className="inline-block max-w-full font-semibold leading-tight"
+                        style={{ overflowWrap: "anywhere" }}
+                      >
                         {item.label}
                       </span>
-                      <span className="ml-1 text-[10px] text-gray-500">.{item.ext}</span>
+                      <span className="ml-1 inline-block text-[10px] text-gray-500">
+                        .{item.ext}
+                      </span>
                     </button>
                   ))}
                 </div>
@@ -231,22 +239,24 @@ export default function TabBar({
                   type="button"
                   onClick={() => onTabSelect?.(tab.id)}
                   title={tab.name}
+                  role="tab"
+                  aria-selected={isActive}
                   className="nx-code-tab group relative flex h-full min-w-[9rem] max-w-[15rem] shrink-0 items-center gap-2 border-r border-white/5 px-3 text-left transition-colors hover:bg-white/[0.04]"
                   style={{
-                    background: isActive ? "rgba(255,255,255,0.055)" : "transparent",
+                    background: isActive ? "rgba(255,255,255,0.045)" : "transparent",
                     borderBottom: isActive
                       ? `2px solid ${color}`
                       : "2px solid transparent",
                   }}
                 >
                   <span
-                    className="grid h-5 w-10 shrink-0 place-items-center rounded px-1 text-[10px] font-bold leading-none"
+                    className="nx-code-tab-ext grid h-5 w-10 shrink-0 place-items-center rounded px-1 text-[10px] font-bold leading-none"
                     style={{ background: color + "22", color }}
                   >
                     {ext.toUpperCase() || "TXT"}
                   </span>
                   <span
-                    className="min-w-0 flex-1 truncate text-xs"
+                    className="nx-code-tab-label min-w-0 flex-1 truncate text-xs"
                     style={{
                       color: isActive ? "var(--nexus-text)" : "var(--nexus-muted)",
                     }}
@@ -256,7 +266,11 @@ export default function TabBar({
                   {tab.modified ? (
                     <span
                       className="h-1.5 w-1.5 shrink-0 rounded-full"
-                      style={{ background: "var(--primary)", boxShadow: "0 0 6px var(--primary)" }}
+                      style={{
+                        background: "var(--nexus-primary, #7c8cff)",
+                        boxShadow:
+                          "0 0 5px rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.32)",
+                      }}
                     />
                   ) : null}
                   <span
@@ -266,7 +280,7 @@ export default function TabBar({
                     }}
                     role="button"
                     tabIndex={-1}
-                    className={`flex h-5 w-5 shrink-0 items-center justify-center rounded transition-colors hover:bg-white/10 ${
+                    className={`nx-code-tab-close flex h-5 w-5 shrink-0 items-center justify-center rounded transition-colors hover:bg-white/10 ${
                       isActive ? "opacity-80" : "opacity-0 group-hover:opacity-80"
                     }`}
                     title="Tab schliessen"

@@ -7484,6 +7484,7 @@ select {
 }
 
 .nx-notes-unified-status-action .nx-notes-command-strip {
+    order: 2;
     flex: 0 0 auto;
     gap: 6px;
     min-width: max-content;
@@ -7505,6 +7506,7 @@ select {
 }
 
 .nx-notes-unified-status-action .nx-notes-context-strip {
+    order: 4;
     max-width: min(28vw, 360px);
     margin-top: 0 !important;
     padding-top: 0 !important;
@@ -7514,14 +7516,18 @@ select {
 }
 
 .nx-notes-unified-status-action .nx-notes-format-toolbar {
+    order: 1;
     flex: 0 0 auto;
-    max-width: min(40vw, 560px);
+    max-width: none;
     overflow-x: auto !important;
     overflow-y: visible !important;
     white-space: nowrap;
+    padding-inline: 2px 8px !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .nx-notes-unified-status-action .nx-notes-toolbar-tags {
+    order: 3;
     flex: 0 1 min(20vw, 260px);
     max-width: min(20vw, 260px);
     gap: 4px;
@@ -7544,7 +7550,7 @@ select {
     }
 
     .nx-notes-unified-status-action .nx-notes-format-toolbar {
-        max-width: min(50vw, 520px);
+        max-width: none;
     }
 }
 
@@ -11318,5 +11324,108 @@ select {
 
     .nx-calendar-import-panel.nx-calendar-import-panel--drawer {
         grid-template-columns: 1fr;
+    }
+}
+
+/* Notes unified bar restore: keep old editor tools visible before stats. */
+.nx-notes-unified-status-action .nx-notes-format-toolbar {
+    order: 1 !important;
+    flex: 0 0 auto !important;
+    max-width: none !important;
+    min-width: max-content;
+    border-right: 1px solid rgba(255, 255, 255, 0.08);
+    padding-inline: 2px 8px !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-command-strip {
+    order: 2 !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-toolbar-tags {
+    order: 3 !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-context-strip {
+    order: 4 !important;
+}
+
+@media (max-width: 1180px) {
+    .nx-notes-unified-status-action {
+        grid-template-columns: minmax(178px, 0.56fr) minmax(0, 1.44fr);
+    }
+
+    .nx-notes-unified-status-action .nx-notes-editor-meta {
+        display: none !important;
+    }
+}
+
+@media (max-width: 760px) {
+    .nx-notes-unified-status-action .nx-notes-format-toolbar {
+        max-width: 100% !important;
+        min-width: 0;
+    }
+}
+
+/* Calendar polish: stronger day hierarchy without changing data model. */
+.nx-calendar-day {
+    min-height: 116px;
+}
+
+.nx-calendar-day.has-items .nx-calendar-day-number {
+    background:
+        linear-gradient(135deg, rgba(var(--nx-calendar-accent-rgb, 100, 210, 255), 0.22), rgba(255, 255, 255, 0.06));
+    border: 1px solid rgba(var(--nx-calendar-accent-rgb, 100, 210, 255), 0.24);
+    border-radius: 8px;
+    padding: 2px 6px;
+}
+
+.nx-calendar-card-month {
+    min-height: 36px !important;
+    border-radius: 9px !important;
+}
+
+.nx-calendar-card-month .nx-calendar-card-title {
+    font-size: 10.5px !important;
+    line-height: 1.2;
+}
+
+.nx-calendar-card-agenda {
+    min-height: 72px;
+    border-radius: 12px !important;
+}
+
+.nx-calendar-card-agenda .nx-calendar-card-title {
+    font-size: 13px;
+}
+
+.nx-calendar-agenda-list {
+    gap: 8px !important;
+}
+
+.nx-calendar-agenda-kpis span,
+.nx-calendar-day-counts span {
+    font-weight: 820;
+}
+
+.nx-calendar-density-compact .nx-calendar-day {
+    min-height: 98px;
+}
+
+.nx-calendar-density-compact .nx-calendar-card-month {
+    min-height: 30px !important;
+}
+
+.nx-app-shell[data-nx-color-mode="light"] .nx-calendar-day.has-items .nx-calendar-day-number {
+    background:
+        linear-gradient(135deg, rgba(var(--nx-calendar-accent-rgb, 100, 210, 255), 0.2), rgba(255, 255, 255, 0.82));
+}
+
+@media (max-width: 520px) {
+    .nx-calendar-day {
+        min-height: 86px;
+    }
+
+    .nx-calendar-card-month {
+        min-height: 28px !important;
     }
 }

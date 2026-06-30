@@ -78,7 +78,9 @@ function Field({ icon: Icon, label, children }) {
     <label className="block min-w-0">
       <span className="mb-1.5 flex min-w-0 items-center gap-1.5 px-0.5 text-[10px] font-semibold uppercase tracking-wide text-gray-500">
         <Icon size={12} className="shrink-0" />
-        <span className="truncate">{label}</span>
+        <span className="min-w-0 break-words" style={{ overflowWrap: "anywhere" }}>
+          {label}
+        </span>
       </span>
       {children}
     </label>
@@ -94,23 +96,24 @@ function AccountButton({ children, onClick, disabled, tone = "default", title })
       onClick={onClick}
       disabled={disabled}
       title={title}
-      className="flex h-8 min-w-0 items-center justify-center gap-1.5 rounded-md border px-2.5 text-[11px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-45"
+      className="nx-code-account-button flex min-h-8 min-w-0 items-center justify-center gap-1.5 rounded-2xl border px-2.5 py-1 text-[11px] font-semibold leading-tight transition-colors disabled:cursor-not-allowed disabled:opacity-45"
       style={{
         background: primary
-          ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.16)"
+          ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.13)"
           : danger
-            ? "rgba(239,68,68,0.1)"
-            : "rgba(255,255,255,0.04)",
+            ? "rgba(239,68,68,0.085)"
+            : "rgba(255,255,255,0.032)",
         borderColor: primary
-          ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.28)"
+          ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.22)"
           : danger
-            ? "rgba(239,68,68,0.24)"
-            : "rgba(255,255,255,0.09)",
+            ? "rgba(239,68,68,0.2)"
+            : "rgba(255,255,255,0.07)",
         color: primary
           ? "var(--nexus-primary, #7c8cff)"
           : danger
             ? "#fca5a5"
             : "#d1d5db",
+        borderRadius: "var(--nexus-radius-lg, 18px)",
       }}
     >
       {children}
@@ -260,7 +263,7 @@ export default function AccountPanel({
           className="mb-3"
         />
 
-        <div className="mb-3 grid grid-cols-2 gap-1.5">
+        <div className="nx-code-account-presets mb-3 grid grid-cols-2 gap-1.5">
           <PanelActionButton
             icon={Link2}
             onClick={() => applyEndpointPreset(HOSTED_ENDPOINT)}
@@ -315,7 +318,7 @@ export default function AccountPanel({
               <button
                 type="button"
                 onClick={() => setShowToken((value) => !value)}
-                className="grid h-8 w-8 place-items-center rounded-md border border-white/10 bg-white/[0.04] text-gray-500 transition-colors hover:bg-white/[0.08] hover:text-gray-200"
+                className="grid h-8 w-8 place-items-center rounded-2xl border border-white/10 bg-white/[0.035] text-gray-500 transition-colors hover:bg-white/[0.07] hover:text-gray-200"
                 title={showToken ? "Token verbergen" : "Token anzeigen"}
               >
                 {showToken ? <EyeOff size={14} /> : <Eye size={14} />}
@@ -374,13 +377,13 @@ export default function AccountPanel({
             type="button"
             onClick={() => setDraft(normalizedSession)}
             disabled={!isDirty}
-            className="flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 font-semibold text-gray-500 transition-colors hover:bg-white/[0.06] hover:text-gray-200 disabled:cursor-not-allowed disabled:opacity-40"
+            className="flex shrink-0 items-center gap-1 rounded-xl px-1.5 py-0.5 font-semibold text-gray-500 transition-colors hover:bg-white/[0.06] hover:text-gray-200 disabled:cursor-not-allowed disabled:opacity-40"
           >
             <RotateCcw size={10} />
             Revert
           </button>
         </div>
-        <div className="grid grid-cols-2 gap-1.5">
+        <div className="nx-code-account-actions grid grid-cols-2 gap-1.5">
           <AccountButton onClick={handleUseLocalWorkspace} disabled={busy} title="Lokalen Workspace ohne Cloud starten">
             <UserRound size={14} />
             Local

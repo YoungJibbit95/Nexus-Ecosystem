@@ -93,22 +93,35 @@ export const createLocalAccountSession = (sessionRaw = {}) =>
     savedAt: sessionRaw.savedAt || new Date().toISOString(),
   });
 
+export const canStartWithAccountSession = (sessionRaw) => {
+  const session = normalizeAccountSession(sessionRaw);
+  if (session.authMode === ACCOUNT_AUTH_MODES.local) return true;
+  if (session.authMode !== ACCOUNT_AUTH_MODES.nexus) return false;
+  if (!session.token || (!session.userId && !session.username)) return false;
+  if (session.expiresAt && Date.now() >= session.expiresAt - 15_000) return false;
+  return true;
+};
+
 export const loadNexusAccountSession = () => {
-  if (typeof window === "undefined") return createEmptyAccountSession();
+  if (typeof window === "undefined") return createLocalAccountSession();
   try {
     const stored = window.localStorage.getItem(ACCOUNT_SESSION_STORAGE_KEY);
-    if (!stored) return createEmptyAccountSession();
-    return normalizeAccountSession(JSON.parse(stored));
+    if (!stored) return createLocalAccountSession();
+    const session = normalizeAccountSession(JSON.parse(stored));
+    return canStartWithAccountSession(session) ? session : createLocalAccountSession();
   } catch {
-    return createEmptyAccountSession();
+    return createLocalAccountSession();
   }
 };
 
 export const saveNexusAccountSession = (sessionRaw) => {
-  const session = normalizeAccountSession({
+  const normalizedSession = normalizeAccountSession({
     ...sessionRaw,
     savedAt: new Date().toISOString(),
   });
+  const session = canStartWithAccountSession(normalizedSession)
+    ? normalizedSession
+    : createLocalAccountSession({ savedAt: normalizedSession.savedAt });
   if (typeof window !== "undefined") {
     window.localStorage.setItem(ACCOUNT_SESSION_STORAGE_KEY, JSON.stringify(session));
   }
@@ -119,7 +132,7 @@ export const clearNexusAccountSession = () => {
   if (typeof window !== "undefined") {
     window.localStorage.removeItem(ACCOUNT_SESSION_STORAGE_KEY);
   }
-  return createEmptyAccountSession();
+  return createLocalAccountSession();
 };
 
 export const getAccountSessionState = (sessionRaw) => {
@@ -136,7 +149,7 @@ export const getAccountSessionState = (sessionRaw) => {
     hasToken,
     hasIdentity,
     isExpired,
-    canStartWorkbench: isLocal || (session.authMode === ACCOUNT_AUTH_MODES.nexus && hasToken && hasIdentity && !isExpired),
+    canStartWorkbench: canStartWithAccountSession(session),
     isConfigured: !isSignedOut || hasToken || hasIdentity || session.endpoint !== DEFAULT_CONTROL_API_BASE_URL,
   };
 };

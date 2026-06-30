@@ -8,42 +8,42 @@ const toneStyles = {
     title: "#d7dae0",
     detail: "#7b8496",
     background: "rgba(255,255,255,0.026)",
-    border: "rgba(255,255,255,0.06)",
+    border: "rgba(255,255,255,0.052)",
   },
   accent: {
     icon: "var(--nexus-primary, #7c8cff)",
     title: "#ede9fe",
     detail: "#9ca3af",
-    background: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.095)",
-    border: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.22)",
+    background: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.082)",
+    border: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.18)",
   },
   teal: {
     icon: "#5eead4",
     title: "#ccfbf1",
     detail: "#99f6e4",
-    background: "rgba(45,212,191,0.085)",
-    border: "rgba(45,212,191,0.2)",
+    background: "rgba(45,212,191,0.075)",
+    border: "rgba(45,212,191,0.17)",
   },
   success: {
     icon: "#86efac",
     title: "#dcfce7",
     detail: "#86efac",
-    background: "rgba(34,197,94,0.085)",
-    border: "rgba(34,197,94,0.22)",
+    background: "rgba(34,197,94,0.075)",
+    border: "rgba(34,197,94,0.18)",
   },
   warning: {
     icon: "#fbbf24",
     title: "#fef3c7",
     detail: "#d6a94c",
-    background: "rgba(251,191,36,0.08)",
-    border: "rgba(251,191,36,0.22)",
+    background: "rgba(251,191,36,0.072)",
+    border: "rgba(251,191,36,0.18)",
   },
   danger: {
     icon: "#f87171",
     title: "#fecaca",
     detail: "#fca5a5",
-    background: "rgba(239,68,68,0.08)",
-    border: "rgba(239,68,68,0.22)",
+    background: "rgba(239,68,68,0.072)",
+    border: "rgba(239,68,68,0.18)",
   },
 };
 
@@ -110,20 +110,22 @@ export function PanelCard({
       style={{
         color: toneStyle.detail,
         background:
-          "radial-gradient(circle at 12% 0%, rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.055), transparent 12rem), linear-gradient(180deg, rgba(255,255,255,0.052), rgba(255,255,255,0.015))",
+          "radial-gradient(circle at 12% 0%, rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.038), transparent 12rem), linear-gradient(180deg, rgba(255,255,255,0.044), rgba(255,255,255,0.012))",
         borderColor:
-          tone === "muted" ? "rgba(255,255,255,0.058)" : toneStyle.border,
+          tone === "muted" ? "rgba(255,255,255,0.05)" : toneStyle.border,
         borderRadius: "var(--nexus-radius-xl, 22px)",
         boxShadow: reduceMotion
           ? "inset 0 1px 0 rgba(255,255,255,0.04)"
-          : "0 18px 38px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.058)",
-        backdropFilter: reduceMotion ? "none" : "blur(14px) saturate(112%)",
+          : "0 12px 28px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.052)",
+        backdropFilter: reduceMotion ? "none" : "blur(10px) saturate(108%)",
         WebkitBackdropFilter: reduceMotion
           ? "none"
-          : "blur(14px) saturate(112%)",
+          : "blur(10px) saturate(108%)",
         overflowWrap: "anywhere",
         transition:
-          "background-color var(--nx-motion-quick, 190ms) var(--nx-motion-ease, ease), border-color var(--nx-motion-quick, 190ms) var(--nx-motion-ease, ease), box-shadow var(--nx-motion-quick, 190ms) var(--nx-motion-ease, ease)",
+          reduceMotion
+            ? "none"
+            : "background-color var(--nx-motion-quick, 190ms) var(--nx-motion-ease, ease), border-color var(--nx-motion-quick, 190ms) var(--nx-motion-ease, ease), box-shadow var(--nx-motion-quick, 190ms) var(--nx-motion-ease, ease)",
         ...style,
       }}
       {...props}
@@ -147,11 +149,11 @@ export function PanelShell({ children, ariaLabel, className = "", style }) {
       className={`nx-editor-panel-shell relative isolate flex h-full min-h-0 w-full max-w-full flex-col overflow-hidden text-gray-100 ${className}`}
       style={{
         background:
-          "linear-gradient(180deg, rgba(10,13,27,0.72) 0%, rgba(6,8,18,0.66) 100%)",
-        backdropFilter: reduceMotion ? "none" : "blur(18px) saturate(112%)",
+          "linear-gradient(180deg, rgba(10,13,27,0.68) 0%, rgba(6,8,18,0.64) 100%)",
+        backdropFilter: reduceMotion ? "none" : "blur(12px) saturate(108%)",
         WebkitBackdropFilter: reduceMotion
           ? "none"
-          : "blur(18px) saturate(112%)",
+          : "blur(12px) saturate(108%)",
         ...style,
       }}
       aria-label={ariaLabel}
@@ -161,7 +163,7 @@ export function PanelShell({ children, ariaLabel, className = "", style }) {
         className="pointer-events-none absolute inset-x-0 top-0 h-px"
         style={{
           background:
-            "linear-gradient(90deg, transparent, rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.26), transparent)",
+            "linear-gradient(90deg, transparent, rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.18), transparent)",
         }}
       />
       {children}
@@ -188,10 +190,10 @@ export function PanelHeader({
             className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border"
             style={{
               borderRadius: "var(--nexus-radius-lg, 18px)",
-              background: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.09)",
-              borderColor: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.18)",
+              background: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.075)",
+              borderColor: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.15)",
               color: "var(--nexus-primary, #7c8cff)",
-              boxShadow: "0 0 18px rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.08)",
+              boxShadow: "0 0 12px rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.055)",
             }}
           >
             <Icon size={16} />
@@ -279,11 +281,11 @@ export function PanelIconButton({
       style={{
         borderRadius: "var(--nexus-radius-lg, 18px)",
         background: active
-          ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.15)"
-          : "rgba(255,255,255,0.028)",
+          ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.13)"
+          : "rgba(255,255,255,0.024)",
         borderColor: active
-          ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.24)"
-          : "rgba(255,255,255,0.065)",
+          ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.2)"
+          : "rgba(255,255,255,0.055)",
         color: active ? "var(--nexus-primary, #7c8cff)" : undefined,
       }}
     >
@@ -498,7 +500,8 @@ export function PanelSection({
         <button
           type="button"
           onClick={onToggle}
-      className="min-w-0 flex flex-1 items-center gap-1.5 rounded-xl px-1 py-1 text-left transition-colors hover:bg-white/[0.04]"
+          aria-expanded={expanded}
+          className="min-w-0 flex flex-1 items-center gap-1.5 rounded-xl px-1 py-1 text-left transition-colors hover:bg-white/[0.04]"
         >
           <motion.span
             animate={{ rotate: expanded ? 0 : -90 }}

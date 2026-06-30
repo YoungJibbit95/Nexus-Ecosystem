@@ -19,6 +19,16 @@ function KeyboardHint({ label }) {
   );
 }
 
+function MetaChip({ className = "", children }) {
+  return (
+    <span
+      className={`rounded-md border px-2 py-1 text-[10px] ${className}`}
+    >
+      {children}
+    </span>
+  );
+}
+
 export default function CommandPalette({
   isOpen,
   onClose,
@@ -160,7 +170,9 @@ export default function CommandPalette({
                 />
                 <div className="mt-1 flex items-center gap-2 text-[11px] text-gray-500">
                   <span>{filtered.length} Commands</span>
-                  {normalizedQuery && <span>Ranking nach Label, Keyword und Kategorie</span>}
+                  {normalizedQuery && selectedCommand?.matchReason ? (
+                    <span>{selectedCommand.matchReason} match</span>
+                  ) : null}
                 </div>
               </div>
             </div>
@@ -192,6 +204,9 @@ export default function CommandPalette({
                             const Icon = command.icon;
                             const index = visibleIndex;
                             const active = index === selectedIndex;
+                            const showMatchReason = Boolean(
+                              normalizedQuery && command.matchReason,
+                            );
                             visibleIndex += 1;
 
                             return (
@@ -234,15 +249,20 @@ export default function CommandPalette({
                                     {command.description}
                                   </span>
                                 </span>
-                                <span className="flex min-w-[5.5rem] justify-end">
+                                <span className="flex min-w-[6.25rem] justify-end gap-1">
+                                  {showMatchReason ? (
+                                    <MetaChip className="border-white/10 bg-white/[0.035] text-gray-400">
+                                      {command.matchReason}
+                                    </MetaChip>
+                                  ) : null}
                                   {command.shortcut ? (
                                     <span className="rounded-md border border-white/10 bg-black/20 px-2 py-1 font-mono text-[10px] text-gray-400">
                                       {command.shortcut}
                                     </span>
                                   ) : (
-                                    <span className={`rounded-md border px-2 py-1 text-[10px] ${command.tone.chip}`}>
+                                    <MetaChip className={command.tone.chip}>
                                       {command.categoryMeta.label}
-                                    </span>
+                                    </MetaChip>
                                   )}
                                 </span>
                               </motion.button>
@@ -283,6 +303,7 @@ export default function CommandPalette({
                 {selectedCommand ? (
                   <span className="max-w-[18rem] truncate text-gray-400">
                     {selectedCommand.categoryMeta.label}
+                    {selectedCommand.matchReason ? ` / ${selectedCommand.matchReason}` : ""}
                     {selectedCommand.shortcut ? ` / ${selectedCommand.shortcut}` : ""}
                   </span>
                 ) : (

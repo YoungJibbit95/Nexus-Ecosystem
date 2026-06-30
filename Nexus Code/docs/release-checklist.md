@@ -8,7 +8,9 @@ Stand: 2026-06-30
 - [x] Lokale Bootstrap-Fallbacks aus dem Workbench-Pass entfernen.
 - [x] Nexus-Code-eigenen Username/Passwort-Login bauen, Passwort nicht speichern und Session ueber `/auth/login` plus `/api/v1/session` normalisieren.
 - [x] Lokalen Workspace-Start als bewusst markierten IDE-Modus erlauben, damit Editor/File/Search/Terminal ohne Cloud starten.
+- [x] Start auf Local-first umstellen: leere, alte oder abgelaufene Sessions landen direkt in der Workbench statt in einem schwarzen/gesperrten Startpfad.
 - [x] Control-API-Bootstrap-Fehler in lokale Runtime degradieren statt den Renderer zu blockieren.
+- [x] Electron-Renderer-Diagnose fuer Load-Events, Renderer-Konsole, Window-Close und Quit einbauen.
 - [x] Gemeinsame Nexus-Code-Primitives fuer Buttons, Inputs, Cards, Badges und Panel-Header fertig integrieren.
 - [x] Primaertexte duerfen in Launchpad-Actions und neuen Panel-Primitives nicht hart abgeschnitten werden.
 - [x] Settings fuer Glow, Blur, Motion, Radius, Textgroessen und Low-Power-Fallback erweitern.
@@ -43,6 +45,7 @@ Stand: 2026-06-30
 - [x] Completion-Overlays begrenzen, Low-Power respektieren und LSP/Snippet-Dedupe absichern.
 - [x] Palette und Spotlight mit Fuzzy-/Initialen-Ranking, Datei-Dedupe und saubererem Focus/ARIA-Verhalten verbessern.
 - [x] Editor-Symbol-Extraktion und aktive Scope-Anzeige fuer CodeMirror integrieren.
+- [x] Spotlight-Symboltreffer aus Datei-Content, Match-Reasons und lokale Current-Document-Completions integrieren.
 - [ ] Open-State, Refresh, Loading, Empty und Error States manuell pruefen.
 - [ ] Editor, Tabs, Search, Problems und Terminal duerfen die Codeflaeche nicht verdraengen.
 - [x] CodeMirror 6 bleibt Engine; breite Syntax plus LSP/Completion-Smoke pruefen.
@@ -78,7 +81,9 @@ Stand: 2026-06-30
 - [x] `npm --prefix "./Nexus Code" run smoke:ide-core`
 - [x] SSR-Smoke-Struktur: 1440x900, 1024x768, 900x512, 390x900 fuer Workbench, Launchpad, Account und Settings
 - [x] SSR-Smoke-Struktur: PanelChrome und GitHub-Workbench ohne App-Bootgate
-- [x] IDE-Core-Smoke: 19 Szenarien inklusive Filetree, Docking, Extensions, Account-Start, Palette, Spotlight, Symbols und Completion Helpers
+- [x] IDE-Core-Smoke: 20 Szenarien inklusive Filetree, Docking, Extensions, Account-Start, Palette, Spotlight, Symbols, Scope und Completion Helpers
+- [x] Electron Dev Smoke: frischer Start rendert direkt Workbench im lokalen Modus
+- [x] Visual Smoke: 1400x900 Electron-Fenster
 - [ ] Visual Smoke: 1440x900
 - [ ] Visual Smoke: 1024x768
 - [ ] Visual Smoke: 900x512

@@ -229,6 +229,10 @@ const toIpcResponse = async (operation) => {
   }
 };
 
+const shouldLogRendererDiagnostics = DEV || process.env.NEXUS_CODE_RENDERER_DIAGNOSTICS === "1";
+
+const redactRendererLog = (value) => redactSensitiveText(String(value || "").slice(0, 4_000));
+
 const shouldEnableGpuSwitches = process.env.NEXUS_FORCE_GPU_SWITCHES === "1";
 
 const isRosettaTranslated = () => {
@@ -448,6 +452,10 @@ function createWindow() {
 
   let windowShown = false;
   let rendererFailed = false;
+  console.info("[Nexus Code] create window", {
+    dev: DEV,
+    url: DEV ? DEV_URL : "dist/index.html",
+  });
   const revealWindow = (reason) => {
     if (!mainWindow || mainWindow.isDestroyed() || windowShown) return;
     windowShown = true;
@@ -499,6 +507,28 @@ function createWindow() {
       );
     },
   );
+  mainWindow.webContents.on("did-start-loading", () => {
+    if (shouldLogRendererDiagnostics) {
+      console.info("[Nexus Code] renderer did-start-loading");
+    }
+  });
+  mainWindow.webContents.on("dom-ready", () => {
+    if (shouldLogRendererDiagnostics) {
+      console.info("[Nexus Code] renderer dom-ready");
+    }
+  });
+  mainWindow.webContents.on("did-stop-loading", () => {
+    if (shouldLogRendererDiagnostics) {
+      console.info("[Nexus Code] renderer did-stop-loading");
+    }
+  });
+  mainWindow.webContents.on("console-message", (_event, level, message, line, sourceId) => {
+    if (!shouldLogRendererDiagnostics && level < 2) return;
+    const source = sourceId ? `${path.basename(sourceId)}:${line || 0}` : `line:${line || 0}`;
+    console.info(
+      `[Nexus Code] renderer console ${level} ${source}: ${redactRendererLog(message)}`,
+    );
+  });
   mainWindow.webContents.on("render-process-gone", (_event, details) => {
     reportRendererFailure(
       "RENDER_PROCESS_GONE",
@@ -506,6 +536,9 @@ function createWindow() {
     );
   });
   mainWindow.webContents.on("did-finish-load", () => {
+    if (shouldLogRendererDiagnostics) {
+      console.info("[Nexus Code] renderer did-finish-load");
+    }
     if (!rendererFailed) {
       revealWindow("did-finish-load");
     }
@@ -525,7 +558,16 @@ function createWindow() {
     }
   });
 
+  mainWindow.on("close", () => {
+    if (shouldLogRendererDiagnostics) {
+      console.info("[Nexus Code] main window close requested");
+    }
+  });
+
   mainWindow.on("closed", () => {
+    if (shouldLogRendererDiagnostics) {
+      console.info("[Nexus Code] main window closed");
+    }
     clearTimeout(fallbackShowTimer);
     mainWindow = null;
   });
@@ -1038,10 +1080,16 @@ app.whenReady().then(() => {
 });
 
 app.on("window-all-closed", () => {
+  if (shouldLogRendererDiagnostics) {
+    console.info("[Nexus Code] window-all-closed");
+  }
   if (process.platform !== "darwin") app.quit();
 });
 
 app.on("before-quit", () => {
+  if (shouldLogRendererDiagnostics) {
+    console.info("[Nexus Code] before-quit");
+  }
   terminateActiveProcesses();
   lspProcessService.dispose();
 });

@@ -19,6 +19,22 @@ function KeyboardHint({ label }) {
   );
 }
 
+function MetaChip({ className = "", children }) {
+  return (
+    <span
+      className={`rounded-md border px-2 py-1 text-[10px] ${className}`}
+    >
+      {children}
+    </span>
+  );
+}
+
+function getResultChipLabel(result) {
+  if (result.resultKind === "file") return "DATEI";
+  if (result.resultKind === "symbol") return "SYMBOL";
+  return result.categoryMeta?.label || "COMMAND";
+}
+
 export default function SpotlightSearch({
   isOpen,
   onClose,
@@ -75,10 +91,10 @@ export default function SpotlightSearch({
 
   const runResult = (selected) => {
     if (!selected) return;
-    if (selected.resultKind === "file") {
+    if (selected.resultKind === "file" || selected.resultKind === "symbol") {
       onAction?.("open-file", selected.payload || selected.id);
     } else {
-      onAction?.(selected.actionId || selected.id);
+      onAction?.(selected.actionId || selected.id, selected.payload);
     }
     onClose?.();
   };
@@ -157,7 +173,9 @@ export default function SpotlightSearch({
                 />
                 <div className="mt-1 flex items-center gap-2 text-[11px] text-gray-500">
                   <span>{results.length} Treffer</span>
-                  {normalizedQuery && <span>Commands und Dateien werden gemeinsam gewichtet</span>}
+                  {normalizedQuery && selectedResult?.matchReason ? (
+                    <span>{selectedResult.matchReason} match</span>
+                  ) : null}
                 </div>
               </div>
             </div>
@@ -190,6 +208,13 @@ export default function SpotlightSearch({
                             const index = visibleIndex;
                             const active = index === selectedIndex;
                             const detail = result.description || result.fsPath || result.categoryMeta?.description;
+                            const visibleDetail =
+                              result.resultKind === "symbol" && result.symbol?.kind
+                                ? `${result.symbol.kind} / ${detail}`
+                                : detail;
+                            const showMatchReason = Boolean(
+                              normalizedQuery && result.matchReason,
+                            );
                             visibleIndex += 1;
 
                             return (
@@ -230,18 +255,23 @@ export default function SpotlightSearch({
                                     {result.label || result.name}
                                   </span>
                                   <span className="mt-0.5 block truncate font-mono text-xs text-gray-500">
-                                    {detail}
+                                    {visibleDetail}
                                   </span>
                                 </span>
-                                <span className="flex min-w-[5.75rem] justify-end">
+                                <span className="flex min-w-[6.5rem] justify-end gap-1">
+                                  {showMatchReason ? (
+                                    <MetaChip className="border-white/10 bg-white/[0.035] text-gray-400">
+                                      {result.matchReason}
+                                    </MetaChip>
+                                  ) : null}
                                   {result.shortcut ? (
                                     <span className="rounded-md border border-white/10 bg-black/20 px-2 py-1 font-mono text-[10px] text-gray-400">
                                       {result.shortcut}
                                     </span>
                                   ) : (
-                                    <span className={`rounded-md border px-2 py-1 text-[10px] ${result.tone.chip}`}>
-                                      {result.resultKind === "file" ? "DATEI" : result.categoryMeta.label}
-                                    </span>
+                                    <MetaChip className={result.tone.chip}>
+                                      {getResultChipLabel(result)}
+                                    </MetaChip>
                                   )}
                                 </span>
                               </motion.button>
@@ -282,7 +312,10 @@ export default function SpotlightSearch({
                   <span className="max-w-[20rem] truncate text-gray-400">
                     {selectedResult.resultKind === "file"
                       ? selectedResult.description
-                      : selectedResult.categoryMeta?.label}
+                      : selectedResult.resultKind === "symbol"
+                        ? `${selectedResult.symbol?.kind || "symbol"} / ${selectedResult.description}`
+                        : selectedResult.categoryMeta?.label}
+                    {selectedResult.matchReason ? ` / ${selectedResult.matchReason}` : ""}
                   </span>
                 ) : (
                   <span className="text-gray-600">No selection</span>

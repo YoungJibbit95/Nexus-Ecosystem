@@ -58,11 +58,11 @@ import {
 } from "../../ide/lsp/index.js";
 import {
   cmPosToLspPosition,
+  createEditorScopeInfo,
   createEditorHighlightStyle,
   createSnippetCompletions,
   extractDocumentSymbols,
   findDiagnosticAtPosition,
-  getActiveDocumentSymbol,
   lspCompletionsToCodeMirror,
   lspDiagnosticsToCodeMirror,
   lspDiagnosticsToProblems,
@@ -640,9 +640,12 @@ export default function CodeEditor({
           }),
     [code, isLargeFile, nexusLanguageId, reduceEditorMotion],
   );
-  const activeDocumentSymbol = useMemo(
-    () => getActiveDocumentSymbol(documentSymbols, cursorInfo.line),
-    [cursorInfo.line, documentSymbols],
+  const editorScopeInfo = useMemo(
+    () =>
+      createEditorScopeInfo(documentSymbols, cursorInfo.line, {
+        lineCount,
+      }),
+    [cursorInfo.line, documentSymbols, lineCount],
   );
 
   const flushPendingChange = useCallback(() => {
@@ -1136,7 +1139,8 @@ export default function CodeEditor({
       data-editor-engine="codemirror"
       data-focused={editorFocused ? "true" : "false"}
       data-symbol-count={documentSymbols.length}
-      data-active-symbol={activeDocumentSymbol?.name || ""}
+      data-active-symbol={editorScopeInfo.activeSymbol?.name || ""}
+      data-scope-path={editorScopeInfo.pathLabel}
     >
       <div
         className="nx-code-editor-canvas flex-1 min-h-0 w-full relative overflow-hidden"
@@ -1180,12 +1184,12 @@ export default function CodeEditor({
               BRACKETS
             </span>
           )}
-          {activeDocumentSymbol && (
+          {editorScopeInfo.activeSymbol && (
             <span
-              className="max-w-[14rem] truncate text-[10px] text-gray-500"
-              title={`${activeDocumentSymbol.detail || activeDocumentSymbol.kind} ${activeDocumentSymbol.name} at line ${activeDocumentSymbol.line}`}
+              className="max-w-[18rem] truncate text-[10px] text-gray-500"
+              title={editorScopeInfo.tooltip}
             >
-              {activeDocumentSymbol.kind} {activeDocumentSymbol.name}
+              {editorScopeInfo.kindLabel} {editorScopeInfo.pathLabel}
             </span>
           )}
           {minimap && !compactViewport && (
@@ -1202,8 +1206,11 @@ export default function CodeEditor({
             {lineCount} Lines
           </span>
           {documentSymbols.length > 0 && (
-            <span className="text-[10px] text-gray-500">
-              {documentSymbols.length} Symbols
+            <span
+              className="text-[10px] text-gray-500"
+              title={editorScopeInfo.tooltip}
+            >
+              {documentSymbols.length} Symbols / {editorScopeInfo.rangeLabel}
             </span>
           )}
         </div>

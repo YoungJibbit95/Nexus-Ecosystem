@@ -19,8 +19,10 @@ import {
   createEditorCommandRegistry,
   EDITOR_COMMAND_CATEGORIES,
   EDITOR_COMMAND_CATEGORY_ORDER,
+  extractDocumentSymbols,
   getEditorCommandCategory,
 } from "./editorFeatureModel.js";
+import { detectLanguageId } from "../../ide/languages/languageIds.js";
 
 const COMMAND_ICON_BY_ID = Object.freeze({
   "new-file": FileCode2,
@@ -28,6 +30,8 @@ const COMMAND_ICON_BY_ID = Object.freeze({
   "open-explorer": PanelLeft,
   "open-search": Search,
   "focus-editor": FileCode2,
+  "focus-active-symbol": FileCode2,
+  "search-workspace-symbols": Search,
   "github-sync": GitBranch,
   "open-github-issues": ListChecks,
   "open-pull-requests": GitPullRequest,
@@ -55,6 +59,7 @@ const COMMAND_ICON_BY_ID = Object.freeze({
 const CATEGORY_ICON_BY_ID = Object.freeze({
   file: FileCode2,
   navigation: Search,
+  symbols: FileCode2,
   "source-control": GitBranch,
   diagnostics: TriangleAlert,
   terminal: Terminal,
@@ -78,6 +83,13 @@ const CATEGORY_TONE_BY_ID = Object.freeze({
     chip: "border-emerald-300/20 bg-emerald-300/10 text-emerald-100",
     icon: "border-emerald-300/15 bg-emerald-300/10 text-emerald-200",
     active: "border-emerald-300/25 bg-emerald-300/10",
+  }),
+  symbols: Object.freeze({
+    dot: "bg-fuchsia-300",
+    text: "text-fuchsia-200",
+    chip: "border-fuchsia-300/20 bg-fuchsia-300/10 text-fuchsia-100",
+    icon: "border-fuchsia-300/15 bg-fuchsia-300/10 text-fuchsia-200",
+    active: "border-fuchsia-300/25 bg-fuchsia-300/10",
   }),
   "source-control": Object.freeze({
     dot: "bg-amber-300",
@@ -137,6 +149,15 @@ const FILE_CATEGORY = Object.freeze({
   description: "Workspace-Dateien",
   tone: "sky",
 });
+const SYMBOL_CATEGORY = Object.freeze({
+  id: "symbols",
+  label: "Symbole",
+  description: "Funktionen, Klassen und Headings",
+  tone: "fuchsia",
+});
+const SYMBOL_QUERY_PREFIX = /^@+/;
+const SYMBOL_SCAN_FILE_LIMIT = 48;
+const SYMBOL_SCAN_PER_FILE_LIMIT = 80;
 
 function resolveCategoryTone(categoryId) {
   return CATEGORY_TONE_BY_ID[categoryId] || DEFAULT_TONE;
@@ -320,11 +341,39 @@ function scoreCommand(command, query, index) {
   return score;
 }
 
+function getCommandMatchReason(command, query) {
+  const normalizedQuery = normalizeSearchValue(query);
+  if (!normalizedQuery) return command.categoryMeta?.label || "Command";
+  const fields = [
+    ["Label", command.label],
+    ["Shortcut", command.shortcut],
+    ["Keyword", (command.keywords || []).join(" ")],
+    ["Category", command.categoryMeta?.label],
+    ["Action", command.id],
+    ["Description", command.description],
+  ];
+  const token = tokenizeQuery(query)[0] || normalizedQuery;
+  const match = fields.find(([, value]) =>
+    scoreFuzzyField(value, token, {
+      exact: 8,
+      prefix: 6,
+      contains: 4,
+    }) > 0,
+  );
+  return match?.[0] || "Command";
+}
+
 export function rankCommandPaletteItems(commands, query) {
   return commands
     .map((command, index) => {
       const searchScore = scoreCommand(command, query, index);
-      return searchScore === null ? null : { ...command, searchScore };
+      return searchScore === null
+        ? null
+        : {
+            ...command,
+            matchReason: getCommandMatchReason(command, query),
+            searchScore,
+          };
     })
     .filter(Boolean)
     .sort((a, b) => {
@@ -370,6 +419,13 @@ function getFileResultKey(file) {
   return normalizeSearchValue(file?.id || file?.fsPath || file?.path || file?.name);
 }
 
+function getFileContent(file) {
+  if (typeof file?.content === "string") return file.content;
+  if (typeof file?.source === "string") return file.source;
+  if (typeof file?.text === "string") return file.text;
+  return "";
+}
+
 function getUniqueFileEntries(files) {
   const seen = new Set();
   return (files || []).filter((file) => {
@@ -410,6 +466,21 @@ function scoreFileResult(file, query, index) {
   return score - index / 100;
 }
 
+function getFileMatchReason(file, query) {
+  const normalizedQuery = normalizeSearchValue(query);
+  if (!normalizedQuery) return "Datei";
+  const name = getFileName(file);
+  const path = getFilePath(file);
+  const token = tokenizeQuery(query)[0] || normalizedQuery;
+  if (scoreFuzzyField(name, token, { exact: 8, prefix: 6, contains: 4 }) > 0) {
+    return "Name";
+  }
+  if (scoreFuzzyField(path, token, { exact: 8, prefix: 6, contains: 4 }) > 0) {
+    return "Path";
+  }
+  return "Datei";
+}
+
 export function rankSpotlightFiles(files = [], query = "", limit = 8) {
   return getUniqueFileEntries(files)
     .filter((file) => file && file.type === "file" && file.name)
@@ -429,8 +500,137 @@ export function rankSpotlightFiles(files = [], query = "", limit = 8) {
         categoryMeta: FILE_CATEGORY,
         icon: File,
         tone: resolveCategoryTone(FILE_CATEGORY.id),
+        matchReason: getFileMatchReason(file, query),
         searchScore,
       };
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.searchScore - a.searchScore || a.label.localeCompare(b.label))
+    .slice(0, limit);
+}
+
+function normalizeSymbolQuery(query) {
+  return String(query || "").trim().replace(SYMBOL_QUERY_PREFIX, "").trim();
+}
+
+function createSymbolSearchBlob(file, symbol) {
+  return [
+    symbol.name,
+    symbol.kind,
+    symbol.detail,
+    getFileName(file),
+    getFilePath(file),
+  ]
+    .filter(Boolean)
+    .map(normalizeSearchValue)
+    .join(" ");
+}
+
+function scoreSymbolResult(file, symbol, query, index, symbolIndex) {
+  const symbolQuery = normalizeSymbolQuery(query);
+  const normalizedQuery = normalizeSearchValue(symbolQuery);
+  const symbolName = normalizeSearchValue(symbol.name);
+  const kind = normalizeSearchValue(symbol.kind);
+  const fileName = normalizeSearchValue(getFileName(file));
+  const path = normalizeSearchValue(getFilePath(file));
+  const blob = createSymbolSearchBlob(file, symbol);
+  const symbolIntentBoost = SYMBOL_QUERY_PREFIX.test(String(query || "").trim()) ? 36 : 0;
+  const baseScore = 52 + symbolIntentBoost - index / 20 - symbolIndex / 100;
+  if (!normalizedQuery) return baseScore;
+
+  const tokens = tokenizeQuery(symbolQuery);
+  if (!tokens.every((token) => fieldMatchesToken([blob, symbolName, kind, fileName, path], token))) {
+    return null;
+  }
+
+  let score = baseScore;
+  score += scoreFuzzyField(symbolName, normalizedQuery, {
+    exact: 230,
+    prefix: 178,
+    contains: 112,
+  });
+  score += scoreFuzzyField(kind, normalizedQuery, {
+    exact: 64,
+    prefix: 42,
+    contains: 22,
+  });
+  score += scoreFuzzyField(fileName, normalizedQuery, {
+    exact: 52,
+    prefix: 38,
+    contains: 24,
+  });
+
+  tokens.forEach((token) => {
+    score += Math.max(
+      scoreFuzzyField(symbolName, token, { exact: 86, prefix: 66, contains: 40 }),
+      scoreFuzzyField(kind, token, { exact: 34, prefix: 24, contains: 14 }),
+      scoreFuzzyField(fileName, token, { exact: 30, prefix: 22, contains: 14 }),
+      scoreFuzzyField(path, token, { exact: 18, prefix: 14, contains: 8 }),
+    );
+  });
+
+  return score;
+}
+
+function getSymbolMatchReason(file, symbol, query) {
+  const symbolQuery = normalizeSymbolQuery(query);
+  const token = tokenizeQuery(symbolQuery)[0] || normalizeSearchValue(symbolQuery);
+  if (!token) return "Symbol";
+  if (scoreFuzzyField(symbol.name, token, { exact: 8, prefix: 6, contains: 4 }) > 0) {
+    return "Symbol";
+  }
+  if (scoreFuzzyField(symbol.kind, token, { exact: 8, prefix: 6, contains: 4 }) > 0) {
+    return "Kind";
+  }
+  if (scoreFuzzyField(getFileName(file), token, { exact: 8, prefix: 6, contains: 4 }) > 0) {
+    return "File";
+  }
+  return "Scope";
+}
+
+export function rankSpotlightSymbols(files = [], query = "", limit = 8) {
+  const symbolQuery = normalizeSymbolQuery(query);
+  if (!symbolQuery && !SYMBOL_QUERY_PREFIX.test(String(query || "").trim())) {
+    return [];
+  }
+
+  return getUniqueFileEntries(files)
+    .filter((file) => file && file.type === "file" && getFileContent(file).trim())
+    .slice(0, SYMBOL_SCAN_FILE_LIMIT)
+    .flatMap((file, fileIndex) => {
+      const filePath = getFilePath(file) || getFileName(file);
+      const symbols = extractDocumentSymbols(
+        getFileContent(file),
+        detectLanguageId(filePath),
+        { maxSymbols: SYMBOL_SCAN_PER_FILE_LIMIT },
+      );
+      return symbols.map((symbol, symbolIndex) => {
+        const searchScore = scoreSymbolResult(
+          file,
+          symbol,
+          query,
+          fileIndex,
+          symbolIndex,
+        );
+        if (searchScore === null) return null;
+        const payload = file.id || file.fsPath || file.path || file.name;
+        return {
+          id: `symbol:${payload}:${symbol.id}`,
+          label: symbol.name,
+          description: `${getFilePath(file) || getFileName(file)}:${symbol.line}`,
+          actionId: "open-file",
+          payload,
+          resultKind: "symbol",
+          category: SYMBOL_CATEGORY.id,
+          categoryMeta: SYMBOL_CATEGORY,
+          icon: FileCode2,
+          tone: resolveCategoryTone(SYMBOL_CATEGORY.id),
+          matchReason: getSymbolMatchReason(file, symbol, query),
+          searchScore,
+          symbol,
+          fsPath: getFilePath(file),
+        };
+      });
     })
     .filter(Boolean)
     .sort((a, b) => b.searchScore - a.searchScore || a.label.localeCompare(b.label))
@@ -442,6 +642,7 @@ export function createSpotlightResults({
   query = "",
   maxCommands = 8,
   maxFiles = 8,
+  maxSymbols = 8,
   extensionCommands = [],
 } = {}) {
   const normalizedQuery = normalizeSearchValue(query);
@@ -456,11 +657,31 @@ export function createSpotlightResults({
     query,
     normalizedQuery ? maxFiles : Math.min(maxFiles, 5),
   );
+  const symbolResults = rankSpotlightSymbols(
+    files,
+    query,
+    normalizedQuery ? maxSymbols : Math.min(maxSymbols, 4),
+  );
 
-  if (!normalizedQuery) return [...commands, ...fileResults];
+  if (!normalizedQuery) return [...commands, ...fileResults, ...symbolResults];
 
   const bestFileScore = fileResults[0]?.searchScore || 0;
   const bestCommandScore = commands[0]?.searchScore || 0;
-  const filesFirst = /[./\\]/.test(query) || bestFileScore > bestCommandScore + 30;
-  return filesFirst ? [...fileResults, ...commands] : [...commands, ...fileResults];
+  const bestSymbolScore = symbolResults[0]?.searchScore || 0;
+  const bestFilePath = normalizeSearchValue(fileResults[0]?.description);
+  const queryTokens = tokenizeQuery(query);
+  const hasPathTokenMatch =
+    fileResults[0]?.matchReason === "Path" &&
+    queryTokens.some((token) => token.length >= 2 && bestFilePath.includes(token));
+  const filesFirst =
+    /[./\\]/.test(query) ||
+    hasPathTokenMatch ||
+    bestFileScore > bestCommandScore + 30;
+  const symbolsFirst =
+    SYMBOL_QUERY_PREFIX.test(String(query || "").trim()) ||
+    bestSymbolScore > Math.max(bestCommandScore, bestFileScore) + 24;
+  if (symbolsFirst) return [...symbolResults, ...commands, ...fileResults];
+  return filesFirst
+    ? [...fileResults, ...symbolResults, ...commands]
+    : [...commands, ...symbolResults, ...fileResults];
 }

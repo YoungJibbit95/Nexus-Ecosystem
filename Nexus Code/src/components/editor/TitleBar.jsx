@@ -92,7 +92,7 @@ function MenuButton({ label, items, activeMenu, setActiveMenu }) {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 6, scale: 0.98 }}
               transition={{ duration: reduceMotion ? 0 : 0.18, ease: [0.22, 1, 0.36, 1] }}
-              className="nx-code-menu-dropdown absolute left-0 top-full z-50 mt-1 min-w-[200px] overflow-hidden p-1"
+              className="nx-code-menu-dropdown absolute left-0 top-full z-50 mt-1 max-w-[calc(100vw-1rem)] min-w-[200px] overflow-hidden p-1"
               role="menu"
               // @ts-ignore
               style={{ WebkitAppRegion: "no-drag" }}
@@ -150,7 +150,7 @@ function CompactMenuButton({ menus, activeMenu, setActiveMenu }) {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 6, scale: 0.98 }}
               transition={{ duration: reduceMotion ? 0 : 0.18, ease: [0.22, 1, 0.36, 1] }}
-              className="nx-code-menu-dropdown absolute left-0 top-full z-50 mt-1 w-[15.5rem] overflow-hidden p-1"
+              className="nx-code-menu-dropdown absolute left-0 top-full z-50 mt-1 max-h-[calc(100vh-3rem)] w-[min(15.5rem,calc(100vw-1rem))] overflow-y-auto p-1"
               role="menu"
               // @ts-ignore
               style={{ WebkitAppRegion: "no-drag" }}
@@ -194,18 +194,18 @@ function CommandButton({ icon: Icon, label, active, onClick, title }) {
       transition={{ duration: reduceMotion ? 0 : 0.18, ease: [0.22, 1, 0.36, 1] }}
       className="nx-code-command-button nx-code-titlebar-icon-button flex shrink-0 items-center justify-center text-gray-400 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500/60"
       style={{
-        width: 30,
-        height: 30,
+        width: 29,
+        height: 29,
         borderRadius: "var(--nexus-radius-md, 14px)",
         border: active
-          ? "1px solid rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.3)"
-          : "1px solid rgba(142, 153, 183, 0.12)",
+          ? "1px solid rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.26)"
+          : "1px solid rgba(142, 153, 183, 0.1)",
         background: active
-          ? "linear-gradient(135deg, rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.18), rgba(255,255,255,0.035))"
-          : "rgba(255,255,255,0.024)",
+          ? "linear-gradient(135deg, rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.14), rgba(255,255,255,0.028))"
+          : "rgba(255,255,255,0.02)",
         color: active ? "var(--nexus-primary, #7c8cff)" : undefined,
         boxShadow: active
-          ? "0 0 18px rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.12), inset 0 1px 0 rgba(255,255,255,0.06)"
+          ? "0 0 14px rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.08), inset 0 1px 0 rgba(255,255,255,0.055)"
           : "inset 0 1px 0 rgba(255,255,255,0.035)",
       }}
     >
@@ -219,17 +219,18 @@ function ShellPill({ icon: Icon, label, tone = "muted" }) {
 
   return (
     <span
-      className="nx-code-titlebar-pill hidden min-w-0 items-center gap-1.5 xl:flex"
+      title={label}
+      className="nx-code-titlebar-pill hidden min-w-0 items-center gap-1.5 2xl:flex"
       style={{
-        height: 30,
-        maxWidth: 128,
+        height: 29,
+        maxWidth: 118,
         borderRadius: "var(--nexus-radius-lg, 18px)",
         border: isPrimary
-          ? "1px solid rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.22)"
-          : "1px solid rgba(255, 255, 255, 0.075)",
+          ? "1px solid rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.19)"
+          : "1px solid rgba(255, 255, 255, 0.06)",
         background: isPrimary
-          ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.09)"
-          : "rgba(255, 255, 255, 0.025)",
+          ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.075)"
+          : "rgba(255, 255, 255, 0.02)",
         color: isPrimary
           ? "var(--nexus-primary, #7c8cff)"
           : "var(--nexus-muted, #99a3b7)",
@@ -361,11 +362,11 @@ export default function TitleBar({
         flex: "0 0 40px",
         gap: 8,
         background:
-          "linear-gradient(180deg, rgba(255,255,255,0.046), rgba(255,255,255,0.012)), var(--nexus-surface)",
+          "linear-gradient(180deg, rgba(255,255,255,0.038), rgba(255,255,255,0.01)), var(--nexus-surface)",
         borderBottom: "1px solid var(--nexus-border)",
         boxShadow:
-          "inset 0 1px 0 rgba(255,255,255,0.06), 0 1px 0 rgba(0,0,0,0.36)",
-        backdropFilter: "blur(18px) saturate(122%)",
+          "inset 0 1px 0 rgba(255,255,255,0.05), 0 1px 0 rgba(0,0,0,0.32)",
+        backdropFilter: "var(--nexus-panel-filter, blur(12px) saturate(118%))",
         // @ts-ignore
         WebkitAppRegion: isElectron ? "drag" : "no-drag",
       }}
@@ -409,11 +410,11 @@ export default function TitleBar({
             height: 30,
             gap: 7,
             borderRadius: "var(--nexus-radius-lg, 18px)",
-            border: "1px solid rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.16)",
-            background: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.075)",
+            border: "1px solid rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.13)",
+            background: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.06)",
             padding: "0 9px 0 6px",
             boxShadow:
-              "inset 0 1px 0 rgba(255,255,255,0.055), 0 0 20px rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.08)",
+              "inset 0 1px 0 rgba(255,255,255,0.05), 0 0 14px rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.055)",
           }}
         >
           <span
@@ -487,15 +488,16 @@ export default function TitleBar({
         style={{
           height: 30,
           minHeight: 30,
-          minWidth: compact ? 168 : 220,
-          maxWidth: 560,
+          flex: "1 1 12rem",
+          minWidth: compact ? 132 : 178,
+          maxWidth: compact ? 420 : 540,
           gap: 9,
           borderRadius: "var(--nexus-radius-pill, 9999px)",
-          border: "1px solid rgba(142, 153, 183, 0.16)",
+          border: "1px solid rgba(142, 153, 183, 0.13)",
           background:
-            "linear-gradient(180deg, rgba(255,255,255,0.058), rgba(255,255,255,0.02)), rgba(5, 7, 12, 0.34)",
+            "linear-gradient(180deg, rgba(255,255,255,0.048), rgba(255,255,255,0.018)), rgba(5, 7, 12, 0.3)",
           boxShadow:
-            "0 0 24px rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.08), inset 0 1px 0 rgba(255,255,255,0.065)",
+            "0 0 18px rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.055), inset 0 1px 0 rgba(255,255,255,0.058)",
           padding: "0 9px",
           WebkitAppRegion: "no-drag",
         }}
@@ -516,7 +518,7 @@ export default function TitleBar({
         </span>
         <span className="min-w-0 flex-1 truncate text-[11px] font-semibold text-gray-200">
           Nexus Command
-          <span className="hidden text-gray-500 md:inline"> / {workspaceLabel}</span>
+          <span className="hidden text-gray-500 lg:inline"> / {workspaceLabel}</span>
         </span>
         <span
           className="hidden shrink-0 rounded-md px-2 py-1 text-[9px] font-semibold tabular-nums text-gray-400 xl:inline"

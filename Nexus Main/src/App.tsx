@@ -281,6 +281,7 @@ export default function App() {
   const [bootProgress, setBootProgress] = useState(0);
   const [bootStage, setBootStage] = useState("Nexus Runtime wird gestartet...");
   const [bootFailure, setBootFailure] = useState<string | null>(null);
+  const [bootNotice, setBootNotice] = useState<string | null>(null);
   const [bootAttempt, setBootAttempt] = useState(0);
   const [authSession, setAuthSession] = useState<MainAuthSession | null>(() =>
     readStoredMainAuthSession(),
@@ -606,6 +607,7 @@ export default function App() {
       : MAIN_BOOT_VIEW_WARMUP_TIMEOUT_MS;
     setBootReady(false);
     setBootFailure(null);
+    setBootNotice(null);
     setBootProgress(8);
     setBootStage("Nexus Runtime wird gestartet...");
 
@@ -802,12 +804,29 @@ export default function App() {
           error instanceof Error && error.message
             ? error.message
             : "CONTROL_API_UNAVAILABLE";
-        console.error("Nexus Main bootstrap failed", error);
         if (!active) return;
-        if (isMainAuthBootstrapFailure(reason) && authSession) {
-          clearStoredMainAuthSession();
-          setAuthSession(null);
+        if (isMainAuthBootstrapFailure(reason)) {
+          if (authSession) {
+            clearStoredMainAuthSession();
+            setAuthSession(null);
+          }
+          console.warn(
+            "Nexus Main bootstrap auth failed; continuing with local safe startup views",
+            reason,
+          );
+          applyLiveBundle(null);
+          setViewGuardState({
+            checking: false,
+            blockedView: null,
+            requiredTier: null,
+            reason: null,
+          });
+          setBootNotice(reason);
+          setBootFailure(null);
+          setBootStage("Lokaler Safe-Start ohne API-Session");
+          return;
         }
+        console.error("Nexus Main bootstrap failed", error);
         setBootFailure(reason);
       } finally {
         if (active) {
@@ -1487,6 +1506,7 @@ export default function App() {
         motionRuntime={motionRuntime}
         showDiagnosticsButton={isMainDiagnosticsEnabled()}
         releaseId={liveReleaseId}
+        bootNotice={bootNotice}
         onRequestViewChange={(nextView) => {
           void requestViewChange(nextView);
         }}

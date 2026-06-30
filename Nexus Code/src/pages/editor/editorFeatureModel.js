@@ -78,6 +78,7 @@ const COMPLETION_KIND_NAMES = Object.freeze({
 export const EDITOR_COMMAND_CATEGORY_ORDER = Object.freeze([
   "file",
   "navigation",
+  "symbols",
   "source-control",
   "diagnostics",
   "terminal",
@@ -98,6 +99,12 @@ export const EDITOR_COMMAND_CATEGORIES = Object.freeze({
     label: "Navigation",
     description: "Editor und Workbench bewegen",
     tone: "emerald",
+  }),
+  symbols: Object.freeze({
+    id: "symbols",
+    label: "Symbols",
+    description: "Scopes, Klassen und Funktionen",
+    tone: "fuchsia",
   }),
   "source-control": Object.freeze({
     id: "source-control",
@@ -192,6 +199,28 @@ export const EDITOR_COMMANDS = Object.freeze([
     keywords: Object.freeze(["focus", "cursor", "active", "editor", "code"]),
     surfaces: Object.freeze(["palette", "spotlight"]),
     priority: 88,
+  }),
+  Object.freeze({
+    id: "focus-active-symbol",
+    actionId: "focus-editor",
+    label: "Aktiven Symbol-Scope fokussieren",
+    description: "Springe in den Editor und halte Klasse, Methode oder Heading sichtbar.",
+    category: "symbols",
+    shortcut: "",
+    keywords: Object.freeze(["symbol", "symbols", "scope", "breadcrumb", "function", "class", "heading", "active"]),
+    surfaces: Object.freeze(["palette", "spotlight"]),
+    priority: 86,
+  }),
+  Object.freeze({
+    id: "search-workspace-symbols",
+    actionId: "open-search",
+    label: "Workspace-Symbole suchen",
+    description: "Oeffne die Suche fuer Funktionen, Klassen, Headings und Strukturtreffer.",
+    category: "symbols",
+    shortcut: "@",
+    keywords: Object.freeze(["symbol", "symbols", "outline", "function", "class", "method", "heading", "workspace"]),
+    surfaces: Object.freeze(["palette", "spotlight"]),
+    priority: 84,
   }),
   Object.freeze({
     id: "github-sync",
@@ -450,6 +479,7 @@ const COMPLETION_SECTIONS = Object.freeze({
   lspRecommended: Object.freeze({ name: "Recommended", rank: 0 }),
   lsp: Object.freeze({ name: "Language Server", rank: 8 }),
   snippets: Object.freeze({ name: "Snippets", rank: 16 }),
+  local: Object.freeze({ name: "Current Document", rank: 20 }),
   language: Object.freeze({ name: "Language", rank: 24 }),
   structure: Object.freeze({ name: "Structures", rank: 32 }),
 });
@@ -457,6 +487,10 @@ const COMPLETION_SECTIONS = Object.freeze({
 const STRUCTURE_COMPLETION_SECTION = COMPLETION_SECTIONS.structure;
 const LANGUAGE_COMPLETION_SECTION = COMPLETION_SECTIONS.language;
 const SNIPPET_COMPLETION_SECTION = COMPLETION_SECTIONS.snippets;
+const LOCAL_COMPLETION_SECTION = COMPLETION_SECTIONS.local;
+const LOCAL_COMPLETION_WORD_PATTERN = /[A-Za-z_$][\w$-]{2,}/g;
+const LOCAL_COMPLETION_MAX_TEXT = 120_000;
+const LOCAL_COMPLETION_MAX_ITEMS = 36;
 
 function freezeCompletionList(items) {
   return Object.freeze(items.map((item) => Object.freeze(item)));
@@ -1027,6 +1061,10 @@ function getBraceDelta(line) {
 }
 
 function getBraceScopeEndLine(lines, startIndex) {
+  const startLine = String(lines[startIndex] || "");
+  const startDelta = getBraceDelta(startLine);
+  if (startLine.includes("{") && startDelta <= 0) return startIndex + 1;
+
   let depth = 0;
   let opened = false;
   for (let index = startIndex; index < lines.length; index += 1) {
@@ -1135,6 +1173,51 @@ export function getActiveDocumentSymbol(symbols, lineNumber) {
   });
 
   return candidate || nearestBefore || null;
+}
+
+export function createEditorScopeInfo(symbols, lineNumber, options = {}) {
+  const safeSymbols = Array.isArray(symbols) ? symbols.filter(Boolean) : [];
+  const line = Math.max(1, Math.round(Number(lineNumber || 1)));
+  const lineCount = Math.max(1, Math.round(Number(options.lineCount || line)));
+  const activeSymbol = getActiveDocumentSymbol(safeSymbols, line);
+  const containingSymbols = safeSymbols
+    .filter((symbol) => {
+      const startLine = Number(symbol.line || 0);
+      const endLine = Number(symbol.endLine || startLine);
+      return startLine <= line && line <= Math.max(startLine, endLine);
+    })
+    .sort((a, b) => {
+      if (a.depth !== b.depth) return a.depth - b.depth;
+      return a.line - b.line;
+    });
+  const pathSymbols =
+    containingSymbols.length > 0
+      ? containingSymbols
+      : activeSymbol
+        ? [activeSymbol]
+        : [];
+  const primarySymbol = containingSymbols[containingSymbols.length - 1] || activeSymbol;
+  const rangeLabel = primarySymbol
+    ? `L${primarySymbol.line}-${Math.max(primarySymbol.line, primarySymbol.endLine || primarySymbol.line)}`
+    : `L${line}`;
+  const pathLabel = pathSymbols.map((symbol) => symbol.name).join(" > ");
+  const kindLabel = primarySymbol?.kind || "document";
+
+  return Object.freeze({
+    activeSymbol: primarySymbol || null,
+    nearestSymbol: activeSymbol,
+    inSymbolScope: containingSymbols.length > 0,
+    line,
+    lineCount,
+    path: Object.freeze(pathSymbols.map((symbol) => symbol.name)),
+    pathLabel,
+    kindLabel,
+    rangeLabel,
+    symbolCount: safeSymbols.length,
+    tooltip: pathLabel
+      ? `${kindLabel} ${pathLabel} (${rangeLabel})`
+      : `Document line ${line} of ${lineCount}`,
+  });
 }
 
 function normalizeCommandListValue(value) {
@@ -1514,6 +1597,99 @@ function mergeCompletionOptions(optionGroups) {
   });
 }
 
+function getCompletionDocumentText(context, maxChars = LOCAL_COMPLETION_MAX_TEXT) {
+  const limit = Math.max(1, Math.round(Number(maxChars || LOCAL_COMPLETION_MAX_TEXT)));
+  const doc = context?.state?.doc;
+  if (doc?.sliceString && Number.isFinite(Number(doc.length))) {
+    return doc.sliceString(0, Math.min(Number(doc.length), limit));
+  }
+  if (context?.state?.sliceDoc) {
+    try {
+      return context.state.sliceDoc(0, limit);
+    } catch {
+      return "";
+    }
+  }
+  return "";
+}
+
+function getCompletionPrefix(context, languageId) {
+  const match = getCompletionMatch(context, languageId);
+  return String(match?.text || "").trim();
+}
+
+function shouldOfferLocalCompletionWord(word, prefix) {
+  const label = String(word || "").trim();
+  const normalizedLabel = label.toLowerCase();
+  const normalizedPrefix = String(prefix || "").toLowerCase();
+  if (label.length < 3 || RESERVED_SYMBOL_NAMES.has(normalizedLabel)) return false;
+  if (normalizedPrefix && normalizedLabel === normalizedPrefix) return false;
+  if (normalizedPrefix.length >= 2 && !normalizedLabel.includes(normalizedPrefix)) {
+    return false;
+  }
+  return true;
+}
+
+function createLocalDocumentCompletions(context, languageId, options = {}) {
+  const normalizedLanguageId = normalizeCompletionSourceLanguage(languageId);
+  const prefix = getCompletionPrefix(context, normalizedLanguageId);
+  if (!context?.explicit && prefix.length < 2) return [];
+
+  const text = getCompletionDocumentText(
+    context,
+    options.maxLocalCompletionChars || LOCAL_COMPLETION_MAX_TEXT,
+  );
+  if (!text) return [];
+
+  const currentPos = Number(context.pos || 0);
+  const seen = new Map();
+  for (const match of text.matchAll(LOCAL_COMPLETION_WORD_PATTERN)) {
+    const label = match[0];
+    if (!shouldOfferLocalCompletionWord(label, prefix)) continue;
+    const key = label.toLowerCase();
+    const previous = seen.get(key);
+    const distance = Math.abs(Number(match.index || 0) - currentPos);
+    if (!previous) {
+      seen.set(key, {
+        label,
+        count: 1,
+        distance,
+      });
+      continue;
+    }
+    previous.count += 1;
+    previous.distance = Math.min(previous.distance, distance);
+  }
+
+  const maxItems = Math.max(
+    4,
+    Math.min(
+      LOCAL_COMPLETION_MAX_ITEMS,
+      Math.round(Number(options.maxLocalCompletionItems || LOCAL_COMPLETION_MAX_ITEMS)),
+    ),
+  );
+
+  return [...seen.values()]
+    .sort((a, b) => {
+      const prefixDelta =
+        Number(b.label.toLowerCase().startsWith(prefix.toLowerCase())) -
+        Number(a.label.toLowerCase().startsWith(prefix.toLowerCase()));
+      if (prefixDelta !== 0) return prefixDelta;
+      if (b.count !== a.count) return b.count - a.count;
+      if (a.distance !== b.distance) return a.distance - b.distance;
+      return a.label.localeCompare(b.label);
+    })
+    .slice(0, maxItems)
+    .map((entry, index) => ({
+      label: entry.label,
+      type: "variable",
+      detail: "current document",
+      info: `Found ${entry.count} time${entry.count === 1 ? "" : "s"} in this file.`,
+      boost: Math.max(1, 18 - index),
+      section: LOCAL_COMPLETION_SECTION,
+    }));
+}
+
 function readMarkupContent(value) {
   if (!value) return "";
   if (typeof value === "string") return value;
@@ -1604,12 +1780,17 @@ export function createSnippetCompletions(context, languageId, options = {}) {
   const languageOptions = getLanguageCompletionItems(normalizedLanguageId)
     .map(toSnippetCompletion)
     .slice(0, options.lowPowerMode ? 32 : 56);
+  const localOptions = createLocalDocumentCompletions(
+    context,
+    normalizedLanguageId,
+    options,
+  );
 
-  if (!languageOptions.length) return null;
+  if (!languageOptions.length && !localOptions.length) return null;
 
   return {
     from: match?.from ?? context.pos,
-    options: languageOptions,
+    options: mergeCompletionOptions([languageOptions, localOptions]),
     validFor: WORD_COMPLETION_PATTERN,
   };
 }

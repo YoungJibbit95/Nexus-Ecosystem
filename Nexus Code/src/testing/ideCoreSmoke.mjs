@@ -19,9 +19,11 @@ import {
   groupCommandPaletteItems,
   rankCommandPaletteItems,
   rankSpotlightFiles,
+  rankSpotlightSymbols,
 } from "../pages/editor/commandPaletteModel.js";
 import {
   createEditorCommandRegistry,
+  createEditorScopeInfo,
   createSnippetCompletions,
   extractDocumentSymbols,
   getActiveDocumentSymbol,
@@ -665,6 +667,11 @@ const scenarios = [
 
       const terminalRanked = rankCommandPaletteItems(paletteCommands, "ttr");
       assert.equal(terminalRanked[0]?.id, "terminal-task-runner");
+
+      const symbolRanked = rankCommandPaletteItems(paletteCommands, "symbol scope");
+      assert.equal(symbolRanked[0]?.id, "focus-active-symbol");
+      assert.equal(symbolRanked[0]?.categoryMeta.id, "symbols");
+      assert.equal(symbolRanked[0]?.matchReason, "Label");
     },
   },
   {
@@ -708,6 +715,52 @@ const scenarios = [
     },
   },
   {
+    id: "spotlight-symbol-results-open-files",
+    title: "spotlight symbol search ranks extracted scopes and opens owning files",
+    run() {
+      const files = [
+        {
+          id: "code-editor",
+          name: "CodeEditor.jsx",
+          fsPath: "src/components/editor/CodeEditor.jsx",
+          type: "file",
+          content: [
+            "export class EditorShell {",
+            "  renderPanel() {",
+            "    return true;",
+            "  }",
+            "}",
+          ].join("\n"),
+        },
+        {
+          id: "readme",
+          name: "README.md",
+          fsPath: "README.md",
+          type: "file",
+          content: "# Nexus Code\n\n## Command Surface",
+        },
+      ];
+
+      const symbols = rankSpotlightSymbols(files, "@render", 8);
+      assert.equal(symbols[0]?.resultKind, "symbol");
+      assert.equal(symbols[0]?.label, "renderPanel");
+      assert.equal(symbols[0]?.payload, "code-editor");
+      assert.equal(symbols[0]?.actionId, "open-file");
+      assert.equal(symbols[0]?.matchReason, "Symbol");
+
+      const mixedResults = createSpotlightResults({
+        files,
+        query: "@command",
+        maxCommands: 4,
+        maxFiles: 4,
+        maxSymbols: 4,
+      });
+      assert.equal(mixedResults[0]?.resultKind, "symbol");
+      assert.equal(mixedResults[0]?.label, "Command Surface");
+      assert.equal(mixedResults[0]?.payload, "readme");
+    },
+  },
+  {
     id: "editor-symbol-extraction-active-scope",
     title: "document symbols expose active editor scope",
     run() {
@@ -736,6 +789,12 @@ const scenarios = [
       assert.equal(getActiveDocumentSymbol(symbols, 6)?.name, "WorkbenchController");
       assert.equal(getActiveDocumentSymbol(symbols, 8)?.name, "createCommand");
 
+      const scopeInfo = createEditorScopeInfo(symbols, 4, { lineCount: 8 });
+      assert.equal(scopeInfo.activeSymbol.name, "renderPanel");
+      assert.equal(scopeInfo.pathLabel, "WorkbenchController > renderPanel");
+      assert.equal(scopeInfo.rangeLabel, "L3-5");
+      assert.equal(scopeInfo.inSymbolScope, true);
+
       const markdownSymbols = extractDocumentSymbols(
         "# Release\n\n## Smoke Gates\n\n### IDE Core",
         "markdown",
@@ -757,11 +816,18 @@ const scenarios = [
     run() {
       const wordContext = createCompletionContext("use");
       const snippets = createSnippetCompletions(wordContext, "javascript");
+      const localContext = createCompletionContext("function renderPanel() {}\nren");
+      const localSnippets = createSnippetCompletions(localContext, "javascript");
 
       assert.equal(snippets.from, 0);
       assert.equal(
         snippets.options.some((option) => option.label === "useEffect"),
         true,
+      );
+      assert.equal(localSnippets.from, 26);
+      assert.equal(
+        localSnippets.options.find((option) => option.label === "renderPanel")?.section.name,
+        "Current Document",
       );
       assert.equal(shouldRequestLspCompletion(wordContext), true);
       assert.equal(

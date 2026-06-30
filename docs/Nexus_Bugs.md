@@ -9,9 +9,9 @@ Notes Magic elemente und Text sind auf der View seit eimmer noch nicht editierba
 Notes Emojis Menue soll nicht extenden, sondern als schwebendes Menue ueber der Toolbar erscheinen | true
 Magic Menue oeffnet ohne dass offene Emoji-/Block-Menues die Toolbar zerlegen | true
 Notes Sidebar Tags werden bei vielen Tags hart abgeschnitten und haben keinen Mehr-/Expand-Zustand | false
-Notes Unified Bar kann bei mittleren Breiten Formatbuttons, Statuschips oder Titel verdrängen | false
+Notes Unified Bar kann bei mittleren Breiten Formatbuttons, Statuschips oder Titel verdrängen | true
 Notes Magic Edit Chip kann in enger Preview Blockinhalt ueberdecken oder zu dominant wirken | false
-Unified Bar hat sehr viele Funktionen und Buttons der anderen Bars entfernt müssen wieder integriert werden | false
+Unified Bar hat sehr viele Funktionen und Buttons der anderen Bars entfernt müssen wieder integriert werden | true
 ```
 
 ## Notes Todo
@@ -46,6 +46,7 @@ Light Mode Kontrast fuer Popover, Menues, Inputs und Modals zentral absichern st
 Popover und Dropdowns koennen durch lokale Overflow-/Z-Index-Regeln in Panels abgeschnitten werden | false
 UI Sprache mischt Deutsch und Englisch in Calendar, Files, InfoView und Website-Passagen | false
 Mehrere Views nutzen feste Pane-Breiten, die den Hauptinhalt bei mittleren Breiten quetschen | false
+App startet nicht richtig bzw Fenster zeigt nichts an | true
 ```
 
 ## Global Todo
@@ -82,6 +83,7 @@ Calendar Mobile- und Touch-Smoke fuer Drag-Reschedule, Quick Composer und Import
 Calendar Texte und Labels auf eine Sprache und kurze Nutzerbegriffe bringen | true
 Calender Days größer und den Content darin übersichtlicher und schöner machen. | true
 Obere Bars und Buttons etwas weniger cramped | true
+Calendar Day- und Agenda-Karten mit klarerer Hierarchie weiter polishen | true
 ```
 
 ## Files Bugs
