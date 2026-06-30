@@ -1,17 +1,41 @@
-import { DEFAULT_CONTROL_API_BASE_URL } from "./controlStatus";
+import { DEFAULT_CONTROL_API_BASE_URL } from "./controlStatus.js";
 
 export const ACCOUNT_SESSION_STORAGE_KEY = "nexus-code.account-session.v1";
 
+export const ACCOUNT_AUTH_MODES = {
+  signedOut: "signed_out",
+  nexus: "nexus",
+  local: "local",
+};
+
 export const createEmptyAccountSession = () => ({
+  authMode: ACCOUNT_AUTH_MODES.signedOut,
   endpoint: DEFAULT_CONTROL_API_BASE_URL,
   token: "",
   userId: "",
   username: "",
+  role: "",
+  email: "",
   userTier: "free",
+  expiresAt: null,
   savedAt: null,
 });
 
 const VALID_USER_TIERS = new Set(["free", "pro", "lifetime", "lifetime_pro"]);
+const VALID_AUTH_MODES = new Set(Object.values(ACCOUNT_AUTH_MODES));
+
+const normalizeAuthMode = (modeRaw) => {
+  const mode = String(modeRaw || ACCOUNT_AUTH_MODES.signedOut).trim().toLowerCase();
+  return VALID_AUTH_MODES.has(mode) ? mode : ACCOUNT_AUTH_MODES.signedOut;
+};
+
+export const normalizeNexusUserTier = (tierRaw) => {
+  const tier = String(tierRaw || "free").trim().toLowerCase();
+  if (tier === "paid") return "pro";
+  if (tier === "premium") return "pro";
+  if (tier === "lifetime-pro") return "lifetime_pro";
+  return VALID_USER_TIERS.has(tier) ? tier : "free";
+};
 
 export const normalizeNexusApiEndpoint = (endpointRaw) => {
   const fallback = DEFAULT_CONTROL_API_BASE_URL;
@@ -34,16 +58,40 @@ export const normalizeNexusApiEndpoint = (endpointRaw) => {
 };
 
 export const normalizeAccountSession = (sessionRaw = {}) => {
-  const tier = String(sessionRaw.userTier || "free").trim().toLowerCase();
+  let authMode = normalizeAuthMode(sessionRaw.authMode);
+  const token = String(sessionRaw.token || "").trim();
+  const userId = String(sessionRaw.userId || "").trim().slice(0, 80);
+  const username = String(sessionRaw.username || "").trim().slice(0, 80);
+  if (authMode === ACCOUNT_AUTH_MODES.signedOut && token && (userId || username)) {
+    authMode = ACCOUNT_AUTH_MODES.nexus;
+  }
   return {
+    authMode,
     endpoint: normalizeNexusApiEndpoint(sessionRaw.endpoint),
-    token: String(sessionRaw.token || "").trim(),
-    userId: String(sessionRaw.userId || "").trim().slice(0, 80),
-    username: String(sessionRaw.username || "").trim().slice(0, 80),
-    userTier: VALID_USER_TIERS.has(tier) ? tier : "free",
+    token,
+    userId,
+    username,
+    role: String(sessionRaw.role || "").trim().slice(0, 80),
+    email: String(sessionRaw.email || "").trim().slice(0, 160),
+    userTier: normalizeNexusUserTier(sessionRaw.userTier),
+    expiresAt: Number.isFinite(Number(sessionRaw.expiresAt))
+      ? Number(sessionRaw.expiresAt)
+      : null,
     savedAt: sessionRaw.savedAt || null,
   };
 };
+
+export const createLocalAccountSession = (sessionRaw = {}) =>
+  normalizeAccountSession({
+    endpoint: DEFAULT_CONTROL_API_BASE_URL,
+    token: "",
+    userId: sessionRaw.userId || "local-workspace",
+    username: sessionRaw.username || "Local Workspace",
+    role: "local",
+    userTier: "free",
+    authMode: ACCOUNT_AUTH_MODES.local,
+    savedAt: sessionRaw.savedAt || new Date().toISOString(),
+  });
 
 export const loadNexusAccountSession = () => {
   if (typeof window === "undefined") return createEmptyAccountSession();
@@ -76,11 +124,19 @@ export const clearNexusAccountSession = () => {
 
 export const getAccountSessionState = (sessionRaw) => {
   const session = normalizeAccountSession(sessionRaw);
+  const isLocal = session.authMode === ACCOUNT_AUTH_MODES.local;
+  const isSignedOut = session.authMode === ACCOUNT_AUTH_MODES.signedOut;
   const hasToken = session.token.length > 0;
   const hasIdentity = Boolean(session.userId || session.username);
+  const isExpired = Boolean(session.expiresAt && Date.now() >= session.expiresAt - 15_000);
   return {
+    authMode: session.authMode,
+    isLocal,
+    isSignedOut,
     hasToken,
     hasIdentity,
-    isConfigured: hasToken || hasIdentity || session.endpoint !== DEFAULT_CONTROL_API_BASE_URL,
+    isExpired,
+    canStartWorkbench: isLocal || (session.authMode === ACCOUNT_AUTH_MODES.nexus && hasToken && hasIdentity && !isExpired),
+    isConfigured: !isSignedOut || hasToken || hasIdentity || session.endpoint !== DEFAULT_CONTROL_API_BASE_URL,
   };
 };

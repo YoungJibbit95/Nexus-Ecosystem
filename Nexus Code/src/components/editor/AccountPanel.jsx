@@ -16,6 +16,8 @@ import {
   Wifi,
 } from "lucide-react";
 import {
+  ACCOUNT_AUTH_MODES,
+  createLocalAccountSession,
   getAccountSessionState,
   normalizeAccountSession,
   normalizeNexusApiEndpoint,
@@ -143,8 +145,13 @@ export default function AccountPanel({
   const accountLabel = sessionState.hasIdentity
     ? normalizedSession.username || normalizedSession.userId
     : sessionState.hasToken
-      ? "Token session"
-      : "Local session";
+      ? "API session"
+      : "Signed out";
+  const authModeLabel = sessionState.isLocal
+    ? "Local"
+    : normalizedSession.authMode === ACCOUNT_AUTH_MODES.nexus
+      ? "Nexus"
+      : "Signed out";
   const details = testResult?.details || controlStatus?.details || [];
   const normalizedDraftEndpoint = normalizeNexusApiEndpoint(draft.endpoint);
   const endpointWillNormalize =
@@ -171,6 +178,16 @@ export default function AccountPanel({
     const cleared = onClearSession?.();
     setDraft(normalizeAccountSession(cleared || {}));
     setTestResult(null);
+  };
+
+  const handleUseLocalWorkspace = () => {
+    const saved = onSaveSession?.(createLocalAccountSession());
+    setDraft(normalizeAccountSession(saved || createLocalAccountSession()));
+    setTestResult({
+      mode: "offline",
+      message: "Lokaler Workspace ist aktiv.",
+      details: ["account:LOCAL_WORKSPACE"],
+    });
   };
 
   const applyEndpointPreset = (endpoint) => {
@@ -204,13 +221,13 @@ export default function AccountPanel({
       >
         <div className="grid grid-cols-2 gap-1.5">
           <PanelMetric
-            label="Identity"
-            value={sessionState.hasIdentity ? "Set" : "Local"}
+            label="Mode"
+            value={authModeLabel}
             tone={sessionState.hasIdentity ? "success" : "muted"}
           />
           <PanelMetric
-            label="Token"
-            value={sessionState.hasToken ? "Present" : "Empty"}
+            label="Session"
+            value={sessionState.canStartWorkbench ? "Ready" : "Locked"}
             tone={sessionState.hasToken ? "accent" : "muted"}
           />
           <PanelMetric label="Tier" value={draft.userTier || "free"} tone="accent" />
@@ -229,6 +246,17 @@ export default function AccountPanel({
           tone={statusMeta.tone}
           title={testResult?.message || controlStatus?.message || "Local session ready."}
           detail={details.length > 0 ? details.join(", ") : `${accountLabel} - ${savedLabel}`}
+          className="mb-3"
+        />
+        <PanelNotice
+          icon={ShieldCheck}
+          tone={sessionState.isLocal ? "teal" : sessionState.canStartWorkbench ? "success" : "warning"}
+          title={sessionState.isLocal ? "Lokaler IDE-Modus" : sessionState.canStartWorkbench ? "Nexus Session aktiv" : "Session fehlt"}
+          detail={sessionState.isLocal
+            ? "Editor, Dateien, Suche und Terminal starten lokal. Cloud-, Sync- und Billing-nahe Features bleiben deaktiviert."
+            : sessionState.canStartWorkbench
+              ? "Die Workbench darf starten; API-Features folgen den Entitlements deiner Nexus Session."
+              : "Nutze den Startscreen fuer Username/Passwort Login oder setze hier einen lokalen Workspace."}
           className="mb-3"
         />
 
@@ -272,7 +300,7 @@ export default function AccountPanel({
             />
           </Field>
 
-          <Field icon={KeyRound} label="Access Token">
+          <Field icon={KeyRound} label="Session Token (Advanced)">
             <div className="grid grid-cols-[1fr_auto] gap-1.5">
               <input
                 className={PANEL_INPUT_CLASS}
@@ -353,6 +381,10 @@ export default function AccountPanel({
           </button>
         </div>
         <div className="grid grid-cols-2 gap-1.5">
+          <AccountButton onClick={handleUseLocalWorkspace} disabled={busy} title="Lokalen Workspace ohne Cloud starten">
+            <UserRound size={14} />
+            Local
+          </AccountButton>
           <AccountButton onClick={handleTest} disabled={busy || !onTestConnection} title="Test connection">
             <Wifi size={14} />
             {busy ? "Testing" : "Test"}

@@ -42,13 +42,14 @@ export default function SpotlightSearch({
   );
   const groups = useMemo(() => groupCommandPaletteItems(results), [results]);
   const normalizedQuery = normalizeSearchValue(query);
+  const selectedResult = results[selectedIndex] || null;
 
   useEffect(() => {
-    if (isOpen) {
-      setQuery("");
-      setSelectedIndex(0);
-      window.setTimeout(() => inputRef.current?.focus(), 50);
-    }
+    if (!isOpen) return undefined;
+    setQuery("");
+    setSelectedIndex(0);
+    const focusTimer = window.setTimeout(() => inputRef.current?.focus(), 50);
+    return () => window.clearTimeout(focusTimer);
   }, [isOpen]);
 
   useEffect(() => {
@@ -62,6 +63,10 @@ export default function SpotlightSearch({
       block: "nearest",
     });
   }, [results.length, selectedIndex]);
+
+  useEffect(() => {
+    resultRefs.current.length = results.length;
+  }, [results.length]);
 
   const moveSelection = (delta) => {
     if (results.length === 0) return;
@@ -144,6 +149,7 @@ export default function SpotlightSearch({
                   className="w-full bg-transparent text-lg font-semibold text-gray-100 outline-none placeholder:text-gray-600"
                   role="combobox"
                   aria-expanded="true"
+                  aria-autocomplete="list"
                   aria-controls="nexus-spotlight-results"
                   aria-activedescendant={
                     results[selectedIndex] ? `spotlight-option-${selectedIndex}` : undefined
@@ -160,6 +166,7 @@ export default function SpotlightSearch({
               id="nexus-spotlight-results"
               className="max-h-[480px] overflow-y-auto p-3"
               role="listbox"
+              aria-label="Spotlight results"
             >
               {groups.length > 0 ? (
                 <div className="flex flex-col gap-3">
@@ -193,6 +200,10 @@ export default function SpotlightSearch({
                                   resultRefs.current[index] = node;
                                 }}
                                 type="button"
+                                title={detail || result.label || result.name}
+                                data-result-kind={result.resultKind}
+                                data-action-id={result.actionId || result.id}
+                                onMouseDown={(event) => event.preventDefault()}
                                 onMouseEnter={() => setSelectedIndex(index)}
                                 onClick={() => runResult(result)}
                                 className={`grid min-h-[60px] w-full grid-cols-[2.75rem_minmax(0,1fr)_auto] items-center gap-3 rounded-xl border px-3 text-left transition-all ${
@@ -202,6 +213,8 @@ export default function SpotlightSearch({
                                 }`}
                                 role="option"
                                 aria-selected={active}
+                                aria-posinset={index + 1}
+                                aria-setsize={results.length}
                               >
                                 <span
                                   className={`flex size-9 items-center justify-center rounded-lg border ${
@@ -264,10 +277,16 @@ export default function SpotlightSearch({
                 <KeyboardHint label="Enter" />
                 <span>Oeffnen</span>
               </div>
-              <div className="flex items-center gap-2">
-                <KeyboardHint label="PgUp" />
-                <KeyboardHint label="PgDn" />
-                <KeyboardHint label="Esc" />
+              <div className="flex min-w-0 items-center gap-2">
+                {selectedResult ? (
+                  <span className="max-w-[20rem] truncate text-gray-400">
+                    {selectedResult.resultKind === "file"
+                      ? selectedResult.description
+                      : selectedResult.categoryMeta?.label}
+                  </span>
+                ) : (
+                  <span className="text-gray-600">No selection</span>
+                )}
               </div>
             </div>
           </motion.div>

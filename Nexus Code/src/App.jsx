@@ -20,13 +20,15 @@ import {
   summarizeBootstrapMode,
 } from "./app/controlStatus";
 import {
+  ACCOUNT_AUTH_MODES,
   clearNexusAccountSession,
+  createLocalAccountSession,
   getAccountSessionState,
   loadNexusAccountSession,
   normalizeAccountSession,
   saveNexusAccountSession,
 } from "./app/accountSession";
-import { testNexusApiConnection } from "./app/nexusApiClient";
+import { loginNexusCodeSession, testNexusApiConnection } from "./app/nexusApiClient";
 import { beginPerfMetric, endPerfMetric, markPerfMetric } from "./lib/perfMetrics";
 import { installRuntimeLagProbe } from "./lib/runtimeLagProbe";
 import { useGlobalTypingAnimation } from "./lib/useGlobalTypingAnimation";
@@ -76,7 +78,7 @@ const isLowPowerDevice = () => {
 
 const isStrictAccountReady = (sessionRaw) => {
   const sessionState = getAccountSessionState(sessionRaw);
-  return sessionState.hasToken && sessionState.hasIdentity;
+  return sessionState.canStartWorkbench;
 };
 
 function NexusBridge({ runtime }) {
@@ -179,15 +181,26 @@ function AccountGateScreen({
   controlStatus,
   viewGuardState,
   onSubmit,
+  onStartLocal,
   onClear,
 }) {
-  const [draft, setDraft] = useState(() => normalizeAccountSession(session));
+  const normalizedSession = useMemo(() => normalizeAccountSession(session), [session]);
+  const [draft, setDraft] = useState(() => ({
+    endpoint: normalizedSession.endpoint,
+    identifier: normalizedSession.email || normalizedSession.username || "",
+    password: "",
+    rememberSession: true,
+  }));
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState(null);
 
   useEffect(() => {
-    setDraft(normalizeAccountSession(session));
-  }, [session]);
+    setDraft((prev) => ({
+      ...prev,
+      endpoint: normalizedSession.endpoint,
+      identifier: prev.identifier || normalizedSession.email || normalizedSession.username || "",
+    }));
+  }, [normalizedSession.endpoint, normalizedSession.email, normalizedSession.username]);
 
   const updateDraft = (field, value) => {
     setDraft((prev) => ({
@@ -199,24 +212,23 @@ function AccountGateScreen({
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    const normalizedDraft = normalizeAccountSession(draft);
-    if (!isStrictAccountReady(normalizedDraft)) {
+    if (!draft.identifier.trim() || draft.password.length < 8) {
       setMessage({
         tone: "warning",
-        title: "Nexus Session unvollstaendig",
-        detail: "Access Token und User ID oder Username sind erforderlich.",
+        title: "Login unvollstaendig",
+        detail: "Username oder E-Mail und ein Passwort mit mindestens 8 Zeichen sind erforderlich.",
       });
       return;
     }
 
     setBusy(true);
     try {
-      const result = await onSubmit?.(normalizedDraft);
+      const result = await onSubmit?.(draft);
       if (result?.ok) {
         setMessage({
           tone: "success",
-          title: "Session validiert",
-          detail: "Nexus Code startet mit der validierten API Session.",
+          title: "Session aktiv",
+          detail: "Nexus Code startet mit deiner API Session.",
         });
         return;
       }
@@ -236,6 +248,18 @@ function AccountGateScreen({
     }
   };
 
+  const handleStartLocal = () => {
+    if (busy) return;
+    const saved = onStartLocal?.();
+    setMessage({
+      tone: "success",
+      title: "Lokaler Workspace aktiv",
+      detail: saved?.username
+        ? `${saved.username} startet ohne Cloud-Features.`
+        : "Nexus Code startet lokal; API Features bleiben deaktiviert.",
+    });
+  };
+
   const gateDetails = [
     ...(controlStatus?.details || []),
     viewGuardState?.reason ? `access:${viewGuardState.reason}` : "",
@@ -244,11 +268,11 @@ function AccountGateScreen({
     tone: viewGuardState?.blocked ? "danger" : "info",
     title: viewGuardState?.blocked
       ? "Nexus Code ist durch den Account-Gate gesperrt"
-      : "Melde dich mit deiner Nexus API Session an",
+      : "Mit Nexus Code anmelden",
     detail:
       gateDetails.length > 0
         ? gateDetails.join(", ")
-        : "Ohne validierte API Session wird die Workbench nicht gerendert.",
+        : "Cloud-Funktionen brauchen eine Nexus Session; lokale IDE-Funktionen koennen sofort starten.",
   };
   const noticeColor = notice.tone === "success"
     ? "rgba(45,212,191,0.2)"
@@ -267,7 +291,7 @@ function AccountGateScreen({
         placeItems: "center",
         padding: "clamp(18px, 4vw, 48px)",
         background:
-          "radial-gradient(circle at 18% 10%, rgba(124,140,255,0.32), transparent 34%), radial-gradient(circle at 84% 18%, rgba(45,212,191,0.2), transparent 36%), linear-gradient(135deg, #050711 0%, #111733 48%, #061f23 100%)",
+          "radial-gradient(circle at 18% 10%, rgba(124,140,255,0.34), transparent 34%), radial-gradient(circle at 84% 18%, rgba(45,212,191,0.18), transparent 36%), linear-gradient(135deg, #050711 0%, #12182f 48%, #061f23 100%)",
         color: "#edf4ff",
         fontFamily: "Inter, Segoe UI, system-ui, sans-serif",
       }}
@@ -312,12 +336,12 @@ function AccountGateScreen({
           <h1
             style={{
               margin: "24px 0 0",
-              fontSize: "clamp(34px, 5vw, 58px)",
+              fontSize: "clamp(32px, 5vw, 56px)",
               lineHeight: 0.96,
               letterSpacing: 0,
             }}
           >
-            Nexus Code
+            Code Session
           </h1>
           <p
             style={{
@@ -328,7 +352,7 @@ function AccountGateScreen({
               lineHeight: 1.65,
             }}
           >
-            Die IDE startet erst, wenn Account, Release und View-Zugriff live ueber die Nexus API validiert wurden.
+            Melde dich mit deinem Nexus Account an oder starte lokal. Der lokale Modus laedt den Editor sofort und markiert Cloud-, Sync- und Billing-nahe Features als offline.
           </p>
           <div
             style={{
@@ -361,9 +385,7 @@ function AccountGateScreen({
           <div style={{ display: "grid", gap: 12 }}>
             {[
               ["endpoint", "API Endpoint", "https://nexus-api.cloud"],
-              ["token", "Access Token", "Nexus API token"],
-              ["userId", "User ID", "user id"],
-              ["username", "Username", "username"],
+              ["identifier", "Username oder E-Mail", "nexus-user"],
             ].map(([field, label, placeholder]) => (
               <label key={field} style={{ display: "grid", gap: 6, minWidth: 0 }}>
                 <span style={{ fontSize: 11, fontWeight: 800, color: "rgba(237,244,255,0.54)" }}>
@@ -372,7 +394,7 @@ function AccountGateScreen({
                 <input
                   value={draft[field] || ""}
                   onChange={(event) => updateDraft(field, event.target.value)}
-                  type={field === "token" ? "password" : "text"}
+                  type="text"
                   placeholder={placeholder}
                   autoCapitalize="off"
                   autoCorrect="off"
@@ -392,11 +414,14 @@ function AccountGateScreen({
             ))}
             <label style={{ display: "grid", gap: 6, minWidth: 0 }}>
               <span style={{ fontSize: 11, fontWeight: 800, color: "rgba(237,244,255,0.54)" }}>
-                Tier
+                Passwort
               </span>
-              <select
-                value={draft.userTier || "free"}
-                onChange={(event) => updateDraft("userTier", event.target.value)}
+              <input
+                value={draft.password || ""}
+                onChange={(event) => updateDraft("password", event.target.value)}
+                type="password"
+                placeholder="Nexus Passwort"
+                autoComplete="current-password"
                 style={{
                   minHeight: 44,
                   borderRadius: 14,
@@ -405,13 +430,27 @@ function AccountGateScreen({
                   color: "#f5f7ff",
                   padding: "0 13px",
                   outline: "none",
+                  minWidth: 0,
                 }}
-              >
-                <option value="free">free</option>
-                <option value="pro">pro</option>
-                <option value="lifetime">lifetime</option>
-                <option value="lifetime_pro">lifetime_pro</option>
-              </select>
+              />
+            </label>
+            <label
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 9,
+                color: "rgba(237,244,255,0.64)",
+                fontSize: 12,
+                lineHeight: 1.4,
+              }}
+            >
+              <input
+                checked={draft.rememberSession === true}
+                onChange={(event) => updateDraft("rememberSession", event.target.checked)}
+                type="checkbox"
+                style={{ width: 16, height: 16, accentColor: "#7c8cff" }}
+              />
+              Session auf diesem Geraet merken
             </label>
           </div>
 
@@ -429,26 +468,44 @@ function AccountGateScreen({
                 cursor: busy ? "wait" : "pointer",
               }}
             >
-              {busy ? "Validiere..." : "Einloggen und starten"}
+              {busy ? "Melde an..." : "Mit Nexus starten"}
             </button>
             <button
               type="button"
-              onClick={onClear}
+              onClick={handleStartLocal}
               disabled={busy}
               style={{
                 minHeight: 46,
                 borderRadius: 16,
-                border: "1px solid rgba(255,255,255,0.12)",
-                background: "rgba(255,255,255,0.045)",
-                color: "rgba(237,244,255,0.72)",
+                border: "1px solid rgba(45,212,191,0.22)",
+                background: "rgba(45,212,191,0.08)",
+                color: "#a7f3d0",
                 padding: "0 14px",
                 fontWeight: 750,
                 cursor: busy ? "wait" : "pointer",
               }}
             >
-              Zuruecksetzen
+              Lokal starten
             </button>
           </div>
+          <button
+            type="button"
+            onClick={onClear}
+            disabled={busy}
+            style={{
+              marginTop: 10,
+              minHeight: 38,
+              width: "100%",
+              borderRadius: 14,
+              border: "1px solid rgba(255,255,255,0.1)",
+              background: "rgba(255,255,255,0.035)",
+              color: "rgba(237,244,255,0.62)",
+              fontWeight: 720,
+              cursor: busy ? "wait" : "pointer",
+            }}
+          >
+            Gespeicherte Session entfernen
+          </button>
         </section>
       </form>
     </div>
@@ -457,8 +514,13 @@ function AccountGateScreen({
 
 function App() {
   const [accountSession, setAccountSession] = useState(loadNexusAccountSession);
+  const accountSessionState = useMemo(
+    () => getAccountSessionState(accountSession),
+    [accountSession],
+  );
   const controlBaseUrl = accountSession.endpoint || DEFAULT_CONTROL_API_BASE_URL;
   const controlToken = accountSession.token || "";
+  const controlEnabled = accountSession.authMode === ACCOUNT_AUTH_MODES.nexus && Boolean(controlBaseUrl);
   const controlIngestKey = import.meta.env?.VITE_NEXUS_CONTROL_INGEST_KEY;
   const lowPowerMode = useMemo(() => isLowPowerDevice(), []);
   const viewAccessContext = useMemo(
@@ -508,6 +570,32 @@ function App() {
     return cleared;
   }, []);
 
+  const handleStartLocalWorkspace = useCallback(() => {
+    const localSession = createLocalAccountSession();
+    const saved = saveNexusAccountSession(localSession);
+    setAccountSession(saved);
+    setControlStatus(buildControlStatus(
+      "offline",
+      ["account:LOCAL_WORKSPACE"],
+      "Nexus Code startet lokal; Cloud Features sind bis zum Login deaktiviert.",
+    ));
+    setReleaseState({
+      releaseId: "local-workspace",
+      compatible: true,
+      reasons: [],
+    });
+    setViewGuardState({
+      checking: false,
+      blocked: false,
+      reason: null,
+      requiredTier: null,
+    });
+    setBootReady(false);
+    setBootProgress(0);
+    setBootStage("Lokale Workbench wird gestartet...");
+    return saved;
+  }, []);
+
   const handleTestAccountConnection = useCallback(
     async (draftSession) => {
       const result = await testNexusApiConnection(draftSession);
@@ -520,15 +608,15 @@ function App() {
   );
 
   const handleAccountGateSubmit = useCallback(
-    async (draftSession) => {
-      const result = await testNexusApiConnection(draftSession);
+    async (loginDraft) => {
+      const result = await loginNexusCodeSession(loginDraft);
       if (result?.mode) {
         setControlStatus(buildControlStatus(result.mode, result.details || [], result.message || ""));
       }
       if (!result?.ok) {
         return result;
       }
-      const saved = saveNexusAccountSession(draftSession);
+      const saved = saveNexusAccountSession(result.session);
       setAccountSession(saved);
       setReleaseState({
         releaseId: null,
@@ -556,7 +644,7 @@ function App() {
         appId: "code",
         appVersion: "1.0.0",
         control: {
-          enabled: Boolean(controlBaseUrl),
+          enabled: controlEnabled,
           baseUrl: controlBaseUrl,
           token: controlToken,
           ingestKey: controlIngestKey,
@@ -582,8 +670,8 @@ function App() {
         liveSync: {
           enabled: false,
         },
-      }),
-    [controlBaseUrl, controlIngestKey, controlToken, lowPowerMode, viewAccessContext],
+    }),
+    [controlBaseUrl, controlEnabled, controlIngestKey, controlToken, lowPowerMode, viewAccessContext],
   );
 
   useEffect(() => {
@@ -665,7 +753,7 @@ function App() {
       setControlStatus(buildControlStatus(
         "limited",
         ["account:SESSION_REQUIRED"],
-        "Nexus Code bleibt gesperrt, bis ein Token und eine Nutzeridentitaet gespeichert sind.",
+        "Nexus Code wartet auf Login oder lokalen Workspace.",
       ));
       setReleaseState({
         releaseId: null,
@@ -681,6 +769,41 @@ function App() {
       setBootProgress(100);
       setBootStage("Nexus Account erforderlich");
       setBootReady(true);
+      return () => {
+        active = false;
+      };
+    }
+
+    if (accountSessionState.isLocal) {
+      setControlStatus(buildControlStatus(
+        "offline",
+        ["account:LOCAL_WORKSPACE"],
+        "Nexus Code nutzt lokale IDE-Daten; Cloud Features sind deaktiviert.",
+      ));
+      setReleaseState({
+        releaseId: "local-workspace",
+        compatible: true,
+        reasons: [],
+      });
+      setViewGuardState({
+        checking: false,
+        blocked: false,
+        reason: null,
+        requiredTier: null,
+      });
+      void (async () => {
+        setBootStep(38, "Lade lokale Editor-Module...");
+        const warmupResult = await withTimeoutResult(uiWarmupPromise, preloadBudgetMs);
+        if (!active) return;
+        setBootStep(
+          92,
+          warmupResult.timedOut
+            ? "Editor-Warmup laeuft im Hintergrund weiter..."
+            : "Editor-Module vorgeladen",
+        );
+        setBootStep(100, "Lokale Workbench bereit");
+        setBootReady(true);
+      })();
       return () => {
         active = false;
       };
@@ -806,11 +929,16 @@ function App() {
         setControlStatus(buildControlStatus(
           "degraded",
           [reason],
-          "Nexus Code bleibt gesperrt, weil der Bootstrap fehlgeschlagen ist.",
+          "Nexus Code startet mit lokalen Runtime-Daten; API Features bleiben eingeschraenkt.",
         ));
+        setReleaseState({
+          releaseId: "degraded-local-runtime",
+          compatible: true,
+          reasons: [reason],
+        });
         setViewGuardState({
           checking: false,
-          blocked: true,
+          blocked: false,
           reason,
           requiredTier: "free",
         });
@@ -855,7 +983,7 @@ function App() {
       active = false;
       unsubscribe();
     };
-  }, [runtime, strictAccountReady, viewAccessContext]);
+  }, [accountSessionState.isLocal, runtime, strictAccountReady, viewAccessContext]);
 
   useEffect(() => {
     if (!bootReady || startupMetricDoneRef.current) return;
@@ -876,6 +1004,7 @@ function App() {
         controlStatus={controlStatus}
         viewGuardState={viewGuardState}
         onSubmit={handleAccountGateSubmit}
+        onStartLocal={handleStartLocalWorkspace}
         onClear={handleClearAccountSession}
       />
     );

@@ -154,6 +154,27 @@ function tokenizeQuery(query) {
   return normalizeSearchValue(query).split(/\s+/).filter(Boolean);
 }
 
+function compactSearchValue(value) {
+  return normalizeSearchValue(value).replace(/[^a-z0-9]+/g, "");
+}
+
+function getInitialism(value) {
+  return normalizeSearchValue(value)
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean)
+    .map((part) => part[0])
+    .join("");
+}
+
+function isSubsequence(token, value) {
+  if (!token || !value) return false;
+  let tokenIndex = 0;
+  for (let index = 0; index < value.length && tokenIndex < token.length; index += 1) {
+    if (value[index] === token[tokenIndex]) tokenIndex += 1;
+  }
+  return tokenIndex === token.length;
+}
+
 function categorySortValue(categoryId) {
   const index = EDITOR_COMMAND_CATEGORY_ORDER.indexOf(categoryId);
   return index === -1 ? EDITOR_COMMAND_CATEGORY_ORDER.length + 1 : index;
@@ -208,6 +229,41 @@ function scoreTextField(field, token, weights) {
   return 0;
 }
 
+function scoreFuzzyField(field, token, weights) {
+  const normalizedField = normalizeSearchValue(field);
+  const directScore = scoreTextField(normalizedField, token, weights);
+  if (directScore) return directScore;
+
+  const compactField = compactSearchValue(normalizedField);
+  const compactToken = compactSearchValue(token);
+  if (!compactField || !compactToken) return 0;
+  if (compactField.startsWith(compactToken)) return Math.max(0, weights.prefix - 8);
+  if (compactField.includes(compactToken)) return Math.max(0, weights.contains - 6);
+
+  const initialism = getInitialism(normalizedField);
+  if (initialism && initialism.startsWith(compactToken)) {
+    return Math.max(0, Math.round(weights.prefix * 0.78));
+  }
+  if (
+    compactToken.length >= 3 &&
+    compactField.length <= 42 &&
+    isSubsequence(compactToken, compactField)
+  ) {
+    return Math.max(0, Math.round(weights.contains * 0.58));
+  }
+  return 0;
+}
+
+function fieldMatchesToken(fields, token) {
+  return fields.some((field) =>
+    scoreFuzzyField(field, token, {
+      exact: 8,
+      prefix: 6,
+      contains: 4,
+    }) > 0,
+  );
+}
+
 function scoreCommand(command, query, index) {
   const normalizedQuery = normalizeSearchValue(query);
   const baseScore = Number(command.priority || 0) - index / 100;
@@ -221,21 +277,30 @@ function scoreCommand(command, query, index) {
   const keywordBlob = normalizeSearchValue((command.keywords || []).join(" "));
   const shortcut = normalizeSearchValue(command.shortcut);
   const searchBlob = getCommandSearchBlob(command);
+  const searchableFields = [
+    searchBlob,
+    label,
+    id,
+    description,
+    category,
+    keywordBlob,
+    shortcut,
+  ];
 
-  if (!tokens.every((token) => searchBlob.includes(token))) return null;
+  if (!tokens.every((token) => fieldMatchesToken(searchableFields, token))) return null;
 
   let score = baseScore;
-  score += scoreTextField(label, normalizedQuery, {
+  score += scoreFuzzyField(label, normalizedQuery, {
     exact: 220,
     prefix: 170,
     contains: 110,
   });
-  score += scoreTextField(id, normalizedQuery, {
+  score += scoreFuzzyField(id, normalizedQuery, {
     exact: 90,
     prefix: 70,
     contains: 45,
   });
-  score += scoreTextField(keywordBlob, normalizedQuery, {
+  score += scoreFuzzyField(keywordBlob, normalizedQuery, {
     exact: 75,
     prefix: 58,
     contains: 38,
@@ -243,12 +308,12 @@ function scoreCommand(command, query, index) {
 
   tokens.forEach((token) => {
     score += Math.max(
-      scoreTextField(label, token, { exact: 90, prefix: 68, contains: 42 }),
-      scoreTextField(id, token, { exact: 58, prefix: 44, contains: 30 }),
-      scoreTextField(keywordBlob, token, { exact: 48, prefix: 36, contains: 26 }),
-      scoreTextField(category, token, { exact: 32, prefix: 24, contains: 16 }),
-      scoreTextField(description, token, { exact: 24, prefix: 18, contains: 12 }),
-      scoreTextField(shortcut, token, { exact: 20, prefix: 14, contains: 10 }),
+      scoreFuzzyField(label, token, { exact: 90, prefix: 68, contains: 42 }),
+      scoreFuzzyField(id, token, { exact: 58, prefix: 44, contains: 30 }),
+      scoreFuzzyField(keywordBlob, token, { exact: 48, prefix: 36, contains: 26 }),
+      scoreFuzzyField(category, token, { exact: 32, prefix: 24, contains: 16 }),
+      scoreFuzzyField(description, token, { exact: 24, prefix: 18, contains: 12 }),
+      scoreFuzzyField(shortcut, token, { exact: 20, prefix: 14, contains: 10 }),
     );
   });
 
@@ -301,6 +366,20 @@ function getFilePath(file) {
   return String(file?.fsPath || file?.path || "");
 }
 
+function getFileResultKey(file) {
+  return normalizeSearchValue(file?.id || file?.fsPath || file?.path || file?.name);
+}
+
+function getUniqueFileEntries(files) {
+  const seen = new Set();
+  return (files || []).filter((file) => {
+    const key = getFileResultKey(file);
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 function scoreFileResult(file, query, index) {
   const normalizedQuery = normalizeSearchValue(query);
   const name = normalizeSearchValue(getFileName(file));
@@ -309,41 +388,42 @@ function scoreFileResult(file, query, index) {
   if (!normalizedQuery) return 40 - index / 100;
 
   const tokens = tokenizeQuery(query);
-  if (!tokens.every((token) => blob.includes(token))) return null;
+  if (!tokens.every((token) => fieldMatchesToken([blob, name, path], token))) return null;
 
   let score = 0;
-  score += scoreTextField(name, normalizedQuery, {
+  score += scoreFuzzyField(name, normalizedQuery, {
     exact: 210,
     prefix: 160,
     contains: 95,
   });
-  score += scoreTextField(path, normalizedQuery, {
+  score += scoreFuzzyField(path, normalizedQuery, {
     exact: 80,
     prefix: 65,
     contains: 42,
   });
   tokens.forEach((token) => {
     score += Math.max(
-      scoreTextField(name, token, { exact: 80, prefix: 60, contains: 38 }),
-      scoreTextField(path, token, { exact: 36, prefix: 28, contains: 18 }),
+      scoreFuzzyField(name, token, { exact: 80, prefix: 60, contains: 38 }),
+      scoreFuzzyField(path, token, { exact: 36, prefix: 28, contains: 18 }),
     );
   });
   return score - index / 100;
 }
 
 export function rankSpotlightFiles(files = [], query = "", limit = 8) {
-  return (files || [])
+  return getUniqueFileEntries(files)
     .filter((file) => file && file.type === "file" && file.name)
     .map((file, index) => {
       const searchScore = scoreFileResult(file, query, index);
       if (searchScore === null) return null;
+      const fallbackPayload = file.id || file.fsPath || file.path || file.name;
       return {
         ...file,
-        id: file.id || file.fsPath || file.name,
+        id: fallbackPayload,
         label: getFileName(file),
         description: getFilePath(file),
         actionId: "open-file",
-        payload: file.id,
+        payload: fallbackPayload,
         resultKind: "file",
         category: FILE_CATEGORY.id,
         categoryMeta: FILE_CATEGORY,

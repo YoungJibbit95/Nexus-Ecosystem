@@ -77,11 +77,11 @@ function SidebarButton({
       aria-label={title}
       className="nx-code-sidebar-btn nx-code-sidebar-rail-button group relative isolate flex flex-col items-center justify-center outline-none transition-colors hover:bg-white/[0.06] focus-visible:ring-2 focus-visible:ring-purple-500/60"
       style={{
-        width: 50,
-        minHeight: 50,
-        gap: 3,
+        width: 44,
+        minHeight: 46,
+        gap: 2,
         borderRadius: 8,
-        padding: "5px 4px",
+        padding: "5px 3px",
         background: isActive
           ? "linear-gradient(180deg, rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.17), rgba(255,255,255,0.025))"
           : "transparent",
@@ -106,13 +106,13 @@ function SidebarButton({
       <span
         className="nx-code-sidebar-icon-frame flex shrink-0 items-center justify-center"
         style={{
-          width: 28,
-          height: 23,
+          width: 25,
+          height: 22,
           borderRadius: 7,
           background: isActive ? "rgba(255, 255, 255, 0.052)" : "transparent",
         }}
       >
-        <Icon size={18} strokeWidth={isActive ? 2.15 : 1.8} />
+        <Icon size={17} strokeWidth={isActive ? 2.15 : 1.8} />
       </span>
       <span
         className="nx-code-sidebar-label max-w-full truncate text-[9px] font-semibold"
@@ -227,9 +227,9 @@ export default function Sidebar({
     <div
       className="nx-code-sidebar-rail flex h-full min-h-0 shrink-0 flex-col items-center overflow-visible"
       style={{
-        width: compact ? 62 : 68,
-        gap: 7,
-        padding: "8px 6px",
+        width: compact ? 50 : 54,
+        gap: 6,
+        padding: compact ? "7px 3px" : "8px 5px",
         background:
           "linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0.01)), var(--nexus-surface)",
         borderRight: side === "left" ? "1px solid var(--nexus-border)" : 0,
@@ -244,8 +244,8 @@ export default function Sidebar({
       <div
         className="nx-code-sidebar-orb flex shrink-0 flex-col items-center justify-center border text-[11px] font-semibold"
         style={{
-          width: 50,
-          height: 44,
+          width: 44,
+          height: 40,
           borderRadius: 8,
           gap: 1,
           background:
@@ -264,7 +264,7 @@ export default function Sidebar({
       <div
         className="h-px shrink-0"
         style={{
-          width: 42,
+          width: 36,
           background:
             "linear-gradient(90deg, transparent, rgba(255,255,255,0.16), transparent)",
         }}
@@ -294,7 +294,7 @@ export default function Sidebar({
       <div
         className="h-px shrink-0"
         style={{
-          width: 42,
+          width: 36,
           background:
             "linear-gradient(90deg, transparent, rgba(255,255,255,0.14), transparent)",
         }}
@@ -305,14 +305,14 @@ export default function Sidebar({
         onClick={onOpenSettings}
         className="nx-code-sidebar-btn nx-code-sidebar-settings flex flex-col items-center justify-center text-[var(--nexus-muted)] outline-none transition-colors hover:bg-white/[0.06] hover:text-gray-200 focus-visible:ring-2 focus-visible:ring-purple-500/60"
         style={{
-          width: 50,
-          minHeight: 48,
-          gap: 3,
+          width: 44,
+          minHeight: 44,
+          gap: 2,
           borderRadius: 8,
         }}
         title="Einstellungen"
       >
-        <Settings size={18} strokeWidth={1.8} />
+        <Settings size={17} strokeWidth={1.8} />
         <span className="max-w-full truncate text-[9px] font-semibold leading-none">
           Setup
         </span>

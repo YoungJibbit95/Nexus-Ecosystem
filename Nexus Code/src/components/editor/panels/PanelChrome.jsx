@@ -48,10 +48,10 @@ const toneStyles = {
 };
 
 export const PANEL_INPUT_CLASS =
-  "min-h-9 w-full min-w-0 rounded-xl border border-white/[0.075] bg-white/[0.035] px-3 py-2 text-[12px] leading-snug text-gray-200 outline-none transition-colors placeholder:text-gray-600 focus:border-purple-300/40 focus:bg-white/[0.052] focus:ring-2 focus:ring-purple-400/10";
+  "min-h-9 w-full min-w-0 rounded-2xl border border-white/[0.07] bg-white/[0.035] px-3 py-2 text-[12px] leading-snug text-gray-200 outline-none transition-colors placeholder:text-gray-600 focus:border-purple-300/40 focus:bg-white/[0.052] focus:ring-2 focus:ring-purple-400/10";
 
 export const PANEL_SELECT_CLASS =
-  "min-h-9 w-full min-w-0 rounded-xl border border-white/[0.075] bg-white/[0.035] px-3 py-2 text-[12px] leading-snug text-gray-200 outline-none transition-colors focus:border-purple-300/40 focus:bg-white/[0.052] focus:ring-2 focus:ring-purple-400/10";
+  "min-h-9 w-full min-w-0 rounded-2xl border border-white/[0.07] bg-white/[0.035] px-3 py-2 text-[12px] leading-snug text-gray-200 outline-none transition-colors focus:border-purple-300/40 focus:bg-white/[0.052] focus:ring-2 focus:ring-purple-400/10";
 
 export function useNexusReducedMotion() {
   const prefersReducedMotion = useReducedMotion();
@@ -110,16 +110,20 @@ export function PanelCard({
       style={{
         color: toneStyle.detail,
         background:
-          "linear-gradient(180deg, rgba(255,255,255,0.048), rgba(255,255,255,0.015))",
+          "radial-gradient(circle at 12% 0%, rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.055), transparent 12rem), linear-gradient(180deg, rgba(255,255,255,0.052), rgba(255,255,255,0.015))",
         borderColor:
-          tone === "muted" ? "rgba(255,255,255,0.065)" : toneStyle.border,
+          tone === "muted" ? "rgba(255,255,255,0.058)" : toneStyle.border,
+        borderRadius: "var(--nexus-radius-xl, 22px)",
         boxShadow: reduceMotion
           ? "inset 0 1px 0 rgba(255,255,255,0.04)"
-          : "0 16px 34px rgba(0,0,0,0.16), inset 0 1px 0 rgba(255,255,255,0.052)",
+          : "0 18px 38px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.058)",
         backdropFilter: reduceMotion ? "none" : "blur(14px) saturate(112%)",
         WebkitBackdropFilter: reduceMotion
           ? "none"
           : "blur(14px) saturate(112%)",
+        overflowWrap: "anywhere",
+        transition:
+          "background-color var(--nx-motion-quick, 190ms) var(--nx-motion-ease, ease), border-color var(--nx-motion-quick, 190ms) var(--nx-motion-ease, ease), box-shadow var(--nx-motion-quick, 190ms) var(--nx-motion-ease, ease)",
         ...style,
       }}
       {...props}
@@ -137,8 +141,8 @@ export function PanelShell({ children, ariaLabel, className = "", style }) {
       initial={reduceMotion ? false : { opacity: 0, x: -10 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{
-        duration: reduceMotion ? 0 : 0.18,
-        ease: [0.4, 0, 0.2, 1],
+        duration: reduceMotion ? 0 : 0.22,
+        ease: [0.22, 1, 0.36, 1],
       }}
       className={`nx-editor-panel-shell relative isolate flex h-full min-h-0 w-full max-w-full flex-col overflow-hidden text-gray-100 ${className}`}
       style={{
@@ -183,6 +187,7 @@ export function PanelHeader({
           <div
             className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border"
             style={{
+              borderRadius: "var(--nexus-radius-lg, 18px)",
               background: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.09)",
               borderColor: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.18)",
               color: "var(--nexus-primary, #7c8cff)",
@@ -270,8 +275,9 @@ export function PanelIconButton({
       disabled={disabled}
       title={label}
       aria-label={label}
-      className={`grid h-8 w-8 shrink-0 place-items-center rounded-xl border text-gray-500 transition-colors hover:bg-white/[0.06] hover:text-gray-200 disabled:cursor-not-allowed disabled:opacity-45 [&>svg]:h-4 [&>svg]:w-4 ${className}`}
+      className={`grid h-8 w-8 shrink-0 place-items-center rounded-2xl border text-gray-500 transition-colors hover:bg-white/[0.06] hover:text-gray-200 disabled:cursor-not-allowed disabled:opacity-45 [&>svg]:h-4 [&>svg]:w-4 ${className}`}
       style={{
+        borderRadius: "var(--nexus-radius-lg, 18px)",
         background: active
           ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.15)"
           : "rgba(255,255,255,0.028)",
@@ -303,11 +309,12 @@ export function PanelActionButton({
       onClick={onClick}
       disabled={disabled}
       title={title}
-      className={`inline-flex min-h-8 max-w-full min-w-0 items-center justify-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-[11px] font-semibold leading-tight transition-colors hover:bg-white/[0.065] disabled:cursor-not-allowed disabled:opacity-45 ${className}`}
+      className={`inline-flex min-h-8 max-w-full min-w-0 items-center justify-center gap-1.5 rounded-2xl border px-2.5 py-1.5 text-[11px] font-semibold leading-tight transition-colors hover:bg-white/[0.065] disabled:cursor-not-allowed disabled:opacity-45 ${className}`}
       style={{
         color: toneStyle.icon,
         background: toneStyle.background,
         borderColor: toneStyle.border,
+        borderRadius: "var(--nexus-radius-lg, 18px)",
       }}
     >
       {Icon ? <Icon size={13} className="shrink-0" /> : null}
@@ -346,6 +353,7 @@ export function PanelMetric({ label, value, tone = "muted", title }) {
       style={{
         background: "rgba(0,0,0,0.13)",
         borderColor: "rgba(255,255,255,0.055)",
+        borderRadius: "var(--nexus-radius-lg, 18px)",
       }}
     >
       <div
@@ -382,6 +390,7 @@ export function PanelNotice({
         color: toneStyle.detail,
         background: toneStyle.background,
         borderColor: toneStyle.border,
+        borderRadius: "var(--nexus-radius-xl, 22px)",
       }}
     >
       <div className="flex min-w-0 items-start gap-2">
@@ -489,7 +498,7 @@ export function PanelSection({
         <button
           type="button"
           onClick={onToggle}
-          className="min-w-0 flex flex-1 items-center gap-1.5 rounded-md px-1 py-1 text-left transition-colors hover:bg-white/[0.04]"
+      className="min-w-0 flex flex-1 items-center gap-1.5 rounded-xl px-1 py-1 text-left transition-colors hover:bg-white/[0.04]"
         >
           <motion.span
             animate={{ rotate: expanded ? 0 : -90 }}
@@ -526,8 +535,8 @@ export function PanelSection({
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
             transition={{
-              duration: reduceMotion ? 0 : 0.18,
-              ease: [0.4, 0, 0.2, 1],
+              duration: reduceMotion ? 0 : 0.22,
+              ease: [0.22, 1, 0.36, 1],
             }}
             style={{ overflow: "hidden" }}
           >

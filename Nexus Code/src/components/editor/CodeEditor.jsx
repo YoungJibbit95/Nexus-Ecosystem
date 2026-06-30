@@ -60,7 +60,9 @@ import {
   cmPosToLspPosition,
   createEditorHighlightStyle,
   createSnippetCompletions,
+  extractDocumentSymbols,
   findDiagnosticAtPosition,
+  getActiveDocumentSymbol,
   lspCompletionsToCodeMirror,
   lspDiagnosticsToCodeMirror,
   lspDiagnosticsToProblems,
@@ -629,6 +631,19 @@ export default function CodeEditor({
       settings.visual_performance_profile,
     ],
   );
+  const documentSymbols = useMemo(
+    () =>
+      isLargeFile
+        ? []
+        : extractDocumentSymbols(code || "", nexusLanguageId, {
+            maxSymbols: reduceEditorMotion ? 90 : 180,
+          }),
+    [code, isLargeFile, nexusLanguageId, reduceEditorMotion],
+  );
+  const activeDocumentSymbol = useMemo(
+    () => getActiveDocumentSymbol(documentSymbols, cursorInfo.line),
+    [cursorInfo.line, documentSymbols],
+  );
 
   const flushPendingChange = useCallback(() => {
     if (changeEmitTimerRef.current) {
@@ -869,6 +884,7 @@ export default function CodeEditor({
         });
         return lspCompletionsToCodeMirror(context, completionList, snippets, {
           lowPowerMode: reduceEditorMotion,
+          languageId: nexusLanguageId,
         });
       } catch {
         return snippets;
@@ -1119,6 +1135,8 @@ export default function CodeEditor({
       style={{ background: "transparent" }}
       data-editor-engine="codemirror"
       data-focused={editorFocused ? "true" : "false"}
+      data-symbol-count={documentSymbols.length}
+      data-active-symbol={activeDocumentSymbol?.name || ""}
     >
       <div
         className="nx-code-editor-canvas flex-1 min-h-0 w-full relative overflow-hidden"
@@ -1162,6 +1180,14 @@ export default function CodeEditor({
               BRACKETS
             </span>
           )}
+          {activeDocumentSymbol && (
+            <span
+              className="max-w-[14rem] truncate text-[10px] text-gray-500"
+              title={`${activeDocumentSymbol.detail || activeDocumentSymbol.kind} ${activeDocumentSymbol.name} at line ${activeDocumentSymbol.line}`}
+            >
+              {activeDocumentSymbol.kind} {activeDocumentSymbol.name}
+            </span>
+          )}
           {minimap && !compactViewport && (
             <span className="text-[10px] text-gray-600">
               minimap retired
@@ -1175,6 +1201,11 @@ export default function CodeEditor({
           <span className="text-[10px] text-gray-500">
             {lineCount} Lines
           </span>
+          {documentSymbols.length > 0 && (
+            <span className="text-[10px] text-gray-500">
+              {documentSymbols.length} Symbols
+            </span>
+          )}
         </div>
       </div>
     </div>

@@ -1,10 +1,12 @@
 export const WORKBENCH_DOCK_STORAGE_KEY_V1 = "nexus-code.workbench-layout.v1";
-export const WORKBENCH_DOCK_STORAGE_KEY = "nexus-code.workbench-layout.v2";
+export const WORKBENCH_DOCK_STORAGE_KEY_V2 = "nexus-code.workbench-layout.v2";
+export const WORKBENCH_DOCK_STORAGE_KEY = "nexus-code.workbench-layout.v3";
 export const WORKBENCH_LAYOUT_STORAGE_KEY = WORKBENCH_DOCK_STORAGE_KEY;
 export const WORKBENCH_DOCK_LEGACY_STORAGE_KEYS = Object.freeze([
+  WORKBENCH_DOCK_STORAGE_KEY_V2,
   WORKBENCH_DOCK_STORAGE_KEY_V1,
 ]);
-export const WORKBENCH_DOCK_VERSION = 2;
+export const WORKBENCH_DOCK_VERSION = 3;
 export const WORKBENCH_CUSTOM_PRESET_ID = "custom";
 
 export const WORKBENCH_SNAP_ZONES = Object.freeze({
@@ -59,9 +61,12 @@ export const SIDE_PANEL_SIZE_SEQUENCE = Object.freeze([
 ]);
 
 const SIDE_PANEL_SIZE_ALIASES = Object.freeze({
+  narrow: "focus",
   slim: "focus",
   compact: "comfortable",
+  default: "comfortable",
   standard: "wide",
+  roomy: "wide",
 });
 
 export const SIDE_PANEL_SIZES = Object.freeze({
@@ -69,28 +74,28 @@ export const SIDE_PANEL_SIZES = Object.freeze({
     id: "focus",
     label: "F",
     title: "Fokus",
-    width: "clamp(13.75rem, 15vw, 15.75rem)",
-    minWidth: "13.75rem",
-    maxWidth: "15.75rem",
-    compactWidth: "min(17rem, calc(100vw - 3.25rem))",
+    width: "clamp(12.5rem, 14vw, 14.5rem)",
+    minWidth: "12.5rem",
+    maxWidth: "14.5rem",
+    compactWidth: "min(15.5rem, calc(100vw - 3.25rem))",
   }),
   comfortable: Object.freeze({
     id: "comfortable",
     label: "C",
     title: "Comfortable",
-    width: "clamp(15rem, 18vw, 18rem)",
-    minWidth: "15rem",
-    maxWidth: "18rem",
-    compactWidth: "min(19rem, calc(100vw - 3.25rem))",
+    width: "clamp(14rem, 16.5vw, 16.75rem)",
+    minWidth: "14rem",
+    maxWidth: "16.75rem",
+    compactWidth: "min(17rem, calc(100vw - 3.25rem))",
   }),
   wide: Object.freeze({
     id: "wide",
     label: "W",
     title: "Wide",
-    width: "clamp(16.5rem, 20vw, 20.25rem)",
-    minWidth: "16.5rem",
-    maxWidth: "20.25rem",
-    compactWidth: "min(21rem, calc(100vw - 3.25rem))",
+    width: "clamp(15.5rem, 19vw, 18.75rem)",
+    minWidth: "15.5rem",
+    maxWidth: "18.75rem",
+    compactWidth: "min(18.5rem, calc(100vw - 3.25rem))",
   }),
 });
 
@@ -111,51 +116,51 @@ export const BOTTOM_PANEL_SIZES = Object.freeze({
     id: "focus",
     label: "F",
     title: "Fokus",
-    className: "h-[clamp(10rem,23vh,14rem)] shrink-0",
-    compactClassName: "h-[min(13rem,34vh)] shrink-0",
+    className: "h-[clamp(9.5rem,22vh,13.5rem)] shrink-0",
+    compactClassName: "h-[min(12.5rem,34vh)] shrink-0",
     style: Object.freeze({
-      flex: "0 0 clamp(10rem, 23vh, 14rem)",
-      minHeight: "10rem",
-      maxHeight: "14rem",
+      flex: "0 0 clamp(9.5rem, 22vh, 13.5rem)",
+      minHeight: "9.5rem",
+      maxHeight: "13.5rem",
     }),
     compactStyle: Object.freeze({
-      flex: "0 0 min(13rem, 34vh)",
-      minHeight: "9.5rem",
-      maxHeight: "13rem",
+      flex: "0 0 min(12.5rem, 34vh)",
+      minHeight: "9rem",
+      maxHeight: "12.5rem",
     }),
   }),
   comfortable: Object.freeze({
     id: "comfortable",
     label: "C",
     title: "Comfortable",
-    className: "h-[clamp(12rem,28vh,17rem)] shrink-0",
-    compactClassName: "h-[min(15.5rem,40vh)] shrink-0",
+    className: "h-[clamp(11.5rem,27vh,16.5rem)] shrink-0",
+    compactClassName: "h-[min(15rem,40vh)] shrink-0",
     style: Object.freeze({
-      flex: "0 0 clamp(12rem, 28vh, 17rem)",
-      minHeight: "12rem",
-      maxHeight: "17rem",
+      flex: "0 0 clamp(11.5rem, 27vh, 16.5rem)",
+      minHeight: "11.5rem",
+      maxHeight: "16.5rem",
     }),
     compactStyle: Object.freeze({
-      flex: "0 0 min(15.5rem, 40vh)",
-      minHeight: "11rem",
-      maxHeight: "15.5rem",
+      flex: "0 0 min(15rem, 40vh)",
+      minHeight: "10.5rem",
+      maxHeight: "15rem",
     }),
   }),
   wide: Object.freeze({
     id: "wide",
     label: "W",
     title: "Wide",
-    className: "h-[clamp(14rem,34vh,21rem)] shrink-0",
-    compactClassName: "h-[min(18rem,46vh)] shrink-0",
+    className: "h-[clamp(13.25rem,32vh,20rem)] shrink-0",
+    compactClassName: "h-[min(17.25rem,46vh)] shrink-0",
     style: Object.freeze({
-      flex: "0 0 clamp(14rem, 34vh, 21rem)",
-      minHeight: "14rem",
-      maxHeight: "21rem",
+      flex: "0 0 clamp(13.25rem, 32vh, 20rem)",
+      minHeight: "13.25rem",
+      maxHeight: "20rem",
     }),
     compactStyle: Object.freeze({
-      flex: "0 0 min(18rem, 46vh)",
-      minHeight: "12.5rem",
-      maxHeight: "18rem",
+      flex: "0 0 min(17.25rem, 46vh)",
+      minHeight: "12rem",
+      maxHeight: "17.25rem",
     }),
   }),
 });
@@ -274,13 +279,17 @@ const SNAP_ZONE_ALIASES = Object.freeze({
   "side-panel": WORKBENCH_SNAP_ZONES.left,
   sidePanel: WORKBENCH_SNAP_ZONES.left,
   sidebar: WORKBENCH_SNAP_ZONES.left,
+  "dock-left": WORKBENCH_SNAP_ZONES.left,
   leftPanel: WORKBENCH_SNAP_ZONES.left,
   leftSidebar: WORKBENCH_SNAP_ZONES.left,
+  "dock-right": WORKBENCH_SNAP_ZONES.right,
   rightPanel: WORKBENCH_SNAP_ZONES.right,
   rightSidebar: WORKBENCH_SNAP_ZONES.right,
+  "dock-bottom": WORKBENCH_SNAP_ZONES.bottom,
   "bottom-panel": WORKBENCH_SNAP_ZONES.bottom,
   bottomPanel: WORKBENCH_SNAP_ZONES.bottom,
   panel: WORKBENCH_SNAP_ZONES.left,
+  hide: WORKBENCH_SNAP_ZONES.hidden,
   none: WORKBENCH_SNAP_ZONES.hidden,
   off: WORKBENCH_SNAP_ZONES.hidden,
 });
@@ -290,8 +299,12 @@ function isObject(value) {
 }
 
 function getStorage() {
-  if (typeof window === "undefined" || !window.localStorage) return null;
-  return window.localStorage;
+  if (typeof window === "undefined") return null;
+  try {
+    return window.localStorage || null;
+  } catch {
+    return null;
+  }
 }
 
 function hasPanelId(panelId) {
@@ -509,31 +522,40 @@ function getPresetSeed(presetId) {
 }
 
 export function normalizeWorkbenchLayout(layout = {}) {
-  const source = isObject(layout) ? layout : {};
-  const presetId = normalizePresetId(source.presetId);
-  const preset = getPresetSeed(presetId);
-  const { panelZones, zonePanelIds } = normalizePanelLayout(source);
+  try {
+    const source = isObject(layout) ? layout : {};
+    const presetId = normalizePresetId(source.presetId);
+    const preset = getPresetSeed(presetId);
+    const { panelZones, zonePanelIds } = normalizePanelLayout(source);
 
-  return {
-    version: WORKBENCH_DOCK_VERSION,
-    presetId,
-    sidePanelSize: normalizeRegistryId(
-      source.sidePanelSize || preset.sidePanelSize,
-      SIDE_PANEL_SIZES,
-      preset.sidePanelSize,
-      SIDE_PANEL_SIZE_ALIASES,
-    ),
-    bottomPanelSize: normalizeRegistryId(
-      source.bottomPanelSize || preset.bottomPanelSize,
-      BOTTOM_PANEL_SIZES,
-      preset.bottomPanelSize,
-      BOTTOM_PANEL_SIZE_ALIASES,
-    ),
-    bottomPanelPlacement: WORKBENCH_PANEL_PLACEMENTS.bottom,
-    panelZones,
-    zonePanelIds,
-    panelPlacements: createPanelPlacementsFromZones(panelZones),
-  };
+    return {
+      version: WORKBENCH_DOCK_VERSION,
+      presetId,
+      sidePanelSize: normalizeRegistryId(
+        source.sidePanelSize || preset.sidePanelSize,
+        SIDE_PANEL_SIZES,
+        preset.sidePanelSize,
+        SIDE_PANEL_SIZE_ALIASES,
+      ),
+      bottomPanelSize: normalizeRegistryId(
+        source.bottomPanelSize || preset.bottomPanelSize,
+        BOTTOM_PANEL_SIZES,
+        preset.bottomPanelSize,
+        BOTTOM_PANEL_SIZE_ALIASES,
+      ),
+      bottomPanelPlacement: WORKBENCH_PANEL_PLACEMENTS.bottom,
+      panelZones,
+      zonePanelIds,
+      panelPlacements: createPanelPlacementsFromZones(panelZones),
+    };
+  } catch {
+    return {
+      ...DEFAULT_WORKBENCH_LAYOUT,
+      panelZones: { ...DEFAULT_WORKBENCH_LAYOUT.panelZones },
+      zonePanelIds: cloneZonePanelIds(DEFAULT_WORKBENCH_LAYOUT.zonePanelIds),
+      panelPlacements: { ...DEFAULT_WORKBENCH_LAYOUT.panelPlacements },
+    };
+  }
 }
 
 export function getDefaultWorkbenchLayout() {

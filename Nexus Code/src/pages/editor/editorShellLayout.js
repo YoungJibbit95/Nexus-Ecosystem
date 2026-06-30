@@ -51,9 +51,12 @@ export const PANEL_META = {
 };
 
 export const PANEL_BOUNDS = {
-  railWidth: "w-14",
-  bottomHeight: "h-[clamp(13rem,30vh,19rem)]",
-  compactBottomHeight: "h-[min(17rem,42vh)]",
+  railWidth: "w-[3.375rem]",
+  compactRailWidth: "w-[3.125rem]",
+  railOffset: "3.375rem",
+  compactRailOffset: "3.125rem",
+  bottomHeight: "h-[clamp(11.5rem,27vh,16.5rem)]",
+  compactBottomHeight: "h-[min(15rem,40vh)]",
 };
 
 export function getPanelMeta(panelId) {
@@ -102,11 +105,12 @@ export function getSidePanelStyle({ compact = false, size } = {}) {
   };
 }
 
-export function getRailClassName(side = "left") {
+export function getRailClassName(side = "left", { compact = false } = {}) {
   const borderClass = side === "right" ? "border-l" : "border-r";
+  const widthClass = compact ? PANEL_BOUNDS.compactRailWidth : PANEL_BOUNDS.railWidth;
   return [
     "nx-code-rail",
-    PANEL_BOUNDS.railWidth,
+    widthClass,
     "relative z-40 h-full min-h-0 overflow-visible flex flex-col",
     `${borderClass} border-white/5 shrink-0 nexus-panel-surface`,
   ].join(" ");

@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 
 import {
+  ACCOUNT_AUTH_MODES,
+  createLocalAccountSession,
+  getAccountSessionState,
+  normalizeAccountSession,
+} from "../app/accountSession.js";
+import {
   createFileNodesFromEntries,
   createFileTreeModel,
   getFileExtension,
@@ -12,10 +18,13 @@ import {
   getEditorCommandPaletteCommands,
   groupCommandPaletteItems,
   rankCommandPaletteItems,
+  rankSpotlightFiles,
 } from "../pages/editor/commandPaletteModel.js";
 import {
   createEditorCommandRegistry,
   createSnippetCompletions,
+  extractDocumentSymbols,
+  getActiveDocumentSymbol,
   lspCompletionsToCodeMirror,
   shouldRequestLspCompletion,
 } from "../pages/editor/editorFeatureModel.js";
@@ -613,6 +622,136 @@ const scenarios = [
     },
   },
   {
+    id: "account-session-start-contract",
+    title: "account session contract supports local start and migrated API sessions",
+    run() {
+      const localSession = createLocalAccountSession({ username: "Local IDE" });
+      const localState = getAccountSessionState(localSession);
+      assert.equal(localSession.authMode, ACCOUNT_AUTH_MODES.local);
+      assert.equal(localState.canStartWorkbench, true);
+      assert.equal(localState.isLocal, true);
+
+      const migratedSession = normalizeAccountSession({
+        token: "session-token",
+        userId: "user-1",
+        username: "nexus-user",
+        userTier: "paid",
+        expiresAt: Date.now() + 60_000,
+      });
+      const migratedState = getAccountSessionState(migratedSession);
+      assert.equal(migratedSession.authMode, ACCOUNT_AUTH_MODES.nexus);
+      assert.equal(migratedSession.userTier, "pro");
+      assert.equal(migratedState.canStartWorkbench, true);
+
+      const expiredSession = normalizeAccountSession({
+        authMode: ACCOUNT_AUTH_MODES.nexus,
+        token: "expired",
+        username: "old-user",
+        expiresAt: Date.now() - 1_000,
+      });
+      assert.equal(getAccountSessionState(expiredSession).canStartWorkbench, false);
+    },
+  },
+  {
+    id: "command-palette-fuzzy-search-ranking",
+    title: "palette ranking accepts compact command abbreviations",
+    run() {
+      const paletteCommands = getEditorCommandPaletteCommands({ surface: "palette" });
+      const ranked = rankCommandPaletteItems(paletteCommands, "opgpr");
+
+      assert.equal(ranked[0]?.id, "open-github-projects");
+      assert.equal(ranked[0]?.actionId, "open-github-projects");
+      assert.equal(ranked[0]?.categoryMeta.id, "source-control");
+
+      const terminalRanked = rankCommandPaletteItems(paletteCommands, "ttr");
+      assert.equal(terminalRanked[0]?.id, "terminal-task-runner");
+    },
+  },
+  {
+    id: "spotlight-file-fuzzy-dedupe",
+    title: "spotlight file search handles abbreviations and duplicate entries",
+    run() {
+      const files = [
+        {
+          id: "command-model",
+          name: "commandPaletteModel.js",
+          fsPath: "src/pages/editor/commandPaletteModel.js",
+          type: "file",
+        },
+        {
+          id: "command-model",
+          name: "commandPaletteModel.js",
+          fsPath: "src/pages/editor/commandPaletteModel.js",
+          type: "file",
+        },
+        {
+          id: "code-editor",
+          name: "CodeEditor.jsx",
+          fsPath: "src/components/editor/CodeEditor.jsx",
+          type: "file",
+        },
+      ];
+
+      const rankedFiles = rankSpotlightFiles(files, "cpm", 8);
+      assert.equal(rankedFiles.length, 1);
+      assert.equal(rankedFiles[0]?.id, "command-model");
+      assert.equal(rankedFiles[0]?.payload, "command-model");
+
+      const mixedResults = createSpotlightResults({
+        files,
+        query: "src cpm",
+        maxCommands: 4,
+        maxFiles: 4,
+      });
+      assert.equal(mixedResults[0]?.resultKind, "file");
+      assert.equal(mixedResults[0]?.id, "command-model");
+    },
+  },
+  {
+    id: "editor-symbol-extraction-active-scope",
+    title: "document symbols expose active editor scope",
+    run() {
+      const source = [
+        "export class WorkbenchController {",
+        "  constructor() {}",
+        "  renderPanel() {",
+        "    return true;",
+        "  }",
+        "}",
+        "",
+        "export const createCommand = () => true;",
+      ].join("\n");
+      const symbols = extractDocumentSymbols(source, "typescript");
+
+      assert.deepEqual(
+        symbols.map((symbol) => `${symbol.kind}:${symbol.name}`),
+        [
+          "class:WorkbenchController",
+          "method:constructor",
+          "method:renderPanel",
+          "function:createCommand",
+        ],
+      );
+      assert.equal(getActiveDocumentSymbol(symbols, 4)?.name, "renderPanel");
+      assert.equal(getActiveDocumentSymbol(symbols, 6)?.name, "WorkbenchController");
+      assert.equal(getActiveDocumentSymbol(symbols, 8)?.name, "createCommand");
+
+      const markdownSymbols = extractDocumentSymbols(
+        "# Release\n\n## Smoke Gates\n\n### IDE Core",
+        "markdown",
+      );
+      assert.deepEqual(
+        markdownSymbols.map((symbol) => [symbol.name, symbol.depth]),
+        [
+          ["Release", 0],
+          ["Smoke Gates", 1],
+          ["IDE Core", 2],
+        ],
+      );
+      assert.equal(getActiveDocumentSymbol(markdownSymbols, 5)?.name, "IDE Core");
+    },
+  },
+  {
     id: "editor-completion-helper-routing",
     title: "snippet and LSP completion helpers stay deterministic near CodeEditor",
     run() {
@@ -677,7 +816,7 @@ const scenarios = [
       );
 
       assert.equal(completionResult.from, 0);
-      assert.equal(String(completionResult.validFor), "/^[\\w$-]*$/");
+      assert.equal(String(completionResult.validFor), "/[\\w$-]*$/");
       assert.equal(
         completionResult.options.filter((option) => option.label === "clg").length,
         1,
@@ -701,6 +840,32 @@ const scenarios = [
         (option) => option.label === "beta",
       );
       assert.equal(typeof textEditOption.apply, "function");
+
+      const cssCompletionResult = lspCompletionsToCodeMirror(
+        createCompletionContext(".button:"),
+        {
+          isIncomplete: false,
+          items: [{ label: "color", kind: 10, insertText: "color" }],
+        },
+        null,
+        { languageId: "css" },
+      );
+      assert.equal(cssCompletionResult.from, 0);
+      assert.equal(String(cssCompletionResult.validFor), "/[\\w$#.:-]*$/");
+
+      const cappedResult = lspCompletionsToCodeMirror(
+        createCompletionContext("item", { explicit: true }),
+        {
+          isIncomplete: false,
+          items: Array.from({ length: 320 }, (_, index) => ({
+            label: `item${index}`,
+            kind: 3,
+          })),
+        },
+        null,
+        { maxItems: 500 },
+      );
+      assert.equal(cappedResult.options.length, 240);
 
       const incompleteResult = lspCompletionsToCodeMirror(
         createCompletionContext("do"),

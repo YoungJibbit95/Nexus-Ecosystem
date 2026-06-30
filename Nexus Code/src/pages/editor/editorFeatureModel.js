@@ -443,6 +443,8 @@ const COMPLETION_MATCH_PATTERN = /[\w$-]*$/;
 const CSS_COMPLETION_MATCH_PATTERN = /[\w$#.:-]*$/;
 const MARKDOWN_COMPLETION_MATCH_PATTERN = /[#>`*\w$-]*$/;
 const LOCAL_COMPLETION_IMPLICIT_MIN_LENGTH = 1;
+const COMPLETION_LIMIT_MIN = 16;
+const COMPLETION_LIMIT_MAX = 240;
 
 const COMPLETION_SECTIONS = Object.freeze({
   lspRecommended: Object.freeze({ name: "Recommended", rank: 0 }),
@@ -864,6 +866,277 @@ const LANGUAGE_COMPLETION_MAP = Object.freeze({
   [LANGUAGE_IDS.MDX]: MARKDOWN_COMPLETIONS,
 });
 
+const RESERVED_SYMBOL_NAMES = new Set([
+  "catch",
+  "else",
+  "for",
+  "if",
+  "switch",
+  "while",
+  "with",
+]);
+
+const JAVASCRIPT_SYMBOL_PATTERNS = Object.freeze([
+  Object.freeze({
+    kind: "class",
+    detail: "class",
+    pattern: /^\s*(?:export\s+default\s+|export\s+)?class\s+([A-Za-z_$][\w$]*)/,
+  }),
+  Object.freeze({
+    kind: "interface",
+    detail: "interface",
+    pattern: /^\s*(?:export\s+)?interface\s+([A-Za-z_$][\w$]*)/,
+  }),
+  Object.freeze({
+    kind: "type",
+    detail: "type",
+    pattern: /^\s*(?:export\s+)?type\s+([A-Za-z_$][\w$]*)\s*=/,
+  }),
+  Object.freeze({
+    kind: "function",
+    detail: "function",
+    pattern: /^\s*(?:export\s+default\s+|export\s+)?(?:async\s+)?function\s+([A-Za-z_$][\w$]*)\s*\(/,
+  }),
+  Object.freeze({
+    kind: "function",
+    detail: "arrow function",
+    pattern: /^\s*(?:export\s+)?(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?(?:\([^)]*\)|[A-Za-z_$][\w$]*)\s*=>/,
+  }),
+  Object.freeze({
+    kind: "function",
+    detail: "function expression",
+    pattern: /^\s*(?:export\s+)?(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s+)?function\b/,
+  }),
+  Object.freeze({
+    kind: "method",
+    detail: "method",
+    pattern: /^\s*(?:async\s+|static\s+|public\s+|private\s+|protected\s+|readonly\s+|get\s+|set\s+)*([A-Za-z_$][\w$]*)\s*\([^)]*\)\s*\{/,
+  }),
+]);
+
+const PYTHON_SYMBOL_PATTERNS = Object.freeze([
+  Object.freeze({
+    kind: "class",
+    detail: "class",
+    pattern: /^\s*class\s+([A-Za-z_][\w]*)/,
+  }),
+  Object.freeze({
+    kind: "function",
+    detail: "function",
+    pattern: /^\s*(?:async\s+)?def\s+([A-Za-z_][\w]*)\s*\(/,
+  }),
+]);
+
+const RUST_SYMBOL_PATTERNS = Object.freeze([
+  Object.freeze({
+    kind: "function",
+    detail: "function",
+    pattern: /^\s*(?:pub\s+)?fn\s+([A-Za-z_][\w]*)\s*\(/,
+  }),
+  Object.freeze({
+    kind: "class",
+    detail: "struct",
+    pattern: /^\s*(?:pub\s+)?struct\s+([A-Za-z_][\w]*)/,
+  }),
+  Object.freeze({
+    kind: "enum",
+    detail: "enum",
+    pattern: /^\s*(?:pub\s+)?enum\s+([A-Za-z_][\w]*)/,
+  }),
+  Object.freeze({
+    kind: "module",
+    detail: "impl",
+    pattern: /^\s*impl(?:\s*<[^>]+>)?\s+([A-Za-z_][\w]*)/,
+  }),
+]);
+
+const GO_SYMBOL_PATTERNS = Object.freeze([
+  Object.freeze({
+    kind: "function",
+    detail: "function",
+    pattern: /^\s*func\s+(?:\([^)]*\)\s*)?([A-Za-z_][\w]*)\s*\(/,
+  }),
+  Object.freeze({
+    kind: "type",
+    detail: "type",
+    pattern: /^\s*type\s+([A-Za-z_][\w]*)\s+(?:struct|interface|func|map|\w+)/,
+  }),
+]);
+
+const CSS_SYMBOL_PATTERNS = Object.freeze([
+  Object.freeze({
+    kind: "selector",
+    detail: "selector",
+    pattern: /^\s*([.#]?[A-Za-z][\w-]*)[^{};]*\{\s*$/,
+  }),
+]);
+
+const JSON_SYMBOL_PATTERNS = Object.freeze([
+  Object.freeze({
+    kind: "property",
+    detail: "top-level property",
+    maxIndent: 2,
+    pattern: /^\s*"([^"]+)"\s*:/,
+  }),
+]);
+
+const MARKDOWN_SYMBOL_PATTERNS = Object.freeze([
+  Object.freeze({
+    kind: "heading",
+    detail: "heading",
+    nameIndex: 2,
+    depthFromHeading: true,
+    pattern: /^(#{1,6})\s+(.+)$/,
+  }),
+]);
+
+const SYMBOL_PATTERNS_BY_LANGUAGE = Object.freeze({
+  [LANGUAGE_IDS.JAVASCRIPT]: JAVASCRIPT_SYMBOL_PATTERNS,
+  [LANGUAGE_IDS.TYPESCRIPT]: JAVASCRIPT_SYMBOL_PATTERNS,
+  [LANGUAGE_IDS.PYTHON]: PYTHON_SYMBOL_PATTERNS,
+  [LANGUAGE_IDS.RUST]: RUST_SYMBOL_PATTERNS,
+  [LANGUAGE_IDS.GO]: GO_SYMBOL_PATTERNS,
+  [LANGUAGE_IDS.CSS]: CSS_SYMBOL_PATTERNS,
+  [LANGUAGE_IDS.SCSS]: CSS_SYMBOL_PATTERNS,
+  [LANGUAGE_IDS.LESS]: CSS_SYMBOL_PATTERNS,
+  [LANGUAGE_IDS.JSON]: JSON_SYMBOL_PATTERNS,
+  [LANGUAGE_IDS.JSONC]: JSON_SYMBOL_PATTERNS,
+  [LANGUAGE_IDS.MARKDOWN]: MARKDOWN_SYMBOL_PATTERNS,
+  [LANGUAGE_IDS.MDX]: MARKDOWN_SYMBOL_PATTERNS,
+});
+
+function getLineIndent(line) {
+  return String(line || "")
+    .match(/^\s*/)[0]
+    .replace(/\t/g, "  ").length;
+}
+
+function normalizeSymbolName(value) {
+  return String(value || "")
+    .replace(/\s+/g, " ")
+    .replace(/[({\[].*$/, "")
+    .trim();
+}
+
+function getBraceDelta(line) {
+  return [...String(line || "")].reduce((delta, character) => {
+    if (character === "{") return delta + 1;
+    if (character === "}") return delta - 1;
+    return delta;
+  }, 0);
+}
+
+function getBraceScopeEndLine(lines, startIndex) {
+  let depth = 0;
+  let opened = false;
+  for (let index = startIndex; index < lines.length; index += 1) {
+    const delta = getBraceDelta(lines[index]);
+    if (delta > 0) opened = true;
+    depth += delta;
+    if (opened && depth <= 0) return index + 1;
+  }
+  return null;
+}
+
+function getSymbolEndLine(symbols, index, totalLines) {
+  const symbol = symbols[index];
+  if (Number.isFinite(Number(symbol.scopeEndLine))) {
+    return Math.max(symbol.line, Math.min(totalLines, Number(symbol.scopeEndLine)));
+  }
+  for (let nextIndex = index + 1; nextIndex < symbols.length; nextIndex += 1) {
+    const next = symbols[nextIndex];
+    if (next.depth <= symbol.depth) return Math.max(symbol.line, next.line - 1);
+  }
+  return Math.max(symbol.line, totalLines);
+}
+
+function createDocumentSymbol(line, lineIndex, descriptor, match) {
+  const name = normalizeSymbolName(match[descriptor.nameIndex || 1]);
+  if (!name || RESERVED_SYMBOL_NAMES.has(name)) return null;
+  const indent = getLineIndent(line);
+  if (Number.isFinite(descriptor.maxIndent) && indent > descriptor.maxIndent) {
+    return null;
+  }
+  const firstColumn = Math.max(1, line.search(/\S/) + 1);
+  const depth = descriptor.depthFromHeading
+    ? Math.max(0, String(match[1] || "").length - 1)
+    : Math.floor(indent / 2);
+
+  return {
+    id: `${lineIndex + 1}:${firstColumn}:${descriptor.kind}:${name}`,
+    name,
+    kind: descriptor.kind,
+    detail: descriptor.detail,
+    line: lineIndex + 1,
+    column: firstColumn,
+    depth,
+  };
+}
+
+export function extractDocumentSymbols(source, languageId, options = {}) {
+  const text = String(source || "");
+  if (!text.trim()) return [];
+  const normalizedLanguageId = normalizeLanguageId(languageId, LANGUAGE_IDS.PLAINTEXT);
+  const patterns = SYMBOL_PATTERNS_BY_LANGUAGE[normalizedLanguageId] || JAVASCRIPT_SYMBOL_PATTERNS;
+  const maxSymbols = Math.max(
+    1,
+    Math.min(500, Math.round(Number(options.maxSymbols || 160))),
+  );
+  const lines = text.replace(/\r\n/g, "\n").split("\n");
+  const symbols = [];
+
+  for (let index = 0; index < lines.length && symbols.length < maxSymbols; index += 1) {
+    const line = lines[index];
+    if (!line.trim()) continue;
+    for (const descriptor of patterns) {
+      const match = descriptor.pattern.exec(line);
+      if (!match) continue;
+      const symbol = createDocumentSymbol(line, index, descriptor, match);
+      if (symbol) {
+        symbols.push({
+          ...symbol,
+          scopeEndLine: getBraceScopeEndLine(lines, index),
+        });
+      }
+      break;
+    }
+  }
+
+  return symbols.map((symbol, index) =>
+    Object.freeze({
+      id: symbol.id,
+      name: symbol.name,
+      kind: symbol.kind,
+      detail: symbol.detail,
+      line: symbol.line,
+      column: symbol.column,
+      depth: symbol.depth,
+      endLine: getSymbolEndLine(symbols, index, lines.length),
+    }),
+  );
+}
+
+export function getActiveDocumentSymbol(symbols, lineNumber) {
+  const line = Math.max(1, Math.round(Number(lineNumber || 1)));
+  let candidate = null;
+  let nearestBefore = null;
+
+  (Array.isArray(symbols) ? symbols : []).forEach((symbol) => {
+    if (!symbol || !Number.isFinite(Number(symbol.line))) return;
+    if (symbol.line <= line) nearestBefore = symbol;
+    if (symbol.line > line || Number(symbol.endLine || symbol.line) < line) return;
+    if (
+      !candidate ||
+      symbol.line > candidate.line ||
+      (symbol.line === candidate.line && symbol.depth >= candidate.depth)
+    ) {
+      candidate = symbol;
+    }
+  });
+
+  return candidate || nearestBefore || null;
+}
+
 function normalizeCommandListValue(value) {
   if (Array.isArray(value)) {
     return value.map((item) => String(item || "").trim()).filter(Boolean);
@@ -1123,6 +1396,23 @@ function completionKindName(kind) {
   return COMPLETION_KIND_NAMES[Number(kind)] || "Symbol";
 }
 
+function resolveCompletionLimit(options) {
+  if (typeof options === "number") {
+    return Math.max(
+      COMPLETION_LIMIT_MIN,
+      Math.min(COMPLETION_LIMIT_MAX, Math.round(options)),
+    );
+  }
+
+  const fallback = options?.lowPowerMode ? 72 : 120;
+  const value = Number(options?.maxItems ?? fallback);
+  const resolved = Number.isFinite(value) ? value : fallback;
+  return Math.max(
+    COMPLETION_LIMIT_MIN,
+    Math.min(COMPLETION_LIMIT_MAX, Math.round(resolved)),
+  );
+}
+
 function normalizeCompletionLabel(item) {
   if (typeof item?.label === "string") return item.label;
   if (item?.label?.label) return item.label.label;
@@ -1331,20 +1621,19 @@ export function shouldRequestLspCompletion(context) {
 }
 
 export function lspCompletionsToCodeMirror(context, completionList, snippetResult, options = {}) {
-  const maxItems =
-    typeof options === "number"
-      ? options
-      : options.lowPowerMode
-        ? 72
-        : Number(options.maxItems || 120);
-  const word = context.matchBefore(COMPLETION_MATCH_PATTERN);
+  const resolvedOptions = typeof options === "object" && options !== null ? options : {};
+  const maxItems = resolveCompletionLimit(options);
+  const normalizedLanguageId = normalizeCompletionSourceLanguage(resolvedOptions.languageId);
+  const matchPattern = getCompletionMatchPattern(normalizedLanguageId);
+  const word = context.matchBefore(matchPattern);
   const from = word ? word.from : context.pos;
-  const items = completionList?.items || [];
+  const items = Array.isArray(completionList?.items) ? completionList.items : [];
   const lspOptions = items.slice(0, maxItems).map((item, index) => {
     const label = normalizeCompletionLabel(item);
     const insertText = resolveCompletionText(item, label);
     const documentation = readMarkupContent(item.documentation).trim();
     const kindDetail = completionKindName(item.kind);
+    const sortText = String(item.sortText || "");
     const detailParts = [
       item.detail,
       item.labelDetails?.detail,
@@ -1358,9 +1647,9 @@ export function lspCompletionsToCodeMirror(context, completionList, snippetResul
       info: documentation || kindDetail,
       apply: applyCompletionTextEdit(item, insertText),
       boost: getCompletionBoost(item, index),
-      sortText: item.sortText,
+      sortText,
       commitCharacters: item.commitCharacters,
-      section: item.sortText?.startsWith("!")
+      section: sortText.startsWith("!")
         ? COMPLETION_SECTIONS.lspRecommended
         : COMPLETION_SECTIONS.lsp,
     };
@@ -1370,7 +1659,7 @@ export function lspCompletionsToCodeMirror(context, completionList, snippetResul
   return {
     from,
     options: mergeCompletionOptions([lspOptions, localOptions]),
-    validFor: completionList?.isIncomplete ? undefined : WORD_COMPLETION_PATTERN,
+    validFor: completionList?.isIncomplete ? undefined : matchPattern,
   };
 }
 

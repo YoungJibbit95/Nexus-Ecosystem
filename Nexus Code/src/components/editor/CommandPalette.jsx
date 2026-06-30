@@ -44,13 +44,14 @@ export default function CommandPalette({
   );
   const groups = useMemo(() => groupCommandPaletteItems(filtered), [filtered]);
   const normalizedQuery = normalizeSearchValue(query);
+  const selectedCommand = filtered[selectedIndex] || null;
 
   useEffect(() => {
-    if (isOpen) {
-      setQuery("");
-      setSelectedIndex(0);
-      window.setTimeout(() => inputRef.current?.focus(), 50);
-    }
+    if (!isOpen) return undefined;
+    setQuery("");
+    setSelectedIndex(0);
+    const focusTimer = window.setTimeout(() => inputRef.current?.focus(), 50);
+    return () => window.clearTimeout(focusTimer);
   }, [isOpen]);
 
   useEffect(() => {
@@ -64,6 +65,10 @@ export default function CommandPalette({
       block: "nearest",
     });
   }, [selectedIndex, filtered.length]);
+
+  useEffect(() => {
+    optionRefs.current.length = filtered.length;
+  }, [filtered.length]);
 
   const moveSelection = (delta) => {
     if (filtered.length === 0) return;
@@ -147,6 +152,7 @@ export default function CommandPalette({
                   className="w-full bg-transparent text-base font-medium text-gray-100 outline-none placeholder:text-gray-600"
                   role="combobox"
                   aria-expanded="true"
+                  aria-autocomplete="list"
                   aria-controls="nexus-command-palette-results"
                   aria-activedescendant={
                     filtered[selectedIndex] ? `command-palette-${filtered[selectedIndex].id}` : undefined
@@ -163,6 +169,7 @@ export default function CommandPalette({
               id="nexus-command-palette-results"
               className="max-h-[460px] overflow-y-auto p-3"
               role="listbox"
+              aria-label="Command results"
             >
               {groups.length > 0 ? (
                 <div className="flex flex-col gap-3">
@@ -195,6 +202,9 @@ export default function CommandPalette({
                                   optionRefs.current[index] = node;
                                 }}
                                 type="button"
+                                title={command.description || command.label}
+                                data-action-id={command.actionId || command.id}
+                                onMouseDown={(event) => event.preventDefault()}
                                 onMouseEnter={() => setSelectedIndex(index)}
                                 onClick={() => runCommand(command)}
                                 className={`grid min-h-[58px] w-full grid-cols-[2.75rem_minmax(0,1fr)_auto] items-center gap-3 rounded-xl border px-3 text-left transition-all ${
@@ -204,6 +214,8 @@ export default function CommandPalette({
                                 }`}
                                 role="option"
                                 aria-selected={active}
+                                aria-posinset={index + 1}
+                                aria-setsize={filtered.length}
                               >
                                 <span
                                   className={`flex size-9 items-center justify-center rounded-lg border ${
@@ -267,10 +279,15 @@ export default function CommandPalette({
                 <KeyboardHint label="Enter" />
                 <span>Auswaehlen</span>
               </div>
-              <div className="flex items-center gap-2">
-                <KeyboardHint label="Home" />
-                <KeyboardHint label="End" />
-                <KeyboardHint label="Esc" />
+              <div className="flex min-w-0 items-center gap-2">
+                {selectedCommand ? (
+                  <span className="max-w-[18rem] truncate text-gray-400">
+                    {selectedCommand.categoryMeta.label}
+                    {selectedCommand.shortcut ? ` / ${selectedCommand.shortcut}` : ""}
+                  </span>
+                ) : (
+                  <span className="text-gray-600">No selection</span>
+                )}
               </div>
             </div>
           </motion.div>

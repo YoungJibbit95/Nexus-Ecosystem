@@ -245,9 +245,9 @@ export function createUiSmokeScenarios() {
       expectedText: [
         "Nexus Account",
         "UI smoke control fixture with long account status label",
-        "Identity",
-        "Token",
-        "Present",
+        "Mode",
+        "Session",
+        "Ready",
       ],
       requiredMarkup: [
         "nx-editor-panel-shell",

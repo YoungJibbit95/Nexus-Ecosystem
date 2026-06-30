@@ -35,7 +35,7 @@
         --chart-3: 197 37% 24%;
         --chart-4: 43 74% 66%;
         --chart-5: 27 87% 67%;
-        --radius: 0.75rem;
+        --radius: 0.875rem;
         --sidebar-background: 0 0% 98%;
         --sidebar-foreground: 240 5.3% 26.1%;
         --sidebar-primary: 240 5.9% 10%;
@@ -73,7 +73,7 @@
         --border: 240 10% 15%;
         --input: 240 10% 15%;
         --ring: 262 83% 58%;
-        --radius: 0.75rem;
+        --radius: 0.875rem;
         --sidebar-background: 240 40% 3%;
         --sidebar-foreground: 240 5% 85%;
         --sidebar-primary: 262 83% 58%;
@@ -112,6 +112,10 @@
         overflow: hidden;
     }
 
+    html {
+        scroll-behavior: smooth;
+    }
+
     *,
     *::before,
     *::after {
@@ -145,6 +149,20 @@
     select option {
         background: #0b1020;
         color: #e5e7eb;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        html {
+            scroll-behavior: auto;
+        }
+
+        *,
+        *::before,
+        *::after {
+            animation-duration: 0.01ms !important;
+            animation-iteration-count: 1 !important;
+            transition-duration: 0.01ms !important;
+        }
     }
 }
 @layer utilities {

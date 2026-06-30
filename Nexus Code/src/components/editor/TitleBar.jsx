@@ -18,7 +18,7 @@ import {
   TerminalSquare,
   X,
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 
 /** @type {any} */
 const win = typeof window !== "undefined" ? window : {};
@@ -42,9 +42,14 @@ function MenuItemButton({ item, onSelect }) {
         item.disabled ? "is-disabled" : ""
       }`}
     >
-      <span className="flex min-w-0 items-center gap-2">
+      <span className="flex min-w-0 flex-1 items-center gap-2">
         {Icon ? <Icon size={13} className="shrink-0" /> : null}
-        <span className="truncate">{item.label}</span>
+        <span
+          className="min-w-0 break-words leading-snug"
+          style={{ overflowWrap: "anywhere" }}
+        >
+          {item.label}
+        </span>
       </span>
       {item.shortcut ? (
         <span className="shrink-0 text-[9px] font-semibold tabular-nums text-gray-500">
@@ -57,6 +62,7 @@ function MenuItemButton({ item, onSelect }) {
 
 function MenuButton({ label, items, activeMenu, setActiveMenu }) {
   const isOpen = activeMenu === label;
+  const reduceMotion = useReducedMotion();
 
   return (
     <div className="relative" onMouseEnter={() => activeMenu && setActiveMenu(label)}>
@@ -82,10 +88,10 @@ function MenuButton({ label, items, activeMenu, setActiveMenu }) {
               style={{ WebkitAppRegion: "no-drag" }}
             />
             <motion.div
-              initial={{ opacity: 0, y: 6, scale: 0.98 }}
+              initial={reduceMotion ? false : { opacity: 0, y: 6, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 6, scale: 0.98 }}
-              transition={{ duration: 0.14 }}
+              exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 6, scale: 0.98 }}
+              transition={{ duration: reduceMotion ? 0 : 0.18, ease: [0.22, 1, 0.36, 1] }}
               className="nx-code-menu-dropdown absolute left-0 top-full z-50 mt-1 min-w-[200px] overflow-hidden p-1"
               role="menu"
               // @ts-ignore
@@ -108,6 +114,7 @@ function MenuButton({ label, items, activeMenu, setActiveMenu }) {
 
 function CompactMenuButton({ menus, activeMenu, setActiveMenu }) {
   const isOpen = activeMenu === COMPACT_MENU_ID;
+  const reduceMotion = useReducedMotion();
 
   return (
     <div
@@ -139,10 +146,10 @@ function CompactMenuButton({ menus, activeMenu, setActiveMenu }) {
               style={{ WebkitAppRegion: "no-drag" }}
             />
             <motion.div
-              initial={{ opacity: 0, y: 6, scale: 0.98 }}
+              initial={reduceMotion ? false : { opacity: 0, y: 6, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 6, scale: 0.98 }}
-              transition={{ duration: 0.14 }}
+              exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 6, scale: 0.98 }}
+              transition={{ duration: reduceMotion ? 0 : 0.18, ease: [0.22, 1, 0.36, 1] }}
               className="nx-code-menu-dropdown absolute left-0 top-full z-50 mt-1 w-[15.5rem] overflow-hidden p-1"
               role="menu"
               // @ts-ignore
@@ -174,19 +181,22 @@ function CompactMenuButton({ menus, activeMenu, setActiveMenu }) {
 }
 
 function CommandButton({ icon: Icon, label, active, onClick, title }) {
+  const reduceMotion = useReducedMotion();
+
   return (
     <motion.button
       type="button"
       aria-pressed={active}
       title={title || label}
       onClick={onClick}
-      whileHover={{ y: -1 }}
-      whileTap={{ scale: 0.94 }}
+      whileHover={reduceMotion ? undefined : { y: -1 }}
+      whileTap={reduceMotion ? undefined : { scale: 0.96 }}
+      transition={{ duration: reduceMotion ? 0 : 0.18, ease: [0.22, 1, 0.36, 1] }}
       className="nx-code-command-button nx-code-titlebar-icon-button flex shrink-0 items-center justify-center text-gray-400 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500/60"
       style={{
         width: 30,
         height: 30,
-        borderRadius: 8,
+        borderRadius: "var(--nexus-radius-md, 14px)",
         border: active
           ? "1px solid rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.3)"
           : "1px solid rgba(142, 153, 183, 0.12)",
@@ -213,7 +223,7 @@ function ShellPill({ icon: Icon, label, tone = "muted" }) {
       style={{
         height: 30,
         maxWidth: 128,
-        borderRadius: 8,
+        borderRadius: "var(--nexus-radius-lg, 18px)",
         border: isPrimary
           ? "1px solid rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.22)"
           : "1px solid rgba(255, 255, 255, 0.075)",
@@ -256,6 +266,7 @@ export default function TitleBar({
   const [isMaximized, setIsMaximized] = useState(false);
   const [activeMenu, setActiveMenu] = useState(null);
   const menuHostRef = useRef(null);
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
     if (!isElectron) return undefined;
@@ -375,7 +386,8 @@ export default function TitleBar({
               <motion.button
                 key={btn.id}
                 type="button"
-                whileTap={{ scale: 0.85 }}
+                whileTap={reduceMotion ? undefined : { scale: 0.9 }}
+                transition={{ duration: reduceMotion ? 0 : 0.14, ease: [0.22, 1, 0.36, 1] }}
                 onClick={btn.action}
                 title={btn.label}
                 aria-label={btn.label}
@@ -396,7 +408,7 @@ export default function TitleBar({
           style={{
             height: 30,
             gap: 7,
-            borderRadius: 8,
+            borderRadius: "var(--nexus-radius-lg, 18px)",
             border: "1px solid rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.16)",
             background: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.075)",
             padding: "0 9px 0 6px",
@@ -409,7 +421,7 @@ export default function TitleBar({
             style={{
               width: 20,
               height: 20,
-              borderRadius: 6,
+              borderRadius: "var(--nexus-radius-sm, 12px)",
               background: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.16)",
               color: "var(--nexus-primary, #7c8cff)",
             }}
@@ -431,7 +443,7 @@ export default function TitleBar({
             className={`nx-code-menu-host nx-code-menu-cluster items-center ${compact ? "hidden xl:flex" : "flex"}`}
             style={{
               height: 30,
-              borderRadius: 8,
+              borderRadius: "var(--nexus-radius-lg, 18px)",
               background: "rgba(255, 255, 255, 0.028)",
               backdropFilter: "blur(12px)",
             }}
@@ -450,7 +462,7 @@ export default function TitleBar({
             className={`nx-code-menu-host nx-code-menu-compact-host items-center ${compact ? "flex xl:hidden" : "hidden"}`}
             style={{
               height: 30,
-              borderRadius: 8,
+              borderRadius: "var(--nexus-radius-lg, 18px)",
               background: "rgba(255, 255, 255, 0.028)",
               backdropFilter: "blur(12px)",
             }}
@@ -467,8 +479,9 @@ export default function TitleBar({
       <motion.button
         type="button"
         onClick={safeCommandPalette}
-        whileHover={{ y: -1 }}
-        whileTap={{ scale: 0.995 }}
+        whileHover={reduceMotion ? undefined : { y: -1 }}
+        whileTap={reduceMotion ? undefined : { scale: 0.995 }}
+        transition={{ duration: reduceMotion ? 0 : 0.18, ease: [0.22, 1, 0.36, 1] }}
         className="nx-code-command-center nx-code-command-center-pro mx-1 flex min-w-0 flex-[1.25] items-center justify-center text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500/60"
         // @ts-ignore
         style={{
@@ -477,7 +490,7 @@ export default function TitleBar({
           minWidth: compact ? 168 : 220,
           maxWidth: 560,
           gap: 9,
-          borderRadius: 8,
+          borderRadius: "var(--nexus-radius-pill, 9999px)",
           border: "1px solid rgba(142, 153, 183, 0.16)",
           background:
             "linear-gradient(180deg, rgba(255,255,255,0.058), rgba(255,255,255,0.02)), rgba(5, 7, 12, 0.34)",
@@ -493,7 +506,7 @@ export default function TitleBar({
           style={{
             width: 24,
             height: 24,
-            borderRadius: 7,
+            borderRadius: "var(--nexus-radius-md, 14px)",
             border: "1px solid rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.22)",
             background: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.11)",
             color: "var(--nexus-primary, #7c8cff)",

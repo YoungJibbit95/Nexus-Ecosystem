@@ -10,6 +10,7 @@ import {
   PanelBottom,
   PanelLeft,
   PanelRight,
+  RefreshCcw,
   TerminalSquare,
   XCircle,
 } from "lucide-react";
@@ -48,6 +49,7 @@ import { createFileNodesFromEntries } from "./editor/fileTreeModel";
 import {
   getBottomPanelClassName,
   getMainEditorClassName,
+  PANEL_BOUNDS,
   getPanelMeta,
   getRailClassName,
   getShellModeLabel,
@@ -67,7 +69,6 @@ import {
   getWorkbenchLayoutPresetOptions,
   getWorkbenchSlots,
   loadWorkbenchLayoutFromStorage,
-  movePanelToZone,
   normalizeWorkbenchLayout,
   openWorkbenchDockPanel,
   resetWorkbenchLayoutStorage,
@@ -141,6 +142,13 @@ const loadSettingsPanel = () => import("../components/editor/SettingsPanel");
 const loadCodeEditor = () => import("../components/editor/CodeEditor");
 const SettingsPanel = React.lazy(() => loadSettingsPanel());
 const CodeEditor = React.lazy(() => loadCodeEditor());
+
+function getNextOptionId(options, currentId) {
+  if (!options.length) return currentId;
+  const currentIndex = options.findIndex((option) => option.id === currentId);
+  const nextIndex = currentIndex === -1 ? 0 : (currentIndex + 1) % options.length;
+  return options[nextIndex]?.id || currentId;
+}
 
 function getWorkbenchDragPanelId(event, fallbackPanelId = null) {
   const transfer = event?.dataTransfer;
@@ -387,13 +395,17 @@ function getDockZonePanelSummary(panelIds) {
 function CompactBottomDockBar({
   activePanelId,
   activeZone,
+  size,
+  onSizeChange,
   onDockPanel,
+  onResetLayout,
   onClose,
   onPanelDragStart,
   onPanelDragEnd,
 }) {
   if (!activePanelId) return null;
   const meta = getPanelMeta(activePanelId);
+  const nextSize = getNextOptionId(BOTTOM_PANEL_SIZE_OPTIONS, size);
 
   return (
     <div
@@ -416,6 +428,22 @@ function CompactBottomDockBar({
         activeZone={activeZone}
         onDockPanel={onDockPanel}
       />
+      <button
+        type="button"
+        onClick={() => onSizeChange?.(nextSize)}
+        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-white/10 text-[var(--nexus-muted)] transition-colors hover:border-white/20 hover:bg-white/10 hover:text-gray-200"
+        title="Bottom-Dock Groesse wechseln"
+      >
+        <PanelBottom size={13} />
+      </button>
+      <button
+        type="button"
+        onClick={onResetLayout}
+        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-white/10 text-[var(--nexus-muted)] transition-colors hover:border-white/20 hover:bg-white/10 hover:text-gray-200"
+        title="Workbench Layout zuruecksetzen"
+      >
+        <RefreshCcw size={13} />
+      </button>
       <button
         type="button"
         onClick={onClose}
@@ -601,6 +629,7 @@ function SidePanelFrame({
   compact = false,
 }) {
   const meta = getPanelMeta(panelId);
+  const nextSidePanelSize = getNextOptionId(SIDE_PANEL_SIZE_OPTIONS, sidePanelSize);
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
@@ -627,6 +656,16 @@ function SidePanelFrame({
           onChange={onSidePanelSizeChange}
           className={compact ? "hidden sm:grid" : ""}
         />
+        {compact ? (
+          <button
+            type="button"
+            onClick={() => onSidePanelSizeChange?.(nextSidePanelSize)}
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-white/10 text-[var(--nexus-muted)] transition-colors hover:border-white/20 hover:bg-white/10 hover:text-gray-200 sm:hidden"
+            title="Panelbreite wechseln"
+          >
+            <PanelLeft size={13} />
+          </button>
+        ) : null}
         <DockZoneButtonGroup
           panelId={panelId}
           activeZone={snapZone}
@@ -1142,6 +1181,14 @@ export default function Editor({
     const normalizedZone = WORKBENCH_SNAP_ZONES[snapZone] || snapZone;
     if (!panelId || !normalizedZone) return;
 
+    const initialPreview = getLayoutDropPreview(
+      workbenchLayout,
+      panelId,
+      normalizedZone,
+      options,
+    );
+    if (!initialPreview.canDrop) return;
+
     setWorkbenchLayout((prev) => {
       const preview = getLayoutDropPreview(
         prev,
@@ -1149,12 +1196,10 @@ export default function Editor({
         normalizedZone,
         options,
       );
-      return preview.canDrop
-        ? preview.layout
-        : movePanelToZone(prev, panelId, normalizedZone, options);
+      return preview.canDrop ? preview.layout : prev;
     });
-    revealDockedWorkbenchPanel(panelId, normalizedZone);
-  }, [revealDockedWorkbenchPanel]);
+    revealDockedWorkbenchPanel(panelId, initialPreview.targetZone);
+  }, [revealDockedWorkbenchPanel, workbenchLayout]);
 
   const getVisibleWorkbenchPanelId = useCallback(() => {
     if (activePanel) return activePanel;
@@ -2436,6 +2481,11 @@ export default function Editor({
     activePanel: visibleWorkbenchPanel,
   });
   const activePanelMeta = getPanelMeta(visibleWorkbenchPanel);
+  const settingsWorkbenchPanelId = getVisibleWorkbenchPanelId();
+  const settingsWorkbenchPanelMeta = getPanelMeta(settingsWorkbenchPanelId);
+  const compactRailOffset = isCompactViewport
+    ? PANEL_BOUNDS.compactRailOffset
+    : PANEL_BOUNDS.railOffset;
   const sidePanelClassName = getSidePanelClassName({
     compact: isCompactViewport,
   });
@@ -2501,7 +2551,7 @@ export default function Editor({
         <div className="flex h-full min-h-0 w-full overflow-hidden">
         {sideRailVisible && sidebarSide === "left" && (
             <div
-              className={getRailClassName("left")}
+              className={getRailClassName("left", { compact: isCompactViewport })}
               style={{
                 background: "var(--nexus-panel-surface)",
                 backdropFilter: "var(--nexus-panel-filter)",
@@ -2543,6 +2593,14 @@ export default function Editor({
                 onSettingsChange={handleSettingsChange}
                 onResetSettings={handleResetSettings}
                 onClose={handleCloseSettingsPanel}
+                workbenchLayout={normalizedWorkbenchLayout}
+                activeWorkbenchPanelId={settingsWorkbenchPanelId}
+                activeWorkbenchPanelLabel={settingsWorkbenchPanelMeta.title}
+                onApplyWorkbenchLayoutPreset={handleApplyWorkbenchLayoutPreset}
+                onSetSidePanelSize={handleSetSidePanelSize}
+                onSetBottomPanelSize={handleSetBottomPanelSize}
+                onDockActivePanel={handleDockActivePanel}
+                onResetWorkbenchLayout={handleResetWorkbenchLayout}
               />
             </Suspense>
           </div>
@@ -2565,9 +2623,9 @@ export default function Editor({
                   style={{
                     position: isCompactViewport ? "absolute" : "relative",
                     top: isCompactViewport ? 0 : "auto",
-                    right: isCompactViewport && sidebarSide === "right" ? "3.25rem" : "auto",
+                    right: isCompactViewport && sidebarSide === "right" ? compactRailOffset : "auto",
                     bottom: isCompactViewport ? 0 : "auto",
-                    left: isCompactViewport && sidebarSide !== "right" ? "3.25rem" : "auto",
+                    left: isCompactViewport && sidebarSide !== "right" ? compactRailOffset : "auto",
                     height: "100%",
                     ...sidePanelStyle,
                     flexShrink: isCompactViewport ? undefined : 0,
@@ -2865,7 +2923,10 @@ export default function Editor({
                         <CompactBottomDockBar
                           activePanelId={bottomTab}
                           activeZone={bottomPanelSlot.snapZone}
+                          size={normalizedWorkbenchLayout.bottomPanelSize}
+                          onSizeChange={handleSetBottomPanelSize}
                           onDockPanel={handleDockWorkbenchPanel}
+                          onResetLayout={handleResetWorkbenchLayout}
                           onClose={handleCloseBottomPanel}
                           onPanelDragStart={handleWorkbenchPanelDragStart}
                           onPanelDragEnd={handleWorkbenchPanelDragEnd}
@@ -2903,7 +2964,7 @@ export default function Editor({
 
             {sideRailVisible && sidebarSide === "right" && (
                 <div
-                  className={getRailClassName("right")}
+                  className={getRailClassName("right", { compact: isCompactViewport })}
                   style={{
                     background: "var(--nexus-panel-surface)",
                     backdropFilter: "var(--nexus-panel-filter)",

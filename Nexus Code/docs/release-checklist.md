@@ -6,6 +6,9 @@ Stand: 2026-06-30
 
 - [x] Strikten Account-Gate als eigene Startflaeche vor der Workbench einziehen.
 - [x] Lokale Bootstrap-Fallbacks aus dem Workbench-Pass entfernen.
+- [x] Nexus-Code-eigenen Username/Passwort-Login bauen, Passwort nicht speichern und Session ueber `/auth/login` plus `/api/v1/session` normalisieren.
+- [x] Lokalen Workspace-Start als bewusst markierten IDE-Modus erlauben, damit Editor/File/Search/Terminal ohne Cloud starten.
+- [x] Control-API-Bootstrap-Fehler in lokale Runtime degradieren statt den Renderer zu blockieren.
 - [x] Gemeinsame Nexus-Code-Primitives fuer Buttons, Inputs, Cards, Badges und Panel-Header fertig integrieren.
 - [x] Primaertexte duerfen in Launchpad-Actions und neuen Panel-Primitives nicht hart abgeschnitten werden.
 - [x] Settings fuer Glow, Blur, Motion, Radius, Textgroessen und Low-Power-Fallback erweitern.
@@ -16,7 +19,7 @@ Stand: 2026-06-30
 
 ## Workbench und Docking
 
-- [x] Layout-Persistenz auf `nexus-code.workbench-layout.v2` migrieren.
+- [x] Layout-Persistenz auf `nexus-code.workbench-layout.v3` migrieren und `v1/v2` weiter einlesen.
 - [x] Snap-Zones links, rechts, unten und hidden im Modell validieren.
 - [x] Explorer, Search, Git, Issues, PRs, Projects, Extensions, Account, Debug, Problems und Terminal als Dock-Ziele modellieren.
 - [x] Layout-Reset und aktive Dock-Zonen per Command Palette/Bottom-Dock bedienbar machen.
@@ -24,6 +27,8 @@ Stand: 2026-06-30
 - [x] Drop-Preview- und Panel-Move-Helper fuer Snap-Zone-Docking bereitstellen.
 - [x] Drag-Handle, Snap-Zone-Buttons und Drop-Overlay fuer SidePanel und BottomDock integrieren.
 - [x] BottomDock Compact-Fallback gegen Statusbar/Text-Clipping einbauen.
+- [x] Settings um IDE-artige Docking-, Layout-, Theme- und Performance-Quick-Actions erweitern.
+- [x] Side-/Bottom-Panel-Groessen produktiver begrenzen und Sidebar/Rail schmaler machen.
 - [ ] Drag-Drop und defekte Persistenzdaten in echten Electron-Viewports visuell testen.
 - [ ] Launchpad ohne Scrollzwang bei 900x512 pruefen.
 
@@ -36,14 +41,17 @@ Stand: 2026-06-30
 - [x] FileExplorer mit sichtbaren Extension-Gruppen, ruhigem Refresh und besseren Empty/Error/Search-States ausbauen.
 - [x] CodeMirror Completions fuer JS/TS/Python/Rust/Go/CSS/JSON/Markdown language-aware ausbauen.
 - [x] Completion-Overlays begrenzen, Low-Power respektieren und LSP/Snippet-Dedupe absichern.
+- [x] Palette und Spotlight mit Fuzzy-/Initialen-Ranking, Datei-Dedupe und saubererem Focus/ARIA-Verhalten verbessern.
+- [x] Editor-Symbol-Extraktion und aktive Scope-Anzeige fuer CodeMirror integrieren.
 - [ ] Open-State, Refresh, Loading, Empty und Error States manuell pruefen.
 - [ ] Editor, Tabs, Search, Problems und Terminal duerfen die Codeflaeche nicht verdraengen.
 - [x] CodeMirror 6 bleibt Engine; breite Syntax plus LSP/Completion-Smoke pruefen.
 
 ## Account, API und GitHub
 
-- [x] Ohne Token plus User ID oder Username kein Workbench-Render.
-- [x] Bootstrap-Fehler bleiben fail-closed statt lokale Runtime-Daten zu rendern.
+- [x] Ohne Nexus Session kein Cloud-Workbench-Start; lokaler Workspace bleibt als eigener Offline-Modus verfuegbar.
+- [x] API-/Bootstrap-Fehler werden als degraded/offline Status gezeigt, ohne den Editor-Renderer zu blockieren.
+- [x] Account-Panel auf Nexus/Local/Signed-out Session-Modell umstellen.
 - [x] GitHub OAuth Scopes um `project` erweitern.
 - [x] Issues: Listen, Erstellen, Bearbeiten, Schliessen, Labels, Assignees, Kommentare.
 - [x] Pull Requests: Liste, Detail, Diff, Checks, Review-Kommentare, Review Submit, Merge mit Confirm.
@@ -70,7 +78,7 @@ Stand: 2026-06-30
 - [x] `npm --prefix "./Nexus Code" run smoke:ide-core`
 - [x] SSR-Smoke-Struktur: 1440x900, 1024x768, 900x512, 390x900 fuer Workbench, Launchpad, Account und Settings
 - [x] SSR-Smoke-Struktur: PanelChrome und GitHub-Workbench ohne App-Bootgate
-- [x] IDE-Core-Smoke: 15 Szenarien inklusive Filetree, Docking, Extensions und Completion Helpers
+- [x] IDE-Core-Smoke: 19 Szenarien inklusive Filetree, Docking, Extensions, Account-Start, Palette, Spotlight, Symbols und Completion Helpers
 - [ ] Visual Smoke: 1440x900
 - [ ] Visual Smoke: 1024x768
 - [ ] Visual Smoke: 900x512

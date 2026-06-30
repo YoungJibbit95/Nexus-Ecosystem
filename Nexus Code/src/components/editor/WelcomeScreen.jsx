@@ -28,7 +28,7 @@ const containerVariants = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
-    transition: { staggerChildren: 0.026, delayChildren: 0.025 },
+    transition: { staggerChildren: 0.022, delayChildren: 0.02 },
   },
 };
 
@@ -37,20 +37,19 @@ const itemVariants = {
   visible: {
     opacity: 1,
     y: 0,
-    transition: { duration: 0.18, ease: [0.4, 0, 0.2, 1] },
+    transition: { duration: 0.22, ease: [0.22, 1, 0.36, 1] },
   },
 };
 
 const wrapText = {
   overflowWrap: "anywhere",
   wordBreak: "normal",
+  hyphens: "auto",
 };
 
 const softClamp = {
-  display: "-webkit-box",
-  overflow: "hidden",
-  WebkitBoxOrient: "vertical",
-  WebkitLineClamp: 2,
+  display: "block",
+  overflow: "visible",
 };
 
 const actionItems = [
@@ -144,9 +143,10 @@ function SoftPanel({ children, className = "", style = {}, tone = "muted" }) {
       as={motion.section}
       variants={itemVariants}
       tone={tone}
-      className={`min-h-0 overflow-hidden ${className}`}
+      className={`nx-code-launchpad-panel min-h-0 min-w-0 ${className}`}
       style={{
         padding: 12,
+        overflow: "visible",
         ...style,
       }}
     >
@@ -191,31 +191,32 @@ function ActionButton({
       variants={itemVariants}
       whileHover={reduceMotion ? undefined : { y: -1 }}
       whileTap={reduceMotion ? undefined : { scale: 0.992 }}
-      transition={{ duration: 0.16, ease: [0.4, 0, 0.2, 1] }}
+      transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
       onClick={onClick}
       className="nx-code-launchpad-action group grid min-w-0 text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-purple-400/35"
       style={{
         minHeight: 62,
-        gridTemplateColumns: "34px minmax(0, 1fr) auto",
+        gridTemplateColumns: "34px minmax(0, 1fr) 16px",
         alignItems: "center",
         gap: 11,
-        borderRadius: 18,
+        borderRadius: "var(--nexus-radius-xl, 22px)",
         padding: "10px 12px",
         border: `1px solid ${toneStyle.border}`,
         background: toneStyle.bg,
         boxShadow: toneStyle.glow,
+        overflow: "visible",
       }}
     >
       <IconFrame icon={Icon} tone={tone} size={16} />
-      <span className="min-w-0">
+      <span className="nx-code-launchpad-text min-w-0">
         <span
-          className="block text-[13px] font-semibold leading-tight text-[var(--nexus-text)]"
+          className="nx-code-launchpad-text block text-[13px] font-semibold leading-tight text-[var(--nexus-text)]"
           style={wrapText}
         >
           {label}
         </span>
         <span
-          className="mt-1 block text-[10px] leading-snug text-[var(--nexus-muted)]"
+          className="nx-code-launchpad-text nx-code-launchpad-fineprint mt-1 block text-[10px] leading-snug text-[var(--nexus-muted)]"
           style={{ ...softClamp, ...wrapText }}
         >
           {detail}
@@ -233,10 +234,10 @@ function MetricPill({ icon: Icon, label, value, tone = "primary" }) {
   return (
     <motion.div
       variants={itemVariants}
-      className="flex min-w-0 items-center gap-2"
+      className="nx-code-launchpad-metric flex min-w-0 items-center gap-2"
       style={{
         minHeight: 34,
-        borderRadius: 16,
+        borderRadius: "var(--nexus-radius-lg, 18px)",
         border: "1px solid rgba(255, 255, 255, 0.065)",
         background: "rgba(255, 255, 255, 0.032)",
         padding: "6px 9px",
@@ -268,15 +269,16 @@ function FlowCard({ icon: Icon, title, detail, tone = "neutral", reduceMotion })
     <motion.div
       variants={itemVariants}
       whileHover={reduceMotion ? undefined : { y: -1 }}
-      transition={{ duration: 0.16, ease: [0.4, 0, 0.2, 1] }}
-      className="flex min-w-0 items-start gap-2.5"
+      transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+      className="nx-code-launchpad-signal flex min-w-0 items-start gap-2.5"
       style={{
         minHeight: 60,
-        borderRadius: 17,
+        borderRadius: "var(--nexus-radius-xl, 22px)",
         border: `1px solid ${toneStyle.border}`,
         background:
           "linear-gradient(135deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.014))",
         padding: "9px 10px",
+        overflow: "visible",
       }}
     >
       <IconFrame icon={Icon} tone={tone} size={13} />
@@ -328,18 +330,19 @@ function RecentFiles({ files }) {
         </div>
         <PanelBadge tone="muted">{files.length || 0}</PanelBadge>
       </div>
-      <div className="grid min-h-0 flex-1 content-start gap-2 overflow-hidden">
+      <div className="grid min-h-0 flex-1 content-start gap-2 overflow-visible">
         {rows.map((file) => (
           <motion.div
             key={file.id}
             variants={itemVariants}
-            className="flex min-w-0 items-center gap-2"
+            className="nx-code-launchpad-status-card flex min-w-0 items-center gap-2"
             style={{
               minHeight: 39,
-              borderRadius: 15,
+              borderRadius: "var(--nexus-radius-lg, 18px)",
               border: "1px solid rgba(255, 255, 255, 0.052)",
               background: "rgba(255, 255, 255, 0.024)",
               padding: "6px 8px",
+              overflow: "visible",
             }}
           >
             <span
@@ -397,7 +400,7 @@ function FlowDeck({ reduceMotion }) {
         <PanelBadge tone="success">local first</PanelBadge>
       </div>
       <div
-        className="grid min-h-0 flex-1 gap-2 overflow-hidden"
+        className="nx-code-launchpad-grid grid min-h-0 flex-1 gap-2 overflow-visible"
         style={{
           gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 13rem), 1fr))",
         }}
@@ -432,7 +435,7 @@ function CapabilityDeck({ fullIdeCount, syntaxCount, reduceMotion }) {
         </div>
       </div>
       <div
-        className="grid min-h-0 flex-1 gap-2 overflow-hidden"
+        className="nx-code-launchpad-grid grid min-h-0 flex-1 gap-2 overflow-visible"
         style={{
           gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 9.5rem), 1fr))",
         }}
@@ -474,8 +477,8 @@ export default function WelcomeScreen({
       <motion.div
         initial={reduceMotion ? false : { opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ duration: reduceMotion ? 0 : 0.16, ease: [0.4, 0, 0.2, 1] }}
-        className="flex min-h-0 flex-1 items-center overflow-hidden bg-transparent"
+        transition={{ duration: reduceMotion ? 0 : 0.2, ease: [0.22, 1, 0.36, 1] }}
+        className="flex min-h-0 flex-1 items-stretch overflow-x-hidden overflow-y-auto bg-transparent"
         style={{
           boxSizing: "border-box",
           height: "100%",
@@ -486,11 +489,12 @@ export default function WelcomeScreen({
           variants={containerVariants}
           initial={reduceMotion ? false : "hidden"}
           animate="visible"
-          className="nx-code-welcome nx-code-launchpad mx-auto grid min-h-0 w-full overflow-hidden"
+          className="nx-code-welcome nx-code-launchpad mx-auto grid min-h-full w-full overflow-visible"
           style={{
             width: "min(100%, 1100px)",
-            height: "100%",
-            gridTemplateRows: "auto minmax(0, 1fr)",
+            minHeight: "100%",
+            height: "auto",
+            gridTemplateRows: "auto auto",
             gap: 10,
           }}
         >
@@ -503,7 +507,7 @@ export default function WelcomeScreen({
             }}
           >
             <div
-              className="grid min-w-0 items-center gap-3"
+              className="nx-code-launchpad-grid grid min-w-0 items-center gap-3"
               style={{
                 gridTemplateColumns:
                   "repeat(auto-fit, minmax(min(100%, 22rem), 1fr))",
@@ -576,18 +580,18 @@ export default function WelcomeScreen({
 
           <motion.div
             variants={itemVariants}
-            className="grid min-h-0 min-w-0 gap-3 overflow-hidden"
+            className="nx-code-launchpad-grid grid min-h-0 min-w-0 gap-3 overflow-visible"
             style={{
               gridTemplateColumns:
                 "repeat(auto-fit, minmax(min(100%, 22rem), 1fr))",
             }}
           >
             <div
-              className="grid min-h-0 min-w-0 gap-3 overflow-hidden"
+              className="grid min-h-0 min-w-0 gap-3 overflow-visible"
               style={{ gridTemplateRows: "auto minmax(0, 1fr)" }}
             >
               <div
-                className="grid min-w-0 gap-2"
+                className="nx-code-launchpad-grid grid min-w-0 gap-2"
                 style={{
                   gridTemplateColumns:
                     "repeat(auto-fit, minmax(min(100%, 9.6rem), 1fr))",
@@ -610,8 +614,8 @@ export default function WelcomeScreen({
             </div>
 
             <div
-              className="grid min-h-0 min-w-0 gap-3 overflow-hidden"
-              style={{ gridTemplateRows: "minmax(0, 1fr) minmax(0, 0.92fr)" }}
+              className="grid min-h-0 min-w-0 gap-3 overflow-visible"
+              style={{ gridTemplateRows: "auto auto" }}
             >
               <FlowDeck reduceMotion={reduceMotion} />
               <CapabilityDeck

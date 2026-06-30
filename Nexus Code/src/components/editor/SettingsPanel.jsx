@@ -6,10 +6,13 @@ import {
   Code2,
   Cpu,
   Eye,
+  EyeOff,
   Gauge,
   Info,
   Palette,
+  PanelBottom,
   PanelLeft,
+  PanelRight,
   RefreshCcw,
   Search,
   Settings2,
@@ -34,6 +37,14 @@ import {
 } from './settingsShared';
 import { resolveNexusTheme } from '../../theme/nexusThemeResolver.js';
 import { DEFAULT_SETTINGS } from '../../pages/editor/editorShared.jsx';
+import {
+  getBottomPanelSizeOptions,
+  getSidePanelSizeOptions,
+  getWorkbenchLayoutPresetOptions,
+  getWorkbenchZonePanelIds,
+  normalizeWorkbenchLayout,
+  WORKBENCH_SNAP_ZONES,
+} from '../../pages/editor/workbenchDockModel.js';
 
 const SETTING_SECTIONS = [
   {
@@ -312,6 +323,34 @@ const SETTING_INDEX = [
     keywords: "autosave auto save storage",
   },
   {
+    id: "workbench_layout_presets",
+    section: "workbench",
+    label: "Layout Presets",
+    description: "Fokus, Comfortable oder Wide direkt anwenden.",
+    keywords: "layout preset compact focus comfortable wide quick action shell",
+  },
+  {
+    id: "workbench_panel_sizes",
+    section: "workbench",
+    label: "Panel Groessen",
+    description: "Side-Panel-Breite und Bottom-Dock-Hoehe einstellen.",
+    keywords: "panel size width height side bottom dock compact",
+  },
+  {
+    id: "workbench_docking",
+    section: "workbench",
+    label: "Docking",
+    description: "Aktives Panel links, rechts, unten oder hidden docken.",
+    keywords: "dock snap left right bottom hidden panel quick action",
+  },
+  {
+    id: "workbench_layout_reset",
+    section: "workbench",
+    label: "Layout Reset",
+    description: "Workbench Layout und Panel-Zonen auf Defaults zuruecksetzen.",
+    keywords: "reset layout default fallback restore workbench",
+  },
+  {
     id: "theme",
     section: "theme",
     label: "Theme Preset",
@@ -420,6 +459,37 @@ const SETTING_INDEX = [
 
 const SECTION_IDS = SETTING_SECTIONS.map((section) => section.id);
 const SETTING_INDEX_BY_ID = new Map(SETTING_INDEX.map((entry) => [entry.id, entry]));
+const WORKBENCH_LAYOUT_OPTIONS = getWorkbenchLayoutPresetOptions();
+const WORKBENCH_SIDE_PANEL_SIZE_OPTIONS = getSidePanelSizeOptions();
+const WORKBENCH_BOTTOM_PANEL_SIZE_OPTIONS = getBottomPanelSizeOptions();
+const WORKBENCH_QUICK_ACTION_SETTING_IDS = Object.freeze([
+  "workbench_layout_presets",
+  "workbench_panel_sizes",
+  "workbench_docking",
+  "workbench_layout_reset",
+]);
+const WORKBENCH_DOCK_ACTIONS = Object.freeze([
+  {
+    zone: WORKBENCH_SNAP_ZONES.left,
+    label: "Links",
+    Icon: PanelLeft,
+  },
+  {
+    zone: WORKBENCH_SNAP_ZONES.right,
+    label: "Rechts",
+    Icon: PanelRight,
+  },
+  {
+    zone: WORKBENCH_SNAP_ZONES.bottom,
+    label: "Unten",
+    Icon: PanelBottom,
+  },
+  {
+    zone: WORKBENCH_SNAP_ZONES.hidden,
+    label: "Hidden",
+    Icon: EyeOff,
+  },
+]);
 
 const TEXT_SIZE_PRESETS = [
   {
@@ -1529,6 +1599,8 @@ function ThemeEditorUtilityPanel({
   secondaryAccent,
   shouldReduceMotion,
   onApplyRecipe,
+  onApplyBalancedVisuals,
+  onApplyLowPower,
   onCopyJson,
   onResetThemeEditor,
 }) {
@@ -1552,6 +1624,22 @@ function ThemeEditorUtilityPanel({
           ))}
         </div>
         <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 lg:w-44 lg:grid-cols-1">
+          <button
+            type="button"
+            onClick={onApplyBalancedVisuals}
+            className="inline-flex h-9 min-w-0 items-center justify-center gap-2 rounded-md border border-white/10 bg-white/[0.03] px-3 text-xs font-semibold text-gray-300 transition-colors hover:bg-white/[0.055]"
+          >
+            <Gauge size={13} />
+            <span className="truncate">Balanced</span>
+          </button>
+          <button
+            type="button"
+            onClick={onApplyLowPower}
+            className="inline-flex h-9 min-w-0 items-center justify-center gap-2 rounded-md border border-white/10 bg-white/[0.03] px-3 text-xs font-semibold text-gray-300 transition-colors hover:bg-white/[0.055]"
+          >
+            <Cpu size={13} />
+            <span className="truncate">Low Power</span>
+          </button>
           <button
             type="button"
             onClick={onCopyJson}
@@ -1632,6 +1720,162 @@ function PresetButton({
         </div>
       ) : null}
     </motion.button>
+  );
+}
+
+function WorkbenchSegmentedControl({
+  label,
+  options,
+  value,
+  onChange,
+  getOptionLabel = (option) => option.label,
+  disabled = false,
+}) {
+  return (
+    <div className="min-w-0">
+      <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-gray-500">
+        {label}
+      </div>
+      <div
+        className="grid h-9 min-w-0 overflow-hidden rounded-md border border-white/10 bg-white/[0.03]"
+        style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}
+        role="group"
+        aria-label={label}
+      >
+        {options.map((option) => {
+          const isActive = option.id === value;
+          return (
+            <button
+              key={option.id}
+              type="button"
+              disabled={disabled}
+              onClick={() => onChange?.(option.id)}
+              aria-pressed={isActive}
+              title={option.title || option.label}
+              className={`min-w-0 px-2 text-[10px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-45 ${
+                isActive
+                  ? "bg-white/12 text-white"
+                  : "text-[var(--nexus-muted)] hover:bg-white/[0.07] hover:text-gray-200"
+              }`}
+            >
+              <span className="block truncate">{getOptionLabel(option)}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function getZonePanelSummary(layout, zone) {
+  const count = getWorkbenchZonePanelIds(layout, zone).length;
+  if (count === 1) return "1 Panel";
+  return `${count} Panels`;
+}
+
+function WorkbenchQuickActions({
+  layout,
+  activePanelId,
+  activePanelLabel,
+  onApplyPreset,
+  onSetSidePanelSize,
+  onSetBottomPanelSize,
+  onDockActivePanel,
+  onResetLayout,
+}) {
+  const normalizedLayout = normalizeWorkbenchLayout(layout);
+  const activeZone = activePanelId
+    ? normalizedLayout.panelZones?.[activePanelId] || null
+    : null;
+  const canDock = Boolean(activePanelId && onDockActivePanel);
+
+  return (
+    <div className="grid grid-cols-1 gap-4">
+      <div className="grid grid-cols-1 gap-3 xl:grid-cols-3">
+        <WorkbenchSegmentedControl
+          label="Layout"
+          options={WORKBENCH_LAYOUT_OPTIONS}
+          value={normalizedLayout.presetId}
+          onChange={onApplyPreset}
+          disabled={!onApplyPreset}
+          getOptionLabel={(option) => option.label}
+        />
+        <WorkbenchSegmentedControl
+          label="Side"
+          options={WORKBENCH_SIDE_PANEL_SIZE_OPTIONS}
+          value={normalizedLayout.sidePanelSize}
+          onChange={onSetSidePanelSize}
+          disabled={!onSetSidePanelSize}
+        />
+        <WorkbenchSegmentedControl
+          label="Bottom"
+          options={WORKBENCH_BOTTOM_PANEL_SIZE_OPTIONS}
+          value={normalizedLayout.bottomPanelSize}
+          onChange={onSetBottomPanelSize}
+          disabled={!onSetBottomPanelSize}
+        />
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 xl:grid-cols-[1fr_auto]">
+        <div className="min-w-0 rounded-md border border-white/5 bg-white/[0.018] p-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="min-w-0">
+              <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-gray-500">
+                Docking
+              </div>
+              <div className="mt-1 truncate text-xs font-semibold text-gray-200">
+                {activePanelLabel || activePanelId || "Explorer"}
+              </div>
+            </div>
+            <div className="flex shrink-0 flex-wrap gap-1.5">
+              {WORKBENCH_DOCK_ACTIONS.map(({ zone, label, Icon }) => {
+                const isActive = activeZone === zone;
+                return (
+                  <button
+                    key={zone}
+                    type="button"
+                    disabled={!canDock}
+                    onClick={() => onDockActivePanel?.(zone)}
+                    aria-pressed={isActive}
+                    className={`inline-flex h-8 min-w-8 items-center justify-center rounded-md border px-2 text-[10px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-45 ${
+                      isActive
+                        ? "border-white/20 bg-white/12 text-white"
+                        : "border-white/10 bg-white/[0.03] text-[var(--nexus-muted)] hover:bg-white/[0.07] hover:text-gray-200"
+                    }`}
+                    title={`Dock ${label}`}
+                  >
+                    <Icon size={13} />
+                    <span className="sr-only">{label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <div className="mt-3 grid grid-cols-2 gap-2 text-[10px] text-gray-500 sm:grid-cols-4">
+            {WORKBENCH_DOCK_ACTIONS.map(({ zone, label }) => (
+              <div
+                key={`${zone}-summary`}
+                className="min-w-0 rounded-md border border-white/5 bg-black/10 px-2 py-1.5"
+              >
+                <div className="truncate font-semibold text-gray-400">{label}</div>
+                <div className="truncate">{getZonePanelSummary(normalizedLayout, zone)}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <button
+          type="button"
+          disabled={!onResetLayout}
+          onClick={onResetLayout}
+          className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-white/10 bg-white/[0.03] px-3 text-xs font-semibold text-gray-300 transition-colors hover:bg-white/[0.055] disabled:cursor-not-allowed disabled:opacity-45 xl:w-32"
+          title="Workbench Layout zuruecksetzen"
+        >
+          <RefreshCcw size={13} />
+          Reset
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -1816,6 +2060,14 @@ export default function SettingsPanel({
   onSettingsChange,
   onResetSettings,
   onClose,
+  workbenchLayout,
+  activeWorkbenchPanelId = "explorer",
+  activeWorkbenchPanelLabel = "Explorer",
+  onApplyWorkbenchLayoutPreset,
+  onSetSidePanelSize,
+  onSetBottomPanelSize,
+  onDockActivePanel,
+  onResetWorkbenchLayout,
 }) {
   const [activeSection, setActiveSection] = React.useState("theme-editor");
   const [searchQuery, setSearchQuery] = React.useState("");
@@ -1935,6 +2187,17 @@ export default function SettingsPanel({
   const lowPowerState = React.useMemo(
     () => buildLowPowerState(settings, visualProfileId, prefersReducedMotion, shouldReduceMotion),
     [prefersReducedMotion, settings, shouldReduceMotion, visualProfileId],
+  );
+  const normalizedWorkbenchLayout = React.useMemo(
+    () => normalizeWorkbenchLayout(workbenchLayout),
+    [workbenchLayout],
+  );
+  const showWorkbenchQuickActions = React.useMemo(
+    () =>
+      WORKBENCH_QUICK_ACTION_SETTING_IDS.some((settingId) =>
+        isVisibleSetting(settingId, "workbench", searchTerm),
+      ),
+    [searchTerm],
   );
 
   React.useEffect(() => {
@@ -2344,6 +2607,8 @@ export default function SettingsPanel({
                   secondaryAccent={secondaryAccent}
                   shouldReduceMotion={shouldReduceMotion}
                   onApplyRecipe={applyThemeEditorRecipe}
+                  onApplyBalancedVisuals={restoreBalancedVisuals}
+                  onApplyLowPower={applyLowPowerFallback}
                   onCopyJson={copyThemeJson}
                   onResetThemeEditor={resetThemeEditor}
                 />
@@ -2927,6 +3192,23 @@ export default function SettingsPanel({
                     description="Nexus-Code-Arbeitsflaeche, Panels und Ablenkungsgrad."
                     icon={PanelLeft}
                   />
+                ) : null}
+                {showWorkbenchQuickActions ? (
+                  <SettingsGroup
+                    title="Layout und Docking"
+                    description="Schnelle Workbench-Aktionen fuer Shell, Snap-Zonen und kompakte Panels."
+                  >
+                    <WorkbenchQuickActions
+                      layout={normalizedWorkbenchLayout}
+                      activePanelId={activeWorkbenchPanelId}
+                      activePanelLabel={activeWorkbenchPanelLabel}
+                      onApplyPreset={onApplyWorkbenchLayoutPreset}
+                      onSetSidePanelSize={onSetSidePanelSize}
+                      onSetBottomPanelSize={onSetBottomPanelSize}
+                      onDockActivePanel={onDockActivePanel}
+                      onResetLayout={onResetWorkbenchLayout}
+                    />
+                  </SettingsGroup>
                 ) : null}
                 <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
                   <SettingsGroup title="Layout" description="Primary Shell und Statusflaechen.">
