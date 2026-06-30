@@ -2,6 +2,7 @@
 const { app, BrowserWindow } = require('electron');
 const { execSync } = require('child_process');
 const { createMainWindow } = require('./electron/main-window.cjs');
+const { applySecurityHeaders } = require('./electron/security.cjs');
 const { registerIpcHandlers } = require('./electron/ipc-handlers.cjs');
 
 let mainWindow = null;
@@ -49,6 +50,7 @@ if (!gotLock) {
   app.quit();
 } else {
   app.whenReady().then(() => {
+    applySecurityHeaders({ isDev: !app.isPackaged });
     registerIpcHandlers(() => mainWindow);
     bootMainWindow();
   });

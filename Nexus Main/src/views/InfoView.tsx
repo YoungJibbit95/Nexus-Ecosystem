@@ -92,6 +92,52 @@ const VIEW_DOCS: ViewDoc[] = [
     ],
   },
   {
+    emoji: "📅",
+    icon: "CA",
+    title: "Calendar",
+    purpose:
+      "Monats- und Agenda-Planung fuer Tasks und Reminders, ohne eine zweite parallele Termin-Datenbank aufzubauen.",
+    mainUse: [
+      "Monat ueberblicken",
+      "Tag in der Agenda planen",
+      "Task oder Reminder schnell erstellen",
+      "ICS-Dateien importieren",
+      "Deadlines per Drag verschieben",
+    ],
+    features: [
+      "Monatsgrid",
+      "Tagesagenda",
+      "Quick Composer",
+      "Task/Reminder Filter",
+      "Prioritaets-Chips",
+      "ICS Import",
+    ],
+    shortcuts: ["Ctrl+2", "Today", "Import", "Drag to reschedule"],
+    releaseCheck:
+      "Calendar muss dieselben Tasks und Reminders aktualisieren, die auch Dashboard, Tasks, Reminders und Flux lesen.",
+    guideTitle: "Calendar Guide",
+    guideIntro:
+      "Calendar ist die Zeitansicht ueber deine bestehende Arbeit. Es gibt keine extra Kalenderwelt: Tasks kommen ueber Deadlines rein, Reminders ueber Datum und Uhrzeit.",
+    dailyFlow: [
+      "Mit Heute starten und pruefen, ob offene Tasks oder Reminder auf dem richtigen Tag liegen.",
+      "Im Quick Composer entscheiden: Task fuer Arbeit mit Deadline, Reminder fuer einen konkreten Zeitpunkt.",
+      "Per Filter nur Tasks, nur Reminders oder nur wichtige Eintraege anzeigen.",
+      "Eintraege auf einen anderen Tag ziehen, wenn sich der Plan verschiebt.",
+      "ICS importieren, wenn externe Termine als Tasks oder Reminders in Nexus weiterverarbeitet werden sollen.",
+    ],
+    qualityBar:
+      "Calendar ist gut, wenn Monat, Agenda, Drag-Reschedule und Import den Plan klarer machen, ohne Tasks/Reminders doppelt zu fuehren.",
+    proTip:
+      "Nutze Tasks fuer Dinge, die erledigt werden muessen, und Reminders fuer Momente, an die Nexus dich erinnern soll.",
+    wikiTopics: [
+      "main-calendar-guide",
+      "Tasks",
+      "Reminders",
+      "Flux",
+      "ICS Import",
+    ],
+  },
+  {
     emoji: "📝",
     icon: "NO",
     title: "Notes",
@@ -589,6 +635,7 @@ const TERMINAL_REFERENCE = [
   "help",
   "views / ls",
   "goto <view>",
+  "goto calendar",
   "spotlight [query]",
   "search <query>",
   "canvas list / new / layout / template / focus",

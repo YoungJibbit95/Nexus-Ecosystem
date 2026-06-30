@@ -82,17 +82,24 @@ const PRIORITY_COLOR: Record<Task["priority"], string> = {
 };
 
 const PRIORITY_LABEL: Record<Task["priority"], string> = {
-  low: "Low",
-  mid: "Medium",
-  high: "High",
+  low: "Niedrig",
+  mid: "Mittel",
+  high: "Hoch",
 };
 
 const TYPE_LABEL: Record<CalendarItemType, string> = {
-  task: "Task",
-  reminder: "Reminder",
+  task: "Aufgabe",
+  reminder: "Erinnerung",
 };
 
-const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const REPEAT_LABEL: Record<Reminder["repeat"], string> = {
+  none: "Einmalig",
+  daily: "Taeglich",
+  weekly: "Woechentlich",
+  monthly: "Monatlich",
+};
+
+const WEEKDAY_LABELS = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
 
 const pad2 = (value: number) => String(value).padStart(2, "0");
 
@@ -126,10 +133,10 @@ const parseDate = (value?: string | null) => {
 };
 
 const formatMonthTitle = (date: Date) =>
-  date.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+  date.toLocaleDateString("de-DE", { month: "long", year: "numeric" });
 
 const formatSelectedDate = (date: Date) =>
-  date.toLocaleDateString(undefined, {
+  date.toLocaleDateString("de-DE", {
     weekday: "long",
     month: "short",
     day: "numeric",
@@ -137,10 +144,10 @@ const formatSelectedDate = (date: Date) =>
   });
 
 const formatShortDate = (date: Date) =>
-  date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  date.toLocaleDateString("de-DE", { month: "short", day: "numeric" });
 
 const formatTime = (date: Date) =>
-  date.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+  date.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
 
 const combineDateAndTime = (dateKey: string, timeValue: string) => {
   const [year, month, day] = dateKey.split("-").map(Number);
@@ -183,15 +190,15 @@ const getReminderDate = (reminder: Reminder) =>
 const getTaskDate = (task: Task) => parseDate(task.deadline);
 
 const getRepeatLabel = (reminder: Reminder) => {
-  if (reminder.done) return "Done";
-  if (reminder.snoozeUntil) return "Snoozed";
-  return reminder.repeat === "none" ? "Once" : reminder.repeat;
+  if (reminder.done) return "Erledigt";
+  if (reminder.snoozeUntil) return "Spaeter";
+  return REPEAT_LABEL[reminder.repeat] || reminder.repeat;
 };
 
 const taskFormLabel = (task: Task) => {
-  if (task.status === "done") return "Done";
-  if (task.status === "doing") return "Doing";
-  return "Todo";
+  if (task.status === "done") return "Erledigt";
+  if (task.status === "doing") return "Aktiv";
+  return "Offen";
 };
 
 const resolveDraggedType = (item: DragItem): CalendarItemType | null => {
@@ -269,8 +276,21 @@ const countItemsByType = (items: CalendarItem[]) => ({
   reminders: items.filter((item) => item.type === "reminder").length,
 });
 
+const countOpenHighPriority = (items: CalendarItem[]) =>
+  items.filter((item) => item.type === "task" && item.priority === "high" && !item.done)
+    .length;
+
 const isItemOverdue = (item: CalendarItem) =>
   !item.done && item.date.getTime() < Date.now();
+
+const getCalendarStatusClass = (item: CalendarItem, overdue: boolean) => {
+  if (overdue) return "is-status-overdue";
+  if (item.done) return "is-status-done";
+  if (item.type === "task") {
+    return `is-status-${((item.source as Task).status || "todo").toLowerCase()}`;
+  }
+  return (item.source as Reminder).snoozeUntil ? "is-status-snoozed" : "is-status-once";
+};
 
 const CalendarCard = ({
   item,
@@ -291,8 +311,13 @@ const CalendarCard = ({
   );
   const Icon = item.type === "task" ? CheckSquare : Bell;
   const color = item.priority ? PRIORITY_COLOR[item.priority] : "#64d2ff";
-  const priorityLabel = item.priority ? PRIORITY_LABEL[item.priority] : "Time";
+  const priorityLabel = item.priority ? PRIORITY_LABEL[item.priority] : "Geplant";
+  const priorityClass = item.priority ? `is-priority-${item.priority}` : "is-priority-time";
   const overdue = isItemOverdue(item);
+  const statusClass = getCalendarStatusClass(item, overdue);
+  const title = `${TYPE_LABEL[item.type]}: ${item.title} um ${item.timeLabel}${
+    item.priority ? `, Prioritaet ${priorityLabel}` : ""
+  }`;
 
   return (
     <div
@@ -308,7 +333,7 @@ const CalendarCard = ({
         .filter(Boolean)
         .join(" ")}
       style={{ "--nx-calendar-card-color": color } as React.CSSProperties}
-      title={`${TYPE_LABEL[item.type]}: ${item.title} at ${item.timeLabel}`}
+      title={title}
     >
       <span className="nx-calendar-card-rail" aria-hidden="true" />
       <div className="nx-calendar-card-main">
@@ -327,10 +352,18 @@ const CalendarCard = ({
           <div className="nx-calendar-card-desc">{item.description}</div>
         )}
         <div className="nx-calendar-card-meta">
-          <span className={overdue ? "is-hot" : ""}>
-            {overdue ? "Overdue" : item.formLabel}
+          <span
+            className={[
+              "nx-calendar-card-status",
+              overdue ? "is-hot" : "",
+              statusClass,
+            ]
+              .filter(Boolean)
+              .join(" ")}
+          >
+            {overdue ? "Ueberfaellig" : item.formLabel}
           </span>
-          <span className="nx-calendar-card-priority">
+          <span className={`nx-calendar-card-priority ${priorityClass}`}>
             {item.type === "task" && <Flag size={10} />}
             {priorityLabel}
           </span>
@@ -375,10 +408,17 @@ const CalendarDayCell = ({
     }),
     [dateKey, onDropItem],
   );
-  const visibleLimit = density === "compact" ? 2 : 3;
+  const visibleLimit = 2;
   const visibleItems = items.slice(0, visibleLimit);
   const hiddenCount = Math.max(0, items.length - visibleItems.length);
   const itemCounts = countItemsByType(items);
+  const highPriorityCount = countOpenHighPriority(items);
+  const overdueCount = items.filter(isItemOverdue).length;
+  const countLabelParts = [
+    `${items.length} Eintraege`,
+    highPriorityCount > 0 ? `${highPriorityCount} hoch` : "",
+    overdueCount > 0 ? `${overdueCount} ueberfaellig` : "",
+  ].filter(Boolean);
 
   return (
     <div
@@ -390,6 +430,9 @@ const CalendarDayCell = ({
         selected ? "is-selected" : "",
         today ? "is-today" : "",
         inCurrentMonth ? "" : "is-muted",
+        items.length > 0 ? "has-items" : "",
+        highPriorityCount > 0 ? "has-priority" : "",
+        overdueCount > 0 ? "has-overdue" : "",
         canDrop ? "can-drop" : "",
         isOver ? "is-over" : "",
       ]
@@ -406,7 +449,7 @@ const CalendarDayCell = ({
       <div className="nx-calendar-day-head">
         <span className="nx-calendar-day-number">{day.getDate()}</span>
         {items.length > 0 && (
-          <div className="nx-calendar-day-counts" aria-label={`${items.length} items`}>
+          <div className="nx-calendar-day-counts" aria-label={countLabelParts.join(", ")}>
             {itemCounts.tasks > 0 && (
               <span className="is-task">
                 <CheckSquare size={9} />
@@ -417,6 +460,18 @@ const CalendarDayCell = ({
               <span className="is-reminder">
                 <Bell size={9} />
                 {itemCounts.reminders}
+              </span>
+            )}
+            {highPriorityCount > 0 && (
+              <span className="is-priority-high" title="Hohe Prioritaet">
+                <Flag size={9} />
+                {highPriorityCount}
+              </span>
+            )}
+            {overdueCount > 0 && (
+              <span className="is-overdue" title="Ueberfaellig">
+                <Clock size={9} />
+                {overdueCount}
               </span>
             )}
           </div>
@@ -432,10 +487,10 @@ const CalendarDayCell = ({
           />
         ))}
         {hiddenCount > 0 && (
-          <div className="nx-calendar-more">+{hiddenCount} more</div>
+          <div className="nx-calendar-more">+{hiddenCount}</div>
         )}
         {items.length === 0 && selected && (
-          <div className="nx-calendar-day-empty">Free</div>
+          <div className="nx-calendar-day-empty">Frei</div>
         )}
       </div>
     </div>
@@ -546,6 +601,8 @@ export function CalendarView({
       item.date.getMonth() === viewMonth.getMonth(),
   );
   const monthCounts = countItemsByType(monthItems);
+  const monthHighPriorityCount = countOpenHighPriority(monthItems);
+  const selectedHighPriorityCount = countOpenHighPriority(selectedItems);
   const taskCount = filteredItems.filter((item) => item.type === "task").length;
   const reminderCount = filteredItems.filter(
     (item) => item.type === "reminder",
@@ -564,8 +621,8 @@ export function CalendarView({
   const importSourceLabel = importFileName
     ? importFileName
     : hasImportSource
-      ? `${importLineCount} line${importLineCount === 1 ? "" : "s"} ready`
-      : "No source selected";
+      ? `${importLineCount} Zeilen bereit`
+      : "Keine Quelle";
 
   const selectDate = useCallback((dateKey: string) => {
     const date = fromDateKey(dateKey);
@@ -690,7 +747,7 @@ export function CalendarView({
   const runImport = useCallback(() => {
     const source = importSource.trim();
     if (!source) {
-      setImportMessage("Paste an .ics payload or choose a file first.");
+      setImportMessage("Fuege eine .ics-Datei ein oder waehle zuerst eine Datei.");
       return;
     }
 
@@ -707,9 +764,9 @@ export function CalendarView({
         });
 
         const warningSuffix = result.warnings.length
-          ? ` ${result.warnings.length} warning${result.warnings.length === 1 ? "" : "s"}.`
+          ? ` ${result.warnings.length} Hinweis${result.warnings.length === 1 ? "" : "e"}.`
           : "";
-        setImportMessage(`Imported ${result.items.length} tasks.${warningSuffix}`);
+        setImportMessage(`${result.items.length} Aufgaben importiert.${warningSuffix}`);
         if (result.items.length > 0) {
           setImportSource("");
           setImportFileName("");
@@ -721,11 +778,11 @@ export function CalendarView({
         });
 
         const warningSuffix = result.warnings.length
-          ? ` ${result.warnings.length} warning${result.warnings.length === 1 ? "" : "s"}.`
+          ? ` ${result.warnings.length} Hinweis${result.warnings.length === 1 ? "" : "e"}.`
           : "";
-        const skippedSuffix = result.skipped ? ` ${result.skipped} skipped.` : "";
+        const skippedSuffix = result.skipped ? ` ${result.skipped} uebersprungen.` : "";
         setImportMessage(
-          `Imported ${result.items.length} reminders.${skippedSuffix}${warningSuffix}`,
+          `${result.items.length} Erinnerungen importiert.${skippedSuffix}${warningSuffix}`,
         );
         if (result.items.length > 0) {
           setImportSource("");
@@ -734,7 +791,7 @@ export function CalendarView({
       }
     } catch (error) {
       setImportMessage(
-        error instanceof Error ? error.message : "Import failed.",
+        error instanceof Error ? error.message : "Import fehlgeschlagen.",
       );
     }
   }, [addRem, addTask, importMode, importSource, updateTask]);
@@ -745,10 +802,10 @@ export function CalendarView({
     reader.onload = () => {
       setImportSource(String(reader.result || ""));
       setImportFileName(file.name);
-      setImportMessage(`Loaded ${file.name}. Choose a mode and import.`);
+      setImportMessage(`${file.name} geladen. Modus waehlen und importieren.`);
     };
     reader.onerror = () => {
-      setImportMessage(`Could not read ${file.name}.`);
+      setImportMessage(`${file.name} konnte nicht gelesen werden.`);
     };
     reader.readAsText(file);
   }, []);
@@ -771,20 +828,20 @@ export function CalendarView({
                 type="button"
                 className="nx-calendar-icon-button"
                 onClick={() => setViewMonth((month) => addMonths(month, -1))}
-                aria-label="Previous month"
-                title="Previous month"
+                aria-label="Vorheriger Monat"
+                title="Vorheriger Monat"
               >
                 <ChevronLeft size={16} />
               </button>
               <button type="button" className="nx-calendar-today-button" onClick={goToday}>
-                Today
+                Heute
               </button>
               <button
                 type="button"
                 className="nx-calendar-icon-button"
                 onClick={() => setViewMonth((month) => addMonths(month, 1))}
-                aria-label="Next month"
-                title="Next month"
+                aria-label="Naechster Monat"
+                title="Naechster Monat"
               >
                 <ChevronRight size={16} />
               </button>
@@ -816,11 +873,11 @@ export function CalendarView({
                   onChange={(event) =>
                     setTypeFilter(event.target.value as CalendarTypeFilter)
                   }
-                  aria-label="Type filter"
+                  aria-label="Typfilter"
                 >
-                  <option value="all">All types</option>
-                  <option value="task">Tasks</option>
-                  <option value="reminder">Reminders</option>
+                  <option value="all">Alle</option>
+                  <option value="task">Aufgaben</option>
+                  <option value="reminder">Erinnerungen</option>
                 </select>
               </label>
               <label className="nx-calendar-filter-field">
@@ -830,12 +887,12 @@ export function CalendarView({
                   onChange={(event) =>
                     setPriorityFilter(event.target.value as CalendarPriorityFilter)
                   }
-                  aria-label="Priority filter"
+                  aria-label="Prioritaetsfilter"
                 >
-                  <option value="all">All priorities</option>
-                  <option value="low">Low</option>
-                  <option value="mid">Medium</option>
-                  <option value="high">High</option>
+                  <option value="all">Prioritaet</option>
+                  <option value="low">Niedrig</option>
+                  <option value="mid">Mittel</option>
+                  <option value="high">Hoch</option>
                 </select>
               </label>
               {hasActiveFilters && (
@@ -845,10 +902,10 @@ export function CalendarView({
                   onClick={clearFilters}
                 >
                   <X size={12} />
-                  Clear
+                  Reset
                 </button>
               )}
-              <div className="nx-calendar-segment" aria-label="Density">
+              <div className="nx-calendar-segment" aria-label="Dichte">
                 {(["comfortable", "compact"] as const).map((mode) => (
                   <button
                     key={mode}
@@ -856,7 +913,7 @@ export function CalendarView({
                     className={density === mode ? "is-active" : ""}
                     onClick={() => setDensity(mode)}
                   >
-                    {mode === "comfortable" ? "Roomy" : "Dense"}
+                    {mode === "comfortable" ? "Locker" : "Kompakt"}
                   </button>
                 ))}
               </div>
@@ -864,7 +921,7 @@ export function CalendarView({
           </div>
 
           <form className="nx-calendar-composer" onSubmit={submitComposer}>
-            <div className="nx-calendar-segment" aria-label="Composer type">
+            <div className="nx-calendar-segment" aria-label="Eintragstyp">
               {(["task", "reminder"] as const).map((type) => (
                 <button
                   key={type}
@@ -886,16 +943,16 @@ export function CalendarView({
               className="nx-calendar-title-input"
               value={composerTitle}
               onChange={(event) => setComposerTitle(event.target.value)}
-              placeholder={`New ${TYPE_LABEL[composerType].toLowerCase()}`}
-              aria-label={`${TYPE_LABEL[composerType]} title`}
+              placeholder={`Neue ${TYPE_LABEL[composerType].toLowerCase()}`}
+              aria-label={`${TYPE_LABEL[composerType]} Titel`}
             />
             {composerTitle && (
               <button
                 type="button"
                 className="nx-calendar-icon-button nx-calendar-clear-button"
                 onClick={() => setComposerTitle("")}
-                aria-label="Clear title"
-                title="Clear title"
+                aria-label="Titel leeren"
+                title="Titel leeren"
               >
                 <X size={13} />
               </button>
@@ -905,7 +962,7 @@ export function CalendarView({
               type="time"
               value={composerTime}
               onChange={(event) => setComposerTime(event.target.value)}
-              aria-label="Time"
+              aria-label="Zeit"
             />
             {composerType === "task" && (
               <select
@@ -913,11 +970,11 @@ export function CalendarView({
                 onChange={(event) =>
                   setComposerPriority(event.target.value as Task["priority"])
                 }
-                aria-label="Task priority"
+                aria-label="Aufgabenprioritaet"
               >
-                <option value="low">Low</option>
-                <option value="mid">Medium</option>
-                <option value="high">High</option>
+                <option value="low">Niedrig</option>
+                <option value="mid">Mittel</option>
+                <option value="high">Hoch</option>
               </select>
             )}
             {composerType === "task" ? (
@@ -926,7 +983,7 @@ export function CalendarView({
                 value={composerTags}
                 onChange={(event) => setComposerTags(event.target.value)}
                 placeholder="#tag"
-                aria-label="Task tags"
+                aria-label="Aufgabentags"
               />
             ) : (
               <select
@@ -934,12 +991,12 @@ export function CalendarView({
                 onChange={(event) =>
                   setComposerRepeat(event.target.value as Reminder["repeat"])
                 }
-                aria-label="Reminder repeat"
+                aria-label="Erinnerung wiederholen"
               >
-                <option value="none">Once</option>
-                <option value="daily">Daily</option>
-                <option value="weekly">Weekly</option>
-                <option value="monthly">Monthly</option>
+                <option value="none">Einmalig</option>
+                <option value="daily">Taeglich</option>
+                <option value="weekly">Woechentlich</option>
+                <option value="monthly">Monatlich</option>
               </select>
             )}
             <button
@@ -948,79 +1005,103 @@ export function CalendarView({
               disabled={!composerCanSubmit}
             >
               <Plus size={14} />
-              Add
+              Erstellen
             </button>
           </form>
         </div>
 
         {importOpen && (
-          <Glass className="nx-calendar-import-panel">
-            <div className="nx-calendar-import-copy">
-              <strong>Import source</strong>
-              <span>{importSourceLabel}</span>
-            </div>
-            <div className="nx-calendar-import-fields">
-              <select
-                value={importMode}
-                onChange={(event) => setImportMode(event.target.value as IcsImportMode)}
-                aria-label="Import mapping"
-              >
-                <option value="reminders">Import as Reminders</option>
-                <option value="tasks">Import as Tasks</option>
-              </select>
-              <label className="nx-calendar-file-button">
-                <Upload size={13} />
-                File
-                <input
-                  type="file"
-                  accept=".ics,text/calendar,text/plain"
-                  onChange={(event) => handleImportFile(event.target.files?.[0] || null)}
+          <div
+            className="nx-calendar-import-overlay"
+            role="presentation"
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget) setImportOpen(false);
+            }}
+          >
+            <div
+              className="nx-calendar-import-dialog"
+              role="dialog"
+              aria-label="Kalender-Import"
+              onMouseDown={(event) => event.stopPropagation()}
+            >
+              <Glass className="nx-calendar-import-panel nx-calendar-import-panel--drawer">
+                <div className="nx-calendar-import-copy">
+                  <strong>Importquelle</strong>
+                  <span>{importSourceLabel}</span>
+                </div>
+                <div className="nx-calendar-import-fields">
+                  <select
+                    value={importMode}
+                    onChange={(event) => setImportMode(event.target.value as IcsImportMode)}
+                    aria-label="Import-Zuordnung"
+                  >
+                    <option value="reminders">Als Erinnerungen</option>
+                    <option value="tasks">Als Aufgaben</option>
+                  </select>
+                  <label className="nx-calendar-file-button">
+                    <Upload size={13} />
+                    Datei
+                    <input
+                      type="file"
+                      accept=".ics,text/calendar,text/plain"
+                      onChange={(event) => handleImportFile(event.target.files?.[0] || null)}
+                    />
+                  </label>
+                  {hasImportSource && (
+                    <button type="button" onClick={clearImportSource}>
+                      <X size={13} />
+                      Leeren
+                    </button>
+                  )}
+                  <button type="button" onClick={runImport} disabled={!hasImportSource}>
+                    <Upload size={13} />
+                    Import
+                  </button>
+                  <button
+                    type="button"
+                    className="nx-calendar-icon-button nx-calendar-import-close"
+                    onClick={() => setImportOpen(false)}
+                    aria-label="Import schliessen"
+                    title="Import schliessen"
+                  >
+                    <X size={13} />
+                  </button>
+                </div>
+                <textarea
+                  value={importSource}
+                  onChange={(event) => {
+                    setImportSource(event.target.value);
+                    setImportFileName("");
+                  }}
+                  placeholder="BEGIN:VCALENDAR&#10;BEGIN:VEVENT&#10;SUMMARY:Planung..."
                 />
-              </label>
-              {hasImportSource && (
-                <button type="button" onClick={clearImportSource}>
-                  <X size={13} />
-                  Clear
-                </button>
-              )}
-              <button type="button" onClick={runImport} disabled={!hasImportSource}>
-                <Upload size={13} />
-                Import
-              </button>
+                {importMessage && <p>{importMessage}</p>}
+              </Glass>
             </div>
-            <textarea
-              value={importSource}
-              onChange={(event) => {
-                setImportSource(event.target.value);
-                setImportFileName("");
-              }}
-              placeholder="BEGIN:VCALENDAR&#10;BEGIN:VEVENT&#10;SUMMARY:Planning..."
-            />
-            {importMessage && <p>{importMessage}</p>}
-          </Glass>
+          </div>
         )}
 
         <div className="nx-calendar-stats nx-release-strip">
           <span>
             <ListFilter size={12} />
-            <strong>{filteredItems.length}</strong> visible
+            <strong>{filteredItems.length}</strong> sichtbar
           </span>
           <span>
             <CheckSquare size={12} />
-            <strong>{taskCount}</strong> tasks
+            <strong>{taskCount}</strong> Aufgaben
           </span>
           <span>
             <Bell size={12} />
-            <strong>{reminderCount}</strong> reminders
+            <strong>{reminderCount}</strong> Erinnerungen
           </span>
           <span className={overdueCount > 0 ? "is-hot" : ""}>
             <Clock size={12} />
-            <strong>{overdueCount}</strong> overdue
+            <strong>{overdueCount}</strong> faellig
           </span>
           {hasActiveFilters && (
             <span>
               <X size={12} />
-              <strong>{filteredHiddenCount}</strong> hidden
+              <strong>{filteredHiddenCount}</strong> ausgeblendet
             </span>
           )}
         </div>
@@ -1029,7 +1110,7 @@ export function CalendarView({
           <Glass className="nx-calendar-month-panel">
             <div className="nx-calendar-panel-head nx-calendar-month-head">
               <div>
-                <span>Month</span>
+                <span>Monat</span>
                 <strong>{formatMonthTitle(viewMonth)}</strong>
               </div>
               <div className="nx-calendar-panel-metrics">
@@ -1041,6 +1122,12 @@ export function CalendarView({
                   <Bell size={11} />
                   {monthCounts.reminders}
                 </span>
+                {monthHighPriorityCount > 0 && (
+                  <span className="is-priority-high" title="Offene hohe Prioritaet">
+                    <Flag size={11} />
+                    {monthHighPriorityCount}
+                  </span>
+                )}
               </div>
             </div>
             <div className="nx-calendar-weekdays" aria-hidden="true">
@@ -1071,7 +1158,7 @@ export function CalendarView({
           <Glass className="nx-calendar-agenda-panel">
             <div className="nx-calendar-agenda-head">
               <div>
-                <span>Agenda</span>
+                <span>Tagesplan</span>
                 <strong>{formatSelectedDate(selectedDate)}</strong>
                 <div className="nx-calendar-agenda-kpis">
                   <span>
@@ -1082,7 +1169,13 @@ export function CalendarView({
                     <Bell size={10} />
                     {selectedCounts.reminders}
                   </span>
-                  {selectedHiddenCount > 0 && <span>{selectedHiddenCount} hidden</span>}
+                  {selectedHighPriorityCount > 0 && (
+                    <span className="is-priority-high" title="Offene hohe Prioritaet">
+                      <Flag size={10} />
+                      {selectedHighPriorityCount}
+                    </span>
+                  )}
+                  {selectedHiddenCount > 0 && <span>{selectedHiddenCount} ausgeblendet</span>}
                 </div>
               </div>
               <div className="nx-calendar-agenda-actions">
@@ -1092,7 +1185,7 @@ export function CalendarView({
                   onClick={() => focusComposer("task")}
                 >
                   <Plus size={13} />
-                  Task
+                  Aufgabe
                 </button>
                 <button
                   type="button"
@@ -1100,7 +1193,7 @@ export function CalendarView({
                   onClick={() => focusComposer("reminder")}
                 >
                   <Bell size={13} />
-                  Reminder
+                  Erinnerung
                 </button>
               </div>
             </div>
@@ -1110,30 +1203,30 @@ export function CalendarView({
                   <Calendar size={22} />
                   <span>
                     {selectedHiddenCount > 0
-                      ? "Hidden by filters"
+                      ? "Durch Filter ausgeblendet"
                       : hasActiveFilters
-                        ? "No matching items"
-                        : "Open day"}
+                        ? "Keine Treffer"
+                        : "Freier Tag"}
                   </span>
                   <small>
                     {selectedHiddenCount > 0
-                      ? "Clear filters to show the scheduled items."
-                      : "Add a task or reminder for this date."}
+                      ? "Filter loeschen, um geplante Eintraege zu sehen."
+                      : "Erstelle eine Aufgabe oder Erinnerung fuer dieses Datum."}
                   </small>
                   <div className="nx-calendar-empty-actions">
                     {hasActiveFilters && (
                       <button type="button" onClick={clearFilters}>
                         <X size={12} />
-                        Clear
+                        Reset
                       </button>
                     )}
                     <button type="button" onClick={() => focusComposer("task")}>
                       <Plus size={12} />
-                      Task
+                      Aufgabe
                     </button>
                     <button type="button" onClick={() => focusComposer("reminder")}>
                       <Bell size={12} />
-                      Reminder
+                      Erinnerung
                     </button>
                   </div>
                 </div>

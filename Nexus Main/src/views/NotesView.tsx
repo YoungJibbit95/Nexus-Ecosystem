@@ -156,6 +156,7 @@ export function NotesView() {
     shallow,
   );
   const [mode, setMode] = useState<"edit" | "split" | "preview">("edit");
+  const [splitEditorRatio, setSplitEditorRatio] = useState(46);
   const [showSettings, setShowSettings] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearch, setShowSearch] = useState(false);
@@ -266,6 +267,9 @@ export function NotesView() {
       if (typeof parsed.searchQuery === "string") {
         setSearchQuery(parsed.searchQuery);
       }
+      if (typeof parsed.splitEditorRatio === "number") {
+        setSplitEditorRatio(Math.max(30, Math.min(72, parsed.splitEditorRatio)));
+      }
     } catch {
       // Ignore malformed persisted UI state.
     }
@@ -279,13 +283,14 @@ export function NotesView() {
       focusMode,
       showSearch,
       searchQuery,
+      splitEditorRatio,
     };
     try {
       window.localStorage.setItem(NOTES_UI_STATE_KEY, JSON.stringify(payload));
     } catch {
       // Ignore storage write failures.
     }
-  }, [focusMode, mode, searchQuery, showSearch, sortBy, tagFilter]);
+  }, [focusMode, mode, searchQuery, showSearch, sortBy, splitEditorRatio, tagFilter]);
 
   const syncLineNumberScroll = useCallback(
     (target?: HTMLTextAreaElement | null) => {
@@ -293,6 +298,36 @@ export function NotesView() {
       const lineNumbersEl = lineNumbersRef.current;
       if (!area || !lineNumbersEl) return;
       lineNumbersEl.style.transform = `translateY(${-area.scrollTop}px)`;
+    },
+    [],
+  );
+
+  const handleSplitResizePointerDown = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      const grid = event.currentTarget.closest(
+        ".nx-notes-editor-grid",
+      ) as HTMLElement | null;
+      if (!grid) return;
+      event.preventDefault();
+      const pointerId = event.pointerId;
+      event.currentTarget.setPointerCapture?.(pointerId);
+
+      const onMove = (moveEvent: PointerEvent) => {
+        const rect = grid.getBoundingClientRect();
+        if (rect.width <= 0) return;
+        const next = ((moveEvent.clientX - rect.left) / rect.width) * 100;
+        setSplitEditorRatio(Math.max(30, Math.min(72, next)));
+      };
+
+      const onUp = () => {
+        window.removeEventListener("pointermove", onMove);
+        window.removeEventListener("pointerup", onUp);
+        window.removeEventListener("pointercancel", onUp);
+      };
+
+      window.addEventListener("pointermove", onMove);
+      window.addEventListener("pointerup", onUp);
+      window.addEventListener("pointercancel", onUp);
     },
     [],
   );
@@ -953,8 +988,8 @@ export function NotesView() {
       ? `Gespeichert ${lastSavedAt}`
       : "Bereit";
   const autosaveLabel = t.editor.autosave
-    ? `Autosave ${Math.round(t.editor.autosaveInterval / 1000)}s`
-    : "Autosave aus";
+    ? `Auto ${Math.round(t.editor.autosaveInterval / 1000)}s`
+    : "Auto aus";
 
   // Small formatting button
   const FmtBtn = ({
@@ -1020,6 +1055,7 @@ export function NotesView() {
             const editBlock = () => focusMagicFenceInEditor(lang, content);
             return (
               <div
+                className="nx-notes-magic-preview"
                 role="button"
                 tabIndex={0}
                 title="Magic Element bearbeiten"
@@ -1047,6 +1083,7 @@ export function NotesView() {
               >
                 <button
                   type="button"
+                  className="nx-notes-magic-edit"
                   aria-label="Magic Element bearbeiten"
                   onClick={(event) => {
                     event.stopPropagation();
@@ -1063,13 +1100,18 @@ export function NotesView() {
                     border: `1px solid rgba(${rgb},0.28)`,
                     background: "rgba(10,12,22,0.72)",
                     color: t.accent,
-                    display: "grid",
-                    placeItems: "center",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 4,
                     cursor: "pointer",
-                    opacity: 0.76,
+                    opacity: 0.9,
+                    fontSize: 10,
+                    fontWeight: 800,
+                    padding: "0 8px",
                   }}
                 >
                   <Edit3 size={11} />
+                  Edit
                 </button>
                 {renderedBlock}
               </div>
@@ -1338,7 +1380,7 @@ export function NotesView() {
 
           {showSearch && (
             <div
-              className="px-4 py-3 shrink-0"
+              className="nx-notes-sidebar-search px-4 py-3 shrink-0"
               style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}
             >
               <input
@@ -1362,7 +1404,7 @@ export function NotesView() {
 
           {allTags.length > 0 && (
             <div
-              className="px-4 py-3 shrink-0 flex flex-wrap gap-1.5"
+              className="nx-notes-sidebar-tags px-4 py-3 shrink-0 flex flex-wrap gap-1.5"
               style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}
             >
               {allTags.slice(0, 8).map((tag) => (
@@ -1394,7 +1436,7 @@ export function NotesView() {
           )}
 
           <div
-            className="px-4 py-3 shrink-0 flex gap-1.5"
+            className="nx-notes-sidebar-sort px-4 py-3 shrink-0 flex gap-1.5"
             style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}
           >
             {(["updated", "title", "created"] as const).map((s) => (
@@ -1456,6 +1498,7 @@ export function NotesView() {
                 }}
               >
                 <div
+                  className="nx-notes-list-excerpt"
                   style={{
                     display: "flex",
                     justifyContent: "space-between",
@@ -1502,6 +1545,7 @@ export function NotesView() {
                 </div>
                 {n.tags.length > 0 && (
                   <div
+                    className="nx-notes-list-tags"
                     style={{
                       display: "flex",
                       gap: 5,
@@ -2407,13 +2451,20 @@ export function NotesView() {
               flex: 1,
               minHeight: 0,
               overflow: "visible",
-            }}
+              "--nx-notes-editor-flex":
+                mode === "split" ? `0 0 ${splitEditorRatio}%` : undefined,
+              "--nx-notes-preview-flex":
+                mode === "split" ? `0 0 ${100 - splitEditorRatio}%` : undefined,
+            } as React.CSSProperties}
           >
             {/* Editor */}
             {(mode === "edit" || mode === "split") && (
               <Glass
                 className="nx-notes-editor-pane flex-1 flex flex-col"
-                style={{ minHeight: 0, overflow: "hidden" }}
+                style={{
+                  minHeight: 0,
+                  overflow: "hidden",
+                }}
               >
                 {t.editor.lineNumbers ? (
                   <div
@@ -2511,6 +2562,20 @@ export function NotesView() {
                   />
                 )}
               </Glass>
+            )}
+
+            {mode === "split" && (
+              <div
+                className="nx-notes-split-resizer"
+                role="separator"
+                aria-label="Editor und Preview Breite anpassen"
+                aria-orientation="vertical"
+                title="Ziehen, um Editor und Preview breiter oder schmaler zu machen"
+                onPointerDown={handleSplitResizePointerDown}
+                onDoubleClick={() => setSplitEditorRatio(46)}
+              >
+                <span />
+              </div>
             )}
 
             {/* Preview — always has a visible scrollbar */}

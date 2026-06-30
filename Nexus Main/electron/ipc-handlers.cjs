@@ -10,6 +10,20 @@ const MAX_WRITE_BYTES = 2 * 1024 * 1024;
 const MAX_EXEC_CODE_BYTES = 800 * 1024;
 const MAX_EXEC_OUTPUT_CHARS = 280_000;
 const EXEC_TIMEOUT_MS = Number(process.env.NEXUS_CODE_EXEC_TIMEOUT_MS || 12_000);
+const SAFE_EXEC_ENV_NAMES = [
+  'PATH',
+  'Path',
+  'SystemRoot',
+  'WINDIR',
+  'ComSpec',
+  'PATHEXT',
+  'TEMP',
+  'TMP',
+  'TMPDIR',
+  'LANG',
+  'LC_ALL',
+  'LC_CTYPE',
+];
 
 const resolveAllowedRoots = () => {
   const envValue = process.env.NEXUS_ALLOWED_FS_ROOTS;
@@ -76,6 +90,33 @@ const sanitizeFileName = (value, fallback) => {
   return safe;
 };
 
+const copyEnvValue = (target, name) => {
+  const key = Object.keys(process.env).find((entry) => entry.toLowerCase() === name.toLowerCase());
+  if (!key || process.env[key] == null) return;
+  target[key] = String(process.env[key]);
+};
+
+const buildExecutionEnv = (workingDir) => {
+  const env = {};
+  for (const name of SAFE_EXEC_ENV_NAMES) {
+    copyEnvValue(env, name);
+  }
+
+  env.FORCE_COLOR = '0';
+  env.NO_COLOR = '1';
+  env.NEXUS_SANITIZED_EXEC_ENV = '1';
+
+  if (workingDir) {
+    env.TEMP = workingDir;
+    env.TMP = workingDir;
+    if (process.platform !== 'win32') {
+      env.TMPDIR = workingDir;
+    }
+  }
+
+  return env;
+};
+
 const resolveExecutionAttempts = (lang, filePath) => {
   const nodeMajor = Number(String(process.versions?.node || '').split('.')[0] || 0);
   const supportsStripTypes = Number.isFinite(nodeMajor) && nodeMajor >= 22;
@@ -106,7 +147,7 @@ const resolveExecutionAttempts = (lang, filePath) => {
   }
 };
 
-const runExecutionAttempt = (attempt) =>
+const runExecutionAttempt = (attempt, options = {}) =>
   new Promise((resolve) => {
     let timedOut = false;
     let output = '';
@@ -138,10 +179,11 @@ const runExecutionAttempt = (attempt) =>
     };
 
     let proc;
+    const workingDir = options.cwd || os.tmpdir();
     try {
       proc = spawn(attempt.binary, attempt.args, {
-        cwd: os.homedir(),
-        env: { ...process.env, FORCE_COLOR: '0' },
+        cwd: workingDir,
+        env: buildExecutionEnv(workingDir),
         stdio: ['ignore', 'pipe', 'pipe'],
         windowsHide: true,
       });
@@ -389,7 +431,7 @@ function registerCodeExecutionHandler() {
 
       let lastError = null;
       for (const attempt of attempts) {
-        const result = await runExecutionAttempt(attempt);
+        const result = await runExecutionAttempt(attempt, { cwd: tempDir });
         if (result.launchErrorCode === 'ENOENT') {
           lastError = `runtime "${attempt.runtime}" not installed`;
           continue;

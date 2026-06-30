@@ -114,7 +114,10 @@ function MagicChecklist({ content, accent }: { content: string; accent: string }
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         {items.map((item, i) => (
           <button
+            type="button"
             key={i}
+            aria-pressed={item.done}
+            title="Checklist-Punkt lokal in der Preview umschalten"
             onClick={() => {
               setItems((prev) => prev.map((entry, index) => (
                 index === i ? { ...entry, done: !entry.done } : entry
@@ -428,7 +431,7 @@ function MagicKanban({ content, accent }: { content: string; accent: string }) {
     <div className="nx-magic-fade" style={{
       margin: '12px 0',
       display: 'grid',
-      gridTemplateColumns: `repeat(${Math.max(1, lanes.length)}, minmax(140px, 1fr))`,
+      gridTemplateColumns: 'repeat(auto-fit, minmax(132px, 1fr))',
       gap: 8,
     }}>
       {lanes.length === 0 && (
@@ -536,6 +539,7 @@ function MagicLinkedTask({
         justifyContent: 'space-between',
         gap: 10,
         marginBottom: 8,
+        flexWrap: 'wrap',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
           <span style={{
@@ -590,7 +594,9 @@ function MagicLinkedTask({
         </div>
         <button
           type="button"
+          className="nx-notes-magic-action"
           disabled={Boolean(linkedTask) || !planning?.onCreateTask}
+          title={linkedTask ? 'Task ist bereits verknuepft' : 'Aus diesem Magic Element eine Task erstellen'}
           onClick={(event) => {
             event.stopPropagation()
             planning?.onCreateTask?.(content)
@@ -645,6 +651,7 @@ function MagicLinkedReminder({
         justifyContent: 'space-between',
         gap: 10,
         marginBottom: 8,
+        flexWrap: 'wrap',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
           <span style={{
@@ -699,7 +706,9 @@ function MagicLinkedReminder({
         </div>
         <button
           type="button"
+          className="nx-notes-magic-action"
           disabled={Boolean(linkedReminder) || !planning?.onCreateReminder}
+          title={linkedReminder ? 'Reminder ist bereits verknuepft' : 'Aus diesem Magic Element einen Reminder erstellen'}
           onClick={(event) => {
             event.stopPropagation()
             planning?.onCreateReminder?.(content)

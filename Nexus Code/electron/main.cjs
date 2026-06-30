@@ -9,6 +9,7 @@ const { createGithubAuthService } = require("./services/githubAuthService.cjs");
 const { createGithubService } = require("./services/githubService.cjs");
 const { createLspProcessService } = require("./services/lspProcessService.cjs");
 const { redactSensitiveText } = require("./services/processRunner.cjs");
+const { createSanitizedProcessEnv } = require("./services/safeProcessEnv.cjs");
 
 const DEV = process.env.ELECTRON_DEV === "true";
 const DEV_URL = process.env.NEXUS_CODE_DEV_URL || "http://127.0.0.1:5175";
@@ -948,7 +949,7 @@ ipcMain.on("terminal:run", async (event, payload = {}) => {
     const shellLaunch = resolveShellLaunch(normalized);
     const proc = spawn(shellLaunch.binary, shellLaunch.args, {
       cwd: resolvedCwd,
-      env: { ...process.env, FORCE_COLOR: "1" },
+      env: createSanitizedProcessEnv({ FORCE_COLOR: "1" }),
       stdio: ["pipe", "pipe", "pipe"],
       windowsHide: true,
     });

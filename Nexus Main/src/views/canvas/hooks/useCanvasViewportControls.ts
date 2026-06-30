@@ -2,6 +2,17 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type React from "react";
 import { useCanvas, type Viewport } from "../../../store/canvasStore";
 
+const MIN_ZOOM = 0.15;
+const MAX_ZOOM = 3;
+const ZOOM_PRECISION = 1000;
+const PAN_PRECISION = 2;
+
+const clampZoom = (zoom: number) => Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom));
+const stabilizeZoom = (zoom: number) =>
+  Math.round(clampZoom(zoom) * ZOOM_PRECISION) / ZOOM_PRECISION;
+const stabilizePan = (value: number) =>
+  Math.round(value * PAN_PRECISION) / PAN_PRECISION;
+
 export function useCanvasViewportControls({
   canvasRef,
   viewport,
@@ -34,6 +45,13 @@ export function useCanvasViewportControls({
   const wheelPanRaf = useRef<number>(0);
   const wheelPanDelta = useRef({ x: 0, y: 0 });
   const wheelPanReleaseTimeout = useRef<number>(0);
+  const wheelPanningActive = useRef(false);
+
+  const setWheelPanningFlag = useCallback((next: boolean) => {
+    if (wheelPanningActive.current === next) return;
+    wheelPanningActive.current = next;
+    setWheelPanning(next);
+  }, []);
 
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -54,7 +72,7 @@ export function useCanvasViewportControls({
     const flush = () => {
       raf = 0;
       if (!pending) return;
-      setPan(pending.x, pending.y);
+      setPan(stabilizePan(pending.x), stabilizePan(pending.y));
       pending = null;
     };
 
@@ -72,7 +90,7 @@ export function useCanvasViewportControls({
         raf = 0;
       }
       if (pending) {
-        setPan(pending.x, pending.y);
+        setPan(stabilizePan(pending.x), stabilizePan(pending.y));
         pending = null;
       }
       setPanning(false);
@@ -95,16 +113,17 @@ export function useCanvasViewportControls({
       const rect = element.getBoundingClientRect();
       const localX = clientX - rect.left;
       const localY = clientY - rect.top;
-      const nextZoom = Math.max(0.15, Math.min(3, currentViewport.zoom * scaleFactor));
+      const currentZoom = clampZoom(currentViewport.zoom);
+      const nextZoom = stabilizeZoom(currentZoom * scaleFactor);
       if (Math.abs(nextZoom - currentViewport.zoom) < 0.0001) return;
-      const worldX = (localX - currentViewport.panX) / currentViewport.zoom;
-      const worldY = (localY - currentViewport.panY) / currentViewport.zoom;
+      const worldX = (localX - currentViewport.panX) / currentZoom;
+      const worldY = (localY - currentViewport.panY) / currentZoom;
       useCanvas.setState({
         viewport: {
           ...currentViewport,
           zoom: nextZoom,
-          panX: localX - worldX * nextZoom,
-          panY: localY - worldY * nextZoom,
+          panX: stabilizePan(localX - worldX * nextZoom),
+          panY: stabilizePan(localY - worldY * nextZoom),
         },
       });
     },
@@ -115,7 +134,7 @@ export function useCanvasViewportControls({
     (nextZoom: number) => {
       const element = canvasRef.current;
       const currentViewport = useCanvas.getState().viewport;
-      const clamped = Math.max(0.15, Math.min(3, nextZoom));
+      const clamped = stabilizeZoom(nextZoom);
       if (!element) {
         setZoom(clamped);
         return;
@@ -151,13 +170,13 @@ export function useCanvasViewportControls({
         const sensitivity = Math.abs(pinchDelta) < 16 ? 0.0105 : 0.0085;
         const factor = Math.exp(-pinchDelta * sensitivity);
         applyZoomAtPoint(event.clientX, event.clientY, factor);
-        setWheelPanning(false);
+        setWheelPanningFlag(false);
         return;
       }
 
       wheelPanDelta.current.x -= dx;
       wheelPanDelta.current.y -= dy;
-      setWheelPanning(true);
+      setWheelPanningFlag(true);
 
       if (!wheelPanRaf.current) {
         wheelPanRaf.current = requestAnimationFrame(() => {
@@ -169,8 +188,8 @@ export function useCanvasViewportControls({
             useCanvas.setState({
               viewport: {
                 ...currentViewport,
-                panX: currentViewport.panX + delta.x,
-                panY: currentViewport.panY + delta.y,
+                panX: stabilizePan(currentViewport.panX + delta.x),
+                panY: stabilizePan(currentViewport.panY + delta.y),
               },
             });
           }
@@ -181,10 +200,10 @@ export function useCanvasViewportControls({
         window.clearTimeout(wheelPanReleaseTimeout.current);
       }
       wheelPanReleaseTimeout.current = window.setTimeout(() => {
-        setWheelPanning(false);
+        setWheelPanningFlag(false);
       }, 110);
     },
-    [applyZoomAtPoint, canvasSize.h],
+    [applyZoomAtPoint, canvasSize.h, setWheelPanningFlag],
   );
 
   useEffect(
@@ -193,6 +212,7 @@ export function useCanvasViewportControls({
       if (wheelPanReleaseTimeout.current) {
         window.clearTimeout(wheelPanReleaseTimeout.current);
       }
+      wheelPanningActive.current = false;
     },
     [],
   );
