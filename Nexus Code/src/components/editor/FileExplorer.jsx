@@ -23,15 +23,64 @@ import {
 } from "../../pages/editor/fileTreeModel";
 
 const actionButtonClass =
-  "grid h-7 w-7 shrink-0 place-items-center rounded-md text-gray-500 transition hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40 [&>svg]:h-3.5 [&>svg]:w-3.5";
+  "grid h-8 w-8 shrink-0 place-items-center rounded-md border border-white/5 bg-white/[0.025] text-gray-500 transition hover:border-white/10 hover:bg-white/10 hover:text-white focus-visible:border-cyan-300/50 focus-visible:text-white focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-40 [&>svg]:h-3.5 [&>svg]:w-3.5";
 
 const rowActionClass =
-  "grid h-5 w-5 shrink-0 place-items-center rounded text-gray-500 transition hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40 [&>svg]:h-3 [&>svg]:w-3";
+  "grid h-6 w-6 shrink-0 place-items-center rounded text-gray-500 transition hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40 [&>svg]:h-3 [&>svg]:w-3";
+
+const FILE_GROUP_LABELS = {
+  source: "Source",
+  style: "Styles",
+  markup: "Markup",
+  data: "Data",
+  config: "Config",
+  docs: "Docs",
+  media: "Media",
+  other: "Other",
+};
 
 const TREE_ROW_HEIGHT = FILE_TREE_LIMITS.rowHeight || 32;
 const TREE_VIRTUALIZE_AFTER = FILE_TREE_LIMITS.virtualizeAfter || 160;
 const TREE_OVERSCAN_ROWS = FILE_TREE_LIMITS.overscanRows || 14;
 const TREE_MAX_RENDERED_ROWS = FILE_TREE_LIMITS.maxRenderedRows || 260;
+
+function getFileNameParts(name = "") {
+  const value = String(name || "");
+  const index = value.lastIndexOf(".");
+  if (index <= 0 || index >= value.length - 1) {
+    return { base: value, suffix: "" };
+  }
+  return {
+    base: value.slice(0, index),
+    suffix: value.slice(index),
+  };
+}
+
+function getFileGroupLabel(group) {
+  return FILE_GROUP_LABELS[group] || "Other";
+}
+
+function getFileSection(row) {
+  const node = row?.node;
+  if (!node || node.isFolder) return null;
+  const meta = getFileMeta(node.name);
+  const extension = String(node.extension || "").trim().toLowerCase();
+  const sectionId = extension || "no-extension";
+  const parentKey = node.parentId || "root";
+
+  return {
+    key: `${parentKey}:file-section:${sectionId}`,
+    parentKey,
+    depth: row.depth,
+    label: extension ? meta.label : "No Ext",
+    detail: extension ? getFileGroupLabel(meta.group) : "Plain",
+    color: meta.color,
+  };
+}
+
+function getItemCountLabel(count) {
+  return count === 1 ? "1 file" : `${count} files`;
+}
 
 function WorkspaceLabel({ workspacePath }) {
   const label = useMemo(() => {
@@ -50,21 +99,32 @@ function WorkspaceLabel({ workspacePath }) {
   );
 }
 
-function ActionIconButton({ title, onClick, disabled = false, children }) {
+function ActionIconButton({
+  title,
+  tooltip = title,
+  onClick,
+  disabled = false,
+  children,
+}) {
   return (
-    <button
-      type="button"
-      title={title}
-      aria-label={title}
-      disabled={disabled}
-      onClick={(event) => {
-        event.stopPropagation();
-        if (!disabled) onClick?.(event);
-      }}
-      className={actionButtonClass}
-    >
-      {children}
-    </button>
+    <div className="group/tool relative grid place-items-center">
+      <button
+        type="button"
+        title={title}
+        aria-label={title}
+        disabled={disabled}
+        onClick={(event) => {
+          event.stopPropagation();
+          if (!disabled) onClick?.(event);
+        }}
+        className={actionButtonClass}
+      >
+        {children}
+      </button>
+      <span className="pointer-events-none absolute left-1/2 top-full z-30 mt-1 -translate-x-1/2 whitespace-nowrap rounded-md border border-white/10 bg-[#090918]/95 px-2 py-1 text-[10px] font-medium text-gray-200 opacity-0 shadow-xl transition-opacity group-hover/tool:opacity-100 group-focus-within/tool:opacity-100">
+        {tooltip}
+      </span>
+    </div>
   );
 }
 
@@ -149,14 +209,107 @@ function CreationRow({ depth, type, onConfirm, onCancel }) {
   );
 }
 
-function EmptyState({ icon, title, detail }) {
+function StateActionButton({ icon: Icon, children, onClick, disabled = false }) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={(event) => {
+        event.stopPropagation();
+        if (!disabled) onClick?.(event);
+      }}
+      className="inline-flex h-7 items-center gap-1.5 rounded-md border border-white/10 bg-white/[0.04] px-2 text-[10px] font-semibold text-gray-300 transition hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+    >
+      {Icon && <Icon size={12} className="shrink-0" />}
+      <span>{children}</span>
+    </button>
+  );
+}
+
+function EmptyState({ icon, title, detail, children }) {
   const Icon = icon;
   return (
     <div className="flex h-full min-h-[190px] flex-col items-center justify-center px-5 text-center text-gray-500">
       <Icon size={30} className={`mb-2.5 opacity-70 ${Icon === Loader2 ? "animate-spin" : ""}`} />
       <div className="text-xs font-semibold text-gray-300">{title}</div>
       {detail && <div className="mt-1 max-w-[220px] text-[11px] leading-4">{detail}</div>}
+      {children && <div className="mt-3 flex flex-wrap items-center justify-center gap-2">{children}</div>}
     </div>
+  );
+}
+
+function LoadingState() {
+  const rows = [0, 1, 2, 3, 4, 5, 6];
+  return (
+    <div className="px-2 py-2" aria-label="Loading tree">
+      <div className="mb-3 flex items-center gap-2 px-2 text-[11px] text-gray-400">
+        <Loader2 size={13} className="shrink-0 animate-spin text-cyan-200" />
+        <span className="truncate">Reading workspace entries.</span>
+      </div>
+      {rows.map((row) => (
+        <div
+          key={row}
+          className="flex items-center gap-2 rounded-md px-2"
+          style={{
+            height: TREE_ROW_HEIGHT,
+            paddingLeft: `${(row % 3) * 12 + 10}px`,
+          }}
+        >
+          <span className="h-3.5 w-3.5 shrink-0 rounded bg-white/[0.07]" />
+          <span
+            className="h-2.5 rounded bg-white/[0.06]"
+            style={{ width: `${58 + ((row * 17) % 34)}%` }}
+          />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ExtensionSectionRow({ section }) {
+  return (
+    <div
+      className="flex items-center gap-2 px-2 text-[10px] text-gray-500"
+      style={{
+        height: TREE_ROW_HEIGHT,
+        paddingLeft: `${section.depth * 12 + 24}px`,
+      }}
+      role="presentation"
+    >
+      <span
+        className="h-1.5 w-1.5 shrink-0 rounded-full"
+        style={{ background: section.color }}
+      />
+      <span className="shrink-0 font-bold uppercase tracking-wider text-gray-400">
+        {section.label}
+      </span>
+      <span className="min-w-0 truncate text-[9px] text-gray-600">
+        {section.detail}
+      </span>
+      <span className="h-px min-w-[12px] flex-1 bg-white/[0.06]" />
+      <span className="shrink-0 rounded border border-white/5 bg-white/[0.025] px-1.5 py-0.5 text-[9px] font-semibold text-gray-600">
+        {getItemCountLabel(section.count)}
+      </span>
+    </div>
+  );
+}
+
+function FileNameLabel({ node, isActive }) {
+  const { base, suffix } = getFileNameParts(node.name);
+  const textClass = isActive ? "text-white" : "text-gray-400";
+
+  return (
+    <span
+      className={`flex min-w-0 flex-1 items-baseline font-mono leading-none ${textClass}`}
+      title={node.name}
+    >
+      <span className="min-w-0 truncate">{base || node.name}</span>
+      {suffix && (
+        <span className="shrink-0 text-gray-500 group-hover:text-gray-300">
+          {suffix}
+        </span>
+      )}
+    </span>
   );
 }
 
@@ -167,6 +320,7 @@ function FileBadge({ node }) {
     <span
       className="ml-1 shrink-0 rounded border border-white/10 px-1.5 py-0.5 text-[9px] font-bold leading-none"
       style={{ color: meta.color, background: `${meta.color}14` }}
+      title={`${meta.label} / ${getFileGroupLabel(meta.group)}`}
     >
       {meta.label}
     </span>
@@ -204,7 +358,7 @@ function TreeRow({
   onDelete,
   treeLocked = false,
 }) {
-  const { node, depth, childCount, isOpen, hasChildren } = row;
+  const { node, depth, childCount, isOpen, hasChildren, isMatch } = row;
   const isActive = activeFileId === node.id;
   const isFolder = node.isFolder;
   const isRenaming = renamingId === node.id;
@@ -254,9 +408,13 @@ function TreeRow({
         style={{
           height: TREE_ROW_HEIGHT,
           paddingLeft: `${indent}px`,
+          paddingRight: !isRenaming ? (isFolder ? "5.75rem" : "2.5rem") : undefined,
           background: isActive
             ? "rgba(var(--primary-rgb, 128, 0, 255), 0.15)"
+            : isMatch
+              ? "rgba(34, 211, 238, 0.08)"
             : undefined,
+          boxShadow: isMatch ? "inset 2px 0 rgba(34, 211, 238, 0.45)" : undefined,
           contain: "layout paint style",
         }}
       >
@@ -292,13 +450,18 @@ function TreeRow({
           />
         ) : (
           <>
-            <span
-              className={`min-w-0 flex-1 truncate font-mono leading-none ${
-                isActive ? "text-white" : "text-gray-400"
-              }`}
-            >
-              {node.name}
-            </span>
+            {isFolder ? (
+              <span
+                className={`min-w-0 flex-1 truncate font-medium leading-none ${
+                  isActive ? "text-white" : isOpen ? "text-purple-100" : "text-gray-400"
+                }`}
+                title={node.name}
+              >
+                {node.name}
+              </span>
+            ) : (
+              <FileNameLabel node={node} isActive={isActive} />
+            )}
             {isFolder && childCount > 0 && (
               <span className="shrink-0 rounded bg-white/5 px-1.5 py-0.5 text-[9px] font-semibold text-gray-500">
                 {childCount}
@@ -314,8 +477,8 @@ function TreeRow({
               <>
                 <button
                   type="button"
-                  title="New file"
-                  aria-label="New file"
+                  title="New file in folder"
+                  aria-label="New file in folder"
                   disabled={!canMutate}
                   className={rowActionClass}
                   onClick={(event) => {
@@ -327,8 +490,8 @@ function TreeRow({
                 </button>
                 <button
                   type="button"
-                  title="New folder"
-                  aria-label="New folder"
+                  title="New folder in folder"
+                  aria-label="New folder in folder"
                   disabled={!canMutate}
                   className={rowActionClass}
                   onClick={(event) => {
@@ -342,8 +505,8 @@ function TreeRow({
             )}
             <button
               type="button"
-              title={isDeleting ? "Confirm delete" : "Delete"}
-              aria-label={isDeleting ? "Confirm delete" : "Delete"}
+              title={isDeleting ? "Click again to delete" : "Delete"}
+              aria-label={isDeleting ? "Click again to delete" : "Delete"}
               disabled={!canMutate}
               className={`${rowActionClass} ${isDeleting ? "text-red-400" : "hover:text-red-300"}`}
               onClick={(event) => {
@@ -632,6 +795,17 @@ export default function FileExplorer({
 
   const treeItems = useMemo(() => {
     const items = [];
+    const sectionCounts = new Map();
+
+    for (const row of model.rows) {
+      if (row.kind !== "node") continue;
+      const section = getFileSection(row);
+      if (!section) continue;
+      const current = sectionCounts.get(section.key) || { ...section, count: 0 };
+      current.count += 1;
+      sectionCounts.set(section.key, current);
+    }
+
     if (creating?.parentId === null) {
       items.push({
         id: `creation:root:${creating.type}`,
@@ -642,7 +816,20 @@ export default function FileExplorer({
       });
     }
 
+    const lastSectionByParent = new Map();
+
     for (const row of model.rows) {
+      const section = row.kind === "node" ? getFileSection(row) : null;
+      if (section && lastSectionByParent.get(section.parentKey) !== section.key) {
+        const countedSection = sectionCounts.get(section.key) || { ...section, count: 1 };
+        items.push({
+          id: `section:${section.key}`,
+          kind: "section",
+          section: countedSection,
+        });
+        lastSectionByParent.set(section.parentKey, section.key);
+      }
+
       items.push({
         id: row.id,
         kind: row.kind === "overflow" ? "overflow" : "node",
@@ -739,8 +926,16 @@ export default function FileExplorer({
             <div className="text-[10px] font-bold uppercase tracking-widest text-gray-500">
               Explorer
             </div>
-            <div className="mt-1 text-[10px] text-gray-600">
-              {model.stats.files} files / {model.stats.folders} folders / {model.stats.visibleRows} rows
+            <div className="mt-1 flex h-4 min-w-0 items-center gap-2 text-[10px] text-gray-600">
+              <span className="min-w-0 truncate">
+                {model.stats.folders} folders / {model.stats.files} files / {model.stats.visibleRows} rows
+              </span>
+              {isRefreshingTree && (
+                <span className="inline-flex shrink-0 items-center gap-1 text-cyan-200/80">
+                  <Loader2 size={10} className="animate-spin" />
+                  Refresh
+                </span>
+              )}
             </div>
           </div>
           {virtualWindow.isVirtualized && (
@@ -757,32 +952,39 @@ export default function FileExplorer({
           role="toolbar"
           aria-label="Explorer actions"
         >
-          <ActionIconButton title="Search" onClick={toggleSearch}>
+          <ActionIconButton
+            title={showSearch ? "Close search" : "Search files"}
+            onClick={toggleSearch}
+          >
             {showSearch ? <X size={16} /> : <Search size={16} />}
           </ActionIconButton>
           <ActionIconButton
             title="New file"
-            onClick={() => setCreating({ type: "file", parentId: null })}
+            tooltip="New file"
+            onClick={() => handleStartCreate("file", null)}
             disabled={!canEditTree}
           >
             <FilePlus2 size={16} />
           </ActionIconButton>
           <ActionIconButton
             title="New folder"
-            onClick={() => setCreating({ type: "folder", parentId: null })}
+            tooltip="New folder"
+            onClick={() => handleStartCreate("folder", null)}
             disabled={!canEditTree}
           >
             <FolderPlus size={16} />
           </ActionIconButton>
           <ActionIconButton
-            title="Refresh tree"
+            title={refreshing ? "Refreshing tree" : "Refresh tree"}
+            tooltip={refreshing ? "Refreshing" : "Refresh tree"}
             onClick={handleRefresh}
             disabled={!hasWorkspace || isLoading || refreshing}
           >
             <RefreshCcw size={16} className={refreshing ? "animate-spin" : ""} />
           </ActionIconButton>
           <ActionIconButton
-            title="Collapse folders"
+            title="Collapse all folders"
+            tooltip="Collapse folders"
             onClick={handleCollapseAll}
             disabled={!hasWorkspace || treeLocked || fileList.length === 0}
           >
@@ -828,6 +1030,18 @@ export default function FileExplorer({
         <div className="m-2 flex items-start gap-2 rounded-md border border-red-400/20 bg-red-500/10 p-2 text-[11px] leading-5 text-red-200">
           <AlertTriangle size={14} className="mt-0.5 shrink-0" />
           <span className="min-w-0 flex-1">{visibleError}</span>
+          {hasWorkspace && (
+            <button
+              type="button"
+              aria-label="Retry refresh"
+              title="Retry refresh"
+              disabled={isLoading || refreshing}
+              onClick={handleRefresh}
+              className="grid h-5 w-5 shrink-0 place-items-center rounded hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <RefreshCcw size={12} className={refreshing ? "animate-spin" : ""} />
+            </button>
+          )}
           {localError && (
             <button
               type="button"
@@ -842,13 +1056,6 @@ export default function FileExplorer({
         </div>
       )}
 
-      {isRefreshingTree && (
-        <div className="flex items-center gap-2 border-b border-cyan-400/10 bg-cyan-500/10 px-3 py-1.5 text-[10px] text-cyan-100/80">
-          <Loader2 size={12} className="shrink-0 animate-spin" />
-          <span className="min-w-0 truncate">Refreshing workspace entries.</span>
-        </div>
-      )}
-
       {isBounded && (
         <div className="border-b border-amber-400/10 bg-amber-500/10 px-3 py-1.5 text-[10px] text-amber-200/80">
           Tree capped at {model.stats.visibleRows} visible rows for responsiveness.
@@ -857,12 +1064,19 @@ export default function FileExplorer({
 
       <div
         ref={treeViewportRef}
-        className="custom-scrollbar min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-1 py-1"
+        className="custom-scrollbar relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-1 py-1"
         role="tree"
         aria-busy={isLoading || refreshing}
       >
+        {isRefreshingTree && (
+          <div className="pointer-events-none absolute right-2 top-2 z-20 inline-flex h-7 items-center gap-2 rounded-md border border-cyan-300/15 bg-[#07101e]/90 px-2 text-[10px] font-medium text-cyan-100/85 shadow-xl">
+            <Loader2 size={12} className="shrink-0 animate-spin" />
+            <span>Refreshing</span>
+          </div>
+        )}
+
         {isInitialLoading && (
-          <EmptyState icon={Loader2} title="Loading tree" detail="Reading workspace entries." />
+          <LoadingState />
         )}
 
         {isErrorEmpty && (
@@ -870,7 +1084,17 @@ export default function FileExplorer({
             icon={AlertTriangle}
             title="Tree unavailable"
             detail="The workspace tree could not be read. Try refresh after the error clears."
-          />
+          >
+            {hasWorkspace && (
+              <StateActionButton
+                icon={RefreshCcw}
+                onClick={handleRefresh}
+                disabled={isLoading || refreshing}
+              >
+                Refresh
+              </StateActionButton>
+            )}
+          </EmptyState>
         )}
 
         {!isInitialLoading && isMissingWorkspace && (
@@ -886,11 +1110,22 @@ export default function FileExplorer({
             icon={FolderOpen}
             title="Workspace is empty"
             detail="Create a file or folder to start."
-          />
+          >
+            <StateActionButton icon={FilePlus2} onClick={() => handleStartCreate("file", null)}>
+              New file
+            </StateActionButton>
+            <StateActionButton icon={FolderPlus} onClick={() => handleStartCreate("folder", null)}>
+              New folder
+            </StateActionButton>
+          </EmptyState>
         )}
 
         {!isInitialLoading && isSearchEmpty && (
-          <EmptyState icon={Search} title="No matches" detail="Try a shorter name, extension, or folder term." />
+          <EmptyState icon={Search} title="No matches" detail="Try a shorter name, extension, or folder term.">
+            <StateActionButton icon={X} onClick={() => setSearchQuery("")}>
+              Clear search
+            </StateActionButton>
+          </EmptyState>
         )}
 
         {!isInitialLoading && hasTreeItems && (
@@ -917,6 +1152,18 @@ export default function FileExplorer({
                       onConfirm={(name) => handleCreateConfirm(name, item.parentId)}
                       onCancel={() => setCreating(null)}
                     />
+                  </div>
+                );
+              }
+
+              if (item.kind === "section") {
+                return (
+                  <div
+                    key={item.id}
+                    className="absolute left-0 right-0"
+                    style={rowStyle}
+                  >
+                    <ExtensionSectionRow section={item.section} />
                   </div>
                 );
               }

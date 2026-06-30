@@ -77,6 +77,10 @@ import {
   WORKBENCH_SNAP_ZONES,
 } from "./editor/workbenchDockModel";
 import {
+  createExtensionCommandPaletteEntries,
+  loadExtensionRegistryState,
+} from "./editor/extensionSystem";
+import {
   beginPerfMetric,
   endPerfMetric,
 } from "../lib/perfMetrics";
@@ -745,6 +749,10 @@ export default function Editor({
   );
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [spotlightOpen, setSpotlightOpen] = useState(false);
+  const [extensionCommands, setExtensionCommands] = useState(() =>
+    createExtensionCommandPaletteEntries(loadExtensionRegistryState().records),
+  );
+  const [extensionCommandStatus, setExtensionCommandStatus] = useState(null);
   const lastShiftTime = useRef(0);
   const [terminalOpen, setTerminalOpen] = useState(false);
   const [bottomTab, setBottomTab] = useState("terminal"); // "terminal" | "problems"
@@ -836,6 +844,12 @@ export default function Editor({
       const installed = Array.isArray(event?.detail?.installed)
         ? event.detail.installed
         : [];
+      const nextCommands = Array.isArray(event?.detail?.commands)
+        ? event.detail.commands
+        : event?.detail?.registry
+          ? createExtensionCommandPaletteEntries(event.detail.registry)
+          : [];
+      setExtensionCommands(nextCommands);
       setSettings((prev) => {
         const current = Array.isArray(prev.extensions_installed)
           ? prev.extensions_installed
@@ -1975,6 +1989,33 @@ export default function Editor({
     setOpenTabs((prev) => prev.map((tab) => ({ ...tab, modified: false })));
   }, [flushEditorBuffer, workspacePath, isElectron]);
 
+  const handleBasicFormatDocument = useCallback(() => {
+    const tabId = activeTabIdRef.current;
+    if (!tabId) return false;
+    flushEditorBuffer(tabId);
+    const file = filesRef.current.find((candidate) => candidate.id === tabId);
+    const fileName = String(file?.name || file?.fsPath || "").toLowerCase();
+    const currentCode = editorCodeRef.current || "";
+    let nextCode = currentCode.replace(/[ \t]+$/gm, "").replace(/\n{3,}$/g, "\n\n");
+
+    if (fileName.endsWith(".json")) {
+      try {
+        nextCode = `${JSON.stringify(JSON.parse(currentCode), null, 2)}\n`;
+      } catch {
+        nextCode = currentCode.replace(/[ \t]+$/gm, "");
+      }
+    } else if (nextCode && !nextCode.endsWith("\n")) {
+      nextCode = `${nextCode}\n`;
+    }
+
+    if (nextCode === currentCode) return true;
+    editorCodeRef.current = nextCode;
+    setEditorCode(nextCode);
+    commitBufferToFile(tabId, nextCode);
+    setTabModified(tabId, true);
+    return true;
+  }, [commitBufferToFile, flushEditorBuffer, setTabModified]);
+
   useEffect(() => {
     const onCreateFile = (event) => {
       const detail = event?.detail || {};
@@ -2210,6 +2251,77 @@ export default function Editor({
     });
   }, []);
 
+  const handleExtensionCommandAction = useCallback(
+    (actionId) => {
+      const command = extensionCommands.find(
+        (entry) => entry.actionId === actionId || entry.id === actionId,
+      );
+      if (!command) return false;
+
+      const commandId = String(command.actionId || command.id || "").toLowerCase();
+      const commandLabel = command.label || command.actionId || "Extension command";
+
+      if (
+        commandId.includes("format") ||
+        commandId.includes("tailwind.sort") ||
+        commandId.includes("rainbow")
+      ) {
+        const formatted = handleBasicFormatDocument();
+        setExtensionCommandStatus(
+          formatted
+            ? `${commandLabel}: local document pass applied`
+            : `${commandLabel}: open a file first`,
+        );
+        return true;
+      }
+
+      if (
+        commandId.includes("eslint") ||
+        commandId.includes("errorlens") ||
+        commandId.includes("cspell")
+      ) {
+        handleOpenProblemsPanel();
+        setExtensionCommandStatus(`${commandLabel}: Problems panel opened`);
+        return true;
+      }
+
+      if (commandId.includes("gitlens") || commandId.startsWith("git")) {
+        handleOpenWorkbenchPanel("git");
+        setExtensionCommandStatus(`${commandLabel}: Source Control opened`);
+        return true;
+      }
+
+      if (
+        commandId.includes("docker") ||
+        commandId.includes("rest.") ||
+        commandId.includes("compose") ||
+        commandId.includes("terminal")
+      ) {
+        handleOpenTerminalPanel();
+        setExtensionCommandStatus(`${commandLabel}: Terminal opened`);
+        return true;
+      }
+
+      if (commandId.includes("theme") || commandId.includes("materialicons")) {
+        handleOpenSettingsPanel();
+        setExtensionCommandStatus(`${commandLabel}: Settings opened`);
+        return true;
+      }
+
+      handleOpenWorkbenchPanel("extensions");
+      setExtensionCommandStatus(`${commandLabel}: extension host route opened`);
+      return true;
+    },
+    [
+      extensionCommands,
+      handleBasicFormatDocument,
+      handleOpenProblemsPanel,
+      handleOpenSettingsPanel,
+      handleOpenTerminalPanel,
+      handleOpenWorkbenchPanel,
+    ],
+  );
+
   const handleCommandPaletteAction = useCallback(
     (actionId, payload) => {
       const commandHandlers = {
@@ -2242,10 +2354,16 @@ export default function Editor({
         "dock-active-bottom": () => handleDockActivePanel("bottom"),
       };
 
-      commandHandlers[actionId]?.();
+      if (commandHandlers[actionId]) {
+        commandHandlers[actionId]();
+        return;
+      }
+
+      handleExtensionCommandAction(actionId);
     },
     [
       handleCreateFileRequest,
+      handleExtensionCommandAction,
       handleFileSelect,
       handleFocusEditor,
       handleApplyWorkbenchLayoutPreset,
@@ -2670,6 +2788,16 @@ export default function Editor({
                             />
                           )
                         )}
+                        {extensionCommandStatus && !isCompactViewport ? (
+                          <StatusItem
+                            icon={AlertCircle}
+                            tone="active"
+                            label="Extension"
+                            value={extensionCommandStatus}
+                            title={extensionCommandStatus}
+                            className="max-w-[18rem]"
+                          />
+                        ) : null}
                       </div>
                       <div className="flex shrink-0 items-center gap-1.5 pl-1">
                         <StatusItem
@@ -2812,6 +2940,7 @@ export default function Editor({
         isOpen={commandPaletteOpen}
         onClose={handleCloseCommandPalette}
         onAction={handleCommandPaletteAction}
+        extensionCommands={extensionCommands}
       />
 
       <SpotlightSearch
@@ -2819,6 +2948,7 @@ export default function Editor({
         onClose={handleCloseSpotlight}
         onAction={handleCommandPaletteAction}
         files={files}
+        extensionCommands={extensionCommands}
       />
     </div>
   );

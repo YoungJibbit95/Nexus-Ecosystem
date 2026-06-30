@@ -1,5 +1,12 @@
 import { HighlightStyle } from "@codemirror/language";
+import {
+  insertCompletionText,
+  pickedCompletion,
+  snippet,
+  snippetCompletion,
+} from "@codemirror/autocomplete";
 import { tags } from "@lezer/highlight";
+import { LANGUAGE_IDS, normalizeLanguageId } from "../../ide/languages/languageIds.js";
 
 const DEFAULT_SYNTAX_COLORS = Object.freeze({
   comment: "#6e7788",
@@ -432,6 +439,430 @@ export const EDITOR_COMMANDS = Object.freeze([
 
 const SNIPPET_PLACEHOLDER_PATTERN = /\$\{(?:\d+:)?([^}]+)\}|\$\d+/g;
 const WORD_COMPLETION_PATTERN = /^[\w$-]*$/;
+const COMPLETION_MATCH_PATTERN = /[\w$-]*$/;
+const CSS_COMPLETION_MATCH_PATTERN = /[\w$#.:-]*$/;
+const MARKDOWN_COMPLETION_MATCH_PATTERN = /[#>`*\w$-]*$/;
+const LOCAL_COMPLETION_IMPLICIT_MIN_LENGTH = 1;
+
+const COMPLETION_SECTIONS = Object.freeze({
+  lspRecommended: Object.freeze({ name: "Recommended", rank: 0 }),
+  lsp: Object.freeze({ name: "Language Server", rank: 8 }),
+  snippets: Object.freeze({ name: "Snippets", rank: 16 }),
+  language: Object.freeze({ name: "Language", rank: 24 }),
+  structure: Object.freeze({ name: "Structures", rank: 32 }),
+});
+
+const STRUCTURE_COMPLETION_SECTION = COMPLETION_SECTIONS.structure;
+const LANGUAGE_COMPLETION_SECTION = COMPLETION_SECTIONS.language;
+const SNIPPET_COMPLETION_SECTION = COMPLETION_SECTIONS.snippets;
+
+function freezeCompletionList(items) {
+  return Object.freeze(items.map((item) => Object.freeze(item)));
+}
+
+function completionInfo(summary, example = "") {
+  return [summary, example ? `\n${example}` : ""].join("").trim();
+}
+
+function keywordCompletion(label, detail, boost = 0, info = "") {
+  return {
+    label,
+    type: "keyword",
+    detail,
+    info: info || completionInfo(detail),
+    boost,
+    section: LANGUAGE_COMPLETION_SECTION,
+  };
+}
+
+function textCompletion(label, detail, boost = 0, info = "", type = "text") {
+  return {
+    label,
+    type,
+    detail,
+    info: info || completionInfo(detail),
+    boost,
+    section: LANGUAGE_COMPLETION_SECTION,
+  };
+}
+
+function snippetItem(label, detail, template, boost, info, type = "function") {
+  return {
+    label,
+    detail,
+    template,
+    boost,
+    info,
+    type,
+    section: SNIPPET_COMPLETION_SECTION,
+  };
+}
+
+function structureSnippet(label, detail, template, boost, info, type = "text") {
+  return {
+    label,
+    detail,
+    template,
+    boost,
+    info,
+    type,
+    section: STRUCTURE_COMPLETION_SECTION,
+  };
+}
+
+const JAVASCRIPT_COMPLETIONS = freezeCompletionList([
+  snippetItem(
+    "import",
+    "ES module import",
+    'import ${1:name} from "${2:module}";',
+    38,
+    completionInfo("Import a symbol or default export from a module."),
+    "keyword",
+  ),
+  snippetItem(
+    "fn",
+    "named function",
+    "function ${1:name}(${2:args}) {\n\t${0}\n}",
+    34,
+    completionInfo("Create a named JavaScript function."),
+  ),
+  snippetItem(
+    "afn",
+    "async arrow function",
+    "const ${1:name} = async (${2:args}) => {\n\t${0}\n};",
+    33,
+    completionInfo("Create an async arrow function expression."),
+  ),
+  snippetItem(
+    "try",
+    "try/catch",
+    "try {\n\t${1}\n} catch (${2:error}) {\n\t${0}\n}",
+    29,
+    completionInfo("Wrap code in a try/catch block."),
+    "keyword",
+  ),
+  snippetItem(
+    "useEffect",
+    "React effect hook",
+    "useEffect(() => {\n\t${1}\n}, [${2}]);",
+    26,
+    completionInfo("Create a React effect with a dependency array."),
+  ),
+  snippetItem(
+    "useMemo",
+    "React memo hook",
+    "const ${1:value} = useMemo(() => ${2:expression}, [${3}]);",
+    23,
+    completionInfo("Memoize an expensive React expression."),
+  ),
+  snippetItem(
+    "clg",
+    "console.log",
+    "console.log(${1:value});",
+    21,
+    completionInfo("Log a value to the developer console."),
+  ),
+  keywordCompletion("async", "async function modifier", 12),
+  keywordCompletion("await", "wait for a promise", 12),
+  keywordCompletion("const", "block scoped binding", 11),
+  keywordCompletion("return", "return from function", 10),
+  keywordCompletion("export default", "default export", 9),
+]);
+
+const TYPESCRIPT_COMPLETIONS = freezeCompletionList([
+  ...JAVASCRIPT_COMPLETIONS,
+  snippetItem(
+    "interface",
+    "TypeScript interface",
+    "interface ${1:Name} {\n\t${2:property}: ${3:type};\n}",
+    36,
+    completionInfo("Define a TypeScript object contract."),
+    "interface",
+  ),
+  snippetItem(
+    "type",
+    "type alias",
+    "type ${1:Name} = ${2:value};",
+    33,
+    completionInfo("Define a TypeScript alias."),
+    "type",
+  ),
+  snippetItem(
+    "generic-fn",
+    "generic function",
+    "function ${1:name}<${2:T}>(${3:value}: ${2:T}): ${2:T} {\n\treturn ${3:value};\n}",
+    27,
+    completionInfo("Create a generic function with typed input and output."),
+  ),
+  textCompletion("Readonly", "utility type", 12, "Make every property readonly.", "type"),
+  textCompletion("Partial", "utility type", 11, "Make every property optional.", "type"),
+  textCompletion("Record", "utility type", 10, "Map a key union to a value type.", "type"),
+]);
+
+const PYTHON_COMPLETIONS = freezeCompletionList([
+  snippetItem(
+    "def",
+    "function definition",
+    "def ${1:name}(${2:args}):\n\t${0}",
+    38,
+    completionInfo("Create a Python function."),
+  ),
+  snippetItem(
+    "class",
+    "class definition",
+    "class ${1:Name}:\n\tdef __init__(self${2:, args}):\n\t\t${0}",
+    35,
+    completionInfo("Create a Python class with an initializer."),
+    "class",
+  ),
+  snippetItem(
+    "ifmain",
+    "main guard",
+    'if __name__ == "__main__":\n\t${0}',
+    32,
+    completionInfo("Run code only when the module is executed directly."),
+    "keyword",
+  ),
+  snippetItem(
+    "try",
+    "try/except",
+    "try:\n\t${1}\nexcept ${2:Exception} as ${3:error}:\n\t${0}",
+    29,
+    completionInfo("Handle a Python exception."),
+    "keyword",
+  ),
+  snippetItem(
+    "with-open",
+    "open file context",
+    'with open("${1:path}", "${2:r}", encoding="utf-8") as ${3:file}:\n\t${0}',
+    24,
+    completionInfo("Open a file with automatic cleanup."),
+  ),
+  keywordCompletion("import", "module import", 13),
+  keywordCompletion("from", "selective import", 12),
+  keywordCompletion("return", "return from function", 10),
+  textCompletion("print", "print value", 9, "Write a value to stdout.", "function"),
+]);
+
+const RUST_COMPLETIONS = freezeCompletionList([
+  snippetItem(
+    "fn",
+    "function",
+    "fn ${1:name}(${2:args}) -> ${3:ReturnType} {\n\t${0}\n}",
+    38,
+    completionInfo("Create a Rust function."),
+  ),
+  snippetItem(
+    "impl",
+    "impl block",
+    "impl ${1:Type} {\n\t${0}\n}",
+    34,
+    completionInfo("Implement inherent methods for a type."),
+    "class",
+  ),
+  snippetItem(
+    "struct",
+    "struct",
+    "struct ${1:Name} {\n\t${2:field}: ${3:Type},\n}",
+    33,
+    completionInfo("Create a Rust struct."),
+    "class",
+  ),
+  snippetItem(
+    "match",
+    "match expression",
+    "match ${1:value} {\n\t${2:pattern} => ${3:result},\n\t_ => ${0},\n}",
+    31,
+    completionInfo("Branch on Rust patterns."),
+    "keyword",
+  ),
+  snippetItem(
+    "test",
+    "unit test",
+    "#[test]\nfn ${1:test_name}() {\n\t${0}\n}",
+    25,
+    completionInfo("Create a Rust unit test."),
+  ),
+  keywordCompletion("let", "immutable binding", 12),
+  keywordCompletion("mut", "mutable binding modifier", 11),
+  textCompletion("Result", "std result type", 10, "Return Ok or Err from fallible code.", "type"),
+  textCompletion("Option", "optional value type", 10, "Represent Some value or None.", "type"),
+]);
+
+const GO_COMPLETIONS = freezeCompletionList([
+  snippetItem(
+    "func",
+    "function",
+    "func ${1:name}(${2:args}) ${3:returnType} {\n\t${0}\n}",
+    38,
+    completionInfo("Create a Go function."),
+  ),
+  snippetItem(
+    "main",
+    "main package entry",
+    "package main\n\nimport \"fmt\"\n\nfunc main() {\n\t${0}\n}",
+    34,
+    completionInfo("Create a runnable Go main file."),
+  ),
+  snippetItem(
+    "struct",
+    "struct type",
+    "type ${1:Name} struct {\n\t${2:Field} ${3:string}\n}",
+    31,
+    completionInfo("Create a Go struct type."),
+    "class",
+  ),
+  snippetItem(
+    "iferr",
+    "error guard",
+    "if ${1:err} != nil {\n\treturn ${2:nil}, ${1:err}\n}",
+    30,
+    completionInfo("Return early when an error is present."),
+    "keyword",
+  ),
+  snippetItem(
+    "test",
+    "Go test",
+    "func Test${1:Name}(t *testing.T) {\n\t${0}\n}",
+    24,
+    completionInfo("Create a Go unit test."),
+  ),
+  keywordCompletion("package", "package declaration", 12),
+  keywordCompletion("import", "import declaration", 12),
+  keywordCompletion("defer", "defer call until return", 10),
+  textCompletion("context.Context", "request context", 9, "Pass cancellation and deadlines through calls.", "type"),
+]);
+
+const CSS_COMPLETIONS = freezeCompletionList([
+  structureSnippet(
+    "flex-center",
+    "center with flexbox",
+    "display: flex;\nplace-content: center;\nalign-items: center;",
+    35,
+    completionInfo("Center children with flexbox."),
+    "property",
+  ),
+  structureSnippet(
+    "grid-auto",
+    "responsive grid",
+    "display: grid;\ngrid-template-columns: repeat(auto-fit, minmax(${1:16rem}, 1fr));\ngap: ${2:1rem};",
+    32,
+    completionInfo("Create a responsive auto-fit grid."),
+    "property",
+  ),
+  structureSnippet(
+    "media",
+    "media query",
+    "@media (${1:min-width}: ${2:768px}) {\n\t${0}\n}",
+    29,
+    completionInfo("Create a responsive media query."),
+    "keyword",
+  ),
+  structureSnippet(
+    "keyframes",
+    "animation keyframes",
+    "@keyframes ${1:name} {\n\tfrom { ${2:opacity: 0;} }\n\tto { ${3:opacity: 1;} }\n}",
+    24,
+    completionInfo("Define CSS keyframes."),
+    "keyword",
+  ),
+  textCompletion("display", "layout property", 16, "Set inner display layout.", "property"),
+  textCompletion("position", "positioning property", 15, "Control positioning mode.", "property"),
+  textCompletion("var(--", "CSS custom property", 14, "Reference a CSS custom property.", "variable"),
+  textCompletion("clamp", "responsive value", 12, "Clamp a value between min and max.", "function"),
+  textCompletion("color-mix", "color function", 10, "Mix colors in a color space.", "function"),
+]);
+
+const JSON_COMPLETIONS = freezeCompletionList([
+  structureSnippet(
+    "object",
+    "JSON object",
+    "{\n\t\"${1:key}\": ${2:value}\n}",
+    30,
+    completionInfo("Insert a JSON object skeleton."),
+  ),
+  structureSnippet(
+    "array",
+    "JSON array",
+    "[\n\t${1:value}\n]",
+    26,
+    completionInfo("Insert a JSON array skeleton."),
+  ),
+  structureSnippet(
+    "package-scripts",
+    "package.json scripts",
+    "\"scripts\": {\n\t\"dev\": \"vite\",\n\t\"build\": \"vite build\",\n\t\"lint\": \"eslint .\"\n}",
+    24,
+    completionInfo("Add common package.json script entries."),
+    "property",
+  ),
+  structureSnippet(
+    "tsconfig-compiler",
+    "tsconfig compilerOptions",
+    "\"compilerOptions\": {\n\t\"target\": \"ES2022\",\n\t\"module\": \"ESNext\",\n\t\"strict\": true\n}",
+    22,
+    completionInfo("Add a compact TypeScript compilerOptions block."),
+    "property",
+  ),
+  textCompletion("true", "boolean literal", 10, "", "constant"),
+  textCompletion("false", "boolean literal", 10, "", "constant"),
+  textCompletion("null", "null literal", 9, "", "constant"),
+]);
+
+const MARKDOWN_COMPLETIONS = freezeCompletionList([
+  structureSnippet(
+    "heading",
+    "section heading",
+    "## ${1:Heading}\n\n${0}",
+    31,
+    completionInfo("Insert a Markdown section heading."),
+  ),
+  structureSnippet(
+    "code-fence",
+    "fenced code block",
+    "```${1:language}\n${0}\n```",
+    30,
+    completionInfo("Insert a fenced code block."),
+  ),
+  structureSnippet(
+    "table",
+    "markdown table",
+    "| ${1:Column} | ${2:Column} |\n| --- | --- |\n| ${3:Value} | ${4:Value} |",
+    27,
+    completionInfo("Insert a two-column Markdown table."),
+  ),
+  structureSnippet(
+    "task-list",
+    "task list",
+    "- [ ] ${1:Task}\n- [ ] ${0}",
+    24,
+    completionInfo("Insert a Markdown task list."),
+  ),
+  structureSnippet(
+    "details",
+    "collapsible details",
+    "<details>\n<summary>${1:Summary}</summary>\n\n${0}\n</details>",
+    20,
+    completionInfo("Insert collapsible Markdown details."),
+  ),
+  textCompletion("TODO", "todo marker", 10, "Mark work that still needs attention.", "keyword"),
+  textCompletion("NOTE", "note marker", 9, "Mark a useful note.", "keyword"),
+]);
+
+const LANGUAGE_COMPLETION_MAP = Object.freeze({
+  [LANGUAGE_IDS.JAVASCRIPT]: JAVASCRIPT_COMPLETIONS,
+  [LANGUAGE_IDS.TYPESCRIPT]: TYPESCRIPT_COMPLETIONS,
+  [LANGUAGE_IDS.PYTHON]: PYTHON_COMPLETIONS,
+  [LANGUAGE_IDS.RUST]: RUST_COMPLETIONS,
+  [LANGUAGE_IDS.GO]: GO_COMPLETIONS,
+  [LANGUAGE_IDS.CSS]: CSS_COMPLETIONS,
+  [LANGUAGE_IDS.SCSS]: CSS_COMPLETIONS,
+  [LANGUAGE_IDS.LESS]: CSS_COMPLETIONS,
+  [LANGUAGE_IDS.JSON]: JSON_COMPLETIONS,
+  [LANGUAGE_IDS.JSONC]: JSON_COMPLETIONS,
+  [LANGUAGE_IDS.MARKDOWN]: MARKDOWN_COMPLETIONS,
+  [LANGUAGE_IDS.MDX]: MARKDOWN_COMPLETIONS,
+});
 
 function normalizeCommandListValue(value) {
   if (Array.isArray(value)) {
@@ -698,6 +1129,101 @@ function normalizeCompletionLabel(item) {
   return String(item?.insertText || item?.textEdit?.newText || "completion");
 }
 
+function normalizeCompletionSourceLanguage(languageId) {
+  return normalizeLanguageId(languageId, LANGUAGE_IDS.PLAINTEXT);
+}
+
+function getCompletionMatchPattern(languageId) {
+  if (
+    languageId === LANGUAGE_IDS.CSS ||
+    languageId === LANGUAGE_IDS.SCSS ||
+    languageId === LANGUAGE_IDS.LESS
+  ) {
+    return CSS_COMPLETION_MATCH_PATTERN;
+  }
+  if (languageId === LANGUAGE_IDS.MARKDOWN || languageId === LANGUAGE_IDS.MDX) {
+    return MARKDOWN_COMPLETION_MATCH_PATTERN;
+  }
+  return COMPLETION_MATCH_PATTERN;
+}
+
+function getCompletionMatch(context, languageId) {
+  return context.matchBefore(getCompletionMatchPattern(languageId));
+}
+
+function hasLocalCompletionTrigger(context, languageId, match) {
+  if (context.explicit) return true;
+  const typed = match?.text || "";
+  if (typed.length >= LOCAL_COMPLETION_IMPLICIT_MIN_LENGTH && /[\w$-]/.test(typed)) {
+    return true;
+  }
+
+  const before = context.state.sliceDoc(Math.max(0, context.pos - 1), context.pos);
+  if (
+    (languageId === LANGUAGE_IDS.MARKDOWN || languageId === LANGUAGE_IDS.MDX) &&
+    /[#>`*]$/.test(before)
+  ) {
+    return true;
+  }
+  if (
+    (languageId === LANGUAGE_IDS.CSS ||
+      languageId === LANGUAGE_IDS.SCSS ||
+      languageId === LANGUAGE_IDS.LESS) &&
+    /[-:#.]$/.test(before)
+  ) {
+    return true;
+  }
+  return false;
+}
+
+function getLanguageCompletionItems(languageId) {
+  return LANGUAGE_COMPLETION_MAP[languageId] || [];
+}
+
+function toSnippetCompletion(item) {
+  const completion = {
+    label: item.label,
+    type: item.type || "text",
+    detail: item.detail,
+    info: item.info,
+    boost: item.boost,
+    section: item.section,
+  };
+  return item.template ? snippetCompletion(item.template, completion) : completion;
+}
+
+function rankCompletionOption(option) {
+  const section = option?.section;
+  const sectionRank =
+    typeof section === "object" && Number.isFinite(Number(section.rank))
+      ? Number(section.rank)
+      : 50;
+  const boost = Number.isFinite(Number(option?.boost)) ? Number(option.boost) : 0;
+  return sectionRank * 100 - boost;
+}
+
+function uniqueCompletionKey(option) {
+  return String(option?.label || "").trim().toLowerCase();
+}
+
+function mergeCompletionOptions(optionGroups) {
+  const merged = new Map();
+  optionGroups.flat().filter(Boolean).forEach((option) => {
+    const key = uniqueCompletionKey(option);
+    if (!key) return;
+    const previous = merged.get(key);
+    if (!previous || rankCompletionOption(option) < rankCompletionOption(previous)) {
+      merged.set(key, option);
+    }
+  });
+
+  return [...merged.values()].sort((a, b) => {
+    const rankDelta = rankCompletionOption(a) - rankCompletionOption(b);
+    if (rankDelta !== 0) return rankDelta;
+    return String(a.label || "").localeCompare(String(b.label || ""));
+  });
+}
+
 function readMarkupContent(value) {
   if (!value) return "";
   if (typeof value === "string") return value;
@@ -721,70 +1247,79 @@ export function readHoverText(hover) {
 
 function resolveCompletionText(item, label) {
   const text = item?.textEdit?.newText ?? item?.insertText ?? item?.label?.label ?? label;
-  return item?.insertTextFormat === 2 ? stripLspSnippet(text) : String(text || label);
+  return String(text || label);
+}
+
+function applyPlainCompletion(view, completion, from, to, insertText) {
+  view.dispatch(
+    view.state.update({
+      ...insertCompletionText(view.state, insertText, from, to),
+      annotations: pickedCompletion.of(completion),
+    }),
+  );
 }
 
 function applyCompletionTextEdit(item, insertText) {
   const range = item?.textEdit?.range || item?.textEdit?.insert || item?.textEdit?.replace;
-  if (!range) return insertText;
+  const isSnippet = Number(item?.insertTextFormat) === 2;
 
-  return (view, _completion, from, to) => {
+  if (!range && !isSnippet) return insertText;
+
+  return (view, completion, from, to) => {
     const resolvedRange = lspRangeToCodeMirrorRange(view.state.doc, range);
     const changeFrom = resolvedRange?.from ?? from;
     const changeTo = resolvedRange?.to ?? to;
-    view.dispatch({
-      changes: { from: changeFrom, to: changeTo, insert: insertText },
-      selection: { anchor: changeFrom + insertText.length },
-      userEvent: "input.complete",
-    });
+    if (!isSnippet) {
+      applyPlainCompletion(view, completion, changeFrom, changeTo, insertText);
+      return;
+    }
+
+    try {
+      snippet(insertText)(view, completion, changeFrom, changeTo);
+    } catch {
+      applyPlainCompletion(
+        view,
+        completion,
+        changeFrom,
+        changeTo,
+        stripLspSnippet(insertText),
+      );
+    }
   };
 }
 
 function getCompletionBoost(item, index) {
   if (item?.preselect) return 99;
+  if (Number(item?.kind) === 15) return 36;
   if (item?.sortText && /^[!#0]/.test(String(item.sortText))) return 30;
-  return Math.max(-30, 12 - index / 8);
+  const kind = completionType(item?.kind);
+  const kindBoost =
+    kind === "keyword"
+      ? 10
+      : kind === "function" || kind === "method"
+        ? 8
+        : kind === "class" || kind === "interface" || kind === "type"
+          ? 6
+          : kind === "property"
+            ? 4
+            : 0;
+  return Math.max(-30, kindBoost + 12 - index / 8);
 }
 
-export function createSnippetCompletions(context) {
-  const word = context.matchBefore(/[\w$-]*/);
-  const from = word ? word.from : context.pos;
+export function createSnippetCompletions(context, languageId, options = {}) {
+  const normalizedLanguageId = normalizeCompletionSourceLanguage(languageId);
+  const match = getCompletionMatch(context, normalizedLanguageId);
+  if (!hasLocalCompletionTrigger(context, normalizedLanguageId, match)) return null;
+
+  const languageOptions = getLanguageCompletionItems(normalizedLanguageId)
+    .map(toSnippetCompletion)
+    .slice(0, options.lowPowerMode ? 32 : 56);
+
+  if (!languageOptions.length) return null;
+
   return {
-    from,
-    options: [
-      {
-        label: "nexus-component",
-        type: "function",
-        detail: "Nexus React component",
-        boost: 25,
-        apply: [
-          "import React from 'react';",
-          "import { motion } from 'framer-motion';",
-          "",
-          "export default function ComponentName() {",
-          "  return (",
-          "    <motion.div className=\"nexus-glass p-6 rounded-lg\">",
-          "      <h1>Hello Nexus</h1>",
-          "    </motion.div>",
-          "  );",
-          "}",
-        ].join("\n"),
-      },
-      {
-        label: "clg",
-        type: "function",
-        detail: "console.log",
-        boost: 20,
-        apply: "console.log();",
-      },
-      {
-        label: "useState",
-        type: "function",
-        detail: "React state hook",
-        boost: 16,
-        apply: "const [value, setValue] = useState(null);",
-      },
-    ],
+    from: match?.from ?? context.pos,
+    options: languageOptions,
     validFor: WORD_COMPLETION_PATTERN,
   };
 }
@@ -795,11 +1330,17 @@ export function shouldRequestLspCompletion(context) {
   return /[.\w$:/<#@"'`-]$/.test(before);
 }
 
-export function lspCompletionsToCodeMirror(context, completionList, snippetResult, maxItems = 120) {
-  const word = context.matchBefore(/[\w$-]*/);
+export function lspCompletionsToCodeMirror(context, completionList, snippetResult, options = {}) {
+  const maxItems =
+    typeof options === "number"
+      ? options
+      : options.lowPowerMode
+        ? 72
+        : Number(options.maxItems || 120);
+  const word = context.matchBefore(COMPLETION_MATCH_PATTERN);
   const from = word ? word.from : context.pos;
   const items = completionList?.items || [];
-  const options = items.slice(0, maxItems).map((item, index) => {
+  const lspOptions = items.slice(0, maxItems).map((item, index) => {
     const label = normalizeCompletionLabel(item);
     const insertText = resolveCompletionText(item, label);
     const documentation = readMarkupContent(item.documentation).trim();
@@ -817,19 +1358,18 @@ export function lspCompletionsToCodeMirror(context, completionList, snippetResul
       info: documentation || kindDetail,
       apply: applyCompletionTextEdit(item, insertText),
       boost: getCompletionBoost(item, index),
-      section: item.sortText?.startsWith("!") ? "Recommended" : "Language Server",
+      sortText: item.sortText,
+      commitCharacters: item.commitCharacters,
+      section: item.sortText?.startsWith("!")
+        ? COMPLETION_SECTIONS.lspRecommended
+        : COMPLETION_SECTIONS.lsp,
     };
   });
-
-  const unique = new Map();
-  [...snippetResult.options, ...options].forEach((option) => {
-    const key = `${option.label}|${option.detail || ""}`;
-    if (!unique.has(key)) unique.set(key, option);
-  });
+  const localOptions = Array.isArray(snippetResult?.options) ? snippetResult.options : [];
 
   return {
     from,
-    options: [...unique.values()],
+    options: mergeCompletionOptions([lspOptions, localOptions]),
     validFor: completionList?.isIncomplete ? undefined : WORD_COMPLETION_PATTERN,
   };
 }

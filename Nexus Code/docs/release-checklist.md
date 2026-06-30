@@ -33,9 +33,12 @@ Stand: 2026-06-30
 - [x] Grosse Trees mit flacher/virtueller Renderliste stabil halten.
 - [x] Open-State, Refresh, Loading, Empty und Error States modellseitig mit IDE-Core-Smoke abdecken.
 - [x] Docking-Modell mit IDE-Core-Smoke fuer korrupte Layoutdaten, Duplikate, Moves, Drop Preview und sichtbare Fallbacks abdecken.
+- [x] FileExplorer mit sichtbaren Extension-Gruppen, ruhigem Refresh und besseren Empty/Error/Search-States ausbauen.
+- [x] CodeMirror Completions fuer JS/TS/Python/Rust/Go/CSS/JSON/Markdown language-aware ausbauen.
+- [x] Completion-Overlays begrenzen, Low-Power respektieren und LSP/Snippet-Dedupe absichern.
 - [ ] Open-State, Refresh, Loading, Empty und Error States manuell pruefen.
 - [ ] Editor, Tabs, Search, Problems und Terminal duerfen die Codeflaeche nicht verdraengen.
-- [ ] CodeMirror 6 bleibt Engine; breite Syntax plus LSP-Smoke pruefen.
+- [x] CodeMirror 6 bleibt Engine; breite Syntax plus LSP/Completion-Smoke pruefen.
 
 ## Account, API und GitHub
 
@@ -54,6 +57,8 @@ Stand: 2026-06-30
 - [x] Extension Runtime Snapshot fuer installierte, aktive und beigetragene Module erzeugen.
 - [x] Extension-Panel mit Copy Plan, Reset Defaults und stabileren Registry-Actions ausbauen.
 - [x] Extension-Smoke/Panel-Markup in UI-Smoke aufnehmen.
+- [x] Extension-Commands in Command Palette und Spotlight routen.
+- [x] Extension-Command-Fallbacks fuer Format, Diagnostics, Git, Terminal und Theme/Settings integrieren.
 
 ## Pflichtchecks
 
@@ -65,7 +70,7 @@ Stand: 2026-06-30
 - [x] `npm --prefix "./Nexus Code" run smoke:ide-core`
 - [x] SSR-Smoke-Struktur: 1440x900, 1024x768, 900x512, 390x900 fuer Workbench, Launchpad, Account und Settings
 - [x] SSR-Smoke-Struktur: PanelChrome und GitHub-Workbench ohne App-Bootgate
-- [x] IDE-Core-Smoke: 12 Szenarien inklusive Filetree und Docking-Modell
+- [x] IDE-Core-Smoke: 15 Szenarien inklusive Filetree, Docking, Extensions und Completion Helpers
 - [ ] Visual Smoke: 1440x900
 - [ ] Visual Smoke: 1024x768
 - [ ] Visual Smoke: 900x512

@@ -1587,6 +1587,34 @@ export function collectExtensionContributions(records) {
   return contributions;
 }
 
+export function createExtensionCommandPaletteEntries(records) {
+  const contributions = collectExtensionContributions(records);
+  return (contributions.commands || []).map((entry, index) => {
+    const commandId = String(entry.command || "").trim();
+    const title = String(entry.title || humanizeIdentifier(commandId)).trim();
+    const category = String(entry.category || "Extensions").trim();
+    const extensionName = String(entry.extensionName || "Extension").trim();
+    return {
+      id: `extension:${commandId}`,
+      actionId: commandId,
+      label: title,
+      description: `${extensionName} - ${category}`,
+      category: "extensions",
+      shortcut: "",
+      keywords: [
+        "extension",
+        "plugin",
+        commandId,
+        category,
+        extensionName,
+      ],
+      surfaces: ["palette", "spotlight"],
+      priority: Math.max(12, 48 - index),
+      extensionId: entry.extensionId || "",
+    };
+  });
+}
+
 export function collectExtensionActivationPlan(records) {
   const events = [];
   const byType = {};
@@ -1689,6 +1717,7 @@ export function createExtensionEventDetail(records) {
       events: extension.activationSummary,
     })),
     contributions: collectExtensionContributions(records),
+    commands: createExtensionCommandPaletteEntries(records),
     runtime: getExtensionRuntimeOverview(records),
     snapshot: createExtensionRuntimeSnapshot(records),
     diagnostics: resolved.flatMap((extension) =>

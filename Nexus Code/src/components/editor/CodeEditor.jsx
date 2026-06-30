@@ -92,6 +92,23 @@ function getCompactViewport() {
   return window.innerWidth < COMPACT_VIEWPORT_WIDTH;
 }
 
+function resolveEditorReducedMotion(settings) {
+  const prefersReducedMotion =
+    typeof window !== "undefined" &&
+    window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+  const lowPowerClass =
+    typeof document !== "undefined" &&
+    document.documentElement?.classList?.contains("reduce-motion");
+
+  return Boolean(
+    settings.reduce_motion === true ||
+      settings.animations_enabled === false ||
+      settings.visual_performance_profile === "performance" ||
+      prefersReducedMotion ||
+      lowPowerClass,
+  );
+}
+
 function resolveEditorFontSize(settings, fallbackFontSize) {
   return Math.round(
     clampNumber(settings.font_size ?? fallbackFontSize, 11, 22, 14),
@@ -131,13 +148,71 @@ function hexToRgba(value, alpha) {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
-function createNexusCodeMirrorTheme(settings, compactViewport, editorFontSize, editorLineHeight) {
+function positionCompletionInfo(_view, list, option, info, space, tooltip) {
+  const margin = 10;
+  const listWidth = Math.max(1, list.right - list.left);
+  const listHeight = Math.max(1, list.bottom - list.top);
+  const scaleX = tooltip?.offsetWidth ? listWidth / tooltip.offsetWidth : 1;
+  const scaleY = tooltip?.offsetHeight ? listHeight / tooltip.offsetHeight : 1;
+  const infoWidth = Math.max(220, info.right - info.left);
+  const infoHeight = Math.max(120, info.bottom - info.top);
+  const spaceLeft = Math.max(0, list.left - space.left - margin);
+  const spaceRight = Math.max(0, space.right - list.right - margin);
+  const sideWidth = Math.min(420, Math.max(spaceLeft, spaceRight));
+  const topOffset =
+    Math.max(space.top + margin, Math.min(option.top, space.bottom - infoHeight - margin)) -
+    list.top;
+
+  if (sideWidth >= Math.min(infoWidth, 280)) {
+    const placeLeft = spaceLeft > spaceRight;
+    return {
+      style: [
+        `top: ${Math.max(0, topOffset) / scaleY}px`,
+        `${placeLeft ? "right" : "left"}: 100%`,
+        `max-width: ${sideWidth / scaleX}px`,
+      ].join("; "),
+      class: `nx-cm-completionInfo-side ${
+        placeLeft ? "nx-cm-completionInfo-left" : "nx-cm-completionInfo-right"
+      }`,
+    };
+  }
+
+  const stackedWidth = Math.max(220, Math.min(420, space.right - space.left - margin * 2));
+  const spaceBelow = space.bottom - list.bottom;
+  const spaceAbove = list.top - space.top;
+  const placeBelow = spaceBelow >= Math.min(infoHeight, 220) || spaceBelow >= spaceAbove;
+  const verticalOffset = placeBelow ? option.bottom - list.top : list.bottom - option.top;
+
+  return {
+    style: [
+      `${placeBelow ? "top" : "bottom"}: ${Math.max(0, verticalOffset) / scaleY}px`,
+      "left: 0",
+      `max-width: ${stackedWidth / scaleX}px`,
+      `width: min(${stackedWidth / scaleX}px, calc(100vw - ${margin * 2}px))`,
+    ].join("; "),
+    class: `nx-cm-completionInfo-stacked ${
+      placeBelow ? "nx-cm-completionInfo-below" : "nx-cm-completionInfo-above"
+    }`,
+  };
+}
+
+function createNexusCodeMirrorTheme(
+  settings,
+  compactViewport,
+  editorFontSize,
+  editorLineHeight,
+  reduceMotion,
+) {
   const theme = resolveEditorTheme(settings);
   const accent = safeHex(settings.primary_accent || theme.accent, "#8b5cf6");
   const text = safeHex(theme.text, "#f3f4f6");
   const muted = safeHex(theme.muted, "#8b93a7");
   const selection = theme.selection || hexToRgba(accent, 0.26);
   const panelSurface = "var(--nexus-panel-surface)";
+  const panelFilter = reduceMotion ? "none" : "var(--nexus-panel-filter)";
+  const tooltipShadow = reduceMotion
+    ? "0 8px 24px rgba(0,0,0,0.28)"
+    : "0 18px 55px rgba(0,0,0,0.35)";
   const letterSpacing = resolveEditorLetterSpacing(settings);
 
   return EditorView.theme(
@@ -155,6 +230,8 @@ function createNexusCodeMirrorTheme(settings, compactViewport, editorFontSize, e
         WebkitFontSmoothing: "antialiased",
         fontSynthesis: "none",
         outline: "none",
+        overflow: "visible",
+        position: "relative",
       },
       "&.cm-focused": {
         outline: "none",
@@ -206,21 +283,31 @@ function createNexusCodeMirrorTheme(settings, compactViewport, editorFontSize, e
       },
       ".cm-panels, .cm-tooltip, .cm-tooltip-autocomplete": {
         background: panelSurface,
-        backdropFilter: "var(--nexus-panel-filter)",
+        backdropFilter: panelFilter,
         border: "1px solid var(--nexus-border)",
         borderRadius: "8px",
         overflow: "hidden",
       },
       ".cm-tooltip": {
         color: "var(--nexus-text)",
-        boxShadow: "0 18px 55px rgba(0,0,0,0.35)",
+        boxShadow: tooltipShadow,
       },
       ".cm-tooltip-autocomplete": {
-        minWidth: compactViewport ? "17rem" : "22rem",
+        zIndex: 80,
+        contain: "layout style paint",
+        minWidth: compactViewport ? "min(17rem, calc(100vw - 1rem))" : "22rem",
+        width: compactViewport
+          ? "min(20rem, calc(100vw - 1rem))"
+          : "min(32rem, calc(100vw - 1rem))",
+        maxWidth: "calc(100vw - 1rem)",
       },
       ".cm-tooltip-autocomplete > ul": {
-        maxHeight: compactViewport ? "15rem" : "22rem",
+        maxHeight: compactViewport
+          ? "min(15rem, calc(100vh - 8rem))"
+          : "min(22rem, calc(100vh - 8rem))",
         fontFamily: "inherit",
+        overflowY: "auto",
+        scrollbarGutter: "stable",
       },
       ".cm-tooltip-autocomplete ul li[aria-selected]": {
         background: hexToRgba(accent, 0.18),
@@ -232,23 +319,57 @@ function createNexusCodeMirrorTheme(settings, compactViewport, editorFontSize, e
       ".cm-completionDetail": {
         color: muted,
         marginLeft: "0.75rem",
+        maxWidth: compactViewport ? "8rem" : "14rem",
+        overflow: "hidden",
+        textOverflow: "ellipsis",
       },
-      ".cm-completionInfo": {
-        maxWidth: compactViewport ? "18rem" : "28rem",
+      ".cm-tooltip.cm-completionInfo": {
+        zIndex: 81,
+        maxWidth: compactViewport
+          ? "min(19rem, calc(100vw - 1rem))"
+          : "min(28rem, calc(100vw - 1rem))",
+        maxHeight: compactViewport
+          ? "min(13rem, calc(100vh - 7rem))"
+          : "min(18rem, calc(100vh - 7rem))",
         color: text,
         background: panelSurface,
+        backdropFilter: panelFilter,
         border: "1px solid var(--nexus-border)",
         borderRadius: "8px",
-        boxShadow: "0 18px 55px rgba(0,0,0,0.35)",
+        boxShadow: tooltipShadow,
         whiteSpace: "pre-wrap",
+        overflow: "auto",
+        padding: "9px 10px",
+      },
+      ".cm-completionInfo.nx-cm-completionInfo-side": {
+        marginInline: "8px",
+      },
+      ".cm-completionInfo.nx-cm-completionInfo-stacked": {
+        marginTop: "8px",
+        marginBottom: "8px",
       },
       ".cm-panels": {
         color: text,
+        position: "absolute",
+        left: compactViewport ? "6px" : "10px",
+        right: "auto",
+        zIndex: 70,
+        width: "max-content",
+        maxWidth: compactViewport
+          ? "calc(100% - 12px)"
+          : "min(44rem, calc(100% - 20px))",
+        boxShadow: tooltipShadow,
       },
       ".cm-panels.cm-panels-top": {
+        top: compactViewport ? "6px" : "10px",
         borderBottom: "1px solid var(--nexus-border)",
       },
+      ".cm-panels.cm-panels-bottom": {
+        bottom: compactViewport ? "6px" : "10px",
+        borderTop: "1px solid var(--nexus-border)",
+      },
       ".cm-search": {
+        maxWidth: "100%",
         padding: "6px 8px",
         display: "flex",
         flexWrap: "wrap",
@@ -256,6 +377,7 @@ function createNexusCodeMirrorTheme(settings, compactViewport, editorFontSize, e
         alignItems: "center",
       },
       ".cm-search input": {
+        maxWidth: compactViewport ? "8.5rem" : "13rem",
         minHeight: "1.75rem",
         borderRadius: "6px",
         border: "1px solid var(--nexus-border)",
@@ -499,6 +621,14 @@ export default function CodeEditor({
     () => createEditorHighlightStyle(editorTheme),
     [editorTheme],
   );
+  const reduceEditorMotion = useMemo(
+    () => resolveEditorReducedMotion(settings),
+    [
+      settings.animations_enabled,
+      settings.reduce_motion,
+      settings.visual_performance_profile,
+    ],
+  );
 
   const flushPendingChange = useCallback(() => {
     if (changeEmitTimerRef.current) {
@@ -721,13 +851,15 @@ export default function CodeEditor({
 
   const completionSource = useCallback(
     async (context) => {
-      const snippets = createSnippetCompletions(context);
+      const snippets = createSnippetCompletions(context, nexusLanguageId, {
+        lowPowerMode: reduceEditorMotion,
+      });
       const engine = lspEngineRef.current;
       const documentUri = lspDocumentUriRef.current;
       const shouldAskLsp = engine && documentUri && shouldRequestLspCompletion(context);
 
       if (!shouldAskLsp) {
-        return context.explicit ? snippets : null;
+        return snippets;
       }
 
       try {
@@ -735,12 +867,14 @@ export default function CodeEditor({
         const completionList = await engine.getCompletions(documentUri, position, {
           triggerKind: context.explicit ? 1 : 2,
         });
-        return lspCompletionsToCodeMirror(context, completionList, snippets);
+        return lspCompletionsToCodeMirror(context, completionList, snippets, {
+          lowPowerMode: reduceEditorMotion,
+        });
       } catch {
         return snippets;
       }
     },
-    [],
+    [nexusLanguageId, reduceEditorMotion],
   );
 
   const hoverSource = useCallback(
@@ -797,17 +931,28 @@ export default function CodeEditor({
   );
 
   const cmTheme = useMemo(
-    () => createNexusCodeMirrorTheme(settings, compactViewport, editorFontSize, editorLineHeight),
+    () =>
+      createNexusCodeMirrorTheme(
+        settings,
+        compactViewport,
+        editorFontSize,
+        editorLineHeight,
+        reduceEditorMotion,
+      ),
     [
       compactViewport,
       editorFontSize,
       editorLineHeight,
+      reduceEditorMotion,
+      settings.animations_enabled,
       settings.cursor_style,
       settings.font_family,
       settings.font_weight,
       settings.letter_spacing,
       settings.primary_accent,
+      settings.reduce_motion,
       settings.theme,
+      settings.visual_performance_profile,
     ],
   );
 
@@ -871,21 +1016,30 @@ export default function CodeEditor({
       autocompletion({
         override: [completionSource],
         activateOnTyping: !isLargeFile,
-        activateOnTypingDelay: 80,
+        activateOnTypingDelay: reduceEditorMotion ? 140 : 80,
         selectOnOpen: true,
-        maxRenderedOptions: compactViewport ? 45 : 80,
+        maxRenderedOptions: reduceEditorMotion
+          ? compactViewport
+            ? 28
+            : 42
+          : compactViewport
+            ? 45
+            : 80,
         aboveCursor: compactViewport,
         tooltipClass: () => "nx-cm-completion-tooltip",
-        closeOnBlur: false,
+        closeOnBlur: true,
+        interactionDelay: reduceEditorMotion ? 120 : 75,
+        updateSyncTime: reduceEditorMotion ? 70 : 100,
+        positionInfo: positionCompletionInfo,
       }),
       hoverTooltip(hoverSource, {
-        hoverTime: 260,
+        hoverTime: reduceEditorMotion ? 420 : 260,
         hideOnChange: "touch",
       }),
       highlightSelectionMatches({
         highlightWordAroundCursor: !isLargeFile,
         minSelectionLength: 2,
-        maxMatches: 160,
+        maxMatches: reduceEditorMotion ? 80 : 160,
       }),
       placeholder("Schreib Code, Markdown, JSON oder Notizen direkt hier..."),
       cmThemeCompartment.of(cmTheme),
@@ -910,6 +1064,7 @@ export default function CodeEditor({
     hoverSource,
     isLargeFile,
     nexusLanguageId,
+    reduceEditorMotion,
     scheduleCursorInfoUpdate,
     scheduleLineCountUpdate,
     showDiagnostics,

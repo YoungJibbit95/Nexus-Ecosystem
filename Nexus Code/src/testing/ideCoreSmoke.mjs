@@ -8,6 +8,25 @@ import {
   mergeFileTreeRefreshNode,
 } from "../pages/editor/fileTreeModel.js";
 import {
+  createSpotlightResults,
+  getEditorCommandPaletteCommands,
+  groupCommandPaletteItems,
+  rankCommandPaletteItems,
+} from "../pages/editor/commandPaletteModel.js";
+import {
+  createEditorCommandRegistry,
+  createSnippetCompletions,
+  lspCompletionsToCodeMirror,
+  shouldRequestLspCompletion,
+} from "../pages/editor/editorFeatureModel.js";
+import {
+  collectExtensionContributions,
+  createExtensionCommandPaletteEntries,
+  createDefaultExtensionRecords,
+  createExtensionRuntimeSnapshot,
+  getExtensionRuntimeOverview,
+} from "../pages/editor/extensionSystem.js";
+import {
   DEFAULT_WORKBENCH_LAYOUT,
   WORKBENCH_CUSTOM_PRESET_ID,
   WORKBENCH_DOCK_ZONE_SEQUENCE,
@@ -49,6 +68,30 @@ function getPlacementForSnapZone(zone) {
     return WORKBENCH_PANEL_PLACEMENTS.hidden;
   }
   return WORKBENCH_PANEL_PLACEMENTS.side;
+}
+
+function createCompletionContext(text, { pos = text.length, explicit = false } = {}) {
+  return {
+    pos,
+    explicit,
+    state: {
+      sliceDoc(from, to) {
+        return text.slice(from, to);
+      },
+    },
+    matchBefore(pattern) {
+      const flags = pattern.flags.replace("g", "");
+      const matcher = new RegExp(`${pattern.source}$`, flags);
+      const match = text.slice(0, pos).match(matcher);
+      if (!match) return null;
+      const value = match[0];
+      return {
+        from: pos - value.length,
+        to: pos,
+        text: value,
+      };
+    },
+  };
 }
 
 function assertWorkbenchLayoutInvariants(layout) {
@@ -474,6 +517,197 @@ const scenarios = [
       assert.equal(dockState.activePanel, null);
       assert.equal(dockState.bottomTab, "terminal");
       assert.equal(dockState.bottomPanelOpen, true);
+    },
+  },
+  {
+    id: "extension-runtime-snapshot-contributions",
+    title: "extension runtime snapshot exposes enabled command contributions",
+    run() {
+      const records = createDefaultExtensionRecords();
+      const contributions = collectExtensionContributions(records);
+      const runtime = getExtensionRuntimeOverview(records);
+      const snapshot = createExtensionRuntimeSnapshot(records);
+
+      assert.deepEqual(snapshot.installed, [
+        "nexus-theme-core",
+        "prettier",
+        "eslint",
+      ]);
+      assert.deepEqual(snapshot.enabled, snapshot.installed);
+      assert.match(snapshot.generatedAt, /^\d{4}-\d{2}-\d{2}T/);
+      assert.equal(snapshot.stats.commands, 3);
+      assert.equal(contributions.commands.length, snapshot.stats.commands);
+      assert.deepEqual(
+        contributions.commands.map((command) => command.command),
+        [
+          "prettier.formatDocument",
+          "eslint.fixAll",
+          "eslint.restart",
+        ],
+      );
+
+      const commandSummary = snapshot.summary.find(
+        (entry) => entry.point === "commands",
+      );
+      assert.equal(commandSummary.count, 3);
+      assert.deepEqual(commandSummary.extensions, ["Prettier", "ESLint"]);
+      assert.deepEqual(commandSummary.items, [
+        "Format Document",
+        "Fix All Auto-Fixable Problems",
+        "Restart ESLint Server",
+      ]);
+      assert.equal(runtime.enabledExtensionCount, 3);
+      assert.ok(
+        runtime.activation.events.some(
+          (event) =>
+            event.id === "onLanguage:javascript" &&
+            event.extensionId === "prettier",
+        ),
+      );
+    },
+  },
+  {
+    id: "extension-command-contributions-route-to-palette-model",
+    title: "extension command contributions normalize into palette and spotlight commands",
+    run() {
+      const records = createDefaultExtensionRecords();
+      const extensionCommands = createExtensionCommandPaletteEntries(records);
+      const registry = createEditorCommandRegistry(extensionCommands);
+      const paletteCommands = getEditorCommandPaletteCommands({
+        extensionCommands,
+        surface: "palette",
+      });
+      const spotlightResults = createSpotlightResults({
+        files: [],
+        query: "eslint restart",
+        extensionCommands,
+      });
+
+      const registryCommand = registry.find(
+        (command) => command.id === "extension:prettier.formatDocument",
+      );
+      assert.equal(extensionCommands.length, 3);
+      assert.equal(registryCommand.actionId, "prettier.formatDocument");
+      assert.equal(registryCommand.category, "extensions");
+      assert.equal(registryCommand.extensionId, "prettier");
+      assert.equal(registryCommand.surfaces.includes("palette"), true);
+
+      const ranked = rankCommandPaletteItems(paletteCommands, "format document");
+      assert.equal(ranked[0]?.id, "extension:prettier.formatDocument");
+      assert.equal(ranked[0]?.actionId, "prettier.formatDocument");
+      assert.equal(ranked[0]?.label, "Format Document");
+      assert.equal(ranked[0]?.categoryMeta.id, "extensions");
+      assert.equal(typeof ranked[0]?.icon, "object");
+
+      const groups = groupCommandPaletteItems(ranked);
+      assert.equal(groups[0]?.id, "extensions");
+      assert.deepEqual(
+        groups[0]?.items.map((command) => command.id),
+        ["extension:prettier.formatDocument"],
+      );
+
+      assert.equal(spotlightResults[0]?.id, "extension:eslint.restart");
+      assert.equal(spotlightResults[0]?.actionId, "eslint.restart");
+      assert.equal(spotlightResults[0]?.resultKind, "command");
+      assert.equal(spotlightResults[0]?.extensionId, "eslint");
+    },
+  },
+  {
+    id: "editor-completion-helper-routing",
+    title: "snippet and LSP completion helpers stay deterministic near CodeEditor",
+    run() {
+      const wordContext = createCompletionContext("use");
+      const snippets = createSnippetCompletions(wordContext, "javascript");
+
+      assert.equal(snippets.from, 0);
+      assert.equal(
+        snippets.options.some((option) => option.label === "useEffect"),
+        true,
+      );
+      assert.equal(shouldRequestLspCompletion(wordContext), true);
+      assert.equal(
+        shouldRequestLspCompletion(createCompletionContext("const value = ")),
+        false,
+      );
+      assert.equal(
+        shouldRequestLspCompletion(createCompletionContext("", { explicit: true })),
+        true,
+      );
+
+      const completionResult = lspCompletionsToCodeMirror(
+        wordContext,
+        {
+          isIncomplete: false,
+          items: [
+            {
+              label: "clg",
+              kind: 3,
+              detail: "console.log",
+              documentation: "Duplicate of the bundled snippet.",
+            },
+            {
+              label: { label: "formatDocument" },
+              kind: 2,
+              detail: "method",
+              documentation: { value: "Formats the current document." },
+              insertText: "formatDocument(${1:options})",
+              insertTextFormat: 2,
+              preselect: true,
+              sortText: "!0001",
+            },
+            {
+              label: "plainFunction",
+              kind: 3,
+              insertText: "plainFunction()",
+            },
+            {
+              label: "beta",
+              kind: 10,
+              textEdit: {
+                newText: "gamma",
+                range: {
+                  start: { line: 0, character: 6 },
+                  end: { line: 0, character: 10 },
+                },
+              },
+            },
+          ],
+        },
+        snippets,
+      );
+
+      assert.equal(completionResult.from, 0);
+      assert.equal(String(completionResult.validFor), "/^[\\w$-]*$/");
+      assert.equal(
+        completionResult.options.filter((option) => option.label === "clg").length,
+        1,
+      );
+
+      const formatOption = completionResult.options.find(
+        (option) => option.label === "formatDocument",
+      );
+      assert.equal(formatOption.type, "method");
+      assert.equal(typeof formatOption.apply, "function");
+      assert.equal(formatOption.section.name, "Recommended");
+      assert.equal(formatOption.info, "Formats the current document.");
+
+      const plainOption = completionResult.options.find(
+        (option) => option.label === "plainFunction",
+      );
+      assert.equal(plainOption.apply, "plainFunction()");
+      assert.equal(plainOption.section.name, "Language Server");
+
+      const textEditOption = completionResult.options.find(
+        (option) => option.label === "beta",
+      );
+      assert.equal(typeof textEditOption.apply, "function");
+
+      const incompleteResult = lspCompletionsToCodeMirror(
+        createCompletionContext("do"),
+        { isIncomplete: true, items: [] },
+        createSnippetCompletions(createCompletionContext("do"), "javascript"),
+      );
+      assert.equal(incompleteResult.validFor, undefined);
     },
   },
 ];

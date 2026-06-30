@@ -1,5 +1,5 @@
-import React, { useEffect, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import React, { useEffect, useMemo, useRef } from "react";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 
 function cleanText(value) {
   return String(value || "")
@@ -75,6 +75,33 @@ function getTypeMeta(type) {
   };
 }
 
+function useNexusReducedMotion() {
+  const prefersReducedMotion = useReducedMotion();
+  const lowPowerClass =
+    typeof document !== "undefined" &&
+    document.documentElement?.classList?.contains("reduce-motion");
+
+  return Boolean(prefersReducedMotion || lowPowerClass);
+}
+
+function getBoundedPopupPosition(position) {
+  const top = Number(position?.top) || 0;
+  const left = Number(position?.left) || 0;
+  if (typeof window === "undefined") {
+    return { top, left, width: "28rem" };
+  }
+
+  const margin = 8;
+  const width = Math.min(448, Math.max(280, window.innerWidth - margin * 2));
+  const maxHeight = Math.min(352, Math.max(220, window.innerHeight - margin * 2));
+  return {
+    top: Math.max(margin, Math.min(top, window.innerHeight - maxHeight - margin)),
+    left: Math.max(margin, Math.min(left, window.innerWidth - width - margin)),
+    width,
+    maxHeight,
+  };
+}
+
 function KeyboardHint({ label }) {
   return (
     <span className="rounded border border-white/10 bg-white/[0.04] px-1.5 py-0.5 font-mono text-[9px] text-gray-400">
@@ -91,6 +118,7 @@ export default function AutocompletePopup({
   position = { top: 0, left: 0 },
 }) {
   const optionRefs = useRef([]);
+  const reduceMotion = useNexusReducedMotion();
   const safeSuggestions = Array.isArray(suggestions)
     ? suggestions.filter(Boolean)
     : [];
@@ -98,6 +126,10 @@ export default function AutocompletePopup({
   const safeSelectedIndex = Math.max(
     0,
     Math.min(Number(selectedIndex) || 0, Math.max(0, safeSuggestions.length - 1)),
+  );
+  const boundedPosition = useMemo(
+    () => getBoundedPopupPosition(position),
+    [position?.left, position?.top],
   );
 
   useEffect(() => {
@@ -111,30 +143,37 @@ export default function AutocompletePopup({
     <AnimatePresence>
       {shouldShow && (
         <motion.div
-          initial={{ opacity: 0, y: -4, scale: 0.98 }}
+          initial={reduceMotion ? false : { opacity: 0, y: -4, scale: 0.98 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: -4, scale: 0.98 }}
-          transition={{ duration: 0.12 }}
-          className="absolute z-50 w-[28rem] max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl border shadow-2xl"
+          exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -4, scale: 0.98 }}
+          transition={{ duration: reduceMotion ? 0 : 0.12 }}
+          className="absolute z-50 max-w-[calc(100vw-1rem)] overflow-hidden rounded-lg border shadow-2xl"
           style={{
-            top: position.top,
-            left: position.left,
+            top: boundedPosition.top,
+            left: boundedPosition.left,
+            width: boundedPosition.width,
+            maxHeight: boundedPosition.maxHeight,
             background: "var(--nexus-panel-surface, #0f1320)",
             borderColor: "var(--nexus-border, rgba(255,255,255,0.12))",
-            boxShadow: "0 22px 65px rgba(0,0,0,0.42)",
+            boxShadow: reduceMotion
+              ? "0 10px 28px rgba(0,0,0,0.34)"
+              : "0 22px 65px rgba(0,0,0,0.42)",
+            backdropFilter: reduceMotion
+              ? "none"
+              : "var(--nexus-panel-filter, blur(16px) saturate(112%))",
           }}
           role="listbox"
           aria-label="Autocomplete suggestions"
           aria-activedescendant={`autocomplete-option-${safeSelectedIndex}`}
         >
-          <div className="grid grid-cols-[2.25rem_minmax(0,1fr)_minmax(5rem,8rem)_3.5rem] gap-2 border-b border-white/10 bg-black/20 px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-gray-600">
+          <div className="grid grid-cols-[2.25rem_minmax(0,1fr)_minmax(5rem,8rem)_3.5rem] gap-2 border-b border-white/10 bg-black/20 px-3 py-2 text-[10px] font-semibold uppercase tracking-normal text-gray-600">
             <span />
             <span>Symbol</span>
             <span>Detail</span>
             <span className="text-right">Kind</span>
           </div>
 
-          <div className="max-h-72 overflow-y-auto p-1.5">
+          <div className="max-h-72 overflow-y-auto p-1.5 [scrollbar-gutter:stable]">
             {safeSuggestions.map((suggestion, index) => {
               const label = getSuggestionLabel(suggestion);
               const type = getSuggestionType(suggestion);
@@ -153,7 +192,9 @@ export default function AutocompletePopup({
                   type="button"
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => onSelect?.(suggestion)}
-                  className={`grid min-h-[2.75rem] w-full grid-cols-[2.25rem_minmax(0,1fr)_minmax(5rem,8rem)_3.5rem] items-center gap-2 rounded-lg border px-2 text-left text-sm transition-colors ${
+                  className={`grid min-h-[2.75rem] w-full grid-cols-[2.25rem_minmax(0,1fr)_minmax(5rem,8rem)_3.5rem] items-center gap-2 rounded-md border px-2 text-left text-sm ${
+                    reduceMotion ? "" : "transition-colors"
+                  } ${
                     selected
                       ? "border-blue-300/20 bg-blue-400/10 text-white shadow-[inset_2px_0_0_rgba(96,165,250,0.85)]"
                       : "border-transparent text-gray-400 hover:border-white/10 hover:bg-white/[0.04] hover:text-gray-200"

@@ -1,7 +1,7 @@
 export const FILE_TREE_LIMITS = {
   maxRows: 2200,
   maxChildrenPerFolder: 900,
-  rowHeight: 28,
+  rowHeight: 32,
   virtualizeAfter: 120,
   overscanRows: 12,
   maxRenderedRows: 220,
