@@ -63,6 +63,8 @@ export const DEFAULT_SETTINGS = {
   letter_spacing: 0,
   primary_accent: defaultResolvedTheme.colors.primary,
   secondary_accent: defaultResolvedTheme.colors.secondary,
+  custom_surface: null,
+  custom_input_surface: null,
   render_whitespace: "none",
   reduce_motion: false,
   animations_enabled: true,

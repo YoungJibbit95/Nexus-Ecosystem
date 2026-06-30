@@ -25,6 +25,8 @@ const REQUIRED_SURFACES = Object.freeze([
   "launchpad",
   "account-panel",
   "settings-panel",
+  "panel-chrome",
+  "github-workbench",
 ]);
 
 async function assertHarnessBoundary() {
@@ -134,12 +136,18 @@ try {
   const failures = [];
 
   for (const scenario of scenarios) {
-    const markup = renderToStaticMarkup(scenario.render());
-    const result = smokeModule.assertUiSmokeMarkup(scenario, markup);
-    results.push({ id: scenario.id, title: scenario.title, ...result });
+    let cleanupScenario;
+    try {
+      cleanupScenario = smokeModule.prepareUiSmokeScenario?.(scenario);
+      const markup = renderToStaticMarkup(scenario.render());
+      const result = smokeModule.assertUiSmokeMarkup(scenario, markup);
+      results.push({ id: scenario.id, title: scenario.title, ...result });
 
-    if (!result.ok) {
-      failures.push({ id: scenario.id, missing: result.missing });
+      if (!result.ok) {
+        failures.push({ id: scenario.id, missing: result.missing });
+      }
+    } finally {
+      cleanupScenario?.();
     }
   }
 

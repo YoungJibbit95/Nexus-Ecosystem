@@ -912,15 +912,16 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
         whileHover={{ backgroundColor: "rgba(255,255,255,0.04)" }}
         whileTap={{ scale: 0.99 }}
         onClick={onToggle}
-        className="h-8 flex items-center gap-2.5 px-4 shrink-0 w-full cursor-pointer select-none"
+        className="flex h-9 w-full shrink-0 cursor-pointer select-none items-center gap-2.5 px-4"
         style={{
-          background: "var(--nexus-surface)",
-          borderTop: "1px solid var(--nexus-border)",
+          background:
+            "linear-gradient(180deg, rgba(13,16,31,0.94), rgba(8,10,20,0.96))",
+          borderTop: "1px solid rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.12)",
         }}
       >
         <div className="flex items-center gap-1.5">
           <TerminalIcon size={12} className="text-purple-400" />
-          <span className="text-[11px] font-semibold text-purple-400/80 tracking-widest">
+          <span className="text-[11px] font-semibold uppercase text-purple-400/80">
             TERMINAL
           </span>
         </div>
@@ -928,10 +929,10 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
           className="h-1.5 w-1.5 rounded-full"
           style={{ background: STATUS_DOT_COLORS[statusMeta.tone] || "#64748b" }}
         />
-        <span className="text-[10px] text-gray-500 font-mono truncate">
-          {activeSession?.name || "shell"} · {statusMeta.label}
+        <span className="min-w-0 truncate font-mono text-[10px] text-gray-500">
+          {activeSession?.name || "shell"} - {statusMeta.label}
         </span>
-        <span className="text-[10px] text-gray-700 ml-auto font-mono truncate">
+        <span className="ml-auto min-w-0 truncate font-mono text-[10px] text-gray-700">
           {formatTerminalPath(activeCwd) || bridgeInfo.label}
         </span>
         <ChevronDown size={12} className="text-gray-600 rotate-180 ml-0.5" />
@@ -942,19 +943,20 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
   return (
     <motion.div
       initial={{ height: 0, opacity: 0 }}
-      animate={{ height: 360, opacity: 1 }}
+      animate={{ height: "min(312px, 34vh)", opacity: 1 }}
       exit={{ height: 0, opacity: 0 }}
       transition={{ duration: 0.28, ease: [0.4, 0, 0.2, 1] }}
-      className="flex flex-col shrink-0"
+      className="flex shrink-0 flex-col"
       style={{
-        background: "var(--nexus-bg)",
-        borderTop: "1px solid var(--nexus-border)",
+        background:
+          "linear-gradient(180deg, rgba(9,12,25,0.98), rgba(5,7,16,0.98))",
+        borderTop: "1px solid rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.16)",
         overflow: "hidden",
       }}
     >
       <div
-        className="flex min-h-[40px] items-center shrink-0"
-        style={{ borderBottom: "1px solid var(--nexus-border)" }}
+        className="flex min-h-[38px] shrink-0 items-center"
+        style={{ borderBottom: "1px solid rgba(255,255,255,0.055)" }}
       >
         <div className="flex h-full min-w-0 flex-1 items-stretch overflow-x-auto">
           {sessions.map((session) => {
@@ -967,18 +969,20 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
                 key={session.id}
                 layout
                 onClick={() => setActiveSessionId(session.id)}
-                className="group relative flex min-w-[160px] max-w-[230px] cursor-pointer select-none items-center gap-2 px-3"
+                className="group relative mx-1 my-1 flex min-w-[150px] max-w-[220px] cursor-pointer select-none items-center gap-2 rounded-xl border px-3 py-1.5"
                 style={{
                   background: isActive
-                    ? "color-mix(in srgb, var(--primary) 12%, transparent)"
-                    : "transparent",
-                  borderRight: "1px solid var(--nexus-border)",
+                    ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.13)"
+                    : "rgba(255,255,255,0.02)",
+                  borderColor: isActive
+                    ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.24)"
+                    : "rgba(255,255,255,0.055)",
                 }}
               >
                 {isActive && (
                   <motion.div
                     layoutId="termTabIndicator"
-                    className="absolute bottom-0 left-0 right-0 h-[2px]"
+                    className="absolute inset-x-3 bottom-0 h-[2px]"
                     style={{
                       background:
                         "linear-gradient(90deg, transparent, var(--primary), transparent)",
@@ -1017,7 +1021,7 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
                 {sessions.length > 1 && (
                   <button
                     type="button"
-                    className="rounded p-1 opacity-0 transition-opacity hover:bg-white/10 group-hover:opacity-100"
+                    className="rounded-lg p-1 opacity-0 transition-opacity hover:bg-white/10 group-hover:opacity-100"
                     onClick={(event) => {
                       event.stopPropagation();
                       closeSession(session.id);
@@ -1036,7 +1040,7 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
             whileTap={{ scale: 0.95 }}
             onClick={addSession}
             title="Neue Terminal Session"
-            className="flex h-full shrink-0 items-center gap-1.5 px-3 text-gray-500 transition-colors hover:text-purple-300"
+            className="my-1 flex shrink-0 items-center gap-1.5 rounded-xl border border-white/[0.055] bg-white/[0.025] px-3 py-1.5 text-gray-500 transition-colors hover:text-purple-300"
             type="button"
           >
             <Plus size={12} />
@@ -1049,7 +1053,7 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
             type="button"
             onClick={handleCopy}
             title="Output kopieren"
-            className="flex items-center gap-1 rounded px-2 py-1 text-[10px] font-semibold text-slate-300 transition-colors hover:bg-white/[0.06]"
+            className="flex min-h-8 items-center gap-1 rounded-xl border border-white/[0.07] bg-white/[0.028] px-2 py-1 text-[10px] font-semibold text-slate-300 transition-colors hover:bg-white/[0.06]"
           >
             <AnimatePresence mode="wait">
               {copied ? (
@@ -1074,7 +1078,7 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
             type="button"
             onClick={handleClear}
             title="Output loeschen"
-            className="flex items-center gap-1 rounded px-2 py-1 text-[10px] font-semibold text-slate-300 transition-colors hover:bg-white/[0.06]"
+            className="flex min-h-8 items-center gap-1 rounded-xl border border-white/[0.07] bg-white/[0.028] px-2 py-1 text-[10px] font-semibold text-slate-300 transition-colors hover:bg-white/[0.06]"
           >
             <Trash2 size={12} className="text-slate-400" />
             <span className="hidden md:inline">Clear</span>
@@ -1085,7 +1089,7 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
             onClick={handleStopRunning}
             disabled={!isRunning}
             title="Laufenden Prozess beenden"
-            className="flex items-center gap-1 rounded px-2 py-1 text-[10px] font-semibold transition-colors disabled:opacity-40"
+            className="flex min-h-8 items-center gap-1 rounded-xl px-2 py-1 text-[10px] font-semibold transition-colors disabled:opacity-40"
             style={{
               border: "1px solid rgba(248,113,113,0.26)",
               background: isRunning
@@ -1104,7 +1108,7 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
             onClick={handleOpenSystemTerminal}
             disabled={terminalLaunchBusy}
             title="System Terminal oeffnen"
-            className="flex items-center gap-1 rounded px-2 py-1 text-[10px] font-semibold transition-colors"
+            className="flex min-h-8 items-center gap-1 rounded-xl px-2 py-1 text-[10px] font-semibold transition-colors"
             style={{
               border: "1px solid rgba(255,255,255,0.12)",
               background: "rgba(255,255,255,0.03)",
@@ -1128,7 +1132,7 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
                 })
               }
               title={`${activeFile.name} ausfuehren`}
-              className="flex items-center gap-1 rounded px-2 py-1 text-[10px] font-semibold text-white"
+              className="flex min-h-8 items-center gap-1 rounded-xl px-2 py-1 text-[10px] font-semibold text-white"
               style={{
                 background: "linear-gradient(135deg, #7c3aed, #2563eb)",
                 boxShadow: "0 0 10px rgba(124,58,237,0.28)",
@@ -1143,7 +1147,7 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
             type="button"
             onClick={onToggle}
             title="Schliessen"
-            className="rounded p-1.5 transition-colors hover:bg-white/[0.06]"
+            className="rounded-xl p-1.5 transition-colors hover:bg-white/[0.06]"
           >
             <ChevronDown size={13} className="text-gray-500" />
           </button>
@@ -1151,11 +1155,11 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
       </div>
 
       <div
-        className="flex min-h-[38px] shrink-0 items-center gap-2 overflow-x-auto px-3 py-1.5"
+        className="flex min-h-[34px] shrink-0 items-center gap-2 overflow-x-auto px-3 py-1"
         style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}
       >
         <span
-          className="flex shrink-0 items-center gap-1.5 rounded px-2 py-1 text-[10px] font-semibold"
+          className="flex shrink-0 items-center gap-1.5 rounded-xl px-2 py-1 text-[10px] font-semibold"
           style={{
             color: statusStyle.color,
             background: statusStyle.background,
@@ -1173,7 +1177,7 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
 
         <span className="flex min-w-[160px] items-center gap-1.5 truncate text-[10px] text-slate-500">
           <Folder size={11} className="shrink-0 text-slate-600" />
-          <span className="truncate font-mono">{formatTerminalPath(activeCwd)}</span>
+          <span className="truncate font-mono">{formatTerminalPath(activeCwd) || "~"}</span>
         </span>
 
         <span className="hidden shrink-0 items-center gap-1.5 text-[10px] text-slate-600 sm:flex">
@@ -1182,12 +1186,12 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
         </span>
 
         {typeof activeSession?.lastExitCode === "number" && (
-          <span className="shrink-0 rounded border border-white/10 px-2 py-1 text-[10px] font-mono text-slate-400">
+          <span className="shrink-0 rounded-xl border border-white/10 px-2 py-1 text-[10px] font-mono text-slate-400">
             exit {activeSession.lastExitCode}
           </span>
         )}
 
-        <span className="shrink-0 rounded border border-white/10 px-2 py-1 text-[10px] text-slate-500">
+        <span className="shrink-0 rounded-xl border border-white/10 px-2 py-1 text-[10px] text-slate-500">
           {outputLineCount}/{TERMINAL_OUTPUT_LIMIT} lines
         </span>
 
@@ -1199,7 +1203,7 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
           type="button"
           onClick={handleToggleAutoScroll}
           title={autoScrollEnabled ? "Autoscroll aktiv" : "Autoscroll fortsetzen"}
-          className="flex shrink-0 items-center gap-1 rounded px-2 py-1 text-[10px] font-semibold transition-colors hover:bg-white/[0.06]"
+          className="flex shrink-0 items-center gap-1 rounded-xl px-2 py-1 text-[10px] font-semibold transition-colors hover:bg-white/[0.06]"
           style={{
             color: autoScrollEnabled ? "#cbd5e1" : "#facc15",
             border: "1px solid rgba(255,255,255,0.1)",
@@ -1214,7 +1218,7 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
       </div>
 
       <div
-        className="flex min-h-[40px] shrink-0 items-center gap-2 overflow-x-auto px-3 py-1.5"
+        className="flex min-h-[34px] shrink-0 items-center gap-2 overflow-x-auto px-3 py-1"
         style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}
       >
         <select
@@ -1223,7 +1227,7 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
             const task = taskItems.find((item) => item.id === event.target.value);
             runTask(task);
           }}
-          className="h-7 shrink-0 rounded border border-white/10 bg-black/30 px-2 text-[10px] font-semibold text-gray-300 outline-none"
+          className="h-7 shrink-0 rounded-xl border border-white/10 bg-black/30 px-2 text-[10px] font-semibold text-gray-300 outline-none"
           title="Task Runner"
         >
           <option value="">Tasks</option>
@@ -1240,7 +1244,7 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
             type="button"
             onClick={() => runTask(task)}
             disabled={task.disabled}
-            className="h-7 shrink-0 rounded px-2 text-[10px] font-mono transition-colors disabled:opacity-40"
+            className="h-7 shrink-0 rounded-xl px-2 text-[10px] font-mono transition-colors disabled:opacity-40"
             style={{
               border: "1px solid rgba(255,255,255,0.1)",
               color: task.disabled ? "#64748b" : "#cbd5e1",
@@ -1265,7 +1269,7 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
           onClick={handleRunLast}
           disabled={!lastCommand || isRunning}
           title={lastCommand ? `Run last: ${lastCommand}` : "Kein Verlauf"}
-          className="flex h-7 shrink-0 items-center gap-1 rounded px-2 text-[10px] font-semibold transition-colors disabled:opacity-40"
+          className="flex h-7 shrink-0 items-center gap-1 rounded-xl px-2 text-[10px] font-semibold transition-colors disabled:opacity-40"
           style={{
             border: "1px solid rgba(255,255,255,0.1)",
             background: "rgba(255,255,255,0.02)",
@@ -1290,7 +1294,7 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
             type="button"
             onClick={() => executeCommandInSession(activeSessionId, item.command)}
             disabled={isRunning}
-            className="h-7 shrink-0 rounded px-2 text-[10px] font-mono transition-colors disabled:opacity-40"
+            className="h-7 shrink-0 rounded-xl px-2 text-[10px] font-mono transition-colors disabled:opacity-40"
             style={{
               border: item.recent
                 ? "1px solid rgba(128,0,255,0.24)"
@@ -1344,7 +1348,7 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
                 />
               ))}
               <span className="ml-1 text-[11px] text-gray-500">
-                Process running · stdin ready
+                Process running - stdin ready
               </span>
             </motion.div>
           )}
@@ -1352,11 +1356,11 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
       </div>
 
       <div
-        className="flex min-h-[46px] shrink-0 items-center gap-2 px-4 py-2"
+        className="flex min-h-[42px] shrink-0 items-center gap-2 px-4 py-1.5"
         style={{ borderTop: "1px solid rgba(128,0,255,0.09)" }}
       >
         <span
-          className="flex shrink-0 items-center gap-1 rounded border border-white/10 bg-white/[0.02] px-2 py-1 font-mono text-[11px]"
+          className="flex shrink-0 items-center gap-1 rounded-xl border border-white/10 bg-white/[0.02] px-2 py-1 font-mono text-[11px]"
           style={{ color: "var(--primary)" }}
         >
           $
@@ -1374,7 +1378,7 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
           autoComplete="off"
           autoCorrect="off"
           autoCapitalize="off"
-          className="min-w-0 flex-1 rounded border border-white/10 bg-black/20 px-3 py-2 font-mono outline-none transition-colors focus:border-purple-500/50"
+          className="min-w-0 flex-1 rounded-xl border border-white/10 bg-black/20 px-3 py-2 font-mono outline-none transition-colors focus:border-purple-500/50"
           style={{
             color: "#d1d5db",
             caretColor: "#a855f7",
@@ -1388,7 +1392,7 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
           type="button"
           onClick={handleRun}
           disabled={!currentInput.trim()}
-          className="flex h-8 shrink-0 items-center gap-1.5 rounded px-3 text-[11px] font-semibold text-white transition-opacity disabled:opacity-40"
+          className="flex h-8 shrink-0 items-center gap-1.5 rounded-xl px-3 text-[11px] font-semibold text-white transition-opacity disabled:opacity-40"
           style={{
             background: "linear-gradient(135deg, #7c3aed, #2563eb)",
             cursor: currentInput.trim() ? "pointer" : "not-allowed",

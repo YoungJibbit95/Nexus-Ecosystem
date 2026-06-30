@@ -4,6 +4,7 @@ import {
   Check,
   ChevronDown,
   Clock,
+  Download,
   FolderOpen,
   GitBranch,
   GitFork,
@@ -78,7 +79,7 @@ function SectionHeader({
       <button
         type="button"
         onClick={onToggle}
-        className="min-w-0 flex flex-1 items-center gap-1.5 rounded-md px-1 py-1 hover:bg-white/[0.03] transition-colors"
+        className="min-w-0 flex flex-1 items-center gap-1.5 rounded-xl px-2 py-1.5 text-left transition-colors hover:bg-white/[0.04]"
       >
         <motion.div
           animate={{ rotate: expanded ? 0 : -90 }}
@@ -86,28 +87,25 @@ function SectionHeader({
         >
           <ChevronDown size={11} className="text-gray-600" />
         </motion.div>
-        <span className="text-[10px] font-semibold text-gray-500 tracking-widest uppercase flex-1 text-left truncate">
+        <span
+          className="min-w-0 flex-1 break-words text-[10px] font-semibold uppercase leading-tight text-gray-500"
+          style={{ overflowWrap: "anywhere" }}
+        >
           {title}
         </span>
-        {count != null && count > 0 && (
-          <span
-            className="text-[10px] font-bold px-1.5 py-0.5 rounded-md"
-            style={{ background: "rgba(128,0,255,0.15)", color: "#a855f7" }}
-          >
-            {count}
-          </span>
+        {count != null && (
+          <PanelBadge tone={count > 0 ? "accent" : "muted"}>{count}</PanelBadge>
         )}
       </button>
       {action && (
-        <button
-          type="button"
+        <PanelActionButton
           onClick={action}
           disabled={actionDisabled}
           title={actionTitle || actionLabel}
-          className="shrink-0 rounded-md border border-white/10 bg-white/[0.04] px-2 py-1 text-[10px] font-semibold text-gray-300 transition-colors hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-40"
+          className="shrink-0 px-2 py-1 text-[10px]"
         >
           {actionLabel}
-        </button>
+        </PanelActionButton>
       )}
     </div>
   );
@@ -136,7 +134,7 @@ function CapabilityPill({ icon: Icon, label, tone = "neutral", title }) {
   return (
     <div
       title={title || label}
-      className="flex items-center gap-1.5 px-2 py-1 rounded-md min-w-0"
+      className="flex min-w-0 items-center gap-1.5 rounded-xl px-2 py-1.5"
       style={{
         color: palette.color,
         background: palette.background,
@@ -144,7 +142,9 @@ function CapabilityPill({ icon: Icon, label, tone = "neutral", title }) {
       }}
     >
       <Icon size={10} className="shrink-0" />
-      <span className="text-[10px] font-medium truncate">{label}</span>
+      <span className="min-w-0 break-words text-[10px] font-medium" style={{ overflowWrap: "anywhere" }}>
+        {label}
+      </span>
     </div>
   );
 }
@@ -162,14 +162,14 @@ function SummaryTile({ label, value, tone = "neutral", title }) {
   return (
     <div
       title={title}
-      className="min-w-0 rounded-md border border-white/5 bg-black/20 px-2 py-1.5"
+      className="min-w-0 rounded-xl border border-white/[0.055] bg-black/15 px-2 py-1.5"
     >
-      <div className="text-[9px] uppercase tracking-wide text-gray-600">
+      <div className="text-[9px] font-semibold uppercase text-gray-600">
         {label}
       </div>
       <div
-        className="mt-0.5 truncate text-[11px] font-semibold"
-        style={{ color }}
+        className="mt-0.5 break-words text-[11px] font-semibold leading-tight"
+        style={{ color, overflowWrap: "anywhere" }}
       >
         {value}
       </div>
@@ -180,29 +180,13 @@ function SummaryTile({ label, value, tone = "neutral", title }) {
 function EmptyState({ title, detail, tone = "muted" }) {
   const isGood = tone === "good";
   return (
-    <div className="mx-3 mb-2 rounded-lg border border-white/5 bg-black/15 px-3 py-3">
-      <div className="flex items-start gap-2">
-        {isGood ? (
-          <Check size={13} className="mt-0.5 shrink-0 text-green-400" />
-        ) : (
-          <AlertCircle size={13} className="mt-0.5 shrink-0 text-gray-500" />
-        )}
-        <div className="min-w-0">
-          <p
-            className={`text-xs font-semibold ${
-              isGood ? "text-green-200" : "text-gray-300"
-            }`}
-          >
-            {title}
-          </p>
-          {detail && (
-            <p className="mt-1 text-[11px] leading-snug text-gray-600">
-              {detail}
-            </p>
-          )}
-        </div>
-      </div>
-    </div>
+    <PanelNotice
+      icon={isGood ? Check : AlertCircle}
+      tone={isGood ? "success" : "muted"}
+      title={title}
+      detail={detail}
+      className="mx-3 mb-2"
+    />
   );
 }
 
@@ -227,9 +211,11 @@ function FileRow({ file, staged, selected, busy, onSelect, onToggle }) {
       className="px-2 pb-1"
     >
       <div
-        className="group flex items-center rounded-md border transition-colors"
+        className="group flex items-center rounded-xl border transition-colors"
         style={{
-          background: selected ? "rgba(139,92,246,0.12)" : "rgba(255,255,255,0.015)",
+          background: selected
+            ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.12)"
+            : "linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0.012))",
           borderColor: selected ? "rgba(168,85,247,0.35)" : "rgba(255,255,255,0.04)",
         }}
       >
@@ -246,10 +232,16 @@ function FileRow({ file, staged, selected, busy, onSelect, onToggle }) {
             {file.status}
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-xs font-mono text-gray-300 group-hover:text-gray-100">
+            <span
+              className="block break-words text-xs font-mono leading-snug text-gray-300 group-hover:text-gray-100"
+              style={{ overflowWrap: "anywhere" }}
+            >
               {file.name}
             </span>
-            <span className="block truncate text-[10px] text-gray-600">
+            <span
+              className="block break-words text-[10px] leading-snug text-gray-600"
+              style={{ overflowWrap: "anywhere" }}
+            >
               {scopeLabel}
               {file.originalPath ? ` from ${file.originalPath}` : ""}
             </span>
@@ -265,7 +257,7 @@ function FileRow({ file, staged, selected, busy, onSelect, onToggle }) {
           onClick={() => onToggle(file)}
           disabled={busy}
           title={`${actionLabel} ${file.path || file.name}`}
-          className="mr-1 flex h-6 shrink-0 items-center gap-1 rounded-md border border-white/10 bg-white/[0.04] px-1.5 text-[10px] font-semibold text-gray-300 transition-colors hover:bg-white/[0.08] disabled:cursor-wait disabled:opacity-50"
+          className="mr-1 flex h-7 min-w-[74px] shrink-0 items-center justify-center gap-1 rounded-xl border border-white/10 bg-white/[0.04] px-1.5 text-[10px] font-semibold text-gray-300 transition-colors hover:bg-white/[0.08] disabled:cursor-wait disabled:opacity-50"
         >
           {busy ? (
             <RefreshCw size={10} className="animate-spin" />
@@ -1022,19 +1014,23 @@ export default function GitPanel({ files }) {
       />
 
       {hasWorkspace && (
-      <div className="px-3 pb-3 shrink-0 space-y-2">
+      <div className="shrink-0 space-y-2 px-3 pb-3">
         <div
-          className="rounded-lg p-2.5"
+          className="rounded-2xl p-2.5"
           style={{
-            background: "rgba(139, 92, 246, 0.05)",
-            border: "1px solid rgba(139, 92, 246, 0.12)",
+            background:
+              "linear-gradient(180deg, rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.095), rgba(255,255,255,0.018))",
+            border: "1px solid rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.16)",
           }}
         >
           <div className="flex items-start gap-2">
             <GitBranch size={14} className="mt-0.5 text-purple-400 shrink-0" />
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
-                <span className="truncate text-xs font-semibold text-gray-100">
+                <span
+                  className="min-w-0 break-words text-xs font-semibold leading-snug text-gray-100"
+                  style={{ overflowWrap: "anywhere" }}
+                >
                   {branch}
                 </span>
                 {status.detached && (
@@ -1092,10 +1088,7 @@ export default function GitPanel({ files }) {
       )}
 
       {hasWorkspace && (
-        <div
-          className="mx-3 mb-1 shrink-0"
-          style={{ height: "1px", background: "rgba(128,0,255,0.08)" }}
-        />
+        <div className="mx-3 mb-1 h-px shrink-0 bg-white/[0.045]" />
       )}
 
       <PanelBody className="px-0 py-1">
@@ -1120,23 +1113,17 @@ export default function GitPanel({ files }) {
               style={{ overflow: "hidden" }}
               className="px-3 pb-3"
             >
-              <div className="space-y-2 p-2 rounded-lg bg-black/20 border border-white/5">
-                <div className="flex items-start gap-2 rounded-lg border border-green-500/15 bg-green-500/5 px-2 py-2">
-                  <ShieldCheck size={13} className="text-green-400 shrink-0 mt-0.5" />
-                  <div className="min-w-0">
-                    <p className="text-[11px] text-gray-300 font-semibold">
-                      Secure GitHub Backend
-                    </p>
-                    <p className="text-[10px] text-gray-500 leading-snug">
-                      GitHub tokens stay out of the renderer. This panel reads
-                      repository data from a backend/session when available.
-                    </p>
-                  </div>
-                </div>
+              <div className="space-y-2 rounded-2xl border border-white/[0.055] bg-black/15 p-2">
+                <PanelNotice
+                  icon={ShieldCheck}
+                  tone="success"
+                  title="Secure GitHub Backend"
+                  detail="GitHub tokens stay out of the renderer. Repository data is read through the backend/session when available."
+                />
 
-                <div className="rounded-lg border border-white/5 bg-black/20 px-2 py-2">
+                <div className="rounded-2xl border border-white/[0.055] bg-black/15 px-2 py-2">
                   <div className="mb-2 flex items-center justify-between gap-2">
-                    <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">
+                    <span className="text-[10px] font-semibold uppercase text-gray-500">
                       GitHub Auth
                     </span>
                     <span
@@ -1156,29 +1143,28 @@ export default function GitPanel({ files }) {
                     </span>
                   </div>
                   <div className="grid grid-cols-2 gap-1.5">
-                    <button
+                    <PanelActionButton
                       type="button"
                       disabled={!githubCapability.available || authBusy}
                       onClick={handleStartGithubAuth}
-                      className="rounded-md bg-green-600/15 py-1.5 text-xs text-green-200 transition-colors hover:bg-green-600/25 disabled:cursor-not-allowed disabled:opacity-40"
+                      tone="success"
                     >
                       Connect
-                    </button>
-                    <button
+                    </PanelActionButton>
+                    <PanelActionButton
                       type="button"
                       disabled={!githubCapability.available || authBusy}
                       onClick={handleGithubSignOut}
-                      className="rounded-md bg-white/[0.04] py-1.5 text-xs text-gray-300 transition-colors hover:bg-white/[0.08] disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       Sign out
-                    </button>
+                    </PanelActionButton>
                   </div>
                   {githubFlow && (
-                    <div className="mt-2 rounded-md border border-purple-500/20 bg-purple-500/5 p-2">
+                    <div className="mt-2 rounded-xl border border-purple-500/20 bg-purple-500/5 p-2">
                       <div className="text-[10px] text-gray-400">
                         Code bei GitHub eingeben:
                       </div>
-                      <div className="mt-1 font-mono text-sm font-semibold tracking-widest text-purple-200">
+                      <div className="mt-1 font-mono text-sm font-semibold text-purple-200">
                         {githubFlow.userCode}
                       </div>
                       <div className="mt-2 grid grid-cols-2 gap-1.5">
@@ -1189,25 +1175,24 @@ export default function GitPanel({ files }) {
                           }
                           target="_blank"
                           rel="noreferrer"
-                          className="rounded-md bg-purple-600/20 py-1.5 text-center text-xs text-purple-200 transition-colors hover:bg-purple-600/30"
+                          className="inline-flex min-h-8 items-center justify-center rounded-xl border border-purple-400/20 bg-purple-600/20 px-2 py-1.5 text-center text-xs font-semibold text-purple-200 transition-colors hover:bg-purple-600/30"
                         >
                           Open
                         </a>
-                        <button
+                        <PanelActionButton
                           type="button"
                           disabled={authBusy}
                           onClick={handlePollGithubAuth}
-                          className="rounded-md bg-white/[0.04] py-1.5 text-xs text-gray-300 transition-colors hover:bg-white/[0.08] disabled:opacity-40"
                         >
                           Verify
-                        </button>
+                        </PanelActionButton>
                       </div>
                     </div>
                   )}
                 </div>
 
                 {githubSettings.legacyTokenPresent && (
-                  <div className="flex items-center gap-2 rounded-lg border border-amber-500/20 bg-amber-500/5 px-2 py-2">
+                  <div className="flex items-center gap-2 rounded-xl border border-amber-500/20 bg-amber-500/5 px-2 py-2">
                     <AlertCircle size={13} className="text-amber-400 shrink-0" />
                     <span className="text-[10px] text-amber-200/80 flex-1">
                       Legacy localStorage token detected. It is deprecated and
@@ -1216,7 +1201,7 @@ export default function GitPanel({ files }) {
                     <button
                       type="button"
                       onClick={handleClearLegacyToken}
-                      className="p-1 rounded-md hover:bg-white/10 text-amber-200"
+                      className="rounded-lg p-1 text-amber-200 hover:bg-white/10"
                       title="Remove deprecated local token"
                     >
                       <Trash2 size={11} />
@@ -1225,16 +1210,16 @@ export default function GitPanel({ files }) {
                 )}
 
                 <div className="flex flex-col gap-1.5">
-                  <span className="text-[10px] text-gray-500 uppercase font-semibold px-1">
+                  <span className="px-1 text-[10px] font-semibold uppercase text-gray-500">
                     Repository
                   </span>
                   {loadingRepos ? (
-                    <div className="w-full bg-black/40 text-xs px-2 py-2 rounded-md border border-white/10 animate-pulse text-gray-500">
+                    <div className="w-full animate-pulse rounded-xl border border-white/10 bg-black/30 px-2 py-2 text-xs text-gray-500">
                       Loading repositories...
                     </div>
                   ) : repos.length > 0 ? (
                     <select
-                      className="w-full bg-black/40 text-xs px-2 py-1.5 rounded-md border border-white/10 outline-none focus:border-purple-500/50 text-gray-200"
+                      className="min-h-9 w-full rounded-xl border border-white/10 bg-black/30 px-2 py-1.5 text-xs text-gray-200 outline-none focus:border-purple-500/50"
                       value={selectedRepo}
                       onChange={(event) => handleRepositorySelect(event.target.value)}
                     >
@@ -1255,7 +1240,7 @@ export default function GitPanel({ files }) {
                       <input
                         type="text"
                         placeholder="Owner / Username"
-                        className="w-full bg-black/40 text-xs px-2 py-1.5 rounded-md border border-white/10 outline-none focus:border-purple-500/50"
+                        className="min-h-9 w-full rounded-xl border border-white/10 bg-black/30 px-2 py-1.5 text-xs text-gray-200 outline-none focus:border-purple-500/50"
                         value={githubSettings.owner}
                         onChange={(event) =>
                           setGithubSettings((prev) => ({
@@ -1267,7 +1252,7 @@ export default function GitPanel({ files }) {
                       <input
                         type="text"
                         placeholder="Repository Name"
-                        className="w-full bg-black/40 text-xs px-2 py-1.5 rounded-md border border-white/10 outline-none focus:border-purple-500/50"
+                        className="min-h-9 w-full rounded-xl border border-white/10 bg-black/30 px-2 py-1.5 text-xs text-gray-200 outline-none focus:border-purple-500/50"
                         value={githubSettings.repo}
                         onChange={(event) =>
                           setGithubSettings((prev) => ({
@@ -1281,23 +1266,22 @@ export default function GitPanel({ files }) {
                 </div>
 
                 <div className="grid grid-cols-2 gap-1.5">
-                  <button
+                  <PanelActionButton
                     onClick={() =>
                       handleSaveGithubSettings(
                         githubSettings.owner,
                         githubSettings.repo,
                       )
                     }
-                    className="bg-purple-600/20 hover:bg-purple-600/40 text-purple-300 text-xs py-1.5 rounded-md transition-colors"
+                    tone="accent"
                   >
                     Save Repo
-                  </button>
-                  <button
+                  </PanelActionButton>
+                  <PanelActionButton
                     onClick={refreshGithubBackend}
-                    className="bg-white/[0.04] hover:bg-white/[0.08] text-gray-300 text-xs py-1.5 rounded-md transition-colors"
                   >
                     Check Backend
-                  </button>
+                  </PanelActionButton>
                 </div>
 
                 {githubUser && (
@@ -1461,13 +1445,16 @@ export default function GitPanel({ files }) {
             )}
           </AnimatePresence>
 
-          <div className="mb-3 rounded-lg border border-white/[0.06] bg-black/20 p-2.5">
+          <div className="mb-3 rounded-2xl border border-white/[0.055] bg-black/15 p-2.5">
             <div className="mb-2 flex min-w-0 items-center justify-between gap-2">
               <div className="min-w-0">
-                <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-500">
+                <p className="text-[10px] font-semibold uppercase text-gray-500">
                   Sync
                 </p>
-                <p className="truncate text-[11px] text-gray-400">
+                <p
+                  className="break-words text-[11px] leading-snug text-gray-400"
+                  style={{ overflowWrap: "anywhere" }}
+                >
                   {remoteDetail}
                 </p>
               </div>
@@ -1498,7 +1485,7 @@ export default function GitPanel({ files }) {
           </div>
 
           <div className="mb-2 flex items-center justify-between gap-2">
-            <span className="text-[10px] font-semibold uppercase tracking-widest text-gray-500">
+            <span className="text-[10px] font-semibold uppercase text-gray-500">
               Commit
             </span>
             <span className="text-[10px] text-gray-500">
@@ -1515,7 +1502,7 @@ export default function GitPanel({ files }) {
             }}
             placeholder="Commit message (Ctrl+Enter)..."
             rows={3}
-            className="w-full resize-none rounded-lg px-2.5 py-2 text-xs font-mono outline-none placeholder:text-gray-700 transition-all"
+            className="w-full resize-none rounded-2xl px-2.5 py-2 text-xs font-mono outline-none placeholder:text-gray-700 transition-all"
             style={{
               background: "rgba(255,255,255,0.04)",
               border: commitMsg
@@ -1527,7 +1514,9 @@ export default function GitPanel({ files }) {
           />
 
           <div className="mt-1.5 flex items-center justify-between gap-2 text-[10px] text-gray-600">
-            <span className="truncate">{commitDisabledReason}</span>
+            <span className="min-w-0 break-words" style={{ overflowWrap: "anywhere" }}>
+              {commitDisabledReason}
+            </span>
             <span>{commitMsg.trim().length}/64000</span>
           </div>
 
@@ -1536,7 +1525,7 @@ export default function GitPanel({ files }) {
             onClick={() => setPushAfterCommit((value) => !value)}
             disabled={!canPush}
             aria-pressed={pushAfterCommit}
-            className="mt-2 flex w-full items-center justify-between gap-2 rounded-md border border-white/[0.07] bg-white/[0.035] px-2.5 py-1.5 text-left text-[10px] transition-colors hover:bg-white/[0.06] disabled:cursor-not-allowed disabled:opacity-45"
+            className="mt-2 flex w-full items-center justify-between gap-2 rounded-xl border border-white/[0.07] bg-white/[0.035] px-2.5 py-1.5 text-left text-[10px] transition-colors hover:bg-white/[0.06] disabled:cursor-not-allowed disabled:opacity-45"
           >
             <span className="min-w-0 truncate text-gray-400">
               Nach Commit automatisch pushen
@@ -1565,10 +1554,10 @@ export default function GitPanel({ files }) {
               onClick={handleCommitAndPush}
               disabled={!canCommit}
               title={commitDisabledReason}
-              className="w-full flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-semibold text-white transition-all"
+              className="flex w-full items-center justify-center gap-2 rounded-2xl py-2 text-xs font-semibold text-white transition-all"
               style={{
                 background: canCommit
-                  ? "linear-gradient(135deg, #8000ff, #0033ff)"
+                  ? "linear-gradient(135deg, var(--nexus-primary, #7c8cff), #2dd4bf)"
                   : "rgba(255,255,255,0.06)",
                 color: canCommit ? "#fff" : "#4b5563",
                 boxShadow: canCommit ? "0 0 16px rgba(128,0,255,0.3)" : "none",
@@ -1627,10 +1616,7 @@ export default function GitPanel({ files }) {
           </div>
         </div>
 
-        <div
-          className="mx-3 mb-1"
-          style={{ height: "1px", background: "rgba(128,0,255,0.08)" }}
-        />
+        <div className="mx-3 mb-1 h-px bg-white/[0.045]" />
 
         <SectionHeader
           title={`History (${historySource})`}

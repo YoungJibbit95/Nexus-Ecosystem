@@ -7,8 +7,10 @@ import {
   Info,
   Lightbulb,
   MapPin,
+  Maximize2,
   RotateCcw,
   Search,
+  Shrink,
   XCircle,
 } from "lucide-react";
 import { motion } from "framer-motion";
@@ -224,6 +226,16 @@ export default function ProblemsPanel({ problems, onSelectProblem }) {
     setCollapsedGroups((prev) => ({ ...prev, [file]: !prev[file] }));
   };
 
+  const collapseAllGroups = () => {
+    setCollapsedGroups(
+      Object.fromEntries(fileGroups.map(({ file }) => [file, true])),
+    );
+  };
+
+  const expandAllGroups = () => {
+    setCollapsedGroups({});
+  };
+
   const resetFilters = () => {
     setFilter("all");
     setQuery("");
@@ -255,6 +267,28 @@ export default function ProblemsPanel({ problems, onSelectProblem }) {
         actions={
           <>
             <PanelIconButton
+              label="Collapse diagnostic groups"
+              disabled={fileGroups.length === 0}
+              onClick={collapseAllGroups}
+            >
+              <Shrink />
+            </PanelIconButton>
+            <PanelIconButton
+              label="Expand diagnostic groups"
+              disabled={fileGroups.length === 0}
+              onClick={expandAllGroups}
+            >
+              <Maximize2 />
+            </PanelIconButton>
+            <PanelIconButton
+              label="Reset diagnostic filters"
+              disabled={filter === "all" && !query}
+              onClick={resetFilters}
+              active={filter !== "all" || Boolean(query)}
+            >
+              <RotateCcw />
+            </PanelIconButton>
+            <PanelIconButton
               label="Previous diagnostic"
               disabled={filteredProblems.length === 0}
               onClick={() => moveActiveProblem(-1)}
@@ -277,7 +311,7 @@ export default function ProblemsPanel({ problems, onSelectProblem }) {
           <PanelMetric label="Info" value={(counts.info || 0) + (counts.hint || 0)} tone="accent" />
         </div>
 
-        <div className="mt-2 flex min-w-0 flex-wrap gap-1">
+        <div className="mt-2 grid min-w-0 grid-cols-2 gap-1.5">
           {FILTERS.map((item) => {
             const active = filter === item.id;
             const count =
@@ -289,7 +323,7 @@ export default function ProblemsPanel({ problems, onSelectProblem }) {
                 key={item.id}
                 type="button"
                 onClick={() => setFilter(item.id)}
-                className="flex h-7 min-w-0 items-center gap-1.5 rounded-md border px-2 text-[10px] font-semibold transition-colors"
+                className="flex min-h-8 min-w-0 items-center gap-1.5 rounded-xl border px-2 py-1 text-[10px] font-semibold leading-tight transition-colors"
                 style={{
                   background: active
                     ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.15)"
@@ -306,7 +340,7 @@ export default function ProblemsPanel({ problems, onSelectProblem }) {
                     active ? "bg-purple-400 shadow-[0_0_8px_rgba(168,85,247,0.55)]" : "bg-gray-600"
                   }`}
                 />
-                <span className="truncate">
+                <span className="min-w-0 break-words" style={{ overflowWrap: "anywhere" }}>
                   {item.label} ({count})
                 </span>
               </button>
@@ -355,18 +389,21 @@ export default function ProblemsPanel({ problems, onSelectProblem }) {
             tone={normalizedProblems.length === 0 ? "success" : "muted"}
             actionLabel={normalizedProblems.length > 0 ? "Filter zuruecksetzen" : undefined}
             onAction={normalizedProblems.length > 0 ? resetFilters : undefined}
+            compact
           />
         ) : (
           fileGroups.map(({ file, fileName, fileProblems, counts }) => {
             const collapsed = Boolean(collapsedGroups[file]);
             const tone = getFileTone(counts);
             return (
-            <div key={file} className="mb-4 last:mb-0">
+            <div key={file} className="mb-3 last:mb-0">
               <button
                 type="button"
                 onClick={() => toggleGroup(file)}
-                className="sticky top-0 z-10 mb-1 flex w-full items-center gap-2 rounded-md border bg-[#060614]/95 px-2 py-1.5 text-left backdrop-blur-md transition-colors hover:bg-white/[0.04]"
+                className="sticky top-0 z-10 mb-1 flex w-full items-center gap-2 rounded-xl border px-2.5 py-1.5 text-left backdrop-blur-md transition-colors hover:bg-white/[0.045]"
                 style={{
+                  background:
+                    "linear-gradient(180deg, rgba(9,12,25,0.96), rgba(7,9,19,0.9))",
                   borderColor:
                     tone === "danger"
                       ? "rgba(239,68,68,0.2)"
@@ -380,8 +417,12 @@ export default function ProblemsPanel({ problems, onSelectProblem }) {
                   className={`shrink-0 text-gray-600 transition-transform ${collapsed ? "-rotate-90" : ""}`}
                 />
                 <MapPin size={12} className="shrink-0 text-purple-300/70" />
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[11px] font-semibold text-gray-300" title={file}>
+                  <span className="min-w-0 flex-1">
+                  <span
+                    className="block break-words text-[11px] font-semibold leading-snug text-gray-300"
+                    style={{ overflowWrap: "anywhere" }}
+                    title={file}
+                  >
                     {fileName}
                   </span>
                   {file !== fileName ? (
@@ -394,7 +435,7 @@ export default function ProblemsPanel({ problems, onSelectProblem }) {
               </button>
 
               {!collapsed ? (
-                <div className="space-y-0.5">
+                <div className="space-y-1">
                   {fileProblems.map(({ problem, globalIndex }) => {
                   const meta = getSeverityMeta(problem);
                   const Icon = meta.icon;
@@ -413,8 +454,10 @@ export default function ProblemsPanel({ problems, onSelectProblem }) {
                       data-active={active ? "true" : "false"}
                       role="option"
                       aria-selected={active}
-                      className={`group flex w-full cursor-pointer items-start gap-3 rounded-md px-3 py-1.5 text-left outline-none transition-colors ${
-                        active ? "bg-white/[0.07]" : "hover:bg-white/[0.03]"
+                      className={`group flex w-full cursor-pointer items-start gap-3 rounded-xl border px-3 py-2 text-left outline-none transition-colors ${
+                        active
+                          ? "border-purple-300/20 bg-white/[0.07]"
+                          : "border-transparent hover:border-white/[0.045] hover:bg-white/[0.032]"
                       }`}
                       title={`${meta.label}: ${problem.message}`}
                     >
@@ -424,7 +467,10 @@ export default function ProblemsPanel({ problems, onSelectProblem }) {
                       </div>
 
                       <div className="min-w-0 flex-1">
-                        <p className="mb-0.5 text-[12px] leading-snug text-gray-300 transition-colors group-hover:text-white">
+                        <p
+                          className="mb-0.5 break-words text-[12px] leading-snug text-gray-300 transition-colors group-hover:text-white"
+                          style={{ overflowWrap: "anywhere" }}
+                        >
                           {problem.message}
                         </p>
                         <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-0.5">
@@ -459,7 +505,7 @@ export default function ProblemsPanel({ problems, onSelectProblem }) {
             </span>
           </div>
           {activeProblem ? (
-            <PanelActionButton icon={MapPin} onClick={openActiveProblem} tone="accent">
+            <PanelActionButton icon={MapPin} onClick={openActiveProblem} tone="accent" className="w-full">
               Aktives Problem oeffnen
             </PanelActionButton>
           ) : null}

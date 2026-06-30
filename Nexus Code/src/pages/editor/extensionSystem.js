@@ -1018,6 +1018,10 @@ function createDefaultRecords() {
   }, {});
 }
 
+export function createDefaultExtensionRecords() {
+  return createDefaultRecords();
+}
+
 function inferInstalled(rawRecord) {
   if (rawRecord === true) return true;
   if (!rawRecord || typeof rawRecord !== "object") return false;
@@ -1629,6 +1633,47 @@ export function getExtensionRuntimeOverview(records) {
   };
 }
 
+export function createExtensionRuntimeSnapshot(records) {
+  const stats = getExtensionStats(records);
+  const runtime = getExtensionRuntimeOverview(records);
+  const contributions = collectExtensionContributions(records);
+  const installed = getInstalledExtensionIds(records);
+  const enabled = getEnabledExtensionIds(records);
+
+  return {
+    version: EXTENSION_REGISTRY_VERSION,
+    generatedAt: new Date().toISOString(),
+    installed,
+    enabled,
+    stats,
+    activation: runtime.activation.events.map((event) => ({
+      id: event.id,
+      type: event.type,
+      label: event.label,
+      detail: event.detail,
+      extensionId: event.extensionId,
+      extensionName: event.extensionName,
+    })),
+    contributions: Object.fromEntries(
+      Object.entries(contributions).map(([point, entries]) => [
+        point,
+        entries.map((entry) => ({
+          ...entry,
+          extensionId: entry.extensionId,
+          extensionName: entry.extensionName,
+        })),
+      ]),
+    ),
+    summary: runtime.contributionPoints.map((point) => ({
+      point: point.point,
+      label: point.label,
+      count: point.count,
+      extensions: point.extensions,
+      items: point.items.slice(0, 12),
+    })),
+  };
+}
+
 export function createExtensionEventDetail(records) {
   const resolved = resolveExtensions(records);
   const enabledExtensions = resolved.filter((extension) => extension.installed && extension.enabled);
@@ -1645,6 +1690,7 @@ export function createExtensionEventDetail(records) {
     })),
     contributions: collectExtensionContributions(records),
     runtime: getExtensionRuntimeOverview(records),
+    snapshot: createExtensionRuntimeSnapshot(records),
     diagnostics: resolved.flatMap((extension) =>
       extension.manifestDiagnostics.map((diagnostic) => ({
         ...diagnostic,

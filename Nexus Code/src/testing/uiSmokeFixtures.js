@@ -24,6 +24,12 @@ export const UI_SMOKE_FIXTURE_LONG_LABELS = Object.freeze([
   UI_SMOKE_FIXTURE_CONTROL_STATUS.message,
 ]);
 
+export const UI_SMOKE_FIXTURE_GITHUB_REPOSITORY =
+  "YoungJibbit95/Nexus-Ecosystem";
+
+export const UI_SMOKE_FIXTURE_WORKSPACE_PATH =
+  "F:\\Coding\\Nexus Workspace\\Nexus-Ecosystem";
+
 export function createUiSmokeSettingsFixture(baseSettings = {}) {
   return {
     ...baseSettings,

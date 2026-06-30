@@ -1,6 +1,6 @@
 # Nexus Code Release Checklist
 
-Stand: 2026-06-29
+Stand: 2026-06-30
 
 ## Renderer und UI-System
 
@@ -9,6 +9,9 @@ Stand: 2026-06-29
 - [x] Gemeinsame Nexus-Code-Primitives fuer Buttons, Inputs, Cards, Badges und Panel-Header fertig integrieren.
 - [x] Primaertexte duerfen in Launchpad-Actions und neuen Panel-Primitives nicht hart abgeschnitten werden.
 - [x] Settings fuer Glow, Blur, Motion, Radius, Textgroessen und Low-Power-Fallback erweitern.
+- [x] Theme Editor mit Custom Surface/Input-Farben, Rezept-Presets, Copy JSON und Reset Design ausbauen.
+- [x] Performance-Budget fuer Glow, Blur, Motion und Background konkreter bewerten.
+- [x] Search, Git, Problems und Terminal auf ruhigere Nexus-Panel-Optik mit besseren Empty/Action States heben.
 - [ ] Glow, Blur, Roundness und Motion in echten Electron-Viewports visuell pruefen.
 
 ## Workbench und Docking
@@ -19,6 +22,8 @@ Stand: 2026-06-29
 - [x] Layout-Reset und aktive Dock-Zonen per Command Palette/Bottom-Dock bedienbar machen.
 - [x] Layout-v2 gegen korrupte Storage-Daten, Duplikate und Bucket-Layouts modellseitig absichern.
 - [x] Drop-Preview- und Panel-Move-Helper fuer Snap-Zone-Docking bereitstellen.
+- [x] Drag-Handle, Snap-Zone-Buttons und Drop-Overlay fuer SidePanel und BottomDock integrieren.
+- [x] BottomDock Compact-Fallback gegen Statusbar/Text-Clipping einbauen.
 - [ ] Drag-Drop und defekte Persistenzdaten in echten Electron-Viewports visuell testen.
 - [ ] Launchpad ohne Scrollzwang bei 900x512 pruefen.
 
@@ -27,6 +32,7 @@ Stand: 2026-06-29
 - [x] File Tree folder-first und danach Dateien nach Extension/Name sortieren.
 - [x] Grosse Trees mit flacher/virtueller Renderliste stabil halten.
 - [x] Open-State, Refresh, Loading, Empty und Error States modellseitig mit IDE-Core-Smoke abdecken.
+- [x] Docking-Modell mit IDE-Core-Smoke fuer korrupte Layoutdaten, Duplikate, Moves, Drop Preview und sichtbare Fallbacks abdecken.
 - [ ] Open-State, Refresh, Loading, Empty und Error States manuell pruefen.
 - [ ] Editor, Tabs, Search, Problems und Terminal duerfen die Codeflaeche nicht verdraengen.
 - [ ] CodeMirror 6 bleibt Engine; breite Syntax plus LSP-Smoke pruefen.
@@ -43,6 +49,12 @@ Stand: 2026-06-29
 - [x] Issues, PRs und Projects per Command Palette direkt oeffnen.
 - [x] GitHub-Workbench mit Scope/Auth/Rate-Limit/Validation-Hinweisen und Confirm/Safety-Flows haerten.
 
+## Extensions und IDE Platform
+
+- [x] Extension Runtime Snapshot fuer installierte, aktive und beigetragene Module erzeugen.
+- [x] Extension-Panel mit Copy Plan, Reset Defaults und stabileren Registry-Actions ausbauen.
+- [x] Extension-Smoke/Panel-Markup in UI-Smoke aufnehmen.
+
 ## Pflichtchecks
 
 - [x] `npm --prefix "./Nexus Code" run lint`
@@ -52,6 +64,8 @@ Stand: 2026-06-29
 - [x] `npm --prefix "./Nexus Code" run smoke:ui`
 - [x] `npm --prefix "./Nexus Code" run smoke:ide-core`
 - [x] SSR-Smoke-Struktur: 1440x900, 1024x768, 900x512, 390x900 fuer Workbench, Launchpad, Account und Settings
+- [x] SSR-Smoke-Struktur: PanelChrome und GitHub-Workbench ohne App-Bootgate
+- [x] IDE-Core-Smoke: 12 Szenarien inklusive Filetree und Docking-Modell
 - [ ] Visual Smoke: 1440x900
 - [ ] Visual Smoke: 1024x768
 - [ ] Visual Smoke: 900x512

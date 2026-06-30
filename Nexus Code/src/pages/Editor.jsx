@@ -3,8 +3,13 @@ import {
   AlertCircle,
   AlertTriangle,
   CircleDot,
+  EyeOff,
   FileText,
   Folder,
+  GripVertical,
+  PanelBottom,
+  PanelLeft,
+  PanelRight,
   TerminalSquare,
   XCircle,
 } from "lucide-react";
@@ -56,16 +61,18 @@ import {
   cycleWorkbenchDockSize,
   getBottomPanelSizeOptions,
   getBottomPanelStyle,
+  getLayoutDropPreview,
   getSidePanelSizeOptions,
+  getWorkbenchZonePanelIds,
   getWorkbenchLayoutPresetOptions,
   getWorkbenchSlots,
   loadWorkbenchLayoutFromStorage,
+  movePanelToZone,
   normalizeWorkbenchLayout,
   openWorkbenchDockPanel,
   resetWorkbenchLayoutStorage,
   saveWorkbenchLayoutToStorage,
   setWorkbenchDockSize,
-  setWorkbenchPanelSnapZone,
   toggleWorkbenchDockPanel,
   WORKBENCH_SNAP_ZONES,
 } from "./editor/workbenchDockModel";
@@ -95,10 +102,51 @@ const CODE_COMPACT_VIEWPORT_WIDTH = 980;
 const SIDE_PANEL_SIZE_OPTIONS = getSidePanelSizeOptions();
 const BOTTOM_PANEL_SIZE_OPTIONS = getBottomPanelSizeOptions();
 const WORKBENCH_PRESET_OPTIONS = getWorkbenchLayoutPresetOptions();
+const WORKBENCH_PANEL_DRAG_MIME = "application/x-nexus-code-workbench-panel";
+const DOCK_ZONE_OPTIONS = Object.freeze([
+  {
+    zone: WORKBENCH_SNAP_ZONES.left,
+    label: "Links",
+    shortLabel: "L",
+    Icon: PanelLeft,
+    dropClassName: "left-3 top-14 bottom-20 w-[min(12rem,28vw)]",
+  },
+  {
+    zone: WORKBENCH_SNAP_ZONES.right,
+    label: "Rechts",
+    shortLabel: "R",
+    Icon: PanelRight,
+    dropClassName: "right-3 top-14 bottom-20 w-[min(12rem,28vw)]",
+  },
+  {
+    zone: WORKBENCH_SNAP_ZONES.bottom,
+    label: "Unten",
+    shortLabel: "B",
+    Icon: PanelBottom,
+    dropClassName: "left-4 right-4 bottom-4 h-[4.75rem]",
+  },
+  {
+    zone: WORKBENCH_SNAP_ZONES.hidden,
+    label: "Hidden",
+    shortLabel: "H",
+    Icon: EyeOff,
+    dropClassName: "left-1/2 top-3 w-60 max-w-[90vw] -translate-x-1/2",
+  },
+]);
 const loadSettingsPanel = () => import("../components/editor/SettingsPanel");
 const loadCodeEditor = () => import("../components/editor/CodeEditor");
 const SettingsPanel = React.lazy(() => loadSettingsPanel());
 const CodeEditor = React.lazy(() => loadCodeEditor());
+
+function getWorkbenchDragPanelId(event, fallbackPanelId = null) {
+  const transfer = event?.dataTransfer;
+  if (!transfer) return fallbackPanelId;
+  return (
+    transfer.getData(WORKBENCH_PANEL_DRAG_MIME) ||
+    transfer.getData("text/plain") ||
+    fallbackPanelId
+  );
+}
 
 function getIsCompactCodeViewport() {
   if (typeof window === "undefined") return false;
@@ -228,10 +276,10 @@ function StatusItem({
   );
 }
 
-function SidePanelSizeControl({ value, onChange }) {
+function SidePanelSizeControl({ value, onChange, className = "" }) {
   return (
     <div
-      className="grid h-7 w-[5.25rem] shrink-0 grid-cols-3 overflow-hidden rounded-md border border-white/10 bg-white/[0.03]"
+      className={`grid h-7 w-[5.25rem] shrink-0 grid-cols-3 overflow-hidden rounded-md border border-white/10 bg-white/[0.03] ${className}`}
       role="group"
       aria-label="Side panel width"
     >
@@ -258,13 +306,192 @@ function SidePanelSizeControl({ value, onChange }) {
   );
 }
 
+function DockDragHandle({
+  panelId,
+  label,
+  onDragStart,
+  onDragEnd,
+  className = "",
+}) {
+  if (!panelId) return null;
+
+  return (
+    <button
+      type="button"
+      draggable
+      onDragStart={(event) => onDragStart?.(event, panelId)}
+      onDragEnd={onDragEnd}
+      className={`flex h-7 w-7 shrink-0 cursor-grab items-center justify-center rounded-md border border-white/10 text-[var(--nexus-muted)] transition-colors hover:border-white/20 hover:bg-white/10 hover:text-gray-200 active:cursor-grabbing ${className}`}
+      title={`${label || getPanelMeta(panelId).title} ziehen`}
+      aria-label={`${label || getPanelMeta(panelId).title} ziehen`}
+    >
+      <GripVertical size={13} />
+    </button>
+  );
+}
+
+function DockZoneButtonGroup({
+  panelId,
+  activeZone,
+  onDockPanel,
+  className = "",
+}) {
+  if (!panelId) return null;
+  const panelTitle = getPanelMeta(panelId).title;
+
+  return (
+    <div
+      className={`grid h-7 w-[7rem] shrink-0 grid-cols-4 overflow-hidden rounded-md border border-white/10 bg-white/[0.03] ${className}`}
+      role="group"
+      aria-label={`${panelTitle} Dock-Zone`}
+    >
+      {DOCK_ZONE_OPTIONS.map(({ zone, label, Icon }) => {
+        const isActive = activeZone === zone;
+        return (
+          <button
+            key={zone}
+            type="button"
+            onClick={() => onDockPanel?.(panelId, zone)}
+            aria-pressed={isActive}
+            title={`${panelTitle} nach ${label}`}
+            className={`flex min-w-0 items-center justify-center text-[10px] font-bold transition ${
+              isActive
+                ? "bg-white/12 text-white"
+                : "text-[var(--nexus-muted)] hover:bg-white/[0.07] hover:text-gray-200"
+            }`}
+          >
+            <Icon size={13} />
+            <span className="sr-only">{label}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function getDockZonePanelSummary(panelIds) {
+  if (!panelIds?.length) return "Leer";
+  const visiblePanelNames = panelIds
+    .slice(0, 3)
+    .map((panelId) => getPanelMeta(panelId).title);
+  const remainingCount = panelIds.length - visiblePanelNames.length;
+  return remainingCount > 0
+    ? `${visiblePanelNames.join(" / ")} +${remainingCount}`
+    : visiblePanelNames.join(" / ");
+}
+
+function CompactBottomDockBar({
+  activePanelId,
+  activeZone,
+  onDockPanel,
+  onClose,
+  onPanelDragStart,
+  onPanelDragEnd,
+}) {
+  if (!activePanelId) return null;
+  const meta = getPanelMeta(activePanelId);
+
+  return (
+    <div
+      className="nx-code-bottom-dock-bar flex h-9 shrink-0 items-center gap-2 overflow-x-auto border-b border-white/5 px-2"
+      style={{ background: "rgba(0,0,0,0.14)" }}
+    >
+      <DockDragHandle
+        panelId={activePanelId}
+        label={meta.title}
+        onDragStart={onPanelDragStart}
+        onDragEnd={onPanelDragEnd}
+      />
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-[11px] font-semibold uppercase text-[var(--nexus-text)]">
+          {meta.title}
+        </div>
+      </div>
+      <DockZoneButtonGroup
+        panelId={activePanelId}
+        activeZone={activeZone}
+        onDockPanel={onDockPanel}
+      />
+      <button
+        type="button"
+        onClick={onClose}
+        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-white/10 text-gray-500 transition-colors hover:border-white/20 hover:bg-white/10 hover:text-gray-200"
+        title="Bottom Dock schliessen"
+      >
+        <XCircle size={13} />
+      </button>
+    </div>
+  );
+}
+
+function WorkbenchDockDropOverlay({
+  panelId,
+  preview,
+  zonePanelIds,
+  onZoneDragOver,
+  onZoneDrop,
+}) {
+  if (!panelId) return null;
+  const panelTitle = getPanelMeta(panelId).title;
+  const activeZone = preview?.targetZone || null;
+
+  return (
+    <div className="pointer-events-none absolute inset-0 z-50">
+      <div className="absolute inset-0 bg-black/[0.08]" />
+      <div className="pointer-events-none absolute left-1/2 top-1/2 flex max-w-[min(18rem,80vw)] -translate-x-1/2 -translate-y-1/2 items-center gap-2 rounded-md border border-white/10 bg-black/45 px-3 py-2 text-xs font-semibold text-white shadow-2xl backdrop-blur-md">
+        <GripVertical size={14} className="text-[var(--nexus-muted)]" />
+        <span className="truncate">{panelTitle}</span>
+      </div>
+      {DOCK_ZONE_OPTIONS.map((option) => {
+        const isActive = activeZone === option.zone;
+        const panelSummary = getDockZonePanelSummary(zonePanelIds[option.zone]);
+        const Icon = option.Icon;
+        return (
+          <div
+            key={option.zone}
+            role="button"
+            tabIndex={-1}
+            data-workbench-drop-zone={option.zone}
+            onDragEnter={(event) => onZoneDragOver(event, option.zone)}
+            onDragOver={(event) => onZoneDragOver(event, option.zone)}
+            onDrop={(event) => onZoneDrop(event, option.zone)}
+            className={`pointer-events-auto absolute flex min-h-16 flex-col justify-center gap-1 rounded-lg border px-3 py-2 shadow-2xl backdrop-blur-md transition-colors ${option.dropClassName} ${
+              isActive
+                ? "border-white/25 bg-white/[0.13] text-white ring-1 ring-white/25"
+                : "border-white/10 bg-black/35 text-[var(--nexus-muted)]"
+            }`}
+          >
+            <div className="flex min-w-0 items-center gap-2">
+              <Icon size={14} className="shrink-0" />
+              <span className="truncate text-[11px] font-bold uppercase">
+                {option.label}
+              </span>
+              {isActive ? (
+                <span className="ml-auto shrink-0 rounded border border-white/10 bg-white/[0.08] px-1.5 py-0.5 text-[9px] font-bold uppercase text-white">
+                  {option.shortLabel}
+                </span>
+              ) : null}
+            </div>
+            <div className="truncate text-[10px] leading-tight opacity-80">
+              {panelSummary}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function BottomDockControls({
   size,
   presetId,
   activePanelId,
+  activeZone,
   onSizeChange,
   onPresetChange,
   onDockPanel,
+  onPanelDragStart,
+  onPanelDragEnd,
   onResetLayout,
   onClose,
   compact = false,
@@ -340,23 +567,18 @@ function BottomDockControls({
         <XCircle size={13} />
       </button>
       {activePanelId ? (
-        <div
-          className="grid h-7 w-[3.5rem] shrink-0 grid-cols-2 overflow-hidden rounded-md border border-white/10 bg-white/[0.03]"
-          role="group"
-          aria-label="Bottom panel dock zone"
-        >
-          {["left", "right"].map((zone) => (
-            <button
-              key={zone}
-              type="button"
-              onClick={() => onDockPanel?.(activePanelId, zone)}
-              title={`Panel nach ${zone} docken`}
-              className="flex min-w-0 items-center justify-center text-[10px] font-bold text-[var(--nexus-muted)] transition hover:bg-white/[0.07] hover:text-gray-200"
-            >
-              {zone === "left" ? "L" : "R"}
-            </button>
-          ))}
-        </div>
+        <>
+          <DockDragHandle
+            panelId={activePanelId}
+            onDragStart={onPanelDragStart}
+            onDragEnd={onPanelDragEnd}
+          />
+          <DockZoneButtonGroup
+            panelId={activePanelId}
+            activeZone={activeZone}
+            onDockPanel={onDockPanel}
+          />
+        </>
       ) : null}
     </div>
   );
@@ -369,21 +591,25 @@ function SidePanelFrame({
   sidePanelSize,
   onSidePanelSizeChange,
   onDockPanel,
+  onPanelDragStart,
+  onPanelDragEnd,
   snapZone,
+  compact = false,
 }) {
   const meta = getPanelMeta(panelId);
-  const dockActions = [
-    ["left", "L"],
-    ["right", "R"],
-    ["bottom", "B"],
-  ];
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
       <div
-        className="flex h-11 shrink-0 items-center gap-3 border-b border-white/5 px-3"
+        className="flex h-11 shrink-0 items-center gap-2 overflow-x-auto border-b border-white/5 px-2 sm:px-3"
         style={{ background: "rgba(0,0,0,0.14)" }}
       >
+        <DockDragHandle
+          panelId={panelId}
+          label={meta.title}
+          onDragStart={onPanelDragStart}
+          onDragEnd={onPanelDragEnd}
+        />
         <div className="min-w-0 flex-1">
           <div className="truncate text-[11px] font-semibold uppercase text-[var(--nexus-text)]">
             {meta.title}
@@ -395,25 +621,13 @@ function SidePanelFrame({
         <SidePanelSizeControl
           value={sidePanelSize}
           onChange={onSidePanelSizeChange}
+          className={compact ? "hidden sm:grid" : ""}
         />
-        <div className="hidden h-7 shrink-0 grid-cols-3 overflow-hidden rounded-md border border-white/10 bg-white/[0.03] xl:grid">
-          {dockActions.map(([zone, label]) => (
-            <button
-              key={zone}
-              type="button"
-              onClick={() => onDockPanel?.(panelId, zone)}
-              title={`Panel nach ${zone} docken`}
-              aria-pressed={snapZone === zone}
-              className={`flex min-w-0 items-center justify-center px-2 text-[10px] font-bold transition ${
-                snapZone === zone
-                  ? "bg-white/12 text-white"
-                  : "text-[var(--nexus-muted)] hover:bg-white/[0.07] hover:text-gray-200"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        <DockZoneButtonGroup
+          panelId={panelId}
+          activeZone={snapZone}
+          onDockPanel={onDockPanel}
+        />
         <button
           type="button"
           onClick={onClose}
@@ -557,6 +771,9 @@ export default function Editor({
   const [workbenchLayout, setWorkbenchLayout] = useState(
     loadWorkbenchLayoutFromStorage,
   );
+  const [dockDragState, setDockDragState] = useState(null);
+  const [dockDropPreview, setDockDropPreview] = useState(null);
+  const dockDragPanelIdRef = useRef(null);
   const [workspacePath, setWorkspacePath] = useState(null);
   const [workspaceLoading, setWorkspaceLoading] = useState(false);
   const [workspaceError, setWorkspaceError] = useState("");
@@ -877,10 +1094,11 @@ export default function Editor({
     setWorkbenchLayout((prev) => applyWorkbenchLayoutPreset(prev, presetId));
   }, []);
 
-  const handleDockWorkbenchPanel = useCallback((panelId, snapZone) => {
+  const revealDockedWorkbenchPanel = useCallback((panelId, snapZone) => {
+    if (!panelId) return;
     const normalizedZone = WORKBENCH_SNAP_ZONES[snapZone] || snapZone;
-    setWorkbenchLayout((prev) => setWorkbenchPanelSnapZone(prev, panelId, normalizedZone));
     setShowSettings(false);
+
     if (normalizedZone === WORKBENCH_SNAP_ZONES.bottom) {
       setActivePanel(null);
       setBottomTab(panelId);
@@ -906,6 +1124,24 @@ export default function Editor({
     }
   }, [bottomTab]);
 
+  const handleDockWorkbenchPanel = useCallback((panelId, snapZone, options = {}) => {
+    const normalizedZone = WORKBENCH_SNAP_ZONES[snapZone] || snapZone;
+    if (!panelId || !normalizedZone) return;
+
+    setWorkbenchLayout((prev) => {
+      const preview = getLayoutDropPreview(
+        prev,
+        panelId,
+        normalizedZone,
+        options,
+      );
+      return preview.canDrop
+        ? preview.layout
+        : movePanelToZone(prev, panelId, normalizedZone, options);
+    });
+    revealDockedWorkbenchPanel(panelId, normalizedZone);
+  }, [revealDockedWorkbenchPanel]);
+
   const getVisibleWorkbenchPanelId = useCallback(() => {
     if (activePanel) return activePanel;
     if (terminalOpen && bottomTab) return bottomTab;
@@ -915,6 +1151,73 @@ export default function Editor({
   const handleDockActivePanel = useCallback((snapZone) => {
     handleDockWorkbenchPanel(getVisibleWorkbenchPanelId(), snapZone);
   }, [getVisibleWorkbenchPanelId, handleDockWorkbenchPanel]);
+
+  const handleWorkbenchPanelDragStart = useCallback((event, panelId) => {
+    if (!panelId) return;
+    dockDragPanelIdRef.current = panelId;
+    setDockDragState({ panelId });
+    setDockDropPreview(null);
+
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData(WORKBENCH_PANEL_DRAG_MIME, panelId);
+      event.dataTransfer.setData("text/plain", panelId);
+    }
+  }, []);
+
+  const handleWorkbenchPanelDragEnd = useCallback(() => {
+    dockDragPanelIdRef.current = null;
+    setDockDragState(null);
+    setDockDropPreview(null);
+  }, []);
+
+  const handleWorkbenchZoneDragOver = useCallback((event, snapZone) => {
+    const panelId = getWorkbenchDragPanelId(
+      event,
+      dockDragPanelIdRef.current,
+    );
+    if (!panelId) return;
+
+    const preview = getLayoutDropPreview(workbenchLayout, panelId, snapZone);
+    if (!preview.canDrop) return;
+
+    event.preventDefault();
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = "move";
+    }
+    setDockDragState((prev) =>
+      prev?.panelId === panelId ? prev : { panelId },
+    );
+    setDockDropPreview((prev) => {
+      if (
+        prev?.panelId === preview.panelId &&
+        prev?.targetZone === preview.targetZone &&
+        prev?.insertIndex === preview.insertIndex
+      ) {
+        return prev;
+      }
+      return preview;
+    });
+  }, [workbenchLayout]);
+
+  const handleWorkbenchZoneDrop = useCallback((event, snapZone) => {
+    const panelId = getWorkbenchDragPanelId(
+      event,
+      dockDragPanelIdRef.current,
+    );
+    if (!panelId) return;
+
+    const preview = getLayoutDropPreview(workbenchLayout, panelId, snapZone);
+    if (!preview.canDrop) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    setWorkbenchLayout(preview.layout);
+    revealDockedWorkbenchPanel(panelId, preview.targetZone);
+    dockDragPanelIdRef.current = null;
+    setDockDragState(null);
+    setDockDropPreview(null);
+  }, [revealDockedWorkbenchPanel, workbenchLayout]);
 
   const handleResetWorkbenchLayout = useCallback(() => {
     const resetLayout = resetWorkbenchLayoutStorage();
@@ -928,6 +1231,9 @@ export default function Editor({
       sidebar_visible: true,
       zen_mode: false,
     }));
+    dockDragPanelIdRef.current = null;
+    setDockDragState(null);
+    setDockDropPreview(null);
   }, []);
 
   const handleProblemSelect = useCallback(
@@ -2028,6 +2334,19 @@ export default function Editor({
     compact: isCompactViewport,
     size: bottomPanelSlot.size,
   });
+  const dockPreviewLayout = dockDropPreview?.layout || normalizedWorkbenchLayout;
+  const dockZonePanelIds = useMemo(
+    () =>
+      DOCK_ZONE_OPTIONS.reduce((acc, option) => {
+        acc[option.zone] = getWorkbenchZonePanelIds(
+          dockPreviewLayout,
+          option.zone,
+        );
+        return acc;
+      }, {}),
+    [dockPreviewLayout],
+  );
+  const draggedDockPanelId = dockDragState?.panelId || null;
 
   return (
     <div
@@ -2147,7 +2466,10 @@ export default function Editor({
                     sidePanelSize={normalizedWorkbenchLayout.sidePanelSize}
                     onSidePanelSizeChange={handleSetSidePanelSize}
                     onDockPanel={handleDockWorkbenchPanel}
+                    onPanelDragStart={handleWorkbenchPanelDragStart}
+                    onPanelDragEnd={handleWorkbenchPanelDragEnd}
                     snapZone={sidePanelSlot.snapZone}
+                    compact={isCompactViewport}
                   >
                     {visibleActivePanel === "explorer" && (
                       <FileExplorer
@@ -2388,9 +2710,12 @@ export default function Editor({
                             size={normalizedWorkbenchLayout.bottomPanelSize}
                             presetId={normalizedWorkbenchLayout.presetId}
                             activePanelId={bottomTab}
+                            activeZone={bottomPanelSlot.snapZone}
                             onSizeChange={handleSetBottomPanelSize}
                             onPresetChange={handleApplyWorkbenchLayoutPreset}
                             onDockPanel={handleDockWorkbenchPanel}
+                            onPanelDragStart={handleWorkbenchPanelDragStart}
+                            onPanelDragEnd={handleWorkbenchPanelDragEnd}
                             onResetLayout={handleResetWorkbenchLayout}
                             onClose={handleCloseBottomPanel}
                           />
@@ -2408,6 +2733,16 @@ export default function Editor({
                       data-workbench-placement={bottomPanelSlot.placement}
                       data-workbench-axis={bottomPanelSlot.axis}
                     >
+                      {isCompactViewport && (
+                        <CompactBottomDockBar
+                          activePanelId={bottomTab}
+                          activeZone={bottomPanelSlot.snapZone}
+                          onDockPanel={handleDockWorkbenchPanel}
+                          onClose={handleCloseBottomPanel}
+                          onPanelDragStart={handleWorkbenchPanelDragStart}
+                          onPanelDragEnd={handleWorkbenchPanelDragEnd}
+                        />
+                      )}
                       <div className="min-h-0 flex-1 overflow-hidden [&>div]:!h-full [&>div]:!min-h-0">
                         {bottomTab === "terminal" ? (
                           <Terminal
@@ -2462,6 +2797,15 @@ export default function Editor({
           </>
         )}
         </div>
+        {draggedDockPanelId ? (
+          <WorkbenchDockDropOverlay
+            panelId={draggedDockPanelId}
+            preview={dockDropPreview}
+            zonePanelIds={dockZonePanelIds}
+            onZoneDragOver={handleWorkbenchZoneDragOver}
+            onZoneDrop={handleWorkbenchZoneDrop}
+          />
+        ) : null}
       </div>
 
       <CommandPalette

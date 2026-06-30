@@ -27,7 +27,7 @@ export function NativeInput({
       value={value}
       onChange={onChange}
       placeholder={placeholder}
-      className={`rounded-md px-2 py-1.5 text-xs outline-none transition-colors ${className}`}
+      className={`min-w-0 rounded-md px-2 py-1.5 text-xs outline-none transition-colors ${className}`}
       style={style}
     />
   );
@@ -90,9 +90,9 @@ export function NativeSelect({ value, onValueChange, children, className = "" })
     <select
       value={value}
       onChange={(e) => onValueChange(e.target.value)}
-      className={`rounded-md px-2 py-1.5 text-xs outline-none cursor-pointer transition-colors ${className}`}
+      className={`min-w-0 rounded-md px-2 py-1.5 text-xs outline-none cursor-pointer transition-colors ${className}`}
       style={{
-        background: "rgba(255,255,255,0.05)",
+        background: "var(--nexus-input-surface, rgba(255,255,255,0.05))",
         border: "1px solid rgba(255,255,255,0.1)",
         color: "#d1d5db",
         appearance: "none",
@@ -121,7 +121,7 @@ export const visualPerformanceProfiles = [
   {
     id: "performance",
     label: "Performance",
-    description: "Wenig Blur, kein Panel-Glow, reduzierte Animation.",
+    description: "8px Blur, 12% Glow, CSS-Renderer und ruhiger Caret.",
     settings: {
       panel_background_mode: "blur",
       glow_renderer: "css",
@@ -140,7 +140,7 @@ export const visualPerformanceProfiles = [
   {
     id: "balanced",
     label: "Ausgewogen",
-    description: "Produktionsnaher Standard mit ruhigem Glass-Look.",
+    description: "16px Blur, 28% Glow und normale Motion fuer taegliche Arbeit.",
     settings: {
       panel_background_mode: "blur",
       glow_renderer: "css",
@@ -159,7 +159,7 @@ export const visualPerformanceProfiles = [
   {
     id: "quality",
     label: "Qualitaet",
-    description: "Mehr Tiefe und Akzentlicht, aber ohne harte Neon-Bloom.",
+    description: "22px Blur, Outline und staerkeres Licht fuer kurze Design-Sessions.",
     settings: {
       panel_background_mode: "fake-glass",
       glow_renderer: "css",

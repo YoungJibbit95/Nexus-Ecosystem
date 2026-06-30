@@ -2,6 +2,7 @@ import React from "react";
 import {
   ArrowLeft,
   Check,
+  Clipboard,
   Code2,
   Cpu,
   Eye,
@@ -32,6 +33,7 @@ import {
   visualPerformanceProfiles,
 } from './settingsShared';
 import { resolveNexusTheme } from '../../theme/nexusThemeResolver.js';
+import { DEFAULT_SETTINGS } from '../../pages/editor/editorShared.jsx';
 
 const SETTING_SECTIONS = [
   {
@@ -98,6 +100,34 @@ const SETTING_INDEX = [
     label: "Sekundaerfarbe",
     description: "Zweiter Akzent fuer Gradients, Switches und dezente Highlights.",
     keywords: "secondary accent color colour theme editor",
+  },
+  {
+    id: "custom_surface",
+    section: "theme-editor",
+    label: "Custom Surface",
+    description: "Panel- und Editor-Oberflaeche als eigener Theme-Wert.",
+    keywords: "surface panel background custom color colour theme editor",
+  },
+  {
+    id: "custom_input_surface",
+    section: "theme-editor",
+    label: "Input Surface",
+    description: "Control- und Input-Flaechen fuer Suche, Selects und Felder.",
+    keywords: "input control surface field select search custom color colour",
+  },
+  {
+    id: "theme_editor_presets",
+    section: "theme-editor",
+    label: "Theme Editor Presets",
+    description: "Schnelle Rezepte fuer Fokus, Glass und Review-Optik.",
+    keywords: "preset recipe apply reset theme editor quick focus glass review",
+  },
+  {
+    id: "theme_export_json",
+    section: "theme-editor",
+    label: "Export JSON",
+    description: "Theme-Editor-Settings und CSS-Tokens in die Zwischenablage kopieren.",
+    keywords: "export copy clipboard json theme settings tokens",
   },
   {
     id: "glow_intensity",
@@ -418,6 +448,106 @@ const TEXT_SIZE_PRESETS = [
   },
 ];
 
+const THEME_EDITOR_SETTING_KEYS = [
+  "theme",
+  "background",
+  "primary_accent",
+  "secondary_accent",
+  "custom_surface",
+  "custom_input_surface",
+  "panel_background_mode",
+  "glow_renderer",
+  "panel_blur_strength",
+  "panel_glow_outline",
+  "glow_intensity",
+  "glow_radius",
+  "ui_radius",
+  "font_family",
+  "font_size",
+  "line_height",
+  "letter_spacing",
+  "font_weight",
+  "word_wrap",
+  "minimap",
+  "validation_decorations",
+  "lsp_enabled",
+  "reduce_motion",
+  "animations_enabled",
+  "animation_speed",
+  "smooth_caret",
+  "cursor_glow",
+  "icon_glow",
+  "visual_performance_profile",
+];
+
+const THEME_EDITOR_RECIPES = [
+  {
+    id: "focus",
+    label: "Focus",
+    description: "Dichte Code-Ansicht mit wenig Effektkosten.",
+    colors: ["#7c8cff", "#2dd4bf", "#11141d"],
+    settings: {
+      custom_surface: "#10131d",
+      custom_input_surface: "#151a24",
+      panel_background_mode: "blur",
+      glow_renderer: "css",
+      panel_blur_strength: 10,
+      panel_glow_outline: false,
+      glow_intensity: 18,
+      glow_radius: 10,
+      ui_radius: 8,
+      animations_enabled: true,
+      animation_speed: 0.9,
+      visual_performance_profile: "custom",
+    },
+  },
+  {
+    id: "glass",
+    label: "Glass",
+    description: "Mehr Tiefe ohne den intensiven Renderer.",
+    colors: ["#8aadf4", "#8bd5ca", "#151925"],
+    settings: {
+      custom_surface: "#111827",
+      custom_input_surface: "#182033",
+      panel_background_mode: "fake-glass",
+      glow_renderer: "css",
+      panel_blur_strength: 20,
+      panel_glow_outline: true,
+      glow_intensity: 34,
+      glow_radius: 18,
+      ui_radius: 12,
+      animations_enabled: true,
+      animation_speed: 1,
+      visual_performance_profile: "custom",
+    },
+  },
+  {
+    id: "review",
+    label: "Review",
+    description: "Praesenter Look fuer Pairing und Screen-Sharing.",
+    colors: ["#f472b6", "#22d3ee", "#17111f"],
+    settings: {
+      primary_accent: "#f472b6",
+      secondary_accent: "#22d3ee",
+      custom_surface: "#17111f",
+      custom_input_surface: "#22182d",
+      panel_background_mode: "fake-glass",
+      glow_renderer: "css",
+      panel_blur_strength: 18,
+      panel_glow_outline: true,
+      glow_intensity: 42,
+      glow_radius: 20,
+      ui_radius: 14,
+      font_size: 16,
+      line_height: 1.7,
+      letter_spacing: 0.02,
+      animations_enabled: true,
+      animation_speed: 1.05,
+      visual_performance_profile: "custom",
+    },
+  },
+];
+
 function unwrapIpcResponse(result) {
   if (result && typeof result === "object" && "ok" in result) {
     return result.ok ? result.data : [];
@@ -426,7 +556,48 @@ function unwrapIpcResponse(result) {
 }
 
 function normalizeSearch(value) {
-  return String(value || "").trim().toLowerCase();
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[-_/.:]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+function getSearchTerms(query) {
+  return normalizeSearch(query)
+    .split(" ")
+    .map((term) => term.trim())
+    .filter(Boolean);
+}
+
+function createSearchText(parts) {
+  return normalizeSearch(parts.filter(Boolean).join(" "));
+}
+
+function getTextSearchScore(text, query) {
+  const normalizedQuery = normalizeSearch(query);
+  if (!normalizedQuery) return 0;
+  const normalizedText = normalizeSearch(text);
+  if (!normalizedText) return 0;
+  const terms = getSearchTerms(normalizedQuery);
+  if (terms.length === 0) return 0;
+
+  let score = normalizedText.includes(normalizedQuery) ? 40 : 0;
+  let matchedTerms = 0;
+  terms.forEach((term) => {
+    if (normalizedText.includes(term)) {
+      matchedTerms += 1;
+      score += 12;
+    }
+  });
+
+  if (matchedTerms === 0) return 0;
+  if (terms.length > 1 && matchedTerms < terms.length) {
+    return score > 40 ? score - 12 : 0;
+  }
+  return score + matchedTerms;
 }
 
 function resolveVisualProfileId(settings = {}) {
@@ -455,32 +626,28 @@ function settingMatchesSearch(settingId, sectionId, query) {
   if (!query) return true;
   const entry = SETTING_INDEX_BY_ID.get(settingId);
   const section = SETTING_SECTIONS.find((item) => item.id === sectionId);
-  const haystack = [
+  const haystack = createSearchText([
     entry?.label,
     entry?.description,
     entry?.keywords,
     section?.label,
     section?.description,
     section?.keywords,
-  ]
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase();
-  return haystack.includes(query);
+  ]);
+  return getTextSearchScore(haystack, query) > 0;
 }
 
 function sectionMatchesSearch(section, query) {
   if (!query || !section) return false;
-  return [
+  return getTextSearchScore(
+    createSearchText([
     section.label,
     section.eyebrow,
     section.description,
     section.keywords,
-  ]
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase()
-    .includes(query);
+    ]),
+    query,
+  ) > 0;
 }
 
 function countSectionMatches(sectionId, query) {
@@ -523,13 +690,26 @@ function getSectionLabel(sectionId) {
   return SETTING_SECTIONS.find((section) => section.id === sectionId)?.label || sectionId;
 }
 
-function getSearchResults(query, limit = 6) {
+function getSearchResults(query, limit = 8) {
   if (!query) return [];
   return SETTING_INDEX
-    .filter((entry) => {
+    .map((entry) => {
       const section = SETTING_SECTIONS.find((item) => item.id === entry.section);
-      return sectionMatchesSearch(section, query) || settingMatchesSearch(entry.id, entry.section, query);
+      const settingScore = getTextSearchScore(
+        createSearchText([entry.label, entry.description, entry.keywords]),
+        query,
+      );
+      const sectionScore = getTextSearchScore(
+        createSearchText([section?.label, section?.eyebrow, section?.description, section?.keywords]),
+        query,
+      );
+      return {
+        ...entry,
+        score: settingScore + Math.round(sectionScore * 0.45),
+      };
     })
+    .filter((entry) => entry.score > 0)
+    .sort((a, b) => b.score - a.score || a.label.localeCompare(b.label))
     .slice(0, limit)
     .map((entry) => ({
       ...entry,
@@ -545,6 +725,7 @@ function createThemeTokenList(resolvedTheme) {
     { label: "Primary", varName: "--nexus-primary", value: cssVars["--nexus-primary"] || colors.primary },
     { label: "Secondary", varName: "--nexus-accent-2", value: cssVars["--nexus-accent-2"] || colors.secondary },
     { label: "Surface", varName: "--nexus-panel-surface", value: cssVars["--nexus-panel-surface"] || colors.surface },
+    { label: "Control", varName: "--nexus-control-surface", value: cssVars["--nexus-control-surface"] || colors.inputSurfaceSoft },
     { label: "Border", varName: "--nexus-border", value: cssVars["--nexus-border"] || colors.border },
     { label: "Text", varName: "--nexus-text", value: cssVars["--nexus-text"] || colors.text },
     { label: "Muted", varName: "--nexus-muted", value: cssVars["--nexus-muted"] || colors.muted },
@@ -567,6 +748,88 @@ function getTextPresetId(settings = {}) {
   );
 }
 
+function pickThemeEditorSettings(settings = {}) {
+  return Object.fromEntries(
+    THEME_EDITOR_SETTING_KEYS
+      .filter((key) => Object.prototype.hasOwnProperty.call(settings, key))
+      .map((key) => [key, settings[key]]),
+  );
+}
+
+function buildThemeEditorResetPatch() {
+  return Object.fromEntries(
+    THEME_EDITOR_SETTING_KEYS
+      .filter((key) => Object.prototype.hasOwnProperty.call(DEFAULT_SETTINGS, key))
+      .map((key) => [key, DEFAULT_SETTINGS[key]]),
+  );
+}
+
+function getThemeEditorRecipeId(settings = {}) {
+  return (
+    THEME_EDITOR_RECIPES.find((recipe) =>
+      Object.entries(recipe.settings).every(([key, value]) => settings[key] === value),
+    )?.id || "custom"
+  );
+}
+
+function createThemeExportPayload(settings, resolvedTheme, visualBudgetSummary) {
+  const cssVars = resolvedTheme?.cssVars || {};
+  const tokenKeys = [
+    "--nexus-primary",
+    "--nexus-accent-2",
+    "--nexus-surface",
+    "--nexus-panel-surface",
+    "--nexus-control-surface",
+    "--nexus-control-surface-hover",
+    "--nexus-border",
+    "--nexus-glow-radius",
+    "--nexus-glow-intensity",
+    "--nexus-blur-radius",
+  ];
+
+  return {
+    schema: "nexus-code.theme-editor.v1",
+    theme: {
+      id: resolvedTheme.id,
+      name: resolvedTheme.name,
+    },
+    settings: pickThemeEditorSettings(settings),
+    tokens: Object.fromEntries(
+      tokenKeys
+        .filter((key) => cssVars[key])
+        .map((key) => [key, cssVars[key]]),
+    ),
+    visualBudget: {
+      score: visualBudgetSummary.score,
+      tier: visualBudgetSummary.tier,
+      profile: visualBudgetSummary.profileLabel,
+      categories: visualBudgetSummary.categories.map((category) => ({
+        id: category.id,
+        rating: category.rating,
+        value: category.value,
+      })),
+      recommendations: visualBudgetSummary.recommendations,
+    },
+  };
+}
+
+function formatJsonSize(payload) {
+  const size = JSON.stringify(payload, null, 2).length;
+  return size >= 1024 ? `${formatSettingNumber(size / 1024, 1)} KB` : `${size} B`;
+}
+
+function createBudgetCategory(id, label, rating, value, score, detail) {
+  return {
+    id,
+    label,
+    rating,
+    value,
+    score: Math.round(clampNumber(score, 0, 100, 0)),
+    detail,
+    hot: score >= 70,
+  };
+}
+
 function buildVisualBudgetSummary(settings = {}, visualProfileId, shouldReduceMotion) {
   const panelBlur = clampNumber(settings.panel_blur_strength, 0, 32, 16);
   const glowIntensity = clampNumber(settings.glow_intensity, 0, 100, 28);
@@ -585,6 +848,25 @@ function buildVisualBudgetSummary(settings = {}, visualProfileId, shouldReduceMo
     (settings.cursor_glow === true ? 4 : 0) +
     (settings.icon_glow ? 4 : 0) +
     (settings.minimap !== false ? 5 : 0);
+  const blurScore = (panelBlur / 32) * 100;
+  const glowScore =
+    (glowIntensity / 100) * 58 +
+    (glowRadius / 64) * 24 +
+    rendererCost +
+    (settings.panel_glow_outline ? 8 : 0) +
+    (settings.cursor_glow === true ? 4 : 0) +
+    (settings.icon_glow ? 4 : 0);
+  const motionScore = shouldReduceMotion || !animationsEnabled
+    ? 8
+    : 32 + Math.max(0, animationSpeed - 1) * 42 + (settings.smooth_caret !== false ? 8 : 0);
+  const backgroundScore =
+    panelMode === "glass-shader"
+      ? 82
+      : panelMode === "fake-glass"
+        ? 54
+        : panelBlur >= 20
+          ? 44
+          : 24;
   const rawScore =
     (panelBlur / 32) * 24 +
     (glowIntensity / 100) * 26 +
@@ -603,15 +885,81 @@ function buildVisualBudgetSummary(settings = {}, visualProfileId, shouldReduceMo
           ? "Low Power"
           : "Stabil";
   const tone = score >= 70 ? "warn" : score >= 46 ? "info" : "good";
-  const factors = [
-    { label: "Blur", value: `${panelBlur}px`, hot: panelBlur >= 24 },
-    { label: "Glow", value: `${glowIntensity}% / ${glowRadius}px`, hot: glowIntensity >= 55 || glowRadius >= 34 },
-    { label: "Renderer", value: settings.glow_renderer === "three" ? "Intensiv" : "CSS", hot: settings.glow_renderer === "three" },
-    { label: "Panel", value: panelMode, hot: panelMode === "glass-shader" },
-    { label: "Motion", value: shouldReduceMotion ? "Fallback" : `${formatSettingNumber(animationSpeed, 1)}x`, hot: !shouldReduceMotion && animationSpeed > 1.25 },
+  const categories = [
+    createBudgetCategory(
+      "blur",
+      "Blur",
+      panelBlur >= 24 ? "hoch" : panelBlur >= 14 ? "mittel" : "leicht",
+      `${panelBlur}px`,
+      blurScore,
+      panelBlur >= 24
+        ? "Backdrop-Blur kann beim Scrollen sichtbar kosten."
+        : panelBlur <= 10
+          ? "Scroll- und Resize-freundlich."
+          : "Alltagstauglicher Glass-Wert.",
+    ),
+    createBudgetCategory(
+      "glow",
+      "Glow",
+      glowScore >= 70 ? "hoch" : glowScore >= 42 ? "mittel" : "leicht",
+      `${glowIntensity}% / ${glowRadius}px`,
+      glowScore,
+      settings.glow_renderer === "three"
+        ? "Intensiver Renderer plus Glow reserviert extra Budget."
+        : glowIntensity >= 55 || glowRadius >= 34
+          ? "Grosses Leuchtfeld erhoeht Paint-Flaeche."
+          : "CSS-Glow bleibt im normalen Rahmen.",
+    ),
+    createBudgetCategory(
+      "motion",
+      "Motion",
+      shouldReduceMotion || !animationsEnabled
+        ? "reduziert"
+        : animationSpeed > 1.25
+          ? "praesent"
+          : "normal",
+      shouldReduceMotion ? "Fallback" : `${formatSettingNumber(animationSpeed, 1)}x`,
+      motionScore,
+      shouldReduceMotion || !animationsEnabled
+        ? "Animationen werden kurz gehalten oder ausgelassen."
+        : animationSpeed > 1.25
+          ? "Schnelle Transitions fallen staerker auf."
+          : "Normale Settings- und Preview-Bewegung.",
+    ),
+    createBudgetCategory(
+      "background",
+      "Background",
+      panelMode === "glass-shader" ? "hoch" : panelMode === "fake-glass" ? "mittel" : "leicht",
+      panelMode,
+      backgroundScore,
+      panelMode === "glass-shader"
+        ? "Shader-Glass ist der teuerste Panel-Modus."
+        : panelMode === "fake-glass"
+          ? "Fake Glass ist sichtbar, aber guenstiger als Shader."
+          : "Blur-Modus nutzt den schlanksten Pfad.",
+    ),
   ];
+  const recommendations = [];
+  if (panelBlur > 16) recommendations.push("Setze Blur fuer Low-Power auf 8-12px.");
+  if (glowIntensity > 32 || glowRadius > 18) recommendations.push("Halte Glow bei 12-28% und Radius unter 18px.");
+  if (settings.glow_renderer === "three") recommendations.push("Wechsle den Glow Renderer auf CSS.");
+  if (panelMode === "glass-shader") recommendations.push("Nutze Blur oder Fake Glass statt Glass Shader.");
+  if (!shouldReduceMotion && animationSpeed > 1.1) recommendations.push("Reduziere Motion auf 0.75-1.0x.");
+  if (settings.minimap !== false && settings.validation_decorations !== false && settings.lsp_enabled !== false) {
+    recommendations.push("Bei grossen Dateien Minimap zuerst deaktivieren; LSP/Diagnostics nur bei Bedarf.");
+  }
+  if (recommendations.length === 0) {
+    recommendations.push("Keine Low-Power-Aktion noetig; das aktuelle Profil ist schon sparsam.");
+  }
 
-  return { score, tier, tone, factors };
+  return {
+    score,
+    tier,
+    tone,
+    profileLabel: visualProfileId,
+    categories,
+    recommendations: recommendations.slice(0, 4),
+  };
 }
 
 function buildLowPowerState(settings = {}, visualProfileId, prefersReducedMotion, shouldReduceMotion) {
@@ -621,6 +969,12 @@ function buildLowPowerState(settings = {}, visualProfileId, prefersReducedMotion
   if (settings.animations_enabled === false) reasons.push("Animationen sind deaktiviert");
   if (visualProfileId === "performance") reasons.push("Performance-Profil ist aktiv");
   if (settings.smooth_caret === false) reasons.push("Sanfter Caret ist deaktiviert");
+  const actions = [
+    "Blur 8px, Glow 12% / 8px",
+    "CSS-Renderer, kein Panel-Outline",
+    "Motion aus, Caret ruhig",
+    "Minimap aus; LSP und Diagnostics bleiben unveraendert",
+  ];
 
   const active = shouldReduceMotion || visualProfileId === "performance";
   return {
@@ -630,6 +984,7 @@ function buildLowPowerState(settings = {}, visualProfileId, prefersReducedMotion
       ? "Nexus Code nutzt reduzierte Motion und ein kleineres Effektbudget."
       : "Ein Klick reduziert Blur, Glow, Motion und Minimap ohne Language Features abzuschalten.",
     reasons: reasons.length > 0 ? reasons : ["Balanced/Quality Visuals sind aktiv"],
+    actions,
   };
 }
 
@@ -746,7 +1101,7 @@ function SettingsHeader({ title, eyebrow, description, icon: Icon }) {
 function SettingsGroup({ title, description, children }) {
   return (
     <section
-      className="rounded-lg border p-4 sm:p-5"
+      className="min-w-0 rounded-lg border p-4 sm:p-5"
       style={{
         background: "rgba(255,255,255,0.026)",
         borderColor: "var(--nexus-border)",
@@ -775,17 +1130,19 @@ function SettingRow({
   if (!isVisibleSetting(id, sectionId, searchQuery)) return null;
   return (
     <div
-      className={`flex min-w-0 gap-3 rounded-md border border-white/5 bg-white/[0.018] px-3 py-3 ${
-        compact ? "items-center justify-between" : "flex-col sm:flex-row sm:items-center sm:justify-between"
+      className={`flex min-w-0 flex-col gap-3 rounded-md border border-white/5 bg-white/[0.018] px-3 py-3 sm:flex-row sm:justify-between ${
+        compact ? "sm:items-center" : "sm:items-start"
       }`}
     >
-      <div className="min-w-0">
-        <NativeLabel className="block text-gray-300">{title}</NativeLabel>
+      <div className="min-w-0 flex-1 pr-0 sm:pr-3">
+        <NativeLabel className="block whitespace-normal leading-5 text-gray-300">{title}</NativeLabel>
         {description ? (
           <p className="mt-1 text-xs leading-5 text-gray-500">{description}</p>
         ) : null}
       </div>
-      <div className="shrink-0 sm:max-w-[19rem]">{children}</div>
+      <div className="min-w-0 w-full shrink-0 sm:w-auto sm:min-w-[12rem] sm:max-w-[22rem]">
+        {children}
+      </div>
     </div>
   );
 }
@@ -1001,15 +1358,32 @@ function VisualBudgetCard({ summary }) {
         />
       </div>
       <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-        {summary.factors.map((factor) => (
+        {summary.categories.map((category) => (
           <div
-            key={factor.label}
-            className="flex items-center justify-between gap-2 rounded-md border border-white/5 bg-black/10 px-2.5 py-2 text-[10px]"
+            key={category.id}
+            className="min-w-0 rounded-md border border-white/5 bg-black/10 px-2.5 py-2 text-[10px]"
           >
-            <span className="text-gray-500">{factor.label}</span>
-            <span className={factor.hot ? "font-semibold text-amber-200" : "text-gray-300"}>
-              {factor.value}
-            </span>
+            <div className="flex min-w-0 items-center justify-between gap-2">
+              <span className="font-semibold text-gray-400">{category.label}</span>
+              <span className={category.hot ? "font-semibold text-amber-200" : "text-gray-300"}>
+                {category.rating}
+              </span>
+            </div>
+            <div className="mt-1 flex min-w-0 items-center justify-between gap-2 text-gray-500">
+              <span className="truncate">{category.detail}</span>
+              <span className="shrink-0 text-gray-400">{category.value}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="mt-3 space-y-1.5">
+        {summary.recommendations.map((recommendation) => (
+          <div
+            key={recommendation}
+            className="flex gap-2 rounded-md bg-black/10 px-2.5 py-1.5 text-[10px] leading-4 text-gray-400"
+          >
+            <Zap size={11} className="mt-0.5 shrink-0 text-gray-500" />
+            <span>{recommendation}</span>
           </div>
         ))}
       </div>
@@ -1076,18 +1450,33 @@ function LowPowerFallbackPanel({ state, onApply, onRestore }) {
           </span>
         ))}
       </div>
+      <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+        {state.actions.map((action) => (
+          <div
+            key={action}
+            className="rounded-md border border-white/5 bg-black/10 px-2.5 py-2 text-[10px] leading-4 text-gray-400"
+          >
+            {action}
+          </div>
+        ))}
+      </div>
     </section>
   );
 }
 
 function ColorControl({ value, fallback, onChange, label }) {
   const current = value || fallback;
+  const pickerValue = /^#[0-9a-fA-F]{6}$/.test(current)
+    ? current
+    : /^#[0-9a-fA-F]{3}$/.test(current)
+      ? current
+      : fallback;
   return (
-    <div className="flex min-w-0 items-center gap-2">
+    <div className="flex w-full min-w-0 items-center gap-2 sm:min-w-[14rem]">
       <input
         aria-label={label}
         type="color"
-        value={current}
+        value={pickerValue}
         onChange={(event) => onChange(event.target.value)}
         className="h-9 w-10 shrink-0 cursor-pointer rounded-md border border-white/10 bg-transparent p-1"
       />
@@ -1095,8 +1484,21 @@ function ColorControl({ value, fallback, onChange, label }) {
         value={current}
         onChange={(event) => onChange(event.target.value)}
         className="h-9 w-full min-w-0 bg-white/5 font-mono text-gray-300"
-        style={{ border: "1px solid rgba(255,255,255,0.1)" }}
+        style={{
+          background: "var(--nexus-input-surface, rgba(255,255,255,0.05))",
+          border: "1px solid rgba(255,255,255,0.1)",
+        }}
       />
+      {value ? (
+        <button
+          type="button"
+          title="Preset-Wert verwenden"
+          onClick={() => onChange(null)}
+          className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/[0.03] text-gray-500 transition-colors hover:bg-white/[0.06] hover:text-gray-300"
+        >
+          <X size={13} />
+        </button>
+      ) : null}
     </div>
   );
 }
@@ -1116,6 +1518,68 @@ function TextPresetGrid({ settings, onApplyPreset, shouldReduceMotion }) {
         />
       ))}
     </div>
+  );
+}
+
+function ThemeEditorUtilityPanel({
+  activeRecipeId,
+  copyStatus,
+  exportSize,
+  primaryAccent,
+  secondaryAccent,
+  shouldReduceMotion,
+  onApplyRecipe,
+  onCopyJson,
+  onResetThemeEditor,
+}) {
+  return (
+    <SettingsGroup
+      title="Presets und Austausch"
+      description="Theme-Rezepte anwenden, lokale Theme-Werte exportieren oder Designwerte zuruecksetzen."
+    >
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_auto]">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          {THEME_EDITOR_RECIPES.map((recipe) => (
+            <PresetButton
+              key={recipe.id}
+              active={activeRecipeId === recipe.id}
+              title={recipe.label}
+              description={recipe.description}
+              colors={recipe.colors}
+              shouldReduceMotion={shouldReduceMotion}
+              onClick={() => onApplyRecipe(recipe)}
+            />
+          ))}
+        </div>
+        <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 lg:w-44 lg:grid-cols-1">
+          <button
+            type="button"
+            onClick={onCopyJson}
+            className="inline-flex h-9 min-w-0 items-center justify-center gap-2 rounded-md border px-3 text-xs font-semibold text-gray-100 transition-colors hover:bg-white/[0.055]"
+            style={{
+              background: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.12)",
+              borderColor: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.26)",
+            }}
+          >
+            <Clipboard size={13} />
+            <span className="truncate">
+              {copyStatus === "copied" ? "Kopiert" : copyStatus === "failed" ? "Fehler" : "Copy JSON"}
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={onResetThemeEditor}
+            className="inline-flex h-9 min-w-0 items-center justify-center gap-2 rounded-md border border-white/10 bg-white/[0.03] px-3 text-xs font-semibold text-gray-300 transition-colors hover:bg-white/[0.055]"
+          >
+            <RefreshCcw size={13} />
+            <span className="truncate">Reset Design</span>
+          </button>
+          <div className="rounded-md border border-white/5 bg-black/10 px-2.5 py-2 text-[10px] leading-4 text-gray-500 sm:col-span-2 lg:col-span-1">
+            JSON {exportSize}; Accent {primaryAccent}; Secondary {secondaryAccent}
+          </div>
+        </div>
+      </div>
+    </SettingsGroup>
   );
 }
 
@@ -1173,6 +1637,8 @@ function PresetButton({
 
 function ThemePreview({
   settings,
+  resolvedTheme,
+  visualBudgetSummary,
   themeName,
   primaryAccent,
   secondaryAccent,
@@ -1186,6 +1652,8 @@ function ThemePreview({
   const fontSize = getNumberSetting(settings, "font_size", 14);
   const lineHeight = getNumberSetting(settings, "line_height", 1.6);
   const letterSpacing = getNumberSetting(settings, "letter_spacing", 0);
+  const surfaceHex = resolvedTheme.colors.surfaceHex || "#11141d";
+  const inputSurface = settings.custom_input_surface || resolvedTheme.colors.inputSurface || "#151924";
   const sidebarVisible = settings.sidebar_visible !== false;
   const statusVisible = settings.status_bar_visible !== false;
   const sidebarRight = settings.sidebar_position === "right";
@@ -1291,6 +1759,31 @@ function ThemePreview({
             <div className="text-gray-500">
               // blur {blurStrength}px, radius {radius}px, letter {formatSettingNumber(letterSpacing, 2)}px
             </div>
+            <div
+              className="mt-4 rounded-md border px-3 py-2 font-sans text-xs"
+              style={{
+                background: "var(--nexus-input-surface, rgba(255,255,255,0.05))",
+                borderColor: "rgba(255,255,255,0.08)",
+              }}
+            >
+              <div className="flex min-w-0 items-center gap-2">
+                <Search size={13} className="shrink-0 text-gray-500" />
+                <span className="truncate text-gray-400">Settings suchen: input surface, glow, low power</span>
+              </div>
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-2 font-sans text-[10px] text-gray-500 lg:grid-cols-4">
+              {visualBudgetSummary.categories.map((category) => (
+                <div
+                  key={category.id}
+                  className="rounded-md border border-white/5 bg-black/10 px-2 py-1.5"
+                >
+                  <div className="font-semibold text-gray-300">{category.label}</div>
+                  <div className={category.hot ? "text-amber-200" : "text-gray-500"}>
+                    {category.rating} / {category.value}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
         {sidebarVisible && sidebarRight ? (
@@ -1308,6 +1801,8 @@ function ThemePreview({
       {statusVisible ? (
         <div className="flex flex-wrap items-center justify-between gap-2 border-t border-white/5 px-4 py-2 text-[10px] text-gray-500">
           <span>main.tsx</span>
+          <span>Surface {surfaceHex}</span>
+          <span>Input {inputSurface}</span>
           <span>{settings.lsp_enabled !== false ? "LSP ready" : "LSP off"}</span>
           <span>{settings.auto_save !== false ? "Auto Save" : "Manual Save"}</span>
         </div>
@@ -1325,6 +1820,7 @@ export default function SettingsPanel({
   const [activeSection, setActiveSection] = React.useState("theme-editor");
   const [searchQuery, setSearchQuery] = React.useState("");
   const [lspServers, setLspServers] = React.useState([]);
+  const [copyStatus, setCopyStatus] = React.useState("idle");
   const prefersReducedMotion = useReducedMotion();
   const resolvedTheme = React.useMemo(
     () => resolveNexusTheme(settings),
@@ -1335,6 +1831,10 @@ export default function SettingsPanel({
   const primaryAccent = resolvedTheme.colors.primary;
   const secondaryAccent = resolvedTheme.colors.secondary;
   const visualProfileId = resolveVisualProfileId(settings);
+  const themeEditorRecipeId = React.useMemo(
+    () => getThemeEditorRecipeId(settings),
+    [settings],
+  );
   const reducedBySetting = settings.reduce_motion === true;
   const animationsEnabled = settings.animations_enabled !== false;
   const animationSpeed = clampNumber(settings.animation_speed, 0.5, 1.8, 1);
@@ -1423,6 +1923,14 @@ export default function SettingsPanel({
   const visualBudgetSummary = React.useMemo(
     () => buildVisualBudgetSummary(settings, visualProfileId, shouldReduceMotion),
     [settings, shouldReduceMotion, visualProfileId],
+  );
+  const themeExportPayload = React.useMemo(
+    () => createThemeExportPayload(settings, resolvedTheme, visualBudgetSummary),
+    [resolvedTheme, settings, visualBudgetSummary],
+  );
+  const themeExportSize = React.useMemo(
+    () => formatJsonSize(themeExportPayload),
+    [themeExportPayload],
   );
   const lowPowerState = React.useMemo(
     () => buildLowPowerState(settings, visualProfileId, prefersReducedMotion, shouldReduceMotion),
@@ -1539,6 +2047,35 @@ export default function SettingsPanel({
       visual_performance_profile: "balanced",
     });
   }, [updateSettings]);
+
+  const applyThemeEditorRecipe = React.useCallback(
+    (recipe) => {
+      updateSettings(recipe.settings);
+    },
+    [updateSettings],
+  );
+
+  const resetThemeEditor = React.useCallback(() => {
+    updateSettings(buildThemeEditorResetPatch());
+  }, [updateSettings]);
+
+  const copyThemeJson = React.useCallback(async () => {
+    const json = JSON.stringify(themeExportPayload, null, 2);
+    try {
+      const clipboard =
+        typeof navigator !== "undefined" ? navigator.clipboard : null;
+      if (!clipboard?.writeText) {
+        throw new Error("Clipboard API unavailable");
+      }
+      await clipboard.writeText(json);
+      setCopyStatus("copied");
+    } catch {
+      setCopyStatus("failed");
+    }
+    if (typeof window !== "undefined") {
+      window.setTimeout(() => setCopyStatus("idle"), 1800);
+    }
+  }, [themeExportPayload]);
 
   const renderIfVisible = (sectionId, render) =>
     visibleSectionIds.includes(sectionId) ? render() : null;
@@ -1790,12 +2327,25 @@ export default function SettingsPanel({
                 ) : null}
                 <ThemePreview
                   settings={settings}
+                  resolvedTheme={resolvedTheme}
+                  visualBudgetSummary={visualBudgetSummary}
                   themeName={resolvedTheme.name}
                   primaryAccent={primaryAccent}
                   secondaryAccent={secondaryAccent}
                   radius={radius}
                   animationSpeed={animationSpeed}
                   shouldReduceMotion={shouldReduceMotion}
+                />
+                <ThemeEditorUtilityPanel
+                  activeRecipeId={themeEditorRecipeId}
+                  copyStatus={copyStatus}
+                  exportSize={themeExportSize}
+                  primaryAccent={primaryAccent}
+                  secondaryAccent={secondaryAccent}
+                  shouldReduceMotion={shouldReduceMotion}
+                  onApplyRecipe={applyThemeEditorRecipe}
+                  onCopyJson={copyThemeJson}
+                  onResetThemeEditor={resetThemeEditor}
                 />
                 <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
                   <VisualBudgetCard summary={visualBudgetSummary} />
@@ -1836,6 +2386,34 @@ export default function SettingsPanel({
                         value={settings.secondary_accent}
                         fallback={secondaryAccent}
                         onChange={(value) => updateSetting("secondary_accent", value)}
+                      />
+                    </SettingRow>
+                    <SettingRow
+                      id="custom_surface"
+                      sectionId="theme-editor"
+                      searchQuery={searchTerm}
+                      title="Custom Surface"
+                      description="Optionaler Panel-/Editor-Surface-Hexwert; leer entspricht dem Preset."
+                    >
+                      <ColorControl
+                        label="Custom Surface"
+                        value={settings.custom_surface}
+                        fallback={resolvedTheme.colors.surfaceHex || "#11141d"}
+                        onChange={(value) => updateSetting("custom_surface", value)}
+                      />
+                    </SettingRow>
+                    <SettingRow
+                      id="custom_input_surface"
+                      sectionId="theme-editor"
+                      searchQuery={searchTerm}
+                      title="Input Surface"
+                      description="Farbwert fuer Search-, Select- und Textfeld-Flaechen."
+                    >
+                      <ColorControl
+                        label="Input Surface"
+                        value={settings.custom_input_surface}
+                        fallback={resolvedTheme.colors.inputSurface || "#151924"}
+                        onChange={(value) => updateSetting("custom_input_surface", value)}
                       />
                     </SettingRow>
                     <ThemeTokenGrid tokens={themeTokens} />

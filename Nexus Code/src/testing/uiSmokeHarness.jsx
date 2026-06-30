@@ -1,5 +1,19 @@
 import React from "react";
 import AccountPanel from "../components/editor/AccountPanel.jsx";
+import GitHubWorkbenchPanel from "../components/editor/github/GitHubWorkbenchPanel.jsx";
+import {
+  PanelActionButton,
+  PanelBadge,
+  PanelBody,
+  PanelCard,
+  PanelFooter,
+  PanelHeader,
+  PanelMetric,
+  PanelNotice,
+  PanelSection,
+  PanelShell,
+  PanelState,
+} from "../components/editor/panels/PanelChrome.jsx";
 import SettingsPanel from "../components/editor/SettingsPanel.jsx";
 import WelcomeScreen from "../components/editor/WelcomeScreen.jsx";
 import Editor from "../pages/Editor.jsx";
@@ -7,7 +21,9 @@ import { DEFAULT_SETTINGS } from "../pages/editor/editorShared.jsx";
 import {
   UI_SMOKE_FIXTURE_ACCOUNT_SESSION,
   UI_SMOKE_FIXTURE_CONTROL_STATUS,
+  UI_SMOKE_FIXTURE_GITHUB_REPOSITORY,
   UI_SMOKE_FIXTURE_LONG_LABELS,
+  UI_SMOKE_FIXTURE_WORKSPACE_PATH,
   createUiSmokeSettingsFixture,
   createUiSmokeCallbacks,
 } from "./uiSmokeFixtures";
@@ -66,12 +82,71 @@ function renderInViewport(surfaceId, viewport, children) {
   );
 }
 
+function PanelChromeSmokeSurface() {
+  return (
+    <PanelShell
+      ariaLabel="PanelChrome smoke surface"
+      className="nx-code-panelchrome-smoke"
+    >
+      <PanelHeader
+        title="UI Smoke PanelChrome"
+        subtitle="Chrome guard keeps shared panel markup stable."
+        status={<PanelBadge tone="success">Ready</PanelBadge>}
+        actions={
+          <PanelActionButton tone="accent" onClick={noop}>
+            Retry action
+          </PanelActionButton>
+        }
+      />
+      <PanelBody className="px-3 py-3">
+        <PanelCard className="p-3">
+          <div className="grid gap-2">
+            <PanelMetric label="Panel metric" value="stable" tone="accent" />
+            <PanelNotice
+              title="Fixture notice"
+              detail="Shared panel notice markup renders without App boot."
+              tone="teal"
+            />
+            <PanelSection title="Chrome section" onToggle={noop}>
+              <PanelState
+                title="Fallback state"
+                detail="Panel state guard stays visible in SSR."
+                compact
+              />
+            </PanelSection>
+          </div>
+        </PanelCard>
+      </PanelBody>
+      <PanelFooter>
+        <span>Panel footer guard</span>
+      </PanelFooter>
+    </PanelShell>
+  );
+}
+
 export const UI_SMOKE_HARNESS_METADATA = Object.freeze({
   testOnly: true,
   scope: "Nexus Code/src/testing",
   importsProductionBoot: false,
   viewports: UI_SMOKE_VIEWPORTS,
 });
+
+export function prepareUiSmokeScenario(scenario) {
+  const overrides = scenario.reactUseStateOverrides || [];
+  if (overrides.length === 0) return null;
+
+  const originalUseState = React.useState;
+  React.useState = (initialState) => {
+    const override = overrides.find((candidate) =>
+      Object.is(candidate.initialState, initialState),
+    );
+    return originalUseState(override ? override.value : initialState);
+  };
+
+  return () => {
+    React.useState = originalUseState;
+  };
+}
 
 export function createUiSmokeScenarios() {
   const callbacks = createUiSmokeCallbacks();
@@ -97,6 +172,19 @@ export function createUiSmokeScenarios() {
         "Nexus Code",
         "New scratch file",
       ],
+      requiredMarkup: [
+        "nx-code-titlebar-wrap",
+        "nx-code-side-panel",
+        "nx-code-status-strip",
+        "data-workbench-zone=\"side-panel\"",
+        "data-workbench-dock-id=\"side-panel\"",
+        "data-workbench-panel=\"explorer\"",
+        "data-workbench-placement=\"side\"",
+        "data-workbench-axis=\"horizontal\"",
+        "data-workbench-zone=\"editor\"",
+        "data-workbench-dock-id=\"editor\"",
+        "aria-label=\"Side panel width\"",
+      ],
       render: (viewport) =>
         renderInViewport(
           "workbench-shell",
@@ -121,6 +209,15 @@ export function createUiSmokeScenarios() {
         "Productive flows",
         "Ready surfaces",
         "Local editing with terminal",
+      ],
+      requiredMarkup: [
+        "nx-code-welcome",
+        "nx-code-launchpad",
+        "nx-code-launchpad-header",
+        "nx-code-launchpad-action",
+        "nx-code-launchpad-recent",
+        "nx-code-launchpad-flow",
+        "nx-code-launchpad-languages",
       ],
       render: (viewport) =>
         renderInViewport(
@@ -152,6 +249,12 @@ export function createUiSmokeScenarios() {
         "Token",
         "Present",
       ],
+      requiredMarkup: [
+        "nx-editor-panel-shell",
+        "nx-editor-panel-header",
+        "nx-editor-panel-body",
+        "nx-editor-panel-footer",
+      ],
       render: (viewport) =>
         renderInViewport(
           "account-panel",
@@ -166,13 +269,22 @@ export function createUiSmokeScenarios() {
     {
       id: "settings-panel",
       title: "Settings panel with deterministic fixture",
-      primaryActions: ["Zurueck", "Anwenden", "Balanced"],
+      primaryActions: ["Zurueck"],
+      reactUseStateOverrides: [
+        { initialState: "theme-editor", value: "workbench" },
+      ],
       expectedText: [
         "nx-code-settings-panel",
         "Einstellungen",
-        "Theme Editor",
-        "Theme Tokens",
-        "Low Power",
+        "Workbench",
+        "Panel Background",
+        "Auto Save",
+      ],
+      requiredMarkup: [
+        "nx-code-settings-panel",
+        "nx-code-settings-nav",
+        "nx-code-settings-content",
+        "Workbench",
       ],
       render: (viewport) =>
         renderInViewport(
@@ -183,6 +295,78 @@ export function createUiSmokeScenarios() {
             onSettingsChange={noop}
             onResetSettings={noop}
             onClose={noop}
+          />,
+        ),
+    },
+    {
+      id: "panel-chrome",
+      title: "Shared PanelChrome surface",
+      primaryActions: ["Retry action"],
+      expectedText: [
+        "UI Smoke PanelChrome",
+        "Chrome guard keeps shared panel markup stable.",
+        "Ready",
+        "Panel metric",
+        "Fixture notice",
+        "Fallback state",
+        "Panel footer guard",
+      ],
+      requiredMarkup: [
+        "nx-code-panelchrome-smoke",
+        "nx-editor-panel-shell",
+        "nx-editor-panel-header",
+        "nx-editor-panel-actions",
+        "nx-editor-panel-body",
+        "nx-editor-panel-footer",
+        "nx-editor-panel-card",
+        "nx-editor-panel-section",
+        "nx-editor-panel-state",
+      ],
+      render: (viewport) =>
+        renderInViewport(
+          "panel-chrome",
+          viewport,
+          <PanelChromeSmokeSurface />,
+        ),
+    },
+    {
+      id: "github-workbench",
+      title: "GitHub workbench panel without desktop bridge",
+      primaryActions: [
+        "Refresh issues",
+        "Open Git panel",
+        "Open account panel",
+        "Create issue",
+      ],
+      expectedText: [
+        "GitHub Issues",
+        "Triage, create, and edit repository issues.",
+        "offline",
+        "Repository",
+        UI_SMOKE_FIXTURE_GITHUB_REPOSITORY,
+        "Bridge offline",
+        "No issues found",
+        "Create issue",
+      ],
+      requiredMarkup: [
+        "nx-editor-panel-shell",
+        "nx-editor-panel-header",
+        "nx-editor-panel-actions",
+        "nx-editor-panel-body",
+        "nx-editor-panel-card",
+        "placeholder=\"owner/repo\"",
+      ],
+      render: (viewport) =>
+        renderInViewport(
+          "github-workbench",
+          viewport,
+          <GitHubWorkbenchPanel
+            panelId="issues"
+            workspacePath={UI_SMOKE_FIXTURE_WORKSPACE_PATH}
+            accountSession={UI_SMOKE_FIXTURE_ACCOUNT_SESSION}
+            initialRepository={UI_SMOKE_FIXTURE_GITHUB_REPOSITORY}
+            onOpenGit={noop}
+            onOpenAccount={noop}
           />,
         ),
     },
@@ -269,6 +453,9 @@ export function assertUiSmokeMarkup(scenario, markup) {
     ...(scenario.longLabels || [])
       .filter((label) => !markup.includes(label))
       .map((label) => `missing long fixture label "${label}"`),
+    ...(scenario.requiredMarkup || [])
+      .filter((marker) => !markup.includes(marker))
+      .map((marker) => `missing markup guard "${marker}"`),
   ];
   const buttonResult = assertButtonLabels(markup);
   failures.push(...buttonResult.failures);

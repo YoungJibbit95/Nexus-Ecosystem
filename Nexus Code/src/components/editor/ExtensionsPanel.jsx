@@ -5,6 +5,7 @@ import {
   BadgeCheck,
   Blocks,
   ChevronDown,
+  Clipboard,
   Command,
   Database,
   Download,
@@ -17,6 +18,7 @@ import {
   Palette,
   Power,
   RefreshCw,
+  RotateCcw,
   Search,
   SlidersHorizontal,
   Trash2,
@@ -28,7 +30,9 @@ import {
   EXTENSION_CONTRIBUTION_FILTERS,
   EXTENSION_SOURCES,
   EXTENSION_STATE_FILTERS,
+  createDefaultExtensionRecords,
   createExtensionEventDetail,
+  createExtensionRuntimeSnapshot,
   filterExtensions,
   formatContributionPreview,
   getExtensionStats,
@@ -72,6 +76,28 @@ const storageHealthLabels = {
   degraded: "Registry pruefen",
   unavailable: "Nur Sitzung",
 };
+
+async function writeClipboardText(text) {
+  if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return true;
+  }
+
+  if (typeof document === "undefined") {
+    return false;
+  }
+
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.setAttribute("readonly", "true");
+  textarea.style.position = "fixed";
+  textarea.style.opacity = "0";
+  document.body.appendChild(textarea);
+  textarea.select();
+  const copied = document.execCommand("copy");
+  document.body.removeChild(textarea);
+  return copied;
+}
 
 function getMessageTone(level) {
   if (level === "error") {
@@ -622,10 +648,12 @@ export default function ExtensionsPanel({ onInstalledChange }) {
   const [stateFilter, setStateFilter] = useState("all");
   const [contribution, setContribution] = useState("all");
   const [quickTab, setQuickTab] = useState("all");
+  const [hostActionStatus, setHostActionStatus] = useState(null);
 
   const extensions = useMemo(() => resolveExtensions(records), [records]);
   const stats = useMemo(() => getExtensionStats(records), [records]);
   const runtimeOverview = useMemo(() => getExtensionRuntimeOverview(records), [records]);
+  const runtimeSnapshot = useMemo(() => createExtensionRuntimeSnapshot(records), [records]);
   const updateableIds = useMemo(
     () =>
       extensions
@@ -691,6 +719,31 @@ export default function ExtensionsPanel({ onInstalledChange }) {
     );
   };
 
+  const copyRuntimeSnapshot = async () => {
+    const payload = JSON.stringify(runtimeSnapshot, null, 2);
+    try {
+      const copied = await writeClipboardText(payload);
+      setHostActionStatus(
+        copied
+          ? "Runtime snapshot copied."
+          : "Clipboard unavailable; snapshot was generated but not copied.",
+      );
+    } catch (error) {
+      setHostActionStatus(error?.message || "Snapshot could not be copied.");
+    }
+  };
+
+  const resetRegistryToDefaults = () => {
+    const confirmed =
+      typeof window === "undefined" ||
+      window.confirm("Extension-Registry auf die Nexus Code Defaults zuruecksetzen?");
+    if (!confirmed) return;
+    setRecords(createDefaultExtensionRecords());
+    setPersistReason("reset");
+    setStorageHealth("default");
+    setHostActionStatus("Bundled default extensions restored.");
+  };
+
   return (
     <PanelShell ariaLabel="Extensions">
       <PanelHeader
@@ -707,7 +760,24 @@ export default function ExtensionsPanel({ onInstalledChange }) {
           )
         }
         actions={
-          updateableIds.length > 0 ? (
+          <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+            <PanelActionButton
+              icon={Clipboard}
+              onClick={copyRuntimeSnapshot}
+              tone="muted"
+              title="Runtime Snapshot als JSON kopieren"
+            >
+              Copy plan
+            </PanelActionButton>
+            <PanelActionButton
+              icon={RotateCcw}
+              onClick={resetRegistryToDefaults}
+              tone="muted"
+              title="Registry auf gebundelte Nexus Code Defaults zuruecksetzen"
+            >
+              Reset
+            </PanelActionButton>
+            {updateableIds.length > 0 ? (
             <PanelActionButton
               icon={RefreshCw}
               onClick={installAllUpdates}
@@ -716,7 +786,8 @@ export default function ExtensionsPanel({ onInstalledChange }) {
             >
               Update
             </PanelActionButton>
-          ) : null
+            ) : null}
+          </div>
         }
       >
         <div className="grid grid-cols-4 gap-1.5">
@@ -742,6 +813,12 @@ export default function ExtensionsPanel({ onInstalledChange }) {
                 +{storageMessages.length - 2} weitere Registry-Hinweise
               </div>
             ) : null}
+          </div>
+        ) : null}
+
+        {hostActionStatus ? (
+          <div className="mt-2 rounded-md border border-white/[0.06] bg-white/[0.035] px-2 py-1 text-[10px] text-[var(--nexus-muted)]">
+            {hostActionStatus}
           </div>
         ) : null}
 

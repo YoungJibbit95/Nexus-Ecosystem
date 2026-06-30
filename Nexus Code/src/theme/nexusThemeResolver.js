@@ -20,6 +20,32 @@ function normalizeHexColor(value, fallback = FALLBACK_PRIMARY) {
   return full ? `#${full[1].toLowerCase()}` : fallback;
 }
 
+function normalizeOptionalHexColor(value) {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const normalized = normalizeHexColor(trimmed, "");
+  return normalized || null;
+}
+
+function colorToHex(value, fallback = FALLBACK_PRIMARY) {
+  if (typeof value !== "string") return fallback;
+  const trimmed = value.trim();
+  if (/^#[0-9a-fA-F]{3}$/.test(trimmed) || /^#[0-9a-fA-F]{6}$/.test(trimmed)) {
+    return normalizeHexColor(trimmed, fallback);
+  }
+
+  const rgb = trimmed.match(
+    /^rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})/i,
+  );
+  if (!rgb) return fallback;
+  const toHex = (channel) =>
+    clamp(Number.parseInt(channel, 10) || 0, 0, 255)
+      .toString(16)
+      .padStart(2, "0");
+  return `#${toHex(rgb[1])}${toHex(rgb[2])}${toHex(rgb[3])}`;
+}
+
 function hexToRgbTuple(value, fallback = FALLBACK_PRIMARY) {
   const hex = normalizeHexColor(value, fallback).slice(1);
   return [
@@ -538,7 +564,15 @@ export function resolveNexusTheme(settings = {}) {
   const secondary = normalizeHexColor(settings.secondary_accent, theme.accent2);
   const backgroundValue = background ? background.value : theme.bg_value;
   const backgroundType = background ? background.type : theme.bg_type;
-  const surface = background ? background.surface : theme.surface;
+  const baseSurface = background ? background.surface : theme.surface;
+  const surfaceHex = colorToHex(baseSurface, "#11141d");
+  const customSurface = normalizeOptionalHexColor(settings.custom_surface);
+  const customInputSurface = normalizeOptionalHexColor(settings.custom_input_surface);
+  const surface = customSurface ? hexToRgba(customSurface, 0.84, surfaceHex) : baseSurface;
+  const effectiveSurfaceHex = customSurface || surfaceHex;
+  const inputSurface = customInputSurface || effectiveSurfaceHex;
+  const inputSurfaceSoft = hexToRgba(inputSurface, 0.28, effectiveSurfaceHex);
+  const inputSurfaceHover = hexToRgba(inputSurface, 0.42, effectiveSurfaceHex);
   const border = background ? background.border : theme.border;
   const panelSurface =
     effectBudget.panelMode === "glass-shader"
@@ -562,7 +596,11 @@ export function resolveNexusTheme(settings = {}) {
     background: backgroundValue,
     backgroundType,
     surface,
+    surfaceHex: effectiveSurfaceHex,
     panelSurface,
+    inputSurface,
+    inputSurfaceSoft,
+    inputSurfaceHover,
     border,
     text: theme.text,
     muted: theme.muted,
@@ -594,6 +632,9 @@ export function resolveNexusTheme(settings = {}) {
     "--nexus-panel-filter": effectBudget.panelFilter,
     "--nexus-settings-filter": effectBudget.settingsFilter,
     "--nexus-panel-shadow": panelShadow,
+    "--nexus-control-surface": inputSurfaceSoft,
+    "--nexus-control-surface-hover": inputSurfaceHover,
+    "--nexus-input-surface": inputSurfaceSoft,
     "--nexus-border": border,
     "--nexus-glass": surface,
     "--nexus-glass-border": border,

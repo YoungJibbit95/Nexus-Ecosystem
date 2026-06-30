@@ -66,19 +66,23 @@ function OptionButton({ active, onClick, title, icon: Icon, label }) {
     <button
       type="button"
       onClick={onClick}
-      className="flex min-w-0 items-center justify-center gap-1 rounded-md px-2 py-1 text-[10px] font-semibold transition-all"
+      className="flex min-h-8 min-w-0 items-center justify-center gap-1 rounded-xl px-2 py-1 text-[10px] font-semibold leading-tight transition-all"
       style={{
-        background: active ? "rgba(128,0,255,0.17)" : "rgba(255,255,255,0.035)",
-        color: active ? "#c084fc" : "#7b8190",
+        background: active
+          ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.16)"
+          : "rgba(255,255,255,0.032)",
+        color: active ? "var(--nexus-primary, #7c8cff)" : "#8b93a7",
         border: active
-          ? "1px solid rgba(168,85,247,0.38)"
+          ? "1px solid rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.3)"
           : "1px solid rgba(255,255,255,0.07)",
       }}
       title={title}
       aria-pressed={active}
     >
       {Icon && <Icon size={12} className="shrink-0" />}
-      <span className="truncate">{label}</span>
+      <span className="min-w-0 break-words text-center" style={{ overflowWrap: "anywhere" }}>
+        {label}
+      </span>
     </button>
   );
 }
@@ -86,14 +90,14 @@ function OptionButton({ active, onClick, title, icon: Icon, label }) {
 function ScopeInput({ label, value, onChange, placeholder }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-[9px] font-semibold uppercase tracking-widest text-gray-600">
+      <span className="mb-1 block text-[9px] font-semibold uppercase text-gray-600">
         {label}
       </span>
       <input
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
-        className="h-7 w-full rounded-md border border-white/10 bg-white/[0.035] px-2 text-[11px] text-gray-300 outline-none placeholder:text-gray-700 focus:border-purple-500/45"
+        className="min-h-8 w-full rounded-xl border border-white/[0.075] bg-white/[0.035] px-2.5 py-1.5 text-[11px] leading-snug text-gray-300 outline-none placeholder:text-gray-700 focus:border-purple-400/45"
       />
     </label>
   );
@@ -142,17 +146,18 @@ function SearchState({ state, result, query, fileCount, hasScopeFilters, onReset
         detail={`${fileCount} Dateien verfuegbar. Nutze Include/Exclude, wenn du den Scan eingrenzen willst.`}
         actionLabel={hasScopeFilters ? "Scopes zuruecksetzen" : undefined}
         onAction={hasScopeFilters ? onResetScopes : undefined}
+        compact
       >
         <div className="grid grid-cols-3 gap-1.5 text-left">
-          <div className="rounded-md border border-white/[0.06] bg-black/20 px-2 py-1.5">
+          <div className="rounded-xl border border-white/[0.06] bg-black/15 px-2 py-1.5">
             <p className="text-[9px] font-semibold uppercase text-gray-600">Regex</p>
             <p className="text-[10px] text-gray-400">Pattern-Suche</p>
           </div>
-          <div className="rounded-md border border-white/[0.06] bg-black/20 px-2 py-1.5">
+          <div className="rounded-xl border border-white/[0.06] bg-black/15 px-2 py-1.5">
             <p className="text-[9px] font-semibold uppercase text-gray-600">Include</p>
             <p className="text-[10px] text-gray-400">src/*.jsx</p>
           </div>
-          <div className="rounded-md border border-white/[0.06] bg-black/20 px-2 py-1.5">
+          <div className="rounded-xl border border-white/[0.06] bg-black/15 px-2 py-1.5">
             <p className="text-[9px] font-semibold uppercase text-gray-600">Exclude</p>
             <p className="text-[10px] text-gray-400">dist,node</p>
           </div>
@@ -341,7 +346,7 @@ export default function SearchPanel({ files = [], onFileSelect }) {
     <PanelShell ariaLabel="Search">
       <PanelHeader
         icon={Search}
-        title="Search"
+        title="Workspace Search"
         subtitle={
           hasWorkspace
             ? `${searchableFileCount} Dateien im Workspace`
@@ -359,11 +364,12 @@ export default function SearchPanel({ files = [], onFileSelect }) {
       >
         <form onSubmit={submitSearch} className="space-y-2">
           <div
-            className="flex items-center gap-1.5 rounded-lg px-2 py-1.5"
+            className="flex min-h-9 items-center gap-1.5 rounded-xl px-2.5 py-1.5"
             style={{
-              background: "rgba(255,255,255,0.05)",
+              background:
+                "linear-gradient(180deg, rgba(255,255,255,0.058), rgba(255,255,255,0.028))",
               border: draft.query
-                ? "1px solid rgba(128,0,255,0.35)"
+                ? "1px solid rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.34)"
                 : "1px solid rgba(255,255,255,0.07)",
               transition: "border-color 0.2s ease",
             }}
@@ -373,7 +379,7 @@ export default function SearchPanel({ files = [], onFileSelect }) {
               ref={inputRef}
               value={draft.query}
               onChange={(event) => updateDraft({ query: event.target.value })}
-              placeholder="In Dateien suchen..."
+              placeholder="Search files..."
               className="min-w-0 flex-1 bg-transparent text-xs text-gray-200 outline-none placeholder:text-gray-600"
             />
             {draft.query && (
@@ -384,7 +390,7 @@ export default function SearchPanel({ files = [], onFileSelect }) {
                 whileHover={{ scale: 1.12 }}
                 whileTap={{ scale: 0.92 }}
                 onClick={clearSearch}
-                className="shrink-0 rounded p-0.5 hover:bg-white/10"
+                className="shrink-0 rounded-lg p-1 hover:bg-white/10"
                 title="Suche leeren"
               >
                 <X size={11} className="text-gray-500" />
@@ -433,7 +439,14 @@ export default function SearchPanel({ files = [], onFileSelect }) {
 
       <PanelBody>
         {showResults && (
-          <div className="sticky top-0 z-10 border-b border-white/[0.05] bg-[#070816]/95 px-3 py-2 backdrop-blur-md">
+          <div
+            className="sticky top-0 z-10 mx-2 mt-2 rounded-2xl border px-3 py-2 backdrop-blur-md"
+            style={{
+              background:
+                "linear-gradient(180deg, rgba(10,13,27,0.96), rgba(8,10,22,0.9))",
+              borderColor: "rgba(255,255,255,0.065)",
+            }}
+          >
             <div className="mb-2 flex min-w-0 items-center justify-between gap-2">
               <div className="min-w-0">
                 <p className="truncate text-[11px] font-semibold text-gray-300">
@@ -475,12 +488,12 @@ export default function SearchPanel({ files = [], onFileSelect }) {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, height: 0 }}
                   transition={{ delay: Math.min(index * 0.025, 0.16), duration: 0.18 }}
-                  className="border-b border-white/[0.035]"
+                  className="mx-2 mt-1 overflow-hidden rounded-xl border border-white/[0.045] bg-white/[0.018]"
                 >
                   <button
                     type="button"
                     onClick={() => toggleCollapse(group.fileId)}
-                    className="group flex w-full items-center gap-1.5 px-3 py-2 text-left transition-colors hover:bg-white/[0.04]"
+                    className="group flex w-full items-center gap-1.5 px-3 py-2 text-left transition-colors hover:bg-white/[0.045]"
                   >
                     <motion.div
                       animate={{ rotate: isCollapsed ? -90 : 0 }}
@@ -496,7 +509,10 @@ export default function SearchPanel({ files = [], onFileSelect }) {
                       {extension}
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-xs font-medium text-gray-300">
+                      <span
+                        className="block break-words text-xs font-medium leading-snug text-gray-300"
+                        style={{ overflowWrap: "anywhere" }}
+                      >
                         {group.fileName}
                       </span>
                       {group.path && group.path !== group.fileName && (
@@ -505,8 +521,9 @@ export default function SearchPanel({ files = [], onFileSelect }) {
                         </span>
                       )}
                     </span>
-                    <span
-                      className="shrink-0 rounded-md p-1 text-gray-600 opacity-0 transition-opacity hover:bg-white/[0.07] hover:text-purple-200 group-hover:opacity-100"
+                    <button
+                      type="button"
+                      className="shrink-0 rounded-lg p-1 text-gray-600 opacity-0 transition-opacity hover:bg-white/[0.07] hover:text-purple-200 group-hover:opacity-100"
                       title="Datei oeffnen"
                       onClick={(event) => {
                         event.stopPropagation();
@@ -514,7 +531,7 @@ export default function SearchPanel({ files = [], onFileSelect }) {
                       }}
                     >
                       <FileSearch size={12} />
-                    </span>
+                    </button>
                     <span
                       className="shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold"
                       style={{
@@ -554,7 +571,10 @@ export default function SearchPanel({ files = [], onFileSelect }) {
                               >
                                 {match.lineNumber}:{match.column}
                               </span>
-                              <span className="min-w-0 flex-1 truncate font-mono text-[11px] leading-relaxed group-hover:text-gray-300">
+                              <span
+                                className="min-w-0 flex-1 whitespace-pre-wrap break-words font-mono text-[11px] leading-relaxed group-hover:text-gray-300"
+                                style={{ overflowWrap: "anywhere" }}
+                              >
                                 <HighlightedLine match={match} />
                               </span>
                             </button>
