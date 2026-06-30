@@ -276,4 +276,49 @@ Empfehlung:
 
 ## Hinweise zu Arbeitsbaum und Artefakten
 
-Vor dem Audit waren bereits lokale Aenderungen in mehreren Repos vorhanden. Dieser Audit hat keine bestehenden Dateien repariert oder revertiert; neu erstellt wurde nur dieser Bericht.
+Vor dem Audit waren bereits lokale Aenderungen in mehreren Repos vorhanden. Der obere Teil dieses Dokuments beschreibt den initialen Audit-Stand vor den Fixes.
+
+## Fix-Nachtrag 2026-06-30
+
+Status: F-01 bis F-10 sind im lokalen Development-Workflow geschlossen oder mitigiert. Die Fixes wurden ohne externe Plugins umgesetzt; API- und Control-Desktop-Teilbereiche wurden parallel ueber Subagents bearbeitet und danach lokal integriert und gegengeprueft.
+
+| Befund | Neuer Status | Umsetzung |
+| --- | --- | --- |
+| F-01 | Geschlossen | Nexus Main fuehrt Code-Execution nur noch in einem frischen Temp-CWD mit expliziter Env-Allowlist aus; Host-Secrets aus `process.env` werden nicht mehr an Child-Prozesse durchgereicht. |
+| F-02 | Mitigiert | Nexus Code Terminal- und LSP-Child-Prozesse nutzen eine zentrale, scrubbed Environment-Allowlist statt der vollen Host-Umgebung. |
+| F-03 | Geschlossen | Event-Batches muessen jetzt zur autorisierten `appId` passen; Cross-App-`event.source` wird serverseitig abgelehnt und in Contract-/Attack-Smokes abgedeckt. |
+| F-04 | Geschlossen | Paid-Plaene mit `amountCents <= 0` werden in Schema, Runtime und Checkout-Pfad abgelehnt; 0-Cent-Entitlement fuer Paid-Tiers ist blockiert. |
+| F-05 | Geschlossen | Rate-Limit-/Client-IP-Aufloesung nutzt `X-Forwarded-For` nur hinter vertrauenswuerdigen Proxies und faellt sonst auf die echte Remote-IP zurueck. |
+| F-06 | Geschlossen | Owner-Device-Auto-Approval ist auf den initialen Admin-Bootstrap begrenzt; weitere Owner-Devices bleiben pending. |
+| F-07 | Geschlossen | Control Desktop Pack-/Build-Vertrag ist wieder gruen; Preload nutzt statische, eingefrorene Desktop-Konfiguration statt einer IPC-Bridge. |
+| F-08 | Geschlossen | Nexus Main setzt nun Electron Response-Security-Header inklusive CSP, CORP, Referrer-Policy, X-Content-Type-Options und X-Frame-Options. |
+| F-09 | Geschlossen | Clientseitige `new Function`-/Eval-Fallbacks im Code-Execution-Modell wurden entfernt; Renderer-Fallbacks liefern nur noch statische Preview-/Simulationsergebnisse. |
+| F-10 | Geschlossen | Subdomain-Wildcards werden in der Sicherheitsbaseline abgewiesen; Wildcard-CORS bekommt keine Credentials. |
+
+Zusaetzliches API-Hardening:
+- `/api/v2/launcher/status` meldet Feed-Signatur, Cache-Readiness und Download-Broker-Zustand ohne Private-Key-Material auszugeben.
+- Production-Deploy und Healthchecks verlangen Launcher-Feed-Signing-Key und pruefen Status/Feed nach dem Deploy.
+- Rust-Paritaetswaechter kennt die neue Launcher-Status-Route, damit Node/Rust-Divergenz sichtbar bleibt.
+
+Nachgezogene lokale Pruefungen:
+
+| Pruefung | Ergebnis |
+| --- | --- |
+| `node --check` fuer geaenderte Electron-/Desktop-/Verify-Dateien | PASS |
+| `NexusAPI/Nexus Control Desktop npm run check` | PASS |
+| `NexusAPI/Nexus Control Desktop npm run build` | PASS |
+| `NexusAPI/API/nexus-control-plane npm run verify:release-data` | PASS mit erwarteten lokalen Runtime-Warnungen |
+| `NexusAPI/API/nexus-control-plane npm run test:attack` | PASS, 27/27 |
+| `NexusAPI/API/nexus-control-plane npm run test:contract` | PASS |
+| `NexusAPI/API/nexus-control-plane npm run test:launcher` | PASS |
+| `NexusAPI/API/nexus-control-plane node --test test/security-auth-regression.mjs` | PASS |
+| `nexusproject.dev npm run test:product:security` | PASS |
+| `nexusproject.dev npm run build` | PASS |
+| `Nexus-Ecosystem npm run verify:encoding` | PASS |
+| `Nexus-Ecosystem npm run verify:ecosystem` | PASS, 82/82 |
+| `Nexus-Ecosystem/Nexus Main npm run build` | PASS mit bestehenden Chunk-Size-Warnungen |
+| `Nexus-Ecosystem/Nexus Code npm run lint` | PASS |
+| `Nexus-Ecosystem/Nexus Code npm run smoke:ide-core` | PASS, 19 Szenarien |
+| `Nexus-Ecosystem/Nexus Code npm run build` | PASS mit Tooling-Deprecation-Warnung |
+
+Nicht lokal verifiziert: Bash-Syntaxpruefung der Ubuntu-Deploy-Skripte, weil auf diesem Windows-Host keine WSL-Distribution installiert ist. Node-/npm-Gates und die kontrollierten Contract-Smokes sind erfolgreich.
