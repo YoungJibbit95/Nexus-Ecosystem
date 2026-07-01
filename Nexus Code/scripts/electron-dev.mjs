@@ -1,5 +1,4 @@
 import http from "node:http";
-import net from "node:net";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
@@ -18,48 +17,23 @@ function log(scope, message) {
   process.stdout.write(`[${scope}] ${message}\n`);
 }
 
-function pipeOutput(child, scope) {
+function pipeOutput(child, scope, onLine) {
+  const writeLines = (chunk, stream) => {
+    const lines = String(chunk)
+      .split(/\r?\n/)
+      .filter(Boolean);
+    lines.forEach((line) => {
+      onLine?.(line);
+      stream.write(`[${scope}] ${line}\n`);
+    });
+  };
+
   child.stdout?.on("data", (chunk) => {
-    process.stdout.write(
-      String(chunk)
-        .split(/\r?\n/)
-        .filter(Boolean)
-        .map((line) => `[${scope}] ${line}`)
-        .join("\n") + "\n",
-    );
+    writeLines(chunk, process.stdout);
   });
   child.stderr?.on("data", (chunk) => {
-    process.stderr.write(
-      String(chunk)
-        .split(/\r?\n/)
-        .filter(Boolean)
-        .map((line) => `[${scope}] ${line}`)
-        .join("\n") + "\n",
-    );
+    writeLines(chunk, process.stderr);
   });
-}
-
-function isPortFree(port) {
-  return new Promise((resolve) => {
-    const server = net.createServer();
-    server.once("error", () => resolve(false));
-    server.once("listening", () => {
-      server.close(() => resolve(true));
-    });
-    server.listen(port);
-  });
-}
-
-async function findFreePort() {
-  for (let offset = 0; offset < maxPortAttempts; offset += 1) {
-    const port = preferredPort + offset;
-    if (await isPortFree(port)) return port;
-  }
-  throw new Error(
-    `Kein freier Nexus-Code-Dev-Port zwischen ${preferredPort} und ${
-      preferredPort + maxPortAttempts - 1
-    } gefunden.`,
-  );
 }
 
 function requestOk(url) {
@@ -76,13 +50,102 @@ function requestOk(url) {
   });
 }
 
-async function waitForHttp(url, label, timeoutMs = 25_000) {
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+function assertProcessAlive(child, label) {
+  if (!child || child.killed || child.exitCode !== null) {
+    throw new Error(`${label} Prozess wurde vor Readiness beendet.`);
+  }
+}
+
+async function waitForOwnedHttp(child, url, label, timeoutMs = 25_000) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
-    if (await requestOk(url)) return;
-    await new Promise((resolve) => setTimeout(resolve, 220));
+    assertProcessAlive(child, label);
+    const ok = await requestOk(url);
+    if (ok) {
+      await sleep(180);
+      assertProcessAlive(child, label);
+      return;
+    }
+    await sleep(220);
   }
   throw new Error(`${label} wurde nicht rechtzeitig erreichbar: ${url}`);
+}
+
+function spawnVite(port, devUrl) {
+  let markReady = null;
+  let markFailed = null;
+  const readyPromise = new Promise((resolve, reject) => {
+    markReady = resolve;
+    markFailed = reject;
+  });
+  const vite = spawn(
+    process.execPath,
+    [viteCliPath, "--host", host, "--port", String(port), "--strictPort"],
+    {
+      cwd: appRoot,
+      env: { ...process.env, NEXUS_CODE_DEV_URL: devUrl },
+      stdio: ["ignore", "pipe", "pipe"],
+      windowsHide: true,
+    },
+  );
+  const readyPattern = new RegExp(`Local:\\s+http://(?:${host.replace(/\./g, "\\.")}|localhost):${port}/?`);
+  pipeOutput(vite, "VITE", (line) => {
+    if (readyPattern.test(line)) markReady();
+  });
+  vite.once("exit", (code) => {
+    markFailed(new Error(`Vite Prozess wurde vor Readiness beendet (code ${code ?? "unknown"}).`));
+  });
+  return { process: vite, readyPromise };
+}
+
+async function waitForViteBanner(readyPromise, port, timeoutMs = 10_000) {
+  let timeoutHandle = null;
+  const timeoutPromise = new Promise((_, reject) => {
+    timeoutHandle = setTimeout(
+      () => reject(new Error(`Vite hat fuer Port ${port} kein eigenes Local-Banner gemeldet.`)),
+      timeoutMs,
+    );
+  });
+  try {
+    await Promise.race([readyPromise, timeoutPromise]);
+  } finally {
+    if (timeoutHandle) clearTimeout(timeoutHandle);
+  }
+}
+
+async function startOwnedVite() {
+  let lastError = null;
+  for (let offset = 0; offset < maxPortAttempts; offset += 1) {
+    const port = preferredPort + offset;
+    const devUrl = `http://${host}:${port}`;
+    if (offset > 0) {
+      log("DEV", `Retry auf Port ${port}.`);
+    }
+
+    const { process: vite, readyPromise } = spawnVite(port, devUrl);
+    try {
+      await waitForViteBanner(readyPromise, port);
+      await waitForOwnedHttp(vite, devUrl, "Vite Dev Server");
+      await waitForOwnedHttp(vite, `${devUrl}/src/pages/Editor.jsx`, "Editor route module");
+      if (port !== preferredPort) {
+        log(
+          "DEV",
+          `Port ${preferredPort} war nicht nutzbar; Nexus Code laeuft isoliert auf ${port}.`,
+        );
+      }
+      return { vite, port, devUrl };
+    } catch (error) {
+      lastError = error;
+      terminate(vite);
+      if (offset === maxPortAttempts - 1) break;
+      log("DEV", `${error?.message || "Vite Start fehlgeschlagen"} Port ${port} wird uebersprungen.`);
+      await sleep(260);
+    }
+  }
+
+  throw lastError || new Error("Nexus Code Dev Server konnte nicht gestartet werden.");
 }
 
 function terminate(child) {
@@ -98,26 +161,7 @@ function terminate(child) {
 }
 
 async function run() {
-  const port = await findFreePort();
-  const devUrl = `http://${host}:${port}`;
-  if (port !== preferredPort) {
-    log(
-      "DEV",
-      `Port ${preferredPort} ist belegt; starte isoliert auf ${port}, damit kein stale Vite-Server verwendet wird.`,
-    );
-  }
-
-  const vite = spawn(
-    process.execPath,
-    [viteCliPath, "--host", host, "--port", String(port), "--strictPort"],
-    {
-      cwd: appRoot,
-      env: { ...process.env, NEXUS_CODE_DEV_URL: devUrl },
-      stdio: ["ignore", "pipe", "pipe"],
-      windowsHide: true,
-    },
-  );
-  pipeOutput(vite, "VITE");
+  const { vite, devUrl } = await startOwnedVite();
 
   let electron = null;
   let shuttingDown = false;
@@ -142,8 +186,6 @@ async function run() {
     shutdown(code || 1);
   });
 
-  await waitForHttp(devUrl, "Vite Dev Server");
-  await waitForHttp(`${devUrl}/src/pages/Editor.jsx`, "Editor route module");
   log("DEV", `Renderer bereit: ${devUrl}`);
 
   if (process.env.NEXUS_CODE_DEV_PROBE_ONLY === "1") {
