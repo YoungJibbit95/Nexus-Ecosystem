@@ -57,7 +57,7 @@ const DIFF_LINE_LIMIT = 220;
 
 const STATUS_META = {
   M: { label: "Modified", color: "#fbbf24" },
-  A: { label: "Added", color: "#22c55e" },
+  A: { label: "Added", color: "#38bdf8" },
   D: { label: "Deleted", color: "#ef4444" },
   R: { label: "Renamed", color: "#3b82f6" },
   C: { label: "Conflict", color: "#f97316" },
@@ -115,9 +115,9 @@ function CapabilityPill({ icon: Icon, label, tone = "neutral", title }) {
   const palette =
     tone === "ready"
       ? {
-          color: "#86efac",
-          background: "rgba(34,197,94,0.1)",
-          border: "rgba(34,197,94,0.22)",
+          color: "#93c5fd",
+          background: "rgba(56,189,248,0.08)",
+          border: "rgba(56,189,248,0.2)",
         }
       : tone === "warn"
         ? {
@@ -152,7 +152,7 @@ function CapabilityPill({ icon: Icon, label, tone = "neutral", title }) {
 function SummaryTile({ label, value, tone = "neutral", title }) {
   const color =
     tone === "good"
-      ? "#86efac"
+      ? "#a5b4fc"
       : tone === "warn"
         ? "#fbbf24"
         : tone === "hot"
@@ -188,6 +188,14 @@ function EmptyState({ title, detail, tone = "muted" }) {
       className="mx-3 mb-2"
     />
   );
+}
+
+function getSyncBadgeTone(syncTone) {
+  return syncTone === "warn"
+    ? "warning"
+    : syncTone === "good"
+      ? "accent"
+      : "muted";
 }
 
 function FileRow({ file, staged, selected, busy, onSelect, onToggle }) {
@@ -256,17 +264,17 @@ function FileRow({ file, staged, selected, busy, onSelect, onToggle }) {
           type="button"
           onClick={() => onToggle(file)}
           disabled={busy}
+          aria-label={`${actionLabel} ${file.path || file.name}`}
           title={`${actionLabel} ${file.path || file.name}`}
-          className="mr-1 flex h-7 min-w-[74px] shrink-0 items-center justify-center gap-1 rounded-xl border border-white/10 bg-white/[0.04] px-1.5 text-[10px] font-semibold text-gray-300 transition-colors hover:bg-white/[0.08] disabled:cursor-wait disabled:opacity-50"
+          className="mr-1 grid h-7 w-7 shrink-0 place-items-center rounded-xl border border-white/10 bg-white/[0.04] text-gray-300 transition-colors hover:bg-white/[0.08] disabled:cursor-wait disabled:opacity-50"
         >
           {busy ? (
             <RefreshCw size={10} className="animate-spin" />
           ) : staged ? (
             <Minus size={10} className="text-red-300" />
           ) : (
-            <Plus size={10} className="text-green-300" />
+            <Plus size={10} className="text-sky-300" />
           )}
-          <span>{actionLabel}</span>
         </button>
       </div>
     </motion.div>
@@ -356,7 +364,7 @@ function DiffViewer({
             const hunk = line.startsWith("@@");
             const header = line.startsWith("diff --git") || line.startsWith("index ");
             const color = added
-              ? "#86efac"
+              ? "#7dd3fc"
               : removed
                 ? "#fca5a5"
                 : hunk
@@ -365,7 +373,7 @@ function DiffViewer({
                     ? "#93c5fd"
                     : "#94a3b8";
             const background = added
-              ? "rgba(34,197,94,0.08)"
+              ? "rgba(56,189,248,0.08)"
               : removed
                 ? "rgba(239,68,68,0.08)"
                 : hunk
@@ -981,16 +989,44 @@ export default function GitPanel({ files }) {
   const selectedRepo = githubSettings.repo
     ? `${githubSettings.owner}/${githubSettings.repo}`
     : "";
+  const headerSubtitle = hasWorkspace
+    ? `${branch} - ${syncLabel}`
+    : "Open a workspace to enable Git status and commits";
+  const headerStatusLabel = !hasWorkspace
+    ? "Idle"
+    : clean
+      ? "Clean"
+      : `${changedFiles.length} changed`;
+  const headerStatusTone = !hasWorkspace
+    ? "warning"
+    : clean
+      ? "success"
+      : "accent";
+  const compactSyncLabel = !hasWorkspace
+    ? "Idle"
+    : status.ahead > 0 || status.behind > 0
+      ? `${status.ahead}/${status.behind}`
+      : "Synced";
+  const gitProviderLabel = hasLocalGit
+    ? gitCapability.label
+    : hasWorkspace
+      ? "Git bridge offline"
+      : "No workspace";
+  const githubProviderLabel = githubAuth.authenticated
+    ? "GitHub connected"
+    : githubCapability.available
+      ? "GitHub ready"
+      : "GitHub offline";
 
   return (
     <PanelShell ariaLabel="Source Control">
       <PanelHeader
         icon={GitBranch}
         title="Source Control"
-        subtitle={hasWorkspace ? workspaceRoot : "Source Control ist idle bis ein Workspace geoeffnet ist"}
+        subtitle={headerSubtitle}
         status={
-          <PanelBadge tone={!hasWorkspace ? "warning" : clean ? "success" : "accent"}>
-            {hasWorkspace ? branch : "Idle"}
+          <PanelBadge tone={headerStatusTone}>
+            {headerStatusLabel}
           </PanelBadge>
         }
         actions={
@@ -1007,84 +1043,90 @@ export default function GitPanel({ files }) {
               label="Git providers"
               active={sections.settings}
             >
-              <GitFork className={githubCapability.available ? "text-green-400" : ""} />
+              <GitFork className={githubCapability.available ? "text-sky-300" : ""} />
             </PanelIconButton>
           </>
         }
       />
 
       {hasWorkspace && (
-      <div className="shrink-0 space-y-2 px-3 pb-3">
-        <div
-          className="rounded-2xl p-2.5"
-          style={{
-            background:
-              "linear-gradient(180deg, rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.095), rgba(255,255,255,0.018))",
-            border: "1px solid rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.16)",
-          }}
-        >
-          <div className="flex items-start gap-2">
-            <GitBranch size={14} className="mt-0.5 text-purple-400 shrink-0" />
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
-                <span
-                  className="min-w-0 break-words text-xs font-semibold leading-snug text-gray-100"
-                  style={{ overflowWrap: "anywhere" }}
-                >
-                  {branch}
-                </span>
-                {status.detached && (
-                  <span className="rounded bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-semibold text-amber-300">
-                    Detached
+        <div className="shrink-0 space-y-1.5 px-3 pb-2.5">
+          <div
+            className="rounded-xl p-2"
+            style={{
+              background:
+                "linear-gradient(180deg, rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.082), rgba(255,255,255,0.014))",
+              border: "1px solid rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.15)",
+            }}
+          >
+            <div className="flex min-w-0 items-center gap-2">
+              <GitBranch size={13} className="shrink-0 text-purple-300" />
+              <div className="min-w-0 flex-1">
+                <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                  <span
+                    className="min-w-0 break-words text-xs font-semibold leading-snug text-gray-100"
+                    style={{ overflowWrap: "anywhere" }}
+                  >
+                    {branch}
                   </span>
-                )}
+                  {status.detached && (
+                    <span className="shrink-0 rounded bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-semibold text-amber-300">
+                      Detached
+                    </span>
+                  )}
+                </div>
+                <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[10px] text-gray-500">
+                  <Server size={10} className="shrink-0 text-sky-300/80" />
+                  <span className="shrink-0 text-gray-400">{remoteLabel}</span>
+                  <span className="truncate">{remoteDetail}</span>
+                </div>
               </div>
-              <div className="mt-1 flex min-w-0 items-center gap-1.5 text-[10px] text-gray-500">
-                <Server size={10} className="shrink-0" />
-                <span className="shrink-0 text-gray-400">{remoteLabel}</span>
-                <span className="truncate">{remoteDetail}</span>
-              </div>
+              <PanelBadge tone={getSyncBadgeTone(syncTone)} title={syncLabel}>
+                {compactSyncLabel}
+              </PanelBadge>
+            </div>
+            <div
+              className="mt-2 grid gap-1.5"
+              style={{ gridTemplateColumns: "repeat(auto-fit, minmax(66px, 1fr))" }}
+            >
+              <SummaryTile
+                label="Status"
+                value={clean ? "Clean" : `${changedFiles.length} changed`}
+                tone={clean ? "good" : "warn"}
+              />
+              <SummaryTile
+                label="Staged"
+                value={stagedFiles.length}
+                tone={stagedFiles.length > 0 ? "good" : "neutral"}
+              />
+              <SummaryTile label="Sync" value={syncLabel} tone={syncTone} />
             </div>
           </div>
-          <div className="mt-2 grid grid-cols-3 gap-1.5">
-            <SummaryTile
-              label="Status"
-              value={clean ? "Clean" : `${changedFiles.length} changed`}
-              tone={clean ? "good" : "warn"}
-            />
-            <SummaryTile
-              label="Staged"
-              value={stagedFiles.length}
-              tone={stagedFiles.length > 0 ? "good" : "neutral"}
-            />
-            <SummaryTile label="Sync" value={syncLabel} tone={syncTone} />
-          </div>
-          {remoteError && (
-            <p className="mt-2 truncate text-[10px] text-amber-300/80">
-              {remoteError}
-            </p>
-          )}
-        </div>
 
-        <div className="grid grid-cols-2 gap-1.5">
-          <CapabilityPill
-            icon={GitBranch}
-            label={gitCapability.label}
-            tone={gitCapability.available ? "ready" : "warn"}
-            title={
-              gitCapability.available
-                ? `Using ${gitCapability.label}`
-                : "No local Git bridge detected; showing editor-file preview."
-            }
-          />
-          <CapabilityPill
-            icon={Server}
-            label={githubCapability.label}
-            tone={githubCapability.available ? "ready" : "neutral"}
-            title="GitHub access is expected through a secure backend/session."
-          />
+          <div className="rounded-xl border border-white/[0.045] bg-black/10 p-1.5">
+            <div
+              className="grid gap-1.5"
+              style={{ gridTemplateColumns: "repeat(auto-fit, minmax(104px, 1fr))" }}
+            >
+              <CapabilityPill
+                icon={GitBranch}
+                label={gitProviderLabel}
+                tone={gitCapability.available ? "ready" : "warn"}
+                title={
+                  gitCapability.available
+                    ? `Using ${gitCapability.label}`
+                    : "No local Git bridge detected; showing editor-file preview."
+                }
+              />
+              <CapabilityPill
+                icon={Server}
+                label={githubProviderLabel}
+                tone={githubCapability.available ? "ready" : "neutral"}
+                title="GitHub access is expected through a secure backend/session."
+              />
+            </div>
+          </div>
         </div>
-      </div>
       )}
 
       {hasWorkspace && (
@@ -1097,11 +1139,49 @@ export default function GitPanel({ files }) {
             icon={FolderOpen}
             tone="muted"
             title="Kein Workspace geoeffnet"
-            detail="Source Control bleibt ruhig, bis ein Ordner mit Dateien geladen ist. Provider-Checks kannst du bei Bedarf separat oeffnen."
+            detail="Source Control bleibt ruhig, bis ein Ordner geladen ist. Provider-Checks bleiben separat erreichbar."
             actionLabel="Provider anzeigen"
             onAction={() => toggleSection("settings")}
           />
         )}
+
+        {hasWorkspace && !hasLocalGit && (
+          <PanelNotice
+            icon={Server}
+            tone="warning"
+            title="Local Git bridge offline"
+            detail="Preview-Daten bleiben sichtbar; Stage, Commit, Pull und Push brauchen die lokale Git-Bridge."
+            className="mx-3 mb-2"
+          />
+        )}
+
+        {hasWorkspace && remoteError && (
+          <PanelNotice
+            icon={Server}
+            tone="warning"
+            title="Remote status unavailable"
+            detail={remoteError}
+            className="mx-3 mb-2"
+          />
+        )}
+
+        <AnimatePresence>
+          {errorMsg && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+            >
+              <PanelNotice
+                icon={AlertCircle}
+                tone="danger"
+                title="Git action failed"
+                detail={errorMsg}
+                className="mx-3 mb-2"
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         <AnimatePresence>
           {sections.settings && (
@@ -1116,10 +1196,19 @@ export default function GitPanel({ files }) {
               <div className="space-y-2 rounded-2xl border border-white/[0.055] bg-black/15 p-2">
                 <PanelNotice
                   icon={ShieldCheck}
-                  tone="success"
+                  tone="accent"
                   title="Secure GitHub Backend"
                   detail="GitHub tokens stay out of the renderer. Repository data is read through the backend/session when available."
                 />
+
+                {!githubCapability.available && (
+                  <PanelNotice
+                    icon={Server}
+                    tone="warning"
+                    title="GitHub backend offline"
+                    detail="Repository selection and remote history pause until a secure backend/session is available."
+                  />
+                )}
 
                 <div className="rounded-2xl border border-white/[0.055] bg-black/15 px-2 py-2">
                   <div className="mb-2 flex items-center justify-between gap-2">
@@ -1129,7 +1218,7 @@ export default function GitPanel({ files }) {
                     <span
                       className={`text-[10px] ${
                         githubAuth.authenticated
-                          ? "text-green-300"
+                          ? "text-sky-300"
                           : githubCapability.available
                             ? "text-amber-300"
                             : "text-gray-500"
@@ -1142,12 +1231,15 @@ export default function GitPanel({ files }) {
                           : "Unavailable"}
                     </span>
                   </div>
-                  <div className="grid grid-cols-2 gap-1.5">
+                  <div
+                    className="grid gap-1.5"
+                    style={{ gridTemplateColumns: "repeat(auto-fit, minmax(82px, 1fr))" }}
+                  >
                     <PanelActionButton
                       type="button"
                       disabled={!githubCapability.available || authBusy}
                       onClick={handleStartGithubAuth}
-                      tone="success"
+                      tone="accent"
                     >
                       Connect
                     </PanelActionButton>
@@ -1167,7 +1259,10 @@ export default function GitPanel({ files }) {
                       <div className="mt-1 font-mono text-sm font-semibold text-purple-200">
                         {githubFlow.userCode}
                       </div>
-                      <div className="mt-2 grid grid-cols-2 gap-1.5">
+                      <div
+                        className="mt-2 grid gap-1.5"
+                        style={{ gridTemplateColumns: "repeat(auto-fit, minmax(82px, 1fr))" }}
+                      >
                         <a
                           href={
                             githubFlow.verificationUriComplete ||
@@ -1265,7 +1360,10 @@ export default function GitPanel({ files }) {
                   )}
                 </div>
 
-                <div className="grid grid-cols-2 gap-1.5">
+                <div
+                  className="grid gap-1.5"
+                  style={{ gridTemplateColumns: "repeat(auto-fit, minmax(92px, 1fr))" }}
+                >
                   <PanelActionButton
                     onClick={() =>
                       handleSaveGithubSettings(
@@ -1290,10 +1388,10 @@ export default function GitPanel({ files }) {
                       <img
                         src={githubUser.avatar_url}
                         alt={githubUser.login || "GitHub user"}
-                        className="w-5 h-5 rounded-full border border-green-500/30"
+                        className="h-5 w-5 rounded-full border border-sky-400/30"
                       />
                     )}
-                    <span className="text-[10px] text-green-300 truncate">
+                    <span className="truncate text-[10px] text-sky-300">
                       Connected as {githubUser.login || githubUser.name || "GitHub user"}
                     </span>
                   </div>
@@ -1427,24 +1525,6 @@ export default function GitPanel({ files }) {
         </AnimatePresence>
 
         <div className="px-3 py-3">
-          <AnimatePresence>
-            {errorMsg && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                exit={{ opacity: 0, height: 0 }}
-              >
-                <PanelNotice
-                  icon={AlertCircle}
-                  tone="danger"
-                  title="Git action failed"
-                  detail={errorMsg}
-                  className="mb-2"
-                />
-              </motion.div>
-            )}
-          </AnimatePresence>
-
           <div className="mb-3 rounded-2xl border border-white/[0.055] bg-black/15 p-2.5">
             <div className="mb-2 flex min-w-0 items-center justify-between gap-2">
               <div className="min-w-0">
@@ -1458,11 +1538,14 @@ export default function GitPanel({ files }) {
                   {remoteDetail}
                 </p>
               </div>
-              <PanelBadge tone={syncTone === "warn" ? "warning" : syncTone === "good" ? "success" : "muted"}>
+              <PanelBadge tone={getSyncBadgeTone(syncTone)}>
                 {syncLabel}
               </PanelBadge>
             </div>
-            <div className="grid grid-cols-2 gap-1.5">
+            <div
+              className="grid gap-1.5"
+              style={{ gridTemplateColumns: "repeat(auto-fit, minmax(82px, 1fr))" }}
+            >
               <PanelActionButton
                 icon={Download}
                 onClick={handlePull}
@@ -1476,7 +1559,7 @@ export default function GitPanel({ files }) {
                 icon={Upload}
                 onClick={handlePush}
                 disabled={!canPush || refreshing}
-                tone={status.ahead > 0 ? "success" : "muted"}
+                tone={status.ahead > 0 ? "accent" : "muted"}
                 title="Push with the local Git bridge"
               >
                 Push
@@ -1533,14 +1616,14 @@ export default function GitPanel({ files }) {
             <span
               className="h-4 w-8 rounded-full border p-0.5"
               style={{
-                background: pushAfterCommit ? "rgba(34,197,94,0.18)" : "rgba(255,255,255,0.05)",
-                borderColor: pushAfterCommit ? "rgba(34,197,94,0.3)" : "rgba(255,255,255,0.1)",
+                background: pushAfterCommit ? "rgba(56,189,248,0.16)" : "rgba(255,255,255,0.05)",
+                borderColor: pushAfterCommit ? "rgba(125,211,252,0.32)" : "rgba(255,255,255,0.1)",
               }}
             >
               <span
                 className="block h-3 w-3 rounded-full transition-transform"
                 style={{
-                  background: pushAfterCommit ? "#86efac" : "#6b7280",
+                  background: pushAfterCommit ? "#7dd3fc" : "#6b7280",
                   transform: pushAfterCommit ? "translateX(14px)" : "translateX(0)",
                 }}
               />
@@ -1557,7 +1640,7 @@ export default function GitPanel({ files }) {
               className="flex w-full items-center justify-center gap-2 rounded-2xl py-2 text-xs font-semibold text-white transition-all"
               style={{
                 background: canCommit
-                  ? "linear-gradient(135deg, var(--nexus-primary, #7c8cff), #2dd4bf)"
+                  ? "linear-gradient(135deg, var(--nexus-primary, #7c8cff), #38bdf8)"
                   : "rgba(255,255,255,0.06)",
                 color: canCommit ? "#fff" : "#4b5563",
                 boxShadow: canCommit ? "0 0 16px rgba(128,0,255,0.3)" : "none",
@@ -1591,8 +1674,8 @@ export default function GitPanel({ files }) {
                     exit={{ opacity: 0 }}
                     className="flex items-center gap-1.5"
                   >
-                    <Check size={13} className="text-green-400" />
-                    <span className="text-green-400">
+                    <Check size={13} className="text-sky-300" />
+                    <span className="min-w-0 break-words text-center text-sky-300">
                       {canPush && pushAfterCommit ? "Pushed" : "Committed"}
                     </span>
                   </motion.div>
@@ -1605,7 +1688,10 @@ export default function GitPanel({ files }) {
                     className="flex items-center gap-1.5"
                   >
                     <Upload size={13} />
-                    <span>
+                    <span
+                      className="min-w-0 break-words text-center"
+                      style={{ overflowWrap: "anywhere" }}
+                    >
                       {canPush && pushAfterCommit ? "Commit & Push" : "Commit"}
                       {stagedFiles.length > 0 ? ` (${stagedFiles.length})` : ""}
                     </span>

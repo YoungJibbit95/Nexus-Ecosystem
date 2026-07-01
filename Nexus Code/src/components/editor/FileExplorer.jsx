@@ -23,7 +23,7 @@ import {
 } from "../../pages/editor/fileTreeModel";
 
 const actionButtonClass =
-  "grid h-8 w-8 shrink-0 place-items-center rounded-md border border-white/5 bg-white/[0.025] text-gray-500 transition hover:border-white/10 hover:bg-white/10 hover:text-white focus-visible:border-cyan-300/50 focus-visible:text-white focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-40 [&>svg]:h-3.5 [&>svg]:w-3.5";
+  "grid h-7 w-7 shrink-0 place-items-center rounded-lg border border-white/[0.065] bg-black/20 text-slate-500 transition hover:border-cyan-300/20 hover:bg-white/[0.055] hover:text-slate-100 focus-visible:border-cyan-300/50 focus-visible:text-white focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-35 [&>svg]:h-3.5 [&>svg]:w-3.5";
 
 const rowActionClass =
   "grid h-6 w-6 shrink-0 place-items-center rounded text-gray-500 transition hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40 [&>svg]:h-3 [&>svg]:w-3";
@@ -90,9 +90,9 @@ function WorkspaceLabel({ workspacePath }) {
   }, [workspacePath]);
 
   return (
-    <div className="flex min-w-0 items-center gap-2 px-1">
-      <FolderOpen size={13} className="shrink-0 text-purple-300" />
-      <span className="truncate text-[11px] font-bold tracking-tight text-gray-300">
+    <div className="flex min-w-0 items-center gap-2 rounded-xl border border-white/[0.055] bg-black/15 px-2 py-1">
+      <FolderOpen size={12} className="shrink-0 text-sky-300" />
+      <span className="truncate text-[11px] font-semibold tracking-tight text-slate-300">
         {label}
       </span>
     </div>
@@ -195,7 +195,7 @@ function CreationRow({ depth, type, onConfirm, onCancel }) {
         style={{ paddingLeft: `${depth * 12 + 24}px` }}
       >
         {isFolder ? (
-          <FolderPlus size={14} className="shrink-0 text-purple-300" />
+          <FolderPlus size={14} className="shrink-0 text-sky-300" />
         ) : (
           <FilePlus2 size={14} className="shrink-0 text-cyan-300" />
         )}
@@ -218,7 +218,7 @@ function StateActionButton({ icon: Icon, children, onClick, disabled = false }) 
         event.stopPropagation();
         if (!disabled) onClick?.(event);
       }}
-      className="inline-flex h-7 items-center gap-1.5 rounded-md border border-white/10 bg-white/[0.04] px-2 text-[10px] font-semibold text-gray-300 transition hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+      className="inline-flex h-7 items-center gap-1.5 rounded-lg border border-white/[0.08] bg-black/20 px-2.5 text-[10px] font-semibold text-slate-300 transition hover:border-cyan-300/20 hover:bg-white/[0.065] hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
     >
       {Icon && <Icon size={12} className="shrink-0" />}
       <span>{children}</span>
@@ -229,10 +229,10 @@ function StateActionButton({ icon: Icon, children, onClick, disabled = false }) 
 function EmptyState({ icon, title, detail, children }) {
   const Icon = icon;
   return (
-    <div className="flex h-full min-h-[190px] flex-col items-center justify-center px-5 text-center text-gray-500">
-      <Icon size={30} className={`mb-2.5 opacity-70 ${Icon === Loader2 ? "animate-spin" : ""}`} />
-      <div className="text-xs font-semibold text-gray-300">{title}</div>
-      {detail && <div className="mt-1 max-w-[220px] text-[11px] leading-4">{detail}</div>}
+    <div className="flex h-full min-h-[190px] flex-col items-center justify-center px-5 text-center text-slate-500">
+      <Icon size={28} className={`mb-2.5 opacity-70 ${Icon === Loader2 ? "animate-spin" : ""}`} />
+      <div className="text-xs font-semibold text-slate-300">{title}</div>
+      {detail && <div className="mt-1 max-w-[220px] text-[11px] leading-4 text-slate-500">{detail}</div>}
       {children && <div className="mt-3 flex flex-wrap items-center justify-center gap-2">{children}</div>}
     </div>
   );
@@ -318,8 +318,8 @@ function FileBadge({ node }) {
   const meta = getFileMeta(node.name);
   return (
     <span
-      className="ml-1 shrink-0 rounded border border-white/10 px-1.5 py-0.5 text-[9px] font-bold leading-none"
-      style={{ color: meta.color, background: `${meta.color}14` }}
+      className="ml-1 hidden shrink-0 rounded-md border border-white/[0.08] px-1.5 py-0.5 text-[9px] font-semibold leading-none opacity-70 transition-opacity group-hover:inline-flex group-hover:opacity-100 group-focus-within:inline-flex"
+      style={{ color: meta.color, background: `${meta.color}10` }}
       title={`${meta.label} / ${getFileGroupLabel(meta.group)}`}
     >
       {meta.label}
@@ -919,16 +919,19 @@ export default function FileExplorer({
   const treeLocked = isLoading || refreshing;
 
   return (
-    <div className="flex h-full w-full flex-col bg-[#060614]/20 text-gray-200">
-      <div className="nx-code-explorer-header border-b border-white/5 bg-white/[0.04] px-3 py-3">
-        <div className="nx-code-explorer-heading flex min-w-0 items-start justify-between gap-3">
+    <div className="flex h-full w-full flex-col bg-[#05070d]/40 text-gray-200">
+      <div className="nx-code-explorer-header border-b border-white/[0.055] bg-black/[0.16] px-3 py-2.5">
+        <div className="nx-code-explorer-heading flex min-w-0 items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
-            <div className="text-[10px] font-bold uppercase tracking-widest text-gray-500">
+            <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
               Explorer
             </div>
-            <div className="mt-1 flex h-4 min-w-0 items-center gap-2 text-[10px] text-gray-600">
+            <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-slate-600">
               <span className="min-w-0 truncate">
-                {model.stats.folders} folders / {model.stats.files} files / {model.stats.visibleRows} rows
+                {model.stats.files} files · {model.stats.folders} folders
+              </span>
+              <span className="shrink-0 text-slate-700">
+                {model.stats.visibleRows} rows
               </span>
               {isRefreshingTree && (
                 <span className="inline-flex shrink-0 items-center gap-1 text-cyan-200/80">
@@ -943,45 +946,53 @@ export default function FileExplorer({
               {virtualWindow.renderedRows}/{virtualWindow.totalRows}
             </span>
           )}
+          <div
+            className="flex shrink-0 items-center gap-1 rounded-xl border border-white/[0.06] bg-black/15 p-1"
+            role="toolbar"
+            aria-label="Explorer quick actions"
+          >
+            <ActionIconButton
+              title={showSearch ? "Close search" : "Search files"}
+              onClick={toggleSearch}
+            >
+              {showSearch ? <X size={16} /> : <Search size={16} />}
+            </ActionIconButton>
+            <ActionIconButton
+              title={refreshing ? "Refreshing tree" : "Refresh tree"}
+              tooltip={refreshing ? "Refreshing" : "Refresh tree"}
+              onClick={handleRefresh}
+              disabled={!hasWorkspace || isLoading || refreshing}
+            >
+              <RefreshCcw size={16} className={refreshing ? "animate-spin" : ""} />
+            </ActionIconButton>
+          </div>
         </div>
         <div className="nx-code-explorer-workspace mt-2 min-w-0">
           <WorkspaceLabel workspacePath={workspacePath} />
         </div>
         <div
-          className="nx-code-explorer-toolbar mt-3 grid grid-cols-5 justify-items-center gap-1"
+          className="nx-code-explorer-toolbar mt-2 flex items-center justify-between gap-2"
           role="toolbar"
           aria-label="Explorer actions"
         >
-          <ActionIconButton
-            title={showSearch ? "Close search" : "Search files"}
-            onClick={toggleSearch}
-          >
-            {showSearch ? <X size={16} /> : <Search size={16} />}
-          </ActionIconButton>
-          <ActionIconButton
-            title="New file"
-            tooltip="New file"
-            onClick={() => handleStartCreate("file", null)}
-            disabled={!canEditTree}
-          >
-            <FilePlus2 size={16} />
-          </ActionIconButton>
-          <ActionIconButton
-            title="New folder"
-            tooltip="New folder"
-            onClick={() => handleStartCreate("folder", null)}
-            disabled={!canEditTree}
-          >
-            <FolderPlus size={16} />
-          </ActionIconButton>
-          <ActionIconButton
-            title={refreshing ? "Refreshing tree" : "Refresh tree"}
-            tooltip={refreshing ? "Refreshing" : "Refresh tree"}
-            onClick={handleRefresh}
-            disabled={!hasWorkspace || isLoading || refreshing}
-          >
-            <RefreshCcw size={16} className={refreshing ? "animate-spin" : ""} />
-          </ActionIconButton>
+          <div className="flex min-w-0 items-center gap-1 rounded-xl border border-white/[0.06] bg-black/15 p-1">
+            <ActionIconButton
+              title="New file"
+              tooltip="New file"
+              onClick={() => handleStartCreate("file", null)}
+              disabled={!canEditTree}
+            >
+              <FilePlus2 size={16} />
+            </ActionIconButton>
+            <ActionIconButton
+              title="New folder"
+              tooltip="New folder"
+              onClick={() => handleStartCreate("folder", null)}
+              disabled={!canEditTree}
+            >
+              <FolderPlus size={16} />
+            </ActionIconButton>
+          </div>
           <ActionIconButton
             title="Collapse all folders"
             tooltip="Collapse folders"

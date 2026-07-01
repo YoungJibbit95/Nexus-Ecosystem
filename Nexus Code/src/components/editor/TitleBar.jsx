@@ -318,7 +318,7 @@ export default function TitleBar({
   const showWindowControls = !isMacOS;
   const windowControls = [
     { id: "min", label: "Minimieren", icon: Minus, color: "#f59e0b", action: safeMinimize },
-    { id: "max", label: isMaximized ? "Wiederherstellen" : "Maximieren", icon: Square, color: "#22c55e", action: safeMaximize },
+    { id: "max", label: isMaximized ? "Wiederherstellen" : "Maximieren", icon: Square, color: "#38bdf8", action: safeMaximize },
     { id: "close", label: "Schliessen", icon: X, color: "#ef4444", action: safeClose },
   ];
 

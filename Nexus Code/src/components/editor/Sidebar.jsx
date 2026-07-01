@@ -59,7 +59,7 @@ function SidebarButton({
   const accountMode = controlStatus?.mode || "offline";
   const accountTone =
     accountMode === "online"
-      ? "#22c55e"
+      ? "#38bdf8"
       : accountMode === "limited"
         ? "#f59e0b"
         : "#38bdf8";
@@ -120,8 +120,8 @@ function SidebarButton({
             width: 8,
             height: 8,
             ...dotEdgeStyle,
-            background: "#22c55e",
-            boxShadow: "0 0 8px rgba(34,197,94,0.65)",
+            background: "#38bdf8",
+            boxShadow: "0 0 8px rgba(56,189,248,0.55)",
           }}
         />
       ) : null}

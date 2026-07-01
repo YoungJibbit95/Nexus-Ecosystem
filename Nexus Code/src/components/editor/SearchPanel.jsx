@@ -24,11 +24,11 @@ import {
   searchFiles,
 } from "../../pages/editor/searchPanelModel.js";
 import {
-  PanelActionButton,
   PanelBadge,
   PanelBody,
   PanelFooter,
   PanelHeader,
+  PanelIconButton,
   PanelShell,
   PanelState,
 } from "./panels/PanelChrome.jsx";
@@ -66,15 +66,15 @@ function OptionButton({ active, onClick, title, icon: Icon, label }) {
     <button
       type="button"
       onClick={onClick}
-      className="flex min-h-8 min-w-0 items-center justify-center gap-1 rounded-xl px-2 py-1 text-[10px] font-semibold leading-tight transition-all"
+      className="flex min-h-7 min-w-0 items-center justify-center gap-1 rounded-lg px-2 py-1 text-[10px] font-semibold leading-tight transition-colors"
       style={{
         background: active
           ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.16)"
-          : "rgba(255,255,255,0.032)",
+          : "rgba(255,255,255,0.024)",
         color: active ? "var(--nexus-primary, #7c8cff)" : "#8b93a7",
         border: active
-          ? "1px solid rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.3)"
-          : "1px solid rgba(255,255,255,0.07)",
+          ? "1px solid rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.26)"
+          : "1px solid rgba(255,255,255,0.055)",
       }}
       title={title}
       aria-pressed={active}
@@ -90,14 +90,14 @@ function OptionButton({ active, onClick, title, icon: Icon, label }) {
 function ScopeInput({ label, value, onChange, placeholder }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-[9px] font-semibold uppercase text-gray-600">
+      <span className="mb-1 block text-[9px] font-semibold uppercase text-gray-500">
         {label}
       </span>
       <input
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
-        className="min-h-8 w-full rounded-xl border border-white/[0.075] bg-white/[0.035] px-2.5 py-1.5 text-[11px] leading-snug text-gray-300 outline-none placeholder:text-gray-700 focus:border-purple-400/45"
+        className="min-h-8 w-full rounded-lg border border-white/[0.06] bg-white/[0.024] px-2.5 py-1.5 text-[11px] leading-snug text-gray-300 outline-none placeholder:text-gray-700 focus:border-sky-300/35 focus:bg-white/[0.038]"
       />
     </label>
   );
@@ -109,8 +109,8 @@ function SearchState({ state, result, query, fileCount, hasScopeFilters, onReset
       <PanelState
         icon={FolderOpen}
         tone="warning"
-        title="Kein Workspace indexiert"
-        detail="Oeffne einen Ordner oder lade Dateien, damit die Suche echte Workspace-Ergebnisse liefern kann."
+        title="Workspace leer"
+        detail="Sobald Dateien im Workspace liegen, erscheinen hier echte Suchtreffer."
       />
     );
   }
@@ -142,27 +142,12 @@ function SearchState({ state, result, query, fileCount, hasScopeFilters, onReset
     return (
       <PanelState
         icon={Search}
-        title="Bereit fuer Workspace-Suche"
-        detail={`${fileCount} Dateien verfuegbar. Nutze Include/Exclude, wenn du den Scan eingrenzen willst.`}
+        title="Bereit fuer Suche"
+        detail={`${fileCount} Dateien verfuegbar. Scope-Filter bleiben optional und werden sofort angewendet.`}
         actionLabel={hasScopeFilters ? "Scopes zuruecksetzen" : undefined}
         onAction={hasScopeFilters ? onResetScopes : undefined}
         compact
-      >
-        <div className="grid grid-cols-3 gap-1.5 text-left">
-          <div className="rounded-xl border border-white/[0.06] bg-black/15 px-2 py-1.5">
-            <p className="text-[9px] font-semibold uppercase text-gray-600">Regex</p>
-            <p className="text-[10px] text-gray-400">Pattern-Suche</p>
-          </div>
-          <div className="rounded-xl border border-white/[0.06] bg-black/15 px-2 py-1.5">
-            <p className="text-[9px] font-semibold uppercase text-gray-600">Include</p>
-            <p className="text-[10px] text-gray-400">src/*.jsx</p>
-          </div>
-          <div className="rounded-xl border border-white/[0.06] bg-black/15 px-2 py-1.5">
-            <p className="text-[9px] font-semibold uppercase text-gray-600">Exclude</p>
-            <p className="text-[10px] text-gray-400">dist,node</p>
-          </div>
-        </div>
-      </PanelState>
+      />
     );
   }
 
@@ -346,31 +331,31 @@ export default function SearchPanel({ files = [], onFileSelect }) {
     <PanelShell ariaLabel="Search">
       <PanelHeader
         icon={Search}
-        title="Workspace Search"
+        title="Search"
         subtitle={
           hasWorkspace
-            ? `${searchableFileCount} Dateien im Workspace`
-            : "Workspace-Suche wartet auf Dateien"
+            ? `${searchableFileCount} Dateien`
+            : "Wartet auf Workspace-Dateien"
         }
         status={
           !hasWorkspace ? (
-            <PanelBadge tone="warning">Idle</PanelBadge>
+            <PanelBadge tone="warning">Leer</PanelBadge>
           ) : appliedQuery ? (
             <PanelBadge tone={isLoading ? "accent" : "muted"}>
-              {isLoading ? "..." : totalLabel}
+              {isLoading ? "Suche" : totalLabel}
             </PanelBadge>
           ) : null
         }
       >
         <form onSubmit={submitSearch} className="space-y-2">
           <div
-            className="flex min-h-9 items-center gap-1.5 rounded-xl px-2.5 py-1.5"
+            className="flex min-h-9 items-center gap-1.5 rounded-lg px-2.5 py-1.5"
             style={{
               background:
-                "linear-gradient(180deg, rgba(255,255,255,0.058), rgba(255,255,255,0.028))",
+                "linear-gradient(180deg, rgba(255,255,255,0.042), rgba(255,255,255,0.018))",
               border: draft.query
-                ? "1px solid rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.34)"
-                : "1px solid rgba(255,255,255,0.07)",
+                ? "1px solid rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.3)"
+                : "1px solid rgba(255,255,255,0.06)",
               transition: "border-color 0.2s ease",
             }}
           >
@@ -390,10 +375,10 @@ export default function SearchPanel({ files = [], onFileSelect }) {
                 whileHover={{ scale: 1.12 }}
                 whileTap={{ scale: 0.92 }}
                 onClick={clearSearch}
-                className="shrink-0 rounded-lg p-1 hover:bg-white/10"
+                className="shrink-0 rounded-md p-1 text-gray-500 hover:bg-white/[0.07] hover:text-gray-300"
                 title="Suche leeren"
               >
-                <X size={11} className="text-gray-500" />
+                <X size={11} />
               </motion.button>
             )}
           </div>
@@ -440,36 +425,36 @@ export default function SearchPanel({ files = [], onFileSelect }) {
       <PanelBody>
         {showResults && (
           <div
-            className="sticky top-0 z-10 mx-2 mt-2 rounded-2xl border px-3 py-2 backdrop-blur-md"
+            className="sticky top-0 z-10 mx-2 mt-2 rounded-xl border px-3 py-2 backdrop-blur-md"
             style={{
               background:
-                "linear-gradient(180deg, rgba(10,13,27,0.96), rgba(8,10,22,0.9))",
-              borderColor: "rgba(255,255,255,0.065)",
+                "linear-gradient(180deg, rgba(8,11,20,0.96), rgba(5,7,14,0.91))",
+              borderColor: "rgba(255,255,255,0.055)",
             }}
           >
-            <div className="mb-2 flex min-w-0 items-center justify-between gap-2">
+            <div className="flex min-w-0 items-center justify-between gap-2">
               <div className="min-w-0">
-                <p className="truncate text-[11px] font-semibold text-gray-300">
+                <p className="break-words text-[11px] font-semibold text-gray-300" style={{ overflowWrap: "anywhere" }}>
                   {totalLabel} Treffer in {result.matchedFiles} Dateien
                 </p>
-                <p className="truncate text-[10px] text-gray-600">
+                <p className="break-words text-[10px] text-gray-600" style={{ overflowWrap: "anywhere" }}>
                   {result.scannedFiles} gescannt, {result.skippedFiles} uebersprungen
                 </p>
               </div>
-              {result.matchLimitReached ? (
-                <PanelBadge tone="warning">limitiert</PanelBadge>
-              ) : null}
-            </div>
-            <div className="grid grid-cols-3 gap-1.5">
-              <PanelActionButton icon={FileSearch} onClick={openFirstResult} tone="accent">
-                Erster
-              </PanelActionButton>
-              <PanelActionButton icon={Minimize2} onClick={collapseAll}>
-                Klappen
-              </PanelActionButton>
-              <PanelActionButton icon={Maximize2} onClick={expandAll}>
-                Oeffnen
-              </PanelActionButton>
+              <div className="flex shrink-0 items-center gap-1">
+                {result.matchLimitReached ? (
+                  <PanelBadge tone="warning">Limit</PanelBadge>
+                ) : null}
+                <PanelIconButton label="Ersten Treffer oeffnen" onClick={openFirstResult} active>
+                  <FileSearch />
+                </PanelIconButton>
+                <PanelIconButton label="Alle Ergebnisgruppen einklappen" onClick={collapseAll}>
+                  <Minimize2 />
+                </PanelIconButton>
+                <PanelIconButton label="Alle Ergebnisgruppen oeffnen" onClick={expandAll}>
+                  <Maximize2 />
+                </PanelIconButton>
+              </div>
             </div>
           </div>
         )}
@@ -488,12 +473,12 @@ export default function SearchPanel({ files = [], onFileSelect }) {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, height: 0 }}
                   transition={{ delay: Math.min(index * 0.025, 0.16), duration: 0.18 }}
-                  className="mx-2 mt-1 overflow-hidden rounded-xl border border-white/[0.045] bg-white/[0.018]"
+                  className="mx-2 mt-1 overflow-hidden rounded-xl border border-white/[0.045] bg-white/[0.014]"
                 >
                   <button
                     type="button"
                     onClick={() => toggleCollapse(group.fileId)}
-                    className="group flex w-full items-center gap-1.5 px-3 py-2 text-left transition-colors hover:bg-white/[0.045]"
+                    className="group flex w-full items-center gap-1.5 px-3 py-2 text-left transition-colors hover:bg-white/[0.038]"
                   >
                     <motion.div
                       animate={{ rotate: isCollapsed ? -90 : 0 }}
@@ -516,14 +501,14 @@ export default function SearchPanel({ files = [], onFileSelect }) {
                         {group.fileName}
                       </span>
                       {group.path && group.path !== group.fileName && (
-                        <span className="block truncate text-[10px] text-gray-600">
+                        <span className="block break-words text-[10px] leading-snug text-gray-600" style={{ overflowWrap: "anywhere" }}>
                           {group.path}
                         </span>
                       )}
                     </span>
                     <button
                       type="button"
-                      className="shrink-0 rounded-lg p-1 text-gray-600 opacity-0 transition-opacity hover:bg-white/[0.07] hover:text-purple-200 group-hover:opacity-100"
+                      className="shrink-0 rounded-md p-1 text-gray-600 opacity-0 transition-opacity hover:bg-white/[0.07] hover:text-sky-200 group-hover:opacity-100"
                       title="Datei oeffnen"
                       onClick={(event) => {
                         event.stopPropagation();
@@ -535,8 +520,8 @@ export default function SearchPanel({ files = [], onFileSelect }) {
                     <span
                       className="shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold"
                       style={{
-                        background: "rgba(128,0,255,0.15)",
-                        color: "#a855f7",
+                        background: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.14)",
+                        color: "var(--nexus-primary, #7c8cff)",
                       }}
                     >
                       {group.perFileLimitReached
@@ -557,7 +542,7 @@ export default function SearchPanel({ files = [], onFileSelect }) {
                         {group.matches.map((match, matchIndex) => (
                           <div
                             key={`${match.lineNumber}:${match.column}:${matchIndex}`}
-                            className="group flex items-start gap-1 px-2 py-1 transition-colors hover:bg-purple-500/[0.07]"
+                            className="group flex items-start gap-1 px-2 py-1 transition-colors hover:bg-sky-400/[0.055]"
                           >
                             <button
                               type="button"
@@ -595,7 +580,7 @@ export default function SearchPanel({ files = [], onFileSelect }) {
                             onClick={() => onFileSelect?.(group.fileId)}
                             className="w-full px-16 py-1 text-left transition-colors hover:bg-white/5"
                           >
-                            <span className="text-[10px] text-purple-400/70">
+                            <span className="text-[10px] text-sky-300/75">
                               + {group.totalMatches - group.matches.length} weitere Treffer
                             </span>
                           </button>
@@ -623,7 +608,9 @@ export default function SearchPanel({ files = [], onFileSelect }) {
       {(appliedQuery || result.warnings.length > 0) && (
         <PanelFooter>
           <div className="flex items-center justify-between gap-2">
-            <span className="truncate text-[10px] text-gray-600">{footerText}</span>
+            <span className="min-w-0 break-words text-[10px] text-gray-600" style={{ overflowWrap: "anywhere" }}>
+              {footerText}
+            </span>
             {result.durationMs > 0 && (
               <span className="shrink-0 text-[10px] text-gray-700">
                 {result.durationMs} ms
@@ -633,7 +620,7 @@ export default function SearchPanel({ files = [], onFileSelect }) {
           {result.warnings.length > 0 && (
             <div className="mt-1 space-y-0.5">
               {result.warnings.slice(0, 2).map((warning) => (
-                <div key={warning} className="truncate text-[10px] text-amber-300/70">
+                <div key={warning} className="break-words text-[10px] text-amber-300/70" style={{ overflowWrap: "anywhere" }}>
                   {warning}
                 </div>
               ))}
@@ -643,7 +630,7 @@ export default function SearchPanel({ files = [], onFileSelect }) {
             <button
               type="button"
               onClick={resetScopes}
-              className="mt-1 flex items-center gap-1 text-[10px] font-semibold text-purple-300/80 hover:text-purple-200"
+              className="mt-1 flex items-center gap-1 text-[10px] font-semibold text-sky-300/80 hover:text-sky-200"
             >
               <RotateCcw size={10} />
               Include/Exclude zuruecksetzen

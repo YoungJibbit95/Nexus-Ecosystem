@@ -27,7 +27,6 @@ import {
   PanelBody,
   PanelFooter,
   PanelHeader,
-  PanelMetric,
   PanelNotice,
   PanelSection,
   PanelShell,
@@ -70,7 +69,7 @@ const CONSOLE_STYLES = {
   info: { color: "#60a5fa", icon: Info },
   warn: { color: "#fbbf24", icon: AlertTriangle },
   error: { color: "#f87171", icon: AlertTriangle },
-  output: { color: "#86efac", icon: null },
+  output: { color: "#67e8f9", icon: null },
   input: { color: "#c084fc", icon: null },
 };
 
@@ -91,9 +90,9 @@ function DebugButton({ children, onClick, disabled, tone = "muted", title }) {
     tone === "run"
       ? {
           color: "#ffffff",
-          background: "linear-gradient(135deg, #8000ff, #0033ff)",
-          border: "rgba(168,85,247,0.38)",
-          shadow: "0 0 14px rgba(128,0,255,0.26)",
+          background: "linear-gradient(135deg, var(--nexus-primary, #7c8cff), #38bdf8)",
+          border: "rgba(125,140,255,0.34)",
+          shadow: "0 0 14px rgba(56,189,248,0.18)",
         }
       : tone === "stop"
         ? {
@@ -104,9 +103,9 @@ function DebugButton({ children, onClick, disabled, tone = "muted", title }) {
           }
         : tone === "continue"
           ? {
-              color: "#86efac",
-              background: "rgba(34,197,94,0.1)",
-              border: "rgba(34,197,94,0.22)",
+              color: "#67e8f9",
+              background: "rgba(34,211,238,0.09)",
+              border: "rgba(34,211,238,0.2)",
               shadow: "none",
             }
           : {
@@ -124,7 +123,7 @@ function DebugButton({ children, onClick, disabled, tone = "muted", title }) {
       onClick={onClick}
       disabled={disabled}
       title={title}
-      className="flex h-8 min-w-0 items-center justify-center gap-1.5 rounded-md border px-2 text-[11px] font-semibold transition-opacity disabled:cursor-not-allowed disabled:opacity-45"
+      className="flex min-h-8 min-w-0 flex-wrap items-center justify-center gap-1.5 rounded-md border px-2 py-1 text-[11px] font-semibold leading-tight transition-opacity disabled:cursor-not-allowed disabled:opacity-45"
       style={{
         color: styles.color,
         background: styles.background,
@@ -432,7 +431,7 @@ export default function DebugPanel({ activeFile, _code, problems = [] }) {
     : isPaused
       ? "warning"
       : isRunning
-        ? "success"
+        ? "accent"
         : firstSyntaxError
           ? "danger"
           : "muted";
@@ -445,10 +444,12 @@ export default function DebugPanel({ activeFile, _code, problems = [] }) {
         subtitle={`${selectedConfig.label} - ${activeFileName}`}
         status={<PanelBadge tone={statusTone}>{statusLabel}</PanelBadge>}
       >
-        <div className="grid grid-cols-3 gap-1.5">
-          <PanelMetric label="Breakpoints" value={breakpoints.length} tone={breakpoints.length ? "danger" : "muted"} />
-          <PanelMetric label="Watches" value={watches.length} tone={watches.length ? "accent" : "muted"} />
-          <PanelMetric label="Errors" value={syntaxErrors.length} tone={syntaxErrors.length ? "danger" : "success"} />
+        <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-white/[0.055] bg-black/15 px-2.5 py-1.5 text-[10px] text-gray-500">
+          <span>{breakpoints.length} BP</span>
+          <span>{watches.length} watches</span>
+          <span className={syntaxErrors.length ? "text-red-300/80" : "text-sky-300/80"}>
+            {syntaxErrors.length} errors
+          </span>
         </div>
       </PanelHeader>
 
@@ -594,13 +595,13 @@ export default function DebugPanel({ activeFile, _code, problems = [] }) {
                 <span
                   className="h-2 w-2 shrink-0 rounded-full"
                   style={{
-                    background: isRunning ? (isPaused ? "#fbbf24" : "#22c55e") : "#4b5563",
+                    background: isRunning ? (isPaused ? "#fbbf24" : "#38bdf8") : "#4b5563",
                     boxShadow: isRunning
-                      ? `0 0 8px ${isPaused ? "rgba(251,191,36,0.4)" : "rgba(34,197,94,0.4)"}`
+                      ? `0 0 8px ${isPaused ? "rgba(251,191,36,0.4)" : "rgba(56,189,248,0.34)"}`
                       : "none",
                   }}
                 />
-                <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-gray-300">
+                <span className="min-w-0 flex-1 break-words font-mono text-[11px] text-gray-300" style={{ overflowWrap: "anywhere" }}>
                   {activeFileName}
                 </span>
                 <span className="shrink-0 rounded bg-white/[0.05] px-1.5 py-0.5 text-[10px] text-gray-500">
@@ -622,7 +623,7 @@ export default function DebugPanel({ activeFile, _code, problems = [] }) {
                     <p className="text-[11px] font-semibold text-red-100">
                       Fehler bei Zeile {firstSyntaxError.startLineNumber}
                     </p>
-                    <p className="mt-0.5 truncate text-[10px] text-red-200/80">
+                    <p className="mt-0.5 break-words text-[10px] text-red-200/80" style={{ overflowWrap: "anywhere" }}>
                       {firstSyntaxError.message}
                     </p>
                   </div>
@@ -655,8 +656,10 @@ export default function DebugPanel({ activeFile, _code, problems = [] }) {
                     className="group flex min-w-0 items-center gap-2 px-3 py-1.5 transition-colors hover:bg-white/[0.035]"
                   >
                     <TypeBadge type={item.type} />
-                    <span className="shrink-0 font-mono text-xs text-gray-300">{item.name}</span>
-                    <span className="min-w-0 flex-1 truncate text-right font-mono text-xs text-gray-500">
+                    <span className="min-w-0 max-w-[45%] break-words font-mono text-xs text-gray-300" style={{ overflowWrap: "anywhere" }}>
+                      {item.name}
+                    </span>
+                    <span className="min-w-0 flex-1 break-words text-right font-mono text-xs text-gray-500" style={{ overflowWrap: "anywhere" }}>
                       {item.value}
                     </span>
                     {item.watch ? (
@@ -738,10 +741,10 @@ export default function DebugPanel({ activeFile, _code, problems = [] }) {
                     style={{ background: frame.active ? "#a855f7" : "#4b5563" }}
                   />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate font-mono text-xs" style={{ color: frame.active ? "#d8b4fe" : "#9ca3af" }}>
+                    <p className="break-words font-mono text-xs" style={{ color: frame.active ? "#d8b4fe" : "#9ca3af", overflowWrap: "anywhere" }}>
                       {frame.fn}
                     </p>
-                    <p className="truncate text-[10px] text-gray-600">
+                    <p className="break-words text-[10px] text-gray-600" style={{ overflowWrap: "anywhere" }}>
                       {frame.file}:{frame.line}
                     </p>
                   </div>
@@ -773,7 +776,7 @@ export default function DebugPanel({ activeFile, _code, problems = [] }) {
                     className="group flex min-w-0 items-center gap-2 px-3 py-1.5 transition-colors hover:bg-white/[0.035]"
                   >
                     <span className="h-2 w-2 shrink-0 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.35)]" />
-                    <span className="min-w-0 flex-1 truncate font-mono text-xs text-gray-300">
+                    <span className="min-w-0 flex-1 break-words font-mono text-xs text-gray-300" style={{ overflowWrap: "anywhere" }}>
                       {activeFile?.name || "current file"}:{line}
                     </span>
                     <button
@@ -889,9 +892,9 @@ export default function DebugPanel({ activeFile, _code, problems = [] }) {
         <div className="flex min-w-0 items-center gap-2 text-[10px] text-gray-500">
           <span
             className="h-1.5 w-1.5 shrink-0 rounded-full"
-            style={{ background: isRunning ? (isPaused ? "#fbbf24" : "#22c55e") : "#4b5563" }}
+            style={{ background: isRunning ? (isPaused ? "#fbbf24" : "#38bdf8") : "#4b5563" }}
           />
-          <span className="min-w-0 flex-1 truncate">
+          <span className="min-w-0 flex-1 break-words" style={{ overflowWrap: "anywhere" }}>
             {!isRunning ? "Debugger ready" : isPaused ? `Paused at line ${pausedLine ?? "?"}` : "Running"}
           </span>
           {breakpoints.length > 0 ? (

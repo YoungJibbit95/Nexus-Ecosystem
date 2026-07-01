@@ -10,6 +10,18 @@ import {
 
 const EMPTY_EXTENSION_COMMANDS = Object.freeze([]);
 const PAGE_STEP = 6;
+const EMPTY_STATE_SUGGESTIONS = Object.freeze([
+  "git",
+  "problems",
+  "terminal",
+  "extensions",
+  "settings",
+  "search",
+]);
+
+function getActionCountLabel(count) {
+  return count === 1 ? "1 Aktion" : `${count} Aktionen`;
+}
 
 function KeyboardHint({ label }) {
   return (
@@ -22,10 +34,57 @@ function KeyboardHint({ label }) {
 function MetaChip({ className = "", children }) {
   return (
     <span
-      className={`rounded-md border px-2 py-1 text-[10px] ${className}`}
+      className={`rounded-md border px-2 py-1 text-[10px] leading-none ${className}`}
     >
       {children}
     </span>
+  );
+}
+
+function SuggestionButton({ label, onPick }) {
+  return (
+    <button
+      type="button"
+      onMouseDown={(event) => event.preventDefault()}
+      onClick={() => onPick(label)}
+      className="rounded-md border border-white/10 bg-white/[0.04] px-2.5 py-1.5 text-[11px] font-medium text-gray-300 transition-colors hover:border-sky-300/30 hover:bg-sky-300/10 hover:text-sky-100"
+    >
+      {label}
+    </button>
+  );
+}
+
+function EmptyState({ query, onPickSuggestion }) {
+  const normalizedQuery = normalizeSearchValue(query);
+  return (
+    <div className="flex min-h-[240px] flex-col items-center justify-center gap-4 rounded-xl border border-dashed border-white/10 bg-white/[0.025] px-6 py-8 text-center">
+      <div className="flex size-12 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-gray-500">
+        <Search size={22} />
+      </div>
+      <div className="max-w-md">
+        <div className="text-sm font-semibold text-gray-200">
+          {normalizedQuery
+            ? `Keine Aktionen fuer "${query.trim()}"`
+            : "Keine Command Registry geladen"}
+        </div>
+        <div className="mt-1 text-xs leading-5 text-gray-500">
+          {normalizedQuery
+            ? "Versuche eine IDE-Kategorie, Action-ID oder ein kuerzeres Stichwort."
+            : "Sobald Core- oder Extension-Commands registriert sind, erscheinen sie hier."}
+        </div>
+      </div>
+      {normalizedQuery ? (
+        <div className="flex max-w-md flex-wrap items-center justify-center gap-2">
+          {EMPTY_STATE_SUGGESTIONS.map((suggestion) => (
+            <SuggestionButton
+              key={suggestion}
+              label={suggestion}
+              onPick={onPickSuggestion}
+            />
+          ))}
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -85,6 +144,12 @@ export default function CommandPalette({
     setSelectedIndex((prev) => (prev + delta + filtered.length) % filtered.length);
   };
 
+  const pickSuggestion = (value) => {
+    setQuery(value);
+    setSelectedIndex(0);
+    window.requestAnimationFrame(() => inputRef.current?.focus());
+  };
+
   const runCommand = (command) => {
     if (!command) return;
     onAction?.(command.actionId || command.id);
@@ -142,7 +207,7 @@ export default function CommandPalette({
               damping: 32,
               mass: 0.82,
             }}
-            className="fixed left-1/2 top-[12%] z-[1000] w-[min(48rem,calc(100vw-1.5rem))] overflow-hidden rounded-2xl border border-white/10 bg-[#080b14]/95 shadow-[0_28px_80px_rgba(0,0,0,0.5)] backdrop-blur-2xl"
+            className="fixed left-1/2 top-[12%] z-[1000] w-[min(50rem,calc(100vw-1.5rem))] overflow-hidden rounded-xl border border-white/10 bg-[#080b14]/95 shadow-[0_28px_80px_rgba(0,0,0,0.5)] backdrop-blur-2xl"
             role="dialog"
             aria-modal="true"
             aria-label="Command Palette"
@@ -168,10 +233,10 @@ export default function CommandPalette({
                     filtered[selectedIndex] ? `command-palette-${filtered[selectedIndex].id}` : undefined
                   }
                 />
-                <div className="mt-1 flex items-center gap-2 text-[11px] text-gray-500">
-                  <span>{filtered.length} Commands</span>
+                <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-gray-500">
+                  <span>{getActionCountLabel(filtered.length)}</span>
                   {normalizedQuery && selectedCommand?.matchReason ? (
-                    <span>{selectedCommand.matchReason} match</span>
+                    <span>Treffer ueber {selectedCommand.matchReason}</span>
                   ) : null}
                 </div>
               </div>
@@ -189,13 +254,16 @@ export default function CommandPalette({
                     const GroupIcon = group.icon;
                     return (
                       <section key={group.id} className="space-y-1.5">
-                        <div className="flex items-center gap-2 px-2 py-1">
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 px-2 py-1">
                           <span className={`size-1.5 rounded-full ${group.tone.dot}`} />
                           <GroupIcon size={13} className={group.tone.text} />
                           <span className="text-[11px] font-bold uppercase tracking-[0.22em] text-gray-500">
                             {group.label}
                           </span>
-                          <span className="truncate text-[11px] text-gray-600">
+                          <span className="rounded-md border border-white/10 bg-white/[0.03] px-1.5 py-0.5 text-[10px] leading-none text-gray-500">
+                            {group.items.length}
+                          </span>
+                          <span className="min-w-[12rem] flex-1 text-[11px] leading-4 text-gray-600">
                             {group.description}
                           </span>
                         </div>
@@ -206,6 +274,9 @@ export default function CommandPalette({
                             const active = index === selectedIndex;
                             const showMatchReason = Boolean(
                               normalizedQuery && command.matchReason,
+                            );
+                            const showFrequent = Boolean(
+                              !normalizedQuery && command.isFrequent,
                             );
                             visibleIndex += 1;
 
@@ -222,7 +293,7 @@ export default function CommandPalette({
                                 onMouseDown={(event) => event.preventDefault()}
                                 onMouseEnter={() => setSelectedIndex(index)}
                                 onClick={() => runCommand(command)}
-                                className={`grid min-h-[58px] w-full grid-cols-[2.75rem_minmax(0,1fr)_auto] items-center gap-3 rounded-xl border px-3 text-left transition-all ${
+                                className={`grid min-h-[64px] w-full grid-cols-[2.5rem_minmax(0,1fr)] items-center gap-x-3 gap-y-2 rounded-lg border px-3 py-2.5 text-left transition-all sm:grid-cols-[2.75rem_minmax(0,1fr)_minmax(7rem,auto)] ${
                                   active
                                     ? `${command.tone.active} border-white/15 text-white shadow-[0_12px_30px_rgba(0,0,0,0.22)]`
                                     : "border-transparent text-gray-400 hover:border-white/10 hover:bg-white/[0.045] hover:text-gray-200"
@@ -242,14 +313,19 @@ export default function CommandPalette({
                                   <Icon size={17} />
                                 </span>
                                 <span className="min-w-0">
-                                  <span className="block truncate text-sm font-semibold">
+                                  <span className="block break-words text-sm font-semibold leading-5">
                                     {command.label}
                                   </span>
-                                  <span className="mt-0.5 block truncate text-xs text-gray-500">
+                                  <span className="mt-1 block break-words text-xs leading-5 text-gray-500">
                                     {command.description}
                                   </span>
                                 </span>
-                                <span className="flex min-w-[6.25rem] justify-end gap-1">
+                                <span className="col-start-2 flex min-w-0 flex-wrap items-center justify-start gap-1 sm:col-start-auto sm:justify-end">
+                                  {showFrequent ? (
+                                    <MetaChip className="border-sky-300/15 bg-sky-300/10 text-sky-100">
+                                      Haeufig
+                                    </MetaChip>
+                                  ) : null}
                                   {showMatchReason ? (
                                     <MetaChip className="border-white/10 bg-white/[0.035] text-gray-400">
                                       {command.matchReason}
@@ -274,25 +350,12 @@ export default function CommandPalette({
                   })}
                 </div>
               ) : (
-                <div className="flex min-h-[220px] flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-white/10 bg-white/[0.025] px-6 text-center">
-                  <div className="flex size-12 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-gray-500">
-                    <Search size={22} />
-                  </div>
-                  <div>
-                    <div className="text-sm font-semibold text-gray-300">
-                      Kein Command gefunden
-                    </div>
-                    <div className="mt-1 max-w-sm text-xs leading-5 text-gray-500">
-                      Pruefe Schreibweise, Action-ID oder Kategorie. Extension-Commands koennen
-                      dieselbe Registry nutzen.
-                    </div>
-                  </div>
-                </div>
+                <EmptyState query={query} onPickSuggestion={pickSuggestion} />
               )}
             </div>
 
-            <div className="flex items-center justify-between border-t border-white/10 bg-black/20 px-5 py-3 text-[11px] text-gray-500">
-              <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/10 bg-black/20 px-5 py-3 text-[11px] text-gray-500">
+              <div className="flex flex-wrap items-center gap-2">
                 <KeyboardHint label="Up" />
                 <KeyboardHint label="Down" />
                 <span>Navigieren</span>
@@ -301,7 +364,7 @@ export default function CommandPalette({
               </div>
               <div className="flex min-w-0 items-center gap-2">
                 {selectedCommand ? (
-                  <span className="max-w-[18rem] truncate text-gray-400">
+                  <span className="max-w-full break-words text-right text-gray-400">
                     {selectedCommand.categoryMeta.label}
                     {selectedCommand.matchReason ? ` / ${selectedCommand.matchReason}` : ""}
                     {selectedCommand.shortcut ? ` / ${selectedCommand.shortcut}` : ""}

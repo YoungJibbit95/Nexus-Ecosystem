@@ -85,32 +85,32 @@ const CATEGORY_TONE_BY_ID = Object.freeze({
     active: "border-sky-300/25 bg-sky-300/10",
   }),
   symbols: Object.freeze({
-    dot: "bg-fuchsia-300",
-    text: "text-fuchsia-200",
-    chip: "border-fuchsia-300/20 bg-fuchsia-300/10 text-fuchsia-100",
-    icon: "border-fuchsia-300/15 bg-fuchsia-300/10 text-fuchsia-200",
-    active: "border-fuchsia-300/25 bg-fuchsia-300/10",
+    dot: "bg-violet-300",
+    text: "text-violet-200",
+    chip: "border-violet-300/20 bg-violet-300/10 text-violet-100",
+    icon: "border-violet-300/15 bg-violet-300/10 text-violet-200",
+    active: "border-violet-300/25 bg-violet-300/10",
   }),
   "source-control": Object.freeze({
-    dot: "bg-amber-300",
-    text: "text-amber-200",
-    chip: "border-amber-300/20 bg-amber-300/10 text-amber-100",
-    icon: "border-amber-300/15 bg-amber-300/10 text-amber-200",
-    active: "border-amber-300/25 bg-amber-300/10",
+    dot: "bg-sky-300",
+    text: "text-sky-200",
+    chip: "border-sky-300/20 bg-sky-300/10 text-sky-100",
+    icon: "border-sky-300/15 bg-sky-300/10 text-sky-200",
+    active: "border-sky-300/25 bg-sky-300/10",
   }),
   diagnostics: Object.freeze({
-    dot: "bg-rose-300",
-    text: "text-rose-200",
-    chip: "border-rose-300/20 bg-rose-300/10 text-rose-100",
-    icon: "border-rose-300/15 bg-rose-300/10 text-rose-200",
-    active: "border-rose-300/25 bg-rose-300/10",
+    dot: "bg-violet-300",
+    text: "text-violet-200",
+    chip: "border-violet-300/20 bg-violet-300/10 text-violet-100",
+    icon: "border-violet-300/15 bg-violet-300/10 text-violet-200",
+    active: "border-violet-300/25 bg-violet-300/10",
   }),
   terminal: Object.freeze({
-    dot: "bg-blue-300",
-    text: "text-blue-200",
-    chip: "border-blue-300/20 bg-blue-300/10 text-blue-100",
-    icon: "border-blue-300/15 bg-blue-300/10 text-blue-200",
-    active: "border-blue-300/25 bg-blue-300/10",
+    dot: "bg-cyan-300",
+    text: "text-cyan-200",
+    chip: "border-cyan-300/20 bg-cyan-300/10 text-cyan-100",
+    icon: "border-cyan-300/15 bg-cyan-300/10 text-cyan-200",
+    active: "border-cyan-300/25 bg-cyan-300/10",
   }),
   layout: Object.freeze({
     dot: "bg-violet-300",
@@ -127,11 +127,11 @@ const CATEGORY_TONE_BY_ID = Object.freeze({
     active: "border-cyan-300/25 bg-cyan-300/10",
   }),
   preferences: Object.freeze({
-    dot: "bg-slate-300",
-    text: "text-slate-200",
-    chip: "border-slate-300/20 bg-slate-300/10 text-slate-100",
-    icon: "border-slate-300/15 bg-slate-300/10 text-slate-200",
-    active: "border-slate-300/25 bg-slate-300/10",
+    dot: "bg-sky-300",
+    text: "text-sky-200",
+    chip: "border-sky-300/20 bg-sky-300/10 text-sky-100",
+    icon: "border-sky-300/15 bg-sky-300/10 text-sky-200",
+    active: "border-sky-300/25 bg-sky-300/10",
   }),
   files: Object.freeze({
     dot: "bg-sky-300",
@@ -153,11 +153,84 @@ const SYMBOL_CATEGORY = Object.freeze({
   id: "symbols",
   label: "Symbole",
   description: "Funktionen, Klassen und Headings",
-  tone: "fuchsia",
+  tone: "violet",
 });
 const SYMBOL_QUERY_PREFIX = /^@+/;
 const SYMBOL_SCAN_FILE_LIMIT = 48;
 const SYMBOL_SCAN_PER_FILE_LIMIT = 80;
+const FREQUENT_COMMAND_IDS = Object.freeze(
+  new Set([
+    "open-search",
+    "github-sync",
+    "open-problems",
+    "toggle-terminal",
+    "terminal-task-runner",
+    "open-extensions",
+    "open-settings",
+  ]),
+);
+const COMMAND_INTENT_ALIASES = Object.freeze({
+  "source-control": Object.freeze([
+    "git",
+    "github",
+    "scm",
+    "sourcecontrol",
+    "changes",
+    "branch",
+    "commit",
+    "pull",
+    "push",
+  ]),
+  diagnostics: Object.freeze([
+    "problems",
+    "problem",
+    "diagnostics",
+    "diagnose",
+    "errors",
+    "warnings",
+    "lint",
+    "ts",
+    "typescript",
+  ]),
+  terminal: Object.freeze([
+    "terminal",
+    "shell",
+    "console",
+    "cli",
+    "task",
+    "tasks",
+    "script",
+    "scripts",
+    "npm",
+  ]),
+  extensions: Object.freeze([
+    "extensions",
+    "extension",
+    "plugins",
+    "marketplace",
+    "prettier",
+    "eslint",
+    "language",
+  ]),
+  navigation: Object.freeze([
+    "search",
+    "find",
+    "suche",
+    "goto",
+    "go",
+    "workspace",
+    "symbols",
+  ]),
+  preferences: Object.freeze([
+    "settings",
+    "setting",
+    "preferences",
+    "config",
+    "options",
+    "optionen",
+    "keyboard",
+  ]),
+});
 
 function resolveCategoryTone(categoryId) {
   return CATEGORY_TONE_BY_ID[categoryId] || DEFAULT_TONE;
@@ -209,6 +282,10 @@ function getCommandIcon(command) {
   );
 }
 
+function isFrequentCommand(command) {
+  return Boolean(command?.favorite) || FREQUENT_COMMAND_IDS.has(command?.id);
+}
+
 export function getEditorCommandPaletteCommands({
   extensionCommands = [],
   surface = "palette",
@@ -222,6 +299,7 @@ export function getEditorCommandPaletteCommands({
         icon: getCommandIcon(command),
         categoryMeta,
         tone: resolveCategoryTone(categoryMeta.id),
+        isFrequent: isFrequentCommand(command),
       };
     });
 }
@@ -285,9 +363,36 @@ function fieldMatchesToken(fields, token) {
   );
 }
 
+function scoreCommandIntent(command, tokens, normalizedQuery) {
+  const aliases = COMMAND_INTENT_ALIASES[command.category] || [];
+  if (!aliases.length) return 0;
+  const compactQuery = compactSearchValue(normalizedQuery);
+  let score = 0;
+  tokens.forEach((token) => {
+    const compactToken = compactSearchValue(token);
+    if (
+      aliases.some((alias) => {
+        const compactAlias = compactSearchValue(alias);
+        return (
+          compactAlias === compactToken ||
+          compactAlias.startsWith(compactToken) ||
+          compactToken.startsWith(compactAlias)
+        );
+      })
+    ) {
+      score += 34;
+    }
+  });
+  if (aliases.some((alias) => compactSearchValue(alias) === compactQuery)) {
+    score += 26;
+  }
+  return score + (isFrequentCommand(command) ? 8 : 0);
+}
+
 function scoreCommand(command, query, index) {
   const normalizedQuery = normalizeSearchValue(query);
-  const baseScore = Number(command.priority || 0) - index / 100;
+  const baseScore =
+    Number(command.priority || 0) + (isFrequentCommand(command) ? 4 : 0) - index / 100;
   if (!normalizedQuery) return baseScore;
 
   const tokens = tokenizeQuery(query);
@@ -311,6 +416,7 @@ function scoreCommand(command, query, index) {
   if (!tokens.every((token) => fieldMatchesToken(searchableFields, token))) return null;
 
   let score = baseScore;
+  score += scoreCommandIntent(command, tokens, normalizedQuery);
   score += scoreFuzzyField(label, normalizedQuery, {
     exact: 220,
     prefix: 170,

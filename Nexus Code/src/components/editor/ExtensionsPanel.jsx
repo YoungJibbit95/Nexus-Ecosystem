@@ -7,7 +7,6 @@ import {
   ChevronDown,
   Clipboard,
   Command,
-  Database,
   Download,
   Eye,
   FileJson2,
@@ -50,7 +49,6 @@ import {
   PanelBody,
   PanelFooter,
   PanelHeader,
-  PanelMetric,
   PanelShell,
   PanelState,
 } from "./panels/PanelChrome.jsx";
@@ -131,7 +129,7 @@ function SegmentButton({ active, children, onClick }) {
     <button
       type="button"
       onClick={onClick}
-      className="relative h-7 rounded-md px-2 text-[11px] font-semibold outline-none transition-colors focus-visible:ring-2 focus-visible:ring-purple-500/60"
+      className="relative h-7 min-w-0 flex-1 rounded-md px-2 text-[11px] font-semibold outline-none transition-colors focus-visible:ring-2 focus-visible:ring-sky-400/50"
       style={{
         color: active ? "var(--nexus-text)" : "var(--nexus-muted)",
       }}
@@ -146,7 +144,9 @@ function SegmentButton({ active, children, onClick }) {
           }}
         />
       ) : null}
-      <span className="relative z-10">{children}</span>
+      <span className="relative z-10 block min-w-0 break-words leading-tight" style={{ overflowWrap: "anywhere" }}>
+        {children}
+      </span>
     </button>
   );
 }
@@ -193,11 +193,13 @@ function SystemMessage({ message }) {
         className={`mt-0.5 shrink-0 ${tone.icon}`}
       />
       <div className="min-w-0">
-        <p className={`truncate text-[10px] font-semibold ${tone.text}`}>
+        <p className={`break-words text-[10px] font-semibold ${tone.text}`} style={{ overflowWrap: "anywhere" }}>
           {message.message}
         </p>
         {message.detail ? (
-          <p className="truncate text-[10px] text-[var(--nexus-muted)]">{message.detail}</p>
+          <p className="break-words text-[10px] text-[var(--nexus-muted)]" style={{ overflowWrap: "anywhere" }}>
+            {message.detail}
+          </p>
         ) : null}
       </div>
     </div>
@@ -237,75 +239,49 @@ function ToggleSwitch({ checked, onClick, disabled }) {
 }
 
 function ContributionOverview({ overview, stats, storageHealth }) {
-  const activationTypes = Object.entries(overview.activation.byType);
   const healthLabel = storageHealthLabels[storageHealth] || storageHealthLabels.default;
+  const contributionTotal = overview.contributionPoints.reduce(
+    (total, point) => total + point.count,
+    0,
+  );
+  const activePoints = overview.contributionPoints
+    .filter((point) => point.count > 0)
+    .slice(0, 2);
+  const activationTypes = Object.entries(overview.activation.byType)
+    .filter(([, entries]) => entries.length > 0)
+    .map(([type, entries]) => `${type} ${entries.length}`)
+    .slice(0, 2);
 
   return (
-    <div className="mt-3 space-y-1.5">
-      <div className="grid grid-cols-2 gap-1.5">
-        {overview.contributionPoints.map((point) => {
-          const Icon = contributionIcons[point.point] || ListChecks;
-          return (
-            <div
-              key={point.point}
-              className="min-w-0 rounded-md border px-2 py-1.5"
-              style={{
-                background: "rgba(255,255,255,0.026)",
-                borderColor: "rgba(255,255,255,0.06)",
-              }}
-            >
-              <div className="flex min-w-0 items-center justify-between gap-2">
-                <span className="flex min-w-0 items-center gap-1.5 text-[10px] font-semibold text-gray-300">
-                  <Icon size={11} className="shrink-0 text-[var(--nexus-muted)]" />
-                  <span className="truncate">{point.label}</span>
-                </span>
-                <span className="font-mono text-[11px] text-[var(--nexus-text)]">
-                  {point.count}
-                </span>
-              </div>
-              <p className="mt-0.5 truncate text-[9px] text-[var(--nexus-muted)]">
-                {point.items.slice(0, 2).join(", ") || "Noch keine aktiven Beitraege"}
-              </p>
-            </div>
-          );
-        })}
+    <div className="mt-3 rounded-lg border border-white/[0.055] bg-black/15 px-2.5 py-2">
+      <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-[var(--nexus-muted)]">
+        <span className="font-semibold text-gray-300">{stats.enabled} aktiv</span>
+        <span>{contributionTotal} Contributions</span>
+        <span>{stats.activationEvents} Activations</span>
+        <span>{healthLabel}</span>
       </div>
-
-      <div className="grid grid-cols-2 gap-1.5">
-        <div
-          className="flex min-w-0 items-center gap-2 rounded-md border px-2 py-1.5"
-          style={{
-            background: "rgba(255,255,255,0.024)",
-            borderColor: "rgba(255,255,255,0.055)",
-          }}
-        >
-          <Activity size={12} className="shrink-0 text-[var(--nexus-muted)]" />
-          <div className="min-w-0">
-            <p className="truncate text-[10px] font-semibold text-gray-300">
-              {stats.activationEvents} Activation Events
-            </p>
-            <p className="truncate text-[9px] text-[var(--nexus-muted)]">
-              {activationTypes.map(([type, entries]) => `${type} ${entries.length}`).join(", ") ||
-                "keine aktiven Trigger"}
-            </p>
-          </div>
-        </div>
-
-        <div
-          className="flex min-w-0 items-center gap-2 rounded-md border px-2 py-1.5"
-          style={{
-            background: "rgba(255,255,255,0.024)",
-            borderColor: "rgba(255,255,255,0.055)",
-          }}
-        >
-          <Database size={12} className="shrink-0 text-[var(--nexus-muted)]" />
-          <div className="min-w-0">
-            <p className="truncate text-[10px] font-semibold text-gray-300">{healthLabel}</p>
-            <p className="truncate text-[9px] text-[var(--nexus-muted)]">
-              {stats.errors > 0 ? `${stats.errors} Fehlerzustand` : "Manifest-Index stabil"}
-            </p>
-          </div>
-        </div>
+      <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1.5">
+        {activePoints.length > 0 ? (
+          activePoints.map((point) => {
+            const Icon = contributionIcons[point.point] || ListChecks;
+            return (
+              <span
+                key={point.point}
+                className="inline-flex min-w-0 items-center gap-1 rounded-md border border-sky-300/15 bg-sky-300/[0.055] px-1.5 py-0.5 text-[9px] text-sky-200"
+              >
+                <Icon size={10} className="shrink-0" />
+                <span className="min-w-0 break-words" style={{ overflowWrap: "anywhere" }}>
+                  {point.label} {point.count}
+                </span>
+              </span>
+            );
+          })
+        ) : (
+          <span className="text-[9px] text-[var(--nexus-muted)]">Noch keine aktiven Beitraege</span>
+        )}
+        <span className="min-w-0 break-words text-[9px] text-[var(--nexus-muted)]" style={{ overflowWrap: "anywhere" }}>
+          {activationTypes.join(", ") || "keine aktiven Trigger"}
+        </span>
       </div>
     </div>
   );
@@ -327,7 +303,9 @@ function ActivationEventList({ events }) {
           key={event.id}
           className="flex min-w-0 items-center justify-between gap-2 rounded border border-white/[0.05] bg-white/[0.025] px-1.5 py-1 text-[10px]"
         >
-          <span className="min-w-0 truncate text-gray-300">{event.label}</span>
+          <span className="min-w-0 break-words text-gray-300" style={{ overflowWrap: "anywhere" }}>
+            {event.label}
+          </span>
           <span className="shrink-0 rounded bg-white/[0.04] px-1 text-[9px] uppercase text-[var(--nexus-muted)]">
             {event.type}
           </span>
@@ -353,8 +331,10 @@ function ContributionDetailList({ summaries }) {
           key={summary.point}
           className="grid min-w-0 grid-cols-[6.5rem_1fr] gap-2 rounded border border-white/[0.05] bg-white/[0.025] px-1.5 py-1 text-[10px]"
         >
-          <span className="truncate font-semibold text-gray-300">{summary.label}</span>
-          <span className="min-w-0 truncate text-gray-500">
+          <span className="break-words font-semibold text-gray-300" style={{ overflowWrap: "anywhere" }}>
+            {summary.label}
+          </span>
+          <span className="min-w-0 break-words text-gray-500" style={{ overflowWrap: "anywhere" }}>
             {formatContributionPreview(summary, 4)}
           </span>
         </div>
@@ -381,7 +361,9 @@ function ExtensionCard({ extension, onInstall, onRemove, onToggleEnabled, index 
   const manifestBlocked = extension.manifestErrors.length > 0;
   const primaryContributions = extension.contributionSummary
     .filter((summary) => summary.primary)
-    .slice(0, 4);
+    .slice(0, 2);
+  const visibleCapabilities = extension.capabilities.slice(0, 2);
+  const hiddenCapabilityCount = Math.max(0, extension.capabilities.length - visibleCapabilities.length);
   const statusLabel = manifestBlocked
     ? "Blockiert"
     : !extension.installed
@@ -406,14 +388,14 @@ function ExtensionCard({ extension, onInstall, onRemove, onToggleEnabled, index 
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 8, height: 0 }}
       transition={{ delay: Math.min(index * 0.025, 0.18), duration: 0.2 }}
-      className="group rounded-md p-2.5"
+      className="group rounded-lg p-2.5"
       style={{
         background: extension.installed
-          ? "rgba(255,255,255,0.034)"
-          : "rgba(255,255,255,0.024)",
+          ? "rgba(255,255,255,0.028)"
+          : "rgba(255,255,255,0.018)",
         border: extension.enabled
-          ? "1px solid rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.18)"
-          : "1px solid rgba(255,255,255,0.065)",
+          ? "1px solid rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.16)"
+          : "1px solid rgba(255,255,255,0.055)",
       }}
     >
       <div className="flex items-start gap-2.5">
@@ -429,8 +411,8 @@ function ExtensionCard({ extension, onInstall, onRemove, onToggleEnabled, index 
         </div>
 
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5">
-            <h3 className="min-w-0 truncate text-xs font-semibold text-[var(--nexus-text)]">
+          <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+            <h3 className="min-w-0 break-words text-xs font-semibold leading-snug text-[var(--nexus-text)]" style={{ overflowWrap: "anywhere" }}>
               {extension.displayName}
             </h3>
             {extension.verified ? (
@@ -452,12 +434,12 @@ function ExtensionCard({ extension, onInstall, onRemove, onToggleEnabled, index 
             ) : null}
           </div>
           <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] text-[var(--nexus-muted)]">
-            <span className="truncate">{extension.publisher}</span>
+            <span className="min-w-0 break-words" style={{ overflowWrap: "anywhere" }}>{extension.publisher}</span>
             <span>v{extension.version}</span>
             <span className="uppercase">{extension.source}</span>
             <span>{statusLabel}</span>
           </div>
-          <p className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-gray-400">
+          <p className="mt-1 break-words text-[11px] leading-relaxed text-gray-400" style={{ overflowWrap: "anywhere" }}>
             {extension.description}
           </p>
         </div>
@@ -470,7 +452,7 @@ function ExtensionCard({ extension, onInstall, onRemove, onToggleEnabled, index 
       </div>
 
       <div className="mt-2 flex flex-wrap gap-1">
-        {extension.capabilities.slice(0, 3).map((capability) => (
+        {visibleCapabilities.map((capability) => (
           <span
             key={capability}
             className="rounded border border-white/[0.07] bg-white/[0.035] px-1.5 py-0.5 text-[9px] text-gray-400"
@@ -478,6 +460,11 @@ function ExtensionCard({ extension, onInstall, onRemove, onToggleEnabled, index 
             {capability}
           </span>
         ))}
+        {hiddenCapabilityCount > 0 ? (
+          <span className="rounded border border-white/[0.06] bg-white/[0.024] px-1.5 py-0.5 text-[9px] text-gray-500">
+            +{hiddenCapabilityCount}
+          </span>
+        ) : null}
         {primaryContributions.map((summary) => (
           <span
             key={summary.point}
@@ -504,10 +491,6 @@ function ExtensionCard({ extension, onInstall, onRemove, onToggleEnabled, index 
 
         {extension.installed ? (
           <div className="flex items-center gap-1.5">
-            <span className="hidden items-center gap-1 text-[10px] text-sky-300 sm:flex">
-              <PackageCheck size={11} />
-              {extension.enabled ? "Aktiv" : "Pausiert"}
-            </span>
             {extension.updateAvailable ? (
               <button
                 type="button"
@@ -568,21 +551,23 @@ function ExtensionCard({ extension, onInstall, onRemove, onToggleEnabled, index 
                 {extension.manifest.name}
               </div>
               <div className="grid gap-1 text-[10px] text-gray-400">
-                <div className="truncate">
+                <div className="break-words" style={{ overflowWrap: "anywhere" }}>
                   engine: {extension.manifest.engines?.nexusCode || "unbekannt"}
                 </div>
-                <div className="truncate">
+                <div className="break-words" style={{ overflowWrap: "anywhere" }}>
                   activation:{" "}
                   {extension.activationSummary.map((event) => event.label).join(", ") || "manual"}
                 </div>
-                <div className="truncate">
+                <div className="break-words" style={{ overflowWrap: "anywhere" }}>
                   contributes:{" "}
                   {extension.contributionSummary
                     .map((summary) => `${summary.label} ${summary.count}`)
                     .join(", ") || "none"}
                 </div>
                 {extension.localPath ? (
-                  <div className="truncate">path: {extension.localPath}</div>
+                  <div className="break-words" style={{ overflowWrap: "anywhere" }}>
+                    path: {extension.localPath}
+                  </div>
                 ) : null}
               </div>
               <div className="mt-2 grid gap-2">
@@ -749,54 +734,17 @@ export default function ExtensionsPanel({ onInstalledChange }) {
       <PanelHeader
         icon={Blocks}
         title="Extensions"
-        subtitle="Manifest registry, activation plan and extension host"
+        subtitle={`${stats.installed} installiert von ${stats.total} Manifesten`}
         status={
           stats.updates > 0 ? (
             <PanelBadge tone="warning">{stats.updates} Update</PanelBadge>
           ) : (
-            <PanelBadge tone={stats.errors > 0 ? "danger" : "success"}>
-              {stats.errors > 0 ? "Issues" : "Host Ready"}
+            <PanelBadge tone={stats.errors > 0 ? "danger" : "muted"}>
+              {stats.errors > 0 ? "Issues" : "Ready"}
             </PanelBadge>
           )
         }
-        actions={
-          <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-            <PanelActionButton
-              icon={Clipboard}
-              onClick={copyRuntimeSnapshot}
-              tone="muted"
-              title="Runtime Snapshot als JSON kopieren"
-            >
-              Copy plan
-            </PanelActionButton>
-            <PanelActionButton
-              icon={RotateCcw}
-              onClick={resetRegistryToDefaults}
-              tone="muted"
-              title="Registry auf gebundelte Nexus Code Defaults zuruecksetzen"
-            >
-              Reset
-            </PanelActionButton>
-            {updateableIds.length > 0 ? (
-            <PanelActionButton
-              icon={RefreshCw}
-              onClick={installAllUpdates}
-              tone="warning"
-              title="Alle verfuegbaren Extension-Updates installieren"
-            >
-              Update
-            </PanelActionButton>
-            ) : null}
-          </div>
-        }
       >
-        <div className="grid grid-cols-4 gap-1.5">
-          <PanelMetric label="Gesamt" value={stats.total} tone="muted" />
-          <PanelMetric label="Aktiv" value={stats.enabled} tone={stats.enabled ? "success" : "muted"} />
-          <PanelMetric label="Lokal" value={stats.local} tone={stats.local ? "accent" : "muted"} />
-          <PanelMetric label="Fehler" value={stats.errors} tone={stats.errors ? "danger" : "muted"} />
-        </div>
-
         <ContributionOverview
           overview={runtimeOverview}
           stats={stats}
@@ -809,7 +757,7 @@ export default function ExtensionsPanel({ onInstalledChange }) {
               <SystemMessage key={`${message.code}-${index}`} message={message} />
             ))}
             {storageMessages.length > 2 ? (
-              <div className="truncate rounded-md border border-white/[0.06] bg-white/[0.03] px-2 py-1 text-[10px] text-[var(--nexus-muted)]">
+              <div className="break-words rounded-md border border-white/[0.06] bg-white/[0.03] px-2 py-1 text-[10px] text-[var(--nexus-muted)]" style={{ overflowWrap: "anywhere" }}>
                 +{storageMessages.length - 2} weitere Registry-Hinweise
               </div>
             ) : null}
@@ -817,7 +765,7 @@ export default function ExtensionsPanel({ onInstalledChange }) {
         ) : null}
 
         {hostActionStatus ? (
-          <div className="mt-2 rounded-md border border-white/[0.06] bg-white/[0.035] px-2 py-1 text-[10px] text-[var(--nexus-muted)]">
+          <div className="mt-2 break-words rounded-md border border-white/[0.06] bg-white/[0.026] px-2 py-1 text-[10px] text-[var(--nexus-muted)]" style={{ overflowWrap: "anywhere" }}>
             {hostActionStatus}
           </div>
         ) : null}
@@ -935,10 +883,41 @@ export default function ExtensionsPanel({ onInstalledChange }) {
 
       <PanelFooter>
         <div className="flex items-center justify-between gap-2 text-[10px] text-[var(--nexus-muted)]">
-          <span className="truncate">{filteredExtensions.length} sichtbare Module</span>
-          <span className="truncate">
+          <span className="min-w-0 break-words" style={{ overflowWrap: "anywhere" }}>
+            {filteredExtensions.length} sichtbare Module
+          </span>
+          <span className="min-w-0 break-words text-right" style={{ overflowWrap: "anywhere" }}>
             {stats.errors > 0 ? `${stats.errors} fehlerhaft` : `${stats.disabled} pausiert`}
           </span>
+        </div>
+        <div className="mt-2 grid grid-cols-2 gap-1.5">
+          <PanelActionButton
+            icon={Clipboard}
+            onClick={copyRuntimeSnapshot}
+            tone="muted"
+            title="Runtime Snapshot als JSON kopieren"
+          >
+            Copy
+          </PanelActionButton>
+          <PanelActionButton
+            icon={RotateCcw}
+            onClick={resetRegistryToDefaults}
+            tone="muted"
+            title="Registry auf gebundelte Nexus Code Defaults zuruecksetzen"
+          >
+            Reset
+          </PanelActionButton>
+          {updateableIds.length > 0 ? (
+            <PanelActionButton
+              icon={RefreshCw}
+              onClick={installAllUpdates}
+              tone="warning"
+              title="Alle verfuegbaren Extension-Updates installieren"
+              className="col-span-2"
+            >
+              Updates installieren
+            </PanelActionButton>
+          ) : null}
         </div>
       </PanelFooter>
     </PanelShell>

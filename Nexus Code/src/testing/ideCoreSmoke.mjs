@@ -656,14 +656,19 @@ const scenarios = [
   },
   {
     id: "command-palette-fuzzy-search-ranking",
-    title: "palette ranking accepts compact command abbreviations",
+    title: "palette ranking accepts abbreviations and IDE intent queries",
     run() {
       const paletteCommands = getEditorCommandPaletteCommands({ surface: "palette" });
       const ranked = rankCommandPaletteItems(paletteCommands, "opgpr");
+      const tones = new Set(
+        paletteCommands.map((command) => command.categoryMeta?.tone).filter(Boolean),
+      );
 
       assert.equal(ranked[0]?.id, "open-github-projects");
       assert.equal(ranked[0]?.actionId, "open-github-projects");
       assert.equal(ranked[0]?.categoryMeta.id, "source-control");
+      assert.equal(tones.has("emerald"), false);
+      assert.equal(tones.has("teal"), false);
 
       const terminalRanked = rankCommandPaletteItems(paletteCommands, "ttr");
       assert.equal(terminalRanked[0]?.id, "terminal-task-runner");
@@ -672,6 +677,20 @@ const scenarios = [
       assert.equal(symbolRanked[0]?.id, "focus-active-symbol");
       assert.equal(symbolRanked[0]?.categoryMeta.id, "symbols");
       assert.equal(symbolRanked[0]?.matchReason, "Label");
+
+      const intentExpectations = [
+        ["git", "github-sync"],
+        ["problems", "open-problems"],
+        ["terminal", "toggle-terminal"],
+        ["extensions", "open-extensions"],
+        ["settings", "open-settings"],
+        ["search", "open-search"],
+      ];
+      intentExpectations.forEach(([query, expectedId]) => {
+        const [firstResult] = rankCommandPaletteItems(paletteCommands, query);
+        assert.equal(firstResult?.id, expectedId);
+        assert.equal(firstResult?.isFrequent, true);
+      });
     },
   },
   {

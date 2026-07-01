@@ -27,16 +27,15 @@ import {
   PanelFooter,
   PanelHeader,
   PanelIconButton,
-  PanelMetric,
   PanelShell,
   PanelState,
 } from "./panels/PanelChrome.jsx";
 
 const FILTERS = Object.freeze([
-  { id: "all", label: "ALL" },
-  { id: "error", label: "ERRORS" },
-  { id: "warning", label: "WARNINGS" },
-  { id: "info", label: "INFO" },
+  { id: "all", label: "All" },
+  { id: "error", label: "Errors" },
+  { id: "warning", label: "Warn" },
+  { id: "info", label: "Info" },
 ]);
 
 function getSeverityMeta(problem) {
@@ -243,6 +242,7 @@ export default function ProblemsPanel({ problems, onSelectProblem }) {
   };
 
   const activeProblem = filteredProblems[activeIndex] || null;
+  const filtersActive = filter !== "all" || Boolean(query);
 
   const emptyTitle =
     normalizedProblems.length === 0 ? "Keine Probleme" : "Keine Treffer";
@@ -261,57 +261,19 @@ export default function ProblemsPanel({ problems, onSelectProblem }) {
           counts.error > 0 ? (
             <PanelBadge tone="danger">{counts.error} Errors</PanelBadge>
           ) : (
-            <PanelBadge tone="success">Clean</PanelBadge>
+            <PanelBadge tone="muted">Clean</PanelBadge>
           )
         }
-        actions={
-          <>
-            <PanelIconButton
-              label="Collapse diagnostic groups"
-              disabled={fileGroups.length === 0}
-              onClick={collapseAllGroups}
-            >
-              <Shrink />
-            </PanelIconButton>
-            <PanelIconButton
-              label="Expand diagnostic groups"
-              disabled={fileGroups.length === 0}
-              onClick={expandAllGroups}
-            >
-              <Maximize2 />
-            </PanelIconButton>
-            <PanelIconButton
-              label="Reset diagnostic filters"
-              disabled={filter === "all" && !query}
-              onClick={resetFilters}
-              active={filter !== "all" || Boolean(query)}
-            >
-              <RotateCcw />
-            </PanelIconButton>
-            <PanelIconButton
-              label="Previous diagnostic"
-              disabled={filteredProblems.length === 0}
-              onClick={() => moveActiveProblem(-1)}
-            >
-              <ChevronUp />
-            </PanelIconButton>
-            <PanelIconButton
-              label="Next diagnostic"
-              disabled={filteredProblems.length === 0}
-              onClick={() => moveActiveProblem(1)}
-            >
-              <ChevronDown />
-            </PanelIconButton>
-          </>
-        }
       >
-        <div className="grid grid-cols-3 gap-1.5">
-          <PanelMetric label="Errors" value={counts.error} tone={counts.error > 0 ? "danger" : "muted"} />
-          <PanelMetric label="Warnings" value={counts.warning} tone={counts.warning > 0 ? "warning" : "muted"} />
-          <PanelMetric label="Info" value={(counts.info || 0) + (counts.hint || 0)} tone="accent" />
+        <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-white/[0.055] bg-black/15 px-2.5 py-1.5 text-[10px] text-gray-500">
+          <span className="font-semibold text-red-300/80">{counts.error} errors</span>
+          <span className="font-semibold text-amber-300/80">{counts.warning} warnings</span>
+          <span className="font-semibold text-sky-300/80">
+            {(counts.info || 0) + (counts.hint || 0)} info
+          </span>
         </div>
 
-        <div className="mt-2 grid min-w-0 grid-cols-2 gap-1.5">
+        <div className="mt-2 grid min-w-0 grid-cols-2 gap-1">
           {FILTERS.map((item) => {
             const active = filter === item.id;
             const count =
@@ -323,25 +285,28 @@ export default function ProblemsPanel({ problems, onSelectProblem }) {
                 key={item.id}
                 type="button"
                 onClick={() => setFilter(item.id)}
-                className="flex min-h-8 min-w-0 items-center gap-1.5 rounded-xl border px-2 py-1 text-[10px] font-semibold leading-tight transition-colors"
+                className="flex min-h-7 min-w-0 items-center justify-between gap-1.5 rounded-lg border px-2 py-1 text-[10px] font-semibold leading-tight transition-colors"
                 style={{
                   background: active
                     ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.15)"
-                    : "rgba(255,255,255,0.032)",
+                    : "rgba(255,255,255,0.024)",
                   borderColor: active
                     ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.26)"
-                    : "rgba(255,255,255,0.075)",
+                    : "rgba(255,255,255,0.055)",
                   color: active ? "var(--nexus-primary, #7c8cff)" : "#8b93a7",
                 }}
                 aria-pressed={active}
               >
                 <span
                   className={`h-1.5 w-1.5 shrink-0 rounded-full ${
-                    active ? "bg-purple-400 shadow-[0_0_8px_rgba(168,85,247,0.55)]" : "bg-gray-600"
+                    active ? "bg-sky-300 shadow-[0_0_8px_rgba(56,189,248,0.4)]" : "bg-gray-600"
                   }`}
                 />
-                <span className="min-w-0 break-words" style={{ overflowWrap: "anywhere" }}>
-                  {item.label} ({count})
+                <span className="min-w-0 flex-1 break-words" style={{ overflowWrap: "anywhere" }}>
+                  {item.label}
+                </span>
+                <span className="shrink-0 font-mono text-[10px] opacity-80">
+                  {count}
                 </span>
               </button>
             );
@@ -358,7 +323,7 @@ export default function ProblemsPanel({ problems, onSelectProblem }) {
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Message, file, source oder code"
-            className="h-8 w-full rounded-md border border-white/10 bg-white/[0.04] pl-8 pr-2 text-[12px] text-gray-200 outline-none transition-colors placeholder:text-gray-600 focus:border-purple-400/45"
+            className="h-8 w-full rounded-lg border border-white/[0.06] bg-white/[0.026] pl-8 pr-2 text-[12px] text-gray-200 outline-none transition-colors placeholder:text-gray-600 focus:border-sky-300/35 focus:bg-white/[0.04]"
           />
           {query ? (
             <button
@@ -381,6 +346,55 @@ export default function ProblemsPanel({ problems, onSelectProblem }) {
         aria-label="Problems"
         onKeyDown={handleListKeyDown}
       >
+        {normalizedProblems.length > 0 || filtersActive ? (
+          <div className="sticky top-0 z-20 mb-2 rounded-xl border border-white/[0.055] bg-[#070a13]/95 px-2 py-1.5 backdrop-blur-md">
+            <div className="flex min-w-0 items-center justify-between gap-2">
+              <span className="min-w-0 break-words text-[10px] font-semibold text-gray-500" style={{ overflowWrap: "anywhere" }}>
+                {filteredProblems.length} sichtbar
+                {filtersActive ? " mit Filter" : ""}
+              </span>
+              <div className="flex shrink-0 items-center gap-1">
+                <PanelIconButton
+                  label="Collapse diagnostic groups"
+                  disabled={fileGroups.length === 0}
+                  onClick={collapseAllGroups}
+                >
+                  <Shrink />
+                </PanelIconButton>
+                <PanelIconButton
+                  label="Expand diagnostic groups"
+                  disabled={fileGroups.length === 0}
+                  onClick={expandAllGroups}
+                >
+                  <Maximize2 />
+                </PanelIconButton>
+                <PanelIconButton
+                  label="Reset diagnostic filters"
+                  disabled={!filtersActive}
+                  onClick={resetFilters}
+                  active={filtersActive}
+                >
+                  <RotateCcw />
+                </PanelIconButton>
+                <PanelIconButton
+                  label="Previous diagnostic"
+                  disabled={filteredProblems.length === 0}
+                  onClick={() => moveActiveProblem(-1)}
+                >
+                  <ChevronUp />
+                </PanelIconButton>
+                <PanelIconButton
+                  label="Next diagnostic"
+                  disabled={filteredProblems.length === 0}
+                  onClick={() => moveActiveProblem(1)}
+                >
+                  <ChevronDown />
+                </PanelIconButton>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
         {filteredProblems.length === 0 ? (
           <PanelState
             icon={normalizedProblems.length === 0 ? AlertCircle : Search}
@@ -396,27 +410,27 @@ export default function ProblemsPanel({ problems, onSelectProblem }) {
             const collapsed = Boolean(collapsedGroups[file]);
             const tone = getFileTone(counts);
             return (
-            <div key={file} className="mb-3 last:mb-0">
-              <button
-                type="button"
-                onClick={() => toggleGroup(file)}
-                className="sticky top-0 z-10 mb-1 flex w-full items-center gap-2 rounded-xl border px-2.5 py-1.5 text-left backdrop-blur-md transition-colors hover:bg-white/[0.045]"
-                style={{
-                  background:
-                    "linear-gradient(180deg, rgba(9,12,25,0.96), rgba(7,9,19,0.9))",
-                  borderColor:
-                    tone === "danger"
-                      ? "rgba(239,68,68,0.2)"
-                      : tone === "warning"
-                        ? "rgba(251,191,36,0.18)"
-                        : "rgba(255,255,255,0.06)",
-                }}
-              >
+              <div key={file} className="mb-3 last:mb-0">
+                <button
+                  type="button"
+                  onClick={() => toggleGroup(file)}
+                  className="mb-1 flex w-full items-center gap-2 rounded-xl border px-2.5 py-1.5 text-left backdrop-blur-md transition-colors hover:bg-white/[0.045]"
+                  style={{
+                    background:
+                      "linear-gradient(180deg, rgba(9,12,25,0.96), rgba(7,9,19,0.9))",
+                    borderColor:
+                      tone === "danger"
+                        ? "rgba(239,68,68,0.2)"
+                        : tone === "warning"
+                          ? "rgba(251,191,36,0.18)"
+                          : "rgba(255,255,255,0.06)",
+                  }}
+                >
                 <ChevronDown
                   size={12}
                   className={`shrink-0 text-gray-600 transition-transform ${collapsed ? "-rotate-90" : ""}`}
                 />
-                <MapPin size={12} className="shrink-0 text-purple-300/70" />
+                <MapPin size={12} className="shrink-0 text-sky-300/70" />
                   <span className="min-w-0 flex-1">
                   <span
                     className="block break-words text-[11px] font-semibold leading-snug text-gray-300"
@@ -426,7 +440,9 @@ export default function ProblemsPanel({ problems, onSelectProblem }) {
                     {fileName}
                   </span>
                   {file !== fileName ? (
-                    <span className="block truncate text-[9px] text-gray-600">{file}</span>
+                    <span className="block break-words text-[9px] leading-snug text-gray-600" style={{ overflowWrap: "anywhere" }}>
+                      {file}
+                    </span>
                   ) : null}
                 </span>
                 {counts.error > 0 ? <PanelBadge tone="danger">{counts.error}</PanelBadge> : null}
@@ -477,7 +493,7 @@ export default function ProblemsPanel({ problems, onSelectProblem }) {
                           <span className="font-mono text-[10px] text-gray-600">
                             Ln {problem.startLineNumber}, Col {problem.startColumn}
                           </span>
-                          <span className="truncate text-[10px] text-gray-600/70">
+                          <span className="min-w-0 break-words text-[10px] text-gray-600/70" style={{ overflowWrap: "anywhere" }}>
                             {sourceLabel}
                           </span>
                         </div>
@@ -496,7 +512,7 @@ export default function ProblemsPanel({ problems, onSelectProblem }) {
       <PanelFooter>
         <div className="grid gap-2">
           <div className="flex items-center justify-between gap-2 text-[10px] text-gray-500">
-            <span className="truncate">
+            <span className="min-w-0 break-words" style={{ overflowWrap: "anywhere" }}>
               {filter === "all" ? "Alle Severities" : `Filter: ${filter}`}
               {activeProblem ? ` - ${getProblemFilePath(activeProblem).split(/[\\/]/).pop()}` : ""}
             </span>

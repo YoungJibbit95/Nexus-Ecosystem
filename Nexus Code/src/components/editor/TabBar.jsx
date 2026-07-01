@@ -7,7 +7,7 @@ const langColors = {
   jsx: "#61dafb",
   ts: "#3b82f6",
   tsx: "#3b82f6",
-  py: "#22c55e",
+  py: "#38bdf8",
   java: "#f97316",
   html: "#f97316",
   css: "#3b82f6",
@@ -251,7 +251,7 @@ export default function TabBar({
                       ? "linear-gradient(180deg, rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.09), rgba(var(--nexus-accent-2-rgb, 56, 189, 248), 0.025), rgba(255,255,255,0.012))"
                       : "transparent",
                     borderBottom: isActive
-                      ? `2px solid ${color === "#22c55e" ? "var(--nexus-accent-2, #38bdf8)" : color}`
+                      ? `2px solid ${color}`
                       : "2px solid transparent",
                   }}
                 >
