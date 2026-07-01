@@ -37,6 +37,7 @@ import {
 } from './settingsShared';
 import { resolveNexusTheme } from '../../theme/nexusThemeResolver.js';
 import { DEFAULT_SETTINGS } from '../../pages/editor/editorShared.jsx';
+import { createLspSetupModel } from '../../pages/editor/lspSetupModel.js';
 import {
   getBottomPanelSizeOptions,
   getSidePanelSizeOptions,
@@ -258,6 +259,13 @@ const SETTING_INDEX = [
     label: "Autocomplete",
     description: "Language-Server-basierte Vorschlaege, Hover und Diagnose.",
     keywords: "autocomplete completion suggestions lsp hover intellisense",
+  },
+  {
+    id: "lsp_setup",
+    section: "editor",
+    label: "LSP Setup",
+    description: "PATH-Erkennung, Env-Overrides, Install-Hints und Retry-Diagnose je Language Server.",
+    keywords: "lsp setup language server path env override install hint retry status diagnostics typescript python rust go clangd",
   },
   {
     id: "autocomplete_enabled",
@@ -669,7 +677,8 @@ const THEME_EDITOR_RECIPES = [
 
 function unwrapIpcResponse(result) {
   if (result && typeof result === "object" && "ok" in result) {
-    return result.ok ? result.data : [];
+    if (result.ok) return result.data;
+    throw new Error(result.error || result.errorDetails?.code || "IPC response failed.");
   }
   return result || [];
 }
@@ -1465,6 +1474,158 @@ function PerformanceHintList({ hints }) {
   );
 }
 
+function getLspToneClass(tone) {
+  if (tone === "good") return "border-emerald-300/20 bg-emerald-300/10 text-emerald-200";
+  if (tone === "warn") return "border-amber-300/20 bg-amber-300/10 text-amber-200";
+  if (tone === "error") return "border-rose-300/20 bg-rose-300/10 text-rose-200";
+  if (tone === "muted") return "border-white/[0.08] bg-white/[0.025] text-gray-500";
+  return "border-sky-300/20 bg-sky-300/10 text-sky-200";
+}
+
+function getLspRowBackground(tone) {
+  if (tone === "good") {
+    return {
+      background: "linear-gradient(135deg, rgba(34,197,94,0.07), rgba(14,165,233,0.032))",
+      borderColor: "rgba(34,197,94,0.18)",
+    };
+  }
+  if (tone === "warn") {
+    return {
+      background: "linear-gradient(135deg, rgba(251,191,36,0.075), rgba(148,163,184,0.025))",
+      borderColor: "rgba(251,191,36,0.17)",
+    };
+  }
+  if (tone === "error") {
+    return {
+      background: "linear-gradient(135deg, rgba(244,63,94,0.075), rgba(148,163,184,0.025))",
+      borderColor: "rgba(244,63,94,0.18)",
+    };
+  }
+  return {
+    background: "rgba(255,255,255,0.018)",
+    borderColor: "rgba(255,255,255,0.07)",
+  };
+}
+
+function getLspStatusIcon(tone) {
+  if (tone === "good") return Check;
+  if (tone === "warn" || tone === "error") return X;
+  return Info;
+}
+
+function LspSetupPanel({ model, isRefreshing, onRefresh }) {
+  const summary = model.summary;
+  const detailTitles = ["Server", "Env-Var", "Install-Hint"];
+
+  return (
+    <div className="min-w-0 space-y-3">
+      <div className="flex min-w-0 flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0">
+          <div className="flex min-w-0 flex-wrap items-center gap-2 text-[10px] font-semibold uppercase leading-tight text-gray-500">
+            <Info size={13} className="shrink-0" />
+            <span className="min-w-0 break-words">PATH / Env / Retry</span>
+          </div>
+          <div className="mt-1 flex min-w-0 flex-wrap items-center gap-2">
+            <p className="break-words text-sm font-semibold leading-tight text-gray-200">
+              {summary.headline}
+            </p>
+            <ValueBadge>{summary.readyCount}/{summary.total} bereit</ValueBadge>
+          </div>
+          <p className="mt-1 max-w-3xl break-words text-[11px] leading-5 text-gray-500">
+            {summary.message}
+          </p>
+          <p className="mt-1 max-w-3xl break-words text-[10px] leading-4 text-gray-600">
+            {summary.caption}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onRefresh}
+          disabled={isRefreshing}
+          className="inline-flex min-h-8 shrink-0 items-center justify-center gap-2 rounded-md border border-white/[0.08] bg-white/[0.035] px-3 py-2 text-[10px] font-semibold leading-tight text-gray-300 transition-colors hover:bg-white/[0.06] disabled:cursor-wait disabled:opacity-60"
+          title="PATH, Env-Overrides und Serverstatus erneut pruefen"
+        >
+          <RefreshCcw size={13} className={isRefreshing ? "animate-spin" : ""} />
+          <span className="min-w-0 break-words">
+            {isRefreshing ? "Pruefe" : "Status aktualisieren"}
+          </span>
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 gap-2">
+        {model.rows.map((row) => {
+          const StatusIcon = getLspStatusIcon(row.statusTone);
+          const rowStyle = getLspRowBackground(row.statusTone);
+          return (
+            <div
+              key={row.id}
+              className="grid min-w-0 gap-3 rounded-md border px-3 py-2.5"
+              style={rowStyle}
+              title={row.lastDiagnostic || row.statusDescription}
+            >
+              <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0">
+                  <div className="flex min-w-0 flex-wrap items-center gap-2">
+                    <span className="break-words text-xs font-semibold leading-tight text-gray-200">
+                      {row.languageLabel}
+                    </span>
+                    <span className="rounded-md border border-white/[0.08] bg-black/20 px-1.5 py-0.5 text-[10px] font-medium leading-tight text-gray-500">
+                      {row.serverLabel}
+                    </span>
+                  </div>
+                  <p className="mt-1 break-words text-[10px] leading-4 text-gray-500">
+                    {row.statusDescription}
+                  </p>
+                </div>
+                <span
+                  className={`inline-flex max-w-full shrink-0 items-center gap-1.5 rounded-md border px-2 py-1 text-[10px] font-semibold leading-tight ${getLspToneClass(row.statusTone)}`}
+                >
+                  <StatusIcon size={12} className="shrink-0" />
+                  <span className="min-w-0 break-words">{row.statusLabel}</span>
+                </span>
+              </div>
+
+              <div className="grid min-w-0 grid-cols-1 gap-2 lg:grid-cols-3">
+                {row.details.map((detail, index) => (
+                  <div
+                    key={`${row.id}-${detailTitles[index]}`}
+                    className="min-w-0 rounded-md border border-white/[0.055] bg-black/10 px-2.5 py-2"
+                  >
+                    <div className="flex min-w-0 flex-wrap items-center gap-1.5 text-[10px] font-semibold uppercase leading-tight text-gray-500">
+                      <span>{detailTitles[index]}</span>
+                      <span className={`rounded border px-1.5 py-0.5 normal-case ${getLspToneClass(detail.tone)}`}>
+                        {detail.label}
+                      </span>
+                    </div>
+                    {detail.code ? (
+                      <code className="mt-1 block break-all text-[10px] leading-4 text-gray-400">
+                        {detail.code}
+                      </code>
+                    ) : null}
+                    <p className="mt-1 break-words text-[10px] leading-4 text-gray-500">
+                      {detail.value}
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex min-w-0 items-start gap-2 rounded-md border border-white/[0.05] bg-black/10 px-2.5 py-2 text-[10px] leading-4 text-gray-500">
+                <RefreshCcw size={12} className="mt-0.5 shrink-0 text-gray-500" />
+                <span className="min-w-0 break-words">{row.actionHint}</span>
+              </div>
+              {row.lastDiagnostic ? (
+                <div className="break-words rounded-md border border-white/[0.05] bg-black/10 px-2.5 py-2 text-[10px] leading-4 text-gray-600">
+                  Diagnose: {row.lastDiagnostic}
+                </div>
+              ) : null}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function VisualBudgetCard({ summary }) {
   const toneStyles =
     summary.tone === "warn"
@@ -2163,7 +2324,15 @@ export default function SettingsPanel({
   const [activeSection, setActiveSection] = React.useState("theme-editor");
   const [searchQuery, setSearchQuery] = React.useState("");
   const [lspServers, setLspServers] = React.useState([]);
+  const [lspSetupState, setLspSetupState] = React.useState({
+    loading: false,
+    error: null,
+    bridgeAvailable: null,
+    checkedAt: null,
+  });
   const [copyStatus, setCopyStatus] = React.useState("idle");
+  const lspRefreshIdRef = React.useRef(0);
+  const lspMountedRef = React.useRef(false);
   const prefersReducedMotion = useReducedMotion();
   const resolvedTheme = React.useMemo(
     () => resolveNexusTheme(settings),
@@ -2259,6 +2428,10 @@ export default function SettingsPanel({
     () => getSearchResults(searchTerm),
     [searchTerm],
   );
+  const lspSetupModel = React.useMemo(
+    () => createLspSetupModel(lspServers, lspSetupState),
+    [lspServers, lspSetupState],
+  );
   const performanceHints = React.useMemo(
     () => buildPerformanceHints(settings, visualProfileId, lspServers, shouldReduceMotion),
     [lspServers, settings, shouldReduceMotion, visualProfileId],
@@ -2299,24 +2472,61 @@ export default function SettingsPanel({
     });
   }, [scopedThemeVars]);
 
-  React.useEffect(() => {
-    let mounted = true;
+  const refreshLspServers = React.useCallback(async () => {
+    const refreshId = lspRefreshIdRef.current + 1;
+    lspRefreshIdRef.current = refreshId;
     const api = typeof window !== "undefined" ? window.electronAPI : null;
-    if (!api?.lspListServers) return undefined;
-    api
-      .lspListServers()
-      .then((result) => {
-        if (!mounted) return;
-        const servers = unwrapIpcResponse(result);
-        setLspServers(Array.isArray(servers) ? servers : []);
-      })
-      .catch(() => {
-        if (mounted) setLspServers([]);
+    if (!api?.lspListServers) {
+      if (!lspMountedRef.current) return;
+      setLspServers([]);
+      setLspSetupState({
+        loading: false,
+        error: null,
+        bridgeAvailable: false,
+        checkedAt: null,
       });
-    return () => {
-      mounted = false;
-    };
+      return;
+    }
+
+    if (lspMountedRef.current) {
+      setLspSetupState((current) => ({
+        ...current,
+        loading: true,
+        error: null,
+        bridgeAvailable: true,
+      }));
+    }
+
+    try {
+      const result = await api.lspListServers();
+      const servers = unwrapIpcResponse(result);
+      if (!lspMountedRef.current || lspRefreshIdRef.current !== refreshId) return;
+      setLspServers(Array.isArray(servers) ? servers : []);
+      setLspSetupState({
+        loading: false,
+        error: null,
+        bridgeAvailable: true,
+        checkedAt: new Date().toISOString(),
+      });
+    } catch (error) {
+      if (!lspMountedRef.current || lspRefreshIdRef.current !== refreshId) return;
+      setLspServers([]);
+      setLspSetupState({
+        loading: false,
+        error: error?.message || "LSP status check failed.",
+        bridgeAvailable: true,
+        checkedAt: new Date().toISOString(),
+      });
+    }
   }, []);
+
+  React.useEffect(() => {
+    lspMountedRef.current = true;
+    refreshLspServers();
+    return () => {
+      lspMountedRef.current = false;
+    };
+  }, [refreshLspServers]);
 
   const updateSetting = React.useCallback(
     (key, value) => {
@@ -2434,77 +2644,18 @@ export default function SettingsPanel({
   const renderIfVisible = (sectionId, render) =>
     visibleSectionIds.includes(sectionId) ? render() : null;
 
-  const renderLspServers = () =>
-    lspServers.length > 0 ? (
-      <div
-        className="nx-code-settings-group rounded-2xl border p-3"
-        style={{
-          background:
-            "radial-gradient(circle at 10% 0%, rgba(var(--nexus-primary-rgb),0.1), transparent 14rem), linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0.008)), rgba(0,0,0,0.18)",
-          borderColor: "rgba(156,178,226,0.11)",
-        }}
+  const renderLspSetup = () =>
+    isVisibleSetting("lsp_setup", "editor", searchTerm) ? (
+      <SettingsGroup
+        title="LSP Setup"
+        description="PATH-Erkennung, Env-Overrides und Statusdiagnose ohne Auto-Installation."
       >
-        <div className="mb-1.5 flex min-w-0 flex-wrap items-center justify-between gap-2">
-          <div className="break-words text-[10px] font-semibold uppercase leading-tight text-gray-500">
-            LSP Setup
-          </div>
-          <ValueBadge>{lspServers.filter((server) => server.available).length}/{lspServers.length} bereit</ValueBadge>
-        </div>
-        <p className="mb-3 max-w-2xl text-[11px] leading-5 text-gray-500">
-          Nexus Code installiert keine Language Server ungefragt. Fehlende Tools werden erkannt und koennen ueber PATH oder den jeweiligen Env-Override angebunden werden.
-        </p>
-        <div className="grid grid-cols-1 gap-2">
-          {lspServers.map((server) => (
-            <div
-              key={server.languageId}
-              className="grid min-w-0 gap-2 rounded-2xl px-3 py-2.5 sm:grid-cols-[minmax(0,1fr)_auto]"
-              style={{
-                background: server.available
-                  ? "linear-gradient(135deg, rgba(34,197,94,0.09), rgba(14,165,233,0.045))"
-                  : "linear-gradient(135deg, rgba(251,191,36,0.08), rgba(148,163,184,0.035))",
-                border: server.available
-                  ? "1px solid rgba(34,197,94,0.2)"
-                  : "1px solid rgba(251,191,36,0.16)",
-              }}
-              title={
-                server.available
-                  ? server.resolvedPath || server.command
-                  : server.installHint || `${server.envName || "PATH"} installieren oder setzen`
-              }
-            >
-              <div className="min-w-0">
-                <div className="flex min-w-0 flex-wrap items-center gap-2">
-                  <span className="break-words text-xs font-semibold text-gray-200">
-                    {server.label || server.languageId}
-                  </span>
-                  <span className="rounded-full border border-white/[0.08] bg-black/20 px-2 py-0.5 text-[10px] font-medium text-gray-500">
-                    {server.languageId}
-                  </span>
-                </div>
-                <div className="mt-1 break-words text-[11px] leading-5 text-gray-500">
-                  {server.available
-                    ? server.resolvedPath || server.command || "Server wurde ueber PATH erkannt."
-                    : server.installHint || `Installiere ${server.command || server.label || server.languageId} oder setze ${server.envName || "den Env-Override"}.`}
-                </div>
-                {server.envName ? (
-                  <div className="mt-1 break-words font-mono text-[10px] leading-4 text-gray-600">
-                    Override: {server.envName}
-                  </div>
-                ) : null}
-              </div>
-              <span
-                className={`self-start rounded-full border px-2 py-1 text-[10px] font-semibold ${
-                  server.available
-                    ? "border-emerald-300/20 bg-emerald-300/10 text-emerald-200"
-                    : "border-amber-300/20 bg-amber-300/10 text-amber-200"
-                }`}
-              >
-                {server.available ? "bereit" : "Setup noetig"}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
+        <LspSetupPanel
+          model={lspSetupModel}
+          isRefreshing={lspSetupState.loading}
+          onRefresh={refreshLspServers}
+        />
+      </SettingsGroup>
     ) : null;
 
   return (
@@ -3269,7 +3420,6 @@ export default function SettingsPanel({
                         <ValueBadge>{settings.autocomplete_max_items || 120}</ValueBadge>
                       </div>
                     </SettingRow>
-                    {renderLspServers()}
                   </SettingsGroup>
 
                   <SettingsGroup title="Editor Verhalten" description="Sichtbarkeit und Eingabehilfen.">
@@ -3405,6 +3555,7 @@ export default function SettingsPanel({
                     </SettingRow>
                   </SettingsGroup>
                 </div>
+                {renderLspSetup()}
               </section>
             ))}
 
@@ -3756,7 +3907,6 @@ export default function SettingsPanel({
                         onCheckedChange={(value) => updateSetting("minimap", value)}
                       />
                     </SettingRow>
-                    {renderLspServers()}
                   </SettingsGroup>
                 </div>
                 <SettingsGroup

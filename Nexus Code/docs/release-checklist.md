@@ -112,7 +112,8 @@ Stand: 2026-07-01
 - [x] IDE-Core-Smoke: Login-Payload-Vertrag gegen unbekannte Auth-Felder absichern.
 - [x] Electron Dev Probe: isolierter Renderer-Start prueft Route-Import und beendet sauber; Strict-Login-Vertrag ist im IDE-Core-Smoke abgedeckt
 - [x] Visual Smoke: 1400x900 Electron-Fenster
-- [ ] Visual Smoke: 1440x900
-- [ ] Visual Smoke: 1024x768
-- [ ] Visual Smoke: 900x512
-- [ ] Visual Smoke: 390x900
+- [x] `npm --prefix "./Nexus Code" run smoke:visual`
+- [x] Visual Smoke: 1440x900 Electron-Harness
+- [x] Visual Smoke: 1024x768 Electron-Harness
+- [x] Visual Smoke: 900x512 Electron-Harness
+- [x] Visual Smoke: 390x900 Electron-Harness

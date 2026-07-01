@@ -214,6 +214,11 @@ export function createLspClient(options = {}) {
         },
         [],
       );
+      if (result?.kind === "unchanged") {
+        return Array.isArray(context.previousDiagnostics)
+          ? context.previousDiagnostics
+          : [];
+      }
       return normalizeDiagnostics(result);
     },
 

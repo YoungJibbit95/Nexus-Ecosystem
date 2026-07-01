@@ -51,11 +51,14 @@ import {
   createSnippetCompletions,
   extractDocumentSymbols,
   getActiveDocumentSymbol,
+  lspDiagnosticsToCodeMirror,
+  lspDiagnosticsToProblems,
   lspTextEditsToCodeMirrorChanges,
   lspCompletionsToCodeMirror,
   lspWorkspaceEditToCodeMirrorChanges,
   normalizeEditorFeaturePosition,
   normalizeEditorFeatureRange,
+  readHoverText,
   shouldRequestLspCompletion,
   summarizeEditorDiagnostics,
 } from "../pages/editor/editorFeatureModel.js";
@@ -101,6 +104,7 @@ import {
   resetWorkbenchLayoutSizes,
   setWorkbenchDockSize,
 } from "../pages/editor/workbenchDockModel.js";
+import { createLspSetupModel } from "../pages/editor/lspSetupModel.js";
 
 const require = createRequire(import.meta.url);
 const {
@@ -157,6 +161,49 @@ function createCompletionContext(text, { pos = text.length, explicit = false } =
         to: pos,
         text: value,
       };
+    },
+  };
+}
+
+function createCodeMirrorDoc(text) {
+  const value = String(text || "");
+  const lineTexts = value.split("\n");
+  const starts = [];
+  let offset = 0;
+  for (const lineText of lineTexts) {
+    starts.push(offset);
+    offset += lineText.length + 1;
+  }
+  return {
+    length: value.length,
+    lines: lineTexts.length,
+    sliceString(from, to) {
+      return value.slice(from, to);
+    },
+    line(lineNumber) {
+      const safeLine = Math.max(
+        1,
+        Math.min(lineTexts.length, Math.round(Number(lineNumber || 1))),
+      );
+      const from = starts[safeLine - 1] || 0;
+      const textAtLine = lineTexts[safeLine - 1] || "";
+      return {
+        number: safeLine,
+        from,
+        to: from + textAtLine.length,
+        text: textAtLine,
+      };
+    },
+    lineAt(position) {
+      const safePosition = Math.max(
+        0,
+        Math.min(value.length, Math.round(Number(position || 0))),
+      );
+      let lineNumber = 1;
+      for (let index = 0; index < starts.length; index += 1) {
+        if (starts[index] <= safePosition) lineNumber = index + 1;
+      }
+      return this.line(lineNumber);
     },
   };
 }
@@ -1642,6 +1689,39 @@ const scenarios = [
     },
   },
   {
+    id: "editor-hover-markup-normalization",
+    title: "LSP hover markup normalizes empty, markdown and marked-string content",
+    run() {
+      assert.equal(readHoverText(null), "");
+      assert.equal(readHoverText({ contents: { kind: "markdown", value: "  \r\n  " } }), "");
+      assert.equal(
+        readHoverText({
+          contents: {
+            kind: "markdown",
+            value: "\r\n```python\nprint(value)\n```\r\n\n",
+          },
+        }),
+        "```python\nprint(value)\n```",
+      );
+      assert.equal(
+        readHoverText({
+          contents: [
+            { language: "python", value: "def build_task():\n    return result" },
+            { kind: "plaintext", value: "Callable hover detail" },
+          ],
+        }),
+        "def build_task():\n    return result\n\nCallable hover detail",
+      );
+
+      const cyclicContents = {};
+      cyclicContents.contents = cyclicContents;
+      assert.equal(readHoverText({ contents: cyclicContents }), "");
+      const cyclicArray = [];
+      cyclicArray.push(cyclicArray);
+      assert.equal(readHoverText({ contents: cyclicArray }), "");
+    },
+  },
+  {
     id: "editor-status-and-lsp-feature-contracts",
     title: "editor status and future LSP feature contracts stay stable",
     run() {
@@ -1711,12 +1791,37 @@ const scenarios = [
           state: "missing",
           missing: true,
           canStart: false,
+          envName: "NEXUS_LSP_PYTHON",
+          envOverride: true,
+          source: "env",
+          features: {
+            completion: false,
+            hover: false,
+            diagnostics: true,
+            definition: false,
+            formatting: false,
+            codeActions: false,
+            rename: false,
+          },
           message: "Pyright is not available on PATH.",
         },
       });
       assert.equal(missingPythonModel.lsp.state, "missing");
       assert.equal(missingPythonModel.lsp.fallbackActive, true);
       assert.match(missingPythonModel.lsp.title, /pip install pyright/);
+      assert.match(missingPythonModel.lsp.title, /Env: NEXUS_LSP_PYTHON/);
+      assert.equal(missingPythonModel.lsp.shortText, "Pyright missing");
+      assert.equal(missingPythonModel.lsp.envOverride, true);
+      assert.deepEqual(missingPythonModel.lsp.features, {
+        completion: false,
+        hover: false,
+        diagnostics: true,
+        definition: false,
+        formatting: false,
+        codeActions: false,
+        rename: false,
+      });
+      assert.equal(missingPythonModel.capabilityBadge, "Tools 0/1");
       assert.equal(
         missingPythonModel.completions.sources.find((source) => source.id === "lsp")
           ?.fallback,
@@ -1736,7 +1841,7 @@ const scenarios = [
         diagnostics: [],
       });
       assert.equal(missingEditorStatus.lsp.state, "missing");
-      assert.equal(missingEditorStatus.lsp.text, "LSP missing");
+      assert.equal(missingEditorStatus.lsp.text, "Pyright missing");
 
       const bridgeFallbackModel = createEditorLanguageFeatureModel({
         languageId: "typescript",
@@ -1861,6 +1966,56 @@ const scenarios = [
       assert.equal(unsupportedStatus.state, "unsupported");
       assert.equal(unsupportedStatus.canRetry, false);
       assert.equal(unsupportedStatus.installHint, null);
+    },
+  },
+  {
+    id: "lsp-settings-setup-model-contracts",
+    title: "settings LSP setup model exposes PATH, Env and retry guidance per server",
+    run() {
+      const tsConfig = resolveServerConfig("typescript", {
+        NEXUS_LSP_TYPESCRIPT: "custom-ts-language-server --stdio --log-level 4",
+      });
+      const missingTypeScript = createServerStatusSnapshot(
+        "typescript",
+        tsConfig,
+        { available: false, path: null },
+        { lastError: "spawn ENOENT", lastExitCode: 1, lastState: "missing" },
+      );
+      const pythonConfig = resolveServerConfig("python", {});
+      const availablePython = createServerStatusSnapshot(
+        "python",
+        pythonConfig,
+        { available: true, path: "C:\\Tools\\pyright-langserver.cmd" },
+      );
+
+      const setupModel = createLspSetupModel(
+        [missingTypeScript, availablePython],
+        { bridgeAvailable: true, loading: false },
+      );
+      assert.equal(setupModel.summary.total, 2);
+      assert.equal(setupModel.summary.readyCount, 1);
+      assert.equal(setupModel.summary.setupNeededCount, 1);
+      assert.equal(setupModel.summary.overrideCount, 1);
+      assert.match(setupModel.summary.message, /PATH-Erkennung/);
+
+      const tsRow = setupModel.rows.find((row) => row.languageId === "typescript");
+      assert.equal(tsRow.statusLabel, "Setup noetig");
+      assert.equal(tsRow.path.label, "Override nicht gefunden");
+      assert.match(tsRow.env.value, /NEXUS_LSP_TYPESCRIPT/);
+      assert.match(tsRow.setup.value, /typescript-language-server/);
+      assert.match(tsRow.actionHint, /Runtime-Retry wartet 5 s/);
+      assert.match(tsRow.lastDiagnostic, /spawn ENOENT/);
+
+      const pythonRow = setupModel.rows.find((row) => row.languageId === "python");
+      assert.equal(pythonRow.statusLabel, "Bereit");
+      assert.equal(pythonRow.path.label, "PATH erkannt");
+      assert.equal(pythonRow.path.value, "C:\\Tools\\pyright-langserver.cmd");
+      assert.match(pythonRow.actionHint, /Refresh prueft PATH erneut/);
+
+      const bridgeModel = createLspSetupModel([], { bridgeAvailable: false });
+      assert.equal(bridgeModel.summary.state, "unavailable");
+      assert.ok(bridgeModel.rows.length >= 5);
+      assert.equal(bridgeModel.rows[0]?.statusLabel, "Bridge offen");
     },
   },
   {
@@ -2077,6 +2232,55 @@ const scenarios = [
       assert.equal(workspaceChanges.changes.length, 1);
       assert.equal(workspaceChanges.externalChangeCount, 1);
       assert.equal(workspaceChanges.hasExternalChanges, true);
+
+      const diagnosticDoc = createCodeMirrorDoc("name = value\nprint(name)");
+      const diagnosticView = { state: { doc: diagnosticDoc } };
+      const codeMirrorDiagnostics = lspDiagnosticsToCodeMirror(
+        [
+          {
+            message: "Unknown symbol.",
+            severity: 1,
+            source: "pyright",
+            range: {
+              start: { line: 0, character: 7 },
+              end: { line: 0, character: 7 },
+            },
+          },
+          {
+            message: "Range from a noisy server.",
+            severity: 2,
+            source: "typescript",
+            range: {
+              start: { line: Number.NaN, character: Number.NaN },
+              end: { lineNumber: 100, column: 100 },
+            },
+          },
+        ],
+        diagnosticView,
+      );
+      assert.equal(codeMirrorDiagnostics.length, 2);
+      assert.equal(codeMirrorDiagnostics[0].severity, "error");
+      assert.equal(codeMirrorDiagnostics[0].to, codeMirrorDiagnostics[0].from + 1);
+      assert.equal(codeMirrorDiagnostics[1].severity, "warning");
+      assert.equal(codeMirrorDiagnostics[1].from >= 0, true);
+      assert.equal(codeMirrorDiagnostics[1].to <= diagnosticDoc.length, true);
+
+      const problems = lspDiagnosticsToProblems(
+        [
+          {
+            message: "Missing import.",
+            severity: 1,
+            source: "pyright",
+            range: {
+              start: { line: 0, character: 0 },
+              end: { line: 0, character: 4 },
+            },
+          },
+        ],
+        "file:///workspace/example.py",
+      );
+      assert.equal(problems[0]?.severity, 8);
+      assert.equal(problems[0]?.source, "pyright");
     },
   },
   {
@@ -2116,9 +2320,80 @@ const scenarios = [
       assert.equal(events.at(-1)?.diagnostics.length, 1);
       assert.equal(events.at(-1)?.uri, document.uri);
 
+      lspService.setDiagnostics(document.uri, {
+        diagnostics: [
+          {
+            message: "Published by Pyright.",
+            severity: 1,
+          },
+        ],
+      });
+      assert.equal(events.at(-1)?.diagnostics[0]?.message, "Published by Pyright.");
+
       await lspService.closeDocument(document.uri);
       assert.deepEqual(events.at(-1), { uri: document.uri, diagnostics: [] });
       unsubscribe();
+      lspService.dispose();
+    },
+  },
+  {
+    id: "lsp-service-pull-diagnostics-preserve-unchanged",
+    title: "LSP pull diagnostics keep previous Python/TS results on unchanged reports",
+    async run() {
+      const document = {
+        uri: "file:///workspace/example.py",
+        languageId: "python",
+        version: 1,
+        value: "name = missing_symbol",
+      };
+      let diagnosticCalls = 0;
+      const lspService = createLspService({
+        clientFactory: () =>
+          createLspClient({
+            languageId: "python",
+            transport: {
+              async request(method) {
+                if (method === "initialize") {
+                  return {
+                    capabilities: {
+                      textDocumentSync: 1,
+                      completionProvider: true,
+                      hoverProvider: true,
+                      diagnosticProvider: true,
+                    },
+                  };
+                }
+                if (method === "textDocument/diagnostic") {
+                  diagnosticCalls += 1;
+                  if (diagnosticCalls === 1) {
+                    return {
+                      kind: "full",
+                      items: [
+                        {
+                          message: "Unknown name.",
+                          severity: 1,
+                          source: "pyright",
+                        },
+                      ],
+                    };
+                  }
+                  return { kind: "unchanged", resultId: "pyright-1" };
+                }
+                return null;
+              },
+              async notify() {},
+            },
+          }),
+      });
+
+      await lspService.openDocument(document);
+      const firstDiagnostics = await lspService.getDiagnostics(document.uri);
+      const unchangedDiagnostics = await lspService.getDiagnostics(document.uri);
+
+      assert.equal(firstDiagnostics.length, 1);
+      assert.equal(unchangedDiagnostics.length, 1);
+      assert.equal(unchangedDiagnostics[0]?.message, "Unknown name.");
+      assert.equal(diagnosticCalls, 2);
       lspService.dispose();
     },
   },

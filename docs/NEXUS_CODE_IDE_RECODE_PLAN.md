@@ -28,14 +28,14 @@ Nach gruenen Gates direkt auf main committen und pushen | true
 
 ```nexus-checklist
 TypeScript/JavaScript Completion produktionsreif machen | true
-TypeScript/JavaScript Hover stabilisieren | false
+TypeScript/JavaScript Hover stabilisieren | true
 TypeScript/JavaScript Diagnostics sauber mit Problems synchronisieren | true
 TypeScript/JavaScript Go to Definition anbinden | true
 TypeScript/JavaScript Rename vorbereiten oder umsetzen | true
 TypeScript/JavaScript Formatting anbinden | true
 TypeScript/JavaScript Code Actions anbinden | true
-Python mit Pyright-Erkennung und gefuehrtem Setup stabilisieren | false
-Python Completion, Hover und Diagnostics verbessern | false
+Python mit Pyright-Erkennung und gefuehrtem Setup stabilisieren | true
+Python Completion, Hover und Diagnostics verbessern | true
 Rust, Go und C/C++ Server-Erkennung ausbauen | true
 Rust, Go und C/C++ klare Fallbacks bei fehlenden Servern zeigen | true
 Completion-Dedupe und Ranking verbessern | true
@@ -54,7 +54,7 @@ Editor-Status fuer LSP, Sprache, Datei und Fehler verstaendlicher machen | true
 
 ```nexus-checklist
 LSP-Statusmodell pro Sprache erweitern | true
-PATH-Erkennung sichtbar machen | false
+PATH-Erkennung sichtbar machen | true
 Env-Override-Hinweise sichtbar machen | true
 Fehlende Server verstaendlich anzeigen | true
 Defekte Serverstarts sauber abfangen | true
@@ -141,10 +141,10 @@ npm --prefix "./Nexus Code" run build | true
 npm run verify:single-react | true
 npm --prefix "./Nexus Code" run electron:ensure | true
 Electron Dev Probe mit Strict-Login-Vertrag pruefen | true
-Visual Smoke bei 1440x900 pruefen | false
-Visual Smoke bei 1024x768 pruefen | false
-Visual Smoke bei 900x512 pruefen | false
-Visual Smoke bei 390x900 pruefen | false
+Visual Smoke bei 1440x900 pruefen | true
+Visual Smoke bei 1024x768 pruefen | true
+Visual Smoke bei 900x512 pruefen | true
+Visual Smoke bei 390x900 pruefen | true
 ```
 
 ## Annahmen

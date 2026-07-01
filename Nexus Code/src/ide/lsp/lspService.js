@@ -165,12 +165,14 @@ export function createLspService(options = {}) {
       if (!document) return [];
       const client = ensureClient(document.languageId);
       if (!client) return diagnosticsByUri.get(document.uri) || [];
+      const previousDiagnostics = diagnosticsByUri.get(document.uri) || [];
       const diagnostics = await callClientFeature(
         client,
         "getDiagnostics",
-        [document, context],
-        diagnosticsByUri.get(document.uri) || [],
+        [document, { ...context, previousDiagnostics }],
+        previousDiagnostics,
       );
+      if (diagnostics?.kind === "unchanged") return previousDiagnostics;
       return rememberDiagnostics(document.uri, diagnostics);
     },
 

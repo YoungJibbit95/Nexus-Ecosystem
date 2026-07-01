@@ -109,7 +109,7 @@ const PYTHON_LANGUAGE_SERVER = Object.freeze({
   label: "Pyright",
   envName: "NEXUS_LSP_PYTHON",
   installHint:
-    "Install with pip install pyright or set NEXUS_LSP_PYTHON to a custom command.",
+    "Install Pyright manually with pip install pyright or npm install -g pyright, or set NEXUS_LSP_PYTHON to a custom command.",
   features: LSP_FEATURES,
 });
 
