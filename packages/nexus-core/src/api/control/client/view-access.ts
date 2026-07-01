@@ -11,7 +11,20 @@ import {
 import { buildViewAccessCacheKey, getViewValidationErrorReason } from './common'
 
 const LOCAL_FREE_VIEWS_BY_APP: Record<string, Set<string>> = {
-  main: new Set(['dashboard', 'calendar', 'notes', 'tasks', 'reminders', 'files', 'settings', 'info']),
+  main: new Set([
+    'dashboard',
+    'calendar',
+    'notes',
+    'code',
+    'tasks',
+    'reminders',
+    'canvas',
+    'files',
+    'flux',
+    'settings',
+    'info',
+    'devtools',
+  ]),
   mobile: new Set(['dashboard', 'notes', 'tasks', 'reminders', 'files', 'settings', 'info']),
   code: new Set([]),
   'code-mobile': new Set([]),
@@ -32,6 +45,11 @@ const extractOfflineHttpCode = (messageRaw: string) => {
   const match = messageRaw.match(/VIEW_VALIDATION_HTTP_(\d{3})/)
   if (!match) return ''
   return `HTTP_${match[1]}`
+}
+
+const getLocalFreeValidationFallbackReason = (messageRaw: string) => {
+  const httpCode = extractOfflineHttpCode(messageRaw)
+  return httpCode ? `LOCAL_FREE_VIEW_ALLOW_${httpCode}` : 'LOCAL_FREE_VIEW_ALLOW_VALIDATION_ERROR'
 }
 
 const buildFallbackResult = (
@@ -186,6 +204,15 @@ export const validateViewAccess = async (
         requiredTier: offlineAllowed ? null : 'pro',
         userTier: 'free',
         userTierSource: 'offline',
+      })
+    }
+
+    if (shouldTrustLocalFreeView(client, normalizedView)) {
+      return buildFallbackResult(client, normalizedView, requestedTier, options, {
+        allowed: true,
+        reason: getLocalFreeValidationFallbackReason(rawMessage),
+        paywallEnabled: false,
+        requiredTier: null,
       })
     }
 
