@@ -108,7 +108,31 @@ const TYPESCRIPT_LANGUAGE_SERVER = Object.freeze({
 const PYTHON_LANGUAGE_SERVER = Object.freeze({
   label: "Pyright",
   envName: "NEXUS_LSP_PYTHON",
-  installHint: "Install with pip install pyright or set NEXUS_LSP_PYTHON.",
+  installHint:
+    "Install with pip install pyright or set NEXUS_LSP_PYTHON to a custom command.",
+  features: LSP_FEATURES,
+});
+
+const RUST_LANGUAGE_SERVER = Object.freeze({
+  label: "rust-analyzer",
+  envName: "NEXUS_LSP_RUST",
+  installHint:
+    "Install rust-analyzer with rustup component add rust-analyzer or set NEXUS_LSP_RUST to a custom command.",
+  features: LSP_FEATURES,
+});
+
+const GO_LANGUAGE_SERVER = Object.freeze({
+  label: "gopls",
+  envName: "NEXUS_LSP_GO",
+  installHint:
+    "Install with go install golang.org/x/tools/gopls@latest or set NEXUS_LSP_GO to a custom command.",
+  features: LSP_FEATURES,
+});
+
+const CLANGD_LANGUAGE_SERVER = Object.freeze({
+  label: "clangd",
+  envName: "NEXUS_LSP_CLANGD",
+  installHint: "Install clangd from LLVM or set NEXUS_LSP_CLANGD to a custom command.",
   features: LSP_FEATURES,
 });
 
@@ -155,6 +179,7 @@ const definitions = [
     filenames: ["cargo.toml", "cargo.lock"],
     aliases: ["rust", "rs"],
     lspReady: true,
+    languageServer: RUST_LANGUAGE_SERVER,
   },
   {
     id: LANGUAGE_IDS.GO,
@@ -163,6 +188,7 @@ const definitions = [
     filenames: ["go.mod", "go.sum", "go.work"],
     aliases: ["go", "golang"],
     lspReady: true,
+    languageServer: GO_LANGUAGE_SERVER,
   },
   {
     id: LANGUAGE_IDS.C,
@@ -171,6 +197,7 @@ const definitions = [
     filenames: [],
     aliases: ["c"],
     lspReady: true,
+    languageServer: CLANGD_LANGUAGE_SERVER,
   },
   {
     id: LANGUAGE_IDS.CPP,
@@ -179,6 +206,7 @@ const definitions = [
     filenames: [],
     aliases: ["cpp", "c++", "cplusplus"],
     lspReady: true,
+    languageServer: CLANGD_LANGUAGE_SERVER,
   },
   {
     id: LANGUAGE_IDS.CSHARP,

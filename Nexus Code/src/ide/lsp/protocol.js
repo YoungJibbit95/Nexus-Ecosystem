@@ -29,6 +29,10 @@ export const EMPTY_WORKSPACE_EDIT = Object.freeze({
   changes: Object.freeze({}),
 });
 
+function hasServerProvider(value) {
+  return value === true || Boolean(value && typeof value === "object");
+}
+
 export function toLspPosition(position = {}) {
   const lineNumber = Number(position.lineNumber ?? position.line ?? 1);
   const column = Number(position.column ?? position.character ?? 1);
@@ -169,6 +173,27 @@ export function normalizeDiagnostics(result) {
   if (Array.isArray(result.items)) return result.items;
   if (Array.isArray(result.diagnostics)) return result.diagnostics;
   return [];
+}
+
+export function normalizeServerCapabilities(result) {
+  if (!result || typeof result !== "object") return {};
+  const capabilities = result.capabilities || result;
+  return capabilities && typeof capabilities === "object" ? capabilities : {};
+}
+
+export function lspServerCapabilitiesToFeatureMap(capabilities = {}) {
+  const normalized = normalizeServerCapabilities(capabilities);
+  return {
+    completion: hasServerProvider(normalized.completionProvider),
+    hover: hasServerProvider(normalized.hoverProvider),
+    diagnostics:
+      hasServerProvider(normalized.diagnosticProvider) ||
+      normalized.textDocumentSync !== undefined,
+    definition: hasServerProvider(normalized.definitionProvider),
+    formatting: hasServerProvider(normalized.documentFormattingProvider),
+    codeActions: hasServerProvider(normalized.codeActionProvider),
+    rename: hasServerProvider(normalized.renameProvider),
+  };
 }
 
 export function toLspFormattingOptions(options = {}) {

@@ -79,16 +79,21 @@ import {
 import {
   cmPosToLspPosition,
   createEditorLanguageFeatureModel,
+  createEditorLspFeatureRequest,
   createEditorScopeInfo,
   createEditorHighlightStyle,
   createEditorStatusModel,
   createSnippetCompletions,
   extractDocumentSymbols,
   findDiagnosticAtPosition,
+  EDITOR_LSP_FEATURE_IDS,
+  getPrimaryLspLocation,
   lspCompletionsToCodeMirror,
   lspDiagnosticsToCodeMirror,
   lspDiagnosticsToProblems,
   lspRangeToCodeMirrorRange,
+  lspTextEditsToCodeMirrorChanges,
+  lspWorkspaceEditToCodeMirrorChanges,
   readHoverText,
   shouldRequestLspCompletion,
   summarizeEditorDiagnostics,
@@ -658,6 +663,46 @@ function createHoverTooltipDom({ title, text, accent, tone = "default" }) {
   return dom;
 }
 
+function cmRangeToEditorFeatureRange(doc, from, to = from) {
+  if (!doc) return null;
+  const safeFrom = Math.max(0, Math.min(doc.length, Number(from || 0)));
+  const safeTo = Math.max(safeFrom, Math.min(doc.length, Number(to || safeFrom)));
+  const start = doc.lineAt(safeFrom);
+  const end = doc.lineAt(safeTo);
+  return {
+    startLineNumber: start.number,
+    startColumn: safeFrom - start.from + 1,
+    endLineNumber: end.number,
+    endColumn: safeTo - end.from + 1,
+  };
+}
+
+function getEditorActionRange(view) {
+  const selection = view?.state?.selection?.main;
+  if (!view || !selection) return null;
+  if (!selection.empty) {
+    return cmRangeToEditorFeatureRange(view.state.doc, selection.from, selection.to);
+  }
+  const word = view.state.wordAt(selection.head);
+  if (word) return cmRangeToEditorFeatureRange(view.state.doc, word.from, word.to);
+  return cmRangeToEditorFeatureRange(view.state.doc, selection.head, selection.head);
+}
+
+function getRenameDefaultName(view) {
+  const selection = view?.state?.selection?.main;
+  if (!view || !selection) return "";
+  if (!selection.empty) {
+    return view.state.doc.sliceString(selection.from, selection.to).trim();
+  }
+  const word = view.state.wordAt(selection.head);
+  return word ? view.state.doc.sliceString(word.from, word.to).trim() : "";
+}
+
+function readCodeActionTitle(action) {
+  if (typeof action === "string") return action;
+  return String(action?.title || action?.command?.title || action?.command || "Code action");
+}
+
 export default function CodeEditor({
   code,
   onChange,
@@ -697,6 +742,13 @@ export default function CodeEditor({
     state: "idle",
     label: "LSP",
     message: "",
+  });
+  const [lspActionStatus, setLspActionStatus] = useState({
+    state: "idle",
+    featureId: "",
+    text: "",
+    title: "",
+    tone: "text-gray-500",
   });
   const [diagnosticSummary, setDiagnosticSummary] = useState(() =>
     summarizeEditorDiagnostics([]),
@@ -1001,6 +1053,13 @@ export default function CodeEditor({
     lspDocumentUriRef.current = null;
     lspVersionRef.current = 1;
     currentDiagnosticsRef.current = [];
+    setLspActionStatus({
+      state: "idle",
+      featureId: "",
+      text: "",
+      title: "",
+      tone: "text-gray-500",
+    });
     setDiagnosticSummary(summarizeEditorDiagnostics([], { enabled: showDiagnostics }));
     updateProblems([]);
     const currentView = editorViewRef.current;
@@ -1072,12 +1131,21 @@ export default function CodeEditor({
       .then((document) => {
         if (!active) return;
         lspDocumentUriRef.current = document.uri;
-        setLspStatus((prev) => ({
-          ...prev,
-          ...(prev.state === "unavailable"
-            ? prev
-            : resolveRuntimeLspStatus({ ...prev, state: "running" })),
-        }));
+        const serverFeatures =
+          engine.lspService?.getServerFeatures?.(nexusLanguageId) || null;
+        setLspStatus((prev) => {
+          if (["missing", "unavailable", "unsupported", "disabled"].includes(prev.state)) {
+            return prev;
+          }
+          return {
+            ...prev,
+            ...resolveRuntimeLspStatus({
+              ...prev,
+              state: "running",
+              ...(serverFeatures ? { features: serverFeatures } : {}),
+            }),
+          };
+        });
       })
       .catch((error) => {
         if (!active) return;
@@ -1222,6 +1290,266 @@ export default function CodeEditor({
     [editorAccent, isLargeFile, showDiagnostics],
   );
 
+  const updateLspActionStatus = useCallback((status = {}) => {
+    setLspActionStatus({
+      state: status.state || "idle",
+      featureId: status.featureId || "",
+      text: status.text || "",
+      title: status.title || status.text || "",
+      tone: status.tone || "text-gray-500",
+    });
+  }, []);
+
+  const getLspActionContext = useCallback(
+    (view, overrides = {}) => {
+      if (!view) return null;
+      const head = view.state.selection.main.head;
+      const runtimeBlocked = ["missing", "unavailable", "unsupported", "disabled"].includes(
+        lspStatus.state,
+      );
+      return {
+        canUseLsp: canUseLsp && !runtimeBlocked,
+        hasWorkspace: Boolean(workspacePath),
+        hasLspBridge,
+        lspReadyLanguage,
+        isLargeFile,
+        documentUri: lspDocumentUriRef.current || "",
+        hasDocument: Boolean(lspDocumentUriRef.current),
+        languageId: nexusLanguageId,
+        position: cmPosToLspPosition(view.state.doc, head),
+        range: getEditorActionRange(view),
+        diagnostics: showDiagnostics ? currentDiagnosticsRef.current : [],
+        lspFeatures: languageFeatureModel.lsp.features,
+        runtimeStatus: lspStatus,
+        ...overrides,
+      };
+    },
+    [
+      canUseLsp,
+      hasLspBridge,
+      isLargeFile,
+      languageFeatureModel.lsp.features,
+      lspReadyLanguage,
+      lspStatus,
+      nexusLanguageId,
+      showDiagnostics,
+      workspacePath,
+    ],
+  );
+
+  const runEditorLspAction = useCallback(
+    async (featureId, options = {}) => {
+      const view = options.view || editorViewRef.current;
+      const engine = lspEngineRef.current;
+      const documentUri = lspDocumentUriRef.current;
+      if (!view || !engine || !documentUri) {
+        updateLspActionStatus({
+          state: "unavailable",
+          featureId,
+          text: "LSP action unavailable",
+          title: "No active LSP document is open.",
+          tone: "text-amber-400",
+        });
+        return false;
+      }
+
+      let context = getLspActionContext(view, options.context || {});
+      if (!context) return false;
+
+      if (featureId === EDITOR_LSP_FEATURE_IDS.renameSymbol) {
+        const defaultName = getRenameDefaultName(view);
+        const nextName =
+          options.newName === undefined
+            ? window.prompt("Rename symbol", defaultName)
+            : options.newName;
+        if (!String(nextName || "").trim()) {
+          updateLspActionStatus({
+            state: "idle",
+            featureId,
+            text: "Rename cancelled",
+            tone: "text-gray-500",
+          });
+          return true;
+        }
+        context = { ...context, newName: String(nextName).trim() };
+      }
+
+      const request = createEditorLspFeatureRequest(featureId, context);
+      if (!request.ready) {
+        updateLspActionStatus({
+          state: "unavailable",
+          featureId,
+          text: `${request.label || "LSP action"} unavailable`,
+          title: request.disabledReason || request.pendingReason || "LSP action is not ready.",
+          tone: "text-amber-400",
+        });
+        return false;
+      }
+
+      try {
+        if (featureId === EDITOR_LSP_FEATURE_IDS.goToDefinition) {
+          const locations = await engine.getDefinition(documentUri, request.position, {});
+          const target = getPrimaryLspLocation(locations, documentUri);
+          if (!target?.range) {
+            updateLspActionStatus({
+              state: "empty",
+              featureId,
+              text: "No definition",
+              tone: "text-gray-500",
+            });
+            return true;
+          }
+          if (target.external) {
+            updateLspActionStatus({
+              state: "external",
+              featureId,
+              text: "Definition in another file",
+              title: target.uri,
+              tone: "text-sky-300",
+            });
+            return true;
+          }
+          const range = lspRangeToCodeMirrorRange(view.state.doc, target.range);
+          if (!range) return false;
+          view.dispatch({
+            selection: { anchor: range.from, head: Math.max(range.to, range.from) },
+            effects: EditorView.scrollIntoView(range.from, { y: "center" }),
+          });
+          view.focus();
+          updateLspActionStatus({
+            state: "applied",
+            featureId,
+            text: "Definition selected",
+            tone: "text-sky-300",
+          });
+          return true;
+        }
+
+        if (featureId === EDITOR_LSP_FEATURE_IDS.formatDocument) {
+          const edits = await engine.formatDocument(documentUri, {
+            tabSize: editorTabSize,
+            insertSpaces: true,
+          });
+          const changes = lspTextEditsToCodeMirrorChanges(view.state.doc, edits);
+          if (!changes.length) {
+            updateLspActionStatus({
+              state: "empty",
+              featureId,
+              text: "No format edits",
+              tone: "text-gray-500",
+            });
+            return true;
+          }
+          view.dispatch({ changes });
+          updateLspActionStatus({
+            state: "applied",
+            featureId,
+            text: `Format applied (${changes.length})`,
+            tone: "text-emerald-300",
+          });
+          return true;
+        }
+
+        if (featureId === EDITOR_LSP_FEATURE_IDS.renameSymbol) {
+          const workspaceEdit = await engine.renameSymbol(
+            documentUri,
+            request.position,
+            request.newName,
+          );
+          const result = lspWorkspaceEditToCodeMirrorChanges(
+            view.state.doc,
+            workspaceEdit,
+            documentUri,
+          );
+          if (!result.appliedChangeCount) {
+            updateLspActionStatus({
+              state: result.hasExternalChanges ? "external" : "empty",
+              featureId,
+              text: result.hasExternalChanges ? "Rename spans files" : "No rename edits",
+              title: result.hasExternalChanges
+                ? "Cross-file workspace edits are not applied from the single-file editor yet."
+                : "",
+              tone: result.hasExternalChanges ? "text-amber-400" : "text-gray-500",
+            });
+            return true;
+          }
+          view.dispatch({ changes: result.changes });
+          updateLspActionStatus({
+            state: "applied",
+            featureId,
+            text: `Rename applied (${result.appliedChangeCount})`,
+            title: result.hasExternalChanges
+              ? `${result.externalChangeCount} external edits were left untouched.`
+              : "",
+            tone: result.hasExternalChanges ? "text-amber-300" : "text-emerald-300",
+          });
+          return true;
+        }
+
+        if (featureId === EDITOR_LSP_FEATURE_IDS.codeActions) {
+          const actions = await engine.getCodeActions(documentUri, request.range, {
+            diagnostics: request.diagnostics,
+          });
+          const titles = actions.slice(0, 4).map(readCodeActionTitle).join(" | ");
+          updateLspActionStatus({
+            state: actions.length ? "available" : "empty",
+            featureId,
+            text: actions.length ? `Actions ${actions.length}` : "No code actions",
+            title: titles || "No code actions returned by the language server.",
+            tone: actions.length ? "text-sky-300" : "text-gray-500",
+          });
+          return true;
+        }
+      } catch (error) {
+        updateLspActionStatus({
+          state: "failed",
+          featureId,
+          text: "LSP action failed",
+          title: error?.message || "Language server action failed.",
+          tone: "text-red-400",
+        });
+        return false;
+      }
+
+      return false;
+    },
+    [editorTabSize, getLspActionContext, updateLspActionStatus],
+  );
+
+  const editorLspKeymap = useMemo(
+    () => [
+      {
+        key: "F12",
+        run: (view) => {
+          runEditorLspAction(EDITOR_LSP_FEATURE_IDS.goToDefinition, { view });
+          return true;
+        },
+      },
+      {
+        key: "F2",
+        run: (view) => {
+          runEditorLspAction(EDITOR_LSP_FEATURE_IDS.renameSymbol, { view });
+          return true;
+        },
+      },
+      {
+        key: "Shift-Alt-f",
+        run: (view) => {
+          runEditorLspAction(EDITOR_LSP_FEATURE_IDS.formatDocument, { view });
+          return true;
+        },
+      },
+      {
+        key: "Mod-.",
+        run: (view) => {
+          runEditorLspAction(EDITOR_LSP_FEATURE_IDS.codeActions, { view });
+          return true;
+        },
+      },
+    ],
+    [runEditorLspAction],
+  );
+
   const cmTheme = useMemo(
     () =>
       createNexusCodeMirrorTheme(
@@ -1262,6 +1590,7 @@ export default function CodeEditor({
       search({ top: true }),
       syntaxHighlighting(editorHighlightStyle, { fallback: true }),
       keymap.of([
+        ...editorLspKeymap,
         indentWithTab,
         ...closeBracketsKeymap,
         ...defaultKeymap,
@@ -1346,6 +1675,7 @@ export default function CodeEditor({
     autocompleteMaxItems,
     compactViewport,
     completionSource,
+    editorLspKeymap,
     editorHighlightStyle,
     editorTabSize,
     emitEditorChange,
@@ -1491,6 +1821,8 @@ export default function CodeEditor({
       data-scope-path={editorScopeInfo.pathLabel}
       data-lsp-state={editorStatus.lsp.state}
       data-lsp-capabilities={languageFeatureModel.capabilityBadge}
+      data-lsp-action-state={lspActionStatus.state}
+      data-lsp-action-feature={lspActionStatus.featureId}
       data-completion-sources={languageFeatureModel.completions.availableLabels.join(",")}
       data-diagnostic-count={editorStatus.diagnostics.total}
     >
@@ -1565,6 +1897,14 @@ export default function CodeEditor({
           >
             {editorStatus.diagnostics.text}
           </span>
+          {lspActionStatus.text && (
+            <span
+              className={`hidden md:inline max-w-[16rem] truncate text-[10px] font-medium ${lspActionStatus.tone}`}
+              title={lspActionStatus.title}
+            >
+              {lspActionStatus.text}
+            </span>
+          )}
           {isLargeFile && (
             <span className="text-[10px] text-amber-400/80 font-semibold">
               LARGE

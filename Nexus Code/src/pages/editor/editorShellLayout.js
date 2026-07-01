@@ -92,14 +92,19 @@ export function getSidePanelClassName({ compact }) {
 export function getSidePanelStyle({ compact = false, size } = {}) {
   const panelSize = getSidePanelSize(size);
   if (compact) {
-    const compactWidth = panelSize.compactWidth || panelSize.width || "min(17rem, calc(100vw - 3.25rem))";
     return {
-      width: compactWidth,
+      ...(panelSize.compactStyle || {}),
+      width:
+        panelSize.compactStyle?.width ||
+        panelSize.compactWidth ||
+        panelSize.width ||
+        "min(17rem, calc(100vw - 3.25rem))",
       maxWidth: "calc(100vw - 3.25rem)",
     };
   }
 
   return {
+    ...(panelSize.style || {}),
     width: panelSize.width || panelSize.compactWidth,
     minWidth: panelSize.minWidth || "12.5rem",
     maxWidth: panelSize.maxWidth || "18.75rem",

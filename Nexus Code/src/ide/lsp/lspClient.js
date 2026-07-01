@@ -7,8 +7,10 @@ import {
   normalizeDefinition,
   normalizeDiagnostics,
   normalizeHover,
+  normalizeServerCapabilities,
   normalizeTextEdits,
   normalizeWorkspaceEdit,
+  lspServerCapabilitiesToFeatureMap,
   toLspFormattingOptions,
   toLspPosition,
   toLspRange,
@@ -40,13 +42,14 @@ export function createLspClient(options = {}) {
   const transport = options.transport || null;
   const documents = new Map();
   let initialized = false;
+  let serverCapabilities = normalizeServerCapabilities(options.capabilities || {});
 
   return {
     languageId,
     transport,
 
     async initialize(capabilities = {}) {
-      if (initialized) return { capabilities: options.capabilities || {} };
+      if (initialized) return { capabilities: serverCapabilities };
       initialized = true;
       const initializeParams = {
         processId: null,
@@ -59,10 +62,11 @@ export function createLspClient(options = {}) {
         transport,
         LSP_METHODS.INITIALIZE,
         initializeParams,
-        { capabilities: options.capabilities || {} },
+        { capabilities: serverCapabilities },
       );
       await safeNotify(transport, LSP_METHODS.INITIALIZED, {});
-      return result || { capabilities: {} };
+      serverCapabilities = normalizeServerCapabilities(result || serverCapabilities);
+      return { ...(result || {}), capabilities: serverCapabilities };
     },
 
     async openDocument(document) {
@@ -95,6 +99,14 @@ export function createLspClient(options = {}) {
 
     getDocument(uri) {
       return documents.get(uri) || null;
+    },
+
+    getServerCapabilities() {
+      return serverCapabilities;
+    },
+
+    getServerFeatures() {
+      return lspServerCapabilitiesToFeatureMap(serverCapabilities);
     },
 
     async getCompletions(document, position, context = {}) {
@@ -208,6 +220,7 @@ export function createLspClient(options = {}) {
     dispose() {
       documents.clear();
       initialized = false;
+      serverCapabilities = normalizeServerCapabilities(options.capabilities || {});
       transport?.dispose?.();
     },
   };

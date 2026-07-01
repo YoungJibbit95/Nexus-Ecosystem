@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  AlertTriangle,
   ArrowDown,
   Check,
   ChevronDown,
@@ -399,6 +400,9 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
   const lastCommand = currentCommandHistory[0] || activeSession?.lastCommand || "";
   const outputLineCount = currentHistory.filter((entry) => !entry.trimMarker).length;
   const elapsedLabel = formatDuration(activeSession, isRunning);
+  const latestError = [...currentHistory]
+    .reverse()
+    .find((entry) => entry?.type === "error" && !entry.trimMarker);
 
   const scrollToBottom = useCallback((behavior = "auto") => {
     window.requestAnimationFrame(() => {
@@ -941,7 +945,7 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
         <span className="min-w-0 truncate font-mono text-[10px] text-slate-500">
           {activeSession?.name || "shell"} - {statusMeta.label}
         </span>
-        <span className="ml-auto min-w-0 truncate font-mono text-[10px] text-slate-600">
+        <span className="ml-auto hidden min-w-0 truncate font-mono text-[10px] text-slate-600 sm:block">
           {formatTerminalPath(activeCwd) || bridgeInfo.label}
         </span>
         <ChevronDown size={12} className="ml-0.5 rotate-180 text-slate-600" />
@@ -963,7 +967,7 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
       }}
     >
       <div
-        className="flex min-h-[34px] shrink-0 items-center"
+        className="flex min-h-[36px] shrink-0 items-center"
         style={{ borderBottom: "1px solid rgba(255,255,255,0.065)" }}
       >
         <div className="flex h-full min-w-0 flex-1 items-stretch overflow-x-auto">
@@ -977,7 +981,7 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
                 key={session.id}
                 layout
                 onClick={() => setActiveSessionId(session.id)}
-                className="group relative flex min-w-[132px] max-w-[220px] cursor-pointer select-none items-center gap-2 border-r px-3 transition-colors"
+                className="group relative flex min-w-[112px] max-w-[210px] cursor-pointer select-none items-center gap-2 border-r px-2.5 transition-colors sm:min-w-[132px]"
                 style={{
                   background: isActive ? "rgba(255,255,255,0.045)" : "transparent",
                   borderColor: "rgba(255,255,255,0.055)",
@@ -1043,7 +1047,7 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
         </div>
 
         <div className="flex shrink-0 items-center gap-1 px-2">
-          <div className="flex items-center gap-1 rounded-md border border-white/[0.055] bg-white/[0.015] p-0.5">
+          <div className="hidden items-center gap-1 rounded-md border border-white/[0.055] bg-white/[0.015] p-0.5 sm:flex">
             <button
               type="button"
               onClick={handleCopy}
@@ -1157,62 +1161,90 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
               <ChevronDown size={13} />
             </button>
           </div>
+          <button
+            type="button"
+            onClick={handleStopRunning}
+            disabled={!isRunning}
+            title="Laufenden Prozess beenden"
+            className={`${toolbarButtonClass} sm:hidden`}
+            style={{
+              ...toolbarButtonStyle,
+              borderColor: isRunning
+                ? "rgba(248,113,113,0.22)"
+                : toolbarButtonStyle.borderColor,
+              background: isRunning
+                ? "rgba(248,113,113,0.07)"
+                : toolbarButtonStyle.background,
+              color: isRunning ? "#fca5a5" : "#64748b",
+            }}
+          >
+            <Square size={11} fill="currentColor" />
+          </button>
+          <button
+            type="button"
+            onClick={onToggle}
+            title="Schliessen"
+            className={`${toolbarButtonClass} sm:hidden`}
+            style={toolbarButtonStyle}
+          >
+            <ChevronDown size={13} />
+          </button>
         </div>
       </div>
 
       <div
-        className="flex min-h-[32px] shrink-0 items-center gap-2 overflow-x-auto px-3 py-1"
+        className="grid min-h-[36px] shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-3 py-1"
         style={{ borderBottom: "1px solid rgba(255,255,255,0.045)" }}
       >
-        <span
-          className="flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1 text-[10px] font-medium"
-          style={{
-            color: statusStyle.color,
-            background: statusStyle.background,
-            border: `1px solid ${statusStyle.border}`,
-          }}
-        >
+        <div className="flex min-w-0 items-center gap-2 overflow-hidden">
           <span
-            className="h-1.5 w-1.5 rounded-full"
+            className="flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1 text-[10px] font-medium"
             style={{
-              background: STATUS_DOT_COLORS[statusMeta.tone] || "#64748b",
+              color: statusStyle.color,
+              background: statusStyle.background,
+              border: `1px solid ${statusStyle.border}`,
             }}
-          />
-          {statusMeta.label}
-        </span>
-
-        <span className="flex min-w-[150px] items-center gap-1.5 truncate text-[10px] text-slate-500">
-          <Folder size={11} className="shrink-0 text-slate-600" />
-          <span className="truncate font-mono">{formatTerminalPath(activeCwd) || "~"}</span>
-        </span>
-
-        <span className="hidden shrink-0 items-center gap-1.5 text-[10px] text-slate-600 md:flex">
-          <Clock size={11} />
-          {elapsedLabel || formatTime(activeSession?.createdAt)}
-        </span>
-
-        {typeof activeSession?.lastExitCode === "number" && (
-          <span className="shrink-0 rounded-md border border-white/[0.07] px-2 py-1 font-mono text-[10px] text-slate-500">
-            exit {activeSession.lastExitCode}
-          </span>
-        )}
-
-        <span className="hidden shrink-0 rounded-md border border-white/[0.06] px-2 py-1 text-[10px] text-slate-600 xl:inline">
-          {outputLineCount}/{TERMINAL_OUTPUT_LIMIT} lines
-        </span>
-
-        <div className="ml-auto flex shrink-0 items-center gap-1.5">
-          <span className="hidden max-w-[150px] truncate text-[10px] text-slate-600 2xl:inline">
-            {bridgeInfo.label}
+          >
+            <span
+              className="h-1.5 w-1.5 rounded-full"
+              style={{
+                background: STATUS_DOT_COLORS[statusMeta.tone] || "#64748b",
+              }}
+            />
+            {statusMeta.label}
           </span>
 
+          <span className="flex min-w-0 items-center gap-1.5 truncate text-[10px] text-slate-500">
+            <Folder size={11} className="shrink-0 text-slate-600" />
+            <span className="truncate font-mono">
+              {formatTerminalPath(activeCwd) || "~"}
+            </span>
+          </span>
+
+          <span className="hidden shrink-0 items-center gap-1.5 text-[10px] text-slate-600 lg:flex">
+            <Clock size={11} />
+            {elapsedLabel || formatTime(activeSession?.createdAt)}
+          </span>
+
+          {typeof activeSession?.lastExitCode === "number" && (
+            <span className="hidden shrink-0 rounded-md border border-white/[0.07] px-2 py-1 font-mono text-[10px] text-slate-500 sm:inline">
+              exit {activeSession.lastExitCode}
+            </span>
+          )}
+
+          <span className="hidden shrink-0 rounded-md border border-white/[0.06] px-2 py-1 text-[10px] text-slate-600 xl:inline">
+            {outputLineCount}/{TERMINAL_OUTPUT_LIMIT} lines
+          </span>
+        </div>
+
+        <div className="flex shrink-0 items-center gap-1.5">
           <select
             value=""
             onChange={(event) => {
               const task = taskItems.find((item) => item.id === event.target.value);
               runTask(task);
             }}
-            className="h-6 shrink-0 rounded-md border border-white/[0.07] bg-black/25 px-2 text-[10px] font-medium text-slate-400 outline-none transition-colors hover:text-slate-200"
+            className="h-6 w-[74px] shrink-0 rounded-md border border-white/[0.07] bg-black/25 px-2 text-[10px] font-medium text-slate-400 outline-none transition-colors hover:text-slate-200 sm:w-[94px]"
             title="Task Runner"
           >
             <option value="">Tasks</option>
@@ -1260,7 +1292,7 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
             }}
           >
             <RotateCcw size={11} />
-            <span className="hidden sm:inline">Last</span>
+            <span className="hidden md:inline">Last</span>
           </button>
 
           {visibleSuggestions.map((item) => (
@@ -1295,11 +1327,39 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
         onScroll={handleOutputScroll}
         style={{ cursor: "text" }}
       >
-        <div className="space-y-0.5">
-          {currentHistory.map((entry) => (
-            <TerminalOutputRow key={entry.id} entry={entry} />
-          ))}
-        </div>
+        {latestError && !isRunning ? (
+          <div className="mb-2 flex min-w-0 items-start gap-2 rounded-md border border-rose-400/20 bg-rose-400/[0.07] px-2.5 py-2">
+            <AlertTriangle size={13} className="mt-0.5 shrink-0 text-rose-300" />
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold text-rose-100">
+                Last command ended with an error
+              </p>
+              <p className="mt-0.5 break-words font-mono text-[10px] text-rose-200/75">
+                {latestError.text}
+              </p>
+            </div>
+          </div>
+        ) : null}
+
+        {currentHistory.length === 0 ? (
+          <div className="flex h-full min-h-[120px] items-center justify-center">
+            <div className="max-w-[22rem] rounded-lg border border-white/[0.06] bg-white/[0.025] px-4 py-3 text-center">
+              <TerminalIcon size={18} className="mx-auto text-slate-500" />
+              <p className="mt-2 text-[12px] font-semibold text-slate-300">
+                Keine Ausgabe
+              </p>
+              <p className="mt-1 text-[11px] leading-relaxed text-slate-600">
+                Starte einen Task oder fuehre einen Befehl aus. Verlauf, Fehler und Status landen hier.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-0.5">
+            {currentHistory.map((entry) => (
+              <TerminalOutputRow key={entry.id} entry={entry} />
+            ))}
+          </div>
+        )}
 
         <AnimatePresence>
           {isRunning && (
@@ -1307,24 +1367,26 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="mt-1 flex items-center gap-1.5"
+              className="mt-2 inline-flex min-w-0 items-center gap-2 rounded-md border border-sky-400/15 bg-sky-400/[0.055] px-2.5 py-1.5"
               style={{ fontSize: "12px", color: "#64748b" }}
             >
-              {[0, 1, 2].map((index) => (
-                <motion.span
-                  key={index}
-                  animate={{ opacity: [0.2, 1, 0.2] }}
-                  transition={{
-                    duration: 0.8,
-                    repeat: Infinity,
-                    delay: index * 0.2,
-                  }}
-                  className="inline-block h-1 w-1 rounded-full"
-                  style={{ background: "#38bdf8" }}
-                />
-              ))}
-              <span className="ml-1 text-[11px] text-gray-500">
-                Process running - stdin ready
+              <span className="flex shrink-0 items-center gap-1">
+                {[0, 1, 2].map((index) => (
+                  <motion.span
+                    key={index}
+                    animate={{ opacity: [0.2, 1, 0.2] }}
+                    transition={{
+                      duration: 0.8,
+                      repeat: Infinity,
+                      delay: index * 0.2,
+                    }}
+                    className="inline-block h-1 w-1 rounded-full"
+                    style={{ background: "#38bdf8" }}
+                  />
+                ))}
+              </span>
+              <span className="min-w-0 truncate text-[11px] text-sky-100/75">
+                Process running. stdin is ready.
               </span>
             </motion.div>
           )}
@@ -1381,7 +1443,7 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
           }}
         >
           <Play size={12} fill="currentColor" />
-          {isRunning ? "Send" : "Run"}
+          <span className="hidden sm:inline">{isRunning ? "Send" : "Run"}</span>
         </button>
       </div>
     </motion.div>

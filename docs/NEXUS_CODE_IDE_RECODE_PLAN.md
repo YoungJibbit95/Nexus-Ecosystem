@@ -29,15 +29,15 @@ Nach gruenen Gates direkt auf main committen und pushen | true
 ```nexus-checklist
 TypeScript/JavaScript Completion produktionsreif machen | true
 TypeScript/JavaScript Hover stabilisieren | false
-TypeScript/JavaScript Diagnostics sauber mit Problems synchronisieren | false
-TypeScript/JavaScript Go to Definition anbinden | false
-TypeScript/JavaScript Rename vorbereiten oder umsetzen | false
-TypeScript/JavaScript Formatting anbinden | false
-TypeScript/JavaScript Code Actions anbinden | false
+TypeScript/JavaScript Diagnostics sauber mit Problems synchronisieren | true
+TypeScript/JavaScript Go to Definition anbinden | true
+TypeScript/JavaScript Rename vorbereiten oder umsetzen | true
+TypeScript/JavaScript Formatting anbinden | true
+TypeScript/JavaScript Code Actions anbinden | true
 Python mit Pyright-Erkennung und gefuehrtem Setup stabilisieren | false
 Python Completion, Hover und Diagnostics verbessern | false
-Rust, Go und C/C++ Server-Erkennung ausbauen | false
-Rust, Go und C/C++ klare Fallbacks bei fehlenden Servern zeigen | false
+Rust, Go und C/C++ Server-Erkennung ausbauen | true
+Rust, Go und C/C++ klare Fallbacks bei fehlenden Servern zeigen | true
 Completion-Dedupe und Ranking verbessern | true
 Editor-Status fuer LSP, Sprache, Datei und Fehler verstaendlicher machen | true
 ```
@@ -55,7 +55,7 @@ Editor-Status fuer LSP, Sprache, Datei und Fehler verstaendlicher machen | true
 ```nexus-checklist
 LSP-Statusmodell pro Sprache erweitern | true
 PATH-Erkennung sichtbar machen | false
-Env-Override-Hinweise sichtbar machen | false
+Env-Override-Hinweise sichtbar machen | true
 Fehlende Server verstaendlich anzeigen | true
 Defekte Serverstarts sauber abfangen | true
 Setup-Hinweise in Settings integrieren | true
@@ -96,8 +96,8 @@ UI-Primitives fuer Buttons, Inputs, Cards, Badges und Toolbars vereinheitlichen 
 Settings technisch und visuell weiter ausbauen | true
 Command Palette und Spotlight zusammenfuehren | true
 Sidebar-Panels visuell entcluttern | true
-Problems, Search, Terminal und Git-Panels weiter recoden | false
-Titlebar und Statusbar ruhiger machen | false
+Problems, Search, Terminal und Git-Panels weiter recoden | true
+Titlebar und Statusbar ruhiger machen | true
 Text-Fit-Regeln global haerten | true
 Glow/Blur mit Performance-Fallback absichern | true
 ```
@@ -113,11 +113,11 @@ Glow/Blur mit Performance-Fallback absichern | true
 
 ```nexus-checklist
 Snap-Zones weiter stabilisieren | true
-Resize-Verhalten verbessern | false
+Resize-Verhalten verbessern | true
 Layout Reset sauberer machen | true
 Persistenz gegen kaputte Daten absichern | true
-Bottom Dock kompakter und besser nutzbar machen | false
-Sidebar-Breite und Compact-Modus verbessern | false
+Bottom Dock kompakter und besser nutzbar machen | true
+Sidebar-Breite und Compact-Modus verbessern | true
 Keyboard-Kommandos fuer Panel-Fokus ergaenzen | true
 ```
 
