@@ -8,6 +8,8 @@ export const LSP_METHODS = Object.freeze({
   HOVER: "textDocument/hover",
   DEFINITION: "textDocument/definition",
   FORMATTING: "textDocument/formatting",
+  CODE_ACTION: "textDocument/codeAction",
+  RENAME: "textDocument/rename",
   DIAGNOSTIC: "textDocument/diagnostic",
 });
 
@@ -21,6 +23,10 @@ export const LSP_DIAGNOSTIC_SEVERITY = Object.freeze({
 export const EMPTY_COMPLETION_LIST = Object.freeze({
   isIncomplete: false,
   items: Object.freeze([]),
+});
+
+export const EMPTY_WORKSPACE_EDIT = Object.freeze({
+  changes: Object.freeze({}),
 });
 
 export function toLspPosition(position = {}) {
@@ -42,6 +48,23 @@ export function fromLspPosition(position = {}) {
 }
 
 export function toLspRange(range = {}) {
+  if (range?.start && range?.end) {
+    const startLine = Number(range.start.line ?? 0);
+    const startCharacter = Number(range.start.character ?? 0);
+    const endLine = Number(range.end.line ?? startLine);
+    const endCharacter = Number(range.end.character ?? startCharacter);
+    return {
+      start: {
+        line: Math.max(0, Number.isFinite(startLine) ? startLine : 0),
+        character: Math.max(0, Number.isFinite(startCharacter) ? startCharacter : 0),
+      },
+      end: {
+        line: Math.max(0, Number.isFinite(endLine) ? endLine : 0),
+        character: Math.max(0, Number.isFinite(endCharacter) ? endCharacter : 0),
+      },
+    };
+  }
+
   return {
     start: toLspPosition({
       lineNumber: range.startLineNumber,
@@ -114,6 +137,30 @@ export function normalizeTextEdits(result) {
   if (Array.isArray(result.edits)) return result.edits.filter(Boolean);
   if (Array.isArray(result.items)) return result.items.filter(Boolean);
   return [];
+}
+
+export function normalizeCodeActions(result) {
+  if (!result) return [];
+  if (Array.isArray(result)) return result.filter(Boolean);
+  if (Array.isArray(result.items)) return result.items.filter(Boolean);
+  if (Array.isArray(result.actions)) return result.actions.filter(Boolean);
+  if (Array.isArray(result.commands)) return result.commands.filter(Boolean);
+  return [];
+}
+
+export function normalizeWorkspaceEdit(result) {
+  if (!result || typeof result !== "object") return { changes: {} };
+  if (
+    result.changes &&
+    typeof result.changes === "object" &&
+    !Array.isArray(result.changes)
+  ) {
+    return result;
+  }
+  if (Array.isArray(result.documentChanges)) {
+    return result;
+  }
+  return { changes: {} };
 }
 
 export function normalizeDiagnostics(result) {

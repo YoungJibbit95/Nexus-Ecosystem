@@ -1,10 +1,39 @@
 import { createLspClient } from "./lspClient.js";
-import { EMPTY_COMPLETION_LIST, normalizeDiagnostics } from "./protocol.js";
+import {
+  EMPTY_COMPLETION_LIST,
+  EMPTY_WORKSPACE_EDIT,
+  normalizeCodeActions,
+  normalizeCompletionList,
+  normalizeDefinition,
+  normalizeDiagnostics,
+  normalizeHover,
+  normalizeTextEdits,
+  normalizeWorkspaceEdit,
+} from "./protocol.js";
 import { isLspReadyLanguage, normalizeLanguageId } from "../languages/languageIds.js";
 
 function resolveUri(documentOrUri) {
   if (typeof documentOrUri === "string") return documentOrUri;
   return documentOrUri?.uri || "";
+}
+
+function emptyCompletionList() {
+  return { ...EMPTY_COMPLETION_LIST, items: [] };
+}
+
+function emptyWorkspaceEdit() {
+  return { ...EMPTY_WORKSPACE_EDIT, changes: {} };
+}
+
+async function callClientFeature(client, method, args, fallback) {
+  if (typeof client?.[method] !== "function") return fallback;
+  try {
+    const result = await client[method](...args);
+    return result ?? fallback;
+  } catch (error) {
+    console.warn(`LSP client feature failed: ${method}`, error);
+    return fallback;
+  }
 }
 
 export function createLspService(options = {}) {
@@ -110,7 +139,12 @@ export function createLspService(options = {}) {
       if (!document) return [];
       const client = ensureClient(document.languageId);
       if (!client) return diagnosticsByUri.get(document.uri) || [];
-      const diagnostics = await client.getDiagnostics(document, context);
+      const diagnostics = await callClientFeature(
+        client,
+        "getDiagnostics",
+        [document, context],
+        diagnosticsByUri.get(document.uri) || [],
+      );
       const normalized = normalizeDiagnostics(diagnostics);
       diagnosticsByUri.set(document.uri, normalized);
       return normalized;
@@ -118,10 +152,17 @@ export function createLspService(options = {}) {
 
     async getCompletions(documentOrUri, position, context = {}) {
       const document = resolveDocument(documentOrUri);
-      if (!document) return { ...EMPTY_COMPLETION_LIST, items: [] };
+      if (!document) return emptyCompletionList();
       const client = ensureClient(document.languageId);
-      if (!client) return { ...EMPTY_COMPLETION_LIST, items: [] };
-      return client.getCompletions(document, position, context);
+      if (!client) return emptyCompletionList();
+      return normalizeCompletionList(
+        await callClientFeature(
+          client,
+          "getCompletions",
+          [document, position, context],
+          emptyCompletionList(),
+        ),
+      );
     },
 
     async getHover(documentOrUri, position, context = {}) {
@@ -129,7 +170,9 @@ export function createLspService(options = {}) {
       if (!document) return null;
       const client = ensureClient(document.languageId);
       if (!client) return null;
-      return client.getHover(document, position, context);
+      return normalizeHover(
+        await callClientFeature(client, "getHover", [document, position, context], null),
+      );
     },
 
     async getDefinition(documentOrUri, position, context = {}) {
@@ -137,7 +180,9 @@ export function createLspService(options = {}) {
       if (!document) return [];
       const client = ensureClient(document.languageId);
       if (!client) return [];
-      return client.getDefinition(document, position, context);
+      return normalizeDefinition(
+        await callClientFeature(client, "getDefinition", [document, position, context], []),
+      );
     },
 
     async formatDocument(documentOrUri, options = {}) {
@@ -145,7 +190,34 @@ export function createLspService(options = {}) {
       if (!document) return [];
       const client = ensureClient(document.languageId);
       if (!client) return [];
-      return client.formatDocument(document, options);
+      return normalizeTextEdits(
+        await callClientFeature(client, "formatDocument", [document, options], []),
+      );
+    },
+
+    async getCodeActions(documentOrUri, range = {}, context = {}) {
+      const document = resolveDocument(documentOrUri);
+      if (!document) return [];
+      const client = ensureClient(document.languageId);
+      if (!client) return [];
+      return normalizeCodeActions(
+        await callClientFeature(client, "getCodeActions", [document, range, context], []),
+      );
+    },
+
+    async renameSymbol(documentOrUri, position, newName) {
+      const document = resolveDocument(documentOrUri);
+      if (!document) return emptyWorkspaceEdit();
+      const client = ensureClient(document.languageId);
+      if (!client) return emptyWorkspaceEdit();
+      return normalizeWorkspaceEdit(
+        await callClientFeature(
+          client,
+          "renameSymbol",
+          [document, position, newName],
+          emptyWorkspaceEdit(),
+        ),
+      );
     },
 
     onDiagnostics(listener) {

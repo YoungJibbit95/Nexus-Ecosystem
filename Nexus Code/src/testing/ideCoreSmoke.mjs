@@ -1,5 +1,14 @@
 import assert from "node:assert/strict";
+import { createRequire } from "node:module";
 
+import {
+  EDITOR_ENGINE_CAPABILITIES,
+  EDITOR_ENGINE_CONTRACT_VERSION,
+  createEditorEngine,
+} from "../ide/editor/editorEngine.js";
+import { createLspClient } from "../ide/lsp/lspClient.js";
+import { createLspService } from "../ide/lsp/lspService.js";
+import { toLspRange } from "../ide/lsp/protocol.js";
 import {
   ACCOUNT_AUTH_MODES,
   createLocalAccountSession,
@@ -60,14 +69,24 @@ import {
   WORKBENCH_PANEL_PLACEMENTS,
   WORKBENCH_SNAP_ZONES,
   getBottomPanelStyle,
+  getFocusableWorkbenchPanelIds,
   getLayoutDropPreview,
+  getNextFocusableWorkbenchPanelId,
   getVisiblePanelId,
+  getWorkbenchPanelFocusTarget,
   getWorkbenchPanelSnapZone,
   getWorkbenchZonePanelIds,
   movePanelToZone,
   normalizeWorkbenchDockState,
   normalizeWorkbenchLayout,
 } from "../pages/editor/workbenchDockModel.js";
+
+const require = createRequire(import.meta.url);
+const {
+  DEFAULT_RETRY_DELAY_MS,
+  createServerStatusSnapshot,
+  resolveServerConfig,
+} = require("../../electron/services/lspProcessService.cjs");
 
 function getNodeRowNames(model) {
   return model.rows
@@ -488,6 +507,51 @@ const scenarios = [
     },
   },
   {
+    id: "workbench-layout-empty-buckets-and-snap-aliases",
+    title: "empty dock buckets and snap aliases fill one stable panel map",
+    run() {
+      const layout = assertWorkbenchLayoutInvariants({
+        panelZones: {
+          Explorer: "left_sidebar",
+          search: "right-sidebar",
+          git: "bottom-dock",
+          account: "off",
+        },
+        zonePanelIds: {
+          left_sidebar: {
+            panelIds: ["", "Explorer", ["Search", "missing-panel"]],
+          },
+          "right-sidebar": {
+            panels: ["issues", "prs", "Search"],
+          },
+          bottomDock: {
+            items: ["git", "terminal", "terminal", null],
+          },
+          hidden: {
+            panelId: "account",
+          },
+          unused: {
+            panels: ["debug"],
+          },
+        },
+      });
+
+      assert.deepEqual(
+        getWorkbenchZonePanelIds(layout, WORKBENCH_SNAP_ZONES.left).slice(0, 2),
+        ["explorer", "search"],
+      );
+      assert.equal(layout.panelZones.search, WORKBENCH_SNAP_ZONES.left);
+      assert.equal(layout.panelZones.issues, WORKBENCH_SNAP_ZONES.right);
+      assert.equal(layout.panelZones.git, WORKBENCH_SNAP_ZONES.bottom);
+      assert.equal(layout.panelZones.account, WORKBENCH_SNAP_ZONES.hidden);
+      assert.equal(
+        getWorkbenchZonePanelIds(layout, WORKBENCH_SNAP_ZONES.bottom)
+          .filter((panelId) => panelId === "terminal").length,
+        1,
+      );
+    },
+  },
+  {
     id: "workbench-layout-aliases-and-compact-fallbacks",
     title: "layout aliases and compact shell fallbacks stay valid",
     run() {
@@ -558,6 +622,11 @@ const scenarios = [
       assert.deepEqual(
         getWorkbenchZonePanelIds(layout, WORKBENCH_SNAP_ZONES.left).slice(0, 2),
         ["prs", "terminal"],
+      );
+
+      assert.deepEqual(
+        movePanelToZone(layout, "terminal", "floating-zone"),
+        layout,
       );
     },
   },
@@ -659,6 +728,84 @@ const scenarios = [
       assert.equal(dockState.activePanel, null);
       assert.equal(dockState.bottomTab, "terminal");
       assert.equal(dockState.bottomPanelOpen, true);
+    },
+  },
+  {
+    id: "workbench-panel-focus-helpers",
+    title: "keyboard-friendly panel focus helpers resolve visible dock targets",
+    run() {
+      let layout = normalizeWorkbenchLayout();
+      layout = movePanelToZone(layout, "search", WORKBENCH_SNAP_ZONES.right, {
+        beforePanelId: "issues",
+      });
+      layout = movePanelToZone(layout, "terminal", WORKBENCH_SNAP_ZONES.hidden);
+      layout = assertWorkbenchLayoutInvariants(layout);
+
+      const sidePanels = getFocusableWorkbenchPanelIds(
+        layout,
+        WORKBENCH_PANEL_PLACEMENTS.side,
+      );
+      assert.equal(sidePanels.includes("terminal"), false);
+      assert.equal(sidePanels.includes("search"), true);
+      assert.equal(
+        getNextFocusableWorkbenchPanelId({
+          layout,
+          panelId: "explorer",
+          snapZone: WORKBENCH_PANEL_PLACEMENTS.side,
+          direction: "next",
+        }),
+        "git",
+      );
+      assert.equal(
+        getNextFocusableWorkbenchPanelId({
+          layout,
+          panelId: "explorer",
+          snapZone: WORKBENCH_PANEL_PLACEMENTS.side,
+          direction: "previous",
+        }),
+        "projects",
+      );
+
+      const nextSideFocus = getWorkbenchPanelFocusTarget({
+        layout,
+        state: {
+          activePanel: "explorer",
+          bottomTab: "problems",
+          bottomPanelOpen: true,
+        },
+        snapZone: WORKBENCH_PANEL_PLACEMENTS.side,
+        direction: "next",
+      });
+      assert.equal(nextSideFocus.canFocus, true);
+      assert.equal(nextSideFocus.panelId, "git");
+      assert.equal(nextSideFocus.dockTarget, "side-panel");
+      assert.equal(nextSideFocus.sidebarRequired, true);
+      assert.equal(nextSideFocus.state.activePanel, "git");
+
+      const bottomFocus = getWorkbenchPanelFocusTarget({
+        layout,
+        panelId: "problems",
+        snapZone: WORKBENCH_SNAP_ZONES.bottom,
+      });
+      assert.equal(bottomFocus.canFocus, true);
+      assert.equal(bottomFocus.dockTarget, "bottom-panel");
+      assert.equal(bottomFocus.state.bottomTab, "problems");
+      assert.equal(bottomFocus.state.bottomPanelOpen, true);
+
+      const nullStateFocus = getWorkbenchPanelFocusTarget({
+        layout,
+        state: null,
+        panelId: "explorer",
+      });
+      assert.equal(nullStateFocus.canFocus, true);
+      assert.equal(nullStateFocus.state.activePanel, "explorer");
+
+      const hiddenFocus = getWorkbenchPanelFocusTarget({
+        layout,
+        panelId: "terminal",
+      });
+      assert.equal(hiddenFocus.canFocus, false);
+      assert.equal(hiddenFocus.reason, "hidden-panel");
     },
   },
   {
@@ -828,13 +975,14 @@ const scenarios = [
   },
   {
     id: "account-session-start-contract",
-    title: "account session contract supports local start and migrated API sessions",
+    title: "account session contract is strict and only starts valid Nexus sessions",
     run() {
       const localSession = createLocalAccountSession({ username: "Local IDE" });
       const localState = getAccountSessionState(localSession);
       assert.equal(localSession.authMode, ACCOUNT_AUTH_MODES.local);
-      assert.equal(localState.canStartWorkbench, true);
+      assert.equal(localState.canStartWorkbench, false);
       assert.equal(localState.isLocal, true);
+      assert.equal(localState.isConfigured, true);
 
       const migratedSession = normalizeAccountSession({
         token: "session-token",
@@ -1239,20 +1387,186 @@ const scenarios = [
       assert.equal(incompleteResult.validFor, undefined);
     },
   },
+  {
+    id: "lsp-server-status-contracts",
+    title: "language server status reports availability, overrides and retry hints",
+    run() {
+      const tsConfig = resolveServerConfig("typescript", {
+        NEXUS_LSP_TYPESCRIPT: "custom-ts-language-server --stdio --log-level 4",
+      });
+      assert.equal(tsConfig.label, "TypeScript Language Server");
+      assert.equal(tsConfig.envName, "NEXUS_LSP_TYPESCRIPT");
+      assert.equal(tsConfig.envOverride, true);
+      assert.deepEqual(tsConfig.args, ["--stdio", "--log-level", "4"]);
+
+      const missingStatus = createServerStatusSnapshot(
+        "typescript",
+        tsConfig,
+        { available: false, path: null },
+        { lastError: "spawn ENOENT", lastExitCode: 1, lastState: "missing" },
+      );
+      assert.equal(missingStatus.available, false);
+      assert.equal(missingStatus.missing, true);
+      assert.equal(missingStatus.envOverride, true);
+      assert.equal(missingStatus.canRetry, true);
+      assert.equal(missingStatus.retryable, true);
+      assert.equal(missingStatus.retryDelayMs, DEFAULT_RETRY_DELAY_MS);
+      assert.match(missingStatus.installHint, /typescript-language-server/);
+      assert.match(missingStatus.message, /not available/);
+      assert.equal(missingStatus.lastExitCode, 1);
+
+      const pythonConfig = resolveServerConfig("python", {});
+      const availableStatus = createServerStatusSnapshot(
+        "python",
+        pythonConfig,
+        { available: true, path: "C:\\Tools\\pyright-langserver.cmd" },
+      );
+      assert.equal(availableStatus.available, true);
+      assert.equal(availableStatus.missing, false);
+      assert.equal(availableStatus.path, "C:\\Tools\\pyright-langserver.cmd");
+      assert.equal(availableStatus.retryDelayMs, 0);
+
+      const unsupportedStatus = createServerStatusSnapshot("ruby", null);
+      assert.equal(unsupportedStatus.state, "unsupported");
+      assert.equal(unsupportedStatus.canRetry, false);
+      assert.equal(unsupportedStatus.installHint, null);
+    },
+  },
+  {
+    id: "lsp-client-noop-feature-contracts",
+    title: "LSP client returns stable no-op results without a transport",
+    async run() {
+      const client = createLspClient({ languageId: "typescript", transport: null });
+      const document = {
+        uri: "file:///workspace/index.ts",
+        languageId: "typescript",
+        version: 1,
+        value: "const value = 1;",
+      };
+
+      await client.initialize();
+      await client.openDocument(document);
+      assert.deepEqual(
+        await client.getCompletions(document, { lineNumber: 1, column: 7 }),
+        { isIncomplete: false, items: [] },
+      );
+      assert.equal(await client.getHover(document, { lineNumber: 1, column: 7 }), null);
+      assert.deepEqual(await client.getDiagnostics(document), []);
+      assert.deepEqual(await client.getDefinition(document, { lineNumber: 1, column: 7 }), []);
+      assert.deepEqual(await client.formatDocument(document), []);
+      assert.deepEqual(
+        await client.getCodeActions(
+          document,
+          { startLineNumber: 1, startColumn: 1, endLineNumber: 1, endColumn: 6 },
+          { diagnostics: [] },
+        ),
+        [],
+      );
+      assert.deepEqual(
+        await client.renameSymbol(document, { lineNumber: 1, column: 7 }, "nextValue"),
+        { changes: {} },
+      );
+      assert.deepEqual(
+        toLspRange({ start: { line: 2, character: 3 }, end: { line: 2, character: 8 } }),
+        { start: { line: 2, character: 3 }, end: { line: 2, character: 8 } },
+      );
+      client.dispose();
+    },
+  },
+  {
+    id: "editor-engine-lsp-fallback-contracts",
+    title: "EditorEngine exposes stable LSP feature fallbacks through partial clients",
+    async run() {
+      const partialClient = {
+        async initialize() {
+          return { capabilities: {} };
+        },
+        async openDocument() {},
+        async updateDocument() {},
+        async closeDocument() {},
+        async getHover() {
+          return "hover text";
+        },
+        async getDiagnostics() {
+          return {
+            items: [
+              {
+                message: "Expected semicolon.",
+                severity: 2,
+                range: {
+                  start: { line: 0, character: 14 },
+                  end: { line: 0, character: 15 },
+                },
+              },
+            ],
+          };
+        },
+        async getCodeActions() {
+          return {
+            actions: [{ title: "Insert semicolon", kind: "quickfix" }],
+          };
+        },
+      };
+      const lspService = createLspService({
+        clientFactory: () => partialClient,
+      });
+      const engine = createEditorEngine({ lspService });
+      const document = await engine.openDocument({
+        fileName: "index.ts",
+        languageId: "typescript",
+        value: "const value = 1",
+        version: 1,
+      });
+
+      assert.equal(EDITOR_ENGINE_CONTRACT_VERSION, "0.2.0");
+      assert.equal(EDITOR_ENGINE_CAPABILITIES.lspDefinition, true);
+      assert.equal(EDITOR_ENGINE_CAPABILITIES.lspFormatting, true);
+      assert.equal(EDITOR_ENGINE_CAPABILITIES.lspCodeActions, true);
+      assert.equal(EDITOR_ENGINE_CAPABILITIES.lspRename, true);
+      assert.deepEqual(await engine.getCompletions(document.uri, { lineNumber: 1, column: 7 }), {
+        isIncomplete: false,
+        items: [],
+      });
+      assert.deepEqual(await engine.getHover(document.uri, { lineNumber: 1, column: 7 }), {
+        contents: "hover text",
+      });
+      assert.equal((await engine.getDiagnostics(document.uri))[0]?.message, "Expected semicolon.");
+      assert.deepEqual(await engine.getDefinition(document.uri, { lineNumber: 1, column: 7 }), []);
+      assert.deepEqual(await engine.formatDocument(document.uri), []);
+      assert.equal(
+        (await engine.getCodeActions(document.uri, {
+          startLineNumber: 1,
+          startColumn: 1,
+          endLineNumber: 1,
+          endColumn: 15,
+        }))[0]?.title,
+        "Insert semicolon",
+      );
+      assert.deepEqual(
+        await engine.renameSymbol(document.uri, { lineNumber: 1, column: 7 }, "nextValue"),
+        { changes: {} },
+      );
+
+      await engine.closeDocument(document.uri);
+      engine.dispose();
+    },
+  },
 ];
 
 export function createIdeCoreSmokeScenarios() {
   return scenarios;
 }
 
-export function runIdeCoreSmoke() {
-  return scenarios.map((scenario) => {
+export async function runIdeCoreSmoke() {
+  const results = [];
+  for (const scenario of scenarios) {
     const startedAt = Date.now();
-    scenario.run();
-    return {
+    await scenario.run();
+    results.push({
       id: scenario.id,
       title: scenario.title,
       ms: Date.now() - startedAt,
-    };
-  });
+    });
+  }
+  return results;
 }

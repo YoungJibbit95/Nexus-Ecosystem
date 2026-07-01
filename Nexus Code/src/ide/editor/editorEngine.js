@@ -7,7 +7,7 @@ import {
 } from "../languages/languageIds.js";
 import { createDocumentUriDescriptor } from "./documentUri.js";
 
-export const EDITOR_ENGINE_CONTRACT_VERSION = "0.1.0";
+export const EDITOR_ENGINE_CONTRACT_VERSION = "0.2.0";
 
 export const EDITOR_ENGINE_EVENTS = Object.freeze({
   DOCUMENT_OPENED: "documentOpened",
@@ -22,6 +22,10 @@ export const EDITOR_ENGINE_CAPABILITIES = Object.freeze({
   lspCompletion: true,
   lspHover: true,
   lspDiagnostics: true,
+  lspDefinition: true,
+  lspFormatting: true,
+  lspCodeActions: true,
+  lspRename: true,
   externalServerProcesses: true,
 });
 
@@ -193,6 +197,30 @@ export function createEditorEngine(options = {}) {
       const document = resolveDocument(documentOrUri);
       if (!document) return [];
       return lspService.getDiagnostics(document, context);
+    },
+
+    async getDefinition(documentOrUri, position, context = {}) {
+      const document = resolveDocument(documentOrUri);
+      if (!document) return [];
+      return lspService.getDefinition?.(document, position, context) || [];
+    },
+
+    async formatDocument(documentOrUri, options = {}) {
+      const document = resolveDocument(documentOrUri);
+      if (!document) return [];
+      return lspService.formatDocument?.(document, options) || [];
+    },
+
+    async getCodeActions(documentOrUri, range = {}, context = {}) {
+      const document = resolveDocument(documentOrUri);
+      if (!document) return [];
+      return lspService.getCodeActions?.(document, range, context) || [];
+    },
+
+    async renameSymbol(documentOrUri, position, newName) {
+      const document = resolveDocument(documentOrUri);
+      if (!document) return { changes: {} };
+      return lspService.renameSymbol?.(document, position, newName) || { changes: {} };
     },
 
     dispose() {

@@ -1,7 +1,7 @@
 import { runIdeCoreSmoke } from "../src/testing/ideCoreSmoke.mjs";
 
 try {
-  const results = runIdeCoreSmoke();
+  const results = await runIdeCoreSmoke();
   console.log(
     `[ide-core-smoke] ${results.length} Nexus Code IDE-core scenarios passed.`,
   );

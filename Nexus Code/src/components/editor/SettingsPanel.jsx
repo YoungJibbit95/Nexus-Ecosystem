@@ -2437,44 +2437,69 @@ export default function SettingsPanel({
   const renderLspServers = () =>
     lspServers.length > 0 ? (
       <div
-        className="nx-code-settings-group rounded-md border p-3"
+        className="nx-code-settings-group rounded-2xl border p-3"
         style={{
           background:
-            "linear-gradient(180deg, rgba(255,255,255,0.022), rgba(255,255,255,0.006)), rgba(0,0,0,0.14)",
-          borderColor: "rgba(156,178,226,0.075)",
+            "radial-gradient(circle at 10% 0%, rgba(var(--nexus-primary-rgb),0.1), transparent 14rem), linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0.008)), rgba(0,0,0,0.18)",
+          borderColor: "rgba(156,178,226,0.11)",
         }}
       >
-        <div className="mb-2 break-words text-[10px] font-semibold uppercase leading-tight text-gray-500">
-          LSP Tools
+        <div className="mb-1.5 flex min-w-0 flex-wrap items-center justify-between gap-2">
+          <div className="break-words text-[10px] font-semibold uppercase leading-tight text-gray-500">
+            LSP Setup
+          </div>
+          <ValueBadge>{lspServers.filter((server) => server.available).length}/{lspServers.length} bereit</ValueBadge>
         </div>
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <p className="mb-3 max-w-2xl text-[11px] leading-5 text-gray-500">
+          Nexus Code installiert keine Language Server ungefragt. Fehlende Tools werden erkannt und koennen ueber PATH oder den jeweiligen Env-Override angebunden werden.
+        </p>
+        <div className="grid grid-cols-1 gap-2">
           {lspServers.map((server) => (
             <div
               key={server.languageId}
-              className="flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-md px-2 py-1.5"
+              className="grid min-w-0 gap-2 rounded-2xl px-3 py-2.5 sm:grid-cols-[minmax(0,1fr)_auto]"
               style={{
                 background: server.available
-                  ? "rgba(34,197,94,0.08)"
-                  : "rgba(148,163,184,0.06)",
+                  ? "linear-gradient(135deg, rgba(34,197,94,0.09), rgba(14,165,233,0.045))"
+                  : "linear-gradient(135deg, rgba(251,191,36,0.08), rgba(148,163,184,0.035))",
                 border: server.available
-                  ? "1px solid rgba(34,197,94,0.18)"
-                  : "1px solid rgba(148,163,184,0.12)",
+                  ? "1px solid rgba(34,197,94,0.2)"
+                  : "1px solid rgba(251,191,36,0.16)",
               }}
               title={
                 server.available
                   ? server.resolvedPath || server.command
-                  : `${server.envName} installieren oder setzen`
+                  : server.installHint || `${server.envName || "PATH"} installieren oder setzen`
               }
             >
-              <span className="min-w-0 break-words text-xs text-gray-300">
-                {server.languageId}
-              </span>
+              <div className="min-w-0">
+                <div className="flex min-w-0 flex-wrap items-center gap-2">
+                  <span className="break-words text-xs font-semibold text-gray-200">
+                    {server.label || server.languageId}
+                  </span>
+                  <span className="rounded-full border border-white/[0.08] bg-black/20 px-2 py-0.5 text-[10px] font-medium text-gray-500">
+                    {server.languageId}
+                  </span>
+                </div>
+                <div className="mt-1 break-words text-[11px] leading-5 text-gray-500">
+                  {server.available
+                    ? server.resolvedPath || server.command || "Server wurde ueber PATH erkannt."
+                    : server.installHint || `Installiere ${server.command || server.label || server.languageId} oder setze ${server.envName || "den Env-Override"}.`}
+                </div>
+                {server.envName ? (
+                  <div className="mt-1 break-words font-mono text-[10px] leading-4 text-gray-600">
+                    Override: {server.envName}
+                  </div>
+                ) : null}
+              </div>
               <span
-                className={`shrink-0 text-[10px] font-medium ${
-                  server.available ? "text-sky-300" : "text-gray-500"
+                className={`self-start rounded-full border px-2 py-1 text-[10px] font-semibold ${
+                  server.available
+                    ? "border-emerald-300/20 bg-emerald-300/10 text-emerald-200"
+                    : "border-amber-300/20 bg-amber-300/10 text-amber-200"
                 }`}
               >
-                {server.available ? "bereit" : "fehlt"}
+                {server.available ? "bereit" : "Setup noetig"}
               </span>
             </div>
           ))}
