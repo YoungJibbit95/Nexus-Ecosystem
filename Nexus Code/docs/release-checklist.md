@@ -17,8 +17,11 @@ Stand: 2026-07-01
 - [x] Strikten Account-Gate als eigene Startflaeche vor der Workbench einziehen.
 - [x] Lokale Bootstrap-Fallbacks aus dem Workbench-Pass entfernen.
 - [x] Nexus-Code-eigenen Username/Passwort-Login bauen, Passwort nicht speichern und Session ueber `/auth/login` plus `/api/v1/session` normalisieren.
+- [x] Nexus-Code-Login-Body an den strict API-Vertrag anpassen; unbekannte Felder wie `source` werden nicht mehr gesendet.
+- [x] Login-Fehlerdetails aus `details`/`errors` anzeigen, damit API-400 nicht nur als generisches `BAD_REQUEST` erscheint.
 - [x] Lokalen Workbench-Start wieder deaktivieren: Local Mode bleibt normalisierbar, rendert aber keine Workbench.
 - [x] Start auf Strict-Login umstellen: leere, alte oder abgelaufene Sessions landen im Account-Gate statt in der Workbench.
+- [x] Editor-Warmup erst nach gueltiger Strict-Login-Session starten, damit der Login-Screen nicht den grossen Editor-Bundle vorlaedt.
 - [x] Control-API-Bootstrap-Fehler auf Account-/Recovery-Screen blocken statt lokale Runtime freizugeben.
 - [x] Electron-Renderer-Diagnose fuer Load-Events, Renderer-Konsole, Window-Close und Quit einbauen.
 - [x] Gemeinsame Nexus-Code-Primitives fuer Buttons, Inputs, Cards, Badges und Panel-Header fertig integrieren.
@@ -98,6 +101,7 @@ Stand: 2026-07-01
 - [x] SSR-Smoke-Struktur: 1440x900, 1024x768, 900x512, 390x900 fuer Workbench, Launchpad, Account und Settings
 - [x] SSR-Smoke-Struktur: PanelChrome und GitHub-Workbench ohne App-Bootgate
 - [x] IDE-Core-Smoke: 30 Szenarien inklusive Filetree, Docking, Fokus-Helfer, Extensions, Strict Login, LSP-Status, Palette, Spotlight, Symbols, Scope und Completion Helpers
+- [x] IDE-Core-Smoke: Login-Payload-Vertrag gegen unbekannte Auth-Felder absichern.
 - [x] Electron Dev Probe: isolierter Renderer-Start prueft Route-Import und beendet sauber; Strict-Login-Vertrag ist im IDE-Core-Smoke abgedeckt
 - [x] Visual Smoke: 1400x900 Electron-Fenster
 - [ ] Visual Smoke: 1440x900
