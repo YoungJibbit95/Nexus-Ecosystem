@@ -408,7 +408,7 @@ const CalendarDayCell = ({
     }),
     [dateKey, onDropItem],
   );
-  const visibleLimit = density === "comfortable" ? 3 : 2;
+  const visibleLimit = density === "comfortable" ? 2 : 1;
   const visibleItems = items.slice(0, visibleLimit);
   const hiddenCount = Math.max(0, items.length - visibleItems.length);
   const itemCounts = countItemsByType(items);
