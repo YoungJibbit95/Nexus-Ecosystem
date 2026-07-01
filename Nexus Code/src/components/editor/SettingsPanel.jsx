@@ -260,6 +260,55 @@ const SETTING_INDEX = [
     keywords: "autocomplete completion suggestions lsp hover intellisense",
   },
   {
+    id: "autocomplete_enabled",
+    section: "editor",
+    label: "Autocomplete aktiv",
+    description: "CodeMirror-Vorschlaege beim Schreiben und via Shortcut anzeigen.",
+    keywords: "autocomplete completion suggestions intellisense active typing",
+  },
+  {
+    id: "autocomplete_lsp",
+    section: "editor",
+    label: "LSP als Quelle",
+    description: "Language Server fuer kontextnahe Vorschlaege nutzen, wenn verfuegbar.",
+    keywords: "autocomplete completion lsp language server source",
+  },
+  {
+    id: "autocomplete_snippets",
+    section: "editor",
+    label: "Snippets",
+    description: "Mehrzeilige Vorlagen fuer haeufige Sprachmuster anbieten.",
+    keywords: "autocomplete snippets templates boilerplate completion",
+  },
+  {
+    id: "autocomplete_language_hints",
+    section: "editor",
+    label: "Sprach-Hints",
+    description: "Keywords, Standardstrukturen und Framework-nahe Vorschlaege lokal anbieten.",
+    keywords: "autocomplete language hints keywords structures local",
+  },
+  {
+    id: "autocomplete_local_words",
+    section: "editor",
+    label: "Datei-Woerter",
+    description: "Woerter und Symbole aus der aktuellen Datei als Vorschlaege verwenden.",
+    keywords: "autocomplete local words symbols current document",
+  },
+  {
+    id: "autocomplete_min_chars",
+    section: "editor",
+    label: "Autocomplete Trigger",
+    description: "Wie viele Zeichen getippt werden, bevor Vorschlaege automatisch erscheinen.",
+    keywords: "autocomplete trigger min chars delay typing",
+  },
+  {
+    id: "autocomplete_max_items",
+    section: "editor",
+    label: "Autocomplete Limit",
+    description: "Maximale interne Vorschlaege pro Anfrage.",
+    keywords: "autocomplete completion limit max suggestions performance",
+  },
+  {
     id: "render_whitespace",
     section: "editor",
     label: "Whitespace anzeigen",
@@ -917,7 +966,9 @@ function buildVisualBudgetSummary(settings = {}, visualProfileId, shouldReduceMo
     (settings.panel_glow_outline ? 8 : 0) +
     (settings.cursor_glow === true ? 4 : 0) +
     (settings.icon_glow ? 4 : 0) +
-    (settings.minimap !== false ? 5 : 0);
+    (settings.minimap !== false ? 5 : 0) +
+    (settings.autocomplete_enabled !== false ? 3 : 0) +
+    (settings.autocomplete_lsp !== false && settings.lsp_enabled !== false ? 4 : 0);
   const blurScore = (panelBlur / 32) * 100;
   const glowScore =
     (glowIntensity / 100) * 58 +
@@ -1015,8 +1066,13 @@ function buildVisualBudgetSummary(settings = {}, visualProfileId, shouldReduceMo
   if (settings.glow_renderer === "three") recommendations.push("Wechsle den Glow Renderer auf CSS.");
   if (panelMode === "glass-shader") recommendations.push("Nutze Blur oder Fake Glass statt Glass Shader.");
   if (!shouldReduceMotion && animationSpeed > 1.1) recommendations.push("Reduziere Motion auf 0.75-1.0x.");
-  if (settings.minimap !== false && settings.validation_decorations !== false && settings.lsp_enabled !== false) {
-    recommendations.push("Bei grossen Dateien Minimap zuerst deaktivieren; LSP/Diagnostics nur bei Bedarf.");
+  if (
+    settings.minimap !== false &&
+    settings.validation_decorations !== false &&
+    settings.lsp_enabled !== false &&
+    settings.autocomplete_lsp !== false
+  ) {
+    recommendations.push("Bei grossen Dateien Minimap zuerst deaktivieren; LSP-Autocomplete nur bei Bedarf.");
   }
   if (recommendations.length === 0) {
     recommendations.push("Keine Low-Power-Aktion noetig; das aktuelle Profil ist schon sparsam.");
@@ -1043,7 +1099,7 @@ function buildLowPowerState(settings = {}, visualProfileId, prefersReducedMotion
     "Blur 8px, Glow 12% / 8px",
     "CSS-Renderer, kein Panel-Outline",
     "Motion aus, Caret ruhig",
-    "Minimap aus; LSP und Diagnostics bleiben unveraendert",
+    "Minimap aus; Autocomplete-Quellen bleiben separat steuerbar",
   ];
 
   const active = shouldReduceMotion || visualProfileId === "performance";
@@ -1123,7 +1179,12 @@ function buildPerformanceHints(settings = {}, visualProfileId, lspServers = [], 
       text: "Hoehere Animation Speed wirkt flotter, macht Transitions aber praesenter.",
     });
   }
-  if (settings.lsp_enabled !== false && missingLspCount > 0) {
+  if (
+    settings.autocomplete_enabled !== false &&
+    settings.autocomplete_lsp !== false &&
+    settings.lsp_enabled !== false &&
+    missingLspCount > 0
+  ) {
     hints.push({
       tone: "info",
       title: "LSP teilweise offline",
@@ -1131,9 +1192,21 @@ function buildPerformanceHints(settings = {}, visualProfileId, lspServers = [], 
     });
   }
   if (
+    settings.autocomplete_enabled !== false &&
+    settings.autocomplete_local_words !== false &&
+    settings.autocomplete_language_hints !== false
+  ) {
+    hints.push({
+      tone: "good",
+      title: "Lokales Autocomplete aktiv",
+      text: "Snippets, Sprach-Hints und Datei-Woerter bleiben nutzbar, auch wenn ein LSP fehlt.",
+    });
+  }
+  if (
     settings.minimap !== false &&
     settings.validation_decorations !== false &&
-    settings.lsp_enabled !== false
+    settings.lsp_enabled !== false &&
+    settings.autocomplete_lsp !== false
   ) {
     hints.push({
       tone: "info",
@@ -3054,6 +3127,126 @@ export default function SettingsPanel({
                     </SettingRow>
                   </SettingsGroup>
 
+                  <SettingsGroup title="Intelligence" description="Autocomplete, Snippets, lokale Woerter und Language Server.">
+                    <SettingRow
+                      id="autocomplete_enabled"
+                      sectionId="editor"
+                      searchQuery={searchTerm}
+                      title="Autocomplete aktiv"
+                      description="Vorschlaege beim Tippen und ueber den Shortcut anzeigen."
+                      compact
+                    >
+                      <NativeSwitch
+                        checked={settings.autocomplete_enabled !== false}
+                        onCheckedChange={(value) => updateSetting("autocomplete_enabled", value)}
+                      />
+                    </SettingRow>
+                    <SettingRow
+                      id="autocomplete_lsp"
+                      sectionId="editor"
+                      searchQuery={searchTerm}
+                      title="LSP als Quelle"
+                      description="Kontextnahe Vorschlaege vom Language Server nutzen."
+                      compact
+                    >
+                      <NativeSwitch
+                        checked={settings.autocomplete_lsp !== false}
+                        onCheckedChange={(value) => updateSetting("autocomplete_lsp", value)}
+                      />
+                    </SettingRow>
+                    <SettingRow
+                      id="lsp_enabled"
+                      sectionId="editor"
+                      searchQuery={searchTerm}
+                      title="Language Server Engine"
+                      description="Hover, Diagnostics und serverbasierte Features starten."
+                      compact
+                    >
+                      <NativeSwitch
+                        checked={settings.lsp_enabled !== false}
+                        onCheckedChange={(value) => updateSetting("lsp_enabled", value)}
+                      />
+                    </SettingRow>
+                    <SettingRow
+                      id="autocomplete_snippets"
+                      sectionId="editor"
+                      searchQuery={searchTerm}
+                      title="Snippets"
+                      description="Mehrzeilige Vorlagen fuer Funktionen, Klassen, SQL, HTML, Shell und mehr."
+                      compact
+                    >
+                      <NativeSwitch
+                        checked={settings.autocomplete_snippets !== false}
+                        onCheckedChange={(value) => updateSetting("autocomplete_snippets", value)}
+                      />
+                    </SettingRow>
+                    <SettingRow
+                      id="autocomplete_language_hints"
+                      sectionId="editor"
+                      searchQuery={searchTerm}
+                      title="Sprach-Hints"
+                      description="Keywords und Standardstrukturen lokal anbieten."
+                      compact
+                    >
+                      <NativeSwitch
+                        checked={settings.autocomplete_language_hints !== false}
+                        onCheckedChange={(value) =>
+                          updateSetting("autocomplete_language_hints", value)
+                        }
+                      />
+                    </SettingRow>
+                    <SettingRow
+                      id="autocomplete_local_words"
+                      sectionId="editor"
+                      searchQuery={searchTerm}
+                      title="Datei-Woerter"
+                      description="Symbole und Woerter aus der aktuellen Datei als Vorschlaege."
+                      compact
+                    >
+                      <NativeSwitch
+                        checked={settings.autocomplete_local_words !== false}
+                        onCheckedChange={(value) => updateSetting("autocomplete_local_words", value)}
+                      />
+                    </SettingRow>
+                    <SettingRow
+                      id="autocomplete_min_chars"
+                      sectionId="editor"
+                      searchQuery={searchTerm}
+                      title={`Trigger nach: ${settings.autocomplete_min_chars || 2} Zeichen`}
+                      description="Hoeher ist ruhiger, niedriger fuehlt sich schneller an."
+                    >
+                      <div className="flex min-w-[12rem] items-center gap-3">
+                        <NativeSlider
+                          value={[settings.autocomplete_min_chars || 2]}
+                          onValueChange={([value]) => updateSetting("autocomplete_min_chars", value)}
+                          min={1}
+                          max={5}
+                          step={1}
+                        />
+                        <ValueBadge>{settings.autocomplete_min_chars || 2}</ValueBadge>
+                      </div>
+                    </SettingRow>
+                    <SettingRow
+                      id="autocomplete_max_items"
+                      sectionId="editor"
+                      searchQuery={searchTerm}
+                      title={`Vorschlagslimit: ${settings.autocomplete_max_items || 120}`}
+                      description="Mehr Treffer sind hilfreicher, aber auf sehr grossen Dateien schwerer."
+                    >
+                      <div className="flex min-w-[12rem] items-center gap-3">
+                        <NativeSlider
+                          value={[settings.autocomplete_max_items || 120]}
+                          onValueChange={([value]) => updateSetting("autocomplete_max_items", value)}
+                          min={24}
+                          max={180}
+                          step={12}
+                        />
+                        <ValueBadge>{settings.autocomplete_max_items || 120}</ValueBadge>
+                      </div>
+                    </SettingRow>
+                    {renderLspServers()}
+                  </SettingsGroup>
+
                   <SettingsGroup title="Editor Verhalten" description="Sichtbarkeit und Eingabehilfen.">
                     <SettingRow
                       id="word_wrap"
@@ -3094,19 +3287,6 @@ export default function SettingsPanel({
                         onCheckedChange={(value) =>
                           updateSetting("validation_decorations", value)
                         }
-                      />
-                    </SettingRow>
-                    <SettingRow
-                      id="lsp_enabled"
-                      sectionId="editor"
-                      searchQuery={searchTerm}
-                      title="Autocomplete"
-                      description="LSP-Vorschlaege, Hover und Diagnose."
-                      compact
-                    >
-                      <NativeSwitch
-                        checked={settings.lsp_enabled !== false}
-                        onCheckedChange={(value) => updateSetting("lsp_enabled", value)}
                       />
                     </SettingRow>
                     <SettingRow
@@ -3200,7 +3380,6 @@ export default function SettingsPanel({
                     </SettingRow>
                   </SettingsGroup>
                 </div>
-                {renderLspServers()}
               </section>
             ))}
 
@@ -3485,6 +3664,32 @@ export default function SettingsPanel({
                   </SettingsGroup>
 
                   <SettingsGroup title="Language Features" description="Performance-relevante Editor-Dienste.">
+                    <SettingRow
+                      id="autocomplete_enabled"
+                      sectionId="editor"
+                      searchQuery={searchTerm}
+                      title="Autocomplete"
+                      description="Lokale Vorschlaege und Snippets beim Schreiben."
+                      compact
+                    >
+                      <NativeSwitch
+                        checked={settings.autocomplete_enabled !== false}
+                        onCheckedChange={(value) => updateSetting("autocomplete_enabled", value)}
+                      />
+                    </SettingRow>
+                    <SettingRow
+                      id="autocomplete_lsp"
+                      sectionId="editor"
+                      searchQuery={searchTerm}
+                      title="LSP Suggestions"
+                      description="Language Server als Completion-Quelle nutzen."
+                      compact
+                    >
+                      <NativeSwitch
+                        checked={settings.autocomplete_lsp !== false}
+                        onCheckedChange={(value) => updateSetting("autocomplete_lsp", value)}
+                      />
+                    </SettingRow>
                     <SettingRow
                       id="lsp_enabled"
                       sectionId="editor"

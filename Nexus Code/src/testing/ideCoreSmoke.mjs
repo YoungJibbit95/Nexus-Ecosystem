@@ -1030,6 +1030,21 @@ const scenarios = [
         ],
       );
       assert.equal(getActiveDocumentSymbol(markdownSymbols, 5)?.name, "IDE Core");
+
+      const htmlSymbols = extractDocumentSymbols(
+        "<main class=\"shell\">\n  <h2>Launchpad</h2>\n</main>",
+        "html",
+      );
+      assert.deepEqual(
+        htmlSymbols.map((symbol) => `${symbol.kind}:${symbol.name}`),
+        ["element:shell", "element:Launchpad"],
+      );
+
+      const yamlSymbols = extractDocumentSymbols("name: CI\njobs:\n  build:", "yaml");
+      assert.deepEqual(
+        yamlSymbols.map((symbol) => symbol.name),
+        ["name", "jobs"],
+      );
     },
   },
   {
@@ -1051,9 +1066,59 @@ const scenarios = [
         localSnippets.options.find((option) => option.label === "renderPanel")?.section.name,
         "Current Document",
       );
+      const shellSnippets = createSnippetCompletions(
+        createCompletionContext("she", { explicit: true }),
+        "shell",
+      );
+      assert.equal(
+        shellSnippets.options.some((option) => option.label === "shebang"),
+        true,
+      );
+      const sqlSnippets = createSnippetCompletions(
+        createCompletionContext("sel", { explicit: true }),
+        "sql",
+      );
+      assert.equal(
+        sqlSnippets.options.some((option) => option.label === "select"),
+        true,
+      );
+      const htmlSnippets = createSnippetCompletions(
+        createCompletionContext("aria", { explicit: true }),
+        "html",
+      );
+      assert.equal(
+        htmlSnippets.options.some((option) => option.label === "aria-label"),
+        true,
+      );
+      const noLocalWords = createSnippetCompletions(
+        localContext,
+        "javascript",
+        { localWords: false },
+      );
+      assert.equal(
+        noLocalWords.options.some((option) => option.label === "renderPanel"),
+        false,
+      );
+      const keywordOnly = createSnippetCompletions(
+        createCompletionContext("use", { explicit: true }),
+        "javascript",
+        { snippets: false },
+      );
+      assert.equal(
+        keywordOnly.options.some((option) => option.label === "useEffect"),
+        false,
+      );
+      assert.equal(
+        keywordOnly.options.some((option) => option.label === "return"),
+        true,
+      );
       assert.equal(shouldRequestLspCompletion(wordContext), true);
       assert.equal(
         shouldRequestLspCompletion(createCompletionContext("const value = ")),
+        false,
+      );
+      assert.equal(
+        shouldRequestLspCompletion(createCompletionContext("a"), { minPrefixLength: 2 }),
         false,
       );
       assert.equal(

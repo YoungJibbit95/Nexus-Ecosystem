@@ -63,6 +63,13 @@ export const DEFAULT_SETTINGS = {
   minimap: true,
   line_numbers: true,
   auto_save: true,
+  autocomplete_enabled: true,
+  autocomplete_lsp: true,
+  autocomplete_snippets: true,
+  autocomplete_language_hints: true,
+  autocomplete_local_words: true,
+  autocomplete_min_chars: 2,
+  autocomplete_max_items: 120,
   lsp_enabled: true,
   validation_decorations: true,
   line_height: 1.6,
@@ -123,6 +130,8 @@ function normalizeEditorSettings(settings) {
   next.letter_spacing = readBoundedNumber(next.letter_spacing, 0, 1.5, 0);
   next.animation_speed = readBoundedNumber(next.animation_speed, 0.5, 1.8, 1);
   next.tab_size = readBoundedNumber(next.tab_size, 2, 8, 4);
+  next.autocomplete_min_chars = readBoundedNumber(next.autocomplete_min_chars, 1, 5, 2);
+  next.autocomplete_max_items = readBoundedNumber(next.autocomplete_max_items, 24, 180, 120);
   return next;
 }
 

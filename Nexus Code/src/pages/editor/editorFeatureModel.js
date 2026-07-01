@@ -555,6 +555,7 @@ const MARKDOWN_COMPLETION_MATCH_PATTERN = /[#>`*\w$-]*$/;
 const LOCAL_COMPLETION_IMPLICIT_MIN_LENGTH = 1;
 const COMPLETION_LIMIT_MIN = 16;
 const COMPLETION_LIMIT_MAX = 240;
+const LOCAL_COMPLETION_MIN_PREFIX_FALLBACK = 2;
 
 const COMPLETION_SECTIONS = Object.freeze({
   lspRecommended: Object.freeze({ name: "Recommended", rank: 0 }),
@@ -966,19 +967,250 @@ const MARKDOWN_COMPLETIONS = freezeCompletionList([
   textCompletion("NOTE", "note marker", 9, "Mark a useful note.", "keyword"),
 ]);
 
+const HTML_COMPLETIONS = freezeCompletionList([
+  structureSnippet(
+    "html",
+    "HTML document",
+    "<!doctype html>\n<html lang=\"${1:en}\">\n<head>\n\t<meta charset=\"utf-8\" />\n\t<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />\n\t<title>${2:Title}</title>\n</head>\n<body>\n\t${0}\n</body>\n</html>",
+    36,
+    completionInfo("Insert a complete HTML document shell."),
+    "text",
+  ),
+  structureSnippet(
+    "section",
+    "semantic section",
+    "<section class=\"${1:section}\">\n\t<h2>${2:Heading}</h2>\n\t${0}\n</section>",
+    30,
+    completionInfo("Create a semantic section with a heading."),
+    "text",
+  ),
+  structureSnippet(
+    "form",
+    "accessible form",
+    "<form>\n\t<label for=\"${1:field}\">${2:Label}</label>\n\t<input id=\"${1:field}\" name=\"${1:field}\" type=\"${3:text}\" />\n\t<button type=\"submit\">${4:Submit}</button>\n</form>",
+    26,
+    completionInfo("Create a compact labelled form."),
+    "text",
+  ),
+  textCompletion("aria-label", "accessibility attribute", 14, "Name controls for assistive technologies.", "property"),
+  textCompletion("class", "class attribute", 12, "Apply one or more CSS classes.", "property"),
+  textCompletion("data-", "data attribute", 10, "Attach custom data to an element.", "property"),
+]);
+
+const SQL_COMPLETIONS = freezeCompletionList([
+  structureSnippet(
+    "select",
+    "SELECT query",
+    "SELECT ${1:columns}\nFROM ${2:table}\nWHERE ${3:condition};",
+    36,
+    completionInfo("Create a filtered SELECT query."),
+    "keyword",
+  ),
+  structureSnippet(
+    "join",
+    "JOIN query",
+    "SELECT ${1:columns}\nFROM ${2:left_table}\nJOIN ${3:right_table}\n\tON ${2:left_table}.${4:id} = ${3:right_table}.${5:left_id};",
+    30,
+    completionInfo("Create a JOIN with an ON clause."),
+    "keyword",
+  ),
+  structureSnippet(
+    "cte",
+    "common table expression",
+    "WITH ${1:name} AS (\n\tSELECT ${2:columns}\n\tFROM ${3:table}\n)\nSELECT * FROM ${1:name};",
+    28,
+    completionInfo("Create a query with a CTE."),
+    "keyword",
+  ),
+  keywordCompletion("GROUP BY", "aggregate groups", 12),
+  keywordCompletion("ORDER BY", "sort rows", 12),
+  keywordCompletion("LIMIT", "limit rows", 10),
+]);
+
+const SHELL_COMPLETIONS = freezeCompletionList([
+  snippetItem(
+    "shebang",
+    "bash shebang",
+    "#!/usr/bin/env bash\nset -euo pipefail\n\n${0}",
+    35,
+    completionInfo("Create a strict Bash script header."),
+    "keyword",
+  ),
+  snippetItem(
+    "if",
+    "shell if",
+    "if [[ ${1:condition} ]]; then\n\t${0}\nfi",
+    30,
+    completionInfo("Create a Bash conditional."),
+    "keyword",
+  ),
+  snippetItem(
+    "for",
+    "shell loop",
+    "for ${1:item} in ${2:items}; do\n\t${0}\ndone",
+    28,
+    completionInfo("Loop over shell items."),
+    "keyword",
+  ),
+  textCompletion("git status", "git status", 12, "Inspect working tree state.", "function"),
+  textCompletion("npm run", "npm script", 10, "Run a package script.", "function"),
+  textCompletion("Test-Path", "PowerShell path check", 9, "Check if a path exists.", "function"),
+]);
+
+const YAML_COMPLETIONS = freezeCompletionList([
+  structureSnippet(
+    "github-action",
+    "GitHub Actions workflow",
+    "name: ${1:CI}\n\non:\n  push:\n    branches: [${2:main}]\n  pull_request:\n\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - name: ${3:Run checks}\n        run: ${0:npm test}",
+    36,
+    completionInfo("Create a minimal GitHub Actions workflow."),
+    "text",
+  ),
+  structureSnippet(
+    "docker-compose",
+    "Compose service",
+    "services:\n  ${1:app}:\n    image: ${2:image}\n    ports:\n      - \"${3:3000}:3000\"",
+    30,
+    completionInfo("Create a compact Docker Compose service."),
+    "text",
+  ),
+  textCompletion("version", "version key", 10, "", "property"),
+  textCompletion("services", "services key", 10, "", "property"),
+  textCompletion("environment", "environment key", 9, "", "property"),
+]);
+
+const TOML_COMPLETIONS = freezeCompletionList([
+  structureSnippet(
+    "package",
+    "package metadata",
+    "[package]\nname = \"${1:name}\"\nversion = \"${2:0.1.0}\"\nedition = \"${3:2021}\"",
+    30,
+    completionInfo("Create Rust-style package metadata."),
+    "property",
+  ),
+  structureSnippet(
+    "dependencies",
+    "dependency table",
+    "[dependencies]\n${1:name} = \"${2:version}\"",
+    26,
+    completionInfo("Create a dependency table."),
+    "property",
+  ),
+  textCompletion("workspace", "workspace table", 10, "", "property"),
+  textCompletion("features", "features table", 9, "", "property"),
+]);
+
+const DOCKER_COMPLETIONS = freezeCompletionList([
+  structureSnippet(
+    "node",
+    "Node Dockerfile",
+    "FROM node:${1:22-alpine}\nWORKDIR /app\nCOPY package*.json ./\nRUN npm ci\nCOPY . .\nCMD [\"npm\", \"run\", \"${2:start}\"]",
+    34,
+    completionInfo("Create a Node-focused Dockerfile."),
+    "keyword",
+  ),
+  keywordCompletion("FROM", "base image", 14),
+  keywordCompletion("RUN", "build command", 12),
+  keywordCompletion("COPY", "copy files", 12),
+  keywordCompletion("CMD", "default command", 10),
+]);
+
+const C_FAMILY_COMPLETIONS = freezeCompletionList([
+  snippetItem(
+    "main",
+    "program entry",
+    "int main(${1:void}) {\n\t${0}\n\treturn 0;\n}",
+    32,
+    completionInfo("Create a C/C++ entry point."),
+  ),
+  snippetItem(
+    "class",
+    "class declaration",
+    "class ${1:Name} {\npublic:\n\t${1:Name}();\n\t~${1:Name}();\nprivate:\n\t${0}\n};",
+    28,
+    completionInfo("Create a C++ class declaration."),
+    "class",
+  ),
+  keywordCompletion("const", "constant value", 12),
+  keywordCompletion("constexpr", "compile-time value", 10),
+  textCompletion("std::vector", "vector container", 9, "", "type"),
+]);
+
+const JAVA_FAMILY_COMPLETIONS = freezeCompletionList([
+  snippetItem(
+    "class",
+    "class declaration",
+    "public class ${1:Name} {\n\t${0}\n}",
+    34,
+    completionInfo("Create a public class."),
+    "class",
+  ),
+  snippetItem(
+    "main",
+    "main method",
+    "public static void main(String[] args) {\n\t${0}\n}",
+    30,
+    completionInfo("Create a Java-style main method."),
+  ),
+  keywordCompletion("public", "public visibility", 12),
+  keywordCompletion("private", "private visibility", 11),
+  textCompletion("List", "collection interface", 10, "", "type"),
+]);
+
+const PHP_COMPLETIONS = freezeCompletionList([
+  snippetItem(
+    "php",
+    "PHP block",
+    "<?php\n\n${0}",
+    32,
+    completionInfo("Create a PHP opening block."),
+    "keyword",
+  ),
+  snippetItem(
+    "function",
+    "PHP function",
+    "function ${1:name}(${2:args}) {\n\t${0}\n}",
+    30,
+    completionInfo("Create a PHP function."),
+  ),
+  keywordCompletion("namespace", "namespace declaration", 12),
+  keywordCompletion("use", "import class", 11),
+  textCompletion("array_map", "map array", 9, "", "function"),
+]);
+
 const LANGUAGE_COMPLETION_MAP = Object.freeze({
   [LANGUAGE_IDS.JAVASCRIPT]: JAVASCRIPT_COMPLETIONS,
   [LANGUAGE_IDS.TYPESCRIPT]: TYPESCRIPT_COMPLETIONS,
   [LANGUAGE_IDS.PYTHON]: PYTHON_COMPLETIONS,
   [LANGUAGE_IDS.RUST]: RUST_COMPLETIONS,
   [LANGUAGE_IDS.GO]: GO_COMPLETIONS,
+  [LANGUAGE_IDS.C]: C_FAMILY_COMPLETIONS,
+  [LANGUAGE_IDS.CPP]: C_FAMILY_COMPLETIONS,
+  [LANGUAGE_IDS.CSHARP]: C_FAMILY_COMPLETIONS,
+  [LANGUAGE_IDS.OBJECTIVE_C]: C_FAMILY_COMPLETIONS,
+  [LANGUAGE_IDS.JAVA]: JAVA_FAMILY_COMPLETIONS,
+  [LANGUAGE_IDS.KOTLIN]: JAVA_FAMILY_COMPLETIONS,
+  [LANGUAGE_IDS.SCALA]: JAVA_FAMILY_COMPLETIONS,
+  [LANGUAGE_IDS.PHP]: PHP_COMPLETIONS,
   [LANGUAGE_IDS.CSS]: CSS_COMPLETIONS,
   [LANGUAGE_IDS.SCSS]: CSS_COMPLETIONS,
   [LANGUAGE_IDS.LESS]: CSS_COMPLETIONS,
+  [LANGUAGE_IDS.HTML]: HTML_COMPLETIONS,
+  [LANGUAGE_IDS.VUE]: HTML_COMPLETIONS,
+  [LANGUAGE_IDS.SVELTE]: HTML_COMPLETIONS,
+  [LANGUAGE_IDS.ASTRO]: HTML_COMPLETIONS,
   [LANGUAGE_IDS.JSON]: JSON_COMPLETIONS,
   [LANGUAGE_IDS.JSONC]: JSON_COMPLETIONS,
   [LANGUAGE_IDS.MARKDOWN]: MARKDOWN_COMPLETIONS,
   [LANGUAGE_IDS.MDX]: MARKDOWN_COMPLETIONS,
+  [LANGUAGE_IDS.SQL]: SQL_COMPLETIONS,
+  [LANGUAGE_IDS.SHELL]: SHELL_COMPLETIONS,
+  [LANGUAGE_IDS.POWERSHELL]: SHELL_COMPLETIONS,
+  [LANGUAGE_IDS.BAT]: SHELL_COMPLETIONS,
+  [LANGUAGE_IDS.ENV]: SHELL_COMPLETIONS,
+  [LANGUAGE_IDS.YAML]: YAML_COMPLETIONS,
+  [LANGUAGE_IDS.TOML]: TOML_COMPLETIONS,
+  [LANGUAGE_IDS.DOCKERFILE]: DOCKER_COMPLETIONS,
 });
 
 const RESERVED_SYMBOL_NAMES = new Set([
@@ -1105,6 +1337,49 @@ const MARKDOWN_SYMBOL_PATTERNS = Object.freeze([
   }),
 ]);
 
+const HTML_SYMBOL_PATTERNS = Object.freeze([
+  Object.freeze({
+    kind: "element",
+    detail: "heading",
+    pattern: /^\s*<h[1-6][^>]*>([^<]+)<\/h[1-6]>/i,
+  }),
+  Object.freeze({
+    kind: "element",
+    detail: "section",
+    pattern: /^\s*<(?:section|article|main|nav|aside|header|footer)\b[^>]*(?:id|class)=["']([^"']+)["']/i,
+  }),
+]);
+
+const SQL_SYMBOL_PATTERNS = Object.freeze([
+  Object.freeze({
+    kind: "query",
+    detail: "cte",
+    pattern: /^\s*(?:WITH\s+)?([A-Za-z_][\w]*)\s+AS\s*\(/i,
+  }),
+  Object.freeze({
+    kind: "query",
+    detail: "statement",
+    pattern: /^\s*(SELECT|INSERT|UPDATE|DELETE|CREATE|ALTER)\b/i,
+  }),
+]);
+
+const YAML_SYMBOL_PATTERNS = Object.freeze([
+  Object.freeze({
+    kind: "property",
+    detail: "top-level key",
+    maxIndent: 0,
+    pattern: /^([A-Za-z0-9_.-]+)\s*:/,
+  }),
+]);
+
+const SHELL_SYMBOL_PATTERNS = Object.freeze([
+  Object.freeze({
+    kind: "function",
+    detail: "function",
+    pattern: /^\s*(?:function\s+)?([A-Za-z_][\w-]*)\s*\(\)\s*\{/,
+  }),
+]);
+
 const SYMBOL_PATTERNS_BY_LANGUAGE = Object.freeze({
   [LANGUAGE_IDS.JAVASCRIPT]: JAVASCRIPT_SYMBOL_PATTERNS,
   [LANGUAGE_IDS.TYPESCRIPT]: JAVASCRIPT_SYMBOL_PATTERNS,
@@ -1118,6 +1393,15 @@ const SYMBOL_PATTERNS_BY_LANGUAGE = Object.freeze({
   [LANGUAGE_IDS.JSONC]: JSON_SYMBOL_PATTERNS,
   [LANGUAGE_IDS.MARKDOWN]: MARKDOWN_SYMBOL_PATTERNS,
   [LANGUAGE_IDS.MDX]: MARKDOWN_SYMBOL_PATTERNS,
+  [LANGUAGE_IDS.HTML]: HTML_SYMBOL_PATTERNS,
+  [LANGUAGE_IDS.VUE]: HTML_SYMBOL_PATTERNS,
+  [LANGUAGE_IDS.SVELTE]: HTML_SYMBOL_PATTERNS,
+  [LANGUAGE_IDS.ASTRO]: HTML_SYMBOL_PATTERNS,
+  [LANGUAGE_IDS.SQL]: SQL_SYMBOL_PATTERNS,
+  [LANGUAGE_IDS.YAML]: YAML_SYMBOL_PATTERNS,
+  [LANGUAGE_IDS.TOML]: YAML_SYMBOL_PATTERNS,
+  [LANGUAGE_IDS.SHELL]: SHELL_SYMBOL_PATTERNS,
+  [LANGUAGE_IDS.POWERSHELL]: SHELL_SYMBOL_PATTERNS,
 });
 
 function getLineIndent(line) {
@@ -1606,10 +1890,20 @@ function getCompletionMatch(context, languageId) {
   return context.matchBefore(getCompletionMatchPattern(languageId));
 }
 
-function hasLocalCompletionTrigger(context, languageId, match) {
+function resolveCompletionMinPrefixLength(options) {
+  const numeric = Number(options?.minPrefixLength);
+  if (!Number.isFinite(numeric)) return LOCAL_COMPLETION_MIN_PREFIX_FALLBACK;
+  return Math.max(1, Math.min(5, Math.round(numeric)));
+}
+
+function hasLocalCompletionTrigger(context, languageId, match, options = {}) {
   if (context.explicit) return true;
   const typed = match?.text || "";
-  if (typed.length >= LOCAL_COMPLETION_IMPLICIT_MIN_LENGTH && /[\w$-]/.test(typed)) {
+  const minLength = Math.max(
+    LOCAL_COMPLETION_IMPLICIT_MIN_LENGTH,
+    resolveCompletionMinPrefixLength(options),
+  );
+  if (typed.length >= minLength && /[\w$-]/.test(typed)) {
     return true;
   }
 
@@ -1857,16 +2151,25 @@ function getCompletionBoost(item, index) {
 export function createSnippetCompletions(context, languageId, options = {}) {
   const normalizedLanguageId = normalizeCompletionSourceLanguage(languageId);
   const match = getCompletionMatch(context, normalizedLanguageId);
-  if (!hasLocalCompletionTrigger(context, normalizedLanguageId, match)) return null;
+  if (!hasLocalCompletionTrigger(context, normalizedLanguageId, match, options)) {
+    return null;
+  }
 
-  const languageOptions = getLanguageCompletionItems(normalizedLanguageId)
-    .map(toSnippetCompletion)
-    .slice(0, options.lowPowerMode ? 32 : 56);
-  const localOptions = createLocalDocumentCompletions(
-    context,
-    normalizedLanguageId,
-    options,
-  );
+  const languageOptions =
+    options.languageHints === false
+      ? []
+      : getLanguageCompletionItems(normalizedLanguageId)
+          .filter((item) => options.snippets !== false || !item.template)
+          .map(toSnippetCompletion)
+          .slice(0, options.lowPowerMode ? 32 : 72);
+  const localOptions =
+    options.localWords === false
+      ? []
+      : createLocalDocumentCompletions(
+          context,
+          normalizedLanguageId,
+          options,
+        );
 
   if (!languageOptions.length && !localOptions.length) return null;
 
@@ -1877,10 +2180,13 @@ export function createSnippetCompletions(context, languageId, options = {}) {
   };
 }
 
-export function shouldRequestLspCompletion(context) {
+export function shouldRequestLspCompletion(context, options = {}) {
   if (context.explicit) return true;
   const before = context.state.sliceDoc(Math.max(0, context.pos - 1), context.pos);
-  return /[.\w$:/<#@"'`-]$/.test(before);
+  if (/[.:/<#@"'`-]$/.test(before)) return true;
+  const word = context.matchBefore(COMPLETION_MATCH_PATTERN);
+  const minLength = resolveCompletionMinPrefixLength(options);
+  return String(word?.text || "").length >= minLength;
 }
 
 export function lspCompletionsToCodeMirror(context, completionList, snippetResult, options = {}) {

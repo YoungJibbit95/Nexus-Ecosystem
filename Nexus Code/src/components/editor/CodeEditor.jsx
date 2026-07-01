@@ -27,6 +27,7 @@ import {
   foldGutter,
   foldKeymap,
   indentOnInput,
+  StreamLanguage,
   syntaxHighlighting,
 } from "@codemirror/language";
 import { lintGutter, lintKeymap, setDiagnostics } from "@codemirror/lint";
@@ -43,6 +44,25 @@ import { php } from "@codemirror/lang-php";
 import { rust } from "@codemirror/lang-rust";
 import { sql } from "@codemirror/lang-sql";
 import { xml } from "@codemirror/lang-xml";
+import { clojure } from "@codemirror/legacy-modes/mode/clojure";
+import { cmake } from "@codemirror/legacy-modes/mode/cmake";
+import { diff as diffParser } from "@codemirror/legacy-modes/mode/diff";
+import { dockerFile } from "@codemirror/legacy-modes/mode/dockerfile";
+import { fSharp } from "@codemirror/legacy-modes/mode/mllike";
+import { go as legacyGo } from "@codemirror/legacy-modes/mode/go";
+import { lua } from "@codemirror/legacy-modes/mode/lua";
+import { perl } from "@codemirror/legacy-modes/mode/perl";
+import { powerShell } from "@codemirror/legacy-modes/mode/powershell";
+import { properties } from "@codemirror/legacy-modes/mode/properties";
+import { protobuf } from "@codemirror/legacy-modes/mode/protobuf";
+import { r as rLanguage } from "@codemirror/legacy-modes/mode/r";
+import { ruby } from "@codemirror/legacy-modes/mode/ruby";
+import { shell } from "@codemirror/legacy-modes/mode/shell";
+import { swift } from "@codemirror/legacy-modes/mode/swift";
+import { toml } from "@codemirror/legacy-modes/mode/toml";
+import { vb } from "@codemirror/legacy-modes/mode/vb";
+import { verilog } from "@codemirror/legacy-modes/mode/verilog";
+import { yaml } from "@codemirror/legacy-modes/mode/yaml";
 import { THEMES as EDITOR_THEMES } from "../../pages/editor/editorShared.jsx";
 import { createEditorEngine } from "../../ide/editor/editorEngine.js";
 import { createDocumentUriDescriptor } from "../../ide/editor/documentUri.js";
@@ -163,10 +183,19 @@ function resolveEditorTabSize(settings, fallbackTabSize) {
   return Math.round(clampNumber(settings.tab_size ?? fallbackTabSize, 2, 8, 4));
 }
 
+function resolveAutocompleteMaxItems(settings, reduceMotion, compactViewport) {
+  const fallback = reduceMotion ? 72 : compactViewport ? 96 : 120;
+  return Math.round(clampNumber(settings.autocomplete_max_items, 24, 180, fallback));
+}
+
 function resolveEditorFontFamily(settings) {
   const configured = String(settings.font_family || "").trim();
   if (!configured) return DEFAULT_EDITOR_FONT_STACK;
   return `'${configured.replace(/'/g, "")}', ${DEFAULT_EDITOR_FONT_STACK}`;
+}
+
+function streamGrammar(parser) {
+  return parser ? StreamLanguage.define(parser) : [];
 }
 
 function safeHex(value, fallback) {
@@ -526,11 +555,14 @@ function getLanguageExtension(languageId, fileName) {
       return markdown();
     case LANGUAGE_IDS.PYTHON:
       return python();
+    case LANGUAGE_IDS.GO:
+      return streamGrammar(legacyGo);
     case LANGUAGE_IDS.JAVA:
       return java();
     case LANGUAGE_IDS.C:
     case LANGUAGE_IDS.CPP:
     case LANGUAGE_IDS.CSHARP:
+    case LANGUAGE_IDS.OBJECTIVE_C:
       return cpp();
     case LANGUAGE_IDS.PHP:
       return php();
@@ -540,6 +572,49 @@ function getLanguageExtension(languageId, fileName) {
       return sql();
     case LANGUAGE_IDS.XML:
       return xml();
+    case LANGUAGE_IDS.YAML:
+      return streamGrammar(yaml);
+    case LANGUAGE_IDS.SHELL:
+    case LANGUAGE_IDS.BAT:
+    case LANGUAGE_IDS.ENV:
+    case LANGUAGE_IDS.MAKEFILE:
+      return streamGrammar(shell);
+    case LANGUAGE_IDS.POWERSHELL:
+      return streamGrammar(powerShell);
+    case LANGUAGE_IDS.DOCKERFILE:
+      return streamGrammar(dockerFile);
+    case LANGUAGE_IDS.CMAKE:
+      return streamGrammar(cmake);
+    case LANGUAGE_IDS.TOML:
+      return streamGrammar(toml);
+    case LANGUAGE_IDS.INI:
+      return streamGrammar(properties);
+    case LANGUAGE_IDS.RUBY:
+      return streamGrammar(ruby);
+    case LANGUAGE_IDS.SWIFT:
+      return streamGrammar(swift);
+    case LANGUAGE_IDS.KOTLIN:
+    case LANGUAGE_IDS.SCALA:
+      return java();
+    case LANGUAGE_IDS.LUA:
+      return streamGrammar(lua);
+    case LANGUAGE_IDS.R:
+      return streamGrammar(rLanguage);
+    case LANGUAGE_IDS.PERL:
+      return streamGrammar(perl);
+    case LANGUAGE_IDS.CLOJURE:
+      return streamGrammar(clojure);
+    case LANGUAGE_IDS.FSHARP:
+      return streamGrammar(fSharp);
+    case LANGUAGE_IDS.VB:
+      return streamGrammar(vb);
+    case LANGUAGE_IDS.SYSTEMVERILOG:
+    case LANGUAGE_IDS.VERILOG:
+      return streamGrammar(verilog);
+    case LANGUAGE_IDS.PROTOBUF:
+      return streamGrammar(protobuf);
+    case LANGUAGE_IDS.DIFF:
+      return streamGrammar(diffParser);
     default:
       return [];
   }
@@ -676,6 +751,32 @@ export default function CodeEditor({
       settings.animations_enabled,
       settings.reduce_motion,
       settings.visual_performance_profile,
+    ],
+  );
+  const autocompleteMaxItems = useMemo(
+    () => resolveAutocompleteMaxItems(settings, reduceEditorMotion, compactViewport),
+    [
+      compactViewport,
+      reduceEditorMotion,
+      settings.autocomplete_max_items,
+    ],
+  );
+  const completionOptions = useMemo(
+    () => ({
+      lowPowerMode: reduceEditorMotion,
+      languageHints: settings.autocomplete_language_hints !== false,
+      localWords: settings.autocomplete_local_words !== false,
+      maxItems: autocompleteMaxItems,
+      minPrefixLength: settings.autocomplete_min_chars,
+      snippets: settings.autocomplete_snippets !== false,
+    }),
+    [
+      autocompleteMaxItems,
+      reduceEditorMotion,
+      settings.autocomplete_language_hints,
+      settings.autocomplete_local_words,
+      settings.autocomplete_min_chars,
+      settings.autocomplete_snippets,
     ],
   );
   const documentSymbols = useMemo(
@@ -951,12 +1052,20 @@ export default function CodeEditor({
 
   const completionSource = useCallback(
     async (context) => {
-      const snippets = createSnippetCompletions(context, nexusLanguageId, {
-        lowPowerMode: reduceEditorMotion,
-      });
+      if (settings.autocomplete_enabled === false || isLargeFile) return null;
+
+      const snippets = createSnippetCompletions(
+        context,
+        nexusLanguageId,
+        completionOptions,
+      );
       const engine = lspEngineRef.current;
       const documentUri = lspDocumentUriRef.current;
-      const shouldAskLsp = engine && documentUri && shouldRequestLspCompletion(context);
+      const shouldAskLsp =
+        settings.autocomplete_lsp !== false &&
+        engine &&
+        documentUri &&
+        shouldRequestLspCompletion(context, completionOptions);
 
       if (!shouldAskLsp) {
         return snippets;
@@ -968,14 +1077,20 @@ export default function CodeEditor({
           triggerKind: context.explicit ? 1 : 2,
         });
         return lspCompletionsToCodeMirror(context, completionList, snippets, {
-          lowPowerMode: reduceEditorMotion,
+          ...completionOptions,
           languageId: nexusLanguageId,
         });
       } catch {
         return snippets;
       }
     },
-    [nexusLanguageId, reduceEditorMotion],
+    [
+      completionOptions,
+      isLargeFile,
+      nexusLanguageId,
+      settings.autocomplete_enabled,
+      settings.autocomplete_lsp,
+    ],
   );
 
   const hoverSource = useCallback(
@@ -1116,16 +1231,13 @@ export default function CodeEditor({
       }),
       autocompletion({
         override: [completionSource],
-        activateOnTyping: !isLargeFile,
+        activateOnTyping: settings.autocomplete_enabled !== false && !isLargeFile,
         activateOnTypingDelay: reduceEditorMotion ? 140 : 80,
         selectOnOpen: true,
-        maxRenderedOptions: reduceEditorMotion
-          ? compactViewport
-            ? 28
-            : 42
-          : compactViewport
-            ? 45
-            : 80,
+        maxRenderedOptions: Math.min(
+          autocompleteMaxItems,
+          reduceEditorMotion ? (compactViewport ? 28 : 42) : compactViewport ? 45 : 80,
+        ),
         aboveCursor: compactViewport,
         tooltipClass: () => "nx-cm-completion-tooltip",
         closeOnBlur: true,
@@ -1155,6 +1267,7 @@ export default function CodeEditor({
     return extensions;
   }, [
     cmTheme,
+    autocompleteMaxItems,
     compactViewport,
     completionSource,
     editorHighlightStyle,
@@ -1168,6 +1281,7 @@ export default function CodeEditor({
     reduceEditorMotion,
     scheduleCursorInfoUpdate,
     scheduleLineCountUpdate,
+    settings.autocomplete_enabled,
     showDiagnostics,
     showLineNumbers,
     wordWrap,
