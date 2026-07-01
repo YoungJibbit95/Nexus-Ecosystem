@@ -697,7 +697,9 @@ export function loadWorkbenchLayoutFromStorage() {
 
   const storedV2 = readStoredLayout(storage, WORKBENCH_DOCK_STORAGE_KEY);
   if (storedV2) {
-    return normalizeWorkbenchLayout(storedV2);
+    const normalized = normalizeWorkbenchLayout(storedV2);
+    persistMigratedWorkbenchLayout(storage, normalized);
+    return normalized;
   }
 
   for (const legacyKey of WORKBENCH_DOCK_LEGACY_STORAGE_KEYS) {

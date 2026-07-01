@@ -75,10 +75,11 @@ function SectionHeader({
   actionTitle,
 }) {
   return (
-    <div className="flex items-center gap-1 px-2 py-1.5">
+    <div className="flex flex-wrap items-start gap-1 px-2 py-1.5">
       <button
         type="button"
         onClick={onToggle}
+        aria-expanded={expanded}
         className="min-w-0 flex flex-1 items-center gap-1.5 rounded-xl px-2 py-1.5 text-left transition-colors hover:bg-white/[0.04]"
       >
         <motion.div
@@ -102,7 +103,7 @@ function SectionHeader({
           onClick={action}
           disabled={actionDisabled}
           title={actionTitle || actionLabel}
-          className="shrink-0 px-2 py-1 text-[10px]"
+          className="min-w-0 px-2 py-1 text-[10px]"
         >
           {actionLabel}
         </PanelActionButton>
@@ -224,17 +225,19 @@ function FileRow({ file, staged, selected, busy, onSelect, onToggle }) {
           background: selected
             ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.12)"
             : "linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0.012))",
-          borderColor: selected ? "rgba(168,85,247,0.35)" : "rgba(255,255,255,0.04)",
+          borderColor: selected
+            ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.25)"
+            : "rgba(255,255,255,0.04)",
         }}
       >
         <button
           type="button"
           onClick={() => onSelect(file)}
-          className="min-w-0 flex flex-1 items-center gap-2 px-2 py-1.5 text-left"
+          className="min-w-0 flex flex-1 items-start gap-2 px-2 py-1.5 text-left"
           title={`${meta.label}: ${file.path || file.name}`}
         >
           <span
-            className="text-[10px] font-bold w-4 shrink-0 text-center"
+            className="mt-0.5 w-4 shrink-0 text-center text-[10px] font-bold"
             style={{ color: meta.color }}
           >
             {file.status}
@@ -251,11 +254,12 @@ function FileRow({ file, staged, selected, busy, onSelect, onToggle }) {
               style={{ overflowWrap: "anywhere" }}
             >
               {scopeLabel}
+              {file.path && file.path !== file.name ? ` - ${file.path}` : ""}
               {file.originalPath ? ` from ${file.originalPath}` : ""}
             </span>
           </span>
           {(file.additions > 0 || file.deletions > 0) && (
-            <span className="text-[10px] text-gray-600 font-mono shrink-0">
+            <span className="mt-0.5 shrink-0 rounded-md border border-white/[0.05] bg-black/15 px-1.5 py-0.5 font-mono text-[10px] text-gray-500">
               +{file.additions} -{file.deletions}
             </span>
           )}
@@ -330,10 +334,13 @@ function DiffViewer({
           }}
         />
         <div className="min-w-0 flex-1">
-          <p className="truncate text-xs font-semibold text-gray-200">
+          <p
+            className="break-words text-xs font-semibold leading-snug text-gray-200"
+            style={{ overflowWrap: "anywhere" }}
+          >
             {selectedFile.path || selectedFile.name}
           </p>
-          <p className="truncate text-[10px] text-gray-600">
+          <p className="break-words text-[10px] leading-snug text-gray-600">
             {selectedFile.staged ? "Staged diff" : "Working tree diff"}
           </p>
         </div>
@@ -1059,7 +1066,7 @@ export default function GitPanel({ files }) {
               border: "1px solid rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.15)",
             }}
           >
-            <div className="flex min-w-0 items-center gap-2">
+            <div className="flex min-w-0 items-start gap-2">
               <GitBranch size={13} className="shrink-0 text-purple-300" />
               <div className="min-w-0 flex-1">
                 <div className="flex min-w-0 flex-wrap items-center gap-1.5">
@@ -1075,10 +1082,12 @@ export default function GitPanel({ files }) {
                     </span>
                   )}
                 </div>
-                <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[10px] text-gray-500">
+                <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[10px] text-gray-500">
                   <Server size={10} className="shrink-0 text-sky-300/80" />
                   <span className="shrink-0 text-gray-400">{remoteLabel}</span>
-                  <span className="truncate">{remoteDetail}</span>
+                  <span className="min-w-0 break-words" style={{ overflowWrap: "anywhere" }}>
+                    {remoteDetail}
+                  </span>
                 </div>
               </div>
               <PanelBadge tone={getSyncBadgeTone(syncTone)} title={syncLabel}>
@@ -1270,9 +1279,11 @@ export default function GitPanel({ files }) {
                           }
                           target="_blank"
                           rel="noreferrer"
-                          className="inline-flex min-h-8 items-center justify-center rounded-xl border border-purple-400/20 bg-purple-600/20 px-2 py-1.5 text-center text-xs font-semibold text-purple-200 transition-colors hover:bg-purple-600/30"
+                          className="inline-flex min-h-8 min-w-0 items-center justify-center rounded-xl border border-purple-400/20 bg-purple-600/20 px-2 py-1.5 text-center text-xs font-semibold text-purple-200 transition-colors hover:bg-purple-600/30"
                         >
-                          Open
+                          <span className="min-w-0 break-words" style={{ overflowWrap: "anywhere" }}>
+                            Open
+                          </span>
                         </a>
                         <PanelActionButton
                           type="button"
@@ -1289,7 +1300,7 @@ export default function GitPanel({ files }) {
                 {githubSettings.legacyTokenPresent && (
                   <div className="flex items-center gap-2 rounded-xl border border-amber-500/20 bg-amber-500/5 px-2 py-2">
                     <AlertCircle size={13} className="text-amber-400 shrink-0" />
-                    <span className="text-[10px] text-amber-200/80 flex-1">
+                    <span className="min-w-0 flex-1 break-words text-[10px] text-amber-200/80" style={{ overflowWrap: "anywhere" }}>
                       Legacy localStorage token detected. It is deprecated and
                       no longer used automatically.
                     </span>
@@ -1391,7 +1402,7 @@ export default function GitPanel({ files }) {
                         className="h-5 w-5 rounded-full border border-sky-400/30"
                       />
                     )}
-                    <span className="truncate text-[10px] text-sky-300">
+                    <span className="min-w-0 break-words text-[10px] text-sky-300" style={{ overflowWrap: "anywhere" }}>
                       Connected as {githubUser.login || githubUser.name || "GitHub user"}
                     </span>
                   </div>
@@ -1404,7 +1415,9 @@ export default function GitPanel({ files }) {
         {refreshing && (
           <div className="mx-3 mb-1 flex items-center gap-2 rounded-md border border-purple-500/10 bg-purple-500/5 px-2 py-1.5 text-[10px] text-purple-200">
             <RefreshCw size={11} className="animate-spin" />
-            Refreshing repository status...
+            <span className="min-w-0 break-words" style={{ overflowWrap: "anywhere" }}>
+              Refreshing repository status...
+            </span>
           </div>
         )}
 
@@ -1526,7 +1539,7 @@ export default function GitPanel({ files }) {
 
         <div className="px-3 py-3">
           <div className="mb-3 rounded-2xl border border-white/[0.055] bg-black/15 p-2.5">
-            <div className="mb-2 flex min-w-0 items-center justify-between gap-2">
+            <div className="mb-2 flex min-w-0 flex-wrap items-start justify-between gap-2">
               <div className="min-w-0">
                 <p className="text-[10px] font-semibold uppercase text-gray-500">
                   Sync
@@ -1567,7 +1580,7 @@ export default function GitPanel({ files }) {
             </div>
           </div>
 
-          <div className="mb-2 flex items-center justify-between gap-2">
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
             <span className="text-[10px] font-semibold uppercase text-gray-500">
               Commit
             </span>
@@ -1600,7 +1613,7 @@ export default function GitPanel({ files }) {
             <span className="min-w-0 break-words" style={{ overflowWrap: "anywhere" }}>
               {commitDisabledReason}
             </span>
-            <span>{commitMsg.trim().length}/64000</span>
+            <span className="shrink-0">{commitMsg.trim().length}/64000</span>
           </div>
 
           <button
@@ -1610,7 +1623,7 @@ export default function GitPanel({ files }) {
             aria-pressed={pushAfterCommit}
             className="mt-2 flex w-full items-center justify-between gap-2 rounded-xl border border-white/[0.07] bg-white/[0.035] px-2.5 py-1.5 text-left text-[10px] transition-colors hover:bg-white/[0.06] disabled:cursor-not-allowed disabled:opacity-45"
           >
-            <span className="min-w-0 truncate text-gray-400">
+            <span className="min-w-0 break-words text-gray-400" style={{ overflowWrap: "anywhere" }}>
               Nach Commit automatisch pushen
             </span>
             <span
@@ -1727,7 +1740,7 @@ export default function GitPanel({ files }) {
                     initial={{ opacity: 0, x: -8 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: index * 0.05 }}
-                    className="group relative flex gap-3 px-4 py-2 hover:bg-white/[0.02] cursor-default"
+                    className="group relative flex cursor-default gap-3 px-4 py-2 hover:bg-white/[0.02]"
                   >
                     <div className="flex flex-col items-center pt-1.5">
                       <div className="w-1.5 h-1.5 rounded-full bg-purple-500/50" />
@@ -1735,18 +1748,21 @@ export default function GitPanel({ files }) {
                         <div className="w-px h-full bg-purple-500/20 mt-1" />
                       )}
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs text-gray-300 truncate font-medium">
+                    <div className="min-w-0 flex-1">
+                      <p
+                        className="break-words text-xs font-medium leading-snug text-gray-300"
+                        style={{ overflowWrap: "anywhere" }}
+                      >
                         {entry.message}
                       </p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="text-[10px] font-mono text-purple-400">
+                      <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5">
+                        <span className="font-mono text-[10px] text-purple-400">
                           {entry.hash}
                         </span>
-                        <span className="text-[10px] text-gray-500 truncate">
+                        <span className="min-w-0 break-words text-[10px] text-gray-500" style={{ overflowWrap: "anywhere" }}>
                           {entry.author}
                         </span>
-                        <div className="flex items-center gap-1 text-[10px] text-gray-600 ml-auto shrink-0">
+                        <div className="ml-auto flex shrink-0 items-center gap-1 text-[10px] text-gray-600">
                           <Clock size={10} />
                           {entry.time || "recent"}
                         </div>

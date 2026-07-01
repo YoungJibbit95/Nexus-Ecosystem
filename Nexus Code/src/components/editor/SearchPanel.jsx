@@ -11,6 +11,7 @@ import {
   Minimize2,
   RotateCcw,
   Search,
+  SlidersHorizontal,
   X,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -170,6 +171,7 @@ export default function SearchPanel({ files = [], onFileSelect }) {
     result: createEmptySearchResult(),
   });
   const [collapsed, setCollapsed] = useState({});
+  const [showScopes, setShowScopes] = useState(false);
   const [isDebouncing, setIsDebouncing] = useState(false);
   const inputRef = useRef(null);
   const runIdRef = useRef(0);
@@ -187,6 +189,7 @@ export default function SearchPanel({ files = [], onFileSelect }) {
     appliedQuery && searchState.status === "ready" && groups.length > 0 && !isDebouncing;
   const hasWorkspace = searchableFileCount > 0;
   const hasScopeFilters = Boolean(draft.include.trim() || draft.exclude.trim());
+  const scopeControlsVisible = showScopes || hasScopeFilters;
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -289,6 +292,7 @@ export default function SearchPanel({ files = [], onFileSelect }) {
 
   const resetScopes = () => {
     updateDraft({ include: "", exclude: "" });
+    setShowScopes(false);
   };
 
   const toggleCollapse = (id) => {
@@ -347,7 +351,7 @@ export default function SearchPanel({ files = [], onFileSelect }) {
           ) : null
         }
       >
-        <form onSubmit={submitSearch} className="space-y-2">
+        <form onSubmit={submitSearch} className="space-y-2.5">
           <div
             className="flex min-h-9 items-center gap-1.5 rounded-lg px-2.5 py-1.5"
             style={{
@@ -383,7 +387,10 @@ export default function SearchPanel({ files = [], onFileSelect }) {
             )}
           </div>
 
-          <div className="grid grid-cols-3 gap-1.5">
+          <div
+            className="grid gap-1.5"
+            style={{ gridTemplateColumns: "repeat(auto-fit, minmax(66px, 1fr))" }}
+          >
             <OptionButton
               active={draft.caseSensitive}
               onClick={() => updateDraft({ caseSensitive: !draft.caseSensitive })}
@@ -403,22 +410,67 @@ export default function SearchPanel({ files = [], onFileSelect }) {
               label="Wort"
               title="Nur ganze Woerter"
             />
+            <button
+              type="button"
+              onClick={() => setShowScopes((value) => !value)}
+              aria-expanded={scopeControlsVisible}
+              title="Include-/Exclude-Scopes anzeigen"
+              className="flex min-h-7 min-w-0 items-center justify-center gap-1 rounded-lg px-2 py-1 text-[10px] font-semibold leading-tight transition-colors"
+              style={{
+                background: scopeControlsVisible
+                  ? "rgba(56,189,248,0.1)"
+                  : "rgba(255,255,255,0.024)",
+                color: scopeControlsVisible ? "#93c5fd" : "#8b93a7",
+                border: scopeControlsVisible
+                  ? "1px solid rgba(56,189,248,0.2)"
+                  : "1px solid rgba(255,255,255,0.055)",
+              }}
+            >
+              <SlidersHorizontal size={12} className="shrink-0" />
+              <span className="min-w-0 break-words text-center" style={{ overflowWrap: "anywhere" }}>
+                Scopes
+              </span>
+            </button>
           </div>
 
-          <div className="grid grid-cols-1 gap-2">
-            <ScopeInput
-              label="Include"
-              value={draft.include}
-              onChange={(value) => updateDraft({ include: value })}
-              placeholder="src/**/*.jsx, *.md"
-            />
-            <ScopeInput
-              label="Exclude"
-              value={draft.exclude}
-              onChange={(value) => updateDraft({ exclude: value })}
-              placeholder="node_modules, dist"
-            />
-          </div>
+          <AnimatePresence initial={false}>
+            {scopeControlsVisible ? (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.18 }}
+                style={{ overflow: "hidden" }}
+              >
+                <div className="grid grid-cols-1 gap-2 rounded-lg border border-white/[0.052] bg-black/15 p-2">
+                  <ScopeInput
+                    label="Include"
+                    value={draft.include}
+                    onChange={(value) => updateDraft({ include: value })}
+                    placeholder="src/**/*.jsx, *.md"
+                  />
+                  <ScopeInput
+                    label="Exclude"
+                    value={draft.exclude}
+                    onChange={(value) => updateDraft({ exclude: value })}
+                    placeholder="node_modules, dist"
+                  />
+                  {hasScopeFilters ? (
+                    <button
+                      type="button"
+                      onClick={resetScopes}
+                      className="inline-flex min-h-7 min-w-0 items-center justify-center gap-1 rounded-lg border border-white/[0.055] bg-white/[0.022] px-2 py-1 text-[10px] font-semibold text-sky-300/80 hover:bg-white/[0.05] hover:text-sky-200"
+                    >
+                      <RotateCcw size={10} className="shrink-0" />
+                      <span className="min-w-0 break-words text-center" style={{ overflowWrap: "anywhere" }}>
+                        Scopes zuruecksetzen
+                      </span>
+                    </button>
+                  ) : null}
+                </div>
+              </motion.div>
+            ) : null}
+          </AnimatePresence>
         </form>
       </PanelHeader>
 
@@ -432,7 +484,7 @@ export default function SearchPanel({ files = [], onFileSelect }) {
               borderColor: "rgba(255,255,255,0.055)",
             }}
           >
-            <div className="flex min-w-0 items-center justify-between gap-2">
+            <div className="flex min-w-0 flex-wrap items-start justify-between gap-2">
               <div className="min-w-0">
                 <p className="break-words text-[11px] font-semibold text-gray-300" style={{ overflowWrap: "anywhere" }}>
                   {totalLabel} Treffer in {result.matchedFiles} Dateien
@@ -441,7 +493,7 @@ export default function SearchPanel({ files = [], onFileSelect }) {
                   {result.scannedFiles} gescannt, {result.skippedFiles} uebersprungen
                 </p>
               </div>
-              <div className="flex shrink-0 items-center gap-1">
+              <div className="flex min-w-0 flex-wrap items-center justify-end gap-1">
                 {result.matchLimitReached ? (
                   <PanelBadge tone="warning">Limit</PanelBadge>
                 ) : null}
@@ -462,7 +514,8 @@ export default function SearchPanel({ files = [], onFileSelect }) {
         <AnimatePresence mode="popLayout">
           {showResults &&
             groups.map((group, index) => {
-              const isCollapsed = collapsed[group.fileId];
+              const groupKey = group.fileId || group.path;
+              const isCollapsed = Boolean(collapsed[groupKey]);
               const color = group.color || getExtColor(group.fileName);
               const extension = group.extension || getExtLabel(group.fileName);
 
@@ -475,40 +528,43 @@ export default function SearchPanel({ files = [], onFileSelect }) {
                   transition={{ delay: Math.min(index * 0.025, 0.16), duration: 0.18 }}
                   className="mx-2 mt-1 overflow-hidden rounded-xl border border-white/[0.045] bg-white/[0.014]"
                 >
-                  <button
-                    type="button"
-                    onClick={() => toggleCollapse(group.fileId)}
-                    className="group flex w-full items-center gap-1.5 px-3 py-2 text-left transition-colors hover:bg-white/[0.038]"
-                  >
-                    <motion.div
-                      animate={{ rotate: isCollapsed ? -90 : 0 }}
-                      transition={{ duration: 0.18 }}
-                      className="shrink-0"
-                    >
-                      <ChevronDown size={12} className="text-gray-600" />
-                    </motion.div>
-                    <span
-                      className="shrink-0 rounded px-1 py-0.5 text-[9px] font-bold"
-                      style={{ background: `${color}20`, color }}
-                    >
-                      {extension}
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span
-                        className="block break-words text-xs font-medium leading-snug text-gray-300"
-                        style={{ overflowWrap: "anywhere" }}
-                      >
-                        {group.fileName}
-                      </span>
-                      {group.path && group.path !== group.fileName && (
-                        <span className="block break-words text-[10px] leading-snug text-gray-600" style={{ overflowWrap: "anywhere" }}>
-                          {group.path}
-                        </span>
-                      )}
-                    </span>
+                  <div className="group flex w-full items-center gap-1.5 px-3 py-2 transition-colors hover:bg-white/[0.038]">
                     <button
                       type="button"
-                      className="shrink-0 rounded-md p-1 text-gray-600 opacity-0 transition-opacity hover:bg-white/[0.07] hover:text-sky-200 group-hover:opacity-100"
+                      onClick={() => toggleCollapse(groupKey)}
+                      className="flex min-w-0 flex-1 items-center gap-1.5 text-left"
+                      aria-expanded={!isCollapsed}
+                    >
+                      <motion.div
+                        animate={{ rotate: isCollapsed ? -90 : 0 }}
+                        transition={{ duration: 0.18 }}
+                        className="shrink-0"
+                      >
+                        <ChevronDown size={12} className="text-gray-600" />
+                      </motion.div>
+                      <span
+                        className="shrink-0 rounded px-1 py-0.5 text-[9px] font-bold"
+                        style={{ background: `${color}20`, color }}
+                      >
+                        {extension}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span
+                          className="block break-words text-xs font-medium leading-snug text-gray-300"
+                          style={{ overflowWrap: "anywhere" }}
+                        >
+                          {group.fileName}
+                        </span>
+                        {group.path && group.path !== group.fileName && (
+                          <span className="block break-words text-[10px] leading-snug text-gray-600" style={{ overflowWrap: "anywhere" }}>
+                            {group.path}
+                          </span>
+                        )}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      className="shrink-0 rounded-md p-1 text-gray-600 opacity-70 transition-colors hover:bg-white/[0.07] hover:text-sky-200 group-hover:opacity-100"
                       title="Datei oeffnen"
                       onClick={(event) => {
                         event.stopPropagation();
@@ -528,7 +584,7 @@ export default function SearchPanel({ files = [], onFileSelect }) {
                         ? `${group.matches.length}+`
                         : group.totalMatches}
                     </span>
-                  </button>
+                  </div>
 
                   <AnimatePresence>
                     {!isCollapsed && (

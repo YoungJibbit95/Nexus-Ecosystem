@@ -8,8 +8,10 @@ import {
   Layout,
   ListChecks,
   Maximize2,
+  PanelBottom,
   Palette,
   PanelLeft,
+  PanelRight,
   Search,
   Settings,
   Terminal,
@@ -47,9 +49,14 @@ const COMMAND_ICON_BY_ID = Object.freeze({
   "cycle-side-panel-size": Layout,
   "cycle-bottom-panel-size": Layout,
   "layout-reset": Layout,
+  "focus-next-panel": Layout,
+  "focus-previous-panel": Layout,
+  "focus-left-panel": PanelLeft,
+  "focus-right-panel": PanelRight,
+  "focus-bottom-panel": PanelBottom,
   "dock-active-left": Layout,
   "dock-active-right": Layout,
-  "dock-active-bottom": Layout,
+  "dock-active-bottom": PanelBottom,
   "open-extensions": Blocks,
   "change-theme": Palette,
   "open-settings": Settings,
@@ -169,6 +176,63 @@ const FREQUENT_COMMAND_IDS = Object.freeze(
     "open-settings",
   ]),
 );
+const WORKBENCH_FOCUS_COMMANDS = Object.freeze([
+  Object.freeze({
+    id: "focus-next-panel",
+    actionId: "focus-next-panel",
+    label: "Naechstes Workbench-Panel fokussieren",
+    description: "Springe zum naechsten sichtbaren Panel in der Dock-Reihenfolge.",
+    category: "layout",
+    shortcut: "Ctrl+Alt+]",
+    keywords: Object.freeze(["focus", "panel", "next", "dock", "weiter", "cycle"]),
+    surfaces: Object.freeze(["palette", "spotlight"]),
+    priority: 63,
+  }),
+  Object.freeze({
+    id: "focus-previous-panel",
+    actionId: "focus-previous-panel",
+    label: "Vorheriges Workbench-Panel fokussieren",
+    description: "Springe zum vorherigen sichtbaren Panel in der Dock-Reihenfolge.",
+    category: "layout",
+    shortcut: "Ctrl+Alt+[",
+    keywords: Object.freeze(["focus", "panel", "previous", "dock", "zurueck", "cycle"]),
+    surfaces: Object.freeze(["palette", "spotlight"]),
+    priority: 62,
+  }),
+  Object.freeze({
+    id: "focus-left-panel",
+    actionId: "focus-left-panel",
+    label: "Linkes Dock-Panel fokussieren",
+    description: "Oeffne und fokussiere das erste Panel in der linken Dock-Zone.",
+    category: "layout",
+    shortcut: "Ctrl+Alt+Left",
+    keywords: Object.freeze(["focus", "panel", "left", "dock", "links", "sidebar"]),
+    surfaces: Object.freeze(["palette", "spotlight"]),
+    priority: 61,
+  }),
+  Object.freeze({
+    id: "focus-right-panel",
+    actionId: "focus-right-panel",
+    label: "Rechtes Dock-Panel fokussieren",
+    description: "Oeffne und fokussiere das erste Panel in der rechten Dock-Zone.",
+    category: "layout",
+    shortcut: "Ctrl+Alt+Right",
+    keywords: Object.freeze(["focus", "panel", "right", "dock", "rechts", "sidebar"]),
+    surfaces: Object.freeze(["palette", "spotlight"]),
+    priority: 60,
+  }),
+  Object.freeze({
+    id: "focus-bottom-panel",
+    actionId: "focus-bottom-panel",
+    label: "Bottom Dock fokussieren",
+    description: "Oeffne und fokussiere das aktive Panel in der unteren Dock-Zone.",
+    category: "layout",
+    shortcut: "Ctrl+Alt+Down",
+    keywords: Object.freeze(["focus", "panel", "bottom", "dock", "terminal", "problems", "unten"]),
+    surfaces: Object.freeze(["palette", "spotlight"]),
+    priority: 59,
+  }),
+]);
 const COMMAND_INTENT_ALIASES = Object.freeze({
   "source-control": Object.freeze([
     "git",
@@ -290,7 +354,13 @@ export function getEditorCommandPaletteCommands({
   extensionCommands = [],
   surface = "palette",
 } = {}) {
-  return createEditorCommandRegistry(extensionCommands)
+  const safeExtensionCommands = Array.isArray(extensionCommands)
+    ? extensionCommands
+    : [];
+  return createEditorCommandRegistry([
+    ...safeExtensionCommands,
+    ...WORKBENCH_FOCUS_COMMANDS,
+  ])
     .filter((command) => !surface || command.surfaces.includes(surface))
     .map((command) => {
       const categoryMeta = getEditorCommandCategory(command);
