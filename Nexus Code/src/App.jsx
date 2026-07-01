@@ -783,7 +783,6 @@ function App() {
     });
     setBootProgress(8);
     setBootStage("Nexus Runtime wird gestartet...");
-    const uiWarmupPromise = warmupCodeUiModules();
     let bootControlStatus = buildControlStatus("online", []);
 
     const setBootStep = (progress, stage) => {
@@ -817,6 +816,7 @@ function App() {
       };
     }
 
+    const uiWarmupPromise = warmupCodeUiModules();
     setControlStatus(buildControlStatus("online", []));
 
     void runtime.control.reportCapabilities({

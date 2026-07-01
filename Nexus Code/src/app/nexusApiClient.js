@@ -76,6 +76,12 @@ const buildApiErrorMessage = (payload, fallback) => {
     if (typeof payload.message === "string" && payload.message.trim()) {
       return payload.message.trim();
     }
+    if (Array.isArray(payload.details) && payload.details.length > 0) {
+      return payload.details.map((detail) => String(detail)).join(", ");
+    }
+    if (Array.isArray(payload.errors) && payload.errors.length > 0) {
+      return payload.errors.map((detail) => String(detail)).join(", ");
+    }
     if (typeof payload.error === "string" && payload.error.trim()) {
       return payload.error.trim();
     }
@@ -162,6 +168,24 @@ const fetchSessionProfile = async (baseUrl, token, deviceId = getNexusCodeDevice
   return parseSessionEnvelope(payload);
 };
 
+export const createNexusCodeLoginPayload = ({
+  identifier,
+  password,
+  rememberSession = true,
+  deviceId = getNexusCodeDeviceId(),
+  deviceLabel = CODE_DEVICE_LABEL,
+} = {}) => {
+  const username = String(identifier || "").trim();
+  return {
+    identifier: username,
+    username,
+    password: String(password || ""),
+    rememberSession: rememberSession === true,
+    deviceId,
+    deviceLabel,
+  };
+};
+
 export const loginNexusCodeSession = async ({
   endpoint,
   identifier,
@@ -188,15 +212,12 @@ export const loginNexusCodeSession = async ({
           "X-Nexus-Device-Id": deviceId,
           "X-Nexus-Device-Label": CODE_DEVICE_LABEL,
         },
-        body: JSON.stringify({
-          username,
+        body: JSON.stringify(createNexusCodeLoginPayload({
           identifier: username,
           password: secret,
-          rememberSession: rememberSession === true,
-          source: "nexus-code",
+          rememberSession,
           deviceId,
-          deviceLabel: CODE_DEVICE_LABEL,
-        }),
+        })),
       },
       LOGIN_TIMEOUT_MS,
     );

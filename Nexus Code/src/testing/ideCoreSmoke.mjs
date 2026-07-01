@@ -15,6 +15,7 @@ import {
   getAccountSessionState,
   normalizeAccountSession,
 } from "../app/accountSession.js";
+import { createNexusCodeLoginPayload } from "../app/nexusApiClient.js";
 import {
   createFileTreeItems,
   createFileNodesFromEntries,
@@ -1023,6 +1024,30 @@ const scenarios = [
         expiresAt: Date.now() - 1_000,
       });
       assert.equal(getAccountSessionState(expiredSession).canStartWorkbench, false);
+    },
+  },
+  {
+    id: "nexus-code-login-payload-contract",
+    title: "nexus code login payload matches strict API schema",
+    run() {
+      const payload = createNexusCodeLoginPayload({
+        identifier: "dev@example.test",
+        password: "StrongPass1234",
+        rememberSession: true,
+        deviceId: "nx-code-test-device",
+      });
+      assert.deepEqual(Object.keys(payload).sort(), [
+        "deviceId",
+        "deviceLabel",
+        "identifier",
+        "password",
+        "rememberSession",
+        "username",
+      ]);
+      assert.equal(payload.identifier, "dev@example.test");
+      assert.equal(payload.username, "dev@example.test");
+      assert.equal(payload.deviceLabel, "Nexus Code");
+      assert.equal(Object.hasOwn(payload, "source"), false);
     },
   },
   {
