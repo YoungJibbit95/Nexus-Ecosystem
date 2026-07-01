@@ -54,6 +54,9 @@ export const WORKBENCH_PANEL_IDS = Object.freeze([
   "terminal",
 ]);
 
+const MAX_PANEL_ID_LOOKUP_DEPTH = 8;
+const MAX_PANEL_ID_BUCKET_SCAN = WORKBENCH_PANEL_IDS.length * 4;
+
 export const SIDE_PANEL_SIZE_SEQUENCE = Object.freeze([
   "focus",
   "comfortable",
@@ -78,6 +81,18 @@ export const SIDE_PANEL_SIZES = Object.freeze({
     minWidth: "12.5rem",
     maxWidth: "14.5rem",
     compactWidth: "min(15.5rem, calc(100vw - 3.25rem))",
+    style: Object.freeze({
+      width: "clamp(12.5rem, 14vw, 14.5rem)",
+      flex: "0 0 clamp(12.5rem, 14vw, 14.5rem)",
+      minWidth: "12.5rem",
+      maxWidth: "14.5rem",
+    }),
+    compactStyle: Object.freeze({
+      width: "min(15.5rem, calc(100vw - 3.25rem))",
+      flex: "0 0 min(15.5rem, calc(100vw - 3.25rem))",
+      minWidth: "min(11.5rem, calc(100vw - 3.25rem))",
+      maxWidth: "calc(100vw - 3.25rem)",
+    }),
   }),
   comfortable: Object.freeze({
     id: "comfortable",
@@ -87,6 +102,18 @@ export const SIDE_PANEL_SIZES = Object.freeze({
     minWidth: "14rem",
     maxWidth: "16.75rem",
     compactWidth: "min(17rem, calc(100vw - 3.25rem))",
+    style: Object.freeze({
+      width: "clamp(14rem, 16.5vw, 16.75rem)",
+      flex: "0 0 clamp(14rem, 16.5vw, 16.75rem)",
+      minWidth: "14rem",
+      maxWidth: "16.75rem",
+    }),
+    compactStyle: Object.freeze({
+      width: "min(17rem, calc(100vw - 3.25rem))",
+      flex: "0 0 min(17rem, calc(100vw - 3.25rem))",
+      minWidth: "min(12rem, calc(100vw - 3.25rem))",
+      maxWidth: "calc(100vw - 3.25rem)",
+    }),
   }),
   wide: Object.freeze({
     id: "wide",
@@ -96,6 +123,18 @@ export const SIDE_PANEL_SIZES = Object.freeze({
     minWidth: "15.5rem",
     maxWidth: "18.75rem",
     compactWidth: "min(18.5rem, calc(100vw - 3.25rem))",
+    style: Object.freeze({
+      width: "clamp(15.5rem, 19vw, 18.75rem)",
+      flex: "0 0 clamp(15.5rem, 19vw, 18.75rem)",
+      minWidth: "15.5rem",
+      maxWidth: "18.75rem",
+    }),
+    compactStyle: Object.freeze({
+      width: "min(18.5rem, calc(100vw - 3.25rem))",
+      flex: "0 0 min(18.5rem, calc(100vw - 3.25rem))",
+      minWidth: "min(12.5rem, calc(100vw - 3.25rem))",
+      maxWidth: "calc(100vw - 3.25rem)",
+    }),
   }),
 });
 
@@ -116,51 +155,57 @@ export const BOTTOM_PANEL_SIZES = Object.freeze({
     id: "focus",
     label: "F",
     title: "Fokus",
-    className: "h-[clamp(9.5rem,22vh,13.5rem)] shrink-0",
-    compactClassName: "h-[min(12.5rem,34vh)] shrink-0",
+    className: "h-[clamp(9rem,22vh,13.5rem)] shrink-0",
+    compactClassName: "h-[clamp(7.5rem,30vh,12rem)] shrink-0",
     style: Object.freeze({
-      flex: "0 0 clamp(9.5rem, 22vh, 13.5rem)",
-      minHeight: "9.5rem",
-      maxHeight: "13.5rem",
+      height: "clamp(9rem, 22vh, 13.5rem)",
+      flex: "0 0 clamp(9rem, 22vh, 13.5rem)",
+      minHeight: "min(9rem, 32vh)",
+      maxHeight: "min(13.5rem, calc(100vh - 7rem))",
     }),
     compactStyle: Object.freeze({
-      flex: "0 0 min(12.5rem, 34vh)",
-      minHeight: "9rem",
-      maxHeight: "12.5rem",
+      height: "clamp(7.5rem, 30vh, 12rem)",
+      flex: "0 0 clamp(7.5rem, 30vh, 12rem)",
+      minHeight: "min(7.5rem, 30vh)",
+      maxHeight: "min(12rem, calc(100vh - 6rem))",
     }),
   }),
   comfortable: Object.freeze({
     id: "comfortable",
     label: "C",
     title: "Comfortable",
-    className: "h-[clamp(11.5rem,27vh,16.5rem)] shrink-0",
-    compactClassName: "h-[min(15rem,40vh)] shrink-0",
+    className: "h-[clamp(10.5rem,27vh,16.5rem)] shrink-0",
+    compactClassName: "h-[clamp(8.5rem,34vh,14rem)] shrink-0",
     style: Object.freeze({
-      flex: "0 0 clamp(11.5rem, 27vh, 16.5rem)",
-      minHeight: "11.5rem",
-      maxHeight: "16.5rem",
+      height: "clamp(10.5rem, 27vh, 16.5rem)",
+      flex: "0 0 clamp(10.5rem, 27vh, 16.5rem)",
+      minHeight: "min(10.5rem, 36vh)",
+      maxHeight: "min(16.5rem, calc(100vh - 7rem))",
     }),
     compactStyle: Object.freeze({
-      flex: "0 0 min(15rem, 40vh)",
-      minHeight: "10.5rem",
-      maxHeight: "15rem",
+      height: "clamp(8.5rem, 34vh, 14rem)",
+      flex: "0 0 clamp(8.5rem, 34vh, 14rem)",
+      minHeight: "min(8.5rem, 32vh)",
+      maxHeight: "min(14rem, calc(100vh - 6rem))",
     }),
   }),
   wide: Object.freeze({
     id: "wide",
     label: "W",
     title: "Wide",
-    className: "h-[clamp(13.25rem,32vh,20rem)] shrink-0",
-    compactClassName: "h-[min(17.25rem,46vh)] shrink-0",
+    className: "h-[clamp(12rem,32vh,20rem)] shrink-0",
+    compactClassName: "h-[clamp(9.5rem,38vh,16rem)] shrink-0",
     style: Object.freeze({
-      flex: "0 0 clamp(13.25rem, 32vh, 20rem)",
-      minHeight: "13.25rem",
-      maxHeight: "20rem",
+      height: "clamp(12rem, 32vh, 20rem)",
+      flex: "0 0 clamp(12rem, 32vh, 20rem)",
+      minHeight: "min(12rem, 40vh)",
+      maxHeight: "min(20rem, calc(100vh - 7rem))",
     }),
     compactStyle: Object.freeze({
-      flex: "0 0 min(17.25rem, 46vh)",
-      minHeight: "12rem",
-      maxHeight: "17.25rem",
+      height: "clamp(9.5rem, 38vh, 16rem)",
+      flex: "0 0 clamp(9.5rem, 38vh, 16rem)",
+      minHeight: "min(9.5rem, 34vh)",
+      maxHeight: "min(16rem, calc(100vh - 6rem))",
     }),
   }),
 });
@@ -261,6 +306,13 @@ const WORKBENCH_PRESET_ALIASES = Object.freeze({
   compact: "focus",
   balanced: "comfortable",
   roomy: "wide",
+});
+
+export const WORKBENCH_RESPONSIVE_LAYOUT_LIMITS = Object.freeze({
+  compactWidth: 720,
+  narrowWidth: 980,
+  shortHeight: 560,
+  roomyHeight: 720,
 });
 
 export const DEFAULT_WORKBENCH_LAYOUT = Object.freeze({
@@ -433,10 +485,29 @@ function normalizePanelPlacement(value, fallback = WORKBENCH_PANEL_PLACEMENTS.si
   return fallback;
 }
 
-function getPanelIdsFromUnknown(value) {
+function getPanelIdsFromUnknown(
+  value,
+  depth = 0,
+  seenValues = new Set(),
+) {
+  if (depth > MAX_PANEL_ID_LOOKUP_DEPTH) return [];
+
   if (Array.isArray(value)) {
-    return value.flatMap((item) => getPanelIdsFromUnknown(item));
+    if (seenValues.has(value)) return [];
+    seenValues.add(value);
+
+    const panelIds = [];
+    for (const item of value) {
+      if (panelIds.length >= MAX_PANEL_ID_BUCKET_SCAN) break;
+      panelIds.push(
+        ...getPanelIdsFromUnknown(item, depth + 1, seenValues),
+      );
+    }
+
+    seenValues.delete(value);
+    return panelIds.slice(0, MAX_PANEL_ID_BUCKET_SCAN);
   }
+
   const panelId = normalizePanelId(value);
   if (panelId) return [panelId];
   return [];
@@ -456,12 +527,15 @@ function getPanelIdsFromZoneBucket(bucket) {
     bucket.panelId,
     bucket.id,
   ];
-  const fieldPanelIds = knownFields.flatMap((field) => getPanelIdsFromUnknown(field));
+  const fieldPanelIds = knownFields
+    .flatMap((field) => getPanelIdsFromUnknown(field))
+    .slice(0, MAX_PANEL_ID_BUCKET_SCAN);
   if (fieldPanelIds.length > 0) return fieldPanelIds;
 
   return Object.entries(bucket)
     .filter(([, enabled]) => enabled === true || isObject(enabled))
-    .flatMap(([key]) => getPanelIdsFromUnknown(key));
+    .flatMap(([key]) => getPanelIdsFromUnknown(key))
+    .slice(0, MAX_PANEL_ID_BUCKET_SCAN);
 }
 
 function isZoneBucketSource(value) {
@@ -556,7 +630,14 @@ function getZoneBucketsBySnapZone(value) {
   for (const [rawZone, bucket] of Object.entries(value)) {
     const zone = normalizeSnapZone(rawZone, null);
     if (!zone) continue;
-    bucketsByZone[zone].push(...getPanelIdsFromZoneBucket(bucket));
+    const remainingSlots = Math.max(
+      0,
+      MAX_PANEL_ID_BUCKET_SCAN - bucketsByZone[zone].length,
+    );
+    if (!remainingSlots) continue;
+    bucketsByZone[zone].push(
+      ...getPanelIdsFromZoneBucket(bucket).slice(0, remainingSlots),
+    );
   }
 
   return bucketsByZone;
@@ -656,7 +737,51 @@ export function getDefaultWorkbenchLayout() {
   return normalizeWorkbenchLayout();
 }
 
-export function resetWorkbenchLayout() {
+export function resetWorkbenchLayout(layout, options = {}) {
+  if (arguments.length === 0) {
+    return getDefaultWorkbenchLayout();
+  }
+
+  const safeOptions = isObject(options) ? options : {};
+  if (!safeOptions.preservePanelZones) {
+    return getDefaultWorkbenchLayout();
+  }
+
+  const normalized = normalizeWorkbenchLayout(layout);
+  const resetLayout = getDefaultWorkbenchLayout();
+  return normalizeWorkbenchLayout({
+    ...resetLayout,
+    panelZones: normalized.panelZones,
+    zonePanelIds: normalized.zonePanelIds,
+    panelPlacements: normalized.panelPlacements,
+  });
+}
+
+export function resetWorkbenchLayoutSizes(
+  layout = {},
+  presetId = DEFAULT_WORKBENCH_LAYOUT.presetId,
+) {
+  const normalized = normalizeWorkbenchLayout(layout);
+  const preset = getWorkbenchLayoutPreset(presetId);
+  return normalizeWorkbenchLayout({
+    ...normalized,
+    presetId: preset.id,
+    sidePanelSize: preset.sidePanelSize,
+    bottomPanelSize: preset.bottomPanelSize,
+  });
+}
+
+export function resetWorkbenchLayoutToPreset(presetId = DEFAULT_WORKBENCH_LAYOUT.presetId) {
+  const preset = getWorkbenchLayoutPreset(presetId);
+  return normalizeWorkbenchLayout({
+    ...DEFAULT_WORKBENCH_LAYOUT,
+    presetId: preset.id,
+    sidePanelSize: preset.sidePanelSize,
+    bottomPanelSize: preset.bottomPanelSize,
+  });
+}
+
+export function resetWorkbenchDockSizes() {
   return getDefaultWorkbenchLayout();
 }
 
@@ -777,13 +902,133 @@ export function getBottomPanelSizeOptions() {
 
 export function getBottomPanelStyle({ compact = false, size } = {}) {
   const panelSize = getBottomPanelSize(size);
-  return compact
+  const style = compact
     ? panelSize.compactStyle || panelSize.style
     : panelSize.style || panelSize.compactStyle;
+  return { ...style };
+}
+
+export function getWorkbenchLayoutPreset(
+  presetId = DEFAULT_WORKBENCH_LAYOUT.presetId,
+  fallbackId = DEFAULT_WORKBENCH_LAYOUT.presetId,
+) {
+  const normalizedPresetId = normalizePresetId(presetId);
+  if (WORKBENCH_LAYOUT_PRESETS[normalizedPresetId]) {
+    return WORKBENCH_LAYOUT_PRESETS[normalizedPresetId];
+  }
+
+  const normalizedFallbackId = normalizePresetId(fallbackId);
+  return (
+    WORKBENCH_LAYOUT_PRESETS[normalizedFallbackId] ||
+    WORKBENCH_LAYOUT_PRESETS[DEFAULT_WORKBENCH_LAYOUT.presetId]
+  );
 }
 
 export function getWorkbenchLayoutPresetOptions() {
-  return Object.values(WORKBENCH_LAYOUT_PRESETS);
+  return Object.values(WORKBENCH_LAYOUT_PRESETS).map((preset) => ({ ...preset }));
+}
+
+function normalizeViewportNumber(value) {
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) && numberValue > 0 ? numberValue : null;
+}
+
+function isResponsiveCompactViewport({ compact = false, viewportWidth, viewportHeight } = {}) {
+  const width = normalizeViewportNumber(viewportWidth);
+  const height = normalizeViewportNumber(viewportHeight);
+  return Boolean(
+    compact ||
+      (width !== null && width < WORKBENCH_RESPONSIVE_LAYOUT_LIMITS.narrowWidth) ||
+      (height !== null && height < WORKBENCH_RESPONSIVE_LAYOUT_LIMITS.shortHeight),
+  );
+}
+
+function getResponsiveSidePanelSizeId(sizeId, options = {}) {
+  const normalizedId = normalizeRegistryId(
+    sizeId,
+    SIDE_PANEL_SIZES,
+    DEFAULT_WORKBENCH_LAYOUT.sidePanelSize,
+    SIDE_PANEL_SIZE_ALIASES,
+  );
+  if (!isResponsiveCompactViewport(options)) return normalizedId;
+
+  const width = normalizeViewportNumber(options.viewportWidth);
+  if (width !== null && width < WORKBENCH_RESPONSIVE_LAYOUT_LIMITS.compactWidth) {
+    return "focus";
+  }
+
+  return normalizedId === "wide" ? "comfortable" : normalizedId;
+}
+
+function getResponsiveBottomPanelSizeId(sizeId, options = {}) {
+  const normalizedId = normalizeRegistryId(
+    sizeId,
+    BOTTOM_PANEL_SIZES,
+    DEFAULT_WORKBENCH_LAYOUT.bottomPanelSize,
+    BOTTOM_PANEL_SIZE_ALIASES,
+  );
+  if (!isResponsiveCompactViewport(options)) return normalizedId;
+
+  const height = normalizeViewportNumber(options.viewportHeight);
+  if (height !== null && height < WORKBENCH_RESPONSIVE_LAYOUT_LIMITS.shortHeight) {
+    return "focus";
+  }
+
+  if (
+    normalizedId === "wide" &&
+    (height === null || height < WORKBENCH_RESPONSIVE_LAYOUT_LIMITS.roomyHeight)
+  ) {
+    return "comfortable";
+  }
+
+  return normalizedId;
+}
+
+export function getResponsiveWorkbenchLayout(layout = {}, options = {}) {
+  const normalized = normalizeWorkbenchLayout(layout);
+  const sidePanelSize = getResponsiveSidePanelSizeId(
+    normalized.sidePanelSize,
+    options,
+  );
+  const bottomPanelSize = getResponsiveBottomPanelSizeId(
+    normalized.bottomPanelSize,
+    options,
+  );
+
+  if (
+    sidePanelSize === normalized.sidePanelSize &&
+    bottomPanelSize === normalized.bottomPanelSize
+  ) {
+    return normalized;
+  }
+
+  return {
+    ...normalized,
+    sidePanelSize,
+    bottomPanelSize,
+  };
+}
+
+export function getWorkbenchLayoutSizeState(layout = {}, options = {}) {
+  const normalized = options.responsive
+    ? getResponsiveWorkbenchLayout(layout, options)
+    : normalizeWorkbenchLayout(layout);
+  const preset = WORKBENCH_LAYOUT_PRESETS[normalized.presetId] || null;
+
+  return {
+    layout: normalized,
+    presetId: normalized.presetId,
+    preset,
+    isCustom:
+      normalized.presetId === WORKBENCH_CUSTOM_PRESET_ID ||
+      !preset ||
+      preset.sidePanelSize !== normalized.sidePanelSize ||
+      preset.bottomPanelSize !== normalized.bottomPanelSize,
+    sidePanelSizeId: normalized.sidePanelSize,
+    bottomPanelSizeId: normalized.bottomPanelSize,
+    sidePanelSize: getSidePanelSize(normalized.sidePanelSize),
+    bottomPanelSize: getBottomPanelSize(normalized.bottomPanelSize),
+  };
 }
 
 function getNextSizeId(sequence, currentId, registry, aliases) {
@@ -814,17 +1059,33 @@ export function getNextBottomPanelSize(sizeId) {
 export function setWorkbenchDockSize(layout, dockId, sizeId) {
   const normalized = normalizeWorkbenchLayout(layout);
   if (dockId === WORKBENCH_ZONES.bottomPanel || dockId === "bottom") {
+    const bottomPanelSize = normalizeRegistryId(
+      sizeId,
+      BOTTOM_PANEL_SIZES,
+      normalized.bottomPanelSize,
+      BOTTOM_PANEL_SIZE_ALIASES,
+    );
+    if (bottomPanelSize === normalized.bottomPanelSize) return normalized;
+
     return normalizeWorkbenchLayout({
       ...normalized,
       presetId: WORKBENCH_CUSTOM_PRESET_ID,
-      bottomPanelSize: sizeId,
+      bottomPanelSize,
     });
   }
+
+  const sidePanelSize = normalizeRegistryId(
+    sizeId,
+    SIDE_PANEL_SIZES,
+    normalized.sidePanelSize,
+    SIDE_PANEL_SIZE_ALIASES,
+  );
+  if (sidePanelSize === normalized.sidePanelSize) return normalized;
 
   return normalizeWorkbenchLayout({
     ...normalized,
     presetId: WORKBENCH_CUSTOM_PRESET_ID,
-    sidePanelSize: sizeId,
+    sidePanelSize,
   });
 }
 
@@ -846,13 +1107,11 @@ export function cycleWorkbenchDockSize(layout, dockId) {
 }
 
 export function applyWorkbenchLayoutPreset(layout, presetId) {
-  const normalizedPresetId = normalizePresetId(presetId);
-  const preset = WORKBENCH_LAYOUT_PRESETS[normalizedPresetId];
-  if (!preset) return normalizeWorkbenchLayout(layout);
+  const preset = getWorkbenchLayoutPreset(presetId);
 
   return normalizeWorkbenchLayout({
     ...layout,
-    presetId: normalizedPresetId,
+    presetId: preset.id,
     sidePanelSize: preset.sidePanelSize,
     bottomPanelSize: preset.bottomPanelSize,
   });

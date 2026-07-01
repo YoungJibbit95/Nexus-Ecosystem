@@ -123,7 +123,7 @@ function DebugButton({ children, onClick, disabled, tone = "muted", title }) {
       onClick={onClick}
       disabled={disabled}
       title={title}
-      className="flex min-h-8 min-w-0 flex-wrap items-center justify-center gap-1.5 rounded-md border px-2 py-1 text-[11px] font-semibold leading-tight transition-opacity disabled:cursor-not-allowed disabled:opacity-45"
+      className="flex h-8 min-w-0 items-center justify-center gap-1.5 overflow-hidden rounded-md border px-2 py-1 text-[11px] font-semibold leading-none transition-opacity disabled:cursor-not-allowed disabled:opacity-45"
       style={{
         color: styles.color,
         background: styles.background,
@@ -190,6 +190,24 @@ export default function DebugPanel({ activeFile, _code, problems = [] }) {
   const activeFileName = activeFile?.name || "No active file";
   const watches = variables.filter((item) => item.watch);
   const selectedConfig = DEBUG_CONFIGS.find((item) => item.id === launchConfig) || DEBUG_CONFIGS[0];
+  const sessionHeading = !activeFile
+    ? "Waiting for a file"
+    : isPaused
+      ? `Paused at line ${pausedLine ?? "?"}`
+      : isRunning
+        ? "Debug session running"
+        : firstSyntaxError
+          ? "Diagnostics need attention"
+          : "Ready to launch";
+  const sessionDetail = !activeFile
+    ? "Open a file to enable the debug adapter."
+    : isPaused
+      ? "Inspect variables, step over, or continue the current frame."
+      : isRunning
+        ? "Runtime output is streaming to the debug console."
+        : firstSyntaxError
+          ? `${firstSyntaxError.message}`
+          : `${selectedConfig.label} will start against ${activeFileName}.`;
 
   const callstack = useMemo(() => {
     if (!isRunning && !isPaused) return [];
@@ -444,11 +462,20 @@ export default function DebugPanel({ activeFile, _code, problems = [] }) {
         subtitle={`${selectedConfig.label} - ${activeFileName}`}
         status={<PanelBadge tone={statusTone}>{statusLabel}</PanelBadge>}
       >
-        <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-white/[0.055] bg-black/15 px-2.5 py-1.5 text-[10px] text-gray-500">
-          <span>{breakpoints.length} BP</span>
-          <span>{watches.length} watches</span>
-          <span className={syntaxErrors.length ? "text-red-300/80" : "text-sky-300/80"}>
-            {syntaxErrors.length} errors
+        <div className="flex min-w-0 flex-wrap items-center gap-1 rounded-lg border border-white/[0.055] bg-black/15 p-1 text-[10px] text-gray-500">
+          <span className="rounded bg-white/[0.035] px-1.5 py-0.5" title="Breakpoints">
+            {breakpoints.length} BP
+          </span>
+          <span className="rounded bg-white/[0.035] px-1.5 py-0.5" title="Watches">
+            {watches.length} watch
+          </span>
+          <span
+            className={`rounded px-1.5 py-0.5 ${
+              syntaxErrors.length ? "bg-red-400/10 text-red-300/85" : "bg-sky-400/10 text-sky-300/80"
+            }`}
+            title="Diagnostics"
+          >
+            {syntaxErrors.length} err
           </span>
         </div>
       </PanelHeader>
@@ -469,7 +496,7 @@ export default function DebugPanel({ activeFile, _code, problems = [] }) {
                 detail="Waehle eine Datei im Editor, bevor du eine Debug-Session startest."
               />
             ) : null}
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid gap-2 sm:grid-cols-2">
               <label className="min-w-0">
                 <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-gray-500">
                   Adapter
@@ -492,8 +519,10 @@ export default function DebugPanel({ activeFile, _code, problems = [] }) {
                 <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-gray-500">
                   Runtime
                 </span>
-                <div className="flex h-8 items-center rounded-md border border-white/10 bg-white/[0.04] px-2.5 text-[12px] text-gray-300">
+                <div className="flex h-8 min-w-0 items-center rounded-md border border-white/10 bg-white/[0.04] px-2.5 text-[12px] text-gray-300">
+                  <span className="truncate">
                   {selectedConfig.adapter}
+                  </span>
                 </div>
               </label>
             </div>
@@ -512,7 +541,7 @@ export default function DebugPanel({ activeFile, _code, problems = [] }) {
             <button
               type="button"
               onClick={() => setBreakOnErrors((value) => !value)}
-              className="flex items-center justify-between gap-2 rounded-md border border-white/[0.07] bg-white/[0.035] px-2.5 py-2 text-left"
+              className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-md border border-white/[0.07] bg-white/[0.035] px-2.5 py-2 text-left transition-colors hover:bg-white/[0.055]"
             >
               <span className="min-w-0">
                 <span className="block text-[11px] font-semibold text-gray-300">
@@ -548,6 +577,31 @@ export default function DebugPanel({ activeFile, _code, problems = [] }) {
           onToggle={() => toggleSection("controls")}
         >
           <div className="grid gap-2 px-3 pb-3">
+            <div className="rounded-lg border border-white/[0.06] bg-black/20 px-2.5 py-2">
+              <div className="flex min-w-0 items-start gap-2">
+                <span
+                  className="mt-1 h-2 w-2 shrink-0 rounded-full"
+                  style={{
+                    background: isRunning ? (isPaused ? "#fbbf24" : "#38bdf8") : firstSyntaxError ? "#f87171" : "#4b5563",
+                    boxShadow: isRunning
+                      ? `0 0 8px ${isPaused ? "rgba(251,191,36,0.4)" : "rgba(56,189,248,0.34)"}`
+                      : "none",
+                  }}
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[11px] font-semibold text-gray-200">
+                    {sessionHeading}
+                  </p>
+                  <p className="mt-0.5 break-words text-[10px] leading-snug text-gray-600" style={{ overflowWrap: "anywhere" }}>
+                    {sessionDetail}
+                  </p>
+                </div>
+                <span className="shrink-0 rounded bg-white/[0.05] px-1.5 py-0.5 text-[10px] text-gray-500">
+                  {selectedConfig.adapter}
+                </span>
+              </div>
+            </div>
+
             <div className="grid grid-cols-3 gap-1.5">
               {!isRunning ? (
                 <DebugButton
@@ -557,12 +611,12 @@ export default function DebugPanel({ activeFile, _code, problems = [] }) {
                   title="Start debug session"
                 >
                   <Play size={13} />
-                  Start
+                  <span className="hidden sm:inline">Start</span>
                 </DebugButton>
               ) : (
                 <DebugButton onClick={handleStop} tone="stop" title="Stop debug session">
                   <Square size={13} />
-                  Stop
+                  <span className="hidden sm:inline">Stop</span>
                 </DebugButton>
               )}
               <DebugButton
@@ -572,47 +626,22 @@ export default function DebugPanel({ activeFile, _code, problems = [] }) {
                 title={isPaused ? "Continue" : "Pause"}
               >
                 {isPaused ? <SkipForward size={13} /> : <Pause size={13} />}
-                {isPaused ? "Continue" : "Pause"}
+                <span className="hidden sm:inline">{isPaused ? "Continue" : "Pause"}</span>
               </DebugButton>
               <DebugButton onClick={handleStepOver} disabled={!isPaused} title="Step over">
                 <StepForward size={13} />
-                Step
+                <span className="hidden sm:inline">Step</span>
               </DebugButton>
             </div>
             <div className="grid grid-cols-2 gap-1.5">
               <DebugButton onClick={handleRestart} disabled={!isRunning} title="Restart">
                 <RotateCcw size={13} />
-                Restart
+                <span className="hidden sm:inline">Restart</span>
               </DebugButton>
               <DebugButton onClick={clearConsole} title="Clear debug console">
                 <Trash2 size={13} />
-                Console
+                <span className="hidden sm:inline">Console</span>
               </DebugButton>
-            </div>
-
-            <div className="rounded-lg border border-white/[0.06] bg-black/20 px-2.5 py-2">
-              <div className="flex min-w-0 items-center gap-2">
-                <span
-                  className="h-2 w-2 shrink-0 rounded-full"
-                  style={{
-                    background: isRunning ? (isPaused ? "#fbbf24" : "#38bdf8") : "#4b5563",
-                    boxShadow: isRunning
-                      ? `0 0 8px ${isPaused ? "rgba(251,191,36,0.4)" : "rgba(56,189,248,0.34)"}`
-                      : "none",
-                  }}
-                />
-                <span className="min-w-0 flex-1 break-words font-mono text-[11px] text-gray-300" style={{ overflowWrap: "anywhere" }}>
-                  {activeFileName}
-                </span>
-                <span className="shrink-0 rounded bg-white/[0.05] px-1.5 py-0.5 text-[10px] text-gray-500">
-                  {selectedConfig.adapter}
-                </span>
-                {pausedLine ? (
-                  <span className="shrink-0 rounded bg-amber-400/10 px-1.5 py-0.5 text-[10px] text-amber-200">
-                    Ln {pausedLine}
-                  </span>
-                ) : null}
-              </div>
             </div>
 
             {firstSyntaxError ? (

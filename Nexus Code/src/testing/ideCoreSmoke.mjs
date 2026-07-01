@@ -8,7 +8,10 @@ import {
 } from "../ide/editor/editorEngine.js";
 import { createLspClient } from "../ide/lsp/lspClient.js";
 import { createLspService } from "../ide/lsp/lspService.js";
-import { toLspRange } from "../ide/lsp/protocol.js";
+import {
+  lspServerCapabilitiesToFeatureMap,
+  toLspRange,
+} from "../ide/lsp/protocol.js";
 import {
   ACCOUNT_AUTH_MODES,
   createLocalAccountSession,
@@ -48,7 +51,9 @@ import {
   createSnippetCompletions,
   extractDocumentSymbols,
   getActiveDocumentSymbol,
+  lspTextEditsToCodeMirrorChanges,
   lspCompletionsToCodeMirror,
+  lspWorkspaceEditToCodeMirrorChanges,
   normalizeEditorFeaturePosition,
   normalizeEditorFeatureRange,
   shouldRequestLspCompletion,
@@ -82,13 +87,19 @@ import {
   getFocusableWorkbenchPanelIds,
   getLayoutDropPreview,
   getNextFocusableWorkbenchPanelId,
+  getResponsiveWorkbenchLayout,
   getVisiblePanelId,
+  getWorkbenchLayoutPreset,
+  getWorkbenchLayoutSizeState,
   getWorkbenchPanelFocusTarget,
   getWorkbenchPanelSnapZone,
   getWorkbenchZonePanelIds,
   movePanelToZone,
   normalizeWorkbenchDockState,
   normalizeWorkbenchLayout,
+  resetWorkbenchLayout,
+  resetWorkbenchLayoutSizes,
+  setWorkbenchDockSize,
 } from "../pages/editor/workbenchDockModel.js";
 
 const require = createRequire(import.meta.url);
@@ -600,6 +611,141 @@ const scenarios = [
       assert.equal(regularSideStyle.minWidth, "14rem");
       assert.match(compactBottomClassName, /nx-code-bottom-panel/);
       assert.equal(typeof compactBottomStyle.flex, "string");
+    },
+  },
+  {
+    id: "workbench-layout-hostile-bucket-normalization",
+    title: "hostile persisted dock buckets stay bounded and recoverable",
+    run() {
+      const circularBucket = ["explorer"];
+      circularBucket.push(circularBucket);
+      const repeatedBottomBucket = Array.from(
+        { length: 80 },
+        () => ["terminal", "problems"],
+      );
+
+      const layout = assertWorkbenchLayoutInvariants({
+        zonePanelIds: {
+          left: circularBucket,
+          bottom: repeatedBottomBucket,
+          hidden: [[[[["account"]]]]],
+        },
+      });
+
+      assert.equal(layout.panelZones.explorer, WORKBENCH_SNAP_ZONES.left);
+      assert.equal(layout.panelZones.terminal, WORKBENCH_SNAP_ZONES.bottom);
+      assert.equal(layout.panelZones.problems, WORKBENCH_SNAP_ZONES.bottom);
+      assert.equal(layout.panelZones.account, WORKBENCH_SNAP_ZONES.hidden);
+      assert.equal(
+        getWorkbenchZonePanelIds(layout, WORKBENCH_SNAP_ZONES.bottom)
+          .filter((panelId) => panelId === "terminal").length,
+        1,
+      );
+    },
+  },
+  {
+    id: "workbench-layout-size-presets-and-reset-helpers",
+    title: "size preset helpers reset dimensions without losing chosen zones",
+    run() {
+      let layout = normalizeWorkbenchLayout({
+        presetId: "roomy",
+        sidePanelSize: "roomy",
+        bottomPanelSize: "tall",
+      });
+      layout = movePanelToZone(layout, "prs", WORKBENCH_SNAP_ZONES.left, {
+        beforePanelId: "explorer",
+      });
+      layout = setWorkbenchDockSize(layout, "side", "narrow");
+      layout = setWorkbenchDockSize(layout, "bottom", "compact");
+      layout = assertWorkbenchLayoutInvariants(layout);
+
+      const sizeState = getWorkbenchLayoutSizeState(layout);
+      assert.equal(sizeState.isCustom, true);
+      assert.equal(sizeState.sidePanelSizeId, "focus");
+      assert.equal(sizeState.bottomPanelSizeId, "focus");
+      assert.equal(sizeState.sidePanelSize.id, "focus");
+      assert.equal(sizeState.bottomPanelSize.id, "focus");
+      assert.equal(getWorkbenchLayoutPreset("roomy").id, "wide");
+      assert.equal(getWorkbenchLayoutPreset("unknown").id, DEFAULT_WORKBENCH_LAYOUT.presetId);
+
+      const invalidSizeLayout = setWorkbenchDockSize(layout, "bottom", "giant");
+      assert.equal(invalidSizeLayout.bottomPanelSize, layout.bottomPanelSize);
+      assert.equal(invalidSizeLayout.presetId, layout.presetId);
+
+      const resetSizes = assertWorkbenchLayoutInvariants(
+        resetWorkbenchLayoutSizes(layout, "balanced"),
+      );
+      assert.equal(resetSizes.presetId, "comfortable");
+      assert.equal(resetSizes.sidePanelSize, "comfortable");
+      assert.equal(resetSizes.bottomPanelSize, "comfortable");
+      assert.equal(getWorkbenchZonePanelIds(resetSizes, WORKBENCH_SNAP_ZONES.left)[0], "prs");
+
+      const resetWithZones = assertWorkbenchLayoutInvariants(
+        resetWorkbenchLayout(layout, { preservePanelZones: true }),
+      );
+      assert.equal(resetWithZones.sidePanelSize, DEFAULT_WORKBENCH_LAYOUT.sidePanelSize);
+      assert.equal(getWorkbenchZonePanelIds(resetWithZones, WORKBENCH_SNAP_ZONES.left)[0], "prs");
+
+      const hardReset = assertWorkbenchLayoutInvariants(resetWorkbenchLayout(layout));
+      assert.equal(getWorkbenchPanelSnapZone("prs", hardReset), WORKBENCH_SNAP_ZONES.right);
+    },
+  },
+  {
+    id: "workbench-layout-responsive-size-clamps",
+    title: "responsive layout helpers downgrade wide docks for compact windows",
+    run() {
+      const roomy = normalizeWorkbenchLayout({
+        presetId: "wide",
+        sidePanelSize: "wide",
+        bottomPanelSize: "wide",
+      });
+      const desktop = getResponsiveWorkbenchLayout(roomy, {
+        viewportWidth: 1440,
+        viewportHeight: 900,
+      });
+      const compact = getResponsiveWorkbenchLayout(roomy, {
+        compact: true,
+        viewportWidth: 430,
+        viewportHeight: 500,
+      });
+      const tablet = getResponsiveWorkbenchLayout(roomy, {
+        compact: true,
+        viewportWidth: 800,
+        viewportHeight: 650,
+      });
+      const responsiveState = getWorkbenchLayoutSizeState(roomy, {
+        responsive: true,
+        compact: true,
+        viewportWidth: 390,
+        viewportHeight: 512,
+      });
+      const compactSideStyle = getSidePanelStyle({
+        compact: true,
+        size: "wide",
+      });
+      const compactBottomClassName = getBottomPanelClassName({
+        compact: true,
+        size: "wide",
+      });
+      const compactBottomStyle = getBottomPanelStyle({
+        compact: true,
+        size: "wide",
+      });
+
+      assert.equal(desktop.sidePanelSize, "wide");
+      assert.equal(desktop.bottomPanelSize, "wide");
+      assert.equal(compact.sidePanelSize, "focus");
+      assert.equal(compact.bottomPanelSize, "focus");
+      assert.equal(tablet.sidePanelSize, "comfortable");
+      assert.equal(tablet.bottomPanelSize, "comfortable");
+      assert.equal(responsiveState.isCustom, true);
+      assert.equal(responsiveState.sidePanelSizeId, "focus");
+      assert.equal(responsiveState.bottomPanelSizeId, "focus");
+      assert.match(compactSideStyle.flex, /calc\(100vw - 3\.25rem\)/);
+      assert.match(compactSideStyle.minWidth, /^min\(/);
+      assert.match(compactBottomClassName, /clamp/);
+      assert.match(compactBottomStyle.height, /^clamp/);
+      assert.match(compactBottomStyle.maxHeight, /calc\(100vh - 6rem\)/);
     },
   },
   {
@@ -1715,6 +1861,265 @@ const scenarios = [
       assert.equal(unsupportedStatus.state, "unsupported");
       assert.equal(unsupportedStatus.canRetry, false);
       assert.equal(unsupportedStatus.installHint, null);
+    },
+  },
+  {
+    id: "lsp-server-registry-expanded-languages",
+    title: "Rust, Go and C/C++ language server registry entries expose setup hints",
+    run() {
+      const rust = getLanguageCapabilities("rust");
+      const go = getLanguageCapabilities("go");
+      const cpp = getLanguageCapabilities("cpp");
+      const c = getLanguageCapabilities("c");
+
+      assert.equal(rust.lsp.label, "rust-analyzer");
+      assert.equal(rust.lsp.envName, "NEXUS_LSP_RUST");
+      assert.match(rust.lsp.installHint, /rustup component add rust-analyzer/);
+      assert.equal(rust.lsp.features.definition, true);
+
+      assert.equal(go.lsp.label, "gopls");
+      assert.equal(go.lsp.envName, "NEXUS_LSP_GO");
+      assert.match(go.lsp.installHint, /go install golang\.org\/x\/tools\/gopls/);
+      assert.equal(go.lsp.features.rename, true);
+
+      assert.equal(cpp.lsp.label, "clangd");
+      assert.equal(cpp.lsp.envName, "NEXUS_LSP_CLANGD");
+      assert.match(cpp.lsp.installHint, /clangd/);
+      assert.equal(c.lsp.envName, "NEXUS_LSP_CLANGD");
+
+      const rustConfig = resolveServerConfig("rust", {
+        NEXUS_LSP_RUST: "C:\\Tools\\rust-analyzer.exe",
+      });
+      assert.equal(rustConfig.command, "C:\\Tools\\rust-analyzer.exe");
+      assert.equal(rustConfig.envOverride, true);
+    },
+  },
+  {
+    id: "lsp-server-capabilities-map-runtime-features",
+    title: "initialize capabilities map to feature availability",
+    async run() {
+      const requests = [];
+      const client = createLspClient({
+        languageId: "typescript",
+        transport: {
+          async request(method, params) {
+            requests.push([method, params]);
+            if (method === "initialize") {
+              return {
+                capabilities: {
+                  completionProvider: { triggerCharacters: ["."] },
+                  hoverProvider: true,
+                  diagnosticProvider: { interFileDependencies: false },
+                  definitionProvider: true,
+                  documentFormattingProvider: true,
+                  codeActionProvider: { codeActionKinds: ["quickfix"] },
+                  renameProvider: { prepareProvider: true },
+                },
+              };
+            }
+            return null;
+          },
+          async notify(method) {
+            requests.push([method, null]);
+          },
+        },
+      });
+
+      await client.initialize();
+      assert.deepEqual(client.getServerFeatures(), {
+        completion: true,
+        hover: true,
+        diagnostics: true,
+        definition: true,
+        formatting: true,
+        codeActions: true,
+        rename: true,
+      });
+      assert.equal(requests[0]?.[0], "initialize");
+      assert.equal(requests.some(([method]) => method === "initialized"), true);
+
+      assert.deepEqual(
+        lspServerCapabilitiesToFeatureMap({
+          completionProvider: true,
+          hoverProvider: false,
+          definitionProvider: null,
+          documentFormattingProvider: true,
+          codeActionProvider: {},
+          renameProvider: false,
+        }),
+        {
+          completion: true,
+          hover: false,
+          diagnostics: false,
+          definition: false,
+          formatting: true,
+          codeActions: true,
+          rename: false,
+        },
+      );
+    },
+  },
+  {
+    id: "lsp-feature-contracts-respect-runtime-capabilities",
+    title: "feature contracts disable unsupported runtime capabilities",
+    run() {
+      const contracts = createEditorLspFeatureContracts({
+        canUseLsp: true,
+        hasWorkspace: true,
+        hasLspBridge: true,
+        lspReadyLanguage: true,
+        documentUri: "file:///workspace/index.ts",
+        languageId: "typescript",
+        lspFeatures: {
+          definition: true,
+          rename: false,
+          formatting: true,
+          codeActions: false,
+        },
+        position: { lineNumber: 1, column: 7 },
+        range: {
+          startLineNumber: 1,
+          startColumn: 1,
+          endLineNumber: 1,
+          endColumn: 12,
+        },
+        newName: "nextValue",
+      });
+      const byId = new Map(contracts.map((contract) => [contract.id, contract]));
+
+      assert.equal(byId.get(EDITOR_LSP_FEATURE_IDS.goToDefinition)?.ready, true);
+      assert.equal(byId.get(EDITOR_LSP_FEATURE_IDS.formatDocument)?.ready, true);
+      assert.equal(byId.get(EDITOR_LSP_FEATURE_IDS.renameSymbol)?.ready, false);
+      assert.equal(byId.get(EDITOR_LSP_FEATURE_IDS.renameSymbol)?.supported, false);
+      assert.match(
+        byId.get(EDITOR_LSP_FEATURE_IDS.renameSymbol)?.disabledReason,
+        /unsupported/i,
+      );
+      assert.equal(byId.get(EDITOR_LSP_FEATURE_IDS.codeActions)?.ready, false);
+      assert.equal(byId.get(EDITOR_LSP_FEATURE_IDS.codeActions)?.supported, false);
+    },
+  },
+  {
+    id: "lsp-text-edit-and-workspace-edit-contracts",
+    title: "LSP edit helpers apply safe local edits and reject unsafe overlaps",
+    run() {
+      const doc = {
+        length: "const name = oldName;".length,
+        lines: 1,
+        sliceString(from, to) {
+          return "const name = oldName;".slice(from, to);
+        },
+        line(lineNumber) {
+          const from = lineNumber <= 1 ? 0 : 21;
+          const text = lineNumber <= 1 ? "const name = oldName;" : "";
+          return { from, to: from + text.length, text };
+        },
+      };
+      const sameFileUri = "file:///workspace/index.ts";
+      const externalUri = "file:///workspace/other.ts";
+
+      const localChanges = lspTextEditsToCodeMirrorChanges(doc, [
+        {
+          range: {
+            start: { line: 0, character: 13 },
+            end: { line: 0, character: 20 },
+          },
+          newText: "nextName",
+        },
+      ]);
+      assert.equal(localChanges.length, 1);
+      assert.equal(localChanges[0]?.insert, "nextName");
+
+      const overlappingChanges = lspTextEditsToCodeMirrorChanges(doc, [
+        {
+          range: {
+            start: { line: 0, character: 6 },
+            end: { line: 0, character: 10 },
+          },
+          newText: "title",
+        },
+        {
+          range: {
+            start: { line: 0, character: 8 },
+            end: { line: 0, character: 12 },
+          },
+          newText: "overlap",
+        },
+      ]);
+      assert.equal(overlappingChanges.length, 0);
+
+      const workspaceChanges = lspWorkspaceEditToCodeMirrorChanges(
+        doc,
+        {
+          changes: {
+            [sameFileUri]: [
+              {
+                range: {
+                  start: { line: 0, character: 13 },
+                  end: { line: 0, character: 20 },
+                },
+                newText: "workspaceName",
+              },
+            ],
+            [externalUri]: [
+              {
+                range: {
+                  start: { line: 0, character: 0 },
+                  end: { line: 0, character: 1 },
+                },
+                newText: "x",
+              },
+            ],
+          },
+        },
+        sameFileUri,
+      );
+      assert.equal(workspaceChanges.changes.length, 1);
+      assert.equal(workspaceChanges.externalChangeCount, 1);
+      assert.equal(workspaceChanges.hasExternalChanges, true);
+    },
+  },
+  {
+    id: "lsp-service-diagnostics-sync-contract",
+    title: "LSP service synchronizes diagnostics and clears them on close",
+    async run() {
+      const document = {
+        uri: "file:///workspace/index.ts",
+        languageId: "typescript",
+        version: 1,
+        value: "const value = 1",
+      };
+      const events = [];
+      const lspService = createLspService({
+        clientFactory: () => ({
+          async initialize() {},
+          async openDocument() {},
+          async updateDocument() {},
+          async closeDocument() {},
+          async getDiagnostics() {
+            return {
+              diagnostics: [
+                {
+                  message: "Missing semicolon.",
+                  severity: 2,
+                },
+              ],
+            };
+          },
+        }),
+      });
+      const unsubscribe = lspService.onDiagnostics((event) => events.push(event));
+
+      await lspService.openDocument(document);
+      const diagnostics = await lspService.getDiagnostics(document.uri);
+      assert.equal(diagnostics.length, 1);
+      assert.equal(events.at(-1)?.diagnostics.length, 1);
+      assert.equal(events.at(-1)?.uri, document.uri);
+
+      await lspService.closeDocument(document.uri);
+      assert.deepEqual(events.at(-1), { uri: document.uri, diagnostics: [] });
+      unsubscribe();
+      lspService.dispose();
     },
   },
   {

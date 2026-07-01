@@ -10,6 +10,7 @@ Stand: 2026-07-01
 - [x] Strict-Login-Smoke auf den aktuellen Vertrag ausrichten: Local Mode ist konfiguriert, aber kein Nexus-API-Start.
 - [x] Fokus-Helfer in Command-Palette-/Shortcut-Flows verdrahten, inklusive Next/Previous und direkter Left/Right/Bottom-Fokus-Kommandos.
 - [x] Dev-Start gegen belegte Ports haerten: blockierende HTTP-Prozesse werden mit PID geloggt und ein isolierter Folgeport wird genutzt.
+- [x] Boot-Phasen als Performance-Metriken erfassen: Account-Gate, Control-Bootstrap, View-Access, Editor-Warmup und Gesamtzeit.
 - [ ] Drag-Drop und defekte Persistenzdaten in echten Electron-Viewports visuell testen.
 
 ## Renderer und UI-System
@@ -30,6 +31,7 @@ Stand: 2026-07-01
 - [x] Theme Editor mit Custom Surface/Input-Farben, Rezept-Presets, Copy JSON und Reset Design ausbauen.
 - [x] Performance-Budget fuer Glow, Blur, Motion und Background konkreter bewerten.
 - [x] Search, Git, Problems und Terminal auf ruhigere Nexus-Panel-Optik mit besseren Empty/Action States heben.
+- [x] Terminal, Debug und Titlebar weiter entcluttern: kompaktere Toolbars, bessere Empty/Error/Busy States und textfit-sichere Controls.
 - [ ] Glow, Blur, Roundness und Motion in echten Electron-Viewports visuell pruefen.
 
 ## Workbench und Docking
@@ -46,6 +48,8 @@ Stand: 2026-07-01
 - [x] Side-/Bottom-Panel-Groessen produktiver begrenzen und Sidebar/Rail schmaler machen.
 - [x] Ungueltige Snap-Zone-Kommandos veraendern weder Preset noch Panel-Reihenfolge.
 - [x] Panel-Fokus-Helfer fuer Next/Previous und konkrete Dock-Ziele modellseitig bereitstellen.
+- [x] Responsive Docking-Helpers fuer Size-Presets, Reset ohne Zonenverlust und kompakte Viewport-Clamps ergaenzen.
+- [x] Persistierte Dock-Buckets gegen Zyklen, verschachtelte Listen und ueberlange Daten absichern.
 - [ ] Drag-Drop und defekte Persistenzdaten in echten Electron-Viewports visuell testen.
 - [ ] Launchpad ohne Scrollzwang bei 900x512 pruefen.
 
@@ -62,6 +66,10 @@ Stand: 2026-07-01
 - [x] Editor-Status fuer Sprache, Engine, LSP-Fallbacks, Diagnostics und Completion-Quellen verstaendlicher machen.
 - [x] JS/TS/Python-LSP-Capabilities mit Serverlabel, Env-Override und Install-Hinweisen modellieren.
 - [x] Definition, Rename, Formatting und Code Actions als stabile LSP-Feature-Contracts im IDE-Core-Smoke absichern.
+- [x] Rust, Go und C/C++ Language-Server-Registry fuer rust-analyzer, gopls und clangd mit Env-Overrides und Install-Hints ergaenzen.
+- [x] LSP Runtime-Capabilities aus `initialize` normalisieren und Feature-Contracts capability-bewusst machen.
+- [x] F12 Definition, F2 Rename, Shift+Alt+F Formatting und Mod+. Code Actions risikoarm an die Runtime anbinden.
+- [x] Diagnostics-Pull und Document-Close-Sync im LSP-Service absichern.
 - [x] Palette und Spotlight mit Fuzzy-/Initialen-Ranking, Datei-Dedupe und saubererem Focus/ARIA-Verhalten verbessern.
 - [x] Editor-Symbol-Extraktion und aktive Scope-Anzeige fuer CodeMirror integrieren.
 - [x] Spotlight-Symboltreffer aus Datei-Content, Match-Reasons und lokale Current-Document-Completions integrieren.
@@ -100,7 +108,7 @@ Stand: 2026-07-01
 - [x] `npm --prefix "./Nexus Code" run smoke:ide-core`
 - [x] SSR-Smoke-Struktur: 1440x900, 1024x768, 900x512, 390x900 fuer Workbench, Launchpad, Account und Settings
 - [x] SSR-Smoke-Struktur: PanelChrome und GitHub-Workbench ohne App-Bootgate
-- [x] IDE-Core-Smoke: 30 Szenarien inklusive Filetree, Docking, Fokus-Helfer, Extensions, Strict Login, LSP-Status, Palette, Spotlight, Symbols, Scope und Completion Helpers
+- [x] IDE-Core-Smoke: 40 Szenarien inklusive Filetree, Docking, Fokus-Helfer, Extensions, Strict Login, LSP-Status, LSP-Capabilities, Edits, Diagnostics-Sync, Palette, Spotlight, Symbols, Scope und Completion Helpers
 - [x] IDE-Core-Smoke: Login-Payload-Vertrag gegen unbekannte Auth-Felder absichern.
 - [x] Electron Dev Probe: isolierter Renderer-Start prueft Route-Import und beendet sauber; Strict-Login-Vertrag ist im IDE-Core-Smoke abgedeckt
 - [x] Visual Smoke: 1400x900 Electron-Fenster

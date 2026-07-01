@@ -35,6 +35,8 @@ import { useGlobalTypingAnimation } from "./lib/useGlobalTypingAnimation";
 const CODE_BOOT_PRELOAD_TIMEOUT_MS = 6_500;
 const CODE_BOOT_PRELOAD_TIMEOUT_LOW_POWER_MS = 9_000;
 const STARTUP_TTI_METRIC = "code.startup_tti";
+const BOOT_STAGE_METRIC = "code.boot_stage_ms";
+const BOOT_TOTAL_METRIC = "code.boot_total_ms";
 const loadEditorPage = () => import("./pages/Editor");
 const Editor = lazy(() => loadEditorPage());
 const warmupCodeUiModules = () =>
@@ -73,6 +75,16 @@ const isLowPowerDevice = () => {
   const cores = Number(navigator.hardwareConcurrency || 8);
   const memory = Number(navigator.deviceMemory || 8);
   return Boolean(reducedMotion) || cores <= 4 || memory <= 4;
+};
+
+const getBootNow = () => {
+  if (
+    typeof performance !== "undefined" &&
+    typeof performance.now === "function"
+  ) {
+    return performance.now();
+  }
+  return Date.now();
 };
 
 const isStrictAccountReady = (sessionRaw) => {
@@ -784,14 +796,31 @@ function App() {
     setBootProgress(8);
     setBootStage("Nexus Runtime wird gestartet...");
     let bootControlStatus = buildControlStatus("online", []);
+    const bootStartedAt = getBootNow();
+    let activeBootStage = "runtime-start";
+    let activeBootStageStartedAt = bootStartedAt;
 
-    const setBootStep = (progress, stage) => {
+    const markBootStage = (nextStage, detail = {}) => {
+      const now = getBootNow();
+      markPerfMetric(BOOT_STAGE_METRIC, now - activeBootStageStartedAt, {
+        stage: activeBootStage,
+        nextStage,
+        strictAccountReady,
+        ...detail,
+      });
+      activeBootStage = nextStage;
+      activeBootStageStartedAt = now;
+    };
+
+    const setBootStep = (progress, stage, stageId = stage) => {
       if (!active) return;
+      markBootStage(stageId, { progress });
       setBootProgress((prev) => Math.max(prev, progress));
       setBootStage(stage);
     };
 
     if (!strictAccountReady) {
+      markBootStage("account-gate", { outcome: "session-required" });
       setControlStatus(buildControlStatus(
         "limited",
         ["account:SESSION_REQUIRED"],
@@ -807,6 +836,10 @@ function App() {
         blocked: true,
         reason: "ACCOUNT_SESSION_REQUIRED",
         requiredTier: "free",
+      });
+      markPerfMetric(BOOT_TOTAL_METRIC, getBootNow() - bootStartedAt, {
+        outcome: "account-gate",
+        strictAccountReady: false,
       });
       setBootProgress(100);
       setBootStage("Nexus Account erforderlich");
@@ -843,7 +876,7 @@ function App() {
 
     void (async () => {
       try {
-        setBootStep(26, "Lade API Katalog, Layout und Release...");
+        setBootStep(26, "Lade API Katalog, Layout und Release...", "control-bootstrap");
         const [catalogResult, layoutResult, releaseResult] = await Promise.all([
           runtime.control.fetchCatalog({
             appId: NEXUS_CODE_APP_ID,
@@ -885,7 +918,7 @@ function App() {
           );
         }
 
-        setBootStep(66, "Pruefe Release-Kompatibilitaet...");
+        setBootStep(66, "Pruefe Release-Kompatibilitaet...", "release-compatibility");
         applyBundle({
           appId: NEXUS_CODE_APP_ID,
           channel: NEXUS_CODE_CHANNEL,
@@ -893,7 +926,7 @@ function App() {
           layoutSchema: layoutResult.item,
           release: releaseResult.item,
         });
-        setBootStep(72, "Validiere Editor-Zugriff...");
+        setBootStep(72, "Validiere Editor-Zugriff...", "view-access");
         const editorAccess = await runtime.control.validateViewAccess("editor", {
           forceRefresh: false,
           ...viewAccessContext,
@@ -920,10 +953,10 @@ function App() {
             ],
             "Nexus Code bleibt gesperrt, bis der View-Zugriff erlaubt ist.",
           ));
-          setBootStep(100, "Editor-Zugriff gesperrt");
+          setBootStep(100, "Editor-Zugriff gesperrt", "view-access-blocked");
           return;
         }
-        setBootStep(76, "Lade Editor-Module und Runtime...");
+        setBootStep(76, "Lade Editor-Module und Runtime...", "editor-warmup");
         const warmupResult = await withTimeoutResult(uiWarmupPromise, preloadBudgetMs);
         if (!active) return;
         setBootStep(
@@ -931,8 +964,9 @@ function App() {
           warmupResult.timedOut
             ? "Editor-Warmup laeuft im Hintergrund weiter..."
             : "Editor-Module vorgeladen",
+          warmupResult.timedOut ? "editor-warmup-background" : "editor-warmup-ready",
         );
-        setBootStep(100, "Startsequenz abgeschlossen");
+        setBootStep(100, "Startsequenz abgeschlossen", "boot-ready");
       } catch (error) {
         const reason =
           error instanceof Error && error.message
@@ -940,6 +974,7 @@ function App() {
             : "CONTROL_API_UNAVAILABLE";
         console.error("Nexus Code bootstrap failed", error);
         if (!active) return;
+        markBootStage("boot-failed", { outcome: "blocked", reason });
         setControlStatus(buildControlStatus(
           "degraded",
           [reason],
@@ -958,6 +993,14 @@ function App() {
         });
       } finally {
         if (active) {
+          markPerfMetric(BOOT_TOTAL_METRIC, getBootNow() - bootStartedAt, {
+            outcome:
+              activeBootStage === "boot-failed" || activeBootStage.includes("blocked")
+                ? "blocked"
+                : "ready",
+            stage: activeBootStage,
+            strictAccountReady,
+          });
           setViewGuardState((prev) => ({
             ...prev,
             checking: false,

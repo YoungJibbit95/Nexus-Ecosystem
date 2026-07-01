@@ -7,6 +7,7 @@ import {
   normalizeDefinition,
   normalizeDiagnostics,
   normalizeHover,
+  lspServerCapabilitiesToFeatureMap,
   normalizeTextEdits,
   normalizeWorkspaceEdit,
 } from "./protocol.js";
@@ -60,6 +61,13 @@ export function createLspService(options = {}) {
     }
   };
 
+  const rememberDiagnostics = (uri, diagnostics, emit = true) => {
+    const normalized = normalizeDiagnostics(diagnostics);
+    diagnosticsByUri.set(uri, normalized);
+    if (emit) notifyDiagnostics(uri, normalized);
+    return normalized;
+  };
+
   const resolveDocument = (documentOrUri) => {
     if (!documentOrUri) return null;
     if (typeof documentOrUri === "string") return documents.get(documentOrUri) || null;
@@ -93,6 +101,26 @@ export function createLspService(options = {}) {
 
     ensureClient,
 
+    getServerCapabilities(languageId) {
+      const client = ensureClient(languageId);
+      if (typeof client?.getServerCapabilities === "function") {
+        return client.getServerCapabilities();
+      }
+      return {};
+    },
+
+    getServerFeatures(languageId) {
+      const client = ensureClient(languageId);
+      if (typeof client?.getServerFeatures === "function") {
+        return client.getServerFeatures();
+      }
+      const capabilities =
+        typeof client?.getServerCapabilities === "function"
+          ? client.getServerCapabilities()
+          : {};
+      return lspServerCapabilitiesToFeatureMap(capabilities);
+    },
+
     async openDocument(document) {
       if (!document?.uri) return;
       documents.set(document.uri, document);
@@ -113,6 +141,7 @@ export function createLspService(options = {}) {
       const document = documents.get(uri);
       documents.delete(uri);
       diagnosticsByUri.delete(uri);
+      if (uri) notifyDiagnostics(uri, []);
       const client = document ? ensureClient(document.languageId) : null;
       await client?.closeDocument?.(uri);
     },
@@ -128,10 +157,7 @@ export function createLspService(options = {}) {
     setDiagnostics(documentOrUri, diagnostics) {
       const uri = resolveUri(documentOrUri);
       if (!uri) return [];
-      const normalized = normalizeDiagnostics(diagnostics);
-      diagnosticsByUri.set(uri, normalized);
-      notifyDiagnostics(uri, normalized);
-      return normalized;
+      return rememberDiagnostics(uri, diagnostics);
     },
 
     async getDiagnostics(documentOrUri, context = {}) {
@@ -145,9 +171,7 @@ export function createLspService(options = {}) {
         [document, context],
         diagnosticsByUri.get(document.uri) || [],
       );
-      const normalized = normalizeDiagnostics(diagnostics);
-      diagnosticsByUri.set(document.uri, normalized);
-      return normalized;
+      return rememberDiagnostics(document.uri, diagnostics);
     },
 
     async getCompletions(documentOrUri, position, context = {}) {

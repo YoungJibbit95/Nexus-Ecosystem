@@ -1797,6 +1797,88 @@ export function lspRangeToCodeMirrorRange(doc, range) {
   };
 }
 
+export function lspTextEditsToCodeMirrorChanges(doc, edits) {
+  if (!doc || !Array.isArray(edits)) return [];
+  const changes = edits
+    .map((edit) => {
+      const range = lspRangeToCodeMirrorRange(doc, edit?.range);
+      if (!range) return null;
+      return {
+        from: Math.max(0, Math.min(doc.length, range.from)),
+        to: Math.max(0, Math.min(doc.length, range.to)),
+        insert: String(edit?.newText ?? ""),
+      };
+    })
+    .filter(Boolean)
+    .sort((left, right) => left.from - right.from || left.to - right.to);
+
+  for (let index = 1; index < changes.length; index += 1) {
+    if (changes[index].from < changes[index - 1].to) return [];
+  }
+
+  return changes;
+}
+
+function getWorkspaceEditUri(entry) {
+  return entry?.textDocument?.uri || entry?.uri || "";
+}
+
+export function lspWorkspaceEditToCodeMirrorChanges(doc, workspaceEdit, documentUri) {
+  const batches = [];
+  let externalChangeCount = 0;
+
+  if (workspaceEdit?.changes && typeof workspaceEdit.changes === "object") {
+    for (const [uri, edits] of Object.entries(workspaceEdit.changes)) {
+      if (!Array.isArray(edits)) continue;
+      if (uri === documentUri) {
+        batches.push(edits);
+      } else {
+        externalChangeCount += edits.length;
+      }
+    }
+  }
+
+  if (Array.isArray(workspaceEdit?.documentChanges)) {
+    for (const entry of workspaceEdit.documentChanges) {
+      const edits = Array.isArray(entry?.edits) ? entry.edits : [];
+      if (!edits.length) {
+        externalChangeCount += 1;
+        continue;
+      }
+      if (getWorkspaceEditUri(entry) === documentUri) {
+        batches.push(edits);
+      } else {
+        externalChangeCount += edits.length;
+      }
+    }
+  }
+
+  const changes = lspTextEditsToCodeMirrorChanges(doc, batches.flat());
+  return {
+    changes,
+    appliedChangeCount: changes.length,
+    externalChangeCount,
+    hasExternalChanges: externalChangeCount > 0,
+    hasChanges: changes.length > 0 || externalChangeCount > 0,
+  };
+}
+
+export function getPrimaryLspLocation(locations, documentUri = "") {
+  const items = (Array.isArray(locations) ? locations : [locations]).filter(Boolean);
+  if (!items.length) return null;
+  const selected =
+    items.find((location) => (location.targetUri || location.uri || "") === documentUri) ||
+    items[0];
+  const uri = selected.targetUri || selected.uri || documentUri;
+  const range = selected.targetSelectionRange || selected.targetRange || selected.range || null;
+  return {
+    uri,
+    range,
+    external: Boolean(documentUri && uri && uri !== documentUri),
+    raw: selected,
+  };
+}
+
 export function lspSeverityToProblemSeverity(severity) {
   if (severity === 1 || severity === "error") return 8;
   if (severity === 2 || severity === "warning") return 4;
@@ -2072,6 +2154,7 @@ const EDITOR_LSP_FEATURE_DEFINITIONS = Object.freeze([
   Object.freeze({
     id: EDITOR_LSP_FEATURE_IDS.goToDefinition,
     label: "Go to Definition",
+    featureName: "definition",
     commandId: "editor.goToDefinition",
     lspMethod: "getDefinition",
     resultKind: "locations",
@@ -2080,6 +2163,7 @@ const EDITOR_LSP_FEATURE_DEFINITIONS = Object.freeze([
   Object.freeze({
     id: EDITOR_LSP_FEATURE_IDS.renameSymbol,
     label: "Rename Symbol",
+    featureName: "rename",
     commandId: "editor.renameSymbol",
     lspMethod: "renameSymbol",
     resultKind: "workspace-edit",
@@ -2089,6 +2173,7 @@ const EDITOR_LSP_FEATURE_DEFINITIONS = Object.freeze([
   Object.freeze({
     id: EDITOR_LSP_FEATURE_IDS.formatDocument,
     label: "Format Document",
+    featureName: "formatting",
     commandId: "editor.formatDocument",
     lspMethod: "formatDocument",
     resultKind: "text-edits",
@@ -2096,6 +2181,7 @@ const EDITOR_LSP_FEATURE_DEFINITIONS = Object.freeze([
   Object.freeze({
     id: EDITOR_LSP_FEATURE_IDS.codeActions,
     label: "Code Actions",
+    featureName: "codeActions",
     commandId: "editor.codeActions",
     lspMethod: "getCodeActions",
     resultKind: "code-actions",
@@ -2163,25 +2249,51 @@ function getEditorFeatureUnavailableReason(options) {
   return "";
 }
 
+function resolveEditorLspFeatureSupport(options = {}) {
+  const languageId = normalizeLanguageId(options.languageId, LANGUAGE_IDS.PLAINTEXT);
+  const languageCapabilities = getLanguageCapabilities(languageId);
+  const declaredFeatures = languageCapabilities.lsp?.features || {};
+  const runtimeFeatures =
+    options.serverFeatures ||
+    options.lspFeatures ||
+    options.features ||
+    options.runtimeStatus?.features ||
+    {};
+
+  return Object.fromEntries(
+    Object.keys(LSP_FEATURE_LABELS).map((key) => {
+      if (runtimeFeatures && Object.prototype.hasOwnProperty.call(runtimeFeatures, key)) {
+        return [key, runtimeFeatures[key] === true];
+      }
+      return [key, declaredFeatures[key] === true];
+    }),
+  );
+}
+
 export function createEditorLspFeatureContracts(options = {}) {
   const disabledReason = getEditorFeatureUnavailableReason(options);
+  const support = resolveEditorLspFeatureSupport(options);
   const position = normalizeEditorFeaturePosition(options.position);
   const range = normalizeEditorFeatureRange(options.range);
   const newName = String(options.newName || "").trim();
 
   return EDITOR_LSP_FEATURE_DEFINITIONS.map((definition) => {
+    const supported = support[definition.featureName] === true;
     const missing = [
       definition.requiresPosition && !position ? "position" : "",
       definition.requiresRange && !range ? "range" : "",
       definition.requiresNewName && !newName ? "newName" : "",
     ].filter(Boolean);
-    const enabled = !disabledReason;
+    const featureReason = supported ? "" : `${definition.label} unsupported`;
+    const effectiveDisabledReason = disabledReason || featureReason;
+    const enabled = !effectiveDisabledReason;
     return Object.freeze({
       ...definition,
       languageId: normalizeLanguageId(options.languageId, LANGUAGE_IDS.PLAINTEXT),
+      supported,
       enabled,
       ready: enabled && missing.length === 0,
-      disabledReason,
+      disabledReason: effectiveDisabledReason,
       pendingReason: missing.length ? `Missing ${missing.join(", ")}` : "",
       missing,
     });
@@ -2216,9 +2328,12 @@ export function createEditorLspFeatureRequest(featureId, payload = {}) {
 
   return Object.freeze({
     featureId: contract.id,
+    label: contract.label,
     commandId: contract.commandId,
     lspMethod: contract.lspMethod,
     resultKind: contract.resultKind,
+    featureName: contract.featureName,
+    supported: contract.supported,
     documentUri: payload.documentUri || "",
     languageId: normalizeLanguageId(payload.languageId, LANGUAGE_IDS.PLAINTEXT),
     position,
@@ -2760,10 +2875,16 @@ function getLspStatusText(state) {
   return `LSP ${state}`;
 }
 
-function getFeatureMap(languageCapabilities) {
+function getFeatureMap(languageCapabilities, runtimeStatus = null) {
   const lspFeatures = languageCapabilities?.lsp?.features || {};
+  const runtimeFeatures = runtimeStatus?.features || runtimeStatus?.serverFeatures || {};
   return Object.fromEntries(
-    Object.keys(LSP_FEATURE_LABELS).map((key) => [key, lspFeatures[key] === true]),
+    Object.keys(LSP_FEATURE_LABELS).map((key) => {
+      if (Object.prototype.hasOwnProperty.call(runtimeFeatures, key)) {
+        return [key, runtimeFeatures[key] === true];
+      }
+      return [key, lspFeatures[key] === true];
+    }),
   );
 }
 
@@ -2826,6 +2947,7 @@ function createLspBaseStatus({
   }
   if (runtimeStatus) {
     return {
+      ...runtimeStatus,
       state: runtimeMissing ? "missing" : runtimeState,
       message:
         runtimeStatus.message ||
@@ -2867,14 +2989,15 @@ export function createEditorLanguageFeatureModel(options = {}) {
   const hasWorkspace = options.hasWorkspace ?? true;
   const hasBridge = options.hasBridge ?? true;
   const isLargeFile = options.isLargeFile === true;
-  const features = getFeatureMap(languageCapabilities);
+  const runtimeStatus = options.runtimeStatus || null;
+  const features = getFeatureMap(languageCapabilities, runtimeStatus);
   const baseStatus = createLspBaseStatus({
     hasBridge,
     hasWorkspace,
     isLargeFile,
     languageCapabilities,
     lspEnabled,
-    runtimeStatus: options.runtimeStatus || null,
+    runtimeStatus,
   });
   const state = normalizeLspState(baseStatus.state);
   const active = ACTIVE_LSP_STATES.has(state);
@@ -2889,10 +3012,20 @@ export function createEditorLanguageFeatureModel(options = {}) {
   const installHint = languageCapabilities.lsp.installHint;
   const statusText = getLspStatusText(state);
   const message = baseStatus.message || "";
+  const runtimeDetails = [
+    baseStatus.envName ? `Env: ${baseStatus.envName}` : "",
+    baseStatus.envOverride ? "Env override active" : "",
+    baseStatus.path ? `PATH: ${baseStatus.path}` : "",
+    baseStatus.source ? `Source: ${baseStatus.source}` : "",
+    runtimeStatus?.features || runtimeStatus?.serverFeatures
+      ? "Capabilities from server initialize"
+      : "",
+  ];
   const lspTitle = [
     `${languageCapabilities.label}: ${serverLabel}`,
     statusText,
     message,
+    ...runtimeDetails,
     installHint && fallbackActive ? installHint : "",
   ]
     .filter(Boolean)
@@ -2949,6 +3082,9 @@ export function createEditorLanguageFeatureModel(options = {}) {
       serverLabel,
       envName: languageCapabilities.lsp.envName,
       installHint,
+      envOverride: baseStatus.envOverride === true,
+      path: baseStatus.path || baseStatus.resolvedPath || null,
+      source: baseStatus.source || null,
       configured: languageCapabilities.lsp.configured,
       enabled: lspEnabled,
       active,
