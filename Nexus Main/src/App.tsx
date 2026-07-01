@@ -295,7 +295,27 @@ const isAnonymousMainBootstrapAuthFallback = (
   !controlIngestKey &&
   failedResources.every((entry) => isMainAuthBootstrapFailure(entry.errorCode));
 
-const MAIN_LOCAL_SHELL_VIEW_SET = new Set<View>(MAIN_SAFE_STARTUP_VIEWS);
+const MAIN_LOCAL_SHELL_VIEW_IDS = [
+  "dashboard",
+  "calendar",
+  "notes",
+  "tasks",
+  "reminders",
+  "files",
+  "flux",
+  "canvas",
+  "code",
+  "devtools",
+  "settings",
+  "info",
+].filter((candidate): candidate is View => VIEW_IDS.includes(candidate as View));
+
+const MAIN_LOCAL_SHELL_VIEWS: View[] = mergeUniqueViews(
+  MAIN_LOCAL_SHELL_VIEW_IDS,
+  MAIN_SAFE_STARTUP_VIEWS,
+);
+
+const MAIN_LOCAL_SHELL_VIEW_SET = new Set<View>(MAIN_LOCAL_SHELL_VIEWS);
 
 const isMainLocalShellView = (viewId: View) =>
   MAIN_LOCAL_SHELL_VIEW_SET.has(viewId);
@@ -509,7 +529,10 @@ export default function App() {
         .filter((candidate) => VIEW_IDS.includes(candidate));
 
       return withDevDiagnosticsView(
-        nextViews.length > 0 ? nextViews : MAIN_SAFE_STARTUP_VIEWS,
+        mergeUniqueViews(
+          nextViews.length > 0 ? nextViews : MAIN_SAFE_STARTUP_VIEWS,
+          MAIN_LOCAL_SHELL_VIEWS,
+        ),
       );
     },
     [emitViewFilterDebugEvents],

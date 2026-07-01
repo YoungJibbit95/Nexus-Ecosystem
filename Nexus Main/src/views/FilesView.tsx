@@ -109,6 +109,8 @@ export function FilesView({ setView }: FilesViewProps = {}) {
   const [editWs, setEditWs] = useState<Workspace | null>(null);
   const [assignItem, setAssignItem] = useState<FileItem | null>(null);
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
+  const [explorerCollapsed, setExplorerCollapsed] = useState(false);
+  const [detailsCollapsed, setDetailsCollapsed] = useState(false);
   const [headerMenuRect, setHeaderMenuRect] = useState<DOMRect | null>(null);
   const headerMenuRef = useRef<HTMLDivElement | null>(null);
   const headerMenuOverlayRef = useRef<HTMLDivElement | null>(null);
@@ -618,6 +620,8 @@ export function FilesView({ setView }: FilesViewProps = {}) {
     <div
       className="nx-files-v6 nx-release-view"
       data-files-mode={t.mode}
+      data-explorer-collapsed={explorerCollapsed ? "true" : "false"}
+      data-details-collapsed={detailsCollapsed ? "true" : "false"}
       style={
         {
           "--files-accent": t.accent,
@@ -705,84 +709,86 @@ export function FilesView({ setView }: FilesViewProps = {}) {
       </div>
 
       <div className="nx-files-body">
-        <aside className="nx-files-sidebar">
-          <div className="nx-files-sidebar-head">
-            <div>
-              <div className="nx-files-sidebar-title">Explorer</div>
-              <div className="nx-files-sidebar-meta">
-                {workspaces.length} workspace{workspaces.length !== 1 ? "s" : ""}
-              </div>
-            </div>
-            <InteractiveActionButton
-              onClick={() => setNewWsOpen(true)}
-              className="nx-files-icon-action"
-              motionId="files-sidebar-create-workspace"
-              aria-label="New workspace"
-              areaHint={42}
-              radius={8}
-            >
-              <Plus size={14} />
-            </InteractiveActionButton>
-          </div>
-
-          <div className="workspace-tree">
-            <button
-              type="button"
-              className={`workspace-tree-item ${!activeWorkspaceId ? "is-active" : ""}`}
-              onClick={showAllFiles}
-            >
-              <span className="workspace-tree-icon">
-                <Layers size={15} />
-              </span>
-              <span className="workspace-tree-copy">
-                <span>All Files</span>
-                <small>{allItems.length} items</small>
-              </span>
-            </button>
-
-            <div className="workspace-tree-section">Workspaces</div>
-            {workspaces.map((ws) => {
-              const active = activeWorkspaceId === ws.id;
-              return (
-                <div
-                  key={ws.id}
-                  className={`workspace-tree-item workspace-tree-item--workspace ${
-                    active ? "is-active" : ""
-                  }`}
-                  style={{ "--workspace-color": ws.color } as React.CSSProperties}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => selectWorkspace(ws.id)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault();
-                      selectWorkspace(ws.id);
-                    }
-                  }}
-                >
-                  <span className="workspace-tree-icon workspace-tree-icon--emoji">
-                    {ws.icon}
-                  </span>
-                  <span className="workspace-tree-copy">
-                    <span>{ws.name}</span>
-                    <small>{wsItemCount(ws)} files</small>
-                  </span>
-                  <button
-                    type="button"
-                    className="workspace-tree-edit"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      setEditWs(ws);
-                    }}
-                    aria-label={`Edit ${ws.name}`}
-                  >
-                    <Pencil size={12} />
-                  </button>
+        {!explorerCollapsed ? (
+          <aside id="nx-files-explorer" className="nx-files-sidebar">
+            <div className="nx-files-sidebar-head">
+              <div>
+                <div className="nx-files-sidebar-title">Explorer</div>
+                <div className="nx-files-sidebar-meta">
+                  {workspaces.length} workspace{workspaces.length !== 1 ? "s" : ""}
                 </div>
-              );
-            })}
-          </div>
-        </aside>
+              </div>
+              <InteractiveActionButton
+                onClick={() => setNewWsOpen(true)}
+                className="nx-files-icon-action"
+                motionId="files-sidebar-create-workspace"
+                aria-label="New workspace"
+                areaHint={42}
+                radius={8}
+              >
+                <Plus size={14} />
+              </InteractiveActionButton>
+            </div>
+
+            <div className="workspace-tree">
+              <button
+                type="button"
+                className={`workspace-tree-item ${!activeWorkspaceId ? "is-active" : ""}`}
+                onClick={showAllFiles}
+              >
+                <span className="workspace-tree-icon">
+                  <Layers size={15} />
+                </span>
+                <span className="workspace-tree-copy">
+                  <span>All Files</span>
+                  <small>{allItems.length} items</small>
+                </span>
+              </button>
+
+              <div className="workspace-tree-section">Workspaces</div>
+              {workspaces.map((ws) => {
+                const active = activeWorkspaceId === ws.id;
+                return (
+                  <div
+                    key={ws.id}
+                    className={`workspace-tree-item workspace-tree-item--workspace ${
+                      active ? "is-active" : ""
+                    }`}
+                    style={{ "--workspace-color": ws.color } as React.CSSProperties}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => selectWorkspace(ws.id)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        selectWorkspace(ws.id);
+                      }
+                    }}
+                  >
+                    <span className="workspace-tree-icon workspace-tree-icon--emoji">
+                      {ws.icon}
+                    </span>
+                    <span className="workspace-tree-copy">
+                      <span>{ws.name}</span>
+                      <small>{wsItemCount(ws)} files</small>
+                    </span>
+                    <button
+                      type="button"
+                      className="workspace-tree-edit"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setEditWs(ws);
+                      }}
+                      aria-label={`Edit ${ws.name}`}
+                    >
+                      <Pencil size={12} />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </aside>
+        ) : null}
 
         <main className="nx-files-main">
           <section className="nx-files-toolbar nx-release-strip">
@@ -854,6 +860,37 @@ export function FilesView({ setView }: FilesViewProps = {}) {
                   radius={7}
                 >
                   <Grid3x3 size={14} />
+                </InteractiveActionButton>
+              </div>
+
+              <div className="nx-files-layout-switcher" aria-label="Panel visibility">
+                <InteractiveActionButton
+                  onClick={() => setExplorerCollapsed((prev) => !prev)}
+                  className="nx-files-layout-toggle"
+                  motionId="files-toggle-explorer"
+                  selected={!explorerCollapsed}
+                  aria-pressed={!explorerCollapsed}
+                  aria-controls="nx-files-explorer"
+                  title={explorerCollapsed ? "Show Explorer" : "Hide Explorer"}
+                  areaHint={58}
+                  radius={7}
+                >
+                  <FolderOpen size={13} />
+                  <span>Explorer</span>
+                </InteractiveActionButton>
+                <InteractiveActionButton
+                  onClick={() => setDetailsCollapsed((prev) => !prev)}
+                  className="nx-files-layout-toggle"
+                  motionId="files-toggle-details"
+                  selected={!detailsCollapsed}
+                  aria-pressed={!detailsCollapsed}
+                  aria-controls="nx-files-detail-pane"
+                  title={detailsCollapsed ? "Show Details" : "Hide Details"}
+                  areaHint={58}
+                  radius={7}
+                >
+                  <Info size={13} />
+                  <span>Details</span>
                 </InteractiveActionButton>
               </div>
             </div>
@@ -1004,7 +1041,8 @@ export function FilesView({ setView }: FilesViewProps = {}) {
               )}
             </section>
 
-            <aside className="nx-files-detail-pane">
+            {!detailsCollapsed ? (
+              <aside id="nx-files-detail-pane" className="nx-files-detail-pane">
               {selectedItem && selectedMeta ? (
                 <>
                   <div className="nx-files-detail-head">
@@ -1089,7 +1127,8 @@ export function FilesView({ setView }: FilesViewProps = {}) {
                   <p>Select a file to inspect metadata and workspace actions.</p>
                 </div>
               )}
-            </aside>
+              </aside>
+            ) : null}
           </div>
         </main>
       </div>
