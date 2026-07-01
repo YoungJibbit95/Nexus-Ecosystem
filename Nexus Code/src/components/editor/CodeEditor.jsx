@@ -78,8 +78,10 @@ import {
 } from "../../ide/lsp/index.js";
 import {
   cmPosToLspPosition,
+  createEditorLanguageFeatureModel,
   createEditorScopeInfo,
   createEditorHighlightStyle,
+  createEditorStatusModel,
   createSnippetCompletions,
   extractDocumentSymbols,
   findDiagnosticAtPosition,
@@ -89,6 +91,7 @@ import {
   lspRangeToCodeMirrorRange,
   readHoverText,
   shouldRequestLspCompletion,
+  summarizeEditorDiagnostics,
 } from "../../pages/editor/editorFeatureModel.js";
 
 const EDITOR_CHANGE_EMIT_INTERVAL_MS = 48;
@@ -695,6 +698,9 @@ export default function CodeEditor({
     label: "LSP",
     message: "",
   });
+  const [diagnosticSummary, setDiagnosticSummary] = useState(() =>
+    summarizeEditorDiagnostics([]),
+  );
   const [editorFocused, setEditorFocused] = useState(false);
   const [editorFallbackReason, setEditorFallbackReason] = useState("");
   const [fallbackValue, setFallbackValue] = useState(code || "");
@@ -717,12 +723,49 @@ export default function CodeEditor({
     : [];
   const hasRainbowBrackets = installedExtensions.includes("rainbow-brackets");
   const isLargeFile = typeof code === "string" && code.length > LARGE_FILE_CHAR_THRESHOLD;
+  const lspReadyLanguage = useMemo(
+    () => isLspReadyLanguage(nexusLanguageId),
+    [nexusLanguageId],
+  );
+  const hasLspBridge = useMemo(() => hasElectronLspBridge(), []);
+  const editorFeatureSettings = useMemo(
+    () => ({
+      autocomplete_enabled: settings.autocomplete_enabled,
+      autocomplete_language_hints: settings.autocomplete_language_hints,
+      autocomplete_local_words: settings.autocomplete_local_words,
+      autocomplete_lsp: settings.autocomplete_lsp,
+      autocomplete_snippets: settings.autocomplete_snippets,
+      lsp_enabled: settings.lsp_enabled,
+    }),
+    [
+      settings.autocomplete_enabled,
+      settings.autocomplete_language_hints,
+      settings.autocomplete_local_words,
+      settings.autocomplete_lsp,
+      settings.autocomplete_snippets,
+      settings.lsp_enabled,
+    ],
+  );
+  const lspAvailabilityModel = useMemo(
+    () =>
+      createEditorLanguageFeatureModel({
+        languageId: nexusLanguageId,
+        settings: editorFeatureSettings,
+        isLargeFile,
+        hasWorkspace: Boolean(workspacePath),
+        hasBridge: hasLspBridge,
+      }),
+    [
+      editorFeatureSettings,
+      hasLspBridge,
+      isLargeFile,
+      nexusLanguageId,
+      workspacePath,
+    ],
+  );
   const canUseLsp =
-    settings.lsp_enabled !== false &&
-    !isLargeFile &&
-    Boolean(workspacePath) &&
-    isLspReadyLanguage(nexusLanguageId) &&
-    hasElectronLspBridge();
+    lspAvailabilityModel.lsp.canStart &&
+    lspReadyLanguage;
   const editorFontSize = useMemo(
     () => resolveEditorFontSize(settings, fontSize),
     [fontSize, settings.font_size],
@@ -777,6 +820,25 @@ export default function CodeEditor({
       settings.autocomplete_local_words,
       settings.autocomplete_min_chars,
       settings.autocomplete_snippets,
+    ],
+  );
+  const languageFeatureModel = useMemo(
+    () =>
+      createEditorLanguageFeatureModel({
+        languageId: nexusLanguageId,
+        settings: editorFeatureSettings,
+        isLargeFile,
+        hasWorkspace: Boolean(workspacePath),
+        hasBridge: hasLspBridge,
+        runtimeStatus: lspStatus,
+      }),
+    [
+      editorFeatureSettings,
+      hasLspBridge,
+      isLargeFile,
+      lspStatus,
+      nexusLanguageId,
+      workspacePath,
     ],
   );
   const documentSymbols = useMemo(
@@ -939,6 +1001,7 @@ export default function CodeEditor({
     lspDocumentUriRef.current = null;
     lspVersionRef.current = 1;
     currentDiagnosticsRef.current = [];
+    setDiagnosticSummary(summarizeEditorDiagnostics([], { enabled: showDiagnostics }));
     updateProblems([]);
     const currentView = editorViewRef.current;
     if (currentView) {
@@ -946,25 +1009,26 @@ export default function CodeEditor({
     }
 
     if (!canUseLsp) {
-      setLspStatus({
-        state: isLargeFile ? "disabled" : "idle",
-        label: "LSP",
-        message: isLargeFile ? "large file" : "",
-      });
+      setLspStatus(lspAvailabilityModel.lsp);
       return undefined;
     }
 
     let active = true;
+    const resolveRuntimeLspStatus = (runtimeStatus) =>
+      createEditorLanguageFeatureModel({
+        languageId: nexusLanguageId,
+        settings: editorFeatureSettings,
+        isLargeFile,
+        hasWorkspace: Boolean(workspacePath),
+        hasBridge: hasLspBridge,
+        runtimeStatus,
+      }).lsp;
     const transport = createElectronLspTransport({
       languageId: nexusLanguageId,
       workspacePath,
       onStatus: (status) => {
         if (!active) return;
-        setLspStatus({
-          state: status?.state || "running",
-          label: status?.label || languageLabel,
-          message: status?.message || "",
-        });
+        setLspStatus(resolveRuntimeLspStatus(status || { state: "running" }));
       },
       onDiagnostics: ({ uri, diagnostics }) => {
         if (!active) return;
@@ -980,6 +1044,9 @@ export default function CodeEditor({
           );
         }
         updateProblems(diagnostics || []);
+        setDiagnosticSummary(
+          summarizeEditorDiagnostics(diagnostics || [], { enabled: showDiagnostics }),
+        );
       },
     });
 
@@ -991,7 +1058,7 @@ export default function CodeEditor({
       },
     });
     lspEngineRef.current = engine;
-    setLspStatus({ state: "starting", label: languageLabel, message: "" });
+    setLspStatus(resolveRuntimeLspStatus({ state: "starting" }));
 
     engine
       .openDocument({
@@ -1007,16 +1074,22 @@ export default function CodeEditor({
         lspDocumentUriRef.current = document.uri;
         setLspStatus((prev) => ({
           ...prev,
-          state: prev.state === "unavailable" ? prev.state : "running",
+          ...(prev.state === "unavailable"
+            ? prev
+            : resolveRuntimeLspStatus({ ...prev, state: "running" })),
         }));
       })
       .catch((error) => {
         if (!active) return;
-        setLspStatus({
-          state: "unavailable",
-          label: languageLabel,
-          message: error?.message || "LSP unavailable",
-        });
+        setLspStatus(
+          resolveRuntimeLspStatus(
+            error?.lspStatus ||
+              error?.details?.status || {
+                state: "unavailable",
+                message: error?.message || "LSP unavailable",
+              },
+          ),
+        );
       });
 
     return () => {
@@ -1029,10 +1102,13 @@ export default function CodeEditor({
     };
   }, [
     canUseLsp,
+    editorFeatureSettings,
     fileName,
     filePath,
+    hasLspBridge,
     isLargeFile,
-    languageLabel,
+    lspAvailabilityModel,
+    lspReadyLanguage,
     nexusLanguageId,
     showDiagnostics,
     updateProblems,
@@ -1371,15 +1447,37 @@ export default function CodeEditor({
     });
   }, []);
 
-  const engineLabel = editorFallbackReason ? "Text fallback" : "CodeMirror 6";
-  const lspTone =
-    lspStatus.state === "running"
-      ? "text-sky-300"
-      : lspStatus.state === "starting"
-        ? "text-amber-400"
-        : lspStatus.state === "unavailable"
-          ? "text-red-400"
-          : "text-gray-600";
+  const editorStatus = useMemo(
+    () =>
+      createEditorStatusModel({
+        languageId: nexusLanguageId,
+        languageLabel,
+        lspStatus,
+        lspEnabled: settings.lsp_enabled !== false,
+        lspReadyLanguage,
+        hasWorkspace: Boolean(workspacePath),
+        hasLspBridge,
+        canUseLsp,
+        isLargeFile,
+        diagnostics: diagnosticSummary,
+        diagnosticsEnabled: showDiagnostics,
+        editorFallbackReason,
+      }),
+    [
+      canUseLsp,
+      diagnosticSummary,
+      editorFallbackReason,
+      hasLspBridge,
+      isLargeFile,
+      languageLabel,
+      lspReadyLanguage,
+      lspStatus,
+      nexusLanguageId,
+      settings.lsp_enabled,
+      showDiagnostics,
+      workspacePath,
+    ],
+  );
 
   return (
     <div
@@ -1391,6 +1489,10 @@ export default function CodeEditor({
       data-symbol-count={documentSymbols.length}
       data-active-symbol={editorScopeInfo.activeSymbol?.name || ""}
       data-scope-path={editorScopeInfo.pathLabel}
+      data-lsp-state={editorStatus.lsp.state}
+      data-lsp-capabilities={languageFeatureModel.capabilityBadge}
+      data-completion-sources={languageFeatureModel.completions.availableLabels.join(",")}
+      data-diagnostic-count={editorStatus.diagnostics.total}
     >
       <div
         ref={editorCanvasRef}
@@ -1425,15 +1527,43 @@ export default function CodeEditor({
         style={{ background: "rgba(0,0,0,0.3)" }}
       >
         <div className="flex items-center gap-3 min-w-0">
-          <span className="text-[10px] text-gray-400 font-medium truncate">
-            {languageLabel}
-          </span>
-          <span className="text-[10px] text-gray-500">{engineLabel}</span>
           <span
-            className={`text-[10px] font-medium ${lspTone}`}
-            title={lspStatus.message || lspStatus.label || "Language Server"}
+            className="text-[10px] text-gray-400 font-medium truncate"
+            title={editorStatus.language.title}
           >
-            LSP {lspStatus.state}
+            {editorStatus.language.label}
+          </span>
+          <span
+            className={`text-[10px] ${editorStatus.engine.tone}`}
+            title={editorStatus.engine.title}
+          >
+            {editorStatus.engine.label}
+          </span>
+          <span
+            className={`text-[10px] font-medium ${editorStatus.lsp.tone}`}
+            title={editorStatus.lsp.title}
+          >
+            {editorStatus.lsp.text}
+          </span>
+          {languageFeatureModel.capabilityBadge && (
+            <span
+              className="text-[10px] text-gray-500"
+              title={languageFeatureModel.capabilityTitle}
+            >
+              {languageFeatureModel.capabilityBadge}
+            </span>
+          )}
+          <span
+            className="hidden sm:inline text-[10px] text-gray-500"
+            title={languageFeatureModel.completions.title}
+          >
+            {languageFeatureModel.completions.shortText}
+          </span>
+          <span
+            className={`text-[10px] font-medium ${editorStatus.diagnostics.tone}`}
+            title={editorStatus.diagnostics.title}
+          >
+            {editorStatus.diagnostics.text}
           </span>
           {isLargeFile && (
             <span className="text-[10px] text-amber-400/80 font-semibold">

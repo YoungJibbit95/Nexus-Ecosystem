@@ -6,7 +6,12 @@ import {
   snippetCompletion,
 } from "@codemirror/autocomplete";
 import { tags } from "@lezer/highlight";
-import { LANGUAGE_IDS, normalizeLanguageId } from "../../ide/languages/languageIds.js";
+import {
+  getLanguageCapabilities,
+  getLanguageDisplayName,
+  LANGUAGE_IDS,
+  normalizeLanguageId,
+} from "../../ide/languages/languageIds.js";
 
 const DEFAULT_SYNTAX_COLORS = Object.freeze({
   comment: "#6e7788",
@@ -557,13 +562,26 @@ const COMPLETION_LIMIT_MIN = 16;
 const COMPLETION_LIMIT_MAX = 240;
 const LOCAL_COMPLETION_MIN_PREFIX_FALLBACK = 2;
 
+const COMPLETION_ORIGINS = Object.freeze({
+  lspRecommended: "lsp-recommended",
+  lsp: "lsp",
+  snippet: "snippet",
+  local: "local",
+  language: "language",
+  structure: "structure",
+});
+
 const COMPLETION_SECTIONS = Object.freeze({
-  lspRecommended: Object.freeze({ name: "Recommended", rank: 0 }),
-  lsp: Object.freeze({ name: "Language Server", rank: 8 }),
-  snippets: Object.freeze({ name: "Snippets", rank: 16 }),
-  local: Object.freeze({ name: "Current Document", rank: 20 }),
-  language: Object.freeze({ name: "Language", rank: 24 }),
-  structure: Object.freeze({ name: "Structures", rank: 32 }),
+  lspRecommended: Object.freeze({
+    name: "Recommended",
+    rank: 0,
+    origin: COMPLETION_ORIGINS.lspRecommended,
+  }),
+  lsp: Object.freeze({ name: "Language Server", rank: 8, origin: COMPLETION_ORIGINS.lsp }),
+  snippets: Object.freeze({ name: "Snippets", rank: 12, origin: COMPLETION_ORIGINS.snippet }),
+  local: Object.freeze({ name: "Current Document", rank: 13, origin: COMPLETION_ORIGINS.local }),
+  language: Object.freeze({ name: "Language", rank: 22, origin: COMPLETION_ORIGINS.language }),
+  structure: Object.freeze({ name: "Structures", rank: 24, origin: COMPLETION_ORIGINS.structure }),
 });
 
 const STRUCTURE_COMPLETION_SECTION = COMPLETION_SECTIONS.structure;
@@ -573,6 +591,17 @@ const LOCAL_COMPLETION_SECTION = COMPLETION_SECTIONS.local;
 const LOCAL_COMPLETION_WORD_PATTERN = /[A-Za-z_$][\w$-]{2,}/g;
 const LOCAL_COMPLETION_MAX_TEXT = 120_000;
 const LOCAL_COMPLETION_MAX_ITEMS = 36;
+const COMPLETION_LSP_SCAN_FACTOR = 2;
+const COMPLETION_LSP_SCAN_MAX = 480;
+const ACTIVE_LSP_STATES = new Set(["available", "ready", "running", "started"]);
+const PENDING_LSP_STATES = new Set(["initializing", "pending", "starting"]);
+const FALLBACK_LSP_STATES = new Set([
+  "disabled",
+  "idle",
+  "missing",
+  "unavailable",
+  "unsupported",
+]);
 
 function freezeCompletionList(items) {
   return Object.freeze(items.map((item) => Object.freeze(item)));
@@ -590,6 +619,7 @@ function keywordCompletion(label, detail, boost = 0, info = "") {
     info: info || completionInfo(detail),
     boost,
     section: LANGUAGE_COMPLETION_SECTION,
+    completionOrigin: COMPLETION_ORIGINS.language,
   };
 }
 
@@ -601,6 +631,7 @@ function textCompletion(label, detail, boost = 0, info = "", type = "text") {
     info: info || completionInfo(detail),
     boost,
     section: LANGUAGE_COMPLETION_SECTION,
+    completionOrigin: COMPLETION_ORIGINS.language,
   };
 }
 
@@ -613,6 +644,7 @@ function snippetItem(label, detail, template, boost, info, type = "function") {
     info,
     type,
     section: SNIPPET_COMPLETION_SECTION,
+    completionOrigin: COMPLETION_ORIGINS.snippet,
   };
 }
 
@@ -625,6 +657,7 @@ function structureSnippet(label, detail, template, boost, info, type = "text") {
     info,
     type,
     section: STRUCTURE_COMPLETION_SECTION,
+    completionOrigin: COMPLETION_ORIGINS.structure,
   };
 }
 
@@ -1214,13 +1247,64 @@ const LANGUAGE_COMPLETION_MAP = Object.freeze({
 });
 
 const RESERVED_SYMBOL_NAMES = new Set([
+  "and",
+  "as",
+  "assert",
+  "async",
+  "await",
+  "break",
   "catch",
+  "case",
+  "class",
+  "const",
+  "continue",
+  "debugger",
+  "def",
+  "default",
+  "del",
+  "delete",
+  "do",
+  "elif",
   "else",
+  "enum",
+  "except",
+  "export",
+  "extends",
+  "false",
+  "finally",
   "for",
+  "from",
+  "function",
+  "global",
   "if",
+  "import",
+  "in",
+  "instanceof",
+  "lambda",
+  "let",
+  "new",
+  "none",
+  "nonlocal",
+  "not",
+  "null",
+  "or",
+  "pass",
+  "raise",
+  "return",
+  "self",
+  "super",
   "switch",
+  "this",
+  "throw",
+  "true",
+  "try",
+  "typeof",
+  "undefined",
+  "var",
+  "void",
   "while",
   "with",
+  "yield",
 ]);
 
 const JAVASCRIPT_SYMBOL_PATTERNS = Object.freeze([
@@ -1760,6 +1844,395 @@ export function problemMatchesQuery(problem, query) {
     .some((value) => String(value).toLowerCase().includes(normalized));
 }
 
+function readDiagnosticSeverity(diagnostic) {
+  const severity = diagnostic?.severity;
+  if (severity === "error") return "error";
+  if (severity === "warning") return "warning";
+  if (severity === "info" || severity === "information") return "info";
+  if (severity === "hint") return "hint";
+
+  const looksLikeProblem =
+    diagnostic?.startLineNumber !== undefined ||
+    diagnostic?.startColumn !== undefined ||
+    diagnostic?.resource !== undefined;
+  if (!looksLikeProblem) {
+    if (severity === 1) return "error";
+    if (severity === 2) return "warning";
+    if (severity === 3) return "info";
+    if (severity === 4) return "hint";
+  }
+
+  if (severity === 8) return "error";
+  if (severity === 4) return "warning";
+  if (severity === 2) return "info";
+  if (severity === 1) return "hint";
+
+  const problemSeverity = lspSeverityToProblemSeverity(severity);
+  if (problemSeverity === 8) return "error";
+  if (problemSeverity === 4) return "warning";
+  if (problemSeverity === 2) return "info";
+  return "hint";
+}
+
+function formatDiagnosticStatusText(summary) {
+  if (!summary.enabled) return "Diagnostics off";
+  if (summary.total === 0) return "0 Problems";
+  const parts = [
+    summary.errorCount ? `${summary.errorCount} Error${summary.errorCount === 1 ? "" : "s"}` : "",
+    summary.warningCount ? `${summary.warningCount} Warning${summary.warningCount === 1 ? "" : "s"}` : "",
+    summary.infoCount + summary.hintCount
+      ? `${summary.infoCount + summary.hintCount} Info`
+      : "",
+  ].filter(Boolean);
+  return parts.join(" / ") || `${summary.total} Problems`;
+}
+
+export function summarizeEditorDiagnostics(diagnostics, options = {}) {
+  const enabled = options.enabled !== false;
+  const items = Array.isArray(diagnostics) ? diagnostics : [];
+  const counts = {
+    errorCount: 0,
+    warningCount: 0,
+    infoCount: 0,
+    hintCount: 0,
+  };
+
+  items.forEach((diagnostic) => {
+    const severity = readDiagnosticSeverity(diagnostic);
+    if (severity === "error") counts.errorCount += 1;
+    else if (severity === "warning") counts.warningCount += 1;
+    else if (severity === "info") counts.infoCount += 1;
+    else counts.hintCount += 1;
+  });
+
+  const total =
+    counts.errorCount + counts.warningCount + counts.infoCount + counts.hintCount;
+  const summary = {
+    enabled,
+    total,
+    ...counts,
+    tone: !enabled
+      ? "text-gray-600"
+      : counts.errorCount
+        ? "text-red-400"
+        : counts.warningCount
+          ? "text-amber-400"
+          : total
+            ? "text-sky-300"
+            : "text-gray-500",
+  };
+  return {
+    ...summary,
+    text: formatDiagnosticStatusText(summary),
+    title: enabled
+      ? `${total} diagnostics: ${counts.errorCount} errors, ${counts.warningCount} warnings, ${counts.infoCount} info, ${counts.hintCount} hints`
+      : "Diagnostic decorations are disabled",
+  };
+}
+
+function coerceDiagnosticSummary(diagnostics, enabled) {
+  if (
+    diagnostics &&
+    typeof diagnostics === "object" &&
+    !Array.isArray(diagnostics) &&
+    Number.isFinite(Number(diagnostics.total))
+  ) {
+    const summary = {
+      enabled,
+      total: Math.max(0, Number(diagnostics.total)),
+      errorCount: Math.max(0, Number(diagnostics.errorCount || 0)),
+      warningCount: Math.max(0, Number(diagnostics.warningCount || 0)),
+      infoCount: Math.max(0, Number(diagnostics.infoCount || 0)),
+      hintCount: Math.max(0, Number(diagnostics.hintCount || 0)),
+      tone: enabled ? diagnostics.tone || "text-gray-500" : "text-gray-600",
+    };
+    return {
+      ...summary,
+      text:
+        diagnostics.enabled === enabled && diagnostics.text
+          ? diagnostics.text
+          : formatDiagnosticStatusText(summary),
+      title:
+        diagnostics.enabled === enabled && diagnostics.title
+          ? diagnostics.title
+          : formatDiagnosticStatusText(summary),
+    };
+  }
+  return summarizeEditorDiagnostics(diagnostics, { enabled });
+}
+
+function normalizeEditorLspState(state) {
+  const normalized = String(state || "idle").trim().toLowerCase();
+  if (["available", "ready", "open", "connected"].includes(normalized)) return "running";
+  if (["booting", "loading", "pending"].includes(normalized)) return "starting";
+  if (["failed", "error", "offline"].includes(normalized)) return "unavailable";
+  if (["off", "disabled"].includes(normalized)) return "disabled";
+  if (["unsupported"].includes(normalized)) return "unsupported";
+  if (
+    ["running", "starting", "idle", "missing", "unavailable", "disabled"].includes(
+      normalized,
+    )
+  ) {
+    return normalized;
+  }
+  return "idle";
+}
+
+function getEditorLspTone(state) {
+  if (state === "running") return "text-sky-300";
+  if (state === "starting") return "text-amber-400";
+  if (state === "missing") return "text-amber-300";
+  if (state === "unavailable") return "text-red-400";
+  return "text-gray-600";
+}
+
+function getEditorLspText(state) {
+  if (state === "running") return "LSP ready";
+  if (state === "starting") return "LSP starting";
+  if (state === "missing") return "LSP missing";
+  if (state === "unavailable") return "LSP fallback";
+  if (state === "disabled") return "LSP off";
+  if (state === "unsupported") return "No LSP";
+  return "LSP idle";
+}
+
+export function createEditorStatusModel(options = {}) {
+  const languageId = normalizeLanguageId(options.languageId, LANGUAGE_IDS.PLAINTEXT);
+  const languageLabel = options.languageLabel || getLanguageDisplayName(languageId);
+  const lspStatus = options.lspStatus || {};
+  const lspEnabled = options.lspEnabled !== false;
+  const canUseLsp = Boolean(options.canUseLsp);
+  const hasWorkspace =
+    options.hasWorkspace === undefined ? canUseLsp : Boolean(options.hasWorkspace);
+  const hasLspBridge =
+    options.hasLspBridge === undefined ? canUseLsp : Boolean(options.hasLspBridge);
+  const lspReadyLanguage =
+    options.lspReadyLanguage === undefined
+      ? canUseLsp
+      : Boolean(options.lspReadyLanguage);
+  const diagnosticsEnabled = options.diagnosticsEnabled !== false;
+  const diagnostics = coerceDiagnosticSummary(options.diagnostics, diagnosticsEnabled);
+
+  let state = normalizeEditorLspState(lspStatus.state);
+  let message = String(lspStatus.message || "").trim();
+
+  if (!lspEnabled) {
+    state = "disabled";
+    message ||= "Language server disabled in settings.";
+  } else if (options.isLargeFile) {
+    state = "disabled";
+    message ||= "Large file mode skips LSP features.";
+  } else if (!lspReadyLanguage) {
+    state = "unsupported";
+    message ||= `${languageLabel} has no configured language server.`;
+  } else if (!hasWorkspace) {
+    state = "idle";
+    message ||= "Open a workspace to start language services.";
+  } else if (!hasLspBridge) {
+    state = "unavailable";
+    message ||= "Desktop LSP bridge is not available.";
+  } else if (!canUseLsp && state === "idle") {
+    message ||= "Language services are waiting for an editor document.";
+  }
+
+  const lspLabel = lspStatus.label || languageLabel || "Language Server";
+  const lspText = lspStatus.shortText || lspStatus.statusText || getEditorLspText(state);
+  return {
+    language: {
+      id: languageId,
+      label: languageLabel,
+      title: `${languageLabel} (${languageId})`,
+    },
+    engine: {
+      label: options.editorFallbackReason ? "Text fallback" : "CodeMirror 6",
+      title: options.editorFallbackReason || "CodeMirror 6 editor",
+      tone: options.editorFallbackReason ? "text-amber-400" : "text-gray-500",
+    },
+    lsp: {
+      state,
+      label: lspLabel,
+      text: lspText,
+      message,
+      tone: getEditorLspTone(state),
+      title: lspStatus.title || [lspLabel, lspText, message].filter(Boolean).join(" - "),
+      ready: state === "running",
+    },
+    diagnostics,
+  };
+}
+
+export const EDITOR_LSP_FEATURE_IDS = Object.freeze({
+  goToDefinition: "go-to-definition",
+  renameSymbol: "rename-symbol",
+  formatDocument: "format-document",
+  codeActions: "code-actions",
+});
+
+const EDITOR_LSP_FEATURE_DEFINITIONS = Object.freeze([
+  Object.freeze({
+    id: EDITOR_LSP_FEATURE_IDS.goToDefinition,
+    label: "Go to Definition",
+    commandId: "editor.goToDefinition",
+    lspMethod: "getDefinition",
+    resultKind: "locations",
+    requiresPosition: true,
+  }),
+  Object.freeze({
+    id: EDITOR_LSP_FEATURE_IDS.renameSymbol,
+    label: "Rename Symbol",
+    commandId: "editor.renameSymbol",
+    lspMethod: "renameSymbol",
+    resultKind: "workspace-edit",
+    requiresPosition: true,
+    requiresNewName: true,
+  }),
+  Object.freeze({
+    id: EDITOR_LSP_FEATURE_IDS.formatDocument,
+    label: "Format Document",
+    commandId: "editor.formatDocument",
+    lspMethod: "formatDocument",
+    resultKind: "text-edits",
+  }),
+  Object.freeze({
+    id: EDITOR_LSP_FEATURE_IDS.codeActions,
+    label: "Code Actions",
+    commandId: "editor.codeActions",
+    lspMethod: "getCodeActions",
+    resultKind: "code-actions",
+    requiresRange: true,
+  }),
+]);
+
+function getEditorLspFeatureDefinition(featureId) {
+  const normalized = String(featureId || "").trim();
+  return EDITOR_LSP_FEATURE_DEFINITIONS.find((feature) => feature.id === normalized) || null;
+}
+
+export function normalizeEditorFeaturePosition(position) {
+  if (!position || typeof position !== "object") return null;
+  const rawLine = position.lineNumber ?? position.line;
+  const rawColumn =
+    position.column ??
+    (position.character === undefined ? undefined : Number(position.character) + 1);
+  const lineNumber = Math.max(1, Math.round(Number(rawLine || 0)));
+  const column = Math.max(1, Math.round(Number(rawColumn || 0)));
+  if (!Number.isFinite(lineNumber) || !Number.isFinite(column)) return null;
+  return { lineNumber, column };
+}
+
+export function normalizeEditorFeatureRange(range) {
+  if (!range || typeof range !== "object") return null;
+  if (range.startLineNumber !== undefined || range.endLineNumber !== undefined) {
+    const startLineNumber = Math.max(1, Math.round(Number(range.startLineNumber || 0)));
+    const startColumn = Math.max(1, Math.round(Number(range.startColumn || 0)));
+    const endLineNumber = Math.max(
+      startLineNumber,
+      Math.round(Number(range.endLineNumber || startLineNumber)),
+    );
+    const endColumn = Math.max(1, Math.round(Number(range.endColumn || startColumn)));
+    if (
+      !Number.isFinite(startLineNumber) ||
+      !Number.isFinite(startColumn) ||
+      !Number.isFinite(endLineNumber) ||
+      !Number.isFinite(endColumn)
+    ) {
+      return null;
+    }
+    return { startLineNumber, startColumn, endLineNumber, endColumn };
+  }
+
+  const start = normalizeEditorFeaturePosition(range.start);
+  const end = normalizeEditorFeaturePosition(range.end || range.start);
+  if (!start || !end) return null;
+  return {
+    startLineNumber: start.lineNumber,
+    startColumn: start.column,
+    endLineNumber: Math.max(start.lineNumber, end.lineNumber),
+    endColumn: end.column,
+  };
+}
+
+function getEditorFeatureUnavailableReason(options) {
+  if (options.lspEnabled === false) return "LSP disabled";
+  if (options.isLargeFile) return "Large file mode";
+  if (options.lspReadyLanguage === false) return "Unsupported language";
+  if (options.hasWorkspace === false) return "No workspace";
+  if (options.hasLspBridge === false) return "LSP bridge unavailable";
+  if (!options.canUseLsp) return "LSP unavailable";
+  if (!options.documentUri && !options.hasDocument) return "No open LSP document";
+  return "";
+}
+
+export function createEditorLspFeatureContracts(options = {}) {
+  const disabledReason = getEditorFeatureUnavailableReason(options);
+  const position = normalizeEditorFeaturePosition(options.position);
+  const range = normalizeEditorFeatureRange(options.range);
+  const newName = String(options.newName || "").trim();
+
+  return EDITOR_LSP_FEATURE_DEFINITIONS.map((definition) => {
+    const missing = [
+      definition.requiresPosition && !position ? "position" : "",
+      definition.requiresRange && !range ? "range" : "",
+      definition.requiresNewName && !newName ? "newName" : "",
+    ].filter(Boolean);
+    const enabled = !disabledReason;
+    return Object.freeze({
+      ...definition,
+      languageId: normalizeLanguageId(options.languageId, LANGUAGE_IDS.PLAINTEXT),
+      enabled,
+      ready: enabled && missing.length === 0,
+      disabledReason,
+      pendingReason: missing.length ? `Missing ${missing.join(", ")}` : "",
+      missing,
+    });
+  });
+}
+
+export function getEditorLspFeatureContract(featureId, options = {}) {
+  const definition = getEditorLspFeatureDefinition(featureId);
+  if (!definition) return null;
+  return createEditorLspFeatureContracts(options).find((feature) => feature.id === definition.id) || null;
+}
+
+export function createEditorLspFeatureRequest(featureId, payload = {}) {
+  const contract = getEditorLspFeatureContract(featureId, payload);
+  if (!contract) {
+    return {
+      featureId: String(featureId || ""),
+      ready: false,
+      disabledReason: "Unknown editor feature",
+      missing: ["feature"],
+    };
+  }
+
+  const position = normalizeEditorFeaturePosition(payload.position);
+  const range = normalizeEditorFeatureRange(payload.range);
+  const newName = String(payload.newName || "").trim();
+  const missing = [
+    contract.requiresPosition && !position ? "position" : "",
+    contract.requiresRange && !range ? "range" : "",
+    contract.requiresNewName && !newName ? "newName" : "",
+  ].filter(Boolean);
+
+  return Object.freeze({
+    featureId: contract.id,
+    commandId: contract.commandId,
+    lspMethod: contract.lspMethod,
+    resultKind: contract.resultKind,
+    documentUri: payload.documentUri || "",
+    languageId: normalizeLanguageId(payload.languageId, LANGUAGE_IDS.PLAINTEXT),
+    position,
+    range,
+    diagnostics: Array.isArray(payload.diagnostics) ? payload.diagnostics.slice(0, 50) : [],
+    newName,
+    options: payload.options && typeof payload.options === "object" ? { ...payload.options } : {},
+    ready: contract.enabled && missing.length === 0,
+    disabledReason: contract.disabledReason,
+    pendingReason: missing.length ? `Missing ${missing.join(", ")}` : "",
+    missing,
+  });
+}
+
 export function lspDiagnosticsToProblems(diagnostics, resource) {
   return (diagnostics || []).slice(0, 180).map((diagnostic, index) => {
     const range = diagnostic.range || {};
@@ -1862,6 +2335,11 @@ function resolveCompletionLimit(options) {
   );
 }
 
+function resolveLspCompletionScanLimit(itemCount, maxItems) {
+  const scanned = Math.max(maxItems, maxItems * COMPLETION_LSP_SCAN_FACTOR);
+  return Math.min(itemCount, COMPLETION_LSP_SCAN_MAX, scanned);
+}
+
 function normalizeCompletionLabel(item) {
   if (typeof item?.label === "string") return item.label;
   if (item?.label?.label) return item.label.label;
@@ -1937,39 +2415,183 @@ function toSnippetCompletion(item) {
     info: item.info,
     boost: item.boost,
     section: item.section,
+    completionOrigin: item.completionOrigin || item.section?.origin || COMPLETION_ORIGINS.language,
   };
   return item.template ? snippetCompletion(item.template, completion) : completion;
 }
 
-function rankCompletionOption(option) {
+const EMPTY_COMPLETION_RANK_CONTEXT = Object.freeze({
+  prefix: "",
+  normalizedPrefix: "",
+  explicit: false,
+});
+
+function createCompletionRankContext(context, languageId) {
+  if (context?.normalizedPrefix !== undefined) {
+    return {
+      prefix: String(context.prefix || ""),
+      normalizedPrefix: String(context.normalizedPrefix || "").toLowerCase(),
+      explicit: Boolean(context.explicit),
+    };
+  }
+
+  if (!context?.matchBefore) return EMPTY_COMPLETION_RANK_CONTEXT;
+  const prefix = getCompletionPrefix(context, languageId);
+  return {
+    prefix,
+    normalizedPrefix: prefix.toLowerCase(),
+    explicit: Boolean(context.explicit),
+  };
+}
+
+function getCompletionOrigin(option) {
+  return option?.completionOrigin || option?.section?.origin || COMPLETION_ORIGINS.language;
+}
+
+function canonicalCompletionLabel(label) {
+  return String(label || "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .replace(/\(\)$/, "")
+    .replace(/[;:]$/, "")
+    .toLowerCase();
+}
+
+function hasCamelCaseCompletionMatch(label, prefix) {
+  if (!prefix) return false;
+  const acronym = String(label || "")
+    .replace(/^[^A-Za-z_$]+/, "")
+    .split(/[^A-Za-z0-9_$]+/)
+    .flatMap((part) => {
+      const capitals = part.match(/[A-Z]/g);
+      return capitals?.length ? capitals : part.slice(0, 1);
+    })
+    .join("")
+    .toLowerCase();
+  return acronym.startsWith(prefix);
+}
+
+function getCompletionMatchQuality(option, rankContext = EMPTY_COMPLETION_RANK_CONTEXT) {
+  const normalizedPrefix = String(rankContext.normalizedPrefix || "");
+  if (!normalizedPrefix) return 0;
+  const label = String(option?.label || "");
+  const normalizedLabel = canonicalCompletionLabel(label);
+  if (!normalizedLabel) return -1;
+  if (normalizedLabel === normalizedPrefix) return 4;
+  if (normalizedLabel.startsWith(normalizedPrefix)) return 3;
+  if (hasCamelCaseCompletionMatch(label, normalizedPrefix)) return 2;
+  if (normalizedLabel.includes(normalizedPrefix)) return 1;
+  return -1;
+}
+
+function getCompletionMatchBonus(matchQuality) {
+  if (matchQuality >= 4) return 220;
+  if (matchQuality === 3) return 140;
+  if (matchQuality === 2) return 90;
+  if (matchQuality === 1) return 45;
+  return 0;
+}
+
+function getCompletionOriginBonus(option, rankContext) {
+  const origin = getCompletionOrigin(option);
+  if (origin === COMPLETION_ORIGINS.lspRecommended) return 0;
+  const matchQuality = getCompletionMatchQuality(option, rankContext);
+
+  if (origin === COMPLETION_ORIGINS.local) {
+    if (matchQuality >= 4) return 720;
+    if (matchQuality === 3) return 650;
+    if (matchQuality === 2) return 340;
+    if (matchQuality === 1) return 160;
+    return 0;
+  }
+
+  if (origin === COMPLETION_ORIGINS.snippet) {
+    if (matchQuality >= 4) return 600;
+    if (rankContext.explicit && matchQuality === 3) return 300;
+    if (matchQuality === 3) return 220;
+    return 0;
+  }
+
+  if (origin === COMPLETION_ORIGINS.language || origin === COMPLETION_ORIGINS.structure) {
+    if (matchQuality >= 4) return 180;
+    if (matchQuality === 3) return 120;
+    return 0;
+  }
+
+  if (origin === COMPLETION_ORIGINS.lsp && matchQuality >= 3) return 80;
+  return 0;
+}
+
+function getCompletionMissPenalty(option, rankContext) {
+  if (!rankContext.normalizedPrefix) return 0;
+  const matchQuality = getCompletionMatchQuality(option, rankContext);
+  if (matchQuality >= 0) return 0;
+  return getCompletionOrigin(option) === COMPLETION_ORIGINS.lsp ? 80 : 160;
+}
+
+function rankCompletionOption(option, rankContext = EMPTY_COMPLETION_RANK_CONTEXT) {
   const section = option?.section;
   const sectionRank =
     typeof section === "object" && Number.isFinite(Number(section.rank))
       ? Number(section.rank)
       : 50;
   const boost = Number.isFinite(Number(option?.boost)) ? Number(option.boost) : 0;
-  return sectionRank * 100 - boost;
+  return (
+    sectionRank * 100 -
+    boost -
+    getCompletionMatchBonus(getCompletionMatchQuality(option, rankContext)) -
+    getCompletionOriginBonus(option, rankContext) +
+    getCompletionMissPenalty(option, rankContext)
+  );
 }
 
 function uniqueCompletionKey(option) {
-  return String(option?.label || "").trim().toLowerCase();
+  const rawLabel = typeof option?.label === "object" ? option.label?.label : option?.label;
+  return canonicalCompletionLabel(rawLabel);
 }
 
-function mergeCompletionOptions(optionGroups) {
+function compareCompletionTieBreak(left, right, rankContext) {
+  const originPriority = (option) => {
+    const origin = getCompletionOrigin(option);
+    const matchQuality = getCompletionMatchQuality(option, rankContext);
+    if (origin === COMPLETION_ORIGINS.lspRecommended) return 0;
+    if (origin === COMPLETION_ORIGINS.local && matchQuality >= 3) return 1;
+    if (origin === COMPLETION_ORIGINS.snippet && matchQuality >= 3) return 2;
+    if (origin === COMPLETION_ORIGINS.lsp) return 3;
+    if (origin === COMPLETION_ORIGINS.snippet) return 4;
+    if (origin === COMPLETION_ORIGINS.local) return 5;
+    if (origin === COMPLETION_ORIGINS.language) return 6;
+    return 7;
+  };
+
+  const priorityDelta = originPriority(left) - originPriority(right);
+  if (priorityDelta !== 0) return priorityDelta;
+  const sortDelta = String(left?.sortText || "").localeCompare(String(right?.sortText || ""));
+  if (sortDelta !== 0) return sortDelta;
+  return String(left?.label || "").localeCompare(String(right?.label || ""));
+}
+
+function mergeCompletionOptions(optionGroups, rankContext = EMPTY_COMPLETION_RANK_CONTEXT) {
   const merged = new Map();
   optionGroups.flat().filter(Boolean).forEach((option) => {
     const key = uniqueCompletionKey(option);
     if (!key) return;
     const previous = merged.get(key);
-    if (!previous || rankCompletionOption(option) < rankCompletionOption(previous)) {
+    const optionRank = rankCompletionOption(option, rankContext);
+    const previousRank = previous ? rankCompletionOption(previous, rankContext) : Infinity;
+    if (
+      !previous ||
+      optionRank < previousRank ||
+      (optionRank === previousRank && compareCompletionTieBreak(option, previous, rankContext) < 0)
+    ) {
       merged.set(key, option);
     }
   });
 
   return [...merged.values()].sort((a, b) => {
-    const rankDelta = rankCompletionOption(a) - rankCompletionOption(b);
+    const rankDelta = rankCompletionOption(a, rankContext) - rankCompletionOption(b, rankContext);
     if (rankDelta !== 0) return rankDelta;
-    return String(a.label || "").localeCompare(String(b.label || ""));
+    return compareCompletionTieBreak(a, b, rankContext);
   });
 }
 
@@ -2004,6 +2626,23 @@ function shouldOfferLocalCompletionWord(word, prefix) {
     return false;
   }
   return true;
+}
+
+function getLocalCompletionBoost(entry, prefix, index) {
+  const normalizedPrefix = String(prefix || "").toLowerCase();
+  const normalizedLabel = String(entry?.label || "").toLowerCase();
+  const frequencyBoost = Math.min(10, Math.max(0, Number(entry?.count || 0) * 2));
+  const distance = Number(entry?.distance ?? Number.POSITIVE_INFINITY);
+  const distanceBoost = distance <= 120 ? 8 : distance <= 800 ? 4 : 0;
+  const prefixBoost =
+    normalizedPrefix && normalizedLabel === normalizedPrefix
+      ? 10
+      : normalizedPrefix && normalizedLabel.startsWith(normalizedPrefix)
+        ? 7
+        : normalizedPrefix && normalizedLabel.includes(normalizedPrefix)
+          ? 3
+          : 0;
+  return Math.max(1, 18 - index + frequencyBoost + distanceBoost + prefixBoost);
 }
 
 function createLocalDocumentCompletions(context, languageId, options = {}) {
@@ -2061,8 +2700,10 @@ function createLocalDocumentCompletions(context, languageId, options = {}) {
       type: "variable",
       detail: "current document",
       info: `Found ${entry.count} time${entry.count === 1 ? "" : "s"} in this file.`,
-      boost: Math.max(1, 18 - index),
+      boost: getLocalCompletionBoost(entry, prefix, index),
+      sortText: `local:${String(index).padStart(3, "0")}`,
       section: LOCAL_COMPLETION_SECTION,
+      completionOrigin: COMPLETION_ORIGINS.local,
     }));
 }
 
@@ -2085,6 +2726,271 @@ export function readHoverText(hover) {
   return readMarkupContent(hover?.contents ?? hover)
     .replace(/\r\n/g, "\n")
     .trim();
+}
+
+const LSP_FEATURE_LABELS = Object.freeze({
+  completion: "Completion",
+  hover: "Hover",
+  diagnostics: "Diagnostics",
+  definition: "Definition",
+  formatting: "Formatting",
+  codeActions: "Code actions",
+  rename: "Rename",
+});
+
+function normalizeLspState(value, fallback = "idle") {
+  const state = String(value || "")
+    .trim()
+    .toLowerCase();
+  if (!state) return fallback;
+  if (state === "error" || state === "failed" || state === "stopped") {
+    return "unavailable";
+  }
+  return state;
+}
+
+function getLspStatusText(state) {
+  if (state === "missing") return "LSP missing";
+  if (state === "unsupported") return "LSP unsupported";
+  if (state === "disabled") return "LSP off";
+  if (state === "unavailable") return "LSP fallback";
+  if (state === "idle") return "LSP idle";
+  if (PENDING_LSP_STATES.has(state)) return "LSP starting";
+  if (ACTIVE_LSP_STATES.has(state)) return "LSP running";
+  return `LSP ${state}`;
+}
+
+function getFeatureMap(languageCapabilities) {
+  const lspFeatures = languageCapabilities?.lsp?.features || {};
+  return Object.fromEntries(
+    Object.keys(LSP_FEATURE_LABELS).map((key) => [key, lspFeatures[key] === true]),
+  );
+}
+
+function getEnabledSetting(settings, key, fallback = true) {
+  return settings?.[key] === undefined ? fallback : settings[key] !== false;
+}
+
+function createLspBaseStatus({
+  hasBridge,
+  hasWorkspace,
+  isLargeFile,
+  languageCapabilities,
+  lspEnabled,
+  runtimeStatus,
+}) {
+  const server = languageCapabilities.lsp;
+  const runtimeState = normalizeLspState(
+    runtimeStatus?.state || runtimeStatus?.status,
+    runtimeStatus ? "running" : "ready",
+  );
+  const runtimeMissing =
+    runtimeStatus?.missing === true ||
+    runtimeState === "missing" ||
+    (runtimeStatus?.available === false && runtimeStatus?.canStart === false);
+
+  if (!lspEnabled) {
+    return {
+      state: "disabled",
+      message: "Language server support is disabled in settings.",
+      canStart: false,
+    };
+  }
+  if (!languageCapabilities.lspReady || !server.configured) {
+    return {
+      state: "unsupported",
+      message: `No language server is configured for ${languageCapabilities.label}.`,
+      canStart: false,
+    };
+  }
+  if (isLargeFile) {
+    return {
+      state: "disabled",
+      message: "Large file mode keeps LSP disabled for editor stability.",
+      canStart: false,
+    };
+  }
+  if (!hasWorkspace) {
+    return {
+      state: "idle",
+      message: "Open a workspace folder to start the language server.",
+      canStart: false,
+    };
+  }
+  if (!hasBridge) {
+    return {
+      state: "unavailable",
+      message: "Electron LSP bridge is unavailable. Local completions remain active.",
+      canStart: false,
+    };
+  }
+  if (runtimeStatus) {
+    return {
+      state: runtimeMissing ? "missing" : runtimeState,
+      message:
+        runtimeStatus.message ||
+        (runtimeMissing
+          ? `${server.label || languageCapabilities.label} is not available.`
+          : `${server.label || languageCapabilities.label} is ${runtimeState}.`),
+      canStart:
+        runtimeStatus.canStart !== false &&
+        !runtimeMissing &&
+        !FALLBACK_LSP_STATES.has(runtimeState),
+    };
+  }
+  return {
+    state: "ready",
+    message: `${server.label || languageCapabilities.label} is ready to start.`,
+    canStart: true,
+  };
+}
+
+export function createEditorLanguageFeatureModel(options = {}) {
+  const languageCapabilities = getLanguageCapabilities(options.languageId);
+  const settings = options.settings || {};
+  const lspEnabled = options.lspEnabled ?? getEnabledSetting(settings, "lsp_enabled");
+  const autocompleteEnabled =
+    options.autocompleteEnabled ?? getEnabledSetting(settings, "autocomplete_enabled");
+  const snippetsEnabled =
+    autocompleteEnabled &&
+    (options.snippetsEnabled ?? getEnabledSetting(settings, "autocomplete_snippets"));
+  const localWordsEnabled =
+    autocompleteEnabled &&
+    (options.localWordsEnabled ?? getEnabledSetting(settings, "autocomplete_local_words"));
+  const languageHintsEnabled =
+    autocompleteEnabled &&
+    (options.languageHintsEnabled ?? getEnabledSetting(settings, "autocomplete_language_hints"));
+  const lspCompletionEnabled =
+    autocompleteEnabled &&
+    lspEnabled &&
+    (options.lspCompletionEnabled ?? getEnabledSetting(settings, "autocomplete_lsp"));
+  const hasWorkspace = options.hasWorkspace ?? true;
+  const hasBridge = options.hasBridge ?? true;
+  const isLargeFile = options.isLargeFile === true;
+  const features = getFeatureMap(languageCapabilities);
+  const baseStatus = createLspBaseStatus({
+    hasBridge,
+    hasWorkspace,
+    isLargeFile,
+    languageCapabilities,
+    lspEnabled,
+    runtimeStatus: options.runtimeStatus || null,
+  });
+  const state = normalizeLspState(baseStatus.state);
+  const active = ACTIVE_LSP_STATES.has(state);
+  const pending = PENDING_LSP_STATES.has(state);
+  const fallbackActive = FALLBACK_LSP_STATES.has(state) || (!active && !pending);
+  const supportedFeatureNames = Object.entries(features)
+    .filter(([, enabled]) => enabled)
+    .map(([key]) => LSP_FEATURE_LABELS[key]);
+  const activeFeatureCount = active ? supportedFeatureNames.length : 0;
+  const featureCount = supportedFeatureNames.length;
+  const serverLabel = languageCapabilities.lsp.label || languageCapabilities.label;
+  const installHint = languageCapabilities.lsp.installHint;
+  const statusText = getLspStatusText(state);
+  const message = baseStatus.message || "";
+  const lspTitle = [
+    `${languageCapabilities.label}: ${serverLabel}`,
+    statusText,
+    message,
+    installHint && fallbackActive ? installHint : "",
+  ]
+    .filter(Boolean)
+    .join(" | ");
+
+  const completionSources = [
+    {
+      id: "lsp",
+      label: "LSP",
+      enabled: lspCompletionEnabled,
+      available: lspCompletionEnabled && active && features.completion,
+      fallback: lspCompletionEnabled && (!active || !features.completion),
+    },
+    {
+      id: "snippets",
+      label: "Snippets",
+      enabled: snippetsEnabled,
+      available: snippetsEnabled,
+      fallback: false,
+    },
+    {
+      id: "local",
+      label: "Local words",
+      enabled: localWordsEnabled,
+      available: localWordsEnabled,
+      fallback: false,
+    },
+    {
+      id: "language",
+      label: "Language hints",
+      enabled: languageHintsEnabled,
+      available: languageHintsEnabled,
+      fallback: false,
+    },
+  ];
+  const availableCompletionLabels = completionSources
+    .filter((source) => source.available)
+    .map((source) => source.label);
+
+  return {
+    language: {
+      id: languageCapabilities.id,
+      label: languageCapabilities.label,
+      editorGrammarId: languageCapabilities.editorGrammarId,
+    },
+    lsp: {
+      ...baseStatus,
+      state,
+      label: serverLabel,
+      message,
+      statusText,
+      shortText: statusText,
+      title: lspTitle,
+      serverLabel,
+      envName: languageCapabilities.lsp.envName,
+      installHint,
+      configured: languageCapabilities.lsp.configured,
+      enabled: lspEnabled,
+      active,
+      pending,
+      fallbackActive,
+      features,
+      featureCount,
+      activeFeatureCount,
+    },
+    completions: {
+      enabled: autocompleteEnabled,
+      sources: completionSources,
+      availableLabels: availableCompletionLabels,
+      shortText: availableCompletionLabels.length
+        ? `Complete ${availableCompletionLabels.join("+")}`
+        : "Complete off",
+      title: `Completion sources: ${
+        availableCompletionLabels.length ? availableCompletionLabels.join(", ") : "none"
+      }`,
+    },
+    actions: Object.fromEntries(
+      Object.entries(features).map(([key, supported]) => [
+        key,
+        {
+          label: LSP_FEATURE_LABELS[key],
+          supported,
+          active: supported && active,
+          fallback: supported && !active,
+        },
+      ]),
+    ),
+    capabilityBadge: languageCapabilities.lsp.configured
+      ? `Tools ${activeFeatureCount}/${featureCount}`
+      : "",
+    capabilityTitle: [
+      `${languageCapabilities.label} LSP capabilities`,
+      supportedFeatureNames.join(", ") || "No LSP features configured",
+      fallbackActive && installHint ? installHint : "",
+    ]
+      .filter(Boolean)
+      .join(" | "),
+  };
 }
 
 function resolveCompletionText(item, label) {
@@ -2154,6 +3060,7 @@ export function createSnippetCompletions(context, languageId, options = {}) {
   if (!hasLocalCompletionTrigger(context, normalizedLanguageId, match, options)) {
     return null;
   }
+  const rankContext = createCompletionRankContext(context, normalizedLanguageId);
 
   const languageOptions =
     options.languageHints === false
@@ -2175,7 +3082,10 @@ export function createSnippetCompletions(context, languageId, options = {}) {
 
   return {
     from: match?.from ?? context.pos,
-    options: mergeCompletionOptions([languageOptions, localOptions]),
+    options: mergeCompletionOptions([languageOptions, localOptions], rankContext).slice(
+      0,
+      resolveCompletionLimit(options),
+    ),
     validFor: WORD_COMPLETION_PATTERN,
   };
 }
@@ -2191,18 +3101,21 @@ export function shouldRequestLspCompletion(context, options = {}) {
 
 export function lspCompletionsToCodeMirror(context, completionList, snippetResult, options = {}) {
   const resolvedOptions = typeof options === "object" && options !== null ? options : {};
-  const maxItems = resolveCompletionLimit(options);
+  const maxItems = resolveCompletionLimit(resolvedOptions);
   const normalizedLanguageId = normalizeCompletionSourceLanguage(resolvedOptions.languageId);
   const matchPattern = getCompletionMatchPattern(normalizedLanguageId);
   const word = context.matchBefore(matchPattern);
   const from = word ? word.from : context.pos;
   const items = Array.isArray(completionList?.items) ? completionList.items : [];
-  const lspOptions = items.slice(0, maxItems).map((item, index) => {
+  const rankContext = createCompletionRankContext(context, normalizedLanguageId);
+  const scanLimit = resolveLspCompletionScanLimit(items.length, maxItems);
+  const lspOptions = items.slice(0, scanLimit).map((item, index) => {
     const label = normalizeCompletionLabel(item);
     const insertText = resolveCompletionText(item, label);
     const documentation = readMarkupContent(item.documentation).trim();
     const kindDetail = completionKindName(item.kind);
     const sortText = String(item.sortText || "");
+    const recommended = item.preselect || sortText.startsWith("!");
     const detailParts = [
       item.detail,
       item.labelDetails?.detail,
@@ -2218,16 +3131,19 @@ export function lspCompletionsToCodeMirror(context, completionList, snippetResul
       boost: getCompletionBoost(item, index),
       sortText,
       commitCharacters: item.commitCharacters,
-      section: sortText.startsWith("!")
+      section: recommended
         ? COMPLETION_SECTIONS.lspRecommended
         : COMPLETION_SECTIONS.lsp,
+      completionOrigin: recommended
+        ? COMPLETION_ORIGINS.lspRecommended
+        : COMPLETION_ORIGINS.lsp,
     };
   });
   const localOptions = Array.isArray(snippetResult?.options) ? snippetResult.options : [];
 
   return {
     from,
-    options: mergeCompletionOptions([lspOptions, localOptions]),
+    options: mergeCompletionOptions([lspOptions, localOptions], rankContext).slice(0, maxItems),
     validFor: completionList?.isIncomplete ? undefined : matchPattern,
   };
 }

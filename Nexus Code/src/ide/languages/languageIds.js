@@ -15,6 +15,15 @@
  * @property {string[]} aliases
  * @property {string} [editorGrammarId]
  * @property {boolean} [lspReady]
+ * @property {LanguageServerDefinition} [languageServer]
+ */
+
+/**
+ * @typedef {Object} LanguageServerDefinition
+ * @property {string} label
+ * @property {string} envName
+ * @property {string} installHint
+ * @property {Record<string, boolean>} features
  */
 
 export const LANGUAGE_IDS = Object.freeze({
@@ -78,6 +87,31 @@ export const LANGUAGE_IDS = Object.freeze({
   ENV: "dotenv",
 });
 
+export const LSP_FEATURES = Object.freeze({
+  completion: true,
+  hover: true,
+  diagnostics: true,
+  definition: true,
+  formatting: true,
+  codeActions: true,
+  rename: true,
+});
+
+const TYPESCRIPT_LANGUAGE_SERVER = Object.freeze({
+  label: "TypeScript Language Server",
+  envName: "NEXUS_LSP_TYPESCRIPT",
+  installHint:
+    "Install with npm install -g typescript typescript-language-server or set NEXUS_LSP_TYPESCRIPT.",
+  features: LSP_FEATURES,
+});
+
+const PYTHON_LANGUAGE_SERVER = Object.freeze({
+  label: "Pyright",
+  envName: "NEXUS_LSP_PYTHON",
+  installHint: "Install with pip install pyright or set NEXUS_LSP_PYTHON.",
+  features: LSP_FEATURES,
+});
+
 /** @type {LanguageDefinition[]} */
 const definitions = [
   {
@@ -94,6 +128,7 @@ const definitions = [
     filenames: [],
     aliases: ["javascript", "js", "node"],
     lspReady: true,
+    languageServer: TYPESCRIPT_LANGUAGE_SERVER,
   },
   {
     id: LANGUAGE_IDS.TYPESCRIPT,
@@ -102,6 +137,7 @@ const definitions = [
     filenames: [],
     aliases: ["typescript", "ts"],
     lspReady: true,
+    languageServer: TYPESCRIPT_LANGUAGE_SERVER,
   },
   {
     id: LANGUAGE_IDS.PYTHON,
@@ -110,6 +146,7 @@ const definitions = [
     filenames: ["pyproject.toml"],
     aliases: ["python", "py"],
     lspReady: true,
+    languageServer: PYTHON_LANGUAGE_SERVER,
   },
   {
     id: LANGUAGE_IDS.RUST,
@@ -583,6 +620,26 @@ export function getEditorGrammarId(languageId) {
 
 export function isLspReadyLanguage(languageId) {
   return LSP_READY_LANGUAGE_IDS.includes(normalizeLanguageId(languageId));
+}
+
+export function getLanguageCapabilities(languageId) {
+  const definition = getLanguageDefinition(languageId);
+  const languageServer = definition?.languageServer || null;
+  const features = languageServer?.features || {};
+
+  return {
+    id: definition?.id || LANGUAGE_IDS.PLAINTEXT,
+    label: definition?.label || "Plain Text",
+    editorGrammarId: getEditorGrammarId(definition?.id),
+    lspReady: definition?.lspReady === true,
+    lsp: {
+      configured: Boolean(languageServer),
+      label: languageServer?.label || null,
+      envName: languageServer?.envName || null,
+      installHint: languageServer?.installHint || null,
+      features: { ...features },
+    },
+  };
 }
 
 export function detectLanguageDefinition(resourcePath, fallback = LANGUAGE_IDS.PLAINTEXT) {

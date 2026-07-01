@@ -248,8 +248,8 @@ export default function ProblemsPanel({ problems, onSelectProblem }) {
     normalizedProblems.length === 0 ? "Keine Probleme" : "Keine Treffer";
   const emptyDetail =
     normalizedProblems.length === 0
-      ? "Diagnostics sind leer oder noch nicht vom Language Server geladen."
-      : "Passe Severity oder Suchfilter an, um andere Diagnostics zu sehen.";
+      ? "Keine Diagnostics gemeldet. Sobald Language Server oder Linter Hinweise liefern, stehen sie hier gruppiert nach Datei."
+      : "Severity oder Suche filtern aktuell alles aus. Lockere die Auswahl, um weitere Diagnostics zu sehen.";
 
   return (
     <PanelShell ariaLabel="Problems">
@@ -265,15 +265,40 @@ export default function ProblemsPanel({ problems, onSelectProblem }) {
           )
         }
       >
-        <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-white/[0.055] bg-black/15 px-2.5 py-1.5 text-[10px] text-gray-500">
-          <span className="font-semibold text-red-300/80">{counts.error} errors</span>
-          <span className="font-semibold text-amber-300/80">{counts.warning} warnings</span>
-          <span className="font-semibold text-sky-300/80">
-            {(counts.info || 0) + (counts.hint || 0)} info
-          </span>
+        <div
+          className="grid gap-1.5 rounded-lg border border-white/[0.055] bg-black/15 p-1.5"
+          style={{ gridTemplateColumns: "repeat(auto-fit, minmax(76px, 1fr))" }}
+        >
+          <div className="min-w-0 rounded-md bg-red-500/[0.055] px-2 py-1">
+            <span className="block text-[9px] font-semibold uppercase text-red-200/55">
+              Errors
+            </span>
+            <span className="block break-words text-[12px] font-semibold leading-tight text-red-300/90">
+              {counts.error}
+            </span>
+          </div>
+          <div className="min-w-0 rounded-md bg-amber-400/[0.055] px-2 py-1">
+            <span className="block text-[9px] font-semibold uppercase text-amber-200/55">
+              Warnings
+            </span>
+            <span className="block break-words text-[12px] font-semibold leading-tight text-amber-300/90">
+              {counts.warning}
+            </span>
+          </div>
+          <div className="min-w-0 rounded-md bg-sky-400/[0.055] px-2 py-1">
+            <span className="block text-[9px] font-semibold uppercase text-sky-200/55">
+              Info
+            </span>
+            <span className="block break-words text-[12px] font-semibold leading-tight text-sky-300/90">
+              {(counts.info || 0) + (counts.hint || 0)}
+            </span>
+          </div>
         </div>
 
-        <div className="mt-2 grid min-w-0 grid-cols-2 gap-1">
+        <div
+          className="mt-2 grid min-w-0 gap-1"
+          style={{ gridTemplateColumns: "repeat(auto-fit, minmax(68px, 1fr))" }}
+        >
           {FILTERS.map((item) => {
             const active = filter === item.id;
             const count =
@@ -322,7 +347,7 @@ export default function ProblemsPanel({ problems, onSelectProblem }) {
             type="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Message, file, source oder code"
+            placeholder="Message, file oder code"
             className="h-8 w-full rounded-lg border border-white/[0.06] bg-white/[0.026] pl-8 pr-2 text-[12px] text-gray-200 outline-none transition-colors placeholder:text-gray-600 focus:border-sky-300/35 focus:bg-white/[0.04]"
           />
           {query ? (
@@ -348,12 +373,12 @@ export default function ProblemsPanel({ problems, onSelectProblem }) {
       >
         {normalizedProblems.length > 0 || filtersActive ? (
           <div className="sticky top-0 z-20 mb-2 rounded-xl border border-white/[0.055] bg-[#070a13]/95 px-2 py-1.5 backdrop-blur-md">
-            <div className="flex min-w-0 items-center justify-between gap-2">
+            <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
               <span className="min-w-0 break-words text-[10px] font-semibold text-gray-500" style={{ overflowWrap: "anywhere" }}>
                 {filteredProblems.length} sichtbar
                 {filtersActive ? " mit Filter" : ""}
               </span>
-              <div className="flex shrink-0 items-center gap-1">
+              <div className="flex min-w-0 flex-wrap items-center justify-end gap-1">
                 <PanelIconButton
                   label="Collapse diagnostic groups"
                   disabled={fileGroups.length === 0}
@@ -414,7 +439,7 @@ export default function ProblemsPanel({ problems, onSelectProblem }) {
                 <button
                   type="button"
                   onClick={() => toggleGroup(file)}
-                  className="mb-1 flex w-full items-center gap-2 rounded-xl border px-2.5 py-1.5 text-left backdrop-blur-md transition-colors hover:bg-white/[0.045]"
+                  className="mb-1 flex w-full items-start gap-2 rounded-xl border px-2.5 py-1.5 text-left backdrop-blur-md transition-colors hover:bg-white/[0.045]"
                   style={{
                     background:
                       "linear-gradient(180deg, rgba(9,12,25,0.96), rgba(7,9,19,0.9))",
@@ -426,29 +451,31 @@ export default function ProblemsPanel({ problems, onSelectProblem }) {
                           : "rgba(255,255,255,0.06)",
                   }}
                 >
-                <ChevronDown
-                  size={12}
-                  className={`shrink-0 text-gray-600 transition-transform ${collapsed ? "-rotate-90" : ""}`}
-                />
-                <MapPin size={12} className="shrink-0 text-sky-300/70" />
+                  <ChevronDown
+                    size={12}
+                    className={`mt-0.5 shrink-0 text-gray-600 transition-transform ${collapsed ? "-rotate-90" : ""}`}
+                  />
+                  <MapPin size={12} className="mt-0.5 shrink-0 text-sky-300/70" />
                   <span className="min-w-0 flex-1">
-                  <span
-                    className="block break-words text-[11px] font-semibold leading-snug text-gray-300"
-                    style={{ overflowWrap: "anywhere" }}
-                    title={file}
-                  >
-                    {fileName}
-                  </span>
-                  {file !== fileName ? (
-                    <span className="block break-words text-[9px] leading-snug text-gray-600" style={{ overflowWrap: "anywhere" }}>
-                      {file}
+                    <span
+                      className="block break-words text-[11px] font-semibold leading-snug text-gray-300"
+                      style={{ overflowWrap: "anywhere" }}
+                      title={file}
+                    >
+                      {fileName}
                     </span>
-                  ) : null}
-                </span>
-                {counts.error > 0 ? <PanelBadge tone="danger">{counts.error}</PanelBadge> : null}
-                {counts.warning > 0 ? <PanelBadge tone="warning">{counts.warning}</PanelBadge> : null}
-                <PanelBadge tone={tone}>{fileProblems.length}</PanelBadge>
-              </button>
+                    {file !== fileName ? (
+                      <span className="block break-words text-[9px] leading-snug text-gray-600" style={{ overflowWrap: "anywhere" }}>
+                        {file}
+                      </span>
+                    ) : null}
+                  </span>
+                  <span className="flex shrink-0 flex-wrap justify-end gap-1">
+                    {counts.error > 0 ? <PanelBadge tone="danger">{counts.error}</PanelBadge> : null}
+                    {counts.warning > 0 ? <PanelBadge tone="warning">{counts.warning}</PanelBadge> : null}
+                    <PanelBadge tone={tone}>{fileProblems.length}</PanelBadge>
+                  </span>
+                </button>
 
               {!collapsed ? (
                 <div className="space-y-1">
@@ -511,12 +538,12 @@ export default function ProblemsPanel({ problems, onSelectProblem }) {
 
       <PanelFooter>
         <div className="grid gap-2">
-          <div className="flex items-center justify-between gap-2 text-[10px] text-gray-500">
+          <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] text-gray-500">
             <span className="min-w-0 break-words" style={{ overflowWrap: "anywhere" }}>
               {filter === "all" ? "Alle Severities" : `Filter: ${filter}`}
               {activeProblem ? ` - ${getProblemFilePath(activeProblem).split(/[\\/]/).pop()}` : ""}
             </span>
-            <span className="shrink-0">
+            <span className="min-w-0 break-words text-right" style={{ overflowWrap: "anywhere" }}>
               {counts.error} errors / {counts.warning} warnings
             </span>
           </div>

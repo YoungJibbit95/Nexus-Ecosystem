@@ -37,14 +37,23 @@ import {
   rankSpotlightSymbols,
 } from "../pages/editor/commandPaletteModel.js";
 import {
+  EDITOR_LSP_FEATURE_IDS,
   createEditorCommandRegistry,
+  createEditorLanguageFeatureModel,
+  createEditorLspFeatureContracts,
+  createEditorLspFeatureRequest,
   createEditorScopeInfo,
+  createEditorStatusModel,
   createSnippetCompletions,
   extractDocumentSymbols,
   getActiveDocumentSymbol,
   lspCompletionsToCodeMirror,
+  normalizeEditorFeaturePosition,
+  normalizeEditorFeatureRange,
   shouldRequestLspCompletion,
+  summarizeEditorDiagnostics,
 } from "../pages/editor/editorFeatureModel.js";
+import { getLanguageCapabilities } from "../ide/languages/languageIds.js";
 import {
   collectExtensionContributions,
   createExtensionCommandPaletteEntries,
@@ -1379,12 +1388,263 @@ const scenarios = [
       );
       assert.equal(cappedResult.options.length, 240);
 
+      const overscanResult = lspCompletionsToCodeMirror(
+        createCompletionContext("render", { explicit: true }),
+        {
+          isIncomplete: false,
+          items: [
+            ...Array.from({ length: 20 }, () => ({
+              label: "renderPanel",
+              kind: 3,
+            })),
+            { label: "renderWidget", kind: 3 },
+            ...Array.from({ length: 40 }, (_, index) => ({
+              label: `renderExtra${index}`,
+              kind: 3,
+            })),
+          ],
+        },
+        null,
+        { languageId: "typescript", maxItems: 16 },
+      );
+      assert.equal(
+        overscanResult.options.some((option) => option.label === "renderWidget"),
+        true,
+      );
+
       const incompleteResult = lspCompletionsToCodeMirror(
         createCompletionContext("do"),
         { isIncomplete: true, items: [] },
         createSnippetCompletions(createCompletionContext("do"), "javascript"),
       );
       assert.equal(incompleteResult.validFor, undefined);
+
+      const exactSnippetContext = createCompletionContext("clg");
+      const exactSnippetResult = lspCompletionsToCodeMirror(
+        exactSnippetContext,
+        {
+          isIncomplete: false,
+          items: [
+            {
+              label: "clg",
+              kind: 3,
+              detail: "console.log from LSP",
+            },
+          ],
+        },
+        createSnippetCompletions(exactSnippetContext, "javascript"),
+        { languageId: "javascript" },
+      );
+      const clgOption = exactSnippetResult.options.find((option) => option.label === "clg");
+      assert.equal(clgOption?.section.name, "Snippets");
+      assert.equal(clgOption?.completionOrigin, "snippet");
+
+      const localRankContext = createCompletionContext(
+        "const renderPanel = 1;\nconst renderPortal = 2;\nren",
+      );
+      const localRankResult = lspCompletionsToCodeMirror(
+        localRankContext,
+        {
+          isIncomplete: false,
+          items: [
+            { label: "renderRemote", kind: 3 },
+            { label: "renameFile", kind: 3 },
+          ],
+        },
+        createSnippetCompletions(localRankContext, "typescript"),
+        { languageId: "typescript" },
+      );
+      assert.equal(localRankResult.options[0]?.section.name, "Current Document");
+      assert.equal(localRankResult.options[0]?.label, "renderPortal");
+
+      const pythonLocalWords = createSnippetCompletions(
+        createCompletionContext("def build_task():\n    return result\nres"),
+        "python",
+      );
+      assert.equal(
+        pythonLocalWords.options.some(
+          (option) =>
+            option.label === "return" && option.section.name === "Current Document",
+        ),
+        false,
+      );
+    },
+  },
+  {
+    id: "editor-status-and-lsp-feature-contracts",
+    title: "editor status and future LSP feature contracts stay stable",
+    run() {
+      const diagnostics = summarizeEditorDiagnostics([
+        { severity: 1, message: "Type mismatch" },
+        { severity: 2, message: "Unused variable" },
+        { severity: 3, message: "Style hint" },
+      ]);
+      assert.equal(diagnostics.total, 3);
+      assert.equal(diagnostics.text, "1 Error / 1 Warning / 1 Info");
+      assert.equal(diagnostics.tone, "text-red-400");
+
+      const readyStatus = createEditorStatusModel({
+        languageId: "typescript",
+        lspStatus: { state: "connected", label: "TypeScript LSP" },
+        lspReadyLanguage: true,
+        hasWorkspace: true,
+        hasLspBridge: true,
+        canUseLsp: true,
+        diagnostics,
+      });
+      assert.equal(readyStatus.language.label, "TypeScript");
+      assert.equal(readyStatus.lsp.state, "running");
+      assert.equal(readyStatus.lsp.text, "LSP ready");
+      assert.equal(readyStatus.diagnostics.total, 3);
+
+      const idleStatus = createEditorStatusModel({
+        languageId: "python",
+        lspStatus: { state: "idle" },
+        lspReadyLanguage: true,
+        hasWorkspace: false,
+        hasLspBridge: true,
+        diagnostics: [],
+      });
+      assert.equal(idleStatus.lsp.text, "LSP idle");
+      assert.match(idleStatus.lsp.message, /workspace/);
+
+      const tsCapabilities = getLanguageCapabilities("typescript");
+      assert.equal(tsCapabilities.lsp.label, "TypeScript Language Server");
+      assert.equal(tsCapabilities.lsp.envName, "NEXUS_LSP_TYPESCRIPT");
+      assert.equal(tsCapabilities.lsp.features.rename, true);
+
+      const jsFeatureModel = createEditorLanguageFeatureModel({
+        languageId: "javascript",
+        hasWorkspace: true,
+        hasBridge: true,
+        runtimeStatus: { state: "running" },
+      });
+      assert.equal(jsFeatureModel.lsp.active, true);
+      assert.equal(jsFeatureModel.actions.definition.active, true);
+      assert.equal(jsFeatureModel.actions.formatting.active, true);
+      assert.equal(jsFeatureModel.actions.codeActions.active, true);
+      assert.equal(jsFeatureModel.actions.rename.active, true);
+      assert.equal(jsFeatureModel.capabilityBadge, "Tools 7/7");
+      assert.deepEqual(jsFeatureModel.completions.availableLabels, [
+        "LSP",
+        "Snippets",
+        "Local words",
+        "Language hints",
+      ]);
+
+      const missingPythonModel = createEditorLanguageFeatureModel({
+        languageId: "python",
+        hasWorkspace: true,
+        hasBridge: true,
+        runtimeStatus: {
+          state: "missing",
+          missing: true,
+          canStart: false,
+          message: "Pyright is not available on PATH.",
+        },
+      });
+      assert.equal(missingPythonModel.lsp.state, "missing");
+      assert.equal(missingPythonModel.lsp.fallbackActive, true);
+      assert.match(missingPythonModel.lsp.title, /pip install pyright/);
+      assert.equal(
+        missingPythonModel.completions.sources.find((source) => source.id === "lsp")
+          ?.fallback,
+        true,
+      );
+      assert.equal(
+        missingPythonModel.completions.availableLabels.includes("Snippets"),
+        true,
+      );
+      const missingEditorStatus = createEditorStatusModel({
+        languageId: "python",
+        lspStatus: missingPythonModel.lsp,
+        lspReadyLanguage: true,
+        hasWorkspace: true,
+        hasLspBridge: true,
+        canUseLsp: false,
+        diagnostics: [],
+      });
+      assert.equal(missingEditorStatus.lsp.state, "missing");
+      assert.equal(missingEditorStatus.lsp.text, "LSP missing");
+
+      const bridgeFallbackModel = createEditorLanguageFeatureModel({
+        languageId: "typescript",
+        hasWorkspace: true,
+        hasBridge: false,
+      });
+      assert.equal(bridgeFallbackModel.lsp.state, "unavailable");
+      assert.equal(bridgeFallbackModel.lsp.canStart, false);
+      assert.equal(
+        bridgeFallbackModel.completions.availableLabels.includes("LSP"),
+        false,
+      );
+
+      const featureContext = {
+        canUseLsp: true,
+        hasWorkspace: true,
+        hasLspBridge: true,
+        lspReadyLanguage: true,
+        documentUri: "file:///workspace/index.ts",
+        languageId: "typescript",
+        position: { lineNumber: 2, column: 7 },
+        range: {
+          startLineNumber: 2,
+          startColumn: 1,
+          endLineNumber: 2,
+          endColumn: 12,
+        },
+        newName: "nextValue",
+      };
+      const contracts = createEditorLspFeatureContracts(featureContext);
+      assert.deepEqual(
+        contracts.map((contract) => [contract.id, contract.ready]),
+        [
+          [EDITOR_LSP_FEATURE_IDS.goToDefinition, true],
+          [EDITOR_LSP_FEATURE_IDS.renameSymbol, true],
+          [EDITOR_LSP_FEATURE_IDS.formatDocument, true],
+          [EDITOR_LSP_FEATURE_IDS.codeActions, true],
+        ],
+      );
+
+      const renameRequest = createEditorLspFeatureRequest(
+        EDITOR_LSP_FEATURE_IDS.renameSymbol,
+        featureContext,
+      );
+      assert.equal(renameRequest.ready, true);
+      assert.equal(renameRequest.lspMethod, "renameSymbol");
+      assert.deepEqual(renameRequest.position, { lineNumber: 2, column: 7 });
+      assert.equal(renameRequest.newName, "nextValue");
+
+      const pendingRename = createEditorLspFeatureRequest(
+        EDITOR_LSP_FEATURE_IDS.renameSymbol,
+        { ...featureContext, newName: "" },
+      );
+      assert.equal(pendingRename.ready, false);
+      assert.deepEqual(pendingRename.missing, ["newName"]);
+
+      const disabledContracts = createEditorLspFeatureContracts({
+        canUseLsp: false,
+        documentUri: "file:///workspace/index.ts",
+      });
+      assert.equal(disabledContracts[0]?.enabled, false);
+      assert.equal(disabledContracts[0]?.disabledReason, "LSP unavailable");
+
+      assert.deepEqual(normalizeEditorFeaturePosition({ line: 4, character: 2 }), {
+        lineNumber: 4,
+        column: 3,
+      });
+      assert.deepEqual(
+        normalizeEditorFeatureRange({
+          start: { line: 4, character: 2 },
+          end: { line: 4, character: 8 },
+        }),
+        {
+          startLineNumber: 4,
+          startColumn: 3,
+          endLineNumber: 4,
+          endColumn: 9,
+        },
+      );
     },
   },
   {

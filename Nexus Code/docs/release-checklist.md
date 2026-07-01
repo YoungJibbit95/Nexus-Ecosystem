@@ -8,7 +8,8 @@ Stand: 2026-07-01
 - [x] Persistierte Zone-Buckets mit leeren, verschachtelten, duplizierten oder alias-basierten Panel-IDs im IDE-Core-Smoke absichern.
 - [x] Keyboard-/Command-freundliche Fokus-Helfer fuer sichtbare Side-/Bottom-Panels bereitstellen.
 - [x] Strict-Login-Smoke auf den aktuellen Vertrag ausrichten: Local Mode ist konfiguriert, aber kein Nexus-API-Start.
-- [ ] Fokus-Helfer in Command-Palette-/Shortcut-Flows verdrahten, sobald der UI-Ownership-Scope frei ist.
+- [x] Fokus-Helfer in Command-Palette-/Shortcut-Flows verdrahten, inklusive Next/Previous und direkter Left/Right/Bottom-Fokus-Kommandos.
+- [x] Dev-Start gegen belegte Ports haerten: blockierende HTTP-Prozesse werden mit PID geloggt und ein isolierter Folgeport wird genutzt.
 - [ ] Drag-Drop und defekte Persistenzdaten in echten Electron-Viewports visuell testen.
 
 ## Renderer und UI-System
@@ -54,6 +55,10 @@ Stand: 2026-07-01
 - [x] FileExplorer mit sichtbaren Extension-Gruppen, ruhigem Refresh und besseren Empty/Error/Search-States ausbauen.
 - [x] CodeMirror Completions fuer JS/TS/Python/Rust/Go/CSS/JSON/Markdown language-aware ausbauen.
 - [x] Completion-Overlays begrenzen, Low-Power respektieren und LSP/Snippet-Dedupe absichern.
+- [x] Completion-Ranking mit LSP-Overscan, Snippet-Prioritaet und lokalen Current-Document-Boosts haerten.
+- [x] Editor-Status fuer Sprache, Engine, LSP-Fallbacks, Diagnostics und Completion-Quellen verstaendlicher machen.
+- [x] JS/TS/Python-LSP-Capabilities mit Serverlabel, Env-Override und Install-Hinweisen modellieren.
+- [x] Definition, Rename, Formatting und Code Actions als stabile LSP-Feature-Contracts im IDE-Core-Smoke absichern.
 - [x] Palette und Spotlight mit Fuzzy-/Initialen-Ranking, Datei-Dedupe und saubererem Focus/ARIA-Verhalten verbessern.
 - [x] Editor-Symbol-Extraktion und aktive Scope-Anzeige fuer CodeMirror integrieren.
 - [x] Spotlight-Symboltreffer aus Datei-Content, Match-Reasons und lokale Current-Document-Completions integrieren.

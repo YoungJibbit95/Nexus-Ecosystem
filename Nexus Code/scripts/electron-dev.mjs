@@ -57,6 +57,51 @@ function requestOk(url) {
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+function execLines(command, args, timeoutMs = 2_500) {
+  return new Promise((resolve) => {
+    const child = spawn(command, args, {
+      stdio: ["ignore", "pipe", "ignore"],
+      windowsHide: true,
+    });
+    let output = "";
+    const timeout = setTimeout(() => {
+      terminate(child);
+      resolve([]);
+    }, timeoutMs);
+    child.stdout?.on("data", (chunk) => {
+      output += String(chunk);
+    });
+    child.once("exit", () => {
+      clearTimeout(timeout);
+      resolve(output.split(/\r?\n/).map((line) => line.trim()).filter(Boolean));
+    });
+    child.once("error", () => {
+      clearTimeout(timeout);
+      resolve([]);
+    });
+  });
+}
+
+async function describePortOwner(port) {
+  if (isWindows) {
+    const lines = await execLines("netstat", ["-ano", "-p", "tcp"]);
+    const match = lines.find((line) => {
+      const columns = line.split(/\s+/);
+      const pid = columns.at(-1);
+      return columns.length >= 5 && columns[1]?.endsWith(`:${port}`) && /^\d+$/.test(pid || "");
+    });
+    if (!match) return null;
+    const pid = match.split(/\s+/).at(-1);
+    return pid ? `PID ${pid}` : null;
+  }
+
+  const lines = await execLines("lsof", ["-nP", "-iTCP", "-sTCP:LISTEN"]);
+  const match = lines.find((line) => line.includes(`:${port} `) || line.endsWith(`:${port}`));
+  if (!match) return null;
+  const columns = match.split(/\s+/);
+  return columns.length >= 2 ? `${columns[0]} PID ${columns[1]}` : match;
+}
+
 function assertProcessAlive(child, label) {
   if (!child || child.killed || child.exitCode !== null) {
     throw new Error(`${label} Prozess wurde vor Readiness beendet.`);
@@ -128,6 +173,16 @@ async function startOwnedVite() {
     const devUrl = `http://${host}:${port}`;
     if (offset > 0) {
       log("DEV", `Retry auf Port ${port}.`);
+    }
+
+    if (await requestOk(devUrl)) {
+      const owner = await describePortOwner(port);
+      const ownerLabel = owner ? ` (${owner})` : "";
+      lastError = new Error(`Port ${port} ist bereits durch einen anderen HTTP-Prozess belegt${ownerLabel}.`);
+      if (offset === maxPortAttempts - 1) break;
+      log("DEV", `${lastError.message} Port ${port} wird uebersprungen.`);
+      await sleep(160);
+      continue;
     }
 
     const { process: vite, readyPromise } = spawnVite(port, devUrl);

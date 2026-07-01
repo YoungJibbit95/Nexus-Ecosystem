@@ -27,7 +27,7 @@ Nach gruenen Gates direkt auf main committen und pushen | true
 ## Editor-Core
 
 ```nexus-checklist
-TypeScript/JavaScript Completion produktionsreif machen | false
+TypeScript/JavaScript Completion produktionsreif machen | true
 TypeScript/JavaScript Hover stabilisieren | false
 TypeScript/JavaScript Diagnostics sauber mit Problems synchronisieren | false
 TypeScript/JavaScript Go to Definition anbinden | false
@@ -38,8 +38,8 @@ Python mit Pyright-Erkennung und gefuehrtem Setup stabilisieren | false
 Python Completion, Hover und Diagnostics verbessern | false
 Rust, Go und C/C++ Server-Erkennung ausbauen | false
 Rust, Go und C/C++ klare Fallbacks bei fehlenden Servern zeigen | false
-Completion-Dedupe und Ranking verbessern | false
-Editor-Status fuer LSP, Sprache, Datei und Fehler verstaendlicher machen | false
+Completion-Dedupe und Ranking verbessern | true
+Editor-Status fuer LSP, Sprache, Datei und Fehler verstaendlicher machen | true
 ```
 
 ## LSP Setup
@@ -53,11 +53,11 @@ Editor-Status fuer LSP, Sprache, Datei und Fehler verstaendlicher machen | false
 ```
 
 ```nexus-checklist
-LSP-Statusmodell pro Sprache erweitern | false
+LSP-Statusmodell pro Sprache erweitern | true
 PATH-Erkennung sichtbar machen | false
 Env-Override-Hinweise sichtbar machen | false
-Fehlende Server verstaendlich anzeigen | false
-Defekte Serverstarts sauber abfangen | false
+Fehlende Server verstaendlich anzeigen | true
+Defekte Serverstarts sauber abfangen | true
 Setup-Hinweise in Settings integrieren | true
 ```
 
@@ -95,7 +95,7 @@ Ungueltige Session ohne Workbench-Flash behandeln | true
 UI-Primitives fuer Buttons, Inputs, Cards, Badges und Toolbars vereinheitlichen | true
 Settings technisch und visuell weiter ausbauen | true
 Command Palette und Spotlight zusammenfuehren | true
-Sidebar-Panels visuell entcluttern | false
+Sidebar-Panels visuell entcluttern | true
 Problems, Search, Terminal und Git-Panels weiter recoden | false
 Titlebar und Statusbar ruhiger machen | false
 Text-Fit-Regeln global haerten | true
@@ -114,7 +114,7 @@ Glow/Blur mit Performance-Fallback absichern | true
 ```nexus-checklist
 Snap-Zones weiter stabilisieren | true
 Resize-Verhalten verbessern | false
-Layout Reset sauberer machen | false
+Layout Reset sauberer machen | true
 Persistenz gegen kaputte Daten absichern | true
 Bottom Dock kompakter und besser nutzbar machen | false
 Sidebar-Breite und Compact-Modus verbessern | false

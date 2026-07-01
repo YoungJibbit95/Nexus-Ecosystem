@@ -65,6 +65,7 @@ import {
   getBottomPanelStyle,
   getLayoutDropPreview,
   getSidePanelSizeOptions,
+  getWorkbenchPanelFocusTarget,
   getWorkbenchZonePanelIds,
   getWorkbenchLayoutPresetOptions,
   getWorkbenchSlots,
@@ -1054,10 +1055,19 @@ export default function Editor({
     [activePanel, bottomTab, terminalOpen],
   );
 
-  const applyWorkbenchDockState = useCallback((nextState) => {
-    setActivePanel(nextState.activePanel);
-    setBottomTab(nextState.bottomTab);
-    setTerminalOpen(nextState.bottomPanelOpen);
+  const applyWorkbenchDockState = useCallback((nextState = {}) => {
+    setActivePanel(nextState.activePanel || null);
+    setBottomTab(nextState.bottomTab || "terminal");
+    setTerminalOpen(Boolean(nextState.bottomPanelOpen));
+  }, []);
+
+  const ensureSideDockVisible = useCallback((nextState) => {
+    if (!nextState?.sidebarRequired) return;
+    setSettings((prev) => ({
+      ...prev,
+      sidebar_visible: true,
+      zen_mode: false,
+    }));
   }, []);
 
   const handleToggleTerminalPanel = useCallback(() => {
@@ -1202,14 +1212,36 @@ export default function Editor({
   }, [revealDockedWorkbenchPanel, workbenchLayout]);
 
   const getVisibleWorkbenchPanelId = useCallback(() => {
-    if (activePanel) return activePanel;
-    if (terminalOpen && bottomTab) return bottomTab;
-    return "explorer";
-  }, [activePanel, bottomTab, terminalOpen]);
+    const focusTarget = getWorkbenchPanelFocusTarget({
+      layout: workbenchLayout,
+      state: getCurrentWorkbenchDockState(),
+      fallback: "explorer",
+    });
+    return focusTarget.canFocus ? focusTarget.panelId : "explorer";
+  }, [getCurrentWorkbenchDockState, workbenchLayout]);
 
   const handleDockActivePanel = useCallback((snapZone) => {
     handleDockWorkbenchPanel(getVisibleWorkbenchPanelId(), snapZone);
   }, [getVisibleWorkbenchPanelId, handleDockWorkbenchPanel]);
+
+  const handleFocusWorkbenchPanel = useCallback((options = {}) => {
+    setShowSettings(false);
+    const focusTarget = getWorkbenchPanelFocusTarget({
+      layout: workbenchLayout,
+      state: getCurrentWorkbenchDockState(),
+      ...options,
+    });
+    if (!focusTarget.canFocus) return false;
+
+    applyWorkbenchDockState(focusTarget.state);
+    ensureSideDockVisible(focusTarget.state);
+    return true;
+  }, [
+    applyWorkbenchDockState,
+    ensureSideDockVisible,
+    getCurrentWorkbenchDockState,
+    workbenchLayout,
+  ]);
 
   const handleWorkbenchPanelDragStart = useCallback((event, panelId) => {
     if (!panelId) return;
@@ -1322,15 +1354,10 @@ export default function Editor({
       workbenchLayout,
     );
     applyWorkbenchDockState(nextState);
-    if (nextState.sidebarRequired) {
-      setSettings((prev) => ({
-        ...prev,
-        sidebar_visible: true,
-        zen_mode: false,
-      }));
-    }
+    ensureSideDockVisible(nextState);
   }, [
     applyWorkbenchDockState,
+    ensureSideDockVisible,
     getCurrentWorkbenchDockState,
     workbenchLayout,
   ]);
@@ -1352,17 +1379,12 @@ export default function Editor({
       workbenchLayout,
     );
     applyWorkbenchDockState(nextState);
-    if (nextState.sidebarRequired) {
-      setSettings((prev) => ({
-        ...prev,
-        sidebar_visible: true,
-        zen_mode: false,
-      }));
-    }
+    ensureSideDockVisible(nextState);
   }, [
     activePanel,
     applyWorkbenchDockState,
     bottomTab,
+    ensureSideDockVisible,
     getCurrentWorkbenchDockState,
     handleCloseActivePanel,
     handleCloseBottomPanel,
@@ -1887,6 +1909,38 @@ export default function Editor({
       }
 
 
+      // Ctrl+Alt+[ / ] - cycle dock focus
+      if (hasPrimaryMod && e.altKey && key === "[") {
+        e.preventDefault();
+        handleFocusWorkbenchPanel({ direction: -1 });
+        return;
+      }
+
+      if (hasPrimaryMod && e.altKey && key === "]") {
+        e.preventDefault();
+        handleFocusWorkbenchPanel({ direction: 1 });
+        return;
+      }
+
+      // Ctrl+Alt+Arrow - focus a concrete dock zone
+      if (hasPrimaryMod && e.altKey && key === "arrowleft") {
+        e.preventDefault();
+        handleFocusWorkbenchPanel({ snapZone: WORKBENCH_SNAP_ZONES.left });
+        return;
+      }
+
+      if (hasPrimaryMod && e.altKey && key === "arrowright") {
+        e.preventDefault();
+        handleFocusWorkbenchPanel({ snapZone: WORKBENCH_SNAP_ZONES.right });
+        return;
+      }
+
+      if (hasPrimaryMod && e.altKey && key === "arrowdown") {
+        e.preventDefault();
+        handleFocusWorkbenchPanel({ snapZone: WORKBENCH_SNAP_ZONES.bottom });
+        return;
+      }
+
       // Ctrl+W — close active tab
       if (hasPrimaryMod && key === "w") {
         e.preventDefault();
@@ -1940,6 +1994,7 @@ export default function Editor({
     };
   }, [
     activeTabId,
+    handleFocusWorkbenchPanel,
     handleOpenFolder,
     handleOpenSettingsPanel,
     handleOpenTerminalPanel,
@@ -2389,6 +2444,14 @@ export default function Editor({
         "open-pull-requests": () => handleOpenWorkbenchPanel("prs"),
         "open-github-projects": () => handleOpenWorkbenchPanel("projects"),
         "focus-editor": handleFocusEditor,
+        "focus-next-panel": () => handleFocusWorkbenchPanel({ direction: 1 }),
+        "focus-previous-panel": () => handleFocusWorkbenchPanel({ direction: -1 }),
+        "focus-left-panel": () =>
+          handleFocusWorkbenchPanel({ snapZone: WORKBENCH_SNAP_ZONES.left }),
+        "focus-right-panel": () =>
+          handleFocusWorkbenchPanel({ snapZone: WORKBENCH_SNAP_ZONES.right }),
+        "focus-bottom-panel": () =>
+          handleFocusWorkbenchPanel({ snapZone: WORKBENCH_SNAP_ZONES.bottom }),
         "layout-compact": () => handleApplyWorkbenchLayoutPreset("focus"),
         "layout-balanced": () => handleApplyWorkbenchLayoutPreset("comfortable"),
         "layout-roomy": () => handleApplyWorkbenchLayoutPreset("wide"),
@@ -2411,6 +2474,7 @@ export default function Editor({
       handleCreateFileRequest,
       handleExtensionCommandAction,
       handleFileSelect,
+      handleFocusWorkbenchPanel,
       handleFocusEditor,
       handleApplyWorkbenchLayoutPreset,
       handleCycleBottomPanelSize,
