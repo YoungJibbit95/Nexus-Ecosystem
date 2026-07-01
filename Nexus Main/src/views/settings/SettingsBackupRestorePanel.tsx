@@ -237,7 +237,7 @@ export function SettingsBackupRestorePanel({ toast }: SettingsBackupRestorePanel
 
   return (
     <ModuleCard
-      title="Backup und Wiederherstellung"
+      title="Backup und Restore"
       desc="Workspace sichern, lokale Versionen behalten und Importe vor dem Anwenden pruefen."
     >
       <div
@@ -307,13 +307,16 @@ export function SettingsBackupRestorePanel({ toast }: SettingsBackupRestorePanel
         >
           <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
             <div>
+              <div style={{ fontSize: 10, fontWeight: 850, color: t.accent, textTransform: "uppercase" }}>
+                Import Preview
+              </div>
               <div style={{ fontSize: 13, fontWeight: 900 }}>{previewState.snapshot.label}</div>
               <div style={{ fontSize: 10, opacity: 0.62 }}>
                 {previewState.source === "file" ? "Datei-Import" : "Lokales Backup"} · {previewState.snapshot.createdAt} · {previewState.snapshot.checksum}
               </div>
             </div>
             <button disabled={busy} onClick={() => void applySnapshot(previewState.snapshot)} style={buttonStyle("#30d158")}>
-              <RotateCcw size={13} /> Wiederherstellen
+              <RotateCcw size={13} /> Restore anwenden
             </button>
           </div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 10 }}>
