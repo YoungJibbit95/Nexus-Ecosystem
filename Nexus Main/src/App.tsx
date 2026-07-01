@@ -283,6 +283,18 @@ const isMainAuthBootstrapFailure = (reason: string | null) =>
       ),
   );
 
+const isAnonymousMainBootstrapAuthFallback = (
+  failedResources: Array<{ errorCode: string }>,
+  authSession: MainAuthSession | null,
+  controlToken: string,
+  controlIngestKey: string | undefined,
+) =>
+  failedResources.length > 0 &&
+  !authSession &&
+  !controlToken &&
+  !controlIngestKey &&
+  failedResources.every((entry) => isMainAuthBootstrapFailure(entry.errorCode));
+
 export default function App() {
   const [view, setView] = useState<View>("dashboard");
   const [mountedViews, setMountedViews] = useState<View[]>(["dashboard"]);
@@ -680,8 +692,16 @@ export default function App() {
           }));
 
         if (failedResources.length > 0) {
+          const anonymousAuthFallback = isAnonymousMainBootstrapAuthFallback(
+            failedResources,
+            authSession,
+            controlToken,
+            controlIngestKey,
+          );
           const blockingResources = failedResources.filter(
-            (entry) => !isRecoverableBootstrapResourceError(entry.errorCode),
+            (entry) =>
+              !anonymousAuthFallback &&
+              !isRecoverableBootstrapResourceError(entry.errorCode),
           );
           if (blockingResources.length > 0) {
             throw new Error(
@@ -694,13 +714,21 @@ export default function App() {
               failedResources.map((entry) => describeBootstrapFailureKind(entry.errorCode)),
             ),
           );
-          console.warn(
-            "Nexus Main bootstrap using safe startup views",
-            failedResources,
-          );
+          if (anonymousAuthFallback) {
+            console.info(
+              "Nexus Main bootstrap using local safe startup views without API session",
+            );
+          } else {
+            console.warn(
+              "Nexus Main bootstrap using safe startup views",
+              failedResources,
+            );
+          }
           setBootStep(
             38,
-            `API ${fallbackKinds.join("/")} - starte lokale Kern-Views...`,
+            anonymousAuthFallback
+              ? "Starte lokale Kern-Views ohne API-Session..."
+              : `API ${fallbackKinds.join("/")} - starte lokale Kern-Views...`,
           );
         }
 
