@@ -20,6 +20,9 @@ export const reportCapabilities = async (client: any, report: Partial<NexusCapab
   if (!client.baseUrl) {
     return { ok: false, status: 0, item: null, errorCode: 'NO_BASE_URL' }
   }
+  if (!client.token && !client.ingestKey) {
+    return { ok: false, status: 0, item: null, errorCode: 'AUTH_REQUIRED_SKIPPED' }
+  }
 
   try {
     const response = await requestJsonWithPolicy<any>(`${client.baseUrl}/api/v2/clients/capabilities`, {

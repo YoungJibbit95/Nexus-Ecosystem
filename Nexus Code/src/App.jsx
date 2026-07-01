@@ -27,7 +27,7 @@ import {
   normalizeAccountSession,
   saveNexusAccountSession,
 } from "./app/accountSession";
-import { loginNexusCodeSession, testNexusApiConnection } from "./app/nexusApiClient";
+import { getNexusCodeDeviceId, loginNexusCodeSession, testNexusApiConnection } from "./app/nexusApiClient";
 import { beginPerfMetric, endPerfMetric, markPerfMetric } from "./lib/perfMetrics";
 import { installRuntimeLagProbe } from "./lib/runtimeLagProbe";
 import { useGlobalTypingAnimation } from "./lib/useGlobalTypingAnimation";
@@ -689,6 +689,8 @@ function App() {
           baseUrl: controlBaseUrl,
           token: controlToken,
           ingestKey: controlIngestKey,
+          deviceId: getNexusCodeDeviceId(),
+          deviceLabel: "Nexus Code",
           sampleRate: lowPowerMode ? 0.18 : 0.3,
           flushIntervalMs: 12_000,
           releasePollIntervalMs: 30_000,

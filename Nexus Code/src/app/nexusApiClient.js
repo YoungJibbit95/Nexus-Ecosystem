@@ -14,6 +14,7 @@ import {
 const CONNECTION_TEST_TIMEOUT_MS = 4_500;
 const LOGIN_TIMEOUT_MS = 8_000;
 const CODE_DEVICE_LABEL = "Nexus Code";
+const CODE_DEVICE_ID_STORAGE_KEY = "nexus-code.device-id.v1";
 
 const toConnectionMode = (errorCode) => {
   const mode = classifyControlBootstrapIssue(errorCode);
@@ -34,6 +35,31 @@ const withAbortTimeout = async (url, init, timeoutMs = CONNECTION_TEST_TIMEOUT_M
 };
 
 const isRecord = (value) => Boolean(value && typeof value === "object" && !Array.isArray(value));
+
+const createCodeDeviceId = () => {
+  if (!globalThis.crypto?.getRandomValues) {
+    return `nx-code-${Date.now().toString(36)}`;
+  }
+  const bytes = new Uint8Array(12);
+  globalThis.crypto.getRandomValues(bytes);
+  const suffix = Array.from(bytes)
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+  return `nx-code-${suffix}`;
+};
+
+export const getNexusCodeDeviceId = () => {
+  if (typeof window === "undefined") return "nx-code-device";
+  try {
+    const existing = window.localStorage.getItem(CODE_DEVICE_ID_STORAGE_KEY);
+    if (existing) return existing;
+    const generated = createCodeDeviceId();
+    window.localStorage.setItem(CODE_DEVICE_ID_STORAGE_KEY, generated);
+    return generated;
+  } catch {
+    return `nx-code-${Date.now().toString(36)}`;
+  }
+};
 
 const readJsonResponse = async (response) => {
   const text = await response.text();
@@ -114,7 +140,7 @@ const parseSessionEnvelope = (payload) => {
   };
 };
 
-const fetchSessionProfile = async (baseUrl, token) => {
+const fetchSessionProfile = async (baseUrl, token, deviceId = getNexusCodeDeviceId()) => {
   const response = await withAbortTimeout(
     `${baseUrl}/api/v1/session`,
     {
@@ -123,6 +149,8 @@ const fetchSessionProfile = async (baseUrl, token) => {
         Accept: "application/json",
         Authorization: `Bearer ${token}`,
         "X-Nexus-App-Id": NEXUS_CODE_APP_ID,
+        "X-Nexus-Device-Id": deviceId,
+        "X-Nexus-Device-Label": CODE_DEVICE_LABEL,
       },
     },
     LOGIN_TIMEOUT_MS,
@@ -146,6 +174,7 @@ export const loginNexusCodeSession = async ({
 
   if (!username) throw new Error("Username oder E-Mail fehlt.");
   if (secret.length < 8) throw new Error("Passwort muss mindestens 8 Zeichen haben.");
+  const deviceId = getNexusCodeDeviceId();
 
   try {
     const response = await withAbortTimeout(
@@ -156,6 +185,8 @@ export const loginNexusCodeSession = async ({
           Accept: "application/json",
           "Content-Type": "application/json",
           "X-Nexus-App-Id": NEXUS_CODE_APP_ID,
+          "X-Nexus-Device-Id": deviceId,
+          "X-Nexus-Device-Label": CODE_DEVICE_LABEL,
         },
         body: JSON.stringify({
           username,
@@ -163,6 +194,7 @@ export const loginNexusCodeSession = async ({
           password: secret,
           rememberSession: rememberSession === true,
           source: "nexus-code",
+          deviceId,
           deviceLabel: CODE_DEVICE_LABEL,
         }),
       },
@@ -183,7 +215,7 @@ export const loginNexusCodeSession = async ({
     const authSession = parseAuthEnvelope(payload);
     let profile = null;
     try {
-      profile = await fetchSessionProfile(baseUrl, authSession.token);
+      profile = await fetchSessionProfile(baseUrl, authSession.token, deviceId);
     } catch {
       profile = null;
     }
@@ -229,7 +261,11 @@ export const testNexusApiConnection = async ({
     Accept: "application/json",
     "X-Nexus-App-Id": appId,
   };
-  if (token) headers.Authorization = `Bearer ${String(token).trim()}`;
+  if (token) {
+    headers.Authorization = `Bearer ${String(token).trim()}`;
+    headers["X-Nexus-Device-Id"] = getNexusCodeDeviceId();
+    headers["X-Nexus-Device-Label"] = CODE_DEVICE_LABEL;
+  }
 
   try {
     const response = await withAbortTimeout(url, {

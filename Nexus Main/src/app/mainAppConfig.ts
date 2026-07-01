@@ -40,6 +40,7 @@ const RECOVERABLE_BOOT_FAILURE_CODES = new Set([
   "ABORTED",
   "ABORT_ERR",
   "NO_BASE_URL",
+  "AUTH_REQUIRED_SKIPPED",
   "HTTP_404",
 ]);
 
@@ -201,6 +202,7 @@ export const describeBootstrapFailureKind = (errorCodeRaw: unknown) => {
     return "timeout";
   }
   if (code === "NETWORK") return "network";
+  if (code === "AUTH_REQUIRED_SKIPPED") return "auth";
   if (HARD_BOOT_FAILURE_CODES.has(code)) return "auth";
   if (RECOVERABLE_BOOT_FAILURE_CODES.has(code)) return "payload";
   if (/^HTTP_5\d{2}$/.test(code)) return "server";
