@@ -1,7 +1,7 @@
 import {
   getBottomPanelSize,
   getSidePanelSize,
-} from "./workbenchLayoutModel";
+} from "./workbenchDockModel.js";
 
 export const PANEL_META = {
   explorer: {
@@ -92,16 +92,17 @@ export function getSidePanelClassName({ compact }) {
 export function getSidePanelStyle({ compact = false, size } = {}) {
   const panelSize = getSidePanelSize(size);
   if (compact) {
+    const compactWidth = panelSize.compactWidth || panelSize.width || "min(17rem, calc(100vw - 3.25rem))";
     return {
-      width: panelSize.compactWidth,
+      width: compactWidth,
       maxWidth: "calc(100vw - 3.25rem)",
     };
   }
 
   return {
-    width: panelSize.width,
-    minWidth: panelSize.minWidth,
-    maxWidth: panelSize.maxWidth,
+    width: panelSize.width || panelSize.compactWidth,
+    minWidth: panelSize.minWidth || "12.5rem",
+    maxWidth: panelSize.maxWidth || "18.75rem",
   };
 }
 
@@ -127,7 +128,7 @@ export function getMainEditorClassName() {
 export function getBottomPanelClassName({ compact = false, size } = {}) {
   const panelSize = getBottomPanelSize(size);
   const heightClass = compact
-    ? panelSize.compactClassName
-    : panelSize.className;
+    ? panelSize.compactClassName || panelSize.className
+    : panelSize.className || panelSize.compactClassName;
   return `nx-code-bottom-panel ${heightClass} min-h-0 overflow-hidden`;
 }

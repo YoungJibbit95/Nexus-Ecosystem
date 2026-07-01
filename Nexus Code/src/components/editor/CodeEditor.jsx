@@ -75,6 +75,7 @@ const EDITOR_CHANGE_EMIT_INTERVAL_MS = 48;
 const CURSOR_INFO_UPDATE_MS = 45;
 const LINE_COUNT_UPDATE_MS = 80;
 const LARGE_FILE_CHAR_THRESHOLD = 220_000;
+const EDITOR_MOUNT_WATCHDOG_MS = 1800;
 const COMPACT_VIEWPORT_WIDTH = 920;
 const DEFAULT_EDITOR_FONT_STACK =
   "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace";
@@ -82,6 +83,37 @@ const DEFAULT_EDITOR_FONT_STACK =
 const cmThemeCompartment = new Compartment();
 const languageCompartment = new Compartment();
 const diagnosticsCompartment = new Compartment();
+
+class CodeMirrorCrashBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { crashed: false, message: "" };
+  }
+
+  static getDerivedStateFromError(error) {
+    return {
+      crashed: true,
+      message: error?.message || "CodeMirror render failed",
+    };
+  }
+
+  componentDidCatch(error) {
+    this.props.onCrash?.(error);
+  }
+
+  componentDidUpdate(previousProps) {
+    if (previousProps.resetKey !== this.props.resetKey && this.state.crashed) {
+      this.setState({ crashed: false, message: "" });
+    }
+  }
+
+  render() {
+    if (this.state.crashed) {
+      return this.props.fallback(this.state.message);
+    }
+    return this.props.children;
+  }
+}
 
 function clampNumber(value, min, max, fallback) {
   const numeric = Number(value);
@@ -253,12 +285,15 @@ function createNexusCodeMirrorTheme(
         minHeight: "100%",
         padding: `${compactViewport ? 14 : 20}px ${compactViewport ? 14 : 24}px`,
         caretColor: accent,
-        color: text,
+        color: `${text} !important`,
       },
       ".cm-line": {
         padding: "0 2px",
-        color: "inherit",
+        color: `${text} !important`,
         textRendering: "inherit",
+      },
+      ".cm-line span, .cm-content span": {
+        color: "inherit !important",
       },
       ".cm-gutters": {
         background: "rgba(0,0,0,0.12)",
@@ -586,6 +621,9 @@ export default function CodeEditor({
     message: "",
   });
   const [editorFocused, setEditorFocused] = useState(false);
+  const [editorFallbackReason, setEditorFallbackReason] = useState("");
+  const [fallbackValue, setFallbackValue] = useState(code || "");
+  const editorCanvasRef = useRef(null);
   const editorViewRef = useRef(null);
   const codeRef = useRef(code || "");
   const lspEngineRef = useRef(null);
@@ -656,6 +694,7 @@ export default function CodeEditor({
       }),
     [cursorInfo.line, documentSymbols, lineCount],
   );
+  const editorResetKey = `${resourcePath || "untitled"}:${nexusLanguageId}`;
 
   const flushPendingChange = useCallback(() => {
     if (changeEmitTimerRef.current) {
@@ -725,8 +764,42 @@ export default function CodeEditor({
 
   useEffect(() => {
     codeRef.current = code || "";
+    setFallbackValue(code || "");
     setLineCount(countLines(code || ""));
   }, [code, fileName]);
+
+  useEffect(() => {
+    setEditorFallbackReason("");
+  }, [editorResetKey]);
+
+  useEffect(() => {
+    if (editorFallbackReason) return undefined;
+    const timer = window.setTimeout(() => {
+      const canvas = editorCanvasRef.current;
+      const view = editorViewRef.current;
+      if (!canvas) return;
+      const editorNode = canvas.querySelector(".cm-editor");
+      const contentNode = canvas.querySelector(".cm-content");
+      const scrollerNode = canvas.querySelector(".cm-scroller");
+      const canvasRect = canvas.getBoundingClientRect();
+      const contentRect = contentNode?.getBoundingClientRect?.();
+      const hasMountedDom = Boolean(view && editorNode && contentNode && scrollerNode);
+      const hasUsableSize =
+        canvasRect.height > 44 &&
+        canvasRect.width > 120 &&
+        (contentRect?.height ?? 0) > 8;
+      const expectedText = codeRef.current;
+      const hasRenderedText =
+        !expectedText ||
+        Number(view?.state?.doc?.length ?? 0) === expectedText.length ||
+        Number(contentNode?.textContent?.length ?? 0) > 0;
+
+      if (!hasMountedDom || !hasUsableSize || !hasRenderedText) {
+        setEditorFallbackReason("CodeMirror mount watchdog");
+      }
+    }, EDITOR_MOUNT_WATCHDOG_MS);
+    return () => window.clearTimeout(timer);
+  }, [editorFallbackReason, editorResetKey]);
 
   useEffect(() => {
     let frame = 0;
@@ -1102,6 +1175,7 @@ export default function CodeEditor({
 
   const handleCreateEditor = useCallback((view) => {
     editorViewRef.current = view;
+    setEditorFallbackReason("");
     setLineCount(view.state.doc.lines);
     const head = view.state.selection.main.head;
     const line = view.state.doc.lineAt(head);
@@ -1113,6 +1187,58 @@ export default function CodeEditor({
       codeRef.current = value || "";
     },
     [],
+  );
+
+  const handleEditorCrash = useCallback((error) => {
+    setEditorFallbackReason(error?.message || "CodeMirror render failed");
+  }, []);
+
+  const handleFallbackChange = useCallback(
+    (event) => {
+      const nextValue = event.target.value;
+      codeRef.current = nextValue;
+      setFallbackValue(nextValue);
+      setLineCount(countLines(nextValue));
+      onChange(nextValue);
+    },
+    [onChange],
+  );
+
+  const updateFallbackCursor = useCallback((event) => {
+    const target = event.currentTarget;
+    const position = Number(target.selectionStart || 0);
+    const beforeCursor = target.value.slice(0, position);
+    const lines = beforeCursor.split(/\r\n|\r|\n/);
+    setCursorInfo({
+      line: Math.max(1, lines.length),
+      col: Math.max(1, (lines[lines.length - 1] || "").length + 1),
+    });
+  }, []);
+
+  const renderFallbackEditor = useCallback(
+    (reason = editorFallbackReason) => (
+      <>
+        <textarea
+          className="nx-code-editor-fallback"
+          value={fallbackValue}
+          onChange={handleFallbackChange}
+          onSelect={updateFallbackCursor}
+          onFocus={() => setEditorFocused(true)}
+          onBlur={() => setEditorFocused(false)}
+          spellCheck={false}
+          aria-label="Nexus Code text editor fallback"
+        />
+        <div className="nx-code-editor-fallback-notice" title={reason}>
+          Text fallback
+        </div>
+      </>
+    ),
+    [
+      editorFallbackReason,
+      fallbackValue,
+      handleFallbackChange,
+      updateFallbackCursor,
+    ],
   );
 
   const handleCanvasMouseDown = useCallback((event) => {
@@ -1131,7 +1257,7 @@ export default function CodeEditor({
     });
   }, []);
 
-  const engineLabel = "CodeMirror 6";
+  const engineLabel = editorFallbackReason ? "Text fallback" : "CodeMirror 6";
   const lspTone =
     lspStatus.state === "running"
       ? "text-sky-300"
@@ -1145,27 +1271,39 @@ export default function CodeEditor({
     <div
       className="nx-code-editor-shell flex-1 flex flex-col min-h-0 w-full relative overflow-hidden bg-transparent"
       style={{ background: "transparent" }}
-      data-editor-engine="codemirror"
+      data-editor-engine={editorFallbackReason ? "textarea-fallback" : "codemirror"}
+      data-editor-fallback={editorFallbackReason ? "true" : "false"}
       data-focused={editorFocused ? "true" : "false"}
       data-symbol-count={documentSymbols.length}
       data-active-symbol={editorScopeInfo.activeSymbol?.name || ""}
       data-scope-path={editorScopeInfo.pathLabel}
     >
       <div
+        ref={editorCanvasRef}
         className="nx-code-editor-canvas flex-1 min-h-0 w-full relative overflow-hidden"
         onMouseDown={handleCanvasMouseDown}
       >
-        <CodeMirror
-          value={code || ""}
-          height="100%"
-          width="100%"
-          extensions={baseExtensions}
-          onChange={handleChange}
-          onCreateEditor={handleCreateEditor}
-          basicSetup={false}
-          indentWithTab
-          editable
-        />
+        {editorFallbackReason ? (
+          renderFallbackEditor(editorFallbackReason)
+        ) : (
+          <CodeMirrorCrashBoundary
+            resetKey={editorResetKey}
+            onCrash={handleEditorCrash}
+            fallback={renderFallbackEditor}
+          >
+            <CodeMirror
+              value={code || ""}
+              height="100%"
+              width="100%"
+              extensions={baseExtensions}
+              onChange={handleChange}
+              onCreateEditor={handleCreateEditor}
+              basicSetup={false}
+              indentWithTab
+              editable
+            />
+          </CodeMirrorCrashBoundary>
+        )}
       </div>
 
       <div

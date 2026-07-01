@@ -14,15 +14,21 @@ const buildContentSecurityPolicy = ({ isDev }) => {
     ? "'self' https://nexus-api.cloud https://staging.nexus-api.cloud http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:*"
     : "'self' https://nexus-api.cloud https://staging.nexus-api.cloud";
   const scriptSrc = isDev
-    ? "'self' 'unsafe-eval'"
+    ? "'self' 'unsafe-eval' 'unsafe-inline'"
     : "'self'";
+  const styleSrc = isDev
+    ? "'self' 'unsafe-inline' https://fonts.googleapis.com"
+    : "'self' 'unsafe-inline' https://fonts.googleapis.com";
+  const fontSrc = isDev
+    ? "'self' data: https://fonts.gstatic.com"
+    : "'self' data: https://fonts.gstatic.com";
 
   return [
     "default-src 'self'",
     `script-src ${scriptSrc}`,
-    "style-src 'self' 'unsafe-inline'",
+    `style-src ${styleSrc}`,
     "img-src 'self' data: blob:",
-    "font-src 'self' data:",
+    `font-src ${fontSrc}`,
     "media-src 'self' blob:",
     "object-src 'none'",
     "base-uri 'self'",

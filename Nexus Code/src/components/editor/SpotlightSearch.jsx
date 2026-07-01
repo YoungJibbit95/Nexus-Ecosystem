@@ -25,7 +25,7 @@ function getResultCountLabel(count) {
 
 function KeyboardHint({ label }) {
   return (
-    <span className="rounded-md border border-white/10 bg-white/[0.04] px-1.5 py-0.5 font-mono text-[10px] text-gray-400">
+    <span className="rounded-lg border border-white/[0.08] bg-black/20 px-1.5 py-0.5 font-mono text-[10px] text-slate-400">
       {label}
     </span>
   );
@@ -47,7 +47,7 @@ function SuggestionButton({ label, onPick }) {
       type="button"
       onMouseDown={(event) => event.preventDefault()}
       onClick={() => onPick(label)}
-      className="rounded-md border border-white/10 bg-white/[0.04] px-2.5 py-1.5 text-[11px] font-medium text-gray-300 transition-colors hover:border-cyan-300/30 hover:bg-cyan-300/10 hover:text-cyan-100"
+      className="rounded-lg border border-white/[0.08] bg-black/20 px-2.5 py-1.5 text-[11px] font-medium text-slate-300 transition-colors hover:border-sky-300/30 hover:bg-sky-300/10 hover:text-sky-100"
     >
       {label}
     </button>
@@ -57,17 +57,17 @@ function SuggestionButton({ label, onPick }) {
 function EmptyState({ query, onPickSuggestion }) {
   const normalizedQuery = normalizeSearchValue(query);
   return (
-    <div className="flex min-h-[250px] flex-col items-center justify-center gap-4 rounded-xl border border-dashed border-white/10 bg-white/[0.025] px-6 py-8 text-center">
-      <div className="flex size-12 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-gray-500">
+    <div className="flex min-h-[240px] flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-white/[0.08] bg-black/20 px-6 py-8 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.035)]">
+      <div className="flex size-12 items-center justify-center rounded-2xl border border-white/[0.08] bg-white/[0.035] text-slate-500 shadow-[0_0_28px_rgba(56,189,248,0.055)]">
         <Search size={22} />
       </div>
       <div className="max-w-md">
-        <div className="text-sm font-semibold text-gray-200">
+        <div className="text-sm font-semibold text-slate-200">
           {normalizedQuery
             ? `Keine Treffer fuer "${query.trim()}"`
             : "Keine Spotlight-Quellen geladen"}
         </div>
-        <div className="mt-1 text-xs leading-5 text-gray-500">
+        <div className="mt-1 text-xs leading-5 text-slate-500">
           {normalizedQuery
             ? "Suche nach Datei, Symbol, Command, Kategorie oder Shortcut."
             : "Dateien, Symbole und Commands erscheinen hier, sobald der Workspace bereit ist."}
@@ -203,22 +203,27 @@ export default function SpotlightSearch({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 z-[2000] bg-black/45 backdrop-blur-md"
+            className="fixed inset-0 z-[2000] bg-black/55 backdrop-blur-xl"
           />
           <motion.div
-            initial={{ opacity: 0, y: -28, scale: 0.98, x: "-50%" }}
+            initial={{ opacity: 0, scale: 0.97, y: -18, x: "-50%" }}
             animate={{ opacity: 1, y: 0, scale: 1, x: "-50%" }}
-            exit={{ opacity: 0, y: -20, scale: 0.98, x: "-50%" }}
-            transition={{ type: "spring", stiffness: 390, damping: 32 }}
-            className="fixed left-1/2 top-[10%] z-[2001] w-[min(52rem,calc(100vw-1.5rem))] overflow-hidden rounded-xl border border-white/10 bg-[#080b14]/95 shadow-[0_32px_90px_rgba(0,0,0,0.52)] backdrop-blur-2xl"
+            exit={{ opacity: 0, scale: 0.97, y: -18, x: "-50%" }}
+            transition={{
+              type: "spring",
+              stiffness: 330,
+              damping: 32,
+              mass: 0.82,
+            }}
+            className="fixed left-1/2 top-[12%] z-[2001] w-[min(50rem,calc(100vw-1.5rem))] overflow-hidden rounded-2xl border border-white/[0.09] bg-[#070b13]/88 shadow-[0_28px_80px_rgba(0,0,0,0.52),0_0_58px_rgba(56,189,248,0.075)] backdrop-blur-2xl"
             role="dialog"
             aria-modal="true"
             aria-label="Spotlight Search"
             style={{ borderColor: "var(--nexus-border, rgba(255,255,255,0.12))" }}
           >
-            <div className="flex items-center gap-4 border-b border-white/10 px-5 py-4">
-              <div className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.045] text-cyan-200">
-                <Search size={20} />
+            <div className="flex items-center gap-3 border-b border-white/[0.08] bg-white/[0.018] px-5 py-4">
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-2xl border border-white/[0.08] bg-white/[0.04] text-sky-200 shadow-[0_0_24px_rgba(56,189,248,0.08)]">
+                <Search size={18} />
               </div>
               <div className="min-w-0 flex-1">
                 <input
@@ -227,7 +232,7 @@ export default function SpotlightSearch({
                   onChange={(event) => setQuery(event.target.value)}
                   onKeyDown={handleKeyDown}
                   placeholder="Dateien, Actions oder Workbench-Kommandos suchen..."
-                  className="w-full bg-transparent text-lg font-semibold text-gray-100 outline-none placeholder:text-gray-600"
+                  className="w-full bg-transparent text-base font-medium text-slate-100 outline-none placeholder:text-slate-600"
                   role="combobox"
                   aria-expanded="true"
                   aria-autocomplete="list"
@@ -236,7 +241,7 @@ export default function SpotlightSearch({
                     results[selectedIndex] ? `spotlight-option-${selectedIndex}` : undefined
                   }
                 />
-                <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-gray-500">
+                <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-slate-500">
                   <span>{getResultCountLabel(results.length)}</span>
                   {normalizedQuery && selectedResult?.matchReason ? (
                     <span>Treffer ueber {selectedResult.matchReason}</span>
@@ -247,7 +252,7 @@ export default function SpotlightSearch({
 
             <div
               id="nexus-spotlight-results"
-              className="max-h-[480px] overflow-y-auto p-3"
+              className="max-h-[460px] overflow-y-auto p-3"
               role="listbox"
               aria-label="Spotlight results"
             >
@@ -260,13 +265,13 @@ export default function SpotlightSearch({
                         <div className="flex flex-wrap items-center gap-x-2 gap-y-1 px-2 py-1">
                           <span className={`size-1.5 rounded-full ${group.tone.dot}`} />
                           <GroupIcon size={13} className={group.tone.text} />
-                          <span className="text-[11px] font-bold uppercase tracking-[0.22em] text-gray-500">
+                          <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
                             {group.label}
                           </span>
-                          <span className="rounded-md border border-white/10 bg-white/[0.03] px-1.5 py-0.5 text-[10px] leading-none text-gray-500">
+                          <span className="rounded-lg border border-white/[0.08] bg-black/20 px-1.5 py-0.5 text-[10px] leading-none text-slate-500">
                             {group.items.length}
                           </span>
-                          <span className="min-w-[12rem] flex-1 text-[11px] leading-4 text-gray-600">
+                          <span className="min-w-[12rem] flex-1 text-[11px] leading-4 text-slate-600">
                             {group.description}
                           </span>
                         </div>
@@ -302,10 +307,10 @@ export default function SpotlightSearch({
                                 onMouseDown={(event) => event.preventDefault()}
                                 onMouseEnter={() => setSelectedIndex(index)}
                                 onClick={() => runResult(result)}
-                                className={`grid min-h-[66px] w-full grid-cols-[2.5rem_minmax(0,1fr)] items-center gap-x-3 gap-y-2 rounded-lg border px-3 py-2.5 text-left transition-all sm:grid-cols-[2.75rem_minmax(0,1fr)_minmax(7rem,auto)] ${
+                                className={`grid min-h-[64px] w-full grid-cols-[2.5rem_minmax(0,1fr)] items-center gap-x-3 gap-y-2 rounded-xl border px-3 py-2.5 text-left transition-all sm:grid-cols-[2.75rem_minmax(0,1fr)_minmax(7rem,auto)] ${
                                   active
-                                    ? `${result.tone.active} border-white/15 text-white shadow-[0_14px_34px_rgba(0,0,0,0.24)]`
-                                    : "border-transparent text-gray-400 hover:border-white/10 hover:bg-white/[0.045] hover:text-gray-200"
+                                    ? `${result.tone.active} border-white/[0.13] text-white shadow-[0_12px_30px_rgba(0,0,0,0.22)]`
+                                    : "border-transparent text-slate-400 hover:border-white/[0.08] hover:bg-white/[0.04] hover:text-slate-200"
                                 }`}
                                 role="option"
                                 aria-selected={active}
@@ -313,10 +318,10 @@ export default function SpotlightSearch({
                                 aria-setsize={results.length}
                               >
                                 <span
-                                  className={`flex size-9 items-center justify-center rounded-lg border ${
+                                  className={`flex size-9 items-center justify-center rounded-xl border ${
                                     active
                                       ? result.tone.icon
-                                      : "border-white/10 bg-white/[0.035] text-gray-500"
+                                      : "border-white/[0.08] bg-white/[0.03] text-slate-500"
                                   }`}
                                 >
                                   <Icon size={17} />
@@ -325,23 +330,23 @@ export default function SpotlightSearch({
                                   <span className="block break-words text-sm font-semibold leading-5">
                                     {result.label || result.name}
                                   </span>
-                                  <span className="mt-1 block break-all font-mono text-xs leading-5 text-gray-500">
+                                  <span className="mt-1 block break-words font-mono text-xs leading-5 text-slate-500">
                                     {visibleDetail}
                                   </span>
                                 </span>
                                 <span className="col-start-2 flex min-w-0 flex-wrap items-center justify-start gap-1 sm:col-start-auto sm:justify-end">
                                   {showFrequent ? (
-                                    <MetaChip className="border-cyan-300/15 bg-cyan-300/10 text-cyan-100">
+                                    <MetaChip className="border-sky-300/15 bg-sky-300/10 text-sky-100">
                                       Haeufig
                                     </MetaChip>
                                   ) : null}
                                   {showMatchReason ? (
-                                    <MetaChip className="border-white/10 bg-white/[0.035] text-gray-400">
+                                    <MetaChip className="border-white/[0.08] bg-black/20 text-slate-400">
                                       {result.matchReason}
                                     </MetaChip>
                                   ) : null}
                                   {result.shortcut ? (
-                                    <span className="rounded-md border border-white/10 bg-black/20 px-2 py-1 font-mono text-[10px] text-gray-400">
+                                    <span className="rounded-lg border border-white/[0.08] bg-black/20 px-2 py-1 font-mono text-[10px] text-slate-400">
                                       {result.shortcut}
                                     </span>
                                   ) : (
@@ -363,7 +368,7 @@ export default function SpotlightSearch({
               )}
             </div>
 
-            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/10 bg-black/20 px-5 py-3 text-[11px] text-gray-500">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/[0.08] bg-black/20 px-5 py-3 text-[11px] text-slate-500">
               <div className="flex flex-wrap items-center gap-2">
                 <KeyboardHint label="Up" />
                 <KeyboardHint label="Down" />
@@ -373,7 +378,7 @@ export default function SpotlightSearch({
               </div>
               <div className="flex min-w-0 items-center gap-2">
                 {selectedResult ? (
-                  <span className="max-w-full break-words text-right text-gray-400">
+                  <span className="max-w-full break-words text-right text-slate-400">
                     {selectedResult.resultKind === "file"
                       ? selectedResult.description
                       : selectedResult.resultKind === "symbol"
@@ -382,7 +387,7 @@ export default function SpotlightSearch({
                     {selectedResult.matchReason ? ` / ${selectedResult.matchReason}` : ""}
                   </span>
                 ) : (
-                  <span className="text-gray-600">No selection</span>
+                  <span className="text-slate-600">No selection</span>
                 )}
               </div>
             </div>

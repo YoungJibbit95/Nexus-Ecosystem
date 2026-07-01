@@ -7,12 +7,18 @@ import {
   normalizeAccountSession,
 } from "../app/accountSession.js";
 import {
+  createFileTreeItems,
   createFileNodesFromEntries,
   createFileTreeModel,
   getFileExtension,
   getFileTreeDisplayState,
+  getFileTreeVirtualWindow,
   mergeFileTreeRefreshNode,
 } from "../pages/editor/fileTreeModel.js";
+import {
+  getBottomPanelClassName,
+  getSidePanelStyle,
+} from "../pages/editor/editorShellLayout.js";
 import {
   createSpotlightResults,
   getEditorCommandPaletteCommands,
@@ -35,8 +41,17 @@ import {
   createExtensionCommandPaletteEntries,
   createDefaultExtensionRecords,
   createExtensionRuntimeSnapshot,
+  filterExtensions,
   getExtensionRuntimeOverview,
+  resolveExtensions,
 } from "../pages/editor/extensionSystem.js";
+import {
+  classifyGithubPlatformError,
+  formatGithubPlatformError,
+  getGithubCapabilityStatus,
+  getGithubRepositoryError,
+  normalizeGithubRepositoryInput,
+} from "../pages/editor/githubWorkbenchModel.js";
 import {
   DEFAULT_WORKBENCH_LAYOUT,
   WORKBENCH_CUSTOM_PRESET_ID,
@@ -44,6 +59,7 @@ import {
   WORKBENCH_PANEL_IDS,
   WORKBENCH_PANEL_PLACEMENTS,
   WORKBENCH_SNAP_ZONES,
+  getBottomPanelStyle,
   getLayoutDropPreview,
   getVisiblePanelId,
   getWorkbenchPanelSnapZone,
@@ -142,7 +158,7 @@ function assertWorkbenchLayoutInvariants(layout) {
 const scenarios = [
   {
     id: "file-tree-sort-order",
-    title: "folders first, files by extension then name",
+    title: "folders first, files by section group then extension",
     run() {
       const model = createFileTreeModel([
         { id: "file-ts", name: "zeta.ts", type: "file" },
@@ -160,9 +176,9 @@ const scenarios = [
         "src",
         "alpha.js",
         "beta.js",
+        "zeta.ts",
         "package.json",
         "guide.md",
-        "zeta.ts",
         "README",
       ]);
       assert.equal(model.stats.folders, 2);
@@ -256,6 +272,33 @@ const scenarios = [
     },
   },
   {
+    id: "file-tree-token-search-and-parent-cycle-guards",
+    title: "multi-token search and parent cycles keep visible rows stable",
+    run() {
+      const files = [
+        { id: "alpha", name: "alpha", type: "folder", parentId: "beta", isOpen: "true" },
+        { id: "beta", name: "beta", type: "folder", parentId: "alpha", isOpen: "false" },
+        {
+          id: "button",
+          name: "Button.spec.jsx",
+          type: "file",
+          parentId: "alpha",
+          fsPath: "src/components/Button.spec.jsx",
+        },
+      ];
+      const model = createFileTreeModel(files, { query: "button jsx" });
+
+      assert.deepEqual(getNodeRowNames(model), [
+        "alpha",
+        "Button.spec.jsx",
+      ]);
+      assert.deepEqual(model.searchTokens, ["button", "jsx"]);
+      assert.equal(model.stats.searchMatches, 1);
+      assert.equal(getRowById(model, "alpha")?.isOpen, true);
+      assert.equal(getRowById(model, "button")?.isMatch, true);
+    },
+  },
+  {
     id: "file-tree-limits",
     title: "row and child caps report hidden work",
     run() {
@@ -330,6 +373,53 @@ const scenarios = [
     },
   },
   {
+    id: "file-tree-items-and-virtual-window",
+    title: "section rows, creation rows and virtual windows are model-backed",
+    run() {
+      const model = createFileTreeModel([
+        { id: "src", name: "src", type: "folder", isOpen: true },
+        { id: "alpha", name: "alpha.js", type: "file", parentId: "src" },
+        { id: "zeta", name: "zeta.ts", type: "file", parentId: "src" },
+        { id: "styles", name: "styles.css", type: "file", parentId: "src" },
+        { id: "pkg", name: "package.json", type: "file", parentId: "src" },
+      ]);
+      const items = createFileTreeItems(model.rows, {
+        creating: { type: "file", parentId: "src" },
+      });
+      const sections = items
+        .filter((item) => item.kind === "section")
+        .map((item) => [item.section.label, item.section.detail, item.section.count]);
+      const creationIndex = items.findIndex((item) => item.kind === "creation");
+      const srcIndex = items.findIndex((item) => item.id === "src");
+      const virtualItems = Array.from({ length: 40 }, (_, index) => ({
+        id: `item-${index}`,
+        kind: "node",
+      }));
+      const virtualWindow = getFileTreeVirtualWindow(
+        virtualItems,
+        { height: 64, scrollTop: 320 },
+        {
+          rowHeight: 16,
+          virtualizeAfter: 10,
+          overscanRows: 2,
+          maxRenderedRows: 8,
+        },
+      );
+
+      assert.deepEqual(sections, [
+        ["JS", "Source", 1],
+        ["TS", "Source", 1],
+        ["CSS", "Styles", 1],
+        ["JSON", "Data", 1],
+      ]);
+      assert.equal(creationIndex, srcIndex + 1);
+      assert.equal(virtualWindow.isVirtualized, true);
+      assert.equal(virtualWindow.startIndex, 18);
+      assert.equal(virtualWindow.renderedRows, 8);
+      assert.equal(virtualWindow.items[0]?.offsetY, 288);
+    },
+  },
+  {
     id: "workbench-layout-corrupt-data-normalization",
     title: "corrupt dock layout data normalizes to one valid zone per panel",
     run() {
@@ -347,16 +437,16 @@ const scenarios = [
         sidePanelSize: "tiny",
         bottomPanelSize: "giant",
         panelZones: {
-          explorer: "galaxy",
-          issues: "side",
-          prs: "rightPanel",
-          problems: "bottom-panel",
+          Explorer: "galaxy",
+          ISSUES: "SIDE",
+          prs: "right_panel",
+          problems: "bottom_panel",
           terminal: "none",
         },
         zonePanelIds: {
-          left: ["search", "search", "ghost-panel", "explorer"],
-          right: { items: ["prs", "issues", "search"] },
-          bottom: { panels: ["problems", "terminal", "prs"] },
+          LEFT: ["search", "search", "ghost-panel", "explorer"],
+          right_panel: { items: ["PRS", "issues", "search"] },
+          bottom_panel: { panels: ["problems", "terminal", "prs"] },
           hidden: ["terminal", "account", "account"],
           nowhere: ["debug"],
         },
@@ -395,6 +485,47 @@ const scenarios = [
       assert.equal(layout.panelZones.search, WORKBENCH_SNAP_ZONES.left);
       assert.equal(layout.panelZones.terminal, WORKBENCH_SNAP_ZONES.bottom);
       assert.equal(layout.panelZones.account, WORKBENCH_SNAP_ZONES.hidden);
+    },
+  },
+  {
+    id: "workbench-layout-aliases-and-compact-fallbacks",
+    title: "layout aliases and compact shell fallbacks stay valid",
+    run() {
+      const layout = assertWorkbenchLayoutInvariants({
+        presetId: "Compact",
+        sidePanelSize: "ROOMY",
+        bottomPanelSize: "TALL",
+        panelPlacements: {
+          ISSUES: "bottom_panel",
+          TERMINAL: "hidden",
+        },
+      });
+      const compactSideStyle = getSidePanelStyle({
+        compact: true,
+        size: "missing-size",
+      });
+      const regularSideStyle = getSidePanelStyle({
+        compact: false,
+        size: "missing-size",
+      });
+      const compactBottomClassName = getBottomPanelClassName({
+        compact: true,
+        size: "missing-size",
+      });
+      const compactBottomStyle = getBottomPanelStyle({
+        compact: true,
+        size: "missing-size",
+      });
+
+      assert.equal(layout.presetId, "focus");
+      assert.equal(layout.sidePanelSize, "wide");
+      assert.equal(layout.bottomPanelSize, "wide");
+      assert.equal(layout.panelZones.issues, WORKBENCH_SNAP_ZONES.bottom);
+      assert.equal(layout.panelZones.terminal, WORKBENCH_SNAP_ZONES.hidden);
+      assert.match(compactSideStyle.width, /calc\(100vw - 3\.25rem\)/);
+      assert.equal(regularSideStyle.minWidth, "14rem");
+      assert.match(compactBottomClassName, /nx-code-bottom-panel/);
+      assert.equal(typeof compactBottomStyle.flex, "string");
     },
   },
   {
@@ -578,6 +709,29 @@ const scenarios = [
     },
   },
   {
+    id: "extension-lifecycle-and-category-filters",
+    title: "extension lifecycle states expose active, available and category views",
+    run() {
+      const records = createDefaultExtensionRecords();
+      const extensions = resolveExtensions(records);
+      const prettier = extensions.find((extension) => extension.id === "prettier");
+      const tailwind = extensions.find((extension) => extension.id === "tailwind-intellisense");
+      const diagnostics = filterExtensions(extensions, { category: "diagnostics" });
+      const active = filterExtensions(extensions, { state: "enabled" });
+
+      assert.equal(prettier.lifecycleState.id, "active");
+      assert.equal(prettier.lifecycleState.activationReady, true);
+      assert.equal(prettier.categoryInfo.shortLabel, "Format");
+      assert.equal(tailwind.lifecycleState.id, "available");
+      assert.equal(tailwind.lifecycleState.activationReady, false);
+      assert.ok(diagnostics.some((extension) => extension.id === "eslint"));
+      assert.deepEqual(
+        active.map((extension) => extension.id),
+        ["nexus-theme-core", "prettier", "eslint"],
+      );
+    },
+  },
+  {
     id: "extension-command-contributions-route-to-palette-model",
     title: "extension command contributions normalize into palette and spotlight commands",
     run() {
@@ -621,6 +775,55 @@ const scenarios = [
       assert.equal(spotlightResults[0]?.actionId, "eslint.restart");
       assert.equal(spotlightResults[0]?.resultKind, "command");
       assert.equal(spotlightResults[0]?.extensionId, "eslint");
+    },
+  },
+  {
+    id: "github-workbench-model-fallbacks",
+    title: "github workbench normalizes repo input and classifies platform failures",
+    run() {
+      const repo = normalizeGithubRepositoryInput(
+        "https://github.com/NexusLab/nexus-code.git?tab=readme",
+      );
+      const partialStatus = getGithubCapabilityStatus({
+        available: true,
+        methods: ["issues"],
+        missingMethods: ["createIssue"],
+      });
+      const offlineStatus = getGithubCapabilityStatus({
+        available: false,
+        methods: [],
+        missingMethods: ["issues"],
+      });
+      const auth = classifyGithubPlatformError({
+        status: 401,
+        message: "Bad credentials",
+      });
+      const scope = classifyGithubPlatformError({
+        status: 403,
+        message: "Resource not accessible by integration",
+        details: { scopes: { missingScopes: ["project"] } },
+      });
+      const validationMessage = formatGithubPlatformError(
+        {
+          status: 422,
+          message: "Validation Failed",
+          details: { errors: [{ message: "Head branch was not found" }] },
+        },
+        "GitHub data could not be loaded.",
+      );
+
+      assert.deepEqual(repo, {
+        owner: "NexusLab",
+        repo: "nexus-code",
+        label: "NexusLab/nexus-code",
+      });
+      assert.equal(getGithubRepositoryError(repo), "");
+      assert.equal(getGithubRepositoryError({ owner: "NexusLab", repo: "" }).includes("owner/repo"), true);
+      assert.equal(partialStatus.id, "partial");
+      assert.equal(offlineStatus.id, "offline");
+      assert.equal(auth.kind, "auth");
+      assert.equal(scope.kind, "scope");
+      assert.match(validationMessage, /Head branch was not found/);
     },
   },
   {

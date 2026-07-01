@@ -26,6 +26,14 @@ export function MagicElementModal({
     (m) => m.id === selected,
   );
 
+  React.useEffect(() => {
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [onClose]);
+
   const handleSelect = (id: string) => {
     setSelected(id);
     const definition = NOTES_MAGIC_DEFINITIONS_WITH_PLANNING.find(
@@ -51,9 +59,9 @@ export function MagicElementModal({
       exit={{ opacity: 0 }}
       transition={{ duration: 0.18 }}
       style={{
-        position: "absolute",
+        position: "fixed",
         inset: 0,
-        zIndex: 500,
+        zIndex: 9600,
         background: "rgba(0,0,0,0.6)",
         backdropFilter: "blur(8px)",
         WebkitBackdropFilter: "blur(8px)",

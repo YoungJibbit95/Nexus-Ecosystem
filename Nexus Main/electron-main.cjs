@@ -1,12 +1,14 @@
 'use strict';
 const { app, BrowserWindow } = require('electron');
 const { execSync } = require('child_process');
+const path = require('path');
 const { createMainWindow } = require('./electron/main-window.cjs');
 const { applySecurityHeaders } = require('./electron/security.cjs');
 const { registerIpcHandlers } = require('./electron/ipc-handlers.cjs');
 
 let mainWindow = null;
 const shouldEnableGpuSwitches = process.env.NEXUS_FORCE_GPU_SWITCHES === '1';
+const isDevInstance = process.argv.includes('--dev') || process.env.ELECTRON_DEV === 'true';
 
 const isRosettaTranslated = () => {
   if (process.platform !== 'darwin') return false;
@@ -31,6 +33,10 @@ if (shouldEnableGpuSwitches) {
   app.commandLine.appendSwitch('enable-native-gpu-memory-buffers');
 }
 
+if (isDevInstance) {
+  app.setPath('userData', path.join(app.getPath('appData'), 'nexus-dev'));
+}
+
 if (isRosettaTranslated()) {
   console.warn(
     '[Nexus Main] running under Rosetta translation (x64 on Apple Silicon). ' +
@@ -50,7 +56,7 @@ if (!gotLock) {
   app.quit();
 } else {
   app.whenReady().then(() => {
-    applySecurityHeaders({ isDev: !app.isPackaged });
+    applySecurityHeaders({ isDev: isDevInstance || !app.isPackaged });
     registerIpcHandlers(() => mainWindow);
     bootMainWindow();
   });

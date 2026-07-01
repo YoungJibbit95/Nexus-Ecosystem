@@ -278,18 +278,27 @@ const SNAP_ZONE_ALIASES = Object.freeze({
   side: WORKBENCH_SNAP_ZONES.left,
   "side-panel": WORKBENCH_SNAP_ZONES.left,
   sidePanel: WORKBENCH_SNAP_ZONES.left,
+  sidepanel: WORKBENCH_SNAP_ZONES.left,
   sidebar: WORKBENCH_SNAP_ZONES.left,
   "dock-left": WORKBENCH_SNAP_ZONES.left,
+  "left-panel": WORKBENCH_SNAP_ZONES.left,
   leftPanel: WORKBENCH_SNAP_ZONES.left,
+  leftpanel: WORKBENCH_SNAP_ZONES.left,
   leftSidebar: WORKBENCH_SNAP_ZONES.left,
+  leftsidebar: WORKBENCH_SNAP_ZONES.left,
   "dock-right": WORKBENCH_SNAP_ZONES.right,
+  "right-panel": WORKBENCH_SNAP_ZONES.right,
   rightPanel: WORKBENCH_SNAP_ZONES.right,
+  rightpanel: WORKBENCH_SNAP_ZONES.right,
   rightSidebar: WORKBENCH_SNAP_ZONES.right,
+  rightsidebar: WORKBENCH_SNAP_ZONES.right,
   "dock-bottom": WORKBENCH_SNAP_ZONES.bottom,
   "bottom-panel": WORKBENCH_SNAP_ZONES.bottom,
   bottomPanel: WORKBENCH_SNAP_ZONES.bottom,
+  bottompanel: WORKBENCH_SNAP_ZONES.bottom,
   panel: WORKBENCH_SNAP_ZONES.left,
   hide: WORKBENCH_SNAP_ZONES.hidden,
+  hidden: WORKBENCH_SNAP_ZONES.hidden,
   none: WORKBENCH_SNAP_ZONES.hidden,
   off: WORKBENCH_SNAP_ZONES.hidden,
 });
@@ -312,18 +321,46 @@ function hasPanelId(panelId) {
 }
 
 function normalizePanelId(panelId, fallback = null) {
-  return hasPanelId(panelId) ? panelId : fallback;
+  const normalized =
+    typeof panelId === "string" ? panelId.trim().toLowerCase() : panelId;
+  return hasPanelId(normalized) ? normalized : fallback;
+}
+
+function normalizeLookupValue(value) {
+  return typeof value === "string" ? value.trim() : value;
+}
+
+function getAliasValue(value, aliases) {
+  const normalized = normalizeLookupValue(value);
+  if (Object.prototype.hasOwnProperty.call(aliases, normalized)) {
+    return aliases[normalized];
+  }
+  if (typeof normalized !== "string") return normalized;
+
+  const lower = normalized.toLowerCase();
+  if (Object.prototype.hasOwnProperty.call(aliases, lower)) {
+    return aliases[lower];
+  }
+
+  const dashed = lower.replace(/[\s_]+/g, "-");
+  if (Object.prototype.hasOwnProperty.call(aliases, dashed)) {
+    return aliases[dashed];
+  }
+
+  return lower;
 }
 
 function normalizeRegistryId(value, registry, fallback, aliases = {}) {
-  const resolved = aliases[value] || value;
+  const resolved = getAliasValue(value, aliases);
   return Object.prototype.hasOwnProperty.call(registry, resolved)
     ? resolved
     : fallback;
 }
 
 function normalizePresetId(value) {
-  if (value === WORKBENCH_CUSTOM_PRESET_ID) return WORKBENCH_CUSTOM_PRESET_ID;
+  if (normalizeLookupValue(value)?.toLowerCase?.() === WORKBENCH_CUSTOM_PRESET_ID) {
+    return WORKBENCH_CUSTOM_PRESET_ID;
+  }
   return normalizeRegistryId(
     value,
     WORKBENCH_LAYOUT_PRESETS,
@@ -339,7 +376,7 @@ function getDefaultSideSnapZone(panelId) {
 }
 
 function normalizeSnapZone(value, fallback = WORKBENCH_SNAP_ZONES.left) {
-  const resolved = SNAP_ZONE_ALIASES[value] || value;
+  const resolved = getAliasValue(value, SNAP_ZONE_ALIASES);
   if (
     resolved === WORKBENCH_SNAP_ZONES.left ||
     resolved === WORKBENCH_SNAP_ZONES.right ||
@@ -353,39 +390,72 @@ function normalizeSnapZone(value, fallback = WORKBENCH_SNAP_ZONES.left) {
 
 function normalizePanelZone(panelId, value) {
   const fallback = DEFAULT_PANEL_ZONES[panelId] || WORKBENCH_SNAP_ZONES.left;
-  if (value === WORKBENCH_PANEL_PLACEMENTS.side) {
+  if (normalizeLookupValue(value)?.toLowerCase?.() === WORKBENCH_PANEL_PLACEMENTS.side) {
     return getDefaultSideSnapZone(panelId);
   }
   return normalizeSnapZone(value, fallback);
 }
 
 function getDropTargetSnapZone(panelId, value, fallback = null) {
-  if (value === WORKBENCH_PANEL_PLACEMENTS.side) {
+  if (normalizeLookupValue(value)?.toLowerCase?.() === WORKBENCH_PANEL_PLACEMENTS.side) {
     return getDefaultSideSnapZone(panelId);
   }
   return normalizeSnapZone(value, fallback);
 }
 
 function normalizePanelPlacement(value, fallback = WORKBENCH_PANEL_PLACEMENTS.side) {
-  if (value === WORKBENCH_PANEL_PLACEMENTS.side) {
+  const normalized = normalizeLookupValue(value)?.toLowerCase?.();
+  if (normalized === WORKBENCH_PANEL_PLACEMENTS.side) {
     return WORKBENCH_PANEL_PLACEMENTS.side;
   }
-  if (value === WORKBENCH_PANEL_PLACEMENTS.bottom) {
+  if (normalized === WORKBENCH_PANEL_PLACEMENTS.bottom) {
     return WORKBENCH_PANEL_PLACEMENTS.bottom;
   }
-  if (value === WORKBENCH_PANEL_PLACEMENTS.hidden) {
+  if (normalized === WORKBENCH_PANEL_PLACEMENTS.hidden) {
     return WORKBENCH_PANEL_PLACEMENTS.hidden;
+  }
+  const snapZone = normalizeSnapZone(value, null);
+  if (snapZone === WORKBENCH_SNAP_ZONES.bottom) {
+    return WORKBENCH_PANEL_PLACEMENTS.bottom;
+  }
+  if (snapZone === WORKBENCH_SNAP_ZONES.hidden) {
+    return WORKBENCH_PANEL_PLACEMENTS.hidden;
+  }
+  if (snapZone === WORKBENCH_SNAP_ZONES.left || snapZone === WORKBENCH_SNAP_ZONES.right) {
+    return WORKBENCH_PANEL_PLACEMENTS.side;
   }
   return fallback;
 }
 
-function getPanelIdsFromZoneBucket(bucket) {
-  if (Array.isArray(bucket)) return bucket;
-  if (!isObject(bucket)) return [];
-  if (Array.isArray(bucket.panelIds)) return bucket.panelIds;
-  if (Array.isArray(bucket.panels)) return bucket.panels;
-  if (Array.isArray(bucket.items)) return bucket.items;
+function getPanelIdsFromUnknown(value) {
+  if (Array.isArray(value)) {
+    return value.flatMap((item) => getPanelIdsFromUnknown(item));
+  }
+  const panelId = normalizePanelId(value);
+  if (panelId) return [panelId];
   return [];
+}
+
+function getPanelIdsFromZoneBucket(bucket) {
+  if (Array.isArray(bucket) || typeof bucket === "string") {
+    return getPanelIdsFromUnknown(bucket);
+  }
+  if (!isObject(bucket)) return [];
+
+  const knownFields = [
+    bucket.panelIds,
+    bucket.panels,
+    bucket.items,
+    bucket.ids,
+    bucket.panelId,
+    bucket.id,
+  ];
+  const fieldPanelIds = knownFields.flatMap((field) => getPanelIdsFromUnknown(field));
+  if (fieldPanelIds.length > 0) return fieldPanelIds;
+
+  return Object.entries(bucket)
+    .filter(([, enabled]) => enabled === true || isObject(enabled))
+    .flatMap(([key]) => getPanelIdsFromUnknown(key));
 }
 
 function isZoneBucketSource(value) {
@@ -394,7 +464,7 @@ function isZoneBucketSource(value) {
     const normalizedZone = normalizeSnapZone(zone, null);
     return Boolean(
       normalizedZone &&
-      (Array.isArray(bucket) || isObject(bucket))
+      (Array.isArray(bucket) || isObject(bucket) || typeof bucket === "string")
     );
   });
 }
@@ -423,19 +493,36 @@ function getZonePanelIdsSource(source) {
   return candidates.find(isZoneBucketSource) || null;
 }
 
+function getPanelValue(source, panelId) {
+  if (!isObject(source)) return { found: false, value: undefined };
+  if (Object.prototype.hasOwnProperty.call(source, panelId)) {
+    return { found: true, value: source[panelId] };
+  }
+
+  for (const [key, value] of Object.entries(source)) {
+    if (normalizePanelId(key) === panelId) {
+      return { found: true, value };
+    }
+  }
+
+  return { found: false, value: undefined };
+}
+
 function normalizePanelZones(value, legacyPlacements) {
   const source = isObject(value) ? value : {};
   const placementSource = isObject(legacyPlacements) ? legacyPlacements : {};
 
   return WORKBENCH_PANEL_IDS.reduce((acc, panelId) => {
-    if (Object.prototype.hasOwnProperty.call(source, panelId)) {
-      acc[panelId] = normalizePanelZone(panelId, source[panelId]);
+    const zoneValue = getPanelValue(source, panelId);
+    if (zoneValue.found) {
+      acc[panelId] = normalizePanelZone(panelId, zoneValue.value);
       return acc;
     }
 
-    if (Object.prototype.hasOwnProperty.call(placementSource, panelId)) {
+    const placementValue = getPanelValue(placementSource, panelId);
+    if (placementValue.found) {
       const placement = normalizePanelPlacement(
-        placementSource[panelId],
+        placementValue.value,
         DEFAULT_PANEL_PLACEMENTS[panelId],
       );
       acc[panelId] = placement === WORKBENCH_PANEL_PLACEMENTS.side
@@ -450,9 +537,10 @@ function normalizePanelZones(value, legacyPlacements) {
 }
 
 function addPanelIdToZone(zonePanelIds, zone, panelId, seenPanelIds) {
-  if (!hasPanelId(panelId) || seenPanelIds.has(panelId)) return;
-  zonePanelIds[zone].push(panelId);
-  seenPanelIds.add(panelId);
+  const normalizedPanelId = normalizePanelId(panelId);
+  if (!normalizedPanelId || seenPanelIds.has(normalizedPanelId)) return;
+  zonePanelIds[zone].push(normalizedPanelId);
+  seenPanelIds.add(normalizedPanelId);
 }
 
 function getZoneBucketsBySnapZone(value) {
@@ -681,7 +769,9 @@ export function getBottomPanelSizeOptions() {
 
 export function getBottomPanelStyle({ compact = false, size } = {}) {
   const panelSize = getBottomPanelSize(size);
-  return compact ? panelSize.compactStyle : panelSize.style;
+  return compact
+    ? panelSize.compactStyle || panelSize.style
+    : panelSize.style || panelSize.compactStyle;
 }
 
 export function getWorkbenchLayoutPresetOptions() {
@@ -761,9 +851,10 @@ export function applyWorkbenchLayoutPreset(layout, presetId) {
 }
 
 export function getWorkbenchPanelSnapZone(panelId, layout) {
-  if (!hasPanelId(panelId)) return WORKBENCH_SNAP_ZONES.hidden;
+  const normalizedPanelId = normalizePanelId(panelId);
+  if (!normalizedPanelId) return WORKBENCH_SNAP_ZONES.hidden;
   const normalized = normalizeWorkbenchLayout(layout);
-  return normalized.panelZones[panelId] || DEFAULT_PANEL_ZONES[panelId];
+  return normalized.panelZones[normalizedPanelId] || DEFAULT_PANEL_ZONES[normalizedPanelId];
 }
 
 function cloneZonePanelIds(zonePanelIds) {
@@ -781,12 +872,14 @@ function clampInsertIndex(index, length) {
 function insertPanelId(panelIds, panelId, options = {}) {
   const withoutPanel = panelIds.filter((candidateId) => candidateId !== panelId);
   let insertIndex = withoutPanel.length;
+  const beforePanelId = normalizePanelId(options.beforePanelId);
+  const afterPanelId = normalizePanelId(options.afterPanelId);
 
-  if (hasPanelId(options.beforePanelId)) {
-    const beforeIndex = withoutPanel.indexOf(options.beforePanelId);
+  if (beforePanelId) {
+    const beforeIndex = withoutPanel.indexOf(beforePanelId);
     if (beforeIndex !== -1) insertIndex = beforeIndex;
-  } else if (hasPanelId(options.afterPanelId)) {
-    const afterIndex = withoutPanel.indexOf(options.afterPanelId);
+  } else if (afterPanelId) {
+    const afterIndex = withoutPanel.indexOf(afterPanelId);
     if (afterIndex !== -1) insertIndex = afterIndex + 1;
   } else if (options.index !== undefined) {
     insertIndex = clampInsertIndex(Number(options.index), withoutPanel.length);
@@ -815,22 +908,37 @@ export function getWorkbenchZonePanelIds(layout, snapZone) {
 
 export function movePanelToZone(layout, panelId, snapZone, options = {}) {
   const normalized = normalizeWorkbenchLayout(layout);
-  if (!hasPanelId(panelId)) return normalized;
+  const normalizedPanelId = normalizePanelId(panelId);
+  if (!normalizedPanelId) return normalized;
 
-  const currentZone = normalized.panelZones[panelId] || DEFAULT_PANEL_ZONES[panelId];
-  const targetZone = getDropTargetSnapZone(panelId, snapZone, currentZone);
+  const currentZone =
+    normalized.panelZones[normalizedPanelId] || DEFAULT_PANEL_ZONES[normalizedPanelId];
+  const targetZone = getDropTargetSnapZone(normalizedPanelId, snapZone, currentZone);
+  const originalZonePanelIds = cloneZonePanelIds(normalized.zonePanelIds);
   const zonePanelIds = cloneZonePanelIds(normalized.zonePanelIds);
+  const beforePanelId = normalizePanelId(options.beforePanelId);
+  const afterPanelId = normalizePanelId(options.afterPanelId);
+  const insertOptions = { ...options };
+
+  if (
+    targetZone === currentZone &&
+    (beforePanelId === normalizedPanelId || afterPanelId === normalizedPanelId)
+  ) {
+    insertOptions.index = originalZonePanelIds[targetZone].indexOf(normalizedPanelId);
+    delete insertOptions.beforePanelId;
+    delete insertOptions.afterPanelId;
+  }
 
   for (const zone of WORKBENCH_DOCK_ZONE_SEQUENCE) {
     zonePanelIds[zone] = zonePanelIds[zone].filter(
-      (candidateId) => candidateId !== panelId,
+      (candidateId) => candidateId !== normalizedPanelId,
     );
   }
 
   zonePanelIds[targetZone] = insertPanelId(
     zonePanelIds[targetZone] || [],
-    panelId,
-    options,
+    normalizedPanelId,
+    insertOptions,
   );
 
   return normalizeWorkbenchLayout({
@@ -919,7 +1027,7 @@ export function hideWorkbenchPanel(layout, panelId) {
 }
 
 export function getWorkbenchPanelPlacement(panelId, layout) {
-  return getPlacementForSnapZone(getWorkbenchPanelSnapZone(panelId, layout));
+  return getPlacementForSnapZone(getWorkbenchPanelSnapZone(normalizePanelId(panelId), layout));
 }
 
 export function setWorkbenchPanelPlacement(layout, panelId, placement) {

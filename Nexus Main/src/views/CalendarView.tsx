@@ -408,7 +408,7 @@ const CalendarDayCell = ({
     }),
     [dateKey, onDropItem],
   );
-  const visibleLimit = 2;
+  const visibleLimit = density === "comfortable" ? 3 : 2;
   const visibleItems = items.slice(0, visibleLimit);
   const hiddenCount = Math.max(0, items.length - visibleItems.length);
   const itemCounts = countItemsByType(items);
@@ -433,6 +433,7 @@ const CalendarDayCell = ({
         items.length > 0 ? "has-items" : "",
         highPriorityCount > 0 ? "has-priority" : "",
         overdueCount > 0 ? "has-overdue" : "",
+        hiddenCount > 0 ? "has-overflow" : "",
         canDrop ? "can-drop" : "",
         isOver ? "is-over" : "",
       ]
@@ -902,7 +903,7 @@ export function CalendarView({
                   onClick={clearFilters}
                 >
                   <X size={12} />
-                  Reset
+                  Filter aus
                 </button>
               )}
               <div className="nx-calendar-segment" aria-label="Dichte">

@@ -18,8 +18,12 @@ import {
 import { AnimatePresence, motion } from "framer-motion";
 import {
   FILE_TREE_LIMITS,
+  createFileTreeItems,
   createFileTreeModel,
+  getFileGroupLabel,
   getFileMeta,
+  getFileTreeDisplayState,
+  getFileTreeVirtualWindow,
 } from "../../pages/editor/fileTreeModel";
 
 const actionButtonClass =
@@ -28,21 +32,7 @@ const actionButtonClass =
 const rowActionClass =
   "grid h-6 w-6 shrink-0 place-items-center rounded text-gray-500 transition hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40 [&>svg]:h-3 [&>svg]:w-3";
 
-const FILE_GROUP_LABELS = {
-  source: "Source",
-  style: "Styles",
-  markup: "Markup",
-  data: "Data",
-  config: "Config",
-  docs: "Docs",
-  media: "Media",
-  other: "Other",
-};
-
 const TREE_ROW_HEIGHT = FILE_TREE_LIMITS.rowHeight || 32;
-const TREE_VIRTUALIZE_AFTER = FILE_TREE_LIMITS.virtualizeAfter || 160;
-const TREE_OVERSCAN_ROWS = FILE_TREE_LIMITS.overscanRows || 14;
-const TREE_MAX_RENDERED_ROWS = FILE_TREE_LIMITS.maxRenderedRows || 260;
 
 function getFileNameParts(name = "") {
   const value = String(name || "");
@@ -53,28 +43,6 @@ function getFileNameParts(name = "") {
   return {
     base: value.slice(0, index),
     suffix: value.slice(index),
-  };
-}
-
-function getFileGroupLabel(group) {
-  return FILE_GROUP_LABELS[group] || "Other";
-}
-
-function getFileSection(row) {
-  const node = row?.node;
-  if (!node || node.isFolder) return null;
-  const meta = getFileMeta(node.name);
-  const extension = String(node.extension || "").trim().toLowerCase();
-  const sectionId = extension || "no-extension";
-  const parentKey = node.parentId || "root";
-
-  return {
-    key: `${parentKey}:file-section:${sectionId}`,
-    parentKey,
-    depth: row.depth,
-    label: extension ? meta.label : "No Ext",
-    detail: extension ? getFileGroupLabel(meta.group) : "Plain",
-    color: meta.color,
   };
 }
 
@@ -721,7 +689,7 @@ export default function FileExplorer({
       setLocalError("");
       return;
     }
-    if (refreshInFlightRef.current) return;
+    if (isLoading || refreshing || refreshInFlightRef.current) return;
     const requestId = refreshRequestRef.current + 1;
     refreshRequestRef.current = requestId;
     refreshInFlightRef.current = true;
@@ -729,7 +697,9 @@ export default function FileExplorer({
     pendingScrollRestoreRef.current = treeViewportRef.current?.scrollTop || 0;
     setRefreshing(true);
     try {
-      await Promise.resolve(onRefresh?.());
+      if (typeof onRefresh === "function") {
+        await Promise.resolve(onRefresh());
+      }
       if (requestId === refreshRequestRef.current) {
         setRefreshNonce((value) => value + 1);
       }
@@ -743,7 +713,7 @@ export default function FileExplorer({
         setRefreshing(false);
       }
     }
-  }, [hasWorkspace, onRefresh]);
+  }, [hasWorkspace, isLoading, onRefresh, refreshing]);
 
   const handleCollapseAll = useCallback(() => {
     if (!hasWorkspace || isLoading || refreshing) return;
@@ -752,27 +722,40 @@ export default function FileExplorer({
       .map((folder) => folder.id)
       .filter(Boolean);
     if (openFolders.length === 0) return;
+    const requestFrame = typeof window !== "undefined"
+      ? window.requestAnimationFrame
+      : (callback) => {
+          callback();
+          return 0;
+        };
+    const cancelFrame = typeof window !== "undefined"
+      ? window.cancelAnimationFrame
+      : () => {};
+
     if (collapseFrameRef.current) {
-      window.cancelAnimationFrame(collapseFrameRef.current);
+      cancelFrame(collapseFrameRef.current);
       collapseFrameRef.current = 0;
     }
 
     let index = 0;
     setBusyId("tree-collapse");
     const flushBatch = () => {
-      const nextIndex = Math.min(index + 40, openFolders.length);
+      const nextIndex = Math.min(
+        index + (FILE_TREE_LIMITS.collapseBatchSize || 48),
+        openFolders.length,
+      );
       for (; index < nextIndex; index += 1) {
         onToggleFolder?.(openFolders[index]);
       }
       if (index < openFolders.length) {
-        collapseFrameRef.current = window.requestAnimationFrame(flushBatch);
+        collapseFrameRef.current = requestFrame(flushBatch);
         return;
       }
       collapseFrameRef.current = 0;
       setBusyId(null);
     };
 
-    collapseFrameRef.current = window.requestAnimationFrame(flushBatch);
+    collapseFrameRef.current = requestFrame(flushBatch);
     setCreating(null);
     setRenamingId(null);
   }, [fileList, hasWorkspace, isLoading, onToggleFolder, refreshing]);
@@ -793,127 +776,34 @@ export default function FileExplorer({
     });
   }, []);
 
-  const treeItems = useMemo(() => {
-    const items = [];
-    const sectionCounts = new Map();
-
-    for (const row of model.rows) {
-      if (row.kind !== "node") continue;
-      const section = getFileSection(row);
-      if (!section) continue;
-      const current = sectionCounts.get(section.key) || { ...section, count: 0 };
-      current.count += 1;
-      sectionCounts.set(section.key, current);
-    }
-
-    if (creating?.parentId === null) {
-      items.push({
-        id: `creation:root:${creating.type}`,
-        kind: "creation",
-        depth: 0,
-        type: creating.type,
-        parentId: null,
-      });
-    }
-
-    const lastSectionByParent = new Map();
-
-    for (const row of model.rows) {
-      const section = row.kind === "node" ? getFileSection(row) : null;
-      if (section && lastSectionByParent.get(section.parentKey) !== section.key) {
-        const countedSection = sectionCounts.get(section.key) || { ...section, count: 1 };
-        items.push({
-          id: `section:${section.key}`,
-          kind: "section",
-          section: countedSection,
-        });
-        lastSectionByParent.set(section.parentKey, section.key);
-      }
-
-      items.push({
-        id: row.id,
-        kind: row.kind === "overflow" ? "overflow" : "node",
-        row,
-      });
-
-      if (creating?.parentId === row.node?.id) {
-        items.push({
-          id: `creation:${row.node.id}:${creating.type}`,
-          kind: "creation",
-          depth: row.depth + 1,
-          type: creating.type,
-          parentId: row.node.id,
-        });
-      }
-    }
-
-    return items;
-  }, [creating?.parentId, creating?.type, model.rows]);
+  const treeItems = useMemo(
+    () => createFileTreeItems(model.rows, { creating }),
+    [creating, model.rows],
+  );
 
   useEffect(() => {
     scheduleTreeViewportSync();
   }, [scheduleTreeViewportSync, treeItems.length]);
 
-  const virtualWindow = useMemo(() => {
-    const totalRows = treeItems.length;
-    const shouldVirtualize = totalRows > TREE_VIRTUALIZE_AFTER;
-
-    if (!shouldVirtualize) {
-      return {
-        isVirtualized: false,
-        items: treeItems.map((item, index) => ({
-          item,
-          index,
-          offsetY: index * TREE_ROW_HEIGHT,
-        })),
-        totalHeight: totalRows * TREE_ROW_HEIGHT,
-        startIndex: 0,
-        renderedRows: totalRows,
-        totalRows,
-      };
-    }
-
-    const viewportHeight = Math.max(treeViewport.height || 0, TREE_ROW_HEIGHT * 8);
-    const visibleCapacity = Math.ceil(viewportHeight / TREE_ROW_HEIGHT);
-    const renderCount = Math.min(
-      TREE_MAX_RENDERED_ROWS,
-      visibleCapacity + TREE_OVERSCAN_ROWS * 2,
-    );
-    const maxStartIndex = Math.max(0, totalRows - renderCount);
-    const startIndex = Math.max(
-      0,
-      Math.min(
-        maxStartIndex,
-        Math.floor(treeViewport.scrollTop / TREE_ROW_HEIGHT) - TREE_OVERSCAN_ROWS,
-      ),
-    );
-    const endIndex = Math.min(totalRows, startIndex + renderCount);
-
-    return {
-      isVirtualized: true,
-      items: treeItems.slice(startIndex, endIndex).map((item, offset) => {
-        const index = startIndex + offset;
-        return {
-          item,
-          index,
-          offsetY: index * TREE_ROW_HEIGHT,
-        };
-      }),
-      totalHeight: totalRows * TREE_ROW_HEIGHT,
-      startIndex,
-      renderedRows: endIndex - startIndex,
-      totalRows,
-    };
-  }, [treeItems, treeViewport.height, treeViewport.scrollTop]);
+  const virtualWindow = useMemo(
+    () => getFileTreeVirtualWindow(treeItems, treeViewport, FILE_TREE_LIMITS),
+    [treeItems, treeViewport],
+  );
 
   const visibleError = localError || error;
   const hasTreeItems = treeItems.length > 0;
-  const isInitialLoading = isLoading && !hasTreeItems;
-  const isRefreshingTree = (isLoading || refreshing) && hasTreeItems;
-  const isMissingWorkspace = !isLoading && !visibleError && !hasWorkspace && !creating;
-  const isEmpty = !isLoading && !visibleError && hasWorkspace && fileList.length === 0 && !creating;
-  const isSearchEmpty = !isLoading && !visibleError && fileList.length > 0 && model.rows.length === 0 && !creating;
-  const isErrorEmpty = !isLoading && Boolean(visibleError) && !hasTreeItems;
+  const displayState = getFileTreeDisplayState(model, {
+    hasWorkspace,
+    hasCreatingDraft: Boolean(creating),
+    isLoading: isLoading || refreshing,
+    error: visibleError,
+  });
+  const isInitialLoading = displayState.kind === "loading";
+  const isRefreshingTree = displayState.kind === "refreshing";
+  const isMissingWorkspace = displayState.kind === "missing-workspace";
+  const isEmpty = displayState.kind === "empty";
+  const isSearchEmpty = displayState.kind === "search-empty";
+  const isErrorEmpty = displayState.kind === "error";
   const isBounded = model.stats.hiddenByRowLimit > 0 || model.stats.hiddenByChildLimit > 0;
   const canEditTree = hasWorkspace && !isLoading && !refreshing;
   const treeLocked = isLoading || refreshing;

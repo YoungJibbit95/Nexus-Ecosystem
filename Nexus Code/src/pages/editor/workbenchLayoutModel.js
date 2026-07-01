@@ -1,1 +1,1 @@
-export * from "./workbenchDockModel";
+export * from "./workbenchDockModel.js";

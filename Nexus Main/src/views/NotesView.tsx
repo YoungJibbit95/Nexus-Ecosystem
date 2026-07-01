@@ -26,6 +26,7 @@ import {
   ListOrdered,
   Quote,
   Code,
+  Code2,
   Link,
   Download,
   Clock,
@@ -98,6 +99,14 @@ const MagicElementModal = lazy(() =>
 const MAX_RENDERED_LINE_NUMBERS = 4_000;
 const NOTES_IMPORT_INPUT_ID = "nx-notes-import-markdown";
 const NOTES_UI_STATE_KEY = "nx-notes-ui-state-v1";
+const SIDEBAR_TAG_COLLAPSED_COUNT = 8;
+type NotesFloatingMenuKind = "blocks" | "emoji";
+type NotesFloatingMenuPlacement = {
+  kind: NotesFloatingMenuKind;
+  left: number;
+  top: number;
+  width: number;
+};
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
 
@@ -171,6 +180,9 @@ export function NotesView() {
   const [notesHeaderMenuOpen, setNotesHeaderMenuOpen] = useState(false);
   const [notesBlocksMenuOpen, setNotesBlocksMenuOpen] = useState(false);
   const [notesEmojiMenuOpen, setNotesEmojiMenuOpen] = useState(false);
+  const [sidebarTagsExpanded, setSidebarTagsExpanded] = useState(false);
+  const [floatingMenuPlacement, setFloatingMenuPlacement] =
+    useState<NotesFloatingMenuPlacement | null>(null);
   const [emojiQuery, setEmojiQuery] = useState("");
   const [emojiCategory, setEmojiCategory] =
     useState<NotesEmojiCategoryId>("smileys");
@@ -180,6 +192,8 @@ export function NotesView() {
   const deferredSearchQuery = useDeferredValue(searchQuery);
   const deferredQuickSwitchQuery = useDeferredValue(quickSwitchQuery);
   const editorRef = useRef<HTMLTextAreaElement>(null);
+  const blocksTriggerRef = useRef<HTMLDivElement>(null);
+  const emojiTriggerRef = useRef<HTMLDivElement>(null);
   const quickSwitchInputRef = useRef<HTMLInputElement>(null);
   const lineNumbersRef = useRef<HTMLPreElement>(null);
   // Save selection before magic menu opens so we can restore it on insert
@@ -457,19 +471,72 @@ export function NotesView() {
     [active],
   );
 
+  const placeFloatingNotesMenu = useCallback(
+    (
+      kind: NotesFloatingMenuKind,
+      trigger: HTMLElement | null,
+      preferredWidth: number,
+      estimatedHeight: number,
+    ) => {
+      if (typeof window === "undefined" || !trigger) return;
+      const rect = trigger.getBoundingClientRect();
+      const margin = 12;
+      const width = Math.min(preferredWidth, window.innerWidth - margin * 2);
+      const left = Math.min(
+        Math.max(rect.left, margin),
+        Math.max(margin, window.innerWidth - width - margin),
+      );
+      const bottomTop = rect.bottom + 8;
+      const top =
+        bottomTop + estimatedHeight > window.innerHeight - margin
+          ? Math.max(margin, rect.top - estimatedHeight - 8)
+          : bottomTop;
+      setFloatingMenuPlacement({ kind, left, top, width });
+    },
+    [],
+  );
+
+  const repositionFloatingNotesMenu = useCallback(() => {
+    if (notesBlocksMenuOpen) {
+      placeFloatingNotesMenu("blocks", blocksTriggerRef.current, 172, 272);
+    } else if (notesEmojiMenuOpen) {
+      placeFloatingNotesMenu("emoji", emojiTriggerRef.current, 520, 520);
+    }
+  }, [notesBlocksMenuOpen, notesEmojiMenuOpen, placeFloatingNotesMenu]);
+
   // Save cursor position before magic menu opens
   const handleMagicOpen = () => {
     rememberEditorSelection();
     setNotesEmojiMenuOpen(false);
     setNotesBlocksMenuOpen(false);
+    setFloatingMenuPlacement(null);
     setShowMagic(true);
+  };
+
+  const handleBlocksMenuOpen = () => {
+    rememberEditorSelection();
+    setNotesEmojiMenuOpen(false);
+    setShowMagic(false);
+    const nextOpen = !notesBlocksMenuOpen;
+    setNotesBlocksMenuOpen(nextOpen);
+    if (nextOpen) {
+      placeFloatingNotesMenu("blocks", blocksTriggerRef.current, 172, 272);
+    } else {
+      setFloatingMenuPlacement(null);
+    }
   };
 
   const handleEmojiMenuOpen = () => {
     rememberEditorSelection();
-    setNotesEmojiMenuOpen((open) => !open);
     setNotesBlocksMenuOpen(false);
     setShowMagic(false);
+    const nextOpen = !notesEmojiMenuOpen;
+    setNotesEmojiMenuOpen(nextOpen);
+    if (nextOpen) {
+      placeFloatingNotesMenu("emoji", emojiTriggerRef.current, 520, 520);
+    } else {
+      setFloatingMenuPlacement(null);
+    }
   };
 
   useEffect(() => {
@@ -485,11 +552,13 @@ export function NotesView() {
       }
       setNotesEmojiMenuOpen(false);
       setNotesBlocksMenuOpen(false);
+      setFloatingMenuPlacement(null);
     };
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
       setNotesEmojiMenuOpen(false);
       setNotesBlocksMenuOpen(false);
+      setFloatingMenuPlacement(null);
     };
     window.addEventListener("mousedown", handleDismiss);
     window.addEventListener("keydown", handleEscape);
@@ -498,6 +567,17 @@ export function NotesView() {
       window.removeEventListener("keydown", handleEscape);
     };
   }, [notesBlocksMenuOpen, notesEmojiMenuOpen]);
+
+  useEffect(() => {
+    if (!notesEmojiMenuOpen && !notesBlocksMenuOpen) return;
+    const handleReposition = () => repositionFloatingNotesMenu();
+    window.addEventListener("resize", handleReposition);
+    window.addEventListener("scroll", handleReposition, true);
+    return () => {
+      window.removeEventListener("resize", handleReposition);
+      window.removeEventListener("scroll", handleReposition, true);
+    };
+  }, [notesBlocksMenuOpen, notesEmojiMenuOpen, repositionFloatingNotesMenu]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -613,6 +693,30 @@ export function NotesView() {
     notes.forEach((n) => n.tags.forEach((t) => set.add(t)));
     return Array.from(set);
   }, [notes]);
+  const hiddenSidebarTagCount = Math.max(
+    allTags.length - SIDEBAR_TAG_COLLAPSED_COUNT,
+    0,
+  );
+  const shouldShowSidebarTagToggle = hiddenSidebarTagCount > 0;
+  const visibleSidebarTags = useMemo(() => {
+    if (sidebarTagsExpanded || !shouldShowSidebarTagToggle) return allTags;
+    const collapsedTags = allTags.slice(0, SIDEBAR_TAG_COLLAPSED_COUNT);
+    if (
+      tagFilter &&
+      allTags.includes(tagFilter) &&
+      !collapsedTags.includes(tagFilter)
+    ) {
+      return [
+        ...collapsedTags.slice(0, SIDEBAR_TAG_COLLAPSED_COUNT - 1),
+        tagFilter,
+      ];
+    }
+    return collapsedTags;
+  }, [allTags, shouldShowSidebarTagToggle, sidebarTagsExpanded, tagFilter]);
+
+  useEffect(() => {
+    if (!shouldShowSidebarTagToggle) setSidebarTagsExpanded(false);
+  }, [shouldShowSidebarTagToggle]);
 
   const openQuickSwitch = useCallback(() => {
     setShowQuickSwitch(true);
@@ -1405,16 +1509,19 @@ export function NotesView() {
           {allTags.length > 0 && (
             <div
               className="nx-notes-sidebar-tags px-4 py-3 shrink-0 flex flex-wrap gap-1.5"
+              data-expanded={sidebarTagsExpanded ? "true" : "false"}
               style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}
             >
-              {allTags.slice(0, 8).map((tag) => (
+              {visibleSidebarTags.map((tag) => (
                 <InteractiveActionButton
                   key={tag}
+                  className="nx-notes-sidebar-tag-chip"
                   onClick={() => setTagFilter(tagFilter === tag ? null : tag)}
                   motionId={`notes-tag-filter-${tag}`}
                   selected={tagFilter === tag}
                   areaHint={52}
                   radius={20}
+                  title={`#${tag}`}
                   style={{
                     padding: "2px 8px",
                     borderRadius: 20,
@@ -1429,9 +1536,48 @@ export function NotesView() {
                     transition: "all 0.15s",
                   }}
                 >
-                  #{tag}
+                  <span className="nx-notes-sidebar-tag-label">#{tag}</span>
                 </InteractiveActionButton>
               ))}
+              {shouldShowSidebarTagToggle && (
+                <InteractiveActionButton
+                  className="nx-notes-sidebar-tags-toggle"
+                  onClick={() => setSidebarTagsExpanded((expanded) => !expanded)}
+                  motionId="notes-sidebar-tags-toggle"
+                  selected={sidebarTagsExpanded}
+                  areaHint={58}
+                  radius={20}
+                  aria-expanded={sidebarTagsExpanded}
+                  aria-label={
+                    sidebarTagsExpanded
+                      ? "Tags einklappen"
+                      : `${hiddenSidebarTagCount} weitere Tags anzeigen`
+                  }
+                  style={{
+                    padding: "2px 8px",
+                    borderRadius: 20,
+                    fontSize: 10,
+                    border: "none",
+                    cursor: "pointer",
+                    background: sidebarTagsExpanded
+                      ? `rgba(${rgb},0.18)`
+                      : "rgba(255,255,255,0.075)",
+                    color: sidebarTagsExpanded ? t.accent : "inherit",
+                    transition: "all 0.15s",
+                  }}
+                >
+                  {sidebarTagsExpanded ? "Weniger" : `+${hiddenSidebarTagCount} mehr`}
+                  <ChevronDown
+                    size={11}
+                    style={{
+                      transform: sidebarTagsExpanded
+                        ? "rotate(180deg)"
+                        : "rotate(0deg)",
+                      transition: "transform 0.15s ease",
+                    }}
+                  />
+                </InteractiveActionButton>
+              )}
             </div>
           )}
 
@@ -1723,8 +1869,9 @@ export function NotesView() {
                 },
                 {
                   icon: Search,
-                  tip: "Quick Switch (Ctrl/Cmd+P)",
-                  action: openQuickSwitch,
+                  tip: "Suche",
+                  action: () => setShowSearch((open) => !open),
+                  accent: showSearch,
                 },
                 {
                   icon: Copy,
@@ -2044,6 +2191,11 @@ export function NotesView() {
                 action={() => insertFormat("`", "`", "code")}
               />
               <FmtBtn
+                icon={Code2}
+                tooltip="Codeblock"
+                action={() => insertFormat("\n```text\n", "\n```\n", "code")}
+              />
+              <FmtBtn
                 icon={Link}
                 tooltip="Link (Ctrl+K)"
                 action={() => insertFormat("[", "](url)", "Text")}
@@ -2064,6 +2216,11 @@ export function NotesView() {
                 action={() => insertFormat("\n1. ", "", "Eintrag")}
               />
               <FmtBtn
+                icon={CheckSquare2}
+                tooltip="Checkliste"
+                action={() => insertFormat("\n- [ ] ", "", "Aufgabe")}
+              />
+              <FmtBtn
                 icon={Table}
                 tooltip="Tabelle"
                 action={() =>
@@ -2077,14 +2234,14 @@ export function NotesView() {
                 tooltip="Trennlinie"
                 action={() => insertFormat("\n---\n", "")}
               />
-              <div data-notes-popover-trigger="blocks" style={{ position: "relative" }}>
+              <div
+                ref={blocksTriggerRef}
+                data-notes-popover-trigger="blocks"
+                style={{ position: "relative" }}
+              >
                 <InteractiveActionButton
                   type="button"
-                  onClick={() => {
-                    setNotesBlocksMenuOpen((open) => !open);
-                    setNotesEmojiMenuOpen(false);
-                    setShowMagic(false);
-                  }}
+                  onClick={handleBlocksMenuOpen}
                   onMouseDown={(event) => {
                     event.preventDefault();
                     rememberEditorSelection();
@@ -2113,7 +2270,19 @@ export function NotesView() {
                 </InteractiveActionButton>
                 {notesBlocksMenuOpen && typeof document !== "undefined"
                   ? createPortal(
-                      <div className="nx-notes-blocks-menu" role="menu">
+                      <div
+                        className="nx-notes-blocks-menu"
+                        role="menu"
+                        style={
+                          floatingMenuPlacement?.kind === "blocks"
+                            ? {
+                                left: floatingMenuPlacement.left,
+                                top: floatingMenuPlacement.top,
+                                width: floatingMenuPlacement.width,
+                              }
+                            : undefined
+                        }
+                      >
                     {[
                       {
                         icon: Bell,
@@ -2172,6 +2341,7 @@ export function NotesView() {
                           onClick={() => {
                             entry.action();
                             setNotesBlocksMenuOpen(false);
+                            setFloatingMenuPlacement(null);
                           }}
                           motionId={`notes-block-${entry.label.toLowerCase()}`}
                           areaHint={64}
@@ -2209,7 +2379,11 @@ export function NotesView() {
                   )
                 }
               />
-              <div data-notes-popover-trigger="emoji" style={{ position: "relative" }}>
+              <div
+                ref={emojiTriggerRef}
+                data-notes-popover-trigger="emoji"
+                style={{ position: "relative" }}
+              >
                 <InteractiveActionButton
                   type="button"
                   onClick={handleEmojiMenuOpen}
@@ -2242,7 +2416,20 @@ export function NotesView() {
                 </InteractiveActionButton>
                 {notesEmojiMenuOpen && typeof document !== "undefined"
                   ? createPortal(
-                      <div className="nx-notes-emoji-menu" role="dialog" aria-label="Emoji Library">
+                      <div
+                        className="nx-notes-emoji-menu"
+                        role="dialog"
+                        aria-label="Emoji Library"
+                        style={
+                          floatingMenuPlacement?.kind === "emoji"
+                            ? {
+                                left: floatingMenuPlacement.left,
+                                top: floatingMenuPlacement.top,
+                                width: floatingMenuPlacement.width,
+                              }
+                            : undefined
+                        }
+                      >
                     <div className="nx-notes-emoji-menu-head">
                       <div>
                         <strong>Emoji Library</strong>
@@ -2253,7 +2440,10 @@ export function NotesView() {
                       </div>
                       <button
                         type="button"
-                        onClick={() => setNotesEmojiMenuOpen(false)}
+                        onClick={() => {
+                          setNotesEmojiMenuOpen(false);
+                          setFloatingMenuPlacement(null);
+                        }}
                         aria-label="Emoji-Menue schliessen"
                       >
                         <X size={12} />

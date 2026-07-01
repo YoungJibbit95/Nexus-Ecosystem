@@ -1153,14 +1153,16 @@ function buildPerformanceHints(settings = {}, visualProfileId, lspServers = [], 
 
 function SettingsHeader({ title, eyebrow, description, icon: Icon }) {
   return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+    <div className="nx-code-settings-header flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
       <div className="min-w-0">
-        <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-gray-500">
-          <Icon size={13} />
-          <span>{eyebrow}</span>
+        <div className="flex min-w-0 items-center gap-2 text-[10px] font-semibold uppercase leading-tight text-[var(--nexus-accent-2,#38bdf8)]">
+          <Icon size={13} className="shrink-0 opacity-80" />
+          <span className="min-w-0 break-words">{eyebrow}</span>
         </div>
-        <h2 className="mt-2 text-2xl font-semibold text-gray-100">{title}</h2>
-        <p className="mt-2 max-w-3xl text-sm leading-6 text-gray-500">
+        <h2 className="mt-1.5 break-words text-[1.55rem] font-semibold leading-tight text-gray-100 sm:text-[1.75rem]">
+          {title}
+        </h2>
+        <p className="mt-2 max-w-3xl break-words text-sm leading-6 text-gray-500">
           {description}
         </p>
       </div>
@@ -1171,19 +1173,22 @@ function SettingsHeader({ title, eyebrow, description, icon: Icon }) {
 function SettingsGroup({ title, description, children }) {
   return (
     <section
-      className="min-w-0 rounded-lg border p-4 sm:p-5"
+      className="nx-code-settings-group min-w-0 rounded-lg border px-3.5 py-3.5 sm:px-4 sm:py-4"
       style={{
-        background: "rgba(255,255,255,0.026)",
-        borderColor: "var(--nexus-border)",
+        background:
+          "linear-gradient(180deg, rgba(255,255,255,0.024), rgba(255,255,255,0.006)), rgba(0,0,0,0.16)",
+        borderColor: "rgba(156,178,226,0.075)",
       }}
     >
-      <div className="mb-4 flex flex-col gap-1">
-        <h3 className="text-sm font-semibold text-gray-200">{title}</h3>
+      <div className="mb-3 flex min-w-0 flex-col gap-1">
+        <h3 className="break-words text-sm font-semibold leading-tight text-gray-200">
+          {title}
+        </h3>
         {description ? (
-          <p className="text-xs leading-5 text-gray-500">{description}</p>
+          <p className="break-words text-xs leading-5 text-gray-500">{description}</p>
         ) : null}
       </div>
-      <div className="space-y-3">{children}</div>
+      <div className="space-y-2.5">{children}</div>
     </section>
   );
 }
@@ -1200,17 +1205,25 @@ function SettingRow({
   if (!isVisibleSetting(id, sectionId, searchQuery)) return null;
   return (
     <div
-      className={`flex min-w-0 flex-col gap-3 rounded-md border border-white/5 bg-white/[0.018] px-3 py-3 sm:flex-row sm:justify-between ${
+      className={`nx-code-settings-row min-w-0 rounded-md border px-3 py-3 ${
         compact ? "sm:items-center" : "sm:items-start"
       }`}
+      style={{
+        background: "rgba(255,255,255,0.014)",
+        borderColor: "rgba(156,178,226,0.055)",
+      }}
     >
-      <div className="min-w-0 flex-1 pr-0 sm:pr-3">
-        <NativeLabel className="block whitespace-normal leading-5 text-gray-300">{title}</NativeLabel>
+      <div className="min-w-0 flex-1">
+        <NativeLabel className="block whitespace-normal break-words leading-5 text-gray-300">
+          {title}
+        </NativeLabel>
         {description ? (
-          <p className="mt-1 text-xs leading-5 text-gray-500">{description}</p>
+          <p className="mt-1 break-words text-xs leading-5 text-gray-500">
+            {description}
+          </p>
         ) : null}
       </div>
-      <div className="min-w-0 w-full shrink-0 sm:w-auto sm:min-w-[12rem] sm:max-w-[22rem]">
+      <div className="nx-code-settings-control min-w-0 w-full shrink-0">
         {children}
       </div>
     </div>
@@ -1220,10 +1233,10 @@ function SettingRow({
 function ValueBadge({ children }) {
   return (
     <span
-      className="inline-flex min-w-12 justify-center rounded-md border px-2 py-1 text-[10px] font-semibold text-gray-300"
+      className="inline-flex min-w-12 justify-center rounded-md border px-2 py-1 text-[10px] font-semibold leading-tight text-gray-300"
       style={{
-        background: "rgba(255,255,255,0.04)",
-        borderColor: "rgba(255,255,255,0.08)",
+        background: "rgba(255,255,255,0.032)",
+        borderColor: "rgba(156,178,226,0.08)",
       }}
     >
       {children}
@@ -1244,22 +1257,23 @@ function SearchResultSummary({
 
   return (
     <section
-      className="rounded-lg border p-4"
+      className="nx-code-settings-group rounded-lg border p-4"
       style={{
-        background: "rgba(255,255,255,0.026)",
-        borderColor: "var(--nexus-border)",
+        background:
+          "linear-gradient(180deg, rgba(255,255,255,0.024), rgba(255,255,255,0.006)), rgba(0,0,0,0.16)",
+        borderColor: "rgba(156,178,226,0.075)",
       }}
     >
       <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
         <div className="min-w-0">
-          <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-widest text-gray-500">
+          <div className="flex min-w-0 items-center gap-2 text-[10px] font-semibold uppercase leading-tight text-gray-500">
             <Search size={13} />
-            <span>Result Hints</span>
+            <span className="min-w-0 break-words">Result Hints</span>
           </div>
-          <p className="mt-2 text-sm text-gray-300">
+          <p className="mt-2 break-words text-sm text-gray-300">
             {totalMatches} Treffer fuer "{query}"
           </p>
-          <p className="mt-1 text-xs leading-5 text-gray-500">
+          <p className="mt-1 break-words text-xs leading-5 text-gray-500">
             Oeffne einen Treffer direkt oder nutze die Kategorien links als gefilterte Karte.
           </p>
         </div>
@@ -1267,7 +1281,7 @@ function SearchResultSummary({
           {matchedSections.map((section) => (
             <span
               key={section.id}
-              className="rounded-md border px-2 py-1 text-[10px] font-medium text-gray-400"
+              className="rounded-md border px-2 py-1 text-[10px] font-medium leading-tight text-gray-400"
               style={{
                 background: "rgba(255,255,255,0.035)",
                 borderColor: "rgba(255,255,255,0.08)",
@@ -1284,21 +1298,21 @@ function SearchResultSummary({
             key={`${result.section}-${result.id}`}
             type="button"
             onClick={() => onOpenSetting(result)}
-            className="rounded-md border p-3 text-left transition-colors hover:bg-white/[0.045]"
+            className="min-w-0 rounded-md border p-3 text-left transition-colors hover:bg-white/[0.04]"
             style={{
               background: "rgba(255,255,255,0.018)",
               borderColor: "rgba(255,255,255,0.06)",
             }}
           >
-            <div className="flex items-center justify-between gap-3">
-              <span className="truncate text-xs font-semibold text-gray-200">
+            <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
+              <span className="min-w-0 break-words text-xs font-semibold text-gray-200">
                 {result.label}
               </span>
-              <span className="shrink-0 rounded bg-white/10 px-1.5 py-0.5 text-[10px] text-gray-500">
+              <span className="shrink-0 rounded border border-white/10 bg-white/[0.035] px-1.5 py-0.5 text-[10px] leading-tight text-gray-500">
                 {result.sectionLabel}
               </span>
             </div>
-            <p className="mt-1 line-clamp-2 text-[10px] leading-4 text-gray-500">
+            <p className="mt-1 break-words text-[10px] leading-4 text-gray-500">
               {result.description}
             </p>
           </button>
@@ -1314,7 +1328,7 @@ function ThemeTokenGrid({ tokens }) {
       {tokens.map((token) => (
         <div
           key={token.varName}
-          className="flex min-w-0 items-center gap-2 rounded-md border px-2.5 py-2"
+          className="flex min-w-0 flex-wrap items-center gap-2 rounded-md border px-2.5 py-2"
           style={{
             background: "rgba(255,255,255,0.018)",
             borderColor: "rgba(255,255,255,0.06)",
@@ -1324,15 +1338,15 @@ function ThemeTokenGrid({ tokens }) {
             className="h-6 w-6 shrink-0 rounded-md border border-white/10"
             style={{ background: token.value }}
           />
-          <div className="min-w-0">
-            <div className="truncate text-xs font-medium text-gray-300">
+          <div className="min-w-0 flex-1">
+            <div className="break-words text-xs font-medium text-gray-300">
               {token.label}
             </div>
-            <code className="block truncate text-[10px] text-gray-500">
+            <code className="block break-all text-[10px] text-gray-500">
               {token.varName}
             </code>
           </div>
-          <code className="ml-auto max-w-[7rem] shrink-0 truncate text-[10px] text-gray-500">
+          <code className="max-w-full break-all text-[10px] text-gray-500 sm:ml-auto sm:max-w-[8rem] sm:shrink-0">
             {token.value}
           </code>
         </div>
@@ -1347,7 +1361,7 @@ function PerformanceHintList({ hints }) {
       {hints.map((hint) => (
         <div
           key={`${hint.title}-${hint.text}`}
-          className="flex gap-3 rounded-md border px-3 py-2.5"
+          className="flex min-w-0 gap-3 rounded-md border px-3 py-2.5"
           style={{
             background:
               hint.tone === "warn"
@@ -1365,10 +1379,10 @@ function PerformanceHintList({ hints }) {
         >
           <Info size={14} className="mt-0.5 shrink-0 text-gray-400" />
           <div className="min-w-0">
-            <div className="text-xs font-semibold text-gray-200">
+            <div className="break-words text-xs font-semibold text-gray-200">
               {hint.title}
             </div>
-            <p className="mt-0.5 text-[10px] leading-4 text-gray-500">
+            <p className="mt-0.5 break-words text-[10px] leading-4 text-gray-500">
               {hint.text}
             </p>
           </div>
@@ -1400,19 +1414,22 @@ function VisualBudgetCard({ summary }) {
 
   return (
     <section
-      className="rounded-lg border p-4"
+      className="nx-code-settings-group rounded-lg border p-4"
       style={{
-        background: toneStyles.background,
+        background:
+          summary.tone === "warn" || summary.tone === "good"
+            ? toneStyles.background
+            : "linear-gradient(180deg, rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.045), rgba(255,255,255,0.006)), rgba(0,0,0,0.16)",
         borderColor: toneStyles.borderColor,
       }}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-gray-500">
+          <div className="flex min-w-0 items-center gap-2 text-[10px] font-semibold uppercase leading-tight text-gray-500">
             <Gauge size={13} />
-            Visual Budget
+            <span className="min-w-0 break-words">Visual Budget</span>
           </div>
-          <div className="mt-2 text-sm font-semibold text-gray-100">
+          <div className="mt-2 break-words text-sm font-semibold text-gray-100">
             {summary.tier}
           </div>
         </div>
@@ -1434,13 +1451,13 @@ function VisualBudgetCard({ summary }) {
             className="min-w-0 rounded-md border border-white/5 bg-black/10 px-2.5 py-2 text-[10px]"
           >
             <div className="flex min-w-0 items-center justify-between gap-2">
-              <span className="font-semibold text-gray-400">{category.label}</span>
-              <span className={category.hot ? "font-semibold text-amber-200" : "text-gray-300"}>
+              <span className="min-w-0 break-words font-semibold text-gray-400">{category.label}</span>
+              <span className={category.hot ? "shrink-0 font-semibold text-amber-200" : "shrink-0 text-gray-300"}>
                 {category.rating}
               </span>
             </div>
-            <div className="mt-1 flex min-w-0 items-center justify-between gap-2 text-gray-500">
-              <span className="truncate">{category.detail}</span>
+            <div className="mt-1 flex min-w-0 flex-wrap items-center justify-between gap-2 text-gray-500">
+              <span className="min-w-0 break-words">{category.detail}</span>
               <span className="shrink-0 text-gray-400">{category.value}</span>
             </div>
           </div>
@@ -1450,10 +1467,10 @@ function VisualBudgetCard({ summary }) {
         {summary.recommendations.map((recommendation) => (
           <div
             key={recommendation}
-            className="flex gap-2 rounded-md bg-black/10 px-2.5 py-1.5 text-[10px] leading-4 text-gray-400"
+            className="flex min-w-0 gap-2 rounded-md bg-black/10 px-2.5 py-1.5 text-[10px] leading-4 text-gray-400"
           >
             <Zap size={11} className="mt-0.5 shrink-0 text-gray-500" />
-            <span>{recommendation}</span>
+            <span className="min-w-0 break-words">{recommendation}</span>
           </div>
         ))}
       </div>
@@ -1464,11 +1481,11 @@ function VisualBudgetCard({ summary }) {
 function LowPowerFallbackPanel({ state, onApply, onRestore }) {
   return (
     <section
-      className="rounded-lg border p-4"
+      className="nx-code-settings-group rounded-lg border p-4"
       style={{
         background: state.active
-          ? "rgba(34,197,94,0.07)"
-          : "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.06)",
+          ? "rgba(34,197,94,0.055)"
+          : "linear-gradient(180deg, rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.042), rgba(255,255,255,0.006)), rgba(0,0,0,0.16)",
         borderColor: state.active
           ? "rgba(34,197,94,0.16)"
           : "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.16)",
@@ -1476,14 +1493,14 @@ function LowPowerFallbackPanel({ state, onApply, onRestore }) {
     >
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-gray-500">
+          <div className="flex min-w-0 items-center gap-2 text-[10px] font-semibold uppercase leading-tight text-gray-500">
             <Cpu size={13} />
-            Low Power
+            <span className="min-w-0 break-words">Low Power</span>
           </div>
-          <h3 className="mt-2 text-sm font-semibold text-gray-100">
+          <h3 className="mt-2 break-words text-sm font-semibold text-gray-100">
             {state.title}
           </h3>
-          <p className="mt-1 max-w-xl text-xs leading-5 text-gray-500">
+          <p className="mt-1 max-w-xl break-words text-xs leading-5 text-gray-500">
             {state.text}
           </p>
         </div>
@@ -1491,7 +1508,7 @@ function LowPowerFallbackPanel({ state, onApply, onRestore }) {
           <button
             type="button"
             onClick={onApply}
-            className="inline-flex h-8 items-center gap-2 rounded-md border px-3 text-xs font-semibold text-gray-100"
+            className="inline-flex min-h-8 min-w-0 items-center gap-2 rounded-md border px-3 py-1.5 text-xs font-semibold leading-tight text-gray-100"
             style={{
               background: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.14)",
               borderColor: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.28)",
@@ -1503,7 +1520,7 @@ function LowPowerFallbackPanel({ state, onApply, onRestore }) {
           <button
             type="button"
             onClick={onRestore}
-            className="inline-flex h-8 items-center gap-2 rounded-md border border-white/10 bg-white/[0.03] px-3 text-xs font-semibold text-gray-300"
+            className="inline-flex min-h-8 min-w-0 items-center gap-2 rounded-md border border-white/10 bg-white/[0.025] px-3 py-1.5 text-xs font-semibold leading-tight text-gray-300"
           >
             <RefreshCcw size={13} />
             Balanced
@@ -1514,7 +1531,7 @@ function LowPowerFallbackPanel({ state, onApply, onRestore }) {
         {state.reasons.map((reason) => (
           <span
             key={reason}
-            className="rounded-full border border-white/10 bg-black/10 px-2 py-1 text-[10px] text-gray-400"
+            className="rounded-full border border-white/10 bg-black/10 px-2 py-1 text-[10px] leading-tight text-gray-400"
           >
             {reason}
           </span>
@@ -1542,7 +1559,7 @@ function ColorControl({ value, fallback, onChange, label }) {
       ? current
       : fallback;
   return (
-    <div className="flex w-full min-w-0 items-center gap-2 sm:min-w-[14rem]">
+    <div className="flex w-full min-w-0 items-center gap-2">
       <input
         aria-label={label}
         type="color"
@@ -1555,8 +1572,8 @@ function ColorControl({ value, fallback, onChange, label }) {
         onChange={(event) => onChange(event.target.value)}
         className="h-9 w-full min-w-0 bg-white/5 font-mono text-gray-300"
         style={{
-          background: "var(--nexus-input-surface, rgba(255,255,255,0.05))",
-          border: "1px solid rgba(255,255,255,0.1)",
+          background: "var(--nexus-input-surface, rgba(255,255,255,0.04))",
+          border: "1px solid rgba(156,178,226,0.1)",
         }}
       />
       {value ? (
@@ -1564,7 +1581,7 @@ function ColorControl({ value, fallback, onChange, label }) {
           type="button"
           title="Preset-Wert verwenden"
           onClick={() => onChange(null)}
-          className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/[0.03] text-gray-500 transition-colors hover:bg-white/[0.06] hover:text-gray-300"
+          className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/[0.025] text-gray-500 transition-colors hover:bg-white/[0.052] hover:text-gray-300"
         >
           <X size={13} />
         </button>
@@ -1627,40 +1644,40 @@ function ThemeEditorUtilityPanel({
           <button
             type="button"
             onClick={onApplyBalancedVisuals}
-            className="inline-flex h-9 min-w-0 items-center justify-center gap-2 rounded-md border border-white/10 bg-white/[0.03] px-3 text-xs font-semibold text-gray-300 transition-colors hover:bg-white/[0.055]"
+            className="inline-flex min-h-9 min-w-0 items-center justify-center gap-2 rounded-md border border-white/10 bg-white/[0.025] px-3 py-1.5 text-xs font-semibold leading-tight text-gray-300 transition-colors hover:bg-white/[0.05]"
           >
             <Gauge size={13} />
-            <span className="truncate">Balanced</span>
+            <span className="min-w-0 break-words text-center">Balanced</span>
           </button>
           <button
             type="button"
             onClick={onApplyLowPower}
-            className="inline-flex h-9 min-w-0 items-center justify-center gap-2 rounded-md border border-white/10 bg-white/[0.03] px-3 text-xs font-semibold text-gray-300 transition-colors hover:bg-white/[0.055]"
+            className="inline-flex min-h-9 min-w-0 items-center justify-center gap-2 rounded-md border border-white/10 bg-white/[0.025] px-3 py-1.5 text-xs font-semibold leading-tight text-gray-300 transition-colors hover:bg-white/[0.05]"
           >
             <Cpu size={13} />
-            <span className="truncate">Low Power</span>
+            <span className="min-w-0 break-words text-center">Low Power</span>
           </button>
           <button
             type="button"
             onClick={onCopyJson}
-            className="inline-flex h-9 min-w-0 items-center justify-center gap-2 rounded-md border px-3 text-xs font-semibold text-gray-100 transition-colors hover:bg-white/[0.055]"
+            className="inline-flex min-h-9 min-w-0 items-center justify-center gap-2 rounded-md border px-3 py-1.5 text-xs font-semibold leading-tight text-gray-100 transition-colors hover:bg-white/[0.05]"
             style={{
-              background: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.12)",
-              borderColor: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.26)",
+              background: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.095)",
+              borderColor: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.22)",
             }}
           >
             <Clipboard size={13} />
-            <span className="truncate">
+            <span className="min-w-0 break-words text-center">
               {copyStatus === "copied" ? "Kopiert" : copyStatus === "failed" ? "Fehler" : "Copy JSON"}
             </span>
           </button>
           <button
             type="button"
             onClick={onResetThemeEditor}
-            className="inline-flex h-9 min-w-0 items-center justify-center gap-2 rounded-md border border-white/10 bg-white/[0.03] px-3 text-xs font-semibold text-gray-300 transition-colors hover:bg-white/[0.055]"
+            className="inline-flex min-h-9 min-w-0 items-center justify-center gap-2 rounded-md border border-white/10 bg-white/[0.025] px-3 py-1.5 text-xs font-semibold leading-tight text-gray-300 transition-colors hover:bg-white/[0.05]"
           >
             <RefreshCcw size={13} />
-            <span className="truncate">Reset Design</span>
+            <span className="min-w-0 break-words text-center">Reset Design</span>
           </button>
           <div className="rounded-md border border-white/5 bg-black/10 px-2.5 py-2 text-[10px] leading-4 text-gray-500 sm:col-span-2 lg:col-span-1">
             JSON {exportSize}; Accent {primaryAccent}; Secondary {secondaryAccent}
@@ -1684,27 +1701,27 @@ function PresetButton({
       whileHover={shouldReduceMotion ? undefined : { y: -2 }}
       whileTap={shouldReduceMotion ? undefined : { scale: 0.99 }}
       onClick={onClick}
-      className="group min-w-0 rounded-lg border p-3 text-left transition-colors"
+      className="group min-w-0 rounded-md border p-3 text-left transition-colors"
       style={{
         background: active
-          ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.12)"
-          : "rgba(255,255,255,0.025)",
+          ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.095)"
+          : "rgba(255,255,255,0.018)",
         borderColor: active
-          ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.32)"
-          : "rgba(255,255,255,0.07)",
+          ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.26)"
+          : "rgba(156,178,226,0.065)",
         boxShadow: active
-          ? "0 12px 26px rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.1)"
+          ? "0 12px 26px rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.065)"
           : "none",
       }}
     >
       <div className="flex min-w-0 items-center justify-between gap-2">
-        <span className="truncate text-xs font-semibold text-gray-200">
+        <span className="min-w-0 break-words text-xs font-semibold leading-tight text-gray-200">
           {title}
         </span>
         {active ? <Check size={13} style={{ color: "var(--nexus-primary)" }} /> : null}
       </div>
       {description ? (
-        <p className="mt-1 line-clamp-2 text-[10px] leading-4 text-gray-500">
+        <p className="mt-1 break-words text-[10px] leading-4 text-gray-500">
           {description}
         </p>
       ) : null}
@@ -1733,11 +1750,11 @@ function WorkbenchSegmentedControl({
 }) {
   return (
     <div className="min-w-0">
-      <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-gray-500">
+      <div className="mb-1.5 break-words text-[10px] font-semibold uppercase leading-tight text-gray-500">
         {label}
       </div>
       <div
-        className="grid h-9 min-w-0 overflow-hidden rounded-md border border-white/10 bg-white/[0.03]"
+        className="grid min-h-9 min-w-0 overflow-hidden rounded-md border border-white/10 bg-white/[0.025]"
         style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}
         role="group"
         aria-label={label}
@@ -1752,13 +1769,13 @@ function WorkbenchSegmentedControl({
               onClick={() => onChange?.(option.id)}
               aria-pressed={isActive}
               title={option.title || option.label}
-              className={`min-w-0 px-2 text-[10px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-45 ${
+              className={`min-w-0 px-2 py-1.5 text-[10px] font-semibold leading-tight transition-colors disabled:cursor-not-allowed disabled:opacity-45 ${
                 isActive
                   ? "bg-white/12 text-white"
                   : "text-[var(--nexus-muted)] hover:bg-white/[0.07] hover:text-gray-200"
               }`}
             >
-              <span className="block truncate">{getOptionLabel(option)}</span>
+              <span className="block min-w-0 break-words">{getOptionLabel(option)}</span>
             </button>
           );
         })}
@@ -1817,13 +1834,13 @@ function WorkbenchQuickActions({
       </div>
 
       <div className="grid grid-cols-1 gap-3 xl:grid-cols-[1fr_auto]">
-        <div className="min-w-0 rounded-md border border-white/5 bg-white/[0.018] p-3">
+        <div className="min-w-0 rounded-md border border-white/5 bg-white/[0.014] p-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="min-w-0">
-              <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-gray-500">
+              <div className="break-words text-[10px] font-semibold uppercase leading-tight text-gray-500">
                 Docking
               </div>
-              <div className="mt-1 truncate text-xs font-semibold text-gray-200">
+              <div className="mt-1 break-words text-xs font-semibold text-gray-200">
                 {activePanelLabel || activePanelId || "Explorer"}
               </div>
             </div>
@@ -1857,8 +1874,8 @@ function WorkbenchQuickActions({
                 key={`${zone}-summary`}
                 className="min-w-0 rounded-md border border-white/5 bg-black/10 px-2 py-1.5"
               >
-                <div className="truncate font-semibold text-gray-400">{label}</div>
-                <div className="truncate">{getZonePanelSummary(normalizedLayout, zone)}</div>
+                <div className="break-words font-semibold text-gray-400">{label}</div>
+                <div className="break-words">{getZonePanelSummary(normalizedLayout, zone)}</div>
               </div>
             ))}
           </div>
@@ -1868,7 +1885,7 @@ function WorkbenchQuickActions({
           type="button"
           disabled={!onResetLayout}
           onClick={onResetLayout}
-          className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-white/10 bg-white/[0.03] px-3 text-xs font-semibold text-gray-300 transition-colors hover:bg-white/[0.055] disabled:cursor-not-allowed disabled:opacity-45 xl:w-32"
+          className="inline-flex min-h-10 min-w-0 items-center justify-center gap-2 rounded-md border border-white/10 bg-white/[0.025] px-3 py-1.5 text-xs font-semibold leading-tight text-gray-300 transition-colors hover:bg-white/[0.05] disabled:cursor-not-allowed disabled:opacity-45 xl:w-32"
           title="Workbench Layout zuruecksetzen"
         >
           <RefreshCcw size={13} />
@@ -1917,22 +1934,23 @@ function ThemePreview({
     <motion.div
       initial={shouldReduceMotion ? false : { opacity: 0, y: 8 }}
       animate={shouldReduceMotion ? undefined : { opacity: 1, y: 0 }}
-      className="overflow-hidden rounded-lg border"
+      className="nx-code-settings-preview overflow-hidden rounded-lg border"
       style={{
         borderRadius: radius,
-        background: "rgba(255,255,255,0.026)",
-        borderColor: "var(--nexus-border)",
+        background:
+          "linear-gradient(180deg, rgba(255,255,255,0.024), rgba(255,255,255,0.006)), rgba(0,0,0,0.18)",
+        borderColor: "rgba(156,178,226,0.08)",
         boxShadow: previewShadow,
       }}
     >
       <div
         className="flex flex-wrap items-center justify-between gap-3 border-b border-white/5 px-4 py-3"
         style={{
-          background: `linear-gradient(135deg, rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.14), rgba(var(--nexus-accent-2-rgb, 45, 212, 191), 0.06))`,
+          background: `linear-gradient(135deg, rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.09), rgba(var(--nexus-accent-2-rgb, 45, 212, 191), 0.04))`,
           backdropFilter: blurStrength > 0 ? `blur(${Math.min(12, blurStrength)}px)` : "none",
         }}
       >
-        <div className="flex items-center gap-2">
+        <div className="flex min-w-0 items-center gap-2">
           <span
             className="h-2.5 w-2.5 rounded-full"
             style={{ background: primaryAccent }}
@@ -1941,7 +1959,7 @@ function ThemePreview({
             className="h-2.5 w-2.5 rounded-full"
             style={{ background: secondaryAccent }}
           />
-          <span className="ml-1 text-xs font-semibold text-gray-300">
+          <span className="ml-1 min-w-0 break-words text-xs font-semibold text-gray-300">
             settings.preview.tsx
           </span>
         </div>
@@ -1963,7 +1981,7 @@ function ThemePreview({
             ))}
           </div>
         ) : null}
-        <div className="grid min-w-0 flex-1 grid-cols-[3.5rem_1fr]">
+        <div className="grid min-w-0 flex-1 grid-cols-[3rem_minmax(0,1fr)] sm:grid-cols-[3.5rem_minmax(0,1fr)]">
           <div className="border-r border-white/5 px-3 py-4 text-right font-mono text-[11px] leading-6 text-gray-600">
             <div>1</div>
             <div>2</div>
@@ -1992,7 +2010,7 @@ function ThemePreview({
               <span style={{ color: "var(--nexus-number)" }}>{glowIntensity}</span>
               <span style={{ color: "var(--nexus-text)" }}>)</span>;
             </div>
-            <div className="flex items-center gap-1 text-gray-500">
+            <div className="flex min-w-0 flex-wrap items-center gap-1 text-gray-500">
               <span>// cursor</span>
               <span
                 className={`${cursorShape} inline-block rounded-sm`}
@@ -2000,7 +2018,7 @@ function ThemePreview({
               />
               <span>{cursorStyle}</span>
             </div>
-            <div className="text-gray-500">
+            <div className="break-words text-gray-500">
               // blur {blurStrength}px, radius {radius}px, letter {formatSettingNumber(letterSpacing, 2)}px
             </div>
             <div
@@ -2012,7 +2030,7 @@ function ThemePreview({
             >
               <div className="flex min-w-0 items-center gap-2">
                 <Search size={13} className="shrink-0 text-gray-500" />
-                <span className="truncate text-gray-400">Settings suchen: input surface, glow, low power</span>
+                <span className="min-w-0 break-words text-gray-400">Settings suchen: input surface, glow, low power</span>
               </div>
             </div>
             <div className="mt-3 grid grid-cols-2 gap-2 font-sans text-[10px] text-gray-500 lg:grid-cols-4">
@@ -2021,7 +2039,7 @@ function ThemePreview({
                   key={category.id}
                   className="rounded-md border border-white/5 bg-black/10 px-2 py-1.5"
                 >
-                  <div className="font-semibold text-gray-300">{category.label}</div>
+                  <div className="break-words font-semibold text-gray-300">{category.label}</div>
                   <div className={category.hot ? "text-amber-200" : "text-gray-500"}>
                     {category.rating} / {category.value}
                   </div>
@@ -2043,7 +2061,7 @@ function ThemePreview({
         ) : null}
       </div>
       {statusVisible ? (
-        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-white/5 px-4 py-2 text-[10px] text-gray-500">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-white/5 px-4 py-2 text-[10px] leading-tight text-gray-500">
           <span>main.tsx</span>
           <span>Surface {surfaceHex}</span>
           <span>Input {inputSurface}</span>
@@ -2346,20 +2364,21 @@ export default function SettingsPanel({
   const renderLspServers = () =>
     lspServers.length > 0 ? (
       <div
-        className="rounded-md border p-3"
+        className="nx-code-settings-group rounded-md border p-3"
         style={{
-          background: "rgba(255,255,255,0.025)",
-          borderColor: "var(--nexus-border)",
+          background:
+            "linear-gradient(180deg, rgba(255,255,255,0.022), rgba(255,255,255,0.006)), rgba(0,0,0,0.14)",
+          borderColor: "rgba(156,178,226,0.075)",
         }}
       >
-        <div className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-gray-500">
+        <div className="mb-2 break-words text-[10px] font-semibold uppercase leading-tight text-gray-500">
           LSP Tools
         </div>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           {lspServers.map((server) => (
             <div
               key={server.languageId}
-              className="flex items-center justify-between gap-2 rounded-md px-2 py-1.5"
+              className="flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-md px-2 py-1.5"
               style={{
                 background: server.available
                   ? "rgba(34,197,94,0.08)"
@@ -2374,7 +2393,7 @@ export default function SettingsPanel({
                   : `${server.envName} installieren oder setzen`
               }
             >
-              <span className="min-w-0 truncate text-xs text-gray-300">
+              <span className="min-w-0 break-words text-xs text-gray-300">
                 {server.languageId}
               </span>
               <span
@@ -2395,46 +2414,48 @@ export default function SettingsPanel({
       initial={shouldReduceMotion ? false : { opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={motionTransition}
-      className="nx-code-settings-panel flex-1 flex overflow-hidden rounded-xl sm:rounded-2xl border border-white/5 min-w-0"
+      className="nx-code-settings-panel flex-1 flex overflow-hidden rounded-xl border border-white/5 min-w-0"
       style={{
         ...scopedThemeVars,
-        background: "var(--nexus-panel-surface)",
-        backdropFilter: "var(--nexus-settings-filter, blur(8px) saturate(115%))",
+        background:
+          "radial-gradient(circle at 14% 0%, rgba(var(--nexus-primary-rgb), 0.04), transparent 22rem), linear-gradient(180deg, rgba(255,255,255,0.024), rgba(255,255,255,0.006)), var(--nexus-panel-surface)",
+        backdropFilter: "var(--nexus-settings-filter, blur(12px) saturate(110%))",
         WebkitBackdropFilter:
-          "var(--nexus-settings-filter, blur(8px) saturate(115%))",
-        borderColor: "var(--nexus-border)",
-        borderRadius: `min(18px, ${Math.max(10, radius + 6)}px)`,
+          "var(--nexus-settings-filter, blur(12px) saturate(110%))",
+        borderColor: "rgba(156,178,226,0.095)",
+        borderRadius: `min(16px, ${Math.max(10, radius + 5)}px)`,
       }}
     >
       <motion.aside
         initial={shouldReduceMotion ? false : { x: -220, opacity: 0 }}
         animate={shouldReduceMotion ? undefined : { x: 0, opacity: 1 }}
         transition={motionTransition}
-        className="nx-code-settings-nav flex w-48 shrink-0 flex-col overflow-y-auto p-3 sm:w-60 sm:p-4"
+        className="nx-code-settings-nav flex w-48 shrink-0 flex-col overflow-y-auto p-3 sm:w-56 sm:p-3.5"
         style={{
-          background: "var(--nexus-sidebar)",
-          borderRight: "1px solid var(--nexus-border)",
+          background:
+            "linear-gradient(180deg, rgba(255,255,255,0.018), rgba(255,255,255,0.004)), var(--nexus-sidebar)",
+          borderRight: "1px solid rgba(156,178,226,0.075)",
         }}
       >
         <button
           type="button"
           onClick={onClose}
-          className="mb-5 flex items-center gap-2 text-gray-400 transition-colors hover:text-gray-200"
+          className="mb-4 flex min-w-0 items-center gap-2 rounded-md px-2 py-1.5 text-gray-400 transition-colors hover:bg-white/[0.035] hover:text-gray-200"
         >
           <ArrowLeft size={16} />
-          <span className="text-sm">Zurueck</span>
+          <span className="min-w-0 break-words text-sm">Zurueck</span>
         </button>
 
         <div className="mb-4">
           <div className="flex items-center justify-between gap-2">
-            <span className="truncate text-xs font-semibold uppercase tracking-widest text-gray-500">
+            <span className="min-w-0 break-words text-xs font-semibold uppercase leading-tight text-gray-500">
               Einstellungen
             </span>
             <button
               type="button"
               onClick={onResetSettings}
               title="Alles zuruecksetzen"
-              className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-red-400/70 transition-colors hover:bg-red-500/10 hover:text-red-300"
+              className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-transparent text-red-400/70 transition-colors hover:border-red-300/10 hover:bg-red-500/10 hover:text-red-300"
             >
               <RefreshCcw size={13} />
             </button>
@@ -2448,7 +2469,7 @@ export default function SettingsPanel({
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
               placeholder="Settings suchen"
-              className="h-9 w-full rounded-md border border-white/10 bg-white/[0.035] pl-8 pr-8 text-xs text-gray-200 outline-none transition-colors placeholder:text-gray-600 focus:border-[rgba(var(--nexus-primary-rgb),0.45)]"
+              className="h-9 w-full rounded-md border border-white/10 bg-white/[0.026] pl-8 pr-8 text-xs text-gray-200 outline-none transition-colors placeholder:text-gray-600 focus:border-[rgba(var(--nexus-primary-rgb),0.38)]"
             />
             {searchQuery ? (
               <button
@@ -2462,7 +2483,7 @@ export default function SettingsPanel({
             ) : null}
           </div>
           {searchTerm ? (
-            <div className="mt-2 text-[10px] text-gray-500">
+            <div className="mt-2 break-words text-[10px] leading-tight text-gray-500">
               {totalMatches} Treffer in {visibleSectionIds.length} Kategorien
             </div>
           ) : null}
@@ -2493,7 +2514,7 @@ export default function SettingsPanel({
                 className="relative flex w-full min-w-0 items-center gap-2.5 rounded-md px-2.5 py-2 text-left"
                 style={{
                   background: isActive
-                    ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.12)"
+                    ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.095)"
                     : "transparent",
                   color: disabledBySearch
                     ? "#4b5563"
@@ -2515,9 +2536,9 @@ export default function SettingsPanel({
                   />
                 ) : null}
                 <Icon size={16} className="shrink-0" />
-                <span className="min-w-0 flex-1 truncate text-sm">{section.label}</span>
+                <span className="min-w-0 flex-1 break-words text-sm leading-tight">{section.label}</span>
                 {searchTerm && count > 0 ? (
-                  <span className="rounded-full bg-white/10 px-1.5 py-0.5 text-[10px]">
+                  <span className="rounded-full border border-white/10 bg-white/[0.035] px-1.5 py-0.5 text-[10px] leading-tight">
                     {count}
                   </span>
                 ) : null}
@@ -2532,7 +2553,7 @@ export default function SettingsPanel({
         initial={shouldReduceMotion ? false : { opacity: 0, x: 18 }}
         animate={shouldReduceMotion ? undefined : { opacity: 1, x: 0 }}
         transition={motionTransition}
-        className="nx-code-settings-content min-w-0 flex-1 overflow-y-auto p-4 sm:p-6 xl:p-8"
+        className="nx-code-settings-content min-w-0 flex-1 overflow-y-auto p-4 sm:p-5 xl:p-6"
       >
         {searchTerm && visibleSectionIds.length === 0 ? (
           <div className="flex h-full min-h-[22rem] items-center justify-center">
@@ -2541,14 +2562,14 @@ export default function SettingsPanel({
               <h2 className="mt-4 text-lg font-semibold text-gray-300">
                 Keine Settings gefunden
               </h2>
-              <p className="mt-2 text-sm leading-6 text-gray-500">
+              <p className="mt-2 break-words text-sm leading-6 text-gray-500">
                 Probiere Begriffe wie Font, Glow, Diagnostics, Workbench oder
                 Motion.
               </p>
             </div>
           </div>
         ) : (
-          <div className="space-y-8">
+          <div className="space-y-6">
             {!searchTerm ? (
               <SettingsHeader
                 title={activeMeta.label}
@@ -3658,18 +3679,18 @@ export default function SettingsPanel({
               </section>
             ))}
 
-            <div className="grid grid-cols-1 gap-3 border-t border-white/5 pt-5 text-xs text-gray-500 sm:grid-cols-3">
-              <div className="flex items-center gap-2">
+            <div className="grid grid-cols-1 gap-3 border-t border-white/5 pt-5 text-xs leading-tight text-gray-500 sm:grid-cols-3">
+              <div className="flex min-w-0 items-center gap-2">
                 <Settings2 size={14} />
-                Storage: bestehende Nexus-Code-Pipeline
+                <span className="min-w-0 break-words">Storage: bestehende Nexus-Code-Pipeline</span>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex min-w-0 items-center gap-2">
                 <Cpu size={14} />
-                Profil: {visualProfileId}
+                <span className="min-w-0 break-words">Profil: {visualProfileId}</span>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex min-w-0 items-center gap-2">
                 <Eye size={14} />
-                Motion: {shouldReduceMotion ? "reduziert" : "aktiv"}
+                <span className="min-w-0 break-words">Motion: {shouldReduceMotion ? "reduziert" : "aktiv"}</span>
               </div>
             </div>
           </div>

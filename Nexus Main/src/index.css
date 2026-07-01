@@ -3503,11 +3503,13 @@ body {
 }
 
 .nx-notes-blocks-menu {
-    position: absolute;
-    left: 0;
-    top: calc(100% + 6px);
-    z-index: 9000;
+    position: fixed;
+    left: 12px;
+    top: 56px;
+    z-index: 12000;
     min-width: 148px;
+    max-height: min(360px, calc(100dvh - 96px));
+    overflow: auto;
     padding: 5px;
     border-radius: 12px;
     border: 1px solid rgba(255, 255, 255, 0.12);
@@ -3518,10 +3520,10 @@ body {
 }
 
 .nx-notes-emoji-menu {
-    position: absolute;
-    left: 0;
-    top: calc(100% + 6px);
-    z-index: 9100;
+    position: fixed;
+    left: 12px;
+    top: 56px;
+    z-index: 12100;
     width: min(520px, calc(100vw - 36px));
     max-height: min(560px, calc(100vh - 120px));
     display: flex;
@@ -6726,9 +6728,9 @@ select {
 .nx-notes-blocks-menu,
 .nx-notes-emoji-menu {
     position: fixed !important;
-    left: clamp(14px, 50vw - 260px, calc(100vw - 540px)) !important;
-    top: auto !important;
-    bottom: clamp(76px, 9vh, 118px) !important;
+    left: 12px;
+    top: 56px;
+    bottom: auto;
     z-index: 12000 !important;
     max-width: calc(100vw - 28px);
     max-height: min(520px, calc(100dvh - 112px));
@@ -6768,7 +6770,6 @@ select {
 @media (max-height: 650px) {
     .nx-notes-blocks-menu,
     .nx-notes-emoji-menu {
-        bottom: 54px !important;
         max-height: calc(100dvh - 74px);
     }
 }
@@ -7604,9 +7605,45 @@ select {
 }
 
 .nx-notes-sidebar-tags {
+    align-content: flex-start;
     gap: 4px !important;
-    max-height: 58px;
+    max-height: 62px;
+    overflow-x: hidden;
+    overflow-y: hidden;
+}
+
+.nx-notes-sidebar-tags[data-expanded="true"] {
+    max-height: min(168px, 28vh);
+    overflow-y: auto;
+    padding-right: 6px !important;
+}
+
+.nx-notes-sidebar-tags::-webkit-scrollbar {
+    width: 4px;
+}
+
+.nx-notes-sidebar-tags::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.nx-notes-sidebar-tags::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.18);
+}
+
+.nx-notes-sidebar-tag-chip,
+.nx-notes-sidebar-tags-toggle {
+    min-width: 0;
+    max-width: 100%;
+    flex: 0 1 auto;
+}
+
+.nx-notes-sidebar-tag-label {
+    min-width: 0;
+    max-width: 100%;
     overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .nx-notes-sidebar-sort {
@@ -11327,6 +11364,66 @@ select {
     }
 }
 
+/* Calendar touch smoke affordances: keep existing controls reachable on coarse pointers. */
+@media (pointer: coarse) {
+    .nx-calendar-day {
+        touch-action: manipulation;
+    }
+
+    .nx-calendar-card {
+        cursor: grab;
+    }
+
+    .nx-calendar-card:active {
+        cursor: grabbing;
+    }
+
+    .nx-calendar-card-grip {
+        flex: 0 0 auto;
+        opacity: 0.92;
+    }
+
+    .nx-calendar-topbar .nx-calendar-icon-button,
+    .nx-calendar-topbar .nx-calendar-today-button,
+    .nx-calendar-topbar .nx-calendar-add-button,
+    .nx-calendar-topbar .nx-calendar-import-button,
+    .nx-calendar-topbar .nx-calendar-mini-button,
+    .nx-calendar-import-panel button,
+    .nx-calendar-file-button,
+    .nx-calendar-composer input,
+    .nx-calendar-composer select,
+    .nx-calendar-controls label,
+    .nx-calendar-controls select {
+        min-height: 34px !important;
+    }
+
+    .nx-calendar-import-panel--drawer textarea {
+        min-height: 128px;
+    }
+}
+
+@media (pointer: coarse) and (max-width: 720px) {
+    .nx-calendar-import-overlay {
+        padding: 64px 6px 6px;
+    }
+
+    .nx-calendar-import-dialog {
+        max-height: calc(100% - 6px);
+    }
+
+    .nx-calendar-import-panel--drawer .nx-calendar-import-fields {
+        align-items: stretch;
+    }
+
+    .nx-calendar-import-panel--drawer .nx-calendar-import-fields > * {
+        flex: 1 1 132px;
+    }
+
+    .nx-calendar-import-close {
+        flex: 0 0 38px;
+    }
+}
+
 /* Notes unified bar restore: keep old editor tools visible before stats. */
 .nx-notes-unified-status-action .nx-notes-format-toolbar {
     order: 1 !important;
@@ -11368,64 +11465,147 @@ select {
 
 /* Calendar polish: stronger day hierarchy without changing data model. */
 .nx-calendar-day {
-    min-height: 116px;
+    min-height: 128px;
+    gap: 8px;
+    padding: 9px;
 }
 
 .nx-calendar-day.has-items .nx-calendar-day-number {
+    min-width: 29px;
+    height: 27px;
     background:
-        linear-gradient(135deg, rgba(var(--nx-calendar-accent-rgb, 100, 210, 255), 0.22), rgba(255, 255, 255, 0.06));
-    border: 1px solid rgba(var(--nx-calendar-accent-rgb, 100, 210, 255), 0.24);
-    border-radius: 8px;
-    padding: 2px 6px;
+        linear-gradient(135deg, rgba(var(--nx-calendar-accent-rgb, 100, 210, 255), 0.28), rgba(255, 255, 255, 0.075));
+    border: 1px solid rgba(var(--nx-calendar-accent-rgb, 100, 210, 255), 0.3);
+    border-radius: 9px;
+    padding: 2px 7px;
+}
+
+.nx-calendar-day.has-overflow {
+    border-bottom-color: rgba(var(--nx-calendar-accent-rgb, 100, 210, 255), 0.24);
+}
+
+.nx-calendar-day-items {
+    gap: 6px;
+    align-content: start;
+}
+
+.nx-calendar-day-counts span {
+    height: 21px;
+    padding: 0 7px;
 }
 
 .nx-calendar-card-month {
-    min-height: 36px !important;
-    border-radius: 9px !important;
+    min-height: 44px !important;
+    border-radius: 10px !important;
+}
+
+.nx-calendar-card-month .nx-calendar-card-main {
+    gap: 4px;
+    padding: 6px 7px 6px 0;
+}
+
+.nx-calendar-card-month .nx-calendar-card-title-row {
+    gap: 5px;
 }
 
 .nx-calendar-card-month .nx-calendar-card-title {
-    font-size: 10.5px !important;
-    line-height: 1.2;
+    font-size: 11.5px !important;
+    font-weight: 880;
+    line-height: 1.22;
+}
+
+.nx-calendar-card-month .nx-calendar-card-type,
+.nx-calendar-card-month .nx-calendar-card-time,
+.nx-calendar-card-month .nx-calendar-card-priority,
+.nx-calendar-card-month .nx-calendar-card-status {
+    height: 18px;
+    font-size: 9.75px;
+}
+
+.nx-calendar-more {
+    min-height: 24px;
+    justify-content: center;
+    border-style: solid;
+    background:
+        linear-gradient(90deg, rgba(var(--nx-calendar-accent-rgb, 100, 210, 255), 0.11), transparent 82%),
+        rgba(255, 255, 255, 0.066);
 }
 
 .nx-calendar-card-agenda {
-    min-height: 72px;
+    min-height: 104px;
     border-radius: 12px !important;
 }
 
+.nx-calendar-card-agenda .nx-calendar-card-main {
+    gap: 7px;
+    padding: 11px 12px 11px 0;
+}
+
+.nx-calendar-card-agenda .nx-calendar-card-title-row {
+    padding-bottom: 2px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.065);
+}
+
 .nx-calendar-card-agenda .nx-calendar-card-title {
-    font-size: 13px;
+    font-size: 14.5px;
+    line-height: 1.24;
+}
+
+.nx-calendar-card-agenda .nx-calendar-card-desc {
+    font-size: 12px;
+    line-height: 1.42;
+}
+
+.nx-calendar-card-agenda .nx-calendar-card-meta {
+    gap: 7px;
 }
 
 .nx-calendar-agenda-list {
-    gap: 8px !important;
+    gap: 12px !important;
 }
 
 .nx-calendar-agenda-kpis span,
 .nx-calendar-day-counts span {
-    font-weight: 820;
+    font-weight: 850;
 }
 
 .nx-calendar-density-compact .nx-calendar-day {
-    min-height: 98px;
+    min-height: 104px;
+    padding: 6px;
 }
 
 .nx-calendar-density-compact .nx-calendar-card-month {
-    min-height: 30px !important;
+    min-height: 34px !important;
+}
+
+.nx-calendar-density-compact .nx-calendar-card-month .nx-calendar-card-title {
+    font-size: 10.25px !important;
 }
 
 .nx-app-shell[data-nx-color-mode="light"] .nx-calendar-day.has-items .nx-calendar-day-number {
     background:
-        linear-gradient(135deg, rgba(var(--nx-calendar-accent-rgb, 100, 210, 255), 0.2), rgba(255, 255, 255, 0.82));
+        linear-gradient(135deg, rgba(var(--nx-calendar-accent-rgb, 100, 210, 255), 0.22), rgba(255, 255, 255, 0.88));
+}
+
+.nx-app-shell[data-nx-color-mode="light"] .nx-calendar-card-agenda .nx-calendar-card-title-row {
+    border-bottom-color: rgba(15, 23, 42, 0.08);
 }
 
 @media (max-width: 520px) {
     .nx-calendar-day {
-        min-height: 86px;
+        min-height: 90px;
+        padding: 5px;
     }
 
     .nx-calendar-card-month {
-        min-height: 28px !important;
+        min-height: 32px !important;
+    }
+
+    .nx-calendar-card-month .nx-calendar-card-main {
+        padding: 3px 5px 3px 0;
+    }
+
+    .nx-calendar-card-agenda {
+        min-height: 84px;
     }
 }

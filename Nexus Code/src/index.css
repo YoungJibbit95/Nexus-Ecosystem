@@ -4,6 +4,7 @@
 
 @layer base {
     :root {
+        color-scheme: dark;
         --background: 0 0% 100%;
         --foreground: 0 0% 3.9%;
         --card: 0 0% 100%;
@@ -137,6 +138,9 @@
         background: transparent;
         border: 0;
         padding: 0;
+        min-width: 0;
+        text-align: inherit;
+        overflow-wrap: normal;
     }
 
     input,
@@ -144,6 +148,7 @@
     textarea {
         color-scheme: dark;
         background-color: transparent;
+        min-width: 0;
     }
 
     select option {

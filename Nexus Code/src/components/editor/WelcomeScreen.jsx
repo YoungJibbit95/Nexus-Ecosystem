@@ -101,28 +101,28 @@ const flowItems = [
 
 const actionTones = {
   primary: {
-    border: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.28)",
-    bg: "linear-gradient(135deg, rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.15), rgba(255, 255, 255, 0.03))",
-    iconBg: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.14)",
-    iconBorder: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.24)",
+    border: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.2)",
+    bg: "linear-gradient(135deg, rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.075), rgba(255, 255, 255, 0.018)), rgba(0, 0, 0, 0.16)",
+    iconBg: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.11)",
+    iconBorder: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.18)",
     iconColor: "var(--nexus-primary, #7c8cff)",
-    glow: "0 10px 22px rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.075)",
+    glow: "0 12px 24px rgba(0, 0, 0, 0.22), 0 0 14px rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.032)",
   },
   blue: {
-    border: "rgba(96, 165, 250, 0.26)",
-    bg: "linear-gradient(135deg, rgba(96, 165, 250, 0.12), rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.06), rgba(255, 255, 255, 0.026))",
-    iconBg: "rgba(96, 165, 250, 0.12)",
-    iconBorder: "rgba(96, 165, 250, 0.24)",
+    border: "rgba(56, 189, 248, 0.17)",
+    bg: "linear-gradient(135deg, rgba(56, 189, 248, 0.065), rgba(255, 255, 255, 0.015)), rgba(0, 0, 0, 0.16)",
+    iconBg: "rgba(56, 189, 248, 0.095)",
+    iconBorder: "rgba(56, 189, 248, 0.17)",
     iconColor: "#93c5fd",
-    glow: "0 12px 26px rgba(96, 165, 250, 0.075)",
+    glow: "0 12px 24px rgba(0, 0, 0, 0.22), 0 0 14px rgba(56, 189, 248, 0.03)",
   },
   neutral: {
-    border: "rgba(255, 255, 255, 0.075)",
-    bg: "linear-gradient(135deg, rgba(255, 255, 255, 0.044), rgba(255, 255, 255, 0.016))",
-    iconBg: "rgba(255, 255, 255, 0.052)",
-    iconBorder: "rgba(255, 255, 255, 0.09)",
+    border: "rgba(156, 178, 226, 0.075)",
+    bg: "linear-gradient(135deg, rgba(255, 255, 255, 0.026), rgba(255, 255, 255, 0.008)), rgba(0, 0, 0, 0.16)",
+    iconBg: "rgba(255, 255, 255, 0.04)",
+    iconBorder: "rgba(255, 255, 255, 0.075)",
     iconColor: "var(--nexus-muted, #99a3b7)",
-    glow: "0 10px 22px rgba(0, 0, 0, 0.1)",
+    glow: "0 12px 24px rgba(0, 0, 0, 0.2)",
   },
 };
 
@@ -136,6 +136,8 @@ function SoftPanel({ children, className = "", style = {}, tone = "muted" }) {
       style={{
         padding: "var(--nx-launchpad-panel-pad, 12px)",
         overflow: "visible",
+        background:
+          "linear-gradient(180deg, rgba(255,255,255,0.024), rgba(255,255,255,0.006)), rgba(0,0,0,0.14)",
         ...style,
       }}
     >
@@ -208,14 +210,14 @@ function ActionButton({
       transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
       onClick={onClick}
       aria-label={`${label}: ${detail}`}
-      className="nx-code-launchpad-action group grid min-w-0 text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-purple-400/35"
+      className="nx-code-launchpad-action group grid min-w-0 text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[rgba(var(--nexus-primary-rgb),0.24)]"
       style={{
         minHeight: "var(--nx-launchpad-action-min, 62px)",
         gridTemplateColumns:
           "var(--nx-launchpad-action-grid, 34px minmax(0, 1fr) 14px)",
         alignItems: "center",
         gap: "var(--nx-launchpad-action-gap, 10px)",
-        borderRadius: "var(--nexus-radius-xl, 22px)",
+        borderRadius: "var(--nexus-radius-lg, 14px)",
         padding: "var(--nx-launchpad-action-pad, 10px 12px)",
         border: `1px solid ${toneStyle.border}`,
         background: toneStyle.bg,
@@ -256,13 +258,13 @@ function FlowCard({ icon: Icon, title, detail, tone = "neutral", reduceMotion })
       variants={itemVariants}
       whileHover={reduceMotion ? undefined : { y: -1 }}
       transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
-      className="nx-code-launchpad-signal flex min-w-0 items-start gap-2.5"
+        className="nx-code-launchpad-signal flex min-w-0 items-start gap-2.5"
       style={{
         minHeight: "var(--nx-launchpad-signal-min, 60px)",
-        borderRadius: "var(--nexus-radius-xl, 22px)",
+        borderRadius: "var(--nexus-radius-lg, 14px)",
         border: `1px solid ${toneStyle.border}`,
         background:
-          "linear-gradient(135deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.014))",
+          "linear-gradient(135deg, rgba(255, 255, 255, 0.024), rgba(255, 255, 255, 0.006)), rgba(0, 0, 0, 0.14)",
         padding: "var(--nx-launchpad-signal-pad, 9px 10px)",
         overflow: "visible",
       }}
@@ -325,8 +327,8 @@ function RecentFiles({ files }) {
             style={{
               minHeight: 39,
               borderRadius: "var(--nexus-radius-lg, 18px)",
-              border: "1px solid rgba(255, 255, 255, 0.052)",
-              background: "rgba(255, 255, 255, 0.024)",
+              border: "1px solid rgba(156, 178, 226, 0.06)",
+              background: "rgba(255, 255, 255, 0.016)",
               padding: "6px 8px",
               overflow: "visible",
             }}
@@ -337,8 +339,8 @@ function RecentFiles({ files }) {
                 width: 25,
                 height: 25,
                 borderRadius: 10,
-                border: "1px solid rgba(255, 255, 255, 0.065)",
-                background: "rgba(0, 0, 0, 0.11)",
+                  border: "1px solid rgba(255, 255, 255, 0.065)",
+                background: "rgba(0, 0, 0, 0.16)",
               }}
             >
               <FileCode2 size={12} />
@@ -433,7 +435,7 @@ export default function WelcomeScreen({
           animate="visible"
           className="nx-code-welcome nx-code-launchpad mx-auto grid min-h-full w-full overflow-visible"
           style={{
-            width: "min(100%, 1100px)",
+            width: "min(100%, 1120px)",
             minHeight: "100%",
             height: "auto",
             alignContent: "start",
@@ -446,8 +448,8 @@ export default function WelcomeScreen({
             className="nx-code-launchpad-header"
             style={{
               padding: "var(--nx-launchpad-header-pad, 16px 0 15px)",
-              borderBottom: "1px solid rgba(var(--nexus-accent-2-rgb), 0.18)",
-              boxShadow: "0 1px 0 rgba(var(--nexus-primary-rgb), 0.08)",
+              borderBottom: "1px solid rgba(156, 178, 226, 0.085)",
+              boxShadow: "0 1px 0 rgba(var(--nexus-primary-rgb), 0.045)",
             }}
           >
             <div className="flex min-w-0 items-center gap-3">
@@ -458,11 +460,11 @@ export default function WelcomeScreen({
                   height: "var(--nx-launchpad-mark-size, 48px)",
                   borderRadius: "var(--nx-launchpad-mark-radius, 17px)",
                   background:
-                    "linear-gradient(145deg, rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.78), rgba(var(--nexus-accent-2-rgb), 0.72))",
+                    "linear-gradient(145deg, rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.72), rgba(var(--nexus-accent-2-rgb), 0.62))",
                   borderColor: "rgba(255, 255, 255, 0.14)",
                   color: "#fff",
                   boxShadow:
-                    "0 0 26px rgba(var(--nexus-primary-rgb), 0.28), 0 0 34px rgba(var(--nexus-accent-2-rgb), 0.14)",
+                    "0 0 24px rgba(var(--nexus-primary-rgb), 0.18), 0 0 28px rgba(var(--nexus-accent-2-rgb), 0.09)",
                 }}
               >
                 N

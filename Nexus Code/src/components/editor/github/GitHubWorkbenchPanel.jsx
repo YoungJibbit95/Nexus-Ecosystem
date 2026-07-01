@@ -28,15 +28,20 @@ import {
   PanelShell,
 } from "../panels/PanelChrome.jsx";
 import {
+  GITHUB_PANEL_METHOD_REQUIREMENTS,
   addGithubProjectV2Item,
   createGithubIssue,
   createGithubPullRequest,
+  formatGithubPlatformError,
+  getGithubCapabilityStatus,
   getGithubPlatformCapability,
+  getGithubRepositoryError,
   loadGithubIssues,
   loadGithubProjectV2,
   loadGithubProjectV2Items,
   loadGithubProjectsV2,
   loadGithubPullRequests,
+  normalizeGithubRepositoryInput,
   mergeGithubPullRequest,
   updateGithubIssue,
   updateGithubProjectV2ItemField,
@@ -265,40 +270,96 @@ function WorkbenchState({
 
   return (
     <div
-      className="mx-3 my-2 rounded-2xl border px-3 py-4 text-center"
+      className="mx-3 my-2 rounded-xl border px-3 py-2.5"
       style={{
         background: toneStyle.background,
         borderColor: toneStyle.border,
       }}
     >
-      {Icon ? (
-        <Icon
-          size={22}
-          className={`mx-auto mb-2 ${spinning ? "animate-spin" : ""}`}
-          style={{ color: toneStyle.icon }}
+      <div className="flex min-w-0 items-start gap-2.5">
+        {Icon ? (
+          <Icon
+            size={17}
+            className={`mt-0.5 shrink-0 ${spinning ? "animate-spin" : ""}`}
+            style={{ color: toneStyle.icon }}
+          />
+        ) : null}
+        <div className="min-w-0 flex-1">
+          <p
+            className="break-words text-[12px] font-semibold leading-snug"
+            style={{ color: toneStyle.title, overflowWrap: "anywhere" }}
+          >
+            {title}
+          </p>
+          {detail ? (
+            <p
+              className="mt-0.5 max-w-[24rem] break-words text-[11px] leading-snug"
+              style={{ color: toneStyle.detail, overflowWrap: "anywhere" }}
+            >
+              {detail}
+            </p>
+          ) : null}
+        </div>
+        {actionLabel && onAction ? (
+          <PanelActionButton
+            onClick={onAction}
+            tone={tone === "danger" ? "danger" : "muted"}
+            className="shrink-0"
+          >
+            {actionLabel}
+          </PanelActionButton>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function getStatusDotColor(tone) {
+  if (tone === "danger") return "#f87171";
+  if (tone === "warning") return "#fbbf24";
+  return "#67e8f9";
+}
+
+function RuntimeStatusLine({ status, capability, onOpenAccount }) {
+  const missingCount = capability.missingMethods?.length || 0;
+
+  return (
+    <div
+      className="mx-3 mt-2 flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-xl border px-2.5 py-2"
+      style={{
+        background: "rgba(2,6,23,0.32)",
+        borderColor: status.tone === "danger"
+          ? "rgba(248,113,113,0.16)"
+          : status.tone === "warning"
+            ? "rgba(251,191,36,0.16)"
+            : "rgba(103,232,249,0.13)",
+      }}
+    >
+      <div className="flex min-w-0 items-start gap-2">
+        <span
+          className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full"
+          style={{ background: getStatusDotColor(status.tone) }}
         />
-      ) : null}
-      <p
-        className="break-words text-[12px] font-semibold leading-snug"
-        style={{ color: toneStyle.title, overflowWrap: "anywhere" }}
-      >
-        {title}
-      </p>
-      {detail ? (
-        <p
-          className="mx-auto mt-1 max-w-[21rem] break-words text-[11px] leading-snug"
-          style={{ color: toneStyle.detail, overflowWrap: "anywhere" }}
-        >
-          {detail}
-        </p>
-      ) : null}
-      {actionLabel && onAction ? (
+        <div className="min-w-0">
+          <p className="break-words text-[11px] font-semibold text-gray-200" style={{ overflowWrap: "anywhere" }}>
+            {status.title}
+          </p>
+          <p className="break-words text-[10px] leading-snug text-gray-500" style={{ overflowWrap: "anywhere" }}>
+            {missingCount > 0 ? `${missingCount} missing method${missingCount === 1 ? "" : "s"}. ` : ""}
+            {status.detail}
+          </p>
+        </div>
+      </div>
+      {status.id !== "ready" ? (
         <PanelActionButton
-          onClick={onAction}
-          tone={tone === "danger" ? "danger" : "muted"}
-          className="mt-3"
+          type="button"
+          tone="muted"
+          icon={Pencil}
+          onClick={onOpenAccount}
+          disabled={!onOpenAccount}
+          className="h-7 shrink-0"
         >
-          {actionLabel}
+          Account
         </PanelActionButton>
       ) : null}
     </div>
@@ -320,26 +381,8 @@ function getWorkspaceRepositoryGuess(workspacePath) {
   };
 }
 
-function normalizeRepositoryInput(value) {
-  const raw = String(value || "").trim();
-  if (!raw) return { owner: "", repo: "", label: "" };
-
-  const cleaned = raw
-    .replace(/^https?:\/\/(?:www\.)?github\.com\//i, "")
-    .replace(/^git@github\.com:/i, "")
-    .replace(/\.git$/i, "")
-    .split(/[?#]/)[0]
-    .replace(/^\/+|\/+$/g, "");
-  const [owner = "", repo = ""] = cleaned.split("/").map((part) => part.trim()).filter(Boolean);
-  return {
-    owner,
-    repo,
-    label: owner && repo ? `${owner}/${repo}` : raw,
-  };
-}
-
 function getProjectOwnerDraft(repoDraft, accountSession) {
-  const parsed = normalizeRepositoryInput(repoDraft);
+  const parsed = normalizeGithubRepositoryInput(repoDraft);
   return parsed.owner || String(repoDraft || "").trim() || accountSession?.username || "";
 }
 
@@ -389,119 +432,6 @@ function stateTone(state) {
   if (normalized === "closed" || normalized === "merged") return "danger";
   if (normalized === "draft") return "warning";
   return "muted";
-}
-
-function getRepoError(repoRef) {
-  if (!repoRef.owner || !repoRef.repo) {
-    return "Enter a repository as owner/repo before refreshing or updating GitHub data.";
-  }
-  return "";
-}
-
-function getRawGithubErrorMessage(error) {
-  if (!error) return "";
-  if (typeof error === "string") return error;
-  return (
-    error.message ||
-    error.error ||
-    error.details?.message ||
-    error.details?.error ||
-    error.details?.response?.message ||
-    ""
-  );
-}
-
-function getGithubErrorStatus(error) {
-  const candidates = [
-    error?.status,
-    error?.statusCode,
-    error?.code,
-    error?.details?.status,
-    error?.details?.statusCode,
-    error?.details?.response?.status,
-  ];
-  const explicitStatus = candidates
-    .map((value) => Number(value))
-    .find((value) => Number.isInteger(value) && value >= 100);
-  if (explicitStatus) return explicitStatus;
-
-  const messageStatus = getRawGithubErrorMessage(error).match(/\b(401|403|404|422|429)\b/);
-  return messageStatus ? Number(messageStatus[1]) : null;
-}
-
-function formatGithubWorkbenchError(error, fallback = "GitHub request failed.") {
-  const rawMessage = getRawGithubErrorMessage(error);
-  const lowerMessage = rawMessage.toLowerCase();
-  const status = getGithubErrorStatus(error);
-  const details = error?.details || {};
-  const missingScopes = details.scopes?.missingScopes || [];
-  const resetAt = details.rateLimit?.resetAt ? formatDate(details.rateLimit.resetAt) : "";
-  const validation = Array.isArray(details.errors)
-    ? details.errors
-      .map((entry) => entry?.message || entry?.code || "")
-      .filter(Boolean)
-      .slice(0, 3)
-      .join("; ")
-    : "";
-  const hint = details.hint && !rawMessage.includes(details.hint) ? ` ${details.hint}` : "";
-  const detail = rawMessage ? ` GitHub said: ${rawMessage}` : "";
-  const docs = details.documentationUrl ? ` Docs: ${details.documentationUrl}` : "";
-
-  if (lowerMessage.includes("bridge is not available")) {
-    return "GitHub bridge is not available in this runtime. Open Nexus Code in the desktop runtime, reconnect the GitHub account, then refresh.";
-  }
-
-  if (lowerMessage.includes("does not expose")) {
-    return "This Nexus runtime does not expose the required GitHub API method yet. Switch to the desktop runtime or update Nexus Code before retrying.";
-  }
-
-  if (
-    status === 401 ||
-    lowerMessage.includes("bad credentials") ||
-    lowerMessage.includes("requires authentication") ||
-    lowerMessage.includes("unauthorized")
-  ) {
-    return `GitHub authentication is missing or expired (401). Open the account panel, reconnect GitHub, then refresh.${detail}`;
-  }
-
-  if (
-    details.code === "GITHUB_RATE_LIMITED" ||
-    details.rateLimit?.remaining === 0 ||
-    status === 429 ||
-    lowerMessage.includes("rate limit") ||
-    lowerMessage.includes("secondary rate") ||
-    lowerMessage.includes("abuse detection")
-  ) {
-    const reset = resetAt ? ` Reset: ${resetAt}.` : "";
-    return `GitHub rate limit was reached. Wait for the limit to reset, then refresh; using a signed-in token with more quota can help.${reset}${hint}${detail}${docs}`;
-  }
-
-  if (
-    details.code === "GITHUB_SCOPE_REQUIRED" ||
-    missingScopes.length > 0 ||
-    lowerMessage.includes("resource not accessible") ||
-    lowerMessage.includes("insufficient") ||
-    lowerMessage.includes("scope") ||
-    lowerMessage.includes("permission")
-  ) {
-    const scopeText = missingScopes.length ? ` Missing scopes: ${missingScopes.join(", ")}.` : "";
-    return `GitHub denied access for this token. Check repository access, Projects v2 scopes, and organization SSO approval before retrying.${scopeText}${hint}${detail}${docs}`;
-  }
-
-  if (status === 403) {
-    return `GitHub rejected the request (403). The token may be missing repository, pull request, or Projects v2 access, or organization SSO may need approval.${hint}${detail}${docs}`;
-  }
-
-  if (status === 404) {
-    return `GitHub could not find this repository, project, issue, or pull request (404), or the current token cannot access it.${hint}${detail}${docs}`;
-  }
-
-  if (status === 422) {
-    const validationText = validation ? ` Validation: ${validation}.` : "";
-    return `GitHub rejected the submitted data (422). Check branch names, required fields, duplicate project items, and selected IDs.${validationText}${hint}${detail}${docs}`;
-  }
-
-  return rawMessage ? `${fallback} ${rawMessage}${hint}${docs}` : `${fallback}${hint}`;
 }
 
 function needsCloseConfirmation(item, nextState) {
@@ -636,6 +566,7 @@ function RepositoryControls({
   panelId,
   definition,
   capability,
+  capabilityStatus,
   repoDraft,
   onRepoDraftChange,
   stateFilter,
@@ -706,10 +637,14 @@ function RepositoryControls({
               }}
             />
             <span className="min-w-0 break-words" style={{ overflowWrap: "anywhere" }}>
-              {capability.available ? capability.label : "Bridge offline"}
+              {capabilityStatus.label}
             </span>
             <span className="text-gray-700">/</span>
-            <span>{capability.methods.length} methods</span>
+            <span>
+              {capability.missingMethods?.length
+                ? `${capability.missingMethods.length} missing`
+                : `${capability.methods.length} methods`}
+            </span>
           </div>
 
           <div className="flex shrink-0 items-center justify-end gap-1">
@@ -866,7 +801,7 @@ function IssueActions({
               active={updateConfirmActive}
               tone={closeRequiresConfirm ? "danger" : "warning"}
               title={closeRequiresConfirm ? "Confirm issue close" : "Confirm issue update"}
-              detail={`This will update ${issueLabel}. Review the title, body, and state before sending it to GitHub.`}
+              detail={`Sends title, body, and state for ${issueLabel} to GitHub.${closeRequiresConfirm ? " Closing hides it from open triage." : ""}`}
               confirmLabel={closeRequiresConfirm ? "Close issue now" : "Update issue now"}
               busy={updateBusy}
               onConfirm={onUpdate}
@@ -1047,7 +982,7 @@ function PullRequestActions({
               active={updateConfirmActive}
               tone={closeRequiresConfirm ? "danger" : "warning"}
               title={closeRequiresConfirm ? "Confirm pull request close" : "Confirm pull request update"}
-              detail={`This will update ${selectedPullLabel}. Review title, body, state, and base before sending it to GitHub.`}
+              detail={`Sends title, body, state, and optional base for ${selectedPullLabel}.${closeRequiresConfirm ? " Closing stops normal review flow." : ""}`}
               confirmLabel={closeRequiresConfirm ? "Close pull request now" : "Update pull request now"}
               busy={updateBusy}
               onConfirm={onUpdate}
@@ -1105,7 +1040,7 @@ function PullRequestActions({
                 active={branchConfirmActive}
                 tone="warning"
                 title="Confirm branch update"
-                detail={`GitHub will update ${selectedPullLabel} from its base branch. Use the expected SHA field when you want to guard against a moving head.`}
+                detail={`Queues a base-branch update for ${selectedPullLabel}. Keep the SHA when you want a moving-head guard.`}
                 confirmLabel="Update branch now"
                 busy={branchBusy}
                 onConfirm={onUpdateBranch}
@@ -1168,7 +1103,7 @@ function PullRequestActions({
                 active={mergeConfirmActive}
                 tone="danger"
                 title="Confirm merge"
-                detail={`This will merge ${selectedPullLabel} using ${safetyDraft.mergeMethod}. Make sure checks and review requirements are satisfied.`}
+                detail={`Merges ${selectedPullLabel} with ${safetyDraft.mergeMethod}. Confirm checks, reviews, and branch protections first.`}
                 confirmLabel="Merge pull request now"
                 busy={mergeBusy}
                 onConfirm={onMerge}
@@ -1396,7 +1331,7 @@ function ProjectActions({
               active={fieldConfirmActive}
               tone="warning"
               title="Confirm project field update"
-              detail={`This will update ${actionDraft.fieldId || "the selected field"} on project item ${actionDraft.itemId || "the selected item"}. Verify the item ID, field, and value before sending it to GitHub.`}
+              detail={`Updates ${actionDraft.fieldId || "the selected field"} on item ${actionDraft.itemId || "the selected item"}. Verify ID, field, and value.`}
               confirmLabel="Update field now"
               busy={fieldBusy}
               onConfirm={onUpdateField}
@@ -1733,6 +1668,7 @@ export function GitHubWorkbenchPanel({
 }) {
   const normalizedPanelId = PANEL_DEFINITIONS[panelId] ? panelId : "issues";
   const definition = PANEL_DEFINITIONS[normalizedPanelId];
+  const requiredMethods = GITHUB_PANEL_METHOD_REQUIREMENTS[normalizedPanelId] || [];
   const Icon = definition.icon;
   const repositoryGuess = useMemo(
     () => getWorkspaceRepositoryGuess(workspacePath),
@@ -1740,7 +1676,9 @@ export function GitHubWorkbenchPanel({
   );
   const initialRepoLabel = initialRepository || repositoryGuess.label;
 
-  const [capability, setCapability] = useState(() => getGithubPlatformCapability());
+  const [capability, setCapability] = useState(() =>
+    getGithubPlatformCapability(requiredMethods),
+  );
   const [repoDraft, setRepoDraft] = useState(initialRepoLabel);
   const [appliedRepoDraft, setAppliedRepoDraft] = useState(initialRepoLabel);
   const [stateFilter, setStateFilter] = useState("open");
@@ -1766,12 +1704,16 @@ export function GitHubWorkbenchPanel({
   const [confirmAction, setConfirmAction] = useState("");
 
   const appliedRepoRef = useMemo(
-    () => normalizeRepositoryInput(appliedRepoDraft),
+    () => normalizeGithubRepositoryInput(appliedRepoDraft),
     [appliedRepoDraft],
   );
   const draftRepoRef = useMemo(
-    () => normalizeRepositoryInput(repoDraft),
+    () => normalizeGithubRepositoryInput(repoDraft),
     [repoDraft],
+  );
+  const capabilityStatus = useMemo(
+    () => getGithubCapabilityStatus(capability),
+    [capability],
   );
   const projectOwnerDraft = useMemo(
     () => getProjectOwnerDraft(appliedRepoDraft, accountSession),
@@ -1893,7 +1835,7 @@ export function GitHubWorkbenchPanel({
       } catch (error) {
         setActionState({
           busy: "",
-          error: formatGithubWorkbenchError(error, "GitHub action failed."),
+          error: formatGithubPlatformError(error, "GitHub action failed."),
           message: "",
         });
         return null;
@@ -1903,7 +1845,7 @@ export function GitHubWorkbenchPanel({
   );
 
   const loadPanelData = useCallback(async () => {
-    const nextCapability = getGithubPlatformCapability();
+    const nextCapability = getGithubPlatformCapability(requiredMethods);
     setCapability(nextCapability);
     setActionState((current) => ({ ...current, error: "", message: "" }));
 
@@ -1911,7 +1853,7 @@ export function GitHubWorkbenchPanel({
       setListState({
         ...EMPTY_LIST_STATE,
         loaded: true,
-        error: formatGithubWorkbenchError(
+        error: formatGithubPlatformError(
           "GitHub bridge is not available in this runtime.",
           "GitHub bridge is not available.",
         ),
@@ -1920,7 +1862,7 @@ export function GitHubWorkbenchPanel({
     }
 
     if (normalizedPanelId !== "projects") {
-      const repoError = getRepoError(appliedRepoRef);
+      const repoError = getGithubRepositoryError(appliedRepoRef);
       if (repoError) {
         setListState({
           ...EMPTY_LIST_STATE,
@@ -1995,7 +1937,7 @@ export function GitHubWorkbenchPanel({
       setListState({
         ...EMPTY_LIST_STATE,
         loaded: true,
-        error: formatGithubWorkbenchError(error, "GitHub data could not be loaded."),
+        error: formatGithubPlatformError(error, "GitHub data could not be loaded."),
       });
     }
   }, [
@@ -2003,6 +1945,7 @@ export function GitHubWorkbenchPanel({
     normalizedPanelId,
     projectOwnerDraft,
     projectOwnerType,
+    requiredMethods,
     stateFilter,
   ]);
 
@@ -2043,7 +1986,7 @@ export function GitHubWorkbenchPanel({
       setProjectItemsState({
         ...EMPTY_PROJECT_ITEMS_STATE,
         loaded: true,
-        error: formatGithubWorkbenchError(error, "Project items could not be loaded."),
+        error: formatGithubPlatformError(error, "Project items could not be loaded."),
       });
     }
   }, []);
@@ -2051,7 +1994,7 @@ export function GitHubWorkbenchPanel({
   const handleCreateIssue = useCallback(
     async (event) => {
       event?.preventDefault?.();
-      const repoError = getRepoError(draftRepoRef);
+      const repoError = getGithubRepositoryError(draftRepoRef);
       if (repoError) {
         setActionState({ busy: "", error: repoError, message: "" });
         return;
@@ -2079,7 +2022,7 @@ export function GitHubWorkbenchPanel({
   const handleUpdateIssue = useCallback(
     async (event) => {
       event?.preventDefault?.();
-      const repoError = getRepoError(draftRepoRef);
+      const repoError = getGithubRepositoryError(draftRepoRef);
       if (repoError) {
         setActionState({ busy: "", error: repoError, message: "" });
         return;
@@ -2114,7 +2057,7 @@ export function GitHubWorkbenchPanel({
   const handleCreatePullRequest = useCallback(
     async (event) => {
       event?.preventDefault?.();
-      const repoError = getRepoError(draftRepoRef);
+      const repoError = getGithubRepositoryError(draftRepoRef);
       if (repoError) {
         setActionState({ busy: "", error: repoError, message: "" });
         return;
@@ -2143,7 +2086,7 @@ export function GitHubWorkbenchPanel({
   const handleUpdatePullRequest = useCallback(
     async (event) => {
       event?.preventDefault?.();
-      const repoError = getRepoError(draftRepoRef);
+      const repoError = getGithubRepositoryError(draftRepoRef);
       if (repoError) {
         setActionState({ busy: "", error: repoError, message: "" });
         return;
@@ -2180,7 +2123,7 @@ export function GitHubWorkbenchPanel({
   const handleUpdatePullRequestBranch = useCallback(
     async (event) => {
       event?.preventDefault?.();
-      const repoError = getRepoError(draftRepoRef);
+      const repoError = getGithubRepositoryError(draftRepoRef);
       if (repoError) {
         setActionState({ busy: "", error: repoError, message: "" });
         return;
@@ -2219,7 +2162,7 @@ export function GitHubWorkbenchPanel({
   const handleMergePullRequest = useCallback(
     async (event) => {
       event?.preventDefault?.();
-      const repoError = getRepoError(draftRepoRef);
+      const repoError = getGithubRepositoryError(draftRepoRef);
       if (repoError) {
         setActionState({ busy: "", error: repoError, message: "" });
         return;
@@ -2329,8 +2272,8 @@ export function GitHubWorkbenchPanel({
         title={definition.title}
         subtitle={definition.subtitle}
         status={
-          <PanelBadge tone={capability.available ? "muted" : "danger"}>
-            {capability.available ? panelCountLabel : "offline"}
+          <PanelBadge tone={capabilityStatus.id === "ready" ? "muted" : capabilityStatus.tone}>
+            {capabilityStatus.id === "ready" ? panelCountLabel : capabilityStatus.label}
           </PanelBadge>
         }
         actions={
@@ -2350,6 +2293,7 @@ export function GitHubWorkbenchPanel({
           panelId={normalizedPanelId}
           definition={definition}
           capability={capability}
+          capabilityStatus={capabilityStatus}
           repoDraft={repoDraft}
           onRepoDraftChange={setRepoDraft}
           stateFilter={stateFilter}
@@ -2361,6 +2305,14 @@ export function GitHubWorkbenchPanel({
           onOpenGit={onOpenGit}
           onOpenAccount={onOpenAccount}
         />
+
+        {capabilityStatus.id !== "ready" ? (
+          <RuntimeStatusLine
+            status={capabilityStatus}
+            capability={capability}
+            onOpenAccount={onOpenAccount}
+          />
+        ) : null}
 
         {normalizedPanelId === "projects" && projectOwnerType !== "viewer" ? (
           <div className="mx-3 mt-2 min-w-0 break-words text-[10px] text-gray-600" style={{ overflowWrap: "anywhere" }}>
