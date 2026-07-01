@@ -110,17 +110,17 @@ export function PanelCard({
       style={{
         color: toneStyle.detail,
         background:
-          "radial-gradient(circle at 12% 0%, rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.022), transparent 11rem), linear-gradient(180deg, rgba(255,255,255,0.026), rgba(255,255,255,0.006)), rgba(0,0,0,0.18)",
+          "linear-gradient(180deg, rgba(255,255,255,0.024), rgba(255,255,255,0.006)), rgba(0,0,0,0.18)",
         borderColor:
           tone === "muted" ? "rgba(156,178,226,0.065)" : toneStyle.border,
-        borderRadius: "var(--nexus-radius-lg, 14px)",
+        borderRadius: "var(--nexus-radius-md, 10px)",
         boxShadow: reduceMotion
           ? "inset 0 1px 0 rgba(255,255,255,0.032)"
-          : "0 12px 28px rgba(0,0,0,0.2), 0 0 16px rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.018), inset 0 1px 0 rgba(255,255,255,0.038)",
-        backdropFilter: reduceMotion ? "none" : "blur(12px) saturate(110%)",
+          : "0 8px 18px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.036)",
+        backdropFilter: reduceMotion ? "none" : "blur(10px) saturate(108%)",
         WebkitBackdropFilter: reduceMotion
           ? "none"
-          : "blur(12px) saturate(110%)",
+          : "blur(10px) saturate(108%)",
         overflowWrap: "anywhere",
         transition:
           reduceMotion
@@ -182,21 +182,21 @@ export function PanelHeader({
 }) {
   return (
     <header
-      className={`nx-editor-panel-header shrink-0 border-b border-white/[0.04] px-3 pb-2.5 pt-3 ${className}`}
+      className={`nx-editor-panel-header shrink-0 border-b border-white/[0.04] px-3 pb-2 pt-2.5 ${className}`}
     >
-      <div className="flex min-w-0 flex-wrap items-start gap-2.5">
+      <div className="flex min-w-0 flex-wrap items-start gap-2">
         {Icon ? (
           <div
-            className="grid h-7 w-7 shrink-0 place-items-center rounded-md border"
+            className="grid h-6 w-6 shrink-0 place-items-center rounded-md border"
             style={{
-              borderRadius: "var(--nexus-radius-md, 12px)",
+              borderRadius: "var(--nexus-radius-md, 10px)",
               background: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.055)",
               borderColor: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.13)",
               color: "var(--nexus-primary, #7c8cff)",
-              boxShadow: "0 0 10px rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.04)",
+              boxShadow: "inset 0 1px 0 rgba(255,255,255,0.035)",
             }}
           >
-            <Icon size={15} />
+            <Icon size={14} />
           </div>
         ) : null}
 
@@ -231,7 +231,7 @@ export function PanelHeader({
         ) : null}
       </div>
 
-      {children ? <div className="mt-3 min-w-0">{children}</div> : null}
+      {children ? <div className="mt-2 min-w-0">{children}</div> : null}
     </header>
   );
 }
@@ -254,7 +254,7 @@ export const PanelBody = React.forwardRef(function PanelBody(
 export function PanelFooter({ children, className = "" }) {
   return (
     <footer
-      className={`nx-editor-panel-footer shrink-0 border-t border-white/[0.045] px-3 py-2.5 ${className}`}
+      className={`nx-editor-panel-footer shrink-0 border-t border-white/[0.045] px-3 py-2 ${className}`}
     >
       {children}
     </footer>
@@ -351,11 +351,11 @@ export function PanelMetric({ label, value, tone = "muted", title }) {
   return (
     <div
       title={title}
-      className="min-w-0 rounded-xl border px-2.5 py-2"
+      className="min-w-0 rounded-lg border px-2.5 py-2"
       style={{
         background: "rgba(0,0,0,0.13)",
         borderColor: "rgba(255,255,255,0.055)",
-        borderRadius: "var(--nexus-radius-lg, 18px)",
+        borderRadius: "var(--nexus-radius-md, 10px)",
       }}
     >
       <div
@@ -496,7 +496,7 @@ export function PanelSection({
 
   return (
     <section className="nx-editor-panel-section">
-      <div className="flex items-center gap-1 px-2 py-1.5">
+      <div className="flex items-center gap-1 px-2 py-1">
         <button
           type="button"
           onClick={onToggle}

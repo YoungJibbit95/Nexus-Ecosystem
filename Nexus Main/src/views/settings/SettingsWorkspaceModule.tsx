@@ -60,8 +60,8 @@ export function SettingsWorkspaceModule({
   return (
     <>
       <ModuleCard
-        title="Onboarding"
-        desc="Hilft beim Wiedereinstieg, ohne Daten zu verändern."
+        title="Einstiegshilfe"
+        desc="Oeffnet den Guide erneut, ohne Daten zu veraendern."
       >
         <div
           style={{
@@ -71,7 +71,7 @@ export function SettingsWorkspaceModule({
             lineHeight: 1.45,
           }}
         >
-          Sicher: Öffnet nur den Guide, kein Reset.
+          Sicher: Oeffnet nur den Guide, kein Reset.
         </div>
         <button
           onClick={() => onOpenWalkthrough?.()}
@@ -89,15 +89,15 @@ export function SettingsWorkspaceModule({
             gap: 7,
           }}
         >
-          <Sparkles size={13} /> Walkthrough erneut öffnen
+          <Sparkles size={13} /> Guide erneut oeffnen
         </button>
       </ModuleCard>
 
       <SettingsBackupRestorePanel toast={toast} />
 
       <ModuleCard
-        title="Settings Daten"
-        desc="Kanonischer Export und validierter Import fuer Design, Layout und Performance."
+        title="Einstellungen sichern"
+        desc="Design, Layout und Leistungsoptionen als Datei sichern oder wieder laden."
       >
         <Row>
           <button onClick={onExportSettings} style={actionButtonStyle()}>
@@ -120,8 +120,8 @@ export function SettingsWorkspaceModule({
       </ModuleCard>
 
       <ModuleCard
-        title="Settings Reset"
-        desc="Gezielte Resets ohne Workspace-Daten oder Backups anzufassen."
+        title="Einstellungen zuruecksetzen"
+        desc="Gezielte Resets, ohne Workspace-Daten oder Backups anzufassen."
       >
         <div style={{ display: "grid", gap: 8 }}>
           <button onClick={() => runWithConfirm("Appearance wirklich zuruecksetzen?", onResetAppearanceSettings)} style={actionButtonStyle()}>
@@ -140,7 +140,7 @@ export function SettingsWorkspaceModule({
       </ModuleCard>
       <ModuleCard
         title="Support"
-        desc="Direkte Wartung von Spotlight- und Command-Daten."
+        desc="Suchverlauf und Schnellzugriffe pruefen oder bereinigen."
       >
         <div
           style={{
@@ -150,7 +150,7 @@ export function SettingsWorkspaceModule({
             lineHeight: 1.45,
           }}
         >
-          Teilweise reset-relevant: Pins/Recents betreffen nur Spotlight-Historie.
+          Betrifft nur Spotlight-Pins und zuletzt genutzte Suchbegriffe.
         </div>
         <Row>
           <button
@@ -205,7 +205,7 @@ export function SettingsWorkspaceModule({
 
       <ModuleCard
         title="Maintenance"
-        desc="Recovery-Aktionen mit klarer Auswirkung auf Workspace-Daten."
+        desc="Aktionen mit klarer Auswirkung auf gespeicherte Arbeitszustaende."
       >
         <div
           style={{

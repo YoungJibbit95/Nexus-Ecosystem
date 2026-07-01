@@ -42,10 +42,10 @@ Panel Radius Slider global ueber Shell/Glass Tokens anwenden | true
 Nexus Toolbar zeigt offene und erledigte Tasks an | true
 Dashboard Layout Editor beim Draggen per rAF/Position-Layout beruhigen | true
 InfoView mit Suche, View-Guides und Referenzen erweitern | true
-Light Mode Kontrast fuer Popover, Menues, Inputs und Modals zentral absichern statt pro View nachpatchen | false
-Popover und Dropdowns koennen durch lokale Overflow-/Z-Index-Regeln in Panels abgeschnitten werden | false
+Light Mode Kontrast fuer Popover, Menues, Inputs und Modals zentral absichern statt pro View nachpatchen | true
+Popover und Dropdowns koennen durch lokale Overflow-/Z-Index-Regeln in Panels abgeschnitten werden | true
 UI Sprache mischt Deutsch und Englisch in Calendar, Files, InfoView und Website-Passagen | false
-Mehrere Views nutzen feste Pane-Breiten, die den Hauptinhalt bei mittleren Breiten quetschen | false
+Mehrere Views nutzen feste Pane-Breiten, die den Hauptinhalt bei mittleren Breiten quetschen | true
 App startet nicht richtig bzw Fenster zeigt nichts an | true
 Nexus Code Editor bleibt bei CodeMirror-Crash oder Mountfehler als schwarze Flaeche leer | true
 ```
@@ -64,6 +64,13 @@ GitHub UI-Gates fuer Main, Website und API-Deploy-Automation ergaenzen | true
 Wiederholte UI-CSS-Passes in index.css konsolidieren, damit spaetere Regeln fruehere Regeln nicht heimlich ueberschreiben | false
 Responsive UI-Smoke fuer 1366, 1180, 980, 760 und 460px als feste Release-Pruefung aufnehmen | false
 View-spezifische Toolbars auf gleiche Breakpoint-Logik bringen, damit Controls nicht je View anders umbrechen | false
+Nexus hat Probleme die API abzufragen | false
+wenn man Views oeffnen will zeigt es an das man selbst als Admin nicht die benoetigte Tier hat sogar bei Free Tiers | true
+Control Panel Desktop muss fertiggestellt werden | false
+APi Patch mit stabilerer Ecosystem und Login System Verbindung integrieren | false
+Control Panel Editierbar machen, zur Zeit lassen sich viele API Daten und Einstellungen nicht speichern wenn sie geaendert werden | false
+Payment wird als aktiviert angezeigt ist es aber nict auf der Website | true
+Nexus Main und Nexus Code haben teilweise Probleme mit View Access und Tier System | true
 ```
 
 ## Calendar Bugs
@@ -114,17 +121,17 @@ Files Shortcuts nur view-lokal und mit sichtbarer Hilfe/Tooltip behandeln | fals
 ## Settings Bugs
 
 ```nexus-checklist
-Settings wirkt in mehreren Modulen noch zu technisch und textlastig fuer nicht technische Nutzer | false
-Settings Header-Chips fuer Advanced, Experimental, Mode, Panel und Motion lesen sich wie Debug-Status statt Nutzerfuehrung | false
-Settings Preview- und Reglergruppen erzeugen in Light Mode viel Leerraum und wenig visuelle Prioritaet | false
+Settings wirkt in mehreren Modulen noch zu technisch und textlastig fuer nicht technische Nutzer | true
+Settings Header-Chips fuer Advanced, Experimental, Mode, Panel und Motion lesen sich wie Debug-Status statt Nutzerfuehrung | true
+Settings Preview- und Reglergruppen erzeugen in Light Mode viel Leerraum und wenig visuelle Prioritaet | true
 ```
 
 ## Settings Todo
 
 ```nexus-checklist
 Settings Texte sind im Light Mode teilweise zu hell | true
-Settings einfache Presets und sichere Hauptregler klarer vor Detailreglern priorisieren | false
-Settings technische Labels in nutzernaehere Begriffe umschreiben, ohne Optionen umzubauen | false
+Settings einfache Presets und sichere Hauptregler klarer vor Detailreglern priorisieren | true
+Settings technische Labels in nutzernaehere Begriffe umschreiben, ohne Optionen umzubauen | true
 Settings Mobile- und Small-Height-Layout fuer grosse Reglergruppen separat pruefen | false
 ```
 

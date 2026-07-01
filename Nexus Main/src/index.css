@@ -3984,6 +3984,17 @@ body {
         rgba(255, 255, 255, 0.045) !important;
 }
 
+.nx-settings-guide-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    border-radius: 999px !important;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: rgba(255, 255, 255, 0.055);
+    padding: 6px 10px;
+    line-height: 1.2;
+}
+
 .nx-settings-module-card {
     color: var(--nx-v6-text, rgba(255, 255, 255, 0.9));
 }
@@ -4016,6 +4027,7 @@ body {
 .nx-app-shell[data-nx-color-mode="light"] .nx-settings-sidebar :where(button, label),
 .nx-app-shell[data-nx-color-mode="light"] .nx-settings-content :where(button, label) {
     border-color: rgba(15, 23, 42, 0.12) !important;
+    background-color: rgba(255, 255, 255, 0.58);
 }
 
 .nx-app-shell[data-nx-color-mode="light"] .nx-settings-sidebar :where(input, textarea, select),
@@ -4026,6 +4038,14 @@ body {
 .nx-app-shell[data-nx-color-mode="light"] .nx-settings-sidebar :where(input, textarea, select)::placeholder,
 .nx-app-shell[data-nx-color-mode="light"] .nx-settings-content :where(input, textarea, select)::placeholder {
     color: rgba(71, 85, 105, 0.58) !important;
+}
+
+.nx-app-shell[data-nx-color-mode="light"] .nx-settings-guide-chip,
+.nx-app-shell[data-nx-color-mode="light"] .nx-settings-panel-health,
+.nx-app-shell[data-nx-color-mode="light"] .nx-settings-panel-health-action {
+    border-color: rgba(15, 23, 42, 0.12) !important;
+    background: rgba(255, 255, 255, 0.68) !important;
+    color: rgba(15, 23, 42, 0.9) !important;
 }
 
 .nx-info-v6 {
@@ -8477,6 +8497,21 @@ select {
     }
 }
 
+@media (max-height: 760px) {
+    .nx-settings-content-header {
+        padding: 8px 10px !important;
+    }
+
+    .nx-settings-module-card {
+        padding: 11px 12px 10px !important;
+        margin-bottom: 9px !important;
+    }
+
+    .nx-settings-live-material-stage {
+        min-height: 124px !important;
+    }
+}
+
 .nx-app-shell[data-nx-color-mode="light"] .nx-settings-sidebar,
 .nx-app-shell[data-nx-color-mode="light"] .nx-settings-content,
 .nx-app-shell[data-nx-color-mode="light"] .nx-settings-module-card,
@@ -11167,6 +11202,10 @@ select {
     color: rgba(15, 23, 42, 0.9);
 }
 
+.nx-app-shell[data-nx-color-mode="light"] .nx-settings-v6 :where([style*="opacity: 0.45"], [style*="opacity: 0.48"], [style*="opacity: 0.5"], [style*="opacity: 0.55"]) {
+    opacity: 0.72 !important;
+}
+
 @media (max-width: 1080px) {
     .nx-calendar-tags-input {
         display: inline-flex !important;
@@ -11607,5 +11646,170 @@ select {
 
     .nx-calendar-card-agenda {
         min-height: 84px;
+    }
+}
+
+/* Global bug pass: shared contrast, overlay safety, and mid-width panes. */
+.nx-app-shell {
+    --nx-overlay-z-index: 14000;
+    --nx-overlay-bg: rgba(9, 14, 28, 0.94);
+    --nx-overlay-border: rgba(255, 255, 255, 0.14);
+    --nx-overlay-text: rgba(255, 255, 255, 0.94);
+    --nx-overlay-muted: rgba(255, 255, 255, 0.68);
+    --nx-field-bg: rgba(255, 255, 255, 0.075);
+    --nx-field-border: rgba(255, 255, 255, 0.16);
+    --nx-field-text: rgba(255, 255, 255, 0.92);
+    --nx-field-placeholder: rgba(255, 255, 255, 0.5);
+    isolation: isolate;
+}
+
+.nx-app-shell[data-nx-color-mode="light"] {
+    --nx-overlay-bg: rgba(255, 255, 255, 0.96);
+    --nx-overlay-border: rgba(15, 23, 42, 0.14);
+    --nx-overlay-text: rgba(15, 23, 42, 0.94);
+    --nx-overlay-muted: rgba(51, 65, 85, 0.76);
+    --nx-field-bg: rgba(255, 255, 255, 0.9);
+    --nx-field-border: rgba(15, 23, 42, 0.18);
+    --nx-field-text: rgba(15, 23, 42, 0.94);
+    --nx-field-placeholder: rgba(71, 85, 105, 0.72);
+}
+
+.nx-app-shell :where(input, textarea, select) {
+    background-color: var(--nx-field-bg);
+    border-color: var(--nx-field-border);
+    color: var(--nx-field-text);
+}
+
+.nx-app-shell :where(input, textarea)::placeholder {
+    color: var(--nx-field-placeholder);
+}
+
+.nx-app-shell[data-nx-color-mode="light"] :where(select option) {
+    background: #ffffff;
+    color: #0f172a;
+}
+
+.nx-app-shell :where(
+        [role="dialog"],
+        [role="menu"],
+        [role="listbox"],
+        [data-radix-popper-content-wrapper],
+        .nx-files-menu,
+        .nx-files-card-menu,
+        .nx-files-flow-menu,
+        .nx-task-modal-sheet,
+        .nx-walkthrough-modal
+    ) {
+    z-index: var(--nx-overlay-z-index) !important;
+    color: var(--nx-overlay-text);
+}
+
+.nx-app-shell :where(
+        .nx-files-menu,
+        .nx-files-card-menu,
+        .nx-files-flow-menu,
+        .nx-task-modal-sheet
+    ) {
+    background: var(--nx-overlay-bg) !important;
+    border-color: var(--nx-overlay-border) !important;
+    box-shadow:
+        0 24px 70px rgba(2, 6, 23, 0.32),
+        inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.nx-app-shell[data-nx-color-mode="light"] :where(
+        .nx-menu-item,
+        .nx-files-menu-item,
+        .nx-files-menu-button
+    ) {
+    color: var(--nx-overlay-text) !important;
+}
+
+.nx-app-shell[data-nx-color-mode="light"] :where(
+        .nx-task-modal-sheet,
+        .nx-walkthrough-modal,
+        [role="dialog"],
+        [role="menu"],
+        [role="listbox"]
+    )
+    :where(p, span, small, label) {
+    color: var(--nx-overlay-muted);
+}
+
+.nx-v6-view-shell,
+.nx-v6-workbench,
+.nx-v6-content-frame,
+.nx-files-v6,
+.nx-devtools-v6,
+.nx-flux-v6 {
+    overflow: visible;
+}
+
+.nx-v6-content-frame,
+.nx-v6-inspector-rail,
+.nx-dashboard-v6,
+.nx-devtools-v6,
+.nx-files-v6,
+.nx-flux-v6 {
+    contain: layout;
+}
+
+.nx-files-menu-anchor,
+.nx-files-card-menu-trigger {
+    position: relative;
+    z-index: calc(var(--nx-overlay-z-index) - 1);
+}
+
+.nx-files-menu,
+.nx-files-card-menu,
+.nx-files-flow-menu {
+    max-width: min(320px, calc(100vw - 24px));
+    max-height: min(420px, calc(100dvh - 96px));
+    overflow: auto;
+    overscroll-behavior: contain;
+}
+
+@media (max-width: 1360px) and (min-width: 981px) {
+    .nx-v6-view-shell[data-inspector="open"] .nx-v6-workbench {
+        grid-template-columns: minmax(0, 1fr) minmax(190px, 240px) !important;
+    }
+
+    .nx-v6-inspector-rail {
+        max-width: min(24vw, 240px);
+    }
+
+    .nx-files-content-grid {
+        grid-template-columns: minmax(0, 1fr) minmax(230px, 280px) !important;
+    }
+
+    .nx-files-detail-pane {
+        width: clamp(230px, 22vw, 280px) !important;
+        min-width: 0 !important;
+    }
+
+    .nx-flux-work-grid {
+        grid-template-columns: minmax(200px, 280px) minmax(0, 1fr) !important;
+    }
+
+    .nx-devtools-file-panel {
+        width: clamp(200px, 20vw, 248px) !important;
+    }
+
+    .nx-devtools-code-panel {
+        flex-basis: clamp(340px, 38%, 520px) !important;
+    }
+}
+
+@media (max-width: 1180px) and (min-width: 981px) {
+    .nx-v6-view-shell[data-inspector="open"] .nx-v6-workbench,
+    .nx-files-content-grid,
+    .nx-flux-work-grid {
+        grid-template-columns: minmax(0, 1fr) !important;
+    }
+
+    .nx-v6-inspector-rail,
+    .nx-files-detail-pane {
+        max-width: none;
+        width: 100% !important;
     }
 }

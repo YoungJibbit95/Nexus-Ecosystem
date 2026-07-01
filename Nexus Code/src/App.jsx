@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Component, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import {
   HashRouter as Router,
@@ -174,6 +174,105 @@ function BootSequenceScreen({ progress, stage }) {
       </div>
     </div>
   );
+}
+
+class EditorRouteErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { error };
+  }
+
+  componentDidUpdate(previousProps) {
+    if (previousProps.resetKey !== this.props.resetKey && this.state.error) {
+      this.setState({ error: null });
+    }
+  }
+
+  render() {
+    if (!this.state.error) return this.props.children;
+    const message = this.state.error?.message || "Editor module could not be loaded";
+    const isDynamicImportError = /dynamically imported module|Failed to fetch/i.test(message);
+    return (
+      <div
+        style={{
+          width: "100%",
+          minHeight: "100dvh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background:
+            "radial-gradient(circle at 18% 14%, rgba(112,165,255,0.16), transparent 44%), linear-gradient(135deg, #05070d 0%, #0b101d 48%, #06080f 100%)",
+          color: "#d7e6ff",
+          fontFamily: "system-ui, sans-serif",
+          padding: 24,
+        }}
+      >
+        <section
+          style={{
+            width: "min(680px, 92vw)",
+            borderRadius: 20,
+            border: "1px solid rgba(112,165,255,0.24)",
+            background: "rgba(8,12,24,0.76)",
+            boxShadow:
+              "0 30px 90px rgba(0,0,0,0.46), 0 0 48px rgba(112,165,255,0.12), inset 0 1px 0 rgba(255,255,255,0.12)",
+            padding: 22,
+            backdropFilter: "blur(18px) saturate(135%)",
+            WebkitBackdropFilter: "blur(18px) saturate(135%)",
+          }}
+        >
+          <div style={{ fontSize: 12, fontWeight: 800, color: "#70a5ff", letterSpacing: 0 }}>
+            Nexus Code Start
+          </div>
+          <h1 style={{ margin: "8px 0 10px", fontSize: 24, lineHeight: 1.1 }}>
+            Editor konnte nicht geladen werden
+          </h1>
+          <p style={{ margin: 0, color: "rgba(215,230,255,0.74)", lineHeight: 1.55 }}>
+            {isDynamicImportError
+              ? "Der Renderer hat ein Editor-Modul nicht erreicht. Im Dev-Modus passiert das meistens durch einen alten oder belegten Vite-Port."
+              : "Beim Rendern der Editor-Route ist ein Fehler aufgetreten."}
+          </p>
+          <code
+            style={{
+              display: "block",
+              marginTop: 14,
+              padding: "10px 12px",
+              borderRadius: 12,
+              border: "1px solid rgba(255,255,255,0.1)",
+              background: "rgba(0,0,0,0.24)",
+              color: "#f5d0fe",
+              whiteSpace: "pre-wrap",
+              wordBreak: "break-word",
+              fontSize: 12,
+              lineHeight: 1.45,
+            }}
+          >
+            {message}
+          </code>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            style={{
+              marginTop: 16,
+              minHeight: 38,
+              borderRadius: 12,
+              border: "1px solid rgba(112,165,255,0.28)",
+              background: "linear-gradient(135deg, rgba(112,165,255,0.24), rgba(94,92,230,0.18))",
+              color: "#eef5ff",
+              padding: "0 14px",
+              fontWeight: 800,
+              cursor: "pointer",
+            }}
+          >
+            Renderer neu laden
+          </button>
+        </section>
+      </div>
+    );
+  }
 }
 
 function AccountGateScreen({
@@ -522,6 +621,9 @@ function App() {
   const controlToken = accountSession.token || "";
   const controlEnabled = accountSession.authMode === ACCOUNT_AUTH_MODES.nexus && Boolean(controlBaseUrl);
   const controlIngestKey = import.meta.env?.VITE_NEXUS_CONTROL_INGEST_KEY;
+  const hasElevatedAccountRole = ["admin", "owner", "developer"].includes(
+    String(accountSession.role || "").trim().toLowerCase(),
+  );
   const lowPowerMode = useMemo(() => isLowPowerDevice(), []);
   const viewAccessContext = useMemo(
     () =>
@@ -891,13 +993,19 @@ function App() {
           ...viewAccessContext,
         });
         if (!active) return;
+        const editorAllowed = editorAccess.allowed || hasElevatedAccountRole;
+        const editorReason = editorAccess.allowed
+          ? editorAccess.reason || null
+          : hasElevatedAccountRole
+            ? `LOCAL_ELEVATED_ROLE_ALLOW_${editorAccess.reason || "REMOTE_DENIED"}`
+            : editorAccess.reason || null;
         setViewGuardState({
           checking: false,
-          blocked: !editorAccess.allowed,
-          reason: editorAccess.reason || null,
-          requiredTier: editorAccess.requiredTier || null,
+          blocked: !editorAllowed,
+          reason: editorReason,
+          requiredTier: editorAllowed ? null : editorAccess.requiredTier || null,
         });
-        if (!editorAccess.allowed) {
+        if (!editorAllowed) {
           setControlStatus(buildControlStatus(
             "limited",
             [
@@ -983,7 +1091,7 @@ function App() {
       active = false;
       unsubscribe();
     };
-  }, [accountSessionState.isLocal, runtime, strictAccountReady, viewAccessContext]);
+  }, [accountSessionState.isLocal, hasElevatedAccountRole, runtime, strictAccountReady, viewAccessContext]);
 
   useEffect(() => {
     if (!bootReady || startupMetricDoneRef.current) return;
@@ -1103,35 +1211,37 @@ function App() {
           path="/editor"
           element={(
             <div className={lowPowerMode ? undefined : "nx-view-enter"} style={{ width: "100%", minHeight: "100dvh" }}>
-              <Suspense
-                fallback={(
-                  <div
-                    style={{
-                      width: "100%",
-                      minHeight: "100dvh",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      background:
-                        "radial-gradient(circle at 18% 14%, rgba(51,85,180,0.2), transparent 45%), linear-gradient(135deg, #04050c 0%, #0b0f1c 45%, #111628 100%)",
-                      color: "#d7e6ff",
-                      fontFamily: "system-ui, sans-serif",
-                      fontSize: 13,
-                      fontWeight: 700,
-                    }}
-                  >
-                    Lade Editor...
-                  </div>
-                )}
-              >
-                <Editor
-                  accountSession={accountSession}
-                  controlStatus={controlStatus}
-                  onSaveAccountSession={handleSaveAccountSession}
-                  onClearAccountSession={handleClearAccountSession}
-                  onTestAccountConnection={handleTestAccountConnection}
-                />
-              </Suspense>
+              <EditorRouteErrorBoundary resetKey={`${accountSession.authMode}:${accountSession.userId}:${accountSession.endpoint}`}>
+                <Suspense
+                  fallback={(
+                    <div
+                      style={{
+                        width: "100%",
+                        minHeight: "100dvh",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        background:
+                          "radial-gradient(circle at 18% 14%, rgba(51,85,180,0.2), transparent 45%), linear-gradient(135deg, #04050c 0%, #0b0f1c 45%, #111628 100%)",
+                        color: "#d7e6ff",
+                        fontFamily: "system-ui, sans-serif",
+                        fontSize: 13,
+                        fontWeight: 700,
+                      }}
+                    >
+                      Lade Editor...
+                    </div>
+                  )}
+                >
+                  <Editor
+                    accountSession={accountSession}
+                    controlStatus={controlStatus}
+                    onSaveAccountSession={handleSaveAccountSession}
+                    onClearAccountSession={handleClearAccountSession}
+                    onTestAccountConnection={handleTestAccountConnection}
+                  />
+                </Suspense>
+              </EditorRouteErrorBoundary>
             </div>
           )}
         />

@@ -848,6 +848,17 @@ const scenarios = [
       assert.equal(migratedSession.userTier, "pro");
       assert.equal(migratedState.canStartWorkbench, true);
 
+      const adminSession = normalizeAccountSession({
+        token: "admin-token",
+        userId: "admin-1",
+        username: "nexus-admin",
+        role: "admin",
+        userTier: "free",
+        expiresAt: Date.now() + 60_000,
+      });
+      assert.equal(adminSession.userTier, "lifetime_pro");
+      assert.equal(getAccountSessionState(adminSession).canStartWorkbench, true);
+
       const expiredSession = normalizeAccountSession({
         authMode: ACCOUNT_AUTH_MODES.nexus,
         token: "expired",

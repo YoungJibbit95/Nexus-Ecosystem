@@ -91,10 +91,22 @@ type MainAuthSession = {
 
 const resolveMainAuthUserTier = (
   requestedTier: string | undefined,
+  role?: string | undefined,
 ): NexusUserTier | undefined => {
   const raw = String(requestedTier || "").trim().toLowerCase();
-  if (!raw) return undefined;
-  if (raw === "free") return "free";
+  const normalizedRole = String(role || "").trim().toLowerCase();
+  if (!raw || raw === "free") {
+    if (
+      normalizedRole === "admin" ||
+      normalizedRole === "owner"
+    ) {
+      return "lifetime_pro";
+    }
+    if (normalizedRole === "developer") {
+      return "pro";
+    }
+    return raw === "free" ? "free" : undefined;
+  }
   if (raw === "lifetime_pro" || raw === "lifetime-pro" || raw === "pro_lifetime") {
     return "lifetime_pro";
   }
@@ -412,7 +424,10 @@ export default function App() {
         authSession?.user.username ||
         (env.VITE_NEXUS_USERNAME as string | undefined),
       userTier:
-        resolveMainAuthUserTier(authSession?.user.requestedTier) ||
+        resolveMainAuthUserTier(
+          authSession?.user.requestedTier,
+          authSession?.user.role,
+        ) ||
         resolveMainAuthUserTier(env.VITE_NEXUS_USER_TIER as string | undefined),
     });
   }, [authSession]);

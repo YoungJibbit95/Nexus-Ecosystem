@@ -153,17 +153,22 @@ export function createWelcomeEntries(session) {
 }
 
 export function resolveRunCommandForFile(activeFile) {
-  const fileName = activeFile?.name || "";
-  const ext = fileName.includes(".")
-    ? fileName.split(".").pop()?.toLowerCase()
-    : "";
+  const fileName = activeFile?.name || getPathBaseName(activeFile?.fsPath);
+  const ext = getPathExtension(fileName || activeFile?.fsPath);
   if (!ext) return "";
-  const shellFileName = quoteShellToken(fileName);
+  const shellFileName = quoteShellToken(
+    activeFile?.fsPath || activeFile?.path || activeFile?.relativePath || fileName,
+  );
   if (ext === "js" || ext === "mjs" || ext === "cjs") return `node ${shellFileName}`;
   if (ext === "ts" || ext === "tsx") return `npx tsx ${shellFileName}`;
-  if (ext === "py") return `python ${shellFileName}`;
+  if (ext === "py" || ext === "pyw") return `python ${shellFileName}`;
   if (ext === "java") return `java ${fileName.replace(".java", "")}`;
   if (ext === "sh") return `bash ${shellFileName}`;
+  if (ext === "bash") return `bash ${shellFileName}`;
+  if (ext === "ps1") return `pwsh -File ${shellFileName}`;
+  if (ext === "go") return `go run ${shellFileName}`;
+  if (ext === "rb") return `ruby ${shellFileName}`;
+  if (ext === "php") return `php ${shellFileName}`;
   return "";
 }
 
@@ -185,13 +190,24 @@ export function getTaskRunnerItems(activeFile) {
 }
 
 export function getCommandSuggestions({ activeFile, history = [], limit = 6 } = {}) {
+  const cappedLimit = Math.max(0, Number(limit) || 0);
+  if (cappedLimit === 0) return [];
+
   const runFileCommand = resolveRunCommandForFile(activeFile);
-  const recent = history
-    .filter(Boolean)
-    .slice(0, 3)
-    .map((command, index) => ({
+  const recentCommands = [];
+  const seenRecentCommands = new Set();
+
+  for (const entry of history) {
+    const command = String(entry || "").trim();
+    if (!command || seenRecentCommands.has(command)) continue;
+    seenRecentCommands.add(command);
+    recentCommands.push(command);
+    if (recentCommands.length >= 3) break;
+  }
+
+  const recent = recentCommands.map((command, index) => ({
       id: `recent-${index}-${command}`,
-      label: command.length > 18 ? `${command.slice(0, 18)}...` : command,
+      label: createCommandSuggestionLabel(command),
       command,
       group: "Recent",
       recent: true,
@@ -214,7 +230,7 @@ export function getCommandSuggestions({ activeFile, history = [], limit = 6 } = 
       seen.add(item.command);
       return true;
     })
-    .slice(0, limit);
+    .slice(0, cappedLimit);
 }
 
 export function getTerminalBridge() {
@@ -450,4 +466,21 @@ function quoteShellToken(value) {
   if (!text) return text;
   if (/^[\w./:-]+$/.test(text)) return text;
   return `"${text.replace(/(["\\$`])/g, "\\$1")}"`;
+}
+
+function getPathExtension(path) {
+  const baseName = getPathBaseName(path);
+  if (!baseName || !baseName.includes(".")) return "";
+  return baseName.split(".").pop()?.toLowerCase() || "";
+}
+
+function getPathBaseName(path) {
+  const value = String(path || "");
+  if (!value) return "";
+  return value.split(/[\\/]/).filter(Boolean).pop() || value;
+}
+
+function createCommandSuggestionLabel(command) {
+  const text = String(command || "");
+  return text.length > 24 ? `${text.slice(0, 21)}...` : text;
 }

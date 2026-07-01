@@ -23,6 +23,7 @@ export const createEmptyAccountSession = () => ({
 
 const VALID_USER_TIERS = new Set(["free", "pro", "lifetime", "lifetime_pro"]);
 const VALID_AUTH_MODES = new Set(Object.values(ACCOUNT_AUTH_MODES));
+const ELEVATED_ACCOUNT_ROLES = new Set(["admin", "owner", "developer"]);
 
 const normalizeAuthMode = (modeRaw) => {
   const mode = String(modeRaw || ACCOUNT_AUTH_MODES.signedOut).trim().toLowerCase();
@@ -35,6 +36,14 @@ export const normalizeNexusUserTier = (tierRaw) => {
   if (tier === "premium") return "pro";
   if (tier === "lifetime-pro") return "lifetime_pro";
   return VALID_USER_TIERS.has(tier) ? tier : "free";
+};
+
+const resolveSessionUserTier = (tierRaw, roleRaw) => {
+  const tier = normalizeNexusUserTier(tierRaw);
+  const role = String(roleRaw || "").trim().toLowerCase();
+  if (tier === "free" && (role === "admin" || role === "owner")) return "lifetime_pro";
+  if (tier === "free" && ELEVATED_ACCOUNT_ROLES.has(role)) return "pro";
+  return tier;
 };
 
 export const normalizeNexusApiEndpoint = (endpointRaw) => {
@@ -73,7 +82,7 @@ export const normalizeAccountSession = (sessionRaw = {}) => {
     username,
     role: String(sessionRaw.role || "").trim().slice(0, 80),
     email: String(sessionRaw.email || "").trim().slice(0, 160),
-    userTier: normalizeNexusUserTier(sessionRaw.userTier),
+    userTier: resolveSessionUserTier(sessionRaw.userTier, sessionRaw.role),
     expiresAt: Number.isFinite(Number(sessionRaw.expiresAt))
       ? Number(sessionRaw.expiresAt)
       : null,

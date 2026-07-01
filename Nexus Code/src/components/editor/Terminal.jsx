@@ -387,8 +387,8 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
       }),
     [activeFile, currentCommandHistory],
   );
-  const visibleQuickTasks = quickTasks.slice(0, 3);
-  const visibleSuggestions = commandSuggestions.slice(0, 4);
+  const visibleQuickTasks = quickTasks.slice(0, 2);
+  const visibleSuggestions = commandSuggestions.slice(0, 2);
   const sessionSubscriptionKey = useMemo(
     () => sessions.map((session) => session.id).join("|"),
     [sessions],
@@ -1197,12 +1197,12 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
           </span>
         )}
 
-        <span className="hidden shrink-0 rounded-md border border-white/[0.06] px-2 py-1 text-[10px] text-slate-600 lg:inline">
+        <span className="hidden shrink-0 rounded-md border border-white/[0.06] px-2 py-1 text-[10px] text-slate-600 xl:inline">
           {outputLineCount}/{TERMINAL_OUTPUT_LIMIT} lines
         </span>
 
         <div className="ml-auto flex shrink-0 items-center gap-1.5">
-          <span className="hidden max-w-[150px] truncate text-[10px] text-slate-600 xl:inline">
+          <span className="hidden max-w-[150px] truncate text-[10px] text-slate-600 2xl:inline">
             {bridgeInfo.label}
           </span>
 
@@ -1229,7 +1229,7 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
               type="button"
               onClick={() => runTask(task)}
               disabled={task.disabled}
-              className="hidden h-6 shrink-0 rounded-md px-2 font-mono text-[10px] transition-colors disabled:opacity-35 lg:inline-flex lg:items-center"
+              className="hidden h-6 shrink-0 rounded-md px-2 font-mono text-[10px] transition-colors disabled:opacity-35 xl:inline-flex xl:items-center"
               style={{
                 border: "1px solid rgba(255,255,255,0.065)",
                 color: task.disabled ? "#64748b" : "#94a3b8",
@@ -1269,7 +1269,7 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
               type="button"
               onClick={() => executeCommandInSession(activeSessionId, item.command)}
               disabled={isRunning}
-              className="hidden h-6 shrink-0 rounded-md px-2 font-mono text-[10px] transition-colors disabled:opacity-35 xl:inline-flex xl:items-center"
+              className="hidden h-6 shrink-0 rounded-md px-2 font-mono text-[10px] transition-colors disabled:opacity-35 2xl:inline-flex 2xl:items-center"
               style={{
                 border: item.recent
                   ? "1px solid rgba(125,211,252,0.13)"
