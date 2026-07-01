@@ -12240,3 +12240,306 @@ select {
         width: 100% !important;
     }
 }
+
+/* Nexus calm chrome pass: reduce visual noise across the release views. */
+.nx-app-shell {
+    --nx-calm-panel: rgba(255, 255, 255, 0.045);
+    --nx-calm-panel-strong: rgba(255, 255, 255, 0.065);
+    --nx-calm-line: rgba(255, 255, 255, 0.105);
+    --nx-calm-line-strong: rgba(255, 255, 255, 0.16);
+    --nx-calm-shadow: 0 12px 34px rgba(2, 6, 23, 0.22);
+    --nx-calm-text: rgba(255, 255, 255, 0.92);
+    --nx-calm-muted: rgba(255, 255, 255, 0.62);
+}
+
+.nx-app-shell[data-nx-color-mode="light"] {
+    --nx-calm-panel: rgba(255, 255, 255, 0.76);
+    --nx-calm-panel-strong: rgba(255, 255, 255, 0.9);
+    --nx-calm-line: rgba(15, 23, 42, 0.1);
+    --nx-calm-line-strong: rgba(15, 23, 42, 0.16);
+    --nx-calm-shadow: 0 10px 28px rgba(15, 23, 42, 0.1);
+    --nx-calm-text: rgba(15, 23, 42, 0.92);
+    --nx-calm-muted: rgba(51, 65, 85, 0.68);
+}
+
+.nx-app-shell
+    :where(
+        .nx-release-view,
+        .nx-dashboard-v6,
+        .nx-tasks-v6,
+        .nx-reminders-v6,
+        .nx-files-v6,
+        .nx-flux-v6,
+        .nx-code-v6,
+        .nx-devtools-v6,
+        .nx-settings-v6,
+        .nx-canvas-v6,
+        .nx-calendar-view
+    ) {
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent 42%),
+        transparent !important;
+}
+
+.nx-app-shell[data-nx-color-mode="light"]
+    :where(
+        .nx-release-view,
+        .nx-dashboard-v6,
+        .nx-tasks-v6,
+        .nx-reminders-v6,
+        .nx-files-v6,
+        .nx-flux-v6,
+        .nx-code-v6,
+        .nx-devtools-v6,
+        .nx-settings-v6,
+        .nx-canvas-v6,
+        .nx-calendar-view
+    ) {
+    color: var(--nx-calm-text);
+}
+
+.nx-app-shell
+    :where(
+        .nx-release-toolbar,
+        .nx-release-strip,
+        .nx-v6-content-frame,
+        .nx-canvas-topbar,
+        .nx-canvas-topbar-inner,
+        .nx-devtools-toolbar,
+        .nx-devtools-builder-toolbar,
+        .nx-devtools-panel-header,
+        .nx-settings-content-header,
+        .nx-settings-sidebar,
+        .nx-settings-content,
+        .nx-files-header,
+        .nx-files-toolbar,
+        .nx-files-filter-strip,
+        .nx-files-quality-strip
+    ) {
+    border-color: var(--nx-calm-line) !important;
+    background:
+        linear-gradient(180deg, var(--nx-calm-panel-strong), var(--nx-calm-panel)),
+        transparent !important;
+    box-shadow: none !important;
+}
+
+.nx-app-shell
+    :where(
+        .nx-release-toolbar,
+        .nx-release-strip,
+        .nx-canvas-topbar-inner,
+        .nx-devtools-toolbar,
+        .nx-devtools-builder-toolbar,
+        .nx-files-toolbar,
+        .nx-files-filter-strip
+    ) {
+    gap: 8px !important;
+}
+
+.nx-app-shell
+    :where(
+        .nx-release-toolbar,
+        .nx-canvas-topbar-inner,
+        .nx-devtools-toolbar,
+        .nx-files-header
+    ) {
+    padding: 8px 12px !important;
+}
+
+.nx-app-shell
+    :where(
+        .nx-release-strip,
+        .nx-tasks-mode-strip,
+        .nx-tasks-filter-bar,
+        .nx-tasks-quick-strip,
+        .nx-reminders-stats,
+        .nx-reminders-today-strip,
+        .nx-calendar-stats,
+        .nx-files-filter-strip,
+        .nx-files-quality-strip
+    ) {
+    padding: 6px 10px !important;
+}
+
+.nx-app-shell
+    :where(
+        .nx-release-toolbar,
+        .nx-release-strip,
+        .nx-devtools-toolbar,
+        .nx-devtools-builder-toolbar,
+        .nx-canvas-toolbar-groups,
+        .nx-calendar-stats,
+        .nx-files-statusbar,
+        .nx-files-filter-strip,
+        .nx-files-quality-strip
+    ) {
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.nx-app-shell
+    :where(
+        .nx-release-toolbar,
+        .nx-release-strip,
+        .nx-devtools-toolbar,
+        .nx-devtools-builder-toolbar,
+        .nx-canvas-toolbar-groups,
+        .nx-calendar-stats,
+        .nx-files-statusbar,
+        .nx-files-filter-strip,
+        .nx-files-quality-strip
+    )::-webkit-scrollbar {
+    display: none;
+}
+
+.nx-app-shell
+    :where(
+        .nx-release-toolbar :where(button, input, select),
+        .nx-release-strip :where(button, input, select),
+        .nx-canvas-topbar :where(button, input, select),
+        .nx-devtools-toolbar :where(button, input, select),
+        .nx-devtools-builder-toolbar :where(button, input, select),
+        .nx-settings-v6 :where(button, input, textarea, select),
+        .nx-files-v6 :where(button, input, textarea, select)
+    ) {
+    box-shadow: none !important;
+}
+
+.nx-app-shell
+    :where(
+        .nx-flux-metric-card,
+        .nx-devtools-command-card,
+        .nx-devtools-calc-card,
+        .nx-devtools-panel-card,
+        .nx-devtools-release-stat,
+        .nx-devtools-visual-workspace,
+        .nx-devtools-visual-inspector,
+        .nx-settings-module-card,
+        .nx-settings-material-preset,
+        .nx-settings-panel-health,
+        .nx-calendar-month-panel,
+        .nx-calendar-agenda-panel,
+        .nx-tasks-column-header,
+        .nx-canvas-sidebar-shell,
+        .nx-canvas-project-panel,
+        .nx-canvas-empty-card,
+        .nx-files-card,
+        .nx-files-detail-pane
+    ) {
+    border-color: var(--nx-calm-line) !important;
+    background:
+        linear-gradient(180deg, var(--nx-calm-panel-strong), var(--nx-calm-panel)),
+        transparent !important;
+    box-shadow: var(--nx-calm-shadow) !important;
+}
+
+.nx-app-shell
+    :where(
+        .nx-devtools-command-card:hover,
+        .nx-settings-material-preset:hover,
+        .nx-files-card:hover,
+        .nx-files-card:focus-visible,
+        .nx-calendar-day:hover,
+        .nx-calendar-day:focus-visible
+    ) {
+    border-color: var(--nx-calm-line-strong) !important;
+}
+
+.nx-devtools-toolbar,
+.nx-devtools-builder-toolbar {
+    align-content: center;
+}
+
+.nx-devtools-toolbar-group,
+.nx-canvas-toolbar-group {
+    min-height: 34px;
+    border-color: var(--nx-calm-line) !important;
+    background: var(--nx-calm-panel) !important;
+    box-shadow: none !important;
+}
+
+.nx-devtools-toolbar-group-label,
+.nx-canvas-toolbar-group-label,
+.nx-settings-v6 :where(p, small, label),
+.nx-files-v6 :where(p, small, label) {
+    color: var(--nx-calm-muted) !important;
+}
+
+.nx-devtools-tabs,
+.nx-devtools-pane-tabs,
+.nx-calendar-segment,
+.nx-files-layout-switcher {
+    border-color: var(--nx-calm-line) !important;
+    background: var(--nx-calm-panel) !important;
+    box-shadow: none !important;
+}
+
+.nx-settings-v6 {
+    gap: 12px !important;
+    padding: 10px !important;
+}
+
+.nx-settings-sidebar,
+.nx-settings-content {
+    border-radius: 12px !important;
+}
+
+.nx-settings-summary,
+.nx-settings-material-presets,
+.nx-settings-live-material-grid {
+    gap: 10px !important;
+}
+
+.nx-settings-module-card {
+    border-radius: 12px !important;
+}
+
+.nx-canvas-topbar {
+    padding: 8px 10px 0 !important;
+}
+
+.nx-canvas-topbar-inner {
+    min-height: 0 !important;
+}
+
+.nx-canvas-toolbar-context,
+.nx-canvas-toolbar-groups {
+    gap: 8px !important;
+}
+
+.nx-canvas-toolbar-group {
+    padding: 6px 8px !important;
+}
+
+.nx-canvas-stage-surface {
+    box-shadow: inset 0 0 0 1px var(--nx-calm-line) !important;
+}
+
+.nx-tasks-board,
+.nx-flux-work-grid,
+.nx-devtools-builder-body,
+.nx-devtools-designer,
+.nx-devtools-visual-builder {
+    gap: 10px !important;
+}
+
+.nx-tasks-column-list,
+.nx-reminders-list,
+.nx-devtools-release,
+.nx-devtools-flags,
+.nx-files-content-grid {
+    scrollbar-gutter: stable;
+}
+
+@media (max-width: 1280px) {
+    .nx-app-shell
+        :where(
+            .nx-release-toolbar,
+            .nx-release-strip,
+            .nx-canvas-topbar-inner,
+            .nx-devtools-toolbar,
+            .nx-devtools-builder-toolbar
+        ) {
+        flex-wrap: nowrap !important;
+    }
+}
