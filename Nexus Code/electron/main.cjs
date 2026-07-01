@@ -9,6 +9,7 @@ const { createGithubAuthService } = require("./services/githubAuthService.cjs");
 const { createGithubService } = require("./services/githubService.cjs");
 const { createLspProcessService } = require("./services/lspProcessService.cjs");
 const { redactSensitiveText } = require("./services/processRunner.cjs");
+const { createSanitizedProcessEnv } = require("./services/safeProcessEnv.cjs");
 
 const DEV = process.env.ELECTRON_DEV === "true";
 const DEV_URL = process.env.NEXUS_CODE_DEV_URL || "http://127.0.0.1:5175";
@@ -210,13 +211,27 @@ const toIpcResponse = async (operation) => {
     const data = await operation();
     return { ok: true, data, error: null };
   } catch (error) {
+    const safeError = redactSensitiveText(error?.message || "Unknown IPC error");
+    let errorDetails = null;
+    if (typeof error?.toIpcError === "function") {
+      try {
+        errorDetails = JSON.parse(redactSensitiveText(JSON.stringify(error.toIpcError())));
+      } catch {
+        errorDetails = null;
+      }
+    }
     return {
       ok: false,
       data: null,
-      error: redactSensitiveText(error?.message || "Unknown IPC error"),
+      error: safeError,
+      errorDetails,
     };
   }
 };
+
+const shouldLogRendererDiagnostics = DEV || process.env.NEXUS_CODE_RENDERER_DIAGNOSTICS === "1";
+
+const redactRendererLog = (value) => redactSensitiveText(String(value || "").slice(0, 4_000));
 
 const shouldEnableGpuSwitches = process.env.NEXUS_FORCE_GPU_SWITCHES === "1";
 
@@ -437,6 +452,10 @@ function createWindow() {
 
   let windowShown = false;
   let rendererFailed = false;
+  console.info("[Nexus Code] create window", {
+    dev: DEV,
+    url: DEV ? DEV_URL : "dist/index.html",
+  });
   const revealWindow = (reason) => {
     if (!mainWindow || mainWindow.isDestroyed() || windowShown) return;
     windowShown = true;
@@ -488,6 +507,28 @@ function createWindow() {
       );
     },
   );
+  mainWindow.webContents.on("did-start-loading", () => {
+    if (shouldLogRendererDiagnostics) {
+      console.info("[Nexus Code] renderer did-start-loading");
+    }
+  });
+  mainWindow.webContents.on("dom-ready", () => {
+    if (shouldLogRendererDiagnostics) {
+      console.info("[Nexus Code] renderer dom-ready");
+    }
+  });
+  mainWindow.webContents.on("did-stop-loading", () => {
+    if (shouldLogRendererDiagnostics) {
+      console.info("[Nexus Code] renderer did-stop-loading");
+    }
+  });
+  mainWindow.webContents.on("console-message", (_event, level, message, line, sourceId) => {
+    if (!shouldLogRendererDiagnostics && level < 2) return;
+    const source = sourceId ? `${path.basename(sourceId)}:${line || 0}` : `line:${line || 0}`;
+    console.info(
+      `[Nexus Code] renderer console ${level} ${source}: ${redactRendererLog(message)}`,
+    );
+  });
   mainWindow.webContents.on("render-process-gone", (_event, details) => {
     reportRendererFailure(
       "RENDER_PROCESS_GONE",
@@ -495,6 +536,9 @@ function createWindow() {
     );
   });
   mainWindow.webContents.on("did-finish-load", () => {
+    if (shouldLogRendererDiagnostics) {
+      console.info("[Nexus Code] renderer did-finish-load");
+    }
     if (!rendererFailed) {
       revealWindow("did-finish-load");
     }
@@ -514,7 +558,16 @@ function createWindow() {
     }
   });
 
+  mainWindow.on("close", () => {
+    if (shouldLogRendererDiagnostics) {
+      console.info("[Nexus Code] main window close requested");
+    }
+  });
+
   mainWindow.on("closed", () => {
+    if (shouldLogRendererDiagnostics) {
+      console.info("[Nexus Code] main window closed");
+    }
     clearTimeout(fallbackShowTimer);
     mainWindow = null;
   });
@@ -742,6 +795,90 @@ ipcMain.handle("github:rate-limit", async () => toIpcResponse(async () => (
   githubService.getRateLimit()
 )));
 
+ipcMain.handle("github:issues:list", async (_event, options = {}) => toIpcResponse(async () => (
+  githubService.listIssues(options || {})
+)));
+
+ipcMain.handle("github:issues:get", async (_event, options = {}) => toIpcResponse(async () => (
+  githubService.getIssue(options || {})
+)));
+
+ipcMain.handle("github:issues:create", async (_event, options = {}) => toIpcResponse(async () => (
+  githubService.createIssue(options || {})
+)));
+
+ipcMain.handle("github:issues:update", async (_event, options = {}) => toIpcResponse(async () => (
+  githubService.updateIssue(options || {})
+)));
+
+ipcMain.handle("github:issues:comments", async (_event, options = {}) => toIpcResponse(async () => (
+  githubService.listIssueComments(options || {})
+)));
+
+ipcMain.handle("github:issues:comment", async (_event, options = {}) => toIpcResponse(async () => (
+  githubService.createIssueComment(options || {})
+)));
+
+ipcMain.handle("github:pulls:list", async (_event, options = {}) => toIpcResponse(async () => (
+  githubService.listPullRequests(options || {})
+)));
+
+ipcMain.handle("github:pulls:get", async (_event, options = {}) => toIpcResponse(async () => (
+  githubService.getPullRequest(options || {})
+)));
+
+ipcMain.handle("github:pulls:create", async (_event, options = {}) => toIpcResponse(async () => (
+  githubService.createPullRequest(options || {})
+)));
+
+ipcMain.handle("github:pulls:update", async (_event, options = {}) => toIpcResponse(async () => (
+  githubService.updatePullRequest(options || {})
+)));
+
+ipcMain.handle("github:pulls:files", async (_event, options = {}) => toIpcResponse(async () => (
+  githubService.listPullRequestFiles(options || {})
+)));
+
+ipcMain.handle("github:pulls:commits", async (_event, options = {}) => toIpcResponse(async () => (
+  githubService.listPullRequestCommits(options || {})
+)));
+
+ipcMain.handle("github:pulls:reviews", async (_event, options = {}) => toIpcResponse(async () => (
+  githubService.listPullRequestReviews(options || {})
+)));
+
+ipcMain.handle("github:pulls:review:create", async (_event, options = {}) => toIpcResponse(async () => (
+  githubService.createPullRequestReview(options || {})
+)));
+
+ipcMain.handle("github:pulls:merge", async (_event, options = {}) => toIpcResponse(async () => (
+  githubService.mergePullRequest(options || {})
+)));
+
+ipcMain.handle("github:pulls:update-branch", async (_event, options = {}) => toIpcResponse(async () => (
+  githubService.updatePullRequestBranch(options || {})
+)));
+
+ipcMain.handle("github:projects-v2:list", async (_event, options = {}) => toIpcResponse(async () => (
+  githubService.listProjectsV2(options || {})
+)));
+
+ipcMain.handle("github:projects-v2:get", async (_event, options = {}) => toIpcResponse(async () => (
+  githubService.getProjectV2(options || {})
+)));
+
+ipcMain.handle("github:projects-v2:items", async (_event, options = {}) => toIpcResponse(async () => (
+  githubService.listProjectV2Items(options || {})
+)));
+
+ipcMain.handle("github:projects-v2:item:add", async (_event, options = {}) => toIpcResponse(async () => (
+  githubService.addProjectV2ItemById(options || {})
+)));
+
+ipcMain.handle("github:projects-v2:item-field:update", async (_event, options = {}) => toIpcResponse(async () => (
+  githubService.updateProjectV2ItemFieldValue(options || {})
+)));
+
 // IPC: Language Server Protocol
 
 ipcMain.handle("lsp:start", async (_event, payload = {}) => toIpcResponse(async () => {
@@ -854,7 +991,7 @@ ipcMain.on("terminal:run", async (event, payload = {}) => {
     const shellLaunch = resolveShellLaunch(normalized);
     const proc = spawn(shellLaunch.binary, shellLaunch.args, {
       cwd: resolvedCwd,
-      env: { ...process.env, FORCE_COLOR: "1" },
+      env: createSanitizedProcessEnv({ FORCE_COLOR: "1" }),
       stdio: ["pipe", "pipe", "pipe"],
       windowsHide: true,
     });
@@ -943,10 +1080,16 @@ app.whenReady().then(() => {
 });
 
 app.on("window-all-closed", () => {
+  if (shouldLogRendererDiagnostics) {
+    console.info("[Nexus Code] window-all-closed");
+  }
   if (process.platform !== "darwin") app.quit();
 });
 
 app.on("before-quit", () => {
+  if (shouldLogRendererDiagnostics) {
+    console.info("[Nexus Code] before-quit");
+  }
   terminateActiveProcesses();
   lspProcessService.dispose();
 });

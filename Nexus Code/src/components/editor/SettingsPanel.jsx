@@ -2,24 +2,22 @@ import React from "react";
 import {
   ArrowLeft,
   Check,
+  Clipboard,
   Code2,
   Cpu,
   Eye,
+  EyeOff,
   Gauge,
-<<<<<<< HEAD
   Info,
-=======
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
   Palette,
+  PanelBottom,
   PanelLeft,
+  PanelRight,
   RefreshCcw,
   Search,
   Settings2,
   Sparkles,
-<<<<<<< HEAD
   X,
-=======
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
   Zap,
 } from "lucide-react";
 import { motion, useReducedMotion } from "framer-motion";
@@ -38,6 +36,15 @@ import {
   visualPerformanceProfiles,
 } from './settingsShared';
 import { resolveNexusTheme } from '../../theme/nexusThemeResolver.js';
+import { DEFAULT_SETTINGS } from '../../pages/editor/editorShared.jsx';
+import {
+  getBottomPanelSizeOptions,
+  getSidePanelSizeOptions,
+  getWorkbenchLayoutPresetOptions,
+  getWorkbenchZonePanelIds,
+  normalizeWorkbenchLayout,
+  WORKBENCH_SNAP_ZONES,
+} from '../../pages/editor/workbenchDockModel.js';
 
 const SETTING_SECTIONS = [
   {
@@ -54,11 +61,7 @@ const SETTING_SECTIONS = [
     eyebrow: "Text",
     icon: Code2,
     description: "Typing, Layout, Hilfen und CodeMirror-Verhalten.",
-<<<<<<< HEAD
     keywords: "font line height letter spacing wrap minimap diagnostics autocomplete lsp whitespace cursor bracket tab",
-=======
-    keywords: "font line height wrap minimap diagnostics autocomplete lsp whitespace cursor bracket tab",
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
   },
   {
     id: "workbench",
@@ -66,11 +69,7 @@ const SETTING_SECTIONS = [
     eyebrow: "Shell",
     icon: PanelLeft,
     description: "Sidebar, Statusleiste, Zen Mode, Autosave und Panel-Verhalten.",
-<<<<<<< HEAD
     keywords: "sidebar visible status bar zen autosave workbench panels background",
-=======
-    keywords: "sidebar status bar zen autosave workbench panels background",
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
   },
   {
     id: "theme",
@@ -86,11 +85,7 @@ const SETTING_SECTIONS = [
     eyebrow: "Budget",
     icon: Gauge,
     description: "Blur/Glow-Budget, LSP, Diagnostics und Rendering-Kosten.",
-<<<<<<< HEAD
-    keywords: "performance visual profile blur glow outline lsp diagnostics autocomplete minimap renderer hints budget",
-=======
-    keywords: "performance visual profile blur glow lsp diagnostics autocomplete minimap renderer",
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
+    keywords: "performance visual profile blur glow outline lsp diagnostics autocomplete minimap renderer hints budget low power fallback battery",
   },
   {
     id: "animations",
@@ -98,11 +93,7 @@ const SETTING_SECTIONS = [
     eyebrow: "Motion",
     icon: Zap,
     description: "Reduced Motion, Cursor-Animationen und Glow-Bewegung.",
-<<<<<<< HEAD
     keywords: "animation motion reduce speed duration caret cursor blink glow",
-=======
-    keywords: "animation motion reduce caret cursor blink glow",
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
   },
 ];
 
@@ -120,6 +111,34 @@ const SETTING_INDEX = [
     label: "Sekundaerfarbe",
     description: "Zweiter Akzent fuer Gradients, Switches und dezente Highlights.",
     keywords: "secondary accent color colour theme editor",
+  },
+  {
+    id: "custom_surface",
+    section: "theme-editor",
+    label: "Custom Surface",
+    description: "Panel- und Editor-Oberflaeche als eigener Theme-Wert.",
+    keywords: "surface panel background custom color colour theme editor",
+  },
+  {
+    id: "custom_input_surface",
+    section: "theme-editor",
+    label: "Input Surface",
+    description: "Control- und Input-Flaechen fuer Suche, Selects und Felder.",
+    keywords: "input control surface field select search custom color colour",
+  },
+  {
+    id: "theme_editor_presets",
+    section: "theme-editor",
+    label: "Theme Editor Presets",
+    description: "Schnelle Rezepte fuer Fokus, Glass und Review-Optik.",
+    keywords: "preset recipe apply reset theme editor quick focus glass review",
+  },
+  {
+    id: "theme_export_json",
+    section: "theme-editor",
+    label: "Export JSON",
+    description: "Theme-Editor-Settings und CSS-Tokens in die Zwischenablage kopieren.",
+    keywords: "export copy clipboard json theme settings tokens",
   },
   {
     id: "glow_intensity",
@@ -171,6 +190,13 @@ const SETTING_INDEX = [
     keywords: "font size text zoom editor",
   },
   {
+    id: "text_size_preset",
+    section: "editor",
+    label: "Textgroessen Presets",
+    description: "Schnelle Kombinationen aus Font Size, Line Height und Letter Spacing.",
+    keywords: "text size font preset scale compact comfortable presentation line height letter spacing",
+  },
+  {
     id: "line_height",
     section: "editor",
     label: "Line Height",
@@ -185,7 +211,6 @@ const SETTING_INDEX = [
     keywords: "font weight bold medium typography",
   },
   {
-<<<<<<< HEAD
     id: "letter_spacing",
     section: "editor",
     label: "Letter Spacing",
@@ -193,8 +218,6 @@ const SETTING_INDEX = [
     keywords: "letter spacing tracking character typografie font editor",
   },
   {
-=======
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
     id: "tab_size",
     section: "editor",
     label: "Tab-Groesse",
@@ -237,6 +260,55 @@ const SETTING_INDEX = [
     keywords: "autocomplete completion suggestions lsp hover intellisense",
   },
   {
+    id: "autocomplete_enabled",
+    section: "editor",
+    label: "Autocomplete aktiv",
+    description: "CodeMirror-Vorschlaege beim Schreiben und via Shortcut anzeigen.",
+    keywords: "autocomplete completion suggestions intellisense active typing",
+  },
+  {
+    id: "autocomplete_lsp",
+    section: "editor",
+    label: "LSP als Quelle",
+    description: "Language Server fuer kontextnahe Vorschlaege nutzen, wenn verfuegbar.",
+    keywords: "autocomplete completion lsp language server source",
+  },
+  {
+    id: "autocomplete_snippets",
+    section: "editor",
+    label: "Snippets",
+    description: "Mehrzeilige Vorlagen fuer haeufige Sprachmuster anbieten.",
+    keywords: "autocomplete snippets templates boilerplate completion",
+  },
+  {
+    id: "autocomplete_language_hints",
+    section: "editor",
+    label: "Sprach-Hints",
+    description: "Keywords, Standardstrukturen und Framework-nahe Vorschlaege lokal anbieten.",
+    keywords: "autocomplete language hints keywords structures local",
+  },
+  {
+    id: "autocomplete_local_words",
+    section: "editor",
+    label: "Datei-Woerter",
+    description: "Woerter und Symbole aus der aktuellen Datei als Vorschlaege verwenden.",
+    keywords: "autocomplete local words symbols current document",
+  },
+  {
+    id: "autocomplete_min_chars",
+    section: "editor",
+    label: "Autocomplete Trigger",
+    description: "Wie viele Zeichen getippt werden, bevor Vorschlaege automatisch erscheinen.",
+    keywords: "autocomplete trigger min chars delay typing",
+  },
+  {
+    id: "autocomplete_max_items",
+    section: "editor",
+    label: "Autocomplete Limit",
+    description: "Maximale interne Vorschlaege pro Anfrage.",
+    keywords: "autocomplete completion limit max suggestions performance",
+  },
+  {
     id: "render_whitespace",
     section: "editor",
     label: "Whitespace anzeigen",
@@ -272,7 +344,6 @@ const SETTING_INDEX = [
     keywords: "sidebar workbench rail left right",
   },
   {
-<<<<<<< HEAD
     id: "sidebar_visible",
     section: "workbench",
     label: "Sidebar Sichtbarkeit",
@@ -280,8 +351,6 @@ const SETTING_INDEX = [
     keywords: "sidebar visible activity rail panel hide show workbench",
   },
   {
-=======
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
     id: "status_bar_visible",
     section: "workbench",
     label: "Statusleiste",
@@ -301,6 +370,34 @@ const SETTING_INDEX = [
     label: "Auto Save",
     description: "Lokale Aenderungen automatisch speichern.",
     keywords: "autosave auto save storage",
+  },
+  {
+    id: "workbench_layout_presets",
+    section: "workbench",
+    label: "Layout Presets",
+    description: "Fokus, Comfortable oder Wide direkt anwenden.",
+    keywords: "layout preset compact focus comfortable wide quick action shell",
+  },
+  {
+    id: "workbench_panel_sizes",
+    section: "workbench",
+    label: "Panel Groessen",
+    description: "Side-Panel-Breite und Bottom-Dock-Hoehe einstellen.",
+    keywords: "panel size width height side bottom dock compact",
+  },
+  {
+    id: "workbench_docking",
+    section: "workbench",
+    label: "Docking",
+    description: "Aktives Panel links, rechts, unten oder hidden docken.",
+    keywords: "dock snap left right bottom hidden panel quick action",
+  },
+  {
+    id: "workbench_layout_reset",
+    section: "workbench",
+    label: "Layout Reset",
+    description: "Workbench Layout und Panel-Zonen auf Defaults zuruecksetzen.",
+    keywords: "reset layout default fallback restore workbench",
   },
   {
     id: "theme",
@@ -324,6 +421,20 @@ const SETTING_INDEX = [
     keywords: "performance quality balanced profile visual",
   },
   {
+    id: "visual_budget_summary",
+    section: "performance",
+    label: "Visual Budget",
+    description: "Sichtbarer Kostenindikator fuer Blur, Glow, Renderer und Motion.",
+    keywords: "visual budget cost expensive blur glow renderer motion paint performance",
+  },
+  {
+    id: "low_power_fallback",
+    section: "performance",
+    label: "Low-Power Fallback",
+    description: "Reduzierte Visuals, Motion und Minimap fuer schwache Systeme.",
+    keywords: "low power fallback battery reduce motion performance profile minimap",
+  },
+  {
     id: "glow_renderer",
     section: "performance",
     label: "Glow Renderer",
@@ -331,7 +442,6 @@ const SETTING_INDEX = [
     keywords: "glow renderer css three performance",
   },
   {
-<<<<<<< HEAD
     id: "panel_glow_outline",
     section: "performance",
     label: "Panel Glow Outline",
@@ -339,8 +449,6 @@ const SETTING_INDEX = [
     keywords: "panel glow outline border light performance",
   },
   {
-=======
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
     id: "reduce_motion",
     section: "animations",
     label: "Reduce Motion",
@@ -355,7 +463,6 @@ const SETTING_INDEX = [
     keywords: "animations motion transition",
   },
   {
-<<<<<<< HEAD
     id: "animation_speed",
     section: "animations",
     label: "Animation Speed",
@@ -363,8 +470,6 @@ const SETTING_INDEX = [
     keywords: "animation speed motion duration transition tempo",
   },
   {
-=======
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
     id: "smooth_caret",
     section: "animations",
     label: "Sanfte Cursor-Animation",
@@ -403,6 +508,164 @@ const SETTING_INDEX = [
 
 const SECTION_IDS = SETTING_SECTIONS.map((section) => section.id);
 const SETTING_INDEX_BY_ID = new Map(SETTING_INDEX.map((entry) => [entry.id, entry]));
+const WORKBENCH_LAYOUT_OPTIONS = getWorkbenchLayoutPresetOptions();
+const WORKBENCH_SIDE_PANEL_SIZE_OPTIONS = getSidePanelSizeOptions();
+const WORKBENCH_BOTTOM_PANEL_SIZE_OPTIONS = getBottomPanelSizeOptions();
+const WORKBENCH_QUICK_ACTION_SETTING_IDS = Object.freeze([
+  "workbench_layout_presets",
+  "workbench_panel_sizes",
+  "workbench_docking",
+  "workbench_layout_reset",
+]);
+const WORKBENCH_DOCK_ACTIONS = Object.freeze([
+  {
+    zone: WORKBENCH_SNAP_ZONES.left,
+    label: "Links",
+    Icon: PanelLeft,
+  },
+  {
+    zone: WORKBENCH_SNAP_ZONES.right,
+    label: "Rechts",
+    Icon: PanelRight,
+  },
+  {
+    zone: WORKBENCH_SNAP_ZONES.bottom,
+    label: "Unten",
+    Icon: PanelBottom,
+  },
+  {
+    zone: WORKBENCH_SNAP_ZONES.hidden,
+    label: "Hidden",
+    Icon: EyeOff,
+  },
+]);
+
+const TEXT_SIZE_PRESETS = [
+  {
+    id: "compact",
+    label: "Compact",
+    description: "13px / 1.45 fuer dichte Dateien.",
+    settings: { font_size: 13, line_height: 1.45, letter_spacing: 0 },
+  },
+  {
+    id: "standard",
+    label: "Standard",
+    description: "14px / 1.6 als ruhiger Default.",
+    settings: { font_size: 14, line_height: 1.6, letter_spacing: 0 },
+  },
+  {
+    id: "comfortable",
+    label: "Comfort",
+    description: "16px / 1.7 fuer laengere Sessions.",
+    settings: { font_size: 16, line_height: 1.7, letter_spacing: 0.02 },
+  },
+  {
+    id: "presentation",
+    label: "Present",
+    description: "18px / 1.75 fuer Demos und Reviews.",
+    settings: { font_size: 18, line_height: 1.75, letter_spacing: 0.04 },
+  },
+];
+
+const THEME_EDITOR_SETTING_KEYS = [
+  "theme",
+  "background",
+  "primary_accent",
+  "secondary_accent",
+  "custom_surface",
+  "custom_input_surface",
+  "panel_background_mode",
+  "glow_renderer",
+  "panel_blur_strength",
+  "panel_glow_outline",
+  "glow_intensity",
+  "glow_radius",
+  "ui_radius",
+  "font_family",
+  "font_size",
+  "line_height",
+  "letter_spacing",
+  "font_weight",
+  "word_wrap",
+  "minimap",
+  "validation_decorations",
+  "lsp_enabled",
+  "reduce_motion",
+  "animations_enabled",
+  "animation_speed",
+  "smooth_caret",
+  "cursor_glow",
+  "icon_glow",
+  "visual_performance_profile",
+];
+
+const THEME_EDITOR_RECIPES = [
+  {
+    id: "focus",
+    label: "Focus",
+    description: "Dichte Code-Ansicht mit wenig Effektkosten.",
+    colors: ["#7c8cff", "#38bdf8", "#11141d"],
+    settings: {
+      custom_surface: "#10131d",
+      custom_input_surface: "#151a24",
+      panel_background_mode: "blur",
+      glow_renderer: "css",
+      panel_blur_strength: 10,
+      panel_glow_outline: false,
+      glow_intensity: 18,
+      glow_radius: 10,
+      ui_radius: 8,
+      animations_enabled: true,
+      animation_speed: 0.9,
+      visual_performance_profile: "custom",
+    },
+  },
+  {
+    id: "glass",
+    label: "Glass",
+    description: "Mehr Tiefe ohne den intensiven Renderer.",
+    colors: ["#8aadf4", "#38bdf8", "#151925"],
+    settings: {
+      custom_surface: "#111827",
+      custom_input_surface: "#182033",
+      panel_background_mode: "fake-glass",
+      glow_renderer: "css",
+      panel_blur_strength: 20,
+      panel_glow_outline: true,
+      glow_intensity: 34,
+      glow_radius: 18,
+      ui_radius: 12,
+      animations_enabled: true,
+      animation_speed: 1,
+      visual_performance_profile: "custom",
+    },
+  },
+  {
+    id: "review",
+    label: "Review",
+    description: "Praesenter Look fuer Pairing und Screen-Sharing.",
+    colors: ["#f472b6", "#22d3ee", "#17111f"],
+    settings: {
+      primary_accent: "#f472b6",
+      secondary_accent: "#22d3ee",
+      custom_surface: "#17111f",
+      custom_input_surface: "#22182d",
+      panel_background_mode: "fake-glass",
+      glow_renderer: "css",
+      panel_blur_strength: 18,
+      panel_glow_outline: true,
+      glow_intensity: 42,
+      glow_radius: 20,
+      ui_radius: 14,
+      font_size: 16,
+      line_height: 1.7,
+      letter_spacing: 0.02,
+      animations_enabled: true,
+      animation_speed: 1.05,
+      visual_performance_profile: "custom",
+    },
+  },
+];
 
 function unwrapIpcResponse(result) {
   if (result && typeof result === "object" && "ok" in result) {
@@ -412,7 +675,48 @@ function unwrapIpcResponse(result) {
 }
 
 function normalizeSearch(value) {
-  return String(value || "").trim().toLowerCase();
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[-_/.:]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+function getSearchTerms(query) {
+  return normalizeSearch(query)
+    .split(" ")
+    .map((term) => term.trim())
+    .filter(Boolean);
+}
+
+function createSearchText(parts) {
+  return normalizeSearch(parts.filter(Boolean).join(" "));
+}
+
+function getTextSearchScore(text, query) {
+  const normalizedQuery = normalizeSearch(query);
+  if (!normalizedQuery) return 0;
+  const normalizedText = normalizeSearch(text);
+  if (!normalizedText) return 0;
+  const terms = getSearchTerms(normalizedQuery);
+  if (terms.length === 0) return 0;
+
+  let score = normalizedText.includes(normalizedQuery) ? 40 : 0;
+  let matchedTerms = 0;
+  terms.forEach((term) => {
+    if (normalizedText.includes(term)) {
+      matchedTerms += 1;
+      score += 12;
+    }
+  });
+
+  if (matchedTerms === 0) return 0;
+  if (terms.length > 1 && matchedTerms < terms.length) {
+    return score > 40 ? score - 12 : 0;
+  }
+  return score + matchedTerms;
 }
 
 function resolveVisualProfileId(settings = {}) {
@@ -441,36 +745,28 @@ function settingMatchesSearch(settingId, sectionId, query) {
   if (!query) return true;
   const entry = SETTING_INDEX_BY_ID.get(settingId);
   const section = SETTING_SECTIONS.find((item) => item.id === sectionId);
-  const haystack = [
+  const haystack = createSearchText([
     entry?.label,
     entry?.description,
     entry?.keywords,
     section?.label,
     section?.description,
     section?.keywords,
-  ]
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase();
-  return haystack.includes(query);
+  ]);
+  return getTextSearchScore(haystack, query) > 0;
 }
 
 function sectionMatchesSearch(section, query) {
-<<<<<<< HEAD
   if (!query || !section) return false;
-=======
-  if (!query) return false;
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
-  return [
+  return getTextSearchScore(
+    createSearchText([
     section.label,
     section.eyebrow,
     section.description,
     section.keywords,
-  ]
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase()
-    .includes(query);
+    ]),
+    query,
+  ) > 0;
 }
 
 function countSectionMatches(sectionId, query) {
@@ -497,7 +793,6 @@ function getNumberSetting(settings, key, fallback) {
   return Number.isFinite(value) ? value : fallback;
 }
 
-<<<<<<< HEAD
 function clampNumber(value, min, max, fallback) {
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) return fallback;
@@ -514,13 +809,26 @@ function getSectionLabel(sectionId) {
   return SETTING_SECTIONS.find((section) => section.id === sectionId)?.label || sectionId;
 }
 
-function getSearchResults(query, limit = 6) {
+function getSearchResults(query, limit = 8) {
   if (!query) return [];
   return SETTING_INDEX
-    .filter((entry) => {
+    .map((entry) => {
       const section = SETTING_SECTIONS.find((item) => item.id === entry.section);
-      return sectionMatchesSearch(section, query) || settingMatchesSearch(entry.id, entry.section, query);
+      const settingScore = getTextSearchScore(
+        createSearchText([entry.label, entry.description, entry.keywords]),
+        query,
+      );
+      const sectionScore = getTextSearchScore(
+        createSearchText([section?.label, section?.eyebrow, section?.description, section?.keywords]),
+        query,
+      );
+      return {
+        ...entry,
+        score: settingScore + Math.round(sectionScore * 0.45),
+      };
     })
+    .filter((entry) => entry.score > 0)
+    .sort((a, b) => b.score - a.score || a.label.localeCompare(b.label))
     .slice(0, limit)
     .map((entry) => ({
       ...entry,
@@ -536,6 +844,7 @@ function createThemeTokenList(resolvedTheme) {
     { label: "Primary", varName: "--nexus-primary", value: cssVars["--nexus-primary"] || colors.primary },
     { label: "Secondary", varName: "--nexus-accent-2", value: cssVars["--nexus-accent-2"] || colors.secondary },
     { label: "Surface", varName: "--nexus-panel-surface", value: cssVars["--nexus-panel-surface"] || colors.surface },
+    { label: "Control", varName: "--nexus-control-surface", value: cssVars["--nexus-control-surface"] || colors.inputSurfaceSoft },
     { label: "Border", varName: "--nexus-border", value: cssVars["--nexus-border"] || colors.border },
     { label: "Text", varName: "--nexus-text", value: cssVars["--nexus-text"] || colors.text },
     { label: "Muted", varName: "--nexus-muted", value: cssVars["--nexus-muted"] || colors.muted },
@@ -545,11 +854,273 @@ function createThemeTokenList(resolvedTheme) {
   ].filter((token) => token.value);
 }
 
-function buildPerformanceHints(settings = {}, visualProfileId, lspServers = []) {
+function getTextPresetId(settings = {}) {
+  const fontSize = getNumberSetting(settings, "font_size", 14);
+  const lineHeight = getNumberSetting(settings, "line_height", 1.6);
+  const letterSpacing = getNumberSetting(settings, "letter_spacing", 0);
+  return (
+    TEXT_SIZE_PRESETS.find((preset) => (
+      Math.abs(fontSize - preset.settings.font_size) < 0.01 &&
+      Math.abs(lineHeight - preset.settings.line_height) < 0.01 &&
+      Math.abs(letterSpacing - preset.settings.letter_spacing) < 0.01
+    ))?.id || "custom"
+  );
+}
+
+function pickThemeEditorSettings(settings = {}) {
+  return Object.fromEntries(
+    THEME_EDITOR_SETTING_KEYS
+      .filter((key) => Object.prototype.hasOwnProperty.call(settings, key))
+      .map((key) => [key, settings[key]]),
+  );
+}
+
+function buildThemeEditorResetPatch() {
+  return Object.fromEntries(
+    THEME_EDITOR_SETTING_KEYS
+      .filter((key) => Object.prototype.hasOwnProperty.call(DEFAULT_SETTINGS, key))
+      .map((key) => [key, DEFAULT_SETTINGS[key]]),
+  );
+}
+
+function getThemeEditorRecipeId(settings = {}) {
+  return (
+    THEME_EDITOR_RECIPES.find((recipe) =>
+      Object.entries(recipe.settings).every(([key, value]) => settings[key] === value),
+    )?.id || "custom"
+  );
+}
+
+function createThemeExportPayload(settings, resolvedTheme, visualBudgetSummary) {
+  const cssVars = resolvedTheme?.cssVars || {};
+  const tokenKeys = [
+    "--nexus-primary",
+    "--nexus-accent-2",
+    "--nexus-surface",
+    "--nexus-panel-surface",
+    "--nexus-control-surface",
+    "--nexus-control-surface-hover",
+    "--nexus-border",
+    "--nexus-glow-radius",
+    "--nexus-glow-intensity",
+    "--nexus-blur-radius",
+  ];
+
+  return {
+    schema: "nexus-code.theme-editor.v1",
+    theme: {
+      id: resolvedTheme.id,
+      name: resolvedTheme.name,
+    },
+    settings: pickThemeEditorSettings(settings),
+    tokens: Object.fromEntries(
+      tokenKeys
+        .filter((key) => cssVars[key])
+        .map((key) => [key, cssVars[key]]),
+    ),
+    visualBudget: {
+      score: visualBudgetSummary.score,
+      tier: visualBudgetSummary.tier,
+      profile: visualBudgetSummary.profileLabel,
+      categories: visualBudgetSummary.categories.map((category) => ({
+        id: category.id,
+        rating: category.rating,
+        value: category.value,
+      })),
+      recommendations: visualBudgetSummary.recommendations,
+    },
+  };
+}
+
+function formatJsonSize(payload) {
+  const size = JSON.stringify(payload, null, 2).length;
+  return size >= 1024 ? `${formatSettingNumber(size / 1024, 1)} KB` : `${size} B`;
+}
+
+function createBudgetCategory(id, label, rating, value, score, detail) {
+  return {
+    id,
+    label,
+    rating,
+    value,
+    score: Math.round(clampNumber(score, 0, 100, 0)),
+    detail,
+    hot: score >= 70,
+  };
+}
+
+function buildVisualBudgetSummary(settings = {}, visualProfileId, shouldReduceMotion) {
+  const panelBlur = clampNumber(settings.panel_blur_strength, 0, 32, 16);
+  const glowIntensity = clampNumber(settings.glow_intensity, 0, 100, 28);
+  const glowRadius = clampNumber(settings.glow_radius, 0, 64, 14);
+  const animationSpeed = clampNumber(settings.animation_speed, 0.5, 1.8, 1);
+  const panelMode = settings.panel_background_mode || "blur";
+  const animationsEnabled = settings.animations_enabled !== false;
+  const rendererCost = settings.glow_renderer === "three" ? 18 : 0;
+  const panelModeCost =
+    panelMode === "glass-shader" ? 14 : panelMode === "fake-glass" ? 8 : 2;
+  const motionCost = shouldReduceMotion || !animationsEnabled
+    ? 0
+    : 8 + Math.max(0, animationSpeed - 1) * 10;
+  const featureCost =
+    (settings.panel_glow_outline ? 8 : 0) +
+    (settings.cursor_glow === true ? 4 : 0) +
+    (settings.icon_glow ? 4 : 0) +
+    (settings.minimap !== false ? 5 : 0) +
+    (settings.autocomplete_enabled !== false ? 3 : 0) +
+    (settings.autocomplete_lsp !== false && settings.lsp_enabled !== false ? 4 : 0);
+  const blurScore = (panelBlur / 32) * 100;
+  const glowScore =
+    (glowIntensity / 100) * 58 +
+    (glowRadius / 64) * 24 +
+    rendererCost +
+    (settings.panel_glow_outline ? 8 : 0) +
+    (settings.cursor_glow === true ? 4 : 0) +
+    (settings.icon_glow ? 4 : 0);
+  const motionScore = shouldReduceMotion || !animationsEnabled
+    ? 8
+    : 32 + Math.max(0, animationSpeed - 1) * 42 + (settings.smooth_caret !== false ? 8 : 0);
+  const backgroundScore =
+    panelMode === "glass-shader"
+      ? 82
+      : panelMode === "fake-glass"
+        ? 54
+        : panelBlur >= 20
+          ? 44
+          : 24;
+  const rawScore =
+    (panelBlur / 32) * 24 +
+    (glowIntensity / 100) * 26 +
+    (glowRadius / 64) * 12 +
+    rendererCost +
+    panelModeCost +
+    motionCost +
+    featureCost;
+  const score = Math.round(clampNumber(rawScore, 0, 100, 42));
+  const tier =
+    score >= 70
+      ? "Teuer"
+      : score >= 46
+        ? "Mittel"
+        : visualProfileId === "performance"
+          ? "Low Power"
+          : "Stabil";
+  const tone = score >= 70 ? "warn" : score >= 46 ? "info" : "good";
+  const categories = [
+    createBudgetCategory(
+      "blur",
+      "Blur",
+      panelBlur >= 24 ? "hoch" : panelBlur >= 14 ? "mittel" : "leicht",
+      `${panelBlur}px`,
+      blurScore,
+      panelBlur >= 24
+        ? "Backdrop-Blur kann beim Scrollen sichtbar kosten."
+        : panelBlur <= 10
+          ? "Scroll- und Resize-freundlich."
+          : "Alltagstauglicher Glass-Wert.",
+    ),
+    createBudgetCategory(
+      "glow",
+      "Glow",
+      glowScore >= 70 ? "hoch" : glowScore >= 42 ? "mittel" : "leicht",
+      `${glowIntensity}% / ${glowRadius}px`,
+      glowScore,
+      settings.glow_renderer === "three"
+        ? "Intensiver Renderer plus Glow reserviert extra Budget."
+        : glowIntensity >= 55 || glowRadius >= 34
+          ? "Grosses Leuchtfeld erhoeht Paint-Flaeche."
+          : "CSS-Glow bleibt im normalen Rahmen.",
+    ),
+    createBudgetCategory(
+      "motion",
+      "Motion",
+      shouldReduceMotion || !animationsEnabled
+        ? "reduziert"
+        : animationSpeed > 1.25
+          ? "praesent"
+          : "normal",
+      shouldReduceMotion ? "Fallback" : `${formatSettingNumber(animationSpeed, 1)}x`,
+      motionScore,
+      shouldReduceMotion || !animationsEnabled
+        ? "Animationen werden kurz gehalten oder ausgelassen."
+        : animationSpeed > 1.25
+          ? "Schnelle Transitions fallen staerker auf."
+          : "Normale Settings- und Preview-Bewegung.",
+    ),
+    createBudgetCategory(
+      "background",
+      "Background",
+      panelMode === "glass-shader" ? "hoch" : panelMode === "fake-glass" ? "mittel" : "leicht",
+      panelMode,
+      backgroundScore,
+      panelMode === "glass-shader"
+        ? "Shader-Glass ist der teuerste Panel-Modus."
+        : panelMode === "fake-glass"
+          ? "Fake Glass ist sichtbar, aber guenstiger als Shader."
+          : "Blur-Modus nutzt den schlanksten Pfad.",
+    ),
+  ];
+  const recommendations = [];
+  if (panelBlur > 16) recommendations.push("Setze Blur fuer Low-Power auf 8-12px.");
+  if (glowIntensity > 32 || glowRadius > 18) recommendations.push("Halte Glow bei 12-28% und Radius unter 18px.");
+  if (settings.glow_renderer === "three") recommendations.push("Wechsle den Glow Renderer auf CSS.");
+  if (panelMode === "glass-shader") recommendations.push("Nutze Blur oder Fake Glass statt Glass Shader.");
+  if (!shouldReduceMotion && animationSpeed > 1.1) recommendations.push("Reduziere Motion auf 0.75-1.0x.");
+  if (
+    settings.minimap !== false &&
+    settings.validation_decorations !== false &&
+    settings.lsp_enabled !== false &&
+    settings.autocomplete_lsp !== false
+  ) {
+    recommendations.push("Bei grossen Dateien Minimap zuerst deaktivieren; LSP-Autocomplete nur bei Bedarf.");
+  }
+  if (recommendations.length === 0) {
+    recommendations.push("Keine Low-Power-Aktion noetig; das aktuelle Profil ist schon sparsam.");
+  }
+
+  return {
+    score,
+    tier,
+    tone,
+    profileLabel: visualProfileId,
+    categories,
+    recommendations: recommendations.slice(0, 4),
+  };
+}
+
+function buildLowPowerState(settings = {}, visualProfileId, prefersReducedMotion, shouldReduceMotion) {
+  const reasons = [];
+  if (prefersReducedMotion) reasons.push("System reduziert Bewegung");
+  if (settings.reduce_motion === true) reasons.push("Reduce Motion ist aktiv");
+  if (settings.animations_enabled === false) reasons.push("Animationen sind deaktiviert");
+  if (visualProfileId === "performance") reasons.push("Performance-Profil ist aktiv");
+  if (settings.smooth_caret === false) reasons.push("Sanfter Caret ist deaktiviert");
+  const actions = [
+    "Blur 8px, Glow 12% / 8px",
+    "CSS-Renderer, kein Panel-Outline",
+    "Motion aus, Caret ruhig",
+    "Minimap aus; Autocomplete-Quellen bleiben separat steuerbar",
+  ];
+
+  const active = shouldReduceMotion || visualProfileId === "performance";
+  return {
+    active,
+    title: active ? "Low-Power-Fallback aktiv" : "Low-Power-Fallback bereit",
+    text: active
+      ? "Nexus Code nutzt reduzierte Motion und ein kleineres Effektbudget."
+      : "Ein Klick reduziert Blur, Glow, Motion und Minimap ohne Language Features abzuschalten.",
+    reasons: reasons.length > 0 ? reasons : ["Balanced/Quality Visuals sind aktiv"],
+    actions,
+  };
+}
+
+function buildPerformanceHints(settings = {}, visualProfileId, lspServers = [], shouldReduceMotion = false) {
   const hints = [];
   const panelBlur = getNumberSetting(settings, "panel_blur_strength", 16);
   const glowIntensity = getNumberSetting(settings, "glow_intensity", 28);
   const glowRadius = getNumberSetting(settings, "glow_radius", 14);
+  const animationSpeed = clampNumber(settings.animation_speed, 0.5, 1.8, 1);
+  const panelMode = settings.panel_background_mode || "blur";
   const missingLspCount = lspServers.filter((server) => !server.available).length;
 
   if (visualProfileId === "performance") {
@@ -557,6 +1128,13 @@ function buildPerformanceHints(settings = {}, visualProfileId, lspServers = []) 
       tone: "good",
       title: "Performance-Profil aktiv",
       text: "Motion und Glow laufen bereits mit kleinem Budget.",
+    });
+  }
+  if (shouldReduceMotion && visualProfileId !== "performance") {
+    hints.push({
+      tone: "good",
+      title: "Motion-Fallback greift",
+      text: "System- oder Nutzer-Setting reduziert Animationen auch ohne Performance-Profil.",
     });
   }
   if (panelBlur >= 24) {
@@ -573,6 +1151,13 @@ function buildPerformanceHints(settings = {}, visualProfileId, lspServers = []) 
       text: "Intensitaet oder Radius vergroessern die Paint-Flaeche.",
     });
   }
+  if (panelMode === "glass-shader") {
+    hints.push({
+      tone: "warn",
+      title: "Glass Shader",
+      text: "Shader-Glass sollte nur fuer starke Maschinen oder kurze Sessions aktiv sein.",
+    });
+  }
   if (settings.glow_renderer === "three") {
     hints.push({
       tone: "warn",
@@ -580,11 +1165,53 @@ function buildPerformanceHints(settings = {}, visualProfileId, lspServers = []) 
       text: "Nur fuer starke Theme-Previews sinnvoll, CSS bleibt guenstiger.",
     });
   }
-  if (settings.lsp_enabled !== false && missingLspCount > 0) {
+  if (settings.panel_glow_outline && glowIntensity >= 35) {
+    hints.push({
+      tone: "info",
+      title: "Outline plus Glow",
+      text: "Panel-Kanten und Glow addieren sich visuell; Balanced reicht meist.",
+    });
+  }
+  if (!shouldReduceMotion && animationSpeed > 1.25) {
+    hints.push({
+      tone: "info",
+      title: "Schnelle Motion",
+      text: "Hoehere Animation Speed wirkt flotter, macht Transitions aber praesenter.",
+    });
+  }
+  if (
+    settings.autocomplete_enabled !== false &&
+    settings.autocomplete_lsp !== false &&
+    settings.lsp_enabled !== false &&
+    missingLspCount > 0
+  ) {
     hints.push({
       tone: "info",
       title: "LSP teilweise offline",
       text: `${missingLspCount} Server fehlen; Autocomplete faellt dort leiser zurueck.`,
+    });
+  }
+  if (
+    settings.autocomplete_enabled !== false &&
+    settings.autocomplete_local_words !== false &&
+    settings.autocomplete_language_hints !== false
+  ) {
+    hints.push({
+      tone: "good",
+      title: "Lokales Autocomplete aktiv",
+      text: "Snippets, Sprach-Hints und Datei-Woerter bleiben nutzbar, auch wenn ein LSP fehlt.",
+    });
+  }
+  if (
+    settings.minimap !== false &&
+    settings.validation_decorations !== false &&
+    settings.lsp_enabled !== false &&
+    settings.autocomplete_lsp !== false
+  ) {
+    hints.push({
+      tone: "info",
+      title: "Editor-Dienste komplett",
+      text: "Minimap, Diagnostics und LSP sind nuetzlich, aber auf sehr grossen Dateien spuerbar.",
     });
   }
   if (hints.length === 0) {
@@ -594,21 +1221,21 @@ function buildPerformanceHints(settings = {}, visualProfileId, lspServers = []) 
       text: "Blur, Glow und Language Features liegen im ausgewogenen Bereich.",
     });
   }
-  return hints.slice(0, 4);
+  return hints.slice(0, 5);
 }
 
-=======
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
 function SettingsHeader({ title, eyebrow, description, icon: Icon }) {
   return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+    <div className="nx-code-settings-header flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
       <div className="min-w-0">
-        <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-gray-500">
-          <Icon size={13} />
-          <span>{eyebrow}</span>
+        <div className="flex min-w-0 items-center gap-2 text-[10px] font-semibold uppercase leading-tight text-[var(--nexus-accent-2,#38bdf8)]">
+          <Icon size={13} className="shrink-0 opacity-80" />
+          <span className="min-w-0 break-words">{eyebrow}</span>
         </div>
-        <h2 className="mt-2 text-2xl font-semibold text-gray-100">{title}</h2>
-        <p className="mt-2 max-w-3xl text-sm leading-6 text-gray-500">
+        <h2 className="mt-1.5 break-words text-[1.55rem] font-semibold leading-tight text-gray-100 sm:text-[1.75rem]">
+          {title}
+        </h2>
+        <p className="mt-2 max-w-3xl break-words text-sm leading-6 text-gray-500">
           {description}
         </p>
       </div>
@@ -619,19 +1246,22 @@ function SettingsHeader({ title, eyebrow, description, icon: Icon }) {
 function SettingsGroup({ title, description, children }) {
   return (
     <section
-      className="rounded-lg border p-4 sm:p-5"
+      className="nx-code-settings-group min-w-0 rounded-lg border px-3.5 py-3.5 sm:px-4 sm:py-4"
       style={{
-        background: "rgba(255,255,255,0.026)",
-        borderColor: "var(--nexus-border)",
+        background:
+          "linear-gradient(180deg, rgba(255,255,255,0.024), rgba(255,255,255,0.006)), rgba(0,0,0,0.16)",
+        borderColor: "rgba(156,178,226,0.075)",
       }}
     >
-      <div className="mb-4 flex flex-col gap-1">
-        <h3 className="text-sm font-semibold text-gray-200">{title}</h3>
+      <div className="mb-3 flex min-w-0 flex-col gap-1">
+        <h3 className="break-words text-sm font-semibold leading-tight text-gray-200">
+          {title}
+        </h3>
         {description ? (
-          <p className="text-xs leading-5 text-gray-500">{description}</p>
+          <p className="break-words text-xs leading-5 text-gray-500">{description}</p>
         ) : null}
       </div>
-      <div className="space-y-3">{children}</div>
+      <div className="space-y-2.5">{children}</div>
     </section>
   );
 }
@@ -648,17 +1278,27 @@ function SettingRow({
   if (!isVisibleSetting(id, sectionId, searchQuery)) return null;
   return (
     <div
-      className={`flex min-w-0 gap-3 rounded-md border border-white/5 bg-white/[0.018] px-3 py-3 ${
-        compact ? "items-center justify-between" : "flex-col sm:flex-row sm:items-center sm:justify-between"
+      className={`nx-code-settings-row min-w-0 rounded-md border px-3 py-3 ${
+        compact ? "sm:items-center" : "sm:items-start"
       }`}
+      style={{
+        background: "rgba(255,255,255,0.014)",
+        borderColor: "rgba(156,178,226,0.055)",
+      }}
     >
-      <div className="min-w-0">
-        <NativeLabel className="block text-gray-300">{title}</NativeLabel>
+      <div className="min-w-0 flex-1">
+        <NativeLabel className="block whitespace-normal break-words leading-5 text-gray-300">
+          {title}
+        </NativeLabel>
         {description ? (
-          <p className="mt-1 text-xs leading-5 text-gray-500">{description}</p>
+          <p className="mt-1 break-words text-xs leading-5 text-gray-500">
+            {description}
+          </p>
         ) : null}
       </div>
-      <div className="shrink-0 sm:max-w-[19rem]">{children}</div>
+      <div className="nx-code-settings-control min-w-0 w-full shrink-0">
+        {children}
+      </div>
     </div>
   );
 }
@@ -666,10 +1306,10 @@ function SettingRow({
 function ValueBadge({ children }) {
   return (
     <span
-      className="inline-flex min-w-12 justify-center rounded-md border px-2 py-1 text-[10px] font-semibold text-gray-300"
+      className="inline-flex min-w-12 justify-center rounded-md border px-2 py-1 text-[10px] font-semibold leading-tight text-gray-300"
       style={{
-        background: "rgba(255,255,255,0.04)",
-        borderColor: "rgba(255,255,255,0.08)",
+        background: "rgba(255,255,255,0.032)",
+        borderColor: "rgba(156,178,226,0.08)",
       }}
     >
       {children}
@@ -677,7 +1317,6 @@ function ValueBadge({ children }) {
   );
 }
 
-<<<<<<< HEAD
 function SearchResultSummary({
   query,
   totalMatches,
@@ -691,22 +1330,23 @@ function SearchResultSummary({
 
   return (
     <section
-      className="rounded-lg border p-4"
+      className="nx-code-settings-group rounded-lg border p-4"
       style={{
-        background: "rgba(255,255,255,0.026)",
-        borderColor: "var(--nexus-border)",
+        background:
+          "linear-gradient(180deg, rgba(255,255,255,0.024), rgba(255,255,255,0.006)), rgba(0,0,0,0.16)",
+        borderColor: "rgba(156,178,226,0.075)",
       }}
     >
       <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
         <div className="min-w-0">
-          <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-widest text-gray-500">
+          <div className="flex min-w-0 items-center gap-2 text-[10px] font-semibold uppercase leading-tight text-gray-500">
             <Search size={13} />
-            <span>Result Hints</span>
+            <span className="min-w-0 break-words">Result Hints</span>
           </div>
-          <p className="mt-2 text-sm text-gray-300">
+          <p className="mt-2 break-words text-sm text-gray-300">
             {totalMatches} Treffer fuer "{query}"
           </p>
-          <p className="mt-1 text-xs leading-5 text-gray-500">
+          <p className="mt-1 break-words text-xs leading-5 text-gray-500">
             Oeffne einen Treffer direkt oder nutze die Kategorien links als gefilterte Karte.
           </p>
         </div>
@@ -714,7 +1354,7 @@ function SearchResultSummary({
           {matchedSections.map((section) => (
             <span
               key={section.id}
-              className="rounded-md border px-2 py-1 text-[10px] font-medium text-gray-400"
+              className="rounded-md border px-2 py-1 text-[10px] font-medium leading-tight text-gray-400"
               style={{
                 background: "rgba(255,255,255,0.035)",
                 borderColor: "rgba(255,255,255,0.08)",
@@ -731,21 +1371,21 @@ function SearchResultSummary({
             key={`${result.section}-${result.id}`}
             type="button"
             onClick={() => onOpenSetting(result)}
-            className="rounded-md border p-3 text-left transition-colors hover:bg-white/[0.045]"
+            className="min-w-0 rounded-md border p-3 text-left transition-colors hover:bg-white/[0.04]"
             style={{
               background: "rgba(255,255,255,0.018)",
               borderColor: "rgba(255,255,255,0.06)",
             }}
           >
-            <div className="flex items-center justify-between gap-3">
-              <span className="truncate text-xs font-semibold text-gray-200">
+            <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
+              <span className="min-w-0 break-words text-xs font-semibold text-gray-200">
                 {result.label}
               </span>
-              <span className="shrink-0 rounded bg-white/10 px-1.5 py-0.5 text-[10px] text-gray-500">
+              <span className="shrink-0 rounded border border-white/10 bg-white/[0.035] px-1.5 py-0.5 text-[10px] leading-tight text-gray-500">
                 {result.sectionLabel}
               </span>
             </div>
-            <p className="mt-1 line-clamp-2 text-[10px] leading-4 text-gray-500">
+            <p className="mt-1 break-words text-[10px] leading-4 text-gray-500">
               {result.description}
             </p>
           </button>
@@ -761,7 +1401,7 @@ function ThemeTokenGrid({ tokens }) {
       {tokens.map((token) => (
         <div
           key={token.varName}
-          className="flex min-w-0 items-center gap-2 rounded-md border px-2.5 py-2"
+          className="flex min-w-0 flex-wrap items-center gap-2 rounded-md border px-2.5 py-2"
           style={{
             background: "rgba(255,255,255,0.018)",
             borderColor: "rgba(255,255,255,0.06)",
@@ -771,15 +1411,15 @@ function ThemeTokenGrid({ tokens }) {
             className="h-6 w-6 shrink-0 rounded-md border border-white/10"
             style={{ background: token.value }}
           />
-          <div className="min-w-0">
-            <div className="truncate text-xs font-medium text-gray-300">
+          <div className="min-w-0 flex-1">
+            <div className="break-words text-xs font-medium text-gray-300">
               {token.label}
             </div>
-            <code className="block truncate text-[10px] text-gray-500">
+            <code className="block break-all text-[10px] text-gray-500">
               {token.varName}
             </code>
           </div>
-          <code className="ml-auto max-w-[7rem] shrink-0 truncate text-[10px] text-gray-500">
+          <code className="max-w-full break-all text-[10px] text-gray-500 sm:ml-auto sm:max-w-[8rem] sm:shrink-0">
             {token.value}
           </code>
         </div>
@@ -794,7 +1434,7 @@ function PerformanceHintList({ hints }) {
       {hints.map((hint) => (
         <div
           key={`${hint.title}-${hint.text}`}
-          className="flex gap-3 rounded-md border px-3 py-2.5"
+          className="flex min-w-0 gap-3 rounded-md border px-3 py-2.5"
           style={{
             background:
               hint.tone === "warn"
@@ -812,10 +1452,10 @@ function PerformanceHintList({ hints }) {
         >
           <Info size={14} className="mt-0.5 shrink-0 text-gray-400" />
           <div className="min-w-0">
-            <div className="text-xs font-semibold text-gray-200">
+            <div className="break-words text-xs font-semibold text-gray-200">
               {hint.title}
             </div>
-            <p className="mt-0.5 text-[10px] leading-4 text-gray-500">
+            <p className="mt-0.5 break-words text-[10px] leading-4 text-gray-500">
               {hint.text}
             </p>
           </div>
@@ -825,16 +1465,178 @@ function PerformanceHintList({ hints }) {
   );
 }
 
-=======
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
+function VisualBudgetCard({ summary }) {
+  const toneStyles =
+    summary.tone === "warn"
+      ? {
+          background: "rgba(245,158,11,0.08)",
+          borderColor: "rgba(245,158,11,0.2)",
+          fill: "linear-gradient(90deg, #f59e0b, #ef4444)",
+        }
+      : summary.tone === "good"
+        ? {
+            background: "rgba(34,197,94,0.07)",
+            borderColor: "rgba(34,197,94,0.16)",
+            fill: "linear-gradient(90deg, #8b5cf6, #38bdf8)",
+          }
+        : {
+            background: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.08)",
+            borderColor: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.18)",
+            fill: "linear-gradient(90deg, var(--nexus-primary), var(--nexus-accent-2))",
+          };
+
+  return (
+    <section
+      className="nx-code-settings-group rounded-lg border p-4"
+      style={{
+        background:
+          summary.tone === "warn" || summary.tone === "good"
+            ? toneStyles.background
+            : "linear-gradient(180deg, rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.045), rgba(255,255,255,0.006)), rgba(0,0,0,0.16)",
+        borderColor: toneStyles.borderColor,
+      }}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex min-w-0 items-center gap-2 text-[10px] font-semibold uppercase leading-tight text-gray-500">
+            <Gauge size={13} />
+            <span className="min-w-0 break-words">Visual Budget</span>
+          </div>
+          <div className="mt-2 break-words text-sm font-semibold text-gray-100">
+            {summary.tier}
+          </div>
+        </div>
+        <ValueBadge>{summary.score}/100</ValueBadge>
+      </div>
+      <div className="mt-4 h-2 overflow-hidden rounded-full bg-black/25">
+        <div
+          className="h-full rounded-full"
+          style={{
+            width: `${summary.score}%`,
+            background: toneStyles.fill,
+          }}
+        />
+      </div>
+      <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+        {summary.categories.map((category) => (
+          <div
+            key={category.id}
+            className="min-w-0 rounded-md border border-white/5 bg-black/10 px-2.5 py-2 text-[10px]"
+          >
+            <div className="flex min-w-0 items-center justify-between gap-2">
+              <span className="min-w-0 break-words font-semibold text-gray-400">{category.label}</span>
+              <span className={category.hot ? "shrink-0 font-semibold text-amber-200" : "shrink-0 text-gray-300"}>
+                {category.rating}
+              </span>
+            </div>
+            <div className="mt-1 flex min-w-0 flex-wrap items-center justify-between gap-2 text-gray-500">
+              <span className="min-w-0 break-words">{category.detail}</span>
+              <span className="shrink-0 text-gray-400">{category.value}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="mt-3 space-y-1.5">
+        {summary.recommendations.map((recommendation) => (
+          <div
+            key={recommendation}
+            className="flex min-w-0 gap-2 rounded-md bg-black/10 px-2.5 py-1.5 text-[10px] leading-4 text-gray-400"
+          >
+            <Zap size={11} className="mt-0.5 shrink-0 text-gray-500" />
+            <span className="min-w-0 break-words">{recommendation}</span>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function LowPowerFallbackPanel({ state, onApply, onRestore }) {
+  return (
+    <section
+      className="nx-code-settings-group rounded-lg border p-4"
+      style={{
+        background: state.active
+          ? "rgba(34,197,94,0.055)"
+          : "linear-gradient(180deg, rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.042), rgba(255,255,255,0.006)), rgba(0,0,0,0.16)",
+        borderColor: state.active
+          ? "rgba(34,197,94,0.16)"
+          : "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.16)",
+      }}
+    >
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <div className="flex min-w-0 items-center gap-2 text-[10px] font-semibold uppercase leading-tight text-gray-500">
+            <Cpu size={13} />
+            <span className="min-w-0 break-words">Low Power</span>
+          </div>
+          <h3 className="mt-2 break-words text-sm font-semibold text-gray-100">
+            {state.title}
+          </h3>
+          <p className="mt-1 max-w-xl break-words text-xs leading-5 text-gray-500">
+            {state.text}
+          </p>
+        </div>
+        <div className="flex shrink-0 flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={onApply}
+            className="inline-flex min-h-8 min-w-0 items-center gap-2 rounded-md border px-3 py-1.5 text-xs font-semibold leading-tight text-gray-100"
+            style={{
+              background: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.14)",
+              borderColor: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.28)",
+            }}
+          >
+            <Zap size={13} />
+            Anwenden
+          </button>
+          <button
+            type="button"
+            onClick={onRestore}
+            className="inline-flex min-h-8 min-w-0 items-center gap-2 rounded-md border border-white/10 bg-white/[0.025] px-3 py-1.5 text-xs font-semibold leading-tight text-gray-300"
+          >
+            <RefreshCcw size={13} />
+            Balanced
+          </button>
+        </div>
+      </div>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {state.reasons.map((reason) => (
+          <span
+            key={reason}
+            className="rounded-full border border-white/10 bg-black/10 px-2 py-1 text-[10px] leading-tight text-gray-400"
+          >
+            {reason}
+          </span>
+        ))}
+      </div>
+      <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+        {state.actions.map((action) => (
+          <div
+            key={action}
+            className="rounded-md border border-white/5 bg-black/10 px-2.5 py-2 text-[10px] leading-4 text-gray-400"
+          >
+            {action}
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function ColorControl({ value, fallback, onChange, label }) {
   const current = value || fallback;
+  const pickerValue = /^#[0-9a-fA-F]{6}$/.test(current)
+    ? current
+    : /^#[0-9a-fA-F]{3}$/.test(current)
+      ? current
+      : fallback;
   return (
-    <div className="flex min-w-0 items-center gap-2">
+    <div className="flex w-full min-w-0 items-center gap-2">
       <input
         aria-label={label}
         type="color"
-        value={current}
+        value={pickerValue}
         onChange={(event) => onChange(event.target.value)}
         className="h-9 w-10 shrink-0 cursor-pointer rounded-md border border-white/10 bg-transparent p-1"
       />
@@ -842,9 +1644,120 @@ function ColorControl({ value, fallback, onChange, label }) {
         value={current}
         onChange={(event) => onChange(event.target.value)}
         className="h-9 w-full min-w-0 bg-white/5 font-mono text-gray-300"
-        style={{ border: "1px solid rgba(255,255,255,0.1)" }}
+        style={{
+          background: "var(--nexus-input-surface, rgba(255,255,255,0.04))",
+          border: "1px solid rgba(156,178,226,0.1)",
+        }}
       />
+      {value ? (
+        <button
+          type="button"
+          title="Preset-Wert verwenden"
+          onClick={() => onChange(null)}
+          className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/[0.025] text-gray-500 transition-colors hover:bg-white/[0.052] hover:text-gray-300"
+        >
+          <X size={13} />
+        </button>
+      ) : null}
     </div>
+  );
+}
+
+function TextPresetGrid({ settings, onApplyPreset, shouldReduceMotion }) {
+  const activePresetId = getTextPresetId(settings);
+  return (
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      {TEXT_SIZE_PRESETS.map((preset) => (
+        <PresetButton
+          key={preset.id}
+          active={activePresetId === preset.id}
+          title={preset.label}
+          description={preset.description}
+          shouldReduceMotion={shouldReduceMotion}
+          onClick={() => onApplyPreset(preset)}
+        />
+      ))}
+    </div>
+  );
+}
+
+function ThemeEditorUtilityPanel({
+  activeRecipeId,
+  copyStatus,
+  exportSize,
+  primaryAccent,
+  secondaryAccent,
+  shouldReduceMotion,
+  onApplyRecipe,
+  onApplyBalancedVisuals,
+  onApplyLowPower,
+  onCopyJson,
+  onResetThemeEditor,
+}) {
+  return (
+    <SettingsGroup
+      title="Presets und Austausch"
+      description="Theme-Rezepte anwenden, lokale Theme-Werte exportieren oder Designwerte zuruecksetzen."
+    >
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_auto]">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          {THEME_EDITOR_RECIPES.map((recipe) => (
+            <PresetButton
+              key={recipe.id}
+              active={activeRecipeId === recipe.id}
+              title={recipe.label}
+              description={recipe.description}
+              colors={recipe.colors}
+              shouldReduceMotion={shouldReduceMotion}
+              onClick={() => onApplyRecipe(recipe)}
+            />
+          ))}
+        </div>
+        <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 lg:w-44 lg:grid-cols-1">
+          <button
+            type="button"
+            onClick={onApplyBalancedVisuals}
+            className="inline-flex min-h-9 min-w-0 items-center justify-center gap-2 rounded-md border border-white/10 bg-white/[0.025] px-3 py-1.5 text-xs font-semibold leading-tight text-gray-300 transition-colors hover:bg-white/[0.05]"
+          >
+            <Gauge size={13} />
+            <span className="min-w-0 break-words text-center">Balanced</span>
+          </button>
+          <button
+            type="button"
+            onClick={onApplyLowPower}
+            className="inline-flex min-h-9 min-w-0 items-center justify-center gap-2 rounded-md border border-white/10 bg-white/[0.025] px-3 py-1.5 text-xs font-semibold leading-tight text-gray-300 transition-colors hover:bg-white/[0.05]"
+          >
+            <Cpu size={13} />
+            <span className="min-w-0 break-words text-center">Low Power</span>
+          </button>
+          <button
+            type="button"
+            onClick={onCopyJson}
+            className="inline-flex min-h-9 min-w-0 items-center justify-center gap-2 rounded-md border px-3 py-1.5 text-xs font-semibold leading-tight text-gray-100 transition-colors hover:bg-white/[0.05]"
+            style={{
+              background: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.095)",
+              borderColor: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.22)",
+            }}
+          >
+            <Clipboard size={13} />
+            <span className="min-w-0 break-words text-center">
+              {copyStatus === "copied" ? "Kopiert" : copyStatus === "failed" ? "Fehler" : "Copy JSON"}
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={onResetThemeEditor}
+            className="inline-flex min-h-9 min-w-0 items-center justify-center gap-2 rounded-md border border-white/10 bg-white/[0.025] px-3 py-1.5 text-xs font-semibold leading-tight text-gray-300 transition-colors hover:bg-white/[0.05]"
+          >
+            <RefreshCcw size={13} />
+            <span className="min-w-0 break-words text-center">Reset Design</span>
+          </button>
+          <div className="rounded-md border border-white/5 bg-black/10 px-2.5 py-2 text-[10px] leading-4 text-gray-500 sm:col-span-2 lg:col-span-1">
+            JSON {exportSize}; Accent {primaryAccent}; Secondary {secondaryAccent}
+          </div>
+        </div>
+      </div>
+    </SettingsGroup>
   );
 }
 
@@ -861,27 +1774,27 @@ function PresetButton({
       whileHover={shouldReduceMotion ? undefined : { y: -2 }}
       whileTap={shouldReduceMotion ? undefined : { scale: 0.99 }}
       onClick={onClick}
-      className="group min-w-0 rounded-lg border p-3 text-left transition-colors"
+      className="group min-w-0 rounded-md border p-3 text-left transition-colors"
       style={{
         background: active
-          ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.12)"
-          : "rgba(255,255,255,0.025)",
+          ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.095)"
+          : "rgba(255,255,255,0.018)",
         borderColor: active
-          ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.32)"
-          : "rgba(255,255,255,0.07)",
+          ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.26)"
+          : "rgba(156,178,226,0.065)",
         boxShadow: active
-          ? "0 12px 26px rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.1)"
+          ? "0 12px 26px rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.065)"
           : "none",
       }}
     >
       <div className="flex min-w-0 items-center justify-between gap-2">
-        <span className="truncate text-xs font-semibold text-gray-200">
+        <span className="min-w-0 break-words text-xs font-semibold leading-tight text-gray-200">
           {title}
         </span>
         {active ? <Check size={13} style={{ color: "var(--nexus-primary)" }} /> : null}
       </div>
       {description ? (
-        <p className="mt-1 line-clamp-2 text-[10px] leading-4 text-gray-500">
+        <p className="mt-1 break-words text-[10px] leading-4 text-gray-500">
           {description}
         </p>
       ) : null}
@@ -900,19 +1813,171 @@ function PresetButton({
   );
 }
 
+function WorkbenchSegmentedControl({
+  label,
+  options,
+  value,
+  onChange,
+  getOptionLabel = (option) => option.label,
+  disabled = false,
+}) {
+  return (
+    <div className="min-w-0">
+      <div className="mb-1.5 break-words text-[10px] font-semibold uppercase leading-tight text-gray-500">
+        {label}
+      </div>
+      <div
+        className="grid min-h-9 min-w-0 overflow-hidden rounded-md border border-white/10 bg-white/[0.025]"
+        style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}
+        role="group"
+        aria-label={label}
+      >
+        {options.map((option) => {
+          const isActive = option.id === value;
+          return (
+            <button
+              key={option.id}
+              type="button"
+              disabled={disabled}
+              onClick={() => onChange?.(option.id)}
+              aria-pressed={isActive}
+              title={option.title || option.label}
+              className={`min-w-0 px-2 py-1.5 text-[10px] font-semibold leading-tight transition-colors disabled:cursor-not-allowed disabled:opacity-45 ${
+                isActive
+                  ? "bg-white/12 text-white"
+                  : "text-[var(--nexus-muted)] hover:bg-white/[0.07] hover:text-gray-200"
+              }`}
+            >
+              <span className="block min-w-0 break-words">{getOptionLabel(option)}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function getZonePanelSummary(layout, zone) {
+  const count = getWorkbenchZonePanelIds(layout, zone).length;
+  if (count === 1) return "1 Panel";
+  return `${count} Panels`;
+}
+
+function WorkbenchQuickActions({
+  layout,
+  activePanelId,
+  activePanelLabel,
+  onApplyPreset,
+  onSetSidePanelSize,
+  onSetBottomPanelSize,
+  onDockActivePanel,
+  onResetLayout,
+}) {
+  const normalizedLayout = normalizeWorkbenchLayout(layout);
+  const activeZone = activePanelId
+    ? normalizedLayout.panelZones?.[activePanelId] || null
+    : null;
+  const canDock = Boolean(activePanelId && onDockActivePanel);
+
+  return (
+    <div className="grid grid-cols-1 gap-4">
+      <div className="grid grid-cols-1 gap-3 xl:grid-cols-3">
+        <WorkbenchSegmentedControl
+          label="Layout"
+          options={WORKBENCH_LAYOUT_OPTIONS}
+          value={normalizedLayout.presetId}
+          onChange={onApplyPreset}
+          disabled={!onApplyPreset}
+          getOptionLabel={(option) => option.label}
+        />
+        <WorkbenchSegmentedControl
+          label="Side"
+          options={WORKBENCH_SIDE_PANEL_SIZE_OPTIONS}
+          value={normalizedLayout.sidePanelSize}
+          onChange={onSetSidePanelSize}
+          disabled={!onSetSidePanelSize}
+        />
+        <WorkbenchSegmentedControl
+          label="Bottom"
+          options={WORKBENCH_BOTTOM_PANEL_SIZE_OPTIONS}
+          value={normalizedLayout.bottomPanelSize}
+          onChange={onSetBottomPanelSize}
+          disabled={!onSetBottomPanelSize}
+        />
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 xl:grid-cols-[1fr_auto]">
+        <div className="min-w-0 rounded-md border border-white/5 bg-white/[0.014] p-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="min-w-0">
+              <div className="break-words text-[10px] font-semibold uppercase leading-tight text-gray-500">
+                Docking
+              </div>
+              <div className="mt-1 break-words text-xs font-semibold text-gray-200">
+                {activePanelLabel || activePanelId || "Explorer"}
+              </div>
+            </div>
+            <div className="flex shrink-0 flex-wrap gap-1.5">
+              {WORKBENCH_DOCK_ACTIONS.map(({ zone, label, Icon }) => {
+                const isActive = activeZone === zone;
+                return (
+                  <button
+                    key={zone}
+                    type="button"
+                    disabled={!canDock}
+                    onClick={() => onDockActivePanel?.(zone)}
+                    aria-pressed={isActive}
+                    className={`inline-flex h-8 min-w-8 items-center justify-center rounded-md border px-2 text-[10px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-45 ${
+                      isActive
+                        ? "border-white/20 bg-white/12 text-white"
+                        : "border-white/10 bg-white/[0.03] text-[var(--nexus-muted)] hover:bg-white/[0.07] hover:text-gray-200"
+                    }`}
+                    title={`Dock ${label}`}
+                  >
+                    <Icon size={13} />
+                    <span className="sr-only">{label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <div className="mt-3 grid grid-cols-2 gap-2 text-[10px] text-gray-500 sm:grid-cols-4">
+            {WORKBENCH_DOCK_ACTIONS.map(({ zone, label }) => (
+              <div
+                key={`${zone}-summary`}
+                className="min-w-0 rounded-md border border-white/5 bg-black/10 px-2 py-1.5"
+              >
+                <div className="break-words font-semibold text-gray-400">{label}</div>
+                <div className="break-words">{getZonePanelSummary(normalizedLayout, zone)}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <button
+          type="button"
+          disabled={!onResetLayout}
+          onClick={onResetLayout}
+          className="inline-flex min-h-10 min-w-0 items-center justify-center gap-2 rounded-md border border-white/10 bg-white/[0.025] px-3 py-1.5 text-xs font-semibold leading-tight text-gray-300 transition-colors hover:bg-white/[0.05] disabled:cursor-not-allowed disabled:opacity-45 xl:w-32"
+          title="Workbench Layout zuruecksetzen"
+        >
+          <RefreshCcw size={13} />
+          Reset
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function ThemePreview({
   settings,
-<<<<<<< HEAD
+  resolvedTheme,
+  visualBudgetSummary,
   themeName,
   primaryAccent,
   secondaryAccent,
   radius,
   animationSpeed,
-=======
-  primaryAccent,
-  secondaryAccent,
-  radius,
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
   shouldReduceMotion,
 }) {
   const glowIntensity = getNumberSetting(settings, "glow_intensity", 28);
@@ -920,52 +1985,45 @@ function ThemePreview({
   const blurStrength = getNumberSetting(settings, "panel_blur_strength", 16);
   const fontSize = getNumberSetting(settings, "font_size", 14);
   const lineHeight = getNumberSetting(settings, "line_height", 1.6);
-<<<<<<< HEAD
   const letterSpacing = getNumberSetting(settings, "letter_spacing", 0);
+  const surfaceHex = resolvedTheme.colors.surfaceHex || "#11141d";
+  const inputSurface = settings.custom_input_surface || resolvedTheme.colors.inputSurface || "#151924";
   const sidebarVisible = settings.sidebar_visible !== false;
   const statusVisible = settings.status_bar_visible !== false;
   const sidebarRight = settings.sidebar_position === "right";
   const cursorStyle = settings.cursor_style || "line";
-=======
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
   const previewShadow =
     glowIntensity > 0
       ? `0 0 ${Math.max(4, Math.round((glowRadius * glowIntensity) / 90))}px rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.24)`
       : "none";
-<<<<<<< HEAD
   const cursorShape =
     cursorStyle === "block"
       ? "h-5 w-2.5"
       : cursorStyle === "underline"
         ? "h-0.5 w-4 self-end"
         : "h-5 w-0.5";
-=======
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
 
   return (
     <motion.div
       initial={shouldReduceMotion ? false : { opacity: 0, y: 8 }}
       animate={shouldReduceMotion ? undefined : { opacity: 1, y: 0 }}
-      className="overflow-hidden rounded-lg border"
+      className="nx-code-settings-preview overflow-hidden rounded-lg border"
       style={{
         borderRadius: radius,
-        background: "rgba(255,255,255,0.026)",
-        borderColor: "var(--nexus-border)",
+        background:
+          "linear-gradient(180deg, rgba(255,255,255,0.024), rgba(255,255,255,0.006)), rgba(0,0,0,0.18)",
+        borderColor: "rgba(156,178,226,0.08)",
         boxShadow: previewShadow,
       }}
     >
       <div
-<<<<<<< HEAD
         className="flex flex-wrap items-center justify-between gap-3 border-b border-white/5 px-4 py-3"
-=======
-        className="flex items-center justify-between border-b border-white/5 px-4 py-3"
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
         style={{
-          background: `linear-gradient(135deg, rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.14), rgba(var(--nexus-accent-2-rgb, 45, 212, 191), 0.06))`,
+          background: `linear-gradient(135deg, rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.09), rgba(var(--nexus-accent-2-rgb, 45, 212, 191), 0.04))`,
           backdropFilter: blurStrength > 0 ? `blur(${Math.min(12, blurStrength)}px)` : "none",
         }}
       >
-        <div className="flex items-center gap-2">
+        <div className="flex min-w-0 items-center gap-2">
           <span
             className="h-2.5 w-2.5 rounded-full"
             style={{ background: primaryAccent }}
@@ -974,11 +2032,10 @@ function ThemePreview({
             className="h-2.5 w-2.5 rounded-full"
             style={{ background: secondaryAccent }}
           />
-          <span className="ml-1 text-xs font-semibold text-gray-300">
+          <span className="ml-1 min-w-0 break-words text-xs font-semibold text-gray-300">
             settings.preview.tsx
           </span>
         </div>
-<<<<<<< HEAD
         <div className="flex flex-wrap items-center gap-2 text-[10px] text-gray-500">
           <span>{themeName}</span>
           <span>{settings.word_wrap ? "Wrap" : "No Wrap"}</span>
@@ -997,7 +2054,7 @@ function ThemePreview({
             ))}
           </div>
         ) : null}
-        <div className="grid min-w-0 flex-1 grid-cols-[3.5rem_1fr]">
+        <div className="grid min-w-0 flex-1 grid-cols-[3rem_minmax(0,1fr)] sm:grid-cols-[3.5rem_minmax(0,1fr)]">
           <div className="border-r border-white/5 px-3 py-4 text-right font-mono text-[11px] leading-6 text-gray-600">
             <div>1</div>
             <div>2</div>
@@ -1011,6 +2068,7 @@ function ThemePreview({
               fontSize,
               lineHeight,
               letterSpacing,
+              fontWeight: settings.font_weight || "400",
             }}
           >
             <div>
@@ -1025,7 +2083,7 @@ function ThemePreview({
               <span style={{ color: "var(--nexus-number)" }}>{glowIntensity}</span>
               <span style={{ color: "var(--nexus-text)" }}>)</span>;
             </div>
-            <div className="flex items-center gap-1 text-gray-500">
+            <div className="flex min-w-0 flex-wrap items-center gap-1 text-gray-500">
               <span>// cursor</span>
               <span
                 className={`${cursorShape} inline-block rounded-sm`}
@@ -1033,8 +2091,33 @@ function ThemePreview({
               />
               <span>{cursorStyle}</span>
             </div>
-            <div className="text-gray-500">
+            <div className="break-words text-gray-500">
               // blur {blurStrength}px, radius {radius}px, letter {formatSettingNumber(letterSpacing, 2)}px
+            </div>
+            <div
+              className="mt-4 rounded-md border px-3 py-2 font-sans text-xs"
+              style={{
+                background: "var(--nexus-input-surface, rgba(255,255,255,0.05))",
+                borderColor: "rgba(255,255,255,0.08)",
+              }}
+            >
+              <div className="flex min-w-0 items-center gap-2">
+                <Search size={13} className="shrink-0 text-gray-500" />
+                <span className="min-w-0 break-words text-gray-400">Settings suchen: input surface, glow, low power</span>
+              </div>
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-2 font-sans text-[10px] text-gray-500 lg:grid-cols-4">
+              {visualBudgetSummary.categories.map((category) => (
+                <div
+                  key={category.id}
+                  className="rounded-md border border-white/5 bg-black/10 px-2 py-1.5"
+                >
+                  <div className="break-words font-semibold text-gray-300">{category.label}</div>
+                  <div className={category.hot ? "text-amber-200" : "text-gray-500"}>
+                    {category.rating} / {category.value}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -1051,49 +2134,14 @@ function ThemePreview({
         ) : null}
       </div>
       {statusVisible ? (
-        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-white/5 px-4 py-2 text-[10px] text-gray-500">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-white/5 px-4 py-2 text-[10px] leading-tight text-gray-500">
           <span>main.tsx</span>
+          <span>Surface {surfaceHex}</span>
+          <span>Input {inputSurface}</span>
           <span>{settings.lsp_enabled !== false ? "LSP ready" : "LSP off"}</span>
           <span>{settings.auto_save !== false ? "Auto Save" : "Manual Save"}</span>
         </div>
       ) : null}
-=======
-        <span className="text-[10px] text-gray-500">
-          {settings.word_wrap ? "Wrap" : "No Wrap"}
-        </span>
-      </div>
-      <div className="grid grid-cols-[3.5rem_1fr]">
-        <div className="border-r border-white/5 px-3 py-4 text-right font-mono text-[11px] leading-6 text-gray-600">
-          <div>1</div>
-          <div>2</div>
-          <div>3</div>
-        </div>
-        <div
-          className="min-w-0 px-4 py-4 font-mono text-gray-300"
-          style={{
-            fontFamily: settings.font_family || "JetBrains Mono",
-            fontSize,
-            lineHeight,
-          }}
-        >
-          <div>
-            <span style={{ color: "var(--nexus-keyword)" }}>const</span>{" "}
-            <span style={{ color: "var(--nexus-variable)" }}>theme</span>{" "}
-            <span style={{ color: "var(--nexus-operator)" }}>=</span>{" "}
-            <span style={{ color: "var(--nexus-string)" }}>"Nexus"</span>;
-          </div>
-          <div>
-            <span style={{ color: "var(--nexus-function)" }}>applyGlow</span>
-            <span style={{ color: "var(--nexus-text)" }}>(</span>
-            <span style={{ color: "var(--nexus-number)" }}>{glowIntensity}</span>
-            <span style={{ color: "var(--nexus-text)" }}>)</span>;
-          </div>
-          <div className="text-gray-500">
-            // blur {blurStrength}px, radius {radius}px
-          </div>
-        </div>
-      </div>
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
     </motion.div>
   );
 }
@@ -1103,10 +2151,19 @@ export default function SettingsPanel({
   onSettingsChange,
   onResetSettings,
   onClose,
+  workbenchLayout,
+  activeWorkbenchPanelId = "explorer",
+  activeWorkbenchPanelLabel = "Explorer",
+  onApplyWorkbenchLayoutPreset,
+  onSetSidePanelSize,
+  onSetBottomPanelSize,
+  onDockActivePanel,
+  onResetWorkbenchLayout,
 }) {
   const [activeSection, setActiveSection] = React.useState("theme-editor");
   const [searchQuery, setSearchQuery] = React.useState("");
   const [lspServers, setLspServers] = React.useState([]);
+  const [copyStatus, setCopyStatus] = React.useState("idle");
   const prefersReducedMotion = useReducedMotion();
   const resolvedTheme = React.useMemo(
     () => resolveNexusTheme(settings),
@@ -1117,12 +2174,13 @@ export default function SettingsPanel({
   const primaryAccent = resolvedTheme.colors.primary;
   const secondaryAccent = resolvedTheme.colors.secondary;
   const visualProfileId = resolveVisualProfileId(settings);
+  const themeEditorRecipeId = React.useMemo(
+    () => getThemeEditorRecipeId(settings),
+    [settings],
+  );
   const reducedBySetting = settings.reduce_motion === true;
   const animationsEnabled = settings.animations_enabled !== false;
-<<<<<<< HEAD
   const animationSpeed = clampNumber(settings.animation_speed, 0.5, 1.8, 1);
-=======
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
   const shouldReduceMotion =
     prefersReducedMotion ||
     reducedBySetting ||
@@ -1130,16 +2188,15 @@ export default function SettingsPanel({
     visualProfileId === "performance";
   const motionTransition = shouldReduceMotion
     ? { duration: 0 }
-<<<<<<< HEAD
     : { duration: 0.22 / animationSpeed, ease: [0.22, 1, 0.36, 1] };
   const radius = getNumberSetting(settings, "ui_radius", 10);
   const letterSpacing = clampNumber(settings.letter_spacing, 0, 1.5, 0);
-=======
-    : { duration: 0.22, ease: [0.22, 1, 0.36, 1] };
-  const radius = getNumberSetting(settings, "ui_radius", 10);
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
   const scopedThemeVars = React.useMemo(() => {
     const cssVars = resolvedTheme.cssVars;
+    const radiusXs = Math.max(4, radius - 6);
+    const radiusSm = Math.max(6, radius - 4);
+    const radiusLg = radius + 4;
+    const radiusXl = radius + 8;
     return {
       ...cssVars,
       "--nexus-primary": cssVars["--nexus-primary"],
@@ -1160,15 +2217,18 @@ export default function SettingsPanel({
       "--nexus-operator": cssVars["--nexus-operator"],
       "--primary-rgb": cssVars["--primary-rgb"],
       "--nexus-settings-radius": `${radius}px`,
+      "--nexus-radius-xs": `${radiusXs}px`,
+      "--nexus-radius-sm": `${radiusSm}px`,
+      "--nexus-radius-md": `${radius}px`,
+      "--nexus-radius-lg": `${radiusLg}px`,
+      "--nexus-radius-xl": `${radiusXl}px`,
+      "--nexus-radius-2xl": `${radiusXl + 4}px`,
     };
   }, [resolvedTheme, radius]);
-<<<<<<< HEAD
   const themeTokens = React.useMemo(
     () => createThemeTokenList(resolvedTheme),
     [resolvedTheme],
   );
-=======
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
 
   const sectionMatchCounts = React.useMemo(
     () =>
@@ -1195,17 +2255,41 @@ export default function SettingsPanel({
     (sum, count) => sum + count,
     0,
   );
-<<<<<<< HEAD
   const searchResults = React.useMemo(
     () => getSearchResults(searchTerm),
     [searchTerm],
   );
   const performanceHints = React.useMemo(
-    () => buildPerformanceHints(settings, visualProfileId, lspServers),
-    [lspServers, settings, visualProfileId],
+    () => buildPerformanceHints(settings, visualProfileId, lspServers, shouldReduceMotion),
+    [lspServers, settings, shouldReduceMotion, visualProfileId],
   );
-=======
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
+  const visualBudgetSummary = React.useMemo(
+    () => buildVisualBudgetSummary(settings, visualProfileId, shouldReduceMotion),
+    [settings, shouldReduceMotion, visualProfileId],
+  );
+  const themeExportPayload = React.useMemo(
+    () => createThemeExportPayload(settings, resolvedTheme, visualBudgetSummary),
+    [resolvedTheme, settings, visualBudgetSummary],
+  );
+  const themeExportSize = React.useMemo(
+    () => formatJsonSize(themeExportPayload),
+    [themeExportPayload],
+  );
+  const lowPowerState = React.useMemo(
+    () => buildLowPowerState(settings, visualProfileId, prefersReducedMotion, shouldReduceMotion),
+    [prefersReducedMotion, settings, shouldReduceMotion, visualProfileId],
+  );
+  const normalizedWorkbenchLayout = React.useMemo(
+    () => normalizeWorkbenchLayout(workbenchLayout),
+    [workbenchLayout],
+  );
+  const showWorkbenchQuickActions = React.useMemo(
+    () =>
+      WORKBENCH_QUICK_ACTION_SETTING_IDS.some((settingId) =>
+        isVisibleSetting(settingId, "workbench", searchTerm),
+      ),
+    [searchTerm],
+  );
 
   React.useEffect(() => {
     if (typeof document === "undefined") return;
@@ -1274,26 +2358,100 @@ export default function SettingsPanel({
     [onSettingsChange, settings],
   );
 
+  const applyTextPreset = React.useCallback(
+    (preset) => {
+      updateSettings(preset.settings);
+    },
+    [updateSettings],
+  );
+
+  const applyLowPowerFallback = React.useCallback(() => {
+    const performanceProfile = visualPerformanceProfiles.find(
+      (profile) => profile.id === "performance",
+    );
+    updateSettings({
+      ...(performanceProfile?.settings || {}),
+      reduce_motion: true,
+      animations_enabled: false,
+      animation_speed: 0.75,
+      minimap: false,
+      smooth_caret: false,
+      cursor_glow: false,
+      icon_glow: false,
+      panel_glow_outline: false,
+      glow_renderer: "css",
+      panel_background_mode: "blur",
+      panel_blur_strength: 8,
+      glow_intensity: 12,
+      glow_radius: 8,
+      visual_performance_profile: "performance",
+    });
+  }, [updateSettings]);
+
+  const restoreBalancedVisuals = React.useCallback(() => {
+    const balancedProfile = visualPerformanceProfiles.find(
+      (profile) => profile.id === "balanced",
+    );
+    updateSettings({
+      ...(balancedProfile?.settings || {}),
+      reduce_motion: false,
+      animations_enabled: true,
+      animation_speed: 1,
+      minimap: true,
+      visual_performance_profile: "balanced",
+    });
+  }, [updateSettings]);
+
+  const applyThemeEditorRecipe = React.useCallback(
+    (recipe) => {
+      updateSettings(recipe.settings);
+    },
+    [updateSettings],
+  );
+
+  const resetThemeEditor = React.useCallback(() => {
+    updateSettings(buildThemeEditorResetPatch());
+  }, [updateSettings]);
+
+  const copyThemeJson = React.useCallback(async () => {
+    const json = JSON.stringify(themeExportPayload, null, 2);
+    try {
+      const clipboard =
+        typeof navigator !== "undefined" ? navigator.clipboard : null;
+      if (!clipboard?.writeText) {
+        throw new Error("Clipboard API unavailable");
+      }
+      await clipboard.writeText(json);
+      setCopyStatus("copied");
+    } catch {
+      setCopyStatus("failed");
+    }
+    if (typeof window !== "undefined") {
+      window.setTimeout(() => setCopyStatus("idle"), 1800);
+    }
+  }, [themeExportPayload]);
+
   const renderIfVisible = (sectionId, render) =>
     visibleSectionIds.includes(sectionId) ? render() : null;
 
   const renderLspServers = () =>
     lspServers.length > 0 ? (
       <div
-        className="rounded-md border p-3"
+        className="nx-code-settings-group rounded-md border p-3"
         style={{
-          background: "rgba(255,255,255,0.025)",
-          borderColor: "var(--nexus-border)",
+          background:
+            "linear-gradient(180deg, rgba(255,255,255,0.022), rgba(255,255,255,0.006)), rgba(0,0,0,0.14)",
+          borderColor: "rgba(156,178,226,0.075)",
         }}
       >
-        <div className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-gray-500">
+        <div className="mb-2 break-words text-[10px] font-semibold uppercase leading-tight text-gray-500">
           LSP Tools
         </div>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           {lspServers.map((server) => (
             <div
               key={server.languageId}
-              className="flex items-center justify-between gap-2 rounded-md px-2 py-1.5"
+              className="flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-md px-2 py-1.5"
               style={{
                 background: server.available
                   ? "rgba(34,197,94,0.08)"
@@ -1308,12 +2466,12 @@ export default function SettingsPanel({
                   : `${server.envName} installieren oder setzen`
               }
             >
-              <span className="min-w-0 truncate text-xs text-gray-300">
+              <span className="min-w-0 break-words text-xs text-gray-300">
                 {server.languageId}
               </span>
               <span
                 className={`shrink-0 text-[10px] font-medium ${
-                  server.available ? "text-green-300" : "text-gray-500"
+                  server.available ? "text-sky-300" : "text-gray-500"
                 }`}
               >
                 {server.available ? "bereit" : "fehlt"}
@@ -1329,46 +2487,48 @@ export default function SettingsPanel({
       initial={shouldReduceMotion ? false : { opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={motionTransition}
-      className="nx-code-settings-panel flex-1 flex overflow-hidden rounded-xl sm:rounded-2xl border border-white/5 min-w-0"
+      className="nx-code-settings-panel flex-1 flex overflow-hidden rounded-xl border border-white/5 min-w-0"
       style={{
         ...scopedThemeVars,
-        background: "var(--nexus-panel-surface)",
-        backdropFilter: "var(--nexus-settings-filter, blur(8px) saturate(115%))",
+        background:
+          "radial-gradient(circle at 14% 0%, rgba(var(--nexus-primary-rgb), 0.04), transparent 22rem), linear-gradient(180deg, rgba(255,255,255,0.024), rgba(255,255,255,0.006)), var(--nexus-panel-surface)",
+        backdropFilter: "var(--nexus-settings-filter, blur(12px) saturate(110%))",
         WebkitBackdropFilter:
-          "var(--nexus-settings-filter, blur(8px) saturate(115%))",
-        borderColor: "var(--nexus-border)",
-        borderRadius: `min(18px, ${Math.max(10, radius + 6)}px)`,
+          "var(--nexus-settings-filter, blur(12px) saturate(110%))",
+        borderColor: "rgba(156,178,226,0.095)",
+        borderRadius: `min(16px, ${Math.max(10, radius + 5)}px)`,
       }}
     >
       <motion.aside
         initial={shouldReduceMotion ? false : { x: -220, opacity: 0 }}
         animate={shouldReduceMotion ? undefined : { x: 0, opacity: 1 }}
         transition={motionTransition}
-        className="nx-code-settings-nav flex w-48 shrink-0 flex-col overflow-y-auto p-3 sm:w-60 sm:p-4"
+        className="nx-code-settings-nav flex w-48 shrink-0 flex-col overflow-y-auto p-3 sm:w-56 sm:p-3.5"
         style={{
-          background: "var(--nexus-sidebar)",
-          borderRight: "1px solid var(--nexus-border)",
+          background:
+            "linear-gradient(180deg, rgba(255,255,255,0.018), rgba(255,255,255,0.004)), var(--nexus-sidebar)",
+          borderRight: "1px solid rgba(156,178,226,0.075)",
         }}
       >
         <button
           type="button"
           onClick={onClose}
-          className="mb-5 flex items-center gap-2 text-gray-400 transition-colors hover:text-gray-200"
+          className="mb-4 flex min-w-0 items-center gap-2 rounded-md px-2 py-1.5 text-gray-400 transition-colors hover:bg-white/[0.035] hover:text-gray-200"
         >
           <ArrowLeft size={16} />
-          <span className="text-sm">Zurueck</span>
+          <span className="min-w-0 break-words text-sm">Zurueck</span>
         </button>
 
         <div className="mb-4">
           <div className="flex items-center justify-between gap-2">
-            <span className="truncate text-xs font-semibold uppercase tracking-widest text-gray-500">
+            <span className="min-w-0 break-words text-xs font-semibold uppercase leading-tight text-gray-500">
               Einstellungen
             </span>
             <button
               type="button"
               onClick={onResetSettings}
               title="Alles zuruecksetzen"
-              className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-red-400/70 transition-colors hover:bg-red-500/10 hover:text-red-300"
+              className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-transparent text-red-400/70 transition-colors hover:border-red-300/10 hover:bg-red-500/10 hover:text-red-300"
             >
               <RefreshCcw size={13} />
             </button>
@@ -1382,8 +2542,7 @@ export default function SettingsPanel({
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
               placeholder="Settings suchen"
-<<<<<<< HEAD
-              className="h-9 w-full rounded-md border border-white/10 bg-white/[0.035] pl-8 pr-8 text-xs text-gray-200 outline-none transition-colors placeholder:text-gray-600 focus:border-[rgba(var(--nexus-primary-rgb),0.45)]"
+              className="h-9 w-full rounded-md border border-white/10 bg-white/[0.026] pl-8 pr-8 text-xs text-gray-200 outline-none transition-colors placeholder:text-gray-600 focus:border-[rgba(var(--nexus-primary-rgb),0.38)]"
             />
             {searchQuery ? (
               <button
@@ -1395,13 +2554,9 @@ export default function SettingsPanel({
                 <X size={12} />
               </button>
             ) : null}
-=======
-              className="h-9 w-full rounded-md border border-white/10 bg-white/[0.035] pl-8 pr-2 text-xs text-gray-200 outline-none transition-colors placeholder:text-gray-600 focus:border-[rgba(var(--nexus-primary-rgb),0.45)]"
-            />
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
           </div>
           {searchTerm ? (
-            <div className="mt-2 text-[10px] text-gray-500">
+            <div className="mt-2 break-words text-[10px] leading-tight text-gray-500">
               {totalMatches} Treffer in {visibleSectionIds.length} Kategorien
             </div>
           ) : null}
@@ -1432,7 +2587,7 @@ export default function SettingsPanel({
                 className="relative flex w-full min-w-0 items-center gap-2.5 rounded-md px-2.5 py-2 text-left"
                 style={{
                   background: isActive
-                    ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.12)"
+                    ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.095)"
                     : "transparent",
                   color: disabledBySearch
                     ? "#4b5563"
@@ -1454,9 +2609,9 @@ export default function SettingsPanel({
                   />
                 ) : null}
                 <Icon size={16} className="shrink-0" />
-                <span className="min-w-0 flex-1 truncate text-sm">{section.label}</span>
+                <span className="min-w-0 flex-1 break-words text-sm leading-tight">{section.label}</span>
                 {searchTerm && count > 0 ? (
-                  <span className="rounded-full bg-white/10 px-1.5 py-0.5 text-[10px]">
+                  <span className="rounded-full border border-white/10 bg-white/[0.035] px-1.5 py-0.5 text-[10px] leading-tight">
                     {count}
                   </span>
                 ) : null}
@@ -1471,7 +2626,7 @@ export default function SettingsPanel({
         initial={shouldReduceMotion ? false : { opacity: 0, x: 18 }}
         animate={shouldReduceMotion ? undefined : { opacity: 1, x: 0 }}
         transition={motionTransition}
-        className="nx-code-settings-content min-w-0 flex-1 overflow-y-auto p-4 sm:p-6 xl:p-8"
+        className="nx-code-settings-content min-w-0 flex-1 overflow-y-auto p-4 sm:p-5 xl:p-6"
       >
         {searchTerm && visibleSectionIds.length === 0 ? (
           <div className="flex h-full min-h-[22rem] items-center justify-center">
@@ -1480,14 +2635,14 @@ export default function SettingsPanel({
               <h2 className="mt-4 text-lg font-semibold text-gray-300">
                 Keine Settings gefunden
               </h2>
-              <p className="mt-2 text-sm leading-6 text-gray-500">
+              <p className="mt-2 break-words text-sm leading-6 text-gray-500">
                 Probiere Begriffe wie Font, Glow, Diagnostics, Workbench oder
                 Motion.
               </p>
             </div>
           </div>
         ) : (
-          <div className="space-y-8">
+          <div className="space-y-6">
             {!searchTerm ? (
               <SettingsHeader
                 title={activeMeta.label}
@@ -1504,7 +2659,6 @@ export default function SettingsPanel({
               />
             )}
 
-<<<<<<< HEAD
             {searchTerm ? (
               <SearchResultSummary
                 query={searchQuery}
@@ -1518,8 +2672,6 @@ export default function SettingsPanel({
               />
             ) : null}
 
-=======
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
             {renderIfVisible("theme-editor", () => (
               <section key="theme-editor" className="space-y-5">
                 {searchTerm ? (
@@ -1532,19 +2684,36 @@ export default function SettingsPanel({
                 ) : null}
                 <ThemePreview
                   settings={settings}
-<<<<<<< HEAD
+                  resolvedTheme={resolvedTheme}
+                  visualBudgetSummary={visualBudgetSummary}
                   themeName={resolvedTheme.name}
                   primaryAccent={primaryAccent}
                   secondaryAccent={secondaryAccent}
                   radius={radius}
                   animationSpeed={animationSpeed}
-=======
-                  primaryAccent={primaryAccent}
-                  secondaryAccent={secondaryAccent}
-                  radius={radius}
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
                   shouldReduceMotion={shouldReduceMotion}
                 />
+                <ThemeEditorUtilityPanel
+                  activeRecipeId={themeEditorRecipeId}
+                  copyStatus={copyStatus}
+                  exportSize={themeExportSize}
+                  primaryAccent={primaryAccent}
+                  secondaryAccent={secondaryAccent}
+                  shouldReduceMotion={shouldReduceMotion}
+                  onApplyRecipe={applyThemeEditorRecipe}
+                  onApplyBalancedVisuals={restoreBalancedVisuals}
+                  onApplyLowPower={applyLowPowerFallback}
+                  onCopyJson={copyThemeJson}
+                  onResetThemeEditor={resetThemeEditor}
+                />
+                <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                  <VisualBudgetCard summary={visualBudgetSummary} />
+                  <LowPowerFallbackPanel
+                    state={lowPowerState}
+                    onApply={applyLowPowerFallback}
+                    onRestore={restoreBalancedVisuals}
+                  />
+                </div>
                 <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
                   <SettingsGroup
                     title="Theme Tokens"
@@ -1578,10 +2747,35 @@ export default function SettingsPanel({
                         onChange={(value) => updateSetting("secondary_accent", value)}
                       />
                     </SettingRow>
-<<<<<<< HEAD
+                    <SettingRow
+                      id="custom_surface"
+                      sectionId="theme-editor"
+                      searchQuery={searchTerm}
+                      title="Custom Surface"
+                      description="Optionaler Panel-/Editor-Surface-Hexwert; leer entspricht dem Preset."
+                    >
+                      <ColorControl
+                        label="Custom Surface"
+                        value={settings.custom_surface}
+                        fallback={resolvedTheme.colors.surfaceHex || "#11141d"}
+                        onChange={(value) => updateSetting("custom_surface", value)}
+                      />
+                    </SettingRow>
+                    <SettingRow
+                      id="custom_input_surface"
+                      sectionId="theme-editor"
+                      searchQuery={searchTerm}
+                      title="Input Surface"
+                      description="Farbwert fuer Search-, Select- und Textfeld-Flaechen."
+                    >
+                      <ColorControl
+                        label="Input Surface"
+                        value={settings.custom_input_surface}
+                        fallback={resolvedTheme.colors.inputSurface || "#151924"}
+                        onChange={(value) => updateSetting("custom_input_surface", value)}
+                      />
+                    </SettingRow>
                     <ThemeTokenGrid tokens={themeTokens} />
-=======
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
                     <SettingRow
                       id="ui_radius"
                       sectionId="theme-editor"
@@ -1667,6 +2861,13 @@ export default function SettingsPanel({
                   title="Editor Essentials"
                   description="Die VS-Code-artigen Editor-Optionen direkt im Theme Editor."
                 >
+                  <div className="mb-3">
+                    <TextPresetGrid
+                      settings={settings}
+                      onApplyPreset={applyTextPreset}
+                      shouldReduceMotion={shouldReduceMotion}
+                    />
+                  </div>
                   <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
                     <SettingRow
                       id="font_family"
@@ -1724,7 +2925,6 @@ export default function SettingsPanel({
                       </div>
                     </SettingRow>
                     <SettingRow
-<<<<<<< HEAD
                       id="letter_spacing"
                       sectionId="editor"
                       searchQuery={searchTerm}
@@ -1743,8 +2943,6 @@ export default function SettingsPanel({
                       </div>
                     </SettingRow>
                     <SettingRow
-=======
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
                       id="word_wrap"
                       sectionId="editor"
                       searchQuery={searchTerm}
@@ -1833,6 +3031,11 @@ export default function SettingsPanel({
                 ) : null}
                 <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
                   <SettingsGroup title="Typography" description="Editor-Schrift und Zeilenmetrik.">
+                    <TextPresetGrid
+                      settings={settings}
+                      onApplyPreset={applyTextPreset}
+                      shouldReduceMotion={shouldReduceMotion}
+                    />
                     <SettingRow
                       id="font_family"
                       sectionId="editor"
@@ -1887,7 +3090,6 @@ export default function SettingsPanel({
                       </div>
                     </SettingRow>
                     <SettingRow
-<<<<<<< HEAD
                       id="letter_spacing"
                       sectionId="editor"
                       searchQuery={searchTerm}
@@ -1906,8 +3108,6 @@ export default function SettingsPanel({
                       </div>
                     </SettingRow>
                     <SettingRow
-=======
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
                       id="font_weight"
                       sectionId="editor"
                       searchQuery={searchTerm}
@@ -1925,6 +3125,126 @@ export default function SettingsPanel({
                         <option value="700">700</option>
                       </NativeSelect>
                     </SettingRow>
+                  </SettingsGroup>
+
+                  <SettingsGroup title="Intelligence" description="Autocomplete, Snippets, lokale Woerter und Language Server.">
+                    <SettingRow
+                      id="autocomplete_enabled"
+                      sectionId="editor"
+                      searchQuery={searchTerm}
+                      title="Autocomplete aktiv"
+                      description="Vorschlaege beim Tippen und ueber den Shortcut anzeigen."
+                      compact
+                    >
+                      <NativeSwitch
+                        checked={settings.autocomplete_enabled !== false}
+                        onCheckedChange={(value) => updateSetting("autocomplete_enabled", value)}
+                      />
+                    </SettingRow>
+                    <SettingRow
+                      id="autocomplete_lsp"
+                      sectionId="editor"
+                      searchQuery={searchTerm}
+                      title="LSP als Quelle"
+                      description="Kontextnahe Vorschlaege vom Language Server nutzen."
+                      compact
+                    >
+                      <NativeSwitch
+                        checked={settings.autocomplete_lsp !== false}
+                        onCheckedChange={(value) => updateSetting("autocomplete_lsp", value)}
+                      />
+                    </SettingRow>
+                    <SettingRow
+                      id="lsp_enabled"
+                      sectionId="editor"
+                      searchQuery={searchTerm}
+                      title="Language Server Engine"
+                      description="Hover, Diagnostics und serverbasierte Features starten."
+                      compact
+                    >
+                      <NativeSwitch
+                        checked={settings.lsp_enabled !== false}
+                        onCheckedChange={(value) => updateSetting("lsp_enabled", value)}
+                      />
+                    </SettingRow>
+                    <SettingRow
+                      id="autocomplete_snippets"
+                      sectionId="editor"
+                      searchQuery={searchTerm}
+                      title="Snippets"
+                      description="Mehrzeilige Vorlagen fuer Funktionen, Klassen, SQL, HTML, Shell und mehr."
+                      compact
+                    >
+                      <NativeSwitch
+                        checked={settings.autocomplete_snippets !== false}
+                        onCheckedChange={(value) => updateSetting("autocomplete_snippets", value)}
+                      />
+                    </SettingRow>
+                    <SettingRow
+                      id="autocomplete_language_hints"
+                      sectionId="editor"
+                      searchQuery={searchTerm}
+                      title="Sprach-Hints"
+                      description="Keywords und Standardstrukturen lokal anbieten."
+                      compact
+                    >
+                      <NativeSwitch
+                        checked={settings.autocomplete_language_hints !== false}
+                        onCheckedChange={(value) =>
+                          updateSetting("autocomplete_language_hints", value)
+                        }
+                      />
+                    </SettingRow>
+                    <SettingRow
+                      id="autocomplete_local_words"
+                      sectionId="editor"
+                      searchQuery={searchTerm}
+                      title="Datei-Woerter"
+                      description="Symbole und Woerter aus der aktuellen Datei als Vorschlaege."
+                      compact
+                    >
+                      <NativeSwitch
+                        checked={settings.autocomplete_local_words !== false}
+                        onCheckedChange={(value) => updateSetting("autocomplete_local_words", value)}
+                      />
+                    </SettingRow>
+                    <SettingRow
+                      id="autocomplete_min_chars"
+                      sectionId="editor"
+                      searchQuery={searchTerm}
+                      title={`Trigger nach: ${settings.autocomplete_min_chars || 2} Zeichen`}
+                      description="Hoeher ist ruhiger, niedriger fuehlt sich schneller an."
+                    >
+                      <div className="flex min-w-[12rem] items-center gap-3">
+                        <NativeSlider
+                          value={[settings.autocomplete_min_chars || 2]}
+                          onValueChange={([value]) => updateSetting("autocomplete_min_chars", value)}
+                          min={1}
+                          max={5}
+                          step={1}
+                        />
+                        <ValueBadge>{settings.autocomplete_min_chars || 2}</ValueBadge>
+                      </div>
+                    </SettingRow>
+                    <SettingRow
+                      id="autocomplete_max_items"
+                      sectionId="editor"
+                      searchQuery={searchTerm}
+                      title={`Vorschlagslimit: ${settings.autocomplete_max_items || 120}`}
+                      description="Mehr Treffer sind hilfreicher, aber auf sehr grossen Dateien schwerer."
+                    >
+                      <div className="flex min-w-[12rem] items-center gap-3">
+                        <NativeSlider
+                          value={[settings.autocomplete_max_items || 120]}
+                          onValueChange={([value]) => updateSetting("autocomplete_max_items", value)}
+                          min={24}
+                          max={180}
+                          step={12}
+                        />
+                        <ValueBadge>{settings.autocomplete_max_items || 120}</ValueBadge>
+                      </div>
+                    </SettingRow>
+                    {renderLspServers()}
                   </SettingsGroup>
 
                   <SettingsGroup title="Editor Verhalten" description="Sichtbarkeit und Eingabehilfen.">
@@ -1967,19 +3287,6 @@ export default function SettingsPanel({
                         onCheckedChange={(value) =>
                           updateSetting("validation_decorations", value)
                         }
-                      />
-                    </SettingRow>
-                    <SettingRow
-                      id="lsp_enabled"
-                      sectionId="editor"
-                      searchQuery={searchTerm}
-                      title="Autocomplete"
-                      description="LSP-Vorschlaege, Hover und Diagnose."
-                      compact
-                    >
-                      <NativeSwitch
-                        checked={settings.lsp_enabled !== false}
-                        onCheckedChange={(value) => updateSetting("lsp_enabled", value)}
                       />
                     </SettingRow>
                     <SettingRow
@@ -2073,7 +3380,6 @@ export default function SettingsPanel({
                     </SettingRow>
                   </SettingsGroup>
                 </div>
-                {renderLspServers()}
               </section>
             ))}
 
@@ -2086,6 +3392,23 @@ export default function SettingsPanel({
                     description="Nexus-Code-Arbeitsflaeche, Panels und Ablenkungsgrad."
                     icon={PanelLeft}
                   />
+                ) : null}
+                {showWorkbenchQuickActions ? (
+                  <SettingsGroup
+                    title="Layout und Docking"
+                    description="Schnelle Workbench-Aktionen fuer Shell, Snap-Zonen und kompakte Panels."
+                  >
+                    <WorkbenchQuickActions
+                      layout={normalizedWorkbenchLayout}
+                      activePanelId={activeWorkbenchPanelId}
+                      activePanelLabel={activeWorkbenchPanelLabel}
+                      onApplyPreset={onApplyWorkbenchLayoutPreset}
+                      onSetSidePanelSize={onSetSidePanelSize}
+                      onSetBottomPanelSize={onSetBottomPanelSize}
+                      onDockActivePanel={onDockActivePanel}
+                      onResetLayout={onResetWorkbenchLayout}
+                    />
+                  </SettingsGroup>
                 ) : null}
                 <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
                   <SettingsGroup title="Layout" description="Primary Shell und Statusflaechen.">
@@ -2106,7 +3429,6 @@ export default function SettingsPanel({
                       </NativeSelect>
                     </SettingRow>
                     <SettingRow
-<<<<<<< HEAD
                       id="sidebar_visible"
                       sectionId="workbench"
                       searchQuery={searchTerm}
@@ -2120,8 +3442,6 @@ export default function SettingsPanel({
                       />
                     </SettingRow>
                     <SettingRow
-=======
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
                       id="status_bar_visible"
                       sectionId="workbench"
                       searchQuery={searchTerm}
@@ -2273,6 +3593,14 @@ export default function SettingsPanel({
                   />
                 ) : null}
                 <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                  <VisualBudgetCard summary={visualBudgetSummary} />
+                  <LowPowerFallbackPanel
+                    state={lowPowerState}
+                    onApply={applyLowPowerFallback}
+                    onRestore={restoreBalancedVisuals}
+                  />
+                </div>
+                <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
                   <SettingsGroup title="Visual Performance" description="Schnelle Profile fuer Effektbudget.">
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                       {visualPerformanceProfiles.map((profile) => (
@@ -2304,7 +3632,6 @@ export default function SettingsPanel({
                       </NativeSelect>
                     </SettingRow>
                     <SettingRow
-<<<<<<< HEAD
                       id="panel_glow_outline"
                       sectionId="performance"
                       searchQuery={searchTerm}
@@ -2318,8 +3645,6 @@ export default function SettingsPanel({
                       />
                     </SettingRow>
                     <SettingRow
-=======
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
                       id="panel_blur_strength"
                       sectionId="theme-editor"
                       searchQuery={searchTerm}
@@ -2339,6 +3664,32 @@ export default function SettingsPanel({
                   </SettingsGroup>
 
                   <SettingsGroup title="Language Features" description="Performance-relevante Editor-Dienste.">
+                    <SettingRow
+                      id="autocomplete_enabled"
+                      sectionId="editor"
+                      searchQuery={searchTerm}
+                      title="Autocomplete"
+                      description="Lokale Vorschlaege und Snippets beim Schreiben."
+                      compact
+                    >
+                      <NativeSwitch
+                        checked={settings.autocomplete_enabled !== false}
+                        onCheckedChange={(value) => updateSetting("autocomplete_enabled", value)}
+                      />
+                    </SettingRow>
+                    <SettingRow
+                      id="autocomplete_lsp"
+                      sectionId="editor"
+                      searchQuery={searchTerm}
+                      title="LSP Suggestions"
+                      description="Language Server als Completion-Quelle nutzen."
+                      compact
+                    >
+                      <NativeSwitch
+                        checked={settings.autocomplete_lsp !== false}
+                        onCheckedChange={(value) => updateSetting("autocomplete_lsp", value)}
+                      />
+                    </SettingRow>
                     <SettingRow
                       id="lsp_enabled"
                       sectionId="editor"
@@ -2383,15 +3734,12 @@ export default function SettingsPanel({
                     {renderLspServers()}
                   </SettingsGroup>
                 </div>
-<<<<<<< HEAD
                 <SettingsGroup
                   title="Live Budget Hinweise"
                   description="Schnelle Diagnose aus deinen aktuellen Visual- und Language-Settings."
                 >
                   <PerformanceHintList hints={performanceHints} />
                 </SettingsGroup>
-=======
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
               </section>
             ))}
 
@@ -2439,7 +3787,6 @@ export default function SettingsPanel({
                       />
                     </SettingRow>
                     <SettingRow
-<<<<<<< HEAD
                       id="animation_speed"
                       sectionId="animations"
                       searchQuery={searchTerm}
@@ -2458,8 +3805,6 @@ export default function SettingsPanel({
                       </div>
                     </SettingRow>
                     <SettingRow
-=======
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
                       id="smooth_caret"
                       sectionId="animations"
                       searchQuery={searchTerm}
@@ -2539,18 +3884,18 @@ export default function SettingsPanel({
               </section>
             ))}
 
-            <div className="grid grid-cols-1 gap-3 border-t border-white/5 pt-5 text-xs text-gray-500 sm:grid-cols-3">
-              <div className="flex items-center gap-2">
+            <div className="grid grid-cols-1 gap-3 border-t border-white/5 pt-5 text-xs leading-tight text-gray-500 sm:grid-cols-3">
+              <div className="flex min-w-0 items-center gap-2">
                 <Settings2 size={14} />
-                Storage: bestehende Nexus-Code-Pipeline
+                <span className="min-w-0 break-words">Storage: bestehende Nexus-Code-Pipeline</span>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex min-w-0 items-center gap-2">
                 <Cpu size={14} />
-                Profil: {visualProfileId}
+                <span className="min-w-0 break-words">Profil: {visualProfileId}</span>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex min-w-0 items-center gap-2">
                 <Eye size={14} />
-                Motion: {shouldReduceMotion ? "reduziert" : "aktiv"}
+                <span className="min-w-0 break-words">Motion: {shouldReduceMotion ? "reduziert" : "aktiv"}</span>
               </div>
             </div>
           </div>

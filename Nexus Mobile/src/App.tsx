@@ -75,7 +75,7 @@ const withDevDiagnosticsView = (views: View[]): View[] => {
   if (!(import.meta as any).env?.DEV) return baseViews
   return [...baseViews, 'diagnostics']
 }
-type CoreView = keyof typeof NEXUS_VIEW_META
+type CoreView = Extract<keyof typeof NEXUS_VIEW_META, View>
 
 const resolveMobileAuthUserTier = (
   requestedTier: string | undefined,

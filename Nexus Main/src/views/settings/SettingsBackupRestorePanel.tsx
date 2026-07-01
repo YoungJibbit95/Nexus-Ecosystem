@@ -173,7 +173,7 @@ export function SettingsBackupRestorePanel({ toast }: SettingsBackupRestorePanel
         return;
       }
       showPreview(parsed.snapshot, "file");
-      toast("Import Preview bereit");
+      toast("Import kann geprueft werden");
     };
     reader.readAsText(file);
   };
@@ -203,7 +203,7 @@ export function SettingsBackupRestorePanel({ toast }: SettingsBackupRestorePanel
       toast("Workspace wiederhergestellt");
     } catch (error) {
       console.error("[backup] restore failed", error);
-      toast("Restore fehlgeschlagen");
+      toast("Wiederherstellung fehlgeschlagen");
     } finally {
       setBusy(false);
     }
@@ -237,8 +237,8 @@ export function SettingsBackupRestorePanel({ toast }: SettingsBackupRestorePanel
 
   return (
     <ModuleCard
-      title="Backup und Restore"
-      desc="Crash-sichere Workspace Snapshots mit lokaler Versionierung und Import Preview."
+      title="Backup und Wiederherstellung"
+      desc="Workspace sichern, lokale Versionen behalten und Importe vor dem Anwenden pruefen."
     >
       <div
         style={{
@@ -251,7 +251,7 @@ export function SettingsBackupRestorePanel({ toast }: SettingsBackupRestorePanel
           marginBottom: 10,
         }}
       >
-        <strong>Security:</strong> Backups enthalten Workspace-Daten, Canvas,
+        <strong>Sicherheit:</strong> Backups enthalten Workspace-Daten, Canvas,
         Workspaces, Terminal-Makros und Theme. Login-Tokens, Passwoerter und
         API-Secrets werden nicht exportiert.
       </div>
@@ -262,7 +262,7 @@ export function SettingsBackupRestorePanel({ toast }: SettingsBackupRestorePanel
         <input
           value={labelDraft}
           onChange={(event) => setLabelDraft(event.target.value)}
-          placeholder="Optionaler Backup Name"
+          placeholder="Optionaler Backup-Name"
           style={{
             minWidth: 220,
             borderRadius: 11,
@@ -275,7 +275,7 @@ export function SettingsBackupRestorePanel({ toast }: SettingsBackupRestorePanel
           }}
         />
         <button disabled={busy} onClick={() => void createBackup(false)} style={buttonStyle(t.accent)}>
-          <ShieldCheck size={13} /> Lokales Backup
+          <ShieldCheck size={13} /> Lokal sichern
         </button>
         <button disabled={busy} onClick={() => void createBackup(true)} style={buttonStyle()}>
           <Download size={13} /> Backup exportieren
@@ -313,7 +313,7 @@ export function SettingsBackupRestorePanel({ toast }: SettingsBackupRestorePanel
               </div>
             </div>
             <button disabled={busy} onClick={() => void applySnapshot(previewState.snapshot)} style={buttonStyle("#30d158")}>
-              <RotateCcw size={13} /> Restore anwenden
+              <RotateCcw size={13} /> Wiederherstellen
             </button>
           </div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 10 }}>
@@ -379,7 +379,7 @@ export function SettingsBackupRestorePanel({ toast }: SettingsBackupRestorePanel
               </div>
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                 <button onClick={() => void openLocalPreview(backup.id)} style={buttonStyle(t.accent)}>
-                  Preview
+                  Pruefen
                 </button>
                 <button onClick={() => void exportLocalBackup(backup.id)} style={buttonStyle()}>
                   <Download size={12} /> Export

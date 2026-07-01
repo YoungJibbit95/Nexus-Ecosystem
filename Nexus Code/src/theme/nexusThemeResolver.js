@@ -4,7 +4,7 @@ export const DEFAULT_THEME_ID = "nexus_vibrant";
 export const ZED_THEME_ALIAS = "nexus_zed";
 
 const FALLBACK_PRIMARY = "#7c8cff";
-const FALLBACK_SECONDARY = "#2dd4bf";
+const FALLBACK_SECONDARY = "#38bdf8";
 
 function normalizeHexColor(value, fallback = FALLBACK_PRIMARY) {
   if (typeof value !== "string") return fallback;
@@ -18,6 +18,32 @@ function normalizeHexColor(value, fallback = FALLBACK_PRIMARY) {
   }
   const full = trimmed.match(/^#([0-9a-fA-F]{6})$/);
   return full ? `#${full[1].toLowerCase()}` : fallback;
+}
+
+function normalizeOptionalHexColor(value) {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const normalized = normalizeHexColor(trimmed, "");
+  return normalized || null;
+}
+
+function colorToHex(value, fallback = FALLBACK_PRIMARY) {
+  if (typeof value !== "string") return fallback;
+  const trimmed = value.trim();
+  if (/^#[0-9a-fA-F]{3}$/.test(trimmed) || /^#[0-9a-fA-F]{6}$/.test(trimmed)) {
+    return normalizeHexColor(trimmed, fallback);
+  }
+
+  const rgb = trimmed.match(
+    /^rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})/i,
+  );
+  if (!rgb) return fallback;
+  const toHex = (channel) =>
+    clamp(Number.parseInt(channel, 10) || 0, 0, 255)
+      .toString(16)
+      .padStart(2, "0");
+  return `#${toHex(rgb[1])}${toHex(rgb[2])}${toHex(rgb[3])}`;
 }
 
 function hexToRgbTuple(value, fallback = FALLBACK_PRIMARY) {
@@ -143,12 +169,12 @@ export const THEME_PRESETS = Object.freeze({
     id: DEFAULT_THEME_ID,
     name: "Nexus Zed",
     legacyName: "Nexus Vibrant",
-    description: "Quiet Nexus depth with Zed-like editor contrast.",
+    description: "Dark Nexus workbench depth with Zed-like editor contrast.",
     bg_type: "gradient",
     bg_value:
-      "linear-gradient(135deg, #07080d 0%, #0b0d14 46%, #10131d 100%)",
-    surface: "rgba(17, 20, 29, 0.82)",
-    border: "rgba(142, 153, 183, 0.16)",
+      "radial-gradient(circle at 42% -10%, rgba(124, 140, 255, 0.12), transparent 34rem), linear-gradient(135deg, #05070c 0%, #090b12 52%, #03050a 100%)",
+    surface: "rgba(10, 13, 20, 0.86)",
+    border: "rgba(120, 132, 164, 0.18)",
     text: "#d7dae0",
     muted: "#8b93a7",
     accent: FALLBACK_PRIMARY,
@@ -156,7 +182,7 @@ export const THEME_PRESETS = Object.freeze({
     glow: hexToRgba(FALLBACK_PRIMARY, 0.16),
     selection: "rgba(124, 140, 255, 0.22)",
     syntax: nexusZedSyntax,
-    swatches: ["#0b0d14", FALLBACK_PRIMARY, "#8bd5ca"],
+    swatches: ["#0b0d14", FALLBACK_PRIMARY, FALLBACK_SECONDARY],
     semantic: {
       canvas: "#07080d",
       raised: "#11141d",
@@ -216,7 +242,7 @@ export const THEME_PRESETS = Object.freeze({
       type: "#67e8f9",
       operator: "#bfdbfe",
     },
-    swatches: ["#000814", "#0ea5e9", "#10b981"],
+    swatches: ["#000814", "#0ea5e9", "#38bdf8"],
   },
   midnight_mystery: {
     id: "midnight_mystery",
@@ -538,7 +564,15 @@ export function resolveNexusTheme(settings = {}) {
   const secondary = normalizeHexColor(settings.secondary_accent, theme.accent2);
   const backgroundValue = background ? background.value : theme.bg_value;
   const backgroundType = background ? background.type : theme.bg_type;
-  const surface = background ? background.surface : theme.surface;
+  const baseSurface = background ? background.surface : theme.surface;
+  const surfaceHex = colorToHex(baseSurface, "#11141d");
+  const customSurface = normalizeOptionalHexColor(settings.custom_surface);
+  const customInputSurface = normalizeOptionalHexColor(settings.custom_input_surface);
+  const surface = customSurface ? hexToRgba(customSurface, 0.84, surfaceHex) : baseSurface;
+  const effectiveSurfaceHex = customSurface || surfaceHex;
+  const inputSurface = customInputSurface || effectiveSurfaceHex;
+  const inputSurfaceSoft = hexToRgba(inputSurface, 0.28, effectiveSurfaceHex);
+  const inputSurfaceHover = hexToRgba(inputSurface, 0.42, effectiveSurfaceHex);
   const border = background ? background.border : theme.border;
   const panelSurface =
     effectBudget.panelMode === "glass-shader"
@@ -562,7 +596,11 @@ export function resolveNexusTheme(settings = {}) {
     background: backgroundValue,
     backgroundType,
     surface,
+    surfaceHex: effectiveSurfaceHex,
     panelSurface,
+    inputSurface,
+    inputSurfaceSoft,
+    inputSurfaceHover,
     border,
     text: theme.text,
     muted: theme.muted,
@@ -594,6 +632,9 @@ export function resolveNexusTheme(settings = {}) {
     "--nexus-panel-filter": effectBudget.panelFilter,
     "--nexus-settings-filter": effectBudget.settingsFilter,
     "--nexus-panel-shadow": panelShadow,
+    "--nexus-control-surface": inputSurfaceSoft,
+    "--nexus-control-surface-hover": inputSurfaceHover,
+    "--nexus-input-surface": inputSurfaceSoft,
     "--nexus-border": border,
     "--nexus-glass": surface,
     "--nexus-glass-border": border,

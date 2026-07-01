@@ -5,8 +5,8 @@ import {
   BadgeCheck,
   Blocks,
   ChevronDown,
+  Clipboard,
   Command,
-  Database,
   Download,
   Eye,
   FileJson2,
@@ -17,6 +17,7 @@ import {
   Palette,
   Power,
   RefreshCw,
+  RotateCcw,
   Search,
   SlidersHorizontal,
   Trash2,
@@ -28,7 +29,9 @@ import {
   EXTENSION_CONTRIBUTION_FILTERS,
   EXTENSION_SOURCES,
   EXTENSION_STATE_FILTERS,
+  createDefaultExtensionRecords,
   createExtensionEventDetail,
+  createExtensionRuntimeSnapshot,
   filterExtensions,
   formatContributionPreview,
   getExtensionStats,
@@ -41,28 +44,20 @@ import {
   uninstallExtension,
 } from "../../pages/editor/extensionSystem";
 import {
-<<<<<<< HEAD
   PanelActionButton,
   PanelBadge,
   PanelBody,
   PanelFooter,
   PanelHeader,
-  PanelMetric,
   PanelShell,
   PanelState,
-=======
-  PanelBadge,
-  PanelBody,
-  PanelFooter,
-  PanelShell,
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
 } from "./panels/PanelChrome.jsx";
 
 const tabStyles = {
-  all: "Alle",
-  installed: "Installiert",
-  enabled: "Aktiv",
-  local: "Lokal",
+  all: "All",
+  installed: "Installed",
+  enabled: "Active",
+  local: "Local",
 };
 
 const contributionIcons = {
@@ -74,11 +69,79 @@ const contributionIcons = {
 
 const storageHealthLabels = {
   ok: "Registry ok",
-  migrated: "Migration bereit",
-  default: "Defaults aktiv",
-  degraded: "Registry pruefen",
-  unavailable: "Nur Sitzung",
+  migrated: "Migration ready",
+  default: "Defaults active",
+  degraded: "Check registry",
+  unavailable: "Session only",
 };
+
+const lifecycleToneStyles = {
+  accent: {
+    background: "rgba(103,232,249,0.085)",
+    border: "rgba(103,232,249,0.2)",
+    color: "#a5f3fc",
+  },
+  warning: {
+    background: "rgba(251,191,36,0.085)",
+    border: "rgba(251,191,36,0.2)",
+    color: "#fde68a",
+  },
+  danger: {
+    background: "rgba(248,113,113,0.095)",
+    border: "rgba(248,113,113,0.24)",
+    color: "#fecaca",
+  },
+  muted: {
+    background: "rgba(148,163,184,0.06)",
+    border: "rgba(148,163,184,0.12)",
+    color: "#cbd5e1",
+  },
+};
+
+const categoryToneStyles = {
+  cyan: {
+    background: "rgba(103,232,249,0.07)",
+    border: "rgba(103,232,249,0.16)",
+    color: "#a5f3fc",
+  },
+  violet: {
+    background: "rgba(167,139,250,0.075)",
+    border: "rgba(167,139,250,0.18)",
+    color: "#ddd6fe",
+  },
+  amber: {
+    background: "rgba(251,191,36,0.07)",
+    border: "rgba(251,191,36,0.16)",
+    color: "#fde68a",
+  },
+  muted: {
+    background: "rgba(148,163,184,0.055)",
+    border: "rgba(148,163,184,0.12)",
+    color: "#cbd5e1",
+  },
+};
+
+async function writeClipboardText(text) {
+  if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return true;
+  }
+
+  if (typeof document === "undefined") {
+    return false;
+  }
+
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.setAttribute("readonly", "true");
+  textarea.style.position = "fixed";
+  textarea.style.opacity = "0";
+  document.body.appendChild(textarea);
+  textarea.select();
+  const copied = document.execCommand("copy");
+  document.body.removeChild(textarea);
+  return copied;
+}
 
 function getMessageTone(level) {
   if (level === "error") {
@@ -112,7 +175,7 @@ function SegmentButton({ active, children, onClick }) {
     <button
       type="button"
       onClick={onClick}
-      className="relative h-7 rounded-md px-2 text-[11px] font-semibold outline-none transition-colors focus-visible:ring-2 focus-visible:ring-purple-500/60"
+      className="relative h-7 min-w-0 flex-1 rounded-md px-2 text-[11px] font-semibold outline-none transition-colors focus-visible:ring-2 focus-visible:ring-sky-400/50"
       style={{
         color: active ? "var(--nexus-text)" : "var(--nexus-muted)",
       }}
@@ -127,7 +190,9 @@ function SegmentButton({ active, children, onClick }) {
           }}
         />
       ) : null}
-      <span className="relative z-10">{children}</span>
+      <span className="relative z-10 block min-w-0 break-words leading-tight" style={{ overflowWrap: "anywhere" }}>
+        {children}
+      </span>
     </button>
   );
 }
@@ -174,11 +239,13 @@ function SystemMessage({ message }) {
         className={`mt-0.5 shrink-0 ${tone.icon}`}
       />
       <div className="min-w-0">
-        <p className={`truncate text-[10px] font-semibold ${tone.text}`}>
+        <p className={`break-words text-[10px] font-semibold ${tone.text}`} style={{ overflowWrap: "anywhere" }}>
           {message.message}
         </p>
         {message.detail ? (
-          <p className="truncate text-[10px] text-[var(--nexus-muted)]">{message.detail}</p>
+          <p className="break-words text-[10px] text-[var(--nexus-muted)]" style={{ overflowWrap: "anywhere" }}>
+            {message.detail}
+          </p>
         ) : null}
       </div>
     </div>
@@ -201,7 +268,7 @@ function ToggleSwitch({ checked, onClick, disabled }) {
           ? "1px solid rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.42)"
           : "1px solid rgba(255,255,255,0.12)",
       }}
-      title={checked ? "Extension pausieren" : "Extension aktivieren"}
+      title={checked ? "Pause extension" : "Activate extension"}
     >
       <motion.span
         layout
@@ -217,76 +284,70 @@ function ToggleSwitch({ checked, onClick, disabled }) {
   );
 }
 
-function ContributionOverview({ overview, stats, storageHealth }) {
-  const activationTypes = Object.entries(overview.activation.byType);
-  const healthLabel = storageHealthLabels[storageHealth] || storageHealthLabels.default;
+function Pill({ children, tone = "muted", title, category = false }) {
+  const styleSource = category ? categoryToneStyles : lifecycleToneStyles;
+  const toneStyle = styleSource[tone] || styleSource.muted;
 
   return (
-    <div className="mt-3 space-y-1.5">
-      <div className="grid grid-cols-2 gap-1.5">
-        {overview.contributionPoints.map((point) => {
-          const Icon = contributionIcons[point.point] || ListChecks;
-          return (
-            <div
-              key={point.point}
-              className="min-w-0 rounded-md border px-2 py-1.5"
-              style={{
-                background: "rgba(255,255,255,0.026)",
-                borderColor: "rgba(255,255,255,0.06)",
-              }}
-            >
-              <div className="flex min-w-0 items-center justify-between gap-2">
-                <span className="flex min-w-0 items-center gap-1.5 text-[10px] font-semibold text-gray-300">
-                  <Icon size={11} className="shrink-0 text-[var(--nexus-muted)]" />
-                  <span className="truncate">{point.label}</span>
-                </span>
-                <span className="font-mono text-[11px] text-[var(--nexus-text)]">
-                  {point.count}
-                </span>
-              </div>
-              <p className="mt-0.5 truncate text-[9px] text-[var(--nexus-muted)]">
-                {point.items.slice(0, 2).join(", ") || "Noch keine aktiven Beitraege"}
-              </p>
-            </div>
-          );
-        })}
+    <span
+      title={title}
+      className="inline-flex min-w-0 items-center rounded-md border px-1.5 py-0.5 text-[9px] font-semibold"
+      style={{
+        background: toneStyle.background,
+        borderColor: toneStyle.border,
+        color: toneStyle.color,
+        overflowWrap: "anywhere",
+      }}
+    >
+      {children}
+    </span>
+  );
+}
+
+function ContributionOverview({ overview, stats, storageHealth }) {
+  const healthLabel = storageHealthLabels[storageHealth] || storageHealthLabels.default;
+  const contributionTotal = overview.contributionPoints.reduce(
+    (total, point) => total + point.count,
+    0,
+  );
+  const activePoints = overview.contributionPoints
+    .filter((point) => point.count > 0)
+    .slice(0, 2);
+  const activationTypes = Object.entries(overview.activation.byType)
+    .filter(([, entries]) => entries.length > 0)
+    .map(([type, entries]) => `${type} ${entries.length}`)
+    .slice(0, 2);
+
+  return (
+    <div className="mt-3 rounded-lg border border-white/[0.055] bg-black/15 px-2.5 py-2">
+      <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-[var(--nexus-muted)]">
+        <span className="font-semibold text-gray-300">{stats.enabled} active</span>
+        <span>{contributionTotal} contributions</span>
+        <span>{stats.activationEvents} triggers</span>
+        <span>{healthLabel}</span>
       </div>
-
-      <div className="grid grid-cols-2 gap-1.5">
-        <div
-          className="flex min-w-0 items-center gap-2 rounded-md border px-2 py-1.5"
-          style={{
-            background: "rgba(255,255,255,0.024)",
-            borderColor: "rgba(255,255,255,0.055)",
-          }}
-        >
-          <Activity size={12} className="shrink-0 text-[var(--nexus-muted)]" />
-          <div className="min-w-0">
-            <p className="truncate text-[10px] font-semibold text-gray-300">
-              {stats.activationEvents} Activation Events
-            </p>
-            <p className="truncate text-[9px] text-[var(--nexus-muted)]">
-              {activationTypes.map(([type, entries]) => `${type} ${entries.length}`).join(", ") ||
-                "keine aktiven Trigger"}
-            </p>
-          </div>
-        </div>
-
-        <div
-          className="flex min-w-0 items-center gap-2 rounded-md border px-2 py-1.5"
-          style={{
-            background: "rgba(255,255,255,0.024)",
-            borderColor: "rgba(255,255,255,0.055)",
-          }}
-        >
-          <Database size={12} className="shrink-0 text-[var(--nexus-muted)]" />
-          <div className="min-w-0">
-            <p className="truncate text-[10px] font-semibold text-gray-300">{healthLabel}</p>
-            <p className="truncate text-[9px] text-[var(--nexus-muted)]">
-              {stats.errors > 0 ? `${stats.errors} Fehlerzustand` : "Manifest-Index stabil"}
-            </p>
-          </div>
-        </div>
+      <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1.5">
+        {activePoints.length > 0 ? (
+          activePoints.map((point) => {
+            const Icon = contributionIcons[point.point] || ListChecks;
+            return (
+              <span
+                key={point.point}
+                className="inline-flex min-w-0 items-center gap-1 rounded-md border border-sky-300/15 bg-sky-300/[0.055] px-1.5 py-0.5 text-[9px] text-sky-200"
+              >
+                <Icon size={10} className="shrink-0" />
+                <span className="min-w-0 break-words" style={{ overflowWrap: "anywhere" }}>
+                  {point.label} {point.count}
+                </span>
+              </span>
+            );
+          })
+        ) : (
+          <span className="text-[9px] text-[var(--nexus-muted)]">No active contributions</span>
+        )}
+        <span className="min-w-0 break-words text-[9px] text-[var(--nexus-muted)]" style={{ overflowWrap: "anywhere" }}>
+          {activationTypes.join(", ") || "no active triggers"}
+        </span>
       </div>
     </div>
   );
@@ -296,7 +357,7 @@ function ActivationEventList({ events }) {
   if (!events.length) {
     return (
       <p className="rounded border border-white/[0.05] bg-white/[0.025] px-1.5 py-1 text-[10px] text-[var(--nexus-muted)]">
-        Keine Aktivierungsereignisse deklariert.
+        No activation events declared.
       </p>
     );
   }
@@ -308,7 +369,9 @@ function ActivationEventList({ events }) {
           key={event.id}
           className="flex min-w-0 items-center justify-between gap-2 rounded border border-white/[0.05] bg-white/[0.025] px-1.5 py-1 text-[10px]"
         >
-          <span className="min-w-0 truncate text-gray-300">{event.label}</span>
+          <span className="min-w-0 break-words text-gray-300" style={{ overflowWrap: "anywhere" }}>
+            {event.label}
+          </span>
           <span className="shrink-0 rounded bg-white/[0.04] px-1 text-[9px] uppercase text-[var(--nexus-muted)]">
             {event.type}
           </span>
@@ -322,7 +385,7 @@ function ContributionDetailList({ summaries }) {
   if (!summaries.length) {
     return (
       <p className="rounded border border-white/[0.05] bg-white/[0.025] px-1.5 py-1 text-[10px] text-[var(--nexus-muted)]">
-        Dieses Manifest deklariert keine Contributions.
+        This manifest declares no contributions.
       </p>
     );
   }
@@ -334,8 +397,10 @@ function ContributionDetailList({ summaries }) {
           key={summary.point}
           className="grid min-w-0 grid-cols-[6.5rem_1fr] gap-2 rounded border border-white/[0.05] bg-white/[0.025] px-1.5 py-1 text-[10px]"
         >
-          <span className="truncate font-semibold text-gray-300">{summary.label}</span>
-          <span className="min-w-0 truncate text-gray-500">
+          <span className="break-words font-semibold text-gray-300" style={{ overflowWrap: "anywhere" }}>
+            {summary.label}
+          </span>
+          <span className="min-w-0 break-words text-gray-500" style={{ overflowWrap: "anywhere" }}>
             {formatContributionPreview(summary, 4)}
           </span>
         </div>
@@ -360,16 +425,21 @@ function ExtensionCard({ extension, onInstall, onRemove, onToggleEnabled, index 
       : null;
   const visibleIssues = runtimeIssue ? [...manifestIssues, runtimeIssue] : manifestIssues;
   const manifestBlocked = extension.manifestErrors.length > 0;
+  const lifecycle = extension.lifecycleState || {
+    label: extension.enabled ? "Active" : extension.installed ? "Paused" : "Available",
+    tone: extension.enabled ? "accent" : "muted",
+    detail: "",
+  };
+  const category = extension.categoryInfo || {
+    shortLabel: extension.category || "Tools",
+    label: extension.category || "Tools",
+    tone: "muted",
+  };
   const primaryContributions = extension.contributionSummary
     .filter((summary) => summary.primary)
-    .slice(0, 4);
-  const statusLabel = manifestBlocked
-    ? "Blockiert"
-    : !extension.installed
-      ? "Verfuegbar"
-      : extension.enabled
-        ? "Aktiv"
-        : "Pausiert";
+    .slice(0, 1);
+  const visibleCapabilities = extension.capabilities.slice(0, 1);
+  const hiddenCapabilityCount = Math.max(0, extension.capabilities.length - visibleCapabilities.length);
 
   const runAction = (action) => {
     if (busy) return;
@@ -387,14 +457,14 @@ function ExtensionCard({ extension, onInstall, onRemove, onToggleEnabled, index 
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 8, height: 0 }}
       transition={{ delay: Math.min(index * 0.025, 0.18), duration: 0.2 }}
-      className="group rounded-md p-2.5"
+      className="group rounded-lg p-2.5"
       style={{
         background: extension.installed
-          ? "rgba(255,255,255,0.034)"
-          : "rgba(255,255,255,0.024)",
+          ? "linear-gradient(180deg, rgba(15,23,42,0.46), rgba(2,6,23,0.24))"
+          : "rgba(255,255,255,0.018)",
         border: extension.enabled
-          ? "1px solid rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.18)"
-          : "1px solid rgba(255,255,255,0.065)",
+          ? "1px solid rgba(103,232,249,0.16)"
+          : "1px solid rgba(255,255,255,0.055)",
       }}
     >
       <div className="flex items-start gap-2.5">
@@ -410,35 +480,32 @@ function ExtensionCard({ extension, onInstall, onRemove, onToggleEnabled, index 
         </div>
 
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5">
-            <h3 className="min-w-0 truncate text-xs font-semibold text-[var(--nexus-text)]">
+          <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+            <h3 className="min-w-0 break-words text-xs font-semibold leading-snug text-[var(--nexus-text)]" style={{ overflowWrap: "anywhere" }}>
               {extension.displayName}
             </h3>
             {extension.verified ? (
               <BadgeCheck size={12} className="shrink-0 text-sky-400" />
             ) : null}
-            {extension.updateAvailable && extension.installed ? (
-              <span className="shrink-0 rounded border border-amber-400/25 bg-amber-400/10 px-1 text-[9px] font-semibold text-amber-300">
-                Update
-              </span>
-            ) : null}
-            {manifestBlocked ? (
-              <span className="shrink-0 rounded border border-red-400/25 bg-red-400/10 px-1 text-[9px] font-semibold text-red-300">
-                Manifest
-              </span>
-            ) : extension.manifestWarnings.length > 0 ? (
-              <span className="shrink-0 rounded border border-amber-400/25 bg-amber-400/10 px-1 text-[9px] font-semibold text-amber-300">
-                Warnung
-              </span>
-            ) : null}
+            <Pill tone={lifecycle.tone} title={lifecycle.detail}>{lifecycle.label}</Pill>
+            <Pill tone={category.tone} title={category.label} category>{category.shortLabel}</Pill>
           </div>
           <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] text-[var(--nexus-muted)]">
-            <span className="truncate">{extension.publisher}</span>
+            <span className="min-w-0 break-words" style={{ overflowWrap: "anywhere" }}>{extension.publisher}</span>
             <span>v{extension.version}</span>
-            <span className="uppercase">{extension.source}</span>
-            <span>{statusLabel}</span>
+            <span>{extension.source}</span>
+            {extension.manifestWarnings.length > 0 && !manifestBlocked ? <span>warnings</span> : null}
           </div>
-          <p className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-gray-400">
+          <p
+            className="mt-1 break-words text-[11px] leading-relaxed text-gray-400"
+            style={{
+              display: "-webkit-box",
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: "vertical",
+              overflow: "hidden",
+              overflowWrap: "anywhere",
+            }}
+          >
             {extension.description}
           </p>
         </div>
@@ -451,7 +518,7 @@ function ExtensionCard({ extension, onInstall, onRemove, onToggleEnabled, index 
       </div>
 
       <div className="mt-2 flex flex-wrap gap-1">
-        {extension.capabilities.slice(0, 3).map((capability) => (
+        {visibleCapabilities.map((capability) => (
           <span
             key={capability}
             className="rounded border border-white/[0.07] bg-white/[0.035] px-1.5 py-0.5 text-[9px] text-gray-400"
@@ -459,6 +526,11 @@ function ExtensionCard({ extension, onInstall, onRemove, onToggleEnabled, index 
             {capability}
           </span>
         ))}
+        {hiddenCapabilityCount > 0 ? (
+          <span className="rounded border border-white/[0.06] bg-white/[0.024] px-1.5 py-0.5 text-[9px] text-gray-500">
+            +{hiddenCapabilityCount}
+          </span>
+        ) : null}
         {primaryContributions.map((summary) => (
           <span
             key={summary.point}
@@ -468,6 +540,9 @@ function ExtensionCard({ extension, onInstall, onRemove, onToggleEnabled, index 
             {summary.label}: {summary.count}
           </span>
         ))}
+        <span className="rounded border border-white/[0.05] bg-white/[0.022] px-1.5 py-0.5 text-[9px] text-gray-500">
+          {lifecycle.detail}
+        </span>
       </div>
 
       <div className="mt-2 flex items-center justify-between gap-2">
@@ -480,15 +555,11 @@ function ExtensionCard({ extension, onInstall, onRemove, onToggleEnabled, index 
             size={11}
             className={`transition-transform ${expanded ? "rotate-180" : ""}`}
           />
-          Manifest
+              Details
         </button>
 
         {extension.installed ? (
           <div className="flex items-center gap-1.5">
-            <span className="hidden items-center gap-1 text-[10px] text-emerald-300 sm:flex">
-              <PackageCheck size={11} />
-              {extension.enabled ? "Aktiv" : "Pausiert"}
-            </span>
             {extension.updateAvailable ? (
               <button
                 type="button"
@@ -507,7 +578,7 @@ function ExtensionCard({ extension, onInstall, onRemove, onToggleEnabled, index 
               className="flex h-7 items-center gap-1 rounded-md border border-red-400/20 bg-red-400/10 px-2 text-[10px] font-semibold text-red-300 transition-colors hover:bg-red-400/15 disabled:opacity-50"
             >
               {busy ? <RefreshCw size={11} className="animate-spin" /> : <Trash2 size={11} />}
-              Entfernen
+              Remove
             </button>
           </div>
         ) : (
@@ -516,7 +587,7 @@ function ExtensionCard({ extension, onInstall, onRemove, onToggleEnabled, index 
             disabled={busy || manifestBlocked}
             onClick={() => runAction(() => onInstall(extension.id))}
             className="flex h-7 items-center gap-1 rounded-md border px-2 text-[10px] font-semibold transition-colors disabled:opacity-50"
-            title={manifestBlocked ? "Installation blockiert: Manifest fehlerhaft" : "Installieren"}
+            title={manifestBlocked ? "Install blocked: manifest has errors" : "Install"}
             style={{
               background: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.14)",
               borderColor: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.28)",
@@ -524,7 +595,7 @@ function ExtensionCard({ extension, onInstall, onRemove, onToggleEnabled, index 
             }}
           >
             {busy ? <RefreshCw size={11} className="animate-spin" /> : <Download size={11} />}
-            Installieren
+            Install
           </button>
         )}
       </div>
@@ -549,21 +620,23 @@ function ExtensionCard({ extension, onInstall, onRemove, onToggleEnabled, index 
                 {extension.manifest.name}
               </div>
               <div className="grid gap-1 text-[10px] text-gray-400">
-                <div className="truncate">
+                <div className="break-words" style={{ overflowWrap: "anywhere" }}>
                   engine: {extension.manifest.engines?.nexusCode || "unbekannt"}
                 </div>
-                <div className="truncate">
+                <div className="break-words" style={{ overflowWrap: "anywhere" }}>
                   activation:{" "}
                   {extension.activationSummary.map((event) => event.label).join(", ") || "manual"}
                 </div>
-                <div className="truncate">
+                <div className="break-words" style={{ overflowWrap: "anywhere" }}>
                   contributes:{" "}
                   {extension.contributionSummary
                     .map((summary) => `${summary.label} ${summary.count}`)
                     .join(", ") || "none"}
                 </div>
                 {extension.localPath ? (
-                  <div className="truncate">path: {extension.localPath}</div>
+                  <div className="break-words" style={{ overflowWrap: "anywhere" }}>
+                    path: {extension.localPath}
+                  </div>
                 ) : null}
               </div>
               <div className="mt-2 grid gap-2">
@@ -629,10 +702,12 @@ export default function ExtensionsPanel({ onInstalledChange }) {
   const [stateFilter, setStateFilter] = useState("all");
   const [contribution, setContribution] = useState("all");
   const [quickTab, setQuickTab] = useState("all");
+  const [hostActionStatus, setHostActionStatus] = useState(null);
 
   const extensions = useMemo(() => resolveExtensions(records), [records]);
   const stats = useMemo(() => getExtensionStats(records), [records]);
   const runtimeOverview = useMemo(() => getExtensionRuntimeOverview(records), [records]);
+  const runtimeSnapshot = useMemo(() => createExtensionRuntimeSnapshot(records), [records]);
   const updateableIds = useMemo(
     () =>
       extensions
@@ -691,81 +766,54 @@ export default function ExtensionsPanel({ onInstalledChange }) {
     setQuickTab("all");
   };
 
-<<<<<<< HEAD
   const installAllUpdates = () => {
     if (updateableIds.length === 0) return;
     applyRecords((current) =>
       updateableIds.reduce((nextRecords, id) => installExtension(nextRecords, id), current),
     );
   };
-=======
-  return (
-    <PanelShell ariaLabel="Extensions">
-      <div className="nx-code-extensions-panel-header shrink-0 border-b border-white/[0.06] px-3 pb-2.5 pt-3">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex min-w-0 items-center gap-2">
-            <div
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border"
-              style={{
-                background: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.1)",
-                borderColor: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.22)",
-                color: "var(--nexus-primary, #7c8cff)",
-              }}
-            >
-              <Blocks size={16} />
-            </div>
-            <div className="min-w-0">
-              <h2 className="truncate text-sm font-semibold text-[var(--nexus-text)]">
-                Extensions
-              </h2>
-              <p className="truncate text-[10px] text-[var(--nexus-muted)]">
-                Marketplace, manifest registry and extension host
-              </p>
-            </div>
-          </div>
-          {stats.updates > 0 ? (
-            <PanelBadge tone="warning">
-              {stats.updates} Update
-            </PanelBadge>
-          ) : null}
-        </div>
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
+
+  const copyRuntimeSnapshot = async () => {
+    const payload = JSON.stringify(runtimeSnapshot, null, 2);
+    try {
+      const copied = await writeClipboardText(payload);
+      setHostActionStatus(
+        copied
+          ? "Runtime snapshot copied."
+          : "Clipboard unavailable; snapshot was generated but not copied.",
+      );
+    } catch (error) {
+      setHostActionStatus(error?.message || "Snapshot could not be copied.");
+    }
+  };
+
+  const resetRegistryToDefaults = () => {
+    const confirmed =
+      typeof window === "undefined" ||
+    window.confirm("Reset the extension registry to the Nexus Code defaults?");
+    if (!confirmed) return;
+    setRecords(createDefaultExtensionRecords());
+    setPersistReason("reset");
+    setStorageHealth("default");
+    setHostActionStatus("Bundled default extensions restored.");
+  };
 
   return (
     <PanelShell ariaLabel="Extensions">
       <PanelHeader
         icon={Blocks}
         title="Extensions"
-        subtitle="Manifest registry, activation plan and extension host"
+        subtitle={`${stats.installed} installed of ${stats.total} manifests`}
         status={
           stats.updates > 0 ? (
             <PanelBadge tone="warning">{stats.updates} Update</PanelBadge>
           ) : (
-            <PanelBadge tone={stats.errors > 0 ? "danger" : "success"}>
-              {stats.errors > 0 ? "Issues" : "Host Ready"}
+            <PanelBadge tone={stats.errors > 0 ? "danger" : "muted"}>
+              {stats.errors > 0 ? "Issues" : "Ready"}
             </PanelBadge>
           )
         }
-        actions={
-          updateableIds.length > 0 ? (
-            <PanelActionButton
-              icon={RefreshCw}
-              onClick={installAllUpdates}
-              tone="warning"
-              title="Alle verfuegbaren Extension-Updates installieren"
-            >
-              Update
-            </PanelActionButton>
-          ) : null
-        }
       >
-        <div className="grid grid-cols-4 gap-1.5">
-          <PanelMetric label="Gesamt" value={stats.total} tone="muted" />
-          <PanelMetric label="Aktiv" value={stats.enabled} tone={stats.enabled ? "success" : "muted"} />
-          <PanelMetric label="Lokal" value={stats.local} tone={stats.local ? "accent" : "muted"} />
-          <PanelMetric label="Fehler" value={stats.errors} tone={stats.errors ? "danger" : "muted"} />
-        </div>
-
         <ContributionOverview
           overview={runtimeOverview}
           stats={stats}
@@ -778,10 +826,16 @@ export default function ExtensionsPanel({ onInstalledChange }) {
               <SystemMessage key={`${message.code}-${index}`} message={message} />
             ))}
             {storageMessages.length > 2 ? (
-              <div className="truncate rounded-md border border-white/[0.06] bg-white/[0.03] px-2 py-1 text-[10px] text-[var(--nexus-muted)]">
-                +{storageMessages.length - 2} weitere Registry-Hinweise
+              <div className="break-words rounded-md border border-white/[0.06] bg-white/[0.03] px-2 py-1 text-[10px] text-[var(--nexus-muted)]" style={{ overflowWrap: "anywhere" }}>
+                +{storageMessages.length - 2} more registry notices
               </div>
             ) : null}
+          </div>
+        ) : null}
+
+        {hostActionStatus ? (
+          <div className="mt-2 break-words rounded-md border border-white/[0.06] bg-white/[0.026] px-2 py-1 text-[10px] text-[var(--nexus-muted)]" style={{ overflowWrap: "anywhere" }}>
+            {hostActionStatus}
           </div>
         ) : null}
 
@@ -811,7 +865,7 @@ export default function ExtensionsPanel({ onInstalledChange }) {
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Plugin, Capability oder Manifest suchen"
+            placeholder="Search plugin, capability, or manifest"
             className="min-w-0 flex-1 bg-transparent text-xs text-[var(--nexus-text)] outline-none placeholder:text-[var(--nexus-muted)]"
           />
           {query ? (
@@ -831,7 +885,7 @@ export default function ExtensionsPanel({ onInstalledChange }) {
             value={category}
             options={EXTENSION_CATEGORIES}
             onChange={setCategory}
-            title="Kategorie"
+            title="Category"
           />
           <SelectFilter
             icon={SlidersHorizontal}
@@ -854,7 +908,7 @@ export default function ExtensionsPanel({ onInstalledChange }) {
               setSource(value);
               if (value !== "all") setQuickTab("all");
             }}
-            title="Quelle"
+            title="Source"
           />
           <SelectFilter
             icon={FileJson2}
@@ -888,9 +942,9 @@ export default function ExtensionsPanel({ onInstalledChange }) {
         {filteredExtensions.length === 0 ? (
           <PanelState
             icon={Power}
-            title="Keine Extensions gefunden"
-            detail="Die Registry ist aktiv, aber die aktuellen Filter blenden alle Manifeste aus."
-            actionLabel="Filter zuruecksetzen"
+            title="No extensions found"
+            detail="The registry is active, but the current filters hide every manifest."
+            actionLabel="Reset filters"
             onAction={clearFilters}
           />
         ) : null}
@@ -898,10 +952,41 @@ export default function ExtensionsPanel({ onInstalledChange }) {
 
       <PanelFooter>
         <div className="flex items-center justify-between gap-2 text-[10px] text-[var(--nexus-muted)]">
-          <span className="truncate">{filteredExtensions.length} sichtbare Module</span>
-          <span className="truncate">
-            {stats.errors > 0 ? `${stats.errors} fehlerhaft` : `${stats.disabled} pausiert`}
+          <span className="min-w-0 break-words" style={{ overflowWrap: "anywhere" }}>
+            {filteredExtensions.length} visible modules
           </span>
+          <span className="min-w-0 break-words text-right" style={{ overflowWrap: "anywhere" }}>
+            {stats.errors > 0 ? `${stats.errors} blocked` : `${stats.disabled} paused`}
+          </span>
+        </div>
+        <div className="mt-2 grid grid-cols-2 gap-1.5">
+          <PanelActionButton
+            icon={Clipboard}
+            onClick={copyRuntimeSnapshot}
+            tone="muted"
+            title="Copy runtime snapshot JSON"
+          >
+            Copy
+          </PanelActionButton>
+          <PanelActionButton
+            icon={RotateCcw}
+            onClick={resetRegistryToDefaults}
+            tone="muted"
+            title="Reset registry to bundled Nexus Code defaults"
+          >
+            Reset
+          </PanelActionButton>
+          {updateableIds.length > 0 ? (
+            <PanelActionButton
+              icon={RefreshCw}
+              onClick={installAllUpdates}
+              tone="warning"
+              title="Install all available extension updates"
+              className="col-span-2"
+            >
+              Install updates
+            </PanelActionButton>
+          ) : null}
         </div>
       </PanelFooter>
     </PanelShell>

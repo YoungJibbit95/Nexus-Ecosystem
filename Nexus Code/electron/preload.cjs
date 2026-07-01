@@ -9,6 +9,9 @@ const MAX_TERMINAL_INPUT_LENGTH = 64_000;
 const MAX_BRIDGE_OPTION_BYTES = 64 * 1024;
 const MAX_LSP_METHOD_LENGTH = 128;
 const MAX_LSP_PAYLOAD_BYTES = 2 * 1024 * 1024;
+const MAX_GITHUB_PAYLOAD_BYTES = 512 * 1024;
+const MAX_GITHUB_STRING_BYTES = 128 * 1024;
+const MAX_GITHUB_DEPTH = 8;
 
 const noop = () => {};
 
@@ -113,6 +116,52 @@ const sanitizeJsonPayload = (value, label = "LSP payload") => {
   return JSON.parse(json);
 };
 
+const sanitizeGithubJsonValue = (value, label, depth = 0) => {
+  if (depth > MAX_GITHUB_DEPTH) {
+    throw new Error(`${label} is too deeply nested`);
+  }
+  if (value === null || typeof value === "boolean") return value;
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) throw new Error(`${label} contains a non-finite number`);
+    return value;
+  }
+  if (typeof value === "string") {
+    if (value.includes("\0")) throw new Error(`${label} contains an invalid character`);
+    return sanitizeText(value, MAX_GITHUB_STRING_BYTES, label);
+  }
+  if (Array.isArray(value)) {
+    if (value.length > 500) throw new Error(`${label} has too many entries`);
+    return value.map((item, index) => sanitizeGithubJsonValue(item, `${label}[${index}]`, depth + 1));
+  }
+  if (value && typeof value === "object") {
+    const result = {};
+    const entries = Object.entries(value);
+    if (entries.length > 200) throw new Error(`${label} has too many fields`);
+    for (const [key, item] of entries) {
+      if (item === undefined) continue;
+      const safeKey = sanitizeText(key, 128, `${label} key`);
+      if (safeKey.includes("\0") || safeKey === "__proto__" || safeKey === "constructor") {
+        throw new Error(`${label} contains an invalid key`);
+      }
+      result[safeKey] = sanitizeGithubJsonValue(item, `${label}.${safeKey}`, depth + 1);
+    }
+    return result;
+  }
+  throw new Error(`${label} contains an unsupported value`);
+};
+
+const sanitizeGithubPayload = (value = {}, label = "GitHub payload") => {
+  if (value === undefined || value === null) return {};
+  if (typeof value !== "object" || Array.isArray(value)) {
+    throw new Error(`${label} must be an object`);
+  }
+  const json = JSON.stringify(value);
+  if (Buffer.byteLength(json, "utf8") > MAX_GITHUB_PAYLOAD_BYTES) {
+    throw new Error(`${label} is too large`);
+  }
+  return sanitizeGithubJsonValue(JSON.parse(json), label);
+};
+
 const lspChannel = (type, sessionId) => `lsp:${type}:${sanitizeLspSessionId(sessionId)}`;
 
 const onIpc = (channel, callback, mapper = (_event, value) => value) => {
@@ -202,6 +251,90 @@ contextBridge.exposeInMainWorld("electronAPI", {
     sanitizeBridgeOptions(options, "githubListRepositories options"),
   ),
   githubGetRateLimit: () => ipcRenderer.invoke("github:rate-limit"),
+  githubListIssues: (options = {}) => ipcRenderer.invoke(
+    "github:issues:list",
+    sanitizeGithubPayload(options, "githubListIssues options"),
+  ),
+  githubGetIssue: (options = {}) => ipcRenderer.invoke(
+    "github:issues:get",
+    sanitizeGithubPayload(options, "githubGetIssue options"),
+  ),
+  githubCreateIssue: (options = {}) => ipcRenderer.invoke(
+    "github:issues:create",
+    sanitizeGithubPayload(options, "githubCreateIssue options"),
+  ),
+  githubUpdateIssue: (options = {}) => ipcRenderer.invoke(
+    "github:issues:update",
+    sanitizeGithubPayload(options, "githubUpdateIssue options"),
+  ),
+  githubListIssueComments: (options = {}) => ipcRenderer.invoke(
+    "github:issues:comments",
+    sanitizeGithubPayload(options, "githubListIssueComments options"),
+  ),
+  githubCreateIssueComment: (options = {}) => ipcRenderer.invoke(
+    "github:issues:comment",
+    sanitizeGithubPayload(options, "githubCreateIssueComment options"),
+  ),
+  githubListPullRequests: (options = {}) => ipcRenderer.invoke(
+    "github:pulls:list",
+    sanitizeGithubPayload(options, "githubListPullRequests options"),
+  ),
+  githubGetPullRequest: (options = {}) => ipcRenderer.invoke(
+    "github:pulls:get",
+    sanitizeGithubPayload(options, "githubGetPullRequest options"),
+  ),
+  githubCreatePullRequest: (options = {}) => ipcRenderer.invoke(
+    "github:pulls:create",
+    sanitizeGithubPayload(options, "githubCreatePullRequest options"),
+  ),
+  githubUpdatePullRequest: (options = {}) => ipcRenderer.invoke(
+    "github:pulls:update",
+    sanitizeGithubPayload(options, "githubUpdatePullRequest options"),
+  ),
+  githubListPullRequestFiles: (options = {}) => ipcRenderer.invoke(
+    "github:pulls:files",
+    sanitizeGithubPayload(options, "githubListPullRequestFiles options"),
+  ),
+  githubListPullRequestCommits: (options = {}) => ipcRenderer.invoke(
+    "github:pulls:commits",
+    sanitizeGithubPayload(options, "githubListPullRequestCommits options"),
+  ),
+  githubListPullRequestReviews: (options = {}) => ipcRenderer.invoke(
+    "github:pulls:reviews",
+    sanitizeGithubPayload(options, "githubListPullRequestReviews options"),
+  ),
+  githubCreatePullRequestReview: (options = {}) => ipcRenderer.invoke(
+    "github:pulls:review:create",
+    sanitizeGithubPayload(options, "githubCreatePullRequestReview options"),
+  ),
+  githubMergePullRequest: (options = {}) => ipcRenderer.invoke(
+    "github:pulls:merge",
+    sanitizeGithubPayload(options, "githubMergePullRequest options"),
+  ),
+  githubUpdatePullRequestBranch: (options = {}) => ipcRenderer.invoke(
+    "github:pulls:update-branch",
+    sanitizeGithubPayload(options, "githubUpdatePullRequestBranch options"),
+  ),
+  githubListProjectsV2: (options = {}) => ipcRenderer.invoke(
+    "github:projects-v2:list",
+    sanitizeGithubPayload(options, "githubListProjectsV2 options"),
+  ),
+  githubGetProjectV2: (options = {}) => ipcRenderer.invoke(
+    "github:projects-v2:get",
+    sanitizeGithubPayload(options, "githubGetProjectV2 options"),
+  ),
+  githubListProjectV2Items: (options = {}) => ipcRenderer.invoke(
+    "github:projects-v2:items",
+    sanitizeGithubPayload(options, "githubListProjectV2Items options"),
+  ),
+  githubAddProjectV2Item: (options = {}) => ipcRenderer.invoke(
+    "github:projects-v2:item:add",
+    sanitizeGithubPayload(options, "githubAddProjectV2Item options"),
+  ),
+  githubUpdateProjectV2ItemField: (options = {}) => ipcRenderer.invoke(
+    "github:projects-v2:item-field:update",
+    sanitizeGithubPayload(options, "githubUpdateProjectV2ItemField options"),
+  ),
 
   lspStart: (payload = {}) => ipcRenderer.invoke("lsp:start", {
     languageId: sanitizeLspLanguageId(payload.languageId),

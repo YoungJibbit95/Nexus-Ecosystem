@@ -3,36 +3,36 @@ export const LEGACY_EXTENSIONS_STORAGE_KEY = "nexus-code-installed-extensions";
 export const EXTENSION_REGISTRY_VERSION = 3;
 
 export const EXTENSION_CATEGORIES = [
-  { id: "all", label: "Alle" },
-  { id: "ai", label: "AI" },
-  { id: "formatter", label: "Formatter" },
-  { id: "diagnostics", label: "Diagnostics" },
-  { id: "git", label: "Git" },
-  { id: "theme", label: "Themes" },
-  { id: "runtime", label: "Runtime" },
-  { id: "collaboration", label: "Collab" },
-  { id: "tools", label: "Tools" },
+  { id: "all", label: "All categories", shortLabel: "All", tone: "muted" },
+  { id: "ai", label: "AI + Assist", shortLabel: "AI", tone: "violet" },
+  { id: "formatter", label: "Formatting", shortLabel: "Format", tone: "cyan" },
+  { id: "diagnostics", label: "Quality", shortLabel: "Quality", tone: "amber" },
+  { id: "git", label: "Source Control", shortLabel: "Git", tone: "cyan" },
+  { id: "theme", label: "Visual System", shortLabel: "Visual", tone: "violet" },
+  { id: "runtime", label: "Runtime + DevOps", shortLabel: "Runtime", tone: "cyan" },
+  { id: "collaboration", label: "Collaboration", shortLabel: "Collab", tone: "violet" },
+  { id: "tools", label: "Workspace Tools", shortLabel: "Tools", tone: "muted" },
 ];
 
 export const EXTENSION_SOURCES = [
-  { id: "all", label: "Alle Quellen" },
+  { id: "all", label: "All sources" },
   { id: "bundled", label: "Bundled" },
   { id: "marketplace", label: "Marketplace" },
-  { id: "local", label: "Lokal" },
+  { id: "local", label: "Local" },
 ];
 
 export const EXTENSION_STATE_FILTERS = [
-  { id: "all", label: "Alle" },
-  { id: "installed", label: "Installiert" },
-  { id: "enabled", label: "Aktiv" },
-  { id: "disabled", label: "Pausiert" },
-  { id: "available", label: "Verfuegbar" },
+  { id: "all", label: "All states" },
+  { id: "installed", label: "Installed" },
+  { id: "enabled", label: "Active" },
+  { id: "disabled", label: "Paused" },
+  { id: "available", label: "Available" },
   { id: "updates", label: "Updates" },
-  { id: "errors", label: "Fehler" },
+  { id: "errors", label: "Blocked" },
 ];
 
 export const EXTENSION_CONTRIBUTION_FILTERS = [
-  { id: "all", label: "Alle Beitraege" },
+  { id: "all", label: "All contributions" },
   { id: "commands", label: "Commands" },
   { id: "languages", label: "Languages" },
   { id: "themes", label: "Themes" },
@@ -41,6 +41,7 @@ export const EXTENSION_CONTRIBUTION_FILTERS = [
 
 const DEFAULT_INSTALLED_IDS = ["nexus-theme-core", "prettier", "eslint"];
 const CORE_CONTRIBUTION_POINTS = ["commands", "languages", "themes", "views"];
+const EXTENSION_CATEGORY_FALLBACK = EXTENSION_CATEGORIES.find((category) => category.id === "tools");
 
 export const EXTENSION_RUNTIME_CONTRIBUTION_POINTS = [
   { point: "commands", label: "Commands" },
@@ -92,6 +93,13 @@ function humanizeIdentifier(value) {
     .slice(-2)
     .join(" ")
     .replace(/\b\w/g, (match) => match.toUpperCase());
+}
+
+export function getExtensionCategoryInfo(categoryId) {
+  return (
+    EXTENSION_CATEGORIES.find((category) => category.id === categoryId) ||
+    EXTENSION_CATEGORY_FALLBACK
+  );
 }
 
 function command(commandId, title, category = "Nexus") {
@@ -236,6 +244,65 @@ export function formatContributionPreview(summary, limit = 2) {
   const items = summary.items.slice(0, limit).join(", ");
   const suffix = summary.count > limit ? ` +${summary.count - limit}` : "";
   return items ? `${items}${suffix}` : `${summary.count} entries`;
+}
+
+export function getExtensionLifecycleState(extension) {
+  const contributionCount = extension.contributionSummary?.reduce(
+    (total, summary) => total + summary.count,
+    0,
+  ) || 0;
+  const activationCount = extension.activationSummary?.filter((event) => event.valid).length || 0;
+
+  if (extension.health === "error" || extension.manifestErrors?.length > 0) {
+    return {
+      id: "blocked",
+      label: "Blocked",
+      tone: "danger",
+      detail: "Manifest or registry errors block activation.",
+      activationReady: false,
+    };
+  }
+
+  if (!extension.installed) {
+    return {
+      id: "available",
+      label: "Available",
+      tone: "muted",
+      detail: "Install to add commands, views, languages, or themes.",
+      activationReady: false,
+    };
+  }
+
+  if (!extension.enabled) {
+    return {
+      id: "paused",
+      label: "Paused",
+      tone: "warning",
+      detail: "Installed but excluded from runtime activation.",
+      activationReady: false,
+    };
+  }
+
+  if (extension.updateAvailable) {
+    return {
+      id: "update",
+      label: "Update ready",
+      tone: "warning",
+      detail: `${contributionCount} contribution${contributionCount === 1 ? "" : "s"} active; update available.`,
+      activationReady: true,
+    };
+  }
+
+  return {
+    id: activationCount > 0 ? "active" : "enabled",
+    label: activationCount > 0 ? "Active" : "Enabled",
+    tone: "accent",
+    detail:
+      activationCount > 0
+        ? `${activationCount} trigger${activationCount === 1 ? "" : "s"}, ${contributionCount} contribution${contributionCount === 1 ? "" : "s"}.`
+        : `${contributionCount} contribution${contributionCount === 1 ? "" : "s"} loaded manually.`,
+    activationReady: true,
+  };
 }
 
 export function describeActivationEvent(event) {
@@ -830,7 +897,7 @@ export const EXTENSION_CATALOG = [
     category: "tools",
     source: "marketplace",
     icon: "RC",
-    iconColor: "#10b981",
+    iconColor: "#38bdf8",
     rating: 4.7,
     downloads: "430K",
     tags: ["http", "rest", "api"],
@@ -906,7 +973,7 @@ export const EXTENSION_CATALOG = [
     category: "diagnostics",
     source: "marketplace",
     icon: "SC",
-    iconColor: "#22c55e",
+    iconColor: "#60a5fa",
     rating: 4.7,
     downloads: "510K",
     tags: ["spelling", "linting", "comments"],
@@ -1016,6 +1083,10 @@ function createDefaultRecords() {
     });
     return records;
   }, {});
+}
+
+export function createDefaultExtensionRecords() {
+  return createDefaultRecords();
 }
 
 function inferInstalled(rawRecord) {
@@ -1363,7 +1434,7 @@ function createMissingManifestExtension(id, record) {
     ),
   ];
 
-  return {
+  const extension = {
     id,
     name: id,
     displayName: id,
@@ -1400,17 +1471,26 @@ function createMissingManifestExtension(id, record) {
     health: "error",
     searchableText: `${id} missing manifest local`.toLowerCase(),
   };
+
+  return {
+    ...extension,
+    categoryInfo: getExtensionCategoryInfo(extension.category),
+    lifecycleState: getExtensionLifecycleState(extension),
+  };
 }
 
 export function resolveExtensions(records) {
   const resolved = EXTENSION_CATALOG.map((extension) => {
     const record = normalizeKnownRecord(extension, records?.[extension.id]);
+    const categoryInfo = getExtensionCategoryInfo(extension.category);
     const searchableText = [
       extension.displayName,
       extension.name,
       extension.publisher,
       extension.description,
       extension.category,
+      categoryInfo.label,
+      categoryInfo.shortLabel,
       extension.source,
       ...extension.tags,
       ...extension.capabilities,
@@ -1423,7 +1503,7 @@ export function resolveExtensions(records) {
       .join(" ")
       .toLowerCase();
 
-    return {
+    const resolvedExtension = {
       ...extension,
       installed: record.installed,
       enabled: record.enabled,
@@ -1433,7 +1513,13 @@ export function resolveExtensions(records) {
       lastActivatedAt: record.lastActivatedAt,
       contributionPoints: record.contributionPoints,
       health: extension.manifestErrors.length > 0 ? "error" : extension.manifestWarnings.length > 0 ? "warning" : "ok",
+      categoryInfo,
       searchableText,
+    };
+
+    return {
+      ...resolvedExtension,
+      lifecycleState: getExtensionLifecycleState(resolvedExtension),
     };
   });
 
@@ -1583,6 +1669,34 @@ export function collectExtensionContributions(records) {
   return contributions;
 }
 
+export function createExtensionCommandPaletteEntries(records) {
+  const contributions = collectExtensionContributions(records);
+  return (contributions.commands || []).map((entry, index) => {
+    const commandId = String(entry.command || "").trim();
+    const title = String(entry.title || humanizeIdentifier(commandId)).trim();
+    const category = String(entry.category || "Extensions").trim();
+    const extensionName = String(entry.extensionName || "Extension").trim();
+    return {
+      id: `extension:${commandId}`,
+      actionId: commandId,
+      label: title,
+      description: `${extensionName} - ${category}`,
+      category: "extensions",
+      shortcut: "",
+      keywords: [
+        "extension",
+        "plugin",
+        commandId,
+        category,
+        extensionName,
+      ],
+      surfaces: ["palette", "spotlight"],
+      priority: Math.max(12, 48 - index),
+      extensionId: entry.extensionId || "",
+    };
+  });
+}
+
 export function collectExtensionActivationPlan(records) {
   const events = [];
   const byType = {};
@@ -1629,6 +1743,47 @@ export function getExtensionRuntimeOverview(records) {
   };
 }
 
+export function createExtensionRuntimeSnapshot(records) {
+  const stats = getExtensionStats(records);
+  const runtime = getExtensionRuntimeOverview(records);
+  const contributions = collectExtensionContributions(records);
+  const installed = getInstalledExtensionIds(records);
+  const enabled = getEnabledExtensionIds(records);
+
+  return {
+    version: EXTENSION_REGISTRY_VERSION,
+    generatedAt: new Date().toISOString(),
+    installed,
+    enabled,
+    stats,
+    activation: runtime.activation.events.map((event) => ({
+      id: event.id,
+      type: event.type,
+      label: event.label,
+      detail: event.detail,
+      extensionId: event.extensionId,
+      extensionName: event.extensionName,
+    })),
+    contributions: Object.fromEntries(
+      Object.entries(contributions).map(([point, entries]) => [
+        point,
+        entries.map((entry) => ({
+          ...entry,
+          extensionId: entry.extensionId,
+          extensionName: entry.extensionName,
+        })),
+      ]),
+    ),
+    summary: runtime.contributionPoints.map((point) => ({
+      point: point.point,
+      label: point.label,
+      count: point.count,
+      extensions: point.extensions,
+      items: point.items.slice(0, 12),
+    })),
+  };
+}
+
 export function createExtensionEventDetail(records) {
   const resolved = resolveExtensions(records);
   const enabledExtensions = resolved.filter((extension) => extension.installed && extension.enabled);
@@ -1644,7 +1799,9 @@ export function createExtensionEventDetail(records) {
       events: extension.activationSummary,
     })),
     contributions: collectExtensionContributions(records),
+    commands: createExtensionCommandPaletteEntries(records),
     runtime: getExtensionRuntimeOverview(records),
+    snapshot: createExtensionRuntimeSnapshot(records),
     diagnostics: resolved.flatMap((extension) =>
       extension.manifestDiagnostics.map((diagnostic) => ({
         ...diagnostic,

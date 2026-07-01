@@ -106,7 +106,7 @@ export function SettingsShell({
       title: "Theme exportiert",
       details: [
         "Datei: nexus-theme-v6.json",
-        "Export enthält stabile Settings plus optionale Advanced-Felder.",
+        "Export enthaelt stabile Einstellungen plus optionale Details.",
       ],
     });
     toast("Theme exportiert");
@@ -175,14 +175,14 @@ export function SettingsShell({
             title: "Theme importiert",
             fileName: file.name,
             details: [
-              "Alle erkannten Felder wurden übernommen.",
-              "Release-frozen Zonen wurden sicher respektiert.",
+              "Alle erkannten Einstellungen wurden uebernommen.",
+              "Geschuetzte App-Bereiche bleiben unveraendert.",
             ],
           });
         }
         toast(
           parsed.partial
-            ? `Theme importiert (${parsed.warnings.length || 1} Hinweis${parsed.warnings.length === 1 ? "" : "e"}, sichere Fallbacks aktiv; Details in Konsole)`
+            ? `Theme importiert (${parsed.warnings.length || 1} Hinweis${parsed.warnings.length === 1 ? "" : "e"}, sichere Fallbacks aktiv)`
             : "Theme importiert",
         );
       } catch {
@@ -214,7 +214,7 @@ export function SettingsShell({
       title: "Settings exportiert",
       details: [
         "Datei: nexus-settings-v1.json",
-        "Export nutzt das kanonische Settings-Schema.",
+        "Export nutzt das stabile Settings-Format.",
       ],
     });
     toast("Settings exportiert");
@@ -371,13 +371,42 @@ export function SettingsShell({
         : MODULES,
     [normalizedModuleQuery],
   );
+  const friendlyMode = t.mode === "light" ? "Hell" : "Dunkel";
+  const friendlyDensity =
+    t.qol?.panelDensity === "compact"
+      ? "Kompakt"
+      : t.qol?.panelDensity === "spacious"
+        ? "Luftig"
+        : "Komfort";
+  const friendlyMotion =
+    t.qol?.motionProfile === "minimal"
+      ? "Sehr ruhig"
+      : t.qol?.motionProfile === "expressive"
+        ? "Lebendig"
+        : t.qol?.motionProfile === "cinematic"
+          ? "Showcase"
+          : "Ausgewogen";
+  const friendlyPanel =
+    panelRenderer === "glass-shader"
+      ? "Showcase Glas"
+      : panelRenderer === "fake-glass"
+        ? "Leichtes Glas"
+        : "Soft Blur";
+  const friendlyBackground =
+    t.background?.mode === "solid"
+      ? "Ruhig"
+      : t.background?.mode === "gradient"
+        ? "Farbverlauf"
+        : t.background?.mode === "animated-gradient"
+          ? "Animiert"
+          : t.background?.mode ?? "solid";
   const settingsSummary = [
-    { label: "Mode", value: t.mode },
-    { label: "Density", value: t.qol?.panelDensity ?? "comfortable" },
-    { label: "Motion", value: t.qol?.motionProfile ?? "balanced" },
-    { label: "Panel", value: panelRenderer },
-    { label: "Bg", value: t.background?.mode ?? "solid" },
-    { label: "Glass", value: `${Math.round((t.background?.overlayOpacity ?? 0.7) * 100)}%` },
+    { label: "Farben", value: friendlyMode },
+    { label: "Dichte", value: friendlyDensity },
+    { label: "Bewegung", value: friendlyMotion },
+    { label: "Fenster", value: friendlyPanel },
+    { label: "Hintergrund", value: friendlyBackground },
+    { label: "Sichtbarkeit", value: `${Math.round((t.background?.overlayOpacity ?? 0.7) * 100)}%` },
   ];
 
   return (
@@ -431,13 +460,13 @@ export function SettingsShell({
               letterSpacing: 1,
             }}
           >
-            Settings
+            Einstellungen
           </div>
           <div style={{ fontSize: 16, fontWeight: 800, marginTop: 2 }}>
-            ⚙️ Nexus Settings v6
+            Nexus Einstellungen
           </div>
           <div style={{ fontSize: 11, opacity: 0.55, marginTop: 2 }}>
-            Erst Preset wählen, dann sauber feinjustieren.
+            Erst eine Richtung waehlen, danach Details feinjustieren.
           </div>
         </div>
 
@@ -476,7 +505,7 @@ export function SettingsShell({
                   marginTop: 2,
                   fontSize: 11,
                   fontWeight: 780,
-                  color: entry.label === "Mode" ? t.accent : "inherit",
+                  color: entry.label === "Farben" ? t.accent : "inherit",
                   overflow: "hidden",
                   textOverflow: "ellipsis",
                   whiteSpace: "nowrap",
@@ -672,7 +701,7 @@ export function SettingsShell({
               padding: "7px 9px",
             }}
           >
-            Import nutzt Schema-Guard + Allowlist. Toolbar Mode/Position/Sichtbarkeit werden übernommen, eingefrorene Engine-Felder bleiben unverändert.
+            Import uebernimmt Design, Toolbar und Sichtbarkeit. Geschuetzte App-Bereiche bleiben unveraendert.
           </div>
           {transferFeedback ? (
             <div
@@ -848,7 +877,7 @@ export function SettingsShell({
                   letterSpacing: 1,
                 }}
               >
-                Current Module
+                Aktueller Bereich
               </div>
               <div style={{ fontSize: 16, fontWeight: 800 }}>
                 {activeModule?.title}
@@ -869,7 +898,7 @@ export function SettingsShell({
                 <span>Preset zuerst, Detailregler danach</span>
                 <span style={{ opacity: 0.38 }}>/</span>
                 <span>
-                  {showAdvancedSettings ? "Advanced sichtbar" : "Einfacher Modus"}
+                  {showAdvancedSettings ? "Detailregler sichtbar" : "Einfacher Modus"}
                 </span>
               </div>
             </div>
@@ -878,11 +907,11 @@ export function SettingsShell({
                 display: "flex",
                 gap: 8,
                 fontSize: 11,
-                opacity: 0.8,
                 flexWrap: "wrap",
               }}
             >
               <button
+                className="nx-settings-guide-chip"
                 type="button"
                 onClick={toggleAdvancedSettings}
                 style={{
@@ -892,18 +921,19 @@ export function SettingsShell({
                     ? `rgba(${rgb},0.16)`
                     : "rgba(255,255,255,0.06)",
                   color: showAdvancedSettings ? t.accent : "inherit",
-                  fontSize: 10,
+                  fontSize: 11,
                   fontWeight: 700,
-                  padding: "4px 8px",
+                  padding: "6px 10px",
                   cursor: "pointer",
                 }}
               >
-                Advanced {showAdvancedSettings ? "AN" : "OFF"}
+                {showAdvancedSettings ? "Details ausblenden" : "Details anzeigen"}
               </button>
               <button
+                className="nx-settings-guide-chip"
                 type="button"
                 onClick={toggleExperimentalSettings}
-                title={!showAdvancedSettings ? "Aktiviert automatisch auch Advanced" : undefined}
+                title={!showAdvancedSettings ? "Zeigt auch die Detailregler" : undefined}
                 style={{
                   borderRadius: 8,
                   border: `1px solid ${showExperimentalSettings ? "rgba(255,159,10,0.38)" : "rgba(255,255,255,0.16)"}`,
@@ -911,22 +941,22 @@ export function SettingsShell({
                     ? "rgba(255,159,10,0.16)"
                     : "rgba(255,255,255,0.06)",
                   color: showExperimentalSettings ? "#ff9f0a" : "inherit",
-                  fontSize: 10,
+                  fontSize: 11,
                   fontWeight: 700,
-                  padding: "4px 8px",
+                  padding: "6px 10px",
                   cursor: "pointer",
                 }}
               >
-                Experimental {showExperimentalSettings ? "ON" : "OFF"}
+                {showExperimentalSettings ? "Showcase-Optionen an" : "Showcase-Optionen"}
               </button>
-              <span>
-                Mode: <strong style={{ color: t.accent }}>{t.mode}</strong>
+              <span className="nx-settings-guide-chip">
+                Farben: <strong style={{ color: t.accent }}>{friendlyMode}</strong>
               </span>
-              <span>
-                Panel: <strong>{panelRenderer}</strong>
+              <span className="nx-settings-guide-chip">
+                Fenster: <strong>{friendlyPanel}</strong>
               </span>
-              <span>
-                Motion: <strong>{t.qol?.motionProfile ?? "balanced"}</strong>
+              <span className="nx-settings-guide-chip">
+                Bewegung: <strong>{friendlyMotion}</strong>
               </span>
             </div>
           </div>

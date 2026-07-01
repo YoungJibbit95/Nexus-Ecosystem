@@ -40,6 +40,7 @@ interface TerminalState {
 const DEV_MODE = (import.meta as any).env?.DEV
 const VIEWS = [
   'dashboard',
+  'calendar',
   'notes',
   'code',
   'tasks',
@@ -56,6 +57,8 @@ const VIEWS = [
 const VIEW_ALIASES: Record<string, string> = {
   dash: 'dashboard',
   home: 'dashboard',
+  cal: 'calendar',
+  plan: 'calendar',
   note: 'notes',
   editor: 'code',
   task: 'tasks',
@@ -75,6 +78,7 @@ const HELP_TEXT = [
   'goto <view>                        Navigate (aliases supported)',
   'spotlight [query]                  Open spotlight with optional query',
   'search <query>                     Search notes, tasks, code, reminders',
+  'goto calendar                      Open task/reminder planning calendar',
   'canvas list                        List canvases with node count',
   'canvas new [name]                  Create and open a new canvas',
   'canvas layout <mode>               Apply canvas layout (mindmap/timeline/board)',

@@ -19,49 +19,49 @@ export const MODULES: {
   {
     id: "appearance",
     icon: <Wand2 size={14} />,
-    title: "Appearance",
-    desc: "Presets, Themes, Lesbarkeit",
+    title: "Look und Lesbarkeit",
+    desc: "Presets, Farben, Schrift",
   },
   {
     id: "panel",
     icon: <Sparkles size={14} />,
-    title: "Panel Background",
-    desc: "Stabiler Panel-Look + Engine-Tuning",
+    title: "Fenster und Hintergrund",
+    desc: "Panel-Look ohne Technikstress",
   },
   {
     id: "layout",
     icon: <LayoutGrid size={14} />,
     title: "Layout",
-    desc: "Sidebar, Dichte, Workflow-Zonen",
+    desc: "Sidebar, Toolbar, Abstaende",
   },
   {
     id: "motion",
     icon: <SlidersHorizontal size={14} />,
-    title: "Motion Engine",
-    desc: "Apple-like Motion Profiles",
+    title: "Bewegung",
+    desc: "Ruhig, schnell oder expressiv",
   },
   {
     id: "editor",
     icon: <Type size={14} />,
-    title: "Editor",
-    desc: "Code & Notes Live-Verhalten",
+    title: "Editor und Notizen",
+    desc: "Schrift, Zeilen, Speichern",
   },
   {
     id: "workspace",
     icon: <TerminalSquare size={14} />,
-    title: "Workspace",
-    desc: "Spotlight, Terminal, Reset",
+    title: "Sichern und Zuruecksetzen",
+    desc: "Backups, Import, Wartung",
   },
 ];
 
 export const MOTION_PROFILES: { id: MotionProfile; label: string; desc: string }[] = [
-  { id: "minimal", label: "Minimal", desc: "Nahezu statisch, maximale Ruhe" },
-  { id: "balanced", label: "Balanced", desc: "Schnell, ruhig und alltagstauglich" },
-  { id: "expressive", label: "Expressive", desc: "Mehr Tiefe, mehr Reaktion" },
+  { id: "minimal", label: "Sehr ruhig", desc: "Kaum Bewegung, maximale Konzentration" },
+  { id: "balanced", label: "Ausgewogen", desc: "Empfohlen: schnell, ruhig und alltagstauglich" },
+  { id: "expressive", label: "Lebendig", desc: "Mehr Tiefe und spuerbare Reaktion" },
   {
     id: "cinematic",
-    label: "Cinematic",
-    desc: "Maximaler Showcase-Look bei genug Leistung",
+    label: "Showcase",
+    desc: "Auffaellig und weich, wenn der Rechner genug Leistung hat",
   },
 ];
 
@@ -98,7 +98,7 @@ export const EXPERIENCE_PRESETS: ExperiencePreset[] = [
   {
     id: "balanced",
     title: "✨ Balanced",
-    desc: "Empfohlen: guter Mix aus Style, Lesbarkeit und Performance",
+    desc: "Empfohlen: guter Mix aus Look, Lesbarkeit und Tempo",
     apply: (t) => {
       t.setQOL({
         reducedMotion: false,
@@ -156,8 +156,8 @@ export const EXPERIENCE_PRESETS: ExperiencePreset[] = [
   },
   {
     id: "performance",
-    title: "⚙️ Performance",
-    desc: "Für schwächere Geräte und lange Sessions",
+    title: "Leistung",
+    desc: "Fuer schwaechere Geraete und lange Sessions",
     apply: (t) => {
       t.preset("High Contrast Focus");
       t.setQOL({

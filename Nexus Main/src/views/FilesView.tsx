@@ -5,18 +5,27 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { createPortal } from "react-dom";
 import { AnimatePresence } from "framer-motion";
 import {
+  CheckCircle2,
+  CircleOff,
   Download,
   FolderOpen,
   Grid3x3,
+  HardDrive,
+  Info,
   Layers,
   List,
   MoreHorizontal,
+  Pencil,
   Plus,
+  RefreshCw,
   Search,
+  SlidersHorizontal,
   Upload,
 } from "lucide-react";
+import { calculateNexusViewQuality } from "@nexus/core";
 import { useApp } from "../store/appStore";
 import { useCanvas } from "../store/canvasStore";
 import { useTheme } from "../store/themeStore";
@@ -24,17 +33,50 @@ import { useWorkspaces, type Workspace } from "../store/workspaceStore";
 import { hexToRgb } from "../lib/utils";
 import { InteractiveActionButton } from "../components/render/InteractiveActionButton";
 import { AssignModal, FileCard, WorkspaceModal } from "./files/FilesUiParts";
-import type {
-  FileItem,
-  ItemType,
-  SmartViewMode,
-  ViewMode,
+import {
+  TYPE_META,
+  type FileItem,
+  type ItemType,
+  type SmartViewMode,
+  type ViewMode,
 } from "./files/filesTypes";
 import { useWorkspaceSync } from "./files/useWorkspaceSync";
-import { calculateNexusViewQuality } from "@nexus/core";
+import "./files/FilesView.css";
 
 type FilesViewProps = {
   setView?: (view: string) => void;
+};
+
+const TYPE_FILTERS = ["all", "note", "code", "task", "reminder", "canvas"] as const;
+
+const SMART_VIEWS: Array<{ id: SmartViewMode; label: string }> = [
+  { id: "workspace", label: "Workspace" },
+  { id: "all", label: "All" },
+  { id: "recent", label: "Recent 7d" },
+  { id: "pinned", label: "Pinned" },
+  { id: "unassigned", label: "Unassigned" },
+];
+
+const formatRelativeTime = (iso: string) => {
+  const ms = new Date(iso).getTime();
+  if (!Number.isFinite(ms)) return "unknown";
+  const delta = Math.max(0, Date.now() - ms) / 1000;
+  if (delta < 60) return "just now";
+  if (delta < 3600) return `${Math.floor(delta / 60)}m ago`;
+  if (delta < 86400) return `${Math.floor(delta / 3600)}h ago`;
+  return `${Math.floor(delta / 86400)}d ago`;
+};
+
+const formatDateTime = (iso: string) => {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "Unknown";
+  return new Intl.DateTimeFormat("de-DE", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
 };
 
 export function FilesView({ setView }: FilesViewProps = {}) {
@@ -56,17 +98,20 @@ export function FilesView({ setView }: FilesViewProps = {}) {
 
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<"all" | ItemType>("all");
-  const [smartView, setSmartView] = useState<SmartViewMode>("all");
+  const [smartView, setSmartView] = useState<SmartViewMode>("workspace");
   const [folderFilter, setFolderFilter] = useState<"all" | "none" | string>(
     "all",
   );
-  const [viewMode, setViewMode] = useState<ViewMode>("grid");
-  const [tab, setTab] = useState<"all" | "workspaces">("all");
+  const [viewMode, setViewMode] = useState<ViewMode>("list");
+  const [tab, setTab] = useState<"all" | "workspaces">("workspaces");
+  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [newWsOpen, setNewWsOpen] = useState(false);
   const [editWs, setEditWs] = useState<Workspace | null>(null);
   const [assignItem, setAssignItem] = useState<FileItem | null>(null);
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
+  const [headerMenuRect, setHeaderMenuRect] = useState<DOMRect | null>(null);
   const headerMenuRef = useRef<HTMLDivElement | null>(null);
+  const headerMenuOverlayRef = useRef<HTMLDivElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
 
   const {
@@ -90,6 +135,10 @@ export function FilesView({ setView }: FilesViewProps = {}) {
   });
 
   const activeWs = workspaces.find((w) => w.id === activeWorkspaceId);
+  const folderById = useMemo(
+    () => new Map(folders.map((folder) => [folder.id, folder])),
+    [folders],
+  );
 
   const allItems = useMemo((): FileItem[] => {
     const items: FileItem[] = [];
@@ -99,7 +148,7 @@ export function FilesView({ setView }: FilesViewProps = {}) {
         title: note.title || "Untitled",
         type: "note",
         updated: note.updated || note.created,
-        preview: note.content?.slice(0, 80),
+        preview: note.content?.slice(0, 120),
         folderId: note.folderId ?? null,
         pinned: Boolean(note.pinned),
       });
@@ -110,7 +159,7 @@ export function FilesView({ setView }: FilesViewProps = {}) {
         title: code.name,
         type: "code",
         updated: code.updated || code.created,
-        preview: `${code.lang} · ${(code.content || "").split("\n").length} lines`,
+        preview: `${code.lang} - ${(code.content || "").split("\n").length} lines`,
         lang: code.lang,
         folderId: code.folderId ?? null,
         pinned: Boolean(code.pinned),
@@ -122,7 +171,7 @@ export function FilesView({ setView }: FilesViewProps = {}) {
         title: task.title,
         type: "task",
         updated: task.updated || task.created,
-        preview: task.desc?.slice(0, 60),
+        preview: task.desc?.slice(0, 100),
         priority: task.priority,
         status: task.status,
         folderId: task.folderId ?? null,
@@ -134,7 +183,7 @@ export function FilesView({ setView }: FilesViewProps = {}) {
         title: reminder.title,
         type: "reminder",
         updated: reminder.datetime,
-        preview: reminder.msg?.slice(0, 60),
+        preview: reminder.msg?.slice(0, 100),
         folderId: reminder.folderId ?? null,
       });
     });
@@ -144,7 +193,7 @@ export function FilesView({ setView }: FilesViewProps = {}) {
         title: canvas.name || "Untitled Canvas",
         type: "canvas",
         updated: canvas.updated || canvas.created,
-        preview: `${canvas.nodes.length} nodes · ${canvas.connections.length} links`,
+        preview: `${canvas.nodes.length} nodes - ${canvas.connections.length} links`,
       });
     });
     return items.sort(
@@ -152,13 +201,35 @@ export function FilesView({ setView }: FilesViewProps = {}) {
     );
   }, [canvases, codes, notes, reminders, tasks]);
 
-  const itemInWorkspace = (workspace: Workspace, item: FileItem) => {
+  const itemInWorkspace = useCallback((workspace: Workspace, item: FileItem) => {
     const key = `${item.type}Ids` as keyof Workspace;
-    return (workspace[key] as string[]).includes(item.id);
-  };
+    return ((workspace[key] as string[]) || []).includes(item.id);
+  }, []);
 
-  const isItemAssigned = (item: FileItem) =>
-    workspaces.some((workspace) => itemInWorkspace(workspace, item));
+  const isItemAssigned = useCallback(
+    (item: FileItem) =>
+      workspaces.some((workspace) => itemInWorkspace(workspace, item)),
+    [itemInWorkspace, workspaces],
+  );
+
+  const getItemWorkspaces = useCallback(
+    (item: FileItem) =>
+      workspaces.filter((workspace) => itemInWorkspace(workspace, item)),
+    [itemInWorkspace, workspaces],
+  );
+
+  const getItemPrimaryWorkspace = useCallback(
+    (item: FileItem) => getItemWorkspaces(item)[0],
+    [getItemWorkspaces],
+  );
+
+  const workspaceScopedItems = useMemo(
+    () =>
+      activeWs
+        ? allItems.filter((item) => itemInWorkspace(activeWs, item))
+        : allItems,
+    [activeWs, allItems, itemInWorkspace],
+  );
 
   const folderOptions = useMemo(() => {
     const used = new Set(
@@ -173,6 +244,11 @@ export function FilesView({ setView }: FilesViewProps = {}) {
 
   const displayItems = useMemo(() => {
     let items = allItems;
+
+    if ((tab === "workspaces" || smartView === "workspace") && activeWs) {
+      items = items.filter((item) => itemInWorkspace(activeWs, item));
+    }
+
     if (typeFilter !== "all") {
       items = items.filter((item) => item.type === typeFilter);
     }
@@ -181,8 +257,8 @@ export function FilesView({ setView }: FilesViewProps = {}) {
     } else if (folderFilter !== "all") {
       items = items.filter((item) => item.folderId === folderFilter);
     }
-    if (search) {
-      const q = search.toLowerCase();
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
       items = items.filter(
         (item) =>
           item.title.toLowerCase().includes(q) ||
@@ -190,13 +266,6 @@ export function FilesView({ setView }: FilesViewProps = {}) {
       );
     }
 
-    if (tab === "workspaces" && activeWs) {
-      items = items.filter((item) => itemInWorkspace(activeWs, item));
-    }
-
-    if (smartView === "workspace" && activeWs) {
-      items = items.filter((item) => itemInWorkspace(activeWs, item));
-    }
     if (smartView === "recent") {
       const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
       items = items.filter(
@@ -216,35 +285,49 @@ export function FilesView({ setView }: FilesViewProps = {}) {
     allItems,
     folderFilter,
     isItemAssigned,
+    itemInWorkspace,
     search,
     smartView,
     tab,
     typeFilter,
   ]);
 
-  const wsItemCount = (workspace: Workspace) =>
-    workspace.noteIds.length +
-    workspace.codeIds.length +
-    workspace.taskIds.length +
-    workspace.reminderIds.length +
-    workspace.canvasIds.length;
+  const wsItemCount = useCallback(
+    (workspace: Workspace) =>
+      workspace.noteIds.length +
+      workspace.codeIds.length +
+      workspace.taskIds.length +
+      workspace.reminderIds.length +
+      workspace.canvasIds.length,
+    [],
+  );
 
-  const getItemWsColor = (item: FileItem) => {
-    const workspace = workspaces.find((entry) => itemInWorkspace(entry, item));
-    return workspace?.color;
-  };
+  const typeCounts = useMemo(() => {
+    const counts: Record<ItemType, number> = {
+      note: 0,
+      code: 0,
+      task: 0,
+      reminder: 0,
+      canvas: 0,
+    };
+    workspaceScopedItems.forEach((item) => {
+      counts[item.type] += 1;
+    });
+    return counts;
+  }, [workspaceScopedItems]);
 
   const unassignedCount = useMemo(
     () => allItems.filter((item) => !isItemAssigned(item)).length,
     [allItems, isItemAssigned],
   );
+
   const activeFilterCount = useMemo(() => {
     let count = 0;
     if (search.trim()) count += 1;
     if (typeFilter !== "all") count += 1;
     if (folderFilter !== "all") count += 1;
-    if (smartView !== "all") count += 1;
-    if (tab === "workspaces") count += 1;
+    if (smartView !== "workspace") count += 1;
+    if (tab !== "workspaces") count += 1;
     return count;
   }, [folderFilter, search, smartView, tab, typeFilter]);
 
@@ -279,6 +362,16 @@ export function FilesView({ setView }: FilesViewProps = {}) {
     ],
   );
 
+  const selectedItem = useMemo(
+    () => displayItems.find((item) => item.id === selectedItemId) ?? null,
+    [displayItems, selectedItemId],
+  );
+
+  const selectedMeta = selectedItem ? TYPE_META[selectedItem.type] : null;
+  const selectedWorkspaces = selectedItem ? getItemWorkspaces(selectedItem) : [];
+  const selectedFolder =
+    selectedItem?.folderId ? folderById.get(selectedItem.folderId) : null;
+
   const resetFileFilters = useCallback(() => {
     setSearch("");
     setTypeFilter("all");
@@ -288,9 +381,35 @@ export function FilesView({ setView }: FilesViewProps = {}) {
   }, [activeWs]);
 
   useEffect(() => {
+    if (activeWorkspaceId) {
+      setTab("workspaces");
+      setSmartView((prev) => (prev === "all" ? "workspace" : prev));
+    }
+  }, [activeWorkspaceId]);
+
+  useEffect(() => {
+    if (displayItems.length === 0) {
+      setSelectedItemId(null);
+      return;
+    }
+    if (!selectedItemId || !displayItems.some((item) => item.id === selectedItemId)) {
+      setSelectedItemId(displayItems[0].id);
+    }
+  }, [displayItems, selectedItemId]);
+
+  useEffect(() => {
     if (!headerMenuOpen) return;
+    const updateMenuRect = () => {
+      const rect = headerMenuRef.current?.getBoundingClientRect();
+      setHeaderMenuRect(rect ?? null);
+    };
+    updateMenuRect();
     const onPointerDown = (event: PointerEvent) => {
-      if (!headerMenuRef.current?.contains(event.target as Node)) {
+      const target = event.target as Node;
+      if (
+        !headerMenuRef.current?.contains(target) &&
+        !headerMenuOverlayRef.current?.contains(target)
+      ) {
         setHeaderMenuOpen(false);
       }
     };
@@ -299,9 +418,13 @@ export function FilesView({ setView }: FilesViewProps = {}) {
     };
     window.addEventListener("pointerdown", onPointerDown);
     window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("resize", updateMenuRect);
+    window.addEventListener("scroll", updateMenuRect, true);
     return () => {
       window.removeEventListener("pointerdown", onPointerDown);
       window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("resize", updateMenuRect);
+      window.removeEventListener("scroll", updateMenuRect, true);
     };
   }, [headerMenuOpen]);
 
@@ -380,909 +503,595 @@ export function FilesView({ setView }: FilesViewProps = {}) {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [activeWs]);
 
-  const openItem = (item: FileItem) => {
-    if (item.type === "note") {
-      openNote(item.id);
-      setNote(item.id);
-      setView?.("notes");
-      return;
-    }
-    if (item.type === "code") {
-      openCode(item.id);
-      setCode(item.id);
-      setView?.("code");
-      return;
-    }
-    if (item.type === "task") {
-      setView?.("tasks");
-      return;
-    }
-    if (item.type === "reminder") {
-      setView?.("reminders");
-      return;
-    }
-    setActiveCanvas(item.id);
-    setView?.("canvas");
+  const openItem = useCallback(
+    (item: FileItem) => {
+      if (item.type === "note") {
+        openNote(item.id);
+        setNote(item.id);
+        setView?.("notes");
+        return;
+      }
+      if (item.type === "code") {
+        openCode(item.id);
+        setCode(item.id);
+        setView?.("code");
+        return;
+      }
+      if (item.type === "task") {
+        setView?.("tasks");
+        return;
+      }
+      if (item.type === "reminder") {
+        setView?.("reminders");
+        return;
+      }
+      setActiveCanvas(item.id);
+      setView?.("canvas");
+    },
+    [openCode, openNote, setActiveCanvas, setCode, setNote, setView],
+  );
+
+  const selectWorkspace = (workspaceId: string) => {
+    setActive(workspaceId);
+    setTab("workspaces");
+    setSmartView("workspace");
+    setSelectedItemId(null);
   };
+
+  const showAllFiles = () => {
+    setActive(null);
+    setTab("all");
+    setSmartView("all");
+    setSelectedItemId(null);
+  };
+
+  const workspaceLabel = activeWs ? activeWs.name : "All Files";
+  const scopeItemCount = activeWs ? wsItemCount(activeWs) : allItems.length;
+  const syncStateLabel = syncing
+    ? "Syncing"
+    : workspaceRoot
+      ? "Connected"
+      : "No folder";
+  const DetailsIcon = selectedMeta?.icon ?? Info;
+  const flowMenuLeft =
+    typeof window === "undefined" || !headerMenuRect
+      ? 16
+      : Math.max(12, Math.min(window.innerWidth - 256, headerMenuRect.right - 248));
+  const flowMenuTop =
+    typeof window === "undefined" || !headerMenuRect
+      ? 72
+      : Math.min(window.innerHeight - 154, headerMenuRect.bottom + 8);
+  const workspaceFlowMenu =
+    headerMenuOpen && headerMenuRect && typeof document !== "undefined"
+      ? createPortal(
+          <div
+            ref={headerMenuOverlayRef}
+            className="nx-files-menu nx-files-flow-menu nx-files-flow-menu--floating"
+            style={{ top: flowMenuTop, left: flowMenuLeft }}
+            role="menu"
+            aria-label="Workspace Flow"
+          >
+            <InteractiveActionButton
+              onClick={() => {
+                void selectWorkspaceRoot();
+                setHeaderMenuOpen(false);
+              }}
+              className="nx-files-menu-button"
+              motionId="files-workspace-select-root"
+              areaHint={76}
+              radius={7}
+            >
+              <FolderOpen size={13} /> Workspace folder waehlen
+            </InteractiveActionButton>
+            <InteractiveActionButton
+              onClick={() => {
+                void importWorkspaceFromDisk();
+                setHeaderMenuOpen(false);
+              }}
+              disabled={loadingWorkspace || syncing}
+              className="nx-files-menu-button"
+              motionId="files-workspace-import"
+              areaHint={76}
+              radius={7}
+            >
+              <Upload size={13} /> Import workspace
+            </InteractiveActionButton>
+            <InteractiveActionButton
+              onClick={() => {
+                void exportWorkspaceToDisk();
+                setHeaderMenuOpen(false);
+              }}
+              disabled={loadingWorkspace || syncing}
+              className="nx-files-menu-button"
+              motionId="files-workspace-export"
+              areaHint={76}
+              radius={7}
+            >
+              <Download size={13} /> Export workspace
+            </InteractiveActionButton>
+          </div>,
+          document.body,
+        )
+      : null;
 
   return (
     <div
       className="nx-files-v6 nx-release-view"
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        height: "100%",
-        overflow: "hidden",
-      }}
+      data-files-mode={t.mode}
+      style={
+        {
+          "--files-accent": t.accent,
+          "--files-accent-rgb": rgb,
+          display: "flex",
+          flexDirection: "column",
+          height: "100%",
+          overflow: "hidden",
+        } as React.CSSProperties
+      }
     >
-      <div
-        className="nx-files-header nx-release-toolbar"
-        style={{
-          padding: "10px 12px 8px",
-          borderBottom: "1px solid rgba(255,255,255,0.08)",
-          background: "rgba(0,0,0,0.12)",
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 12,
-            marginBottom: 8,
-          }}
-        >
-          <div>
-            <div style={{ fontSize: 16, fontWeight: 800 }}>
-              Files & Workspaces
+      <div className="nx-files-header nx-release-toolbar">
+        <div className="nx-files-titlebar">
+          <div className="nx-files-heading">
+            <div className="nx-files-kicker">Workspace file manager</div>
+            <div className="nx-files-title-row">
+              <HardDrive size={18} />
+              <h2>Files</h2>
             </div>
-            <div style={{ fontSize: 11, opacity: 0.55 }}>
-              {allItems.length} Items · {workspaces.length} Workspaces
-            </div>
+            <p>
+              {activeWs
+                ? `${scopeItemCount} workspace files in ${activeWs.name}`
+                : `${allItems.length} Nexus files across notes, code, tasks, reminders and canvas`}
+            </p>
           </div>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              flexWrap: "wrap",
-            }}
-          >
+
+          <div className="nx-files-header-actions">
             <InteractiveActionButton
               onClick={() => setNewWsOpen(true)}
+              className="nx-files-action nx-files-action--primary"
               motionId="files-create-workspace"
               areaHint={96}
-              radius={10}
-              style={{
-                border: `1px solid rgba(${rgb},0.3)`,
-                background: `rgba(${rgb},0.14)`,
-                color: t.accent,
-                borderRadius: 10,
-                padding: "7px 10px",
-                fontSize: 11,
-                fontWeight: 700,
-                cursor: "pointer",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-              }}
+              radius={8}
             >
-              <Plus size={13} /> Workspace
+              <Plus size={14} /> Workspace
             </InteractiveActionButton>
-            <div ref={headerMenuRef} style={{ position: "relative" }}>
+            <div ref={headerMenuRef} className="nx-files-menu-anchor">
               <InteractiveActionButton
                 onClick={() => setHeaderMenuOpen((prev) => !prev)}
+                className="nx-files-action"
                 motionId="files-workspace-flow-menu"
                 areaHint={92}
-                radius={10}
+                radius={8}
                 selected={headerMenuOpen}
-                style={{
-                  border: "1px solid rgba(255,255,255,0.14)",
-                  background: "rgba(255,255,255,0.05)",
-                  color: "inherit",
-                  borderRadius: 10,
-                  padding: "7px 9px",
-                  fontSize: 11,
-                  fontWeight: 700,
-                  cursor: "pointer",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 5,
-                }}
               >
-                <FolderOpen size={12} /> Workspace Flow{" "}
-                <MoreHorizontal size={12} />
+                <FolderOpen size={14} /> Workspace Flow <MoreHorizontal size={14} />
               </InteractiveActionButton>
-              {headerMenuOpen ? (
-                <div
-                  style={{
-                    position: "absolute",
-                    top: "calc(100% + 6px)",
-                    right: 0,
-                    zIndex: 60,
-                    minWidth: 210,
-                    borderRadius: 10,
-                    border: "1px solid rgba(255,255,255,0.12)",
-                    background: "rgba(17,20,31,0.96)",
-                    backdropFilter: "blur(12px)",
-                    padding: 6,
-                    boxShadow: "0 14px 38px rgba(0,0,0,0.35)",
-                  }}
-                >
-                  <InteractiveActionButton
-                    onClick={() => {
-                      void selectWorkspaceRoot();
-                      setHeaderMenuOpen(false);
-                    }}
-                    motionId="files-workspace-select-root"
-                    areaHint={76}
-                    radius={8}
-                    style={{
-                      width: "100%",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                      padding: "8px 10px",
-                      border: "none",
-                      borderRadius: 8,
-                      background: "transparent",
-                      color: "inherit",
-                      cursor: "pointer",
-                      fontSize: 12,
-                      fontWeight: 650,
-                    }}
-                  >
-                    <FolderOpen size={12} /> Workspace Ordner waehlen
-                  </InteractiveActionButton>
-                  <InteractiveActionButton
-                    onClick={() => {
-                      void importWorkspaceFromDisk();
-                      setHeaderMenuOpen(false);
-                    }}
-                    disabled={loadingWorkspace || syncing}
-                    motionId="files-workspace-import"
-                    areaHint={76}
-                    radius={8}
-                    style={{
-                      width: "100%",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                      padding: "8px 10px",
-                      border: "none",
-                      borderRadius: 8,
-                      background: "transparent",
-                      color: "inherit",
-                      cursor:
-                        loadingWorkspace || syncing ? "not-allowed" : "pointer",
-                      opacity: loadingWorkspace || syncing ? 0.5 : 1,
-                      fontSize: 12,
-                      fontWeight: 650,
-                    }}
-                  >
-                    <Upload size={12} /> Import workspace
-                  </InteractiveActionButton>
-                  <InteractiveActionButton
-                    onClick={() => {
-                      void exportWorkspaceToDisk();
-                      setHeaderMenuOpen(false);
-                    }}
-                    disabled={loadingWorkspace || syncing}
-                    motionId="files-workspace-export"
-                    areaHint={76}
-                    radius={8}
-                    style={{
-                      width: "100%",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                      padding: "8px 10px",
-                      border: "none",
-                      borderRadius: 8,
-                      background: "transparent",
-                      color: "inherit",
-                      cursor:
-                        loadingWorkspace || syncing ? "not-allowed" : "pointer",
-                      opacity: loadingWorkspace || syncing ? 0.5 : 1,
-                      fontSize: 12,
-                      fontWeight: 650,
-                    }}
-                  >
-                    <Download size={12} /> Export workspace
-                  </InteractiveActionButton>
-                </div>
-              ) : null}
             </div>
           </div>
         </div>
 
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            flexWrap: "wrap",
-          }}
-        >
-          <span
-            style={{
-              padding: "3px 8px",
-              borderRadius: 999,
-              border: "1px solid rgba(255,255,255,0.14)",
-              background: "rgba(255,255,255,0.06)",
-              fontSize: 10,
-            }}
-          >
-            Workspace:{" "}
-            {activeWs ? `${activeWs.icon} ${activeWs.name}` : "All Files"}
-          </span>
-          <span
-            style={{
-              padding: "3px 8px",
-              borderRadius: 999,
-              border: `1px solid rgba(${rgb},0.28)`,
-              background: `rgba(${rgb},0.12)`,
-              color: t.accent,
-              fontSize: 10,
-            }}
-          >
-            Root: {workspaceRoot || "not selected"}
-          </span>
+        <div className="nx-files-statusbar">
           <button
+            type="button"
+            className="nx-files-status-pill nx-files-status-pill--strong"
+            onClick={() => {
+              setTab(activeWs ? "workspaces" : "all");
+              setSmartView(activeWs ? "workspace" : "all");
+            }}
+          >
+            <Layers size={12} /> Scope: {workspaceLabel}
+          </button>
+          <button
+            type="button"
+            className="nx-files-status-pill"
+            onClick={() => void selectWorkspaceRoot()}
+            title={workspaceRoot || "Workspace folder waehlen"}
+          >
+            <HardDrive size={12} /> Root: {workspaceRoot || "not selected"}
+          </button>
+          <button
+            type="button"
+            className="nx-files-status-pill"
             onClick={() => setAutoSync(!autoSync)}
             aria-pressed={autoSync}
             title="Auto-Sync umschalten"
-            style={{
-              padding: "4px 8px",
-              borderRadius: 999,
-              border: `1px solid ${autoSync ? `rgba(${rgb},0.34)` : "rgba(255,255,255,0.14)"}`,
-              background: autoSync
-                ? `rgba(${rgb},0.12)`
-                : "rgba(255,255,255,0.04)",
-              color: autoSync ? t.accent : "inherit",
-              fontSize: 10,
-              fontWeight: 700,
-              cursor: "pointer",
-            }}
           >
-            Auto-Sync: {autoSync ? "On" : "Off"}
+            <RefreshCw size={12} /> Auto-Sync: {autoSync ? "On" : "Off"}
           </button>
-          {syncMsg ? (
-            <span style={{ color: t.accent, fontWeight: 700, fontSize: 11 }}>
-              {syncMsg}
-            </span>
-          ) : null}
+          <span className="nx-files-status-pill">
+            {workspaceRoot ? <CheckCircle2 size={12} /> : <CircleOff size={12} />}
+            {syncMsg || syncStateLabel}
+          </span>
         </div>
       </div>
 
-      <div
-        className="nx-files-body"
-        style={{ display: "flex", flex: 1, minHeight: 0, overflow: "hidden" }}
-      >
-        <div
-          className="nx-files-sidebar"
-          style={{
-            width: 270,
-            flexShrink: 0,
-            display: "flex",
-            flexDirection: "column",
-            borderRight: "1px solid rgba(255,255,255,0.07)",
-            background: "rgba(0,0,0,0.12)",
-            overflow: "hidden",
-          }}
-        >
-          <div
-            className="nx-files-filter-strip nx-release-strip"
-            style={{
-              padding: "14px 12px 10px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              flexShrink: 0,
-            }}
-          >
+      <div className="nx-files-body">
+        <aside className="nx-files-sidebar">
+          <div className="nx-files-sidebar-head">
             <div>
-              <div style={{ fontSize: 13, fontWeight: 800, marginBottom: 1 }}>
-                Workspaces
-              </div>
-              <div style={{ fontSize: 10, opacity: 0.4 }}>
-                {workspaces.length} workspace
-                {workspaces.length !== 1 ? "s" : ""}
+              <div className="nx-files-sidebar-title">Explorer</div>
+              <div className="nx-files-sidebar-meta">
+                {workspaces.length} workspace{workspaces.length !== 1 ? "s" : ""}
               </div>
             </div>
+            <InteractiveActionButton
+              onClick={() => setNewWsOpen(true)}
+              className="nx-files-icon-action"
+              motionId="files-sidebar-create-workspace"
+              aria-label="New workspace"
+              areaHint={42}
+              radius={8}
+            >
+              <Plus size={14} />
+            </InteractiveActionButton>
           </div>
 
-          <div style={{ flex: 1, overflowY: "auto", padding: "4px 10px 12px" }}>
-            <InteractiveActionButton
-              onClick={() => {
-                setActive(null);
-                setTab("all");
-                setSmartView("all");
-              }}
-              motionId="files-workspace-all-files"
-              selected={!activeWorkspaceId}
-              areaHint={120}
-              radius={10}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                width: "100%",
-                padding: "9px 10px",
-                borderRadius: 10,
-                marginBottom: 4,
-                background: !activeWorkspaceId
-                  ? `rgba(${rgb},0.12)`
-                  : "transparent",
-                border: !activeWorkspaceId
-                  ? `1px solid rgba(${rgb},0.2)`
-                  : "1px solid transparent",
-                cursor: "pointer",
-                transition: "all 0.12s",
-                color: "inherit",
-              }}
+          <div className="workspace-tree">
+            <button
+              type="button"
+              className={`workspace-tree-item ${!activeWorkspaceId ? "is-active" : ""}`}
+              onClick={showAllFiles}
             >
-              <div
-                style={{
-                  width: 34,
-                  height: 34,
-                  borderRadius: 9,
-                  background: "rgba(255,255,255,0.07)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 18,
-                }}
-              >
-                🗂️
-              </div>
-              <div style={{ flex: 1, textAlign: "left" }}>
-                <div
-                  style={{
-                    fontSize: 13,
-                    fontWeight: 700,
-                    color: !activeWorkspaceId ? t.accent : "inherit",
-                  }}
-                >
-                  All Files
-                </div>
-                <div style={{ fontSize: 10, opacity: 0.45 }}>
-                  {allItems.length} items
-                </div>
-              </div>
-            </InteractiveActionButton>
+              <span className="workspace-tree-icon">
+                <Layers size={15} />
+              </span>
+              <span className="workspace-tree-copy">
+                <span>All Files</span>
+                <small>{allItems.length} items</small>
+              </span>
+            </button>
 
-            <div
-              style={{
-                fontSize: 10,
-                fontWeight: 800,
-                opacity: 0.35,
-                textTransform: "uppercase",
-                letterSpacing: 1,
-                padding: "8px 4px 4px",
-              }}
-            >
-              My Workspaces
-            </div>
-
-            {workspaces.map((ws) => (
-              <div key={ws.id} style={{ marginBottom: 8 }}>
+            <div className="workspace-tree-section">Workspaces</div>
+            {workspaces.map((ws) => {
+              const active = activeWorkspaceId === ws.id;
+              return (
                 <div
+                  key={ws.id}
+                  className={`workspace-tree-item workspace-tree-item--workspace ${
+                    active ? "is-active" : ""
+                  }`}
+                  style={{ "--workspace-color": ws.color } as React.CSSProperties}
                   role="button"
                   tabIndex={0}
-                  onClick={() => {
-                    setActive(ws.id);
-                    setTab("workspaces");
-                    setSmartView("workspace");
-                  }}
+                  onClick={() => selectWorkspace(ws.id)}
                   onKeyDown={(event) => {
                     if (event.key === "Enter" || event.key === " ") {
                       event.preventDefault();
-                      setActive(ws.id);
-                      setTab("workspaces");
-                      setSmartView("workspace");
+                      selectWorkspace(ws.id);
                     }
                   }}
-                  style={{ width: "100%", color: "inherit", cursor: "pointer" }}
                 >
-                  <div
-                    style={{
-                      position: "relative",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 10,
-                      width: "100%",
-                      padding: "9px 10px",
-                      borderRadius: 10,
-                      background:
-                        activeWorkspaceId === ws.id
-                          ? `${ws.color}18`
-                          : "transparent",
-                      border:
-                        activeWorkspaceId === ws.id
-                          ? `1px solid ${ws.color}44`
-                          : "1px solid transparent",
+                  <span className="workspace-tree-icon workspace-tree-icon--emoji">
+                    {ws.icon}
+                  </span>
+                  <span className="workspace-tree-copy">
+                    <span>{ws.name}</span>
+                    <small>{wsItemCount(ws)} files</small>
+                  </span>
+                  <button
+                    type="button"
+                    className="workspace-tree-edit"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setEditWs(ws);
                     }}
+                    aria-label={`Edit ${ws.name}`}
                   >
-                    {activeWorkspaceId === ws.id ? (
-                      <div
-                        style={{
-                          position: "absolute",
-                          left: 0,
-                          top: "50%",
-                          transform: "translateY(-50%)",
-                          width: 3,
-                          height: "60%",
-                          borderRadius: 2,
-                          background: ws.color,
-                          boxShadow: `0 0 8px ${ws.color}`,
-                        }}
-                      />
-                    ) : null}
-                    <div
-                      style={{
-                        width: 34,
-                        height: 34,
-                        borderRadius: 9,
-                        background: `${ws.color}22`,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        fontSize: 18,
-                        border: `1px solid ${ws.color}33`,
-                      }}
-                    >
-                      {ws.icon}
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0, textAlign: "left" }}>
-                      <div
-                        style={{
-                          fontSize: 13,
-                          fontWeight: 700,
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                          color:
-                            activeWorkspaceId === ws.id ? ws.color : "inherit",
-                        }}
-                      >
-                        {ws.name}
-                      </div>
-                      <div style={{ fontSize: 10, opacity: 0.45 }}>
-                        {wsItemCount(ws)} items
-                      </div>
-                    </div>
-                    <InteractiveActionButton
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        setEditWs(ws);
-                      }}
-                      motionId={`files-workspace-edit-${ws.id}`}
-                      areaHint={44}
-                      radius={6}
-                      style={{
-                        border: "none",
-                        background: "none",
-                        color: "inherit",
-                        opacity: 0.45,
-                        cursor: "pointer",
-                        padding: "3px 6px",
-                        borderRadius: 6,
-                      }}
-                    >
-                      ✎
-                    </InteractiveActionButton>
-                  </div>
+                    <Pencil size={12} />
+                  </button>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
-        </div>
+        </aside>
 
-        <div
-          className="nx-files-main"
-          style={{
-            flex: 1,
-            display: "flex",
-            flexDirection: "column",
-            overflow: "hidden",
-            minWidth: 0,
-          }}
-        >
-          <div
-            className="nx-files-stats-strip nx-release-strip"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              padding: "10px 14px",
-              borderBottom: "1px solid rgba(255,255,255,0.07)",
-              flexShrink: 0,
-              background: "rgba(0,0,0,0.1)",
-            }}
-          >
-            {activeWs ? (
-              <div
+        <main className="nx-files-main">
+          <section className="nx-files-toolbar nx-release-strip">
+            <div className="nx-files-context">
+              <span
+                className="nx-files-context-icon"
                 style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  flex: 1,
+                  color: activeWs?.color || t.accent,
+                  background: activeWs ? `${activeWs.color}1f` : undefined,
                 }}
               >
-                <span style={{ fontSize: 20 }}>{activeWs.icon}</span>
-                <div>
-                  <div
-                    style={{
-                      fontSize: 14,
-                      fontWeight: 800,
-                      color: activeWs.color,
-                    }}
-                  >
-                    {activeWs.name}
-                  </div>
-                  {activeWs.description ? (
-                    <div style={{ fontSize: 11, opacity: 0.5 }}>
-                      {activeWs.description}
-                    </div>
-                  ) : null}
-                </div>
+                {activeWs ? activeWs.icon : <Layers size={16} />}
+              </span>
+              <div>
+                <strong>{workspaceLabel}</strong>
+                <span>
+                  {activeWs?.description ||
+                    "Workspace-scoped files stay first; all local Nexus data remains searchable."}
+                </span>
               </div>
-            ) : (
-              <div style={{ fontSize: 14, fontWeight: 800, flex: 1 }}>
-                All Files
-              </div>
-            )}
-
-            <div className="nx-files-search" style={{ position: "relative" }}>
-              <Search
-                size={12}
-                style={{
-                  position: "absolute",
-                  left: 9,
-                  top: "50%",
-                  transform: "translateY(-50%)",
-                  opacity: 0.4,
-                }}
-              />
-              <input
-                ref={searchInputRef}
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="Search..."
-                aria-label="Files durchsuchen"
-                style={{
-                  padding: "6px 10px 6px 28px",
-                  borderRadius: 9,
-                  background: "rgba(255,255,255,0.07)",
-                  border: "1px solid rgba(255,255,255,0.1)",
-                  outline: "none",
-                  fontSize: 12,
-                  color: "inherit",
-                  width: 220,
-                }}
-              />
             </div>
 
-            <div
-              className="nx-files-type-filter"
-              style={{
-                display: "flex",
-                background: "rgba(255,255,255,0.06)",
-                borderRadius: 8,
-                overflow: "hidden",
-              }}
-            >
-              {(
-                ["all", "note", "code", "task", "reminder", "canvas"] as const
-              ).map((filter) => (
+            <div className="nx-files-toolbar-controls">
+              <label className="nx-files-search">
+                <Search size={13} />
+                <input
+                  ref={searchInputRef}
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="Search files"
+                  aria-label="Files durchsuchen"
+                />
+              </label>
+
+              <select
+                className="nx-files-select"
+                value={folderFilter}
+                onChange={(event) => setFolderFilter(event.target.value)}
+                aria-label="Ordnerfilter"
+              >
+                <option value="all">All folders</option>
+                <option value="none">No folder</option>
+                {folderOptions.map((folder) => (
+                  <option key={folder.id} value={folder.id}>
+                    {folder.name}
+                  </option>
+                ))}
+              </select>
+
+              <div className="nx-files-view-switcher" aria-label="View mode">
+                <InteractiveActionButton
+                  onClick={() => setViewMode("list")}
+                  className="nx-files-toggle"
+                  motionId="files-view-mode-list"
+                  selected={viewMode === "list"}
+                  aria-label="List view"
+                  areaHint={42}
+                  radius={7}
+                >
+                  <List size={14} />
+                </InteractiveActionButton>
+                <InteractiveActionButton
+                  onClick={() => setViewMode("grid")}
+                  className="nx-files-toggle"
+                  motionId="files-view-mode-grid"
+                  selected={viewMode === "grid"}
+                  aria-label="Grid view"
+                  areaHint={42}
+                  radius={7}
+                >
+                  <Grid3x3 size={14} />
+                </InteractiveActionButton>
+              </div>
+            </div>
+          </section>
+
+          <section className="nx-files-filter-strip">
+            <div className="nx-files-chip-group">
+              <span className="nx-files-chip-label">
+                <SlidersHorizontal size={12} /> Type
+              </span>
+              {TYPE_FILTERS.map((filter) => (
                 <InteractiveActionButton
                   key={filter}
                   onClick={() => setTypeFilter(filter)}
+                  className="nx-files-filter-chip"
                   motionId={`files-type-filter-${filter}`}
                   selected={typeFilter === filter}
                   aria-label={`Filter ${filter}`}
                   areaHint={58}
-                  radius={8}
-                  style={{
-                    padding: "5px 9px",
-                    background:
-                      typeFilter === filter ? t.accent : "transparent",
-                    border: "none",
-                    cursor: "pointer",
-                    fontSize: 10,
-                    fontWeight: 700,
-                    color: typeFilter === filter ? "#fff" : "inherit",
-                    opacity: typeFilter === filter ? 1 : 0.5,
-                    transition: "all 0.12s",
-                    textTransform: "capitalize",
-                  }}
+                  radius={7}
                 >
-                  {filter}
+                  {filter === "all" ? "All" : TYPE_META[filter].label}
+                  {filter !== "all" ? (
+                    <span>{typeCounts[filter]}</span>
+                  ) : (
+                    <span>{workspaceScopedItems.length}</span>
+                  )}
                 </InteractiveActionButton>
               ))}
             </div>
 
-            <select
-              value={folderFilter}
-              onChange={(event) => setFolderFilter(event.target.value)}
-              aria-label="Ordnerfilter"
-              style={{
-                padding: "6px 8px",
-                borderRadius: 8,
-                background: "rgba(255,255,255,0.06)",
-                border: "1px solid rgba(255,255,255,0.12)",
-                outline: "none",
-                color: "inherit",
-                fontSize: 11,
-                minWidth: 128,
-              }}
-            >
-              <option value="all">All folders</option>
-              <option value="none">No folder</option>
-              {folderOptions.map((folder) => (
-                <option key={folder.id} value={folder.id}>
-                  {folder.name}
-                </option>
-              ))}
-            </select>
-
-            <div
-              className="nx-files-view-switcher"
-              style={{
-                display: "flex",
-                background: "rgba(255,255,255,0.06)",
-                borderRadius: 8,
-                overflow: "hidden",
-              }}
-            >
-              <InteractiveActionButton
-                onClick={() => setViewMode("grid")}
-                motionId="files-view-mode-grid"
-                selected={viewMode === "grid"}
-                aria-label="Grid view"
-                areaHint={50}
-                radius={8}
-                style={{
-                  padding: "5px 8px",
-                  background: viewMode === "grid" ? t.accent : "transparent",
-                  border: "none",
-                  cursor: "pointer",
-                  color: viewMode === "grid" ? "#fff" : "inherit",
-                  display: "flex",
-                  alignItems: "center",
-                  transition: "all 0.12s",
-                }}
-              >
-                <Grid3x3 size={13} />
-              </InteractiveActionButton>
-              <InteractiveActionButton
-                onClick={() => setViewMode("list")}
-                motionId="files-view-mode-list"
-                selected={viewMode === "list"}
-                aria-label="List view"
-                areaHint={50}
-                radius={8}
-                style={{
-                  padding: "5px 8px",
-                  background: viewMode === "list" ? t.accent : "transparent",
-                  border: "none",
-                  cursor: "pointer",
-                  color: viewMode === "list" ? "#fff" : "inherit",
-                  display: "flex",
-                  alignItems: "center",
-                  transition: "all 0.12s",
-                }}
-              >
-                <List size={13} />
-              </InteractiveActionButton>
-            </div>
-          </div>
-
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              padding: "8px 14px",
-              borderBottom: "1px solid rgba(255,255,255,0.06)",
-              background: "rgba(0,0,0,0.05)",
-              flexWrap: "wrap",
-            }}
-          >
-            {(
-              [
-                { id: "all", label: "All" },
-                { id: "workspace", label: "Workspace" },
-                { id: "recent", label: "Recent 7d" },
-                { id: "pinned", label: "Pinned" },
-                { id: "unassigned", label: `Unassigned (${unassignedCount})` },
-              ] as const
-            ).map((entry) => (
-              <InteractiveActionButton
-                key={entry.id}
-                onClick={() => {
-                  setSmartView(entry.id);
-                  setTab(entry.id === "workspace" ? "workspaces" : "all");
-                }}
-                motionId={`files-smart-view-${entry.id}`}
-                selected={smartView === entry.id}
-                areaHint={78}
-                radius={8}
-                style={{
-                  padding: "5px 9px",
-                  borderRadius: 8,
-                  border: `1px solid ${smartView === entry.id ? t.accent : "rgba(255,255,255,0.14)"}`,
-                  background:
-                    smartView === entry.id
-                      ? `rgba(${rgb},0.14)`
-                      : "rgba(255,255,255,0.06)",
-                  color: smartView === entry.id ? t.accent : "inherit",
-                  fontSize: 10,
-                  fontWeight: 700,
-                  cursor: "pointer",
-                }}
-              >
-                {entry.label}
-              </InteractiveActionButton>
-            ))}
-          </div>
-
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 16,
-              padding: "6px 16px",
-              borderBottom: "1px solid rgba(255,255,255,0.05)",
-              background: "rgba(0,0,0,0.05)",
-              flexShrink: 0,
-            }}
-          >
-            {[
-              { label: "Notes", val: notes.length, color: "#007AFF" },
-              { label: "Code", val: codes.length, color: "#BF5AF2" },
-              { label: "Tasks", val: tasks.length, color: "#FF9F0A" },
-              { label: "Reminders", val: reminders.length, color: "#FF453A" },
-              { label: "Canvas", val: canvases.length, color: "#30D158" },
-            ].map((entry) => (
-              <div
-                key={entry.label}
-                style={{
-                  fontSize: 10,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 5,
-                }}
-              >
-                <div
-                  style={{
-                    width: 6,
-                    height: 6,
-                    borderRadius: "50%",
-                    background: entry.color,
+            <div className="nx-files-chip-group">
+              {SMART_VIEWS.map((entry) => (
+                <InteractiveActionButton
+                  key={entry.id}
+                  onClick={() => {
+                    setSmartView(entry.id);
+                    setTab(entry.id === "workspace" ? "workspaces" : "all");
                   }}
-                />
-                <span style={{ opacity: 0.5 }}>{entry.label}</span>
-                <span style={{ fontWeight: 700, color: entry.color }}>
-                  {entry.val}
-                </span>
-              </div>
-            ))}
-            <div style={{ flex: 1 }} />
-            <span style={{ fontSize: 10, opacity: 0.4 }}>
-              {displayItems.length} item{displayItems.length !== 1 ? "s" : ""}
-            </span>
-          </div>
-
-          {/*<div
-            className="nx-view-quality-strip nx-files-quality-strip"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: 10,
-              padding: "8px 14px",
-              borderBottom: "1px solid rgba(255,255,255,0.06)",
-              background: "rgba(0,0,0,0.045)",
-              flexShrink: 0,
-              flexWrap: "wrap",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flexWrap: "wrap" }}>
-              <span className={`nx-view-quality-badge nx-view-quality-badge--${fileQuality.tone}`} style={{ fontSize: 10, fontWeight: 800 }}>
-                {fileQuality.score}% {fileQuality.label}
-              </span>
-              <span style={{ fontSize: 11, opacity: 0.68 }}>{fileQuality.summary}</span>
-            </div>
-            <div className="nx-view-quality-metrics" style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-              {fileQuality.metrics.slice(0, 3).map((metric) => (
-                <span key={metric.id} style={{ fontSize: 10, opacity: 0.68 }}>
-                  {metric.label}: <b>{metric.value}</b>
-                </span>
-              ))}
-              {(activeFilterCount > 0 || displayItems.length === 0) ? (
-                <button
-                  onClick={resetFileFilters}
-                  style={{ padding: "4px 8px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.14)", background: "rgba(255,255,255,0.05)", color: "inherit", cursor: "pointer", fontSize: 10, fontWeight: 750 }}
+                  className="nx-files-filter-chip"
+                  motionId={`files-smart-view-${entry.id}`}
+                  selected={smartView === entry.id}
+                  areaHint={78}
+                  radius={7}
                 >
-                  Reset view
+                  {entry.label}
+                  {entry.id === "unassigned" ? <span>{unassignedCount}</span> : null}
+                </InteractiveActionButton>
+              ))}
+              {activeFilterCount > 0 || displayItems.length === 0 ? (
+                <button
+                  type="button"
+                  className="nx-files-reset-button"
+                  onClick={resetFileFilters}
+                >
+                  Reset
                 </button>
               ) : null}
             </div>
-          </div>*/}
-          <div
-            className="nx-files-content-grid"
-            style={{ flex: 1, overflowY: "auto", padding: 12 }}
-          >
-            {displayItems.length === 0 ? (
-              <div
-                className="nx-release-empty"
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  height: "60%",
-                  gap: 12,
-                  opacity: 0.4,
-                }}
-              >
-                <Layers
-                  size={48}
-                  strokeWidth={1}
-                  style={{ color: t.accent, opacity: 0.4 }}
-                />
-                <div style={{ textAlign: "center" }}>
-                  <div
-                    style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}
-                  >
-                    {activeWs
-                      ? `No files in "${activeWs.name}"`
-                      : "No files yet"}
+          </section>
+
+          <section className="nx-files-quality-strip nx-view-quality-strip">
+            <span className={`nx-view-quality-badge nx-view-quality-badge--${fileQuality.tone}`}>
+              {fileQuality.score}% {fileQuality.label}
+            </span>
+            <span>{fileQuality.summary}</span>
+            <span className="nx-files-quality-metric">
+              Visible <strong>{displayItems.length}</strong>
+            </span>
+            <span className="nx-files-quality-metric">
+              Scope <strong>{workspaceScopedItems.length}</strong>
+            </span>
+            <span className="nx-files-quality-metric">
+              Stale <strong>{staleItemCount}</strong>
+            </span>
+          </section>
+
+          <div className="nx-files-workbench">
+            <section className="nx-files-content-grid">
+              {displayItems.length === 0 ? (
+                <div className="nx-files-empty">
+                  <Layers size={44} strokeWidth={1.5} />
+                  <div>
+                    <h3>
+                      {activeWs
+                        ? `No files in ${activeWs.name}`
+                        : "No files match this view"}
+                    </h3>
+                    <p>
+                      {activeWs
+                        ? "Assign files from any card menu or switch to All Files to pull more work into this workspace."
+                        : "Create or import Nexus work, then use Workspaces to keep project files together."}
+                    </p>
                   </div>
-                  <div style={{ fontSize: 12, opacity: 0.6 }}>
-                    {activeWs
-                      ? "Add files to this workspace via the menu on any file"
-                      : "Create notes, code files, tasks, reminders, or canvases to see them here"}
+                  <div className="nx-files-empty-actions">
+                    <button type="button" onClick={resetFileFilters}>
+                      Reset filters
+                    </button>
+                    <button type="button" onClick={() => setNewWsOpen(true)}>
+                      New workspace
+                    </button>
                   </div>
                 </div>
-              </div>
-            ) : viewMode === "grid" ? (
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fill, minmax(220px,1fr))",
-                  gap: 10,
-                }}
-              >
-                {displayItems.map((item) => (
-                  <FileCard
-                    key={item.id}
-                    item={item}
-                    viewMode="grid"
-                    onAssign={() => setAssignItem(item)}
-                    onOpen={openItem}
-                    wsColor={getItemWsColor(item)}
-                  />
-                ))}
-              </div>
-            ) : (
-              <div>
-                {displayItems.map((item) => (
-                  <FileCard
-                    key={item.id}
-                    item={item}
-                    viewMode="list"
-                    onAssign={() => setAssignItem(item)}
-                    onOpen={openItem}
-                    wsColor={getItemWsColor(item)}
-                  />
-                ))}
-              </div>
-            )}
+              ) : viewMode === "grid" ? (
+                <div className="nx-files-card-grid">
+                  {displayItems.map((item) => {
+                    const itemWorkspace = getItemPrimaryWorkspace(item);
+                    return (
+                      <FileCard
+                        key={item.id}
+                        item={item}
+                        viewMode="grid"
+                        selected={selectedItem?.id === item.id}
+                        onSelect={() => setSelectedItemId(item.id)}
+                        onAssign={() => setAssignItem(item)}
+                        onOpen={openItem}
+                        wsColor={itemWorkspace?.color}
+                        wsName={itemWorkspace?.name}
+                        folderName={
+                          item.folderId ? folderById.get(item.folderId)?.name : undefined
+                        }
+                      />
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="nx-files-list">
+                  {displayItems.map((item) => {
+                    const itemWorkspace = getItemPrimaryWorkspace(item);
+                    return (
+                      <FileCard
+                        key={item.id}
+                        item={item}
+                        viewMode="list"
+                        selected={selectedItem?.id === item.id}
+                        onSelect={() => setSelectedItemId(item.id)}
+                        onAssign={() => setAssignItem(item)}
+                        onOpen={openItem}
+                        wsColor={itemWorkspace?.color}
+                        wsName={itemWorkspace?.name}
+                        folderName={
+                          item.folderId ? folderById.get(item.folderId)?.name : undefined
+                        }
+                      />
+                    );
+                  })}
+                </div>
+              )}
+            </section>
+
+            <aside className="nx-files-detail-pane">
+              {selectedItem && selectedMeta ? (
+                <>
+                  <div className="nx-files-detail-head">
+                    <span
+                      className="nx-files-detail-icon"
+                      style={
+                        {
+                          "--files-type-color": selectedMeta.color,
+                        } as React.CSSProperties
+                      }
+                    >
+                      <DetailsIcon size={18} />
+                    </span>
+                    <div>
+                      <div className="nx-files-detail-label">Selected file</div>
+                      <h3>{selectedItem.title}</h3>
+                    </div>
+                  </div>
+
+                  <div className="nx-files-detail-actions">
+                    <button type="button" onClick={() => openItem(selectedItem)}>
+                      Open
+                    </button>
+                    <button type="button" onClick={() => setAssignItem(selectedItem)}>
+                      Add to workspace
+                    </button>
+                  </div>
+
+                  <dl className="nx-files-detail-list">
+                    <div>
+                      <dt>Type</dt>
+                      <dd>{selectedMeta.label}</dd>
+                    </div>
+                    <div>
+                      <dt>Updated</dt>
+                      <dd>
+                        {formatDateTime(selectedItem.updated)}
+                        <span>{formatRelativeTime(selectedItem.updated)}</span>
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Folder</dt>
+                      <dd>{selectedFolder?.name || "No folder"}</dd>
+                    </div>
+                    <div>
+                      <dt>Workspaces</dt>
+                      <dd>
+                        {selectedWorkspaces.length > 0
+                          ? selectedWorkspaces.map((workspace) => workspace.name).join(", ")
+                          : "Unassigned"}
+                      </dd>
+                    </div>
+                    {selectedItem.lang ? (
+                      <div>
+                        <dt>Language</dt>
+                        <dd>{selectedItem.lang}</dd>
+                      </div>
+                    ) : null}
+                    {selectedItem.status ? (
+                      <div>
+                        <dt>Status</dt>
+                        <dd>{selectedItem.status}</dd>
+                      </div>
+                    ) : null}
+                    {selectedItem.priority ? (
+                      <div>
+                        <dt>Priority</dt>
+                        <dd>{selectedItem.priority}</dd>
+                      </div>
+                    ) : null}
+                  </dl>
+
+                  <div className="nx-files-preview">
+                    <div className="nx-files-detail-label">Preview</div>
+                    <p>{selectedItem.preview || "No preview available."}</p>
+                  </div>
+                </>
+              ) : (
+                <div className="nx-files-detail-empty">
+                  <Info size={28} />
+                  <h3>No file selected</h3>
+                  <p>Select a file to inspect metadata and workspace actions.</p>
+                </div>
+              )}
+            </aside>
           </div>
-        </div>
+        </main>
       </div>
 
       <AnimatePresence>
@@ -1304,6 +1113,7 @@ export function FilesView({ setView }: FilesViewProps = {}) {
           />
         ) : null}
       </AnimatePresence>
+      {workspaceFlowMenu}
     </div>
   );
 }

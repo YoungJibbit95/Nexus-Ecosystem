@@ -14,7 +14,7 @@ const LOOPBACK_HOSTS = ['127.0.0.1', '::1']
 const MAIN_PORT = 5173
 
 const startArgs = ['--prefix', './Nexus Main', 'run', 'electron:dev']
-const fallbackArgs = ['--prefix', './Nexus Main', 'run', 'start']
+const fallbackArgs = ['--prefix', './Nexus Main', 'run', 'start', '--', '--dev']
 
 const occupied = await isPortReachable(MAIN_PORT, LOOPBACK_HOSTS)
 

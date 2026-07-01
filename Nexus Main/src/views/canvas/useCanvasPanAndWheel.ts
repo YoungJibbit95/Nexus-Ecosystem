@@ -1,6 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useCanvas, type Viewport } from "../../store/canvasStore";
 
+const MIN_ZOOM = 0.15;
+const MAX_ZOOM = 3;
+const ZOOM_PRECISION = 1000;
+const PAN_PRECISION = 2;
+
+const clampZoom = (zoom: number) => Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom));
+const stabilizeZoom = (zoom: number) =>
+  Math.round(clampZoom(zoom) * ZOOM_PRECISION) / ZOOM_PRECISION;
+const stabilizePan = (value: number) =>
+  Math.round(value * PAN_PRECISION) / PAN_PRECISION;
+
 export const useCanvasPanAndWheel = ({
   canvasRef,
   canvasSize,
@@ -32,6 +43,13 @@ export const useCanvasPanAndWheel = ({
   const wheelZoomPoint = useRef<{ x: number; y: number } | null>(null);
   const wheelGestureMode = useRef<"pan" | "zoom" | null>(null);
   const wheelGestureModeTimeout = useRef<number>(0);
+  const wheelPanningActive = useRef(false);
+
+  const setWheelPanningFlag = useCallback((next: boolean) => {
+    if (wheelPanningActive.current === next) return;
+    wheelPanningActive.current = next;
+    setWheelPanning(next);
+  }, []);
 
   const zoomAtPoint = useCallback(
     (clientX: number, clientY: number, scaleFactor: number) => {
@@ -41,12 +59,13 @@ export const useCanvasPanAndWheel = ({
       const rect = el.getBoundingClientRect();
       const localX = clientX - rect.left;
       const localY = clientY - rect.top;
-      const nextZoom = Math.max(0.15, Math.min(3, vp.zoom * scaleFactor));
+      const currentZoom = clampZoom(vp.zoom);
+      const nextZoom = stabilizeZoom(currentZoom * scaleFactor);
       if (Math.abs(nextZoom - vp.zoom) < 0.0001) return;
-      const worldX = (localX - vp.panX) / vp.zoom;
-      const worldY = (localY - vp.panY) / vp.zoom;
-      const nextPanX = localX - worldX * nextZoom;
-      const nextPanY = localY - worldY * nextZoom;
+      const worldX = (localX - vp.panX) / currentZoom;
+      const worldY = (localY - vp.panY) / currentZoom;
+      const nextPanX = stabilizePan(localX - worldX * nextZoom);
+      const nextPanY = stabilizePan(localY - worldY * nextZoom);
       useCanvas.setState({
         viewport: {
           ...vp,
@@ -106,7 +125,7 @@ export const useCanvasPanAndWheel = ({
     const flush = () => {
       raf = 0;
       if (!pending) return;
-      setPan(pending.x, pending.y);
+      setPan(stabilizePan(pending.x), stabilizePan(pending.y));
       pending = null;
     };
 
@@ -124,7 +143,7 @@ export const useCanvasPanAndWheel = ({
         raf = 0;
       }
       if (pending) {
-        setPan(pending.x, pending.y);
+        setPan(stabilizePan(pending.x), stabilizePan(pending.y));
         pending = null;
       }
       setPanning(false);
@@ -196,13 +215,13 @@ export const useCanvasPanAndWheel = ({
             zoomAtPoint(point.x, point.y, factor);
           });
         }
-        setWheelPanning(false);
+        setWheelPanningFlag(false);
         return;
       }
 
       wheelPanDelta.current.x -= dx;
       wheelPanDelta.current.y -= dy;
-      setWheelPanning(true);
+      setWheelPanningFlag(true);
       if (!wheelPanRaf.current) {
         wheelPanRaf.current = requestAnimationFrame(() => {
           wheelPanRaf.current = 0;
@@ -213,8 +232,8 @@ export const useCanvasPanAndWheel = ({
             useCanvas.setState({
               viewport: {
                 ...vp,
-                panX: vp.panX + delta.x,
-                panY: vp.panY + delta.y,
+                panX: stabilizePan(vp.panX + delta.x),
+                panY: stabilizePan(vp.panY + delta.y),
               },
             });
           }
@@ -225,10 +244,10 @@ export const useCanvasPanAndWheel = ({
         window.clearTimeout(wheelPanReleaseTimeout.current);
       }
       wheelPanReleaseTimeout.current = window.setTimeout(() => {
-        setWheelPanning(false);
+        setWheelPanningFlag(false);
       }, 110);
     },
-    [canvasSize.h, zoomAtPoint],
+    [canvasSize.h, setWheelPanningFlag, zoomAtPoint],
   );
 
   useEffect(
@@ -246,6 +265,7 @@ export const useCanvasPanAndWheel = ({
         window.clearTimeout(wheelGestureModeTimeout.current);
       }
       wheelGestureMode.current = null;
+      wheelPanningActive.current = false;
     },
     [],
   );

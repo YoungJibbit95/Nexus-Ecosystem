@@ -22,7 +22,7 @@ const EXTENSION_COLORS = {
   jsx: "#61dafb",
   ts: "#3b82f6",
   tsx: "#3b82f6",
-  py: "#22c55e",
+  py: "#38bdf8",
   java: "#f97316",
   html: "#f97316",
   css: "#3b82f6",

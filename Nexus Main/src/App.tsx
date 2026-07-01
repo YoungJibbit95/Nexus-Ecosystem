@@ -91,10 +91,22 @@ type MainAuthSession = {
 
 const resolveMainAuthUserTier = (
   requestedTier: string | undefined,
+  role?: string | undefined,
 ): NexusUserTier | undefined => {
   const raw = String(requestedTier || "").trim().toLowerCase();
-  if (!raw) return undefined;
-  if (raw === "free") return "free";
+  const normalizedRole = String(role || "").trim().toLowerCase();
+  if (!raw || raw === "free") {
+    if (
+      normalizedRole === "admin" ||
+      normalizedRole === "owner"
+    ) {
+      return "lifetime_pro";
+    }
+    if (normalizedRole === "developer") {
+      return "pro";
+    }
+    return raw === "free" ? "free" : undefined;
+  }
   if (raw === "lifetime_pro" || raw === "lifetime-pro" || raw === "pro_lifetime") {
     return "lifetime_pro";
   }
@@ -281,6 +293,7 @@ export default function App() {
   const [bootProgress, setBootProgress] = useState(0);
   const [bootStage, setBootStage] = useState("Nexus Runtime wird gestartet...");
   const [bootFailure, setBootFailure] = useState<string | null>(null);
+  const [bootNotice, setBootNotice] = useState<string | null>(null);
   const [bootAttempt, setBootAttempt] = useState(0);
   const [authSession, setAuthSession] = useState<MainAuthSession | null>(() =>
     readStoredMainAuthSession(),
@@ -411,7 +424,10 @@ export default function App() {
         authSession?.user.username ||
         (env.VITE_NEXUS_USERNAME as string | undefined),
       userTier:
-        resolveMainAuthUserTier(authSession?.user.requestedTier) ||
+        resolveMainAuthUserTier(
+          authSession?.user.requestedTier,
+          authSession?.user.role,
+        ) ||
         resolveMainAuthUserTier(env.VITE_NEXUS_USER_TIER as string | undefined),
     });
   }, [authSession]);
@@ -606,6 +622,7 @@ export default function App() {
       : MAIN_BOOT_VIEW_WARMUP_TIMEOUT_MS;
     setBootReady(false);
     setBootFailure(null);
+    setBootNotice(null);
     setBootProgress(8);
     setBootStage("Nexus Runtime wird gestartet...");
 
@@ -802,12 +819,29 @@ export default function App() {
           error instanceof Error && error.message
             ? error.message
             : "CONTROL_API_UNAVAILABLE";
-        console.error("Nexus Main bootstrap failed", error);
         if (!active) return;
-        if (isMainAuthBootstrapFailure(reason) && authSession) {
-          clearStoredMainAuthSession();
-          setAuthSession(null);
+        if (isMainAuthBootstrapFailure(reason)) {
+          if (authSession) {
+            clearStoredMainAuthSession();
+            setAuthSession(null);
+          }
+          console.warn(
+            "Nexus Main bootstrap auth failed; continuing with local safe startup views",
+            reason,
+          );
+          applyLiveBundle(null);
+          setViewGuardState({
+            checking: false,
+            blockedView: null,
+            requiredTier: null,
+            reason: null,
+          });
+          setBootNotice(reason);
+          setBootFailure(null);
+          setBootStage("Lokaler Safe-Start ohne API-Session");
+          return;
         }
+        console.error("Nexus Main bootstrap failed", error);
         setBootFailure(reason);
       } finally {
         if (active) {
@@ -1487,6 +1521,7 @@ export default function App() {
         motionRuntime={motionRuntime}
         showDiagnosticsButton={isMainDiagnosticsEnabled()}
         releaseId={liveReleaseId}
+        bootNotice={bootNotice}
         onRequestViewChange={(nextView) => {
           void requestViewChange(nextView);
         }}

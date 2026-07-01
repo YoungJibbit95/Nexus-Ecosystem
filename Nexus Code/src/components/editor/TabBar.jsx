@@ -1,13 +1,13 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { X, Plus, Search, TerminalSquare, Save, Circle } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 
 const langColors = {
   js: "#facc15",
   jsx: "#61dafb",
   ts: "#3b82f6",
   tsx: "#3b82f6",
-  py: "#22c55e",
+  py: "#38bdf8",
   java: "#f97316",
   html: "#f97316",
   css: "#3b82f6",
@@ -16,7 +16,7 @@ const langColors = {
   cpp: "#3b82f6",
   c: "#6b7280",
   rs: "#f97316",
-  go: "#22d3ee",
+  go: "#38bdf8",
   rb: "#ef4444",
   php: "#8b5cf6",
 };
@@ -44,14 +44,19 @@ function ActionButton({ title, onClick, active = false, children }) {
     <button
       type="button"
       title={title}
+      aria-label={title}
       aria-pressed={active}
       onClick={onClick}
-      className="grid h-8 w-8 shrink-0 place-items-center rounded-md border border-white/10 text-gray-400 transition-colors hover:border-white/20 hover:bg-white/10 hover:text-gray-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500/60 [&>svg]:h-4 [&>svg]:w-4"
+      className="nx-code-tab-action grid h-7 w-7 shrink-0 place-items-center border border-white/10 text-gray-400 transition-colors hover:border-white/20 hover:bg-white/10 hover:text-gray-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500/60 [&>svg]:h-3.5 [&>svg]:w-3.5"
       style={{
         background: active
-          ? "color-mix(in srgb, var(--primary) 14%, transparent)"
-          : "rgba(255,255,255,0.02)",
-        color: active ? "var(--primary)" : undefined,
+          ? "linear-gradient(135deg, rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.14), rgba(var(--nexus-accent-2-rgb, 56, 189, 248), 0.04))"
+          : "rgba(0,0,0,0.14)",
+        color: active ? "var(--nexus-primary, #7c8cff)" : undefined,
+        borderRadius: "var(--nexus-radius-md, 12px)",
+        boxShadow: active
+          ? "0 0 14px rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.08), inset 0 1px 0 rgba(255,255,255,0.04)"
+          : "inset 0 1px 0 rgba(255,255,255,0.025)",
       }}
     >
       {children}
@@ -76,6 +81,7 @@ export default function TabBar({
   const [newFileMenuOpen, setNewFileMenuOpen] = useState(false);
   const [customFileName, setCustomFileName] = useState("");
   const menuRef = useRef(null);
+  const reduceMotion = useReducedMotion();
   const safeTabs = useMemo(
     () => (Array.isArray(tabs) ? tabs.filter((tab) => tab && tab.name) : []),
     [tabs],
@@ -107,13 +113,14 @@ export default function TabBar({
     <div
       className="nx-code-tabbar flex h-full min-w-0 shrink-0 items-stretch border-b border-white/5"
       style={{
-        background: "rgba(0,0,0,0.12)",
+        background:
+          "linear-gradient(180deg, rgba(255,255,255,0.018), rgba(255,255,255,0.004)), var(--nexus-editor-surface)",
         borderBottom: "1px solid var(--nexus-border)",
-        minHeight: "42px",
+        minHeight: "40px",
       }}
     >
       <div
-        className="nx-code-tabbar-actions flex h-full shrink-0 items-center gap-1.5 border-r border-white/5 px-2"
+        className="nx-code-tabbar-actions flex h-full shrink-0 items-center gap-1 border-r border-white/5 px-2"
         role="toolbar"
         aria-label="Editor actions"
       >
@@ -123,17 +130,18 @@ export default function TabBar({
             onClick={() => setNewFileMenuOpen((prev) => !prev)}
             active={newFileMenuOpen}
           >
-            <Plus size={16} />
+            <Plus size={14} />
           </ActionButton>
 
           <AnimatePresence>
             {newFileMenuOpen && (
               <motion.div
-                initial={{ opacity: 0, y: 8, scale: 0.98 }}
+                initial={reduceMotion ? false : { opacity: 0, y: 8, scale: 0.98 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 8, scale: 0.98 }}
-                transition={{ duration: 0.16 }}
-                className="absolute left-0 top-full z-50 mt-2 w-[min(20rem,calc(100vw-1rem))] rounded-lg border border-white/10 bg-black/90 p-2 shadow-2xl backdrop-blur-xl"
+                exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 8, scale: 0.98 }}
+                transition={{ duration: reduceMotion ? 0 : 0.18, ease: [0.22, 1, 0.36, 1] }}
+                className="nx-code-menu-dropdown nx-code-new-file-menu absolute left-0 top-full z-50 mt-2 w-[min(20rem,calc(100vw-1rem))] border border-white/10 p-2"
+                role="menu"
               >
                 <div className="px-2 pb-2 text-[10px] font-semibold uppercase tracking-wide text-gray-500">
                   Datei-Typ
@@ -147,11 +155,19 @@ export default function TabBar({
                         onCreateFile?.(item.id, "language");
                         setNewFileMenuOpen(false);
                       }}
-                      className="rounded-md border border-white/5 px-2.5 py-1.5 text-left text-xs transition-colors hover:border-white/15 hover:bg-white/10"
+                      className="nx-code-new-file-option min-w-0 border border-white/5 px-2.5 py-1.5 text-left text-xs transition-colors hover:border-white/15 hover:bg-white/10"
                       style={{ color: "var(--nexus-text)" }}
+                      role="menuitem"
                     >
-                      <span className="font-semibold">{item.label}</span>
-                      <span className="ml-1 text-[10px] text-gray-500">.{item.ext}</span>
+                      <span
+                        className="inline-block max-w-full font-semibold leading-tight"
+                        style={{ overflowWrap: "normal", wordBreak: "normal" }}
+                      >
+                        {item.label}
+                      </span>
+                      <span className="ml-1 inline-block text-[10px] text-gray-500">
+                        .{item.ext}
+                      </span>
                     </button>
                   ))}
                 </div>
@@ -168,13 +184,13 @@ export default function TabBar({
                         if (e.key === "Enter") submitCustomFile();
                       }}
                       placeholder="api.contract.nxs"
-                      className="h-8 min-w-0 flex-1 rounded-md border border-white/10 bg-black/40 px-2 text-xs outline-none focus:border-purple-500/50"
+                      className="h-8 min-w-0 flex-1 rounded-xl border border-white/10 bg-black/40 px-2 text-xs outline-none focus:border-purple-500/50"
                       style={{ color: "var(--nexus-text)" }}
                     />
                     <button
                       type="button"
                       onClick={submitCustomFile}
-                      className="h-8 shrink-0 rounded-md border border-white/15 bg-white/10 px-2.5 text-xs font-semibold hover:bg-white/20"
+                      className="nx-code-new-file-create min-h-8 min-w-[5.6rem] shrink-0 border border-white/15 bg-white/10 px-2.5 text-xs font-semibold hover:bg-white/20"
                       style={{ color: "var(--nexus-text)" }}
                     >
                       Erstellen
@@ -190,7 +206,7 @@ export default function TabBar({
           title="Befehlspalette"
           onClick={() => onOpenCommandPalette?.()}
         >
-          <Search size={16} />
+          <Search size={14} />
         </ActionButton>
 
         <ActionButton
@@ -198,11 +214,11 @@ export default function TabBar({
           onClick={() => onToggleTerminal?.()}
           active={bottomPanelOpen && bottomTab === "terminal"}
         >
-          <TerminalSquare size={16} />
+          <TerminalSquare size={14} />
         </ActionButton>
 
         <ActionButton title="Alle speichern" onClick={() => onSaveAll?.()}>
-          <Save size={16} />
+          <Save size={14} />
         </ActionButton>
       </div>
 
@@ -226,22 +242,27 @@ export default function TabBar({
                   key={tab.id || tab.name}
                   type="button"
                   onClick={() => onTabSelect?.(tab.id)}
-                  className="nx-code-tab group relative flex h-full min-w-[9rem] max-w-[15rem] shrink-0 items-center gap-2 border-r border-white/5 px-3 text-left transition-colors hover:bg-white/[0.04]"
+                  title={tab.name}
+                  role="tab"
+                  aria-selected={isActive}
+                  className="nx-code-tab group relative flex h-full min-w-[8.5rem] max-w-[15rem] shrink-0 items-center gap-2 border-r border-white/5 px-3 text-left transition-colors hover:bg-white/[0.04]"
                   style={{
-                    background: isActive ? "rgba(255,255,255,0.055)" : "transparent",
+                    background: isActive
+                      ? "linear-gradient(180deg, rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.09), rgba(var(--nexus-accent-2-rgb, 56, 189, 248), 0.025), rgba(255,255,255,0.012))"
+                      : "transparent",
                     borderBottom: isActive
                       ? `2px solid ${color}`
                       : "2px solid transparent",
                   }}
                 >
                   <span
-                    className="grid h-5 w-10 shrink-0 place-items-center rounded px-1 text-[10px] font-bold leading-none"
+                    className="nx-code-tab-ext grid h-5 w-9 shrink-0 place-items-center rounded px-1 text-[10px] font-bold leading-none"
                     style={{ background: color + "22", color }}
                   >
                     {ext.toUpperCase() || "TXT"}
                   </span>
                   <span
-                    className="min-w-0 flex-1 truncate text-xs"
+                    className="nx-code-tab-label min-w-0 flex-1 truncate text-xs"
                     style={{
                       color: isActive ? "var(--nexus-text)" : "var(--nexus-muted)",
                     }}
@@ -251,7 +272,11 @@ export default function TabBar({
                   {tab.modified ? (
                     <span
                       className="h-1.5 w-1.5 shrink-0 rounded-full"
-                      style={{ background: "var(--primary)", boxShadow: "0 0 6px var(--primary)" }}
+                      style={{
+                        background: "var(--nexus-primary, #7c8cff)",
+                        boxShadow:
+                          "0 0 5px rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.32)",
+                      }}
                     />
                   ) : null}
                   <span
@@ -261,7 +286,7 @@ export default function TabBar({
                     }}
                     role="button"
                     tabIndex={-1}
-                    className={`flex h-5 w-5 shrink-0 items-center justify-center rounded transition-colors hover:bg-white/10 ${
+                    className={`nx-code-tab-close flex h-5 w-5 shrink-0 items-center justify-center rounded transition-colors hover:bg-white/10 ${
                       isActive ? "opacity-80" : "opacity-0 group-hover:opacity-80"
                     }`}
                     title="Tab schliessen"
