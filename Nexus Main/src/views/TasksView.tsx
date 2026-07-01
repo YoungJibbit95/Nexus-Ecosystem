@@ -524,7 +524,7 @@ function TaskModal({
         onClick={(event) => event.stopPropagation()}
         style={{ width:520, maxHeight:'85vh', display:'flex', flexDirection:'column' }}
       >
-        <Glass glow style={{ padding:0, display:'flex', flexDirection:'column', maxHeight:'85vh' }}>
+        <Glass className="nx-task-modal-sheet" glow style={{ padding:0, display:'flex', flexDirection:'column', maxHeight:'85vh', color:t.mode==='light'?'rgba(15,23,42,0.92)':undefined }}>
           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'16px 20px 12px', borderBottom:'1px solid rgba(255,255,255,0.08)', flexShrink:0 }}>
             <div style={{ fontSize:15, fontWeight:800 }}>{task ? 'Edit Task' : 'New Task'}</div>
             <button onClick={onClose} style={{ background:'none', border:'none', cursor:'pointer', opacity:0.5, color:'inherit', padding:4, borderRadius:6 }}>

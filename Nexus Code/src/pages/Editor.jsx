@@ -3,8 +3,14 @@ import {
   AlertCircle,
   AlertTriangle,
   CircleDot,
+  EyeOff,
   FileText,
   Folder,
+  GripVertical,
+  PanelBottom,
+  PanelLeft,
+  PanelRight,
+  RefreshCcw,
   TerminalSquare,
   XCircle,
 } from "lucide-react";
@@ -19,6 +25,7 @@ import GitPanel from "../components/editor/GitPanel";
 import DebugPanel from "../components/editor/DebugPanel";
 import ExtensionsPanel from "../components/editor/ExtensionsPanel";
 import AccountPanel from "../components/editor/AccountPanel";
+import GitHubWorkbenchPanel from "../components/editor/github/GitHubWorkbenchPanel.jsx";
 import CommandPalette from "../components/editor/CommandPalette";
 import SpotlightSearch from "../components/editor/SpotlightSearch";
 import ProblemsPanel from "../components/editor/ProblemsPanel";
@@ -42,6 +49,7 @@ import { createFileNodesFromEntries } from "./editor/fileTreeModel";
 import {
   getBottomPanelClassName,
   getMainEditorClassName,
+  PANEL_BOUNDS,
   getPanelMeta,
   getRailClassName,
   getShellModeLabel,
@@ -49,36 +57,30 @@ import {
   getSidePanelStyle,
 } from "./editor/editorShellLayout";
 import {
-<<<<<<< HEAD
   applyWorkbenchLayoutPreset,
   closeWorkbenchBottomDock,
   closeWorkbenchSideDock,
   cycleWorkbenchDockSize,
   getBottomPanelSizeOptions,
   getBottomPanelStyle,
+  getLayoutDropPreview,
   getSidePanelSizeOptions,
+  getWorkbenchZonePanelIds,
   getWorkbenchLayoutPresetOptions,
   getWorkbenchSlots,
   loadWorkbenchLayoutFromStorage,
   normalizeWorkbenchLayout,
   openWorkbenchDockPanel,
+  resetWorkbenchLayoutStorage,
   saveWorkbenchLayoutToStorage,
   setWorkbenchDockSize,
   toggleWorkbenchDockPanel,
+  WORKBENCH_SNAP_ZONES,
 } from "./editor/workbenchDockModel";
-=======
-  WORKBENCH_PANEL_PLACEMENTS,
-  applyWorkbenchLayoutPreset,
-  getNextBottomPanelSize,
-  getNextSidePanelSize,
-  getSidePanelSizeOptions,
-  getWorkbenchPanelPlacement,
-  getWorkbenchSlots,
-  loadWorkbenchLayoutFromStorage,
-  normalizeWorkbenchLayout,
-  saveWorkbenchLayoutToStorage,
-} from "./editor/workbenchLayoutModel";
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
+import {
+  createExtensionCommandPaletteEntries,
+  loadExtensionRegistryState,
+} from "./editor/extensionSystem";
 import {
   beginPerfMetric,
   endPerfMetric,
@@ -103,15 +105,60 @@ const WORKSPACE_AUTOSAVE_MS = 5_200;
 const LOCAL_AUTOSAVE_MS = 6_200;
 const CODE_COMPACT_VIEWPORT_WIDTH = 980;
 const SIDE_PANEL_SIZE_OPTIONS = getSidePanelSizeOptions();
-<<<<<<< HEAD
 const BOTTOM_PANEL_SIZE_OPTIONS = getBottomPanelSizeOptions();
 const WORKBENCH_PRESET_OPTIONS = getWorkbenchLayoutPresetOptions();
-=======
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
+const WORKBENCH_PANEL_DRAG_MIME = "application/x-nexus-code-workbench-panel";
+const DOCK_ZONE_OPTIONS = Object.freeze([
+  {
+    zone: WORKBENCH_SNAP_ZONES.left,
+    label: "Links",
+    shortLabel: "L",
+    Icon: PanelLeft,
+    dropClassName: "left-3 top-14 bottom-20 w-[min(12rem,28vw)]",
+  },
+  {
+    zone: WORKBENCH_SNAP_ZONES.right,
+    label: "Rechts",
+    shortLabel: "R",
+    Icon: PanelRight,
+    dropClassName: "right-3 top-14 bottom-20 w-[min(12rem,28vw)]",
+  },
+  {
+    zone: WORKBENCH_SNAP_ZONES.bottom,
+    label: "Unten",
+    shortLabel: "B",
+    Icon: PanelBottom,
+    dropClassName: "left-4 right-4 bottom-4 h-[4.75rem]",
+  },
+  {
+    zone: WORKBENCH_SNAP_ZONES.hidden,
+    label: "Hidden",
+    shortLabel: "H",
+    Icon: EyeOff,
+    dropClassName: "left-1/2 top-3 w-60 max-w-[90vw] -translate-x-1/2",
+  },
+]);
 const loadSettingsPanel = () => import("../components/editor/SettingsPanel");
 const loadCodeEditor = () => import("../components/editor/CodeEditor");
 const SettingsPanel = React.lazy(() => loadSettingsPanel());
 const CodeEditor = React.lazy(() => loadCodeEditor());
+
+function getNextOptionId(options, currentId) {
+  if (!options.length) return currentId;
+  const currentIndex = options.findIndex((option) => option.id === currentId);
+  const nextIndex = currentIndex === -1 ? 0 : (currentIndex + 1) % options.length;
+  return options[nextIndex]?.id || currentId;
+}
+
+function getWorkbenchDragPanelId(event, fallbackPanelId = null) {
+  const transfer = event?.dataTransfer;
+  if (!transfer) return fallbackPanelId;
+  return (
+    transfer.getData(WORKBENCH_PANEL_DRAG_MIME) ||
+    transfer.getData("text/plain") ||
+    fallbackPanelId
+  );
+}
 
 function getIsCompactCodeViewport() {
   if (typeof window === "undefined") return false;
@@ -241,10 +288,10 @@ function StatusItem({
   );
 }
 
-function SidePanelSizeControl({ value, onChange }) {
+function SidePanelSizeControl({ value, onChange, className = "" }) {
   return (
     <div
-      className="grid h-7 w-[5.25rem] shrink-0 grid-cols-3 overflow-hidden rounded-md border border-white/10 bg-white/[0.03]"
+      className={`grid h-7 w-[5.25rem] shrink-0 grid-cols-3 overflow-hidden rounded-md border border-white/10 bg-white/[0.03] ${className}`}
       role="group"
       aria-label="Side panel width"
     >
@@ -271,12 +318,213 @@ function SidePanelSizeControl({ value, onChange }) {
   );
 }
 
-<<<<<<< HEAD
+function DockDragHandle({
+  panelId,
+  label,
+  onDragStart,
+  onDragEnd,
+  className = "",
+}) {
+  if (!panelId) return null;
+
+  return (
+    <button
+      type="button"
+      draggable
+      onDragStart={(event) => onDragStart?.(event, panelId)}
+      onDragEnd={onDragEnd}
+      className={`flex h-7 w-7 shrink-0 cursor-grab items-center justify-center rounded-md border border-white/10 text-[var(--nexus-muted)] transition-colors hover:border-white/20 hover:bg-white/10 hover:text-gray-200 active:cursor-grabbing ${className}`}
+      title={`${label || getPanelMeta(panelId).title} ziehen`}
+      aria-label={`${label || getPanelMeta(panelId).title} ziehen`}
+    >
+      <GripVertical size={13} />
+    </button>
+  );
+}
+
+function DockZoneButtonGroup({
+  panelId,
+  activeZone,
+  onDockPanel,
+  className = "",
+}) {
+  if (!panelId) return null;
+  const panelTitle = getPanelMeta(panelId).title;
+
+  return (
+    <div
+      className={`grid h-7 w-[7rem] shrink-0 grid-cols-4 overflow-hidden rounded-md border border-white/10 bg-white/[0.03] ${className}`}
+      role="group"
+      aria-label={`${panelTitle} Dock-Zone`}
+    >
+      {DOCK_ZONE_OPTIONS.map(({ zone, label, Icon }) => {
+        const isActive = activeZone === zone;
+        return (
+          <button
+            key={zone}
+            type="button"
+            onClick={() => onDockPanel?.(panelId, zone)}
+            aria-pressed={isActive}
+            title={`${panelTitle} nach ${label}`}
+            className={`flex min-w-0 items-center justify-center text-[10px] font-bold transition ${
+              isActive
+                ? "bg-white/12 text-white"
+                : "text-[var(--nexus-muted)] hover:bg-white/[0.07] hover:text-gray-200"
+            }`}
+          >
+            <Icon size={13} />
+            <span className="sr-only">{label}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function getDockZonePanelSummary(panelIds) {
+  if (!panelIds?.length) return "Leer";
+  const visiblePanelNames = panelIds
+    .slice(0, 3)
+    .map((panelId) => getPanelMeta(panelId).title);
+  const remainingCount = panelIds.length - visiblePanelNames.length;
+  return remainingCount > 0
+    ? `${visiblePanelNames.join(" / ")} +${remainingCount}`
+    : visiblePanelNames.join(" / ");
+}
+
+function CompactBottomDockBar({
+  activePanelId,
+  activeZone,
+  size,
+  onSizeChange,
+  onDockPanel,
+  onResetLayout,
+  onClose,
+  onPanelDragStart,
+  onPanelDragEnd,
+}) {
+  if (!activePanelId) return null;
+  const meta = getPanelMeta(activePanelId);
+  const nextSize = getNextOptionId(BOTTOM_PANEL_SIZE_OPTIONS, size);
+
+  return (
+    <div
+      className="nx-code-bottom-dock-bar flex h-9 shrink-0 items-center gap-2 overflow-x-auto border-b border-white/5 px-2"
+      style={{ background: "rgba(0,0,0,0.14)" }}
+    >
+      <DockDragHandle
+        panelId={activePanelId}
+        label={meta.title}
+        onDragStart={onPanelDragStart}
+        onDragEnd={onPanelDragEnd}
+      />
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-[11px] font-semibold uppercase text-[var(--nexus-text)]">
+          {meta.title}
+        </div>
+      </div>
+      <DockZoneButtonGroup
+        panelId={activePanelId}
+        activeZone={activeZone}
+        onDockPanel={onDockPanel}
+      />
+      <button
+        type="button"
+        onClick={() => onSizeChange?.(nextSize)}
+        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-white/10 text-[var(--nexus-muted)] transition-colors hover:border-white/20 hover:bg-white/10 hover:text-gray-200"
+        title="Bottom-Dock Groesse wechseln"
+      >
+        <PanelBottom size={13} />
+      </button>
+      <button
+        type="button"
+        onClick={onResetLayout}
+        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-white/10 text-[var(--nexus-muted)] transition-colors hover:border-white/20 hover:bg-white/10 hover:text-gray-200"
+        title="Workbench Layout zuruecksetzen"
+      >
+        <RefreshCcw size={13} />
+      </button>
+      <button
+        type="button"
+        onClick={onClose}
+        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-white/10 text-gray-500 transition-colors hover:border-white/20 hover:bg-white/10 hover:text-gray-200"
+        title="Bottom Dock schliessen"
+      >
+        <XCircle size={13} />
+      </button>
+    </div>
+  );
+}
+
+function WorkbenchDockDropOverlay({
+  panelId,
+  preview,
+  zonePanelIds,
+  onZoneDragOver,
+  onZoneDrop,
+}) {
+  if (!panelId) return null;
+  const panelTitle = getPanelMeta(panelId).title;
+  const activeZone = preview?.targetZone || null;
+
+  return (
+    <div className="pointer-events-none absolute inset-0 z-50">
+      <div className="absolute inset-0 bg-black/[0.08]" />
+      <div className="pointer-events-none absolute left-1/2 top-1/2 flex max-w-[min(18rem,80vw)] -translate-x-1/2 -translate-y-1/2 items-center gap-2 rounded-md border border-white/10 bg-black/45 px-3 py-2 text-xs font-semibold text-white shadow-2xl backdrop-blur-md">
+        <GripVertical size={14} className="text-[var(--nexus-muted)]" />
+        <span className="truncate">{panelTitle}</span>
+      </div>
+      {DOCK_ZONE_OPTIONS.map((option) => {
+        const isActive = activeZone === option.zone;
+        const panelSummary = getDockZonePanelSummary(zonePanelIds[option.zone]);
+        const Icon = option.Icon;
+        return (
+          <div
+            key={option.zone}
+            role="button"
+            tabIndex={-1}
+            data-workbench-drop-zone={option.zone}
+            onDragEnter={(event) => onZoneDragOver(event, option.zone)}
+            onDragOver={(event) => onZoneDragOver(event, option.zone)}
+            onDrop={(event) => onZoneDrop(event, option.zone)}
+            className={`pointer-events-auto absolute flex min-h-16 flex-col justify-center gap-1 rounded-lg border px-3 py-2 shadow-2xl backdrop-blur-md transition-colors ${option.dropClassName} ${
+              isActive
+                ? "border-white/25 bg-white/[0.13] text-white ring-1 ring-white/25"
+                : "border-white/10 bg-black/35 text-[var(--nexus-muted)]"
+            }`}
+          >
+            <div className="flex min-w-0 items-center gap-2">
+              <Icon size={14} className="shrink-0" />
+              <span className="truncate text-[11px] font-bold uppercase">
+                {option.label}
+              </span>
+              {isActive ? (
+                <span className="ml-auto shrink-0 rounded border border-white/10 bg-white/[0.08] px-1.5 py-0.5 text-[9px] font-bold uppercase text-white">
+                  {option.shortLabel}
+                </span>
+              ) : null}
+            </div>
+            <div className="truncate text-[10px] leading-tight opacity-80">
+              {panelSummary}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function BottomDockControls({
   size,
   presetId,
+  activePanelId,
+  activeZone,
   onSizeChange,
   onPresetChange,
+  onDockPanel,
+  onPanelDragStart,
+  onPanelDragEnd,
+  onResetLayout,
   onClose,
   compact = false,
 }) {
@@ -336,33 +584,65 @@ function BottomDockControls({
       </div>
       <button
         type="button"
+        onClick={onResetLayout}
+        className="flex h-7 min-w-[4.2rem] shrink-0 items-center justify-center rounded-md border border-white/10 px-2 text-[10px] font-bold text-[var(--nexus-muted)] transition-colors hover:border-white/20 hover:bg-white/10 hover:text-gray-200"
+        title="Workbench Layout zuruecksetzen"
+      >
+        Reset
+      </button>
+      <button
+        type="button"
         onClick={onClose}
         className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-white/10 text-gray-500 transition-colors hover:border-white/20 hover:bg-white/10 hover:text-gray-200"
         title="Bottom Dock schliessen"
       >
         <XCircle size={13} />
       </button>
+      {activePanelId ? (
+        <>
+          <DockDragHandle
+            panelId={activePanelId}
+            onDragStart={onPanelDragStart}
+            onDragEnd={onPanelDragEnd}
+          />
+          <DockZoneButtonGroup
+            panelId={activePanelId}
+            activeZone={activeZone}
+            onDockPanel={onDockPanel}
+          />
+        </>
+      ) : null}
     </div>
   );
 }
 
-=======
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
 function SidePanelFrame({
   panelId,
   onClose,
   children,
   sidePanelSize,
   onSidePanelSizeChange,
+  onDockPanel,
+  onPanelDragStart,
+  onPanelDragEnd,
+  snapZone,
+  compact = false,
 }) {
   const meta = getPanelMeta(panelId);
+  const nextSidePanelSize = getNextOptionId(SIDE_PANEL_SIZE_OPTIONS, sidePanelSize);
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
       <div
-        className="flex h-11 shrink-0 items-center gap-3 border-b border-white/5 px-3"
+        className="flex h-11 shrink-0 items-center gap-2 overflow-x-auto border-b border-white/5 px-2 sm:px-3"
         style={{ background: "rgba(0,0,0,0.14)" }}
       >
+        <DockDragHandle
+          panelId={panelId}
+          label={meta.title}
+          onDragStart={onPanelDragStart}
+          onDragEnd={onPanelDragEnd}
+        />
         <div className="min-w-0 flex-1">
           <div className="truncate text-[11px] font-semibold uppercase text-[var(--nexus-text)]">
             {meta.title}
@@ -374,6 +654,22 @@ function SidePanelFrame({
         <SidePanelSizeControl
           value={sidePanelSize}
           onChange={onSidePanelSizeChange}
+          className={compact ? "hidden sm:grid" : ""}
+        />
+        {compact ? (
+          <button
+            type="button"
+            onClick={() => onSidePanelSizeChange?.(nextSidePanelSize)}
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-white/10 text-[var(--nexus-muted)] transition-colors hover:border-white/20 hover:bg-white/10 hover:text-gray-200 sm:hidden"
+            title="Panelbreite wechseln"
+          >
+            <PanelLeft size={13} />
+          </button>
+        ) : null}
+        <DockZoneButtonGroup
+          panelId={panelId}
+          activeZone={snapZone}
+          onDockPanel={onDockPanel}
         />
         <button
           type="button"
@@ -492,6 +788,10 @@ export default function Editor({
   );
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [spotlightOpen, setSpotlightOpen] = useState(false);
+  const [extensionCommands, setExtensionCommands] = useState(() =>
+    createExtensionCommandPaletteEntries(loadExtensionRegistryState().records),
+  );
+  const [extensionCommandStatus, setExtensionCommandStatus] = useState(null);
   const lastShiftTime = useRef(0);
   const [terminalOpen, setTerminalOpen] = useState(false);
   const [bottomTab, setBottomTab] = useState("terminal"); // "terminal" | "problems"
@@ -518,6 +818,9 @@ export default function Editor({
   const [workbenchLayout, setWorkbenchLayout] = useState(
     loadWorkbenchLayoutFromStorage,
   );
+  const [dockDragState, setDockDragState] = useState(null);
+  const [dockDropPreview, setDockDropPreview] = useState(null);
+  const dockDragPanelIdRef = useRef(null);
   const [workspacePath, setWorkspacePath] = useState(null);
   const [workspaceLoading, setWorkspaceLoading] = useState(false);
   const [workspaceError, setWorkspaceError] = useState("");
@@ -580,6 +883,12 @@ export default function Editor({
       const installed = Array.isArray(event?.detail?.installed)
         ? event.detail.installed
         : [];
+      const nextCommands = Array.isArray(event?.detail?.commands)
+        ? event.detail.commands
+        : event?.detail?.registry
+          ? createExtensionCommandPaletteEntries(event.detail.registry)
+          : [];
+      setExtensionCommands(nextCommands);
       setSettings((prev) => {
         const current = Array.isArray(prev.extensions_installed)
           ? prev.extensions_installed
@@ -838,78 +1147,152 @@ export default function Editor({
     setWorkbenchLayout((prev) => applyWorkbenchLayoutPreset(prev, presetId));
   }, []);
 
-  const handleProblemSelect = useCallback(
-    (problem) => {
-      if (!activeTabId) return;
+  const revealDockedWorkbenchPanel = useCallback((panelId, snapZone) => {
+    if (!panelId) return;
+    const normalizedZone = WORKBENCH_SNAP_ZONES[snapZone] || snapZone;
+    setShowSettings(false);
+
+    if (normalizedZone === WORKBENCH_SNAP_ZONES.bottom) {
+      setActivePanel(null);
+      setBottomTab(panelId);
+      setTerminalOpen(true);
+      return;
+    }
+    if (
+      normalizedZone === WORKBENCH_SNAP_ZONES.left ||
+      normalizedZone === WORKBENCH_SNAP_ZONES.right
+    ) {
+      setActivePanel(panelId);
+      setTerminalOpen((prev) => (bottomTab === panelId ? false : prev));
       setSettings((prev) => ({
         ...prev,
-        _revealLine: {
-          line: problem.startLineNumber,
-          col: problem.startColumn,
-          timestamp: Date.now(),
-        },
+        sidebar_visible: true,
+        zen_mode: false,
       }));
-    },
-    [activeTabId],
-  );
+      return;
+    }
+    if (normalizedZone === WORKBENCH_SNAP_ZONES.hidden) {
+      setActivePanel((prev) => (prev === panelId ? null : prev));
+      setTerminalOpen((prev) => (bottomTab === panelId ? false : prev));
+    }
+  }, [bottomTab]);
 
-  const handleMarkersChange = useCallback((markers) => {
-    setProblems(markers);
+  const handleDockWorkbenchPanel = useCallback((panelId, snapZone, options = {}) => {
+    const normalizedZone = WORKBENCH_SNAP_ZONES[snapZone] || snapZone;
+    if (!panelId || !normalizedZone) return;
+
+    const initialPreview = getLayoutDropPreview(
+      workbenchLayout,
+      panelId,
+      normalizedZone,
+      options,
+    );
+    if (!initialPreview.canDrop) return;
+
+    setWorkbenchLayout((prev) => {
+      const preview = getLayoutDropPreview(
+        prev,
+        panelId,
+        normalizedZone,
+        options,
+      );
+      return preview.canDrop ? preview.layout : prev;
+    });
+    revealDockedWorkbenchPanel(panelId, initialPreview.targetZone);
+  }, [revealDockedWorkbenchPanel, workbenchLayout]);
+
+  const getVisibleWorkbenchPanelId = useCallback(() => {
+    if (activePanel) return activePanel;
+    if (terminalOpen && bottomTab) return bottomTab;
+    return "explorer";
+  }, [activePanel, bottomTab, terminalOpen]);
+
+  const handleDockActivePanel = useCallback((snapZone) => {
+    handleDockWorkbenchPanel(getVisibleWorkbenchPanelId(), snapZone);
+  }, [getVisibleWorkbenchPanelId, handleDockWorkbenchPanel]);
+
+  const handleWorkbenchPanelDragStart = useCallback((event, panelId) => {
+    if (!panelId) return;
+    dockDragPanelIdRef.current = panelId;
+    setDockDragState({ panelId });
+    setDockDropPreview(null);
+
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData(WORKBENCH_PANEL_DRAG_MIME, panelId);
+      event.dataTransfer.setData("text/plain", panelId);
+    }
   }, []);
 
-  const handleCloseBottomPanel = useCallback(() => {
+  const handleWorkbenchPanelDragEnd = useCallback(() => {
+    dockDragPanelIdRef.current = null;
+    setDockDragState(null);
+    setDockDropPreview(null);
+  }, []);
+
+  const handleWorkbenchZoneDragOver = useCallback((event, snapZone) => {
+    const panelId = getWorkbenchDragPanelId(
+      event,
+      dockDragPanelIdRef.current,
+    );
+    if (!panelId) return;
+
+    const preview = getLayoutDropPreview(workbenchLayout, panelId, snapZone);
+    if (!preview.canDrop) return;
+
+    event.preventDefault();
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = "move";
+    }
+    setDockDragState((prev) =>
+      prev?.panelId === panelId ? prev : { panelId },
+    );
+    setDockDropPreview((prev) => {
+      if (
+        prev?.panelId === preview.panelId &&
+        prev?.targetZone === preview.targetZone &&
+        prev?.insertIndex === preview.insertIndex
+      ) {
+        return prev;
+      }
+      return preview;
+    });
+  }, [workbenchLayout]);
+
+  const handleWorkbenchZoneDrop = useCallback((event, snapZone) => {
+    const panelId = getWorkbenchDragPanelId(
+      event,
+      dockDragPanelIdRef.current,
+    );
+    if (!panelId) return;
+
+    const preview = getLayoutDropPreview(workbenchLayout, panelId, snapZone);
+    if (!preview.canDrop) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    setWorkbenchLayout(preview.layout);
+    revealDockedWorkbenchPanel(panelId, preview.targetZone);
+    dockDragPanelIdRef.current = null;
+    setDockDragState(null);
+    setDockDropPreview(null);
+  }, [revealDockedWorkbenchPanel, workbenchLayout]);
+
+  const handleResetWorkbenchLayout = useCallback(() => {
+    const resetLayout = resetWorkbenchLayoutStorage();
+    setWorkbenchLayout(resetLayout);
+    setActivePanel("explorer");
+    setBottomTab("terminal");
     setTerminalOpen(false);
-  }, []);
-
-  const handleCloseActivePanel = useCallback(() => {
-    setActivePanel(null);
-  }, []);
-
-  const handleCloseSettingsPanel = useCallback(() => {
     setShowSettings(false);
-  }, []);
-
-  const handleOpenCommandPalette = useCallback(() => {
-    setCommandPaletteOpen(true);
-  }, []);
-
-  const handleCloseCommandPalette = useCallback(() => {
-    setCommandPaletteOpen(false);
-  }, []);
-
-  const handleCloseSpotlight = useCallback(() => {
-    setSpotlightOpen(false);
-  }, []);
-
-  const handleSetSidePanelSize = useCallback((sizeId) => {
-    setWorkbenchLayout((prev) =>
-      normalizeWorkbenchLayout({
-        ...prev,
-        sidePanelSize: sizeId,
-      }),
-    );
-  }, []);
-
-  const handleCycleSidePanelSize = useCallback(() => {
-    setWorkbenchLayout((prev) =>
-      normalizeWorkbenchLayout({
-        ...prev,
-        sidePanelSize: getNextSidePanelSize(prev.sidePanelSize),
-      }),
-    );
-  }, []);
-
-  const handleCycleBottomPanelSize = useCallback(() => {
-    setWorkbenchLayout((prev) =>
-      normalizeWorkbenchLayout({
-        ...prev,
-        bottomPanelSize: getNextBottomPanelSize(prev.bottomPanelSize),
-      }),
-    );
-  }, []);
-
-  const handleApplyWorkbenchLayoutPreset = useCallback((presetId) => {
-    setWorkbenchLayout((prev) => applyWorkbenchLayoutPreset(prev, presetId));
+    setSettings((prev) => ({
+      ...prev,
+      sidebar_visible: true,
+      zen_mode: false,
+    }));
+    dockDragPanelIdRef.current = null;
+    setDockDragState(null);
+    setDockDropPreview(null);
   }, []);
 
   const handleProblemSelect = useCallback(
@@ -933,7 +1316,6 @@ export default function Editor({
 
   const handleOpenWorkbenchPanel = useCallback((panelId) => {
     setShowSettings(false);
-<<<<<<< HEAD
     const nextState = openWorkbenchDockPanel(
       getCurrentWorkbenchDockState(),
       panelId,
@@ -941,55 +1323,12 @@ export default function Editor({
     );
     applyWorkbenchDockState(nextState);
     if (nextState.sidebarRequired) {
-=======
-    if (
-      getWorkbenchPanelPlacement(panelId, workbenchLayout) ===
-      WORKBENCH_PANEL_PLACEMENTS.bottom
-    ) {
-      setActivePanel(null);
-      setBottomTab(panelId === "problems" ? "problems" : "terminal");
-      setTerminalOpen(true);
-      return;
-    }
-
-    setSettings((prev) => ({
-      ...prev,
-      sidebar_visible: true,
-      zen_mode: false,
-    }));
-    setActivePanel(panelId);
-  }, [workbenchLayout]);
-
-  const handleSidebarPanelChange = useCallback((panelId) => {
-    setShowSettings(false);
-    if (!panelId) {
-      if (!activePanel && bottomTab === "problems" && terminalOpen) {
-        handleCloseBottomPanel();
-        return;
-      }
-      handleCloseActivePanel();
-      return;
-    }
-
-    if (
-      getWorkbenchPanelPlacement(panelId, workbenchLayout) ===
-      WORKBENCH_PANEL_PLACEMENTS.bottom
-    ) {
-      setActivePanel(null);
-      setBottomTab(panelId === "problems" ? "problems" : "terminal");
-      setTerminalOpen(true);
-      return;
-    }
-
-    if (panelId) {
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
       setSettings((prev) => ({
         ...prev,
         sidebar_visible: true,
         zen_mode: false,
       }));
     }
-<<<<<<< HEAD
   }, [
     applyWorkbenchDockState,
     getCurrentWorkbenchDockState,
@@ -1025,12 +1364,6 @@ export default function Editor({
     applyWorkbenchDockState,
     bottomTab,
     getCurrentWorkbenchDockState,
-=======
-    setActivePanel(panelId);
-  }, [
-    activePanel,
-    bottomTab,
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
     handleCloseActivePanel,
     handleCloseBottomPanel,
     terminalOpen,
@@ -1374,9 +1707,10 @@ export default function Editor({
     root.style.setProperty("--nexus-scrollbar-hover", accent + "66");
 
     // Topology
+    root.style.setProperty("--nexus-editor-font-family", settings.font_family || "JetBrains Mono");
     root.style.setProperty(
-      "--nexus-font-family",
-      settings.font_family || "Inter",
+      "--nexus-ui-font-family",
+      '"Inter", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif',
     );
     root.style.setProperty(
       "--nexus-font-weight",
@@ -1408,7 +1742,7 @@ export default function Editor({
         width: 100%;
         ${bgStyle}
         color: var(--nexus-text);
-        font-family: var(--nexus-font-family, 'JetBrains Mono'), monospace;
+        font-family: var(--nexus-ui-font-family, 'Inter', 'Segoe UI', system-ui, sans-serif);
         font-weight: var(--nexus-font-weight, 400);
       }
       #root {
@@ -1701,6 +2035,33 @@ export default function Editor({
     setOpenTabs((prev) => prev.map((tab) => ({ ...tab, modified: false })));
   }, [flushEditorBuffer, workspacePath, isElectron]);
 
+  const handleBasicFormatDocument = useCallback(() => {
+    const tabId = activeTabIdRef.current;
+    if (!tabId) return false;
+    flushEditorBuffer(tabId);
+    const file = filesRef.current.find((candidate) => candidate.id === tabId);
+    const fileName = String(file?.name || file?.fsPath || "").toLowerCase();
+    const currentCode = editorCodeRef.current || "";
+    let nextCode = currentCode.replace(/[ \t]+$/gm, "").replace(/\n{3,}$/g, "\n\n");
+
+    if (fileName.endsWith(".json")) {
+      try {
+        nextCode = `${JSON.stringify(JSON.parse(currentCode), null, 2)}\n`;
+      } catch {
+        nextCode = currentCode.replace(/[ \t]+$/gm, "");
+      }
+    } else if (nextCode && !nextCode.endsWith("\n")) {
+      nextCode = `${nextCode}\n`;
+    }
+
+    if (nextCode === currentCode) return true;
+    editorCodeRef.current = nextCode;
+    setEditorCode(nextCode);
+    commitBufferToFile(tabId, nextCode);
+    setTabModified(tabId, true);
+    return true;
+  }, [commitBufferToFile, flushEditorBuffer, setTabModified]);
+
   useEffect(() => {
     const onCreateFile = (event) => {
       const detail = event?.detail || {};
@@ -1936,6 +2297,77 @@ export default function Editor({
     });
   }, []);
 
+  const handleExtensionCommandAction = useCallback(
+    (actionId) => {
+      const command = extensionCommands.find(
+        (entry) => entry.actionId === actionId || entry.id === actionId,
+      );
+      if (!command) return false;
+
+      const commandId = String(command.actionId || command.id || "").toLowerCase();
+      const commandLabel = command.label || command.actionId || "Extension command";
+
+      if (
+        commandId.includes("format") ||
+        commandId.includes("tailwind.sort") ||
+        commandId.includes("rainbow")
+      ) {
+        const formatted = handleBasicFormatDocument();
+        setExtensionCommandStatus(
+          formatted
+            ? `${commandLabel}: local document pass applied`
+            : `${commandLabel}: open a file first`,
+        );
+        return true;
+      }
+
+      if (
+        commandId.includes("eslint") ||
+        commandId.includes("errorlens") ||
+        commandId.includes("cspell")
+      ) {
+        handleOpenProblemsPanel();
+        setExtensionCommandStatus(`${commandLabel}: Problems panel opened`);
+        return true;
+      }
+
+      if (commandId.includes("gitlens") || commandId.startsWith("git")) {
+        handleOpenWorkbenchPanel("git");
+        setExtensionCommandStatus(`${commandLabel}: Source Control opened`);
+        return true;
+      }
+
+      if (
+        commandId.includes("docker") ||
+        commandId.includes("rest.") ||
+        commandId.includes("compose") ||
+        commandId.includes("terminal")
+      ) {
+        handleOpenTerminalPanel();
+        setExtensionCommandStatus(`${commandLabel}: Terminal opened`);
+        return true;
+      }
+
+      if (commandId.includes("theme") || commandId.includes("materialicons")) {
+        handleOpenSettingsPanel();
+        setExtensionCommandStatus(`${commandLabel}: Settings opened`);
+        return true;
+      }
+
+      handleOpenWorkbenchPanel("extensions");
+      setExtensionCommandStatus(`${commandLabel}: extension host route opened`);
+      return true;
+    },
+    [
+      extensionCommands,
+      handleBasicFormatDocument,
+      handleOpenProblemsPanel,
+      handleOpenSettingsPanel,
+      handleOpenTerminalPanel,
+      handleOpenWorkbenchPanel,
+    ],
+  );
+
   const handleCommandPaletteAction = useCallback(
     (actionId, payload) => {
       const commandHandlers = {
@@ -1953,33 +2385,42 @@ export default function Editor({
         "open-settings": handleOpenSettingsPanel,
         "toggle-sidebar": handleToggleSidebar,
         "github-sync": () => handleOpenWorkbenchPanel("git"),
+        "open-github-issues": () => handleOpenWorkbenchPanel("issues"),
+        "open-pull-requests": () => handleOpenWorkbenchPanel("prs"),
+        "open-github-projects": () => handleOpenWorkbenchPanel("projects"),
         "focus-editor": handleFocusEditor,
-<<<<<<< HEAD
         "layout-compact": () => handleApplyWorkbenchLayoutPreset("focus"),
         "layout-balanced": () => handleApplyWorkbenchLayoutPreset("comfortable"),
         "layout-roomy": () => handleApplyWorkbenchLayoutPreset("wide"),
-=======
-        "layout-compact": () => handleApplyWorkbenchLayoutPreset("compact"),
-        "layout-balanced": () => handleApplyWorkbenchLayoutPreset("balanced"),
-        "layout-roomy": () => handleApplyWorkbenchLayoutPreset("roomy"),
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
+        "layout-reset": handleResetWorkbenchLayout,
         "cycle-side-panel-size": handleCycleSidePanelSize,
         "cycle-bottom-panel-size": handleCycleBottomPanelSize,
+        "dock-active-left": () => handleDockActivePanel("left"),
+        "dock-active-right": () => handleDockActivePanel("right"),
+        "dock-active-bottom": () => handleDockActivePanel("bottom"),
       };
 
-      commandHandlers[actionId]?.();
+      if (commandHandlers[actionId]) {
+        commandHandlers[actionId]();
+        return;
+      }
+
+      handleExtensionCommandAction(actionId);
     },
     [
       handleCreateFileRequest,
+      handleExtensionCommandAction,
       handleFileSelect,
       handleFocusEditor,
       handleApplyWorkbenchLayoutPreset,
       handleCycleBottomPanelSize,
       handleCycleSidePanelSize,
+      handleDockActivePanel,
       handleOpenFolder,
       handleOpenProblemsPanel,
       handleOpenSettingsPanel,
       handleOpenWorkbenchPanel,
+      handleResetWorkbenchLayout,
       handleToggleSidebar,
       handleToggleTerminalPanel,
       handleToggleZenMode,
@@ -2034,16 +2475,18 @@ export default function Editor({
   const visibleWorkbenchPanel =
     visibleActivePanel || (!showSettings && bottomPanelVisible ? bottomTab : null);
   const activityBarPanelId =
-    visibleActivePanel ||
-    (!showSettings && bottomPanelVisible && bottomTab === "problems"
-      ? "problems"
-      : null);
+    visibleActivePanel || (!showSettings && bottomPanelVisible ? bottomTab : null);
   const shellModeLabel = getShellModeLabel({
     showSettings,
     zenMode,
     activePanel: visibleWorkbenchPanel,
   });
   const activePanelMeta = getPanelMeta(visibleWorkbenchPanel);
+  const settingsWorkbenchPanelId = getVisibleWorkbenchPanelId();
+  const settingsWorkbenchPanelMeta = getPanelMeta(settingsWorkbenchPanelId);
+  const compactRailOffset = isCompactViewport
+    ? PANEL_BOUNDS.compactRailOffset
+    : PANEL_BOUNDS.railOffset;
   const sidePanelClassName = getSidePanelClassName({
     compact: isCompactViewport,
   });
@@ -2055,14 +2498,24 @@ export default function Editor({
   const bottomPanelClassName = getBottomPanelClassName({
     compact: isCompactViewport,
     size: bottomPanelSlot.size,
-<<<<<<< HEAD
   });
   const bottomPanelStyle = getBottomPanelStyle({
     compact: isCompactViewport,
     size: bottomPanelSlot.size,
-=======
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
   });
+  const dockPreviewLayout = dockDropPreview?.layout || normalizedWorkbenchLayout;
+  const dockZonePanelIds = useMemo(
+    () =>
+      DOCK_ZONE_OPTIONS.reduce((acc, option) => {
+        acc[option.zone] = getWorkbenchZonePanelIds(
+          dockPreviewLayout,
+          option.zone,
+        );
+        return acc;
+      }, {}),
+    [dockPreviewLayout],
+  );
+  const draggedDockPanelId = dockDragState?.panelId || null;
 
   return (
     <div
@@ -2099,7 +2552,7 @@ export default function Editor({
         <div className="flex h-full min-h-0 w-full overflow-hidden">
         {sideRailVisible && sidebarSide === "left" && (
             <div
-              className={getRailClassName("left")}
+              className={getRailClassName("left", { compact: isCompactViewport })}
               style={{
                 background: "var(--nexus-panel-surface)",
                 backdropFilter: "var(--nexus-panel-filter)",
@@ -2141,6 +2594,14 @@ export default function Editor({
                 onSettingsChange={handleSettingsChange}
                 onResetSettings={handleResetSettings}
                 onClose={handleCloseSettingsPanel}
+                workbenchLayout={normalizedWorkbenchLayout}
+                activeWorkbenchPanelId={settingsWorkbenchPanelId}
+                activeWorkbenchPanelLabel={settingsWorkbenchPanelMeta.title}
+                onApplyWorkbenchLayoutPreset={handleApplyWorkbenchLayoutPreset}
+                onSetSidePanelSize={handleSetSidePanelSize}
+                onSetBottomPanelSize={handleSetBottomPanelSize}
+                onDockActivePanel={handleDockActivePanel}
+                onResetWorkbenchLayout={handleResetWorkbenchLayout}
               />
             </Suspense>
           </div>
@@ -2163,9 +2624,9 @@ export default function Editor({
                   style={{
                     position: isCompactViewport ? "absolute" : "relative",
                     top: isCompactViewport ? 0 : "auto",
-                    right: isCompactViewport && sidebarSide === "right" ? "3.25rem" : "auto",
+                    right: isCompactViewport && sidebarSide === "right" ? compactRailOffset : "auto",
                     bottom: isCompactViewport ? 0 : "auto",
-                    left: isCompactViewport && sidebarSide !== "right" ? "3.25rem" : "auto",
+                    left: isCompactViewport && sidebarSide !== "right" ? compactRailOffset : "auto",
                     height: "100%",
                     ...sidePanelStyle,
                     flexShrink: isCompactViewport ? undefined : 0,
@@ -2181,6 +2642,11 @@ export default function Editor({
                     onClose={handleCloseActivePanel}
                     sidePanelSize={normalizedWorkbenchLayout.sidePanelSize}
                     onSidePanelSizeChange={handleSetSidePanelSize}
+                    onDockPanel={handleDockWorkbenchPanel}
+                    onPanelDragStart={handleWorkbenchPanelDragStart}
+                    onPanelDragEnd={handleWorkbenchPanelDragEnd}
+                    snapZone={sidePanelSlot.snapZone}
+                    compact={isCompactViewport}
                   >
                     {visibleActivePanel === "explorer" && (
                       <FileExplorer
@@ -2205,6 +2671,17 @@ export default function Editor({
                       />
                     )}
                     {visibleActivePanel === "git" && <GitPanel files={files} />}
+                    {(visibleActivePanel === "issues" ||
+                      visibleActivePanel === "prs" ||
+                      visibleActivePanel === "projects") && (
+                      <GitHubWorkbenchPanel
+                        panelId={visibleActivePanel}
+                        workspacePath={workspacePath}
+                        accountSession={accountSession}
+                        onOpenGit={() => handleOpenWorkbenchPanel("git")}
+                        onOpenAccount={() => handleOpenWorkbenchPanel("account")}
+                      />
+                    )}
                     {visibleActivePanel === "debug" && (
                       <DebugPanel
                         activeFile={activeFile}
@@ -2240,11 +2717,8 @@ export default function Editor({
             {/* Main Editor Area */}
             <div
               className={mainEditorClassName}
-<<<<<<< HEAD
               data-workbench-zone={editorSlot.zone}
               data-workbench-dock-id={editorSlot.dockId}
-=======
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
               style={{ order: editorSlot.order }}
             >
               <div
@@ -2373,6 +2847,16 @@ export default function Editor({
                             />
                           )
                         )}
+                        {extensionCommandStatus && !isCompactViewport ? (
+                          <StatusItem
+                            icon={AlertCircle}
+                            tone="active"
+                            label="Extension"
+                            value={extensionCommandStatus}
+                            title={extensionCommandStatus}
+                            className="max-w-[18rem]"
+                          />
+                        ) : null}
                       </div>
                       <div className="flex shrink-0 items-center gap-1.5 pl-1">
                         <StatusItem
@@ -2412,8 +2896,14 @@ export default function Editor({
                             compact={isCompactViewport}
                             size={normalizedWorkbenchLayout.bottomPanelSize}
                             presetId={normalizedWorkbenchLayout.presetId}
+                            activePanelId={bottomTab}
+                            activeZone={bottomPanelSlot.snapZone}
                             onSizeChange={handleSetBottomPanelSize}
                             onPresetChange={handleApplyWorkbenchLayoutPreset}
+                            onDockPanel={handleDockWorkbenchPanel}
+                            onPanelDragStart={handleWorkbenchPanelDragStart}
+                            onPanelDragEnd={handleWorkbenchPanelDragEnd}
+                            onResetLayout={handleResetWorkbenchLayout}
                             onClose={handleCloseBottomPanel}
                           />
                         )}
@@ -2422,7 +2912,6 @@ export default function Editor({
                   )}
                   {bottomPanelVisible && (
                     <div
-<<<<<<< HEAD
                       className={`${bottomPanelClassName} flex flex-col`}
                       style={bottomPanelStyle}
                       data-workbench-zone={bottomPanelSlot.zone}
@@ -2431,6 +2920,19 @@ export default function Editor({
                       data-workbench-placement={bottomPanelSlot.placement}
                       data-workbench-axis={bottomPanelSlot.axis}
                     >
+                      {isCompactViewport && (
+                        <CompactBottomDockBar
+                          activePanelId={bottomTab}
+                          activeZone={bottomPanelSlot.snapZone}
+                          size={normalizedWorkbenchLayout.bottomPanelSize}
+                          onSizeChange={handleSetBottomPanelSize}
+                          onDockPanel={handleDockWorkbenchPanel}
+                          onResetLayout={handleResetWorkbenchLayout}
+                          onClose={handleCloseBottomPanel}
+                          onPanelDragStart={handleWorkbenchPanelDragStart}
+                          onPanelDragEnd={handleWorkbenchPanelDragEnd}
+                        />
+                      )}
                       <div className="min-h-0 flex-1 overflow-hidden [&>div]:!h-full [&>div]:!min-h-0">
                         {bottomTab === "terminal" ? (
                           <Terminal
@@ -2440,33 +2942,21 @@ export default function Editor({
                             code={currentCode}
                             workspacePath={workspacePath}
                           />
-                        ) : (
+                        ) : bottomTab === "problems" ? (
                           <ProblemsPanel
                             problems={problems}
                             onSelectProblem={handleProblemSelect}
                           />
+                        ) : (
+                          <GitHubWorkbenchPanel
+                            panelId={bottomTab}
+                            workspacePath={workspacePath}
+                            accountSession={accountSession}
+                            onOpenGit={() => handleOpenWorkbenchPanel("git")}
+                            onOpenAccount={() => handleOpenWorkbenchPanel("account")}
+                          />
                         )}
                       </div>
-=======
-                      className={bottomPanelClassName}
-                      data-workbench-zone={bottomPanelSlot.zone}
-                      data-workbench-panel={bottomPanelSlot.panelId}
-                    >
-                      {bottomTab === "terminal" ? (
-                        <Terminal
-                          isOpen
-                          onToggle={handleToggleTerminalPanel}
-                          activeFile={activeFile}
-                          code={currentCode}
-                          workspacePath={workspacePath}
-                        />
-                      ) : (
-                        <ProblemsPanel
-                          problems={problems}
-                          onSelectProblem={handleProblemSelect}
-                        />
-                      )}
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
                     </div>
                   )}
                 </div>
@@ -2475,7 +2965,7 @@ export default function Editor({
 
             {sideRailVisible && sidebarSide === "right" && (
                 <div
-                  className={getRailClassName("right")}
+                  className={getRailClassName("right", { compact: isCompactViewport })}
                   style={{
                     background: "var(--nexus-panel-surface)",
                     backdropFilter: "var(--nexus-panel-filter)",
@@ -2497,12 +2987,22 @@ export default function Editor({
           </>
         )}
         </div>
+        {draggedDockPanelId ? (
+          <WorkbenchDockDropOverlay
+            panelId={draggedDockPanelId}
+            preview={dockDropPreview}
+            zonePanelIds={dockZonePanelIds}
+            onZoneDragOver={handleWorkbenchZoneDragOver}
+            onZoneDrop={handleWorkbenchZoneDrop}
+          />
+        ) : null}
       </div>
 
       <CommandPalette
         isOpen={commandPaletteOpen}
         onClose={handleCloseCommandPalette}
         onAction={handleCommandPaletteAction}
+        extensionCommands={extensionCommands}
       />
 
       <SpotlightSearch
@@ -2510,6 +3010,7 @@ export default function Editor({
         onClose={handleCloseSpotlight}
         onAction={handleCommandPaletteAction}
         files={files}
+        extensionCommands={extensionCommands}
       />
     </div>
   );

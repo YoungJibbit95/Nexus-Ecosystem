@@ -4,6 +4,18 @@ import type { CanvasConnection, CanvasNode } from "../../../store/canvasStore";
 import { ConnectionLine } from "./ConnectionLine";
 import { NodeWidget } from "./NodeWidget";
 
+const GRID_BASE_SIZE = 24;
+const MIN_ZOOM = 0.15;
+const MAX_ZOOM = 3;
+const ZOOM_PRECISION = 1000;
+const PIXEL_PRECISION = 2;
+
+const stabilizeZoom = (zoom: number) =>
+  Math.round(Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom)) * ZOOM_PRECISION) /
+  ZOOM_PRECISION;
+const stabilizePixel = (value: number) =>
+  Math.round(value * PIXEL_PRECISION) / PIXEL_PRECISION;
+
 export function CanvasStage({
   canvasRef,
   mode,
@@ -66,6 +78,31 @@ export function CanvasStage({
   snapToGrid: boolean;
   reduceNodeEffects: boolean;
 }) {
+  const stableZoom = stabilizeZoom(viewport.zoom);
+  const stablePanX = stabilizePixel(viewport.panX);
+  const stablePanY = stabilizePixel(viewport.panY);
+  const stableGridSize = Math.max(
+    8,
+    stabilizePixel(GRID_BASE_SIZE * stableZoom),
+  );
+  const gridAlpha =
+    stableZoom < 0.65 ? 0.055 : stableZoom > 1.35 ? 0.075 : 0.065;
+  const gridColor =
+    mode === "dark"
+      ? `rgba(255,255,255,${gridAlpha})`
+      : `rgba(0,0,0,${gridAlpha + 0.01})`;
+  const dotColor =
+    mode === "dark"
+      ? `rgba(255,255,255,${Math.min(gridAlpha + 0.045, 0.12)})`
+      : `rgba(0,0,0,${Math.min(gridAlpha + 0.035, 0.11)})`;
+  const gridBackgroundImage =
+    gridMode === "dots"
+      ? `radial-gradient(circle, ${dotColor} 1px, transparent 1px)`
+      : gridMode === "lines"
+        ? `linear-gradient(${gridColor} 1px, transparent 1px), linear-gradient(90deg, ${gridColor} 1px, transparent 1px)`
+        : "none";
+  const sceneTransform = `translate(${stablePanX}px, ${stablePanY}px) scale(${stableZoom})`;
+
   return (
     <div
       className="nx-canvas-stage-wrap"
@@ -170,19 +207,6 @@ export function CanvasStage({
         className="w-full h-full relative nx-canvas-grid nx-canvas-stage-surface"
         style={{
           cursor: connectingFrom ? "crosshair" : panning || wheelPanning ? "grabbing" : "grab",
-          transition: panning || wheelPanning ? "none" : "background-position 0.08s ease-out, background-size 0.12s ease-out",
-          backgroundPosition: `${viewport.panX}px ${viewport.panY}px`,
-          backgroundSize: `${24 * viewport.zoom}px ${24 * viewport.zoom}px`,
-          backgroundImage:
-            gridMode === "dots"
-              ? mode === "dark"
-                ? "radial-gradient(circle, rgba(255,255,255,0.12) 1px, transparent 1px)"
-                : "radial-gradient(circle, rgba(0,0,0,0.1) 1px, transparent 1px)"
-              : gridMode === "lines"
-                ? mode === "dark"
-                  ? "linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px)"
-                  : "linear-gradient(rgba(0,0,0,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.05) 1px, transparent 1px)"
-                : "none",
           touchAction: "none",
           overscrollBehavior: "none",
           contain: "layout paint",
@@ -191,8 +215,12 @@ export function CanvasStage({
         onWheel={onCanvasWheel}
         onDoubleClick={(event) => {
           const target = event.target as HTMLElement;
+          const isInsideNode = Boolean(target.closest(".nx-canvas-node"));
           const isCanvasBackground =
-            target === event.currentTarget || target.dataset.canvasScene === "true";
+            !isInsideNode &&
+            (target === event.currentTarget ||
+              target.dataset.canvasScene === "true" ||
+              Boolean(target.closest("#nexus-canvas-inner")));
           if (!isCanvasBackground) return;
           const rect = canvasRef.current?.getBoundingClientRect();
           if (!rect) return;
@@ -203,14 +231,33 @@ export function CanvasStage({
         }}
       >
         <div
+          aria-hidden="true"
+          data-canvas-layer="background-grid"
+          style={{
+            position: "absolute",
+            inset: 0,
+            pointerEvents: "none",
+            backgroundImage: gridBackgroundImage,
+            backgroundPosition: `${stablePanX}px ${stablePanY}px`,
+            backgroundSize: `${stableGridSize}px ${stableGridSize}px`,
+            transition:
+              panning || wheelPanning
+                ? "none"
+                : "background-position 0.08s ease-out, background-size 0.12s ease-out",
+            willChange: panning || wheelPanning ? "background-position" : "auto",
+          }}
+        />
+        <div
+          id="nexus-canvas-inner"
           data-canvas-scene="true"
+          data-canvas-layer="scene"
           style={{
             position: "absolute",
             left: 0,
             top: 0,
             right: 0,
             bottom: 0,
-            transform: `translate(${viewport.panX}px, ${viewport.panY}px) scale(${viewport.zoom})`,
+            transform: sceneTransform,
             transformOrigin: "0 0",
             willChange: "transform",
             backfaceVisibility: "hidden",
@@ -224,6 +271,7 @@ export function CanvasStage({
                 pointerEvents: "none",
                 zIndex: 0,
               }}
+              data-canvas-layer="guides"
             >
               {layoutGuides.lanes.map((lane: any) => (
                 <div
@@ -282,6 +330,7 @@ export function CanvasStage({
                 pointerEvents: "none",
                 zIndex: 0,
               }}
+              data-canvas-layer="guides"
             >
               <div
                 style={{
@@ -343,6 +392,8 @@ export function CanvasStage({
 
           {visibleConnections.length > 0 && (
             <svg
+              data-canvas-layer="edges"
+              shapeRendering="geometricPrecision"
               style={{
                 position: "absolute",
                 left: 0,
@@ -351,17 +402,9 @@ export function CanvasStage({
                 height: "100%",
                 overflow: "visible",
                 pointerEvents: reduceConnectionEffects ? "none" : "auto",
-                zIndex: 0,
+                zIndex: 1,
               }}
             >
-              {!reduceConnectionEffects && (
-                <defs>
-                  <filter id="glow-filter" x="-20%" y="-20%" width="140%" height="140%">
-                    <feGaussianBlur stdDeviation="4" result="blur" />
-                    <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                  </filter>
-                </defs>
-              )}
               {visibleConnections.map((conn) => (
                 <ConnectionLine
                   key={conn.id}
@@ -375,20 +418,30 @@ export function CanvasStage({
             </svg>
           )}
 
-          {visibleNodes.map((node) => (
-            <NodeWidget
-              key={node.id}
-              node={node}
-              isSelected={selectedNodeId === node.id}
-              onSelect={setSelectedNodeId}
-              onStartConnect={handleStartConnect}
-              onEndConnect={handleEndConnect}
-              connectingFrom={connectingFrom}
-              onHubQuickAction={onHubQuickAction}
-              snapToGrid={snapToGrid}
-              reduceEffects={reduceNodeEffects}
-            />
-          ))}
+          <div
+            data-canvas-layer="nodes"
+            style={{
+              position: "absolute",
+              inset: 0,
+              zIndex: 2,
+              pointerEvents: "none",
+            }}
+          >
+            {visibleNodes.map((node) => (
+              <NodeWidget
+                key={node.id}
+                node={node}
+                isSelected={selectedNodeId === node.id}
+                onSelect={setSelectedNodeId}
+                onStartConnect={handleStartConnect}
+                onEndConnect={handleEndConnect}
+                connectingFrom={connectingFrom}
+                onHubQuickAction={onHubQuickAction}
+                snapToGrid={snapToGrid}
+                reduceEffects={reduceNodeEffects}
+              />
+            ))}
+          </div>
         </div>
       </div>
     </div>

@@ -20,18 +20,18 @@ import {
 } from "./settingsTypes";
 
 const PANEL_TEXTURE_PRESETS: { value: PanelBgMode; label: string; desc: string }[] = [
-  { value: "glass", label: "Glass", desc: "klarer v6 Standard" },
-  { value: "solid", label: "Solid", desc: "ruhig und lesbar" },
-  { value: "gradient", label: "Gradient", desc: "farbiger Produkt-Look" },
-  { value: "mist", label: "Mist", desc: "weicher Glow-Nebel" },
-  { value: "hologram", label: "Hologram", desc: "schimmernd, aber kontrolliert" },
-  { value: "linen", label: "Linen", desc: "feine Paper-Struktur" },
-  { value: "dots", label: "Dots", desc: "leichte Orientierungspunkte" },
-  { value: "grid", label: "Grid", desc: "technisch und sauber" },
-  { value: "stripes", label: "Stripes", desc: "subtile Flow-Linien" },
-  { value: "carbon", label: "Carbon", desc: "dunkle Struktur" },
-  { value: "circuit", label: "Circuit", desc: "dev-orientiert, nicht verspielt" },
-  { value: "noise", label: "Soft Noise", desc: "sehr dezent, nicht grainy" },
+  { value: "glass", label: "Klares Glas", desc: "heller Standard mit Tiefe" },
+  { value: "solid", label: "Ruhig", desc: "maximale Lesbarkeit" },
+  { value: "gradient", label: "Farbiger Look", desc: "mehr Markenfarbe" },
+  { value: "mist", label: "Weich", desc: "sanfter Glow ohne Unruhe" },
+  { value: "hologram", label: "Schimmer", desc: "auffaellig, aber kontrolliert" },
+  { value: "linen", label: "Papier", desc: "feine, ruhige Struktur" },
+  { value: "dots", label: "Punkte", desc: "leichte Orientierung" },
+  { value: "grid", label: "Raster", desc: "geordnet und praezise" },
+  { value: "stripes", label: "Linien", desc: "subtile Bewegung im Look" },
+  { value: "carbon", label: "Dunkle Struktur", desc: "kontrastreich und dicht" },
+  { value: "circuit", label: "Tech Pattern", desc: "fuer technische Arbeitsbereiche" },
+  { value: "noise", label: "Sanfte Koernung", desc: "sehr dezente Textur" },
 ];
 
 type SettingsModulePanelsProps = {
@@ -78,15 +78,15 @@ export function SettingsModulePanels({
   const panelModeHelp: Record<RendererMode, { label: string; desc: string }> = {
     blur: {
       label: "Soft Blur",
-      desc: "Empfohlen für Alltag: stabil, klar und schnell.",
+      desc: "Empfohlen fuer Alltag: stabil, klar und schnell.",
     },
     "fake-glass": {
-      label: "Fake Glass",
-      desc: "CSS/SVG-Glaslook ohne Shader, gute Balance.",
+      label: "Leichtes Glas",
+      desc: "Glaslook mit guter Balance aus Stil und Leistung.",
     },
     "glass-shader": {
-      label: "Shader Glass",
-      desc: "Höchste visuelle Tiefe, benötigt mehr Grafikleistung.",
+      label: "Showcase Glas",
+      desc: "Mehr Tiefe fuer starke Rechner und Praesentationen.",
     },
   };
   const activePanelHelp = panelModeHelp[panelRenderer];
@@ -192,7 +192,7 @@ export function SettingsModulePanels({
     const drivers = [
       {
         id: "blur",
-        label: "Blur",
+        label: "Weichzeichnung",
         cost:
           Math.max(0, (Number(t.blur?.panelBlur) || 0) - 12) * 1.6 +
           Math.max(0, (Number(t.blur?.sidebarBlur) || 0) - 12) * 1.1,
@@ -200,7 +200,7 @@ export function SettingsModulePanels({
       },
       {
         id: "glass",
-        label: "Glass",
+        label: "Glaslook",
         cost:
           Math.max(0, (Number(t.glassmorphism?.glassDepth) || 1) - 1) * 8 +
           Math.max(0, (Number(t.glassmorphism?.saturation) || 120) - 140) * 0.12 +
@@ -208,24 +208,24 @@ export function SettingsModulePanels({
           (panelRenderer === "glass-shader" ? 18 : 0),
         detail:
           panelRenderer === "glass-shader"
-            ? "Shader + Tiefe"
+            ? "Showcase Tiefe"
             : t.glassmorphism?.animatedBlur
-              ? "Animierter Blur"
-              : "CSS Blur",
+              ? "Bewegte Weichzeichnung"
+              : "Soft Blur",
       },
       {
         id: "motion",
-        label: "Motion",
+        label: "Bewegung",
         cost:
           (glowRenderer === "three" ? 10 : 0) +
           (t.animations?.particleEffects ? 7 : 0) +
           (t.animations?.glowPulse ? 4 : 0) +
           (t.animations?.floatEffect ? 3 : 0),
-        detail: glowRenderer === "three" ? "Three Glow aktiv" : "CSS Motion",
+        detail: glowRenderer === "three" ? "3D Glow aktiv" : "leichte Bewegung",
       },
       {
         id: "background",
-        label: "Background",
+        label: "Hintergrund",
         cost:
           (t.background?.animated ? 8 : 0) +
           Math.max(0, (Number(t.background?.meshIntensity) || 0) - 0.42) * 14 +
@@ -446,8 +446,8 @@ export function SettingsModulePanels({
             {module === "appearance" ? (
               <>
                 <ModuleCard
-                  title="Quick Presets"
-                  desc="Erst die Richtung wählen, danach nur noch feinjustieren"
+                  title="Schnell starten"
+                  desc="Eine sichere Richtung waehlen, danach nur noch Details anpassen"
                 >
                   <div
                     style={{
@@ -487,8 +487,8 @@ export function SettingsModulePanels({
                 </ModuleCard>
 
                 <ModuleCard
-                  title="Theme Library"
-                  desc="Mehr v6-Themes mit Stimmung, Oberfläche und klarer Vorschau"
+                  title="Theme-Auswahl"
+                  desc="Fertige Looks mit klarer Vorschau"
                 >
                   <ThemeLibraryGrid
                     onApply={(name) => {
@@ -498,13 +498,13 @@ export function SettingsModulePanels({
                   />
                 </ModuleCard>
 
-                <ModuleCard title="Brand Colors & Mode">
+                <ModuleCard title="Farben und Hell/Dunkel">
                   <Row>
                     <div>
                       <div
                         style={{ fontSize: 11, opacity: 0.62, marginBottom: 6 }}
                       >
-                        Accent
+                        Hauptfarbe
                       </div>
                       <input
                         type="color"
@@ -525,7 +525,7 @@ export function SettingsModulePanels({
                       <div
                         style={{ fontSize: 11, opacity: 0.62, marginBottom: 6 }}
                       >
-                        Accent 2
+                        Zweite Farbe
                       </div>
                       <input
                         type="color"
@@ -546,7 +546,7 @@ export function SettingsModulePanels({
                   <div style={{ marginTop: 8 }}>
                     <Row>
                       <Segmented
-                        label="Color Mode"
+                        label="Darstellung"
                         value={t.mode}
                         options={["dark", "light"]}
                         onChange={(mode) => t.setMode(mode as "dark" | "light")}
@@ -574,8 +574,8 @@ export function SettingsModulePanels({
                 </ModuleCard>
 
                 <ModuleCard
-                  title="Typography"
-                  desc="Globale Schrift und Grundlesbarkeit der Oberfläche"
+                  title="Schrift"
+                  desc="Globale Schrift und Grundlesbarkeit der Oberflaeche"
                 >
                   <FontLibrary
                     value={t.globalFont}
@@ -583,7 +583,7 @@ export function SettingsModulePanels({
                   />
                   <div style={{ marginTop: 10 }}>
                     <Slider
-                      label="UI Font Size"
+                      label="Schriftgroesse"
                       value={t.qol.fontSize}
                       min={12}
                       max={18}
@@ -595,24 +595,24 @@ export function SettingsModulePanels({
                 </ModuleCard>
 
                 <ModuleCard
-                  title="Accessibility & Clarity"
-                  desc="Kontrast und UI-Hilfen für bessere Lesbarkeit"
+                  title="Lesbarkeit"
+                  desc="Kontrast und Hilfen fuer klarere Oberflaechen"
                 >
                   <Row>
                     <Toggle
-                      label="High Contrast UI"
+                      label="Mehr Kontrast"
                       checked={Boolean(t.qol?.highContrast)}
                       onChange={(next) => t.setQOL({ highContrast: next })}
                     />
                     <Toggle
-                      label="Show Tooltips"
+                      label="Hilfetexte anzeigen"
                       checked={Boolean(t.qol?.showTooltips)}
                       onChange={(next) => t.setQOL({ showTooltips: next })}
                     />
                   </Row>
                   <div style={{ marginTop: 8 }}>
                     <Toggle
-                      label="Auto Accent Contrast"
+                      label="Farben automatisch lesbar halten"
                       checked={Boolean(t.qol?.autoAccentContrast ?? true)}
                       onChange={(next) => t.setQOL({ autoAccentContrast: next })}
                     />
@@ -620,11 +620,11 @@ export function SettingsModulePanels({
                 </ModuleCard>
 
                 <ModuleCard
-                  title="Workflow Shortcuts"
-                  desc="Schnellzugriffe für Actions, Capture und Navigation"
+                  title="Schnellzugriffe"
+                  desc="Direkte Aktionen fuer Capture und Navigation"
                 >
                   <Toggle
-                    label="Quick Actions"
+                    label="Schnellaktionen anzeigen"
                     checked={Boolean(t.qol?.quickActions)}
                     onChange={(next) => t.setQOL({ quickActions: next })}
                   />
@@ -635,8 +635,8 @@ export function SettingsModulePanels({
             {module === "panel" ? (
               <>
                 <ModuleCard
-                  title="Panel Background"
-                  desc="Stabiler Panel-Look für den Alltag. Tieferes Tuning liegt unter Advanced."
+                  title="Fenster zuerst"
+                  desc="Sichere Looks fuer den Alltag. Detailregler bleiben optional."
                 >
                   <div
                     className="nx-settings-material-presets"
@@ -649,22 +649,22 @@ export function SettingsModulePanels({
                   >
                     {[
                       {
-                        label: "Background First",
-                        desc: "maximale Background-Sichtbarkeit mit stabilem Blur",
+                        label: "Mehr Hintergrund",
+                        desc: "Hintergrund sichtbar, Fenster bleiben klar",
                         action: applyBackgroundFirstPanels,
                       },
                       {
-                        label: "Transparent Glass",
-                        desc: "Background sichtbar, Panels bleiben lesbar",
+                        label: "Klares Glas",
+                        desc: "mehr Tiefe, aber weiterhin lesbar",
                         action: applyTransparentPanels,
                       },
                       {
-                        label: "Readable Mist",
-                        desc: "ruhige Balance fuer lange Sessions",
+                        label: "Weiche Ruhe",
+                        desc: "angenehm fuer lange Sessions",
                         action: applyReadablePanels,
                       },
                       {
-                        label: "Solid Focus",
+                        label: "Fokus",
                         desc: "maximale Lesbarkeit, wenig Ablenkung",
                         action: applySolidFocusPanels,
                       },
@@ -706,12 +706,12 @@ export function SettingsModulePanels({
                     ))}
                   </div>
                   <Segmented
-                    label="Mode"
+                    label="Fensterstil"
                     value={panelRenderer}
                     options={[
                       { value: "blur", label: "Soft Blur" },
-                      { value: "fake-glass", label: "Fake Glass" },
-                      { value: "glass-shader", label: "Shader Glass" },
+                      { value: "fake-glass", label: "Leichtes Glas" },
+                      { value: "glass-shader", label: "Showcase Glas" },
                     ]}
                     onChange={(mode) =>
                       t.setGlassmorphism({
@@ -764,13 +764,13 @@ export function SettingsModulePanels({
                         }}
                       >
                         <strong style={{ fontSize: 12 }}>
-                          Material Balance:{" "}
+                          Lesbarkeit:{" "}
                           <span style={{ color: panelBalance.color }}>
                             {panelBalance.label}
                           </span>
                         </strong>
                         <span style={{ fontSize: 10.5, opacity: 0.62 }}>
-                          BG {Math.round(panelBalance.backgroundVisibility * 100)}% / Blur{" "}
+                          Hintergrund {Math.round(panelBalance.backgroundVisibility * 100)}% / Blur{" "}
                           {panelBalance.panelBlur}px
                         </span>
                       </div>
@@ -809,9 +809,9 @@ export function SettingsModulePanels({
                         }}
                       >
                         {[
-                          ["Auto Tune", applyPanelAutoTune],
-                          ["More Background", applyMoreBackgroundVisibility],
-                          ["Readability", applyReadabilityBoost],
+                          ["Ausbalancieren", applyPanelAutoTune],
+                          ["Mehr Hintergrund", applyMoreBackgroundVisibility],
+                          ["Lesbarer", applyReadabilityBoost],
                         ].map(([label, action]) => (
                           <button
                             key={label as string}
@@ -848,20 +848,20 @@ export function SettingsModulePanels({
                         lineHeight: 1.45,
                       }}
                     >
-                      Erweiterte Regler für Blur/Fake/Shader sind unter{" "}
-                      <strong>Advanced</strong> verfügbar.
+                      Detailregler fuer Blur, Glas und Showcase-Look sind unter{" "}
+                      <strong>Details anzeigen</strong> verfuegbar.
                     </div>
                   ) : null}
                 </ModuleCard>
 
                 {showAdvancedSettings && panelRenderer === "blur" ? (
                   <ModuleCard
-                    title="Soft Blur Controls"
-                    desc="Für ruhige, transparente Panels"
+                    title="Soft Blur feinjustieren"
+                    desc="Fuer ruhige, transparente Fenster"
                   >
                     <Row>
                       <Slider
-                        label="Panel Blur"
+                        label="Fenster weichzeichnen"
                         value={t.blur.panelBlur}
                         min={4}
                         max={40}
@@ -870,7 +870,7 @@ export function SettingsModulePanels({
                         onChange={(value) => t.setBlur({ panelBlur: value })}
                       />
                       <Slider
-                        label="Sidebar Blur"
+                        label="Sidebar weichzeichnen"
                         value={t.blur.sidebarBlur}
                         min={4}
                         max={40}
@@ -884,12 +884,12 @@ export function SettingsModulePanels({
 
                 {showAdvancedSettings && panelRenderer === "fake-glass" ? (
                   <ModuleCard
-                    title="Fake Glass Controls"
-                    desc="CSS-/SVG-Glaslook ohne Shader"
+                    title="Leichtes Glas feinjustieren"
+                    desc="Glaslook ohne schwere Effekte"
                   >
                     <Row>
                       <Slider
-                        label="Border Opacity"
+                        label="Rahmenstaerke"
                         value={t.glassmorphism.borderOpacity}
                         min={0.05}
                         max={0.6}
@@ -899,7 +899,7 @@ export function SettingsModulePanels({
                         }
                       />
                       <Slider
-                        label="Tint Opacity"
+                        label="Farbtoenung"
                         value={t.glassmorphism.tintOpacity}
                         min={0}
                         max={0.3}
@@ -916,12 +916,12 @@ export function SettingsModulePanels({
                 showExperimentalSettings &&
                 panelRenderer === "glass-shader" ? (
                   <ModuleCard
-                    title="Shader Glass Controls"
-                    desc="Qualität zuerst. Für schwächere Geräte lieber Soft Blur."
+                    title="Showcase Glas feinjustieren"
+                    desc="Mehr Tiefe. Fuer schwaechere Geraete lieber Soft Blur."
                   >
                     <Row>
                       <Slider
-                        label="Glass Depth"
+                        label="Glas-Tiefe"
                         value={t.glassmorphism.glassDepth ?? 1}
                         min={0.2}
                         max={2}
@@ -932,7 +932,7 @@ export function SettingsModulePanels({
                         }
                       />
                       <Slider
-                        label="Saturation"
+                        label="Farbkraft"
                         value={t.glassmorphism.saturation}
                         min={90}
                         max={260}
@@ -945,7 +945,7 @@ export function SettingsModulePanels({
                     </Row>
                     <div style={{ marginTop: 8 }}>
                       <Toggle
-                        label="Reflection Line"
+                        label="Lichtkante"
                         checked={Boolean(t.glassmorphism.reflectionLine)}
                         onChange={(next) =>
                           t.setGlassmorphism({ reflectionLine: next })
@@ -958,8 +958,8 @@ export function SettingsModulePanels({
                 !showExperimentalSettings &&
                 panelRenderer === "glass-shader" ? (
                   <ModuleCard
-                    title="Shader Glass Controls (Experimental)"
-                    desc="Shader-nahe Feintuning-Regler sind bewusst hinter Experimental geschützt."
+                    title="Showcase Glas ist optional"
+                    desc="Diese Detailregler bleiben bewusst hinter Showcase-Optionen."
                   >
                     <div
                       style={{
@@ -971,19 +971,18 @@ export function SettingsModulePanels({
                         lineHeight: 1.45,
                       }}
                     >
-                      Aktiviere <strong>Experimental</strong>, um Shader-Regler wie
-                      <strong> Glass Depth</strong> und <strong>Reflection Line</strong>{" "}
-                      bewusst freizuschalten.
+                      Aktiviere <strong>Showcase-Optionen</strong>, um Tiefe,
+                      Farbkraft und Lichtkante bewusst freizuschalten.
                     </div>
                   </ModuleCard>
                 ) : null}
 
                 <ModuleCard
-                  title="Glow Lab"
-                  desc="Mehr Glow-Varianten, aber mit sicheren Performance-Grenzen"
+                  title="Leuchteffekte"
+                  desc="Mehr Akzentlicht, mit sicheren Grenzen fuer Alltag und Leistung"
                 >
                   <Segmented
-                    label="Glow Mode"
+                    label="Leuchtstil"
                     value={t.glow.mode}
                     options={[
                       "ambient",
@@ -1000,7 +999,7 @@ export function SettingsModulePanels({
                   <div style={{ marginTop: 10 }}>
                     <Row>
                       <Slider
-                        label="Glow Intensity"
+                        label="Leuchtstaerke"
                         value={t.glow.intensity}
                         min={0}
                         max={1.35}
@@ -1008,7 +1007,7 @@ export function SettingsModulePanels({
                         onChange={(value) => t.setGlow({ intensity: value })}
                       />
                       <Slider
-                        label="Glow Radius"
+                        label="Leuchtweite"
                         value={t.glow.radius}
                         min={6}
                         max={56}
@@ -1021,7 +1020,7 @@ export function SettingsModulePanels({
                   <div style={{ marginTop: 10 }}>
                     <Row>
                       <Slider
-                        label="Glow Spread"
+                        label="Ausbreitung"
                         value={t.glow.spread}
                         min={0}
                         max={18}
@@ -1030,7 +1029,7 @@ export function SettingsModulePanels({
                         onChange={(value) => t.setGlow({ spread: value })}
                       />
                       <Slider
-                        label="Glow Speed"
+                        label="Bewegungstempo"
                         value={t.glow.animationSpeed}
                         min={0.2}
                         max={3}
@@ -1043,12 +1042,12 @@ export function SettingsModulePanels({
                   <div style={{ marginTop: 10 }}>
                     <Row>
                       <Toggle
-                        label="Gradient Glow"
+                        label="Zweifarbiger Glow"
                         checked={Boolean(t.glow.gradientGlow)}
                         onChange={(next) => t.setGlow({ gradientGlow: next })}
                       />
                       <Toggle
-                        label="Animated Glow"
+                        label="Glow bewegen"
                         checked={Boolean(t.glow.animated)}
                         onChange={(next) => t.setGlow({ animated: next })}
                       />
@@ -1058,7 +1057,7 @@ export function SettingsModulePanels({
                     <Row>
                       <div>
                         <div style={{ fontSize: 11, opacity: 0.62, marginBottom: 6 }}>
-                          Glow Color A
+                          Glow-Farbe A
                         </div>
                         <input
                           type="color"
@@ -1080,7 +1079,7 @@ export function SettingsModulePanels({
                       </div>
                       <div>
                         <div style={{ fontSize: 11, opacity: 0.62, marginBottom: 6 }}>
-                          Glow Color B
+                          Glow-Farbe B
                         </div>
                         <input
                           type="color"
@@ -1103,14 +1102,14 @@ export function SettingsModulePanels({
                     <div style={{ marginTop: 10 }}>
                       <Row>
                         <Toggle
-                          label="Border Glow"
+                          label="Leuchtender Rahmen"
                           checked={Boolean(t.glassmorphism.borderGlow)}
                           onChange={(next) =>
                             t.setGlassmorphism({ borderGlow: next })
                           }
                         />
                         <Toggle
-                          label="Inner Shadow"
+                          label="Innenschatten"
                           checked={Boolean(t.glassmorphism.innerShadow)}
                           onChange={(next) =>
                             t.setGlassmorphism({ innerShadow: next })
@@ -1122,8 +1121,8 @@ export function SettingsModulePanels({
                 </ModuleCard>
 
                 <ModuleCard
-                  title="Glass Performance"
-                  desc="Schaetzung fuer aktuelle Blur-, Shader-, Glow-, Background- und Motion-Optionen."
+                  title="Leistungscheck"
+                  desc="Schaetzung fuer aktuelle Fenster-, Glow-, Hintergrund- und Bewegungsoptionen."
                 >
                   <div
                     style={{
@@ -1223,7 +1222,7 @@ export function SettingsModulePanels({
                         cursor: "pointer",
                       }}
                     >
-                      Release Safe
+                      Ruhig und schnell
                     </button>
                     <button
                       type="button"
@@ -1239,17 +1238,17 @@ export function SettingsModulePanels({
                         cursor: "pointer",
                       }}
                     >
-                      Balanced
+                      Ausgewogen
                     </button>
                   </div>
                 </ModuleCard>
 
                 <ModuleCard
-                  title="Panel Texture"
-                  desc="Saubere v6-Presets mit echter Vorschau. Jede Option hat Basis, Tint und Pattern-Layer."
+                  title="Fensterstruktur"
+                  desc="Fertige Oberflaechen mit Vorschau."
                 >
                   <Segmented
-                    label="Panel Background"
+                    label="Oberflaeche"
                     value={t.background.panelBgMode}
                     options={PANEL_TEXTURE_PRESETS.map((item) => ({
                       value: item.value,
@@ -1328,9 +1327,9 @@ export function SettingsModulePanels({
                   </div>
                 </ModuleCard>
 
-                <ModuleCard title="App Background">
+                <ModuleCard title="App-Hintergrund">
                   <Segmented
-                    label="Background Mode"
+                    label="Hintergrundstil"
                     value={t.background.mode}
                     options={[
                       "solid",
@@ -1349,7 +1348,7 @@ export function SettingsModulePanels({
                   <div style={{ marginTop: 10 }}>
                     <Row>
                       <Slider
-                        label="Background Through Panels"
+                        label="Hintergrund sichtbar"
                         value={t.background.overlayOpacity}
                         min={0.25}
                         max={1}
@@ -1359,7 +1358,7 @@ export function SettingsModulePanels({
                         }
                       />
                       <Slider
-                        label="Mesh / Glow Strength"
+                        label="Glow im Hintergrund"
                         value={t.background.meshIntensity}
                         min={0.05}
                         max={0.85}
@@ -1369,7 +1368,7 @@ export function SettingsModulePanels({
                         }
                       />
                       <Slider
-                        label="Noise Opacity"
+                        label="Koernung"
                         value={t.background.noiseOpacity}
                         min={0}
                         max={0.16}
@@ -1396,13 +1395,13 @@ export function SettingsModulePanels({
                     }}
                   >
                     <div style={{ fontSize: 11, fontWeight: 850 }}>
-                      Live Material Preview
+                      Live-Vorschau
                     </div>
                     <div
                       className="nx-settings-live-material-stage"
                       style={{
                         ...liveBackgroundPreview,
-                        minHeight: 176,
+                        minHeight: 148,
                         borderRadius: 14,
                         border: "1px solid rgba(255,255,255,0.12)",
                         overflow: "hidden",
@@ -1435,7 +1434,7 @@ export function SettingsModulePanels({
                         <div
                           className="nx-settings-live-panel-sample"
                           style={{
-                            minHeight: 122,
+                            minHeight: 104,
                             borderRadius: 13,
                             border: `1px solid rgba(${rgb},0.22)`,
                             background: livePanelPreview.background,
@@ -1461,7 +1460,7 @@ export function SettingsModulePanels({
                                 letterSpacing: 0.6,
                               }}
                             >
-                              Active Panel
+                              Aktives Fenster
                             </div>
                             <div
                               style={{
@@ -1498,9 +1497,9 @@ export function SettingsModulePanels({
                           }}
                         >
                           {[
-                            ["BG", `${Math.round(t.background.overlayOpacity * 100)}%`],
+                            ["Sichtbar", `${Math.round(t.background.overlayOpacity * 100)}%`],
                             ["Blur", `${t.blur.panelBlur}px`],
-                            ["Tint", t.glassmorphism.tintOpacity.toFixed(2)],
+                            ["Toenung", t.glassmorphism.tintOpacity.toFixed(2)],
                           ].map(([label, value]) => (
                             <div
                               key={label}
@@ -1528,7 +1527,7 @@ export function SettingsModulePanels({
                                   marginTop: 2,
                                   fontSize: 13,
                                   fontWeight: 880,
-                                  color: label === "BG" ? t.accent : "inherit",
+                                  color: label === "Sichtbar" ? t.accent : "inherit",
                                 }}
                               >
                                 {value}
@@ -1546,10 +1545,10 @@ export function SettingsModulePanels({
                       }}
                     >
                       {[
-                        ["Background", `${Math.round(t.background.overlayOpacity * 100)}%`],
-                        ["Panel", t.background.panelBgMode],
+                        ["Sichtbarkeit", `${Math.round(t.background.overlayOpacity * 100)}%`],
+                        ["Oberflaeche", t.background.panelBgMode],
                         ["Blur", `${t.blur.panelBlur}px`],
-                        ["Tint", t.glassmorphism.tintOpacity.toFixed(2)],
+                        ["Toenung", t.glassmorphism.tintOpacity.toFixed(2)],
                       ].map(([label, value]) => (
                         <div
                           key={label}
@@ -1576,7 +1575,7 @@ export function SettingsModulePanels({
                               marginTop: 2,
                               fontSize: 12,
                               fontWeight: 820,
-                              color: label === "Background" ? t.accent : "inherit",
+                              color: label === "Sichtbarkeit" ? t.accent : "inherit",
                               overflow: "hidden",
                               textOverflow: "ellipsis",
                               whiteSpace: "nowrap",
@@ -1591,13 +1590,13 @@ export function SettingsModulePanels({
                   <div style={{ marginTop: 10 }}>
                     <Row>
                       <Toggle
-                        label="Animate Background"
-                        desc="Bewegt Aura und Window-Layer; fuer Release-Smokes abschaltbar."
+                        label="Hintergrund bewegen"
+                        desc="Bewegt Aura und Farbflaechen; fuer ruhige Arbeit abschaltbar."
                         checked={Boolean(t.background.animated)}
                         onChange={(next) => t.setBackground({ animated: next })}
                       />
                       <Slider
-                        label="Animation Speed"
+                        label="Bewegungstempo"
                         value={t.background.animationSpeed}
                         min={2}
                         max={10}
@@ -1611,12 +1610,12 @@ export function SettingsModulePanels({
                   <div style={{ marginTop: 10 }}>
                     <Row>
                       <Toggle
-                        label="Vignette"
+                        label="Ruhiger Rand"
                         checked={Boolean(t.background.vignette)}
                         onChange={(next) => t.setBackground({ vignette: next })}
                       />
                       <Toggle
-                        label="Scanlines"
+                        label="Linien-Effekt"
                         checked={Boolean(t.background.scanlines)}
                         onChange={(next) => t.setBackground({ scanlines: next })}
                       />
@@ -1628,10 +1627,10 @@ export function SettingsModulePanels({
 
             {module === "layout" ? (
               <>
-                <ModuleCard title="Sidebar">
+                <ModuleCard title="Seitenleiste">
                   <Row>
                     <Segmented
-                      label="Style"
+                      label="Darstellung"
                       value={t.sidebarStyle ?? "default"}
                       options={[
                         "default",
@@ -1659,7 +1658,7 @@ export function SettingsModulePanels({
                   </Row>
                   <div style={{ marginTop: 8 }}>
                     <Slider
-                      label="Sidebar Width"
+                      label="Breite der Seitenleiste"
                       value={t.sidebarWidth}
                       min={64}
                       max={380}
@@ -1671,12 +1670,12 @@ export function SettingsModulePanels({
                   <div style={{ marginTop: 8 }}>
                     <Row>
                       <Toggle
-                        label="Show Labels"
+                        label="Beschriftungen anzeigen"
                         checked={Boolean(t.sidebarLabels ?? true)}
                         onChange={(next) => t.setSidebarLabels(next)}
                       />
                       <Toggle
-                        label="Sidebar Auto Hide"
+                        label="Automatisch ausblenden"
                         checked={Boolean(t.qol?.sidebarAutoHide)}
                         onChange={(next) => t.setSidebarAutoHide(next)}
                       />
@@ -1686,11 +1685,11 @@ export function SettingsModulePanels({
 
                 <ModuleCard
                   title="Toolbar"
-                  desc="Steuert Mode, Position und Sichtbarkeit der Toolbar."
+                  desc="Steuert Darstellung, Position und Sichtbarkeit der Toolbar."
                 >
                   <Row>
                     <Segmented
-                      label="Toolbar Mode"
+                      label="Toolbar-Darstellung"
                       value={t.toolbar.toolbarMode}
                       options={[
                         { value: "island", label: "Island" },
@@ -1716,11 +1715,11 @@ export function SettingsModulePanels({
                   </Row>
                   <div style={{ marginTop: 8 }}>
                     <Segmented
-                      label="Style"
+                      label="Form"
                       value={t.toolbar.mode}
                       options={[
                         { value: "pill", label: "Pill" },
-                        { value: "full-width", label: "Flat Rail" },
+                        { value: "full-width", label: "Flache Leiste" },
                       ]}
                       onChange={(value) =>
                         t.setToolbar({
@@ -1731,7 +1730,7 @@ export function SettingsModulePanels({
                   </div>
                   <div style={{ marginTop: 8 }}>
                     <Toggle
-                      label="Toolbar Visible"
+                      label="Toolbar anzeigen"
                       checked={Boolean(t.toolbar.visible)}
                       onChange={(next) => t.setToolbar({ visible: next })}
                     />
@@ -1744,16 +1743,16 @@ export function SettingsModulePanels({
                       lineHeight: 1.45,
                     }}
                   >
-                    Toolbar-Höhe und Geometrie-Feintuning bleiben im Release-Freeze fixiert.
+                    Hoehe und Detail-Geometrie bleiben stabil, damit die Toolbar verlaesslich bleibt.
                   </div>
                 </ModuleCard>
 
                 <ModuleCard
-                  title="Density & Radius"
-                  desc="Steuert Panel-Inhalt und Abstände, nicht Toolbar-Geometrie"
+                  title="Abstaende und Rundung"
+                  desc="Steuert Inhalt, Luftigkeit und Kanten der Oberflaeche"
                 >
                   <Segmented
-                    label="Panel Density"
+                    label="Dichte"
                     value={t.qol?.panelDensity ?? "comfortable"}
                     options={["comfortable", "compact", "spacious"]}
                     onChange={(value) =>
@@ -1765,7 +1764,7 @@ export function SettingsModulePanels({
                   <div style={{ marginTop: 8 }}>
                     <Row>
                       <Slider
-                        label="Panel Radius"
+                        label="Rundung"
                         value={t.visual.panelRadius}
                         min={0}
                         max={32}
@@ -1776,7 +1775,7 @@ export function SettingsModulePanels({
                         }
                       />
                       <Slider
-                        label="Shadow Depth"
+                        label="Schattenstaerke"
                         value={t.visual.shadowDepth}
                         min={0}
                         max={1}
@@ -1795,8 +1794,8 @@ export function SettingsModulePanels({
             {module === "motion" ? (
               <>
                 <ModuleCard
-                  title="Motion Profiles"
-                  desc="Motion darf hochwertig wirken, aber niemals Klickziele wegschieben"
+                  title="Bewegungs-Presets"
+                  desc="Erst ein ruhiges oder lebendiges Profil waehlen, Details danach"
                 >
                   <div
                     style={{
@@ -1845,10 +1844,10 @@ export function SettingsModulePanels({
                   </div>
                 </ModuleCard>
 
-                <ModuleCard title="Fine Tuning">
+                <ModuleCard title="Bewegung feinjustieren">
                   <Row>
                     <Slider
-                      label="Animation Speed"
+                      label="Tempo"
                       value={t.visual.animationSpeed}
                       min={0.7}
                       max={1.7}
@@ -1859,7 +1858,7 @@ export function SettingsModulePanels({
                       }
                     />
                     <Segmented
-                      label="Entry Style"
+                      label="Erscheinung"
                       value={t.animations.entranceStyle ?? "fade"}
                       options={["fade", "slide", "scale"]}
                       onChange={(value) =>
@@ -1873,14 +1872,14 @@ export function SettingsModulePanels({
                   <div style={{ marginTop: 8 }}>
                     <Row>
                       <Toggle
-                        label="Page Transitions"
+                        label="Seitenwechsel animieren"
                         checked={Boolean(t.animations.pageTransitions)}
                         onChange={(next) =>
                           t.setAnimations({ pageTransitions: next })
                         }
                       />
                       <Toggle
-                        label="Hover Lift"
+                        label="Elemente beim Hover anheben"
                         checked={Boolean(t.animations.hoverLift)}
                         onChange={(next) =>
                           t.setAnimations({ hoverLift: next })
@@ -1891,14 +1890,14 @@ export function SettingsModulePanels({
                   <div style={{ marginTop: 8 }}>
                     <Row>
                       <Toggle
-                        label="Ripple Click"
+                        label="Klick-Reaktion"
                         checked={Boolean(t.animations.rippleClick)}
                         onChange={(next) =>
                           t.setAnimations({ rippleClick: next })
                         }
                       />
                       <Toggle
-                        label="Reduce Motion"
+                        label="Bewegung reduzieren"
                         checked={Boolean(t.qol?.reducedMotion)}
                         onChange={(next) => t.setQOL({ reducedMotion: next })}
                       />
@@ -1911,12 +1910,12 @@ export function SettingsModulePanels({
             {module === "editor" ? (
               <>
                 <ModuleCard
-                  title="Code Editor"
-                  desc="Wirkt direkt auf CodeView und Editor-Bereiche in Notes"
+                  title="Code-Editor"
+                  desc="Schrift und Lesbarkeit fuer Codebereiche"
                 >
                   <Row>
                     <Slider
-                      label="Font Size"
+                      label="Schriftgroesse"
                       value={t.editor.fontSize}
                       min={10}
                       max={22}
@@ -1925,7 +1924,7 @@ export function SettingsModulePanels({
                       onChange={(value) => t.setEditor({ fontSize: value })}
                     />
                     <Slider
-                      label="Tab Size"
+                      label="Einrueckung"
                       value={t.editor.tabSize}
                       min={2}
                       max={8}
@@ -1935,7 +1934,7 @@ export function SettingsModulePanels({
                   </Row>
                   <div style={{ marginTop: 8 }}>
                     <Segmented
-                      label="Editor Font"
+                      label="Editor-Schrift"
                       value={t.editor.fontFamily}
                       options={[
                         { value: "monospace", label: "monospace", previewFont: "monospace" },
@@ -1950,12 +1949,12 @@ export function SettingsModulePanels({
                   <div style={{ marginTop: 8 }}>
                     <Row>
                       <Toggle
-                        label="Word Wrap"
+                        label="Lange Zeilen umbrechen"
                         checked={Boolean(t.editor.wordWrap)}
                         onChange={(next) => t.setEditor({ wordWrap: next })}
                       />
                       <Toggle
-                        label="Line Numbers"
+                        label="Zeilennummern anzeigen"
                         checked={Boolean(t.editor.lineNumbers)}
                         onChange={(next) => t.setEditor({ lineNumbers: next })}
                       />
@@ -1964,17 +1963,17 @@ export function SettingsModulePanels({
                 </ModuleCard>
 
                 <ModuleCard
-                  title="Editor Behavior"
-                  desc="Autosave, Minimap und Cursor-Verhalten"
+                  title="Editor-Verhalten"
+                  desc="Speichern, Uebersicht und Cursor"
                 >
                   <Row>
                     <Toggle
-                      label="Autosave"
+                      label="Automatisch speichern"
                       checked={Boolean(t.editor.autosave)}
                       onChange={(next) => t.setEditor({ autosave: next })}
                     />
                     <Toggle
-                      label="Minimap"
+                      label="Code-Uebersicht"
                       checked={Boolean(t.editor.minimap)}
                       onChange={(next) => t.setEditor({ minimap: next })}
                     />
@@ -1982,14 +1981,14 @@ export function SettingsModulePanels({
                   <div style={{ marginTop: 8 }}>
                     <Row>
                       <Toggle
-                        label="Cursor Animation"
+                        label="Cursor animieren"
                         checked={Boolean(t.editor.cursorAnimation)}
                         onChange={(next) =>
                           t.setEditor({ cursorAnimation: next })
                         }
                       />
                       <Slider
-                        label="Autosave Interval"
+                        label="Speicherintervall"
                         value={t.editor.autosaveInterval}
                         min={500}
                         max={6000}
@@ -2003,10 +2002,10 @@ export function SettingsModulePanels({
                   </div>
                 </ModuleCard>
 
-                <ModuleCard title="Notes">
+                <ModuleCard title="Notizen">
                   <Row>
                     <Slider
-                      label="Notes Font"
+                      label="Notiz-Schriftgroesse"
                       value={t.notes.fontSize}
                       min={10}
                       max={24}
@@ -2015,7 +2014,7 @@ export function SettingsModulePanels({
                       onChange={(value) => t.setNotes({ fontSize: value })}
                     />
                     <Slider
-                      label="Line Height"
+                      label="Zeilenhoehe"
                       value={t.notes.lineHeight}
                       min={1}
                       max={2.4}

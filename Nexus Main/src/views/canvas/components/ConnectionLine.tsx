@@ -2,6 +2,14 @@ import React, { useState } from "react";
 import { useTheme } from "../../../store/themeStore";
 import type { CanvasConnection, CanvasNode } from "../../../store/canvasStore";
 
+const MIN_ZOOM = 0.15;
+const MAX_ZOOM = 3;
+const COORD_PRECISION = 2;
+
+const clampZoom = (zoom: number) => Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom));
+const crispCoord = (value: number) =>
+  Math.round(value * COORD_PRECISION) / COORD_PRECISION;
+
 const ConnectionLine = React.memo(function ConnectionLine({
   conn,
   nodeById,
@@ -20,16 +28,23 @@ const ConnectionLine = React.memo(function ConnectionLine({
   const toNode = nodeById.get(conn.toId);
   if (!fromNode || !toNode) return null;
 
-  const x1 = fromNode.x + fromNode.width / 2;
-  const y1 = fromNode.y + fromNode.height / 2;
-  const x2 = toNode.x + toNode.width / 2;
-  const y2 = toNode.y + toNode.height / 2;
+  const safeZoom = clampZoom(zoom || 1);
+  const x1 = crispCoord(fromNode.x + fromNode.width / 2);
+  const y1 = crispCoord(fromNode.y + fromNode.height / 2);
+  const x2 = crispCoord(toNode.x + toNode.width / 2);
+  const y2 = crispCoord(toNode.y + toNode.height / 2);
   const dx = Math.abs(x2 - x1) * 0.5;
   const path = `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`;
 
   const [hovered, setHovered] = useState(false);
   const connColor = conn.color || t.accent;
   const showDetail = !reduceEffects && hovered;
+  const lowZoom = safeZoom < 0.7;
+  const showGlow = showDetail && !lowZoom;
+  const hitStrokeWidth = (reduceEffects ? 1.2 : 18) / safeZoom;
+  const lineStrokeWidth = (showDetail ? 2.35 : lowZoom ? 1.25 : 1.45) / safeZoom;
+  const glowStrokeWidth = 4.5 / safeZoom;
+  const dashSize = `${Math.max(5, 8 / safeZoom)} ${Math.max(3, 4 / safeZoom)}`;
 
   return (
     <g
@@ -39,56 +54,57 @@ const ConnectionLine = React.memo(function ConnectionLine({
       <path
         d={path}
         stroke={reduceEffects ? connColor : "transparent"}
-        strokeWidth={reduceEffects ? 1.2 / zoom : 18 / zoom}
+        strokeWidth={hitStrokeWidth}
         fill="none"
-        style={{ cursor: reduceEffects ? "default" : "pointer", opacity: 0.5 }}
+        strokeLinecap="round"
+        style={{ cursor: reduceEffects ? "default" : "pointer", opacity: 0.45 }}
       />
-      {/* Glow layer */}
-      {showDetail && (
+      {showGlow && (
         <path
           d={path}
           stroke={connColor}
-          strokeWidth={6 / zoom}
+          strokeWidth={glowStrokeWidth}
           fill="none"
-          opacity={0.2}
-          style={{ filter: `blur(${3 / zoom}px)` }}
+          opacity={0.16}
+          strokeLinecap="round"
+          style={{ filter: `blur(${Math.min(2.5, 1.8 / safeZoom)}px)` }}
         />
       )}
       <path
         d={path}
         stroke={connColor}
-        strokeWidth={(showDetail ? 2.5 : 1.5) / zoom}
+        strokeWidth={lineStrokeWidth}
         fill="none"
+        strokeLinecap="round"
+        strokeLinejoin="round"
         strokeDasharray={
           reduceEffects
             ? "none"
             : showDetail
               ? "none"
-              : `${8 / zoom} ${4 / zoom}`
+              : dashSize
         }
-        opacity={showDetail ? 1 : reduceEffects ? 0.62 : 0.55}
+        opacity={showDetail ? (lowZoom ? 0.86 : 0.95) : reduceEffects ? 0.58 : 0.5}
         style={{
-          transition: reduceEffects ? "none" : "all 0.2s",
-          filter: showDetail
-            ? `drop-shadow(0 0 ${4 / zoom}px ${connColor})`
+          transition: reduceEffects ? "none" : "opacity 0.16s, stroke-width 0.16s",
+          filter: showGlow
+            ? `drop-shadow(0 0 ${Math.min(3, 2.2 / safeZoom)}px ${connColor})`
             : "none",
         }}
       />
-      {/* Arrowhead */}
       {showDetail &&
         (() => {
           const angle = Math.atan2(y2 - y1, x2 - x1);
-          const ax = x2 - (8 / zoom) * Math.cos(angle);
-          const ay = y2 - (8 / zoom) * Math.sin(angle);
+          const ax = x2 - (8 / safeZoom) * Math.cos(angle);
+          const ay = y2 - (8 / safeZoom) * Math.sin(angle);
           return (
             <polygon
-              points={`${x2},${y2} ${ax - (5 / zoom) * Math.sin(angle)},${ay + (5 / zoom) * Math.cos(angle)} ${ax + (5 / zoom) * Math.sin(angle)},${ay - (5 / zoom) * Math.cos(angle)}`}
+              points={`${x2},${y2} ${ax - (5 / safeZoom) * Math.sin(angle)},${ay + (5 / safeZoom) * Math.cos(angle)} ${ax + (5 / safeZoom) * Math.sin(angle)},${ay - (5 / safeZoom) * Math.cos(angle)}`}
               fill={connColor}
-              opacity={0.9}
+              opacity={lowZoom ? 0.72 : 0.86}
             />
           );
         })()}
-      {/* Midpoint delete */}
       {showDetail && (
         <g
           transform={`translate(${(x1 + x2) / 2},${(y1 + y2) / 2})`}
@@ -98,33 +114,35 @@ const ConnectionLine = React.memo(function ConnectionLine({
           }}
           style={{ cursor: "pointer" }}
         >
-          <circle r={10 / zoom} fill="#FF3B30" opacity={0.9} />
+          <circle r={10 / safeZoom} fill="#FF3B30" opacity={0.88} />
           <line
-            x1={-4 / zoom}
-            y1={-4 / zoom}
-            x2={4 / zoom}
-            y2={4 / zoom}
+            x1={-4 / safeZoom}
+            y1={-4 / safeZoom}
+            x2={4 / safeZoom}
+            y2={4 / safeZoom}
             stroke="white"
-            strokeWidth={1.5 / zoom}
+            strokeWidth={1.5 / safeZoom}
+            strokeLinecap="round"
           />
           <line
-            x1={4 / zoom}
-            y1={-4 / zoom}
-            x2={-4 / zoom}
-            y2={4 / zoom}
+            x1={4 / safeZoom}
+            y1={-4 / safeZoom}
+            x2={-4 / safeZoom}
+            y2={4 / safeZoom}
             stroke="white"
-            strokeWidth={1.5 / zoom}
+            strokeWidth={1.5 / safeZoom}
+            strokeLinecap="round"
           />
         </g>
       )}
       {conn.label && (
         <text
           x={(x1 + x2) / 2}
-          y={(y1 + y2) / 2 - 14 / zoom}
+          y={(y1 + y2) / 2 - 14 / safeZoom}
           textAnchor="middle"
           fill={t.mode === "dark" ? "#fff" : "#000"}
-          fontSize={11 / zoom}
-          opacity={0.7}
+          fontSize={11 / safeZoom}
+          opacity={lowZoom ? 0.56 : 0.68}
         >
           {conn.label}
         </text>

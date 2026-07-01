@@ -120,8 +120,8 @@ export function renderNodeWidgetContent(args: NodeWidgetContentArgs): React.Reac
               color: isSticky ? "#333" : "inherit",
               fontFamily: "inherit",
               fontSize: 13,
-              lineHeight: 1.6,
-              padding: 0,
+              lineHeight: 1.55,
+              padding: "1px 1px 0",
             }}
           />
         );
@@ -173,8 +173,8 @@ export function renderNodeWidgetContent(args: NodeWidgetContentArgs): React.Reac
                 color: "inherit",
                 fontFamily: "'Fira Code', monospace",
                 fontSize: 12,
-                lineHeight: 1.5,
-                padding: 0,
+                lineHeight: 1.55,
+                padding: "1px 1px 0",
               }}
             />
           </div>
@@ -186,12 +186,13 @@ export function renderNodeWidgetContent(args: NodeWidgetContentArgs): React.Reac
               height: "100%",
               overflow: "auto",
               cursor: "text",
+              scrollbarGutter: "stable",
             }}
             onDoubleClick={() => setEditingContent(true)}
           >
             {nodeContent ? (
               <div
-                style={{ fontSize: 13, lineHeight: 1.6 }}
+                style={{ fontSize: 13, lineHeight: 1.55 }}
                 className="canvas-md"
               >
                 <ReactMarkdown
@@ -258,7 +259,12 @@ export function renderNodeWidgetContent(args: NodeWidgetContentArgs): React.Reac
         return (
           <div
             className="node-interactive"
-            style={{ width: "100%", height: "100%", overflow: "auto" }}
+            style={{
+              width: "100%",
+              height: "100%",
+              overflow: "auto",
+              scrollbarGutter: "stable",
+            }}
           >
             {(node.items || []).map((item) => (
               <div
@@ -267,7 +273,7 @@ export function renderNodeWidgetContent(args: NodeWidgetContentArgs): React.Reac
                   display: "flex",
                   alignItems: "center",
                   gap: 8,
-                  padding: "4px 0",
+                  padding: "5px 1px",
                   borderBottom: `1px solid ${t.mode === "dark" ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)"}`,
                 }}
               >
@@ -286,7 +292,8 @@ export function renderNodeWidgetContent(args: NodeWidgetContentArgs): React.Reac
                 <span
                   style={{
                     flex: 1,
-                    fontSize: 12,
+                    fontSize: 12.5,
+                    lineHeight: 1.35,
                     textDecoration: item.done ? "line-through" : "none",
                     opacity: item.done ? 0.45 : 1,
                     transition: "all 0.2s",

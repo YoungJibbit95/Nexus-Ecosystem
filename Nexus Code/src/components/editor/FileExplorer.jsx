@@ -18,20 +18,37 @@ import {
 import { AnimatePresence, motion } from "framer-motion";
 import {
   FILE_TREE_LIMITS,
+  createFileTreeItems,
   createFileTreeModel,
+  getFileGroupLabel,
   getFileMeta,
+  getFileTreeDisplayState,
+  getFileTreeVirtualWindow,
 } from "../../pages/editor/fileTreeModel";
 
 const actionButtonClass =
-  "grid h-8 w-8 shrink-0 place-items-center rounded-md text-gray-500 transition hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40 [&>svg]:h-4 [&>svg]:w-4";
+  "grid h-7 w-7 shrink-0 place-items-center rounded-lg border border-white/[0.065] bg-black/20 text-slate-500 transition hover:border-cyan-300/20 hover:bg-white/[0.055] hover:text-slate-100 focus-visible:border-cyan-300/50 focus-visible:text-white focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-35 [&>svg]:h-3.5 [&>svg]:w-3.5";
 
 const rowActionClass =
-  "grid h-6 w-6 shrink-0 place-items-center rounded text-gray-500 transition hover:bg-white/10 hover:text-white [&>svg]:h-3.5 [&>svg]:w-3.5";
+  "grid h-6 w-6 shrink-0 place-items-center rounded text-gray-500 transition hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40 [&>svg]:h-3 [&>svg]:w-3";
 
 const TREE_ROW_HEIGHT = FILE_TREE_LIMITS.rowHeight || 32;
-const TREE_VIRTUALIZE_AFTER = FILE_TREE_LIMITS.virtualizeAfter || 160;
-const TREE_OVERSCAN_ROWS = FILE_TREE_LIMITS.overscanRows || 14;
-const TREE_MAX_RENDERED_ROWS = FILE_TREE_LIMITS.maxRenderedRows || 260;
+
+function getFileNameParts(name = "") {
+  const value = String(name || "");
+  const index = value.lastIndexOf(".");
+  if (index <= 0 || index >= value.length - 1) {
+    return { base: value, suffix: "" };
+  }
+  return {
+    base: value.slice(0, index),
+    suffix: value.slice(index),
+  };
+}
+
+function getItemCountLabel(count) {
+  return count === 1 ? "1 file" : `${count} files`;
+}
 
 function WorkspaceLabel({ workspacePath }) {
   const label = useMemo(() => {
@@ -41,30 +58,41 @@ function WorkspaceLabel({ workspacePath }) {
   }, [workspacePath]);
 
   return (
-    <div className="flex min-w-0 items-center gap-2 px-1">
-      <FolderOpen size={13} className="shrink-0 text-purple-300" />
-      <span className="truncate text-[11px] font-bold tracking-tight text-gray-300">
+    <div className="flex min-w-0 items-center gap-2 rounded-xl border border-white/[0.055] bg-black/15 px-2 py-1">
+      <FolderOpen size={12} className="shrink-0 text-sky-300" />
+      <span className="truncate text-[11px] font-semibold tracking-tight text-slate-300">
         {label}
       </span>
     </div>
   );
 }
 
-function ActionIconButton({ title, onClick, disabled = false, children }) {
+function ActionIconButton({
+  title,
+  tooltip = title,
+  onClick,
+  disabled = false,
+  children,
+}) {
   return (
-    <button
-      type="button"
-      title={title}
-      aria-label={title}
-      disabled={disabled}
-      onClick={(event) => {
-        event.stopPropagation();
-        if (!disabled) onClick?.(event);
-      }}
-      className={actionButtonClass}
-    >
-      {children}
-    </button>
+    <div className="group/tool relative grid place-items-center">
+      <button
+        type="button"
+        title={title}
+        aria-label={title}
+        disabled={disabled}
+        onClick={(event) => {
+          event.stopPropagation();
+          if (!disabled) onClick?.(event);
+        }}
+        className={actionButtonClass}
+      >
+        {children}
+      </button>
+      <span className="pointer-events-none absolute left-1/2 top-full z-30 mt-1 -translate-x-1/2 whitespace-nowrap rounded-md border border-white/10 bg-[#090918]/95 px-2 py-1 text-[10px] font-medium text-gray-200 opacity-0 shadow-xl transition-opacity group-hover/tool:opacity-100 group-focus-within/tool:opacity-100">
+        {tooltip}
+      </span>
+    </div>
   );
 }
 
@@ -75,7 +103,7 @@ function InlineInput({
   placeholder = "",
 }) {
   const [value, setValue] = useState(defaultValue || "");
-  const inputRef = useRef(null);
+  const inputRef = useRef(/** @type {HTMLInputElement | null} */ (null));
   const doneRef = useRef(false);
 
   useEffect(() => {
@@ -127,14 +155,15 @@ function CreationRow({ depth, type, onConfirm, onCancel }) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="h-8 overflow-hidden"
+      className="overflow-hidden"
+      style={{ height: TREE_ROW_HEIGHT }}
     >
       <div
-        className="flex h-8 items-center gap-2 px-2"
-        style={{ paddingLeft: `${depth * 14 + 28}px` }}
+        className="flex h-full items-center gap-2 px-2"
+        style={{ paddingLeft: `${depth * 12 + 24}px` }}
       >
         {isFolder ? (
-          <FolderPlus size={14} className="shrink-0 text-purple-300" />
+          <FolderPlus size={14} className="shrink-0 text-sky-300" />
         ) : (
           <FilePlus2 size={14} className="shrink-0 text-cyan-300" />
         )}
@@ -148,14 +177,107 @@ function CreationRow({ depth, type, onConfirm, onCancel }) {
   );
 }
 
-function EmptyState({ icon, title, detail }) {
+function StateActionButton({ icon: Icon, children, onClick, disabled = false }) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={(event) => {
+        event.stopPropagation();
+        if (!disabled) onClick?.(event);
+      }}
+      className="inline-flex h-7 items-center gap-1.5 rounded-lg border border-white/[0.08] bg-black/20 px-2.5 text-[10px] font-semibold text-slate-300 transition hover:border-cyan-300/20 hover:bg-white/[0.065] hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+    >
+      {Icon && <Icon size={12} className="shrink-0" />}
+      <span>{children}</span>
+    </button>
+  );
+}
+
+function EmptyState({ icon, title, detail, children }) {
   const Icon = icon;
   return (
-    <div className="flex h-full min-h-[220px] flex-col items-center justify-center px-5 text-center text-gray-500">
-      <Icon size={34} className={`mb-3 opacity-70 ${Icon === Loader2 ? "animate-spin" : ""}`} />
-      <div className="text-xs font-semibold text-gray-300">{title}</div>
-      {detail && <div className="mt-1 max-w-[220px] text-[11px] leading-5">{detail}</div>}
+    <div className="flex h-full min-h-[190px] flex-col items-center justify-center px-5 text-center text-slate-500">
+      <Icon size={28} className={`mb-2.5 opacity-70 ${Icon === Loader2 ? "animate-spin" : ""}`} />
+      <div className="text-xs font-semibold text-slate-300">{title}</div>
+      {detail && <div className="mt-1 max-w-[220px] text-[11px] leading-4 text-slate-500">{detail}</div>}
+      {children && <div className="mt-3 flex flex-wrap items-center justify-center gap-2">{children}</div>}
     </div>
+  );
+}
+
+function LoadingState() {
+  const rows = [0, 1, 2, 3, 4, 5, 6];
+  return (
+    <div className="px-2 py-2" aria-label="Loading tree">
+      <div className="mb-3 flex items-center gap-2 px-2 text-[11px] text-gray-400">
+        <Loader2 size={13} className="shrink-0 animate-spin text-cyan-200" />
+        <span className="truncate">Reading workspace entries.</span>
+      </div>
+      {rows.map((row) => (
+        <div
+          key={row}
+          className="flex items-center gap-2 rounded-md px-2"
+          style={{
+            height: TREE_ROW_HEIGHT,
+            paddingLeft: `${(row % 3) * 12 + 10}px`,
+          }}
+        >
+          <span className="h-3.5 w-3.5 shrink-0 rounded bg-white/[0.07]" />
+          <span
+            className="h-2.5 rounded bg-white/[0.06]"
+            style={{ width: `${58 + ((row * 17) % 34)}%` }}
+          />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ExtensionSectionRow({ section }) {
+  return (
+    <div
+      className="flex items-center gap-2 px-2 text-[10px] text-gray-500"
+      style={{
+        height: TREE_ROW_HEIGHT,
+        paddingLeft: `${section.depth * 12 + 24}px`,
+      }}
+      role="presentation"
+    >
+      <span
+        className="h-1.5 w-1.5 shrink-0 rounded-full"
+        style={{ background: section.color }}
+      />
+      <span className="shrink-0 font-bold uppercase tracking-wider text-gray-400">
+        {section.label}
+      </span>
+      <span className="min-w-0 truncate text-[9px] text-gray-600">
+        {section.detail}
+      </span>
+      <span className="h-px min-w-[12px] flex-1 bg-white/[0.06]" />
+      <span className="shrink-0 rounded border border-white/5 bg-white/[0.025] px-1.5 py-0.5 text-[9px] font-semibold text-gray-600">
+        {getItemCountLabel(section.count)}
+      </span>
+    </div>
+  );
+}
+
+function FileNameLabel({ node, isActive }) {
+  const { base, suffix } = getFileNameParts(node.name);
+  const textClass = isActive ? "text-white" : "text-gray-400";
+
+  return (
+    <span
+      className={`flex min-w-0 flex-1 items-baseline font-mono leading-none ${textClass}`}
+      title={node.name}
+    >
+      <span className="min-w-0 truncate">{base || node.name}</span>
+      {suffix && (
+        <span className="shrink-0 text-gray-500 group-hover:text-gray-300">
+          {suffix}
+        </span>
+      )}
+    </span>
   );
 }
 
@@ -164,8 +286,9 @@ function FileBadge({ node }) {
   const meta = getFileMeta(node.name);
   return (
     <span
-      className="ml-1 shrink-0 rounded border border-white/10 px-1.5 py-0.5 text-[9px] font-bold leading-none"
-      style={{ color: meta.color, background: `${meta.color}14` }}
+      className="ml-1 hidden shrink-0 rounded-md border border-white/[0.08] px-1.5 py-0.5 text-[9px] font-semibold leading-none opacity-70 transition-opacity group-hover:inline-flex group-hover:opacity-100 group-focus-within:inline-flex"
+      style={{ color: meta.color, background: `${meta.color}10` }}
+      title={`${meta.label} / ${getFileGroupLabel(meta.group)}`}
     >
       {meta.label}
     </span>
@@ -175,12 +298,15 @@ function FileBadge({ node }) {
 function OverflowRow({ row }) {
   return (
     <div
-      className="flex h-8 items-center gap-2 px-2 text-[11px] text-amber-300/80"
-      style={{ paddingLeft: `${row.depth * 14 + 28}px` }}
+      className="flex items-center gap-2 px-2 text-[11px] text-amber-300/80"
+      style={{
+        height: TREE_ROW_HEIGHT,
+        paddingLeft: `${row.depth * 12 + 24}px`,
+      }}
     >
       <AlertTriangle size={13} className="shrink-0" />
       <span className="truncate">
-        {row.overflowCount || "More"} items hidden to keep the tree responsive.
+        {row.overflowCount || "More"} items hidden for responsiveness.
       </span>
     </div>
   );
@@ -198,32 +324,41 @@ function TreeRow({
   onStartRename,
   onRenameConfirm,
   onDelete,
+  treeLocked = false,
 }) {
-  const { node, depth, childCount, isOpen, hasChildren } = row;
+  const { node, depth, childCount, isOpen, hasChildren, isMatch } = row;
   const isActive = activeFileId === node.id;
   const isFolder = node.isFolder;
   const isRenaming = renamingId === node.id;
   const isDeleting = deleteConfirmId === node.id;
   const isBusy = busyId === node.id;
-  const indent = depth * 14 + 8;
+  const indent = depth * 12 + 6;
   const meta = getFileMeta(node.name);
+  const rowTitle = node.fsPath || node.path || node.name;
+  const canMutate = !treeLocked && !isBusy;
 
   const handleOpen = () => {
-    if (isFolder) onToggleFolder?.(node.id);
-    else onFileSelect?.(node.id);
+    if (isFolder) {
+      if (!treeLocked) onToggleFolder?.(node.id);
+      return;
+    }
+    onFileSelect?.(node.id);
   };
 
   return (
     <>
       <div
         role="treeitem"
+        aria-level={depth + 1}
         aria-expanded={isFolder ? isOpen : undefined}
         aria-selected={isActive}
+        aria-busy={isBusy || undefined}
         tabIndex={0}
+        title={rowTitle}
         onClick={handleOpen}
         onDoubleClick={(event) => {
           event.stopPropagation();
-          onStartRename(node.id);
+          if (canMutate) onStartRename(node.id);
         }}
         onKeyDown={(event) => {
           if (event.key === "Enter" || event.key === " ") {
@@ -232,24 +367,36 @@ function TreeRow({
           }
           if (event.key === "F2") {
             event.preventDefault();
-            onStartRename(node.id);
+            if (canMutate) onStartRename(node.id);
           }
         }}
-        className="nx-code-file-tree-row group relative flex h-8 min-w-0 cursor-pointer select-none items-center gap-1.5 overflow-hidden rounded-md px-2 text-xs outline-none transition hover:bg-white/[0.06] focus:bg-white/[0.08]"
+        className={`nx-code-file-tree-row group relative flex min-w-0 select-none items-center gap-1.5 overflow-hidden rounded-md px-2 text-[11px] outline-none transition hover:bg-white/[0.06] focus:bg-white/[0.08] ${
+          treeLocked && isFolder ? "cursor-wait" : "cursor-pointer"
+        }`}
         style={{
+          height: TREE_ROW_HEIGHT,
           paddingLeft: `${indent}px`,
+          paddingRight: !isRenaming ? (isFolder ? "5.75rem" : "2.5rem") : undefined,
           background: isActive
             ? "rgba(var(--primary-rgb, 128, 0, 255), 0.15)"
+            : isMatch
+              ? "rgba(34, 211, 238, 0.08)"
             : undefined,
+          boxShadow: isMatch ? "inset 2px 0 rgba(34, 211, 238, 0.45)" : undefined,
+          contain: "layout paint style",
         }}
       >
         <div className="grid h-4 w-4 shrink-0 place-items-center">
-          {isFolder && hasChildren && (
+          {isBusy ? (
+            <Loader2 size={12} className="animate-spin text-cyan-200" />
+          ) : isFolder && hasChildren ? (
             isOpen ? (
               <ChevronDown size={14} className="text-gray-500" />
             ) : (
               <ChevronRight size={14} className="text-gray-500" />
             )
+          ) : (
+            null
           )}
         </div>
 
@@ -271,13 +418,18 @@ function TreeRow({
           />
         ) : (
           <>
-            <span
-              className={`min-w-0 flex-1 truncate font-mono ${
-                isActive ? "text-white" : "text-gray-400"
-              }`}
-            >
-              {node.name}
-            </span>
+            {isFolder ? (
+              <span
+                className={`min-w-0 flex-1 truncate font-medium leading-none ${
+                  isActive ? "text-white" : isOpen ? "text-purple-100" : "text-gray-400"
+                }`}
+                title={node.name}
+              >
+                {node.name}
+              </span>
+            ) : (
+              <FileNameLabel node={node} isActive={isActive} />
+            )}
             {isFolder && childCount > 0 && (
               <span className="shrink-0 rounded bg-white/5 px-1.5 py-0.5 text-[9px] font-semibold text-gray-500">
                 {childCount}
@@ -288,29 +440,31 @@ function TreeRow({
         )}
 
         {!isRenaming && (
-          <div className="ml-1 flex h-6 w-20 shrink-0 items-center justify-end gap-0.5 opacity-0 transition-opacity pointer-events-none group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100">
+          <div className="pointer-events-none absolute right-1 top-1/2 flex h-6 -translate-y-1/2 items-center justify-end gap-0.5 rounded bg-[#080817]/95 px-0.5 opacity-0 shadow-[0_0_12px_rgba(0,0,0,0.35)] transition-opacity group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100">
             {isFolder && (
               <>
                 <button
                   type="button"
-                  title="New file"
-                  aria-label="New file"
+                  title="New file in folder"
+                  aria-label="New file in folder"
+                  disabled={!canMutate}
                   className={rowActionClass}
                   onClick={(event) => {
                     event.stopPropagation();
-                    onStartCreate("file", node.id, !isOpen);
+                    if (canMutate) onStartCreate("file", node.id, !isOpen);
                   }}
                 >
                   <FilePlus2 size={12} />
                 </button>
                 <button
                   type="button"
-                  title="New folder"
-                  aria-label="New folder"
+                  title="New folder in folder"
+                  aria-label="New folder in folder"
+                  disabled={!canMutate}
                   className={rowActionClass}
                   onClick={(event) => {
                     event.stopPropagation();
-                    onStartCreate("folder", node.id, !isOpen);
+                    if (canMutate) onStartCreate("folder", node.id, !isOpen);
                   }}
                 >
                   <FolderPlus size={12} />
@@ -319,13 +473,13 @@ function TreeRow({
             )}
             <button
               type="button"
-              title={isDeleting ? "Confirm delete" : "Delete"}
-              aria-label={isDeleting ? "Confirm delete" : "Delete"}
-              disabled={isBusy}
+              title={isDeleting ? "Click again to delete" : "Delete"}
+              aria-label={isDeleting ? "Click again to delete" : "Delete"}
+              disabled={!canMutate}
               className={`${rowActionClass} ${isDeleting ? "text-red-400" : "hover:text-red-300"}`}
               onClick={(event) => {
                 event.stopPropagation();
-                onDelete(node.id);
+                if (canMutate) onDelete(node.id);
               }}
             >
               {isBusy ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
@@ -354,17 +508,24 @@ export default function FileExplorer({
 }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearch, setShowSearch] = useState(false);
-  const [creating, setCreating] = useState(null);
-  const [renamingId, setRenamingId] = useState(null);
-  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
-  const [busyId, setBusyId] = useState(null);
+  const [creating, setCreating] = useState(
+    /** @type {{ type: "file" | "folder", parentId: string | null } | null} */ (null),
+  );
+  const [renamingId, setRenamingId] = useState(/** @type {string | null} */ (null));
+  const [deleteConfirmId, setDeleteConfirmId] = useState(
+    /** @type {string | null} */ (null),
+  );
+  const [busyId, setBusyId] = useState(/** @type {string | null} */ (null));
   const [refreshing, setRefreshing] = useState(false);
   const [localError, setLocalError] = useState("");
   const [refreshNonce, setRefreshNonce] = useState(0);
-  const searchRef = useRef(null);
-  const treeViewportRef = useRef(null);
+  const searchRef = useRef(/** @type {HTMLInputElement | null} */ (null));
+  const treeViewportRef = useRef(/** @type {HTMLDivElement | null} */ (null));
   const virtualFrameRef = useRef(0);
   const pendingScrollRestoreRef = useRef(null);
+  const refreshRequestRef = useRef(0);
+  const refreshInFlightRef = useRef(false);
+  const collapseFrameRef = useRef(0);
   const [treeViewport, setTreeViewport] = useState({
     height: 0,
     scrollTop: 0,
@@ -394,6 +555,10 @@ export default function FileExplorer({
   }, []);
 
   const scheduleTreeViewportSync = useCallback(() => {
+    if (typeof window === "undefined") {
+      syncTreeViewport();
+      return;
+    }
     if (virtualFrameRef.current) return;
     virtualFrameRef.current = window.requestAnimationFrame(() => {
       virtualFrameRef.current = 0;
@@ -426,6 +591,15 @@ export default function FileExplorer({
       }
     };
   }, [scheduleTreeViewportSync, syncTreeViewport]);
+
+  useEffect(() => () => {
+    refreshRequestRef.current += 1;
+    refreshInFlightRef.current = false;
+    if (typeof window !== "undefined" && collapseFrameRef.current) {
+      window.cancelAnimationFrame(collapseFrameRef.current);
+      collapseFrameRef.current = 0;
+    }
+  }, []);
 
   useEffect(() => {
     if (!deleteConfirmId) return undefined;
@@ -462,6 +636,16 @@ export default function FileExplorer({
       setBusyId(null);
     }
   }, []);
+
+  const handleToggleFolder = useCallback(
+    (id) => {
+      if (!id || isLoading || refreshing) return;
+      runAction(id, async () => {
+        await onToggleFolder?.(id);
+      });
+    },
+    [isLoading, onToggleFolder, refreshing, runAction],
+  );
 
   const handleCreateConfirm = useCallback(
     (name, parentId = null) => {
@@ -505,34 +689,84 @@ export default function FileExplorer({
       setLocalError("");
       return;
     }
+    if (isLoading || refreshing || refreshInFlightRef.current) return;
+    const requestId = refreshRequestRef.current + 1;
+    refreshRequestRef.current = requestId;
+    refreshInFlightRef.current = true;
     setLocalError("");
     pendingScrollRestoreRef.current = treeViewportRef.current?.scrollTop || 0;
     setRefreshing(true);
     try {
-      await Promise.resolve(onRefresh?.());
-      setRefreshNonce((value) => value + 1);
+      if (typeof onRefresh === "function") {
+        await Promise.resolve(onRefresh());
+      }
+      if (requestId === refreshRequestRef.current) {
+        setRefreshNonce((value) => value + 1);
+      }
     } catch (refreshError) {
-      setLocalError(refreshError?.message || "Refresh failed.");
+      if (requestId === refreshRequestRef.current) {
+        setLocalError(refreshError?.message || "Refresh failed.");
+      }
     } finally {
-      setRefreshing(false);
+      if (requestId === refreshRequestRef.current) {
+        refreshInFlightRef.current = false;
+        setRefreshing(false);
+      }
     }
-  }, [hasWorkspace, onRefresh]);
+  }, [hasWorkspace, isLoading, onRefresh, refreshing]);
 
   const handleCollapseAll = useCallback(() => {
-    if (!hasWorkspace) return;
-    const openFolders = fileList.filter((item) => item?.type === "folder" && item?.isOpen);
-    openFolders.slice(0, 500).forEach((folder) => onToggleFolder?.(folder.id));
+    if (!hasWorkspace || isLoading || refreshing) return;
+    const openFolders = fileList
+      .filter((item) => item?.type === "folder" && item?.isOpen)
+      .map((folder) => folder.id)
+      .filter(Boolean);
+    if (openFolders.length === 0) return;
+    const requestFrame = typeof window !== "undefined"
+      ? window.requestAnimationFrame
+      : (callback) => {
+          callback();
+          return 0;
+        };
+    const cancelFrame = typeof window !== "undefined"
+      ? window.cancelAnimationFrame
+      : () => {};
+
+    if (collapseFrameRef.current) {
+      cancelFrame(collapseFrameRef.current);
+      collapseFrameRef.current = 0;
+    }
+
+    let index = 0;
+    setBusyId("tree-collapse");
+    const flushBatch = () => {
+      const nextIndex = Math.min(
+        index + (FILE_TREE_LIMITS.collapseBatchSize || 48),
+        openFolders.length,
+      );
+      for (; index < nextIndex; index += 1) {
+        onToggleFolder?.(openFolders[index]);
+      }
+      if (index < openFolders.length) {
+        collapseFrameRef.current = requestFrame(flushBatch);
+        return;
+      }
+      collapseFrameRef.current = 0;
+      setBusyId(null);
+    };
+
+    collapseFrameRef.current = requestFrame(flushBatch);
     setCreating(null);
     setRenamingId(null);
-  }, [fileList, hasWorkspace, onToggleFolder]);
+  }, [fileList, hasWorkspace, isLoading, onToggleFolder, refreshing]);
 
   const handleStartCreate = useCallback(
     (type, parentId = null, shouldOpenParent = false) => {
-      if (!hasWorkspace) return;
+      if (!hasWorkspace || isLoading || refreshing) return;
       if (shouldOpenParent && parentId) onToggleFolder?.(parentId);
       setCreating({ type, parentId });
     },
-    [hasWorkspace, onToggleFolder],
+    [hasWorkspace, isLoading, onToggleFolder, refreshing],
   );
 
   const toggleSearch = useCallback(() => {
@@ -542,101 +776,59 @@ export default function FileExplorer({
     });
   }, []);
 
-  const treeItems = useMemo(() => {
-    const items = [];
-    if (creating?.parentId === null) {
-      items.push({
-        id: `creation:root:${creating.type}`,
-        kind: "creation",
-        depth: 0,
-        type: creating.type,
-        parentId: null,
-      });
-    }
+  const treeItems = useMemo(
+    () => createFileTreeItems(model.rows, { creating }),
+    [creating, model.rows],
+  );
 
-    for (const row of model.rows) {
-      items.push({
-        id: row.id,
-        kind: row.kind === "overflow" ? "overflow" : "node",
-        row,
-      });
+  useEffect(() => {
+    scheduleTreeViewportSync();
+  }, [scheduleTreeViewportSync, treeItems.length]);
 
-      if (creating?.parentId === row.node?.id) {
-        items.push({
-          id: `creation:${row.node.id}:${creating.type}`,
-          kind: "creation",
-          depth: row.depth + 1,
-          type: creating.type,
-          parentId: row.node.id,
-        });
-      }
-    }
-
-    return items;
-  }, [creating?.parentId, creating?.type, model.rows]);
-
-  const virtualWindow = useMemo(() => {
-    const totalRows = treeItems.length;
-    const shouldVirtualize = totalRows > TREE_VIRTUALIZE_AFTER;
-
-    if (!shouldVirtualize) {
-      return {
-        isVirtualized: false,
-        items: treeItems,
-        topSpacer: 0,
-        bottomSpacer: 0,
-        renderedRows: totalRows,
-        totalRows,
-      };
-    }
-
-    const viewportHeight = Math.max(treeViewport.height || 0, TREE_ROW_HEIGHT * 8);
-    const visibleCapacity = Math.ceil(viewportHeight / TREE_ROW_HEIGHT);
-    const renderCount = Math.min(
-      TREE_MAX_RENDERED_ROWS,
-      visibleCapacity + TREE_OVERSCAN_ROWS * 2,
-    );
-    const maxStartIndex = Math.max(0, totalRows - renderCount);
-    const startIndex = Math.max(
-      0,
-      Math.min(
-        maxStartIndex,
-        Math.floor(treeViewport.scrollTop / TREE_ROW_HEIGHT) - TREE_OVERSCAN_ROWS,
-      ),
-    );
-    const endIndex = Math.min(totalRows, startIndex + renderCount);
-
-    return {
-      isVirtualized: true,
-      items: treeItems.slice(startIndex, endIndex),
-      topSpacer: startIndex * TREE_ROW_HEIGHT,
-      bottomSpacer: Math.max(0, (totalRows - endIndex) * TREE_ROW_HEIGHT),
-      renderedRows: endIndex - startIndex,
-      totalRows,
-    };
-  }, [treeItems, treeViewport.height, treeViewport.scrollTop]);
+  const virtualWindow = useMemo(
+    () => getFileTreeVirtualWindow(treeItems, treeViewport, FILE_TREE_LIMITS),
+    [treeItems, treeViewport],
+  );
 
   const visibleError = localError || error;
   const hasTreeItems = treeItems.length > 0;
-  const isInitialLoading = isLoading && !hasTreeItems;
-  const isRefreshingTree = (isLoading || refreshing) && hasTreeItems;
-  const isMissingWorkspace = !isLoading && !visibleError && !hasWorkspace && !creating;
-  const isEmpty = !isLoading && !visibleError && hasWorkspace && fileList.length === 0 && !creating;
-  const isSearchEmpty = !isLoading && !visibleError && fileList.length > 0 && model.rows.length === 0 && !creating;
-  const isErrorEmpty = !isLoading && Boolean(visibleError) && !hasTreeItems;
+  const displayState = getFileTreeDisplayState(model, {
+    hasWorkspace,
+    hasCreatingDraft: Boolean(creating),
+    isLoading: isLoading || refreshing,
+    error: visibleError,
+  });
+  const isInitialLoading = displayState.kind === "loading";
+  const isRefreshingTree = displayState.kind === "refreshing";
+  const isMissingWorkspace = displayState.kind === "missing-workspace";
+  const isEmpty = displayState.kind === "empty";
+  const isSearchEmpty = displayState.kind === "search-empty";
+  const isErrorEmpty = displayState.kind === "error";
   const isBounded = model.stats.hiddenByRowLimit > 0 || model.stats.hiddenByChildLimit > 0;
-  const canEditTree = hasWorkspace && !isLoading;
+  const canEditTree = hasWorkspace && !isLoading && !refreshing;
+  const treeLocked = isLoading || refreshing;
 
   return (
-    <div className="flex h-full w-full flex-col bg-[#060614]/20 text-gray-200">
-      <div className="nx-code-explorer-header border-b border-white/5 bg-white/[0.04] px-3 py-3">
-        <div className="nx-code-explorer-heading flex min-w-0 items-start justify-between gap-3">
+    <div className="flex h-full w-full flex-col bg-[#05070d]/40 text-gray-200">
+      <div className="nx-code-explorer-header border-b border-white/[0.055] bg-black/[0.16] px-3 py-2.5">
+        <div className="nx-code-explorer-heading flex min-w-0 items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
-            <div className="text-[10px] font-bold uppercase tracking-widest text-gray-500">
+            <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
               Explorer
             </div>
-            <div className="mt-1 text-[10px] text-gray-600">
-              {model.stats.files} files / {model.stats.folders} folders / {model.stats.visibleRows} rows
+            <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-slate-600">
+              <span className="min-w-0 truncate">
+                {model.stats.files} files · {model.stats.folders} folders
+              </span>
+              <span className="shrink-0 text-slate-700">
+                {model.stats.visibleRows} rows
+              </span>
+              {isRefreshingTree && (
+                <span className="inline-flex shrink-0 items-center gap-1 text-cyan-200/80">
+                  <Loader2 size={10} className="animate-spin" />
+                  Refresh
+                </span>
+              )}
             </div>
           </div>
           {virtualWindow.isVirtualized && (
@@ -644,43 +836,58 @@ export default function FileExplorer({
               {virtualWindow.renderedRows}/{virtualWindow.totalRows}
             </span>
           )}
+          <div
+            className="flex shrink-0 items-center gap-1 rounded-xl border border-white/[0.06] bg-black/15 p-1"
+            role="toolbar"
+            aria-label="Explorer quick actions"
+          >
+            <ActionIconButton
+              title={showSearch ? "Close search" : "Search files"}
+              onClick={toggleSearch}
+            >
+              {showSearch ? <X size={16} /> : <Search size={16} />}
+            </ActionIconButton>
+            <ActionIconButton
+              title={refreshing ? "Refreshing tree" : "Refresh tree"}
+              tooltip={refreshing ? "Refreshing" : "Refresh tree"}
+              onClick={handleRefresh}
+              disabled={!hasWorkspace || isLoading || refreshing}
+            >
+              <RefreshCcw size={16} className={refreshing ? "animate-spin" : ""} />
+            </ActionIconButton>
+          </div>
         </div>
         <div className="nx-code-explorer-workspace mt-2 min-w-0">
           <WorkspaceLabel workspacePath={workspacePath} />
         </div>
         <div
-          className="nx-code-explorer-toolbar mt-3 grid grid-cols-5 justify-items-center gap-1"
+          className="nx-code-explorer-toolbar mt-2 flex items-center justify-between gap-2"
           role="toolbar"
           aria-label="Explorer actions"
         >
-          <ActionIconButton title="Search" onClick={toggleSearch}>
-            {showSearch ? <X size={16} /> : <Search size={16} />}
-          </ActionIconButton>
+          <div className="flex min-w-0 items-center gap-1 rounded-xl border border-white/[0.06] bg-black/15 p-1">
+            <ActionIconButton
+              title="New file"
+              tooltip="New file"
+              onClick={() => handleStartCreate("file", null)}
+              disabled={!canEditTree}
+            >
+              <FilePlus2 size={16} />
+            </ActionIconButton>
+            <ActionIconButton
+              title="New folder"
+              tooltip="New folder"
+              onClick={() => handleStartCreate("folder", null)}
+              disabled={!canEditTree}
+            >
+              <FolderPlus size={16} />
+            </ActionIconButton>
+          </div>
           <ActionIconButton
-            title="New file"
-            onClick={() => setCreating({ type: "file", parentId: null })}
-            disabled={!canEditTree}
-          >
-            <FilePlus2 size={16} />
-          </ActionIconButton>
-          <ActionIconButton
-            title="New folder"
-            onClick={() => setCreating({ type: "folder", parentId: null })}
-            disabled={!canEditTree}
-          >
-            <FolderPlus size={16} />
-          </ActionIconButton>
-          <ActionIconButton
-            title="Refresh tree"
-            onClick={handleRefresh}
-            disabled={!hasWorkspace || refreshing}
-          >
-            <RefreshCcw size={16} className={refreshing ? "animate-spin" : ""} />
-          </ActionIconButton>
-          <ActionIconButton
-            title="Collapse folders"
+            title="Collapse all folders"
+            tooltip="Collapse folders"
             onClick={handleCollapseAll}
-            disabled={!hasWorkspace || fileList.length === 0}
+            disabled={!hasWorkspace || treeLocked || fileList.length === 0}
           >
             <ChevronsDownUp size={16} />
           </ActionIconButton>
@@ -724,6 +931,18 @@ export default function FileExplorer({
         <div className="m-2 flex items-start gap-2 rounded-md border border-red-400/20 bg-red-500/10 p-2 text-[11px] leading-5 text-red-200">
           <AlertTriangle size={14} className="mt-0.5 shrink-0" />
           <span className="min-w-0 flex-1">{visibleError}</span>
+          {hasWorkspace && (
+            <button
+              type="button"
+              aria-label="Retry refresh"
+              title="Retry refresh"
+              disabled={isLoading || refreshing}
+              onClick={handleRefresh}
+              className="grid h-5 w-5 shrink-0 place-items-center rounded hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <RefreshCcw size={12} className={refreshing ? "animate-spin" : ""} />
+            </button>
+          )}
           {localError && (
             <button
               type="button"
@@ -738,13 +957,6 @@ export default function FileExplorer({
         </div>
       )}
 
-      {isRefreshingTree && (
-        <div className="flex items-center gap-2 border-b border-cyan-400/10 bg-cyan-500/10 px-3 py-1.5 text-[10px] text-cyan-100/80">
-          <Loader2 size={12} className="shrink-0 animate-spin" />
-          <span className="min-w-0 truncate">Refreshing workspace entries.</span>
-        </div>
-      )}
-
       {isBounded && (
         <div className="border-b border-amber-400/10 bg-amber-500/10 px-3 py-1.5 text-[10px] text-amber-200/80">
           Tree capped at {model.stats.visibleRows} visible rows for responsiveness.
@@ -753,12 +965,19 @@ export default function FileExplorer({
 
       <div
         ref={treeViewportRef}
-        className="custom-scrollbar min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-1 py-1"
+        className="custom-scrollbar relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-1 py-1"
         role="tree"
         aria-busy={isLoading || refreshing}
       >
+        {isRefreshingTree && (
+          <div className="pointer-events-none absolute right-2 top-2 z-20 inline-flex h-7 items-center gap-2 rounded-md border border-cyan-300/15 bg-[#07101e]/90 px-2 text-[10px] font-medium text-cyan-100/85 shadow-xl">
+            <Loader2 size={12} className="shrink-0 animate-spin" />
+            <span>Refreshing</span>
+          </div>
+        )}
+
         {isInitialLoading && (
-          <EmptyState icon={Loader2} title="Loading tree" detail="Reading workspace entries." />
+          <LoadingState />
         )}
 
         {isErrorEmpty && (
@@ -766,7 +985,17 @@ export default function FileExplorer({
             icon={AlertTriangle}
             title="Tree unavailable"
             detail="The workspace tree could not be read. Try refresh after the error clears."
-          />
+          >
+            {hasWorkspace && (
+              <StateActionButton
+                icon={RefreshCcw}
+                onClick={handleRefresh}
+                disabled={isLoading || refreshing}
+              >
+                Refresh
+              </StateActionButton>
+            )}
+          </EmptyState>
         )}
 
         {!isInitialLoading && isMissingWorkspace && (
@@ -782,55 +1011,99 @@ export default function FileExplorer({
             icon={FolderOpen}
             title="Workspace is empty"
             detail="Create a file or folder to start."
-          />
+          >
+            <StateActionButton icon={FilePlus2} onClick={() => handleStartCreate("file", null)}>
+              New file
+            </StateActionButton>
+            <StateActionButton icon={FolderPlus} onClick={() => handleStartCreate("folder", null)}>
+              New folder
+            </StateActionButton>
+          </EmptyState>
         )}
 
         {!isInitialLoading && isSearchEmpty && (
-          <EmptyState icon={Search} title="No matches" detail="Try a shorter name, extension, or folder term." />
+          <EmptyState icon={Search} title="No matches" detail="Try a shorter name, extension, or folder term.">
+            <StateActionButton icon={X} onClick={() => setSearchQuery("")}>
+              Clear search
+            </StateActionButton>
+          </EmptyState>
         )}
 
         {!isInitialLoading && hasTreeItems && (
-          <div className="pb-2">
-            {virtualWindow.topSpacer > 0 && (
-              <div aria-hidden="true" style={{ height: `${virtualWindow.topSpacer}px` }} />
-            )}
-            {virtualWindow.items.map((item) => {
+          <div
+            className="relative"
+            style={{ height: `${virtualWindow.totalHeight + 8}px` }}
+          >
+            {virtualWindow.items.map(({ item, offsetY }) => {
+              const rowStyle = {
+                height: TREE_ROW_HEIGHT,
+                transform: `translateY(${offsetY}px)`,
+              };
+
               if (item.kind === "creation") {
                 return (
-                  <CreationRow
+                  <div
                     key={item.id}
-                    depth={item.depth}
-                    type={item.type}
-                    onConfirm={(name) => handleCreateConfirm(name, item.parentId)}
-                    onCancel={() => setCreating(null)}
-                  />
+                    className="absolute left-0 right-0"
+                    style={rowStyle}
+                  >
+                    <CreationRow
+                      depth={item.depth}
+                      type={item.type}
+                      onConfirm={(name) => handleCreateConfirm(name, item.parentId)}
+                      onCancel={() => setCreating(null)}
+                    />
+                  </div>
+                );
+              }
+
+              if (item.kind === "section") {
+                return (
+                  <div
+                    key={item.id}
+                    className="absolute left-0 right-0"
+                    style={rowStyle}
+                  >
+                    <ExtensionSectionRow section={item.section} />
+                  </div>
                 );
               }
 
               if (item.kind === "overflow") {
-                return <OverflowRow key={item.id} row={item.row} />;
+                return (
+                  <div
+                    key={item.id}
+                    className="absolute left-0 right-0"
+                    style={rowStyle}
+                  >
+                    <OverflowRow row={item.row} />
+                  </div>
+                );
               }
 
               return (
-                <TreeRow
+                <div
                   key={item.id}
-                  row={item.row}
-                  activeFileId={activeFileId}
-                  renamingId={renamingId}
-                  deleteConfirmId={deleteConfirmId}
-                  busyId={busyId}
-                  onToggleFolder={onToggleFolder}
-                  onFileSelect={onFileSelect}
-                  onStartCreate={handleStartCreate}
-                  onStartRename={setRenamingId}
-                  onRenameConfirm={handleRenameConfirm}
-                  onDelete={handleDelete}
-                />
+                  className="absolute left-0 right-0"
+                  style={rowStyle}
+                >
+                  <TreeRow
+                    row={item.row}
+                    activeFileId={activeFileId}
+                    renamingId={renamingId}
+                    deleteConfirmId={deleteConfirmId}
+                    busyId={busyId}
+                    onToggleFolder={handleToggleFolder}
+                    onFileSelect={onFileSelect}
+                    onStartCreate={handleStartCreate}
+                    onStartRename={setRenamingId}
+                    onRenameConfirm={handleRenameConfirm}
+                    onDelete={handleDelete}
+                    treeLocked={treeLocked}
+                  />
+                </div>
               );
             })}
-            {virtualWindow.bottomSpacer > 0 && (
-              <div aria-hidden="true" style={{ height: `${virtualWindow.bottomSpacer}px` }} />
-            )}
           </div>
         )}
       </div>

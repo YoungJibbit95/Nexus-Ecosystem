@@ -5,6 +5,7 @@ const fs = require('fs');
 
 const DEV_URL = 'http://localhost:5173';
 const WINDOW_SHOW_FALLBACK_MS = 4_500;
+const RENDERER_BOOT_CHECK_MS = 2_800;
 
 const isAllowedNavigation = (url, isDev) => {
   if (!url || typeof url !== 'string') return false;
@@ -53,6 +54,8 @@ function createMainWindow(onClosed) {
 
   let windowShown = false;
   let rendererFailed = false;
+  let rendererBootTimer = null;
+  let emptyRendererReloaded = false;
   const revealWindow = (reason) => {
     if (win.isDestroyed() || windowShown) return;
     windowShown = true;
@@ -67,11 +70,59 @@ function createMainWindow(onClosed) {
 
   const reportRendererFailure = (reason, details) => {
     rendererFailed = true;
+    if (rendererBootTimer) {
+      clearTimeout(rendererBootTimer);
+      rendererBootTimer = null;
+    }
     console.error('[Nexus Main] renderer failed:', reason, details || '');
     revealWindow('renderer-failure');
     if (!isDev) {
       win.loadURL(buildRendererFailureHtml(reason, details)).catch(() => {});
     }
+  };
+
+  const scheduleRendererBootCheck = (reason) => {
+    if (rendererBootTimer) clearTimeout(rendererBootTimer);
+    rendererBootTimer = setTimeout(() => {
+      rendererBootTimer = null;
+      if (win.isDestroyed() || rendererFailed) return;
+      win.webContents
+        .executeJavaScript(
+          `(() => {
+            const root = document.getElementById('root');
+            const booted = Boolean(
+              root?.children?.length ||
+              document.querySelector('.nx-app-shell, [data-nexus-boot-ready]')
+            );
+            return {
+              booted,
+              readyState: document.readyState,
+              href: window.location.href,
+              title: document.title,
+              rootLength: root?.innerHTML?.length || 0,
+              bodyText: (document.body?.innerText || '').slice(0, 220)
+            };
+          })()`,
+          true,
+        )
+        .then((status) => {
+          if (status?.booted) return;
+          const details = `reason=${reason} status=${JSON.stringify(status || {})}`;
+          if (!isDev && !emptyRendererReloaded) {
+            emptyRendererReloaded = true;
+            console.warn('[Nexus Main] renderer root empty; reloading once:', details);
+            win.reload();
+            return;
+          }
+          reportRendererFailure('RENDERER_BOOT_EMPTY', details);
+        })
+        .catch((error) => {
+          reportRendererFailure(
+            'RENDERER_BOOT_CHECK_FAILED',
+            error?.message || String(error),
+          );
+        });
+    }, RENDERER_BOOT_CHECK_MS);
   };
 
   if (isDev) {
@@ -118,9 +169,25 @@ function createMainWindow(onClosed) {
       details ? JSON.stringify(details) : 'no-details',
     );
   });
+  win.webContents.on('preload-error', (_event, preloadPath, error) => {
+    reportRendererFailure(
+      'PRELOAD_ERROR',
+      `${preloadPath}: ${error?.message || String(error)}`,
+    );
+  });
+  win.webContents.on('console-message', (_event, level, message, line, sourceId) => {
+    const prefix = `[Nexus Main renderer:${level}]`;
+    const suffix = sourceId ? ` (${sourceId}:${line || 0})` : '';
+    if (level >= 2) {
+      console.error(prefix, `${message}${suffix}`);
+      return;
+    }
+    console.log(prefix, `${message}${suffix}`);
+  });
   win.webContents.on('did-finish-load', () => {
     if (!rendererFailed) {
       revealWindow('did-finish-load');
+      scheduleRendererBootCheck('did-finish-load');
     }
   });
 
@@ -143,6 +210,7 @@ function createMainWindow(onClosed) {
 
   win.on('closed', () => {
     clearTimeout(fallbackShowTimer);
+    if (rendererBootTimer) clearTimeout(rendererBootTimer);
     if (typeof onClosed === 'function') onClosed();
   });
 

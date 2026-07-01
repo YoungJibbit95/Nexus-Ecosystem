@@ -9,6 +9,7 @@ import {
 import { DashboardView as DashboardViewComponent } from '../views/DashboardView';
 
 const loadDashboardView = () => Promise.resolve({ DashboardView: DashboardViewComponent });
+const loadCalendarView = () => import('../views/CalendarView');
 const loadNotesView = () => import('../views/NotesView');
 const loadCodeView = () => import('../views/CodeView');
 const loadTasksView = () => import('../views/TasksView');
@@ -24,6 +25,9 @@ const loadNexusTerminal = () => import('../components/NexusTerminal');
 const loadNexusToolbar = () => import('../components/NexusToolbar');
 
 export const DashboardView = DashboardViewComponent;
+export const CalendarView = lazy(() =>
+  loadCalendarView().then((m) => ({ default: m.CalendarView })),
+);
 export const NotesView = lazy(() =>
   loadNotesView().then((m) => ({ default: m.NotesView })),
 );
@@ -68,6 +72,7 @@ export const VIEW_IDS: View[] = MAIN_VIEW_IDS;
 
 export const VIEW_CHUNK_PRELOADERS: Partial<Record<View, () => Promise<unknown>>> = {
   dashboard: loadDashboardView,
+  calendar: loadCalendarView,
   notes: loadNotesView,
   code: loadCodeView,
   tasks: loadTasksView,

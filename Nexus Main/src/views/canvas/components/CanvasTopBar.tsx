@@ -46,9 +46,33 @@ function ToolbarGroup({
   children: React.ReactNode;
 }) {
   return (
-    <div className="nx-canvas-toolbar-group" aria-label={label}>
-      <span className="nx-canvas-toolbar-group-label">{label}</span>
-      <div className="nx-canvas-toolbar-group-actions">{children}</div>
+    <div
+      className="nx-canvas-toolbar-group"
+      aria-label={label}
+      style={{
+        minHeight: 32,
+        gap: 4,
+        padding: "3px 4px",
+        borderRadius: 10,
+      }}
+    >
+      <span
+        className="nx-canvas-toolbar-group-label"
+        style={{
+          paddingInline: 2,
+          fontSize: 8.5,
+          lineHeight: 1,
+          opacity: 0.78,
+        }}
+      >
+        {label}
+      </span>
+      <div
+        className="nx-canvas-toolbar-group-actions"
+        style={{ gap: 2 }}
+      >
+        {children}
+      </div>
     </div>
   );
 }
@@ -157,6 +181,7 @@ export function CanvasTopBar({
   const nodeLabel = nodeCount === 1 ? "node" : "nodes";
   const linkLabel = linkCount === 1 ? "link" : "links";
   const gridLabel = gridLabels[gridMode];
+  const zoomStep = 0.15;
 
   return (
     <div
@@ -185,7 +210,7 @@ export function CanvasTopBar({
           alignItems: "center",
           gap: 6,
           minWidth: 0,
-          padding: "6px 8px",
+          padding: "5px 8px",
           position: "relative",
         }}
       >
@@ -276,14 +301,13 @@ export function CanvasTopBar({
               ))}
             <ToolBtn
               icon={Plus}
-              tooltip="Quick-Add-Menue"
-            onClick={onOpenQuickAddMenu}
-            accent={accent}
-            rgb={rgb}
-            active={quickAddOpen}
-            label="More"
-          />
-        </ToolbarGroup>
+              tooltip="Quick-Add-Menue oeffnen"
+              onClick={onOpenQuickAddMenu}
+              accent={accent}
+              rgb={rgb}
+              active={quickAddOpen}
+            />
+          </ToolbarGroup>
 
           <ToolbarGroup label="Work">
             <ToolBtn
@@ -293,15 +317,13 @@ export function CanvasTopBar({
               accent={accent}
               rgb={rgb}
               active={showProjectPanel}
-              label="Project"
             />
             <ToolBtn
               icon={Link}
-              tooltip="Auto-Link fuer [[Node Titel]]"
+              tooltip="[[Node Titel]] automatisch verlinken"
               onClick={autoLinkWikiRefs}
               accent={accent}
               rgb={rgb}
-              label="Link"
             />
             <ToolBtn
               icon={Calendar}
@@ -309,7 +331,6 @@ export function CanvasTopBar({
               onClick={createStarterPack}
               accent={accent}
               rgb={rgb}
-              label="Starter"
             />
             <ToolBtn
               icon={Copy}
@@ -319,7 +340,6 @@ export function CanvasTopBar({
               rgb={rgb}
               active={Boolean(selectedNodeId)}
               disabled={!selectedNodeId}
-              label="Copy"
             />
             <ToolBtn
               icon={Wand2}
@@ -328,7 +348,6 @@ export function CanvasTopBar({
               accent={accent}
               rgb={rgb}
               active={showMagicBuilder}
-              label="Magic"
             />
           </ToolbarGroup>
 
@@ -349,11 +368,10 @@ export function CanvasTopBar({
             </select>
             <ToolBtn
               icon={RotateCw}
-              tooltip={`Auto Layout (${layoutLabels[layoutMode]})`}
+              tooltip={`${layoutLabels[layoutMode]} automatisch anordnen`}
               onClick={() => applyAutoLayout(layoutMode)}
               accent={accent}
               rgb={rgb}
-              label="Auto"
             />
             <ToolBtn
               icon={AlignCenter}
@@ -361,7 +379,6 @@ export function CanvasTopBar({
               onClick={autoArrangeByStatus}
               accent={accent}
               rgb={rgb}
-              label="Status"
             />
           </ToolbarGroup>
 
@@ -377,7 +394,6 @@ export function CanvasTopBar({
               accent={accent}
               rgb={rgb}
               active={gridMode !== "none"}
-              label="Grid"
             />
             <ToolBtn
               icon={Map}
@@ -386,7 +402,6 @@ export function CanvasTopBar({
               accent={accent}
               rgb={rgb}
               active={showMiniMap}
-              label="Map"
             />
             <ToolBtn
               icon={AlignCenter}
@@ -395,15 +410,6 @@ export function CanvasTopBar({
               accent={accent}
               rgb={rgb}
               active={snapToGrid}
-              label="Snap"
-            />
-            <ToolBtn
-              icon={Maximize2}
-              tooltip="Alles einpassen"
-              onClick={fitView}
-              accent={accent}
-              rgb={rgb}
-              label="Fit"
             />
             <ToolBtn
               icon={LocateFixed}
@@ -412,37 +418,76 @@ export function CanvasTopBar({
               accent={accent}
               rgb={rgb}
               active={Boolean(selectedNodeId)}
-              label="Focus"
             />
-            <ToolBtn
-              icon={ZoomOut}
-              tooltip="Rauszoomen"
-              onClick={() => setZoomCentered(viewportZoom - 0.15)}
-              accent={accent}
-              rgb={rgb}
-            />
-            <span className="nx-canvas-zoom-chip">{zoomLabel}</span>
-            <ToolBtn
-              icon={ZoomIn}
-              tooltip="Reinzoomen"
-              onClick={() => setZoomCentered(viewportZoom + 0.15)}
-              accent={accent}
-              rgb={rgb}
-            />
-            <ToolBtn
-              icon={RotateCcw}
-              tooltip="Ansicht zuruecksetzen"
-              onClick={resetViewport}
-              accent={accent}
-              rgb={rgb}
-            />
+            <div
+              role="group"
+              aria-label="Zoom controls"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 2,
+                minHeight: 29,
+                padding: 2,
+                borderRadius: 9,
+                border:
+                  mode === "dark"
+                    ? "1px solid rgba(255,255,255,0.08)"
+                    : "1px solid rgba(0,0,0,0.08)",
+                background:
+                  mode === "dark"
+                    ? "rgba(255,255,255,0.035)"
+                    : "rgba(0,0,0,0.035)",
+              }}
+            >
+              <ToolBtn
+                icon={ZoomOut}
+                tooltip="15% herauszoomen"
+                onClick={() => setZoomCentered(viewportZoom - zoomStep)}
+                accent={accent}
+                rgb={rgb}
+                disabled={viewportZoom <= 0.16}
+              />
+              <span
+                className="nx-canvas-zoom-chip"
+                title={`Aktueller Zoom: ${zoomLabel}`}
+                style={{
+                  minWidth: 48,
+                  color: accent,
+                  background: `rgba(${rgb},0.12)`,
+                  border: `1px solid rgba(${rgb},0.18)`,
+                }}
+              >
+                {zoomLabel}
+              </span>
+              <ToolBtn
+                icon={ZoomIn}
+                tooltip="15% hineinzoomen"
+                onClick={() => setZoomCentered(viewportZoom + zoomStep)}
+                accent={accent}
+                rgb={rgb}
+                disabled={viewportZoom >= 2.99}
+              />
+              <ToolBtn
+                icon={Maximize2}
+                tooltip="Alles sichtbar einpassen"
+                onClick={fitView}
+                accent={accent}
+                rgb={rgb}
+              />
+              <ToolBtn
+                icon={RotateCcw}
+                tooltip="Zoom und Position zuruecksetzen"
+                onClick={resetViewport}
+                accent={accent}
+                rgb={rgb}
+              />
+            </div>
             <ToolBtn
               icon={FileDown}
               tooltip="Canvas exportieren"
               onClick={exportCanvas}
               accent={accent}
               rgb={rgb}
-              label="Export"
             />
           </ToolbarGroup>
         </div>

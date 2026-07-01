@@ -31,7 +31,7 @@ export function ModuleCard({
         {title}
       </div>
       {desc ? (
-        <div style={{ fontSize: 11, opacity: 0.55, marginTop: 2 }}>{desc}</div>
+        <div style={{ fontSize: 11, opacity: 0.68, marginTop: 2 }}>{desc}</div>
       ) : null}
       <div style={{ marginTop: 10 }}>{children}</div>
     </div>
@@ -43,7 +43,7 @@ export function Row({ children }: { children: React.ReactNode }) {
     <div
       style={{
         display: "grid",
-        gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+        gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
         gap: 10,
       }}
     >
@@ -121,7 +121,7 @@ export function Segmented({
   return (
     <div>
       {label ? (
-        <div id={labelId} style={{ fontSize: 11, opacity: 0.6, marginBottom: 6 }}>
+        <div id={labelId} style={{ fontSize: 11, opacity: 0.72, marginBottom: 6 }}>
           {label}
         </div>
       ) : null}
@@ -380,9 +380,9 @@ export function Toggle({
         cursor: "pointer",
       }}
     >
-      <div style={{ fontSize: 12, fontWeight: 700 }}>{label}</div>
+      <div style={{ fontSize: 12, fontWeight: 760 }}>{label}</div>
       {desc ? (
-        <div style={{ fontSize: 10, opacity: 0.62, marginTop: 2 }}>{desc}</div>
+        <div style={{ fontSize: 10, opacity: 0.7, marginTop: 2 }}>{desc}</div>
       ) : null}
     </button>
   );
@@ -420,7 +420,7 @@ export function Slider({
           marginBottom: 4,
         }}
       >
-        <div style={{ fontSize: 11, opacity: 0.68 }}>{label}</div>
+        <div style={{ fontSize: 11, opacity: 0.76 }}>{label}</div>
         <div style={{ fontSize: 11, fontWeight: 700, color: t.accent }}>
           {Number.isInteger(safeValue) ? safeValue : safeValue.toFixed(2)}
           {unit}

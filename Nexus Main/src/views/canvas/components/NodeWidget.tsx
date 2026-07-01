@@ -40,6 +40,27 @@ const HUB_ACTION_ICONS = {
   risk: Bell,
 } as const;
 
+function getNodeZoomPreview(node: CanvasNode): string {
+  const content =
+    typeof node.content === "string" ? node.content.replace(/\s+/g, " ").trim() : "";
+
+  if (node.type === "checklist") {
+    const items = node.items || [];
+    const done = items.filter((item) => item.done).length;
+    return items.length ? `${done}/${items.length} done` : "Empty checklist";
+  }
+
+  if (node.type === "image") {
+    return content ? "Image linked" : "No image";
+  }
+
+  if (content) {
+    return content.length > 110 ? `${content.slice(0, 110).trim()}...` : content;
+  }
+
+  return String(node.status || node.priority || node.type);
+}
+
 function ConnPort({
   side,
   nodeId,
@@ -208,6 +229,7 @@ const NodeWidget = React.memo(function NodeWidget({
     addChecklistItem,
     toggleChecklistItem,
     deleteChecklistItem,
+    viewportZoom,
   } = useCanvas(
     (s) => ({
       updateNode: s.updateNode,
@@ -217,6 +239,7 @@ const NodeWidget = React.memo(function NodeWidget({
       addChecklistItem: s.addChecklistItem,
       toggleChecklistItem: s.toggleChecklistItem,
       deleteChecklistItem: s.deleteChecklistItem,
+      viewportZoom: s.viewport?.zoom ?? 1,
     }),
     shallow,
   );
@@ -264,6 +287,15 @@ const NodeWidget = React.memo(function NodeWidget({
   const liveNodeScale = scalePreview?.scale ?? node.nodeScale ?? 1;
   const safeNodeScale = Math.max(0.65, Math.min(2.4, liveNodeScale));
   const inverseNodeScale = 1 / safeNodeScale;
+  const safeCanvasZoom = Math.max(
+    0.15,
+    Math.min(3, Number.isFinite(viewportZoom) ? viewportZoom : 1),
+  );
+  const showLowDetailContent =
+    safeCanvasZoom < 0.48 && !isSelected && !hovered && !showMenu;
+  const softenDetailContent =
+    safeCanvasZoom < 0.68 && !isSelected && !hovered && !showMenu;
+  const zoomPreview = getNodeZoomPreview(nodeForRender);
   const isSticky = node.type === "text" && node.color === "#FFCC00";
   const stickyBg = isSticky
     ? `linear-gradient(145deg, #FFEE88, #FFD700)`
@@ -381,6 +413,7 @@ const NodeWidget = React.memo(function NodeWidget({
         top: liveY,
         width: liveWidth,
         height: liveHeight,
+        pointerEvents: "auto",
         zIndex: isSelected ? 100 : 1,
         animation:
           reduceEffects || dragging || resizing || scalingNode
@@ -424,7 +457,11 @@ const NodeWidget = React.memo(function NodeWidget({
         style={{
           width: "100%",
           height: "100%",
-          borderColor: isSelected ? nodeAccent : undefined,
+          borderColor: isSelected
+            ? nodeAccent
+            : hovered
+              ? `rgba(${rgb},0.34)`
+              : undefined,
           borderWidth: isSelected ? 2 : 1,
           overflow: "hidden",
           cursor: dragging
@@ -437,9 +474,11 @@ const NodeWidget = React.memo(function NodeWidget({
           userSelect: dragging || resizing || scalingNode ? "none" : "auto",
           background: isSticky
             ? stickyBg
-            : `linear-gradient(180deg, rgba(${rgb},${t.mode === "dark" ? "0.16" : "0.09"}) 0%, rgba(${rgb},0) 42%)`,
+            : `linear-gradient(180deg, rgba(${rgb},${t.mode === "dark" ? "0.11" : "0.07"}) 0%, rgba(${rgb},0.015) 48%, rgba(${rgb},0) 100%)`,
           boxShadow: isSelected
-            ? `0 0 0 2px ${nodeAccent}, 0 8px 32px rgba(0,0,0,0.3), 0 0 20px ${nodeAccent}30`
+            ? `0 0 0 2px rgba(${rgb},0.55), 0 10px 28px rgba(0,0,0,0.28), 0 0 18px rgba(${rgb},0.22)`
+            : hovered
+              ? `0 8px 22px rgba(0,0,0,0.22), 0 0 0 1px rgba(${rgb},0.18)`
             : reduceEffects
               ? `0 2px 8px rgba(0,0,0,0.15)`
               : `0 4px 16px rgba(0,0,0,0.2)`,
@@ -458,8 +497,8 @@ const NodeWidget = React.memo(function NodeWidget({
               display: "flex",
               flexDirection: "column",
               height: "100%",
-              padding: 10,
-              gap: 6,
+              padding: showLowDetailContent ? "9px 10px" : 11,
+              gap: showLowDetailContent ? 5 : 8,
               width: `${(inverseNodeScale * 100).toFixed(3)}%`,
               minWidth: `${(inverseNodeScale * 100).toFixed(3)}%`,
               transform: `scale(${safeNodeScale})`,
@@ -476,7 +515,7 @@ const NodeWidget = React.memo(function NodeWidget({
               height: 3,
               background: `linear-gradient(90deg, ${nodeAccent}, ${nodeAccent}80)`,
               borderRadius: `${t.visual.panelRadius}px ${t.visual.panelRadius}px 0 0`,
-              opacity: 0.8,
+              opacity: isSelected ? 0.95 : hovered ? 0.72 : 0.48,
             }}
           />
 
@@ -485,22 +524,25 @@ const NodeWidget = React.memo(function NodeWidget({
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 6,
+              gap: 7,
               cursor: dragging ? "grabbing" : "grab",
               flexShrink: 0,
-              borderBottom: `1px solid ${isSticky ? "rgba(0,0,0,0.1)" : t.mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)"}`,
-              paddingBottom: 6,
+              borderBottom: showLowDetailContent
+                ? "1px solid transparent"
+                : `1px solid ${isSticky ? "rgba(0,0,0,0.1)" : t.mode === "dark" ? "rgba(255,255,255,0.065)" : "rgba(0,0,0,0.055)"}`,
+              paddingBottom: showLowDetailContent ? 2 : 7,
               paddingTop: 4,
+              minHeight: 28,
             }}
           >
-            <GripVertical size={13} style={{ opacity: 0.35, flexShrink: 0 }} />
+            <GripVertical size={13} style={{ opacity: hovered || isSelected ? 0.38 : 0.22, flexShrink: 0 }} />
             <div
               style={{
-                width: 18,
-                height: 18,
+                width: 22,
+                height: 22,
                 borderRadius: 6,
-                background: `rgba(${rgb},0.2)`,
-                border: `1px solid rgba(${rgb},0.34)`,
+                background: `rgba(${rgb},${isSelected ? "0.24" : "0.14"})`,
+                border: `1px solid rgba(${rgb},${isSelected ? "0.44" : "0.26"})`,
                 display: "inline-flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -508,7 +550,7 @@ const NodeWidget = React.memo(function NodeWidget({
               }}
               title={widgetDescription}
             >
-              <TypeIcon size={11} style={{ color: nodeAccent, flexShrink: 0 }} />
+              <TypeIcon size={12} style={{ color: nodeAccent, flexShrink: 0 }} />
             </div>
 
             {editTitle ? (
@@ -526,7 +568,8 @@ const NodeWidget = React.memo(function NodeWidget({
                   outline: "none",
                   color: isSticky ? "#333" : "inherit",
                   fontWeight: 600,
-                  fontSize: 12,
+                  fontSize: 12.5,
+                  lineHeight: 1.25,
                   padding: 0,
                   minWidth: 0,
                 }}
@@ -536,8 +579,9 @@ const NodeWidget = React.memo(function NodeWidget({
                 onDoubleClick={() => setEditTitle(true)}
                 style={{
                   flex: 1,
-                  fontWeight: 600,
-                  fontSize: 12,
+                  fontWeight: 700,
+                  fontSize: 12.5,
+                  lineHeight: 1.25,
                   overflow: "hidden",
                   textOverflow: "ellipsis",
                   whiteSpace: "nowrap",
@@ -554,12 +598,12 @@ const NodeWidget = React.memo(function NodeWidget({
                 style={{
                   fontSize: 9,
                   fontWeight: 700,
-                  padding: "2px 7px",
+                  padding: "2px 6px",
                   borderRadius: 999,
-                  border: `1px solid rgba(${rgb},0.42)`,
+                  border: `1px solid rgba(${rgb},0.32)`,
                   color: nodeAccent,
-                  background: `rgba(${rgb},0.18)`,
-                  letterSpacing: 0.25,
+                  background: `rgba(${rgb},0.12)`,
+                  letterSpacing: 0,
                   textTransform: "uppercase",
                   lineHeight: 1.1,
                   flexShrink: 0,
@@ -587,7 +631,7 @@ const NodeWidget = React.memo(function NodeWidget({
                   border: "none",
                   cursor: "pointer",
                   color: isSticky ? "#666" : "inherit",
-                  opacity: 0.5,
+                  opacity: isSelected || hovered || showMenu ? 0.7 : 0.26,
                   padding: 2,
                   display: "flex",
                   alignItems: "center",
@@ -706,8 +750,30 @@ const NodeWidget = React.memo(function NodeWidget({
               overflow: "hidden",
               minHeight: 0,
               position: "relative",
+              opacity: softenDetailContent ? 0.72 : 1,
+              transition: "opacity 140ms ease",
             }}
           >
+            {showLowDetailContent ? (
+              <div
+                style={{
+                  height: "100%",
+                  minHeight: 0,
+                  color: isSticky ? "rgba(51,51,51,0.7)" : "inherit",
+                  opacity: isSticky ? 0.72 : 0.58,
+                  fontSize: 11.5,
+                  lineHeight: 1.35,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  display: "-webkit-box",
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: "vertical",
+                }}
+              >
+                {zoomPreview}
+              </div>
+            ) : (
+              <>
             {isMagicHub && onHubQuickAction && (
               <div
                 className="node-interactive"
@@ -750,6 +816,8 @@ const NodeWidget = React.memo(function NodeWidget({
               </div>
             )}
             {renderedContent}
+              </>
+            )}
           </div>
           </div>
 

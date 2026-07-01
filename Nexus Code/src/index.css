@@ -4,6 +4,7 @@
 
 @layer base {
     :root {
+        color-scheme: dark;
         --background: 0 0% 100%;
         --foreground: 0 0% 3.9%;
         --card: 0 0% 100%;
@@ -16,9 +17,9 @@
         --nexus-primary-rgb: 124, 140, 255;
         --nexus-primary-hsl: 233 100% 74%;
         --nexus-primary-foreground: #ffffff;
-        --nexus-accent-2: #2dd4bf;
-        --nexus-accent-2-rgb: 45, 212, 191;
-        --nexus-accent-2-hsl: 172 66% 50%;
+        --nexus-accent-2: #38bdf8;
+        --nexus-accent-2-rgb: 56, 189, 248;
+        --nexus-accent-2-hsl: 199 89% 48%;
         --secondary: 0 0% 96.1%;
         --secondary-foreground: 0 0% 9%;
         --muted: 0 0% 96.1%;
@@ -35,7 +36,7 @@
         --chart-3: 197 37% 24%;
         --chart-4: 43 74% 66%;
         --chart-5: 27 87% 67%;
-        --radius: 0.75rem;
+        --radius: 0.875rem;
         --sidebar-background: 0 0% 98%;
         --sidebar-foreground: 240 5.3% 26.1%;
         --sidebar-primary: 240 5.9% 10%;
@@ -59,9 +60,9 @@
         --nexus-primary-rgb: 124, 140, 255;
         --nexus-primary-hsl: 233 100% 74%;
         --nexus-primary-foreground: #ffffff;
-        --nexus-accent-2: #2dd4bf;
-        --nexus-accent-2-rgb: 45, 212, 191;
-        --nexus-accent-2-hsl: 172 66% 50%;
+        --nexus-accent-2: #38bdf8;
+        --nexus-accent-2-rgb: 56, 189, 248;
+        --nexus-accent-2-hsl: 199 89% 48%;
         --secondary: 240 10% 10%;
         --secondary-foreground: 0 0% 98%;
         --muted: 240 10% 10%;
@@ -73,7 +74,7 @@
         --border: 240 10% 15%;
         --input: 240 10% 15%;
         --ring: 262 83% 58%;
-        --radius: 0.75rem;
+        --radius: 0.875rem;
         --sidebar-background: 240 40% 3%;
         --sidebar-foreground: 240 5% 85%;
         --sidebar-primary: 262 83% 58%;
@@ -112,6 +113,10 @@
         overflow: hidden;
     }
 
+    html {
+        scroll-behavior: smooth;
+    }
+
     *,
     *::before,
     *::after {
@@ -133,6 +138,9 @@
         background: transparent;
         border: 0;
         padding: 0;
+        min-width: 0;
+        text-align: inherit;
+        overflow-wrap: normal;
     }
 
     input,
@@ -140,19 +148,39 @@
     textarea {
         color-scheme: dark;
         background-color: transparent;
+        min-width: 0;
     }
 
     select option {
         background: #0b1020;
         color: #e5e7eb;
     }
+
+    @media (prefers-reduced-motion: reduce) {
+        html,
+        html:focus-within {
+            scroll-behavior: auto !important;
+        }
+
+        *,
+        *::before,
+        *::after {
+            animation: none !important;
+            animation-duration: 0.01ms !important;
+            animation-delay: 0ms !important;
+            animation-iteration-count: 1 !important;
+            transition-property: none !important;
+            transition-duration: 0.01ms !important;
+            transition-delay: 0ms !important;
+        }
+    }
 }
 @layer utilities {
     .nexus-glass {
-        background-color: rgb(255 255 255 / 0.05);
-        border: 1px solid rgb(255 255 255 / 0.1);
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
+        background-color: rgb(255 255 255 / 0.04);
+        border: 1px solid rgb(255 255 255 / 0.08);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
     }
 
     .nexus-bg {

@@ -3,6 +3,7 @@
 const crypto = require("crypto");
 const { spawn } = require("child_process");
 const { redactSensitiveText } = require("./processRunner.cjs");
+const { createSanitizedProcessEnv } = require("./safeProcessEnv.cjs");
 
 const MAX_LSP_PAYLOAD_BYTES = 8 * 1024 * 1024;
 const DEFAULT_REQUEST_TIMEOUT_MS = 20_000;
@@ -263,7 +264,7 @@ function createLspProcessService(options = {}) {
 
     const proc = spawn(config.command, config.args, {
       cwd: workspaceRoot,
-      env: { ...process.env },
+      env: createSanitizedProcessEnv(),
       stdio: ["pipe", "pipe", "pipe"],
       windowsHide: true,
     });

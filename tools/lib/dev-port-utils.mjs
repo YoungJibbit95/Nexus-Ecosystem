@@ -76,6 +76,34 @@ export const isPortReachable = async (
 }
 
 export const describeListeningProcess = (port) => {
+  if (process.platform === 'win32') {
+    const command = [
+      '$ErrorActionPreference = "SilentlyContinue"',
+      `$connection = Get-NetTCPConnection -LocalPort ${Number(port)} -State Listen | Select-Object -First 1`,
+      'if (-not $connection) { exit 2 }',
+      '$process = Get-CimInstance Win32_Process -Filter "ProcessId = $($connection.OwningProcess)"',
+      'if (-not $process) { exit 3 }',
+      '[Console]::OutputEncoding = [System.Text.Encoding]::UTF8',
+      '[PSCustomObject]@{ pid = [int]$process.ProcessId; command = [string]$process.CommandLine; name = [string]$process.Name } | ConvertTo-Json -Compress',
+    ].join('; ')
+    const result = spawnProcessSync(
+      'powershell.exe',
+      ['-NoProfile', '-Command', command],
+      { encoding: 'utf8' },
+    )
+    if (result.status !== 0 || !result.stdout) return null
+    try {
+      const item = JSON.parse(String(result.stdout || '').trim())
+      return {
+        pid: Number(item.pid || 0),
+        command: String(item.command || item.name || ''),
+        rawLine: String(result.stdout || '').trim(),
+      }
+    } catch {
+      return null
+    }
+  }
+
   const lsofResult = spawnProcessSync(
     'lsof',
     ['-nP', `-iTCP:${port}`, '-sTCP:LISTEN'],
@@ -107,7 +135,7 @@ export const describeListeningProcess = (port) => {
 }
 
 export const isLikelyMainViteProcess = (command) => {
-  const value = String(command || '')
+  const value = String(command || '').replace(/\\/g, '/')
   return value.includes('/Nexus Main/') && value.includes('/vite')
 }
 

@@ -8,6 +8,7 @@ import { NexusV6ViewShell } from "./NexusV6ViewShell";
 import { isMainDiagnosticsEnabled } from "./mainViewRegistry";
 import {
   CanvasView,
+  CalendarView,
   CodeView,
   DashboardView,
   DevToolsView,
@@ -78,6 +79,15 @@ const renderActiveView = (
           }}
         />,
         { withDashboardReset: true },
+      );
+    case "calendar":
+      return withViewBoundary(
+        "calendar",
+        <CalendarView
+          setView={(nextView: string) => {
+            onRequestViewChange(nextView);
+          }}
+        />,
       );
     case "notes":
       return withViewBoundary("notes", <NotesView />);
@@ -188,6 +198,9 @@ export function MainViewHost({
         case "tasks.new-task":
           addTask("New Task", "todo");
           onRequestViewChange("tasks");
+          return true;
+        case "calendar.new-calendar-item":
+          onRequestViewChange("calendar");
           return true;
         case "reminders.new-reminder":
           addRem({

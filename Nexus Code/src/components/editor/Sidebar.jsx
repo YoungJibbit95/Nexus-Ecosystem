@@ -5,9 +5,11 @@ import {
   Bug,
   FileCode2,
   GitBranch,
+  GitPullRequest,
+  KanbanSquare,
+  ListChecks,
   Search,
   Settings,
-  Sparkles,
   UserRound,
 } from "lucide-react";
 import { getGitCapability } from "../../pages/editor/gitPanelModel";
@@ -21,6 +23,9 @@ const SIDEBAR_ITEMS = [
   { icon: Search, label: "Suche", railLabel: "Find", id: "search" },
   { icon: AlertCircle, label: "Problems", railLabel: "Issues", id: "problems" },
   { icon: GitBranch, label: "Git", railLabel: "Git", id: "git" },
+  { icon: ListChecks, label: "GitHub Issues", railLabel: "Tasks", id: "issues" },
+  { icon: GitPullRequest, label: "Pull Requests", railLabel: "PRs", id: "prs" },
+  { icon: KanbanSquare, label: "Projects", railLabel: "Board", id: "projects" },
   { icon: Bug, label: "Debug", railLabel: "Run", id: "debug" },
   { icon: Blocks, label: "Extensions", railLabel: "Lab", id: "extensions" },
   { icon: UserRound, label: "Account", railLabel: "Me", id: "account" },
@@ -43,7 +48,6 @@ function SidebarButton({
   side,
 }) {
   const Icon = item.icon;
-  const railLabel = item.railLabel || item.label;
   const gitReady = item.id === "git" && gitCapability.available;
   const hasProblemBadge = item.id === "problems" && problemCount > 0;
   const extensionTitle =
@@ -55,7 +59,7 @@ function SidebarButton({
   const accountMode = controlStatus?.mode || "offline";
   const accountTone =
     accountMode === "online"
-      ? "#22c55e"
+      ? "#38bdf8"
       : accountMode === "limited"
         ? "#f59e0b"
         : "#38bdf8";
@@ -71,17 +75,17 @@ function SidebarButton({
       aria-label={title}
       className="nx-code-sidebar-btn nx-code-sidebar-rail-button group relative isolate flex flex-col items-center justify-center outline-none transition-colors hover:bg-white/[0.06] focus-visible:ring-2 focus-visible:ring-purple-500/60"
       style={{
-        width: 50,
-        minHeight: 50,
-        gap: 3,
-        borderRadius: 8,
-        padding: "5px 4px",
+        width: 40,
+        minHeight: 40,
+        gap: 0,
+        borderRadius: "var(--nexus-radius-md, 12px)",
+        padding: 0,
         background: isActive
-          ? "linear-gradient(180deg, rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.17), rgba(255,255,255,0.025))"
+          ? "linear-gradient(145deg, rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.16), rgba(var(--nexus-accent-2-rgb, 56, 189, 248), 0.055), rgba(255,255,255,0.016))"
           : "transparent",
         color: isActive ? "var(--nexus-primary, #7c8cff)" : "var(--nexus-muted)",
         boxShadow: isActive
-          ? "0 0 20px rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.1), inset 0 0 0 1px rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.25)"
+          ? "0 0 20px rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.12), 0 0 24px rgba(var(--nexus-accent-2-rgb, 56, 189, 248), 0.04), inset 0 0 0 1px rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.24)"
           : "none",
       }}
     >
@@ -101,21 +105,12 @@ function SidebarButton({
         className="nx-code-sidebar-icon-frame flex shrink-0 items-center justify-center"
         style={{
           width: 28,
-          height: 23,
-          borderRadius: 7,
-          background: isActive ? "rgba(255, 255, 255, 0.052)" : "transparent",
+          height: 28,
+          borderRadius: "var(--nexus-radius-sm, 10px)",
+          background: isActive ? "rgba(255, 255, 255, 0.044)" : "transparent",
         }}
       >
-        <Icon size={18} strokeWidth={isActive ? 2.15 : 1.8} />
-      </span>
-      <span
-        className="nx-code-sidebar-label max-w-full truncate text-[9px] font-semibold"
-        style={{
-          color: isActive ? "var(--nexus-text, #eef2f8)" : "var(--nexus-muted)",
-          lineHeight: 1.05,
-        }}
-      >
-        {railLabel}
+        <Icon size={18} strokeWidth={isActive ? 2.1 : 1.75} />
       </span>
       {gitReady ? (
         <span
@@ -125,8 +120,8 @@ function SidebarButton({
             width: 8,
             height: 8,
             ...dotEdgeStyle,
-            background: "#22c55e",
-            boxShadow: "0 0 8px rgba(34,197,94,0.65)",
+            background: "#38bdf8",
+            boxShadow: "0 0 8px rgba(56,189,248,0.55)",
           }}
         />
       ) : null}
@@ -221,44 +216,43 @@ export default function Sidebar({
     <div
       className="nx-code-sidebar-rail flex h-full min-h-0 shrink-0 flex-col items-center overflow-visible"
       style={{
-        width: compact ? 62 : 68,
+        width: compact ? 48 : 52,
         gap: 7,
-        padding: "8px 6px",
+        padding: compact ? "7px 4px" : "8px 5px",
         background:
-          "linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0.01)), var(--nexus-surface)",
+          "radial-gradient(circle at 50% 0%, rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.06), transparent 130px), linear-gradient(180deg, rgba(255,255,255,0.026), rgba(255,255,255,0.006)), var(--nexus-sidebar)",
         borderRight: side === "left" ? "1px solid var(--nexus-border)" : 0,
         borderLeft: side === "right" ? "1px solid var(--nexus-border)" : 0,
         boxShadow:
           side === "left"
-            ? "inset -1px 0 0 rgba(255,255,255,0.025)"
-            : "inset 1px 0 0 rgba(255,255,255,0.025)",
+            ? "inset -1px 0 0 rgba(255,255,255,0.02), 8px 0 28px rgba(0,0,0,0.18)"
+            : "inset 1px 0 0 rgba(255,255,255,0.02), -8px 0 28px rgba(0,0,0,0.18)",
         zIndex: 40,
       }}
     >
       <div
         className="nx-code-sidebar-orb flex shrink-0 flex-col items-center justify-center border text-[11px] font-semibold"
         style={{
-          width: 50,
-          height: 44,
-          borderRadius: 8,
-          gap: 1,
+          width: 38,
+          height: 38,
+          borderRadius: "var(--nexus-radius-lg, 15px)",
+          gap: 0,
           background:
-            "linear-gradient(145deg, rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.16), rgba(255,255,255,0.035))",
+            "linear-gradient(145deg, rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.15), rgba(var(--nexus-accent-2-rgb, 56, 189, 248), 0.05), rgba(255,255,255,0.018))",
           borderColor: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.24)",
           color: "var(--nexus-primary, #7c8cff)",
           boxShadow:
-            "0 0 22px rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.12), inset 0 1px 0 rgba(255,255,255,0.06)",
+            "0 0 20px rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.11), 0 0 24px rgba(var(--nexus-accent-2-rgb, 56, 189, 248), 0.035), inset 0 1px 0 rgba(255,255,255,0.052)",
         }}
         title={compact ? "Nexus Code" : "Nexus Code Rail"}
       >
-        <Sparkles size={11} />
-        <span>NC</span>
+        <span>N</span>
       </div>
 
       <div
         className="h-px shrink-0"
         style={{
-          width: 42,
+          width: 36,
           background:
             "linear-gradient(90deg, transparent, rgba(255,255,255,0.16), transparent)",
         }}
@@ -266,7 +260,7 @@ export default function Sidebar({
 
       <div
         className="flex min-h-0 flex-1 flex-col items-center overflow-y-auto overflow-x-visible"
-        style={{ gap: 5, padding: "2px 0" }}
+        style={{ gap: 4, padding: "1px 0" }}
       >
         {SIDEBAR_ITEMS.map((item) => (
           <SidebarButton
@@ -288,7 +282,7 @@ export default function Sidebar({
       <div
         className="h-px shrink-0"
         style={{
-          width: 42,
+          width: 36,
           background:
             "linear-gradient(90deg, transparent, rgba(255,255,255,0.14), transparent)",
         }}
@@ -299,17 +293,14 @@ export default function Sidebar({
         onClick={onOpenSettings}
         className="nx-code-sidebar-btn nx-code-sidebar-settings flex flex-col items-center justify-center text-[var(--nexus-muted)] outline-none transition-colors hover:bg-white/[0.06] hover:text-gray-200 focus-visible:ring-2 focus-visible:ring-purple-500/60"
         style={{
-          width: 50,
-          minHeight: 48,
-          gap: 3,
-          borderRadius: 8,
+          width: 40,
+          minHeight: 40,
+          gap: 0,
+          borderRadius: "var(--nexus-radius-md, 12px)",
         }}
         title="Einstellungen"
       >
-        <Settings size={18} strokeWidth={1.8} />
-        <span className="max-w-full truncate text-[9px] font-semibold leading-none">
-          Setup
-        </span>
+        <Settings size={18} strokeWidth={1.75} />
       </button>
     </div>
   );

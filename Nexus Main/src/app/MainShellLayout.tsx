@@ -34,6 +34,7 @@ type Props = {
   motionRuntime: any;
   showDiagnosticsButton?: boolean;
   releaseId?: string | null;
+  bootNotice?: string | null;
   onRequestViewChange: (viewId: View | string) => void;
   onPrefetchView: (viewId: View) => void;
   onSidebarAutoPeek: (next: boolean) => void;
@@ -61,6 +62,7 @@ export function MainShellLayout({
   motionRuntime,
   showDiagnosticsButton = false,
   releaseId = null,
+  bootNotice = null,
   onRequestViewChange,
   onPrefetchView,
   onSidebarAutoPeek,
@@ -345,10 +347,31 @@ export function MainShellLayout({
               pointerEvents: "none",
             }}
           >
+            {bootNotice ? (
+              <div
+                style={{
+                  pointerEvents: "none",
+                  borderRadius: 10,
+                  padding: "8px 10px",
+                  fontSize: 12,
+                  fontWeight: 760,
+                  background:
+                    t.mode === "dark"
+                      ? "rgba(8,18,30,0.82)"
+                      : "rgba(255,255,255,0.9)",
+                  border: "1px solid rgba(251,191,36,0.38)",
+                  color: t.mode === "dark" ? "#fde68a" : "#854d0e",
+                  boxShadow: "0 8px 24px rgba(251,191,36,0.12)",
+                }}
+              >
+                API laeuft im lokalen Safe-Start: {bootNotice}
+              </div>
+            ) : null}
             {viewGuardState.checking ? (
               <div
                 style={{
                   pointerEvents: "none",
+                  marginTop: bootNotice ? 8 : 0,
                   borderRadius: 10,
                   padding: "8px 10px",
                   fontSize: 12,

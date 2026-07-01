@@ -77,7 +77,7 @@ export type Activity = {
   targetName: string
   timestamp: string
   targetId?: string
-  targetView?: 'notes' | 'code' | 'tasks' | 'reminders' | 'canvas' | 'files' | 'dashboard' | 'flux'
+  targetView?: 'notes' | 'code' | 'tasks' | 'reminders' | 'calendar' | 'canvas' | 'files' | 'dashboard' | 'flux'
   workspaceId?: string | null
 }
 
@@ -141,7 +141,7 @@ interface Store {
     status: 'todo' | 'doing' | 'done',
     desc?: string,
     priority?: 'low' | 'mid' | 'high'
-  ) => void
+  ) => Task
   updateTask: (id: string, p: Partial<Task>) => void
   delTask: (id: string) => void
   moveTask: (id: string, s: 'todo' | 'doing' | 'done') => void
@@ -149,7 +149,7 @@ interface Store {
   toggleSubtask: (taskId: string, subtaskId: string) => void
 
   // Reminders
-  addRem: (r: Omit<Reminder, 'id' | 'done'>) => void
+  addRem: (r: Omit<Reminder, 'id' | 'done'>) => Reminder
   delRem: (id: string) => void
   doneRem: (id: string) => void
   snoozeRem: (id: string, minutes: number) => void
@@ -446,6 +446,7 @@ export const useApp = create<Store>()(
         set(s => ({
           tasks: [t, ...s.tasks]
         }))
+        return t
       },
 
       updateTask: (id, p) =>
@@ -510,17 +511,17 @@ export const useApp = create<Store>()(
 
       reminders: INITIAL_APP_DATA.reminders,
 
-      addRem: r =>
-        set(s => {
-          const reminder: Reminder = { ...r, id: genId(), done: false }
-          get().logActivity('reminder', 'created', reminder.title, { targetId: reminder.id, targetView: 'reminders' })
-          return {
-            reminders: [
-              ...s.reminders,
-              reminder,
-            ]
-          }
-        }),
+      addRem: r => {
+        const reminder: Reminder = { ...r, id: genId(), done: false }
+        get().logActivity('reminder', 'created', reminder.title, { targetId: reminder.id, targetView: 'reminders' })
+        set(s => ({
+          reminders: [
+            ...s.reminders,
+            reminder,
+          ]
+        }))
+        return reminder
+      },
 
       delRem: id =>
         set(s => ({

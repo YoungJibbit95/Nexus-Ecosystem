@@ -59,10 +59,10 @@ export const buildControlStatus = (mode, details, fallbackReason = "") => {
       ? "Control API offline"
       : "Control API degraded";
   const message = mode === "limited"
-    ? "Hosted Auth ist nicht verfuegbar. Nexus Code startet mit lokalen Runtime-Daten."
+    ? "Hosted Auth ist nicht verfuegbar. Nexus Code bleibt im Account-Gate."
     : mode === "offline"
-      ? "Hosted Control ist nicht erreichbar. Nexus Code startet mit lokalen Runtime-Daten."
-      : "Control Bootstrap ist eingeschraenkt. Nexus Code nutzt lokale Fallback-Daten.";
+      ? "Hosted Control ist nicht erreichbar. Nexus Code bleibt im Account-Gate."
+      : "Control Bootstrap ist eingeschraenkt. Nexus Code bleibt gesperrt.";
 
   return {
     mode,

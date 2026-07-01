@@ -1,5 +1,6 @@
 export type NexusViewId =
   | 'dashboard'
+  | 'calendar'
   | 'notes'
   | 'code'
   | 'tasks'
@@ -18,6 +19,7 @@ export type NexusViewMeta = {
 
 export const NEXUS_VIEW_META: Record<NexusViewId, NexusViewMeta> = {
   dashboard: { title: 'Dashboard', subtitle: 'Dein täglicher Überblick' },
+  calendar: { title: 'Calendar', subtitle: 'Planung fuer Tasks und Reminders' },
   notes: { title: 'Notizen', subtitle: 'Schnell festhalten und strukturieren' },
   code: { title: 'Code', subtitle: 'Editor und Snippets an einem Ort' },
   tasks: { title: 'Tasks', subtitle: 'Prioritäten klar und fokussiert' },
@@ -32,6 +34,7 @@ export const NEXUS_VIEW_META: Record<NexusViewId, NexusViewMeta> = {
 
 export const NEXUS_VIEW_ORDER: NexusViewId[] = [
   'dashboard',
+  'calendar',
   'notes',
   'code',
   'tasks',
@@ -150,6 +153,30 @@ export const NEXUS_VIEW_MANIFESTS: Record<NexusViewId, NexusViewManifest> = {
     ],
     shortcuts: ['Ctrl+K', 'Ctrl+Shift+N'],
     statusSignals: ['sync', 'api', 'workspace', 'motion'],
+  },
+  calendar: {
+    id: 'calendar',
+    title: 'Calendar',
+    subtitle: 'Planung fuer Tasks und Reminders',
+    navLabel: 'Calendar',
+    category: 'workspace',
+    navigationGroup: 'primary',
+    icon: 'calendar-days',
+    accent: '#30d158',
+    desktopMode: 'agenda',
+    mobileMode: 'stack',
+    defaultActionId: 'new-calendar-item',
+    actions: [
+      primaryAction('new-calendar-item', 'Neuer Kalendereintrag', 'create', 'Ctrl+Shift+C'),
+      { id: 'import-ics', title: 'ICS importieren', intent: 'create', placement: 'toolbar' },
+      { id: 'jump-today', title: 'Heute anzeigen', intent: 'inspect', placement: 'toolbar' },
+    ],
+    panels: [
+      { id: 'agenda', title: 'Agenda', placement: 'right', defaultState: 'open', mobilePresentation: 'inline' },
+      { id: 'filters', title: 'Filter', placement: 'left', defaultState: 'collapsed', mobilePresentation: 'sheet' },
+    ],
+    shortcuts: ['Ctrl+Shift+C'],
+    statusSignals: ['today', 'overdue', 'planned'],
   },
   notes: {
     id: 'notes',
@@ -395,14 +422,15 @@ export const NEXUS_VIEW_MANIFESTS: Record<NexusViewId, NexusViewManifest> = {
 }
 
 const NEXUS_VIEW_TRANSITION_HINTS: Record<NexusViewId, NexusViewId[]> = {
-  dashboard: ['notes', 'tasks', 'files', 'canvas', 'settings'],
-  notes: ['tasks', 'dashboard', 'canvas', 'files', 'settings'],
+  dashboard: ['calendar', 'notes', 'tasks', 'files', 'canvas'],
+  calendar: ['dashboard', 'tasks', 'reminders', 'notes', 'flux'],
+  notes: ['calendar', 'tasks', 'dashboard', 'canvas', 'files'],
   code: ['files', 'notes', 'devtools', 'settings', 'dashboard'],
-  tasks: ['notes', 'dashboard', 'reminders', 'canvas', 'settings'],
-  reminders: ['tasks', 'dashboard', 'notes', 'settings', 'files'],
-  canvas: ['notes', 'tasks', 'dashboard', 'files', 'settings'],
+  tasks: ['calendar', 'notes', 'dashboard', 'reminders', 'canvas'],
+  reminders: ['calendar', 'tasks', 'dashboard', 'notes', 'settings'],
+  canvas: ['notes', 'tasks', 'calendar', 'dashboard', 'files'],
   files: ['code', 'notes', 'dashboard', 'tasks', 'settings'],
-  flux: ['dashboard', 'devtools', 'settings', 'notes', 'tasks'],
+  flux: ['calendar', 'dashboard', 'devtools', 'settings', 'tasks'],
   settings: ['dashboard', 'notes', 'tasks', 'files', 'canvas'],
   info: ['settings', 'dashboard', 'devtools', 'notes', 'tasks'],
   devtools: ['code', 'flux', 'settings', 'dashboard', 'notes'],

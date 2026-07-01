@@ -27,8 +27,14 @@ export function NativeInput({
       value={value}
       onChange={onChange}
       placeholder={placeholder}
-      className={`rounded-md px-2 py-1.5 text-xs outline-none transition-colors ${className}`}
-      style={style}
+      className={`min-w-0 rounded-lg px-3 py-2 text-xs outline-none transition-[border-color,background,box-shadow] ${className}`}
+      style={{
+        background: "var(--nexus-input-surface, rgba(255,255,255,0.05))",
+        border: "1px solid rgba(156,178,226,0.11)",
+        color: "var(--nexus-text, #d1d5db)",
+        boxShadow: "inset 0 1px 0 rgba(255,255,255,0.035)",
+        ...style,
+      }}
     />
   );
 }
@@ -50,8 +56,13 @@ export function NativeSlider({
       step={step}
       value={current}
       onChange={(e) => onValueChange([Number(e.target.value)])}
-      className={`w-full h-1.5 rounded-full appearance-none cursor-pointer ${className}`}
-      style={{ accentColor: "var(--nexus-primary, #7c8cff)" }}
+      className={`h-2 w-full cursor-pointer appearance-none rounded-full ${className}`}
+      style={{
+        accentColor: "var(--nexus-primary, #7c8cff)",
+        background:
+          "linear-gradient(90deg, rgba(var(--nexus-primary-rgb,124,140,255),0.45), rgba(var(--nexus-accent-2-rgb,56,189,248),0.24)), rgba(255,255,255,0.065)",
+        boxShadow: "inset 0 1px 0 rgba(255,255,255,0.045)",
+      }}
     />
   );
 }
@@ -63,21 +74,21 @@ export function NativeSwitch({ checked, onCheckedChange }) {
       role="switch"
       aria-checked={checked}
       onClick={() => onCheckedChange(!checked)}
-      className="relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full transition-colors duration-200 focus:outline-none"
+      className="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full transition-[background,box-shadow,transform] duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(var(--nexus-primary-rgb,124,140,255),0.32)]"
       style={{
         background: checked
-          ? "linear-gradient(135deg,var(--nexus-primary, #7c8cff),var(--nexus-accent-2, #2dd4bf))"
-          : "rgba(255,255,255,0.1)",
+          ? "linear-gradient(135deg,var(--nexus-primary, #7c8cff),var(--nexus-accent-2, #38bdf8))"
+          : "rgba(255,255,255,0.09)",
         boxShadow: checked
-          ? "0 0 var(--nexus-glow-radius-sm, 6px) var(--nexus-accent-glow, rgba(124,140,255,0.16))"
-          : "none",
+          ? "0 0 var(--nexus-glow-radius-sm, 8px) var(--nexus-accent-glow, rgba(124,140,255,0.16)), inset 0 1px 0 rgba(255,255,255,0.18)"
+          : "inset 0 1px 0 rgba(255,255,255,0.075)",
       }}
     >
       <span
-        className="pointer-events-none inline-block h-4 w-4 rounded-full shadow-lg transition-transform duration-200"
+        className="pointer-events-none inline-block h-5 w-5 rounded-full shadow-lg transition-transform duration-200"
         style={{
           background: "#fff",
-          transform: checked ? "translateX(18px)" : "translateX(2px)",
+          transform: checked ? "translateX(21px)" : "translateX(2px)",
           marginTop: "2px",
         }}
       />
@@ -90,13 +101,14 @@ export function NativeSelect({ value, onValueChange, children, className = "" })
     <select
       value={value}
       onChange={(e) => onValueChange(e.target.value)}
-      className={`rounded-md px-2 py-1.5 text-xs outline-none cursor-pointer transition-colors ${className}`}
+      className={`min-w-0 cursor-pointer rounded-lg px-3 py-2 text-xs outline-none transition-[border-color,background,box-shadow] ${className}`}
       style={{
-        background: "rgba(255,255,255,0.05)",
-        border: "1px solid rgba(255,255,255,0.1)",
-        color: "#d1d5db",
+        background: "var(--nexus-input-surface, rgba(255,255,255,0.05))",
+        border: "1px solid rgba(156,178,226,0.11)",
+        color: "var(--nexus-text, #d1d5db)",
         appearance: "none",
         WebkitAppearance: "none",
+        boxShadow: "inset 0 1px 0 rgba(255,255,255,0.035)",
         backgroundImage:
           "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E\")",
         backgroundRepeat: "no-repeat",
@@ -121,7 +133,7 @@ export const visualPerformanceProfiles = [
   {
     id: "performance",
     label: "Performance",
-    description: "Wenig Blur, kein Panel-Glow, reduzierte Animation.",
+    description: "8px Blur, 12% Glow, CSS-Renderer und ruhiger Caret.",
     settings: {
       panel_background_mode: "blur",
       glow_renderer: "css",
@@ -140,7 +152,7 @@ export const visualPerformanceProfiles = [
   {
     id: "balanced",
     label: "Ausgewogen",
-    description: "Produktionsnaher Standard mit ruhigem Glass-Look.",
+    description: "16px Blur, 28% Glow und normale Motion fuer taegliche Arbeit.",
     settings: {
       panel_background_mode: "blur",
       glow_renderer: "css",
@@ -159,7 +171,7 @@ export const visualPerformanceProfiles = [
   {
     id: "quality",
     label: "Qualitaet",
-    description: "Mehr Tiefe und Akzentlicht, aber ohne harte Neon-Bloom.",
+    description: "22px Blur, Outline und staerkeres Licht fuer kurze Design-Sessions.",
     settings: {
       panel_background_mode: "fake-glass",
       glow_renderer: "css",

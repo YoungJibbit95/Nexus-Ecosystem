@@ -1,7 +1,7 @@
 import {
   getBottomPanelSize,
   getSidePanelSize,
-} from "./workbenchLayoutModel";
+} from "./workbenchDockModel.js";
 
 export const PANEL_META = {
   explorer: {
@@ -15,6 +15,18 @@ export const PANEL_META = {
   problems: {
     title: "Problems",
     detail: "Diagnose und Hinweise",
+  },
+  issues: {
+    title: "Issues",
+    detail: "GitHub Aufgaben",
+  },
+  prs: {
+    title: "Pull Requests",
+    detail: "Reviews und Merge-Flows",
+  },
+  projects: {
+    title: "Projects",
+    detail: "GitHub Boards",
   },
   terminal: {
     title: "Terminal",
@@ -39,9 +51,12 @@ export const PANEL_META = {
 };
 
 export const PANEL_BOUNDS = {
-  railWidth: "w-14",
-  bottomHeight: "h-[clamp(13rem,30vh,19rem)]",
-  compactBottomHeight: "h-[min(17rem,42vh)]",
+  railWidth: "w-[3.375rem]",
+  compactRailWidth: "w-[3.125rem]",
+  railOffset: "3.375rem",
+  compactRailOffset: "3.125rem",
+  bottomHeight: "h-[clamp(11.5rem,27vh,16.5rem)]",
+  compactBottomHeight: "h-[min(15rem,40vh)]",
 };
 
 export function getPanelMeta(panelId) {
@@ -77,24 +92,26 @@ export function getSidePanelClassName({ compact }) {
 export function getSidePanelStyle({ compact = false, size } = {}) {
   const panelSize = getSidePanelSize(size);
   if (compact) {
+    const compactWidth = panelSize.compactWidth || panelSize.width || "min(17rem, calc(100vw - 3.25rem))";
     return {
-      width: panelSize.compactWidth,
+      width: compactWidth,
       maxWidth: "calc(100vw - 3.25rem)",
     };
   }
 
   return {
-    width: panelSize.width,
-    minWidth: panelSize.minWidth,
-    maxWidth: panelSize.maxWidth,
+    width: panelSize.width || panelSize.compactWidth,
+    minWidth: panelSize.minWidth || "12.5rem",
+    maxWidth: panelSize.maxWidth || "18.75rem",
   };
 }
 
-export function getRailClassName(side = "left") {
+export function getRailClassName(side = "left", { compact = false } = {}) {
   const borderClass = side === "right" ? "border-l" : "border-r";
+  const widthClass = compact ? PANEL_BOUNDS.compactRailWidth : PANEL_BOUNDS.railWidth;
   return [
     "nx-code-rail",
-    PANEL_BOUNDS.railWidth,
+    widthClass,
     "relative z-40 h-full min-h-0 overflow-visible flex flex-col",
     `${borderClass} border-white/5 shrink-0 nexus-panel-surface`,
   ].join(" ");
@@ -111,7 +128,7 @@ export function getMainEditorClassName() {
 export function getBottomPanelClassName({ compact = false, size } = {}) {
   const panelSize = getBottomPanelSize(size);
   const heightClass = compact
-    ? panelSize.compactClassName
-    : panelSize.className;
+    ? panelSize.compactClassName || panelSize.className
+    : panelSize.className || panelSize.compactClassName;
   return `nx-code-bottom-panel ${heightClass} min-h-0 overflow-hidden`;
 }

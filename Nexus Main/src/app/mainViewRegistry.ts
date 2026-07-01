@@ -12,6 +12,7 @@ import {
   Wrench,
   Zap,
   Activity,
+  CalendarDays,
 } from "lucide-react";
 import {
   getFallbackViewsForApp,
@@ -42,6 +43,7 @@ export const isMainDiagnosticsEnabled = () => MAIN_DIAGNOSTICS_ENABLED;
 
 const MAIN_VIEW_ICON_MAP: Record<NexusViewId, LucideIcon> = {
   dashboard: BarChart3,
+  calendar: CalendarDays,
   notes: FileText,
   code: Code2,
   tasks: Columns,
@@ -56,17 +58,18 @@ const MAIN_VIEW_ICON_MAP: Record<NexusViewId, LucideIcon> = {
 
 const PRELOAD_PRIORITY: Record<View, number> = {
   dashboard: 0,
-  notes: 1,
-  tasks: 2,
-  reminders: 3,
-  settings: 4,
-  files: 5,
-  info: 6,
-  flux: 7,
-  canvas: 8,
-  code: 9,
-  devtools: 10,
-  diagnostics: 11,
+  calendar: 1,
+  notes: 2,
+  tasks: 3,
+  reminders: 4,
+  settings: 5,
+  files: 6,
+  info: 7,
+  flux: 8,
+  canvas: 9,
+  code: 10,
+  devtools: 11,
+  diagnostics: 12,
 };
 
 const HEAVY_VIEWS = new Set<View>(["code", "canvas", "devtools"]);
@@ -103,6 +106,7 @@ export const MAIN_VIEW_IDS: View[] = [
 
 export const MAIN_VIEW_REGISTRY: Record<View, MainViewRegistryItem> = {
   dashboard: buildCoreRegistryItem("dashboard"),
+  calendar: buildCoreRegistryItem("calendar"),
   notes: buildCoreRegistryItem("notes"),
   code: buildCoreRegistryItem("code"),
   tasks: buildCoreRegistryItem("tasks"),
@@ -140,17 +144,17 @@ export const MAIN_HEAVY_PRELOAD_VIEW_SET = new Set<View>(
 );
 
 export const MAIN_CRITICAL_PRELOAD_VIEW_IDS: View[] = MAIN_PRELOAD_PRIORITY.filter(
-  (viewId) => ["dashboard", "notes", "tasks", "settings", "reminders"].includes(viewId),
+  (viewId) => ["dashboard", "calendar", "notes", "tasks", "settings", "reminders"].includes(viewId),
 );
 
 export const MAIN_BOOT_PRIORITY_VIEW_IDS: View[] = MAIN_PRELOAD_PRIORITY.filter(
   (viewId) =>
-    ["dashboard", "notes", "tasks", "settings", "reminders", "files"].includes(viewId),
+    ["dashboard", "calendar", "notes", "tasks", "settings", "reminders", "files"].includes(viewId),
 );
 
 export const MAIN_PERSISTENT_VIEW_CACHE_IDS: View[] = MAIN_PRELOAD_PRIORITY.filter(
   (viewId) =>
-    ["dashboard", "notes", "tasks", "settings", "files", "canvas", "code"].includes(viewId),
+    ["dashboard", "calendar", "notes", "tasks", "settings", "files", "canvas", "code"].includes(viewId),
 );
 
 export const MAIN_PRIMARY_VIEW_ITEMS = MAIN_PRELOAD_PRIORITY

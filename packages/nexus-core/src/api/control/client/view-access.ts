@@ -10,18 +10,23 @@ import {
 } from '../utils'
 import { buildViewAccessCacheKey, getViewValidationErrorReason } from './common'
 
-const OFFLINE_FREE_VIEWS_BY_APP: Record<string, Set<string>> = {
-  main: new Set(['dashboard', 'notes', 'tasks', 'reminders', 'files', 'settings', 'info']),
-  mobile: new Set([]),
+const LOCAL_FREE_VIEWS_BY_APP: Record<string, Set<string>> = {
+  main: new Set(['dashboard', 'calendar', 'notes', 'tasks', 'reminders', 'files', 'settings', 'info']),
+  mobile: new Set(['dashboard', 'notes', 'tasks', 'reminders', 'files', 'settings', 'info']),
   code: new Set([]),
   'code-mobile': new Set([]),
 }
 
-const isOfflineFreeViewAllowed = (appId: string, viewId: string) => {
-  const allowed = OFFLINE_FREE_VIEWS_BY_APP[appId]
+const isLocalFreeViewAllowed = (appId: string, viewId: string) => {
+  const allowed = LOCAL_FREE_VIEWS_BY_APP[appId]
   if (!allowed) return false
   return allowed.has(viewId)
 }
+
+const shouldTrustLocalFreeView = (
+  client: any,
+  viewId: string,
+) => isLocalFreeViewAllowed(client.appId, viewId)
 
 const extractOfflineHttpCode = (messageRaw: string) => {
   const match = messageRaw.match(/VIEW_VALIDATION_HTTP_(\d{3})/)
@@ -75,10 +80,12 @@ export const validateViewAccess = async (
   }
 
   if (!client.baseUrl || !client.viewValidationEnabled) {
+    const freeAllowed = shouldTrustLocalFreeView(client, normalizedView)
     return buildFallbackResult(client, normalizedView, requestedTier, options, {
-      allowed: false,
-      reason: 'VIEW_VALIDATION_UNAVAILABLE_FAIL_CLOSED',
-      paywallEnabled: true,
+      allowed: freeAllowed,
+      reason: freeAllowed ? 'LOCAL_FREE_VIEW_ALLOW' : 'VIEW_VALIDATION_UNAVAILABLE_FAIL_CLOSED',
+      paywallEnabled: !freeAllowed,
+      requiredTier: freeAllowed ? null : 'pro',
     })
   }
 
@@ -148,6 +155,13 @@ export const validateViewAccess = async (
       cacheHit: false,
     }
 
+    if (!result.allowed && shouldTrustLocalFreeView(client, normalizedView)) {
+      result.allowed = true
+      result.reason = `LOCAL_FREE_VIEW_ALLOW_REMOTE_${result.reason || 'DENIED'}`
+      result.paywallEnabled = false
+      result.requiredTier = null
+    }
+
     if (client.viewValidationCacheMs > 0) {
       client.viewAccessCache.set(cacheKey, {
         expiresAt: Date.now() + client.viewValidationCacheMs,
@@ -164,7 +178,7 @@ export const validateViewAccess = async (
       (error instanceof NexusControlError && isOfflineControlErrorCode(error.code))
       || (offlineFromHttpCode && isOfflineControlErrorCode(offlineFromHttpCode))
     ) {
-      const offlineAllowed = isOfflineFreeViewAllowed(client.appId, normalizedView)
+      const offlineAllowed = isLocalFreeViewAllowed(client.appId, normalizedView)
       return buildFallbackResult(client, normalizedView, requestedTier, options, {
         allowed: offlineAllowed,
         reason: offlineAllowed ? 'OFFLINE_FREE_TIER_ALLOW' : 'OFFLINE_FREE_TIER_BLOCKED',

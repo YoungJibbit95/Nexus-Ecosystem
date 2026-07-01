@@ -66,7 +66,7 @@ const dedupeFilterDebugEvents = (events: NexusViewFilterDebugEvent[]) => {
 }
 
 export const NEXUS_FALLBACK_VIEWS_BY_APP: Record<NexusCoreAppId, string[]> = {
-  main: ['dashboard', 'notes', 'code', 'tasks', 'reminders', 'canvas', 'files', 'flux', 'devtools', 'settings', 'info'],
+  main: ['dashboard', 'calendar', 'notes', 'code', 'tasks', 'reminders', 'canvas', 'files', 'flux', 'devtools', 'settings', 'info'],
   mobile: ['dashboard', 'notes', 'code', 'tasks', 'reminders', 'canvas', 'files', 'flux', 'devtools', 'settings', 'info'],
   code: ['editor'],
   'code-mobile': ['editor'],
@@ -75,6 +75,7 @@ export const NEXUS_FALLBACK_VIEWS_BY_APP: Record<NexusCoreAppId, string[]> = {
 const VIEW_FEATURE_MAP: Record<NexusCoreAppId, Record<string, string | null>> = {
   main: {
     dashboard: 'core.dashboard',
+    calendar: null,
     notes: 'core.notes',
     code: 'core.code-editor',
     tasks: 'core.tasks',

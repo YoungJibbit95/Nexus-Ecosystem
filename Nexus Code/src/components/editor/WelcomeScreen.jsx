@@ -1,107 +1,73 @@
 import React, { useMemo } from "react";
 import {
-<<<<<<< HEAD
   ArrowRight,
-  Braces,
-  Code2,
   Command,
   FileCode2,
   FolderOpen,
   GitPullRequest,
-  Palette,
-=======
-  Activity,
-  ArrowRight,
-  Braces,
-  CheckCircle2,
-  CircleDot,
-  Command,
-  FileCode2,
-  FolderOpen,
-  GitBranch,
-  Layers3,
-  PanelLeftOpen,
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
   Plus,
   Search,
   Settings,
   Sparkles,
-<<<<<<< HEAD
   TerminalSquare,
-  Zap,
 } from "lucide-react";
-import { motion } from "framer-motion";
-import { getNexusCodeIdeReleaseSnapshot } from "../../ide/ecosystem/ideCapabilityBridge";
+import { MotionConfig, motion } from "framer-motion";
+import {
+  PanelBadge,
+  PanelCard,
+  useNexusReducedMotion,
+} from "./panels/PanelChrome";
 import { getWelcomeRecentFiles } from "../../pages/editor/welcomeScreenModel";
-=======
-  Terminal,
-  Zap,
-} from "lucide-react";
-import { motion } from "framer-motion";
-import {
-  IDE_CAPABILITY_STATUS_LABELS,
-  getNexusCodeIdeReleaseSnapshot,
-} from "../../ide/ecosystem/ideCapabilityBridge";
-import {
-  WELCOME_WORKSPACE_ITEMS,
-  getWelcomeRecentFiles,
-} from "../../pages/editor/welcomeScreenModel";
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
 
 const containerVariants = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
-    transition: { staggerChildren: 0.035, delayChildren: 0.04 },
+    transition: { staggerChildren: 0.018, delayChildren: 0.01 },
   },
 };
 
 const itemVariants = {
-  hidden: { opacity: 0, y: 8 },
+  hidden: { opacity: 0, y: 4 },
   visible: {
     opacity: 1,
     y: 0,
-    transition: { type: "spring", stiffness: 360, damping: 34 },
+    transition: { duration: 0.18, ease: [0.22, 1, 0.36, 1] },
   },
+};
+
+const wrapText = {
+  overflowWrap: "normal",
+  wordBreak: "normal",
+  hyphens: "auto",
+};
+
+const softClamp = {
+  display: "block",
+  overflow: "visible",
+  maxWidth: "100%",
 };
 
 const actionItems = [
   {
     icon: Plus,
-    label: "New scratch",
-<<<<<<< HEAD
-    detail: "Instant TypeScript surface",
-=======
-    detail: "TypeScript ready",
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
+    label: "Neue Datei",
+    detail: "Leere Datei erstellen.",
     action: "new",
-    primary: true,
     tone: "primary",
   },
   {
     icon: FolderOpen,
-<<<<<<< HEAD
-    label: "Open project",
-    detail: "Folder, tree and Git context",
-=======
-    label: "Open workspace",
-    detail: "Local project",
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
+    label: "Projekt oeffnen",
+    detail: "Ordner auswaehlen.",
     action: "folder",
-    primary: true,
-    tone: "teal",
+    tone: "blue",
   },
   {
     icon: Settings,
-<<<<<<< HEAD
-    label: "Tune editor",
-    detail: "Theme, glow and layout",
-=======
-    label: "Tune shell",
-    detail: "Editor setup",
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
+    label: "Einrichtung",
+    detail: "Theme und Erweiterungen.",
     action: "settings",
-    primary: false,
     tone: "neutral",
   },
 ];
@@ -109,121 +75,119 @@ const actionItems = [
 const flowItems = [
   {
     icon: Command,
-    title: "Command-first editing",
-    detail: "Keep navigation, creation and setup one gesture away.",
+    title: "Command-first work",
+    detail: "Dateien oeffnen, Workspace durchsuchen, Setup starten.",
     tone: "primary",
   },
   {
     icon: Search,
     title: "Search and inspect",
-    detail: "Jump from files to symbols, problems and text without panel noise.",
+    detail: "Symbole, Probleme und Text mit der Panel-Ansicht finden.",
     tone: "neutral",
   },
   {
     icon: GitPullRequest,
     title: "Source control flow",
-    detail: "Local changes, branch state and review signals stay readable.",
-    tone: "teal",
+    detail: "Aenderungen, Branch und Review-Signale ruhig scannen.",
+    tone: "blue",
   },
   {
     icon: TerminalSquare,
-    title: "Integrated runtime",
-    detail: "Terminal, tasks and project commands are part of the same surface.",
+    title: "Runtime at hand",
+    detail: "Terminal und Projektbefehle bleiben nah am Editor.",
     tone: "neutral",
   },
 ];
 
-const languageTiles = [
-  { label: "TypeScript", detail: "JS/TS IDE core", tone: "primary" },
-  { label: "Python", detail: "Lint and syntax path", tone: "teal" },
-  { label: "Rust", detail: "Structured editing", tone: "neutral" },
-  { label: "Go", detail: "Fast project work", tone: "neutral" },
-];
-
 const actionTones = {
   primary: {
-    border: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.34)",
-    bg: "linear-gradient(135deg, rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.18), rgba(255, 255, 255, 0.035))",
-    iconBg: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.16)",
-    iconBorder: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.32)",
+    border: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.2)",
+    bg: "linear-gradient(135deg, rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.075), rgba(255, 255, 255, 0.018)), rgba(0, 0, 0, 0.16)",
+    iconBg: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.11)",
+    iconBorder: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.18)",
     iconColor: "var(--nexus-primary, #7c8cff)",
-    glow: "0 14px 34px rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.12)",
+    glow: "0 12px 24px rgba(0, 0, 0, 0.22), 0 0 14px rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.032)",
   },
-  teal: {
-    border: "rgba(45, 212, 191, 0.28)",
-    bg: "linear-gradient(135deg, rgba(45, 212, 191, 0.12), rgba(255, 255, 255, 0.03))",
-    iconBg: "rgba(45, 212, 191, 0.12)",
-    iconBorder: "rgba(45, 212, 191, 0.26)",
-    iconColor: "#5eead4",
-    glow: "0 14px 34px rgba(45, 212, 191, 0.09)",
+  blue: {
+    border: "rgba(56, 189, 248, 0.17)",
+    bg: "linear-gradient(135deg, rgba(56, 189, 248, 0.065), rgba(255, 255, 255, 0.015)), rgba(0, 0, 0, 0.16)",
+    iconBg: "rgba(56, 189, 248, 0.095)",
+    iconBorder: "rgba(56, 189, 248, 0.17)",
+    iconColor: "#93c5fd",
+    glow: "0 12px 24px rgba(0, 0, 0, 0.22), 0 0 14px rgba(56, 189, 248, 0.03)",
   },
   neutral: {
-    border: "rgba(255, 255, 255, 0.09)",
-    bg: "linear-gradient(135deg, rgba(255, 255, 255, 0.046), rgba(255, 255, 255, 0.018))",
-    iconBg: "rgba(255, 255, 255, 0.055)",
-    iconBorder: "rgba(255, 255, 255, 0.105)",
+    border: "rgba(156, 178, 226, 0.075)",
+    bg: "linear-gradient(135deg, rgba(255, 255, 255, 0.026), rgba(255, 255, 255, 0.008)), rgba(0, 0, 0, 0.16)",
+    iconBg: "rgba(255, 255, 255, 0.04)",
+    iconBorder: "rgba(255, 255, 255, 0.075)",
     iconColor: "var(--nexus-muted, #99a3b7)",
-    glow: "0 14px 34px rgba(0, 0, 0, 0.14)",
+    glow: "0 12px 24px rgba(0, 0, 0, 0.2)",
   },
 };
 
-<<<<<<< HEAD
-=======
-const workspaceIcons = {
-  workspace: PanelLeftOpen,
-  drafts: FileCode2,
-  shell: Command,
-};
-
-const actionTones = {
-  primary: {
-    border: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.34)",
-    bg: "linear-gradient(135deg, rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.18), rgba(255, 255, 255, 0.035))",
-    iconBg: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.16)",
-    iconBorder: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.32)",
-    iconColor: "var(--nexus-primary, #7c8cff)",
-    glow: "0 14px 34px rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.12)",
-  },
-  teal: {
-    border: "rgba(45, 212, 191, 0.28)",
-    bg: "linear-gradient(135deg, rgba(45, 212, 191, 0.12), rgba(255, 255, 255, 0.03))",
-    iconBg: "rgba(45, 212, 191, 0.12)",
-    iconBorder: "rgba(45, 212, 191, 0.26)",
-    iconColor: "#5eead4",
-    glow: "0 14px 34px rgba(45, 212, 191, 0.09)",
-  },
-  neutral: {
-    border: "rgba(255, 255, 255, 0.09)",
-    bg: "linear-gradient(135deg, rgba(255, 255, 255, 0.046), rgba(255, 255, 255, 0.018))",
-    iconBg: "rgba(255, 255, 255, 0.055)",
-    iconBorder: "rgba(255, 255, 255, 0.105)",
-    iconColor: "var(--nexus-muted, #99a3b7)",
-    glow: "0 14px 34px rgba(0, 0, 0, 0.14)",
-  },
-};
-
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
-function SoftPanel({ children, className = "", style = {} }) {
+function SoftPanel({ children, className = "", style = {}, tone = "muted" }) {
   return (
-    <motion.section
+    <PanelCard
+      as={motion.section}
       variants={itemVariants}
-      className={`min-h-0 min-w-0 overflow-hidden ${className}`}
+      tone={tone}
+      className={`nx-code-launchpad-panel min-h-0 min-w-0 ${className}`}
       style={{
-<<<<<<< HEAD
-        borderRadius: 18,
-=======
-        borderRadius: 8,
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
-        border: "1px solid rgba(255, 255, 255, 0.075)",
+        padding: "var(--nx-launchpad-panel-pad, 12px)",
+        overflow: "visible",
         background:
-          "linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.016))",
-        boxShadow:
-          "0 18px 46px rgba(0, 0, 0, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.06)",
+          "linear-gradient(180deg, rgba(255,255,255,0.024), rgba(255,255,255,0.006)), rgba(0,0,0,0.14)",
         ...style,
       }}
     >
       {children}
-    </motion.section>
+    </PanelCard>
+  );
+}
+
+function SectionLabel({ icon: Icon, title, end }) {
+  return (
+    <motion.div
+      variants={itemVariants}
+      className="nx-code-launchpad-section-label flex min-w-0 items-center justify-between gap-3"
+    >
+      <div className="flex min-w-0 items-center gap-2">
+        {Icon ? (
+          <Icon size={13} className="shrink-0 text-[var(--nexus-muted)] opacity-70" />
+        ) : null}
+        <span className="min-w-0 text-[10px] font-semibold uppercase leading-tight text-[var(--nexus-muted)]">
+          {title}
+        </span>
+      </div>
+      {end ? <div className="shrink-0">{end}</div> : null}
+    </motion.div>
+  );
+}
+
+function IconFrame({
+  icon: Icon,
+  tone = "neutral",
+  size = 15,
+  frameSize = 34,
+  radius = 13,
+}) {
+  const toneStyle = actionTones[tone] || actionTones.neutral;
+
+  return (
+    <span
+      className="nx-code-launchpad-icon flex shrink-0 items-center justify-center"
+      style={{
+        width: frameSize,
+        height: frameSize,
+        borderRadius: radius,
+        border: `1px solid ${toneStyle.iconBorder}`,
+        background: toneStyle.iconBg,
+        color: toneStyle.iconColor,
+      }}
+    >
+      <Icon size={size} />
+    </span>
   );
 }
 
@@ -232,8 +196,8 @@ function ActionButton({
   label,
   detail,
   onClick,
-  primary = false,
   tone = "neutral",
+  reduceMotion = false,
 }) {
   const toneStyle = actionTones[tone] || actionTones.neutral;
 
@@ -241,566 +205,196 @@ function ActionButton({
     <motion.button
       type="button"
       variants={itemVariants}
-      whileHover={{ y: -2, scale: 1.01 }}
-      whileTap={{ scale: 0.985 }}
-      transition={{ type: "spring", stiffness: 430, damping: 30 }}
+      whileHover={reduceMotion ? undefined : { y: -1 }}
+      whileTap={reduceMotion ? undefined : { scale: 0.992 }}
+      transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
       onClick={onClick}
-      className={`nx-code-launchpad-action group flex min-w-0 items-center text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-purple-500/60 ${
-        primary ? "nx-code-welcome-action-primary" : "nx-code-welcome-action"
-      }`}
+      aria-label={`${label}: ${detail}`}
+      className="nx-code-launchpad-action group grid min-w-0 text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[rgba(var(--nexus-primary-rgb),0.24)]"
       style={{
-<<<<<<< HEAD
-        minHeight: 68,
-        gap: 12,
-        borderRadius: 16,
-        padding: "11px 13px",
-=======
-        minHeight: 66,
-        gap: 10,
-        borderRadius: 8,
-        padding: "10px 12px",
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
+        minHeight: "var(--nx-launchpad-action-min, 62px)",
+        gridTemplateColumns:
+          "var(--nx-launchpad-action-grid, 34px minmax(0, 1fr) 14px)",
+        alignItems: "center",
+        gap: "var(--nx-launchpad-action-gap, 10px)",
+        borderRadius: "var(--nexus-radius-lg, 14px)",
+        padding: "var(--nx-launchpad-action-pad, 10px 12px)",
         border: `1px solid ${toneStyle.border}`,
         background: toneStyle.bg,
-        boxShadow: toneStyle.glow,
+        boxShadow: reduceMotion
+          ? "inset 0 1px 0 rgba(255,255,255,0.04)"
+          : toneStyle.glow,
+        overflow: "visible",
       }}
     >
-      <span
-        className="flex shrink-0 items-center justify-center"
-        style={{
-          width: 36,
-          height: 36,
-<<<<<<< HEAD
-          borderRadius: 13,
-=======
-          borderRadius: 8,
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
-          border: `1px solid ${toneStyle.iconBorder}`,
-          background: toneStyle.iconBg,
-          color: toneStyle.iconColor,
-        }}
-      >
-        <Icon size={17} />
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-semibold text-[var(--nexus-text)]">
+      <IconFrame icon={Icon} tone={tone} size={16} />
+      <span className="nx-code-launchpad-text min-w-0">
+        <span
+          className="nx-code-launchpad-text block text-[13px] font-semibold leading-tight text-[var(--nexus-text)]"
+          style={wrapText}
+        >
           {label}
         </span>
-        <span className="mt-0.5 block truncate text-[11px] text-[var(--nexus-muted)]">
+        <span
+          className="nx-code-launchpad-text nx-code-launchpad-fineprint mt-1 block text-[10px] leading-snug text-[var(--nexus-muted)]"
+          style={{ ...softClamp, ...wrapText }}
+        >
           {detail}
         </span>
       </span>
       <ArrowRight
-        size={15}
+        size={14}
         className="shrink-0 text-[var(--nexus-muted)] opacity-55 transition-opacity group-hover:opacity-100"
       />
     </motion.button>
   );
 }
 
-function MetricPill({ icon: Icon, label, value, tone = "primary" }) {
-  const toneStyle = actionTones[tone] || actionTones.primary;
-<<<<<<< HEAD
-=======
-
-  return (
-    <motion.div
-      variants={itemVariants}
-      className="flex min-w-0 items-center gap-2"
-      style={{
-        minHeight: 34,
-        borderRadius: 8,
-        border: "1px solid rgba(255, 255, 255, 0.075)",
-        background: "rgba(255, 255, 255, 0.035)",
-        padding: "6px 9px",
-      }}
-    >
-      <span
-        className="flex shrink-0 items-center justify-center"
-        style={{
-          width: 22,
-          height: 22,
-          borderRadius: 7,
-          border: `1px solid ${toneStyle.iconBorder}`,
-          background: toneStyle.iconBg,
-          color: toneStyle.iconColor,
-        }}
-      >
-        <Icon size={12} />
-      </span>
-      <span className="min-w-0">
-        <span className="block truncate text-[10px] font-medium text-[var(--nexus-muted)]">
-          {label}
-        </span>
-        <span className="block truncate text-xs font-semibold text-[var(--nexus-text)]">
-          {value}
-        </span>
-      </span>
-    </motion.div>
-  );
-}
-
-function WorkspaceCard({ item }) {
-  const Icon = workspaceIcons[item.id] || CircleDot;
-
-  return (
-    <motion.div
-      variants={itemVariants}
-      className="flex min-w-0 items-center gap-2"
-      style={{
-        minHeight: 58,
-        borderRadius: 8,
-        border: "1px solid rgba(255, 255, 255, 0.065)",
-        background: "rgba(0, 0, 0, 0.12)",
-        padding: "9px 10px",
-      }}
-    >
-      <span
-        className="flex shrink-0 items-center justify-center text-[var(--nexus-primary,#7c8cff)]"
-        style={{
-          width: 30,
-          height: 30,
-          borderRadius: 8,
-          border: "1px solid rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.2)",
-          background: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.08)",
-        }}
-      >
-        <Icon size={15} />
-      </span>
-      <div className="min-w-0 flex-1">
-        <div className="flex min-w-0 items-center gap-2">
-          <span className="shrink-0 text-[10px] font-semibold text-[var(--nexus-muted)]">
-            {item.label}
-          </span>
-          <span className="h-px min-w-4 flex-1 bg-white/[0.06]" />
-        </div>
-        <div className="mt-0.5 truncate text-xs font-semibold text-[var(--nexus-text)]">
-          {item.title}
-        </div>
-        <div className="mt-0.5 truncate text-[10px] text-[var(--nexus-muted)]">
-          {item.detail}
-        </div>
-      </div>
-    </motion.div>
-  );
-}
-
-function RecentFiles({ files }) {
-  const rows =
-    files.length > 0
-      ? files
-      : [
-          {
-            id: "empty",
-            name: "No local recents",
-            detail: "Open a folder or create a scratch",
-            meta: "ready",
-          },
-        ];
-
-  return (
-    <SoftPanel className="nx-code-launchpad-recent flex flex-col" style={{ padding: 12 }}>
-      <div className="mb-2 flex items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-2">
-          <FileCode2
-            size={14}
-            className="shrink-0 text-[var(--nexus-primary,#7c8cff)]"
-          />
-          <span className="truncate text-xs font-semibold text-[var(--nexus-text)]">
-            Recent
-          </span>
-        </div>
-        <span className="shrink-0 text-[10px] font-semibold text-[var(--nexus-muted)]">
-          {files.length || 0}
-        </span>
-      </div>
-      <div className="grid min-h-0 flex-1 content-start gap-2 overflow-hidden">
-        {rows.map((file) => (
-          <motion.div
-            key={file.id}
-            variants={itemVariants}
-            className="flex min-w-0 items-center gap-2"
-            style={{
-              minHeight: 42,
-              borderRadius: 8,
-              border: "1px solid rgba(255, 255, 255, 0.06)",
-              background: "rgba(255, 255, 255, 0.026)",
-              padding: "7px 9px",
-            }}
-          >
-            <span
-              className="flex shrink-0 items-center justify-center text-[var(--nexus-muted)]"
-              style={{
-                width: 26,
-                height: 26,
-                borderRadius: 7,
-                border: "1px solid rgba(255, 255, 255, 0.075)",
-                background: "rgba(0, 0, 0, 0.13)",
-              }}
-            >
-              <FileCode2 size={13} />
-            </span>
-            <div className="min-w-0 flex-1">
-              <div className="truncate text-xs font-semibold text-[var(--nexus-text)]">
-                {file.name}
-              </div>
-              <div className="truncate text-[10px] text-[var(--nexus-muted)]">
-                {file.detail}
-              </div>
-            </div>
-            <span className="shrink-0 rounded-md border border-white/[0.06] bg-white/[0.025] px-1.5 py-0.5 text-[9px] font-semibold text-[var(--nexus-muted)]">
-              {file.meta}
-            </span>
-          </motion.div>
-        ))}
-      </div>
-    </SoftPanel>
-  );
-}
-
-function CapabilitySignal({ capability }) {
-  const Icon = capabilityIcons[capability.area] || CheckCircle2;
-  const statusLabel =
-    IDE_CAPABILITY_STATUS_LABELS[capability.status] || capability.status;
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
-
-  return (
-    <motion.div
-      variants={itemVariants}
-      className="flex min-w-0 items-center gap-2"
-      style={{
-<<<<<<< HEAD
-        minHeight: 34,
-        borderRadius: 14,
-        border: "1px solid rgba(255, 255, 255, 0.075)",
-        background: "rgba(255, 255, 255, 0.035)",
-        padding: "6px 9px",
-=======
-        minHeight: 42,
-        borderRadius: 8,
-        border: "1px solid rgba(255, 255, 255, 0.06)",
-        background: "rgba(0, 0, 0, 0.11)",
-        padding: "7px 9px",
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
-      }}
-    >
-      <span
-        className="flex shrink-0 items-center justify-center"
-        style={{
-<<<<<<< HEAD
-          width: 22,
-          height: 22,
-          borderRadius: 9,
-          border: `1px solid ${toneStyle.iconBorder}`,
-          background: toneStyle.iconBg,
-          color: toneStyle.iconColor,
-        }}
-      >
-        <Icon size={12} />
-      </span>
-      <span className="min-w-0">
-        <span className="block truncate text-[10px] font-medium text-[var(--nexus-muted)]">
-          {label}
-        </span>
-        <span className="block truncate text-xs font-semibold text-[var(--nexus-text)]">
-          {value}
-        </span>
-      </span>
-    </motion.div>
-  );
-}
-
-function RecentFiles({ files }) {
-  const rows =
-    files.length > 0
-      ? files
-      : [
-          {
-            id: "empty",
-            name: "No local files yet",
-            detail: "Create a scratch or open a project",
-            meta: "local",
-          },
-        ];
-
-  return (
-    <SoftPanel className="nx-code-launchpad-recent flex flex-col" style={{ padding: 12 }}>
-      <div className="mb-2 flex items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-2">
-          <FileCode2
-            size={14}
-            className="shrink-0 text-[var(--nexus-primary,#7c8cff)]"
-          />
-        <span className="truncate text-xs font-semibold text-[var(--nexus-text)]">
-            Recent files
-          </span>
-        </div>
-        <span className="shrink-0 text-[10px] font-semibold text-[var(--nexus-muted)]">
-          {files.length || 0}
-        </span>
-      </div>
-      <div className="grid min-h-0 flex-1 content-start gap-2 overflow-hidden">
-        {rows.map((file) => (
-          <motion.div
-            key={file.id}
-            variants={itemVariants}
-            className="flex min-w-0 items-center gap-2"
-            style={{
-              minHeight: 42,
-              borderRadius: 14,
-              border: "1px solid rgba(255, 255, 255, 0.06)",
-              background: "rgba(255, 255, 255, 0.026)",
-              padding: "7px 9px",
-            }}
-          >
-            <span
-              className="flex shrink-0 items-center justify-center text-[var(--nexus-muted)]"
-              style={{
-                width: 26,
-                height: 26,
-                borderRadius: 10,
-                border: "1px solid rgba(255, 255, 255, 0.075)",
-                background: "rgba(0, 0, 0, 0.13)",
-              }}
-            >
-              <FileCode2 size={13} />
-            </span>
-            <div className="min-w-0 flex-1">
-              <div className="truncate text-xs font-semibold text-[var(--nexus-text)]">
-                {file.name}
-              </div>
-              <div className="truncate text-[10px] text-[var(--nexus-muted)]">
-                {file.detail}
-              </div>
-            </div>
-            <span className="shrink-0 rounded-md border border-white/[0.06] bg-white/[0.025] px-1.5 py-0.5 text-[9px] font-semibold text-[var(--nexus-muted)]">
-              {file.meta}
-            </span>
-          </motion.div>
-        ))}
-      </div>
-    </SoftPanel>
-  );
-}
-
-function FlowCard({ icon: Icon, title, detail, tone = "neutral" }) {
+function FlowCard({ icon: Icon, title, detail, tone = "neutral", reduceMotion }) {
   const toneStyle = actionTones[tone] || actionTones.neutral;
 
   return (
     <motion.div
       variants={itemVariants}
-      whileHover={{ y: -2 }}
-      transition={{ type: "spring", stiffness: 420, damping: 32 }}
-      className="flex min-w-0 items-start gap-2.5"
+      whileHover={reduceMotion ? undefined : { y: -1 }}
+      transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+        className="nx-code-launchpad-signal flex min-w-0 items-start gap-2.5"
       style={{
-        minHeight: 66,
-        borderRadius: 16,
+        minHeight: "var(--nx-launchpad-signal-min, 60px)",
+        borderRadius: "var(--nexus-radius-lg, 14px)",
         border: `1px solid ${toneStyle.border}`,
         background:
-          "linear-gradient(135deg, rgba(255, 255, 255, 0.042), rgba(255, 255, 255, 0.014))",
-        padding: "10px 11px",
+          "linear-gradient(135deg, rgba(255, 255, 255, 0.024), rgba(255, 255, 255, 0.006)), rgba(0, 0, 0, 0.14)",
+        padding: "var(--nx-launchpad-signal-pad, 9px 10px)",
+        overflow: "visible",
       }}
     >
-      <span
-        className="flex shrink-0 items-center justify-center"
-        style={{
-          width: 27,
-          height: 27,
-          borderRadius: 10,
-          border: `1px solid ${toneStyle.iconBorder}`,
-          background: toneStyle.iconBg,
-          color: toneStyle.iconColor,
-=======
-          width: 27,
-          height: 27,
-          borderRadius: 7,
-          border: "1px solid rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.18)",
-          background: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.08)",
-          color: "var(--nexus-primary, #7c8cff)",
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
-        }}
-      >
-        <Icon size={14} />
-      </span>
+      <IconFrame icon={Icon} tone={tone} size={13} frameSize={30} radius={12} />
       <div className="min-w-0 flex-1">
-        <div className="truncate text-xs font-semibold text-[var(--nexus-text)]">
-<<<<<<< HEAD
+        <div
+          className="text-[12px] font-semibold leading-tight text-[var(--nexus-text)]"
+          style={wrapText}
+        >
           {title}
         </div>
         <div
-          className="mt-1 text-[10px] leading-relaxed text-[var(--nexus-muted)]"
-          style={{
-            display: "-webkit-box",
-            overflow: "hidden",
-            WebkitBoxOrient: "vertical",
-            WebkitLineClamp: 2,
-          }}
+          className="mt-1 text-[10px] leading-snug text-[var(--nexus-muted)]"
+          style={{ ...softClamp, ...wrapText }}
         >
           {detail}
-=======
-          {capability.label}
-        </div>
-        <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[10px] text-[var(--nexus-muted)]">
-          <CircleDot size={8} className="shrink-0" />
-          <span className="truncate">{statusLabel}</span>
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
         </div>
       </div>
     </motion.div>
   );
 }
 
-<<<<<<< HEAD
-function FlowDeck() {
+function RecentFiles({ files }) {
+  const rows =
+    files.length > 0
+      ? files
+      : [
+          {
+            id: "empty",
+            name: "Keine lokalen Dateien",
+            detail: "Neue Datei erstellen oder Projekt oeffnen",
+            meta: "local",
+          },
+        ];
+
   return (
-    <SoftPanel className="nx-code-launchpad-flow flex flex-col" style={{ padding: 12 }}>
+    <SoftPanel className="nx-code-launchpad-recent flex flex-col">
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-2">
+          <FileCode2
+            size={14}
+            className="shrink-0 text-[var(--nexus-primary,#7c8cff)]"
+          />
+          <span
+            className="text-xs font-semibold leading-tight text-[var(--nexus-text)]"
+            style={wrapText}
+          >
+            Letzte Dateien
+          </span>
+        </div>
+        <PanelBadge tone="muted">{files.length || 0}</PanelBadge>
+      </div>
+      <div className="grid min-h-0 flex-1 content-start gap-2 overflow-visible">
+        {rows.map((file) => (
+          <motion.div
+            key={file.id}
+            variants={itemVariants}
+            className="nx-code-launchpad-status-card flex min-w-0 items-center gap-2"
+            style={{
+              minHeight: 39,
+              borderRadius: "var(--nexus-radius-lg, 18px)",
+              border: "1px solid rgba(156, 178, 226, 0.06)",
+              background: "rgba(255, 255, 255, 0.016)",
+              padding: "6px 8px",
+              overflow: "visible",
+            }}
+          >
+            <span
+              className="flex shrink-0 items-center justify-center text-[var(--nexus-muted)]"
+              style={{
+                width: 25,
+                height: 25,
+                borderRadius: 10,
+                  border: "1px solid rgba(255, 255, 255, 0.065)",
+                background: "rgba(0, 0, 0, 0.16)",
+              }}
+            >
+              <FileCode2 size={12} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <div
+                className="text-[11px] font-semibold leading-tight text-[var(--nexus-text)]"
+                style={wrapText}
+              >
+                {file.name}
+              </div>
+              <div
+                className="mt-0.5 text-[10px] leading-tight text-[var(--nexus-muted)]"
+                style={{ ...softClamp, WebkitLineClamp: 1, ...wrapText }}
+              >
+                {file.detail}
+              </div>
+            </div>
+            <PanelBadge tone="muted" title={file.meta}>
+              {file.meta}
+            </PanelBadge>
+          </motion.div>
+        ))}
+      </div>
+    </SoftPanel>
+  );
+}
+
+function FlowDeck({ reduceMotion }) {
+  return (
+    <SoftPanel className="nx-code-launchpad-flow flex flex-col">
       <div className="mb-2 flex min-w-0 items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2">
           <Sparkles
             size={14}
             className="shrink-0 text-[var(--nexus-primary,#7c8cff)]"
           />
-          <span className="truncate text-xs font-semibold text-[var(--nexus-text)]">
-            IDE flow
+          <span
+            className="text-xs font-semibold leading-tight text-[var(--nexus-text)]"
+            style={wrapText}
+          >
+            Produktive Flows
           </span>
         </div>
-        <span className="shrink-0 rounded-full border border-white/[0.08] bg-white/[0.03] px-2 py-0.5 text-[10px] font-semibold text-[var(--nexus-muted)]">
-          local first
-        </span>
+        <PanelBadge tone="success">lokal</PanelBadge>
       </div>
-      <div className="grid min-h-0 flex-1 gap-2 overflow-hidden sm:grid-cols-2">
-        {flowItems.map((item) => (
-          <FlowCard key={item.title} {...item} />
-        ))}
-      </div>
-=======
-function ReadinessPanel({ releaseSnapshot }) {
-  const ready = releaseSnapshot.capability.foundationReady;
-  const total = releaseSnapshot.capability.totalCapabilities;
-  const progress = total > 0 ? Math.round((ready / total) * 100) : 0;
-
-  return (
-    <SoftPanel
-      className="nx-code-launchpad-readiness"
-      style={{
-        minHeight: 148,
-        padding: 13,
-        border: "1px solid rgba(45, 212, 191, 0.16)",
-        background:
-          "linear-gradient(180deg, rgba(45, 212, 191, 0.07), rgba(255, 255, 255, 0.017))",
-      }}
-    >
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-2">
-          <Activity size={14} className="shrink-0 text-emerald-300" />
-          <span className="truncate text-xs font-semibold text-[var(--nexus-text)]">
-            Readiness
-          </span>
-        </div>
-        <span
-          className="shrink-0 rounded-md px-2 py-1 text-[10px] font-semibold text-emerald-200"
-          style={{
-            border: "1px solid rgba(45, 212, 191, 0.22)",
-            background: "rgba(45, 212, 191, 0.1)",
-          }}
-        >
-          {progress}%
-        </span>
-      </div>
-
-      <div className="mt-3 flex items-end gap-2">
-        <span className="text-4xl font-semibold text-[var(--nexus-text)]">
-          {ready}
-        </span>
-        <span className="pb-1.5 text-xs text-[var(--nexus-muted)]">
-          / {total} foundation-ready
-        </span>
-      </div>
-
       <div
-        className="mt-3 overflow-hidden"
+        className="nx-code-launchpad-grid grid min-h-0 flex-1 gap-2 overflow-visible"
         style={{
-          height: 7,
-          borderRadius: 999,
-          background: "rgba(255, 255, 255, 0.07)",
+          gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 13rem), 1fr))",
         }}
       >
-        <div
-          style={{
-            width: `${progress}%`,
-            height: "100%",
-            borderRadius: 999,
-            background:
-              "linear-gradient(90deg, rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.84), rgba(45, 212, 191, 0.9))",
-            boxShadow: "0 0 14px rgba(45, 212, 191, 0.28)",
-          }}
-        />
-      </div>
-
-      <p
-        className="mt-3 text-[11px] leading-relaxed text-[var(--nexus-muted)]"
-        style={{
-          display: "-webkit-box",
-          overflow: "hidden",
-          WebkitBoxOrient: "vertical",
-          WebkitLineClamp: 2,
-        }}
-      >
-        {releaseSnapshot.capability.phaseOne}
-      </p>
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
-    </SoftPanel>
-  );
-}
-
-<<<<<<< HEAD
-function LanguageDeck({ fullIdeCount, syntaxCount }) {
-  return (
-    <SoftPanel className="nx-code-launchpad-languages flex flex-col" style={{ padding: 12 }}>
-      <div className="mb-2 flex items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-2">
-          <Braces
-=======
-function SignalPanel({ capabilities }) {
-  return (
-    <SoftPanel className="nx-code-launchpad-signals flex flex-col" style={{ padding: 12 }}>
-      <div className="mb-2 flex min-w-0 items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-2">
-          <CheckCircle2
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
-            size={14}
-            className="shrink-0 text-[var(--nexus-primary,#7c8cff)]"
-          />
-          <span className="truncate text-xs font-semibold text-[var(--nexus-text)]">
-<<<<<<< HEAD
-            Language surfaces
-          </span>
-        </div>
-        <span className="shrink-0 text-[10px] font-semibold text-[var(--nexus-muted)]">
-          {fullIdeCount + syntaxCount} modes
-        </span>
-      </div>
-      <div className="grid min-h-0 flex-1 gap-2 overflow-hidden sm:grid-cols-2">
-        {languageTiles.map((tile) => (
-          <FlowCard
-            key={tile.label}
-            icon={Code2}
-            title={tile.label}
-            detail={tile.detail}
-            tone={tile.tone}
-          />
-=======
-            Workbench signals
-          </span>
-        </div>
-        <span className="shrink-0 text-[10px] font-semibold text-[var(--nexus-muted)]">
-          {capabilities.length} live
-        </span>
-      </div>
-      <div className="grid min-h-0 flex-1 content-start gap-2 overflow-hidden">
-        {capabilities.map((capability) => (
-          <CapabilitySignal key={capability.id} capability={capability} />
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
+        {flowItems.map((item) => (
+          <FlowCard key={item.title} {...item} reduceMotion={reduceMotion} />
         ))}
       </div>
     </SoftPanel>
@@ -812,16 +406,8 @@ export default function WelcomeScreen({
   onOpenFolder,
   onOpenSettings,
 }) {
-  const releaseSnapshot = useMemo(getNexusCodeIdeReleaseSnapshot, []);
-<<<<<<< HEAD
-  const recentFiles = useMemo(() => getWelcomeRecentFiles(4), []);
-=======
-  const visibleCapabilities =
-    releaseSnapshot.capability.visibleCapabilities.slice(0, 4);
+  const reduceMotion = useNexusReducedMotion();
   const recentFiles = useMemo(() => getWelcomeRecentFiles(3), []);
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
-  const fullIdeCount = releaseSnapshot.language.fullIdeLanguages.length;
-  const syntaxCount = releaseSnapshot.language.syntaxFirstLanguages.length;
 
   const handleAction = (action) => {
     if (action === "new") onNewFile?.();
@@ -830,227 +416,132 @@ export default function WelcomeScreen({
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ type: "spring", stiffness: 300, damping: 30 }}
-<<<<<<< HEAD
-      className="flex min-h-0 flex-1 items-center overflow-hidden bg-transparent"
-      style={{
-        boxSizing: "border-box",
-        height: "100%",
-        padding: "clamp(8px, 1.5vh, 14px) clamp(10px, 1.4vw, 18px)",
-=======
-      className="flex-1 min-h-0 overflow-hidden bg-transparent"
-      style={{
-        boxSizing: "border-box",
-        height: "100%",
-        padding: "clamp(8px, 1.7vh, 14px) 14px",
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
-      }}
-    >
+    <MotionConfig reducedMotion={reduceMotion ? "always" : "user"}>
       <motion.div
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
-<<<<<<< HEAD
-        className="nx-code-welcome nx-code-launchpad mx-auto grid min-h-0 w-full overflow-hidden"
+        initial={reduceMotion ? false : { opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: reduceMotion ? 0 : 0.2, ease: [0.22, 1, 0.36, 1] }}
+        className="nx-code-launchpad-viewport flex min-h-0 flex-1 items-stretch overflow-x-hidden overflow-y-auto bg-transparent"
         style={{
-          width: "min(100%, 1180px)",
-          height: "min(100%, 620px)",
-          gridTemplateRows: "auto minmax(0, 1fr)",
-          gap: 12,
-=======
-        className="nx-code-welcome nx-code-launchpad mx-auto grid min-h-0 w-full"
-        style={{
-          width: "min(100%, 1120px)",
-          height: "min(100%, 600px)",
-          gridTemplateRows: "auto minmax(0, 1fr)",
-          gap: 10,
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
+          boxSizing: "border-box",
+          height: "100%",
+          padding:
+            "var(--nx-launchpad-viewport-pad-y, clamp(7px, 1.25vh, 12px)) var(--nx-launchpad-viewport-pad-x, clamp(9px, 1.25vw, 16px))",
         }}
       >
-        <SoftPanel
-          className="nx-code-launchpad-header"
+        <motion.div
+          variants={containerVariants}
+          initial={reduceMotion ? false : "hidden"}
+          animate="visible"
+          className="nx-code-welcome nx-code-launchpad mx-auto grid min-h-full w-full overflow-visible"
           style={{
-<<<<<<< HEAD
-            padding: "14px 16px",
-            background:
-              "radial-gradient(circle at 16% 16%, rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.18), transparent 42%), linear-gradient(135deg, rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.11), rgba(255, 255, 255, 0.032) 48%, rgba(45, 212, 191, 0.055))",
-=======
-            padding: "12px 14px",
-            background:
-              "linear-gradient(135deg, rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.105), rgba(255, 255, 255, 0.032) 46%, rgba(45, 212, 191, 0.047))",
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
+            width: "min(100%, 1120px)",
+            minHeight: "100%",
+            height: "auto",
+            alignContent: "start",
+            gridTemplateRows: "auto auto minmax(0, 1fr)",
+            gap: "var(--nx-launchpad-gap, 10px)",
           }}
         >
-          <div className="grid min-w-0 items-center gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(22rem,auto)]">
+          <motion.section
+            variants={itemVariants}
+            className="nx-code-launchpad-header"
+            style={{
+              padding: "var(--nx-launchpad-header-pad, 16px 0 15px)",
+              borderBottom: "1px solid rgba(156, 178, 226, 0.085)",
+              boxShadow: "0 1px 0 rgba(var(--nexus-primary-rgb), 0.045)",
+            }}
+          >
             <div className="flex min-w-0 items-center gap-3">
               <div
                 className="nx-code-launchpad-mark flex shrink-0 items-center justify-center border text-sm font-semibold"
                 style={{
-<<<<<<< HEAD
-                  width: 50,
-                  height: 50,
-                  borderRadius: 18,
-=======
-                  width: 46,
-                  height: 46,
-                  borderRadius: 8,
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
+                  width: "var(--nx-launchpad-mark-size, 48px)",
+                  height: "var(--nx-launchpad-mark-size, 48px)",
+                  borderRadius: "var(--nx-launchpad-mark-radius, 17px)",
                   background:
-                    "linear-gradient(145deg, rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.17), rgba(255, 255, 255, 0.05))",
-                  borderColor:
-                    "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.3)",
-                  color: "var(--nexus-primary, #7c8cff)",
+                    "linear-gradient(145deg, rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.72), rgba(var(--nexus-accent-2-rgb), 0.62))",
+                  borderColor: "rgba(255, 255, 255, 0.14)",
+                  color: "#fff",
                   boxShadow:
-                    "0 0 24px rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.14)",
+                    "0 0 24px rgba(var(--nexus-primary-rgb), 0.18), 0 0 28px rgba(var(--nexus-accent-2-rgb), 0.09)",
                 }}
               >
-                NC
+                N
               </div>
               <div className="min-w-0">
-                <div className="flex min-w-0 items-center gap-2">
+                <div className="flex min-w-0 flex-wrap items-center gap-2">
                   <Sparkles
                     size={13}
-                    className="shrink-0 text-[var(--nexus-primary,#7c8cff)]"
+                    className="shrink-0 text-[var(--nexus-accent-2,#38bdf8)]"
                   />
-                  <span className="truncate text-[11px] font-semibold text-[var(--nexus-muted)]">
-<<<<<<< HEAD
-                    Nexus x Zed editor
+                  <span
+                    className="text-[10px] font-semibold uppercase leading-tight text-[var(--nexus-accent-2,#38bdf8)]"
+                    style={wrapText}
+                  >
+                    Nexus x 2nd Edition
                   </span>
                 </div>
-                <h1 className="mt-1 truncate text-[clamp(1.75rem,3vw,2.45rem)] font-semibold leading-none text-[var(--nexus-text)]">
+                <h1
+                  className="nx-code-launchpad-title mt-1 text-[2rem] font-semibold leading-none text-[var(--nexus-text)]"
+                  style={wrapText}
+                >
                   Nexus Code
                 </h1>
-                <p className="mt-1 truncate text-xs text-[var(--nexus-muted)]">
-                  Fast local editing with terminal, Git, search and theme control.
-=======
-                    Nexus x Zed shell
-                  </span>
-                </div>
-                <h1 className="mt-1 truncate text-3xl font-semibold text-[var(--nexus-text)]">
-                  Nexus Code
-                </h1>
-                <p className="mt-1 truncate text-xs text-[var(--nexus-muted)]">
-                  {releaseSnapshot.language.fullIdeLabel}
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
+                <p
+                  className="mt-2 max-w-[40rem] text-sm leading-snug text-[var(--nexus-muted)]"
+                  style={wrapText}
+                >
+                  Lokale Bearbeitung mit integriertem Terminal, Git-Unterstuetzung,
+                  Theme-Kontrolle und mehr.
                 </p>
               </div>
             </div>
+          </motion.section>
 
-            <div className="grid min-w-0 grid-cols-3 gap-2">
-              <MetricPill
-                icon={Zap}
-<<<<<<< HEAD
-                label="Start"
-                value="Local"
-=======
-                label="Ready core"
-                value={`${releaseSnapshot.capability.foundationReady}/${releaseSnapshot.capability.totalCapabilities}`}
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
-                tone="primary"
-              />
-              <MetricPill
-                icon={FileCode2}
-                label="Full IDE"
-                value={fullIdeCount}
-                tone="neutral"
-              />
-              <MetricPill
-<<<<<<< HEAD
-                icon={Palette}
-                label="Syntax"
-=======
-                icon={Layers3}
-                label="Syntax tier"
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
-                value={syntaxCount}
-                tone="teal"
-              />
-            </div>
-          </div>
-        </SoftPanel>
-
-        <motion.div
-          variants={itemVariants}
-          className="grid min-h-0 min-w-0 gap-3"
-          style={{
-<<<<<<< HEAD
-            gridTemplateColumns: "minmax(0, 0.95fr) minmax(340px, 1.05fr)",
-=======
-            gridTemplateColumns: "minmax(0, 1.18fr) minmax(288px, 0.82fr)",
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
-          }}
-        >
-          <div
-            className="grid min-h-0 min-w-0 gap-3"
-            style={{ gridTemplateRows: "auto minmax(0, 1fr)" }}
-          >
-            <div className="grid min-w-0 gap-2 lg:grid-cols-3">
+          <div className="grid min-w-0 gap-3 overflow-visible">
+            <SectionLabel title="Schnellstart" />
+            <div
+              className="nx-code-launchpad-grid grid min-w-0 gap-2.5"
+              style={{
+                gridTemplateColumns:
+                  "repeat(auto-fit, minmax(min(100%, 13.5rem), 1fr))",
+              }}
+            >
               {actionItems.map((item) => (
                 <ActionButton
                   key={item.action}
                   icon={item.icon}
                   label={item.label}
                   detail={item.detail}
-                  primary={item.primary}
                   tone={item.tone}
+                  reduceMotion={reduceMotion}
                   onClick={() => handleAction(item.action)}
                 />
               ))}
             </div>
-
-<<<<<<< HEAD
-            <LanguageDeck fullIdeCount={fullIdeCount} syntaxCount={syntaxCount} />
-=======
-            <div className="grid min-h-0 min-w-0 gap-3 lg:grid-cols-[0.9fr_1.1fr]">
-              <SoftPanel
-                className="nx-code-launchpad-workspace flex flex-col"
-                style={{ padding: 12 }}
-              >
-                <div className="mb-2 flex min-w-0 items-center justify-between gap-3">
-                  <div className="flex min-w-0 items-center gap-2">
-                    <PanelLeftOpen
-                      size={14}
-                      className="shrink-0 text-[var(--nexus-primary,#7c8cff)]"
-                    />
-                    <span className="truncate text-xs font-semibold text-[var(--nexus-text)]">
-                      Workspace
-                    </span>
-                  </div>
-                  <span className="shrink-0 text-[10px] font-semibold text-[var(--nexus-muted)]">
-                    focused
-                  </span>
-                </div>
-                <div className="grid min-h-0 flex-1 content-start gap-2 overflow-hidden">
-                  {WELCOME_WORKSPACE_ITEMS.map((item) => (
-                    <WorkspaceCard key={item.id} item={item} />
-                  ))}
-                </div>
-              </SoftPanel>
-
-              <RecentFiles files={recentFiles} />
-            </div>
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
           </div>
 
-          <div
-            className="grid min-h-0 min-w-0 gap-3"
-<<<<<<< HEAD
-            style={{ gridTemplateRows: "minmax(0, 1fr) minmax(0, 1fr)" }}
+          <motion.div
+            variants={itemVariants}
+            className="nx-code-launchpad-grid grid min-h-0 min-w-0 gap-3 overflow-visible"
+            style={{
+              gridTemplateColumns:
+                "repeat(auto-fit, minmax(min(100%, 22rem), 1fr))",
+              gap: "var(--nx-launchpad-gap, 12px)",
+            }}
           >
-            <FlowDeck />
             <RecentFiles files={recentFiles} />
-=======
-            style={{ gridTemplateRows: "auto minmax(0, 1fr)" }}
-          >
-            <ReadinessPanel releaseSnapshot={releaseSnapshot} />
-            <SignalPanel capabilities={visibleCapabilities} />
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
-          </div>
+
+            <div
+              className="grid min-h-0 min-w-0 gap-3 overflow-visible"
+              style={{ gridTemplateRows: "minmax(0, 1fr)" }}
+            >
+              <FlowDeck reduceMotion={reduceMotion} />
+            </div>
+          </motion.div>
         </motion.div>
       </motion.div>
-    </motion.div>
+    </MotionConfig>
   );
 }

@@ -2,9 +2,9 @@ import React from "react";
 import { motion } from "framer-motion";
 import { X } from "lucide-react";
 import {
-  NOTES_MAGIC_DEFINITIONS,
-  buildNotesMagicSnippet,
-} from "@nexus/core/notes/magicRegistry";
+  NOTES_MAGIC_DEFINITIONS_WITH_PLANNING,
+  buildNotesMagicSnippetWithPlanning,
+} from "./notesMagicPlanning";
 
 export interface MagicModalProps {
   accent: string;
@@ -22,11 +22,23 @@ export function MagicElementModal({
   const [selected, setSelected] = React.useState<string | null>(null);
   const [fields, setFields] = React.useState<Record<string, string>>({});
 
-  const type = NOTES_MAGIC_DEFINITIONS.find((m) => m.id === selected);
+  const type = NOTES_MAGIC_DEFINITIONS_WITH_PLANNING.find(
+    (m) => m.id === selected,
+  );
+
+  React.useEffect(() => {
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [onClose]);
 
   const handleSelect = (id: string) => {
     setSelected(id);
-    const definition = NOTES_MAGIC_DEFINITIONS.find((m) => m.id === id);
+    const definition = NOTES_MAGIC_DEFINITIONS_WITH_PLANNING.find(
+      (m) => m.id === id,
+    );
     if (!definition) return;
     const defaults: Record<string, string> = {};
     definition.fields.forEach((field) => {
@@ -37,7 +49,7 @@ export function MagicElementModal({
 
   const handleInsert = () => {
     if (!type) return;
-    onInsert(buildNotesMagicSnippet(type.id, fields));
+    onInsert(buildNotesMagicSnippetWithPlanning(type.id, fields));
   };
 
   return (
@@ -47,9 +59,9 @@ export function MagicElementModal({
       exit={{ opacity: 0 }}
       transition={{ duration: 0.18 }}
       style={{
-        position: "absolute",
+        position: "fixed",
         inset: 0,
-        zIndex: 500,
+        zIndex: 9600,
         background: "rgba(0,0,0,0.6)",
         backdropFilter: "blur(8px)",
         WebkitBackdropFilter: "blur(8px)",
@@ -160,7 +172,7 @@ export function MagicElementModal({
             >
               Elemente
             </div>
-            {NOTES_MAGIC_DEFINITIONS.map((definition) => (
+            {NOTES_MAGIC_DEFINITIONS_WITH_PLANNING.map((definition) => (
               <button
                 key={definition.id}
                 onClick={() => handleSelect(definition.id)}
@@ -339,7 +351,7 @@ export function MagicElementModal({
                       overflowY: "auto",
                     }}
                   >
-                    {buildNotesMagicSnippet(type.id, fields)}
+                    {buildNotesMagicSnippetWithPlanning(type.id, fields)}
                   </div>
                 </div>
 

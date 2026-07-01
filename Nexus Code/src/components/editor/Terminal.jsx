@@ -125,7 +125,7 @@ const SIMULATED_RESPONSES = {
 
 const ENTRY_COLORS = {
   system: "#64748b",
-  input: "var(--primary)",
+  input: "#7dd3fc",
   output: "#d1d5db",
   success: "#4ade80",
   warn: "#fbbf24",
@@ -155,9 +155,9 @@ const STATUS_STYLES = {
     border: "rgba(250,204,21,0.2)",
   },
   task: {
-    color: "#c4b5fd",
-    background: "rgba(168,85,247,0.08)",
-    border: "rgba(168,85,247,0.2)",
+    color: "#93c5fd",
+    background: "rgba(59,130,246,0.06)",
+    border: "rgba(59,130,246,0.16)",
   },
   idle: {
     color: "#cbd5e1",
@@ -167,12 +167,20 @@ const STATUS_STYLES = {
 };
 
 const STATUS_DOT_COLORS = {
-  running: "#22c55e",
-  success: "#22c55e",
+  running: "#38bdf8",
+  success: "#60a5fa",
   error: "#fb7185",
   warning: "#facc15",
-  task: "#a78bfa",
+  task: "#38bdf8",
   idle: "#64748b",
+};
+
+const toolbarButtonClass =
+  "flex h-7 w-7 shrink-0 items-center justify-center rounded-md border text-slate-400 transition-colors disabled:cursor-not-allowed disabled:opacity-35";
+
+const toolbarButtonStyle = {
+  borderColor: "rgba(255,255,255,0.075)",
+  background: "rgba(255,255,255,0.022)",
 };
 
 function getResponse(cmd) {
@@ -289,7 +297,7 @@ const TerminalOutputRow = React.memo(function TerminalOutputRow({ entry }) {
           color: entry.trimMarker ? "#94a3b8" : "#cbd5e1",
           background: entry.trimMarker
             ? "rgba(148,163,184,0.06)"
-            : "rgba(128,0,255,0.06)",
+            : "rgba(148,163,184,0.045)",
           border: "1px solid rgba(255,255,255,0.06)",
         }}
       >
@@ -298,7 +306,7 @@ const TerminalOutputRow = React.memo(function TerminalOutputRow({ entry }) {
           style={{
             background: entry.trimMarker
               ? "#64748b"
-              : STATUS_DOT_COLORS[entry.status] || "var(--primary)",
+              : STATUS_DOT_COLORS[entry.status] || "#64748b",
           }}
         />
         {entry.timestamp && (
@@ -375,10 +383,12 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
       getCommandSuggestions({
         activeFile,
         history: currentCommandHistory,
-        limit: 10,
+        limit: 6,
       }),
     [activeFile, currentCommandHistory],
   );
+  const visibleQuickTasks = quickTasks.slice(0, 2);
+  const visibleSuggestions = commandSuggestions.slice(0, 2);
   const sessionSubscriptionKey = useMemo(
     () => sessions.map((session) => session.id).join("|"),
     [sessions],
@@ -912,29 +922,29 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
         whileHover={{ backgroundColor: "rgba(255,255,255,0.04)" }}
         whileTap={{ scale: 0.99 }}
         onClick={onToggle}
-        className="h-8 flex items-center gap-2.5 px-4 shrink-0 w-full cursor-pointer select-none"
+        className="flex h-8 w-full shrink-0 cursor-pointer select-none items-center gap-2 px-3"
         style={{
-          background: "var(--nexus-surface)",
-          borderTop: "1px solid var(--nexus-border)",
+          background: "rgba(7,10,18,0.97)",
+          borderTop: "1px solid rgba(255,255,255,0.075)",
         }}
       >
         <div className="flex items-center gap-1.5">
-          <TerminalIcon size={12} className="text-purple-400" />
-          <span className="text-[11px] font-semibold text-purple-400/80 tracking-widest">
-            TERMINAL
+          <TerminalIcon size={12} className="text-slate-500" />
+          <span className="text-[11px] font-medium text-slate-400">
+            Terminal
           </span>
         </div>
         <span
           className="h-1.5 w-1.5 rounded-full"
           style={{ background: STATUS_DOT_COLORS[statusMeta.tone] || "#64748b" }}
         />
-        <span className="text-[10px] text-gray-500 font-mono truncate">
-          {activeSession?.name || "shell"} · {statusMeta.label}
+        <span className="min-w-0 truncate font-mono text-[10px] text-slate-500">
+          {activeSession?.name || "shell"} - {statusMeta.label}
         </span>
-        <span className="text-[10px] text-gray-700 ml-auto font-mono truncate">
+        <span className="ml-auto min-w-0 truncate font-mono text-[10px] text-slate-600">
           {formatTerminalPath(activeCwd) || bridgeInfo.label}
         </span>
-        <ChevronDown size={12} className="text-gray-600 rotate-180 ml-0.5" />
+        <ChevronDown size={12} className="ml-0.5 rotate-180 text-slate-600" />
       </motion.button>
     );
   }
@@ -942,19 +952,19 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
   return (
     <motion.div
       initial={{ height: 0, opacity: 0 }}
-      animate={{ height: 360, opacity: 1 }}
+      animate={{ height: "min(312px, 34vh)", opacity: 1 }}
       exit={{ height: 0, opacity: 0 }}
       transition={{ duration: 0.28, ease: [0.4, 0, 0.2, 1] }}
-      className="flex flex-col shrink-0"
+      className="flex shrink-0 flex-col"
       style={{
-        background: "var(--nexus-bg)",
-        borderTop: "1px solid var(--nexus-border)",
+        background: "linear-gradient(180deg, rgba(7,10,18,0.99), rgba(5,7,13,0.99))",
+        borderTop: "1px solid rgba(255,255,255,0.08)",
         overflow: "hidden",
       }}
     >
       <div
-        className="flex min-h-[40px] items-center shrink-0"
-        style={{ borderBottom: "1px solid var(--nexus-border)" }}
+        className="flex min-h-[34px] shrink-0 items-center"
+        style={{ borderBottom: "1px solid rgba(255,255,255,0.065)" }}
       >
         <div className="flex h-full min-w-0 flex-1 items-stretch overflow-x-auto">
           {sessions.map((session) => {
@@ -967,64 +977,53 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
                 key={session.id}
                 layout
                 onClick={() => setActiveSessionId(session.id)}
-                className="group relative flex min-w-[160px] max-w-[230px] cursor-pointer select-none items-center gap-2 px-3"
+                className="group relative flex min-w-[132px] max-w-[220px] cursor-pointer select-none items-center gap-2 border-r px-3 transition-colors"
                 style={{
-                  background: isActive
-                    ? "color-mix(in srgb, var(--primary) 12%, transparent)"
-                    : "transparent",
-                  borderRight: "1px solid var(--nexus-border)",
+                  background: isActive ? "rgba(255,255,255,0.045)" : "transparent",
+                  borderColor: "rgba(255,255,255,0.055)",
                 }}
               >
                 {isActive && (
                   <motion.div
                     layoutId="termTabIndicator"
-                    className="absolute bottom-0 left-0 right-0 h-[2px]"
-                    style={{
-                      background:
-                        "linear-gradient(90deg, transparent, var(--primary), transparent)",
-                    }}
+                    className="absolute inset-x-3 bottom-0 h-px"
+                    style={{ background: "rgba(125,211,252,0.55)" }}
                     transition={{ type: "spring", stiffness: 350, damping: 30 }}
                   />
                 )}
                 <span
-                  className="h-2 w-2 shrink-0 rounded-full"
+                  className="h-1.5 w-1.5 shrink-0 rounded-full"
                   style={{
-                    background:
-                      STATUS_DOT_COLORS[sessionStatus.tone] || "var(--primary)",
-                    boxShadow: sessionRunning
-                      ? "0 0 10px rgba(34,197,94,0.55)"
-                      : "none",
+                    background: STATUS_DOT_COLORS[sessionStatus.tone] || "#64748b",
                   }}
                 />
-                <div className="min-w-0 flex-1">
-                  <div
-                    className="truncate text-[11px] font-semibold"
+                <div className="flex min-w-0 flex-1 items-baseline gap-2">
+                  <span
+                    className="truncate text-[11px] font-medium"
                     style={{
-                      color: isActive
-                        ? "var(--nexus-text)"
-                        : "var(--nexus-muted)",
+                      color: isActive ? "#e5e7eb" : "#94a3b8",
                     }}
                   >
                     {session.name}
-                  </div>
-                  <div
-                    className="truncate text-[9px] font-mono"
-                    style={{ color: sessionStyle.color }}
+                  </span>
+                  <span
+                    className="hidden shrink-0 font-mono text-[9px] sm:inline"
+                    style={{ color: sessionRunning ? "#86efac" : sessionStyle.color }}
                   >
                     {sessionStatus.label}
-                  </div>
+                  </span>
                 </div>
                 {sessions.length > 1 && (
                   <button
                     type="button"
-                    className="rounded p-1 opacity-0 transition-opacity hover:bg-white/10 group-hover:opacity-100"
+                    className="rounded p-0.5 opacity-0 transition-opacity hover:bg-white/10 group-hover:opacity-100"
                     onClick={(event) => {
                       event.stopPropagation();
                       closeSession(session.id);
                     }}
                     title="Session schliessen"
                   >
-                    <X size={10} className="text-gray-500" />
+                    <X size={10} className="text-slate-500" />
                   </button>
                 )}
               </motion.div>
@@ -1032,130 +1031,141 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
           })}
 
           <motion.button
-            whileHover={{ scale: 1.05, color: "var(--primary)" }}
-            whileTap={{ scale: 0.95 }}
+            whileHover={{ backgroundColor: "rgba(255,255,255,0.055)" }}
+            whileTap={{ scale: 0.96 }}
             onClick={addSession}
             title="Neue Terminal Session"
-            className="flex h-full shrink-0 items-center gap-1.5 px-3 text-gray-500 transition-colors hover:text-purple-300"
+            className="mx-1 my-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-white/[0.06] bg-white/[0.018] text-slate-500 transition-colors hover:text-slate-200"
             type="button"
           >
-            <Plus size={12} />
-            <span className="hidden text-[10px] font-semibold sm:inline">New</span>
+            <Plus size={13} />
           </motion.button>
         </div>
 
         <div className="flex shrink-0 items-center gap-1 px-2">
-          <button
-            type="button"
-            onClick={handleCopy}
-            title="Output kopieren"
-            className="flex items-center gap-1 rounded px-2 py-1 text-[10px] font-semibold text-slate-300 transition-colors hover:bg-white/[0.06]"
-          >
-            <AnimatePresence mode="wait">
-              {copied ? (
-                <motion.span
-                  key="check"
-                  initial={{ scale: 0.6 }}
-                  animate={{ scale: 1 }}
-                  exit={{ scale: 0.6 }}
-                >
-                  <Check size={12} className="text-green-400" />
-                </motion.span>
-              ) : (
-                <motion.span key="copy" initial={{ scale: 1 }} animate={{ scale: 1 }}>
-                  <Copy size={12} className="text-slate-400" />
-                </motion.span>
-              )}
-            </AnimatePresence>
-            <span className="hidden md:inline">{copied ? "Copied" : "Copy"}</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={handleClear}
-            title="Output loeschen"
-            className="flex items-center gap-1 rounded px-2 py-1 text-[10px] font-semibold text-slate-300 transition-colors hover:bg-white/[0.06]"
-          >
-            <Trash2 size={12} className="text-slate-400" />
-            <span className="hidden md:inline">Clear</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={handleStopRunning}
-            disabled={!isRunning}
-            title="Laufenden Prozess beenden"
-            className="flex items-center gap-1 rounded px-2 py-1 text-[10px] font-semibold transition-colors disabled:opacity-40"
-            style={{
-              border: "1px solid rgba(248,113,113,0.26)",
-              background: isRunning
-                ? "rgba(248,113,113,0.1)"
-                : "rgba(255,255,255,0.02)",
-              color: isRunning ? "#fecdd3" : "#64748b",
-              cursor: isRunning ? "pointer" : "not-allowed",
-            }}
-          >
-            <Square size={10} fill="currentColor" />
-            <span className="hidden md:inline">Kill</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={handleOpenSystemTerminal}
-            disabled={terminalLaunchBusy}
-            title="System Terminal oeffnen"
-            className="flex items-center gap-1 rounded px-2 py-1 text-[10px] font-semibold transition-colors"
-            style={{
-              border: "1px solid rgba(255,255,255,0.12)",
-              background: "rgba(255,255,255,0.03)",
-              color: terminalLaunchBusy ? "#64748b" : "#cbd5e1",
-              cursor: terminalLaunchBusy ? "progress" : "pointer",
-            }}
-          >
-            <ExternalLink size={11} />
-            <span className="hidden md:inline">System</span>
-          </button>
-
-          {activeFile && runActiveFileCommand && (
+          <div className="flex items-center gap-1 rounded-md border border-white/[0.055] bg-white/[0.015] p-0.5">
             <button
               type="button"
-              onClick={() =>
-                runTask({
-                  id: "run-active-file",
-                  label: "Run Active File",
-                  shortLabel: activeFile.name,
-                  command: runActiveFileCommand,
-                })
-              }
-              title={`${activeFile.name} ausfuehren`}
-              className="flex items-center gap-1 rounded px-2 py-1 text-[10px] font-semibold text-white"
+              onClick={handleCopy}
+              title="Output kopieren"
+              className={`${toolbarButtonClass} hover:bg-white/[0.055] hover:text-slate-200`}
+              style={toolbarButtonStyle}
+            >
+              <AnimatePresence mode="wait">
+                {copied ? (
+                  <motion.span
+                    key="check"
+                    initial={{ scale: 0.6 }}
+                    animate={{ scale: 1 }}
+                    exit={{ scale: 0.6 }}
+                  >
+                    <Check size={13} className="text-sky-300" />
+                  </motion.span>
+                ) : (
+                  <motion.span key="copy" initial={{ scale: 1 }} animate={{ scale: 1 }}>
+                    <Copy size={13} />
+                  </motion.span>
+                )}
+              </AnimatePresence>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleClear}
+              title="Output loeschen"
+              className={`${toolbarButtonClass} hover:bg-white/[0.055] hover:text-slate-200`}
+              style={toolbarButtonStyle}
+            >
+              <Trash2 size={13} />
+            </button>
+
+            <button
+              type="button"
+              onClick={handleStopRunning}
+              disabled={!isRunning}
+              title="Laufenden Prozess beenden"
+              className={`${toolbarButtonClass} hover:bg-rose-400/[0.08]`}
               style={{
-                background: "linear-gradient(135deg, #7c3aed, #2563eb)",
-                boxShadow: "0 0 10px rgba(124,58,237,0.28)",
+                ...toolbarButtonStyle,
+                borderColor: isRunning
+                  ? "rgba(248,113,113,0.22)"
+                  : toolbarButtonStyle.borderColor,
+                background: isRunning
+                  ? "rgba(248,113,113,0.07)"
+                  : toolbarButtonStyle.background,
+                color: isRunning ? "#fca5a5" : "#64748b",
               }}
             >
-              <Play size={10} fill="white" />
-              <span className="hidden md:inline">File</span>
+              <Square size={11} fill="currentColor" />
             </button>
-          )}
 
-          <button
-            type="button"
-            onClick={onToggle}
-            title="Schliessen"
-            className="rounded p-1.5 transition-colors hover:bg-white/[0.06]"
-          >
-            <ChevronDown size={13} className="text-gray-500" />
-          </button>
+            <button
+              type="button"
+              onClick={handleOpenSystemTerminal}
+              disabled={terminalLaunchBusy}
+              title="System Terminal oeffnen"
+              className={`${toolbarButtonClass} hover:bg-white/[0.055] hover:text-slate-200`}
+              style={toolbarButtonStyle}
+            >
+              <ExternalLink size={13} />
+            </button>
+
+            {activeFile && runActiveFileCommand && (
+              <button
+                type="button"
+                onClick={() =>
+                  runTask({
+                    id: "run-active-file",
+                    label: "Run Active File",
+                    shortLabel: activeFile.name,
+                    command: runActiveFileCommand,
+                  })
+                }
+                title={`${activeFile.name} ausfuehren`}
+                className={`${toolbarButtonClass} hover:bg-sky-400/[0.08]`}
+                style={{
+                  ...toolbarButtonStyle,
+                  borderColor: "rgba(125,211,252,0.16)",
+                  background: "rgba(14,165,233,0.055)",
+                  color: "#bae6fd",
+                }}
+              >
+                <Play size={12} fill="currentColor" />
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={handleToggleAutoScroll}
+              title={autoScrollEnabled ? "Autoscroll aktiv" : "Autoscroll fortsetzen"}
+              className={`${toolbarButtonClass} hover:bg-white/[0.055] hover:text-slate-200`}
+              style={{
+                ...toolbarButtonStyle,
+                color: autoScrollEnabled ? "#94a3b8" : "#facc15",
+              }}
+            >
+              <ArrowDown size={13} />
+            </button>
+
+            <button
+              type="button"
+              onClick={onToggle}
+              title="Schliessen"
+              className={`${toolbarButtonClass} hover:bg-white/[0.055] hover:text-slate-200`}
+              style={toolbarButtonStyle}
+            >
+              <ChevronDown size={13} />
+            </button>
+          </div>
         </div>
       </div>
 
       <div
-        className="flex min-h-[38px] shrink-0 items-center gap-2 overflow-x-auto px-3 py-1.5"
-        style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}
+        className="flex min-h-[32px] shrink-0 items-center gap-2 overflow-x-auto px-3 py-1"
+        style={{ borderBottom: "1px solid rgba(255,255,255,0.045)" }}
       >
         <span
-          className="flex shrink-0 items-center gap-1.5 rounded px-2 py-1 text-[10px] font-semibold"
+          className="flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1 text-[10px] font-medium"
           style={{
             color: statusStyle.color,
             background: statusStyle.background,
@@ -1165,147 +1175,117 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
           <span
             className="h-1.5 w-1.5 rounded-full"
             style={{
-              background: STATUS_DOT_COLORS[statusMeta.tone] || "var(--primary)",
+              background: STATUS_DOT_COLORS[statusMeta.tone] || "#64748b",
             }}
           />
           {statusMeta.label}
         </span>
 
-        <span className="flex min-w-[160px] items-center gap-1.5 truncate text-[10px] text-slate-500">
+        <span className="flex min-w-[150px] items-center gap-1.5 truncate text-[10px] text-slate-500">
           <Folder size={11} className="shrink-0 text-slate-600" />
-          <span className="truncate font-mono">{formatTerminalPath(activeCwd)}</span>
+          <span className="truncate font-mono">{formatTerminalPath(activeCwd) || "~"}</span>
         </span>
 
-        <span className="hidden shrink-0 items-center gap-1.5 text-[10px] text-slate-600 sm:flex">
+        <span className="hidden shrink-0 items-center gap-1.5 text-[10px] text-slate-600 md:flex">
           <Clock size={11} />
           {elapsedLabel || formatTime(activeSession?.createdAt)}
         </span>
 
         {typeof activeSession?.lastExitCode === "number" && (
-          <span className="shrink-0 rounded border border-white/10 px-2 py-1 text-[10px] font-mono text-slate-400">
+          <span className="shrink-0 rounded-md border border-white/[0.07] px-2 py-1 font-mono text-[10px] text-slate-500">
             exit {activeSession.lastExitCode}
           </span>
         )}
 
-        <span className="shrink-0 rounded border border-white/10 px-2 py-1 text-[10px] text-slate-500">
+        <span className="hidden shrink-0 rounded-md border border-white/[0.06] px-2 py-1 text-[10px] text-slate-600 xl:inline">
           {outputLineCount}/{TERMINAL_OUTPUT_LIMIT} lines
         </span>
 
-        <span className="ml-auto shrink-0 truncate text-[10px] text-slate-600">
-          {bridgeInfo.label}
-        </span>
+        <div className="ml-auto flex shrink-0 items-center gap-1.5">
+          <span className="hidden max-w-[150px] truncate text-[10px] text-slate-600 2xl:inline">
+            {bridgeInfo.label}
+          </span>
 
-        <button
-          type="button"
-          onClick={handleToggleAutoScroll}
-          title={autoScrollEnabled ? "Autoscroll aktiv" : "Autoscroll fortsetzen"}
-          className="flex shrink-0 items-center gap-1 rounded px-2 py-1 text-[10px] font-semibold transition-colors hover:bg-white/[0.06]"
-          style={{
-            color: autoScrollEnabled ? "#cbd5e1" : "#facc15",
-            border: "1px solid rgba(255,255,255,0.1)",
-            background: autoScrollEnabled
-              ? "rgba(255,255,255,0.02)"
-              : "rgba(250,204,21,0.08)",
-          }}
-        >
-          <ArrowDown size={11} />
-          {autoScrollEnabled ? "Auto" : "Paused"}
-        </button>
-      </div>
+          <select
+            value=""
+            onChange={(event) => {
+              const task = taskItems.find((item) => item.id === event.target.value);
+              runTask(task);
+            }}
+            className="h-6 shrink-0 rounded-md border border-white/[0.07] bg-black/25 px-2 text-[10px] font-medium text-slate-400 outline-none transition-colors hover:text-slate-200"
+            title="Task Runner"
+          >
+            <option value="">Tasks</option>
+            {taskItems.map((task) => (
+              <option key={task.id} value={task.id} disabled={task.disabled}>
+                {task.label}
+              </option>
+            ))}
+          </select>
 
-      <div
-        className="flex min-h-[40px] shrink-0 items-center gap-2 overflow-x-auto px-3 py-1.5"
-        style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}
-      >
-        <select
-          value=""
-          onChange={(event) => {
-            const task = taskItems.find((item) => item.id === event.target.value);
-            runTask(task);
-          }}
-          className="h-7 shrink-0 rounded border border-white/10 bg-black/30 px-2 text-[10px] font-semibold text-gray-300 outline-none"
-          title="Task Runner"
-        >
-          <option value="">Tasks</option>
-          {taskItems.map((task) => (
-            <option key={task.id} value={task.id} disabled={task.disabled}>
-              {task.label}
-            </option>
+          {visibleQuickTasks.map((task) => (
+            <button
+              key={task.id}
+              type="button"
+              onClick={() => runTask(task)}
+              disabled={task.disabled}
+              className="hidden h-6 shrink-0 rounded-md px-2 font-mono text-[10px] transition-colors disabled:opacity-35 xl:inline-flex xl:items-center"
+              style={{
+                border: "1px solid rgba(255,255,255,0.065)",
+                color: task.disabled ? "#64748b" : "#94a3b8",
+                background: "rgba(255,255,255,0.018)",
+                cursor: task.disabled ? "not-allowed" : "pointer",
+              }}
+              title={
+                task.disabled
+                  ? "Task aktuell nicht verfuegbar"
+                  : `Task ausfuehren: ${task.command}`
+              }
+            >
+              {task.shortLabel}
+            </button>
           ))}
-        </select>
 
-        {quickTasks.map((task) => (
           <button
-            key={task.id}
             type="button"
-            onClick={() => runTask(task)}
-            disabled={task.disabled}
-            className="h-7 shrink-0 rounded px-2 text-[10px] font-mono transition-colors disabled:opacity-40"
+            onClick={handleRunLast}
+            disabled={!lastCommand || isRunning}
+            title={lastCommand ? `Run last: ${lastCommand}` : "Kein Verlauf"}
+            className="flex h-6 shrink-0 items-center gap-1 rounded-md px-2 text-[10px] font-medium transition-colors disabled:opacity-35"
             style={{
-              border: "1px solid rgba(255,255,255,0.1)",
-              color: task.disabled ? "#64748b" : "#cbd5e1",
-              background:
-                task.kind === "task"
-                  ? "rgba(168,85,247,0.07)"
-                  : "rgba(255,255,255,0.02)",
-              cursor: task.disabled ? "not-allowed" : "pointer",
+              border: "1px solid rgba(255,255,255,0.065)",
+              background: "rgba(255,255,255,0.018)",
+              color: !lastCommand || isRunning ? "#64748b" : "#94a3b8",
+              cursor: !lastCommand || isRunning ? "not-allowed" : "pointer",
             }}
-            title={
-              task.disabled
-                ? "Task aktuell nicht verfuegbar"
-                : `Task ausfuehren: ${task.command}`
-            }
           >
-            {task.shortLabel}
+            <RotateCcw size={11} />
+            <span className="hidden sm:inline">Last</span>
           </button>
-        ))}
 
-        <button
-          type="button"
-          onClick={handleRunLast}
-          disabled={!lastCommand || isRunning}
-          title={lastCommand ? `Run last: ${lastCommand}` : "Kein Verlauf"}
-          className="flex h-7 shrink-0 items-center gap-1 rounded px-2 text-[10px] font-semibold transition-colors disabled:opacity-40"
-          style={{
-            border: "1px solid rgba(255,255,255,0.1)",
-            background: "rgba(255,255,255,0.02)",
-            color: !lastCommand || isRunning ? "#64748b" : "#cbd5e1",
-            cursor: !lastCommand || isRunning ? "not-allowed" : "pointer",
-          }}
-        >
-          <RotateCcw size={11} />
-          Last
-        </button>
-
-        <span
-          className="flex shrink-0 items-center gap-1 text-[10px] text-slate-600"
-          title="Command history"
-        >
-          <Clock size={11} />
-        </span>
-
-        {commandSuggestions.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            onClick={() => executeCommandInSession(activeSessionId, item.command)}
-            disabled={isRunning}
-            className="h-7 shrink-0 rounded px-2 text-[10px] font-mono transition-colors disabled:opacity-40"
-            style={{
-              border: item.recent
-                ? "1px solid rgba(128,0,255,0.24)"
-                : "1px solid rgba(255,255,255,0.1)",
-              background: item.recent
-                ? "rgba(128,0,255,0.08)"
-                : "rgba(255,255,255,0.02)",
-              color: isRunning ? "#64748b" : "#cbd5e1",
-              cursor: isRunning ? "not-allowed" : "pointer",
-            }}
-            title={`${item.group}: ${item.command}`}
-          >
-            {item.label}
-          </button>
-        ))}
+          {visibleSuggestions.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => executeCommandInSession(activeSessionId, item.command)}
+              disabled={isRunning}
+              className="hidden h-6 shrink-0 rounded-md px-2 font-mono text-[10px] transition-colors disabled:opacity-35 2xl:inline-flex 2xl:items-center"
+              style={{
+                border: item.recent
+                  ? "1px solid rgba(125,211,252,0.13)"
+                  : "1px solid rgba(255,255,255,0.06)",
+                background: item.recent
+                  ? "rgba(14,165,233,0.04)"
+                  : "rgba(255,255,255,0.015)",
+                color: isRunning ? "#64748b" : "#94a3b8",
+                cursor: isRunning ? "not-allowed" : "pointer",
+              }}
+              title={`${item.group}: ${item.command}`}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div
@@ -1340,11 +1320,11 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
                     delay: index * 0.2,
                   }}
                   className="inline-block h-1 w-1 rounded-full"
-                  style={{ background: "var(--primary)" }}
+                  style={{ background: "#38bdf8" }}
                 />
               ))}
               <span className="ml-1 text-[11px] text-gray-500">
-                Process running · stdin ready
+                Process running - stdin ready
               </span>
             </motion.div>
           )}
@@ -1352,12 +1332,12 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
       </div>
 
       <div
-        className="flex min-h-[46px] shrink-0 items-center gap-2 px-4 py-2"
-        style={{ borderTop: "1px solid rgba(128,0,255,0.09)" }}
+        className="flex min-h-[40px] shrink-0 items-center gap-2 px-4 py-1.5"
+        style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}
       >
         <span
-          className="flex shrink-0 items-center gap-1 rounded border border-white/10 bg-white/[0.02] px-2 py-1 font-mono text-[11px]"
-          style={{ color: "var(--primary)" }}
+          className="shrink-0 font-mono text-[12px]"
+          style={{ color: "#7dd3fc" }}
         >
           $
         </span>
@@ -1374,10 +1354,10 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
           autoComplete="off"
           autoCorrect="off"
           autoCapitalize="off"
-          className="min-w-0 flex-1 rounded border border-white/10 bg-black/20 px-3 py-2 font-mono outline-none transition-colors focus:border-purple-500/50"
+          className="min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-2 py-1.5 font-mono outline-none transition-colors placeholder:text-slate-600 focus:border-white/[0.14] focus:bg-white/[0.025]"
           style={{
-            color: "#d1d5db",
-            caretColor: "#a855f7",
+            color: "#dbe4ef",
+            caretColor: "#7dd3fc",
             fontSize: "12px",
             opacity: 1,
           }}
@@ -1388,13 +1368,19 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
           type="button"
           onClick={handleRun}
           disabled={!currentInput.trim()}
-          className="flex h-8 shrink-0 items-center gap-1.5 rounded px-3 text-[11px] font-semibold text-white transition-opacity disabled:opacity-40"
+          className="flex h-7 shrink-0 items-center gap-1.5 rounded-md border px-2.5 text-[11px] font-medium transition-colors disabled:opacity-35"
           style={{
-            background: "linear-gradient(135deg, #7c3aed, #2563eb)",
+            borderColor: currentInput.trim()
+              ? "rgba(125,211,252,0.2)"
+              : "rgba(255,255,255,0.07)",
+            background: currentInput.trim()
+              ? "rgba(14,165,233,0.09)"
+              : "rgba(255,255,255,0.018)",
+            color: currentInput.trim() ? "#bae6fd" : "#64748b",
             cursor: currentInput.trim() ? "pointer" : "not-allowed",
           }}
         >
-          <Play size={12} fill="white" />
+          <Play size={12} fill="currentColor" />
           {isRunning ? "Send" : "Run"}
         </button>
       </div>

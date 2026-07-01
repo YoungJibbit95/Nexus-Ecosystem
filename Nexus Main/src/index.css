@@ -3503,11 +3503,13 @@ body {
 }
 
 .nx-notes-blocks-menu {
-    position: absolute;
-    left: 0;
-    top: calc(100% + 6px);
-    z-index: 9000;
+    position: fixed;
+    left: 12px;
+    top: 56px;
+    z-index: 12000;
     min-width: 148px;
+    max-height: min(360px, calc(100dvh - 96px));
+    overflow: auto;
     padding: 5px;
     border-radius: 12px;
     border: 1px solid rgba(255, 255, 255, 0.12);
@@ -3518,10 +3520,10 @@ body {
 }
 
 .nx-notes-emoji-menu {
-    position: absolute;
-    left: 0;
-    top: calc(100% + 6px);
-    z-index: 9100;
+    position: fixed;
+    left: 12px;
+    top: 56px;
+    z-index: 12100;
     width: min(520px, calc(100vw - 36px));
     max-height: min(560px, calc(100vh - 120px));
     display: flex;
@@ -3982,6 +3984,70 @@ body {
         rgba(255, 255, 255, 0.045) !important;
 }
 
+.nx-settings-guide-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    border-radius: 999px !important;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: rgba(255, 255, 255, 0.055);
+    padding: 6px 10px;
+    line-height: 1.2;
+}
+
+.nx-settings-module-card {
+    color: var(--nx-v6-text, rgba(255, 255, 255, 0.9));
+}
+
+.nx-settings-module-card :where(button, label) {
+    min-height: 32px;
+}
+
+.nx-settings-module-card :where(input, textarea, select) {
+    min-height: 32px;
+}
+
+.nx-app-shell[data-nx-color-mode="light"] .nx-settings-content-header,
+.nx-app-shell[data-nx-color-mode="light"] .nx-settings-module-card,
+.nx-app-shell[data-nx-color-mode="light"] .nx-settings-summary > div,
+.nx-app-shell[data-nx-color-mode="light"] .nx-settings-module-search {
+    border-color: rgba(15, 23, 42, 0.105) !important;
+    background:
+        linear-gradient(
+            145deg,
+            rgba(255, 255, 255, 0.88),
+            rgba(241, 247, 255, 0.68)
+        ) !important;
+    color: rgba(15, 23, 42, 0.92) !important;
+    box-shadow:
+        0 10px 24px rgba(15, 23, 42, 0.055),
+        inset 0 1px 0 rgba(255, 255, 255, 0.78);
+}
+
+.nx-app-shell[data-nx-color-mode="light"] .nx-settings-sidebar :where(button, label),
+.nx-app-shell[data-nx-color-mode="light"] .nx-settings-content :where(button, label) {
+    border-color: rgba(15, 23, 42, 0.12) !important;
+    background-color: rgba(255, 255, 255, 0.58);
+}
+
+.nx-app-shell[data-nx-color-mode="light"] .nx-settings-sidebar :where(input, textarea, select),
+.nx-app-shell[data-nx-color-mode="light"] .nx-settings-content :where(input, textarea, select) {
+    color: rgba(15, 23, 42, 0.92) !important;
+}
+
+.nx-app-shell[data-nx-color-mode="light"] .nx-settings-sidebar :where(input, textarea, select)::placeholder,
+.nx-app-shell[data-nx-color-mode="light"] .nx-settings-content :where(input, textarea, select)::placeholder {
+    color: rgba(71, 85, 105, 0.58) !important;
+}
+
+.nx-app-shell[data-nx-color-mode="light"] .nx-settings-guide-chip,
+.nx-app-shell[data-nx-color-mode="light"] .nx-settings-panel-health,
+.nx-app-shell[data-nx-color-mode="light"] .nx-settings-panel-health-action {
+    border-color: rgba(15, 23, 42, 0.12) !important;
+    background: rgba(255, 255, 255, 0.68) !important;
+    color: rgba(15, 23, 42, 0.9) !important;
+}
+
 .nx-info-v6 {
     padding: 12px 16px !important;
 }
@@ -4178,6 +4244,36 @@ body {
     border-color: rgba(15, 23, 42, 0.12) !important;
     background: rgba(15, 23, 42, 0.045) !important;
     color: var(--nx-v6-control-text, rgba(15, 23, 42, 0.78)) !important;
+}
+
+.nx-app-shell[data-nx-color-mode="light"] .nx-task-modal-sheet {
+    color: rgba(15, 23, 42, 0.92) !important;
+    background:
+        linear-gradient(
+            145deg,
+            rgba(255, 255, 255, 0.9),
+            rgba(242, 247, 255, 0.72)
+        ),
+        rgba(255, 255, 255, 0.72) !important;
+}
+
+.nx-app-shell[data-nx-color-mode="light"] .nx-task-modal-sheet :where(input, textarea, select) {
+    color: rgba(15, 23, 42, 0.92) !important;
+    background: rgba(255, 255, 255, 0.68) !important;
+    border-color: rgba(15, 23, 42, 0.12) !important;
+}
+
+.nx-app-shell[data-nx-color-mode="light"] .nx-task-modal-sheet :where(label, span, div) {
+    color: inherit;
+}
+
+.nx-app-shell[data-nx-color-mode="light"] .nx-task-modal-sheet :where(input, textarea)::placeholder {
+    color: rgba(71, 85, 105, 0.72) !important;
+}
+
+.nx-app-shell[data-nx-color-mode="light"] .nx-task-modal-sheet :where(select option) {
+    color: rgba(15, 23, 42, 0.92);
+    background: #ffffff;
 }
 
 .nx-app-status-bar {
@@ -4721,9 +4817,35 @@ button.nx-sidebar-nav-row:active {
         var(--nx-motion-settle-ease, ease);
 }
 
+.nx-files-card-menu {
+    color: var(--nx-v6-text, rgba(255, 255, 255, 0.9));
+}
+
+.nx-app-shell[data-nx-color-mode="light"] .nx-files-card-menu {
+    color: rgba(15, 23, 42, 0.92) !important;
+    border-color: rgba(15, 23, 42, 0.13) !important;
+    background:
+        linear-gradient(
+            145deg,
+            rgba(255, 255, 255, 0.96),
+            rgba(239, 246, 255, 0.9)
+        ) !important;
+    box-shadow:
+        0 14px 30px rgba(15, 23, 42, 0.16),
+        inset 0 1px 0 rgba(255, 255, 255, 0.88) !important;
+}
+
+.nx-app-shell[data-nx-color-mode="light"] .nx-files-card-menu .nx-menu-item {
+    color: rgba(15, 23, 42, 0.9) !important;
+}
+
 @media (hover: hover) and (pointer: fine) {
     .nx-menu-item:hover {
         background: rgba(255, 255, 255, 0.08);
+    }
+
+    .nx-app-shell[data-nx-color-mode="light"] .nx-files-card-menu .nx-menu-item:hover {
+        background: rgba(15, 23, 42, 0.07);
     }
 }
 
@@ -5914,8 +6036,6 @@ select {
     scrollbar-gutter: stable;
 }
 
-<<<<<<< HEAD
-=======
 .nx-dashboard-priority-rail {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -6101,7 +6221,6 @@ select {
     white-space: nowrap;
 }
 
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
 .nx-dashboard-resume-grid {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(280px, 0.42fr);
@@ -6225,25 +6344,19 @@ select {
 }
 
 @media (max-width: 1060px) {
-<<<<<<< HEAD
-=======
     .nx-dashboard-priority-rail {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
     .nx-dashboard-quality-strip,
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
     .nx-dashboard-resume-grid {
         grid-template-columns: minmax(0, 1fr);
     }
 
-<<<<<<< HEAD
-=======
     .nx-dashboard-quality-actions {
         justify-content: flex-start;
     }
 
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
     .nx-files-body {
         flex-direction: column !important;
         overflow: auto !important;
@@ -6274,8 +6387,6 @@ select {
 }
 
 @media (max-width: 720px) {
-<<<<<<< HEAD
-=======
     .nx-dashboard-priority-rail {
         grid-template-columns: minmax(0, 1fr);
     }
@@ -6285,13 +6396,10 @@ select {
     }
 
     .nx-dashboard-signal-grid,
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
     .nx-dashboard-resume-list {
         grid-template-columns: minmax(0, 1fr);
     }
 
-<<<<<<< HEAD
-=======
     .nx-dashboard-quality-strip {
         padding: 8px !important;
     }
@@ -6300,7 +6408,6 @@ select {
         display: none;
     }
 
->>>>>>> 04ddd4b79c332ffc5e621dc5fdeeed1214eea803
     .nx-files-header > div:first-child,
     .nx-files-stats-strip,
     .nx-view-quality-strip {
@@ -6641,9 +6748,9 @@ select {
 .nx-notes-blocks-menu,
 .nx-notes-emoji-menu {
     position: fixed !important;
-    left: clamp(14px, 50vw - 260px, calc(100vw - 540px)) !important;
-    top: auto !important;
-    bottom: clamp(76px, 9vh, 118px) !important;
+    left: 12px;
+    top: 56px;
+    bottom: auto;
     z-index: 12000 !important;
     max-width: calc(100vw - 28px);
     max-height: min(520px, calc(100dvh - 112px));
@@ -6683,7 +6790,6 @@ select {
 @media (max-height: 650px) {
     .nx-notes-blocks-menu,
     .nx-notes-emoji-menu {
-        bottom: 54px !important;
         max-height: calc(100dvh - 74px);
     }
 }
@@ -7312,6 +7418,446 @@ select {
         max-width: 100%;
         white-space: normal;
         line-height: 1.35;
+    }
+}
+
+.nx-notes-unified-status-action {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 6px !important;
+    min-height: 34px !important;
+    padding: 3px 6px !important;
+    overflow: visible !important;
+    opacity: 0.82;
+    border-color: rgba(255, 255, 255, 0.055) !important;
+    background:
+        linear-gradient(
+            120deg,
+            rgba(255, 255, 255, 0.042),
+            rgba(255, 255, 255, 0.014)
+        ),
+        var(--nx-panel-bg, rgba(8, 13, 25, 0.18)) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045) !important;
+}
+
+.nx-notes-unified-status-action:hover,
+.nx-notes-unified-status-action:focus-within {
+    opacity: 1;
+}
+
+.nx-notes-unified-status-action .nx-notes-workbar-main,
+.nx-notes-unified-status-action .nx-notes-workbar-tools,
+.nx-notes-unified-status-action .nx-notes-command-strip,
+.nx-notes-unified-status-action .nx-notes-format-toolbar,
+.nx-notes-unified-status-action .nx-notes-toolbar-tags {
+    display: flex !important;
+    align-items: center !important;
+    min-width: 0;
+}
+
+.nx-notes-unified-status-action .nx-notes-workbar-main {
+    flex: 0 1 620px;
+    gap: 5px;
+}
+
+.nx-notes-unified-status-action .nx-notes-workbar-tools {
+    flex: 1 1 auto;
+    gap: 6px;
+    overflow-x: auto;
+    overflow-y: visible;
+    padding: 0;
+    scrollbar-width: none;
+}
+
+.nx-notes-unified-status-action .nx-notes-workbar-tools::-webkit-scrollbar,
+.nx-notes-unified-status-action .nx-notes-format-toolbar::-webkit-scrollbar,
+.nx-notes-unified-status-action .nx-notes-toolbar-tags::-webkit-scrollbar {
+    height: 0;
+}
+
+.nx-notes-unified-status-action .nx-notes-title-input {
+    flex: 1 1 190px !important;
+    min-width: 120px !important;
+    max-width: clamp(180px, 24vw, 340px);
+    min-height: 26px !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-editor-meta {
+    order: 0;
+    flex: 0 1 auto;
+    flex-basis: auto;
+    max-width: min(28vw, 340px);
+    gap: 4px;
+    overflow: hidden;
+    padding-left: 0;
+}
+
+.nx-notes-unified-status-action .nx-notes-editor-meta span {
+    max-width: 92px;
+    padding: 3px 7px;
+    opacity: 0.54;
+}
+
+.nx-notes-unified-status-action .nx-notes-mode-actions {
+    flex: 0 0 auto;
+    flex-wrap: nowrap !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-command-strip {
+    order: 2;
+    flex: 0 0 auto;
+    gap: 6px;
+    min-width: max-content;
+}
+
+.nx-notes-unified-status-action .nx-notes-command-strip > div:first-child,
+.nx-notes-unified-status-action .nx-notes-strip-actions {
+    flex-wrap: nowrap !important;
+    min-width: max-content;
+}
+
+.nx-notes-unified-status-action .nx-notes-stat-pill {
+    padding: 1px 6px !important;
+    opacity: 0.58;
+}
+
+.nx-notes-unified-status-action .nx-notes-strip-actions {
+    margin-left: 0;
+}
+
+.nx-notes-unified-status-action .nx-notes-context-strip {
+    order: 4;
+    max-width: min(28vw, 360px);
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+    border-top: 0 !important;
+    background: transparent !important;
+    opacity: 0.56;
+}
+
+.nx-notes-unified-status-action .nx-notes-format-toolbar {
+    order: 1;
+    flex: 0 0 auto;
+    max-width: none;
+    overflow-x: auto !important;
+    overflow-y: visible !important;
+    white-space: nowrap;
+    padding-inline: 2px 8px !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.nx-notes-unified-status-action .nx-notes-toolbar-tags {
+    order: 3;
+    flex: 0 1 min(20vw, 260px);
+    max-width: min(20vw, 260px);
+    gap: 4px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    white-space: nowrap;
+}
+
+.nx-notes-main > .nx-notes-status {
+    display: none !important;
+}
+
+@media (max-width: 1180px) {
+    .nx-notes-unified-status-action {
+        flex-wrap: nowrap !important;
+    }
+
+    .nx-notes-unified-status-action .nx-notes-editor-meta {
+        max-width: 180px;
+    }
+
+    .nx-notes-unified-status-action .nx-notes-format-toolbar {
+        max-width: none;
+    }
+}
+
+@media (max-width: 760px) {
+    .nx-notes-unified-status-action {
+        align-items: stretch !important;
+        flex-direction: column !important;
+        gap: 4px !important;
+    }
+
+    .nx-notes-unified-status-action .nx-notes-workbar-main,
+    .nx-notes-unified-status-action .nx-notes-workbar-tools {
+        width: 100%;
+    }
+
+    .nx-notes-unified-status-action .nx-notes-editor-meta {
+        display: none !important;
+    }
+
+    .nx-notes-unified-status-action .nx-notes-format-toolbar,
+    .nx-notes-unified-status-action .nx-notes-toolbar-tags {
+        max-width: none;
+    }
+}
+
+/* Notes screenshot polish: compact chrome, denser sidebar, wider preview. */
+.nx-notes-v6 {
+    gap: 5px !important;
+    padding: 5px !important;
+}
+
+.nx-notes-main {
+    gap: 5px !important;
+}
+
+.nx-notes-sidebar {
+    width: clamp(202px, 15vw, 236px) !important;
+    max-width: min(26vw, 246px);
+    border-radius: 16px !important;
+}
+
+.nx-notes-sidebar-header {
+    min-height: 38px !important;
+    padding: 7px 9px !important;
+}
+
+.nx-notes-sidebar-search,
+.nx-notes-sidebar-tags,
+.nx-notes-sidebar-sort {
+    padding: 6px 8px !important;
+}
+
+.nx-notes-sidebar-tags {
+    align-content: flex-start;
+    gap: 4px !important;
+    max-height: 62px;
+    overflow-x: hidden;
+    overflow-y: hidden;
+}
+
+.nx-notes-sidebar-tags[data-expanded="true"] {
+    max-height: min(168px, 28vh);
+    overflow-y: auto;
+    padding-right: 6px !important;
+}
+
+.nx-notes-sidebar-tags::-webkit-scrollbar {
+    width: 4px;
+}
+
+.nx-notes-sidebar-tags::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.nx-notes-sidebar-tags::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.18);
+}
+
+.nx-notes-sidebar-tag-chip,
+.nx-notes-sidebar-tags-toggle {
+    min-width: 0;
+    max-width: 100%;
+    flex: 0 1 auto;
+}
+
+.nx-notes-sidebar-tag-label {
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.nx-notes-sidebar-sort {
+    gap: 4px !important;
+}
+
+.nx-notes-list {
+    padding: 6px !important;
+}
+
+.nx-notes-list-row {
+    margin-bottom: 5px !important;
+    padding: 8px 9px !important;
+    border-radius: 10px !important;
+}
+
+.nx-notes-list-excerpt {
+    margin-top: 3px !important;
+    font-size: 10px !important;
+}
+
+.nx-notes-list-tags {
+    gap: 3px !important;
+    margin-top: 5px !important;
+}
+
+.nx-notes-unified-status-action {
+    display: grid !important;
+    grid-template-columns: minmax(210px, 0.72fr) minmax(0, 1.28fr);
+    align-items: center !important;
+    gap: 5px !important;
+    min-height: 32px !important;
+    padding: 3px 5px !important;
+    opacity: 0.94;
+}
+
+.nx-notes-unified-status-action .nx-notes-workbar-main {
+    flex: none !important;
+    gap: 4px;
+}
+
+.nx-notes-unified-status-action .nx-notes-workbar-tools {
+    gap: 5px;
+    min-width: 0;
+}
+
+.nx-notes-unified-status-action .nx-notes-title-input {
+    min-height: 24px !important;
+    max-width: clamp(168px, 20vw, 300px);
+    padding-block: 3px !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-editor-meta {
+    max-width: min(22vw, 260px);
+}
+
+.nx-notes-unified-status-action .nx-notes-editor-meta span {
+    max-width: 82px;
+    padding: 2px 6px;
+    font-size: 9.5px;
+}
+
+.nx-notes-unified-status-action .nx-notes-command-strip > div:first-child,
+.nx-notes-unified-status-action .nx-notes-strip-actions {
+    gap: 4px !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-stat-pill {
+    padding: 1px 5px !important;
+    font-size: 9px;
+}
+
+.nx-notes-unified-status-action .nx-notes-format-toolbar {
+    max-width: min(34vw, 500px);
+    gap: 1px;
+}
+
+.nx-notes-editor-grid {
+    gap: 5px !important;
+}
+
+.nx-notes-split-resizer {
+    flex: 0 0 12px;
+    align-self: stretch;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: col-resize;
+    border-radius: 999px;
+    touch-action: none;
+}
+
+.nx-notes-split-resizer span {
+    width: 3px;
+    height: min(92px, 36%);
+    border-radius: 999px;
+    background: rgba(var(--nx-shell-accent-rgb, 34, 211, 238), 0.34);
+    box-shadow: 0 0 14px rgba(var(--nx-shell-accent-rgb, 34, 211, 238), 0.12);
+    transition:
+        width var(--nx-motion-quick, 170ms) ease,
+        background var(--nx-motion-quick, 170ms) ease;
+}
+
+.nx-notes-split-resizer:hover span,
+.nx-notes-split-resizer:focus-visible span {
+    width: 5px;
+    background: rgba(var(--nx-shell-accent-rgb, 34, 211, 238), 0.7);
+}
+
+.nx-notes-editor-grid .nx-notes-editor-pane {
+    flex: var(--nx-notes-editor-flex, 0.82 1 0) !important;
+}
+
+.nx-notes-editor-grid .nx-notes-preview-pane {
+    flex: var(--nx-notes-preview-flex, 1.18 1 0) !important;
+}
+
+.nx-notes-editor-pane textarea {
+    padding-inline: clamp(12px, 1.4vw, 20px) !important;
+}
+
+.nx-notes-preview-scroll {
+    padding: clamp(16px, 1.8vw, 26px) !important;
+}
+
+.nx-notes-magic-preview {
+    border: 1px solid transparent;
+    transition:
+        border-color var(--nx-motion-quick, 170ms) ease,
+        background var(--nx-motion-quick, 170ms) ease;
+}
+
+.nx-notes-magic-preview:hover,
+.nx-notes-magic-preview:focus-visible {
+    border-color: rgba(var(--nx-shell-accent-rgb, 34, 211, 238), 0.24);
+    background: rgba(var(--nx-shell-accent-rgb, 34, 211, 238), 0.035);
+}
+
+.nx-notes-magic-edit {
+    width: auto !important;
+    min-width: 48px;
+    height: 24px;
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.22);
+}
+
+.nx-notes-magic-preview:hover .nx-notes-magic-edit,
+.nx-notes-magic-preview:focus-visible .nx-notes-magic-edit {
+    opacity: 1 !important;
+}
+
+.nx-notes-preview-scroll .nx-magic-fade {
+    max-width: 100%;
+}
+
+.nx-notes-preview-scroll .nx-magic-fade * {
+    min-width: 0;
+}
+
+.nx-notes-magic-action {
+    min-height: 28px;
+}
+
+@media (max-width: 1180px) {
+    .nx-notes-sidebar {
+        width: clamp(204px, 22vw, 244px) !important;
+        max-width: none;
+    }
+
+    .nx-notes-unified-status-action {
+        grid-template-columns: minmax(190px, 0.78fr) minmax(0, 1.22fr);
+    }
+
+    .nx-notes-unified-status-action .nx-notes-format-toolbar {
+        max-width: min(45vw, 520px);
+    }
+}
+
+@media (max-width: 980px) {
+    .nx-notes-sidebar {
+        width: 100% !important;
+        max-height: 210px !important;
+    }
+
+    .nx-notes-unified-status-action {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .nx-notes-editor-grid .nx-notes-editor-pane,
+    .nx-notes-editor-grid .nx-notes-preview-pane {
+        flex: 1 1 auto !important;
+    }
+
+    .nx-notes-split-resizer {
+        display: none;
     }
 }
 
@@ -7951,6 +8497,21 @@ select {
     }
 }
 
+@media (max-height: 760px) {
+    .nx-settings-content-header {
+        padding: 8px 10px !important;
+    }
+
+    .nx-settings-module-card {
+        padding: 11px 12px 10px !important;
+        margin-bottom: 9px !important;
+    }
+
+    .nx-settings-live-material-stage {
+        min-height: 124px !important;
+    }
+}
+
 .nx-app-shell[data-nx-color-mode="light"] .nx-settings-sidebar,
 .nx-app-shell[data-nx-color-mode="light"] .nx-settings-content,
 .nx-app-shell[data-nx-color-mode="light"] .nx-settings-module-card,
@@ -8256,5 +8817,2999 @@ select {
 
     .nx-canvas-empty-copy p {
         font-size: 12px;
+    }
+}
+
+/* Calendar v1: task/reminder-first month and agenda UI. */
+.nx-calendar-view {
+    --nx-calendar-card-color: var(--nx-calendar-accent, #64d2ff);
+    height: 100%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background:
+        linear-gradient(140deg, rgba(var(--nx-calendar-accent-rgb, 100, 210, 255), 0.055), transparent 34%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.024), rgba(255, 255, 255, 0.006));
+}
+
+.nx-calendar-topbar {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    background: rgba(0, 0, 0, 0.055);
+}
+
+.nx-calendar-nav,
+.nx-calendar-controls,
+.nx-calendar-composer {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+}
+
+.nx-calendar-nav {
+    flex: 0 0 auto;
+}
+
+.nx-calendar-composer {
+    flex: 1 1 430px;
+    min-width: 280px;
+}
+
+.nx-calendar-controls {
+    flex: 0 1 auto;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+}
+
+.nx-calendar-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    min-width: 150px;
+    padding: 6px 8px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.052);
+    border: 1px solid rgba(255, 255, 255, 0.095);
+    font-size: 13px;
+    font-weight: 820;
+    letter-spacing: 0;
+}
+
+.nx-calendar-title span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.nx-calendar-icon-button,
+.nx-calendar-today-button,
+.nx-calendar-add-button,
+.nx-calendar-import-button,
+.nx-calendar-mini-button,
+.nx-calendar-import-panel button,
+.nx-calendar-segment button {
+    height: 30px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.065);
+    color: inherit;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 760;
+    letter-spacing: 0;
+}
+
+.nx-calendar-icon-button {
+    width: 30px;
+    padding: 0;
+}
+
+.nx-calendar-today-button,
+.nx-calendar-add-button,
+.nx-calendar-import-button,
+.nx-calendar-mini-button,
+.nx-calendar-import-panel button {
+    padding: 0 10px;
+    min-width: 0;
+}
+
+.nx-calendar-add-button,
+.nx-calendar-import-button.is-active,
+.nx-calendar-segment button.is-active {
+    border-color: rgba(var(--nx-calendar-accent-rgb, 100, 210, 255), 0.42);
+    background: rgba(var(--nx-calendar-accent-rgb, 100, 210, 255), 0.16);
+    color: var(--nx-calendar-accent, #64d2ff);
+}
+
+.nx-calendar-composer input,
+.nx-calendar-composer select,
+.nx-calendar-controls select,
+.nx-calendar-import-panel input {
+    height: 30px;
+    min-width: 0;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.058);
+    color: inherit;
+    outline: none;
+    font-size: 12px;
+    letter-spacing: 0;
+}
+
+.nx-calendar-composer input {
+    flex: 1 1 190px;
+    padding: 0 10px;
+}
+
+.nx-calendar-composer select,
+.nx-calendar-controls select {
+    padding: 0 8px;
+}
+
+.nx-calendar-time-input {
+    flex: 0 0 94px !important;
+}
+
+.nx-calendar-controls label {
+    height: 30px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 0 6px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.046);
+    border: 1px solid rgba(255, 255, 255, 0.095);
+}
+
+.nx-calendar-segment {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 3px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.052);
+    border: 1px solid rgba(255, 255, 255, 0.095);
+}
+
+.nx-calendar-segment button {
+    height: 24px;
+    padding: 0 8px;
+    border-color: transparent;
+    background: transparent;
+    white-space: nowrap;
+}
+
+.nx-calendar-import-panel {
+    flex: 0 0 auto;
+    margin: 8px 10px 0;
+    padding: 8px;
+    display: grid;
+    grid-template-columns: minmax(160px, 0.6fr) minmax(260px, 1fr);
+    align-items: start;
+    gap: 8px;
+    border-radius: 8px !important;
+}
+
+.nx-calendar-import-panel div {
+    min-width: 0;
+    display: grid;
+    gap: 2px;
+}
+
+.nx-calendar-import-panel strong,
+.nx-calendar-import-panel span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.nx-calendar-import-panel strong {
+    font-size: 12px;
+    letter-spacing: 0;
+}
+
+.nx-calendar-import-panel span {
+    font-size: 11px;
+    opacity: 0.62;
+}
+
+.nx-calendar-import-fields {
+    display: flex !important;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px !important;
+}
+
+.nx-calendar-import-fields select,
+.nx-calendar-file-button {
+    height: 30px;
+    min-width: 0;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.058);
+    color: inherit;
+    outline: none;
+    font-size: 12px;
+    letter-spacing: 0;
+}
+
+.nx-calendar-file-button {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    padding: 0 10px;
+    cursor: pointer;
+    font-weight: 760;
+    overflow: hidden;
+}
+
+.nx-calendar-file-button input {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+}
+
+.nx-calendar-import-panel textarea {
+    grid-column: 1 / -1;
+    width: 100%;
+    min-height: 72px;
+    resize: vertical;
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.052);
+    color: inherit;
+    outline: none;
+    font-size: 12px;
+    line-height: 1.45;
+    letter-spacing: 0;
+}
+
+.nx-calendar-import-panel p {
+    grid-column: 1 / -1;
+    margin: 0;
+    font-size: 11px;
+    opacity: 0.7;
+}
+
+.nx-calendar-import-panel input {
+    width: 100%;
+    padding: 0 10px;
+}
+
+.nx-calendar-stats {
+    flex: 0 0 auto;
+    min-height: 34px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 6px 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.055);
+    background: rgba(255, 255, 255, 0.018);
+}
+
+.nx-calendar-stats span {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    min-width: 0;
+    padding: 4px 8px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.052);
+    border: 1px solid rgba(255, 255, 255, 0.095);
+    font-size: 11px;
+}
+
+.nx-calendar-stats strong {
+    font-size: 12px;
+    color: var(--nx-calendar-accent, #64d2ff);
+}
+
+.nx-calendar-stats .is-hot strong {
+    color: #ff453a;
+}
+
+.nx-calendar-shell {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(290px, 350px);
+    gap: 10px;
+    padding: 10px;
+    overflow: hidden;
+}
+
+.nx-calendar-month-panel,
+.nx-calendar-agenda-panel {
+    min-width: 0;
+    min-height: 0;
+    border-radius: 8px !important;
+}
+
+.nx-calendar-month-panel {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 8px;
+}
+
+.nx-calendar-weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 6px;
+    padding: 0 2px 6px;
+}
+
+.nx-calendar-weekdays span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 10px;
+    font-weight: 820;
+    opacity: 0.55;
+    text-transform: uppercase;
+    letter-spacing: 0;
+}
+
+.nx-calendar-grid {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    grid-template-rows: repeat(6, minmax(96px, 1fr));
+    gap: 6px;
+}
+
+.nx-calendar-density-compact .nx-calendar-grid {
+    grid-template-rows: repeat(6, minmax(74px, 1fr));
+}
+
+.nx-calendar-day {
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    padding: 6px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.032);
+    cursor: pointer;
+    outline: none;
+    overflow: hidden;
+    transition:
+        border-color 0.14s ease,
+        background 0.14s ease,
+        transform 0.14s ease;
+}
+
+.nx-calendar-day:hover,
+.nx-calendar-day:focus-visible {
+    border-color: rgba(var(--nx-calendar-accent-rgb, 100, 210, 255), 0.28);
+    background: rgba(255, 255, 255, 0.055);
+}
+
+.nx-calendar-day.is-selected {
+    border-color: rgba(var(--nx-calendar-accent-rgb, 100, 210, 255), 0.5);
+    background: rgba(var(--nx-calendar-accent-rgb, 100, 210, 255), 0.12);
+}
+
+.nx-calendar-day.is-today .nx-calendar-day-head span {
+    color: var(--nx-calendar-accent, #64d2ff);
+}
+
+.nx-calendar-day.is-muted {
+    opacity: 0.46;
+}
+
+.nx-calendar-day.can-drop {
+    border-style: dashed;
+}
+
+.nx-calendar-day.is-over,
+.nx-calendar-agenda-drop.is-over {
+    border-color: rgba(48, 209, 88, 0.58);
+    background: rgba(48, 209, 88, 0.09);
+}
+
+.nx-calendar-day-head {
+    flex: 0 0 auto;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+}
+
+.nx-calendar-day-head span {
+    font-size: 12px;
+    font-weight: 840;
+}
+
+.nx-calendar-day-head strong {
+    min-width: 19px;
+    height: 18px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.07);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    font-size: 10px;
+    color: var(--nx-calendar-accent, #64d2ff);
+}
+
+.nx-calendar-day-items {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: grid;
+    align-content: start;
+    gap: 4px;
+    overflow: hidden;
+}
+
+.nx-calendar-card {
+    position: relative;
+    min-width: 0;
+    display: grid;
+    grid-template-columns: 4px minmax(0, 1fr);
+    gap: 6px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.095);
+    background:
+        linear-gradient(90deg, color-mix(in srgb, var(--nx-calendar-card-color) 16%, transparent), transparent 72%),
+        rgba(255, 255, 255, 0.055);
+    cursor: grab;
+    overflow: hidden;
+}
+
+.nx-calendar-card:active {
+    cursor: grabbing;
+}
+
+.nx-calendar-card.is-dragging {
+    opacity: 0.42;
+}
+
+.nx-calendar-card.is-done {
+    opacity: 0.58;
+}
+
+.nx-calendar-card-rail {
+    width: 4px;
+    min-height: 100%;
+    background: var(--nx-calendar-card-color);
+    box-shadow: 0 0 12px color-mix(in srgb, var(--nx-calendar-card-color) 55%, transparent);
+}
+
+.nx-calendar-card-main {
+    min-width: 0;
+    display: grid;
+    gap: 4px;
+    padding: 6px 7px 6px 0;
+}
+
+.nx-calendar-card-month .nx-calendar-card-main {
+    gap: 2px;
+    padding: 4px 5px 4px 0;
+}
+
+.nx-calendar-card-title-row,
+.nx-calendar-card-meta {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.nx-calendar-card-title-row {
+    justify-content: space-between;
+}
+
+.nx-calendar-card-type,
+.nx-calendar-card-time,
+.nx-calendar-card-priority {
+    min-width: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 10px;
+    line-height: 1.1;
+    opacity: 0.72;
+    white-space: nowrap;
+}
+
+.nx-calendar-card-priority {
+    color: var(--nx-calendar-card-color);
+}
+
+.nx-calendar-card-title {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 12px;
+    font-weight: 780;
+    line-height: 1.24;
+    letter-spacing: 0;
+}
+
+.nx-calendar-card-month .nx-calendar-card-title {
+    font-size: 10.5px;
+}
+
+.nx-calendar-card-desc {
+    min-width: 0;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    font-size: 11px;
+    line-height: 1.35;
+    opacity: 0.6;
+}
+
+.nx-calendar-card-meta {
+    justify-content: space-between;
+    font-size: 10px;
+    opacity: 0.72;
+}
+
+.nx-calendar-card-meta span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.nx-calendar-card-grip {
+    flex: 0 0 auto;
+    opacity: 0.38;
+}
+
+.nx-calendar-more {
+    height: 20px;
+    display: flex;
+    align-items: center;
+    padding: 0 7px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.048);
+    border: 1px dashed rgba(255, 255, 255, 0.11);
+    color: var(--nx-calendar-accent, #64d2ff);
+    font-size: 10px;
+    font-weight: 780;
+}
+
+.nx-calendar-agenda-panel {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 10px;
+}
+
+.nx-calendar-agenda-head {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.nx-calendar-agenda-head div {
+    min-width: 0;
+    display: grid;
+    gap: 2px;
+}
+
+.nx-calendar-agenda-head span {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0;
+    opacity: 0.58;
+    font-weight: 840;
+}
+
+.nx-calendar-agenda-head strong {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 14px;
+    letter-spacing: 0;
+}
+
+.nx-calendar-agenda-drop {
+    flex: 1 1 auto;
+    min-height: 0;
+    margin-top: 8px;
+    padding: 2px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.nx-calendar-agenda-list {
+    height: 100%;
+    min-height: 0;
+    display: grid;
+    align-content: start;
+    gap: 7px;
+    overflow-y: auto;
+    padding-right: 3px;
+}
+
+.nx-calendar-empty {
+    height: 100%;
+    min-height: 140px;
+    display: grid;
+    place-items: center;
+    align-content: center;
+    gap: 8px;
+    border-radius: 8px;
+    border: 1px dashed rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.025);
+    color: rgba(255, 255, 255, 0.55);
+    font-size: 12px;
+}
+
+.nx-calendar-density-compact .nx-calendar-card-main {
+    gap: 2px;
+    padding-top: 4px;
+    padding-bottom: 4px;
+}
+
+.nx-calendar-density-compact .nx-calendar-card-desc,
+.nx-calendar-density-compact .nx-calendar-card-meta .nx-calendar-card-grip {
+    display: none;
+}
+
+.nx-calendar-density-compact .nx-calendar-day {
+    gap: 4px;
+    padding: 5px;
+}
+
+@media (max-width: 1250px) {
+    .nx-calendar-topbar {
+        flex-wrap: wrap;
+    }
+
+    .nx-calendar-nav {
+        flex: 1 1 320px;
+    }
+
+    .nx-calendar-controls {
+        flex: 1 1 100%;
+        justify-content: flex-start;
+    }
+}
+
+@media (max-width: 1080px) {
+    .nx-calendar-shell {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: minmax(520px, 1fr) minmax(220px, 0.45fr);
+        overflow-y: auto;
+    }
+
+    .nx-calendar-agenda-panel {
+        min-height: 220px;
+    }
+}
+
+@media (max-width: 760px) {
+    .nx-calendar-topbar,
+    .nx-calendar-stats,
+    .nx-calendar-shell {
+        padding-left: 8px;
+        padding-right: 8px;
+    }
+
+    .nx-calendar-composer {
+        flex-basis: 100%;
+        min-width: 0;
+        flex-wrap: wrap;
+    }
+
+    .nx-calendar-composer input {
+        flex-basis: 100%;
+    }
+
+    .nx-calendar-grid {
+        grid-template-rows: repeat(6, minmax(70px, 1fr));
+        gap: 4px;
+    }
+
+    .nx-calendar-weekdays {
+        gap: 4px;
+    }
+
+    .nx-calendar-card-title-row,
+    .nx-calendar-card-meta {
+        display: none;
+    }
+
+    .nx-calendar-import-panel {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+@media (max-width: 520px) {
+    .nx-calendar-title {
+        min-width: 116px;
+    }
+
+    .nx-calendar-title span {
+        max-width: 104px;
+    }
+
+    .nx-calendar-shell {
+        grid-template-rows: minmax(430px, 1fr) minmax(220px, 0.5fr);
+        gap: 8px;
+    }
+
+    .nx-calendar-month-panel {
+        padding: 6px;
+    }
+
+    .nx-calendar-weekdays span {
+        font-size: 9px;
+    }
+
+    .nx-calendar-grid {
+        grid-template-rows: repeat(6, minmax(58px, 1fr));
+    }
+
+    .nx-calendar-day {
+        padding: 4px;
+    }
+
+    .nx-calendar-day-head strong,
+    .nx-calendar-day-items {
+        display: none;
+    }
+}
+
+/* Calendar v1 polish: clearer month/agenda hierarchy and less cramped controls. */
+.nx-calendar-view {
+    --nx-calendar-task: #30d158;
+    --nx-calendar-reminder: #64d2ff;
+    --nx-calendar-warning: #ffd60a;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.nx-calendar-topbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 7px;
+    padding: 9px 10px;
+}
+
+.nx-calendar-toolbar-row {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.nx-calendar-toolbar-main {
+    justify-content: space-between;
+}
+
+.nx-calendar-nav {
+    flex: 0 1 auto;
+}
+
+.nx-calendar-title {
+    min-width: clamp(132px, 18vw, 210px);
+    height: 30px;
+}
+
+.nx-calendar-selected-pill,
+.nx-calendar-composer-date {
+    min-width: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 30px;
+    padding: 0 9px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.095);
+    background: rgba(255, 255, 255, 0.045);
+    font-size: 12px;
+    font-weight: 760;
+    letter-spacing: 0;
+}
+
+.nx-calendar-selected-pill {
+    flex: 0 1 140px;
+    color: rgba(255, 255, 255, 0.78);
+}
+
+.nx-calendar-selected-pill span,
+.nx-calendar-composer-date span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.nx-calendar-selected-pill strong {
+    min-width: 19px;
+    height: 18px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 7px;
+    color: var(--nx-calendar-accent, #64d2ff);
+    background: rgba(var(--nx-calendar-accent-rgb, 100, 210, 255), 0.14);
+}
+
+.nx-calendar-controls {
+    flex: 1 1 auto;
+    justify-content: flex-end;
+    gap: 6px;
+}
+
+.nx-calendar-filter-field {
+    max-width: 176px;
+}
+
+.nx-calendar-filter-field select {
+    width: 100%;
+}
+
+.nx-calendar-composer {
+    flex: 0 0 auto;
+    min-width: 0;
+    display: grid;
+    grid-template-columns:
+        auto auto minmax(160px, 1fr) auto 94px minmax(96px, 120px)
+        minmax(100px, 150px) auto;
+    gap: 6px;
+    align-items: center;
+}
+
+.nx-calendar-composer .nx-calendar-segment {
+    min-width: 0;
+}
+
+.nx-calendar-composer-date {
+    color: rgba(255, 255, 255, 0.72);
+}
+
+.nx-calendar-title-input {
+    min-width: 0;
+}
+
+.nx-calendar-clear-button {
+    opacity: 0.78;
+}
+
+.nx-calendar-add-button:disabled,
+.nx-calendar-import-panel button:disabled {
+    opacity: 0.43;
+    cursor: not-allowed;
+}
+
+.nx-calendar-clear-filter {
+    color: rgba(255, 255, 255, 0.72);
+}
+
+.nx-calendar-import-panel {
+    grid-template-columns: minmax(180px, 0.48fr) minmax(300px, 1fr);
+    gap: 10px;
+    padding: 10px;
+}
+
+.nx-calendar-import-copy {
+    align-content: center;
+}
+
+.nx-calendar-import-fields {
+    flex-wrap: wrap;
+}
+
+.nx-calendar-import-panel textarea {
+    min-height: 86px;
+}
+
+.nx-calendar-stats {
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.nx-calendar-stats span {
+    min-height: 26px;
+}
+
+.nx-calendar-shell {
+    grid-template-columns: minmax(0, 1fr) minmax(310px, 380px);
+}
+
+.nx-calendar-panel-head {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 2px 2px 9px;
+}
+
+.nx-calendar-panel-head > div:first-child,
+.nx-calendar-agenda-head > div:first-child {
+    min-width: 0;
+    display: grid;
+    gap: 3px;
+}
+
+.nx-calendar-panel-head span,
+.nx-calendar-agenda-head > div:first-child > span {
+    color: rgba(255, 255, 255, 0.52);
+    font-size: 10px;
+    font-weight: 840;
+    letter-spacing: 0;
+    text-transform: uppercase;
+}
+
+.nx-calendar-panel-head strong {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 13px;
+    font-weight: 850;
+    letter-spacing: 0;
+}
+
+.nx-calendar-panel-metrics,
+.nx-calendar-agenda-kpis,
+.nx-calendar-day-counts,
+.nx-calendar-agenda-actions,
+.nx-calendar-empty-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    min-width: 0;
+}
+
+.nx-calendar-panel-metrics span,
+.nx-calendar-agenda-kpis span,
+.nx-calendar-day-counts span {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    min-width: 0;
+    height: 21px;
+    padding: 0 6px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    background: rgba(255, 255, 255, 0.045);
+    font-size: 10px;
+    font-weight: 780;
+    letter-spacing: 0;
+    color: rgba(255, 255, 255, 0.72);
+}
+
+.nx-calendar-day-counts {
+    justify-content: flex-end;
+}
+
+.nx-calendar-day-counts span {
+    height: 18px;
+    padding: 0 5px;
+}
+
+.nx-calendar-day-counts .is-task,
+.nx-calendar-card-task .nx-calendar-card-type {
+    color: var(--nx-calendar-task);
+}
+
+.nx-calendar-day-counts .is-reminder,
+.nx-calendar-card-reminder .nx-calendar-card-type {
+    color: var(--nx-calendar-reminder);
+}
+
+.nx-calendar-weekdays {
+    padding-top: 1px;
+}
+
+.nx-calendar-grid {
+    grid-template-rows: repeat(6, minmax(92px, 1fr));
+}
+
+.nx-calendar-day {
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.044), rgba(255, 255, 255, 0.02));
+}
+
+.nx-calendar-day.is-selected {
+    box-shadow: inset 0 0 0 1px rgba(var(--nx-calendar-accent-rgb, 100, 210, 255), 0.16);
+}
+
+.nx-calendar-day.is-today .nx-calendar-day-number {
+    min-width: 23px;
+    height: 23px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    color: #041014;
+    background: var(--nx-calendar-accent, #64d2ff);
+}
+
+.nx-calendar-day-empty {
+    height: 22px;
+    display: flex;
+    align-items: center;
+    padding: 0 7px;
+    border-radius: 8px;
+    border: 1px dashed rgba(var(--nx-calendar-accent-rgb, 100, 210, 255), 0.24);
+    color: rgba(255, 255, 255, 0.52);
+    font-size: 10px;
+    font-weight: 760;
+}
+
+.nx-calendar-card {
+    border-color: color-mix(in srgb, var(--nx-calendar-card-color) 26%, rgba(255, 255, 255, 0.08));
+    background:
+        linear-gradient(90deg, color-mix(in srgb, var(--nx-calendar-card-color) 18%, transparent), transparent 74%),
+        rgba(255, 255, 255, 0.055);
+}
+
+.nx-calendar-card-reminder {
+    --nx-calendar-card-color: var(--nx-calendar-reminder);
+    background:
+        linear-gradient(90deg, rgba(100, 210, 255, 0.17), transparent 74%),
+        rgba(255, 255, 255, 0.05);
+}
+
+.nx-calendar-card-task {
+    background:
+        linear-gradient(90deg, color-mix(in srgb, var(--nx-calendar-card-color) 20%, transparent), transparent 74%),
+        rgba(255, 255, 255, 0.058);
+}
+
+.nx-calendar-card.is-overdue {
+    border-color: rgba(255, 69, 58, 0.34);
+}
+
+.nx-calendar-card.is-overdue .nx-calendar-card-rail {
+    background: #ff453a;
+}
+
+.nx-calendar-card-meta .is-hot {
+    color: #ff9f0a;
+}
+
+.nx-calendar-card-type {
+    max-width: 84px;
+    padding: 2px 5px;
+    border-radius: 7px;
+    background: color-mix(in srgb, currentColor 14%, transparent);
+    opacity: 1;
+}
+
+.nx-calendar-card-type span,
+.nx-calendar-card-time {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.nx-calendar-card-time {
+    max-width: 64px;
+}
+
+.nx-calendar-card-month .nx-calendar-card-type {
+    width: 22px;
+    justify-content: center;
+}
+
+.nx-calendar-card-month .nx-calendar-card-type span {
+    display: none;
+}
+
+.nx-calendar-agenda-panel {
+    padding: 11px;
+}
+
+.nx-calendar-agenda-head {
+    align-items: stretch;
+}
+
+.nx-calendar-agenda-head strong {
+    font-size: 15px;
+    line-height: 1.22;
+}
+
+.nx-calendar-agenda-kpis {
+    margin-top: 2px;
+    flex-wrap: wrap;
+}
+
+.nx-calendar-agenda-head .nx-calendar-agenda-kpis,
+.nx-calendar-agenda-head .nx-calendar-agenda-actions {
+    display: inline-flex;
+}
+
+.nx-calendar-agenda-head .nx-calendar-agenda-actions {
+    flex: 0 0 auto;
+    justify-content: flex-end;
+    align-self: start;
+}
+
+.nx-calendar-agenda-list {
+    gap: 8px;
+}
+
+.nx-calendar-empty {
+    padding: 16px;
+    text-align: center;
+}
+
+.nx-calendar-empty span {
+    color: rgba(255, 255, 255, 0.84);
+    font-size: 13px;
+    font-weight: 830;
+}
+
+.nx-calendar-empty small {
+    max-width: 260px;
+    color: rgba(255, 255, 255, 0.54);
+    font-size: 11px;
+    line-height: 1.45;
+}
+
+.nx-calendar-empty-actions {
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.nx-calendar-empty-actions button {
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    padding: 0 9px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.065);
+    color: inherit;
+    font-size: 11px;
+    font-weight: 760;
+    letter-spacing: 0;
+    cursor: pointer;
+}
+
+.nx-calendar-density-compact .nx-calendar-toolbar-row {
+    gap: 6px;
+}
+
+.nx-calendar-density-compact .nx-calendar-composer {
+    gap: 5px;
+}
+
+.nx-calendar-density-compact .nx-calendar-grid {
+    grid-template-rows: repeat(6, minmax(72px, 1fr));
+}
+
+@media (max-width: 1320px) {
+    .nx-calendar-toolbar-main {
+        flex-wrap: wrap;
+    }
+
+    .nx-calendar-controls {
+        flex: 1 1 100%;
+        justify-content: flex-start;
+    }
+
+    .nx-calendar-composer {
+        grid-template-columns:
+            auto auto minmax(220px, 1fr) auto 94px minmax(96px, 120px)
+            minmax(96px, 140px) auto;
+    }
+}
+
+@media (max-width: 1080px) {
+    .nx-calendar-shell {
+        grid-template-rows: minmax(520px, 1fr) minmax(240px, 0.45fr);
+    }
+
+    .nx-calendar-composer {
+        grid-template-columns: auto auto minmax(200px, 1fr) auto 94px minmax(96px, 128px) auto;
+    }
+
+    .nx-calendar-tags-input {
+        display: none;
+    }
+}
+
+@media (max-width: 820px) {
+    .nx-calendar-toolbar-row,
+    .nx-calendar-nav,
+    .nx-calendar-controls {
+        flex-wrap: wrap;
+    }
+
+    .nx-calendar-selected-pill {
+        flex: 1 1 120px;
+    }
+
+    .nx-calendar-composer {
+        grid-template-columns: auto auto minmax(0, 1fr) auto;
+    }
+
+    .nx-calendar-time-input,
+    .nx-calendar-composer select,
+    .nx-calendar-tags-input,
+    .nx-calendar-add-button {
+        width: 100%;
+    }
+
+    .nx-calendar-import-panel {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .nx-calendar-import-fields {
+        justify-content: flex-start;
+    }
+}
+
+@media (max-width: 640px) {
+    .nx-calendar-topbar {
+        padding: 8px;
+    }
+
+    .nx-calendar-title {
+        flex: 1 1 132px;
+    }
+
+    .nx-calendar-selected-pill {
+        display: none;
+    }
+
+    .nx-calendar-filter-field {
+        flex: 1 1 142px;
+        max-width: none;
+    }
+
+    .nx-calendar-composer {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .nx-calendar-title-input,
+    .nx-calendar-composer-date {
+        grid-column: 1 / -1;
+    }
+
+    .nx-calendar-clear-button {
+        display: none;
+    }
+
+    .nx-calendar-grid {
+        grid-template-rows: repeat(6, minmax(62px, 1fr));
+    }
+
+    .nx-calendar-day-counts {
+        display: none;
+    }
+
+    .nx-calendar-agenda-head {
+        flex-direction: column;
+    }
+
+    .nx-calendar-agenda-actions {
+        justify-content: flex-start;
+    }
+}
+
+@media (max-width: 460px) {
+    .nx-calendar-nav,
+    .nx-calendar-controls,
+    .nx-calendar-composer {
+        gap: 5px;
+    }
+
+    .nx-calendar-today-button,
+    .nx-calendar-import-button,
+    .nx-calendar-mini-button,
+    .nx-calendar-add-button {
+        padding: 0 8px;
+    }
+
+    .nx-calendar-composer {
+        grid-template-columns: 1fr;
+    }
+
+    .nx-calendar-grid {
+        grid-template-rows: repeat(6, minmax(54px, 1fr));
+    }
+
+    .nx-calendar-panel-head {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 6px;
+    }
+}
+
+/* Calendar v1 finish pass: compact controls, stronger hierarchy, clearer priority signals. */
+.nx-calendar-view {
+    --nx-calendar-overdue: #ff453a;
+    --nx-calendar-surface-soft: rgba(255, 255, 255, 0.044);
+    --nx-calendar-surface-strong: rgba(255, 255, 255, 0.075);
+}
+
+.nx-calendar-topbar {
+    gap: 6px;
+    padding: 8px 10px;
+    border-bottom-color: rgba(255, 255, 255, 0.075);
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.052), rgba(255, 255, 255, 0.018)),
+        rgba(0, 0, 0, 0.08);
+}
+
+.nx-calendar-toolbar-row {
+    gap: 6px;
+}
+
+.nx-calendar-toolbar-main {
+    min-height: 28px;
+}
+
+.nx-calendar-nav {
+    gap: 5px;
+}
+
+.nx-calendar-title {
+    min-width: clamp(128px, 16vw, 196px);
+    height: 28px;
+    padding: 0 8px;
+    border-color: rgba(var(--nx-calendar-accent-rgb, 100, 210, 255), 0.2);
+    background:
+        linear-gradient(90deg, rgba(var(--nx-calendar-accent-rgb, 100, 210, 255), 0.12), transparent 84%),
+        rgba(255, 255, 255, 0.055);
+}
+
+.nx-calendar-topbar .nx-calendar-icon-button,
+.nx-calendar-topbar .nx-calendar-today-button,
+.nx-calendar-topbar .nx-calendar-add-button,
+.nx-calendar-topbar .nx-calendar-import-button,
+.nx-calendar-topbar .nx-calendar-mini-button {
+    height: 28px;
+    border-radius: 7px;
+    font-size: 11px;
+}
+
+.nx-calendar-topbar .nx-calendar-icon-button {
+    width: 28px;
+}
+
+.nx-calendar-topbar .nx-calendar-segment {
+    padding: 2px;
+    border-radius: 7px;
+}
+
+.nx-calendar-topbar .nx-calendar-segment button {
+    height: 22px;
+    padding: 0 7px;
+    font-size: 11px;
+}
+
+.nx-calendar-selected-pill,
+.nx-calendar-composer-date {
+    height: 28px;
+    border-radius: 7px;
+    background: rgba(255, 255, 255, 0.052);
+}
+
+.nx-calendar-selected-pill {
+    flex-basis: 128px;
+}
+
+.nx-calendar-controls {
+    gap: 5px;
+}
+
+.nx-calendar-filter-field {
+    max-width: 166px;
+    height: 28px;
+    border-radius: 7px;
+}
+
+.nx-calendar-topbar .nx-calendar-composer input,
+.nx-calendar-topbar .nx-calendar-composer select,
+.nx-calendar-topbar .nx-calendar-controls select {
+    height: 28px;
+    border-radius: 7px;
+    font-size: 11px;
+}
+
+.nx-calendar-composer {
+    grid-template-columns:
+        auto auto minmax(150px, 1fr) auto 88px minmax(92px, 114px)
+        minmax(96px, 136px) auto;
+    gap: 5px;
+}
+
+.nx-calendar-time-input {
+    flex-basis: 88px !important;
+}
+
+.nx-calendar-shell {
+    grid-template-columns: minmax(0, 1.08fr) minmax(320px, 0.42fr);
+    gap: 12px;
+    padding: 10px;
+}
+
+.nx-calendar-month-panel,
+.nx-calendar-agenda-panel {
+    border-color: rgba(255, 255, 255, 0.09) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.065);
+}
+
+.nx-calendar-month-panel {
+    padding: 10px;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.052), rgba(255, 255, 255, 0.018)),
+        rgba(8, 10, 14, 0.42);
+}
+
+.nx-calendar-agenda-panel {
+    padding: 11px;
+    background:
+        linear-gradient(180deg, rgba(var(--nx-calendar-accent-rgb, 100, 210, 255), 0.068), transparent 34%),
+        rgba(8, 10, 14, 0.48);
+}
+
+.nx-calendar-panel-head,
+.nx-calendar-agenda-head {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.075);
+}
+
+.nx-calendar-panel-head {
+    padding: 1px 1px 10px;
+    margin-bottom: 8px;
+}
+
+.nx-calendar-agenda-head {
+    padding-bottom: 10px;
+}
+
+.nx-calendar-panel-head strong,
+.nx-calendar-agenda-head strong {
+    color: rgba(255, 255, 255, 0.92);
+}
+
+.nx-calendar-panel-metrics span,
+.nx-calendar-agenda-kpis span,
+.nx-calendar-day-counts span {
+    border-color: rgba(255, 255, 255, 0.105);
+    background: rgba(255, 255, 255, 0.058);
+}
+
+.nx-calendar-panel-metrics span.is-priority-high,
+.nx-calendar-agenda-kpis span.is-priority-high,
+.nx-calendar-day-counts span.is-priority-high {
+    color: #ff6b5f;
+    border-color: rgba(255, 69, 58, 0.26);
+    background: rgba(255, 69, 58, 0.11);
+}
+
+.nx-calendar-day-counts span.is-overdue {
+    color: #ff9f0a;
+    border-color: rgba(255, 159, 10, 0.26);
+    background: rgba(255, 159, 10, 0.11);
+}
+
+.nx-calendar-weekdays {
+    padding-bottom: 7px;
+}
+
+.nx-calendar-weekdays span {
+    color: rgba(255, 255, 255, 0.58);
+    opacity: 1;
+}
+
+.nx-calendar-grid {
+    gap: 7px;
+    grid-template-rows: repeat(6, minmax(92px, 1fr));
+}
+
+.nx-calendar-day {
+    position: relative;
+    gap: 5px;
+    padding: 7px;
+    border-color: rgba(255, 255, 255, 0.09);
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.052), rgba(255, 255, 255, 0.018)),
+        rgba(255, 255, 255, 0.018);
+}
+
+.nx-calendar-day::after {
+    content: "";
+    position: absolute;
+    right: 7px;
+    bottom: 5px;
+    left: 7px;
+    height: 1px;
+    border-radius: 999px;
+    background: rgba(var(--nx-calendar-accent-rgb, 100, 210, 255), 0.4);
+    opacity: 0;
+}
+
+.nx-calendar-day.has-items {
+    background:
+        linear-gradient(180deg, var(--nx-calendar-surface-strong), rgba(255, 255, 255, 0.024)),
+        rgba(255, 255, 255, 0.022);
+}
+
+.nx-calendar-day.has-priority {
+    border-color: rgba(255, 69, 58, 0.18);
+}
+
+.nx-calendar-day.has-overdue::after,
+.nx-calendar-day.is-selected::after {
+    opacity: 1;
+}
+
+.nx-calendar-day.has-overdue::after {
+    background: rgba(255, 159, 10, 0.46);
+}
+
+.nx-calendar-day:hover,
+.nx-calendar-day:focus-visible {
+    transform: translateY(-1px);
+}
+
+.nx-calendar-day.is-selected {
+    border-color: rgba(var(--nx-calendar-accent-rgb, 100, 210, 255), 0.54);
+    background:
+        linear-gradient(180deg, rgba(var(--nx-calendar-accent-rgb, 100, 210, 255), 0.15), rgba(255, 255, 255, 0.028)),
+        rgba(var(--nx-calendar-accent-rgb, 100, 210, 255), 0.055);
+}
+
+.nx-calendar-day.is-muted {
+    opacity: 0.54;
+    background: rgba(255, 255, 255, 0.016);
+}
+
+.nx-calendar-day-head {
+    align-items: flex-start;
+}
+
+.nx-calendar-day-number {
+    line-height: 1;
+}
+
+.nx-calendar-day-items {
+    gap: 4px;
+}
+
+.nx-calendar-card {
+    grid-template-columns: 5px minmax(0, 1fr);
+    border-color: color-mix(in srgb, var(--nx-calendar-card-color) 34%, rgba(255, 255, 255, 0.08));
+    background:
+        linear-gradient(90deg, color-mix(in srgb, var(--nx-calendar-card-color) 18%, transparent), transparent 78%),
+        rgba(255, 255, 255, 0.06);
+    box-shadow: 0 7px 18px rgba(0, 0, 0, 0.11);
+}
+
+.nx-calendar-card:hover {
+    border-color: color-mix(in srgb, var(--nx-calendar-card-color) 46%, rgba(255, 255, 255, 0.12));
+    background:
+        linear-gradient(90deg, color-mix(in srgb, var(--nx-calendar-card-color) 24%, transparent), transparent 78%),
+        rgba(255, 255, 255, 0.07);
+}
+
+.nx-calendar-card-rail {
+    width: 5px;
+}
+
+.nx-calendar-card-type,
+.nx-calendar-card-priority {
+    height: 17px;
+    padding: 0 5px;
+    border-radius: 7px;
+    border: 1px solid color-mix(in srgb, currentColor 22%, transparent);
+    background: color-mix(in srgb, currentColor 12%, transparent);
+    opacity: 1;
+}
+
+.nx-calendar-card-priority {
+    flex: 0 1 auto;
+    color: var(--nx-calendar-card-color);
+}
+
+.nx-calendar-card-priority.is-priority-high {
+    color: #ff6b5f;
+    border-color: rgba(255, 69, 58, 0.28);
+    background: rgba(255, 69, 58, 0.12);
+}
+
+.nx-calendar-card-priority.is-priority-mid {
+    color: #ffd60a;
+}
+
+.nx-calendar-card-priority.is-priority-low {
+    color: #30d158;
+}
+
+.nx-calendar-card-status {
+    color: rgba(255, 255, 255, 0.62);
+}
+
+.nx-calendar-card-status.is-hot {
+    color: #ff9f0a;
+}
+
+.nx-calendar-card-title {
+    color: rgba(255, 255, 255, 0.91);
+}
+
+.nx-calendar-card-month {
+    min-height: 47px;
+}
+
+.nx-calendar-card-month .nx-calendar-card-main {
+    padding-right: 6px;
+}
+
+.nx-calendar-card-month .nx-calendar-card-type {
+    width: 23px;
+    padding: 0;
+}
+
+.nx-calendar-card-month .nx-calendar-card-priority {
+    max-width: 64px;
+}
+
+.nx-calendar-more,
+.nx-calendar-day-empty {
+    background: rgba(255, 255, 255, 0.056);
+}
+
+.nx-calendar-agenda-list {
+    gap: 9px;
+    padding-right: 4px;
+}
+
+.nx-calendar-agenda-list .nx-calendar-card {
+    min-height: 72px;
+}
+
+.nx-calendar-empty {
+    border-color: rgba(var(--nx-calendar-accent-rgb, 100, 210, 255), 0.18);
+    background:
+        linear-gradient(180deg, rgba(var(--nx-calendar-accent-rgb, 100, 210, 255), 0.07), transparent 70%),
+        rgba(255, 255, 255, 0.026);
+}
+
+.nx-calendar-density-compact .nx-calendar-grid {
+    grid-template-rows: repeat(6, minmax(72px, 1fr));
+}
+
+.nx-calendar-density-compact .nx-calendar-day {
+    padding: 5px;
+}
+
+.nx-calendar-density-compact .nx-calendar-card {
+    min-height: 0;
+    box-shadow: none;
+}
+
+@media (max-width: 1320px) {
+    .nx-calendar-composer {
+        grid-template-columns:
+            auto auto minmax(210px, 1fr) auto 88px minmax(92px, 112px)
+            minmax(92px, 128px) auto;
+    }
+}
+
+@media (max-width: 1080px) {
+    .nx-calendar-shell {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: minmax(500px, 1fr) minmax(250px, 0.44fr);
+        overflow-y: auto;
+    }
+
+    .nx-calendar-agenda-panel {
+        min-height: 250px;
+    }
+
+    .nx-calendar-composer {
+        grid-template-columns: auto auto minmax(190px, 1fr) auto 88px minmax(92px, 118px) auto;
+    }
+}
+
+@media (max-width: 820px) {
+    .nx-calendar-toolbar-main {
+        align-items: stretch;
+    }
+
+    .nx-calendar-controls {
+        flex-basis: 100%;
+    }
+
+    .nx-calendar-card-title-row,
+    .nx-calendar-agenda-list .nx-calendar-card-meta {
+        display: flex;
+    }
+
+    .nx-calendar-card-month .nx-calendar-card-meta {
+        display: none;
+    }
+
+    .nx-calendar-grid {
+        gap: 5px;
+    }
+}
+
+@media (max-width: 640px) {
+    .nx-calendar-topbar {
+        padding: 7px 8px;
+    }
+
+    .nx-calendar-nav {
+        flex: 1 1 100%;
+    }
+
+    .nx-calendar-title {
+        min-width: 0;
+    }
+
+    .nx-calendar-controls {
+        gap: 5px;
+    }
+
+    .nx-calendar-filter-field,
+    .nx-calendar-controls .nx-calendar-segment {
+        flex: 1 1 136px;
+    }
+
+    .nx-calendar-composer {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    }
+
+    .nx-calendar-grid {
+        grid-template-rows: repeat(6, minmax(60px, 1fr));
+    }
+
+    .nx-calendar-day {
+        padding: 5px;
+    }
+
+    .nx-calendar-card-month {
+        min-height: 32px;
+    }
+
+    .nx-calendar-card-month .nx-calendar-card-title-row {
+        display: none;
+    }
+
+    .nx-calendar-agenda-head {
+        gap: 8px;
+    }
+}
+
+@media (max-width: 460px) {
+    .nx-calendar-toolbar-row,
+    .nx-calendar-controls,
+    .nx-calendar-composer {
+        gap: 5px;
+    }
+
+    .nx-calendar-composer {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .nx-calendar-shell {
+        gap: 8px;
+        padding: 8px;
+    }
+
+    .nx-calendar-month-panel,
+    .nx-calendar-agenda-panel {
+        padding: 8px;
+    }
+
+    .nx-calendar-grid {
+        grid-template-rows: repeat(6, minmax(52px, 1fr));
+    }
+
+    .nx-calendar-day-counts,
+    .nx-calendar-card-month .nx-calendar-card-meta {
+        display: none;
+    }
+
+    .nx-calendar-agenda-list .nx-calendar-card-meta {
+        display: flex;
+    }
+}
+
+/* Calendar day design pass: larger cells, richer item hierarchy, clearer status chips. */
+.nx-calendar-view {
+    --nx-calendar-done: #8ee7ad;
+    --nx-calendar-muted-ink: rgba(255, 255, 255, 0.62);
+    --nx-calendar-soft-line: rgba(255, 255, 255, 0.11);
+}
+
+.nx-calendar-grid {
+    gap: 8px;
+    grid-template-rows: repeat(6, minmax(108px, 1fr));
+}
+
+.nx-calendar-day {
+    gap: 7px;
+    padding: 8px;
+    border-radius: 10px;
+    border-color: rgba(255, 255, 255, 0.105);
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.062), rgba(255, 255, 255, 0.021)),
+        rgba(255, 255, 255, 0.018);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.045),
+        0 8px 20px rgba(0, 0, 0, 0.08);
+}
+
+.nx-calendar-day.has-items {
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.078), rgba(255, 255, 255, 0.026)),
+        linear-gradient(135deg, rgba(var(--nx-calendar-accent-rgb, 100, 210, 255), 0.055), transparent 64%),
+        rgba(255, 255, 255, 0.022);
+}
+
+.nx-calendar-day:hover,
+.nx-calendar-day:focus-visible {
+    border-color: rgba(var(--nx-calendar-accent-rgb, 100, 210, 255), 0.34);
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.086), rgba(255, 255, 255, 0.032)),
+        rgba(255, 255, 255, 0.028);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.06),
+        0 10px 24px rgba(0, 0, 0, 0.12);
+}
+
+.nx-calendar-day.is-selected {
+    border-color: rgba(var(--nx-calendar-accent-rgb, 100, 210, 255), 0.66);
+    background:
+        linear-gradient(180deg, rgba(var(--nx-calendar-accent-rgb, 100, 210, 255), 0.18), rgba(255, 255, 255, 0.035)),
+        rgba(var(--nx-calendar-accent-rgb, 100, 210, 255), 0.068);
+    box-shadow:
+        inset 0 0 0 1px rgba(var(--nx-calendar-accent-rgb, 100, 210, 255), 0.24),
+        inset 0 1px 0 rgba(255, 255, 255, 0.08),
+        0 10px 28px rgba(0, 0, 0, 0.13);
+}
+
+.nx-calendar-day.is-today .nx-calendar-day-number {
+    min-width: 27px;
+    height: 25px;
+    border-color: rgba(255, 255, 255, 0.2);
+    color: #061016;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.34), transparent),
+        var(--nx-calendar-accent, #64d2ff);
+    box-shadow: 0 0 0 3px rgba(var(--nx-calendar-accent-rgb, 100, 210, 255), 0.14);
+}
+
+.nx-calendar-day.is-muted {
+    opacity: 0.5;
+}
+
+.nx-calendar-day.can-drop {
+    border-style: dashed;
+    border-color: rgba(48, 209, 88, 0.42);
+}
+
+.nx-calendar-day.is-over,
+.nx-calendar-agenda-drop.is-over {
+    border-color: rgba(48, 209, 88, 0.66);
+    background:
+        linear-gradient(180deg, rgba(48, 209, 88, 0.15), rgba(48, 209, 88, 0.055)),
+        rgba(48, 209, 88, 0.035);
+}
+
+.nx-calendar-day::after {
+    right: 8px;
+    bottom: 6px;
+    left: 8px;
+    height: 2px;
+}
+
+.nx-calendar-day.has-overdue::after {
+    background: rgba(255, 159, 10, 0.58);
+}
+
+.nx-calendar-day-head {
+    align-items: center;
+    gap: 8px;
+    min-height: 26px;
+}
+
+.nx-calendar-day-number {
+    min-width: 25px;
+    height: 24px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9px;
+    border: 1px solid rgba(255, 255, 255, 0.095);
+    background: rgba(255, 255, 255, 0.06);
+    font-size: 13px;
+    font-weight: 880;
+    line-height: 1;
+}
+
+.nx-calendar-day-counts {
+    flex: 1 1 auto;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 4px;
+    max-width: calc(100% - 32px);
+}
+
+.nx-calendar-day-counts span {
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 850;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.nx-calendar-day-items {
+    gap: 5px;
+}
+
+.nx-calendar-card {
+    grid-template-columns: 6px minmax(0, 1fr);
+    border-radius: 10px;
+    border-color: color-mix(in srgb, var(--nx-calendar-card-color) 38%, rgba(255, 255, 255, 0.09));
+    background:
+        linear-gradient(90deg, color-mix(in srgb, var(--nx-calendar-card-color) 24%, transparent), transparent 78%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.072), rgba(255, 255, 255, 0.044));
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.055),
+        0 8px 20px rgba(0, 0, 0, 0.13);
+}
+
+.nx-calendar-card:hover {
+    border-color: color-mix(in srgb, var(--nx-calendar-card-color) 54%, rgba(255, 255, 255, 0.14));
+    background:
+        linear-gradient(90deg, color-mix(in srgb, var(--nx-calendar-card-color) 30%, transparent), transparent 78%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.084), rgba(255, 255, 255, 0.05));
+}
+
+.nx-calendar-card-rail {
+    width: 6px;
+}
+
+.nx-calendar-card-main {
+    gap: 5px;
+    padding: 7px 8px 7px 0;
+}
+
+.nx-calendar-card-title-row,
+.nx-calendar-card-meta {
+    gap: 6px;
+}
+
+.nx-calendar-card-type,
+.nx-calendar-card-time,
+.nx-calendar-card-priority,
+.nx-calendar-card-status {
+    height: 20px;
+    min-width: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0 7px;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, currentColor 24%, transparent);
+    background: color-mix(in srgb, currentColor 12%, transparent);
+    font-size: 10.5px;
+    font-weight: 820;
+    line-height: 1;
+    opacity: 1;
+}
+
+.nx-calendar-card-time {
+    flex: 0 0 auto;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.nx-calendar-card-title {
+    font-size: 13px;
+    font-weight: 850;
+    line-height: 1.22;
+}
+
+.nx-calendar-card-desc {
+    color: rgba(255, 255, 255, 0.62);
+    font-size: 11.5px;
+    line-height: 1.36;
+}
+
+.nx-calendar-card-meta {
+    align-items: center;
+    justify-content: flex-start;
+    color: var(--nx-calendar-muted-ink);
+    opacity: 1;
+}
+
+.nx-calendar-card-status {
+    flex: 0 1 auto;
+    color: rgba(255, 255, 255, 0.66);
+}
+
+.nx-calendar-card-status.is-status-overdue {
+    color: #ffb14a;
+    border-color: rgba(255, 159, 10, 0.3);
+    background: rgba(255, 159, 10, 0.12);
+}
+
+.nx-calendar-card-status.is-status-done {
+    color: var(--nx-calendar-done);
+    border-color: rgba(142, 231, 173, 0.26);
+    background: rgba(48, 209, 88, 0.1);
+}
+
+.nx-calendar-card-status.is-status-doing,
+.nx-calendar-card-status.is-status-snoozed {
+    color: #ffd66b;
+    border-color: rgba(255, 214, 10, 0.24);
+    background: rgba(255, 214, 10, 0.1);
+}
+
+.nx-calendar-card-status.is-status-todo,
+.nx-calendar-card-status.is-status-once {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.nx-calendar-card-priority {
+    margin-left: auto;
+}
+
+.nx-calendar-card-priority.is-priority-time {
+    color: var(--nx-calendar-reminder);
+    border-color: rgba(100, 210, 255, 0.26);
+    background: rgba(100, 210, 255, 0.1);
+}
+
+.nx-calendar-card.is-done {
+    opacity: 0.72;
+    filter: saturate(0.82);
+}
+
+.nx-calendar-card.is-done .nx-calendar-card-title {
+    color: rgba(255, 255, 255, 0.66);
+    text-decoration: line-through;
+    text-decoration-color: rgba(142, 231, 173, 0.55);
+}
+
+.nx-calendar-card.is-overdue {
+    border-color: rgba(255, 159, 10, 0.38);
+}
+
+.nx-calendar-card.is-overdue .nx-calendar-card-rail {
+    background: #ff9f0a;
+    box-shadow: 0 0 16px rgba(255, 159, 10, 0.34);
+}
+
+.nx-calendar-card-month {
+    min-height: 50px;
+}
+
+.nx-calendar-card-month .nx-calendar-card-main {
+    gap: 3px;
+    padding: 5px 7px 5px 0;
+}
+
+.nx-calendar-card-month .nx-calendar-card-title {
+    font-size: 11.5px;
+    line-height: 1.16;
+}
+
+.nx-calendar-card-month .nx-calendar-card-type,
+.nx-calendar-card-month .nx-calendar-card-time,
+.nx-calendar-card-month .nx-calendar-card-priority,
+.nx-calendar-card-month .nx-calendar-card-status {
+    height: 18px;
+    padding: 0 5px;
+    font-size: 9.5px;
+}
+
+.nx-calendar-card-month .nx-calendar-card-type {
+    width: 25px;
+}
+
+.nx-calendar-card-month .nx-calendar-card-time {
+    max-width: 62px;
+}
+
+.nx-calendar-card-month .nx-calendar-card-status {
+    max-width: 70px;
+}
+
+.nx-calendar-more,
+.nx-calendar-day-empty {
+    min-height: 22px;
+    border-color: var(--nx-calendar-soft-line);
+    background: rgba(255, 255, 255, 0.064);
+    font-weight: 820;
+}
+
+.nx-calendar-agenda-panel {
+    padding: 12px;
+}
+
+.nx-calendar-agenda-head {
+    gap: 12px;
+    padding-bottom: 12px;
+}
+
+.nx-calendar-agenda-kpis {
+    gap: 5px;
+}
+
+.nx-calendar-agenda-drop {
+    margin-top: 10px;
+}
+
+.nx-calendar-agenda-list {
+    gap: 10px;
+    padding-right: 5px;
+}
+
+.nx-calendar-agenda-list .nx-calendar-card {
+    min-height: 94px;
+}
+
+.nx-calendar-agenda-list .nx-calendar-card-main {
+    padding: 10px 11px 10px 0;
+}
+
+.nx-calendar-agenda-list .nx-calendar-card-title {
+    font-size: 14px;
+}
+
+.nx-calendar-agenda-list .nx-calendar-card-meta {
+    flex-wrap: wrap;
+}
+
+.nx-calendar-density-compact .nx-calendar-grid {
+    grid-template-rows: repeat(6, minmax(82px, 1fr));
+}
+
+.nx-calendar-density-compact .nx-calendar-day {
+    gap: 5px;
+    padding: 6px;
+}
+
+.nx-calendar-density-compact .nx-calendar-day-number {
+    min-width: 22px;
+    height: 22px;
+    font-size: 12px;
+}
+
+.nx-calendar-density-compact .nx-calendar-card {
+    grid-template-columns: 5px minmax(0, 1fr);
+}
+
+.nx-calendar-density-compact .nx-calendar-card-rail {
+    width: 5px;
+}
+
+.nx-calendar-density-compact .nx-calendar-card-month {
+    min-height: 39px;
+}
+
+.nx-calendar-density-compact .nx-calendar-card-month .nx-calendar-card-main {
+    padding-block: 4px;
+}
+
+@media (max-width: 1080px) {
+    .nx-calendar-grid {
+        grid-template-rows: repeat(6, minmax(96px, 1fr));
+    }
+
+    .nx-calendar-agenda-list .nx-calendar-card {
+        min-height: 86px;
+    }
+}
+
+@media (max-width: 820px) {
+    .nx-calendar-day-counts {
+        max-width: 100%;
+    }
+
+    .nx-calendar-card-month .nx-calendar-card-meta {
+        display: none;
+    }
+
+    .nx-calendar-card-month {
+        min-height: 42px;
+    }
+}
+
+@media (max-width: 640px) {
+    .nx-calendar-grid {
+        gap: 5px;
+        grid-template-rows: repeat(6, minmax(66px, 1fr));
+    }
+
+    .nx-calendar-day {
+        gap: 4px;
+        padding: 5px;
+        border-radius: 8px;
+    }
+
+    .nx-calendar-day-number {
+        min-width: 22px;
+        height: 22px;
+        font-size: 12px;
+    }
+
+    .nx-calendar-day-items {
+        display: grid;
+    }
+
+    .nx-calendar-card-month {
+        min-height: 32px;
+    }
+
+    .nx-calendar-card-month .nx-calendar-card-title {
+        font-size: 10.5px;
+    }
+
+    .nx-calendar-agenda-list .nx-calendar-card {
+        min-height: 82px;
+    }
+}
+
+@media (max-width: 460px) {
+    .nx-calendar-grid {
+        grid-template-rows: repeat(6, minmax(56px, 1fr));
+    }
+
+    .nx-calendar-day-counts,
+    .nx-calendar-card-month .nx-calendar-card-title-row,
+    .nx-calendar-card-month .nx-calendar-card-meta {
+        display: none;
+    }
+
+    .nx-calendar-day {
+        justify-content: center;
+    }
+
+    .nx-calendar-day-items {
+        display: grid;
+    }
+
+    .nx-calendar-card-month {
+        min-height: 24px;
+    }
+
+    .nx-calendar-card-month .nx-calendar-card-main {
+        padding: 3px 5px 3px 0;
+    }
+}
+
+/* Calendar checklist fixes: light-mode contrast and no hidden core mobile data. */
+.nx-app-shell[data-nx-color-mode="light"] .nx-calendar-view {
+    --nx-calendar-muted-ink: rgba(38, 48, 70, 0.68);
+    --nx-calendar-soft-line: rgba(15, 23, 42, 0.12);
+    color: rgba(15, 23, 42, 0.92);
+}
+
+.nx-app-shell[data-nx-color-mode="light"] .nx-calendar-month-panel,
+.nx-app-shell[data-nx-color-mode="light"] .nx-calendar-agenda-panel,
+.nx-app-shell[data-nx-color-mode="light"] .nx-calendar-day,
+.nx-app-shell[data-nx-color-mode="light"] .nx-calendar-import-panel {
+    border-color: rgba(15, 23, 42, 0.11) !important;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(244, 248, 255, 0.68)),
+        rgba(255, 255, 255, 0.72) !important;
+    color: rgba(15, 23, 42, 0.92);
+}
+
+.nx-app-shell[data-nx-color-mode="light"] .nx-calendar-day.has-items,
+.nx-app-shell[data-nx-color-mode="light"] .nx-calendar-day:hover,
+.nx-app-shell[data-nx-color-mode="light"] .nx-calendar-day:focus-visible {
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(238, 246, 255, 0.76)),
+        rgba(var(--nx-calendar-accent-rgb, 100, 210, 255), 0.055) !important;
+}
+
+.nx-app-shell[data-nx-color-mode="light"] .nx-calendar-panel-head strong,
+.nx-app-shell[data-nx-color-mode="light"] .nx-calendar-agenda-head strong,
+.nx-app-shell[data-nx-color-mode="light"] .nx-calendar-card-title,
+.nx-app-shell[data-nx-color-mode="light"] .nx-calendar-day-number,
+.nx-app-shell[data-nx-color-mode="light"] .nx-calendar-title strong,
+.nx-app-shell[data-nx-color-mode="light"] .nx-calendar-card-status.is-status-todo,
+.nx-app-shell[data-nx-color-mode="light"] .nx-calendar-card-status.is-status-once {
+    color: rgba(15, 23, 42, 0.92) !important;
+}
+
+.nx-app-shell[data-nx-color-mode="light"] .nx-calendar-card,
+.nx-app-shell[data-nx-color-mode="light"] .nx-calendar-panel-metrics span,
+.nx-app-shell[data-nx-color-mode="light"] .nx-calendar-agenda-kpis span,
+.nx-app-shell[data-nx-color-mode="light"] .nx-calendar-day-counts span,
+.nx-app-shell[data-nx-color-mode="light"] .nx-calendar-more,
+.nx-app-shell[data-nx-color-mode="light"] .nx-calendar-day-empty,
+.nx-app-shell[data-nx-color-mode="light"] .nx-calendar-card-type,
+.nx-app-shell[data-nx-color-mode="light"] .nx-calendar-card-time,
+.nx-app-shell[data-nx-color-mode="light"] .nx-calendar-card-priority,
+.nx-app-shell[data-nx-color-mode="light"] .nx-calendar-card-status {
+    border-color: rgba(15, 23, 42, 0.12);
+    background-color: rgba(255, 255, 255, 0.66);
+    color: rgba(38, 48, 70, 0.78);
+}
+
+.nx-app-shell[data-nx-color-mode="light"] .nx-calendar-card {
+    background:
+        linear-gradient(90deg, color-mix(in srgb, var(--nx-calendar-card-color) 18%, transparent), transparent 82%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(246, 249, 255, 0.74));
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.82),
+        0 8px 20px rgba(15, 23, 42, 0.08);
+}
+
+.nx-app-shell[data-nx-color-mode="light"] .nx-calendar-card-desc,
+.nx-app-shell[data-nx-color-mode="light"] .nx-calendar-weekdays span,
+.nx-app-shell[data-nx-color-mode="light"] .nx-calendar-selected-pill,
+.nx-app-shell[data-nx-color-mode="light"] .nx-calendar-empty {
+    color: rgba(38, 48, 70, 0.68) !important;
+}
+
+.nx-app-shell[data-nx-color-mode="light"] .nx-calendar-topbar :where(input, select, button),
+.nx-app-shell[data-nx-color-mode="light"] .nx-calendar-import-panel :where(textarea, input, select, button) {
+    color: rgba(15, 23, 42, 0.9);
+}
+
+.nx-app-shell[data-nx-color-mode="light"] .nx-settings-v6,
+.nx-app-shell[data-nx-color-mode="light"] .nx-settings-content,
+.nx-app-shell[data-nx-color-mode="light"] .nx-settings-sidebar,
+.nx-app-shell[data-nx-color-mode="light"] .nx-settings-module-card {
+    color: rgba(15, 23, 42, 0.92) !important;
+}
+
+.nx-app-shell[data-nx-color-mode="light"] .nx-settings-v6 :where(p, small, span, label) {
+    color: inherit;
+}
+
+.nx-app-shell[data-nx-color-mode="light"] .nx-settings-v6 :where(.text-white, .text-white\/60, .text-white\/70, .text-white\/80) {
+    color: rgba(15, 23, 42, 0.9) !important;
+}
+
+.nx-app-shell[data-nx-color-mode="light"] .nx-settings-v6 :where(input, textarea, select, button) {
+    color: rgba(15, 23, 42, 0.9);
+}
+
+.nx-app-shell[data-nx-color-mode="light"] .nx-settings-v6 :where([style*="opacity: 0.45"], [style*="opacity: 0.48"], [style*="opacity: 0.5"], [style*="opacity: 0.55"]) {
+    opacity: 0.72 !important;
+}
+
+@media (max-width: 1080px) {
+    .nx-calendar-tags-input {
+        display: inline-flex !important;
+        min-width: 128px;
+    }
+}
+
+@media (max-width: 820px) {
+    .nx-calendar-composer {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+
+    .nx-calendar-tags-input,
+    .nx-calendar-add-button {
+        grid-column: span 2;
+    }
+}
+
+@media (max-width: 520px) {
+    .nx-calendar-day-counts {
+        display: flex !important;
+        flex: 0 0 100%;
+        justify-content: flex-start;
+        max-width: 100%;
+        order: 2;
+    }
+
+    .nx-calendar-card-month .nx-calendar-card-title-row {
+        display: flex !important;
+    }
+
+    .nx-calendar-card-month .nx-calendar-card-title {
+        display: block !important;
+    }
+}
+
+@media (max-width: 460px) {
+    .nx-calendar-grid {
+        grid-template-rows: repeat(6, minmax(68px, 1fr)) !important;
+    }
+
+    .nx-calendar-day-counts {
+        gap: 2px;
+    }
+
+    .nx-calendar-day-counts span {
+        height: 17px;
+        padding: 0 4px;
+        font-size: 9px;
+    }
+
+    .nx-calendar-card-month {
+        min-height: 30px !important;
+    }
+}
+
+/* Calendar cleanup: drawer import, shorter labels and calmer compact chrome. */
+.nx-calendar-view {
+    position: relative;
+    isolation: isolate;
+}
+
+.nx-calendar-topbar {
+    gap: 5px !important;
+    padding: 7px 9px !important;
+}
+
+.nx-calendar-toolbar-row,
+.nx-calendar-controls,
+.nx-calendar-composer {
+    gap: 5px !important;
+}
+
+.nx-calendar-title {
+    min-width: clamp(112px, 14vw, 176px) !important;
+}
+
+.nx-calendar-selected-pill {
+    flex-basis: 106px !important;
+}
+
+.nx-calendar-filter-field {
+    max-width: 138px !important;
+}
+
+.nx-calendar-topbar .nx-calendar-icon-button,
+.nx-calendar-topbar .nx-calendar-today-button,
+.nx-calendar-topbar .nx-calendar-add-button,
+.nx-calendar-topbar .nx-calendar-import-button,
+.nx-calendar-topbar .nx-calendar-mini-button {
+    height: 27px !important;
+}
+
+.nx-calendar-topbar .nx-calendar-icon-button {
+    width: 27px !important;
+}
+
+.nx-calendar-topbar .nx-calendar-segment button {
+    height: 21px !important;
+    padding: 0 6px !important;
+}
+
+.nx-calendar-composer {
+    grid-template-columns:
+        auto auto minmax(150px, 1fr) auto 84px minmax(88px, 108px)
+        minmax(92px, 126px) auto !important;
+}
+
+.nx-calendar-stats {
+    min-height: 29px !important;
+    gap: 5px !important;
+    overflow-x: auto;
+    padding: 4px 9px !important;
+    scrollbar-width: none;
+}
+
+.nx-calendar-stats::-webkit-scrollbar {
+    display: none;
+}
+
+.nx-calendar-stats span {
+    padding: 3px 7px !important;
+    white-space: nowrap;
+}
+
+.nx-calendar-import-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 38;
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-end;
+    padding: 84px 12px 12px;
+    background: rgba(0, 0, 0, 0.16);
+    backdrop-filter: blur(2px);
+}
+
+.nx-calendar-import-dialog {
+    width: min(640px, calc(100% - 8px));
+    max-height: min(520px, calc(100% - 8px));
+    display: flex;
+    min-width: 0;
+}
+
+.nx-calendar-import-panel.nx-calendar-import-panel--drawer {
+    width: 100%;
+    max-height: inherit;
+    margin: 0 !important;
+    overflow: auto;
+    grid-template-columns: minmax(140px, 0.48fr) minmax(260px, 1fr);
+    box-shadow:
+        0 24px 60px rgba(0, 0, 0, 0.26),
+        inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.nx-calendar-import-panel--drawer .nx-calendar-import-fields {
+    flex-wrap: wrap;
+}
+
+.nx-calendar-import-close {
+    flex: 0 0 28px;
+    padding: 0 !important;
+}
+
+.nx-calendar-import-panel--drawer textarea {
+    min-height: 96px;
+}
+
+.nx-app-shell[data-nx-color-mode="light"] .nx-calendar-import-overlay {
+    background: rgba(220, 230, 245, 0.38);
+}
+
+.nx-app-shell[data-nx-color-mode="light"] .nx-calendar-card-status.is-status-doing,
+.nx-app-shell[data-nx-color-mode="light"] .nx-calendar-card-status.is-status-snoozed {
+    color: rgba(15, 23, 42, 0.9) !important;
+}
+
+@media (max-width: 1080px) {
+    .nx-calendar-import-overlay {
+        padding-top: 112px;
+    }
+}
+
+@media (max-width: 720px) {
+    .nx-calendar-import-overlay {
+        padding: 78px 8px 8px;
+    }
+
+    .nx-calendar-import-dialog {
+        width: 100%;
+    }
+
+    .nx-calendar-import-panel.nx-calendar-import-panel--drawer {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Calendar touch smoke affordances: keep existing controls reachable on coarse pointers. */
+@media (pointer: coarse) {
+    .nx-calendar-day {
+        touch-action: manipulation;
+    }
+
+    .nx-calendar-card {
+        cursor: grab;
+    }
+
+    .nx-calendar-card:active {
+        cursor: grabbing;
+    }
+
+    .nx-calendar-card-grip {
+        flex: 0 0 auto;
+        opacity: 0.92;
+    }
+
+    .nx-calendar-topbar .nx-calendar-icon-button,
+    .nx-calendar-topbar .nx-calendar-today-button,
+    .nx-calendar-topbar .nx-calendar-add-button,
+    .nx-calendar-topbar .nx-calendar-import-button,
+    .nx-calendar-topbar .nx-calendar-mini-button,
+    .nx-calendar-import-panel button,
+    .nx-calendar-file-button,
+    .nx-calendar-composer input,
+    .nx-calendar-composer select,
+    .nx-calendar-controls label,
+    .nx-calendar-controls select {
+        min-height: 34px !important;
+    }
+
+    .nx-calendar-import-panel--drawer textarea {
+        min-height: 128px;
+    }
+}
+
+@media (pointer: coarse) and (max-width: 720px) {
+    .nx-calendar-import-overlay {
+        padding: 64px 6px 6px;
+    }
+
+    .nx-calendar-import-dialog {
+        max-height: calc(100% - 6px);
+    }
+
+    .nx-calendar-import-panel--drawer .nx-calendar-import-fields {
+        align-items: stretch;
+    }
+
+    .nx-calendar-import-panel--drawer .nx-calendar-import-fields > * {
+        flex: 1 1 132px;
+    }
+
+    .nx-calendar-import-close {
+        flex: 0 0 38px;
+    }
+}
+
+/* Notes unified bar restore: keep old editor tools visible before stats. */
+.nx-notes-unified-status-action .nx-notes-format-toolbar {
+    order: 1 !important;
+    flex: 0 0 auto !important;
+    max-width: none !important;
+    min-width: max-content;
+    border-right: 1px solid rgba(255, 255, 255, 0.08);
+    padding-inline: 2px 8px !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-command-strip {
+    order: 2 !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-toolbar-tags {
+    order: 3 !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-context-strip {
+    order: 4 !important;
+}
+
+@media (max-width: 1180px) {
+    .nx-notes-unified-status-action {
+        grid-template-columns: minmax(178px, 0.56fr) minmax(0, 1.44fr);
+    }
+
+    .nx-notes-unified-status-action .nx-notes-editor-meta {
+        display: none !important;
+    }
+}
+
+@media (max-width: 760px) {
+    .nx-notes-unified-status-action .nx-notes-format-toolbar {
+        max-width: 100% !important;
+        min-width: 0;
+    }
+}
+
+/* Calendar polish: stronger day hierarchy without changing data model. */
+.nx-calendar-day {
+    min-height: 128px;
+    gap: 8px;
+    padding: 9px;
+}
+
+.nx-calendar-day.has-items .nx-calendar-day-number {
+    min-width: 29px;
+    height: 27px;
+    background:
+        linear-gradient(135deg, rgba(var(--nx-calendar-accent-rgb, 100, 210, 255), 0.28), rgba(255, 255, 255, 0.075));
+    border: 1px solid rgba(var(--nx-calendar-accent-rgb, 100, 210, 255), 0.3);
+    border-radius: 9px;
+    padding: 2px 7px;
+}
+
+.nx-calendar-day.has-overflow {
+    border-bottom-color: rgba(var(--nx-calendar-accent-rgb, 100, 210, 255), 0.24);
+}
+
+.nx-calendar-day-items {
+    gap: 6px;
+    align-content: start;
+}
+
+.nx-calendar-day-counts span {
+    height: 21px;
+    padding: 0 7px;
+}
+
+.nx-calendar-card-month {
+    min-height: 44px !important;
+    border-radius: 10px !important;
+}
+
+.nx-calendar-card-month .nx-calendar-card-main {
+    gap: 4px;
+    padding: 6px 7px 6px 0;
+}
+
+.nx-calendar-card-month .nx-calendar-card-title-row {
+    gap: 5px;
+}
+
+.nx-calendar-card-month .nx-calendar-card-title {
+    font-size: 11.5px !important;
+    font-weight: 880;
+    line-height: 1.22;
+}
+
+.nx-calendar-card-month .nx-calendar-card-type,
+.nx-calendar-card-month .nx-calendar-card-time,
+.nx-calendar-card-month .nx-calendar-card-priority,
+.nx-calendar-card-month .nx-calendar-card-status {
+    height: 18px;
+    font-size: 9.75px;
+}
+
+.nx-calendar-more {
+    min-height: 24px;
+    justify-content: center;
+    border-style: solid;
+    background:
+        linear-gradient(90deg, rgba(var(--nx-calendar-accent-rgb, 100, 210, 255), 0.11), transparent 82%),
+        rgba(255, 255, 255, 0.066);
+}
+
+.nx-calendar-card-agenda {
+    min-height: 104px;
+    border-radius: 12px !important;
+}
+
+.nx-calendar-card-agenda .nx-calendar-card-main {
+    gap: 7px;
+    padding: 11px 12px 11px 0;
+}
+
+.nx-calendar-card-agenda .nx-calendar-card-title-row {
+    padding-bottom: 2px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.065);
+}
+
+.nx-calendar-card-agenda .nx-calendar-card-title {
+    font-size: 14.5px;
+    line-height: 1.24;
+}
+
+.nx-calendar-card-agenda .nx-calendar-card-desc {
+    font-size: 12px;
+    line-height: 1.42;
+}
+
+.nx-calendar-card-agenda .nx-calendar-card-meta {
+    gap: 7px;
+}
+
+.nx-calendar-agenda-list {
+    gap: 12px !important;
+}
+
+.nx-calendar-agenda-kpis span,
+.nx-calendar-day-counts span {
+    font-weight: 850;
+}
+
+.nx-calendar-density-compact .nx-calendar-day {
+    min-height: 104px;
+    padding: 6px;
+}
+
+.nx-calendar-density-compact .nx-calendar-card-month {
+    min-height: 34px !important;
+}
+
+.nx-calendar-density-compact .nx-calendar-card-month .nx-calendar-card-title {
+    font-size: 10.25px !important;
+}
+
+.nx-app-shell[data-nx-color-mode="light"] .nx-calendar-day.has-items .nx-calendar-day-number {
+    background:
+        linear-gradient(135deg, rgba(var(--nx-calendar-accent-rgb, 100, 210, 255), 0.22), rgba(255, 255, 255, 0.88));
+}
+
+.nx-app-shell[data-nx-color-mode="light"] .nx-calendar-card-agenda .nx-calendar-card-title-row {
+    border-bottom-color: rgba(15, 23, 42, 0.08);
+}
+
+@media (max-width: 520px) {
+    .nx-calendar-day {
+        min-height: 90px;
+        padding: 5px;
+    }
+
+    .nx-calendar-card-month {
+        min-height: 32px !important;
+    }
+
+    .nx-calendar-card-month .nx-calendar-card-main {
+        padding: 3px 5px 3px 0;
+    }
+
+    .nx-calendar-card-agenda {
+        min-height: 84px;
+    }
+}
+
+/* Global bug pass: shared contrast, overlay safety, and mid-width panes. */
+.nx-app-shell {
+    --nx-overlay-z-index: 14000;
+    --nx-overlay-bg: rgba(9, 14, 28, 0.94);
+    --nx-overlay-border: rgba(255, 255, 255, 0.14);
+    --nx-overlay-text: rgba(255, 255, 255, 0.94);
+    --nx-overlay-muted: rgba(255, 255, 255, 0.68);
+    --nx-field-bg: rgba(255, 255, 255, 0.075);
+    --nx-field-border: rgba(255, 255, 255, 0.16);
+    --nx-field-text: rgba(255, 255, 255, 0.92);
+    --nx-field-placeholder: rgba(255, 255, 255, 0.5);
+    isolation: isolate;
+}
+
+.nx-app-shell[data-nx-color-mode="light"] {
+    --nx-overlay-bg: rgba(255, 255, 255, 0.96);
+    --nx-overlay-border: rgba(15, 23, 42, 0.14);
+    --nx-overlay-text: rgba(15, 23, 42, 0.94);
+    --nx-overlay-muted: rgba(51, 65, 85, 0.76);
+    --nx-field-bg: rgba(255, 255, 255, 0.9);
+    --nx-field-border: rgba(15, 23, 42, 0.18);
+    --nx-field-text: rgba(15, 23, 42, 0.94);
+    --nx-field-placeholder: rgba(71, 85, 105, 0.72);
+}
+
+.nx-app-shell :where(input, textarea, select) {
+    background-color: var(--nx-field-bg);
+    border-color: var(--nx-field-border);
+    color: var(--nx-field-text);
+}
+
+.nx-app-shell :where(input, textarea)::placeholder {
+    color: var(--nx-field-placeholder);
+}
+
+.nx-app-shell[data-nx-color-mode="light"] :where(select option) {
+    background: #ffffff;
+    color: #0f172a;
+}
+
+.nx-app-shell :where(
+        [role="dialog"],
+        [role="menu"],
+        [role="listbox"],
+        [data-radix-popper-content-wrapper],
+        .nx-files-menu,
+        .nx-files-card-menu,
+        .nx-files-flow-menu,
+        .nx-task-modal-sheet,
+        .nx-walkthrough-modal
+    ) {
+    z-index: var(--nx-overlay-z-index) !important;
+    color: var(--nx-overlay-text);
+}
+
+.nx-app-shell :where(
+        .nx-files-menu,
+        .nx-files-card-menu,
+        .nx-files-flow-menu,
+        .nx-task-modal-sheet
+    ) {
+    background: var(--nx-overlay-bg) !important;
+    border-color: var(--nx-overlay-border) !important;
+    box-shadow:
+        0 24px 70px rgba(2, 6, 23, 0.32),
+        inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.nx-app-shell[data-nx-color-mode="light"] :where(
+        .nx-menu-item,
+        .nx-files-menu-item,
+        .nx-files-menu-button
+    ) {
+    color: var(--nx-overlay-text) !important;
+}
+
+.nx-app-shell[data-nx-color-mode="light"] :where(
+        .nx-task-modal-sheet,
+        .nx-walkthrough-modal,
+        [role="dialog"],
+        [role="menu"],
+        [role="listbox"]
+    )
+    :where(p, span, small, label) {
+    color: var(--nx-overlay-muted);
+}
+
+.nx-v6-view-shell,
+.nx-v6-workbench,
+.nx-v6-content-frame,
+.nx-files-v6,
+.nx-devtools-v6,
+.nx-flux-v6 {
+    overflow: visible;
+}
+
+.nx-v6-content-frame,
+.nx-v6-inspector-rail,
+.nx-dashboard-v6,
+.nx-devtools-v6,
+.nx-files-v6,
+.nx-flux-v6 {
+    contain: layout;
+}
+
+.nx-files-menu-anchor,
+.nx-files-card-menu-trigger {
+    position: relative;
+    z-index: calc(var(--nx-overlay-z-index) - 1);
+}
+
+.nx-files-menu,
+.nx-files-card-menu,
+.nx-files-flow-menu {
+    max-width: min(320px, calc(100vw - 24px));
+    max-height: min(420px, calc(100dvh - 96px));
+    overflow: auto;
+    overscroll-behavior: contain;
+}
+
+@media (max-width: 1360px) and (min-width: 981px) {
+    .nx-v6-view-shell[data-inspector="open"] .nx-v6-workbench {
+        grid-template-columns: minmax(0, 1fr) minmax(190px, 240px) !important;
+    }
+
+    .nx-v6-inspector-rail {
+        max-width: min(24vw, 240px);
+    }
+
+    .nx-files-content-grid {
+        grid-template-columns: minmax(0, 1fr) minmax(230px, 280px) !important;
+    }
+
+    .nx-files-detail-pane {
+        width: clamp(230px, 22vw, 280px) !important;
+        min-width: 0 !important;
+    }
+
+    .nx-flux-work-grid {
+        grid-template-columns: minmax(200px, 280px) minmax(0, 1fr) !important;
+    }
+
+    .nx-devtools-file-panel {
+        width: clamp(200px, 20vw, 248px) !important;
+    }
+
+    .nx-devtools-code-panel {
+        flex-basis: clamp(340px, 38%, 520px) !important;
+    }
+}
+
+@media (max-width: 1180px) and (min-width: 981px) {
+    .nx-v6-view-shell[data-inspector="open"] .nx-v6-workbench,
+    .nx-files-content-grid,
+    .nx-flux-work-grid {
+        grid-template-columns: minmax(0, 1fr) !important;
+    }
+
+    .nx-v6-inspector-rail,
+    .nx-files-detail-pane {
+        max-width: none;
+        width: 100% !important;
     }
 }

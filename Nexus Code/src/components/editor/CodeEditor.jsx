@@ -27,6 +27,7 @@ import {
   foldGutter,
   foldKeymap,
   indentOnInput,
+  StreamLanguage,
   syntaxHighlighting,
 } from "@codemirror/language";
 import { lintGutter, lintKeymap, setDiagnostics } from "@codemirror/lint";
@@ -43,6 +44,25 @@ import { php } from "@codemirror/lang-php";
 import { rust } from "@codemirror/lang-rust";
 import { sql } from "@codemirror/lang-sql";
 import { xml } from "@codemirror/lang-xml";
+import { clojure } from "@codemirror/legacy-modes/mode/clojure";
+import { cmake } from "@codemirror/legacy-modes/mode/cmake";
+import { diff as diffParser } from "@codemirror/legacy-modes/mode/diff";
+import { dockerFile } from "@codemirror/legacy-modes/mode/dockerfile";
+import { fSharp } from "@codemirror/legacy-modes/mode/mllike";
+import { go as legacyGo } from "@codemirror/legacy-modes/mode/go";
+import { lua } from "@codemirror/legacy-modes/mode/lua";
+import { perl } from "@codemirror/legacy-modes/mode/perl";
+import { powerShell } from "@codemirror/legacy-modes/mode/powershell";
+import { properties } from "@codemirror/legacy-modes/mode/properties";
+import { protobuf } from "@codemirror/legacy-modes/mode/protobuf";
+import { r as rLanguage } from "@codemirror/legacy-modes/mode/r";
+import { ruby } from "@codemirror/legacy-modes/mode/ruby";
+import { shell } from "@codemirror/legacy-modes/mode/shell";
+import { swift } from "@codemirror/legacy-modes/mode/swift";
+import { toml } from "@codemirror/legacy-modes/mode/toml";
+import { vb } from "@codemirror/legacy-modes/mode/vb";
+import { verilog } from "@codemirror/legacy-modes/mode/verilog";
+import { yaml } from "@codemirror/legacy-modes/mode/yaml";
 import { THEMES as EDITOR_THEMES } from "../../pages/editor/editorShared.jsx";
 import { createEditorEngine } from "../../ide/editor/editorEngine.js";
 import { createDocumentUriDescriptor } from "../../ide/editor/documentUri.js";
@@ -58,8 +78,10 @@ import {
 } from "../../ide/lsp/index.js";
 import {
   cmPosToLspPosition,
+  createEditorScopeInfo,
   createEditorHighlightStyle,
   createSnippetCompletions,
+  extractDocumentSymbols,
   findDiagnosticAtPosition,
   lspCompletionsToCodeMirror,
   lspDiagnosticsToCodeMirror,
@@ -73,6 +95,7 @@ const EDITOR_CHANGE_EMIT_INTERVAL_MS = 48;
 const CURSOR_INFO_UPDATE_MS = 45;
 const LINE_COUNT_UPDATE_MS = 80;
 const LARGE_FILE_CHAR_THRESHOLD = 220_000;
+const EDITOR_MOUNT_WATCHDOG_MS = 1800;
 const COMPACT_VIEWPORT_WIDTH = 920;
 const DEFAULT_EDITOR_FONT_STACK =
   "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace";
@@ -80,6 +103,37 @@ const DEFAULT_EDITOR_FONT_STACK =
 const cmThemeCompartment = new Compartment();
 const languageCompartment = new Compartment();
 const diagnosticsCompartment = new Compartment();
+
+class CodeMirrorCrashBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { crashed: false, message: "" };
+  }
+
+  static getDerivedStateFromError(error) {
+    return {
+      crashed: true,
+      message: error?.message || "CodeMirror render failed",
+    };
+  }
+
+  componentDidCatch(error) {
+    this.props.onCrash?.(error);
+  }
+
+  componentDidUpdate(previousProps) {
+    if (previousProps.resetKey !== this.props.resetKey && this.state.crashed) {
+      this.setState({ crashed: false, message: "" });
+    }
+  }
+
+  render() {
+    if (this.state.crashed) {
+      return this.props.fallback(this.state.message);
+    }
+    return this.props.children;
+  }
+}
 
 function clampNumber(value, min, max, fallback) {
   const numeric = Number(value);
@@ -90,6 +144,23 @@ function clampNumber(value, min, max, fallback) {
 function getCompactViewport() {
   if (typeof window === "undefined") return false;
   return window.innerWidth < COMPACT_VIEWPORT_WIDTH;
+}
+
+function resolveEditorReducedMotion(settings) {
+  const prefersReducedMotion =
+    typeof window !== "undefined" &&
+    window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+  const lowPowerClass =
+    typeof document !== "undefined" &&
+    document.documentElement?.classList?.contains("reduce-motion");
+
+  return Boolean(
+    settings.reduce_motion === true ||
+      settings.animations_enabled === false ||
+      settings.visual_performance_profile === "performance" ||
+      prefersReducedMotion ||
+      lowPowerClass,
+  );
 }
 
 function resolveEditorFontSize(settings, fallbackFontSize) {
@@ -112,10 +183,19 @@ function resolveEditorTabSize(settings, fallbackTabSize) {
   return Math.round(clampNumber(settings.tab_size ?? fallbackTabSize, 2, 8, 4));
 }
 
+function resolveAutocompleteMaxItems(settings, reduceMotion, compactViewport) {
+  const fallback = reduceMotion ? 72 : compactViewport ? 96 : 120;
+  return Math.round(clampNumber(settings.autocomplete_max_items, 24, 180, fallback));
+}
+
 function resolveEditorFontFamily(settings) {
   const configured = String(settings.font_family || "").trim();
   if (!configured) return DEFAULT_EDITOR_FONT_STACK;
   return `'${configured.replace(/'/g, "")}', ${DEFAULT_EDITOR_FONT_STACK}`;
+}
+
+function streamGrammar(parser) {
+  return parser ? StreamLanguage.define(parser) : [];
 }
 
 function safeHex(value, fallback) {
@@ -131,13 +211,75 @@ function hexToRgba(value, alpha) {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
-function createNexusCodeMirrorTheme(settings, compactViewport, editorFontSize, editorLineHeight) {
+function positionCompletionInfo(_view, list, option, info, space, tooltip) {
+  const margin = 10;
+  const listWidth = Math.max(1, list.right - list.left);
+  const listHeight = Math.max(1, list.bottom - list.top);
+  const scaleX = tooltip?.offsetWidth ? listWidth / tooltip.offsetWidth : 1;
+  const scaleY = tooltip?.offsetHeight ? listHeight / tooltip.offsetHeight : 1;
+  const infoWidth = Math.max(220, info.right - info.left);
+  const infoHeight = Math.max(120, info.bottom - info.top);
+  const spaceLeft = Math.max(0, list.left - space.left - margin);
+  const spaceRight = Math.max(0, space.right - list.right - margin);
+  const sideWidth = Math.min(420, Math.max(spaceLeft, spaceRight));
+  const topOffset =
+    Math.max(space.top + margin, Math.min(option.top, space.bottom - infoHeight - margin)) -
+    list.top;
+
+  if (sideWidth >= Math.min(infoWidth, 280)) {
+    const placeLeft = spaceLeft > spaceRight;
+    return {
+      style: [
+        `top: ${Math.max(0, topOffset) / scaleY}px`,
+        `${placeLeft ? "right" : "left"}: 100%`,
+        `max-width: ${sideWidth / scaleX}px`,
+      ].join("; "),
+      class: `nx-cm-completionInfo-side ${
+        placeLeft ? "nx-cm-completionInfo-left" : "nx-cm-completionInfo-right"
+      }`,
+    };
+  }
+
+  const stackedWidth = Math.max(220, Math.min(420, space.right - space.left - margin * 2));
+  const spaceBelow = space.bottom - list.bottom;
+  const spaceAbove = list.top - space.top;
+  const placeBelow = spaceBelow >= Math.min(infoHeight, 220) || spaceBelow >= spaceAbove;
+  const verticalOffset = placeBelow ? option.bottom - list.top : list.bottom - option.top;
+
+  return {
+    style: [
+      `${placeBelow ? "top" : "bottom"}: ${Math.max(0, verticalOffset) / scaleY}px`,
+      "left: 0",
+      `max-width: ${stackedWidth / scaleX}px`,
+      `width: min(${stackedWidth / scaleX}px, calc(100vw - ${margin * 2}px))`,
+    ].join("; "),
+    class: `nx-cm-completionInfo-stacked ${
+      placeBelow ? "nx-cm-completionInfo-below" : "nx-cm-completionInfo-above"
+    }`,
+  };
+}
+
+function createNexusCodeMirrorTheme(
+  settings,
+  compactViewport,
+  editorFontSize,
+  editorLineHeight,
+  reduceMotion,
+) {
   const theme = resolveEditorTheme(settings);
   const accent = safeHex(settings.primary_accent || theme.accent, "#8b5cf6");
+  const editorAccent = "#8b5cf6";
+  const editorAccentBlue = "#60a5fa";
   const text = safeHex(theme.text, "#f3f4f6");
   const muted = safeHex(theme.muted, "#8b93a7");
-  const selection = theme.selection || hexToRgba(accent, 0.26);
+  const selection = hexToRgba(editorAccent, 0.32);
+  const selectionStrong = hexToRgba(editorAccentBlue, 0.36);
+  const selectionSoft = hexToRgba(editorAccent, 0.16);
   const panelSurface = "var(--nexus-panel-surface)";
+  const panelFilter = reduceMotion ? "none" : "var(--nexus-panel-filter)";
+  const tooltipShadow = reduceMotion
+    ? "0 8px 24px rgba(0,0,0,0.28)"
+    : "0 18px 55px rgba(0,0,0,0.35)";
   const letterSpacing = resolveEditorLetterSpacing(settings);
 
   return EditorView.theme(
@@ -155,6 +297,8 @@ function createNexusCodeMirrorTheme(settings, compactViewport, editorFontSize, e
         WebkitFontSmoothing: "antialiased",
         fontSynthesis: "none",
         outline: "none",
+        overflow: "visible",
+        position: "relative",
       },
       "&.cm-focused": {
         outline: "none",
@@ -170,12 +314,15 @@ function createNexusCodeMirrorTheme(settings, compactViewport, editorFontSize, e
         minHeight: "100%",
         padding: `${compactViewport ? 14 : 20}px ${compactViewport ? 14 : 24}px`,
         caretColor: accent,
-        color: text,
+        color: `${text} !important`,
       },
       ".cm-line": {
         padding: "0 2px",
-        color: "inherit",
+        color: `${text} !important`,
         textRendering: "inherit",
+      },
+      ".cm-line span, .cm-content span": {
+        color: "inherit !important",
       },
       ".cm-gutters": {
         background: "rgba(0,0,0,0.12)",
@@ -187,40 +334,55 @@ function createNexusCodeMirrorTheme(settings, compactViewport, editorFontSize, e
         minWidth: compactViewport ? "2.4rem" : "3rem",
       },
       ".cm-activeLine": {
-        backgroundColor: "rgba(255,255,255,0.045)",
+        backgroundColor: hexToRgba(editorAccent, 0.07),
       },
       ".cm-activeLineGutter": {
-        backgroundColor: hexToRgba(accent, 0.1),
+        backgroundColor: hexToRgba(editorAccent, 0.12),
         color: text,
       },
-      ".cm-selectionBackground, .cm-content ::selection": {
-        backgroundColor: selection,
+      ".cm-selectionLayer .cm-selectionBackground, .cm-selectionBackground, .cm-content ::selection": {
+        backgroundColor: `${selection} !important`,
+        color: `${text} !important`,
+      },
+      ".cm-selectionMatch": {
+        backgroundColor: `${selectionSoft} !important`,
+        outline: `1px solid ${hexToRgba(editorAccentBlue, 0.24)}`,
       },
       ".cm-cursor": {
         borderLeftColor: accent,
         borderLeftWidth: settings.cursor_style === "block" ? "0.55em" : "2px",
       },
       ".cm-matchingBracket, .cm-nonmatchingBracket": {
-        outline: `1px solid ${hexToRgba(accent, 0.55)}`,
-        backgroundColor: hexToRgba(accent, 0.12),
+        outline: `1px solid ${hexToRgba(editorAccentBlue, 0.56)}`,
+        backgroundColor: hexToRgba(editorAccent, 0.13),
       },
       ".cm-panels, .cm-tooltip, .cm-tooltip-autocomplete": {
         background: panelSurface,
-        backdropFilter: "var(--nexus-panel-filter)",
+        backdropFilter: panelFilter,
         border: "1px solid var(--nexus-border)",
         borderRadius: "8px",
         overflow: "hidden",
       },
       ".cm-tooltip": {
         color: "var(--nexus-text)",
-        boxShadow: "0 18px 55px rgba(0,0,0,0.35)",
+        boxShadow: tooltipShadow,
       },
       ".cm-tooltip-autocomplete": {
-        minWidth: compactViewport ? "17rem" : "22rem",
+        zIndex: 80,
+        contain: "layout style paint",
+        minWidth: compactViewport ? "min(17rem, calc(100vw - 1rem))" : "22rem",
+        width: compactViewport
+          ? "min(20rem, calc(100vw - 1rem))"
+          : "min(32rem, calc(100vw - 1rem))",
+        maxWidth: "calc(100vw - 1rem)",
       },
       ".cm-tooltip-autocomplete > ul": {
-        maxHeight: compactViewport ? "15rem" : "22rem",
+        maxHeight: compactViewport
+          ? "min(15rem, calc(100vh - 8rem))"
+          : "min(22rem, calc(100vh - 8rem))",
         fontFamily: "inherit",
+        overflowY: "auto",
+        scrollbarGutter: "stable",
       },
       ".cm-tooltip-autocomplete ul li[aria-selected]": {
         background: hexToRgba(accent, 0.18),
@@ -232,23 +394,57 @@ function createNexusCodeMirrorTheme(settings, compactViewport, editorFontSize, e
       ".cm-completionDetail": {
         color: muted,
         marginLeft: "0.75rem",
+        maxWidth: compactViewport ? "8rem" : "14rem",
+        overflow: "hidden",
+        textOverflow: "ellipsis",
       },
-      ".cm-completionInfo": {
-        maxWidth: compactViewport ? "18rem" : "28rem",
+      ".cm-tooltip.cm-completionInfo": {
+        zIndex: 81,
+        maxWidth: compactViewport
+          ? "min(19rem, calc(100vw - 1rem))"
+          : "min(28rem, calc(100vw - 1rem))",
+        maxHeight: compactViewport
+          ? "min(13rem, calc(100vh - 7rem))"
+          : "min(18rem, calc(100vh - 7rem))",
         color: text,
         background: panelSurface,
+        backdropFilter: panelFilter,
         border: "1px solid var(--nexus-border)",
         borderRadius: "8px",
-        boxShadow: "0 18px 55px rgba(0,0,0,0.35)",
+        boxShadow: tooltipShadow,
         whiteSpace: "pre-wrap",
+        overflow: "auto",
+        padding: "9px 10px",
+      },
+      ".cm-completionInfo.nx-cm-completionInfo-side": {
+        marginInline: "8px",
+      },
+      ".cm-completionInfo.nx-cm-completionInfo-stacked": {
+        marginTop: "8px",
+        marginBottom: "8px",
       },
       ".cm-panels": {
         color: text,
+        position: "absolute",
+        left: compactViewport ? "6px" : "10px",
+        right: "auto",
+        zIndex: 70,
+        width: "max-content",
+        maxWidth: compactViewport
+          ? "calc(100% - 12px)"
+          : "min(44rem, calc(100% - 20px))",
+        boxShadow: tooltipShadow,
       },
       ".cm-panels.cm-panels-top": {
+        top: compactViewport ? "6px" : "10px",
         borderBottom: "1px solid var(--nexus-border)",
       },
+      ".cm-panels.cm-panels-bottom": {
+        bottom: compactViewport ? "6px" : "10px",
+        borderTop: "1px solid var(--nexus-border)",
+      },
       ".cm-search": {
+        maxWidth: "100%",
         padding: "6px 8px",
         display: "flex",
         flexWrap: "wrap",
@@ -256,6 +452,7 @@ function createNexusCodeMirrorTheme(settings, compactViewport, editorFontSize, e
         alignItems: "center",
       },
       ".cm-search input": {
+        maxWidth: compactViewport ? "8.5rem" : "13rem",
         minHeight: "1.75rem",
         borderRadius: "6px",
         border: "1px solid var(--nexus-border)",
@@ -274,11 +471,11 @@ function createNexusCodeMirrorTheme(settings, compactViewport, editorFontSize, e
         background: hexToRgba(accent, 0.16),
       },
       ".cm-searchMatch": {
-        backgroundColor: "rgba(250,204,21,0.24)",
-        outline: "1px solid rgba(250,204,21,0.25)",
+        backgroundColor: `${selectionSoft} !important`,
+        outline: `1px solid ${hexToRgba(editorAccentBlue, 0.28)}`,
       },
       ".cm-searchMatch.cm-searchMatch-selected": {
-        backgroundColor: hexToRgba(accent, 0.32),
+        backgroundColor: `${selectionStrong} !important`,
       },
       ".cm-diagnostic": {
         borderRadius: "4px",
@@ -358,11 +555,14 @@ function getLanguageExtension(languageId, fileName) {
       return markdown();
     case LANGUAGE_IDS.PYTHON:
       return python();
+    case LANGUAGE_IDS.GO:
+      return streamGrammar(legacyGo);
     case LANGUAGE_IDS.JAVA:
       return java();
     case LANGUAGE_IDS.C:
     case LANGUAGE_IDS.CPP:
     case LANGUAGE_IDS.CSHARP:
+    case LANGUAGE_IDS.OBJECTIVE_C:
       return cpp();
     case LANGUAGE_IDS.PHP:
       return php();
@@ -372,6 +572,49 @@ function getLanguageExtension(languageId, fileName) {
       return sql();
     case LANGUAGE_IDS.XML:
       return xml();
+    case LANGUAGE_IDS.YAML:
+      return streamGrammar(yaml);
+    case LANGUAGE_IDS.SHELL:
+    case LANGUAGE_IDS.BAT:
+    case LANGUAGE_IDS.ENV:
+    case LANGUAGE_IDS.MAKEFILE:
+      return streamGrammar(shell);
+    case LANGUAGE_IDS.POWERSHELL:
+      return streamGrammar(powerShell);
+    case LANGUAGE_IDS.DOCKERFILE:
+      return streamGrammar(dockerFile);
+    case LANGUAGE_IDS.CMAKE:
+      return streamGrammar(cmake);
+    case LANGUAGE_IDS.TOML:
+      return streamGrammar(toml);
+    case LANGUAGE_IDS.INI:
+      return streamGrammar(properties);
+    case LANGUAGE_IDS.RUBY:
+      return streamGrammar(ruby);
+    case LANGUAGE_IDS.SWIFT:
+      return streamGrammar(swift);
+    case LANGUAGE_IDS.KOTLIN:
+    case LANGUAGE_IDS.SCALA:
+      return java();
+    case LANGUAGE_IDS.LUA:
+      return streamGrammar(lua);
+    case LANGUAGE_IDS.R:
+      return streamGrammar(rLanguage);
+    case LANGUAGE_IDS.PERL:
+      return streamGrammar(perl);
+    case LANGUAGE_IDS.CLOJURE:
+      return streamGrammar(clojure);
+    case LANGUAGE_IDS.FSHARP:
+      return streamGrammar(fSharp);
+    case LANGUAGE_IDS.VB:
+      return streamGrammar(vb);
+    case LANGUAGE_IDS.SYSTEMVERILOG:
+    case LANGUAGE_IDS.VERILOG:
+      return streamGrammar(verilog);
+    case LANGUAGE_IDS.PROTOBUF:
+      return streamGrammar(protobuf);
+    case LANGUAGE_IDS.DIFF:
+      return streamGrammar(diffParser);
     default:
       return [];
   }
@@ -453,6 +696,9 @@ export default function CodeEditor({
     message: "",
   });
   const [editorFocused, setEditorFocused] = useState(false);
+  const [editorFallbackReason, setEditorFallbackReason] = useState("");
+  const [fallbackValue, setFallbackValue] = useState(code || "");
+  const editorCanvasRef = useRef(null);
   const editorViewRef = useRef(null);
   const codeRef = useRef(code || "");
   const lspEngineRef = useRef(null);
@@ -499,6 +745,57 @@ export default function CodeEditor({
     () => createEditorHighlightStyle(editorTheme),
     [editorTheme],
   );
+  const reduceEditorMotion = useMemo(
+    () => resolveEditorReducedMotion(settings),
+    [
+      settings.animations_enabled,
+      settings.reduce_motion,
+      settings.visual_performance_profile,
+    ],
+  );
+  const autocompleteMaxItems = useMemo(
+    () => resolveAutocompleteMaxItems(settings, reduceEditorMotion, compactViewport),
+    [
+      compactViewport,
+      reduceEditorMotion,
+      settings.autocomplete_max_items,
+    ],
+  );
+  const completionOptions = useMemo(
+    () => ({
+      lowPowerMode: reduceEditorMotion,
+      languageHints: settings.autocomplete_language_hints !== false,
+      localWords: settings.autocomplete_local_words !== false,
+      maxItems: autocompleteMaxItems,
+      minPrefixLength: settings.autocomplete_min_chars,
+      snippets: settings.autocomplete_snippets !== false,
+    }),
+    [
+      autocompleteMaxItems,
+      reduceEditorMotion,
+      settings.autocomplete_language_hints,
+      settings.autocomplete_local_words,
+      settings.autocomplete_min_chars,
+      settings.autocomplete_snippets,
+    ],
+  );
+  const documentSymbols = useMemo(
+    () =>
+      isLargeFile
+        ? []
+        : extractDocumentSymbols(code || "", nexusLanguageId, {
+            maxSymbols: reduceEditorMotion ? 90 : 180,
+          }),
+    [code, isLargeFile, nexusLanguageId, reduceEditorMotion],
+  );
+  const editorScopeInfo = useMemo(
+    () =>
+      createEditorScopeInfo(documentSymbols, cursorInfo.line, {
+        lineCount,
+      }),
+    [cursorInfo.line, documentSymbols, lineCount],
+  );
+  const editorResetKey = `${resourcePath || "untitled"}:${nexusLanguageId}`;
 
   const flushPendingChange = useCallback(() => {
     if (changeEmitTimerRef.current) {
@@ -568,8 +865,42 @@ export default function CodeEditor({
 
   useEffect(() => {
     codeRef.current = code || "";
+    setFallbackValue(code || "");
     setLineCount(countLines(code || ""));
   }, [code, fileName]);
+
+  useEffect(() => {
+    setEditorFallbackReason("");
+  }, [editorResetKey]);
+
+  useEffect(() => {
+    if (editorFallbackReason) return undefined;
+    const timer = window.setTimeout(() => {
+      const canvas = editorCanvasRef.current;
+      const view = editorViewRef.current;
+      if (!canvas) return;
+      const editorNode = canvas.querySelector(".cm-editor");
+      const contentNode = canvas.querySelector(".cm-content");
+      const scrollerNode = canvas.querySelector(".cm-scroller");
+      const canvasRect = canvas.getBoundingClientRect();
+      const contentRect = contentNode?.getBoundingClientRect?.();
+      const hasMountedDom = Boolean(view && editorNode && contentNode && scrollerNode);
+      const hasUsableSize =
+        canvasRect.height > 44 &&
+        canvasRect.width > 120 &&
+        (contentRect?.height ?? 0) > 8;
+      const expectedText = codeRef.current;
+      const hasRenderedText =
+        !expectedText ||
+        Number(view?.state?.doc?.length ?? 0) === expectedText.length ||
+        Number(contentNode?.textContent?.length ?? 0) > 0;
+
+      if (!hasMountedDom || !hasUsableSize || !hasRenderedText) {
+        setEditorFallbackReason("CodeMirror mount watchdog");
+      }
+    }, EDITOR_MOUNT_WATCHDOG_MS);
+    return () => window.clearTimeout(timer);
+  }, [editorFallbackReason, editorResetKey]);
 
   useEffect(() => {
     let frame = 0;
@@ -721,13 +1052,23 @@ export default function CodeEditor({
 
   const completionSource = useCallback(
     async (context) => {
-      const snippets = createSnippetCompletions(context);
+      if (settings.autocomplete_enabled === false || isLargeFile) return null;
+
+      const snippets = createSnippetCompletions(
+        context,
+        nexusLanguageId,
+        completionOptions,
+      );
       const engine = lspEngineRef.current;
       const documentUri = lspDocumentUriRef.current;
-      const shouldAskLsp = engine && documentUri && shouldRequestLspCompletion(context);
+      const shouldAskLsp =
+        settings.autocomplete_lsp !== false &&
+        engine &&
+        documentUri &&
+        shouldRequestLspCompletion(context, completionOptions);
 
       if (!shouldAskLsp) {
-        return context.explicit ? snippets : null;
+        return snippets;
       }
 
       try {
@@ -735,12 +1076,21 @@ export default function CodeEditor({
         const completionList = await engine.getCompletions(documentUri, position, {
           triggerKind: context.explicit ? 1 : 2,
         });
-        return lspCompletionsToCodeMirror(context, completionList, snippets);
+        return lspCompletionsToCodeMirror(context, completionList, snippets, {
+          ...completionOptions,
+          languageId: nexusLanguageId,
+        });
       } catch {
         return snippets;
       }
     },
-    [],
+    [
+      completionOptions,
+      isLargeFile,
+      nexusLanguageId,
+      settings.autocomplete_enabled,
+      settings.autocomplete_lsp,
+    ],
   );
 
   const hoverSource = useCallback(
@@ -797,17 +1147,28 @@ export default function CodeEditor({
   );
 
   const cmTheme = useMemo(
-    () => createNexusCodeMirrorTheme(settings, compactViewport, editorFontSize, editorLineHeight),
+    () =>
+      createNexusCodeMirrorTheme(
+        settings,
+        compactViewport,
+        editorFontSize,
+        editorLineHeight,
+        reduceEditorMotion,
+      ),
     [
       compactViewport,
       editorFontSize,
       editorLineHeight,
+      reduceEditorMotion,
+      settings.animations_enabled,
       settings.cursor_style,
       settings.font_family,
       settings.font_weight,
       settings.letter_spacing,
       settings.primary_accent,
+      settings.reduce_motion,
       settings.theme,
+      settings.visual_performance_profile,
     ],
   );
 
@@ -870,22 +1231,28 @@ export default function CodeEditor({
       }),
       autocompletion({
         override: [completionSource],
-        activateOnTyping: !isLargeFile,
-        activateOnTypingDelay: 80,
+        activateOnTyping: settings.autocomplete_enabled !== false && !isLargeFile,
+        activateOnTypingDelay: reduceEditorMotion ? 140 : 80,
         selectOnOpen: true,
-        maxRenderedOptions: compactViewport ? 45 : 80,
+        maxRenderedOptions: Math.min(
+          autocompleteMaxItems,
+          reduceEditorMotion ? (compactViewport ? 28 : 42) : compactViewport ? 45 : 80,
+        ),
         aboveCursor: compactViewport,
         tooltipClass: () => "nx-cm-completion-tooltip",
-        closeOnBlur: false,
+        closeOnBlur: true,
+        interactionDelay: reduceEditorMotion ? 120 : 75,
+        updateSyncTime: reduceEditorMotion ? 70 : 100,
+        positionInfo: positionCompletionInfo,
       }),
       hoverTooltip(hoverSource, {
-        hoverTime: 260,
+        hoverTime: reduceEditorMotion ? 420 : 260,
         hideOnChange: "touch",
       }),
       highlightSelectionMatches({
         highlightWordAroundCursor: !isLargeFile,
         minSelectionLength: 2,
-        maxMatches: 160,
+        maxMatches: reduceEditorMotion ? 80 : 160,
       }),
       placeholder("Schreib Code, Markdown, JSON oder Notizen direkt hier..."),
       cmThemeCompartment.of(cmTheme),
@@ -900,6 +1267,7 @@ export default function CodeEditor({
     return extensions;
   }, [
     cmTheme,
+    autocompleteMaxItems,
     compactViewport,
     completionSource,
     editorHighlightStyle,
@@ -910,8 +1278,10 @@ export default function CodeEditor({
     hoverSource,
     isLargeFile,
     nexusLanguageId,
+    reduceEditorMotion,
     scheduleCursorInfoUpdate,
     scheduleLineCountUpdate,
+    settings.autocomplete_enabled,
     showDiagnostics,
     showLineNumbers,
     wordWrap,
@@ -919,6 +1289,7 @@ export default function CodeEditor({
 
   const handleCreateEditor = useCallback((view) => {
     editorViewRef.current = view;
+    setEditorFallbackReason("");
     setLineCount(view.state.doc.lines);
     const head = view.state.selection.main.head;
     const line = view.state.doc.lineAt(head);
@@ -930,6 +1301,58 @@ export default function CodeEditor({
       codeRef.current = value || "";
     },
     [],
+  );
+
+  const handleEditorCrash = useCallback((error) => {
+    setEditorFallbackReason(error?.message || "CodeMirror render failed");
+  }, []);
+
+  const handleFallbackChange = useCallback(
+    (event) => {
+      const nextValue = event.target.value;
+      codeRef.current = nextValue;
+      setFallbackValue(nextValue);
+      setLineCount(countLines(nextValue));
+      onChange(nextValue);
+    },
+    [onChange],
+  );
+
+  const updateFallbackCursor = useCallback((event) => {
+    const target = event.currentTarget;
+    const position = Number(target.selectionStart || 0);
+    const beforeCursor = target.value.slice(0, position);
+    const lines = beforeCursor.split(/\r\n|\r|\n/);
+    setCursorInfo({
+      line: Math.max(1, lines.length),
+      col: Math.max(1, (lines[lines.length - 1] || "").length + 1),
+    });
+  }, []);
+
+  const renderFallbackEditor = useCallback(
+    (reason = editorFallbackReason) => (
+      <>
+        <textarea
+          className="nx-code-editor-fallback"
+          value={fallbackValue}
+          onChange={handleFallbackChange}
+          onSelect={updateFallbackCursor}
+          onFocus={() => setEditorFocused(true)}
+          onBlur={() => setEditorFocused(false)}
+          spellCheck={false}
+          aria-label="Nexus Code text editor fallback"
+        />
+        <div className="nx-code-editor-fallback-notice" title={reason}>
+          Text fallback
+        </div>
+      </>
+    ),
+    [
+      editorFallbackReason,
+      fallbackValue,
+      handleFallbackChange,
+      updateFallbackCursor,
+    ],
   );
 
   const handleCanvasMouseDown = useCallback((event) => {
@@ -948,10 +1371,10 @@ export default function CodeEditor({
     });
   }, []);
 
-  const engineLabel = "CodeMirror 6";
+  const engineLabel = editorFallbackReason ? "Text fallback" : "CodeMirror 6";
   const lspTone =
     lspStatus.state === "running"
-      ? "text-green-400"
+      ? "text-sky-300"
       : lspStatus.state === "starting"
         ? "text-amber-400"
         : lspStatus.state === "unavailable"
@@ -962,24 +1385,39 @@ export default function CodeEditor({
     <div
       className="nx-code-editor-shell flex-1 flex flex-col min-h-0 w-full relative overflow-hidden bg-transparent"
       style={{ background: "transparent" }}
-      data-editor-engine="codemirror"
+      data-editor-engine={editorFallbackReason ? "textarea-fallback" : "codemirror"}
+      data-editor-fallback={editorFallbackReason ? "true" : "false"}
       data-focused={editorFocused ? "true" : "false"}
+      data-symbol-count={documentSymbols.length}
+      data-active-symbol={editorScopeInfo.activeSymbol?.name || ""}
+      data-scope-path={editorScopeInfo.pathLabel}
     >
       <div
+        ref={editorCanvasRef}
         className="nx-code-editor-canvas flex-1 min-h-0 w-full relative overflow-hidden"
         onMouseDown={handleCanvasMouseDown}
       >
-        <CodeMirror
-          value={code || ""}
-          height="100%"
-          width="100%"
-          extensions={baseExtensions}
-          onChange={handleChange}
-          onCreateEditor={handleCreateEditor}
-          basicSetup={false}
-          indentWithTab
-          editable
-        />
+        {editorFallbackReason ? (
+          renderFallbackEditor(editorFallbackReason)
+        ) : (
+          <CodeMirrorCrashBoundary
+            resetKey={editorResetKey}
+            onCrash={handleEditorCrash}
+            fallback={renderFallbackEditor}
+          >
+            <CodeMirror
+              value={code || ""}
+              height="100%"
+              width="100%"
+              extensions={baseExtensions}
+              onChange={handleChange}
+              onCreateEditor={handleCreateEditor}
+              basicSetup={false}
+              indentWithTab
+              editable
+            />
+          </CodeMirrorCrashBoundary>
+        )}
       </div>
 
       <div
@@ -1007,6 +1445,14 @@ export default function CodeEditor({
               BRACKETS
             </span>
           )}
+          {editorScopeInfo.activeSymbol && (
+            <span
+              className="max-w-[18rem] truncate text-[10px] text-gray-500"
+              title={editorScopeInfo.tooltip}
+            >
+              {editorScopeInfo.kindLabel} {editorScopeInfo.pathLabel}
+            </span>
+          )}
           {minimap && !compactViewport && (
             <span className="text-[10px] text-gray-600">
               minimap retired
@@ -1020,6 +1466,14 @@ export default function CodeEditor({
           <span className="text-[10px] text-gray-500">
             {lineCount} Lines
           </span>
+          {documentSymbols.length > 0 && (
+            <span
+              className="text-[10px] text-gray-500"
+              title={editorScopeInfo.tooltip}
+            >
+              {documentSymbols.length} Symbols / {editorScopeInfo.rangeLabel}
+            </span>
+          )}
         </div>
       </div>
     </div>
