@@ -8,7 +8,7 @@ import {
   normalizeViewId,
   requestJsonWithPolicy,
 } from '../utils'
-import { buildViewAccessCacheKey, getViewValidationErrorReason } from './common'
+import { buildViewAccessCacheKey, buildWriteHeaders, getViewValidationErrorReason } from './common'
 
 const LOCAL_FREE_VIEWS_BY_APP: Record<string, Set<string>> = {
   main: new Set([
@@ -126,12 +126,17 @@ export const validateViewAccess = async (
     userTier: requestedTier,
   }
 
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    'X-Nexus-App-Id': client.appId,
+  if (!client.token && !client.ingestKey) {
+    const localAllowed = shouldTrustLocalFreeView(client, normalizedView)
+    return buildFallbackResult(client, normalizedView, requestedTier, options, {
+      allowed: localAllowed,
+      reason: localAllowed ? 'LOCAL_FREE_VIEW_ALLOW_AUTH_SKIPPED' : 'AUTH_REQUIRED_SKIPPED',
+      paywallEnabled: !localAllowed,
+      requiredTier: localAllowed ? null : 'pro',
+    })
   }
-  if (client.token) headers.Authorization = `Bearer ${client.token}`
-  if (client.ingestKey) headers['X-Nexus-Ingest-Key'] = client.ingestKey
+
+  const headers = buildWriteHeaders(client, client.appId)
 
   try {
     const response = await requestJsonWithPolicy<any>(`${client.baseUrl}/api/v1/views/validate`, {

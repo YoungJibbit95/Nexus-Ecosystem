@@ -60,6 +60,15 @@ const buildNoBaseUrlResult = <T>(cached: any) => ({
   errorCode: 'NO_BASE_URL',
 } as NexusFetchResult<T>)
 
+const buildAuthRequiredSkippedResult = <T>(cached: any) => ({
+  item: cached?.item ?? null,
+  etag: cached?.etag ?? null,
+  fetchedAt: Date.now(),
+  fromCache: false,
+  notModified: false,
+  errorCode: 'AUTH_REQUIRED_SKIPPED',
+} as NexusFetchResult<T>)
+
 const buildNetworkResult = <T>(cached: any, error: unknown) => ({
   item: cached?.item ?? null,
   etag: cached?.etag ?? null,
@@ -105,6 +114,7 @@ const fetchCachedResource = async <T>(client: any, input: {
   }
 
   if (!client.baseUrl) return buildNoBaseUrlResult<T>(cached)
+  if (!client.token && !client.ingestKey) return buildAuthRequiredSkippedResult<T>(cached)
 
   try {
     const response = await requestJsonWithPolicy<any>(input.endpoint, {

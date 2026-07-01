@@ -278,7 +278,7 @@ const requestMainAuthSession = async (input: {
 const isMainAuthBootstrapFailure = (reason: string | null) =>
   Boolean(
     reason &&
-      /(HTTP_401|HTTP_403|INGEST_UNAUTHORIZED|UNAUTHORIZED|INVALID_CREDENTIALS|DEVICE_NOT_VERIFIED|DEVICE_ID_REQUIRED)/.test(
+      /(HTTP_401|HTTP_403|INGEST_UNAUTHORIZED|UNAUTHORIZED|INVALID_CREDENTIALS|DEVICE_NOT_VERIFIED|DEVICE_ID_REQUIRED|AUTH_REQUIRED_SKIPPED)/.test(
         reason,
       ),
   );
@@ -565,6 +565,7 @@ export default function App() {
     const controlBaseUrl = controlApiBaseUrl;
     const controlIngestKey = resolveControlIngestKey();
     const controlToken = authSession?.token || "";
+    const controlDeviceId = getMainDeviceId();
 
     if (authSession && authSession.expiresAt <= Date.now() + 15_000) {
       clearStoredMainAuthSession();
@@ -580,6 +581,8 @@ export default function App() {
         baseUrl: controlBaseUrl,
         token: controlToken,
         ingestKey: controlIngestKey,
+        deviceId: controlDeviceId,
+        deviceLabel: "Nexus Main",
         sampleRate: 0.35,
         flushIntervalMs: 12_000,
         releasePollIntervalMs: 30_000,

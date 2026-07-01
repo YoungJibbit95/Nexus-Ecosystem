@@ -17,6 +17,8 @@ export interface NexusControlOptions {
   localFallbackLatencyMs?: number
   token?: string
   ingestKey?: string
+  deviceId?: string
+  deviceLabel?: string
   flushIntervalMs?: number
   maxQueueSize?: number
   maxQueueBytes?: number

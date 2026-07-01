@@ -29,6 +29,12 @@ export const buildReadHeaders = (client: any, appId: NexusAppId, etag: string | 
   if (client.ingestKey) {
     headers['X-Nexus-Ingest-Key'] = client.ingestKey
   }
+  if (client.deviceId) {
+    headers['X-Nexus-Device-Id'] = client.deviceId
+  }
+  if (client.deviceLabel) {
+    headers['X-Nexus-Device-Label'] = client.deviceLabel
+  }
   if (etag) {
     headers['If-None-Match'] = etag
   }

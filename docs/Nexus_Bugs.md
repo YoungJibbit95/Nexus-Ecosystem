@@ -64,10 +64,10 @@ GitHub UI-Gates fuer Main, Website und API-Deploy-Automation ergaenzen | true
 Wiederholte UI-CSS-Passes in index.css konsolidieren, damit spaetere Regeln fruehere Regeln nicht heimlich ueberschreiben | false
 Responsive UI-Smoke fuer 1366, 1180, 980, 760 und 460px als feste Release-Pruefung aufnehmen | false
 View-spezifische Toolbars auf gleiche Breakpoint-Logik bringen, damit Controls nicht je View anders umbrechen | false
-Nexus hat Probleme die API abzufragen | false
+Nexus hat Probleme die API abzufragen | true
 wenn man Views oeffnen will zeigt es an das man selbst als Admin nicht die benoetigte Tier hat sogar bei Free Tiers | true
 Control Panel Desktop muss fertiggestellt werden | false
-APi Patch mit stabilerer Ecosystem und Login System Verbindung integrieren | false
+APi Patch mit stabilerer Ecosystem und Login System Verbindung integrieren | true
 Control Panel Editierbar machen, zur Zeit lassen sich viele API Daten und Einstellungen nicht speichern wenn sie geaendert werden | false
 Payment wird als aktiviert angezeigt ist es aber nict auf der Website | true
 Nexus Main und Nexus Code haben teilweise Probleme mit View Access und Tier System | true

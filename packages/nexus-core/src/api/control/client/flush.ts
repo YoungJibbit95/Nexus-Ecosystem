@@ -1,5 +1,5 @@
 import { abortableFetch, now } from '../utils'
-import { requeue } from './common'
+import { buildWriteHeaders, requeue } from './common'
 
 const estimateEventBytes = (event: unknown) => {
   try {
@@ -55,6 +55,7 @@ export const flushBatchWithRetry = async (client: any, payload: any, headers: Re
 
 export const flush = async (client: any) => {
   if (client.flushing || client.queue.length === 0 || !client.baseUrl) return
+  if (!client.token && !client.ingestKey) return
   client.flushing = true
 
   const batch = client.queue.splice(0, client.maxBatchSize)
@@ -65,18 +66,7 @@ export const flush = async (client: any) => {
     events: batch,
   }
 
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    'X-Nexus-App-Id': client.appId,
-  }
-
-  if (client.token) {
-    headers.Authorization = `Bearer ${client.token}`
-  }
-
-  if (client.ingestKey) {
-    headers['X-Nexus-Ingest-Key'] = client.ingestKey
-  }
+  const headers = buildWriteHeaders(client, client.appId)
 
   try {
     const result = await flushBatchWithRetry(client, payload, headers)

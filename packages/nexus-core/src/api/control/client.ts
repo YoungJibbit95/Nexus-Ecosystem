@@ -33,7 +33,7 @@ import {
   requestJsonWithPolicy,
   shouldSample,
 } from './utils'
-import { clearRemoteCaches } from './client/common'
+import { buildReadHeaders, clearRemoteCaches } from './client/common'
 import { reportCapabilities } from './client/capabilities'
 import { resolveFeatureCompatibility } from './client/compatibility'
 import { fetchCatalog, fetchCurrentRelease, fetchLayoutSchema, fetchLiveBundle } from './client/fetch-v2'
@@ -48,6 +48,8 @@ export class NexusControlClient {
   private baseUrl: string
   private token: string
   private ingestKey: string
+  private deviceId: string
+  private deviceLabel: string
   private flushIntervalMs: number
   private maxQueueSize: number
   private maxQueueBytes: number
@@ -85,6 +87,8 @@ export class NexusControlClient {
     this.baseUrl = normalizeBaseUrl(options.baseUrl)
     this.token = options.token ?? ''
     this.ingestKey = options.ingestKey ?? ''
+    this.deviceId = String(options.deviceId ?? '').trim().slice(0, 120)
+    this.deviceLabel = String(options.deviceLabel ?? '').trim().slice(0, 80)
     this.flushIntervalMs = clamp(Math.floor(options.flushIntervalMs ?? 5_000), 1_000, 60_000)
     this.maxQueueSize = clamp(Math.floor(options.maxQueueSize ?? 500), 50, 5_000)
     this.maxQueueBytes = clamp(Math.floor(options.maxQueueBytes ?? 1_200_000), 64_000, 10_000_000)
@@ -127,6 +131,15 @@ export class NexusControlClient {
     this.token = token || ''
     clearRemoteCaches(this)
   }
+  setDeviceContext(input: { deviceId?: string; deviceLabel?: string } = {}) {
+    const nextDeviceId = String(input.deviceId ?? '').trim().slice(0, 120)
+    const nextDeviceLabel = String(input.deviceLabel ?? '').trim().slice(0, 80)
+    if (nextDeviceId !== this.deviceId || nextDeviceLabel !== this.deviceLabel) {
+      this.deviceId = nextDeviceId
+      this.deviceLabel = nextDeviceLabel
+      clearRemoteCaches(this)
+    }
+  }
   setBaseUrl(baseUrl: string) {
     this.baseUrl = normalizeBaseUrl(baseUrl)
     this.enabled = Boolean(this.baseUrl)
@@ -153,7 +166,7 @@ export class NexusControlClient {
     try {
       const response = await requestJsonWithPolicy<any>(`${this.baseUrl}/api/v1/config/apps/${this.appId}`, {
         method: 'GET',
-        headers: { Authorization: `Bearer ${this.token}` },
+        headers: buildReadHeaders(this, this.appId),
         timeoutMs: this.requestTimeoutMs,
         maxRetries: this.readRetryMax,
         retryBaseMs: this.readRetryBaseMs,
