@@ -282,18 +282,24 @@ const SNAP_ZONE_ALIASES = Object.freeze({
   sidebar: WORKBENCH_SNAP_ZONES.left,
   "dock-left": WORKBENCH_SNAP_ZONES.left,
   "left-panel": WORKBENCH_SNAP_ZONES.left,
+  "left-sidebar": WORKBENCH_SNAP_ZONES.left,
   leftPanel: WORKBENCH_SNAP_ZONES.left,
   leftpanel: WORKBENCH_SNAP_ZONES.left,
   leftSidebar: WORKBENCH_SNAP_ZONES.left,
   leftsidebar: WORKBENCH_SNAP_ZONES.left,
   "dock-right": WORKBENCH_SNAP_ZONES.right,
   "right-panel": WORKBENCH_SNAP_ZONES.right,
+  "right-sidebar": WORKBENCH_SNAP_ZONES.right,
   rightPanel: WORKBENCH_SNAP_ZONES.right,
   rightpanel: WORKBENCH_SNAP_ZONES.right,
   rightSidebar: WORKBENCH_SNAP_ZONES.right,
   rightsidebar: WORKBENCH_SNAP_ZONES.right,
   "dock-bottom": WORKBENCH_SNAP_ZONES.bottom,
+  "bottom-dock": WORKBENCH_SNAP_ZONES.bottom,
   "bottom-panel": WORKBENCH_SNAP_ZONES.bottom,
+  "panel-bottom": WORKBENCH_SNAP_ZONES.bottom,
+  bottomDock: WORKBENCH_SNAP_ZONES.bottom,
+  bottomdock: WORKBENCH_SNAP_ZONES.bottom,
   bottomPanel: WORKBENCH_SNAP_ZONES.bottom,
   bottompanel: WORKBENCH_SNAP_ZONES.bottom,
   panel: WORKBENCH_SNAP_ZONES.left,
@@ -913,7 +919,8 @@ export function movePanelToZone(layout, panelId, snapZone, options = {}) {
 
   const currentZone =
     normalized.panelZones[normalizedPanelId] || DEFAULT_PANEL_ZONES[normalizedPanelId];
-  const targetZone = getDropTargetSnapZone(normalizedPanelId, snapZone, currentZone);
+  const targetZone = getDropTargetSnapZone(normalizedPanelId, snapZone, null);
+  if (!targetZone) return normalized;
   const originalZonePanelIds = cloneZonePanelIds(normalized.zonePanelIds);
   const zonePanelIds = cloneZonePanelIds(normalized.zonePanelIds);
   const beforePanelId = normalizePanelId(options.beforePanelId);
@@ -1088,6 +1095,87 @@ function isPanelInZones(panelId, layout, zones) {
   return zones.includes(zone);
 }
 
+function uniquePanelIds(panelIds) {
+  const seen = new Set();
+  return panelIds.filter((panelId) => {
+    if (!hasPanelId(panelId) || seen.has(panelId)) return false;
+    seen.add(panelId);
+    return true;
+  });
+}
+
+function normalizeFocusDirection(direction) {
+  if (typeof direction === "number") {
+    if (direction > 0) return 1;
+    if (direction < 0) return -1;
+    return 0;
+  }
+
+  const normalized = typeof direction === "string"
+    ? direction.trim().toLowerCase()
+    : "";
+  if (["next", "forward", "after", "right", "down"].includes(normalized)) {
+    return 1;
+  }
+  if (["previous", "prev", "back", "backward", "before", "left", "up"].includes(normalized)) {
+    return -1;
+  }
+  return 0;
+}
+
+function getDockTargetForPlacement(placement) {
+  if (placement === WORKBENCH_PANEL_PLACEMENTS.bottom) {
+    return WORKBENCH_ZONES.bottomPanel;
+  }
+  if (placement === WORKBENCH_PANEL_PLACEMENTS.hidden) {
+    return WORKBENCH_ZONES.hidden;
+  }
+  return WORKBENCH_ZONES.sidePanel;
+}
+
+export function getFocusableWorkbenchPanelIds(layout, snapZone = null) {
+  const normalized = normalizeWorkbenchLayout(layout);
+  const zones = getVisibleSnapZones(snapZone);
+  if (!zones.length) return [];
+
+  return uniquePanelIds(
+    zones.flatMap((zone) => normalized.zonePanelIds[zone] || []),
+  );
+}
+
+export function getNextFocusableWorkbenchPanelId({
+  layout,
+  panelId = null,
+  snapZone = null,
+  direction = 1,
+  wrap = true,
+  fallback = null,
+} = {}) {
+  const panelIds = getFocusableWorkbenchPanelIds(layout, snapZone);
+  if (!panelIds.length) return null;
+
+  const normalizedPanelId = normalizePanelId(panelId);
+  const normalizedFallback = normalizePanelId(fallback);
+  const currentIndex = normalizedPanelId
+    ? panelIds.indexOf(normalizedPanelId)
+    : -1;
+
+  if (currentIndex === -1) {
+    return normalizedFallback && panelIds.includes(normalizedFallback)
+      ? normalizedFallback
+      : panelIds[0];
+  }
+
+  const step = normalizeFocusDirection(direction) || 1;
+  const nextIndex = currentIndex + step;
+  if (nextIndex >= 0 && nextIndex < panelIds.length) {
+    return panelIds[nextIndex];
+  }
+
+  if (!wrap) return normalizedPanelId;
+  return panelIds[(nextIndex + panelIds.length) % panelIds.length];
+}
+
 export function getVisiblePanelId({
   layout,
   panelId = null,
@@ -1117,6 +1205,115 @@ export function getVisiblePanelId({
   }
 
   return defaultToFirst ? getFirstPanelIdInZones(normalized, visibleZones) : null;
+}
+
+export function getWorkbenchPanelFocusTarget({
+  layout,
+  state = {},
+  panelId = null,
+  snapZone = null,
+  direction = 0,
+  wrap = true,
+  fallback = "explorer",
+} = {}) {
+  const normalized = normalizeWorkbenchLayout(layout);
+  const safeState = isObject(state) ? state : {};
+  const currentState = createWorkbenchDockState(safeState, normalized);
+  const focusDirection = normalizeFocusDirection(direction);
+  const focusablePanelIds = getFocusableWorkbenchPanelIds(normalized, snapZone);
+  const visiblePanelRequest = {
+    layout: normalized,
+    activePanel: currentState.activePanel,
+    bottomPanel: safeState.bottomPanel || currentState.bottomTab,
+    bottomTab: currentState.bottomTab,
+    bottomPanelOpen: currentState.bottomPanelOpen,
+    snapZone,
+    fallback,
+  };
+  let targetPanelId = normalizePanelId(panelId);
+
+  if (focusDirection) {
+    const currentPanelId = targetPanelId || getVisiblePanelId({
+      ...visiblePanelRequest,
+      defaultToFirst: false,
+    });
+    targetPanelId = getNextFocusableWorkbenchPanelId({
+      layout: normalized,
+      panelId: currentPanelId,
+      snapZone,
+      direction: focusDirection,
+      wrap,
+      fallback,
+    });
+  } else if (!targetPanelId) {
+    targetPanelId = getVisiblePanelId({
+      ...visiblePanelRequest,
+      defaultToFirst: true,
+    });
+  }
+
+  if (!targetPanelId) {
+    return {
+      canFocus: false,
+      reason: "no-focusable-panel",
+      panelId: null,
+      snapZone: null,
+      placement: null,
+      dockTarget: null,
+      sidebarRequired: false,
+      state: currentState,
+      panelIds: focusablePanelIds,
+      layout: normalized,
+    };
+  }
+
+  const targetSnapZone = getWorkbenchPanelSnapZone(targetPanelId, normalized);
+  const placement = getPlacementForSnapZone(targetSnapZone);
+  const dockTarget = getDockTargetForPlacement(placement);
+
+  if (placement === WORKBENCH_PANEL_PLACEMENTS.hidden) {
+    return {
+      canFocus: false,
+      reason: "hidden-panel",
+      panelId: targetPanelId,
+      snapZone: targetSnapZone,
+      placement,
+      dockTarget,
+      sidebarRequired: false,
+      state: currentState,
+      panelIds: focusablePanelIds,
+      layout: normalized,
+    };
+  }
+
+  if (!focusablePanelIds.includes(targetPanelId)) {
+    return {
+      canFocus: false,
+      reason: "panel-outside-zone",
+      panelId: targetPanelId,
+      snapZone: targetSnapZone,
+      placement,
+      dockTarget,
+      sidebarRequired: false,
+      state: currentState,
+      panelIds: focusablePanelIds,
+      layout: normalized,
+    };
+  }
+
+  const nextState = openWorkbenchDockPanel(currentState, targetPanelId, normalized);
+  return {
+    canFocus: true,
+    reason: null,
+    panelId: targetPanelId,
+    snapZone: targetSnapZone,
+    placement,
+    dockTarget: nextState.dockTarget || dockTarget,
+    sidebarRequired: Boolean(nextState.sidebarRequired),
+    state: nextState,
+    panelIds: focusablePanelIds,
+    layout: normalized,
+  };
 }
 
 function getBottomPanelId(panelId, fallback = "terminal") {

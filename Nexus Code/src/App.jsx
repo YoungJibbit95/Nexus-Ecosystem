@@ -22,7 +22,6 @@ import {
 import {
   ACCOUNT_AUTH_MODES,
   clearNexusAccountSession,
-  createLocalAccountSession,
   getAccountSessionState,
   loadNexusAccountSession,
   normalizeAccountSession,
@@ -280,7 +279,6 @@ function AccountGateScreen({
   controlStatus,
   viewGuardState,
   onSubmit,
-  onStartLocal,
   onClear,
 }) {
   const normalizedSession = useMemo(() => normalizeAccountSession(session), [session]);
@@ -347,18 +345,6 @@ function AccountGateScreen({
     }
   };
 
-  const handleStartLocal = () => {
-    if (busy) return;
-    const saved = onStartLocal?.();
-    setMessage({
-      tone: "success",
-      title: "Lokaler Workspace aktiv",
-      detail: saved?.username
-        ? `${saved.username} startet ohne Cloud-Features.`
-        : "Nexus Code startet lokal; API Features bleiben deaktiviert.",
-    });
-  };
-
   const gateDetails = [
     ...(controlStatus?.details || []),
     viewGuardState?.reason ? `access:${viewGuardState.reason}` : "",
@@ -371,7 +357,7 @@ function AccountGateScreen({
     detail:
       gateDetails.length > 0
         ? gateDetails.join(", ")
-        : "Cloud-Funktionen brauchen eine Nexus Session; lokale IDE-Funktionen koennen sofort starten.",
+        : "Nexus Code braucht eine gueltige Nexus Session, bevor die Workbench gerendert wird.",
   };
   const noticeColor = notice.tone === "success"
     ? "rgba(45,212,191,0.2)"
@@ -451,7 +437,7 @@ function AccountGateScreen({
               lineHeight: 1.65,
             }}
           >
-            Melde dich mit deinem Nexus Account an oder starte lokal. Der lokale Modus laedt den Editor sofort und markiert Cloud-, Sync- und Billing-nahe Features als offline.
+            Melde dich mit deinem Nexus Account an. Nexus Code rendert die Workbench erst nach einer gueltigen Session, damit API-, Tier- und Release-Zustand eindeutig sind.
           </p>
           <div
             style={{
@@ -553,7 +539,7 @@ function AccountGateScreen({
             </label>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 10, marginTop: 18 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 10, marginTop: 18 }}>
             <button
               type="submit"
               disabled={busy}
@@ -568,23 +554,6 @@ function AccountGateScreen({
               }}
             >
               {busy ? "Melde an..." : "Mit Nexus starten"}
-            </button>
-            <button
-              type="button"
-              onClick={handleStartLocal}
-              disabled={busy}
-              style={{
-                minHeight: 46,
-                borderRadius: 16,
-                border: "1px solid rgba(45,212,191,0.22)",
-                background: "rgba(45,212,191,0.08)",
-                color: "#a7f3d0",
-                padding: "0 14px",
-                fontWeight: 750,
-                cursor: busy ? "wait" : "pointer",
-              }}
-            >
-              Lokal starten
             </button>
           </div>
           <button
@@ -613,10 +582,6 @@ function AccountGateScreen({
 
 function App() {
   const [accountSession, setAccountSession] = useState(loadNexusAccountSession);
-  const accountSessionState = useMemo(
-    () => getAccountSessionState(accountSession),
-    [accountSession],
-  );
   const controlBaseUrl = accountSession.endpoint || DEFAULT_CONTROL_API_BASE_URL;
   const controlToken = accountSession.token || "";
   const controlEnabled = accountSession.authMode === ACCOUNT_AUTH_MODES.nexus && Boolean(controlBaseUrl);
@@ -670,32 +635,6 @@ function App() {
     setAccountSession(cleared);
     setControlStatus(buildControlStatus("limited", ["account:SESSION_CLEARED"]));
     return cleared;
-  }, []);
-
-  const handleStartLocalWorkspace = useCallback(() => {
-    const localSession = createLocalAccountSession();
-    const saved = saveNexusAccountSession(localSession);
-    setAccountSession(saved);
-    setControlStatus(buildControlStatus(
-      "offline",
-      ["account:LOCAL_WORKSPACE"],
-      "Nexus Code startet lokal; Cloud Features sind bis zum Login deaktiviert.",
-    ));
-    setReleaseState({
-      releaseId: "local-workspace",
-      compatible: true,
-      reasons: [],
-    });
-    setViewGuardState({
-      checking: false,
-      blocked: false,
-      reason: null,
-      requiredTier: null,
-    });
-    setBootReady(false);
-    setBootProgress(0);
-    setBootStage("Lokale Workbench wird gestartet...");
-    return saved;
   }, []);
 
   const handleTestAccountConnection = useCallback(
@@ -855,7 +794,7 @@ function App() {
       setControlStatus(buildControlStatus(
         "limited",
         ["account:SESSION_REQUIRED"],
-        "Nexus Code wartet auf Login oder lokalen Workspace.",
+        "Nexus Code wartet auf eine gueltige Nexus Session.",
       ));
       setReleaseState({
         releaseId: null,
@@ -871,41 +810,6 @@ function App() {
       setBootProgress(100);
       setBootStage("Nexus Account erforderlich");
       setBootReady(true);
-      return () => {
-        active = false;
-      };
-    }
-
-    if (accountSessionState.isLocal) {
-      setControlStatus(buildControlStatus(
-        "offline",
-        ["account:LOCAL_WORKSPACE"],
-        "Nexus Code nutzt lokale IDE-Daten; Cloud Features sind deaktiviert.",
-      ));
-      setReleaseState({
-        releaseId: "local-workspace",
-        compatible: true,
-        reasons: [],
-      });
-      setViewGuardState({
-        checking: false,
-        blocked: false,
-        reason: null,
-        requiredTier: null,
-      });
-      void (async () => {
-        setBootStep(38, "Lade lokale Editor-Module...");
-        const warmupResult = await withTimeoutResult(uiWarmupPromise, preloadBudgetMs);
-        if (!active) return;
-        setBootStep(
-          92,
-          warmupResult.timedOut
-            ? "Editor-Warmup laeuft im Hintergrund weiter..."
-            : "Editor-Module vorgeladen",
-        );
-        setBootStep(100, "Lokale Workbench bereit");
-        setBootReady(true);
-      })();
       return () => {
         active = false;
       };
@@ -1037,16 +941,16 @@ function App() {
         setControlStatus(buildControlStatus(
           "degraded",
           [reason],
-          "Nexus Code startet mit lokalen Runtime-Daten; API Features bleiben eingeschraenkt.",
+          "Nexus Code bleibt gesperrt, bis Account und Control API wieder valide sind.",
         ));
         setReleaseState({
-          releaseId: "degraded-local-runtime",
-          compatible: true,
+          releaseId: null,
+          compatible: false,
           reasons: [reason],
         });
         setViewGuardState({
           checking: false,
-          blocked: false,
+          blocked: true,
           reason,
           requiredTier: "free",
         });
@@ -1091,7 +995,7 @@ function App() {
       active = false;
       unsubscribe();
     };
-  }, [accountSessionState.isLocal, hasElevatedAccountRole, runtime, strictAccountReady, viewAccessContext]);
+  }, [hasElevatedAccountRole, runtime, strictAccountReady, viewAccessContext]);
 
   useEffect(() => {
     if (!bootReady || startupMetricDoneRef.current) return;
@@ -1112,7 +1016,6 @@ function App() {
         controlStatus={controlStatus}
         viewGuardState={viewGuardState}
         onSubmit={handleAccountGateSubmit}
-        onStartLocal={handleStartLocalWorkspace}
         onClear={handleClearAccountSession}
       />
     );

@@ -6,6 +6,7 @@ import {
   groupCommandPaletteItems,
   normalizeSearchValue,
 } from "../../pages/editor/commandPaletteModel.js";
+import { useNexusReducedMotion } from "./panels/PanelChrome.jsx";
 
 const EMPTY_FILES = Object.freeze([]);
 const EMPTY_EXTENSION_COMMANDS = Object.freeze([]);
@@ -25,7 +26,7 @@ function getResultCountLabel(count) {
 
 function KeyboardHint({ label }) {
   return (
-    <span className="rounded-lg border border-white/[0.08] bg-black/20 px-1.5 py-0.5 font-mono text-[10px] text-slate-400">
+    <span className="nx-code-search-kbd rounded-lg border px-1.5 py-0.5 font-mono text-[10px] text-slate-400">
       {label}
     </span>
   );
@@ -34,7 +35,7 @@ function KeyboardHint({ label }) {
 function MetaChip({ className = "", children }) {
   return (
     <span
-      className={`rounded-md border px-2 py-1 text-[10px] leading-none ${className}`}
+      className={`nx-code-search-chip rounded-md border px-2 py-1 text-[10px] leading-none ${className}`}
     >
       {children}
     </span>
@@ -47,7 +48,7 @@ function SuggestionButton({ label, onPick }) {
       type="button"
       onMouseDown={(event) => event.preventDefault()}
       onClick={() => onPick(label)}
-      className="rounded-lg border border-white/[0.08] bg-black/20 px-2.5 py-1.5 text-[11px] font-medium text-slate-300 transition-colors hover:border-sky-300/30 hover:bg-sky-300/10 hover:text-sky-100"
+      className="nx-code-search-suggestion rounded-lg border px-2.5 py-1.5 text-[11px] font-medium text-slate-300 transition-colors hover:border-sky-300/30 hover:bg-sky-300/10 hover:text-sky-100"
     >
       {label}
     </button>
@@ -57,8 +58,8 @@ function SuggestionButton({ label, onPick }) {
 function EmptyState({ query, onPickSuggestion }) {
   const normalizedQuery = normalizeSearchValue(query);
   return (
-    <div className="flex min-h-[240px] flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-white/[0.08] bg-black/20 px-6 py-8 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.035)]">
-      <div className="flex size-12 items-center justify-center rounded-2xl border border-white/[0.08] bg-white/[0.035] text-slate-500 shadow-[0_0_28px_rgba(56,189,248,0.055)]">
+    <div className="nx-code-search-empty flex min-h-[240px] flex-col items-center justify-center gap-4 rounded-2xl border border-dashed px-6 py-8 text-center">
+      <div className="nx-code-search-empty-icon flex size-12 items-center justify-center rounded-2xl border text-slate-500">
         <Search size={22} />
       </div>
       <div className="max-w-md">
@@ -101,6 +102,7 @@ export default function SpotlightSearch({
   files = EMPTY_FILES,
   extensionCommands = EMPTY_EXTENSION_COMMANDS,
 }) {
+  const reduceMotion = useNexusReducedMotion();
   const [query, setQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef(null);
@@ -199,30 +201,36 @@ export default function SpotlightSearch({
       {isOpen && (
         <>
           <motion.div
-            initial={{ opacity: 0 }}
+            initial={reduceMotion ? false : { opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 z-[2000] bg-black/55 backdrop-blur-xl"
+            transition={{ duration: reduceMotion ? 0 : 0.14, ease: "easeOut" }}
+            className="nx-code-search-overlay fixed inset-0 z-[2000]"
           />
           <motion.div
-            initial={{ opacity: 0, scale: 0.97, y: -18, x: "-50%" }}
+            initial={
+              reduceMotion
+                ? false
+                : { opacity: 0, scale: 0.985, y: -10, x: "-50%" }
+            }
             animate={{ opacity: 1, y: 0, scale: 1, x: "-50%" }}
-            exit={{ opacity: 0, scale: 0.97, y: -18, x: "-50%" }}
+            exit={
+              reduceMotion
+                ? { opacity: 0, x: "-50%" }
+                : { opacity: 0, scale: 0.985, y: -10, x: "-50%" }
+            }
             transition={{
-              type: "spring",
-              stiffness: 330,
-              damping: 32,
-              mass: 0.82,
+              duration: reduceMotion ? 0 : 0.18,
+              ease: [0.22, 1, 0.36, 1],
             }}
-            className="fixed left-1/2 top-[12%] z-[2001] w-[min(50rem,calc(100vw-1.5rem))] overflow-hidden rounded-2xl border border-white/[0.09] bg-[#070b13]/88 shadow-[0_28px_80px_rgba(0,0,0,0.52),0_0_58px_rgba(56,189,248,0.075)] backdrop-blur-2xl"
+            className="nx-code-search-dialog fixed left-1/2 top-[clamp(3rem,12vh,7rem)] z-[2001] w-[min(50rem,calc(100vw-1.5rem))] overflow-hidden border"
             role="dialog"
             aria-modal="true"
             aria-label="Spotlight Search"
-            style={{ borderColor: "var(--nexus-border, rgba(255,255,255,0.12))" }}
           >
-            <div className="flex items-center gap-3 border-b border-white/[0.08] bg-white/[0.018] px-5 py-4">
-              <div className="flex size-10 shrink-0 items-center justify-center rounded-2xl border border-white/[0.08] bg-white/[0.04] text-sky-200 shadow-[0_0_24px_rgba(56,189,248,0.08)]">
+            <div className="nx-code-search-header flex items-center gap-3 border-b px-5 py-4">
+              <div className="nx-code-search-icon flex size-10 shrink-0 items-center justify-center rounded-2xl border text-sky-200">
                 <Search size={18} />
               </div>
               <div className="min-w-0 flex-1">
@@ -232,7 +240,7 @@ export default function SpotlightSearch({
                   onChange={(event) => setQuery(event.target.value)}
                   onKeyDown={handleKeyDown}
                   placeholder="Dateien, Actions oder Workbench-Kommandos suchen..."
-                  className="w-full bg-transparent text-base font-medium text-slate-100 outline-none placeholder:text-slate-600"
+                  className="min-w-0 w-full bg-transparent text-base font-medium text-slate-100 outline-none placeholder:text-slate-600"
                   role="combobox"
                   aria-expanded="true"
                   aria-autocomplete="list"
@@ -241,7 +249,7 @@ export default function SpotlightSearch({
                     results[selectedIndex] ? `spotlight-option-${selectedIndex}` : undefined
                   }
                 />
-                <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-slate-500">
+                <div className="nx-code-search-subline mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-slate-500">
                   <span>{getResultCountLabel(results.length)}</span>
                   {normalizedQuery && selectedResult?.matchReason ? (
                     <span>Treffer ueber {selectedResult.matchReason}</span>
@@ -252,7 +260,7 @@ export default function SpotlightSearch({
 
             <div
               id="nexus-spotlight-results"
-              className="max-h-[460px] overflow-y-auto p-3"
+              className="nx-code-search-results max-h-[min(460px,62vh)] overflow-y-auto p-3"
               role="listbox"
               aria-label="Spotlight results"
             >
@@ -262,16 +270,16 @@ export default function SpotlightSearch({
                     const GroupIcon = group.icon;
                     return (
                       <section key={group.id} className="space-y-1.5">
-                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 px-2 py-1">
+                        <div className="nx-code-search-group-header flex flex-wrap items-center gap-x-2 gap-y-1 px-2 py-1">
                           <span className={`size-1.5 rounded-full ${group.tone.dot}`} />
                           <GroupIcon size={13} className={group.tone.text} />
                           <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
                             {group.label}
                           </span>
-                          <span className="rounded-lg border border-white/[0.08] bg-black/20 px-1.5 py-0.5 text-[10px] leading-none text-slate-500">
+                          <span className="nx-code-search-count rounded-lg border px-1.5 py-0.5 text-[10px] leading-none text-slate-500">
                             {group.items.length}
                           </span>
-                          <span className="min-w-[12rem] flex-1 text-[11px] leading-4 text-slate-600">
+                          <span className="nx-code-search-group-detail min-w-0 flex-1 text-[11px] leading-4 text-slate-600">
                             {group.description}
                           </span>
                         </div>
@@ -307,7 +315,7 @@ export default function SpotlightSearch({
                                 onMouseDown={(event) => event.preventDefault()}
                                 onMouseEnter={() => setSelectedIndex(index)}
                                 onClick={() => runResult(result)}
-                                className={`grid min-h-[64px] w-full grid-cols-[2.5rem_minmax(0,1fr)] items-center gap-x-3 gap-y-2 rounded-xl border px-3 py-2.5 text-left transition-all sm:grid-cols-[2.75rem_minmax(0,1fr)_minmax(7rem,auto)] ${
+                                className={`nx-code-search-option grid min-h-[64px] w-full grid-cols-[2.5rem_minmax(0,1fr)] items-center gap-x-3 gap-y-2 rounded-xl border px-3 py-2.5 text-left transition-colors sm:grid-cols-[2.75rem_minmax(0,1fr)_minmax(7rem,auto)] ${
                                   active
                                     ? `${result.tone.active} border-white/[0.13] text-white shadow-[0_12px_30px_rgba(0,0,0,0.22)]`
                                     : "border-transparent text-slate-400 hover:border-white/[0.08] hover:bg-white/[0.04] hover:text-slate-200"
@@ -318,7 +326,7 @@ export default function SpotlightSearch({
                                 aria-setsize={results.length}
                               >
                                 <span
-                                  className={`flex size-9 items-center justify-center rounded-xl border ${
+                                  className={`nx-code-search-option-icon flex size-9 items-center justify-center rounded-xl border ${
                                     active
                                       ? result.tone.icon
                                       : "border-white/[0.08] bg-white/[0.03] text-slate-500"
@@ -326,15 +334,15 @@ export default function SpotlightSearch({
                                 >
                                   <Icon size={17} />
                                 </span>
-                                <span className="min-w-0">
-                                  <span className="block break-words text-sm font-semibold leading-5">
+                                <span className="nx-code-search-copy min-w-0">
+                                  <span className="nx-code-search-title block break-words text-sm font-semibold leading-5">
                                     {result.label || result.name}
                                   </span>
-                                  <span className="mt-1 block break-words font-mono text-xs leading-5 text-slate-500">
+                                  <span className="nx-code-search-detail mt-1 block break-words font-mono text-xs leading-5 text-slate-500">
                                     {visibleDetail}
                                   </span>
                                 </span>
-                                <span className="col-start-2 flex min-w-0 flex-wrap items-center justify-start gap-1 sm:col-start-auto sm:justify-end">
+                                <span className="nx-code-search-meta col-start-2 flex min-w-0 flex-wrap items-center justify-start gap-1 sm:col-start-auto sm:justify-end">
                                   {showFrequent ? (
                                     <MetaChip className="border-sky-300/15 bg-sky-300/10 text-sky-100">
                                       Haeufig
@@ -346,7 +354,7 @@ export default function SpotlightSearch({
                                     </MetaChip>
                                   ) : null}
                                   {result.shortcut ? (
-                                    <span className="rounded-lg border border-white/[0.08] bg-black/20 px-2 py-1 font-mono text-[10px] text-slate-400">
+                                    <span className="nx-code-search-chip rounded-lg border px-2 py-1 font-mono text-[10px] text-slate-400">
                                       {result.shortcut}
                                     </span>
                                   ) : (
@@ -368,7 +376,7 @@ export default function SpotlightSearch({
               )}
             </div>
 
-            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/[0.08] bg-black/20 px-5 py-3 text-[11px] text-slate-500">
+            <div className="nx-code-search-footer flex flex-wrap items-center justify-between gap-3 border-t px-5 py-3 text-[11px] text-slate-500">
               <div className="flex flex-wrap items-center gap-2">
                 <KeyboardHint label="Up" />
                 <KeyboardHint label="Down" />

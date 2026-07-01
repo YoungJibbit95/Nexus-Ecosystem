@@ -17,7 +17,6 @@ import {
 } from "lucide-react";
 import {
   ACCOUNT_AUTH_MODES,
-  createLocalAccountSession,
   getAccountSessionState,
   normalizeAccountSession,
   normalizeNexusApiEndpoint,
@@ -238,16 +237,6 @@ export default function AccountPanel({
     setTestResult(null);
   };
 
-  const handleUseLocalWorkspace = () => {
-    const saved = onSaveSession?.(createLocalAccountSession());
-    setDraft(normalizeAccountSession(saved || createLocalAccountSession()));
-    setTestResult({
-      mode: "offline",
-      message: "Lokaler Workspace ist aktiv.",
-      details: ["account:LOCAL_WORKSPACE"],
-    });
-  };
-
   const applyEndpointPreset = (endpoint) => {
     updateDraft("endpoint", endpoint);
   };
@@ -302,19 +291,17 @@ export default function AccountPanel({
         <CompactAccountNotice
           icon={StatusIcon}
           tone={statusMeta.tone}
-          title={testResult?.message || controlStatus?.message || "Local session ready."}
+          title={testResult?.message || controlStatus?.message || "Nexus session required."}
           detail={statusDetail}
           className="mb-2"
         />
         <CompactAccountNotice
           icon={ShieldCheck}
-          tone={sessionState.isLocal ? "teal" : sessionState.canStartWorkbench ? "success" : "warning"}
-          title={sessionState.isLocal ? "Lokaler IDE-Modus" : sessionState.canStartWorkbench ? "Nexus Session aktiv" : "Session fehlt"}
-          detail={sessionState.isLocal
-            ? "Editor, Dateien, Suche und Terminal starten lokal. Cloud-, Sync- und Billing-nahe Features bleiben deaktiviert."
-            : sessionState.canStartWorkbench
+          tone={sessionState.canStartWorkbench ? "success" : "warning"}
+          title={sessionState.canStartWorkbench ? "Nexus Session aktiv" : "Session fehlt"}
+          detail={sessionState.canStartWorkbench
               ? "Die Workbench darf starten; API-Features folgen den Entitlements deiner Nexus Session."
-              : "Nutze den Startscreen fuer Username/Passwort Login oder setze hier einen lokalen Workspace."}
+              : "Melde dich ueber den Startscreen an oder speichere hier eine gueltige Nexus API Session."}
           className="mb-2.5"
         />
 
@@ -439,10 +426,6 @@ export default function AccountPanel({
           </button>
         </div>
         <div className="nx-code-account-actions grid grid-cols-2 gap-1.5">
-          <AccountButton onClick={handleUseLocalWorkspace} disabled={busy} title="Lokalen Workspace ohne Cloud starten">
-            <UserRound size={14} />
-            Local
-          </AccountButton>
           <AccountButton onClick={handleTest} disabled={busy || !onTestConnection} title="Test connection">
             <Wifi size={14} />
             {busy ? "Testing" : "Test"}

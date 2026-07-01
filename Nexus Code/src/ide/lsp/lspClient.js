@@ -1,13 +1,17 @@
 import {
   EMPTY_COMPLETION_LIST,
+  EMPTY_WORKSPACE_EDIT,
   LSP_METHODS,
+  normalizeCodeActions,
   normalizeCompletionList,
   normalizeDefinition,
   normalizeDiagnostics,
   normalizeHover,
   normalizeTextEdits,
+  normalizeWorkspaceEdit,
   toLspFormattingOptions,
   toLspPosition,
+  toLspRange,
   toTextDocumentIdentifier,
   toTextDocumentItem,
 } from "./protocol.js";
@@ -149,6 +153,42 @@ export function createLspClient(options = {}) {
         [],
       );
       return normalizeTextEdits(result);
+    },
+
+    async getCodeActions(document, range = {}, context = {}) {
+      if (!document?.uri) return [];
+      const result = await safeRequest(
+        transport,
+        LSP_METHODS.CODE_ACTION,
+        {
+          textDocument: toTextDocumentIdentifier(document),
+          range: toLspRange(range),
+          context: {
+            diagnostics: Array.isArray(context.diagnostics) ? context.diagnostics : [],
+            ...(context.only ? { only: context.only } : {}),
+            ...(context.triggerKind ? { triggerKind: context.triggerKind } : {}),
+          },
+        },
+        [],
+      );
+      return normalizeCodeActions(result);
+    },
+
+    async renameSymbol(document, position, newName) {
+      if (!document?.uri || !String(newName || "").trim()) {
+        return { ...EMPTY_WORKSPACE_EDIT, changes: {} };
+      }
+      const result = await safeRequest(
+        transport,
+        LSP_METHODS.RENAME,
+        {
+          textDocument: toTextDocumentIdentifier(document),
+          position: toLspPosition(position),
+          newName: String(newName),
+        },
+        EMPTY_WORKSPACE_EDIT,
+      );
+      return normalizeWorkspaceEdit(result);
     },
 
     async getDiagnostics(document, context = {}) {

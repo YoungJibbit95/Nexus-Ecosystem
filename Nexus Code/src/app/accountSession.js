@@ -104,7 +104,7 @@ export const createLocalAccountSession = (sessionRaw = {}) =>
 
 export const canStartWithAccountSession = (sessionRaw) => {
   const session = normalizeAccountSession(sessionRaw);
-  if (session.authMode === ACCOUNT_AUTH_MODES.local) return true;
+  if (session.authMode === ACCOUNT_AUTH_MODES.local) return false;
   if (session.authMode !== ACCOUNT_AUTH_MODES.nexus) return false;
   if (!session.token || (!session.userId && !session.username)) return false;
   if (session.expiresAt && Date.now() >= session.expiresAt - 15_000) return false;
@@ -112,14 +112,14 @@ export const canStartWithAccountSession = (sessionRaw) => {
 };
 
 export const loadNexusAccountSession = () => {
-  if (typeof window === "undefined") return createLocalAccountSession();
+  if (typeof window === "undefined") return createEmptyAccountSession();
   try {
     const stored = window.localStorage.getItem(ACCOUNT_SESSION_STORAGE_KEY);
-    if (!stored) return createLocalAccountSession();
+    if (!stored) return createEmptyAccountSession();
     const session = normalizeAccountSession(JSON.parse(stored));
-    return canStartWithAccountSession(session) ? session : createLocalAccountSession();
+    return canStartWithAccountSession(session) ? session : createEmptyAccountSession();
   } catch {
-    return createLocalAccountSession();
+    return createEmptyAccountSession();
   }
 };
 
@@ -130,7 +130,7 @@ export const saveNexusAccountSession = (sessionRaw) => {
   });
   const session = canStartWithAccountSession(normalizedSession)
     ? normalizedSession
-    : createLocalAccountSession({ savedAt: normalizedSession.savedAt });
+    : createEmptyAccountSession();
   if (typeof window !== "undefined") {
     window.localStorage.setItem(ACCOUNT_SESSION_STORAGE_KEY, JSON.stringify(session));
   }
@@ -141,7 +141,7 @@ export const clearNexusAccountSession = () => {
   if (typeof window !== "undefined") {
     window.localStorage.removeItem(ACCOUNT_SESSION_STORAGE_KEY);
   }
-  return createLocalAccountSession();
+  return createEmptyAccountSession();
 };
 
 export const getAccountSessionState = (sessionRaw) => {

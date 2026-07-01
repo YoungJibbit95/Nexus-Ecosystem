@@ -1,15 +1,24 @@
 # Nexus Code Release Checklist
 
-Stand: 2026-06-30
+Stand: 2026-07-01
+
+## 2026-07-01 Nexus-Code-Plan: Docking, Layout, QA-Agent
+
+- [x] Ungueltige Snap-Zone-Kommandos im Docking-Modell als no-op behandeln, damit kaputte Commands keine Panel-Reihenfolge umsortieren.
+- [x] Persistierte Zone-Buckets mit leeren, verschachtelten, duplizierten oder alias-basierten Panel-IDs im IDE-Core-Smoke absichern.
+- [x] Keyboard-/Command-freundliche Fokus-Helfer fuer sichtbare Side-/Bottom-Panels bereitstellen.
+- [x] Strict-Login-Smoke auf den aktuellen Vertrag ausrichten: Local Mode ist konfiguriert, aber kein Nexus-API-Start.
+- [ ] Fokus-Helfer in Command-Palette-/Shortcut-Flows verdrahten, sobald der UI-Ownership-Scope frei ist.
+- [ ] Drag-Drop und defekte Persistenzdaten in echten Electron-Viewports visuell testen.
 
 ## Renderer und UI-System
 
 - [x] Strikten Account-Gate als eigene Startflaeche vor der Workbench einziehen.
 - [x] Lokale Bootstrap-Fallbacks aus dem Workbench-Pass entfernen.
 - [x] Nexus-Code-eigenen Username/Passwort-Login bauen, Passwort nicht speichern und Session ueber `/auth/login` plus `/api/v1/session` normalisieren.
-- [x] Lokalen Workspace-Start als bewusst markierten IDE-Modus erlauben, damit Editor/File/Search/Terminal ohne Cloud starten.
-- [x] Start auf Local-first umstellen: leere, alte oder abgelaufene Sessions landen direkt in der Workbench statt in einem schwarzen/gesperrten Startpfad.
-- [x] Control-API-Bootstrap-Fehler in lokale Runtime degradieren statt den Renderer zu blockieren.
+- [x] Lokalen Workbench-Start wieder deaktivieren: Local Mode bleibt normalisierbar, rendert aber keine Workbench.
+- [x] Start auf Strict-Login umstellen: leere, alte oder abgelaufene Sessions landen im Account-Gate statt in der Workbench.
+- [x] Control-API-Bootstrap-Fehler auf Account-/Recovery-Screen blocken statt lokale Runtime freizugeben.
 - [x] Electron-Renderer-Diagnose fuer Load-Events, Renderer-Konsole, Window-Close und Quit einbauen.
 - [x] Gemeinsame Nexus-Code-Primitives fuer Buttons, Inputs, Cards, Badges und Panel-Header fertig integrieren.
 - [x] Primaertexte duerfen in Launchpad-Actions und neuen Panel-Primitives nicht hart abgeschnitten werden.
@@ -31,6 +40,8 @@ Stand: 2026-06-30
 - [x] BottomDock Compact-Fallback gegen Statusbar/Text-Clipping einbauen.
 - [x] Settings um IDE-artige Docking-, Layout-, Theme- und Performance-Quick-Actions erweitern.
 - [x] Side-/Bottom-Panel-Groessen produktiver begrenzen und Sidebar/Rail schmaler machen.
+- [x] Ungueltige Snap-Zone-Kommandos veraendern weder Preset noch Panel-Reihenfolge.
+- [x] Panel-Fokus-Helfer fuer Next/Previous und konkrete Dock-Ziele modellseitig bereitstellen.
 - [ ] Drag-Drop und defekte Persistenzdaten in echten Electron-Viewports visuell testen.
 - [ ] Launchpad ohne Scrollzwang bei 900x512 pruefen.
 
@@ -39,7 +50,7 @@ Stand: 2026-06-30
 - [x] File Tree folder-first und danach Dateien nach Extension/Name sortieren.
 - [x] Grosse Trees mit flacher/virtueller Renderliste stabil halten.
 - [x] Open-State, Refresh, Loading, Empty und Error States modellseitig mit IDE-Core-Smoke abdecken.
-- [x] Docking-Modell mit IDE-Core-Smoke fuer korrupte Layoutdaten, Duplikate, Moves, Drop Preview und sichtbare Fallbacks abdecken.
+- [x] Docking-Modell mit IDE-Core-Smoke fuer korrupte Layoutdaten, Duplikate, Moves, Drop Preview, Fokus-Helfer und sichtbare Fallbacks abdecken.
 - [x] FileExplorer mit sichtbaren Extension-Gruppen, ruhigem Refresh und besseren Empty/Error/Search-States ausbauen.
 - [x] CodeMirror Completions fuer JS/TS/Python/Rust/Go/CSS/JSON/Markdown language-aware ausbauen.
 - [x] Completion-Overlays begrenzen, Low-Power respektieren und LSP/Snippet-Dedupe absichern.
@@ -52,9 +63,9 @@ Stand: 2026-06-30
 
 ## Account, API und GitHub
 
-- [x] Ohne Nexus Session kein Cloud-Workbench-Start; lokaler Workspace bleibt als eigener Offline-Modus verfuegbar.
-- [x] API-/Bootstrap-Fehler werden als degraded/offline Status gezeigt, ohne den Editor-Renderer zu blockieren.
-- [x] Account-Panel auf Nexus/Local/Signed-out Session-Modell umstellen.
+- [x] Ohne gueltige Nexus Session kein Workbench-Start.
+- [x] API-/Bootstrap-Fehler werden als degraded Status im Account-Gate gezeigt, ohne den Editor-Renderer schwarz werden zu lassen.
+- [x] Account-Panel auf Nexus/Signed-out Session-Modell zurueckschneiden; Local API bleibt nur Endpoint-Preset.
 - [x] GitHub OAuth Scopes um `project` erweitern.
 - [x] Issues: Listen, Erstellen, Bearbeiten, Schliessen, Labels, Assignees, Kommentare.
 - [x] Pull Requests: Liste, Detail, Diff, Checks, Review-Kommentare, Review Submit, Merge mit Confirm.
@@ -81,8 +92,8 @@ Stand: 2026-06-30
 - [x] `npm --prefix "./Nexus Code" run smoke:ide-core`
 - [x] SSR-Smoke-Struktur: 1440x900, 1024x768, 900x512, 390x900 fuer Workbench, Launchpad, Account und Settings
 - [x] SSR-Smoke-Struktur: PanelChrome und GitHub-Workbench ohne App-Bootgate
-- [x] IDE-Core-Smoke: 20 Szenarien inklusive Filetree, Docking, Extensions, Account-Start, Palette, Spotlight, Symbols, Scope und Completion Helpers
-- [x] Electron Dev Smoke: frischer Start rendert direkt Workbench im lokalen Modus
+- [x] IDE-Core-Smoke: 30 Szenarien inklusive Filetree, Docking, Fokus-Helfer, Extensions, Strict Login, LSP-Status, Palette, Spotlight, Symbols, Scope und Completion Helpers
+- [x] Electron Dev Probe: isolierter Renderer-Start prueft Route-Import und beendet sauber; Strict-Login-Vertrag ist im IDE-Core-Smoke abgedeckt
 - [x] Visual Smoke: 1400x900 Electron-Fenster
 - [ ] Visual Smoke: 1440x900
 - [ ] Visual Smoke: 1024x768

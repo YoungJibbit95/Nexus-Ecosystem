@@ -1,97 +1,158 @@
 # Nexus Code IDE Recode Plan
 
-Stand: 2026-06-27
+Stand: 2026-07-01
 
 ## Ziel
 
-Nexus Code wird eine vollstaendige IDE im bestehenden Nexus-Code-Produkt. Die App bleibt mit Nexus Main und dem restlichen Ecosystem verbunden und bekommt eine proprietaer-sichere Architektur. Zed bleibt Inspiration fuer Ruhe, Geschwindigkeit und Arbeitsgefuehl, aber es wird kein Zed-GPL-Code und kein Zed-Asset uebernommen.
+```nexus-list
+- Nexus Code wird eine stabile, moderne und vollstaendige IDE im Nexus-Ecosystem.
+- Der naechste grosse Block fokussiert zuerst den Editor-Core.
+- Die App nutzt einen strikten Nexus-Login vor der Workbench.
+- Das UI wird als eigenstaendiges Glassy-Nexus-Design neu geschaerft.
+- CodeMirror bleibt vorerst die Editor-Engine.
+- Kein Zed-Code, keine Zed-Assets, kein Lizenzrisiko.
+```
 
-## Produktentscheidung
+## Naechster Meilenstein
 
-- Nexus Code bleibt der Produktort fuer den Recode.
-- Kein separater `Nexus Code Native` Produktordner.
-- Native Arbeit laeuft spaeter als austauschbare Engine oder Sidecar innerhalb der Nexus-Code-Architektur.
-- Phase 1 liefert nicht nur eine Beta, sondern die produktive IDE-Basis.
+```nexus-checklist
+Editor-Core-first als Hauptfokus setzen | true
+Strict Nexus Login ohne lokalen Workbench-Bypass umsetzen | true
+Schwarzbild durch robusten Account-/Fehler-Screen verhindern | true
+Glassy-Nexus-Designsystem global weiterziehen | true
+Snap-stabiles Docking produktionsreifer machen | true
+Nach gruenen Gates direkt auf main committen und pushen | true
+```
 
-## Phase 1: IDE Foundation
+## Editor-Core
 
-- `EditorEngine` Contract fuer Monaco heute und native Engine spaeter.
-- Zentrale Language Registry fuer TypeScript, JavaScript, Python, Rust, Go und C/C++.
-- Workspace-Dokumente mit stabilen URIs statt nur Dateinamen.
-- Theme-System mit semantischen Tokens fuer Editor, Panels, Git, Terminal und Status.
-- Ecosystem Capability Manifest in `@nexus/core`, damit Nexus Main/Website/Launcher dieselben IDE-Faehigkeiten anzeigen koennen.
+```nexus-checklist
+TypeScript/JavaScript Completion produktionsreif machen | false
+TypeScript/JavaScript Hover stabilisieren | false
+TypeScript/JavaScript Diagnostics sauber mit Problems synchronisieren | false
+TypeScript/JavaScript Go to Definition anbinden | false
+TypeScript/JavaScript Rename vorbereiten oder umsetzen | false
+TypeScript/JavaScript Formatting anbinden | false
+TypeScript/JavaScript Code Actions anbinden | false
+Python mit Pyright-Erkennung und gefuehrtem Setup stabilisieren | false
+Python Completion, Hover und Diagnostics verbessern | false
+Rust, Go und C/C++ Server-Erkennung ausbauen | false
+Rust, Go und C/C++ klare Fallbacks bei fehlenden Servern zeigen | false
+Completion-Dedupe und Ranking verbessern | false
+Editor-Status fuer LSP, Sprache, Datei und Fehler verstaendlicher machen | false
+```
 
-## Phase 2: LSP & Completion
+## LSP Setup
 
-- Electron-Main verwaltet Language-Server-Prozesse. Foundation ist umgesetzt:
-  - JSON-RPC ueber stdio mit `Content-Length` Framing.
-  - Workspace-sandboxed Serverstart aus dem ausgewaehlten Ordner.
-  - Renderer-Transport ueber sichere IPC-Bridge.
-  - Monaco Completion, Hover und Diagnostics Provider.
-  - Fehlerfall bleibt stabil, wenn Server nicht installiert sind.
-- Tier 1:
-  - TypeScript/JavaScript via `typescript-language-server`
-  - Python via `pyright-langserver`
-  - Rust via `rust-analyzer`
-  - Go via `gopls`
-  - C/C++ via `clangd`
-- Features:
-  - Completion
-  - Hover
-  - Diagnostics
-  - Go to Definition
-  - Rename
-  - Formatting
-  - Code Actions
+```nexus-list
+- Keine heimliche Auto-Installation.
+- Fehlende Language Server werden erkannt.
+- Nexus Code zeigt klare Install-Hinweise.
+- PATH und Env-Overrides werden geprueft.
+- Retry und Statusdiagnose laufen direkt aus Settings und Editor-Status.
+```
 
-## Phase 3: Terminal & Tasks
+```nexus-checklist
+LSP-Statusmodell pro Sprache erweitern | false
+PATH-Erkennung sichtbar machen | false
+Env-Override-Hinweise sichtbar machen | false
+Fehlende Server verstaendlich anzeigen | false
+Defekte Serverstarts sauber abfangen | false
+Setup-Hinweise in Settings integrieren | true
+```
 
-- Multi-Terminal mit Workspace-CWD.
-- Task Runner fuer build/test/dev-Kommandos.
-- Output-Panels mit Problem Matchern.
-- Bestehender Command Runner bleibt als sichere Non-PTY-Task-Schicht erhalten.
+## Strict Login
 
-## Phase 4: Git & GitHub
+```nexus-list
+- Ohne gueltige Nexus-Session wird keine Workbench gerendert.
+- Auch Dev-Starts bleiben strict.
+- Tests duerfen Sessions mocken, aber die echte App nicht.
+- Fehler landen auf Login, Account Recovery oder API/Auth-Statusscreen.
+- Kein Schwarzbild.
+```
 
-- Lokale Git-CLI ist Source of Truth.
-- GitHub ist Remote-Service fuer Login, Issues, PRs, Checks und Reviews.
-- Tokens liegen im Electron-Main/OS-Speicher, nicht im Renderer und nicht in `localStorage`.
-- GitHub OAuth Device Flow plus PAT-Fallback.
+```nexus-checklist
+Startpfad fail-closed pruefen | true
+Login-/Recovery-Screen stabilisieren | true
+API-Fehler verstaendlich rendern | true
+Renderer Error Boundary auf Auth-Startpfad absichern | true
+Ungueltige Session ohne Workbench-Flash behandeln | true
+```
 
-## Phase 5: Nexus Visuell x Zed
+## Glassy Nexus UI
 
-- Ruhige IDE-Dichte statt Neon-Ueberladung.
-- Nexus-Glow nur als Akzent, nicht als Standardflaeche.
-- Klare Splitter, Docking, Command Palette, kompakte Statusleisten.
-- Resizable Side Panels und Bottom Dock.
+```nexus-list
+- Eigenstaendiges neues Nexus-Code-Design.
+- Dunkel, ruhig, weniger cluttered.
+- Glow und Blur als Fokus- und Tiefenmittel.
+- Weniger harte Borders.
+- Mehr Roundness.
+- Keine abgeschnittenen Primaertexte.
+- Beide Spotlights nutzen die glasige Variante.
+```
 
-## Phase 6: Native Engine Path
+```nexus-checklist
+UI-Primitives fuer Buttons, Inputs, Cards, Badges und Toolbars vereinheitlichen | true
+Settings technisch und visuell weiter ausbauen | true
+Command Palette und Spotlight zusammenfuehren | true
+Sidebar-Panels visuell entcluttern | false
+Problems, Search, Terminal und Git-Panels weiter recoden | false
+Titlebar und Statusbar ruhiger machen | false
+Text-Fit-Regeln global haerten | true
+Glow/Blur mit Performance-Fallback absichern | true
+```
 
-- Kein GPL-Code.
-- Clean-Room Sidecar/Engine ueber eigenes Protokoll.
-- Entscheidung erst nach Messwerten:
-  - Startup
-  - Text-Rendering
-  - Memory
-  - LSP-Latenz
-  - Packaging
-  - License/SBOM
+## Docking und Layout
 
-## Erste Arbeitspakete
+```nexus-list
+- Snap-Zones bleiben der Fokus.
+- Kein freies verschachteltes Docking in diesem Block.
+- Panels koennen links, rechts, unten oder hidden liegen.
+- Layout muss bei kleinen Fenstern stabil bleiben.
+```
 
-- EditorEngine/LSP-Contract und Language Registry.
-- Electron-LSP-Prozessdienst, Renderer-Transport und Monaco-Provider.
-- Electron Git/GitHub Backend.
-- Renderer-GitPanel und Terminal-Modelle.
-- Nexus-x-Zed Theme-Resolver.
-- Core Capability Manifest fuer Ecosystem-Integration.
+```nexus-checklist
+Snap-Zones weiter stabilisieren | true
+Resize-Verhalten verbessern | false
+Layout Reset sauberer machen | false
+Persistenz gegen kaputte Daten absichern | true
+Bottom Dock kompakter und besser nutzbar machen | false
+Sidebar-Breite und Compact-Modus verbessern | false
+Keyboard-Kommandos fuer Panel-Fokus ergaenzen | true
+```
 
-## Definition of Done Fuer Den Ersten IDE-Block
+## Subagent-Aufteilung
 
-- `Nexus Code` baut.
-- `@nexus/core` baut/typecheckt.
-- Single-React-Check bleibt gruen.
-- GitHub-Token verlaesst den Main-Prozess nicht.
-- TypeScript/JavaScript hat mindestens stabile Monaco-Completion.
-- LSP-Server-Erkennung zeigt installierte und fehlende Tools klar an.
-- Nexus Main kann das IDE-Capability-Manifest aus `@nexus/core` lesen.
+```nexus-list
+- Editor/LSP Agent: Editor-Core, LSP, Completion, Diagnostics, Code Actions.
+- UI/Design Agent: Glassy-Nexus-System, Settings, Spotlight, Panels, Text-Fit.
+- Docking/Layout Agent: Workbench-Layout, Snap-Zones, Bottom Dock, Compact-Modus.
+- QA/Release Agent: Checklist, Smokes, Visual QA, Doku.
+- Main Agent: Integration, Konfliktloesung, finale Gates, Commit und Push.
+```
+
+## Pflichtchecks
+
+```nexus-checklist
+npm --prefix "./Nexus Code" run lint | true
+npm --prefix "./Nexus Code" run smoke:ide-core | true
+npm --prefix "./Nexus Code" run smoke:ui | true
+npm --prefix "./Nexus Code" run build | true
+npm run verify:single-react | true
+npm --prefix "./Nexus Code" run electron:ensure | true
+Electron Dev Probe mit Strict-Login-Vertrag pruefen | true
+Visual Smoke bei 1440x900 pruefen | false
+Visual Smoke bei 1024x768 pruefen | false
+Visual Smoke bei 900x512 pruefen | false
+Visual Smoke bei 390x900 pruefen | false
+```
+
+## Annahmen
+
+```nexus-list
+- Fokus bleibt auf Nexus Code.
+- Andere Ecosystem-Teile werden nur bei echten API/Auth-Vertragsaenderungen beruehrt.
+- Strikter Login ist wichtiger als Offline-IDE-Nutzung.
+- Language Server werden gefuehrt eingerichtet, aber nicht ungefragt installiert.
+- Nach erfolgreichen Gates wird direkt auf main gepusht.
+```

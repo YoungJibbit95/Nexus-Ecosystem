@@ -27,12 +27,15 @@ export function NativeInput({
       value={value}
       onChange={onChange}
       placeholder={placeholder}
-      className={`min-w-0 rounded-lg px-3 py-2 text-xs outline-none transition-[border-color,background,box-shadow] ${className}`}
+      className={`min-w-0 max-w-full rounded-lg px-3 py-2 text-xs outline-none transition-[border-color,background,box-shadow] ${className}`}
       style={{
-        background: "var(--nexus-input-surface, rgba(255,255,255,0.05))",
-        border: "1px solid rgba(156,178,226,0.11)",
+        background:
+          "linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.012)), var(--nexus-input-surface, rgba(255,255,255,0.035))",
+        border: "1px solid rgba(156,178,226,0.085)",
+        borderRadius: "var(--nexus-radius-md, 0.75rem)",
         color: "var(--nexus-text, #d1d5db)",
-        boxShadow: "inset 0 1px 0 rgba(255,255,255,0.035)",
+        boxShadow: "inset 0 1px 0 rgba(255,255,255,0.032)",
+        overflowWrap: "anywhere",
         ...style,
       }}
     />
@@ -74,22 +77,24 @@ export function NativeSwitch({ checked, onCheckedChange }) {
       role="switch"
       aria-checked={checked}
       onClick={() => onCheckedChange(!checked)}
-      className="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full transition-[background,box-shadow,transform] duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(var(--nexus-primary-rgb,124,140,255),0.32)]"
+      className="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full transition-[background,box-shadow,transform] focus:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(var(--nexus-primary-rgb,124,140,255),0.28)]"
       style={{
         background: checked
           ? "linear-gradient(135deg,var(--nexus-primary, #7c8cff),var(--nexus-accent-2, #38bdf8))"
-          : "rgba(255,255,255,0.09)",
+          : "linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.035))",
         boxShadow: checked
-          ? "0 0 var(--nexus-glow-radius-sm, 8px) var(--nexus-accent-glow, rgba(124,140,255,0.16)), inset 0 1px 0 rgba(255,255,255,0.18)"
-          : "inset 0 1px 0 rgba(255,255,255,0.075)",
+          ? "0 0 var(--nexus-glow-radius-sm, 8px) var(--nexus-accent-glow, rgba(124,140,255,0.12)), inset 0 1px 0 rgba(255,255,255,0.16)"
+          : "inset 0 1px 0 rgba(255,255,255,0.065)",
+        transitionDuration: "var(--nx-motion-quick, 190ms)",
       }}
     >
       <span
-        className="pointer-events-none inline-block h-5 w-5 rounded-full shadow-lg transition-transform duration-200"
+        className="pointer-events-none inline-block h-5 w-5 rounded-full shadow-lg transition-transform"
         style={{
           background: "#fff",
           transform: checked ? "translateX(21px)" : "translateX(2px)",
           marginTop: "2px",
+          transitionDuration: "var(--nx-motion-quick, 190ms)",
         }}
       />
     </button>
@@ -101,19 +106,22 @@ export function NativeSelect({ value, onValueChange, children, className = "" })
     <select
       value={value}
       onChange={(e) => onValueChange(e.target.value)}
-      className={`min-w-0 cursor-pointer rounded-lg px-3 py-2 text-xs outline-none transition-[border-color,background,box-shadow] ${className}`}
+      className={`min-w-0 max-w-full cursor-pointer rounded-lg px-3 py-2 text-xs outline-none transition-[border-color,background,box-shadow] ${className}`}
       style={{
-        background: "var(--nexus-input-surface, rgba(255,255,255,0.05))",
-        border: "1px solid rgba(156,178,226,0.11)",
+        background:
+          "linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.012)), var(--nexus-input-surface, rgba(255,255,255,0.035))",
+        border: "1px solid rgba(156,178,226,0.085)",
+        borderRadius: "var(--nexus-radius-md, 0.75rem)",
         color: "var(--nexus-text, #d1d5db)",
         appearance: "none",
         WebkitAppearance: "none",
-        boxShadow: "inset 0 1px 0 rgba(255,255,255,0.035)",
+        boxShadow: "inset 0 1px 0 rgba(255,255,255,0.032)",
         backgroundImage:
           "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E\")",
         backgroundRepeat: "no-repeat",
         backgroundPosition: "right 8px center",
         paddingRight: "28px",
+        overflowWrap: "anywhere",
       }}
     >
       {children}

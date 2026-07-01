@@ -27,6 +27,31 @@ const DEFAULT_CLIENT_CAPABILITIES = Object.freeze({
     formatting: {
       dynamicRegistration: false,
     },
+    codeAction: {
+      dynamicRegistration: false,
+      isPreferredSupport: true,
+      codeActionLiteralSupport: {
+        codeActionKind: {
+          valueSet: [
+            "",
+            "quickfix",
+            "refactor",
+            "refactor.extract",
+            "refactor.inline",
+            "refactor.rewrite",
+            "source",
+            "source.organizeImports",
+          ],
+        },
+      },
+    },
+    rename: {
+      dynamicRegistration: false,
+      prepareSupport: false,
+    },
+    diagnostic: {
+      dynamicRegistration: false,
+    },
     publishDiagnostics: {
       relatedInformation: true,
       versionSupport: true,
@@ -46,7 +71,10 @@ function getElectronApi() {
 function unwrapIpcResponse(result) {
   if (result && typeof result === "object" && "ok" in result) {
     if (result.ok === false) {
-      throw new Error(result.error || "LSP backend request failed.");
+      const error = new Error(result.error || "LSP backend request failed.");
+      error.details = result.errorDetails || null;
+      error.lspStatus = result.errorDetails?.status || null;
+      throw error;
     }
     return result.data;
   }
@@ -118,10 +146,15 @@ export function createElectronLspTransport(options = {}) {
       })
       .catch((error) => {
         startPromise = null;
+        const detailStatus = error?.lspStatus || error?.details?.status || {};
         emitStatus({
-          state: "unavailable",
+          ...detailStatus,
+          state: detailStatus.state || "unavailable",
           languageId,
-          message: error?.message || "LSP server is unavailable.",
+          message:
+            detailStatus.message ||
+            error?.message ||
+            "LSP server is unavailable.",
         });
         throw error;
       });
