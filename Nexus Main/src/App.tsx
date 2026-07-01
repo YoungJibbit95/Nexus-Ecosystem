@@ -295,6 +295,28 @@ const isAnonymousMainBootstrapAuthFallback = (
   !controlIngestKey &&
   failedResources.every((entry) => isMainAuthBootstrapFailure(entry.errorCode));
 
+const MAIN_LOCAL_SHELL_VIEW_SET = new Set<View>(MAIN_SAFE_STARTUP_VIEWS);
+
+const isMainLocalShellView = (viewId: View) =>
+  MAIN_LOCAL_SHELL_VIEW_SET.has(viewId);
+
+const buildMainLocalShellAccessResult = (
+  viewId: View,
+  userTier: NexusUserTier | undefined,
+): NexusViewAccessResult => ({
+  appId: "main",
+  viewId,
+  allowed: true,
+  reason: "LOCAL_MAIN_SHELL_VIEW_ALLOW",
+  userTier: userTier || "free",
+  userTierSource: userTier ? "request" : "default",
+  userTemplateKey: null,
+  paywallEnabled: false,
+  requiredTier: null,
+  evaluatedAt: new Date().toISOString(),
+  cacheHit: false,
+});
+
 export default function App() {
   const [view, setView] = useState<View>("dashboard");
   const [mountedViews, setMountedViews] = useState<View[]>(["dashboard"]);
@@ -963,6 +985,25 @@ export default function App() {
           requiredTier: null,
           reason: null,
         }));
+        return;
+      }
+
+      if (isMainLocalShellView(next)) {
+        validatedAccessRef.current = {
+          ...validatedAccessRef.current,
+          [next]: buildMainLocalShellAccessResult(
+            next,
+            viewAccessContext.userTier as NexusUserTier | undefined,
+          ),
+        };
+        setView(next);
+        void preloadViewChunk(next);
+        setViewGuardState({
+          checking: false,
+          blockedView: null,
+          requiredTier: null,
+          reason: null,
+        });
         return;
       }
 
