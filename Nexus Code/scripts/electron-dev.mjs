@@ -12,6 +12,11 @@ const maxPortAttempts = 40;
 
 const viteCliPath = path.join(appRoot, "node_modules", "vite", "bin", "vite.js");
 const electronCliPath = path.join(appRoot, "node_modules", "electron", "cli.js");
+const ANSI_PATTERN = /\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g;
+
+function stripAnsi(value) {
+  return String(value || "").replace(ANSI_PATTERN, "");
+}
 
 function log(scope, message) {
   process.stdout.write(`[${scope}] ${message}\n`);
@@ -23,7 +28,7 @@ function pipeOutput(child, scope, onLine) {
       .split(/\r?\n/)
       .filter(Boolean);
     lines.forEach((line) => {
-      onLine?.(line);
+      onLine?.(line, stripAnsi(line));
       stream.write(`[${scope}] ${line}\n`);
     });
   };
@@ -90,9 +95,10 @@ function spawnVite(port, devUrl) {
       windowsHide: true,
     },
   );
-  const readyPattern = new RegExp(`Local:\\s+http://(?:${host.replace(/\./g, "\\.")}|localhost):${port}/?`);
-  pipeOutput(vite, "VITE", (line) => {
-    if (readyPattern.test(line)) markReady();
+  const escapedHost = host.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const readyPattern = new RegExp(`Local:\\s+http://(?:${escapedHost}|localhost):${port}/?`);
+  pipeOutput(vite, "VITE", (_line, cleanLine) => {
+    if (readyPattern.test(cleanLine)) markReady();
   });
   vite.once("exit", (code) => {
     markFailed(new Error(`Vite Prozess wurde vor Readiness beendet (code ${code ?? "unknown"}).`));
