@@ -1,5 +1,7 @@
 /* Files workspace manager recode. Keep selectors scoped to Files ownership. */
 .nx-files-v6 {
+    --files-explorer-width: clamp(206px, 19vw, 278px);
+    --files-detail-width: clamp(224px, 22vw, 292px);
     --files-panel: rgba(255, 255, 255, 0.055);
     --files-panel-strong: rgba(255, 255, 255, 0.082);
     --files-line: rgba(255, 255, 255, 0.11);
@@ -214,11 +216,12 @@
 }
 
 .nx-files-sidebar {
-    width: 278px;
-    flex: 0 0 278px;
+    width: var(--files-explorer-width);
+    flex: 0 1 var(--files-explorer-width);
     display: flex;
     flex-direction: column;
-    min-width: 220px;
+    min-width: min(206px, 26vw);
+    max-width: 278px;
     border-right: 1px solid var(--files-line);
     background: rgba(0, 0, 0, 0.13);
     overflow: hidden;
@@ -448,6 +451,29 @@
     border: 1px solid var(--files-line);
     border-radius: 8px;
     background: rgba(255, 255, 255, 0.045);
+}
+
+.nx-files-layout-switcher {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px;
+    border: 1px solid var(--files-line);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.045);
+}
+
+.nx-files-layout-toggle {
+    min-height: 28px;
+    padding: 5px 7px;
+    gap: 5px;
+    font-size: 10px;
+}
+
+.nx-files-layout-toggle[aria-pressed="true"] {
+    border-color: rgba(var(--files-accent-rgb), 0.28);
+    background: rgba(var(--files-accent-rgb), 0.12);
+    color: var(--files-accent);
 }
 
 .nx-files-filter-strip {
@@ -794,11 +820,13 @@
 }
 
 .nx-files-detail-pane {
-    width: 292px;
-    flex: 0 0 292px;
+    width: var(--files-detail-width);
+    flex: 0 1 var(--files-detail-width);
     display: flex;
     flex-direction: column;
     gap: 14px;
+    min-width: min(224px, 30vw);
+    max-width: 292px;
     padding: 12px;
     border-left: 1px solid var(--files-line);
     background: rgba(0, 0, 0, 0.1);
@@ -817,7 +845,7 @@
 }
 
 .nx-files-detail-head h3 {
-    max-width: 202px;
+    max-width: 100%;
     overflow-wrap: anywhere;
 }
 
@@ -922,6 +950,26 @@
         rgba(var(--files-card-rgb), 0.04);
 }
 
+@media (max-width: 1120px) and (min-width: 861px) {
+    .nx-files-body {
+        flex-direction: row !important;
+        overflow: hidden !important;
+    }
+
+    .nx-files-sidebar {
+        width: clamp(196px, 22vw, 236px) !important;
+        flex: 0 1 clamp(196px, 22vw, 236px) !important;
+        max-width: 236px !important;
+        max-height: none !important;
+        border-right: 1px solid var(--files-line) !important;
+        border-bottom: 0 !important;
+    }
+
+    .nx-files-main {
+        min-height: 0 !important;
+    }
+}
+
 @media (max-width: 1180px) {
     .nx-files-workbench {
         flex-direction: column;
@@ -930,9 +978,52 @@
     .nx-files-detail-pane {
         width: 100%;
         flex: 0 0 auto;
-        max-height: 270px;
+        max-width: none;
+        max-height: min(220px, 34dvh);
+        gap: 10px;
         border-left: 0;
         border-top: 1px solid var(--files-line);
+    }
+
+    .nx-files-detail-list {
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    }
+
+    .nx-files-preview {
+        margin-top: 0;
+    }
+}
+
+@media (max-width: 860px) {
+    .nx-files-body {
+        flex-direction: column !important;
+        overflow: hidden !important;
+    }
+
+    .nx-files-sidebar {
+        width: 100% !important;
+        flex: 0 0 auto !important;
+        min-width: 0;
+        max-width: none !important;
+        max-height: min(190px, 30dvh);
+        border-right: 0 !important;
+        border-bottom: 1px solid var(--files-line) !important;
+    }
+
+    .nx-files-main {
+        min-height: 0 !important;
+    }
+}
+
+@media (max-width: 1180px) and (max-height: 640px) {
+    .nx-files-detail-pane {
+        max-height: min(168px, 28dvh);
+        padding: 10px;
+    }
+
+    .nx-files-detail-list div,
+    .nx-files-preview {
+        padding: 7px;
     }
 }
 
@@ -948,6 +1039,14 @@
     .nx-files-select {
         width: 100%;
         max-width: none;
+    }
+
+    .nx-files-layout-switcher {
+        width: 100%;
+    }
+
+    .nx-files-layout-toggle {
+        flex: 1 1 0;
     }
 
     .nx-files-card-grid {
