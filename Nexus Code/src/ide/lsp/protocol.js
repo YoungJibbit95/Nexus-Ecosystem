@@ -110,12 +110,12 @@ export function toTextDocumentItem(document) {
 export function normalizeCompletionList(result) {
   if (!result) return { ...EMPTY_COMPLETION_LIST, items: [] };
   if (Array.isArray(result)) {
-    return { isIncomplete: false, items: result };
+    return { isIncomplete: false, items: result.filter(Boolean) };
   }
   if (Array.isArray(result.items)) {
     return {
       isIncomplete: result.isIncomplete === true,
-      items: result.items,
+      items: result.items.filter(Boolean),
     };
   }
   return { ...EMPTY_COMPLETION_LIST, items: [] };
@@ -124,6 +124,12 @@ export function normalizeCompletionList(result) {
 export function normalizeHover(result) {
   if (!result) return null;
   if (typeof result === "string") {
+    return { contents: result };
+  }
+  if (Array.isArray(result)) {
+    return result.length ? { contents: result.filter(Boolean) } : null;
+  }
+  if (typeof result === "object" && !("contents" in result) && "value" in result) {
     return { contents: result };
   }
   return result;
@@ -169,9 +175,9 @@ export function normalizeWorkspaceEdit(result) {
 
 export function normalizeDiagnostics(result) {
   if (!result) return [];
-  if (Array.isArray(result)) return result;
-  if (Array.isArray(result.items)) return result.items;
-  if (Array.isArray(result.diagnostics)) return result.diagnostics;
+  if (Array.isArray(result)) return result.filter(Boolean);
+  if (Array.isArray(result.items)) return result.items.filter(Boolean);
+  if (Array.isArray(result.diagnostics)) return result.diagnostics.filter(Boolean);
   return [];
 }
 

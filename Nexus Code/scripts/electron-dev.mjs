@@ -9,6 +9,10 @@ const isWindows = process.platform === "win32";
 const preferredPort = Number(process.env.NEXUS_CODE_DEV_PORT || 5175);
 const host = process.env.NEXUS_CODE_DEV_HOST || "127.0.0.1";
 const maxPortAttempts = 40;
+const viteReadyTimeoutMs = Math.max(
+  10_000,
+  Number(process.env.NEXUS_CODE_VITE_READY_TIMEOUT_MS || 25_000),
+);
 
 const viteCliPath = path.join(appRoot, "node_modules", "vite", "bin", "vite.js");
 const electronCliPath = path.join(appRoot, "node_modules", "electron", "cli.js");
@@ -126,6 +130,7 @@ async function waitForOwnedHttp(child, url, label, timeoutMs = 25_000) {
 function spawnVite(port, devUrl) {
   let markReady = null;
   let markFailed = null;
+  let optimizerNoticeShown = false;
   const readyPromise = new Promise((resolve, reject) => {
     markReady = resolve;
     markFailed = reject;
@@ -143,6 +148,13 @@ function spawnVite(port, devUrl) {
   const escapedHost = host.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const readyPattern = new RegExp(`Local:\\s+http://(?:${escapedHost}|localhost):${port}/?`);
   pipeOutput(vite, "VITE", (_line, cleanLine) => {
+    if (
+      !optimizerNoticeShown &&
+      /Re-optimizing dependencies|optimizer|bundling dependencies|scanning dependencies/i.test(cleanLine)
+    ) {
+      optimizerNoticeShown = true;
+      log("DEV", "Vite optimiert Dependencies; der erste Start nach Config-Aenderungen kann laenger dauern.");
+    }
     if (readyPattern.test(cleanLine)) markReady();
   });
   vite.once("exit", (code) => {
@@ -151,11 +163,16 @@ function spawnVite(port, devUrl) {
   return { process: vite, readyPromise };
 }
 
-async function waitForViteBanner(readyPromise, port, timeoutMs = 10_000) {
+async function waitForViteBanner(readyPromise, port, timeoutMs = viteReadyTimeoutMs) {
   let timeoutHandle = null;
   const timeoutPromise = new Promise((_, reject) => {
     timeoutHandle = setTimeout(
-      () => reject(new Error(`Vite hat fuer Port ${port} kein eigenes Local-Banner gemeldet.`)),
+      () =>
+        reject(
+          new Error(
+            `Vite hat fuer Port ${port} innerhalb von ${Math.round(timeoutMs / 1_000)}s kein eigenes Local-Banner gemeldet.`,
+          ),
+        ),
       timeoutMs,
     );
   });

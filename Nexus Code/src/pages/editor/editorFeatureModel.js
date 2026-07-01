@@ -1781,12 +1781,26 @@ export function cmPosToLspPosition(doc, pos) {
 export function lspRangeToCodeMirrorRange(doc, range) {
   if (!doc || !range?.start) return null;
   const resolvePos = (position) => {
+    const rawLineNumber =
+      position?.lineNumber === undefined
+        ? Number(position?.line ?? 0) + 1
+        : Number(position.lineNumber);
     const lineNumber = Math.max(
       1,
-      Math.min(doc.lines, Number(position?.line ?? 0) + 1),
+      Math.min(
+        doc.lines,
+        Number.isFinite(rawLineNumber) ? Math.round(rawLineNumber) : 1,
+      ),
     );
     const line = doc.line(lineNumber);
-    const character = Math.max(0, Number(position?.character ?? 0));
+    const rawCharacter =
+      position?.column === undefined
+        ? Number(position?.character ?? 0)
+        : Number(position.column) - 1;
+    const character = Math.max(
+      0,
+      Number.isFinite(rawCharacter) ? Math.round(rawCharacter) : 0,
+    );
     return Math.max(line.from, Math.min(line.to, line.from + character));
   };
   const from = resolvePos(range.start);
@@ -2822,25 +2836,47 @@ function createLocalDocumentCompletions(context, languageId, options = {}) {
     }));
 }
 
-function readMarkupContent(value) {
-  if (!value) return "";
-  if (typeof value === "string") return value;
+function normalizeMarkupText(value) {
+  return String(value || "")
+    .replace(/\r\n?/g, "\n")
+    .replace(/\u0000/g, "")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{4,}/g, "\n\n\n")
+    .trim();
+}
+
+function readMarkupContent(value, seen = new WeakSet()) {
+  if (value === null || value === undefined) return "";
+  if (typeof value === "string") return normalizeMarkupText(value);
+  if (typeof value === "number" || typeof value === "boolean") {
+    return normalizeMarkupText(value);
+  }
   if (Array.isArray(value)) {
-    return value.map(readMarkupContent).filter(Boolean).join("\n\n");
+    if (seen.has(value)) return "";
+    seen.add(value);
+    return value
+      .map((item) => readMarkupContent(item, seen))
+      .filter(Boolean)
+      .join("\n\n");
   }
   if (typeof value === "object") {
-    if (typeof value.value === "string") return value.value;
-    if (typeof value.contents === "string" || Array.isArray(value.contents)) {
-      return readMarkupContent(value.contents);
+    if (seen.has(value)) return "";
+    seen.add(value);
+    if (typeof value.value === "string") {
+      return normalizeMarkupText(value.value);
+    }
+    if ("contents" in value) {
+      return readMarkupContent(value.contents, seen);
+    }
+    if ("documentation" in value) {
+      return readMarkupContent(value.documentation, seen);
     }
   }
   return "";
 }
 
 export function readHoverText(hover) {
-  return readMarkupContent(hover?.contents ?? hover)
-    .replace(/\r\n/g, "\n")
-    .trim();
+  return readMarkupContent(hover?.contents ?? hover);
 }
 
 const LSP_FEATURE_LABELS = Object.freeze({
@@ -2864,15 +2900,25 @@ function normalizeLspState(value, fallback = "idle") {
   return state;
 }
 
-function getLspStatusText(state) {
-  if (state === "missing") return "LSP missing";
+function getCompactLspServerLabel(label) {
+  const value = String(label || "").trim();
+  if (!value) return "LSP";
+  if (/pyright/i.test(value)) return "Pyright";
+  if (/typescript/i.test(value)) return "TS LSP";
+  const firstWord = value.split(/\s+/).find(Boolean);
+  return firstWord || "LSP";
+}
+
+function getLspStatusText(state, serverLabel = "LSP") {
+  const label = getCompactLspServerLabel(serverLabel);
+  if (state === "missing") return `${label} missing`;
   if (state === "unsupported") return "LSP unsupported";
-  if (state === "disabled") return "LSP off";
-  if (state === "unavailable") return "LSP fallback";
-  if (state === "idle") return "LSP idle";
-  if (PENDING_LSP_STATES.has(state)) return "LSP starting";
-  if (ACTIVE_LSP_STATES.has(state)) return "LSP running";
-  return `LSP ${state}`;
+  if (state === "disabled") return `${label} off`;
+  if (state === "unavailable") return `${label} fallback`;
+  if (state === "idle") return `${label} idle`;
+  if (PENDING_LSP_STATES.has(state)) return `${label} starting`;
+  if (ACTIVE_LSP_STATES.has(state)) return `${label} running`;
+  return `${label} ${state}`;
 }
 
 function getFeatureMap(languageCapabilities, runtimeStatus = null) {
@@ -3009,11 +3055,12 @@ export function createEditorLanguageFeatureModel(options = {}) {
   const activeFeatureCount = active ? supportedFeatureNames.length : 0;
   const featureCount = supportedFeatureNames.length;
   const serverLabel = languageCapabilities.lsp.label || languageCapabilities.label;
-  const installHint = languageCapabilities.lsp.installHint;
-  const statusText = getLspStatusText(state);
+  const envName = baseStatus.envName || languageCapabilities.lsp.envName;
+  const installHint = baseStatus.installHint || languageCapabilities.lsp.installHint;
+  const statusText = getLspStatusText(state, serverLabel);
   const message = baseStatus.message || "";
   const runtimeDetails = [
-    baseStatus.envName ? `Env: ${baseStatus.envName}` : "",
+    envName ? `Env: ${envName}` : "",
     baseStatus.envOverride ? "Env override active" : "",
     baseStatus.path ? `PATH: ${baseStatus.path}` : "",
     baseStatus.source ? `Source: ${baseStatus.source}` : "",
@@ -3080,7 +3127,7 @@ export function createEditorLanguageFeatureModel(options = {}) {
       shortText: statusText,
       title: lspTitle,
       serverLabel,
-      envName: languageCapabilities.lsp.envName,
+      envName,
       installHint,
       envOverride: baseStatus.envOverride === true,
       path: baseStatus.path || baseStatus.resolvedPath || null,

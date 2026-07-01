@@ -76,6 +76,7 @@ import {
   createElectronLspTransport,
   hasElectronLspBridge,
 } from "../../ide/lsp/index.js";
+import { normalizeDiagnostics } from "../../ide/lsp/protocol.js";
 import {
   cmPosToLspPosition,
   createEditorLanguageFeatureModel,
@@ -1092,19 +1093,22 @@ export default function CodeEditor({
       onDiagnostics: ({ uri, diagnostics }) => {
         if (!active) return;
         if (uri && lspDocumentUriRef.current && uri !== lspDocumentUriRef.current) return;
-        currentDiagnosticsRef.current = diagnostics || [];
+        const normalizedDiagnostics = normalizeDiagnostics(diagnostics);
+        currentDiagnosticsRef.current = normalizedDiagnostics;
         const view = editorViewRef.current;
         if (view) {
           view.dispatch(
             setDiagnostics(
               view.state,
-              showDiagnostics ? lspDiagnosticsToCodeMirror(diagnostics, view) : [],
+              showDiagnostics
+                ? lspDiagnosticsToCodeMirror(normalizedDiagnostics, view)
+                : [],
             ),
           );
         }
-        updateProblems(diagnostics || []);
+        updateProblems(normalizedDiagnostics);
         setDiagnosticSummary(
-          summarizeEditorDiagnostics(diagnostics || [], { enabled: showDiagnostics }),
+          summarizeEditorDiagnostics(normalizedDiagnostics, { enabled: showDiagnostics }),
         );
       },
     });
@@ -1262,7 +1266,7 @@ export default function CodeEditor({
       }
 
       if (!hoverText && diagnostic) {
-        hoverText = diagnostic.message;
+        hoverText = readHoverText(diagnostic.message);
       }
       if (!hoverText) return null;
 
