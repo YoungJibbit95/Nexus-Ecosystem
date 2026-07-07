@@ -5,9 +5,9 @@ import {
   BACKGROUND_MAP,
   DEFAULT_THEME_ID,
   THEME_MAP,
-  normalizeThemeId,
   resolveNexusTheme,
 } from '../../theme/nexusThemeResolver.js';
+import { normalizeThemeSelectionId } from './themeOptionsModel.js';
 import {
   KEYBINDING_SETTING_KEY,
   normalizeKeybindingSettings,
@@ -123,7 +123,7 @@ function readBoundedNumber(value, min, max, fallback) {
 
 function normalizeEditorSettings(settings) {
   const next = { ...DEFAULT_SETTINGS, ...(settings || {}) };
-  next.theme = normalizeThemeId(next.theme);
+  next.theme = normalizeThemeSelectionId(next.theme);
   if (LEGACY_SECONDARY_ACCENTS.has(String(next.secondary_accent || "").toLowerCase())) {
     next.secondary_accent = DEFAULT_SETTINGS.secondary_accent;
   }

@@ -312,6 +312,7 @@ function analyzeNativeImage(image) {
 function validateResult(scenario, metrics, imageStats) {
   const failures = [];
   const visualResult = metrics.visualResult || null;
+  const isEditorLanguageSurface = String(scenario.surfaceId || "").startsWith("editor-");
 
   if (!metrics.rootExists) failures.push("missing visual smoke root");
   if (!metrics.frameExists) failures.push("missing visual smoke frame");
@@ -340,7 +341,7 @@ function validateResult(scenario, metrics, imageStats) {
       `launchpad root overflows at 900x512 (${metrics.rootOverflow.scrollWidth}x${metrics.rootOverflow.scrollHeight})`,
     );
   }
-  if (scenario.surfaceId === "editor-scroll") {
+  if (isEditorLanguageSurface) {
     if (!metrics.editorScroller?.exists) {
       failures.push("code editor scroller is missing");
     } else if (metrics.editorScroller.fallback) {

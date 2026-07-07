@@ -32,6 +32,9 @@ const ALL_VIEWPORTS = Object.freeze([
 const ALL_SURFACES = Object.freeze([
   "workbench-shell",
   "editor-scroll",
+  "editor-javascript",
+  "editor-jsx",
+  "editor-json",
   "launchpad",
   "account-panel",
   "settings-panel",

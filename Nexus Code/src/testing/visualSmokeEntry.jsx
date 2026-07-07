@@ -32,6 +32,67 @@ const VIEWPORTS = Object.freeze([
   { id: "phone-portrait", width: 390, height: 900 },
 ]);
 
+const EDITOR_LANGUAGE_SMOKE_CASES = Object.freeze({
+  "editor-scroll": {
+    label: "TypeScript",
+    grammarId: "typescript",
+    fileName: "scroll-contract.ts",
+    pathSuffix: "src\\scroll-contract.ts",
+    code: UI_SMOKE_FIXTURE_LONG_EDITOR_CODE,
+  },
+  "editor-javascript": {
+    label: "JavaScript",
+    grammarId: "javascript",
+    fileName: "language-contract.js",
+    pathSuffix: "src\\language-contract.js",
+    code: Array.from({ length: 90 }, (_, index) => {
+      const line = String(index + 1).padStart(3, "0");
+      return [
+        `// Nexus Code JavaScript syntax contract ${line}`,
+        `export function smokeJavaScript${line}(input, options = {}) {`,
+        `  const nextValue = Number(input ?? ${index + 1});`,
+        `  return nextValue > 42 ? "js-highlight-${line}" : options.label || String(nextValue);`,
+        `}`,
+      ].join("\n");
+    }).join("\n"),
+  },
+  "editor-jsx": {
+    label: "JavaScript",
+    grammarId: "javascript",
+    fileName: "LanguageCard.jsx",
+    pathSuffix: "src\\components\\LanguageCard.jsx",
+    code: Array.from({ length: 72 }, (_, index) => {
+      const line = String(index + 1).padStart(3, "0");
+      return [
+        `// Nexus Code JSX syntax contract ${line}`,
+        `export function LanguageCard${line}({ title, active }) {`,
+        `  const label = title ?? "Card ${line}";`,
+        `  return <section data-card="${line}" aria-current={active ? "page" : undefined}>`,
+        `    <h2>{label}</h2><button type="button">{active ? "Open" : "Preview"}</button>`,
+        `  </section>;`,
+        `}`,
+      ].join("\n");
+    }).join("\n"),
+  },
+  "editor-json": {
+    label: "JSON",
+    grammarId: "json",
+    fileName: "language-contract.json",
+    pathSuffix: "config\\language-contract.json",
+    code: `{
+  "name": "nexus-code-language-contract",
+  "enabled": true,
+  "version": 1,
+  "items": [
+${Array.from({ length: 120 }, (_, index) => {
+  const line = String(index + 1).padStart(3, "0");
+  return `    { "id": ${index + 1}, "name": "json-highlight-${line}", "active": ${index % 2 === 0}, "tags": ["syntax", "json", "nexus"] }`;
+}).join(",\n")}
+  ]
+}`,
+  },
+});
+
 function SmokeViewport({ viewport, surfaceId: currentSurfaceId, children }) {
   return (
     <section
@@ -446,7 +507,8 @@ async function buildScenario(currentSurfaceId, viewport) {
     };
   }
 
-  if (currentSurfaceId === "editor-scroll") {
+  if (EDITOR_LANGUAGE_SMOKE_CASES[currentSurfaceId]) {
+    const languageCase = EDITOR_LANGUAGE_SMOKE_CASES[currentSurfaceId];
     const [{ default: CodeEditor }, { DEFAULT_SETTINGS }] = await Promise.all([
       import("../components/editor/CodeEditor.jsx"),
       import("../pages/editor/editorShared.jsx"),
@@ -464,7 +526,7 @@ async function buildScenario(currentSurfaceId, viewport) {
       id: `${currentSurfaceId}@${viewport.id}`,
       surfaceId: currentSurfaceId,
       viewport,
-      expectedText: ["TypeScript", "CodeMirror"],
+      expectedText: [languageCase.label, "CodeMirror"],
       editorScrollContract: true,
       requiredMarkup: [
         "nx-code-editor-shell",
@@ -472,16 +534,16 @@ async function buildScenario(currentSurfaceId, viewport) {
         "nx-code-editor-status",
         "data-editor-engine=\"codemirror\"",
         "data-editor-fallback=\"false\"",
-        "data-cm-language-id=\"typescript\"",
+        `data-cm-language-id="${languageCase.grammarId}"`,
       ],
       render: () =>
         renderInViewport(
           currentSurfaceId,
           viewport,
           <CodeEditor
-            code={UI_SMOKE_FIXTURE_LONG_EDITOR_CODE}
-            fileName="scroll-contract.ts"
-            filePath={`${UI_SMOKE_FIXTURE_WORKSPACE_PATH}\\src\\scroll-contract.ts`}
+            code={languageCase.code}
+            fileName={languageCase.fileName}
+            filePath={`${UI_SMOKE_FIXTURE_WORKSPACE_PATH}\\${languageCase.pathSuffix}`}
             workspacePath={UI_SMOKE_FIXTURE_WORKSPACE_PATH}
             onChange={noop}
             settings={settings}
