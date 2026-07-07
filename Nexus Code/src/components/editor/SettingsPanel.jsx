@@ -41,6 +41,7 @@ import {
 } from './settingsShared';
 import { resolveNexusTheme } from '../../theme/nexusThemeResolver.js';
 import { DEFAULT_SETTINGS } from '../../pages/editor/editorShared.jsx';
+import { createThemeSelectionPatch } from '../../pages/editor/themeOptionsModel.js';
 import { createLspSetupModel } from '../../pages/editor/lspSetupModel.js';
 import {
   getBottomPanelSizeOptions,
@@ -2218,16 +2219,19 @@ function PresetButton({
   active,
   title,
   description,
+  badge,
   colors = [],
   onClick,
   shouldReduceMotion,
+  disabled = false,
 }) {
   return (
     <motion.button
       whileHover={shouldReduceMotion ? undefined : { y: -2 }}
       whileTap={shouldReduceMotion ? undefined : { scale: 0.99 }}
       onClick={onClick}
-      className="group min-w-0 rounded-md border p-3 text-left transition-colors"
+      disabled={disabled}
+      className="group min-w-0 rounded-md border p-3 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-55"
       style={{
         background: active
           ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.095)"
@@ -2244,7 +2248,14 @@ function PresetButton({
         <span className="min-w-0 break-words text-xs font-semibold leading-tight text-gray-200">
           {title}
         </span>
-        {active ? <Check size={13} style={{ color: "var(--nexus-primary)" }} /> : null}
+        <span className="flex shrink-0 items-center gap-1">
+          {badge ? (
+            <span className="rounded border border-white/10 bg-white/[0.035] px-1.5 py-0.5 text-[9px] font-semibold uppercase text-gray-500">
+              {badge}
+            </span>
+          ) : null}
+          {active ? <Check size={13} style={{ color: "var(--nexus-primary)" }} /> : null}
+        </span>
       </div>
       {description ? (
         <p className="mt-1 break-words text-[10px] leading-4 text-gray-500">
@@ -2604,6 +2615,7 @@ export default function SettingsPanel({
   onSettingsChange,
   onResetSettings,
   onClose,
+  themeOptionsModel,
   workbenchLayout,
   activeWorkbenchPanelId = "explorer",
   activeWorkbenchPanelLabel = "Explorer",
@@ -2632,8 +2644,31 @@ export default function SettingsPanel({
     () => resolveNexusTheme(settings),
     [settings],
   );
+  const effectiveThemeOptionsModel = React.useMemo(() => {
+    if (themeOptionsModel?.options) return themeOptionsModel;
+    return {
+      builtIn: themes.map((theme) => ({
+        ...theme,
+        label: theme.name,
+        source: "built-in",
+        sourceLabel: "Built-in",
+        selectable: true,
+      })),
+      extension: [],
+      unavailable: [],
+      options: themes,
+      selectable: themes,
+      selectedThemeAvailable: true,
+      selectedThemeId: settings.theme,
+      fallbackThemeId: DEFAULT_SETTINGS.theme,
+    };
+  }, [settings.theme, themeOptionsModel]);
   const searchTerm = normalizeSearch(searchQuery);
-  const activeThemeId = resolvedTheme.id;
+  const activeThemeId = effectiveThemeOptionsModel.selectable.some(
+    (theme) => theme.id === settings.theme,
+  )
+    ? settings.theme
+    : effectiveThemeOptionsModel.selectedThemeId || resolvedTheme.id;
   const primaryAccent = resolvedTheme.colors.primary;
   const secondaryAccent = resolvedTheme.colors.secondary;
   const visualProfileId = resolveVisualProfileId(settings);
@@ -4235,25 +4270,39 @@ export default function SettingsPanel({
                 ) : null}
                 <SettingsGroup title="Theme Presets" description="Nexus-Farbwelten mit Live-Akzent.">
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                    {themes.map((theme) => (
+                    {effectiveThemeOptionsModel.selectable.map((theme) => (
                       <PresetButton
                         key={theme.id}
                         active={activeThemeId === theme.id}
                         title={theme.name}
+                        badge={theme.source === "extension" ? theme.sourceLabel : undefined}
+                        description={theme.source === "extension" ? theme.description : undefined}
                         colors={theme.colors}
                         shouldReduceMotion={shouldReduceMotion}
                         onClick={() => {
-                          onSettingsChange({
-                            ...settings,
-                            theme: theme.id,
-                            background: null,
-                            primary_accent: theme.accent,
-                            secondary_accent: theme.accent2,
-                          });
+                          const patch = createThemeSelectionPatch(theme);
+                          if (!patch) return;
+                          onSettingsChange({ ...settings, ...patch });
                         }}
                       />
                     ))}
                   </div>
+                  {effectiveThemeOptionsModel.unavailable.length > 0 ? (
+                    <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                      {effectiveThemeOptionsModel.unavailable.map((theme) => (
+                        <PresetButton
+                          key={theme.id}
+                          active={false}
+                          disabled
+                          title={theme.name}
+                          badge={theme.sourceLabel}
+                          description={theme.unavailableReason || theme.description}
+                          colors={theme.colors}
+                          shouldReduceMotion={shouldReduceMotion}
+                        />
+                      ))}
+                    </div>
+                  ) : null}
                 </SettingsGroup>
                 <SettingsGroup title="Hintergrund" description="Preset-Hintergruende oder Theme-Standard.">
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">

@@ -762,12 +762,25 @@ export default function ExtensionsPanel({ onInstalledChange }) {
     const saveResult = saveExtensionRegistry(records);
     setSaveStatus(saveResult.diagnostics.length > 0 ? saveResult : null);
     setStorageHealth(saveResult.ok ? "ok" : "degraded");
+    setHostActionStatus(
+      saveResult.ok
+        ? `Registry saved (${persistReason}).`
+        : "Registry save failed; changes are kept in memory.",
+    );
     setPersistReason(null);
   }, [persistReason, records]);
 
-  const applyRecords = (updater) => {
-    setPersistReason("user");
-    setRecords((current) => updater(current));
+  const applyRecords = (updater, statusMessage) => {
+    setRecords((current) => {
+      const next = updater(current);
+      if (next === current) {
+        setHostActionStatus("No registry change was applied.");
+        return current;
+      }
+      setPersistReason("user");
+      if (statusMessage) setHostActionStatus(statusMessage);
+      return next;
+    });
   };
 
   const clearFilters = () => {
@@ -783,6 +796,7 @@ export default function ExtensionsPanel({ onInstalledChange }) {
     if (updateableIds.length === 0) return;
     applyRecords((current) =>
       updateableIds.reduce((nextRecords, id) => installExtension(nextRecords, id), current),
+      `${updateableIds.length} extension update${updateableIds.length === 1 ? "" : "s"} queued.`,
     );
   };
 
@@ -943,10 +957,19 @@ export default function ExtensionsPanel({ onInstalledChange }) {
               key={extension.id}
               extension={extension}
               index={index}
-              onInstall={(id) => applyRecords((current) => installExtension(current, id))}
-              onRemove={(id) => applyRecords((current) => uninstallExtension(current, id))}
+              onInstall={(id) => applyRecords(
+                (current) => installExtension(current, id),
+                `${extension.displayName} installed and enabled.`,
+              )}
+              onRemove={(id) => applyRecords(
+                (current) => uninstallExtension(current, id),
+                `${extension.displayName} removed from the active registry.`,
+              )}
               onToggleEnabled={(id, enabled) =>
-                applyRecords((current) => setExtensionEnabled(current, id, enabled))
+                applyRecords(
+                  (current) => setExtensionEnabled(current, id, enabled),
+                  `${extension.displayName} ${enabled ? "enabled" : "disabled"}.`,
+                )
               }
             />
           ))}

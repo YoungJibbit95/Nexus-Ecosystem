@@ -87,6 +87,11 @@ import {
   loadExtensionRegistryState,
 } from "./editor/extensionSystem";
 import {
+  createThemeOptionsModel,
+  loadThemeOptionsModel,
+  normalizeThemeSelectionId,
+} from "./editor/themeOptionsModel";
+import {
   beginPerfMetric,
   endPerfMetric,
 } from "../lib/perfMetrics";
@@ -811,6 +816,9 @@ export default function Editor({
   });
 
   const [settings, setSettings] = useState(loadSettingsFromStorage);
+  const [themeOptionsModel, setThemeOptionsModel] = useState(() =>
+    loadThemeOptionsModel(loadSettingsFromStorage().theme),
+  );
   const [workbenchLayout, setWorkbenchLayout] = useState(
     loadWorkbenchLayoutFromStorage,
   );
@@ -885,17 +893,29 @@ export default function Editor({
           ? createExtensionCommandPaletteEntries(event.detail.registry)
           : [];
       setExtensionCommands(nextCommands);
+      if (event?.detail?.registry) {
+        setThemeOptionsModel((current) =>
+          createThemeOptionsModel(
+            event.detail.registry,
+            current.selectedOption?.id || current.selectedThemeId,
+          ),
+        );
+      }
       setSettings((prev) => {
         const current = Array.isArray(prev.extensions_installed)
           ? prev.extensions_installed
           : [];
+        const normalizedTheme = event?.detail?.registry
+          ? normalizeThemeSelectionId(prev.theme, event.detail.registry)
+          : prev.theme;
         if (
           current.length === installed.length &&
-          current.every((entry, index) => entry === installed[index])
+          current.every((entry, index) => entry === installed[index]) &&
+          normalizedTheme === prev.theme
         ) {
           return prev;
         }
-        return { ...prev, extensions_installed: installed };
+        return { ...prev, theme: normalizedTheme, extensions_installed: installed };
       });
     };
     window.addEventListener("nx-code-extensions-changed", onExtensionsChanged);
@@ -2716,6 +2736,7 @@ export default function Editor({
                 onSettingsChange={handleSettingsChange}
                 onResetSettings={handleResetSettings}
                 onClose={handleCloseSettingsPanel}
+                themeOptionsModel={themeOptionsModel}
                 workbenchLayout={normalizedWorkbenchLayout}
                 activeWorkbenchPanelId={settingsWorkbenchPanelId}
                 activeWorkbenchPanelLabel={settingsWorkbenchPanelMeta.title}

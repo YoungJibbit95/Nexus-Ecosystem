@@ -79,8 +79,11 @@ import {
   createDefaultExtensionRecords,
   createExtensionRuntimeSnapshot,
   filterExtensions,
+  getActiveThemeContributions,
   getExtensionRuntimeOverview,
+  installExtension,
   resolveExtensions,
+  setExtensionEnabled,
 } from "../pages/editor/extensionSystem.js";
 import {
   buildExtensionHostSummary,
@@ -131,6 +134,12 @@ import {
   normalizeKeybindingShortcut,
   validateKeybindingShortcut,
 } from "../pages/editor/keybindingModel.js";
+import {
+  createExtensionThemeSettingId,
+  createThemeOptionsModel,
+  createThemeSelectionPatch,
+  normalizeThemeSelectionId,
+} from "../pages/editor/themeOptionsModel.js";
 
 const require = createRequire(import.meta.url);
 const {
@@ -1076,6 +1085,25 @@ const scenarios = [
       assert.equal(snapshot.stats.commands, 3);
       assert.equal(snapshot.stats.keybindings, 2);
       assert.equal(snapshot.stats.snippets, 2);
+      assert.equal(snapshot.stats.themes, 2);
+      assert.deepEqual(
+        snapshot.themes.map((theme) => theme.id),
+        ["nexus-dark", "nexus-contrast"],
+      );
+      assert.deepEqual(snapshot.activeThemes, snapshot.themes);
+      assert.deepEqual(
+        snapshot.commands.map((command) => command.command),
+        [
+          "prettier.formatDocument",
+          "eslint.fixAll",
+          "eslint.restart",
+        ],
+      );
+      assert.deepEqual(
+        snapshot.keybindings.map((keybinding) => keybinding.command),
+        ["prettier.formatDocument", "eslint.fixAll"],
+      );
+      assert.ok(snapshot.languages.some((language) => language.id === "typescript"));
       assert.equal(contributions.commands.length, snapshot.stats.commands);
       assert.equal(contributions.keybindings.length, snapshot.stats.keybindings);
       assert.equal(contributions.snippets.length, snapshot.stats.snippets);
@@ -1106,6 +1134,99 @@ const scenarios = [
           (event) =>
             event.id === "onLanguage:javascript" &&
             event.extensionId === "prettier",
+        ),
+      );
+    },
+  },
+  {
+    id: "extension-theme-install-enable-disable-contributions",
+    title: "installed theme extensions expose active themes and disable cleanly",
+    run() {
+      const defaults = createDefaultExtensionRecords();
+      const installed = installExtension(defaults, "rainbow-brackets");
+      const installedThemes = getActiveThemeContributions(installed);
+      const installedSnapshot = createExtensionRuntimeSnapshot(installed);
+
+      assert.equal(installed["rainbow-brackets"].installed, true);
+      assert.equal(installed["rainbow-brackets"].enabled, true);
+      assert.ok(installedThemes.some((theme) => theme.id === "rainbow-brackets-dark"));
+      assert.ok(
+        installedSnapshot.themes.some(
+          (theme) =>
+            theme.id === "rainbow-brackets-dark" &&
+            theme.extensionId === "rainbow-brackets" &&
+            theme.extensionName === "Rainbow Brackets",
+        ),
+      );
+      assert.equal(installedSnapshot.stats.themes, 3);
+      assert.equal(installedSnapshot.activeContributions.themes.length, 3);
+      assert.equal(installedSnapshot.commands.some((entry) => entry.command === "rainbowBrackets.toggle"), true);
+      assert.equal(installedSnapshot.languages.some((entry) => entry.id === "json"), true);
+
+      const disabled = setExtensionEnabled(installed, "rainbow-brackets", false);
+      const disabledSnapshot = createExtensionRuntimeSnapshot(disabled);
+
+      assert.equal(disabled["rainbow-brackets"].installed, true);
+      assert.equal(disabled["rainbow-brackets"].enabled, false);
+      assert.equal(disabled["rainbow-brackets"].disabledReason, "user");
+      assert.equal(
+        disabledSnapshot.themes.some((theme) => theme.id === "rainbow-brackets-dark"),
+        false,
+      );
+      assert.equal(disabledSnapshot.stats.themes, 2);
+
+      const enabled = setExtensionEnabled(disabled, "rainbow-brackets", true);
+      const enabledSnapshot = createExtensionRuntimeSnapshot(enabled);
+
+      assert.equal(enabled["rainbow-brackets"].enabled, true);
+      assert.equal(enabled["rainbow-brackets"].disabledReason, null);
+      assert.equal(
+        enabledSnapshot.themes.some((theme) => theme.id === "rainbow-brackets-dark"),
+        true,
+      );
+      assert.equal(enabledSnapshot.stats.themes, 3);
+    },
+  },
+  {
+    id: "settings-theme-options-extension-fallback",
+    title: "settings theme options expose active extension themes and fallback when disabled",
+    run() {
+      const defaults = createDefaultExtensionRecords();
+      const installed = installExtension(defaults, "rainbow-brackets");
+      const extensionThemeId = createExtensionThemeSettingId(
+        "rainbow-brackets",
+        "rainbow-brackets-dark",
+      );
+      const installedModel = createThemeOptionsModel(installed, extensionThemeId);
+      const extensionOption = installedModel.extension.find(
+        (theme) => theme.id === extensionThemeId,
+      );
+
+      assert.ok(extensionOption);
+      assert.equal(extensionOption.source, "extension");
+      assert.equal(extensionOption.sourceLabel, "Rainbow Brackets");
+      assert.equal(extensionOption.selectable, true);
+      assert.equal(installedModel.selectedThemeAvailable, true);
+      assert.equal(installedModel.selectedThemeId, extensionThemeId);
+
+      const patch = createThemeSelectionPatch(extensionOption);
+      assert.equal(patch.theme, extensionThemeId);
+      assert.equal(patch.theme_source, "extension");
+      assert.equal(patch.theme_extension_id, "rainbow-brackets");
+      assert.equal(patch.theme_contribution_id, "rainbow-brackets-dark");
+
+      const disabled = setExtensionEnabled(installed, "rainbow-brackets", false);
+      const disabledModel = createThemeOptionsModel(disabled, extensionThemeId);
+
+      assert.equal(disabledModel.selectedThemeAvailable, false);
+      assert.equal(disabledModel.selectedThemeId, disabledModel.fallbackThemeId);
+      assert.equal(normalizeThemeSelectionId(extensionThemeId, disabled), disabledModel.fallbackThemeId);
+      assert.ok(
+        disabledModel.unavailable.some(
+          (theme) =>
+            theme.id === extensionThemeId &&
+            theme.selectable === false &&
+            /pausiert/.test(theme.unavailableReason),
         ),
       );
     },

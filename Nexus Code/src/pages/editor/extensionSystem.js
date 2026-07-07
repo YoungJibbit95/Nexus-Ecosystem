@@ -1261,6 +1261,37 @@ export function collectExtensionContributions(records) {
   return contributions;
 }
 
+function normalizeRuntimeContributionEntry(point, entry) {
+  const label = getExtensionContributionItemLabel(point, entry);
+  return {
+    ...entry,
+    id:
+      entry.id ||
+      entry.command ||
+      entry.name ||
+      entry.type ||
+      `${entry.extensionId || "extension"}:${point}:${label || "entry"}`,
+    label,
+    contributionPoint: point,
+    extensionId: entry.extensionId,
+    extensionName: entry.extensionName,
+  };
+}
+
+function createRuntimeContributionBuckets(contributions) {
+  return EXTENSION_RUNTIME_CONTRIBUTION_POINTS.reduce((buckets, { point }) => {
+    buckets[point] = (contributions[point] || []).map((entry) =>
+      normalizeRuntimeContributionEntry(point, entry),
+    );
+    return buckets;
+  }, {});
+}
+
+export function getActiveThemeContributions(records) {
+  const contributions = collectExtensionContributions(records);
+  return createRuntimeContributionBuckets(contributions).themes;
+}
+
 export function createExtensionCommandPaletteEntries(records) {
   const contributions = collectExtensionContributions(records);
   return (contributions.commands || []).map((entry, index) => {
@@ -1316,20 +1347,27 @@ export function collectExtensionActivationPlan(records) {
 export function getExtensionRuntimeOverview(records) {
   const contributions = collectExtensionContributions(records);
   const activation = collectExtensionActivationPlan(records);
+  const activeContributions = createRuntimeContributionBuckets(contributions);
   const contributionPoints = EXTENSION_RUNTIME_CONTRIBUTION_POINTS.map(({ point, label }) => {
-    const entries = contributions[point] || [];
+    const entries = activeContributions[point] || [];
     const extensionNames = [...new Set(entries.map((entry) => entry.extensionName))];
     return {
       point,
       label,
       count: entries.length,
       extensions: extensionNames,
-      items: entries.map((entry) => getExtensionContributionItemLabel(point, entry)).filter(Boolean),
+      items: entries.map((entry) => entry.label).filter(Boolean),
+      entries,
     };
   });
 
   return {
     contributionPoints,
+    activeContributions,
+    themes: activeContributions.themes,
+    commands: activeContributions.commands,
+    keybindings: activeContributions.keybindings,
+    languages: activeContributions.languages,
     activation,
     enabledExtensionCount: getEnabledExtensionIds(records).length,
   };
@@ -1348,6 +1386,12 @@ export function createExtensionRuntimeSnapshot(records) {
     installed,
     enabled,
     stats,
+    activeContributions: runtime.activeContributions,
+    activeThemes: runtime.themes,
+    themes: runtime.themes,
+    commands: runtime.commands,
+    keybindings: runtime.keybindings,
+    languages: runtime.languages,
     activation: runtime.activation.events.map((event) => ({
       id: event.id,
       type: event.type,
@@ -1359,11 +1403,7 @@ export function createExtensionRuntimeSnapshot(records) {
     contributions: Object.fromEntries(
       Object.entries(contributions).map(([point, entries]) => [
         point,
-        entries.map((entry) => ({
-          ...entry,
-          extensionId: entry.extensionId,
-          extensionName: entry.extensionName,
-        })),
+        entries.map((entry) => normalizeRuntimeContributionEntry(point, entry)),
       ]),
     ),
     summary: runtime.contributionPoints.map((point) => ({
@@ -1394,6 +1434,7 @@ export function createExtensionEventDetail(records) {
     commands: createExtensionCommandPaletteEntries(records),
     runtime: getExtensionRuntimeOverview(records),
     snapshot: createExtensionRuntimeSnapshot(records),
+    themes: getActiveThemeContributions(records),
     diagnostics: resolved.flatMap((extension) =>
       extension.manifestDiagnostics.map((diagnostic) => ({
         ...diagnostic,
