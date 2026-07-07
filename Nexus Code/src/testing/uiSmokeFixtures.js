@@ -30,6 +30,72 @@ export const UI_SMOKE_FIXTURE_GITHUB_REPOSITORY =
 export const UI_SMOKE_FIXTURE_WORKSPACE_PATH =
   "F:\\Coding\\Nexus Workspace\\Nexus-Ecosystem";
 
+export const UI_SMOKE_FIXTURE_FILE_TREE = Object.freeze([
+  {
+    id: "readme",
+    name: "README.md",
+    type: "file",
+    parentId: null,
+    content: "# Nexus Code",
+  },
+  {
+    id: "package-json",
+    name: "package.json",
+    type: "file",
+    parentId: null,
+    content: "{}",
+  },
+  {
+    id: "src",
+    name: "src",
+    type: "folder",
+    parentId: null,
+    isOpen: true,
+  },
+  {
+    id: "docs",
+    name: "docs",
+    type: "folder",
+    parentId: null,
+    isOpen: true,
+  },
+  {
+    id: "components",
+    name: "components",
+    type: "folder",
+    parentId: "src",
+    isOpen: true,
+  },
+  {
+    id: "editor-page",
+    name: "Editor.jsx",
+    type: "file",
+    parentId: "src",
+    content: "export default function Editor() {}",
+  },
+  {
+    id: "file-explorer",
+    name: "FileExplorer.jsx",
+    type: "file",
+    parentId: "components",
+    content: "export default function FileExplorer() {}",
+  },
+  {
+    id: "welcome-screen",
+    name: "WelcomeScreen.jsx",
+    type: "file",
+    parentId: "components",
+    content: "export default function WelcomeScreen() {}",
+  },
+  {
+    id: "release-checklist",
+    name: "release-checklist.md",
+    type: "file",
+    parentId: "docs",
+    content: "- smoke",
+  },
+]);
+
 export function createUiSmokeSettingsFixture(baseSettings = {}) {
   return {
     ...baseSettings,

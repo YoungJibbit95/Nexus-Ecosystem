@@ -1,5 +1,6 @@
 import React from "react";
 import AccountPanel from "../components/editor/AccountPanel.jsx";
+import FileExplorer from "../components/editor/FileExplorer.jsx";
 import GitHubWorkbenchPanel from "../components/editor/github/GitHubWorkbenchPanel.jsx";
 import {
   PanelActionButton,
@@ -21,6 +22,7 @@ import { DEFAULT_SETTINGS } from "../pages/editor/editorShared.jsx";
 import {
   UI_SMOKE_FIXTURE_ACCOUNT_SESSION,
   UI_SMOKE_FIXTURE_CONTROL_STATUS,
+  UI_SMOKE_FIXTURE_FILE_TREE,
   UI_SMOKE_FIXTURE_GITHUB_REPOSITORY,
   UI_SMOKE_FIXTURE_LONG_LABELS,
   UI_SMOKE_FIXTURE_WORKSPACE_PATH,
@@ -226,6 +228,53 @@ export function createUiSmokeScenarios() {
             onNewFile={noop}
             onOpenFolder={noop}
             onOpenSettings={noop}
+          />,
+        ),
+    },
+    {
+      id: "file-explorer",
+      title: "File explorer folder-first surface",
+      primaryActions: [
+        "Search files",
+        "Refresh tree",
+        "New file",
+        "New folder",
+        "Collapse all folders",
+      ],
+      expectedText: [
+        "Explorer",
+        "Nexus-Ecosystem",
+        "src",
+        "FileExplorer",
+      ],
+      requiredMarkup: [
+        "nx-code-file-explorer",
+        "nx-code-explorer-toolbar",
+        "nx-code-file-tree-actions",
+        "data-file-tree-kind=\"folder\"",
+        "data-file-tree-kind=\"file\"",
+        "data-file-tree-name=\"src\"",
+        "data-file-tree-name=\"README.md\"",
+      ],
+      orderedMarkup: [
+        "data-file-tree-name=\"docs\"",
+        "data-file-tree-name=\"README.md\"",
+      ],
+      render: (viewport) =>
+        renderInViewport(
+          "file-explorer",
+          viewport,
+          <FileExplorer
+            files={UI_SMOKE_FIXTURE_FILE_TREE}
+            activeFileId="file-explorer"
+            onFileSelect={noop}
+            onCreateFile={noop}
+            onCreateFolder={noop}
+            onRenameFile={noop}
+            onDeleteFile={noop}
+            onToggleFolder={noop}
+            onRefresh={noop}
+            workspacePath={UI_SMOKE_FIXTURE_WORKSPACE_PATH}
           />,
         ),
     },
@@ -438,6 +487,21 @@ function assertSmokeAttributes(scenario, markup) {
 }
 
 export function assertUiSmokeMarkup(scenario, markup) {
+  const orderedMarkers = scenario.orderedMarkup || [];
+  const orderedFailures = [];
+  let previousIndex = -1;
+  for (const marker of orderedMarkers) {
+    const index = markup.indexOf(marker);
+    if (index === -1) {
+      orderedFailures.push(`missing ordered marker "${marker}"`);
+      continue;
+    }
+    if (index < previousIndex) {
+      orderedFailures.push(`ordered marker "${marker}" rendered out of order`);
+    }
+    previousIndex = index;
+  }
+
   const failures = [
     ...assertSmokeAttributes(scenario, markup),
     ...(scenario.expectedText || [])
@@ -452,6 +516,7 @@ export function assertUiSmokeMarkup(scenario, markup) {
     ...(scenario.requiredMarkup || [])
       .filter((marker) => !markup.includes(marker))
       .map((marker) => `missing markup guard "${marker}"`),
+    ...orderedFailures,
   ];
   const buttonResult = assertButtonLabels(markup);
   failures.push(...buttonResult.failures);

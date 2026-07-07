@@ -16,7 +16,9 @@ import {
   ACCOUNT_AUTH_MODES,
   createLocalAccountSession,
   getAccountSessionState,
+  isAccountInformationalControlStatus,
   normalizeAccountSession,
+  resolveAccountConnectionStatusMode,
 } from "../app/accountSession.js";
 import { createNexusCodeLoginPayload } from "../app/nexusApiClient.js";
 import {
@@ -33,13 +35,16 @@ import {
   getSidePanelStyle,
 } from "../pages/editor/editorShellLayout.js";
 import {
+  createSpotlightTextResults,
   createSpotlightResults,
   getEditorCommandPaletteCommands,
   groupCommandPaletteItems,
+  mergeSpotlightResults,
   rankCommandPaletteItems,
   rankSpotlightFiles,
   rankSpotlightSymbols,
 } from "../pages/editor/commandPaletteModel.js";
+import { searchSpotlightWorkspace } from "../pages/editor/spotlightWorkspaceSearchModel.js";
 import {
   EDITOR_LSP_FEATURE_IDS,
   createEditorCommandRegistry,
@@ -62,7 +67,7 @@ import {
   shouldRequestLspCompletion,
   summarizeEditorDiagnostics,
 } from "../pages/editor/editorFeatureModel.js";
-import { getLanguageCapabilities } from "../ide/languages/languageIds.js";
+import { getLanguageCapabilities, listLanguageIds } from "../ide/languages/languageIds.js";
 import {
   createCodeMirrorLanguageFallback,
   getCodeMirrorLanguageSupportDescriptor,
@@ -1222,6 +1227,29 @@ const scenarios = [
         expiresAt: Date.now() - 1_000,
       });
       assert.equal(getAccountSessionState(expiredSession).canStartWorkbench, false);
+
+      const savedSessionStatus = {
+        mode: "degraded",
+        details: ["account:SESSION_UPDATED"],
+      };
+      assert.equal(isAccountInformationalControlStatus(savedSessionStatus), true);
+      assert.equal(
+        resolveAccountConnectionStatusMode({
+          session: migratedSession,
+          controlStatus: savedSessionStatus,
+        }).mode,
+        "active",
+      );
+      assert.equal(
+        resolveAccountConnectionStatusMode({
+          session: migratedSession,
+          controlStatus: {
+            mode: "degraded",
+            details: ["release:EMPTY_BUNDLE"],
+          },
+        }).mode,
+        "degraded",
+      );
     },
   },
   {
@@ -1371,6 +1399,137 @@ const scenarios = [
       assert.equal(mixedResults[0]?.resultKind, "symbol");
       assert.equal(mixedResults[0]?.label, "Command Surface");
       assert.equal(mixedResults[0]?.payload, "readme");
+    },
+  },
+  {
+    id: "spotlight-project-text-result-ranking",
+    title: "spotlight converts workspace text matches into grouped project results",
+    run() {
+      const searchResult = {
+        groups: [
+          {
+            file: {
+              id: "workspace-search-model",
+              name: "spotlightWorkspaceSearchModel.js",
+              type: "file",
+              fsPath: "src/pages/editor/spotlightWorkspaceSearchModel.js",
+            },
+            fileId: "workspace-search-model",
+            fileName: "spotlightWorkspaceSearchModel.js",
+            path: "src/pages/editor/spotlightWorkspaceSearchModel.js",
+            fullPath: "src/pages/editor/spotlightWorkspaceSearchModel.js",
+            matches: [
+              {
+                lineNumber: 42,
+                column: 14,
+                excerpt: "const projectNeedle = createWorkspaceSearchResult();",
+                lineText: "const projectNeedle = createWorkspaceSearchResult();",
+                matchStart: 6,
+                matchLength: 13,
+              },
+            ],
+          },
+        ],
+      };
+
+      const textResults = createSpotlightTextResults(searchResult, "projectNeedle", 4);
+      assert.equal(textResults[0]?.resultKind, "text");
+      assert.equal(textResults[0]?.actionId, "open-file");
+      assert.equal(textResults[0]?.payload.id, "workspace-search-model");
+      assert.match(textResults[0]?.description, /spotlightWorkspaceSearchModel\.js:42:14/);
+
+      const merged = mergeSpotlightResults({
+        baseResults: [{ id: "open-search", actionId: "open-search", label: "Search", searchScore: 1 }],
+        workspaceResults: textResults,
+        query: "projectNeedle",
+      });
+      assert.equal(merged[0]?.resultKind, "text");
+      assert.equal(groupCommandPaletteItems(merged)[0]?.id, "workspace-search");
+    },
+  },
+  {
+    id: "spotlight-workspace-search-recursive-fallback",
+    title: "spotlight searches recursive workspace files and falls back without fs ipc",
+    async run() {
+      const readDirs = [];
+      const tree = {
+        "/workspace": [
+          { name: "src", path: "/workspace/src", isDirectory: true },
+          { name: "node_modules", path: "/workspace/node_modules", isDirectory: true },
+          { name: "README.md", path: "/workspace/README.md", isDirectory: false },
+        ],
+        "/workspace/src": [
+          { name: "NeedlePane.jsx", path: "/workspace/src/NeedlePane.jsx", isDirectory: false },
+          { name: "logo.png", path: "/workspace/src/logo.png", isDirectory: false },
+        ],
+        "/workspace/node_modules": [
+          { name: "ignored.js", path: "/workspace/node_modules/ignored.js", isDirectory: false },
+        ],
+      };
+      const content = {
+        "/workspace/README.md": "# Nexus Code\n\nProject search surface.",
+        "/workspace/src/NeedlePane.jsx": [
+          "export function NeedlePane() {",
+          "  return 'project needle text';",
+          "}",
+        ].join("\n"),
+        "/workspace/node_modules/ignored.js": "project needle text",
+      };
+      const fsApi = {
+        async readDir(targetPath) {
+          readDirs.push(targetPath);
+          return tree[targetPath] || [];
+        },
+        async readFile(targetPath) {
+          return content[targetPath] || "";
+        },
+      };
+
+      const result = await searchSpotlightWorkspace({
+        files: [],
+        workspacePath: "/workspace",
+        query: "project needle",
+        fsApi,
+      });
+      assert.equal(result.status.kind, "ready");
+      assert.equal(readDirs.includes("/workspace/node_modules"), false);
+      const textResult = result.results.find((entry) => entry.resultKind === "text");
+      assert.equal(textResult?.payload.fsPath, "/workspace/src/NeedlePane.jsx");
+
+      const filePathResult = await searchSpotlightWorkspace({
+        files: [],
+        workspacePath: "/workspace",
+        query: "NeedlePane",
+        fsApi,
+      });
+      assert.equal(filePathResult.results[0]?.resultKind, "file");
+      assert.equal(filePathResult.results[0]?.payload.fsPath, "/workspace/src/NeedlePane.jsx");
+
+      const symbolResult = await searchSpotlightWorkspace({
+        files: [],
+        workspacePath: "/workspace",
+        query: "@NeedlePane",
+        fsApi,
+      });
+      assert.equal(symbolResult.results[0]?.resultKind, "symbol");
+      assert.equal(symbolResult.results[0]?.payload.fsPath, "/workspace/src/NeedlePane.jsx");
+
+      const fallback = await searchSpotlightWorkspace({
+        files: [
+          {
+            id: "open-local",
+            name: "OpenLocal.jsx",
+            type: "file",
+            content: "const fallbackNeedle = true;",
+          },
+        ],
+        workspacePath: "/workspace",
+        query: "fallbackNeedle",
+        fsApi: {},
+      });
+      assert.equal(fallback.status.kind, "fallback");
+      assert.equal(fallback.results[0]?.resultKind, "text");
+      assert.equal(fallback.results[0]?.payload.id, "open-local");
     },
   },
   {
@@ -1736,6 +1895,28 @@ const scenarios = [
         getCodeMirrorLanguageSupportDescriptor("unknown-language", "notes.txt").status,
         "fallback",
       );
+
+      for (const languageId of listLanguageIds()) {
+        const loaded = await loadCodeMirrorLanguageExtension(
+          languageId,
+          `sample.${languageId}`,
+        );
+        if (languageId === "plaintext") {
+          assert.equal(loaded.status, "fallback");
+          continue;
+        }
+
+        assert.equal(
+          loaded.status,
+          "ready",
+          `${languageId} should load a syntax grammar`,
+        );
+        assert.equal(
+          loaded.extension.length > 0,
+          true,
+          `${languageId} should expose a non-empty CodeMirror extension`,
+        );
+      }
     },
   },
   {

@@ -111,6 +111,75 @@ export const canStartWithAccountSession = (sessionRaw) => {
   return true;
 };
 
+const ACCOUNT_INFORMATIONAL_STATUS_DETAILS = new Set([
+  "ACCOUNT:SESSION_UPDATED",
+  "ACCOUNT:SESSION_SAVED",
+  "ACCOUNT:SESSION_REFRESHED",
+]);
+
+const normalizeStatusMode = (modeRaw) => {
+  const mode = String(modeRaw || "").trim().toLowerCase();
+  if (["online", "limited", "offline", "degraded", "active"].includes(mode)) {
+    return mode;
+  }
+  return "";
+};
+
+export const isAccountInformationalControlStatus = (controlStatus) => {
+  const details = Array.isArray(controlStatus?.details)
+    ? controlStatus.details
+    : [];
+  if (normalizeStatusMode(controlStatus?.mode) !== "degraded") return false;
+  if (details.length === 0) return false;
+  return details.every((detail) =>
+    ACCOUNT_INFORMATIONAL_STATUS_DETAILS.has(
+      String(detail || "").trim().toUpperCase(),
+    ),
+  );
+};
+
+export const resolveAccountConnectionStatusMode = ({
+  session,
+  controlStatus,
+  testResult,
+} = {}) => {
+  const sessionState = getAccountSessionState(session);
+  const testedMode = normalizeStatusMode(testResult?.mode);
+  if (testedMode) {
+    return {
+      mode: testedMode,
+      source: "test",
+      sessionState,
+    };
+  }
+
+  const controlMode = normalizeStatusMode(controlStatus?.mode) || "offline";
+  if (
+    sessionState.canStartWorkbench &&
+    isAccountInformationalControlStatus(controlStatus)
+  ) {
+    return {
+      mode: "active",
+      source: "session",
+      sessionState,
+    };
+  }
+
+  if (sessionState.canStartWorkbench && !controlStatus?.mode) {
+    return {
+      mode: "active",
+      source: "session",
+      sessionState,
+    };
+  }
+
+  return {
+    mode: controlMode,
+    source: "control",
+    sessionState,
+  };
+};
+
 export const loadNexusAccountSession = () => {
   if (typeof window === "undefined") return createEmptyAccountSession();
   try {

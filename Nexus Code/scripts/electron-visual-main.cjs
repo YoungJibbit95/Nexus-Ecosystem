@@ -185,6 +185,23 @@ async function collectLayoutMetrics(webContents, scenario) {
   );
 }
 
+async function settleRendererPaint(webContents) {
+  await webContents
+    .executeJavaScript(
+      `
+        new Promise((resolve) => {
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              window.setTimeout(resolve, 90);
+            });
+          });
+        })
+      `,
+      true,
+    )
+    .catch(() => wait(180));
+}
+
 function analyzeNativeImage(image) {
   const size = image.getSize();
   const bitmap = image.getBitmap();
@@ -267,9 +284,10 @@ async function captureScenario(window, scenario) {
   await window.setContentSize(scenario.width, scenario.height, false);
   await window.loadURL(url);
   await waitForVisualReady(window.webContents, scenario);
-  await wait(180);
+  await settleRendererPaint(window.webContents);
 
   const metrics = await collectLayoutMetrics(window.webContents, scenario);
+  await settleRendererPaint(window.webContents);
   const image = await window.capturePage();
   const imageStats = analyzeNativeImage(image);
   const screenshotPath = path.join(outputDir, `${sanitizeFileName(scenario.id)}.png`);

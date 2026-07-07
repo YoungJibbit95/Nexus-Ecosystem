@@ -149,6 +149,41 @@ function CapabilityPill({ icon: Icon, label, tone = "neutral", title }) {
   );
 }
 
+function GitStatusMetric({ label, value, tone = "neutral", title }) {
+  const color =
+    tone === "good"
+      ? "#93c5fd"
+      : tone === "warn"
+        ? "#fbbf24"
+        : tone === "active"
+          ? "#67e8f9"
+          : "#94a3b8";
+
+  return (
+    <div
+      title={title}
+      className="min-w-0 rounded-lg border px-2 py-1.5"
+      style={{
+        background: "rgba(2,6,23,0.26)",
+        borderColor: "rgba(148,163,184,0.075)",
+      }}
+    >
+      <div
+        className="text-[9px] font-semibold uppercase leading-none text-gray-600"
+        style={{ letterSpacing: 0 }}
+      >
+        {label}
+      </div>
+      <div
+        className="mt-1 min-w-0 truncate font-mono text-[11px] font-semibold"
+        style={{ color }}
+      >
+        {value}
+      </div>
+    </div>
+  );
+}
+
 function EmptyState({ title, detail, tone = "muted" }) {
   const isGood = tone === "good";
   return (
@@ -456,6 +491,17 @@ export default function GitPanel({ files }) {
     () => changedFiles.find((file) => file.id === selectedFileId) || null,
     [changedFiles, selectedFileId],
   );
+
+  useEffect(() => {
+    if (changedFiles.length === 0) {
+      if (selectedFileId) setSelectedFileId(null);
+      return;
+    }
+
+    if (!changedFiles.some((file) => file.id === selectedFileId)) {
+      setSelectedFileId(changedFiles[0].id);
+    }
+  }, [changedFiles, selectedFileId]);
 
   const primaryRemote = useMemo(() => {
     const upstreamRemote = status.upstream?.split("/")?.[0];
@@ -1088,6 +1134,27 @@ export default function GitPanel({ files }) {
                     {remoteDetail}
                   </span>
                 </div>
+                <div
+                  className="mt-2 grid gap-1.5"
+                  style={{ gridTemplateColumns: "repeat(auto-fit, minmax(76px, 1fr))" }}
+                >
+                  <GitStatusMetric
+                    label="Working"
+                    value={unstagedFiles.length}
+                    tone={unstagedFiles.length > 0 ? "active" : "neutral"}
+                  />
+                  <GitStatusMetric
+                    label="Index"
+                    value={stagedFiles.length}
+                    tone={stagedFiles.length > 0 ? "good" : "neutral"}
+                  />
+                  <GitStatusMetric
+                    label="Remote"
+                    value={compactSyncLabel}
+                    tone={syncTone === "warn" ? "warn" : syncTone === "good" ? "good" : "neutral"}
+                    title={syncLabel}
+                  />
+                </div>
               </div>
               <PanelBadge tone={getSyncBadgeTone(syncTone)} title={syncLabel}>
                 {compactSyncLabel}
@@ -1403,7 +1470,7 @@ export default function GitPanel({ files }) {
         {hasWorkspace && (
           <>
         <SectionHeader
-          title="Changes"
+          title="Working Tree"
           count={unstagedFiles.length}
           expanded={sections.changes}
           onToggle={() => toggleSection("changes")}
@@ -1449,7 +1516,7 @@ export default function GitPanel({ files }) {
         </AnimatePresence>
 
         <SectionHeader
-          title="Staged"
+          title="Index"
           count={stagedFiles.length}
           expanded={sections.staged}
           onToggle={() => toggleSection("staged")}

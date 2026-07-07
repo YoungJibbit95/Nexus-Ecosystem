@@ -366,6 +366,41 @@ function RuntimeStatusLine({ status, capability, onOpenAccount }) {
   );
 }
 
+function WorkbenchSummaryPill({ label, value, tone = "muted", title }) {
+  const color =
+    tone === "danger"
+      ? "#fca5a5"
+      : tone === "warning"
+        ? "#fbbf24"
+        : tone === "accent"
+          ? "#67e8f9"
+          : "#94a3b8";
+
+  return (
+    <div
+      title={title}
+      className="min-w-0 rounded-lg border px-2 py-1.5"
+      style={{
+        background: "rgba(2,6,23,0.28)",
+        borderColor: "rgba(148,163,184,0.085)",
+      }}
+    >
+      <div
+        className="text-[9px] font-semibold uppercase leading-none text-gray-600"
+        style={{ letterSpacing: 0 }}
+      >
+        {label}
+      </div>
+      <div
+        className="mt-1 min-w-0 truncate text-[11px] font-semibold"
+        style={{ color }}
+      >
+        {value}
+      </div>
+    </div>
+  );
+}
+
 function getWorkspaceRepositoryGuess(workspacePath) {
   if (!workspacePath) {
     return { owner: "", repo: "", label: "" };
@@ -1736,6 +1771,15 @@ export function GitHubWorkbenchPanel({
   }, [initialRepoLabel]);
 
   useEffect(() => {
+    setListState(EMPTY_LIST_STATE);
+    setProjectItemsState(EMPTY_PROJECT_ITEMS_STATE);
+    setSelectedItem(null);
+    setSelectedProject(null);
+    setActionState({ busy: "", error: "", message: "" });
+    setConfirmAction("");
+  }, [normalizedPanelId]);
+
+  useEffect(() => {
     if (normalizedPanelId === "projects" && selectedProject?.fields?.length) return;
     setProjectActionDraft(DEFAULT_PROJECT_ACTION);
   }, [normalizedPanelId, selectedProject?.id, selectedProject?.fields?.length]);
@@ -2259,6 +2303,10 @@ export function GitHubWorkbenchPanel({
       ? panelContextLabel
       : capabilityStatus.detail;
   const canShowActions = capabilityStatus.id === "ready" && !setupRequirement;
+  const targetSummary =
+    panelContextLabel.length > 28
+      ? `${panelContextLabel.slice(0, 25)}...`
+      : panelContextLabel;
 
   return (
     <PanelShell
@@ -2316,6 +2364,29 @@ export function GitHubWorkbenchPanel({
             Project owner: {draftProjectOwner || "not set"}
           </div>
         ) : null}
+
+        <div
+          className="mx-3 mt-2 grid gap-1.5"
+          style={{ gridTemplateColumns: "repeat(auto-fit, minmax(86px, 1fr))" }}
+        >
+          <WorkbenchSummaryPill
+            label="Bridge"
+            value={capabilityStatus.id === "ready" ? "Ready" : capabilityStatus.label}
+            tone={capabilityStatus.tone}
+            title={capabilityStatus.detail}
+          />
+          <WorkbenchSummaryPill
+            label={normalizedPanelId === "projects" ? "Scope" : "Target"}
+            value={targetSummary}
+            tone={setupRequirement ? "warning" : "muted"}
+            title={panelContextLabel}
+          />
+          <WorkbenchSummaryPill
+            label="Loaded"
+            value={listState.loading ? "Loading" : listState.loaded ? listState.items.length : "Pending"}
+            tone={listState.error ? "danger" : listState.loading ? "accent" : "muted"}
+          />
+        </div>
 
         {actionState.error ? (
           <WorkbenchNotice
