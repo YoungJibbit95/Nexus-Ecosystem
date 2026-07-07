@@ -4,8 +4,11 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   createSpotlightResults,
   groupCommandPaletteItems,
+  mergeSpotlightResults,
   normalizeSearchValue,
 } from "../../pages/editor/commandPaletteModel.js";
+import { SEARCH_DEBOUNCE_MS } from "../../pages/editor/searchPanelModel.js";
+import { searchSpotlightWorkspace } from "../../pages/editor/spotlightWorkspaceSearchModel.js";
 import { useNexusReducedMotion } from "./panels/PanelChrome.jsx";
 
 const EMPTY_FILES = Object.freeze([]);
@@ -92,7 +95,32 @@ function EmptyState({ query, onPickSuggestion }) {
 function getResultChipLabel(result) {
   if (result.resultKind === "file") return "DATEI";
   if (result.resultKind === "symbol") return "SYMBOL";
+  if (result.resultKind === "text") return "TEXT";
   return result.categoryMeta?.label || "COMMAND";
+}
+
+function createIdleWorkspaceSearchState() {
+  return {
+    status: "idle",
+    query: "",
+    result: null,
+    error: "",
+  };
+}
+
+function getWorkspaceSearchLabel(state, normalizedQuery) {
+  if (!normalizedQuery) return "Projekt-Suche wartet auf Eingabe";
+  if (state.status === "loading") return "Projekt-Suche laeuft";
+  if (state.status === "error") return state.error || "Projekt-Suche nicht verfuegbar";
+  const result = state.result;
+  if (!result) return "Projekt-Suche wird vorbereitet";
+  if (result.status?.kind !== "ready") return result.status?.message || "Fallback aktiv";
+  const matchCount = result.stats?.totalMatches || 0;
+  const fileCount = result.stats?.candidateFiles || 0;
+  if (matchCount > 0) {
+    return `${matchCount} Texttreffer in ${result.stats?.matchedFiles || 0} Dateien`;
+  }
+  return `${fileCount} Projektdateien indexiert`;
 }
 
 export default function SpotlightSearch({
@@ -101,14 +129,19 @@ export default function SpotlightSearch({
   onAction,
   files = EMPTY_FILES,
   extensionCommands = EMPTY_EXTENSION_COMMANDS,
+  workspacePath = "",
 }) {
   const reduceMotion = useNexusReducedMotion();
   const [query, setQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [workspaceSearchState, setWorkspaceSearchState] = useState(
+    createIdleWorkspaceSearchState,
+  );
   const inputRef = useRef(null);
   const resultRefs = useRef([]);
+  const workspaceSearchRunIdRef = useRef(0);
 
-  const results = useMemo(
+  const localResults = useMemo(
     () =>
       createSpotlightResults({
         files,
@@ -117,17 +150,85 @@ export default function SpotlightSearch({
       }),
     [extensionCommands, files, query],
   );
-  const groups = useMemo(() => groupCommandPaletteItems(results), [results]);
   const normalizedQuery = normalizeSearchValue(query);
+  const workspaceResults =
+    workspaceSearchState.query === normalizedQuery
+      ? workspaceSearchState.result?.results || []
+      : [];
+  const results = useMemo(
+    () =>
+      mergeSpotlightResults({
+        baseResults: localResults,
+        workspaceResults,
+        query,
+      }),
+    [localResults, query, workspaceResults],
+  );
+  const groups = useMemo(() => groupCommandPaletteItems(results), [results]);
   const selectedResult = results[selectedIndex] || null;
+  const workspaceSearchLabel = getWorkspaceSearchLabel(
+    workspaceSearchState,
+    normalizedQuery,
+  );
 
   useEffect(() => {
     if (!isOpen) return undefined;
     setQuery("");
     setSelectedIndex(0);
+    setWorkspaceSearchState(createIdleWorkspaceSearchState());
     const focusTimer = window.setTimeout(() => inputRef.current?.focus(), 50);
     return () => window.clearTimeout(focusTimer);
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || !normalizedQuery) {
+      workspaceSearchRunIdRef.current += 1;
+      setWorkspaceSearchState(createIdleWorkspaceSearchState());
+      return undefined;
+    }
+
+    const runId = workspaceSearchRunIdRef.current + 1;
+    workspaceSearchRunIdRef.current = runId;
+    let cancelled = false;
+
+    const timerId = window.setTimeout(() => {
+      setWorkspaceSearchState((prev) => ({
+        status: "loading",
+        query: normalizedQuery,
+        result: prev.query === normalizedQuery ? prev.result : null,
+        error: "",
+      }));
+
+      searchSpotlightWorkspace({
+        files,
+        query,
+        workspacePath,
+      })
+        .then((result) => {
+          if (cancelled || workspaceSearchRunIdRef.current !== runId) return;
+          setWorkspaceSearchState({
+            status: "ready",
+            query: normalizedQuery,
+            result,
+            error: "",
+          });
+        })
+        .catch((error) => {
+          if (cancelled || workspaceSearchRunIdRef.current !== runId) return;
+          setWorkspaceSearchState({
+            status: "error",
+            query: normalizedQuery,
+            result: null,
+            error: error?.message || "Projekt-Suche konnte nicht starten.",
+          });
+        });
+    }, Math.min(SEARCH_DEBOUNCE_MS, 220));
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timerId);
+    };
+  }, [files, isOpen, normalizedQuery, query, workspacePath]);
 
   useEffect(() => {
     if (selectedIndex >= results.length) {
@@ -239,7 +340,7 @@ export default function SpotlightSearch({
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder="Dateien, Actions oder Workbench-Kommandos suchen..."
+                  placeholder="Dateien, Pfade, @Symbole oder Text im Workspace suchen..."
                   className="min-w-0 w-full bg-transparent text-base font-medium text-slate-100 outline-none placeholder:text-slate-600"
                   role="combobox"
                   aria-expanded="true"
@@ -251,6 +352,7 @@ export default function SpotlightSearch({
                 />
                 <div className="nx-code-search-subline mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-slate-500">
                   <span>{getResultCountLabel(results.length)}</span>
+                  <span>{workspaceSearchLabel}</span>
                   {normalizedQuery && selectedResult?.matchReason ? (
                     <span>Treffer ueber {selectedResult.matchReason}</span>
                   ) : null}
@@ -292,6 +394,8 @@ export default function SpotlightSearch({
                             const visibleDetail =
                               result.resultKind === "symbol" && result.symbol?.kind
                                 ? `${result.symbol.kind} / ${detail}`
+                                : result.resultKind === "text"
+                                  ? detail
                                 : detail;
                             const showMatchReason = Boolean(
                               normalizedQuery && result.matchReason,
@@ -391,6 +495,8 @@ export default function SpotlightSearch({
                       ? selectedResult.description
                       : selectedResult.resultKind === "symbol"
                         ? `${selectedResult.symbol?.kind || "symbol"} / ${selectedResult.description}`
+                        : selectedResult.resultKind === "text"
+                          ? `${selectedResult.description} / Text`
                         : selectedResult.categoryMeta?.label}
                     {selectedResult.matchReason ? ` / ${selectedResult.matchReason}` : ""}
                   </span>

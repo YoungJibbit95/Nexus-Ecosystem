@@ -369,7 +369,6 @@ const definitions = [
     extensions: ["cmake"],
     filenames: ["cmakelists.txt"],
     aliases: ["cmake"],
-    editorGrammarId: "plaintext",
   },
   {
     id: LANGUAGE_IDS.TOML,
@@ -377,7 +376,6 @@ const definitions = [
     extensions: ["toml"],
     filenames: [],
     aliases: ["toml"],
-    editorGrammarId: "ini",
   },
   {
     id: LANGUAGE_IDS.INI,
@@ -544,7 +542,6 @@ const definitions = [
     extensions: ["csv", "tsv"],
     filenames: [],
     aliases: ["csv", "tsv"],
-    editorGrammarId: "plaintext",
   },
   {
     id: LANGUAGE_IDS.DIFF,
@@ -552,7 +549,6 @@ const definitions = [
     extensions: ["diff", "patch"],
     filenames: [],
     aliases: ["diff", "patch"],
-    editorGrammarId: "plaintext",
   },
   {
     id: LANGUAGE_IDS.LOG,
@@ -560,7 +556,6 @@ const definitions = [
     extensions: ["log"],
     filenames: [],
     aliases: ["log"],
-    editorGrammarId: "plaintext",
   },
   {
     id: LANGUAGE_IDS.ENV,

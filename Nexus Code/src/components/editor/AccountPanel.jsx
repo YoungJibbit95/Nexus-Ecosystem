@@ -20,6 +20,7 @@ import {
   getAccountSessionState,
   normalizeAccountSession,
   normalizeNexusApiEndpoint,
+  resolveAccountConnectionStatusMode,
 } from "../../app/accountSession";
 import {
   PanelActionButton,
@@ -45,6 +46,14 @@ const STATUS_META = {
     tone: "success",
     icon: CheckCircle2,
     label: "Online",
+    color: "#67e8f9",
+    background: "rgba(34,211,238,0.09)",
+    border: "rgba(34,211,238,0.2)",
+  },
+  active: {
+    tone: "success",
+    icon: CheckCircle2,
+    label: "Active",
     color: "#67e8f9",
     background: "rgba(34,211,238,0.09)",
     border: "rgba(34,211,238,0.2)",
@@ -189,7 +198,16 @@ export default function AccountPanel({
     setDraft(normalizedSession);
   }, [normalizedSession]);
 
-  const statusMode = testResult?.mode || controlStatus?.mode || "offline";
+  const connectionDisplay = useMemo(
+    () =>
+      resolveAccountConnectionStatusMode({
+        session: normalizedSession,
+        controlStatus,
+        testResult,
+      }),
+    [controlStatus, normalizedSession, testResult],
+  );
+  const statusMode = connectionDisplay.mode;
   const statusMeta = STATUS_META[statusMode] || STATUS_META.degraded;
   const StatusIcon = statusMeta.icon;
   const accountLabel = sessionState.hasIdentity
@@ -202,7 +220,10 @@ export default function AccountPanel({
     : normalizedSession.authMode === ACCOUNT_AUTH_MODES.nexus
       ? "Nexus"
       : "Signed out";
-  const details = testResult?.details || controlStatus?.details || [];
+  const details =
+    connectionDisplay.source === "session"
+      ? []
+      : testResult?.details || controlStatus?.details || [];
   const normalizedDraftEndpoint = normalizeNexusApiEndpoint(draft.endpoint);
   const endpointWillNormalize =
     Boolean(draft.endpoint) && normalizedDraftEndpoint !== String(draft.endpoint || "").trim();
@@ -215,9 +236,16 @@ export default function AccountPanel({
     .slice(0, 2)
     .join(" / ");
   const hiddenDetailCount = Math.max(details.length - 2, 0);
-  const statusDetail = detailPreview
-    ? `${detailPreview}${hiddenDetailCount ? ` (+${hiddenDetailCount})` : ""}`
-    : `${accountLabel} - ${savedLabel}`;
+  const statusDetail =
+    connectionDisplay.source === "session"
+      ? `${accountLabel} - Session gespeichert; Control API Recheck steht aus.`
+      : detailPreview
+        ? `${detailPreview}${hiddenDetailCount ? ` (+${hiddenDetailCount})` : ""}`
+        : `${accountLabel} - ${savedLabel}`;
+  const statusTitle =
+    connectionDisplay.source === "session"
+      ? "Nexus Session aktiv"
+      : testResult?.message || controlStatus?.message || "Nexus session required.";
   const sessionGateTitle = sessionState.canStartWorkbench
     ? "Nexus Session aktiv"
     : sessionState.isLocal
@@ -291,7 +319,11 @@ export default function AccountPanel({
       <PanelHeader
         icon={UserRound}
         title="Account"
-        subtitle={`${accountLabel} - ${controlStatus?.title || "Control API"}`}
+        subtitle={`${accountLabel} - ${
+          connectionDisplay.source === "session"
+            ? "Session bereit"
+            : controlStatus?.title || "Control API"
+        }`}
         status={<PanelBadge tone={statusMeta.tone}>{statusMeta.label}</PanelBadge>}
       >
         <div className="grid grid-cols-2 gap-1.5">
@@ -312,7 +344,7 @@ export default function AccountPanel({
         <CompactAccountNotice
           icon={StatusIcon}
           tone={statusMeta.tone}
-          title={testResult?.message || controlStatus?.message || "Nexus session required."}
+          title={statusTitle}
           detail={statusDetail}
           className="mb-2"
         />

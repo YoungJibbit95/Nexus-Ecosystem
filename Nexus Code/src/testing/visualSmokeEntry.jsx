@@ -119,6 +119,21 @@ function assertButtonLabels(markup) {
 }
 
 function assertVisualSmokeMarkup(scenario, markup) {
+  const orderedMarkers = scenario.orderedMarkup || [];
+  const orderedFailures = [];
+  let previousIndex = -1;
+  for (const marker of orderedMarkers) {
+    const index = markup.indexOf(marker);
+    if (index === -1) {
+      orderedFailures.push(`missing ordered marker "${marker}"`);
+      continue;
+    }
+    if (index < previousIndex) {
+      orderedFailures.push(`ordered marker "${marker}" rendered out of order`);
+    }
+    previousIndex = index;
+  }
+
   const expectedAttributes = [
     ["data-ui-smoke-root", "nexus-code"],
     ["data-ui-smoke-surface", scenario.surfaceId],
@@ -144,6 +159,7 @@ function assertVisualSmokeMarkup(scenario, markup) {
     ...(scenario.requiredMarkup || [])
       .filter((marker) => !markup.includes(marker))
       .map((marker) => `missing markup guard "${marker}"`),
+    ...orderedFailures,
   ];
   const buttonResult = assertButtonLabels(markup);
   failures.push(...buttonResult.failures);

@@ -29,6 +29,7 @@ import GitHubWorkbenchPanel from "../components/editor/github/GitHubWorkbenchPan
 import CommandPalette from "../components/editor/CommandPalette";
 import SpotlightSearch from "../components/editor/SpotlightSearch";
 import ProblemsPanel from "../components/editor/ProblemsPanel";
+import CodeEditor from "../components/editor/CodeEditor";
 import { motion, AnimatePresence } from "framer-motion";
 
 import {
@@ -142,9 +143,7 @@ const DOCK_ZONE_OPTIONS = Object.freeze([
   },
 ]);
 const loadSettingsPanel = () => import("../components/editor/SettingsPanel");
-const loadCodeEditor = () => import("../components/editor/CodeEditor");
 const SettingsPanel = React.lazy(() => loadSettingsPanel());
-const CodeEditor = React.lazy(() => loadCodeEditor());
 
 function getNextOptionId(options, currentId) {
   if (!options.length) return currentId;
@@ -2299,12 +2298,25 @@ export default function Editor({
         if (file.fsPath && !file.content && isElectron) {
           // @ts-ignore
           const content = await window.electronAPI.readFile(file.fsPath);
-          setFiles((prev) =>
-            prev.map((f) => (f.id === file.id ? { ...f, content } : f)),
-          );
           fileToOpen.content = content;
         }
 
+        setFiles((prev) => {
+          const index = prev.findIndex((f) => f.id === fileToOpen.id);
+          if (index === -1) return [...prev, fileToOpen];
+          const current = prev[index];
+          const merged = { ...current, ...fileToOpen };
+          if (
+            current.content === merged.content &&
+            current.fsPath === merged.fsPath &&
+            current.name === merged.name
+          ) {
+            return prev;
+          }
+          const next = prev.slice();
+          next[index] = merged;
+          return next;
+        });
         openFileTab(fileToOpen);
       } catch (err) {
         console.error("Failed to select/open file:", err);
@@ -3157,6 +3169,7 @@ export default function Editor({
         onAction={handleCommandPaletteAction}
         files={files}
         extensionCommands={extensionCommands}
+        workspacePath={workspacePath}
       />
     </div>
   );

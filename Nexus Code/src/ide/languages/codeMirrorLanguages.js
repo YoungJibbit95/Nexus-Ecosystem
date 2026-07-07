@@ -89,6 +89,30 @@ const LANGUAGE_LOADERS = Object.freeze({
     const { java } = await import("@codemirror/lang-java");
     return java();
   },
+  [LANGUAGE_IDS.CSHARP]: async () => {
+    const { csharp } = await import("@codemirror/legacy-modes/mode/clike");
+    return streamGrammar(csharp);
+  },
+  [LANGUAGE_IDS.OBJECTIVE_C]: async () => {
+    const { objectiveC } = await import("@codemirror/legacy-modes/mode/clike");
+    return streamGrammar(objectiveC);
+  },
+  [LANGUAGE_IDS.KOTLIN]: async () => {
+    const { kotlin } = await import("@codemirror/legacy-modes/mode/clike");
+    return streamGrammar(kotlin);
+  },
+  [LANGUAGE_IDS.SCALA]: async () => {
+    const { scala } = await import("@codemirror/legacy-modes/mode/clike");
+    return streamGrammar(scala);
+  },
+  [LANGUAGE_IDS.ELIXIR]: async () => {
+    const { erlang } = await import("@codemirror/legacy-modes/mode/erlang");
+    return streamGrammar(erlang);
+  },
+  [LANGUAGE_IDS.DART]: async () => {
+    const { dart } = await import("@codemirror/legacy-modes/mode/clike");
+    return streamGrammar(dart);
+  },
   [LANGUAGE_IDS.CPP]: async () => {
     const { cpp } = await import("@codemirror/lang-cpp");
     return cpp();
@@ -169,6 +193,30 @@ const LANGUAGE_LOADERS = Object.freeze({
     const { vb } = await import("@codemirror/legacy-modes/mode/vb");
     return streamGrammar(vb);
   },
+  [LANGUAGE_IDS.GRAPHQL]: async () => {
+    const { sparql } = await import("@codemirror/legacy-modes/mode/sparql");
+    return streamGrammar(sparql);
+  },
+  [LANGUAGE_IDS.SOLIDITY]: async () => {
+    const { clike } = await import("@codemirror/legacy-modes/mode/clike");
+    return streamGrammar(clike);
+  },
+  [LANGUAGE_IDS.HCL]: async () => {
+    const { properties } = await import("@codemirror/legacy-modes/mode/properties");
+    return streamGrammar(properties);
+  },
+  [LANGUAGE_IDS.BICEP]: async () => {
+    const { clike } = await import("@codemirror/legacy-modes/mode/clike");
+    return streamGrammar(clike);
+  },
+  [LANGUAGE_IDS.WGSL]: async () => {
+    const { shader } = await import("@codemirror/legacy-modes/mode/clike");
+    return streamGrammar(shader);
+  },
+  [LANGUAGE_IDS.CSV]: async () => {
+    const { spreadsheet } = await import("@codemirror/legacy-modes/mode/spreadsheet");
+    return streamGrammar(spreadsheet);
+  },
   [LANGUAGE_IDS.SYSTEMVERILOG]: async () => {
     const { verilog } = await import("@codemirror/legacy-modes/mode/verilog");
     return streamGrammar(verilog);
@@ -181,6 +229,10 @@ const LANGUAGE_LOADERS = Object.freeze({
     const { diff } = await import("@codemirror/legacy-modes/mode/diff");
     return streamGrammar(diff);
   },
+  [LANGUAGE_IDS.LOG]: async () => {
+    const { shell } = await import("@codemirror/legacy-modes/mode/shell");
+    return streamGrammar(shell);
+  },
 });
 
 const GRAMMAR_ALIASES = Object.freeze({
@@ -192,10 +244,6 @@ const GRAMMAR_ALIASES = Object.freeze({
   [LANGUAGE_IDS.LESS]: LANGUAGE_IDS.CSS,
   [LANGUAGE_IDS.MDX]: LANGUAGE_IDS.MARKDOWN,
   [LANGUAGE_IDS.C]: LANGUAGE_IDS.CPP,
-  [LANGUAGE_IDS.CSHARP]: LANGUAGE_IDS.CPP,
-  [LANGUAGE_IDS.OBJECTIVE_C]: LANGUAGE_IDS.CPP,
-  [LANGUAGE_IDS.KOTLIN]: LANGUAGE_IDS.JAVA,
-  [LANGUAGE_IDS.SCALA]: LANGUAGE_IDS.JAVA,
   [LANGUAGE_IDS.BAT]: LANGUAGE_IDS.SHELL,
   [LANGUAGE_IDS.ENV]: LANGUAGE_IDS.SHELL,
   [LANGUAGE_IDS.MAKEFILE]: LANGUAGE_IDS.SHELL,

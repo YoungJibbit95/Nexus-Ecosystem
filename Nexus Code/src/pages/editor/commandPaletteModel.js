@@ -2,6 +2,7 @@ import {
   Blocks,
   File,
   FileCode2,
+  FileText,
   FolderOpen,
   GitBranch,
   GitPullRequest,
@@ -74,6 +75,7 @@ const CATEGORY_ICON_BY_ID = Object.freeze({
   extensions: Blocks,
   preferences: Settings,
   files: File,
+  "workspace-search": FileText,
 });
 
 const CATEGORY_TONE_BY_ID = Object.freeze({
@@ -147,6 +149,13 @@ const CATEGORY_TONE_BY_ID = Object.freeze({
     icon: "border-sky-300/15 bg-sky-300/10 text-sky-200",
     active: "border-sky-300/25 bg-sky-300/10",
   }),
+  "workspace-search": Object.freeze({
+    dot: "bg-cyan-300",
+    text: "text-cyan-200",
+    chip: "border-cyan-300/20 bg-cyan-300/10 text-cyan-100",
+    icon: "border-cyan-300/15 bg-cyan-300/10 text-cyan-200",
+    active: "border-cyan-300/25 bg-cyan-300/10",
+  }),
 });
 
 const DEFAULT_TONE = CATEGORY_TONE_BY_ID.navigation;
@@ -161,6 +170,12 @@ const SYMBOL_CATEGORY = Object.freeze({
   label: "Symbole",
   description: "Funktionen, Klassen und Headings",
   tone: "violet",
+});
+const WORKSPACE_SEARCH_CATEGORY = Object.freeze({
+  id: "workspace-search",
+  label: "Projekt-Suche",
+  description: "Text- und Codepassagen im Workspace",
+  tone: "cyan",
 });
 const SYMBOL_QUERY_PREFIX = /^@+/;
 const SYMBOL_SCAN_FILE_LIMIT = 48;
@@ -811,6 +826,176 @@ export function rankSpotlightSymbols(files = [], query = "", limit = 8) {
     .filter(Boolean)
     .sort((a, b) => b.searchScore - a.searchScore || a.label.localeCompare(b.label))
     .slice(0, limit);
+}
+
+function getSearchGroupFilePayload(group) {
+  const sourceFile = group?.file && typeof group.file === "object" ? group.file : {};
+  const fallbackFullPath = String(group?.fullPath || "");
+  const fallbackIsAbsolutePath = /^[a-z]:[\\/]/i.test(fallbackFullPath) || fallbackFullPath.startsWith("/");
+  const id =
+    group?.fileId ||
+    sourceFile.id ||
+    (sourceFile.fsPath ? `fs_${sourceFile.fsPath}` : "") ||
+    group?.fullPath ||
+    group?.path ||
+    group?.fileName;
+  return {
+    ...sourceFile,
+    id,
+    name: group?.fileName || sourceFile.name || "Untitled",
+    type: "file",
+    fsPath: sourceFile.fsPath || (fallbackIsAbsolutePath ? fallbackFullPath : null),
+    path: sourceFile.path || group?.path || group?.fullPath || "",
+  };
+}
+
+function scoreTextSearchResult(group, match, query, groupIndex, matchIndex) {
+  const normalizedQuery = normalizeSearchValue(query);
+  const lineText = normalizeSearchValue(match?.lineText || match?.excerpt);
+  const excerpt = normalizeSearchValue(match?.excerpt);
+  const fileName = normalizeSearchValue(group?.fileName);
+  const path = normalizeSearchValue(group?.path || group?.fullPath);
+  const baseScore = 78 - groupIndex / 10 - matchIndex / 100;
+  if (!normalizedQuery) return baseScore;
+
+  let score = baseScore;
+  score += scoreFuzzyField(excerpt || lineText, normalizedQuery, {
+    exact: 220,
+    prefix: 154,
+    contains: 118,
+  });
+  score += scoreFuzzyField(fileName, normalizedQuery, {
+    exact: 72,
+    prefix: 46,
+    contains: 24,
+  });
+  score += scoreFuzzyField(path, normalizedQuery, {
+    exact: 48,
+    prefix: 32,
+    contains: 18,
+  });
+
+  tokenizeQuery(query).forEach((token) => {
+    score += Math.max(
+      scoreFuzzyField(lineText, token, { exact: 76, prefix: 52, contains: 32 }),
+      scoreFuzzyField(excerpt, token, { exact: 70, prefix: 48, contains: 30 }),
+      scoreFuzzyField(fileName, token, { exact: 34, prefix: 22, contains: 14 }),
+      scoreFuzzyField(path, token, { exact: 22, prefix: 14, contains: 8 }),
+    );
+  });
+
+  return score;
+}
+
+export function createSpotlightTextResults(searchResult, query = "", limit = 8) {
+  const groups = Array.isArray(searchResult?.groups) ? searchResult.groups : [];
+  return groups
+    .flatMap((group, groupIndex) => {
+      const payload = getSearchGroupFilePayload(group);
+      const matches = Array.isArray(group?.matches) ? group.matches : [];
+      return matches.map((match, matchIndex) => {
+        const location = `${group.path || group.fileName || "Untitled"}:${match.lineNumber || 1}:${match.column || 1}`;
+        const label = String(match.excerpt || match.lineText || group.fileName || "Text match").trim();
+        return {
+          id: `text:${payload.id}:${match.lineNumber || 1}:${match.column || 1}:${matchIndex}`,
+          label: label || group.fileName || "Text match",
+          description: location,
+          actionId: "open-file",
+          payload,
+          resultKind: "text",
+          category: WORKSPACE_SEARCH_CATEGORY.id,
+          categoryMeta: WORKSPACE_SEARCH_CATEGORY,
+          icon: FileText,
+          tone: resolveCategoryTone(WORKSPACE_SEARCH_CATEGORY.id),
+          matchReason: "Text",
+          searchScore: scoreTextSearchResult(group, match, query, groupIndex, matchIndex),
+          match,
+          fsPath: payload.fsPath || group.fullPath || "",
+          lineNumber: match.lineNumber || 1,
+          column: match.column || 1,
+        };
+      });
+    })
+    .sort((a, b) => b.searchScore - a.searchScore || a.description.localeCompare(b.description))
+    .slice(0, limit);
+}
+
+function getSpotlightResultDedupeKey(result) {
+  const kind = result?.resultKind || "command";
+  if (kind === "command") return `command:${normalizeSearchValue(result.actionId || result.id)}`;
+  if (kind === "file") {
+    return `file:${normalizeSearchValue(result.fsPath || result.description || result.payload?.fsPath || result.id)}`;
+  }
+  if (kind === "symbol") {
+    return `symbol:${normalizeSearchValue(
+      [
+        result.symbol?.name || result.label,
+        result.symbol?.line || "",
+        result.fsPath || result.payload?.fsPath || result.description || "",
+      ].join(":"),
+    )}`;
+  }
+  if (kind === "text") {
+    return `text:${normalizeSearchValue(
+      [
+        result.fsPath || result.payload?.fsPath || result.description || "",
+        result.lineNumber || "",
+        result.column || "",
+        result.label || "",
+      ].join(":"),
+    )}`;
+  }
+  return `${kind}:${normalizeSearchValue(result.id || result.label)}`;
+}
+
+function getSpotlightResultIntentScore(result, query) {
+  const normalizedQuery = normalizeSearchValue(query);
+  if (!normalizedQuery) return 0;
+  const kind = result?.resultKind || "command";
+  let score = 0;
+  if (kind === "file" && /[./\\]/.test(query)) score += 92;
+  if (kind === "symbol" && SYMBOL_QUERY_PREFIX.test(String(query || "").trim())) score += 110;
+  if (kind === "text") score += 28;
+  if (kind === "command") score += result.isFrequent ? 10 : 0;
+  if (kind === "file" && result.matchReason === "Path") score += 24;
+  return score;
+}
+
+export function mergeSpotlightResults({
+  baseResults = [],
+  workspaceResults = [],
+  query = "",
+  maxResults = 32,
+} = {}) {
+  const normalizedQuery = normalizeSearchValue(query);
+  const seen = new Map();
+
+  [...baseResults, ...workspaceResults].filter(Boolean).forEach((result, index) => {
+    const key = getSpotlightResultDedupeKey(result);
+    const ranked = {
+      ...result,
+      mergedSearchScore:
+        Number(result.searchScore || 0) +
+        getSpotlightResultIntentScore(result, query) -
+        index / 1000,
+    };
+    const existing = seen.get(key);
+    if (!existing || ranked.mergedSearchScore > existing.mergedSearchScore) {
+      seen.set(key, ranked);
+    }
+  });
+
+  const merged = Array.from(seen.values());
+  if (!normalizedQuery) return merged.slice(0, maxResults);
+
+  return merged
+    .sort((a, b) => {
+      if (b.mergedSearchScore !== a.mergedSearchScore) {
+        return b.mergedSearchScore - a.mergedSearchScore;
+      }
+      return String(a.label || "").localeCompare(String(b.label || ""));
+    })
+    .slice(0, maxResults);
 }
 
 export function createSpotlightResults({

@@ -1723,6 +1723,93 @@ textarea.nx-typing-active,
     color: var(--nx-code-strong-text, #f8fafc);
 }
 
+.nx-code-titlebar,
+.nx-code-editor-tabbar-wrap,
+.nx-code-panel-windowbar,
+.nx-code-explorer-header,
+.nx-code-bottom-stack,
+.nx-code-status-strip {
+    border-color: rgba(156, 170, 210, 0.052) !important;
+}
+
+.nx-code-titlebar,
+.nx-code-editor-tabbar-wrap,
+.nx-code-panel-windowbar,
+.nx-code-explorer-header {
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.01), rgba(255, 255, 255, 0.003)),
+        rgba(5, 8, 14, 0.66) !important;
+    box-shadow: none !important;
+}
+
+.nx-code-titlebar :where(.nx-code-command-center-pro, .nx-code-menu-host, .nx-code-titlebar-brand, .nx-code-titlebar-pill, .nx-code-titlebar-icon-button),
+.nx-code-panel-windowbar :where(button, [role="group"]),
+.nx-code-tabbar-actions {
+    border-color: rgba(156, 170, 210, 0.055) !important;
+    background: rgba(255, 255, 255, 0.014) !important;
+    box-shadow: none !important;
+}
+
+.nx-code-panel-windowbar {
+    height: 2rem !important;
+    min-height: 2rem !important;
+    padding-inline: 0.5rem !important;
+}
+
+.nx-code-file-explorer {
+    background: rgba(5, 8, 14, 0.46) !important;
+}
+
+.nx-code-file-explorer .nx-code-explorer-header {
+    min-height: 3rem;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.009), rgba(255, 255, 255, 0.002)),
+        rgba(5, 8, 14, 0.54) !important;
+}
+
+.nx-code-explorer-toolbar {
+    min-height: 1.5rem;
+}
+
+.nx-code-file-tree-row {
+    margin-inline: 0.125rem;
+    border: 1px solid transparent;
+    border-radius: 0.3125rem !important;
+    background-clip: padding-box;
+}
+
+.nx-code-file-tree-row:hover,
+.nx-code-file-tree-row:focus-visible {
+    border-color: rgba(156, 170, 210, 0.036);
+}
+
+.nx-code-file-tree-row[data-file-tree-kind="folder"] {
+    color: var(--nx-code-text, #e5edf8);
+}
+
+.nx-code-file-tree-section {
+    letter-spacing: 0;
+    color: var(--nx-code-subtle-text, #687386);
+}
+
+.nx-code-file-tree-actions {
+    min-width: 0;
+}
+
+.nx-code-file-tree-actions :where(button) {
+    border-radius: 0.25rem !important;
+}
+
+.nx-code-side-panel {
+    border-color: rgba(156, 170, 210, 0.052) !important;
+    box-shadow: none !important;
+}
+
+.nx-code-panel-resize-handle::after {
+    background: rgba(156, 170, 210, 0.2);
+    box-shadow: none;
+}
+
 .nx-code-editor-status {
     overflow: hidden;
     color: var(--nexus-muted, #9ca3af);

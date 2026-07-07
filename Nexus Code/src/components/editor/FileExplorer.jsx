@@ -33,10 +33,17 @@ const rowActionClass =
   "grid h-5 w-5 shrink-0 place-items-center rounded text-slate-500 transition hover:bg-white/[0.07] hover:text-slate-100 disabled:cursor-not-allowed disabled:opacity-40 [&>svg]:h-3 [&>svg]:w-3";
 
 const TREE_ROW_HEIGHT = Math.min(FILE_TREE_LIMITS.rowHeight || 32, 28);
+const TREE_INDENT_STEP = 14;
+const TREE_ROOT_INDENT = 6;
+const TREE_BRANCH_INDENT = TREE_ROOT_INDENT + 20;
 const FILE_TREE_VIRTUAL_LIMITS = Object.freeze({
   ...FILE_TREE_LIMITS,
   rowHeight: TREE_ROW_HEIGHT,
 });
+
+function getTreeIndent(depth = 0, base = TREE_ROOT_INDENT) {
+  return depth * TREE_INDENT_STEP + base;
+}
 
 function getFileNameParts(name = "") {
   const value = String(name || "");
@@ -58,13 +65,13 @@ function WorkspaceLabel({ workspacePath }) {
   const label = useMemo(() => {
     if (!workspacePath) return "No workspace";
     const parts = String(workspacePath).split(/[\\/]/).filter(Boolean);
-    return (parts[parts.length - 1] || workspacePath).toUpperCase();
+    return parts[parts.length - 1] || workspacePath;
   }, [workspacePath]);
 
   return (
-    <div className="flex min-w-0 items-center gap-1.5 rounded-md px-0.5 py-0.5">
-      <FolderOpen size={12} className="shrink-0 text-sky-300/80" />
-      <span className="truncate text-[10px] font-semibold tracking-tight text-slate-400">
+    <div className="flex min-w-0 items-center gap-1.5">
+      <FolderOpen size={12} className="shrink-0 text-slate-500" />
+      <span className="truncate text-[10px] font-medium tracking-tight text-slate-500">
         {label}
       </span>
     </div>
@@ -163,8 +170,8 @@ function CreationRow({ depth, type, onConfirm, onCancel }) {
       style={{ height: TREE_ROW_HEIGHT }}
     >
       <div
-        className="flex h-full items-center gap-2 px-2"
-        style={{ paddingLeft: `${depth * 12 + 24}px` }}
+        className="flex h-full items-center gap-2 px-1.5"
+        style={{ paddingLeft: `${getTreeIndent(depth, TREE_BRANCH_INDENT)}px` }}
       >
         {isFolder ? (
           <FolderPlus size={14} className="shrink-0 text-sky-300" />
@@ -224,7 +231,7 @@ function LoadingState() {
           className="flex items-center gap-2 rounded-md px-2"
           style={{
             height: TREE_ROW_HEIGHT,
-            paddingLeft: `${(row % 3) * 12 + 10}px`,
+            paddingLeft: `${getTreeIndent(row % 3)}px`,
           }}
         >
           <span className="h-3.5 w-3.5 shrink-0 rounded bg-white/[0.07]" />
@@ -241,10 +248,10 @@ function LoadingState() {
 function ExtensionSectionRow({ section }) {
   return (
     <div
-      className="flex items-center gap-2 px-2 text-[10px] text-gray-500"
+      className="nx-code-file-tree-section flex items-center gap-2 px-1.5 text-[10px] text-gray-500"
       style={{
         height: TREE_ROW_HEIGHT,
-        paddingLeft: `${section.depth * 12 + 24}px`,
+        paddingLeft: `${getTreeIndent(section.depth, TREE_BRANCH_INDENT)}px`,
       }}
       role="presentation"
     >
@@ -305,7 +312,7 @@ function OverflowRow({ row }) {
       className="flex items-center gap-2 px-2 text-[11px] text-amber-300/80"
       style={{
         height: TREE_ROW_HEIGHT,
-        paddingLeft: `${row.depth * 12 + 24}px`,
+        paddingLeft: `${getTreeIndent(row.depth, TREE_BRANCH_INDENT)}px`,
       }}
     >
       <AlertTriangle size={13} className="shrink-0" />
@@ -336,10 +343,12 @@ function TreeRow({
   const isRenaming = renamingId === node.id;
   const isDeleting = deleteConfirmId === node.id;
   const isBusy = busyId === node.id;
-  const indent = depth * 11 + 5;
+  const indent = getTreeIndent(depth);
   const meta = getFileMeta(node.name);
   const rowTitle = node.fsPath || node.path || node.name;
   const canMutate = !treeLocked && !isBusy;
+  const actionsPinned = isDeleting || isBusy;
+  const actionsWidth = isFolder ? "4.45rem" : "1.5rem";
 
   const handleOpen = () => {
     if (isFolder) {
@@ -357,6 +366,10 @@ function TreeRow({
         aria-expanded={isFolder ? isOpen : undefined}
         aria-selected={isActive}
         aria-busy={isBusy || undefined}
+        data-file-tree-row=""
+        data-file-tree-kind={isFolder ? "folder" : "file"}
+        data-file-tree-depth={depth}
+        data-file-tree-name={node.name}
         tabIndex={0}
         title={rowTitle}
         onClick={handleOpen}
@@ -374,22 +387,22 @@ function TreeRow({
             if (canMutate) onStartRename(node.id);
           }
         }}
-        className={`nx-code-file-tree-row group relative flex min-w-0 select-none items-center gap-1.5 overflow-hidden rounded-md px-1.5 text-[11px] outline-none transition hover:bg-white/[0.052] focus:bg-white/[0.072] ${
+        className={`nx-code-file-tree-row group relative flex min-w-0 select-none items-center gap-1.5 overflow-hidden rounded-md px-1.5 text-[11px] outline-none transition-colors hover:bg-white/[0.044] focus-visible:bg-white/[0.064] ${
           treeLocked && isFolder ? "cursor-wait" : "cursor-pointer"
         }`}
         style={{
           height: TREE_ROW_HEIGHT,
           paddingLeft: `${indent}px`,
-          paddingRight: !isRenaming ? (isFolder ? "4.6rem" : "1.7rem") : undefined,
+          paddingRight: "0.25rem",
           background: isActive
-            ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.115)"
+            ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.105)"
             : isMatch
-              ? "rgba(56, 189, 248, 0.07)"
+              ? "rgba(56, 189, 248, 0.058)"
             : undefined,
           boxShadow: isActive
-            ? "inset 2px 0 rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.52)"
+            ? "inset 2px 0 rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.42)"
             : isMatch
-              ? "inset 2px 0 rgba(56, 189, 248, 0.42)"
+              ? "inset 2px 0 rgba(56, 189, 248, 0.34)"
               : undefined,
           contain: "layout paint style",
         }}
@@ -448,7 +461,14 @@ function TreeRow({
         )}
 
         {!isRenaming && (
-          <div className="pointer-events-none absolute right-1 top-1/2 flex h-[22px] -translate-y-1/2 items-center justify-end gap-0.5 rounded bg-[#070b12]/92 px-0.5 opacity-0 shadow-[0_0_10px_rgba(0,0,0,0.24)] transition-opacity group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100">
+          <div
+            className={`nx-code-file-tree-actions ml-auto flex h-full shrink-0 items-center justify-end gap-0.5 transition-opacity ${
+              actionsPinned
+                ? "pointer-events-auto opacity-100"
+                : "pointer-events-none opacity-0 group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100"
+            }`}
+            style={{ width: actionsWidth }}
+          >
             {isFolder && (
               <>
                 <button
@@ -817,19 +837,31 @@ export default function FileExplorer({
   const treeLocked = isLoading || refreshing;
 
   return (
-    <div className="flex h-full w-full flex-col bg-[#05070d]/30 text-slate-200">
-      <div className="nx-code-explorer-header border-b border-white/[0.045] bg-black/[0.08] px-2.5 py-2">
-        <div className="nx-code-explorer-heading flex min-w-0 items-start justify-between gap-2">
+    <div className="nx-code-file-explorer flex h-full w-full flex-col bg-[#05070d]/24 text-slate-200">
+      <div className="nx-code-explorer-header border-b border-white/[0.035] px-2 py-1.5">
+        <div className="nx-code-explorer-heading flex min-w-0 items-center gap-2">
           <div className="min-w-0 flex-1">
-            <div className="text-[10px] font-semibold uppercase tracking-normal text-slate-500">
-              Explorer
-            </div>
-            <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-slate-600">
-              <span className="min-w-0 truncate">
-                {model.stats.files} files · {model.stats.folders} folders
+            <div className="flex min-w-0 items-center gap-1.5">
+              <span className="truncate text-[11px] font-semibold leading-none text-slate-300">
+                Explorer
               </span>
-              <span className="shrink-0 text-slate-700">
-                {model.stats.visibleRows} rows
+              {virtualWindow.isVirtualized && (
+                <span className="shrink-0 text-[9px] font-medium text-slate-600">
+                  {virtualWindow.renderedRows}/{virtualWindow.totalRows}
+                </span>
+              )}
+            </div>
+            <div className="mt-1 flex min-w-0 items-center gap-1.5 text-[10px] leading-none text-slate-600">
+              <div className="min-w-0 flex-1">
+                <WorkspaceLabel workspacePath={workspacePath} />
+              </div>
+              <span className="h-3 w-px shrink-0 bg-white/[0.055]" />
+              <span className="shrink-0 tabular-nums">
+                {model.stats.folders} folders
+              </span>
+              <span className="text-slate-700">/</span>
+              <span className="shrink-0 tabular-nums">
+                {model.stats.files} files
               </span>
               {isRefreshingTree && (
                 <span className="inline-flex shrink-0 items-center gap-1 text-cyan-200/80">
@@ -839,13 +871,8 @@ export default function FileExplorer({
               )}
             </div>
           </div>
-          {virtualWindow.isVirtualized && (
-            <span className="shrink-0 text-[9px] font-medium text-slate-600">
-              {virtualWindow.renderedRows}/{virtualWindow.totalRows}
-            </span>
-          )}
           <div
-            className="flex shrink-0 items-center gap-0.5 rounded-md bg-transparent p-0.5"
+            className="nx-code-explorer-toolbar flex shrink-0 items-center gap-0.5 rounded-md bg-transparent"
             role="toolbar"
             aria-label="Explorer quick actions"
           >
@@ -863,17 +890,6 @@ export default function FileExplorer({
             >
               <RefreshCcw size={16} className={refreshing ? "animate-spin" : ""} />
             </ActionIconButton>
-          </div>
-        </div>
-        <div className="nx-code-explorer-workspace mt-2 min-w-0">
-          <WorkspaceLabel workspacePath={workspacePath} />
-        </div>
-        <div
-          className="nx-code-explorer-toolbar mt-1.5 flex items-center justify-between gap-2"
-          role="toolbar"
-          aria-label="Explorer actions"
-        >
-          <div className="flex min-w-0 items-center gap-0.5 rounded-md bg-transparent p-0.5">
             <ActionIconButton
               title="New file"
               tooltip="New file"
@@ -890,15 +906,15 @@ export default function FileExplorer({
             >
               <FolderPlus size={16} />
             </ActionIconButton>
+            <ActionIconButton
+              title="Collapse all folders"
+              tooltip="Collapse folders"
+              onClick={handleCollapseAll}
+              disabled={!hasWorkspace || treeLocked || fileList.length === 0}
+            >
+              <ChevronsDownUp size={16} />
+            </ActionIconButton>
           </div>
-          <ActionIconButton
-            title="Collapse all folders"
-            tooltip="Collapse folders"
-            onClick={handleCollapseAll}
-            disabled={!hasWorkspace || treeLocked || fileList.length === 0}
-          >
-            <ChevronsDownUp size={16} />
-          </ActionIconButton>
         </div>
       </div>
 
@@ -908,9 +924,9 @@ export default function FileExplorer({
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
-            className="border-b border-white/5 px-3 py-2"
+            className="border-b border-white/[0.035] px-2 py-1.5"
           >
-            <div className="flex h-8 items-center gap-2 rounded-md border border-white/10 bg-white/[0.04] px-2">
+            <div className="flex h-8 items-center gap-2 rounded-md border border-white/[0.06] bg-white/[0.026] px-2">
               <Search size={13} className="shrink-0 text-gray-500" />
               <input
                 ref={searchRef}

@@ -1,13 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  AlertTriangle,
   ArrowDown,
   Check,
   ChevronDown,
-  Clock,
   Copy,
   ExternalLink,
-  Folder,
   Play,
   Plus,
   RotateCcw,
@@ -177,11 +174,11 @@ const STATUS_DOT_COLORS = {
 };
 
 const toolbarButtonClass =
-  "flex h-7 w-7 shrink-0 items-center justify-center rounded-md border text-slate-400 transition-colors disabled:cursor-not-allowed disabled:opacity-35";
+  "flex h-7 w-7 shrink-0 items-center justify-center rounded-md border text-slate-500 transition-colors disabled:cursor-not-allowed disabled:opacity-35";
 
 const toolbarButtonStyle = {
-  borderColor: "rgba(255,255,255,0.075)",
-  background: "rgba(255,255,255,0.022)",
+  borderColor: "rgba(148,163,184,0.08)",
+  background: "rgba(2,6,23,0.22)",
 };
 
 function getResponse(cmd) {
@@ -417,7 +414,6 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
   const statusMeta = getSessionStatusMeta(activeSession, isRunning);
   const statusStyle = getStatusStyle(statusMeta.tone);
   const lastCommand = currentCommandHistory[0] || activeSession?.lastCommand || "";
-  const outputLineCount = currentHistory.filter((entry) => !entry.trimMarker).length;
   const elapsedLabel = formatDuration(activeSession, isRunning);
   const latestError = [...currentHistory]
     .reverse()
@@ -980,14 +976,14 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
       transition={{ duration: 0.28, ease: [0.4, 0, 0.2, 1] }}
       className="flex shrink-0 flex-col"
       style={{
-        background: "linear-gradient(180deg, rgba(7,10,18,0.99), rgba(5,7,13,0.99))",
+        background: "linear-gradient(180deg, rgba(4,7,12,0.995), rgba(2,4,8,0.995))",
         borderTop: "1px solid rgba(255,255,255,0.08)",
         overflow: "hidden",
       }}
     >
       <div
-        className="flex min-h-[36px] shrink-0 items-center"
-        style={{ borderBottom: "1px solid rgba(255,255,255,0.065)" }}
+        className="flex min-h-[34px] shrink-0 items-center"
+        style={{ borderBottom: "1px solid rgba(148,163,184,0.06)" }}
       >
         <div className="flex h-full min-w-0 flex-1 items-stretch overflow-x-auto">
           {sessions.map((session) => {
@@ -1000,17 +996,17 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
                 key={session.id}
                 layout
                 onClick={() => setActiveSessionId(session.id)}
-                className="group relative flex min-w-[112px] max-w-[210px] cursor-pointer select-none items-center gap-2 border-r px-2.5 transition-colors sm:min-w-[132px]"
+                className="group relative flex min-w-[104px] max-w-[190px] cursor-pointer select-none items-center gap-2 border-r px-2.5 transition-colors sm:min-w-[124px]"
                 style={{
-                  background: isActive ? "rgba(255,255,255,0.045)" : "transparent",
-                  borderColor: "rgba(255,255,255,0.055)",
+                  background: isActive ? "rgba(148,163,184,0.055)" : "transparent",
+                  borderColor: "rgba(148,163,184,0.055)",
                 }}
               >
                 {isActive && (
                   <motion.div
                     layoutId="termTabIndicator"
                     className="absolute inset-x-3 bottom-0 h-px"
-                    style={{ background: "rgba(125,211,252,0.55)" }}
+                    style={{ background: "rgba(125,211,252,0.45)" }}
                     transition={{ type: "spring", stiffness: 350, damping: 30 }}
                   />
                 )}
@@ -1188,68 +1184,50 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
       </div>
 
       <div
-        className="grid min-h-[36px] shrink-0 gap-2 px-3 py-1.5 md:grid-cols-[minmax(0,1fr)_auto] md:items-center"
+        className="flex min-h-[30px] shrink-0 items-center justify-between gap-2 px-3 py-1"
         style={{
-          background: "rgba(0,0,0,0.18)",
-          borderBottom: "1px solid rgba(255,255,255,0.045)",
+          background: "rgba(2,6,23,0.2)",
+          borderBottom: "1px solid rgba(148,163,184,0.045)",
         }}
       >
         <div className="flex min-w-0 items-center gap-2 overflow-hidden">
           <span
-            className="flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1 text-[10px] font-medium"
-            style={{
-              color: statusStyle.color,
-              background: statusStyle.background,
-              border: `1px solid ${statusStyle.border}`,
-            }}
+            className="h-1.5 w-1.5 shrink-0 rounded-full"
+            style={{ background: STATUS_DOT_COLORS[statusMeta.tone] || "#64748b" }}
+            title={statusMeta.label}
+          />
+          <span
+            className="shrink-0 text-[10px] font-medium"
+            style={{ color: statusStyle.color }}
           >
-            <span
-              className="h-1.5 w-1.5 rounded-full"
-              style={{
-                background: STATUS_DOT_COLORS[statusMeta.tone] || "#64748b",
-              }}
-            />
             {statusMeta.label}
           </span>
-
-          <span className="flex min-w-0 items-center gap-1.5 truncate text-[10px] text-slate-500">
-            <Folder size={11} className="shrink-0 text-slate-600" />
-            <span className="truncate font-mono">
-              {formatTerminalPath(activeCwd) || "~"}
+          <span className="min-w-0 truncate font-mono text-[10px] text-slate-500">
+            {formatTerminalPath(activeCwd) || "~"}
+          </span>
+          {latestError && !isRunning ? (
+            <span className="hidden min-w-0 truncate text-[10px] text-rose-300/70 md:inline">
+              last error: {latestError.text}
             </span>
-          </span>
-
-          <span className="hidden shrink-0 font-mono text-[10px] text-slate-700 md:inline">
-            {bridgeInfo.label}
-          </span>
-
-          <span className="hidden shrink-0 items-center gap-1.5 text-[10px] text-slate-600 lg:flex">
-            <Clock size={11} />
-            {elapsedLabel || formatTime(activeSession?.createdAt)}
-          </span>
-
-          {typeof activeSession?.lastExitCode === "number" && (
-            <span className="hidden shrink-0 rounded-md border border-white/[0.07] px-2 py-1 font-mono text-[10px] text-slate-500 sm:inline">
-              exit {activeSession.lastExitCode}
+          ) : (
+            <span className="hidden min-w-0 truncate text-[10px] text-slate-700 md:inline">
+              {bridgeInfo.label}
+              {elapsedLabel ? ` - ${elapsedLabel}` : ""}
             </span>
           )}
-
-          <span className="hidden shrink-0 font-mono text-[10px] text-slate-700 xl:inline">
-            {outputLineCount}/{TERMINAL_OUTPUT_LIMIT}
-          </span>
         </div>
 
-        <div className="flex min-w-0 items-center justify-end gap-1.5">
+        <div className="flex min-w-0 shrink-0 items-center justify-end gap-1.5">
           <select
             value=""
             onChange={(event) => {
               const task = taskItems.find((item) => item.id === event.target.value);
               runTask(task);
             }}
-            className="h-7 min-w-0 flex-1 rounded-md border border-white/[0.07] bg-black/25 px-2 font-mono text-[10px] text-slate-400 outline-none transition-colors hover:text-slate-200 md:w-[132px] md:flex-none"
+            className="h-6 min-w-0 rounded-md border border-white/[0.06] bg-black/25 px-2 font-mono text-[10px] text-slate-500 outline-none transition-colors hover:text-slate-200 md:w-[118px]"
             title="Task Runner"
           >
-            <option value="">Run task...</option>
+            <option value="">tasks</option>
             {taskItems.map((task) => (
               <option key={task.id} value={task.id} disabled={task.disabled}>
                 {task.label}
@@ -1269,11 +1247,11 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
                 })
               }
               title={`${activeFile.name} ausfuehren`}
-              className="flex h-7 shrink-0 items-center gap-1 rounded-md px-2 font-mono text-[10px] transition-colors"
+              className="flex h-6 shrink-0 items-center gap-1 rounded-md px-2 font-mono text-[10px] transition-colors"
               style={{
-                border: "1px solid rgba(125,211,252,0.13)",
-                color: "#bae6fd",
-                background: "rgba(14,165,233,0.045)",
+                border: "1px solid rgba(125,211,252,0.1)",
+                color: "#93c5fd",
+                background: "rgba(14,165,233,0.035)",
               }}
             >
               <Play size={11} fill="currentColor" />
@@ -1286,10 +1264,10 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
             onClick={handleRunLast}
             disabled={!lastCommand || isRunning}
             title={lastCommand ? `Run last: ${lastCommand}` : "Kein Verlauf"}
-            className="flex h-7 shrink-0 items-center gap-1 rounded-md px-2 text-[10px] font-medium transition-colors disabled:opacity-35"
+            className="flex h-6 shrink-0 items-center gap-1 rounded-md px-2 text-[10px] font-medium transition-colors disabled:opacity-35"
             style={{
-              border: "1px solid rgba(255,255,255,0.065)",
-              background: "rgba(255,255,255,0.018)",
+              border: "1px solid rgba(148,163,184,0.07)",
+              background: "rgba(255,255,255,0.012)",
               color: !lastCommand || isRunning ? "#64748b" : "#94a3b8",
               cursor: !lastCommand || isRunning ? "not-allowed" : "pointer",
             }}
@@ -1307,31 +1285,9 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
         onScroll={handleOutputScroll}
         style={{ cursor: "text" }}
       >
-        {latestError && !isRunning ? (
-          <div className="mb-2 flex min-w-0 items-start gap-2 rounded-md border border-rose-400/20 bg-rose-400/[0.07] px-2.5 py-2">
-            <AlertTriangle size={13} className="mt-0.5 shrink-0 text-rose-300" />
-            <div className="min-w-0">
-              <p className="text-[11px] font-semibold text-rose-100">
-                Last command ended with an error
-              </p>
-              <p className="mt-0.5 break-words font-mono text-[10px] text-rose-200/75">
-                {latestError.text}
-              </p>
-            </div>
-          </div>
-        ) : null}
-
         {currentHistory.length === 0 ? (
-          <div className="flex h-full min-h-[120px] items-center justify-center">
-            <div className="max-w-[22rem] rounded-lg border border-white/[0.06] bg-white/[0.025] px-4 py-3 text-center">
-              <TerminalIcon size={18} className="mx-auto text-slate-500" />
-              <p className="mt-2 text-[12px] font-semibold text-slate-300">
-                Keine Ausgabe
-              </p>
-              <p className="mt-1 text-[11px] leading-relaxed text-slate-600">
-                Starte einen Task oder fuehre einen Befehl aus. Verlauf, Fehler und Status landen hier.
-              </p>
-            </div>
+          <div className="py-2 text-[11px] text-slate-700">
+            terminal cleared
           </div>
         ) : (
           <div className="space-y-0.5">
@@ -1374,8 +1330,8 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
       </div>
 
       <div
-        className="flex min-h-[40px] shrink-0 items-center gap-2 px-4 py-1.5"
-        style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}
+        className="flex min-h-[38px] shrink-0 items-center gap-2 px-4 py-1.5"
+        style={{ borderTop: "1px solid rgba(148,163,184,0.06)" }}
       >
         <span
           className="shrink-0 font-mono text-[12px]"
@@ -1396,7 +1352,7 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
           autoComplete="off"
           autoCorrect="off"
           autoCapitalize="off"
-          className="min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-2 py-1.5 font-mono outline-none transition-colors placeholder:text-slate-600 focus:border-white/[0.14] focus:bg-white/[0.025]"
+          className="min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-2 py-1.5 font-mono outline-none transition-colors placeholder:text-slate-700 focus:border-white/[0.1] focus:bg-white/[0.018]"
           style={{
             color: "#dbe4ef",
             caretColor: "#7dd3fc",
