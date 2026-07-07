@@ -233,11 +233,13 @@ function assertEditorScrollDomContract(scenario) {
   const style = window.getComputedStyle(scrollHost);
   const overflowValue = `${style.overflow} ${style.overflowY}`;
   const scrollRange = scrollHost.scrollHeight - scrollHost.clientHeight;
+  const originalScrollTop = scrollHost.scrollTop;
+  scrollHost.scrollTop = 0;
   const beforeScrollTop = scrollHost.scrollTop;
   const probeScrollTop = Math.min(scrollRange, beforeScrollTop + 160);
   scrollHost.scrollTop = probeScrollTop;
   const afterScrollTop = scrollHost.scrollTop;
-  scrollHost.scrollTop = beforeScrollTop;
+  scrollHost.scrollTop = originalScrollTop;
 
   if (!/(auto|scroll)/.test(overflowValue)) {
     failures.push(`editor scroll host overflow is "${overflowValue.trim()}"`);
