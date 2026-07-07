@@ -680,9 +680,6 @@ export function SettingsModulePanels({
                           border: "1px solid rgba(255,255,255,0.12)",
                           background:
                             "linear-gradient(145deg, rgba(255,255,255,0.08), rgba(255,255,255,0.025)), var(--nx-panel-bg, rgba(255,255,255,0.04))",
-                          backgroundSize: "var(--nx-panel-bg-size, 100% 100%)",
-                          backgroundBlendMode:
-                            "screen, var(--nx-panel-bg-blend, normal)",
                           color: "inherit",
                           textAlign: "left",
                           padding: "10px 11px",
@@ -1285,8 +1282,6 @@ export function SettingsModulePanels({
                               ? `1px solid rgba(${rgb},0.48)`
                               : "1px solid rgba(255,255,255,0.13)",
                             background: preview.background,
-                            backgroundSize: preview.backgroundSize,
-                            backgroundBlendMode: preview.backgroundBlendMode,
                             boxShadow: active
                               ? `0 0 0 1px rgba(${rgb},0.18), 0 12px 28px rgba(${rgb},0.18)`
                               : "inset 0 1px 0 rgba(255,255,255,0.08)",
@@ -1386,9 +1381,6 @@ export function SettingsModulePanels({
                       border: "1px solid rgba(255,255,255,0.12)",
                       background:
                         "linear-gradient(145deg, rgba(255,255,255,0.08), rgba(255,255,255,0.018)), var(--nx-panel-bg, rgba(255,255,255,0.04))",
-                      backgroundSize: "var(--nx-panel-bg-size, 100% 100%)",
-                      backgroundBlendMode:
-                        "screen, var(--nx-panel-bg-blend, normal)",
                       padding: 12,
                       display: "grid",
                       gap: 8,
@@ -1438,9 +1430,6 @@ export function SettingsModulePanels({
                             borderRadius: 13,
                             border: `1px solid rgba(${rgb},0.22)`,
                             background: livePanelPreview.background,
-                            backgroundSize: livePanelPreview.backgroundSize,
-                            backgroundBlendMode:
-                              livePanelPreview.backgroundBlendMode,
                             backdropFilter: `blur(${Math.max(8, Math.min(28, t.blur.panelBlur))}px) saturate(${Math.max(120, Math.min(220, t.glassmorphism.saturation))}%)`,
                             WebkitBackdropFilter: `blur(${Math.max(8, Math.min(28, t.blur.panelBlur))}px) saturate(${Math.max(120, Math.min(220, t.glassmorphism.saturation))}%)`,
                             boxShadow:

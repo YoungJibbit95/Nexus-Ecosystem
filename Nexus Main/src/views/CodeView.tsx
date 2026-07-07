@@ -9,7 +9,7 @@ import { hexToRgb } from "../lib/utils";
 import { ensureMonacoWorkers } from "../lib/monacoWorkers";
 import { shallow } from "zustand/shallow";
 import { LANGS, getLang } from "./code/languageRegistry";
-import { executeCode } from "./code/executionEngine";
+import { executeCode, isCodeExecutionFailure } from "./code/executionEngine";
 import { CodeTabStrip } from "./code/CodeTabStrip";
 import { CodeOutputPanel } from "./code/CodeOutputPanel";
 import {
@@ -242,11 +242,19 @@ export function CodeView() {
     if (!active) return;
     setRunning(true);
     setOutOpen(true);
-    setOutput(["▶  Executing…", ""]);
+    setOutput(["> Executing...", ""]);
     setElapsed(null);
     await new Promise((r) => setTimeout(r, 40));
     const t0 = performance.now();
-    const result = await executeCode(active);
+    let result: string;
+    try {
+      result = await executeCode(active);
+    } catch (error) {
+      result = [
+        "[error] Snippet runner crashed",
+        error instanceof Error ? error.message : "Unknown runner error.",
+      ].join("\n");
+    }
     const elapsedMs = performance.now() - t0;
     setElapsed(elapsedMs);
     setOutput(result.split("\n"));
@@ -255,7 +263,7 @@ export function CodeView() {
         fileId: active.id,
         fileName: active.name,
         at: new Date().toISOString(),
-        ok: !result.includes("❌"),
+        ok: !isCodeExecutionFailure(result),
         ms: elapsedMs,
       },
       ...history,

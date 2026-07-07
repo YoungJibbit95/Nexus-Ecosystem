@@ -379,11 +379,9 @@ export function Sidebar({
         height: isFloating ? 'calc(100% - 14px)' : '100%',
         margin: isFloating ? 7 : 0,
         borderRadius: isFloating ? 16 : 0,
-        borderRight: !isRight && !isFloating ? (t.mode === 'dark' ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)') : undefined,
-        borderLeft: isRight && !isFloating ? (t.mode === 'dark' ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)') : undefined,
-        background: `${sidebarTintBg}, var(--nx-panel-bg, rgba(10, 15, 30, 0.72))`,
-        backgroundSize: `100% 100%, var(--nx-panel-bg-size, 100% 100%)`,
-        backgroundBlendMode: `screen, var(--nx-panel-bg-blend, normal)`,
+        ['--nx-sidebar-border-right' as any]: !isRight && !isFloating ? (t.mode === 'dark' ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)') : '0 solid transparent',
+        ['--nx-sidebar-border-left' as any]: isRight && !isFloating ? (t.mode === 'dark' ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)') : '0 solid transparent',
+        ['--nx-sidebar-tint-bg' as any]: sidebarTintBg,
         padding: iconOnly ? '12px 6px' : '12px 10px',
         gap: 4,
       }}
@@ -564,7 +562,10 @@ export function Sidebar({
         )}
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1, minHeight: 0 }}>
+      <div
+        className="nx-sidebar-main-nav"
+        style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1, minHeight: 0 }}
+      >
         {visibleMainItems.map((item: MainViewRegistryItem, idx) => {
           const row = (
             <NavRow
@@ -597,7 +598,7 @@ export function Sidebar({
 
       <div style={{ height: 1, margin: '6px 2px', background: 'rgba(255,255,255,0.08)' }} />
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+      <div className="nx-sidebar-footer-nav" style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
         {visibleFooterItems.map((item: MainViewRegistryItem, idx) => {
           const row = (
             <NavRow

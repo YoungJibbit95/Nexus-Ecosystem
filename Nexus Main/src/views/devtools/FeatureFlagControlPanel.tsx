@@ -107,8 +107,19 @@ export function FeatureFlagControlPanel() {
   const persist = (nextState: ControlFeatureFlagDraftState, message: string, tone: ToastState["tone"] = "ok") => {
     const saved = writeControlFeatureFlagDraftState(nextState);
     setState(saved);
+    if (!saved.features.some((feature) => feature.featureId === selectedFeatureId)) {
+      setSelectedFeatureId(saved.features[0]?.featureId || "");
+    }
     setLayoutText(safeJson(saved.layoutSchema));
     setToast({ tone, message });
+  };
+
+  const commitState = (nextState: ControlFeatureFlagDraftState) => {
+    const saved = writeControlFeatureFlagDraftState(nextState);
+    setState(saved);
+    if (!saved.features.some((feature) => feature.featureId === selectedFeatureId)) {
+      setSelectedFeatureId(saved.features[0]?.featureId || "");
+    }
   };
 
   const validateAndSave = () => {
@@ -137,7 +148,7 @@ export function FeatureFlagControlPanel() {
   const updateSelected = (patch: Partial<typeof selectedFeature>) => {
     if (!selectedFeature) return;
     const next = updateFeatureDraft(state, selectedFeature.featureId, patch);
-    setState(next);
+    commitState(next);
   };
 
   const saveSelected = () => {
@@ -217,7 +228,7 @@ export function FeatureFlagControlPanel() {
             </div>
             <div>
               <div style={{ fontSize: 15, fontWeight: 950 }}>Feature Catalog Draft</div>
-              <div style={{ fontSize: 10, opacity: 0.55 }}>Local admin preview, no production mutation</div>
+              <div style={{ fontSize: 10, opacity: 0.55 }}>Development-only local admin preview, no production mutation</div>
             </div>
           </div>
 
@@ -237,6 +248,7 @@ export function FeatureFlagControlPanel() {
           <div style={{ display: "flex", flexDirection: "column", gap: 9, minHeight: 0, overflow: "auto", paddingRight: 4 }}>
             {state.features.map((feature) => (
               <button
+                type="button"
                 key={feature.featureId}
                 onClick={() => setSelectedFeatureId(feature.featureId)}
                 style={{
@@ -274,7 +286,7 @@ export function FeatureFlagControlPanel() {
                   <div style={{ fontSize: 18, fontWeight: 950 }}>{selectedFeature.name}</div>
                   <div style={{ fontSize: 11, opacity: 0.58, marginTop: 4 }}>{selectedFeature.description}</div>
                 </div>
-                <button onClick={() => toggle(selectedFeature.featureId)} style={buttonStyle(selectedFeature.enabled)}>
+                <button type="button" onClick={() => toggle(selectedFeature.featureId)} style={buttonStyle(selectedFeature.enabled)}>
                   <ShieldCheck size={13} /> {selectedFeature.enabled ? "Enabled" : "Disabled"}
                 </button>
               </div>
@@ -308,12 +320,12 @@ export function FeatureFlagControlPanel() {
               </label>
 
               <div className="nx-devtools-action-row" style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
-                <button onClick={saveSelected} style={buttonStyle(true)}><CheckCircle2 size={13} /> Save</button>
-                <button onClick={validateAndSave} style={buttonStyle()}><ClipboardCheck size={13} /> Validate</button>
-                <button onClick={copyReport} style={buttonStyle()}><ClipboardCheck size={13} /> Copy report</button>
-                <button onClick={exportReport} style={buttonStyle()}><Download size={13} /> Export</button>
-                <button onClick={() => inputRef.current?.click()} style={buttonStyle()}><Upload size={13} /> Import</button>
-                <button onClick={resetDraft} style={buttonStyle()}><RefreshCw size={13} /> Reset</button>
+                <button type="button" onClick={saveSelected} style={buttonStyle(true)}><CheckCircle2 size={13} /> Save</button>
+                <button type="button" onClick={validateAndSave} style={buttonStyle()}><ClipboardCheck size={13} /> Validate</button>
+                <button type="button" onClick={copyReport} style={buttonStyle()}><ClipboardCheck size={13} /> Copy report</button>
+                <button type="button" onClick={exportReport} style={buttonStyle()}><Download size={13} /> Export</button>
+                <button type="button" onClick={() => inputRef.current?.click()} style={buttonStyle()}><Upload size={13} /> Import</button>
+                <button type="button" onClick={resetDraft} style={buttonStyle()}><RefreshCw size={13} /> Reset</button>
                 <input ref={inputRef} type="file" accept="application/json,.json" style={{ display: "none" }} onChange={(event) => importDraft(event.target.files?.[0] || null)} />
               </div>
 

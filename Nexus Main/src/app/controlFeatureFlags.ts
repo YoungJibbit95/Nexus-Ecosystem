@@ -281,6 +281,7 @@ export const createLayoutSchemaDraft = (): NexusUiSchemaDocument => ({
     "task-board",
     "canvas-graph",
     "release-health",
+    "feature-flag-control-panel",
     "backup-restore",
   ],
   screens: [
@@ -308,7 +309,14 @@ export const createLayoutSchemaDraft = (): NexusUiSchemaDocument => ({
       enabled: true,
       components: [
         { id: "release-health", type: "release-health", props: { adminOnly: true } },
-        { id: "feature-flags", type: "glass-panel", props: { adminOnly: true } },
+      ],
+    },
+    {
+      id: "feature-flags",
+      title: "Feature Flags",
+      enabled: true,
+      components: [
+        { id: "feature-flag-control-panel", type: "feature-flag-control-panel", props: { adminOnly: true, developmentOnly: true } },
       ],
     },
   ],
@@ -382,7 +390,7 @@ export const writeControlFeatureFlagDraftState = (state: ControlFeatureFlagDraft
     ...state,
     updatedAt: nowIso(),
     catalog: createFeatureCatalogDraft(state.features),
-    rolloutPlan: state.rolloutPlan.length > 0 ? state.rolloutPlan : createReleaseRolloutPlan(state.features),
+    rolloutPlan: createReleaseRolloutPlan(state.features),
   });
   if (typeof window !== "undefined") {
     window.localStorage.setItem(CONTROL_FEATURE_FLAGS_STORAGE_KEY, JSON.stringify(normalized, null, 2));

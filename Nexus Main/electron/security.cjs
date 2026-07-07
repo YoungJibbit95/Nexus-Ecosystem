@@ -14,7 +14,7 @@ const buildContentSecurityPolicy = ({ isDev }) => {
     ? "'self' https://nexus-api.cloud https://staging.nexus-api.cloud http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:*"
     : "'self' https://nexus-api.cloud https://staging.nexus-api.cloud";
   const scriptSrc = isDev
-    ? "'self' 'unsafe-eval' 'unsafe-inline'"
+    ? "'self' 'unsafe-inline'"
     : "'self'";
   const styleSrc = isDev
     ? "'self' 'unsafe-inline' https://fonts.googleapis.com"

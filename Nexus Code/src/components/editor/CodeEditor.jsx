@@ -281,6 +281,7 @@ function createNexusCodeMirrorTheme(
         outline: "none",
       },
       ".cm-scroller": {
+        flex: "1 1 auto",
         height: "100%",
         minHeight: 0,
         maxHeight: "100%",
@@ -1761,6 +1762,7 @@ export default function CodeEditor({
           >
             <CodeMirror
               value={code || ""}
+              className="nx-code-codemirror-host"
               height="100%"
               width="100%"
               extensions={baseExtensions}

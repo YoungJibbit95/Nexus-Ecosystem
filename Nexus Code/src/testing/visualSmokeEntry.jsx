@@ -30,6 +30,11 @@ const VIEWPORTS = Object.freeze([
   { id: "phone-portrait", width: 390, height: 900 },
 ]);
 
+const LONG_EDITOR_SOURCE = Array.from({ length: 220 }, (_, index) => {
+  const line = index + 1;
+  return `export const smokeLine${String(line).padStart(3, "0")} = "Nexus Code editor scroll guard ${line}";`;
+}).join("\n");
+
 function SmokeViewport({ viewport, surfaceId: currentSurfaceId, children }) {
   return (
     <section
@@ -418,6 +423,55 @@ async function buildScenario(currentSurfaceId, viewport) {
             onSettingsChange={noop}
             onResetSettings={noop}
             onClose={noop}
+          />,
+        ),
+    };
+  }
+
+  if (currentSurfaceId === "code-editor") {
+    const [{ default: CodeEditor }, { DEFAULT_SETTINGS }] = await Promise.all([
+      import("../components/editor/CodeEditor.jsx"),
+      import("../pages/editor/editorShared.jsx"),
+    ]);
+    const settings = {
+      ...createUiSmokeSettingsFixture(DEFAULT_SETTINGS),
+      line_numbers: true,
+      word_wrap: false,
+      minimap: false,
+      lsp_enabled: false,
+      autocomplete_enabled: false,
+    };
+    return {
+      id: `${currentSurfaceId}@${viewport.id}`,
+      surfaceId: currentSurfaceId,
+      viewport,
+      expectedText: [
+        "Nexus Code editor scroll guard",
+        "TypeScript",
+        "CodeMirror",
+      ],
+      requiredMarkup: [
+        "nx-code-editor-shell",
+        "nx-code-editor-canvas",
+        "nx-code-codemirror-host",
+        "data-editor-engine=\"codemirror\"",
+      ],
+      render: () =>
+        renderInViewport(
+          currentSurfaceId,
+          viewport,
+          <CodeEditor
+            code={LONG_EDITOR_SOURCE}
+            onChange={noop}
+            fileName="visual-smoke-scroll.ts"
+            filePath="F:\\Coding\\Nexus Workspace\\Nexus-Ecosystem\\visual-smoke-scroll.ts"
+            workspacePath={UI_SMOKE_FIXTURE_WORKSPACE_PATH}
+            settings={settings}
+            fontSize={14}
+            showLineNumbers
+            tabSize={2}
+            wordWrap={false}
+            minimap={false}
           />,
         ),
     };

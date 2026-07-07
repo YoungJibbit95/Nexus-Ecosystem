@@ -160,6 +160,29 @@ async function collectLayoutMetrics(webContents, scenario) {
           clientWidth: document.documentElement.clientWidth,
           clientHeight: document.documentElement.clientHeight,
         };
+        const editorScroller = document.querySelector('.nx-code-editor-shell .cm-scroller');
+        const editorScrollerMetrics = editorScroller
+          ? (() => {
+              const beforeTop = editorScroller.scrollTop;
+              editorScroller.scrollTop = Math.min(
+                180,
+                Math.max(0, editorScroller.scrollHeight - editorScroller.clientHeight),
+              );
+              const afterTop = editorScroller.scrollTop;
+              editorScroller.scrollTop = beforeTop;
+              return {
+                exists: true,
+                scrollTopBefore: beforeTop,
+                scrollTopAfterProbe: afterTop,
+                scrollHeight: editorScroller.scrollHeight,
+                clientHeight: editorScroller.clientHeight,
+                scrollWidth: editorScroller.scrollWidth,
+                clientWidth: editorScroller.clientWidth,
+                scrollableY: editorScroller.scrollHeight > editorScroller.clientHeight + 8,
+                didScrollY: afterTop > beforeTop,
+              };
+            })()
+          : { exists: false };
 
         return {
           url: window.location.href,
@@ -176,6 +199,7 @@ async function collectLayoutMetrics(webContents, scenario) {
           frameRect: frameRect ? ${toSerializableRect.toString()}(frameRect) : null,
           rootOverflow,
           documentOverflow,
+          editorScroller: editorScrollerMetrics,
           overflowControls: overflowControls.slice(0, 20),
           visualResult: window.__NEXUS_CODE_VISUAL_SMOKE_RESULT__ || null,
         };
@@ -270,6 +294,22 @@ function validateResult(scenario, metrics, imageStats) {
     failures.push(
       `launchpad root overflows at 900x512 (${metrics.rootOverflow.scrollWidth}x${metrics.rootOverflow.scrollHeight})`,
     );
+  }
+  if (scenario.surfaceId === "code-editor") {
+    if (!metrics.editorScroller?.exists) {
+      failures.push("code editor scroller is missing");
+    } else {
+      if (!metrics.editorScroller.scrollableY) {
+        failures.push(
+          `code editor is not vertically scrollable (${metrics.editorScroller.scrollHeight}x${metrics.editorScroller.clientHeight})`,
+        );
+      }
+      if (!metrics.editorScroller.didScrollY) {
+        failures.push(
+          `code editor scroll probe did not move (${metrics.editorScroller.scrollTopBefore}->${metrics.editorScroller.scrollTopAfterProbe})`,
+        );
+      }
+    }
   }
   if (metrics.bodyTextLength < 24) failures.push("page body has too little visible text");
   if (imageStats.width < 32 || imageStats.height < 32) failures.push("screenshot is too small");

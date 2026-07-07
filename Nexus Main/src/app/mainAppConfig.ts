@@ -5,8 +5,11 @@ import {
   MAIN_BOOT_PRIORITY_VIEW_IDS,
   MAIN_CORE_VIEW_IDS,
   MAIN_CRITICAL_PRELOAD_VIEW_IDS,
+  MAIN_FEATURE_FLAGS_VIEW_ID,
   MAIN_HEAVY_PRELOAD_VIEW_SET as MAIN_REGISTRY_HEAVY_PRELOAD_VIEW_SET,
+  MAIN_DIAGNOSTICS_VIEW_ID,
   MAIN_PERSISTENT_VIEW_CACHE_IDS,
+  isMainDevelopmentOnlyViewsEnabled,
   isMainDiagnosticsEnabled,
 } from "./mainViewRegistry";
 
@@ -237,9 +240,15 @@ export const MAIN_CORE_FALLBACK_VIEWS: View[] = MAIN_CORE_VIEW_IDS
   .filter((candidate) => VIEW_IDS.includes(candidate));
 
 export const withDevDiagnosticsView = (views: View[]): View[] => {
-  const baseViews = views.filter((candidate) => candidate !== "diagnostics");
-  if (!isMainDiagnosticsEnabled()) return baseViews;
-  return [...baseViews, "diagnostics"];
+  const baseViews = views.filter(
+    (candidate) =>
+      candidate !== MAIN_FEATURE_FLAGS_VIEW_ID &&
+      candidate !== MAIN_DIAGNOSTICS_VIEW_ID,
+  );
+  if (!isMainDevelopmentOnlyViewsEnabled()) return baseViews;
+  const developmentViews = ([MAIN_FEATURE_FLAGS_VIEW_ID, MAIN_DIAGNOSTICS_VIEW_ID] as View[])
+    .filter((candidate) => VIEW_IDS.includes(candidate));
+  return [...baseViews, ...developmentViews];
 };
 
 export const MAIN_SAFE_STARTUP_VIEWS: View[] =

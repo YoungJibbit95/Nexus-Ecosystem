@@ -11,8 +11,9 @@ import {
   Settings,
   Wrench,
   Zap,
-  Activity,
   CalendarDays,
+  Flag,
+  Activity,
 } from "lucide-react";
 import {
   getFallbackViewsForApp,
@@ -21,7 +22,7 @@ import {
   type NexusViewId,
 } from "@nexus/core";
 
-export type View = NexusViewId | "diagnostics";
+export type View = NexusViewId | "feature-flags" | "diagnostics";
 
 export type MainViewRegistryGroup = "main" | "footer" | "developer";
 
@@ -37,8 +38,15 @@ export type MainViewRegistryItem = {
   devOnly?: boolean;
 };
 
-export const MAIN_DIAGNOSTICS_ENABLED = Boolean((import.meta as any).env?.DEV);
+export const MAIN_DEVELOPMENT_ONLY_VIEWS_ENABLED = import.meta.env.DEV;
+export const MAIN_DIAGNOSTICS_ENABLED = MAIN_DEVELOPMENT_ONLY_VIEWS_ENABLED;
+export const MAIN_FEATURE_FLAGS_VIEW_ID = ["feature", "flags"].join("-") as Extract<
+  View,
+  "feature-flags"
+>;
+export const MAIN_DIAGNOSTICS_VIEW_ID = "diagnostics" as Extract<View, "diagnostics">;
 
+export const isMainDevelopmentOnlyViewsEnabled = () => MAIN_DEVELOPMENT_ONLY_VIEWS_ENABLED;
 export const isMainDiagnosticsEnabled = () => MAIN_DIAGNOSTICS_ENABLED;
 
 const MAIN_VIEW_ICON_MAP: Record<NexusViewId, LucideIcon> = {
@@ -56,7 +64,7 @@ const MAIN_VIEW_ICON_MAP: Record<NexusViewId, LucideIcon> = {
   devtools: Wrench,
 };
 
-const PRELOAD_PRIORITY: Record<View, number> = {
+const PRELOAD_PRIORITY: Record<NexusViewId, number> = {
   dashboard: 0,
   calendar: 1,
   notes: 2,
@@ -69,10 +77,11 @@ const PRELOAD_PRIORITY: Record<View, number> = {
   canvas: 9,
   code: 10,
   devtools: 11,
-  diagnostics: 12,
 };
 
 const HEAVY_VIEWS = new Set<View>(["code", "canvas", "devtools"]);
+const getDevelopmentPreloadPriority = (viewId: View) =>
+  viewId === MAIN_DIAGNOSTICS_VIEW_ID ? 13 : 12;
 
 const toRegistryGroup = (viewId: NexusViewId): MainViewRegistryGroup => {
   const manifest = getNexusViewManifest(viewId);
@@ -101,10 +110,12 @@ export const MAIN_CORE_VIEW_IDS: NexusViewId[] = orderViewsForNavigation(
 
 export const MAIN_VIEW_IDS: View[] = [
   ...MAIN_CORE_VIEW_IDS,
-  ...(MAIN_DIAGNOSTICS_ENABLED ? (["diagnostics"] as View[]) : []),
+  ...(import.meta.env.DEV
+    ? ([MAIN_FEATURE_FLAGS_VIEW_ID, MAIN_DIAGNOSTICS_VIEW_ID] as View[])
+    : []),
 ];
 
-export const MAIN_VIEW_REGISTRY: Record<View, MainViewRegistryItem> = {
+const MAIN_CORE_VIEW_REGISTRY: Record<NexusViewId, MainViewRegistryItem> = {
   dashboard: buildCoreRegistryItem("dashboard"),
   calendar: buildCoreRegistryItem("calendar"),
   notes: buildCoreRegistryItem("notes"),
@@ -117,18 +128,40 @@ export const MAIN_VIEW_REGISTRY: Record<View, MainViewRegistryItem> = {
   settings: buildCoreRegistryItem("settings"),
   info: buildCoreRegistryItem("info"),
   devtools: buildCoreRegistryItem("devtools"),
-  diagnostics: {
-    id: "diagnostics",
-    icon: Activity,
-    label: "Diagnostics",
-    color: "#64d2ff",
-    group: "developer",
-    category: "system",
-    preloadPriority: PRELOAD_PRIORITY.diagnostics,
-    heavy: false,
-    devOnly: true,
-  },
 };
+
+const MAIN_DEVELOPMENT_VIEW_REGISTRY: Partial<Record<View, MainViewRegistryItem>> =
+  import.meta.env.DEV
+    ? {
+        [MAIN_FEATURE_FLAGS_VIEW_ID]: {
+          id: MAIN_FEATURE_FLAGS_VIEW_ID,
+          icon: Flag,
+          label: ["Feature", "Flags"].join(" "),
+          color: "#30d158",
+          group: "developer",
+          category: "system",
+          preloadPriority: getDevelopmentPreloadPriority(MAIN_FEATURE_FLAGS_VIEW_ID),
+          heavy: false,
+          devOnly: true,
+        },
+        [MAIN_DIAGNOSTICS_VIEW_ID]: {
+          id: MAIN_DIAGNOSTICS_VIEW_ID,
+          icon: Activity,
+          label: "Diagnostics",
+          color: "#64d2ff",
+          group: "developer",
+          category: "system",
+          preloadPriority: getDevelopmentPreloadPriority(MAIN_DIAGNOSTICS_VIEW_ID),
+          heavy: false,
+          devOnly: true,
+        },
+      }
+    : {};
+
+export const MAIN_VIEW_REGISTRY = {
+  ...MAIN_CORE_VIEW_REGISTRY,
+  ...MAIN_DEVELOPMENT_VIEW_REGISTRY,
+} as Record<View, MainViewRegistryItem>;
 
 export const getMainViewRegistryItem = (viewId: View) =>
   MAIN_VIEW_REGISTRY[viewId] ?? MAIN_VIEW_REGISTRY.dashboard;
