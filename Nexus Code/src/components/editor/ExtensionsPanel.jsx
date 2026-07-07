@@ -180,7 +180,7 @@ function SegmentButton({ active, children, onClick }) {
     <button
       type="button"
       onClick={onClick}
-      className="relative h-7 min-w-0 flex-1 rounded-md px-2 text-[11px] font-semibold outline-none transition-colors focus-visible:ring-2 focus-visible:ring-sky-400/50"
+      className="relative min-h-7 min-w-0 flex-1 rounded-md px-2 py-1 text-[10px] font-semibold leading-tight outline-none transition-colors focus-visible:ring-2 focus-visible:ring-sky-400/50"
       style={{
         color: active ? "var(--nexus-text)" : "var(--nexus-muted)",
       }}
@@ -319,8 +319,8 @@ function ContributionOverview({ overview, storageHealth, hostSummary }) {
     .slice(0, 3);
 
   return (
-    <div className="mt-3 rounded-md border border-white/[0.055] bg-black/15 px-2.5 py-2">
-      <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-[var(--nexus-muted)]">
+    <div className="rounded-md border border-white/[0.04] bg-black/[0.12] px-2.5 py-2">
+      <div className="flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1 text-[10px] text-[var(--nexus-muted)]">
         <span className="font-semibold text-gray-300">{hostSummary.enabledCount} active</span>
         <span>{hostSummary.contributionCount} contributions</span>
         <span>{hostSummary.activationEventCount} triggers</span>
@@ -460,14 +460,14 @@ function ExtensionCard({ extension, onInstall, onRemove, onToggleEnabled, index 
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 8, height: 0 }}
       transition={{ delay: Math.min(index * 0.025, 0.18), duration: 0.2 }}
-      className="group rounded-lg p-2.5"
+      className="group rounded-xl p-2.5"
       style={{
         background: extension.installed
           ? "linear-gradient(180deg, rgba(15,23,42,0.46), rgba(2,6,23,0.24))"
           : "rgba(255,255,255,0.018)",
         border: extension.enabled
-          ? "1px solid rgba(103,232,249,0.16)"
-          : "1px solid rgba(255,255,255,0.055)",
+          ? "1px solid rgba(103,232,249,0.13)"
+          : "1px solid rgba(255,255,255,0.045)",
       }}
     >
       <div className="flex items-start gap-2.5">
@@ -538,9 +538,11 @@ function ExtensionCard({ extension, onInstall, onRemove, onToggleEnabled, index 
             {summary.label}: {summary.count}
           </span>
         ))}
-        <span className="rounded border border-white/[0.05] bg-white/[0.022] px-1.5 py-0.5 text-[9px] text-gray-500">
-          {lifecycle.detail}
-        </span>
+        {lifecycle.detail ? (
+          <span className="rounded-lg border border-white/[0.04] bg-white/[0.018] px-1.5 py-0.5 text-[9px] text-gray-500">
+            {lifecycle.detail}
+          </span>
+        ) : null}
       </div>
 
       <div className="mt-2 flex items-center justify-between gap-2">
@@ -830,7 +832,7 @@ export default function ExtensionsPanel({ onInstalledChange }) {
       <PanelHeader
         icon={Blocks}
         title="Extensions"
-        subtitle={`${stats.installed} installed of ${stats.total} manifests`}
+        subtitle={`${stats.installed} installed`}
         status={
           stats.updates > 0 ? (
             <PanelBadge tone="warning">{stats.updates} Update</PanelBadge>
@@ -840,7 +842,9 @@ export default function ExtensionsPanel({ onInstalledChange }) {
             </PanelBadge>
           )
         }
-      >
+      />
+
+      <div className="shrink-0 space-y-2 border-b border-white/[0.04] px-3 py-2.5">
         <ContributionOverview
           overview={runtimeOverview}
           storageHealth={storageHealth}
@@ -848,7 +852,7 @@ export default function ExtensionsPanel({ onInstalledChange }) {
         />
 
         {storageMessages.length > 0 ? (
-          <div className="mt-2 grid gap-1">
+          <div className="grid gap-1">
             {storageMessages.slice(0, 2).map((message, index) => (
               <SystemMessage key={`${message.code}-${index}`} message={message} />
             ))}
@@ -861,14 +865,14 @@ export default function ExtensionsPanel({ onInstalledChange }) {
         ) : null}
 
         {hostActionStatus ? (
-          <div className="mt-2 break-words rounded-md border border-white/[0.06] bg-white/[0.026] px-2 py-1 text-[10px] text-[var(--nexus-muted)]" style={{ overflowWrap: "anywhere" }}>
+          <div className="break-words rounded-md border border-white/[0.06] bg-white/[0.026] px-2 py-1 text-[10px] text-[var(--nexus-muted)]" style={{ overflowWrap: "anywhere" }}>
             {hostActionStatus}
           </div>
         ) : null}
 
         <div
-          className="mt-3 flex gap-0.5 rounded-lg p-0.5"
-          style={{ background: "rgba(255,255,255,0.04)" }}
+          className="flex gap-0.5 rounded-md p-0.5"
+          style={{ background: "rgba(255,255,255,0.032)" }}
         >
           {Object.entries(tabStyles).map(([id, label]) => (
             <SegmentButton key={id} active={quickTab === id} onClick={() => setQuickTab(id)}>
@@ -876,9 +880,7 @@ export default function ExtensionsPanel({ onInstalledChange }) {
             </SegmentButton>
           ))}
         </div>
-      </PanelHeader>
 
-      <div className="shrink-0 space-y-2 border-b border-white/[0.05] px-3 py-2.5">
         <div
           className="flex h-8 items-center gap-2 rounded-md border px-2"
           style={{

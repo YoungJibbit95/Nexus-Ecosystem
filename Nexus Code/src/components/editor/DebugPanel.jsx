@@ -123,7 +123,7 @@ function DebugButton({ children, onClick, disabled, tone = "muted", title }) {
       onClick={onClick}
       disabled={disabled}
       title={title}
-      className="flex h-8 min-w-0 items-center justify-center gap-1.5 overflow-hidden rounded-md border px-2 py-1 text-[11px] font-semibold leading-none transition-opacity disabled:cursor-not-allowed disabled:opacity-45"
+      className="flex h-8 min-w-0 items-center justify-center gap-1.5 overflow-hidden rounded-lg border px-2 py-1 text-[11px] font-semibold leading-none transition-opacity disabled:cursor-not-allowed disabled:opacity-45"
       style={{
         color: styles.color,
         background: styles.background,
@@ -188,7 +188,6 @@ export default function DebugPanel({ activeFile, _code, problems = [] }) {
   );
   const firstSyntaxError = syntaxErrors[0] || null;
   const activeFileName = activeFile?.name || "No active file";
-  const watches = variables.filter((item) => item.watch);
   const selectedConfig = DEBUG_CONFIGS.find((item) => item.id === launchConfig) || DEBUG_CONFIGS[0];
   const sessionHeading = !activeFile
     ? "Waiting for a file"
@@ -459,26 +458,9 @@ export default function DebugPanel({ activeFile, _code, problems = [] }) {
       <PanelHeader
         icon={Bug}
         title="Debug"
-        subtitle={`${selectedConfig.label} - ${activeFileName}`}
+        subtitle={activeFile ? activeFileName : "Open a file to start"}
         status={<PanelBadge tone={statusTone}>{statusLabel}</PanelBadge>}
-      >
-        <div className="flex min-w-0 flex-wrap items-center gap-1 rounded-lg border border-white/[0.055] bg-black/15 p-1 text-[10px] text-gray-500">
-          <span className="rounded bg-white/[0.035] px-1.5 py-0.5" title="Breakpoints">
-            {breakpoints.length} BP
-          </span>
-          <span className="rounded bg-white/[0.035] px-1.5 py-0.5" title="Watches">
-            {watches.length} watch
-          </span>
-          <span
-            className={`rounded px-1.5 py-0.5 ${
-              syntaxErrors.length ? "bg-red-400/10 text-red-300/85" : "bg-sky-400/10 text-sky-300/80"
-            }`}
-            title="Diagnostics"
-          >
-            {syntaxErrors.length} err
-          </span>
-        </div>
-      </PanelHeader>
+      />
 
       <PanelBody className="px-0 py-1">
         <PanelSection
@@ -498,7 +480,7 @@ export default function DebugPanel({ activeFile, _code, problems = [] }) {
             ) : null}
             <div className="grid gap-2 sm:grid-cols-2">
               <label className="min-w-0">
-                <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-gray-500">
+                <span className="mb-1 block text-[10px] font-semibold uppercase text-gray-500">
                   Adapter
                 </span>
                 <select
@@ -516,7 +498,7 @@ export default function DebugPanel({ activeFile, _code, problems = [] }) {
                 </select>
               </label>
               <label className="min-w-0">
-                <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-gray-500">
+                <span className="mb-1 block text-[10px] font-semibold uppercase text-gray-500">
                   Runtime
                 </span>
                 <div className="flex h-8 min-w-0 items-center rounded-md border border-white/10 bg-white/[0.04] px-2.5 text-[12px] text-gray-300">
@@ -527,7 +509,7 @@ export default function DebugPanel({ activeFile, _code, problems = [] }) {
               </label>
             </div>
             <label className="min-w-0">
-              <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-gray-500">
+              <span className="mb-1 block text-[10px] font-semibold uppercase text-gray-500">
                 Args
               </span>
               <input
@@ -577,7 +559,7 @@ export default function DebugPanel({ activeFile, _code, problems = [] }) {
           onToggle={() => toggleSection("controls")}
         >
           <div className="grid gap-2 px-3 pb-3">
-            <div className="rounded-lg border border-white/[0.06] bg-black/20 px-2.5 py-2">
+            <div className="rounded-lg border border-white/[0.04] bg-black/[0.14] px-2.5 py-2">
               <div className="flex min-w-0 items-start gap-2">
                 <span
                   className="mt-1 h-2 w-2 shrink-0 rounded-full"
@@ -589,14 +571,14 @@ export default function DebugPanel({ activeFile, _code, problems = [] }) {
                   }}
                 />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-[11px] font-semibold text-gray-200">
+                  <p className="break-words text-[11px] font-semibold text-gray-200" style={{ overflowWrap: "anywhere" }}>
                     {sessionHeading}
                   </p>
                   <p className="mt-0.5 break-words text-[10px] leading-snug text-gray-600" style={{ overflowWrap: "anywhere" }}>
                     {sessionDetail}
                   </p>
                 </div>
-                <span className="shrink-0 rounded bg-white/[0.05] px-1.5 py-0.5 text-[10px] text-gray-500">
+                <span className="max-w-[6.5rem] shrink-0 break-words rounded-lg bg-white/[0.04] px-1.5 py-0.5 text-[10px] text-gray-500" style={{ overflowWrap: "anywhere" }}>
                   {selectedConfig.adapter}
                 </span>
               </div>
@@ -873,7 +855,7 @@ export default function DebugPanel({ activeFile, _code, problems = [] }) {
           actionLabel="Clear"
         >
           <div className="grid gap-2 px-3 pb-3">
-            <div className="max-h-40 overflow-y-auto rounded-lg border border-white/[0.06] bg-black/30 p-2 font-mono">
+            <div className="max-h-40 overflow-y-auto rounded-lg border border-white/[0.04] bg-black/[0.24] p-2 font-mono">
               <AnimatePresence initial={false}>
                 {consoleLog.map((entry) => (
                   <ConsoleEntry key={entry.id} entry={entry} />

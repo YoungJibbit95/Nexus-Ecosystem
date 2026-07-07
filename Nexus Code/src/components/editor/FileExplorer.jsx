@@ -27,16 +27,16 @@ import {
 } from "../../pages/editor/fileTreeModel";
 
 const actionButtonClass =
-  "grid h-6 w-6 shrink-0 place-items-center rounded-md border border-transparent bg-transparent text-slate-500 transition hover:bg-white/[0.055] hover:text-slate-200 focus-visible:border-cyan-300/35 focus-visible:bg-white/[0.065] focus-visible:text-white focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-35 [&>svg]:h-3.5 [&>svg]:w-3.5";
+  "grid h-6 w-6 shrink-0 place-items-center rounded-md border border-transparent bg-transparent text-slate-500 transition hover:bg-white/[0.04] hover:text-slate-200 focus-visible:border-cyan-300/28 focus-visible:bg-white/[0.05] focus-visible:text-white focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-35 [&>svg]:h-3.5 [&>svg]:w-3.5";
 
 const rowActionClass =
-  "grid h-5 w-5 shrink-0 place-items-center rounded text-slate-500 transition hover:bg-white/[0.07] hover:text-slate-100 disabled:cursor-not-allowed disabled:opacity-40 [&>svg]:h-3 [&>svg]:w-3";
+  "grid h-5 w-5 shrink-0 place-items-center rounded text-slate-500 transition hover:bg-white/[0.055] hover:text-slate-100 disabled:cursor-not-allowed disabled:opacity-40 [&>svg]:h-3 [&>svg]:w-3";
 
 const folderDisclosureClass =
-  "text-slate-400 transition-colors group-hover:text-slate-200 group-focus-visible:text-slate-100";
+  "text-slate-500 transition-colors group-hover:text-slate-200 group-focus-visible:text-slate-100";
 
-const TREE_ROW_HEIGHT = Math.min(FILE_TREE_LIMITS.rowHeight || 32, 28);
-const TREE_INDENT_STEP = 14;
+const TREE_ROW_HEIGHT = Math.min(FILE_TREE_LIMITS.rowHeight || 32, 26);
+const TREE_INDENT_STEP = 13;
 const TREE_ROOT_INDENT = 6;
 const TREE_BRANCH_INDENT = TREE_ROOT_INDENT + 20;
 const FILE_TREE_VIRTUAL_LIMITS = Object.freeze({
@@ -390,7 +390,7 @@ function TreeRow({
             if (canMutate) onStartRename(node.id);
           }
         }}
-        className={`nx-code-file-tree-row group relative flex min-w-0 select-none items-center gap-1.5 overflow-hidden rounded-md px-1.5 text-[11px] outline-none transition-colors hover:bg-white/[0.044] focus-visible:bg-white/[0.064] ${
+        className={`nx-code-file-tree-row group relative flex min-w-0 select-none items-center gap-1.5 overflow-hidden rounded px-1.5 text-[11px] outline-none transition-colors hover:bg-white/[0.032] focus-visible:bg-white/[0.052] ${
           treeLocked && isFolder ? "cursor-wait" : "cursor-pointer"
         }`}
         style={{
@@ -398,14 +398,14 @@ function TreeRow({
           paddingLeft: `${indent}px`,
           paddingRight: "0.25rem",
           background: isActive
-            ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.105)"
+            ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.075)"
             : isMatch
-              ? "rgba(56, 189, 248, 0.058)"
+              ? "rgba(56, 189, 248, 0.042)"
             : undefined,
           boxShadow: isActive
-            ? "inset 2px 0 rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.42)"
+            ? "inset 2px 0 rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.34)"
             : isMatch
-              ? "inset 2px 0 rgba(56, 189, 248, 0.34)"
+              ? "inset 2px 0 rgba(56, 189, 248, 0.28)"
               : undefined,
           contain: "layout paint style",
         }}
@@ -435,9 +435,9 @@ function TreeRow({
 
         {isFolder ? (
           isOpen ? (
-            <FolderOpen size={14} className="shrink-0 text-sky-300/90" />
+            <FolderOpen size={14} className="shrink-0 text-sky-300/80" />
           ) : (
-            <Folder size={14} className="shrink-0 text-slate-400" />
+            <Folder size={14} className="shrink-0 text-slate-500" />
           )
         ) : (
           <File size={14} className="shrink-0 opacity-85" style={{ color: meta.color }} />
@@ -454,7 +454,7 @@ function TreeRow({
             {isFolder ? (
               <span
                 className={`min-w-0 flex-1 truncate font-medium leading-none ${
-                  isActive ? "text-white" : isOpen ? "text-slate-200" : "text-slate-400"
+                  isActive ? "text-slate-100" : isOpen ? "text-slate-300" : "text-slate-400"
                 }`}
                 title={node.name}
               >
@@ -849,8 +849,8 @@ export default function FileExplorer({
   const treeLocked = isLoading || refreshing;
 
   return (
-    <div className="nx-code-file-explorer flex h-full w-full flex-col bg-[#05070d]/24 text-slate-200">
-      <div className="nx-code-explorer-header border-b border-white/[0.035] px-2 py-1.5">
+      <div className="nx-code-file-explorer flex h-full w-full flex-col bg-[#05070d]/18 text-slate-200">
+      <div className="nx-code-explorer-header border-b border-white/[0.028] px-2 py-1.5">
         <div className="nx-code-explorer-heading flex min-w-0 items-center gap-2">
           <div className="min-w-0 flex-1">
             <div className="flex min-w-0 items-center gap-1.5">
@@ -884,7 +884,7 @@ export default function FileExplorer({
             </div>
           </div>
           <div
-            className="nx-code-explorer-toolbar flex shrink-0 items-center gap-0.5 rounded-md bg-transparent"
+            className="nx-code-explorer-toolbar flex shrink-0 items-center gap-0.5 rounded-md border border-white/[0.026] bg-white/[0.008] p-0.5"
             role="toolbar"
             aria-label="Explorer quick actions"
           >
@@ -936,9 +936,9 @@ export default function FileExplorer({
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
-            className="border-b border-white/[0.035] px-2 py-1.5"
+            className="border-b border-white/[0.028] px-2 py-1.5"
           >
-            <div className="flex h-8 items-center gap-2 rounded-md border border-white/[0.06] bg-white/[0.026] px-2">
+            <div className="flex h-8 items-center gap-2 rounded-md border border-white/[0.045] bg-white/[0.018] px-2">
               <Search size={13} className="shrink-0 text-gray-500" />
               <input
                 ref={searchRef}

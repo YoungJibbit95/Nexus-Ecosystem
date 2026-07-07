@@ -31,8 +31,8 @@ function createMarkdownCodeLanguageDescriptions() {
     ["python", ["py"], ["py", "pyw", "pyi"]],
     ["rust", ["rs"], ["rs"]],
     ["go", ["golang"], ["go"]],
-    ["css", ["scss", "less"], ["css", "scss", "less"]],
-    ["json", ["jsonc"], ["json", "jsonc"]],
+    ["css", ["scss", "sass", "less", "stylus"], ["css", "scss", "sass", "less", "styl"]],
+    ["json", ["jsonc", "json5", "jsonl"], ["json", "jsonc", "json5", "jsonl", "ndjson"]],
     ["html", ["xml"], ["html", "htm", "xml"]],
     ["shell", ["bash", "sh", "zsh"], ["sh", "bash", "zsh"]],
     ["sql", [], ["sql"]],
@@ -72,6 +72,22 @@ const LANGUAGE_LOADERS = Object.freeze({
   [LANGUAGE_IDS.CSS]: async () => {
     const { css } = await import("@codemirror/lang-css");
     return css();
+  },
+  [LANGUAGE_IDS.SCSS]: async () => {
+    const { sCSS } = await import("@codemirror/legacy-modes/mode/css");
+    return streamGrammar(sCSS);
+  },
+  [LANGUAGE_IDS.SASS]: async () => {
+    const { sass } = await import("@codemirror/legacy-modes/mode/sass");
+    return streamGrammar(sass);
+  },
+  [LANGUAGE_IDS.LESS]: async () => {
+    const { less } = await import("@codemirror/legacy-modes/mode/css");
+    return streamGrammar(less);
+  },
+  [LANGUAGE_IDS.STYLUS]: async () => {
+    const { stylus } = await import("@codemirror/legacy-modes/mode/stylus");
+    return streamGrammar(stylus);
   },
   [LANGUAGE_IDS.MARKDOWN]: async () => {
     const { markdown } = await import("@codemirror/lang-markdown");
@@ -181,6 +197,10 @@ const LANGUAGE_LOADERS = Object.freeze({
     const { perl } = await import("@codemirror/legacy-modes/mode/perl");
     return streamGrammar(perl);
   },
+  [LANGUAGE_IDS.ERLANG]: async () => {
+    const { erlang } = await import("@codemirror/legacy-modes/mode/erlang");
+    return streamGrammar(erlang);
+  },
   [LANGUAGE_IDS.CLOJURE]: async () => {
     const { clojure } = await import("@codemirror/legacy-modes/mode/clojure");
     return streamGrammar(clojure);
@@ -193,13 +213,209 @@ const LANGUAGE_LOADERS = Object.freeze({
     const { vb } = await import("@codemirror/legacy-modes/mode/vb");
     return streamGrammar(vb);
   },
-  [LANGUAGE_IDS.GRAPHQL]: async () => {
+  [LANGUAGE_IDS.VBSCRIPT]: async ({ fileName }) => {
+    const { vbScript, vbScriptASP } = await import("@codemirror/legacy-modes/mode/vbscript");
+    return streamGrammar(lowerResourceName(fileName).endsWith(".asp") ? vbScriptASP : vbScript);
+  },
+  [LANGUAGE_IDS.APL]: async () => {
+    const { apl } = await import("@codemirror/legacy-modes/mode/apl");
+    return streamGrammar(apl);
+  },
+  [LANGUAGE_IDS.BRAINFUCK]: async () => {
+    const { brainfuck } = await import("@codemirror/legacy-modes/mode/brainfuck");
+    return streamGrammar(brainfuck);
+  },
+  [LANGUAGE_IDS.CYPHER]: async () => {
+    const { cypher } = await import("@codemirror/legacy-modes/mode/cypher");
+    return streamGrammar(cypher);
+  },
+  [LANGUAGE_IDS.DTD]: async () => {
+    const { dtd } = await import("@codemirror/legacy-modes/mode/dtd");
+    return streamGrammar(dtd);
+  },
+  [LANGUAGE_IDS.EBNF]: async () => {
+    const { ebnf } = await import("@codemirror/legacy-modes/mode/ebnf");
+    return streamGrammar(ebnf);
+  },
+  [LANGUAGE_IDS.EIFFEL]: async () => {
+    const { eiffel } = await import("@codemirror/legacy-modes/mode/eiffel");
+    return streamGrammar(eiffel);
+  },
+  [LANGUAGE_IDS.FORTH]: async () => {
+    const { forth } = await import("@codemirror/legacy-modes/mode/forth");
+    return streamGrammar(forth);
+  },
+  [LANGUAGE_IDS.GHERKIN]: async () => {
+    const { gherkin } = await import("@codemirror/legacy-modes/mode/gherkin");
+    return streamGrammar(gherkin);
+  },
+  [LANGUAGE_IDS.IDL]: async () => {
+    const { idl } = await import("@codemirror/legacy-modes/mode/idl");
+    return streamGrammar(idl);
+  },
+  [LANGUAGE_IDS.LIVESCRIPT]: async () => {
+    const { liveScript } = await import("@codemirror/legacy-modes/mode/livescript");
+    return streamGrammar(liveScript);
+  },
+  [LANGUAGE_IDS.MODELICA]: async () => {
+    const { modelica } = await import("@codemirror/legacy-modes/mode/modelica");
+    return streamGrammar(modelica);
+  },
+  [LANGUAGE_IDS.NSIS]: async () => {
+    const { nsis } = await import("@codemirror/legacy-modes/mode/nsis");
+    return streamGrammar(nsis);
+  },
+  [LANGUAGE_IDS.RDF]: async ({ fileName }) => {
+    const lowerName = lowerResourceName(fileName);
+    if (lowerName.endsWith(".ttl") || lowerName.endsWith(".trig")) {
+      const { turtle } = await import("@codemirror/legacy-modes/mode/turtle");
+      return streamGrammar(turtle);
+    }
+    const { ntriples } = await import("@codemirror/legacy-modes/mode/ntriples");
+    return streamGrammar(ntriples);
+  },
+  [LANGUAGE_IDS.OCTAVE]: async () => {
+    const { octave } = await import("@codemirror/legacy-modes/mode/octave");
+    return streamGrammar(octave);
+  },
+  [LANGUAGE_IDS.PIG]: async () => {
+    const { pig } = await import("@codemirror/legacy-modes/mode/pig");
+    return streamGrammar(pig);
+  },
+  [LANGUAGE_IDS.Q]: async () => {
+    const { q } = await import("@codemirror/legacy-modes/mode/q");
+    return streamGrammar(q);
+  },
+  [LANGUAGE_IDS.RPM_SPEC]: async () => {
+    const { rpmSpec } = await import("@codemirror/legacy-modes/mode/rpm");
+    return streamGrammar(rpmSpec);
+  },
+  [LANGUAGE_IDS.SMALLTALK]: async () => {
+    const { smalltalk } = await import("@codemirror/legacy-modes/mode/smalltalk");
+    return streamGrammar(smalltalk);
+  },
+  [LANGUAGE_IDS.SIEVE]: async () => {
+    const { sieve } = await import("@codemirror/legacy-modes/mode/sieve");
+    return streamGrammar(sieve);
+  },
+  [LANGUAGE_IDS.LATEX]: async () => {
+    const { stex } = await import("@codemirror/legacy-modes/mode/stex");
+    return streamGrammar(stex);
+  },
+  [LANGUAGE_IDS.TEXTILE]: async () => {
+    const { textile } = await import("@codemirror/legacy-modes/mode/textile");
+    return streamGrammar(textile);
+  },
+  [LANGUAGE_IDS.VELOCITY]: async () => {
+    const { velocity } = await import("@codemirror/legacy-modes/mode/velocity");
+    return streamGrammar(velocity);
+  },
+  [LANGUAGE_IDS.XQUERY]: async () => {
+    const { xQuery } = await import("@codemirror/legacy-modes/mode/xquery");
+    return streamGrammar(xQuery);
+  },
+  [LANGUAGE_IDS.Z80]: async () => {
+    const { z80 } = await import("@codemirror/legacy-modes/mode/z80");
+    return streamGrammar(z80);
+  },  [LANGUAGE_IDS.GRAPHQL]: async () => {
     const { sparql } = await import("@codemirror/legacy-modes/mode/sparql");
     return streamGrammar(sparql);
+  },
+  [LANGUAGE_IDS.COFFEESCRIPT]: async () => {
+    const { coffeeScript } = await import("@codemirror/legacy-modes/mode/coffeescript");
+    return streamGrammar(coffeeScript);
+  },
+  [LANGUAGE_IDS.HASKELL]: async () => {
+    const { haskell } = await import("@codemirror/legacy-modes/mode/haskell");
+    return streamGrammar(haskell);
+  },
+  [LANGUAGE_IDS.ELM]: async () => {
+    const { elm } = await import("@codemirror/legacy-modes/mode/elm");
+    return streamGrammar(elm);
+  },
+  [LANGUAGE_IDS.JULIA]: async () => {
+    const { julia } = await import("@codemirror/legacy-modes/mode/julia");
+    return streamGrammar(julia);
+  },
+  [LANGUAGE_IDS.FORTRAN]: async () => {
+    const { fortran } = await import("@codemirror/legacy-modes/mode/fortran");
+    return streamGrammar(fortran);
+  },
+  [LANGUAGE_IDS.COBOL]: async () => {
+    const { cobol } = await import("@codemirror/legacy-modes/mode/cobol");
+    return streamGrammar(cobol);
+  },
+  [LANGUAGE_IDS.PASCAL]: async () => {
+    const { pascal } = await import("@codemirror/legacy-modes/mode/pascal");
+    return streamGrammar(pascal);
+  },
+  [LANGUAGE_IDS.GROOVY]: async () => {
+    const { groovy } = await import("@codemirror/legacy-modes/mode/groovy");
+    return streamGrammar(groovy);
+  },
+  [LANGUAGE_IDS.HAXE]: async ({ fileName }) => {
+    const { haxe, hxml } = await import("@codemirror/legacy-modes/mode/haxe");
+    return streamGrammar(lowerResourceName(fileName).endsWith(".hxml") ? hxml : haxe);
+  },
+  [LANGUAGE_IDS.CRYSTAL]: async () => {
+    const { crystal } = await import("@codemirror/legacy-modes/mode/crystal");
+    return streamGrammar(crystal);
+  },
+  [LANGUAGE_IDS.D]: async () => {
+    const { d } = await import("@codemirror/legacy-modes/mode/d");
+    return streamGrammar(d);
   },
   [LANGUAGE_IDS.SOLIDITY]: async () => {
     const { clike } = await import("@codemirror/legacy-modes/mode/clike");
     return streamGrammar(clike);
+  },
+  [LANGUAGE_IDS.COMMON_LISP]: async () => {
+    const { commonLisp } = await import("@codemirror/legacy-modes/mode/commonlisp");
+    return streamGrammar(commonLisp);
+  },
+  [LANGUAGE_IDS.SCHEME]: async () => {
+    const { scheme } = await import("@codemirror/legacy-modes/mode/scheme");
+    return streamGrammar(scheme);
+  },
+  [LANGUAGE_IDS.OCAML]: async () => {
+    const { oCaml } = await import("@codemirror/legacy-modes/mode/mllike");
+    return streamGrammar(oCaml);
+  },
+  [LANGUAGE_IDS.VHDL]: async () => {
+    const { vhdl } = await import("@codemirror/legacy-modes/mode/vhdl");
+    return streamGrammar(vhdl);
+  },
+  [LANGUAGE_IDS.ASM]: async () => {
+    const { gas } = await import("@codemirror/legacy-modes/mode/gas");
+    return streamGrammar(gas);
+  },
+  [LANGUAGE_IDS.WASM]: async () => {
+    const { wast } = await import("@codemirror/legacy-modes/mode/wast");
+    return streamGrammar(wast);
+  },
+  [LANGUAGE_IDS.WEBIDL]: async () => {
+    const { webIDL } = await import("@codemirror/legacy-modes/mode/webidl");
+    return streamGrammar(webIDL);
+  },
+  [LANGUAGE_IDS.TCL]: async () => {
+    const { tcl } = await import("@codemirror/legacy-modes/mode/tcl");
+    return streamGrammar(tcl);
+  },
+  [LANGUAGE_IDS.MATHEMATICA]: async () => {
+    const { mathematica } = await import("@codemirror/legacy-modes/mode/mathematica");
+    return streamGrammar(mathematica);
+  },
+  [LANGUAGE_IDS.SAS]: async () => {
+    const { sas } = await import("@codemirror/legacy-modes/mode/sas");
+    return streamGrammar(sas);
+  },
+  [LANGUAGE_IDS.PUPPET]: async () => {
+    const { puppet } = await import("@codemirror/legacy-modes/mode/puppet");
+    return streamGrammar(puppet);
+  },
+  [LANGUAGE_IDS.ASN1]: async () => {
+    const { asn1 } = await import("@codemirror/legacy-modes/mode/asn1");
+    return streamGrammar(asn1({}));
   },
   [LANGUAGE_IDS.HCL]: async () => {
     const { properties } = await import("@codemirror/legacy-modes/mode/properties");
@@ -229,6 +445,22 @@ const LANGUAGE_LOADERS = Object.freeze({
     const { diff } = await import("@codemirror/legacy-modes/mode/diff");
     return streamGrammar(diff);
   },
+  [LANGUAGE_IDS.NGINX]: async () => {
+    const { nginx } = await import("@codemirror/legacy-modes/mode/nginx");
+    return streamGrammar(nginx);
+  },
+  [LANGUAGE_IDS.PUG]: async () => {
+    const { pug } = await import("@codemirror/legacy-modes/mode/pug");
+    return streamGrammar(pug);
+  },
+  [LANGUAGE_IDS.JINJA]: async () => {
+    const { jinja2 } = await import("@codemirror/legacy-modes/mode/jinja2");
+    return streamGrammar(jinja2);
+  },
+  [LANGUAGE_IDS.HTTP]: async () => {
+    const { http } = await import("@codemirror/legacy-modes/mode/http");
+    return streamGrammar(http);
+  },
   [LANGUAGE_IDS.LOG]: async () => {
     const { shell } = await import("@codemirror/legacy-modes/mode/shell");
     return streamGrammar(shell);
@@ -240,8 +472,6 @@ const GRAMMAR_ALIASES = Object.freeze({
   [LANGUAGE_IDS.VUE]: LANGUAGE_IDS.HTML,
   [LANGUAGE_IDS.SVELTE]: LANGUAGE_IDS.HTML,
   [LANGUAGE_IDS.ASTRO]: LANGUAGE_IDS.HTML,
-  [LANGUAGE_IDS.SCSS]: LANGUAGE_IDS.CSS,
-  [LANGUAGE_IDS.LESS]: LANGUAGE_IDS.CSS,
   [LANGUAGE_IDS.MDX]: LANGUAGE_IDS.MARKDOWN,
   [LANGUAGE_IDS.C]: LANGUAGE_IDS.CPP,
   [LANGUAGE_IDS.BAT]: LANGUAGE_IDS.SHELL,

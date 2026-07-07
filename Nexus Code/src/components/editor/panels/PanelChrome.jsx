@@ -48,10 +48,10 @@ const toneStyles = {
 };
 
 export const PANEL_INPUT_CLASS =
-  "min-h-9 w-full min-w-0 rounded-lg border border-white/[0.052] bg-white/[0.022] px-3 py-2 text-[12px] leading-snug text-gray-200 outline-none transition-colors placeholder:text-gray-600 focus:border-[rgba(var(--nexus-primary-rgb),0.32)] focus:bg-white/[0.04] focus:ring-2 focus:ring-[rgba(var(--nexus-primary-rgb),0.09)]";
+  "min-h-9 w-full min-w-0 rounded-md border border-white/[0.052] bg-white/[0.02] px-3 py-2 text-[12px] leading-snug text-gray-200 outline-none transition-colors placeholder:text-gray-600 focus:border-[rgba(var(--nexus-primary-rgb),0.32)] focus:bg-white/[0.04] focus:ring-2 focus:ring-[rgba(var(--nexus-primary-rgb),0.09)]";
 
 export const PANEL_SELECT_CLASS =
-  "min-h-9 w-full min-w-0 rounded-lg border border-white/[0.052] bg-white/[0.022] px-3 py-2 text-[12px] leading-snug text-gray-200 outline-none transition-colors focus:border-[rgba(var(--nexus-primary-rgb),0.32)] focus:bg-white/[0.04] focus:ring-2 focus:ring-[rgba(var(--nexus-primary-rgb),0.09)]";
+  "min-h-9 w-full min-w-0 rounded-md border border-white/[0.052] bg-white/[0.02] px-3 py-2 text-[12px] leading-snug text-gray-200 outline-none transition-colors focus:border-[rgba(var(--nexus-primary-rgb),0.32)] focus:bg-white/[0.04] focus:ring-2 focus:ring-[rgba(var(--nexus-primary-rgb),0.09)]";
 
 export function useNexusReducedMotion() {
   const prefersReducedMotion = useReducedMotion();
@@ -106,17 +106,17 @@ export function PanelCard({
 
   return (
     <Component
-      className={`nx-editor-panel-card min-w-0 rounded-xl border ${interactive ? "transition-colors hover:bg-white/[0.038]" : ""} ${className}`}
+      className={`nx-editor-panel-card min-w-0 rounded-lg border ${interactive ? "transition-colors hover:bg-white/[0.034]" : ""} ${className}`}
       style={{
         color: toneStyle.detail,
         background:
           "linear-gradient(180deg, rgba(255,255,255,0.028), rgba(255,255,255,0.007)), rgba(0,0,0,0.15)",
         borderColor:
           tone === "muted" ? "rgba(156,178,226,0.052)" : toneStyle.border,
-        borderRadius: "var(--nexus-radius-lg, 14px)",
+        borderRadius: "var(--nexus-radius-md, 10px)",
         boxShadow: reduceMotion
-          ? "inset 0 1px 0 rgba(255,255,255,0.032)"
-          : "0 8px 20px rgba(0,0,0,0.16), 0 0 18px rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.018), inset 0 1px 0 rgba(255,255,255,0.036)",
+          ? "inset 0 1px 0 rgba(255,255,255,0.026)"
+          : "0 5px 14px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.032)",
         backdropFilter: reduceMotion ? "none" : "blur(10px) saturate(108%)",
         WebkitBackdropFilter: reduceMotion
           ? "none"
@@ -149,12 +149,12 @@ export function PanelShell({ children, ariaLabel, className = "", style }) {
       className={`nx-editor-panel-shell relative isolate flex h-full min-h-0 w-full max-w-full flex-col overflow-hidden text-gray-100 ${className}`}
       style={{
         background:
-          "radial-gradient(circle at 18% 0%, rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.035), transparent 16rem), linear-gradient(180deg, rgba(4,7,12,0.88) 0%, rgba(2,4,8,0.86) 100%)",
-        backdropFilter: reduceMotion ? "none" : "blur(12px) saturate(108%)",
+          "linear-gradient(180deg, rgba(5,8,15,0.94) 0%, rgba(3,5,10,0.9) 100%)",
+        backdropFilter: reduceMotion ? "none" : "blur(10px) saturate(104%)",
         WebkitBackdropFilter: reduceMotion
           ? "none"
-          : "blur(12px) saturate(108%)",
-        boxShadow: "inset 0 1px 0 rgba(255,255,255,0.026)",
+          : "blur(10px) saturate(104%)",
+        boxShadow: "inset 0 1px 0 rgba(255,255,255,0.018)",
         ...style,
       }}
       aria-label={ariaLabel}
@@ -188,38 +188,38 @@ export function PanelHeader({
       className={`nx-editor-panel-header shrink-0 border-b px-3 pb-2 pt-2.5 ${className}`}
       style={{
         background:
-          "linear-gradient(180deg, rgba(255,255,255,0.022), rgba(255,255,255,0.004)), rgba(0,0,0,0.09)",
-        borderColor: "rgba(154,166,204,0.045)",
+          "linear-gradient(180deg, rgba(255,255,255,0.014), rgba(255,255,255,0.002)), rgba(0,0,0,0.08)",
+        borderColor: "rgba(154,166,204,0.034)",
         boxShadow: reduceMotion
-          ? "inset 0 -1px 0 rgba(255,255,255,0.018)"
-          : "0 0 22px rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.018), inset 0 -1px 0 rgba(255,255,255,0.018)",
+          ? "inset 0 -1px 0 rgba(255,255,255,0.012)"
+          : "inset 0 -1px 0 rgba(255,255,255,0.012)",
         backdropFilter: reduceMotion ? "none" : "blur(8px) saturate(104%)",
         WebkitBackdropFilter: reduceMotion ? "none" : "blur(8px) saturate(104%)",
       }}
     >
-      <div className="flex min-w-0 flex-wrap items-start gap-2">
+      <div className="flex min-w-0 flex-wrap items-start gap-x-2 gap-y-1">
         {Icon ? (
           <div
-            className="grid h-6 w-6 shrink-0 place-items-center rounded-lg border"
+            className="grid h-5 w-5 shrink-0 place-items-center rounded-md border"
             style={{
-              borderRadius: "var(--nexus-radius-md, 12px)",
-              background: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.055)",
-              borderColor: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.11)",
+              borderRadius: "8px",
+              background: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.04)",
+              borderColor: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.08)",
               color: "var(--nexus-primary, #7c8cff)",
               boxShadow: reduceMotion
-                ? "inset 0 1px 0 rgba(255,255,255,0.032)"
-                : "0 0 14px rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.045), inset 0 1px 0 rgba(255,255,255,0.035)",
+                ? "inset 0 1px 0 rgba(255,255,255,0.02)"
+                : "inset 0 1px 0 rgba(255,255,255,0.024)",
             }}
           >
-            <Icon size={14} />
+            <Icon size={12} />
           </div>
         ) : null}
 
-        <div className="min-w-0 flex-1">
+        <div className="min-w-[8rem] flex-1">
           <div className="flex min-w-0 flex-wrap items-center gap-2">
             <h2
               className="min-w-0 break-words text-[12px] font-semibold leading-tight text-gray-100"
-              style={{ overflowWrap: "normal", wordBreak: "normal" }}
+              style={{ overflowWrap: "anywhere", wordBreak: "normal" }}
             >
               {title}
             </h2>
@@ -228,7 +228,7 @@ export function PanelHeader({
           {subtitle ? (
             <p
               className="mt-0.5 min-w-0 break-words text-[10px] leading-snug text-gray-500"
-              style={{ overflowWrap: "normal", wordBreak: "normal" }}
+              style={{ overflowWrap: "anywhere", wordBreak: "normal" }}
             >
               {subtitle}
             </p>
@@ -237,11 +237,11 @@ export function PanelHeader({
 
         {actions ? (
           <div
-            className="nx-editor-panel-actions flex max-w-full shrink-0 flex-wrap items-center justify-end gap-1 rounded-xl border border-white/[0.035] bg-white/[0.012] p-0.5"
+            className="nx-editor-panel-actions ml-auto flex max-w-full shrink-0 flex-wrap items-center justify-end gap-0.5 overflow-visible rounded-md border border-white/[0.028] bg-white/[0.008] p-0.5"
             role="toolbar"
             aria-label={`${title} actions`}
             style={{
-              boxShadow: "inset 0 1px 0 rgba(255,255,255,0.024)",
+              boxShadow: "inset 0 1px 0 rgba(255,255,255,0.018)",
             }}
           >
             {actions}
@@ -301,19 +301,19 @@ export function PanelIconButton({
       disabled={disabled}
       title={label}
       aria-label={label}
-      className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg border text-gray-500 transition-colors hover:bg-white/[0.046] hover:text-gray-200 disabled:cursor-not-allowed disabled:opacity-45 [&>svg]:h-3.5 [&>svg]:w-3.5 ${className}`}
+      className={`grid h-6 w-6 shrink-0 place-items-center rounded-md border text-gray-500 transition-colors hover:bg-white/[0.04] hover:text-gray-200 disabled:cursor-not-allowed disabled:opacity-45 [&>svg]:h-3 [&>svg]:w-3 ${className}`}
       style={{
-        borderRadius: "var(--nexus-radius-md, 12px)",
+        borderRadius: "8px",
         background: active
-          ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.095)"
-          : "rgba(255,255,255,0.016)",
+          ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.075)"
+          : "rgba(255,255,255,0.01)",
         borderColor: active
-          ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.16)"
-          : "rgba(255,255,255,0.044)",
+          ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.13)"
+          : "rgba(255,255,255,0.034)",
         color: active ? "var(--nexus-primary, #7c8cff)" : undefined,
         boxShadow: active
-          ? "0 0 14px rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.055), inset 0 1px 0 rgba(255,255,255,0.04)"
-          : "inset 0 1px 0 rgba(255,255,255,0.024)",
+          ? "inset 0 1px 0 rgba(255,255,255,0.03)"
+          : "inset 0 1px 0 rgba(255,255,255,0.018)",
       }}
     >
       {children}
@@ -338,12 +338,12 @@ export function PanelActionButton({
       onClick={onClick}
       disabled={disabled}
       title={title}
-      className={`inline-flex min-h-8 max-w-full min-w-0 items-center justify-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold leading-tight transition-colors hover:bg-white/[0.046] disabled:cursor-not-allowed disabled:opacity-45 ${className}`}
+      className={`inline-flex min-h-8 max-w-full min-w-0 items-center justify-center gap-1.5 rounded-md border px-2.5 py-1.5 text-[11px] font-semibold leading-tight transition-colors hover:bg-white/[0.04] disabled:cursor-not-allowed disabled:opacity-45 ${className}`}
       style={{
         color: toneStyle.icon,
         background: toneStyle.background,
         borderColor: toneStyle.border,
-        borderRadius: "var(--nexus-radius-md, 12px)",
+        borderRadius: "var(--nexus-radius-md, 10px)",
         boxShadow: "inset 0 1px 0 rgba(255,255,255,0.026)",
       }}
     >
@@ -415,15 +415,15 @@ export function PanelNotice({
   const toneStyle = toneStyles[tone] || toneStyles.muted;
   return (
     <div
-      className={`rounded-lg border px-3 py-2.5 ${className}`}
+      className={`rounded-md border px-3 py-2.5 ${className}`}
       style={{
         color: toneStyle.detail,
         background: toneStyle.background,
         borderColor: toneStyle.border,
-        borderRadius: "var(--nexus-radius-lg, 14px)",
+        borderRadius: "var(--nexus-radius-md, 10px)",
       }}
     >
-      <div className="flex min-w-0 items-start gap-2">
+      <div className="flex min-w-0 flex-wrap items-start gap-x-2 gap-y-1">
         {Icon ? (
           <Icon size={14} className="mt-0.5 shrink-0" style={{ color: toneStyle.icon }} />
         ) : null}
@@ -468,27 +468,28 @@ export function PanelState({
   const toneStyle = toneStyles[tone] || toneStyles.muted;
   return (
     <div
-      className={`nx-editor-panel-state mx-3 rounded-lg border px-3 text-center ${
-        compact ? "py-3" : "my-3 py-8"
+      className={`nx-editor-panel-state mx-3 rounded-md border px-3 text-center ${
+        compact ? "py-2.5" : "my-3 py-6"
       }`}
       style={{
         background: toneStyle.background,
         borderColor: toneStyle.border,
       }}
+      role={tone === "danger" ? "alert" : "status"}
     >
       {Icon ? (
         <Icon
-          size={compact ? 18 : 26}
+          size={compact ? 16 : 22}
           className={`mx-auto mb-2 ${spinning ? "animate-spin" : ""}`}
           style={{ color: toneStyle.icon }}
         />
       ) : null}
-      <p className="text-xs font-semibold" style={{ color: toneStyle.title }}>
+      <p className="break-words text-xs font-semibold" style={{ color: toneStyle.title, overflowWrap: "anywhere" }}>
         {title}
       </p>
       {detail ? (
         <p
-          className="mx-auto mt-1 max-w-[22rem] break-words text-[11px] leading-snug"
+          className="mx-auto mt-1 max-w-[19rem] break-words text-[11px] leading-snug"
           style={{ color: toneStyle.detail, overflowWrap: "anywhere" }}
         >
           {detail}

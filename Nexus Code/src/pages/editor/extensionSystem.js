@@ -1263,18 +1263,20 @@ export function collectExtensionContributions(records) {
 
 function normalizeRuntimeContributionEntry(point, entry) {
   const label = getExtensionContributionItemLabel(point, entry);
+  const extensionId = normalizeOptionalString(entry.extensionId);
+  const extensionName = normalizeOptionalString(entry.extensionName) || "Extension";
   return {
     ...entry,
     id:
-      entry.id ||
-      entry.command ||
-      entry.name ||
-      entry.type ||
-      `${entry.extensionId || "extension"}:${point}:${label || "entry"}`,
+      normalizeOptionalString(entry.id) ||
+      normalizeOptionalString(entry.command) ||
+      normalizeOptionalString(entry.name) ||
+      normalizeOptionalString(entry.type) ||
+      `${extensionId || "extension"}:${point}:${label || "entry"}`,
     label,
     contributionPoint: point,
-    extensionId: entry.extensionId,
-    extensionName: entry.extensionName,
+    extensionId,
+    extensionName,
   };
 }
 
@@ -1290,6 +1292,56 @@ function createRuntimeContributionBuckets(contributions) {
 export function getActiveThemeContributions(records) {
   const contributions = collectExtensionContributions(records);
   return createRuntimeContributionBuckets(contributions).themes;
+}
+
+export function getExtensionThemeAvailability(records) {
+  return resolveExtensions(records)
+    .filter((extension) => Array.isArray(extension.contributes?.themes))
+    .flatMap((extension) =>
+      extension.contributes.themes.map((themeEntry) => {
+        const normalized = normalizeRuntimeContributionEntry("themes", {
+          ...themeEntry,
+          extensionId: extension.id,
+          extensionName: extension.displayName,
+        });
+        const installed = extension.installed === true;
+        const enabled = installed && extension.enabled === true;
+        const blocked = extension.health === "error" || extension.manifestErrors.length > 0;
+        const active = installed && enabled && !blocked;
+        const unavailableState = active ? "active" : blocked ? "error" : installed ? "disabled" : "removed";
+        const activationAction = active || blocked ? null : installed ? "enable" : "install";
+        const reason = active
+          ? null
+          : blocked
+            ? extension.lastError || extension.manifestErrors[0]?.message || "Manifest fehlerhaft"
+            : installed
+              ? extension.disabledReason === "user"
+                ? "Extension pausiert"
+                : extension.lifecycleState?.detail || "Extension nicht aktiv"
+              : "Extension nicht installiert";
+
+        return {
+          ...normalized,
+          installed,
+          enabled,
+          active,
+          blocked,
+          unavailableState,
+          health: extension.health,
+          disabledReason: extension.disabledReason,
+          unavailableReason: reason,
+          canActivate: Boolean(activationAction),
+          activationAction,
+          activationLabel:
+            activationAction === "install"
+              ? "Installieren"
+              : activationAction === "enable"
+                ? "Aktivieren"
+                : null,
+          lifecycleState: extension.lifecycleState,
+        };
+      }),
+    );
 }
 
 export function createExtensionCommandPaletteEntries(records) {

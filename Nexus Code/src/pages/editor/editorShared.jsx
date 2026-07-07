@@ -87,6 +87,9 @@ export const DEFAULT_SETTINGS = {
   animations_enabled: true,
   animation_speed: 1,
   smooth_caret: true,
+  animated_typing: false,
+  typing_animation_style: "soft",
+  typing_glow: false,
   format_on_paste: true,
   sticky_scroll: false,
   cursor_style: "line",
@@ -141,7 +144,10 @@ function normalizeEditorSettings(settings) {
   next.line_height = readBoundedNumber(next.line_height, 1.2, 2.5, 1.6);
   next.letter_spacing = readBoundedNumber(next.letter_spacing, 0, 1.5, 0);
   next.animation_speed = readBoundedNumber(next.animation_speed, 0.5, 1.8, 1);
-  next.tab_size = readBoundedNumber(next.tab_size, 2, 8, 4);
+  next.tab_size = readBoundedNumber(next.tab_size, 2, 10, 4);
+  if (!["off", "soft", "lift", "glow"].includes(next.typing_animation_style)) {
+    next.typing_animation_style = "soft";
+  }
   next.autocomplete_min_chars = readBoundedNumber(next.autocomplete_min_chars, 1, 5, 2);
   next.autocomplete_max_items = readBoundedNumber(next.autocomplete_max_items, 24, 180, 120);
   if (!["system", "powershell", "bash", "cmd"].includes(next.terminal_default_profile)) {

@@ -32,6 +32,12 @@ const VIEWPORTS = Object.freeze([
   { id: "phone-portrait", width: 390, height: 900 },
 ]);
 
+function repeatLanguageBlock(count, createBlock) {
+  return Array.from({ length: count }, (_, index) =>
+    createBlock(index, String(index + 1).padStart(3, "0")),
+  ).join("\n");
+}
+
 const EDITOR_LANGUAGE_SMOKE_CASES = Object.freeze({
   "editor-scroll": {
     label: "TypeScript",
@@ -55,6 +61,24 @@ const EDITOR_LANGUAGE_SMOKE_CASES = Object.freeze({
         `}`,
       ].join("\n");
     }).join("\n"),
+  },
+  "editor-mjs": {
+    label: "JavaScript",
+    effects: true,
+    typingStyle: "glow",
+    tabSize: 10,
+    grammarId: "javascript",
+    fileName: "runtime.contract.mjs",
+    pathSuffix: "src\\runtime.contract.mjs",
+    code: repeatLanguageBlock(88, (index, line) =>
+      [
+        `// Nexus Code MJS syntax contract ${line}`,
+        `export const runtimeContract${line} = async (input = ${index + 1}) => {`,
+        `  const payload = await Promise.resolve({ kind: "module", input });`,
+        `  return payload.input > 12 ? payload.kind : import.meta.url;`,
+        `};`,
+      ].join("\n"),
+    ),
   },
   "editor-jsx": {
     label: "JavaScript",
@@ -91,7 +115,280 @@ ${Array.from({ length: 120 }, (_, index) => {
   ]
 }`,
   },
-});
+  "editor-jsonc": {
+    label: "JSON with Comments",
+    grammarId: "json",
+    fileName: "tsconfig.json",
+    pathSuffix: "tsconfig.json",
+    code: `{
+  // Nexus Code JSONC syntax contract
+  "compilerOptions": {
+    "target": "ES2024",
+    "jsx": "react-jsx",
+    "strict": true,
+    "paths": {
+${repeatLanguageBlock(72, (_index, line) => `      "@feature/${line}": ["src/feature/${line}.ts"]`).split("\n").join(",\n")}
+    }
+  }
+}`,
+  },
+  "editor-css": {
+    label: "CSS",
+    grammarId: "css",
+    fileName: "theme.css",
+    pathSuffix: "src\\theme.css",
+    code: repeatLanguageBlock(72, (index, line) =>
+      [
+        `/* Nexus Code CSS syntax contract ${line} */`,
+        `.surface-${line} {`,
+        `  --accent-${line}: hsl(${(index * 17) % 360} 90% 62%);`,
+        `  color: color-mix(in oklab, var(--accent-${line}) 70%, white);`,
+        `  backdrop-filter: blur(${(index % 8) + 8}px);`,
+        `}`,
+      ].join("\n"),
+    ),
+  },
+  "editor-scss": {
+    label: "SCSS",
+    grammarId: "scss",
+    fileName: "theme.scss",
+    pathSuffix: "src\\theme.scss",
+    code: repeatLanguageBlock(70, (index, line) =>
+      [
+        `// Nexus Code SCSS syntax contract ${line}`,
+        `$tone-${line}: ${index % 2 === 0 ? "#7dd3fc" : "#c084fc"};`,
+        `.panel-${line} {`,
+        `  &:hover { border-color: rgba($tone-${line}, 0.72); }`,
+        `  @media (min-width: ${640 + index}px) { padding: ${index % 6 + 10}px; }`,
+        `}`,
+      ].join("\n"),
+    ),
+  },
+  "editor-python": {
+    label: "Python",
+    grammarId: "python",
+    fileName: "service.py",
+    pathSuffix: "src\\service.py",
+    code: repeatLanguageBlock(86, (index, line) =>
+      [
+        `# Nexus Code Python syntax contract ${line}`,
+        `async def build_payload_${line}(value: int = ${index + 1}) -> dict[str, object]:`,
+        `    label = f"python-highlight-${line}"`,
+        `    return {"label": label, "active": value % 2 == 0}`,
+      ].join("\n"),
+    ),
+  },
+  "editor-rust": {
+    label: "Rust",
+    grammarId: "rust",
+    fileName: "lib.rs",
+    pathSuffix: "src\\lib.rs",
+    code: repeatLanguageBlock(82, (index, line) =>
+      [
+        `// Nexus Code Rust syntax contract ${line}`,
+        `pub fn compute_${line}(input: usize) -> Option<String> {`,
+        `    let value = input + ${index + 1};`,
+        `    (value > 12).then(|| format!("rust-highlight-${line}-{value}"))`,
+        `}`,
+      ].join("\n"),
+    ),
+  },
+  "editor-go": {
+    label: "Go",
+    grammarId: "go",
+    fileName: "main.go",
+    pathSuffix: "cmd\\main.go",
+    code: repeatLanguageBlock(82, (index, line) =>
+      [
+        `// Nexus Code Go syntax contract ${line}`,
+        `func BuildPayload${line}(input int) map[string]any {`,
+        `    value := input + ${index + 1}`,
+        `    return map[string]any{"label": "go-highlight-${line}", "value": value}`,
+        `}`,
+      ].join("\n"),
+    ),
+  },
+  "editor-html": {
+    label: "HTML",
+    grammarId: "html",
+    fileName: "index.html",
+    pathSuffix: "public\\index.html",
+    code: repeatLanguageBlock(78, (_index, line) =>
+      [
+        `<!-- Nexus Code HTML syntax contract ${line} -->`,
+        `<section class="surface surface-${line}" data-state="ready">`,
+        `  <h2>Nexus ${line}</h2>`,
+        `  <button type="button" aria-label="Open ${line}">Open</button>`,
+        `</section>`,
+      ].join("\n"),
+    ),
+  },
+  "editor-yaml": {
+    label: "YAML",
+    grammarId: "yaml",
+    fileName: "workflow.yml",
+    pathSuffix: ".github\\workflows\\workflow.yml",
+    code: `name: Nexus Code Syntax Contract
+on:
+  push:
+    branches: [main]
+jobs:
+${repeatLanguageBlock(90, (index, line) =>
+  [
+    `  smoke_${line}:`,
+    `    runs-on: ubuntu-latest`,
+    `    steps:`,
+    `      - name: Run syntax ${line}`,
+    `        run: echo "yaml-highlight-${line}-${index + 1}"`,
+  ].join("\n"),
+)}`,
+  },
+  "editor-sql": {
+    label: "SQL",
+    grammarId: "sql",
+    fileName: "query.sql",
+    pathSuffix: "db\\query.sql",
+    code: repeatLanguageBlock(84, (_index, line) =>
+      [
+        `-- Nexus Code SQL syntax contract ${line}`,
+        `select user_id, count(*) as total_${line}`,
+        `from events_${line}`,
+        `where created_at >= current_date - interval '7 days'`,
+        `group by user_id;`,
+      ].join("\n"),
+    ),
+  },
+  "editor-shell": {
+    label: "Shell",
+    grammarId: "shell",
+    fileName: "deploy.sh",
+    pathSuffix: "scripts\\deploy.sh",
+    code: repeatLanguageBlock(86, (_index, line) =>
+      [
+        `# Nexus Code Shell syntax contract ${line}`,
+        `deploy_${line}() {`,
+        `  local target="shell-highlight-${line}"`,
+        `  printf '%s\\n' "$target"`,
+        `}`,
+      ].join("\n"),
+    ),
+  },
+  "editor-php": {
+    label: "PHP",
+    grammarId: "php",
+    fileName: "index.php",
+    pathSuffix: "public\\index.php",
+    code: `<?php
+${repeatLanguageBlock(72, (index, line) =>
+  [
+    `// Nexus Code PHP syntax contract ${line}`,
+    `function build_payload_${line}(int $input = ${index + 1}): array {`,
+    `    return ["label" => "php-highlight-${line}", "active" => $input > 10];`,
+    `}`,
+  ].join("\n"),
+)}`,
+  },
+  "editor-java": {
+    label: "Java",
+    grammarId: "java",
+    fileName: "Main.java",
+    pathSuffix: "src\\Main.java",
+    code: repeatLanguageBlock(64, (index, line) =>
+      [
+        `// Nexus Code Java syntax contract ${line}`,
+        `public final class Payload${line} {`,
+        `  public String label() { return "java-highlight-${line}-${index + 1}"; }`,
+        `}`,
+      ].join("\n"),
+    ),
+  },
+  "editor-cpp": {
+    label: "C++",
+    grammarId: "cpp",
+    fileName: "main.cpp",
+    pathSuffix: "src\\main.cpp",
+    code: repeatLanguageBlock(72, (index, line) =>
+      [
+        `// Nexus Code C++ syntax contract ${line}`,
+        `std::string build_payload_${line}(int input = ${index + 1}) {`,
+        `  auto label = std::string{"cpp-highlight-${line}"};`,
+        `  return input > 10 ? label : std::to_string(input);`,
+        `}`,
+      ].join("\n"),
+    ),
+  },
+  "editor-gherkin": {
+    label: "Gherkin",
+    grammarId: "gherkin",
+    fileName: "checkout.feature",
+    pathSuffix: "features\\checkout.feature",
+    code: repeatLanguageBlock(48, (_index, line) =>
+      [
+        `# Nexus Code Gherkin syntax contract ${line}`,
+        `Feature: checkout-${line}`,
+        `  Scenario: user pays with glow state ${line}`,
+        `    Given the workspace is ready`,
+        `    When the command palette opens`,
+        `    Then syntax highlighting stays stable`,
+      ].join("\n"),
+    ),
+  },
+  "editor-rdf": {
+    label: "RDF",
+    grammarId: "rdf",
+    fileName: "graph.ttl",
+    pathSuffix: "data\\graph.ttl",
+    code: repeatLanguageBlock(72, (_index, line) =>
+      [
+        `@prefix nx${line}: <https://nexus.local/${line}/> .`,
+        `nx${line}:workspace nx${line}:hasSignal "rdf-highlight-${line}" ;`,
+        `  nx${line}:status nx${line}:Ready .`,
+      ].join("\n"),
+    ),
+  },
+  "editor-latex": {
+    label: "LaTeX",
+    grammarId: "latex",
+    fileName: "paper.tex",
+    pathSuffix: "docs\\paper.tex",
+    code: repeatLanguageBlock(58, (_index, line) =>
+      [
+        `% Nexus Code LaTeX syntax contract ${line}`,
+        `\\section{Signal ${line}}`,
+        `\\textbf{Nexus Code} keeps the editor readable while typing ${line}.`,
+        `\\begin{itemize}\\item Highlight ${line}\\end{itemize}`,
+      ].join("\n"),
+    ),
+  },
+  "editor-xquery": {
+    label: "XQuery",
+    grammarId: "xquery",
+    fileName: "query.xq",
+    pathSuffix: "queries\\query.xq",
+    code: repeatLanguageBlock(64, (_index, line) =>
+      [
+        `(: Nexus Code XQuery syntax contract ${line} :)`,
+        `for $node in /workspace/panel[@id="${line}"]`,
+        `where $node/@state = "ready"`,
+        `return <signal line="${line}">{data($node/@state)}</signal>`,
+      ].join("\n"),
+    ),
+  },
+  "editor-glsl": {
+    label: "GLSL",
+    grammarId: "wgsl",
+    fileName: "glow.frag",
+    pathSuffix: "shaders\\glow.frag",
+    code: repeatLanguageBlock(64, (index, line) =>
+      [
+        `// Nexus Code GLSL syntax contract ${line}`,
+        `vec3 glow_${line}(vec2 uv) {`,
+        `  float pulse = sin(uv.x * ${index + 1}.0) * 0.5 + 0.5;`,
+        `  return vec3(pulse, uv.y, 1.0 - pulse);`,
+        `}`,
+      ].join("\n"),
+    ),
+  },});
 
 function SmokeViewport({ viewport, surfaceId: currentSurfaceId, children }) {
   return (
@@ -518,8 +815,12 @@ async function buildScenario(currentSurfaceId, viewport) {
       lsp_enabled: true,
       font_size: 14,
       line_height: 1.45,
-      tab_size: 2,
+      tab_size: languageCase.tabSize || 2,
       word_wrap: false,
+      animated_typing: languageCase.effects === true,
+      typing_animation_style: languageCase.typingStyle || "soft",
+      typing_glow: languageCase.effects === true,
+      text_glow: languageCase.effects === true,
     };
 
     return {

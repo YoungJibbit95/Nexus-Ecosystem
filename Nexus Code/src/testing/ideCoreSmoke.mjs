@@ -67,7 +67,11 @@ import {
   shouldRequestLspCompletion,
   summarizeEditorDiagnostics,
 } from "../pages/editor/editorFeatureModel.js";
-import { getLanguageCapabilities, listLanguageIds } from "../ide/languages/languageIds.js";
+import {
+  detectLanguageId,
+  getLanguageCapabilities,
+  listLanguageIds,
+} from "../ide/languages/languageIds.js";
 import {
   createCodeMirrorLanguageFallback,
   getCodeMirrorLanguageSupportDescriptor,
@@ -80,10 +84,12 @@ import {
   createExtensionRuntimeSnapshot,
   filterExtensions,
   getActiveThemeContributions,
+  getExtensionThemeAvailability,
   getExtensionRuntimeOverview,
   installExtension,
   resolveExtensions,
   setExtensionEnabled,
+  uninstallExtension,
 } from "../pages/editor/extensionSystem.js";
 import {
   buildExtensionHostSummary,
@@ -1165,6 +1171,7 @@ const scenarios = [
 
       const disabled = setExtensionEnabled(installed, "rainbow-brackets", false);
       const disabledSnapshot = createExtensionRuntimeSnapshot(disabled);
+      const disabledAvailability = getExtensionThemeAvailability(disabled);
 
       assert.equal(disabled["rainbow-brackets"].installed, true);
       assert.equal(disabled["rainbow-brackets"].enabled, false);
@@ -1174,6 +1181,15 @@ const scenarios = [
         false,
       );
       assert.equal(disabledSnapshot.stats.themes, 2);
+      const disabledThemeAvailability = disabledAvailability.find(
+        (theme) => theme.id === "rainbow-brackets-dark",
+      );
+      assert.equal(disabledThemeAvailability?.active, false);
+      assert.equal(disabledThemeAvailability?.installed, true);
+      assert.equal(disabledThemeAvailability?.canActivate, true);
+      assert.equal(disabledThemeAvailability?.activationAction, "enable");
+      assert.equal(disabledThemeAvailability?.activationLabel, "Aktivieren");
+      assert.match(disabledThemeAvailability?.unavailableReason, /pausiert/);
 
       const enabled = setExtensionEnabled(disabled, "rainbow-brackets", true);
       const enabledSnapshot = createExtensionRuntimeSnapshot(enabled);
@@ -1185,11 +1201,31 @@ const scenarios = [
         true,
       );
       assert.equal(enabledSnapshot.stats.themes, 3);
+
+      const removed = uninstallExtension(enabled, "rainbow-brackets");
+      const removedSnapshot = createExtensionRuntimeSnapshot(removed);
+      const removedAvailability = getExtensionThemeAvailability(removed);
+
+      assert.equal(removed["rainbow-brackets"].installed, false);
+      assert.equal(removed["rainbow-brackets"].enabled, false);
+      assert.equal(
+        removedSnapshot.themes.some((theme) => theme.id === "rainbow-brackets-dark"),
+        false,
+      );
+      const removedThemeAvailability = removedAvailability.find(
+        (theme) => theme.id === "rainbow-brackets-dark",
+      );
+      assert.equal(removedThemeAvailability?.installed, false);
+      assert.notEqual(removedThemeAvailability?.unavailableState, "active");
+      assert.equal(removedThemeAvailability?.canActivate, true);
+      assert.equal(removedThemeAvailability?.activationAction, "install");
+      assert.equal(removedThemeAvailability?.activationLabel, "Installieren");
+      assert.match(removedThemeAvailability?.unavailableReason, /nicht installiert/);
     },
   },
   {
     id: "settings-theme-options-extension-fallback",
-    title: "settings theme options expose active extension themes and fallback when disabled",
+    title: "settings theme options expose active extension themes and fallback when unavailable",
     run() {
       const defaults = createDefaultExtensionRecords();
       const installed = installExtension(defaults, "rainbow-brackets");
@@ -1221,14 +1257,44 @@ const scenarios = [
       assert.equal(disabledModel.selectedThemeAvailable, false);
       assert.equal(disabledModel.selectedThemeId, disabledModel.fallbackThemeId);
       assert.equal(normalizeThemeSelectionId(extensionThemeId, disabled), disabledModel.fallbackThemeId);
-      assert.ok(
-        disabledModel.unavailable.some(
-          (theme) =>
-            theme.id === extensionThemeId &&
-            theme.selectable === false &&
-            /pausiert/.test(theme.unavailableReason),
-        ),
+      const disabledThemeOption = disabledModel.unavailable.find(
+        (theme) => theme.id === extensionThemeId,
       );
+      assert.equal(disabledThemeOption?.selectable, false);
+      assert.equal(disabledThemeOption?.canActivate, true);
+      assert.equal(disabledThemeOption?.activationAction, "enable");
+      assert.equal(disabledThemeOption?.activationLabel, "Aktivieren");
+      assert.match(disabledThemeOption?.unavailableReason, /pausiert/);
+
+      const removed = uninstallExtension(installed, "rainbow-brackets");
+      const removedModel = createThemeOptionsModel(removed, extensionThemeId);
+      assert.equal(removedModel.selectedThemeAvailable, false);
+      assert.equal(removedModel.selectedThemeId, removedModel.fallbackThemeId);
+      const removedThemeOption = removedModel.unavailable.find(
+        (theme) => theme.id === extensionThemeId,
+      );
+      assert.equal(removedThemeOption?.selectable, false);
+      assert.equal(removedThemeOption?.unavailableState, "removed");
+      assert.equal(removedThemeOption?.canActivate, true);
+      assert.equal(removedThemeOption?.activationAction, "install");
+      assert.equal(removedThemeOption?.activationLabel, "Installieren");
+      assert.match(removedThemeOption?.unavailableReason, /nicht installiert/);
+
+      const missingThemeId = createExtensionThemeSettingId(
+        "missing-theme-extension",
+        "vanished-dark",
+      );
+      const missingModel = createThemeOptionsModel(removed, missingThemeId);
+      assert.equal(missingModel.selectedThemeAvailable, false);
+      assert.equal(missingModel.selectedThemeId, missingModel.fallbackThemeId);
+      const missingThemeOption = missingModel.unavailable.find(
+        (theme) => theme.id === missingThemeId,
+      );
+      assert.equal(missingThemeOption?.selectable, false);
+      assert.equal(missingThemeOption?.unavailableState, "removed");
+      assert.equal(missingThemeOption?.canActivate, false);
+      assert.equal(missingThemeOption?.activationAction, null);
+      assert.match(missingThemeOption?.unavailableReason, /Manifest nicht verfuegbar/);
     },
   },
   {
@@ -2285,30 +2351,81 @@ const scenarios = [
     id: "codemirror-language-support-routing",
     title: "CodeMirror language support lazy-loads with stable fallbacks",
     async run() {
-      const expectedGrammars = new Map([
-        ["index.ts", "typescript"],
-        ["App.tsx", "typescript"],
-        ["main.js", "javascript"],
-        ["View.jsx", "javascript"],
-        ["script.py", "python"],
-        ["lib.rs", "rust"],
-        ["main.go", "go"],
-        ["styles.css", "css"],
-        ["tsconfig.json", "json"],
-        ["README.md", "markdown"],
-      ]);
+      const expectedFiles = new Map([
+        ["index.ts", ["typescript", "typescript", "native"]],
+        ["App.tsx", ["typescript", "typescript", "native"]],
+        ["main.js", ["javascript", "javascript", "native"]],
+        ["server.mjs", ["javascript", "javascript", "native"]],
+        ["legacy.cjs", ["javascript", "javascript", "native"]],
+        ["View.jsx", ["javascript", "javascript", "native"]],
+        ["script.py", ["python", "python", "native"]],
+        ["lib.rs", ["rust", "rust", "native"]],
+        ["main.go", ["go", "go", "native"]],
+        ["styles.css", ["css", "css", "native"]],
+        ["theme.scss", ["scss", "scss", "native"]],
+        ["theme.sass", ["sass", "sass", "native"]],
+        ["vars.less", ["less", "less", "native"]],
+        ["component.vue", ["vue", "html", "alias"]],
+        ["package.json", ["json", "json", "native"]],
+        ["tsconfig.json", ["jsonc", "json", "alias"]],
+        ["config.jsonc", ["jsonc", "json", "alias"]],
+        ["data.jsonl", ["json", "json", "native"]],
+        ["README.md", ["markdown", "markdown", "native"]],
+        ["docs.mdx", ["mdx", "markdown", "alias"]],
+        ["workflow.yml", ["yaml", "yaml", "native"]],
+        ["Dockerfile", ["dockerfile", "dockerfile", "native"]],
+        ["query.sql", ["sql", "sql", "native"]],
+        ["schema.graphql", ["graphql", "graphql", "native"]],
+        ["app.php", ["php", "php", "native"]],
+        ["Main.java", ["java", "java", "native"]],
+        ["native.cpp", ["cpp", "cpp", "native"]],
+        ["program.cs", ["csharp", "csharp", "native"]],
+        ["Template.svelte", ["svelte", "html", "alias"]],
+        ["page.astro", ["astro", "html", "alias"]],
+        ["service.erl", ["erlang", "erlang", "native"]],
+        ["script.tcl", ["tcl", "tcl", "native"]],
+        ["notebook.wl", ["mathematica", "mathematica", "native"]],
+        ["analysis.sas", ["sas", "sas", "native"]],
+        ["manifest.pp", ["puppet", "puppet", "native"]],
+        ["legacy.vbs", ["vbscript", "vbscript", "native"]],
+        ["site.nginxconf", ["nginx", "nginx", "native"]],
+        ["request.http", ["http", "http", "native"]],
+        ["math.apl", ["apl", "apl", "native"]],
+        ["query.cypher", ["cypher", "cypher", "native"]],
+        ["grammar.ebnf", ["ebnf", "ebnf", "native"]],
+        ["checkout.feature", ["gherkin", "gherkin", "native"]],
+        ["schema.idl", ["idl", "idl", "native"]],
+        ["build.nsi", ["nsis", "nsis", "native"]],
+        ["graph.ttl", ["rdf", "rdf", "native"]],
+        ["triple.nt", ["rdf", "rdf", "native"]],
+        ["calc.octave", ["octave", "octave", "native"]],
+        ["script.q", ["q", "q", "native"]],
+        ["package.spec", ["rpm-spec", "rpm-spec", "native"]],
+        ["mail.sieve", ["sieve", "sieve", "native"]],
+        ["paper.tex", ["latex", "latex", "native"]],
+        ["template.vm", ["velocity", "velocity", "native"]],
+        ["query.xq", ["xquery", "xquery", "native"]],
+        ["boot.z80", ["z80", "z80", "native"]],
+        ["shader.frag", ["glsl", "wgsl", "alias"]],      ]);
 
-      for (const [fileName, expectedGrammar] of expectedGrammars) {
-        const fallback = createCodeMirrorLanguageFallback(expectedGrammar, fileName);
-        assert.equal(fallback.grammarId, expectedGrammar);
+      for (const [fileName, [expectedLanguage, expectedGrammar, expectedSupport]] of expectedFiles) {
+        const detectedLanguage = detectLanguageId(fileName);
+        assert.equal(detectedLanguage, expectedLanguage, `${fileName} language detection`);
+
+        const fallback = createCodeMirrorLanguageFallback(detectedLanguage, fileName);
+        assert.equal(fallback.languageId, expectedLanguage, `${fileName} language id`);
+        assert.equal(fallback.grammarId, expectedGrammar, `${fileName} grammar id`);
         assert.equal(fallback.status, "loading");
-        assert.equal(fallback.statusLabel, "Syntax-Highlighting bereit");
-        assert.equal(fallback.grammarSource, "direct");
-        assert.equal(fallback.supportLevel, "native");
+        assert.equal(fallback.supportLevel, expectedSupport, `${fileName} support level`);
+        assert.equal(
+          fallback.grammarSource,
+          expectedSupport === "alias" ? "alias" : "direct",
+          `${fileName} grammar source`,
+        );
         assert.deepEqual(fallback.extension, []);
 
-        const loaded = await loadCodeMirrorLanguageExtension(expectedGrammar, fileName);
-        assert.equal(loaded.grammarId, expectedGrammar);
+        const loaded = await loadCodeMirrorLanguageExtension(detectedLanguage, fileName);
+        assert.equal(loaded.grammarId, expectedGrammar, `${fileName} loaded grammar`);
         assert.equal(loaded.status, "ready");
         assert.equal(loaded.loaded, true);
         assert.equal(Array.isArray(loaded.extension), true);

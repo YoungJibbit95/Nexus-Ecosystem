@@ -148,8 +148,8 @@ function AccountMiniStat({ label, value, tone = "muted", title }) {
   return (
     <div
       title={title}
-      className="min-w-0 rounded-2xl border border-white/[0.06] bg-black/[0.2] px-2.5 py-1.5"
-      style={{ borderRadius: "var(--nexus-radius-lg, 18px)" }}
+      className="min-w-0 rounded-xl border border-white/[0.045] bg-black/[0.14] px-2.5 py-1.5"
+      style={{ borderRadius: "var(--nexus-radius-md, 12px)" }}
     >
       <div
         className="text-[9px] font-semibold uppercase leading-none text-gray-600"
@@ -170,9 +170,22 @@ function AccountMiniStat({ label, value, tone = "muted", title }) {
 function CompactAccountNotice({ className = "", ...props }) {
   return (
     <PanelNotice
-      className={`!rounded-2xl !px-2.5 !py-2 ${className}`}
+      className={`!rounded-xl !border-white/[0.065] !px-2.5 !py-2 ${className}`}
       {...props}
     />
+  );
+}
+
+function AccountFootnote({ icon: Icon, children, className = "" }) {
+  return (
+    <div
+      className={`flex min-w-0 items-start gap-1.5 rounded-xl border border-white/[0.045] bg-black/[0.12] px-2.5 py-1.5 text-[10px] leading-snug text-gray-500 ${className}`}
+    >
+      <Icon size={11} className="mt-0.5 shrink-0 text-gray-600" />
+      <span className="min-w-0 break-words" style={{ overflowWrap: "anywhere" }}>
+        {children}
+      </span>
+    </div>
   );
 }
 
@@ -319,11 +332,11 @@ export default function AccountPanel({
       <PanelHeader
         icon={UserRound}
         title="Account"
-        subtitle={`${accountLabel} - ${
+        subtitle={
           connectionDisplay.source === "session"
             ? "Session bereit"
             : controlStatus?.title || "Control API"
-        }`}
+        }
         status={<PanelBadge tone={statusMeta.tone}>{statusMeta.label}</PanelBadge>}
       >
         <div className="grid grid-cols-2 gap-1.5">
@@ -355,6 +368,10 @@ export default function AccountPanel({
           detail={sessionGateDetail}
           className="mb-2.5"
         />
+
+        <AccountFootnote icon={Clock} className="mb-2.5">
+          {isDirty ? "Lokale Aenderungen sind noch nicht gespeichert." : `Gespeichert: ${savedLabel}`}
+        </AccountFootnote>
 
         <div className="nx-code-account-presets mb-2.5 grid grid-cols-2 gap-1.5">
           <PanelActionButton
@@ -462,9 +479,8 @@ export default function AccountPanel({
 
       <PanelFooter className="px-3 py-2">
         <div className="mb-2 flex items-center justify-between gap-2 text-[10px] text-gray-500">
-          <span className="flex min-w-0 items-center gap-1 truncate">
-            <Clock size={10} className="shrink-0" />
-            <span className="truncate">{isDirty ? "Unsaved changes" : savedLabel}</span>
+          <span className="min-w-0 break-words" style={{ overflowWrap: "anywhere" }}>
+            {draftSaveReady ? "Token und Identitaet sind vollstaendig." : sessionGateTitle}
           </span>
           <button
             type="button"

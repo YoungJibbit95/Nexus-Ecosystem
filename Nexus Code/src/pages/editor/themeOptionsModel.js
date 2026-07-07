@@ -3,9 +3,9 @@ import {
   getThemePresetOptions,
 } from "../../theme/nexusThemeResolver.js";
 import {
-  collectExtensionContributions,
+  getActiveThemeContributions,
+  getExtensionThemeAvailability,
   loadExtensionRegistryState,
-  resolveExtensions,
 } from "./extensionSystem.js";
 
 const EXTENSION_THEME_PREFIX = "extension:";
@@ -57,6 +57,15 @@ function normalizeString(value, fallback = "") {
   return typeof value === "string" && value.trim() ? value.trim() : fallback;
 }
 
+function humanizeIdentifier(value) {
+  return String(value || "")
+    .split(/[._:-]/)
+    .filter(Boolean)
+    .slice(-2)
+    .join(" ")
+    .replace(/\b\w/g, (match) => match.toUpperCase());
+}
+
 export function createExtensionThemeSettingId(extensionId, themeId) {
   return `${EXTENSION_THEME_PREFIX}${extensionId}:${themeId}`;
 }
@@ -85,8 +94,7 @@ function createBuiltInThemeOptions() {
 }
 
 function createActiveExtensionThemeOptions(records) {
-  const contributions = collectExtensionContributions(records);
-  return (contributions.themes || []).map((theme) => {
+  return getActiveThemeContributions(records).map((theme) => {
     const colors = getExtensionThemeColors(theme.id, theme.extensionId);
     return {
       id: createExtensionThemeSettingId(theme.extensionId, theme.id),
@@ -101,52 +109,80 @@ function createActiveExtensionThemeOptions(records) {
       sourceLabel: normalizeString(theme.extensionName, "Extension"),
       extensionId: theme.extensionId,
       extensionName: normalizeString(theme.extensionName, "Extension"),
+      contributionPoint: theme.contributionPoint,
       selectable: true,
     };
   });
 }
 
 function createUnavailableExtensionThemeOptions(records, activeIds) {
-  return resolveExtensions(records)
-    .filter((extension) => extension.installed && Array.isArray(extension.contributes?.themes))
-    .flatMap((extension) =>
-      extension.contributes.themes.map((theme) => {
-        const id = createExtensionThemeSettingId(extension.id, theme.id);
-        if (activeIds.has(id)) return null;
-        const lifecycle = extension.lifecycleState;
-        const reason =
-          extension.health === "error"
-            ? "Manifest fehlerhaft"
-            : !extension.enabled
-              ? "Extension pausiert"
-              : lifecycle?.detail || "Nicht aktivierbar";
-        const colors = getExtensionThemeColors(theme.id, extension.id);
-        return {
-          id,
-          contributionId: theme.id,
-          name: normalizeString(theme.label, theme.id),
-          label: normalizeString(theme.label, theme.id),
-          description: reason,
-          colors,
-          accent: colors[1],
-          accent2: colors[2],
-          source: "extension",
-          sourceLabel: extension.displayName || "Extension",
-          extensionId: extension.id,
-          extensionName: extension.displayName || "Extension",
-          selectable: false,
-          unavailableReason: reason,
-        };
-      }),
-    )
+  return getExtensionThemeAvailability(records)
+    .map((theme) => {
+      const id = createExtensionThemeSettingId(theme.extensionId, theme.id);
+      if (activeIds.has(id)) return null;
+      const reason = theme.unavailableReason || "Nicht aktivierbar";
+      const colors = getExtensionThemeColors(theme.id, theme.extensionId);
+      return {
+        id,
+        contributionId: theme.id,
+        name: normalizeString(theme.label, theme.id),
+        label: normalizeString(theme.label, theme.id),
+        description: reason,
+        colors,
+        accent: colors[1],
+        accent2: colors[2],
+        source: "extension",
+        sourceLabel: normalizeString(theme.extensionName, "Extension"),
+        extensionId: theme.extensionId,
+        extensionName: normalizeString(theme.extensionName, "Extension"),
+        selectable: false,
+        unavailableReason: reason,
+        unavailableState: theme.unavailableState || (theme.blocked ? "error" : theme.installed ? "disabled" : "removed"),
+        canActivate: theme.canActivate === true,
+        activationAction: theme.activationAction || null,
+        activationLabel: theme.activationLabel || null,
+      };
+    })
     .filter(Boolean);
+}
+
+function createSelectedMissingExtensionThemeOption(selectedThemeId, activeIds) {
+  const parsed = parseExtensionThemeSettingId(selectedThemeId);
+  if (!parsed || activeIds.has(selectedThemeId)) return null;
+  const colors = getExtensionThemeColors(parsed.contributionId, parsed.extensionId);
+  return {
+    id: selectedThemeId,
+    contributionId: parsed.contributionId,
+    name: humanizeIdentifier(parsed.contributionId),
+    label: humanizeIdentifier(parsed.contributionId),
+    description: "Extension nicht installiert oder Manifest nicht verfuegbar",
+    colors,
+    accent: colors[1],
+    accent2: colors[2],
+    source: "extension",
+    sourceLabel: humanizeIdentifier(parsed.extensionId),
+    extensionId: parsed.extensionId,
+    extensionName: humanizeIdentifier(parsed.extensionId),
+    selectable: false,
+    unavailableReason: "Extension nicht installiert oder Manifest nicht verfuegbar",
+    unavailableState: "removed",
+    canActivate: false,
+    activationAction: null,
+    activationLabel: null,
+  };
 }
 
 export function createThemeOptionsModel(records, selectedThemeId) {
   const builtIn = createBuiltInThemeOptions();
   const extension = createActiveExtensionThemeOptions(records);
   const activeIds = new Set([...builtIn, ...extension].map((option) => option.id));
-  const unavailable = createUnavailableExtensionThemeOptions(records, activeIds);
+  const unavailableBase = createUnavailableExtensionThemeOptions(records, activeIds);
+  const unavailableIds = new Set(unavailableBase.map((option) => option.id));
+  const selectedMissing = createSelectedMissingExtensionThemeOption(
+    selectedThemeId,
+    new Set([...activeIds, ...unavailableIds]),
+  );
+  const unavailable = selectedMissing ? [...unavailableBase, selectedMissing] : unavailableBase;
   const selectable = [...builtIn, ...extension];
   const selectedOption = selectable.find((option) => option.id === selectedThemeId) || null;
   const selectedThemeAvailable = Boolean(selectedOption);
