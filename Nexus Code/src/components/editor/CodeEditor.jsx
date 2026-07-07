@@ -13,6 +13,7 @@ import {
   placeholder,
   rectangularSelection,
   scrollPastEnd,
+  ViewPlugin,
 } from "@codemirror/view";
 import { EditorState, Compartment } from "@codemirror/state";
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
@@ -160,7 +161,7 @@ function resolveEditorLetterSpacing(settings) {
 }
 
 function resolveEditorTabSize(settings, fallbackTabSize) {
-  return Math.round(clampNumber(settings.tab_size ?? fallbackTabSize, 2, 8, 4));
+  return Math.round(clampNumber(settings.tab_size ?? fallbackTabSize, 2, 10, 4));
 }
 
 function resolveAutocompleteMaxItems(settings, reduceMotion, compactViewport) {
@@ -235,6 +236,48 @@ function positionCompletionInfo(_view, list, option, info, space, tooltip) {
   };
 }
 
+function resolveTypingAnimationMode(settings, reduceMotion) {
+  if (reduceMotion || settings.animated_typing !== true) return "off";
+  const style = String(settings.typing_animation_style || "soft").trim().toLowerCase();
+  return ["soft", "lift", "glow"].includes(style) ? style : "soft";
+}
+
+function createTypingAnimationPlugin(settings, reduceMotion) {
+  const mode = resolveTypingAnimationMode(settings, reduceMotion);
+  if (mode === "off") return [];
+  const duration = Math.round(150 / clampNumber(settings.animation_speed, 0.5, 1.8, 1));
+  const glowEnabled = settings.typing_glow === true || settings.text_glow === true || mode === "glow";
+
+  return ViewPlugin.fromClass(
+    class NexusTypingAnimationPlugin {
+      constructor(view) {
+        this.view = view;
+        this.timeout = 0;
+      }
+
+      update(update) {
+        if (!update.docChanged) return;
+        const dom = this.view.dom;
+        dom.classList.add("nx-code-typing-active", `nx-code-typing-${mode}`);
+        dom.classList.toggle("nx-code-typing-glow", glowEnabled);
+        if (this.timeout) window.clearTimeout(this.timeout);
+        this.timeout = window.setTimeout(() => {
+          dom.classList.remove(
+            "nx-code-typing-active",
+            "nx-code-typing-soft",
+            "nx-code-typing-lift",
+            "nx-code-typing-glow",
+          );
+          this.timeout = 0;
+        }, duration);
+      }
+
+      destroy() {
+        if (this.timeout) window.clearTimeout(this.timeout);
+      }
+    },
+  );
+}
 function createNexusCodeMirrorTheme(
   settings,
   compactViewport,
@@ -257,6 +300,17 @@ function createNexusCodeMirrorTheme(
     ? "0 8px 24px rgba(0,0,0,0.28)"
     : "0 18px 55px rgba(0,0,0,0.35)";
   const letterSpacing = resolveEditorLetterSpacing(settings);
+  const glowIntensity = clampNumber(settings.glow_intensity, 0, 100, 28) / 100;
+  const glowRadius = clampNumber(settings.glow_radius, 0, 64, 14);
+  const textGlowEnabled = settings.text_glow === true || settings.typing_glow === true;
+  const cursorGlowEnabled = settings.cursor_glow === true && !reduceMotion;
+  const motionDuration = `${Math.round(140 / clampNumber(settings.animation_speed, 0.5, 1.8, 1))}ms`;
+  const textGlow = textGlowEnabled
+    ? `0 0 ${Math.max(3, Math.round(glowRadius * 0.42))}px ${hexToRgba(accent, 0.16 + glowIntensity * 0.18)}`
+    : "none";
+  const caretGlow = cursorGlowEnabled
+    ? `0 0 ${Math.max(6, Math.round(glowRadius * 0.78))}px ${hexToRgba(accent, 0.24 + glowIntensity * 0.24)}`
+    : "none";
 
   return EditorView.theme(
     {
@@ -297,10 +351,13 @@ function createNexusCodeMirrorTheme(
         padding: `${compactViewport ? 14 : 20}px ${compactViewport ? 14 : 24}px`,
         caretColor: accent,
         color: text,
+        textShadow: textGlow,
+        transition: reduceMotion ? "none" : `text-shadow ${motionDuration} ease, color ${motionDuration} ease`,
       },
       ".cm-line": {
         padding: "0 2px",
         textRendering: "inherit",
+        transition: reduceMotion ? "none" : `background-color ${motionDuration} ease, text-shadow ${motionDuration} ease, transform ${motionDuration} ease`,
       },
       ".cm-content ::selection": {
         color: `${text} !important`,
@@ -331,10 +388,24 @@ function createNexusCodeMirrorTheme(
       },
       ".cm-cursor": {
         borderLeftColor: accent,
-        borderLeftWidth: settings.cursor_style === "block" ? "0.55em" : "2px",
+        borderLeftWidth: settings.cursor_style === "block" ? "0.55em" : settings.cursor_style === "underline" ? "0" : "2px",
+        borderBottom: settings.cursor_style === "underline" ? `2px solid ${accent}` : "0",
+        boxShadow: caretGlow,
+        transition: reduceMotion || settings.smooth_caret === false ? "none" : `border-color ${motionDuration} ease, box-shadow ${motionDuration} ease, transform ${motionDuration} ease`,
       },
       ".cm-dropCursor": {
         borderLeftColor: accent,
+        boxShadow: caretGlow,
+      },
+      "&.nx-code-typing-active .cm-activeLine": {
+        backgroundColor: hexToRgba(editorAccent, 0.1),
+        textShadow: textGlowEnabled ? textGlow : `0 0 ${Math.max(4, Math.round(glowRadius * 0.28))}px ${hexToRgba(accent, 0.14)}`,
+      },
+      "&.nx-code-typing-lift .cm-activeLine": {
+        transform: reduceMotion ? "none" : "translateY(-0.5px)",
+      },
+      "&.nx-code-typing-glow .cm-activeLine": {
+        textShadow: `0 0 ${Math.max(8, Math.round(glowRadius * 0.75))}px ${hexToRgba(accent, 0.32 + glowIntensity * 0.22)}`,
       },
       ".cm-matchingBracket, .cm-nonmatchingBracket": {
         outline: `1px solid ${hexToRgba(editorAccentBlue, 0.56)}`,
@@ -1484,13 +1555,20 @@ export default function CodeEditor({
       editorLineHeight,
       reduceEditorMotion,
       settings.animations_enabled,
+      settings.animated_typing,
+      settings.animation_speed,
+      settings.cursor_glow,
       settings.cursor_style,
       settings.font_family,
       settings.font_weight,
       settings.letter_spacing,
       settings.primary_accent,
       settings.reduce_motion,
+      settings.smooth_caret,
+      settings.text_glow,
       settings.theme,
+      settings.typing_animation_style,
+      settings.typing_glow,
       settings.visual_performance_profile,
     ],
   );
@@ -1501,6 +1579,7 @@ export default function CodeEditor({
       closeBrackets(),
       drawSelection(),
       dropCursor(),
+      createTypingAnimationPlugin(settings, reduceEditorMotion),
       highlightActiveLine(),
       highlightSpecialChars(),
       indentOnInput(),
@@ -1605,7 +1684,12 @@ export default function CodeEditor({
     reduceEditorMotion,
     scheduleCursorInfoUpdate,
     scheduleLineCountUpdate,
+    settings.animated_typing,
+    settings.animation_speed,
     settings.autocomplete_enabled,
+    settings.text_glow,
+    settings.typing_animation_style,
+    settings.typing_glow,
     showDiagnostics,
     showLineNumbers,
     wordWrap,

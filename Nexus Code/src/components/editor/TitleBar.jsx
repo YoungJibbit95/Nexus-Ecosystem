@@ -439,16 +439,16 @@ export default function TitleBar({
       ref={menuHostRef}
       className={`nx-code-titlebar nx-code-titlebar-pro relative z-[60] flex shrink-0 select-none items-center justify-between overflow-visible ${compact ? "px-2" : "px-3"}`}
       style={{
-        height: 38,
-        minHeight: 38,
-        flex: "0 0 38px",
+        height: 36,
+        minHeight: 36,
+        flex: "0 0 36px",
         gap: compact ? 6 : 8,
         background:
-          "linear-gradient(180deg, rgba(255,255,255,0.024), rgba(255,255,255,0.006)), rgba(7, 10, 18, 0.88)",
-        borderBottom: "1px solid var(--nexus-border)",
+          "linear-gradient(180deg, rgba(255,255,255,0.014), rgba(255,255,255,0.003)), rgba(6, 9, 16, 0.91)",
+        borderBottom: "1px solid rgba(148,163,184,0.055)",
         boxShadow:
-          "inset 0 1px 0 rgba(255,255,255,0.035), 0 1px 0 rgba(0,0,0,0.42)",
-        backdropFilter: "blur(16px) saturate(118%)",
+          "inset 0 1px 0 rgba(255,255,255,0.024), 0 1px 0 rgba(0,0,0,0.32)",
+        backdropFilter: "blur(14px) saturate(108%)",
         // @ts-ignore
         WebkitAppRegion: isElectron ? "drag" : "no-drag",
       }}
@@ -489,11 +489,11 @@ export default function TitleBar({
         <div
           className={`nx-code-titlebar-brand min-w-0 shrink-0 items-center ${compact ? "hidden 2xl:flex" : "hidden 2xl:flex"}`}
           style={{
-            height: 27,
+            height: 25,
             gap: 7,
             borderRadius: "8px",
-            border: "1px solid rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.105)",
-            background: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.04)",
+            border: "1px solid rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.075)",
+            background: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.026)",
             padding: "0 9px 0 6px",
             boxShadow:
               "inset 0 1px 0 rgba(255,255,255,0.045)",
@@ -524,11 +524,11 @@ export default function TitleBar({
           <div
             className={`nx-code-menu-host nx-code-menu-cluster items-center ${compact ? "hidden xl:flex" : "hidden lg:flex"}`}
             style={{
-              height: 27,
+              height: 25,
               borderRadius: "8px",
-              border: "1px solid rgba(255,255,255,0.045)",
-              background: "rgba(0, 0, 0, 0.1)",
-              backdropFilter: "blur(14px)",
+              border: "1px solid rgba(255,255,255,0.032)",
+              background: "rgba(0, 0, 0, 0.075)",
+              backdropFilter: "blur(10px)",
             }}
           >
             {menus.map((menu) => (
@@ -544,11 +544,11 @@ export default function TitleBar({
           <div
             className={`nx-code-menu-host nx-code-menu-compact-host items-center ${compact ? "flex xl:hidden" : "flex lg:hidden"}`}
             style={{
-              height: 27,
+              height: 25,
               borderRadius: "8px",
-              border: "1px solid rgba(255,255,255,0.045)",
-              background: "rgba(0, 0, 0, 0.1)",
-              backdropFilter: "blur(14px)",
+              border: "1px solid rgba(255,255,255,0.032)",
+              background: "rgba(0, 0, 0, 0.075)",
+              backdropFilter: "blur(10px)",
             }}
           >
             <CompactMenuButton
@@ -569,18 +569,18 @@ export default function TitleBar({
         className="nx-code-command-center nx-code-command-center-pro mx-1 flex min-w-0 flex-[1.25] items-center justify-center text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500/60"
         // @ts-ignore
         style={{
-          height: 28,
-          minHeight: 28,
+          height: 26,
+          minHeight: 26,
           flex: "1 1 11rem",
           minWidth: compact ? 112 : 148,
           maxWidth: compact ? 300 : 380,
           gap: 7,
           borderRadius: "8px",
-          border: "1px solid rgba(142, 153, 183, 0.105)",
+          border: "1px solid rgba(142, 153, 183, 0.075)",
           background:
-            "linear-gradient(180deg, rgba(255,255,255,0.026), rgba(255,255,255,0.008)), rgba(0, 0, 0, 0.18)",
+            "linear-gradient(180deg, rgba(255,255,255,0.018), rgba(255,255,255,0.004)), rgba(0, 0, 0, 0.16)",
           boxShadow:
-            "inset 0 1px 0 rgba(255,255,255,0.044)",
+            "inset 0 1px 0 rgba(255,255,255,0.03)",
           padding: "0 9px",
           WebkitAppRegion: "no-drag",
         }}

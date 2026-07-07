@@ -41,8 +41,18 @@ import {
 } from './settingsShared';
 import { resolveNexusTheme } from '../../theme/nexusThemeResolver.js';
 import { DEFAULT_SETTINGS } from '../../pages/editor/editorShared.jsx';
-import { createThemeSelectionPatch } from '../../pages/editor/themeOptionsModel.js';
+import {
+  createThemeOptionsModel,
+  createThemeSelectionPatch,
+} from '../../pages/editor/themeOptionsModel.js';
 import { createLspSetupModel } from '../../pages/editor/lspSetupModel.js';
+import {
+  createExtensionEventDetail,
+  installExtension,
+  loadExtensionRegistryState,
+  saveExtensionRegistry,
+  setExtensionEnabled,
+} from '../../pages/editor/extensionSystem.js';
 import {
   getBottomPanelSizeOptions,
   getSidePanelSizeOptions,
@@ -585,6 +595,34 @@ const SETTING_INDEX = [
     keywords: "caret cursor animation smooth",
   },
   {
+    id: "animated_typing",
+    section: "animations",
+    label: "Animated Typing",
+    description: "Aktive Zeile beim Schreiben kurz weich hervorheben.",
+    keywords: "typing animation write smooth text input pop glow",
+  },
+  {
+    id: "typing_animation_style",
+    section: "animations",
+    label: "Typing Style",
+    description: "Soft, Lift oder Glow fuer den Schreibimpuls.",
+    keywords: "typing style soft lift glow animation",
+  },
+  {
+    id: "typing_glow",
+    section: "animations",
+    label: "Typing Glow",
+    description: "Kurzer Lichtimpuls auf der aktiven Schreibzeile.",
+    keywords: "typing glow text light active line",
+  },
+  {
+    id: "text_glow",
+    section: "animations",
+    label: "Text Glow",
+    description: "Subtiler Glow auf Editor-Text.",
+    keywords: "text glow editor neon light",
+  },
+  {
     id: "cursor_blinking",
     section: "animations",
     label: "Cursor-Blinken",
@@ -702,6 +740,10 @@ const THEME_EDITOR_SETTING_KEYS = [
   "animations_enabled",
   "animation_speed",
   "smooth_caret",
+  "animated_typing",
+  "typing_animation_style",
+  "typing_glow",
+  "text_glow",
   "cursor_glow",
   "icon_glow",
   "visual_performance_profile",
@@ -1515,10 +1557,11 @@ function KeybindingManager({
         ) : (
           model.rows.map((row) => {
             const draft = drafts[row.id] ?? row.override ?? row.defaultShortcut;
+            const normalizedDraft = normalizeKeybindingShortcut(draft);
             const validation = validateKeybindingShortcut(draft);
+            const isClearingOverride = !String(draft || "").trim() && row.isCustomized;
             const isChanged =
-              normalizeKeybindingShortcut(draft) !==
-              normalizeKeybindingShortcut(row.override || row.defaultShortcut);
+              normalizedDraft !== normalizeKeybindingShortcut(row.override || row.defaultShortcut);
             return (
               <div
                 key={row.id}
@@ -1555,7 +1598,7 @@ function KeybindingManager({
                     {row.command}
                   </code>
                   <p className="mt-1 break-words text-[10px] leading-4 text-gray-500">
-                    Default: {row.defaultShortcut || "nicht gesetzt"} · When: {row.when}
+                    Default: {row.defaultShortcut || "nicht gesetzt"} - When: {row.when || "global"}
                   </p>
                 </div>
                 <div className="min-w-0">
@@ -1579,6 +1622,14 @@ function KeybindingManager({
                   {!validation.ok ? (
                     <p className="mt-1 break-words text-[10px] leading-4 text-red-300/80">
                       {validation.reason}
+                    </p>
+                  ) : isClearingOverride ? (
+                    <p className="mt-1 break-words text-[10px] leading-4 text-gray-500">
+                      Leer speichert wieder den Default.
+                    </p>
+                  ) : isChanged ? (
+                    <p className="mt-1 break-words text-[10px] leading-4 text-gray-500">
+                      Wird als {validation.normalized || row.defaultShortcut || "nicht gesetzt"} gespeichert.
                     </p>
                   ) : null}
                 </div>
@@ -2227,10 +2278,11 @@ function PresetButton({
 }) {
   return (
     <motion.button
-      whileHover={shouldReduceMotion ? undefined : { y: -2 }}
-      whileTap={shouldReduceMotion ? undefined : { scale: 0.99 }}
+      whileHover={shouldReduceMotion || disabled ? undefined : { y: -2 }}
+      whileTap={shouldReduceMotion || disabled ? undefined : { scale: 0.99 }}
       onClick={onClick}
       disabled={disabled}
+      title={disabled && description ? description : title}
       className="group min-w-0 rounded-md border p-3 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-55"
       style={{
         background: active
@@ -2936,6 +2988,47 @@ export default function SettingsPanel({
       updateKeybindingOverrides(next);
     },
     [keybindingOverrides, updateKeybindingOverrides],
+  );
+
+  const applyThemeOption = React.useCallback(
+    (theme) => {
+      const patch = createThemeSelectionPatch(theme);
+      if (!patch) return false;
+      onSettingsChange({ ...settings, ...patch });
+      return true;
+    },
+    [onSettingsChange, settings],
+  );
+
+  const dispatchExtensionRegistryChange = React.useCallback((records, diagnostics = []) => {
+    if (typeof window === "undefined" || typeof window.CustomEvent !== "function") return;
+    const detail = createExtensionEventDetail(records);
+    if (diagnostics.length > 0) {
+      detail.diagnostics = [...(detail.diagnostics || []), ...diagnostics];
+    }
+    window.dispatchEvent(new window.CustomEvent("nx-code-extensions-changed", { detail }));
+  }, []);
+
+  const activateExtensionTheme = React.useCallback(
+    (theme) => {
+      if (!theme?.activationAction || !theme.extensionId) return;
+      const registryState = loadExtensionRegistryState();
+      const nextRecords =
+        theme.activationAction === "install"
+          ? installExtension(registryState.records, theme.extensionId)
+          : setExtensionEnabled(registryState.records, theme.extensionId, true);
+      const saveResult = saveExtensionRegistry(nextRecords);
+      dispatchExtensionRegistryChange(nextRecords, [
+        ...(registryState.diagnostics || []),
+        ...(registryState.migrations || []),
+        ...(saveResult.diagnostics || []),
+      ]);
+
+      const nextModel = createThemeOptionsModel(nextRecords, theme.id);
+      const enabledTheme = nextModel.selectable.find((option) => option.id === theme.id);
+      applyThemeOption(enabledTheme);
+    },
+    [applyThemeOption, dispatchExtensionRegistryChange],
   );
 
   const applyVisualProfile = React.useCallback(
@@ -3853,8 +3946,8 @@ export default function SettingsPanel({
                           value={[settings.tab_size || 4]}
                           onValueChange={([value]) => updateSetting("tab_size", value)}
                           min={2}
-                          max={8}
-                          step={2}
+                          max={10}
+                          step={1}
                         />
                         <ValueBadge>{settings.tab_size || 4}</ValueBadge>
                       </div>
@@ -4279,28 +4372,39 @@ export default function SettingsPanel({
                         description={theme.source === "extension" ? theme.description : undefined}
                         colors={theme.colors}
                         shouldReduceMotion={shouldReduceMotion}
-                        onClick={() => {
-                          const patch = createThemeSelectionPatch(theme);
-                          if (!patch) return;
-                          onSettingsChange({ ...settings, ...patch });
-                        }}
+                        onClick={() => applyThemeOption(theme)}
                       />
                     ))}
                   </div>
                   {effectiveThemeOptionsModel.unavailable.length > 0 ? (
                     <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                      {effectiveThemeOptionsModel.unavailable.map((theme) => (
-                        <PresetButton
-                          key={theme.id}
-                          active={false}
-                          disabled
-                          title={theme.name}
-                          badge={theme.sourceLabel}
-                          description={theme.unavailableReason || theme.description}
-                          colors={theme.colors}
-                          shouldReduceMotion={shouldReduceMotion}
-                        />
-                      ))}
+                      {effectiveThemeOptionsModel.unavailable.map((theme) => {
+                        const canActivateTheme =
+                          theme.canActivate === true && Boolean(theme.activationAction);
+                        const stateBadge =
+                          theme.unavailableState === "error"
+                            ? "Blocked"
+                            : theme.unavailableState === "removed"
+                              ? "Removed"
+                              : "Paused";
+                        return (
+                          <PresetButton
+                            key={theme.id}
+                            active={false}
+                            disabled={!canActivateTheme}
+                            title={theme.name}
+                            badge={theme.activationLabel || stateBadge}
+                            description={theme.unavailableReason || theme.description}
+                            colors={theme.colors}
+                            shouldReduceMotion={shouldReduceMotion}
+                            onClick={
+                              canActivateTheme
+                                ? () => activateExtensionTheme(theme)
+                                : undefined
+                            }
+                          />
+                        );
+                      })}
                     </div>
                   ) : null}
                 </SettingsGroup>
@@ -4561,6 +4665,63 @@ export default function SettingsPanel({
                       <NativeSwitch
                         checked={settings.smooth_caret !== false}
                         onCheckedChange={(value) => updateSetting("smooth_caret", value)}
+                      />
+                    </SettingRow>
+                    <SettingRow
+                      id="animated_typing"
+                      sectionId="animations"
+                      searchQuery={searchTerm}
+                      title="Animated Typing"
+                      description="Aktive Schreibzeile poppt kurz weich auf, ohne Layout zu verschieben."
+                      compact
+                    >
+                      <NativeSwitch
+                        checked={settings.animated_typing === true}
+                        onCheckedChange={(value) => updateSetting("animated_typing", value)}
+                      />
+                    </SettingRow>
+                    <SettingRow
+                      id="typing_animation_style"
+                      sectionId="animations"
+                      searchQuery={searchTerm}
+                      title="Typing Style"
+                      description="Soft bleibt ruhig, Lift bewegt minimal, Glow betont Licht."
+                    >
+                      <NativeSelect
+                        value={settings.typing_animation_style || "soft"}
+                        onValueChange={(value) => updateSetting("typing_animation_style", value)}
+                        className="w-36"
+                      >
+                        <option value="soft">Soft</option>
+                        <option value="lift">Lift</option>
+                        <option value="glow">Glow</option>
+                        <option value="off">Aus</option>
+                      </NativeSelect>
+                    </SettingRow>
+                    <SettingRow
+                      id="typing_glow"
+                      sectionId="animations"
+                      searchQuery={searchTerm}
+                      title="Typing Glow"
+                      description="Kurzer Lichtimpuls auf der aktiven Zeile beim Schreiben."
+                      compact
+                    >
+                      <NativeSwitch
+                        checked={settings.typing_glow === true}
+                        onCheckedChange={(value) => updateSetting("typing_glow", value)}
+                      />
+                    </SettingRow>
+                    <SettingRow
+                      id="text_glow"
+                      sectionId="animations"
+                      searchQuery={searchTerm}
+                      title="Text Glow"
+                      description="Subtiler Glow auf Editor-Text; bei kleinen Screens automatisch ruhiger."
+                      compact
+                    >
+                      <NativeSwitch
+                        checked={settings.text_glow === true}
+                        onCheckedChange={(value) => updateSetting("text_glow", value)}
                       />
                     </SettingRow>
                   </SettingsGroup>

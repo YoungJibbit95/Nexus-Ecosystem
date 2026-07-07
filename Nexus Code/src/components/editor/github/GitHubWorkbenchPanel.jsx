@@ -252,7 +252,7 @@ function QuietSelect({ children, className = "", style, ...props }) {
 function WorkbenchNotice({ className = "", ...props }) {
   return (
     <PanelNotice
-      className={`!rounded-xl !px-2.5 !py-2 ${className}`}
+      className={`!rounded-md !px-2.5 !py-2 ${className}`}
       {...props}
     />
   );
@@ -271,10 +271,11 @@ function WorkbenchState({
 
   return (
     <div
-      className="mx-3 my-2 rounded-xl border px-3 py-2.5"
+      className="mx-3 my-2 rounded-md border px-3 py-2.5"
       style={{
         background: toneStyle.background,
         borderColor: toneStyle.border,
+        boxShadow: "inset 0 1px 0 rgba(255,255,255,0.024)",
       }}
     >
       <div className="flex min-w-0 items-start gap-2.5">
@@ -326,9 +327,9 @@ function RuntimeStatusLine({ status, capability, onOpenAccount }) {
 
   return (
     <div
-      className="mx-3 mt-2 flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-xl border px-2.5 py-2"
+      className="mx-3 mt-2 flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-md border px-2.5 py-2"
       style={{
-        background: "rgba(2,6,23,0.32)",
+        background: "rgba(2,6,23,0.24)",
         borderColor: status.tone === "danger"
           ? "rgba(248,113,113,0.16)"
           : status.tone === "warning"
@@ -380,10 +381,10 @@ function WorkbenchSummaryPill({ label, value, tone = "muted", title }) {
   return (
     <div
       title={title}
-      className="min-w-0 rounded-lg border px-2 py-1.5"
+      className="min-w-0 rounded-md border px-2 py-1.5"
       style={{
-        background: "rgba(2,6,23,0.28)",
-        borderColor: "rgba(148,163,184,0.085)",
+        background: "rgba(2,6,23,0.13)",
+        borderColor: "rgba(148,163,184,0.052)",
       }}
     >
       <div
@@ -393,8 +394,8 @@ function WorkbenchSummaryPill({ label, value, tone = "muted", title }) {
         {label}
       </div>
       <div
-        className="mt-1 min-w-0 truncate text-[11px] font-semibold"
-        style={{ color }}
+        className="mt-1 min-w-0 break-words text-[11px] font-semibold leading-tight"
+        style={{ color, overflowWrap: "anywhere" }}
       >
         {value}
       </div>
@@ -2311,10 +2312,6 @@ export function GitHubWorkbenchPanel({
         ? "Viewer projects"
         : `${projectOwnerType}: ${projectOwnerDraft || draftProjectOwner || "not set"}`
       : appliedRepoRef.label || draftRepoRef.label || definition.repoHelp;
-  const panelSubtitle =
-    capabilityStatus.id === "ready"
-      ? panelContextLabel
-      : capabilityStatus.detail;
   const canShowActions = capabilityStatus.id === "ready" && !setupRequirement;
   const targetSummary =
     panelContextLabel.length > 28
@@ -2329,7 +2326,7 @@ export function GitHubWorkbenchPanel({
       <PanelHeader
         icon={Icon}
         title={definition.title}
-        subtitle={panelSubtitle}
+        subtitle={definition.subtitle}
         status={
           <PanelBadge tone={capabilityStatus.id === "ready" ? "muted" : capabilityStatus.tone}>
             {capabilityStatus.id === "ready" ? panelCountLabel : capabilityStatus.label}
@@ -2380,7 +2377,7 @@ export function GitHubWorkbenchPanel({
 
         <div
           className="mx-3 mt-2 grid gap-1.5"
-          style={{ gridTemplateColumns: "repeat(auto-fit, minmax(86px, 1fr))" }}
+          style={{ gridTemplateColumns: "repeat(auto-fit, minmax(108px, 1fr))" }}
         >
           <WorkbenchSummaryPill
             label="Bridge"

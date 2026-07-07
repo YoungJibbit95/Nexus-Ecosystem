@@ -67,15 +67,15 @@ function OptionButton({ active, onClick, title, icon: Icon, label }) {
     <button
       type="button"
       onClick={onClick}
-      className="flex min-h-7 min-w-0 items-center justify-center gap-1 rounded-lg px-2 py-1 text-[10px] font-semibold leading-tight transition-colors"
+      className="flex min-h-7 min-w-0 items-center justify-center gap-1 rounded-md px-2 py-1 text-[10px] font-semibold leading-tight transition-colors"
       style={{
         background: active
-          ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.16)"
-          : "rgba(255,255,255,0.024)",
+          ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.12)"
+          : "rgba(255,255,255,0.014)",
         color: active ? "var(--nexus-primary, #7c8cff)" : "#8b93a7",
         border: active
-          ? "1px solid rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.26)"
-          : "1px solid rgba(255,255,255,0.055)",
+          ? "1px solid rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.2)"
+          : "1px solid rgba(255,255,255,0.04)",
       }}
       title={title}
       aria-pressed={active}
@@ -111,7 +111,7 @@ function SearchState({ state, result, query, fileCount, hasScopeFilters, onReset
         icon={FolderOpen}
         tone="warning"
         title="Workspace leer"
-        detail="Sobald Dateien im Workspace liegen, erscheinen hier echte Suchtreffer."
+        detail="Suche wird aktiv, sobald Workspace-Dateien verfuegbar sind."
       />
     );
   }
@@ -123,7 +123,7 @@ function SearchState({ state, result, query, fileCount, hasScopeFilters, onReset
         spinning
         tone="accent"
         title="Suche laeuft"
-        detail={`${fileCount} Dateien im aktuellen Workspace`}
+        detail={`${fileCount} Dateien werden durchsucht.`}
       />
     );
   }
@@ -144,7 +144,7 @@ function SearchState({ state, result, query, fileCount, hasScopeFilters, onReset
       <PanelState
         icon={Search}
         title="Bereit fuer Suche"
-        detail={`${fileCount} Dateien verfuegbar. Scope-Filter bleiben optional und werden sofort angewendet.`}
+        detail={`${fileCount} Dateien verfuegbar. Tippe einen Begriff, Regex oder Dateinamen.`}
         actionLabel={hasScopeFilters ? "Scopes zuruecksetzen" : undefined}
         onAction={hasScopeFilters ? onResetScopes : undefined}
         compact
@@ -156,7 +156,7 @@ function SearchState({ state, result, query, fileCount, hasScopeFilters, onReset
     <PanelState
       icon={Search}
       title="Keine Treffer"
-      detail={`"${query}" in ${result.scannedFiles || 0} Dateien durchsucht. ${result.skippedFiles || 0} Dateien wurden durch Scopes uebersprungen.`}
+      detail={`"${query}" wurde in ${result.scannedFiles || 0} Dateien nicht gefunden. ${result.skippedFiles || 0} Dateien waren durch Scopes ausgeblendet.`}
       actionLabel={hasScopeFilters ? "Scopes lockern" : undefined}
       onAction={hasScopeFilters ? onResetScopes : undefined}
     />
@@ -351,15 +351,15 @@ export default function SearchPanel({ files = [], onFileSelect }) {
           ) : null
         }
       >
-        <form onSubmit={submitSearch} className="space-y-2.5">
+        <form onSubmit={submitSearch} className="space-y-2">
           <div
-            className="flex min-h-9 items-center gap-1.5 rounded-lg px-2.5 py-1.5"
+            className="flex min-h-9 items-center gap-1.5 rounded-md px-2.5 py-1.5"
             style={{
               background:
-                "linear-gradient(180deg, rgba(255,255,255,0.042), rgba(255,255,255,0.018))",
+                "linear-gradient(180deg, rgba(255,255,255,0.028), rgba(255,255,255,0.01))",
               border: draft.query
-                ? "1px solid rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.3)"
-                : "1px solid rgba(255,255,255,0.06)",
+                ? "1px solid rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.22)"
+                : "1px solid rgba(255,255,255,0.045)",
               transition: "border-color 0.2s ease",
             }}
           >
@@ -415,15 +415,15 @@ export default function SearchPanel({ files = [], onFileSelect }) {
               onClick={() => setShowScopes((value) => !value)}
               aria-expanded={scopeControlsVisible}
               title="Include-/Exclude-Scopes anzeigen"
-              className="flex min-h-7 min-w-0 items-center justify-center gap-1 rounded-lg px-2 py-1 text-[10px] font-semibold leading-tight transition-colors"
+              className="flex min-h-7 min-w-0 items-center justify-center gap-1 rounded-md px-2 py-1 text-[10px] font-semibold leading-tight transition-colors"
               style={{
                 background: scopeControlsVisible
-                  ? "rgba(56,189,248,0.1)"
-                  : "rgba(255,255,255,0.024)",
+                  ? "rgba(56,189,248,0.08)"
+                  : "rgba(255,255,255,0.014)",
                 color: scopeControlsVisible ? "#93c5fd" : "#8b93a7",
                 border: scopeControlsVisible
-                  ? "1px solid rgba(56,189,248,0.2)"
-                  : "1px solid rgba(255,255,255,0.055)",
+                  ? "1px solid rgba(56,189,248,0.16)"
+                  : "1px solid rgba(255,255,255,0.04)",
               }}
             >
               <SlidersHorizontal size={12} className="shrink-0" />
@@ -442,7 +442,7 @@ export default function SearchPanel({ files = [], onFileSelect }) {
                 transition={{ duration: 0.18 }}
                 style={{ overflow: "hidden" }}
               >
-                <div className="grid grid-cols-1 gap-2 rounded-lg border border-white/[0.052] bg-black/15 p-2">
+                <div className="grid grid-cols-1 gap-2 rounded-md border border-white/[0.04] bg-black/12 p-2">
                   <ScopeInput
                     label="Include"
                     value={draft.include}
@@ -477,11 +477,11 @@ export default function SearchPanel({ files = [], onFileSelect }) {
       <PanelBody>
         {showResults && (
           <div
-            className="sticky top-0 z-10 mx-2 mt-2 rounded-xl border px-3 py-2 backdrop-blur-md"
+            className="sticky top-0 z-10 mx-2 mt-2 rounded-md border px-2.5 py-1.5 backdrop-blur-md"
             style={{
               background:
-                "linear-gradient(180deg, rgba(8,11,20,0.96), rgba(5,7,14,0.91))",
-              borderColor: "rgba(255,255,255,0.055)",
+                "rgba(5,8,15,0.9)",
+              borderColor: "rgba(255,255,255,0.04)",
             }}
           >
             <div className="flex min-w-0 flex-wrap items-start justify-between gap-2">
@@ -526,9 +526,9 @@ export default function SearchPanel({ files = [], onFileSelect }) {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, height: 0 }}
                   transition={{ delay: Math.min(index * 0.025, 0.16), duration: 0.18 }}
-                  className="mx-2 mt-1 overflow-hidden rounded-xl border border-white/[0.045] bg-white/[0.014]"
+                  className="mx-2 mt-1 overflow-hidden rounded-md border border-white/[0.032] bg-white/[0.008]"
                 >
-                  <div className="group flex w-full items-center gap-1.5 px-3 py-2 transition-colors hover:bg-white/[0.038]">
+                  <div className="group flex w-full items-center gap-1.5 px-3 py-2 transition-colors hover:bg-white/[0.03]">
                     <button
                       type="button"
                       onClick={() => toggleCollapse(groupKey)}
@@ -598,7 +598,7 @@ export default function SearchPanel({ files = [], onFileSelect }) {
                         {group.matches.map((match, matchIndex) => (
                           <div
                             key={`${match.lineNumber}:${match.column}:${matchIndex}`}
-                            className="group flex items-start gap-1 px-2 py-1 transition-colors hover:bg-sky-400/[0.055]"
+                            className="group flex items-start gap-1 px-2 py-1 transition-colors hover:bg-sky-400/[0.038]"
                           >
                             <button
                               type="button"
