@@ -160,16 +160,32 @@ async function collectLayoutMetrics(webContents, scenario) {
           clientWidth: document.documentElement.clientWidth,
           clientHeight: document.documentElement.clientHeight,
         };
-        const editorScroller = document.querySelector('.nx-code-editor-shell .cm-scroller');
+        const editorShell = document.querySelector('.nx-code-editor-shell');
+        const editorScroller = editorShell?.querySelector('.cm-scroller') || null;
         const editorScrollerMetrics = editorScroller
           ? (() => {
+              editorScroller.scrollTop = 0;
               const beforeTop = editorScroller.scrollTop;
-              editorScroller.scrollTop = Math.min(
+              const targetTop = Math.min(
                 180,
                 Math.max(0, editorScroller.scrollHeight - editorScroller.clientHeight),
               );
+              editorScroller.scrollTop = targetTop;
               const afterTop = editorScroller.scrollTop;
-              editorScroller.scrollTop = beforeTop;
+              editorScroller.scrollTop = 0;
+              const tokenColors = Array.from(
+                editorShell.querySelectorAll('.cm-content .cm-line span'),
+              )
+                .slice(0, 280)
+                .map((node) => window.getComputedStyle(node).color)
+                .filter(Boolean);
+              const uniqueTokenColors = Array.from(new Set(tokenColors));
+              const lineText = Array.from(
+                editorShell.querySelectorAll('.cm-content .cm-line'),
+              )
+                .slice(0, 10)
+                .map((node) => node.textContent || '')
+                .join('\\n');
               return {
                 exists: true,
                 scrollTopBefore: beforeTop,
@@ -179,10 +195,39 @@ async function collectLayoutMetrics(webContents, scenario) {
                 scrollWidth: editorScroller.scrollWidth,
                 clientWidth: editorScroller.clientWidth,
                 scrollableY: editorScroller.scrollHeight > editorScroller.clientHeight + 8,
-                didScrollY: afterTop > beforeTop,
+                didScrollY: targetTop > 0 && afterTop > beforeTop,
+                syntaxColorCount: uniqueTokenColors.length,
+                syntaxColors: uniqueTokenColors.slice(0, 12),
+                sampleText: lineText.slice(0, 500),
               };
             })()
-          : { exists: false };
+          : (() => {
+              const fallback = editorShell?.querySelector('.nx-code-editor-fallback') || null;
+              if (!fallback) return { exists: false };
+              fallback.scrollTop = 0;
+              const targetTop = Math.min(
+                180,
+                Math.max(0, fallback.scrollHeight - fallback.clientHeight),
+              );
+              fallback.scrollTop = targetTop;
+              const afterTop = fallback.scrollTop;
+              fallback.scrollTop = 0;
+              return {
+                exists: true,
+                fallback: true,
+                scrollTopBefore: 0,
+                scrollTopAfterProbe: afterTop,
+                scrollHeight: fallback.scrollHeight,
+                clientHeight: fallback.clientHeight,
+                scrollWidth: fallback.scrollWidth,
+                clientWidth: fallback.clientWidth,
+                scrollableY: fallback.scrollHeight > fallback.clientHeight + 8,
+                didScrollY: targetTop > 0 && afterTop > 0,
+                syntaxColorCount: 0,
+                syntaxColors: [],
+                sampleText: fallback.value?.slice(0, 500) || '',
+              };
+            })();
 
         return {
           url: window.location.href,
@@ -298,6 +343,8 @@ function validateResult(scenario, metrics, imageStats) {
   if (scenario.surfaceId === "editor-scroll") {
     if (!metrics.editorScroller?.exists) {
       failures.push("code editor scroller is missing");
+    } else if (metrics.editorScroller.fallback) {
+      failures.push("code editor rendered textarea fallback instead of CodeMirror");
     } else {
       if (!metrics.editorScroller.scrollableY) {
         failures.push(
@@ -307,6 +354,11 @@ function validateResult(scenario, metrics, imageStats) {
       if (!metrics.editorScroller.didScrollY) {
         failures.push(
           `code editor scroll probe did not move (${metrics.editorScroller.scrollTopBefore}->${metrics.editorScroller.scrollTopAfterProbe})`,
+        );
+      }
+      if (metrics.editorScroller.syntaxColorCount < 4) {
+        failures.push(
+          `code editor syntax highlighting has too few token colors (${metrics.editorScroller.syntaxColorCount})`,
         );
       }
     }
