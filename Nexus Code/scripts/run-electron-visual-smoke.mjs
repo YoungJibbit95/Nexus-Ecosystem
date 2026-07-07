@@ -22,22 +22,54 @@ const outputDir =
   process.env.NEXUS_CODE_VISUAL_SMOKE_OUTPUT_DIR ||
   path.join(os.tmpdir(), "nexus-code-visual-smoke");
 
-const VIEWPORTS = Object.freeze([
+const ALL_VIEWPORTS = Object.freeze([
   { id: "desktop", width: 1440, height: 900 },
   { id: "tablet", width: 1024, height: 768 },
   { id: "short-wide", width: 900, height: 512 },
   { id: "phone-portrait", width: 390, height: 900 },
 ]);
 
-const SURFACES = Object.freeze([
+const ALL_SURFACES = Object.freeze([
   "workbench-shell",
+  "editor-scroll",
   "launchpad",
   "account-panel",
   "settings-panel",
-  "code-editor",
   "panel-chrome",
   "github-workbench",
+  "github-projects",
 ]);
+
+function parseFilter(value, allowed, label) {
+  const requested = String(value || "")
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+  if (requested.length === 0) return allowed;
+
+  const allowedSet = new Set(allowed);
+  const unknown = requested.filter((entry) => !allowedSet.has(entry));
+  if (unknown.length) {
+    throw new Error(`Unknown visual smoke ${label}: ${unknown.join(", ")}`);
+  }
+  return requested;
+}
+
+const VIEWPORTS = Object.freeze(
+  parseFilter(
+    process.env.NEXUS_CODE_VISUAL_SMOKE_VIEWPORTS,
+    ALL_VIEWPORTS.map((viewport) => viewport.id),
+    "viewport",
+  ).map((id) => ALL_VIEWPORTS.find((viewport) => viewport.id === id)),
+);
+
+const SURFACES = Object.freeze(
+  parseFilter(
+    process.env.NEXUS_CODE_VISUAL_SMOKE_SURFACES,
+    ALL_SURFACES,
+    "surface",
+  ),
+);
 
 const scenarios = VIEWPORTS.flatMap((viewport) =>
   SURFACES.map((surfaceId) => ({

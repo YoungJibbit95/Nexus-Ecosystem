@@ -83,9 +83,12 @@ import {
   resolveExtensions,
 } from "../pages/editor/extensionSystem.js";
 import {
+  GITHUB_PANEL_METHOD_REQUIREMENTS,
+  GITHUB_PLATFORM_ERROR_KINDS,
   classifyGithubPlatformError,
   formatGithubPlatformError,
   getGithubCapabilityStatus,
+  getGithubPlatformCapability,
   getGithubRepositoryError,
   normalizeGithubRepositoryInput,
 } from "../pages/editor/githubWorkbenchModel.js";
@@ -122,6 +125,26 @@ const {
   createServerStatusSnapshot,
   resolveServerConfig,
 } = require("../../electron/services/lspProcessService.cjs");
+const { createGithubService } = require("../../electron/services/githubService.cjs");
+const { REQUIRED_SCOPES: GITHUB_REQUIRED_SCOPES } = require("../../electron/services/githubAuthService.cjs");
+
+function createGithubJsonResponse(data, options = {}) {
+  const status = options.status || 200;
+  const headers = new Map(
+    Object.entries(options.headers || {}).map(([key, value]) => [
+      key.toLowerCase(),
+      String(value),
+    ]),
+  );
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    headers: {
+      get: (key) => headers.get(String(key).toLowerCase()) || null,
+    },
+    text: async () => (data === undefined ? "" : JSON.stringify(data)),
+  };
+}
 
 function getNodeRowNames(model) {
   return model.rows
@@ -1144,15 +1167,36 @@ const scenarios = [
       const repo = normalizeGithubRepositoryInput(
         "https://github.com/NexusLab/nexus-code.git?tab=readme",
       );
+      const sshRepo = normalizeGithubRepositoryInput("git@github.com:NexusLab/nexus-code.git");
+      const issueUrlRepo = normalizeGithubRepositoryInput(
+        "https://github.com/NexusLab/nexus-code/issues/42",
+      );
+      const issueRequirements = GITHUB_PANEL_METHOD_REQUIREMENTS.issues;
+      const projectRequirements = GITHUB_PANEL_METHOD_REQUIREMENTS.projects;
       const partialStatus = getGithubCapabilityStatus({
         available: true,
         methods: ["issues"],
-        missingMethods: ["createIssue"],
+        requiredMethods: issueRequirements,
+        missingMethods: ["createIssue", "updateIssue"],
       });
-      const offlineStatus = getGithubCapabilityStatus({
+      const projectsPartialStatus = getGithubCapabilityStatus({
+        available: true,
+        methods: ["projectsV2", "projectV2"],
+        requiredMethods: projectRequirements,
+        missingMethods: [
+          "projectV2Items",
+          "addProjectV2Item",
+          "updateProjectV2ItemField",
+        ],
+      });
+      const offlineStatus = getGithubCapabilityStatus(
+        getGithubPlatformCapability(issueRequirements),
+      );
+      const projectsOfflineStatus = getGithubCapabilityStatus({
         available: false,
         methods: [],
-        missingMethods: ["issues"],
+        requiredMethods: projectRequirements,
+        missingMethods: projectRequirements,
       });
       const auth = classifyGithubPlatformError({
         status: 401,
@@ -1163,6 +1207,25 @@ const scenarios = [
         message: "Resource not accessible by integration",
         details: { scopes: { missingScopes: ["project"] } },
       });
+      const missingProjectMethod = classifyGithubPlatformError({
+        message: "GitHub platform bridge does not expose projectV2Items.",
+        details: {
+          code: "GITHUB_METHOD_UNAVAILABLE",
+          methodKey: "projectV2Items",
+          hint: "Projects panel requires the Projects v2 IPC set.",
+        },
+      });
+      const projectsScopeMessage = formatGithubPlatformError(
+        {
+          status: 403,
+          message: "Resource not accessible by integration",
+          details: {
+            scopes: { missingScopes: ["project", "read:org"] },
+            documentationUrl: "https://docs.github.com/graphql",
+          },
+        },
+        "Projects could not be loaded.",
+      );
       const validationMessage = formatGithubPlatformError(
         {
           status: 422,
@@ -1171,19 +1234,149 @@ const scenarios = [
         },
         "GitHub data could not be loaded.",
       );
+      const invalidInput = classifyGithubPlatformError({
+        message: "repo is not a valid GitHub repository name.",
+        details: { code: "GITHUB_INVALID_ARGUMENT" },
+      });
+      const notFound = classifyGithubPlatformError({
+        message: "Could not resolve to a Repository with the name 'missing'.",
+        details: { errors: [{ type: "NOT_FOUND" }] },
+      });
 
       assert.deepEqual(repo, {
         owner: "NexusLab",
         repo: "nexus-code",
         label: "NexusLab/nexus-code",
       });
+      assert.deepEqual(sshRepo, repo);
+      assert.deepEqual(issueUrlRepo, repo);
       assert.equal(getGithubRepositoryError(repo), "");
       assert.equal(getGithubRepositoryError({ owner: "NexusLab", repo: "" }).includes("owner/repo"), true);
+      assert.match(
+        getGithubRepositoryError(normalizeGithubRepositoryInput("NexusLab/not a repo")),
+        /repository name/,
+      );
+      assert.deepEqual(issueRequirements, ["issues", "createIssue", "updateIssue"]);
+      assert.deepEqual(projectRequirements, [
+        "projectsV2",
+        "projectV2",
+        "projectV2Items",
+        "addProjectV2Item",
+        "updateProjectV2ItemField",
+      ]);
       assert.equal(partialStatus.id, "partial");
+      assert.match(partialStatus.detail, /createIssue/);
+      assert.match(partialStatus.detail, /updateIssue/);
+      assert.equal(projectsPartialStatus.id, "partial");
+      assert.match(projectsPartialStatus.detail, /projectV2Items/);
+      assert.match(projectsPartialStatus.detail, /updateProjectV2ItemField/);
       assert.equal(offlineStatus.id, "offline");
-      assert.equal(auth.kind, "auth");
-      assert.equal(scope.kind, "scope");
+      assert.match(offlineStatus.detail, /Electron GitHub bridge/);
+      assert.equal(projectsOfflineStatus.id, "offline");
+      assert.equal(projectsOfflineStatus.label, "Bridge offline");
+      assert.equal(auth.kind, GITHUB_PLATFORM_ERROR_KINDS.auth);
+      assert.equal(scope.kind, GITHUB_PLATFORM_ERROR_KINDS.scope);
+      assert.equal(missingProjectMethod.kind, GITHUB_PLATFORM_ERROR_KINDS.methodUnavailable);
+      assert.match(missingProjectMethod.detail, /desktop runtime/);
+      assert.equal(invalidInput.kind, GITHUB_PLATFORM_ERROR_KINDS.validation);
+      assert.equal(notFound.kind, GITHUB_PLATFORM_ERROR_KINDS.notFound);
+      assert.match(projectsScopeMessage, /Projects v2/);
+      assert.match(projectsScopeMessage, /project, read:org/);
       assert.match(validationMessage, /Head branch was not found/);
+    },
+  },
+  {
+    id: "github-service-issues-projects-contracts",
+    title: "github service normalizes repos and resolves project content through REST before GraphQL",
+    async run() {
+      const originalFetch = globalThis.fetch;
+      const calls = [];
+      const issue = {
+        id: 7,
+        node_id: "I_listedIssueNode",
+        number: 7,
+        title: "Issue from REST",
+        state: "open",
+        locked: false,
+        body: "",
+        labels: [],
+        assignees: [],
+        milestone: null,
+        user: { id: 1, login: "octo", html_url: "https://github.com/octo" },
+        comments: 0,
+        html_url: "https://github.com/NexusLab/nexus-code/issues/7",
+        url: "https://api.github.com/repos/NexusLab/nexus-code/issues/7",
+        created_at: "2026-07-07T00:00:00Z",
+        updated_at: "2026-07-07T00:00:00Z",
+        closed_at: null,
+      };
+
+      globalThis.fetch = async (url, options = {}) => {
+        const parsed = new URL(String(url));
+        const method = options.method || "GET";
+        const body = options.body ? JSON.parse(options.body) : null;
+        calls.push({ method, pathname: parsed.pathname, search: parsed.search, body });
+
+        if (method === "GET" && parsed.pathname === "/repos/NexusLab/nexus-code/issues") {
+          return createGithubJsonResponse([issue]);
+        }
+
+        if (method === "GET" && parsed.pathname === "/repos/NexusLab/nexus-code/issues/42") {
+          return createGithubJsonResponse({ ...issue, id: 42, node_id: "I_resolvedIssueNode", number: 42 });
+        }
+
+        if (method === "POST" && parsed.pathname === "/graphql") {
+          return createGithubJsonResponse({
+            data: {
+              addProjectV2ItemById: {
+                item: {
+                  id: "PVTI_itemNode1",
+                  type: "ISSUE",
+                  isArchived: false,
+                  createdAt: "2026-07-07T00:00:00Z",
+                  updatedAt: "2026-07-07T00:00:00Z",
+                },
+              },
+            },
+          });
+        }
+
+        throw new Error(`unexpected GitHub test request: ${method} ${parsed.pathname}`);
+      };
+
+      try {
+        const service = createGithubService({
+          tokenStore: {
+            getToken: async () => "gh-test-token",
+          },
+        });
+        const issues = await service.listIssues({
+          repository: "https://github.com/NexusLab/nexus-code.git/issues/7?plain=1",
+          state: "open",
+        });
+        const addResult = await service.addProjectV2ItemById({
+          projectId: "PVT_projectNode1",
+          owner: "NexusLab",
+          repo: "nexus-code",
+          contentRef: "#42",
+          contentType: "issue",
+        });
+
+        assert.equal(issues.issues[0]?.nodeId, "I_listedIssueNode");
+        assert.equal(addResult.item.id, "PVTI_itemNode1");
+        assert.equal(calls[0]?.pathname, "/repos/NexusLab/nexus-code/issues");
+        assert.equal(calls[0]?.search.includes("state=open"), true);
+        assert.equal(calls[1]?.pathname, "/repos/NexusLab/nexus-code/issues/42");
+        assert.equal(calls[2]?.pathname, "/graphql");
+        assert.equal(calls[2]?.body.variables.contentId, "I_resolvedIssueNode");
+        assert.equal(GITHUB_REQUIRED_SCOPES.includes("read:org"), true);
+      } finally {
+        if (originalFetch) {
+          globalThis.fetch = originalFetch;
+        } else {
+          delete globalThis.fetch;
+        }
+      }
     },
   },
   {

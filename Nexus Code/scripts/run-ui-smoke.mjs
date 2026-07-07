@@ -22,12 +22,14 @@ const REQUIRED_VIEWPORTS = Object.freeze([
 
 const REQUIRED_SURFACES = Object.freeze([
   "workbench-shell",
+  "editor-scroll",
   "launchpad",
   "file-explorer",
   "account-panel",
   "settings-panel",
   "panel-chrome",
   "github-workbench",
+  "github-projects",
 ]);
 
 async function assertHarnessBoundary() {

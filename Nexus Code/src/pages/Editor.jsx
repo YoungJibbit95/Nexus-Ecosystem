@@ -7,6 +7,7 @@ import {
   FileText,
   Folder,
   GripVertical,
+  MoreHorizontal,
   PanelBottom,
   PanelLeft,
   PanelRight,
@@ -142,15 +143,14 @@ const DOCK_ZONE_OPTIONS = Object.freeze([
     dropClassName: "left-1/2 top-3 w-60 max-w-[90vw] -translate-x-1/2",
   },
 ]);
+const DOCK_MENU_LABELS = Object.freeze({
+  [WORKBENCH_SNAP_ZONES.left]: "Links docken",
+  [WORKBENCH_SNAP_ZONES.right]: "Rechts docken",
+  [WORKBENCH_SNAP_ZONES.bottom]: "Unten docken",
+  [WORKBENCH_SNAP_ZONES.hidden]: "Ausblenden",
+});
 const loadSettingsPanel = () => import("../components/editor/SettingsPanel");
 const SettingsPanel = React.lazy(() => loadSettingsPanel());
-
-function getNextOptionId(options, currentId) {
-  if (!options.length) return currentId;
-  const currentIndex = options.findIndex((option) => option.id === currentId);
-  const nextIndex = currentIndex === -1 ? 0 : (currentIndex + 1) % options.length;
-  return options[nextIndex]?.id || currentId;
-}
 
 function getWorkbenchDragPanelId(event, fallbackPanelId = null) {
   const transfer = event?.dataTransfer;
@@ -290,36 +290,6 @@ function StatusItem({
   );
 }
 
-function SidePanelSizeControl({ value, onChange, className = "" }) {
-  return (
-    <div
-      className={`grid h-7 w-[5.25rem] shrink-0 grid-cols-3 overflow-hidden rounded-md border border-white/10 bg-white/[0.03] ${className}`}
-      role="group"
-      aria-label="Side panel width"
-    >
-      {SIDE_PANEL_SIZE_OPTIONS.map((option) => {
-        const isActive = option.id === value;
-        return (
-          <button
-            key={option.id}
-            type="button"
-            onClick={() => onChange(option.id)}
-            aria-pressed={isActive}
-            title={`Panelbreite: ${option.title}`}
-            className={`flex min-w-0 items-center justify-center text-[10px] font-semibold leading-none transition-colors ${
-              isActive
-                ? "bg-white/12 text-white"
-                : "text-[var(--nexus-muted)] hover:bg-white/[0.07] hover:text-gray-200"
-            }`}
-          >
-            {option.label}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
 function DockDragHandle({
   panelId,
   label,
@@ -344,43 +314,113 @@ function DockDragHandle({
   );
 }
 
-function DockZoneButtonGroup({
-  panelId,
-  activeZone,
-  onDockPanel,
-  className = "",
-}) {
-  if (!panelId) return null;
-  const panelTitle = getPanelMeta(panelId).title;
+function WorkbenchMenuItem({ item, onSelect }) {
+  if (item.separator) {
+    return <div className="my-1 h-px bg-white/[0.07]" role="separator" />;
+  }
+
+  const Icon = item.icon;
 
   return (
-    <div
-      className={`grid h-7 w-[7rem] shrink-0 grid-cols-4 overflow-hidden rounded-md border border-white/10 bg-white/[0.03] ${className}`}
-      role="group"
-      aria-label={`${panelTitle} Dock-Zone`}
+    <button
+      type="button"
+      onClick={() => {
+        item.action?.();
+        onSelect();
+      }}
+      disabled={item.disabled}
+      className={`nx-code-menu-item ${item.active ? "is-active" : ""} ${
+        item.disabled ? "is-disabled" : ""
+      }`}
+      role="menuitem"
     >
-      {DOCK_ZONE_OPTIONS.map(({ zone, label, Icon }) => {
-        const isActive = activeZone === zone;
-        return (
-          <button
-            key={zone}
-            type="button"
-            onClick={() => onDockPanel?.(panelId, zone)}
-            aria-pressed={isActive}
-            title={`${panelTitle} nach ${label}`}
-            className={`flex min-w-0 items-center justify-center text-[10px] font-bold transition ${
-              isActive
-                ? "bg-white/12 text-white"
-                : "text-[var(--nexus-muted)] hover:bg-white/[0.07] hover:text-gray-200"
-            }`}
-          >
-            <Icon size={13} />
-            <span className="sr-only">{label}</span>
-          </button>
-        );
-      })}
+      <span className="flex min-w-0 flex-1 items-center gap-2">
+        {Icon ? <Icon size={13} className="shrink-0" /> : null}
+        <span className="min-w-0 truncate">{item.label}</span>
+      </span>
+      {item.shortcut ? (
+        <span className="shrink-0 text-[9px] font-semibold tabular-nums text-gray-500">
+          {item.shortcut}
+        </span>
+      ) : null}
+    </button>
+  );
+}
+
+function WorkbenchOverflowButton({
+  title = "Workbench Optionen",
+  items,
+  align = "right",
+}) {
+  const [open, setOpen] = useState(false);
+  const menuRef = useRef(null);
+
+  useEffect(() => {
+    if (!open) return undefined;
+
+    const close = () => setOpen(false);
+    const onPointerDown = (event) => {
+      const target = event.target;
+      if (target instanceof Node && menuRef.current?.contains(target)) return;
+      close();
+    };
+    const onKeyDown = (event) => {
+      if (event.key === "Escape") close();
+    };
+
+    window.addEventListener("pointerdown", onPointerDown);
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("blur", close);
+
+    return () => {
+      window.removeEventListener("pointerdown", onPointerDown);
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("blur", close);
+    };
+  }, [open]);
+
+  const xClass = align === "left" ? "left-0" : "right-0";
+
+  return (
+    <div className="relative shrink-0" ref={menuRef}>
+      <button
+        type="button"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label={title}
+        onClick={() => setOpen((prev) => !prev)}
+        className="nx-code-workbench-menu-trigger flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-white/10 text-[var(--nexus-muted)] transition-colors hover:border-white/20 hover:bg-white/10 hover:text-gray-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500/60"
+        title={title}
+      >
+        <MoreHorizontal size={13} />
+      </button>
+      {open ? (
+        <div
+          className={`nx-code-menu-dropdown nx-code-workbench-menu absolute ${xClass} top-full z-50 mt-1 w-[min(14rem,calc(100vw-1rem))] overflow-hidden p-1`}
+          role="menu"
+        >
+          {items.map((item, index) => (
+            <WorkbenchMenuItem
+              key={`${item.label || "separator"}-${index}`}
+              item={item}
+              onSelect={() => setOpen(false)}
+            />
+          ))}
+        </div>
+      ) : null}
     </div>
   );
+}
+
+function getDockMenuItems(panelId, activeZone, onDockPanel) {
+  if (!panelId) return [];
+
+  return DOCK_ZONE_OPTIONS.map(({ zone, Icon }) => ({
+    label: DOCK_MENU_LABELS[zone] || zone,
+    icon: Icon,
+    active: activeZone === zone,
+    action: () => onDockPanel?.(panelId, zone),
+  }));
 }
 
 function getDockZonePanelSummary(panelIds) {
@@ -407,11 +447,26 @@ function CompactBottomDockBar({
 }) {
   if (!activePanelId) return null;
   const meta = getPanelMeta(activePanelId);
-  const nextSize = getNextOptionId(BOTTOM_PANEL_SIZE_OPTIONS, size);
+  const bottomMenuItems = [
+    ...BOTTOM_PANEL_SIZE_OPTIONS.map((option) => ({
+      label: `Hoehe ${option.title}`,
+      icon: PanelBottom,
+      active: option.id === size,
+      action: () => onSizeChange?.(option.id),
+    })),
+    { separator: true },
+    ...getDockMenuItems(activePanelId, activeZone, onDockPanel),
+    { separator: true },
+    {
+      label: "Layout zuruecksetzen",
+      icon: RefreshCcw,
+      action: onResetLayout,
+    },
+  ];
 
   return (
     <div
-      className="nx-code-bottom-dock-bar flex h-9 shrink-0 items-center gap-2 overflow-x-auto border-b border-white/5 px-2"
+      className="nx-code-bottom-dock-bar flex h-9 shrink-0 items-center gap-2 overflow-visible border-b border-white/5 px-2"
       style={{ background: "rgba(0,0,0,0.14)" }}
     >
       <DockDragHandle
@@ -425,27 +480,10 @@ function CompactBottomDockBar({
           {meta.title}
         </div>
       </div>
-      <DockZoneButtonGroup
-        panelId={activePanelId}
-        activeZone={activeZone}
-        onDockPanel={onDockPanel}
+      <WorkbenchOverflowButton
+        title="Bottom-Dock Optionen"
+        items={bottomMenuItems}
       />
-      <button
-        type="button"
-        onClick={() => onSizeChange?.(nextSize)}
-        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-white/10 text-[var(--nexus-muted)] transition-colors hover:border-white/20 hover:bg-white/10 hover:text-gray-200"
-        title="Bottom-Dock Groesse wechseln"
-      >
-        <PanelBottom size={13} />
-      </button>
-      <button
-        type="button"
-        onClick={onResetLayout}
-        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-white/10 text-[var(--nexus-muted)] transition-colors hover:border-white/20 hover:bg-white/10 hover:text-gray-200"
-        title="Workbench Layout zuruecksetzen"
-      >
-        <RefreshCcw size={13} />
-      </button>
       <button
         type="button"
         onClick={onClose}
@@ -531,67 +569,45 @@ function BottomDockControls({
   compact = false,
 }) {
   if (compact) return null;
+  const bottomMenuItems = [
+    ...WORKBENCH_PRESET_OPTIONS.map((option) => ({
+      label: `Layout ${option.title}`,
+      icon: RefreshCcw,
+      active: option.id === presetId,
+      action: () => onPresetChange(option.id),
+    })),
+    { separator: true },
+    ...BOTTOM_PANEL_SIZE_OPTIONS.map((option) => ({
+      label: `Hoehe ${option.title}`,
+      icon: PanelBottom,
+      active: option.id === size,
+      action: () => onSizeChange(option.id),
+    })),
+    { separator: true },
+    ...getDockMenuItems(activePanelId, activeZone, onDockPanel),
+    { separator: true },
+    {
+      label: "Layout zuruecksetzen",
+      icon: RefreshCcw,
+      action: onResetLayout,
+    },
+  ];
 
   return (
-    <div className="hidden shrink-0 items-center gap-1.5 lg:flex">
-      <div
-        className="grid h-7 w-[5.25rem] shrink-0 grid-cols-3 overflow-hidden rounded-md border border-white/10 bg-white/[0.03]"
-        role="group"
-        aria-label="Workbench layout preset"
-      >
-        {WORKBENCH_PRESET_OPTIONS.map((option) => {
-          const isActive = option.id === presetId;
-          return (
-            <button
-              key={option.id}
-              type="button"
-              onClick={() => onPresetChange(option.id)}
-              aria-pressed={isActive}
-              title={`Layout: ${option.title}`}
-              className={`flex min-w-0 items-center justify-center text-[10px] font-semibold leading-none transition-colors ${
-                isActive
-                  ? "bg-white/12 text-white"
-                  : "text-[var(--nexus-muted)] hover:bg-white/[0.07] hover:text-gray-200"
-              }`}
-            >
-              {option.label.slice(0, 1)}
-            </button>
-          );
-        })}
-      </div>
-      <div
-        className="grid h-7 w-[5.25rem] shrink-0 grid-cols-3 overflow-hidden rounded-md border border-white/10 bg-white/[0.03]"
-        role="group"
-        aria-label="Bottom dock height"
-      >
-        {BOTTOM_PANEL_SIZE_OPTIONS.map((option) => {
-          const isActive = option.id === size;
-          return (
-            <button
-              key={option.id}
-              type="button"
-              onClick={() => onSizeChange(option.id)}
-              aria-pressed={isActive}
-              title={`Dockhoehe: ${option.title}`}
-              className={`flex min-w-0 items-center justify-center text-[10px] font-semibold leading-none transition-colors ${
-                isActive
-                  ? "bg-white/12 text-white"
-                  : "text-[var(--nexus-muted)] hover:bg-white/[0.07] hover:text-gray-200"
-              }`}
-            >
-              {option.label}
-            </button>
-          );
-        })}
-      </div>
-      <button
-        type="button"
-        onClick={onResetLayout}
-        className="flex h-7 min-w-[4.2rem] shrink-0 items-center justify-center rounded-md border border-white/10 px-2 text-[10px] font-bold text-[var(--nexus-muted)] transition-colors hover:border-white/20 hover:bg-white/10 hover:text-gray-200"
-        title="Workbench Layout zuruecksetzen"
-      >
-        Reset
-      </button>
+    <div className="hidden shrink-0 items-center gap-1 lg:flex">
+      {activePanelId ? (
+        <React.Fragment>
+          <DockDragHandle
+            panelId={activePanelId}
+            onDragStart={onPanelDragStart}
+            onDragEnd={onPanelDragEnd}
+          />
+          <WorkbenchOverflowButton
+            title="Bottom-Dock Optionen"
+            items={bottomMenuItems}
+          />
+        </React.Fragment>
+      ) : null}
       <button
         type="button"
         onClick={onClose}
@@ -600,20 +616,6 @@ function BottomDockControls({
       >
         <XCircle size={13} />
       </button>
-      {activePanelId ? (
-        <>
-          <DockDragHandle
-            panelId={activePanelId}
-            onDragStart={onPanelDragStart}
-            onDragEnd={onPanelDragEnd}
-          />
-          <DockZoneButtonGroup
-            panelId={activePanelId}
-            activeZone={activeZone}
-            onDockPanel={onDockPanel}
-          />
-        </>
-      ) : null}
     </div>
   );
 }
@@ -628,15 +630,23 @@ function SidePanelFrame({
   onPanelDragStart,
   onPanelDragEnd,
   snapZone,
-  compact = false,
 }) {
   const meta = getPanelMeta(panelId);
-  const nextSidePanelSize = getNextOptionId(SIDE_PANEL_SIZE_OPTIONS, sidePanelSize);
+  const sidePanelMenuItems = [
+    ...SIDE_PANEL_SIZE_OPTIONS.map((option) => ({
+      label: `Breite ${option.title}`,
+      icon: PanelLeft,
+      active: option.id === sidePanelSize,
+      action: () => onSidePanelSizeChange?.(option.id),
+    })),
+    { separator: true },
+    ...getDockMenuItems(panelId, snapZone, onDockPanel),
+  ];
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
       <div
-        className="nx-code-panel-windowbar flex h-9 shrink-0 items-center gap-1.5 overflow-x-auto border-b border-white/[0.04] px-2"
+        className="nx-code-panel-windowbar flex h-9 shrink-0 items-center gap-1.5 overflow-visible border-b border-white/[0.04] px-2"
         style={{ background: "rgba(0,0,0,0.08)" }}
       >
         <DockDragHandle
@@ -649,30 +659,14 @@ function SidePanelFrame({
           <div className="truncate text-[11px] font-semibold text-[var(--nx-code-strong-text)]">
             {meta.title}
           </div>
-          <div className="hidden truncate text-[10px] text-[var(--nx-code-muted-text)] xl:block">
-            {meta.detail}
-          </div>
         </div>
-        <SidePanelSizeControl
-          value={sidePanelSize}
-          onChange={onSidePanelSizeChange}
-          className={compact ? "hidden sm:grid" : ""}
+        <WorkbenchOverflowButton
+          title={`${meta.title} Optionen`}
+          items={sidePanelMenuItems}
         />
-        {compact ? (
-          <button
-            type="button"
-            onClick={() => onSidePanelSizeChange?.(nextSidePanelSize)}
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-white/10 text-[var(--nexus-muted)] transition-colors hover:border-white/20 hover:bg-white/10 hover:text-gray-200 sm:hidden"
-            title="Panelbreite wechseln"
-          >
-            <PanelLeft size={13} />
-          </button>
-        ) : null}
-        <DockZoneButtonGroup
-          panelId={panelId}
-          activeZone={snapZone}
-          onDockPanel={onDockPanel}
-        />
+        <span className="sr-only" aria-label="Side panel width">
+          Side panel width
+        </span>
         <button
           type="button"
           onClick={onClose}
@@ -2774,7 +2768,6 @@ export default function Editor({
                     onPanelDragStart={handleWorkbenchPanelDragStart}
                     onPanelDragEnd={handleWorkbenchPanelDragEnd}
                     snapZone={sidePanelSlot.snapZone}
-                    compact={isCompactViewport}
                   >
                     {visibleActivePanel === "explorer" && (
                       <FileExplorer
@@ -2952,7 +2945,7 @@ export default function Editor({
                 >
                   {statusStripVisible && (
                     <div
-                      className="nx-code-status-strip min-h-10 px-3 py-1.5 flex items-center gap-2 border-b border-white/[0.045] overflow-hidden"
+                      className="nx-code-status-strip min-h-10 px-3 py-1.5 flex items-center gap-2 border-b border-white/[0.045] overflow-visible"
                       style={{ background: "rgba(0,0,0,0.12)" }}
                     >
                       <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden">

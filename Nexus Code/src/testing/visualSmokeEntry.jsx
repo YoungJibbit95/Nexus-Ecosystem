@@ -4,7 +4,9 @@ import "../globals.css";
 import {
   UI_SMOKE_FIXTURE_ACCOUNT_SESSION,
   UI_SMOKE_FIXTURE_CONTROL_STATUS,
+  UI_SMOKE_FIXTURE_GITHUB_PROJECT_OWNER,
   UI_SMOKE_FIXTURE_GITHUB_REPOSITORY,
+  UI_SMOKE_FIXTURE_LONG_EDITOR_CODE,
   UI_SMOKE_FIXTURE_LONG_LABELS,
   UI_SMOKE_FIXTURE_WORKSPACE_PATH,
   createUiSmokeCallbacks,
@@ -29,11 +31,6 @@ const VIEWPORTS = Object.freeze([
   { id: "short-wide", width: 900, height: 512 },
   { id: "phone-portrait", width: 390, height: 900 },
 ]);
-
-const LONG_EDITOR_SOURCE = Array.from({ length: 220 }, (_, index) => {
-  const line = index + 1;
-  return `export const smokeLine${String(line).padStart(3, "0")} = "Nexus Code editor scroll guard ${line}";`;
-}).join("\n");
 
 function SmokeViewport({ viewport, surfaceId: currentSurfaceId, children }) {
   return (
@@ -178,6 +175,125 @@ function assertVisualSmokeMarkup(scenario, markup) {
   };
 }
 
+function assertTopbarDomContract(scenario) {
+  if (!scenario.topbarContract) return [];
+
+  const topbar = document.querySelector(".nx-code-titlebar");
+  if (!topbar) return ["topbar contract missing .nx-code-titlebar"];
+
+  const failures = [];
+  const rect = topbar.getBoundingClientRect();
+  const text = topbar.textContent || "";
+  const iconButtons = topbar.querySelectorAll(".nx-code-titlebar-icon-button");
+  const bulkyPanelText = [
+    "GitHub Issues",
+    "GitHub Projects",
+    "Pull Requests",
+    "Nexus Account",
+    "No issues found",
+    "No projects found",
+  ];
+
+  if (rect.height > 44) {
+    failures.push(`topbar height ${Math.round(rect.height)}px exceeds compact contract`);
+  }
+  if (!topbar.querySelector(".nx-code-command-center")) {
+    failures.push("topbar missing command center");
+  }
+  if (iconButtons.length < 2) {
+    failures.push(`topbar has ${iconButtons.length} icon buttons, expected at least 2`);
+  }
+  failures.push(
+    ...bulkyPanelText
+      .filter((marker) => text.includes(marker))
+      .map((marker) => `topbar includes bulky panel text "${marker}"`),
+  );
+
+  return failures;
+}
+
+function assertEditorScrollDomContract(scenario) {
+  if (!scenario.editorScrollContract) return [];
+
+  const shell = document.querySelector(".nx-code-editor-shell");
+  const canvas = shell?.querySelector(".nx-code-editor-canvas");
+  const scrollHost = shell?.querySelector(".cm-scroller, .nx-code-editor-fallback");
+  const failures = [];
+
+  if (!shell) return ["editor scroll contract missing editor shell"];
+  if (!canvas) failures.push("editor scroll contract missing editor canvas");
+  if (shell.dataset.editorEngine !== "codemirror") {
+    failures.push(`editor engine is ${shell.dataset.editorEngine || "unknown"}, expected codemirror`);
+  }
+  if (!scrollHost) {
+    failures.push("editor scroll contract missing .cm-scroller or fallback textarea");
+    return failures;
+  }
+
+  const style = window.getComputedStyle(scrollHost);
+  const overflowValue = `${style.overflow} ${style.overflowY}`;
+  const scrollRange = scrollHost.scrollHeight - scrollHost.clientHeight;
+  const beforeScrollTop = scrollHost.scrollTop;
+  const probeScrollTop = Math.min(scrollRange, beforeScrollTop + 160);
+  scrollHost.scrollTop = probeScrollTop;
+  const afterScrollTop = scrollHost.scrollTop;
+  scrollHost.scrollTop = beforeScrollTop;
+
+  if (!/(auto|scroll)/.test(overflowValue)) {
+    failures.push(`editor scroll host overflow is "${overflowValue.trim()}"`);
+  }
+  if (scrollRange < 80) {
+    failures.push(
+      `editor scroll host has insufficient vertical range ${scrollHost.scrollHeight}x${scrollHost.clientHeight}`,
+    );
+  }
+  if (scrollRange > 0 && afterScrollTop <= beforeScrollTop) {
+    failures.push("editor scroll host did not accept scrollTop changes");
+  }
+  if (shell.getBoundingClientRect().height > scenario.viewport.height + 1) {
+    failures.push("editor shell exceeds viewport height");
+  }
+
+  return failures;
+}
+
+function assertGithubFallbackDomContract(scenario) {
+  if (!scenario.githubFallbackContract) return [];
+
+  const frame = document.querySelector(
+    `[data-ui-smoke-surface-frame="${scenario.surfaceId}"]`,
+  );
+  const text = frame?.textContent || "";
+  const isProjects = scenario.githubFallbackContract === "projects";
+  const requiredText = isProjects
+    ? ["GitHub Projects", "Bridge offline", "Desktop bridge unavailable", "Refresh projects"]
+    : ["GitHub Issues", "Bridge offline", "Desktop bridge unavailable", "Refresh issues"];
+  const forbiddenText = [
+    "Bridge ready",
+    "Create issueUpdate selected issue",
+    "Add issue or PR by node ID",
+    "Update project field",
+  ];
+
+  if (!frame) return [`github ${scenario.githubFallbackContract} fallback missing frame`];
+  return [
+    ...requiredText
+      .filter((marker) => !text.includes(marker))
+      .map((marker) => `github ${scenario.githubFallbackContract} fallback missing "${marker}"`),
+    ...forbiddenText
+      .filter((marker) => text.includes(marker))
+      .map((marker) => `github ${scenario.githubFallbackContract} fallback exposes ready UI "${marker}"`),
+  ];
+}
+
+function assertVisualSmokeDomContracts(scenario) {
+  return [
+    ...assertTopbarDomContract(scenario),
+    ...assertEditorScrollDomContract(scenario),
+    ...assertGithubFallbackDomContract(scenario),
+  ];
+}
+
 function PanelChromeSmokeSurface({ components }) {
   const {
     PanelActionButton,
@@ -295,8 +411,16 @@ async function buildScenario(currentSurfaceId, viewport) {
       viewport,
       primaryActions: ["Neue Datei", "Projekt oeffnen", "Einrichtung"],
       expectedText: ["nx-code-shell", "nx-code-workbench", "Nexus Code", "Neue Datei"],
+      topbarContract: true,
       requiredMarkup: [
         "nx-code-titlebar-wrap",
+        "nx-code-titlebar",
+        "nx-code-command-center",
+        "nx-code-titlebar-icon-button",
+        "nx-code-titlebar-overflow-button",
+        "nx-code-menu-cluster",
+        "nx-code-menu-compact-host",
+        "nx-code-workbench-menu-trigger",
         "nx-code-side-panel",
         "nx-code-status-strip",
         "data-workbench-zone=\"side-panel\"",
@@ -306,7 +430,6 @@ async function buildScenario(currentSurfaceId, viewport) {
         "data-workbench-axis=\"horizontal\"",
         "data-workbench-zone=\"editor\"",
         "data-workbench-dock-id=\"editor\"",
-        "aria-label=\"Side panel width\"",
       ],
       render: () =>
         renderInViewport(
@@ -316,6 +439,53 @@ async function buildScenario(currentSurfaceId, viewport) {
             accountSession={UI_SMOKE_FIXTURE_ACCOUNT_SESSION}
             controlStatus={UI_SMOKE_FIXTURE_CONTROL_STATUS}
             {...callbacks}
+          />,
+        ),
+    };
+  }
+
+  if (currentSurfaceId === "editor-scroll") {
+    const [{ default: CodeEditor }, { DEFAULT_SETTINGS }] = await Promise.all([
+      import("../components/editor/CodeEditor.jsx"),
+      import("../pages/editor/editorShared.jsx"),
+    ]);
+    const settings = {
+      ...createUiSmokeSettingsFixture(DEFAULT_SETTINGS),
+      lsp_enabled: true,
+      font_size: 14,
+      line_height: 1.45,
+      tab_size: 2,
+      word_wrap: false,
+    };
+
+    return {
+      id: `${currentSurfaceId}@${viewport.id}`,
+      surfaceId: currentSurfaceId,
+      viewport,
+      expectedText: ["TypeScript", "CodeMirror"],
+      editorScrollContract: true,
+      requiredMarkup: [
+        "nx-code-editor-shell",
+        "nx-code-editor-canvas",
+        "nx-code-editor-status",
+        "data-editor-engine=\"codemirror\"",
+        "data-editor-fallback=\"false\"",
+        "data-cm-language-id=\"typescript\"",
+      ],
+      render: () =>
+        renderInViewport(
+          currentSurfaceId,
+          viewport,
+          <CodeEditor
+            code={UI_SMOKE_FIXTURE_LONG_EDITOR_CODE}
+            fileName="scroll-contract.ts"
+            filePath={`${UI_SMOKE_FIXTURE_WORKSPACE_PATH}\\src\\scroll-contract.ts`}
+            workspacePath={UI_SMOKE_FIXTURE_WORKSPACE_PATH}
+            onChange={noop}
+            settings={settings}
+            showLineNumbers
+            tabSize={2}
+            wordWrap={false}
           />,
         ),
     };
@@ -428,55 +598,6 @@ async function buildScenario(currentSurfaceId, viewport) {
     };
   }
 
-  if (currentSurfaceId === "code-editor") {
-    const [{ default: CodeEditor }, { DEFAULT_SETTINGS }] = await Promise.all([
-      import("../components/editor/CodeEditor.jsx"),
-      import("../pages/editor/editorShared.jsx"),
-    ]);
-    const settings = {
-      ...createUiSmokeSettingsFixture(DEFAULT_SETTINGS),
-      line_numbers: true,
-      word_wrap: false,
-      minimap: false,
-      lsp_enabled: false,
-      autocomplete_enabled: false,
-    };
-    return {
-      id: `${currentSurfaceId}@${viewport.id}`,
-      surfaceId: currentSurfaceId,
-      viewport,
-      expectedText: [
-        "Nexus Code editor scroll guard",
-        "TypeScript",
-        "CodeMirror",
-      ],
-      requiredMarkup: [
-        "nx-code-editor-shell",
-        "nx-code-editor-canvas",
-        "nx-code-codemirror-host",
-        "data-editor-engine=\"codemirror\"",
-      ],
-      render: () =>
-        renderInViewport(
-          currentSurfaceId,
-          viewport,
-          <CodeEditor
-            code={LONG_EDITOR_SOURCE}
-            onChange={noop}
-            fileName="visual-smoke-scroll.ts"
-            filePath="F:\\Coding\\Nexus Workspace\\Nexus-Ecosystem\\visual-smoke-scroll.ts"
-            workspacePath={UI_SMOKE_FIXTURE_WORKSPACE_PATH}
-            settings={settings}
-            fontSize={14}
-            showLineNumbers
-            tabSize={2}
-            wordWrap={false}
-            minimap={false}
-          />,
-        ),
-    };
-  }
-
   if (currentSurfaceId === "panel-chrome") {
     const panelChrome = await import("../components/editor/panels/PanelChrome.jsx");
     return {
@@ -526,6 +647,7 @@ async function buildScenario(currentSurfaceId, viewport) {
         "Open Git panel",
         "Open account panel",
       ],
+      githubFallbackContract: "issues",
       expectedText: [
         "GitHub Issues",
         "offline",
@@ -551,6 +673,53 @@ async function buildScenario(currentSurfaceId, viewport) {
             workspacePath={UI_SMOKE_FIXTURE_WORKSPACE_PATH}
             accountSession={UI_SMOKE_FIXTURE_ACCOUNT_SESSION}
             initialRepository={UI_SMOKE_FIXTURE_GITHUB_REPOSITORY}
+            onOpenGit={noop}
+            onOpenAccount={noop}
+          />,
+        ),
+    };
+  }
+
+  if (currentSurfaceId === "github-projects") {
+    const { default: GitHubWorkbenchPanel } = await import(
+      "../components/editor/github/GitHubWorkbenchPanel.jsx"
+    );
+    return {
+      id: `${currentSurfaceId}@${viewport.id}`,
+      surfaceId: currentSurfaceId,
+      viewport,
+      primaryActions: [
+        "Refresh projects",
+        "Open Git panel",
+        "Open account panel",
+      ],
+      githubFallbackContract: "projects",
+      expectedText: [
+        "GitHub Projects",
+        "Bridge offline",
+        "Owner / repository",
+        "Scope",
+        "Viewer",
+        UI_SMOKE_FIXTURE_GITHUB_PROJECT_OWNER,
+        "No projects found",
+      ],
+      requiredMarkup: [
+        "nx-editor-panel-shell",
+        "nx-editor-panel-header",
+        "nx-editor-panel-actions",
+        "nx-editor-panel-body",
+        "nx-editor-panel-card",
+        "placeholder=\"owner or owner/repo\"",
+      ],
+      render: () =>
+        renderInViewport(
+          currentSurfaceId,
+          viewport,
+          <GitHubWorkbenchPanel
+            panelId="projects"
+            workspacePath={UI_SMOKE_FIXTURE_WORKSPACE_PATH}
+            accountSession={UI_SMOKE_FIXTURE_ACCOUNT_SESSION}
+            initialRepository={UI_SMOKE_FIXTURE_GITHUB_PROJECT_OWNER}
             onOpenGit={noop}
             onOpenAccount={noop}
           />,
@@ -614,9 +783,13 @@ async function main() {
 
   await settleFrame();
   await waitForRenderedScenario(scenario);
-  const result = assertVisualSmokeMarkup(scenario, rootElement.innerHTML);
+  const markupResult = assertVisualSmokeMarkup(scenario, rootElement.innerHTML);
+  const contractFailures = assertVisualSmokeDomContracts(scenario);
+  const missing = [...markupResult.missing, ...contractFailures];
   setReady({
-    ...result,
+    ...markupResult,
+    ok: missing.length === 0,
+    missing,
     surfaceId: scenario.surfaceId,
     scenarioId: scenario.id,
   });
