@@ -574,7 +574,6 @@ function RepositoryControls({
   projectOwnerType,
   onProjectOwnerTypeChange,
   loading,
-  onRefresh,
   onOpenGit,
   onOpenAccount,
 }) {
@@ -624,10 +623,6 @@ function RepositoryControls({
           )}
         </div>
 
-        <p className="min-w-0 break-words text-[10px] leading-snug text-gray-600" style={{ overflowWrap: "anywhere" }}>
-          {definition.repoHelp}
-        </p>
-
         <div className="flex min-w-0 items-center justify-between gap-2">
           <div className="flex min-w-0 flex-wrap items-center gap-1.5 text-[10px] text-gray-500">
             <span
@@ -637,7 +632,7 @@ function RepositoryControls({
               }}
             />
             <span className="min-w-0 break-words" style={{ overflowWrap: "anywhere" }}>
-              {capabilityStatus.label}
+              {loading ? "Refreshing" : capabilityStatus.label}
             </span>
             <span className="text-gray-700">/</span>
             <span>
@@ -648,14 +643,6 @@ function RepositoryControls({
           </div>
 
           <div className="flex shrink-0 items-center justify-end gap-1">
-            <PanelIconButton
-              label={loading ? "Refreshing GitHub data" : definition.loadLabel}
-              onClick={onRefresh}
-              disabled={loading}
-              className="!h-7 !w-7"
-            >
-              <RefreshCw className={loading ? "animate-spin" : ""} />
-            </PanelIconButton>
             <PanelIconButton
               label="Open Git panel"
               onClick={onOpenGit}
@@ -2261,6 +2248,17 @@ export function GitHubWorkbenchPanel({
   const panelCountLabel = listState.loading
     ? listState.loaded ? "refreshing" : "loading"
     : `${listState.items.length} ${definition.itemName}${listState.items.length === 1 ? "" : "s"}`;
+  const panelContextLabel =
+    normalizedPanelId === "projects"
+      ? projectOwnerType === "viewer"
+        ? "Viewer projects"
+        : `${projectOwnerType}: ${projectOwnerDraft || draftProjectOwner || "not set"}`
+      : appliedRepoRef.label || draftRepoRef.label || definition.repoHelp;
+  const panelSubtitle =
+    capabilityStatus.id === "ready"
+      ? panelContextLabel
+      : capabilityStatus.detail;
+  const canShowActions = capabilityStatus.id === "ready" && !setupRequirement;
 
   return (
     <PanelShell
@@ -2270,7 +2268,7 @@ export function GitHubWorkbenchPanel({
       <PanelHeader
         icon={Icon}
         title={definition.title}
-        subtitle={definition.subtitle}
+        subtitle={panelSubtitle}
         status={
           <PanelBadge tone={capabilityStatus.id === "ready" ? "muted" : capabilityStatus.tone}>
             {capabilityStatus.id === "ready" ? panelCountLabel : capabilityStatus.label}
@@ -2301,7 +2299,6 @@ export function GitHubWorkbenchPanel({
           projectOwnerType={projectOwnerType}
           onProjectOwnerTypeChange={setProjectOwnerType}
           loading={listState.loading}
-          onRefresh={refreshPanel}
           onOpenGit={onOpenGit}
           onOpenAccount={onOpenAccount}
         />
@@ -2355,7 +2352,7 @@ export function GitHubWorkbenchPanel({
           />
         </div>
 
-        {normalizedPanelId === "issues" ? (
+        {canShowActions && normalizedPanelId === "issues" ? (
           <IssueActions
             items={listState.items}
             selectedItem={selectedItem}
@@ -2373,7 +2370,7 @@ export function GitHubWorkbenchPanel({
           />
         ) : null}
 
-        {normalizedPanelId === "prs" ? (
+        {canShowActions && normalizedPanelId === "prs" ? (
           <PullRequestActions
             items={listState.items}
             selectedItem={selectedItem}
@@ -2395,7 +2392,7 @@ export function GitHubWorkbenchPanel({
           />
         ) : null}
 
-        {normalizedPanelId === "projects" ? (
+        {canShowActions && normalizedPanelId === "projects" ? (
           <ProjectActions
             selectedProject={selectedProject}
             projectItems={projectItemsState.items}

@@ -48,6 +48,10 @@ const softClamp = {
   maxWidth: "100%",
 };
 
+const launchpadText = "var(--nx-code-strong-text, #f8fafc)";
+const launchpadBodyText = "var(--nx-code-text, #e5edf8)";
+const launchpadMutedText = "var(--nx-code-muted-text, #9aa7ba)";
+
 const actionItems = [
   {
     icon: Plus,
@@ -101,28 +105,28 @@ const flowItems = [
 
 const actionTones = {
   primary: {
-    border: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.2)",
-    bg: "linear-gradient(135deg, rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.075), rgba(255, 255, 255, 0.018)), rgba(0, 0, 0, 0.16)",
-    iconBg: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.11)",
-    iconBorder: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.18)",
+    border: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.17)",
+    bg: "linear-gradient(135deg, rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.09), rgba(255, 255, 255, 0.018)), rgba(6, 10, 17, 0.72)",
+    iconBg: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.12)",
+    iconBorder: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.2)",
     iconColor: "var(--nexus-primary, #7c8cff)",
-    glow: "0 12px 24px rgba(0, 0, 0, 0.22), 0 0 14px rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.032)",
+    glow: "0 10px 22px rgba(0, 0, 0, 0.2), 0 0 12px rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.028)",
   },
   blue: {
-    border: "rgba(56, 189, 248, 0.17)",
-    bg: "linear-gradient(135deg, rgba(56, 189, 248, 0.065), rgba(255, 255, 255, 0.015)), rgba(0, 0, 0, 0.16)",
-    iconBg: "rgba(56, 189, 248, 0.095)",
+    border: "rgba(56, 189, 248, 0.16)",
+    bg: "linear-gradient(135deg, rgba(56, 189, 248, 0.075), rgba(255, 255, 255, 0.014)), rgba(6, 10, 17, 0.72)",
+    iconBg: "rgba(56, 189, 248, 0.105)",
     iconBorder: "rgba(56, 189, 248, 0.17)",
     iconColor: "#93c5fd",
-    glow: "0 12px 24px rgba(0, 0, 0, 0.22), 0 0 14px rgba(56, 189, 248, 0.03)",
+    glow: "0 10px 22px rgba(0, 0, 0, 0.2), 0 0 12px rgba(56, 189, 248, 0.028)",
   },
   neutral: {
     border: "rgba(156, 178, 226, 0.075)",
-    bg: "linear-gradient(135deg, rgba(255, 255, 255, 0.026), rgba(255, 255, 255, 0.008)), rgba(0, 0, 0, 0.16)",
+    bg: "linear-gradient(135deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.009)), rgba(6, 10, 17, 0.72)",
     iconBg: "rgba(255, 255, 255, 0.04)",
     iconBorder: "rgba(255, 255, 255, 0.075)",
-    iconColor: "var(--nexus-muted, #99a3b7)",
-    glow: "0 12px 24px rgba(0, 0, 0, 0.2)",
+    iconColor: launchpadMutedText,
+    glow: "0 10px 20px rgba(0, 0, 0, 0.18)",
   },
 };
 
@@ -136,8 +140,9 @@ function SoftPanel({ children, className = "", style = {}, tone = "muted" }) {
       style={{
         padding: "var(--nx-launchpad-panel-pad, 12px)",
         overflow: "visible",
+        color: launchpadBodyText,
         background:
-          "linear-gradient(180deg, rgba(255,255,255,0.024), rgba(255,255,255,0.006)), rgba(0,0,0,0.14)",
+          "linear-gradient(180deg, rgba(255,255,255,0.028), rgba(255,255,255,0.007)), rgba(6,10,17,0.72)",
         ...style,
       }}
     >
@@ -154,9 +159,9 @@ function SectionLabel({ icon: Icon, title, end }) {
     >
       <div className="flex min-w-0 items-center gap-2">
         {Icon ? (
-          <Icon size={13} className="shrink-0 text-[var(--nexus-muted)] opacity-70" />
+          <Icon size={13} className="shrink-0 text-[var(--nx-code-muted-text,#9aa7ba)] opacity-75" />
         ) : null}
-        <span className="min-w-0 text-[10px] font-semibold uppercase leading-tight text-[var(--nexus-muted)]">
+        <span className="min-w-0 text-[10px] font-semibold uppercase leading-tight text-[var(--nx-code-muted-text,#9aa7ba)]">
           {title}
         </span>
       </div>
@@ -221,6 +226,7 @@ function ActionButton({
         padding: "var(--nx-launchpad-action-pad, 10px 12px)",
         border: `1px solid ${toneStyle.border}`,
         background: toneStyle.bg,
+        color: launchpadText,
         boxShadow: reduceMotion
           ? "inset 0 1px 0 rgba(255,255,255,0.04)"
           : toneStyle.glow,
@@ -230,13 +236,13 @@ function ActionButton({
       <IconFrame icon={Icon} tone={tone} size={16} />
       <span className="nx-code-launchpad-text min-w-0">
         <span
-          className="nx-code-launchpad-text block text-[13px] font-semibold leading-tight text-[var(--nexus-text)]"
+          className="nx-code-launchpad-text block text-[13px] font-semibold leading-tight text-[var(--nx-code-strong-text,#f8fafc)]"
           style={wrapText}
         >
           {label}
         </span>
         <span
-          className="nx-code-launchpad-text nx-code-launchpad-fineprint mt-1 block text-[10px] leading-snug text-[var(--nexus-muted)]"
+          className="nx-code-launchpad-text nx-code-launchpad-fineprint mt-1 block text-[10px] leading-snug text-[var(--nx-code-muted-text,#9aa7ba)]"
           style={{ ...softClamp, ...wrapText }}
         >
           {detail}
@@ -264,7 +270,8 @@ function FlowCard({ icon: Icon, title, detail, tone = "neutral", reduceMotion })
         borderRadius: "var(--nexus-radius-lg, 14px)",
         border: `1px solid ${toneStyle.border}`,
         background:
-          "linear-gradient(135deg, rgba(255, 255, 255, 0.024), rgba(255, 255, 255, 0.006)), rgba(0, 0, 0, 0.14)",
+          "linear-gradient(135deg, rgba(255, 255, 255, 0.026), rgba(255, 255, 255, 0.007)), rgba(6, 10, 17, 0.7)",
+        color: launchpadBodyText,
         padding: "var(--nx-launchpad-signal-pad, 9px 10px)",
         overflow: "visible",
       }}
@@ -272,13 +279,13 @@ function FlowCard({ icon: Icon, title, detail, tone = "neutral", reduceMotion })
       <IconFrame icon={Icon} tone={tone} size={13} frameSize={30} radius={12} />
       <div className="min-w-0 flex-1">
         <div
-          className="text-[12px] font-semibold leading-tight text-[var(--nexus-text)]"
+          className="text-[12px] font-semibold leading-tight text-[var(--nx-code-strong-text,#f8fafc)]"
           style={wrapText}
         >
           {title}
         </div>
         <div
-          className="mt-1 text-[10px] leading-snug text-[var(--nexus-muted)]"
+          className="mt-1 text-[10px] leading-snug text-[var(--nx-code-muted-text,#9aa7ba)]"
           style={{ ...softClamp, ...wrapText }}
         >
           {detail}
@@ -310,7 +317,7 @@ function RecentFiles({ files }) {
             className="shrink-0 text-[var(--nexus-primary,#7c8cff)]"
           />
           <span
-            className="text-xs font-semibold leading-tight text-[var(--nexus-text)]"
+            className="text-xs font-semibold leading-tight text-[var(--nx-code-strong-text,#f8fafc)]"
             style={wrapText}
           >
             Letzte Dateien
@@ -328,13 +335,14 @@ function RecentFiles({ files }) {
               minHeight: 39,
               borderRadius: "var(--nexus-radius-lg, 18px)",
               border: "1px solid rgba(156, 178, 226, 0.06)",
-              background: "rgba(255, 255, 255, 0.016)",
+              background: "rgba(255, 255, 255, 0.018)",
+              color: launchpadBodyText,
               padding: "6px 8px",
               overflow: "visible",
             }}
           >
             <span
-              className="flex shrink-0 items-center justify-center text-[var(--nexus-muted)]"
+              className="flex shrink-0 items-center justify-center text-[var(--nx-code-muted-text,#9aa7ba)]"
               style={{
                 width: 25,
                 height: 25,
@@ -347,13 +355,13 @@ function RecentFiles({ files }) {
             </span>
             <div className="min-w-0 flex-1">
               <div
-                className="text-[11px] font-semibold leading-tight text-[var(--nexus-text)]"
+                className="text-[11px] font-semibold leading-tight text-[var(--nx-code-strong-text,#f8fafc)]"
                 style={wrapText}
               >
                 {file.name}
               </div>
               <div
-                className="mt-0.5 text-[10px] leading-tight text-[var(--nexus-muted)]"
+                className="mt-0.5 text-[10px] leading-tight text-[var(--nx-code-muted-text,#9aa7ba)]"
                 style={{ ...softClamp, WebkitLineClamp: 1, ...wrapText }}
               >
                 {file.detail}
@@ -379,7 +387,7 @@ function FlowDeck({ reduceMotion }) {
             className="shrink-0 text-[var(--nexus-primary,#7c8cff)]"
           />
           <span
-            className="text-xs font-semibold leading-tight text-[var(--nexus-text)]"
+            className="text-xs font-semibold leading-tight text-[var(--nx-code-strong-text,#f8fafc)]"
             style={wrapText}
           >
             Produktive Flows
@@ -425,6 +433,7 @@ export default function WelcomeScreen({
         style={{
           boxSizing: "border-box",
           height: "100%",
+          color: launchpadBodyText,
           padding:
             "var(--nx-launchpad-viewport-pad-y, clamp(7px, 1.25vh, 12px)) var(--nx-launchpad-viewport-pad-x, clamp(9px, 1.25vw, 16px))",
         }}
@@ -483,13 +492,13 @@ export default function WelcomeScreen({
                   </span>
                 </div>
                 <h1
-                  className="nx-code-launchpad-title mt-1 text-[2rem] font-semibold leading-none text-[var(--nexus-text)]"
+                className="nx-code-launchpad-title mt-1 text-[2rem] font-semibold leading-none text-[var(--nx-code-strong-text,#f8fafc)]"
                   style={wrapText}
                 >
                   Nexus Code
                 </h1>
                 <p
-                  className="mt-2 max-w-[40rem] text-sm leading-snug text-[var(--nexus-muted)]"
+                  className="mt-2 max-w-[40rem] text-sm leading-snug text-[var(--nx-code-muted-text,#9aa7ba)]"
                   style={wrapText}
                 >
                   Lokale Bearbeitung mit integriertem Terminal, Git-Unterstuetzung,

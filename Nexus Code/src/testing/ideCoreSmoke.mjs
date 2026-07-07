@@ -64,6 +64,11 @@ import {
 } from "../pages/editor/editorFeatureModel.js";
 import { getLanguageCapabilities } from "../ide/languages/languageIds.js";
 import {
+  createCodeMirrorLanguageFallback,
+  getCodeMirrorLanguageSupportDescriptor,
+  loadCodeMirrorLanguageExtension,
+} from "../ide/languages/codeMirrorLanguages.js";
+import {
   collectExtensionContributions,
   createExtensionCommandPaletteEntries,
   createDefaultExtensionRecords,
@@ -1685,6 +1690,51 @@ const scenarios = [
             option.label === "return" && option.section.name === "Current Document",
         ),
         false,
+      );
+    },
+  },
+  {
+    id: "codemirror-language-support-routing",
+    title: "CodeMirror language support lazy-loads with stable fallbacks",
+    async run() {
+      const expectedGrammars = new Map([
+        ["index.ts", "typescript"],
+        ["App.tsx", "typescript"],
+        ["main.js", "javascript"],
+        ["View.jsx", "javascript"],
+        ["script.py", "python"],
+        ["lib.rs", "rust"],
+        ["main.go", "go"],
+        ["styles.css", "css"],
+        ["tsconfig.json", "json"],
+        ["README.md", "markdown"],
+      ]);
+
+      for (const [fileName, expectedGrammar] of expectedGrammars) {
+        const fallback = createCodeMirrorLanguageFallback(expectedGrammar, fileName);
+        assert.equal(fallback.grammarId, expectedGrammar);
+        assert.equal(fallback.status, "loading");
+        assert.deepEqual(fallback.extension, []);
+
+        const loaded = await loadCodeMirrorLanguageExtension(expectedGrammar, fileName);
+        assert.equal(loaded.grammarId, expectedGrammar);
+        assert.equal(loaded.status, "ready");
+        assert.equal(loaded.loaded, true);
+        assert.equal(Array.isArray(loaded.extension), true);
+        assert.equal(loaded.extension.length > 0, true);
+      }
+
+      assert.equal(
+        getCodeMirrorLanguageSupportDescriptor("jsonc", "tsconfig.json").grammarId,
+        "json",
+      );
+      assert.equal(
+        getCodeMirrorLanguageSupportDescriptor("mdx", "docs.mdx").grammarId,
+        "markdown",
+      );
+      assert.equal(
+        getCodeMirrorLanguageSupportDescriptor("unknown-language", "notes.txt").status,
+        "fallback",
       );
     },
   },

@@ -12,7 +12,6 @@ import {
   Plus,
   RefreshCw,
   Server,
-  ShieldCheck,
   Trash2,
   Upload,
 } from "lucide-react";
@@ -146,34 +145,6 @@ function CapabilityPill({ icon: Icon, label, tone = "neutral", title }) {
       <span className="min-w-0 break-words text-[10px] font-medium" style={{ overflowWrap: "anywhere" }}>
         {label}
       </span>
-    </div>
-  );
-}
-
-function SummaryTile({ label, value, tone = "neutral", title }) {
-  const color =
-    tone === "good"
-      ? "#a5b4fc"
-      : tone === "warn"
-        ? "#fbbf24"
-        : tone === "hot"
-          ? "#fca5a5"
-          : "#cbd5e1";
-
-  return (
-    <div
-      title={title}
-      className="min-w-0 rounded-xl border border-white/[0.055] bg-black/15 px-2 py-1.5"
-    >
-      <div className="text-[9px] font-semibold uppercase text-gray-600">
-        {label}
-      </div>
-      <div
-        className="mt-0.5 break-words text-[11px] font-semibold leading-tight"
-        style={{ color, overflowWrap: "anywhere" }}
-      >
-        {value}
-      </div>
     </div>
   );
 }
@@ -840,9 +811,17 @@ export default function GitPanel({ files }) {
   };
 
   const handleSaveGithubSettings = (owner, repo) => {
-    saveGithubRepositorySettings(owner, repo);
-    const next = { ...readGithubSettings(), owner, repo };
+    const nextOwner = String(owner || "").trim();
+    const nextRepo = String(repo || "").trim();
+    if (!nextOwner || !nextRepo) {
+      setErrorMsg("GitHub repository settings need both owner and repository.");
+      return;
+    }
+
+    saveGithubRepositorySettings(nextOwner, nextRepo);
+    const next = { ...readGithubSettings(), owner: nextOwner, repo: nextRepo };
     setGithubSettings(next);
+    setErrorMsg("");
     refreshHistory(next);
   };
 
@@ -1024,6 +1003,20 @@ export default function GitPanel({ files }) {
     : githubCapability.available
       ? "GitHub ready"
       : "GitHub offline";
+  const githubConnectionTone = githubAuth.authenticated
+    ? "ready"
+    : githubCapability.available
+      ? "warn"
+      : "neutral";
+  const githubConnectionDetail = githubAuth.authenticated
+    ? githubUser?.login || githubUser?.name || "Secure session active"
+    : githubCapability.available
+      ? "Waiting for device auth"
+      : "Secure backend unavailable";
+  const repositoryDraftValid = Boolean(
+    String(githubSettings.owner || "").trim() &&
+      String(githubSettings.repo || "").trim(),
+  );
 
   return (
     <PanelShell ariaLabel="Source Control">
@@ -1057,21 +1050,20 @@ export default function GitPanel({ files }) {
       />
 
       {hasWorkspace && (
-        <div className="shrink-0 space-y-1.5 px-3 pb-2.5">
+        <div className="shrink-0 px-3 pb-2">
           <div
-            className="rounded-xl p-2"
+            className="rounded-xl border px-2.5 py-2"
             style={{
-              background:
-                "linear-gradient(180deg, rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.082), rgba(255,255,255,0.014))",
-              border: "1px solid rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.15)",
+              background: "rgba(0,0,0,0.18)",
+              borderColor: "rgba(148,163,184,0.085)",
             }}
           >
             <div className="flex min-w-0 items-start gap-2">
-              <GitBranch size={13} className="shrink-0 text-purple-300" />
+              <GitBranch size={13} className="mt-0.5 shrink-0 text-sky-300/80" />
               <div className="min-w-0 flex-1">
-                <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
                   <span
-                    className="min-w-0 break-words text-xs font-semibold leading-snug text-gray-100"
+                    className="min-w-0 break-words font-mono text-[12px] font-semibold leading-snug text-gray-100"
                     style={{ overflowWrap: "anywhere" }}
                   >
                     {branch}
@@ -1081,6 +1073,13 @@ export default function GitPanel({ files }) {
                       Detached
                     </span>
                   )}
+                  <span className="text-[10px] text-gray-600">
+                    {clean ? "clean" : `${changedFiles.length} changed`}
+                  </span>
+                  <span className="text-[10px] text-gray-700">/</span>
+                  <span className="text-[10px] text-gray-600">
+                    {stagedFiles.length} staged
+                  </span>
                 </div>
                 <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[10px] text-gray-500">
                   <Server size={10} className="shrink-0 text-sky-300/80" />
@@ -1093,46 +1092,6 @@ export default function GitPanel({ files }) {
               <PanelBadge tone={getSyncBadgeTone(syncTone)} title={syncLabel}>
                 {compactSyncLabel}
               </PanelBadge>
-            </div>
-            <div
-              className="mt-2 grid gap-1.5"
-              style={{ gridTemplateColumns: "repeat(auto-fit, minmax(66px, 1fr))" }}
-            >
-              <SummaryTile
-                label="Status"
-                value={clean ? "Clean" : `${changedFiles.length} changed`}
-                tone={clean ? "good" : "warn"}
-              />
-              <SummaryTile
-                label="Staged"
-                value={stagedFiles.length}
-                tone={stagedFiles.length > 0 ? "good" : "neutral"}
-              />
-              <SummaryTile label="Sync" value={syncLabel} tone={syncTone} />
-            </div>
-          </div>
-
-          <div className="rounded-xl border border-white/[0.045] bg-black/10 p-1.5">
-            <div
-              className="grid gap-1.5"
-              style={{ gridTemplateColumns: "repeat(auto-fit, minmax(104px, 1fr))" }}
-            >
-              <CapabilityPill
-                icon={GitBranch}
-                label={gitProviderLabel}
-                tone={gitCapability.available ? "ready" : "warn"}
-                title={
-                  gitCapability.available
-                    ? `Using ${gitCapability.label}`
-                    : "No local Git bridge detected; showing editor-file preview."
-                }
-              />
-              <CapabilityPill
-                icon={Server}
-                label={githubProviderLabel}
-                tone={githubCapability.available ? "ready" : "neutral"}
-                title="GitHub access is expected through a secure backend/session."
-              />
             </div>
           </div>
         </div>
@@ -1203,12 +1162,27 @@ export default function GitPanel({ files }) {
               className="px-3 pb-3"
             >
               <div className="space-y-2 rounded-2xl border border-white/[0.055] bg-black/15 p-2">
-                <PanelNotice
-                  icon={ShieldCheck}
-                  tone="accent"
-                  title="Secure GitHub Backend"
-                  detail="GitHub tokens stay out of the renderer. Repository data is read through the backend/session when available."
-                />
+                <div
+                  className="grid gap-1.5"
+                  style={{ gridTemplateColumns: "repeat(auto-fit, minmax(118px, 1fr))" }}
+                >
+                  <CapabilityPill
+                    icon={GitBranch}
+                    label={gitProviderLabel}
+                    tone={gitCapability.available ? "ready" : "warn"}
+                    title={
+                      gitCapability.available
+                        ? `Using ${gitCapability.label}`
+                        : "No local Git bridge detected; showing editor-file preview."
+                    }
+                  />
+                  <CapabilityPill
+                    icon={Server}
+                    label={`${githubProviderLabel} - ${githubConnectionDetail}`}
+                    tone={githubConnectionTone}
+                    title="GitHub access is expected through a secure backend/session."
+                  />
+                </div>
 
                 {!githubCapability.available && (
                   <PanelNotice
@@ -1221,40 +1195,59 @@ export default function GitPanel({ files }) {
 
                 <div className="rounded-2xl border border-white/[0.055] bg-black/15 px-2 py-2">
                   <div className="mb-2 flex items-center justify-between gap-2">
-                    <span className="text-[10px] font-semibold uppercase text-gray-500">
-                      GitHub Auth
-                    </span>
-                    <span
-                      className={`text-[10px] ${
+                    <div className="min-w-0">
+                      <span className="block text-[10px] font-semibold uppercase text-gray-500">
+                        GitHub Auth
+                      </span>
+                      <span className="block min-w-0 break-words text-[10px] text-gray-600" style={{ overflowWrap: "anywhere" }}>
+                        {githubConnectionDetail}
+                      </span>
+                    </div>
+                    <PanelBadge
+                      tone={
                         githubAuth.authenticated
-                          ? "text-sky-300"
+                          ? "accent"
                           : githubCapability.available
-                            ? "text-amber-300"
-                            : "text-gray-500"
-                      }`}
+                            ? "warning"
+                            : "muted"
+                      }
                     >
                       {githubAuth.authenticated
                         ? "Connected"
                         : githubCapability.available
                           ? "Ready"
-                          : "Unavailable"}
-                    </span>
+                          : "Offline"}
+                    </PanelBadge>
                   </div>
+                  {githubUser && (
+                    <div className="mb-2 flex items-center gap-2 rounded-xl border border-sky-400/10 bg-sky-400/[0.035] px-2 py-1.5">
+                      {githubUser.avatar_url && (
+                        <img
+                          src={githubUser.avatar_url}
+                          alt={githubUser.login || "GitHub user"}
+                          className="h-5 w-5 rounded-full border border-sky-400/30"
+                        />
+                      )}
+                      <span className="min-w-0 break-words text-[10px] text-sky-300" style={{ overflowWrap: "anywhere" }}>
+                        {githubUser.login || githubUser.name || "GitHub user"}
+                      </span>
+                    </div>
+                  )}
                   <div
                     className="grid gap-1.5"
                     style={{ gridTemplateColumns: "repeat(auto-fit, minmax(82px, 1fr))" }}
                   >
                     <PanelActionButton
                       type="button"
-                      disabled={!githubCapability.available || authBusy}
+                      disabled={!githubCapability.available || authBusy || githubAuth.authenticated}
                       onClick={handleStartGithubAuth}
                       tone="accent"
                     >
-                      Connect
+                      {authBusy ? "Working" : "Connect"}
                     </PanelActionButton>
                     <PanelActionButton
                       type="button"
-                      disabled={!githubCapability.available || authBusy}
+                      disabled={!githubCapability.available || authBusy || !githubAuth.authenticated}
                       onClick={handleGithubSignOut}
                     >
                       Sign out
@@ -1382,6 +1375,7 @@ export default function GitPanel({ files }) {
                         githubSettings.repo,
                       )
                     }
+                    disabled={!repositoryDraftValid}
                     tone="accent"
                   >
                     Save Repo
@@ -1392,21 +1386,6 @@ export default function GitPanel({ files }) {
                     Check Backend
                   </PanelActionButton>
                 </div>
-
-                {githubUser && (
-                  <div className="flex items-center gap-2 pt-1">
-                    {githubUser.avatar_url && (
-                      <img
-                        src={githubUser.avatar_url}
-                        alt={githubUser.login || "GitHub user"}
-                        className="h-5 w-5 rounded-full border border-sky-400/30"
-                      />
-                    )}
-                    <span className="min-w-0 break-words text-[10px] text-sky-300" style={{ overflowWrap: "anywhere" }}>
-                      Connected as {githubUser.login || githubUser.name || "GitHub user"}
-                    </span>
-                  </div>
-                )}
               </div>
             </motion.div>
           )}

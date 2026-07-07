@@ -554,9 +554,16 @@ textarea.nx-typing-active,
 }
 
 .nx-code-shell {
+    --nx-code-strong-text: #f8fafc;
+    --nx-code-text: #e5edf8;
+    --nx-code-muted-text: #9aa7ba;
+    --nx-code-subtle-text: #687386;
+    --nx-code-panel-line: rgba(156, 170, 210, 0.065);
+    --nx-code-panel-surface: rgba(6, 10, 17, 0.82);
     isolation: isolate;
     contain: layout paint style;
-    color: var(--nexus-text, #e5e7eb);
+    color: var(--nx-code-text, var(--nexus-text, #e5e7eb));
+    color-scheme: dark;
     background:
         radial-gradient(circle at 14% 0%, rgba(var(--nexus-primary-rgb), 0.075), transparent 30rem),
         radial-gradient(circle at 86% 8%, rgba(var(--nexus-accent-2-rgb), 0.052), transparent 24rem),
@@ -673,57 +680,45 @@ textarea.nx-typing-active,
 }
 
 .nx-code-titlebar {
-    flex: 0 0 2.5rem;
-    height: 2.5rem !important;
-    min-height: 2.5rem;
+    flex: 0 0 2.375rem !important;
+    height: 2.375rem !important;
+    min-height: 2.375rem;
     min-width: 0;
     overflow: visible;
     z-index: 60;
-    color: var(--nexus-text, #e5e7eb);
+    color: var(--nx-code-text, #e5e7eb);
     background:
-        radial-gradient(circle at 50% -2rem, rgba(var(--nexus-primary-rgb), 0.052), transparent 14rem),
-        linear-gradient(180deg, rgba(255, 255, 255, 0.034), rgba(255, 255, 255, 0.008)),
-        var(--nexus-titlebar, var(--nexus-surface, rgba(17, 20, 29, 0.82)));
-    border-color: var(--nexus-border, rgba(142, 153, 183, 0.16));
-    border-bottom-left-radius: var(--nexus-radius-xl, 1.375rem);
-    border-bottom-right-radius: var(--nexus-radius-xl, 1.375rem);
+        linear-gradient(180deg, rgba(255, 255, 255, 0.018), rgba(255, 255, 255, 0.004)),
+        rgba(6, 10, 17, 0.9) !important;
+    border-color: var(--nx-code-panel-line, rgba(142, 153, 183, 0.08)) !important;
+    border-bottom-left-radius: 0 !important;
+    border-bottom-right-radius: 0 !important;
     box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.052),
-        inset 0 -1px 0 rgba(255, 255, 255, 0.012),
-        0 1px 0 rgba(0, 0, 0, 0.46);
+        inset 0 1px 0 rgba(255, 255, 255, 0.026),
+        0 1px 0 rgba(0, 0, 0, 0.32) !important;
 }
 
 .nx-code-titlebar::after {
-    content: "";
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: -1px;
-    height: 1px;
-    pointer-events: none;
-    background: linear-gradient(90deg, transparent, rgba(var(--nexus-primary-rgb), 0.14), rgba(var(--nexus-accent-2-rgb), 0.12), transparent);
-    opacity: 0.52;
+    display: none;
 }
 
 .nx-code-window-controls {
-    height: 1.75rem;
-    padding: 0.125rem;
-    border: 1px solid var(--nexus-control-border, rgba(154, 166, 204, 0.14));
-    border-radius: var(--nexus-radius-lg, 1.125rem);
-    background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.028), rgba(255, 255, 255, 0.008)),
-        rgba(0, 0, 0, 0.18);
-    box-shadow: var(--nexus-control-shadow, inset 0 1px 0 rgba(255, 255, 255, 0.055));
+    height: 1.55rem;
+    padding: 0.075rem;
+    border: 1px solid transparent !important;
+    border-radius: 0.5rem !important;
+    background: transparent !important;
+    box-shadow: none !important;
 }
 
 .nx-code-window-button {
     position: relative;
     display: inline-flex;
-    width: 1.6rem;
-    height: 1.45rem;
+    width: 1.45rem;
+    height: 1.35rem;
     align-items: center;
     justify-content: center;
-    border-radius: var(--nexus-radius-md, 0.875rem);
+    border-radius: 0.425rem !important;
     color: #94a3b8;
     outline: none;
 }
@@ -736,6 +731,21 @@ textarea.nx-typing-active,
 
 .nx-code-window-button[data-control="close"]:hover {
     background: rgba(239, 68, 68, 0.16);
+}
+
+.nx-code-titlebar :where(.nx-code-command-center-pro, .nx-code-menu-host, .nx-code-titlebar-brand, .nx-code-titlebar-pill, .nx-code-titlebar-icon-button) {
+    border-color: rgba(156, 170, 210, 0.065) !important;
+    background: rgba(255, 255, 255, 0.022) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.026) !important;
+}
+
+.nx-code-titlebar :where(.nx-code-command-center-pro, .nx-code-titlebar-brand, .nx-code-titlebar-pill) {
+    border-radius: 0.5rem !important;
+}
+
+.nx-code-titlebar-icon-button {
+    width: 1.5rem !important;
+    height: 1.5rem !important;
 }
 
 .nx-code-window-dot {
@@ -951,33 +961,98 @@ textarea.nx-typing-active,
 }
 
 .nx-code-rail {
-    width: 3.5rem;
-    max-width: 3.5rem;
-    background: var(--nexus-sidebar, rgba(12, 15, 23, 0.94));
+    width: 3.375rem;
+    max-width: 3.375rem;
+    flex-basis: 3.375rem;
+    background: rgba(7, 10, 16, 0.88) !important;
+    border-color: var(--nx-code-panel-line, rgba(142, 153, 183, 0.08)) !important;
+    box-shadow: none !important;
 }
 
 .nx-code-side-panel {
     z-index: 30;
-    color: var(--nexus-text, #e5e7eb);
+    color: var(--nx-code-text, var(--nexus-text, #e5e7eb));
     contain: layout paint;
     background:
-        radial-gradient(circle at 12% 0%, rgba(var(--nexus-primary-rgb), 0.045), transparent 14rem),
-        linear-gradient(180deg, rgba(255, 255, 255, 0.028), rgba(255, 255, 255, 0.008)),
-        var(--nexus-side-panel, var(--nexus-surface, rgba(17, 20, 29, 0.82)));
-    border-color: var(--nexus-border, rgba(142, 153, 183, 0.16)) !important;
-    box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.038),
-        0 18px 34px rgba(0, 0, 0, 0.28);
+        linear-gradient(180deg, rgba(255, 255, 255, 0.018), rgba(255, 255, 255, 0.004)),
+        var(--nx-code-panel-surface, rgba(6, 10, 17, 0.82)) !important;
+    border-color: var(--nx-code-panel-line, rgba(142, 153, 183, 0.08)) !important;
+    box-shadow: none !important;
 }
 
 .nx-code-side-panel.left-14 {
-    border-top-right-radius: var(--nexus-radius-xl, 1.25rem);
-    border-bottom-right-radius: var(--nexus-radius-xl, 1.25rem);
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
 }
 
 .nx-code-side-panel.right-14 {
-    border-top-left-radius: var(--nexus-radius-xl, 1.25rem);
-    border-bottom-left-radius: var(--nexus-radius-xl, 1.25rem);
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+}
+
+.nx-code-panel-resize-handle {
+    position: absolute;
+    z-index: 80;
+    pointer-events: auto;
+    touch-action: none;
+    outline: none;
+}
+
+.nx-code-panel-resize-handle::after {
+    content: "";
+    position: absolute;
+    border-radius: 999px;
+    background: rgba(156, 170, 210, 0.32);
+    box-shadow: 0 0 10px rgba(var(--nexus-primary-rgb), 0.12);
+    opacity: 0;
+    transition:
+        opacity 140ms ease,
+        transform 140ms ease;
+}
+
+.nx-code-panel-resize-handle:hover::after,
+.nx-code-panel-resize-handle:focus-visible::after {
+    opacity: 1;
+    transform: scale(1.02);
+}
+
+.nx-code-panel-resize-handle-left,
+.nx-code-panel-resize-handle-right {
+    top: 0;
+    bottom: 0;
+    width: 7px;
+    cursor: col-resize;
+}
+
+.nx-code-panel-resize-handle-left {
+    left: -4px;
+}
+
+.nx-code-panel-resize-handle-right {
+    right: -4px;
+}
+
+.nx-code-panel-resize-handle-left::after,
+.nx-code-panel-resize-handle-right::after {
+    top: 10px;
+    bottom: 10px;
+    left: 3px;
+    width: 1px;
+}
+
+.nx-code-panel-resize-handle-top {
+    top: -4px;
+    left: 0;
+    right: 0;
+    height: 7px;
+    cursor: row-resize;
+}
+
+.nx-code-panel-resize-handle-top::after {
+    left: 12px;
+    right: 12px;
+    top: 3px;
+    height: 1px;
 }
 
 .nx-code-account-panel {
@@ -1219,6 +1294,11 @@ textarea.nx-typing-active,
 }
 
 .nx-code-launchpad {
+    --nx-launchpad-text: var(--nx-code-strong-text, #f8fafc);
+    --nx-launchpad-muted: var(--nx-code-muted-text, #9aa7ba);
+    --nx-code-strong-text: #f8fafc;
+    --nx-code-text: #e5edf8;
+    --nx-code-muted-text: #9aa7ba;
     --nx-launchpad-gap: clamp(0.65rem, 1.25vh, 0.95rem);
     --nx-launchpad-panel-pad: clamp(0.65rem, 1.2vh, 0.82rem);
     --nx-launchpad-header-pad: clamp(0.85rem, 2vh, 1.2rem) 0 clamp(0.75rem, 1.6vh, 1rem);
@@ -1227,8 +1307,17 @@ textarea.nx-typing-active,
     min-width: 0;
     min-height: 0;
     align-content: start;
+    color: var(--nx-code-text, #e5edf8);
     overflow-x: clip;
     overflow-y: visible;
+}
+
+.nx-code-launchpad :where(.nx-code-launchpad-title, .nx-code-launchpad-action, .nx-code-launchpad-signal, .nx-code-launchpad-status-card, .nx-code-launchpad-panel, .nx-code-launchpad-text) {
+    color: var(--nx-launchpad-text) !important;
+}
+
+.nx-code-launchpad :where(.nx-code-launchpad-fineprint, .nx-code-launchpad-section-label span) {
+    color: var(--nx-launchpad-muted) !important;
 }
 
 .nx-code-launchpad-stage,
@@ -1251,20 +1340,21 @@ textarea.nx-typing-active,
 }
 
 .nx-code-launchpad :where(.nx-code-launchpad-action, .nx-code-launchpad-metric, .nx-code-launchpad-signal, .nx-code-launchpad-status-card, .nx-editor-panel-card) {
-    border-color: rgba(156, 170, 210, 0.082) !important;
+    color: var(--nx-code-text, #e5edf8) !important;
+    border-color: rgba(156, 170, 210, 0.072) !important;
     box-shadow:
-        0 12px 26px rgba(0, 0, 0, 0.2),
-        0 0 16px rgba(var(--nexus-primary-rgb), 0.018),
-        inset 0 1px 0 rgba(255, 255, 255, 0.034);
+        0 10px 22px rgba(0, 0, 0, 0.18),
+        0 0 14px rgba(var(--nexus-primary-rgb), 0.014),
+        inset 0 1px 0 rgba(255, 255, 255, 0.028);
 }
 
 .nx-code-launchpad :where(.nx-code-launchpad-action, .nx-code-launchpad-metric, .nx-code-launchpad-signal, .nx-code-launchpad-status-card, .nx-editor-panel-card):hover {
-    border-color: rgba(var(--nexus-accent-2-rgb), 0.17) !important;
+    border-color: rgba(var(--nexus-accent-2-rgb), 0.145) !important;
     box-shadow:
-        0 14px 30px rgba(0, 0, 0, 0.26),
-        0 0 16px rgba(var(--nexus-primary-rgb), 0.04),
-        0 0 20px rgba(var(--nexus-accent-2-rgb), 0.026),
-        inset 0 1px 0 rgba(255, 255, 255, 0.048);
+        0 12px 26px rgba(0, 0, 0, 0.22),
+        0 0 14px rgba(var(--nexus-primary-rgb), 0.03),
+        0 0 16px rgba(var(--nexus-accent-2-rgb), 0.022),
+        inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 .nx-code-launchpad-grid,
@@ -1555,6 +1645,84 @@ textarea.nx-typing-active,
     min-height: 1.5rem;
 }
 
+.nx-code-editor-tabbar-wrap,
+.nx-code-panel-windowbar,
+.nx-code-bottom-stack,
+.nx-code-status-strip {
+    border-color: var(--nx-code-panel-line, rgba(156, 170, 210, 0.065)) !important;
+}
+
+.nx-code-editor-tabbar-wrap,
+.nx-code-panel-windowbar {
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.014), rgba(255, 255, 255, 0.004)),
+        rgba(5, 8, 14, 0.72) !important;
+    box-shadow: none !important;
+}
+
+.nx-code-panel-windowbar {
+    color: var(--nx-code-text, #e5edf8);
+}
+
+.nx-code-panel-windowbar :where(button, [role="group"]) {
+    border-color: rgba(156, 170, 210, 0.075) !important;
+    background: rgba(255, 255, 255, 0.022) !important;
+    box-shadow: none !important;
+}
+
+.nx-code-tabbar {
+    min-height: 2.5rem !important;
+    height: 2.5rem !important;
+    flex-basis: 2.5rem !important;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.014), rgba(255, 255, 255, 0.004)),
+        rgba(5, 8, 14, 0.72) !important;
+    border-color: var(--nx-code-panel-line, rgba(156, 170, 210, 0.065)) !important;
+    box-shadow: none !important;
+}
+
+.nx-code-tabbar-actions {
+    background: transparent !important;
+    border-color: var(--nx-code-panel-line, rgba(156, 170, 210, 0.065)) !important;
+    box-shadow: none !important;
+}
+
+.nx-code-tab-action {
+    border-color: transparent !important;
+    background: transparent !important;
+    box-shadow: none !important;
+}
+
+.nx-code-explorer-header {
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.014), rgba(255, 255, 255, 0.004)),
+        rgba(5, 8, 14, 0.58) !important;
+    border-color: var(--nx-code-panel-line, rgba(156, 170, 210, 0.055)) !important;
+    box-shadow: none !important;
+}
+
+.nx-code-explorer-heading,
+.nx-code-explorer-workspace,
+.nx-code-explorer-toolbar {
+    min-width: 0;
+}
+
+.nx-code-file-tree-row {
+    min-height: 1.75rem !important;
+    height: 1.75rem !important;
+    border-radius: 0.375rem !important;
+    color: var(--nx-code-text, #e5edf8);
+}
+
+.nx-code-file-tree-row :where(button) {
+    min-width: 1.25rem;
+    min-height: 1.25rem;
+}
+
+.nx-code-file-tree-row[aria-selected="true"] {
+    color: var(--nx-code-strong-text, #f8fafc);
+}
+
 .nx-code-editor-status {
     overflow: hidden;
     color: var(--nexus-muted, #9ca3af);
@@ -1572,6 +1740,29 @@ textarea.nx-typing-active,
     background: transparent !important;
     background-color: transparent !important;
     background-image: none !important;
+}
+
+.nx-code-editor-shell .cm-theme,
+.nx-code-editor-shell .cm-editor {
+    flex: 1 1 auto;
+    height: 100%;
+    min-height: 0;
+    width: 100%;
+}
+
+.nx-code-editor-shell .cm-theme {
+    display: flex;
+}
+
+.nx-code-editor-shell .cm-scroller {
+    height: 100%;
+    min-height: 0;
+    overflow: auto !important;
+    scrollbar-gutter: stable;
+}
+
+.nx-code-editor-shell .cm-content {
+    min-height: 100%;
 }
 
 .cm-editor .cm-line {
@@ -1641,8 +1832,9 @@ textarea.nx-typing-active,
 
 @media (max-width: 980px) {
     .nx-code-shell-compact .nx-code-rail {
-        width: 3.25rem;
-        max-width: 3.25rem;
+        width: 3.125rem;
+        max-width: 3.125rem;
+        flex-basis: 3.125rem;
     }
 
     .nx-code-shell-compact .nx-code-side-panel {
@@ -1650,17 +1842,17 @@ textarea.nx-typing-active,
         top: 0;
         bottom: 0;
         height: auto;
-        width: min(24rem, calc(100vw - 3.25rem));
-        max-width: calc(100vw - 3.25rem);
+        width: min(24rem, calc(100vw - 3.125rem));
+        max-width: calc(100vw - 3.125rem);
     }
 
     .nx-code-shell-compact .nx-code-side-panel.left-14 {
-        left: 3.25rem;
+        left: 3.125rem;
         right: auto;
     }
 
     .nx-code-shell-compact .nx-code-side-panel.right-14 {
-        right: 3.25rem;
+        right: 3.125rem;
         left: auto;
     }
 

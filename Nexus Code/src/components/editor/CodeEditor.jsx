@@ -27,42 +27,10 @@ import {
   foldGutter,
   foldKeymap,
   indentOnInput,
-  StreamLanguage,
   syntaxHighlighting,
 } from "@codemirror/language";
 import { lintGutter, lintKeymap, setDiagnostics } from "@codemirror/lint";
 import { search, searchKeymap, highlightSelectionMatches } from "@codemirror/search";
-import { javascript } from "@codemirror/lang-javascript";
-import { json } from "@codemirror/lang-json";
-import { html } from "@codemirror/lang-html";
-import { css } from "@codemirror/lang-css";
-import { markdown } from "@codemirror/lang-markdown";
-import { python } from "@codemirror/lang-python";
-import { java } from "@codemirror/lang-java";
-import { cpp } from "@codemirror/lang-cpp";
-import { php } from "@codemirror/lang-php";
-import { rust } from "@codemirror/lang-rust";
-import { sql } from "@codemirror/lang-sql";
-import { xml } from "@codemirror/lang-xml";
-import { clojure } from "@codemirror/legacy-modes/mode/clojure";
-import { cmake } from "@codemirror/legacy-modes/mode/cmake";
-import { diff as diffParser } from "@codemirror/legacy-modes/mode/diff";
-import { dockerFile } from "@codemirror/legacy-modes/mode/dockerfile";
-import { fSharp } from "@codemirror/legacy-modes/mode/mllike";
-import { go as legacyGo } from "@codemirror/legacy-modes/mode/go";
-import { lua } from "@codemirror/legacy-modes/mode/lua";
-import { perl } from "@codemirror/legacy-modes/mode/perl";
-import { powerShell } from "@codemirror/legacy-modes/mode/powershell";
-import { properties } from "@codemirror/legacy-modes/mode/properties";
-import { protobuf } from "@codemirror/legacy-modes/mode/protobuf";
-import { r as rLanguage } from "@codemirror/legacy-modes/mode/r";
-import { ruby } from "@codemirror/legacy-modes/mode/ruby";
-import { shell } from "@codemirror/legacy-modes/mode/shell";
-import { swift } from "@codemirror/legacy-modes/mode/swift";
-import { toml } from "@codemirror/legacy-modes/mode/toml";
-import { vb } from "@codemirror/legacy-modes/mode/vb";
-import { verilog } from "@codemirror/legacy-modes/mode/verilog";
-import { yaml } from "@codemirror/legacy-modes/mode/yaml";
 import { THEMES as EDITOR_THEMES } from "../../pages/editor/editorShared.jsx";
 import { createEditorEngine } from "../../ide/editor/editorEngine.js";
 import { createDocumentUriDescriptor } from "../../ide/editor/documentUri.js";
@@ -70,8 +38,11 @@ import {
   detectLanguageId,
   getLanguageDisplayName,
   isLspReadyLanguage,
-  LANGUAGE_IDS,
 } from "../../ide/languages/languageIds.js";
+import {
+  createCodeMirrorLanguageFallback,
+  loadCodeMirrorLanguageExtension,
+} from "../../ide/languages/codeMirrorLanguages.js";
 import {
   createElectronLspTransport,
   hasElectronLspBridge,
@@ -203,10 +174,6 @@ function resolveEditorFontFamily(settings) {
   return `'${configured.replace(/'/g, "")}', ${DEFAULT_EDITOR_FONT_STACK}`;
 }
 
-function streamGrammar(parser) {
-  return parser ? StreamLanguage.define(parser) : [];
-}
-
 function safeHex(value, fallback) {
   const normalized = String(value || "").trim();
   return /^#[0-9a-f]{6}$/i.test(normalized) ? normalized : fallback;
@@ -296,6 +263,7 @@ function createNexusCodeMirrorTheme(
       "&": {
         height: "100%",
         minHeight: 0,
+        maxHeight: "100%",
         background: "transparent",
         color: text,
         fontFamily: resolveEditorFontFamily(settings),
@@ -306,7 +274,7 @@ function createNexusCodeMirrorTheme(
         WebkitFontSmoothing: "antialiased",
         fontSynthesis: "none",
         outline: "none",
-        overflow: "visible",
+        overflow: "hidden",
         position: "relative",
       },
       "&.cm-focused": {
@@ -314,7 +282,11 @@ function createNexusCodeMirrorTheme(
       },
       ".cm-scroller": {
         height: "100%",
+        minHeight: 0,
+        maxHeight: "100%",
         overflow: "auto",
+        overscrollBehavior: "contain",
+        scrollbarGutter: "stable",
         fontFamily: "inherit",
         lineHeight: `${editorLineHeight}px`,
         background: "transparent",
@@ -327,11 +299,11 @@ function createNexusCodeMirrorTheme(
       },
       ".cm-line": {
         padding: "0 2px",
-        color: `${text} !important`,
+        color: text,
         textRendering: "inherit",
       },
-      ".cm-line span, .cm-content span": {
-        color: "inherit !important",
+      ".cm-content ::selection": {
+        color: `${text} !important`,
       },
       ".cm-gutters": {
         background: "rgba(0,0,0,0.12)",
@@ -360,6 +332,9 @@ function createNexusCodeMirrorTheme(
       ".cm-cursor": {
         borderLeftColor: accent,
         borderLeftWidth: settings.cursor_style === "block" ? "0.55em" : "2px",
+      },
+      ".cm-dropCursor": {
+        borderLeftColor: accent,
       },
       ".cm-matchingBracket, .cm-nonmatchingBracket": {
         outline: `1px solid ${hexToRgba(editorAccentBlue, 0.56)}`,
@@ -540,95 +515,6 @@ function createNexusCodeMirrorTheme(
   );
 }
 
-function getLanguageExtension(languageId, fileName) {
-  const lowerName = String(fileName || "").toLowerCase();
-  switch (languageId) {
-    case LANGUAGE_IDS.JAVASCRIPT:
-      return javascript({ jsx: lowerName.endsWith(".jsx") });
-    case LANGUAGE_IDS.TYPESCRIPT:
-      return javascript({ typescript: true, jsx: lowerName.endsWith(".tsx") });
-    case LANGUAGE_IDS.JSON:
-    case LANGUAGE_IDS.JSONC:
-      return json();
-    case LANGUAGE_IDS.HTML:
-    case LANGUAGE_IDS.VUE:
-    case LANGUAGE_IDS.SVELTE:
-    case LANGUAGE_IDS.ASTRO:
-      return html({ matchClosingTags: true });
-    case LANGUAGE_IDS.CSS:
-    case LANGUAGE_IDS.SCSS:
-    case LANGUAGE_IDS.LESS:
-      return css();
-    case LANGUAGE_IDS.MARKDOWN:
-    case LANGUAGE_IDS.MDX:
-      return markdown();
-    case LANGUAGE_IDS.PYTHON:
-      return python();
-    case LANGUAGE_IDS.GO:
-      return streamGrammar(legacyGo);
-    case LANGUAGE_IDS.JAVA:
-      return java();
-    case LANGUAGE_IDS.C:
-    case LANGUAGE_IDS.CPP:
-    case LANGUAGE_IDS.CSHARP:
-    case LANGUAGE_IDS.OBJECTIVE_C:
-      return cpp();
-    case LANGUAGE_IDS.PHP:
-      return php();
-    case LANGUAGE_IDS.RUST:
-      return rust();
-    case LANGUAGE_IDS.SQL:
-      return sql();
-    case LANGUAGE_IDS.XML:
-      return xml();
-    case LANGUAGE_IDS.YAML:
-      return streamGrammar(yaml);
-    case LANGUAGE_IDS.SHELL:
-    case LANGUAGE_IDS.BAT:
-    case LANGUAGE_IDS.ENV:
-    case LANGUAGE_IDS.MAKEFILE:
-      return streamGrammar(shell);
-    case LANGUAGE_IDS.POWERSHELL:
-      return streamGrammar(powerShell);
-    case LANGUAGE_IDS.DOCKERFILE:
-      return streamGrammar(dockerFile);
-    case LANGUAGE_IDS.CMAKE:
-      return streamGrammar(cmake);
-    case LANGUAGE_IDS.TOML:
-      return streamGrammar(toml);
-    case LANGUAGE_IDS.INI:
-      return streamGrammar(properties);
-    case LANGUAGE_IDS.RUBY:
-      return streamGrammar(ruby);
-    case LANGUAGE_IDS.SWIFT:
-      return streamGrammar(swift);
-    case LANGUAGE_IDS.KOTLIN:
-    case LANGUAGE_IDS.SCALA:
-      return java();
-    case LANGUAGE_IDS.LUA:
-      return streamGrammar(lua);
-    case LANGUAGE_IDS.R:
-      return streamGrammar(rLanguage);
-    case LANGUAGE_IDS.PERL:
-      return streamGrammar(perl);
-    case LANGUAGE_IDS.CLOJURE:
-      return streamGrammar(clojure);
-    case LANGUAGE_IDS.FSHARP:
-      return streamGrammar(fSharp);
-    case LANGUAGE_IDS.VB:
-      return streamGrammar(vb);
-    case LANGUAGE_IDS.SYSTEMVERILOG:
-    case LANGUAGE_IDS.VERILOG:
-      return streamGrammar(verilog);
-    case LANGUAGE_IDS.PROTOBUF:
-      return streamGrammar(protobuf);
-    case LANGUAGE_IDS.DIFF:
-      return streamGrammar(diffParser);
-    default:
-      return [];
-  }
-}
-
 function countLines(value) {
   if (!value) return 1;
   let lines = 1;
@@ -727,6 +613,14 @@ export default function CodeEditor({
     () => getLanguageDisplayName(nexusLanguageId),
     [nexusLanguageId],
   );
+  const languageFallback = useMemo(
+    () => createCodeMirrorLanguageFallback(nexusLanguageId, fileName),
+    [fileName, nexusLanguageId],
+  );
+  const [languageSupport, setLanguageSupport] = useState(languageFallback);
+  const activeLanguageSupport =
+    languageSupport.key === languageFallback.key ? languageSupport : languageFallback;
+  const activeLanguageExtension = activeLanguageSupport.extension;
   const documentDescriptor = useMemo(
     () =>
       createDocumentUriDescriptor({
@@ -987,6 +881,27 @@ export default function CodeEditor({
   useEffect(() => {
     setEditorFallbackReason("");
   }, [editorResetKey]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLanguageSupport(languageFallback);
+
+    loadCodeMirrorLanguageExtension(nexusLanguageId, fileName).then((result) => {
+      if (cancelled) return;
+      const nextSupport = result.key === languageFallback.key ? result : languageFallback;
+      setLanguageSupport(nextSupport);
+      const view = editorViewRef.current;
+      if (view) {
+        view.dispatch({
+          effects: languageCompartment.reconfigure(nextSupport.extension),
+        });
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [fileName, languageFallback, nexusLanguageId]);
 
   useEffect(() => {
     if (editorFallbackReason) return undefined;
@@ -1665,7 +1580,7 @@ export default function CodeEditor({
       }),
       placeholder("Schreib Code, Markdown, JSON oder Notizen direkt hier..."),
       cmThemeCompartment.of(cmTheme),
-      languageCompartment.of(getLanguageExtension(nexusLanguageId, fileName)),
+      languageCompartment.of(activeLanguageExtension),
       diagnosticsCompartment.of(showDiagnostics ? [lintGutter()] : []),
     ];
 
@@ -1677,17 +1592,16 @@ export default function CodeEditor({
   }, [
     cmTheme,
     autocompleteMaxItems,
+    activeLanguageExtension,
     compactViewport,
     completionSource,
     editorLspKeymap,
     editorHighlightStyle,
     editorTabSize,
     emitEditorChange,
-    fileName,
     flushPendingChange,
     hoverSource,
     isLargeFile,
-    nexusLanguageId,
     reduceEditorMotion,
     scheduleCursorInfoUpdate,
     scheduleLineCountUpdate,
@@ -1819,6 +1733,8 @@ export default function CodeEditor({
       style={{ background: "transparent" }}
       data-editor-engine={editorFallbackReason ? "textarea-fallback" : "codemirror"}
       data-editor-fallback={editorFallbackReason ? "true" : "false"}
+      data-cm-language-state={activeLanguageSupport.status}
+      data-cm-language-id={activeLanguageSupport.grammarId}
       data-focused={editorFocused ? "true" : "false"}
       data-symbol-count={documentSymbols.length}
       data-active-symbol={editorScopeInfo.activeSymbol?.name || ""}
