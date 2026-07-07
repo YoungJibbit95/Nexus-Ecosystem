@@ -2,6 +2,8 @@ const isBrowser = () => typeof window !== "undefined";
 const isFunction = (value) => typeof value === "function";
 
 const DEFAULT_SCOPE_HINTS = ["repo", "read:org", "project"];
+const GITHUB_OWNER_PATTERN = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/;
+const GITHUB_REPO_PATTERN = /^[A-Za-z0-9._-]{1,100}$/;
 
 export const GITHUB_PLATFORM_METHODS = {
   authStatus: "githubGetAuthStatus",
@@ -164,16 +166,29 @@ export function normalizeGithubRepositoryInput(value) {
   const raw = String(value || "").trim();
   if (!raw) return { owner: "", repo: "", label: "" };
 
-  const cleaned = raw
+  let cleaned = raw;
+  try {
+    const parsed = new URL(raw);
+    if (parsed.hostname.toLowerCase().replace(/^www\./, "") === "github.com") {
+      cleaned = parsed.pathname;
+    }
+  } catch {
+    cleaned = raw;
+  }
+
+  cleaned = cleaned
+    .replace(/^ssh:\/\/git@github\.com\//i, "")
     .replace(/^https?:\/\/(?:www\.)?github\.com\//i, "")
     .replace(/^git@github\.com:/i, "")
+    .replace(/^github\.com[/:]/i, "")
     .split(/[?#]/)[0]
-    .replace(/\.git$/i, "")
     .replace(/^\/+|\/+$/g, "");
-  const [owner = "", repo = ""] = cleaned
+
+  const [owner = "", repoName = ""] = cleaned
     .split("/")
     .map((part) => part.trim())
     .filter(Boolean);
+  const repo = repoName.replace(/\.git$/i, "");
 
   return {
     owner,
@@ -185,6 +200,18 @@ export function normalizeGithubRepositoryInput(value) {
 export function getGithubRepositoryError(repoRef) {
   if (!repoRef?.owner || !repoRef?.repo) {
     return "Enter a repository as owner/repo before refreshing or updating GitHub data.";
+  }
+  if (!GITHUB_OWNER_PATTERN.test(repoRef.owner)) {
+    return "GitHub owner must be a valid user or organization login.";
+  }
+  if (
+    repoRef.repo === "." ||
+    repoRef.repo === ".." ||
+    repoRef.repo.includes("/") ||
+    repoRef.repo.includes("\\") ||
+    !GITHUB_REPO_PATTERN.test(repoRef.repo)
+  ) {
+    return "GitHub repository name can only contain letters, numbers, dots, dashes, and underscores.";
   }
   return "";
 }
@@ -239,6 +266,11 @@ export function classifyGithubPlatformError(error) {
       .map((entry) => entry?.message || entry?.code || "")
       .filter(Boolean)
       .slice(0, 3)
+    : [];
+  const errorCodes = Array.isArray(details.errors)
+    ? details.errors
+      .map((entry) => String(entry?.code || entry?.type || "").toUpperCase())
+      .filter(Boolean)
     : [];
   const documentationUrl = details.documentationUrl || details.documentation_url || "";
   const hint = details.hint || "";
@@ -344,7 +376,13 @@ export function classifyGithubPlatformError(error) {
     };
   }
 
-  if (status === 404) {
+  if (
+    status === 404 ||
+    details.code === "GITHUB_NOT_FOUND" ||
+    errorCodes.includes("NOT_FOUND") ||
+    lowerMessage.includes("could not resolve to") ||
+    lowerMessage.includes("not found")
+  ) {
     return {
       kind: GITHUB_PLATFORM_ERROR_KINDS.notFound,
       tone: "warning",
@@ -355,12 +393,12 @@ export function classifyGithubPlatformError(error) {
     };
   }
 
-  if (status === 422) {
+  if (status === 422 || details.code === "GITHUB_INVALID_ARGUMENT") {
     return {
       kind: GITHUB_PLATFORM_ERROR_KINDS.validation,
       tone: "warning",
-      title: "GitHub validation failed",
-      detail: "Check branch names, required fields, duplicate project items, and selected IDs.",
+      title: details.code === "GITHUB_INVALID_ARGUMENT" ? "GitHub input invalid" : "GitHub validation failed",
+      detail: "Check repository names, required fields, duplicate project items, and selected IDs.",
       status,
       hints: [...validation, hint, rawDetail, docsDetail].filter(Boolean),
     };

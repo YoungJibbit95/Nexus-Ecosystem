@@ -9,6 +9,7 @@ import {
   Menu,
   Minus,
   Minimize2,
+  MoreHorizontal,
   PanelLeft,
   Save,
   Search,
@@ -26,6 +27,7 @@ const isElectron = !!win.electronAPI;
 const isMacOS = isElectron && win.electronAPI?.platform === "darwin";
 const MACOS_TRAFFIC_LIGHT_SAFE_WIDTH = 78;
 const COMPACT_MENU_ID = "__compact_menu__";
+const TITLEBAR_OVERFLOW_ID = "__titlebar_overflow__";
 
 function MenuItemButton({ item, onSelect }) {
   const Icon = item.icon;
@@ -40,7 +42,7 @@ function MenuItemButton({ item, onSelect }) {
       disabled={item.disabled}
       className={`nx-code-menu-item ${
         item.disabled ? "is-disabled" : ""
-      }`}
+      } ${item.active ? "is-active" : ""}`}
     >
       <span className="flex min-w-0 flex-1 items-center gap-2">
         {Icon ? <Icon size={13} className="shrink-0" /> : null}
@@ -180,6 +182,70 @@ function CompactMenuButton({ menus, activeMenu, setActiveMenu }) {
   );
 }
 
+function TitleBarOverflowButton({ items, activeMenu, setActiveMenu }) {
+  const isOpen = activeMenu === TITLEBAR_OVERFLOW_ID;
+  const reduceMotion = useReducedMotion();
+
+  return (
+    <div
+      className="relative"
+      onMouseEnter={() => activeMenu && setActiveMenu(TITLEBAR_OVERFLOW_ID)}
+    >
+      <button
+        type="button"
+        aria-haspopup="menu"
+        aria-expanded={isOpen}
+        aria-label="Workbench Optionen"
+        title="Workbench Optionen"
+        onClick={() => setActiveMenu(isOpen ? null : TITLEBAR_OVERFLOW_ID)}
+        className="nx-code-titlebar-overflow-button nx-code-titlebar-icon-button flex shrink-0 items-center justify-center text-gray-400 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500/60"
+        // @ts-ignore
+        style={{ WebkitAppRegion: "no-drag" }}
+      >
+        <MoreHorizontal size={14} />
+      </button>
+
+      <AnimatePresence>
+        {isOpen && (
+          <>
+            <div
+              className="fixed inset-0 z-40"
+              onClick={() => setActiveMenu(null)}
+              // @ts-ignore
+              style={{ WebkitAppRegion: "no-drag" }}
+            />
+            <motion.div
+              initial={reduceMotion ? false : { opacity: 0, y: 6, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 6, scale: 0.98 }}
+              transition={{ duration: reduceMotion ? 0 : 0.18, ease: [0.22, 1, 0.36, 1] }}
+              className="nx-code-menu-dropdown absolute right-0 top-full z-50 mt-1 w-[min(14rem,calc(100vw-1rem))] overflow-hidden p-1"
+              role="menu"
+              // @ts-ignore
+              style={{ WebkitAppRegion: "no-drag" }}
+            >
+              {items.map((item, idx) =>
+                item.separator ? (
+                  <div
+                    key={`separator-${idx}`}
+                    className="my-1 h-px bg-white/[0.07]"
+                  />
+                ) : (
+                  <MenuItemButton
+                    key={`${item.label}-${idx}`}
+                    item={item}
+                    onSelect={() => setActiveMenu(null)}
+                  />
+                ),
+              )}
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 function CommandButton({ icon: Icon, label, active, onClick, title }) {
   const reduceMotion = useReducedMotion();
 
@@ -211,37 +277,6 @@ function CommandButton({ icon: Icon, label, active, onClick, title }) {
     >
       <Icon size={13} />
     </motion.button>
-  );
-}
-
-function ShellPill({ icon: Icon, label, tone = "muted" }) {
-  const isPrimary = tone === "primary";
-
-  return (
-    <span
-      title={label}
-      className="nx-code-titlebar-pill hidden min-w-0 items-center gap-1.5 2xl:flex"
-      style={{
-        height: 27,
-        maxWidth: 108,
-        borderRadius: "8px",
-        border: isPrimary
-          ? "1px solid rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.16)"
-          : "1px solid rgba(255, 255, 255, 0.052)",
-        background: isPrimary
-          ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.048)"
-          : "rgba(0, 0, 0, 0.1)",
-        color: isPrimary
-          ? "var(--nexus-primary, #7c8cff)"
-          : "var(--nexus-muted, #99a3b7)",
-        padding: "0 9px",
-      }}
-    >
-      <Icon size={12} className="shrink-0" />
-      <span className="min-w-0 truncate text-[10px] font-semibold">
-        {label}
-      </span>
-    </span>
   );
 }
 
@@ -352,9 +387,56 @@ export default function TitleBar({
   ];
 
   const workspaceLabel = workspaceName || "Kein Workspace";
+  const panelLabel = activePanelLabel || "Editor";
+  const workbenchMenuItems = [
+    { label: `Panel: ${panelLabel}`, icon: Activity, disabled: true },
+    { separator: true },
+    {
+      label: "Aktives Panel",
+      shortcut: "Ctrl+B",
+      action: onToggleSidebar,
+      icon: PanelLeft,
+      active: panelLabel !== "Editor",
+    },
+    {
+      label: sidebarVisible ? "Rail ausblenden" : "Rail anzeigen",
+      action: onToggleSidebarVisibility,
+      icon: PanelLeft,
+      active: sidebarVisible,
+    },
+    {
+      label: terminalOpen ? "Terminal schliessen" : "Terminal oeffnen",
+      shortcut: "Ctrl+`",
+      action: onToggleTerminal,
+      icon: TerminalSquare,
+      active: terminalOpen,
+    },
+    {
+      label: zenMode ? "Zen verlassen" : "Zen Mode",
+      shortcut: "Ctrl+K Z",
+      action: onToggleZenMode,
+      icon: zenMode ? Minimize2 : Maximize2,
+      active: zenMode,
+    },
+    { separator: true },
+    {
+      label: "Befehlspalette",
+      shortcut: "F1",
+      action: safeCommandPalette,
+      icon: Command,
+    },
+    {
+      label: "Einstellungen",
+      shortcut: "Ctrl+,",
+      action: safeOpenSettings,
+      icon: Settings,
+      active: shellModeLabel === "Settings",
+    },
+  ];
 
   return (
     <div
+      ref={menuHostRef}
       className={`nx-code-titlebar nx-code-titlebar-pro relative z-[60] flex shrink-0 select-none items-center justify-between overflow-visible ${compact ? "px-2" : "px-3"}`}
       style={{
         height: 38,
@@ -435,13 +517,12 @@ export default function TitleBar({
         </div>
 
         <div
-          ref={menuHostRef}
           className="flex min-w-0 items-center gap-1"
           // @ts-ignore
           style={{ WebkitAppRegion: "no-drag" }}
         >
           <div
-            className={`nx-code-menu-host nx-code-menu-cluster items-center ${compact ? "hidden xl:flex" : "flex"}`}
+            className={`nx-code-menu-host nx-code-menu-cluster items-center ${compact ? "hidden xl:flex" : "hidden lg:flex"}`}
             style={{
               height: 27,
               borderRadius: "8px",
@@ -461,7 +542,7 @@ export default function TitleBar({
             ))}
           </div>
           <div
-            className={`nx-code-menu-host nx-code-menu-compact-host items-center ${compact ? "flex xl:hidden" : "hidden"}`}
+            className={`nx-code-menu-host nx-code-menu-compact-host items-center ${compact ? "flex xl:hidden" : "flex lg:hidden"}`}
             style={{
               height: 27,
               borderRadius: "8px",
@@ -491,8 +572,8 @@ export default function TitleBar({
           height: 28,
           minHeight: 28,
           flex: "1 1 11rem",
-          minWidth: compact ? 118 : 168,
-          maxWidth: compact ? 390 : 500,
+          minWidth: compact ? 112 : 148,
+          maxWidth: compact ? 300 : 380,
           gap: 7,
           borderRadius: "8px",
           border: "1px solid rgba(142, 153, 183, 0.105)",
@@ -503,7 +584,7 @@ export default function TitleBar({
           padding: "0 9px",
           WebkitAppRegion: "no-drag",
         }}
-        title="Command Center oeffnen"
+        title={`Command Center oeffnen - ${workspaceLabel}`}
       >
         <span
           className="flex shrink-0 items-center justify-center"
@@ -520,17 +601,7 @@ export default function TitleBar({
         </span>
         <span className="min-w-0 flex-1 truncate text-[11px] font-semibold text-gray-200">
           <span>Nexus Command</span>
-          <span className="hidden text-gray-500 lg:inline"> - Suche starten...</span>
-          <span className="hidden text-gray-500 2xl:inline"> / {workspaceLabel}</span>
-        </span>
-        <span
-          className="hidden shrink-0 rounded-md px-2 py-1 text-[9px] font-semibold tabular-nums text-gray-400 xl:inline"
-          style={{
-            border: "1px solid rgba(255, 255, 255, 0.075)",
-            background: "rgba(0, 0, 0, 0.12)",
-          }}
-        >
-          {shellModeLabel}
+          <span className="hidden text-gray-500 lg:inline"> - Suche</span>
         </span>
       </motion.button>
 
@@ -539,34 +610,30 @@ export default function TitleBar({
         // @ts-ignore
         style={{ gap: 6, WebkitAppRegion: "no-drag" }}
       >
-        <ShellPill icon={Activity} label={activePanelLabel} />
-        <ShellPill icon={Command} label={shellModeLabel} tone="primary" />
         <CommandButton
-          icon={PanelLeft}
-          label="Sidebar"
-          active={sidebarVisible}
-          onClick={onToggleSidebar}
-          title="Panel umschalten"
+          icon={Save}
+          label="Alle speichern"
+          onClick={safeSaveAll}
+          title="Alle speichern"
         />
         <CommandButton
           icon={TerminalSquare}
           label="Terminal"
           active={terminalOpen}
           onClick={onToggleTerminal}
+          title={terminalOpen ? "Terminal schliessen" : "Terminal oeffnen"}
         />
         <CommandButton
-          icon={zenMode ? Minimize2 : Maximize2}
-          label="Zen"
-          active={zenMode}
-          onClick={onToggleZenMode}
-          title={zenMode ? "Zen Mode verlassen" : "Zen Mode"}
+          icon={PanelLeft}
+          label="Sidebar"
+          active={panelLabel !== "Editor" || sidebarVisible}
+          onClick={onToggleSidebar}
+          title="Panel umschalten"
         />
-        <CommandButton
-          icon={Settings}
-          label="Settings"
-          active={shellModeLabel === "Settings"}
-          onClick={safeOpenSettings}
-          title="Einstellungen"
+        <TitleBarOverflowButton
+          items={workbenchMenuItems}
+          activeMenu={activeMenu}
+          setActiveMenu={setActiveMenu}
         />
       </div>
     </div>

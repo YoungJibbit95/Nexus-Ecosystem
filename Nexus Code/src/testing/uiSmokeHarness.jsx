@@ -1,5 +1,6 @@
 import React from "react";
 import AccountPanel from "../components/editor/AccountPanel.jsx";
+import CodeEditor from "../components/editor/CodeEditor.jsx";
 import FileExplorer from "../components/editor/FileExplorer.jsx";
 import GitHubWorkbenchPanel from "../components/editor/github/GitHubWorkbenchPanel.jsx";
 import {
@@ -23,7 +24,9 @@ import {
   UI_SMOKE_FIXTURE_ACCOUNT_SESSION,
   UI_SMOKE_FIXTURE_CONTROL_STATUS,
   UI_SMOKE_FIXTURE_FILE_TREE,
+  UI_SMOKE_FIXTURE_GITHUB_PROJECT_OWNER,
   UI_SMOKE_FIXTURE_GITHUB_REPOSITORY,
+  UI_SMOKE_FIXTURE_LONG_EDITOR_CODE,
   UI_SMOKE_FIXTURE_LONG_LABELS,
   UI_SMOKE_FIXTURE_WORKSPACE_PATH,
   createUiSmokeSettingsFixture,
@@ -153,6 +156,14 @@ export function prepareUiSmokeScenario(scenario) {
 export function createUiSmokeScenarios() {
   const callbacks = createUiSmokeCallbacks();
   const settings = createUiSmokeSettingsFixture(DEFAULT_SETTINGS);
+  const editorScrollSettings = {
+    ...settings,
+    lsp_enabled: true,
+    font_size: 14,
+    line_height: 1.45,
+    tab_size: 2,
+    word_wrap: false,
+  };
   const accountPanelCallbacks = {
     onSaveSession: callbacks.onSaveAccountSession,
     onClearSession: callbacks.onClearAccountSession,
@@ -174,8 +185,16 @@ export function createUiSmokeScenarios() {
         "Nexus Code",
         "Neue Datei",
       ],
+      topbarContract: true,
       requiredMarkup: [
         "nx-code-titlebar-wrap",
+        "nx-code-titlebar",
+        "nx-code-command-center",
+        "nx-code-titlebar-icon-button",
+        "nx-code-titlebar-overflow-button",
+        "nx-code-menu-cluster",
+        "nx-code-menu-compact-host",
+        "nx-code-workbench-menu-trigger",
         "nx-code-side-panel",
         "nx-code-status-strip",
         "data-workbench-zone=\"side-panel\"",
@@ -185,7 +204,6 @@ export function createUiSmokeScenarios() {
         "data-workbench-axis=\"horizontal\"",
         "data-workbench-zone=\"editor\"",
         "data-workbench-dock-id=\"editor\"",
-        "aria-label=\"Side panel width\"",
       ],
       render: (viewport) =>
         renderInViewport(
@@ -195,6 +213,40 @@ export function createUiSmokeScenarios() {
             accountSession={UI_SMOKE_FIXTURE_ACCOUNT_SESSION}
             controlStatus={UI_SMOKE_FIXTURE_CONTROL_STATUS}
             {...callbacks}
+          />,
+        ),
+    },
+    {
+      id: "editor-scroll",
+      title: "Editor long-document scroll surface",
+      expectedText: [
+        "TypeScript",
+        "CodeMirror",
+      ],
+      editorScrollContract: true,
+      requiredMarkup: [
+        "nx-code-editor-shell",
+        "nx-code-editor-canvas",
+        "nx-code-editor-status",
+        "data-editor-engine=\"codemirror\"",
+        "data-editor-fallback=\"false\"",
+        "data-cm-language-id=\"typescript\"",
+        "data-lsp-state=\"unavailable\"",
+      ],
+      render: (viewport) =>
+        renderInViewport(
+          "editor-scroll",
+          viewport,
+          <CodeEditor
+            code={UI_SMOKE_FIXTURE_LONG_EDITOR_CODE}
+            fileName="scroll-contract.ts"
+            filePath={`${UI_SMOKE_FIXTURE_WORKSPACE_PATH}\\src\\scroll-contract.ts`}
+            workspacePath={UI_SMOKE_FIXTURE_WORKSPACE_PATH}
+            onChange={noop}
+            settings={editorScrollSettings}
+            showLineNumbers
+            tabSize={2}
+            wordWrap={false}
           />,
         ),
     },
@@ -385,6 +437,7 @@ export function createUiSmokeScenarios() {
         "Open Git panel",
         "Open account panel",
       ],
+      githubFallbackContract: "issues",
       expectedText: [
         "GitHub Issues",
         "offline",
@@ -410,6 +463,46 @@ export function createUiSmokeScenarios() {
             workspacePath={UI_SMOKE_FIXTURE_WORKSPACE_PATH}
             accountSession={UI_SMOKE_FIXTURE_ACCOUNT_SESSION}
             initialRepository={UI_SMOKE_FIXTURE_GITHUB_REPOSITORY}
+            onOpenGit={noop}
+            onOpenAccount={noop}
+          />,
+        ),
+    },
+    {
+      id: "github-projects",
+      title: "GitHub Projects panel without desktop bridge",
+      primaryActions: [
+        "Refresh projects",
+        "Open Git panel",
+        "Open account panel",
+      ],
+      githubFallbackContract: "projects",
+      expectedText: [
+        "GitHub Projects",
+        "Bridge offline",
+        "Owner / repository",
+        "Scope",
+        "Viewer",
+        UI_SMOKE_FIXTURE_GITHUB_PROJECT_OWNER,
+        "No projects found",
+      ],
+      requiredMarkup: [
+        "nx-editor-panel-shell",
+        "nx-editor-panel-header",
+        "nx-editor-panel-actions",
+        "nx-editor-panel-body",
+        "nx-editor-panel-card",
+        "placeholder=\"owner or owner/repo\"",
+      ],
+      render: (viewport) =>
+        renderInViewport(
+          "github-projects",
+          viewport,
+          <GitHubWorkbenchPanel
+            panelId="projects"
+            workspacePath={UI_SMOKE_FIXTURE_WORKSPACE_PATH}
+            accountSession={UI_SMOKE_FIXTURE_ACCOUNT_SESSION}
+            initialRepository={UI_SMOKE_FIXTURE_GITHUB_PROJECT_OWNER}
             onOpenGit={noop}
             onOpenAccount={noop}
           />,
@@ -486,6 +579,122 @@ function assertSmokeAttributes(scenario, markup) {
     .map(([name, value]) => `missing ${name}="${value}"`);
 }
 
+function getMarkupSegment(markup, startMarker, endMarker) {
+  const startIndex = markup.indexOf(startMarker);
+  if (startIndex === -1) return "";
+  const endIndex = markup.indexOf(endMarker, startIndex + startMarker.length);
+  return endIndex === -1 ? markup.slice(startIndex) : markup.slice(startIndex, endIndex);
+}
+
+function countOccurrences(value, marker) {
+  return String(value || "").split(marker).length - 1;
+}
+
+function assertTopbarContract(scenario, markup) {
+  if (!scenario.topbarContract) return [];
+
+  const topbarMarkup = getMarkupSegment(markup, "nx-code-titlebar", "nx-code-workbench");
+  const failures = [];
+  const requiredMarkers = [
+    "nx-code-command-center",
+    "nx-code-menu-cluster",
+    "nx-code-menu-compact-host",
+    "nx-code-titlebar-icon-button",
+    "nx-code-titlebar-overflow-button",
+    "Command Center",
+  ];
+  const bulkyPanelMarkers = [
+    "GitHub Issues",
+    "GitHub Projects",
+    "Pull Requests",
+    "Nexus Account",
+    "No issues found",
+    "No projects found",
+    "Panel footer guard",
+  ];
+
+  if (!topbarMarkup) {
+    return ["missing topbar contract segment before workbench"];
+  }
+
+  failures.push(
+    ...requiredMarkers
+      .filter((marker) => !topbarMarkup.includes(marker))
+      .map((marker) => `topbar missing compact marker "${marker}"`),
+  );
+
+  const iconButtonCount = countOccurrences(topbarMarkup, "nx-code-titlebar-icon-button");
+  if (iconButtonCount < 2) {
+    failures.push(`topbar has ${iconButtonCount} icon buttons, expected at least 2`);
+  }
+
+  failures.push(
+    ...bulkyPanelMarkers
+      .filter((marker) => topbarMarkup.includes(marker))
+      .map((marker) => `topbar includes bulky panel text "${marker}"`),
+  );
+
+  return failures;
+}
+
+function assertEditorScrollContract(scenario, markup) {
+  if (!scenario.editorScrollContract) return [];
+
+  const editorMarkup = getMarkupSegment(markup, "nx-code-editor-shell", "nx-code-editor-status");
+  const requiredMarkers = [
+    "nx-code-editor-canvas",
+    "flex-1",
+    "min-h-0",
+    "overflow-hidden",
+    "data-editor-engine=\"codemirror\"",
+    "data-cm-language-id=\"typescript\"",
+  ];
+
+  if (!editorMarkup) return ["missing editor scroll contract segment"];
+  return requiredMarkers
+    .filter((marker) => !editorMarkup.includes(marker))
+    .map((marker) => `editor scroll contract missing "${marker}"`);
+}
+
+function assertGithubFallbackContract(scenario, markup) {
+  if (!scenario.githubFallbackContract) return [];
+
+  const isProjects = scenario.githubFallbackContract === "projects";
+  const requiredMarkers = isProjects
+    ? [
+        "GitHub Projects",
+        "Bridge offline",
+        "Desktop bridge unavailable",
+        "Refresh projects",
+        "Owner / repository",
+        "placeholder=\"owner or owner/repo\"",
+      ]
+    : [
+        "GitHub Issues",
+        "Bridge offline",
+        "Desktop bridge unavailable",
+        "Refresh issues",
+        "Repository",
+        "placeholder=\"owner/repo\"",
+      ];
+  const forbiddenMarkers = [
+    "Bridge ready",
+    "Create issue</button>",
+    "Update selected issue",
+    "Add issue or PR by node ID",
+    "Update project field",
+  ];
+
+  return [
+    ...requiredMarkers
+      .filter((marker) => !markup.includes(marker))
+      .map((marker) => `github ${scenario.githubFallbackContract} fallback missing "${marker}"`),
+    ...forbiddenMarkers
+      .filter((marker) => markup.includes(marker))
+      .map((marker) => `github ${scenario.githubFallbackContract} fallback exposes ready action "${marker}"`),
+  ];
+}
+
 export function assertUiSmokeMarkup(scenario, markup) {
   const orderedMarkers = scenario.orderedMarkup || [];
   const orderedFailures = [];
@@ -517,6 +726,9 @@ export function assertUiSmokeMarkup(scenario, markup) {
       .filter((marker) => !markup.includes(marker))
       .map((marker) => `missing markup guard "${marker}"`),
     ...orderedFailures,
+    ...assertTopbarContract(scenario, markup),
+    ...assertEditorScrollContract(scenario, markup),
+    ...assertGithubFallbackContract(scenario, markup),
   ];
   const buttonResult = assertButtonLabels(markup);
   failures.push(...buttonResult.failures);

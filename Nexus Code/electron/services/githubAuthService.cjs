@@ -4,7 +4,7 @@ const crypto = require("crypto");
 
 const GITHUB_DEVICE_CODE_URL = "https://github.com/login/device/code";
 const GITHUB_ACCESS_TOKEN_URL = "https://github.com/login/oauth/access_token";
-const REQUIRED_SCOPES = ["repo", "read:user", "user:email", "project"];
+const REQUIRED_SCOPES = ["repo", "read:user", "user:email", "read:org", "project"];
 const DEFAULT_SCOPES = REQUIRED_SCOPES;
 const TOKEN_SERVICE = "github";
 const USER_AGENT = "Nexus-Code-Electron";

@@ -147,6 +147,7 @@ const DEFAULT_PULL_SAFETY = {
 
 const DEFAULT_PROJECT_ACTION = {
   contentId: "",
+  contentType: "issue",
   itemId: "",
   fieldId: "",
   valueType: "text",
@@ -1235,14 +1236,23 @@ function ProjectActions({
           <div className="mb-2 flex items-center gap-2">
             <Plus size={13} className="text-cyan-300" />
             <div className="min-w-0 text-xs font-semibold text-gray-200">
-              Add issue or PR by node ID
+              Add issue or PR
             </div>
           </div>
           <form className="grid gap-2" onSubmit={onAddItem}>
+            <QuietSelect
+              value={actionDraft.contentType}
+              onChange={(event) => onActionDraftChange({ ...actionDraft, contentType: event.target.value })}
+              disabled={!selectedProject || Boolean(busy)}
+            >
+              <option value="issue">Issue</option>
+              <option value="pull">Pull request</option>
+              <option value="auto">Auto from URL</option>
+            </QuietSelect>
             <QuietInput
               value={actionDraft.contentId}
               onChange={(event) => onActionDraftChange({ ...actionDraft, contentId: event.target.value })}
-              placeholder="Content node ID"
+              placeholder="Node ID, #42, owner/repo#42, or GitHub URL"
               disabled={!selectedProject || Boolean(busy)}
             />
             <PanelActionButton
@@ -2242,7 +2252,10 @@ export function GitHubWorkbenchPanel({
         () =>
           addGithubProjectV2Item({
             projectId: selectedProject.id,
-            contentId: projectActionDraft.contentId.trim(),
+            owner: draftRepoRef.owner,
+            repo: draftRepoRef.repo,
+            contentRef: projectActionDraft.contentId.trim(),
+            contentType: projectActionDraft.contentType,
           }),
         "Project item added.",
       );
@@ -2251,7 +2264,7 @@ export function GitHubWorkbenchPanel({
         void loadProjectItems(selectedProject);
       }
     },
-    [loadProjectItems, projectActionDraft.contentId, runMutation, selectedProject],
+    [draftRepoRef, loadProjectItems, projectActionDraft.contentId, projectActionDraft.contentType, runMutation, selectedProject],
   );
 
   const handleUpdateProjectField = useCallback(

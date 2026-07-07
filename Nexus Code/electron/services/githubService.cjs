@@ -10,8 +10,9 @@ const MAX_BODY_BYTES = 256 * 1024;
 const MAX_GRAPHQL_VARIABLE_BYTES = 128 * 1024;
 const MAX_TEXT_BYTES = 64 * 1024;
 const MAX_REVIEW_COMMENTS = 100;
-const PROJECT_SCOPE = ["project"];
+const PROJECT_SCOPE = ["project", "read:org"];
 const REPO_SCOPE = ["repo"];
+const GITHUB_NODE_ID_PATTERN = /^(?=.*[A-Za-z_])[A-Za-z0-9_=-]{8,512}$/;
 
 class GithubServiceError extends Error {
   constructor(message, details = {}) {
@@ -132,6 +133,29 @@ const assertRepoName = (value) => {
   return repo;
 };
 
+const normalizeGithubRepoText = (value) => {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+
+  let cleaned = raw;
+  try {
+    const parsed = new URL(raw);
+    if (parsed.hostname.toLowerCase().replace(/^www\./, "") === "github.com") {
+      cleaned = parsed.pathname;
+    }
+  } catch {
+    cleaned = raw;
+  }
+
+  return cleaned
+    .replace(/^ssh:\/\/git@github\.com\//i, "")
+    .replace(/^https?:\/\/(?:www\.)?github\.com\//i, "")
+    .replace(/^git@github\.com:/i, "")
+    .replace(/^github\.com[/:]/i, "")
+    .split(/[?#]/)[0]
+    .replace(/^\/+|\/+$/g, "");
+};
+
 const assertRepoRef = (options = {}) => {
   if (!isPlainObject(options)) {
     throw new GithubServiceError("GitHub options must be an object.", {
@@ -143,8 +167,11 @@ const assertRepoRef = (options = {}) => {
   let repo = options.repo;
   const fullName = options.fullName || options.repository || options.nameWithOwner;
   if ((!owner || !repo) && fullName) {
-    const parts = String(fullName).trim().replace(/\.git$/i, "").split("/");
-    if (parts.length === 2) {
+    const parts = normalizeGithubRepoText(fullName)
+      .split("/")
+      .map((part) => part.trim())
+      .filter(Boolean);
+    if (parts.length >= 2) {
       [owner, repo] = parts;
     }
   }
@@ -871,6 +898,109 @@ const normalizeProjectFieldValue = (value) => {
   return result;
 };
 
+const normalizeProjectContentType = (value) => {
+  const raw = String(value || "auto").trim().toLowerCase();
+  if (["pull", "pulls", "pr", "pullrequest", "pull_request"].includes(raw)) return "pull";
+  if (["issue", "issues"].includes(raw)) return "issue";
+  return "auto";
+};
+
+const isLikelyGithubNodeId = (value) => GITHUB_NODE_ID_PATTERN.test(String(value || "").trim());
+
+const parseProjectContentReference = (options = {}) => {
+  const raw = String(
+    options.contentId ||
+      options.contentNodeId ||
+      options.nodeId ||
+      options.contentRef ||
+      options.reference ||
+      "",
+  ).trim();
+
+  if (!raw) {
+    throw new GithubServiceError("contentId is required.", {
+      code: "GITHUB_INVALID_ARGUMENT",
+      hint: "Use a GitHub node ID, issue or pull request URL, owner/repo#number, or #number with a repository.",
+    });
+  }
+
+  if (isLikelyGithubNodeId(raw) && !raw.includes("/") && !raw.includes("#")) {
+    return { nodeId: assertNodeId(raw, "contentId") };
+  }
+
+  let cleaned = raw;
+  try {
+    const parsed = new URL(raw);
+    if (parsed.hostname.toLowerCase().replace(/^www\./, "") === "github.com") {
+      cleaned = parsed.pathname;
+    }
+  } catch {
+    cleaned = raw;
+  }
+
+  cleaned = cleaned
+    .replace(/^https?:\/\/(?:www\.)?github\.com\//i, "")
+    .replace(/^github\.com[/:]/i, "")
+    .split(/[?&]/)[0]
+    .replace(/^\/+|\/+$/g, "");
+
+  const preferredType = normalizeProjectContentType(options.contentType || options.type);
+  const routeMatch = cleaned.match(/^([^/\s#]+)\/([^/\s#]+)\/(issues|pulls?|pull-requests?)\/(\d+)$/i);
+  const hashMatch = cleaned.match(/^([^/\s#]+)\/([^/\s#]+)#(\d+)$/);
+  const localNumberMatch = cleaned.match(/^#?(\d+)$/);
+
+  if (routeMatch) {
+    return {
+      owner: routeMatch[1],
+      repo: routeMatch[2].replace(/\.git$/i, ""),
+      number: assertPositiveInteger(routeMatch[4], "content number"),
+      type: /^pull/i.test(routeMatch[3]) ? "pull" : "issue",
+    };
+  }
+
+  if (hashMatch) {
+    return {
+      owner: hashMatch[1],
+      repo: hashMatch[2].replace(/\.git$/i, ""),
+      number: assertPositiveInteger(hashMatch[3], "content number"),
+      type: preferredType === "pull" ? "pull" : "issue",
+    };
+  }
+
+  if (localNumberMatch) {
+    const repo = assertRepoRef(options);
+    return {
+      ...repo,
+      number: assertPositiveInteger(localNumberMatch[1], "content number"),
+      type: preferredType === "pull" ? "pull" : "issue",
+    };
+  }
+
+  throw new GithubServiceError("contentId is not a supported GitHub issue or pull request reference.", {
+    code: "GITHUB_INVALID_ARGUMENT",
+    hint: "Use a GitHub node ID, issue or pull request URL, owner/repo#number, or #number with a repository.",
+  });
+};
+
+const resolveProjectContentId = async (options, request) => {
+  const ref = parseProjectContentReference(options);
+  if (ref.nodeId) return ref.nodeId;
+
+  const repo = assertRepoRef(ref);
+  const endpoint = ref.type === "pull"
+    ? `/repos/${repoPath(repo)}/pulls/${ref.number}`
+    : `/repos/${repoPath(repo)}/issues/${ref.number}`;
+  const content = await request(endpoint, { expectedScopes: REPO_SCOPE });
+  const nodeId = content?.node_id || content?.nodeId;
+  if (!nodeId) {
+    throw new GithubServiceError("GitHub did not return a node ID for the selected content.", {
+      code: "GITHUB_API_ERROR",
+      hint: "Check the issue or pull request reference and repository access.",
+    });
+  }
+  return assertNodeId(nodeId, "contentId");
+};
+
 const PROJECT_V2_FIELDS = `
   id
   number
@@ -1494,7 +1624,7 @@ const createGithubService = ({ tokenStore }) => {
 
     async addProjectV2ItemById(options = {}) {
       const projectId = assertNodeId(options.projectId, "projectId");
-      const contentId = assertNodeId(options.contentId || options.nodeId, "contentId");
+      const contentId = await resolveProjectContentId(options, request);
       const data = await graphql(
         `
           mutation NexusCodeAddProjectItem($projectId: ID!, $contentId: ID!) {

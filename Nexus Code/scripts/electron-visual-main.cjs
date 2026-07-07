@@ -295,7 +295,7 @@ function validateResult(scenario, metrics, imageStats) {
       `launchpad root overflows at 900x512 (${metrics.rootOverflow.scrollWidth}x${metrics.rootOverflow.scrollHeight})`,
     );
   }
-  if (scenario.surfaceId === "code-editor") {
+  if (scenario.surfaceId === "editor-scroll") {
     if (!metrics.editorScroller?.exists) {
       failures.push("code editor scroller is missing");
     } else {

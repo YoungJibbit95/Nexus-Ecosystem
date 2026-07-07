@@ -27,8 +27,18 @@ export const UI_SMOKE_FIXTURE_LONG_LABELS = Object.freeze([
 export const UI_SMOKE_FIXTURE_GITHUB_REPOSITORY =
   "YoungJibbit95/Nexus-Ecosystem";
 
+export const UI_SMOKE_FIXTURE_GITHUB_PROJECT_OWNER = "YoungJibbit95";
+
 export const UI_SMOKE_FIXTURE_WORKSPACE_PATH =
   "F:\\Coding\\Nexus Workspace\\Nexus-Ecosystem";
+
+export const UI_SMOKE_FIXTURE_LONG_EDITOR_CODE = Array.from(
+  { length: 180 },
+  (_, index) => {
+    const line = String(index + 1).padStart(3, "0");
+    return `export const smokeScrollLine${line} = "Nexus Code editor scroll contract ${line}";`;
+  },
+).join("\n");
 
 export const UI_SMOKE_FIXTURE_FILE_TREE = Object.freeze([
   {

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { X, Plus, Search, TerminalSquare, Save, Circle } from "lucide-react";
+import { X, Plus, Search, TerminalSquare, Save, Circle, MoreHorizontal } from "lucide-react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 
 const langColors = {
@@ -64,6 +64,32 @@ function ActionButton({ title, onClick, active = false, children }) {
   );
 }
 
+function TabActionMenuItem({ item, onSelect }) {
+  const Icon = item.icon;
+
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        item.action?.();
+        onSelect();
+      }}
+      className={`nx-code-menu-item ${item.active ? "is-active" : ""}`}
+      role="menuitem"
+    >
+      <span className="flex min-w-0 flex-1 items-center gap-2">
+        {Icon ? <Icon size={13} className="shrink-0" /> : null}
+        <span className="min-w-0 truncate">{item.label}</span>
+      </span>
+      {item.shortcut ? (
+        <span className="shrink-0 text-[9px] font-semibold tabular-nums text-gray-500">
+          {item.shortcut}
+        </span>
+      ) : null}
+    </button>
+  );
+}
+
 export default function TabBar({
   tabs,
   activeTabId,
@@ -79,8 +105,10 @@ export default function TabBar({
   zenMode = false,
 }) {
   const [newFileMenuOpen, setNewFileMenuOpen] = useState(false);
+  const [actionsMenuOpen, setActionsMenuOpen] = useState(false);
   const [customFileName, setCustomFileName] = useState("");
   const menuRef = useRef(null);
+  const actionsMenuRef = useRef(null);
   const reduceMotion = useReducedMotion();
   const safeTabs = useMemo(
     () => (Array.isArray(tabs) ? tabs.filter((tab) => tab && tab.name) : []),
@@ -88,18 +116,66 @@ export default function TabBar({
   );
 
   useEffect(() => {
-    if (!newFileMenuOpen) return undefined;
+    if (!newFileMenuOpen && !actionsMenuOpen) return undefined;
     const onPointerDown = (event) => {
-      if (!menuRef.current?.contains(event.target)) {
-        setNewFileMenuOpen(false);
+      const target = event.target;
+      if (
+        target instanceof Node &&
+        (menuRef.current?.contains(target) || actionsMenuRef.current?.contains(target))
+      ) {
+        return;
       }
+      setNewFileMenuOpen(false);
+      setActionsMenuOpen(false);
+    };
+    const onKeyDown = (event) => {
+      if (event.key !== "Escape") return;
+      setNewFileMenuOpen(false);
+      setActionsMenuOpen(false);
     };
     window.addEventListener("pointerdown", onPointerDown);
-    return () => window.removeEventListener("pointerdown", onPointerDown);
-  }, [newFileMenuOpen]);
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("pointerdown", onPointerDown);
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [actionsMenuOpen, newFileMenuOpen]);
 
   const tabsCount = safeTabs.length;
   const menuItems = useMemo(() => languagePresets, []);
+  const tabActionItems = useMemo(
+    () => [
+      {
+        label: "Befehlspalette",
+        shortcut: "F1",
+        action: onOpenCommandPalette,
+        icon: Search,
+      },
+      {
+        label:
+          bottomPanelOpen && bottomTab === "terminal"
+            ? "Terminal schliessen"
+            : "Terminal oeffnen",
+        shortcut: "Ctrl+`",
+        action: onToggleTerminal,
+        icon: TerminalSquare,
+        active: bottomPanelOpen && bottomTab === "terminal",
+      },
+      {
+        label: "Alle speichern",
+        shortcut: "Ctrl+S",
+        action: onSaveAll,
+        icon: Save,
+      },
+    ],
+    [
+      bottomPanelOpen,
+      bottomTab,
+      onOpenCommandPalette,
+      onSaveAll,
+      onToggleTerminal,
+    ],
+  );
 
   const submitCustomFile = () => {
     const trimmed = customFileName.trim();
@@ -111,7 +187,7 @@ export default function TabBar({
 
   return (
     <div
-      className="nx-code-tabbar flex h-full min-w-0 shrink-0 items-stretch border-b border-white/5"
+      className={`nx-code-tabbar flex h-full min-w-0 shrink-0 items-stretch border-b border-white/5 ${compact ? "is-compact" : ""}`}
       style={{
         background:
           "linear-gradient(180deg, rgba(255,255,255,0.018), rgba(255,255,255,0.004)), var(--nexus-editor-surface)",
@@ -127,7 +203,10 @@ export default function TabBar({
         <div className="relative" ref={menuRef}>
           <ActionButton
             title="Neue Datei"
-            onClick={() => setNewFileMenuOpen((prev) => !prev)}
+            onClick={() => {
+              setActionsMenuOpen(false);
+              setNewFileMenuOpen((prev) => !prev);
+            }}
             active={newFileMenuOpen}
           >
             <Plus size={14} />
@@ -202,24 +281,39 @@ export default function TabBar({
           </AnimatePresence>
         </div>
 
-        <ActionButton
-          title="Befehlspalette"
-          onClick={() => onOpenCommandPalette?.()}
-        >
-          <Search size={14} />
-        </ActionButton>
+        <div className="relative" ref={actionsMenuRef}>
+          <ActionButton
+            title="Tabaktionen"
+            onClick={() => {
+              setNewFileMenuOpen(false);
+              setActionsMenuOpen((prev) => !prev);
+            }}
+            active={actionsMenuOpen}
+          >
+            <MoreHorizontal size={14} />
+          </ActionButton>
 
-        <ActionButton
-          title="Terminal"
-          onClick={() => onToggleTerminal?.()}
-          active={bottomPanelOpen && bottomTab === "terminal"}
-        >
-          <TerminalSquare size={14} />
-        </ActionButton>
-
-        <ActionButton title="Alle speichern" onClick={() => onSaveAll?.()}>
-          <Save size={14} />
-        </ActionButton>
+          <AnimatePresence>
+            {actionsMenuOpen && (
+              <motion.div
+                initial={reduceMotion ? false : { opacity: 0, y: 8, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 8, scale: 0.98 }}
+                transition={{ duration: reduceMotion ? 0 : 0.18, ease: [0.22, 1, 0.36, 1] }}
+                className="nx-code-menu-dropdown absolute left-0 top-full z-50 mt-2 w-[min(13rem,calc(100vw-1rem))] p-1"
+                role="menu"
+              >
+                {tabActionItems.map((item) => (
+                  <TabActionMenuItem
+                    key={item.label}
+                    item={item}
+                    onSelect={() => setActionsMenuOpen(false)}
+                  />
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
 
       <div className="nx-code-tab-scroll h-full min-w-0 flex-1 overflow-x-auto">
@@ -300,11 +394,6 @@ export default function TabBar({
         )}
       </div>
 
-      {!compact ? (
-        <div className="hidden h-full shrink-0 items-center border-l border-white/5 px-3 text-[10px] text-gray-500 lg:flex">
-          {tabsCount} tab{tabsCount === 1 ? "" : "s"}
-        </div>
-      ) : null}
     </div>
   );
 }
