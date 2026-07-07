@@ -19,8 +19,6 @@ export function ModuleCard({
         border: "1px solid var(--nx-v6-line-soft, rgba(255,255,255,0.1))",
         background:
           "linear-gradient(180deg, rgba(255,255,255,0.048), rgba(255,255,255,0.012)), var(--nx-panel-bg, rgba(255,255,255,0.028))",
-        backgroundSize: "var(--nx-panel-bg-size, 100% 100%)",
-        backgroundBlendMode: "screen, var(--nx-panel-bg-blend, normal)",
         backdropFilter: "blur(var(--nx-settings-card-blur, 14px)) saturate(150%)",
         WebkitBackdropFilter: "blur(var(--nx-settings-card-blur, 14px)) saturate(150%)",
         padding: "14px 14px 12px",

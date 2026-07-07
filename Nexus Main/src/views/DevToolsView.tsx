@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react'
-import { Copy, Check, RefreshCw, Play, Code2, Calculator, Monitor, Tablet, Smartphone, Download, Trash2, Edit3, MoreVertical, Layout, Sliders, Save, Rocket, Flag, Search } from 'lucide-react'
+import { Copy, Check, RefreshCw, Play, Code2, Calculator, Monitor, Tablet, Smartphone, Download, Trash2, Edit3, MoreVertical, Layout, Sliders, Save, Rocket } from 'lucide-react'
 import {
   DEFAULT_DEVTOOLS_WEB_FILES,
   extractDevToolsCodeBundles,
@@ -18,7 +18,6 @@ import { DevToolsArtifactLibraryPanel } from './devtools/DevToolsArtifactLibrary
 import { useDevToolsArtifactLibrary } from './devtools/useDevToolsArtifactLibrary'
 import { DevToolsCalculatorSection } from './devtools/DevToolsCalculatorSection'
 import { ReleaseHealthDashboard } from './devtools/ReleaseHealthDashboard'
-import { FeatureFlagControlPanel } from './devtools/FeatureFlagControlPanel'
 
 // ── useCopy ────────────────────────────────────────────────────────────────
 function useCopy() {
@@ -930,73 +929,16 @@ const DEVTOOLS_TABS = [
     summary: 'QA Gates, Release Health und Smoke-Status',
     Icon: Rocket,
   },
-  {
-    id: 'flags',
-    label: 'Feature Flags',
-    summary: 'Rollout-Entscheidungen und lokale Flag-Drafts',
-    Icon: Flag,
-  },
 ] as const
 
 type DevToolsTab = (typeof DEVTOOLS_TABS)[number]['id']
 
-const DEVTOOLS_COMMANDS: Array<{
-  id: DevToolsTab
-  tone: 'build' | 'calc' | 'release' | 'flags'
-  action: string
-  detail: string
-  keywords: string
-}> = [
-  {
-    id: 'builder',
-    tone: 'build',
-    action: 'Open builder workbench',
-    detail: 'Files, artifact library, live preview and visual builder in one place.',
-    keywords: 'code builder html css js visual preview artifact component prototype',
-  },
-  {
-    id: 'calc',
-    tone: 'calc',
-    action: 'Open calculators',
-    detail: 'Layout, scale, motion and CSS helpers for fast UI decisions.',
-    keywords: 'calculator layout spacing scale motion css clamp grid',
-  },
-  {
-    id: 'release',
-    tone: 'release',
-    action: 'Open release health',
-    detail: 'QA gates, smoke status and exportable release evidence.',
-    keywords: 'release qa gates smoke evidence health deploy checklist',
-  },
-  {
-    id: 'flags',
-    tone: 'flags',
-    action: 'Open feature flags',
-    detail: 'Draft rollout settings, risks and validation before shipping.',
-    keywords: 'feature flags rollout control risk validation catalog',
-  },
-]
-
 export function DevToolsView() {
   const t = useTheme()
   const [tab, setTab] = useState<DevToolsTab>('builder')
-  const [commandQuery, setCommandQuery] = useState('')
   const activeTab = DEVTOOLS_TABS.find((entry) => entry.id === tab) ?? DEVTOOLS_TABS[0]
   const ActiveIcon = activeTab.Icon
   const titleRgb = hexToRgb(t.accent)
-  const commandResults = useMemo(() => {
-    const query = commandQuery.trim().toLowerCase()
-    const enriched = DEVTOOLS_COMMANDS.map((command) => ({
-      ...command,
-      tab: DEVTOOLS_TABS.find((entry) => entry.id === command.id) ?? DEVTOOLS_TABS[0],
-    }))
-    if (!query) return enriched
-    return enriched.filter(({ tab, action, detail, keywords }) =>
-      `${tab.label} ${tab.summary} ${action} ${detail} ${keywords}`
-        .toLowerCase()
-        .includes(query),
-    )
-  }, [commandQuery])
 
   return (
     <div className="nx-devtools-v6 nx-release-view" style={{ display:'flex',flexDirection:'column',height:'100%',overflow:'hidden' }}>
@@ -1011,38 +953,6 @@ export function DevToolsView() {
             <div className="nx-devtools-active-summary" style={{ fontSize:10,opacity:0.58,marginTop:2 }}>{activeTab.summary}</div>
           </div>
         </div>
-        <label
-          className="nx-devtools-command-search"
-          style={{
-            flex:'1 1 260px',
-            maxWidth:420,
-            minWidth:180,
-            display:'flex',
-            alignItems:'center',
-            gap:8,
-            border:'1px solid rgba(255,255,255,0.1)',
-            borderRadius:10,
-            background:'rgba(255,255,255,0.045)',
-            padding:'7px 10px',
-          }}
-        >
-          <Search size={13} style={{ opacity:0.52, flexShrink:0 }}/>
-          <input
-            value={commandQuery}
-            onChange={(event) => setCommandQuery(event.target.value)}
-            placeholder="DevTools suchen..."
-            style={{
-              width:'100%',
-              minWidth:0,
-              border:'none',
-              outline:'none',
-              background:'transparent',
-              color:'inherit',
-              fontSize:11,
-              fontWeight:700,
-            }}
-          />
-        </label>
         <div className="nx-devtools-tabs" style={{ display:'flex',background:'rgba(255,255,255,0.05)',borderRadius:10,overflow:'hidden',marginLeft:'auto',padding:3,border:'1px solid rgba(255,255,255,0.08)' }}>
           {DEVTOOLS_TABS.map(({ id, label, Icon }) => (
             <button
@@ -1059,84 +969,12 @@ export function DevToolsView() {
         </div>
       </div>
 
-      <div
-        className="nx-devtools-command-center"
-        style={{
-          display:'grid',
-          gridTemplateColumns:'repeat(auto-fit,minmax(190px,1fr))',
-          gap:8,
-          padding:'10px 12px',
-          borderBottom:'1px solid rgba(255,255,255,0.07)',
-          background:'linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0.012))',
-          flexShrink:0,
-        }}
-      >
-        {commandResults.map(({ id, tone, action, detail, tab: item }) => {
-          const Icon = item.Icon
-          const active = tab === id
-          const toneColor =
-            tone === 'release'
-              ? '#ff9f0a'
-              : tone === 'flags'
-                ? '#30d158'
-                : tone === 'calc'
-                  ? '#bf5af2'
-                  : t.accent
-          return (
-            <button
-              key={id}
-              type="button"
-              onClick={() => {
-                setTab(id)
-                setCommandQuery('')
-              }}
-              className="nx-devtools-command-card"
-              data-active={active ? 'true' : 'false'}
-              style={{
-                minWidth:0,
-                minHeight:88,
-                borderRadius:12,
-                border:`1px solid ${active ? `rgba(${titleRgb},0.36)` : 'rgba(255,255,255,0.1)'}`,
-                background:active
-                  ? `linear-gradient(145deg, rgba(${titleRgb},0.18), rgba(255,255,255,0.035))`
-                  : 'rgba(255,255,255,0.032)',
-                color:'inherit',
-                padding:'10px 11px',
-                textAlign:'left',
-                cursor:'pointer',
-                display:'grid',
-                gap:7,
-              }}
-            >
-              <span style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, minWidth:0 }}>
-                <span style={{ display:'flex', alignItems:'center', gap:7, minWidth:0 }}>
-                  <span style={{ width:26, height:26, borderRadius:8, display:'grid', placeItems:'center', color:toneColor, background:'rgba(255,255,255,0.055)', border:`1px solid ${toneColor}33`, flexShrink:0 }}>
-                    <Icon size={13}/>
-                  </span>
-                  <strong style={{ fontSize:12, fontWeight:900, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{item.label}</strong>
-                </span>
-                {active ? <span style={{ fontSize:9, fontWeight:900, color:t.accent, textTransform:'uppercase' }}>Active</span> : null}
-              </span>
-              <span style={{ fontSize:10.5, opacity:0.66, lineHeight:1.35 }}>{detail}</span>
-              <span style={{ fontSize:10, fontWeight:850, color:toneColor }}>{action}</span>
-            </button>
-          )
-        })}
-        {commandResults.length === 0 ? (
-          <div style={{ borderRadius:12, border:'1px dashed rgba(255,255,255,0.16)', padding:'14px 12px', fontSize:11, opacity:0.62 }}>
-            Kein DevTools-Bereich passt zur Suche.
-          </div>
-        ) : null}
-      </div>
-
       <div style={{ flex:1,overflow:'hidden',display:'flex',flexDirection:'column',minHeight:0 }}>
         {tab==='builder'
           ? <WebBuilder />
           : tab==='calc'
             ? <DevToolsCalculatorSection />
-            : tab==='flags'
-              ? <FeatureFlagControlPanel />
-              : <ReleaseHealthDashboard />}
+            : <ReleaseHealthDashboard />}
       </div>
     </div>
   )

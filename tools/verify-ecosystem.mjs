@@ -577,8 +577,14 @@ const run = async () => {
     {
       id: 'main-devtools-feature-flag-control-ui',
       file: path.join(ROOT, 'Nexus Main/src/views/devtools/FeatureFlagControlPanel.tsx'),
-      pattern: /Feature Catalog Draft[\s\S]*?Local admin preview[\s\S]*?Validate[\s\S]*?Rollout Plan[\s\S]*?Audit Trail/,
-      message: 'DevTools zeigt Feature Flag Editor mit Validation, Rollout und Audit',
+      pattern: /Feature Catalog Draft[\s\S]*?Development-only local admin preview[\s\S]*?Validate[\s\S]*?Rollout Plan[\s\S]*?Audit Trail/,
+      message: 'Feature Flags Dev-View zeigt Editor mit Validation, Rollout und Audit',
+    },
+    {
+      id: 'main-devtools-feature-flag-dev-only-registry',
+      file: path.join(ROOT, 'Nexus Main/src/app/mainViewRegistry.ts'),
+      pattern: /MAIN_DEVELOPMENT_ONLY_VIEWS_ENABLED\s*=\s*import\.meta\.env\.DEV[\s\S]*?MAIN_FEATURE_FLAGS_VIEW_ID[\s\S]*?devOnly:\s*true/,
+      message: 'Feature Flags sind als eigene Dev-only View registriert',
     },
     {
       id: 'main-notes-editor-qol',

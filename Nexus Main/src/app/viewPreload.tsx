@@ -1,8 +1,10 @@
 import { lazy } from 'react';
 import {
   MAIN_HEAVY_PRELOAD_VIEW_SET,
+  MAIN_FEATURE_FLAGS_VIEW_ID,
   MAIN_PRELOAD_PRIORITY,
   MAIN_VIEW_IDS,
+  isMainDevelopmentOnlyViewsEnabled,
   isMainDiagnosticsEnabled,
   type View,
 } from './mainViewRegistry';
@@ -20,6 +22,9 @@ const loadFluxView = () => import('../views/FluxView');
 const loadSettingsView = () => import('../views/SettingsView');
 const loadInfoView = () => import('../views/InfoView');
 const loadDevToolsView = () => import('../views/DevToolsView');
+const loadFeatureFlagControlPanel = import.meta.env.DEV
+  ? () => import('../views/devtools/FeatureFlagControlPanel')
+  : undefined;
 const loadRenderDiagnosticsView = () => import('../views/RenderDiagnosticsView');
 const loadNexusTerminal = () => import('../components/NexusTerminal');
 const loadNexusToolbar = () => import('../components/NexusToolbar');
@@ -58,6 +63,9 @@ export const InfoView = lazy(() =>
 export const DevToolsView = lazy(() =>
   loadDevToolsView().then((m) => ({ default: m.DevToolsView })),
 );
+export const FeatureFlagsView = import.meta.env.DEV && loadFeatureFlagControlPanel
+  ? lazy(() => loadFeatureFlagControlPanel().then((m) => ({ default: m.FeatureFlagControlPanel })))
+  : () => null;
 export const RenderDiagnosticsView = lazy(() =>
   loadRenderDiagnosticsView().then((m) => ({ default: m.RenderDiagnosticsView })),
 );
@@ -83,6 +91,9 @@ export const VIEW_CHUNK_PRELOADERS: Partial<Record<View, () => Promise<unknown>>
   settings: loadSettingsView,
   info: loadInfoView,
   devtools: loadDevToolsView,
+  ...(loadFeatureFlagControlPanel && isMainDevelopmentOnlyViewsEnabled()
+    ? { [MAIN_FEATURE_FLAGS_VIEW_ID]: loadFeatureFlagControlPanel }
+    : {}),
   ...(isMainDiagnosticsEnabled()
     ? { diagnostics: loadRenderDiagnosticsView }
     : {}),

@@ -431,8 +431,6 @@ export function SettingsShell({
           borderRadius: 20,
           border: "1px solid rgba(255,255,255,0.12)",
           background: "var(--nx-panel-bg, rgba(14,18,30,0.42))",
-          backgroundSize: "var(--nx-panel-bg-size, 100% 100%)",
-          backgroundBlendMode: "var(--nx-panel-bg-blend, normal)",
           boxShadow:
             t.mode === "dark"
               ? "0 14px 38px rgba(0,0,0,0.22)"
@@ -835,8 +833,6 @@ export function SettingsShell({
           borderRadius: 20,
           border: "1px solid rgba(255,255,255,0.12)",
           background: "var(--nx-panel-bg, rgba(14,18,30,0.42))",
-          backgroundSize: "var(--nx-panel-bg-size, 100% 100%)",
-          backgroundBlendMode: "var(--nx-panel-bg-blend, normal)",
           boxShadow:
             t.mode === "dark"
               ? "0 14px 38px rgba(0,0,0,0.2)"

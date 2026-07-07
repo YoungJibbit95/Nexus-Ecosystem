@@ -1095,18 +1095,24 @@ export function NotesView() {
     ? `Auto ${Math.round(t.editor.autosaveInterval / 1000)}s`
     : "Auto aus";
 
+  type NotesToolKind = "text" | "structure" | "list" | "insert" | "assist";
+
   // Small formatting button
   const FmtBtn = ({
     icon: Icon,
     tooltip,
     action,
+    kind = "text",
   }: {
     icon: any;
     tooltip: string;
     action: () => void;
+    kind?: NotesToolKind;
   }) => (
     <InteractiveIconButton
       type="button"
+      className={`nx-notes-format-button nx-notes-format-button-${kind}`}
+      data-tool-kind={kind}
       motionId={`notes-fmt-${tooltip.replace(/\s+/g, "-").toLowerCase()}`}
       onClick={action}
       onMouseDown={(event) => {
@@ -1800,14 +1806,19 @@ export function NotesView() {
               />
               <div className="nx-notes-editor-meta" aria-live="polite">
                 <span
+                  className="nx-notes-meta-state"
                   data-state={draftDirty ? "dirty" : "saved"}
                   title={saveStatusLabel}
                 >
                   {saveStatusLabel}
                 </span>
-                <span>{autosaveLabel}</span>
-                <span>{modeLabel}</span>
-                <span title={`Erstellt ${fmtDt(new Date(active.created))}`}>
+                <span className="nx-notes-meta-autosave">{autosaveLabel}</span>
+                <span className="nx-notes-meta-words">{noteStats.words} Words</span>
+                <span className="nx-notes-meta-read">{noteStats.readMins}m Read</span>
+                <span
+                  className="nx-notes-meta-date"
+                  title={`${modeLabel} - Erstellt ${fmtDt(new Date(active.created))}`}
+                >
                   {fmtDt(new Date(active.created))}
                 </span>
               </div>
@@ -1943,6 +1954,7 @@ export function NotesView() {
             <div className="nx-notes-workbar-tools">
           <div className="nx-notes-command-strip shrink-0">
             <div
+              className="nx-notes-command-primary"
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -2194,31 +2206,37 @@ export function NotesView() {
                 icon={Code2}
                 tooltip="Codeblock"
                 action={() => insertFormat("\n```text\n", "\n```\n", "code")}
+                kind="structure"
               />
               <FmtBtn
                 icon={Link}
                 tooltip="Link (Ctrl+K)"
                 action={() => insertFormat("[", "](url)", "Text")}
+                kind="insert"
               />
               <FmtBtn
                 icon={Quote}
                 tooltip="Zitat"
                 action={() => insertFormat("\n> ", "", "Zitat")}
+                kind="structure"
               />
               <FmtBtn
                 icon={List}
                 tooltip="Liste"
                 action={() => insertFormat("\n- ", "", "Eintrag")}
+                kind="list"
               />
               <FmtBtn
                 icon={ListOrdered}
                 tooltip="Num. Liste"
                 action={() => insertFormat("\n1. ", "", "Eintrag")}
+                kind="list"
               />
               <FmtBtn
                 icon={CheckSquare2}
                 tooltip="Checkliste"
                 action={() => insertFormat("\n- [ ] ", "", "Aufgabe")}
+                kind="list"
               />
               <FmtBtn
                 icon={Table}
@@ -2228,14 +2246,17 @@ export function NotesView() {
                     "\n| Kopf | Kopf |\n| --- | --- |\n| Zelle | Zelle |\n",
                   )
                 }
+                kind="structure"
               />
               <FmtBtn
                 icon={Minus}
                 tooltip="Trennlinie"
                 action={() => insertFormat("\n---\n", "")}
+                kind="structure"
               />
               <div
                 ref={blocksTriggerRef}
+                className="nx-notes-format-menu-trigger nx-notes-format-menu-trigger-blocks"
                 data-notes-popover-trigger="blocks"
                 style={{ position: "relative" }}
               >
@@ -2378,9 +2399,11 @@ export function NotesView() {
                     "\n```nexus-details\nMehr anzeigen\nDetails hier ergaenzen...\n```\n",
                   )
                 }
+                kind="structure"
               />
               <div
                 ref={emojiTriggerRef}
+                className="nx-notes-format-menu-trigger nx-notes-format-menu-trigger-emoji"
                 data-notes-popover-trigger="emoji"
                 style={{ position: "relative" }}
               >
@@ -2502,7 +2525,10 @@ export function NotesView() {
               />
 
               {/* ✦ Magic Button */}
-              <div style={{ position: "relative" }}>
+              <div
+                className="nx-notes-format-menu-trigger nx-notes-format-menu-trigger-magic"
+                style={{ position: "relative" }}
+              >
                 <InteractiveActionButton
                   onClick={handleMagicOpen}
                   motionId="notes-open-magic"
@@ -2541,7 +2567,7 @@ export function NotesView() {
                 </InteractiveActionButton>
               </div>
 
-              <div style={{ flex: 1 }} />
+              <div className="nx-notes-format-spacer" style={{ flex: 1 }} />
 
               {/* Tags */}
               <div className="nx-notes-toolbar-tags" style={{ display: "flex", alignItems: "center", gap: 4 }}>

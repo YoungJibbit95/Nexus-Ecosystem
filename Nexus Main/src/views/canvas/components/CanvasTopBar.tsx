@@ -419,69 +419,51 @@ export function CanvasTopBar({
               rgb={rgb}
               active={Boolean(selectedNodeId)}
             />
-            <div
-              role="group"
-              aria-label="Zoom controls"
+          </ToolbarGroup>
+
+          <ToolbarGroup label="Zoom">
+            <ToolBtn
+              icon={ZoomOut}
+              tooltip="15% herauszoomen"
+              onClick={() => setZoomCentered(viewportZoom - zoomStep)}
+              accent={accent}
+              rgb={rgb}
+              disabled={viewportZoom <= 0.16}
+            />
+            <span
+              className="nx-canvas-zoom-chip"
+              title={`Aktueller Zoom: ${zoomLabel}`}
               style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 2,
-                minHeight: 29,
-                padding: 2,
-                borderRadius: 9,
-                border:
-                  mode === "dark"
-                    ? "1px solid rgba(255,255,255,0.08)"
-                    : "1px solid rgba(0,0,0,0.08)",
-                background:
-                  mode === "dark"
-                    ? "rgba(255,255,255,0.035)"
-                    : "rgba(0,0,0,0.035)",
+                minWidth: 48,
+                color: accent,
+                background: `rgba(${rgb},0.12)`,
+                border: `1px solid rgba(${rgb},0.18)`,
               }}
             >
-              <ToolBtn
-                icon={ZoomOut}
-                tooltip="15% herauszoomen"
-                onClick={() => setZoomCentered(viewportZoom - zoomStep)}
-                accent={accent}
-                rgb={rgb}
-                disabled={viewportZoom <= 0.16}
-              />
-              <span
-                className="nx-canvas-zoom-chip"
-                title={`Aktueller Zoom: ${zoomLabel}`}
-                style={{
-                  minWidth: 48,
-                  color: accent,
-                  background: `rgba(${rgb},0.12)`,
-                  border: `1px solid rgba(${rgb},0.18)`,
-                }}
-              >
-                {zoomLabel}
-              </span>
-              <ToolBtn
-                icon={ZoomIn}
-                tooltip="15% hineinzoomen"
-                onClick={() => setZoomCentered(viewportZoom + zoomStep)}
-                accent={accent}
-                rgb={rgb}
-                disabled={viewportZoom >= 2.99}
-              />
-              <ToolBtn
-                icon={Maximize2}
-                tooltip="Alles sichtbar einpassen"
-                onClick={fitView}
-                accent={accent}
-                rgb={rgb}
-              />
-              <ToolBtn
-                icon={RotateCcw}
-                tooltip="Zoom und Position zuruecksetzen"
-                onClick={resetViewport}
-                accent={accent}
-                rgb={rgb}
-              />
-            </div>
+              {zoomLabel}
+            </span>
+            <ToolBtn
+              icon={ZoomIn}
+              tooltip="15% hineinzoomen"
+              onClick={() => setZoomCentered(viewportZoom + zoomStep)}
+              accent={accent}
+              rgb={rgb}
+              disabled={viewportZoom >= 2.99}
+            />
+            <ToolBtn
+              icon={Maximize2}
+              tooltip="Alles sichtbar einpassen"
+              onClick={fitView}
+              accent={accent}
+              rgb={rgb}
+            />
+            <ToolBtn
+              icon={RotateCcw}
+              tooltip="Zoom und Position zuruecksetzen"
+              onClick={resetViewport}
+              accent={accent}
+              rgb={rgb}
+            />
             <ToolBtn
               icon={FileDown}
               tooltip="Canvas exportieren"

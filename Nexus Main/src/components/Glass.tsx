@@ -501,9 +501,9 @@ export const Glass = memo(forwardRef<HTMLDivElement, GlassProps>(function Glass(
         '--nx-mouse-y': '50%',
         '--nx-plasma-speed': `${4 / Math.max((t.glassmorphism as any).animatedBlurSpeed || 3, 0.5)}s`,
         '--nx-blur-speed': `${4 / Math.max((t.glassmorphism as any).animatedBlurSpeed || 3, 0.5)}s`,
-        background: bg,
-        backgroundSize: bgSize,
-        backgroundBlendMode: bgBlendMode,
+        '--nx-panel-bg': bg,
+        '--nx-panel-bg-size': bgSize || '100% 100%',
+        '--nx-panel-bg-blend': bgBlendMode || 'normal',
         backdropFilter: normalizedPanelRenderer === 'glass-shader'
           ? `blur(${Math.max(4, Math.floor(effectiveBlurCapped * 0.35))}px) saturate(${Math.round(effectiveSaturate * 0.92)}%)`
           : baseBackdropFilter,
@@ -620,7 +620,7 @@ export const Glass = memo(forwardRef<HTMLDivElement, GlassProps>(function Glass(
       {glassMode === 'plasma' && !lowPowerMode && !balancedMode && renderDynamicEnabled && (
         <div aria-hidden="true" style={{
           position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 1, borderRadius: 'inherit',
-          background: `linear-gradient(-45deg, rgba(${hexToRgb(t.accent)},0.12), rgba(${hexToRgb(t.accent2)},0.07), rgba(${hexToRgb(t.accent)},0.04), rgba(${hexToRgb(t.accent2)},0.1))`,
+          backgroundImage: `linear-gradient(-45deg, rgba(${hexToRgb(t.accent)},0.12), rgba(${hexToRgb(t.accent2)},0.07), rgba(${hexToRgb(t.accent)},0.04), rgba(${hexToRgb(t.accent2)},0.1))`,
           backgroundSize: '400% 400%',
           animation: `nx-plasma-shift ${4 / Math.max((t.glassmorphism as any).animatedBlurSpeed || 3, 0.5)}s ease infinite`,
           mixBlendMode: isDark ? 'screen' : 'multiply',
@@ -651,7 +651,7 @@ export const Glass = memo(forwardRef<HTMLDivElement, GlassProps>(function Glass(
       {!lowPowerMode && !balancedMode && renderBurstEnabled && (shimmer || (allowHoverLift && isHovered && t.animations.hoverLift)) && (
         <div aria-hidden="true" style={{
           position: 'absolute', inset: 0,
-          background: 'linear-gradient(105deg, transparent 30%, rgba(255,255,255,0.05) 50%, transparent 70%)',
+          backgroundImage: 'linear-gradient(105deg, transparent 30%, rgba(255,255,255,0.05) 50%, transparent 70%)',
           backgroundSize: '200% 100%', animation: 'nexus-shimmer 2s ease-in-out infinite',
           zIndex: 4, pointerEvents: 'none', borderRadius: 'inherit',
         }} />

@@ -5,13 +5,18 @@ import type { View } from "../components/Sidebar";
 import { useApp } from "../store/appStore";
 import { ViewErrorBoundary } from "../components/ViewErrorBoundary";
 import { NexusV6ViewShell } from "./NexusV6ViewShell";
-import { isMainDiagnosticsEnabled } from "./mainViewRegistry";
+import {
+  MAIN_FEATURE_FLAGS_VIEW_ID,
+  isMainDevelopmentOnlyViewsEnabled,
+  isMainDiagnosticsEnabled,
+} from "./mainViewRegistry";
 import {
   CanvasView,
   CalendarView,
   CodeView,
   DashboardView,
   DevToolsView,
+  FeatureFlagsView,
   FilesView,
   FluxView,
   InfoView,
@@ -143,6 +148,19 @@ const renderActiveView = (
       );
     case "devtools":
       return withViewBoundary("devtools", <DevToolsView />);
+    case MAIN_FEATURE_FLAGS_VIEW_ID:
+      if (isMainDevelopmentOnlyViewsEnabled()) {
+        return withViewBoundary(MAIN_FEATURE_FLAGS_VIEW_ID, <FeatureFlagsView />);
+      }
+      return withViewBoundary(
+        "dashboard",
+        <DashboardView
+          setView={(nextView: string) => {
+            onRequestViewChange(nextView);
+          }}
+        />,
+        { withDashboardReset: true },
+      );
     case "diagnostics":
       if (isMainDiagnosticsEnabled()) {
         return withViewBoundary("diagnostics", <RenderDiagnosticsView />);
@@ -181,7 +199,11 @@ export function MainViewHost({
   const renderedViews = mergeUniqueViews(
     [view],
     mountedViews.filter((entry) => availableViews.includes(entry)),
-  ).filter((entry) => entry !== "diagnostics" || isMainDiagnosticsEnabled());
+  ).filter((entry) => {
+    if (entry === MAIN_FEATURE_FLAGS_VIEW_ID) return isMainDevelopmentOnlyViewsEnabled();
+    if (entry === "diagnostics") return isMainDiagnosticsEnabled();
+    return true;
+  });
   const { addNote, addTask, addRem } = useApp((state) => ({
     addNote: state.addNote,
     addTask: state.addTask,

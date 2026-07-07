@@ -96,7 +96,7 @@ export function getAnimatedGradient(gradient: GradientConfig): string {
 export function buildBackground(bg: BackgroundConfig, solidColor: string, mode: 'dark' | 'light'): ReactCSS {
   switch (bg.mode) {
     case 'solid':
-      return { background: solidColor }
+      return { backgroundColor: solidColor }
 
     case 'gradient': {
       const stops = bg.stops
@@ -110,7 +110,7 @@ export function buildBackground(bg: BackgroundConfig, solidColor: string, mode: 
         .map(s => `${s.color}${Math.round(s.opacity * 255).toString(16).padStart(2, '0')} ${s.position}%`)
         .join(', ')
       return {
-        background: solidColor,
+        backgroundColor: solidColor,
         backgroundImage: `linear-gradient(${bg.angle}deg, ${stops})`,
         backgroundSize: '200% 200%',
         animation: `nexus-gradient-shift ${bg.animationSpeed * 3}s ease infinite`,
@@ -122,7 +122,7 @@ export function buildBackground(bg: BackgroundConfig, solidColor: string, mode: 
       const c2 = bg.stops[1]?.color || '#5E5CE6'
       const intensity = bg.meshIntensity
       return {
-        background: solidColor,
+        backgroundColor: solidColor,
         backgroundImage: [
           `radial-gradient(ellipse 80% 80% at 20% 20%, ${c1}${Math.round(intensity * 30).toString(16).padStart(2, '0')}, transparent)`,
           `radial-gradient(ellipse 60% 60% at 80% 80%, ${c2}${Math.round(intensity * 25).toString(16).padStart(2, '0')}, transparent)`,
@@ -134,7 +134,7 @@ export function buildBackground(bg: BackgroundConfig, solidColor: string, mode: 
     case 'noise': {
       const noiseOpacity = Math.max(0.006, Math.min(0.035, (Number(bg.noiseOpacity) || 0.02) * 0.58))
       return {
-        background: solidColor,
+        backgroundColor: solidColor,
         backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.52' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='${noiseOpacity}'/%3E%3C/svg%3E")`,
       }
     }
@@ -147,7 +147,7 @@ export function buildBackground(bg: BackgroundConfig, solidColor: string, mode: 
       const o2 = bg.stops[1]?.opacity ?? 0.08
       const o3 = bg.stops[2]?.opacity ?? 0.1
       return {
-        background: solidColor,
+        backgroundColor: solidColor,
         backgroundImage: [
           `radial-gradient(ellipse 100% 60% at 10% 40%, ${c1}${Math.round(o1 * 255).toString(16).padStart(2, '0')}, transparent 60%)`,
           `radial-gradient(ellipse 80% 70% at 90% 20%, ${c2}${Math.round(o2 * 255).toString(16).padStart(2, '0')}, transparent 60%)`,
@@ -163,7 +163,7 @@ export function buildBackground(bg: BackgroundConfig, solidColor: string, mode: 
       const c2 = bg.stops[1]?.color || '#5E5CE6'
       const intensity = Math.max(0.08, Math.min(0.5, bg.meshIntensity))
       return {
-        background: solidColor,
+        backgroundColor: solidColor,
         backgroundImage: [
           `radial-gradient(720px circle at 18% 16%, ${c1}${Math.round(intensity * 255).toString(16).padStart(2, '0')}, transparent 62%)`,
           `radial-gradient(620px circle at 84% 22%, ${c2}${Math.round(intensity * 210).toString(16).padStart(2, '0')}, transparent 60%)`,
@@ -177,7 +177,7 @@ export function buildBackground(bg: BackgroundConfig, solidColor: string, mode: 
       const c2 = bg.stops[1]?.color || '#5E5CE6'
       const c3 = bg.stops[2]?.color || '#22D3EE'
       return {
-        background: solidColor,
+        backgroundColor: solidColor,
         backgroundImage: [
           `conic-gradient(from ${bg.angle}deg at 50% 50%, ${c1}24, ${c2}20, ${c3}18, ${c1}24)`,
           `radial-gradient(circle at 50% 120%, ${mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)'}, transparent 44%)`,
@@ -191,7 +191,7 @@ export function buildBackground(bg: BackgroundConfig, solidColor: string, mode: 
       const c1 = bg.stops[0]?.color || '#007AFF'
       const c2 = bg.stops[1]?.color || '#5E5CE6'
       return {
-        background: solidColor,
+        backgroundColor: solidColor,
         backgroundImage: [
           `linear-gradient(180deg, transparent 0%, ${c1}18 48%, ${c2}22 100%)`,
           `radial-gradient(900px ellipse at 50% 105%, ${c2}2f, transparent 68%)`,
@@ -203,7 +203,7 @@ export function buildBackground(bg: BackgroundConfig, solidColor: string, mode: 
       const c1 = bg.stops[0]?.color || '#64D2FF'
       const c2 = bg.stops[1]?.color || '#BF5AF2'
       return {
-        background: solidColor,
+        backgroundColor: solidColor,
         backgroundImage: [
           `radial-gradient(circle at 12% 22%, ${c1}8a 1px, transparent 2px)`,
           `radial-gradient(circle at 74% 18%, ${c2}78 1px, transparent 2px)`,
@@ -216,7 +216,7 @@ export function buildBackground(bg: BackgroundConfig, solidColor: string, mode: 
     }
 
     default:
-      return { background: solidColor }
+      return { backgroundColor: solidColor }
   }
 }
 

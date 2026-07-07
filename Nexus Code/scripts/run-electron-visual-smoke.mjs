@@ -34,6 +34,7 @@ const SURFACES = Object.freeze([
   "launchpad",
   "account-panel",
   "settings-panel",
+  "code-editor",
   "panel-chrome",
   "github-workbench",
 ]);
