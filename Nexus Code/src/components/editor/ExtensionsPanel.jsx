@@ -25,6 +25,9 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
+  buildExtensionHostSummary,
+} from "../../pages/editor/extensionRuntimeModel.js";
+import {
   EXTENSION_CATEGORIES,
   EXTENSION_CONTRIBUTION_FILTERS,
   EXTENSION_SOURCES,
@@ -65,6 +68,8 @@ const contributionIcons = {
   views: Eye,
   languages: Languages,
   themes: Palette,
+  keybindings: Command,
+  snippets: FileJson2,
 };
 
 const storageHealthLabels = {
@@ -304,26 +309,22 @@ function Pill({ children, tone = "muted", title, category = false }) {
   );
 }
 
-function ContributionOverview({ overview, stats, storageHealth }) {
+function ContributionOverview({ overview, storageHealth, hostSummary }) {
   const healthLabel = storageHealthLabels[storageHealth] || storageHealthLabels.default;
-  const contributionTotal = overview.contributionPoints.reduce(
-    (total, point) => total + point.count,
-    0,
-  );
   const activePoints = overview.contributionPoints
     .filter((point) => point.count > 0)
-    .slice(0, 2);
-  const activationTypes = Object.entries(overview.activation.byType)
-    .filter(([, entries]) => entries.length > 0)
-    .map(([type, entries]) => `${type} ${entries.length}`)
-    .slice(0, 2);
+    .slice(0, 4);
+  const activationTypes = hostSummary.activationTypes
+    .map((entry) => `${entry.type} ${entry.count}`)
+    .slice(0, 3);
 
   return (
-    <div className="mt-3 rounded-lg border border-white/[0.055] bg-black/15 px-2.5 py-2">
+    <div className="mt-3 rounded-md border border-white/[0.055] bg-black/15 px-2.5 py-2">
       <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-[var(--nexus-muted)]">
-        <span className="font-semibold text-gray-300">{stats.enabled} active</span>
-        <span>{contributionTotal} contributions</span>
-        <span>{stats.activationEvents} triggers</span>
+        <span className="font-semibold text-gray-300">{hostSummary.enabledCount} active</span>
+        <span>{hostSummary.contributionCount} contributions</span>
+        <span>{hostSummary.activationEventCount} triggers</span>
+        <span>{hostSummary.blockedCount} blocked</span>
         <span>{healthLabel}</span>
       </div>
       <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1.5">
@@ -438,8 +439,10 @@ function ExtensionCard({ extension, onInstall, onRemove, onToggleEnabled, index 
   const primaryContributions = extension.contributionSummary
     .filter((summary) => summary.primary)
     .slice(0, 1);
-  const visibleCapabilities = extension.capabilities.slice(0, 1);
-  const hiddenCapabilityCount = Math.max(0, extension.capabilities.length - visibleCapabilities.length);
+  const visibleCapabilities = [
+    ...extension.capabilities.slice(0, 2),
+    ...extension.contributionSummary.slice(0, 2).map((summary) => `${summary.label} ${summary.count}`),
+  ].slice(0, 4);
 
   const runAction = (action) => {
     if (busy) return;
@@ -526,11 +529,6 @@ function ExtensionCard({ extension, onInstall, onRemove, onToggleEnabled, index 
             {capability}
           </span>
         ))}
-        {hiddenCapabilityCount > 0 ? (
-          <span className="rounded border border-white/[0.06] bg-white/[0.024] px-1.5 py-0.5 text-[9px] text-gray-500">
-            +{hiddenCapabilityCount}
-          </span>
-        ) : null}
         {primaryContributions.map((summary) => (
           <span
             key={summary.point}
@@ -633,6 +631,10 @@ function ExtensionCard({ extension, onInstall, onRemove, onToggleEnabled, index 
                     .map((summary) => `${summary.label} ${summary.count}`)
                     .join(", ") || "none"}
                 </div>
+                <div className="break-words" style={{ overflowWrap: "anywhere" }}>
+                  contract: manifest v{extension.manifest.manifestVersion || 0}, host{" "}
+                  {extension.lifecycleState?.activationReady ? "activation-ready" : "activation-gated"}
+                </div>
                 {extension.localPath ? (
                   <div className="break-words" style={{ overflowWrap: "anywhere" }}>
                     path: {extension.localPath}
@@ -708,6 +710,17 @@ export default function ExtensionsPanel({ onInstalledChange }) {
   const stats = useMemo(() => getExtensionStats(records), [records]);
   const runtimeOverview = useMemo(() => getExtensionRuntimeOverview(records), [records]);
   const runtimeSnapshot = useMemo(() => createExtensionRuntimeSnapshot(records), [records]);
+  const hostSummary = useMemo(
+    () =>
+      buildExtensionHostSummary({
+        extensions,
+        records,
+        stats,
+        runtime: runtimeOverview,
+        storageHealth,
+      }),
+    [extensions, records, runtimeOverview, stats, storageHealth],
+  );
   const updateableIds = useMemo(
     () =>
       extensions
@@ -816,8 +829,8 @@ export default function ExtensionsPanel({ onInstalledChange }) {
       >
         <ContributionOverview
           overview={runtimeOverview}
-          stats={stats}
           storageHealth={storageHealth}
+          hostSummary={hostSummary}
         />
 
         {storageMessages.length > 0 ? (
@@ -941,9 +954,13 @@ export default function ExtensionsPanel({ onInstalledChange }) {
 
         {filteredExtensions.length === 0 ? (
           <PanelState
-            icon={Power}
-            title="No extensions found"
-            detail="The registry is active, but the current filters hide every manifest."
+            icon={stats.errors > 0 ? AlertTriangle : Power}
+            title={stats.errors > 0 ? "No matching manifests" : "No extensions found"}
+            detail={
+              stats.errors > 0
+                ? "The host has blocked manifests, but none match the active filters."
+                : "The registry is active, but the current filters hide every manifest."
+            }
             actionLabel="Reset filters"
             onAction={clearFilters}
           />

@@ -32,6 +32,9 @@ const actionButtonClass =
 const rowActionClass =
   "grid h-5 w-5 shrink-0 place-items-center rounded text-slate-500 transition hover:bg-white/[0.07] hover:text-slate-100 disabled:cursor-not-allowed disabled:opacity-40 [&>svg]:h-3 [&>svg]:w-3";
 
+const folderDisclosureClass =
+  "text-slate-400 transition-colors group-hover:text-slate-200 group-focus-visible:text-slate-100";
+
 const TREE_ROW_HEIGHT = Math.min(FILE_TREE_LIMITS.rowHeight || 32, 28);
 const TREE_INDENT_STEP = 14;
 const TREE_ROOT_INDENT = 6;
@@ -410,14 +413,23 @@ function TreeRow({
         <div className="grid h-4 w-4 shrink-0 place-items-center">
           {isBusy ? (
             <Loader2 size={12} className="animate-spin text-cyan-200" />
-          ) : isFolder && hasChildren ? (
-            isOpen ? (
-              <ChevronDown size={13} className="text-slate-500" />
-            ) : (
-              <ChevronRight size={13} className="text-slate-500" />
-            )
+          ) : isFolder ? (
+            <span
+              className={`grid h-4 w-4 place-items-center rounded ${
+                hasChildren ? "" : "opacity-45"
+              }`}
+              data-file-tree-disclosure=""
+              data-file-tree-disclosure-state={isOpen ? "open" : "closed"}
+              aria-hidden="true"
+            >
+              {isOpen ? (
+                <ChevronDown size={13} className={folderDisclosureClass} />
+              ) : (
+                <ChevronRight size={13} className={folderDisclosureClass} />
+              )}
+            </span>
           ) : (
-            null
+            <span className="h-4 w-4" aria-hidden="true" />
           )}
         </div>
 

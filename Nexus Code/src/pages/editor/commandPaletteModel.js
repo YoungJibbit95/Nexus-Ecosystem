@@ -887,6 +887,13 @@ function scoreTextSearchResult(group, match, query, groupIndex, matchIndex) {
   return score;
 }
 
+function trimSearchSnippet(value) {
+  return String(value || "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 180);
+}
+
 export function createSpotlightTextResults(searchResult, query = "", limit = 8) {
   const groups = Array.isArray(searchResult?.groups) ? searchResult.groups : [];
   return groups
@@ -895,19 +902,24 @@ export function createSpotlightTextResults(searchResult, query = "", limit = 8) 
       const matches = Array.isArray(group?.matches) ? group.matches : [];
       return matches.map((match, matchIndex) => {
         const location = `${group.path || group.fileName || "Untitled"}:${match.lineNumber || 1}:${match.column || 1}`;
-        const label = String(match.excerpt || match.lineText || group.fileName || "Text match").trim();
+        const snippet = trimSearchSnippet(match.excerpt || match.lineText);
+        const label = snippet || group.fileName || "Text match";
+        const lineHint = `Zeile ${match.lineNumber || 1}, Spalte ${match.column || 1}`;
         return {
           id: `text:${payload.id}:${match.lineNumber || 1}:${match.column || 1}:${matchIndex}`,
-          label: label || group.fileName || "Text match",
+          label,
           description: location,
           actionId: "open-file",
           payload,
           resultKind: "text",
+          spotlightType: "project-text",
           category: WORKSPACE_SEARCH_CATEGORY.id,
           categoryMeta: WORKSPACE_SEARCH_CATEGORY,
           icon: FileText,
           tone: resolveCategoryTone(WORKSPACE_SEARCH_CATEGORY.id),
           matchReason: "Text",
+          snippet,
+          lineHint,
           searchScore: scoreTextSearchResult(group, match, query, groupIndex, matchIndex),
           match,
           fsPath: payload.fsPath || group.fullPath || "",
@@ -953,11 +965,25 @@ function getSpotlightResultIntentScore(result, query) {
   if (!normalizedQuery) return 0;
   const kind = result?.resultKind || "command";
   let score = 0;
-  if (kind === "file" && /[./\\]/.test(query)) score += 92;
-  if (kind === "symbol" && SYMBOL_QUERY_PREFIX.test(String(query || "").trim())) score += 110;
-  if (kind === "text") score += 28;
+  const trimmedQuery = String(query || "").trim();
+  const queryLooksLikePath = /[./\\]/.test(trimmedQuery);
+  const queryLooksLikeSymbol = SYMBOL_QUERY_PREFIX.test(trimmedQuery);
+  const queryLooksLikePhrase =
+    /\s/.test(trimmedQuery) || trimmedQuery.length >= 12 || /["'=:]/.test(trimmedQuery);
+  if (kind === "file" && queryLooksLikePath) score += 92;
+  if (
+    kind === "file" &&
+    !queryLooksLikePhrase &&
+    normalizeSearchValue(result.label || result.name).includes(normalizedQuery)
+  ) {
+    score += 72;
+  }
+  if (kind === "symbol" && queryLooksLikeSymbol) score += 110;
+  if (kind === "text") score += queryLooksLikePhrase ? 76 : 28;
   if (kind === "command") score += result.isFrequent ? 10 : 0;
   if (kind === "file" && result.matchReason === "Path") score += 24;
+  if (kind === "text" && result.snippet) score += 8;
+  if (kind === "symbol" && result.symbol?.line) score += 4;
   return score;
 }
 

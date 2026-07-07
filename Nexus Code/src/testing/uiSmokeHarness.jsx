@@ -303,6 +303,7 @@ export function createUiSmokeScenarios() {
         "nx-code-file-explorer",
         "nx-code-explorer-toolbar",
         "nx-code-file-tree-actions",
+        "data-file-tree-disclosure",
         "data-file-tree-kind=\"folder\"",
         "data-file-tree-kind=\"file\"",
         "data-file-tree-name=\"src\"",

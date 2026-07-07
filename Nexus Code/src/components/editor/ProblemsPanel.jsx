@@ -3,7 +3,6 @@ import {
   AlertCircle,
   AlertTriangle,
   ChevronDown,
-  ChevronUp,
   Info,
   Lightbulb,
   MapPin,
@@ -109,6 +108,26 @@ function getFileTone(counts) {
   if (counts.error > 0) return "danger";
   if (counts.warning > 0) return "warning";
   return "muted";
+}
+
+function SeverityPill({ label, value, tone = "muted" }) {
+  const toneClass =
+    tone === "danger"
+      ? "border-red-400/15 bg-red-500/[0.045] text-red-200"
+      : tone === "warning"
+        ? "border-amber-300/15 bg-amber-400/[0.045] text-amber-200"
+        : tone === "info"
+          ? "border-sky-300/15 bg-sky-400/[0.045] text-sky-200"
+          : "border-white/[0.055] bg-white/[0.022] text-slate-400";
+
+  return (
+    <span
+      className={`inline-flex min-h-7 min-w-0 items-center gap-2 rounded-full border px-2.5 text-[10px] font-semibold leading-tight ${toneClass}`}
+    >
+      <span className="truncate">{label}</span>
+      <span className="font-mono text-[11px] text-current">{value}</span>
+    </span>
+  );
 }
 
 export default function ProblemsPanel({ problems, onSelectProblem }) {
@@ -243,6 +262,7 @@ export default function ProblemsPanel({ problems, onSelectProblem }) {
 
   const activeProblem = filteredProblems[activeIndex] || null;
   const filtersActive = filter !== "all" || Boolean(query);
+  const infoCount = (counts.info || 0) + (counts.hint || 0);
 
   const emptyTitle =
     normalizedProblems.length === 0 ? "Keine Probleme" : "Keine Treffer";
@@ -256,110 +276,105 @@ export default function ProblemsPanel({ problems, onSelectProblem }) {
       <PanelHeader
         icon={AlertCircle}
         title="Problems"
-        subtitle={`${filteredProblems.length} sichtbar von ${normalizedProblems.length} Diagnostics`}
+        subtitle={
+          normalizedProblems.length === 0
+            ? "Keine Diagnostics gemeldet"
+            : `${filteredProblems.length} von ${normalizedProblems.length} sichtbar`
+        }
         status={
           counts.error > 0 ? (
             <PanelBadge tone="danger">{counts.error} Errors</PanelBadge>
+          ) : counts.warning > 0 ? (
+            <PanelBadge tone="warning">{counts.warning} Warnings</PanelBadge>
           ) : (
             <PanelBadge tone="muted">Clean</PanelBadge>
           )
         }
-      >
-        <div
-          className="grid gap-1.5 rounded-lg border border-white/[0.055] bg-black/15 p-1.5"
-          style={{ gridTemplateColumns: "repeat(auto-fit, minmax(76px, 1fr))" }}
-        >
-          <div className="min-w-0 rounded-md bg-red-500/[0.055] px-2 py-1">
-            <span className="block text-[9px] font-semibold uppercase text-red-200/55">
-              Errors
-            </span>
-            <span className="block break-words text-[12px] font-semibold leading-tight text-red-300/90">
-              {counts.error}
-            </span>
-          </div>
-          <div className="min-w-0 rounded-md bg-amber-400/[0.055] px-2 py-1">
-            <span className="block text-[9px] font-semibold uppercase text-amber-200/55">
-              Warnings
-            </span>
-            <span className="block break-words text-[12px] font-semibold leading-tight text-amber-300/90">
-              {counts.warning}
-            </span>
-          </div>
-          <div className="min-w-0 rounded-md bg-sky-400/[0.055] px-2 py-1">
-            <span className="block text-[9px] font-semibold uppercase text-sky-200/55">
-              Info
-            </span>
-            <span className="block break-words text-[12px] font-semibold leading-tight text-sky-300/90">
-              {(counts.info || 0) + (counts.hint || 0)}
-            </span>
-          </div>
-        </div>
-
-        <div
-          className="mt-2 grid min-w-0 gap-1"
-          style={{ gridTemplateColumns: "repeat(auto-fit, minmax(68px, 1fr))" }}
-        >
-          {FILTERS.map((item) => {
-            const active = filter === item.id;
-            const count =
-              item.id === "info"
-                ? (counts.info || 0) + (counts.hint || 0)
-                : counts[item.id] || 0;
-            return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => setFilter(item.id)}
-                className="flex min-h-7 min-w-0 items-center justify-between gap-1.5 rounded-lg border px-2 py-1 text-[10px] font-semibold leading-tight transition-colors"
-                style={{
-                  background: active
-                    ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.15)"
-                    : "rgba(255,255,255,0.024)",
-                  borderColor: active
-                    ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.26)"
-                    : "rgba(255,255,255,0.055)",
-                  color: active ? "var(--nexus-primary, #7c8cff)" : "#8b93a7",
-                }}
-                aria-pressed={active}
-              >
-                <span
-                  className={`h-1.5 w-1.5 shrink-0 rounded-full ${
-                    active ? "bg-sky-300 shadow-[0_0_8px_rgba(56,189,248,0.4)]" : "bg-gray-600"
-                  }`}
-                />
-                <span className="min-w-0 flex-1 break-words" style={{ overflowWrap: "anywhere" }}>
-                  {item.label}
-                </span>
-                <span className="shrink-0 font-mono text-[10px] opacity-80">
-                  {count}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="relative mt-2 min-w-0">
-          <Search
-            size={13}
-            className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500"
-          />
-          <input
-            type="search"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Message, file oder code"
-            className="h-8 w-full rounded-lg border border-white/[0.06] bg-white/[0.026] pl-8 pr-2 text-[12px] text-gray-200 outline-none transition-colors placeholder:text-gray-600 focus:border-sky-300/35 focus:bg-white/[0.04]"
-          />
-          {query ? (
-            <button
-              type="button"
-              onClick={() => setQuery("")}
-              className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded p-1 text-gray-600 transition-colors hover:bg-white/[0.08] hover:text-gray-300"
-              title="Suche leeren"
+        actions={
+          <>
+            <PanelIconButton
+              label="Collapse diagnostic groups"
+              disabled={fileGroups.length === 0}
+              onClick={collapseAllGroups}
             >
-              <RotateCcw size={12} />
-            </button>
-          ) : null}
+              <Shrink />
+            </PanelIconButton>
+            <PanelIconButton
+              label="Expand diagnostic groups"
+              disabled={fileGroups.length === 0}
+              onClick={expandAllGroups}
+            >
+              <Maximize2 />
+            </PanelIconButton>
+            <PanelIconButton
+              label="Reset diagnostic filters"
+              disabled={!filtersActive}
+              onClick={resetFilters}
+              active={filtersActive}
+            >
+              <RotateCcw />
+            </PanelIconButton>
+          </>
+        }
+      >
+        <div className="space-y-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+            <SeverityPill label="Errors" value={counts.error} tone="danger" />
+            <SeverityPill label="Warnings" value={counts.warning} tone="warning" />
+            <SeverityPill label="Info" value={infoCount} tone="info" />
+          </div>
+
+          <div className="grid min-w-0 gap-2 md:grid-cols-[minmax(13rem,1fr)_auto]">
+            <div className="relative min-w-0">
+              <Search
+                size={13}
+                className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500"
+              />
+              <input
+                type="search"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Message, Datei oder Code"
+                className="h-8 w-full rounded-full border border-white/[0.055] bg-white/[0.022] pl-8 pr-8 text-[12px] text-gray-200 outline-none transition-colors placeholder:text-gray-600 focus:border-sky-300/30 focus:bg-white/[0.04]"
+              />
+              {query ? (
+                <button
+                  type="button"
+                  onClick={() => setQuery("")}
+                  className="absolute right-1.5 top-1/2 grid h-5 w-5 -translate-y-1/2 place-items-center rounded-full text-gray-600 transition-colors hover:bg-white/[0.08] hover:text-gray-300"
+                  title="Suche leeren"
+                >
+                  <RotateCcw size={11} />
+                </button>
+              ) : null}
+            </div>
+
+            <div className="flex min-w-0 flex-wrap items-center gap-1 rounded-full border border-white/[0.045] bg-white/[0.014] p-1">
+              {FILTERS.map((item) => {
+                const active = filter === item.id;
+                const count =
+                  item.id === "info" ? infoCount : counts[item.id] || 0;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => setFilter(item.id)}
+                    className="inline-flex min-h-6 min-w-0 items-center gap-1.5 rounded-full px-2 text-[10px] font-semibold leading-tight transition-colors"
+                    style={{
+                      background: active
+                        ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.15)"
+                        : "transparent",
+                      color: active ? "var(--nexus-primary, #7c8cff)" : "#7f8798",
+                    }}
+                    aria-pressed={active}
+                  >
+                    <span className="truncate">{item.label}</span>
+                    <span className="font-mono text-[9px] opacity-75">{count}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </div>
       </PanelHeader>
 
@@ -372,51 +387,13 @@ export default function ProblemsPanel({ problems, onSelectProblem }) {
         onKeyDown={handleListKeyDown}
       >
         {normalizedProblems.length > 0 || filtersActive ? (
-          <div className="sticky top-0 z-20 mb-2 rounded-xl border border-white/[0.055] bg-[#070a13]/95 px-2 py-1.5 backdrop-blur-md">
-            <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
-              <span className="min-w-0 break-words text-[10px] font-semibold text-gray-500" style={{ overflowWrap: "anywhere" }}>
-                {filteredProblems.length} sichtbar
-                {filtersActive ? " mit Filter" : ""}
-              </span>
-              <div className="flex min-w-0 flex-wrap items-center justify-end gap-1">
-                <PanelIconButton
-                  label="Collapse diagnostic groups"
-                  disabled={fileGroups.length === 0}
-                  onClick={collapseAllGroups}
-                >
-                  <Shrink />
-                </PanelIconButton>
-                <PanelIconButton
-                  label="Expand diagnostic groups"
-                  disabled={fileGroups.length === 0}
-                  onClick={expandAllGroups}
-                >
-                  <Maximize2 />
-                </PanelIconButton>
-                <PanelIconButton
-                  label="Reset diagnostic filters"
-                  disabled={!filtersActive}
-                  onClick={resetFilters}
-                  active={filtersActive}
-                >
-                  <RotateCcw />
-                </PanelIconButton>
-                <PanelIconButton
-                  label="Previous diagnostic"
-                  disabled={filteredProblems.length === 0}
-                  onClick={() => moveActiveProblem(-1)}
-                >
-                  <ChevronUp />
-                </PanelIconButton>
-                <PanelIconButton
-                  label="Next diagnostic"
-                  disabled={filteredProblems.length === 0}
-                  onClick={() => moveActiveProblem(1)}
-                >
-                  <ChevronDown />
-                </PanelIconButton>
-              </div>
-            </div>
+          <div className="mb-2 flex min-w-0 items-center justify-between gap-2 px-1 text-[10px] text-gray-500">
+            <span className="truncate">
+              {filteredProblems.length} sichtbar{filtersActive ? " mit Filter" : ""}
+            </span>
+            <span className="hidden shrink-0 text-gray-600 sm:inline">
+              Pfeiltasten navigieren, Enter oeffnet
+            </span>
           </div>
         ) : null}
 

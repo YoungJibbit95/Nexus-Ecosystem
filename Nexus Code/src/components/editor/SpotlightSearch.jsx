@@ -391,11 +391,15 @@ export default function SpotlightSearch({
                             const index = visibleIndex;
                             const active = index === selectedIndex;
                             const detail = result.description || result.fsPath || result.categoryMeta?.description;
+                            const locationHint =
+                              result.lineHint && result.relativePath
+                                ? `${result.relativePath} / ${result.lineHint}`
+                                : result.lineHint || result.relativePath || "";
                             const visibleDetail =
                               result.resultKind === "symbol" && result.symbol?.kind
-                                ? `${result.symbol.kind} / ${detail}`
+                                ? `${result.symbol.kind} / ${locationHint || detail}`
                                 : result.resultKind === "text"
-                                  ? detail
+                                  ? locationHint || detail
                                 : detail;
                             const showMatchReason = Boolean(
                               normalizedQuery && result.matchReason,
@@ -445,6 +449,11 @@ export default function SpotlightSearch({
                                   <span className="nx-code-search-detail mt-1 block break-words font-mono text-xs leading-5 text-slate-500">
                                     {visibleDetail}
                                   </span>
+                                  {result.resultKind === "text" && result.snippet ? (
+                                    <span className="nx-code-search-snippet mt-0.5 block break-words text-xs leading-5 text-slate-400">
+                                      {result.snippet}
+                                    </span>
+                                  ) : null}
                                 </span>
                                 <span className="nx-code-search-meta col-start-2 flex min-w-0 flex-wrap items-center justify-start gap-1 sm:col-start-auto sm:justify-end">
                                   {showFrequent ? (

@@ -259,6 +259,51 @@ function resolveGrammarId(languageId) {
   return GRAMMAR_ALIASES[editorGrammarId] || editorGrammarId;
 }
 
+function getGrammarSupportKind(grammarId) {
+  if (LANGUAGE_LOADERS[grammarId]) return "native";
+  return "plaintext";
+}
+
+function createLanguageSupportMetadata({ languageId, grammarId, hasLoader }) {
+  const isAliasFallback = languageId !== grammarId;
+  const grammarLabel = getLanguageDisplayName(grammarId);
+  const languageLabel = getLanguageDisplayName(languageId);
+
+  if (!hasLoader) {
+    return {
+      supportLevel: "plaintext",
+      statusLabel: "Plain Text fallback",
+      statusDescription: `${languageLabel} hat noch keine CodeMirror-Grammatik und wird als Plain Text angezeigt.`,
+      grammarLabel,
+      grammarSource: "none",
+      isAliasFallback,
+      fallbackReason: "missing-loader",
+    };
+  }
+
+  if (isAliasFallback) {
+    return {
+      supportLevel: "alias",
+      statusLabel: `${grammarLabel}-Fallback`,
+      statusDescription: `${languageLabel} nutzt die ${grammarLabel}-Grammatik fuer Syntax-Highlighting.`,
+      grammarLabel,
+      grammarSource: "alias",
+      isAliasFallback,
+      fallbackReason: "grammar-alias",
+    };
+  }
+
+  return {
+    supportLevel: getGrammarSupportKind(grammarId),
+    statusLabel: "Syntax-Highlighting bereit",
+    statusDescription: `${languageLabel} nutzt eine direkte CodeMirror-Grammatik.`,
+    grammarLabel,
+    grammarSource: "direct",
+    isAliasFallback,
+    fallbackReason: null,
+  };
+}
+
 export function getCodeMirrorLanguageSupportDescriptor(languageId, fileName = "") {
   const normalizedLanguageId = normalizeLanguageId(languageId);
   const grammarId = resolveGrammarId(normalizedLanguageId);
@@ -270,12 +315,18 @@ export function getCodeMirrorLanguageSupportDescriptor(languageId, fileName = ""
       : grammarId === LANGUAGE_IDS.TYPESCRIPT && lowerName.endsWith(".tsx")
         ? "tsx"
         : "default";
+  const metadata = createLanguageSupportMetadata({
+    languageId: normalizedLanguageId,
+    grammarId,
+    hasLoader: Boolean(loader),
+  });
 
   return Object.freeze({
     key: `${grammarId}:${variant}`,
     languageId: normalizedLanguageId,
     grammarId,
     label: getLanguageDisplayName(normalizedLanguageId),
+    ...metadata,
     loaded: false,
     status: loader ? "loading" : "fallback",
     extension: EMPTY_EXTENSION,
@@ -314,6 +365,9 @@ export async function loadCodeMirrorLanguageExtension(languageId, fileName = "")
           ...descriptor,
           loaded: false,
           status: "fallback",
+          statusLabel: "Syntax-Fallback aktiv",
+          statusDescription: `${descriptor.label} konnte nicht geladen werden und wird ohne Sprachgrammatik angezeigt.`,
+          fallbackReason: "load-error",
           extension: EMPTY_EXTENSION,
           error,
         })),

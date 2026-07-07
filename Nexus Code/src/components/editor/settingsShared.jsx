@@ -21,12 +21,14 @@ export function NativeInput({
   placeholder = "",
   className = "",
   style = {},
+  ...props
 }) {
   return (
     <input
       value={value}
       onChange={onChange}
       placeholder={placeholder}
+      {...props}
       className={`min-w-0 max-w-full rounded-lg px-3 py-2 text-xs outline-none transition-[border-color,background,box-shadow] ${className}`}
       style={{
         background:

@@ -1,5 +1,6 @@
 import {
   createSpotlightTextResults,
+  mergeSpotlightResults,
   normalizeSearchValue,
   rankSpotlightFiles,
   rankSpotlightSymbols,
@@ -390,6 +391,36 @@ function attachFilePayloads(results, files) {
   });
 }
 
+function getRelativeWorkspacePath(file, workspacePath) {
+  const path = normalizePath(file?.fsPath || file?.path || file?.description || file?.name);
+  const root = normalizePath(workspacePath);
+  if (root && path.toLowerCase().startsWith(`${root.toLowerCase()}/`)) {
+    return path.slice(root.length + 1);
+  }
+  return path;
+}
+
+function withWorkspaceResultMetadata(results, type, workspacePath) {
+  return results.map((result) => {
+    const payload = result.payload && typeof result.payload === "object" ? result.payload : result;
+    const relativePath = getRelativeWorkspacePath(payload, workspacePath);
+    const lineHint =
+      type === "symbol" && result.symbol?.line
+        ? `Zeile ${result.symbol.line}`
+        : result.lineHint || "";
+    return {
+      ...result,
+      spotlightType: result.spotlightType || `project-${type}`,
+      relativePath,
+      lineHint,
+      description:
+        type === "file"
+          ? relativePath || result.description
+          : result.description,
+    };
+  });
+}
+
 function shouldSearchProjectSymbols(query) {
   return /^@+/.test(String(query || "").trim());
 }
@@ -494,6 +525,16 @@ export async function searchSpotlightWorkspace({
     fsApi,
     limits,
   });
+  const workspaceResults = mergeSpotlightResults({
+    baseResults: [],
+    workspaceResults: [
+      ...withWorkspaceResultMetadata(fileResults, "file", workspacePath),
+      ...withWorkspaceResultMetadata(symbolResults, "symbol", workspacePath),
+      ...withWorkspaceResultMetadata(textResults, "text", workspacePath),
+    ],
+    query,
+    maxResults: limits.maxFileResults + limits.maxSymbolResults + limits.maxTextResults,
+  });
 
   const warnings = [
     ...collected.warnings,
@@ -509,7 +550,7 @@ export async function searchSpotlightWorkspace({
           : collected.status.message,
     },
     files: searchableFiles,
-    results: [...fileResults, ...symbolResults, ...textResults],
+    results: workspaceResults,
     warnings,
     stats: {
       ...collected.stats,
