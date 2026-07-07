@@ -36,7 +36,13 @@ export const UI_SMOKE_FIXTURE_LONG_EDITOR_CODE = Array.from(
   { length: 180 },
   (_, index) => {
     const line = String(index + 1).padStart(3, "0");
-    return `export const smokeScrollLine${line} = "Nexus Code editor scroll contract ${line}";`;
+    return [
+      `// Nexus Code editor scroll contract ${line}`,
+      `export function smokeScrollLine${line}(input: number): string {`,
+      `  const nextValue = input + ${index + 1};`,
+      `  return nextValue > 42 ? "highlight-${line}" : String(nextValue);`,
+      `}`,
+    ].join("\n");
   },
 ).join("\n");
 

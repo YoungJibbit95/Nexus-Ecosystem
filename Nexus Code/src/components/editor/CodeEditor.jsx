@@ -296,11 +296,10 @@ function createNexusCodeMirrorTheme(
         minHeight: "100%",
         padding: `${compactViewport ? 14 : 20}px ${compactViewport ? 14 : 24}px`,
         caretColor: accent,
-        color: `${text} !important`,
+        color: text,
       },
       ".cm-line": {
         padding: "0 2px",
-        color: text,
         textRendering: "inherit",
       },
       ".cm-content ::selection": {
