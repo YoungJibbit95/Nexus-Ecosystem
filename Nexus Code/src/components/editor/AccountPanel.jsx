@@ -183,6 +183,7 @@ export default function AccountPanel({
   const [busy, setBusy] = useState(false);
   const [testResult, setTestResult] = useState(null);
   const [showToken, setShowToken] = useState(false);
+  const draftState = useMemo(() => getAccountSessionState(draft), [draft]);
 
   useEffect(() => {
     setDraft(normalizedSession);
@@ -211,12 +212,31 @@ export default function AccountPanel({
     : "Not saved";
   const detailPreview = details
     .filter(Boolean)
-    .slice(0, 3)
-    .join(" - ");
-  const hiddenDetailCount = Math.max(details.length - 3, 0);
+    .slice(0, 2)
+    .join(" / ");
+  const hiddenDetailCount = Math.max(details.length - 2, 0);
   const statusDetail = detailPreview
     ? `${detailPreview}${hiddenDetailCount ? ` (+${hiddenDetailCount})` : ""}`
     : `${accountLabel} - ${savedLabel}`;
+  const sessionGateTitle = sessionState.canStartWorkbench
+    ? "Nexus Session aktiv"
+    : sessionState.isLocal
+      ? "Local mode ist kein Login"
+      : sessionState.isExpired
+        ? "Session abgelaufen"
+        : sessionState.hasToken
+          ? "Identitaet fehlt"
+          : "Session fehlt";
+  const sessionGateDetail = sessionState.canStartWorkbench
+    ? "Workbench und API-Features laufen ueber eine gueltige Nexus Session."
+    : sessionState.isLocal
+      ? "Lokale Profile bleiben gesperrt; fuer Workbench-Zugriff ist eine Nexus Session mit Token erforderlich."
+      : sessionState.isExpired
+        ? "Melde dich erneut an oder speichere eine frische Nexus API Session."
+        : sessionState.hasToken
+          ? "Ergaenze User ID oder Username, damit der Token einer Identitaet zugeordnet ist."
+          : "Speichere nur eine Nexus Session mit Token und Identitaet; Endpoint-Presets allein entsperren nichts.";
+  const draftSaveReady = draftState.canStartWorkbench;
 
   const updateDraft = (field, value) => {
     setDraft((prev) => ({
@@ -227,6 +247,14 @@ export default function AccountPanel({
   };
 
   const handleSave = () => {
+    if (!draftSaveReady) {
+      setTestResult({
+        mode: "limited",
+        message: "Session nicht speicherbar",
+        details: [sessionGateDetail],
+      });
+      return;
+    }
     const saved = onSaveSession?.(draft);
     setDraft(normalizeAccountSession(saved || draft));
   };
@@ -268,21 +296,14 @@ export default function AccountPanel({
       >
         <div className="grid grid-cols-2 gap-1.5">
           <AccountMiniStat
-            label="Mode"
-            value={authModeLabel}
+            label="Identity"
+            value={accountLabel}
             tone={sessionState.hasIdentity ? "success" : "muted"}
           />
           <AccountMiniStat
-            label="Session"
+            label={authModeLabel}
             value={sessionState.canStartWorkbench ? "Ready" : "Locked"}
             tone={sessionState.hasToken ? "accent" : "muted"}
-          />
-          <AccountMiniStat label="Tier" value={draft.userTier || "free"} tone="accent" />
-          <AccountMiniStat
-            label="Saved"
-            value={normalizedSession.savedAt ? "Yes" : "No"}
-            tone={normalizedSession.savedAt ? "success" : "muted"}
-            title={savedLabel}
           />
         </div>
       </PanelHeader>
@@ -298,10 +319,8 @@ export default function AccountPanel({
         <CompactAccountNotice
           icon={ShieldCheck}
           tone={sessionState.canStartWorkbench ? "success" : "warning"}
-          title={sessionState.canStartWorkbench ? "Nexus Session aktiv" : "Session fehlt"}
-          detail={sessionState.canStartWorkbench
-              ? "Die Workbench darf starten; API-Features folgen den Entitlements deiner Nexus Session."
-              : "Melde dich ueber den Startscreen an oder speichere hier eine gueltige Nexus API Session."}
+          title={sessionGateTitle}
+          detail={sessionGateDetail}
           className="mb-2.5"
         />
 
@@ -430,7 +449,12 @@ export default function AccountPanel({
             <Wifi size={14} />
             {busy ? "Testing" : "Test"}
           </AccountButton>
-          <AccountButton onClick={handleSave} tone="primary" title="Save session">
+          <AccountButton
+            onClick={handleSave}
+            disabled={!draftSaveReady}
+            tone="primary"
+            title={draftSaveReady ? "Save session" : "Token and identity required"}
+          >
             <Save size={14} />
             Save
           </AccountButton>

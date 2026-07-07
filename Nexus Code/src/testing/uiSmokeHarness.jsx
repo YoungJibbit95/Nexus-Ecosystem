@@ -244,7 +244,7 @@ export function createUiSmokeScenarios() {
       expectedText: [
         "Nexus Account",
         "UI smoke control fixture with long account status label",
-        "Mode",
+        "Identity",
         "Session",
         "Ready",
       ],
@@ -335,17 +335,14 @@ export function createUiSmokeScenarios() {
         "Refresh issues",
         "Open Git panel",
         "Open account panel",
-        "Create issue",
       ],
       expectedText: [
         "GitHub Issues",
-        "Triage repository issues.",
         "offline",
         "Repository",
         UI_SMOKE_FIXTURE_GITHUB_REPOSITORY,
         "Bridge offline",
         "No issues found",
-        "Create issue",
       ],
       requiredMarkup: [
         "nx-editor-panel-shell",

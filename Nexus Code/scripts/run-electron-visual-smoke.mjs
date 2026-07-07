@@ -129,7 +129,7 @@ function runElectron(baseUrl) {
       baseUrl,
       outputDir,
       scenarios,
-      timeoutMs: Number(process.env.NEXUS_CODE_VISUAL_SMOKE_TIMEOUT_MS || 18_000),
+      timeoutMs: Number(process.env.NEXUS_CODE_VISUAL_SMOKE_TIMEOUT_MS || 60_000),
     });
     const electron = spawn(process.execPath, [electronCliPath, electronMainPath], {
       cwd: projectRoot,

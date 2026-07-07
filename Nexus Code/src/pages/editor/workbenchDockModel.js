@@ -210,6 +210,17 @@ export const BOTTOM_PANEL_SIZES = Object.freeze({
   }),
 });
 
+export const WORKBENCH_CUSTOM_SIZE_LIMITS = Object.freeze({
+  side: Object.freeze({
+    min: 200,
+    max: 560,
+  }),
+  bottom: Object.freeze({
+    min: 144,
+    max: 430,
+  }),
+});
+
 export const DEFAULT_PANEL_ZONES = Object.freeze({
   explorer: WORKBENCH_SNAP_ZONES.left,
   search: WORKBENCH_SNAP_ZONES.left,
@@ -320,6 +331,8 @@ export const DEFAULT_WORKBENCH_LAYOUT = Object.freeze({
   presetId: "comfortable",
   sidePanelSize: "comfortable",
   bottomPanelSize: "comfortable",
+  customSidePanelWidth: null,
+  customBottomPanelHeight: null,
   bottomPanelPlacement: WORKBENCH_PANEL_PLACEMENTS.bottom,
   panelZones: DEFAULT_PANEL_ZONES,
   zonePanelIds: DEFAULT_ZONE_PANEL_IDS,
@@ -696,6 +709,12 @@ function getPresetSeed(presetId) {
   );
 }
 
+function normalizeCustomPixelSize(value, limits) {
+  const numberValue = Number(value);
+  if (!Number.isFinite(numberValue) || numberValue <= 0) return null;
+  return Math.round(Math.max(limits.min, Math.min(limits.max, numberValue)));
+}
+
 export function normalizeWorkbenchLayout(layout = {}) {
   try {
     const source = isObject(layout) ? layout : {};
@@ -717,6 +736,14 @@ export function normalizeWorkbenchLayout(layout = {}) {
         BOTTOM_PANEL_SIZES,
         preset.bottomPanelSize,
         BOTTOM_PANEL_SIZE_ALIASES,
+      ),
+      customSidePanelWidth: normalizeCustomPixelSize(
+        source.customSidePanelWidth,
+        WORKBENCH_CUSTOM_SIZE_LIMITS.side,
+      ),
+      customBottomPanelHeight: normalizeCustomPixelSize(
+        source.customBottomPanelHeight,
+        WORKBENCH_CUSTOM_SIZE_LIMITS.bottom,
       ),
       bottomPanelPlacement: WORKBENCH_PANEL_PLACEMENTS.bottom,
       panelZones,
@@ -908,6 +935,35 @@ export function getBottomPanelStyle({ compact = false, size } = {}) {
   return { ...style };
 }
 
+export function getWorkbenchDockCustomStyle(layout = {}, dockId, options = {}) {
+  if (options.compact) return null;
+  const normalized = normalizeWorkbenchLayout(layout);
+
+  if (dockId === WORKBENCH_ZONES.bottomPanel || dockId === "bottom") {
+    const height = normalized.customBottomPanelHeight;
+    if (!height) return null;
+    const { min, max } = WORKBENCH_CUSTOM_SIZE_LIMITS.bottom;
+    const cssHeight = `clamp(${min}px, ${height}px, min(${max}px, calc(100vh - 8rem)))`;
+    return {
+      height: cssHeight,
+      flex: `0 0 ${cssHeight}`,
+      minHeight: `${min}px`,
+      maxHeight: `min(${max}px, calc(100vh - 8rem))`,
+    };
+  }
+
+  const width = normalized.customSidePanelWidth;
+  if (!width) return null;
+  const { min, max } = WORKBENCH_CUSTOM_SIZE_LIMITS.side;
+  const cssWidth = `clamp(${min}px, ${width}px, min(${max}px, calc(100vw - 10rem)))`;
+  return {
+    width: cssWidth,
+    flex: `0 0 ${cssWidth}`,
+    minWidth: `${min}px`,
+    maxWidth: `min(${max}px, calc(100vw - 10rem))`,
+  };
+}
+
 export function getWorkbenchLayoutPreset(
   presetId = DEFAULT_WORKBENCH_LAYOUT.presetId,
   fallbackId = DEFAULT_WORKBENCH_LAYOUT.presetId,
@@ -1065,12 +1121,18 @@ export function setWorkbenchDockSize(layout, dockId, sizeId) {
       normalized.bottomPanelSize,
       BOTTOM_PANEL_SIZE_ALIASES,
     );
-    if (bottomPanelSize === normalized.bottomPanelSize) return normalized;
+    if (
+      bottomPanelSize === normalized.bottomPanelSize &&
+      !normalized.customBottomPanelHeight
+    ) {
+      return normalized;
+    }
 
     return normalizeWorkbenchLayout({
       ...normalized,
       presetId: WORKBENCH_CUSTOM_PRESET_ID,
       bottomPanelSize,
+      customBottomPanelHeight: null,
     });
   }
 
@@ -1080,12 +1142,47 @@ export function setWorkbenchDockSize(layout, dockId, sizeId) {
     normalized.sidePanelSize,
     SIDE_PANEL_SIZE_ALIASES,
   );
-  if (sidePanelSize === normalized.sidePanelSize) return normalized;
+  if (sidePanelSize === normalized.sidePanelSize && !normalized.customSidePanelWidth) {
+    return normalized;
+  }
 
   return normalizeWorkbenchLayout({
     ...normalized,
     presetId: WORKBENCH_CUSTOM_PRESET_ID,
     sidePanelSize,
+    customSidePanelWidth: null,
+  });
+}
+
+export function setWorkbenchDockCustomSize(layout, dockId, pixelSize) {
+  const normalized = normalizeWorkbenchLayout(layout);
+
+  if (dockId === WORKBENCH_ZONES.bottomPanel || dockId === "bottom") {
+    const customBottomPanelHeight = normalizeCustomPixelSize(
+      pixelSize,
+      WORKBENCH_CUSTOM_SIZE_LIMITS.bottom,
+    );
+    if (customBottomPanelHeight === normalized.customBottomPanelHeight) {
+      return normalized;
+    }
+    return normalizeWorkbenchLayout({
+      ...normalized,
+      presetId: WORKBENCH_CUSTOM_PRESET_ID,
+      customBottomPanelHeight,
+    });
+  }
+
+  const customSidePanelWidth = normalizeCustomPixelSize(
+    pixelSize,
+    WORKBENCH_CUSTOM_SIZE_LIMITS.side,
+  );
+  if (customSidePanelWidth === normalized.customSidePanelWidth) {
+    return normalized;
+  }
+  return normalizeWorkbenchLayout({
+    ...normalized,
+    presetId: WORKBENCH_CUSTOM_PRESET_ID,
+    customSidePanelWidth,
   });
 }
 

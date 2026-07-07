@@ -27,12 +27,16 @@ import {
 } from "../../pages/editor/fileTreeModel";
 
 const actionButtonClass =
-  "grid h-7 w-7 shrink-0 place-items-center rounded-lg border border-white/[0.065] bg-black/20 text-slate-500 transition hover:border-cyan-300/20 hover:bg-white/[0.055] hover:text-slate-100 focus-visible:border-cyan-300/50 focus-visible:text-white focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-35 [&>svg]:h-3.5 [&>svg]:w-3.5";
+  "grid h-6 w-6 shrink-0 place-items-center rounded-md border border-transparent bg-transparent text-slate-500 transition hover:bg-white/[0.055] hover:text-slate-200 focus-visible:border-cyan-300/35 focus-visible:bg-white/[0.065] focus-visible:text-white focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-35 [&>svg]:h-3.5 [&>svg]:w-3.5";
 
 const rowActionClass =
-  "grid h-6 w-6 shrink-0 place-items-center rounded text-gray-500 transition hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40 [&>svg]:h-3 [&>svg]:w-3";
+  "grid h-5 w-5 shrink-0 place-items-center rounded text-slate-500 transition hover:bg-white/[0.07] hover:text-slate-100 disabled:cursor-not-allowed disabled:opacity-40 [&>svg]:h-3 [&>svg]:w-3";
 
-const TREE_ROW_HEIGHT = FILE_TREE_LIMITS.rowHeight || 32;
+const TREE_ROW_HEIGHT = Math.min(FILE_TREE_LIMITS.rowHeight || 32, 28);
+const FILE_TREE_VIRTUAL_LIMITS = Object.freeze({
+  ...FILE_TREE_LIMITS,
+  rowHeight: TREE_ROW_HEIGHT,
+});
 
 function getFileNameParts(name = "") {
   const value = String(name || "");
@@ -58,9 +62,9 @@ function WorkspaceLabel({ workspacePath }) {
   }, [workspacePath]);
 
   return (
-    <div className="flex min-w-0 items-center gap-2 rounded-xl border border-white/[0.055] bg-black/15 px-2 py-1">
-      <FolderOpen size={12} className="shrink-0 text-sky-300" />
-      <span className="truncate text-[11px] font-semibold tracking-tight text-slate-300">
+    <div className="flex min-w-0 items-center gap-1.5 rounded-md px-0.5 py-0.5">
+      <FolderOpen size={12} className="shrink-0 text-sky-300/80" />
+      <span className="truncate text-[10px] font-semibold tracking-tight text-slate-400">
         {label}
       </span>
     </div>
@@ -186,7 +190,7 @@ function StateActionButton({ icon: Icon, children, onClick, disabled = false }) 
         event.stopPropagation();
         if (!disabled) onClick?.(event);
       }}
-      className="inline-flex h-7 items-center gap-1.5 rounded-lg border border-white/[0.08] bg-black/20 px-2.5 text-[10px] font-semibold text-slate-300 transition hover:border-cyan-300/20 hover:bg-white/[0.065] hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+      className="inline-flex h-7 items-center gap-1.5 rounded-md border border-white/[0.06] bg-white/[0.025] px-2.5 text-[10px] font-medium text-slate-300 transition hover:border-cyan-300/20 hover:bg-white/[0.06] hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
     >
       {Icon && <Icon size={12} className="shrink-0" />}
       <span>{children}</span>
@@ -197,7 +201,7 @@ function StateActionButton({ icon: Icon, children, onClick, disabled = false }) 
 function EmptyState({ icon, title, detail, children }) {
   const Icon = icon;
   return (
-    <div className="flex h-full min-h-[190px] flex-col items-center justify-center px-5 text-center text-slate-500">
+    <div className="flex h-full min-h-[170px] flex-col items-center justify-center px-5 text-center text-slate-500">
       <Icon size={28} className={`mb-2.5 opacity-70 ${Icon === Loader2 ? "animate-spin" : ""}`} />
       <div className="text-xs font-semibold text-slate-300">{title}</div>
       {detail && <div className="mt-1 max-w-[220px] text-[11px] leading-4 text-slate-500">{detail}</div>}
@@ -248,14 +252,14 @@ function ExtensionSectionRow({ section }) {
         className="h-1.5 w-1.5 shrink-0 rounded-full"
         style={{ background: section.color }}
       />
-      <span className="shrink-0 font-bold uppercase tracking-wider text-gray-400">
+      <span className="shrink-0 font-semibold uppercase tracking-normal text-slate-500">
         {section.label}
       </span>
-      <span className="min-w-0 truncate text-[9px] text-gray-600">
+      <span className="min-w-0 truncate text-[9px] text-slate-600">
         {section.detail}
       </span>
-      <span className="h-px min-w-[12px] flex-1 bg-white/[0.06]" />
-      <span className="shrink-0 rounded border border-white/5 bg-white/[0.025] px-1.5 py-0.5 text-[9px] font-semibold text-gray-600">
+      <span className="h-px min-w-[12px] flex-1 bg-white/[0.035]" />
+      <span className="shrink-0 text-[9px] font-medium text-slate-600">
         {getItemCountLabel(section.count)}
       </span>
     </div>
@@ -264,7 +268,7 @@ function ExtensionSectionRow({ section }) {
 
 function FileNameLabel({ node, isActive }) {
   const { base, suffix } = getFileNameParts(node.name);
-  const textClass = isActive ? "text-white" : "text-gray-400";
+  const textClass = isActive ? "text-white" : "text-slate-400";
 
   return (
     <span
@@ -273,7 +277,7 @@ function FileNameLabel({ node, isActive }) {
     >
       <span className="min-w-0 truncate">{base || node.name}</span>
       {suffix && (
-        <span className="shrink-0 text-gray-500 group-hover:text-gray-300">
+        <span className="shrink-0 text-slate-600 group-hover:text-slate-400">
           {suffix}
         </span>
       )}
@@ -286,8 +290,8 @@ function FileBadge({ node }) {
   const meta = getFileMeta(node.name);
   return (
     <span
-      className="ml-1 hidden shrink-0 rounded-md border border-white/[0.08] px-1.5 py-0.5 text-[9px] font-semibold leading-none opacity-70 transition-opacity group-hover:inline-flex group-hover:opacity-100 group-focus-within:inline-flex"
-      style={{ color: meta.color, background: `${meta.color}10` }}
+      className="ml-1 hidden shrink-0 text-[9px] font-medium leading-none opacity-55 transition-opacity group-hover:inline-flex group-hover:opacity-90 group-focus-within:inline-flex"
+      style={{ color: meta.color }}
       title={`${meta.label} / ${getFileGroupLabel(meta.group)}`}
     >
       {meta.label}
@@ -332,7 +336,7 @@ function TreeRow({
   const isRenaming = renamingId === node.id;
   const isDeleting = deleteConfirmId === node.id;
   const isBusy = busyId === node.id;
-  const indent = depth * 12 + 6;
+  const indent = depth * 11 + 5;
   const meta = getFileMeta(node.name);
   const rowTitle = node.fsPath || node.path || node.name;
   const canMutate = !treeLocked && !isBusy;
@@ -370,19 +374,23 @@ function TreeRow({
             if (canMutate) onStartRename(node.id);
           }
         }}
-        className={`nx-code-file-tree-row group relative flex min-w-0 select-none items-center gap-1.5 overflow-hidden rounded-md px-2 text-[11px] outline-none transition hover:bg-white/[0.06] focus:bg-white/[0.08] ${
+        className={`nx-code-file-tree-row group relative flex min-w-0 select-none items-center gap-1.5 overflow-hidden rounded-md px-1.5 text-[11px] outline-none transition hover:bg-white/[0.052] focus:bg-white/[0.072] ${
           treeLocked && isFolder ? "cursor-wait" : "cursor-pointer"
         }`}
         style={{
           height: TREE_ROW_HEIGHT,
           paddingLeft: `${indent}px`,
-          paddingRight: !isRenaming ? (isFolder ? "5.75rem" : "2.5rem") : undefined,
+          paddingRight: !isRenaming ? (isFolder ? "4.6rem" : "1.7rem") : undefined,
           background: isActive
-            ? "rgba(var(--primary-rgb, 128, 0, 255), 0.15)"
+            ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.115)"
             : isMatch
-              ? "rgba(34, 211, 238, 0.08)"
+              ? "rgba(56, 189, 248, 0.07)"
             : undefined,
-          boxShadow: isMatch ? "inset 2px 0 rgba(34, 211, 238, 0.45)" : undefined,
+          boxShadow: isActive
+            ? "inset 2px 0 rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.52)"
+            : isMatch
+              ? "inset 2px 0 rgba(56, 189, 248, 0.42)"
+              : undefined,
           contain: "layout paint style",
         }}
       >
@@ -391,9 +399,9 @@ function TreeRow({
             <Loader2 size={12} className="animate-spin text-cyan-200" />
           ) : isFolder && hasChildren ? (
             isOpen ? (
-              <ChevronDown size={14} className="text-gray-500" />
+              <ChevronDown size={13} className="text-slate-500" />
             ) : (
-              <ChevronRight size={14} className="text-gray-500" />
+              <ChevronRight size={13} className="text-slate-500" />
             )
           ) : (
             null
@@ -402,12 +410,12 @@ function TreeRow({
 
         {isFolder ? (
           isOpen ? (
-            <FolderOpen size={15} className="shrink-0 text-purple-300" />
+            <FolderOpen size={14} className="shrink-0 text-sky-300/90" />
           ) : (
-            <Folder size={15} className="shrink-0 text-gray-400" />
+            <Folder size={14} className="shrink-0 text-slate-400" />
           )
         ) : (
-          <File size={15} className="shrink-0" style={{ color: meta.color }} />
+          <File size={14} className="shrink-0 opacity-85" style={{ color: meta.color }} />
         )}
 
         {isRenaming ? (
@@ -421,7 +429,7 @@ function TreeRow({
             {isFolder ? (
               <span
                 className={`min-w-0 flex-1 truncate font-medium leading-none ${
-                  isActive ? "text-white" : isOpen ? "text-purple-100" : "text-gray-400"
+                  isActive ? "text-white" : isOpen ? "text-slate-200" : "text-slate-400"
                 }`}
                 title={node.name}
               >
@@ -431,7 +439,7 @@ function TreeRow({
               <FileNameLabel node={node} isActive={isActive} />
             )}
             {isFolder && childCount > 0 && (
-              <span className="shrink-0 rounded bg-white/5 px-1.5 py-0.5 text-[9px] font-semibold text-gray-500">
+              <span className="shrink-0 text-[9px] font-medium tabular-nums text-slate-600 group-hover:text-slate-500">
                 {childCount}
               </span>
             )}
@@ -440,7 +448,7 @@ function TreeRow({
         )}
 
         {!isRenaming && (
-          <div className="pointer-events-none absolute right-1 top-1/2 flex h-6 -translate-y-1/2 items-center justify-end gap-0.5 rounded bg-[#080817]/95 px-0.5 opacity-0 shadow-[0_0_12px_rgba(0,0,0,0.35)] transition-opacity group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100">
+          <div className="pointer-events-none absolute right-1 top-1/2 flex h-[22px] -translate-y-1/2 items-center justify-end gap-0.5 rounded bg-[#070b12]/92 px-0.5 opacity-0 shadow-[0_0_10px_rgba(0,0,0,0.24)] transition-opacity group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100">
             {isFolder && (
               <>
                 <button
@@ -786,7 +794,7 @@ export default function FileExplorer({
   }, [scheduleTreeViewportSync, treeItems.length]);
 
   const virtualWindow = useMemo(
-    () => getFileTreeVirtualWindow(treeItems, treeViewport, FILE_TREE_LIMITS),
+    () => getFileTreeVirtualWindow(treeItems, treeViewport, FILE_TREE_VIRTUAL_LIMITS),
     [treeItems, treeViewport],
   );
 
@@ -809,11 +817,11 @@ export default function FileExplorer({
   const treeLocked = isLoading || refreshing;
 
   return (
-    <div className="flex h-full w-full flex-col bg-[#05070d]/40 text-gray-200">
-      <div className="nx-code-explorer-header border-b border-white/[0.055] bg-black/[0.16] px-3 py-2.5">
+    <div className="flex h-full w-full flex-col bg-[#05070d]/30 text-slate-200">
+      <div className="nx-code-explorer-header border-b border-white/[0.045] bg-black/[0.08] px-2.5 py-2">
         <div className="nx-code-explorer-heading flex min-w-0 items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
-            <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+            <div className="text-[10px] font-semibold uppercase tracking-normal text-slate-500">
               Explorer
             </div>
             <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-slate-600">
@@ -832,12 +840,12 @@ export default function FileExplorer({
             </div>
           </div>
           {virtualWindow.isVirtualized && (
-            <span className="shrink-0 rounded border border-white/10 bg-white/[0.04] px-1.5 py-0.5 text-[9px] font-semibold text-gray-500">
+            <span className="shrink-0 text-[9px] font-medium text-slate-600">
               {virtualWindow.renderedRows}/{virtualWindow.totalRows}
             </span>
           )}
           <div
-            className="flex shrink-0 items-center gap-1 rounded-xl border border-white/[0.06] bg-black/15 p-1"
+            className="flex shrink-0 items-center gap-0.5 rounded-md bg-transparent p-0.5"
             role="toolbar"
             aria-label="Explorer quick actions"
           >
@@ -861,11 +869,11 @@ export default function FileExplorer({
           <WorkspaceLabel workspacePath={workspacePath} />
         </div>
         <div
-          className="nx-code-explorer-toolbar mt-2 flex items-center justify-between gap-2"
+          className="nx-code-explorer-toolbar mt-1.5 flex items-center justify-between gap-2"
           role="toolbar"
           aria-label="Explorer actions"
         >
-          <div className="flex min-w-0 items-center gap-1 rounded-xl border border-white/[0.06] bg-black/15 p-1">
+          <div className="flex min-w-0 items-center gap-0.5 rounded-md bg-transparent p-0.5">
             <ActionIconButton
               title="New file"
               tooltip="New file"

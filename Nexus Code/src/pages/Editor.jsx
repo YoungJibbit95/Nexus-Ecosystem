@@ -64,6 +64,7 @@ import {
   getBottomPanelSizeOptions,
   getBottomPanelStyle,
   getLayoutDropPreview,
+  getWorkbenchDockCustomStyle,
   getSidePanelSizeOptions,
   getWorkbenchPanelFocusTarget,
   getWorkbenchZonePanelIds,
@@ -75,6 +76,7 @@ import {
   resetWorkbenchLayoutStorage,
   saveWorkbenchLayoutToStorage,
   setWorkbenchDockSize,
+  setWorkbenchDockCustomSize,
   toggleWorkbenchDockPanel,
   WORKBENCH_SNAP_ZONES,
 } from "./editor/workbenchDockModel";
@@ -635,8 +637,8 @@ function SidePanelFrame({
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
       <div
-        className="flex h-11 shrink-0 items-center gap-2 overflow-x-auto border-b border-white/5 px-2 sm:px-3"
-        style={{ background: "rgba(0,0,0,0.14)" }}
+        className="nx-code-panel-windowbar flex h-9 shrink-0 items-center gap-1.5 overflow-x-auto border-b border-white/[0.04] px-2"
+        style={{ background: "rgba(0,0,0,0.08)" }}
       >
         <DockDragHandle
           panelId={panelId}
@@ -645,10 +647,10 @@ function SidePanelFrame({
           onDragEnd={onPanelDragEnd}
         />
         <div className="min-w-0 flex-1">
-          <div className="truncate text-[11px] font-semibold uppercase text-[var(--nexus-text)]">
+          <div className="truncate text-[11px] font-semibold text-[var(--nx-code-strong-text)]">
             {meta.title}
           </div>
-          <div className="truncate text-[10px] text-[var(--nexus-muted)]">
+          <div className="hidden truncate text-[10px] text-[var(--nx-code-muted-text)] xl:block">
             {meta.detail}
           </div>
         </div>
@@ -1152,6 +1154,44 @@ export default function Editor({
       cycleWorkbenchDockSize(prev, "bottom"),
     );
   }, []);
+
+  const handleWorkbenchResizePointerDown = useCallback((event, dockId, direction = 1) => {
+    if (isCompactViewport || event.button !== 0) return;
+    const panelElement = event.currentTarget.parentElement;
+    const rect = panelElement?.getBoundingClientRect();
+    if (!rect) return;
+
+    event.preventDefault();
+    const isBottomDock = dockId === "bottom";
+    const startSize = isBottomDock ? rect.height : rect.width;
+    const startClientX = event.clientX;
+    const startClientY = event.clientY;
+    const previousCursor = document.body.style.cursor;
+    const previousUserSelect = document.body.style.userSelect;
+    document.body.style.cursor = isBottomDock ? "row-resize" : "col-resize";
+    document.body.style.userSelect = "none";
+
+    const handlePointerMove = (moveEvent) => {
+      const delta = isBottomDock
+        ? startClientY - moveEvent.clientY
+        : (moveEvent.clientX - startClientX) * direction;
+      setWorkbenchLayout((prev) =>
+        setWorkbenchDockCustomSize(prev, dockId, startSize + delta),
+      );
+    };
+
+    const finishResize = () => {
+      document.body.style.cursor = previousCursor;
+      document.body.style.userSelect = previousUserSelect;
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", finishResize);
+      window.removeEventListener("pointercancel", finishResize);
+    };
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", finishResize, { once: true });
+    window.addEventListener("pointercancel", finishResize, { once: true });
+  }, [isCompactViewport]);
 
   const handleApplyWorkbenchLayoutPreset = useCallback((presetId) => {
     setWorkbenchLayout((prev) => applyWorkbenchLayoutPreset(prev, presetId));
@@ -2536,6 +2576,8 @@ export default function Editor({
     !showSettings && sideRailVisible && sidePanelSlot.panelId,
   );
   const visibleActivePanel = sidePanelVisible ? sidePanelSlot.panelId : null;
+  const sidePanelEdgeClass =
+    sidePanelSlot.snapZone === WORKBENCH_SNAP_ZONES.right ? "border-l" : "border-r";
   const visibleWorkbenchPanel =
     visibleActivePanel || (!showSettings && bottomPanelVisible ? bottomTab : null);
   const activityBarPanelId =
@@ -2554,19 +2596,29 @@ export default function Editor({
   const sidePanelClassName = getSidePanelClassName({
     compact: isCompactViewport,
   });
-  const sidePanelStyle = getSidePanelStyle({
-    compact: isCompactViewport,
-    size: sidePanelSlot.size,
-  });
+  const sidePanelStyle = {
+    ...getSidePanelStyle({
+      compact: isCompactViewport,
+      size: sidePanelSlot.size,
+    }),
+    ...(getWorkbenchDockCustomStyle(normalizedWorkbenchLayout, "side", {
+      compact: isCompactViewport,
+    }) || {}),
+  };
   const mainEditorClassName = getMainEditorClassName();
   const bottomPanelClassName = getBottomPanelClassName({
     compact: isCompactViewport,
     size: bottomPanelSlot.size,
   });
-  const bottomPanelStyle = getBottomPanelStyle({
-    compact: isCompactViewport,
-    size: bottomPanelSlot.size,
-  });
+  const bottomPanelStyle = {
+    ...getBottomPanelStyle({
+      compact: isCompactViewport,
+      size: bottomPanelSlot.size,
+    }),
+    ...(getWorkbenchDockCustomStyle(normalizedWorkbenchLayout, "bottom", {
+      compact: isCompactViewport,
+    }) || {}),
+  };
   const dockPreviewLayout = dockDropPreview?.layout || normalizedWorkbenchLayout;
   const dockZonePanelIds = useMemo(
     () =>
@@ -2620,7 +2672,7 @@ export default function Editor({
               style={{
                 background: "var(--nexus-panel-surface)",
                 backdropFilter: "var(--nexus-panel-filter)",
-                boxShadow: "var(--nexus-panel-outline)",
+                boxShadow: "inset -1px 0 rgba(156, 170, 210, 0.055)",
                 order: activityBarSlot.order,
               }}
             >
@@ -2679,7 +2731,7 @@ export default function Editor({
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   transition={{ type: "tween", duration: 0.18, ease: [0.2, 0.7, 0.2, 1] }}
-                  className={`nx-code-side-panel ${sidePanelClassName} z-30 min-h-0 overflow-hidden border-x border-white/5`}
+                  className={`nx-code-side-panel ${sidePanelClassName} ${sidePanelEdgeClass} z-30 min-h-0 overflow-hidden border-white/[0.045]`}
                   data-workbench-zone={sidePanelSlot.zone}
                   data-workbench-dock-id={sidePanelSlot.dockId}
                   data-workbench-panel={sidePanelSlot.panelId}
@@ -2696,7 +2748,7 @@ export default function Editor({
                     flexShrink: isCompactViewport ? undefined : 0,
                     background: "var(--nexus-panel-surface)",
                     backdropFilter: "var(--nexus-panel-filter)",
-                    boxShadow: isCompactViewport ? "0 18px 48px rgba(0,0,0,0.35)" : "none",
+                    boxShadow: isCompactViewport ? "0 18px 48px rgba(0,0,0,0.32)" : "none",
                     order: sidePanelSlot.order,
                     willChange: "opacity",
                   }}
@@ -2774,6 +2826,24 @@ export default function Editor({
                       />
                     )}
                   </SidePanelFrame>
+                  {!isCompactViewport && (
+                    <div
+                      className={`nx-code-panel-resize-handle nx-code-panel-resize-handle-${
+                        sidePanelSlot.snapZone === WORKBENCH_SNAP_ZONES.right ? "left" : "right"
+                      }`}
+                      role="separator"
+                      aria-orientation="vertical"
+                      aria-label="Panelbreite ziehen"
+                      title="Panelbreite ziehen"
+                      onPointerDown={(event) =>
+                        handleWorkbenchResizePointerDown(
+                          event,
+                          "side",
+                          sidePanelSlot.snapZone === WORKBENCH_SNAP_ZONES.right ? -1 : 1,
+                        )
+                      }
+                    />
+                  )}
                 </motion.div>
               )}
             </AnimatePresence>
@@ -2786,8 +2856,8 @@ export default function Editor({
               style={{ order: editorSlot.order }}
             >
               <div
-                className="h-11 border-b border-white/5 shrink-0"
-                style={{ background: "rgba(0,0,0,0.16)" }}
+                className="nx-code-editor-tabbar-wrap h-10 shrink-0 border-b border-white/[0.045]"
+                style={{ background: "rgba(0,0,0,0.1)" }}
               >
                 <TabBar
                   tabs={openTabs}
@@ -2862,7 +2932,7 @@ export default function Editor({
 
               {(statusStripVisible || bottomPanelVisible) && (
                 <div
-                  className="nx-code-bottom-stack shrink-0 border-t border-white/5 min-h-0 overflow-hidden"
+                  className="nx-code-bottom-stack shrink-0 border-t border-white/[0.045] min-h-0 overflow-hidden"
                   style={{
                     background: "var(--nexus-panel-surface)",
                     backdropFilter: "var(--nexus-panel-filter)",
@@ -2870,8 +2940,8 @@ export default function Editor({
                 >
                   {statusStripVisible && (
                     <div
-                      className="nx-code-status-strip min-h-10 px-3 py-1.5 flex items-center gap-2 border-b border-white/5 overflow-hidden"
-                      style={{ background: "rgba(0,0,0,0.18)" }}
+                      className="nx-code-status-strip min-h-10 px-3 py-1.5 flex items-center gap-2 border-b border-white/[0.045] overflow-hidden"
+                      style={{ background: "rgba(0,0,0,0.12)" }}
                     >
                       <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden">
                         <StatusItem
@@ -2977,13 +3047,25 @@ export default function Editor({
                   {bottomPanelVisible && (
                     <div
                       className={`${bottomPanelClassName} flex flex-col`}
-                      style={bottomPanelStyle}
+                      style={{ ...bottomPanelStyle, position: "relative" }}
                       data-workbench-zone={bottomPanelSlot.zone}
                       data-workbench-dock-id={bottomPanelSlot.dockId}
                       data-workbench-panel={bottomPanelSlot.panelId}
                       data-workbench-placement={bottomPanelSlot.placement}
                       data-workbench-axis={bottomPanelSlot.axis}
                     >
+                      {!isCompactViewport && (
+                        <div
+                          className="nx-code-panel-resize-handle nx-code-panel-resize-handle-top"
+                          role="separator"
+                          aria-orientation="horizontal"
+                          aria-label="Dockhoehe ziehen"
+                          title="Dockhoehe ziehen"
+                          onPointerDown={(event) =>
+                            handleWorkbenchResizePointerDown(event, "bottom")
+                          }
+                        />
+                      )}
                       {isCompactViewport && (
                         <CompactBottomDockBar
                           activePanelId={bottomTab}
@@ -3033,7 +3115,7 @@ export default function Editor({
                   style={{
                     background: "var(--nexus-panel-surface)",
                     backdropFilter: "var(--nexus-panel-filter)",
-                    boxShadow: "var(--nexus-panel-outline)",
+                    boxShadow: "inset 1px 0 rgba(156, 170, 210, 0.055)",
                     order: activityBarSlot.order,
                   }}
                 >

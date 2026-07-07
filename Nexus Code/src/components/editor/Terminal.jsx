@@ -293,13 +293,13 @@ const TerminalOutputRow = React.memo(function TerminalOutputRow({ entry }) {
   if (entry.type === "status" || entry.trimMarker) {
     return (
       <div
-        className="my-1 flex min-w-0 items-center gap-2 rounded px-2 py-1 text-[11px]"
+        className="my-1 flex min-w-0 items-center gap-2 border-l px-2 py-0.5 text-[11px]"
         style={{
           color: entry.trimMarker ? "#94a3b8" : "#cbd5e1",
-          background: entry.trimMarker
-            ? "rgba(148,163,184,0.06)"
-            : "rgba(148,163,184,0.045)",
-          border: "1px solid rgba(255,255,255,0.06)",
+          background: "rgba(148,163,184,0.025)",
+          borderColor: entry.trimMarker
+            ? "rgba(148,163,184,0.2)"
+            : "rgba(56,189,248,0.18)",
         }}
       >
         <span
@@ -320,9 +320,28 @@ const TerminalOutputRow = React.memo(function TerminalOutputRow({ entry }) {
     );
   }
 
+  if (entry.type === "input") {
+    const commandText = String(text).replace(/^[$>]\s?/, "");
+    const prompt = String(text).startsWith(">") ? ">" : "$";
+
+    return (
+      <div className="grid min-w-0 grid-cols-[1.4rem_1fr] gap-2 py-0.5 leading-relaxed">
+        <span className="select-none text-right text-[12px] text-cyan-300/85">
+          {prompt}
+        </span>
+        <span
+          className="min-w-0 break-words text-[12px] text-cyan-100"
+          style={{ overflowWrap: "anywhere", whiteSpace: "pre-wrap" }}
+        >
+          {commandText || "\u00A0"}
+        </span>
+      </div>
+    );
+  }
+
   return (
     <div
-      className="leading-relaxed"
+      className="grid min-w-0 grid-cols-[1.4rem_1fr] gap-2 leading-relaxed"
       style={{
         color: getEntryColor(entry.type),
         fontSize: "12px",
@@ -330,7 +349,10 @@ const TerminalOutputRow = React.memo(function TerminalOutputRow({ entry }) {
         overflowWrap: "anywhere",
       }}
     >
-      {text}
+      <span className="select-none text-right text-slate-700">
+        {entry.type === "error" ? "!" : entry.type === "warn" ? "*" : ""}
+      </span>
+      <span className="min-w-0 break-words">{text}</span>
     </div>
   );
 });
@@ -378,7 +400,6 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
   const activeCwd = activeSession?.cwd || workspacePath || null;
   const runActiveFileCommand = resolveRunCommandForFile(activeFile);
   const taskItems = useMemo(() => getTaskRunnerItems(activeFile), [activeFile]);
-  const quickTasks = taskItems.filter((task) => task.quick);
   const commandSuggestions = useMemo(
     () =>
       getCommandSuggestions({
@@ -388,8 +409,6 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
       }),
     [activeFile, currentCommandHistory],
   );
-  const visibleQuickTasks = quickTasks.slice(0, 2);
-  const visibleSuggestions = commandSuggestions.slice(0, 2);
   const sessionSubscriptionKey = useMemo(
     () => sessions.map((session) => session.id).join("|"),
     [sessions],
@@ -1114,30 +1133,6 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
               <ExternalLink size={13} />
             </button>
 
-            {activeFile && runActiveFileCommand && (
-              <button
-                type="button"
-                onClick={() =>
-                  runTask({
-                    id: "run-active-file",
-                    label: "Run Active File",
-                    shortLabel: activeFile.name,
-                    command: runActiveFileCommand,
-                  })
-                }
-                title={`${activeFile.name} ausfuehren`}
-                className={`${toolbarButtonClass} hover:bg-sky-400/[0.08]`}
-                style={{
-                  ...toolbarButtonStyle,
-                  borderColor: "rgba(125,211,252,0.16)",
-                  background: "rgba(14,165,233,0.055)",
-                  color: "#bae6fd",
-                }}
-              >
-                <Play size={12} fill="currentColor" />
-              </button>
-            )}
-
             <button
               type="button"
               onClick={handleToggleAutoScroll}
@@ -1193,8 +1188,11 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
       </div>
 
       <div
-        className="grid min-h-[36px] shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-3 py-1"
-        style={{ borderBottom: "1px solid rgba(255,255,255,0.045)" }}
+        className="grid min-h-[36px] shrink-0 gap-2 px-3 py-1.5 md:grid-cols-[minmax(0,1fr)_auto] md:items-center"
+        style={{
+          background: "rgba(0,0,0,0.18)",
+          borderBottom: "1px solid rgba(255,255,255,0.045)",
+        }}
       >
         <div className="flex min-w-0 items-center gap-2 overflow-hidden">
           <span
@@ -1221,6 +1219,10 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
             </span>
           </span>
 
+          <span className="hidden shrink-0 font-mono text-[10px] text-slate-700 md:inline">
+            {bridgeInfo.label}
+          </span>
+
           <span className="hidden shrink-0 items-center gap-1.5 text-[10px] text-slate-600 lg:flex">
             <Clock size={11} />
             {elapsedLabel || formatTime(activeSession?.createdAt)}
@@ -1232,22 +1234,22 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
             </span>
           )}
 
-          <span className="hidden shrink-0 rounded-md border border-white/[0.06] px-2 py-1 text-[10px] text-slate-600 xl:inline">
-            {outputLineCount}/{TERMINAL_OUTPUT_LIMIT} lines
+          <span className="hidden shrink-0 font-mono text-[10px] text-slate-700 xl:inline">
+            {outputLineCount}/{TERMINAL_OUTPUT_LIMIT}
           </span>
         </div>
 
-        <div className="flex shrink-0 items-center gap-1.5">
+        <div className="flex min-w-0 items-center justify-end gap-1.5">
           <select
             value=""
             onChange={(event) => {
               const task = taskItems.find((item) => item.id === event.target.value);
               runTask(task);
             }}
-            className="h-6 w-[74px] shrink-0 rounded-md border border-white/[0.07] bg-black/25 px-2 text-[10px] font-medium text-slate-400 outline-none transition-colors hover:text-slate-200 sm:w-[94px]"
+            className="h-7 min-w-0 flex-1 rounded-md border border-white/[0.07] bg-black/25 px-2 font-mono text-[10px] text-slate-400 outline-none transition-colors hover:text-slate-200 md:w-[132px] md:flex-none"
             title="Task Runner"
           >
-            <option value="">Tasks</option>
+            <option value="">Run task...</option>
             {taskItems.map((task) => (
               <option key={task.id} value={task.id} disabled={task.disabled}>
                 {task.label}
@@ -1255,35 +1257,36 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
             ))}
           </select>
 
-          {visibleQuickTasks.map((task) => (
+          {activeFile && runActiveFileCommand && (
             <button
-              key={task.id}
               type="button"
-              onClick={() => runTask(task)}
-              disabled={task.disabled}
-              className="hidden h-6 shrink-0 rounded-md px-2 font-mono text-[10px] transition-colors disabled:opacity-35 xl:inline-flex xl:items-center"
-              style={{
-                border: "1px solid rgba(255,255,255,0.065)",
-                color: task.disabled ? "#64748b" : "#94a3b8",
-                background: "rgba(255,255,255,0.018)",
-                cursor: task.disabled ? "not-allowed" : "pointer",
-              }}
-              title={
-                task.disabled
-                  ? "Task aktuell nicht verfuegbar"
-                  : `Task ausfuehren: ${task.command}`
+              onClick={() =>
+                runTask({
+                  id: "run-active-file",
+                  label: "Run Active File",
+                  shortLabel: activeFile.name,
+                  command: runActiveFileCommand,
+                })
               }
+              title={`${activeFile.name} ausfuehren`}
+              className="flex h-7 shrink-0 items-center gap-1 rounded-md px-2 font-mono text-[10px] transition-colors"
+              style={{
+                border: "1px solid rgba(125,211,252,0.13)",
+                color: "#bae6fd",
+                background: "rgba(14,165,233,0.045)",
+              }}
             >
-              {task.shortLabel}
+              <Play size={11} fill="currentColor" />
+              <span className="hidden sm:inline">File</span>
             </button>
-          ))}
+          )}
 
           <button
             type="button"
             onClick={handleRunLast}
             disabled={!lastCommand || isRunning}
             title={lastCommand ? `Run last: ${lastCommand}` : "Kein Verlauf"}
-            className="flex h-6 shrink-0 items-center gap-1 rounded-md px-2 text-[10px] font-medium transition-colors disabled:opacity-35"
+            className="flex h-7 shrink-0 items-center gap-1 rounded-md px-2 text-[10px] font-medium transition-colors disabled:opacity-35"
             style={{
               border: "1px solid rgba(255,255,255,0.065)",
               background: "rgba(255,255,255,0.018)",
@@ -1294,29 +1297,6 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
             <RotateCcw size={11} />
             <span className="hidden md:inline">Last</span>
           </button>
-
-          {visibleSuggestions.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => executeCommandInSession(activeSessionId, item.command)}
-              disabled={isRunning}
-              className="hidden h-6 shrink-0 rounded-md px-2 font-mono text-[10px] transition-colors disabled:opacity-35 2xl:inline-flex 2xl:items-center"
-              style={{
-                border: item.recent
-                  ? "1px solid rgba(125,211,252,0.13)"
-                  : "1px solid rgba(255,255,255,0.06)",
-                background: item.recent
-                  ? "rgba(14,165,233,0.04)"
-                  : "rgba(255,255,255,0.015)",
-                color: isRunning ? "#64748b" : "#94a3b8",
-                cursor: isRunning ? "not-allowed" : "pointer",
-              }}
-              title={`${item.group}: ${item.command}`}
-            >
-              {item.label}
-            </button>
-          ))}
         </div>
       </div>
 
