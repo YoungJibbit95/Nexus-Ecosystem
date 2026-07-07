@@ -83,6 +83,12 @@ import {
   resolveExtensions,
 } from "../pages/editor/extensionSystem.js";
 import {
+  buildExtensionHostSummary,
+  normalizeExtensionContributes,
+  summarizeExtensionContributions,
+  validateExtensionManifest,
+} from "../pages/editor/extensionRuntimeModel.js";
+import {
   GITHUB_PANEL_METHOD_REQUIREMENTS,
   GITHUB_PLATFORM_ERROR_KINDS,
   classifyGithubPlatformError,
@@ -118,6 +124,13 @@ import {
   setWorkbenchDockSize,
 } from "../pages/editor/workbenchDockModel.js";
 import { createLspSetupModel } from "../pages/editor/lspSetupModel.js";
+import {
+  KEYBINDING_SETTING_KEY,
+  createKeybindingSettingsModel,
+  normalizeKeybindingOverrideMap,
+  normalizeKeybindingShortcut,
+  validateKeybindingShortcut,
+} from "../pages/editor/keybindingModel.js";
 
 const require = createRequire(import.meta.url);
 const {
@@ -1061,7 +1074,11 @@ const scenarios = [
       assert.deepEqual(snapshot.enabled, snapshot.installed);
       assert.match(snapshot.generatedAt, /^\d{4}-\d{2}-\d{2}T/);
       assert.equal(snapshot.stats.commands, 3);
+      assert.equal(snapshot.stats.keybindings, 2);
+      assert.equal(snapshot.stats.snippets, 2);
       assert.equal(contributions.commands.length, snapshot.stats.commands);
+      assert.equal(contributions.keybindings.length, snapshot.stats.keybindings);
+      assert.equal(contributions.snippets.length, snapshot.stats.snippets);
       assert.deepEqual(
         contributions.commands.map((command) => command.command),
         [
@@ -1081,6 +1098,8 @@ const scenarios = [
         "Fix All Auto-Fixable Problems",
         "Restart ESLint Server",
       ]);
+      assert.equal(snapshot.summary.find((entry) => entry.point === "keybindings")?.count, 2);
+      assert.equal(snapshot.summary.find((entry) => entry.point === "snippets")?.count, 2);
       assert.equal(runtime.enabledExtensionCount, 3);
       assert.ok(
         runtime.activation.events.some(
@@ -1283,6 +1302,76 @@ const scenarios = [
       assert.match(projectsScopeMessage, /Projects v2/);
       assert.match(projectsScopeMessage, /project, read:org/);
       assert.match(validationMessage, /Head branch was not found/);
+    },
+  },
+  {
+    id: "extension-manifest-normalization-and-host-summary",
+    title: "extension model normalizes manifest contributions and summarizes host health",
+    run() {
+      const contributes = normalizeExtensionContributes({
+        commands: [
+          "nexus.sample.open",
+          { command: "nexus.sample.run", title: "Run Sample", category: "Sample" },
+          { title: "missing command" },
+        ],
+        views: ["sample.panel"],
+        languages: [{ id: "sample", aliases: ["Sample"], extensions: [".sample"] }],
+        themes: [{ id: "sample-dark", label: "Sample Dark", uiTheme: "vs-dark" }],
+        keybindings: [
+          { command: "nexus.sample.run", key: "ctrl+alt+r", mac: "cmd+alt+r" },
+          { command: "nexus.sample.open" },
+        ],
+        snippets: [
+          { language: "sample", path: "./snippets/sample.json" },
+          { language: "sample" },
+        ],
+      });
+      const summary = summarizeExtensionContributions(contributes);
+      const diagnostics = validateExtensionManifest({
+        name: "nexus.sample",
+        displayName: "Sample",
+        publisher: "Nexus",
+        version: "1.0.0",
+        activationEvents: ["onCommand:nexus.sample.run", "onView:sample.panel"],
+        contributes,
+      });
+
+      assert.deepEqual(Object.keys(contributes), [
+        "commands",
+        "languages",
+        "themes",
+        "views",
+        "keybindings",
+        "snippets",
+      ]);
+      assert.equal(contributes.commands.length, 2);
+      assert.equal(contributes.keybindings.length, 1);
+      assert.equal(contributes.snippets.length, 1);
+      assert.equal(summary.find((entry) => entry.point === "keybindings")?.primary, true);
+      assert.deepEqual(diagnostics, []);
+
+      const records = createDefaultExtensionRecords();
+      const extensions = resolveExtensions(records);
+      const runtime = getExtensionRuntimeOverview(records);
+      const snapshot = createExtensionRuntimeSnapshot(records);
+      const hostSummary = buildExtensionHostSummary({
+        extensions,
+        records,
+        stats: snapshot.stats,
+        runtime,
+        storageHealth: "ok",
+      });
+
+      assert.equal(hostSummary.state, "ready");
+      assert.equal(hostSummary.enabledCount, 3);
+      assert.equal(hostSummary.blockedCount, 0);
+      assert.equal(hostSummary.contributionCount, 16);
+      assert.equal(hostSummary.activeContributionPointCount, 6);
+      assert.deepEqual(hostSummary.enabledIds, [
+        "nexus-theme-core",
+        "prettier",
+        "eslint",
+      ]);
     },
   },
   {
@@ -1629,6 +1718,9 @@ const scenarios = [
       assert.equal(textResults[0]?.resultKind, "text");
       assert.equal(textResults[0]?.actionId, "open-file");
       assert.equal(textResults[0]?.payload.id, "workspace-search-model");
+      assert.equal(textResults[0]?.spotlightType, "project-text");
+      assert.equal(textResults[0]?.lineHint, "Zeile 42, Spalte 14");
+      assert.match(textResults[0]?.snippet, /projectNeedle/);
       assert.match(textResults[0]?.description, /spotlightWorkspaceSearchModel\.js:42:14/);
 
       const merged = mergeSpotlightResults({
@@ -1638,6 +1730,26 @@ const scenarios = [
       });
       assert.equal(merged[0]?.resultKind, "text");
       assert.equal(groupCommandPaletteItems(merged)[0]?.id, "workspace-search");
+
+      const pathFirst = mergeSpotlightResults({
+        baseResults: [],
+        workspaceResults: [
+          {
+            id: "file:workspace-search-model",
+            label: "spotlightWorkspaceSearchModel.js",
+            description: "src/pages/editor/spotlightWorkspaceSearchModel.js",
+            resultKind: "file",
+            matchReason: "Path",
+            searchScore: 80,
+          },
+          {
+            ...textResults[0],
+            searchScore: 110,
+          },
+        ],
+        query: "src/pages/spotlight",
+      });
+      assert.equal(pathFirst[0]?.resultKind, "file");
     },
   },
   {
@@ -1688,6 +1800,9 @@ const scenarios = [
       assert.equal(readDirs.includes("/workspace/node_modules"), false);
       const textResult = result.results.find((entry) => entry.resultKind === "text");
       assert.equal(textResult?.payload.fsPath, "/workspace/src/NeedlePane.jsx");
+      assert.equal(result.results[0]?.resultKind, "text");
+      assert.equal(textResult?.relativePath, "src/NeedlePane.jsx");
+      assert.match(textResult?.lineHint, /Zeile 2/);
 
       const filePathResult = await searchSpotlightWorkspace({
         files: [],
@@ -2066,6 +2181,9 @@ const scenarios = [
         const fallback = createCodeMirrorLanguageFallback(expectedGrammar, fileName);
         assert.equal(fallback.grammarId, expectedGrammar);
         assert.equal(fallback.status, "loading");
+        assert.equal(fallback.statusLabel, "Syntax-Highlighting bereit");
+        assert.equal(fallback.grammarSource, "direct");
+        assert.equal(fallback.supportLevel, "native");
         assert.deepEqual(fallback.extension, []);
 
         const loaded = await loadCodeMirrorLanguageExtension(expectedGrammar, fileName);
@@ -2080,14 +2198,21 @@ const scenarios = [
         getCodeMirrorLanguageSupportDescriptor("jsonc", "tsconfig.json").grammarId,
         "json",
       );
-      assert.equal(
-        getCodeMirrorLanguageSupportDescriptor("mdx", "docs.mdx").grammarId,
-        "markdown",
+      const mdxDescriptor = getCodeMirrorLanguageSupportDescriptor("mdx", "docs.mdx");
+      assert.equal(mdxDescriptor.grammarId, "markdown");
+      assert.equal(mdxDescriptor.supportLevel, "alias");
+      assert.equal(mdxDescriptor.grammarSource, "alias");
+      assert.equal(mdxDescriptor.fallbackReason, "grammar-alias");
+      assert.match(mdxDescriptor.statusDescription, /Markdown-Grammatik/);
+
+      const unknownDescriptor = getCodeMirrorLanguageSupportDescriptor(
+        "unknown-language",
+        "notes.txt",
       );
-      assert.equal(
-        getCodeMirrorLanguageSupportDescriptor("unknown-language", "notes.txt").status,
-        "fallback",
-      );
+      assert.equal(unknownDescriptor.status, "fallback");
+      assert.equal(unknownDescriptor.supportLevel, "plaintext");
+      assert.equal(unknownDescriptor.fallbackReason, "missing-loader");
+      assert.match(unknownDescriptor.statusDescription, /Plain Text/);
 
       for (const languageId of listLanguageIds()) {
         const loaded = await loadCodeMirrorLanguageExtension(
@@ -2390,6 +2515,55 @@ const scenarios = [
       assert.equal(unsupportedStatus.state, "unsupported");
       assert.equal(unsupportedStatus.canRetry, false);
       assert.equal(unsupportedStatus.installHint, null);
+    },
+  },
+  {
+    id: "settings-keybinding-model-contracts",
+    title: "settings keybinding manager normalizes overrides and reports conflicts",
+    run() {
+      assert.equal(normalizeKeybindingShortcut("ctrl + shift + p"), "Ctrl+Shift+P");
+      assert.equal(normalizeKeybindingShortcut("cmd+k cmd+s"), "Cmd+K Cmd+S");
+      assert.deepEqual(validateKeybindingShortcut("Ctrl+Alt+F12"), {
+        ok: true,
+        normalized: "Ctrl+Alt+F12",
+        reason: "",
+      });
+      assert.equal(validateKeybindingShortcut("Ctrl+Hyper").ok, false);
+
+      const overrides = normalizeKeybindingOverrideMap({
+        "workbench.commandPalette": "ctrl+alt+p",
+        "editor.save": "Ctrl+Alt+P",
+        "missing.command": "Ctrl+M",
+        "editor.find": "Ctrl+F",
+        "editor.renameSymbol": "Ctrl+Hyper",
+      });
+      assert.deepEqual(overrides, {
+        "workbench.commandPalette": "Ctrl+Alt+P",
+        "editor.save": "Ctrl+Alt+P",
+      });
+
+      const model = createKeybindingSettingsModel({
+        overrides,
+        query: "ctrl+alt+p",
+        category: "all",
+      });
+      assert.equal(model.totalCount > 10, true);
+      assert.equal(model.overrideCount, 2);
+      assert.equal(model.visibleCount, 2);
+      assert.equal(model.conflictCount, 2);
+      assert.deepEqual(
+        model.rows.map((row) => row.id).sort(),
+        ["editor.save", "workbench.commandPalette"],
+      );
+      assert.equal(model.rows.every((row) => row.hasConflict), true);
+      assert.equal(KEYBINDING_SETTING_KEY, "keybinding_overrides");
+
+      const editorOnly = createKeybindingSettingsModel({
+        overrides,
+        category: "editor",
+        query: "format",
+      });
+      assert.deepEqual(editorOnly.rows.map((row) => row.id), ["editor.formatDocument"]);
     },
   },
   {

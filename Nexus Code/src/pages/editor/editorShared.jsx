@@ -8,6 +8,10 @@ import {
   normalizeThemeId,
   resolveNexusTheme,
 } from '../../theme/nexusThemeResolver.js';
+import {
+  KEYBINDING_SETTING_KEY,
+  normalizeKeybindingSettings,
+} from './keybindingModel.js';
 
 export const FILES_STORAGE_KEY = "nexus-code-files";
 export const SETTINGS_STORAGE_KEY = "nexus-code-settings";
@@ -99,6 +103,14 @@ export const DEFAULT_SETTINGS = {
   sidebar_visible: true,
   zen_mode: false,
   font_weight: "400",
+  terminal_default_profile: "system",
+  terminal_confirm_kill: true,
+  git_auto_fetch: false,
+  git_smart_commit: true,
+  github_pr_notifications: true,
+  extensions_auto_update: true,
+  extensions_recommendations: true,
+  [KEYBINDING_SETTING_KEY]: {},
 };
 
 const VISUAL_PROFILE_IDS = new Set(["performance", "balanced", "quality", "custom"]);
@@ -132,7 +144,10 @@ function normalizeEditorSettings(settings) {
   next.tab_size = readBoundedNumber(next.tab_size, 2, 8, 4);
   next.autocomplete_min_chars = readBoundedNumber(next.autocomplete_min_chars, 1, 5, 2);
   next.autocomplete_max_items = readBoundedNumber(next.autocomplete_max_items, 24, 180, 120);
-  return next;
+  if (!["system", "powershell", "bash", "cmd"].includes(next.terminal_default_profile)) {
+    next.terminal_default_profile = "system";
+  }
+  return normalizeKeybindingSettings(next);
 }
 
 export function loadFilesFromStorage() {

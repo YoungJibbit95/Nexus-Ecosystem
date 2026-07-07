@@ -8,8 +8,11 @@ import {
   Eye,
   EyeOff,
   Gauge,
+  GitBranch,
   Info,
+  Keyboard,
   Palette,
+  Package,
   PanelBottom,
   PanelLeft,
   PanelRight,
@@ -17,6 +20,7 @@ import {
   Search,
   Settings2,
   Sparkles,
+  Terminal,
   X,
   Zap,
 } from "lucide-react";
@@ -46,6 +50,13 @@ import {
   normalizeWorkbenchLayout,
   WORKBENCH_SNAP_ZONES,
 } from '../../pages/editor/workbenchDockModel.js';
+import {
+  KEYBINDING_SETTING_KEY,
+  createKeybindingSettingsModel,
+  normalizeKeybindingOverrideMap,
+  normalizeKeybindingShortcut,
+  validateKeybindingShortcut,
+} from '../../pages/editor/keybindingModel.js';
 
 const SETTING_SECTIONS = [
   {
@@ -71,6 +82,38 @@ const SETTING_SECTIONS = [
     icon: PanelLeft,
     description: "Sidebar, Statusleiste, Zen Mode, Autosave und Panel-Verhalten.",
     keywords: "sidebar visible status bar zen autosave workbench panels background",
+  },
+  {
+    id: "keybindings",
+    label: "Keybindings",
+    eyebrow: "Shortcuts",
+    icon: Keyboard,
+    description: "Shortcuts suchen, ueberschreiben, validieren und gezielt zuruecksetzen.",
+    keywords: "keyboard shortcuts keybindings commands hotkeys reset conflicts",
+  },
+  {
+    id: "terminal",
+    label: "Terminal",
+    eyebrow: "Shell",
+    icon: Terminal,
+    description: "Terminal-Profil und sichere Prozessoptionen.",
+    keywords: "terminal shell profile powershell bash cmd process kill",
+  },
+  {
+    id: "git",
+    label: "Git/GitHub",
+    eyebrow: "Source",
+    icon: GitBranch,
+    description: "Source-Control und GitHub-Workbench-Defaults.",
+    keywords: "git github source control pull requests fetch commit notifications",
+  },
+  {
+    id: "extensions",
+    label: "Extensions",
+    eyebrow: "Runtime",
+    icon: Package,
+    description: "Extension-Updates, Empfehlungen und Runtime-Verhalten.",
+    keywords: "extensions plugins marketplace recommendations update runtime",
   },
   {
     id: "theme",
@@ -406,6 +449,62 @@ const SETTING_INDEX = [
     label: "Layout Reset",
     description: "Workbench Layout und Panel-Zonen auf Defaults zuruecksetzen.",
     keywords: "reset layout default fallback restore workbench",
+  },
+  {
+    id: "keybindings_manager",
+    section: "keybindings",
+    label: "Keybindings Manager",
+    description: "Shortcuts suchen, nach Kategorie filtern, Overrides setzen und Konflikte sehen.",
+    keywords: "keyboard shortcuts keybindings commands hotkeys override reset conflict categories",
+  },
+  {
+    id: "terminal_default_profile",
+    section: "terminal",
+    label: "Terminal Default Profile",
+    description: "Startprofil fuer neue integrierte Terminals.",
+    keywords: "terminal shell profile powershell bash cmd system",
+  },
+  {
+    id: "terminal_confirm_kill",
+    section: "terminal",
+    label: "Terminal Kill Confirm",
+    description: "Vor dem Beenden laufender Terminal-Prozesse bestaetigen.",
+    keywords: "terminal process kill confirm safe",
+  },
+  {
+    id: "git_auto_fetch",
+    section: "git",
+    label: "Git Auto Fetch",
+    description: "Repository-Status automatisch im Hintergrund aktualisieren.",
+    keywords: "git source control fetch background repository",
+  },
+  {
+    id: "git_smart_commit",
+    section: "git",
+    label: "Smart Commit",
+    description: "Commit-Aktionen fuer gestagte oder eindeutig geaenderte Dateien vorbereiten.",
+    keywords: "git commit staged smart changes source control",
+  },
+  {
+    id: "github_pr_notifications",
+    section: "git",
+    label: "GitHub PR Hinweise",
+    description: "Pull-Request- und Review-Signale im GitHub-Panel anzeigen.",
+    keywords: "github pull request review notifications prs",
+  },
+  {
+    id: "extensions_auto_update",
+    section: "extensions",
+    label: "Extension Auto Update",
+    description: "Installierte Extensions automatisch aktuell halten, wenn der Runtime-Provider es erlaubt.",
+    keywords: "extensions plugins auto update marketplace runtime",
+  },
+  {
+    id: "extensions_recommendations",
+    section: "extensions",
+    label: "Extension Recommendations",
+    description: "Workspace-nahe Extension-Empfehlungen anzeigen.",
+    keywords: "extensions recommendations workspace marketplace plugins",
   },
   {
     id: "theme",
@@ -1323,6 +1422,199 @@ function ValueBadge({ children }) {
     >
       {children}
     </span>
+  );
+}
+
+function KeybindingManager({
+  model,
+  overrides,
+  search,
+  category,
+  onSearchChange,
+  onCategoryChange,
+  onSetOverride,
+  onResetBinding,
+  onResetAll,
+}) {
+  const [drafts, setDrafts] = React.useState({});
+  React.useEffect(() => {
+    setDrafts(
+      Object.fromEntries(
+        model.rows.map((row) => [row.id, row.override || row.defaultShortcut || ""]),
+      ),
+    );
+  }, [model.rows, overrides]);
+
+  const commitDraft = React.useCallback(
+    (row) => {
+      const validation = validateKeybindingShortcut(drafts[row.id]);
+      if (!validation.ok) return;
+      onSetOverride(row.id, validation.normalized);
+      setDrafts((current) => ({
+        ...current,
+        [row.id]: validation.normalized || row.defaultShortcut,
+      }));
+    },
+    [drafts, onSetOverride],
+  );
+
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_13rem_auto]">
+        <div className="relative min-w-0">
+          <Search
+            size={14}
+            className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500"
+          />
+          <NativeInput
+            value={search}
+            onChange={(event) => onSearchChange(event.target.value)}
+            placeholder="Command, Shortcut oder Kategorie suchen"
+            className="h-9 w-full pl-8"
+          />
+        </div>
+        <NativeSelect
+          value={category}
+          onValueChange={onCategoryChange}
+          className="h-9 w-full"
+        >
+          <option value="all">Alle Kategorien</option>
+          {model.categories.map((item) => (
+            <option key={item.id} value={item.id}>
+              {item.label} ({item.count})
+            </option>
+          ))}
+        </NativeSelect>
+        <button
+          type="button"
+          onClick={onResetAll}
+          disabled={model.overrideCount === 0}
+          className="inline-flex h-9 min-w-0 items-center justify-center gap-2 rounded-md border px-3 text-xs font-semibold leading-tight text-gray-300 transition-colors hover:bg-white/[0.045] disabled:cursor-not-allowed disabled:opacity-40"
+          style={{
+            background: "rgba(255,255,255,0.026)",
+            borderColor: "rgba(255,255,255,0.08)",
+          }}
+        >
+          <RefreshCcw size={13} />
+          <span className="min-w-0 break-words">Alle zuruecksetzen</span>
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+        <ValueBadge>{model.visibleCount} sichtbar</ValueBadge>
+        <ValueBadge>{model.overrideCount} Overrides</ValueBadge>
+        <ValueBadge>{model.conflictCount} Konflikte</ValueBadge>
+      </div>
+
+      <div className="grid grid-cols-1 gap-2">
+        {model.rows.length === 0 ? (
+          <div className="rounded-md border border-white/10 bg-white/[0.018] px-3 py-4 text-xs text-gray-500">
+            Keine Keybindings fuer diese Suche.
+          </div>
+        ) : (
+          model.rows.map((row) => {
+            const draft = drafts[row.id] ?? row.override ?? row.defaultShortcut;
+            const validation = validateKeybindingShortcut(draft);
+            const isChanged =
+              normalizeKeybindingShortcut(draft) !==
+              normalizeKeybindingShortcut(row.override || row.defaultShortcut);
+            return (
+              <div
+                key={row.id}
+                className="grid min-w-0 grid-cols-1 gap-3 rounded-md border px-3 py-3 xl:grid-cols-[minmax(0,1fr)_minmax(11rem,14rem)_auto]"
+                style={{
+                  background: row.hasConflict
+                    ? "rgba(245,158,11,0.07)"
+                    : "rgba(255,255,255,0.014)",
+                  borderColor: row.hasConflict
+                    ? "rgba(245,158,11,0.18)"
+                    : "rgba(156,178,226,0.055)",
+                }}
+              >
+                <div className="min-w-0">
+                  <div className="flex min-w-0 flex-wrap items-center gap-2">
+                    <span className="break-words text-xs font-semibold text-gray-200">
+                      {row.label}
+                    </span>
+                    <span className="rounded border border-white/10 bg-white/[0.035] px-1.5 py-0.5 text-[10px] leading-tight text-gray-500">
+                      {row.category}
+                    </span>
+                    {row.isCustomized ? (
+                      <span className="rounded border border-[rgba(var(--nexus-primary-rgb),0.22)] bg-[rgba(var(--nexus-primary-rgb),0.08)] px-1.5 py-0.5 text-[10px] leading-tight text-[var(--nexus-primary)]">
+                        Override
+                      </span>
+                    ) : null}
+                    {row.hasConflict ? (
+                      <span className="rounded border border-amber-300/20 bg-amber-500/10 px-1.5 py-0.5 text-[10px] leading-tight text-amber-200">
+                        Konflikt
+                      </span>
+                    ) : null}
+                  </div>
+                  <code className="mt-1 block break-all text-[10px] leading-4 text-gray-500">
+                    {row.command}
+                  </code>
+                  <p className="mt-1 break-words text-[10px] leading-4 text-gray-500">
+                    Default: {row.defaultShortcut || "nicht gesetzt"} · When: {row.when}
+                  </p>
+                </div>
+                <div className="min-w-0">
+                  <NativeInput
+                    value={draft}
+                    onChange={(event) =>
+                      setDrafts((current) => ({
+                        ...current,
+                        [row.id]: event.target.value,
+                      }))
+                    }
+                    onBlur={() => commitDraft(row)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") commitDraft(row);
+                    }}
+                    placeholder="z.B. Ctrl+Shift+P"
+                    className={`h-9 w-full font-mono ${
+                      validation.ok ? "" : "border-red-400/40"
+                    }`}
+                  />
+                  {!validation.ok ? (
+                    <p className="mt-1 break-words text-[10px] leading-4 text-red-300/80">
+                      {validation.reason}
+                    </p>
+                  ) : null}
+                </div>
+                <div className="flex min-w-0 flex-wrap items-center gap-2 xl:justify-end">
+                  <button
+                    type="button"
+                    onClick={() => commitDraft(row)}
+                    disabled={!validation.ok || !isChanged}
+                    className="inline-flex h-8 items-center justify-center gap-1.5 rounded-md border px-2 text-[10px] font-semibold text-gray-300 transition-colors hover:bg-white/[0.045] disabled:cursor-not-allowed disabled:opacity-40"
+                    style={{
+                      background: "rgba(255,255,255,0.026)",
+                      borderColor: "rgba(255,255,255,0.08)",
+                    }}
+                  >
+                    <Check size={12} />
+                    Setzen
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onResetBinding(row.id)}
+                    disabled={!row.isCustomized}
+                    title="Binding zuruecksetzen"
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-md border text-gray-400 transition-colors hover:bg-white/[0.045] hover:text-gray-200 disabled:cursor-not-allowed disabled:opacity-40"
+                    style={{
+                      background: "rgba(255,255,255,0.026)",
+                      borderColor: "rgba(255,255,255,0.08)",
+                    }}
+                  >
+                    <RefreshCcw size={12} />
+                  </button>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -2323,6 +2615,8 @@ export default function SettingsPanel({
 }) {
   const [activeSection, setActiveSection] = React.useState("theme-editor");
   const [searchQuery, setSearchQuery] = React.useState("");
+  const [keybindingSearchQuery, setKeybindingSearchQuery] = React.useState("");
+  const [keybindingCategory, setKeybindingCategory] = React.useState("all");
   const [lspServers, setLspServers] = React.useState([]);
   const [lspSetupState, setLspSetupState] = React.useState({
     loading: false,
@@ -2431,6 +2725,24 @@ export default function SettingsPanel({
   const lspSetupModel = React.useMemo(
     () => createLspSetupModel(lspServers, lspSetupState),
     [lspServers, lspSetupState],
+  );
+  const keybindingPlatform =
+    typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform || "")
+      ? "mac"
+      : "default";
+  const keybindingOverrides = React.useMemo(
+    () => normalizeKeybindingOverrideMap(settings[KEYBINDING_SETTING_KEY]),
+    [settings],
+  );
+  const keybindingModel = React.useMemo(
+    () =>
+      createKeybindingSettingsModel({
+        overrides: keybindingOverrides,
+        query: keybindingSearchQuery || searchQuery,
+        category: keybindingCategory,
+        platform: keybindingPlatform,
+      }),
+    [keybindingCategory, keybindingOverrides, keybindingPlatform, keybindingSearchQuery, searchQuery],
   );
   const performanceHints = React.useMemo(
     () => buildPerformanceHints(settings, visualProfileId, lspServers, shouldReduceMotion),
@@ -2559,6 +2871,36 @@ export default function SettingsPanel({
       onSettingsChange(next);
     },
     [onSettingsChange, settings],
+  );
+
+  const updateKeybindingOverrides = React.useCallback(
+    (nextOverrides) => {
+      updateSetting(KEYBINDING_SETTING_KEY, normalizeKeybindingOverrideMap(nextOverrides));
+    },
+    [updateSetting],
+  );
+
+  const setKeybindingOverride = React.useCallback(
+    (bindingId, value) => {
+      const normalized = normalizeKeybindingShortcut(value);
+      const next = { ...keybindingOverrides };
+      if (normalized) {
+        next[bindingId] = normalized;
+      } else {
+        delete next[bindingId];
+      }
+      updateKeybindingOverrides(next);
+    },
+    [keybindingOverrides, updateKeybindingOverrides],
+  );
+
+  const resetKeybinding = React.useCallback(
+    (bindingId) => {
+      const next = { ...keybindingOverrides };
+      delete next[bindingId];
+      updateKeybindingOverrides(next);
+    },
+    [keybindingOverrides, updateKeybindingOverrides],
   );
 
   const applyVisualProfile = React.useCallback(
@@ -3698,6 +4040,186 @@ export default function SettingsPanel({
                     </SettingRow>
                   </SettingsGroup>
                 </div>
+              </section>
+            ))}
+
+            {renderIfVisible("keybindings", () => (
+              <section key="keybindings" className="space-y-5">
+                {searchTerm ? (
+                  <SettingsHeader
+                    title="Keybindings"
+                    eyebrow="Shortcuts"
+                    description="Command-Shortcuts durchsuchen, lokal ueberschreiben und Konflikte erkennen."
+                    icon={Keyboard}
+                  />
+                ) : null}
+                <SettingsGroup
+                  title="Shortcuts"
+                  description="Overrides bleiben lokal im Settings-Objekt und koennen pro Binding oder komplett zurueckgesetzt werden."
+                >
+                  <SettingRow
+                    id="keybindings_manager"
+                    sectionId="keybindings"
+                    searchQuery={searchTerm}
+                    title="Keybinding Manager"
+                    description="Standard-Shortcuts, Overrides, Kategorien und Konflikte in einer kompakten Liste."
+                  >
+                    <KeybindingManager
+                      model={keybindingModel}
+                      overrides={keybindingOverrides}
+                      search={keybindingSearchQuery}
+                      category={keybindingCategory}
+                      onSearchChange={setKeybindingSearchQuery}
+                      onCategoryChange={setKeybindingCategory}
+                      onSetOverride={setKeybindingOverride}
+                      onResetBinding={resetKeybinding}
+                      onResetAll={() => updateKeybindingOverrides({})}
+                    />
+                  </SettingRow>
+                </SettingsGroup>
+              </section>
+            ))}
+
+            {renderIfVisible("terminal", () => (
+              <section key="terminal" className="space-y-5">
+                {searchTerm ? (
+                  <SettingsHeader
+                    title="Terminal"
+                    eyebrow="Shell"
+                    description="Terminal-Defaults fuer neue Sessions."
+                    icon={Terminal}
+                  />
+                ) : null}
+                <SettingsGroup title="Terminal Defaults" description="Sichere, kleine Defaults fuer das integrierte Terminal.">
+                  <SettingRow
+                    id="terminal_default_profile"
+                    sectionId="terminal"
+                    searchQuery={searchTerm}
+                    title="Default Profile"
+                    description="Profil fuer neue Terminal-Sessions."
+                  >
+                    <NativeSelect
+                      value={settings.terminal_default_profile || "system"}
+                      onValueChange={(value) => updateSetting("terminal_default_profile", value)}
+                      className="w-44"
+                    >
+                      <option value="system">System Default</option>
+                      <option value="powershell">PowerShell</option>
+                      <option value="bash">Bash</option>
+                      <option value="cmd">Command Prompt</option>
+                    </NativeSelect>
+                  </SettingRow>
+                  <SettingRow
+                    id="terminal_confirm_kill"
+                    sectionId="terminal"
+                    searchQuery={searchTerm}
+                    title="Kill bestaetigen"
+                    description="Vor dem Beenden laufender Prozesse nachfragen."
+                    compact
+                  >
+                    <NativeSwitch
+                      checked={settings.terminal_confirm_kill !== false}
+                      onCheckedChange={(value) => updateSetting("terminal_confirm_kill", value)}
+                    />
+                  </SettingRow>
+                </SettingsGroup>
+              </section>
+            ))}
+
+            {renderIfVisible("git", () => (
+              <section key="git" className="space-y-5">
+                {searchTerm ? (
+                  <SettingsHeader
+                    title="Git/GitHub"
+                    eyebrow="Source"
+                    description="Source-Control- und Review-nahe Defaults."
+                    icon={GitBranch}
+                  />
+                ) : null}
+                <SettingsGroup title="Source Control" description="Ruhige Defaults fuer lokale Repos und GitHub-Workbench.">
+                  <SettingRow
+                    id="git_auto_fetch"
+                    sectionId="git"
+                    searchQuery={searchTerm}
+                    title="Auto Fetch"
+                    description="Repository-Status automatisch aktualisieren."
+                    compact
+                  >
+                    <NativeSwitch
+                      checked={settings.git_auto_fetch === true}
+                      onCheckedChange={(value) => updateSetting("git_auto_fetch", value)}
+                    />
+                  </SettingRow>
+                  <SettingRow
+                    id="git_smart_commit"
+                    sectionId="git"
+                    searchQuery={searchTerm}
+                    title="Smart Commit"
+                    description="Commit-Aktionen fuer eindeutige Aenderungen vorbereiten."
+                    compact
+                  >
+                    <NativeSwitch
+                      checked={settings.git_smart_commit !== false}
+                      onCheckedChange={(value) => updateSetting("git_smart_commit", value)}
+                    />
+                  </SettingRow>
+                  <SettingRow
+                    id="github_pr_notifications"
+                    sectionId="git"
+                    searchQuery={searchTerm}
+                    title="GitHub PR Hinweise"
+                    description="Review- und Pull-Request-Signale im GitHub-Panel anzeigen."
+                    compact
+                  >
+                    <NativeSwitch
+                      checked={settings.github_pr_notifications !== false}
+                      onCheckedChange={(value) => updateSetting("github_pr_notifications", value)}
+                    />
+                  </SettingRow>
+                </SettingsGroup>
+              </section>
+            ))}
+
+            {renderIfVisible("extensions", () => (
+              <section key="extensions" className="space-y-5">
+                {searchTerm ? (
+                  <SettingsHeader
+                    title="Extensions"
+                    eyebrow="Runtime"
+                    description="Extension-Management fuer die IDE-Workbench."
+                    icon={Package}
+                  />
+                ) : null}
+                <SettingsGroup title="Extension Runtime" description="Kompakte Controls fuer Updates und Empfehlungen.">
+                  <SettingRow
+                    id="extensions_auto_update"
+                    sectionId="extensions"
+                    searchQuery={searchTerm}
+                    title="Auto Update"
+                    description="Installierte Extensions automatisch aktuell halten."
+                    compact
+                  >
+                    <NativeSwitch
+                      checked={settings.extensions_auto_update !== false}
+                      onCheckedChange={(value) => updateSetting("extensions_auto_update", value)}
+                    />
+                  </SettingRow>
+                  <SettingRow
+                    id="extensions_recommendations"
+                    sectionId="extensions"
+                    searchQuery={searchTerm}
+                    title="Recommendations"
+                    description="Workspace-nahe Extension-Empfehlungen anzeigen."
+                    compact
+                  >
+                    <NativeSwitch
+                      checked={settings.extensions_recommendations !== false}
+                      onCheckedChange={(value) =>
+                        updateSetting("extensions_recommendations", value)
+                      }
+                    />
+                  </SettingRow>
+                </SettingsGroup>
               </section>
             ))}
 
