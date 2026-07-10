@@ -56,21 +56,21 @@ const actionItems = [
   {
     icon: Plus,
     label: "Neue Datei",
-    detail: "Leere Datei erstellen.",
+    detail: "Untitled Buffer starten.",
     action: "new",
     tone: "primary",
   },
   {
     icon: FolderOpen,
     label: "Projekt oeffnen",
-    detail: "Ordner auswaehlen.",
+    detail: "Workspace laden.",
     action: "folder",
     tone: "blue",
   },
   {
     icon: Settings,
     label: "Einrichtung",
-    detail: "Theme und Erweiterungen.",
+    detail: "Theme, Git und Extensions.",
     action: "settings",
     tone: "neutral",
   },
@@ -80,25 +80,25 @@ const flowItems = [
   {
     icon: Command,
     title: "Command-first work",
-    detail: "Dateien oeffnen, Workspace durchsuchen, Setup starten.",
+    detail: "Dateien, Befehle und Setup ohne Seitenwechsel.",
     tone: "primary",
   },
   {
     icon: Search,
     title: "Search and inspect",
-    detail: "Symbole, Probleme und Text mit der Panel-Ansicht finden.",
+    detail: "Text, Probleme und Scopes direkt vergleichen.",
     tone: "neutral",
   },
   {
     icon: GitPullRequest,
     title: "Source control flow",
-    detail: "Aenderungen, Branch und Review-Signale ruhig scannen.",
+    detail: "Aenderungen, Branch und Review-Signale scannen.",
     tone: "blue",
   },
   {
     icon: TerminalSquare,
     title: "Runtime at hand",
-    detail: "Terminal und Projektbefehle bleiben nah am Editor.",
+    detail: "Tasks und Shell bleiben nah am Editor.",
     tone: "neutral",
   },
 ];
@@ -217,12 +217,12 @@ function ActionButton({
       aria-label={`${label}: ${detail}`}
       className="nx-code-launchpad-action group grid min-w-0 text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[rgba(var(--nexus-primary-rgb),0.24)]"
       style={{
-        minHeight: "var(--nx-launchpad-action-min, 62px)",
+        minHeight: "var(--nx-launchpad-action-min, 54px)",
         gridTemplateColumns:
           "var(--nx-launchpad-action-grid, 34px minmax(0, 1fr) 14px)",
         alignItems: "center",
         gap: "var(--nx-launchpad-action-gap, 10px)",
-        borderRadius: "var(--nexus-radius-lg, 14px)",
+        borderRadius: "8px",
         padding: "var(--nx-launchpad-action-pad, 10px 12px)",
         border: `1px solid ${toneStyle.border}`,
         background: toneStyle.bg,
@@ -266,8 +266,8 @@ function FlowCard({ icon: Icon, title, detail, tone = "neutral", reduceMotion })
       transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
         className="nx-code-launchpad-signal flex min-w-0 items-start gap-2.5"
       style={{
-        minHeight: "var(--nx-launchpad-signal-min, 60px)",
-        borderRadius: "var(--nexus-radius-lg, 14px)",
+        minHeight: "var(--nx-launchpad-signal-min, 52px)",
+        borderRadius: "8px",
         border: `1px solid ${toneStyle.border}`,
         background:
           "linear-gradient(135deg, rgba(255, 255, 255, 0.026), rgba(255, 255, 255, 0.007)), rgba(6, 10, 17, 0.7)",
@@ -415,7 +415,7 @@ export default function WelcomeScreen({
   onOpenSettings,
 }) {
   const reduceMotion = useNexusReducedMotion();
-  const recentFiles = useMemo(() => getWelcomeRecentFiles(3), []);
+  const recentFiles = useMemo(() => getWelcomeRecentFiles(2), []);
 
   const handleAction = (action) => {
     if (action === "new") onNewFile?.();
@@ -444,7 +444,7 @@ export default function WelcomeScreen({
           animate="visible"
           className="nx-code-welcome nx-code-launchpad mx-auto grid min-h-full w-full overflow-visible"
           style={{
-            width: "min(100%, 1120px)",
+            width: "min(100%, 1040px)",
             minHeight: "100%",
             height: "auto",
             alignContent: "start",
@@ -456,7 +456,7 @@ export default function WelcomeScreen({
             variants={itemVariants}
             className="nx-code-launchpad-header"
             style={{
-              padding: "var(--nx-launchpad-header-pad, 16px 0 15px)",
+              padding: "var(--nx-launchpad-header-pad, 12px 0 10px)",
               borderBottom: "1px solid rgba(156, 178, 226, 0.085)",
               boxShadow: "0 1px 0 rgba(var(--nexus-primary-rgb), 0.045)",
             }}
@@ -498,11 +498,11 @@ export default function WelcomeScreen({
                   Nexus Code
                 </h1>
                 <p
-                  className="mt-2 max-w-[40rem] text-sm leading-snug text-[var(--nx-code-muted-text,#9aa7ba)]"
+                  className="mt-1.5 max-w-[38rem] text-[12px] leading-snug text-[var(--nx-code-muted-text,#9aa7ba)]"
                   style={wrapText}
                 >
-                  Lokale Bearbeitung mit integriertem Terminal, Git-Unterstuetzung,
-                  Theme-Kontrolle und mehr.
+                  Lokale Bearbeitung mit Terminal, Git-Unterstuetzung, Search
+                  und Extensions in direkter Reichweite.
                 </p>
               </div>
             </div>

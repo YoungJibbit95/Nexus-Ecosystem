@@ -43,13 +43,65 @@ const CODEMIRROR_LANGUAGE_CHUNKS = [
   ["@codemirror/legacy-modes", "cm-lang-legacy"],
 ];
 
+const INTERNAL_CHUNK_GROUPS = [
+  {
+    chunkName: "editor-feature-core",
+    paths: [
+      "/src/pages/editor/editorFeatureModel.js",
+      "/src/ide/editor/",
+      "/src/ide/lsp/",
+    ],
+  },
+  {
+    chunkName: "editor-workbench-core",
+    paths: [
+      "/src/pages/editor/workbenchDockModel.js",
+      "/src/pages/editor/editorShellLayout.js",
+      "/src/pages/editor/editorInteractionModel.js",
+      "/src/pages/editor/editorWorkspaceModel.js",
+    ],
+  },
+  {
+    chunkName: "editor-search-git-core",
+    paths: [
+      "/src/pages/editor/commandPaletteModel.js",
+      "/src/pages/editor/searchPanelModel.js",
+      "/src/pages/editor/spotlightWorkspaceSearchModel.js",
+      "/src/pages/editor/gitPanelModel.js",
+      "/src/pages/editor/githubWorkbenchModel.js",
+    ],
+  },
+  {
+    chunkName: "editor-extension-core",
+    paths: [
+      "/src/pages/editor/extensionSystem.js",
+      "/src/pages/editor/extensionRuntimeModel.js",
+      "/src/pages/editor/themeOptionsModel.js",
+      "/src/pages/editor/keybindingModel.js",
+      "/src/pages/editor/lspSetupModel.js",
+    ],
+  },
+];
+
+const normalizeModuleId = (id) => String(id || "").replace(/\\/g, "/");
+
+const matchesNodeModule = (id, dep) =>
+  id.includes(`/node_modules/${dep}/`) || id.endsWith(`/node_modules/${dep}`);
+
 const manualChunks = (id) => {
-  if (!id.includes("node_modules")) return undefined;
+  const normalizedId = normalizeModuleId(id);
+  for (const group of INTERNAL_CHUNK_GROUPS) {
+    if (group.paths.some((entry) => normalizedId.includes(entry))) {
+      return group.chunkName;
+    }
+  }
+
+  if (!normalizedId.includes("node_modules")) return undefined;
   for (const [dep, chunkName] of CODEMIRROR_LANGUAGE_CHUNKS) {
-    if (id.includes(`/node_modules/${dep}/`)) return chunkName;
+    if (matchesNodeModule(normalizedId, dep)) return chunkName;
   }
   for (const [chunkName, deps] of Object.entries(CHUNK_GROUPS)) {
-    if (deps.some((dep) => id.includes(`/node_modules/${dep}/`))) {
+    if (deps.some((dep) => matchesNodeModule(normalizedId, dep))) {
       return chunkName;
     }
   }

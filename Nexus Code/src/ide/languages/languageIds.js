@@ -466,7 +466,7 @@ const definitions = [
   {
     id: LANGUAGE_IDS.GRAPHQL,
     label: "GraphQL",
-    extensions: ["graphql", "gql"],
+    extensions: ["graphql", "gql", "graphqls"],
     filenames: [],
     aliases: ["graphql", "gql"],
   },
@@ -1018,7 +1018,15 @@ const definitions = [
     id: LANGUAGE_IDS.ENV,
     label: "Environment",
     extensions: ["env"],
-    filenames: [".env", ".env.local", ".env.development", ".env.production"],
+    filenames: [
+      ".env",
+      ".env.local",
+      ".env.development",
+      ".env.production",
+      ".env.test",
+      ".env.staging",
+      ".env.example",
+    ],
     aliases: ["env", "dotenv"],
     editorGrammarId: "shell",
   },
@@ -1128,6 +1136,13 @@ export function detectLanguageDefinition(resourcePath, fallback = LANGUAGE_IDS.P
 
   const exactMatch = LANGUAGE_BY_FILENAME.get(basename);
   if (exactMatch) return exactMatch;
+
+  if (basename.startsWith(".env.")) {
+    return getLanguageDefinition(LANGUAGE_IDS.ENV);
+  }
+  if (basename.startsWith("dockerfile.") || basename.startsWith("containerfile.")) {
+    return getLanguageDefinition(LANGUAGE_IDS.DOCKERFILE);
+  }
 
   for (const [extension, definition] of EXTENSION_MATCHERS) {
     if (basename === extension || basename.endsWith(`.${extension}`)) {

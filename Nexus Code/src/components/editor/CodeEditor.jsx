@@ -13,7 +13,6 @@ import {
   placeholder,
   rectangularSelection,
   scrollPastEnd,
-  ViewPlugin,
 } from "@codemirror/view";
 import { EditorState, Compartment } from "@codemirror/state";
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
@@ -32,7 +31,6 @@ import {
 } from "@codemirror/language";
 import { lintGutter, lintKeymap, setDiagnostics } from "@codemirror/lint";
 import { search, searchKeymap, highlightSelectionMatches } from "@codemirror/search";
-import { THEMES as EDITOR_THEMES } from "../../pages/editor/editorShared.jsx";
 import { createEditorEngine } from "../../ide/editor/editorEngine.js";
 import { createDocumentUriDescriptor } from "../../ide/editor/documentUri.js";
 import {
@@ -52,10 +50,14 @@ import { normalizeDiagnostics } from "../../ide/lsp/protocol.js";
 import {
   cmPosToLspPosition,
   createEditorLanguageFeatureModel,
+  createEditorLargeFilePolicy,
+  createEditorLspActionStatus,
   createEditorLspFeatureRequest,
   createEditorScopeInfo,
+  createEditorSelectionSnapshot,
   createEditorHighlightStyle,
   createEditorStatusModel,
+  createEditorTextSelectionSnapshot,
   createSnippetCompletions,
   extractDocumentSymbols,
   findDiagnosticAtPosition,
@@ -71,15 +73,29 @@ import {
   shouldRequestLspCompletion,
   summarizeEditorDiagnostics,
 } from "../../pages/editor/editorFeatureModel.js";
+import {
+  countLines,
+  createHoverTooltipDom,
+  createNexusCodeMirrorTheme,
+  createTypingAnimationPlugin,
+  getCompactViewport,
+  getEditorActionRange,
+  getRenameDefaultName,
+  positionCompletionInfo,
+  readCodeActionTitle,
+  resolveAutocompleteMaxItems,
+  resolveEditorAccent,
+  resolveEditorFontSize,
+  resolveEditorLineHeight,
+  resolveEditorReducedMotion,
+  resolveEditorTabSize,
+  resolveEditorTheme,
+} from "./codeEditorRenderingModel.js";
 
 const EDITOR_CHANGE_EMIT_INTERVAL_MS = 48;
 const CURSOR_INFO_UPDATE_MS = 45;
 const LINE_COUNT_UPDATE_MS = 80;
-const LARGE_FILE_CHAR_THRESHOLD = 220_000;
 const EDITOR_MOUNT_WATCHDOG_MS = 1800;
-const COMPACT_VIEWPORT_WIDTH = 920;
-const DEFAULT_EDITOR_FONT_STACK =
-  "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace";
 
 const cmThemeCompartment = new Compartment();
 const languageCompartment = new Compartment();
@@ -116,550 +132,6 @@ class CodeMirrorCrashBoundary extends React.Component {
   }
 }
 
-function clampNumber(value, min, max, fallback) {
-  const numeric = Number(value);
-  if (!Number.isFinite(numeric)) return fallback;
-  return Math.max(min, Math.min(max, numeric));
-}
-
-function getCompactViewport() {
-  if (typeof window === "undefined") return false;
-  return window.innerWidth < COMPACT_VIEWPORT_WIDTH;
-}
-
-function resolveEditorReducedMotion(settings) {
-  const prefersReducedMotion =
-    typeof window !== "undefined" &&
-    window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
-  const lowPowerClass =
-    typeof document !== "undefined" &&
-    document.documentElement?.classList?.contains("reduce-motion");
-
-  return Boolean(
-    settings.reduce_motion === true ||
-      settings.animations_enabled === false ||
-      settings.visual_performance_profile === "performance" ||
-      prefersReducedMotion ||
-      lowPowerClass,
-  );
-}
-
-function resolveEditorFontSize(settings, fallbackFontSize) {
-  return Math.round(
-    clampNumber(settings.font_size ?? fallbackFontSize, 11, 22, 14),
-  );
-}
-
-function resolveEditorLineHeight(settings, resolvedFontSize) {
-  const raw = clampNumber(settings.line_height, 1.2, 34, 1.55);
-  const pixelValue = raw <= 3 ? raw * resolvedFontSize : raw;
-  return Math.round(Math.max(resolvedFontSize + 4, Math.min(40, pixelValue)));
-}
-
-function resolveEditorLetterSpacing(settings) {
-  return clampNumber(settings.letter_spacing, 0, 1.5, 0);
-}
-
-function resolveEditorTabSize(settings, fallbackTabSize) {
-  return Math.round(clampNumber(settings.tab_size ?? fallbackTabSize, 2, 10, 4));
-}
-
-function resolveAutocompleteMaxItems(settings, reduceMotion, compactViewport) {
-  const fallback = reduceMotion ? 72 : compactViewport ? 96 : 120;
-  return Math.round(clampNumber(settings.autocomplete_max_items, 24, 180, fallback));
-}
-
-function resolveEditorFontFamily(settings) {
-  const configured = String(settings.font_family || "").trim();
-  if (!configured) return DEFAULT_EDITOR_FONT_STACK;
-  return `'${configured.replace(/'/g, "")}', ${DEFAULT_EDITOR_FONT_STACK}`;
-}
-
-function safeHex(value, fallback) {
-  const normalized = String(value || "").trim();
-  return /^#[0-9a-f]{6}$/i.test(normalized) ? normalized : fallback;
-}
-
-function hexToRgba(value, alpha) {
-  const hex = safeHex(value, "#8b5cf6").slice(1);
-  const r = Number.parseInt(hex.slice(0, 2), 16);
-  const g = Number.parseInt(hex.slice(2, 4), 16);
-  const b = Number.parseInt(hex.slice(4, 6), 16);
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-}
-
-function positionCompletionInfo(_view, list, option, info, space, tooltip) {
-  const margin = 10;
-  const listWidth = Math.max(1, list.right - list.left);
-  const listHeight = Math.max(1, list.bottom - list.top);
-  const scaleX = tooltip?.offsetWidth ? listWidth / tooltip.offsetWidth : 1;
-  const scaleY = tooltip?.offsetHeight ? listHeight / tooltip.offsetHeight : 1;
-  const infoWidth = Math.max(220, info.right - info.left);
-  const infoHeight = Math.max(120, info.bottom - info.top);
-  const spaceLeft = Math.max(0, list.left - space.left - margin);
-  const spaceRight = Math.max(0, space.right - list.right - margin);
-  const sideWidth = Math.min(420, Math.max(spaceLeft, spaceRight));
-  const topOffset =
-    Math.max(space.top + margin, Math.min(option.top, space.bottom - infoHeight - margin)) -
-    list.top;
-
-  if (sideWidth >= Math.min(infoWidth, 280)) {
-    const placeLeft = spaceLeft > spaceRight;
-    return {
-      style: [
-        `top: ${Math.max(0, topOffset) / scaleY}px`,
-        `${placeLeft ? "right" : "left"}: 100%`,
-        `max-width: ${sideWidth / scaleX}px`,
-      ].join("; "),
-      class: `nx-cm-completionInfo-side ${
-        placeLeft ? "nx-cm-completionInfo-left" : "nx-cm-completionInfo-right"
-      }`,
-    };
-  }
-
-  const stackedWidth = Math.max(220, Math.min(420, space.right - space.left - margin * 2));
-  const spaceBelow = space.bottom - list.bottom;
-  const spaceAbove = list.top - space.top;
-  const placeBelow = spaceBelow >= Math.min(infoHeight, 220) || spaceBelow >= spaceAbove;
-  const verticalOffset = placeBelow ? option.bottom - list.top : list.bottom - option.top;
-
-  return {
-    style: [
-      `${placeBelow ? "top" : "bottom"}: ${Math.max(0, verticalOffset) / scaleY}px`,
-      "left: 0",
-      `max-width: ${stackedWidth / scaleX}px`,
-      `width: min(${stackedWidth / scaleX}px, calc(100vw - ${margin * 2}px))`,
-    ].join("; "),
-    class: `nx-cm-completionInfo-stacked ${
-      placeBelow ? "nx-cm-completionInfo-below" : "nx-cm-completionInfo-above"
-    }`,
-  };
-}
-
-function resolveTypingAnimationMode(settings, reduceMotion) {
-  if (reduceMotion || settings.animated_typing !== true) return "off";
-  const style = String(settings.typing_animation_style || "soft").trim().toLowerCase();
-  return ["soft", "lift", "glow"].includes(style) ? style : "soft";
-}
-
-function createTypingAnimationPlugin(settings, reduceMotion) {
-  const mode = resolveTypingAnimationMode(settings, reduceMotion);
-  if (mode === "off") return [];
-  const duration = Math.round(150 / clampNumber(settings.animation_speed, 0.5, 1.8, 1));
-  const glowEnabled = settings.typing_glow === true || settings.text_glow === true || mode === "glow";
-
-  return ViewPlugin.fromClass(
-    class NexusTypingAnimationPlugin {
-      constructor(view) {
-        this.view = view;
-        this.timeout = 0;
-      }
-
-      update(update) {
-        if (!update.docChanged) return;
-        const dom = this.view.dom;
-        dom.classList.add("nx-code-typing-active", `nx-code-typing-${mode}`);
-        dom.classList.toggle("nx-code-typing-glow", glowEnabled);
-        if (this.timeout) window.clearTimeout(this.timeout);
-        this.timeout = window.setTimeout(() => {
-          dom.classList.remove(
-            "nx-code-typing-active",
-            "nx-code-typing-soft",
-            "nx-code-typing-lift",
-            "nx-code-typing-glow",
-          );
-          this.timeout = 0;
-        }, duration);
-      }
-
-      destroy() {
-        if (this.timeout) window.clearTimeout(this.timeout);
-      }
-    },
-  );
-}
-function createNexusCodeMirrorTheme(
-  settings,
-  compactViewport,
-  editorFontSize,
-  editorLineHeight,
-  reduceMotion,
-) {
-  const theme = resolveEditorTheme(settings);
-  const accent = safeHex(settings.primary_accent || theme.accent, "#8b5cf6");
-  const editorAccent = "#8b5cf6";
-  const editorAccentBlue = "#60a5fa";
-  const text = safeHex(theme.text, "#f3f4f6");
-  const muted = safeHex(theme.muted, "#8b93a7");
-  const selection = hexToRgba(editorAccent, 0.32);
-  const selectionStrong = hexToRgba(editorAccentBlue, 0.36);
-  const selectionSoft = hexToRgba(editorAccent, 0.16);
-  const panelSurface = "var(--nexus-panel-surface)";
-  const panelFilter = reduceMotion ? "none" : "var(--nexus-panel-filter)";
-  const tooltipShadow = reduceMotion
-    ? "0 8px 24px rgba(0,0,0,0.28)"
-    : "0 18px 55px rgba(0,0,0,0.35)";
-  const letterSpacing = resolveEditorLetterSpacing(settings);
-  const glowIntensity = clampNumber(settings.glow_intensity, 0, 100, 28) / 100;
-  const glowRadius = clampNumber(settings.glow_radius, 0, 64, 14);
-  const textGlowEnabled = settings.text_glow === true || settings.typing_glow === true;
-  const cursorGlowEnabled = settings.cursor_glow === true && !reduceMotion;
-  const motionDuration = `${Math.round(140 / clampNumber(settings.animation_speed, 0.5, 1.8, 1))}ms`;
-  const textGlow = textGlowEnabled
-    ? `0 0 ${Math.max(3, Math.round(glowRadius * 0.42))}px ${hexToRgba(accent, 0.16 + glowIntensity * 0.18)}`
-    : "none";
-  const caretGlow = cursorGlowEnabled
-    ? `0 0 ${Math.max(6, Math.round(glowRadius * 0.78))}px ${hexToRgba(accent, 0.24 + glowIntensity * 0.24)}`
-    : "none";
-
-  return EditorView.theme(
-    {
-      "&": {
-        height: "100%",
-        minHeight: 0,
-        maxHeight: "100%",
-        background: "transparent",
-        color: text,
-        fontFamily: resolveEditorFontFamily(settings),
-        fontSize: `${editorFontSize}px`,
-        fontWeight: String(settings.font_weight || "400"),
-        letterSpacing: `${letterSpacing}px`,
-        textRendering: "optimizeLegibility",
-        WebkitFontSmoothing: "antialiased",
-        fontSynthesis: "none",
-        outline: "none",
-        overflow: "hidden",
-        position: "relative",
-      },
-      "&.cm-focused": {
-        outline: "none",
-      },
-      ".cm-scroller": {
-        flex: "1 1 auto",
-        height: "100%",
-        minHeight: 0,
-        maxHeight: "100%",
-        overflow: "auto",
-        overscrollBehavior: "contain",
-        scrollbarGutter: "stable",
-        fontFamily: "inherit",
-        lineHeight: `${editorLineHeight}px`,
-        background: "transparent",
-      },
-      ".cm-content": {
-        minHeight: "100%",
-        padding: `${compactViewport ? 14 : 20}px ${compactViewport ? 14 : 24}px`,
-        caretColor: accent,
-        color: text,
-        textShadow: textGlow,
-        transition: reduceMotion ? "none" : `text-shadow ${motionDuration} ease, color ${motionDuration} ease`,
-      },
-      ".cm-line": {
-        padding: "0 2px",
-        textRendering: "inherit",
-        transition: reduceMotion ? "none" : `background-color ${motionDuration} ease, text-shadow ${motionDuration} ease, transform ${motionDuration} ease`,
-      },
-      ".cm-content ::selection": {
-        color: `${text} !important`,
-      },
-      ".cm-gutters": {
-        background: "rgba(0,0,0,0.12)",
-        color: muted,
-        borderRight: "1px solid rgba(255,255,255,0.05)",
-      },
-      ".cm-lineNumbers .cm-gutterElement": {
-        padding: compactViewport ? "0 8px 0 10px" : "0 12px 0 14px",
-        minWidth: compactViewport ? "2.4rem" : "3rem",
-      },
-      ".cm-activeLine": {
-        backgroundColor: hexToRgba(editorAccent, 0.07),
-      },
-      ".cm-activeLineGutter": {
-        backgroundColor: hexToRgba(editorAccent, 0.12),
-        color: text,
-      },
-      ".cm-selectionLayer .cm-selectionBackground, .cm-selectionBackground, .cm-content ::selection": {
-        backgroundColor: `${selection} !important`,
-        color: `${text} !important`,
-      },
-      ".cm-selectionMatch": {
-        backgroundColor: `${selectionSoft} !important`,
-        outline: `1px solid ${hexToRgba(editorAccentBlue, 0.24)}`,
-      },
-      ".cm-cursor": {
-        borderLeftColor: accent,
-        borderLeftWidth: settings.cursor_style === "block" ? "0.55em" : settings.cursor_style === "underline" ? "0" : "2px",
-        borderBottom: settings.cursor_style === "underline" ? `2px solid ${accent}` : "0",
-        boxShadow: caretGlow,
-        transition: reduceMotion || settings.smooth_caret === false ? "none" : `border-color ${motionDuration} ease, box-shadow ${motionDuration} ease, transform ${motionDuration} ease`,
-      },
-      ".cm-dropCursor": {
-        borderLeftColor: accent,
-        boxShadow: caretGlow,
-      },
-      "&.nx-code-typing-active .cm-activeLine": {
-        backgroundColor: hexToRgba(editorAccent, 0.1),
-        textShadow: textGlowEnabled ? textGlow : `0 0 ${Math.max(4, Math.round(glowRadius * 0.28))}px ${hexToRgba(accent, 0.14)}`,
-      },
-      "&.nx-code-typing-lift .cm-activeLine": {
-        transform: reduceMotion ? "none" : "translateY(-0.5px)",
-      },
-      "&.nx-code-typing-glow .cm-activeLine": {
-        textShadow: `0 0 ${Math.max(8, Math.round(glowRadius * 0.75))}px ${hexToRgba(accent, 0.32 + glowIntensity * 0.22)}`,
-      },
-      ".cm-matchingBracket, .cm-nonmatchingBracket": {
-        outline: `1px solid ${hexToRgba(editorAccentBlue, 0.56)}`,
-        backgroundColor: hexToRgba(editorAccent, 0.13),
-      },
-      ".cm-panels, .cm-tooltip, .cm-tooltip-autocomplete": {
-        background: panelSurface,
-        backdropFilter: panelFilter,
-        border: "1px solid var(--nexus-border)",
-        borderRadius: "8px",
-        overflow: "hidden",
-      },
-      ".cm-tooltip": {
-        color: "var(--nexus-text)",
-        boxShadow: tooltipShadow,
-      },
-      ".cm-tooltip-autocomplete": {
-        zIndex: 80,
-        contain: "layout style paint",
-        minWidth: compactViewport ? "min(17rem, calc(100vw - 1rem))" : "22rem",
-        width: compactViewport
-          ? "min(20rem, calc(100vw - 1rem))"
-          : "min(32rem, calc(100vw - 1rem))",
-        maxWidth: "calc(100vw - 1rem)",
-      },
-      ".cm-tooltip-autocomplete > ul": {
-        maxHeight: compactViewport
-          ? "min(15rem, calc(100vh - 8rem))"
-          : "min(22rem, calc(100vh - 8rem))",
-        fontFamily: "inherit",
-        overflowY: "auto",
-        scrollbarGutter: "stable",
-      },
-      ".cm-tooltip-autocomplete ul li[aria-selected]": {
-        background: hexToRgba(accent, 0.18),
-        color: "#fff",
-      },
-      ".cm-completionLabel": {
-        color: text,
-      },
-      ".cm-completionDetail": {
-        color: muted,
-        marginLeft: "0.75rem",
-        maxWidth: compactViewport ? "8rem" : "14rem",
-        overflow: "hidden",
-        textOverflow: "ellipsis",
-      },
-      ".cm-tooltip.cm-completionInfo": {
-        zIndex: 81,
-        maxWidth: compactViewport
-          ? "min(19rem, calc(100vw - 1rem))"
-          : "min(28rem, calc(100vw - 1rem))",
-        maxHeight: compactViewport
-          ? "min(13rem, calc(100vh - 7rem))"
-          : "min(18rem, calc(100vh - 7rem))",
-        color: text,
-        background: panelSurface,
-        backdropFilter: panelFilter,
-        border: "1px solid var(--nexus-border)",
-        borderRadius: "8px",
-        boxShadow: tooltipShadow,
-        whiteSpace: "pre-wrap",
-        overflow: "auto",
-        padding: "9px 10px",
-      },
-      ".cm-completionInfo.nx-cm-completionInfo-side": {
-        marginInline: "8px",
-      },
-      ".cm-completionInfo.nx-cm-completionInfo-stacked": {
-        marginTop: "8px",
-        marginBottom: "8px",
-      },
-      ".cm-panels": {
-        color: text,
-        position: "absolute",
-        left: compactViewport ? "6px" : "10px",
-        right: "auto",
-        zIndex: 70,
-        width: "max-content",
-        maxWidth: compactViewport
-          ? "calc(100% - 12px)"
-          : "min(44rem, calc(100% - 20px))",
-        boxShadow: tooltipShadow,
-      },
-      ".cm-panels.cm-panels-top": {
-        top: compactViewport ? "6px" : "10px",
-        borderBottom: "1px solid var(--nexus-border)",
-      },
-      ".cm-panels.cm-panels-bottom": {
-        bottom: compactViewport ? "6px" : "10px",
-        borderTop: "1px solid var(--nexus-border)",
-      },
-      ".cm-search": {
-        maxWidth: "100%",
-        padding: "6px 8px",
-        display: "flex",
-        flexWrap: "wrap",
-        gap: "6px",
-        alignItems: "center",
-      },
-      ".cm-search input": {
-        maxWidth: compactViewport ? "8.5rem" : "13rem",
-        minHeight: "1.75rem",
-        borderRadius: "6px",
-        border: "1px solid var(--nexus-border)",
-        background: "rgba(255,255,255,0.055)",
-        color: text,
-        outline: "none",
-      },
-      ".cm-search button": {
-        minHeight: "1.75rem",
-        borderRadius: "6px",
-        border: "1px solid var(--nexus-border)",
-        background: "rgba(255,255,255,0.065)",
-        color: text,
-      },
-      ".cm-search button:hover": {
-        background: hexToRgba(accent, 0.16),
-      },
-      ".cm-searchMatch": {
-        backgroundColor: `${selectionSoft} !important`,
-        outline: `1px solid ${hexToRgba(editorAccentBlue, 0.28)}`,
-      },
-      ".cm-searchMatch.cm-searchMatch-selected": {
-        backgroundColor: `${selectionStrong} !important`,
-      },
-      ".cm-diagnostic": {
-        borderRadius: "4px",
-      },
-      ".cm-diagnostic-error": {
-        textDecorationColor: "#ef4444",
-      },
-      ".cm-diagnostic-warning": {
-        textDecorationColor: "#f59e0b",
-      },
-      ".cm-tooltip.nx-cm-hover-tooltip": {
-        background: "transparent",
-        border: "0",
-        boxShadow: "none",
-      },
-      ".nx-cm-hover-card": {
-        maxWidth: compactViewport ? "18rem" : "32rem",
-        borderRadius: "8px",
-        border: "1px solid var(--nexus-border)",
-        background: panelSurface,
-        backdropFilter: "var(--nexus-panel-filter)",
-        boxShadow: "0 18px 55px rgba(0,0,0,0.35)",
-        overflow: "hidden",
-      },
-      ".nx-cm-hover-title": {
-        padding: "7px 10px 5px",
-        color: muted,
-        fontSize: "10px",
-        fontWeight: 700,
-        textTransform: "uppercase",
-        letterSpacing: "0",
-        borderBottom: "1px solid rgba(255,255,255,0.06)",
-      },
-      ".nx-cm-hover-body": {
-        margin: 0,
-        padding: "9px 10px 10px",
-        color: text,
-        fontFamily: "inherit",
-        fontSize: `${Math.max(11, editorFontSize - 1)}px`,
-        lineHeight: "1.45",
-        whiteSpace: "pre-wrap",
-        overflow: "auto",
-        maxHeight: compactViewport ? "12rem" : "18rem",
-      },
-      ".cm-foldGutter .cm-gutterElement": {
-        color: muted,
-      },
-      ".cm-placeholder": {
-        color: muted,
-      },
-    },
-    { dark: true },
-  );
-}
-
-function countLines(value) {
-  if (!value) return 1;
-  let lines = 1;
-  for (let index = 0; index < value.length; index += 1) {
-    if (value.charCodeAt(index) === 10) lines += 1;
-  }
-  return lines;
-}
-
-function resolveEditorTheme(settings) {
-  return EDITOR_THEMES[settings.theme] || EDITOR_THEMES.nexus_vibrant;
-}
-
-function resolveEditorAccent(settings) {
-  const theme = resolveEditorTheme(settings);
-  return safeHex(settings.primary_accent || theme.accent, "#8b5cf6");
-}
-
-function createHoverTooltipDom({ title, text, accent, tone = "default" }) {
-  const dom = document.createElement("div");
-  dom.className = `nx-cm-hover-card nx-cm-hover-card-${tone}`;
-  dom.style.borderTop = `2px solid ${accent}`;
-
-  const heading = document.createElement("div");
-  heading.className = "nx-cm-hover-title";
-  heading.textContent = title;
-
-  const body = document.createElement("pre");
-  body.className = "nx-cm-hover-body";
-  body.textContent = text.length > 2600 ? `${text.slice(0, 2600)}\n...` : text;
-
-  dom.append(heading, body);
-  return dom;
-}
-
-function cmRangeToEditorFeatureRange(doc, from, to = from) {
-  if (!doc) return null;
-  const safeFrom = Math.max(0, Math.min(doc.length, Number(from || 0)));
-  const safeTo = Math.max(safeFrom, Math.min(doc.length, Number(to || safeFrom)));
-  const start = doc.lineAt(safeFrom);
-  const end = doc.lineAt(safeTo);
-  return {
-    startLineNumber: start.number,
-    startColumn: safeFrom - start.from + 1,
-    endLineNumber: end.number,
-    endColumn: safeTo - end.from + 1,
-  };
-}
-
-function getEditorActionRange(view) {
-  const selection = view?.state?.selection?.main;
-  if (!view || !selection) return null;
-  if (!selection.empty) {
-    return cmRangeToEditorFeatureRange(view.state.doc, selection.from, selection.to);
-  }
-  const word = view.state.wordAt(selection.head);
-  if (word) return cmRangeToEditorFeatureRange(view.state.doc, word.from, word.to);
-  return cmRangeToEditorFeatureRange(view.state.doc, selection.head, selection.head);
-}
-
-function getRenameDefaultName(view) {
-  const selection = view?.state?.selection?.main;
-  if (!view || !selection) return "";
-  if (!selection.empty) {
-    return view.state.doc.sliceString(selection.from, selection.to).trim();
-  }
-  const word = view.state.wordAt(selection.head);
-  return word ? view.state.doc.sliceString(word.from, word.to).trim() : "";
-}
-
-function readCodeActionTitle(action) {
-  if (typeof action === "string") return action;
-  return String(action?.title || action?.command?.title || action?.command || "Code action");
-}
 
 export default function CodeEditor({
   code,
@@ -704,18 +176,17 @@ export default function CodeEditor({
   const [cursorInfo, setCursorInfo] = useState({ line: 1, col: 1 });
   const [lineCount, setLineCount] = useState(() => countLines(code || ""));
   const [compactViewport, setCompactViewport] = useState(getCompactViewport);
+  const [selectionInfo, setSelectionInfo] = useState(() =>
+    createEditorTextSelectionSnapshot(code || "", 0, 0),
+  );
   const [lspStatus, setLspStatus] = useState({
     state: "idle",
     label: "LSP",
     message: "",
   });
-  const [lspActionStatus, setLspActionStatus] = useState({
-    state: "idle",
-    featureId: "",
-    text: "",
-    title: "",
-    tone: "text-gray-500",
-  });
+  const [lspActionStatus, setLspActionStatus] = useState(() =>
+    createEditorLspActionStatus(),
+  );
   const [diagnosticSummary, setDiagnosticSummary] = useState(() =>
     summarizeEditorDiagnostics([]),
   );
@@ -732,6 +203,7 @@ export default function CodeEditor({
   const pendingChangeRef = useRef(null);
   const cursorTimerRef = useRef(null);
   const pendingCursorInfoRef = useRef({ line: 1, col: 1 });
+  const pendingSelectionInfoRef = useRef(selectionInfo);
   const lineCountTimerRef = useRef(null);
   const pendingLineCountRef = useRef(1);
   const diagnosticsHashRef = useRef("");
@@ -740,7 +212,16 @@ export default function CodeEditor({
     ? settings.extensions_installed
     : [];
   const hasRainbowBrackets = installedExtensions.includes("rainbow-brackets");
-  const isLargeFile = typeof code === "string" && code.length > LARGE_FILE_CHAR_THRESHOLD;
+  const codeCharCount = typeof code === "string" ? code.length : 0;
+  const largeFilePolicy = useMemo(
+    () =>
+      createEditorLargeFilePolicy({
+        charCount: codeCharCount,
+        lineCount,
+      }),
+    [codeCharCount, lineCount],
+  );
+  const isLargeFile = largeFilePolicy.large;
   const lspReadyLanguage = useMemo(
     () => isLspReadyLanguage(nexusLanguageId),
     [nexusLanguageId],
@@ -899,14 +380,21 @@ export default function CodeEditor({
     }, LINE_COUNT_UPDATE_MS);
   }, []);
 
-  const scheduleCursorInfoUpdate = useCallback((line, col) => {
+  const scheduleCursorInfoUpdate = useCallback((line, col, selectionSnapshot = null) => {
     pendingCursorInfoRef.current = { line, col };
+    if (selectionSnapshot) {
+      pendingSelectionInfoRef.current = selectionSnapshot;
+    }
     if (cursorTimerRef.current) return;
     cursorTimerRef.current = window.setTimeout(() => {
       cursorTimerRef.current = null;
       const next = pendingCursorInfoRef.current;
       setCursorInfo((prev) =>
         prev.line === next.line && prev.col === next.col ? prev : next,
+      );
+      const nextSelection = pendingSelectionInfoRef.current;
+      setSelectionInfo((prev) =>
+        prev.key === nextSelection.key ? prev : nextSelection,
       );
     }, CURSOR_INFO_UPDATE_MS);
   }, []);
@@ -951,6 +439,9 @@ export default function CodeEditor({
 
   useEffect(() => {
     setEditorFallbackReason("");
+    const resetSelection = createEditorTextSelectionSnapshot(codeRef.current, 0, 0);
+    pendingSelectionInfoRef.current = resetSelection;
+    setSelectionInfo(resetSelection);
   }, [editorResetKey]);
 
   useEffect(() => {
@@ -964,7 +455,9 @@ export default function CodeEditor({
       const view = editorViewRef.current;
       if (view) {
         view.dispatch({
-          effects: languageCompartment.reconfigure(nextSupport.extension),
+          effects: languageCompartment.reconfigure(
+            largeFilePolicy.syntaxHighlightingEnabled ? nextSupport.extension : [],
+          ),
         });
       }
     });
@@ -972,7 +465,7 @@ export default function CodeEditor({
     return () => {
       cancelled = true;
     };
-  }, [fileName, languageFallback, nexusLanguageId]);
+  }, [fileName, languageFallback, largeFilePolicy.syntaxHighlightingEnabled, nexusLanguageId]);
 
   useEffect(() => {
     if (editorFallbackReason) return undefined;
@@ -1040,13 +533,7 @@ export default function CodeEditor({
     lspDocumentUriRef.current = null;
     lspVersionRef.current = 1;
     currentDiagnosticsRef.current = [];
-    setLspActionStatus({
-      state: "idle",
-      featureId: "",
-      text: "",
-      title: "",
-      tone: "text-gray-500",
-    });
+    setLspActionStatus(createEditorLspActionStatus());
     setDiagnosticSummary(summarizeEditorDiagnostics([], { enabled: showDiagnostics }));
     updateProblems([]);
     const currentView = editorViewRef.current;
@@ -1186,7 +673,9 @@ export default function CodeEditor({
 
   const completionSource = useCallback(
     async (context) => {
-      if (settings.autocomplete_enabled === false || isLargeFile) return null;
+      if (settings.autocomplete_enabled === false || !largeFilePolicy.autocompleteEnabled) {
+        return null;
+      }
 
       const snippets = createSnippetCompletions(
         context,
@@ -1220,7 +709,7 @@ export default function CodeEditor({
     },
     [
       completionOptions,
-      isLargeFile,
+      largeFilePolicy.autocompleteEnabled,
       nexusLanguageId,
       settings.autocomplete_enabled,
       settings.autocomplete_lsp,
@@ -1237,7 +726,7 @@ export default function CodeEditor({
       let hoverText = "";
       let hoverRange = null;
 
-      if (engine && documentUri && !isLargeFile) {
+      if (engine && documentUri && largeFilePolicy.hoverEnabled) {
         try {
           const hover = await engine.getHover(
             documentUri,
@@ -1277,17 +766,11 @@ export default function CodeEditor({
         }),
       };
     },
-    [editorAccent, isLargeFile, showDiagnostics],
+    [editorAccent, largeFilePolicy.hoverEnabled, showDiagnostics],
   );
 
   const updateLspActionStatus = useCallback((status = {}) => {
-    setLspActionStatus({
-      state: status.state || "idle",
-      featureId: status.featureId || "",
-      text: status.text || "",
-      title: status.title || status.text || "",
-      tone: status.tone || "text-gray-500",
-    });
+    setLspActionStatus(createEditorLspActionStatus(status));
   }, []);
 
   const getLspActionContext = useCallback(
@@ -1580,13 +1063,15 @@ export default function CodeEditor({
       drawSelection(),
       dropCursor(),
       createTypingAnimationPlugin(settings, reduceEditorMotion),
-      highlightActiveLine(),
+      largeFilePolicy.activeLineEnabled ? highlightActiveLine() : [],
       highlightSpecialChars(),
       indentOnInput(),
       rectangularSelection(),
       bracketMatching(),
       search({ top: true }),
-      syntaxHighlighting(editorHighlightStyle, { fallback: true }),
+      largeFilePolicy.syntaxHighlightingEnabled
+        ? syntaxHighlighting(editorHighlightStyle, { fallback: true })
+        : [],
       keymap.of([
         ...editorLspKeymap,
         indentWithTab,
@@ -1599,6 +1084,7 @@ export default function CodeEditor({
         ...lintKeymap,
       ]),
       EditorState.tabSize.of(editorTabSize),
+      EditorState.allowMultipleSelections.of(true),
       wordWrap ? EditorView.lineWrapping : [],
       scrollPastEnd(),
       EditorView.updateListener.of((update) => {
@@ -1620,9 +1106,15 @@ export default function CodeEditor({
           }
         }
         if (update.selectionSet || update.focusChanged) {
-          const head = update.state.selection.main.head;
-          const line = update.state.doc.lineAt(head);
-          scheduleCursorInfoUpdate(line.number, head - line.from + 1);
+          const selectionSnapshot = createEditorSelectionSnapshot(
+            update.state.doc,
+            update.state.selection,
+          );
+          scheduleCursorInfoUpdate(
+            selectionSnapshot.cursor.line,
+            selectionSnapshot.cursor.col,
+            selectionSnapshot,
+          );
         }
       }),
       EditorView.domEventHandlers({
@@ -1634,7 +1126,8 @@ export default function CodeEditor({
       }),
       autocompletion({
         override: [completionSource],
-        activateOnTyping: settings.autocomplete_enabled !== false && !isLargeFile,
+        activateOnTyping:
+          settings.autocomplete_enabled !== false && largeFilePolicy.autocompleteEnabled,
         activateOnTypingDelay: reduceEditorMotion ? 140 : 80,
         selectOnOpen: true,
         maxRenderedOptions: Math.min(
@@ -1652,21 +1145,25 @@ export default function CodeEditor({
         hoverTime: reduceEditorMotion ? 420 : 260,
         hideOnChange: "touch",
       }),
-      highlightSelectionMatches({
-        highlightWordAroundCursor: !isLargeFile,
-        minSelectionLength: 2,
-        maxMatches: reduceEditorMotion ? 80 : 160,
-      }),
+      largeFilePolicy.selectionMatchMax > 0
+        ? highlightSelectionMatches({
+            highlightWordAroundCursor: !isLargeFile,
+            minSelectionLength: 2,
+            maxMatches: largeFilePolicy.selectionMatchMax,
+          })
+        : [],
       placeholder("Schreib Code, Markdown, JSON oder Notizen direkt hier..."),
       cmThemeCompartment.of(cmTheme),
-      languageCompartment.of(activeLanguageExtension),
+      languageCompartment.of(
+        largeFilePolicy.syntaxHighlightingEnabled ? activeLanguageExtension : [],
+      ),
       diagnosticsCompartment.of(showDiagnostics ? [lintGutter()] : []),
     ];
 
     if (showLineNumbers) {
       extensions.push(lineNumbers(), highlightActiveLineGutter());
     }
-    if (!compactViewport && !isLargeFile) extensions.push(foldGutter());
+    if (!compactViewport && largeFilePolicy.foldGutterEnabled) extensions.push(foldGutter());
     return extensions;
   }, [
     cmTheme,
@@ -1681,6 +1178,7 @@ export default function CodeEditor({
     flushPendingChange,
     hoverSource,
     isLargeFile,
+    largeFilePolicy,
     reduceEditorMotion,
     scheduleCursorInfoUpdate,
     scheduleLineCountUpdate,
@@ -1699,9 +1197,10 @@ export default function CodeEditor({
     editorViewRef.current = view;
     setEditorFallbackReason("");
     setLineCount(view.state.doc.lines);
-    const head = view.state.selection.main.head;
-    const line = view.state.doc.lineAt(head);
-    setCursorInfo({ line: line.number, col: head - line.from + 1 });
+    const selectionSnapshot = createEditorSelectionSnapshot(view.state.doc, view.state.selection);
+    pendingSelectionInfoRef.current = selectionSnapshot;
+    setSelectionInfo(selectionSnapshot);
+    setCursorInfo(selectionSnapshot.cursor);
   }, []);
 
   const handleChange = useCallback(
@@ -1728,13 +1227,14 @@ export default function CodeEditor({
 
   const updateFallbackCursor = useCallback((event) => {
     const target = event.currentTarget;
-    const position = Number(target.selectionStart || 0);
-    const beforeCursor = target.value.slice(0, position);
-    const lines = beforeCursor.split(/\r\n|\r|\n/);
-    setCursorInfo({
-      line: Math.max(1, lines.length),
-      col: Math.max(1, (lines[lines.length - 1] || "").length + 1),
-    });
+    const selectionSnapshot = createEditorTextSelectionSnapshot(
+      target.value,
+      target.selectionStart,
+      target.selectionEnd,
+    );
+    pendingSelectionInfoRef.current = selectionSnapshot;
+    setSelectionInfo(selectionSnapshot);
+    setCursorInfo(selectionSnapshot.cursor);
   }, []);
 
   const renderFallbackEditor = useCallback(
@@ -1745,6 +1245,7 @@ export default function CodeEditor({
           value={fallbackValue}
           onChange={handleFallbackChange}
           onSelect={updateFallbackCursor}
+          onKeyUp={updateFallbackCursor}
           onFocus={() => setEditorFocused(true)}
           onBlur={() => setEditorFocused(false)}
           spellCheck={false}
@@ -1817,16 +1318,26 @@ export default function CodeEditor({
       style={{ background: "transparent" }}
       data-editor-engine={editorFallbackReason ? "textarea-fallback" : "codemirror"}
       data-editor-fallback={editorFallbackReason ? "true" : "false"}
+      data-editor-large-file-mode={largeFilePolicy.dataState}
       data-cm-language-state={activeLanguageSupport.status}
       data-cm-language-id={activeLanguageSupport.grammarId}
+      data-cm-language-support={activeLanguageSupport.supportLevel}
       data-focused={editorFocused ? "true" : "false"}
+      data-cursor-position={`${cursorInfo.line}:${cursorInfo.col}`}
+      data-selection-empty={selectionInfo.empty ? "true" : "false"}
+      data-selection-ranges={selectionInfo.rangeCount}
+      data-selection-chars={selectionInfo.selectedCharacters}
+      data-selection-range={selectionInfo.rangeLabel}
       data-symbol-count={documentSymbols.length}
       data-active-symbol={editorScopeInfo.activeSymbol?.name || ""}
       data-scope-path={editorScopeInfo.pathLabel}
       data-lsp-state={editorStatus.lsp.state}
       data-lsp-capabilities={languageFeatureModel.capabilityBadge}
+      data-lsp-supported-features={languageFeatureModel.lsp.supportedFeatureIds.join(",")}
+      data-lsp-active-features={languageFeatureModel.lsp.activeFeatureIds.join(",")}
       data-lsp-action-state={lspActionStatus.state}
       data-lsp-action-feature={lspActionStatus.featureId}
+      data-lsp-action-contract={lspActionStatus.dataState}
       data-completion-sources={languageFeatureModel.completions.availableLabels.join(",")}
       data-diagnostic-count={editorStatus.diagnostics.total}
     >
@@ -1910,9 +1421,20 @@ export default function CodeEditor({
               {lspActionStatus.text}
             </span>
           )}
+          {!selectionInfo.empty && (
+            <span
+              className="hidden lg:inline max-w-[14rem] truncate text-[10px] text-sky-300/80"
+              title={selectionInfo.title}
+            >
+              Sel {selectionInfo.statusText}
+            </span>
+          )}
           {isLargeFile && (
-            <span className="text-[10px] text-amber-400/80 font-semibold">
-              LARGE
+            <span
+              className="text-[10px] text-amber-400/80 font-semibold"
+              title={largeFilePolicy.title}
+            >
+              {largeFilePolicy.statusLabel}
             </span>
           )}
           {hasRainbowBrackets && (
@@ -1935,7 +1457,7 @@ export default function CodeEditor({
           )}
         </div>
         <div className="flex items-center gap-3 shrink-0">
-          <span className="text-[10px] text-gray-400">
+          <span className="text-[10px] text-gray-400" title={selectionInfo.title}>
             Ln {cursorInfo.line}, Col {cursorInfo.col}
           </span>
           <span className="text-[10px] text-gray-500">

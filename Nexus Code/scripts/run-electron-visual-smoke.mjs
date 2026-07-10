@@ -5,6 +5,11 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react";
 import { createServer } from "vite";
+import {
+  VISUAL_SMOKE_SURFACES,
+  VISUAL_SMOKE_VIEWPORTS,
+  createVisualSmokeScenarios,
+} from "../src/testing/visualSmokeScenarios.js";
 
 process.env.NODE_ENV = process.env.NODE_ENV || "test";
 process.env.NEXUS_CODE_UI_SMOKE = "true";
@@ -22,86 +27,18 @@ const outputDir =
   process.env.NEXUS_CODE_VISUAL_SMOKE_OUTPUT_DIR ||
   path.join(os.tmpdir(), "nexus-code-visual-smoke");
 
-const ALL_VIEWPORTS = Object.freeze([
-  { id: "desktop", width: 1440, height: 900 },
-  { id: "tablet", width: 1024, height: 768 },
-  { id: "short-wide", width: 900, height: 512 },
-  { id: "phone-portrait", width: 390, height: 900 },
+const scenarios = createVisualSmokeScenarios({
+  viewportIds: process.env.NEXUS_CODE_VISUAL_SMOKE_VIEWPORTS,
+  surfaceIds: process.env.NEXUS_CODE_VISUAL_SMOKE_SURFACES,
+});
+
+const GPU_SANDBOX_FAILURE_PATTERNS = Object.freeze([
+  /GPU process isn't usable/i,
+  /ContextResult::kFatalFailure/i,
+  /SharedImageStub.*ContextResult/i,
+  /shared context.*fatal/i,
+  /Exiting GPU process/i,
 ]);
-
-const ALL_SURFACES = Object.freeze([
-  "workbench-shell",
-  "editor-scroll",
-  "editor-javascript",
-  "editor-mjs",
-  "editor-jsx",
-  "editor-json",
-  "editor-jsonc",
-  "editor-css",
-  "editor-scss",
-  "editor-python",
-  "editor-rust",
-  "editor-go",
-  "editor-html",
-  "editor-yaml",
-  "editor-sql",
-  "editor-shell",
-  "editor-php",
-  "editor-java",
-  "editor-cpp",
-  "editor-gherkin",
-  "editor-rdf",
-  "editor-latex",
-  "editor-xquery",
-  "editor-glsl",
-  "launchpad",
-  "account-panel",
-  "settings-panel",
-  "panel-chrome",
-  "github-workbench",
-  "github-projects",
-]);
-
-function parseFilter(value, allowed, label) {
-  const requested = String(value || "")
-    .split(",")
-    .map((entry) => entry.trim())
-    .filter(Boolean);
-  if (requested.length === 0) return allowed;
-
-  const allowedSet = new Set(allowed);
-  const unknown = requested.filter((entry) => !allowedSet.has(entry));
-  if (unknown.length) {
-    throw new Error(`Unknown visual smoke ${label}: ${unknown.join(", ")}`);
-  }
-  return requested;
-}
-
-const VIEWPORTS = Object.freeze(
-  parseFilter(
-    process.env.NEXUS_CODE_VISUAL_SMOKE_VIEWPORTS,
-    ALL_VIEWPORTS.map((viewport) => viewport.id),
-    "viewport",
-  ).map((id) => ALL_VIEWPORTS.find((viewport) => viewport.id === id)),
-);
-
-const SURFACES = Object.freeze(
-  parseFilter(
-    process.env.NEXUS_CODE_VISUAL_SMOKE_SURFACES,
-    ALL_SURFACES,
-    "surface",
-  ),
-);
-
-const scenarios = VIEWPORTS.flatMap((viewport) =>
-  SURFACES.map((surfaceId) => ({
-    id: `${surfaceId}@${viewport.id}`,
-    surfaceId,
-    viewportId: viewport.id,
-    width: viewport.width,
-    height: viewport.height,
-  })),
-);
 
 function htmlShell() {
   return `<!doctype html>
@@ -148,6 +85,22 @@ async function assertTestBoundary() {
   }
 }
 
+function assertScenarioIntegrity() {
+  const scenarioIds = new Set();
+  for (const scenario of scenarios) {
+    if (scenarioIds.has(scenario.id)) {
+      throw new Error(`Duplicate visual smoke scenario id: ${scenario.id}`);
+    }
+    scenarioIds.add(scenario.id);
+    if (!VISUAL_SMOKE_SURFACES.includes(scenario.surfaceId)) {
+      throw new Error(`Unknown visual smoke surface in scenario: ${scenario.surfaceId}`);
+    }
+    if (!VISUAL_SMOKE_VIEWPORTS.some((viewport) => viewport.id === scenario.viewportId)) {
+      throw new Error(`Unknown visual smoke viewport in scenario: ${scenario.viewportId}`);
+    }
+  }
+}
+
 function createVisualSmokePlugin() {
   return {
     name: "nexus-code-visual-smoke-shell",
@@ -166,6 +119,17 @@ function createVisualSmokePlugin() {
   };
 }
 
+function classifyElectronStartupFailure(output) {
+  const text = String(output || "");
+  if (GPU_SANDBOX_FAILURE_PATTERNS.some((pattern) => pattern.test(text))) {
+    return [
+      "Electron reached the GPU/sandbox layer before the visual smoke could render.",
+      "This is reported as environment-blocked, not as a successful visual pass.",
+    ].join(" ");
+  }
+  return null;
+}
+
 function terminate(child) {
   if (!child || child.killed || child.exitCode !== null) return;
   if (process.platform === "win32") {
@@ -180,6 +144,12 @@ function terminate(child) {
 
 function runElectron(baseUrl) {
   return new Promise((resolve, reject) => {
+    let diagnosticOutput = "";
+    const captureOutput = (chunk, stream) => {
+      const text = String(chunk || "");
+      diagnosticOutput = `${diagnosticOutput}${text}`.slice(-32_000);
+      stream.write(chunk);
+    };
     const config = JSON.stringify({
       baseUrl,
       outputDir,
@@ -195,13 +165,27 @@ function runElectron(baseUrl) {
         NEXUS_CODE_VISUAL_SMOKE: "true",
         NEXUS_CODE_VISUAL_SMOKE_CONFIG: config,
       },
-      stdio: ["ignore", "inherit", "inherit"],
+      stdio: ["ignore", "pipe", "pipe"],
       windowsHide: true,
+    });
+
+    electron.stdout?.on("data", (chunk) => {
+      captureOutput(chunk, process.stdout);
+    });
+    electron.stderr?.on("data", (chunk) => {
+      captureOutput(chunk, process.stderr);
     });
 
     const timeout = setTimeout(() => {
       terminate(electron);
-      reject(new Error("Electron visual smoke timed out."));
+      const startupHint = classifyElectronStartupFailure(diagnosticOutput);
+      reject(
+        new Error(
+          startupHint
+            ? `Electron visual smoke timed out. ${startupHint}`
+            : "Electron visual smoke timed out.",
+        ),
+      );
     }, Number(process.env.NEXUS_CODE_VISUAL_SMOKE_PROCESS_TIMEOUT_MS || 180_000));
 
     electron.once("error", (error) => {
@@ -214,7 +198,14 @@ function runElectron(baseUrl) {
         resolve();
         return;
       }
-      reject(new Error(`Electron visual smoke exited with code ${code ?? "unknown"}.`));
+      const startupHint = classifyElectronStartupFailure(diagnosticOutput);
+      reject(
+        new Error(
+          startupHint
+            ? `Electron visual smoke exited with code ${code ?? "unknown"}. ${startupHint}`
+            : `Electron visual smoke exited with code ${code ?? "unknown"}.`,
+        ),
+      );
     });
   });
 }
@@ -223,6 +214,7 @@ let server;
 
 try {
   await assertTestBoundary();
+  assertScenarioIntegrity();
 
   server = await createServer({
     root: projectRoot,
@@ -270,7 +262,7 @@ try {
   const baseUrl = `http://${host}:${port}`;
 
   console.log(
-    `[electron-visual-smoke] serving test-only harness at ${baseUrl}; output ${outputDir}`,
+    `[electron-visual-smoke] serving test-only harness at ${baseUrl}; ${scenarios.length} scenarios; output ${outputDir}`,
   );
   await runElectron(baseUrl);
 } catch (error) {

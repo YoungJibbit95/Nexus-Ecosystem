@@ -925,13 +925,14 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
   if (!isOpen) {
     return (
       <motion.button
+        type="button"
         whileHover={{ backgroundColor: "rgba(255,255,255,0.04)" }}
         whileTap={{ scale: 0.99 }}
         onClick={onToggle}
-        className="flex h-7 w-full shrink-0 cursor-pointer select-none items-center gap-2 px-3 font-mono"
+        className="nx-code-terminal-collapsed flex h-7 w-full shrink-0 cursor-pointer select-none items-center gap-2 px-3 font-mono"
         style={{
-          background: "rgba(5,8,14,0.97)",
-          borderTop: "1px solid rgba(255,255,255,0.052)",
+          background: "rgba(5,8,14,0.9)",
+          borderTop: "1px solid rgba(255,255,255,0.045)",
         }}
       >
         <div className="flex items-center gap-1.5">
@@ -961,16 +962,16 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
       animate={{ height: "min(320px, 36vh)", opacity: 1 }}
       exit={{ height: 0, opacity: 0 }}
       transition={{ duration: 0.28, ease: [0.4, 0, 0.2, 1] }}
-      className="flex shrink-0 flex-col font-mono selection:bg-sky-300/20"
+      className="nx-code-terminal flex shrink-0 flex-col font-mono selection:bg-sky-300/20"
       style={{
-        background: "linear-gradient(180deg, rgba(1,4,8,0.998), rgba(0,2,5,0.998))",
-        borderTop: "1px solid rgba(148,163,184,0.065)",
+        background: "linear-gradient(180deg, rgba(2,5,10,0.98), rgba(1,3,7,0.985))",
+        borderTop: "1px solid rgba(148,163,184,0.055)",
         overflow: "hidden",
       }}
     >
       <div
         className="flex min-h-[30px] shrink-0 items-center"
-        style={{ borderBottom: "1px solid rgba(148,163,184,0.042)" }}
+        style={{ borderBottom: "1px solid rgba(148,163,184,0.036)" }}
       >
         <div className="flex h-full min-w-0 flex-1 items-stretch overflow-x-auto">
           {sessions.map((session) => {
@@ -985,15 +986,15 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
                 onClick={() => setActiveSessionId(session.id)}
                 className="group relative flex min-w-[104px] max-w-[184px] cursor-pointer select-none items-center gap-2 border-r px-2.5 transition-colors sm:min-w-[122px]"
                 style={{
-                  background: isActive ? "rgba(148,163,184,0.038)" : "transparent",
-                  borderColor: "rgba(148,163,184,0.04)",
+                  background: isActive ? "rgba(148,163,184,0.03)" : "transparent",
+                  borderColor: "rgba(148,163,184,0.035)",
                 }}
               >
                 {isActive && (
                   <motion.div
                     layoutId="termTabIndicator"
                     className="absolute inset-x-3 bottom-0 h-px"
-                    style={{ background: "rgba(125,211,252,0.34)" }}
+                    style={{ background: "rgba(125,211,252,0.28)" }}
                     transition={{ type: "spring", stiffness: 350, damping: 30 }}
                   />
                 )}
@@ -1041,7 +1042,7 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
             whileTap={{ scale: 0.96 }}
             onClick={addSession}
             title="Neue Terminal Session"
-            className="mx-1 my-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-white/[0.045] bg-white/[0.012] text-slate-500 transition-colors hover:text-slate-200"
+            className="mx-1 my-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-white/[0.038] bg-white/[0.008] text-slate-500 transition-colors hover:text-slate-200"
             type="button"
           >
             <Plus size={13} />
@@ -1049,7 +1050,7 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
         </div>
 
         <div className="flex shrink-0 items-center gap-1 px-2">
-          <div className="hidden items-center gap-0.5 rounded-md border border-white/[0.038] bg-white/[0.01] p-0.5 sm:flex">
+          <div className="hidden items-center gap-0.5 rounded-md border border-white/[0.032] bg-white/[0.006] p-0.5 sm:flex">
             <button
               type="button"
               onClick={handleCopy}
@@ -1173,13 +1174,13 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
 
       <div
         ref={scrollRef}
-        className="relative flex-1 overflow-y-auto px-4 py-2.5"
+        className="relative flex-1 overflow-y-auto px-3 py-2"
         onClick={() => inputRef.current?.focus()}
         onScroll={handleOutputScroll}
         style={{
           cursor: "text",
           background:
-            "radial-gradient(circle at 50% 0%, rgba(56,189,248,0.025), transparent 35%), #020407",
+            "linear-gradient(180deg, rgba(56,189,248,0.012), transparent 42px), #020407",
         }}
       >
         {currentHistory.length === 0 ? (
@@ -1227,10 +1228,10 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
       </div>
 
       <div
-        className="flex min-h-[38px] shrink-0 items-center gap-2 px-4 py-1.5"
+        className="flex min-h-[34px] shrink-0 items-center gap-2 px-3 py-1"
         style={{
-          borderTop: "1px solid rgba(148,163,184,0.045)",
-          background: "rgba(0,0,0,0.22)",
+          borderTop: "1px solid rgba(148,163,184,0.038)",
+          background: "rgba(0,0,0,0.18)",
         }}
       >
         <span
@@ -1269,7 +1270,7 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
               const task = taskItems.find((item) => item.id === event.target.value);
               runTask(task);
             }}
-            className="h-6 w-[94px] min-w-0 rounded-md border border-white/[0.04] bg-black/20 px-1.5 text-[10px] text-slate-500 outline-none transition-colors hover:text-slate-200"
+            className="h-6 w-[94px] min-w-0 rounded-md border border-white/[0.035] bg-black/[0.18] px-1.5 text-[10px] text-slate-500 outline-none transition-colors hover:text-slate-200"
             title="Task Runner"
           >
             <option value="">tasks</option>
@@ -1292,7 +1293,7 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
                 })
               }
               title={`${activeFile.name} ausfuehren`}
-              className="grid h-6 w-6 shrink-0 place-items-center rounded-md border border-sky-300/[0.08] bg-sky-300/[0.025] text-sky-200/80 transition-colors hover:bg-sky-300/[0.06] hover:text-sky-100"
+              className="grid h-6 w-6 shrink-0 place-items-center rounded-md border border-sky-300/[0.07] bg-sky-300/[0.02] text-sky-200/80 transition-colors hover:bg-sky-300/[0.055] hover:text-sky-100"
             >
               <Play size={11} fill="currentColor" />
             </button>
@@ -1303,7 +1304,7 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
             onClick={handleRunLast}
             disabled={!lastCommand || isRunning}
             title={lastCommand ? `Run last: ${lastCommand}` : "Kein Verlauf"}
-            className="grid h-6 w-6 shrink-0 place-items-center rounded-md border border-white/[0.04] bg-white/[0.008] text-slate-500 transition-colors hover:bg-white/[0.045] hover:text-slate-200 disabled:cursor-not-allowed disabled:opacity-35"
+            className="grid h-6 w-6 shrink-0 place-items-center rounded-md border border-white/[0.035] bg-white/[0.006] text-slate-500 transition-colors hover:bg-white/[0.04] hover:text-slate-200 disabled:cursor-not-allowed disabled:opacity-35"
           >
             <RotateCcw size={11} />
           </button>

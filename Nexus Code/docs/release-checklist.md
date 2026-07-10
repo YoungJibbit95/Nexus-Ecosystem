@@ -1,6 +1,14 @@
 # Nexus Code Release Checklist
 
-Stand: 2026-07-01
+Stand: 2026-07-10
+
+## 2026-07-10 Optimization/QA Gate Notes
+
+- [x] Vite Manual-Chunks fuer Nexus-Code-Editor-Modelle pruefen; Ziel ist kleinere stabile Editor-Chunks ohne UI-Code-Aenderung.
+- [x] Visual-Smoke-Szenariomatrix in `src/testing/visualSmokeScenarios.js` zentralisieren, damit Runner und Browser-Harness dieselben Viewports/Surfaces nutzen.
+- [x] Visual Smoke umfasst aktuell 4 Viewports x 30 Surfaces, inklusive CodeMirror-Sprachsurfaces fuer JS/MJS/JSX, JSON/JSONC, CSS/SCSS, Python, Rust, Go, HTML, YAML, SQL, Shell, PHP, Java, C++, Gherkin, RDF, LaTeX, XQuery und GLSL/WGSL-Fallback.
+- [ ] `npm --prefix "./Nexus Code" run smoke:visual` in aktueller Electron/GPU-Umgebung erfolgreich abschliessen. Falls Electron vor Rendering mit `GPU process isn't usable` oder `ContextResult::kFatalFailure` beendet, als environment-blocked dokumentieren, nicht als Visual-Smoke-Erfolg.
+- [x] Fokussierter Visual-Smoke `editor-rust,editor-glsl,launchpad@desktop,short-wide` am 2026-07-10 erfolgreich mit 6 Screenshots und Summary unter `F:\Coding\Nexus Workspace\.tmp\nexus-code-visual-smoke`.
 
 ## 2026-07-01 Nexus-Code-Plan: Docking, Layout, QA-Agent
 
@@ -108,12 +116,9 @@ Stand: 2026-07-01
 - [x] `npm --prefix "./Nexus Code" run smoke:ide-core`
 - [x] SSR-Smoke-Struktur: 1440x900, 1024x768, 900x512, 390x900 fuer Workbench, Launchpad, Account und Settings
 - [x] SSR-Smoke-Struktur: PanelChrome und GitHub-Workbench ohne App-Bootgate
-- [x] IDE-Core-Smoke: 40 Szenarien inklusive Filetree, Docking, Fokus-Helfer, Extensions, Strict Login, LSP-Status, LSP-Capabilities, Edits, Diagnostics-Sync, Palette, Spotlight, Symbols, Scope und Completion Helpers
+- [x] IDE-Core-Smoke: 51 Szenarien inklusive Filetree, Docking, Fokus-Helfer, Extensions, Strict Login, LSP-Status, LSP-Capabilities, Edits, Diagnostics-Sync, Palette, Spotlight, Symbols, Scope und Completion Helpers
 - [x] IDE-Core-Smoke: Login-Payload-Vertrag gegen unbekannte Auth-Felder absichern.
 - [x] Electron Dev Probe: isolierter Renderer-Start prueft Route-Import und beendet sauber; Strict-Login-Vertrag ist im IDE-Core-Smoke abgedeckt
-- [x] Visual Smoke: 1400x900 Electron-Fenster
-- [x] `npm --prefix "./Nexus Code" run smoke:visual`
-- [x] Visual Smoke: 1440x900 Electron-Harness
-- [x] Visual Smoke: 1024x768 Electron-Harness
-- [x] Visual Smoke: 900x512 Electron-Harness
-- [x] Visual Smoke: 390x900 Electron-Harness
+- [ ] `npm --prefix "./Nexus Code" run smoke:visual` ohne Electron/GPU-Sandbox-Blocker
+- [x] Visual-Smoke-Harness-Matrix: 1440x900, 1024x768, 900x512, 390x900
+- [x] Visual-Smoke-Harness-Matrix: Workbench, Launchpad, Account, Settings, PanelChrome, GitHub Issues/Projects und breite CodeMirror-Sprachsurfaces

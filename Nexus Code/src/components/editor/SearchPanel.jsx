@@ -70,12 +70,12 @@ function OptionButton({ active, onClick, title, icon: Icon, label }) {
       className="flex min-h-7 min-w-0 items-center justify-center gap-1 rounded-md px-2 py-1 text-[10px] font-semibold leading-tight transition-colors"
       style={{
         background: active
-          ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.12)"
-          : "rgba(255,255,255,0.014)",
+          ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.1)"
+          : "rgba(255,255,255,0.01)",
         color: active ? "var(--nexus-primary, #7c8cff)" : "#8b93a7",
         border: active
-          ? "1px solid rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.2)"
-          : "1px solid rgba(255,255,255,0.04)",
+          ? "1px solid rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.17)"
+          : "1px solid rgba(255,255,255,0.035)",
       }}
       title={title}
       aria-pressed={active}
@@ -98,7 +98,7 @@ function ScopeInput({ label, value, onChange, placeholder }) {
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
-        className="min-h-8 w-full rounded-lg border border-white/[0.06] bg-white/[0.024] px-2.5 py-1.5 text-[11px] leading-snug text-gray-300 outline-none placeholder:text-gray-700 focus:border-sky-300/35 focus:bg-white/[0.038]"
+        className="min-h-8 w-full rounded-md border border-white/[0.05] bg-white/[0.018] px-2.5 py-1.5 text-[11px] leading-snug text-gray-300 outline-none placeholder:text-gray-700 focus:border-sky-300/[0.28] focus:bg-white/[0.032]"
       />
     </label>
   );
@@ -332,7 +332,7 @@ export default function SearchPanel({ files = [], onFileSelect }) {
       : `${result.scannedFiles || 0} Dateien durchsucht`;
 
   return (
-    <PanelShell ariaLabel="Search">
+    <PanelShell ariaLabel="Search" className="nx-code-search-panel">
       <PanelHeader
         icon={Search}
         title="Search"
@@ -351,15 +351,15 @@ export default function SearchPanel({ files = [], onFileSelect }) {
           ) : null
         }
       >
-        <form onSubmit={submitSearch} className="space-y-2">
+        <form onSubmit={submitSearch} className="space-y-1.5">
           <div
-            className="flex min-h-9 items-center gap-1.5 rounded-md px-2.5 py-1.5"
+            className="flex min-h-8 items-center gap-1.5 rounded-md px-2.5 py-1.5"
             style={{
               background:
-                "linear-gradient(180deg, rgba(255,255,255,0.028), rgba(255,255,255,0.01))",
+                "linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.006))",
               border: draft.query
-                ? "1px solid rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.22)"
-                : "1px solid rgba(255,255,255,0.045)",
+                ? "1px solid rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.18)"
+                : "1px solid rgba(255,255,255,0.04)",
               transition: "border-color 0.2s ease",
             }}
           >
@@ -418,12 +418,12 @@ export default function SearchPanel({ files = [], onFileSelect }) {
               className="flex min-h-7 min-w-0 items-center justify-center gap-1 rounded-md px-2 py-1 text-[10px] font-semibold leading-tight transition-colors"
               style={{
                 background: scopeControlsVisible
-                  ? "rgba(56,189,248,0.08)"
-                  : "rgba(255,255,255,0.014)",
+                  ? "rgba(56,189,248,0.07)"
+                  : "rgba(255,255,255,0.01)",
                 color: scopeControlsVisible ? "#93c5fd" : "#8b93a7",
                 border: scopeControlsVisible
-                  ? "1px solid rgba(56,189,248,0.16)"
-                  : "1px solid rgba(255,255,255,0.04)",
+                  ? "1px solid rgba(56,189,248,0.14)"
+                  : "1px solid rgba(255,255,255,0.035)",
               }}
             >
               <SlidersHorizontal size={12} className="shrink-0" />
@@ -442,7 +442,7 @@ export default function SearchPanel({ files = [], onFileSelect }) {
                 transition={{ duration: 0.18 }}
                 style={{ overflow: "hidden" }}
               >
-                <div className="grid grid-cols-1 gap-2 rounded-md border border-white/[0.04] bg-black/12 p-2">
+                <div className="grid grid-cols-1 gap-2 rounded-md border border-white/[0.035] bg-black/[0.1] p-2">
                   <ScopeInput
                     label="Include"
                     value={draft.include}
@@ -459,7 +459,7 @@ export default function SearchPanel({ files = [], onFileSelect }) {
                     <button
                       type="button"
                       onClick={resetScopes}
-                      className="inline-flex min-h-7 min-w-0 items-center justify-center gap-1 rounded-lg border border-white/[0.055] bg-white/[0.022] px-2 py-1 text-[10px] font-semibold text-sky-300/80 hover:bg-white/[0.05] hover:text-sky-200"
+                      className="inline-flex min-h-7 min-w-0 items-center justify-center gap-1 rounded-md border border-white/[0.055] bg-white/[0.022] px-2 py-1 text-[10px] font-semibold text-sky-300/80 hover:bg-white/[0.05] hover:text-sky-200"
                     >
                       <RotateCcw size={10} className="shrink-0" />
                       <span className="min-w-0 break-words text-center" style={{ overflowWrap: "anywhere" }}>
@@ -477,7 +477,7 @@ export default function SearchPanel({ files = [], onFileSelect }) {
       <PanelBody>
         {showResults && (
           <div
-            className="sticky top-0 z-10 mx-2 mt-2 rounded-md border px-2.5 py-1.5 backdrop-blur-md"
+            className="sticky top-0 z-10 mx-2 mt-2 rounded-md border px-2.5 py-1.5 backdrop-blur-sm"
             style={{
               background:
                 "rgba(5,8,15,0.9)",
@@ -526,9 +526,9 @@ export default function SearchPanel({ files = [], onFileSelect }) {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, height: 0 }}
                   transition={{ delay: Math.min(index * 0.025, 0.16), duration: 0.18 }}
-                  className="mx-2 mt-1 overflow-hidden rounded-md border border-white/[0.032] bg-white/[0.008]"
+                className="mx-2 mt-1 overflow-hidden rounded-md border border-white/[0.028] bg-white/[0.006]"
                 >
-                  <div className="group flex w-full items-center gap-1.5 px-3 py-2 transition-colors hover:bg-white/[0.03]">
+                  <div className="group flex w-full items-center gap-1.5 px-2.5 py-1.5 transition-colors hover:bg-white/[0.026]">
                     <button
                       type="button"
                       onClick={() => toggleCollapse(groupKey)}
@@ -550,7 +550,7 @@ export default function SearchPanel({ files = [], onFileSelect }) {
                       </span>
                       <span className="min-w-0 flex-1">
                         <span
-                          className="block break-words text-xs font-medium leading-snug text-gray-300"
+                          className="block break-words text-[12px] font-medium leading-snug text-gray-300"
                           style={{ overflowWrap: "anywhere" }}
                         >
                           {group.fileName}
@@ -598,7 +598,7 @@ export default function SearchPanel({ files = [], onFileSelect }) {
                         {group.matches.map((match, matchIndex) => (
                           <div
                             key={`${match.lineNumber}:${match.column}:${matchIndex}`}
-                            className="group flex items-start gap-1 px-2 py-1 transition-colors hover:bg-sky-400/[0.038]"
+                            className="group flex items-start gap-1 px-2 py-0.5 transition-colors hover:bg-sky-400/[0.032]"
                           >
                             <button
                               type="button"

@@ -11,7 +11,7 @@ Sie fokussiert den Editor-/Run-Workflow, mit Workspace-, Terminal-, Search- und 
 
 | Surface | Purpose | Highlights |
 | --- | --- | --- |
-| `Editor` | code writing | Monaco editor, tabs, language services, diagnostics |
+| `Editor` | code writing | CodeMirror 6 editor, tabs, language services, diagnostics |
 | `Explorer` | file workflow | tree navigation, project context, quick open |
 | `Search` | project discovery | scoped search and jump actions |
 | `Terminal` | execution | command runtime with integrated output flow |
@@ -26,7 +26,7 @@ Sie fokussiert den Editor-/Run-Workflow, mit Workspace-, Terminal-, Search- und 
 - editor/panel components: `src/components/editor/*`
 - electron main: `electron/main.cjs`
 - preload bridge: `electron/preload.cjs`
-- shared contracts/utilities: `@nexus/api`, `@nexus/core`
+- shared contracts/utilities: `@nexus/core`
 
 Core alignment goals:
 
@@ -98,13 +98,13 @@ npm run build:code:installers
 
 ## Environment
 
-- `VITE_NEXUS_CONTROL_URL=https://nexus-api.cloud`
-- `VITE_NEXUS_CONTROL_INGEST_KEY` (key for `code`)
-- `VITE_NEXUS_USER_ID`
-- `VITE_NEXUS_USERNAME`
-- `VITE_NEXUS_USER_TIER`
+Client-side environment values are public configuration, not secrets.
+
+Most Nexus Code development should work without production cloud credentials. Use local `.env.local` values only for non-secret public development hints; keep Nexus Cloud credentials, backend routes, signing material and deployment details outside this repository.
+
+See `../docs/ENVIRONMENT.md`.
 
 ## Notes
 
-- The private backend is not included in this repository.
+- The private Nexus Cloud backend is not included in this repository.
 - Packaged runtime performance should always be validated, not only dev-server behavior.

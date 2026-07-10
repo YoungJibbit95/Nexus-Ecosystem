@@ -22,6 +22,14 @@ app.commandLine.appendSwitch("disable-http-cache");
 app.commandLine.appendSwitch("disable-background-timer-throttling");
 app.commandLine.appendSwitch("disable-renderer-backgrounding");
 app.commandLine.appendSwitch("force-device-scale-factor", "1");
+app.on("child-process-gone", (_event, details) => {
+  const type = details?.type || "unknown";
+  if (String(type).toLowerCase().includes("gpu")) {
+    console.error(
+      `[electron-visual-smoke] child-process-gone ${JSON.stringify(details)}`,
+    );
+  }
+});
 app.on("window-all-closed", (event) => {
   event?.preventDefault?.();
 });
@@ -53,11 +61,17 @@ function toSerializableRect(rect) {
   };
 }
 
-async function waitForVisualReady(webContents, scenario) {
+async function waitForVisualReady(webContents, scenario, getRendererFailures = () => []) {
   const started = Date.now();
   let lastResult = null;
 
   while (Date.now() - started < timeoutMs) {
+    const rendererFailures = getRendererFailures();
+    if (rendererFailures.length > 0) {
+      throw new Error(
+        `${scenario.id} renderer error before visual-smoke ready: ${rendererFailures.join(" | ")}`,
+      );
+    }
     lastResult = await webContents
       .executeJavaScript(
         `
@@ -372,11 +386,11 @@ function validateResult(scenario, metrics, imageStats) {
   return failures;
 }
 
-async function captureScenario(window, scenario) {
+async function captureScenario(window, scenario, getRendererFailures) {
   const url = getScenarioUrl(scenario);
   await window.setContentSize(scenario.width, scenario.height, false);
   await window.loadURL(url);
-  await waitForVisualReady(window.webContents, scenario);
+  await waitForVisualReady(window.webContents, scenario, getRendererFailures);
   await settleRendererPaint(window.webContents);
 
   const metrics = await collectLayoutMetrics(window.webContents, scenario);
@@ -432,9 +446,13 @@ async function run() {
     },
   });
 
+  const rendererFailureLog = [];
   window.webContents.on("console-message", (_event, level, message, line, sourceId) => {
     const source = sourceId ? `${path.basename(sourceId)}:${line || 0}` : `line:${line || 0}`;
     console.log(`[electron-visual-smoke:renderer] level=${level} ${source} ${message}`);
+    if (level >= 3 || /\b(Uncaught|ReferenceError|TypeError|SyntaxError)\b/.test(message)) {
+      rendererFailureLog.push(`${source} ${message}`.slice(0, 700));
+    }
   });
   window.webContents.on("did-fail-load", (_event, errorCode, errorDescription, validatedUrl, isMainFrame) => {
     if (!isMainFrame) return;
@@ -451,7 +469,12 @@ async function run() {
   const results = [];
 
   for (const scenario of scenarios) {
-    const result = await captureScenario(window, scenario);
+    const rendererFailureStart = rendererFailureLog.length;
+    const result = await captureScenario(
+      window,
+      scenario,
+      () => rendererFailureLog.slice(rendererFailureStart),
+    );
     results.push(result);
     const label = `${scenario.surfaceId}@${scenario.viewportId} ${scenario.width}x${scenario.height}`;
     if (result.ok) {

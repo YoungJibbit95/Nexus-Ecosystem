@@ -593,6 +593,11 @@ const LOCAL_COMPLETION_MAX_TEXT = 120_000;
 const LOCAL_COMPLETION_MAX_ITEMS = 36;
 const COMPLETION_LSP_SCAN_FACTOR = 2;
 const COMPLETION_LSP_SCAN_MAX = 480;
+const LSP_COMPLETION_DEPRECATED_TAG = 1;
+const LARGE_FILE_CHAR_THRESHOLD_DEFAULT = 220_000;
+const HUGE_FILE_CHAR_THRESHOLD_DEFAULT = 650_000;
+const LARGE_FILE_LINE_THRESHOLD_DEFAULT = 7_500;
+const HUGE_FILE_LINE_THRESHOLD_DEFAULT = 18_000;
 const ACTIVE_LSP_STATES = new Set(["available", "ready", "running", "started"]);
 const PENDING_LSP_STATES = new Set(["initializing", "pending", "starting"]);
 const FALLBACK_LSP_STATES = new Set([
@@ -2158,6 +2163,174 @@ export function createEditorStatusModel(options = {}) {
   };
 }
 
+function readPositiveInteger(value, fallback = 0) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return fallback;
+  return Math.max(0, Math.round(numeric));
+}
+
+export function createEditorLargeFilePolicy(options = {}) {
+  const charCount = readPositiveInteger(options.charCount ?? options.length, 0);
+  const lineCount = readPositiveInteger(options.lineCount, 1);
+  const charThreshold = Math.max(
+    1,
+    readPositiveInteger(options.charThreshold, LARGE_FILE_CHAR_THRESHOLD_DEFAULT),
+  );
+  const hugeCharThreshold = Math.max(
+    charThreshold + 1,
+    readPositiveInteger(options.hugeCharThreshold, HUGE_FILE_CHAR_THRESHOLD_DEFAULT),
+  );
+  const lineThreshold = Math.max(
+    1,
+    readPositiveInteger(options.lineThreshold, LARGE_FILE_LINE_THRESHOLD_DEFAULT),
+  );
+  const hugeLineThreshold = Math.max(
+    lineThreshold + 1,
+    readPositiveInteger(options.hugeLineThreshold, HUGE_FILE_LINE_THRESHOLD_DEFAULT),
+  );
+  const large = charCount > charThreshold || lineCount > lineThreshold;
+  const huge = charCount > hugeCharThreshold || lineCount > hugeLineThreshold;
+  const mode = huge ? "plain" : large ? "guarded" : "normal";
+  const reason = huge
+    ? "Huge file mode keeps expensive editor services off."
+    : large
+      ? "Large file mode keeps LSP, autocomplete and folding off."
+      : "";
+
+  return Object.freeze({
+    mode,
+    large,
+    huge,
+    charCount,
+    lineCount,
+    charThreshold,
+    lineThreshold,
+    reason,
+    statusLabel: large ? (huge ? "HUGE" : "LARGE") : "",
+    lspEnabled: !large,
+    autocompleteEnabled: !large,
+    hoverEnabled: !large,
+    foldGutterEnabled: !large,
+    syntaxHighlightingEnabled: !huge,
+    activeLineEnabled: !huge,
+    selectionMatchMax:
+      options.selectionMatchMax !== undefined
+        ? readPositiveInteger(options.selectionMatchMax, 160)
+        : huge
+          ? 0
+          : large
+            ? 24
+            : options.lowPowerMode
+              ? 80
+              : 160,
+    dataState: mode,
+    title: [mode === "normal" ? "Normal editor mode" : reason, `${lineCount} lines`, `${charCount} chars`]
+      .filter(Boolean)
+      .join(" | "),
+  });
+}
+
+function readDocLineColumn(doc, position) {
+  const pos = Math.max(0, readPositiveInteger(position, 0));
+  if (doc?.lineAt) {
+    const line = doc.lineAt(Math.min(Number(doc.length || 0), pos));
+    return {
+      line: Math.max(1, Number(line?.number || 1)),
+      col: Math.max(1, pos - Number(line?.from || 0) + 1),
+    };
+  }
+  return { line: 1, col: pos + 1 };
+}
+
+function createSelectionRangeLabel(start, end) {
+  if (!start || !end) return "";
+  if (start.line === end.line) {
+    return `L${start.line}:C${start.col}-C${end.col}`;
+  }
+  return `L${start.line}:C${start.col}-L${end.line}:C${end.col}`;
+}
+
+function normalizeSelectionRange(range) {
+  const anchor = readPositiveInteger(range?.anchor ?? range?.from ?? range?.head, 0);
+  const head = readPositiveInteger(range?.head ?? range?.to ?? anchor, anchor);
+  const from = Math.min(anchor, head);
+  const to = Math.max(anchor, head);
+  return { anchor, head, from, to, empty: from === to };
+}
+
+export function createEditorSelectionSnapshot(doc, selection = null) {
+  const rawRanges = Array.isArray(selection?.ranges)
+    ? selection.ranges
+    : selection?.main
+      ? [selection.main]
+      : [];
+  const ranges = (rawRanges.length ? rawRanges : [{ anchor: 0, head: 0 }]).map(
+    normalizeSelectionRange,
+  );
+  const main = normalizeSelectionRange(selection?.main || ranges[0]);
+  const selectedCharacters = ranges.reduce(
+    (total, range) => total + Math.max(0, range.to - range.from),
+    0,
+  );
+  const cursor = readDocLineColumn(doc, main.head);
+  const start = readDocLineColumn(doc, main.from);
+  const end = readDocLineColumn(doc, main.to);
+  const empty = selectedCharacters === 0;
+  const rangeCount = ranges.length;
+  const rangeKey = ranges.map((range) => `${range.anchor}:${range.head}`).join("|");
+  const statusText = empty
+    ? ""
+    : rangeCount > 1
+      ? `${rangeCount} selections, ${selectedCharacters} chars`
+      : `${selectedCharacters} char${selectedCharacters === 1 ? "" : "s"} selected`;
+
+  return Object.freeze({
+    key: `${rangeKey}:${selectedCharacters}`,
+    empty,
+    rangeCount,
+    selectedCharacters,
+    cursor,
+    anchor: main.anchor,
+    head: main.head,
+    from: main.from,
+    to: main.to,
+    range: {
+      startLineNumber: start.line,
+      startColumn: start.col,
+      endLineNumber: end.line,
+      endColumn: end.col,
+    },
+    rangeLabel: empty ? "" : createSelectionRangeLabel(start, end),
+    statusText,
+    title: empty
+      ? `Ln ${cursor.line}, Col ${cursor.col}`
+      : `${statusText} | ${createSelectionRangeLabel(start, end)}`,
+  });
+}
+
+export function createEditorTextSelectionSnapshot(text = "", selectionStart = 0, selectionEnd = selectionStart) {
+  const value = String(text || "");
+  const safeStart = Math.max(0, Math.min(value.length, readPositiveInteger(selectionStart, 0)));
+  const safeEnd = Math.max(0, Math.min(value.length, readPositiveInteger(selectionEnd, safeStart)));
+  const doc = {
+    length: value.length,
+    lineAt(position) {
+      const pos = Math.max(0, Math.min(value.length, readPositiveInteger(position, 0)));
+      const before = value.slice(0, pos);
+      const lineNumber = before.split(/\r\n|\r|\n/).length;
+      const lastBreak = Math.max(before.lastIndexOf("\n"), before.lastIndexOf("\r"));
+      return {
+        number: lineNumber,
+        from: lastBreak >= 0 ? lastBreak + 1 : 0,
+      };
+    },
+  };
+  return createEditorSelectionSnapshot(doc, {
+    main: { anchor: safeStart, head: safeEnd },
+    ranges: [{ anchor: safeStart, head: safeEnd }],
+  });
+}
+
 export const EDITOR_LSP_FEATURE_IDS = Object.freeze({
   goToDefinition: "go-to-definition",
   renameSymbol: "rename-symbol",
@@ -2173,6 +2346,7 @@ const EDITOR_LSP_FEATURE_DEFINITIONS = Object.freeze([
     commandId: "editor.goToDefinition",
     lspMethod: "getDefinition",
     resultKind: "locations",
+    shortcut: "F12",
     requiresPosition: true,
   }),
   Object.freeze({
@@ -2182,6 +2356,7 @@ const EDITOR_LSP_FEATURE_DEFINITIONS = Object.freeze([
     commandId: "editor.renameSymbol",
     lspMethod: "renameSymbol",
     resultKind: "workspace-edit",
+    shortcut: "F2",
     requiresPosition: true,
     requiresNewName: true,
   }),
@@ -2192,6 +2367,7 @@ const EDITOR_LSP_FEATURE_DEFINITIONS = Object.freeze([
     commandId: "editor.formatDocument",
     lspMethod: "formatDocument",
     resultKind: "text-edits",
+    shortcut: "Shift+Alt+F",
   }),
   Object.freeze({
     id: EDITOR_LSP_FEATURE_IDS.codeActions,
@@ -2200,6 +2376,7 @@ const EDITOR_LSP_FEATURE_DEFINITIONS = Object.freeze([
     commandId: "editor.codeActions",
     lspMethod: "getCodeActions",
     resultKind: "code-actions",
+    shortcut: "Mod+.",
     requiresRange: true,
   }),
 ]);
@@ -2207,6 +2384,35 @@ const EDITOR_LSP_FEATURE_DEFINITIONS = Object.freeze([
 function getEditorLspFeatureDefinition(featureId) {
   const normalized = String(featureId || "").trim();
   return EDITOR_LSP_FEATURE_DEFINITIONS.find((feature) => feature.id === normalized) || null;
+}
+
+export function createEditorLspActionStatus(status = {}) {
+  const featureId = String(status.featureId || "").trim();
+  const state = String(status.state || "idle").trim() || "idle";
+  const tone =
+    status.tone ||
+    (state === "failed"
+      ? "text-red-400"
+      : state === "applied"
+        ? "text-emerald-300"
+        : state === "available" || state === "external"
+          ? "text-sky-300"
+          : state === "unavailable"
+            ? "text-amber-400"
+            : "text-gray-500");
+  const definition = getEditorLspFeatureDefinition(featureId);
+  const featureLabel = status.label || definition?.label || "LSP action";
+  const text = status.text || (state === "idle" ? "" : featureLabel);
+
+  return Object.freeze({
+    state,
+    featureId,
+    featureLabel,
+    text,
+    title: status.title || text || featureLabel,
+    tone,
+    dataState: `${featureId || "none"}:${state}`,
+  });
 }
 
 export function normalizeEditorFeaturePosition(position) {
@@ -2311,6 +2517,18 @@ export function createEditorLspFeatureContracts(options = {}) {
       disabledReason: effectiveDisabledReason,
       pendingReason: missing.length ? `Missing ${missing.join(", ")}` : "",
       missing,
+      ui: Object.freeze({
+        label: definition.label,
+        shortcut: definition.shortcut || "",
+        dataState: `${definition.id}:${enabled ? (missing.length ? "pending" : "ready") : "disabled"}`,
+        title: [
+          definition.label,
+          definition.shortcut ? `Shortcut ${definition.shortcut}` : "",
+          effectiveDisabledReason || (missing.length ? `Missing ${missing.join(", ")}` : "Ready"),
+        ]
+          .filter(Boolean)
+          .join(" | "),
+      }),
     });
   });
 }
@@ -2348,6 +2566,7 @@ export function createEditorLspFeatureRequest(featureId, payload = {}) {
     lspMethod: contract.lspMethod,
     resultKind: contract.resultKind,
     featureName: contract.featureName,
+    shortcut: contract.shortcut || "",
     supported: contract.supported,
     documentUri: payload.documentUri || "",
     languageId: normalizeLanguageId(payload.languageId, LANGUAGE_IDS.PLAINTEXT),
@@ -2360,6 +2579,7 @@ export function createEditorLspFeatureRequest(featureId, payload = {}) {
     disabledReason: contract.disabledReason,
     pendingReason: missing.length ? `Missing ${missing.join(", ")}` : "",
     missing,
+    ui: contract.ui,
   });
 }
 
@@ -2587,6 +2807,13 @@ function canonicalCompletionLabel(label) {
     .toLowerCase();
 }
 
+function getCompletionFilterText(option) {
+  const label = typeof option?.label === "object" ? option.label?.label : option?.label;
+  return String(option?.filterText || label || "")
+    .trim()
+    .toLowerCase();
+}
+
 function hasCamelCaseCompletionMatch(label, prefix) {
   if (!prefix) return false;
   const acronym = String(label || "")
@@ -2601,16 +2828,31 @@ function hasCamelCaseCompletionMatch(label, prefix) {
   return acronym.startsWith(prefix);
 }
 
+function hasWordBoundaryCompletionMatch(label, prefix) {
+  if (!prefix) return false;
+  return String(label || "")
+    .split(/(?=[A-Z])|[^A-Za-z0-9_$]+/)
+    .filter(Boolean)
+    .some((part) => part.toLowerCase().startsWith(prefix));
+}
+
 function getCompletionMatchQuality(option, rankContext = EMPTY_COMPLETION_RANK_CONTEXT) {
   const normalizedPrefix = String(rankContext.normalizedPrefix || "");
   if (!normalizedPrefix) return 0;
-  const label = String(option?.label || "");
+  const label = typeof option?.label === "object" ? option.label?.label : option?.label;
   const normalizedLabel = canonicalCompletionLabel(label);
-  if (!normalizedLabel) return -1;
-  if (normalizedLabel === normalizedPrefix) return 4;
-  if (normalizedLabel.startsWith(normalizedPrefix)) return 3;
-  if (hasCamelCaseCompletionMatch(label, normalizedPrefix)) return 2;
-  if (normalizedLabel.includes(normalizedPrefix)) return 1;
+  const filterText = getCompletionFilterText(option);
+  const candidates = [normalizedLabel, filterText].filter(Boolean);
+  if (!candidates.length) return -1;
+  if (candidates.some((candidate) => candidate === normalizedPrefix)) return 4;
+  if (candidates.some((candidate) => candidate.startsWith(normalizedPrefix))) return 3;
+  if (
+    hasCamelCaseCompletionMatch(label, normalizedPrefix) ||
+    hasWordBoundaryCompletionMatch(label, normalizedPrefix)
+  ) {
+    return 2;
+  }
+  if (candidates.some((candidate) => candidate.includes(normalizedPrefix))) return 1;
   return -1;
 }
 
@@ -2666,12 +2908,17 @@ function rankCompletionOption(option, rankContext = EMPTY_COMPLETION_RANK_CONTEX
       ? Number(section.rank)
       : 50;
   const boost = Number.isFinite(Number(option?.boost)) ? Number(option.boost) : 0;
+  const deprecatedPenalty =
+    option?.deprecated === true || option?.completionTags?.includes?.(LSP_COMPLETION_DEPRECATED_TAG)
+      ? 55
+      : 0;
   return (
     sectionRank * 100 -
     boost -
     getCompletionMatchBonus(getCompletionMatchQuality(option, rankContext)) -
     getCompletionOriginBonus(option, rankContext) +
-    getCompletionMissPenalty(option, rankContext)
+    getCompletionMissPenalty(option, rankContext) +
+    deprecatedPenalty
   );
 }
 
@@ -3053,6 +3300,10 @@ export function createEditorLanguageFeatureModel(options = {}) {
   const supportedFeatureNames = Object.entries(features)
     .filter(([, enabled]) => enabled)
     .map(([key]) => LSP_FEATURE_LABELS[key]);
+  const supportedFeatureIds = Object.entries(features)
+    .filter(([, enabled]) => enabled)
+    .map(([key]) => key);
+  const activeFeatureIds = active ? supportedFeatureIds : [];
   const activeFeatureCount = active ? supportedFeatureNames.length : 0;
   const featureCount = supportedFeatureNames.length;
   const serverLabel = languageCapabilities.lsp.label || languageCapabilities.label;
@@ -3139,6 +3390,8 @@ export function createEditorLanguageFeatureModel(options = {}) {
       pending,
       fallbackActive,
       features,
+      supportedFeatureIds,
+      activeFeatureIds,
       featureCount,
       activeFeatureCount,
     },
@@ -3238,6 +3491,53 @@ function getCompletionBoost(item, index) {
   return Math.max(-30, kindBoost + 12 - index / 8);
 }
 
+function hasDeprecatedCompletionTag(item) {
+  return (
+    item?.deprecated === true ||
+    (Array.isArray(item?.tags) && item.tags.includes(LSP_COMPLETION_DEPRECATED_TAG))
+  );
+}
+
+function readCompletionSourceLabel(item) {
+  return String(
+    item?.source ||
+      item?.data?.source ||
+      item?.data?.sourceName ||
+      item?.data?.pluginName ||
+      "",
+  ).trim();
+}
+
+function createLspCompletionDetail(item, kindDetail) {
+  const detailParts = [
+    item.detail,
+    item.labelDetails?.detail,
+    item.labelDetails?.description,
+  ]
+    .map((part) => String(part || "").trim())
+    .filter(Boolean);
+  const sourceLabel = readCompletionSourceLabel(item);
+  const segments = [
+    detailParts.join(" ").trim() || kindDetail,
+    sourceLabel ? `from ${sourceLabel}` : "",
+    hasDeprecatedCompletionTag(item) ? "deprecated" : "",
+  ].filter(Boolean);
+  return segments.join(" | ");
+}
+
+function createLspCompletionInfo(item, kindDetail, documentation, insertText) {
+  const detail = createLspCompletionDetail(item, kindDetail);
+  const insertPreview = stripLspSnippet(insertText).trim();
+  return [
+    documentation,
+    detail && detail !== documentation ? detail : "",
+    insertPreview && insertPreview !== item.label ? `Insert: ${insertPreview}` : "",
+  ]
+    .filter((part) => part !== "")
+    .join("\n")
+    .trim() || kindDetail;
+}
+
 export function createSnippetCompletions(context, languageId, options = {}) {
   const normalizedLanguageId = normalizeCompletionSourceLanguage(languageId);
   const match = getCompletionMatch(context, normalizedLanguageId);
@@ -3300,21 +3600,22 @@ export function lspCompletionsToCodeMirror(context, completionList, snippetResul
     const kindDetail = completionKindName(item.kind);
     const sortText = String(item.sortText || "");
     const recommended = item.preselect || sortText.startsWith("!");
-    const detailParts = [
-      item.detail,
-      item.labelDetails?.detail,
-      item.labelDetails?.description,
-    ].filter(Boolean);
+    const deprecated = hasDeprecatedCompletionTag(item);
 
     return {
       label,
       type: completionType(item.kind),
-      detail: detailParts.join(" ").trim() || kindDetail,
-      info: documentation || kindDetail,
+      detail: createLspCompletionDetail(item, kindDetail),
+      info: createLspCompletionInfo(item, kindDetail, documentation, insertText),
       apply: applyCompletionTextEdit(item, insertText),
       boost: getCompletionBoost(item, index),
       sortText,
+      filterText: String(item.filterText || label),
       commitCharacters: item.commitCharacters,
+      completionTags: Array.isArray(item.tags) ? item.tags.slice() : [],
+      completionSource: readCompletionSourceLabel(item),
+      deprecated,
+      class: deprecated ? "nx-cm-completion-deprecated" : undefined,
       section: recommended
         ? COMPLETION_SECTIONS.lspRecommended
         : COMPLETION_SECTIONS.lsp,

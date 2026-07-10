@@ -90,9 +90,9 @@ function DebugButton({ children, onClick, disabled, tone = "muted", title }) {
     tone === "run"
       ? {
           color: "#ffffff",
-          background: "linear-gradient(135deg, var(--nexus-primary, #7c8cff), #38bdf8)",
-          border: "rgba(125,140,255,0.34)",
-          shadow: "0 0 14px rgba(56,189,248,0.18)",
+          background: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.22)",
+          border: "rgba(125,140,255,0.24)",
+          shadow: "inset 0 1px 0 rgba(255,255,255,0.04)",
         }
       : tone === "stop"
         ? {
@@ -123,7 +123,7 @@ function DebugButton({ children, onClick, disabled, tone = "muted", title }) {
       onClick={onClick}
       disabled={disabled}
       title={title}
-      className="flex h-8 min-w-0 items-center justify-center gap-1.5 overflow-hidden rounded-lg border px-2 py-1 text-[11px] font-semibold leading-none transition-opacity disabled:cursor-not-allowed disabled:opacity-45"
+      className="flex h-8 min-w-0 items-center justify-center gap-1.5 overflow-hidden rounded-md border px-2 py-1 text-[11px] font-semibold leading-none transition-opacity disabled:cursor-not-allowed disabled:opacity-45"
       style={{
         color: styles.color,
         background: styles.background,
@@ -454,7 +454,7 @@ export default function DebugPanel({ activeFile, _code, problems = [] }) {
           : "muted";
 
   return (
-    <PanelShell ariaLabel="Debug">
+    <PanelShell ariaLabel="Debug" className="nx-code-debug-panel">
       <PanelHeader
         icon={Bug}
         title="Debug"
@@ -559,7 +559,7 @@ export default function DebugPanel({ activeFile, _code, problems = [] }) {
           onToggle={() => toggleSection("controls")}
         >
           <div className="grid gap-2 px-3 pb-3">
-            <div className="rounded-lg border border-white/[0.04] bg-black/[0.14] px-2.5 py-2">
+            <div className="rounded-md border border-white/[0.035] bg-black/[0.12] px-2.5 py-2">
               <div className="flex min-w-0 items-start gap-2">
                 <span
                   className="mt-1 h-2 w-2 shrink-0 rounded-full"
@@ -578,7 +578,7 @@ export default function DebugPanel({ activeFile, _code, problems = [] }) {
                     {sessionDetail}
                   </p>
                 </div>
-                <span className="max-w-[6.5rem] shrink-0 break-words rounded-lg bg-white/[0.04] px-1.5 py-0.5 text-[10px] text-gray-500" style={{ overflowWrap: "anywhere" }}>
+                <span className="max-w-[6.5rem] shrink-0 break-words rounded bg-white/[0.035] px-1.5 py-0.5 text-[10px] text-gray-500" style={{ overflowWrap: "anywhere" }}>
                   {selectedConfig.adapter}
                 </span>
               </div>
@@ -627,7 +627,7 @@ export default function DebugPanel({ activeFile, _code, problems = [] }) {
             </div>
 
             {firstSyntaxError ? (
-              <div className="rounded-lg border border-red-400/20 bg-red-400/10 px-2.5 py-2">
+              <div className="rounded-md border border-red-400/[0.18] bg-red-400/[0.08] px-2.5 py-2">
                 <div className="flex items-start gap-2">
                   <AlertTriangle size={13} className="mt-0.5 shrink-0 text-red-300" />
                   <div className="min-w-0">
@@ -855,7 +855,7 @@ export default function DebugPanel({ activeFile, _code, problems = [] }) {
           actionLabel="Clear"
         >
           <div className="grid gap-2 px-3 pb-3">
-            <div className="max-h-40 overflow-y-auto rounded-lg border border-white/[0.04] bg-black/[0.24] p-2 font-mono">
+            <div className="max-h-40 overflow-y-auto rounded-md border border-white/[0.035] bg-black/[0.2] p-2 font-mono">
               <AnimatePresence initial={false}>
                 {consoleLog.map((entry) => (
                   <ConsoleEntry key={entry.id} entry={entry} />
@@ -864,7 +864,7 @@ export default function DebugPanel({ activeFile, _code, problems = [] }) {
               <div ref={consoleEndRef} />
             </div>
 
-            <div className="grid grid-cols-[auto_1fr_auto] items-center gap-1.5 rounded-lg border border-white/[0.06] bg-black/25 px-2.5 py-1.5">
+            <div className="grid grid-cols-[auto_1fr_auto] items-center gap-1.5 rounded-md border border-white/[0.05] bg-black/20 px-2.5 py-1.5">
               <span className="font-mono text-xs text-purple-300">{">"}</span>
               <input
                 value={consoleInput}

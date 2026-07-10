@@ -392,6 +392,12 @@ export default function TitleBar({
     { label: `Panel: ${panelLabel}`, icon: Activity, disabled: true },
     { separator: true },
     {
+      label: "Alle speichern",
+      shortcut: "Ctrl+S",
+      action: safeSaveAll,
+      icon: Save,
+    },
+    {
       label: "Aktives Panel",
       shortcut: "Ctrl+B",
       action: onToggleSidebar,
@@ -442,13 +448,13 @@ export default function TitleBar({
         height: 36,
         minHeight: 36,
         flex: "0 0 36px",
-        gap: compact ? 6 : 8,
+        gap: compact ? 5 : 7,
         background:
-          "linear-gradient(180deg, rgba(255,255,255,0.014), rgba(255,255,255,0.003)), rgba(6, 9, 16, 0.91)",
-        borderBottom: "1px solid rgba(148,163,184,0.055)",
+          "linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.002)), rgba(6, 9, 16, 0.84)",
+        borderBottom: "1px solid rgba(148,163,184,0.045)",
         boxShadow:
-          "inset 0 1px 0 rgba(255,255,255,0.024), 0 1px 0 rgba(0,0,0,0.32)",
-        backdropFilter: "blur(14px) saturate(108%)",
+          "inset 0 1px 0 rgba(255,255,255,0.018), 0 1px 0 rgba(0,0,0,0.28)",
+        backdropFilter: "blur(10px) saturate(104%)",
         // @ts-ignore
         WebkitAppRegion: isElectron ? "drag" : "no-drag",
       }}
@@ -491,12 +497,12 @@ export default function TitleBar({
           style={{
             height: 25,
             gap: 7,
-            borderRadius: "8px",
-            border: "1px solid rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.075)",
-            background: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.026)",
-            padding: "0 9px 0 6px",
+            borderRadius: "7px",
+            border: "1px solid rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.055)",
+            background: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.018)",
+            padding: "0 8px 0 6px",
             boxShadow:
-              "inset 0 1px 0 rgba(255,255,255,0.045)",
+              "inset 0 1px 0 rgba(255,255,255,0.026)",
           }}
         >
           <span
@@ -504,8 +510,8 @@ export default function TitleBar({
             style={{
               width: 19,
               height: 19,
-              borderRadius: "7px",
-              background: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.12)",
+              borderRadius: "6px",
+              background: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.08)",
               color: "var(--nexus-primary, #7c8cff)",
             }}
           >
@@ -525,10 +531,10 @@ export default function TitleBar({
             className={`nx-code-menu-host nx-code-menu-cluster items-center ${compact ? "hidden xl:flex" : "hidden lg:flex"}`}
             style={{
               height: 25,
-              borderRadius: "8px",
-              border: "1px solid rgba(255,255,255,0.032)",
-              background: "rgba(0, 0, 0, 0.075)",
-              backdropFilter: "blur(10px)",
+              borderRadius: "7px",
+              border: "1px solid rgba(255,255,255,0.026)",
+              background: "rgba(0, 0, 0, 0.055)",
+              backdropFilter: "blur(7px)",
             }}
           >
             {menus.map((menu) => (
@@ -545,10 +551,10 @@ export default function TitleBar({
             className={`nx-code-menu-host nx-code-menu-compact-host items-center ${compact ? "flex xl:hidden" : "flex lg:hidden"}`}
             style={{
               height: 25,
-              borderRadius: "8px",
-              border: "1px solid rgba(255,255,255,0.032)",
-              background: "rgba(0, 0, 0, 0.075)",
-              backdropFilter: "blur(10px)",
+              borderRadius: "7px",
+              border: "1px solid rgba(255,255,255,0.026)",
+              background: "rgba(0, 0, 0, 0.055)",
+              backdropFilter: "blur(7px)",
             }}
           >
             <CompactMenuButton
@@ -572,15 +578,15 @@ export default function TitleBar({
           height: 26,
           minHeight: 26,
           flex: "1 1 11rem",
-          minWidth: compact ? 112 : 148,
-          maxWidth: compact ? 300 : 380,
+          minWidth: compact ? 116 : 154,
+          maxWidth: compact ? 280 : 340,
           gap: 7,
-          borderRadius: "8px",
-          border: "1px solid rgba(142, 153, 183, 0.075)",
+          borderRadius: "7px",
+          border: "1px solid rgba(142, 153, 183, 0.06)",
           background:
-            "linear-gradient(180deg, rgba(255,255,255,0.018), rgba(255,255,255,0.004)), rgba(0, 0, 0, 0.16)",
+            "linear-gradient(180deg, rgba(255,255,255,0.014), rgba(255,255,255,0.003)), rgba(0, 0, 0, 0.13)",
           boxShadow:
-            "inset 0 1px 0 rgba(255,255,255,0.03)",
+            "inset 0 1px 0 rgba(255,255,255,0.024)",
           padding: "0 9px",
           WebkitAppRegion: "no-drag",
         }}
@@ -610,12 +616,6 @@ export default function TitleBar({
         // @ts-ignore
         style={{ gap: 6, WebkitAppRegion: "no-drag" }}
       >
-        <CommandButton
-          icon={Save}
-          label="Alle speichern"
-          onClick={safeSaveAll}
-          title="Alle speichern"
-        />
         <CommandButton
           icon={TerminalSquare}
           label="Terminal"
