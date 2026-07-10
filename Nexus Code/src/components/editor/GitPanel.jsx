@@ -74,18 +74,18 @@ function SectionHeader({
   actionTitle,
 }) {
   return (
-    <div className="flex items-start gap-1 px-2 py-0.5">
+    <div className="flex items-center gap-1 px-2 py-0.5">
       <button
         type="button"
         onClick={onToggle}
         aria-expanded={expanded}
-        className="min-w-0 flex flex-1 items-center gap-1.5 rounded-md px-2 py-1 text-left transition-colors hover:bg-white/[0.026]"
+        className="min-h-7 min-w-0 flex flex-1 items-center gap-1.5 rounded-sm border border-transparent px-2 py-1 text-left transition-colors hover:border-white/[0.035] hover:bg-white/[0.022]"
       >
         <motion.div
           animate={{ rotate: expanded ? 0 : -90 }}
           transition={{ duration: 0.18 }}
         >
-          <ChevronDown size={11} className="text-gray-600" />
+          <ChevronDown size={11} className="text-gray-500" />
         </motion.div>
         <span
           className="min-w-0 flex-1 break-words text-[10px] font-semibold uppercase leading-tight text-gray-500"
@@ -102,7 +102,7 @@ function SectionHeader({
           onClick={action}
           disabled={actionDisabled}
           title={actionTitle || actionLabel}
-          className="min-w-0 px-2 py-1 text-[10px]"
+          className="min-h-7 min-w-0 px-2 py-1 text-[10px]"
         >
           {actionLabel}
         </PanelActionButton>
@@ -189,34 +189,37 @@ function FileRow({ file, staged, selected, busy, onSelect, onToggle }) {
       initial={{ opacity: 0, x: -8 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: -8, height: 0 }}
-      className="px-2 pb-0.5"
+      className="px-2"
     >
       <div
-        className="group flex items-center rounded-md border transition-colors"
+        className="group flex min-h-[34px] items-stretch border-l border-y border-transparent transition-colors"
         style={{
           background: selected
-            ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.07)"
-            : "rgba(255,255,255,0.008)",
+            ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.055)"
+            : "transparent",
           borderColor: selected
-            ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.15)"
-            : "rgba(255,255,255,0.026)",
+            ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.16)"
+            : "transparent",
+          boxShadow: selected
+            ? "inset 2px 0 rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.34)"
+            : "inset 0 -1px rgba(255,255,255,0.026)",
         }}
       >
         <button
           type="button"
           onClick={() => onSelect(file)}
-          className="min-w-0 flex flex-1 items-start gap-2 px-2 py-1.5 text-left"
+          className="min-w-0 flex flex-1 items-center gap-2 px-2 py-1 text-left transition-colors hover:bg-white/[0.018]"
           title={`${meta.label}: ${file.path || file.name}`}
         >
           <span
-            className="mt-0.5 w-4 shrink-0 text-center text-[10px] font-bold"
+            className="grid h-5 w-5 shrink-0 place-items-center rounded-sm bg-black/15 text-[10px] font-bold"
             style={{ color: meta.color }}
           >
             {file.status}
           </span>
           <span className="min-w-0 flex-1">
             <span
-              className="block break-words text-xs font-mono leading-snug text-gray-300 group-hover:text-gray-100"
+              className="block break-words font-mono text-[11px] leading-snug text-gray-300 group-hover:text-gray-100"
               style={{ overflowWrap: "anywhere" }}
             >
               {file.name}
@@ -231,7 +234,7 @@ function FileRow({ file, staged, selected, busy, onSelect, onToggle }) {
             </span>
           </span>
           {(file.additions > 0 || file.deletions > 0) && (
-            <span className="mt-0.5 shrink-0 rounded-md border border-white/[0.05] bg-black/15 px-1.5 py-0.5 font-mono text-[10px] text-gray-500">
+            <span className="shrink-0 rounded-sm border border-white/[0.04] bg-black/10 px-1.5 py-0.5 font-mono text-[10px] text-gray-500">
               +{file.additions} -{file.deletions}
             </span>
           )}
@@ -242,7 +245,7 @@ function FileRow({ file, staged, selected, busy, onSelect, onToggle }) {
           disabled={busy}
           aria-label={`${actionLabel} ${file.path || file.name}`}
           title={`${actionLabel} ${file.path || file.name}`}
-          className="mr-1 grid h-6 w-6 shrink-0 place-items-center rounded-md border border-white/[0.052] bg-white/[0.016] text-gray-300 transition-colors hover:bg-white/[0.05] disabled:cursor-wait disabled:opacity-50"
+          className="my-1 mr-1 grid h-6 w-6 shrink-0 place-items-center rounded-sm border border-transparent text-gray-400 opacity-75 transition-colors hover:border-white/[0.05] hover:bg-white/[0.04] hover:text-gray-100 group-hover:opacity-100 disabled:cursor-wait disabled:opacity-50"
         >
           {busy ? (
             <RefreshCw size={10} className="animate-spin" />
@@ -297,8 +300,8 @@ function DiffViewer({
   }
 
   return (
-    <div className="mx-3 mb-2 overflow-hidden rounded-md border border-white/[0.035] bg-black/[0.12]">
-      <div className="flex items-center gap-2 border-b border-white/[0.04] px-2.5 py-2">
+    <div className="mx-3 mb-2 overflow-hidden border-y border-white/[0.04] bg-black/[0.08]">
+      <div className="flex items-center gap-2 border-b border-white/[0.035] px-2.5 py-1.5">
         <span
           className="h-1.5 w-1.5 shrink-0 rounded-full"
           style={{
@@ -336,7 +339,7 @@ function DiffViewer({
           need to be staged before Git can provide a patch.
         </div>
       ) : (
-        <div className="max-h-56 overflow-auto px-0 py-1.5 text-[10px] leading-5">
+        <div className="max-h-56 overflow-auto px-0 py-1 text-[10px] leading-5">
           {visibleLines.map((line, index) => {
             const added = line.startsWith("+") && !line.startsWith("+++");
             const removed = line.startsWith("-") && !line.startsWith("---");
@@ -1064,10 +1067,10 @@ export default function GitPanel({ files }) {
       {hasWorkspace && (
         <div className="shrink-0 px-3 pb-1.5">
           <div
-            className="nx-code-git-summary rounded-md border px-2.5 py-1.5"
+            className="nx-code-git-summary border-y px-2.5 py-1.5"
             style={{
-              background: "rgba(0,0,0,0.085)",
-              borderColor: "rgba(148,163,184,0.052)",
+              background: "rgba(0,0,0,0.055)",
+              borderColor: "rgba(148,163,184,0.045)",
             }}
           >
             <div className="flex min-w-0 items-start gap-2">
@@ -1404,7 +1407,7 @@ export default function GitPanel({ files }) {
         </AnimatePresence>
 
         {refreshing && (
-          <div className="mx-3 mb-1 flex items-center gap-2 rounded-md border border-purple-500/10 bg-purple-500/5 px-2 py-1.5 text-[10px] text-purple-200">
+          <div className="mx-3 mb-1 flex items-center gap-2 border-y border-purple-500/10 bg-purple-500/5 px-2 py-1.5 text-[10px] text-purple-200">
             <RefreshCw size={11} className="animate-spin" />
             <span className="min-w-0 break-words" style={{ overflowWrap: "anywhere" }}>
               Refreshing repository status...
@@ -1529,7 +1532,7 @@ export default function GitPanel({ files }) {
         </AnimatePresence>
 
         <div className="px-3 py-3">
-          <div className="mb-3 rounded-md border border-white/[0.035] bg-black/[0.1] p-2.5">
+          <div className="mb-3 border-y border-white/[0.035] bg-black/[0.075] px-2.5 py-2">
             <div className="mb-2 flex min-w-0 flex-wrap items-start justify-between gap-2">
               <div className="min-w-0">
                 <p className="text-[10px] font-semibold uppercase text-gray-500">
@@ -1636,8 +1639,6 @@ export default function GitPanel({ files }) {
 
           <div className="mt-2">
             <motion.button
-              whileHover={canCommit ? { scale: 1.02, y: -1 } : {}}
-              whileTap={canCommit ? { scale: 0.97 } : {}}
               onClick={handleCommitAndPush}
               disabled={!canCommit}
               title={commitDisabledReason}

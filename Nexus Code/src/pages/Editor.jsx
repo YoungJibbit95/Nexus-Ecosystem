@@ -91,6 +91,7 @@ import {
 } from "./editor/editorInteractionModel";
 import {
   getFileExtensionLabel,
+  getFileDescendantIds,
   getFileTreeErrorMessage,
   getPathBasename,
   getProblemSummary,
@@ -98,6 +99,16 @@ import {
   mergeFileTreeNode,
   waitForFileTreeFrame,
 } from "./editor/editorWorkspaceModel";
+import {
+  ensureReadableEditorTextColor,
+  getReadableColor,
+  pickReadableSurface,
+  toRgbaColor,
+} from "./editor/editorThemeReadability";
+import {
+  getLanguageExtension,
+  getNextUntitledName,
+} from "./editor/editorFileCreationModel";
 import {
   createThemeOptionsModel,
   loadThemeOptionsModel,
@@ -108,18 +119,6 @@ import {
   endPerfMetric,
 } from "../lib/perfMetrics";
 
-const LANGUAGE_EXTENSIONS = {
-  typescript: "ts",
-  javascript: "js",
-  python: "py",
-  html: "html",
-  css: "css",
-  json: "json",
-  markdown: "md",
-  rust: "rs",
-  go: "go",
-};
-
 const FILES_PERSIST_DEBOUNCE_MS = 3_200;
 const SETTINGS_PERSIST_DEBOUNCE_MS = 900;
 const EDITOR_BUFFER_COMMIT_MS = 8_000;
@@ -129,93 +128,6 @@ const CODE_COMPACT_VIEWPORT_WIDTH = 980;
 const WORKBENCH_PANEL_DRAG_MIME = "application/x-nexus-code-workbench-panel";
 const loadSettingsPanel = () => import("../components/editor/SettingsPanel");
 const SettingsPanel = React.lazy(() => loadSettingsPanel());
-
-function extractRgbTuple(value) {
-  if (!value || typeof value !== "string") return null;
-  const hexMatch = value.match(/#([0-9a-fA-F]{6})/);
-  if (hexMatch) {
-    const hex = hexMatch[1];
-    return [
-      Number.parseInt(hex.slice(0, 2), 16),
-      Number.parseInt(hex.slice(2, 4), 16),
-      Number.parseInt(hex.slice(4, 6), 16),
-    ];
-  }
-  const rgbMatch = value.match(
-    /rgba?\(\s*([0-9.]+)\s*,\s*([0-9.]+)\s*,\s*([0-9.]+)/i,
-  );
-  if (rgbMatch) {
-    return [
-      Number.parseFloat(rgbMatch[1]),
-      Number.parseFloat(rgbMatch[2]),
-      Number.parseFloat(rgbMatch[3]),
-    ];
-  }
-  return null;
-}
-
-function relativeLuminance(rgb) {
-  if (!rgb) return 0;
-  const channels = rgb.map((v) => {
-    const normalized = Math.max(0, Math.min(255, v)) / 255;
-    return normalized <= 0.03928
-      ? normalized / 12.92
-      : ((normalized + 0.055) / 1.055) ** 2.4;
-  });
-  return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
-}
-
-function contrastRatio(foreground, background) {
-  const fgLum = relativeLuminance(foreground);
-  const bgLum = relativeLuminance(background);
-  const light = Math.max(fgLum, bgLum);
-  const dark = Math.min(fgLum, bgLum);
-  return (light + 0.05) / (dark + 0.05);
-}
-
-function getReadableColor(preferred, background, muted = false) {
-  const bgRgb = extractRgbTuple(background);
-  const fgRgb = extractRgbTuple(preferred);
-  if (!bgRgb) return preferred;
-  const backgroundIsDark = relativeLuminance(bgRgb) < 0.34;
-  const fallback = muted
-    ? backgroundIsDark
-      ? "#94a3b8"
-      : "#4b5563"
-    : backgroundIsDark
-      ? "#f3f4f6"
-      : "#111827";
-  if (!fgRgb) return fallback;
-  const minContrast = muted ? 2.5 : 4.2;
-  return contrastRatio(fgRgb, bgRgb) >= minContrast ? preferred : fallback;
-}
-
-function pickReadableSurface(...values) {
-  for (const value of values) {
-    if (extractRgbTuple(value)) return value;
-  }
-  return values.find((value) => Boolean(String(value || "").trim())) || "#0b1020";
-}
-
-function toRgbaColor(value, alpha = 1) {
-  const rgb = extractRgbTuple(value);
-  if (!rgb) return `rgba(128, 0, 255, ${alpha})`;
-  const [r, g, b] = rgb.map((channel) =>
-    Math.max(0, Math.min(255, Math.round(channel))),
-  );
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-}
-
-function ensureReadableEditorTextColor(preferred, background) {
-  const bgRgb = extractRgbTuple(background);
-  const fgRgb = extractRgbTuple(preferred);
-  if (!bgRgb) return "#f3f4f6";
-  const bgLum = relativeLuminance(bgRgb);
-  // Nexus Code should default to bright text and only flip on truly bright surfaces.
-  if (bgLum < 0.72) return "#f3f4f6";
-  if (fgRgb && relativeLuminance(fgRgb) > 0.42) return preferred;
-  return "#111827";
-}
 
 export default function Editor({
   accountSession = null,
@@ -1535,23 +1447,6 @@ export default function Editor({
     [openFileTab, workspacePath, files],
   );
 
-  const getNextUntitledName = useCallback(
-    (extension = "txt") => {
-      const ext = String(extension || "txt").replace(/^\./, "");
-      const existingNames = new Set(
-        files.filter((f) => f.type === "file").map((f) => f.name.toLowerCase()),
-      );
-      let idx = 1;
-      while (idx < 1000) {
-        const candidate = idx === 1 ? `untitled.${ext}` : `untitled-${idx}.${ext}`;
-        if (!existingNames.has(candidate.toLowerCase())) return candidate;
-        idx += 1;
-      }
-      return `untitled-${Date.now()}.${ext}`;
-    },
-    [files],
-  );
-
   const handleCreateFileRequest = useCallback(
     (value, mode = "name", parentId = null) => {
       if (mode === "name") {
@@ -1561,10 +1456,10 @@ export default function Editor({
         return;
       }
       const languageId = String(value || "").toLowerCase();
-      const extension = LANGUAGE_EXTENSIONS[languageId] || languageId || "txt";
-      handleCreateFile(getNextUntitledName(extension), parentId);
+      const extension = getLanguageExtension(languageId);
+      handleCreateFile(getNextUntitledName(files, extension), parentId);
     },
-    [getNextUntitledName, handleCreateFile],
+    [files, handleCreateFile],
   );
 
   const handleSaveAll = useCallback(async () => {
@@ -1707,17 +1602,8 @@ export default function Editor({
         }
       }
 
-      const getIdsToDelete = (targetId, allFiles) => {
-        const ids = [targetId];
-        const children = allFiles.filter((f) => f.parentId === targetId);
-        children.forEach((child) => {
-          ids.push(...getIdsToDelete(child.id, allFiles));
-        });
-        return ids;
-      };
-
       setFiles((prev) => {
-        const idsToRemove = getIdsToDelete(id, prev);
+        const idsToRemove = getFileDescendantIds(id, prev);
         const remaining = prev.filter((f) => !idsToRemove.includes(f.id));
 
         setOpenTabs((prevTabs) => {

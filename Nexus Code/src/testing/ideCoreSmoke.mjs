@@ -2402,12 +2402,17 @@ const scenarios = [
     async run() {
       const expectedFiles = new Map([
         ["index.ts", ["typescript", "typescript", "native"]],
-        ["App.tsx", ["typescript", "typescript", "native"]],
+        ["types.d.ts", ["typescript", "typescript", "native"]],
+        ["types.d.mts", ["typescript", "typescript", "native"]],
+        ["App.tsx", ["typescript", "typescript", "native", "tsx"]],
+        ["config.mts", ["typescript", "typescript", "native"]],
         ["main.js", ["javascript", "javascript", "native"]],
         ["server.mjs", ["javascript", "javascript", "native"]],
         ["legacy.cjs", ["javascript", "javascript", "native"]],
-        ["View.jsx", ["javascript", "javascript", "native"]],
+        ["View.jsx", ["javascript", "javascript", "native", "jsx"]],
+        ["Client.mjsx", ["javascript", "javascript", "native", "jsx"]],
         ["script.py", ["python", "python", "native"]],
+        ["extension.pyx", ["cython", "python", "alias"]],
         ["lib.rs", ["rust", "rust", "native"]],
         ["main.go", ["go", "go", "native"]],
         ["styles.css", ["css", "css", "native"]],
@@ -2415,41 +2420,73 @@ const scenarios = [
         ["theme.sass", ["sass", "sass", "native"]],
         ["vars.less", ["less", "less", "native"]],
         ["component.vue", ["vue", "html", "alias"]],
+        ["Template.svelte", ["svelte", "html", "alias"]],
+        ["page.astro", ["astro", "html", "alias"]],
+        ["component.hbs", ["handlebars", "html", "alias"]],
+        ["partial.mustache", ["mustache", "html", "alias"]],
+        ["template.ejs", ["ejs", "html", "alias"]],
+        ["layout.njk", ["nunjucks", "html", "alias"]],
+        ["theme.liquid", ["liquid", "html", "alias"]],
         ["package.json", ["json", "json", "native"]],
-        ["tsconfig.json", ["jsonc", "json", "alias"]],
-        ["config.jsonc", ["jsonc", "json", "alias"]],
+        ["package-lock.json", ["json", "json", "native"]],
+        ["manifest.webmanifest", ["json", "json", "native"]],
+        ["notebook.ipynb", ["json", "json", "native"]],
+        ["map.geojson", ["json", "json", "native"]],
+        ["trace.har", ["json", "json", "native"]],
         ["data.jsonl", ["json", "json", "native"]],
+        ["tsconfig.json", ["jsonc", "json", "alias"]],
+        ["devcontainer.json", ["jsonc", "json", "alias"]],
+        ["deno.jsonc", ["jsonc", "json", "alias"]],
+        [".eslintrc", ["jsonc", "json", "alias"]],
         ["README.md", ["markdown", "markdown", "native"]],
         ["docs.mdx", ["mdx", "markdown", "alias"]],
         ["workflow.yml", ["yaml", "yaml", "native"]],
+        ["docker-compose.yml", ["yaml", "yaml", "native"]],
+        ["pnpm-lock.yaml", ["yaml", "yaml", "native"]],
         ["Dockerfile", ["dockerfile", "dockerfile", "native"]],
         ["Dockerfile.dev", ["dockerfile", "dockerfile", "native"]],
+        ["Makefile.win", ["makefile", "shell", "alias"]],
+        ["CMakeLists.txt", ["cmake", "cmake", "native"]],
+        ["pyproject.toml", ["toml", "toml", "native"]],
+        ["Cargo.toml", ["toml", "toml", "native"]],
+        ["Pipfile", ["toml", "toml", "native"]],
+        ["poetry.lock", ["toml", "toml", "native"]],
+        ["shard.yml", ["yaml", "yaml", "native"]],
+        [".bash_profile", ["shell", "shell", "native"]],
+        [".envrc", ["dotenv", "shell", "alias"]],
+        [".env.example", ["dotenv", "shell", "alias"]],
         ["query.sql", ["sql", "sql", "native"]],
         ["schema.graphql", ["graphql", "graphql", "native"]],
         ["schema.graphqls", ["graphql", "graphql", "native"]],
-        [".env.example", ["dotenv", "shell", "alias"]],
         ["app.php", ["php", "php", "native"]],
         ["Main.java", ["java", "java", "native"]],
         ["native.cpp", ["cpp", "cpp", "native"]],
+        ["header.tpp", ["cpp", "cpp", "native"]],
         ["program.cs", ["csharp", "csharp", "native"]],
-        ["Template.svelte", ["svelte", "html", "alias"]],
-        ["page.astro", ["astro", "html", "alias"]],
         ["service.erl", ["erlang", "erlang", "native"]],
         ["script.tcl", ["tcl", "tcl", "native"]],
         ["notebook.wl", ["mathematica", "mathematica", "native"]],
         ["analysis.sas", ["sas", "sas", "native"]],
         ["manifest.pp", ["puppet", "puppet", "native"]],
         ["legacy.vbs", ["vbscript", "vbscript", "native"]],
+        ["classic.asp", ["vbscript", "vbscript", "native", "asp"]],
         ["site.nginxconf", ["nginx", "nginx", "native"]],
+        ["nginx.conf", ["nginx", "nginx", "native"]],
+        ["mime.types", ["nginx", "nginx", "native"]],
         ["request.http", ["http", "http", "native"]],
+        ["data.tsv", ["csv", "csv", "native"]],
+        ["change.rej", ["diff", "diff", "native"]],
         ["math.apl", ["apl", "apl", "native"]],
         ["query.cypher", ["cypher", "cypher", "native"]],
         ["grammar.ebnf", ["ebnf", "ebnf", "native"]],
         ["checkout.feature", ["gherkin", "gherkin", "native"]],
         ["schema.idl", ["idl", "idl", "native"]],
         ["build.nsi", ["nsis", "nsis", "native"]],
-        ["graph.ttl", ["rdf", "rdf", "native"]],
-        ["triple.nt", ["rdf", "rdf", "native"]],
+        ["graph.ttl", ["rdf", "rdf", "native", "turtle"]],
+        ["triple.nt", ["rdf", "rdf", "native", "ntriples"]],
+        ["script.hxml", ["haxe", "haxe", "native", "hxml"]],
+        ["Bridge.m", ["objective-c", "objective-c", "native"]],
+        ["Bridge.mm", ["objective-c", "objective-c", "native", "objective-cpp"]],
         ["calc.octave", ["octave", "octave", "native"]],
         ["script.q", ["q", "q", "native"]],
         ["package.spec", ["rpm-spec", "rpm-spec", "native"]],
@@ -2458,15 +2495,27 @@ const scenarios = [
         ["template.vm", ["velocity", "velocity", "native"]],
         ["query.xq", ["xquery", "xquery", "native"]],
         ["boot.z80", ["z80", "z80", "native"]],
-        ["shader.frag", ["glsl", "wgsl", "alias"]],      ]);
+        ["main.tf", ["hcl", "hcl", "native"]],
+        ["variables.tfvars", ["hcl", "hcl", "native"]],
+        ["schema.proto", ["protobuf", "protobuf", "native"]],
+        ["shader.frag", ["glsl", "wgsl", "alias"]],
+      ]);
 
-      for (const [fileName, [expectedLanguage, expectedGrammar, expectedSupport]] of expectedFiles) {
+      for (const [
+        fileName,
+        [expectedLanguage, expectedGrammar, expectedSupport, expectedVariant = "default"],
+      ] of expectedFiles) {
         const detectedLanguage = detectLanguageId(fileName);
         assert.equal(detectedLanguage, expectedLanguage, `${fileName} language detection`);
 
         const fallback = createCodeMirrorLanguageFallback(detectedLanguage, fileName);
         assert.equal(fallback.languageId, expectedLanguage, `${fileName} language id`);
         assert.equal(fallback.grammarId, expectedGrammar, `${fileName} grammar id`);
+        assert.equal(
+          fallback.key,
+          `${expectedGrammar}:${expectedVariant}`,
+          `${fileName} grammar cache key`,
+        );
         assert.equal(fallback.status, "loading");
         assert.equal(fallback.supportLevel, expectedSupport, `${fileName} support level`);
         assert.equal(
@@ -2475,9 +2524,19 @@ const scenarios = [
           `${fileName} grammar source`,
         );
         assert.deepEqual(fallback.extension, []);
+        assert.equal(
+          fallback.statusLabel.includes(fallback.label),
+          true,
+          `${fileName} status label names the language`,
+        );
 
         const loaded = await loadCodeMirrorLanguageExtension(detectedLanguage, fileName);
         assert.equal(loaded.grammarId, expectedGrammar, `${fileName} loaded grammar`);
+        assert.equal(
+          loaded.key,
+          `${expectedGrammar}:${expectedVariant}`,
+          `${fileName} loaded cache key`,
+        );
         assert.equal(loaded.status, "ready");
         assert.equal(loaded.loaded, true);
         assert.equal(Array.isArray(loaded.extension), true);
@@ -2493,7 +2552,12 @@ const scenarios = [
       assert.equal(mdxDescriptor.supportLevel, "alias");
       assert.equal(mdxDescriptor.grammarSource, "alias");
       assert.equal(mdxDescriptor.fallbackReason, "grammar-alias");
+      assert.equal(mdxDescriptor.statusLabel, "MDX via Markdown");
       assert.match(mdxDescriptor.statusDescription, /Markdown-Grammatik/);
+
+      const jsDescriptor = getCodeMirrorLanguageSupportDescriptor("javascript", "Client.mjsx");
+      assert.equal(jsDescriptor.key, "javascript:jsx");
+      assert.equal(jsDescriptor.statusLabel, "JavaScript-Highlighting");
 
       const unknownDescriptor = getCodeMirrorLanguageSupportDescriptor(
         "unknown-language",
@@ -2502,6 +2566,7 @@ const scenarios = [
       assert.equal(unknownDescriptor.status, "fallback");
       assert.equal(unknownDescriptor.supportLevel, "plaintext");
       assert.equal(unknownDescriptor.fallbackReason, "missing-loader");
+      assert.equal(unknownDescriptor.statusLabel, "Plain Text fallback");
       assert.match(unknownDescriptor.statusDescription, /Plain Text/);
 
       for (const languageId of listLanguageIds()) {
@@ -2585,7 +2650,15 @@ const scenarios = [
       assert.equal(readyStatus.language.label, "TypeScript");
       assert.equal(readyStatus.lsp.state, "running");
       assert.equal(readyStatus.lsp.text, "LSP ready");
+      assert.equal(readyStatus.engine.label, "CodeMirror 6");
       assert.equal(readyStatus.diagnostics.total, 3);
+
+      const textFallbackStatus = createEditorStatusModel({
+        languageId: "markdown",
+        editorFallbackReason: "CodeMirror crashed while loading Markdown.",
+      });
+      assert.equal(textFallbackStatus.engine.label, "Textarea fallback");
+      assert.match(textFallbackStatus.engine.title, /Markdown/);
 
       const idleStatus = createEditorStatusModel({
         languageId: "python",

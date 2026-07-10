@@ -174,11 +174,11 @@ const STATUS_DOT_COLORS = {
 };
 
 const toolbarButtonClass =
-  "flex h-6 w-6 shrink-0 items-center justify-center rounded-md border text-slate-500 transition-colors hover:text-slate-200 disabled:cursor-not-allowed disabled:opacity-35";
+  "grid h-6 w-6 shrink-0 place-items-center rounded-sm border border-transparent text-slate-600 transition-colors hover:bg-white/[0.045] hover:text-slate-200 disabled:cursor-not-allowed disabled:opacity-35";
 
 const toolbarButtonStyle = {
-  borderColor: "rgba(148,163,184,0.055)",
-  background: "rgba(2,6,23,0.16)",
+  borderColor: "transparent",
+  background: "transparent",
 };
 
 function getResponse(cmd) {
@@ -1050,96 +1050,6 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
         </div>
 
         <div className="flex shrink-0 items-center gap-1 px-2">
-          <div className="hidden items-center gap-0.5 rounded-md border border-white/[0.032] bg-white/[0.006] p-0.5 sm:flex">
-            <button
-              type="button"
-              onClick={handleCopy}
-              title="Output kopieren"
-              className={`${toolbarButtonClass} hover:bg-white/[0.055] hover:text-slate-200`}
-              style={toolbarButtonStyle}
-            >
-              <AnimatePresence mode="wait">
-                {copied ? (
-                  <motion.span
-                    key="check"
-                    initial={{ scale: 0.6 }}
-                    animate={{ scale: 1 }}
-                    exit={{ scale: 0.6 }}
-                  >
-                    <Check size={13} className="text-sky-300" />
-                  </motion.span>
-                ) : (
-                  <motion.span key="copy" initial={{ scale: 1 }} animate={{ scale: 1 }}>
-                    <Copy size={13} />
-                  </motion.span>
-                )}
-              </AnimatePresence>
-            </button>
-
-            <button
-              type="button"
-              onClick={handleClear}
-              title="Output loeschen"
-              className={`${toolbarButtonClass} hover:bg-white/[0.055] hover:text-slate-200`}
-              style={toolbarButtonStyle}
-            >
-              <Trash2 size={13} />
-            </button>
-
-            <button
-              type="button"
-              onClick={handleStopRunning}
-              disabled={!isRunning}
-              title="Laufenden Prozess beenden"
-              className={`${toolbarButtonClass} hover:bg-rose-400/[0.08]`}
-              style={{
-                ...toolbarButtonStyle,
-                borderColor: isRunning
-                  ? "rgba(248,113,113,0.22)"
-                  : toolbarButtonStyle.borderColor,
-                background: isRunning
-                  ? "rgba(248,113,113,0.07)"
-                  : toolbarButtonStyle.background,
-                color: isRunning ? "#fca5a5" : "#64748b",
-              }}
-            >
-              <Square size={11} fill="currentColor" />
-            </button>
-
-            <button
-              type="button"
-              onClick={handleOpenSystemTerminal}
-              disabled={terminalLaunchBusy}
-              title="System Terminal oeffnen"
-              className={`${toolbarButtonClass} hover:bg-white/[0.055] hover:text-slate-200`}
-              style={toolbarButtonStyle}
-            >
-              <ExternalLink size={13} />
-            </button>
-
-            <button
-              type="button"
-              onClick={handleToggleAutoScroll}
-              title={autoScrollEnabled ? "Autoscroll aktiv" : "Autoscroll fortsetzen"}
-              className={`${toolbarButtonClass} hover:bg-white/[0.055] hover:text-slate-200`}
-              style={{
-                ...toolbarButtonStyle,
-                color: autoScrollEnabled ? "#94a3b8" : "#facc15",
-              }}
-            >
-              <ArrowDown size={13} />
-            </button>
-
-            <button
-              type="button"
-              onClick={onToggle}
-              title="Schliessen"
-              className={`${toolbarButtonClass} hover:bg-white/[0.055] hover:text-slate-200`}
-              style={toolbarButtonStyle}
-            >
-              <ChevronDown size={13} />
-            </button>
-          </div>
           <button
             type="button"
             onClick={handleStopRunning}
@@ -1163,7 +1073,7 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
             type="button"
             onClick={onToggle}
             title="Schliessen"
-            className={`${toolbarButtonClass} sm:hidden`}
+            className={toolbarButtonClass}
             style={toolbarButtonStyle}
           >
             <ChevronDown size={13} />
@@ -1171,16 +1081,118 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
         </div>
       </div>
 
+      <div
+        className="flex min-h-[25px] shrink-0 items-center gap-2 border-b px-3 text-[10px]"
+        style={{
+          borderColor: "rgba(148,163,184,0.032)",
+          background: "rgba(0,0,0,0.13)",
+          color: "#64748b",
+        }}
+      >
+        <span
+          className="h-1.5 w-1.5 shrink-0 rounded-full"
+          style={{ background: STATUS_DOT_COLORS[statusMeta.tone] || "#64748b" }}
+        />
+        <span className="shrink-0 text-slate-500">
+          {statusMeta.label}{elapsedLabel ? ` ${elapsedLabel}` : ""}
+        </span>
+        <span className="hidden text-slate-700 sm:inline">|</span>
+        <span
+          className="min-w-0 flex-1 truncate"
+          title={activeCwd || bridgeInfo.label}
+        >
+          {formatTerminalPath(activeCwd) || bridgeInfo.label}
+        </span>
+        <div
+          className="ml-auto hidden shrink-0 items-center gap-0.5 sm:flex"
+          role="toolbar"
+          aria-label="Terminal actions"
+        >
+          <button
+            type="button"
+            onClick={handleCopy}
+            title="Output kopieren"
+            className={toolbarButtonClass}
+            style={toolbarButtonStyle}
+          >
+            <AnimatePresence mode="wait">
+              {copied ? (
+                <motion.span
+                  key="check"
+                  initial={{ scale: 0.6 }}
+                  animate={{ scale: 1 }}
+                  exit={{ scale: 0.6 }}
+                >
+                  <Check size={13} className="text-sky-300" />
+                </motion.span>
+              ) : (
+                <motion.span key="copy" initial={{ scale: 1 }} animate={{ scale: 1 }}>
+                  <Copy size={13} />
+                </motion.span>
+              )}
+            </AnimatePresence>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleClear}
+            title="Output loeschen"
+            className={toolbarButtonClass}
+            style={toolbarButtonStyle}
+          >
+            <Trash2 size={13} />
+          </button>
+
+          <button
+            type="button"
+            onClick={handleStopRunning}
+            disabled={!isRunning}
+            title="Laufenden Prozess beenden"
+            className={`${toolbarButtonClass} hover:bg-rose-400/[0.08]`}
+            style={{
+              ...toolbarButtonStyle,
+              color: isRunning ? "#fca5a5" : "#64748b",
+            }}
+          >
+            <Square size={11} fill="currentColor" />
+          </button>
+
+          <button
+            type="button"
+            onClick={handleOpenSystemTerminal}
+            disabled={terminalLaunchBusy}
+            title="System Terminal oeffnen"
+            className={toolbarButtonClass}
+            style={toolbarButtonStyle}
+          >
+            <ExternalLink size={13} />
+          </button>
+
+          <button
+            type="button"
+            onClick={handleToggleAutoScroll}
+            title={autoScrollEnabled ? "Autoscroll aktiv" : "Autoscroll fortsetzen"}
+            className={toolbarButtonClass}
+            style={{
+              ...toolbarButtonStyle,
+              color: autoScrollEnabled ? "#94a3b8" : "#facc15",
+            }}
+          >
+            <ArrowDown size={13} />
+          </button>
+        </div>
+      </div>
+
 
       <div
         ref={scrollRef}
-        className="relative flex-1 overflow-y-auto px-3 py-2"
+        className="relative flex-1 overflow-y-auto px-3 py-2.5"
         onClick={() => inputRef.current?.focus()}
         onScroll={handleOutputScroll}
         style={{
           cursor: "text",
           background:
-            "linear-gradient(180deg, rgba(56,189,248,0.012), transparent 42px), #020407",
+            "linear-gradient(180deg, rgba(56,189,248,0.008), transparent 38px), #010307",
         }}
       >
         {currentHistory.length === 0 ? (
@@ -1201,7 +1213,7 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="mt-2 inline-flex min-w-0 items-center gap-2 rounded-md border border-sky-400/15 bg-sky-400/[0.055] px-2.5 py-1.5"
+              className="mt-2 flex min-w-0 items-center gap-2 pl-[1.4rem]"
               style={{ fontSize: "12px", color: "#64748b" }}
             >
               <span className="flex shrink-0 items-center gap-1">
@@ -1228,10 +1240,10 @@ export default function Terminal({ isOpen, onToggle, activeFile, workspacePath }
       </div>
 
       <div
-        className="flex min-h-[34px] shrink-0 items-center gap-2 px-3 py-1"
+        className="flex min-h-[33px] shrink-0 items-center gap-2 px-3 py-1"
         style={{
           borderTop: "1px solid rgba(148,163,184,0.038)",
-          background: "rgba(0,0,0,0.18)",
+          background: "rgba(0,0,0,0.24)",
         }}
       >
         <span

@@ -52,12 +52,54 @@ export const VISUAL_SMOKE_SURFACES = Object.freeze([
   "github-projects",
 ]);
 
-export function parseVisualSmokeFilter(value, allowed, label) {
-  const requested = String(value || "")
-    .split(",")
+const ALL_VIEWPORT_IDS = VISUAL_SMOKE_VIEWPORTS.map((viewport) => viewport.id);
+
+export const VISUAL_SMOKE_PRESETS = Object.freeze({
+  full: Object.freeze({
+    label: "Full matrix",
+    viewportIds: Object.freeze([...ALL_VIEWPORT_IDS]),
+    surfaceIds: Object.freeze([...VISUAL_SMOKE_SURFACES]),
+  }),
+  focused: Object.freeze({
+    label: "Focused QA",
+    viewportIds: Object.freeze(["desktop", "short-wide"]),
+    surfaceIds: Object.freeze(["launchpad", "editor-rust", "editor-glsl"]),
+  }),
+});
+
+export function normalizeVisualSmokePreset(value) {
+  const presetId = String(value || "full").trim().toLowerCase() || "full";
+  if (!VISUAL_SMOKE_PRESETS[presetId]) {
+    throw new Error(
+      `Unknown visual smoke preset: ${presetId}. Expected one of ${Object.keys(
+        VISUAL_SMOKE_PRESETS,
+      ).join(", ")}`,
+    );
+  }
+  return presetId;
+}
+
+function splitFilterTokens(value) {
+  return String(value || "")
+    .split(/[,\s]+/)
     .map((entry) => entry.trim())
     .filter(Boolean);
-  if (requested.length === 0) return allowed;
+}
+
+function uniqueInOrder(values) {
+  const seen = new Set();
+  return values.filter((value) => {
+    if (seen.has(value)) return false;
+    seen.add(value);
+    return true;
+  });
+}
+
+export function parseVisualSmokeFilter(value, defaults, label, allowed = defaults) {
+  const requested = String(value || "")
+    ? uniqueInOrder(splitFilterTokens(value))
+    : [];
+  if (requested.length === 0) return [...defaults];
 
   const allowedSet = new Set(allowed);
   const unknown = requested.filter((entry) => !allowedSet.has(entry));
@@ -67,20 +109,24 @@ export function parseVisualSmokeFilter(value, allowed, label) {
   return requested;
 }
 
-export function createVisualSmokeScenarios({ viewportIds, surfaceIds } = {}) {
+export function createVisualSmokePlan({ preset, viewportIds, surfaceIds } = {}) {
+  const presetId = normalizeVisualSmokePreset(preset);
+  const presetConfig = VISUAL_SMOKE_PRESETS[presetId];
   const viewports = parseVisualSmokeFilter(
     viewportIds,
-    VISUAL_SMOKE_VIEWPORTS.map((viewport) => viewport.id),
+    presetConfig.viewportIds,
     "viewport",
+    ALL_VIEWPORT_IDS,
   ).map((id) => VISUAL_SMOKE_VIEWPORTS.find((viewport) => viewport.id === id));
 
   const surfaces = parseVisualSmokeFilter(
     surfaceIds,
-    VISUAL_SMOKE_SURFACES,
+    presetConfig.surfaceIds,
     "surface",
+    VISUAL_SMOKE_SURFACES,
   );
 
-  return viewports.flatMap((viewport) =>
+  const scenarios = viewports.flatMap((viewport) =>
     surfaces.map((surfaceId) => ({
       id: `${surfaceId}@${viewport.id}`,
       surfaceId,
@@ -89,4 +135,21 @@ export function createVisualSmokeScenarios({ viewportIds, surfaceIds } = {}) {
       height: viewport.height,
     })),
   );
+
+  return {
+    presetId,
+    presetLabel: presetConfig.label,
+    viewportIds: viewports.map((viewport) => viewport.id),
+    surfaceIds: surfaces,
+    viewports,
+    surfaces,
+    scenarios,
+    isFullMatrix:
+      viewports.length === VISUAL_SMOKE_VIEWPORTS.length &&
+      surfaces.length === VISUAL_SMOKE_SURFACES.length,
+  };
+}
+
+export function createVisualSmokeScenarios(options = {}) {
+  return createVisualSmokePlan(options).scenarios;
 }

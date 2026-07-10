@@ -12,6 +12,11 @@ const baseUrl = String(config.baseUrl || "").replace(/\/$/, "");
 const outputDir = config.outputDir || path.join(os.tmpdir(), "nexus-code-visual-smoke");
 const scenarios = Array.isArray(config.scenarios) ? config.scenarios : [];
 const timeoutMs = Number(config.timeoutMs || 18_000);
+const runMeta =
+  config.runMeta && typeof config.runMeta === "object" && !Array.isArray(config.runMeta)
+    ? config.runMeta
+    : {};
+const runStartedAt = Date.now();
 
 if (!baseUrl) {
   throw new Error("NEXUS_CODE_VISUAL_SMOKE_CONFIG.baseUrl is required.");
@@ -59,6 +64,47 @@ function toSerializableRect(rect) {
     bottom: Math.round(rect.bottom * 100) / 100,
     left: Math.round(rect.left * 100) / 100,
   };
+}
+
+function formatList(values, fallback = "none") {
+  return Array.isArray(values) && values.length > 0 ? values.join(", ") : fallback;
+}
+
+function createSummaryMarkdown(summary) {
+  const selection = summary.selection || {};
+  const failedScenarioIds = summary.failedScenarioIds || [];
+  const lines = [
+    "# Nexus Code Visual Smoke Summary",
+    "",
+    `- Generated: ${summary.generatedAt}`,
+    `- Mode: ${selection.preset || "custom"}${selection.fullMatrix ? " (full matrix)" : ""}`,
+    `- Viewports: ${formatList(selection.viewportIds)}`,
+    `- Surfaces: ${formatList(selection.surfaceIds)}`,
+    `- Scenarios: ${summary.total}`,
+    `- Passed: ${summary.passed}`,
+    `- Failed: ${summary.failed}`,
+    `- Duration: ${summary.durationMs}ms`,
+    `- Output: ${summary.outputDir}`,
+    "",
+    "## Timeouts",
+    "",
+    `- Per scenario: ${selection.scenarioTimeoutMs || "unknown"}ms`,
+    `- Runner process: ${selection.processTimeoutMs || "unknown"}ms`,
+    "",
+    "## Environment",
+    "",
+    `- Platform: ${summary.environment.platform} ${summary.environment.arch}`,
+    `- Electron: ${summary.environment.electron}`,
+    `- Chrome: ${summary.environment.chrome}`,
+    `- Node: ${summary.environment.node}`,
+  ];
+
+  if (failedScenarioIds.length > 0) {
+    lines.push("", "## Failed Scenarios", "");
+    lines.push(...failedScenarioIds.map((id) => `- ${id}`));
+  }
+
+  return `${lines.join("\n")}\n`;
 }
 
 async function waitForVisualReady(webContents, scenario, getRendererFailures = () => []) {
@@ -387,6 +433,7 @@ function validateResult(scenario, metrics, imageStats) {
 }
 
 async function captureScenario(window, scenario, getRendererFailures) {
+  const startedAt = Date.now();
   const url = getScenarioUrl(scenario);
   await window.setContentSize(scenario.width, scenario.height, false);
   await window.loadURL(url);
@@ -408,6 +455,7 @@ async function captureScenario(window, scenario, getRendererFailures) {
     screenshotPath,
     metrics,
     imageStats,
+    durationMs: Date.now() - startedAt,
   };
 }
 
@@ -488,34 +536,53 @@ async function run() {
     }
   }
 
-  const summaryPath = path.join(outputDir, "summary.json");
-  await fs.writeFile(
-    summaryPath,
-    JSON.stringify(
-      {
-        generatedAt: new Date().toISOString(),
-        baseUrl,
-        outputDir,
-        total: results.length,
-        passed: results.filter((result) => result.ok).length,
-        failed: results.filter((result) => !result.ok).length,
-        results,
-      },
-      null,
-      2,
-    ),
-  );
-
   const failures = results.filter((result) => !result.ok);
+  const summaryPath = path.join(outputDir, "summary.json");
+  const markdownSummaryPath = path.join(outputDir, "summary.md");
+  const summary = {
+    generatedAt: new Date().toISOString(),
+    durationMs: Date.now() - runStartedAt,
+    baseUrl,
+    outputDir,
+    total: results.length,
+    passed: results.length - failures.length,
+    failed: failures.length,
+    failedScenarioIds: failures.map((result) => result.scenario.id),
+    selection: {
+      preset: runMeta.preset || "custom",
+      presetLabel: runMeta.presetLabel || "",
+      fullMatrix: Boolean(runMeta.fullMatrix),
+      viewportIds: Array.isArray(runMeta.viewportIds) ? runMeta.viewportIds : [],
+      surfaceIds: Array.isArray(runMeta.surfaceIds) ? runMeta.surfaceIds : [],
+      scenarioCount: runMeta.scenarioCount || results.length,
+      scenarioTimeoutMs: runMeta.scenarioTimeoutMs || timeoutMs,
+      processTimeoutMs: runMeta.processTimeoutMs || null,
+    },
+    environment: {
+      platform: process.platform,
+      arch: process.arch,
+      electron: process.versions.electron || "unknown",
+      chrome: process.versions.chrome || "unknown",
+      node: process.versions.node,
+    },
+    results,
+  };
+  await fs.writeFile(summaryPath, JSON.stringify(summary, null, 2));
+  await fs.writeFile(markdownSummaryPath, createSummaryMarkdown(summary));
+
   window.destroy();
 
   if (failures.length > 0) {
-    console.error(`[electron-visual-smoke] ${failures.length}/${results.length} scenarios failed. Summary: ${summaryPath}`);
+    console.error(
+      `[electron-visual-smoke] ${failures.length}/${results.length} scenarios failed. Summary: ${summaryPath}; ${markdownSummaryPath}`,
+    );
     process.exitCode = 1;
     return;
   }
 
-  console.log(`[electron-visual-smoke] ${results.length} scenarios captured across ${new Set(scenarios.map((scenario) => scenario.viewportId)).size} viewports. Summary: ${summaryPath}`);
+  console.log(
+    `[electron-visual-smoke] ${results.length} scenarios captured across ${new Set(scenarios.map((scenario) => scenario.viewportId)).size} viewports. Summary: ${summaryPath}; ${markdownSummaryPath}`,
+  );
 }
 
 app.whenReady().then(run).catch((error) => {
