@@ -30,10 +30,13 @@ const actionButtonClass =
   "grid h-6 w-6 shrink-0 place-items-center rounded-md border border-transparent bg-transparent text-slate-500 transition hover:bg-white/[0.04] hover:text-slate-200 focus-visible:border-cyan-300/28 focus-visible:bg-white/[0.05] focus-visible:text-white focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-35 [&>svg]:h-3.5 [&>svg]:w-3.5";
 
 const rowActionClass =
-  "grid h-5 w-5 shrink-0 place-items-center rounded text-slate-500 transition hover:bg-white/[0.055] hover:text-slate-100 disabled:cursor-not-allowed disabled:opacity-40 [&>svg]:h-3 [&>svg]:w-3";
+  "grid h-5 w-5 shrink-0 place-items-center rounded-sm text-slate-500 transition hover:bg-white/[0.052] hover:text-slate-100 disabled:cursor-not-allowed disabled:opacity-40 [&>svg]:h-3 [&>svg]:w-3";
 
 const folderDisclosureClass =
-  "text-slate-500 transition-colors group-hover:text-slate-200 group-focus-visible:text-slate-100";
+  "text-slate-400 transition-colors group-hover:text-sky-200 group-focus-visible:text-sky-100";
+
+const folderDisclosureShellClass =
+  "grid h-4 w-4 place-items-center rounded-sm border border-white/[0.045] bg-white/[0.018] shadow-[inset_0_1px_0_rgba(255,255,255,0.025)]";
 
 const TREE_ROW_HEIGHT = Math.min(FILE_TREE_LIMITS.rowHeight || 32, 26);
 const TREE_INDENT_STEP = 13;
@@ -62,6 +65,31 @@ function getFileNameParts(name = "") {
 
 function getItemCountLabel(count) {
   return count === 1 ? "1 file" : `${count} files`;
+}
+
+function getTreeRowSurface({ isActive, isMatch }) {
+  if (isActive) {
+    return {
+      background: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.07)",
+      borderColor: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.13)",
+      boxShadow:
+        "inset 2px 0 rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.36)",
+    };
+  }
+
+  if (isMatch) {
+    return {
+      background: "rgba(56, 189, 248, 0.038)",
+      borderColor: "rgba(56, 189, 248, 0.08)",
+      boxShadow: "inset 2px 0 rgba(56, 189, 248, 0.24)",
+    };
+  }
+
+  return {
+    background: undefined,
+    borderColor: "transparent",
+    boxShadow: undefined,
+  };
 }
 
 function WorkspaceLabel({ workspacePath }) {
@@ -300,7 +328,7 @@ function FileBadge({ node }) {
   const meta = getFileMeta(node.name);
   return (
     <span
-      className="ml-1 hidden shrink-0 text-[9px] font-medium leading-none opacity-55 transition-opacity group-hover:inline-flex group-hover:opacity-90 group-focus-within:inline-flex"
+      className="ml-1 inline-flex w-[2.45rem] shrink-0 justify-end truncate text-[9px] font-medium leading-none opacity-0 transition-opacity group-hover:opacity-80 group-focus-within:opacity-80"
       style={{ color: meta.color }}
       title={`${meta.label} / ${getFileGroupLabel(meta.group)}`}
     >
@@ -351,7 +379,8 @@ function TreeRow({
   const rowTitle = node.fsPath || node.path || node.name;
   const canMutate = !treeLocked && !isBusy;
   const actionsPinned = isDeleting || isBusy;
-  const actionsWidth = isFolder ? "4.45rem" : "1.5rem";
+  const actionsWidth = isFolder ? "4.55rem" : "1.65rem";
+  const rowSurface = getTreeRowSurface({ isActive, isMatch });
 
   const handleOpen = () => {
     if (isFolder) {
@@ -390,23 +419,16 @@ function TreeRow({
             if (canMutate) onStartRename(node.id);
           }
         }}
-        className={`nx-code-file-tree-row group relative flex min-w-0 select-none items-center gap-1.5 overflow-hidden rounded px-1.5 text-[11px] outline-none transition-colors hover:bg-white/[0.032] focus-visible:bg-white/[0.052] ${
+        className={`nx-code-file-tree-row group relative flex min-w-0 select-none items-center gap-1.5 overflow-hidden rounded-sm border px-1.5 text-[11px] outline-none transition-colors hover:border-white/[0.045] hover:bg-white/[0.026] focus-visible:border-cyan-300/15 focus-visible:bg-white/[0.045] ${
           treeLocked && isFolder ? "cursor-wait" : "cursor-pointer"
         }`}
         style={{
           height: TREE_ROW_HEIGHT,
           paddingLeft: `${indent}px`,
           paddingRight: "0.25rem",
-          background: isActive
-            ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.075)"
-            : isMatch
-              ? "rgba(56, 189, 248, 0.042)"
-            : undefined,
-          boxShadow: isActive
-            ? "inset 2px 0 rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.34)"
-            : isMatch
-              ? "inset 2px 0 rgba(56, 189, 248, 0.28)"
-              : undefined,
+          background: rowSurface.background,
+          borderColor: rowSurface.borderColor,
+          boxShadow: rowSurface.boxShadow,
           contain: "layout paint style",
         }}
       >
@@ -415,8 +437,8 @@ function TreeRow({
             <Loader2 size={12} className="animate-spin text-cyan-200" />
           ) : isFolder ? (
             <span
-              className={`grid h-4 w-4 place-items-center rounded ${
-                hasChildren ? "" : "opacity-45"
+              className={`${folderDisclosureShellClass} ${
+                hasChildren ? "opacity-95" : "opacity-60"
               }`}
               data-file-tree-disclosure=""
               data-file-tree-disclosure-state={isOpen ? "open" : "closed"}
@@ -464,7 +486,7 @@ function TreeRow({
               <FileNameLabel node={node} isActive={isActive} />
             )}
             {isFolder && childCount > 0 && (
-              <span className="shrink-0 text-[9px] font-medium tabular-nums text-slate-600 group-hover:text-slate-500">
+              <span className="inline-flex w-5 shrink-0 justify-end text-[9px] font-medium tabular-nums text-slate-600 group-hover:text-slate-500">
                 {childCount}
               </span>
             )}

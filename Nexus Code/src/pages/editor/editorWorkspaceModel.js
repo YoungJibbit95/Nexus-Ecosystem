@@ -78,3 +78,21 @@ export function getProblemSummary(problems = []) {
     { errors: 0, warnings: 0, infos: 0 },
   );
 }
+
+export function getFileDescendantIds(targetId, files = []) {
+  if (!targetId) return [];
+  const ids = [targetId];
+  const queue = [targetId];
+  const list = Array.isArray(files) ? files : [];
+
+  while (queue.length > 0) {
+    const parentId = queue.shift();
+    for (const file of list) {
+      if (!file || file.parentId !== parentId) continue;
+      ids.push(file.id);
+      queue.push(file.id);
+    }
+  }
+
+  return ids;
+}

@@ -8,7 +8,7 @@ import { createServer } from "vite";
 import {
   VISUAL_SMOKE_SURFACES,
   VISUAL_SMOKE_VIEWPORTS,
-  createVisualSmokeScenarios,
+  createVisualSmokePlan,
 } from "../src/testing/visualSmokeScenarios.js";
 
 process.env.NODE_ENV = process.env.NODE_ENV || "test";
@@ -22,15 +22,26 @@ const electronMainPath = path.join(scriptDir, "electron-visual-main.cjs");
 const visualEntryPath = path.join(projectRoot, "src", "testing", "visualSmokeEntry.jsx");
 const harnessPath = path.join(projectRoot, "src", "testing", "uiSmokeHarness.jsx");
 const host = process.env.NEXUS_CODE_VISUAL_SMOKE_HOST || "127.0.0.1";
-const requestedPort = Number(process.env.NEXUS_CODE_VISUAL_SMOKE_PORT || 0);
 const outputDir =
   process.env.NEXUS_CODE_VISUAL_SMOKE_OUTPUT_DIR ||
   path.join(os.tmpdir(), "nexus-code-visual-smoke");
 
-const scenarios = createVisualSmokeScenarios({
-  viewportIds: process.env.NEXUS_CODE_VISUAL_SMOKE_VIEWPORTS,
-  surfaceIds: process.env.NEXUS_CODE_VISUAL_SMOKE_SURFACES,
-});
+function parseIntegerEnv(name, fallback, { min = 0 } = {}) {
+  const rawValue = process.env[name];
+  if (rawValue === undefined || rawValue === "") return fallback;
+
+  const value = Number(rawValue);
+  if (!Number.isInteger(value) || value < min) {
+    throw new Error(`${name} must be an integer >= ${min}; received "${rawValue}".`);
+  }
+  return value;
+}
+
+let requestedPort = 0;
+let visualSmokePlan;
+let scenarios = [];
+let scenarioTimeoutMs = 60_000;
+let processTimeoutMs = 180_000;
 
 const GPU_SANDBOX_FAILURE_PATTERNS = Object.freeze([
   /GPU process isn't usable/i,
@@ -154,7 +165,17 @@ function runElectron(baseUrl) {
       baseUrl,
       outputDir,
       scenarios,
-      timeoutMs: Number(process.env.NEXUS_CODE_VISUAL_SMOKE_TIMEOUT_MS || 60_000),
+      timeoutMs: scenarioTimeoutMs,
+      runMeta: {
+        preset: visualSmokePlan.presetId,
+        presetLabel: visualSmokePlan.presetLabel,
+        fullMatrix: visualSmokePlan.isFullMatrix,
+        viewportIds: visualSmokePlan.viewportIds,
+        surfaceIds: visualSmokePlan.surfaceIds,
+        scenarioCount: scenarios.length,
+        scenarioTimeoutMs,
+        processTimeoutMs,
+      },
     });
     const electron = spawn(process.execPath, [electronCliPath, electronMainPath], {
       cwd: projectRoot,
@@ -186,7 +207,7 @@ function runElectron(baseUrl) {
             : "Electron visual smoke timed out.",
         ),
       );
-    }, Number(process.env.NEXUS_CODE_VISUAL_SMOKE_PROCESS_TIMEOUT_MS || 180_000));
+    }, processTimeoutMs);
 
     electron.once("error", (error) => {
       clearTimeout(timeout);
@@ -213,6 +234,24 @@ function runElectron(baseUrl) {
 let server;
 
 try {
+  requestedPort = parseIntegerEnv("NEXUS_CODE_VISUAL_SMOKE_PORT", 0);
+  visualSmokePlan = createVisualSmokePlan({
+    preset: process.env.NEXUS_CODE_VISUAL_SMOKE_PRESET,
+    viewportIds: process.env.NEXUS_CODE_VISUAL_SMOKE_VIEWPORTS,
+    surfaceIds: process.env.NEXUS_CODE_VISUAL_SMOKE_SURFACES,
+  });
+  scenarios = visualSmokePlan.scenarios;
+  scenarioTimeoutMs = parseIntegerEnv(
+    "NEXUS_CODE_VISUAL_SMOKE_TIMEOUT_MS",
+    60_000,
+    { min: 1_000 },
+  );
+  processTimeoutMs = parseIntegerEnv(
+    "NEXUS_CODE_VISUAL_SMOKE_PROCESS_TIMEOUT_MS",
+    Math.max(180_000, 30_000 + scenarios.length * 12_000),
+    { min: 5_000 },
+  );
+
   await assertTestBoundary();
   assertScenarioIntegrity();
 
@@ -262,7 +301,16 @@ try {
   const baseUrl = `http://${host}:${port}`;
 
   console.log(
-    `[electron-visual-smoke] serving test-only harness at ${baseUrl}; ${scenarios.length} scenarios; output ${outputDir}`,
+    [
+      `[electron-visual-smoke] serving test-only harness at ${baseUrl}`,
+      `${visualSmokePlan.presetId} preset`,
+      `${scenarios.length} scenarios`,
+      `${visualSmokePlan.viewportIds.length} viewport(s)`,
+      `${visualSmokePlan.surfaceIds.length} surface(s)`,
+      `timeout ${scenarioTimeoutMs}ms/scenario`,
+      `process timeout ${processTimeoutMs}ms`,
+      `output ${outputDir}`,
+    ].join("; "),
   );
   await runElectron(baseUrl);
 } catch (error) {

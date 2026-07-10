@@ -15,6 +15,19 @@ function lowerResourceName(fileName) {
     .toLowerCase();
 }
 
+function hasResourceExtension(fileName, extensions) {
+  const lowerName = lowerResourceName(fileName);
+  return extensions.some((extension) => lowerName.endsWith(extension));
+}
+
+function isJavaScriptJsxFile(fileName) {
+  return hasResourceExtension(fileName, [".jsx", ".mjsx", ".cjsx"]);
+}
+
+function isTypeScriptJsxFile(fileName) {
+  return hasResourceExtension(fileName, [".tsx"]);
+}
+
 function streamGrammar(parser) {
   return parser ? StreamLanguage.define(parser) : EMPTY_EXTENSION;
 }
@@ -52,13 +65,13 @@ function createMarkdownCodeLanguageDescriptions() {
 const LANGUAGE_LOADERS = Object.freeze({
   [LANGUAGE_IDS.JAVASCRIPT]: async ({ fileName }) => {
     const { javascript } = await import("@codemirror/lang-javascript");
-    return javascript({ jsx: lowerResourceName(fileName).endsWith(".jsx") });
+    return javascript({ jsx: isJavaScriptJsxFile(fileName) });
   },
   [LANGUAGE_IDS.TYPESCRIPT]: async ({ fileName }) => {
     const { javascript } = await import("@codemirror/lang-javascript");
     return javascript({
       typescript: true,
-      jsx: lowerResourceName(fileName).endsWith(".tsx"),
+      jsx: isTypeScriptJsxFile(fileName),
     });
   },
   [LANGUAGE_IDS.JSON]: async () => {
@@ -109,9 +122,9 @@ const LANGUAGE_LOADERS = Object.freeze({
     const { csharp } = await import("@codemirror/legacy-modes/mode/clike");
     return streamGrammar(csharp);
   },
-  [LANGUAGE_IDS.OBJECTIVE_C]: async () => {
-    const { objectiveC } = await import("@codemirror/legacy-modes/mode/clike");
-    return streamGrammar(objectiveC);
+  [LANGUAGE_IDS.OBJECTIVE_C]: async ({ fileName }) => {
+    const { objectiveC, objectiveCpp } = await import("@codemirror/legacy-modes/mode/clike");
+    return streamGrammar(lowerResourceName(fileName).endsWith(".mm") ? objectiveCpp : objectiveC);
   },
   [LANGUAGE_IDS.KOTLIN]: async () => {
     const { kotlin } = await import("@codemirror/legacy-modes/mode/clike");
@@ -317,7 +330,8 @@ const LANGUAGE_LOADERS = Object.freeze({
   [LANGUAGE_IDS.Z80]: async () => {
     const { z80 } = await import("@codemirror/legacy-modes/mode/z80");
     return streamGrammar(z80);
-  },  [LANGUAGE_IDS.GRAPHQL]: async () => {
+  },
+  [LANGUAGE_IDS.GRAPHQL]: async () => {
     const { sparql } = await import("@codemirror/legacy-modes/mode/sparql");
     return streamGrammar(sparql);
   },
@@ -494,6 +508,22 @@ function getGrammarSupportKind(grammarId) {
   return "plaintext";
 }
 
+function getGrammarVariant(grammarId, fileName) {
+  const lowerName = lowerResourceName(fileName);
+  if (grammarId === LANGUAGE_IDS.JAVASCRIPT && isJavaScriptJsxFile(fileName)) return "jsx";
+  if (grammarId === LANGUAGE_IDS.TYPESCRIPT && isTypeScriptJsxFile(fileName)) return "tsx";
+  if (grammarId === LANGUAGE_IDS.VBSCRIPT && lowerName.endsWith(".asp")) return "asp";
+  if (grammarId === LANGUAGE_IDS.HAXE && lowerName.endsWith(".hxml")) return "hxml";
+  if (grammarId === LANGUAGE_IDS.RDF) {
+    if (lowerName.endsWith(".ttl") || lowerName.endsWith(".trig")) return "turtle";
+    if (lowerName.endsWith(".nt") || lowerName.endsWith(".nq")) return "ntriples";
+  }
+  if (grammarId === LANGUAGE_IDS.OBJECTIVE_C && lowerName.endsWith(".mm")) {
+    return "objective-cpp";
+  }
+  return "default";
+}
+
 function createLanguageSupportMetadata({ languageId, grammarId, hasLoader }) {
   const isAliasFallback = languageId !== grammarId;
   const grammarLabel = getLanguageDisplayName(grammarId);
@@ -502,8 +532,11 @@ function createLanguageSupportMetadata({ languageId, grammarId, hasLoader }) {
   if (!hasLoader) {
     return {
       supportLevel: "plaintext",
-      statusLabel: "Plain Text fallback",
-      statusDescription: `${languageLabel} hat noch keine CodeMirror-Grammatik und wird als Plain Text angezeigt.`,
+      statusLabel:
+        languageId === LANGUAGE_IDS.PLAINTEXT
+          ? "Plain Text fallback"
+          : `${languageLabel}: Plain Text`,
+      statusDescription: `${languageLabel} hat noch keine CodeMirror-Grammatik. Nexus Code zeigt die Datei als Plain Text.`,
       grammarLabel,
       grammarSource: "none",
       isAliasFallback,
@@ -514,8 +547,8 @@ function createLanguageSupportMetadata({ languageId, grammarId, hasLoader }) {
   if (isAliasFallback) {
     return {
       supportLevel: "alias",
-      statusLabel: `${grammarLabel}-Fallback`,
-      statusDescription: `${languageLabel} nutzt die ${grammarLabel}-Grammatik fuer Syntax-Highlighting.`,
+      statusLabel: `${languageLabel} via ${grammarLabel}`,
+      statusDescription: `${languageLabel} wird mit der ${grammarLabel}-Grammatik hervorgehoben.`,
       grammarLabel,
       grammarSource: "alias",
       isAliasFallback,
@@ -525,7 +558,7 @@ function createLanguageSupportMetadata({ languageId, grammarId, hasLoader }) {
 
   return {
     supportLevel: getGrammarSupportKind(grammarId),
-    statusLabel: "Syntax-Highlighting bereit",
+    statusLabel: `${languageLabel}-Highlighting`,
     statusDescription: `${languageLabel} nutzt eine direkte CodeMirror-Grammatik.`,
     grammarLabel,
     grammarSource: "direct",
@@ -538,13 +571,7 @@ export function getCodeMirrorLanguageSupportDescriptor(languageId, fileName = ""
   const normalizedLanguageId = normalizeLanguageId(languageId);
   const grammarId = resolveGrammarId(normalizedLanguageId);
   const loader = LANGUAGE_LOADERS[grammarId] || null;
-  const lowerName = lowerResourceName(fileName);
-  const variant =
-    grammarId === LANGUAGE_IDS.JAVASCRIPT && lowerName.endsWith(".jsx")
-      ? "jsx"
-      : grammarId === LANGUAGE_IDS.TYPESCRIPT && lowerName.endsWith(".tsx")
-        ? "tsx"
-        : "default";
+  const variant = getGrammarVariant(grammarId, fileName);
   const metadata = createLanguageSupportMetadata({
     languageId: normalizedLanguageId,
     grammarId,

@@ -6,9 +6,11 @@ Stand: 2026-07-10
 
 - [x] Vite Manual-Chunks fuer Nexus-Code-Editor-Modelle pruefen; Ziel ist kleinere stabile Editor-Chunks ohne UI-Code-Aenderung.
 - [x] Visual-Smoke-Szenariomatrix in `src/testing/visualSmokeScenarios.js` zentralisieren, damit Runner und Browser-Harness dieselben Viewports/Surfaces nutzen.
-- [x] Visual Smoke umfasst aktuell 4 Viewports x 30 Surfaces, inklusive CodeMirror-Sprachsurfaces fuer JS/MJS/JSX, JSON/JSONC, CSS/SCSS, Python, Rust, Go, HTML, YAML, SQL, Shell, PHP, Java, C++, Gherkin, RDF, LaTeX, XQuery und GLSL/WGSL-Fallback.
-- [ ] `npm --prefix "./Nexus Code" run smoke:visual` in aktueller Electron/GPU-Umgebung erfolgreich abschliessen. Falls Electron vor Rendering mit `GPU process isn't usable` oder `ContextResult::kFatalFailure` beendet, als environment-blocked dokumentieren, nicht als Visual-Smoke-Erfolg.
-- [x] Fokussierter Visual-Smoke `editor-rust,editor-glsl,launchpad@desktop,short-wide` am 2026-07-10 erfolgreich mit 6 Screenshots und Summary unter `F:\Coding\Nexus Workspace\.tmp\nexus-code-visual-smoke`.
+- [x] Visual-Smoke-Full-Preset umfasst aktuell 4 Viewports x 30 Surfaces (120 Screenshots), inklusive CodeMirror-Sprachsurfaces fuer JS/MJS/JSX, JSON/JSONC, CSS/SCSS, Python, Rust, Go, HTML, YAML, SQL, Shell, PHP, Java, C++, Gherkin, RDF, LaTeX, XQuery und GLSL/WGSL-Fallback.
+- [x] Visual-Smoke-Focused-Preset dokumentieren: `NEXUS_CODE_VISUAL_SMOKE_PRESET=focused` prueft `launchpad`, `editor-rust` und `editor-glsl` auf `desktop` und `short-wide` (6 Screenshots).
+- [x] Visual-Smoke-Evidence sauberer machen: Runner schreibt neben Screenshots `summary.json` und `summary.md` mit Preset, Surface-/Viewport-Filtern, Timeouts, Environment und fehlgeschlagenen Scenario-IDs.
+- [ ] Full Visual-Smoke `npm --prefix "./Nexus Code" run smoke:visual` in aktueller Electron/GPU-Umgebung erfolgreich abschliessen und `summary.md`/`summary.json` archivieren. Falls Electron vor Rendering mit `GPU process isn't usable` oder `ContextResult::kFatalFailure` beendet, als environment-blocked dokumentieren, nicht als Visual-Smoke-Erfolg.
+- [x] Fokussierter Visual-Smoke `NEXUS_CODE_VISUAL_SMOKE_PRESET=focused` am 2026-07-10 erfolgreich mit 6 Screenshots, `summary.json` und `summary.md` unter `F:\Coding\Nexus Workspace\.tmp\nexus-code-visual-smoke-focused-integrated`.
 
 ## 2026-07-01 Nexus-Code-Plan: Docking, Layout, QA-Agent
 

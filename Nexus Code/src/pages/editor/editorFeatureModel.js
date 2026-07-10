@@ -2098,6 +2098,23 @@ function getEditorLspText(state) {
   return "LSP idle";
 }
 
+function createEditorEngineStatus(editorFallbackReason) {
+  const reason = String(editorFallbackReason || "").trim();
+  if (!reason) {
+    return {
+      label: "CodeMirror 6",
+      title: "CodeMirror 6 editor",
+      tone: "text-gray-500",
+    };
+  }
+
+  return {
+    label: "Textarea fallback",
+    title: `Textarea fallback aktiv: ${reason}`,
+    tone: "text-amber-400",
+  };
+}
+
 export function createEditorStatusModel(options = {}) {
   const languageId = normalizeLanguageId(options.languageId, LANGUAGE_IDS.PLAINTEXT);
   const languageLabel = options.languageLabel || getLanguageDisplayName(languageId);
@@ -2139,17 +2156,14 @@ export function createEditorStatusModel(options = {}) {
 
   const lspLabel = lspStatus.label || languageLabel || "Language Server";
   const lspText = lspStatus.shortText || lspStatus.statusText || getEditorLspText(state);
+  const engineStatus = createEditorEngineStatus(options.editorFallbackReason);
   return {
     language: {
       id: languageId,
       label: languageLabel,
       title: `${languageLabel} (${languageId})`,
     },
-    engine: {
-      label: options.editorFallbackReason ? "Text fallback" : "CodeMirror 6",
-      title: options.editorFallbackReason || "CodeMirror 6 editor",
-      tone: options.editorFallbackReason ? "text-amber-400" : "text-gray-500",
-    },
+    engine: engineStatus,
     lsp: {
       state,
       label: lspLabel,
