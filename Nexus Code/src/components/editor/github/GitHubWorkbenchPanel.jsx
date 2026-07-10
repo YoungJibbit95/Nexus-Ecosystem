@@ -155,24 +155,24 @@ const DEFAULT_PROJECT_ACTION = {
 };
 
 const TEXTAREA_CLASS =
-  "min-h-[68px] w-full min-w-0 resize-y rounded-xl border border-white/[0.075] bg-black/20 px-2.5 py-2 text-[11px] leading-snug text-gray-200 outline-none transition-colors placeholder:text-gray-600 focus:border-cyan-300/30 focus:bg-black/25 focus:ring-2 focus:ring-cyan-300/10 disabled:cursor-not-allowed disabled:opacity-45";
+  "min-h-[62px] w-full min-w-0 resize-y rounded-md border border-white/[0.06] bg-black/[0.18] px-2.5 py-2 text-[11px] leading-snug text-gray-200 outline-none transition-colors placeholder:text-gray-600 focus:border-cyan-300/[0.24] focus:bg-black/[0.22] focus:ring-2 focus:ring-cyan-300/[0.08] disabled:cursor-not-allowed disabled:opacity-45";
 
 const QUIET_FIELD_CLASS =
-  "!min-h-8 !rounded-xl !border-white/[0.08] !bg-black/20 !px-2.5 !py-1.5 !text-[11px] focus:!border-cyan-300/30 focus:!bg-black/25 focus:!ring-cyan-300/10 placeholder:!text-gray-600";
+  "!min-h-8 !rounded-md !border-white/[0.06] !bg-black/[0.18] !px-2.5 !py-1.5 !text-[11px] focus:!border-cyan-300/[0.24] focus:!bg-black/[0.22] focus:!ring-cyan-300/[0.08] placeholder:!text-gray-600";
 const QUIET_CARD_STYLE = {
-  background: "linear-gradient(180deg, rgba(15,23,42,0.5), rgba(2,6,23,0.3))",
-  borderColor: "rgba(148,163,184,0.11)",
-  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.035)",
+  background: "linear-gradient(180deg, rgba(15,23,42,0.34), rgba(2,6,23,0.2))",
+  borderColor: "rgba(148,163,184,0.075)",
+  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.026)",
   backdropFilter: "none",
   WebkitBackdropFilter: "none",
 };
 const SELECTED_CARD_STYLE = {
-  borderColor: "rgba(103,232,249,0.24)",
+  borderColor: "rgba(103,232,249,0.18)",
   boxShadow:
-    "0 0 0 1px rgba(103,232,249,0.14), inset 0 1px 0 rgba(255,255,255,0.04)",
+    "0 0 0 1px rgba(103,232,249,0.1), inset 0 1px 0 rgba(255,255,255,0.032)",
 };
 const NESTED_FORM_CLASS =
-  "grid gap-2 rounded-xl border border-white/[0.06] bg-black/[0.18] p-2.5";
+  "grid gap-2 rounded-md border border-white/[0.045] bg-black/[0.14] p-2";
 
 const STATE_TONE_STYLES = {
   muted: {
@@ -615,7 +615,7 @@ function RepositoryControls({
   onOpenAccount,
 }) {
   return (
-    <QuietCard className="mx-3 mt-2.5 p-2.5">
+    <QuietCard className="nx-code-github-repo-controls mx-3 mt-2 p-2">
       <div className="grid min-w-0 gap-2">
         <div className="grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_8.5rem]">
           <div className="min-w-0">
@@ -727,8 +727,8 @@ function IssueActions({
 
   return (
     <PanelSection title="Issue actions" icon={Plus} expanded>
-      <div className="mx-3 grid gap-2.5 pb-3">
-        <QuietCard className="p-2.5">
+      <div className="mx-3 grid gap-2 pb-3">
+        <QuietCard className="p-2">
           <div className="mb-2 flex items-center gap-2">
             <Plus size={13} className="text-cyan-300" />
             <div className="min-w-0 text-xs font-semibold text-gray-200">
@@ -770,7 +770,7 @@ function IssueActions({
           </form>
         </QuietCard>
 
-        <QuietCard className="p-2.5">
+        <QuietCard className="p-2">
           <div className="mb-2 flex min-w-0 flex-wrap items-center gap-2">
             <Pencil size={13} className="shrink-0 text-cyan-200/80" />
             <div className="min-w-0 flex-1 text-xs font-semibold text-gray-200">
@@ -892,8 +892,8 @@ function PullRequestActions({
 
   return (
     <PanelSection title="Pull request actions" icon={GitPullRequest} expanded>
-      <div className="mx-3 grid gap-2.5 pb-3">
-        <QuietCard className="p-2.5">
+      <div className="mx-3 grid gap-2 pb-3">
+        <QuietCard className="p-2">
           <div className="mb-2 flex items-center gap-2">
             <Plus size={13} className="text-cyan-300" />
             <div className="min-w-0 text-xs font-semibold text-gray-200">
@@ -945,7 +945,7 @@ function PullRequestActions({
           </form>
         </QuietCard>
 
-        <QuietCard className="p-2.5">
+        <QuietCard className="p-2">
           <div className="mb-2 flex min-w-0 flex-wrap items-center gap-2">
             <Pencil size={13} className="shrink-0 text-cyan-200/80" />
             <div className="min-w-0 flex-1 text-xs font-semibold text-gray-200">
@@ -1031,7 +1031,7 @@ function PullRequestActions({
           </form>
         </QuietCard>
 
-        <QuietCard className="p-2.5">
+        <QuietCard className="p-2">
           <div className="mb-2 flex min-w-0 flex-wrap items-center gap-2">
             <ShieldAlert size={13} className="shrink-0 text-amber-300" />
             <div className="min-w-0 flex-1 text-xs font-semibold text-gray-200">
@@ -1172,8 +1172,8 @@ function ProjectActions({
 
   return (
     <PanelSection title="Project actions" icon={FolderKanban} expanded>
-      <div className="mx-3 grid gap-2.5 pb-3">
-        <QuietCard className="p-2.5">
+      <div className="mx-3 grid gap-2 pb-3">
+        <QuietCard className="p-2">
           <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
             <div className="min-w-0">
               <div className="break-words text-xs font-semibold text-gray-200" style={{ overflowWrap: "anywhere" }}>
@@ -1206,14 +1206,14 @@ function ProjectActions({
           {projectItemsState.loaded ? (
             <div className="mt-3 grid gap-1.5">
               {projectItems.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-white/[0.08] bg-black/[0.14] px-3 py-3 text-[11px] text-gray-600">
+                <div className="rounded-md border border-dashed border-white/[0.06] bg-black/[0.12] px-3 py-2 text-[11px] text-gray-600">
                   No items returned for this project.
                 </div>
               ) : (
                 projectItems.slice(0, 8).map((item, index) => (
                   <div
                     key={getItemKey(item, index)}
-                    className="rounded-xl border border-white/[0.06] bg-black/[0.18] px-2.5 py-2"
+                    className="rounded-md border border-white/[0.045] bg-black/[0.14] px-2.5 py-1.5"
                   >
                     <div className="flex min-w-0 items-center gap-2">
                       <PanelBadge tone="muted">
@@ -1233,7 +1233,7 @@ function ProjectActions({
           ) : null}
         </QuietCard>
 
-        <QuietCard className="p-2.5">
+        <QuietCard className="p-2">
           <div className="mb-2 flex items-center gap-2">
             <Plus size={13} className="text-cyan-300" />
             <div className="min-w-0 text-xs font-semibold text-gray-200">
@@ -1269,7 +1269,7 @@ function ProjectActions({
           </form>
         </QuietCard>
 
-        <QuietCard className="p-2.5">
+        <QuietCard className="p-2">
           <div className="mb-2 flex min-w-0 flex-wrap items-center gap-2">
             <Pencil size={13} className="shrink-0 text-cyan-200/80" />
             <div className="min-w-0 flex-1 text-xs font-semibold text-gray-200">
@@ -1352,7 +1352,7 @@ function ProjectActions({
                         value: option.id,
                       })
                     }
-                    className="min-w-0 rounded-lg border border-white/[0.07] bg-black/[0.18] px-2 py-1 text-[10px] text-gray-400 hover:bg-white/[0.06] hover:text-gray-200 disabled:cursor-not-allowed disabled:opacity-45"
+                    className="min-w-0 rounded-md border border-white/[0.055] bg-black/[0.14] px-2 py-1 text-[10px] text-gray-400 hover:bg-white/[0.05] hover:text-gray-200 disabled:cursor-not-allowed disabled:opacity-45"
                     style={{ overflowWrap: "anywhere" }}
                   >
                     {option.name}
@@ -1395,7 +1395,7 @@ function ProjectActions({
 
 function IssueList({ items, selectedItem, onSelectItem }) {
   return (
-    <div className="grid gap-2 px-3 pb-3">
+    <div className="grid gap-1.5 px-3 pb-3">
       {items.map((issue, index) => {
         const selected = selectedItem?.number === issue.number;
         return (
@@ -1403,7 +1403,7 @@ function IssueList({ items, selectedItem, onSelectItem }) {
             key={getItemKey(issue, index)}
             interactive
             selected={selected}
-            className="p-2.5"
+            className="nx-code-github-row p-2"
           >
             <div className="flex min-w-0 items-start gap-2">
               <button
@@ -1420,7 +1420,7 @@ function IssueList({ items, selectedItem, onSelectItem }) {
                   </PanelBadge>
                   {issue.locked ? <PanelBadge tone="warning">locked</PanelBadge> : null}
                 </div>
-                <h3 className="mt-2 break-words text-sm font-semibold leading-snug text-gray-100">
+                <h3 className="mt-1.5 break-words text-[13px] font-semibold leading-snug text-gray-100">
                   {issue.title || "Untitled issue"}
                 </h3>
                 <div className="mt-1 break-words text-[11px] text-gray-500" style={{ overflowWrap: "anywhere" }}>
@@ -1432,7 +1432,7 @@ function IssueList({ items, selectedItem, onSelectItem }) {
                   href={issue.htmlUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="grid h-8 w-8 shrink-0 place-items-center rounded-xl border border-white/[0.07] bg-black/20 text-gray-500 hover:bg-white/[0.06] hover:text-gray-200"
+                  className="grid h-7 w-7 shrink-0 place-items-center rounded-md border border-white/[0.055] bg-black/[0.16] text-gray-500 hover:bg-white/[0.05] hover:text-gray-200"
                   title="Open on GitHub"
                 >
                   <ArrowUpRight size={14} />
@@ -1444,7 +1444,7 @@ function IssueList({ items, selectedItem, onSelectItem }) {
                 {issue.labels.slice(0, 8).map((label) => (
                   <span
                     key={label.id || label.name}
-                    className="rounded-lg border border-white/[0.06] bg-black/[0.18] px-2 py-0.5 text-[10px] text-gray-400"
+                    className="rounded border border-white/[0.045] bg-black/[0.14] px-1.5 py-0.5 text-[10px] text-gray-400"
                   >
                     {label.name || label}
                   </span>
@@ -1460,7 +1460,7 @@ function IssueList({ items, selectedItem, onSelectItem }) {
 
 function PullRequestList({ items, selectedItem, onSelectItem }) {
   return (
-    <div className="grid gap-2 px-3 pb-3">
+    <div className="grid gap-1.5 px-3 pb-3">
       {items.map((pull, index) => {
         const selected = selectedItem?.number === pull.number;
         const state = pull.draft ? "draft" : pull.merged ? "merged" : pull.state;
@@ -1469,7 +1469,7 @@ function PullRequestList({ items, selectedItem, onSelectItem }) {
             key={getItemKey(pull, index)}
             interactive
             selected={selected}
-            className="p-2.5"
+            className="nx-code-github-row p-2"
           >
             <div className="flex min-w-0 items-start gap-2">
               <button
@@ -1488,13 +1488,13 @@ function PullRequestList({ items, selectedItem, onSelectItem }) {
                     {pull.commits ?? 0} commits
                   </PanelBadge>
                 </div>
-                <h3 className="mt-2 break-words text-sm font-semibold leading-snug text-gray-100">
+                <h3 className="mt-1.5 break-words text-[13px] font-semibold leading-snug text-gray-100">
                   {pull.title || "Untitled pull request"}
                 </h3>
                 <div className="mt-1 break-words text-[11px] text-gray-500" style={{ overflowWrap: "anywhere" }}>
                   {state || "open"} by {getUserLogin(pull.author)} - {formatDate(pull.updatedAt)}
                 </div>
-                <div className="mt-2 min-w-0 break-words rounded-xl border border-white/[0.055] bg-black/[0.18] px-2 py-1 text-[10px] text-gray-500" style={{ overflowWrap: "anywhere" }}>
+                <div className="mt-1.5 min-w-0 break-words rounded-md border border-white/[0.045] bg-black/[0.14] px-2 py-1 text-[10px] text-gray-500" style={{ overflowWrap: "anywhere" }}>
                   <span className="font-mono text-gray-400">{pull.head?.ref || "head"}</span>
                   <span> into </span>
                   <span className="font-mono text-gray-400">{pull.base?.ref || "base"}</span>
@@ -1505,7 +1505,7 @@ function PullRequestList({ items, selectedItem, onSelectItem }) {
                   href={pull.htmlUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="grid h-8 w-8 shrink-0 place-items-center rounded-xl border border-white/[0.07] bg-black/20 text-gray-500 hover:bg-white/[0.06] hover:text-gray-200"
+                  className="grid h-7 w-7 shrink-0 place-items-center rounded-md border border-white/[0.055] bg-black/[0.16] text-gray-500 hover:bg-white/[0.05] hover:text-gray-200"
                   title="Open on GitHub"
                 >
                   <ArrowUpRight size={14} />
@@ -1527,7 +1527,7 @@ function ProjectList({
   loadingItems,
 }) {
   return (
-    <div className="grid gap-2 px-3 pb-3">
+    <div className="grid gap-1.5 px-3 pb-3">
       {items.map((project, index) => {
         const selected = selectedProject?.id === project.id;
         return (
@@ -1535,7 +1535,7 @@ function ProjectList({
             key={getItemKey(project, index)}
             interactive
             selected={selected}
-            className="p-2.5"
+            className="nx-code-github-row p-2"
           >
             <div className="flex min-w-0 flex-wrap items-start gap-2">
               <button
@@ -1554,7 +1554,7 @@ function ProjectList({
                   ) : null}
                   {project.public ? <PanelBadge tone="muted">public</PanelBadge> : null}
                 </div>
-                <h3 className="mt-2 break-words text-sm font-semibold leading-snug text-gray-100">
+                <h3 className="mt-1.5 break-words text-[13px] font-semibold leading-snug text-gray-100">
                   {project.title || "Untitled project"}
                 </h3>
                 <div className="mt-1 break-words text-[11px] text-gray-500" style={{ overflowWrap: "anywhere" }}>
@@ -1579,7 +1579,7 @@ function ProjectList({
                     href={project.url}
                     target="_blank"
                     rel="noreferrer"
-                    className="grid h-8 w-8 shrink-0 place-items-center rounded-xl border border-white/[0.07] bg-black/20 text-gray-500 hover:bg-white/[0.06] hover:text-gray-200"
+                    className="grid h-7 w-7 shrink-0 place-items-center rounded-md border border-white/[0.055] bg-black/[0.16] text-gray-500 hover:bg-white/[0.05] hover:text-gray-200"
                     title="Open on GitHub"
                   >
                     <ArrowUpRight size={14} />

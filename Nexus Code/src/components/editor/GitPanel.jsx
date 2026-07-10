@@ -74,12 +74,12 @@ function SectionHeader({
   actionTitle,
 }) {
   return (
-    <div className="flex items-start gap-1 px-2 py-1">
+    <div className="flex items-start gap-1 px-2 py-0.5">
       <button
         type="button"
         onClick={onToggle}
         aria-expanded={expanded}
-        className="min-w-0 flex flex-1 items-center gap-1.5 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-white/[0.032]"
+        className="min-w-0 flex flex-1 items-center gap-1.5 rounded-md px-2 py-1 text-left transition-colors hover:bg-white/[0.026]"
       >
         <motion.div
           animate={{ rotate: expanded ? 0 : -90 }}
@@ -189,17 +189,17 @@ function FileRow({ file, staged, selected, busy, onSelect, onToggle }) {
       initial={{ opacity: 0, x: -8 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: -8, height: 0 }}
-      className="px-2 pb-1"
+      className="px-2 pb-0.5"
     >
       <div
-        className="group flex items-center rounded-lg border transition-colors"
+        className="group flex items-center rounded-md border transition-colors"
         style={{
           background: selected
-            ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.085)"
-            : "linear-gradient(180deg, rgba(255,255,255,0.022), rgba(255,255,255,0.007))",
+            ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.07)"
+            : "rgba(255,255,255,0.008)",
           borderColor: selected
-            ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.18)"
-            : "rgba(255,255,255,0.032)",
+            ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.15)"
+            : "rgba(255,255,255,0.026)",
         }}
       >
         <button
@@ -242,7 +242,7 @@ function FileRow({ file, staged, selected, busy, onSelect, onToggle }) {
           disabled={busy}
           aria-label={`${actionLabel} ${file.path || file.name}`}
           title={`${actionLabel} ${file.path || file.name}`}
-          className="mr-1 grid h-6 w-6 shrink-0 place-items-center rounded-md border border-white/[0.065] bg-white/[0.026] text-gray-300 transition-colors hover:bg-white/[0.06] disabled:cursor-wait disabled:opacity-50"
+          className="mr-1 grid h-6 w-6 shrink-0 place-items-center rounded-md border border-white/[0.052] bg-white/[0.016] text-gray-300 transition-colors hover:bg-white/[0.05] disabled:cursor-wait disabled:opacity-50"
         >
           {busy ? (
             <RefreshCw size={10} className="animate-spin" />
@@ -297,10 +297,10 @@ function DiffViewer({
   }
 
   return (
-    <div className="mx-3 mb-3 overflow-hidden rounded-md border border-white/[0.04] bg-black/14">
+    <div className="mx-3 mb-2 overflow-hidden rounded-md border border-white/[0.035] bg-black/[0.12]">
       <div className="flex items-center gap-2 border-b border-white/[0.04] px-2.5 py-2">
         <span
-          className="h-2 w-2 shrink-0 rounded-full"
+          className="h-1.5 w-1.5 shrink-0 rounded-full"
           style={{
             background: (STATUS_META[selectedFile.status] || STATUS_META.U).color,
           }}
@@ -336,7 +336,7 @@ function DiffViewer({
           need to be staged before Git can provide a patch.
         </div>
       ) : (
-        <div className="max-h-64 overflow-auto px-0 py-2 text-[10px] leading-5">
+        <div className="max-h-56 overflow-auto px-0 py-1.5 text-[10px] leading-5">
           {visibleLines.map((line, index) => {
             const added = line.startsWith("+") && !line.startsWith("+++");
             const removed = line.startsWith("-") && !line.startsWith("---");
@@ -1031,7 +1031,7 @@ export default function GitPanel({ files }) {
   );
 
   return (
-    <PanelShell ariaLabel="Source Control">
+    <PanelShell ariaLabel="Source Control" className="nx-code-git-panel">
       <PanelHeader
         icon={GitBranch}
         title="Source Control"
@@ -1064,14 +1064,14 @@ export default function GitPanel({ files }) {
       {hasWorkspace && (
         <div className="shrink-0 px-3 pb-1.5">
           <div
-            className="rounded-md border px-2.5 py-1.5"
+            className="nx-code-git-summary rounded-md border px-2.5 py-1.5"
             style={{
-              background: "rgba(0,0,0,0.1)",
-              borderColor: "rgba(148,163,184,0.06)",
+              background: "rgba(0,0,0,0.085)",
+              borderColor: "rgba(148,163,184,0.052)",
             }}
           >
             <div className="flex min-w-0 items-start gap-2">
-              <GitBranch size={13} className="mt-0.5 shrink-0 text-sky-300/80" />
+              <GitBranch size={13} className="mt-0.5 shrink-0 text-sky-300/[0.72]" />
               <div className="min-w-0 flex-1">
                 <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
                   <span
@@ -1110,7 +1110,7 @@ export default function GitPanel({ files }) {
       )}
 
       {hasWorkspace && (
-        <div className="mx-3 mb-1 h-px shrink-0 bg-white/[0.035]" />
+        <div className="mx-3 mb-1 h-px shrink-0 bg-white/[0.028]" />
       )}
 
       <PanelBody className="px-0 py-1">
@@ -1173,7 +1173,7 @@ export default function GitPanel({ files }) {
               style={{ overflow: "hidden" }}
               className="px-3 pb-3"
             >
-              <div className="space-y-2 rounded-lg border border-white/[0.04] bg-black/12 p-2">
+              <div className="space-y-2 rounded-md border border-white/[0.035] bg-black/[0.1] p-2">
                 <div
                   className="grid gap-1.5"
                   style={{ gridTemplateColumns: "repeat(auto-fit, minmax(118px, 1fr))" }}
@@ -1205,7 +1205,7 @@ export default function GitPanel({ files }) {
                   />
                 )}
 
-                <div className="rounded-lg border border-white/[0.04] bg-black/12 px-2 py-2">
+                <div className="rounded-md border border-white/[0.035] bg-black/[0.1] px-2 py-2">
                   <div className="mb-2 flex items-center justify-between gap-2">
                     <div className="min-w-0">
                       <span className="block text-[10px] font-semibold uppercase text-gray-500">
@@ -1266,7 +1266,7 @@ export default function GitPanel({ files }) {
                     </PanelActionButton>
                   </div>
                   {githubFlow && (
-                  <div className="mt-2 rounded-md border border-purple-500/16 bg-purple-500/[0.04] p-2">
+                  <div className="mt-2 rounded-md border border-purple-500/[0.16] bg-purple-500/[0.04] p-2">
                       <div className="text-[10px] text-gray-400">
                         Code bei GitHub eingeben:
                       </div>
@@ -1284,7 +1284,7 @@ export default function GitPanel({ files }) {
                           }
                           target="_blank"
                           rel="noreferrer"
-                          className="inline-flex min-h-8 min-w-0 items-center justify-center rounded-md border border-purple-400/16 bg-purple-600/14 px-2 py-1.5 text-center text-xs font-semibold text-purple-200 transition-colors hover:bg-purple-600/24"
+                          className="inline-flex min-h-8 min-w-0 items-center justify-center rounded-md border border-purple-400/[0.16] bg-purple-600/[0.14] px-2 py-1.5 text-center text-xs font-semibold text-purple-200 transition-colors hover:bg-purple-600/[0.24]"
                         >
                           <span className="min-w-0 break-words" style={{ overflowWrap: "anywhere" }}>
                             Open
@@ -1303,7 +1303,7 @@ export default function GitPanel({ files }) {
                 </div>
 
                 {githubSettings.legacyTokenPresent && (
-                  <div className="flex items-center gap-2 rounded-md border border-amber-500/16 bg-amber-500/[0.04] px-2 py-2">
+                  <div className="flex items-center gap-2 rounded-md border border-amber-500/[0.16] bg-amber-500/[0.04] px-2 py-2">
                     <AlertCircle size={13} className="text-amber-400 shrink-0" />
                     <span className="min-w-0 flex-1 break-words text-[10px] text-amber-200/80" style={{ overflowWrap: "anywhere" }}>
                       Legacy localStorage token detected. It is deprecated and
@@ -1312,7 +1312,7 @@ export default function GitPanel({ files }) {
                     <button
                       type="button"
                       onClick={handleClearLegacyToken}
-                      className="rounded-lg p-1 text-amber-200 hover:bg-white/10"
+                      className="rounded-md p-1 text-amber-200 hover:bg-white/10"
                       title="Remove deprecated local token"
                     >
                       <Trash2 size={11} />
@@ -1325,12 +1325,12 @@ export default function GitPanel({ files }) {
                     Repository
                   </span>
                   {loadingRepos ? (
-                    <div className="w-full animate-pulse rounded-md border border-white/[0.06] bg-black/24 px-2 py-2 text-xs text-gray-500">
+                    <div className="w-full animate-pulse rounded-md border border-white/[0.06] bg-black/[0.24] px-2 py-2 text-xs text-gray-500">
                       Loading repositories...
                     </div>
                   ) : repos.length > 0 ? (
                     <select
-                      className="min-h-9 w-full rounded-md border border-white/[0.06] bg-black/24 px-2 py-1.5 text-xs text-gray-200 outline-none focus:border-purple-500/40"
+                      className="min-h-9 w-full rounded-md border border-white/[0.06] bg-black/[0.24] px-2 py-1.5 text-xs text-gray-200 outline-none focus:border-purple-500/40"
                       value={selectedRepo}
                       onChange={(event) => handleRepositorySelect(event.target.value)}
                     >
@@ -1351,7 +1351,7 @@ export default function GitPanel({ files }) {
                       <input
                         type="text"
                         placeholder="Owner / Username"
-                        className="min-h-9 w-full rounded-md border border-white/[0.06] bg-black/24 px-2 py-1.5 text-xs text-gray-200 outline-none focus:border-purple-500/40"
+                        className="min-h-9 w-full rounded-md border border-white/[0.06] bg-black/[0.24] px-2 py-1.5 text-xs text-gray-200 outline-none focus:border-purple-500/40"
                         value={githubSettings.owner}
                         onChange={(event) =>
                           setGithubSettings((prev) => ({
@@ -1363,7 +1363,7 @@ export default function GitPanel({ files }) {
                       <input
                         type="text"
                         placeholder="Repository Name"
-                        className="min-h-9 w-full rounded-md border border-white/[0.06] bg-black/24 px-2 py-1.5 text-xs text-gray-200 outline-none focus:border-purple-500/40"
+                        className="min-h-9 w-full rounded-md border border-white/[0.06] bg-black/[0.24] px-2 py-1.5 text-xs text-gray-200 outline-none focus:border-purple-500/40"
                         value={githubSettings.repo}
                         onChange={(event) =>
                           setGithubSettings((prev) => ({
@@ -1529,7 +1529,7 @@ export default function GitPanel({ files }) {
         </AnimatePresence>
 
         <div className="px-3 py-3">
-          <div className="mb-3 rounded-lg border border-white/[0.04] bg-black/12 p-2.5">
+          <div className="mb-3 rounded-md border border-white/[0.035] bg-black/[0.1] p-2.5">
             <div className="mb-2 flex min-w-0 flex-wrap items-start justify-between gap-2">
               <div className="min-w-0">
                 <p className="text-[10px] font-semibold uppercase text-gray-500">
@@ -1589,12 +1589,12 @@ export default function GitPanel({ files }) {
             }}
             placeholder="Commit message (Ctrl+Enter)..."
             rows={3}
-            className="w-full resize-none rounded-lg px-2.5 py-2 text-xs font-mono outline-none placeholder:text-gray-700 transition-all"
+            className="w-full resize-none rounded-md px-2.5 py-2 text-xs font-mono outline-none placeholder:text-gray-700 transition-all"
             style={{
-              background: "rgba(255,255,255,0.026)",
+              background: "rgba(255,255,255,0.018)",
               border: commitMsg
-                ? "1px solid rgba(128,0,255,0.22)"
-                : "1px solid rgba(255,255,255,0.05)",
+                ? "1px solid rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.18)"
+                : "1px solid rgba(255,255,255,0.042)",
               color: "#d1d5db",
               lineHeight: "1.5",
             }}
@@ -1612,7 +1612,7 @@ export default function GitPanel({ files }) {
             onClick={() => setPushAfterCommit((value) => !value)}
             disabled={!canPush}
             aria-pressed={pushAfterCommit}
-            className="mt-2 flex w-full items-center justify-between gap-2 rounded-lg border border-white/[0.05] bg-white/[0.02] px-2.5 py-1.5 text-left text-[10px] transition-colors hover:bg-white/[0.045] disabled:cursor-not-allowed disabled:opacity-45"
+            className="mt-2 flex w-full items-center justify-between gap-2 rounded-md border border-white/[0.04] bg-white/[0.014] px-2.5 py-1.5 text-left text-[10px] transition-colors hover:bg-white/[0.036] disabled:cursor-not-allowed disabled:opacity-45"
           >
             <span className="min-w-0 break-words text-gray-400" style={{ overflowWrap: "anywhere" }}>
               Nach Commit automatisch pushen
@@ -1641,13 +1641,13 @@ export default function GitPanel({ files }) {
               onClick={handleCommitAndPush}
               disabled={!canCommit}
               title={commitDisabledReason}
-              className="flex w-full items-center justify-center gap-2 rounded-lg py-2 text-xs font-semibold text-white transition-all"
+              className="flex w-full items-center justify-center gap-2 rounded-md py-2 text-xs font-semibold text-white transition-all"
               style={{
                 background: canCommit
-                  ? "linear-gradient(135deg, var(--nexus-primary, #7c8cff), #38bdf8)"
-                  : "rgba(255,255,255,0.06)",
+                  ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.22)"
+                  : "rgba(255,255,255,0.052)",
                 color: canCommit ? "#fff" : "#4b5563",
-                boxShadow: canCommit ? "0 0 16px rgba(128,0,255,0.3)" : "none",
+                boxShadow: canCommit ? "inset 0 1px 0 rgba(255,255,255,0.04)" : "none",
                 cursor: canCommit ? "pointer" : "not-allowed",
               }}
             >

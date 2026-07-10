@@ -190,8 +190,8 @@ function SegmentButton({ active, children, onClick }) {
           layoutId="extension-segment"
           className="absolute inset-0 rounded-md"
           style={{
-            background: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.16)",
-            border: "1px solid rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.24)",
+            background: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.11)",
+            border: "1px solid rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.18)",
           }}
         />
       ) : null}
@@ -207,8 +207,8 @@ function SelectFilter({ icon: Icon, value, options, onChange, title }) {
     <label
       className="flex h-8 min-w-0 flex-1 items-center gap-1.5 rounded-md border px-2"
       style={{
-        background: "rgba(255,255,255,0.035)",
-        borderColor: "var(--nexus-border)",
+        background: "rgba(255,255,255,0.024)",
+        borderColor: "rgba(156,170,210,0.065)",
       }}
       title={title}
     >
@@ -267,8 +267,8 @@ function ToggleSwitch({ checked, onClick, disabled }) {
       className="relative h-5 w-9 shrink-0 rounded-full outline-none transition-opacity focus-visible:ring-2 focus-visible:ring-purple-500/60 disabled:cursor-not-allowed disabled:opacity-40"
       style={{
         background: checked
-          ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.35)"
-          : "rgba(255,255,255,0.08)",
+          ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.28)"
+          : "rgba(255,255,255,0.07)",
         border: checked
           ? "1px solid rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.42)"
           : "1px solid rgba(255,255,255,0.12)",
@@ -282,7 +282,7 @@ function ToggleSwitch({ checked, onClick, disabled }) {
         transition={{ type: "spring", stiffness: 520, damping: 34 }}
         style={{
           background: checked ? "var(--nexus-primary, #7c8cff)" : "#6b7280",
-          boxShadow: checked ? "0 0 10px rgba(124,140,255,0.34)" : "none",
+          boxShadow: checked ? "0 0 8px rgba(124,140,255,0.22)" : "none",
         }}
       />
     </button>
@@ -296,7 +296,7 @@ function Pill({ children, tone = "muted", title, category = false }) {
   return (
     <span
       title={title}
-      className="inline-flex min-w-0 items-center rounded-md border px-1.5 py-0.5 text-[9px] font-semibold"
+      className="inline-flex min-w-0 items-center rounded border px-1.5 py-0.5 text-[9px] font-semibold"
       style={{
         background: toneStyle.background,
         borderColor: toneStyle.border,
@@ -319,7 +319,7 @@ function ContributionOverview({ overview, storageHealth, hostSummary }) {
     .slice(0, 3);
 
   return (
-    <div className="rounded-md border border-white/[0.04] bg-black/[0.12] px-2.5 py-2">
+    <div className="rounded-md border border-white/[0.035] bg-black/[0.1] px-2.5 py-1.5">
       <div className="flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1 text-[10px] text-[var(--nexus-muted)]">
         <span className="font-semibold text-gray-300">{hostSummary.enabledCount} active</span>
         <span>{hostSummary.contributionCount} contributions</span>
@@ -460,19 +460,19 @@ function ExtensionCard({ extension, onInstall, onRemove, onToggleEnabled, index 
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 8, height: 0 }}
       transition={{ delay: Math.min(index * 0.025, 0.18), duration: 0.2 }}
-      className="group rounded-xl p-2.5"
+      className="nx-code-extension-row group rounded-md p-2"
       style={{
         background: extension.installed
-          ? "linear-gradient(180deg, rgba(15,23,42,0.46), rgba(2,6,23,0.24))"
-          : "rgba(255,255,255,0.018)",
+          ? "linear-gradient(180deg, rgba(15,23,42,0.34), rgba(2,6,23,0.18))"
+          : "rgba(255,255,255,0.012)",
         border: extension.enabled
-          ? "1px solid rgba(103,232,249,0.13)"
-          : "1px solid rgba(255,255,255,0.045)",
+          ? "1px solid rgba(103,232,249,0.11)"
+          : "1px solid rgba(255,255,255,0.036)",
       }}
     >
       <div className="flex items-start gap-2.5">
         <div
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border text-[11px] font-bold"
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border text-[11px] font-bold"
           style={{
             background: `${extension.iconColor}18`,
             borderColor: `${extension.iconColor}40`,
@@ -500,7 +500,7 @@ function ExtensionCard({ extension, onInstall, onRemove, onToggleEnabled, index 
             {extension.manifestWarnings.length > 0 && !manifestBlocked ? <span>warnings</span> : null}
           </div>
           <p
-            className="mt-1 break-words text-[11px] leading-relaxed text-gray-400"
+            className="mt-1 break-words text-[11px] leading-snug text-gray-400"
             style={{
               display: "-webkit-box",
               WebkitLineClamp: 2,
@@ -520,7 +520,7 @@ function ExtensionCard({ extension, onInstall, onRemove, onToggleEnabled, index 
         />
       </div>
 
-      <div className="mt-2 flex flex-wrap gap-1">
+      <div className="mt-1.5 flex flex-wrap gap-1">
         {visibleCapabilities.map((capability) => (
           <span
             key={capability}
@@ -539,13 +539,13 @@ function ExtensionCard({ extension, onInstall, onRemove, onToggleEnabled, index 
           </span>
         ))}
         {lifecycle.detail ? (
-          <span className="rounded-lg border border-white/[0.04] bg-white/[0.018] px-1.5 py-0.5 text-[9px] text-gray-500">
+          <span className="rounded-md border border-white/[0.04] bg-white/[0.018] px-1.5 py-0.5 text-[9px] text-gray-500">
             {lifecycle.detail}
           </span>
         ) : null}
       </div>
 
-      <div className="mt-2 flex items-center justify-between gap-2">
+      <div className="mt-1.5 flex items-center justify-between gap-2">
         <button
           type="button"
           onClick={() => setExpanded((value) => !value)}
@@ -555,7 +555,7 @@ function ExtensionCard({ extension, onInstall, onRemove, onToggleEnabled, index 
             size={11}
             className={`transition-transform ${expanded ? "rotate-180" : ""}`}
           />
-              Details
+          Details
         </button>
 
         {extension.installed ? (
@@ -565,7 +565,7 @@ function ExtensionCard({ extension, onInstall, onRemove, onToggleEnabled, index 
                 type="button"
                 disabled={busy}
                 onClick={() => runAction(() => onInstall(extension.id))}
-                className="flex h-7 items-center gap-1 rounded-md border border-amber-400/20 bg-amber-400/10 px-2 text-[10px] font-semibold text-amber-200 transition-colors hover:bg-amber-400/15 disabled:opacity-50"
+                className="flex h-7 items-center gap-1 rounded-md border border-amber-400/[0.18] bg-amber-400/[0.08] px-2 text-[10px] font-semibold text-amber-200 transition-colors hover:bg-amber-400/[0.12] disabled:opacity-50"
               >
                 {busy ? <RefreshCw size={11} className="animate-spin" /> : <Download size={11} />}
                 Update
@@ -575,7 +575,7 @@ function ExtensionCard({ extension, onInstall, onRemove, onToggleEnabled, index 
               type="button"
               disabled={busy}
               onClick={() => runAction(() => onRemove(extension.id))}
-              className="flex h-7 items-center gap-1 rounded-md border border-red-400/20 bg-red-400/10 px-2 text-[10px] font-semibold text-red-300 transition-colors hover:bg-red-400/15 disabled:opacity-50"
+              className="flex h-7 items-center gap-1 rounded-md border border-red-400/[0.18] bg-red-400/[0.08] px-2 text-[10px] font-semibold text-red-300 transition-colors hover:bg-red-400/[0.12] disabled:opacity-50"
             >
               {busy ? <RefreshCw size={11} className="animate-spin" /> : <Trash2 size={11} />}
               Remove
@@ -589,8 +589,8 @@ function ExtensionCard({ extension, onInstall, onRemove, onToggleEnabled, index 
             className="flex h-7 items-center gap-1 rounded-md border px-2 text-[10px] font-semibold transition-colors disabled:opacity-50"
             title={manifestBlocked ? "Install blocked: manifest has errors" : "Install"}
             style={{
-              background: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.14)",
-              borderColor: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.28)",
+              background: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.11)",
+              borderColor: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.2)",
               color: "var(--nexus-primary, #7c8cff)",
             }}
           >
@@ -828,7 +828,7 @@ export default function ExtensionsPanel({ onInstalledChange }) {
   };
 
   return (
-    <PanelShell ariaLabel="Extensions">
+    <PanelShell ariaLabel="Extensions" className="nx-code-extensions-panel">
       <PanelHeader
         icon={Blocks}
         title="Extensions"
@@ -844,7 +844,7 @@ export default function ExtensionsPanel({ onInstalledChange }) {
         }
       />
 
-      <div className="shrink-0 space-y-2 border-b border-white/[0.04] px-3 py-2.5">
+      <div className="shrink-0 space-y-2 border-b border-white/[0.035] px-3 py-2">
         <ContributionOverview
           overview={runtimeOverview}
           storageHealth={storageHealth}
@@ -872,7 +872,7 @@ export default function ExtensionsPanel({ onInstalledChange }) {
 
         <div
           className="flex gap-0.5 rounded-md p-0.5"
-          style={{ background: "rgba(255,255,255,0.032)" }}
+          style={{ background: "rgba(255,255,255,0.024)" }}
         >
           {Object.entries(tabStyles).map(([id, label]) => (
             <SegmentButton key={id} active={quickTab === id} onClick={() => setQuickTab(id)}>
@@ -884,10 +884,10 @@ export default function ExtensionsPanel({ onInstalledChange }) {
         <div
           className="flex h-8 items-center gap-2 rounded-md border px-2"
           style={{
-            background: "rgba(255,255,255,0.04)",
+            background: "rgba(255,255,255,0.026)",
             borderColor: query
-              ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.34)"
-              : "var(--nexus-border)",
+              ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.24)"
+              : "rgba(156,170,210,0.065)",
           }}
         >
           <Search size={13} className="shrink-0 text-[var(--nexus-muted)]" />
@@ -952,7 +952,7 @@ export default function ExtensionsPanel({ onInstalledChange }) {
         </div>
       </div>
 
-      <PanelBody className="space-y-2 px-3 py-2.5">
+      <PanelBody className="space-y-1.5 px-3 py-2">
         <AnimatePresence mode="popLayout">
           {filteredExtensions.map((extension, index) => (
             <ExtensionCard

@@ -293,7 +293,7 @@ export function createKeybindingSettingsModel(options = {}) {
   const query = String(options.query || "").trim().toLowerCase();
   const categoryFilter = CATEGORY_IDS.has(options.category) ? options.category : "all";
   const platform = options.platform === "mac" ? "mac" : "default";
-  const rows = DEFAULT_KEYBINDINGS.map((binding) => {
+  const allRows = DEFAULT_KEYBINDINGS.map((binding) => {
     const defaultShortcut =
       platform === "mac" ? binding.macShortcut || binding.defaultShortcut : binding.defaultShortcut;
     const override = overrides[binding.id] || "";
@@ -317,23 +317,34 @@ export function createKeybindingSettingsModel(options = {}) {
         .join(" ")
         .toLowerCase(),
     };
-  }).filter((row) => {
+  });
+
+  const conflictBuckets = new Map();
+  for (const row of allRows) {
+    if (!row.effectiveShortcut) continue;
+    const conflictKey = row.effectiveShortcut.toLowerCase();
+    const bucket = conflictBuckets.get(conflictKey) || [];
+    bucket.push(row.id);
+    conflictBuckets.set(conflictKey, bucket);
+  }
+  const conflictEntries = [...conflictBuckets.entries()]
+    .filter(([, ids]) => ids.length > 1)
+    .map(([shortcut, bindingIds]) => ({
+      shortcut,
+      bindingIds,
+      labels: bindingIds.map(
+        (id) => allRows.find((row) => row.id === id)?.label || id,
+      ),
+    }));
+  const conflictIds = new Set(
+    conflictEntries.flatMap((entry) => entry.bindingIds),
+  );
+
+  const rows = allRows.filter((row) => {
     const categoryMatches = categoryFilter === "all" || row.category === categoryFilter;
     const queryMatches = !query || row.searchText.includes(query);
     return categoryMatches && queryMatches;
   });
-
-  const conflicts = new Map();
-  for (const row of rows) {
-    if (!row.effectiveShortcut) continue;
-    const conflictKey = row.effectiveShortcut.toLowerCase();
-    const bucket = conflicts.get(conflictKey) || [];
-    bucket.push(row.id);
-    conflicts.set(conflictKey, bucket);
-  }
-  const conflictIds = new Set(
-    [...conflicts.values()].filter((ids) => ids.length > 1).flat(),
-  );
 
   const categorizedCounts = Object.fromEntries(
     KEYBINDING_CATEGORIES.map((category) => [
@@ -343,7 +354,16 @@ export function createKeybindingSettingsModel(options = {}) {
   );
 
   return {
-    rows: rows.map((row) => ({ ...row, hasConflict: conflictIds.has(row.id) })),
+    rows: rows.map((row) => {
+      const conflict = conflictEntries.find((entry) => entry.bindingIds.includes(row.id));
+      return {
+        ...row,
+        hasConflict: conflictIds.has(row.id),
+        conflictLabels: conflict
+          ? conflict.labels.filter((label) => label !== row.label)
+          : [],
+      };
+    }),
     categories: KEYBINDING_CATEGORIES.map((category) => ({
       ...category,
       count: categorizedCounts[category.id] || 0,
@@ -351,6 +371,9 @@ export function createKeybindingSettingsModel(options = {}) {
     overrideCount: Object.keys(overrides).length,
     totalCount: DEFAULT_KEYBINDINGS.length,
     visibleCount: rows.length,
+    visibleOverrideCount: rows.filter((row) => row.isCustomized).length,
+    visibleConflictCount: rows.filter((row) => conflictIds.has(row.id)).length,
     conflictCount: conflictIds.size,
+    conflicts: conflictEntries,
   };
 }

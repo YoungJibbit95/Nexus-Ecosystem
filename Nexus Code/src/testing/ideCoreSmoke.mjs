@@ -49,10 +49,14 @@ import {
   EDITOR_LSP_FEATURE_IDS,
   createEditorCommandRegistry,
   createEditorLanguageFeatureModel,
+  createEditorLargeFilePolicy,
+  createEditorLspActionStatus,
   createEditorLspFeatureContracts,
   createEditorLspFeatureRequest,
   createEditorScopeInfo,
+  createEditorSelectionSnapshot,
   createEditorStatusModel,
+  createEditorTextSelectionSnapshot,
   createSnippetCompletions,
   extractDocumentSymbols,
   getActiveDocumentSymbol,
@@ -2226,7 +2230,14 @@ const scenarios = [
       assert.equal(formatOption.type, "method");
       assert.equal(typeof formatOption.apply, "function");
       assert.equal(formatOption.section.name, "Recommended");
-      assert.equal(formatOption.info, "Formats the current document.");
+      assert.equal(
+        formatOption.info,
+        [
+          "Formats the current document.",
+          "method",
+          "Insert: formatDocument(options)",
+        ].join("\n"),
+      );
 
       const plainOption = completionResult.options.find(
         (option) => option.label === "plainFunction",
@@ -2334,6 +2345,44 @@ const scenarios = [
       assert.equal(localRankResult.options[0]?.section.name, "Current Document");
       assert.equal(localRankResult.options[0]?.label, "renderPortal");
 
+      const metadataRankResult = lspCompletionsToCodeMirror(
+        createCompletionContext("fmt"),
+        {
+          isIncomplete: false,
+          items: [
+            {
+              label: "formatDocument",
+              filterText: "fmt",
+              kind: 2,
+              detail: "method",
+              data: { source: "tsserver" },
+              insertText: "formatDocument(${1:options})",
+              insertTextFormat: 2,
+            },
+            {
+              label: "fmtLegacy",
+              kind: 3,
+              tags: [1],
+              detail: "legacy helper",
+            },
+            {
+              label: "factory",
+              kind: 3,
+            },
+          ],
+        },
+        null,
+        { languageId: "typescript" },
+      );
+      assert.equal(metadataRankResult.options[0]?.label, "formatDocument");
+      assert.match(metadataRankResult.options[0]?.detail, /from tsserver/);
+      assert.equal(metadataRankResult.options[0]?.completionSource, "tsserver");
+      const deprecatedOption = metadataRankResult.options.find(
+        (option) => option.label === "fmtLegacy",
+      );
+      assert.equal(deprecatedOption?.deprecated, true);
+      assert.equal(deprecatedOption?.class, "nx-cm-completion-deprecated");
+
       const pythonLocalWords = createSnippetCompletions(
         createCompletionContext("def build_task():\n    return result\nres"),
         "python",
@@ -2374,8 +2423,11 @@ const scenarios = [
         ["docs.mdx", ["mdx", "markdown", "alias"]],
         ["workflow.yml", ["yaml", "yaml", "native"]],
         ["Dockerfile", ["dockerfile", "dockerfile", "native"]],
+        ["Dockerfile.dev", ["dockerfile", "dockerfile", "native"]],
         ["query.sql", ["sql", "sql", "native"]],
         ["schema.graphql", ["graphql", "graphql", "native"]],
+        ["schema.graphqls", ["graphql", "graphql", "native"]],
+        [".env.example", ["dotenv", "shell", "alias"]],
         ["app.php", ["php", "php", "native"]],
         ["Main.java", ["java", "java", "native"]],
         ["native.cpp", ["cpp", "cpp", "native"]],
@@ -2563,6 +2615,16 @@ const scenarios = [
       assert.equal(jsFeatureModel.actions.codeActions.active, true);
       assert.equal(jsFeatureModel.actions.rename.active, true);
       assert.equal(jsFeatureModel.capabilityBadge, "Tools 7/7");
+      assert.deepEqual(jsFeatureModel.lsp.supportedFeatureIds, [
+        "completion",
+        "hover",
+        "diagnostics",
+        "definition",
+        "formatting",
+        "codeActions",
+        "rename",
+      ]);
+      assert.deepEqual(jsFeatureModel.lsp.activeFeatureIds, jsFeatureModel.lsp.supportedFeatureIds);
       assert.deepEqual(jsFeatureModel.completions.availableLabels, [
         "LSP",
         "Snippets",
@@ -2642,6 +2704,48 @@ const scenarios = [
         false,
       );
 
+      const largePolicy = createEditorLargeFilePolicy({
+        charCount: 230_000,
+        lineCount: 1_000,
+      });
+      assert.equal(largePolicy.mode, "guarded");
+      assert.equal(largePolicy.lspEnabled, false);
+      assert.equal(largePolicy.autocompleteEnabled, false);
+      assert.equal(largePolicy.foldGutterEnabled, false);
+      assert.equal(largePolicy.selectionMatchMax, 24);
+
+      const hugePolicy = createEditorLargeFilePolicy({
+        charCount: 700_000,
+        lineCount: 20_000,
+      });
+      assert.equal(hugePolicy.mode, "plain");
+      assert.equal(hugePolicy.syntaxHighlightingEnabled, false);
+      assert.equal(hugePolicy.selectionMatchMax, 0);
+
+      const selectionDoc = createCodeMirrorDoc("one\ntwo words\nthree");
+      const selectionSnapshot = createEditorSelectionSnapshot(selectionDoc, {
+        main: { anchor: 4, head: 13 },
+        ranges: [{ anchor: 4, head: 13 }],
+      });
+      assert.equal(selectionSnapshot.empty, false);
+      assert.equal(selectionSnapshot.selectedCharacters, 9);
+      assert.equal(selectionSnapshot.cursor.line, 2);
+      assert.equal(selectionSnapshot.rangeLabel, "L2:C1-C10");
+
+      const textSelection = createEditorTextSelectionSnapshot("alpha\nbeta", 2, 8);
+      assert.equal(textSelection.selectedCharacters, 6);
+      assert.equal(textSelection.cursor.line, 2);
+      assert.equal(textSelection.rangeLabel, "L1:C3-L2:C3");
+
+      const actionStatus = createEditorLspActionStatus({
+        state: "applied",
+        featureId: EDITOR_LSP_FEATURE_IDS.goToDefinition,
+        text: "Definition selected",
+      });
+      assert.equal(actionStatus.dataState, "go-to-definition:applied");
+      assert.equal(actionStatus.featureLabel, "Go to Definition");
+      assert.equal(actionStatus.tone, "text-emerald-300");
+
       const featureContext = {
         canUseLsp: true,
         hasWorkspace: true,
@@ -2675,6 +2779,8 @@ const scenarios = [
       );
       assert.equal(renameRequest.ready, true);
       assert.equal(renameRequest.lspMethod, "renameSymbol");
+      assert.equal(renameRequest.shortcut, "F2");
+      assert.equal(renameRequest.ui.dataState, "rename-symbol:ready");
       assert.deepEqual(renameRequest.position, { lineNumber: 2, column: 7 });
       assert.equal(renameRequest.newName, "nextValue");
 

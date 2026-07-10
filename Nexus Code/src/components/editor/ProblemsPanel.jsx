@@ -253,7 +253,7 @@ export default function ProblemsPanel({ problems, onSelectProblem }) {
       : "Suche oder Severity-Filter blenden aktuell alle Diagnostics aus.";
 
   return (
-    <PanelShell ariaLabel="Problems">
+    <PanelShell ariaLabel="Problems" className="nx-code-problems-panel">
       <PanelHeader
         icon={AlertCircle}
         title="Problems"
@@ -299,7 +299,7 @@ export default function ProblemsPanel({ problems, onSelectProblem }) {
         }
       >
         <div className="space-y-2">
-          <div className="grid min-w-0 gap-2 md:grid-cols-[minmax(13rem,1fr)_auto]">
+          <div className="grid min-w-0 gap-1.5 md:grid-cols-[minmax(12rem,1fr)_auto]">
             <div className="relative min-w-0">
               <Search
                 size={13}
@@ -310,7 +310,7 @@ export default function ProblemsPanel({ problems, onSelectProblem }) {
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Message, Datei oder Code"
-                className="h-8 w-full rounded-md border border-white/[0.045] bg-white/[0.018] pl-8 pr-8 text-[12px] text-gray-200 outline-none transition-colors placeholder:text-gray-600 focus:border-sky-300/24 focus:bg-white/[0.032]"
+                className="h-8 w-full rounded-md border border-white/[0.04] bg-white/[0.015] pl-8 pr-8 text-[12px] text-gray-200 outline-none transition-colors placeholder:text-gray-600 focus:border-sky-300/[0.22] focus:bg-white/[0.03]"
               />
               {query ? (
                 <button
@@ -324,7 +324,7 @@ export default function ProblemsPanel({ problems, onSelectProblem }) {
               ) : null}
             </div>
 
-            <div className="flex min-w-0 flex-wrap items-center gap-0.5 rounded-md border border-white/[0.035] bg-white/[0.01] p-0.5">
+            <div className="flex min-w-0 flex-wrap items-center gap-0.5 rounded-md border border-white/[0.03] bg-white/[0.008] p-0.5">
               {FILTERS.map((item) => {
                 const active = filter === item.id;
                 const count =
@@ -337,7 +337,7 @@ export default function ProblemsPanel({ problems, onSelectProblem }) {
                     className="inline-flex min-h-6 min-w-0 items-center gap-1.5 rounded px-2 text-[10px] font-semibold leading-tight transition-colors"
                     style={{
                       background: active
-                        ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.15)"
+                        ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.11)"
                         : "transparent",
                       color: active ? "var(--nexus-primary, #7c8cff)" : "#7f8798",
                     }}
@@ -391,9 +391,9 @@ export default function ProblemsPanel({ problems, onSelectProblem }) {
                 <button
                   type="button"
                   onClick={() => toggleGroup(file)}
-                  className="mb-1 flex w-full items-start gap-2 rounded-lg border px-2.5 py-1.5 text-left backdrop-blur-md transition-colors hover:bg-white/[0.036]"
+                  className="mb-1 flex w-full items-start gap-2 rounded-md border px-2.5 py-1.5 text-left transition-colors hover:bg-white/[0.028]"
                   style={{
-                    background: collapsed ? "rgba(255,255,255,0.012)" : "rgba(255,255,255,0.018)",
+                    background: collapsed ? "rgba(255,255,255,0.008)" : "rgba(255,255,255,0.014)",
                     borderColor:
                       tone === "danger"
                         ? "rgba(239,68,68,0.2)"
@@ -442,16 +442,16 @@ export default function ProblemsPanel({ problems, onSelectProblem }) {
                     <motion.button
                       key={problem.id || getProblemKey(problem, globalIndex)}
                       type="button"
-                      whileHover={{ x: 4 }}
+                      whileHover={{ x: 2 }}
                       onFocus={() => setActiveIndex(globalIndex)}
                       onClick={() => selectProblem(problem, globalIndex)}
                       data-active={active ? "true" : "false"}
                       role="option"
                       aria-selected={active}
-                      className={`group flex w-full cursor-pointer items-start gap-2.5 rounded-lg border px-2.5 py-2 text-left outline-none transition-colors ${
+                      className={`group flex w-full cursor-pointer items-start gap-2.5 rounded-md border px-2.5 py-1.5 text-left outline-none transition-colors ${
                         active
-                          ? "border-sky-300/16 bg-white/[0.038]"
-                          : "border-transparent hover:border-white/[0.03] hover:bg-white/[0.022]"
+                          ? "border-sky-300/[0.14] bg-white/[0.028]"
+                          : "border-transparent hover:border-white/[0.026] hover:bg-white/[0.018]"
                       }`}
                       title={`${meta.label}: ${problem.message}`}
                     >

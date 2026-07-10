@@ -48,10 +48,10 @@ const toneStyles = {
 };
 
 export const PANEL_INPUT_CLASS =
-  "min-h-9 w-full min-w-0 rounded-md border border-white/[0.052] bg-white/[0.02] px-3 py-2 text-[12px] leading-snug text-gray-200 outline-none transition-colors placeholder:text-gray-600 focus:border-[rgba(var(--nexus-primary-rgb),0.32)] focus:bg-white/[0.04] focus:ring-2 focus:ring-[rgba(var(--nexus-primary-rgb),0.09)]";
+  "min-h-8 w-full min-w-0 rounded-md border border-white/[0.045] bg-white/[0.018] px-2.5 py-1.5 text-[12px] leading-snug text-gray-200 outline-none transition-colors placeholder:text-gray-600 focus:border-[rgba(var(--nexus-primary-rgb),0.28)] focus:bg-white/[0.034] focus:ring-2 focus:ring-[rgba(var(--nexus-primary-rgb),0.075)]";
 
 export const PANEL_SELECT_CLASS =
-  "min-h-9 w-full min-w-0 rounded-md border border-white/[0.052] bg-white/[0.02] px-3 py-2 text-[12px] leading-snug text-gray-200 outline-none transition-colors focus:border-[rgba(var(--nexus-primary-rgb),0.32)] focus:bg-white/[0.04] focus:ring-2 focus:ring-[rgba(var(--nexus-primary-rgb),0.09)]";
+  "min-h-8 w-full min-w-0 rounded-md border border-white/[0.045] bg-white/[0.018] px-2.5 py-1.5 text-[12px] leading-snug text-gray-200 outline-none transition-colors focus:border-[rgba(var(--nexus-primary-rgb),0.28)] focus:bg-white/[0.034] focus:ring-2 focus:ring-[rgba(var(--nexus-primary-rgb),0.075)]";
 
 export function useNexusReducedMotion() {
   const prefersReducedMotion = useReducedMotion();
@@ -106,21 +106,21 @@ export function PanelCard({
 
   return (
     <Component
-      className={`nx-editor-panel-card min-w-0 rounded-lg border ${interactive ? "transition-colors hover:bg-white/[0.034]" : ""} ${className}`}
+      className={`nx-editor-panel-card min-w-0 rounded-md border ${interactive ? "transition-colors hover:bg-white/[0.026]" : ""} ${className}`}
       style={{
         color: toneStyle.detail,
         background:
-          "linear-gradient(180deg, rgba(255,255,255,0.028), rgba(255,255,255,0.007)), rgba(0,0,0,0.15)",
+          "linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.004)), rgba(0,0,0,0.12)",
         borderColor:
-          tone === "muted" ? "rgba(156,178,226,0.052)" : toneStyle.border,
-        borderRadius: "var(--nexus-radius-md, 10px)",
+          tone === "muted" ? "rgba(156,178,226,0.046)" : toneStyle.border,
+        borderRadius: "8px",
         boxShadow: reduceMotion
-          ? "inset 0 1px 0 rgba(255,255,255,0.026)"
-          : "0 5px 14px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.032)",
-        backdropFilter: reduceMotion ? "none" : "blur(10px) saturate(108%)",
+          ? "inset 0 1px 0 rgba(255,255,255,0.02)"
+          : "inset 0 1px 0 rgba(255,255,255,0.026)",
+        backdropFilter: reduceMotion ? "none" : "blur(6px) saturate(104%)",
         WebkitBackdropFilter: reduceMotion
           ? "none"
-          : "blur(10px) saturate(108%)",
+          : "blur(6px) saturate(104%)",
         overflowWrap: "anywhere",
         transition:
           reduceMotion
@@ -149,12 +149,12 @@ export function PanelShell({ children, ariaLabel, className = "", style }) {
       className={`nx-editor-panel-shell relative isolate flex h-full min-h-0 w-full max-w-full flex-col overflow-hidden text-gray-100 ${className}`}
       style={{
         background:
-          "linear-gradient(180deg, rgba(5,8,15,0.94) 0%, rgba(3,5,10,0.9) 100%)",
-        backdropFilter: reduceMotion ? "none" : "blur(10px) saturate(104%)",
+          "linear-gradient(180deg, rgba(5,8,15,0.91) 0%, rgba(3,5,10,0.88) 100%)",
+        backdropFilter: reduceMotion ? "none" : "blur(7px) saturate(103%)",
         WebkitBackdropFilter: reduceMotion
           ? "none"
-          : "blur(10px) saturate(104%)",
-        boxShadow: "inset 0 1px 0 rgba(255,255,255,0.018)",
+          : "blur(7px) saturate(103%)",
+        boxShadow: "inset 0 1px 0 rgba(255,255,255,0.014)",
         ...style,
       }}
       aria-label={ariaLabel}
@@ -185,26 +185,26 @@ export function PanelHeader({
 
   return (
     <header
-      className={`nx-editor-panel-header shrink-0 border-b px-3 pb-2 pt-2.5 ${className}`}
+      className={`nx-editor-panel-header shrink-0 border-b px-3 py-2 ${className}`}
       style={{
         background:
-          "linear-gradient(180deg, rgba(255,255,255,0.014), rgba(255,255,255,0.002)), rgba(0,0,0,0.08)",
-        borderColor: "rgba(154,166,204,0.034)",
+          "linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.002)), rgba(0,0,0,0.07)",
+        borderColor: "rgba(154,166,204,0.03)",
         boxShadow: reduceMotion
           ? "inset 0 -1px 0 rgba(255,255,255,0.012)"
           : "inset 0 -1px 0 rgba(255,255,255,0.012)",
-        backdropFilter: reduceMotion ? "none" : "blur(8px) saturate(104%)",
-        WebkitBackdropFilter: reduceMotion ? "none" : "blur(8px) saturate(104%)",
+        backdropFilter: reduceMotion ? "none" : "blur(6px) saturate(103%)",
+        WebkitBackdropFilter: reduceMotion ? "none" : "blur(6px) saturate(103%)",
       }}
     >
-      <div className="flex min-w-0 flex-wrap items-start gap-x-2 gap-y-1">
+      <div className="flex min-w-0 items-start gap-2">
         {Icon ? (
           <div
             className="grid h-5 w-5 shrink-0 place-items-center rounded-md border"
             style={{
-              borderRadius: "8px",
-              background: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.04)",
-              borderColor: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.08)",
+              borderRadius: "7px",
+              background: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.035)",
+              borderColor: "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.07)",
               color: "var(--nexus-primary, #7c8cff)",
               boxShadow: reduceMotion
                 ? "inset 0 1px 0 rgba(255,255,255,0.02)"
@@ -215,10 +215,10 @@ export function PanelHeader({
           </div>
         ) : null}
 
-        <div className="min-w-[8rem] flex-1">
-          <div className="flex min-w-0 flex-wrap items-center gap-2">
+        <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 items-center gap-2">
             <h2
-              className="min-w-0 break-words text-[12px] font-semibold leading-tight text-gray-100"
+              className="min-w-0 truncate text-[12px] font-semibold leading-tight text-gray-100"
               style={{ overflowWrap: "anywhere", wordBreak: "normal" }}
             >
               {title}
@@ -227,7 +227,7 @@ export function PanelHeader({
           </div>
           {subtitle ? (
             <p
-              className="mt-0.5 min-w-0 break-words text-[10px] leading-snug text-gray-500"
+              className="mt-0.5 min-w-0 truncate text-[10px] leading-snug text-gray-500"
               style={{ overflowWrap: "anywhere", wordBreak: "normal" }}
             >
               {subtitle}
@@ -237,11 +237,11 @@ export function PanelHeader({
 
         {actions ? (
           <div
-            className="nx-editor-panel-actions ml-auto flex max-w-full shrink-0 flex-wrap items-center justify-end gap-0.5 overflow-visible rounded-md border border-white/[0.028] bg-white/[0.008] p-0.5"
+            className="nx-editor-panel-actions ml-auto flex max-w-[42%] shrink-0 flex-wrap items-center justify-end gap-1 overflow-visible rounded-md"
             role="toolbar"
             aria-label={`${title} actions`}
             style={{
-              boxShadow: "inset 0 1px 0 rgba(255,255,255,0.018)",
+              boxShadow: "none",
             }}
           >
             {actions}
@@ -275,9 +275,9 @@ export function PanelFooter({ children, className = "" }) {
       className={`nx-editor-panel-footer shrink-0 border-t px-3 py-2 ${className}`}
       style={{
         background:
-          "linear-gradient(180deg, rgba(255,255,255,0.014), rgba(255,255,255,0.004)), rgba(0,0,0,0.1)",
-        borderColor: "rgba(154,166,204,0.042)",
-        boxShadow: "inset 0 1px 0 rgba(255,255,255,0.018)",
+          "linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.003)), rgba(0,0,0,0.09)",
+        borderColor: "rgba(154,166,204,0.035)",
+        boxShadow: "inset 0 1px 0 rgba(255,255,255,0.012)",
       }}
     >
       {children}
@@ -301,15 +301,15 @@ export function PanelIconButton({
       disabled={disabled}
       title={label}
       aria-label={label}
-      className={`grid h-6 w-6 shrink-0 place-items-center rounded-md border text-gray-500 transition-colors hover:bg-white/[0.04] hover:text-gray-200 disabled:cursor-not-allowed disabled:opacity-45 [&>svg]:h-3 [&>svg]:w-3 ${className}`}
+      className={`grid h-7 w-7 shrink-0 place-items-center rounded-md border text-gray-500 transition-colors hover:bg-white/[0.036] hover:text-gray-200 disabled:cursor-not-allowed disabled:opacity-45 [&>svg]:h-3.5 [&>svg]:w-3.5 ${className}`}
       style={{
-        borderRadius: "8px",
+        borderRadius: "7px",
         background: active
-          ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.075)"
-          : "rgba(255,255,255,0.01)",
+          ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.07)"
+          : "rgba(255,255,255,0.006)",
         borderColor: active
-          ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.13)"
-          : "rgba(255,255,255,0.034)",
+          ? "rgba(var(--nexus-primary-rgb, 124, 140, 255), 0.12)"
+          : "rgba(255,255,255,0.03)",
         color: active ? "var(--nexus-primary, #7c8cff)" : undefined,
         boxShadow: active
           ? "inset 0 1px 0 rgba(255,255,255,0.03)"
@@ -338,13 +338,13 @@ export function PanelActionButton({
       onClick={onClick}
       disabled={disabled}
       title={title}
-      className={`inline-flex min-h-8 max-w-full min-w-0 items-center justify-center gap-1.5 rounded-md border px-2.5 py-1.5 text-[11px] font-semibold leading-tight transition-colors hover:bg-white/[0.04] disabled:cursor-not-allowed disabled:opacity-45 ${className}`}
+      className={`inline-flex min-h-7 max-w-full min-w-0 items-center justify-center gap-1.5 rounded-md border px-2 py-1 text-[11px] font-semibold leading-tight transition-colors hover:bg-white/[0.036] disabled:cursor-not-allowed disabled:opacity-45 ${className}`}
       style={{
         color: toneStyle.icon,
         background: toneStyle.background,
         borderColor: toneStyle.border,
-        borderRadius: "var(--nexus-radius-md, 10px)",
-        boxShadow: "inset 0 1px 0 rgba(255,255,255,0.026)",
+        borderRadius: "7px",
+        boxShadow: "inset 0 1px 0 rgba(255,255,255,0.02)",
       }}
     >
       {Icon ? <Icon size={13} className="shrink-0" /> : null}
@@ -360,7 +360,7 @@ export function PanelBadge({ children, tone = "muted", title }) {
   return (
     <span
       title={title}
-      className="inline-flex max-w-full min-w-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold leading-tight"
+      className="inline-flex max-w-full min-w-0 items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-semibold leading-tight"
       style={{
         color: toneStyle.icon,
         background: toneStyle.background,
@@ -379,11 +379,11 @@ export function PanelMetric({ label, value, tone = "muted", title }) {
   return (
     <div
       title={title}
-      className="min-w-0 rounded-lg border px-2.5 py-2"
+      className="min-w-0 rounded-md border px-2 py-1.5"
       style={{
         background: "rgba(0,0,0,0.13)",
         borderColor: "rgba(255,255,255,0.055)",
-        borderRadius: "var(--nexus-radius-md, 10px)",
+        borderRadius: "7px",
       }}
     >
       <div
@@ -415,12 +415,12 @@ export function PanelNotice({
   const toneStyle = toneStyles[tone] || toneStyles.muted;
   return (
     <div
-      className={`rounded-md border px-3 py-2.5 ${className}`}
+      className={`rounded-md border px-2.5 py-2 ${className}`}
       style={{
         color: toneStyle.detail,
         background: toneStyle.background,
         borderColor: toneStyle.border,
-        borderRadius: "var(--nexus-radius-md, 10px)",
+        borderRadius: "8px",
       }}
     >
       <div className="flex min-w-0 flex-wrap items-start gap-x-2 gap-y-1">
@@ -525,12 +525,12 @@ export function PanelSection({
 
   return (
     <section className="nx-editor-panel-section">
-      <div className="flex items-center gap-1 px-2 py-1">
+      <div className="flex items-center gap-1 px-2 py-0.5">
         <button
           type="button"
           onClick={onToggle}
           aria-expanded={expanded}
-          className="min-w-0 flex flex-1 items-center gap-1.5 rounded-lg px-1 py-1 text-left transition-colors hover:bg-white/[0.032]"
+          className="min-w-0 flex flex-1 items-center gap-1.5 rounded-md px-1 py-1 text-left transition-colors hover:bg-white/[0.026]"
         >
           <motion.span
             animate={{ rotate: expanded ? 0 : -90 }}

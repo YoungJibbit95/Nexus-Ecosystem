@@ -13,6 +13,10 @@ import {
   createUiSmokeSettingsFixture,
 } from "./uiSmokeFixtures.js";
 import "./visualSmoke.css";
+import {
+  VISUAL_SMOKE_EDITOR_LANGUAGE_SURFACES,
+  VISUAL_SMOKE_VIEWPORTS,
+} from "./visualSmokeScenarios.js";
 
 const noop = () => {};
 const params = new URLSearchParams(window.location.search);
@@ -25,12 +29,7 @@ const root = createRoot(rootElement);
 document.documentElement.classList.add("reduce-motion");
 document.body.classList.add("nx-code-visual-smoke-body");
 
-const VIEWPORTS = Object.freeze([
-  { id: "desktop", width: 1440, height: 900 },
-  { id: "tablet", width: 1024, height: 768 },
-  { id: "short-wide", width: 900, height: 512 },
-  { id: "phone-portrait", width: 390, height: 900 },
-]);
+const VIEWPORTS = VISUAL_SMOKE_VIEWPORTS;
 
 function repeatLanguageBlock(count, createBlock) {
   return Array.from({ length: count }, (_, index) =>
@@ -389,6 +388,15 @@ ${repeatLanguageBlock(72, (index, line) =>
       ].join("\n"),
     ),
   },});
+
+const missingEditorLanguageSurfaces = VISUAL_SMOKE_EDITOR_LANGUAGE_SURFACES.filter(
+  (id) => !EDITOR_LANGUAGE_SMOKE_CASES[id],
+);
+if (missingEditorLanguageSurfaces.length) {
+  throw new Error(
+    `visual smoke editor surface list is missing cases: ${missingEditorLanguageSurfaces.join(", ")}`,
+  );
+}
 
 function SmokeViewport({ viewport, surfaceId: currentSurfaceId, children }) {
   return (
