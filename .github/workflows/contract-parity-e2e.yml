@@ -53,12 +53,7 @@ jobs:
       - name: Build Code Mobile
         run: npm --prefix "./Nexus Code Mobile" run build
 
-      - name: Hosted API smoke
-        shell: bash
-        env:
-          NEXUS_CONTROL_URL: ${{ vars.NEXUS_CONTROL_URL || 'https://nexus-api.dev' }}
+      - name: Public surface guard
         run: |
-          set -euo pipefail
-          echo "Smoke target: ${NEXUS_CONTROL_URL}"
-          curl -fsS "${NEXUS_CONTROL_URL}/health" >/tmp/nexus-health-ci.json
-          curl -fsS "${NEXUS_CONTROL_URL}/api/v1/public/bootstrap" >/tmp/nexus-bootstrap-ci.json
+          npm run check:no-private-strings
+          npm run check:secrets

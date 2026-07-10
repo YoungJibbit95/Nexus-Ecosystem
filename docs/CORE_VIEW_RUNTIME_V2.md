@@ -1,18 +1,16 @@
-# Core View Runtime v2
+# Core View Runtime
 
-Stand: 2026-05-06
+The Core View Runtime keeps Nexus clients predictable across desktop and mobile. Views share metadata, actions, panels and layout hints so the clients can present a consistent local-first workspace.
 
-Core View Runtime v2 macht die Nexus-v6-Shell berechenbar. Views liefern nicht nur Titel und Actions, sondern ein gemeinsames Layout-, Panel- und Command-Modell, das Desktop Main, Mobile und spaetere Surfaces gleich interpretieren koennen.
+## Goals
 
-## Ziele
+- One client-side source for view metadata, actions, panels, shortcuts and status signals.
+- Stable desktop, tablet and mobile layout behavior.
+- Panel handling for inspector rails, inline panels, sheets and focus mode.
+- Command registry with enabled/disabled state and safe execution hooks.
+- Stable UI controls that do not move click targets on hover or press.
 
-- Eine zentrale Quelle fuer View-Metadaten, Actions, Panels, Shortcuts und Statussignale.
-- Layout Schema v2 fuer Desktop, Tablet und Mobile.
-- Panel Engine fuer Inspector Rails, Inline-Panels, Sheets und Fokusmodus.
-- Command Registry mit Enabled/Disabled-State und sicherem Execution-Hook.
-- Stabile UI: Actions duerfen Klickziele nicht durch Hover/Press verschieben.
-
-## Zentrale Exports
+## Main Exports
 
 ```ts
 NEXUS_VIEW_MANIFESTS
@@ -25,65 +23,48 @@ resolveNexusViewLayout()
 buildNexusPanelEngine()
 ```
 
-## Layout Schema v2
+## Layout Model
 
-`resolveNexusViewLayout()` gibt pro View ein `NexusViewLayoutSchemaV2` zurueck:
+`resolveNexusViewLayout()` returns a client layout model:
 
-- `surface`: desktop, tablet oder mobile.
-- `surfaceMode`: dashboard, editor, board, canvas, browser, flow, settings, status, diagnostics oder stack.
-- `density`: compact, comfortable oder spacious.
-- `chrome`: full, focused oder immersive.
-- `contentPriority`: balanced, content-first, creation-first oder diagnostic.
-- `columns`: berechnete Spaltenzahl fuer die Shell.
-- `minContentWidth`: Mindestbreite fuer stabile Arbeitsflaechen.
-- `panels`: aufgeloeste Panel-Liste inklusive Sichtbarkeit und Presentation.
-- `commandPlacements`: Command-IDs gruppiert nach primary, toolbar, command und context.
+- `surface`: desktop, tablet or mobile.
+- `surfaceMode`: dashboard, editor, board, canvas, browser, flow, settings, status, diagnostics or stack.
+- `density`: compact, comfortable or spacious.
+- `chrome`: full, focused or immersive.
+- `contentPriority`: balanced, content-first, creation-first or diagnostic.
+- `columns`: calculated shell columns.
+- `minContentWidth`: minimum width for stable work surfaces.
+- `panels`: resolved panel list.
+- `commandPlacements`: command IDs grouped by primary, toolbar, command and context.
 
 ## Panel Engine
 
-`buildNexusPanelEngine()` baut aus Manifest und UI-Zustand die konkrete Panel-Sicht:
+`buildNexusPanelEngine()` builds the active client panel state:
 
-- `railPanels`: sichtbare Desktop-Rails.
-- `sheetPanels`: Mobile- oder Inspector-Sheets.
-- `inlinePanels`: Bottom/Inline-Panels.
-- `inspectorPanels`: alle Panels, die sich fuer den Inspector eignen.
-- `activePanel`: das aktuell sinnvollste Panel fuer die Inspector-Anzeige.
-- `hasVisibleInspector`: true, wenn ein Inspector-relevantes Panel sichtbar ist.
+- desktop rails
+- mobile or inspector sheets
+- inline panels
+- inspector-ready panels
+- active panel
+- visible inspector state
 
-Fokusmodus blendet nicht notwendige Rails aus. Bottom/Inline-Panels duerfen sichtbar bleiben, wenn sie arbeitskritische Statusdaten tragen.
+Focus mode hides non-essential rails while keeping work-critical inline status available.
 
 ## Command Registry
 
-`resolveNexusViewCommandRegistry()` erweitert Actions zu Commands mit State:
+`resolveNexusViewCommandRegistry()` expands actions into commands with stable state:
 
-- `commandId`: stabile ID im Format `view.action`.
-- `enabled`: berechneter Bedienzustand.
-- `disabledReason`: `requires-selection`, `read-only`, `entitlement-blocked` oder `view-unavailable`.
-- `scope`: view oder global.
-- `priority`: stabile Sortierung fuer Command Palette, Toolbar und Inspector.
+- `commandId`
+- `enabled`
+- `disabledReason`
+- `scope`
+- `priority`
 
-`executeNexusViewCommand()` fuehrt keine App-Logik selbst aus. Es erzwingt aber die gemeinsame Reihenfolge:
+`executeNexusViewCommand()` stays UI-agnostic: it finds a command, respects disabled state and calls the app-provided handler.
 
-1. Command suchen.
-2. Disabled-State respektieren.
-3. View-spezifischen Handler, `view.*` Handler oder globalen `*` Handler finden.
-4. Handler ausfuehren und ein strukturiertes Ergebnis zurueckgeben.
+## Next Steps
 
-Damit bleibt Core sicher und UI-agnostisch, waehrend Main/Mobile echte Handler schrittweise pro View anbinden koennen.
-
-## Main Integration
-
-`NexusV6ViewShell` nutzt jetzt:
-
-- `buildNexusPanelEngine()` fuer Inspector-Panel-State.
-- `resolveNexusViewCommandRegistry()` fuer Primary- und Toolbar-Actions.
-- Layout-Metadaten fuer Inspector-Debugging und spaetere Responsive-Regeln.
-- Stabilere Panel-Buttons ohne Hover-Translation, damit Klickziele nicht wandern.
-
-## Naechste Ausbaustufe
-
-- View-spezifische Command Handler in Dashboard, Notes, Tasks und Canvas anbinden.
-- Mobile Shell auf dieselbe Panel Engine ziehen.
-- Command Palette als globalen Einstieg auf `resolveNexusViewCommandRegistry()` umstellen.
-- Persistente Panel-Zustaende pro View speichern.
-- Layout Schema v2 in Live Sync aufnehmen, sobald Control Plane Promotion-Regeln dafuer bereit sind.
+- Connect more view-specific command handlers.
+- Keep Mobile and Main on shared panel/runtime contracts.
+- Persist panel state per view.
+- Improve global command palette integration.

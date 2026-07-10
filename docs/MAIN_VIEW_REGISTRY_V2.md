@@ -1,45 +1,38 @@
-# Nexus Main View Registry v2
+# Nexus Main View Registry
 
-Stand: 2026-05-06
+The Nexus Main view registry reduces duplicate view metadata across sidebar, preload, boot configuration and shared manifests.
 
-Die Main View Registry v2 reduziert die alte Doppelpflege zwischen Sidebar, Preload, Boot-Konfiguration und Core-Manifests. Nexus Main liest View-Labels, Farben, Gruppen und Preload-Signale jetzt aus einer zentralen Registry, die auf `packages/nexus-core` aufsetzt.
-
-## Zentrale Datei
+## Primary File
 
 ```text
 Nexus Main/src/app/mainViewRegistry.ts
 ```
 
-## Verantwortungen
+## Responsibilities
 
-- `View` Typ fuer Core-Views plus lokalen `diagnostics` Dev-View.
-- Icon-, Label-, Farbe-, Kategorie- und Navigationsgruppen pro View.
-- Main/Footer/Developer-Gruppierung fuer Sidebar und Shell.
-- Preload-Prioritaet und Heavy-View-Markierung fuer Boot/Warmup.
-- Kritische, Boot-Priority- und persistente View-Listen fuer Main.
-- Normalisierung von API-/Runtime-View-Listen auf lokal bekannte Views.
+- View type metadata for product views and development-only diagnostics.
+- Icon, label, color, category and navigation groups per view.
+- Sidebar and shell grouping.
+- Preload priority and heavy-view markers.
+- Critical, boot-priority and persisted view lists.
+- Normalization of cloud-managed view availability to locally known views.
 
-## Angebundene Stellen
+## Connected Areas
 
-- `Sidebar.tsx` nutzt `MAIN_PRIMARY_VIEW_ITEMS` und `MAIN_FOOTER_VIEW_ITEMS`.
-- `viewPreload.tsx` nutzt `MAIN_VIEW_IDS`, `MAIN_PRELOAD_PRIORITY` und `MAIN_HEAVY_PRELOAD_VIEW_SET`.
-- `mainAppConfig.ts` nutzt Registry-Listen fuer Fallback, Boot, Critical Preload und persistenten Cache.
-- `NexusV6ViewShell` nutzt Core Commands und gibt reale Main-Kommandos an `MainViewHost` weiter.
+- `Sidebar.tsx` uses primary and footer view items.
+- `viewPreload.tsx` uses view IDs, preload priority and heavy preload sets.
+- `mainAppConfig.ts` uses registry lists for fallback, boot, critical preload and local cache.
+- `NexusV6ViewShell` uses shared commands and delegates real app commands to `MainViewHost`.
 
 ## Command Bridge
 
-`NexusV6ViewShell` kann Commands aus der resolved Core Registry ausfuehren. `MainViewHost` behandelt aktuell die ersten echten Main-Kommandos:
+`NexusV6ViewShell` can execute commands from the resolved shared registry. `MainViewHost` handles core user actions such as creating notes, tasks and reminders.
 
-- `dashboard.quick-capture` erstellt eine Note und wechselt zu Notes.
-- `notes.new-note` erstellt eine Note und wechselt zu Notes.
-- `tasks.new-task` erstellt einen Task und wechselt zu Tasks.
-- `reminders.new-reminder` erstellt einen Reminder und wechselt zu Reminders.
+Unhandled commands are forwarded as browser events so views can adopt handlers incrementally without duplicating shell logic.
 
-Nicht behandelte Commands werden als `nexus:view-command` Browser-Event mit `commandId`, `actionId`, `viewId`, `intent` und `placement` weitergereicht. Dadurch koennen Views schrittweise eigene Handler anbinden, ohne die Shell wieder zu verzweigen.
+## Next Steps
 
-## Naechste Schritte
-
-- Command Palette und Toolbar voll auf `MAIN_VIEW_REGISTRY` und `resolveNexusViewCommandRegistry()` umstellen.
-- Notes/Tasks/Canvas spezifische Events direkt in den Views konsumieren.
-- Panel-State pro View persistieren.
-- Mobile Registry-Verbrauch angleichen, damit Mobile dieselben Gruppen/Prioritaeten nutzt.
+- Align command palette and toolbar behavior with the registry.
+- Let Notes, Tasks and Canvas consume their own view events.
+- Persist panel state per view.
+- Keep Mobile registry consumption aligned with Main.

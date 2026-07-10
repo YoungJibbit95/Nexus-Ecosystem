@@ -89,14 +89,14 @@ npm run electron:build:installers
 
 ## Environment
 
-- `VITE_NEXUS_CONTROL_URL=https://nexus-api.cloud`
-- `VITE_NEXUS_CONTROL_INGEST_KEY` (key for `main`)
-- `VITE_NEXUS_USER_ID`
-- `VITE_NEXUS_USERNAME`
-- `VITE_NEXUS_USER_TIER`
+Client-side environment values are public configuration, not secrets.
+
+Most Nexus Main development should work without production cloud credentials. Use local `.env.local` values only for non-secret public development hints; keep Nexus Cloud credentials, backend routes, signing material and deployment details outside this repository.
+
+See `../docs/ENVIRONMENT.md`.
 
 ## Notes
 
-- This repo does not contain the private backend implementation.
-- Runtime/API policies are cloud-first on `nexus-api.cloud`.
+- This repo does not contain the private Nexus Cloud backend implementation.
+- Cloud and Pro access is server-side; client UI gates are only user experience.
 - Render Diagnostics is a dev surface and not part of normal production navigation.

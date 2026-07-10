@@ -670,6 +670,7 @@ export function NotesView() {
       title={tooltip}
       idleOpacity={0.72}
       radius={7}
+      className="nx-mobile-notes-format-btn"
       style={{
         padding: '3px',
         color: t.accent,
@@ -944,7 +945,7 @@ export function NotesView() {
 
           {/* Formatting toolbar */}
           {(mode === 'edit' || mode === 'split') && (!mob.isMobile || showMobileFormatBar) && (
-            <div className="nx-mobile-row-scroll" style={{ gap: 2, padding: isTightViewport ? '0 1px' : '0 2px', opacity: 0.9 }}>
+            <div className="nx-mobile-row-scroll nx-mobile-notes-formatbar" style={{ gap: 2, padding: isTightViewport ? '0 1px' : '0 2px', opacity: 0.9 }}>
               <FmtBtn icon={Heading}      tooltip="H2"           action={() => insertFormat('\n## ', '', 'Überschrift')} />
               <FmtBtn icon={Bold}         tooltip="Fett (Ctrl+B)" action={() => insertFormat('**', '**', 'fett')} />
               <FmtBtn icon={Italic}       tooltip="Kursiv (Ctrl+I)" action={() => insertFormat('*', '*', 'kursiv')} />
@@ -987,10 +988,10 @@ export function NotesView() {
                 </InteractiveActionButton>
               </div>
 
-              <div style={{ flex: 1 }} />
+              <div className="nx-mobile-notes-format-spacer" />
 
               {/* Tags */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <div className="nx-mobile-notes-format-tags" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                 <Hash size={10} style={{ opacity: 0.35 }} />
                 {active.tags.map(tag => (
                   <InteractiveActionButton key={tag} onClick={() => updateNote(active.id, { tags: active.tags.filter(t => t !== tag) })}

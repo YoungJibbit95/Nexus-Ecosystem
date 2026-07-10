@@ -53,6 +53,8 @@
     "verify:ecosystem": "node ./tools/verify-ecosystem.mjs",
     "verify:control-desktop": "node ./tools/verify-ecosystem.mjs --control-desktop-only",
     "verify:encoding": "node ./tools/verify-encoding.mjs",
+    "check:no-private-strings": "node ./tools/check-public-surface.mjs",
+    "check:secrets": "node ./tools/check-public-surface.mjs --secrets",
     "verify:signing": "node ./tools/verify-signing-env.mjs --target=all",
     "verify:signing:required": "node ./tools/verify-signing-env.mjs --target=all --required",
     "release:evidence": "node ./tools/prepare-release-evidence.mjs",

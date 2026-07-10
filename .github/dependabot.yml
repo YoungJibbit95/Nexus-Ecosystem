@@ -7,10 +7,14 @@ updates:
       day: "monday"
       time: "04:00"
       timezone: "Europe/Berlin"
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 5
     labels:
       - "dependencies"
       - "security"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
 
   - package-ecosystem: "npm"
     directory: "/"
@@ -19,9 +23,23 @@ updates:
       day: "monday"
       time: "04:10"
       timezone: "Europe/Berlin"
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 5
     labels:
       - "dependencies"
+    groups:
+      tooling:
+        patterns:
+          - "@types/node"
+          - "typescript"
+          - "tailwindcss"
+          - "postcss"
+          - "autoprefixer"
+      workspace-tooling:
+        patterns:
+          - "vite"
+          - "@vitejs/*"
+          - "tsx"
+          - "eslint*"
 
   - package-ecosystem: "npm"
     directory: "/Nexus Main"
@@ -30,9 +48,31 @@ updates:
       day: "monday"
       time: "04:35"
       timezone: "Europe/Berlin"
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 5
     labels:
       - "dependencies"
+    groups:
+      react-stack:
+        patterns:
+          - "react"
+          - "react-dom"
+          - "@types/react*"
+      electron-stack:
+        patterns:
+          - "electron"
+          - "electron-builder"
+      docs-ui:
+        patterns:
+          - "lucide-react"
+          - "framer-motion"
+          - "three"
+          - "react-markdown"
+      tooling:
+        patterns:
+          - "@types/node"
+          - "typescript"
+          - "vite"
+          - "@vitejs/*"
 
   - package-ecosystem: "npm"
     directory: "/Nexus Mobile"
@@ -41,9 +81,30 @@ updates:
       day: "monday"
       time: "04:40"
       timezone: "Europe/Berlin"
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 5
     labels:
       - "dependencies"
+    groups:
+      react-stack:
+        patterns:
+          - "react"
+          - "react-dom"
+          - "@types/react*"
+      capacitor-stack:
+        patterns:
+          - "@capacitor/*"
+      docs-ui:
+        patterns:
+          - "lucide-react"
+          - "framer-motion"
+          - "three"
+          - "react-markdown"
+      tooling:
+        patterns:
+          - "@types/node"
+          - "typescript"
+          - "vite"
+          - "@vitejs/*"
 
   - package-ecosystem: "npm"
     directory: "/Nexus Code"
@@ -52,9 +113,29 @@ updates:
       day: "monday"
       time: "04:45"
       timezone: "Europe/Berlin"
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 5
     labels:
       - "dependencies"
+    groups:
+      react-stack:
+        patterns:
+          - "react"
+          - "react-dom"
+          - "@types/react*"
+      electron-stack:
+        patterns:
+          - "electron"
+          - "electron-builder"
+      editor-stack:
+        patterns:
+          - "monaco-editor"
+          - "@monaco-editor/*"
+      tooling:
+        patterns:
+          - "@types/node"
+          - "typescript"
+          - "vite"
+          - "@vitejs/*"
 
   - package-ecosystem: "npm"
     directory: "/Nexus Code Mobile"
@@ -63,9 +144,28 @@ updates:
       day: "monday"
       time: "04:50"
       timezone: "Europe/Berlin"
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 5
     labels:
       - "dependencies"
+    groups:
+      react-stack:
+        patterns:
+          - "react"
+          - "react-dom"
+          - "@types/react*"
+      capacitor-stack:
+        patterns:
+          - "@capacitor/*"
+      editor-stack:
+        patterns:
+          - "monaco-editor"
+          - "@monaco-editor/*"
+      tooling:
+        patterns:
+          - "@types/node"
+          - "typescript"
+          - "vite"
+          - "@vitejs/*"
 
   - package-ecosystem: "npm"
     directory: "/Nexus Wiki"
@@ -74,9 +174,26 @@ updates:
       day: "monday"
       time: "04:55"
       timezone: "Europe/Berlin"
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 5
     labels:
       - "dependencies"
+    groups:
+      react-stack:
+        patterns:
+          - "react"
+          - "react-dom"
+          - "@types/react*"
+      docs-ui:
+        patterns:
+          - "lucide-react"
+          - "framer-motion"
+          - "three"
+      tooling:
+        patterns:
+          - "@types/node"
+          - "typescript"
+          - "vite"
+          - "@vitejs/*"
 
   - package-ecosystem: "npm"
     directory: "/packages/nexus-core"
@@ -85,6 +202,10 @@ updates:
       day: "monday"
       time: "05:00"
       timezone: "Europe/Berlin"
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 5
     labels:
       - "dependencies"
+    groups:
+      core-runtime:
+        patterns:
+          - "*"

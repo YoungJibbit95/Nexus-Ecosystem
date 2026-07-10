@@ -41,6 +41,13 @@ npx cap run android --livereload --external
 npx cap run ios --livereload --external
 ```
 
+## Optional Nexus Cloud
+
+Nexus Mobile runs local-first during development. Cloud-backed account features
+can be enabled by the shared Nexus Cloud environment variables used by the
+ecosystem build, but client-side tier values are only UX hints; server-side
+account checks remain authoritative.
+
 ## Building for Release
 
 ### Android

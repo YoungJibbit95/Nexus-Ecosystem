@@ -1,53 +1,47 @@
-# Nexus API Contract (Client View)
+# Nexus Cloud Boundary
 
-Dieses Dokument beschreibt den API-Rahmen aus Sicht der Nexus-Clients im Ecosystem-Repo.
-Es ersetzt keine serverseitige API-Spezifikation, sondern dokumentiert verbindliches Client-Verhalten.
+Nexus clients can optionally connect to Nexus Cloud for account-based features such as sync, backups, AI/Flux, sharing, team workflows and Pro entitlement checks.
 
-## Produktiver Host
+This file intentionally does not document private API routes, backend implementation details, signing material, admin tools, deployment flows or infrastructure. Nexus Cloud is not a public API unless separate public developer documentation explicitly announces one.
 
-- Primärziel: `https://nexus-api.cloud`
-- Hosts muessen durch Allowlist-/Policy-Regeln abgesichert sein.
-- Keine stillen lokalen API-Fallbacks fuer produktive Flows.
+## Client Responsibilities
 
-## Client-Grundregeln
+- Keep local-first workspace features usable without private backend code.
+- Treat client configuration as public.
+- Show clear user-facing errors when cloud features are unavailable.
+- Validate cloud responses before changing client state.
+- Avoid logging secrets, tokens, private account data or raw infrastructure details.
 
-- Timeout pro Request ist verpflichtend.
-- Retry nur fuer sichere Requests (`GET`, `HEAD`) mit Backoff/Jitter.
-- Kein Retry fuer normale `4xx`-Antworten.
-- Response-Validation fuer kritische Payloads ist verpflichtend.
-- Typed Errors statt stummer Fehlerpfade.
+## Server Responsibilities
 
-## Sicht auf `liveSync` / View-Model
+Nexus Cloud owns sensitive enforcement:
 
-- Core-Views (`dashboard`, `notes`, `tasks`, `reminders`, `code`, etc.) sind fail-open zu behandeln,
-  solange sie nicht explizit serverseitig deaktiviert sind oder clientseitig nicht unterstuetzt werden.
-- Leere/inkonsistente API-Modelle duerfen keine Kern-Views verschwinden lassen.
-- Fallback-Viewlisten muessen nur als Guardrail dienen, nicht als alternativer API-Datenpfad.
+- Account and session validity
+- Pro and cloud feature availability
+- Payment and billing state
+- Sync, backup and sharing permissions
+- AI/Flux limits and abuse controls
+- Device and account access decisions
 
-## Offline-/Netzfehler-Verhalten
+Client-side checks are not a security boundary.
 
-- Kein lokales Shadow-API-System im Ecosystem-Client.
-- Fehler muessen klar im UI angezeigt werden.
-- Falls ein eingeschraenkter Offline-Modus aktiv ist, muss dieser explizit als solcher gekennzeichnet sein.
+## User-Facing Error Language
 
-## Telemetrie / Diagnostics
+Prefer product language over implementation language.
 
-- Keine `LOCAL_FALLBACK-*` Codes in normalen Runtime-Logs bei produktiver API-Konfiguration.
-- Render-/Motion-Diagnostics getrennt von API-Diagnostics behandeln.
-- API-Diagnostics muessen klar zwischen Netzwerk, Auth, Validation und Contract unterscheiden.
+| Avoid | Use instead |
+| --- | --- |
+| API unavailable | Cloud features are currently unavailable. Local workspace features remain available. |
+| Policy denied | This device is not currently allowed to use this cloud feature. |
+| Signed mutation rejected | This change could not be applied. Please try again or contact support. |
+| Offline tier blocked | Cloud features are unavailable offline. |
 
-## Verifikation (Client-seitig)
+## Verification
+
+Use public client checks for this repository:
 
 ```bash
 npm run verify:ecosystem
-npm run measure:startup-sync
-npm --prefix "./Nexus Main" run build
-npm --prefix "./Nexus Mobile" run build
-npm --prefix "./Nexus Code" run build
-npm --prefix "./Nexus Code Mobile" run build
+npm run check:no-private-strings
+npm run check:secrets
 ```
-
-## Verantwortungsgrenzen
-
-- Dieses Repo: Client-Verhalten, Contracts, Runtime-Guardrails, Dokumentation.
-- Externe API-Repos: serverseitige Endpunkte, Security-Policies, Datenpersistenz.

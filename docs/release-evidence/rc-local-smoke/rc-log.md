@@ -18,8 +18,8 @@ Created: 2026-06-27T17:11:04.443Z
 | Main/Mobile gate | `npm run release:main-mobile` | pending | |
 | Website CI build | `npm --prefix "../nexusproject.dev" run build:ci` | pending | |
 | Website API integration | `npm --prefix "../nexusproject.dev" run test:api:integration` | pending | |
-| API release data | `npm --prefix "../NexusAPI/API/nexus-control-plane" run verify:release-data` | pending | |
-| API contracts | `npm --prefix "../NexusAPI/API/nexus-control-plane" run test:contract` | pending | |
+| Public client contracts | `npm run verify:ecosystem` | pending | |
+| Public surface guard | `npm run check:no-private-strings && npm run check:secrets` | pending | |
 
 ## Screenshots
 
@@ -29,7 +29,7 @@ Created: 2026-06-27T17:11:04.443Z
 - Settings:
 - DevTools:
 - Product Page:
-- Control UI:
+- Private cloud administration:
 
 ## Decisions
 

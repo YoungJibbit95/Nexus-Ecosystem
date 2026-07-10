@@ -55,6 +55,7 @@ export const isOfflineBootstrapResourceError = (errorCodeRaw: unknown) =>
 export const resolveControlApiBaseUrl = () => {
   const env = (import.meta as any).env || {};
   const candidates = [
+    env.VITE_NEXUS_CLOUD_URL,
     env.VITE_NEXUS_CONTROL_API_BASE_URL,
     env.VITE_CONTROL_API_BASE_URL,
     env.VITE_NEXUS_API_BASE_URL,

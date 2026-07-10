@@ -90,6 +90,21 @@ const resolveMobileAuthUserTier = (
   return 'pro'
 }
 
+const describePublicBootFailure = (reason: string | null) => {
+  const normalized = String(reason || '').toUpperCase()
+  if (normalized.includes('HTTP_401') || normalized.includes('HTTP_403')) {
+    return 'Serverseitige Account-Funktionen sind fuer diese Sitzung nicht verfuegbar.'
+  }
+  return 'Nexus Cloud-Funktionen sind aktuell nicht verfuegbar. Lokale Workflows bleiben bestehen, soweit ein sicherer Fallback moeglich ist.'
+}
+
+const describePublicBootstrapResource = (resource: string) => {
+  if (resource === 'catalog') return 'Cloud-Funktionen'
+  if (resource === 'layout') return 'Mobile Layout'
+  if (resource === 'release') return 'Release-Status'
+  return 'Cloud-Status'
+}
+
 export default function App() {
   const [view, setView] = useState<View>('dashboard')
   const [availableViews, setAvailableViews] = useState<View[]>(
@@ -429,7 +444,9 @@ export default function App() {
 
   useEffect(() => {
     const controlBaseUrl = resolveControlApiBaseUrl() || CONTROL_API_BASE_URL
-    const controlIngestKey = (import.meta as any).env?.VITE_NEXUS_CONTROL_INGEST_KEY as string | undefined
+    const controlIngestKey =
+      ((import.meta as any).env?.VITE_NEXUS_CLOUD_INGEST_KEY ||
+        (import.meta as any).env?.VITE_NEXUS_CONTROL_INGEST_KEY) as string | undefined
     const safeStartupViews = withDevDiagnosticsView(
       mergeUniqueViews(
         MOBILE_SAFE_STARTUP_VIEWS.filter((candidate) => VIEW_IDS.includes(candidate)),
@@ -531,7 +548,7 @@ export default function App() {
 
     void (async () => {
       try {
-        setBootStep(24, 'Lade API Katalog, Layout und Release...')
+        setBootStep(24, 'Lade Nexus Cloud-Status...')
         const [catalogResult, layoutResult, releaseResult] = await Promise.all([
           runtime.control.fetchCatalog({
             appId: 'mobile',
@@ -592,7 +609,7 @@ export default function App() {
               failedResources,
               fallbackViews: hardenedSafeStartupViews,
             })
-            setBootStep(42, 'Hosted API teilweise nicht erreichbar, sichere lokale Views werden genutzt...')
+            setBootStep(42, 'Nexus Cloud teilweise nicht erreichbar, sichere lokale Views werden genutzt...')
           }
         }
 
@@ -1097,20 +1114,20 @@ export default function App() {
           lineHeight: 1.45,
         }}>
           <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 6 }}>
-            API-Startpruefung fehlgeschlagen
+            Nexus Cloud nicht verfuegbar
           </div>
           <div>
-            Nexus Mobile wurde kontrolliert gestoppt, weil der Hosted-API-Bootflow
-            nicht erfolgreich war.
+            Nexus Mobile wurde kontrolliert gestoppt, weil serverseitige
+            Account-Funktionen fuer diese Sitzung nicht verfuegbar sind.
           </div>
           <div style={{ marginTop: 8 }}>
-            Reason: <code>{bootFailure}</code>
+            {describePublicBootFailure(bootFailure)}
           </div>
           {bootFailureDetails && bootFailureDetails.length > 0 ? (
             <div style={{ marginTop: 8, fontSize: 12, opacity: 0.9 }}>
               {bootFailureDetails.map((entry) => (
                 <div key={`${entry.resource}-${entry.errorCode}`}>
-                  - {entry.resource}: {entry.errorCode} ({entry.kind})
+                  - {describePublicBootstrapResource(entry.resource)}: {entry.kind}
                 </div>
               ))}
             </div>
@@ -1288,7 +1305,7 @@ export default function App() {
                   color: t.mode === 'dark' ? '#ffd8d2' : '#5e1810',
                 }}
               >
-                  View gesperrt: `{viewGuardState.blockedView}` erfordert Tier `{viewGuardState.requiredTier || 'paid'}` ({viewGuardState.reason || 'PAYWALL_BLOCKED'}).
+                  Serverseitige Account-Funktionen haben `{viewGuardState.blockedView}` fuer diese Sitzung nicht freigegeben.
                 </div>
               ) : null}
           </div>
@@ -1407,7 +1424,7 @@ export default function App() {
                 color: t.mode === 'dark' ? '#ffd8d2' : '#5e1810',
               }}
             >
-              View gesperrt: `{viewGuardState.blockedView}` erfordert Tier `{viewGuardState.requiredTier || 'paid'}` ({viewGuardState.reason || 'PAYWALL_BLOCKED'}).
+              Serverseitige Account-Funktionen haben `{viewGuardState.blockedView}` fuer diese Sitzung nicht freigegeben.
             </div>
           ) : null}
         </div>

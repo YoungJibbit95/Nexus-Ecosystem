@@ -169,8 +169,8 @@ Website Download Buttons duerfen nur aktiv wirken, wenn Datei, Manifest und Chec
 Maus-Glow Toggle mit Checkbox oben links machen | true
 Website-Text ab API/Developer/Account/Pricing konkreter und weniger Beta-lastig halten | true
 Screenshots nach Stabilitaetsblock neu capturen | false
-VPS Autoupdate Deploy ueber GitHub Actions starten | true
-GitHub Deploy-Secrets fuer `srv1513091.hstgr.cloud` setzen und Live-API neu starten | true
+Private Nexus Cloud deployment automation pruefen | true
+Private deployment credentials ausserhalb des public Repos pflegen | true
 Website Calendar-Text nach Screenshot-Refresh mit echten aktuellen Bildern abgleichen | false
 ```
 
