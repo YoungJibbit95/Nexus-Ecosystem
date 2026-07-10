@@ -2,7 +2,7 @@ import type { NexusReleaseChannel, NexusUserTier } from '../types'
 
 export const now = () => Date.now()
 export const NEXUS_CONTROL_CANONICAL_URL = 'https://nexus-api.cloud'
-const NEXUS_CONTROL_CANONICAL_HOST = 'nexus-api.cloud'
+const HOSTED_CONTROL_HOSTS = new Set(['nexus-api.cloud', 'staging.nexus-api.cloud'])
 const LOOPBACK_CONTROL_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]', '::1'])
 
 const normalizeControlPathname = (pathname: string) => {
@@ -22,7 +22,7 @@ export const normalizeControlBaseUrl = (
   try {
     const parsed = new URL(raw)
     const hostname = parsed.hostname.toLowerCase()
-    const canonicalHosted = parsed.protocol === 'https:' && hostname === NEXUS_CONTROL_CANONICAL_HOST
+    const canonicalHosted = parsed.protocol === 'https:' && HOSTED_CONTROL_HOSTS.has(hostname)
     const loopbackDev = (parsed.protocol === 'http:' || parsed.protocol === 'https:')
       && LOOPBACK_CONTROL_HOSTS.has(hostname)
     if (!canonicalHosted && !loopbackDev) return fallbackUrl

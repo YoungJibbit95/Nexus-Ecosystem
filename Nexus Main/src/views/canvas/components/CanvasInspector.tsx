@@ -145,73 +145,32 @@ export const CanvasInspector = React.memo(function CanvasInspector({
     <aside
       className="nx-canvas-inspector"
       style={{
-        position: "absolute",
-        top: 64,
-        right: 14,
-        bottom: 16,
-        zIndex: 260,
-        width: 322,
-        display: "flex",
-        flexDirection: "column",
-        borderRadius: 14,
-        border: `1px solid rgba(${rgb},0.22)`,
-        background:
-          mode === "dark"
-            ? "rgba(8,12,24,0.88)"
-            : "rgba(255,255,255,0.9)",
-        boxShadow: "0 18px 48px rgba(0,0,0,0.26)",
-        backdropFilter: "blur(18px)",
-        overflow: "hidden",
+        ["--nx-canvas-inspector-rgb" as any]: rgb,
+        ["--nx-canvas-inspector-accent" as any]: nodeAccent,
+        ["--nx-canvas-inspector-bg" as any]:
+          mode === "dark" ? "rgba(8,12,24,0.9)" : "rgba(255,255,255,0.92)",
       }}
     >
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-          padding: "12px 12px 10px",
-          borderBottom: "1px solid rgba(255,255,255,0.1)",
-        }}
-      >
+      <div className="nx-canvas-inspector-header">
         <div
+          className="nx-canvas-inspector-icon"
           style={{
-            width: 30,
-            height: 30,
-            borderRadius: 9,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            background: `rgba(${rgb},0.14)`,
-            border: `1px solid rgba(${rgb},0.25)`,
             color: nodeAccent,
-            flexShrink: 0,
           }}
         >
           <SlidersHorizontal size={15} />
         </div>
-        <div style={{ minWidth: 0, flex: 1 }}>
-          <div
-            style={{
-              fontSize: 12,
-              fontWeight: 900,
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-          >
+        <div className="nx-canvas-inspector-title">
+          <div>
             Inspector
           </div>
-          <div
-            style={{
-              fontSize: 10,
-              opacity: 0.58,
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-          >
+          <span>
             {preset?.label || node.type}
-          </div>
+          </span>
+        </div>
+        <div className="nx-canvas-inspector-node">
+          <strong>{node.title || "Untitled node"}</strong>
+          <span>{node.type}</span>
         </div>
         <button
           type="button"
@@ -229,17 +188,8 @@ export const CanvasInspector = React.memo(function CanvasInspector({
         </button>
       </div>
 
-      <div
-        style={{
-          flex: 1,
-          overflowY: "auto",
-          padding: 12,
-          display: "flex",
-          flexDirection: "column",
-          gap: 12,
-        }}
-      >
-        <section>
+      <div className="nx-canvas-inspector-body">
+        <section className="nx-canvas-inspector-section nx-canvas-inspector-section--title">
           <FieldLabel>Titel</FieldLabel>
           <input
             value={node.title}
@@ -248,7 +198,7 @@ export const CanvasInspector = React.memo(function CanvasInspector({
           />
         </section>
 
-        <section>
+        <section className="nx-canvas-inspector-section nx-canvas-inspector-section--content">
           <FieldLabel>{contentLabel}</FieldLabel>
           <textarea
             value={node.content || ""}
@@ -268,7 +218,7 @@ export const CanvasInspector = React.memo(function CanvasInspector({
         </section>
 
         {node.type === "code" && (
-          <section>
+          <section className="nx-canvas-inspector-section nx-canvas-inspector-section--language">
             <FieldLabel>Sprache</FieldLabel>
             <input
               value={node.codeLang || ""}
@@ -280,6 +230,7 @@ export const CanvasInspector = React.memo(function CanvasInspector({
         )}
 
         <section
+          className="nx-canvas-inspector-section nx-canvas-inspector-section--state"
           style={{
             display: "grid",
             gridTemplateColumns: "1fr 1fr",
@@ -322,7 +273,7 @@ export const CanvasInspector = React.memo(function CanvasInspector({
           </div>
         </section>
 
-        <section>
+        <section className="nx-canvas-inspector-section nx-canvas-inspector-section--progress">
           <FieldLabel>Progress {Math.round(node.progress ?? 0)}%</FieldLabel>
           <input
             type="range"
@@ -335,6 +286,7 @@ export const CanvasInspector = React.memo(function CanvasInspector({
         </section>
 
         <section
+          className="nx-canvas-inspector-section nx-canvas-inspector-section--owner"
           style={{
             display: "grid",
             gridTemplateColumns: "1fr 1fr",
@@ -360,7 +312,7 @@ export const CanvasInspector = React.memo(function CanvasInspector({
           </div>
         </section>
 
-        <section>
+        <section className="nx-canvas-inspector-section nx-canvas-inspector-section--tags">
           <FieldLabel>Tags</FieldLabel>
           <input
             value={tagsValue}
@@ -370,7 +322,7 @@ export const CanvasInspector = React.memo(function CanvasInspector({
           />
         </section>
 
-        <section>
+        <section className="nx-canvas-inspector-section nx-canvas-inspector-section--color">
           <FieldLabel>Farbe</FieldLabel>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(8, 1fr)", gap: 6 }}>
             {NODE_COLORS.map((color) => (
@@ -401,6 +353,7 @@ export const CanvasInspector = React.memo(function CanvasInspector({
         </section>
 
         <section
+          className="nx-canvas-inspector-section nx-canvas-inspector-section--geometry"
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
@@ -412,38 +365,30 @@ export const CanvasInspector = React.memo(function CanvasInspector({
           <NumberField label="Breite" value={node.width} min={120} max={1600} onChange={(width) => onResizeNode(width, node.height)} />
           <NumberField label="Hoehe" value={node.height} min={80} max={1400} onChange={(height) => onResizeNode(node.width, height)} />
         </section>
-      </div>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr 1fr",
-          gap: 8,
-          padding: 12,
-          borderTop: "1px solid rgba(255,255,255,0.1)",
-        }}
-      >
-        <button type="button" onClick={onFocusNode} style={baseButtonStyle}>
-          <LocateFixed size={13} />
-          Fokus
-        </button>
-        <button type="button" onClick={onDuplicateNode} style={baseButtonStyle}>
-          <Copy size={13} />
-          Kopie
-        </button>
-        <button
-          type="button"
-          onClick={onDeleteNode}
-          style={{
-            ...baseButtonStyle,
-            color: "#FF453A",
-            borderColor: "rgba(255,69,58,0.26)",
-            background: "rgba(255,69,58,0.1)",
-          }}
-        >
-          <Trash2 size={13} />
-          Loeschen
-        </button>
+        <section className="nx-canvas-inspector-section nx-canvas-inspector-actions">
+          <button type="button" onClick={onFocusNode} style={baseButtonStyle}>
+            <LocateFixed size={13} />
+            Fokus
+          </button>
+          <button type="button" onClick={onDuplicateNode} style={baseButtonStyle}>
+            <Copy size={13} />
+            Kopie
+          </button>
+          <button
+            type="button"
+            onClick={onDeleteNode}
+            style={{
+              ...baseButtonStyle,
+              color: "#FF453A",
+              borderColor: "rgba(255,69,58,0.26)",
+              background: "rgba(255,69,58,0.1)",
+            }}
+          >
+            <Trash2 size={13} />
+            Loeschen
+          </button>
+        </section>
       </div>
     </aside>
   );
