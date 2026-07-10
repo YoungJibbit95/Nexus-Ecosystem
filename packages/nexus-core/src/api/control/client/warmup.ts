@@ -1,6 +1,6 @@
 import type { NexusViewAccessResult } from '../../types'
 import type { NexusViewWarmupOptions, NexusViewWarmupResult } from '../options'
-import { clamp, normalizeViewId } from '../utils'
+import { clamp, normalizeUserTier, normalizeViewId } from '../utils'
 
 const uniqueNormalizedViews = (viewIds: string[]) => {
   const seen = new Set<string>()
@@ -66,15 +66,37 @@ export const warmupViewAccess = async (
   const checks = await mapLimit<string, { viewId: string; result: NexusViewAccessResult }>(
     checkedViews,
     options.concurrency ?? 4,
-    async (viewId) => ({
-      viewId,
-      result: await client.validateViewAccess(viewId, {
-        userId: options.userId,
-        username: options.username,
-        userTier: options.userTier,
-        forceRefresh: options.forceRefresh === true,
-      }),
-    }),
+    async (viewId) => {
+      try {
+        return {
+          viewId,
+          result: await client.validateViewAccess(viewId, {
+            userId: options.userId,
+            username: options.username,
+            userTier: options.userTier,
+            forceRefresh: options.forceRefresh === true,
+          }),
+        }
+      } catch {
+        const userTier = normalizeUserTier(options.userTier) || client.defaultUserTier || 'free'
+        return {
+          viewId,
+          result: {
+            appId: client.appId,
+            viewId,
+            allowed: false,
+            reason: 'VIEW_WARMUP_UNHANDLED_ERROR',
+            userTier,
+            userTierSource: options.userTier ? 'request' : 'default',
+            userTemplateKey: null,
+            paywallEnabled: true,
+            requiredTier: 'pro',
+            evaluatedAt: new Date().toISOString(),
+            cacheHit: false,
+          },
+        }
+      }
+    },
   )
 
   const allowedViews: string[] = []

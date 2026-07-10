@@ -17374,3 +17374,592 @@ select {
     display: none !important;
   }
 }
+
+/* Canvas toolbar/detail-bar polish: scoped to Canvas only. */
+.nx-canvas-v6 .nx-canvas-main {
+  min-width: 0;
+  isolation: isolate;
+}
+
+.nx-canvas-v6 .nx-canvas-topbar {
+  min-height: 0 !important;
+  padding: 8px 10px !important;
+  overflow: hidden !important;
+  border-bottom-color: rgba(255,255,255,0.08) !important;
+  box-shadow: inset 0 -1px 0 rgba(255,255,255,0.035);
+}
+
+.nx-canvas-v6 .nx-canvas-topbar-inner {
+  display: grid !important;
+  grid-template-columns: minmax(300px, 0.42fr) minmax(560px, 1fr);
+  align-items: stretch !important;
+  gap: 8px !important;
+  width: 100%;
+  min-width: 0 !important;
+  padding: 0 !important;
+}
+
+.nx-canvas-v6 .nx-canvas-toolbar-context,
+.nx-canvas-v6 .nx-canvas-toolbar-groups {
+  min-width: 0 !important;
+  border: 1px solid rgba(255,255,255,0.09);
+  border-radius: 12px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.07), rgba(255,255,255,0.025)),
+    rgba(6,10,22,0.34);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
+}
+
+.nx-canvas-v6 .nx-canvas-toolbar-context {
+  display: grid !important;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 7px !important;
+  max-width: none !important;
+  padding: 4px 5px !important;
+  overflow: hidden;
+}
+
+.nx-canvas-v6 .nx-canvas-title-area {
+  display: grid !important;
+  grid-template-columns: minmax(100px, 1fr) auto;
+  align-items: center;
+  gap: 6px !important;
+  min-width: 0 !important;
+  max-width: none !important;
+}
+
+.nx-canvas-v6 .nx-canvas-title-chip,
+.nx-canvas-v6 .nx-canvas-title-input {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  height: 30px !important;
+  min-height: 30px !important;
+  border-radius: 9px !important;
+}
+
+.nx-canvas-v6 .nx-canvas-status-chips {
+  max-width: min(22vw, 230px);
+  overflow: hidden;
+}
+
+.nx-canvas-v6 .nx-canvas-status-chip {
+  height: 22px;
+  min-height: 22px;
+  padding: 0 7px !important;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.nx-canvas-v6 .nx-canvas-jump-button {
+  height: 30px;
+  min-height: 30px !important;
+  border-radius: 9px !important;
+  background: rgba(255,255,255,0.055) !important;
+}
+
+.nx-canvas-v6 .nx-canvas-toolbar-groups {
+  display: flex !important;
+  align-items: stretch !important;
+  justify-content: flex-end !important;
+  gap: 6px !important;
+  padding: 4px !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  scrollbar-width: none;
+}
+
+.nx-canvas-v6 .nx-canvas-toolbar-groups::-webkit-scrollbar,
+.nx-canvas-v6 .nx-canvas-inspector-body::-webkit-scrollbar {
+  display: none;
+}
+
+.nx-canvas-v6 .nx-canvas-toolbar-group {
+  height: 34px !important;
+  min-height: 34px !important;
+  flex: 0 0 auto !important;
+  padding: 2px 5px !important;
+  border-radius: 9px !important;
+  border-color: rgba(255,255,255,0.08) !important;
+  background: rgba(255,255,255,0.035) !important;
+}
+
+.nx-canvas-v6 .nx-canvas-toolbar-group-label {
+  padding-inline: 2px !important;
+  font-size: 8px !important;
+  line-height: 1;
+}
+
+.nx-canvas-v6 .nx-canvas-tool-btn,
+.nx-canvas-v6 .nx-canvas-layout-select,
+.nx-canvas-v6 .nx-canvas-zoom-chip {
+  height: 28px !important;
+  min-height: 28px !important;
+}
+
+.nx-canvas-v6 .nx-canvas-stage-wrap {
+  min-height: 0;
+}
+
+.nx-canvas-v6 .nx-canvas-inspector {
+  position: relative;
+  z-index: 78;
+  display: grid;
+  grid-template-columns: minmax(184px, 226px) minmax(0, 1fr);
+  flex-shrink: 0;
+  margin: 0 10px 8px;
+  border: 1px solid rgba(var(--nx-canvas-inspector-rgb, 34,211,238), 0.22);
+  border-radius: 14px;
+  background: var(--nx-canvas-inspector-bg, rgba(8,12,24,0.9));
+  box-shadow: 0 14px 34px rgba(0,0,0,0.24), inset 0 1px 0 rgba(255,255,255,0.06);
+  backdrop-filter: blur(18px) saturate(118%);
+  overflow: hidden;
+  animation: nxCanvasInspectorBarIn 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.nx-canvas-v6 .nx-canvas-inspector-header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    "icon title close"
+    "node node node";
+  align-content: start;
+  gap: 8px;
+  min-width: 0;
+  padding: 10px;
+  border-right: 1px solid rgba(255,255,255,0.09);
+  background:
+    radial-gradient(circle at 0 0, rgba(var(--nx-canvas-inspector-rgb, 34,211,238),0.16), transparent 58%),
+    rgba(255,255,255,0.025);
+}
+
+.nx-canvas-v6 .nx-canvas-inspector-icon {
+  grid-area: icon;
+  width: 30px;
+  height: 30px;
+  border: 1px solid rgba(var(--nx-canvas-inspector-rgb, 34,211,238),0.25);
+  border-radius: 9px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(var(--nx-canvas-inspector-rgb, 34,211,238),0.14);
+}
+
+.nx-canvas-v6 .nx-canvas-inspector-title {
+  grid-area: title;
+  min-width: 0;
+}
+
+.nx-canvas-v6 .nx-canvas-inspector-title div,
+.nx-canvas-v6 .nx-canvas-inspector-node strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nx-canvas-v6 .nx-canvas-inspector-title div {
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.nx-canvas-v6 .nx-canvas-inspector-title span,
+.nx-canvas-v6 .nx-canvas-inspector-node span {
+  display: block;
+  overflow: hidden;
+  color: rgba(255,255,255,0.58);
+  font-size: 10px;
+  font-weight: 760;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nx-canvas-v6 .nx-canvas-inspector-node {
+  grid-area: node;
+  min-width: 0;
+  padding: 7px 8px;
+  border: 1px solid rgba(255,255,255,0.075);
+  border-radius: 10px;
+  background: rgba(255,255,255,0.04);
+}
+
+.nx-canvas-v6 .nx-canvas-inspector-node strong {
+  display: block;
+  color: var(--nx-canvas-inspector-accent, inherit);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.nx-canvas-v6 .nx-canvas-inspector-header > button {
+  grid-area: close;
+}
+
+.nx-canvas-v6 .nx-canvas-inspector-body {
+  min-width: 0;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(154px, 0.62fr);
+  align-items: stretch;
+  gap: 8px;
+  padding: 9px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+
+.nx-canvas-v6 .nx-canvas-inspector-section {
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid rgba(255,255,255,0.075);
+  border-radius: 10px;
+  background: rgba(255,255,255,0.035);
+}
+
+.nx-canvas-v6 .nx-canvas-inspector-section--title {
+  min-width: 180px;
+}
+
+.nx-canvas-v6 .nx-canvas-inspector-section--content {
+  min-width: 250px;
+  grid-row: span 1;
+}
+
+.nx-canvas-v6 .nx-canvas-inspector-section--content textarea {
+  min-height: 74px !important;
+  max-height: 116px;
+  resize: vertical;
+}
+
+.nx-canvas-v6 .nx-canvas-inspector-section--state,
+.nx-canvas-v6 .nx-canvas-inspector-section--owner,
+.nx-canvas-v6 .nx-canvas-inspector-section--geometry {
+  min-width: 190px;
+}
+
+.nx-canvas-v6 .nx-canvas-inspector-section--color {
+  min-width: 142px;
+}
+
+.nx-canvas-v6 .nx-canvas-inspector-actions {
+  min-width: 136px;
+  display: grid;
+  grid-template-columns: 1fr;
+  align-content: start;
+  gap: 6px;
+}
+
+.nx-canvas-v6 .nx-canvas-inspector-actions button {
+  width: 100%;
+}
+
+.nx-canvas-v6 .nx-canvas-inspector input,
+.nx-canvas-v6 .nx-canvas-inspector textarea,
+.nx-canvas-v6 .nx-canvas-inspector select {
+  min-width: 0;
+}
+
+@media (max-width: 1280px) {
+  .nx-canvas-v6 .nx-canvas-topbar-inner {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .nx-canvas-v6 .nx-canvas-toolbar-groups {
+    justify-content: flex-start !important;
+  }
+
+  .nx-canvas-v6 .nx-canvas-inspector {
+    grid-template-columns: minmax(168px, 210px) minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 860px) {
+  .nx-canvas-v6 .nx-canvas-toolbar-context {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .nx-canvas-v6 .nx-canvas-jump-button {
+    display: none !important;
+  }
+
+  .nx-canvas-v6 .nx-canvas-title-area {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .nx-canvas-v6 .nx-canvas-status-chips {
+    display: none !important;
+  }
+
+  .nx-canvas-v6 .nx-canvas-inspector {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .nx-canvas-v6 .nx-canvas-inspector-header {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas: "icon title close";
+    border-right: 0;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+
+  .nx-canvas-v6 .nx-canvas-inspector-node {
+    display: none;
+  }
+}
+
+/* Final Notes workbar composition: two low rails, no clipped controls. */
+.nx-notes-unified-status-action.nx-notes-workbar {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  grid-template-rows: 32px minmax(34px, auto) !important;
+  gap: 7px !important;
+  padding: 7px 10px !important;
+  overflow: visible !important;
+  align-content: start !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-workbar-main {
+  display: grid !important;
+  grid-template-columns: minmax(240px, 1.1fr) minmax(230px, 0.72fr) minmax(420px, 1fr) !important;
+  gap: 9px !important;
+  align-items: center !important;
+  min-width: 0 !important;
+  overflow: visible !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-title-input {
+  height: 30px !important;
+  min-height: 30px !important;
+  padding-inline: 12px !important;
+  border-radius: 9px !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-editor-meta {
+  justify-self: center !important;
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  justify-content: center !important;
+  gap: 6px !important;
+  overflow: hidden !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-editor-meta span {
+  flex: 0 1 auto !important;
+  min-width: 0 !important;
+  max-width: 110px !important;
+  height: 22px !important;
+  padding: 2px 8px !important;
+  border-radius: 999px !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-mode-actions {
+  justify-self: end !important;
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  justify-content: flex-end !important;
+  align-items: center !important;
+  gap: 5px !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  overflow: visible !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-mode-actions > button,
+.nx-notes-unified-status-action .nx-notes-mode-actions [role="button"] {
+  flex: 0 0 auto !important;
+  height: 28px !important;
+  min-height: 28px !important;
+  min-width: 30px !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-workbar-tools {
+  display: grid !important;
+  grid-template-columns: minmax(360px, 0.95fr) minmax(0, 1.55fr) !important;
+  gap: 9px !important;
+  align-items: center !important;
+  min-width: 0 !important;
+  overflow: visible !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-command-strip {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  grid-template-rows: auto auto !important;
+  gap: 5px !important;
+  min-width: 0 !important;
+  overflow: visible !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-command-primary {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  gap: 6px !important;
+  min-width: 0 !important;
+  overflow: visible !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-stat-pill {
+  flex: 0 1 78px !important;
+  min-width: 50px !important;
+  max-width: 92px !important;
+  height: 24px !important;
+  padding: 2px 7px !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-strip-actions {
+  flex: 0 0 auto !important;
+  margin-left: auto !important;
+  display: inline-flex !important;
+  justify-content: flex-end !important;
+  gap: 5px !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-context-strip {
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  justify-content: flex-start !important;
+  gap: 5px !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  mask-image: linear-gradient(90deg, #000 0, #000 calc(100% - 22px), transparent) !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-context-strip > * {
+  flex: 0 1 clamp(96px, 18%, 170px) !important;
+  min-width: 0 !important;
+  max-width: clamp(96px, 18%, 170px) !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-format-toolbar {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  align-content: center !important;
+  gap: 5px !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: 34px !important;
+  padding: 3px 6px !important;
+  overflow: visible !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-format-button,
+.nx-notes-unified-status-action .nx-notes-format-menu-trigger button {
+  width: auto !important;
+  min-width: 29px !important;
+  height: 29px !important;
+  min-height: 29px !important;
+  padding: 4px 8px !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-format-button-text {
+  background: rgba(0, 122, 255, 0.11) !important;
+  color: #62b5ff !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-format-button-structure,
+.nx-notes-unified-status-action .nx-notes-format-menu-trigger-blocks button {
+  background: rgba(175, 82, 222, 0.13) !important;
+  color: #d4a7ff !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-format-button-list {
+  background: rgba(52, 199, 89, 0.12) !important;
+  color: #79eda5 !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-format-button-insert,
+.nx-notes-unified-status-action .nx-notes-format-menu-trigger-emoji button {
+  background: rgba(255, 204, 0, 0.13) !important;
+  color: #ffe071 !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-format-menu-trigger-magic {
+  margin-left: auto !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-format-menu-trigger-magic button {
+  min-width: 78px !important;
+  justify-content: center !important;
+  background: rgba(0, 122, 255, 0.18) !important;
+  color: #5cbdff !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-format-spacer,
+.nx-notes-unified-status-action .nx-notes-format-toolbar > div[style*="flex: 1"] {
+  display: none !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-toolbar-tags {
+  flex: 1 1 190px !important;
+  min-width: 150px !important;
+  max-width: min(36%, 390px) !important;
+  margin-left: 4px !important;
+  display: flex !important;
+  justify-content: flex-end !important;
+  align-items: center !important;
+  gap: 4px !important;
+  overflow: hidden !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-toolbar-tags button {
+  max-width: 116px !important;
+  height: 24px !important;
+}
+
+@media (max-width: 1380px) {
+  .nx-notes-unified-status-action .nx-notes-workbar-main {
+    grid-template-columns: minmax(190px, 1fr) minmax(170px, 0.52fr) minmax(360px, 1fr) !important;
+  }
+
+  .nx-notes-unified-status-action .nx-notes-workbar-tools {
+    grid-template-columns: minmax(330px, 0.9fr) minmax(0, 1.35fr) !important;
+  }
+
+  .nx-notes-unified-status-action .nx-notes-editor-meta span:nth-child(n + 4),
+  .nx-notes-unified-status-action .nx-notes-stat-pill:nth-child(n + 5) {
+    display: none !important;
+  }
+}
+
+@media (max-width: 1120px) {
+  .nx-notes-unified-status-action.nx-notes-workbar {
+    grid-template-rows: auto auto !important;
+  }
+
+  .nx-notes-unified-status-action .nx-notes-workbar-main,
+  .nx-notes-unified-status-action .nx-notes-workbar-tools {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .nx-notes-unified-status-action .nx-notes-editor-meta {
+    justify-self: start !important;
+    justify-content: flex-start !important;
+  }
+
+  .nx-notes-unified-status-action .nx-notes-mode-actions {
+    justify-self: stretch !important;
+    justify-content: flex-start !important;
+    overflow-x: auto !important;
+    scrollbar-width: none !important;
+  }
+
+  .nx-notes-unified-status-action .nx-notes-context-strip {
+    mask-image: none !important;
+    overflow-x: auto !important;
+    scrollbar-width: none !important;
+  }
+
+  .nx-notes-unified-status-action .nx-notes-format-menu-trigger-magic {
+    margin-left: 0 !important;
+  }
+
+  .nx-notes-unified-status-action .nx-notes-toolbar-tags {
+    max-width: none !important;
+    justify-content: flex-start !important;
+  }
+}

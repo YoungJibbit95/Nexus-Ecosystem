@@ -82,6 +82,13 @@ const buildHttpResult = <T>(cached: any, status: number) => ({
   errorCode: `HTTP_${status}`,
 } as NexusFetchResult<T>)
 
+const unwrapApiItem = (data: unknown) => {
+  if (!isObject(data)) return data
+  if ('item' in data) return data.item
+  if ('data' in data) return data.data
+  return data
+}
+
 const fetchCachedResource = async <T>(client: any, input: {
   appId: string
   channel: NexusReleaseChannel
@@ -138,7 +145,7 @@ const fetchCachedResource = async <T>(client: any, input: {
     }
 
     const data = response.data
-    const item = (data?.item || null) as T | null
+    const item = (unwrapApiItem(data) || null) as T | null
     if (!item) {
       return {
         ...buildNoBaseUrlResult<T>(cached),
