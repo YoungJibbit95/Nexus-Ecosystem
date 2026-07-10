@@ -18,9 +18,9 @@ Shared Core-Library fuer Nexus Main, Nexus Mobile, Nexus Code und Nexus Code Mob
   - Motion-Profile und Degradation
   - konsistente Bewegungsfamilien
 - `src/liveSync.ts`
-  - Feature/Layout/Release View-Model-Aufbereitung
+  - cloud-managed view availability and client view-model preparation
 - `src/api/*`
-  - API-Client-Utilities und Laufzeit-Helfer
+  - client-side cloud integration utilities and runtime helpers
 - `src/quickCapture.ts`
   - Shared Capture-Intent (`note|task|reminder|code|canvas`)
 - `src/todayLayer.ts`
@@ -63,7 +63,8 @@ Main/Mobile binden die Runtime ueber app-spezifische Adapter ein:
 - `src/render/useRenderSurfaceBudget.ts`
 - `src/render/useSurfaceMotionRuntime.ts`
 
-## API-Hoststrategie
+## Cloud Boundary
 
-Clients im Ecosystem sollen produktiv auf `https://nexus-api.cloud` laufen.
-Lokale/private API-Server-Implementierungen gehoeren nicht in dieses Repository.
+`@nexus/core` is shared client runtime code. It does not contain Nexus Cloud backend implementation, secrets, payment logic, sync infrastructure or admin/control tooling.
+
+Client-side cloud helpers are public client code. Sensitive permissions remain server-side.

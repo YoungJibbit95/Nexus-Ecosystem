@@ -10,7 +10,7 @@
 | Nexus Main | Canvas create/select/edit node | pending | |
 | Nexus Main | DevTools Release Health opens | pending | |
 | Product Page | Pricing/account/API status copy is clear | pending | |
-| Control UI | Options/Scripts/Rules tabs load | pending | |
+| Public docs | Boundary, security and release pages are readable | pending | |
 
 ## Runtime Boundaries
 

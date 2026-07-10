@@ -1,74 +1,56 @@
 # Nexus UX Completion Plan
 
-Stand: 2026-06-27
+## Goal
 
-## Zielbild
+Nexus should feel like a calm, professional workspace: fast orientation, clear status, stable layouts and visual detail that supports work instead of fighting it.
 
-Nexus soll sich wie ein ruhiges, professionelles Arbeitswerkzeug anfuehlen:
-schnelle Orientierung, wenig Suchaufwand, klare Statusanzeigen, stabile
-Layouts und nur dort visuelle Show, wo sie die Arbeit nicht stoert.
+## Working Rules
 
-## Offene Fragen an dich
+- Prioritize visible runtime behavior over abstract polish.
+- Keep local-first workspace features usable without private cloud credentials.
+- Do not make broad API or data-model changes during UI polish.
+- Run the narrowest relevant build or typecheck after each substantial code batch.
+- Keep user-facing copy free of private cloud implementation details.
 
-1. Soll Nexus Main Desktop bis zum Release klar vor Mobile, Code und Launcher priorisiert werden?
-2. Soll DevTools ein sichtbares Nutzer-Feature bleiben oder als Developer-/Admin-Werkzeug staerker gegated werden?
-3. Soll der Default-Look eher "Balanced Glass" bleiben oder auf "ruhig, kontrastreich, arbeitsorientiert" wechseln?
-
-Bis du anders entscheidest, arbeite ich mit diesen Annahmen:
-Nexus Main Desktop zuerst, DevTools sichtbar aber besser gruppiert, Default-Look
-ruhig mit optionalem Showcase-Modus.
-
-## Arbeitsweise
-
-- Bugs aus `docs/Nexus_Bugs.md` werden nicht nur nach Checkbox-Status, sondern im echten UI-Fluss geprueft.
-- Keine grossen Datenmodell- oder API-Vertragsaenderungen im UX-Polish-Pass.
-- Jede View bekommt zuerst Orientierung, Status, klare Primaeraktionen und stabile Responsive-Regeln.
-- Nach jedem Codeblock: `npm run build` im betroffenen Paket oder ein engerer Typecheck, wenn ein Build zu teuer ist.
-- Runtime-Smokes werden getrennt von Build-Erfolg dokumentiert, weil Main/Mobile am hosted Control/API Bootstrap scheitern koennen, wenn Credentials fehlen.
-
-## Prioritaet 1: Main App UX
+## Priority 1: Nexus Main
 
 ### Settings
 
-- Settings-Suche fuer Module, damit Nutzer nicht durch alle Kategorien scrollen muessen.
-- Zusammenfassung der aktuellen Arbeitsumgebung in der Sidebar: Theme, Dichte, Motion, Renderer.
-- Advanced/Experimental klar als Modus-Schalter behandeln und sichtbarer vom normalen Nutzerfluss trennen.
-- Presets als Startpunkt staerken, Detailregler darunter gruppieren.
-- Reset/Import/Export in Maintenance-Zone halten, nicht mit normalen Design-Controls vermischen.
+- Keep the settings sidebar predictable and easy to scan.
+- Group presets, appearance, layout, motion, accessibility and data controls clearly.
+- Keep advanced/developer controls visibly separated.
+- Preserve visible panel background fixes.
 
 ### Notes
 
-- Status im Editor direkt sichtbar machen: Speicherzustand, Autosave, Modus.
-- Format-Toolbar kompakt halten; Tags bleiben in der Statusleiste, nicht in der Format-Leiste.
-- Split/Edit/Preview mit klaren Labels und Tooltips versehen.
-- Sidebar als Navigation + Filter behandeln, nicht als zweite Toolbar.
-- Langfristig: Emoji- und Magic-Daten aus `NotesView.tsx` in kleinere Module verschieben.
+- Keep editor status, autosave and mode visible.
+- Keep the unified bar low, wide and clean.
+- Let long titles/tags truncate before tool buttons clip.
+- Keep split/edit/preview controls understandable on narrow windows.
+- Continue splitting large Notes data modules over time.
 
-### DevTools
+### Calendar
 
-- Top-Level-Tabs mit Zweckbeschreibung und aktivem Arbeitsmodus versehen.
-- Builder-Toolbar in Gruppen strukturieren: Mode, Viewport, Run/Export, Library.
-- Release Health als echte QA-Startseite aufwerten.
-- Feature Flags staerker als Produkt-/Release-Entscheidung sichtbar machen, nicht nur als Formular.
-- Langfristig: grosse Inline-Controls aus `DevToolsView.tsx` in stabile Panels splitten.
+- Improve month readability without cramming event cards.
+- Keep task/reminder chips readable at small day-cell heights.
+- Consider a dedicated day-plan popup for complex daily editing.
 
-## Prioritaet 2: Product Page, API, Control
+### Canvas
 
-- Product Page Texte ab API/Developer/Account/Pricing konkret halten: was ist live, was ist Preview, was braucht Account/API.
-- Screenshots nach dem Stabilitaetsblock neu capturen.
-- Aktive Nutzer, technische Clients und Sessions dauerhaft getrennt labeln.
-- Deploy-/Autoupdate-Status in Control und Docs mit einem klaren Release Gate verbinden.
-- GitHub Secrets fuer VPS Deploy bleiben ein externer Schritt, der nicht lokal verifiziert werden kann.
+- Keep top controls aligned on one row where possible.
+- Use an extended inspector bar instead of a floating inspector when open.
+- Reduce node chrome and keep editing interactions direct.
 
-## Prioritaet 3: Wiki und Nutzerhilfe
+## Priority 2: Code And DevTools
 
-- Wiki/InfoView als self-help System pflegen: Schnellstart, haeufige Probleme, API/Account/Checkout, Release Notes.
-- Screenshots und Texte aus App/Product Page/Wiki synchron halten.
-- `Nexus_Bugs.md` nach jedem Polish-Block aktualisieren: erledigt, offen, Folgepaket.
+- Keep Code editor scrolling and syntax highlighting reliable.
+- Keep run/compile output accurate per language.
+- Keep DevTools development-only surfaces out of packaged user navigation where appropriate.
+- Make large panels responsive before adding new controls.
 
-## Erste Umsetzung
+## Priority 3: Mobile And Public Docs
 
-- Settings: Modul-Suche und sichtbare Settings-Zusammenfassung.
-- Notes: Editor-Status und Modus-Beschriftung direkt im Header.
-- DevTools: Tab-Metadaten, aktive Zweckbeschreibung und klarere Header-Struktur.
-
+- Mirror public-safe wording in Mobile.
+- Keep Mobile Notes/Canvas responsive and touch friendly.
+- Keep wiki/user docs focused on real user workflows.
+- Keep screenshots and website copy aligned with the current product.

@@ -1,43 +1,49 @@
 # User Guide
 
-## Erste Inbetriebnahme
+## First Start
 
 ```bash
 npm run setup
-npm run dev:control:open
+npm run dev:main
+npm run dev:code
 ```
 
-Danach kannst du Apps starten:
+Mobile web iteration:
 
-- `npm run dev:main` (Electron)
-- `npm run dev:code` (Electron)
-- `npm run dev:mobile:android` / `npm run dev:mobile:ios` (Capacitor)
-- `npm run dev:code-mobile:android` / `npm run dev:code-mobile:ios` (Capacitor)
+```bash
+npm run dev:mobile:web
+npm run dev:code-mobile:web
+```
 
-## Was passiert bei Updates?
+## Local Workspace
 
-- Apps laden zur Laufzeit Release/Catalog/Layout von der API.
-- Mobile und Code-Mobile uebernehmen neue **stable** Features automatisch, wenn kompatibel.
-- Bei inkompatibler Version blockt die App unsafe Views und zeigt einen Hinweis.
+Nexus local workspace features are designed to stay useful without production cloud credentials:
 
-## Paywalls / View-Zugriff
+- Notes
+- Tasks
+- Reminders
+- Canvas
+- Files
+- Local code workflows
 
-- View-Zugriff wird serverseitig geprueft.
-- Ohne passenden Tier-Zugriff werden Views nicht geoeffnet.
-- Ergebnis wird in der App als Hinweis angezeigt.
+## Nexus Cloud
 
-## Control Panel Nutzung (Owner/Admin)
+Optional Nexus Cloud features are account-bound. When cloud features are unavailable, the app should explain that local workspace features remain available.
 
-1. Login mit freigegebenem Device.
-2. Tab `Live Sync`:
-   - Runtime laden
-   - Schema validieren
-   - Catalog/Schema in staging speichern
-   - Promotion nach production
-3. Tab `Paywalls`: Tier-Views und User-Templates pflegen.
+Use this style of message:
 
-## Fallback-Verhalten
+> Cloud features are currently unavailable. Local workspace features remain available.
 
-- Wenn API kurzfristig nicht erreichbar ist, bleiben letzte gecachte Runtime-Daten aktiv.
-- Mutierende Aktionen sind ohne Signatur blockiert.
-- Relevante Errors erscheinen im Status-Bereich der Control UI.
+Avoid implementation details in user-facing messages.
+
+## Free And Pro
+
+Free features focus on local-first work. Pro/Nexus Cloud features can include sync, backups, AI/Flux, multi-device use, sharing, team workflows and higher limits.
+
+Cloud and Pro permissions are enforced server-side.
+
+## Troubleshooting
+
+- If a local app does not start, run the app-specific build or dev command from the repository root.
+- If a cloud-backed feature is unavailable, continue with local workspace features and retry later.
+- Do not paste secrets, tokens or private account data into public issues.

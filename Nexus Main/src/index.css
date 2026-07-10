@@ -16544,3 +16544,833 @@ select {
         display: none !important;
     }
 }
+
+
+/* Nexus Notes unified bar redistribution + Canvas inspector dock */
+@keyframes nxCanvasInspectorBarIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.nx-notes-unified-status-action.nx-notes-workbar {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  grid-template-rows: auto auto !important;
+  gap: 7px !important;
+  padding: 8px 10px !important;
+  overflow: visible !important;
+  min-height: 0 !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-workbar-main {
+  display: grid !important;
+  grid-template-columns: minmax(220px, 1.25fr) minmax(360px, 1.45fr) minmax(320px, auto) !important;
+  align-items: center !important;
+  gap: 8px !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  overflow: visible !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-title-input {
+  min-width: 0 !important;
+  width: 100% !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-editor-meta {
+  justify-self: center !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-wrap: wrap !important;
+  gap: 5px !important;
+  min-width: 0 !important;
+  overflow: visible !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-mode-actions {
+  justify-self: end !important;
+  min-width: max-content !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-workbar-tools {
+  display: grid !important;
+  grid-template-columns: minmax(360px, 0.92fr) minmax(520px, 1.25fr) !important;
+  align-items: start !important;
+  gap: 8px !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  overflow: visible !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-command-strip {
+  display: grid !important;
+  grid-template-columns: minmax(260px, 0.9fr) minmax(220px, 1fr) !important;
+  grid-template-rows: auto !important;
+  align-items: start !important;
+  gap: 6px !important;
+  min-width: 0 !important;
+  width: 100% !important;
+  overflow: visible !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-command-strip > div:first-child {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  flex-wrap: wrap !important;
+  gap: 5px !important;
+  min-width: 0 !important;
+  overflow: visible !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-strip-actions {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 5px !important;
+  margin-left: auto !important;
+  min-width: max-content !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-context-strip {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  flex-wrap: wrap !important;
+  align-content: flex-start !important;
+  gap: 5px !important;
+  max-height: 48px !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  padding-right: 0 !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-context-strip > * {
+  flex: 0 1 auto !important;
+  max-width: clamp(88px, 12vw, 160px) !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-format-toolbar {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  flex-wrap: wrap !important;
+  gap: 5px !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-height: none !important;
+  overflow: visible !important;
+  padding: 3px 4px !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-format-toolbar > * {
+  flex: 0 0 auto !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-format-toolbar > div[style*="flex: 1"] {
+  display: block !important;
+  flex: 1 1 18px !important;
+  min-width: 8px !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-toolbar-tags {
+  margin-left: auto !important;
+  flex: 1 1 180px !important;
+  min-width: 140px !important;
+  max-width: 34% !important;
+  display: flex !important;
+  justify-content: flex-end !important;
+  flex-wrap: wrap !important;
+  overflow: visible !important;
+}
+
+.nx-canvas-inspector {
+  will-change: transform, opacity;
+}
+
+.nx-canvas-inspector input,
+.nx-canvas-inspector textarea,
+.nx-canvas-inspector select {
+  min-width: 0;
+}
+
+@media (max-width: 1180px) {
+  .nx-notes-unified-status-action .nx-notes-workbar-main,
+  .nx-notes-unified-status-action .nx-notes-workbar-tools,
+  .nx-notes-unified-status-action .nx-notes-command-strip {
+    grid-template-columns: 1fr !important;
+  }
+
+  .nx-notes-unified-status-action .nx-notes-editor-meta,
+  .nx-notes-unified-status-action .nx-notes-mode-actions,
+  .nx-notes-unified-status-action .nx-notes-context-strip,
+  .nx-notes-unified-status-action .nx-notes-toolbar-tags {
+    justify-self: stretch !important;
+    justify-content: flex-start !important;
+    max-width: none !important;
+  }
+}
+
+
+/* Nexus Notes unified bar final distribution pass */
+.nx-notes-unified-status-action {
+  max-width: 100% !important;
+}
+
+.nx-notes-unified-status-action.nx-notes-workbar {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  grid-template-rows: minmax(34px, auto) minmax(36px, auto) !important;
+  gap: 7px !important;
+  padding: 8px 10px !important;
+  overflow: visible !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-workbar-main {
+  display: grid !important;
+  grid-template-columns: minmax(230px, 0.95fr) minmax(270px, 0.8fr) minmax(440px, 1.1fr) !important;
+  gap: 10px !important;
+  align-items: center !important;
+  width: 100% !important;
+  min-width: 0 !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-title-input {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  height: 30px !important;
+  padding-inline: 10px !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-editor-meta {
+  justify-self: center !important;
+  display: flex !important;
+  flex-wrap: wrap !important;
+  justify-content: center !important;
+  gap: 4px !important;
+  min-width: 0 !important;
+  overflow: visible !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-editor-meta span {
+  min-width: max-content !important;
+  max-width: none !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-mode-actions {
+  justify-self: end !important;
+  display: grid !important;
+  grid-auto-flow: column !important;
+  grid-auto-columns: minmax(34px, auto) !important;
+  align-items: center !important;
+  justify-content: end !important;
+  gap: 3px !important;
+  min-width: 0 !important;
+  overflow: visible !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-mode-actions > button {
+  min-width: 34px !important;
+  height: 28px !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-mode-actions > button:nth-child(2) {
+  min-width: 58px !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-workbar-tools {
+  display: grid !important;
+  grid-template-columns: minmax(310px, 0.95fr) minmax(360px, 1.25fr) !important;
+  gap: 8px !important;
+  align-items: start !important;
+  min-width: 0 !important;
+  width: 100% !important;
+  overflow: visible !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-command-strip {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  gap: 5px !important;
+  align-content: start !important;
+  min-width: 0 !important;
+  overflow: visible !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-command-primary {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(54px, 1fr)) auto !important;
+  gap: 5px !important;
+  align-items: center !important;
+  min-width: 0 !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-stat-pill {
+  min-width: 0 !important;
+  max-width: none !important;
+  justify-content: center !important;
+  padding-inline: 6px !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-stat-pill:nth-child(n + 4) {
+  display: none !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-strip-actions {
+  justify-self: end !important;
+  display: inline-flex !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  gap: 5px !important;
+  min-width: max-content !important;
+  margin-left: 0 !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-context-strip {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 5px !important;
+  max-height: 54px !important;
+  overflow: hidden !important;
+  min-width: 0 !important;
+  justify-content: stretch !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-context-strip > * {
+  width: 100% !important;
+  max-width: none !important;
+  justify-content: flex-start !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-context-strip > *:nth-child(n + 7) {
+  display: none !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-format-toolbar {
+  display: grid !important;
+  grid-template-columns: minmax(300px, max-content) auto minmax(220px, 0.8fr) !important;
+  grid-auto-flow: column !important;
+  align-items: center !important;
+  justify-content: stretch !important;
+  gap: 5px !important;
+  min-width: 0 !important;
+  width: 100% !important;
+  overflow: visible !important;
+  padding: 3px 4px !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-format-toolbar button,
+.nx-notes-unified-status-action .nx-notes-format-menu-trigger button {
+  height: 28px !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-format-spacer,
+.nx-notes-unified-status-action .nx-notes-format-toolbar > div[style*="flex: 1"] {
+  display: block !important;
+  min-width: 8px !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-toolbar-tags {
+  justify-self: end !important;
+  margin-left: 0 !important;
+  min-width: 190px !important;
+  max-width: 100% !important;
+  display: flex !important;
+  justify-content: flex-end !important;
+  flex-wrap: wrap !important;
+  gap: 4px !important;
+  overflow: visible !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-toolbar-tags button {
+  max-width: 118px !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+@media (max-width: 1320px) {
+  .nx-notes-unified-status-action .nx-notes-workbar-main {
+    grid-template-columns: minmax(210px, 0.9fr) minmax(220px, 0.7fr) minmax(350px, 1fr) !important;
+  }
+
+  .nx-notes-unified-status-action .nx-notes-workbar-tools {
+    grid-template-columns: minmax(260px, 0.85fr) minmax(330px, 1.15fr) !important;
+  }
+
+  .nx-notes-unified-status-action .nx-notes-editor-meta span:nth-child(n + 4) {
+    display: none !important;
+  }
+
+  .nx-notes-unified-status-action .nx-notes-context-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 980px) {
+  .nx-notes-unified-status-action .nx-notes-workbar-main,
+  .nx-notes-unified-status-action .nx-notes-workbar-tools {
+    grid-template-columns: 1fr !important;
+  }
+
+  .nx-notes-unified-status-action .nx-notes-mode-actions,
+  .nx-notes-unified-status-action .nx-notes-strip-actions,
+  .nx-notes-unified-status-action .nx-notes-toolbar-tags {
+    justify-self: start !important;
+    justify-content: flex-start !important;
+  }
+
+  .nx-notes-unified-status-action .nx-notes-format-toolbar {
+    grid-template-columns: 1fr !important;
+    grid-auto-flow: row !important;
+  }
+}
+
+
+/* Nexus Notes toolbar resilient grouping fix */
+.nx-notes-unified-status-action .nx-notes-format-toolbar {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  flex-wrap: wrap !important;
+  gap: 5px !important;
+  min-width: 0 !important;
+  width: 100% !important;
+  overflow: visible !important;
+  padding: 3px 4px !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-format-button,
+.nx-notes-unified-status-action .nx-notes-format-menu-trigger button {
+  min-width: 28px !important;
+  height: 28px !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-format-button-text {
+  background: rgba(0,122,255,0.08) !important;
+  color: #58aaff !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-format-button-structure,
+.nx-notes-unified-status-action .nx-notes-format-menu-trigger-blocks button {
+  background: rgba(175,82,222,0.11) !important;
+  color: #c996ff !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-format-button-list {
+  background: rgba(52,199,89,0.1) !important;
+  color: #6ee79a !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-format-button-insert,
+.nx-notes-unified-status-action .nx-notes-format-menu-trigger-emoji button {
+  background: rgba(255,204,0,0.11) !important;
+  color: #ffd761 !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-format-menu-trigger-magic {
+  margin-left: auto !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-format-menu-trigger-magic button {
+  background: rgba(0,122,255,0.16) !important;
+  color: #55b7ff !important;
+  min-width: 76px !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-format-spacer,
+.nx-notes-unified-status-action .nx-notes-format-toolbar > div[style*="flex: 1"] {
+  display: block !important;
+  flex: 1 1 18px !important;
+  min-width: 8px !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-toolbar-tags {
+  flex: 1 1 220px !important;
+  min-width: 170px !important;
+  max-width: 42% !important;
+  margin-left: 0 !important;
+  justify-content: flex-end !important;
+  align-items: center !important;
+  overflow: visible !important;
+}
+
+@media (max-width: 1320px) {
+  .nx-notes-unified-status-action .nx-notes-format-menu-trigger-magic {
+    margin-left: 0 !important;
+  }
+
+  .nx-notes-unified-status-action .nx-notes-toolbar-tags {
+    max-width: none !important;
+    justify-content: flex-start !important;
+  }
+}
+
+/* Task B: Nexus Notes unified bar resilient layout */
+.nx-notes-main {
+  min-width: 0;
+}
+
+.nx-notes-unified-status-action.nx-notes-workbar {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  grid-template-rows: minmax(30px, auto) minmax(30px, auto) !important;
+  align-items: center !important;
+  gap: 6px !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  padding: 7px 9px !important;
+  overflow: visible !important;
+  border-radius: 16px !important;
+}
+
+.nx-notes-unified-status-action,
+.nx-notes-unified-status-action * {
+  box-sizing: border-box;
+}
+
+.nx-notes-unified-status-action .nx-notes-workbar-main {
+  display: grid !important;
+  grid-template-columns:
+    minmax(180px, 1fr)
+    minmax(190px, 0.62fr)
+    minmax(max-content, auto) !important;
+  align-items: center !important;
+  gap: 8px !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  overflow: visible !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-title-input {
+  width: 100% !important;
+  min-width: 0 !important;
+  height: 30px !important;
+  min-height: 30px !important;
+  padding-inline: 10px !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  letter-spacing: 0 !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-editor-meta {
+  justify-self: center !important;
+  display: flex !important;
+  flex-wrap: wrap !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 4px !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  overflow: visible !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-editor-meta span {
+  flex: 0 1 auto !important;
+  min-width: 0 !important;
+  max-width: clamp(54px, 9vw, 128px) !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-mode-actions {
+  justify-self: end !important;
+  display: flex !important;
+  flex: 0 0 auto !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 4px !important;
+  min-width: max-content !important;
+  max-width: 100% !important;
+  overflow: visible !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-mode-actions > button,
+.nx-notes-unified-status-action .nx-notes-mode-actions [role="button"] {
+  flex: 0 0 auto !important;
+  min-width: 30px !important;
+  height: 28px !important;
+  min-height: 28px !important;
+  padding-inline: 8px !important;
+  white-space: nowrap !important;
+  overflow: visible !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-workbar-tools {
+  display: grid !important;
+  grid-template-columns: minmax(300px, 0.86fr) minmax(430px, 1.35fr) !important;
+  align-items: center !important;
+  gap: 8px !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  overflow: visible !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-command-strip {
+  display: grid !important;
+  grid-template-columns: minmax(230px, 0.88fr) minmax(0, 1.12fr) !important;
+  grid-template-rows: auto !important;
+  align-items: center !important;
+  gap: 6px !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  overflow: visible !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-command-primary {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 5px !important;
+  min-width: 0 !important;
+  overflow: visible !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-stat-pill,
+.nx-notes-unified-status-action .nx-notes-stat-pill:nth-child(n + 4) {
+  display: inline-flex !important;
+  flex: 0 1 auto !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-width: 46px !important;
+  max-width: 88px !important;
+  height: 24px !important;
+  padding: 2px 7px !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-strip-actions {
+  display: inline-flex !important;
+  flex: 0 0 auto !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 5px !important;
+  min-width: max-content !important;
+  margin-left: auto !important;
+  overflow: visible !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-strip-actions button {
+  flex: 0 0 auto !important;
+  min-height: 24px !important;
+  white-space: nowrap !important;
+  overflow: visible !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-context-strip {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  align-content: center !important;
+  gap: 5px !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-height: none !important;
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+  border-top: 0 !important;
+  overflow: visible !important;
+  white-space: normal !important;
+  scrollbar-width: none !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-context-strip > *,
+.nx-notes-unified-status-action .nx-notes-context-strip > *:nth-child(n + 5),
+.nx-notes-unified-status-action .nx-notes-context-strip > *:nth-child(n + 7) {
+  display: inline-flex !important;
+  flex: 0 1 clamp(84px, 11vw, 156px) !important;
+  width: auto !important;
+  min-width: 0 !important;
+  max-width: clamp(84px, 11vw, 156px) !important;
+  justify-content: flex-start !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-format-toolbar {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  align-content: center !important;
+  gap: 5px !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: 30px !important;
+  max-height: none !important;
+  padding: 3px 5px !important;
+  overflow: visible !important;
+  white-space: normal !important;
+  border-radius: 999px !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-format-toolbar > * {
+  flex: 0 0 auto !important;
+  min-width: 0 !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-format-button,
+.nx-notes-unified-status-action .nx-notes-format-menu-trigger button {
+  flex: 0 0 auto !important;
+  min-width: 28px !important;
+  height: 28px !important;
+  min-height: 28px !important;
+  max-width: none !important;
+  padding: 4px 8px !important;
+  border: 1px solid rgba(255, 255, 255, 0.095) !important;
+  white-space: nowrap !important;
+  overflow: visible !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-format-button-text {
+  background: rgba(0, 122, 255, 0.09) !important;
+  color: #65b6ff !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-format-button-structure,
+.nx-notes-unified-status-action .nx-notes-format-menu-trigger-blocks button {
+  background: rgba(175, 82, 222, 0.12) !important;
+  color: #cfa4ff !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-format-button-list {
+  background: rgba(52, 199, 89, 0.11) !important;
+  color: #73eca0 !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-format-button-insert,
+.nx-notes-unified-status-action .nx-notes-format-menu-trigger-emoji button {
+  background: rgba(255, 204, 0, 0.12) !important;
+  color: #ffdc6a !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-format-menu-trigger-magic {
+  margin-left: auto !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-format-menu-trigger-magic button {
+  min-width: 76px !important;
+  background: rgba(0, 122, 255, 0.17) !important;
+  color: #58baff !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-format-spacer,
+.nx-notes-unified-status-action .nx-notes-format-toolbar > div[style*="flex: 1"] {
+  display: none !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-toolbar-tags {
+  display: flex !important;
+  flex: 1 1 180px !important;
+  flex-wrap: wrap !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 4px !important;
+  min-width: 120px !important;
+  max-width: min(34%, 360px) !important;
+  margin-left: 0 !important;
+  overflow: visible !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-toolbar-tags button {
+  flex: 0 1 auto !important;
+  max-width: 118px !important;
+  min-height: 24px !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-toolbar-tags input {
+  width: 72px !important;
+  min-width: 56px !important;
+  max-width: 100% !important;
+}
+
+@media (max-width: 1200px) {
+  .nx-notes-unified-status-action .nx-notes-workbar-main {
+    grid-template-columns:
+      minmax(150px, 1fr)
+      minmax(138px, 0.45fr)
+      minmax(max-content, auto) !important;
+    gap: 6px !important;
+  }
+
+  .nx-notes-unified-status-action .nx-notes-editor-meta span:nth-child(n + 4) {
+    display: none !important;
+  }
+
+  .nx-notes-unified-status-action .nx-notes-workbar-tools {
+    grid-template-columns: minmax(260px, 0.78fr) minmax(340px, 1.22fr) !important;
+    gap: 6px !important;
+  }
+
+  .nx-notes-unified-status-action .nx-notes-command-strip {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .nx-notes-unified-status-action .nx-notes-context-strip {
+    justify-content: flex-start !important;
+  }
+
+  .nx-notes-unified-status-action .nx-notes-context-strip > * {
+    flex-basis: clamp(86px, 18vw, 148px) !important;
+    max-width: clamp(86px, 18vw, 148px) !important;
+  }
+
+  .nx-notes-unified-status-action .nx-notes-format-menu-trigger-magic {
+    margin-left: 0 !important;
+  }
+
+  .nx-notes-unified-status-action .nx-notes-toolbar-tags {
+    max-width: none !important;
+    justify-content: flex-start !important;
+  }
+}
+
+@media (max-width: 920px) {
+  .nx-notes-unified-status-action.nx-notes-workbar {
+    grid-template-rows: auto auto !important;
+  }
+
+  .nx-notes-unified-status-action .nx-notes-workbar-main,
+  .nx-notes-unified-status-action .nx-notes-workbar-tools {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .nx-notes-unified-status-action .nx-notes-editor-meta,
+  .nx-notes-unified-status-action .nx-notes-mode-actions,
+  .nx-notes-unified-status-action .nx-notes-strip-actions,
+  .nx-notes-unified-status-action .nx-notes-toolbar-tags {
+    justify-self: stretch !important;
+    justify-content: flex-start !important;
+  }
+
+  .nx-notes-unified-status-action .nx-notes-mode-actions {
+    flex-wrap: wrap !important;
+    min-width: 0 !important;
+  }
+
+  .nx-notes-unified-status-action .nx-notes-stat-pill:nth-child(n + 5) {
+    display: none !important;
+  }
+}

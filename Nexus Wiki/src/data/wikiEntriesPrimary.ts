@@ -7,15 +7,15 @@ export const wikiEntriesPrimary: WikiEntry[] = [
     app: 'ecosystem',
     category: 'overview',
     summary:
-      'Das Nexus Ecosystem ist ein API-first Monorepo mit Main, Mobile, Code, Code Mobile und gehosteter Control Plane.',
+      'Das Nexus Ecosystem ist ein local-first workspace mit Main, Mobile, Code, Code Mobile und optional Nexus Cloud.',
     guide: [
       { title: '1. Scope verstehen', detail: 'Main/Mobile sind Productivity-Surfaces, Code/Code Mobile sind IDE-Surfaces, Control ist zentraler Steuerpunkt.' },
-      { title: '2. Shared Layer verstehen', detail: 'Die Apps teilen Runtime Contracts ueber packages/nexus-core und erhalten v2 Features/Layout ueber Live Sync.' },
-      { title: '3. Betriebsmodell verstehen', detail: 'Public Repo liefert Runtime + Clients, produktive Control Plane Logik liegt im privaten NexusAPI Umfeld.' },
+      { title: '2. Shared Layer verstehen', detail: 'Die Apps teilen Runtime Contracts ueber packages/nexus-core und erhalten v2 Features/Layout ueber cloud availability.' },
+      { title: '3. Betriebsmodell verstehen', detail: 'Public Repo liefert Runtime + Clients, produktive Nexus Cloud Logik liegt im privaten private Nexus Cloud workspace Umfeld.' },
     ],
     points: [
       'Ziel ist konsistente Feature-Paritaet ueber Desktop und Mobile.',
-      'View Access und Entitlements werden serverseitig geprueft.',
+      'View Access und account feature access werden serverseitig geprueft.',
       'Release-Flow basiert auf Verify-, Build- und Kompatibilitaets-Gates.',
     ],
     commands: ['npm run setup', 'npm run build', 'npm run verify:ecosystem'],
@@ -35,7 +35,7 @@ export const wikiEntriesPrimary: WikiEntry[] = [
       { title: '3. Zielgerichtet starten', detail: 'Nutze dev:main, dev:code, dev:mobile:* oder dev:code-mobile:* je nach Surface.' },
     ],
     points: [
-      'dev:all startet Main + Code als Core-Stack, optional mit Control UI.',
+      'dev:all startet Main + Code als Core-Stack, optional mit private admin workspace.',
       'Mobile Apps laufen nativ ueber Capacitor Workflows.',
       'Build-Pipelines koennen optional Hosted-API-Healthchecks erzwingen.',
     ],
@@ -49,15 +49,15 @@ export const wikiEntriesPrimary: WikiEntry[] = [
   },
   {
     id: 'runtime-live-sync-v2',
-    title: 'Runtime Live Sync v2',
+    title: 'Runtime cloud availability',
     app: 'runtime',
     category: 'runtime',
     summary:
-      'Live Sync v2 steuert Feature-Freigaben und Layout-Profile zentral ueber Feature Catalog, UI Schema und Release Snapshot.',
+      'cloud availability steuert Feature-Freigaben und Layout-Profile zentral ueber feature availability, layout profile und release state.',
     guide: [
       { title: '1. Feature implementieren', detail: 'Neue View-/Feature-Logik wird in App-Code umgesetzt und in VIEW_FEATURE_MAP gemappt.' },
-      { title: '2. Catalog + Schema pflegen', detail: 'Im Control Live Sync Tab werden staging Catalog/Schemas gespeichert und validiert.' },
-      { title: '3. Promotion', detail: 'Nach Verify und Build wird von staging nach production promoted.' },
+      { title: '2. feature and layout drafts pflegen', detail: 'Im Control cloud availability Tab werden draft feature and layout draftss gespeichert und validiert.' },
+      { title: '3. release handoff', detail: 'Nach Verify und Build wird von draft nach release released.' },
     ],
     points: [
       'Shared Core orchestriert effektive Views pro App.',
@@ -65,8 +65,8 @@ export const wikiEntriesPrimary: WikiEntry[] = [
       'Compatibility Checks blockieren inkompatible Client-Versionen.',
       'Nexus Main trennt Stable, Canary und Dev im Runtime Channel und zeigt den aktiven Channel im Boot-/Release-Health-Kontext.',
     ],
-    commands: ['npm run verify:ecosystem', 'Control UI -> Live Sync', 'VITE_NEXUS_RUNTIME_CHANNEL=canary'],
-    tags: ['live-sync', 'catalog', 'schema', 'promotion', 'runtime-channel'],
+    commands: ['Public client checks'],
+    tags: ['live-sync', 'feature list', 'layout profile', 'release handoff', 'runtime-channel'],
     sources: ['README.md', 'docs/DEVELOPER_GUIDE.md', 'packages/nexus-core/src/liveSync.ts', 'Nexus Main/src/app/mainAppConfig.ts'],
   },
   {
@@ -77,13 +77,13 @@ export const wikiEntriesPrimary: WikiEntry[] = [
     summary:
       'Runtime validiert minClientVersion und compatMatrix pro App, bevor unsafe Views freigegeben werden.',
     guide: [
-      { title: '1. Versionen setzen', detail: 'Schema muss minClientVersion und kompatible Versionen je App korrekt pflegen.' },
-      { title: '2. Builds validieren', detail: 'Vor Promotion alle App-Builds ausfuehren.' },
+      { title: '1. Versionen setzen', detail: 'layout profile muss minClientVersion und kompatible Versionen je App korrekt pflegen.' },
+      { title: '2. Builds validieren', detail: 'Vor release handoff alle App-Builds ausfuehren.' },
       { title: '3. Laufzeit pruefen', detail: 'Bei Inkompatibilitaet muessen Apps klare Hinweise und sichere Fallbacks zeigen.' },
     ],
     points: [
       'Compatibility wird nicht nur im UI, sondern in Runtime-Resolution geprueft.',
-      'Promotion ohne parity-validierte Versionen erzeugt Drift-Risiko.',
+      'release handoff ohne parity-validierte Versionen erzeugt Drift-Risiko.',
       'Unsafe Views bleiben bei Konflikten gesperrt.',
     ],
     commands: ['npm run verify:ecosystem', 'npm --prefix "./Nexus Main" run build'],
@@ -96,14 +96,14 @@ export const wikiEntriesPrimary: WikiEntry[] = [
     app: 'runtime',
     category: 'runtime',
     summary:
-      'Core View Runtime v2 definiert Layout Schema, Panel Engine und Command Registry als gemeinsame Grundlage fuer Nexus-v6-Surfaces.',
+      'Core View Runtime v2 definiert Layout layout profile, Panel Engine und Command Registry als gemeinsame Grundlage fuer Nexus-v6-Surfaces.',
     guide: [
       { title: '1. Manifest pflegen', detail: 'Neue Views zuerst in NEXUS_VIEW_MANIFESTS mit Actions, Panels, Modes und Statussignalen modellieren.' },
       { title: '2. Layout aufloesen', detail: 'resolveNexusViewLayout und buildNexusPanelEngine liefern Shell, Inspector und Responsive-Regeln.' },
       { title: '3. Commands anbinden', detail: 'resolveNexusViewCommandRegistry liefert Enabled/Disabled-State; echte View-Handler werden pro Surface registriert.' },
     ],
     points: [
-      'Layout Schema v2 macht Desktop, Tablet und Mobile vergleichbar.',
+      'Layout layout profile v2 macht Desktop, Tablet und Mobile vergleichbar.',
       'Panel Engine trennt Rail, Sheet, Inline und Inspector Panels.',
       'Command Execution bleibt sicher, weil Core Disabled-State und Handler-Aufloesung zentral prueft.',
       'Nexus Main nutzt diese Runtime bereits in der NexusV6ViewShell.',
@@ -114,7 +114,7 @@ export const wikiEntriesPrimary: WikiEntry[] = [
       'npm --prefix "packages/nexus-core" run build',
       'npm --prefix "Nexus Main" run build',
     ],
-    tags: ['runtime', 'view-manifest', 'layout-schema', 'commands', 'panels'],
+    tags: ['runtime', 'view-manifest', 'layout-layout profile', 'commands', 'panels'],
     sources: [
       'docs/CORE_VIEW_RUNTIME_V2.md',
       'docs/MAIN_VIEW_REGISTRY_V2.md',
@@ -131,7 +131,7 @@ export const wikiEntriesPrimary: WikiEntry[] = [
       'Der Zugriff auf kritische Verwaltungsfunktionen folgt klaren Rollen- und Freigaberegeln.',
     guide: [
       { title: '1. Rollenmodell pruefen', detail: 'Administrative Rechte nur an wirklich benoetigte Accounts vergeben.' },
-      { title: '2. Sicherheitsregeln aktiv halten', detail: 'Kritische Aktionen nur innerhalb definierter Governance-Policies erlauben.' },
+      { title: '2. Sicherheitsregeln aktiv halten', detail: 'Kritische Aktionen nur innerhalb definierter Governance-Access settings erlauben.' },
       { title: '3. Regelmaessig kontrollieren', detail: 'Zugriffe und Aenderungen im Security-Betrieb laufend verifizieren.' },
     ],
     points: [
@@ -139,13 +139,13 @@ export const wikiEntriesPrimary: WikiEntry[] = [
       'Least-Privilege reduziert Risiko bei Fehlkonfigurationen.',
       'Regelmaessige Reviews halten den Betrieb stabil und nachvollziehbar.',
     ],
-    commands: ['Control UI -> Policies', 'Control UI -> Audit'],
+    commands: ['Public client checks'],
     tags: ['security', 'governance', 'access-control'],
     sources: ['docs/SECURITY.md', 'docs/ENVIRONMENT.md'],
   },
   {
-    id: 'security-paywall-entitlements',
-    title: 'Paywalls und Entitlements',
+    id: 'security-paywall-account feature access',
+    title: 'Account features und account feature access',
     app: 'control',
     category: 'security',
     summary:
@@ -158,11 +158,11 @@ export const wikiEntriesPrimary: WikiEntry[] = [
     points: [
       'Die Website steuert primär den UX-Flow fuer Login und Upgrade.',
       'Autorisierung liegt in den geschuetzten Backend-Systemen.',
-      'Control Paywalls Tab pflegt Tier-Views und User-Templates.',
+      'Control Account features Tab pflegt Tier-Views und User-Templates.',
       'Clients muessen Blockierungszustand sauber darstellen.',
     ],
-    commands: ['Control UI -> Paywalls', 'Control UI -> Live Sync'],
-    tags: ['paywall', 'tier', 'entitlement', 'access-control'],
+    commands: ['Public client checks'],
+    tags: ['paywall', 'tier', 'account feature access', 'access-control'],
     sources: ['docs/USER_GUIDE.md'],
   },
   {
@@ -171,9 +171,9 @@ export const wikiEntriesPrimary: WikiEntry[] = [
     app: 'control',
     category: 'ops',
     summary:
-      'Control UI laeuft auf der verwalteten Infrastruktur; GitHub Pages wird fuer das oeffentliche Produktwiki genutzt.',
+      'private admin workspace laeuft auf der verwalteten Infrastruktur; GitHub Pages wird fuer das oeffentliche Produktwiki genutzt.',
     guide: [
-      { title: '1. Build', detail: 'Control UI ueber npm --prefix "../Nexus Control" run build erzeugen.' },
+      { title: '1. Build', detail: 'private admin workspace ueber npm --prefix "private admin workspace" run build erzeugen.' },
       { title: '2. Deploy', detail: 'dist statisch unter /control ausliefern.' },
       { title: '3. Release checken', detail: 'Nach Deployment den UI-Start und die Kernnavigation validieren.' },
     ],
@@ -182,21 +182,21 @@ export const wikiEntriesPrimary: WikiEntry[] = [
       'Interne Infrastruktur-Details bleiben in privaten Betriebsdokumenten.',
       'Deployment-Checks sind Pflicht vor Freigabe.',
     ],
-    commands: ['npm --prefix "../Nexus Control" run build', 'npm run verify:ecosystem'],
+    commands: ['Public client checks'],
     tags: ['hosting', 'control-ui', 'deploy'],
     sources: ['docs/CONTROL_PANEL_HOSTED_SETUP.md', 'README.md'],
   },
   {
     id: 'release-gates',
-    title: 'Release Gates und Promotion Checkliste',
+    title: 'Release Gates und release handoff Checkliste',
     app: 'ecosystem',
     category: 'ops',
     summary:
-      'Vor Promotion sind Verify + Build Checks ueber alle App-Surfaces Pflicht.',
+      'Vor release handoff sind Verify + Build Checks ueber alle App-Surfaces Pflicht.',
     guide: [
       { title: '1. Contracts pruefen', detail: 'verify:ecosystem muss clean laufen.' },
-      { title: '2. Alle Targets bauen', detail: 'Main, Mobile, Code, Code Mobile und Control UI bauen.' },
-      { title: '3. Erst dann promoten', detail: 'Promotion auf production erst nach bestandenen Gates.' },
+      { title: '2. Alle Targets bauen', detail: 'Main, Mobile, Code, Code Mobile und private admin workspace bauen.' },
+      { title: '3. Erst dann freigeben', detail: 'public release handoff erst nach bestandenen Gates.' },
     ],
     points: [
       'Dieser Flow verhindert Contract Drift und Runtime-Brueche.',
@@ -214,7 +214,7 @@ export const wikiEntriesPrimary: WikiEntry[] = [
       'npm --prefix "./Nexus Code Mobile" run build',
       'docs/RELEASE_READY_CHECKLIST.md',
     ],
-    tags: ['release', 'verify', 'build', 'promotion'],
+    tags: ['release', 'verify', 'build', 'release handoff'],
     sources: ['docs/DEVELOPER_GUIDE.md', 'docs/VIEW_SMOKE_MATRIX.md', 'docs/RELEASE_READY_CHECKLIST.md'],
   },
   {
@@ -254,7 +254,7 @@ export const wikiEntriesPrimary: WikiEntry[] = [
     guide: [
       { title: '1. Lokal validieren', detail: 'Builds, verify:ecosystem, release:gate und Wiki build:ci ausfuehren, bevor Artefakte oder Deployments freigegeben werden.' },
       { title: '2. Daten und Installer pruefen', detail: 'API-Datenhygiene, Download-Pfade, Checksums und OS-spezifische Installer-Regeln abgleichen.' },
-      { title: '3. Security + Public Story abnehmen', detail: 'Admin-Gates, Remember-Me, Entitlements, Website-Texte und Wiki-Links pruefen.' },
+      { title: '3. Security + Public Story abnehmen', detail: 'Admin-Gates, Remember-Me, account feature access, Website-Texte und Wiki-Links pruefen.' },
     ],
     points: [
       'Die Checkliste verbindet Build, Deploy, Security, Website und Wiki in einem Ablauf.',
@@ -306,7 +306,7 @@ export const wikiEntriesPrimary: WikiEntry[] = [
       { title: '3. Evidence speichern', detail: 'GitHub Run, SHA256SUMS, Notarytool Log und Signatur-Smoke im Release Evidence Ordner ablegen.' },
     ],
     points: [
-      'Main und Code nutzen macOS Hardened Runtime mit Entitlements.',
+      'Main und Code nutzen macOS Hardened Runtime mit account feature access.',
       'macOS DMGs koennen per notarytool eingereicht und danach gestapled werden.',
       'Windows und Android Signing bleiben secret-gated statt hardcoded.',
       'Checksums werden mit den Installer-Artefakten hochgeladen.',
@@ -329,7 +329,7 @@ export const wikiEntriesPrimary: WikiEntry[] = [
       'Der Visual Evidence Guide definiert, welche Screenshots und kurzen Videos pro Surface gesammelt werden, damit UI-Qualitaet beweisbar bleibt.',
     guide: [
       { title: '1. Surface-Set abdecken', detail: 'Main, Mobile, Code, Code Mobile, Control, Website und Wiki bekommen eigene Evidence-Ordner.' },
-      { title: '2. Pflichtbilder aufnehmen', detail: 'Dashboard/Notes/Tasks/Canvas, Mobile Login/Settings, Code Editor/Problems und Control Live Sync/Paywalls dokumentieren.' },
+      { title: '2. Pflichtbilder aufnehmen', detail: 'Dashboard/Notes/Tasks/Canvas, Mobile Login/Settings, Code Editor/Problems und Control cloud availability/Account features dokumentieren.' },
       { title: '3. Quality Bar anwenden', detail: 'Content-Space, stabile Klickziele, Light Theme Kontrast, Empty/Error States und Secret-Freiheit pruefen.' },
     ],
     points: [
@@ -494,7 +494,7 @@ export const wikiEntriesPrimary: WikiEntry[] = [
       {
         label: 'nexus-alert',
         description: 'Hinweisboxen (info/success/warning/error/magic)',
-        snippet: '```nexus-alert\ninfo\nControl Promotion nur nach verify + build ausfuehren.\n```',
+        snippet: '```nexus-alert\ninfo\nControl release handoff nur nach verify + build ausfuehren.\n```',
       },
       {
         label: 'Progress',
@@ -514,7 +514,7 @@ export const wikiEntriesPrimary: WikiEntry[] = [
       {
         label: 'nexus-card',
         description: 'Card mit Bild URL, Titel, Beschreibung',
-        snippet: '```nexus-card\nhttps://images.unsplash.com/photo-1462331940025-496dfbfc7564?w=1200 | Nexus Milestone | Production readiness complete.\n```',
+        snippet: '```nexus-card\nhttps://images.unsplash.com/photo-1462331940025-496dfbfc7564?w=1200 | Nexus Milestone | release readiness complete.\n```',
       },
       {
         label: 'nexus-details',
@@ -529,7 +529,7 @@ export const wikiEntriesPrimary: WikiEntry[] = [
       {
         label: 'Taskliste',
         description: 'Standard Markdown Task Checks',
-        snippet: '- [x] Release Build\n- [ ] Control Promotion\n- [ ] Post-Deploy Smoke',
+        snippet: '- [x] Release Build\n- [ ] Control release handoff\n- [ ] Post-Deploy Smoke',
       },
     ],
   },
@@ -590,7 +590,7 @@ export const wikiEntriesPrimary: WikiEntry[] = [
       {
         label: 'nexus-timeline Roadmap',
         description: 'Lineare Roadmap in Notes oder Canvas Nodes.',
-        snippet: '```nexus-timeline\nNow | Stabilisierung\nNext | Mobile Parity\nLater | Release Promotion\n```',
+        snippet: '```nexus-timeline\nNow | Stabilisierung\nNext | Mobile Parity\nLater | Release release handoff\n```',
       },
       {
         label: 'nexus-grid Feature Map',
@@ -885,10 +885,10 @@ export const wikiEntriesPrimary: WikiEntry[] = [
     points: [
       'Der Katalog liegt zentral in Nexus Main/src/app/nexusTemplatePacks.ts und ersetzt verstreute Beispieltexte durch kuratierte Startpunkte.',
       'InfoView zeigt Packs filterbar nach Kategorie und kopiert jeden Pack als Markdown.',
-      'Die Packs decken Free-, Pro- und Lifetime-Pro-Kontexte ab, ohne Client-Sicherheit mit echten Entitlements zu verwechseln.',
+      'Die Packs decken Free-, Pro- und Lifetime-Pro-Kontexte ab, ohne Client-Sicherheit mit echten account feature access zu verwechseln.',
       'Der First-Start-Walkthrough verweist auf Template Packs, damit neue Nutzer schneller zu einem echten Workflow kommen.',
     ],
-    commands: ['Info -> Template Packs', 'Copy pack Markdown', 'verify:ecosystem main-template-pack-catalog'],
+    commands: ['Info -> Template Packs', 'Copy pack Markdown', 'verify:ecosystem main-template-pack-feature list'],
     tags: ['templates', 'starter-kits', 'notes', 'tasks', 'canvas', 'code', 'flux'],
     sources: [
       'Nexus Main/src/app/nexusTemplatePacks.ts',
@@ -928,16 +928,16 @@ export const wikiEntriesPrimary: WikiEntry[] = [
     app: 'main',
     category: 'ops',
     summary:
-      'DevTools enthaelt einen lokalen Feature-Flag Editor fuer Catalog-Drafts, Layout-Validierung, Rollout-Planung und Audit-Vorbereitung.',
+      'DevTools enthaelt einen lokalen Feature-Flag Editor fuer feature list-Drafts, Layout-Validierung, Rollout-Planung und Audit-Vorbereitung.',
     guide: [
       { title: '1. Feature pruefen', detail: 'Im DevTools Feature-Flags-Tab ein Feature auswaehlen, Rollout, Risiko, Prozentwert und Notiz kontrollieren.' },
-      { title: '2. Schema validieren', detail: 'Layout Schema JSON gegen Whitelist, Screens, Komponenten und minClientVersion pruefen.' },
-      { title: '3. Report uebergeben', detail: 'Report exportieren oder kopieren und erst danach im Hosted Control Plane produktiv freigeben.' },
+      { title: '2. layout profile validieren', detail: 'Layout layout profile JSON gegen Whitelist, Screens, Komponenten und minClientVersion pruefen.' },
+      { title: '3. Report uebergeben', detail: 'Report exportieren oder kopieren und erst danach im optional Nexus Cloud produktiv freigeben.' },
     ],
     points: [
-      'Der Editor ist lokal und sicher fuer Release-Vorbereitung, weil er keine Production-Mutation ausfuehrt.',
-      'Feature Catalog, Layout Guard, Rollout-Stages und Audit Trail liegen in einem gemeinsamen Draft-State.',
-      'Production bleibt Server-Aufgabe mit Admin-Auth, Server-Audit und Rollback-Token.',
+      'Der Editor ist lokal und sicher fuer Release-Vorbereitung, weil er keine release-Mutation ausfuehrt.',
+      'feature availability, Layout Guard, Rollout-Stages und Audit Trail liegen in einem gemeinsamen Draft-State.',
+      'release bleibt Server-Aufgabe mit Admin-Auth, Server-Audit und Rollback-Token.',
       'verify:ecosystem prueft die Core-Logik und den DevTools-Tab statisch mit.',
     ],
     commands: ['DevTools -> Feature Flags', 'Validate', 'Copy report', 'Export', 'Import'],
@@ -960,7 +960,7 @@ export const wikiEntriesPrimary: WikiEntry[] = [
       { title: '2. Styles iterieren', detail: 'Builder Controls fuer spacing, border, background, glow, blur und typo nutzen.' },
       { title: '3. Output uebernehmen', detail: 'CSS/Tailwind Snippets kopieren und in Zielprojekt einsetzen.' },
       { title: '4. Release pruefen', detail: 'Im Release-Tab Blocker, Required Checks, Evidence und Gate-Kommandos als fokussierten RC-Pass abarbeiten.' },
-      { title: '5. Flags vorbereiten', detail: 'Im Feature-Flags-Tab lokale Catalog-/Layout-Drafts validieren und als Report exportieren.' },
+      { title: '5. Flags vorbereiten', detail: 'Im Feature-Flags-Tab lokale feature list-/Layout-Drafts validieren und als Report exportieren.' },
     ],
     points: [
       'Explorer erlaubt neue Dateien, Rename und Delete.',
@@ -1068,7 +1068,7 @@ export const wikiEntriesPrimary: WikiEntry[] = [
     guide: [
       { title: '1. Preset waehlen', detail: 'Erst ein Experience Preset oder ein Theme aus der Library anwenden, damit die Richtung stimmt.' },
       { title: '2. Sichtbar pruefen', detail: 'Panel Texture, App Background, Glow und Motion direkt in der Oberflaeche kontrollieren.' },
-      { title: '3. Sicher sichern', detail: 'Theme als nexus-theme-v6.json exportieren oder importieren; Schema-Guard und Allowlist schuetzen eingefrorene Felder.' },
+      { title: '3. Sicher sichern', detail: 'Theme als nexus-theme-v6.json exportieren oder importieren; layout profile-Guard und access list schuetzen eingefrorene Felder.' },
     ],
     points: [
       'Experience Presets: Focus, Balanced, Studio, Performance und Cinematic.',
@@ -1257,7 +1257,7 @@ export const wikiEntriesPrimary: WikiEntry[] = [
       { title: '3. Degradation beachten', detail: 'full bis static-safe reduziert Intensitaet stufenweise statt abrupter Feature-Abschaltung.' },
     ],
     points: [
-      'Interrupt-Policies vermeiden hektisches Umschalten bei schnellen Interaktionen.',
+      'Interrupt-Access settings vermeiden hektisches Umschalten bei schnellen Interaktionen.',
       'Animation Complexity wird aus Surface-Modus und Runtime-Zustand abgeleitet.',
       'Niedriges Power- oder Reduced-Motion-Profil bleibt funktional, aber bewusst ruhiger.',
     ],

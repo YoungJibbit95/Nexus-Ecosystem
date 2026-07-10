@@ -48,8 +48,8 @@ export const categories: Array<{ id: CategoryId; label: string; description: str
   { id: 'markdown', label: 'Markdown', description: 'Notes/Canvas Markdown Referenz' },
   { id: 'settings', label: 'Settings', description: 'Theme, Layout, Motion, Editor' },
   { id: 'workflow', label: 'Workflows', description: 'Terminal, Spotlight, Productivity' },
-  { id: 'runtime', label: 'Runtime/API', description: 'Live Sync, Compatibility, Contracts' },
-  { id: 'security', label: 'Security', description: 'Access Governance, Account Schutz, Paywalls' },
+  { id: 'runtime', label: 'Client Runtime', description: 'cloud availability, Compatibility, Contracts' },
+  { id: 'security', label: 'Security', description: 'Access Governance, Account Schutz, Account features' },
   { id: 'ops', label: 'Ops/Deploy', description: 'Hosting, Build, Release, Verify' },
 ]
 
@@ -59,8 +59,8 @@ export const apps: Array<{ id: AppId; label: string; subtitle: string }> = [
   { id: 'mobile', label: 'Nexus Mobile', subtitle: 'Mobile Parity Surface' },
   { id: 'code', label: 'Nexus Code', subtitle: 'Desktop IDE Surface' },
   { id: 'code-mobile', label: 'Nexus Code Mobile', subtitle: 'Native IDE Surface' },
-  { id: 'control', label: 'Control', subtitle: 'Live Sync + Paywalls UI' },
-  { id: 'runtime', label: 'Runtime Plane', subtitle: 'Shared API Layer' },
+  { id: 'control', label: 'Control', subtitle: 'cloud availability + Account feature UX' },
+  { id: 'runtime', label: 'Runtime Plane', subtitle: 'Shared Client Runtime' },
 ]
 
 

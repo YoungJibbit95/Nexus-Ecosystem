@@ -9,15 +9,15 @@ const g = (items: Array<[string, string]>): GuideStep[] => items.map(([title, de
 export const englishEntryTranslations = {
   'ecosystem-overview': {
     title: 'Nexus Ecosystem Overview',
-    summary: 'The Nexus Ecosystem is an API-first monorepo with Main, Mobile, Code, Code Mobile and the hosted Control Plane.',
+    summary: 'The Nexus Ecosystem is an local-first workspace with Main, Mobile, Code, Code Mobile and the optional Nexus Cloud.',
     guide: g([
       ['1. Understand the scope', 'Main and Mobile are productivity surfaces, Code and Code Mobile are IDE surfaces, and Control is the central operations surface.'],
-      ['2. Understand the shared layer', 'All apps share runtime contracts through packages/nexus-core and receive v2 features/layouts through Live Sync.'],
-      ['3. Understand the operating model', 'The public repo contains runtime clients and shared code; protected backend behavior belongs to the private NexusAPI environment.'],
+      ['2. Understand the shared layer', 'All apps share runtime contracts through packages/nexus-core and receive v2 features/layouts through cloud availability.'],
+      ['3. Understand the operating model', 'The public repo contains runtime clients and shared code; protected backend behavior belongs to the private private Nexus Cloud workspace environment.'],
     ]),
     points: [
       'The goal is consistent feature parity across desktop and mobile.',
-      'View access and entitlements are checked by the server-side authority.',
+      'View access and account feature access are checked by the server-side authority.',
       'Releases are gated by verify, build and compatibility checks.',
     ],
   },
@@ -30,18 +30,18 @@ export const englishEntryTranslations = {
       ['3. Start the right target', 'Use dev:main, dev:code, dev:mobile:* or dev:code-mobile:* depending on the surface you need.'],
     ]),
     points: [
-      'dev:all starts Main and Code as the core stack, optionally with the Control UI.',
+      'dev:all starts Main and Code as the core stack, optionally with the private admin workspace.',
       'Mobile apps run through native Capacitor workflows.',
       'Build pipelines can optionally enforce hosted API health checks.',
     ],
   },
   'runtime-live-sync-v2': {
-    title: 'Runtime Live Sync v2',
-    summary: 'Live Sync v2 centrally controls feature releases and layout profiles through Feature Catalog, UI Schema and Release Snapshot data.',
+    title: 'Runtime cloud availability',
+    summary: 'cloud availability centrally controls feature releases and layout profiles through feature availability, layout profile and release state data.',
     guide: g([
       ['1. Implement the feature', 'New view or feature logic is implemented in app code and mapped through VIEW_FEATURE_MAP.'],
-      ['2. Maintain catalog and schema', 'The Control Live Sync tab stores and validates staging catalogs and schemas.'],
-      ['3. Promote intentionally', 'After verify and build checks, staging can be promoted to production.'],
+      ['2. Maintain feature list and layout profile', 'The Control cloud availability tab stores and validates draft feature lists and layout profiles.'],
+      ['3. Promote intentionally', 'After verify and build checks, draft can be released to release.'],
     ]),
     points: [
       'Shared Core orchestrates effective views per app.',
@@ -49,33 +49,33 @@ export const englishEntryTranslations = {
       'Compatibility checks block incompatible client versions before rollout.',
       'Nexus Main separates Stable, Canary and Dev runtime channels and surfaces the active channel in boot/release-health context.',
     ],
-    commands: ['npm run verify:ecosystem', 'Control UI -> Live Sync', 'VITE_NEXUS_RUNTIME_CHANNEL=canary'],
-    tags: ['live-sync', 'catalog', 'schema', 'promotion', 'runtime-channel'],
+    commands: ['Public client checks'],
+    tags: ['live-sync', 'feature list', 'layout profile', 'release handoff', 'runtime-channel'],
   },
   'runtime-compatibility': {
     title: 'Compatibility and Version Gates',
     summary: 'Runtime validates minClientVersion and compatMatrix per app before unsafe views are released.',
     guide: g([
-      ['1. Set versions', 'The schema must maintain minClientVersion and compatible versions for every app.'],
-      ['2. Validate builds', 'Run all app builds before promotion.'],
+      ['1. Set versions', 'The layout profile must maintain minClientVersion and compatible versions for every app.'],
+      ['2. Validate builds', 'Run all app builds before release handoff.'],
       ['3. Check runtime behavior', 'When incompatibility is detected, apps must show clear hints and safe fallback states.'],
     ]),
     points: [
       'Compatibility is enforced in runtime resolution, not only in the UI.',
-      'Promotion without parity-validated versions creates drift risk.',
+      'release handoff without parity-validated versions creates drift risk.',
       'Unsafe views remain blocked when contracts do not match.',
     ],
   },
   'runtime-core-view-v2': {
     title: 'Core View Runtime v2',
-    summary: 'Core View Runtime v2 defines Layout Schema, Panel Engine and Command Registry as the shared foundation for Nexus v6 surfaces.',
+    summary: 'Core View Runtime v2 defines Layout layout profile, Panel Engine and Command Registry as the shared foundation for Nexus v6 surfaces.',
     guide: g([
       ['1. Maintain manifests', 'Model new views in NEXUS_VIEW_MANIFESTS first, including actions, panels, modes and status signals.'],
       ['2. Resolve layout', 'resolveNexusViewLayout and buildNexusPanelEngine provide shell, inspector and responsive rules.'],
       ['3. Wire commands', 'resolveNexusViewCommandRegistry provides enabled/disabled state; real view handlers are registered per surface.'],
     ]),
     points: [
-      'Layout Schema v2 makes desktop, tablet and mobile comparable.',
+      'Layout layout profile v2 makes desktop, tablet and mobile comparable.',
       'Panel Engine separates rail, sheet, inline and inspector panels.',
       'Command execution stays safe because Core centralizes disabled-state and handler resolution.',
       'Nexus Main already uses this runtime in NexusV6ViewShell.',
@@ -86,14 +86,14 @@ export const englishEntryTranslations = {
       'npm --prefix "packages/nexus-core" run build',
       'npm --prefix "Nexus Main" run build',
     ],
-    tags: ['runtime', 'view-manifest', 'layout-schema', 'commands', 'panels'],
+    tags: ['runtime', 'view-manifest', 'layout-layout profile', 'commands', 'panels'],
   },
   'security-owner-signatures': {
     title: 'Security Governance and Access Protection',
     summary: 'Access to critical management functions follows clear role and approval rules.',
     guide: g([
       ['1. Review the role model', 'Grant administrative rights only to accounts that truly need them.'],
-      ['2. Keep guardrails active', 'Allow critical actions only inside defined governance policies.'],
+      ['2. Keep guardrails active', 'Allow critical actions only inside defined governance Access settings.'],
       ['3. Review regularly', 'Continuously verify access and changes during security operations.'],
     ]),
     points: [
@@ -102,8 +102,8 @@ export const englishEntryTranslations = {
       'Regular reviews keep operations stable and traceable.',
     ],
   },
-  'security-paywall-entitlements': {
-    title: 'Paywalls and Entitlements',
+  'security-paywall-account feature access': {
+    title: 'Account features and account feature access',
     summary: 'Premium features follow a clear account and tier model with login/upgrade flows.',
     guide: g([
       ['1. Account and login', 'The website/app requests login for premium features.'],
@@ -113,15 +113,15 @@ export const englishEntryTranslations = {
     points: [
       'The website primarily controls the login and upgrade UX.',
       'Authorization belongs to protected backend systems.',
-      'The Control Paywalls tab manages tier views and user templates.',
+      'The Control Account features tab manages tier views and user templates.',
       'Clients must render blocked states clearly.',
     ],
   },
   'control-hosting-migration': {
     title: 'Control Hosting Migration',
-    summary: 'Control UI runs on managed infrastructure; GitHub Pages is used for the public product wiki.',
+    summary: 'private admin workspace runs on managed infrastructure; GitHub Pages is used for the public product wiki.',
     guide: g([
-      ['1. Build', 'Build Control UI with npm --prefix "../Nexus Control" run build.'],
+      ['1. Build', 'Build private admin workspace with npm --prefix "private admin workspace" run build.'],
       ['2. Deploy', 'Serve the static dist output under /control.'],
       ['3. Check release', 'After deployment, validate UI startup and core navigation.'],
     ]),
@@ -132,12 +132,12 @@ export const englishEntryTranslations = {
     ],
   },
   'release-gates': {
-    title: 'Release Gates and Promotion Checklist',
-    summary: 'Verify and build checks across all app surfaces are required before promotion.',
+    title: 'Release Gates and release handoff Checklist',
+    summary: 'Verify and build checks across all app surfaces are required before release handoff.',
     guide: g([
       ['1. Check contracts', 'verify:ecosystem must complete cleanly.'],
-      ['2. Build every target', 'Build Main, Mobile, Code, Code Mobile and Control UI.'],
-      ['3. Promote only after gates', 'Production promotion happens only after all gates pass.'],
+      ['2. Build every target', 'Build Main, Mobile, Code, Code Mobile and private admin workspace.'],
+      ['3. Promote only after gates', 'release release handoff happens only after all gates pass.'],
     ]),
     points: [
       'This flow prevents contract drift and runtime breakage.',
@@ -155,7 +155,7 @@ export const englishEntryTranslations = {
       'npm --prefix "./Nexus Code Mobile" run build',
       'docs/RELEASE_READY_CHECKLIST.md',
     ],
-    tags: ['release', 'verify', 'build', 'promotion'],
+    tags: ['release', 'verify', 'build', 'release handoff'],
   },
   'release-view-smoke-matrix': {
     title: 'Release View Smoke Matrix',
@@ -185,7 +185,7 @@ export const englishEntryTranslations = {
     guide: g([
       ['1. Validate locally', 'Run builds, verify:ecosystem, release:gate and Wiki build:ci before approving artifacts or deployments.'],
       ['2. Check data and installers', 'Review API data hygiene, download paths, checksums and OS-specific installer rules.'],
-      ['3. Approve security and public story', 'Check admin gates, remember-me behavior, entitlements, website copy and wiki links.'],
+      ['3. Approve security and public story', 'Check admin gates, remember-me behavior, account feature access, website copy and wiki links.'],
     ]),
     points: [
       'The checklist connects build, deploy, security, website and wiki work in one flow.',
@@ -207,7 +207,7 @@ export const englishEntryTranslations = {
     guide: g([
       ['1. Check blockers', 'Review API data hygiene, contract/attack tests, view evidence and signing first.'],
       ['2. Mark limitations', 'Name internal RC exceptions such as Linux packaging on Windows or live payment E2E clearly.'],
-      ['3. Link risks', 'Every open deviation gets reproduction steps, evidence, owner and acceptance status.'],
+      ['3. Link risks', 'Every open deviation gets rerelease steps, evidence, owner and acceptance status.'],
     ]),
     points: [
       'No known gap stays only in chat history or local notes.',
@@ -227,7 +227,7 @@ export const englishEntryTranslations = {
       ['3. Save evidence', 'Store the GitHub run, SHA256SUMS, notarytool log and signature smoke in the release evidence folder.'],
     ]),
     points: [
-      'Main and Code use macOS Hardened Runtime with entitlements.',
+      'Main and Code use macOS Hardened Runtime with account feature access.',
       'macOS DMGs can be submitted through notarytool and stapled afterwards.',
       'Windows and Android signing stay secret-gated instead of hardcoded.',
       'Checksums are uploaded with installer artifacts.',
@@ -245,7 +245,7 @@ export const englishEntryTranslations = {
     summary: 'The Visual Evidence Guide defines which screenshots and short videos are collected per surface so UI quality stays provable.',
     guide: g([
       ['1. Cover every surface', 'Main, Mobile, Code, Code Mobile, Control, Website and Wiki each get their own evidence folder.'],
-      ['2. Capture required shots', 'Document Dashboard/Notes/Tasks/Canvas, Mobile Login/Settings, Code Editor/Problems and Control Live Sync/Paywalls.'],
+      ['2. Capture required shots', 'Document Dashboard/Notes/Tasks/Canvas, Mobile Login/Settings, Code Editor/Problems and Control cloud availability/Account features.'],
       ['3. Apply the quality bar', 'Check content space, stable click targets, light theme contrast, empty/error states and secret-free screenshots.'],
     ]),
     points: [
@@ -346,14 +346,14 @@ export const englishEntryTranslations = {
     markdownSnippets: [
       { label: 'Tables', description: 'GFM tables', snippet: '| Field | Value |\n| --- | --- |\n| Status | active |\n| Owner | Product |' },
       { label: 'nexus-list', description: 'Two-column label/detail list', snippet: '```nexus-list\nScope | v2 rollout\nOwner | Product + Eng\nBudget | TBD\n```' },
-      { label: 'nexus-alert', description: 'Callout boxes (info/success/warning/error/magic)', snippet: '```nexus-alert\ninfo\nRun Control promotion only after verify + build.\n```' },
+      { label: 'nexus-alert', description: 'Callout boxes (info/success/warning/error/magic)', snippet: '```nexus-alert\ninfo\nRun Control release handoff only after verify + build.\n```' },
       { label: 'Progress', description: 'Multiple progress bars', snippet: '```nexus-progress\nFrontend | 80\nBackend | 65\nTests | 40\n```' },
       { label: 'Timeline', description: 'Roadmap flow', snippet: '```nexus-timeline\nW1 | Discovery\nW2 | Build\nW3 | QA\nW4 | Release\n```' },
       { label: 'nexus-grid', description: 'Multi-column grid with row content', snippet: '```nexus-grid\n2\nAPI\nUI\nQA\nRollout\n```' },
-      { label: 'nexus-card', description: 'Card with image URL, title and description', snippet: '```nexus-card\nhttps://images.unsplash.com/photo-1462331940025-496dfbfc7564?w=1200 | Nexus Milestone | Production readiness complete.\n```' },
+      { label: 'nexus-card', description: 'Card with image URL, title and description', snippet: '```nexus-card\nhttps://images.unsplash.com/photo-1462331940025-496dfbfc7564?w=1200 | Nexus Milestone | release readiness complete.\n```' },
       { label: 'nexus-details', description: 'Expandable area for extra context', snippet: '```nexus-details\nRelease notes\n- Build checked\n- Smoke open\n- Roll out after API health\n```' },
       { label: 'Inline Badge', description: 'Inline markers for status hints', snippet: '`b:Premium|success` and `b:Blocked|error`' },
-      { label: 'Task list', description: 'Standard Markdown task checks', snippet: '- [x] Release Build\n- [ ] Control Promotion\n- [ ] Post-Deploy Smoke' },
+      { label: 'Task list', description: 'Standard Markdown task checks', snippet: '- [x] Release Build\n- [ ] Control release handoff\n- [ ] Post-Deploy Smoke' },
     ],
   },
   'main-markdown-widget-atlas-v5': {
@@ -375,7 +375,7 @@ export const englishEntryTranslations = {
       { label: 'Markdown base for guides', description: 'Clean structure for InfoView, Notes and Wiki content.', snippet: '# Mission\n\n> Why this work matters.\n\n## Checklist\n- [x] Scope defined\n- [ ] Review open\n\n| Area | Status |\n| --- | --- |\n| Notes | active |\n| Canvas | active |' },
       { label: 'nexus-alert variants', description: 'Hints for info, success, warning or risk.', snippet: '```nexus-alert\nsuccess\nRelease gate passed. Build, verify and smoke are green.\n```' },
       { label: 'nexus-progress status pack', description: 'Multiple progress values for sprint, release or migration.', snippet: '```nexus-progress\nDesign | 90\nImplementation | 72\nQA | 48\nDocs | 65\n```' },
-      { label: 'nexus-timeline roadmap', description: 'Linear roadmap in Notes or Canvas nodes.', snippet: '```nexus-timeline\nNow | Stabilization\nNext | Mobile parity\nLater | Release promotion\n```' },
+      { label: 'nexus-timeline roadmap', description: 'Linear roadmap in Notes or Canvas nodes.', snippet: '```nexus-timeline\nNow | Stabilization\nNext | Mobile parity\nLater | Release release handoff\n```' },
       { label: 'nexus-grid feature map', description: 'Compact grid for view and feature groups.', snippet: '```nexus-grid\n3\nDashboard\nNotes\nTasks\nReminders\nCanvas\nFiles\n```' },
       { label: 'nexus-card product proof', description: 'Card for milestones, decisions or product proof.', snippet: '```nexus-card\nhttps://images.unsplash.com/photo-1446776811953-b23d57bd21aa?w=1200 | Render Pipeline | Measure, Resolve, Allocate, Commit, Cleanup.\n```' },
       { label: 'nexus-details release notes', description: 'Expandable extra context without raw HTML in Markdown.', snippet: '```nexus-details\nQA details\n- Notes Enter smoke passed\n- Check toolbar inserts\n- Review Preview and Canvas\n```' },
@@ -467,7 +467,7 @@ export const englishEntryTranslations = {
       ['2. Search items', 'Use search and type filters across all content.'],
       ['3. Assign and open', 'Assign items to workspaces and open them directly with double click.'],
     ]),
-    points: ['Workspace modal supports visual icon/color selection.', 'Assign modal allows mapping to multiple workspaces.', 'List and grid modes support different work densities.', 'Workspace handoff keeps Files, Dashboard and Mobile context understandable across devices.'],
+    points: ['Workspace modal supports visual icon/color selection.', 'Assign modal allows mapping to multiple workspaces.', 'List and grid modes support different work densities.', 'Workspace handoff keeps Files, Dashboard and Mobile context understandable across Account devices.'],
   },
   'main-flux-guide': {
     title: 'Nexus Main: FluxView Guide',
@@ -498,7 +498,7 @@ export const englishEntryTranslations = {
       ['2. Review the pack', 'Read summary, target view, tier, tags, payload preview and quick start before copying.'],
       ['3. Reuse the markdown', 'Use Copy Pack Markdown and paste the starter into Notes, Tasks, Canvas, Code or Flux.'],
     ]),
-    points: ['The catalog lives centrally in Nexus Main/src/app/nexusTemplatePacks.ts and replaces scattered examples with curated starters.', 'InfoView filters packs by category and copies each pack as Markdown.', 'Packs cover Free, Pro and Lifetime Pro contexts without confusing client UX with server-side entitlements.', 'The first-start walkthrough points new users toward Template Packs for faster real workflows.'],
+    points: ['The feature list lives centrally in Nexus Main/src/app/nexusTemplatePacks.ts and replaces scattered examples with curated starters.', 'InfoView filters packs by category and copies each pack as Markdown.', 'Packs cover Free, Pro and Lifetime Pro contexts without confusing client UX with server-side account feature access.', 'The first-start walkthrough points new users toward Template Packs for faster real workflows.'],
   },
   'main-workspace-backup-restore': {
     title: 'Nexus Main: Backup and Restore',
@@ -512,13 +512,13 @@ export const englishEntryTranslations = {
   },
   'main-devtools-feature-flag-control': {
     title: 'Nexus Main: Feature Flag Control Drafts',
-    summary: 'DevTools includes a local feature flag editor for catalog drafts, layout validation, rollout planning and audit preparation.',
+    summary: 'DevTools includes a local feature flag editor for feature list drafts, layout validation, rollout planning and audit preparation.',
     guide: g([
       ['1. Review the feature', 'Open DevTools -> Feature Flags, select a feature and check rollout, risk, percent and notes.'],
-      ['2. Validate schema', 'Validate the layout schema JSON against whitelist, screens, components and minClientVersion.'],
-      ['3. Hand off the report', 'Export or copy the report, then perform real production release through the hosted Control Plane.'],
+      ['2. Validate layout profile', 'Validate the layout layout profile JSON against whitelist, screens, components and minClientVersion.'],
+      ['3. Hand off the report', 'Export or copy the report, then perform real release release through the optional Nexus Cloud.'],
     ]),
-    points: ['The editor is local and safe for release prep because it does not perform production mutations.', 'Feature Catalog, Layout Guard, rollout stages and audit trail share one draft state.', 'Production remains a server concern with admin auth, server audit and rollback token.', 'verify:ecosystem statically checks both the core logic and DevTools tab.'],
+    points: ['The editor is local and safe for release prep because it does not perform release mutations.', 'feature availability, Layout Guard, rollout stages and audit trail share one draft state.', 'release remains a server concern with admin auth, server audit and rollback token.', 'verify:ecosystem statically checks both the core logic and DevTools tab.'],
   },
   'main-devtools-guide': {
     title: 'Nexus Main: DevTools Guide',
@@ -528,7 +528,7 @@ export const englishEntryTranslations = {
       ['2. Iterate styles', 'Use builder controls for spacing, border, background, glow, blur and typography.'],
       ['3. Reuse output', 'Copy CSS/Tailwind snippets into the target project.'],
       ['4. Check release state', 'Use the Release tab to close blockers, required checks, evidence and gate commands in one focused RC pass.'],
-      ['5. Prepare flags', 'Use the Feature Flags tab to validate local catalog/layout drafts and export a report.'],
+      ['5. Prepare flags', 'Use the Feature Flags tab to validate local feature list/layout drafts and export a report.'],
     ]),
     points: ['Explorer allows new files, rename and delete.', 'Editor supports tab indentation and language-specific colors.', 'Calculator covers spacing/color/typography/layout/animation calculations.', 'Release Health shows API/auth, view smokes, packaging, signing, security and evidence in one persistent checklist.', 'Feature Flags provides local Control drafts with Layout Guard, rollout plan and audit trail.', 'Support Diagnostics exports redacted runtime and RC signals without secrets, content, file paths or localStorage values.'],
   },
@@ -568,7 +568,7 @@ export const englishEntryTranslations = {
     guide: g([
       ['1. Choose a preset', 'Start from an Experience Preset or a Theme Library card so the visual direction is clear.'],
       ['2. Check visually', 'Review Panel Texture, App Background, Glow and Motion directly in the interface.'],
-      ['3. Save safely', 'Export as nexus-theme-v6.json or import with schema guards and allowlists for release-frozen fields.'],
+      ['3. Save safely', 'Export as nexus-theme-v6.json or import with layout profile guards and access lists for release-frozen fields.'],
     ]),
     points: ['Experience Presets: Focus, Balanced, Studio, Performance and Cinematic.', 'Theme Library includes more varied looks such as Nexus Product Glow, Calm Linen, Obsidian Graph, Studio Neutral and High Contrast Focus.', 'Panel Backgrounds have real previews with base, tint and pattern layers.', 'Quick toggles: reduced motion, high contrast, toolbar visibility.', 'Workspace reset actions for Spotlight, Terminal and Dashboard remain separated.'],
   },
@@ -650,7 +650,7 @@ export const englishEntryTranslations = {
       ['2. Use families', 'navigation, toolbar, sheet, command, status, micro, hero and content receive their own rules.'],
       ['3. Respect degradation', 'full through static-safe reduces intensity step by step instead of abruptly disabling features.'],
     ]),
-    points: ['Interrupt policies avoid frantic switching during fast interactions.', 'Animation complexity is derived from surface mode and runtime state.', 'Low-power or reduced-motion profiles remain functional but intentionally calmer.'],
+    points: ['Interrupt Access settings avoid frantic switching during fast interactions.', 'Animation complexity is derived from surface mode and runtime state.', 'Low-power or reduced-motion profiles remain functional but intentionally calmer.'],
   },
   'runtime-surface-effect-classes': {
     title: 'Surface and Effect Classes',
@@ -708,7 +708,7 @@ export const englishEntryTranslations = {
     guide: g([
       ['1. Understand navigation', 'Bottom tabs cover core areas; More Drawer opens extended views.'],
       ['2. Check feature parity', 'Notes/Code/Tasks/Reminders/Canvas/Files/Settings/Info are available on mobile.'],
-      ['3. Respect runtime behavior', 'View allowlist and entitlements remain centrally enforced.'],
+      ['3. Respect runtime behavior', 'View access list and account feature access remain centrally enforced.'],
     ]),
     points: ['Safe-area behavior and mobile UX are prioritized.', 'Bottom navigation is optimized for quick one-handed use.', 'Terminal Store provides mobile-compatible commands.'],
   },
@@ -718,7 +718,7 @@ export const englishEntryTranslations = {
     guide: g([
       ['1. Use primaries', 'Home/Notes/Tasks/Reminders are directly available in the bottom bar.'],
       ['2. Open More Drawer', 'Open additional views such as Code, Canvas, Files, DevTools, Flux, Settings and Info.'],
-      ['3. Respect runtime allowlist', 'Only allowed views are actually unlocked in navigation.'],
+      ['3. Respect runtime access list', 'Only allowed views are actually unlocked in navigation.'],
     ]),
     points: ['Haptic light feedback accompanies important navigation changes.', 'Safe-area insets are included for modern displays.', 'Navigation labels stay consistent with Main.'],
   },
@@ -810,7 +810,7 @@ export const englishEntryTranslations = {
       ['2. Panel usage', 'Use Explorer/Search/Git/Debug/Extensions/Problems like on desktop.'],
       ['3. Mobile behavior', 'On mobile, the panel drawer closes after file open to free editor space.'],
     ]),
-    points: ['nativeFS provides file operations for mobile filesystems.', 'Minimap is disabled by default on mobile devices.', 'MobileBottomNav maps core panels plus Settings.'],
+    points: ['nativeFS provides file operations for mobile filesystems.', 'Minimap is disabled by default on mobile Account devices.', 'MobileBottomNav maps core panels plus Settings.'],
   },
   'code-mobile-nav-guide': {
     title: 'Nexus Code Mobile Navigation Guide',
@@ -828,7 +828,7 @@ export const englishEntryTranslations = {
     guide: g([
       ['1. Theme and font', 'Adapt the editor visually to display and ambient light.'],
       ['2. Editing behavior', 'Set word wrap, line numbers, tab size and auto save for touch workflows.'],
-      ['3. Mobile performance', 'Keep minimap disabled on small screens or slower devices.'],
+      ['3. Mobile performance', 'Keep minimap disabled on small screens or slower Account devices.'],
     ]),
     points: ['Settings are also persisted locally.', 'Mobile forces minimap=false in editor props.', 'Zen and sidebar toggles also work on mobile.'],
   },
@@ -843,24 +843,24 @@ export const englishEntryTranslations = {
     points: ['Ctrl/Cmd+S save, Ctrl/Cmd+N new file, Ctrl/Cmd+B toggle sidebar.', 'Ctrl/Cmd+` toggle terminal, Ctrl/Cmd+Shift+` new terminal.', 'Ctrl/Cmd+W close tab, Ctrl/Cmd+, settings.', 'F1 + Ctrl/Cmd+Shift+P command palette, Ctrl/Cmd+P quick open.', 'Shift x2 spotlight toggle.', 'Terminal: Ctrl+C interrupt, Ctrl+L clear.'],
   },
   'control-live-sync-guide': {
-    title: 'Control: Live Sync Guide',
-    summary: 'The Live Sync tab in Control is a light builder for Catalog/Schema and production promotion.',
+    title: 'Control: cloud availability Guide',
+    summary: 'The cloud availability tab in Control is a light builder for feature and layout drafts and release release handoff.',
     guide: g([
       ['1. Load runtime', 'Read current runtime data.'],
-      ['2. Edit staging', 'Adjust and validate catalog and schema in staging.'],
-      ['3. Promote', 'Promote to production after checks.'],
+      ['2. Edit draft', 'Adjust and validate feature list and layout profile in draft.'],
+      ['3. Promote', 'Promote to release after checks.'],
     ]),
-    points: ['Changes follow a controlled approval process.', 'Schema validation blocks invalid components.', 'Promotion is an explicit step.'],
+    points: ['Changes follow a controlled approval process.', 'layout profile validation blocks invalid components.', 'release handoff is an explicit step.'],
   },
-  'control-paywalls-guide': {
-    title: 'Control: Paywalls Guide',
-    summary: 'The Paywalls tab manages tier views and user templates for server-side entitlement evaluation.',
+  'control-Account features-guide': {
+    title: 'Control: Account features Guide',
+    summary: 'The Account features tab manages tier views and user templates for server-side account feature access evaluation.',
     guide: g([
       ['1. Maintain tier model', 'Define which views are available per tier.'],
       ['2. Assign user templates', 'Map user groups and tiers consistently.'],
       ['3. Check app behavior', 'Blocked views must appear in clients as paywall/hint states.'],
     ]),
-    points: ['Website login flow must align with API entitlement decisions.', 'Only the API is authoritative for unlocks.', 'UI-only unlocks are not a security model.'],
+    points: ['Website login flow must align with API account feature access decisions.', 'Only the API is authoritative for unlocks.', 'UI-only unlocks are not a security model.'],
   },
   'control-dashboard-guide': {
     title: 'Control: Dashboard Tab Guide',
@@ -870,7 +870,7 @@ export const englishEntryTranslations = {
       ['2. Check registry', 'Validate app status, version, last seen, route and stale flags in the table.'],
       ['3. Follow outliers', 'Mark stale clients and unusual render timings for incident analysis.'],
     ]),
-    points: ['Dashboard is the operational start view of the Control Plane.', 'Stale metrics help detect offline/outdated clients.', 'Version and route data are important for rollout debugging.'],
+    points: ['Dashboard is the operational start view of the Nexus Cloud.', 'Stale metrics help detect offline/outdated clients.', 'Version and route data are important for rollout debugging.'],
   },
   'control-build-guide': {
     title: 'Control: Build Tab Guide',
@@ -880,13 +880,13 @@ export const englishEntryTranslations = {
       ['2. Compare versions', 'Compare manifest information with current repo artifacts.'],
       ['3. Start build runs', 'Use the Build Command Guide for targeted build/verify execution.'],
     ]),
-    points: ['Manifest helps trace promotion against build state.', 'verify:ecosystem remains required before promotion.', 'The tab reduces switching between CI and local operations view.'],
+    points: ['Manifest helps trace release handoff against build state.', 'verify:ecosystem remains required before release handoff.', 'The tab reduces switching between CI and local operations view.'],
   },
   'control-settings-guide': {
     title: 'Control: Settings Tab Guide',
     summary: 'Settings tab manages global runtime behavior and app-specific config for main/mobile/code/code-mobile/control.',
     guide: g([
-      ['1. Load global config', 'Check global policies and runtime defaults in the JSON editor.'],
+      ['1. Load global config', 'Check global Access settings and runtime defaults in the JSON editor.'],
       ['2. Choose app config', 'Select target app, load config and adjust carefully.'],
       ['3. Check save result', 'Save changes and verify the resulting status.'],
     ]),
@@ -902,23 +902,23 @@ export const englishEntryTranslations = {
     ]),
     points: ['Idempotency key prevents duplicate side effects during retries.', 'TTL limits stale command execution.', 'Payload should remain strictly valid JSON.'],
   },
-  'control-policies-guide': {
-    title: 'Control: Policies Tab Guide',
-    summary: 'Policies tab is the central maintenance surface for security rules and owner restrictions.',
+  'control-Access settings-guide': {
+    title: 'Control: Access settings Tab Guide',
+    summary: 'Access settings tab is the central maintenance surface for security rules and owner restrictions.',
     guide: g([
-      ['1. Load policies', 'Read current security policies as baseline.'],
+      ['1. Load Access settings', 'Read current security Access settings as baseline.'],
       ['2. Harden rules', 'Keep access and security rules consistent.'],
       ['3. Save and audit', 'After saving, check audit log and API status for policy drift.'],
     ]),
-    points: ['Policies directly affect operational access control.', 'Unsafe policies can trigger baseline enforcement.', 'Always coordinate changes with security operations.'],
+    points: ['Access settings directly affect operational access control.', 'Unsafe Access settings can trigger baseline enforcement.', 'Always coordinate changes with security operations.'],
   },
-  'control-devices-guide': {
-    title: 'Control: Devices Tab Guide',
-    summary: 'Devices tab manages the admin device allowlist including roles, approval and blocking.',
+  'control-Account devices-guide': {
+    title: 'Control: Account Account devices area Guide',
+    summary: 'Account Account devices area manages the admin device access list including roles, approval and blocking.',
     guide: g([
       ['1. Identify device', 'Use device ID and label from a trusted source.'],
       ['2. Set roles', 'Keep role CSV small; admin/developer only when needed.'],
-      ['3. Maintain lifecycle', 'Approve devices, block old devices and refresh the list regularly.'],
+      ['3. Maintain lifecycle', 'Approve Account devices, block old Account devices and refresh the list regularly.'],
     ]),
     points: ['Device Control is a critical part of login hardening.', 'Roles should follow least privilege.', 'Refresh allows fast validation after approve/block actions.'],
   },
@@ -950,7 +950,7 @@ export const englishEntryTranslations = {
       ['2. Check view access', 'Evaluate current access state before switching views.'],
       ['3. Render blocked state', 'Show blocked view, required tier and reason transparently.'],
     ]),
-    points: ['Client-side blocking is UX, not the security anchor.', 'The API makes final entitlement decisions.', 'Guards also cover remote navigation/profile rules.'],
+    points: ['Client-side blocking is UX, not the security anchor.', 'The API makes final account feature access decisions.', 'Guards also cover remote navigation/profile rules.'],
   },
   'mobile-paywall-view-guard-guide': {
     title: 'Nexus Mobile: Paywall View Guard Guide',
@@ -960,7 +960,7 @@ export const englishEntryTranslations = {
       ['2. Render guard state', 'Checking/Blocked states are visible in the mobile layout.'],
       ['3. Offer upgrade path', 'Route users from blocked areas into login/account flow.'],
     ]),
-    points: ['Bottom nav and sidebar respect the same allowlist.', 'Remote navigation profiles may map only allowed views.', 'Tier hints stay consistent with desktop Main.'],
+    points: ['Bottom nav and sidebar respect the same access list.', 'Remote navigation profiles may map only allowed views.', 'Tier hints stay consistent with desktop Main.'],
   },
   'mobile-workspace-handoff-reminder-health': {
     title: 'Nexus Mobile: Workspace Handoff and Reminder Health',
@@ -976,7 +976,7 @@ export const englishEntryTranslations = {
     title: 'Configuration Basics Guide',
     summary: 'Public documentation describes general configuration principles only; concrete operational values stay internal.',
     guide: g([
-      ['1. Separate app configuration', 'Keep development, staging and production values isolated.'],
+      ['1. Separate app configuration', 'Keep development, draft and release values isolated.'],
       ['2. Protect secrets', 'Maintain sensitive values only through private secret stores and never in public repositories.'],
       ['3. Secure releases', 'Validate with safe defaults and checklists before deploy.'],
     ]),
@@ -986,7 +986,7 @@ export const englishEntryTranslations = {
     title: 'Security Operations Guide',
     summary: 'Security operations cover access review, device hygiene and audit monitoring in daily operations.',
     guide: g([
-      ['1. Device hygiene', 'Approve only trusted devices and clean them up regularly.'],
+      ['1. Device hygiene', 'Approve only trusted Account devices and clean them up regularly.'],
       ['2. Access hygiene', 'Review permissions regularly and remove unnecessary rights.'],
       ['3. Secret hygiene', 'Rotate internal keys and credentials according to the security process.'],
     ]),

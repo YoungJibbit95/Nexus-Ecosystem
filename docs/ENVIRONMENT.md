@@ -1,79 +1,36 @@
-# Environment Variables
+# Environment
 
-## App Runtime (Hosted-only, required)
+This public repository only documents client-safe configuration.
 
-- `VITE_NEXUS_CONTROL_URL`
-- `VITE_NEXUS_CONTROL_INGEST_KEY`
+## Client Configuration
 
-Diese Variablen koennen in folgenden Apps gesetzt werden:
+Nexus clients may read public runtime configuration from environment variables during development builds.
 
-- `Nexus Main`
-- `Nexus Mobile`
-- `Nexus Code`
-- `Nexus Code Mobile`
+Client-side variables are never secrets. Anything bundled into a desktop, mobile or web client must be treated as public.
 
-### Verbindliche Werte
+## Local Development
 
-- `VITE_NEXUS_CONTROL_URL=https://nexus-api.cloud`
-- `VITE_NEXUS_CONTROL_INGEST_KEY` muss pro App dem VPS-Ingest-Key entsprechen.
+Most public client development should work without production cloud credentials.
 
-### Ingest-Key Mapping (pro App)
+Use `.env.local` only for local, non-secret development options. Do not put tokens, signing keys, payment credentials, private server routes or production infrastructure details into this repository.
 
-- `Nexus Main` (`appId=main`): `NEXUS_INGEST_KEY_MAIN`
-- `Nexus Mobile` (`appId=mobile`): `NEXUS_INGEST_KEY_MOBILE`
-- `Nexus Code` (`appId=code`): `NEXUS_INGEST_KEY_CODE`
-- `Nexus Code Mobile` (`appId=code-mobile`): `NEXUS_INGEST_KEY_CODE_MOBILE`
-
-### Beispiel `.env.local` (pro App)
+Example `.env.local` values for public client development:
 
 ```bash
-VITE_NEXUS_CONTROL_URL=https://nexus-api.cloud
-VITE_NEXUS_CONTROL_INGEST_KEY=REPLACE_WITH_APP_INGEST_KEY
+VITE_NEXUS_PUBLIC_CLOUD_MODE=disabled
+VITE_NEXUS_PUBLIC_APP_VARIANT=main
 ```
 
-## Control Plane Server
+These values are optional public hints for local builds. They are not security controls.
 
-- `NEXUS_CONTROL_PORT` (default `4399`)
-- `NEXUS_CONTROL_HOST` (default `127.0.0.1`, externe Hosts werden ignoriert)
-- `NEXUS_CONTROL_DATA_DIR` (optional, serverseitiger Persistenzpfad)
-- `NEXUS_CONTROL_GUIDES_DIR` (optional, serverseitiger Guides-Pfad)
-- `NEXUS_CONTROL_UI_PORT` (default `5180`, fuer Dev-UI Scripts)
-- `NEXUS_CONTROL_UI_URL` (optional override, z. B. fuer Browser-Open)
-- `NEXUS_CONTROL_NO_OPEN` (`true` => Browser wird nicht auto-geoeffnet)
-- `NEXUS_DEV_OPEN_CONTROL` (`false` => `dev:all` oeffnet keine Control-UI URL)
-- `NEXUS_MUTATION_SIGNING_SECRETS` (CSV, z. B. `youngjibbit:secretA,trusteddev:secretB`)
-- `NEXUS_ENFORCE_SECURITY_BASELINE` (default `true`, blockiert Start bei unsicherer Policy-Baseline)
-- `NEXUS_BUILD_MANIFEST_PATH` (optional Pfad fuer Build-Manifest Endpoint)
-- `NEXUS_PRIVATE_REPO_HINT` (optionaler Hint fuer Public Bootstrap Endpoint)
-- `NEXUS_CONTROL_PLANE_VERSION` (optional Versionslabel fuer Public Bootstrap Endpoint)
-- `NEXUS_EXTRA_TRUSTED_ORIGINS` (CSV mit zusaetzlichen erlaubten Origins, z. B. `https://control.example.com,https://staging.example.com`)
+## Nexus Cloud
 
-## Control UI Build / Server Hosting
+Nexus Cloud configuration, backend secrets, payment credentials, sync infrastructure and admin/control settings are private and are not documented in this public repository.
 
-- `NEXUS_CONTROL_UI_DEFAULT_API_URL` (build-time Ziel-API fuer `runtime-config.json`, empfohlen `https://nexus-api.cloud`)
-- `NEXUS_CONTROL_UI_BOOTSTRAP_PATH` (build-time Bootstrap Endpoint, default `/api/v1/public/bootstrap`)
-- `NEXUS_CONTROL_PRIVATE_REPO_HINT` (optionaler build-time Repo-Hinweis im UI)
-- `NEXUS_CONTROL_UI_FORCE_API_URL` (`true` sperrt API URL Input im UI auf runtime-config)
+Cloud and Pro features are account-bound and enforced server-side by Nexus Cloud. Client-side UI states are user experience only.
 
-## Nexus Main (Electron Security)
+## Security Rule
 
-- `NEXUS_ALLOWED_FS_ROOTS` (optional, `path.delimiter` getrennt)
-  - steuert, aus welchen Root-Pfaden IPC `fs:read`/`fs:write` zugelassen ist
-  - default: Home-Verzeichnis des aktuellen Users
+Do not add secrets, tokens, signing keys, production hosts, private backend routes, private repository names, deployment details, internal admin routes or private cloud implementation notes to this repository.
 
-## Nexus Code (Electron Security)
-
-- Nexus Code nutzt keine globale Env-Root-Liste.
-- Erlaubte Datei-/Terminal-Roots entstehen erst durch den Nutzerflow `openFolder`.
-- Dateioperationen und Terminal-CWD werden danach gegen diese Workspace Roots geprueft.
-- Fuer Release-Smokes deshalb zuerst einen Test-Workspace oeffnen, dann Explorer, Save, Rename, Delete und Terminal-Run pruefen.
-
-## Hinweise
-
-- Ingest Keys werden ueber Policies verwaltet (`/api/v1/policies`).
-- Device-Allowlist wird ueber `/api/v1/devices/*` gepflegt.
-- Signierte Mutationen werden ueber `X-Nexus-Signature-*` Header + `NEXUS_MUTATION_SIGNING_SECRETS` validiert.
-- API v2 Mutationen (`/api/v2/features/catalog`, `/api/v2/layout/schema`, `/api/v2/releases/promote`) folgen derselben Signaturpflicht.
-- `dev:all` startet den Core-Stack ohne Mobile Native IDEs.
-- Mobile Dev-Start erfolgt nativ ueber Capacitor (`npm run dev:mobile:android|ios`, `npm run dev:code-mobile:android|ios`).
-- Fuer Production keine Default Credentials nutzen.
+If a development workflow needs private configuration, keep that documentation in the private operational workspace, not in public client docs.

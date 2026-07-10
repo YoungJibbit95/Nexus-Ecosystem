@@ -744,6 +744,38 @@ html { font-size: var(--nx-font-size, 14px); }
     white-space: normal;
   }
 
+  .nx-mobile-notes-formatbar {
+    min-height: calc(var(--nx-touch-target, 40px) + 2px);
+    align-items: center;
+    scroll-padding-inline: 6px;
+  }
+
+  .nx-mobile-notes-formatbar > * {
+    min-width: max-content;
+  }
+
+  .nx-mobile-notes-format-btn {
+    flex: 0 0 auto;
+    width: max(34px, calc(var(--nx-touch-target, 40px) - 4px));
+    height: max(34px, calc(var(--nx-touch-target, 40px) - 4px));
+  }
+
+  .nx-mobile-notes-format-spacer {
+    flex: 0 0 8px;
+    min-width: 8px;
+  }
+
+  .nx-mobile-notes-format-tags {
+    flex: 0 0 auto;
+    max-width: min(62vw, 280px);
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .nx-mobile-notes-format-tags::-webkit-scrollbar {
+    display: none;
+  }
+
   .nx-mobile-tight-stack {
     display: grid;
     gap: 6px;

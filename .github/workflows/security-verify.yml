@@ -21,5 +21,10 @@ jobs:
         with:
           node-version: 20
 
+      - name: Check public surface
+        run: |
+          npm run check:no-private-strings
+          npm run check:secrets
+
       - name: Verify Ecosystem Contracts/Security
         run: npm run verify:ecosystem

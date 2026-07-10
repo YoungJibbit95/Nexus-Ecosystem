@@ -11,7 +11,7 @@ type SectionId =
   | "nexus-control"
   | "markdown-lab"
   | "settings-workflows"
-  | "security-paywalls"
+  | "security-Account features"
   | "api-reference"
   | "coverage";
 
@@ -47,7 +47,7 @@ const appLabel: Record<AppId, Record<Language, string>> = {
   mobile: { de: "Nexus Mobile", en: "Nexus Mobile" },
   code: { de: "Nexus Code", en: "Nexus Code" },
   "code-mobile": { de: "Nexus Code Mobile", en: "Nexus Code Mobile" },
-  control: { de: "Nexus Control", en: "Nexus Control" },
+  control: { de: "private admin workspace", en: "private admin workspace" },
   runtime: { de: "Runtime Plane", en: "Runtime Plane" },
 };
 
@@ -57,7 +57,7 @@ const categoryLabel: Record<CategoryId, Record<Language, string>> = {
   markdown: { de: "Markdown", en: "Markdown" },
   settings: { de: "Settings", en: "Settings" },
   workflow: { de: "Workflows", en: "Workflows" },
-  runtime: { de: "Runtime/API", en: "Runtime/API" },
+  runtime: { de: "Client Runtime", en: "Client Runtime" },
   security: { de: "Security", en: "Security" },
   ops: { de: "Ops/Deploy", en: "Ops/Deploy" },
 };
@@ -68,11 +68,11 @@ const sectionLabel: Record<SectionId, Record<Language, string>> = {
   "nexus-main": { de: "Nexus Main", en: "Nexus Main" },
   "nexus-mobile": { de: "Nexus Mobile", en: "Nexus Mobile" },
   "nexus-code": { de: "Nexus Code + Mobile", en: "Nexus Code + Mobile" },
-  "nexus-control": { de: "Nexus Control", en: "Nexus Control" },
+  "nexus-control": { de: "private admin workspace", en: "private admin workspace" },
   "markdown-lab": { de: "Markdown Lab", en: "Markdown Lab" },
   "settings-workflows": { de: "Settings + Workflows", en: "Settings + Workflows" },
-  "security-paywalls": { de: "Security + Paywalls", en: "Security + Paywalls" },
-  "api-reference": { de: "Runtime/API", en: "Runtime/API" },
+  "security-Account features": { de: "Security + Account features", en: "Security + Account features" },
+  "api-reference": { de: "Client Runtime", en: "Client Runtime" },
   coverage: { de: "Coverage", en: "Coverage" },
 };
 
@@ -103,20 +103,20 @@ const sectionMeta: Record<SectionId, Record<Language, { title: string; subtitle:
     de: {
       title: "Architektur & Sync 🏗️",
       subtitle:
-        "Runtime Plane, Control Plane, Live Sync v2 sowie Render- und Motion-Engine in einer zusammenhaengenden Sicht.",
+        "Runtime Plane, Nexus Cloud, cloud availability sowie Render- und Motion-Engine in einer zusammenhaengenden Sicht.",
       bullets: [
         "🌌 API-first Struktur mit Shared Core als Bruecke zwischen allen Apps.",
-        "🔄 Live Sync v2 steuert Features + Layouts ueber Catalog/Schema.",
+        "🔄 cloud availability steuert Features + Layouts ueber feature and layout drafts.",
         "🧱 Render Pipeline + Motion Degradation halten UX auch unter Last vorhersehbar.",
       ],
     },
     en: {
       title: "Architecture & Sync 🏗️",
       subtitle:
-        "Runtime plane, control plane, Live Sync v2 plus the render and motion engine in one connected system view.",
+        "Runtime plane, Nexus Cloud, cloud availability plus the render and motion engine in one connected system view.",
       bullets: [
         "🌌 API-first architecture with Shared Core as the bridge across apps.",
-        "🔄 Live Sync v2 controls features and layouts via catalog/schema.",
+        "🔄 cloud availability controls features and layouts via feature and layout drafts.",
         "🧱 Render pipeline and motion degradation keep UX predictable under load.",
       ],
     },
@@ -189,21 +189,21 @@ const sectionMeta: Record<SectionId, Record<Language, { title: string; subtitle:
   },
   "nexus-control": {
     de: {
-      title: "Nexus Control Operations 🛡️",
+      title: "private admin workspace Operations 🛡️",
       subtitle:
-        "Control UI Bereiche fuer Live Sync, Paywalls, Policies, Devices, Commands, Audit, Guides und Deployment-Migration.",
+        "private admin workspace Bereiche fuer cloud availability, Account features, Access settings, Account devices, Commands, Audit, Guides und Deployment-Migration.",
       bullets: [
-        "🧭 Betreiberfluss von Staging bis Promotion klar strukturiert.",
+        "🧭 Betreiberfluss von draft bis release handoff klar strukturiert.",
         "🔐 Security-Operability mit Owner-Only, Signaturen, Device Governance.",
         "📡 Guides + Audit als laufender Betriebs- und Incident-Kompass.",
       ],
     },
     en: {
-      title: "Nexus Control Operations 🛡️",
+      title: "private admin workspace Operations 🛡️",
       subtitle:
-        "Control UI zones for Live Sync, paywalls, policies, devices, commands, audit, guides and deployment migration.",
+        "private admin workspace zones for cloud availability, Account features, Access settings, Account devices, commands, audit, guides and deployment migration.",
       bullets: [
-        "🧭 Operator flow from staging to production promotion.",
+        "🧭 Operator flow from draft to release release handoff.",
         "🔐 Security operations with access governance and operational safeguards.",
         "📡 Guides and audit paths for daily ops and incident response.",
       ],
@@ -253,11 +253,11 @@ const sectionMeta: Record<SectionId, Record<Language, { title: string; subtitle:
       ],
     },
   },
-  "security-paywalls": {
+  "security-Account features": {
     de: {
-      title: "Security + Paywalls 🔐",
+      title: "Security + Account features 🔐",
       subtitle:
-        "Owner-only, Signaturen, Device Verification, Entitlements, Paywall-Gates und sichere Betriebsregeln fuer Web + Apps.",
+        "Owner-only, Signaturen, Device Verification, account feature access, Paywall-Gates und sichere Betriebsregeln fuer Web + Apps.",
       bullets: [
         "💳 Paywall-UX und API-Verantwortung klar getrennt dokumentiert.",
         "🛡️ Security-Baseline und Policy-Guardrails sauber erklaert.",
@@ -265,7 +265,7 @@ const sectionMeta: Record<SectionId, Record<Language, { title: string; subtitle:
       ],
     },
     en: {
-      title: "Security + Paywalls 🔐",
+      title: "Security + Account features 🔐",
       subtitle:
         "Account access, subscription gates and secure operating rules for web and apps.",
       bullets: [
@@ -277,21 +277,21 @@ const sectionMeta: Record<SectionId, Record<Language, { title: string; subtitle:
   },
   "api-reference": {
     de: {
-      title: "Runtime/API Reference ⚙️",
+      title: "Client Runtime Reference ⚙️",
       subtitle:
-        "Runtime Contracts, Render Diagnostics, Live Sync, Compatibility und API-nahe Integrationspunkte fuer Website/App/Control.",
+        "Runtime Contracts, Render Diagnostics, cloud availability, Compatibility und cloud-aware Integrationspunkte fuer Website/App/Control.",
       bullets: [
-        "🔄 End-to-End Sicht auf Resolve/Compatibility/Promotion.",
+        "🔄 End-to-End Sicht auf Resolve/Compatibility/release handoff.",
         "🎯 Render Tiers, Surface-/Effect-Klassen und Motion-Capabilities als Referenz integriert.",
         "🧾 Mit Matrix-, Diagnostics- und Command-Kontext fuer reale Umsetzung.",
       ],
     },
     en: {
-      title: "Runtime/API Reference ⚙️",
+      title: "Client Runtime Reference ⚙️",
       subtitle:
-        "Runtime contracts, render diagnostics, Live Sync, compatibility and API-near integration points for website/app/control.",
+        "Runtime contracts, render diagnostics, cloud availability, compatibility and cloud-aware integration points for website/app/control.",
       bullets: [
-        "🔄 End-to-end view of resolve, compatibility and promotion.",
+        "🔄 End-to-end view of resolve, compatibility and release handoff.",
         "🎯 Render tiers, surface/effect classes and motion capabilities included as references.",
         "🧾 Matrix, diagnostics and command context for real implementation.",
       ],
@@ -547,7 +547,7 @@ const navigationGroups: Array<{ id: NavGroupId; sections: SectionId[] }> = [
   },
   {
     id: "knowledge",
-    sections: ["markdown-lab", "settings-workflows", "security-paywalls", "api-reference", "coverage"],
+    sections: ["markdown-lab", "settings-workflows", "security-Account features", "api-reference", "coverage"],
   },
 ];
 
@@ -560,7 +560,7 @@ const sectionIcon: Record<SectionId, any> = {
   "nexus-control": Settings2,
   "markdown-lab": BookOpen,
   "settings-workflows": Workflow,
-  "security-paywalls": Shield,
+  "security-Account features": Shield,
   "api-reference": Cpu,
   coverage: Grid3X3,
 };
@@ -581,8 +581,8 @@ const categorySearchAliases: Record<CategoryId, string[]> = {
   markdown: ["markdown", "notes", "notizen", "md"],
   settings: ["settings", "preferences", "einstellungen"],
   workflow: ["workflow", "prozess", "flow", "commands", "continue", "today", "handoff"],
-  runtime: ["runtime", "api", "live sync", "compatibility", "render", "motion", "diagnostics"],
-  security: ["security", "paywall", "entitlement", "sicherheit"],
+  runtime: ["runtime", "api", "cloud availability", "compatibility", "render", "motion", "diagnostics"],
+  security: ["security", "paywall", "account feature access", "sicherheit"],
   ops: ["ops", "deploy", "build", "release"],
 };
 
@@ -592,7 +592,7 @@ const searchSynonymGroups = [
   ["nexus-list", "nexus-alert", "nexus-progress", "nexus-timeline", "nexus-grid", "nexus-card", "nexus-kanban", "magic widgets", "markdown widgets"],
   ["keybind", "keybinds", "shortcut", "shortcuts", "hotkey", "hotkeys", "tastenkurzel", "taste"],
   ["settings", "preferences", "einstellungen", "config", "konfiguration"],
-  ["security", "paywall", "entitlement", "auth", "sicherheit"],
+  ["security", "paywall", "account feature access", "auth", "sicherheit"],
   ["workflow", "flow", "prozess", "automation", "pipeline"],
   ["render", "renderer", "pipeline", "tier", "budget", "surface", "surface class", "effect", "effect class", "render token", "diagnostics"],
   ["motion", "animation", "degradation", "complexity", "motion capability", "animation complexity", "choreography", "interrupt"],
@@ -750,7 +750,7 @@ const germanToEnglishReplacements: Array<[RegExp, string]> = [
   [/\brolle\b/gi, "role"],
   [/\brollen\b/gi, "roles"],
   [/\bbetreiberfluss\b/gi, "operator flow"],
-  [/\blive sync\b/gi, "Live Sync"],
+  [/\bcloud availability\b/gi, "cloud availability"],
 ];
 
 const replaceTextList = (items: string[], translator: (value: string) => string) =>
@@ -893,7 +893,7 @@ const sectionBaseEntries: Record<SectionId, WikiEntry[]> = {
   "nexus-control": byApp(["control"]),
   "markdown-lab": byCategory(["markdown"]),
   "settings-workflows": byCategory(["settings", "workflow"]),
-  "security-paywalls": byCategory(["security"]),
+  "security-Account features": byCategory(["security"]),
   "api-reference": entries.filter(
     (entry) =>
       entry.app === "runtime" ||

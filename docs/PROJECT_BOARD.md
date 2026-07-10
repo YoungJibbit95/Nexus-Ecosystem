@@ -1,118 +1,44 @@
-# GitHub Project Integration
+# Public Project Board Guide
 
 Repository: `YoungJibbit95/Nexus-Ecosystem`
-Projektboard: `https://github.com/users/YoungJibbit95/projects/2`
 
-## Vorgehen fuer dieses Ecosystem
+Use the project board for public client, runtime, documentation, website and release-tooling work.
 
-1. Jedes Architektur-Feature bekommt eine Project-Card.
-2. Branch/Commit/PR referenziert die jeweilige Card.
-3. Nach Merge wird die Card in den naechsten Status verschoben.
+## Public Work Areas
 
-## Aktuelle Architekturpakete
+- Global assets
+- Shared client runtime
+- Nexus Main
+- Nexus Mobile
+- Nexus Code
+- Nexus Code Mobile
+- Public website
+- Public docs and wiki
+- Verification and release tooling
 
-- `Global Assets Layer` (`assets/global`)
-- `Nexus Core Layer` (`packages/nexus-core`)
-- `Nexus API Client Layer` (`packages/nexus-core`)
-- `Hosted Control Plane Layer` (`NEXUS_CONTROL_URL`, private backend)
-- `Control UI Layer` (`Nexus Control`)
-- `App Integrations` (Main, Mobile, Code, Code Mobile)
+Private Nexus Cloud backend, account, payment, sync infrastructure, admin/control operations and deployment tasks should not be tracked with implementation details in this public board.
 
-## Empfohlene Card-Aufteilung
+## Suggested Cards
 
-- Card 1: Runtime Plane Hardening (`@nexus/api`)
-- Card 2: Control Plane Auth + RBAC
-- Card 3: Config + Policy APIs
-- Card 4: Command API + Idempotency
-- Card 5: Event Ingest + Metrics Summary
-- Card 6: Nexus Control UI Dashboard
-- Card 7: Nexus Control UI Settings + Guides
-- Card 8: Verify/Build Pipeline Erweiterung
-- Card 9: Security Review + Passwortrotation
-- Card 10: GitHub Security Governance (Branch Protection, CODEOWNERS, Required Checks)
-- Card 11: Control UI Server Deployment + Hosted API Handshake
-- Card 12: API v2 Contract Layer (Catalog/Layout/Release/Capabilities)
-- Card 13: Shared Core Live-Sync Orchestrator (Main/Mobile + Code/Code-Mobile)
-- Card 14: Control UI Live-Sync Builder + Promotion Flow
-- Card 15: Contract-Parity-E2E Workflow + Smoke Tests
+- Main UI polish
+- Mobile parity
+- Notes toolbar and editor stability
+- Canvas selection/history polish
+- Files and manual workspace handoff
+- Code editor safety and language support
+- Website public product copy
+- Public docs boundary cleanup
+- Release checks and artifact evidence
+- Security model and client guardrails
 
-## Stand 2026-06-21 - Security Canvas Release Batch
+## Card Checklist
 
-Abgearbeitet fuer Main/Mobile:
+Each card should include:
 
-- Dependency-Security: `npm audit --json` meldet fuer `Nexus Main` und `Nexus Mobile` jeweils `0` Vulnerabilities.
-- Build-Gate: `npm --prefix "Nexus Main" run build` und `npm --prefix "Nexus Mobile" run build` laufen erfolgreich vom Repo-Root.
-- Canvas UX: UI-Prefs fuer Grid, Minimap, Snap, Layout, Sidebar und Project Panel werden geteilt validiert und sicher persistiert.
-- Canvas Responsiveness: Minimap rendert adaptiv nicht mehr auf zu engen Viewports und bleibt auf Mobile aus kleinen Layouts raus.
-- Build-Stabilitaet: Vite-Configs nutzen explizit `root: __dirname`, damit Prefix-Builds nicht vom aktuellen Shell-CWD abhaengen.
+- User-facing goal
+- Affected public client paths
+- Test or build command
+- Screenshots if UI changes
+- Security/privacy notes if relevant
 
-Naechste Project-Cards:
-
-- Canvas Inspector/Selection v2: Multi-Select, Inspector-Bearbeitung und reduzierte Node-Chrome-Dichte.
-- Notes Stabilitaet: Store/Persistence-Splitting, Import-Validation und Editor-Sidebar-Entlastung.
-- Bundle Performance: Monaco/Three weiter lazy-loaden und grosse Main-Chunks aufteilen.
-
-## Stand 2026-06-22 - Main/Mobile Release Gate + Canvas Inspector
-
-Abgearbeitet fuer Main/Mobile:
-
-- Release-Gate: `npm run release:main-mobile` prueft jetzt nur Main/Mobile relevante Gates plus `@nexus/core`.
-- Dependency-Security: Main/Mobile Audits ab `moderate` sind Teil des neuen Gates.
-- Canvas UX: Desktop Inspector fuer ausgewaehlte Nodes ist eingebunden und reduziert Bearbeitungsdruck im Node-Chrome.
-- Canvas Polish: Node-Typ-Badges erscheinen nur noch bei Hover/Auswahl, die Arbeitsflaeche wirkt ruhiger.
-- Files Responsiveness: Workspace-/Files-Layout bricht auf kleineren Fenstern besser um.
-- Release-Liste: `docs/MAIN_MOBILE_RELEASE_CHECKLIST.md` ist die neue operative Checkliste fuer Main/Mobile.
-
-Naechste Project-Cards:
-
-- Canvas Selection/History v2: Multi-Select, Gruppenbewegung, Undo/Redo und Snap-to-grid.
-- Mobile Canvas Inspector: Bottom-Sheet Inspector, Pinch Zoom und Touch-Gesten angleichen.
-- Settings Core Integration: Main/Mobile ModulePanels weiter reduzieren und gemeinsame Primitives aus `@nexus/core/settings` nutzen.
-- Notes Release Hardening: Store-Splitting, Import-Validation und Editor-Performance.
-
-## Stand 2026-06-27 - Release Polish Testperson Batch
-
-Abgearbeitet:
-
-- Notes UX: Emoji-/Block-Menues schweben ueber der Toolbar, Magic schliesst konkurrierende Popover, Split/Edit bekommt mehr Raum.
-- Globale UI: Font Size wird geclamped, Panel Radius wirkt ueber Shell/Glass Tokens, Rail-Breite ist stabilisiert.
-- Settings: Panel Backgrounds werden sichtbar ueber Surface Tokens gerendert; Glass Performance Score zeigt Belastung durch Blur/Shader/Motion.
-- Toolbar/Dashboard: Task-Badge trennt offen/done, Dashboard-Drag nutzt rAF und stabileres Position-Layout.
-- InfoView: Suche und bessere View-/Markdown-/Terminal-Referenzen fuer Selbsthilfe und Testpersonen-Doku.
-- Website/API: E-Mail-Badge korrigiert, echte aktive Nutzer von technischen Clients getrennt, Control Dashboard labelt Active Users (15m), Maus-Glow Toggle ergaenzt.
-
-Naechste Project-Cards:
-
-- Canvas Selection/History v2: Multi-Select, Gruppenbewegung, Undo/Redo, Snap-to-grid.
-- Notes Data Split: Editor-Drafts, Magic/Emoji-Daten und Import-Validation modularisieren.
-- Website Evidence Refresh: neue Screenshots und API/Website Contract-Smokes nach dem Stabilitaetsblock.
-- DevTools UX Polish: weniger cramped, bessere Gruppen, klare Release-/Security-Gates.
-
-## Stand 2026-06-27 - Follow-up UI/Deploy Batch
-
-Abgearbeitet:
-
-- Main App Backgrounds: App-Background-Modi wirken jetzt ueber Shell-/Window-Tokens sichtbar statt nur im verdeckten Root-Layer.
-- Notes UX: Emoji-/Blocks-Menues werden als Portal-Popover gerendert, Magic/Emoji/Blocks schliessen sich gegenseitig.
-- DevTools UX: Element-Designer-Labels sind bereinigt, Builder/Designer/Preview stapeln responsiv und bleiben bei kleinen Fenstern bedienbar.
-- Verification: `Nexus Main` Build und Single-React-Check laufen gruen.
-
-Blockiert:
-
-- API Live-Deploy: `NexusAPI` `main` ist gemerged und Release Gate ist gruen, aber `srv1513091.hstgr.cloud` akzeptiert die lokal vorhandenen SSH-Keys nicht. Der Live-Contract bleibt auf der alten Runtime, bis der VPS-Key/Zugang autorisiert ist.
-
-## Stand 2026-06-27 - Theme/Automation Polish Batch
-
-Abgearbeitet:
-
-- Theme Engine: App Backgrounds sind sichtbar staerker, koennen animiert/deaktiviert werden und bekommen Visibility/Speed-Regler.
-- Sidebar/Panel Themeing: Sidebar mischt Theme-Tint und Panel-Texture, damit Presets farblich nicht mehr in grauem Glas verschwinden.
-- Settings Performance: Glass Performance zeigt Kostentreiber fuer Blur, Glass, Motion und Background plus Release-Safe/Balanced Presets.
-- Notes UX: Tags sind aus der Format-Leiste raus und sitzen kompakt in der Statuszeile; Editor/Preview bekommen mehr Raum.
-- GitHub Automation: Main UI Gate, Website CI, API Dependabot und VPS Autoupdate Workflow sind angelegt.
-- Nexus Code Dependency Security: ESLint auf kompatible 9er Linie zurueckgezogen, Overrides fuer DOMPurify/brace-expansion/minimatch aktualisiert und Audit-Findings in `Nexus Code` sowie `Nexus Code Mobile` auf 0 reduziert.
-- Verification: Main Build, Single-React, Website Typecheck/Build-Budget/API-Integration, Nexus Code/Code Mobile Build und npm Audits fuer Main/Website/API/Nexus Code/Nexus Code Mobile sind gruen.
-
-Blockiert:
-
-- API Live-Deploy: `youngjibbit95/NexusAPI` hat keine `NEXUS_VPS_*` Secrets; der neue Workflow kann den VPS erst starten, wenn Host/User/SSH-Key im Repo gesetzt sind.
+Avoid private hostnames, private routes, private credentials, account data, infrastructure details and server deployment steps.

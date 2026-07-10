@@ -11,14 +11,14 @@ Sie bildet die Main-Workflows mobil ab, mit eigener Navigation und mobile-spezif
 
 | View | Purpose | Highlights |
 | --- | --- | --- |
-| `dashboard` | mobile control center | Today context, quick capture, workspace confidence |
+| `dashboard` | mobile workspace center | Today context, quick capture, workspace confidence |
 | `notes` | markdown workflow | editor/preview, templates, linking helpers |
 | `tasks` | planning execution | kanban + focus workflows on touch surfaces |
 | `reminders` | schedule control | native reminder service integration + fallback states |
 | `canvas` | visual planning | mobile board interactions, templates, inspector flows |
 | `files` | workspace handoff | runtime snapshot import/export + workspace controls |
 | `code` | mobile code workflow | integrated lightweight coding surface |
-| `devtools` | internal tooling | diagnostics and development helpers |
+| `devtools` | local diagnostics | performance and development helpers |
 | `settings` | personalization/system | appearance and runtime controls |
 | `info` | in-app docs | architecture, diagnostics, guides |
 
@@ -90,14 +90,15 @@ npm run cap:build:ios
 
 ## Environment
 
-- `VITE_NEXUS_CONTROL_URL=https://nexus-api.cloud`
-- `VITE_NEXUS_CONTROL_INGEST_KEY` (key for `mobile`)
-- `VITE_NEXUS_USER_ID`
-- `VITE_NEXUS_USERNAME`
-- `VITE_NEXUS_USER_TIER`
+Client-side environment values are public configuration, not secrets.
+
+Most Nexus Mobile development should work without production cloud credentials. Use local `.env.local` values only for non-secret public development hints; keep Nexus Cloud credentials, backend routes, signing material and deployment details outside this repository.
+
+See `../docs/ENVIRONMENT.md`.
 
 ## Notes
 
 - `npm run dev` defaults to Android Capacitor flow.
 - Use `npm run dev:web` for browser-only iteration.
 - Native reminder scheduling is preferred; fallback remains available.
+- Without Nexus Cloud configuration, local-first workflows stay available and cloud-backed account features may be unavailable.
