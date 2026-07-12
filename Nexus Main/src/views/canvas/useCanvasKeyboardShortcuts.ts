@@ -17,6 +17,8 @@ export const useCanvasKeyboardShortcuts = ({
   focusNode,
   zoomFromCenterBy,
   deleteSelectedNode,
+  undo,
+  redo,
 }: {
   selectedNodeId: string | null;
   setSpaceHeld: (value: boolean) => void;
@@ -37,6 +39,8 @@ export const useCanvasKeyboardShortcuts = ({
   focusNode: (nodeId: string) => void;
   zoomFromCenterBy: (delta: number) => void;
   deleteSelectedNode: (nodeId: string) => void;
+  undo: () => void;
+  redo: () => void;
 }) => {
   useEffect(() => {
     const onDown = (e: KeyboardEvent) => {
@@ -61,8 +65,18 @@ export const useCanvasKeyboardShortcuts = ({
         setShowMagicBuilder(false);
         setShowProjectPanel(false);
       }
-      if ((e.ctrlKey || e.metaKey) && (e.key === "z" || e.key === "y") && !isEditing) {
+      const commandKey = e.ctrlKey || e.metaKey;
+      const historyKey = e.key.toLowerCase();
+      if (commandKey && !isEditing && historyKey === "z") {
         e.preventDefault();
+        if (e.shiftKey) redo();
+        else undo();
+        return;
+      }
+      if (commandKey && !isEditing && historyKey === "y") {
+        e.preventDefault();
+        redo();
+        return;
       }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "p" && !isEditing) {
         e.preventDefault();
@@ -123,6 +137,7 @@ export const useCanvasKeyboardShortcuts = ({
     fitView,
     focusNode,
     openProjectSearch,
+    redo,
     resetViewport,
     selectedNodeId,
     setConnectingFrom,
@@ -133,6 +148,7 @@ export const useCanvasKeyboardShortcuts = ({
     setShowMagicBuilder,
     setShowProjectPanel,
     setSpaceHeld,
+    undo,
     zoomFromCenterBy,
   ]);
 };

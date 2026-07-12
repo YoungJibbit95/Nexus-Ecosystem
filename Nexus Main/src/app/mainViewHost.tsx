@@ -144,7 +144,10 @@ const renderActiveView = (
     case "info":
       return withViewBoundary(
         "info",
-        <InfoView onOpenWalkthrough={onOpenWalkthrough} />,
+        <InfoView
+          onOpenWalkthrough={onOpenWalkthrough}
+          onOpenView={(nextView) => onRequestViewChange(nextView)}
+        />,
       );
     case "devtools":
       return withViewBoundary("devtools", <DevToolsView />);

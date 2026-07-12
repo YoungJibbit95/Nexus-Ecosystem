@@ -1,0 +1,264 @@
+.nx-flux-v6 {
+  --flux-accent-rgb: var(--nx-shell-accent-rgb, 34, 211, 238);
+  position: relative;
+  isolation: isolate;
+  background:
+    radial-gradient(760px circle at 8% -12%, rgba(var(--flux-accent-rgb), 0.15), transparent 62%),
+    radial-gradient(680px circle at 96% 14%, rgba(124, 92, 255, 0.12), transparent 66%),
+    linear-gradient(145deg, rgba(6, 12, 30, 0.2), rgba(18, 12, 38, 0.12));
+}
+
+.nx-flux-v6 .nx-flux-hero,
+.nx-flux-v6 .nx-flux-queue-panel,
+.nx-flux-v6 .nx-flux-activity-panel,
+.nx-flux-v6 .nx-flux-metric-card {
+  border-color: rgba(var(--flux-accent-rgb), 0.16) !important;
+  background:
+    radial-gradient(460px circle at 4% 0%, rgba(var(--flux-accent-rgb), 0.12), transparent 68%),
+    linear-gradient(145deg, rgba(31, 45, 86, 0.34), rgba(18, 17, 48, 0.28)),
+    var(--nx-panel-bg, rgba(8, 14, 32, 0.36)) !important;
+  backdrop-filter: blur(22px) saturate(150%);
+  -webkit-backdrop-filter: blur(22px) saturate(150%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.09),
+    0 16px 36px rgba(2, 6, 23, 0.18),
+    0 0 24px rgba(var(--flux-accent-rgb), 0.045) !important;
+}
+
+.nx-flux-v6 .nx-flux-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 10px 16px;
+}
+
+.nx-flux-hero-main {
+  grid-column: 1 / -1;
+}
+
+.nx-flux-hero-copy {
+  min-width: 0;
+}
+
+.nx-flux-keyboard-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 8px;
+  padding: 4px 8px;
+  border: 1px solid rgba(var(--flux-accent-rgb), 0.2);
+  border-radius: 999px;
+  color: color-mix(in srgb, var(--nx-v6-view-accent, #64d2ff) 82%, white);
+  background: rgba(var(--flux-accent-rgb), 0.09);
+  font-size: 9.5px;
+  font-weight: 760;
+}
+
+.nx-flux-keyboard-hint span + span {
+  opacity: 0.62;
+}
+
+.nx-flux-quick-actions button,
+.nx-flux-preset-select select,
+.nx-flux-v6 :where(button, input) {
+  backdrop-filter: blur(12px) saturate(135%);
+  -webkit-backdrop-filter: blur(12px) saturate(135%);
+}
+
+.nx-flux-quick-actions button:hover,
+.nx-flux-v6 button:hover {
+  border-color: rgba(var(--flux-accent-rgb), 0.34) !important;
+  box-shadow: 0 0 18px rgba(var(--flux-accent-rgb), 0.1);
+}
+
+.nx-flux-preset-select {
+  display: grid;
+  grid-template-columns: auto minmax(210px, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-width: 320px;
+  color: rgba(226, 232, 255, 0.7);
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.nx-flux-preset-select select {
+  width: 100%;
+  min-width: 0;
+  height: 30px;
+  border: 1px solid rgba(var(--flux-accent-rgb), 0.2);
+  border-radius: 9px;
+  outline: none;
+  color: inherit;
+  background: rgba(7, 14, 35, 0.52);
+  padding: 0 9px;
+  font-size: 10.5px;
+  font-weight: 720;
+  text-transform: none;
+}
+
+.nx-flux-metric-grid {
+  grid-template-columns: repeat(4, minmax(140px, 1fr)) !important;
+}
+
+.nx-flux-work-grid {
+  grid-template-columns: minmax(250px, 330px) minmax(0, 1fr) !important;
+  align-content: stretch !important;
+  overflow: hidden !important;
+}
+
+.nx-flux-metric-card {
+  position: relative;
+  overflow: hidden;
+  min-height: 68px;
+}
+
+.nx-flux-metric-card::after {
+  content: "";
+  position: absolute;
+  inset: auto 10% -22px;
+  height: 34px;
+  border-radius: 50%;
+  background: rgba(var(--flux-accent-rgb), 0.12);
+  filter: blur(18px);
+  pointer-events: none;
+}
+
+.nx-flux-activity-panel {
+  position: relative;
+  overflow: hidden;
+}
+
+.nx-flux-activity-panel::before {
+  content: "";
+  position: absolute;
+  width: min(520px, 68%);
+  aspect-ratio: 1;
+  right: -16%;
+  bottom: -42%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(var(--flux-accent-rgb), 0.08), rgba(124, 92, 255, 0.035) 42%, transparent 72%);
+  filter: blur(6px);
+  pointer-events: none;
+}
+
+.nx-flux-activity-list {
+  position: relative;
+  z-index: 1;
+  align-content: start;
+}
+
+.nx-flux-activity-entry {
+  width: 100%;
+  border-color: rgba(var(--flux-accent-rgb), 0.16) !important;
+  background:
+    linear-gradient(120deg, rgba(var(--flux-accent-rgb), 0.09), rgba(124, 92, 255, 0.055)),
+    rgba(7, 14, 34, 0.34) !important;
+  box-shadow: inset 3px 0 0 rgba(var(--flux-accent-rgb), 0.42);
+}
+
+.nx-flux-caught-up {
+  flex: 0 0 auto;
+  min-height: 84px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  max-width: 620px;
+  margin: 4px 0 0;
+  padding: 14px;
+  border: 1px dashed rgba(48, 209, 88, 0.22);
+  border-radius: 12px;
+  background: rgba(48, 209, 88, 0.035);
+  color: rgba(224, 234, 255, 0.7);
+  text-align: left;
+}
+
+.nx-flux-caught-up > svg {
+  flex: 0 0 auto;
+  color: #30d158;
+  filter: drop-shadow(0 0 12px rgba(48, 209, 88, 0.25));
+}
+
+.nx-flux-caught-up strong,
+.nx-flux-caught-up span {
+  display: block;
+}
+
+.nx-flux-caught-up strong {
+  color: rgba(240, 246, 255, 0.9);
+  font-size: 12px;
+}
+
+.nx-flux-caught-up span {
+  margin-top: 3px;
+  max-width: 460px;
+  font-size: 10.5px;
+  line-height: 1.45;
+  opacity: 0.68;
+}
+
+@media (max-width: 1050px) {
+  .nx-flux-metric-grid {
+    grid-template-columns: repeat(2, minmax(140px, 1fr)) !important;
+  }
+
+  .nx-flux-work-grid {
+    grid-template-columns: minmax(230px, 300px) minmax(0, 1fr) !important;
+  }
+}
+
+@media (max-width: 760px) {
+  .nx-flux-v6 {
+    padding: 8px !important;
+    gap: 8px !important;
+  }
+
+  .nx-flux-hero-main {
+    align-items: flex-start !important;
+  }
+
+  .nx-flux-quick-actions {
+    width: 100%;
+    overflow-x: auto;
+    flex-wrap: nowrap !important;
+    padding-bottom: 2px;
+  }
+
+  .nx-flux-quick-actions button {
+    flex: 0 0 auto;
+  }
+
+  .nx-flux-preset-select {
+    grid-column: 1 / -1;
+    min-width: 0;
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+
+  .nx-flux-metric-grid {
+    display: flex !important;
+    overflow-x: auto;
+    gap: 7px !important;
+  }
+
+  .nx-flux-metric-card {
+    flex: 0 0 150px;
+  }
+
+  .nx-flux-work-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-rows: auto minmax(320px, 1fr);
+    overflow-y: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nx-flux-v6 *,
+  .nx-flux-v6 *::before,
+  .nx-flux-v6 *::after {
+    transition: none !important;
+  }
+}

@@ -77,6 +77,34 @@ const EXEC_EXT_BY_LANG = {
   typescript: 'ts',
   python: 'py',
   bash: 'sh',
+  c: 'c',
+  cpp: 'cpp',
+  java: 'java',
+  rust: 'rs',
+  go: 'go',
+};
+
+const executableName = (baseName) => (process.platform === 'win32' ? baseName + '.exe' : baseName);
+
+const stripExtension = (value) => {
+  const base = path.basename(String(value || 'Main'));
+  const withoutExt = base.replace(/\.[^.]+$/, '');
+  return withoutExt || 'Main';
+};
+
+const javaClassNameFromCode = (code, fallback = 'Main') => {
+  const match = String(code || '').match(/public\s+(?:final\s+|abstract\s+)?class\s+([A-Za-z_$][\w$]*)/);
+  if (match?.[1]) return match[1];
+  const classMatch = String(code || '').match(/class\s+([A-Za-z_$][\w$]*)/);
+  if (classMatch?.[1]) return classMatch[1];
+  return fallback;
+};
+
+const normalizeExecutionFileName = (lang, safeBase, ext, code) => {
+  if (lang === 'java') {
+    return javaClassNameFromCode(code, stripExtension(safeBase)) + '.' + ext;
+  }
+  return safeBase.includes('.') ? safeBase : safeBase + '.' + ext;
 };
 
 const sanitizeFileName = (value, fallback) => {
@@ -120,6 +148,11 @@ const buildExecutionEnv = (workingDir) => {
 const resolveExecutionAttempts = (lang, filePath) => {
   const nodeMajor = Number(String(process.versions?.node || '').split('.')[0] || 0);
   const supportsStripTypes = Number.isFinite(nodeMajor) && nodeMajor >= 22;
+  const cwd = path.dirname(filePath);
+  const stem = stripExtension(filePath);
+  const nativeOut = path.join(cwd, executableName(stem));
+  const javaClass = stripExtension(filePath);
+
   switch (lang) {
     case 'javascript':
       return [
@@ -137,40 +170,80 @@ const resolveExecutionAttempts = (lang, filePath) => {
       return [
         { runtime: 'python3', binary: 'python3', args: [filePath] },
         { runtime: 'python', binary: 'python', args: [filePath] },
+        { runtime: 'py', binary: 'py', args: [filePath] },
       ];
     case 'bash':
       return [
         { runtime: 'bash', binary: 'bash', args: [filePath] },
+      ];
+    case 'c':
+      return [
+        {
+          runtime: 'gcc',
+          steps: [
+            { binary: 'gcc', args: [filePath, '-O0', '-Wall', '-Wextra', '-o', nativeOut], label: 'compile' },
+            { binary: nativeOut, args: [], label: 'run' },
+          ],
+        },
+        {
+          runtime: 'clang',
+          steps: [
+            { binary: 'clang', args: [filePath, '-O0', '-Wall', '-Wextra', '-o', nativeOut], label: 'compile' },
+            { binary: nativeOut, args: [], label: 'run' },
+          ],
+        },
+      ];
+    case 'cpp':
+      return [
+        {
+          runtime: 'g++',
+          steps: [
+            { binary: 'g++', args: [filePath, '-std=c++17', '-O0', '-Wall', '-Wextra', '-o', nativeOut], label: 'compile' },
+            { binary: nativeOut, args: [], label: 'run' },
+          ],
+        },
+        {
+          runtime: 'clang++',
+          steps: [
+            { binary: 'clang++', args: [filePath, '-std=c++17', '-O0', '-Wall', '-Wextra', '-o', nativeOut], label: 'compile' },
+            { binary: nativeOut, args: [], label: 'run' },
+          ],
+        },
+      ];
+    case 'java':
+      return [
+        {
+          runtime: 'javac/java',
+          steps: [
+            { binary: 'javac', args: ['-d', cwd, filePath], label: 'compile' },
+            { binary: 'java', args: ['-cp', cwd, javaClass], label: 'run' },
+          ],
+        },
+      ];
+    case 'rust':
+      return [
+        {
+          runtime: 'rustc',
+          steps: [
+            { binary: 'rustc', args: [filePath, '-o', nativeOut], label: 'compile' },
+            { binary: nativeOut, args: [], label: 'run' },
+          ],
+        },
+      ];
+    case 'go':
+      return [
+        { runtime: 'go', binary: 'go', args: ['run', filePath] },
       ];
     default:
       return [];
   }
 };
 
-const runExecutionAttempt = (attempt, options = {}) =>
+const runProcessStep = (step, workingDir, appendOutput) =>
   new Promise((resolve) => {
     let timedOut = false;
-    let output = '';
-    let truncated = false;
     let launchErrorCode = null;
     let settled = false;
-
-    const append = (chunk) => {
-      if (settled || !chunk) return;
-      const text = typeof chunk === 'string' ? chunk : chunk.toString();
-      if (!text) return;
-      const remaining = MAX_EXEC_OUTPUT_CHARS - output.length;
-      if (remaining <= 0) {
-        truncated = true;
-        return;
-      }
-      if (text.length > remaining) {
-        output += text.slice(0, remaining);
-        truncated = true;
-        return;
-      }
-      output += text;
-    };
 
     const done = (result) => {
       if (settled) return;
@@ -179,9 +252,8 @@ const runExecutionAttempt = (attempt, options = {}) =>
     };
 
     let proc;
-    const workingDir = options.cwd || os.tmpdir();
     try {
-      proc = spawn(attempt.binary, attempt.args, {
+      proc = spawn(step.binary, step.args || [], {
         cwd: workingDir,
         env: buildExecutionEnv(workingDir),
         stdio: ['ignore', 'pipe', 'pipe'],
@@ -190,9 +262,7 @@ const runExecutionAttempt = (attempt, options = {}) =>
     } catch (error) {
       done({
         ok: false,
-        runtime: attempt.runtime,
         exitCode: 1,
-        output: '',
         error: error?.message || 'Failed to spawn process',
         launchErrorCode: error?.code || null,
         timedOut: false,
@@ -212,16 +282,14 @@ const runExecutionAttempt = (attempt, options = {}) =>
       }, 900);
     }, EXEC_TIMEOUT_MS);
 
-    proc.stdout?.on('data', append);
-    proc.stderr?.on('data', append);
+    proc.stdout?.on('data', appendOutput);
+    proc.stderr?.on('data', appendOutput);
     proc.on('error', (error) => {
       launchErrorCode = error?.code || null;
       clearTimeout(timeout);
       done({
         ok: false,
-        runtime: attempt.runtime,
         exitCode: 1,
-        output,
         error: error?.message || 'Process error',
         launchErrorCode,
         timedOut: false,
@@ -229,21 +297,63 @@ const runExecutionAttempt = (attempt, options = {}) =>
     });
     proc.on('close', (code) => {
       clearTimeout(timeout);
-      if (truncated) {
-        output += '\n\n… output truncated …';
-      }
       const exitCode = typeof code === 'number' ? code : timedOut ? 124 : 1;
       done({
         ok: !timedOut && exitCode === 0,
-        runtime: attempt.runtime,
         exitCode,
-        output,
-        error: timedOut ? `Execution timed out after ${Math.round(EXEC_TIMEOUT_MS / 1000)}s` : null,
+        error: timedOut ? 'Execution timed out' : undefined,
         launchErrorCode,
         timedOut,
       });
     });
   });
+
+const runExecutionAttempt = async (attempt, options = {}) => {
+  let output = '';
+  let truncated = false;
+  const workingDir = options.cwd || os.tmpdir();
+
+  const append = (chunk) => {
+    if (!chunk) return;
+    const text = typeof chunk === 'string' ? chunk : chunk.toString();
+    if (!text) return;
+    const remaining = MAX_EXEC_OUTPUT_CHARS - output.length;
+    if (remaining <= 0) {
+      truncated = true;
+      return;
+    }
+    if (text.length > remaining) {
+      output += text.slice(0, remaining);
+      truncated = true;
+      return;
+    }
+    output += text;
+  };
+
+  const steps = Array.isArray(attempt.steps) && attempt.steps.length
+    ? attempt.steps
+    : [{ binary: attempt.binary, args: attempt.args || [], label: 'run' }];
+
+  let lastResult = null;
+  for (const step of steps) {
+    lastResult = await runProcessStep(step, workingDir, append);
+    if (!lastResult.ok) break;
+  }
+
+  if (truncated) {
+    output += '\n\n... output truncated ...';
+  }
+
+  return {
+    ok: Boolean(lastResult?.ok),
+    runtime: attempt.runtime,
+    exitCode: typeof lastResult?.exitCode === 'number' ? lastResult.exitCode : 1,
+    output,
+    error: lastResult?.error,
+    launchErrorCode: lastResult?.launchErrorCode || null,
+    timedOut: Boolean(lastResult?.timedOut),
+  };
+};
 
 function registerWindowHandlers(getMainWindow) {
   ipcMain.handle('window:minimize', () => getMainWindow()?.minimize());
@@ -414,8 +524,9 @@ function registerCodeExecutionHandler() {
     let tempDir = null;
     try {
       tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nexus-code-run-'));
-      const safeBase = sanitizeFileName(fileName, `snippet-${Date.now()}.${ext}`);
-      const finalName = safeBase.includes('.') ? safeBase : `${safeBase}.${ext}`;
+      const defaultFileName = lang === 'java' ? javaClassNameFromCode(code) + '.' + ext : `snippet-${Date.now()}.${ext}`;
+      const safeBase = sanitizeFileName(fileName, defaultFileName);
+      const finalName = normalizeExecutionFileName(lang, safeBase, ext, code);
       const filePath = path.join(tempDir, finalName);
       fs.writeFileSync(filePath, code, 'utf8');
 

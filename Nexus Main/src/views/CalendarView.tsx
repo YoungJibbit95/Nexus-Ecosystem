@@ -21,6 +21,7 @@ import { useApp, type Reminder, type Task } from "../store/appStore";
 import { useTheme } from "../store/themeStore";
 import { hexToRgb } from "../lib/utils";
 import { mapIcsImport, type IcsImportMode } from "./calendar/icsImport";
+import "./calendar/calendarView.css";
 
 type CalendarItemType = "task" | "reminder";
 type CalendarDensity = "comfortable" | "compact";
@@ -1322,33 +1323,37 @@ export function CalendarView({
         <DropAgenda dateKey={selectedDateKey} onDropItem={handleDropItem}>
           {selectedItems.length === 0 ? (
             <div className={`nx-calendar-empty ${isWindow ? "nx-calendar-dayplan-empty" : ""}`}>
-              <Calendar size={22} />
+              <span className="nx-calendar-empty-icon" aria-hidden="true">
+                <Calendar size={22} />
+              </span>
               <span>
                 {selectedHiddenCount > 0
                   ? "Durch Filter ausgeblendet"
                   : hasActiveFilters
                     ? "Keine Treffer"
-                    : "Freier Tag"}
+                    : "Dein Tag hat noch Platz"}
               </span>
               <small>
                 {selectedHiddenCount > 0
-                  ? "Filter loeschen, um geplante Eintraege zu sehen."
-                  : "Erstelle eine Aufgabe oder Erinnerung fuer dieses Datum."}
+                  ? "Setze die Filter zurueck, um alle geplanten Eintraege zu sehen."
+                  : hasActiveFilters
+                    ? "Passe die Filter an oder plane direkt einen neuen Eintrag."
+                    : "Plane den naechsten Fokusblock oder eine Erinnerung. Eintraege lassen sich spaeter einfach verschieben."}
               </small>
               <div className="nx-calendar-empty-actions">
                 {hasActiveFilters && (
                   <button type="button" onClick={clearFilters}>
                     <X size={12} />
-                    Reset
+                    Filter zuruecksetzen
                   </button>
                 )}
                 <button type="button" onClick={() => focusComposer("task")}>
                   <Plus size={12} />
-                  Aufgabe
+                  Aufgabe planen
                 </button>
                 <button type="button" onClick={() => focusComposer("reminder")}>
                   <Bell size={12} />
-                  Erinnerung
+                  Erinnerung anlegen
                 </button>
               </div>
             </div>
@@ -1389,216 +1394,269 @@ export function CalendarView({
       >
         <div className="nx-calendar-topbar nx-release-toolbar">
           <div className="nx-calendar-toolbar-row nx-calendar-toolbar-main">
-            <div className="nx-calendar-nav">
-              <button
-                type="button"
-                className="nx-calendar-icon-button"
-                onClick={() => navigatePeriod(-1)}
-                aria-label={PREVIOUS_PERIOD_LABEL[calendarMode]}
-                title={PREVIOUS_PERIOD_LABEL[calendarMode]}
-              >
-                <ChevronLeft size={16} />
-              </button>
-              <button type="button" className="nx-calendar-today-button" onClick={goToday}>
-                Heute
-              </button>
-              <button
-                type="button"
-                className="nx-calendar-icon-button"
-                onClick={() => navigatePeriod(1)}
-                aria-label={NEXT_PERIOD_LABEL[calendarMode]}
-                title={NEXT_PERIOD_LABEL[calendarMode]}
-              >
-                <ChevronRight size={16} />
-              </button>
-              <div className="nx-calendar-title">
-                <Calendar size={16} />
-                <span>{periodTitle}</span>
+            <div className="nx-calendar-toolbar-group nx-calendar-period-group">
+              <span className="nx-calendar-group-label">Zeitraum</span>
+              <div className="nx-calendar-nav" role="group" aria-label="Kalenderzeitraum">
+                <button
+                  type="button"
+                  className="nx-calendar-icon-button"
+                  onClick={() => navigatePeriod(-1)}
+                  aria-label={PREVIOUS_PERIOD_LABEL[calendarMode]}
+                  title={PREVIOUS_PERIOD_LABEL[calendarMode]}
+                >
+                  <ChevronLeft size={16} />
+                </button>
+                <button type="button" className="nx-calendar-today-button" onClick={goToday}>
+                  Heute
+                </button>
+                <button
+                  type="button"
+                  className="nx-calendar-icon-button"
+                  onClick={() => navigatePeriod(1)}
+                  aria-label={NEXT_PERIOD_LABEL[calendarMode]}
+                  title={NEXT_PERIOD_LABEL[calendarMode]}
+                >
+                  <ChevronRight size={16} />
+                </button>
+                <div className="nx-calendar-title">
+                  <Calendar size={16} />
+                  <span>{periodTitle}</span>
+                </div>
               </div>
             </div>
 
-            <div className="nx-calendar-segment nx-calendar-mode-switch" aria-label="Kalenderansicht">
-              {(["day", "week", "month"] as const).map((mode) => (
-                <button
-                  key={mode}
-                  type="button"
-                  className={calendarMode === mode ? "is-active" : ""}
-                  onClick={() => setCalendarMode(mode)}
-                >
-                  {VIEW_LABEL[mode]}
-                </button>
-              ))}
-            </div>
-
-            <div className="nx-calendar-selected-pill" title={formatSelectedDate(selectedDate)}>
-              <Clock size={13} />
-              <span>{formatShortDate(selectedDate)}</span>
-              <strong>{selectedItems.length}</strong>
-            </div>
-
-            <div className="nx-calendar-controls">
-              <button
-                type="button"
-                className={`nx-calendar-dayplan-button ${dayPlannerOpen ? "is-active" : ""}`}
-                onClick={openDayPlanner}
-                aria-haspopup="dialog"
-                aria-expanded={dayPlannerOpen}
+            <div className="nx-calendar-toolbar-group nx-calendar-view-group">
+              <span className="nx-calendar-group-label">Ansicht</span>
+              <div
+                className="nx-calendar-segment nx-calendar-mode-switch"
+                aria-label="Kalenderansicht"
               >
-                <Maximize2 size={14} />
-                Tagesplan
-                <strong>{selectedItems.length}</strong>
-              </button>
-              <button
-                type="button"
-                className={`nx-calendar-import-button ${importOpen ? "is-active" : ""}`}
-                onClick={toggleImport}
-                aria-label={importOpen ? "Import schliessen" : "ICS importieren"}
-                title={importOpen ? "Import schliessen" : "ICS importieren"}
-              >
-                {importOpen ? <X size={13} /> : <Upload size={13} />}
-                Import
-              </button>
-              <label className="nx-calendar-filter-field nx-calendar-filter-field-type">
-                <ListFilter size={13} />
-                <select
-                  value={typeFilter}
-                  onChange={(event) =>
-                    setTypeFilter(event.target.value as CalendarTypeFilter)
-                  }
-                  aria-label="Typfilter"
-                >
-                  <option value="all">Alle</option>
-                  <option value="task">Aufgaben</option>
-                  <option value="reminder">Erinnerungen</option>
-                </select>
-              </label>
-              <label className="nx-calendar-filter-field nx-calendar-filter-field-priority">
-                <Flag size={13} />
-                <select
-                  value={priorityFilter}
-                  onChange={(event) =>
-                    setPriorityFilter(event.target.value as CalendarPriorityFilter)
-                  }
-                  aria-label="Prioritaetsfilter"
-                >
-                  <option value="all">Prioritaet</option>
-                  <option value="low">Niedrig</option>
-                  <option value="mid">Mittel</option>
-                  <option value="high">Hoch</option>
-                </select>
-              </label>
-              {hasActiveFilters && (
-                <button
-                  type="button"
-                  className="nx-calendar-mini-button nx-calendar-clear-filter"
-                  onClick={clearFilters}
-                >
-                  <X size={12} />
-                  Filter aus
-                </button>
-              )}
-              <div className="nx-calendar-segment nx-calendar-density-switch" aria-label="Dichte">
-                {(["comfortable", "compact"] as const).map((mode) => (
+                {(["day", "week", "month"] as const).map((mode) => (
                   <button
                     key={mode}
                     type="button"
-                    className={density === mode ? "is-active" : ""}
-                    onClick={() => setDensity(mode)}
+                    className={calendarMode === mode ? "is-active" : ""}
+                    onClick={() => setCalendarMode(mode)}
                   >
-                    {mode === "comfortable" ? "Locker" : "Kompakt"}
+                    {VIEW_LABEL[mode]}
                   </button>
                 ))}
               </div>
             </div>
+
+            <div className="nx-calendar-controls">
+              <div
+                className="nx-calendar-control-cluster nx-calendar-plan-cluster"
+                role="group"
+                aria-label="Planung"
+              >
+                <span className="nx-calendar-group-label">Planen</span>
+                <button
+                  type="button"
+                  className={`nx-calendar-dayplan-button ${dayPlannerOpen ? "is-active" : ""}`}
+                  onClick={openDayPlanner}
+                  aria-haspopup="dialog"
+                  aria-expanded={dayPlannerOpen}
+                >
+                  <Maximize2 size={14} />
+                  Tagesplan
+                  <strong>{selectedItems.length}</strong>
+                </button>
+                <button
+                  type="button"
+                  className={`nx-calendar-import-button ${importOpen ? "is-active" : ""}`}
+                  onClick={toggleImport}
+                  aria-label={importOpen ? "Import schliessen" : "ICS importieren"}
+                  title={importOpen ? "Import schliessen" : "ICS importieren"}
+                >
+                  {importOpen ? <X size={13} /> : <Upload size={13} />}
+                  Import
+                </button>
+              </div>
+
+              <details className="nx-calendar-options">
+                <summary>
+                  <ListFilter size={13} />
+                  Filter &amp; Layout
+                  {hasActiveFilters ? <strong>aktiv</strong> : null}
+                </summary>
+                <div className="nx-calendar-options-popover">
+                  <div
+                    className="nx-calendar-control-cluster nx-calendar-filter-cluster"
+                    role="group"
+                    aria-label="Kalenderfilter"
+                  >
+                    <span className="nx-calendar-group-label">Eintraege filtern</span>
+                    <label className="nx-calendar-filter-field nx-calendar-filter-field-type">
+                  <ListFilter size={13} />
+                  <select
+                    value={typeFilter}
+                    onChange={(event) =>
+                      setTypeFilter(event.target.value as CalendarTypeFilter)
+                    }
+                    aria-label="Typfilter"
+                  >
+                    <option value="all">Alle Eintraege</option>
+                    <option value="task">Aufgaben</option>
+                    <option value="reminder">Erinnerungen</option>
+                  </select>
+                    </label>
+                    <label className="nx-calendar-filter-field nx-calendar-filter-field-priority">
+                  <Flag size={13} />
+                  <select
+                    value={priorityFilter}
+                    onChange={(event) =>
+                      setPriorityFilter(event.target.value as CalendarPriorityFilter)
+                    }
+                    aria-label="Prioritaetsfilter"
+                  >
+                    <option value="all">Alle Prioritaeten</option>
+                    <option value="low">Niedrig</option>
+                    <option value="mid">Mittel</option>
+                    <option value="high">Hoch</option>
+                  </select>
+                    </label>
+                    {hasActiveFilters && (
+                      <button
+                        type="button"
+                        className="nx-calendar-mini-button nx-calendar-clear-filter"
+                        onClick={clearFilters}
+                      >
+                        <X size={12} />
+                        Zuruecksetzen
+                      </button>
+                    )}
+                  </div>
+
+                  <div
+                    className="nx-calendar-control-cluster nx-calendar-density-cluster"
+                    role="group"
+                    aria-label="Darstellungsdichte"
+                  >
+                    <span className="nx-calendar-group-label">Darstellung</span>
+                    <div
+                      className="nx-calendar-segment nx-calendar-density-switch"
+                      aria-label="Dichte"
+                    >
+                      {(["comfortable", "compact"] as const).map((mode) => (
+                        <button
+                          key={mode}
+                          type="button"
+                          className={density === mode ? "is-active" : ""}
+                          onClick={() => setDensity(mode)}
+                        >
+                          {mode === "comfortable" ? "Locker" : "Kompakt"}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </details>
+            </div>
           </div>
 
-          <form className="nx-calendar-composer" onSubmit={submitComposer}>
-            <div className="nx-calendar-segment nx-calendar-entry-type-switch" aria-label="Eintragstyp">
-              {(["task", "reminder"] as const).map((type) => (
-                <button
-                  key={type}
-                  type="button"
-                  className={composerType === type ? "is-active" : ""}
-                  onClick={() => setComposerType(type)}
-                >
-                  {type === "task" ? <CheckSquare size={13} /> : <Bell size={13} />}
-                  <span>{TYPE_LABEL[type]}</span>
-                </button>
-              ))}
-            </div>
-            <div className="nx-calendar-composer-date">
-              <Calendar size={13} />
-              <span>{formatShortDate(selectedDate)}</span>
-            </div>
-            <input
-              ref={composerInputRef}
-              className="nx-calendar-title-input"
-              value={composerTitle}
-              onChange={(event) => setComposerTitle(event.target.value)}
-              placeholder={`Neue ${TYPE_LABEL[composerType].toLowerCase()}`}
-              aria-label={`${TYPE_LABEL[composerType]} Titel`}
-            />
-            {composerTitle && (
-              <button
-                type="button"
-                className="nx-calendar-icon-button nx-calendar-clear-button"
-                onClick={() => setComposerTitle("")}
-                aria-label="Titel leeren"
-                title="Titel leeren"
+          <form
+            className="nx-calendar-composer nx-calendar-quick-composer"
+            onSubmit={submitComposer}
+            data-entry-type={composerType}
+            aria-label="Schnelleintrag"
+          >
+            <div className="nx-calendar-composer-primary">
+              <div
+                className="nx-calendar-segment nx-calendar-entry-type-switch"
+                aria-label="Eintragstyp"
               >
-                <X size={13} />
-              </button>
-            )}
-            <input
-              className="nx-calendar-time-input"
-              type="time"
-              value={composerTime}
-              onChange={(event) => setComposerTime(event.target.value)}
-              aria-label="Zeit"
-            />
-            {composerType === "task" && (
-              <select
-                value={composerPriority}
-                onChange={(event) =>
-                  setComposerPriority(event.target.value as Task["priority"])
-                }
-                aria-label="Aufgabenprioritaet"
-              >
-                <option value="low">Niedrig</option>
-                <option value="mid">Mittel</option>
-                <option value="high">Hoch</option>
-              </select>
-            )}
-            {composerType === "task" ? (
+                {(["task", "reminder"] as const).map((type) => (
+                  <button
+                    key={type}
+                    type="button"
+                    className={composerType === type ? "is-active" : ""}
+                    onClick={() => setComposerType(type)}
+                  >
+                    {type === "task" ? <CheckSquare size={13} /> : <Bell size={13} />}
+                    <span>{TYPE_LABEL[type]}</span>
+                  </button>
+                ))}
+              </div>
+              <div className="nx-calendar-composer-date">
+                <Calendar size={13} />
+                <span>{formatShortDate(selectedDate)}</span>
+              </div>
+              <div className="nx-calendar-composer-title-field">
+                <input
+                  ref={composerInputRef}
+                  className="nx-calendar-title-input"
+                  value={composerTitle}
+                  onChange={(event) => setComposerTitle(event.target.value)}
+                  placeholder={`Was steht als ${TYPE_LABEL[composerType].toLowerCase()} an?`}
+                  aria-label={`${TYPE_LABEL[composerType]} Titel`}
+                />
+                {composerTitle && (
+                  <button
+                    type="button"
+                    className="nx-calendar-icon-button nx-calendar-clear-button"
+                    onClick={() => setComposerTitle("")}
+                    aria-label="Titel leeren"
+                    title="Titel leeren"
+                  >
+                    <X size={13} />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="nx-calendar-composer-secondary">
               <input
-                className="nx-calendar-tags-input"
-                value={composerTags}
-                onChange={(event) => setComposerTags(event.target.value)}
-                placeholder="#tag"
-                aria-label="Aufgabentags"
+                className="nx-calendar-time-input"
+                type="time"
+                value={composerTime}
+                onChange={(event) => setComposerTime(event.target.value)}
+                aria-label="Zeit"
               />
-            ) : (
-              <select
-                value={composerRepeat}
-                onChange={(event) =>
-                  setComposerRepeat(event.target.value as Reminder["repeat"])
-                }
-                aria-label="Erinnerung wiederholen"
+              {composerType === "task" && (
+                <select
+                  value={composerPriority}
+                  onChange={(event) =>
+                    setComposerPriority(event.target.value as Task["priority"])
+                  }
+                  aria-label="Aufgabenprioritaet"
+                >
+                  <option value="low">Niedrig</option>
+                  <option value="mid">Mittel</option>
+                  <option value="high">Hoch</option>
+                </select>
+              )}
+              {composerType === "task" ? (
+                <input
+                  className="nx-calendar-tags-input"
+                  value={composerTags}
+                  onChange={(event) => setComposerTags(event.target.value)}
+                  placeholder="Tags, z. B. #fokus"
+                  aria-label="Aufgabentags"
+                />
+              ) : (
+                <select
+                  value={composerRepeat}
+                  onChange={(event) =>
+                    setComposerRepeat(event.target.value as Reminder["repeat"])
+                  }
+                  aria-label="Erinnerung wiederholen"
+                >
+                  <option value="none">Einmalig</option>
+                  <option value="daily">Taeglich</option>
+                  <option value="weekly">Woechentlich</option>
+                  <option value="monthly">Monatlich</option>
+                </select>
+              )}
+              <button
+                type="submit"
+                className="nx-calendar-add-button"
+                disabled={!composerCanSubmit}
               >
-                <option value="none">Einmalig</option>
-                <option value="daily">Taeglich</option>
-                <option value="weekly">Woechentlich</option>
-                <option value="monthly">Monatlich</option>
-              </select>
-            )}
-            <button
-              type="submit"
-              className="nx-calendar-add-button"
-              disabled={!composerCanSubmit}
-            >
-              <Plus size={14} />
-              Erstellen
-            </button>
+                <Plus size={14} />
+                Einplanen
+              </button>
+            </div>
           </form>
         </div>
 

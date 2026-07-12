@@ -89,6 +89,57 @@ const buildApiErrorMessage = (payload, fallback) => {
   return fallback;
 };
 
+const getPayloadErrorCode = (payload, fallbackCode) => {
+  if (!isRecord(payload)) return normalizeControlErrorCode(fallbackCode);
+  const code =
+    payload.errorCode ||
+    payload.code ||
+    payload.reason ||
+    payload.statusCode ||
+    fallbackCode;
+  return normalizeControlErrorCode(code);
+};
+
+const getHttpFailureFallback = (status, resource) => {
+  if (status === 400 || status === 422) {
+    return resource === "auth"
+      ? "Login-Anfrage wurde von der API als ungueltig abgelehnt."
+      : "API-Anfrage wurde als ungueltig abgelehnt.";
+  }
+  if (status === 401) {
+    return "Session oder Login wurde von der API abgelehnt.";
+  }
+  if (status === 403) {
+    return "Der Account hat nicht den noetigen Zugriff.";
+  }
+  if (status === 429) {
+    return "Die API hat zu viele Anfragen erkannt.";
+  }
+  if (status >= 500) {
+    return "Die Nexus API hat mit einem Serverfehler geantwortet.";
+  }
+  return "Remote API hat die Anfrage abgelehnt.";
+};
+
+const buildApiFailureResult = ({ payload, status, resource, fallback }) => {
+  const httpCode = normalizeControlErrorCode(`HTTP_${status}`);
+  const payloadCode = getPayloadErrorCode(payload, httpCode);
+  const message = buildApiErrorMessage(
+    payload,
+    fallback || getHttpFailureFallback(status, resource),
+  );
+  return {
+    ok: false,
+    mode: toConnectionMode(httpCode),
+    status,
+    message,
+    details: [
+      `${resource}:${httpCode}`,
+      payloadCode !== httpCode ? `${resource}:${payloadCode}` : "",
+    ].filter(Boolean),
+  };
+};
+
 const parseAuthEnvelope = (payload) => {
   const candidate = isRecord(payload) && isRecord(payload.item) ? payload.item : payload;
   if (!isRecord(candidate)) {
@@ -223,17 +274,27 @@ export const loginNexusCodeSession = async ({
     );
     const payload = await readJsonResponse(response);
     if (!response.ok) {
-      const errorCode = normalizeControlErrorCode(`HTTP_${response.status}`);
+      return buildApiFailureResult({
+        payload,
+        status: response.status,
+        resource: "auth",
+        fallback: "Login wurde von der API abgelehnt.",
+      });
+    }
+
+    let authSession;
+    try {
+      authSession = parseAuthEnvelope(payload);
+    } catch (error) {
       return {
         ok: false,
-        mode: toConnectionMode(errorCode),
+        mode: "degraded",
         status: response.status,
-        message: buildApiErrorMessage(payload, "Login wurde von der API abgelehnt."),
-        details: [`auth:${errorCode}`],
+        message: error?.message || "Auth response had an invalid payload.",
+        details: ["auth:INVALID_PAYLOAD"],
       };
     }
 
-    const authSession = parseAuthEnvelope(payload);
     let profile = null;
     try {
       profile = await fetchSessionProfile(baseUrl, authSession.token, deviceId);
@@ -303,16 +364,17 @@ export const testNexusApiConnection = async ({
       };
     }
 
+    const payload = await readJsonResponse(response);
     const errorCode = normalizeControlErrorCode(`HTTP_${response.status}`);
-    return {
-      ok: false,
-      mode: toConnectionMode(errorCode),
+    return buildApiFailureResult({
+      payload,
       status: response.status,
-      message: response.status === 401 || response.status === 403
+      resource: "release",
+      fallback: response.status === 401 || response.status === 403
         ? "Auth fehlt oder wurde abgelehnt."
         : "Remote API hat den Test abgelehnt.",
-      details: [`release:${errorCode}`],
-    };
+      errorCode,
+    });
   } catch (error) {
     const errorCode = error?.name === "AbortError" ? "TIMEOUT" : "NETWORK";
     return {

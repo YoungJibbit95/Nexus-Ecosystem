@@ -85,6 +85,7 @@ type MainAuthSession = {
     role: string;
     email: string | null;
     requestedTier: string;
+    paymentTier?: string;
     emailVerified: boolean;
   };
 };
@@ -145,6 +146,8 @@ const parseMainAuthSession = (payload: unknown): MainAuthSession | null => {
       email: typeof user.email === "string" ? user.email : null,
       requestedTier:
         typeof user.requestedTier === "string" ? user.requestedTier : "free",
+      paymentTier:
+        typeof user.paymentTier === "string" ? user.paymentTier : undefined,
       emailVerified: user.emailVerified === true,
     },
   };
@@ -165,7 +168,16 @@ const readStoredMainAuthSession = (): MainAuthSession | null => {
   };
 
   try {
-    return read(window.sessionStorage) || read(window.localStorage);
+    const session = read(window.sessionStorage);
+    if (session) return session;
+
+    // Legacy builds persisted bearer tokens to disk-backed localStorage.
+    // Remove them instead of restoring a credential into a privileged renderer.
+    if (window.localStorage.getItem(MAIN_AUTH_SESSION_STORAGE_KEY)) {
+      window.localStorage.removeItem(MAIN_AUTH_SESSION_STORAGE_KEY);
+      window.localStorage.setItem(MAIN_AUTH_REMEMBER_STORAGE_KEY, "1");
+    }
+    return null;
   } catch {
     window.sessionStorage.removeItem(MAIN_AUTH_SESSION_STORAGE_KEY);
     window.localStorage.removeItem(MAIN_AUTH_SESSION_STORAGE_KEY);
@@ -181,10 +193,8 @@ const readStoredMainAuthPreference = () => {
 const storeMainAuthSession = (session: MainAuthSession, rememberSession = false) => {
   if (typeof window === "undefined") return;
   const payload = JSON.stringify({ ...session, rememberSession });
-  const primary = rememberSession ? window.localStorage : window.sessionStorage;
-  const secondary = rememberSession ? window.sessionStorage : window.localStorage;
-  primary.setItem(MAIN_AUTH_SESSION_STORAGE_KEY, payload);
-  secondary.removeItem(MAIN_AUTH_SESSION_STORAGE_KEY);
+  window.sessionStorage.setItem(MAIN_AUTH_SESSION_STORAGE_KEY, payload);
+  window.localStorage.removeItem(MAIN_AUTH_SESSION_STORAGE_KEY);
   window.localStorage.setItem(MAIN_AUTH_REMEMBER_STORAGE_KEY, rememberSession ? "1" : "0");
 };
 
@@ -479,7 +489,7 @@ export default function App() {
         (env.VITE_NEXUS_USERNAME as string | undefined),
       userTier:
         resolveMainAuthUserTier(
-          authSession?.user.requestedTier,
+          authSession?.user.paymentTier || authSession?.user.requestedTier,
           authSession?.user.role,
         ) ||
         resolveMainAuthUserTier(env.VITE_NEXUS_USER_TIER as string | undefined),

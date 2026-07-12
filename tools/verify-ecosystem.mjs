@@ -312,7 +312,7 @@ const run = async () => {
     },
     {
       id: 'code-app-uses-runtime',
-      file: path.join(ROOT, 'Nexus Code/src/App.jsx'),
+      file: path.join(ROOT, 'Nexus Code/src/app/useNexusCodeBoot.js'),
       pattern: /createNexusRuntime\(\{\s*appId:\s*["']code["']/s,
       message: 'Nexus Code nutzt NexusRuntime',
     },
@@ -329,6 +329,12 @@ const run = async () => {
       message: 'Nexus Main validiert Views gegen API',
     },
     {
+      id: 'main-auth-effective-payment-tier',
+      file: path.join(ROOT, 'Nexus Main/src/App.tsx'),
+      pattern: /paymentTier\?:\s*string[\s\S]*?authSession\?\.user\.paymentTier\s*\|\|\s*authSession\?\.user\.requestedTier/s,
+      message: 'Nexus Main priorisiert den serverautoritativen Payment-Tier aus dem Auth-Contract',
+    },
+    {
       id: 'mobile-view-validation',
       file: path.join(ROOT, 'Nexus Mobile/src/App.tsx'),
       pattern: /validateViewAccess\(/,
@@ -336,7 +342,7 @@ const run = async () => {
     },
     {
       id: 'code-view-validation',
-      file: path.join(ROOT, 'Nexus Code/src/App.jsx'),
+      file: path.join(ROOT, 'Nexus Code/src/app/useNexusCodeBoot.js'),
       pattern: /validateViewAccess\("editor"|warmupViewAccess\(\["editor"\]/,
       message: 'Nexus Code validiert editor-View',
     },
@@ -505,7 +511,7 @@ const run = async () => {
     {
       id: 'main-guided-onboarding-checklist',
       file: path.join(ROOT, 'Nexus Main/src/components/WelcomeWalkthrough.tsx'),
-      pattern: /WALKTHROUGH_SETUP_STORAGE_KEY[\s\S]*?Account auf der Website erstellen[\s\S]*?Workspace-Ordner festlegen[\s\S]*?Erste Projekt-Note schreiben[\s\S]*?Canvas-Hub[\s\S]*?Start-Checkliste/,
+      pattern: /TOUR_STORAGE_KEY[\s\S]*?const STEPS[\s\S]*?account-checked[\s\S]*?first-note[\s\S]*?workspace-understood[\s\S]*?first-canvas-node[\s\S]*?writeProgress/,
       message: 'Nexus Main hat gefuehrtes First-Start-Onboarding mit Setup-Checkliste',
     },
     {
@@ -553,7 +559,7 @@ const run = async () => {
     {
       id: 'main-infoview-template-packs',
       file: path.join(ROOT, 'Nexus Main/src/views/InfoView.tsx'),
-      pattern: /NEXUS_TEMPLATE_PACKS[\s\S]*?buildNexusTemplatePackMarkdown[\s\S]*?Copy pack Markdown[\s\S]*?Template Packs[\s\S]*?visibleTemplatePacks/,
+      pattern: /NEXUS_TEMPLATE_PACKS[\s\S]*?buildNexusTemplatePackMarkdown[\s\S]*?nx-info-template-strip[\s\S]*?Template Packs[\s\S]*?buildNexusTemplatePackMarkdown\(pack\)/,
       message: 'InfoView zeigt kopierbare Template Packs',
     },
     {

@@ -16,6 +16,7 @@
     "smoke:visual": "node ./scripts/ensure-electron.cjs && node ./scripts/run-electron-visual-smoke.mjs",
     "smoke:electron-visual": "node ./scripts/ensure-electron.cjs && node ./scripts/run-electron-visual-smoke.mjs",
     "smoke:ide-core": "node ./scripts/run-ide-core-smoke.mjs",
+    "test:security": "node ./scripts/security-attack-regression.mjs",
     "typecheck": "tsc -p ./jsconfig.json",
     "preview": "vite preview",
     "electron:ensure": "node ./scripts/ensure-electron.cjs",

@@ -401,13 +401,17 @@ export function IslandToolbarLayout(props: IslandToolbarLayoutProps) {
 
   return (
     <div
+      className="nx-toolbar-island-frame"
       style={{
         display: "flex",
         justifyContent: "center",
         padding: isBottom ? "0 0 1px" : "1px 0 0",
+        width: "100%",
+        minWidth: 0,
       }}
     >
       <motion.div
+        className="nx-toolbar-island-dock"
         ref={islandRef}
         animate={{
           width: expanded ? islandCfg.expandedWidth : islandCfg.collapsedWidth,
@@ -422,7 +426,11 @@ export function IslandToolbarLayout(props: IslandToolbarLayoutProps) {
               }
             : toolbarMotion.transition
         }
-        style={{ position: "relative" }}
+        style={{
+          position: "relative",
+          maxWidth: "calc(100% - 8px)",
+          flexShrink: 1,
+        }}
       >
         <Glass
           type="modal"

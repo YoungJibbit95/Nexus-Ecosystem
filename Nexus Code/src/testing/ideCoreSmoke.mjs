@@ -72,6 +72,21 @@ import {
   summarizeEditorDiagnostics,
 } from "../pages/editor/editorFeatureModel.js";
 import {
+  lspCompletionsToCodeMirror as lspCompletionsToCodeMirrorModule,
+} from "../pages/editor/featureModel/completions.js";
+import {
+  lspDiagnosticsToCodeMirror as lspDiagnosticsToCodeMirrorModule,
+} from "../pages/editor/featureModel/diagnostics.js";
+import {
+  createEditorLanguageFeatureModel as createEditorLanguageFeatureModelModule,
+} from "../pages/editor/featureModel/lspStatusActions.js";
+import {
+  extractDocumentSymbols as extractDocumentSymbolsModule,
+} from "../pages/editor/featureModel/symbolsScope.js";
+import {
+  lspTextEditsToCodeMirrorChanges as lspTextEditsToCodeMirrorChangesModule,
+} from "../pages/editor/featureModel/textEdits.js";
+import {
   detectLanguageId,
   getLanguageCapabilities,
   listLanguageIds,
@@ -2394,6 +2409,70 @@ const scenarios = [
         ),
         false,
       );
+    },
+  },
+  {
+    id: "editor-feature-model-module-boundaries",
+    title: "feature model facade preserves extracted helper modules",
+    run() {
+      assert.equal(lspCompletionsToCodeMirrorModule, lspCompletionsToCodeMirror);
+      assert.equal(lspDiagnosticsToCodeMirrorModule, lspDiagnosticsToCodeMirror);
+      assert.equal(createEditorLanguageFeatureModelModule, createEditorLanguageFeatureModel);
+      assert.equal(extractDocumentSymbolsModule, extractDocumentSymbols);
+      assert.equal(
+        lspTextEditsToCodeMirrorChangesModule,
+        lspTextEditsToCodeMirrorChanges,
+      );
+
+      const symbols = extractDocumentSymbolsModule("function renderPanel() {}", "javascript");
+      assert.equal(symbols[0]?.name, "renderPanel");
+
+      const doc = createCodeMirrorDoc("const name = oldName;");
+      const edits = lspTextEditsToCodeMirrorChangesModule(doc, [
+        {
+          range: {
+            start: { line: 0, character: 13 },
+            end: { line: 0, character: 20 },
+          },
+          newText: "newName",
+        },
+      ]);
+      assert.deepEqual(edits, [{ from: 13, to: 20, insert: "newName" }]);
+
+      const diagnostics = lspDiagnosticsToCodeMirrorModule(
+        [
+          {
+            message: "Missing symbol.",
+            severity: 1,
+            range: {
+              start: { line: 0, character: 6 },
+              end: { line: 0, character: 10 },
+            },
+          },
+        ],
+        { state: { doc } },
+      );
+      assert.equal(diagnostics[0]?.severity, "error");
+
+      const completions = lspCompletionsToCodeMirrorModule(
+        createCompletionContext("ren"),
+        {
+          isIncomplete: false,
+          items: [{ label: "renderPanel", kind: 3 }],
+        },
+        null,
+        { languageId: "javascript" },
+      );
+      assert.equal(completions.options[0]?.label, "renderPanel");
+
+      const featureModel = createEditorLanguageFeatureModelModule({
+        languageId: "typescript",
+        hasWorkspace: true,
+        hasBridge: true,
+        runtimeStatus: { state: "running" },
+      });
+      assert.equal(featureModel.lsp.active, true);
+      assert.equal(featureModel.lsp.statusText, "TS LSP running");
     },
   },
   {

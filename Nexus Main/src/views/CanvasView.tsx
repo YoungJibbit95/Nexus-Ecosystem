@@ -77,6 +77,9 @@ export function CanvasView() {
     setZoom,
     resetViewport,
     addConnection,
+    canvasHistory,
+    undo,
+    redo,
   } = useCanvas(
     (s) => ({
       canvases: s.canvases,
@@ -92,6 +95,9 @@ export function CanvasView() {
       setZoom: s.setZoom,
       resetViewport: s.resetViewport,
       addConnection: s.addConnection,
+      canvasHistory: s.canvasHistory,
+      undo: s.undo,
+      redo: s.redo,
     }),
     shallow,
   );
@@ -100,6 +106,9 @@ export function CanvasView() {
     () => canvases.find((entry) => entry.id === activeCanvasId),
     [canvases, activeCanvasId],
   );
+  const activeHistory = activeCanvasId ? canvasHistory[activeCanvasId] : undefined;
+  const undoDepth = activeHistory?.past.length ?? 0;
+  const redoDepth = activeHistory?.future.length ?? 0;
   useEffect(() => {
     if (canvases.length === 0) return
     if (canvas) return
@@ -160,6 +169,16 @@ export function CanvasView() {
     () => canvas?.nodes.find((node) => node.id === selectedNodeId) ?? null,
     [canvas, selectedNodeId],
   );
+
+  useEffect(() => {
+    if (selectedNodeId && !canvas?.nodes.some((node) => node.id === selectedNodeId)) {
+      setSelectedNodeId(null);
+      setFocusNodeOnly(false);
+    }
+    if (connectingFrom && !canvas?.nodes.some((node) => node.id === connectingFrom)) {
+      setConnectingFrom(null);
+    }
+  }, [canvas, connectingFrom, selectedNodeId]);
 
   const filteredProjectNodes = useMemo(() => {
     if (pmStatusFilter === "all") return projectNodes;
@@ -522,11 +541,15 @@ export function CanvasView() {
           panY: 0,
           zoom: 1,
         };
-        useCanvas.setState((state) => ({
-          canvases: [result.canvas, ...state.canvases.filter((entry) => entry.id !== result.canvas.id)],
-          activeCanvasId: result.canvas.id,
-          viewport: nextViewport,
-        }));
+        useCanvas.setState((state) => {
+          const { [result.canvas.id]: _staleHistory, ...canvasHistory } = state.canvasHistory;
+          return {
+            canvases: [result.canvas, ...state.canvases.filter((entry) => entry.id !== result.canvas.id)],
+            activeCanvasId: result.canvas.id,
+            viewport: nextViewport,
+            canvasHistory,
+          };
+        });
         setSelectedNodeId(result.canvas.nodes[0]?.id ?? null);
         setQuickAddPos(null);
         showCanvasNotice(
@@ -643,6 +666,8 @@ export function CanvasView() {
     focusNode,
     zoomFromCenterBy,
     deleteSelectedNode: (nodeId) => useCanvas.getState().deleteNode(nodeId),
+    undo,
+    redo,
   });
 
   const layoutGuides = useMemo(
@@ -836,6 +861,39 @@ export function CanvasView() {
           resetViewport={resetViewport}
           exportCanvas={exportCanvas}
           quickAddOpen={Boolean(quickAddPos)}
+          undo={undo}
+          redo={redo}
+          undoDepth={undoDepth}
+          redoDepth={redoDepth}
+        />
+
+        <CanvasInspector
+          node={shouldShowInspector ? selectedNode : null}
+          mode={t.mode}
+          accent={t.accent}
+          rgb={rgb}
+          onUpdateNode={(patch) => {
+            if (!selectedNode) return;
+            useCanvas.getState().updateNode(selectedNode.id, patch);
+          }}
+          onMoveNode={(x, y) => {
+            if (!selectedNode) return;
+            useCanvas.getState().moveNode(selectedNode.id, x, y);
+          }}
+          onResizeNode={(width, height) => {
+            if (!selectedNode) return;
+            useCanvas.getState().resizeNode(selectedNode.id, width, height);
+          }}
+          onDuplicateNode={duplicateSelectedNode}
+          onDeleteNode={() => {
+            if (!selectedNode) return;
+            useCanvas.getState().deleteNode(selectedNode.id);
+            setSelectedNodeId(null);
+          }}
+          onFocusNode={() => {
+            if (selectedNode) focusNode(selectedNode.id);
+          }}
+          onClose={() => setSelectedNodeId(null)}
         />
 
         <CanvasStage
@@ -922,35 +980,6 @@ export function CanvasView() {
             setSelectedNodeId={setSelectedNodeId}
             focusNode={focusNode}
             searchFocusToken={projectSearchFocusToken}
-          />
-
-          <CanvasInspector
-            node={shouldShowInspector ? selectedNode : null}
-            mode={t.mode}
-            accent={t.accent}
-            rgb={rgb}
-            onUpdateNode={(patch) => {
-              if (!selectedNode) return;
-              useCanvas.getState().updateNode(selectedNode.id, patch);
-            }}
-            onMoveNode={(x, y) => {
-              if (!selectedNode) return;
-              useCanvas.getState().moveNode(selectedNode.id, x, y);
-            }}
-            onResizeNode={(width, height) => {
-              if (!selectedNode) return;
-              useCanvas.getState().resizeNode(selectedNode.id, width, height);
-            }}
-            onDuplicateNode={duplicateSelectedNode}
-            onDeleteNode={() => {
-              if (!selectedNode) return;
-              useCanvas.getState().deleteNode(selectedNode.id);
-              setSelectedNodeId(null);
-            }}
-            onFocusNode={() => {
-              if (selectedNode) focusNode(selectedNode.id);
-            }}
-            onClose={() => setSelectedNodeId(null)}
           />
 
           {/* Mini-map */}

@@ -42,6 +42,7 @@ import {
 } from "./files/filesTypes";
 import { useWorkspaceSync } from "./files/useWorkspaceSync";
 import "./files/FilesView.css";
+import "./files/FilesViewPolish.css";
 
 type FilesViewProps = {
   setView?: (view: string) => void;
@@ -137,6 +138,9 @@ export function FilesView({ setView }: FilesViewProps = {}) {
   });
 
   const activeWs = workspaces.find((w) => w.id === activeWorkspaceId);
+  const workspaceScopeActive = Boolean(
+    activeWs && tab === "workspaces" && smartView === "workspace",
+  );
   const folderById = useMemo(
     () => new Map(folders.map((folder) => [folder.id, folder])),
     [folders],
@@ -227,10 +231,10 @@ export function FilesView({ setView }: FilesViewProps = {}) {
 
   const workspaceScopedItems = useMemo(
     () =>
-      activeWs
+      workspaceScopeActive && activeWs
         ? allItems.filter((item) => itemInWorkspace(activeWs, item))
         : allItems,
-    [activeWs, allItems, itemInWorkspace],
+    [activeWs, allItems, itemInWorkspace, workspaceScopeActive],
   );
 
   const folderOptions = useMemo(() => {
@@ -247,7 +251,7 @@ export function FilesView({ setView }: FilesViewProps = {}) {
   const displayItems = useMemo(() => {
     let items = allItems;
 
-    if ((tab === "workspaces" || smartView === "workspace") && activeWs) {
+    if (workspaceScopeActive && activeWs) {
       items = items.filter((item) => itemInWorkspace(activeWs, item));
     }
 
@@ -292,6 +296,7 @@ export function FilesView({ setView }: FilesViewProps = {}) {
     smartView,
     tab,
     typeFilter,
+    workspaceScopeActive,
   ]);
 
   const wsItemCount = useCallback(
@@ -432,6 +437,14 @@ export function FilesView({ setView }: FilesViewProps = {}) {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      if (
+        event.defaultPrevented ||
+        newWsOpen ||
+        Boolean(editWs) ||
+        Boolean(assignItem)
+      ) {
+        return;
+      }
       const key = event.key.toLowerCase();
       const cmd = event.metaKey || event.ctrlKey;
       const target = event.target as HTMLElement | null;
@@ -503,7 +516,7 @@ export function FilesView({ setView }: FilesViewProps = {}) {
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [activeWs]);
+  }, [activeWs, assignItem, editWs, newWsOpen]);
 
   const openItem = useCallback(
     (item: FileItem) => {
@@ -547,8 +560,22 @@ export function FilesView({ setView }: FilesViewProps = {}) {
     setSelectedItemId(null);
   };
 
-  const workspaceLabel = activeWs ? activeWs.name : "All Files";
-  const scopeItemCount = activeWs ? wsItemCount(activeWs) : allItems.length;
+  const scopedWorkspace = workspaceScopeActive ? activeWs : undefined;
+  const workspaceLabel = scopedWorkspace ? scopedWorkspace.name : "All Files";
+  const scopeItemCount = scopedWorkspace
+    ? wsItemCount(scopedWorkspace)
+    : allItems.length;
+  const handleAutoSyncToggle = useCallback(async () => {
+    if (autoSync) {
+      setAutoSync(false);
+      return;
+    }
+    if (!workspaceRoot) {
+      const selectedRoot = await selectWorkspaceRoot();
+      if (!selectedRoot) return;
+    }
+    setAutoSync(true);
+  }, [autoSync, selectWorkspaceRoot, setAutoSync, workspaceRoot]);
   const syncStateLabel = syncing
     ? "Syncing"
     : workspaceRoot
@@ -562,7 +589,7 @@ export function FilesView({ setView }: FilesViewProps = {}) {
   const flowMenuTop =
     typeof window === "undefined" || !headerMenuRect
       ? 72
-      : Math.min(window.innerHeight - 154, headerMenuRect.bottom + 8);
+      : Math.max(12, Math.min(window.innerHeight - 154, headerMenuRect.bottom + 8));
   const workspaceFlowMenu =
     headerMenuOpen && headerMenuRect && typeof document !== "undefined"
       ? createPortal(
@@ -636,15 +663,15 @@ export function FilesView({ setView }: FilesViewProps = {}) {
       <div className="nx-files-header nx-release-toolbar">
         <div className="nx-files-titlebar">
           <div className="nx-files-heading">
-            <div className="nx-files-kicker">Workspace file manager</div>
+            <div className="nx-files-kicker">Bibliothek und Workspace-Dateien</div>
             <div className="nx-files-title-row">
               <HardDrive size={18} />
               <h2>Files</h2>
             </div>
             <p>
-              {activeWs
-                ? `${scopeItemCount} workspace files in ${activeWs.name}`
-                : `${allItems.length} Nexus files across notes, code, tasks, reminders and canvas`}
+              {scopedWorkspace
+                ? `${scopeItemCount} Dateien sind ${scopedWorkspace.name} zugeordnet`
+                : `${allItems.length} lokale Nexus-Inhalte in deiner Bibliothek`}
             </p>
           </div>
 
@@ -682,7 +709,7 @@ export function FilesView({ setView }: FilesViewProps = {}) {
               setSmartView(activeWs ? "workspace" : "all");
             }}
           >
-            <Layers size={12} /> Scope: {workspaceLabel}
+            <Layers size={12} /> Ansicht: {scopedWorkspace ? workspaceLabel : "Gesamte Bibliothek"}
           </button>
           <button
             type="button"
@@ -690,16 +717,16 @@ export function FilesView({ setView }: FilesViewProps = {}) {
             onClick={() => void selectWorkspaceRoot()}
             title={workspaceRoot || "Workspace folder waehlen"}
           >
-            <HardDrive size={12} /> Root: {workspaceRoot || "not selected"}
+            <HardDrive size={12} /> Ordner-Sync: {workspaceRoot || "nicht verbunden"}
           </button>
           <button
             type="button"
             className="nx-files-status-pill"
-            onClick={() => setAutoSync(!autoSync)}
+            onClick={() => void handleAutoSyncToggle()}
             aria-pressed={autoSync}
             title="Auto-Sync umschalten"
           >
-            <RefreshCw size={12} /> Auto-Sync: {autoSync ? "On" : "Off"}
+            <RefreshCw size={12} /> Auto-Sync: {autoSync ? "An" : "Aus"}
           </button>
           <span className="nx-files-status-pill">
             {workspaceRoot ? <CheckCircle2 size={12} /> : <CircleOff size={12} />}
@@ -740,12 +767,12 @@ export function FilesView({ setView }: FilesViewProps = {}) {
                   <Layers size={15} />
                 </span>
                 <span className="workspace-tree-copy">
-                  <span>All Files</span>
-                  <small>{allItems.length} items</small>
+                  <span>Gesamte Bibliothek</span>
+                  <small>{allItems.length} Inhalte</small>
                 </span>
               </button>
 
-              <div className="workspace-tree-section">Workspaces</div>
+              <div className="workspace-tree-section">Arbeitsbereiche</div>
               {workspaces.map((ws) => {
                 const active = activeWorkspaceId === ws.id;
                 return (
@@ -755,23 +782,21 @@ export function FilesView({ setView }: FilesViewProps = {}) {
                       active ? "is-active" : ""
                     }`}
                     style={{ "--workspace-color": ws.color } as React.CSSProperties}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => selectWorkspace(ws.id)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter" || event.key === " ") {
-                        event.preventDefault();
-                        selectWorkspace(ws.id);
-                      }
-                    }}
                   >
-                    <span className="workspace-tree-icon workspace-tree-icon--emoji">
-                      {ws.icon}
-                    </span>
-                    <span className="workspace-tree-copy">
-                      <span>{ws.name}</span>
-                      <small>{wsItemCount(ws)} files</small>
-                    </span>
+                    <button
+                      type="button"
+                      className="workspace-tree-select"
+                      onClick={() => selectWorkspace(ws.id)}
+                      aria-pressed={active}
+                    >
+                      <span className="workspace-tree-icon workspace-tree-icon--emoji">
+                        {ws.icon}
+                      </span>
+                      <span className="workspace-tree-copy">
+                        <span>{ws.name}</span>
+                        <small>{wsItemCount(ws)} files</small>
+                      </span>
+                    </button>
                     <button
                       type="button"
                       className="workspace-tree-edit"
@@ -805,8 +830,9 @@ export function FilesView({ setView }: FilesViewProps = {}) {
               <div>
                 <strong>{workspaceLabel}</strong>
                 <span>
-                  {activeWs?.description ||
-                    "Workspace-scoped files stay first; all local Nexus data remains searchable."}
+                  {scopedWorkspace
+                    ? `${scopedWorkspace.name} zeigt nur zugeordnete Inhalte. Die Bibliothek bleibt unverändert.`
+                    : "Die Bibliothek zeigt alle lokalen Notes, Code-Dateien, Tasks, Reminder und Canvas-Dokumente."}
                 </span>
               </div>
             </div>
@@ -818,7 +844,7 @@ export function FilesView({ setView }: FilesViewProps = {}) {
                   ref={searchInputRef}
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Search files"
+                  placeholder="In dieser Ansicht suchen"
                   aria-label="Files durchsuchen"
                 />
               </label>
@@ -829,8 +855,8 @@ export function FilesView({ setView }: FilesViewProps = {}) {
                 onChange={(event) => setFolderFilter(event.target.value)}
                 aria-label="Ordnerfilter"
               >
-                <option value="all">All folders</option>
-                <option value="none">No folder</option>
+                <option value="all">Alle Ordner</option>
+                <option value="none">Ohne Ordner</option>
                 {folderOptions.map((folder) => (
                   <option key={folder.id} value={folder.id}>
                     {folder.name}
@@ -952,21 +978,19 @@ export function FilesView({ setView }: FilesViewProps = {}) {
             </div>
           </section>
 
-          <section className="nx-files-quality-strip nx-view-quality-strip">
-            <span className={`nx-view-quality-badge nx-view-quality-badge--${fileQuality.tone}`}>
-              {fileQuality.score}% {fileQuality.label}
-            </span>
-            <span>{fileQuality.summary}</span>
-            <span className="nx-files-quality-metric">
-              Visible <strong>{displayItems.length}</strong>
-            </span>
-            <span className="nx-files-quality-metric">
-              Scope <strong>{workspaceScopedItems.length}</strong>
-            </span>
-            <span className="nx-files-quality-metric">
-              Stale <strong>{staleItemCount}</strong>
-            </span>
-          </section>
+          <details className="nx-files-quality-strip nx-view-quality-strip">
+            <summary>
+              <span className={`nx-view-quality-badge nx-view-quality-badge--${fileQuality.tone}`}>
+                Bibliotheksstatus
+              </span>
+              <span>{displayItems.length} sichtbar · {workspaceScopedItems.length} im Bereich</span>
+            </summary>
+            <div className="nx-files-quality-details">
+              <span>{fileQuality.summary}</span>
+              <span className="nx-files-quality-metric">Qualitaet <strong>{fileQuality.score}%</strong></span>
+              <span className="nx-files-quality-metric">Aelter <strong>{staleItemCount}</strong></span>
+            </div>
+          </details>
 
           <div className="nx-files-workbench">
             <section className="nx-files-content-grid">
@@ -975,14 +999,18 @@ export function FilesView({ setView }: FilesViewProps = {}) {
                   <Layers size={44} strokeWidth={1.5} />
                   <div>
                     <h3>
-                      {activeWs
-                        ? `No files in ${activeWs.name}`
-                        : "No files match this view"}
+                      {scopedWorkspace
+                        ? `Noch keine Inhalte in ${scopedWorkspace.name}`
+                        : allItems.length === 0
+                          ? "Deine Nexus-Bibliothek ist leer"
+                          : "Keine Inhalte passen zu dieser Ansicht"}
                     </h3>
                     <p>
-                      {activeWs
-                        ? "Assign files from any card menu or switch to All Files to pull more work into this workspace."
-                        : "Create or import Nexus work, then use Workspaces to keep project files together."}
+                      {scopedWorkspace
+                        ? "Wechsle zur gesamten Bibliothek und ordne Inhalte ueber das Kartenmenue diesem Workspace zu."
+                        : allItems.length === 0
+                          ? "Erstelle oder importiere eine Note, Aufgabe, Code-Datei, Erinnerung oder Canvas."
+                          : "Leere Suche und Filter, um den Rest der Bibliothek zu sehen."}
                     </p>
                   </div>
                   <div className="nx-files-empty-actions">

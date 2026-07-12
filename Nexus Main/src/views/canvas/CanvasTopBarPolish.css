@@ -1,0 +1,160 @@
+.nx-canvas-topbar {
+  scrollbar-width: thin;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  border-color: rgba(var(--nx-shell-accent-rgb, 47, 142, 255), 0.2) !important;
+  background:
+    radial-gradient(620px circle at 8% -80%, rgba(var(--nx-shell-accent-rgb, 47, 142, 255), 0.24), transparent 70%),
+    radial-gradient(520px circle at 88% -110%, rgba(147, 86, 255, 0.19), transparent 72%),
+    rgba(12, 18, 36, 0.64) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 14px 36px rgba(3, 8, 24, 0.2),
+    0 0 28px rgba(var(--nx-shell-accent-rgb, 47, 142, 255), 0.08);
+  backdrop-filter: blur(22px) saturate(136%) !important;
+}
+
+.nx-canvas-v6 .nx-canvas-topbar-inner {
+  display: flex !important;
+  width: max-content !important;
+  min-width: 100% !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  gap: 8px !important;
+  padding: 6px 8px !important;
+}
+
+.nx-canvas-toolbar-context,
+.nx-canvas-toolbar-group {
+  border: 1px solid rgba(255, 255, 255, 0.09) !important;
+  background: rgba(255, 255, 255, 0.038) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045);
+}
+
+.nx-canvas-v6 .nx-canvas-toolbar-context {
+  display: flex !important;
+  flex: 0 0 auto;
+  width: auto !important;
+  border-radius: 13px !important;
+  padding: 4px 5px !important;
+}
+
+.nx-canvas-title-area {
+  display: grid !important;
+  grid-template-columns: minmax(180px, 1fr) auto;
+  align-items: center;
+  gap: 6px !important;
+  min-width: 210px;
+}
+
+.nx-canvas-title-chip,
+.nx-canvas-title-input {
+  border: 1px solid rgba(var(--nx-shell-accent-rgb, 47, 142, 255), 0.22) !important;
+  background: linear-gradient(135deg, rgba(var(--nx-shell-accent-rgb, 47, 142, 255), 0.13), rgba(146, 82, 255, 0.06)) !important;
+  box-shadow: 0 0 20px rgba(var(--nx-shell-accent-rgb, 47, 142, 255), 0.08);
+}
+
+.nx-canvas-status-chip {
+  border-color: rgba(255, 255, 255, 0.09) !important;
+  background: rgba(255, 255, 255, 0.035) !important;
+}
+
+.nx-canvas-v6 .nx-canvas-toolbar-groups {
+  flex: 0 0 auto;
+  overflow: visible !important;
+  gap: 6px !important;
+}
+
+.nx-canvas-toolbar-group {
+  min-height: 34px !important;
+  border-radius: 11px !important;
+}
+
+.nx-canvas-toolbar-group:nth-child(1) {
+  border-color: rgba(56, 189, 248, 0.18) !important;
+  background: rgba(56, 189, 248, 0.045) !important;
+}
+
+.nx-canvas-toolbar-group:nth-child(2) {
+  border-color: rgba(168, 85, 247, 0.18) !important;
+  background: rgba(168, 85, 247, 0.045) !important;
+}
+
+.nx-canvas-toolbar-group:nth-child(3) {
+  border-color: rgba(52, 211, 153, 0.17) !important;
+  background: rgba(52, 211, 153, 0.04) !important;
+}
+
+.nx-canvas-toolbar-group:nth-child(4) {
+  border-color: rgba(251, 191, 36, 0.16) !important;
+  background: rgba(251, 191, 36, 0.035) !important;
+}
+
+.nx-canvas-toolbar-group:nth-child(5) {
+  border-color: rgba(244, 114, 182, 0.16) !important;
+  background: rgba(244, 114, 182, 0.035) !important;
+}
+
+.nx-canvas-history-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 38px;
+  height: 24px;
+  padding: 0 7px;
+  border: 1px solid rgba(var(--nx-shell-accent-rgb, 47, 142, 255), 0.2);
+  border-radius: 8px;
+  background: rgba(var(--nx-shell-accent-rgb, 47, 142, 255), 0.075);
+  color: inherit;
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.nx-canvas-history-divider {
+  margin-inline: 4px;
+  opacity: 0.45;
+}
+
+.nx-canvas-toolbar-group-label {
+  opacity: 0.88 !important;
+  font-weight: 800;
+  letter-spacing: 0.45px;
+  text-transform: uppercase;
+}
+
+.nx-canvas-layout-select,
+.nx-canvas-zoom-chip,
+.nx-canvas-jump-button {
+  border-color: rgba(var(--nx-shell-accent-rgb, 47, 142, 255), 0.2) !important;
+  background: rgba(var(--nx-shell-accent-rgb, 47, 142, 255), 0.075) !important;
+}
+
+.nx-app-shell[data-nx-color-mode="light"] .nx-canvas-topbar {
+  background:
+    radial-gradient(620px circle at 8% -80%, rgba(var(--nx-shell-accent-rgb, 47, 142, 255), 0.14), transparent 70%),
+    radial-gradient(520px circle at 88% -110%, rgba(147, 86, 255, 0.09), transparent 72%),
+    rgba(248, 251, 255, 0.76) !important;
+}
+
+@media (max-width: 1100px) {
+  .nx-canvas-title-area {
+    min-width: 180px;
+  }
+
+  .nx-canvas-jump-button span,
+  .nx-canvas-status-chip span {
+    display: none;
+  }
+}
+
+@media (max-width: 720px) {
+  .nx-canvas-title-area {
+    min-width: 150px;
+  }
+
+  .nx-canvas-status-chips {
+    display: none !important;
+  }
+}

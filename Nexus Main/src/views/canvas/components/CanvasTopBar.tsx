@@ -15,12 +15,15 @@ import {
   RotateCcw,
   RotateCw,
   Search,
+  Undo2,
+  Redo2,
   Wand2,
   ZoomIn,
   ZoomOut,
 } from "lucide-react";
 import type { NodeType, Canvas } from "../../../store/canvasStore";
 import { ToolBtn } from "./ToolBtn";
+import "../CanvasTopBarPolish.css";
 
 type WidgetType = { type: NodeType | "sticky"; icon: any; label: string };
 type LayoutMode = "mindmap" | "timeline" | "board";
@@ -134,6 +137,10 @@ export function CanvasTopBar({
   setZoomCentered,
   resetViewport,
   exportCanvas,
+  undo,
+  redo,
+  undoDepth,
+  redoDepth,
 }: {
   mode: "dark" | "light";
   accent: string;
@@ -174,6 +181,10 @@ export function CanvasTopBar({
   setZoomCentered: (nextZoom: number) => void;
   resetViewport: () => void;
   exportCanvas: () => void;
+  undo: () => void;
+  redo: () => void;
+  undoDepth: number;
+  redoDepth: number;
 }) {
   const nodeCount = canvas?.nodes.length ?? 0;
   const linkCount = canvas?.connections.length ?? 0;
@@ -266,11 +277,6 @@ export function CanvasTopBar({
                 label={linkLabel}
                 title={`${linkCount} ${linkLabel}`}
               />
-              <StatusChip
-                value={layoutLabels[layoutMode]}
-                label="layout"
-                title={`Layout: ${layoutLabels[layoutMode]}`}
-              />
             </div>
           </div>
 
@@ -289,6 +295,7 @@ export function CanvasTopBar({
           <ToolbarGroup label="Add">
             {widgets
               .filter((entry) => quickWidgetTypes.includes(entry.type))
+              .slice(0, 4)
               .map(({ type, icon: WIcon, label }) => (
                 <ToolBtn
                   key={type}
@@ -419,6 +426,34 @@ export function CanvasTopBar({
               rgb={rgb}
               active={Boolean(selectedNodeId)}
             />
+          </ToolbarGroup>
+
+          <ToolbarGroup label="History">
+            <ToolBtn
+              icon={Undo2}
+              tooltip="Undo (Ctrl/Cmd + Z)"
+              onClick={undo}
+              accent={accent}
+              rgb={rgb}
+              disabled={undoDepth === 0}
+            />
+            <ToolBtn
+              icon={Redo2}
+              tooltip="Redo (Ctrl/Cmd + Shift + Z oder Ctrl + Y)"
+              onClick={redo}
+              accent={accent}
+              rgb={rgb}
+              disabled={redoDepth === 0}
+            />
+            <span
+              className="nx-canvas-history-status"
+              title={`${undoDepth} Undo-Schritte, ${redoDepth} Redo-Schritte. Inhalt pro Canvas und Sitzung; Zoom und Position werden nicht aufgezeichnet.`}
+              aria-label={`${undoDepth} Undo-Schritte und ${redoDepth} Redo-Schritte verfuegbar`}
+            >
+              <span aria-hidden="true">{undoDepth}</span>
+              <span className="nx-canvas-history-divider" aria-hidden="true">/</span>
+              <span aria-hidden="true">{redoDepth}</span>
+            </span>
           </ToolbarGroup>
 
           <ToolbarGroup label="Zoom">

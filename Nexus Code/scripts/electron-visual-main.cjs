@@ -70,14 +70,22 @@ function formatList(values, fallback = "none") {
   return Array.isArray(values) && values.length > 0 ? values.join(", ") : fallback;
 }
 
+function formatOptionalFilter(value) {
+  return String(value || "").trim() || "preset defaults";
+}
+
 function createSummaryMarkdown(summary) {
   const selection = summary.selection || {};
+  const coverage = selection.coverageSummary || {};
+  const requestedFilters = selection.requestedFilters || {};
   const failedScenarioIds = summary.failedScenarioIds || [];
   const lines = [
     "# Nexus Code Visual Smoke Summary",
     "",
     `- Generated: ${summary.generatedAt}`,
-    `- Mode: ${selection.preset || "custom"}${selection.fullMatrix ? " (full matrix)" : ""}`,
+    `- Mode: ${selection.preset || "custom"} (${selection.presetLabel || "custom"})${
+      selection.fullMatrix ? " (full matrix)" : ""
+    }`,
     `- Viewports: ${formatList(selection.viewportIds)}`,
     `- Surfaces: ${formatList(selection.surfaceIds)}`,
     `- Scenarios: ${summary.total}`,
@@ -85,6 +93,23 @@ function createSummaryMarkdown(summary) {
     `- Failed: ${summary.failed}`,
     `- Duration: ${summary.durationMs}ms`,
     `- Output: ${summary.outputDir}`,
+    "",
+    "## Coverage",
+    "",
+    `- Viewports: ${coverage.viewportCount || selection.viewportIds?.length || 0}/${
+      coverage.totalViewportCount || "unknown"
+    }`,
+    `- Surfaces: ${coverage.surfaceCount || selection.surfaceIds?.length || 0}/${
+      coverage.totalSurfaceCount || "unknown"
+    }`,
+    `- Base surfaces: ${coverage.baseSurfaceCount ?? "unknown"}/${
+      coverage.totalBaseSurfaceCount || "unknown"
+    }`,
+    `- Editor-language surfaces: ${coverage.editorLanguageSurfaceCount ?? "unknown"}/${
+      coverage.totalEditorLanguageSurfaceCount || "unknown"
+    }`,
+    `- Requested viewport filter: ${formatOptionalFilter(requestedFilters.viewportIds)}`,
+    `- Requested surface filter: ${formatOptionalFilter(requestedFilters.surfaceIds)}`,
     "",
     "## Timeouts",
     "",
@@ -98,6 +123,15 @@ function createSummaryMarkdown(summary) {
     `- Chrome: ${summary.environment.chrome}`,
     `- Node: ${summary.environment.node}`,
   ];
+
+  if (summary.slowestScenarios?.length > 0) {
+    lines.push("", "## Slowest Scenarios", "");
+    lines.push(
+      ...summary.slowestScenarios.map(
+        (scenario) => `- ${scenario.id}: ${scenario.durationMs}ms`,
+      ),
+    );
+  }
 
   if (failedScenarioIds.length > 0) {
     lines.push("", "## Failed Scenarios", "");
@@ -539,6 +573,16 @@ async function run() {
   const failures = results.filter((result) => !result.ok);
   const summaryPath = path.join(outputDir, "summary.json");
   const markdownSummaryPath = path.join(outputDir, "summary.md");
+  const slowestScenarios = results
+    .map((result) => ({
+      id: result.scenario.id,
+      surfaceId: result.scenario.surfaceId,
+      viewportId: result.scenario.viewportId,
+      durationMs: result.durationMs,
+      screenshotPath: result.screenshotPath,
+    }))
+    .sort((a, b) => b.durationMs - a.durationMs)
+    .slice(0, 8);
   const summary = {
     generatedAt: new Date().toISOString(),
     durationMs: Date.now() - runStartedAt,
@@ -555,6 +599,8 @@ async function run() {
       viewportIds: Array.isArray(runMeta.viewportIds) ? runMeta.viewportIds : [],
       surfaceIds: Array.isArray(runMeta.surfaceIds) ? runMeta.surfaceIds : [],
       scenarioCount: runMeta.scenarioCount || results.length,
+      coverageSummary: runMeta.coverageSummary || {},
+      requestedFilters: runMeta.requestedFilters || {},
       scenarioTimeoutMs: runMeta.scenarioTimeoutMs || timeoutMs,
       processTimeoutMs: runMeta.processTimeoutMs || null,
     },
@@ -565,6 +611,7 @@ async function run() {
       chrome: process.versions.chrome || "unknown",
       node: process.versions.node,
     },
+    slowestScenarios,
     results,
   };
   await fs.writeFile(summaryPath, JSON.stringify(summary, null, 2));

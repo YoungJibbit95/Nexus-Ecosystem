@@ -471,10 +471,10 @@ const DEFAULT_GRADIENT: GradientConfig = {
 }
 
 const DEFAULT_BG: BackgroundConfig = {
-  mode: 'solid',
+  mode: 'mesh',
   stops: [{ color: '#007AFF', position: 0, opacity: 0.15 }, { color: '#5E5CE6', position: 100, opacity: 0.15 }],
-  angle: 135, animated: false, animationSpeed: 4, noiseOpacity: 0.03, meshIntensity: 0.3,
-  overlayOpacity: 0.7, vignette: false, vignetteStrength: 0.4,
+  angle: 135, animated: false, animationSpeed: 4, noiseOpacity: 0.02, meshIntensity: 0.42,
+  overlayOpacity: 0.82, vignette: false, vignetteStrength: 0.4,
   scanlines: false, panelBgMode: 'glass',
 }
 

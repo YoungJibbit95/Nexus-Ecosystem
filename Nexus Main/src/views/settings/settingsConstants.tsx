@@ -68,8 +68,8 @@ export const MOTION_PROFILES: { id: MotionProfile; label: string; desc: string }
 export const EXPERIENCE_PRESETS: ExperiencePreset[] = [
   {
     id: "focus",
-    title: "🧘 Focus",
-    desc: "Ruhig, klar und ohne visuelles Gewusel",
+    title: "Focus",
+    desc: "Reduziert Bewegung und Glow fuer konzentrierte Arbeit",
     apply: (t) => {
       t.setMode("dark");
       t.setQOL({
@@ -97,8 +97,8 @@ export const EXPERIENCE_PRESETS: ExperiencePreset[] = [
   },
   {
     id: "balanced",
-    title: "✨ Balanced",
-    desc: "Empfohlen: guter Mix aus Look, Lesbarkeit und Tempo",
+    title: "Nexus Glass",
+    desc: "Empfohlen: weiches Farbglas, gute Lesbarkeit und ruhiger Glow",
     apply: (t) => {
       t.setQOL({
         reducedMotion: false,
@@ -156,8 +156,8 @@ export const EXPERIENCE_PRESETS: ExperiencePreset[] = [
   },
   {
     id: "performance",
-    title: "Leistung",
-    desc: "Fuer schwaechere Geraete und lange Sessions",
+    title: "Performance",
+    desc: "Weniger Effekte fuer schwaechere Geraete und lange Sessions",
     apply: (t) => {
       t.preset("High Contrast Focus");
       t.setQOL({
