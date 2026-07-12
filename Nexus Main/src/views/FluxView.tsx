@@ -19,6 +19,7 @@ import { Glass } from '../components/Glass'
 import { useApp, Activity } from '../store/appStore'
 import { useTheme } from '../store/themeStore'
 import { hexToRgb } from '../lib/utils'
+import './flux/FluxViewPolish.css'
 
 type FluxFilter = Activity['type'] | 'all'
 type OpsPreset = 'all' | 'overdue' | 'due-soon' | 'high-priority' | 'focus' | 'reminder-triage' | 'task-backlog'
@@ -641,73 +642,39 @@ export function FluxView({ setView }: { setView?: (view: string) => void } = {})
   return (
     <div className="nx-flux-v6 nx-release-view" style={{ display: 'flex', flexDirection: 'column', gap: 12, height: '100%', padding: 14, minHeight: 0 }}>
       <Glass className="nx-flux-hero nx-release-toolbar" style={{ padding: '14px 16px', flexShrink: 0 }} glow>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-          <div>
+        <div className="nx-flux-hero-main" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+          <div className="nx-flux-hero-copy">
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 20, fontWeight: 900 }}>
               <Zap size={18} style={{ color: t.accent }} />
               Flux Ops
             </div>
-            <div style={{ fontSize: 11, opacity: 0.62 }}>Action Queue + Bottlenecks + Activity Stream mit Keyboard-Workflow</div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
-              {[
-                'Ctrl+F Search',
-                'Ctrl+Shift+N/C/T/R Quick Create',
-                'Ctrl+Shift+D Triage Urgent',
-                'Ctrl+Shift+B Start Backlog',
-                '1-4 Filter',
-                'F Focus Mode',
-              ].map((hint) => (
-                <span
-                  key={hint}
-                  style={{
-                    fontSize: 10,
-                    padding: '3px 7px',
-                    borderRadius: 999,
-                    border: `1px solid rgba(${accentRgb},0.32)`,
-                    background: `rgba(${accentRgb},0.12)`,
-                    color: t.accent,
-                  }}
-                >
-                  {hint}
-                </span>
-              ))}
+            <div style={{ fontSize: 11, opacity: 0.72 }}>
+              Prioritaeten entscheiden, Blockaden loesen und relevante Aktivitaet verfolgen.
+            </div>
+            <div className="nx-flux-keyboard-hint" title="Ctrl+F Suche · Ctrl+Shift+N/C/T/R erstellen · F Fokusmodus">
+              <span>Keyboard ready</span>
+              <span>Ctrl+F Suche</span>
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
-            <button onClick={() => runQuickAction('note')} style={{ padding: '7px 10px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.06)', color: 'inherit', cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>+ Note</button>
-            <button onClick={() => runQuickAction('code')} style={{ padding: '7px 10px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.06)', color: 'inherit', cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>+ Code</button>
-            <button onClick={() => runQuickAction('task')} style={{ padding: '7px 10px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.06)', color: 'inherit', cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>+ Task</button>
-            <button onClick={() => runQuickAction('reminder')} style={{ padding: '7px 10px', borderRadius: 8, border: `1px solid rgba(${accentRgb},0.36)`, background: `rgba(${accentRgb},0.14)`, color: t.accent, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
+          <div className="nx-flux-quick-actions" style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
+            <button type="button" onClick={() => runQuickAction('note')} style={{ padding: '7px 10px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.06)', color: 'inherit', cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>+ Note</button>
+            <button type="button" onClick={() => runQuickAction('code')} style={{ padding: '7px 10px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.06)', color: 'inherit', cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>+ Code</button>
+            <button type="button" onClick={() => runQuickAction('task')} style={{ padding: '7px 10px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.06)', color: 'inherit', cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>+ Task</button>
+            <button type="button" onClick={() => runQuickAction('reminder')} style={{ padding: '7px 10px', borderRadius: 8, border: `1px solid rgba(${accentRgb},0.36)`, background: `rgba(${accentRgb},0.14)`, color: t.accent, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
               <Plus size={12} style={{ verticalAlign: 'middle', marginRight: 5 }} />Reminder
             </button>
           </div>
         </div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
-          {OPS_PRESETS.map((presetId) => {
-            const meta = PRESET_META[presetId]
-            const active = preset === presetId
-            return (
-              <button
-                key={presetId}
-                onClick={() => setPreset(presetId)}
-                title={meta.detail}
-                style={{
-                  padding: '4px 8px',
-                  borderRadius: 999,
-                  border: `1px solid ${active ? `rgba(${accentRgb},0.42)` : 'rgba(255,255,255,0.14)'}`,
-                  background: active ? `rgba(${accentRgb},0.2)` : 'rgba(255,255,255,0.04)',
-                  color: active ? t.accent : 'inherit',
-                  fontSize: 10,
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  letterSpacing: 0.2,
-                }}
-              >
-                {meta.label}
-              </button>
-            )
-          })}
-        </div>
+        <label className="nx-flux-preset-select">
+          <span>Arbeitsansicht</span>
+          <select value={preset} onChange={(event) => setPreset(event.target.value as OpsPreset)}>
+            {OPS_PRESETS.map((presetId) => (
+              <option key={presetId} value={presetId}>
+                {PRESET_META[presetId].label} · {PRESET_META[presetId].detail}
+              </option>
+            ))}
+          </select>
+        </label>
       </Glass>
 
       <div className="nx-flux-metric-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))', gap: 10, flexShrink: 0 }}>
@@ -717,17 +684,9 @@ export function FluxView({ setView }: { setView?: (view: string) => void } = {})
             value: `${opsSignal.score}%`,
             color: opsSignal.score < 55 ? '#FF453A' : opsSignal.score < 75 ? '#FF9F0A' : '#34C759',
           },
-          { label: 'Notes', value: notes.length, color: TYPE_META.note.color },
-          { label: 'Code Files', value: codes.length, color: TYPE_META.code.color },
           { label: 'Open Tasks', value: pendingTasks.length, color: TYPE_META.task.color },
           { label: 'Due Reminders', value: dueReminders.length, color: TYPE_META.reminder.color },
-          { label: 'Due <=24h', value: dueNext24h, color: '#FFD60A' },
           { label: 'Activity 24h', value: activityLast24h, color: '#64D2FF' },
-          {
-            label: 'Last Activity',
-            value: lastActivityAgeMinutes == null ? '—' : `${lastActivityAgeMinutes}m`,
-            color: lastActivityAgeMinutes != null && lastActivityAgeMinutes > 180 ? '#FF453A' : '#30D158',
-          },
         ].map((metric) => (
           <Glass key={metric.label} className="nx-flux-metric-card" style={{ padding: '10px 12px' }}>
             <div style={{ fontSize: 10, opacity: 0.58, textTransform: 'uppercase', letterSpacing: 0.6 }}>{metric.label}</div>
@@ -737,7 +696,7 @@ export function FluxView({ setView }: { setView?: (view: string) => void } = {})
       </div>
 
       <div className="nx-flux-work-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(250px, 340px) minmax(0,1fr)', gap: 12, flex: 1, minHeight: 0 }}>
-        <Glass style={{ padding: '12px', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+        <Glass className="nx-flux-queue-panel" style={{ padding: '12px', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 8 }}>
             <div style={{ fontSize: 12, fontWeight: 800 }}>Action Queue</div>
             <div style={{ display: 'flex', gap: 6 }}>
@@ -972,7 +931,7 @@ export function FluxView({ setView }: { setView?: (view: string) => void } = {})
           </div>
         </Glass>
 
-        <Glass style={{ padding: '12px', display: 'flex', flexDirection: 'column', minHeight: 0 }} glow>
+        <Glass className="nx-flux-activity-panel" style={{ padding: '12px', display: 'flex', flexDirection: 'column', minHeight: 0 }} glow>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 9, flexWrap: 'wrap' }}>
             <div style={{ fontSize: 12, fontWeight: 800 }}>Activity Stream</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
@@ -1018,7 +977,7 @@ export function FluxView({ setView }: { setView?: (view: string) => void } = {})
             </div>
           </div>
 
-          <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8, paddingRight: 4 }}>
+          <div className="nx-flux-activity-list" style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8, paddingRight: 4 }}>
             {filteredActivities.length === 0 && (
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, opacity: 0.42, fontSize: 12, gap: 8 }}>
                 <ActivityIcon size={16} /> Keine Aktivitäten für den aktuellen Filter.
@@ -1033,7 +992,7 @@ export function FluxView({ setView }: { setView?: (view: string) => void } = {})
                 entry.type === 'task' ||
                 entry.type === 'reminder'
               return (
-                <div key={entry.id} style={{ border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '9px 10px', background: 'rgba(255,255,255,0.03)' }}>
+                <div key={entry.id} className="nx-flux-activity-entry" style={{ border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '9px 10px', background: 'rgba(255,255,255,0.03)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
                       <div style={{ width: 24, height: 24, borderRadius: 7, background: `${meta.color}18`, color: meta.color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -1071,6 +1030,15 @@ export function FluxView({ setView }: { setView?: (view: string) => void } = {})
                 </div>
               )
             })}
+            {filteredActivities.length > 0 && filteredActivities.length < 3 ? (
+              <div className="nx-flux-caught-up">
+                <CheckCircle2 size={18} />
+                <div>
+                  <strong>Du bist fast auf dem aktuellen Stand.</strong>
+                  <span>Weitere Eintraege erscheinen, sobald Notes, Code, Tasks oder Reminders relevante Aktivitaet melden.</span>
+                </div>
+              </div>
+            ) : null}
           </div>
 
           <div style={{ marginTop: 10, fontSize: 10, opacity: 0.65, display: 'flex', alignItems: 'center', gap: 6 }}>

@@ -16558,7 +16558,7 @@ select {
   }
 }
 
-.nx-notes-unified-status-action.nx-notes-workbar {
+.nx-app-shell .nx-notes-main .nx-notes-unified-status-action.nx-notes-workbar {
   display: grid !important;
   grid-template-columns: minmax(0, 1fr) !important;
   grid-template-rows: auto auto !important;
@@ -16568,7 +16568,7 @@ select {
   min-height: 0 !important;
 }
 
-.nx-notes-unified-status-action .nx-notes-workbar-main {
+.nx-app-shell .nx-notes-main .nx-notes-unified-status-action .nx-notes-workbar-main {
   display: grid !important;
   grid-template-columns: minmax(220px, 1.25fr) minmax(360px, 1.45fr) minmax(320px, auto) !important;
   align-items: center !important;
@@ -17961,5 +17961,396 @@ select {
   .nx-notes-unified-status-action .nx-notes-toolbar-tags {
     max-width: none !important;
     justify-content: flex-start !important;
+  }
+}
+
+/* Responsive shell consolidation: preserve the desktop composition while
+   keeping navigation and dense workbars usable in windowed layouts. */
+.nx-shell-sidebar-slot,
+.nx-shell-workspace,
+.nx-shell-toolbar-slot,
+.nx-toolbar-island-frame,
+.nx-toolbar-island-dock {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.nx-shell-toolbar-slot {
+  position: relative;
+  flex: 0 0 auto;
+  isolation: isolate;
+}
+
+.nx-toolbar-island-frame {
+  overflow: visible;
+}
+
+@media (max-width: 1280px) {
+  .nx-v6-title-copy h1 {
+    text-shadow: none;
+  }
+
+  .nx-v6-action--primary {
+    box-shadow:
+      0 5px 16px color-mix(in srgb, var(--nx-v6-view-accent, #22d3ee) 18%, transparent),
+      inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  }
+}
+
+@media (max-width: 980px) {
+  .nx-shell-sidebar-slot {
+    flex: 0 0 auto !important;
+  }
+
+  .nx-shell-workspace {
+    width: 0;
+    min-width: 0;
+  }
+
+  .nx-shell-toolbar-slot {
+    width: 100%;
+    padding-inline: 2px !important;
+  }
+
+  .nx-toolbar-island-dock {
+    max-width: calc(100% - 4px) !important;
+  }
+
+  .nx-v6-view-shell {
+    grid-template-rows: auto minmax(0, 1fr) auto;
+  }
+
+  .nx-v6-view-header {
+    display: grid;
+    grid-template-columns: minmax(148px, 0.72fr) minmax(0, 1.28fr);
+    align-items: center;
+    gap: 6px;
+    min-height: 42px;
+    max-height: 58px;
+    padding: 4px 6px;
+    overflow: hidden;
+  }
+
+  .nx-v6-title-cluster {
+    width: 100%;
+    min-width: 0;
+    flex: none;
+    flex-wrap: nowrap;
+    overflow: hidden;
+  }
+
+  .nx-v6-title-row {
+    flex: 0 1 auto;
+    overflow: hidden;
+  }
+
+  .nx-v6-quick-nav {
+    flex: 1 1 auto;
+    width: auto;
+  }
+
+  .nx-v6-header-actions {
+    width: 100%;
+    min-width: 0;
+    flex: none;
+    flex-wrap: nowrap;
+    justify-content: flex-end;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    scrollbar-width: thin;
+  }
+
+  .nx-v6-header-actions .nx-v6-action {
+    flex: 0 0 auto;
+    min-height: 26px;
+    padding: 3px 7px;
+  }
+
+  .nx-notes-v6 {
+    flex-direction: row !important;
+    align-items: stretch;
+    overflow: hidden;
+  }
+
+  .nx-notes-sidebar {
+    width: clamp(184px, 24vw, 220px) !important;
+    max-width: 220px !important;
+    max-height: none !important;
+  }
+
+  .nx-notes-unified-status-action.nx-notes-workbar {
+    grid-template-rows: auto auto !important;
+    gap: 5px !important;
+    padding: 6px 7px !important;
+  }
+
+  .nx-notes-unified-status-action .nx-notes-workbar-main {
+    grid-template-columns: minmax(132px, 1fr) auto !important;
+    grid-template-rows: 30px 23px !important;
+    gap: 4px 6px !important;
+  }
+
+  .nx-notes-unified-status-action .nx-notes-title-input {
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+  }
+
+  .nx-notes-unified-status-action .nx-notes-mode-actions {
+    grid-column: 2 !important;
+    grid-row: 1 !important;
+    justify-self: end !important;
+    justify-content: flex-end !important;
+    width: auto !important;
+    overflow-x: visible !important;
+  }
+
+  .nx-notes-unified-status-action .nx-notes-editor-meta {
+    grid-column: 1 / -1 !important;
+    grid-row: 2 !important;
+    justify-self: stretch !important;
+    justify-content: flex-start !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    scrollbar-width: none !important;
+  }
+
+  .nx-notes-unified-status-action .nx-notes-workbar-tools {
+    grid-template-columns: minmax(210px, 0.9fr) minmax(0, 1.1fr) !important;
+    gap: 6px !important;
+    align-items: start !important;
+  }
+
+  .nx-notes-unified-status-action .nx-notes-command-strip {
+    overflow: hidden !important;
+  }
+
+  .nx-notes-unified-status-action .nx-notes-command-primary,
+  .nx-notes-unified-status-action .nx-notes-context-strip,
+  .nx-notes-unified-status-action .nx-notes-format-toolbar {
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    overscroll-behavior-x: contain;
+    scrollbar-width: thin !important;
+  }
+
+  .nx-notes-unified-status-action .nx-notes-command-primary {
+    justify-content: flex-start !important;
+  }
+
+  .nx-notes-unified-status-action .nx-notes-stat-pill {
+    flex: 0 0 auto !important;
+    min-width: 54px !important;
+  }
+
+  .nx-notes-unified-status-action .nx-notes-stat-pill:nth-child(n + 4) {
+    display: none !important;
+  }
+
+  .nx-notes-unified-status-action .nx-notes-strip-actions {
+    margin-left: 0 !important;
+  }
+
+  .nx-notes-unified-status-action .nx-notes-context-strip {
+    mask-image: none !important;
+    padding-bottom: 2px !important;
+  }
+
+  .nx-notes-unified-status-action .nx-notes-context-strip > * {
+    flex: 0 0 auto !important;
+    min-width: max-content !important;
+    max-width: 160px !important;
+  }
+
+  .nx-notes-unified-status-action .nx-notes-format-toolbar {
+    align-content: center !important;
+    min-height: 34px !important;
+  }
+
+  .nx-notes-unified-status-action .nx-notes-format-menu-trigger-magic {
+    margin-left: 0 !important;
+  }
+
+  .nx-notes-unified-status-action .nx-notes-toolbar-tags {
+    flex: 0 0 auto !important;
+    min-width: max-content !important;
+    max-width: none !important;
+    overflow: visible !important;
+  }
+}
+
+@media (max-width: 760px) {
+  .nx-v6-view-header {
+    grid-template-columns: minmax(92px, 0.42fr) minmax(0, 1.58fr);
+    min-height: 38px;
+    max-height: 50px;
+    gap: 4px;
+    padding: 3px 5px;
+  }
+
+  .nx-v6-quick-nav,
+  .nx-v6-title-copy p {
+    display: none !important;
+  }
+
+  .nx-v6-title-copy h1 {
+    font-size: 13px !important;
+  }
+
+  .nx-v6-header-actions {
+    justify-content: flex-start;
+  }
+
+  .nx-v6-header-actions .nx-v6-action {
+    min-height: 24px;
+    padding: 2px 6px;
+    font-size: 9.5px;
+  }
+
+  .nx-notes-v6 {
+    padding: 4px !important;
+    gap: 5px !important;
+  }
+
+  .nx-notes-sidebar {
+    width: clamp(164px, 23vw, 178px) !important;
+    max-width: 178px !important;
+  }
+
+  .nx-notes-sidebar-search,
+  .nx-notes-sidebar-tags,
+  .nx-notes-sidebar-sort {
+    padding-inline: 8px !important;
+  }
+
+  .nx-notes-unified-status-action .nx-notes-editor-meta span:nth-child(n + 3),
+  .nx-notes-unified-status-action .nx-notes-stat-pill:nth-child(n + 3) {
+    display: none !important;
+  }
+
+  .nx-notes-unified-status-action .nx-notes-workbar-tools {
+    grid-template-columns: minmax(172px, 0.78fr) minmax(0, 1.22fr) !important;
+  }
+
+  .nx-notes-unified-status-action .nx-notes-mode-actions > button,
+  .nx-notes-unified-status-action .nx-notes-mode-actions [role="button"] {
+    min-width: 27px !important;
+    padding-inline: 5px !important;
+  }
+
+  .nx-notes-unified-status-action .nx-notes-format-toolbar {
+    padding-inline: 4px !important;
+  }
+
+  .nx-notes-unified-status-action .nx-notes-format-button,
+  .nx-notes-unified-status-action .nx-notes-format-menu-trigger button {
+    min-width: 28px !important;
+    padding-inline: 6px !important;
+  }
+}
+
+/* Authoritative Notes workbar layout. This container-aware composition replaces
+   the old viewport-only variants above, which could not see the editor width
+   after the sidebar and inspector were applied. */
+.nx-notes-unified-status-action.nx-notes-workbar {
+  container-type: inline-size;
+  grid-template-columns: minmax(0, 1fr) !important;
+  grid-template-rows: auto auto !important;
+  height: auto !important;
+  overflow: visible !important;
+}
+
+.nx-notes-unified-status-action .nx-notes-workbar-main {
+  grid-template-columns: minmax(240px, 1.2fr) minmax(210px, 0.8fr) auto !important;
+  grid-template-rows: auto !important;
+  grid-template-areas: "title meta actions";
+  min-height: 32px !important;
+}
+
+.nx-app-shell .nx-notes-main .nx-notes-unified-status-action .nx-notes-title-field {
+  grid-area: title;
+  min-width: 0;
+}
+
+.nx-app-shell .nx-notes-main .nx-notes-unified-status-action .nx-notes-editor-meta {
+  grid-area: meta;
+  min-width: 0 !important;
+}
+
+.nx-app-shell .nx-notes-main .nx-notes-unified-status-action .nx-notes-mode-actions {
+  grid-area: actions;
+}
+
+.nx-app-shell .nx-notes-main .nx-notes-unified-status-action .nx-notes-workbar-tools {
+  grid-template-columns: minmax(0, 1fr) !important;
+  align-items: stretch !important;
+  gap: 5px !important;
+}
+
+.nx-app-shell .nx-notes-main .nx-notes-unified-status-action .nx-notes-command-strip {
+  grid-template-columns: minmax(330px, 0.9fr) minmax(0, 1.1fr) !important;
+  grid-template-rows: auto !important;
+  align-items: center !important;
+}
+
+.nx-app-shell .nx-notes-main .nx-notes-unified-status-action .nx-notes-command-primary {
+  min-height: 30px !important;
+  flex-wrap: nowrap !important;
+  justify-content: flex-start !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  scrollbar-width: none !important;
+}
+
+.nx-app-shell .nx-notes-main .nx-notes-unified-status-action .nx-notes-strip-actions {
+  margin-left: auto !important;
+}
+
+.nx-app-shell .nx-notes-main .nx-notes-unified-status-action .nx-notes-context-strip {
+  min-height: 30px !important;
+  flex-wrap: nowrap !important;
+  justify-content: flex-start !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  mask-image: none !important;
+}
+
+.nx-app-shell .nx-notes-main .nx-notes-unified-status-action .nx-notes-format-toolbar {
+  min-height: 34px !important;
+  flex-wrap: nowrap !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  border-radius: 10px !important;
+  scrollbar-width: thin !important;
+}
+
+.nx-app-shell .nx-notes-main .nx-notes-unified-status-action .nx-notes-toolbar-tags {
+  flex: 0 0 auto !important;
+  min-width: max-content !important;
+  max-width: none !important;
+  overflow: visible !important;
+}
+
+@container (max-width: 900px) {
+  .nx-app-shell .nx-notes-main .nx-notes-unified-status-action .nx-notes-workbar-main {
+    grid-template-columns: minmax(210px, 1fr) auto !important;
+    grid-template-rows: 32px 24px !important;
+    grid-template-areas:
+      "title actions"
+      "meta meta";
+    gap: 4px 7px !important;
+  }
+
+  .nx-app-shell .nx-notes-main .nx-notes-unified-status-action .nx-notes-editor-meta {
+    justify-self: stretch !important;
+    justify-content: flex-start !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+  }
+
+  .nx-app-shell .nx-notes-main .nx-notes-unified-status-action .nx-notes-command-strip {
+    grid-template-columns: minmax(0, 1fr) !important;
   }
 }

@@ -10,6 +10,7 @@ const { createGithubService } = require("./services/githubService.cjs");
 const { createLspProcessService } = require("./services/lspProcessService.cjs");
 const { redactSensitiveText } = require("./services/processRunner.cjs");
 const { createSanitizedProcessEnv } = require("./services/safeProcessEnv.cjs");
+const { createNavigationPolicy } = require("./services/navigationPolicy.cjs");
 
 const DEV = process.env.ELECTRON_DEV === "true";
 const DEV_URL = process.env.NEXUS_CODE_DEV_URL || "http://127.0.0.1:5175";
@@ -66,6 +67,11 @@ const lspProcessService = createLspProcessService({
   onStatus: (sessionId, payload) => {
     mainWindow?.webContents.send(`lsp:status:${sessionId}`, payload);
   },
+});
+const navigationPolicy = createNavigationPolicy({
+  dev: DEV,
+  devUrl: DEV_URL,
+  distRoot: path.join(__dirname, "../dist"),
 });
 
 const buildRendererFailureHtml = (reason, details) => {
@@ -270,13 +276,7 @@ if (isRosettaTranslated()) {
   );
 }
 
-const isAllowedNavigation = (url) => {
-  if (!url || typeof url !== "string") return false;
-  if (DEV) {
-    return url.startsWith(`${DEV_URL}/`) || url === DEV_URL;
-  }
-  return url.startsWith("file://");
-};
+const isAllowedNavigation = (url) => navigationPolicy.isAllowedNavigation(url);
 
 const isExternalHttpUrl = (url) => {
   try {

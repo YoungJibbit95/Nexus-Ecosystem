@@ -1,0 +1,148 @@
+.nx-settings-v6 {
+  position: relative;
+  isolation: isolate;
+  background:
+    radial-gradient(820px circle at 4% -12%, rgba(var(--nx-settings-accent-rgb), 0.2), transparent 62%),
+    radial-gradient(760px circle at 92% 4%, rgba(146, 82, 255, 0.13), transparent 66%),
+    transparent !important;
+}
+
+.nx-settings-v6::before {
+  content: "";
+  position: absolute;
+  inset: 10% 12% auto;
+  height: 52%;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(circle, rgba(var(--nx-settings-accent-rgb), 0.1), transparent 68%);
+  filter: blur(56px);
+}
+
+.nx-settings-v6 .nx-settings-sidebar,
+.nx-settings-v6 .nx-settings-content {
+  border-color: rgba(153, 182, 255, 0.16) !important;
+  background:
+    linear-gradient(140deg, rgba(var(--nx-settings-accent-rgb), 0.09), transparent 42%),
+    linear-gradient(180deg, rgba(28, 37, 67, 0.48), rgba(11, 17, 33, 0.38)) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.075),
+    0 18px 46px rgba(2, 7, 22, 0.22),
+    0 0 32px rgba(var(--nx-settings-accent-rgb), 0.07) !important;
+}
+
+.nx-settings-v6 .nx-settings-summary > div {
+  border-color: rgba(255, 255, 255, 0.09) !important;
+  background:
+    linear-gradient(145deg, rgba(var(--nx-settings-accent-rgb), 0.07), transparent 70%),
+    rgba(255, 255, 255, 0.035) !important;
+}
+
+.nx-settings-v6 .nx-settings-module-search {
+  border-color: rgba(var(--nx-settings-accent-rgb), 0.18) !important;
+  background: rgba(255, 255, 255, 0.04) !important;
+}
+
+.nx-settings-v6 .nx-settings-module-search:focus-within {
+  border-color: rgba(var(--nx-settings-accent-rgb), 0.45) !important;
+  box-shadow: 0 0 0 3px rgba(var(--nx-settings-accent-rgb), 0.08);
+}
+
+.nx-settings-v6 .nx-settings-content-header {
+  border-color: rgba(var(--nx-settings-accent-rgb), 0.2) !important;
+  background:
+    linear-gradient(110deg, rgba(var(--nx-settings-accent-rgb), 0.12), rgba(143, 83, 255, 0.055)),
+    rgba(8, 13, 28, 0.42) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.065),
+    0 12px 30px rgba(2, 7, 22, 0.16);
+}
+
+.nx-settings-v6 .nx-settings-module-card {
+  border-color: rgba(153, 182, 255, 0.14) !important;
+  background:
+    radial-gradient(320px circle at 6% -30%, rgba(var(--nx-settings-accent-rgb), 0.11), transparent 72%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.052), rgba(255, 255, 255, 0.018)),
+    rgba(11, 18, 34, 0.34) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.055),
+    0 12px 30px rgba(2, 7, 22, 0.13);
+}
+
+.nx-settings-v6 .nx-settings-content-heading {
+  position: relative;
+  z-index: 2;
+}
+
+.nx-settings-v6 .nx-settings-module-card button {
+  transition: border-color 160ms ease, background 160ms ease, transform 160ms ease, box-shadow 160ms ease;
+}
+
+.nx-settings-v6 .nx-settings-module-card button:hover {
+  border-color: rgba(var(--nx-settings-accent-rgb), 0.36) !important;
+  background-color: rgba(var(--nx-settings-accent-rgb), 0.1) !important;
+  box-shadow: 0 10px 24px rgba(var(--nx-settings-accent-rgb), 0.09);
+  transform: translateY(-1px);
+}
+
+.nx-settings-v6 .nx-settings-guide-chip {
+  border-color: rgba(255, 255, 255, 0.11) !important;
+  background: rgba(255, 255, 255, 0.04) !important;
+  backdrop-filter: blur(12px);
+}
+
+.nx-app-shell[data-nx-color-mode="light"] .nx-settings-v6 .nx-settings-sidebar,
+.nx-app-shell[data-nx-color-mode="light"] .nx-settings-v6 .nx-settings-content {
+  background:
+    linear-gradient(140deg, rgba(var(--nx-settings-accent-rgb), 0.08), transparent 46%),
+    rgba(248, 251, 255, 0.74) !important;
+  color: rgba(20, 30, 52, 0.94);
+}
+
+.nx-app-shell[data-nx-color-mode="light"] .nx-settings-v6 .nx-settings-content-header,
+.nx-app-shell[data-nx-color-mode="light"] .nx-settings-v6 .nx-settings-module-card {
+  background:
+    linear-gradient(140deg, rgba(var(--nx-settings-accent-rgb), 0.07), transparent 52%),
+    rgba(255, 255, 255, 0.68) !important;
+}
+
+@media (max-width: 980px) {
+  .nx-settings-v6 {
+    flex-direction: column !important;
+    overflow-y: auto;
+  }
+
+  .nx-settings-v6 .nx-settings-sidebar {
+    width: 100% !important;
+    max-height: none;
+    flex: 0 0 auto;
+  }
+
+  .nx-settings-v6 .nx-settings-sidebar > div:nth-child(4) {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    overflow: visible !important;
+  }
+
+  .nx-settings-v6 .nx-settings-content {
+    overflow: visible !important;
+  }
+}
+
+@media (max-width: 680px) {
+  .nx-settings-v6 {
+    padding: 7px !important;
+    gap: 7px !important;
+  }
+
+  .nx-settings-v6 .nx-settings-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .nx-settings-v6 .nx-settings-sidebar > div:nth-child(4) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .nx-settings-v6 .nx-settings-content {
+    padding: 9px !important;
+  }
+}

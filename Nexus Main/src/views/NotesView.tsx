@@ -9,6 +9,7 @@ import React, {
   useDeferredValue,
 } from "react";
 import { createPortal } from "react-dom";
+import "./notes/NotesViewPolish.css";
 import {
   Plus,
   Trash2,
@@ -1797,13 +1798,19 @@ export function NotesView() {
           {/* Compact workbar */}
           <Glass className="nx-notes-workbar nx-notes-editor-header nx-notes-unified-status-action shrink-0">
             <div className="nx-notes-workbar-main">
-              <input
-                className="nx-notes-title-input flex-1 bg-transparent outline-none font-semibold"
-                style={{ fontSize: 14, minWidth: 0 }}
-                value={active.title}
-                onChange={(e) => updateNote(active.id, { title: e.target.value })}
-                placeholder="Notiztitel..."
-              />
+              <label className="nx-notes-title-field">
+                <span className="nx-notes-title-label">
+                  <Edit3 size={11} /> Notiztitel
+                </span>
+                <input
+                  className="nx-notes-title-input flex-1 bg-transparent outline-none font-semibold"
+                  style={{ fontSize: 14, minWidth: 0 }}
+                  value={active.title}
+                  onChange={(e) => updateNote(active.id, { title: e.target.value })}
+                  placeholder="Notiztitel..."
+                  aria-label="Notiztitel umbenennen"
+                />
+              </label>
               <div className="nx-notes-editor-meta" aria-live="polite">
                 <span
                   className="nx-notes-meta-state"
@@ -1840,7 +1847,6 @@ export function NotesView() {
                   areaHint={54}
                   radius={7}
                   style={{
-                    top: "3px",
                     padding: "4px 8px",
                     borderRadius: 7,
                     fontSize: 11,
@@ -1885,12 +1891,6 @@ export function NotesView() {
                   accent: showSearch,
                 },
                 {
-                  icon: Copy,
-                  tip: "Kopieren",
-                  action: () => navigator.clipboard.writeText(draftContent),
-                },
-                { icon: Download, tip: "Download .md", action: saveAsFile },
-                {
                   icon: Save,
                   tip: "Speichern (Ctrl+S)",
                   action: saveActiveNow,
@@ -1922,32 +1922,26 @@ export function NotesView() {
                   </InteractiveActionButton>
                 ),
               )}
-              <div
-                style={{
-                  width: 1,
-                  height: 14,
-                  background: "rgba(255,255,255,0.1)",
-                  margin: "0 4px",
-                }}
-              />
-              <InteractiveActionButton
-                onClick={() => setFocusMode(!focusMode)}
-                title="Focus Mode"
-                motionId="notes-focus-mode"
-                selected={focusMode}
-                areaHint={46}
-                radius={7}
-                style={{
-                  padding: "5px",
-                  borderRadius: 7,
-                  border: "none",
-                  background: focusMode ? `rgba(${rgb},0.15)` : "transparent",
-                  color: focusMode ? t.accent : "inherit",
-                  display: "flex",
-                }}
-              >
-                {focusMode ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
-              </InteractiveActionButton>
+              <details className="nx-notes-more-actions">
+                <summary title="Weitere Notizaktionen" aria-label="Weitere Notizaktionen">
+                  <MoreHorizontal size={14} />
+                </summary>
+                <div className="nx-notes-more-actions-menu">
+                  <button
+                    type="button"
+                    onClick={() => navigator.clipboard.writeText(draftContent)}
+                  >
+                    <Copy size={13} /> Inhalt kopieren
+                  </button>
+                  <button type="button" onClick={saveAsFile}>
+                    <Download size={13} /> Markdown exportieren
+                  </button>
+                  <button type="button" onClick={() => setFocusMode(!focusMode)}>
+                    {focusMode ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
+                    {focusMode ? "Fokus beenden" : "Fokusmodus"}
+                  </button>
+                </div>
+              </details>
               </div>
             </div>
 
@@ -1962,19 +1956,15 @@ export function NotesView() {
                 flexWrap: "nowrap",
               }}
             >
-              {[
-                { label: "Words", val: noteStats.words },
-                { label: "Chars", val: stats.chars },
-                { label: "Lines", val: stats.lines },
-                { label: "Read", val: `${noteStats.readMins}m` },
-                { label: "Links", val: noteStats.links },
-                { label: "Tasks", val: noteStats.tasks },
-              ].map((entry) => (
-                <span key={entry.label} className="nx-notes-stat-pill">
-                  <strong style={{ fontWeight: 800 }}>{entry.val}</strong>{" "}
-                  <span style={{ opacity: 0.6 }}>{entry.label}</span>
-                </span>
-              ))}
+              <span className="nx-notes-command-label">Quick actions</span>
+              <span className="nx-notes-stat-pill" title="Links in this note">
+                <strong style={{ fontWeight: 800 }}>{noteStats.links}</strong>{" "}
+                <span style={{ opacity: 0.68 }}>Links</span>
+              </span>
+              <span className="nx-notes-stat-pill" title="Tasks in this note">
+                <strong style={{ fontWeight: 800 }}>{noteStats.tasks}</strong>{" "}
+                <span style={{ opacity: 0.68 }}>Tasks</span>
+              </span>
               <div className="nx-notes-strip-actions">
                 <InteractiveActionButton
                   onClick={openQuickSwitch}
@@ -2038,7 +2028,7 @@ export function NotesView() {
               activeUnresolved.length > 0 ||
               activeRelatedNotes.length > 0) && (
               <div className="nx-notes-context-strip">
-                {activeHeadings.slice(0, 4).map((heading) => (
+                {activeHeadings.slice(0, 2).map((heading) => (
                   <InteractiveActionButton
                     key={heading.id}
                     onClick={() => jumpToHeading(heading.index)}
@@ -2062,7 +2052,7 @@ export function NotesView() {
                     <ListTree size={10} /> {heading.text}
                   </InteractiveActionButton>
                 ))}
-                {activeOutgoing.slice(0, 4).map((edge) => (
+                {activeOutgoing.slice(0, 2).map((edge) => (
                   <InteractiveActionButton
                     key={`out-${edge.sourceId}-${edge.targetId}-${edge.targetTitle}`}
                     onClick={() => edge.targetId && setNote(edge.targetId)}
@@ -2087,7 +2077,7 @@ export function NotesView() {
                     ↗ {edge.targetTitle}
                   </InteractiveActionButton>
                 ))}
-                {activeIncoming.slice(0, 4).map((edge) => (
+                {activeIncoming.slice(0, 1).map((edge) => (
                   <InteractiveActionButton
                     key={`in-${edge.sourceId}-${edge.targetTitle}`}
                     onClick={() => setNote(edge.sourceId)}
@@ -2111,7 +2101,7 @@ export function NotesView() {
                     ← {edge.sourceTitle}
                   </InteractiveActionButton>
                 ))}
-                {activeRelatedNotes.slice(0, 3).map((related) => (
+                {activeRelatedNotes.slice(0, 1).map((related) => (
                   <InteractiveActionButton
                     key={`rel-${related.id}`}
                     onClick={() => setNote(related.id)}
@@ -2135,7 +2125,7 @@ export function NotesView() {
                     ≈ {related.title}
                   </InteractiveActionButton>
                 ))}
-                {activeUnresolved.slice(0, 3).map((edge) => (
+                {activeUnresolved.slice(0, 1).map((edge) => (
                   <InteractiveActionButton
                     key={`missing-${edge.targetTitle}`}
                     onClick={() => insertWikilink(edge.targetTitle)}
@@ -2177,6 +2167,10 @@ export function NotesView() {
                 opacity: 1,
               }}
             >
+              <div
+                className="nx-notes-format-core"
+                aria-label="Markdown formatieren"
+              >
               <FmtBtn
                 icon={Heading}
                 tooltip="H2"
@@ -2254,6 +2248,12 @@ export function NotesView() {
                 action={() => insertFormat("\n---\n", "")}
                 kind="structure"
               />
+              </div>
+
+              <div
+                className="nx-notes-format-enhanced"
+                aria-label="Erweiterte Notizwerkzeuge"
+              >
               <div
                 ref={blocksTriggerRef}
                 className="nx-notes-format-menu-trigger nx-notes-format-menu-trigger-blocks"
@@ -2566,8 +2566,7 @@ export function NotesView() {
                   Magic
                 </InteractiveActionButton>
               </div>
-
-              <div className="nx-notes-format-spacer" style={{ flex: 1 }} />
+              </div>
 
               {/* Tags */}
               <div className="nx-notes-toolbar-tags" style={{ display: "flex", alignItems: "center", gap: 4 }}>

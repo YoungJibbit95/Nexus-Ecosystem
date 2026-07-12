@@ -183,12 +183,16 @@ export const resolveAccountConnectionStatusMode = ({
 export const loadNexusAccountSession = () => {
   if (typeof window === "undefined") return createEmptyAccountSession();
   try {
-    const stored = window.localStorage.getItem(ACCOUNT_SESSION_STORAGE_KEY);
+    const stored = window.sessionStorage.getItem(ACCOUNT_SESSION_STORAGE_KEY);
     if (!stored) return createEmptyAccountSession();
     const session = normalizeAccountSession(JSON.parse(stored));
     return canStartWithAccountSession(session) ? session : createEmptyAccountSession();
   } catch {
+    window.sessionStorage.removeItem(ACCOUNT_SESSION_STORAGE_KEY);
     return createEmptyAccountSession();
+  } finally {
+    // Remove credentials persisted by legacy builds. Tokens stay runtime-only.
+    window.localStorage.removeItem(ACCOUNT_SESSION_STORAGE_KEY);
   }
 };
 
@@ -201,13 +205,15 @@ export const saveNexusAccountSession = (sessionRaw) => {
     ? normalizedSession
     : createEmptyAccountSession();
   if (typeof window !== "undefined") {
-    window.localStorage.setItem(ACCOUNT_SESSION_STORAGE_KEY, JSON.stringify(session));
+    window.sessionStorage.setItem(ACCOUNT_SESSION_STORAGE_KEY, JSON.stringify(session));
+    window.localStorage.removeItem(ACCOUNT_SESSION_STORAGE_KEY);
   }
   return session;
 };
 
 export const clearNexusAccountSession = () => {
   if (typeof window !== "undefined") {
+    window.sessionStorage.removeItem(ACCOUNT_SESSION_STORAGE_KEY);
     window.localStorage.removeItem(ACCOUNT_SESSION_STORAGE_KEY);
   }
   return createEmptyAccountSession();

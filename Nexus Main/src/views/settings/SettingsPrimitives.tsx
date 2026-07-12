@@ -165,9 +165,12 @@ export function Segmented({
 
 export function ThemeLibraryGrid({
   onApply,
+  presetNames,
 }: {
   onApply: (presetName: string) => void;
+  presetNames?: string[];
 }) {
+  const visiblePresets = presetNames ?? PRESETS;
   return (
     <div
       style={{
@@ -176,7 +179,7 @@ export function ThemeLibraryGrid({
         gap: 8,
       }}
     >
-      {PRESETS.map((name) => {
+      {visiblePresets.map((name) => {
         const preview = PRESET_PREVIEWS[name] || {
           mode: "dark" as const,
           accent: "#007AFF",

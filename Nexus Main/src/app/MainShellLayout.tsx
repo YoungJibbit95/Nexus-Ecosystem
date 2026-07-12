@@ -70,6 +70,41 @@ export function MainShellLayout({
   mainViewNode,
 }: Props) {
   const isDark = t.mode === "dark";
+  const [responsiveShellMode, setResponsiveShellMode] = React.useState<
+    "desktop" | "compact" | "narrow"
+  >(() => {
+    if (typeof window === "undefined") return "desktop";
+    if (window.innerWidth <= 760) return "narrow";
+    if (window.innerWidth <= 980) return "compact";
+    return "desktop";
+  });
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    const compactQuery = window.matchMedia("(max-width: 980px)");
+    const narrowQuery = window.matchMedia("(max-width: 760px)");
+    const syncResponsiveShellMode = () => {
+      setResponsiveShellMode(
+        narrowQuery.matches
+          ? "narrow"
+          : compactQuery.matches
+            ? "compact"
+            : "desktop",
+      );
+    };
+    syncResponsiveShellMode();
+    compactQuery.addEventListener("change", syncResponsiveShellMode);
+    narrowQuery.addEventListener("change", syncResponsiveShellMode);
+    return () => {
+      compactQuery.removeEventListener("change", syncResponsiveShellMode);
+      narrowQuery.removeEventListener("change", syncResponsiveShellMode);
+    };
+  }, []);
+  const responsiveSidebarWidth =
+    responsiveShellMode === "narrow"
+      ? Math.min(effectiveSidebarWidth, 62)
+      : responsiveShellMode === "compact"
+        ? Math.min(effectiveSidebarWidth, 76)
+        : effectiveSidebarWidth;
   const activeViewManifest = React.useMemo(
     () => getNexusViewManifest(view),
     [view],
@@ -104,6 +139,10 @@ export function MainShellLayout({
       }),
     [t.accent, t.accent2, t.background, t.bg, t.mode],
   );
+  const backgroundVisibility = Math.max(
+    0,
+    Math.min(1, Number(t.background?.overlayOpacity) || 0),
+  );
   const safeFontSize = Math.max(12, Math.min(18, Number(t.qol?.fontSize) || 14));
   const safePanelRadius = Math.max(4, Math.min(32, Number(t.visual?.panelRadius) || 14));
   const viewContract = activeViewManifest ?? {
@@ -121,6 +160,7 @@ export function MainShellLayout({
 
   const toolbarEl = toolbarVisible ? (
     <div
+      className="nx-shell-toolbar-slot"
       style={{
         position: "relative",
         zIndex: 500,
@@ -128,6 +168,9 @@ export function MainShellLayout({
         justifyContent: "center",
         padding: toolbarBottom ? "0 0 3px" : "3px 0 0",
         pointerEvents: "none",
+        flexShrink: 0,
+        minWidth: 0,
+        maxWidth: "100%",
       }}
     >
       <div style={{ pointerEvents: "auto", width: "100%" }}>
@@ -154,6 +197,7 @@ export function MainShellLayout({
       data-app-bg-animated={t.background?.animated ? "true" : "false"}
       data-nx-motion-profile={motionRuntime?.profile || "balanced"}
       data-nx-motion-reduced={motionRuntime?.reduced ? "1" : "0"}
+      data-responsive-shell={responsiveShellMode}
       style={{
         ...motionCssVars,
         ["--nx-font-size" as any]: `${safeFontSize}px`,
@@ -180,11 +224,17 @@ export function MainShellLayout({
         ["--nx-shell-window-grid-bg" as any]: appShellSurfaceTokens.windowGridBackground,
         ["--nx-shell-window-grid-opacity" as any]: appShellSurfaceTokens.windowGridOpacity,
         ["--nx-v6-surface" as any]: isDark
-          ? "rgba(15, 23, 42, 0.58)"
-          : "rgba(255, 255, 255, 0.72)",
+          ? `rgba(15, 23, 42, ${Math.max(0.2, 0.5 - backgroundVisibility * 0.28)})`
+          : `rgba(255, 255, 255, ${Math.max(0.48, 0.78 - backgroundVisibility * 0.24)})`,
         ["--nx-v6-surface-strong" as any]: isDark
-          ? "rgba(8, 13, 32, 0.62)"
-          : "rgba(248, 250, 252, 0.88)",
+          ? `rgba(8, 13, 32, ${Math.max(0.26, 0.58 - backgroundVisibility * 0.26)})`
+          : `rgba(248, 250, 252, ${Math.max(0.58, 0.9 - backgroundVisibility * 0.22)})`,
+        ["--nx-calm-panel" as any]: isDark
+          ? `rgba(255, 255, 255, ${0.028 + (1 - backgroundVisibility) * 0.04})`
+          : `rgba(255, 255, 255, ${Math.max(0.5, 0.82 - backgroundVisibility * 0.25)})`,
+        ["--nx-calm-panel-strong" as any]: isDark
+          ? `rgba(255, 255, 255, ${0.045 + (1 - backgroundVisibility) * 0.05})`
+          : `rgba(255, 255, 255, ${Math.max(0.62, 0.94 - backgroundVisibility * 0.24)})`,
         ["--nx-v6-line" as any]: isDark
           ? "rgba(255, 255, 255, 0.1)"
           : "rgba(15, 23, 42, 0.12)",
@@ -290,9 +340,9 @@ export function MainShellLayout({
           }}
         >
           <div
-            className="nx-motion-surface"
+            className="nx-shell-sidebar-slot nx-motion-surface"
             style={{
-              width: effectiveSidebarWidth,
+              width: responsiveSidebarWidth,
               flexShrink: 0,
               height: "100%",
               transition: "width 220ms cubic-bezier(0.2, 0.8, 0.2, 1)",
@@ -311,6 +361,7 @@ export function MainShellLayout({
             <Sidebar
               view={view}
               availableViews={availableViews}
+              forceCompact={responsiveShellMode !== "desktop"}
               onChange={(v: any) => {
                 onRequestViewChange(v);
               }}
@@ -410,7 +461,7 @@ export function MainShellLayout({
             ) : null}
           </div>
           <div
-            className="nx-motion-surface"
+            className="nx-shell-workspace nx-motion-surface"
             style={{
               flex: 1,
               overflow: "hidden",
@@ -420,8 +471,8 @@ export function MainShellLayout({
               minHeight: 0,
               background:
                 t.mode === "dark"
-                  ? "rgba(7,8,13,0.18)"
-                  : "rgba(255,255,255,0.24)",
+                  ? `rgba(7,8,13,${Math.max(0.045, 0.18 - backgroundVisibility * 0.12)})`
+                  : `rgba(255,255,255,${Math.max(0.1, 0.28 - backgroundVisibility * 0.15)})`,
             }}
           >
             {!toolbarBottom ? toolbarEl : null}

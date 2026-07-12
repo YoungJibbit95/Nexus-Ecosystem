@@ -81,12 +81,21 @@ export interface Viewport {
   zoom: number
 }
 
+export interface CanvasHistoryState {
+  past: Canvas[]
+  future: Canvas[]
+  lastGroupKey: string | null
+  lastMutationAt: number
+}
+
 // ─── STORE INTERFACE ───
 
 interface CanvasStore {
   canvases: Canvas[]
   activeCanvasId: string | null
   viewport: Viewport
+  /** Session-only content history. Deliberately excluded from persistence. */
+  canvasHistory: Record<string, CanvasHistoryState>
 
   // Canvas CRUD
   addCanvas: (name?: string) => void
@@ -111,6 +120,10 @@ interface CanvasStore {
   setZoom: (z: number) => void
   resetViewport: () => void
 
+  // Content history (viewport is intentionally excluded)
+  undo: () => void
+  redo: () => void
+
   // Checklist helpers
   addChecklistItem: (nodeId: string, text: string) => void
   toggleChecklistItem: (nodeId: string, itemId: string) => void
@@ -121,6 +134,8 @@ interface CanvasStore {
 }
 
 const now = () => new Date().toISOString()
+const HISTORY_LIMIT = 50
+const HISTORY_COALESCE_MS = 700
 
 const DEFAULT_NODE_SIZES: Record<NodeType, { w: number; h: number }> = {
   text: { w: 260, h: 160 },
@@ -309,6 +324,87 @@ const normalizeCanvasConnections = (
     .filter((entry): entry is CanvasConnection => Boolean(entry))
 }
 
+const sanitizeCanvasSnapshot = (value: unknown): Canvas | null => {
+  if (!isRecord(value)) return null
+  const nodes = normalizeCanvasNodes(value.nodes)
+  const nodeIds = new Set(nodes.map((node) => node.id))
+  return {
+    id: normalizeString(value.id, genId(), 120),
+    name: normalizeString(value.name, 'Canvas', 180),
+    nodes,
+    connections: normalizeCanvasConnections(value.connections, nodeIds),
+    created: normalizeString(value.created, now(), 80),
+    updated: normalizeString(value.updated, now(), 80),
+  }
+}
+
+const emptyCanvasHistory = (): CanvasHistoryState => ({
+  past: [],
+  future: [],
+  lastGroupKey: null,
+  lastMutationAt: 0,
+})
+
+const checkpointCanvasHistory = (
+  state: CanvasStore,
+  canvas: Canvas,
+  groupKey: string,
+  coalesceMs = 0,
+): Record<string, CanvasHistoryState> => {
+  const current = state.canvasHistory[canvas.id] ?? emptyCanvasHistory()
+  const mutationAt = Date.now()
+  const shouldCoalesce =
+    coalesceMs > 0 &&
+    current.lastGroupKey === groupKey &&
+    mutationAt - current.lastMutationAt <= coalesceMs
+
+  if (shouldCoalesce) {
+    return {
+      ...state.canvasHistory,
+      [canvas.id]: {
+        ...current,
+        future: [],
+        lastMutationAt: mutationAt,
+      },
+    }
+  }
+
+  const snapshot = sanitizeCanvasSnapshot(canvas)
+  if (!snapshot) return state.canvasHistory
+  return {
+    ...state.canvasHistory,
+    [canvas.id]: {
+      past: [...current.past, snapshot].slice(-HISTORY_LIMIT),
+      future: [],
+      lastGroupKey: groupKey,
+      lastMutationAt: mutationAt,
+    },
+  }
+}
+
+const mutateCanvasWithHistory = (
+  state: CanvasStore,
+  canvasId: string | null,
+  groupKey: string,
+  coalesceMs: number,
+  mutate: (canvas: Canvas) => Canvas,
+): CanvasStore => {
+  if (!canvasId) return state
+  const canvasIndex = state.canvases.findIndex((canvas) => canvas.id === canvasId)
+  if (canvasIndex < 0) return state
+  const canvas = state.canvases[canvasIndex]
+  const nextCanvas = mutate(canvas)
+  if (nextCanvas === canvas) return state
+
+  const canvases = state.canvases.slice()
+  canvases[canvasIndex] = nextCanvas
+  return {
+    ...state,
+    canvases,
+    canvasHistory: checkpointCanvasHistory(state, canvas, groupKey, coalesceMs),
+  }
+}
+
 type QueuedNodePatch = {
   canvasId: string
   nodeId: string
@@ -317,12 +413,14 @@ type QueuedNodePatch = {
 
 const queuedNodePatches = new Map<string, QueuedNodePatch>()
 let queuedNodePatchHandle: number | null = null
+let flushQueuedNodePatchesNow: (() => void) | null = null
 
 const scheduleQueuedNodePatchFlush = (set: (updater: (state: CanvasStore) => CanvasStore) => void) => {
   if (queuedNodePatchHandle !== null) return
 
   const flush = () => {
     queuedNodePatchHandle = null
+    flushQueuedNodePatchesNow = null
     if (queuedNodePatches.size === 0) return
     const queued = Array.from(queuedNodePatches.values())
     queuedNodePatches.clear()
@@ -340,31 +438,36 @@ const scheduleQueuedNodePatchFlush = (set: (updater: (state: CanvasStore) => Can
         map.set(entry.nodeId, { ...existing, ...entry.patch })
       })
 
-      const nextCanvases = state.canvases.slice()
-      let changed = false
-      for (let i = 0; i < nextCanvases.length; i += 1) {
-        const canvas = nextCanvases[i]
+      let nextState = state
+      for (const canvas of state.canvases) {
         const patchByNode = patchByCanvas.get(canvas.id)
         if (!patchByNode || patchByNode.size === 0) continue
-        let canvasChanged = false
-        const nextNodes = canvas.nodes.map((node) => {
-          const patch = patchByNode.get(node.id)
-          if (!patch) return node
-          canvasChanged = true
-          return normalizeCanvasNode({ ...node, ...patch }) ?? node
-        })
-        if (!canvasChanged) continue
-        nextCanvases[i] = { ...canvas, nodes: nextNodes, updated: now() }
-        changed = true
+        const groupKey = `node:update:${Array.from(patchByNode.keys()).sort().join(',')}`
+        nextState = mutateCanvasWithHistory(
+          nextState,
+          canvas.id,
+          groupKey,
+          HISTORY_COALESCE_MS,
+          (currentCanvas) => {
+            let changed = false
+            const nextNodes = currentCanvas.nodes.map((node) => {
+              const patch = patchByNode.get(node.id)
+              if (!patch) return node
+              const normalized = normalizeCanvasNode({ ...node, ...patch }) ?? node
+              changed = changed || normalized !== node
+              return normalized
+            })
+            return changed
+              ? { ...currentCanvas, nodes: nextNodes, updated: now() }
+              : currentCanvas
+          },
+        )
       }
-
-      if (!changed) return state
-      return {
-        ...state,
-        canvases: nextCanvases,
-      }
+      return nextState
     })
   }
+
+  flushQueuedNodePatchesNow = flush
 
   if (typeof window !== 'undefined' && 'requestAnimationFrame' in window) {
     queuedNodePatchHandle = window.requestAnimationFrame(flush)
@@ -490,6 +593,7 @@ export const useCanvas = create<CanvasStore>()(
     canvases: [buildDefaultCanvas()],
     activeCanvasId: 'canvas-welcome',
     viewport: { panX: 0, panY: 0, zoom: 1 },
+    canvasHistory: {},
 
     // ─── Canvas CRUD ───
 
@@ -511,8 +615,10 @@ export const useCanvas = create<CanvasStore>()(
 
     deleteCanvas: (id) => set(s => {
       const remaining = s.canvases.filter(c => c.id !== id)
+      const { [id]: _removedHistory, ...canvasHistory } = s.canvasHistory
       return {
         canvases: remaining,
+        canvasHistory,
         activeCanvasId: s.activeCanvasId === id
           ? (remaining[0]?.id ?? null)
           : s.activeCanvasId,
@@ -528,11 +634,15 @@ export const useCanvas = create<CanvasStore>()(
         : s
     )),
 
-    renameCanvas: (id, name) => set(s => ({
-      canvases: s.canvases.map(c =>
-        c.id === id ? { ...c, name, updated: now() } : c
-      ),
-    })),
+    renameCanvas: (id, name) => set(s => mutateCanvasWithHistory(
+      s,
+      id,
+      'canvas:rename',
+      1_000,
+      (canvas) => canvas.name === name
+        ? canvas
+        : { ...canvas, name: normalizeString(name, '', 180), updated: now() },
+    )),
 
     // ─── Node CRUD ───
 
@@ -566,71 +676,75 @@ export const useCanvas = create<CanvasStore>()(
         color: DEFAULT_NODE_COLORS[nodeType],
         ...defaultProps,
       }
-      set(s => ({
-        canvases: s.canvases.map(c =>
-          c.id === s.activeCanvasId
-            ? { ...c, nodes: [...c.nodes, node], updated: now() }
-            : c
-        ),
-      }))
+      set(s => mutateCanvasWithHistory(
+        s,
+        s.activeCanvasId,
+        'node:add',
+        0,
+        (canvas) => ({ ...canvas, nodes: [...canvas.nodes, node], updated: now() }),
+      ))
     },
 
     updateNode: (id, p) => {
       enqueueNodePatch(set, get, id, p)
     },
 
-    deleteNode: (id) => set(s => ({
-      canvases: s.canvases.map(c =>
-        c.id === s.activeCanvasId
-          ? {
-            ...c,
-            nodes: c.nodes.filter(n => n.id !== id),
-            connections: c.connections.filter(cn => cn.fromId !== id && cn.toId !== id),
-            updated: now(),
-          }
-          : c
-      ),
-    })),
+    deleteNode: (id) => set(s => mutateCanvasWithHistory(
+      s,
+      s.activeCanvasId,
+      'node:delete',
+      0,
+      (canvas) => canvas.nodes.some((node) => node.id === id)
+        ? {
+          ...canvas,
+          nodes: canvas.nodes.filter(node => node.id !== id),
+          connections: canvas.connections.filter(conn => conn.fromId !== id && conn.toId !== id),
+          updated: now(),
+        }
+        : canvas,
+    )),
 
-    moveNode: (id, x, y) => set(s => ({
-      canvases: s.canvases.map(c =>
-        c.id === s.activeCanvasId
-          ? {
-            ...c,
-            nodes: c.nodes.map(n =>
-              n.id === id
-                ? {
-                  ...n,
-                  x: clampNumber(x, n.x, -100_000, 100_000),
-                  y: clampNumber(y, n.y, -100_000, 100_000),
-                }
-                : n
-            ),
-            updated: now(),
-          }
-          : c
-      ),
-    })),
+    moveNode: (id, x, y) => set(s => mutateCanvasWithHistory(
+      s,
+      s.activeCanvasId,
+      'nodes:move',
+      HISTORY_COALESCE_MS,
+      (canvas) => {
+        const node = canvas.nodes.find(entry => entry.id === id)
+        if (!node) return canvas
+        const nextX = clampNumber(x, node.x, -100_000, 100_000)
+        const nextY = clampNumber(y, node.y, -100_000, 100_000)
+        if (nextX === node.x && nextY === node.y) return canvas
+        return {
+          ...canvas,
+          nodes: canvas.nodes.map(entry => entry.id === id
+            ? { ...entry, x: nextX, y: nextY }
+            : entry),
+          updated: now(),
+        }
+      },
+    )),
 
-    resizeNode: (id, width, height) => set(s => ({
-      canvases: s.canvases.map(c =>
-        c.id === s.activeCanvasId
-          ? {
-            ...c,
-            nodes: c.nodes.map(n =>
-              n.id === id
-                ? {
-                  ...n,
-                  width: clampNumber(width, n.width, 120, 1_600),
-                  height: clampNumber(height, n.height, 80, 1_400),
-                }
-                : n
-            ),
-            updated: now(),
-          }
-          : c
-      ),
-    })),
+    resizeNode: (id, width, height) => set(s => mutateCanvasWithHistory(
+      s,
+      s.activeCanvasId,
+      'nodes:resize',
+      HISTORY_COALESCE_MS,
+      (canvas) => {
+        const node = canvas.nodes.find(entry => entry.id === id)
+        if (!node) return canvas
+        const nextWidth = clampNumber(width, node.width, 120, 1_600)
+        const nextHeight = clampNumber(height, node.height, 80, 1_400)
+        if (nextWidth === node.width && nextHeight === node.height) return canvas
+        return {
+          ...canvas,
+          nodes: canvas.nodes.map(entry => entry.id === id
+            ? { ...entry, width: nextWidth, height: nextHeight }
+            : entry),
+          updated: now(),
+        }
+      },
+    )),
 
     // ─── Connection CRUD ───
 
@@ -644,30 +758,46 @@ export const useCanvas = create<CanvasStore>()(
       if (canvas.connections.some(c => (c.fromId === fromId && c.toId === toId) || (c.fromId === toId && c.toId === fromId))) return
 
       const conn: CanvasConnection = { id: genId(), fromId, toId }
-      set(s => ({
-        canvases: s.canvases.map(c =>
-          c.id === s.activeCanvasId
-            ? { ...c, connections: [...c.connections, conn], updated: now() }
-            : c
-        ),
-      }))
+      set(s => mutateCanvasWithHistory(
+        s,
+        s.activeCanvasId,
+        'connection:add',
+        0,
+        (current) => ({
+          ...current,
+          connections: [...current.connections, conn],
+          updated: now(),
+        }),
+      ))
     },
 
-    deleteConnection: (id) => set(s => ({
-      canvases: s.canvases.map(c =>
-        c.id === s.activeCanvasId
-          ? { ...c, connections: c.connections.filter(cn => cn.id !== id), updated: now() }
-          : c
-      ),
-    })),
+    deleteConnection: (id) => set(s => mutateCanvasWithHistory(
+      s,
+      s.activeCanvasId,
+      'connection:delete',
+      0,
+      (canvas) => canvas.connections.some(conn => conn.id === id)
+        ? {
+          ...canvas,
+          connections: canvas.connections.filter(conn => conn.id !== id),
+          updated: now(),
+        }
+        : canvas,
+    )),
 
-    updateConnection: (id, p) => set(s => ({
-      canvases: s.canvases.map(c =>
-        c.id === s.activeCanvasId
-          ? { ...c, connections: c.connections.map(cn => cn.id === id ? { ...cn, ...p } : cn), updated: now() }
-          : c
-      ),
-    })),
+    updateConnection: (id, p) => set(s => mutateCanvasWithHistory(
+      s,
+      s.activeCanvasId,
+      `connection:update:${id}`,
+      HISTORY_COALESCE_MS,
+      (canvas) => canvas.connections.some(conn => conn.id === id)
+        ? {
+          ...canvas,
+          connections: canvas.connections.map(conn => conn.id === id ? { ...conn, ...p } : conn),
+          updated: now(),
+        }
+        : canvas,
+    )),
 
     // ─── Viewport ───
 
@@ -686,55 +816,113 @@ export const useCanvas = create<CanvasStore>()(
     }),
     resetViewport: () => set({ viewport: { panX: 0, panY: 0, zoom: 1 } }),
 
+    undo: () => {
+      flushQueuedNodePatchesNow?.()
+      set(state => {
+        const canvasId = state.activeCanvasId
+        if (!canvasId) return state
+        const history = state.canvasHistory[canvasId]
+        const current = state.canvases.find(canvas => canvas.id === canvasId)
+        const previous = history?.past[history.past.length - 1]
+        if (!current || !previous) return state
+        const restored = sanitizeCanvasSnapshot(previous)
+        const currentSnapshot = sanitizeCanvasSnapshot(current)
+        if (!restored || !currentSnapshot) return state
+        return {
+          ...state,
+          canvases: state.canvases.map(canvas => canvas.id === canvasId ? restored : canvas),
+          canvasHistory: {
+            ...state.canvasHistory,
+            [canvasId]: {
+              past: history.past.slice(0, -1),
+              future: [currentSnapshot, ...history.future].slice(0, HISTORY_LIMIT),
+              lastGroupKey: null,
+              lastMutationAt: 0,
+            },
+          },
+        }
+      })
+    },
+
+    redo: () => {
+      flushQueuedNodePatchesNow?.()
+      set(state => {
+        const canvasId = state.activeCanvasId
+        if (!canvasId) return state
+        const history = state.canvasHistory[canvasId]
+        const current = state.canvases.find(canvas => canvas.id === canvasId)
+        const next = history?.future[0]
+        if (!current || !next) return state
+        const restored = sanitizeCanvasSnapshot(next)
+        const currentSnapshot = sanitizeCanvasSnapshot(current)
+        if (!restored || !currentSnapshot) return state
+        return {
+          ...state,
+          canvases: state.canvases.map(canvas => canvas.id === canvasId ? restored : canvas),
+          canvasHistory: {
+            ...state.canvasHistory,
+            [canvasId]: {
+              past: [...history.past, currentSnapshot].slice(-HISTORY_LIMIT),
+              future: history.future.slice(1),
+              lastGroupKey: null,
+              lastMutationAt: 0,
+            },
+          },
+        }
+      })
+    },
+
     // ─── Checklist Helpers ───
 
-    addChecklistItem: (nodeId, text) => set(s => ({
-      canvases: s.canvases.map(c =>
-        c.id === s.activeCanvasId
-          ? {
-            ...c,
-            nodes: c.nodes.map(n =>
-              n.id === nodeId
-                ? { ...n, items: [...(n.items || []), { id: genId(), text, done: false }] }
-                : n
-            ),
-            updated: now(),
-          }
-          : c
-      ),
-    })),
+    addChecklistItem: (nodeId, text) => set(s => mutateCanvasWithHistory(
+      s,
+      s.activeCanvasId,
+      'checklist:add',
+      0,
+      (canvas) => canvas.nodes.some(node => node.id === nodeId)
+        ? {
+          ...canvas,
+          nodes: canvas.nodes.map(node => node.id === nodeId
+            ? { ...node, items: [...(node.items || []), { id: genId(), text, done: false }] }
+            : node),
+          updated: now(),
+        }
+        : canvas,
+    )),
 
-    toggleChecklistItem: (nodeId, itemId) => set(s => ({
-      canvases: s.canvases.map(c =>
-        c.id === s.activeCanvasId
-          ? {
-            ...c,
-            nodes: c.nodes.map(n =>
-              n.id === nodeId
-                ? { ...n, items: (n.items || []).map(i => i.id === itemId ? { ...i, done: !i.done } : i) }
-                : n
-            ),
-            updated: now(),
-          }
-          : c
-      ),
-    })),
+    toggleChecklistItem: (nodeId, itemId) => set(s => mutateCanvasWithHistory(
+      s,
+      s.activeCanvasId,
+      'checklist:toggle',
+      0,
+      (canvas) => canvas.nodes.some(node =>
+        node.id === nodeId && (node.items || []).some(item => item.id === itemId))
+        ? {
+          ...canvas,
+          nodes: canvas.nodes.map(node => node.id === nodeId
+            ? { ...node, items: (node.items || []).map(item => item.id === itemId ? { ...item, done: !item.done } : item) }
+            : node),
+          updated: now(),
+        }
+        : canvas,
+    )),
 
-    deleteChecklistItem: (nodeId, itemId) => set(s => ({
-      canvases: s.canvases.map(c =>
-        c.id === s.activeCanvasId
-          ? {
-            ...c,
-            nodes: c.nodes.map(n =>
-              n.id === nodeId
-                ? { ...n, items: (n.items || []).filter(i => i.id !== itemId) }
-                : n
-            ),
-            updated: now(),
-          }
-          : c
-      ),
-    })),
+    deleteChecklistItem: (nodeId, itemId) => set(s => mutateCanvasWithHistory(
+      s,
+      s.activeCanvasId,
+      'checklist:delete',
+      0,
+      (canvas) => canvas.nodes.some(node =>
+        node.id === nodeId && (node.items || []).some(item => item.id === itemId))
+        ? {
+          ...canvas,
+          nodes: canvas.nodes.map(node => node.id === nodeId
+            ? { ...node, items: (node.items || []).filter(item => item.id !== itemId) }
+            : node),
+          updated: now(),
+        }
+        : canvas,
+    )),
 
     // ─── Derived ───
 
@@ -769,6 +957,7 @@ export const useCanvas = create<CanvasStore>()(
         ...currentState,
         ...persisted,
         canvases,
+        canvasHistory: currentState.canvasHistory,
         activeCanvasId: hasPreferredActive
           ? preferredActive
           : (canvases[0]?.id ?? null),

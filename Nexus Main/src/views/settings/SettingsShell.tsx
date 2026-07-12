@@ -33,6 +33,7 @@ import {
   importSettingsSnapshotIntoTheme,
   resetThemeSettingsSection,
 } from "./settingsBridge";
+import "./SettingsPolish.css";
 type ThemeTransferFeedback = {
   kind: "success" | "partial" | "error";
   title: string;
@@ -842,9 +843,7 @@ export function SettingsShell({
           padding: "14px clamp(12px, 2vw, 22px) 20px",
         }}
       >
-        <div
-          style={{ position: "sticky", top: 0, zIndex: 10, paddingBottom: 10 }}
-        >
+        <div className="nx-settings-content-heading" style={{ paddingBottom: 10 }}>
           <div
             className="nx-settings-content-header"
             style={{
