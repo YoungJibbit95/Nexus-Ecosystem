@@ -1,0 +1,240 @@
+.nx-files-v6 {
+  --files-panel: rgba(13, 20, 38, 0.38);
+  --files-panel-strong: rgba(25, 35, 66, 0.5);
+  --files-line: rgba(148, 181, 255, 0.16);
+  --files-line-strong: rgba(var(--files-accent-rgb), 0.38);
+  --files-muted: rgba(214, 224, 255, 0.66);
+  background:
+    radial-gradient(900px circle at 8% -12%, rgba(var(--files-accent-rgb), 0.2), transparent 56%),
+    radial-gradient(720px circle at 94% 18%, rgba(151, 91, 255, 0.13), transparent 58%);
+}
+
+.nx-files-v6 .nx-files-header,
+.nx-files-v6 .nx-files-toolbar,
+.nx-files-v6 .nx-files-filter-strip,
+.nx-files-v6 .nx-files-quality-strip,
+.nx-files-v6 .nx-files-sidebar,
+.nx-files-v6 .nx-files-detail-pane {
+  border-color: var(--files-line) !important;
+  background:
+    linear-gradient(135deg, rgba(var(--files-accent-rgb), 0.08), transparent 44%),
+    linear-gradient(180deg, var(--files-panel-strong), var(--files-panel)) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    0 14px 38px rgba(2, 7, 22, 0.16) !important;
+  backdrop-filter: blur(20px) saturate(132%);
+}
+
+.nx-files-v6 .nx-files-kicker {
+  display: block;
+  color: rgba(var(--files-accent-rgb), 0.88);
+}
+
+.nx-files-v6 .nx-files-quality-strip {
+  min-height: 0 !important;
+  padding: 0 !important;
+}
+
+.nx-files-v6 .nx-files-quality-strip > summary {
+  min-height: 28px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  cursor: pointer;
+  list-style: none;
+  color: var(--files-muted);
+  font-size: 10px;
+}
+
+.nx-files-v6 .nx-files-quality-strip > summary::-webkit-details-marker {
+  display: none;
+}
+
+.nx-files-v6 .nx-files-quality-details {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 10px 8px;
+  border-top: 1px solid var(--files-line);
+  color: var(--files-muted);
+  font-size: 10px;
+}
+
+.nx-files-v6 .nx-files-action,
+.nx-files-v6 .nx-files-icon-action,
+.nx-files-v6 .nx-files-toggle,
+.nx-files-v6 .nx-files-filter-chip,
+.nx-files-v6 .nx-files-layout-toggle {
+  background: rgba(255, 255, 255, 0.045) !important;
+  border-color: var(--files-line) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+}
+
+.nx-files-v6 .nx-files-action:hover,
+.nx-files-v6 .nx-files-toggle:hover,
+.nx-files-v6 .nx-files-filter-chip:hover,
+.nx-files-v6 .nx-files-layout-toggle:hover,
+.nx-files-v6 .nx-files-action--primary,
+.nx-files-v6 .nx-files-filter-chip.is-active,
+.nx-files-v6 .nx-files-layout-toggle.is-active {
+  border-color: rgba(var(--files-accent-rgb), 0.48) !important;
+  background: linear-gradient(135deg, rgba(var(--files-accent-rgb), 0.22), rgba(132, 91, 255, 0.1)) !important;
+  box-shadow: 0 0 22px rgba(var(--files-accent-rgb), 0.12) !important;
+}
+
+.nx-files-v6 .workspace-tree {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.nx-files-v6 .workspace-tree-item--workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 30px;
+  padding: 0 !important;
+  overflow: hidden;
+}
+
+.nx-files-v6 .workspace-tree-select {
+  min-width: 0;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.nx-files-v6 .workspace-tree-edit {
+  position: static;
+  align-self: center;
+  justify-self: center;
+}
+
+.nx-files-v6 .workspace-tree-item.is-active {
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--workspace-color, var(--files-accent)) 18%, transparent), transparent),
+    rgba(255, 255, 255, 0.045) !important;
+  box-shadow: inset 3px 0 0 var(--workspace-color, var(--files-accent));
+}
+
+.nx-files-v6 .nx-files-card {
+  border-color: var(--files-line) !important;
+  background:
+    linear-gradient(145deg, rgba(var(--files-card-rgb), 0.09), transparent 48%),
+    linear-gradient(180deg, rgba(35, 45, 78, 0.42), rgba(12, 18, 34, 0.36)) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.055),
+    0 12px 28px rgba(2, 7, 22, 0.13) !important;
+  backdrop-filter: blur(16px) saturate(125%);
+}
+
+.nx-files-v6 .nx-files-card:hover,
+.nx-files-v6 .nx-files-card:focus-visible,
+.nx-files-v6 .nx-files-card.is-selected {
+  transform: translateY(-1px);
+  border-color: rgba(var(--files-card-rgb), 0.46) !important;
+  background:
+    linear-gradient(135deg, rgba(var(--files-card-rgb), 0.18), transparent 55%),
+    rgba(18, 28, 52, 0.72) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 16px 34px rgba(var(--files-card-rgb), 0.12) !important;
+}
+
+.nx-files-v6 .nx-files-empty {
+  background:
+    radial-gradient(280px circle at 50% 0%, rgba(var(--files-accent-rgb), 0.16), transparent 70%),
+    rgba(255, 255, 255, 0.035);
+  border: 1px dashed rgba(var(--files-accent-rgb), 0.3);
+  border-radius: 18px;
+}
+
+.nx-files-flow-menu--floating {
+  max-height: min(360px, calc(100vh - 24px));
+  overflow-y: auto;
+}
+
+.nx-app-shell[data-nx-color-mode="light"] .nx-files-v6 {
+  --files-panel: rgba(238, 246, 255, 0.66);
+  --files-panel-strong: rgba(255, 255, 255, 0.82);
+  --files-muted: rgba(49, 67, 96, 0.68);
+  background:
+    radial-gradient(850px circle at 8% -12%, rgba(var(--files-accent-rgb), 0.12), transparent 58%),
+    radial-gradient(650px circle at 92% 16%, rgba(151, 91, 255, 0.08), transparent 62%);
+}
+
+.nx-app-shell[data-nx-color-mode="light"] .nx-files-v6 .nx-files-card {
+  background:
+    linear-gradient(145deg, rgba(var(--files-card-rgb), 0.09), transparent 50%),
+    rgba(255, 255, 255, 0.7) !important;
+}
+
+@media (max-width: 1280px) {
+  .nx-files-v6 .nx-files-toolbar {
+    grid-template-columns: minmax(190px, 0.6fr) minmax(0, 1.4fr) !important;
+  }
+
+  .nx-files-v6 .nx-files-toolbar-controls {
+    grid-template-columns: minmax(180px, 1fr) minmax(120px, 150px) auto !important;
+  }
+
+  .nx-files-v6 .nx-files-layout-switcher {
+    grid-column: 1 / -1;
+    justify-self: end;
+  }
+}
+
+@media (max-width: 980px) {
+  .nx-files-v6 .nx-files-body {
+    grid-template-columns: minmax(190px, 225px) minmax(0, 1fr) !important;
+  }
+
+  .nx-files-v6 .nx-files-toolbar,
+  .nx-files-v6 .nx-files-filter-strip,
+  .nx-files-v6 .nx-files-content-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .nx-files-v6 .nx-files-detail-pane {
+    display: none;
+  }
+}
+
+@media (max-width: 760px) {
+  .nx-files-v6 .nx-files-titlebar {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .nx-files-v6 .nx-files-header-actions {
+    justify-content: flex-start;
+  }
+
+  .nx-files-v6 .nx-files-body {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .nx-files-v6 .nx-files-sidebar {
+    display: none;
+  }
+
+  .nx-files-v6 .nx-files-toolbar-controls {
+    grid-template-columns: minmax(0, 1fr) auto !important;
+  }
+
+  .nx-files-v6 .nx-files-select,
+  .nx-files-v6 .nx-files-layout-switcher {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-height: 640px) {
+  .nx-files-v6 .nx-files-quality-strip {
+    display: none !important;
+  }
+}

@@ -72,6 +72,14 @@ export const LANGS: CodeLanguage[] = [
       'public class Main {\n    public static void main(String[] args) {\n        System.out.println("Hello, World!");\n\n        int sum = 0;\n        for (int i = 1; i <= 10; i++) {\n            sum += i;\n        }\n        System.out.println("Sum 1-10: " + sum);\n\n        String[] fruits = {"Apple", "Banana", "Cherry"};\n        for (String f : fruits) {\n            System.out.println("  - " + f);\n        }\n    }\n}',
   },
   {
+    id: 'c',
+    label: 'C',
+    ext: 'c',
+    color: '#555555',
+    hello:
+      '#include <stdio.h>\n\nint main(void) {\n    printf("Hello, World!\\n");\n\n    int nums[] = {1, 2, 3, 4, 5};\n    int sum = 0;\n    for (int i = 0; i < 5; i++) {\n        sum += nums[i];\n        printf("%d ", nums[i] * nums[i]);\n    }\n    printf("\\nSum: %d\\n", sum);\n    return 0;\n}',
+  },
+  {
     id: 'cpp',
     label: 'C++',
     ext: 'cpp',

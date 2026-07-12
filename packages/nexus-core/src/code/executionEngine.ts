@@ -14,7 +14,7 @@ type NativeExecutionResult = {
   unsupported?: boolean
 }
 
-const NATIVE_EXEC_LANGS = new Set(['javascript', 'typescript', 'python', 'bash'])
+const NATIVE_EXEC_LANGS = new Set(['javascript', 'typescript', 'python', 'bash', 'c', 'cpp', 'java', 'rust', 'go'])
 
 const previewExpression = (value: string, maxLength = 160) => String(value || '')
   .trim()

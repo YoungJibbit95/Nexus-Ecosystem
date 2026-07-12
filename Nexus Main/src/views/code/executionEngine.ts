@@ -63,26 +63,31 @@ const RUNTIME_HELP: Record<string, RuntimeHelp> = {
   cpp: {
     label: "C++",
     runtime: "g++ or clang++",
+    bridgeSupported: true,
     command: (fileName) => `g++ -std=c++17 ${fileName} -o main && ./main`,
   },
   c: {
     label: "C",
     runtime: "gcc or clang",
+    bridgeSupported: true,
     command: (fileName) => `gcc ${fileName} -o main && ./main`,
   },
   java: {
     label: "Java",
     runtime: "JDK",
+    bridgeSupported: true,
     command: (fileName) => `javac ${fileName} && java ${classNameFromFile(fileName)}`,
   },
   rust: {
     label: "Rust",
     runtime: "rustc",
+    bridgeSupported: true,
     command: (fileName) => `rustc ${fileName} -o main && ./main`,
   },
   go: {
     label: "Go",
     runtime: "Go toolchain",
+    bridgeSupported: true,
     command: (fileName) => `go run ${fileName}`,
   },
   sql: {

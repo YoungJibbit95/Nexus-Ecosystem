@@ -264,11 +264,13 @@ export function Sidebar({
   onChange,
   availableViews,
   onPrefetch,
+  forceCompact = false,
 }: {
   view: View
   onChange: (v: View) => void
   availableViews?: View[]
   onPrefetch?: (v: View) => void
+  forceCompact?: boolean
 }) {
   const t = useTheme()
   const { terminalOpen, setTerminalOpen } = useTerminal((s) => ({
@@ -361,7 +363,7 @@ export function Sidebar({
 
   if (isHidden) return null
 
-  const iconOnly = isRail || isMinimal || t.sidebarWidth < 165 || !showLabels
+  const iconOnly = forceCompact || isRail || isMinimal || t.sidebarWidth < 165 || !showLabels
   const sidebarAccentBg = Boolean((t as any).sidebarAccentBg)
   const sidebarTintBg = t.mode === 'dark'
     ? `linear-gradient(180deg, rgba(${rgb},${sidebarAccentBg ? 0.34 : 0.22}), rgba(${rgb},${sidebarAccentBg ? 0.16 : 0.1}) 46%, rgba(${hexToRgb(t.accent2)},${sidebarAccentBg ? 0.18 : 0.1}) 100%)`
@@ -374,7 +376,7 @@ export function Sidebar({
   return (
     <Glass
       type="sidebar"
-      className={`flex flex-col ${isRail ? 'nx-sidebar-rail' : ''}`}
+      className={`flex flex-col ${isRail || forceCompact ? 'nx-sidebar-rail' : ''}`}
       style={{
         height: isFloating ? 'calc(100% - 14px)' : '100%',
         margin: isFloating ? 7 : 0,

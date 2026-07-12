@@ -24,6 +24,7 @@ screenshots plus `summary.json` and `summary.md` to the OS temp directory unless
 The visual scenario matrix is centralized in `visualSmokeScenarios.js`.
 
 - Full QA: `npm run smoke:visual`
+- Release QA: `NEXUS_CODE_VISUAL_SMOKE_PRESET=release npm run smoke:visual`
 - Focused QA: `NEXUS_CODE_VISUAL_SMOKE_PRESET=focused npm run smoke:visual`
 - Custom surfaces: `NEXUS_CODE_VISUAL_SMOKE_SURFACES=editor-rust,editor-glsl`
 - Custom viewports: `NEXUS_CODE_VISUAL_SMOKE_VIEWPORTS=desktop,phone-portrait`
@@ -36,6 +37,16 @@ The `focused` preset covers `launchpad`, `editor-rust`, and `editor-glsl` at
 dimension, so `NEXUS_CODE_VISUAL_SMOKE_PRESET=focused` can still be combined
 with an explicit surface or viewport list. Duplicate comma/space-separated
 filter entries are de-duped before scenarios are generated.
+
+The `release` preset keeps all 4 production viewports, all base workbench
+surfaces, and representative editor-language surfaces (`editor-scroll`,
+`editor-jsx`, `editor-json`, `editor-rust`, `editor-glsl`) for 48 screenshots.
+Use it when the full 120-screenshot matrix is too slow but the focused preset
+is too narrow for release evidence.
+
+`summary.md` includes preset label, explicit filters, coverage counts, timeout
+settings, environment details, failed scenario ids, and the slowest scenarios.
+Archive it with `summary.json` and the screenshots when recording release QA.
 
 Editor-language surfaces cover CodeMirror rendering, vertical scroll, and
 token-color variance for JavaScript, MJS, JSX, JSON/JSONC, CSS/SCSS, Python,
@@ -53,3 +64,26 @@ usable` or `ContextResult::kFatalFailure`, treat the run as environment-blocked.
 The harness keeps that as a failing result and prints a GPU/sandbox diagnostic;
 do not record it as a visual success without rerunning in an Electron
 environment that can create the renderer/GPU context.
+
+## Code-Quality Snapshot
+
+Run this from `Nexus Code` to track large source/test files and optional build
+chunks without adding a dependency:
+
+```sh
+node src/testing/codeQualitySnapshot.mjs
+```
+
+Useful variants:
+
+```sh
+node src/testing/codeQualitySnapshot.mjs --limit 20
+node src/testing/codeQualitySnapshot.mjs --file-warn-kb 120 --chunk-warn-kb 850
+node src/testing/codeQualitySnapshot.mjs --strict
+node src/testing/codeQualitySnapshot.mjs --json
+```
+
+`vite build` emits `dist/chunk-report.json`; when that file exists, the
+snapshot folds the largest chunks and chunk watch items into the same output.
+Before a build, the command still reports the largest source/test files and
+prints a missing-report hint instead of failing.

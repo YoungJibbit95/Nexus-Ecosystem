@@ -41,6 +41,15 @@ export const VISUAL_SMOKE_BASE_SURFACES = Object.freeze([
   "github-projects",
 ]);
 
+export const VISUAL_SMOKE_RELEASE_SURFACES = Object.freeze([
+  ...VISUAL_SMOKE_BASE_SURFACES,
+  "editor-scroll",
+  "editor-jsx",
+  "editor-json",
+  "editor-rust",
+  "editor-glsl",
+]);
+
 export const VISUAL_SMOKE_SURFACES = Object.freeze([
   "workbench-shell",
   ...VISUAL_SMOKE_EDITOR_LANGUAGE_SURFACES,
@@ -59,6 +68,11 @@ export const VISUAL_SMOKE_PRESETS = Object.freeze({
     label: "Full matrix",
     viewportIds: Object.freeze([...ALL_VIEWPORT_IDS]),
     surfaceIds: Object.freeze([...VISUAL_SMOKE_SURFACES]),
+  }),
+  release: Object.freeze({
+    label: "Release QA",
+    viewportIds: Object.freeze([...ALL_VIEWPORT_IDS]),
+    surfaceIds: Object.freeze([...VISUAL_SMOKE_RELEASE_SURFACES]),
   }),
   focused: Object.freeze({
     label: "Focused QA",
@@ -109,6 +123,26 @@ export function parseVisualSmokeFilter(value, defaults, label, allowed = default
   return requested;
 }
 
+function createCoverageSummary(viewports, surfaces) {
+  const baseSurfaceSet = new Set(VISUAL_SMOKE_BASE_SURFACES);
+  const editorSurfaceSet = new Set(VISUAL_SMOKE_EDITOR_LANGUAGE_SURFACES);
+  const viewportIds = viewports.map((viewport) => viewport.id);
+  return {
+    viewportCount: viewportIds.length,
+    surfaceCount: surfaces.length,
+    scenarioCount: viewportIds.length * surfaces.length,
+    totalViewportCount: VISUAL_SMOKE_VIEWPORTS.length,
+    totalSurfaceCount: VISUAL_SMOKE_SURFACES.length,
+    totalBaseSurfaceCount: VISUAL_SMOKE_BASE_SURFACES.length,
+    totalEditorLanguageSurfaceCount: VISUAL_SMOKE_EDITOR_LANGUAGE_SURFACES.length,
+    baseSurfaceCount: surfaces.filter((surface) => baseSurfaceSet.has(surface)).length,
+    editorLanguageSurfaceCount: surfaces.filter((surface) => editorSurfaceSet.has(surface))
+      .length,
+    fullViewportCoverage: viewportIds.length === VISUAL_SMOKE_VIEWPORTS.length,
+    fullSurfaceCoverage: surfaces.length === VISUAL_SMOKE_SURFACES.length,
+  };
+}
+
 export function createVisualSmokePlan({ preset, viewportIds, surfaceIds } = {}) {
   const presetId = normalizeVisualSmokePreset(preset);
   const presetConfig = VISUAL_SMOKE_PRESETS[presetId];
@@ -144,6 +178,7 @@ export function createVisualSmokePlan({ preset, viewportIds, surfaceIds } = {}) 
     viewports,
     surfaces,
     scenarios,
+    coverageSummary: createCoverageSummary(viewports, surfaces),
     isFullMatrix:
       viewports.length === VISUAL_SMOKE_VIEWPORTS.length &&
       surfaces.length === VISUAL_SMOKE_SURFACES.length,

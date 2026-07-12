@@ -34,6 +34,19 @@ const PANEL_TEXTURE_PRESETS: { value: PanelBgMode; label: string; desc: string }
   { value: "noise", label: "Sanfte Koernung", desc: "sehr dezente Textur" },
 ];
 
+const CORE_THEME_PRESETS = [
+  "Nexus Product Glow",
+  "Graphite Pro",
+  "Emerald Mist",
+  "Solar Flare",
+  "Ocean Wave",
+  "Velvet Dusk",
+  "Paper Ink",
+  "High Contrast Focus",
+];
+
+const CORE_PANEL_TEXTURES: PanelBgMode[] = ["glass", "mist", "gradient", "solid"];
+
 type SettingsModulePanelsProps = {
   module: ModuleId;
   t: Theme;
@@ -75,6 +88,14 @@ export function SettingsModulePanels({
   onResetMotionSettings,
   onResetAllSettings,
 }: SettingsModulePanelsProps) {
+  const visibleExperiencePresets = EXPERIENCE_PRESETS.filter((preset) =>
+    ["focus", "balanced", "performance"].includes(preset.id),
+  );
+  const visiblePanelTexturePresets = showAdvancedSettings
+    ? PANEL_TEXTURE_PRESETS
+    : PANEL_TEXTURE_PRESETS.filter((preset) =>
+        CORE_PANEL_TEXTURES.includes(preset.value),
+      );
   const panelModeHelp: Record<RendererMode, { label: string; desc: string }> = {
     blur: {
       label: "Soft Blur",
@@ -456,7 +477,7 @@ export function SettingsModulePanels({
                       gap: 8,
                     }}
                   >
-                    {EXPERIENCE_PRESETS.map((preset) => (
+                    {visibleExperiencePresets.map((preset) => (
                       <button
                         key={preset.id}
                         onClick={() => {
@@ -491,6 +512,7 @@ export function SettingsModulePanels({
                   desc="Fertige Looks mit klarer Vorschau"
                 >
                   <ThemeLibraryGrid
+                    presetNames={showAdvancedSettings ? undefined : CORE_THEME_PRESETS}
                     onApply={(name) => {
                       t.preset(name);
                       toast(`Theme aktiv: ${name}`);
@@ -1247,7 +1269,7 @@ export function SettingsModulePanels({
                   <Segmented
                     label="Oberflaeche"
                     value={t.background.panelBgMode}
-                    options={PANEL_TEXTURE_PRESETS.map((item) => ({
+                    options={visiblePanelTexturePresets.map((item) => ({
                       value: item.value,
                       label: item.label,
                     }))}
@@ -1261,7 +1283,7 @@ export function SettingsModulePanels({
                       marginTop: 10,
                     }}
                   >
-                    {PANEL_TEXTURE_PRESETS.map((preset) => {
+                    {visiblePanelTexturePresets.map((preset) => {
                       const active = t.background.panelBgMode === preset.value;
                       const preview = buildPanelSurfaceTokens({
                         mode: preset.value,
