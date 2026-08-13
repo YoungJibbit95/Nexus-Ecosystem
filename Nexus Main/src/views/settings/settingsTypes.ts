@@ -2,6 +2,7 @@ import type { Theme } from "../../store/themeStore";
 
 export type ModuleId =
   | "appearance"
+  | "accessibility"
   | "panel"
   | "layout"
   | "motion"

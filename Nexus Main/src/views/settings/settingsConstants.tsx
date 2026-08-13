@@ -1,5 +1,6 @@
 import React from "react";
 import {
+  Accessibility,
   Wand2,
   LayoutGrid,
   SlidersHorizontal,
@@ -21,6 +22,12 @@ export const MODULES: {
     icon: <Wand2 size={14} />,
     title: "Look und Lesbarkeit",
     desc: "Presets, Farben, Schrift",
+  },
+  {
+    id: "accessibility",
+    icon: <Accessibility size={14} />,
+    title: "Barrierefreiheit",
+    desc: "Kontrast, Text und Bewegung",
   },
   {
     id: "panel",

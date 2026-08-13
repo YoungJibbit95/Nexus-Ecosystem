@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { AlertTriangle, RotateCcw, AlertCircle } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 import { nativeFS, SEP } from "../lib/nativeFS";
 import TitleBar from "../components/editor/TitleBar";
 import Sidebar, { MobileBottomNav } from "../components/editor/Sidebar";

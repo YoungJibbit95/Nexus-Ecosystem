@@ -12,14 +12,16 @@ Sie kombiniert produktive Kern-Views mit der zentralen Render-/Motion-Laufzeit a
 | View | Purpose | Highlights |
 | --- | --- | --- |
 | `dashboard` | start and control center | Today layer, resume lane, quick capture, workspace status |
-| `notes` | markdown knowledge workflow | edit/preview/split, templates, linking/context helpers |
+| `calendar` | shared planning layer (partial) | task/reminder-backed day, week, month, agenda and ICS flows |
+| `notes` | markdown knowledge workflow (partial) | edit/preview/split, templates, linking/context helpers |
 | `tasks` | execution planning | kanban flow, priorities, due states, focus actions |
 | `reminders` | time-based workflow | grouped due states, snooze/complete, health controls |
-| `canvas` | visual board workflow | node graph, templates, quick add, inspector, keyboard actions |
-| `files` | workspace + handoff | workspace folder control, handoff import/export, history |
-| `code` | embedded code work | integrated code execution and file workflows in Main shell |
-| `devtools` | diagnostics/tools | render/motion debugging and utility surfaces |
-| `settings` | system controls | appearance, typography, motion/render controls, presets |
+| `canvas` | visual board workflow (development) | node graph, templates, quick add, inspector, keyboard actions |
+| `files` | workspace + handoff (partial) | explicit library/workspace assignment, root selection, import/export and preview |
+| `flux` | local operations view (partial) | queue, bottleneck and activity signals derived from local workspace data |
+| `code` | embedded code work (partial) | bounded local code execution and file workflows in Main shell |
+| `devtools` | internal diagnostics (development) | development-only, Pro plus Admin/Developer-gated utilities |
+| `settings` | system controls (partial) | appearance, typography, motion/render controls, presets |
 | `info` | product and architecture docs | in-app source of truth for usage and internals |
 
 ## UI Engine
@@ -98,5 +100,5 @@ See `../docs/ENVIRONMENT.md`.
 ## Notes
 
 - This repo does not contain the private Nexus Cloud backend implementation.
-- Cloud and Pro access is server-side; client UI gates are only user experience.
+- Protected API access is server-side; planned Cloud/Pro product availability is not implied by client UI gates.
 - Render Diagnostics is a dev surface and not part of normal production navigation.
