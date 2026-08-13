@@ -1,10 +1,6 @@
 import React from "react";
 import {
   ArrowLeft,
-  Palette,
-  Type,
-  Code2,
-  Monitor,
   Zap,
   Sparkles,
 } from "lucide-react";

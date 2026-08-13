@@ -22,8 +22,8 @@
 .nx-settings-v6 .nx-settings-content {
   border-color: rgba(153, 182, 255, 0.16) !important;
   background:
-    linear-gradient(140deg, rgba(var(--nx-settings-accent-rgb), 0.09), transparent 42%),
-    linear-gradient(180deg, rgba(28, 37, 67, 0.48), rgba(11, 17, 33, 0.38)) !important;
+    linear-gradient(140deg, rgba(var(--nx-settings-accent-rgb), 0.07), transparent 42%),
+    linear-gradient(180deg, rgba(28, 37, 67, 0.3), rgba(11, 17, 33, 0.22)) !important;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.075),
     0 18px 46px rgba(2, 7, 22, 0.22),
@@ -51,7 +51,7 @@
   border-color: rgba(var(--nx-settings-accent-rgb), 0.2) !important;
   background:
     linear-gradient(110deg, rgba(var(--nx-settings-accent-rgb), 0.12), rgba(143, 83, 255, 0.055)),
-    rgba(8, 13, 28, 0.42) !important;
+    rgba(8, 13, 28, 0.28) !important;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.065),
     0 12px 30px rgba(2, 7, 22, 0.16);
@@ -62,15 +62,19 @@
   background:
     radial-gradient(320px circle at 6% -30%, rgba(var(--nx-settings-accent-rgb), 0.11), transparent 72%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.052), rgba(255, 255, 255, 0.018)),
-    rgba(11, 18, 34, 0.34) !important;
+    rgba(11, 18, 34, 0.22) !important;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.055),
     0 12px 30px rgba(2, 7, 22, 0.13);
 }
 
 .nx-settings-v6 .nx-settings-content-heading {
-  position: relative;
-  z-index: 2;
+  position: sticky;
+  top: 0;
+  z-index: 8;
+  margin: -4px -4px 8px;
+  padding: 4px;
+  background: linear-gradient(180deg, rgba(8, 13, 28, 0.9), rgba(8, 13, 28, 0.62) 78%, transparent);
 }
 
 .nx-settings-v6 .nx-settings-module-card button {
@@ -117,7 +121,7 @@
     flex: 0 0 auto;
   }
 
-  .nx-settings-v6 .nx-settings-sidebar > div:nth-child(4) {
+  .nx-settings-v6 .nx-settings-module-list {
     display: grid !important;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     overflow: visible !important;
@@ -138,11 +142,66 @@
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   }
 
-  .nx-settings-v6 .nx-settings-sidebar > div:nth-child(4) {
-    grid-template-columns: minmax(0, 1fr);
+  .nx-settings-v6 .nx-settings-module-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 4px !important;
+  }
+
+  .nx-settings-v6 .nx-settings-module-button {
+    min-height: 44px;
+    padding: 7px !important;
+  }
+
+  .nx-settings-v6 .nx-settings-module-button > span:last-child > span:last-child {
+    display: none;
   }
 
   .nx-settings-v6 .nx-settings-content {
     padding: 9px !important;
+  }
+
+  .nx-settings-v6 .nx-settings-content-heading {
+    margin: -3px -3px 8px;
+    padding: 3px;
+  }
+
+  .nx-settings-v6 .nx-settings-content-header {
+    align-items: flex-start !important;
+    padding: 9px !important;
+  }
+
+  .nx-settings-v6 .nx-settings-guide-chip {
+    min-height: 44px;
+  }
+
+  .nx-settings-v6 .nx-settings-live-material-grid,
+  .nx-settings-v6 .nx-settings-panel-health {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
+
+@media (max-width: 460px), (max-height: 460px) and (max-width: 980px) {
+  .nx-settings-v6 .nx-settings-summary {
+    display: none !important;
+  }
+
+  .nx-settings-v6 .nx-settings-sidebar-heading > div:last-child {
+    display: none;
+  }
+
+  .nx-settings-v6 .nx-settings-module-list {
+    display: flex !important;
+    flex-direction: row !important;
+    overflow-x: auto !important;
+    padding-bottom: 3px;
+  }
+
+  .nx-settings-v6 .nx-settings-module-button {
+    flex: 0 0 auto;
+    min-width: 132px;
+  }
+
+  .nx-settings-v6 .nx-settings-sidebar-footer {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   }
 }

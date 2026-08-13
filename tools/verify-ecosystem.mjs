@@ -599,6 +599,30 @@ const run = async () => {
       message: 'Notes schuetzt Editor-Zeilenumbrueche, Toolbar-Selection und Markdown-only Details',
     },
     {
+      id: 'main-notes-mobile-library-drawer',
+      file: path.join(ROOT, 'Nexus Main/src/views/NotesView.tsx'),
+      pattern: /mobileSidebarOpen[\s\S]*?data-mobile-sidebar[\s\S]*?nx-notes-mobile-sidebar-scrim[\s\S]*?nx-notes-mobile-sidebar-trigger[\s\S]*?aria-expanded=\{mobileSidebarOpen\}/,
+      message: 'Notes nutzt auf kleinen Breiten einen tastaturbedienbaren Library-Drawer',
+    },
+    {
+      id: 'main-notes-phone-title-grid',
+      file: path.join(ROOT, 'Nexus Main/src/views/notes/NotesViewPolish.css'),
+      pattern: /@container \(max-width: 620px\)[\s\S]*?nx-notes-title-field[\s\S]*?grid-column:\s*1\s*!important[\s\S]*?min-width:\s*min\(168px,[\s\S]*?nx-notes-mode-actions[\s\S]*?grid-row:\s*2\s*!important[\s\S]*?nx-notes-editor-meta[\s\S]*?grid-row:\s*3\s*!important/,
+      message: 'Notes reserviert auf Phone-Breiten eine eigene Zeile und Mindestbreite fuer den editierbaren Titel',
+    },
+    {
+      id: 'main-canvas-responsive-toolbar-overflow',
+      file: path.join(ROOT, 'Nexus Main/src/views/canvas/components/CanvasTopBar.tsx'),
+      pattern: /mobileMenuOpen[\s\S]*?nx-canvas-mobile-primary[\s\S]*?aria-haspopup="dialog"[\s\S]*?nx-canvas-mobile-menu[\s\S]*?History &amp; zoom/,
+      message: 'Canvas priorisiert Kernaktionen und haelt den vollstaendigen Werkzeugkatalog im Overflow erreichbar',
+    },
+    {
+      id: 'main-header-only-wired-actions',
+      file: path.join(ROOT, 'Nexus Main/src/app/NexusV6ViewShell.tsx'),
+      pattern: /onCanExecuteCommand[\s\S]*?executableCommands[\s\S]*?command\.enabled[\s\S]*?nx-v6-header-more-button[\s\S]*?aria-modal="true"/,
+      message: 'Globaler Header zeigt nur verdrahtete Commands und bietet ein zugaengliches Responsive-Overflow',
+    },
+    {
       id: 'main-magic-details-renderer',
       file: path.join(ROOT, 'Nexus Main/src/views/notes/NotesMagicRenderers.tsx'),
       pattern: /function MagicDetails[\s\S]*?nexus-details[\s\S]*?MagicDetails/,

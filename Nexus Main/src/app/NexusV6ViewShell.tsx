@@ -15,6 +15,8 @@ import {
   type NexusViewManifest,
 } from "@nexus/core";
 import type { View } from "../components/Sidebar";
+import { MoreHorizontal, X } from "lucide-react";
+import "./NexusV6ViewShell.css";
 
 type Props = {
   viewId: View;
@@ -24,6 +26,7 @@ type Props = {
   onRequestViewChange: (viewId: View | string) => void;
   onPrefetchView: (viewId: View) => void;
   onExecuteCommand?: (command: NexusResolvedViewCommand) => boolean | void;
+  onCanExecuteCommand?: (command: NexusResolvedViewCommand) => boolean;
   children: React.ReactNode;
 };
 
@@ -94,6 +97,7 @@ export function NexusV6ViewShell({
   onRequestViewChange,
   onPrefetchView,
   onExecuteCommand,
+  onCanExecuteCommand,
   children,
 }: Props) {
   const contract = React.useMemo(() => resolveViewContract(viewId), [viewId]);
@@ -123,6 +127,9 @@ export function NexusV6ViewShell({
     React.useState<NexusResolvedViewState | null>(null);
   const [pendingViewChange, setPendingViewChange] =
     React.useState<PendingViewChange | null>(null);
+  const [headerOverflowOpen, setHeaderOverflowOpen] = React.useState(false);
+  const headerOverflowRef = React.useRef<HTMLDivElement>(null);
+  const headerOverflowTriggerRef = React.useRef<HTMLButtonElement>(null);
 
   React.useEffect(() => {
     setActivePanelId(null);
@@ -131,6 +138,7 @@ export function NexusV6ViewShell({
     setLastCommandId(null);
     setShellState(null);
     setPendingViewChange(null);
+    setHeaderOverflowOpen(false);
   }, [contract.id]);
 
   const panelEngine = React.useMemo(
@@ -158,13 +166,23 @@ export function NexusV6ViewShell({
       }),
     [availableViews, viewId],
   );
+  const executableCommands = React.useMemo(
+    () =>
+      commandRegistry.filter(
+        (command) =>
+          command.enabled &&
+          (command.id === "focus-mode" ||
+            Boolean(onCanExecuteCommand?.(command))),
+      ),
+    [commandRegistry, onCanExecuteCommand],
+  );
   const primaryAction =
-    commandRegistry.find(
+    executableCommands.find(
       (command) => command.id === contract.defaultActionId,
     ) ??
-    commandRegistry.find((command) => command.placement === "primary") ??
+    executableCommands.find((command) => command.placement === "primary") ??
     null;
-  const toolbarActions = commandRegistry
+  const toolbarActions = executableCommands
     .filter((command) => command.commandId !== primaryAction?.commandId)
     .slice(0, 2);
   const lastCommand = commandRegistry.find(
@@ -208,6 +226,54 @@ export function NexusV6ViewShell({
 
     return () => window.clearTimeout(timeoutId);
   }, [shellState, shellStateBehavior.autoDismissMs]);
+
+  React.useEffect(() => {
+    if (!headerOverflowOpen || typeof window === "undefined") return;
+    const media = window.matchMedia("(max-width: 980px)");
+    if (!media.matches) {
+      setHeaderOverflowOpen(false);
+      return;
+    }
+    const selector =
+      'button:not(:disabled), [href], input:not(:disabled), select:not(:disabled), [tabindex]:not([tabindex="-1"])';
+    const focusable = () =>
+      headerOverflowRef.current
+        ? Array.from(
+            headerOverflowRef.current.querySelectorAll<HTMLElement>(selector),
+          ).filter((element) => element.getClientRects().length > 0)
+        : [];
+    const frame = window.requestAnimationFrame(() => focusable()[0]?.focus());
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setHeaderOverflowOpen(false);
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const candidates = focusable();
+      if (candidates.length === 0) return;
+      const first = candidates[0];
+      const last = candidates[candidates.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    const closeAtDesktopWidth = (event: MediaQueryListEvent) => {
+      if (!event.matches) setHeaderOverflowOpen(false);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    media.addEventListener?.("change", closeAtDesktopWidth);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener("keydown", handleKeyDown);
+      media.removeEventListener?.("change", closeAtDesktopWidth);
+      headerOverflowTriggerRef.current?.focus();
+    };
+  }, [headerOverflowOpen]);
 
   React.useEffect(() => {
     if (!shellStateBehavior.blocksNavigation) {
@@ -270,32 +336,20 @@ export function NexusV6ViewShell({
         return;
       }
 
-      const handled = onExecuteCommand?.(command);
-      if (handled) {
-        setShellState(resolveNexusViewState({ viewId, saved: true }));
-        return;
-      }
-
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(
-          new CustomEvent("nexus:view-command", {
-            detail: {
-              commandId: command.commandId,
-              actionId: command.id,
-              viewId: command.viewId,
-              intent: command.intent,
-              placement: command.placement,
-            },
-          }),
-        );
-      }
-
       if (command.id === "focus-mode") {
         setFocusMode((next) => !next);
         setShellState(resolveNexusViewState({ viewId, saved: true }));
         return;
       }
-      setShellState(resolveNexusViewState({ viewId, dirty: true }));
+
+      const handled = onExecuteCommand?.(command);
+      if (handled) {
+        setShellState(resolveNexusViewState({ viewId, saved: true }));
+        return;
+      }
+      setShellState(
+        resolveNexusViewState({ viewId, blockedReason: "command-not-wired" }),
+      );
       setInspectorOpen(true);
     },
     [onExecuteCommand, viewId],
@@ -352,49 +406,126 @@ export function NexusV6ViewShell({
         </div>
 
         <div className="nx-v6-header-actions" aria-label="v6 View Actions">
-          {primaryAction ? (
+          <div className="nx-v6-header-primary-actions">
+            {primaryAction ? (
+              <button
+                type="button"
+                className="nx-v6-action nx-v6-action--primary"
+                title={primaryAction.shortcut || primaryAction.intent}
+                onClick={() => runShellCommand(primaryAction)}
+              >
+                {primaryAction.title}
+              </button>
+            ) : null}
+            {toolbarActions.map((action) => (
+              <button
+                key={action.id}
+                type="button"
+                className="nx-v6-action nx-v6-action--secondary"
+                title={action.shortcut || action.intent}
+                onClick={() => runShellCommand(action)}
+              >
+                {action.title}
+              </button>
+            ))}
+          </div>
+          <div className="nx-v6-header-utility-actions">
             <button
-              type="button"
-              className="nx-v6-action nx-v6-action--primary"
-              title={
-                primaryAction.disabledReason ||
-                primaryAction.shortcut ||
-                primaryAction.intent
-              }
-              aria-disabled={primaryAction.enabled ? undefined : "true"}
-              onClick={() => runShellCommand(primaryAction)}
-            >
-              {primaryAction.title}
-            </button>
-          ) : null}
-          {toolbarActions.map((action) => (
-            <button
-              key={action.id}
               type="button"
               className="nx-v6-action"
-              title={action.disabledReason || action.shortcut || action.intent}
-              aria-disabled={action.enabled ? undefined : "true"}
-              onClick={() => runShellCommand(action)}
+              aria-pressed={focusMode}
+              onClick={() => setFocusMode((next) => !next)}
             >
-              {action.title}
+              {focusMode ? "Zurueck" : "Fokus"}
             </button>
-          ))}
+            <button
+              type="button"
+              className="nx-v6-action"
+              aria-pressed={inspectorOpen}
+              onClick={() => setInspectorOpen((next) => !next)}
+            >
+              Details
+            </button>
+          </div>
           <button
+            ref={headerOverflowTriggerRef}
             type="button"
-            className="nx-v6-action"
-            aria-pressed={focusMode}
-            onClick={() => setFocusMode((next) => !next)}
+            className="nx-v6-header-more-button"
+            aria-expanded={headerOverflowOpen}
+            aria-haspopup="dialog"
+            aria-label="Weitere View-Aktionen"
+            title="Weitere View-Aktionen"
+            onClick={() => setHeaderOverflowOpen((open) => !open)}
           >
-            {focusMode ? "Zurueck" : "Fokus"}
+            <MoreHorizontal size={18} aria-hidden="true" />
           </button>
-          <button
-            type="button"
-            className="nx-v6-action"
-            aria-pressed={inspectorOpen}
-            onClick={() => setInspectorOpen((next) => !next)}
-          >
-            Details
-          </button>
+          {headerOverflowOpen ? (
+            <>
+              <button
+                type="button"
+                className="nx-v6-header-menu-scrim"
+                aria-label="Aktionsmenue schliessen"
+                tabIndex={-1}
+                onClick={() => setHeaderOverflowOpen(false)}
+              />
+              <div
+                ref={headerOverflowRef}
+                className="nx-v6-header-menu"
+                role="dialog"
+                aria-modal="true"
+                aria-label={`${contract.title} Aktionen`}
+              >
+                <header>
+                  <div>
+                    <strong>{contract.title}</strong>
+                    <span>Verfuegbare Aktionen</span>
+                  </div>
+                  <button
+                    type="button"
+                    aria-label="Aktionsmenue schliessen"
+                    onClick={() => setHeaderOverflowOpen(false)}
+                  >
+                    <X size={18} aria-hidden="true" />
+                  </button>
+                </header>
+                {toolbarActions.map((action) => (
+                  <button
+                    key={`mobile-${action.id}`}
+                    type="button"
+                    onClick={() => {
+                      runShellCommand(action);
+                      setHeaderOverflowOpen(false);
+                    }}
+                  >
+                    <strong>{action.title}</strong>
+                    <span>{action.shortcut || action.intent}</span>
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  aria-pressed={focusMode}
+                  onClick={() => {
+                    setFocusMode((next) => !next);
+                    setHeaderOverflowOpen(false);
+                  }}
+                >
+                  <strong>{focusMode ? "Fokus beenden" : "Fokusmodus"}</strong>
+                  <span>View-Chrome reduzieren</span>
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={inspectorOpen}
+                  onClick={() => {
+                    setInspectorOpen((next) => !next);
+                    setHeaderOverflowOpen(false);
+                  }}
+                >
+                  <strong>{inspectorOpen ? "Details schliessen" : "Details oeffnen"}</strong>
+                  <span>Panels und Statussignale</span>
+                </button>
+              </div>
+            </>
+          ) : null}
         </div>
       </header>
 

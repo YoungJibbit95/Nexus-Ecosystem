@@ -4,6 +4,11 @@ export type CodeExecutionFile = {
   name?: string
 }
 
+export type CodeExecutionOptions = {
+  signal?: AbortSignal
+  timeoutMs?: number
+}
+
 type NativeExecutionResult = {
   ok: boolean
   output: string
@@ -16,15 +21,75 @@ type NativeExecutionResult = {
 
 const NATIVE_EXEC_LANGS = new Set(['javascript', 'typescript', 'python', 'bash', 'c', 'cpp', 'java', 'rust', 'go'])
 
+export const CODE_EXECUTION_MAX_INPUT_CHARS = 200_000
+export const CODE_EXECUTION_MAX_FILE_NAME_CHARS = 240
+export const CODE_EXECUTION_MAX_LANG_CHARS = 40
+export const CODE_EXECUTION_MAX_OUTPUT_CHARS = 64_000
+export const CODE_EXECUTION_MAX_ANALYSIS_MATCHES = 10_000
+export const CODE_EXECUTION_DEFAULT_TIMEOUT_MS = 15_000
+
+const CODE_EXECUTION_MIN_TIMEOUT_MS = 50
+const CODE_EXECUTION_MAX_TIMEOUT_MS = 30_000
+
+const boundExecutionOutput = (value: string) => {
+  if (value.length <= CODE_EXECUTION_MAX_OUTPUT_CHARS) return value
+  const marker = `\n\n[Output truncated at ${CODE_EXECUTION_MAX_OUTPUT_CHARS} characters.]`
+  return `${value.slice(0, CODE_EXECUTION_MAX_OUTPUT_CHARS - marker.length)}${marker}`
+}
+
+const validateExecutionFile = (file: CodeExecutionFile) => {
+  if (!file || typeof file !== 'object') return 'Execution blocked: file payload is invalid.'
+  if (typeof file.lang !== 'string' || !file.lang.trim()) return 'Execution blocked: language is missing.'
+  if (file.lang.length > CODE_EXECUTION_MAX_LANG_CHARS) {
+    return `Execution blocked: language exceeds ${CODE_EXECUTION_MAX_LANG_CHARS} characters.`
+  }
+  if (typeof file.content !== 'string') return 'Execution blocked: file content must be text.'
+  if (file.content.length > CODE_EXECUTION_MAX_INPUT_CHARS) {
+    return `Execution blocked: input exceeds ${CODE_EXECUTION_MAX_INPUT_CHARS} characters.`
+  }
+  if (file.name != null && (
+    typeof file.name !== 'string'
+    || file.name.length > CODE_EXECUTION_MAX_FILE_NAME_CHARS
+  )) {
+    return `Execution blocked: file name exceeds ${CODE_EXECUTION_MAX_FILE_NAME_CHARS} characters.`
+  }
+  return null
+}
+
 const previewExpression = (value: string, maxLength = 160) => String(value || '')
   .trim()
   .replace(/^["'`]|["'`]$/g, '')
   .replace(/\\n/g, '\n')
   .slice(0, maxLength)
 
-const countMatches = (code: string, pattern: RegExp) => (code.match(pattern) || []).length
+const countMatches = (
+  code: string,
+  pattern: RegExp,
+  max = CODE_EXECUTION_MAX_ANALYSIS_MATCHES,
+) => {
+  pattern.lastIndex = 0
+  let count = 0
+  let match: RegExpExecArray | null
+  while ((match = pattern.exec(code)) !== null) {
+    count += 1
+    if (count >= max) break
+    if (match[0] === '') pattern.lastIndex += 1
+  }
+  pattern.lastIndex = 0
+  return count
+}
 
-const firstMatches = (code: string, pattern: RegExp, max = 8) => [...code.matchAll(pattern)].slice(0, max)
+const firstMatches = (code: string, pattern: RegExp, max = 8) => {
+  pattern.lastIndex = 0
+  const matches: RegExpExecArray[] = []
+  let match: RegExpExecArray | null
+  while (matches.length < max && (match = pattern.exec(code)) !== null) {
+    matches.push(match)
+    if (match[0] === '') pattern.lastIndex += 1
+  }
+  pattern.lastIndex = 0
+  return matches
+}
 
 function runJavaScriptPreview(lang: string, code: string): string {
   const lines = code.split('\n')
@@ -147,7 +212,51 @@ function simulateLang(lang: string, code: string): string {
   }
 }
 
-async function tryNativeExecution(file: CodeExecutionFile): Promise<string | null> {
+const waitForNativeResult = (
+  promise: Promise<NativeExecutionResult>,
+  options: CodeExecutionOptions,
+): Promise<
+  | { status: 'completed'; result: NativeExecutionResult }
+  | { status: 'cancelled' | 'timeout' | 'failed' }
+> => new Promise((resolve) => {
+  let settled = false
+  const requestedTimeoutMs = Number.isFinite(options.timeoutMs)
+    ? Number(options.timeoutMs)
+    : CODE_EXECUTION_DEFAULT_TIMEOUT_MS
+  const timeoutMs = Math.max(
+    CODE_EXECUTION_MIN_TIMEOUT_MS,
+    Math.min(CODE_EXECUTION_MAX_TIMEOUT_MS, Math.floor(requestedTimeoutMs)),
+  )
+  let timeout: ReturnType<typeof setTimeout> | null = null
+
+  const finish = (result:
+    | { status: 'completed'; result: NativeExecutionResult }
+    | { status: 'cancelled' | 'timeout' | 'failed' },
+  ) => {
+    if (settled) return
+    settled = true
+    if (timeout) clearTimeout(timeout)
+    options.signal?.removeEventListener('abort', onAbort)
+    resolve(result)
+  }
+  const onAbort = () => finish({ status: 'cancelled' })
+
+  if (options.signal?.aborted) {
+    finish({ status: 'cancelled' })
+    return
+  }
+  options.signal?.addEventListener('abort', onAbort, { once: true })
+  timeout = setTimeout(() => finish({ status: 'timeout' }), timeoutMs)
+  void promise.then(
+    (result) => finish({ status: 'completed', result }),
+    () => finish({ status: 'failed' }),
+  )
+})
+
+async function tryNativeExecution(
+  file: CodeExecutionFile,
+  options: CodeExecutionOptions,
+): Promise<string | null> {
   if (!NATIVE_EXEC_LANGS.has(file.lang)) return null
   const api = (globalThis as any)?.window?.api?.code?.execute as
     | ((payload: { lang: string; code: string; fileName?: string }) => Promise<NativeExecutionResult>)
@@ -155,17 +264,23 @@ async function tryNativeExecution(file: CodeExecutionFile): Promise<string | nul
   if (!api) return null
 
   try {
-    const result = (await api({
+    const boundary = await waitForNativeResult(api({
       lang: file.lang,
       code: file.content,
       fileName: file.name,
-    })) as NativeExecutionResult
+    }), options)
+
+    if (boundary.status === 'cancelled') return 'Execution cancelled.'
+    if (boundary.status === 'timeout') return 'Execution stopped: native runtime timed out.'
+    if (boundary.status !== 'completed') return null
+    const result = boundary.result
 
     if (!result || result.unsupported) return null
 
-    const runtime = result.runtime ? ` (${result.runtime})` : ''
+    const runtimeValue = typeof result.runtime === 'string' ? result.runtime.slice(0, 120) : ''
+    const runtime = runtimeValue ? ` (${runtimeValue})` : ''
     const header = `Native runtime${runtime}`
-    const body = (result.output || '').trimEnd()
+    const body = (typeof result.output === 'string' ? result.output : '').trimEnd()
 
     if (result.ok) {
       if (body) return `${header}\n\n${body}`
@@ -173,7 +288,8 @@ async function tryNativeExecution(file: CodeExecutionFile): Promise<string | nul
     }
 
     const failReason =
-      result.error ||
+      (typeof result.error === 'string' ? result.error.slice(0, 2_000) : '') ||
+      (result.timeout ? 'Execution timed out' : '') ||
       (typeof result.exitCode === 'number'
         ? `Process exited with code ${result.exitCode}`
         : 'Execution failed')
@@ -187,23 +303,37 @@ async function tryNativeExecution(file: CodeExecutionFile): Promise<string | nul
   }
 }
 
-export async function executeCode(file: CodeExecutionFile): Promise<string> {
-  const native = await tryNativeExecution(file)
-  if (native) return native
+export async function executeCode(
+  file: CodeExecutionFile,
+  options: CodeExecutionOptions = {},
+): Promise<string> {
+  const validationError = validateExecutionFile(file)
+  if (validationError) return validationError
+  if (options.signal?.aborted) return 'Execution cancelled.'
 
+  const native = await tryNativeExecution(file, options)
+  if (native) return boundExecutionOutput(native)
+
+  let output: string
   switch (file.lang) {
     case 'javascript':
     case 'typescript':
-      return runJavaScriptPreview(file.lang, file.content)
+      output = runJavaScriptPreview(file.lang, file.content)
+      break
     case 'json':
-      return runJSON(file.content)
+      output = runJSON(file.content)
+      break
     case 'html':
-      return `HTML preview available in the Preview tab.\n\nParsed: ${(file.content.match(/<[a-z][^>]*>/gi) || []).length} HTML tags`
+      output = `HTML preview available in the Preview tab.\n\nParsed: ${countMatches(file.content, /<[a-z][^>]*>/gi)} HTML tags`
+      break
     case 'css':
-      return `CSS preview available in the Preview tab.\n\nRules: ${(file.content.match(/\{[^}]*\}/g) || []).length}`
+      output = `CSS preview available in the Preview tab.\n\nRules: ${countMatches(file.content, /\{[^}]*\}/g)}`
+      break
     case 'markdown':
-      return `Markdown preview available in the Preview tab.\n\nHeadings: ${(file.content.match(/^#{1,6}\s/gm) || []).length}`
+      output = `Markdown preview available in the Preview tab.\n\nHeadings: ${countMatches(file.content, /^#{1,6}\s/gm)}`
+      break
     default:
-      return simulateLang(file.lang, file.content)
+      output = simulateLang(file.lang, file.content)
   }
+  return boundExecutionOutput(output)
 }

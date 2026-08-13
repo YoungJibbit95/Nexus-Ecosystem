@@ -16,6 +16,7 @@ import {
   Activity,
 } from "lucide-react";
 import {
+  getDevelopmentOnlyViewsForApp,
   getFallbackViewsForApp,
   getNexusViewManifest,
   orderViewsForNavigation,
@@ -36,6 +37,8 @@ export type MainViewRegistryItem = {
   preloadPriority: number;
   heavy: boolean;
   devOnly?: boolean;
+  requiredTier?: "pro";
+  allowedRoles?: readonly ["admin", "developer"];
 };
 
 export const MAIN_DEVELOPMENT_ONLY_VIEWS_ENABLED = import.meta.env.DEV;
@@ -104,9 +107,12 @@ const buildCoreRegistryItem = (viewId: NexusViewId): MainViewRegistryItem => {
   };
 };
 
-export const MAIN_CORE_VIEW_IDS: NexusViewId[] = orderViewsForNavigation(
-  getFallbackViewsForApp("main"),
-);
+export const MAIN_CORE_VIEW_IDS: NexusViewId[] = orderViewsForNavigation([
+  ...getFallbackViewsForApp("main"),
+  ...(MAIN_DEVELOPMENT_ONLY_VIEWS_ENABLED
+    ? getDevelopmentOnlyViewsForApp("main")
+    : []),
+]);
 
 export const MAIN_VIEW_IDS: View[] = [
   ...MAIN_CORE_VIEW_IDS,
@@ -127,7 +133,12 @@ const MAIN_CORE_VIEW_REGISTRY: Record<NexusViewId, MainViewRegistryItem> = {
   flux: buildCoreRegistryItem("flux"),
   settings: buildCoreRegistryItem("settings"),
   info: buildCoreRegistryItem("info"),
-  devtools: buildCoreRegistryItem("devtools"),
+  devtools: {
+    ...buildCoreRegistryItem("devtools"),
+    devOnly: true,
+    requiredTier: "pro",
+    allowedRoles: ["admin", "developer"],
+  },
 };
 
 const MAIN_DEVELOPMENT_VIEW_REGISTRY: Partial<Record<View, MainViewRegistryItem>> =

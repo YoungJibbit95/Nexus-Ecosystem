@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
-/* ─── Mock data ──────────────────────────────────────────────────────────── */
+/* Preview-only sample data. This panel does not connect to a debug adapter. */
 
 const INITIAL_VARIABLES = [
   { id: 1, name: "result", value: "42", type: "number", mutable: true },
@@ -53,13 +53,13 @@ const INITIAL_CONSOLE = [
   {
     id: 1,
     type: "system",
-    text: "✦ Nexus Debug Session gestartet",
+    text: "Preview-Simulation geladen",
     time: "10:00:00",
   },
   {
     id: 2,
     type: "info",
-    text: "Bereit. Setze Breakpoints und starte.",
+    text: "Beispielwerte: Es wird kein Programm ausgeführt.",
     time: "10:00:00",
   },
 ];
@@ -192,15 +192,15 @@ export default function DebugPanel({ activeFile, _code, problems = [] }) {
       },
       {
         id: 2,
-        fn: "dispatch()",
-        file: "runtime/debug-adapter",
+        fn: "simulateStep()",
+        file: "preview/simulation",
         line: 44,
         active: false,
       },
       {
         id: 3,
-        fn: "eventLoop()",
-        file: "runtime/scheduler",
+        fn: "renderPreview()",
+        file: "preview/simulation",
         line: 18,
         active: false,
       },
@@ -234,11 +234,11 @@ export default function DebugPanel({ activeFile, _code, problems = [] }) {
     setIsPaused(false);
     setPausedLine(null);
     addLog(
-      "▶ Debug-Session gestartet" + (activeFile ? ` — ${activeFile.name}` : ""),
+      "Preview-Simulation gestartet" + (activeFile ? ` — ${activeFile.name}` : ""),
       "info",
     );
     setTimeout(() => {
-      addLog("Ausführung läuft…", "system");
+      addLog("Simulierter Ablauf läuft; Code wird nicht ausgeführt.", "system");
       const sortedBreakpoints = [...breakpoints].sort((a, b) => a - b);
       const firstBreakpointLine = sortedBreakpoints[0] || null;
       const pauseLine = firstBreakpointLine || firstSyntaxError?.startLineNumber || null;
@@ -247,11 +247,11 @@ export default function DebugPanel({ activeFile, _code, problems = [] }) {
           setIsPaused(true);
           setPausedLine(pauseLine);
           if (firstBreakpointLine) {
-            addLog(`⏸ Breakpoint bei Zeile ${pauseLine} getroffen`, "warn");
+            addLog(`Simulierter Breakpoint bei Zeile ${pauseLine}`, "warn");
           } else {
-            addLog(`⏸ Syntax-Fehler bei Zeile ${pauseLine}: ${firstSyntaxError?.message || "Unbekannter Fehler"}`, "error");
+            addLog(`Preview des Syntax-Fehlers bei Zeile ${pauseLine}: ${firstSyntaxError?.message || "Unbekannter Fehler"}`, "error");
           }
-          addLog("Variablen wurden aktualisiert.", "system");
+          addLog("Beispielvariablen wurden für die Preview aktualisiert.", "system");
           setVariables((prev) =>
             prev.map((v) =>
               v.name === "result"
@@ -262,7 +262,7 @@ export default function DebugPanel({ activeFile, _code, problems = [] }) {
         }, 1200);
       } else {
         setTimeout(() => {
-          addLog("Ausführung abgeschlossen ✓", "output");
+          addLog("Preview-Simulation abgeschlossen", "output");
           setIsRunning(false);
           setPausedLine(null);
         }, 1800);
@@ -274,21 +274,21 @@ export default function DebugPanel({ activeFile, _code, problems = [] }) {
     setIsRunning(false);
     setIsPaused(false);
     setPausedLine(null);
-    addLog("■ Debug-Session beendet", "system");
+    addLog("Preview-Simulation beendet", "system");
   };
 
   const handleContinue = () => {
     setIsPaused(false);
-    addLog("▶ Fortfahren…", "info");
+    addLog("Simulation fortsetzen", "info");
     setTimeout(() => {
-      addLog("Ausführung abgeschlossen ✓", "output");
+      addLog("Preview-Simulation abgeschlossen", "output");
       setIsRunning(false);
       setPausedLine(null);
     }, 900);
   };
 
   const handleStepOver = () => {
-    addLog("→ Schritt übersprungen", "info");
+    addLog("Simulierter Einzelschritt", "info");
     setPausedLine((prev) => (Number.isFinite(prev) ? prev + 1 : prev));
     setVariables((prev) =>
       prev.map((v) => (v.name === "isReady" ? { ...v, value: "true" } : v)),
@@ -399,7 +399,7 @@ export default function DebugPanel({ activeFile, _code, problems = [] }) {
         <div className="flex items-center gap-1.5">
           <Bug size={13} className="text-purple-400" />
           <span className="text-[11px] font-semibold text-gray-500 tracking-widest uppercase">
-            Debug
+            Debug-Simulation
           </span>
         </div>
 
@@ -434,6 +434,19 @@ export default function DebugPanel({ activeFile, _code, problems = [] }) {
         </AnimatePresence>
       </div>
 
+      <div
+        className="mx-3 mb-2 rounded-lg px-2.5 py-2 text-[10px] leading-relaxed text-amber-200/90"
+        style={{
+          background: "rgba(251,191,36,0.08)",
+          border: "1px solid rgba(251,191,36,0.22)",
+        }}
+        role="note"
+      >
+        <strong className="block text-amber-300">Simulation / Preview</strong>
+        Kein Debug-Adapter: Code, Variablen, Breakpoints und Call Stack sind nur
+        interaktive Beispieldaten.
+      </div>
+
       {/* ── Divider ──────────────────────────────────────────────────── */}
       <div
         className="mx-3 mb-1 shrink-0"
@@ -462,7 +475,7 @@ export default function DebugPanel({ activeFile, _code, problems = [] }) {
                   boxShadow: "0 0 12px rgba(128,0,255,0.3)",
                 }}
               >
-                <Play size={11} /> Starten
+                <Play size={11} /> Preview starten
               </motion.button>
             ) : (
               <motion.button

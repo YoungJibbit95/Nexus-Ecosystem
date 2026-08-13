@@ -24,6 +24,7 @@ import {
   Search,
   SlidersHorizontal,
   Upload,
+  X,
 } from "lucide-react";
 import { calculateNexusViewQuality } from "@nexus/core";
 import { useApp } from "../store/appStore";
@@ -43,6 +44,7 @@ import {
 import { useWorkspaceSync } from "./files/useWorkspaceSync";
 import "./files/FilesView.css";
 import "./files/FilesViewPolish.css";
+import "./files/FilesViewHardening.css";
 
 type FilesViewProps = {
   setView?: (view: string) => void;
@@ -51,12 +53,26 @@ type FilesViewProps = {
 const TYPE_FILTERS = ["all", "note", "code", "task", "reminder", "canvas"] as const;
 
 const SMART_VIEWS: Array<{ id: SmartViewMode; label: string }> = [
-  { id: "workspace", label: "Workspace" },
   { id: "all", label: "All" },
   { id: "recent", label: "Recent 7d" },
   { id: "pinned", label: "Pinned" },
   { id: "unassigned", label: "Unassigned" },
 ];
+
+type FilesScope = "workspace" | "library";
+
+const FILES_SCOPE_STORAGE_KEY = "nx-files-scope-v1";
+
+const readStoredScope = (): FilesScope => {
+  if (typeof window === "undefined") return "workspace";
+  try {
+    return window.localStorage.getItem(FILES_SCOPE_STORAGE_KEY) === "library"
+      ? "library"
+      : "workspace";
+  } catch {
+    return "workspace";
+  }
+};
 
 const formatRelativeTime = (iso: string) => {
   const ms = new Date(iso).getTime();
@@ -99,12 +115,12 @@ export function FilesView({ setView }: FilesViewProps = {}) {
 
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<"all" | ItemType>("all");
-  const [smartView, setSmartView] = useState<SmartViewMode>("workspace");
+  const [smartView, setSmartView] = useState<SmartViewMode>("all");
   const [folderFilter, setFolderFilter] = useState<"all" | "none" | string>(
     "all",
   );
   const [viewMode, setViewMode] = useState<ViewMode>("list");
-  const [tab, setTab] = useState<"all" | "workspaces">("workspaces");
+  const [scope, setScope] = useState<FilesScope>(readStoredScope);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [newWsOpen, setNewWsOpen] = useState(false);
   const [editWs, setEditWs] = useState<Workspace | null>(null);
@@ -112,10 +128,14 @@ export function FilesView({ setView }: FilesViewProps = {}) {
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
   const [explorerCollapsed, setExplorerCollapsed] = useState(false);
   const [detailsCollapsed, setDetailsCollapsed] = useState(false);
+  const [detailsDrawer, setDetailsDrawer] = useState(false);
+  const [explorerDrawer, setExplorerDrawer] = useState(false);
   const [headerMenuRect, setHeaderMenuRect] = useState<DOMRect | null>(null);
   const headerMenuRef = useRef<HTMLDivElement | null>(null);
   const headerMenuOverlayRef = useRef<HTMLDivElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const explorerRef = useRef<HTMLElement | null>(null);
+  const detailsRef = useRef<HTMLElement | null>(null);
 
   const {
     workspaceRoot,
@@ -138,9 +158,7 @@ export function FilesView({ setView }: FilesViewProps = {}) {
   });
 
   const activeWs = workspaces.find((w) => w.id === activeWorkspaceId);
-  const workspaceScopeActive = Boolean(
-    activeWs && tab === "workspaces" && smartView === "workspace",
-  );
+  const workspaceScopeActive = Boolean(activeWs && scope === "workspace");
   const folderById = useMemo(
     () => new Map(folders.map((folder) => [folder.id, folder])),
     [folders],
@@ -294,7 +312,6 @@ export function FilesView({ setView }: FilesViewProps = {}) {
     itemInWorkspace,
     search,
     smartView,
-    tab,
     typeFilter,
     workspaceScopeActive,
   ]);
@@ -333,10 +350,9 @@ export function FilesView({ setView }: FilesViewProps = {}) {
     if (search.trim()) count += 1;
     if (typeFilter !== "all") count += 1;
     if (folderFilter !== "all") count += 1;
-    if (smartView !== "workspace") count += 1;
-    if (tab !== "workspaces") count += 1;
+    if (smartView !== "all") count += 1;
     return count;
-  }, [folderFilter, search, smartView, tab, typeFilter]);
+  }, [folderFilter, search, smartView, typeFilter]);
 
   const staleItemCount = useMemo(() => {
     const staleAfterMs = 30 * 24 * 60 * 60 * 1000;
@@ -383,16 +399,56 @@ export function FilesView({ setView }: FilesViewProps = {}) {
     setSearch("");
     setTypeFilter("all");
     setFolderFilter("all");
-    setSmartView(activeWs ? "workspace" : "all");
-    setTab(activeWs ? "workspaces" : "all");
-  }, [activeWs]);
+    setSmartView("all");
+  }, []);
 
   useEffect(() => {
-    if (activeWorkspaceId) {
-      setTab("workspaces");
-      setSmartView((prev) => (prev === "all" ? "workspace" : prev));
+    try {
+      window.localStorage.setItem(FILES_SCOPE_STORAGE_KEY, scope);
+    } catch {
+      // The scope still works for this session when storage is unavailable.
     }
-  }, [activeWorkspaceId]);
+  }, [scope]);
+
+  useEffect(() => {
+    const detailsQuery = window.matchMedia("(max-width: 1180px)");
+    const explorerQuery = window.matchMedia("(max-width: 860px)");
+    const updateLayout = () => {
+      setDetailsDrawer(detailsQuery.matches);
+      setExplorerDrawer(explorerQuery.matches);
+      if (detailsQuery.matches) setDetailsCollapsed(true);
+      if (explorerQuery.matches) setExplorerCollapsed(true);
+    };
+    updateLayout();
+    detailsQuery.addEventListener("change", updateLayout);
+    explorerQuery.addEventListener("change", updateLayout);
+    return () => {
+      detailsQuery.removeEventListener("change", updateLayout);
+      explorerQuery.removeEventListener("change", updateLayout);
+    };
+  }, []);
+
+  useEffect(() => {
+    const activeDrawer =
+      (explorerDrawer && !explorerCollapsed && explorerRef.current) ||
+      (detailsDrawer && !detailsCollapsed && detailsRef.current);
+    if (!activeDrawer) return;
+    activeDrawer.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      if (detailsDrawer && !detailsCollapsed) {
+        setDetailsCollapsed(true);
+        document.getElementById("nx-files-details-trigger")?.focus();
+        return;
+      }
+      if (explorerDrawer && !explorerCollapsed) {
+        setExplorerCollapsed(true);
+        document.getElementById("nx-files-explorer-trigger")?.focus();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [detailsCollapsed, detailsDrawer, explorerCollapsed, explorerDrawer]);
 
   useEffect(() => {
     if (displayItems.length === 0) {
@@ -509,8 +565,7 @@ export function FilesView({ setView }: FilesViewProps = {}) {
       }
       if (key === "w") {
         event.preventDefault();
-        setSmartView(activeWs ? "workspace" : "all");
-        setTab(activeWs ? "workspaces" : "all");
+        setScope(activeWs ? "workspace" : "library");
       }
     };
 
@@ -548,20 +603,21 @@ export function FilesView({ setView }: FilesViewProps = {}) {
 
   const selectWorkspace = (workspaceId: string) => {
     setActive(workspaceId);
-    setTab("workspaces");
-    setSmartView("workspace");
+    setScope("workspace");
     setSelectedItemId(null);
+    if (explorerDrawer) setExplorerCollapsed(true);
   };
 
   const showAllFiles = () => {
-    setActive(null);
-    setTab("all");
-    setSmartView("all");
+    setScope("library");
     setSelectedItemId(null);
+    if (explorerDrawer) setExplorerCollapsed(true);
   };
 
   const scopedWorkspace = workspaceScopeActive ? activeWs : undefined;
-  const workspaceLabel = scopedWorkspace ? scopedWorkspace.name : "All Files";
+  const workspaceLabel = scopedWorkspace
+    ? scopedWorkspace.name
+    : "Gesamte Bibliothek";
   const scopeItemCount = scopedWorkspace
     ? wsItemCount(scopedWorkspace)
     : allItems.length;
@@ -577,10 +633,10 @@ export function FilesView({ setView }: FilesViewProps = {}) {
     setAutoSync(true);
   }, [autoSync, selectWorkspaceRoot, setAutoSync, workspaceRoot]);
   const syncStateLabel = syncing
-    ? "Syncing"
+    ? "Snapshot wird geschrieben"
     : workspaceRoot
-      ? "Connected"
-      : "No folder";
+      ? "Ordner gewaehlt"
+      : "Kein Snapshot-Ordner";
   const DetailsIcon = selectedMeta?.icon ?? Info;
   const flowMenuLeft =
     typeof window === "undefined" || !headerMenuRect
@@ -598,7 +654,7 @@ export function FilesView({ setView }: FilesViewProps = {}) {
             className="nx-files-menu nx-files-flow-menu nx-files-flow-menu--floating"
             style={{ top: flowMenuTop, left: flowMenuLeft }}
             role="menu"
-            aria-label="Workspace Flow"
+            aria-label="Import und Export"
           >
             <InteractiveActionButton
               onClick={() => {
@@ -610,7 +666,7 @@ export function FilesView({ setView }: FilesViewProps = {}) {
               areaHint={76}
               radius={7}
             >
-              <FolderOpen size={13} /> Workspace folder waehlen
+              <FolderOpen size={13} /> Snapshot-Ordner waehlen
             </InteractiveActionButton>
             <InteractiveActionButton
               onClick={() => {
@@ -623,7 +679,7 @@ export function FilesView({ setView }: FilesViewProps = {}) {
               areaHint={76}
               radius={7}
             >
-              <Upload size={13} /> Import workspace
+              <Upload size={13} /> Snapshot aus Ordner importieren
             </InteractiveActionButton>
             <InteractiveActionButton
               onClick={() => {
@@ -636,7 +692,7 @@ export function FilesView({ setView }: FilesViewProps = {}) {
               areaHint={76}
               radius={7}
             >
-              <Download size={13} /> Export workspace
+              <Download size={13} /> Bibliothek in Ordner exportieren
             </InteractiveActionButton>
           </div>,
           document.body,
@@ -649,6 +705,9 @@ export function FilesView({ setView }: FilesViewProps = {}) {
       data-files-mode={t.mode}
       data-explorer-collapsed={explorerCollapsed ? "true" : "false"}
       data-details-collapsed={detailsCollapsed ? "true" : "false"}
+      data-explorer-drawer={explorerDrawer ? "true" : "false"}
+      data-details-drawer={detailsDrawer ? "true" : "false"}
+      data-files-scope={workspaceScopeActive ? "workspace" : "library"}
       style={
         {
           "--files-accent": t.accent,
@@ -663,14 +722,14 @@ export function FilesView({ setView }: FilesViewProps = {}) {
       <div className="nx-files-header nx-release-toolbar">
         <div className="nx-files-titlebar">
           <div className="nx-files-heading">
-            <div className="nx-files-kicker">Bibliothek und Workspace-Dateien</div>
+            <div className="nx-files-kicker">Lokale Bibliothek und Nexus-Zuordnungen</div>
             <div className="nx-files-title-row">
               <HardDrive size={18} />
               <h2>Files</h2>
             </div>
             <p>
               {scopedWorkspace
-                ? `${scopeItemCount} Dateien sind ${scopedWorkspace.name} zugeordnet`
+                ? `${scopeItemCount} Inhalte sind ${scopedWorkspace.name} in Nexus zugeordnet`
                 : `${allItems.length} lokale Nexus-Inhalte in deiner Bibliothek`}
             </p>
           </div>
@@ -694,30 +753,45 @@ export function FilesView({ setView }: FilesViewProps = {}) {
                 radius={8}
                 selected={headerMenuOpen}
               >
-                <FolderOpen size={14} /> Workspace Flow <MoreHorizontal size={14} />
+                <FolderOpen size={14} /> Import / Export <MoreHorizontal size={14} />
               </InteractiveActionButton>
             </div>
           </div>
         </div>
 
         <div className="nx-files-statusbar">
-          <button
-            type="button"
-            className="nx-files-status-pill nx-files-status-pill--strong"
-            onClick={() => {
-              setTab(activeWs ? "workspaces" : "all");
-              setSmartView(activeWs ? "workspace" : "all");
-            }}
+          <div
+            className="nx-files-scope-switch"
+            role="radiogroup"
+            aria-label="Datei-Bereich"
           >
-            <Layers size={12} /> Ansicht: {scopedWorkspace ? workspaceLabel : "Gesamte Bibliothek"}
-          </button>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={!workspaceScopeActive}
+              className="nx-files-status-pill nx-files-scope-option"
+              onClick={showAllFiles}
+            >
+              <Layers size={12} /> Gesamte Bibliothek
+            </button>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={workspaceScopeActive}
+              className="nx-files-status-pill nx-files-scope-option"
+              onClick={() => setScope("workspace")}
+              disabled={!activeWs}
+            >
+              <FolderOpen size={12} /> Aktiver Workspace{activeWs ? `: ${activeWs.name}` : " fehlt"}
+            </button>
+          </div>
           <button
             type="button"
             className="nx-files-status-pill"
             onClick={() => void selectWorkspaceRoot()}
-            title={workspaceRoot || "Workspace folder waehlen"}
+            title={workspaceRoot || "Snapshot-Ordner waehlen"}
           >
-            <HardDrive size={12} /> Ordner-Sync: {workspaceRoot || "nicht verbunden"}
+            <HardDrive size={12} /> Snapshot-Ordner: {workspaceRoot || "nicht gewaehlt"}
           </button>
           <button
             type="button"
@@ -728,7 +802,7 @@ export function FilesView({ setView }: FilesViewProps = {}) {
           >
             <RefreshCw size={12} /> Auto-Sync: {autoSync ? "An" : "Aus"}
           </button>
-          <span className="nx-files-status-pill">
+          <span className="nx-files-status-pill" role="status" aria-live="polite">
             {workspaceRoot ? <CheckCircle2 size={12} /> : <CircleOff size={12} />}
             {syncMsg || syncStateLabel}
           </span>
@@ -736,8 +810,27 @@ export function FilesView({ setView }: FilesViewProps = {}) {
       </div>
 
       <div className="nx-files-body">
+        {explorerDrawer && !explorerCollapsed ? (
+          <button
+            type="button"
+            className="nx-files-drawer-backdrop"
+            aria-label="Explorer schliessen"
+            onClick={() => {
+              setExplorerCollapsed(true);
+              document.getElementById("nx-files-explorer-trigger")?.focus();
+            }}
+          />
+        ) : null}
         {!explorerCollapsed ? (
-          <aside id="nx-files-explorer" className="nx-files-sidebar">
+          <aside
+            ref={explorerRef}
+            id="nx-files-explorer"
+            className="nx-files-sidebar"
+            role={explorerDrawer ? "dialog" : undefined}
+            aria-modal={explorerDrawer || undefined}
+            aria-label="Workspace Explorer"
+            tabIndex={explorerDrawer ? -1 : undefined}
+          >
             <div className="nx-files-sidebar-head">
               <div>
                 <div className="nx-files-sidebar-title">Explorer</div>
@@ -755,13 +848,27 @@ export function FilesView({ setView }: FilesViewProps = {}) {
               >
                 <Plus size={14} />
               </InteractiveActionButton>
+              {explorerDrawer ? (
+                <button
+                  type="button"
+                  className="nx-files-drawer-close"
+                  aria-label="Explorer schliessen"
+                  onClick={() => {
+                    setExplorerCollapsed(true);
+                    document.getElementById("nx-files-explorer-trigger")?.focus();
+                  }}
+                >
+                  <X size={16} />
+                </button>
+              ) : null}
             </div>
 
             <div className="workspace-tree">
               <button
                 type="button"
-                className={`workspace-tree-item ${!activeWorkspaceId ? "is-active" : ""}`}
+                className={`workspace-tree-item ${!workspaceScopeActive ? "is-active" : ""}`}
                 onClick={showAllFiles}
+                aria-pressed={!workspaceScopeActive}
               >
                 <span className="workspace-tree-icon">
                   <Layers size={15} />
@@ -774,7 +881,7 @@ export function FilesView({ setView }: FilesViewProps = {}) {
 
               <div className="workspace-tree-section">Arbeitsbereiche</div>
               {workspaces.map((ws) => {
-                const active = activeWorkspaceId === ws.id;
+                const active = workspaceScopeActive && activeWorkspaceId === ws.id;
                 return (
                   <div
                     key={ws.id}
@@ -831,8 +938,8 @@ export function FilesView({ setView }: FilesViewProps = {}) {
                 <strong>{workspaceLabel}</strong>
                 <span>
                   {scopedWorkspace
-                    ? `${scopedWorkspace.name} zeigt nur zugeordnete Inhalte. Die Bibliothek bleibt unverändert.`
-                    : "Die Bibliothek zeigt alle lokalen Notes, Code-Dateien, Tasks, Reminder und Canvas-Dokumente."}
+                    ? `${scopedWorkspace.name} filtert nur Nexus-Zuordnungen; es ist kein automatischer Dateisystemordner.`
+                    : "Alle lokalen Notes, Code-Dateien, Tasks, Reminder und Canvas-Dokumente; Workspace-Zuordnungen bleiben erhalten."}
                 </span>
               </div>
             </div>
@@ -891,11 +998,13 @@ export function FilesView({ setView }: FilesViewProps = {}) {
 
               <div className="nx-files-layout-switcher" aria-label="Panel visibility">
                 <InteractiveActionButton
+                  id="nx-files-explorer-trigger"
                   onClick={() => setExplorerCollapsed((prev) => !prev)}
                   className="nx-files-layout-toggle"
                   motionId="files-toggle-explorer"
                   selected={!explorerCollapsed}
                   aria-pressed={!explorerCollapsed}
+                  aria-expanded={!explorerCollapsed}
                   aria-controls="nx-files-explorer"
                   title={explorerCollapsed ? "Show Explorer" : "Hide Explorer"}
                   areaHint={58}
@@ -905,11 +1014,13 @@ export function FilesView({ setView }: FilesViewProps = {}) {
                   <span>Explorer</span>
                 </InteractiveActionButton>
                 <InteractiveActionButton
+                  id="nx-files-details-trigger"
                   onClick={() => setDetailsCollapsed((prev) => !prev)}
                   className="nx-files-layout-toggle"
                   motionId="files-toggle-details"
                   selected={!detailsCollapsed}
                   aria-pressed={!detailsCollapsed}
+                  aria-expanded={!detailsCollapsed}
                   aria-controls="nx-files-detail-pane"
                   title={detailsCollapsed ? "Show Details" : "Hide Details"}
                   areaHint={58}
@@ -952,10 +1063,7 @@ export function FilesView({ setView }: FilesViewProps = {}) {
               {SMART_VIEWS.map((entry) => (
                 <InteractiveActionButton
                   key={entry.id}
-                  onClick={() => {
-                    setSmartView(entry.id);
-                    setTab(entry.id === "workspace" ? "workspaces" : "all");
-                  }}
+                  onClick={() => setSmartView(entry.id)}
                   className="nx-files-filter-chip"
                   motionId={`files-smart-view-${entry.id}`}
                   selected={smartView === entry.id}
@@ -1014,11 +1122,14 @@ export function FilesView({ setView }: FilesViewProps = {}) {
                     </p>
                   </div>
                   <div className="nx-files-empty-actions">
-                    <button type="button" onClick={resetFileFilters}>
-                      Reset filters
+                    <button
+                      type="button"
+                      onClick={scopedWorkspace ? showAllFiles : resetFileFilters}
+                    >
+                      {scopedWorkspace ? "Gesamte Bibliothek oeffnen" : "Filter zuruecksetzen"}
                     </button>
                     <button type="button" onClick={() => setNewWsOpen(true)}>
-                      New workspace
+                      Workspace erstellen
                     </button>
                   </div>
                 </div>
@@ -1069,8 +1180,43 @@ export function FilesView({ setView }: FilesViewProps = {}) {
               )}
             </section>
 
+            {detailsDrawer && !detailsCollapsed ? (
+              <button
+                type="button"
+                className="nx-files-drawer-backdrop nx-files-drawer-backdrop--details"
+                aria-label="Details schliessen"
+                onClick={() => {
+                  setDetailsCollapsed(true);
+                  document.getElementById("nx-files-details-trigger")?.focus();
+                }}
+              />
+            ) : null}
             {!detailsCollapsed ? (
-              <aside id="nx-files-detail-pane" className="nx-files-detail-pane">
+              <aside
+                ref={detailsRef}
+                id="nx-files-detail-pane"
+                className="nx-files-detail-pane"
+                role={detailsDrawer ? "dialog" : undefined}
+                aria-modal={detailsDrawer || undefined}
+                aria-label="Dateidetails"
+                tabIndex={detailsDrawer ? -1 : undefined}
+              >
+              {detailsDrawer ? (
+                <div className="nx-files-drawer-titlebar">
+                  <strong>Dateidetails</strong>
+                  <button
+                    type="button"
+                    className="nx-files-drawer-close"
+                    aria-label="Details schliessen"
+                    onClick={() => {
+                      setDetailsCollapsed(true);
+                      document.getElementById("nx-files-details-trigger")?.focus();
+                    }}
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              ) : null}
               {selectedItem && selectedMeta ? (
                 <>
                   <div className="nx-files-detail-head">
@@ -1085,17 +1231,17 @@ export function FilesView({ setView }: FilesViewProps = {}) {
                       <DetailsIcon size={18} />
                     </span>
                     <div>
-                      <div className="nx-files-detail-label">Selected file</div>
+                      <div className="nx-files-detail-label">Ausgewaehlter Inhalt</div>
                       <h3>{selectedItem.title}</h3>
                     </div>
                   </div>
 
                   <div className="nx-files-detail-actions">
                     <button type="button" onClick={() => openItem(selectedItem)}>
-                      Open
+                      Oeffnen
                     </button>
                     <button type="button" onClick={() => setAssignItem(selectedItem)}>
-                      Add to workspace
+                      Workspace zuordnen
                     </button>
                   </div>
 
@@ -1112,15 +1258,15 @@ export function FilesView({ setView }: FilesViewProps = {}) {
                       </dd>
                     </div>
                     <div>
-                      <dt>Folder</dt>
-                      <dd>{selectedFolder?.name || "No folder"}</dd>
+                      <dt>Nexus-Ordner</dt>
+                      <dd>{selectedFolder?.name || "Keinem internen Ordner zugeordnet"}</dd>
                     </div>
                     <div>
-                      <dt>Workspaces</dt>
+                      <dt>Nexus-Workspaces</dt>
                       <dd>
                         {selectedWorkspaces.length > 0
                           ? selectedWorkspaces.map((workspace) => workspace.name).join(", ")
-                          : "Unassigned"}
+                          : "Nicht zugeordnet"}
                       </dd>
                     </div>
                     {selectedItem.lang ? (
@@ -1151,8 +1297,8 @@ export function FilesView({ setView }: FilesViewProps = {}) {
               ) : (
                 <div className="nx-files-detail-empty">
                   <Info size={28} />
-                  <h3>No file selected</h3>
-                  <p>Select a file to inspect metadata and workspace actions.</p>
+                  <h3>Kein Inhalt ausgewaehlt</h3>
+                  <p>Waehle einen Inhalt, um Metadaten und Nexus-Zuordnungen zu pruefen.</p>
                 </div>
               )}
               </aside>

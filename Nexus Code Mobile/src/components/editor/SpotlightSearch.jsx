@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Search, File, Zap, Command, Terminal, Settings, Layout } from "lucide-react";
+import { Search, File, Command, Terminal, Settings, Layout } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 const QUICK_ACTIONS = [

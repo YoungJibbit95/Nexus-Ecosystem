@@ -1,6 +1,9 @@
 # macOS
 .DS_Store
 
+# Local IDE metadata
+.idea/
+
 # Node
 **/node_modules/
 

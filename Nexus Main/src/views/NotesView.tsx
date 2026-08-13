@@ -48,6 +48,7 @@ import {
   Table,
   Upload,
   MoreHorizontal,
+  Menu,
   ListTree,
   ArrowUpRight,
   CheckSquare2,
@@ -188,6 +189,7 @@ export function NotesView() {
   const [emojiCategory, setEmojiCategory] =
     useState<NotesEmojiCategoryId>("smileys");
   const [showQuickSwitch, setShowQuickSwitch] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [quickSwitchQuery, setQuickSwitchQuery] = useState("");
   const [quickSwitchCursor, setQuickSwitchCursor] = useState(0);
   const deferredSearchQuery = useDeferredValue(searchQuery);
@@ -196,6 +198,8 @@ export function NotesView() {
   const blocksTriggerRef = useRef<HTMLDivElement>(null);
   const emojiTriggerRef = useRef<HTMLDivElement>(null);
   const quickSwitchInputRef = useRef<HTMLInputElement>(null);
+  const mobileSidebarRef = useRef<HTMLDivElement>(null);
+  const mobileSidebarTriggerRef = useRef<HTMLButtonElement>(null);
   const lineNumbersRef = useRef<HTMLPreElement>(null);
   // Save selection before magic menu opens so we can restore it on insert
   const savedSel = useRef<{ start: number; end: number } | null>(null);
@@ -205,6 +209,51 @@ export function NotesView() {
     () => notes.find((n) => n.id === activeNoteId) ?? notes[0],
     [notes, activeNoteId],
   );
+
+  useEffect(() => {
+    if (!mobileSidebarOpen || typeof window === "undefined") return;
+    if (!window.matchMedia("(max-width: 760px)").matches) return;
+
+    const sidebar = mobileSidebarRef.current;
+    const selector =
+      'button:not(:disabled), [href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])';
+    const focusable = () =>
+      sidebar
+        ? Array.from(sidebar.querySelectorAll<HTMLElement>(selector)).filter(
+            (element) => element.getClientRects().length > 0,
+          )
+        : [];
+    const frame = window.requestAnimationFrame(() => focusable()[0]?.focus());
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setMobileSidebarOpen(false);
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const candidates = focusable();
+      if (candidates.length === 0) return;
+      const first = candidates[0];
+      const last = candidates[candidates.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener("keydown", handleKeyDown);
+      mobileSidebarTriggerRef.current?.focus();
+    };
+  }, [mobileSidebarOpen]);
+
+  useEffect(() => {
+    if (focusMode) setMobileSidebarOpen(false);
+  }, [focusMode]);
   const {
     draftContent,
     draftContentRef,
@@ -1239,11 +1288,22 @@ export function NotesView() {
   return (
     <div
       className="nx-notes-v6 nx-release-view flex h-full gap-2 p-2 relative"
+      data-mobile-sidebar={mobileSidebarOpen ? "open" : "closed"}
       style={{ minHeight: 0 }}
     >
       {/* ── SIDEBAR ── */}
+      {!focusMode && mobileSidebarOpen ? (
+        <button
+          type="button"
+          className="nx-notes-mobile-sidebar-scrim"
+          aria-label="Notizenliste schliessen"
+          tabIndex={-1}
+          onClick={() => setMobileSidebarOpen(false)}
+        />
+      ) : null}
       {!focusMode && (
         <Glass
+          ref={mobileSidebarRef}
           className="nx-notes-sidebar flex flex-col shrink-0"
           style={{ width: 302, overflow: "hidden", minHeight: 0 }}
         >
@@ -1256,6 +1316,15 @@ export function NotesView() {
               Notes
             </span>
             <div className="flex gap-1.5" style={{ position: "relative" }}>
+              <button
+                type="button"
+                className="nx-notes-mobile-sidebar-close"
+                aria-label="Notizenliste schliessen"
+                title="Notizenliste schliessen"
+                onClick={() => setMobileSidebarOpen(false)}
+              >
+                <X size={16} />
+              </button>
               <InteractiveActionButton
                 onClick={() => setShowSearch(!showSearch)}
                 title="Suchen"
@@ -1631,7 +1700,16 @@ export function NotesView() {
             {filteredNotes.map((n) => (
               <div
                 key={n.id}
-                onClick={() => setNote(n.id)}
+                onClick={() => {
+                  setNote(n.id);
+                  setMobileSidebarOpen(false);
+                }}
+                onKeyDown={(event) => {
+                  if (event.key !== "Enter" && event.key !== " ") return;
+                  event.preventDefault();
+                  setNote(n.id);
+                  setMobileSidebarOpen(false);
+                }}
                 role="button"
                 tabIndex={0}
                 className="group nx-surface-row nx-notes-list-row"
@@ -1798,6 +1876,17 @@ export function NotesView() {
           {/* Compact workbar */}
           <Glass className="nx-notes-workbar nx-notes-editor-header nx-notes-unified-status-action shrink-0">
             <div className="nx-notes-workbar-main">
+              <button
+                ref={mobileSidebarTriggerRef}
+                type="button"
+                className="nx-notes-mobile-sidebar-trigger"
+                aria-expanded={mobileSidebarOpen}
+                aria-label="Notizenliste oeffnen"
+                title="Notizenliste oeffnen"
+                onClick={() => setMobileSidebarOpen(true)}
+              >
+                <Menu size={18} />
+              </button>
               <label className="nx-notes-title-field">
                 <span className="nx-notes-title-label">
                   <Edit3 size={11} /> Notiztitel

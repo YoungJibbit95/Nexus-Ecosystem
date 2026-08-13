@@ -23,7 +23,6 @@ const LOCAL_FREE_VIEWS_BY_APP: Record<string, Set<string>> = {
     'flux',
     'settings',
     'info',
-    'devtools',
   ]),
   mobile: new Set(['dashboard', 'notes', 'tasks', 'reminders', 'files', 'settings', 'info']),
   code: new Set([]),
@@ -40,6 +39,23 @@ const shouldTrustLocalFreeView = (
   client: any,
   viewId: string,
 ) => isLocalFreeViewAllowed(client.appId, viewId)
+
+const ALWAYS_FAIL_CLOSED_VIEWS = new Set(['devtools'])
+const REQUIRED_TIER_BY_VIEW: Record<string, NexusUserTier> = {
+  devtools: 'pro',
+}
+
+const TIER_RANK: Record<NexusUserTier, number> = {
+  free: 0,
+  pro: 1,
+  lifetime: 1,
+  lifetime_pro: 2,
+}
+
+const meetsLocalTierPolicy = (viewId: string, tier: NexusUserTier) => {
+  const required = REQUIRED_TIER_BY_VIEW[viewId]
+  return !required || TIER_RANK[tier] >= TIER_RANK[required]
+}
 
 const extractOfflineHttpCode = (messageRaw: string) => {
   const match = messageRaw.match(/VIEW_VALIDATION_HTTP_(\d{3})/)
@@ -148,17 +164,56 @@ export const validateViewAccess = async (
       parseJson: true,
     })
 
+    if (response.status === 401 || response.status === 403) {
+      return buildFallbackResult(client, normalizedView, requestedTier, options, {
+        allowed: false,
+        reason: `VIEW_VALIDATION_HTTP_${response.status}_FAIL_CLOSED`,
+        paywallEnabled: true,
+        requiredTier: REQUIRED_TIER_BY_VIEW[normalizedView] || 'pro',
+      })
+    }
     if (!response.ok) throw new Error(`VIEW_VALIDATION_HTTP_${response.status}`)
-    if (response.parseError) throw new Error('VIEW_VALIDATION_INVALID_JSON')
+    if (response.parseError) {
+      return buildFallbackResult(client, normalizedView, requestedTier, options, {
+        allowed: false,
+        reason: 'VIEW_VALIDATION_INVALID_JSON_FAIL_CLOSED',
+        paywallEnabled: true,
+        requiredTier: REQUIRED_TIER_BY_VIEW[normalizedView] || 'pro',
+      })
+    }
 
     const data = response.data
     const item = data?.item ?? {}
     if (typeof item !== 'object' || item == null || Array.isArray(item)) {
-      throw new Error('VIEW_VALIDATION_INVALID_SCHEMA')
+      return buildFallbackResult(client, normalizedView, requestedTier, options, {
+        allowed: false,
+        reason: 'VIEW_VALIDATION_INVALID_SCHEMA_FAIL_CLOSED',
+        paywallEnabled: true,
+        requiredTier: REQUIRED_TIER_BY_VIEW[normalizedView] || 'pro',
+      })
     }
 
-    const userTier = normalizeUserTier(item.userTier) || requestedTier
-    const requiredTier = normalizeUserTier(item.requiredTier) || null
+    const userTier = normalizeUserTier(item.userTier)
+    const requiredTier = item.requiredTier == null
+      ? null
+      : normalizeUserTier(item.requiredTier)
+    if (
+      typeof item.allowed !== 'boolean'
+      || !userTier
+      || (item.requiredTier != null && !requiredTier)
+      || typeof item.paywallEnabled !== 'boolean'
+      || typeof item.reason !== 'string'
+      || item.reason.length === 0
+      || typeof item.evaluatedAt !== 'string'
+      || item.evaluatedAt.length === 0
+    ) {
+      return buildFallbackResult(client, normalizedView, requestedTier, options, {
+        allowed: false,
+        reason: 'VIEW_VALIDATION_INVALID_SCHEMA_FAIL_CLOSED',
+        paywallEnabled: true,
+        requiredTier: REQUIRED_TIER_BY_VIEW[normalizedView] || 'pro',
+      })
+    }
     const sourceRaw = String(item.userTierSource || '').trim().toLowerCase()
     const userTierSource = sourceRaw === 'request' || sourceRaw === 'template' || sourceRaw === 'default'
       ? sourceRaw
@@ -167,22 +222,22 @@ export const validateViewAccess = async (
     const result: NexusViewAccessResult = {
       appId: client.appId,
       viewId: normalizedView,
-      allowed: item.allowed !== false,
-      reason: typeof item.reason === 'string' && item.reason.length > 0 ? item.reason : 'VIEW_VALIDATED',
+      allowed: item.allowed,
+      reason: item.reason,
       userTier,
       userTierSource,
       userTemplateKey: typeof item.userTemplateKey === 'string' ? item.userTemplateKey : null,
-      paywallEnabled: item.paywallEnabled === true,
+      paywallEnabled: item.paywallEnabled,
       requiredTier,
-      evaluatedAt: typeof item.evaluatedAt === 'string' ? item.evaluatedAt : new Date().toISOString(),
+      evaluatedAt: item.evaluatedAt,
       cacheHit: false,
     }
 
-    if (!result.allowed && shouldTrustLocalFreeView(client, normalizedView)) {
-      result.allowed = true
-      result.reason = `LOCAL_FREE_VIEW_ALLOW_REMOTE_${result.reason || 'DENIED'}`
-      result.paywallEnabled = false
-      result.requiredTier = null
+    if (result.allowed && !meetsLocalTierPolicy(normalizedView, result.userTier)) {
+      result.allowed = false
+      result.reason = 'LOCAL_VIEW_TIER_POLICY_BLOCKED'
+      result.paywallEnabled = true
+      result.requiredTier = REQUIRED_TIER_BY_VIEW[normalizedView]
     }
 
     if (client.viewValidationCacheMs > 0) {
@@ -227,7 +282,7 @@ export const validateViewAccess = async (
       error = mapped
     }
 
-    const allowed = client.viewValidationFailOpen
+    const allowed = !ALWAYS_FAIL_CLOSED_VIEWS.has(normalizedView) && client.viewValidationFailOpen
     const reason = getViewValidationErrorReason(client, error, allowed)
     if (client.debug) {
       const mode = allowed ? 'fail-open' : 'fail-closed'

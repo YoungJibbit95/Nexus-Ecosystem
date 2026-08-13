@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { AlertTriangle, CheckCircle2, FileText, Link2, Plus, Search, Trash2 } from "lucide-react";
+import { AlertTriangle, CheckCircle2, FileText, Link2, Plus, Search, Trash2, X } from "lucide-react";
 import { Glass } from "../../../components/Glass";
 import type { Canvas } from "../../../store/canvasStore";
 
@@ -14,6 +14,7 @@ export function CanvasSidebar({
   addCanvas,
   setActiveCanvas,
   deleteCanvas,
+  onClose,
 }: {
   visible: boolean;
   mode: "dark" | "light";
@@ -25,6 +26,7 @@ export function CanvasSidebar({
   addCanvas: () => void;
   setActiveCanvas: (id: string) => void;
   deleteCanvas: (id: string) => void;
+  onClose: () => void;
 }) {
   const [canvasQuery, setCanvasQuery] = useState("");
 
@@ -99,6 +101,15 @@ export function CanvasSidebar({
           >
             <Plus size={14} />
             <span>New</span>
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="nx-canvas-sidebar-close"
+            title="Canvas Library schliessen"
+            aria-label="Canvas Library schliessen"
+          >
+            <X size={17} />
           </button>
         </header>
 

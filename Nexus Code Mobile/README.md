@@ -15,7 +15,7 @@ Sie bringt den Editor-/Run-Flow auf Android/iOS mit mobile-angepassten Panels un
 | `Explorer` | files and project context | project tree and quick file switching |
 | `Search` | find/jump | project search and action routing |
 | `Terminal` | command runtime | integrated terminal and output views |
-| `Debug` | diagnostics | runtime debugging surface |
+| `Debug (Simulation/Preview)` | UI exploration | interactive sample data only; no debug adapter and no code execution |
 | `Problems` | quality surface | errors/warnings and jump actions |
 | `Command` | quick actions | command palette and shortcuts |
 | `Settings` | mobile editor behavior | runtime/editor controls |
@@ -75,3 +75,4 @@ See `../docs/ENVIRONMENT.md`.
 - `npm run dev` starts Android flow by default.
 - Use `npm run dev:web` for web-only debugging.
 - Mobile/desktop feature parity is targeted where practical.
+- The Debug panel is explicitly a Simulation/Preview surface. Runtime debugging is not a release feature in this mobile build.

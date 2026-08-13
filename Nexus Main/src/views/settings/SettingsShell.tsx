@@ -445,6 +445,7 @@ export function SettingsShell({
         }}
       >
         <div
+          className="nx-settings-sidebar-heading"
           style={{
             padding: "4px 8px 10px",
             borderBottom: "1px solid rgba(255,255,255,0.08)",
@@ -547,6 +548,7 @@ export function SettingsShell({
         </label>
 
         <div
+          className="nx-settings-module-list"
           style={{
             flex: 1,
             minHeight: 0,
@@ -563,6 +565,8 @@ export function SettingsShell({
               <button
                 key={item.id}
                 onClick={() => setModule(item.id)}
+                className="nx-settings-module-button"
+                aria-current={active ? "page" : undefined}
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -616,6 +620,7 @@ export function SettingsShell({
         </div>
 
         <div
+          className="nx-settings-sidebar-footer"
           style={{
             borderTop: "1px solid rgba(255,255,255,0.08)",
             marginTop: 8,
@@ -957,6 +962,8 @@ export function SettingsShell({
           </div>
           {msg ? (
             <div
+              role="status"
+              aria-live="polite"
               style={{
                 marginTop: 7,
                 fontSize: 11,
