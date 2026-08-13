@@ -20,6 +20,7 @@ import { useApp, Activity } from '../store/appStore'
 import { useTheme } from '../store/themeStore'
 import { hexToRgb } from '../lib/utils'
 import './flux/FluxViewPolish.css'
+import './flux/FluxViewHardening.css'
 
 type FluxFilter = Activity['type'] | 'all'
 type OpsPreset = 'all' | 'overdue' | 'due-soon' | 'high-priority' | 'focus' | 'reminder-triage' | 'task-backlog'
@@ -61,7 +62,7 @@ const TYPE_META: Record<Activity['type'], { icon: any; color: string; label: str
 }
 
 const PRIORITY_WEIGHT: Record<string, number> = { low: 1, mid: 2, high: 3 }
-const FILTER_OPTIONS: FluxFilter[] = ['all', 'note', 'code', 'task', 'reminder']
+const FILTER_OPTIONS: FluxFilter[] = ['all', 'note', 'code', 'task', 'reminder', 'system']
 const QUEUE_FILTERS: Array<'all' | 'task' | 'reminder'> = ['all', 'task', 'reminder']
 const OPS_PRESETS: OpsPreset[] = ['all', 'overdue', 'due-soon', 'high-priority', 'focus', 'reminder-triage', 'task-backlog']
 const PRESET_META: Record<OpsPreset, { label: string; detail: string }> = {
@@ -271,45 +272,19 @@ export function FluxView({ setView }: { setView?: (view: string) => void } = {})
     addRem({ title: 'Neuer Reminder', msg: 'Aus Flux erstellt', datetime: now, repeat: 'none' })
   }, [addCode, addNote, addRem, addTask])
 
-  const startTopPriorityTasks = useCallback(() => {
-    const nowTs = Date.now()
-    const nextTodoTasks = tasks
-      .filter((task) => task.status === 'todo')
-      .slice()
-      .sort((a, b) => {
-        const aSeverity = computeTaskSeverity(a, nowTs)
-        const bSeverity = computeTaskSeverity(b, nowTs)
-        if (bSeverity !== aSeverity) return bSeverity - aSeverity
-        return parseTs(a.deadline) - parseTs(b.deadline)
-      })
-      .slice(0, 3)
+  const reviewTaskBacklog = useCallback(() => {
+    setPreset('task-backlog')
+    setQueueFilter('task')
+    setQueueSort('severity')
+    setFocusMode(false)
+  }, [])
 
-    nextTodoTasks.forEach((task) => moveTask(task.id, 'doing'))
-  }, [moveTask, tasks])
-
-  const resolveUrgentNow = useCallback(() => {
-    const nowTs = Date.now()
-
-    const urgentTasks = tasks
-      .filter((task) => task.status !== 'done')
-      .slice()
-      .sort((a, b) => {
-        const aSeverity = computeTaskSeverity(a, nowTs)
-        const bSeverity = computeTaskSeverity(b, nowTs)
-        if (bSeverity !== aSeverity) return bSeverity - aSeverity
-        return parseTs(a.deadline) - parseTs(b.deadline)
-      })
-      .slice(0, 2)
-
-    urgentTasks.forEach((task) => {
-      if (task.status === 'todo') moveTask(task.id, 'doing')
-    })
-
-    reminders
-      .filter((reminder) => !reminder.done && parseTs(reminder.snoozeUntil || reminder.datetime) <= nowTs)
-      .slice(0, 2)
-      .forEach((reminder) => doneRem(reminder.id))
-  }, [doneRem, moveTask, reminders, tasks])
+  const reviewUrgentNow = useCallback(() => {
+    setPreset('overdue')
+    setQueueFilter('all')
+    setQueueSort('time')
+    setFocusMode(false)
+  }, [])
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -350,12 +325,12 @@ export function FluxView({ setView }: { setView?: (view: string) => void } = {})
         }
         if (k === 'd') {
           e.preventDefault()
-          resolveUrgentNow()
+          reviewUrgentNow()
           return
         }
         if (k === 'b') {
           e.preventDefault()
-          startTopPriorityTasks()
+          reviewTaskBacklog()
           return
         }
       }
@@ -399,7 +374,7 @@ export function FluxView({ setView }: { setView?: (view: string) => void } = {})
 
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [resolveUrgentNow, runQuickAction, startTopPriorityTasks])
+  }, [reviewTaskBacklog, reviewUrgentNow, runQuickAction])
 
   const normalizedQuery = useMemo(() => query.trim().toLowerCase(), [query])
   const matchesQuery = useCallback((...parts: Array<string | undefined>) => {
@@ -408,6 +383,21 @@ export function FluxView({ setView }: { setView?: (view: string) => void } = {})
   }, [normalizedQuery])
 
   const pendingTasks = useMemo(() => tasks.filter((task) => task.status !== 'done'), [tasks])
+  const openReminders = useMemo(() => reminders.filter((reminder) => !reminder.done), [reminders])
+
+  const activitySourceCounts = useMemo(() => {
+    const counts: Record<Activity['type'], number> = {
+      note: 0,
+      code: 0,
+      task: 0,
+      reminder: 0,
+      system: 0,
+    }
+    activities.forEach((entry) => {
+      counts[entry.type] += 1
+    })
+    return counts
+  }, [activities])
 
   const dueReminders = useMemo(
     () => reminders.filter((reminder) => !reminder.done && parseTs(reminder.snoozeUntil || reminder.datetime) <= nowTs),
@@ -680,17 +670,19 @@ export function FluxView({ setView }: { setView?: (view: string) => void } = {})
       <div className="nx-flux-metric-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))', gap: 10, flexShrink: 0 }}>
         {[
           {
-            label: `Ops Score · ${opsSignal.label}`,
+            label: `Lokaler Triage-Score · ${opsSignal.label}`,
             value: `${opsSignal.score}%`,
             color: opsSignal.score < 55 ? '#FF453A' : opsSignal.score < 75 ? '#FF9F0A' : '#34C759',
+            detail: 'Heuristik aus offenen, faelligen und blockierten lokalen Eintraegen',
           },
-          { label: 'Open Tasks', value: pendingTasks.length, color: TYPE_META.task.color },
-          { label: 'Due Reminders', value: dueReminders.length, color: TYPE_META.reminder.color },
-          { label: 'Activity 24h', value: activityLast24h, color: '#64D2FF' },
+          { label: 'Offene Tasks', value: pendingTasks.length, color: TYPE_META.task.color, detail: 'Quelle: lokales Task Board' },
+          { label: 'Faellige Reminder', value: dueReminders.length, color: TYPE_META.reminder.color, detail: 'Quelle: lokale Reminder' },
+          { label: 'Aktivitaet 24h', value: activityLast24h, color: '#64D2FF', detail: 'Lokale protokollierte Aktionen' },
         ].map((metric) => (
           <Glass key={metric.label} className="nx-flux-metric-card" style={{ padding: '10px 12px' }}>
             <div style={{ fontSize: 10, opacity: 0.58, textTransform: 'uppercase', letterSpacing: 0.6 }}>{metric.label}</div>
             <div style={{ fontSize: 24, fontWeight: 900, color: metric.color, lineHeight: 1.1 }}>{metric.value}</div>
+            <div className="nx-flux-metric-detail">{metric.detail}</div>
           </Glass>
         ))}
       </div>
@@ -698,7 +690,10 @@ export function FluxView({ setView }: { setView?: (view: string) => void } = {})
       <div className="nx-flux-work-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(250px, 340px) minmax(0,1fr)', gap: 12, flex: 1, minHeight: 0 }}>
         <Glass className="nx-flux-queue-panel" style={{ padding: '12px', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 8 }}>
-            <div style={{ fontSize: 12, fontWeight: 800 }}>Action Queue</div>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 800 }}>Action Queue</div>
+              <div className="nx-flux-source-caption">Offene lokale Tasks und Reminder, nach Filter sortiert</div>
+            </div>
             <div style={{ display: 'flex', gap: 6 }}>
               <button
                 onClick={() => setQueueSort('severity')}
@@ -747,11 +742,13 @@ export function FluxView({ setView }: { setView?: (view: string) => void } = {})
             <span>{activePresetMeta.detail}</span>
           </div>
 
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+          <div className="nx-flux-source-filter" aria-label="Queue-Quellen">
+            <span className="nx-flux-source-label">Quellen</span>
             {QUEUE_FILTERS.map((type) => (
               <button
                 key={type}
                 onClick={() => setQueueFilter(type)}
+                aria-pressed={queueFilter === type}
                 style={{
                   padding: '4px 8px',
                   borderRadius: 7,
@@ -764,7 +761,11 @@ export function FluxView({ setView }: { setView?: (view: string) => void } = {})
                   textTransform: 'uppercase',
                 }}
               >
-                {type}
+                {type === 'all'
+                  ? `Alle ${pendingTasks.length + openReminders.length}`
+                  : type === 'task'
+                    ? `Tasks ${pendingTasks.length}`
+                    : `Reminder ${openReminders.length}`}
               </button>
             ))}
           </div>
@@ -791,7 +792,7 @@ export function FluxView({ setView }: { setView?: (view: string) => void } = {})
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 10 }}>
             <button
-              onClick={resolveUrgentNow}
+              onClick={reviewUrgentNow}
               style={{
                 padding: '7px 9px',
                 borderRadius: 8,
@@ -805,10 +806,10 @@ export function FluxView({ setView }: { setView?: (view: string) => void } = {})
               }}
               title="Cmd/Ctrl+Shift+D"
             >
-              Triage Urgent
+              Ueberfaellige anzeigen
             </button>
             <button
-              onClick={startTopPriorityTasks}
+              onClick={reviewTaskBacklog}
               style={{
                 padding: '7px 9px',
                 borderRadius: 8,
@@ -822,14 +823,33 @@ export function FluxView({ setView }: { setView?: (view: string) => void } = {})
               }}
               title="Cmd/Ctrl+Shift+B"
             >
-              Start Backlog
+              Task-Backlog anzeigen
             </button>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 7, overflowY: 'auto' }}>
             {queueItems.length === 0 && (
-              <div style={{ fontSize: 11, opacity: 0.6, padding: '10px 8px' }}>
-                Keine offenen Queue-Items.
+              <div className="nx-flux-low-activity" role="status">
+                <CheckCircle2 size={18} />
+                <div>
+                  <strong>Keine Eintraege in dieser Queue-Ansicht.</strong>
+                  <span>
+                    Quelle und Arbeitsansicht filtern lokale Tasks und Reminder. Es wurde nichts automatisch erledigt.
+                  </span>
+                  <div className="nx-flux-low-activity-actions">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPreset('all')
+                        setQueueFilter('all')
+                        setFocusMode(false)
+                      }}
+                    >
+                      Alle offenen anzeigen
+                    </button>
+                    <button type="button" onClick={() => runQuickAction('task')}>Task anlegen</button>
+                  </div>
+                </div>
               </div>
             )}
             {queueItems.map((item) => {
@@ -883,10 +903,10 @@ export function FluxView({ setView }: { setView?: (view: string) => void } = {})
           </div>
 
           <div style={{ marginTop: 10 }}>
-            <div style={{ fontSize: 12, fontWeight: 800, marginBottom: 7 }}>Bottlenecks</div>
+            <div style={{ fontSize: 12, fontWeight: 800, marginBottom: 7 }}>Prioritaets-Hinweise</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {bottlenecks.length === 0 && (
-                <div style={{ fontSize: 11, opacity: 0.58, padding: '6px 2px' }}>Keine akuten Bottlenecks erkannt.</div>
+                <div style={{ fontSize: 11, opacity: 0.58, padding: '6px 2px' }}>Keine faelligen oder hoch priorisierten Hinweise in den lokalen Quellen.</div>
               )}
               {bottlenecks.map((entry) => (
                 <div
@@ -933,12 +953,16 @@ export function FluxView({ setView }: { setView?: (view: string) => void } = {})
 
         <Glass className="nx-flux-activity-panel" style={{ padding: '12px', display: 'flex', flexDirection: 'column', minHeight: 0 }} glow>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 9, flexWrap: 'wrap' }}>
-            <div style={{ fontSize: 12, fontWeight: 800 }}>Activity Stream</div>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 800 }}>Activity Stream</div>
+              <div className="nx-flux-source-caption">Lokale Quellen: Notes, Code, Tasks, Reminder und Systemereignisse</div>
+            </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
               {FILTER_OPTIONS.map((type, index) => (
                 <button
                   key={type}
                   onClick={() => setFilter(type)}
+                  aria-pressed={filter === type}
                   style={{
                     padding: '5px 8px',
                     borderRadius: 8,
@@ -950,9 +974,11 @@ export function FluxView({ setView }: { setView?: (view: string) => void } = {})
                     fontWeight: 700,
                     textTransform: 'uppercase',
                   }}
-                  title={index > 0 ? `Shortcut ${index}` : 'Shortcut 0'}
+                  title={index <= 4 ? `Shortcut ${index}` : 'Systemereignisse'}
                 >
-                  {type}
+                  {type === 'all'
+                    ? `all ${activities.length}`
+                    : `${type} ${activitySourceCounts[type]}`}
                 </button>
               ))}
               <div style={{ position: 'relative' }}>
@@ -979,8 +1005,37 @@ export function FluxView({ setView }: { setView?: (view: string) => void } = {})
 
           <div className="nx-flux-activity-list" style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8, paddingRight: 4 }}>
             {filteredActivities.length === 0 && (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, opacity: 0.42, fontSize: 12, gap: 8 }}>
-                <ActivityIcon size={16} /> Keine Aktivitäten für den aktuellen Filter.
+              <div className="nx-flux-low-activity nx-flux-low-activity--stream" role="status">
+                <ActivityIcon size={20} />
+                <div>
+                  <strong>
+                    {activities.length === 0
+                      ? 'Noch keine lokalen Aktivitaeten protokolliert.'
+                      : 'Keine Aktivitaeten passen zu Quelle, Suche und Arbeitsansicht.'}
+                  </strong>
+                  <span>
+                    Der Stream zeigt nur lokale, bereits gespeicherte Ereignisse. Queue-Zahlen stammen direkt aus Tasks und Remindern.
+                  </span>
+                  <div className="nx-flux-low-activity-stats">
+                    <span>{pendingTasks.length} offene Tasks</span>
+                    <span>{openReminders.length} offene Reminder</span>
+                    <span>{activityLast24h} Ereignisse in 24h</span>
+                  </div>
+                  <div className="nx-flux-low-activity-actions">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFilter('all')
+                        setQuery('')
+                        setPreset('all')
+                      }}
+                    >
+                      Quellenfilter zuruecksetzen
+                    </button>
+                    <button type="button" onClick={openTasksView}>Task Board oeffnen</button>
+                    <button type="button" onClick={openRemindersView}>Reminder oeffnen</button>
+                  </div>
+                </div>
               </div>
             )}
             {filteredActivities.map((entry) => {
@@ -1046,7 +1101,7 @@ export function FluxView({ setView }: { setView?: (view: string) => void } = {})
               size={12}
               style={{ color: opsSignal.label === 'Healthy' ? '#34C759' : opsSignal.label === 'Watch' ? '#FF9F0A' : '#FF453A' }}
             />
-            {opsSignal.summary}
+            Lokale Heuristik: {opsSignal.summary}
           </div>
         </Glass>
       </div>

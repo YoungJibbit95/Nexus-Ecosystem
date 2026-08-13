@@ -90,8 +90,8 @@ const VIEW_GUIDES: ViewGuide[] = [
     features: ["Markdown + GFM", "Wikilinks/Backlinks", "Magic Blocks", "Import/Export", "Autosave"],
     shortcuts: ["Ctrl+P", "Ctrl+F", "Ctrl+S", "Ctrl+B", "Ctrl+I", "Ctrl+K"],
     status: "teilweise",
-    statusReason: "Der Editor ist umfangreich; Unified Bar, schmale Breiten und alle Metadaten-Aktionen brauchen weiter UI-QA.",
-    gaps: ["Toolbar auf kleinen Breiten finalisieren", "Dateiname/Metadaten jederzeit auffindbar halten"],
+    statusReason: "Editor, mobile Bibliotheks-Schublade und priorisierte Toolbar sind vorhanden; der umfangreiche Metadaten- und Renderpfad bleibt in Stabilisierung.",
+    gaps: ["Lange Titel, 200%-Zoom und Metadaten-Flows im plattformübergreifenden RC-Smoke prüfen"],
     localData: "Notizen und Entwürfe werden lokal gespeichert. Externe Bild-URLs werden nur beim Anzeigen geladen.",
   },
   {
@@ -120,12 +120,12 @@ const VIEW_GUIDES: ViewGuide[] = [
     id: "files",
     purpose: "Bibliothek und Projektzuordnung für Nexus-Inhalte sowie lokale Import-/Export-Ziele.",
     flow: ["Library oder Workspace wählen", "Root bewusst setzen", "Inhalte filtern", "Zuordnen oder exportieren"],
-    features: ["Library", "Workspaces", "Root Folder", "Recent/Pinned/Unassigned", "Import/Export", "Preview"],
+    features: ["Library", "Workspaces", "Snapshot-Ordner", "Recent/Pinned/Unassigned", "Import/Export", "Preview"],
     shortcuts: ["Ctrl+5", "Ctrl+F", "Import"],
     status: "teilweise",
-    statusReason: "Workspace-Filter und Dateiaktionen sind vorhanden; Begriffe, Scope-Signale und kompakte Layouts werden weiter geschärft.",
-    gaps: ["Workspace-Scope immer sichtbar machen", "Root-/Sync-Fehler noch handlungsorientierter erklären"],
-    localData: "Library zeigt lokale Nexus-Inhalte. Ein Workspace ist eine Zuordnung; ein Root ist ein bewusst gewählter Geräteordner.",
+    statusReason: "Bibliothek und Workspace-Scope sind explizit getrennt; Explorer und Details wechseln auf engen Breiten in bedienbare Schubladen.",
+    gaps: ["Snapshot-Import/-Export mit großen Bibliotheken und realen Dateisystemfehlern im RC-Smoke prüfen"],
+    localData: "Library zeigt lokale Nexus-Inhalte. Ein Workspace ist eine Nexus-Zuordnung; ein Snapshot-Ordner ist ein bewusst gewähltes Import-/Export-Ziel.",
   },
   {
     id: "canvas",
@@ -145,8 +145,8 @@ const VIEW_GUIDES: ViewGuide[] = [
     features: ["Ops Score", "Action Queue", "Bottlenecks", "Activity Stream", "Focus/Backlog"],
     shortcuts: ["Ctrl+F", "Ctrl+Shift+B", "Ctrl+Shift+D", "Ctrl+Shift+R"],
     status: "teilweise",
-    statusReason: "Triage und Kontextsprünge funktionieren; Leerräume und Informationsgewichtung brauchen weitere Produkt-QA.",
-    gaps: ["Empty-/Low-activity-Zustände informativer machen", "Metrikdefinitionen weiter erklären"],
+    statusReason: "Triage, Quellenfilter, erklärter lokaler Score und handlungsorientierte Low-activity-Zustände funktionieren; die Signale bleiben bewusst heuristisch.",
+    gaps: ["Score-Gewichtung mit realen Arbeitsbeständen kalibrieren", "lange Activity-Streams im RC-Smoke prüfen"],
     localData: "Flux berechnet seine Signale aus lokalen Tasks, Reminders, Notes und Aktivitätsdaten.",
   },
   {
@@ -167,8 +167,8 @@ const VIEW_GUIDES: ViewGuide[] = [
     features: ["Themes", "App/Panel Background", "Glow", "Motion", "Accessibility", "Backup/Restore"],
     shortcuts: ["Ctrl+9", "Settings-Suche"],
     status: "teilweise",
-    statusReason: "Die Module sind umfangreich; visuelle Wirkung, Dichte und verständliche Reduktion werden fortlaufend verbessert.",
-    gaps: ["Jede sichtbare Option auf reale Wirkung prüfen", "lange Seiten und Sticky-Header auf kleinen Displays testen"],
+    statusReason: "Preset-first-Einstieg, reduzierte Standardansicht und ein eigenes Accessibility-Modul sind vorhanden; Detail- und Showcase-Regler bleiben opt-in.",
+    gaps: ["Hintergründe und Sticky-Bereiche auf allen Zielplattformen visuell regressieren", "Import/Restore mit älteren Settings-Snapshots prüfen"],
     localData: "Darstellung und Backups sind lokal. Account-/Tierinformationen werden aus der API gelesen.",
   },
   {
@@ -204,7 +204,7 @@ const INFO_SECTIONS: Array<{
   { id: "start", label: "Start & Daten", detail: "Was Nexus ist", icon: BookOpen },
   { id: "views", label: "Views", detail: "Guide und Reifegrad", icon: Monitor },
   { id: "markdown", label: "Markdown", detail: "Standard + Nexus Magic", icon: FileText },
-  { id: "files", label: "Files", detail: "Library, Workspace, Root", icon: FolderOpen },
+  { id: "files", label: "Files", detail: "Library, Workspace, Snapshot", icon: FolderOpen },
   { id: "canvas", label: "Canvas", detail: "Funktionen und Bedienung", icon: GitBranch },
   { id: "shortcuts", label: "Shortcuts", detail: "Schneller arbeiten", icon: Keyboard },
   { id: "release", label: "Release", detail: "Status und Grenzen", icon: ShieldCheck },
@@ -518,7 +518,7 @@ export function InfoView({
     return (
       <div className="nx-info-section-stack">
         <section className="nx-info-card">
-          <div className="nx-info-card-heading"><ShieldCheck size={18} /><div><span>Stand: Juli 2026</span><h2>View-Vollständigkeitsmatrix</h2></div></div>
+          <div className="nx-info-card-heading"><ShieldCheck size={18} /><div><span>Stand: August 2026</span><h2>View-Vollständigkeitsmatrix</h2></div></div>
           <p>Die Matrix verbindet die produktive Main-Registry mit dem tatsächlich vorhandenen View-Code. „Fertig / RC“ bedeutet: Kernflow vorhanden, nicht „bugfrei ohne weitere Smokes“.</p>
           <div className="nx-info-status-summary"><span className="is-fertig">{statusCounts.fertig} Fertig / RC</span><span className="is-teilweise">{statusCounts.teilweise} Teilweise</span><span className="is-entwicklung">{statusCounts.entwicklung} Fehlend / Entwicklung</span></div>
           <div className="nx-info-matrix-wrap"><table><thead><tr><th>View</th><th>Registry</th><th>Status</th><th>Offen / Grenze</th></tr></thead><tbody>{MAIN_CORE_VIEW_IDS.map((viewId) => { const guide = VIEW_GUIDES.find((entry) => entry.id === viewId); const item = MAIN_VIEW_REGISTRY[viewId]; if (!guide) return <tr key={viewId}><td>{item?.label ?? viewId}</td><td>registriert</td><td><span className="nx-info-status is-entwicklung">Doku fehlt</span></td><td>Guide und Code-Status prüfen.</td></tr>; return <tr key={viewId}><td><button type="button" onClick={() => { setActiveSection("views"); setActiveViewId(viewId); }}>{item?.label ?? viewId}</button></td><td>{item?.heavy ? "registriert · heavy" : "registriert"}</td><td><span className={`nx-info-status is-${guide.status}`}>{STATUS_LABEL[guide.status]}</span></td><td>{guide.gaps.join(" · ")}</td></tr>; })}</tbody></table></div>

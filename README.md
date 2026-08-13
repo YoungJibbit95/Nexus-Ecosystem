@@ -50,7 +50,7 @@
 
 ## Overview
 
-<sub>Free local tools for planning, writing and coding, with optional Nexus Cloud services.</sub>
+<sub>Free local tools for planning, writing and coding; optional Nexus Cloud capabilities are planned/private and not production-verified here.</sub>
 
 </div>
 
@@ -89,7 +89,7 @@ Runtime, rendering, motion and public client contracts stay aligned through reus
 </table>
 
 > [!IMPORTANT]
-> **Nexus Ecosystem** contains four public clients, a shared client runtime, release tooling and public documentation. Nexus Cloud is optional and private; account, payment, sync, AI orchestration, admin tooling, infrastructure and secrets remain outside this repository. Cloud and Pro permissions are enforced server-side.
+> **Nexus Ecosystem** contains four public clients, a shared client runtime, release tooling and public documentation. Planned Nexus Cloud capabilities are private; account, payment, sync, AI orchestration, admin tooling, infrastructure and secrets remain outside this repository. Protected API access is enforced server-side, but the end-to-end Cloud/Pro product is not production-verified by this repository.
 
 <div align="center">
 
@@ -226,14 +226,14 @@ Installer builds and checksums are produced here; the launcher lives in its own 
 </tr>
 </table>
 
-### Free Local Workspace, Optional Nexus Cloud
+### Free Local Workspace, Planned Nexus Cloud
 
 | Area | Free local clients | Pro / Nexus Cloud |
 | --- | --- | --- |
-| Workspace | Local notes, tasks, reminders, canvas and files | Cloud sync, backups and multi-device continuity |
-| Code | Local editor and project workflows | Account-bound cloud features and higher usage limits |
-| AI / Flux | Local UI surfaces where available | Cloud-backed AI, Flux and automation features |
-| Sharing | Local export and handoff | Sharing, team workflows and account-based collaboration |
+| Workspace | Local notes, tasks, reminders, canvas and files | Planned/Beta: cloud sync, backups and multi-device continuity; not production-verified |
+| Code | Local editor and project workflows | Planned/Beta: account-bound cloud features and higher usage limits |
+| AI / Flux | Local triage/UI surfaces where available; no cloud-AI promise | Planned/Beta: cloud-backed AI, Flux and automation; not production-verified |
+| Sharing | Local export and handoff | Planned/Beta: sharing, team workflows and account collaboration |
 | Security | Public client guardrails | Server-side entitlement and cloud access enforcement |
 
 > [!NOTE]
@@ -247,15 +247,16 @@ Installer builds and checksums are produced here; the launcher lives in its own 
 | View | Primary Job | Key Capabilities |
 | --- | --- | --- |
 | `dashboard` | command center | Today layer, resume lane, quick capture, workspace context, engine health |
-| `notes` | knowledge and docs | markdown editor, preview/reading mode, templates, backlinks and linking helpers |
+| `calendar` | schedule layer (partial) | shared task/reminder source, day/week/month views, agenda and composer |
+| `notes` | knowledge and docs (partial) | markdown editor, preview/reading mode, templates, backlinks and linking helpers |
 | `tasks` | execution | kanban lanes, focus lane, priorities/deadlines, batch actions |
 | `reminders` | scheduling | due/overdue grouping, snooze/completion, health/control center |
-| `canvas` | visual planning | node graph, templates/magic, auto-layout, inspector, keyboard/pointer flows |
-| `files` | workspace and handoff | workspace folders, import/export handoff, status and history surfaces |
-| `flux` | ops and throughput | queue/signal view, action routing, bottleneck support |
-| `code` | embedded coding view | fast edit/run path integrated in Main/Mobile shell |
-| `devtools` | internal tooling | diagnostics, recipe/testing surfaces, development helpers |
-| `settings` | system controls | appearance, typography, panel behavior, motion/render controls |
+| `canvas` | visual planning (development) | node graph, templates/magic, auto-layout, inspector, keyboard/pointer flows |
+| `files` | workspace and handoff (partial) | explicit library/workspace scope, import/export handoff, status and preview surfaces |
+| `flux` | ops and throughput (partial) | local queue/signal view, action routing and bottleneck support |
+| `code` | embedded coding view (partial) | bounded local edit/run path integrated in Main/Mobile shell |
+| `devtools` | internal tooling (development) | role/tier-gated diagnostics and development helpers; not normal navigation |
+| `settings` | system controls (partial) | appearance, typography, panel behavior, motion/render controls |
 | `info` | in-app docs | architecture, diagnostics explanation, view guides and release notes |
 
 </details>
@@ -296,9 +297,9 @@ Four dedicated product clients deliver workspace and IDE experiences across desk
 </td>
 <td width="33%" align="center">
 
-### 03 · Cloud Boundary
+### 03 · Planned Cloud Boundary
 
-Optional account, sync, AI and Pro services remain private and enforce access server-side.
+Planned account, sync, AI and Pro services remain private. Protected API routes enforce access server-side; product availability is not implied.
 
 <img src="https://img.shields.io/badge/CLOUD-OPTIONAL%20%2B%20PRIVATE-f7768e?style=flat&labelColor=1a1b27" alt="Optional private Nexus Cloud" />
 
@@ -321,11 +322,11 @@ flowchart TB
     E["@nexus/core"]
   end
 
-  subgraph CLOUD["03 · Optional Nexus Cloud"]
+  subgraph CLOUD["03 · Planned Nexus Cloud"]
     direction LR
     F["Account & Auth"]
-    G["Sync & Backups"]
-    H["AI, Flux & Pro"]
+    G["Planned Sync & Backups"]
+    H["Planned AI, Flux & Pro"]
   end
 
   A --> E

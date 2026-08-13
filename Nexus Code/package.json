@@ -131,9 +131,9 @@
     "@vitejs/plugin-react": "^6.0.1",
     "autoprefixer": "^10.5.0",
     "baseline-browser-mapping": "^2.10.27",
-    "concurrently": "^9.2.1",
+    "concurrently": "^9.2.4",
     "cross-env": "^10.1.0",
-    "electron": "^42.0.0",
+    "electron": "^42.9.0",
     "electron-builder": "^26.8.1",
     "eslint": "^9.39.4",
     "eslint-plugin-react": "^7.37.5",
@@ -141,7 +141,7 @@
     "eslint-plugin-react-refresh": "^0.5.2",
     "eslint-plugin-unused-imports": "^4.4.1",
     "globals": "^17.6.0",
-    "postcss": "^8.5.14",
+    "postcss": "^8.5.25",
     "tailwindcss": "^4.2.4",
     "typescript": "^6.0.3",
     "vite": "^8.0.10",
@@ -232,12 +232,17 @@
     }
   },
   "overrides": {
-    "axios": "1.16.0",
+    "axios": "1.18.0",
     "picomatch": "2.3.2",
-    "minimatch": "10.2.5",
-    "brace-expansion": "5.0.6",
-    "dompurify": "3.4.11",
+    "minimatch": "10.2.6",
+    "brace-expansion": "5.0.9",
+    "dompurify": "3.4.13",
     "got": "11.8.6",
-    "ip-address": "10.2.0"
+    "ip-address": "10.2.0",
+    "tar": "7.5.22",
+    "fast-uri": "3.1.5",
+    "js-yaml": "4.3.1",
+    "undici": "7.29.0",
+    "nanoid": "3.3.17"
   }
 }

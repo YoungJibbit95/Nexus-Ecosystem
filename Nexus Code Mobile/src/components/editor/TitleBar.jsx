@@ -9,9 +9,7 @@ import {
   MoreVertical,
   X,
   Save,
-  Eye,
   GitBranch,
-  ChevronRight,
 } from "lucide-react";
 import { useMobile } from "../../hook/useMobile";
 

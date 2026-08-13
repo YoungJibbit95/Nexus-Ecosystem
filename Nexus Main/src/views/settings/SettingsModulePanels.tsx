@@ -603,9 +603,34 @@ export function SettingsModulePanels({
                     value={t.globalFont}
                     onChange={(font) => t.setGlobalFont(font)}
                   />
+                </ModuleCard>
+
+              </>
+            ) : null}
+
+            {module === "accessibility" ? (
+              <>
+                <ModuleCard
+                  title="Lesbarkeit"
+                  desc="Diese Optionen wirken direkt auf die gesamte App-Oberflaeche."
+                >
+                  <Row>
+                    <Toggle
+                      label="Hoher Kontrast"
+                      desc="Verstaerkt Oberflaechen- und Textkontraste appweit."
+                      checked={Boolean(t.qol?.highContrast)}
+                      onChange={(next) => t.setQOL({ highContrast: next })}
+                    />
+                    <Toggle
+                      label="Bewegung reduzieren"
+                      desc="Deaktiviert oder kuerzt Animationen appweit."
+                      checked={Boolean(t.qol?.reducedMotion)}
+                      onChange={(next) => t.setQOL({ reducedMotion: next })}
+                    />
+                  </Row>
                   <div style={{ marginTop: 10 }}>
                     <Slider
-                      label="Schriftgroesse"
+                      label="Oberflaechen-Schriftgroesse"
                       value={t.qol.fontSize}
                       min={12}
                       max={18}
@@ -617,39 +642,31 @@ export function SettingsModulePanels({
                 </ModuleCard>
 
                 <ModuleCard
-                  title="Lesbarkeit"
-                  desc="Kontrast und Hilfen fuer klarere Oberflaechen"
+                  title="Kontrast-Preset"
+                  desc="Setzt einen realen, gespeicherten Theme-Preset; eigene Inhalte bleiben unveraendert."
                 >
-                  <Row>
-                    <Toggle
-                      label="Mehr Kontrast"
-                      checked={Boolean(t.qol?.highContrast)}
-                      onChange={(next) => t.setQOL({ highContrast: next })}
-                    />
-                    <Toggle
-                      label="Hilfetexte anzeigen"
-                      checked={Boolean(t.qol?.showTooltips)}
-                      onChange={(next) => t.setQOL({ showTooltips: next })}
-                    />
-                  </Row>
-                  <div style={{ marginTop: 8 }}>
-                    <Toggle
-                      label="Farben automatisch lesbar halten"
-                      checked={Boolean(t.qol?.autoAccentContrast ?? true)}
-                      onChange={(next) => t.setQOL({ autoAccentContrast: next })}
-                    />
-                  </div>
-                </ModuleCard>
-
-                <ModuleCard
-                  title="Schnellzugriffe"
-                  desc="Direkte Aktionen fuer Capture und Navigation"
-                >
-                  <Toggle
-                    label="Schnellaktionen anzeigen"
-                    checked={Boolean(t.qol?.quickActions)}
-                    onChange={(next) => t.setQOL({ quickActions: next })}
-                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      t.preset("High Contrast Focus");
+                      toast("High Contrast Focus angewendet");
+                    }}
+                    style={{
+                      width: "100%",
+                      minHeight: 44,
+                      borderRadius: 11,
+                      border: `1px solid rgba(${rgb},0.34)`,
+                      background: `rgba(${rgb},0.14)`,
+                      color: t.accent,
+                      padding: "9px 11px",
+                      textAlign: "left",
+                      cursor: "pointer",
+                      fontSize: 12,
+                      fontWeight: 800,
+                    }}
+                  >
+                    High Contrast Focus anwenden
+                  </button>
                 </ModuleCard>
               </>
             ) : null}
@@ -996,10 +1013,11 @@ export function SettingsModulePanels({
                   </ModuleCard>
                 ) : null}
 
-                <ModuleCard
-                  title="Leuchteffekte"
-                  desc="Mehr Akzentlicht, mit sicheren Grenzen fuer Alltag und Leistung"
-                >
+                {showAdvancedSettings ? (
+                  <ModuleCard
+                    title="Leuchteffekte"
+                    desc="Mehr Akzentlicht, mit sicheren Grenzen fuer Alltag und Leistung"
+                  >
                   <Segmented
                     label="Leuchtstil"
                     value={t.glow.mode}
@@ -1137,7 +1155,8 @@ export function SettingsModulePanels({
                       </Row>
                     </div>
                   ) : null}
-                </ModuleCard>
+                  </ModuleCard>
+                ) : null}
 
                 <ModuleCard
                   title="Leistungscheck"
@@ -1262,10 +1281,11 @@ export function SettingsModulePanels({
                   </div>
                 </ModuleCard>
 
-                <ModuleCard
-                  title="Fensterstruktur"
-                  desc="Fertige Oberflaechen mit Vorschau."
-                >
+                {showAdvancedSettings ? (
+                  <ModuleCard
+                    title="Fensterstruktur"
+                    desc="Fertige Oberflaechen mit Vorschau."
+                  >
                   <Segmented
                     label="Oberflaeche"
                     value={t.background.panelBgMode}
@@ -1342,8 +1362,10 @@ export function SettingsModulePanels({
                       );
                     })}
                   </div>
-                </ModuleCard>
+                  </ModuleCard>
+                ) : null}
 
+                {showAdvancedSettings ? (
                 <ModuleCard title="App-Hintergrund">
                   <Segmented
                     label="Hintergrundstil"
@@ -1633,6 +1655,7 @@ export function SettingsModulePanels({
                     </Row>
                   </div>
                 </ModuleCard>
+                ) : null}
               </>
             ) : null}
 
@@ -1855,6 +1878,7 @@ export function SettingsModulePanels({
                   </div>
                 </ModuleCard>
 
+                {showAdvancedSettings ? (
                 <ModuleCard title="Bewegung feinjustieren">
                   <Row>
                     <Slider
@@ -1915,6 +1939,7 @@ export function SettingsModulePanels({
                     </Row>
                   </div>
                 </ModuleCard>
+                ) : null}
               </>
             ) : null}
 

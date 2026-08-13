@@ -69,6 +69,14 @@ const mergeUniqueViews = (...groups: View[][]): View[] => {
   return result;
 };
 
+const MAIN_SHELL_COMMAND_IDS = new Set([
+  "dashboard.quick-capture",
+  "notes.new-note",
+  "tasks.new-task",
+  "calendar.new-calendar-item",
+  "reminders.new-reminder",
+]);
+
 const renderActiveView = (
   viewId: View,
   onRequestViewChange: (viewId: View | string) => void,
@@ -242,6 +250,11 @@ export function MainViewHost({
     },
     [addNote, addRem, addTask, onRequestViewChange],
   );
+  const canHandleShellCommand = React.useCallback(
+    (command: NexusResolvedViewCommand) =>
+      MAIN_SHELL_COMMAND_IDS.has(command.commandId),
+    [],
+  );
 
   return (
     <div
@@ -275,6 +288,7 @@ export function MainViewHost({
             onRequestViewChange={onRequestViewChange}
             onPrefetchView={onPrefetchView}
             onExecuteCommand={handleShellCommand}
+            onCanExecuteCommand={canHandleShellCommand}
           >
             <Suspense
               fallback={

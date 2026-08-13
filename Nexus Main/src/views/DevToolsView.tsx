@@ -2,8 +2,12 @@ import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import { Copy, Check, RefreshCw, Play, Code2, Calculator, Monitor, Tablet, Smartphone, Download, Trash2, Edit3, MoreVertical, Layout, Sliders, Save, Rocket } from 'lucide-react'
 import {
   DEFAULT_DEVTOOLS_WEB_FILES,
+  DEVTOOLS_PREVIEW_MAX_CONSOLE_LINES,
+  DEVTOOLS_PREVIEW_MAX_MESSAGES_PER_SECOND,
   extractDevToolsCodeBundles,
   formatDevToolsArtifactKind,
+  parseDevToolsPreviewMessage,
+  serializeDevToolsArtifactForExport,
   toExecutableDevToolsHtml,
   type DevToolsArtifact,
   type DevToolsArtifactKind,
@@ -479,10 +483,21 @@ function WebBuilder() {
   const [saveKind, setSaveKind]   = useState<DevToolsArtifactKind>('recipe')
   const [saveLabel, setSaveLabel] = useState('')
   const runTimer = useRef<any>(null)
+  const messageRateRef = useRef({ windowStartedAt: 0, count: 0 })
 
   const activeFile = files.find(f=>f.id===activeId) || files[0]
   const vpWidth = vp==='desktop'?'100%':vp==='tablet'?'768px':'375px'
-  const bundles = useMemo(() => extractDevToolsCodeBundles(files), [files])
+  const bundleResult = useMemo(() => {
+    try {
+      return { bundles: extractDevToolsCodeBundles(files), error: null as string | null }
+    } catch (error) {
+      return {
+        bundles: { html: '', css: '', js: '' },
+        error: error instanceof Error ? error.message : 'Preview input is invalid',
+      }
+    }
+  }, [files])
+  const bundles = bundleResult.bundles
   const activeMode = BUILDER_MODES.find((mode) => mode.id === subTab) ?? BUILDER_MODES[0]
   const fileCountLabel = `${files.length} file${files.length === 1 ? '' : 's'}`
 
@@ -507,17 +522,33 @@ function WebBuilder() {
     setFiles(fs=>fs.map(f=>f.id===id?{...f,name}:f))
 
   const buildSrc = useCallback(() => {
+    if (bundleResult.error) throw new RangeError(bundleResult.error)
     return toExecutableDevToolsHtml({
       html: bundles.html || '<body></body>',
       css: bundles.css,
       js: bundles.js,
       includeLogBridge: true,
     })
-  }, [bundles])
+  }, [bundleResult.error, bundles])
 
   useEffect(() => {
     const h = (e: MessageEvent) => {
-      if(e.data?.type==='__c__') setCOut(e.data.logs.map((l:any)=>(l.t==='err'?'ERR ':l.t==='warn'?'WARN ':'')+l.m))
+      if (e.source !== iframeRef.current?.contentWindow) return
+      const now = Date.now()
+      const rate = messageRateRef.current
+      if (now - rate.windowStartedAt >= 1_000) {
+        rate.windowStartedAt = now
+        rate.count = 0
+      }
+      if (rate.count >= DEVTOOLS_PREVIEW_MAX_MESSAGES_PER_SECOND) return
+      rate.count += 1
+
+      const message = parseDevToolsPreviewMessage(e.data)
+      if (!message) return
+      const lines = message.logs.map((log) => (
+        `${log.t === 'err' ? 'ERR ' : log.t === 'warn' ? 'WARN ' : ''}${log.m}`
+      ))
+      setCOut(lines.slice(-DEVTOOLS_PREVIEW_MAX_CONSOLE_LINES))
     }
     window.addEventListener('message',h)
     return ()=>window.removeEventListener('message',h)
@@ -526,7 +557,12 @@ function WebBuilder() {
   const run = useCallback(()=>{
     if(!iframeRef.current)return
     setCOut([])
-    iframeRef.current.srcdoc = buildSrc()
+    messageRateRef.current = { windowStartedAt: Date.now(), count: 0 }
+    try {
+      iframeRef.current.srcdoc = buildSrc()
+    } catch (error) {
+      setCOut([`ERR Preview blocked: ${error instanceof Error ? error.message : 'invalid input'}`])
+    }
   },[buildSrc])
 
   const applyVisualBuilderToCode = useCallback((payload: { html: string; css: string }) => {
@@ -560,6 +596,7 @@ function WebBuilder() {
   }, [])
 
   const buildArtifactDraft = useCallback((kind: DevToolsArtifactKind, titleOverride?: string) => {
+    if (bundleResult.error) throw new RangeError(bundleResult.error)
     const fallbackTitle = `${formatDevToolsArtifactKind(kind)} ${new Date().toLocaleDateString()}`
     const title = titleOverride?.trim() || fallbackTitle
     const description = `Saved from DevTools ${subTab} view`
@@ -629,14 +666,18 @@ function WebBuilder() {
       description,
       payload: projectPayload,
     }
-  }, [activeFile?.content, activeFile?.name, activeFile?.type, activeId, autoRun, bundles.css, bundles.html, bundles.js, files, subTab, vp])
+  }, [activeFile?.content, activeFile?.name, activeFile?.type, activeId, autoRun, bundleResult.error, bundles.css, bundles.html, bundles.js, files, subTab, vp])
 
   const saveCurrentArtifact = useCallback(() => {
-    const draft = buildArtifactDraft(saveKind, saveLabel)
-    const artifact = saveArtifact(draft)
-    setSaveLabel('')
-    setLeftPane('library')
-    setCOut((prev) => [`Saved: ${artifact.title}`, ...prev].slice(0, 6))
+    try {
+      const draft = buildArtifactDraft(saveKind, saveLabel)
+      const artifact = saveArtifact(draft)
+      setSaveLabel('')
+      setLeftPane('library')
+      setCOut((prev) => [`Saved: ${artifact.title}`, ...prev].slice(0, 6))
+    } catch (error) {
+      setCOut([`ERR Artifact blocked: ${error instanceof Error ? error.message : 'invalid input'}`])
+    }
   }, [buildArtifactDraft, saveKind, saveLabel, saveArtifact])
 
   const loadArtifact = useCallback((artifact: DevToolsArtifact) => {
@@ -697,22 +738,31 @@ function WebBuilder() {
   }, [inferFileType, run])
 
   const copyArtifactPayload = useCallback((artifact: DevToolsArtifact) => {
-    copy(JSON.stringify(artifact.payload, null, 2), `artifact-${artifact.id}`)
+    try {
+      copy(serializeDevToolsArtifactForExport(artifact.payload), `artifact-${artifact.id}`)
+    } catch {
+      setCOut(['ERR Artifact export blocked: invalid or oversized payload'])
+    }
   }, [copy])
 
   const downloadArtifactJson = useCallback((artifact: DevToolsArtifact) => {
-    const safeTitle = artifact.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || artifact.kind
-    const url = URL.createObjectURL(new Blob([JSON.stringify(artifact, null, 2)], { type: 'application/json' }))
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `nexus-${artifact.kind}-${safeTitle}.json`
-    a.style.display = 'none'
-    document.body.appendChild(a)
-    a.click()
-    window.setTimeout(() => {
-      URL.revokeObjectURL(url)
-      a.remove()
-    }, 0)
+    try {
+      const safeTitle = artifact.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || artifact.kind
+      const payload = serializeDevToolsArtifactForExport(artifact)
+      const url = URL.createObjectURL(new Blob([payload], { type: 'application/json' }))
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `nexus-${artifact.kind}-${safeTitle}.json`
+      a.style.display = 'none'
+      document.body.appendChild(a)
+      a.click()
+      window.setTimeout(() => {
+        URL.revokeObjectURL(url)
+        a.remove()
+      }, 0)
+    } catch {
+      setCOut(['ERR Artifact export blocked: invalid or oversized payload'])
+    }
   }, [])
 
   useEffect(()=>{
@@ -723,7 +773,14 @@ function WebBuilder() {
   },[files,autoRun,run])
 
   const downloadProject = () => {
-    const url = URL.createObjectURL(new Blob([buildSrc()],{type:'text/html'}))
+    let source = ''
+    try {
+      source = buildSrc()
+    } catch (error) {
+      setCOut([`ERR Project export blocked: ${error instanceof Error ? error.message : 'invalid input'}`])
+      return
+    }
+    const url = URL.createObjectURL(new Blob([source],{type:'text/html'}))
     const a=document.createElement('a')
     a.href=url
     a.download='nexus-project.html'

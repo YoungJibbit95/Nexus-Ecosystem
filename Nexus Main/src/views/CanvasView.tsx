@@ -316,6 +316,17 @@ export function CanvasView() {
     });
   }, [gridMode, layoutMode, showCanvasList, showMiniMap, showProjectPanel, snapToGrid]);
 
+  useEffect(() => {
+    if (!showCanvasList || typeof window === "undefined") return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      if (!window.matchMedia("(max-width: 760px)").matches) return;
+      setShowCanvasList(false);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [showCanvasList]);
+
   const runViewportTransition = useCallback(
     (
       nextViewport: { panX: number; panY: number; zoom: number },
@@ -792,9 +803,19 @@ export function CanvasView() {
         width: "100%",
         height: "100%",
         display: "flex",
+        position: "relative",
         overflow: "hidden",
       }}
     >
+      {showCanvasList ? (
+        <button
+          type="button"
+          className="nx-canvas-sidebar-scrim"
+          aria-label="Canvas Library schliessen"
+          tabIndex={-1}
+          onClick={() => setShowCanvasList(false)}
+        />
+      ) : null}
       <CanvasSidebar
         visible={showCanvasList}
         mode={t.mode}
@@ -806,6 +827,7 @@ export function CanvasView() {
         addCanvas={safeCreateCanvas}
         setActiveCanvas={setActiveCanvas}
         deleteCanvas={deleteCanvas}
+        onClose={() => setShowCanvasList(false)}
       />
 
       {/* ── Main Canvas ── */}

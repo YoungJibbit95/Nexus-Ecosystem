@@ -66,10 +66,17 @@ const dedupeFilterDebugEvents = (events: NexusViewFilterDebugEvent[]) => {
 }
 
 export const NEXUS_FALLBACK_VIEWS_BY_APP: Record<NexusCoreAppId, string[]> = {
-  main: ['dashboard', 'calendar', 'notes', 'code', 'tasks', 'reminders', 'canvas', 'files', 'flux', 'devtools', 'settings', 'info'],
-  mobile: ['dashboard', 'notes', 'code', 'tasks', 'reminders', 'canvas', 'files', 'flux', 'devtools', 'settings', 'info'],
+  main: ['dashboard', 'calendar', 'notes', 'code', 'tasks', 'reminders', 'canvas', 'files', 'flux', 'settings', 'info'],
+  mobile: ['dashboard', 'notes', 'code', 'tasks', 'reminders', 'canvas', 'files', 'flux', 'settings', 'info'],
   code: ['editor'],
   'code-mobile': ['editor'],
+}
+
+export const NEXUS_DEVELOPMENT_ONLY_VIEWS_BY_APP: Record<NexusCoreAppId, string[]> = {
+  main: ['devtools'],
+  mobile: ['devtools'],
+  code: [],
+  'code-mobile': [],
 }
 
 const VIEW_FEATURE_MAP: Record<NexusCoreAppId, Record<string, string | null>> = {
@@ -110,6 +117,10 @@ const VIEW_FEATURE_MAP: Record<NexusCoreAppId, Record<string, string | null>> = 
 
 export const getFallbackViewsForApp = (appId: NexusCoreAppId) => (
   [...(NEXUS_FALLBACK_VIEWS_BY_APP[appId] || [])]
+)
+
+export const getDevelopmentOnlyViewsForApp = (appId: NexusCoreAppId) => (
+  [...(NEXUS_DEVELOPMENT_ONLY_VIEWS_BY_APP[appId] || [])]
 )
 
 const collectStableFeatureIds = (appId: NexusCoreAppId, catalog: NexusFeatureCatalogLike | null | undefined) => {

@@ -1,0 +1,138 @@
+.nx-flux-metric-detail,
+.nx-flux-source-caption {
+  margin-top: 3px;
+  color: rgba(222, 232, 255, 0.62);
+  font-size: 9.5px;
+  line-height: 1.35;
+}
+
+.nx-flux-source-filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.nx-flux-source-label {
+  color: rgba(222, 232, 255, 0.58);
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.nx-flux-low-activity {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px;
+  border: 1px dashed rgba(var(--flux-accent-rgb), 0.28);
+  border-radius: 12px;
+  background:
+    radial-gradient(280px circle at 0 0, rgba(var(--flux-accent-rgb), 0.11), transparent 70%),
+    rgba(255, 255, 255, 0.025);
+  color: rgba(226, 234, 255, 0.76);
+  font-size: 11px;
+}
+
+.nx-flux-low-activity--stream {
+  flex: 1;
+  min-height: 180px;
+  align-items: center;
+  justify-content: center;
+}
+
+.nx-flux-low-activity > svg {
+  flex: 0 0 auto;
+  color: var(--nx-v6-view-accent, #64d2ff);
+}
+
+.nx-flux-low-activity strong,
+.nx-flux-low-activity span {
+  display: block;
+}
+
+.nx-flux-low-activity strong {
+  color: rgba(242, 246, 255, 0.94);
+  font-size: 12px;
+}
+
+.nx-flux-low-activity > div > span {
+  max-width: 600px;
+  margin-top: 4px;
+  line-height: 1.45;
+}
+
+.nx-flux-low-activity-stats,
+.nx-flux-low-activity-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.nx-flux-low-activity-stats span {
+  padding: 4px 7px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  font-size: 9.5px;
+}
+
+.nx-flux-low-activity-actions button {
+  min-height: 34px;
+  padding: 6px 9px;
+  border: 1px solid rgba(var(--flux-accent-rgb), 0.26);
+  border-radius: 8px;
+  background: rgba(var(--flux-accent-rgb), 0.1);
+  color: inherit;
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 760;
+}
+
+@media (max-width: 760px) {
+  .nx-flux-v6 .nx-flux-metric-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    overflow: visible !important;
+  }
+
+  .nx-flux-v6 .nx-flux-metric-card {
+    min-width: 0;
+    min-height: 88px;
+    flex: none !important;
+  }
+
+  .nx-flux-v6 .nx-flux-source-filter button,
+  .nx-flux-v6 .nx-flux-low-activity-actions button,
+  .nx-flux-v6 .nx-flux-activity-panel button,
+  .nx-flux-v6 .nx-flux-queue-panel button {
+    min-height: 44px;
+  }
+
+  .nx-flux-v6 .nx-flux-low-activity--stream {
+    min-height: 240px;
+    align-items: flex-start;
+    justify-content: flex-start;
+  }
+
+  .nx-flux-v6 .nx-flux-source-caption {
+    max-width: 280px;
+  }
+}
+
+@media (max-width: 420px) {
+  .nx-flux-v6 .nx-flux-metric-grid {
+    gap: 6px !important;
+  }
+
+  .nx-flux-v6 .nx-flux-metric-card {
+    padding: 9px !important;
+  }
+
+  .nx-flux-v6 .nx-flux-low-activity {
+    padding: 10px;
+  }
+}
