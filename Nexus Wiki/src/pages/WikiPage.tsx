@@ -496,7 +496,7 @@ export function WikiPage() {
                     <Sparkles className="w-3.5 h-3.5" />
                     {isGlobalSearch ? t.searchScopeGlobal : t.searchScopeSection}
                   </span>
-                  
+
                   {hasShortSearchQuery ? (
                     <span className="text-amber-200">{t.searchMinChars}</span>
                   ) : null}
