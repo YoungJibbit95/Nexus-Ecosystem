@@ -76,6 +76,8 @@ export function DashboardWidgetGridSection({
     <>
       <div
         ref={gridRef}
+        className="nx-dashboard-widget-grid"
+        data-editing={editLayout}
         style={{
           display: "grid",
           gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
