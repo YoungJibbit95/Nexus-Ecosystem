@@ -1,5 +1,6 @@
 import React from "react";
 import * as ReactDOMClient from "react-dom/client";
+import "../index.css";
 import "../globals.css";
 import {
   UI_SMOKE_FIXTURE_ACCOUNT_SESSION,
@@ -17,6 +18,7 @@ import {
   VISUAL_SMOKE_EDITOR_LANGUAGE_SURFACES,
   VISUAL_SMOKE_VIEWPORTS,
 } from "./visualSmokeScenarios.js";
+import { stripMarkupForAccessibleText } from "./markupText.js";
 
 const noop = () => {};
 const params = new URLSearchParams(window.location.search);
@@ -321,14 +323,18 @@ ${repeatLanguageBlock(72, (index, line) =>
     grammarId: "gherkin",
     fileName: "checkout.feature",
     pathSuffix: "features\\checkout.feature",
-    code: repeatLanguageBlock(48, (_index, line) =>
+    code: repeatLanguageBlock(32, (_index, line) =>
       [
         `# Nexus Code Gherkin syntax contract ${line}`,
+        `@release-${line} @editor-smoke`,
         `Feature: checkout-${line}`,
-        `  Scenario: user pays with glow state ${line}`,
-        `    Given the workspace is ready`,
-        `    When the command palette opens`,
+        `  Scenario Outline: user pays with glow state ${line}`,
+        `    Given the workspace is "<state>"`,
+        `    When the command "palette" opens`,
         `    Then syntax highlighting stays stable`,
+        `    Examples:`,
+        `      | state |`,
+        `      | ready |`,
       ].join("\n"),
     ),
   },
@@ -444,15 +450,6 @@ function renderInViewport(currentSurfaceId, viewport, children) {
   );
 }
 
-function stripTags(value) {
-  return String(value || "")
-    .replace(/<style\b[\s\S]*?<\/style>/gi, " ")
-    .replace(/<script\b[\s\S]*?<\/script>/gi, " ")
-    .replace(/<[^>]*>/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
 function readAttribute(attributes, name) {
   const pattern = new RegExp(`${name}="([^"]*)"`);
   const match = pattern.exec(attributes);
@@ -469,7 +466,7 @@ function assertButtonLabels(markup) {
     index += 1;
     const attributes = match[1] || "";
     const content = match[2] || "";
-    const visibleText = stripTags(content);
+    const visibleText = stripMarkupForAccessibleText(content);
     const role = readAttribute(attributes, "role");
     const ariaChecked = readAttribute(attributes, "aria-checked");
     const accessibleText =
@@ -1114,17 +1111,42 @@ async function settleFrame() {
   }
 }
 
-async function waitForRenderedScenario(scenario, timeoutMs = 8_000) {
+async function waitForRenderedScenario(scenario, timeoutMs = 30_000) {
   const startedAt = Date.now();
+  let lastEditorState = null;
   while (Date.now() - startedAt < timeoutMs) {
     const smokeRoot = rootElement.querySelector('[data-ui-smoke-root="nexus-code"]');
     const surfaceFrame = rootElement.querySelector(
       `[data-ui-smoke-surface-frame="${scenario.surfaceId}"]`,
     );
     const textLength = rootElement.innerText?.trim()?.length || 0;
-    if (smokeRoot && surfaceFrame && textLength > 0) return;
+    const editorShell = scenario.editorScrollContract
+      ? surfaceFrame?.querySelector('.nx-code-editor-shell')
+      : null;
+    const tokenSpans = editorShell
+      ? Array.from(editorShell.querySelectorAll('.cm-content .cm-line span'))
+      : [];
+    const syntaxColorCount = new Set(
+      tokenSpans.map((node) => window.getComputedStyle(node).color).filter(Boolean),
+    ).size;
+    lastEditorState = editorShell
+      ? {
+          languageState: editorShell.dataset.cmLanguageState || "unknown",
+          tokenSpans: tokenSpans.length,
+          syntaxColorCount,
+        }
+      : null;
+    const editorReady = !scenario.editorScrollContract || (
+      lastEditorState?.languageState === "ready" &&
+      lastEditorState.tokenSpans > 0 &&
+      lastEditorState.syntaxColorCount >= 4
+    );
+    if (smokeRoot && surfaceFrame && textLength > 0 && editorReady) return;
     await new Promise((resolve) => window.setTimeout(resolve, 50));
   }
+  throw new Error(
+    `visual smoke surface did not finish rendering: ${scenario.id}; editor=${JSON.stringify(lastEditorState)}`,
+  );
 }
 
 async function main() {

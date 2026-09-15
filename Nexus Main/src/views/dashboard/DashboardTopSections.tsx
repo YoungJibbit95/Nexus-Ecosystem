@@ -11,8 +11,6 @@ export function DashboardTopSections({
   rgb,
   today,
   greeting,
-  pendingTasks,
-  overdueReminders,
   setView,
   editLayout,
   setEditLayout,
@@ -38,12 +36,8 @@ export function DashboardTopSections({
     <>
       <DashboardHeaderHero
         t={t}
-        rgb={rgb}
         today={today}
         greeting={greeting}
-        pendingTasks={pendingTasks}
-        overdueReminders={overdueReminders}
-        setView={setView}
         editLayout={editLayout}
         setEditLayout={setEditLayout}
         heroMotion={heroMotion}

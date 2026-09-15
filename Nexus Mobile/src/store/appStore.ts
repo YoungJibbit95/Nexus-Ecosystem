@@ -109,12 +109,12 @@ export type DashboardWidget = {
 }
 
 const DEFAULT_DASHBOARD_WIDGETS: DashboardWidget[] = [
-  { id: 'stats', label: 'Stats', icon: '📊', span: 2, visible: true, order: 0 },
-  { id: 'quick', label: 'Quick Actions', icon: '⚡', span: 2, visible: true, order: 1 },
+  { id: 'stats', label: 'Stats', icon: '📊', span: 2, visible: false, order: 0 },
+  { id: 'quick', label: 'Quick Actions', icon: '⚡', span: 2, visible: false, order: 1 },
   { id: 'tasks', label: 'Tasks', icon: '✅', span: 1, visible: true, order: 2 },
   { id: 'reminders', label: 'Reminders', icon: '🔔', span: 1, visible: true, order: 3 },
   { id: 'notes', label: 'Recent Notes', icon: '📝', span: 1, visible: true, order: 4 },
-  { id: 'activity', label: 'Activity', icon: '⚡', span: 1, visible: true, order: 5 },
+  { id: 'activity', label: 'Activity', icon: '⚡', span: 1, visible: false, order: 5 },
   { id: 'chart', label: 'Progress', icon: '📈', span: 2, visible: false, order: 6 },
   { id: 'calendar', label: 'Calendar', icon: '📅', span: 1, visible: false, order: 7 },
 ]

@@ -56,5 +56,19 @@ test('Settings separates accessibility and keeps details progressive on small sc
   assert.doesNotMatch(panels, /label="Schnellaktionen anzeigen"/)
   assert.match(shell, /aria-current=\{active \? "page" : undefined\}/)
   assert.match(css, /position: sticky/)
+  assert.match(css, /@media \(max-width: 1120px\)/)
   assert.match(css, /max-width: 460px/)
+})
+
+test('Main keeps renderer credentials out of production bundles and labels titlebar controls', async () => {
+  const [app, titlebar] = await Promise.all([
+    read('../App.tsx'),
+    read('../components/Titlebar.tsx'),
+  ])
+
+  assert.doesNotMatch(app, /VITE_NEXUS_CONTROL_INGEST_KEY/)
+  assert.match(app, /Session-Token bleibt nur bis zum Schliessen/)
+  assert.match(titlebar, /Fenster schliessen/)
+  assert.match(titlebar, /aria-label=\{action\.label\}/)
+  assert.match(titlebar, /aria-label="Suche oeffnen"/)
 })

@@ -1,8 +1,8 @@
-import './register-typescript-hooks.mjs'
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
 const {
+  CODE_EXECUTION_MAX_ANALYSIS_CHARS,
   CODE_EXECUTION_MAX_INPUT_CHARS,
   CODE_EXECUTION_MAX_OUTPUT_CHARS,
   executeCode,
@@ -67,4 +67,25 @@ test('native execution observes cancellation', async () => {
     controller.abort()
     assert.equal(await pending, 'Execution cancelled.')
   })
+})
+
+test('static fallback analysis is bounded before adversarial regular expressions run', async () => {
+  const content = '<a'.repeat(CODE_EXECUTION_MAX_INPUT_CHARS / 2)
+  const startedAt = performance.now()
+  const output = await executeCode({ lang: 'html', content, name: 'adversarial.html' })
+
+  assert.match(output, new RegExp(`first ${CODE_EXECUTION_MAX_ANALYSIS_CHARS} of ${content.length} characters`))
+  assert.ok(performance.now() - startedAt < 1_000, 'bounded fallback analysis should complete within one second')
+})
+
+test('ordinary static previews keep their existing counts and first-eight result cap', async () => {
+  const html = await executeCode({ lang: 'html', content: '<main><p>Ready</p></main>' })
+  assert.match(html, /Parsed: 2 HTML tags/)
+  assert.doesNotMatch(html, /Static analysis limited/)
+
+  const javascript = await executeCode({
+    lang: 'javascript',
+    content: Array.from({ length: 9 }, (_, index) => `console.log(${index + 1})`).join('\n'),
+  })
+  assert.equal((javascript.match(/^  - console\.log/gm) || []).length, 8)
 })

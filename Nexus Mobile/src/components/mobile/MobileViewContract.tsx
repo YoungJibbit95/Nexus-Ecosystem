@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect, useId, useRef } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { X } from 'lucide-react'
 import { useMobile } from '../../lib/useMobile'
@@ -102,6 +102,46 @@ export function MobileSheet({
   const isTight = mob.isMobile && mob.screenH <= 900
   const isFullscreen = mode === 'fullscreen'
   const shouldFullscreen = isFullscreen || !mob.isMobile
+  const dialogRef = useRef<HTMLDivElement>(null)
+  const closeRef = useRef(onClose)
+  const titleId = useId()
+
+  useEffect(() => { closeRef.current = onClose }, [onClose])
+
+  useEffect(() => {
+    if (!open) return
+    const previousFocus = document.activeElement as HTMLElement | null
+    const focusable = () => Array.from(dialogRef.current?.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), summary, [tabindex="0"]',
+    ) || []).filter((element) => element.getClientRects().length > 0)
+    const frame = requestAnimationFrame(() => (focusable()[0] || dialogRef.current)?.focus())
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        closeRef.current()
+      } else if (event.key === 'Tab') {
+        const elements = focusable()
+        const first = elements[0]
+        const last = elements[elements.length - 1]
+        if (!first) {
+          event.preventDefault()
+          dialogRef.current?.focus()
+        } else if (event.shiftKey && (document.activeElement === first || document.activeElement === dialogRef.current)) {
+          event.preventDefault()
+          last.focus()
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault()
+          first.focus()
+        }
+      }
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      cancelAnimationFrame(frame)
+      document.removeEventListener('keydown', onKeyDown)
+      previousFocus?.focus()
+    }
+  }, [open])
 
   return (
     <AnimatePresence>
@@ -122,6 +162,12 @@ export function MobileSheet({
           />
           <motion.div
             initial={shouldFullscreen ? { opacity: 0 } : { y: '100%' }}
+            ref={dialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={title ? titleId : undefined}
+            aria-label={title ? undefined : 'Weitere Optionen'}
+            tabIndex={-1}
             animate={shouldFullscreen ? { opacity: 1 } : { y: 0 }}
             exit={shouldFullscreen ? { opacity: 0 } : { y: '100%' }}
             transition={{ type: 'spring', stiffness: 360, damping: 30 }}
@@ -184,8 +230,10 @@ export function MobileSheet({
                   flexShrink: 0,
                 }}
               >
-                <div style={{ fontSize: isTight ? (isTiny ? 11 : 12) : (isTiny ? 12 : 13), fontWeight: 800 }}>{title}</div>
+                <div id={titleId} style={{ fontSize: isTight ? (isTiny ? 11 : 12) : (isTiny ? 12 : 13), fontWeight: 800 }}>{title}</div>
                 <button
+                  type="button"
+                  aria-label="Schließen"
                   onClick={onClose}
                   style={{
                     width: isTight ? (isTiny ? 30 : 32) : (isTiny ? 32 : 34),

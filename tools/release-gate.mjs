@@ -25,8 +25,9 @@ const withControlDesktopPack = args.has('--with-control-desktop-pack')
 const sibling = (name) => path.join(WORKSPACE, name)
 const hasPackage = (dir) => existsSync(path.join(dir, 'package.json'))
 const resolveControlUiRootSync = () => {
+  const configured = String(process.env.NEXUS_CONTROL_UI_ROOT || '').trim()
+  if (configured) return path.resolve(configured)
   const candidates = [
-    process.env.NEXUS_CONTROL_UI_ROOT,
     sibling('Nexus Control'),
     path.join(sibling('NexusAPI'), 'Nexus Control'),
   ].filter(Boolean)
@@ -58,6 +59,11 @@ const steps = [
       ['run', signingRequired ? 'verify:signing:required' : 'verify:signing'],
     ],
     optional: !signingRequired,
+  },
+  {
+    name: 'release hardening regressions',
+    cwd: ROOT,
+    command: [npmBin, ['run', 'verify:release-hardening']],
   },
   {
     name: 'nexus-core package gate',
@@ -118,13 +124,21 @@ if (!fast && !skipApps) {
     )
   }
 
-  const controlDir = resolveControlUiRootSync()
-  if (!mainMobileOnly && controlDir && hasPackage(controlDir)) {
-    steps.push({
-      name: 'Nexus Control build',
-      cwd: controlDir,
-      command: [npmBin, ['run', 'build']],
-    })
+  if (!mainMobileOnly) {
+    const controlDir = resolveControlUiRootSync()
+    if (controlDir && hasPackage(controlDir)) {
+      steps.push({
+        name: 'Nexus Control build',
+        cwd: controlDir,
+        command: [npmBin, ['run', 'build']],
+      })
+    } else {
+      steps.push({
+        name: 'Nexus Control source required',
+        cwd: ROOT,
+        command: [process.execPath, ['-e', 'console.error("Nexus Control UI nicht gefunden. Setze NEXUS_CONTROL_UI_ROOT auf ein Projekt mit package.json."); process.exit(1)']],
+      })
+    }
   }
 }
 

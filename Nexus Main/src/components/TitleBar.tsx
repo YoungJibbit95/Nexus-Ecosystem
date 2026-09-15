@@ -7,6 +7,7 @@ import {
   Command,
   Activity,
   Cloud,
+  LogOut,
 } from "lucide-react";
 import { useTheme } from "../store/themeStore";
 
@@ -14,10 +15,16 @@ export function TitleBar({
   showDiagnosticsButton = false,
   onOpenDiagnostics,
   releaseId = null,
+  authenticated = false,
+  logoutPending = false,
+  onLogout,
 }: {
   showDiagnosticsButton?: boolean;
   onOpenDiagnostics?: () => void;
   releaseId?: string | null;
+  authenticated?: boolean;
+  logoutPending?: boolean;
+  onLogout?: () => void;
 }) {
   const t = useTheme();
   const [hovered, setHovered] = useState<string | null>(null);
@@ -27,18 +34,21 @@ export function TitleBar({
   const actions = [
     {
       id: "close",
+      label: "Fenster schliessen",
       color: "#ff5f57",
       icon: <X size={8} />,
       run: () => window.api?.window.close(),
     },
     {
       id: "minimize",
+      label: "Fenster minimieren",
       color: "#febc2e",
       icon: <Minus size={8} />,
       run: () => window.api?.window.minimize(),
     },
     {
       id: "maximize",
+      label: "Fenster maximieren oder wiederherstellen",
       color: "#28c840",
       icon: <Maximize2 size={8} />,
       run: () => window.api?.window.maximize(),
@@ -88,18 +98,18 @@ export function TitleBar({
             onMouseEnter={() => setHovered(action.id)}
             onMouseLeave={() => setHovered(null)}
             onClick={action.run}
-            title={action.id}
-            aria-label={action.id}
+            title={action.label}
+            aria-label={action.label}
             style={{
-              width: 12,
-              height: 12,
+              width: 28,
+              height: 28,
               borderRadius: 999,
               border: "none",
               cursor: "pointer",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              background: action.color,
+              background: "transparent",
               boxShadow:
                 hovered === action.id ? `0 0 10px ${action.color}7a` : "none",
               transition: "box-shadow 140ms ease, opacity 140ms ease",
@@ -107,7 +117,19 @@ export function TitleBar({
               color: "#1b1b1d",
             }}
           >
-            <span style={{ opacity: hovered === action.id ? 0.85 : 0 }}>
+            <span
+              aria-hidden="true"
+              style={{
+                width: 12,
+                height: 12,
+                borderRadius: 999,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                background: action.color,
+                opacity: hovered === action.id ? 0.95 : 1,
+              }}
+            >
               {action.icon}
             </span>
           </button>
@@ -235,8 +257,37 @@ export function TitleBar({
             Diagnostics
           </button>
         ) : null}
+        {authenticated && onLogout ? (
+          <button
+            type="button"
+            title={logoutPending ? "Session wird beendet" : "Abmelden und Session beenden"}
+            aria-label={logoutPending ? "Session wird beendet" : "Abmelden und Session beenden"}
+            onClick={onLogout}
+            disabled={logoutPending}
+            style={{
+              width: 24,
+              height: 24,
+              borderRadius: 7,
+              border: isDark
+                ? "1px solid rgba(255,255,255,0.1)"
+                : "1px solid rgba(0,0,0,0.1)",
+              background: isDark
+                ? "rgba(255,255,255,0.05)"
+                : "rgba(0,0,0,0.04)",
+              color: "inherit",
+              opacity: logoutPending ? 0.42 : 0.68,
+              cursor: logoutPending ? "wait" : "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <LogOut size={12} aria-hidden="true" />
+          </button>
+        ) : null}
         <button
-          title="Search"
+          title="Suche oeffnen"
+          aria-label="Suche oeffnen"
           onClick={() =>
             window.dispatchEvent(
               new CustomEvent("nx-open-spotlight", { detail: { query: "" } }),

@@ -53,6 +53,11 @@ import {
 export function WikiPage() {
   const [activeSection, setActiveSection] = useState<SectionId>("getting-started");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isMobileViewport, setIsMobileViewport] = useState(() =>
+    typeof window === "undefined"
+      ? false
+      : window.matchMedia("(max-width: 767px)").matches,
+  );
   const [query, setQuery] = useState("");
   const [appFilter, setAppFilter] = useState<AppFilter>("all");
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all");
@@ -69,6 +74,14 @@ export function WikiPage() {
     window.localStorage.setItem("nexus-wiki-lang", lang);
     document.documentElement.lang = lang;
   }, [lang]);
+
+  useEffect(() => {
+    const mobileQuery = window.matchMedia("(max-width: 767px)");
+    const syncViewport = () => setIsMobileViewport(mobileQuery.matches);
+    syncViewport();
+    mobileQuery.addEventListener("change", syncViewport);
+    return () => mobileQuery.removeEventListener("change", syncViewport);
+  }, []);
 
   useEffect(() => {
     if (!focusedEntryId) return;
@@ -352,16 +365,22 @@ export function WikiPage() {
 
   return (
     <div className="wiki-shell min-h-screen bg-slate-950 text-slate-50 flex overflow-x-hidden">
-      <SpaceBackground />
+      <div className="pointer-events-none opacity-35"><SpaceBackground /></div>
 
       <button
         onClick={() => setIsMobileMenuOpen((prev) => !prev)}
+        aria-label={isMobileMenuOpen ? "Navigation schließen" : "Navigation öffnen"}
+        aria-expanded={isMobileMenuOpen}
+        aria-controls="wiki-navigation"
         className="md:hidden fixed top-4 right-4 z-50 p-3 rounded-xl bg-cyan-500/15 text-cyan-200 border border-cyan-400/40 backdrop-blur-xl"
       >
         {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
       </button>
 
       <aside
+        id="wiki-navigation"
+        aria-hidden={isMobileViewport && !isMobileMenuOpen}
+        inert={isMobileViewport && !isMobileMenuOpen ? true : undefined}
         className={`
         wiki-sidebar fixed md:static inset-y-0 left-0 z-40 w-[min(20rem,88vw)] md:w-80 backdrop-blur-2xl border-r border-white/10 flex flex-col transition-transform duration-300
         ${isMobileMenuOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
@@ -453,7 +472,7 @@ export function WikiPage() {
       </aside>
 
       <main className="wiki-main flex-1 h-screen overflow-y-auto overflow-x-hidden relative z-10 custom-scrollbar scroll-smooth">
-        <div className="max-w-[1320px] mx-auto px-5 md:px-9 py-8 md:py-12 space-y-8">
+        <div className="max-w-[1320px] mx-auto px-5 md:px-9 py-6 md:py-8 space-y-5">
           <div className="sticky top-2 md:top-4 z-30">
             <div className="wiki-search-dock relative overflow-hidden rounded-2xl border border-white/12 backdrop-blur-2xl shadow-[0_10px_40px_rgba(3,7,18,0.45)]">
               <div className="absolute inset-0 bg-[linear-gradient(110deg,rgba(14,116,144,0.12),rgba(99,102,241,0.12),rgba(168,85,247,0.08))]" />
@@ -465,6 +484,7 @@ export function WikiPage() {
                       type="text"
                       value={query}
                       onChange={(event) => setQuery(event.target.value)}
+                      aria-label={t.searchPlaceholder}
                       placeholder={t.searchPlaceholder}
                       className="w-full bg-black/35 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-sm text-slate-200 focus:outline-none focus:border-cyan-400/50 focus:ring-1 focus:ring-cyan-400/40 transition-all placeholder:text-slate-500"
                     />
@@ -495,7 +515,7 @@ export function WikiPage() {
                     <Sparkles className="w-3.5 h-3.5" />
                     {isGlobalSearch ? t.searchScopeGlobal : t.searchScopeSection}
                   </span>
-                  <span className="text-slate-400">{t.searchActiveHint}</span>
+
                   {hasShortSearchQuery ? (
                     <span className="text-amber-200">{t.searchMinChars}</span>
                   ) : null}
@@ -509,6 +529,8 @@ export function WikiPage() {
                   ) : null}
                 </div>
 
+                <details>
+                  <summary className="cursor-pointer py-2 text-xs text-slate-400 focus-visible:outline-cyan-300">{lang === "de" ? "Suchvorschläge" : "Search suggestions"}</summary>
                 <div className="flex items-center gap-2 overflow-x-auto custom-scrollbar pb-0.5">
                   <span className="shrink-0 text-[11px] uppercase tracking-[0.2em] text-slate-500">
                     {lang === "de" ? "Schnellsuche" : "Quick search"}
@@ -524,11 +546,12 @@ export function WikiPage() {
                     </button>
                   ))}
                 </div>
+                </details>
               </div>
             </div>
           </div>
 
-          <section className="wiki-section-rail sticky top-[98px] md:top-[118px] z-20 rounded-2xl border border-white/10 backdrop-blur-2xl px-3 py-2">
+          <section className="wiki-section-rail md:hidden rounded-2xl border border-white/10 backdrop-blur-2xl px-3 py-2">
             <div className="flex items-center gap-2 overflow-x-auto custom-scrollbar whitespace-nowrap">
               {sectionRail.map((sectionId) => {
                 const active = sectionId === activeSection;
@@ -553,6 +576,10 @@ export function WikiPage() {
             </div>
           </section>
 
+          <details className="rounded-2xl border border-white/10 bg-slate-900/45">
+            <summary className="cursor-pointer px-5 py-3 text-sm text-slate-300 focus-visible:outline-cyan-300">
+              {lang === "de" ? "Wiki entdecken & Schnellzugriff" : "Explore the wiki & shortcuts"}
+            </summary>
           <section className="wiki-atlas-hero rounded-[2rem] p-6 md:p-10">
             <div className="wiki-atlas-orbit" />
             <div className="relative grid gap-8 lg:grid-cols-[1.2fr_0.8fr] lg:items-end">
@@ -615,6 +642,8 @@ export function WikiPage() {
             </div>
           </section>
 
+          </details>
+
           <AnimatePresence mode="wait">
             <motion.section
               key={`${activeSection}-${lang}`}
@@ -624,59 +653,41 @@ export function WikiPage() {
               transition={{ duration: 0.24 }}
               className="space-y-6"
             >
-              <header className="relative overflow-hidden rounded-3xl border border-white/10 bg-slate-900/55 backdrop-blur-2xl p-6 md:p-10">
-                <div className="absolute -right-24 -top-24 w-72 h-72 border border-cyan-300/20 rounded-full" />
-                <div className="absolute -right-16 -top-16 w-56 h-56 border border-indigo-300/20 rounded-full" />
-                <div className="relative space-y-5">
-                  <p className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs border border-cyan-500/35 bg-cyan-500/10 text-cyan-100">
-                    <Sparkles className="w-4 h-4" />
-                    {meta.title}
-                  </p>
-                  <h1 className="text-3xl md:text-5xl font-black tracking-tight text-white leading-tight max-w-5xl">{meta.title}</h1>
-                  <p className="text-slate-300 text-base md:text-lg max-w-5xl leading-relaxed">{meta.subtitle}</p>
-
-                  <div className="grid gap-3 md:grid-cols-3">
-                    {meta.bullets.map((bullet) => (
-                      <div key={bullet}>
-                        <SpotlightCard
-                          className="rounded-2xl border border-white/10 bg-slate-900/45 backdrop-blur-xl p-4"
-                          spotlightColor="rgba(34,211,238,0.14)"
-                        >
-                          <p className="text-sm text-slate-300 leading-relaxed">{bullet}</p>
-                        </SpotlightCard>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+              <header className="space-y-3 py-2">
+                <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-white leading-tight">{meta.title}</h1>
+                <p className="text-slate-300 text-sm md:text-base max-w-3xl leading-relaxed">{meta.subtitle}</p>
+                <details>
+                  <summary className="cursor-pointer py-2 text-xs text-slate-400 focus-visible:outline-cyan-300">
+                    {lang === "de" ? "In diesem Bereich" : "In this section"}
+                  </summary>
+                  <ul className="list-disc pl-5 space-y-2 text-sm text-slate-300">
+                    {meta.bullets.map((bullet) => <li key={bullet}>{bullet}</li>)}
+                  </ul>
+                </details>
               </header>
 
-              <section className="p-4 md:p-5 rounded-2xl bg-slate-900/55 border border-white/10 backdrop-blur-xl">
-                <div className="flex flex-wrap items-center gap-2 text-xs text-slate-300">
-                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-indigo-500/15 border border-indigo-500/30">
-                    <Database className="w-3.5 h-3.5" />
-                    {filteredEntries.length} {isGlobalSearch ? t.searchEntries : t.sectionEntries}
-                  </span>
-                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-cyan-500/15 border border-cyan-500/30">
-                    <Terminal className="w-3.5 h-3.5" /> {topCommands.length} {t.commandHints}
-                  </span>
-                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30">
-                    <BookOpen className="w-3.5 h-3.5" /> {entries.length} {t.totalEntries}
-                  </span>
-                </div>
-
-                {topCommands.length ? (
-                  <div className="mt-3 flex flex-wrap gap-2">
+              <section className="flex flex-wrap items-start gap-3 rounded-xl border border-white/10 bg-slate-900/55 px-4 py-3 text-sm text-slate-300">
+                <span className="inline-flex items-center gap-2 py-2">
+                  <Database className="w-4 h-4" aria-hidden="true" />
+                  {filteredEntries.length} {isGlobalSearch ? t.searchEntries : t.sectionEntries}
+                </span>
+                <details className="flex-1 min-w-0">
+                  <summary className="cursor-pointer py-2 text-slate-400 focus-visible:outline-cyan-300">
+                    {lang === "de" ? "Befehle & Details" : "Commands & details"} ({topCommands.length})
+                  </summary>
+                  <p className="py-2 text-xs text-slate-400">{entries.length} {t.totalEntries}</p>
+                  <div className="flex flex-wrap gap-2">
                     {topCommands.map((command) => (
                       <button
                         key={command}
                         onClick={() => copyText(command, `cmd:${command}`)}
-                        className="px-2.5 py-1.5 rounded-lg text-xs bg-black/40 border border-white/10 hover:border-cyan-400/50 text-slate-200"
+                        className="px-3 py-2 rounded-lg text-xs bg-black/40 border border-white/10 hover:border-cyan-400/50 text-slate-200"
                       >
-                        💻 {command}
+                        {command}
                       </button>
                     ))}
                   </div>
-                ) : null}
+                </details>
               </section>
 
               {isGlobalSearch ? (

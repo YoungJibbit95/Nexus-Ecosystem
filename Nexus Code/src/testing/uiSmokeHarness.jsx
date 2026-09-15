@@ -32,6 +32,7 @@ import {
   createUiSmokeSettingsFixture,
   createUiSmokeCallbacks,
 } from "./uiSmokeFixtures";
+import { stripMarkupForAccessibleText } from "./markupText.js";
 
 const noop = () => {};
 
@@ -523,15 +524,6 @@ export function createUiSmokeScenarios() {
   );
 }
 
-function stripTags(value) {
-  return String(value || "")
-    .replace(/<style\b[\s\S]*?<\/style>/gi, " ")
-    .replace(/<script\b[\s\S]*?<\/script>/gi, " ")
-    .replace(/<[^>]*>/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
 function readAttribute(attributes, name) {
   const pattern = new RegExp(`${name}="([^"]*)"`);
   const match = pattern.exec(attributes);
@@ -548,7 +540,7 @@ function assertButtonLabels(markup) {
     index += 1;
     const attributes = match[1] || "";
     const content = match[2] || "";
-    const visibleText = stripTags(content);
+    const visibleText = stripMarkupForAccessibleText(content);
     const role = readAttribute(attributes, "role");
     const ariaChecked = readAttribute(attributes, "aria-checked");
     const accessibleText =

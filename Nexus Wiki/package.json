@@ -26,6 +26,9 @@
   },
   "devDependencies": {
     "@types/node": "^25.6.0",
+    "@types/react": "^19.2.15",
+    "@types/react-dom": "^19.2.3",
+    "@types/three": "^0.184.0",
     "autoprefixer": "^10.5.0",
     "tailwindcss": "^4.2.4",
     "tsx": "^4.22.4",
@@ -34,6 +37,6 @@
   },
   "overrides": {
     "postcss": "8.5.25",
-    "nanoid": "3.3.17"
+    "nanoid": "3.3.18"
   }
 }

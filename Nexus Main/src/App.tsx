@@ -60,14 +60,7 @@ import {
   withDevDiagnosticsView,
 } from "./app/mainAppConfig";
 import { isMainDiagnosticsEnabled } from "./app/mainViewRegistry";
-
-const resolveControlIngestKey = () => {
-  const raw = String(
-    ((import.meta as any).env || {}).VITE_NEXUS_CONTROL_INGEST_KEY || "",
-  ).trim();
-  if (!raw || raw.startsWith("REPLACE_")) return undefined;
-  return raw;
-};
+import { completeMainLogout } from "./app/mainAuthLogout.mjs";
 
 const MAIN_AUTH_SESSION_STORAGE_KEY = "nx-main-api-session-v1";
 const MAIN_AUTH_REMEMBER_STORAGE_KEY = "nx-main-api-session-remember-v1";
@@ -371,6 +364,7 @@ export default function App() {
     readStoredMainAuthPreference(),
   );
   const [authPending, setAuthPending] = useState(false);
+  const [authLogoutPending, setAuthLogoutPending] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const [walkthroughOpen, setWalkthroughOpen] = useState(false);
   const [remoteDensity, setRemoteDensity] = useState<
@@ -596,7 +590,10 @@ export default function App() {
 
   useEffect(() => {
     const controlBaseUrl = controlApiBaseUrl;
-    const controlIngestKey = resolveControlIngestKey();
+    // Browser/Electron bundles are public artifacts. A shared ingest credential
+    // must never be compiled into them; authenticated sessions provide the
+    // required API identity and anonymous startup uses the local safe shell.
+    const controlIngestKey: string | undefined = undefined;
     const controlToken = authSession?.token || "";
     const controlDeviceId = getMainDeviceId();
 
@@ -1186,6 +1183,29 @@ export default function App() {
     ],
   );
 
+  const handleMainLogout = useCallback(async () => {
+    if (!authSession || authLogoutPending) return;
+    setAuthLogoutPending(true);
+    const result = await completeMainLogout({
+      baseUrl: controlApiBaseUrl,
+      token: authSession.token,
+      deviceId: getMainDeviceId(),
+      clearLocal: () => {
+        clearStoredMainAuthSession();
+        validatedAccessRef.current = {};
+        setAuthSession(null);
+        setAuthPassword("");
+        setBootReady(false);
+        setBootFailure(null);
+        setBootAttempt((attempt) => attempt + 1);
+      },
+    });
+    if (!result.revoked) {
+      console.warn("Nexus Main logout could not confirm server-side revocation.");
+    }
+    setAuthLogoutPending(false);
+  }, [authLogoutPending, authSession, controlApiBaseUrl]);
+
   const authSubmitDisabled =
     authPending ||
     authPassword.trim().length < 8 ||
@@ -1491,7 +1511,7 @@ export default function App() {
               />
               <span>
                 <span style={{ display: "block", fontWeight: 900 }}>
-                  Auf diesem Geraet angemeldet bleiben
+                  Anmeldeoption auf diesem Geraet merken
                 </span>
                 <span
                   style={{
@@ -1502,7 +1522,7 @@ export default function App() {
                     lineHeight: 1.45,
                   }}
                 >
-                  Speichert nur den API-Session-Token, niemals dein Passwort.
+                  Der Session-Token bleibt nur bis zum Schliessen dieses App-Fensters erhalten.
                 </span>
               </span>
             </label>
@@ -1627,6 +1647,9 @@ export default function App() {
         showDiagnosticsButton={isMainDiagnosticsEnabled()}
         releaseId={liveReleaseId}
         bootNotice={bootNotice}
+        authenticated={Boolean(authSession)}
+        logoutPending={authLogoutPending}
+        onLogout={handleMainLogout}
         onRequestViewChange={(nextView) => {
           void requestViewChange(nextView);
         }}

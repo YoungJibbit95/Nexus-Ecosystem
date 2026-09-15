@@ -34,7 +34,18 @@ const resolveAllowedRoots = () => {
   return roots.map((root) => path.resolve(root));
 };
 
-const ALLOWED_ROOTS = resolveAllowedRoots();
+const canonicalizeExistingPath = (targetPath) => {
+  const realpath = fs.realpathSync.native || fs.realpathSync;
+  return realpath(targetPath);
+};
+
+const ALLOWED_ROOTS = resolveAllowedRoots().map((rootPath) => {
+  try {
+    return canonicalizeExistingPath(rootPath);
+  } catch {
+    return rootPath;
+  }
+});
 
 const normalizePathInput = (value) => {
   if (typeof value !== 'string') {
@@ -54,22 +65,66 @@ const isWithinRoot = (targetPath, rootPath) => {
   return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
 };
 
+const resolvePathForAuthorization = (targetPath, allowMissing = false) => {
+  if (!allowMissing || fs.existsSync(targetPath)) {
+    return canonicalizeExistingPath(targetPath);
+  }
+
+  const missingSegments = [];
+  let existingAncestor = targetPath;
+  while (!fs.existsSync(existingAncestor)) {
+    const parent = path.dirname(existingAncestor);
+    if (parent === existingAncestor) {
+      throw new Error('path has no existing ancestor');
+    }
+    missingSegments.unshift(path.basename(existingAncestor));
+    existingAncestor = parent;
+  }
+
+  return path.resolve(canonicalizeExistingPath(existingAncestor), ...missingSegments);
+};
+
 const isPathAllowed = (targetPath) => ALLOWED_ROOTS.some((rootPath) => isWithinRoot(targetPath, rootPath));
 
-const assertAllowedPath = (inputPath) => {
+const assertAllowedPath = (inputPath, options = {}) => {
   const normalized = normalizePathInput(inputPath);
   if (!normalized.ok) {
     return { ok: false, error: normalized.error };
   }
 
-  if (!isPathAllowed(normalized.value)) {
+  let authorizedPath;
+  try {
+    authorizedPath = resolvePathForAuthorization(normalized.value, options.allowMissing === true);
+  } catch (error) {
+    return { ok: false, error: error?.message || 'path cannot be resolved safely' };
+  }
+
+  if (!isPathAllowed(authorizedPath)) {
     return {
       ok: false,
       error: `path not allowed; configure NEXUS_ALLOWED_FS_ROOTS (${ALLOWED_ROOTS.join(', ')})`,
     };
   }
 
-  return { ok: true, value: normalized.value };
+  return { ok: true, value: authorizedPath };
+};
+
+const assertTrustedSender = (event, getMainWindow) => {
+  const win = typeof getMainWindow === 'function' ? getMainWindow() : null;
+  if (!win || win.isDestroyed?.() || event?.sender !== win.webContents) {
+    throw new Error('untrusted IPC sender');
+  }
+  if (event.senderFrame && win.webContents.mainFrame && event.senderFrame !== win.webContents.mainFrame) {
+    throw new Error('IPC is restricted to the main renderer frame');
+  }
+  return win;
+};
+
+const registerTrustedHandler = (channel, getMainWindow, handler) => {
+  ipcMain.handle(channel, (event, ...args) => {
+    assertTrustedSender(event, getMainWindow);
+    return handler(event, ...args);
+  });
 };
 
 const EXEC_EXT_BY_LANG = {
@@ -356,18 +411,18 @@ const runExecutionAttempt = async (attempt, options = {}) => {
 };
 
 function registerWindowHandlers(getMainWindow) {
-  ipcMain.handle('window:minimize', () => getMainWindow()?.minimize());
-  ipcMain.handle('window:maximize', () => {
+  registerTrustedHandler('window:minimize', getMainWindow, () => getMainWindow()?.minimize());
+  registerTrustedHandler('window:maximize', getMainWindow, () => {
     const win = getMainWindow();
     if (!win) return;
     if (win.isMaximized()) win.unmaximize();
     else win.maximize();
   });
-  ipcMain.handle('window:close', () => getMainWindow()?.close());
+  registerTrustedHandler('window:close', getMainWindow, () => getMainWindow()?.close());
 }
 
 function registerFileHandlers(getMainWindow) {
-  ipcMain.handle('fs:pickDirectory', async () => {
+  registerTrustedHandler('fs:pickDirectory', getMainWindow, async () => {
     try {
       const win = typeof getMainWindow === 'function' ? getMainWindow() : null;
       const result = await dialog.showOpenDialog(win || undefined, {
@@ -378,21 +433,21 @@ function registerFileHandlers(getMainWindow) {
         return { ok: false, canceled: true };
       }
 
-      const selectedPath = path.resolve(result.filePaths[0]);
-      if (!isPathAllowed(selectedPath)) {
+      const selected = assertAllowedPath(result.filePaths[0]);
+      if (!selected.ok) {
         return {
           ok: false,
-          error: `path not allowed; configure NEXUS_ALLOWED_FS_ROOTS (${ALLOWED_ROOTS.join(', ')})`,
+          error: selected.error,
         };
       }
 
-      return { ok: true, path: selectedPath };
+      return { ok: true, path: selected.value };
     } catch (e) {
       return { ok: false, error: e.message };
     }
   });
 
-  ipcMain.handle('fs:read', async (_, filePath) => {
+  registerTrustedHandler('fs:read', getMainWindow, async (_, filePath) => {
     try {
       const check = assertAllowedPath(filePath);
       if (!check.ok) {
@@ -413,7 +468,7 @@ function registerFileHandlers(getMainWindow) {
     }
   });
 
-  ipcMain.handle('fs:readDir', async (_, dirPath, recursive = true) => {
+  registerTrustedHandler('fs:readDir', getMainWindow, async (_, dirPath, recursive = true) => {
     try {
       const check = assertAllowedPath(dirPath);
       if (!check.ok) {
@@ -433,11 +488,13 @@ function registerFileHandlers(getMainWindow) {
         const currentDir = stack.pop();
         const dirEntries = fs.readdirSync(currentDir, { withFileTypes: true });
         for (const entry of dirEntries) {
+          if (entry.isSymbolicLink()) continue;
           const absPath = path.resolve(currentDir, entry.name);
-          if (!isPathAllowed(absPath)) continue;
-          const entryStats = fs.statSync(absPath);
+          const authorizedEntry = assertAllowedPath(absPath);
+          if (!authorizedEntry.ok) continue;
+          const entryStats = fs.statSync(authorizedEntry.value);
           entries.push({
-            path: absPath,
+            path: authorizedEntry.value,
             isDirectory: entry.isDirectory(),
             size: entryStats.size || 0,
             mtimeMs: entryStats.mtimeMs || 0,
@@ -446,7 +503,7 @@ function registerFileHandlers(getMainWindow) {
             return { ok: true, entries };
           }
           if (recursive && entry.isDirectory()) {
-            stack.push(absPath);
+            stack.push(authorizedEntry.value);
           }
         }
       }
@@ -457,9 +514,9 @@ function registerFileHandlers(getMainWindow) {
     }
   });
 
-  ipcMain.handle('fs:write', async (_, filePath, content) => {
+  registerTrustedHandler('fs:write', getMainWindow, async (_, filePath, content) => {
     try {
-      const check = assertAllowedPath(filePath);
+      const check = assertAllowedPath(filePath, { allowMissing: true });
       if (!check.ok) {
         return { ok: false, error: check.error };
       }
@@ -482,16 +539,16 @@ function registerFileHandlers(getMainWindow) {
   });
 }
 
-function registerNotificationHandler() {
-  ipcMain.handle('notify', (_, title, body) => {
+function registerNotificationHandler(getMainWindow) {
+  registerTrustedHandler('notify', getMainWindow, (_, title, body) => {
     if (Notification.isSupported()) {
       new Notification({ title, body }).show();
     }
   });
 }
 
-function registerCodeExecutionHandler() {
-  ipcMain.handle('code:execute', async (_, payload) => {
+function registerCodeExecutionHandler(getMainWindow) {
+  registerTrustedHandler('code:execute', getMainWindow, async (_, payload) => {
     const lang = String(payload?.lang || '').trim().toLowerCase();
     const code = typeof payload?.code === 'string' ? payload.code : '';
     const fileName = typeof payload?.fileName === 'string' ? payload.fileName : '';
@@ -582,8 +639,13 @@ function registerCodeExecutionHandler() {
 function registerIpcHandlers(getMainWindow) {
   registerWindowHandlers(getMainWindow);
   registerFileHandlers(getMainWindow);
-  registerNotificationHandler();
-  registerCodeExecutionHandler();
+  registerNotificationHandler(getMainWindow);
+  registerCodeExecutionHandler(getMainWindow);
 }
 
-module.exports = { registerIpcHandlers };
+module.exports = {
+  registerIpcHandlers,
+  assertAllowedPath,
+  assertTrustedSender,
+  resolvePathForAuthorization,
+};

@@ -16,6 +16,7 @@ import { asObjectArray } from "./dashboard/dashboardViewUtils";
 import { buildDashboardWidgetContent } from "./dashboard/widgetContent";
 import { useDashboardLayoutEditing } from "./dashboard/useDashboardLayoutEditing";
 import { useDashboardDerivedData } from "./dashboard/useDashboardDerivedData";
+import "./dashboard/dashboard.css";
 
 export function DashboardView({ setView }: { setView?: (v: string) => void }) {
   const t = useTheme();

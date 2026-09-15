@@ -1,8 +1,5 @@
+@import "tailwindcss";
 @config "../tailwind.config.js";
-
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
 
 @layer base {
     :root {
@@ -88,6 +85,7 @@
     }
 
     body {
+        margin: 0;
         background-color: var(--nexus-bg, #03030b) !important;
         background-image: var(--nexus-bg-image, none) !important;
         background-attachment: fixed !important;
@@ -106,7 +104,7 @@
     #root {
         min-height: 100dvh;
         height: 100dvh;
-        width: 100vw;
+        width: 100%;
         overflow: hidden;
         display: flex;
         flex-direction: column;

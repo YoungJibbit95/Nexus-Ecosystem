@@ -1,7 +1,10 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
+import {fileURLToPath} from 'node:url';
 import {defineConfig} from 'vite';
+
+const configDir = path.dirname(fileURLToPath(import.meta.url));
 
 const csp = [
   "default-src 'self'",
@@ -32,7 +35,7 @@ export default defineConfig(({mode}) => {
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {
-        '@': path.resolve(__dirname, '.'),
+        '@': path.resolve(configDir, '.'),
       },
     },
     build: {

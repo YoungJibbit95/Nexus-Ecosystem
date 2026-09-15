@@ -4,7 +4,6 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 const { spawnSync } = require("child_process");
-const extract = require("extract-zip");
 
 const packageRoot = path.resolve(__dirname, "..");
 const electronRoot = path.join(packageRoot, "node_modules", "electron");
@@ -214,27 +213,33 @@ function extractElectronZipWithNativeTool(zipPath) {
     cwd: packageRoot,
     stdio: "inherit",
   });
-  if (result.error) throw result.error;
-  if (result.status !== 0) {
-    throw new Error(`Native Electron extraction exited with code ${result.status}.`);
-  }
-  finalizeElectronExtract();
-}
-
-async function extractElectronZip(zipPath) {
-  if (process.platform === "win32") {
-    extractElectronZipWithNativeTool(zipPath);
+  if (!result.error && result.status === 0) {
+    finalizeElectronExtract();
     return;
   }
 
   removePartialInstall();
   fs.mkdirSync(electronDist, { recursive: true });
-  await extract(zipPath, { dir: electronDist });
+  let sevenZipPath;
+  try {
+    sevenZipPath = require("7zip-bin").path7za;
+  } catch (error) {
+    throw new Error(
+      `unzip is unavailable or failed, and the bundled 7zip fallback could not be loaded: ${error.message}`,
+    );
+  }
+  const fallback = spawnSync(sevenZipPath, ["x", "-y", `-o${electronDist}`, zipPath], {
+    cwd: packageRoot,
+    stdio: "inherit",
+  });
+  if (fallback.error) throw fallback.error;
+  if (fallback.status !== 0) {
+    throw new Error(`Electron extraction failed with unzip and 7zip (code ${fallback.status}).`);
+  }
   finalizeElectronExtract();
+}
 
-  if (getElectronState().ready) return;
-
-  console.log("[ensure-electron] Node zip extraction was incomplete; retrying with native extractor...");
+async function extractElectronZip(zipPath) {
   extractElectronZipWithNativeTool(zipPath);
 }
 
