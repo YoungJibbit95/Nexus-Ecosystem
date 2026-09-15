@@ -4,6 +4,7 @@ import { constants as fsConstants } from 'node:fs'
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { resolveJava21Home as resolveSharedJava21Home } from './lib/java-toolchain.mjs'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -65,36 +66,46 @@ const normalizeOrigin = (value) => {
   }
 }
 
-const resolveTrustedOriginsCount = (item) => {
-  const direct = Number(item?.trustedOriginsCount)
-  if (Number.isFinite(direct)) return direct
-  if (Array.isArray(item?.trustedOrigins)) return item.trustedOrigins.length
-  return 0
-}
+const validateHostedBootstrapTrust = (response, requestedOrigin) => {
+  const allowedOrigin = normalizeOrigin(response.headers.get('access-control-allow-origin'))
+  const allowsCredentials = String(
+    response.headers.get('access-control-allow-credentials') || '',
+  ).trim().toLowerCase() === 'true'
+  const variesByOrigin = String(response.headers.get('vary') || '')
+    .split(',')
+    .some((value) => value.trim().toLowerCase() === 'origin')
 
-const validateHostedBootstrapTrust = (item) => {
-  const originTrusted = item?.originTrusted
-  const trustedOriginsCount = resolveTrustedOriginsCount(item)
-
-  if (originTrusted !== true) {
+  if (allowedOrigin !== requestedOrigin) {
     return {
       ok: false,
-      originTrusted,
-      trustedOriginsCount,
-      reason: `originTrusted ist ${String(originTrusted)} statt true.`,
+      allowedOrigin,
+      allowsCredentials,
+      variesByOrigin,
+      reason: `Access-Control-Allow-Origin ist ${allowedOrigin || 'nicht gesetzt'} statt ${requestedOrigin}.`,
     }
   }
 
-  if (trustedOriginsCount <= 0) {
+  if (!allowsCredentials) {
     return {
       ok: false,
-      originTrusted,
-      trustedOriginsCount,
-      reason: 'trustedOriginsCount ist leer oder 0.',
+      allowedOrigin,
+      allowsCredentials,
+      variesByOrigin,
+      reason: 'Access-Control-Allow-Credentials ist nicht true.',
     }
   }
 
-  return { ok: true, originTrusted, trustedOriginsCount, reason: '' }
+  if (!variesByOrigin) {
+    return {
+      ok: false,
+      allowedOrigin,
+      allowsCredentials,
+      variesByOrigin,
+      reason: 'Vary enthaelt Origin nicht; CORS-Antworten koennten falsch gecacht werden.',
+    }
+  }
+
+  return { ok: true, allowedOrigin, allowsCredentials, variesByOrigin, reason: '' }
 }
 
 const isLoopbackHost = (host) => {
@@ -163,29 +174,6 @@ const resolveAndroidSdkPath = async (appRoot) => {
   return null
 }
 
-const resolveJava21Home = async () => {
-  const candidates = []
-  const addCandidate = (value) => {
-    const normalized = String(value || '').trim()
-    if (!normalized) return
-    candidates.push(path.resolve(normalized))
-  }
-
-  addCandidate(process.env.JAVA_HOME)
-  addCandidate('/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home')
-  addCandidate('/Library/Java/JavaVirtualMachines/openjdk-21.jdk/Contents/Home')
-  addCandidate('/usr/lib/jvm/java-21-openjdk')
-  addCandidate('/usr/lib/jvm/jdk-21')
-  addCandidate('/usr/lib/jvm/temurin-21-jdk')
-
-  for (const candidate of candidates) {
-    const javac = path.join(candidate, 'bin', process.platform === 'win32' ? 'javac.exe' : 'javac')
-    if (await exists(javac)) return candidate
-  }
-
-  return null
-}
-
 const checkHostedControlApi = async () => {
   const normalized = normalizeUrl(apiUrlInput)
   if (!normalized) {
@@ -233,13 +221,14 @@ const checkHostedControlApi = async () => {
       return
     }
 
-    const service = bootstrap?.item?.service || 'unknown'
-    const trust = validateHostedBootstrapTrust(bootstrap.item)
+    const trust = hostedOrigin
+      ? validateHostedBootstrapTrust(bootstrapRes, hostedOrigin)
+      : { ok: true, allowedOrigin: '', allowsCredentials: false, variesByOrigin: false, reason: '' }
     if (requireHostedUi && !trust.ok) {
       pushCheck(
         'FAIL',
         'Hosted Control API Bootstrap Trust',
-        `${trust.reason} Gehostete UI benoetigt eine explizit vertrauenswuerdige Origin und mindestens eine konfigurierte Trusted Origin.`,
+        `${trust.reason} Gehostete UI benoetigt eine explizit freigegebene Origin mit credentials-sicherem Caching.`,
       )
       return
     }
@@ -247,7 +236,7 @@ const checkHostedControlApi = async () => {
     pushCheck(
       'PASS',
       'Hosted Control API Bootstrap',
-      `API erreichbar (${normalized}), origin=${hostedOrigin || 'none'}, service=${service}, originTrusted=${String(trust.originTrusted)}, trustedOrigins=${String(trust.trustedOriginsCount)}.`,
+      `API erreichbar (${normalized}), origin=${hostedOrigin || 'none'}, corsOrigin=${trust.allowedOrigin || 'not-checked'}, credentials=${String(trust.allowsCredentials)}, varyOrigin=${String(trust.variesByOrigin)}.`,
     )
   } catch (error) {
     pushCheck('FAIL', 'Hosted Control API Bootstrap', `Request fehlgeschlagen: ${error.message || error}`)
@@ -295,7 +284,7 @@ const checkAndroid = async () => {
     pushCheck('PASS', `${app.name} Android SDK`, `SDK aktiv: ${sdkPath}`)
   }
 
-  const java21Home = await resolveJava21Home()
+  const java21Home = await resolveSharedJava21Home()
   if (!java21Home) {
     pushCheck(missingToolStatus, 'Android Java Toolchain (JDK 21)', 'JDK 21 nicht gefunden. Nexus Code Mobile Gradle Build benoetigt Java 21.')
   } else {

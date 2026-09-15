@@ -1,12 +1,12 @@
 import type { GuideStep, MarkdownSnippet, WikiEntry } from './wikiData'
 
-type EntryTranslation = Partial<Pick<WikiEntry, 'title' | 'summary' | 'guide' | 'points' | 'commands' | 'tags'>> & {
+export type EntryTranslation = Partial<Pick<WikiEntry, 'title' | 'summary' | 'guide' | 'points' | 'commands' | 'tags'>> & {
   markdownSnippets?: MarkdownSnippet[]
 }
 
 const g = (items: Array<[string, string]>): GuideStep[] => items.map(([title, detail]) => ({ title, detail }))
 
-export const englishEntryTranslations = {
+export const englishEntryTranslations: Record<string, EntryTranslation> = {
   'ecosystem-overview': {
     title: 'Nexus Ecosystem Overview',
     summary: 'The Nexus Ecosystem is an local-first workspace with Main, Mobile, Code, Code Mobile and the optional Nexus Cloud.',
@@ -992,4 +992,4 @@ export const englishEntryTranslations = {
     ]),
     points: ['Temporary exceptions should be short-lived and controlled.', 'Monitor audit logs for unusual commands or failures.', 'Detailed configuration stays in internal security runbooks.'],
   },
-} satisfies Record<string, EntryTranslation>
+}

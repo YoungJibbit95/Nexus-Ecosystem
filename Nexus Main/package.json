@@ -10,7 +10,7 @@
     "dist": "electron-builder",
     "dev": "vite",
     "build": "npm run test:release-ui && tsc -b && vite build && node ../tools/verify-main-web-preview.mjs",
-    "test:release-ui": "node --test src/components/WelcomeWalkthrough.test.mjs src/views/files-flux-settings-hardening.test.mjs",
+    "test:release-ui": "node --test electron/ipc-handlers.test.cjs src/app/mainAuthLogout.test.mjs src/components/WelcomeWalkthrough.test.mjs src/views/files-flux-settings-hardening.test.mjs",
     "verify:web-preview:live": "node ../tools/verify-main-web-preview.mjs --live-base=https://nexusproject.dev/web/",
     "electron:dev": "concurrently -k \"vite\" \"wait-on http://localhost:5173 && electron . --dev\"",
     "electron:build": "npm run electron:build:host",
@@ -56,7 +56,7 @@
     "autoprefixer": "^10.5.0",
     "concurrently": "^10.0.4",
     "electron": "^42.9.0",
-    "electron-builder": "^26.15.3",
+    "electron-builder": "^26.16.1",
     "postcss": "^8.5.25",
     "tailwindcss": "^4.3.0",
     "typescript": "^6.0.3",
@@ -163,8 +163,8 @@
     "tar": "7.5.22",
     "ip-address": "10.2.0",
     "undici": "7.29.0",
-    "fast-uri": "3.1.5",
-    "js-yaml": "4.3.1",
-    "nanoid": "3.3.17"
+    "fast-uri": "3.1.6",
+    "js-yaml": "4.3.2",
+    "nanoid": "3.3.18"
   }
 }

@@ -1,7 +1,6 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import {
-  CheckCircle2,
   Layout,
   MoreHorizontal,
   Plus,
@@ -292,8 +291,8 @@ export function DashboardView({ setView }: { setView?: (v: string) => void }) {
       }}
     >
       <ViewHeader
-        title={`${greeting} ✦`}
-        subtitle={`${openTasks} offene Tasks · ${overdueReminders} überfällige Erinnerungen`}
+        title={greeting}
+        subtitle={activeWorkspace ? activeWorkspace.name : 'Mein Workspace'}
         right={
           <DashboardActionButton
             onClick={() => setEditLayout((s) => !s)}
@@ -301,7 +300,8 @@ export function DashboardView({ setView }: { setView?: (v: string) => void }) {
             style={{
               border: `1px solid ${editLayout ? t.accent : 'rgba(255,255,255,0.14)'}`,
               borderRadius: 10,
-              padding: isCompactMobile ? '6px 8px' : '7px 10px',
+              minHeight: 44,
+              padding: '8px 10px',
               fontSize: isCompactMobile ? 10 : 11,
               fontWeight: 700,
               background: editLayout ? `rgba(${rgb},0.18)` : 'rgba(255,255,255,0.05)',
@@ -312,199 +312,46 @@ export function DashboardView({ setView }: { setView?: (v: string) => void }) {
               alignItems: 'center',
             }}
           >
-            <Layout size={12} /> Layout
+            <Layout size={14} aria-hidden="true" /> {editLayout ? 'Fertig' : 'Anpassen'}
           </DashboardActionButton>
         }
       />
 
-      <Glass
-        gradient
-        style={{
-          padding: isCompactMobile ? '8px 9px' : '10px 12px',
-          marginBottom: isCompactMobile ? 8 : 12,
-          background: `linear-gradient(145deg, rgba(${rgb},0.34), rgba(${hexToRgb(t.accent2)},0.22) 58%, rgba(255,255,255,0.03))`,
-          overflow: 'hidden',
-        }}
-      >
-        <div className="nx-mobile-tight-stack" style={{ gap: isCompactMobile ? 6 : 8 }}>
-          <div className="nx-mobile-row-scroll" style={{ justifyContent: 'space-between' }}>
-            <span style={{ fontSize: isCompactMobile ? 11 : 12, fontWeight: 800, color: t.accent }}>
-              Today
-            </span>
-            <span
-              style={{
-                fontSize: isCompactMobile ? 9.5 : 10.5,
-                opacity: 0.68,
-                border: '1px solid rgba(255,255,255,0.14)',
-                borderRadius: 999,
-                padding: isCompactMobile ? '3px 7px' : '4px 8px',
-                background: 'rgba(255,255,255,0.06)',
-              }}
-            >
-              {activeWorkspace ? `${activeWorkspace.icon} ${activeWorkspace.name}` : 'Global Workspace'}
-            </span>
-            <span
-              style={{
-                fontSize: isCompactMobile ? 9.5 : 10.5,
-                padding: isCompactMobile ? '3px 7px' : '4px 8px',
-                borderRadius: 999,
-                border: handoffConfidence === 'fresh'
-                  ? '1px solid rgba(48,209,88,0.35)'
-                  : handoffConfidence === 'stale'
-                    ? '1px solid rgba(255,159,10,0.35)'
-                    : `1px solid rgba(${rgb},0.3)`,
-                background: handoffConfidence === 'fresh'
-                  ? 'rgba(48,209,88,0.12)'
-                  : handoffConfidence === 'stale'
-                    ? 'rgba(255,159,10,0.12)'
-                    : `rgba(${rgb},0.13)`,
-                color: handoffConfidence === 'fresh'
-                  ? '#30d158'
-                  : handoffConfidence === 'stale'
-                    ? '#ff9f0a'
-                    : t.accent,
-                fontWeight: 700,
-              }}
-            >
-              {handoffConfidence === 'fresh' ? 'Fresh' : handoffConfidence === 'stale' ? 'Stale' : 'Recent'}
-            </span>
-          </div>
-
-          <div className="nx-mobile-row-scroll">
-            {([
-              { label: 'Open', value: todaySummary.openTaskCount, tone: 'neutral' as const },
-              { label: 'Today', value: todaySummary.dueTodayCount, tone: 'accent' as const },
-              { label: 'Overdue', value: todaySummary.overdueCount, tone: todaySummary.overdueCount > 0 ? 'danger' as const : 'neutral' as const },
-            ]).map((entry) => (
-              <span
-                key={entry.label}
-                style={{
-                  padding: isCompactMobile ? '4px 8px' : '5px 10px',
-                  borderRadius: 999,
-                  border: entry.tone === 'danger'
-                    ? '1px solid rgba(255,69,58,0.35)'
-                    : entry.tone === 'accent'
-                        ? `1px solid rgba(${rgb},0.34)`
-                        : '1px solid rgba(255,255,255,0.15)',
-                  background: entry.tone === 'danger'
-                    ? 'rgba(255,69,58,0.12)'
-                    : entry.tone === 'accent'
-                        ? `rgba(${rgb},0.14)`
-                        : 'rgba(255,255,255,0.06)',
-                  color: entry.tone === 'danger'
-                    ? '#ff453a'
-                    : entry.tone === 'accent'
-                        ? t.accent
-                        : 'inherit',
-                  fontSize: isCompactMobile ? 9.5 : 10.5,
-                  fontWeight: 750,
-                  flexShrink: 0,
-                }}
-              >
-                {entry.label}: {entry.value}
-              </span>
-            ))}
-            <span style={{ padding: isCompactMobile ? '4px 8px' : '5px 10px', borderRadius: 999, border: '1px solid rgba(48,209,88,0.35)', background: 'rgba(48,209,88,0.12)', color: '#30d158', fontSize: isCompactMobile ? 9.5 : 10.5, fontWeight: 750, flexShrink: 0 }}>
-              Done: {doneTasks}
-            </span>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 6 }}>
-            <DashboardActionButton
-              onClick={() => setView?.('tasks')}
-              liquidColor="#ff9f0a"
-              style={{
-                minHeight: isCompactMobile ? 30 : 32,
-                padding: isCompactMobile ? '6px 8px' : '7px 10px',
-                borderRadius: 9,
-                border: '1px solid rgba(255,255,255,0.14)',
-                background: 'rgba(255,255,255,0.05)',
-                color: 'inherit',
-                fontSize: isCompactMobile ? 10 : 11,
-                fontWeight: 700,
-                cursor: 'pointer',
-              }}
-            >
-              Tasks
-            </DashboardActionButton>
-            <DashboardActionButton
-              onClick={() => setView?.('reminders')}
-              liquidColor={t.accent}
-              style={{
-                minHeight: isCompactMobile ? 30 : 32,
-                padding: isCompactMobile ? '6px 8px' : '7px 10px',
-                borderRadius: 9,
-                border: `1px solid rgba(${rgb},0.3)`,
-                background: `rgba(${rgb},0.14)`,
-                color: t.accent,
-                fontSize: isCompactMobile ? 10 : 11,
-                fontWeight: 700,
-                cursor: 'pointer',
-              }}
-            >
-              Reminders
-            </DashboardActionButton>
-            <DashboardActionButton
-              onClick={() => setView?.('notes')}
-              liquidColor={t.accent2}
-              style={{
-                minHeight: isCompactMobile ? 30 : 32,
-                padding: isCompactMobile ? '6px 8px' : '7px 10px',
-                borderRadius: 9,
-                border: '1px solid rgba(255,255,255,0.14)',
-                background: 'rgba(255,255,255,0.05)',
-                color: 'inherit',
-                fontSize: isCompactMobile ? 10 : 11,
-                fontWeight: 700,
-                cursor: 'pointer',
-              }}
-            >
-              Notes
-            </DashboardActionButton>
-            <DashboardActionButton
-              onClick={() => setMobileUtilitySheet('capture')}
-              liquidColor={t.accent2}
-              style={{
-                minHeight: isCompactMobile ? 30 : 32,
-                padding: isCompactMobile ? '6px 9px' : '7px 10px',
-                borderRadius: 9,
-                border: `1px solid rgba(${rgb},0.3)`,
-                background: `rgba(${rgb},0.14)`,
-                color: t.accent,
-                fontSize: isCompactMobile ? 10 : 11,
-                fontWeight: 800,
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 5,
-              }}
-            >
-              Capture <Plus size={12} />
-            </DashboardActionButton>
-          </div>
-          <div className="nx-mobile-row-scroll" style={{ justifyContent: 'flex-end' }}>
-            <DashboardActionButton
-              onClick={() => setMobileUtilitySheet('today')}
-              liquidColor={t.accent2}
-              style={{
-                minHeight: isCompactMobile ? 28 : 30,
-                padding: isCompactMobile ? '5px 8px' : '6px 10px',
-                borderRadius: 9,
-                border: '1px solid rgba(255,255,255,0.14)',
-                background: 'rgba(255,255,255,0.05)',
-                color: 'inherit',
-                fontSize: isCompactMobile ? 9.5 : 10.5,
-                fontWeight: 700,
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 5,
-              }}
-            >
-              Today Actions <MoreHorizontal size={12} />
-            </DashboardActionButton>
-          </div>
+      <Glass style={{ padding: '14px', marginBottom: 4 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 6 }}>
+          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 750 }}>Heute</h2>
+          <DashboardActionButton
+            onClick={() => setMobileUtilitySheet('today')}
+            aria-label="Tagesübersicht öffnen"
+            aria-haspopup="dialog"
+            liquidColor={t.accent}
+            style={{ minHeight: 44, minWidth: 44, border: 'none', borderRadius: 10, background: 'transparent', color: 'inherit', cursor: 'pointer' }}
+          >
+            <MoreHorizontal size={20} aria-hidden="true" />
+          </DashboardActionButton>
+        </div>
+        <p style={{ margin: '0 0 14px', fontSize: 13, lineHeight: 1.5, opacity: 0.8 }}>
+          {todaySummary.dueTodayCount > 0 ? `${todaySummary.dueTodayCount} heute fällig` : 'Heute nichts fällig'}
+          {todaySummary.overdueCount > 0 ? (
+            <span style={{ color: t.mode === 'dark' ? '#ff9d94' : '#ab241c', fontWeight: 650 }}> · {todaySummary.overdueCount} überfällig</span>
+          ) : null}
+        </p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8 }}>
+          <DashboardActionButton
+            onClick={() => setMobileUtilitySheet('capture')}
+            aria-haspopup="dialog"
+            liquidColor={t.accent}
+            style={{ minHeight: 48, borderRadius: 10, border: `1px solid rgba(${rgb},0.5)`, background: `rgba(${rgb},0.25)`, color: 'inherit', fontSize: 13, fontWeight: 750, cursor: 'pointer' }}
+          >
+            <Plus size={17} aria-hidden="true" /> Neu erstellen
+          </DashboardActionButton>
+          <DashboardActionButton
+            onClick={() => setView?.('tasks')}
+            liquidColor={t.accent}
+            style={{ minHeight: 48, borderRadius: 10, border: '1px solid rgba(128,128,128,0.25)', background: 'transparent', color: 'inherit', fontSize: 13, fontWeight: 650, cursor: 'pointer' }}
+          >
+            Aufgaben öffnen
+          </DashboardActionButton>
         </div>
       </Glass>
 
@@ -664,50 +511,74 @@ export function DashboardView({ setView }: { setView?: (v: string) => void }) {
       ) : null}
 
       <MobileSheet
-        open={mob.isMobile && mobileUtilitySheet === 'today'}
+        open={mobileUtilitySheet === 'today'}
         onClose={() => setMobileUtilitySheet('none')}
-        title="Today Actions"
+        title="Tagesübersicht"
         mode="bottom"
       >
         <div style={{ padding: '10px 10px 14px', display: 'grid', gap: 8 }}>
+          <dl style={{ margin: '0 0 4px', display: 'grid', gap: 8, fontSize: 13 }}>
+            {[
+              ['Offene Aufgaben', todaySummary.openTaskCount],
+              ['Heute fällig', todaySummary.dueTodayCount],
+              ['Überfällig', todaySummary.overdueCount],
+              ['Erledigte Aufgaben', doneTasks],
+            ].map(([label, value]) => (
+              <div key={label} style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+                <dt>{label}</dt><dd style={{ margin: 0, fontWeight: 700 }}>{value}</dd>
+              </div>
+            ))}
+          </dl>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            {[
+              ['notes', 'Notizen öffnen'],
+              ['reminders', 'Erinnerungen öffnen'],
+            ].map(([view, label]) => (
+              <DashboardActionButton key={view} onClick={() => { setView?.(view); setMobileUtilitySheet('none') }} style={{ minHeight: 44, borderRadius: 9, border: '1px solid rgba(128,128,128,0.25)', background: 'transparent', color: 'inherit', fontSize: 12, cursor: 'pointer' }}>
+                {label}
+              </DashboardActionButton>
+            ))}
+          </div>
           <DashboardActionButton
+            disabled={overdueReminders === 0}
             onClick={() => { snoozeOverdue(15); setMobileUtilitySheet('none') }}
             liquidColor="#ff9f0a"
             style={{ width: '100%', border: '1px solid rgba(255,159,10,0.34)', borderRadius: 9, background: 'rgba(255,159,10,0.14)', color: '#ff9f0a', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, padding: '10px 10px', fontSize: 12, fontWeight: 700 }}
           >
-            Snooze +15m
+            Erinnerungen um 15 Min. verschieben
           </DashboardActionButton>
           <DashboardActionButton
+            disabled={overdueReminders === 0}
             onClick={() => { snoozeOverdue(60); setMobileUtilitySheet('none') }}
             liquidColor="#ff9f0a"
             style={{ width: '100%', border: '1px solid rgba(255,159,10,0.34)', borderRadius: 9, background: 'rgba(255,159,10,0.14)', color: '#ff9f0a', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, padding: '10px 10px', fontSize: 12, fontWeight: 700 }}
           >
-            Snooze +1h
+            Erinnerungen um 1 Std. verschieben
           </DashboardActionButton>
-          <div style={{ marginTop: 2, padding: '8px 9px', borderRadius: 9, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.04)' }}>
-            <div style={{ fontSize: 10, opacity: 0.7, marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.4 }}>Runtime Handoff</div>
+          <details style={{ marginTop: 2, padding: '8px 9px', borderRadius: 9, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.04)' }}>
+            <summary style={{ minHeight: 44, padding: '12px 0', cursor: 'pointer', fontSize: 12 }}>Workspace-Übergabe · {handoffConfidence === 'fresh' ? 'Aktuell' : handoffConfidence === 'stale' ? 'Veraltet' : 'Zuletzt'}</summary>
             <div style={{ fontSize: 11, fontWeight: 700, opacity: 0.92 }}>
               {handoffMode === 'manual-runtime' ? 'Manual runtime handoff' : handoffMode}
               {handoffSourceApp ? ` · ${handoffSourceApp}` : ''}
             </div>
             {handoffAction ? (
               <div style={{ fontSize: 10.5, opacity: 0.7, marginTop: 3 }}>
-                Last: {handoffAction}{handoffActionAt ? ` · ${new Date(handoffActionAt).toLocaleString()}` : ''}
+                Zuletzt: {handoffAction}{handoffActionAt ? ` · ${new Date(handoffActionAt).toLocaleString()}` : ''}
               </div>
             ) : null}
             {handoffCheckpoint ? (
               <div style={{ marginTop: 5, fontSize: 10.5, color: '#30d158', fontWeight: 700 }}>
-                Restore checkpoint verfügbar
+                Wiederherstellungspunkt verfügbar
               </div>
             ) : null}
-          </div>
+          </details>
         </div>
       </MobileSheet>
 
       <MobileSheet
-        open={mob.isMobile && mobileUtilitySheet === 'capture'}
+        open={mobileUtilitySheet === 'capture'}
         onClose={() => setMobileUtilitySheet('none')}
-        title="Capture Utilities"
+        title="Neu erstellen"
         mode="bottom"
       >
         <div style={{ padding: '10px 10px 14px', display: 'grid', gap: 8 }}>
@@ -757,10 +628,6 @@ export function DashboardView({ setView }: { setView?: (v: string) => void }) {
         </div>
       </MobileSheet>
 
-      <div style={{ marginTop: isCompactMobile ? 8 : 12, textAlign: 'center', fontSize: isCompactMobile ? 9 : 10, opacity: 0.35 }}>
-        <CheckCircle2 size={10} style={{ display: 'inline', marginRight: 5 }} />
-        Dashboard personalisierbar · Widgets sind persistent gespeichert
-      </div>
     </div>
   )
 }

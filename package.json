@@ -45,7 +45,7 @@
     "build:electron:installers": "npm run build:main:installers && npm run build:code:installers",
     "build:electron:all-platforms": "npm run build:main:all-platforms && npm run build:code:all-platforms",
     "build:apps": "npm run build:main && npm run build:mobile && npm run build:code && npm run build:code-mobile && npm run build:control",
-    "build:ecosystem": "node ./tools/build-ecosystem.mjs --with-android --with-installers",
+    "build:ecosystem": "node ./tools/build-ecosystem.mjs --with-android --with-installers --strict-android --strict-installers",
     "build:ecosystem:fast": "node ./tools/build-ecosystem.mjs --skip-installers",
     "build": "npm run build:ecosystem",
     "build:all": "npm run build:ecosystem",
@@ -57,6 +57,7 @@
     "check:secrets": "node ./tools/check-public-surface.mjs --secrets",
     "verify:signing": "node ./tools/verify-signing-env.mjs --target=all",
     "verify:signing:required": "node ./tools/verify-signing-env.mjs --target=all --required",
+    "verify:release-hardening": "node --test ./tools/release-hardening.test.mjs",
     "release:evidence": "node ./tools/prepare-release-evidence.mjs",
     "release:checksums": "node ./tools/generate-installer-checksums.mjs",
     "release:gate": "node ./tools/release-gate.mjs",
@@ -65,7 +66,7 @@
     "doctor:release": "node ./tools/release-doctor.mjs",
     "doctor:release:hosted": "node ./tools/release-doctor.mjs --hosted-ui",
     "dev:all:with-control-ui": "node ./tools/dev-ecosystem.mjs",
-    "build:ecosystem:with-healthcheck": "node ./tools/build-ecosystem.mjs --with-control-plane --with-android --with-installers",
+    "build:ecosystem:with-healthcheck": "node ./tools/build-ecosystem.mjs --with-control-plane --with-android --with-installers --strict-control-plane --strict-android --strict-installers",
     "build:ecosystem:fast:with-healthcheck": "node ./tools/build-ecosystem.mjs --with-control-plane --skip-installers"
   }
 }

@@ -54,6 +54,7 @@ pnpm-debug.log*
 
 # Local build caches
 **/.cache/
+.test-artifacts/
 
 # .NET / Avalonia
 **/bin/

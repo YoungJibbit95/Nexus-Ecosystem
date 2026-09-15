@@ -1,4 +1,7 @@
 import { spawnSync } from 'node:child_process'
+import { createPrivateKey } from 'node:crypto'
+import { existsSync, readFileSync, statSync } from 'node:fs'
+import path from 'node:path'
 
 const args = new Set(process.argv.slice(2))
 const targetArg = [...args].find((arg) => arg.startsWith('--target='))
@@ -11,6 +14,19 @@ const notarizeMac = args.has('--notarize-mac') || truthy(process.env.NEXUS_MAC_N
 const targets = target === 'all' ? ['mac', 'win', 'android', 'linux'] : [target]
 const failures = []
 const warnings = []
+const checksumKeyAliases = [
+  'NEXUS_INSTALLER_CHECKSUM_SIGNING_KEY_PEM',
+  'NEXUS_INSTALLER_CHECKSUM_SIGNING_KEY_BASE64',
+  'NEXUS_INSTALLER_CHECKSUM_SIGNING_KEY_FILE',
+  'NEXUS_LAUNCHER_FEED_SIGNING_KEY_PEM',
+  'NEXUS_LAUNCHER_FEED_SIGNING_KEY_BASE64',
+  'NEXUS_LAUNCHER_FEED_SIGNING_KEY_FILE',
+]
+const feedKeyAliases = [
+  'NEXUS_LAUNCHER_FEED_SIGNING_KEY_PEM',
+  'NEXUS_LAUNCHER_FEED_SIGNING_KEY_BASE64',
+  'NEXUS_LAUNCHER_FEED_SIGNING_KEY_FILE',
+]
 
 if (!['all', 'mac', 'win', 'windows', 'android', 'linux', 'checksums', 'feed', 'launcher-feed'].includes(target)) {
   failures.push(`Unknown signing target: ${target}`)
@@ -19,30 +35,21 @@ if (!['all', 'mac', 'win', 'windows', 'android', 'linux', 'checksums', 'feed', '
 if (['all', 'mac', 'win', 'windows', 'linux', 'checksums'].includes(target)) {
   requireAliases(
     [
-      [
-        'NEXUS_INSTALLER_CHECKSUM_SIGNING_KEY_PEM',
-        'NEXUS_INSTALLER_CHECKSUM_SIGNING_KEY_BASE64',
-        'NEXUS_INSTALLER_CHECKSUM_SIGNING_KEY_FILE',
-        'NEXUS_LAUNCHER_FEED_SIGNING_KEY_PEM',
-        'NEXUS_LAUNCHER_FEED_SIGNING_KEY_BASE64',
-        'NEXUS_LAUNCHER_FEED_SIGNING_KEY_FILE',
-      ],
+      checksumKeyAliases,
     ],
     'Installer checksum manifest signing',
   )
+  validateP256PrivateKey(checksumKeyAliases, 'Installer checksum manifest signing')
 }
 
 if (['all', 'feed', 'launcher-feed'].includes(target)) {
   requireAliases(
     [
-      [
-        'NEXUS_LAUNCHER_FEED_SIGNING_KEY_PEM',
-        'NEXUS_LAUNCHER_FEED_SIGNING_KEY_BASE64',
-        'NEXUS_LAUNCHER_FEED_SIGNING_KEY_FILE',
-      ],
+      feedKeyAliases,
     ],
     'Launcher feed signing',
   )
+  validateP256PrivateKey(feedKeyAliases, 'Launcher feed signing')
 }
 
 if (targets.includes('mac')) {
@@ -61,6 +68,7 @@ if (targets.includes('mac')) {
         ],
     'macOS signing/notarization',
   )
+  validateCertificateSource(['MAC_CSC_LINK', 'CSC_LINK'], 'macOS signing/notarization')
 
   if (notarizeMac && process.platform === 'darwin') {
     const result = spawnSync('xcrun', ['notarytool', '--version'], {
@@ -83,6 +91,7 @@ if (targets.includes('win') || targets.includes('windows')) {
     ],
     'Windows code signing',
   )
+  validateCertificateSource(['WIN_CSC_LINK', 'CSC_LINK'], 'Windows code signing')
 }
 
 if (targets.includes('android')) {
@@ -90,6 +99,10 @@ if (targets.includes('android')) {
   if (!hasKeystoreSource) {
     markMissing('ANDROID_KEYSTORE_BASE64 or ANDROID_KEYSTORE_FILE', 'Android signing')
   }
+  validateBinarySource(
+    ['ANDROID_KEYSTORE_BASE64', 'ANDROID_KEYSTORE_FILE'],
+    'Android signing keystore',
+  )
   requireVars(
     ['ANDROID_KEYSTORE_PASSWORD', 'ANDROID_KEY_ALIAS', 'ANDROID_KEY_PASSWORD'],
     'Android signing',
@@ -132,6 +145,81 @@ function markMissing(key, label) {
 
 function hasEnv(key) {
   return String(process.env[key] || '').trim().length > 0
+}
+
+function firstConfigured(keys) {
+  const key = keys.find((candidate) => hasEnv(candidate))
+  return key ? { key, value: String(process.env[key]).trim() } : null
+}
+
+function decodeBase64(value) {
+  const compact = String(value || '').replace(/\s+/g, '')
+  if (!compact || !/^[A-Za-z0-9+/]*={0,2}$/.test(compact) || compact.length % 4 === 1) {
+    throw new Error('invalid base64 encoding')
+  }
+  const decoded = Buffer.from(compact, 'base64')
+  if (decoded.length === 0) throw new Error('decoded value is empty')
+  return decoded
+}
+
+function readConfiguredMaterial(configured) {
+  if (configured.key.endsWith('_FILE')) {
+    const filePath = path.resolve(process.cwd(), configured.value)
+    if (!existsSync(filePath) || !statSync(filePath).isFile()) {
+      throw new Error(`file does not exist: ${filePath}`)
+    }
+    return readFileSync(filePath)
+  }
+  if (configured.key.endsWith('_BASE64')) return decodeBase64(configured.value)
+  return Buffer.from(configured.value.replaceAll('\\n', '\n'), 'utf8')
+}
+
+function validateP256PrivateKey(keys, label) {
+  const configured = firstConfigured(keys)
+  if (!configured) return
+  try {
+    const privateKey = createPrivateKey(readConfiguredMaterial(configured))
+    const curve = String(privateKey.asymmetricKeyDetails?.namedCurve || '').toLowerCase()
+    if (privateKey.asymmetricKeyType !== 'ec' || !['prime256v1', 'p-256', 'secp256r1'].includes(curve)) {
+      throw new Error('expected an ECDSA P-256 private key')
+    }
+  } catch (error) {
+    failures.push(`${label}: ${configured.key} is invalid (${error.message})`)
+  }
+}
+
+function validateCertificateSource(keys, label) {
+  const configured = firstConfigured(keys)
+  if (!configured) return
+  const value = configured.value
+  try {
+    if (/^https:\/\//i.test(value)) return
+    if (/^file:\/\//i.test(value)) {
+      const filePath = new URL(value)
+      if (!existsSync(filePath) || statSync(filePath).size < 64) throw new Error('certificate file is missing or empty')
+      return
+    }
+    if (existsSync(path.resolve(process.cwd(), value))) {
+      const stats = statSync(path.resolve(process.cwd(), value))
+      if (!stats.isFile() || stats.size < 64) throw new Error('certificate file is empty')
+      return
+    }
+    const payload = value.startsWith('data:') ? value.split(',').slice(1).join(',') : value
+    if (decodeBase64(payload).length < 64) throw new Error('decoded certificate is too small')
+  } catch (error) {
+    failures.push(`${label}: ${configured.key} is not a usable file, HTTPS URL, data URL, or base64 certificate (${error.message})`)
+  }
+}
+
+function validateBinarySource(keys, label) {
+  const configured = firstConfigured(keys)
+  if (!configured) return
+  try {
+    const material = readConfiguredMaterial(configured)
+    if (material.length < 64) throw new Error('material is too small')
+  } catch (error) {
+    failures.push(`${label}: ${configured.key} is invalid (${error.message})`)
+  }
 }
 
 function truthy(value) {

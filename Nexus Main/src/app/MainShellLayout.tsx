@@ -35,10 +35,13 @@ type Props = {
   showDiagnosticsButton?: boolean;
   releaseId?: string | null;
   bootNotice?: string | null;
+  authenticated?: boolean;
+  logoutPending?: boolean;
   onRequestViewChange: (viewId: View | string) => void;
   onPrefetchView: (viewId: View) => void;
   onSidebarAutoPeek: (next: boolean) => void;
   onOpenDiagnostics?: () => void;
+  onLogout?: () => void;
   mainViewNode: React.ReactNode;
 };
 
@@ -63,10 +66,13 @@ export function MainShellLayout({
   showDiagnosticsButton = false,
   releaseId = null,
   bootNotice = null,
+  authenticated = false,
+  logoutPending = false,
   onRequestViewChange,
   onPrefetchView,
   onSidebarAutoPeek,
   onOpenDiagnostics,
+  onLogout,
   mainViewNode,
 }: Props) {
   const isDark = t.mode === "dark";
@@ -328,6 +334,9 @@ export function MainShellLayout({
           showDiagnosticsButton={showDiagnosticsButton}
           onOpenDiagnostics={onOpenDiagnostics}
           releaseId={releaseId}
+          authenticated={authenticated}
+          logoutPending={logoutPending}
+          onLogout={onLogout}
         />
         <div
           style={{

@@ -1,0 +1,181 @@
+.nx-dashboard-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin: 6px 0 22px;
+}
+
+.nx-dashboard-heading h1 {
+  margin: 4px 0 0;
+  font-size: clamp(24px, 3vw, 30px);
+  font-weight: 750;
+  letter-spacing: -0.035em;
+  line-height: 1.2;
+  color: var(--nx-v6-text);
+}
+
+.nx-dashboard-date {
+  font-size: 12px;
+  color: var(--nx-v6-muted);
+}
+
+.nx-dashboard-today {
+  margin-bottom: 18px;
+}
+
+.nx-dashboard-today-panel {
+  padding: 18px 20px;
+}
+
+.nx-dashboard-today-row,
+.nx-dashboard-today-summary,
+.nx-dashboard-capture-actions,
+.nx-dashboard-capture-extra,
+.nx-dashboard-snooze-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.nx-dashboard-today-row {
+  justify-content: space-between;
+}
+
+.nx-dashboard-today-summary {
+  gap: 8px 18px;
+}
+
+.nx-dashboard-today-summary h2 {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--nx-v6-text);
+}
+
+.nx-dashboard-summary-link {
+  padding: 6px 0;
+  border: 0;
+  background: transparent;
+  color: var(--nx-v6-muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.nx-dashboard-summary-link strong {
+  color: var(--nx-v6-text);
+}
+
+.nx-dashboard-summary-link:hover {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.nx-dashboard-overdue,
+.nx-dashboard-overdue strong {
+  color: #ff7a70;
+}
+
+.nx-app-shell[data-nx-color-mode="light"] .nx-dashboard-overdue,
+.nx-app-shell[data-nx-color-mode="light"] .nx-dashboard-overdue strong {
+  color: #b42318;
+}
+
+.nx-dashboard-capture-actions {
+  margin-top: 14px;
+}
+
+.nx-dashboard-v6 .nx-dashboard-control {
+  min-height: 36px;
+  padding: 8px 12px;
+  border: 1px solid var(--nx-v6-line);
+  border-radius: 9px;
+  background: var(--nx-v6-control-bg, rgba(255, 255, 255, 0.055));
+  color: var(--nx-v6-text);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.nx-dashboard-v6 .nx-dashboard-control-primary {
+  background: var(--nx-accent);
+  border-color: transparent;
+  color: #07111f;
+}
+
+.nx-dashboard-v6 .nx-dashboard-control-quiet {
+  background: transparent;
+  border-color: transparent;
+  color: var(--nx-v6-muted);
+}
+
+.nx-dashboard-v6 .nx-dashboard-control:hover {
+  border-color: var(--nx-v6-muted);
+}
+
+.nx-dashboard-control:focus-visible,
+.nx-dashboard-summary-link:focus-visible {
+  outline: 2px solid var(--nx-accent);
+  outline-offset: 3px;
+}
+
+.nx-dashboard-chevron-open {
+  transform: rotate(180deg);
+}
+
+.nx-dashboard-details {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--nx-v6-line);
+}
+
+.nx-dashboard-workspace-details {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) minmax(0, 2fr) minmax(120px, 1fr);
+  gap: 16px;
+  font-size: 12px;
+}
+
+.nx-dashboard-workspace-details dt {
+  color: var(--nx-v6-muted);
+  margin-bottom: 4px;
+}
+
+.nx-dashboard-workspace-details dd {
+  margin: 0;
+  color: var(--nx-v6-text);
+  overflow-wrap: anywhere;
+}
+
+.nx-dashboard-snooze-actions {
+  margin-top: 16px;
+  font-size: 12px;
+  color: var(--nx-v6-muted);
+}
+
+.nx-dashboard-details[hidden],
+.nx-dashboard-capture-extra[hidden] {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  .nx-dashboard-today-panel {
+    padding: 14px;
+  }
+
+  .nx-dashboard-workspace-details {
+    grid-template-columns: 1fr;
+  }
+
+  .nx-dashboard-widget-grid:not([data-editing="true"]) {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .nx-dashboard-widget-grid:not([data-editing="true"]) > * {
+    grid-column: 1 !important;
+    grid-row: auto !important;
+  }
+}

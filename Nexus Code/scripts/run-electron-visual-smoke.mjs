@@ -1,6 +1,5 @@
 import { spawn } from "node:child_process";
-import { readFile } from "node:fs/promises";
-import os from "node:os";
+import { mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react";
@@ -22,9 +21,13 @@ const electronMainPath = path.join(scriptDir, "electron-visual-main.cjs");
 const visualEntryPath = path.join(projectRoot, "src", "testing", "visualSmokeEntry.jsx");
 const harnessPath = path.join(projectRoot, "src", "testing", "uiSmokeHarness.jsx");
 const host = process.env.NEXUS_CODE_VISUAL_SMOKE_HOST || "127.0.0.1";
+const testArtifactsRoot = path.resolve(projectRoot, "..", ".test-artifacts", "nexus-code");
+const tempDir =
+  process.env.NEXUS_CODE_VISUAL_SMOKE_TEMP_DIR ||
+  path.join(testArtifactsRoot, "tmp");
 const outputDir =
   process.env.NEXUS_CODE_VISUAL_SMOKE_OUTPUT_DIR ||
-  path.join(os.tmpdir(), "nexus-code-visual-smoke");
+  path.join(testArtifactsRoot, "visual-smoke");
 
 function parseIntegerEnv(name, fallback, { min = 0 } = {}) {
   const rawValue = process.env[name];
@@ -57,6 +60,7 @@ function htmlShell() {
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' ws:; worker-src 'self' blob:;" />
     <title>Nexus Code Visual Smoke</title>
   </head>
   <body>
@@ -187,6 +191,9 @@ function runElectron(baseUrl) {
       cwd: projectRoot,
       env: {
         ...process.env,
+        TEMP: tempDir,
+        TMP: tempDir,
+        TMPDIR: tempDir,
         ELECTRON_DEV: "true",
         NEXUS_CODE_UI_SMOKE: "true",
         NEXUS_CODE_VISUAL_SMOKE: "true",
@@ -241,6 +248,10 @@ let server;
 
 try {
   requestedPort = parseIntegerEnv("NEXUS_CODE_VISUAL_SMOKE_PORT", 0);
+  await Promise.all([
+    mkdir(tempDir, { recursive: true }),
+    mkdir(outputDir, { recursive: true }),
+  ]);
   visualSmokePlan = createVisualSmokePlan({
     preset: process.env.NEXUS_CODE_VISUAL_SMOKE_PRESET,
     viewportIds: process.env.NEXUS_CODE_VISUAL_SMOKE_VIEWPORTS,

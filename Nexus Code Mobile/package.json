@@ -11,9 +11,10 @@
     "dev:web": "vite",
     "dev:android": "npm run cap:android",
     "dev:ios": "npm run cap:ios",
-    "build": "vite build",
+    "build": "npm run test:security && vite build",
     "preview": "vite preview",
     "lint": "eslint . --quiet",
+    "test:security": "node --test src/app-security.test.mjs",
     "cap:add:android": "npx cap add android",
     "cap:add:ios": "npx cap add ios",
     "cap:sync": "npm run build && npx cap sync",
@@ -32,6 +33,7 @@
     "@hello-pangea/dnd": "^18.0.1",
     "@hookform/resolvers": "^5.2.2",
     "@monaco-editor/react": "^4.7.0",
+    "monaco-editor": "^0.55.1",
     "@radix-ui/react-accordion": "^1.2.12",
     "@radix-ui/react-alert-dialog": "^1.1.15",
     "@radix-ui/react-aspect-ratio": "^1.1.8",
@@ -117,7 +119,8 @@
     "minimatch": "10.2.6",
     "brace-expansion": "5.0.9",
     "tar": "7.5.22",
-    "js-yaml": "4.3.1",
-    "nanoid": "3.3.17"
+    "js-yaml": "4.3.2",
+    "nanoid": "3.3.18",
+    "uuid": "11.1.1"
   }
 }

@@ -258,14 +258,54 @@ try{${safeJs}}catch(e){__p('err',['ERROR: '+e.message])}
 };
 
 const DEVTOOLS_SECRET_KEY_PATTERN = /authorization|cookie|password|passwd|secret|token|api.?key|ingest.?key|private.?key|client.?secret/i;
-const DEVTOOLS_PRIVATE_KEY_PATTERN = /-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----/g;
+const DEVTOOLS_PEM_BEGIN_PREFIX = "-----BEGIN ";
+const DEVTOOLS_PEM_SUFFIX = "-----";
 const DEVTOOLS_BEARER_PATTERN = /\bBearer\s+[A-Za-z0-9._~+\/-]{8,}/gi;
 const DEVTOOLS_JWT_PATTERN = /\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b/g;
 const DEVTOOLS_QUOTED_SECRET_PATTERN = /((?:api[_-]?key|access[_-]?token|refresh[_-]?token|ingest[_-]?key|client[_-]?secret|password|passwd|secret|authorization)\s*[:=]\s*)(["'`])[^\r\n"'`]{1,4096}\2/gi;
 const DEVTOOLS_UNQUOTED_SECRET_PATTERN = /((?:api[_-]?key|access[_-]?token|refresh[_-]?token|ingest[_-]?key|client[_-]?secret|password|passwd|secret|authorization)\s*[:=]\s*)[^\s,;}\]]{4,}/gi;
 
-const scrubDevToolsExportString = (value: string) => value
-  .replace(DEVTOOLS_PRIVATE_KEY_PATTERN, "[REDACTED PRIVATE KEY]")
+const isPrivateKeyPemLabel = (value: string) => {
+  if (!value.endsWith("PRIVATE KEY") || value.length > 64) return false;
+  for (const character of value) {
+    if (character !== " " && (character < "A" || character > "Z")) return false;
+  }
+  return true;
+};
+
+const redactPrivateKeyBlocks = (value: string) => {
+  let cursor = 0;
+  let searchFrom = 0;
+  let output = "";
+
+  while (searchFrom < value.length) {
+    const begin = value.indexOf(DEVTOOLS_PEM_BEGIN_PREFIX, searchFrom);
+    if (begin < 0) break;
+    const labelStart = begin + DEVTOOLS_PEM_BEGIN_PREFIX.length;
+    const headerEnd = value.indexOf(DEVTOOLS_PEM_SUFFIX, labelStart);
+    if (headerEnd < 0) break;
+    const label = value.slice(labelStart, headerEnd);
+    if (!isPrivateKeyPemLabel(label)) {
+      searchFrom = headerEnd + DEVTOOLS_PEM_SUFFIX.length;
+      continue;
+    }
+
+    const endMarker = `-----END ${label}-----`;
+    const blockEnd = value.indexOf(endMarker, headerEnd + DEVTOOLS_PEM_SUFFIX.length);
+    output += `${value.slice(cursor, begin)}[REDACTED PRIVATE KEY]`;
+    if (blockEnd < 0) {
+      cursor = value.length;
+      searchFrom = value.length;
+      break;
+    }
+    cursor = blockEnd + endMarker.length;
+    searchFrom = cursor;
+  }
+
+  return cursor === 0 ? value : `${output}${value.slice(cursor)}`;
+};
+
+const scrubDevToolsExportString = (value: string) => redactPrivateKeyBlocks(value)
   .replace(DEVTOOLS_BEARER_PATTERN, "Bearer [REDACTED]")
   .replace(DEVTOOLS_JWT_PATTERN, "[REDACTED JWT]")
   .replace(DEVTOOLS_QUOTED_SECRET_PATTERN, "$1$2[REDACTED]$2")

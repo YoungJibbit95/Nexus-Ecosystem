@@ -367,7 +367,7 @@ async function settleRendererPaint(webContents) {
 
 function analyzeNativeImage(image) {
   const size = image.getSize();
-  const bitmap = image.getBitmap();
+  const bitmap = image.toBitmap();
   const stride = 4;
   const pixelCount = Math.max(1, Math.floor(bitmap.length / stride));
   const sampleEvery = Math.max(1, Math.floor(pixelCount / 12_000));
@@ -529,10 +529,13 @@ async function run() {
   });
 
   const rendererFailureLog = [];
-  window.webContents.on("console-message", (_event, level, message, line, sourceId) => {
-    const source = sourceId ? `${path.basename(sourceId)}:${line || 0}` : `line:${line || 0}`;
+  window.webContents.on("console-message", (details) => {
+    const { level, message, lineNumber, sourceId } = details;
+    const source = sourceId
+      ? `${path.basename(sourceId)}:${lineNumber || 0}`
+      : `line:${lineNumber || 0}`;
     console.log(`[electron-visual-smoke:renderer] level=${level} ${source} ${message}`);
-    if (level >= 3 || /\b(Uncaught|ReferenceError|TypeError|SyntaxError)\b/.test(message)) {
+    if (level === "error" || /\b(Uncaught|ReferenceError|TypeError|SyntaxError)\b/.test(message)) {
       rendererFailureLog.push(`${source} ${message}`.slice(0, 700));
     }
   });

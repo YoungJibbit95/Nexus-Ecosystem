@@ -39,7 +39,7 @@ concurrency:
 
 jobs:
   build-installers:
-    name: "${{ matrix.app_name }} (${{ matrix.target }})"
+    name: "${{ matrix.app_name }} (${{ matrix.target }}-${{ matrix.arch }})"
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -50,36 +50,56 @@ jobs:
             app_slug: "nexus-main"
             app_dir: "Nexus Main"
             target: "mac"
+            arch: "arm64"
+            npm_script: "electron:build:mac"
+          - os: macos-latest
+            app_name: "Nexus Main"
+            app_slug: "nexus-main"
+            app_dir: "Nexus Main"
+            target: "mac"
+            arch: "x64"
             npm_script: "electron:build:mac"
           - os: windows-latest
             app_name: "Nexus Main"
             app_slug: "nexus-main"
             app_dir: "Nexus Main"
             target: "win"
+            arch: "x64"
             npm_script: "electron:build:win"
           - os: ubuntu-latest
             app_name: "Nexus Main"
             app_slug: "nexus-main"
             app_dir: "Nexus Main"
             target: "linux"
+            arch: "x64"
             npm_script: "electron:build:linux"
           - os: macos-latest
             app_name: "Nexus Code"
             app_slug: "nexus-code"
             app_dir: "Nexus Code"
             target: "mac"
+            arch: "arm64"
+            npm_script: "electron:build:mac"
+          - os: macos-latest
+            app_name: "Nexus Code"
+            app_slug: "nexus-code"
+            app_dir: "Nexus Code"
+            target: "mac"
+            arch: "x64"
             npm_script: "electron:build:mac"
           - os: windows-latest
             app_name: "Nexus Code"
             app_slug: "nexus-code"
             app_dir: "Nexus Code"
             target: "win"
+            arch: "x64"
             npm_script: "electron:build:win"
           - os: ubuntu-latest
             app_name: "Nexus Code"
             app_slug: "nexus-code"
             app_dir: "Nexus Code"
             target: "linux"
+            arch: "x64"
             npm_script: "electron:build:linux"
 
     steps:
@@ -115,6 +135,8 @@ jobs:
           NEXUS_SIGNING_TARGET: "${{ matrix.target }}"
           NEXUS_SIGNING_REQUIRED: "${{ github.event_name == 'release' || startsWith(github.ref, 'refs/tags/') || inputs.signing_required || inputs.publish_release_assets }}"
           NEXUS_MAC_NOTARIZE: "${{ matrix.target == 'mac' && (github.event_name == 'release' || inputs.notarize_macos || inputs.publish_release_assets) }}"
+          NEXUS_MAC_ARCH: "${{ matrix.target == 'mac' && matrix.arch || '' }}"
+          CSC_FORCE_CODE_SIGNING: "${{ matrix.target == 'win' && (github.event_name == 'release' || startsWith(github.ref, 'refs/tags/') || inputs.signing_required || inputs.publish_release_assets) }}"
           MAC_CSC_LINK: "${{ secrets.MAC_CSC_LINK }}"
           MAC_CSC_KEY_PASSWORD: "${{ secrets.MAC_CSC_KEY_PASSWORD }}"
           WIN_CSC_LINK: "${{ secrets.WIN_CSC_LINK }}"
@@ -135,12 +157,45 @@ jobs:
         env:
           NEXUS_SIGNING_REQUIRED: "${{ github.event_name == 'release' || startsWith(github.ref, 'refs/tags/') || inputs.signing_required || inputs.publish_release_assets }}"
           NEXUS_MAC_NOTARIZE: "${{ matrix.target == 'mac' && (github.event_name == 'release' || inputs.notarize_macos || inputs.publish_release_assets) }}"
+          NEXUS_MAC_ARCH: "${{ matrix.target == 'mac' && matrix.arch || '' }}"
+          CSC_FORCE_CODE_SIGNING: "${{ matrix.target == 'win' && (github.event_name == 'release' || startsWith(github.ref, 'refs/tags/') || inputs.signing_required || inputs.publish_release_assets) }}"
           CSC_LINK: "${{ matrix.target == 'mac' && secrets.MAC_CSC_LINK || matrix.target == 'win' && secrets.WIN_CSC_LINK || '' }}"
           CSC_KEY_PASSWORD: "${{ matrix.target == 'mac' && secrets.MAC_CSC_KEY_PASSWORD || matrix.target == 'win' && secrets.WIN_CSC_KEY_PASSWORD || '' }}"
           APPLE_ID: "${{ secrets.APPLE_ID }}"
           APPLE_APP_SPECIFIC_PASSWORD: "${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}"
           APPLE_TEAM_ID: "${{ secrets.APPLE_TEAM_ID }}"
         run: npm run ${{ matrix.npm_script }}
+
+      - name: Verify macOS code signatures
+        if: matrix.target == 'mac' && (github.event_name == 'release' || startsWith(github.ref, 'refs/tags/') || inputs.signing_required || inputs.publish_release_assets)
+        working-directory: "${{ matrix.app_dir }}"
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -d '' apps < <(find release -type d -name '*.app' -print0)
+          if [[ "${#apps[@]}" -eq 0 ]]; then
+            echo "::error title=Missing signed app::No macOS .app bundle was produced."
+            exit 1
+          fi
+          for app in "${apps[@]}"; do
+            codesign --verify --deep --strict --verbose=2 "${app}"
+          done
+
+      - name: Verify Windows Authenticode signatures
+        if: matrix.target == 'win' && (github.event_name == 'release' || startsWith(github.ref, 'refs/tags/') || inputs.signing_required || inputs.publish_release_assets)
+        working-directory: "${{ matrix.app_dir }}"
+        shell: pwsh
+        run: |
+          $files = @(Get-ChildItem -LiteralPath release -Recurse -File -Filter *.exe)
+          if ($files.Count -eq 0) {
+            throw 'No Windows executable was produced.'
+          }
+          foreach ($file in $files) {
+            $signature = Get-AuthenticodeSignature -LiteralPath $file.FullName
+            if ($signature.Status -ne 'Valid') {
+              throw "Invalid Authenticode signature on $($file.FullName): $($signature.Status)"
+            }
+          }
 
       - name: Generate checksums
         env:
@@ -151,12 +206,12 @@ jobs:
           NEXUS_LAUNCHER_FEED_SIGNING_KEY_PEM: "${{ secrets.NEXUS_LAUNCHER_FEED_SIGNING_KEY_PEM }}"
           NEXUS_LAUNCHER_FEED_SIGNING_KEY_BASE64: "${{ secrets.NEXUS_LAUNCHER_FEED_SIGNING_KEY_BASE64 }}"
           NEXUS_LAUNCHER_FEED_SIGNING_KEY_ID: "${{ vars.NEXUS_LAUNCHER_FEED_SIGNING_KEY_ID }}"
-        run: node ./tools/generate-installer-checksums.mjs --dir "${{ matrix.app_dir }}/release"
+        run: node ./tools/generate-installer-checksums.mjs --dir "${{ matrix.app_dir }}/release" --output-prefix "${{ matrix.app_slug }}-${{ matrix.target }}-${{ matrix.arch }}"
 
       - name: Upload installers
         uses: actions/upload-artifact@v4
         with:
-          name: "${{ matrix.app_slug }}-${{ matrix.target }}-installers"
+          name: "${{ matrix.app_slug }}-${{ matrix.target }}-${{ matrix.arch }}-installers"
           retention-days: 14
           if-no-files-found: error
           path: |
@@ -167,9 +222,9 @@ jobs:
             ${{ matrix.app_dir }}/release/**/*.msi
             ${{ matrix.app_dir }}/release/**/*.AppImage
             ${{ matrix.app_dir }}/release/**/*.deb
-            ${{ matrix.app_dir }}/release/**/SHA256SUMS.txt
-            ${{ matrix.app_dir }}/release/**/SHA256SUMS.txt.sig
-            ${{ matrix.app_dir }}/release/**/SHA256SUMS.metadata.json
+            ${{ matrix.app_dir }}/release/**/*SHA256SUMS.txt
+            ${{ matrix.app_dir }}/release/**/*SHA256SUMS.txt.sig
+            ${{ matrix.app_dir }}/release/**/*SHA256SUMS.metadata.json
 
       - name: Attach installers to GitHub Release
         if: github.event_name == 'release' || startsWith(github.ref, 'refs/tags/') || (github.event_name == 'workflow_dispatch' && inputs.publish_release_assets)
@@ -185,6 +240,6 @@ jobs:
             ${{ matrix.app_dir }}/release/**/*.msi
             ${{ matrix.app_dir }}/release/**/*.AppImage
             ${{ matrix.app_dir }}/release/**/*.deb
-            ${{ matrix.app_dir }}/release/**/SHA256SUMS.txt
-            ${{ matrix.app_dir }}/release/**/SHA256SUMS.txt.sig
-            ${{ matrix.app_dir }}/release/**/SHA256SUMS.metadata.json
+            ${{ matrix.app_dir }}/release/**/*SHA256SUMS.txt
+            ${{ matrix.app_dir }}/release/**/*SHA256SUMS.txt.sig
+            ${{ matrix.app_dir }}/release/**/*SHA256SUMS.metadata.json

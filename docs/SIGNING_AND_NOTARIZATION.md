@@ -1,13 +1,13 @@
 # Signing and Notarization Runbook
 
-Stand: 2026-05-10
+Stand: 2026-09-12
 
 Dieses Runbook trennt interne RC-Builds von public Release-Builds:
 
 - Interne RCs duerfen unsigned laufen, solange sie klar als RC behandelt werden.
 - Public Releases muessen mit `NEXUS_SIGNING_REQUIRED=true` laufen.
 - macOS Public Releases muessen zusaetzlich notarized und gestapled sein.
-- Alle Download-Artefakte bekommen `SHA256SUMS.txt`.
+- Alle Download-Artefakte bekommen eine app-, plattform- und architekturspezifische `*-SHA256SUMS.txt` samt P-256-Signatur.
 
 ## GitHub Secrets
 
@@ -37,9 +37,11 @@ Dieses Runbook trennt interne RC-Builds von public Release-Builds:
 | `ANDROID_KEY_ALIAS` | Alias fuer den Release-Key |
 | `ANDROID_KEY_PASSWORD` | Key-Passwort |
 
-## Installer Workflow
+## Release-Workflows
 
-Workflow: `.github/workflows/build-installers.yml`
+Electron: `.github/workflows/build-installers.yml`
+
+Android: `.github/workflows/build-android.yml`
 
 Manueller RC ohne harte Signing-Pflicht:
 
@@ -53,7 +55,9 @@ Public Release:
 workflow_dispatch signing_required=true notarize_macos=true
 ```
 
-Bei `release: published` wird Signing automatisch als Pflicht behandelt. macOS baut dann mit `NEXUS_MAC_NOTARIZE=true`, reicht DMGs bei `xcrun notarytool` ein und stapled sie danach.
+Bei `release: published` wird Signing automatisch als Pflicht behandelt. macOS baut getrennte arm64- und x64-Artefakte, reicht die DMGs bei `xcrun notarytool` ein und stapled sie danach. Anschliessend prueft der Workflow die App-Bundles mit `codesign`; Windows wird mit `Get-AuthenticodeSignature` verifiziert.
+
+Der Android-Workflow erzeugt ausschliesslich signierte AABs. Fehlt auch nur eine Keystore-Variable, bricht der Gradle-Release bereits vor der Paketierung ab. Das fertige Bundle wird mit `jarsigner -verify -strict` kontrolliert.
 
 ## Lokale Checks
 
@@ -79,7 +83,7 @@ Ohne Secrets ist `verify:signing` nur warnend. `verify:signing:required` muss fe
 Vor Public Release speichern:
 
 - GitHub Actions Run URL des Installer-Workflows
-- `SHA256SUMS.txt` pro Plattform/App
+- eindeutig benannte `*-SHA256SUMS.txt` pro Plattform/App/Architektur
 - macOS Notarytool Success Log
 - Windows SmartScreen/Signatur-Screenshot oder `Get-AuthenticodeSignature`
 - Android signierter Release-Build plus Keystore-Fingerprint
