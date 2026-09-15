@@ -53,6 +53,11 @@ import {
 export function WikiPage() {
   const [activeSection, setActiveSection] = useState<SectionId>("getting-started");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isMobileViewport, setIsMobileViewport] = useState(() =>
+    typeof window === "undefined"
+      ? false
+      : window.matchMedia("(max-width: 767px)").matches,
+  );
   const [query, setQuery] = useState("");
   const [appFilter, setAppFilter] = useState<AppFilter>("all");
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all");
@@ -69,6 +74,14 @@ export function WikiPage() {
     window.localStorage.setItem("nexus-wiki-lang", lang);
     document.documentElement.lang = lang;
   }, [lang]);
+
+  useEffect(() => {
+    const mobileQuery = window.matchMedia("(max-width: 767px)");
+    const syncViewport = () => setIsMobileViewport(mobileQuery.matches);
+    syncViewport();
+    mobileQuery.addEventListener("change", syncViewport);
+    return () => mobileQuery.removeEventListener("change", syncViewport);
+  }, []);
 
   useEffect(() => {
     if (!focusedEntryId) return;
@@ -356,12 +369,18 @@ export function WikiPage() {
 
       <button
         onClick={() => setIsMobileMenuOpen((prev) => !prev)}
+        aria-label={isMobileMenuOpen ? "Navigation schließen" : "Navigation öffnen"}
+        aria-expanded={isMobileMenuOpen}
+        aria-controls="wiki-navigation"
         className="md:hidden fixed top-4 right-4 z-50 p-3 rounded-xl bg-cyan-500/15 text-cyan-200 border border-cyan-400/40 backdrop-blur-xl"
       >
         {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
       </button>
 
       <aside
+        id="wiki-navigation"
+        aria-hidden={isMobileViewport && !isMobileMenuOpen}
+        inert={isMobileViewport && !isMobileMenuOpen ? true : undefined}
         className={`
         wiki-sidebar fixed md:static inset-y-0 left-0 z-40 w-[min(20rem,88vw)] md:w-80 backdrop-blur-2xl border-r border-white/10 flex flex-col transition-transform duration-300
         ${isMobileMenuOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}

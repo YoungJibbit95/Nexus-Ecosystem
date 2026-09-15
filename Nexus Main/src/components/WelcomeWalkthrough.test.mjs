@@ -5,8 +5,10 @@ import { fileURLToPath } from 'node:url'
 
 const sourcePath = fileURLToPath(new URL('./WelcomeWalkthrough.tsx', import.meta.url))
 const source = readFileSync(sourcePath, 'utf8')
-const stepsSource = source.match(/const STEPS: TourStep\[\] = \[([\s\S]*?)\n\];\n\nconst clampIndex/)?.[1] || ''
-const stepIds = [...stepsSource.matchAll(/^  \{\r?\n    id: "([^"]+)"/gm)].map((match) => match[1])
+const extractStepsSource = (input) => input.match(/const STEPS: TourStep\[\] = \[([\s\S]*?)\r?\n\];\r?\n\r?\nconst clampIndex/)?.[1] || ''
+const extractStepIds = (input) => [...extractStepsSource(input).matchAll(/^  \{\r?\n    id: "([^"]+)"/gm)].map((match) => match[1])
+const stepsSource = extractStepsSource(source)
+const stepIds = extractStepIds(source)
 
 test('guided walkthrough exposes exactly 14 unique interactive chapters', () => {
   assert.deepEqual(stepIds, [
@@ -26,7 +28,11 @@ test('guided walkthrough exposes exactly 14 unique interactive chapters', () => 
     'finish',
   ])
   assert.equal(new Set(stepIds).size, 14)
-  assert.equal((stepsSource.match(/\n    view: "/g) || []).length, 14)
+  assert.equal((stepsSource.match(/\r?\n    view: "/g) || []).length, 14)
+})
+
+test('guided walkthrough parsing is stable across LF and CRLF checkouts', () => {
+  assert.deepEqual(extractStepIds(source.replace(/\r?\n/g, '\r\n')), stepIds)
 })
 
 test('walkthrough view actions remain entitlement-gated, resumable, and non-mutating', () => {

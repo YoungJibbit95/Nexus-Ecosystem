@@ -1,4 +1,4 @@
-import { createHash, createSign } from 'node:crypto'
+import { createHash, createPrivateKey, createPublicKey, createSign, createVerify } from 'node:crypto'
 import { createReadStream } from 'node:fs'
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
@@ -16,7 +16,11 @@ const signingKeyId = args.get('signing-key-id') ||
   process.env.NEXUS_INSTALLER_CHECKSUM_SIGNING_KEY_ID ||
   process.env.NEXUS_LAUNCHER_FEED_SIGNING_KEY_ID ||
   'nexus-installer-checksums-p256-v1'
-const artifactExtensions = new Set(['.dmg', '.pkg', '.zip', '.exe', '.msi', '.appimage', '.deb'])
+const outputPrefix = sanitizeOutputPrefix(args.get('output-prefix') || '')
+const checksumFileName = `${outputPrefix ? `${outputPrefix}-` : ''}SHA256SUMS.txt`
+const signatureFileName = `${checksumFileName}.sig`
+const metadataFileName = `${outputPrefix ? `${outputPrefix}-` : ''}SHA256SUMS.metadata.json`
+const artifactExtensions = new Set(['.dmg', '.pkg', '.zip', '.exe', '.msi', '.appimage', '.deb', '.apk', '.aab'])
 
 const artifacts = await findArtifacts(releaseDir)
 
@@ -40,14 +44,16 @@ for (const artifact of artifacts) {
 }
 
 const checksumText = `${lines.join('\n')}\n`
-const checksumPath = path.join(releaseDir, 'SHA256SUMS.txt')
-const signaturePath = path.join(releaseDir, 'SHA256SUMS.txt.sig')
-const metadataPath = path.join(releaseDir, 'SHA256SUMS.metadata.json')
+const checksumPath = path.join(releaseDir, checksumFileName)
+const signaturePath = path.join(releaseDir, signatureFileName)
+const metadataPath = path.join(releaseDir, metadataFileName)
 const signingKey = await readSigningKey()
 let signature = null
 
 if (signingKey) {
-  signature = signChecksums(checksumText, signingKey)
+  const privateKey = parseP256PrivateKey(signingKey)
+  signature = signChecksums(checksumText, privateKey)
+  verifyGeneratedSignature(checksumText, signature, privateKey)
   await fs.writeFile(signaturePath, `${signature}\n`, 'utf8')
 } else if (requireSignature) {
   console.error('[generate-installer-checksums] Missing checksum signing key. Set NEXUS_INSTALLER_CHECKSUM_SIGNING_KEY_PEM, NEXUS_INSTALLER_CHECKSUM_SIGNING_KEY_BASE64, NEXUS_INSTALLER_CHECKSUM_SIGNING_KEY_FILE, or the launcher feed signing key fallback.')
@@ -59,8 +65,8 @@ if (signingKey) {
 await fs.writeFile(checksumPath, checksumText, 'utf8')
 await fs.writeFile(metadataPath, `${JSON.stringify({
   schemaVersion: 1,
-  checksumFile: 'SHA256SUMS.txt',
-  signatureFile: signature ? 'SHA256SUMS.txt.sig' : null,
+  checksumFile: checksumFileName,
+  signatureFile: signature ? signatureFileName : null,
   signature: signature
     ? {
         algorithm: signatureAlgorithm,
@@ -127,11 +133,33 @@ async function readSigningKey() {
   return null
 }
 
-function signChecksums(text, privateKeyPem) {
+function parseP256PrivateKey(value) {
+  let privateKey
+  try {
+    privateKey = createPrivateKey(value)
+  } catch (error) {
+    throw new Error(`Checksum signing key is not a valid private key: ${error.message}`)
+  }
+  const curve = String(privateKey.asymmetricKeyDetails?.namedCurve || '').toLowerCase()
+  if (privateKey.asymmetricKeyType !== 'ec' || !['prime256v1', 'p-256', 'secp256r1'].includes(curve)) {
+    throw new Error('Checksum signing key must be an ECDSA P-256 private key')
+  }
+  return privateKey
+}
+
+function signChecksums(text, privateKey) {
   const signer = createSign('SHA256')
   signer.update(Buffer.from(text, 'utf8'))
   signer.end()
-  return signer.sign(privateKeyPem).toString('base64url')
+  return signer.sign(privateKey).toString('base64url')
+}
+
+function verifyGeneratedSignature(text, signature, privateKey) {
+  const verifier = createVerify('SHA256')
+  verifier.update(Buffer.from(text, 'utf8'))
+  verifier.end()
+  const valid = verifier.verify(createPublicKey(privateKey), Buffer.from(signature, 'base64url'))
+  if (!valid) throw new Error('Generated checksum signature failed immediate self-verification')
 }
 
 function parseArgs(rawArgs) {
@@ -159,4 +187,16 @@ function parseArgs(rawArgs) {
 
 function boolArg(value) {
   return ['1', 'true', 'yes', 'on'].includes(String(value || '').trim().toLowerCase())
+}
+
+function sanitizeOutputPrefix(value) {
+  const normalized = String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+  if (String(value || '').trim() && !normalized) {
+    throw new Error('output-prefix must contain at least one letter or number')
+  }
+  return normalized.slice(0, 120)
 }

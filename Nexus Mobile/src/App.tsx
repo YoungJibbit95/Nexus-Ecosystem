@@ -49,6 +49,7 @@ import {
 } from './app/viewPreload'
 import { MobileViewHost } from './app/mobileViewHost'
 import { MobileShellLayout } from './app/MobileShellLayout'
+import { runStartupPrivacyMigrations } from './app/privacyMigrations.js'
 import {
   CONTROL_API_BASE_URL,
   MOBILE_BOOT_BLOCK_BUDGET_LOW_POWER_MS,
@@ -69,6 +70,8 @@ import {
   withTimeoutResult,
   writeLastKnownMobileStartupViews,
 } from './app/mobileAppConfig'
+
+runStartupPrivacyMigrations()
 
 const withDevDiagnosticsView = (views: View[]): View[] => {
   const baseViews = views.filter((candidate) => candidate !== 'diagnostics')

@@ -33,12 +33,12 @@ import { MagicElementModal, NexusCodeBlock, NexusInlineCode } from './notes/Note
 import { NotesSidebarPanels } from './notes/NotesSidebarPanels'
 import { NotesSettingsModal, type NotesLocalSettings } from './notes/NotesSettingsModal'
 import { MobileSheet } from '../components/mobile/MobileViewContract'
+import { NOTES_UI_STATE_STORAGE_KEY } from '../app/privacyMigrations.js'
 const NOTE_COMMIT_DEBOUNCE_MS = 4_200
 const NOTE_PREVIEW_DEBOUNCE_MS = 220
 const NOTE_UNDO_SNAPSHOT_INTERVAL_MS = 260
 const MAX_RENDERED_LINE_NUMBERS = 4_000
 const NOTES_IMPORT_INPUT_ID = 'nx-mobile-notes-import-markdown'
-const NOTES_UI_STATE_KEY = 'nx-mobile-notes-ui-state-v1'
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   Boolean(value) && typeof value === 'object' && !Array.isArray(value)
@@ -136,7 +136,7 @@ export function NotesView() {
 
   useEffect(() => {
     try {
-      const raw = window.localStorage.getItem(NOTES_UI_STATE_KEY)
+      const raw = window.localStorage.getItem(NOTES_UI_STATE_STORAGE_KEY)
       if (!raw) return
       const parsed = JSON.parse(raw)
       if (!isRecord(parsed)) return
@@ -156,9 +156,7 @@ export function NotesView() {
       if (typeof parsed.showSearch === 'boolean') {
         setShowSearch(parsed.showSearch)
       }
-      if (typeof parsed.searchQuery === 'string') {
-        setSearchQuery(parsed.searchQuery)
-      }
+      // Search text can contain workspace content and intentionally stays session-only.
     } catch {
       // Ignore malformed persisted UI state.
     }
@@ -171,14 +169,13 @@ export function NotesView() {
       tagFilter,
       focusMode,
       showSearch,
-      searchQuery,
     }
     try {
-      window.localStorage.setItem(NOTES_UI_STATE_KEY, JSON.stringify(payload))
+      window.localStorage.setItem(NOTES_UI_STATE_STORAGE_KEY, JSON.stringify(payload))
     } catch {
       // Ignore storage write failures.
     }
-  }, [focusMode, mode, searchQuery, showSearch, sortBy, tagFilter])
+  }, [focusMode, mode, showSearch, sortBy, tagFilter])
 
   useEffect(() => {
     draftContentRef.current = draftContent

@@ -109,7 +109,7 @@
     rgba(255, 255, 255, 0.68) !important;
 }
 
-@media (max-width: 980px) {
+@media (max-width: 1120px) {
   .nx-settings-v6 {
     flex-direction: column !important;
     overflow-y: auto;
@@ -121,6 +121,10 @@
     flex: 0 0 auto;
   }
 
+  .nx-settings-v6 .nx-settings-summary {
+    display: none !important;
+  }
+
   .nx-settings-v6 .nx-settings-module-list {
     display: grid !important;
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -129,6 +133,10 @@
 
   .nx-settings-v6 .nx-settings-content {
     overflow: visible !important;
+  }
+
+  .nx-settings-v6 .nx-settings-sidebar-footer {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
   }
 }
 
@@ -180,7 +188,7 @@
   }
 }
 
-@media (max-width: 460px), (max-height: 460px) and (max-width: 980px) {
+@media (max-width: 460px), (max-height: 460px) and (max-width: 1120px) {
   .nx-settings-v6 .nx-settings-summary {
     display: none !important;
   }

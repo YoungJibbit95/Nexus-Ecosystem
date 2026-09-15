@@ -1,6 +1,9 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
+import { fileURLToPath } from 'node:url'
+
+const configDir = path.dirname(fileURLToPath(import.meta.url))
 
 const CHUNK_GROUPS: Record<string, string[]> = {
   'vendor-react': ['react', 'react-dom'],
@@ -39,23 +42,23 @@ const manualChunks = (id: string) => {
 }
 
 export default defineConfig({
-  root: __dirname,
+  root: configDir,
   plugins: [react()],
   base: '/',
   resolve: {
     dedupe: ['react', 'react-dom'],
     alias: {
-      '@': path.resolve(__dirname, './src'),
-      '@nexus/core': path.resolve(__dirname, '../packages/nexus-core/src'),
-      '@nexus/api': path.resolve(__dirname, '../packages/nexus-core/src/api'),
-      react: path.resolve(__dirname, './node_modules/react'),
-      'react-dom': path.resolve(__dirname, './node_modules/react-dom'),
+      '@': path.resolve(configDir, './src'),
+      '@nexus/core': path.resolve(configDir, '../packages/nexus-core/src'),
+      '@nexus/api': path.resolve(configDir, '../packages/nexus-core/src/api'),
+      react: path.resolve(configDir, './node_modules/react'),
+      'react-dom': path.resolve(configDir, './node_modules/react-dom'),
       'react/jsx-runtime': path.resolve(
-        __dirname,
+        configDir,
         './node_modules/react/jsx-runtime.js',
       ),
       'react/jsx-dev-runtime': path.resolve(
-        __dirname,
+        configDir,
         './node_modules/react/jsx-dev-runtime.js',
       ),
     },
@@ -64,7 +67,7 @@ export default defineConfig({
     port: 5174,
     strictPort: true,
     fs: {
-      allow: [path.resolve(__dirname, '..')],
+      allow: [path.resolve(configDir, '..')],
     },
     watch: {
       ignored: ['**/android/**', '**/ios/**', '**/dist/**', '**/build/**'],

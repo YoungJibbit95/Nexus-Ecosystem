@@ -29,10 +29,17 @@ export const createCaptureIntent = (
 export const parseCaptureIntentFromQuery = (queryRaw: string): CaptureIntent | null => {
   const query = String(queryRaw || "").trim();
   if (!query) return null;
-  const match = /^(note|task|reminder|rem|code|canvas)\s*:\s*(.*)$/i.exec(query);
-  if (!match) return null;
-  const rawType = match[1].toLowerCase();
+
+  const delimiterIndex = query.indexOf(":");
+  if (delimiterIndex < 0) return null;
+  const rawType = query.slice(0, delimiterIndex).trim().toLowerCase();
+  if (!["note", "task", "reminder", "rem", "code", "canvas"].includes(rawType)) return null;
+
+  const rawTitle = query.slice(delimiterIndex + 1);
+  if (rawTitle.includes("\r") || rawTitle.includes("\n") || rawTitle.includes("\u2028") || rawTitle.includes("\u2029")) {
+    return null;
+  }
   const type = (rawType === "rem" ? "reminder" : rawType) as CaptureIntentType;
-  const title = match[2]?.trim() || undefined;
+  const title = rawTitle.trim() || undefined;
   return createCaptureIntent(type, { title });
 };

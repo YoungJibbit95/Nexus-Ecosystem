@@ -2,6 +2,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { ensureControlPlane } from "./lib/control-plane-guard.mjs";
+import { resolveJava21Home as resolveSharedJava21Home } from "./lib/java-toolchain.mjs";
 import { spawnNpmSync, spawnProcessSync } from "./lib/process-utils.mjs";
 import { resolveApiSource } from "./lib/api-source.mjs";
 
@@ -199,39 +200,6 @@ const resolveAndroidSdkPath = async (appRoot) => {
   return null;
 };
 
-const resolveJavaHomeForAndroid = async () => {
-  const candidates = [];
-  const addCandidate = (value) => {
-    const normalized = String(value || "").trim();
-    if (!normalized) return;
-    candidates.push(path.resolve(normalized));
-  };
-
-  addCandidate(process.env.JAVA_HOME);
-  addCandidate(
-    "/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home",
-  );
-  addCandidate(
-    "/Library/Java/JavaVirtualMachines/openjdk-21.jdk/Contents/Home",
-  );
-  addCandidate("/usr/lib/jvm/java-21-openjdk");
-  addCandidate("/usr/lib/jvm/jdk-21");
-  addCandidate("/usr/lib/jvm/temurin-21-jdk");
-
-  for (const candidate of candidates) {
-    const javac = path.join(
-      candidate,
-      "bin",
-      process.platform === "win32" ? "javac.exe" : "javac",
-    );
-    if (await exists(javac)) {
-      return candidate;
-    }
-  }
-
-  return null;
-};
-
 const ensureDir = async (targetPath) => {
   await fs.mkdir(targetPath, { recursive: true });
 };
@@ -310,6 +278,9 @@ const buildElectronInstallersForApp = async (app, warnings) => {
 
   let hostSucceeded = false;
   try {
+    if (strictInstallers) {
+      await fs.rm(releaseRoot, { recursive: true, force: true });
+    }
     runNpmCommand(["--prefix", appRoot, "run", installerScript], { cwd: ROOT });
     hostSucceeded = true;
 
@@ -327,9 +298,9 @@ const buildElectronInstallersForApp = async (app, warnings) => {
 
     const installerArtifacts = await collectInstallerArtifacts(releaseRoot);
     if (installerArtifacts.length === 0) {
-      warnings.push(
-        `[${app.name}] Installer-Build lief, aber keine Installer-Artefakte im Release gefunden.`,
-      );
+      const message = `[${app.name}] Installer-Build lief, aber keine Installer-Artefakte im Release gefunden.`;
+      if (strictInstallers) throw new Error(message);
+      warnings.push(message);
     }
 
     return {
@@ -365,16 +336,24 @@ const buildAndroidForApp = async (app, warnings) => {
   const outputRoot = path.join(appRoot, app.android.outputDir);
 
   if (!(await exists(androidRoot))) {
-    warnings.push(
-      `[${app.name}] Android-Ordner fehlt, Android-Build wurde uebersprungen.`,
-    );
+    const message = `[${app.name}] Android-Ordner fehlt, Android-Build wurde uebersprungen.`;
+    if (strictAndroid) throw new Error(message);
+    warnings.push(message);
     return [];
   }
 
   const sdkPath = await resolveAndroidSdkPath(appRoot);
-  const cachedArtifacts = await collectAndroidArtifacts(outputRoot);
+  let cachedArtifacts = await collectAndroidArtifacts(outputRoot);
+
+  if (strictAndroid) {
+    await fs.rm(outputRoot, { recursive: true, force: true });
+    cachedArtifacts = [];
+  }
 
   if (!sdkPath) {
+    if (strictAndroid) {
+      throw new Error(`[${app.name}] ANDROID_HOME/ANDROID_SDK_ROOT nicht gesetzt.`);
+    }
     if (cachedArtifacts.length > 0) {
       warnings.push(
         `[${app.name}] Android SDK fehlt, vorhandene Android-Artefakte werden verwendet.`,
@@ -392,10 +371,12 @@ const buildAndroidForApp = async (app, warnings) => {
     ANDROID_HOME: sdkPath,
     ANDROID_SDK_ROOT: sdkPath,
   };
-  const javaHome = await resolveJavaHomeForAndroid();
+  const javaHome = await resolveSharedJava21Home();
   if (javaHome) {
     androidEnv.JAVA_HOME = javaHome;
     androidEnv.PATH = `${path.join(javaHome, "bin")}${path.delimiter}${androidEnv.PATH || ""}`;
+  } else if (strictAndroid) {
+    throw new Error(`[${app.name}] JDK 21 wurde fuer den Android-Build nicht gefunden.`);
   }
 
   try {
@@ -416,9 +397,9 @@ const buildAndroidForApp = async (app, warnings) => {
       : path.join(androidRoot, "gradlew");
 
   if (!(await exists(gradlew))) {
-    warnings.push(
-      `[${app.name}] Gradle Wrapper fehlt, Android-Build wurde uebersprungen.`,
-    );
+    const message = `[${app.name}] Gradle Wrapper fehlt, Android-Build wurde uebersprungen.`;
+    if (strictAndroid) throw new Error(message);
+    warnings.push(message);
     return [];
   }
 
@@ -436,9 +417,9 @@ const buildAndroidForApp = async (app, warnings) => {
 
   const builtArtifacts = await collectAndroidArtifacts(outputRoot);
   if (builtArtifacts.length === 0) {
-    warnings.push(
-      `[${app.name}] Kein Android Output unter ${app.android.outputDir} gefunden.`,
-    );
+    const message = `[${app.name}] Kein Android Output unter ${app.android.outputDir} gefunden.`;
+    if (strictAndroid) throw new Error(message);
+    warnings.push(message);
   }
   return builtArtifacts;
 };

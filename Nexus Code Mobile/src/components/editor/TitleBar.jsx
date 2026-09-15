@@ -10,6 +10,7 @@ import {
   X,
   Save,
   GitBranch,
+  LogOut,
 } from "lucide-react";
 import { useMobile } from "../../hook/useMobile";
 
@@ -178,6 +179,7 @@ export default function TitleBar({
   onToggleTerminal,
   onOpenCommandPalette,
   onOpenSettings,
+  onLogout,
   workspaceName,
 }) {
   const [activeMenu, setActiveMenu] = useState(null);
@@ -213,6 +215,8 @@ export default function TitleBar({
       items: [
         { label: "Befehlspalette…", shortcut: "⌘⇧P", action: onOpenCommandPalette },
         { label: "Einstellungen", shortcut: "⌘,", action: safeOpenSettings },
+        { separator: true },
+        { label: "Abmelden", action: onLogout },
       ],
     },
   ];
@@ -227,6 +231,8 @@ export default function TitleBar({
     { separator: true },
     { label: "Command",      icon: Command,         fn: onOpenCommandPalette, primary: true },
     { label: "Settings",     icon: Settings,        fn: safeOpenSettings, primary: true },
+    { separator: true },
+    { label: "Abmelden",     icon: LogOut,          fn: onLogout },
   ];
 
   useEffect(() => {
@@ -404,6 +410,14 @@ export default function TitleBar({
           title="Zen-Modus"
         >
           <Maximize2 size={14} />
+        </button>
+        <button
+          onClick={onLogout}
+          className="p-1.5 rounded-lg text-gray-500 hover:text-white hover:bg-white/5 active:bg-white/10 transition-all"
+          title="Abmelden"
+          aria-label="Abmelden"
+        >
+          <LogOut size={14} />
         </button>
       </div>
     </motion.div>

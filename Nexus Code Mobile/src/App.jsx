@@ -11,8 +11,11 @@ import { createNexusRuntime, isOfflineControlErrorCode } from "@nexus/api";
 import { resolveNexusControlUserContext } from "@nexus/core";
 import { installRuntimeLagProbe } from "./lib/runtimeLagProbe";
 import { useGlobalTypingAnimation } from "./lib/useGlobalTypingAnimation";
+import { completeCodeMobileLogout, requestCodeMobileLogout } from "./lib/sessionLogout";
 
 const CONTROL_API_BASE_URL = "https://nexus-api.cloud";
+const CODE_MOBILE_SESSION_KEY = "nx-code-mobile-session-v1";
+const CODE_MOBILE_DEVICE_KEY = "nx-code-mobile-device-v1";
 const CODE_MOBILE_BOOT_BLOCK_BUDGET_MS = 6_500;
 const CODE_MOBILE_BOOT_BLOCK_BUDGET_LOW_POWER_MS = 8_500;
 const loadEditorPage = () => import("./pages/Editor");
@@ -33,6 +36,88 @@ const isLowPowerDevice = () => {
   const cores = Number(navigator.hardwareConcurrency || 8);
   const memory = Number(navigator.deviceMemory || 8);
   return Boolean(reducedMotion) || cores <= 4 || memory <= 4;
+};
+
+const readCodeMobileSession = () => {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.sessionStorage.getItem(CODE_MOBILE_SESSION_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    const item = parsed?.item && typeof parsed.item === "object" ? parsed.item : parsed;
+    if (
+      typeof item?.token !== "string" ||
+      !item.token.trim() ||
+      !Number.isFinite(item?.expiresAt) ||
+      item.expiresAt <= Date.now() + 15_000 ||
+      typeof item?.user?.id !== "string" ||
+      typeof item?.user?.username !== "string"
+    ) {
+      window.sessionStorage.removeItem(CODE_MOBILE_SESSION_KEY);
+      return null;
+    }
+    return item;
+  } catch {
+    window.sessionStorage.removeItem(CODE_MOBILE_SESSION_KEY);
+    return null;
+  }
+};
+
+const getCodeMobileDeviceId = () => {
+  if (typeof window === "undefined") return "nx-code-mobile";
+  try {
+    const existing = window.localStorage.getItem(CODE_MOBILE_DEVICE_KEY);
+    if (existing) return existing;
+    const bytes = new Uint8Array(12);
+    window.crypto.getRandomValues(bytes);
+    const id = `nx-code-mobile-${Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("")}`;
+    window.localStorage.setItem(CODE_MOBILE_DEVICE_KEY, id);
+    return id;
+  } catch {
+    return `nx-code-mobile-${Date.now().toString(36)}`;
+  }
+};
+
+const loginCodeMobile = async (identifier, password) => {
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), 9_000);
+  try {
+    const response = await fetch(`${CONTROL_API_BASE_URL}/auth/login`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        "X-Nexus-Device-Id": getCodeMobileDeviceId(),
+        "X-Nexus-Device-Label": "Nexus Code Mobile",
+      },
+      body: JSON.stringify({ identifier: identifier.trim(), password }),
+      signal: controller.signal,
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const details = Array.isArray(payload?.details)
+        ? payload.details.join(", ")
+        : typeof payload?.details === "string"
+          ? payload.details
+          : payload?.error;
+      throw new Error(details || `Login fehlgeschlagen (HTTP ${response.status}).`);
+    }
+    const session = payload?.item && typeof payload.item === "object" ? payload.item : payload;
+    if (!session?.token || !session?.user || !Number.isFinite(session?.expiresAt)) {
+      throw new Error("Die Login-Antwort ist unvollständig.");
+    }
+    return session;
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
+};
+
+const logoutCodeMobile = async (token) => {
+  await requestCodeMobileLogout({
+    baseUrl: CONTROL_API_BASE_URL,
+    token,
+    deviceId: getCodeMobileDeviceId(),
+  });
 };
 
 function NexusBridge({ runtime }) {
@@ -132,16 +217,20 @@ function BootSequenceScreen({ progress, stage }) {
 
 function App() {
   const controlBaseUrl = CONTROL_API_BASE_URL;
-  const controlIngestKey = import.meta.env?.VITE_NEXUS_CONTROL_INGEST_KEY;
+  const [authSession, setAuthSession] = useState(readCodeMobileSession);
+  const [authIdentifier, setAuthIdentifier] = useState("");
+  const [authPassword, setAuthPassword] = useState("");
+  const [authPending, setAuthPending] = useState(false);
+  const [authError, setAuthError] = useState(null);
   const lowPowerMode = useMemo(() => isLowPowerDevice(), []);
   const viewAccessContext = useMemo(
     () =>
       resolveNexusControlUserContext({
-        userId: import.meta.env?.VITE_NEXUS_USER_ID,
-        username: import.meta.env?.VITE_NEXUS_USERNAME,
-        userTier: import.meta.env?.VITE_NEXUS_USER_TIER,
+        userId: authSession?.user?.id,
+        username: authSession?.user?.username,
+        userTier: authSession?.user?.paymentTier || authSession?.user?.requestedTier,
       }),
-    [],
+    [authSession],
   );
   useGlobalTypingAnimation(!lowPowerMode);
   const [bootReady, setBootReady] = useState(false);
@@ -168,7 +257,9 @@ function App() {
         control: {
           enabled: Boolean(controlBaseUrl),
           baseUrl: controlBaseUrl,
-          ingestKey: controlIngestKey,
+          token: authSession?.token || "",
+          deviceId: getCodeMobileDeviceId(),
+          deviceLabel: "Nexus Code Mobile",
           sampleRate: lowPowerMode ? 0.18 : 0.3,
           flushIntervalMs: 12_000,
           releasePollIntervalMs: 30_000,
@@ -189,8 +280,37 @@ function App() {
           enabled: false,
         },
       }),
-    [controlBaseUrl, controlIngestKey, lowPowerMode],
+    [authSession?.token, controlBaseUrl, lowPowerMode],
   );
+
+  const handleLogin = async (event) => {
+    event.preventDefault();
+    if (authPending) return;
+    setAuthPending(true);
+    setAuthError(null);
+    try {
+      const session = await loginCodeMobile(authIdentifier, authPassword);
+      window.sessionStorage.setItem(CODE_MOBILE_SESSION_KEY, JSON.stringify(session));
+      setAuthSession(session);
+      setAuthPassword("");
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : "Login fehlgeschlagen.");
+    } finally {
+      setAuthPending(false);
+    }
+  };
+
+  const clearLogin = async () => {
+    await completeCodeMobileLogout({
+      revoke: () => logoutCodeMobile(authSession?.token),
+      clearLocal: () => {
+        window.sessionStorage.removeItem(CODE_MOBILE_SESSION_KEY);
+        setAuthSession(null);
+        setAuthPassword("");
+        setAuthError(null);
+      },
+    });
+  };
 
   useEffect(() => {
     runtime.control.setViewValidationDefaults(viewAccessContext);
@@ -421,6 +541,7 @@ function App() {
           color: "#fff3d0",
           fontFamily: "system-ui, sans-serif",
           padding: 16,
+          boxSizing: "border-box",
         }}
       >
         <div
@@ -449,6 +570,7 @@ function App() {
   }
 
   if (viewGuardState.blocked) {
+    const needsLogin = !authSession && /(HTTP_401|UNAUTHORIZED|AUTH_REQUIRED)/.test(String(viewGuardState.reason || ""));
     return (
       <div
         style={{
@@ -461,11 +583,13 @@ function App() {
           color: "#fff3d0",
           fontFamily: "system-ui, sans-serif",
           padding: 16,
+          boxSizing: "border-box",
         }}
       >
         <div
           style={{
-            maxWidth: 560,
+            width: "min(560px, 100%)",
+            boxSizing: "border-box",
             borderRadius: 14,
             border: "1px solid rgba(255,191,64,0.45)",
             background: "rgba(255,191,64,0.12)",
@@ -474,15 +598,61 @@ function App() {
             lineHeight: 1.45,
           }}
         >
-          <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 6 }}>
-            Editor-Zugriff gesperrt
+          <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 6 }}>
+            {needsLogin ? "Bei Nexus Code Mobile anmelden" : "Editor-Zugriff gesperrt"}
           </div>
-          <div>
-            Grund: <code>{viewGuardState.reason || "PAYWALL_BLOCKED"}</code>
-          </div>
-          <div style={{ marginTop: 6 }}>
-            Erforderlicher Tier: <code>{viewGuardState.requiredTier || "paid"}</code>
-          </div>
+          {needsLogin ? (
+            <>
+              <div style={{ opacity: 0.76, marginBottom: 14 }}>
+                Melde dich mit deinem Nexus-Konto an. Der Token bleibt nur in dieser App-Sitzung.
+              </div>
+              <form onSubmit={handleLogin} style={{ display: "grid", gap: 10 }}>
+                <label style={{ display: "grid", gap: 5 }}>
+                  <span style={{ fontSize: 11, fontWeight: 700 }}>E-Mail oder Benutzername</span>
+                  <input
+                    value={authIdentifier}
+                    onChange={(event) => setAuthIdentifier(event.target.value)}
+                    autoComplete="username"
+                    required
+                    style={{ minHeight: 44, borderRadius: 10, border: "1px solid rgba(255,191,64,0.35)", background: "rgba(0,0,0,0.3)", color: "inherit", padding: "8px 10px", fontSize: 16 }}
+                  />
+                </label>
+                <label style={{ display: "grid", gap: 5 }}>
+                  <span style={{ fontSize: 11, fontWeight: 700 }}>Passwort</span>
+                  <input
+                    type="password"
+                    value={authPassword}
+                    onChange={(event) => setAuthPassword(event.target.value)}
+                    autoComplete="current-password"
+                    minLength={8}
+                    required
+                    style={{ minHeight: 44, borderRadius: 10, border: "1px solid rgba(255,191,64,0.35)", background: "rgba(0,0,0,0.3)", color: "inherit", padding: "8px 10px", fontSize: 16 }}
+                  />
+                </label>
+                {authError ? <div role="alert" style={{ color: "#ffb4a9" }}>{authError}</div> : null}
+                <button
+                  type="submit"
+                  disabled={authPending}
+                  style={{ minHeight: 44, borderRadius: 10, border: "1px solid rgba(112,165,255,0.5)", background: "linear-gradient(135deg, #70a5ff, #5e5ce6)", color: "#07101f", fontWeight: 800, cursor: authPending ? "wait" : "pointer" }}
+                >
+                  {authPending ? "Anmeldung läuft …" : "Anmelden"}
+                </button>
+              </form>
+              <a href="https://nexusproject.dev/?page=login" style={{ display: "inline-block", marginTop: 12, color: "#b9d5ff" }}>
+                Noch kein Konto? Auf nexusproject.dev registrieren
+              </a>
+            </>
+          ) : (
+            <>
+              <div>Grund: <code>{viewGuardState.reason || "PAYWALL_BLOCKED"}</code></div>
+              <div style={{ marginTop: 6 }}>Erforderlicher Tier: <code>{viewGuardState.requiredTier || "paid"}</code></div>
+              {authSession ? (
+                <button type="button" onClick={clearLogin} style={{ marginTop: 14, minHeight: 42, borderRadius: 10, border: "1px solid rgba(255,255,255,0.24)", background: "rgba(255,255,255,0.08)", color: "inherit", padding: "8px 12px", fontWeight: 700 }}>
+                  Mit einem anderen Konto anmelden
+                </button>
+              ) : null}
+            </>
+          )}
         </div>
       </div>
     );
@@ -549,7 +719,7 @@ function App() {
                     </div>
                   )}
                 >
-                  <Editor />
+                  <Editor onLogout={clearLogin} />
                 </Suspense>
               </div>
             )}

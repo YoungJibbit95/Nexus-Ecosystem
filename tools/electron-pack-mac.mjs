@@ -43,8 +43,25 @@ const hasArchFlag = command.some((part) =>
   part === '--arm64' || part === '--x64' || part === '--universal' || part.startsWith('--mac.'),
 )
 const macArchMode = String(process.env.NEXUS_MAC_ARCH || '').trim().toLowerCase()
-if (!hasArchFlag && macArchMode !== 'all' && macArchMode !== 'universal') {
-  if (process.platform === 'darwin' && process.arch === 'arm64') {
+const supportedArchModes = new Set(['', 'host', 'arm64', 'x64', 'universal', 'all'])
+if (!supportedArchModes.has(macArchMode)) {
+  console.error(`[electron-pack-mac] Unsupported NEXUS_MAC_ARCH=${macArchMode}`)
+  process.exit(1)
+}
+if (!hasArchFlag) {
+  if (macArchMode === 'arm64') {
+    command.push('--arm64')
+    console.log('[electron-pack-mac] Arch selected: arm64')
+  } else if (macArchMode === 'x64') {
+    command.push('--x64')
+    console.log('[electron-pack-mac] Arch selected: x64')
+  } else if (macArchMode === 'universal') {
+    command.push('--universal')
+    console.log('[electron-pack-mac] Arch selected: universal')
+  } else if (macArchMode === 'all') {
+    command.push('--arm64', '--x64')
+    console.log('[electron-pack-mac] Architectures selected: arm64, x64')
+  } else if (process.platform === 'darwin' && process.arch === 'arm64') {
     command.push('--arm64')
     console.log('[electron-pack-mac] Arch auto-selected: arm64 (host)')
   } else if (process.platform === 'darwin' && process.arch === 'x64') {

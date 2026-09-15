@@ -1,4 +1,3 @@
-import './register-typescript-hooks.mjs'
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
@@ -64,4 +63,23 @@ test('artifact JSON export scrubs secret keys and common inline credentials', ()
   })
   assert.doesNotMatch(output, /top-level-secret|sk-live-super-secret|abcdefghijklmnopqrstuvwxyz|eyJabcdefghijk/)
   assert.match(output, /\[REDACTED/)
+})
+
+test('artifact export redacts complete and incomplete PEM private-key blocks', () => {
+  const output = serializeDevToolsArtifactForExport({
+    payload: [
+      'before',
+      '-----BEGIN RSA PRIVATE KEY-----',
+      'sensitive-key-material',
+      '-----END RSA PRIVATE KEY-----',
+      'middle',
+      '-----BEGIN OPENSSH PRIVATE KEY-----',
+      'incomplete-sensitive-key-material',
+    ].join('\n'),
+  })
+
+  assert.doesNotMatch(output, /sensitive-key-material|BEGIN .*PRIVATE KEY|END .*PRIVATE KEY/)
+  assert.equal((output.match(/\[REDACTED PRIVATE KEY\]/g) || []).length, 2)
+  assert.match(output, /before/)
+  assert.match(output, /middle/)
 })

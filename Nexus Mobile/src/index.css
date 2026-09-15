@@ -928,6 +928,12 @@ html { font-size: var(--nx-font-size, 14px); }
     touch-action: pan-y;
   }
 
+  /* Scrollable dashboard/info stacks must keep their measured height. Letting
+     flexbox shrink every child makes glass surfaces paint over one another. */
+  .nx-mobile-scroll-root > * {
+    flex-shrink: 0;
+  }
+
   .nx-mobile-scroll-root,
   .nx-mobile-view-screen {
     scroll-behavior: smooth;

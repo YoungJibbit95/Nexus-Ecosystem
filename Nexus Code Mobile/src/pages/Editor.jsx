@@ -145,7 +145,7 @@ function ensureReadableEditorTextColor(preferred, background) {
   return "#111827";
 }
 
-export default function Editor() {
+export default function Editor({ onLogout }) {
   // @ts-ignore
   const isElectron = nativeFS.isAvailable;
   const isMobile = useMobile();
@@ -1096,6 +1096,7 @@ export default function Editor() {
         onToggleTerminal={() => setTerminalOpen(!terminalOpen)}
         onOpenCommandPalette={() => setCommandPaletteOpen(true)}
         onOpenSettings={() => setShowSettings(true)}
+        onLogout={onLogout}
         workspaceName={
           workspacePath ? workspacePath.split(/[\/]/).pop() : null
         }

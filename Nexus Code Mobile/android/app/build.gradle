@@ -1,5 +1,16 @@
 apply plugin: 'com.android.application'
 
+def nexusReleaseStoreFile = System.getenv('NEXUS_ANDROID_KEYSTORE_FILE')
+def nexusReleaseStorePassword = System.getenv('ANDROID_KEYSTORE_PASSWORD')
+def nexusReleaseKeyAlias = System.getenv('ANDROID_KEY_ALIAS')
+def nexusReleaseKeyPassword = System.getenv('ANDROID_KEY_PASSWORD')
+def nexusReleaseSigningReady = [
+    nexusReleaseStoreFile,
+    nexusReleaseStorePassword,
+    nexusReleaseKeyAlias,
+    nexusReleaseKeyPassword
+].every { value -> value != null && !value.trim().isEmpty() }
+
 android {
     namespace "com.nexus.code"
     compileSdk rootProject.ext.compileSdkVersion
@@ -16,11 +27,33 @@ android {
             ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        if (nexusReleaseSigningReady) {
+            release {
+                storeFile file(nexusReleaseStoreFile)
+                storePassword nexusReleaseStorePassword
+                keyAlias nexusReleaseKeyAlias
+                keyPassword nexusReleaseKeyPassword
+            }
+        }
+    }
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            if (nexusReleaseSigningReady) {
+                signingConfig signingConfigs.release
+            }
         }
+    }
+}
+
+gradle.taskGraph.whenReady { graph ->
+    def requestsReleaseArtifact = graph.allTasks.any { task ->
+        task.project == project && task.name.toLowerCase().contains('release')
+    }
+    if (requestsReleaseArtifact && !nexusReleaseSigningReady) {
+        throw new GradleException('Release builds require the Nexus Android signing environment.')
     }
 }
 

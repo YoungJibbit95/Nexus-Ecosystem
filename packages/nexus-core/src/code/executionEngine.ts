@@ -26,6 +26,7 @@ export const CODE_EXECUTION_MAX_FILE_NAME_CHARS = 240
 export const CODE_EXECUTION_MAX_LANG_CHARS = 40
 export const CODE_EXECUTION_MAX_OUTPUT_CHARS = 64_000
 export const CODE_EXECUTION_MAX_ANALYSIS_MATCHES = 10_000
+export const CODE_EXECUTION_MAX_ANALYSIS_CHARS = 8_192
 export const CODE_EXECUTION_DEFAULT_TIMEOUT_MS = 15_000
 
 const CODE_EXECUTION_MIN_TIMEOUT_MS = 50
@@ -67,10 +68,11 @@ const countMatches = (
   pattern: RegExp,
   max = CODE_EXECUTION_MAX_ANALYSIS_MATCHES,
 ) => {
+  const analysisCode = code.slice(0, CODE_EXECUTION_MAX_ANALYSIS_CHARS)
   pattern.lastIndex = 0
   let count = 0
   let match: RegExpExecArray | null
-  while ((match = pattern.exec(code)) !== null) {
+  while ((match = pattern.exec(analysisCode)) !== null) {
     count += 1
     if (count >= max) break
     if (match[0] === '') pattern.lastIndex += 1
@@ -80,16 +82,21 @@ const countMatches = (
 }
 
 const firstMatches = (code: string, pattern: RegExp, max = 8) => {
+  const analysisCode = code.slice(0, CODE_EXECUTION_MAX_ANALYSIS_CHARS)
   pattern.lastIndex = 0
   const matches: RegExpExecArray[] = []
   let match: RegExpExecArray | null
-  while (matches.length < max && (match = pattern.exec(code)) !== null) {
+  while (matches.length < max && (match = pattern.exec(analysisCode)) !== null) {
     matches.push(match)
     if (match[0] === '') pattern.lastIndex += 1
   }
   pattern.lastIndex = 0
   return matches
 }
+
+const analysisWindowNotice = (code: string) => code.length > CODE_EXECUTION_MAX_ANALYSIS_CHARS
+  ? `\n\nStatic analysis limited to the first ${CODE_EXECUTION_MAX_ANALYSIS_CHARS} of ${code.length} characters.`
+  : ''
 
 function runJavaScriptPreview(lang: string, code: string): string {
   const lines = code.split('\n')
@@ -114,7 +121,7 @@ function runJavaScriptPreview(lang: string, code: string): string {
       ? `Console calls detected:\n${consoleCalls.join('\n')}`
       : 'No console calls detected.',
     '',
-    'Code was not executed in this renderer fallback.',
+    `Code was not executed in this renderer fallback.${analysisWindowNotice(code)}`,
   ].join('\n')
 }
 
@@ -324,13 +331,13 @@ export async function executeCode(
       output = runJSON(file.content)
       break
     case 'html':
-      output = `HTML preview available in the Preview tab.\n\nParsed: ${countMatches(file.content, /<[a-z][^>]*>/gi)} HTML tags`
+      output = `HTML preview available in the Preview tab.\n\nParsed: ${countMatches(file.content, /<[a-z][^>]*>/gi)} HTML tags${analysisWindowNotice(file.content)}`
       break
     case 'css':
-      output = `CSS preview available in the Preview tab.\n\nRules: ${countMatches(file.content, /\{[^}]*\}/g)}`
+      output = `CSS preview available in the Preview tab.\n\nRules: ${countMatches(file.content, /\{[^}]*\}/g)}${analysisWindowNotice(file.content)}`
       break
     case 'markdown':
-      output = `Markdown preview available in the Preview tab.\n\nHeadings: ${countMatches(file.content, /^#{1,6}\s/gm)}`
+      output = `Markdown preview available in the Preview tab.\n\nHeadings: ${countMatches(file.content, /^#{1,6}\s/gm)}${analysisWindowNotice(file.content)}`
       break
     default:
       output = simulateLang(file.lang, file.content)
