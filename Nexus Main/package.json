@@ -15,13 +15,13 @@
     "electron:dev": "concurrently -k \"vite\" \"wait-on http://localhost:5173 && electron . --dev\"",
     "electron:build": "npm run electron:build:host",
     "electron:build:mac": "npm run build && npm run electron:pack:mac",
-    "electron:pack:win": "npm exec electron-builder -- --win",
-    "electron:pack:mac": "node ../tools/electron-pack-mac.mjs -- electron-builder --mac",
-    "electron:pack:linux": "node ../tools/electron-pack-linux.mjs -- electron-builder --linux AppImage deb",
     "electron:build:win": "npm run build && npm run electron:pack:win",
     "electron:build:linux": "npm run build && npm run electron:pack:linux",
+    "electron:pack:mac": "node ../tools/electron-pack-mac.mjs -- electron-builder --mac",
+    "electron:pack:win": "npm exec electron-builder -- --win",
+    "electron:pack:linux": "node ../tools/electron-pack-linux.mjs -- electron-builder --linux AppImage deb",
     "electron:build:host": "node ../tools/electron-build-host.mjs --app \"Nexus Main\" --mac-script electron:build:mac --win-script electron:build:win --linux-script electron:build:linux",
-    "electron:build:installers": "npm run build && npm run electron:pack:mac && npm run electron:pack:win && npm run electron:pack:linux",
+    "electron:build:installers": "npm run electron:build:host",
     "electron:build:all-platforms": "npm run electron:build:installers"
   },
   "files": [
@@ -76,7 +76,7 @@
       "**/*"
     ],
     "win": {
-      "icon": "assets/icons/NexusLogo1.ico",
+      "icon": "icons/NexusLogo1.ico",
       "target": [
         {
           "target": "nsis",
@@ -88,7 +88,7 @@
       "forceCodeSigning": false
     },
     "mac": {
-      "icon": "assets/icons/NexusLogo1.icns",
+      "icon": "icons/NexusLogo1.icns",
       "category": "public.app-category.productivity",
       "hardenedRuntime": true,
       "gatekeeperAssess": false,
@@ -105,7 +105,7 @@
       ]
     },
     "linux": {
-      "icon": "assets/icons",
+      "icon": "icons",
       "category": "Office",
       "target": [
         {
@@ -131,7 +131,7 @@
     "dmg": {
       "title": "Nexus v6",
       "artifactName": "Nexus_Main_${version}_${arch}.dmg",
-      "icon": "assets/icons/NexusLogo1.icns"
+      "icon": "icons/NexusLogo1.icns"
     },
     "nsis": {
       "oneClick": false,
@@ -139,19 +139,19 @@
       "perMachine": false,
       "allowElevation": false,
       "artifactName": "Nexus_Main_User_Setup_${version}.exe",
-      "installerIcon": "assets/icons/NexusLogo1.ico",
-      "uninstallerIcon": "assets/icons/NexusLogo1.ico"
-    }
+      "installerIcon": "icons/NexusLogo1.ico",
+      "uninstallerIcon": "icons/NexusLogo1.ico"
+    },
+    "extraResources": [
+      {
+        "from": "assets/",
+        "to": "assets",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ]
   },
-  "extraResources": [
-    {
-      "from": "assets/",
-      "to": "assets",
-      "filter": [
-        "**/*"
-      ]
-    }
-  ],
   "overrides": {
     "axios": "1.18.0",
     "picomatch": "4.0.4",
