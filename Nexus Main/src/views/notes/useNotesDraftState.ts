@@ -1,17 +1,11 @@
-import { useCallback, useDeferredValue, useEffect, useRef, useState } from "react";
+import { draftRegistry } from "@nexus/core/storage/draftRegistry";
+import { persistenceRegistry } from "@nexus/core/storage/browserPersistence";
+import { useCallback, useDeferredValue, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { Note } from "../../store/appStore";
 
 const NOTE_COMMIT_DEBOUNCE_MS = 4_200;
 const NOTE_PREVIEW_DEBOUNCE_MS = 220;
 const NOTE_UNDO_SNAPSHOT_INTERVAL_MS = 260;
-
-const runIdle = (task: () => void, timeoutMs = 320) => {
-  if (typeof window !== "undefined" && "requestIdleCallback" in window) {
-    (window as any).requestIdleCallback(task, { timeout: timeoutMs });
-    return;
-  }
-  setTimeout(task, 0);
-};
 
 const formatSavedAt = () =>
   new Date().toLocaleTimeString("de-DE", {
@@ -34,6 +28,13 @@ export function useNotesDraftState({
   updateNote,
   saveNote,
 }: UseNotesDraftStateOptions) {
+  const generation = useSyncExternalStore(draftRegistry.subscribe, draftRegistry.getGeneration, draftRegistry.getGeneration);
+  const draftRevisionRef = useRef(0);
+  const activeIdRef = useRef(active?.id);
+  activeIdRef.current = active?.id;
+  const loadedIdRef = useRef<string | undefined>(undefined);
+  const loadedGenerationRef = useRef(generation);
+  const ownCommitRef = useRef<{ id: string; content: string } | null>(null);
   const [draftContent, setDraftContent] = useState("");
   const [draftDirty, setDraftDirty] = useState(false);
   const [previewContent, setPreviewContent] = useState("");
@@ -48,8 +49,8 @@ export function useNotesDraftState({
   );
   const deferredDraftContent = useDeferredValue(previewContent);
 
-  const markSavedNow = useCallback(() => {
-    setLastSavedAt(formatSavedAt());
+  const markSavedNow = useCallback(async () => {
+    if (await persistenceRegistry.flush()) setLastSavedAt(formatSavedAt());
   }, []);
 
   useEffect(() => {
@@ -68,10 +69,9 @@ export function useNotesDraftState({
   const flushPendingCommit = useCallback(() => {
     const pending = pendingCommitRef.current;
     if (!pending) return;
-    runIdle(() => {
-      updateNote(pending.noteId, { content: pending.content, dirty: true });
-    });
     pendingCommitRef.current = null;
+    ownCommitRef.current = { id: pending.noteId, content: pending.content };
+    updateNote(pending.noteId, { content: pending.content, dirty: true });
     if (commitTimerRef.current !== null) {
       window.clearTimeout(commitTimerRef.current);
       commitTimerRef.current = null;
@@ -91,21 +91,38 @@ export function useNotesDraftState({
     [flushPendingCommit],
   );
 
-  const saveActiveNow = useCallback(() => {
-    if (!active) return;
+  const saveActiveNow = useCallback(async () => {
+    if (!active) return false;
+    const id = active.id;
+    const revision = draftRevisionRef.current;
+    const epoch = draftRegistry.getGeneration();
     const currentDraft = draftContentRef.current;
+    flushPendingCommit();
     if (active.content !== currentDraft) {
-      updateNote(active.id, { content: currentDraft, dirty: true });
-    } else {
-      flushPendingCommit();
+      ownCommitRef.current = { id, content: currentDraft };
+      updateNote(id, { content: currentDraft, dirty: true });
     }
-    saveNote(active.id);
-    setDraftDirty(false);
-    markSavedNow();
-  }, [active, flushPendingCommit, markSavedNow, saveNote, updateNote]);
+    saveNote(id);
+    const committed = await persistenceRegistry.flush();
+    if (activeIdRef.current !== id || draftRevisionRef.current !== revision || draftRegistry.getGeneration() !== epoch) return committed;
+    if (committed) { setDraftDirty(false); setLastSavedAt(formatSavedAt()); }
+    else { updateNote(id, { dirty: true }); setDraftDirty(true); }
+    return committed;
+  }, [active, flushPendingCommit, saveNote, updateNote]);
 
   useEffect(() => {
-    flushPendingCommit();
+    const replaced = loadedGenerationRef.current !== generation;
+    const switched = loadedIdRef.current !== active?.id;
+    if (!switched && !replaced && active?.content === draftContentRef.current) return;
+    if (!switched && !replaced && ownCommitRef.current?.id === active?.id && ownCommitRef.current?.content === active?.content) return;
+    if (switched && !replaced) flushPendingCommit();
+    else { pendingCommitRef.current = null; if (commitTimerRef.current !== null) window.clearTimeout(commitTimerRef.current); }
+    loadedIdRef.current = active?.id;
+    loadedGenerationRef.current = generation;
+    ownCommitRef.current = null;
+    draftRevisionRef.current++;
+    draftContentRef.current = active?.content ?? "";
+    setLastSavedAt(null);
     if (!active) {
       setDraftContent("");
       setPreviewContent("");
@@ -120,14 +137,22 @@ export function useNotesDraftState({
     undoStackRef.current = [active.content];
     redoStackRef.current = [];
     lastUndoSnapshotAtRef.current = Date.now();
-  }, [active?.id, flushPendingCommit]);
+  }, [active?.id, active?.content, generation, flushPendingCommit]);
 
-  useEffect(
-    () => () => {
-      flushPendingCommit();
-    },
-    [flushPendingCommit],
-  );
+  useEffect(() => {
+    const unregister = draftRegistry.register(flushPendingCommit);
+    const checkpoint = () => { flushPendingCommit(); persistenceRegistry.checkpoint(); };
+    const visibility = () => { if (document.visibilityState === "hidden") checkpoint(); };
+    window.addEventListener("beforeunload", checkpoint);
+    window.addEventListener("pagehide", checkpoint);
+    document.addEventListener("visibilitychange", visibility);
+    return () => {
+      checkpoint(); unregister();
+      window.removeEventListener("beforeunload", checkpoint);
+      window.removeEventListener("pagehide", checkpoint);
+      document.removeEventListener("visibilitychange", visibility);
+    };
+  }, [flushPendingCommit]);
 
   useEffect(() => {
     if (!autosave || !active || !draftDirty) return;
@@ -140,6 +165,8 @@ export function useNotesDraftState({
   const handleChange = useCallback(
     (value: string) => {
       if (!active) return;
+      draftContentRef.current = value;
+      draftRevisionRef.current++;
       setDraftContent(value);
       setDraftDirty(true);
       const undoStack = undoStackRef.current;
@@ -171,6 +198,8 @@ export function useNotesDraftState({
     redoStackRef.current = [...redoStackRef.current.slice(-50), last];
     const previous = stack[stack.length - 1] ?? "";
     undoStackRef.current = stack;
+    draftContentRef.current = previous;
+    draftRevisionRef.current++;
     setDraftContent(previous);
     setPreviewContent(previous);
     setDraftDirty(true);
@@ -184,6 +213,8 @@ export function useNotesDraftState({
     const next = redo.pop()!;
     redoStackRef.current = redo;
     undoStackRef.current = [...undoStackRef.current.slice(-50), next];
+    draftContentRef.current = next;
+    draftRevisionRef.current++;
     setDraftContent(next);
     setPreviewContent(next);
     setDraftDirty(true);

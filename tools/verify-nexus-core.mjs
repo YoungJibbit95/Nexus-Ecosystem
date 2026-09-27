@@ -33,6 +33,7 @@ const canvasMagicRendererSources = canvasMagicRendererPaths.map((filePath) => ({
 
 const requiredViews = [
   'dashboard',
+  'calendar',
   'notes',
   'code',
   'tasks',

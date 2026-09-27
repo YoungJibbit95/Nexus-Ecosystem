@@ -1,3 +1,8 @@
+import { EditorMutationGuard } from '@nexus/core/storage/EditorMutationGuard';
+import { renameFileNodes, getFileDescendantIds } from '@nexus/core/code/fileTree';
+import { useEditorPersistence } from '@nexus/core/storage/useEditorPersistence';
+import { LocalFileStorageNotice } from '@nexus/core/storage/LocalFileStorageNotice';
+import { fileRepository } from './editor/localFileStorage';
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { AlertCircle } from "lucide-react";
 import { nativeFS, SEP } from "../lib/nativeFS";
@@ -29,7 +34,6 @@ import {
   generateId,
   loadFilesFromStorage,
   loadSettingsFromStorage,
-  saveFilesToStorage,
   saveSettingsToStorage,
 } from './editor/editorShared.jsx';
 
@@ -44,12 +48,7 @@ const LANGUAGE_EXTENSIONS = {
   rust: "rs",
   go: "go",
 };
-
-const FILES_PERSIST_DEBOUNCE_MS = 3_200;
 const SETTINGS_PERSIST_DEBOUNCE_MS = 900;
-const EDITOR_BUFFER_COMMIT_MS = 8_000;
-const WORKSPACE_AUTOSAVE_MS = 5_200;
-const LOCAL_AUTOSAVE_MS = 6_200;
 
 function isEditableEventTarget(target) {
   if (!(target instanceof HTMLElement)) return false;
@@ -159,15 +158,7 @@ export default function Editor({ onLogout }) {
   const [problems, setProblems] = useState([]);
   const [openTabs, setOpenTabs] = useState([]);
   const [activeTabId, setActiveTabId] = useState(null);
-  const [editorCode, setEditorCode] = useState("");
-  const autoSaveRef = useRef(null);
-  const filesPersistTimerRef = useRef(null);
   const settingsPersistTimerRef = useRef(null);
-  const codeCommitTimerRef = useRef(null);
-  const filesRef = useRef([]);
-  const activeTabIdRef = useRef(null);
-  const editorCodeRef = useRef("");
-  const previousActiveTabRef = useRef(null);
 
   const [files, setFiles] = useState(() => {
     const stored = loadFilesFromStorage();
@@ -176,6 +167,10 @@ export default function Editor({ onLogout }) {
 
   const [settings, setSettings] = useState(loadSettingsFromStorage);
   const [workspacePath, setWorkspacePath] = useState(null);
+  const { editorCode, setEditorCode, editorCodeRef, activeTabIdRef, filesRef, commitBufferToFile, flushEditorBuffer, handleCodeChange, handleSaveAll, saveFile, saveError, runFileMutation, isMutating } = useEditorPersistence({
+    files, setFiles, activeTabId, setOpenTabs, workspacePath, autoSave: settings.auto_save, repository: fileRepository,
+    writeFile: (path, content) => nativeFS.writeFile(path, content),
+  });
 
   useEffect(() => {
     const onExtensionsChanged = (event) => {
@@ -204,23 +199,6 @@ export default function Editor({ onLogout }) {
     };
   }, []);
 
-  // Persist files whenever they change (only if not in a workspace for now, or unified)
-  useEffect(() => {
-    if (workspacePath) return;
-    if (filesPersistTimerRef.current) {
-      window.clearTimeout(filesPersistTimerRef.current);
-    }
-    filesPersistTimerRef.current = window.setTimeout(() => {
-      saveFilesToStorage(files);
-    }, FILES_PERSIST_DEBOUNCE_MS);
-    return () => {
-      if (filesPersistTimerRef.current) {
-        window.clearTimeout(filesPersistTimerRef.current);
-        filesPersistTimerRef.current = null;
-      }
-    };
-  }, [files, workspacePath]);
-
   useEffect(() => {
     if (settingsPersistTimerRef.current) {
       window.clearTimeout(settingsPersistTimerRef.current);
@@ -235,72 +213,6 @@ export default function Editor({ onLogout }) {
       }
     };
   }, [settings]);
-
-  useEffect(() => {
-    filesRef.current = files;
-  }, [files]);
-
-  useEffect(() => {
-    activeTabIdRef.current = activeTabId;
-  }, [activeTabId]);
-
-  useEffect(() => {
-    editorCodeRef.current = editorCode;
-  }, [editorCode]);
-
-  const commitBufferToFile = useCallback((targetTabId, content) => {
-    if (!targetTabId) return;
-    setFiles((prev) => {
-      const idx = prev.findIndex((f) => f.id === targetTabId);
-      if (idx === -1) return prev;
-      const current = prev[idx];
-      const previousContent = current.content || "";
-      if (previousContent === content) return prev;
-      const next = prev.slice();
-      next[idx] = {
-        ...current,
-        content,
-        modifiedAt: new Date().toISOString(),
-      };
-      return next;
-    });
-  }, []);
-
-  const flushEditorBuffer = useCallback(
-    (targetTabId = activeTabIdRef.current) => {
-      if (!targetTabId) return;
-      if (codeCommitTimerRef.current) {
-        window.clearTimeout(codeCommitTimerRef.current);
-        codeCommitTimerRef.current = null;
-      }
-      setEditorCode((prev) =>
-        prev === editorCodeRef.current ? prev : editorCodeRef.current,
-      );
-      commitBufferToFile(targetTabId, editorCodeRef.current);
-    },
-    [commitBufferToFile],
-  );
-
-  useEffect(() => {
-    const previousTabId = previousActiveTabRef.current;
-    if (previousTabId && previousTabId !== activeTabId) {
-      flushEditorBuffer(previousTabId);
-    }
-    previousActiveTabRef.current = activeTabId;
-
-    const activeFile = files.find((f) => f.id === activeTabId);
-    const nextCode = activeFile?.content || "";
-    setEditorCode(nextCode);
-    editorCodeRef.current = nextCode;
-  }, [activeTabId, files, flushEditorBuffer]);
-
-  useEffect(() => {
-    return () => {
-      flushEditorBuffer();
-      if (autoSaveRef.current) window.clearTimeout(autoSaveRef.current);
-      if (codeCommitTimerRef.current) window.clearTimeout(codeCommitTimerRef.current);
-    };
-  }, [flushEditorBuffer]);
 
   const handleToggleZenMode = useCallback(() => {
     setSettings((prev) => ({ ...prev, zen_mode: !prev.zen_mode }));
@@ -318,37 +230,39 @@ export default function Editor({ onLogout }) {
   }, []);
 
   const handleOpenFolder = useCallback(async () => {
-    if (!isElectron) return;
-    try {
-      const path = await nativeFS.openFolder();
-      if (!path) return;
+      return runFileMutation(async () => {
+        if (!isElectron) return;
+        try {
+          const path = await nativeFS.openFolder();
+          if (!path) return;
 
-      setWorkspacePath(path);
-      setOpenTabs([]);
-      setActiveTabId(null);
+          setWorkspacePath(path);
+          setOpenTabs([]);
+          setActiveTabId(null);
 
-      const entries = await nativeFS.readDir(path);
-      if (Array.isArray(entries)) {
-        const rootFiles = entries.map((entry) => {
-          const id = "fs_" + entry.path;
-          const name = entry.name || "unnamed";
-          return {
-            id,
-            name,
-            type: entry.isDirectory ? "folder" : "file",
-            parentId: null,
-            isOpen: false,
-            fsPath: entry.path,
-            language: entry.isDirectory ? null : name.split(".").pop() || "text",
-          };
-        });
-        setFiles(rootFiles);
-        setActivePanel("explorer");
-      }
-    } catch (err) {
-      console.error("Open folder failed", err);
-    }
-  }, [isElectron]);
+          const entries = await nativeFS.readDir(path);
+          if (Array.isArray(entries)) {
+            const rootFiles = entries.map((entry) => {
+              const id = "fs_" + entry.path;
+              const name = entry.name || "unnamed";
+              return {
+                id,
+                name,
+                type: entry.isDirectory ? "folder" : "file",
+                parentId: null,
+                isOpen: false,
+                fsPath: entry.path,
+                language: entry.isDirectory ? null : name.split(".").pop() || "text",
+              };
+            });
+            setFiles(rootFiles);
+            setActivePanel("explorer");
+          }
+        } catch (err) {
+          console.error("Open folder failed", err);
+        }
+      });
+    }, [isElectron, runFileMutation]);
 
   const handleToggleFolder = useCallback(
     async (id) => {
@@ -612,7 +526,7 @@ export default function Editor({ onLogout }) {
       if (hasPrimaryMod && key === "s") {
         e.preventDefault();
         if (activeTabId) {
-          setTabModified(activeTabId, false);
+          void saveFile(activeTabId);
         }
         return;
       }
@@ -707,7 +621,7 @@ export default function Editor({ onLogout }) {
       window.removeEventListener("keydown", handler);
       window.removeEventListener("keyup", shiftHandler);
     };
-  }, [activeTabId, handleTabClose, setTabModified]);
+  }, [activeTabId, handleTabClose, saveFile]);
 
   const handleCreateFile = useCallback(
     async (name, parentId = null) => {
@@ -771,23 +685,6 @@ export default function Editor({ onLogout }) {
     [getNextUntitledName, handleCreateFile],
   );
 
-  const handleSaveAll = useCallback(async () => {
-    flushEditorBuffer();
-    const mergedFiles = filesRef.current.map((f) =>
-      f.id === activeTabIdRef.current
-        ? { ...f, content: editorCodeRef.current, modifiedAt: new Date().toISOString() }
-        : f,
-    );
-    setFiles(mergedFiles);
-    if (workspacePath && isElectron) {
-      const diskFiles = mergedFiles.filter((f) => f.type === "file" && f.fsPath);
-      await Promise.all(
-        diskFiles.map((f) => nativeFS.writeFile(f.fsPath, f.content || "")),
-      );
-    }
-    setOpenTabs((prev) => prev.map((tab) => ({ ...tab, modified: false })));
-  }, [flushEditorBuffer, workspacePath, isElectron]);
-
   useEffect(() => {
     const onCreateFile = (event) => {
       const detail = event?.detail || {};
@@ -825,79 +722,62 @@ export default function Editor({ onLogout }) {
 
   const handleRenameFile = useCallback(
     async (id, newName) => {
-      const file = files.find((f) => f.id === id);
-      let newFsPath = null;
+      return runFileMutation(async () => {
+        const file = files.find((f) => f.id === id);
+        let newFsPath = null;
 
-      if (file && file.fsPath && isElectron) {
-        const parentPath = file.fsPath.substring(0, file.fsPath.lastIndexOf(SEP));
-        newFsPath = `${parentPath}${SEP}${newName}`;
-        try {
-          await nativeFS.rename(file.fsPath, newFsPath);
-        } catch (err) {
-          console.error("Rename failed", err);
-          return;
+        if (file && file.fsPath && isElectron) {
+          const parentPath = file.fsPath.substring(0, file.fsPath.lastIndexOf(SEP));
+          newFsPath = `${parentPath}${SEP}${newName}`;
+          try {
+            if (await nativeFS.rename(file.fsPath, newFsPath) === false) throw new Error("Native rename was not acknowledged");
+          } catch (err) {
+            console.error("Rename failed", err);
+            throw err;
+          }
         }
-      }
 
-      setFiles((prev) =>
-        prev.map((f) =>
-          f.id === id
-            ? {
-                ...f,
-                name: newName,
-                fsPath: newFsPath || f.fsPath,
-                language: newName.split(".").pop()?.toLowerCase() || f.language,
-                modifiedAt: new Date().toISOString(),
-              }
-            : f,
-        ),
-      );
-      setOpenTabs((prev) =>
-        prev.map((t) => (t.id === id ? { ...t, name: newName } : t)),
-      );
+        setFiles((prev) => renameFileNodes(prev, id, newName, newFsPath));
+        setOpenTabs((prev) =>
+          prev.map((t) => (t.id === id ? { ...t, name: newName } : t)),
+        );
+      });
     },
-    [files],
+    [files, runFileMutation],
   );
 
   const handleDeleteFile = useCallback(
     async (id) => {
-      const file = files.find((f) => f.id === id);
-      if (file && file.fsPath && isElectron) {
-        try {
-          await nativeFS.delete(file.fsPath);
-        } catch (err) {
-          console.error("Delete failed", err);
-          return;
-        }
-      }
-
-      const getIdsToDelete = (targetId, allFiles) => {
-        const ids = [targetId];
-        const children = allFiles.filter((f) => f.parentId === targetId);
-        children.forEach((child) => {
-          ids.push(...getIdsToDelete(child.id, allFiles));
-        });
-        return ids;
-      };
-
-      setFiles((prev) => {
-        const idsToRemove = getIdsToDelete(id, prev);
-        const remaining = prev.filter((f) => !idsToRemove.includes(f.id));
-
-        setOpenTabs((prevTabs) => {
-          const newTabs = prevTabs.filter((t) => !idsToRemove.includes(t.id));
-          if (idsToRemove.includes(activeTabId)) {
-            setActiveTabId(
-              newTabs.length > 0 ? newTabs[newTabs.length - 1].id : null,
-            );
+      return runFileMutation(async () => {
+        const file = files.find((f) => f.id === id);
+        if (file && file.fsPath && isElectron) {
+          try {
+            if (await nativeFS.delete(file.fsPath) === false) throw new Error("Native deletion was not acknowledged");
+          } catch (err) {
+            console.error("Delete failed", err);
+            throw err;
           }
-          return newTabs;
-        });
+        }
 
-        return remaining;
+        setFiles((prev) => {
+          const idsToRemove = getFileDescendantIds(id, prev);
+          const remaining = prev.filter((f) => !idsToRemove.includes(f.id));
+
+          setOpenTabs((prevTabs) => {
+            const newTabs = prevTabs.filter((t) => !idsToRemove.includes(t.id));
+            if (idsToRemove.includes(activeTabId)) {
+              setActiveTabId(
+                newTabs.length > 0 ? newTabs[newTabs.length - 1].id : null,
+              );
+            }
+            return newTabs;
+          });
+
+          return remaining;
+        });
       });
     },
-    [activeTabId, setOpenTabs, setActiveTabId, files],
+    [activeTabId, setOpenTabs, setActiveTabId, files, runFileMutation],
   );
 
   // handleToggleFolder is now above...
@@ -931,52 +811,6 @@ export default function Editor({ onLogout }) {
       }
     },
     [files, handleToggleFolder, openFileTab, isElectron],
-  );
-
-  const handleCodeChange = useCallback(
-    (newCode) => {
-      if (!activeTabId) return;
-      editorCodeRef.current = newCode;
-
-      setTabModified(activeTabId, true);
-
-      if (codeCommitTimerRef.current) {
-        window.clearTimeout(codeCommitTimerRef.current);
-      }
-      const activeId = activeTabIdRef.current;
-      codeCommitTimerRef.current = window.setTimeout(() => {
-        commitBufferToFile(activeId, editorCodeRef.current);
-        codeCommitTimerRef.current = null;
-      }, EDITOR_BUFFER_COMMIT_MS);
-
-      // Save to disk if workspace file
-      const activeFile = filesRef.current.find(
-        (f) => f.id === activeTabIdRef.current,
-      );
-      if (activeFile && activeFile.fsPath) {
-        if (autoSaveRef.current) clearTimeout(autoSaveRef.current);
-        autoSaveRef.current = setTimeout(async () => {
-          const currentTabId = activeTabIdRef.current;
-          if (!currentTabId) return;
-          const currentCode = editorCodeRef.current;
-          commitBufferToFile(currentTabId, currentCode);
-          const file = filesRef.current.find((f) => f.id === currentTabId);
-          if (!file?.fsPath) return;
-          await nativeFS.writeFile(file.fsPath, currentCode);
-          setTabModified(currentTabId, false);
-        }, WORKSPACE_AUTOSAVE_MS);
-      } else if (settings.auto_save) {
-        // Local storage auto-save
-        if (autoSaveRef.current) clearTimeout(autoSaveRef.current);
-        autoSaveRef.current = setTimeout(() => {
-          const currentTabId = activeTabIdRef.current;
-          if (!currentTabId) return;
-          commitBufferToFile(currentTabId, editorCodeRef.current);
-          setTabModified(currentTabId, false);
-        }, LOCAL_AUTOSAVE_MS);
-      }
-    },
-    [activeTabId, commitBufferToFile, setTabModified, settings.auto_save],
   );
 
   const handleSettingsChange = useCallback((newSettings) => {
@@ -1086,6 +920,9 @@ export default function Editor({ onLogout }) {
 
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-transparent text-[#e5e7eb] font-sans">
+      <EditorMutationGuard active={isMutating} />
+      <LocalFileStorageNotice repository={fileRepository} />
+      {saveError && <div role="alert" className="px-3 py-2 text-orange-200 bg-orange-950">Speichern fehlgeschlagen: {saveError} <button onClick={() => { void handleSaveAll(); }}>Erneut versuchen</button></div>}
       <TitleBar
         onNewFile={() => handleCreateFileRequest("typescript", "language")}
         onSaveAll={handleSaveAll}
