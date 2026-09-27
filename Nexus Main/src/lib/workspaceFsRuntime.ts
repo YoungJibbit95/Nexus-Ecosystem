@@ -1,3 +1,4 @@
+import { createRuntimeSnapshot, parseRuntimeSnapshot as parseSharedRuntimeSnapshot } from '@nexus/core/workspace/runtimeSnapshot'
 import type { Note, CodeFile, Task, Reminder, Folder } from '../store/appStore'
 import type { Workspace } from '../store/workspaceStore'
 import type { Canvas } from '../store/canvasStore'
@@ -13,7 +14,7 @@ export type FsApi = {
 export type WorkspaceRuntimeSnapshot = {
   version: 1
   exportedAt: string
-  app: 'Nexus Main'
+  app: string
   state: {
     notes: Note[]
     openNoteIds: string[]
@@ -56,26 +57,7 @@ export const buildWorkspaceRuntimeSnapshot = (payload: {
   activeCanvasId: string | null
   workspaces: Workspace[]
   activeWorkspaceId: string | null
-}): WorkspaceRuntimeSnapshot => ({
-  version: 1,
-  exportedAt: new Date().toISOString(),
-  app: 'Nexus Main',
-  state: {
-    notes: payload.notes,
-    openNoteIds: payload.openNoteIds,
-    activeNoteId: payload.activeNoteId,
-    codes: payload.codes,
-    openCodeIds: payload.openCodeIds,
-    activeCodeId: payload.activeCodeId,
-    tasks: payload.tasks,
-    reminders: payload.reminders,
-    folders: payload.folders,
-    canvases: payload.canvases,
-    activeCanvasId: payload.activeCanvasId,
-    workspaces: payload.workspaces,
-    activeWorkspaceId: payload.activeWorkspaceId,
-  },
-})
+}): WorkspaceRuntimeSnapshot => createRuntimeSnapshot('Nexus Main', payload)
 
 export const buildWorkspaceRuntimeFingerprint = (snapshot: WorkspaceRuntimeSnapshot) => {
   const { state } = snapshot
@@ -107,20 +89,13 @@ export const buildWorkspaceRuntimeFingerprint = (snapshot: WorkspaceRuntimeSnaps
   ].join('::')
 }
 
-const parseRuntimeSnapshot = (raw: string): WorkspaceRuntimeSnapshot | null => {
-  try {
-    const parsed = JSON.parse(raw)
-    if (!parsed || typeof parsed !== 'object') return null
-    if (Number((parsed as any).version || 0) !== 1) return null
-    const state = (parsed as any).state
-    if (!state || typeof state !== 'object') return null
-    if (!Array.isArray(state.notes) || !Array.isArray(state.codes)) return null
-    if (!Array.isArray(state.tasks) || !Array.isArray(state.reminders)) return null
-    if (!Array.isArray(state.canvases) || !Array.isArray(state.workspaces)) return null
-    return parsed as WorkspaceRuntimeSnapshot
-  } catch {
-    return null
-  }
+export const parseRuntimeSnapshot = (raw: string): WorkspaceRuntimeSnapshot | null =>
+  parseSharedRuntimeSnapshot(raw) as WorkspaceRuntimeSnapshot | null
+
+function requireRuntimeSnapshot(raw: string): WorkspaceRuntimeSnapshot {
+  const snapshot = parseRuntimeSnapshot(raw)
+  if (!snapshot) throw new Error('runtime.json ist unvollständig, ungültig oder hat eine nicht unterstützte Version. Der Workspace wurde nicht verändert.')
+  return snapshot
 }
 
 export const readWorkspaceRuntimeSnapshot = async (
@@ -132,13 +107,13 @@ export const readWorkspaceRuntimeSnapshot = async (
   const primaryPath = resolveWorkspaceRuntimePath(rootPath)
   const primary = await fsApi.read(primaryPath)
   if (primary.ok && typeof primary.data === 'string') {
-    return parseRuntimeSnapshot(primary.data)
+    return requireRuntimeSnapshot(primary.data)
   }
 
   const fallbackPath = joinFsPath(rootPath, WORKSPACE_RUNTIME_FILE)
   const fallback = await fsApi.read(fallbackPath)
   if (!fallback.ok || typeof fallback.data !== 'string') return null
-  return parseRuntimeSnapshot(fallback.data)
+  return requireRuntimeSnapshot(fallback.data)
 }
 
 export const writeWorkspaceRuntimeSnapshot = async (

@@ -6,7 +6,8 @@ import { resolveApiSource, resolveControlUiRoot } from './lib/api-source.mjs'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const ROOT = path.resolve(__dirname, '..')
-const CONTROL_UI_ROOT = await resolveControlUiRoot({ root: ROOT, required: false, quiet: true })
+const PUBLIC_ONLY = process.argv.includes('--public-only')
+const CONTROL_UI_ROOT = PUBLIC_ONLY ? null : await resolveControlUiRoot({ root: ROOT, required: false, quiet: true })
 const CONTROL_DESKTOP_ROOT = path.resolve(
   process.env.NEXUS_CONTROL_DESKTOP_ROOT || path.join(ROOT, '..', 'NexusAPI', 'Nexus Control Desktop'),
 )
@@ -16,7 +17,7 @@ const APP_PATHS = [
   'Nexus Mobile',
   'Nexus Code',
   'Nexus Code Mobile',
-  '../Nexus Control',
+  ...(!PUBLIC_ONLY ? ['../Nexus Control'] : []),
   'packages',
   'tools',
 ]
@@ -50,7 +51,7 @@ const exists = async (targetPath) => {
 }
 
 const CONTROL_UI_PRESENT = Boolean(CONTROL_UI_ROOT) && await exists(CONTROL_UI_ROOT)
-const CONTROL_DESKTOP_PRESENT = await exists(CONTROL_DESKTOP_ROOT)
+const CONTROL_DESKTOP_PRESENT = !PUBLIC_ONLY && await exists(CONTROL_DESKTOP_ROOT)
 
 const normalizeElectronTargets = (targetConfig) => {
   const targets = Array.isArray(targetConfig) ? targetConfig : [targetConfig]
@@ -67,12 +68,16 @@ const hasElectronTarget = (packageJson, platform, target) => {
 
 const hasLinuxIconSet = async (appDir, packageJson) => {
   const iconPath = String(packageJson?.build?.linux?.icon || '').trim()
-  if (iconPath !== 'assets/icons') return false
+  if (!iconPath) return false
+  const appRoot = path.resolve(ROOT, appDir)
+  const iconRoot = path.resolve(appRoot, iconPath)
+  const relative = path.relative(appRoot, iconRoot)
+  if (relative.startsWith('..') || path.isAbsolute(relative)) return false
 
   const sizes = [16, 32, 48, 64, 128, 256, 512]
   const results = await Promise.all(
     sizes.map(async (size) => {
-      const filePath = path.join(ROOT, appDir, 'assets/icons', `${size}x${size}.png`)
+      const filePath = path.join(iconRoot, `${size}x${size}.png`)
       try {
         const stat = await fs.stat(filePath)
         return stat.isFile() && stat.size > 0
@@ -190,7 +195,7 @@ const addControlDesktopChecks = async (checks, fileChecks) => {
     checks.push({
       id: 'control-desktop-private-workspace',
       ok: true,
-      message: 'Control Desktop Workspace ist lokal nicht vorhanden und wird im Ecosystem-Verify uebersprungen',
+      message: PUBLIC_ONLY ? 'Control Desktop ist aus Public-Verify ausgeschlossen' : 'Control Desktop Workspace ist lokal nicht vorhanden und wird im Ecosystem-Verify uebersprungen',
       details: CONTROL_DESKTOP_ROOT,
     })
   }
@@ -571,8 +576,14 @@ const run = async () => {
     {
       id: 'main-settings-backup-restore-ui',
       file: path.join(ROOT, 'Nexus Main/src/views/settings/SettingsBackupRestorePanel.tsx'),
-      pattern: /before-restore[\s\S]*?Backup und Restore[\s\S]*?Import Preview[\s\S]*?Restore anwenden[\s\S]*?Lokale Backup-Versionen/,
-      message: 'Settings zeigt Backup/Restore mit Import Preview und Safety Backup',
+      pattern: /await restoreWorkspaceBackup\(snapshot\)[\s\S]*?Backup und Restore[\s\S]*?Import Preview[\s\S]*?Restore anwenden[\s\S]*?Lokale Backup-Versionen/,
+      message: 'Settings zeigt Import Preview und delegiert Restore an den Workspace-Koordinator',
+    },
+    {
+      id: 'main-workspace-restore-safety-backup',
+      file: path.join(ROOT, 'Nexus Main/src/app/workspaceRestore.ts'),
+      pattern: /export async function restoreWorkspaceBackup[\s\S]*?applySnapshotTransaction[\s\S]*?before-restore[\s\S]*?await saveWorkspaceBackup\(before\)[\s\S]*?await writeWorkspaceRestoreJournal\(before, after\)/,
+      message: 'Workspace-Koordinator erstellt Safety Backup und Recovery Journal vor der Anwendung',
     },
     {
       id: 'main-devtools-feature-flag-control-core',
@@ -681,7 +692,7 @@ const run = async () => {
     checks.push({
       id: 'control-ui-private-workspace',
       ok: true,
-      message: 'Private Control UI Workspace ist lokal nicht vorhanden und wird im Public-Verify uebersprungen',
+      message: PUBLIC_ONLY ? 'Private Control UI ist aus Public-Verify ausgeschlossen' : 'Private Control UI Workspace ist lokal nicht vorhanden und wird uebersprungen',
       details: CONTROL_UI_ROOT,
     })
   }
@@ -755,7 +766,7 @@ const run = async () => {
       id: 'main-linux-icon-set',
       ok: mainHasLinuxIcons,
       message: 'Nexus Main hat PNG-Icons fuer Linux/AppImage',
-      details: mainHasLinuxIcons ? 'assets/icons/{16,32,48,64,128,256,512}x*.png' : 'missing linux icon set',
+      details: mainHasLinuxIcons ? `${mainPackage.build?.linux?.icon}/{16,32,48,64,128,256,512}x*.png` : 'missing linux icon set',
     },
     {
       id: 'main-mac-signing-config',

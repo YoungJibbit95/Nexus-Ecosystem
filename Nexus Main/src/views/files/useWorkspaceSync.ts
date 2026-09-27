@@ -5,6 +5,7 @@ import type { Canvas } from '../../store/canvasStore'
 import { useCanvas } from '../../store/canvasStore'
 import { useWorkspaceFs, WORKSPACE_EXPORT_DIRNAME } from '../../store/workspaceFsStore'
 import type { Workspace } from '../../store/workspaceStore'
+import { projectCanvasPlanning } from '@nexus/core/canvas/planningCompatibility'
 import { useWorkspaces } from '../../store/workspaceStore'
 import {
   buildWorkspaceRuntimeSnapshot,
@@ -204,7 +205,7 @@ export function useWorkspaceSync({
           const canvasIds = new Set(incoming.canvases.map((canvas) => canvas.id))
           useCanvas.setState((state) => ({
             ...state,
-            canvases: incoming.canvases,
+            canvases: projectCanvasPlanning(incoming.canvases, 'main'),
             activeCanvasId:
               incoming.activeCanvasId && canvasIds.has(incoming.activeCanvasId)
                 ? incoming.activeCanvasId
@@ -371,6 +372,7 @@ export function useWorkspaceSync({
               const nodes = Array.isArray(parsed.nodes) ? parsed.nodes : []
               const connections = Array.isArray(parsed.connections) ? parsed.connections : []
               importedCanvases.push({
+                ...parsed,
                 id: String(parsed.id),
                 name,
                 nodes,
@@ -413,7 +415,7 @@ export function useWorkspaceSync({
       if (importedCanvases.length > 0) {
         useCanvas.setState((state) => ({
           ...state,
-          canvases: importedCanvases,
+          canvases: projectCanvasPlanning(importedCanvases, 'main'),
           activeCanvasId: importedCanvases[0]?.id || state.activeCanvasId,
         }))
       }

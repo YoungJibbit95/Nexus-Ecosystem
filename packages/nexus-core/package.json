@@ -6,7 +6,7 @@
   "main": "src/index.ts",
   "scripts": {
     "typecheck": "node ../../tools/typecheck-nexus-core.mjs",
-    "test": "node ../../tools/verify-nexus-core.mjs && tsx --test test/executionEngine.test.mjs test/devtools-artifacts.test.mjs test/quickCapture.test.mjs",
+    "test": "node ../../tools/verify-nexus-core.mjs && node ../../tools/run-client-tests.mjs --scope core",
     "build": "npm run typecheck && npm run test"
   },
   "peerDependencies": {

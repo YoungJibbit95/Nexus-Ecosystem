@@ -3,6 +3,8 @@
   "private": true,
   "version": "1.0.0",
   "scripts": {
+    "test:public": "node ./tools/run-client-tests.mjs",
+    "verify:public": "node ./tools/verify-ecosystem.mjs --public-only && npm run test:public && npm run verify:single-react && npm run verify:encoding",
     "setup": "node ./tools/setup-ecosystem.mjs",
     "api:source": "node ./tools/api-source-status.mjs",
     "control:ensure": "node ./tools/run-with-control-plane.mjs --quiet",
@@ -67,6 +69,7 @@
     "doctor:release:hosted": "node ./tools/release-doctor.mjs --hosted-ui",
     "dev:all:with-control-ui": "node ./tools/dev-ecosystem.mjs",
     "build:ecosystem:with-healthcheck": "node ./tools/build-ecosystem.mjs --with-control-plane --with-android --with-installers --strict-control-plane --strict-android --strict-installers",
-    "build:ecosystem:fast:with-healthcheck": "node ./tools/build-ecosystem.mjs --with-control-plane --skip-installers"
+    "build:ecosystem:fast:with-healthcheck": "node ./tools/build-ecosystem.mjs --with-control-plane --skip-installers",
+    "test:persistence:browser": "node ./tools/run-persistence-browser-smoke.mjs"
   }
 }

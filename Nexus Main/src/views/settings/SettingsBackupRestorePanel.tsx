@@ -4,8 +4,9 @@ import { Download, RotateCcw, ShieldCheck, Trash2, Upload } from "lucide-react";
 import { useApp } from "../../store/appStore";
 import { useCanvas } from "../../store/canvasStore";
 import { useTerminal } from "../../store/terminalStore";
+import { captureWorkspaceSources, restoreWorkspaceBackup } from "../../app/workspaceRestore";
+import { draftRegistry } from "@nexus/core/storage/draftRegistry";
 import { useTheme } from "../../store/themeStore";
-import { useWorkspaceFs } from "../../store/workspaceFsStore";
 import { useWorkspaces } from "../../store/workspaceStore";
 import {
   createWorkspaceBackupPreview,
@@ -20,7 +21,6 @@ import {
   type WorkspaceBackupPreview,
   type WorkspaceBackupSnapshot,
 } from "../../app/workspaceBackup";
-import { applyThemeTransferPayload, buildThemeTransferPayload } from "./themeTransfer";
 import { ModuleCard, Row } from "./SettingsPrimitives";
 
 type PreviewState = {
@@ -88,14 +88,7 @@ export function SettingsBackupRestorePanel({ toast }: SettingsBackupRestorePanel
   const [previewState, setPreviewState] = useState<PreviewState | null>(null);
   const [labelDraft, setLabelDraft] = useState("");
 
-  const currentSources = () => ({
-    app: useApp.getState(),
-    canvas: useCanvas.getState(),
-    workspaces: useWorkspaces.getState(),
-    workspaceFs: useWorkspaceFs.getState(),
-    terminal: useTerminal.getState(),
-    theme: buildThemeTransferPayload(useTheme.getState()),
-  });
+  const currentSources = captureWorkspaceSources;
 
   const reloadBackups = async () => {
     try {
@@ -125,6 +118,7 @@ export function SettingsBackupRestorePanel({ toast }: SettingsBackupRestorePanel
   const createBackup = async (download: boolean) => {
     setBusy(true);
     try {
+      draftRegistry.flush();
       const snapshot = createWorkspaceBackupSnapshot({
         ...currentSources(),
         label: labelDraft || undefined,
@@ -144,10 +138,12 @@ export function SettingsBackupRestorePanel({ toast }: SettingsBackupRestorePanel
   };
 
   const showPreview = (snapshot: WorkspaceBackupSnapshot, source: PreviewState["source"]) => {
+    const parsed = parseWorkspaceBackupSnapshot(snapshot);
+    if (!parsed.ok) { toast(parsed.message); return; }
     setPreviewState({
       source,
-      snapshot,
-      preview: createWorkspaceBackupPreview(snapshot, currentSources()),
+      snapshot: parsed.snapshot,
+      preview: createWorkspaceBackupPreview(parsed.snapshot, currentSources()),
     });
   };
 
@@ -184,26 +180,13 @@ export function SettingsBackupRestorePanel({ toast }: SettingsBackupRestorePanel
     }
     setBusy(true);
     try {
-      const safety = createWorkspaceBackupSnapshot({
-        ...currentSources(),
-        label: `Before restore ${new Date().toLocaleString()}`,
-        reason: "before-restore",
-      });
-      await saveWorkspaceBackup(safety);
-      useApp.setState(snapshot.data.app as any);
-      useCanvas.setState(snapshot.data.canvas as any);
-      useWorkspaces.setState(snapshot.data.workspaces as any);
-      useWorkspaceFs.setState(snapshot.data.workspaceFs as any);
-      useTerminal.setState(snapshot.data.terminal as any);
-      if (snapshot.data.theme) {
-        applyThemeTransferPayload(useTheme.getState(), snapshot.data.theme, { includeReleaseFrozen: false });
-      }
+      await restoreWorkspaceBackup(snapshot);
       setPreviewState(null);
       await reloadBackups();
       toast("Workspace wiederhergestellt");
     } catch (error) {
       console.error("[backup] restore failed", error);
-      toast("Wiederherstellung fehlgeschlagen");
+      toast(error instanceof Error ? error.message : "Wiederherstellung fehlgeschlagen");
     } finally {
       setBusy(false);
     }

@@ -74,13 +74,10 @@ assert(
   codeIntentFiles.some((file) => /CodeView/i.test(file)),
   'Code-intent graph must contain the CodeView chunk',
 )
-assert(
-  codeIntentFiles.some((file) => /monaco/i.test(file)),
-  'Code-intent graph must contain Monaco chunks',
-)
-assert(
-  codeIntentFiles.some((file) => /typescript/i.test(file)),
-  'Code-intent graph must contain the on-demand TypeScript chunk',
+assert.deepEqual(
+  codeIntentFiles.filter((file) => /monaco|typescript|ts\.worker/i.test(file)),
+  [],
+  'The Main Code archive must not bundle the retired embedded editor',
 )
 
 const initial = measureFiles(initialFiles)
