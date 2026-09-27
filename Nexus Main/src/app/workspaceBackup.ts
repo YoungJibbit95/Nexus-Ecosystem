@@ -1,4 +1,5 @@
 import type { ThemeTransferPayload } from "../views/settings/themeTransfer";
+import { validateWorkspaceBackupData } from "./workspaceBackupValidation";
 
 export const WORKSPACE_BACKUP_SCHEMA_VERSION = 1;
 export const WORKSPACE_BACKUP_DB_NAME = "nexus-main-workspace-backups-v1";
@@ -210,6 +211,7 @@ export const createWorkspaceBackupSnapshot = ({
     theme,
   };
 
+  const detachedData = JSON.parse(JSON.stringify(data)) as WorkspaceBackupSnapshot["data"];
   const base = {
     schemaVersion: WORKSPACE_BACKUP_SCHEMA_VERSION as typeof WORKSPACE_BACKUP_SCHEMA_VERSION,
     id: makeId(),
@@ -218,8 +220,8 @@ export const createWorkspaceBackupSnapshot = ({
     createdAt: nowIso(),
     appVersion: "6.0.0" as const,
     checksum: "",
-    stats: buildStats(data),
-    data,
+    stats: buildStats(detachedData),
+    data: detachedData,
   };
   const withoutChecksum = { ...base, checksum: "" };
   const checksum = hashWorkspaceBackupText(stableJson(withoutChecksum));
@@ -231,20 +233,30 @@ export const createWorkspaceBackupSnapshot = ({
 };
 
 export const parseWorkspaceBackupSnapshot = (raw: unknown) => {
-  if (!isRecord(raw)) return { ok: false as const, message: "Backup JSON object expected." };
-  if (raw.schemaVersion !== WORKSPACE_BACKUP_SCHEMA_VERSION) {
-    return { ok: false as const, message: "Unsupported backup schema version." };
+  try {
+    if (!isRecord(raw)) throw new Error("Backup JSON object expected.");
+    if (raw.schemaVersion !== WORKSPACE_BACKUP_SCHEMA_VERSION) throw new Error("Unsupported backup schema version.");
+    for (const key of ["id", "label", "createdAt", "appVersion", "checksum"]) {
+      if (typeof raw[key] !== "string" || !raw[key]) throw new Error(`Invalid backup metadata: ${key}`);
+    }
+    if (!["manual", "before-restore", "import-preview"].includes(String(raw.reason))) throw new Error("Invalid backup reason.");
+    if (!isRecord(raw.stats)) throw new Error("Backup statistics are missing.");
+    validateWorkspaceBackupData(raw.data);
+    const snapshot = raw as WorkspaceBackupSnapshot;
+    // Schema 1 computed the checksum before filling the informational byte count.
+    const base = { ...snapshot, checksum: "", stats: { ...snapshot.stats, bytes: 0 } };
+    const checksums = [hashWorkspaceBackupText(stableJson(base))];
+    // Earlier writers included an undefined optional theme before JSON export.
+    if (!Object.prototype.hasOwnProperty.call(snapshot.data, "theme")) {
+      checksums.push(hashWorkspaceBackupText(stableJson({ ...base, data: { ...base.data, theme: undefined } })));
+    }
+    if (!checksums.includes(snapshot.checksum)) throw new Error("Backup checksum mismatch; no data was changed.");
+    const normalized = JSON.parse(JSON.stringify(snapshot)) as WorkspaceBackupSnapshot;
+    normalized.stats = buildStats(normalized.data, stableJson(normalized).length);
+    return { ok: true as const, snapshot: normalized };
+  } catch (error) {
+    return { ok: false as const, message: error instanceof Error ? error.message : "Invalid backup data." };
   }
-  if (!isRecord(raw.data) || !isRecord(raw.data.app) || !isRecord(raw.data.canvas)) {
-    return { ok: false as const, message: "Backup data is incomplete." };
-  }
-  const snapshot = raw as WorkspaceBackupSnapshot;
-  const normalized = {
-    ...snapshot,
-    appVersion: "6.0.0" as const,
-    stats: buildStats(snapshot.data, stableJson(snapshot).length),
-  };
-  return { ok: true as const, snapshot: normalized };
 };
 
 const idMap = (items: unknown[]) => {
@@ -354,28 +366,27 @@ export const readWorkspaceBackup = async (id: string): Promise<WorkspaceBackupSn
   });
 };
 
-export const deleteWorkspaceBackup = async (id: string) => {
+const mutateBackup = async (apply: (store: IDBObjectStore) => void) => {
   const db = await openBackupDb();
-  await new Promise<void>((resolve, reject) => {
-    const request = txStore(db, "readwrite").delete(id);
-    request.onerror = () => reject(request.error);
-    request.onsuccess = () => resolve();
-  });
-  db.close();
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(WORKSPACE_BACKUP_STORE_NAME, "readwrite");
+      tx.oncomplete = () => resolve();
+      tx.onerror = tx.onabort = () => reject(tx.error || new Error("Backup transaction failed"));
+      apply(tx.objectStore(WORKSPACE_BACKUP_STORE_NAME));
+    });
+  } finally { db.close(); }
 };
 
-export const saveWorkspaceBackup = async (snapshot: WorkspaceBackupSnapshot) => {
-  const db = await openBackupDb();
-  await new Promise<void>((resolve, reject) => {
-    const request = txStore(db, "readwrite").put(snapshot);
-    request.onerror = () => reject(request.error);
-    request.onsuccess = () => resolve();
-  });
-  db.close();
+export const deleteWorkspaceBackup = (id: string) => mutateBackup(store => { store.delete(id); });
 
+export const saveWorkspaceBackup = async (snapshot: WorkspaceBackupSnapshot) => {
+  const parsed = parseWorkspaceBackupSnapshot(snapshot);
+  if (!parsed.ok) throw new Error(parsed.message);
+  await mutateBackup(store => { store.put(parsed.snapshot); });
   const all = await listWorkspaceBackups();
   await Promise.all(all.slice(WORKSPACE_BACKUP_MAX_LOCAL).map((backup) => deleteWorkspaceBackup(backup.id)));
-  return snapshot;
+  return parsed.snapshot;
 };
 
 export const downloadWorkspaceBackup = (snapshot: WorkspaceBackupSnapshot) => {

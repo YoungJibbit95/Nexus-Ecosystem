@@ -1,0 +1,11 @@
+# Workspace backup and recovery
+
+Main's backup UI delegates mutations to `src/app/workspaceRestore.ts`. Parsing is non-throwing for malformed input, checks schema-1 structure and identities, verifies the existing checksum, and preserves unknown entity metadata. Unknown state-level keys are rejected before they can overwrite store methods. The checksum is an accidental-corruption check, not an authentication signature. Compatibility includes old schema-1 exports whose absent optional theme affected checksum construction.
+
+Creation detaches data from live stores. Backup writes wait for IndexedDB transaction completion. Previewed and applied snapshots pass the same validator. Empty collections retain their meaning at this boundary; existing store hydration policies, including bundled README onboarding, remain separate.
+
+Restore flushes active drafts before capturing a safety snapshot. It writes complete before/after snapshots to a recovery journal in `nexus-workspace-recovery-v1`, then sets `nx-workspace-restore-pending-v1`. Only then may stores change. On failure, all captured slices are reapplied and flushed. A failed rollback retains the journal and marker. The marker clears only after a successful application or rollback; the last journal remains as evidence.
+
+At startup, before mounting interactive Main UI, a pending journal causes hydration followed by rollback to the prior generation. A recovery failure leaves the application on a recovery screen with the data retained. Notes draft generations are invalidated after state replacement, including same-ID restores. Notes save indicators wait for storage acknowledgment and compare the draft revision before clearing dirty state.
+
+This is a compensating transaction across existing storage backends, not one cross-database atomic transaction. The tested interruption case persists partially applied state, reloads the renderer, restores the journal's prior generation, and checks durable completion. Device power-loss guarantees, concurrent application windows, and localStorage becoming inaccessible during a pending recovery require additional acceptance. Mobile Files handoff and Main disk-snapshot imports are still separate paths until their migration packet is complete.

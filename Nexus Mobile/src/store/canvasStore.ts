@@ -1,3 +1,5 @@
+import { draftRegistry } from '@nexus/core/storage/draftRegistry'
+import { projectPlanningForMobile } from '@nexus/core/canvas/planningCompatibility'
 import { createWithEqualityFn as create } from 'zustand/traditional'
 import { persist } from 'zustand/middleware'
 import { genId } from '../lib/utils'
@@ -237,7 +239,7 @@ const normalizeTags = (value: unknown): string[] | undefined => {
 
 const normalizeProjectMeta = (value: unknown): CanvasProjectMeta | undefined => {
   if (!isRecord(value)) return undefined
-  const meta: CanvasProjectMeta = {}
+  const meta: CanvasProjectMeta = { ...value }
   if (VALID_PROJECT_STATUSES.has(value.status as ProjectStatus)) {
     meta.status = value.status as ProjectStatus
   }
@@ -259,9 +261,12 @@ const normalizeProjectMeta = (value: unknown): CanvasProjectMeta | undefined => 
 
 const normalizeCanvasNode = (value: unknown, index = 0): CanvasNode | null => {
   if (!isRecord(value)) return null
+  value = projectPlanningForMobile(value)
+  if (!isRecord(value)) return null
   const type = isNodeType(value.type) ? value.type : 'text'
   const size = DEFAULT_NODE_SIZES[type]
   const node: CanvasNode = {
+    ...value,
     id: normalizeString(value.id, `node-${index}-${genId()}`, 120),
     type,
     title: normalizeString(value.title, DEFAULT_NODE_TITLES[type], 240),
@@ -319,6 +324,7 @@ const normalizeCanvasConnections = (
       if (seen.has(pairKey)) return null
       seen.add(pairKey)
       const connection: CanvasConnection = {
+        ...entry,
         id: normalizeString(entry.id, `conn-${index}-${genId()}`, 120),
         fromId,
         toId,
@@ -338,12 +344,14 @@ type QueuedNodePatch = {
 
 const queuedNodePatches = new Map<string, QueuedNodePatch>()
 let queuedNodePatchHandle: number | null = null
+let flushQueuedNodePatchesNow: (() => void) | null = null
 
 const scheduleQueuedNodePatchFlush = (set: (updater: (state: CanvasStore) => CanvasStore) => void) => {
   if (queuedNodePatchHandle !== null) return
 
   const flush = () => {
     queuedNodePatchHandle = null
+    flushQueuedNodePatchesNow = null
     if (queuedNodePatches.size === 0) return
     const queued = Array.from(queuedNodePatches.values())
     queuedNodePatches.clear()
@@ -387,12 +395,24 @@ const scheduleQueuedNodePatchFlush = (set: (updater: (state: CanvasStore) => Can
     })
   }
 
+  flushQueuedNodePatchesNow = flush
+
   if (typeof window !== 'undefined' && 'requestAnimationFrame' in window) {
     queuedNodePatchHandle = window.requestAnimationFrame(flush)
     return
   }
   queuedNodePatchHandle = globalThis.setTimeout(flush, 16) as unknown as number
 }
+
+// Flush before snapshots/lifecycle checkpoints so pending frame patches are part of the captured generation.
+draftRegistry.register(() => {
+  if (!flushQueuedNodePatchesNow) return
+  if (queuedNodePatchHandle !== null) {
+    if (typeof window !== 'undefined' && 'cancelAnimationFrame' in window) window.cancelAnimationFrame(queuedNodePatchHandle)
+    else globalThis.clearTimeout(queuedNodePatchHandle)
+  }
+  flushQueuedNodePatchesNow()
+})
 
 const enqueueNodePatch = (
   set: (updater: (state: CanvasStore) => CanvasStore) => void,
@@ -420,6 +440,7 @@ const sanitizePersistedCanvases = (value: unknown): Canvas[] => {
       const nodes = normalizeCanvasNodes(entry.nodes)
       const nodeIds = new Set(nodes.map((node) => node.id))
       return {
+        ...entry,
         id: typeof entry.id === 'string' ? entry.id : genId(),
         name: normalizeString(entry.name, 'Canvas', 180),
         nodes,

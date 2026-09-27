@@ -1,3 +1,4 @@
+import { parseRuntimeSnapshot as parseSharedRuntimeSnapshot } from '@nexus/core/workspace/runtimeSnapshot'
 import { Bell, CheckSquare, Code2, FileText, PenSquare } from 'lucide-react'
 import type { FC } from 'react'
 import type { CodeFile, Note, Reminder, Task } from '../../store/appStore'
@@ -53,15 +54,5 @@ export const TYPE_META: Record<ItemType, { icon: FC<any>; color: string; label: 
   canvas:   { icon: PenSquare,   color: '#30D158', label: 'Canvas' },
 }
 
-export const parseRuntimeSnapshot = (raw: string): WorkspaceRuntimeSnapshot | null => {
-  try {
-    const parsed = JSON.parse(raw)
-    if (!parsed || typeof parsed !== 'object') return null
-    if (Number((parsed as any).version || 0) !== 1) return null
-    const state = (parsed as any).state
-    if (!state || typeof state !== 'object') return null
-    return parsed as WorkspaceRuntimeSnapshot
-  } catch {
-    return null
-  }
-}
+export const parseRuntimeSnapshot = (raw: string): WorkspaceRuntimeSnapshot | null =>
+  parseSharedRuntimeSnapshot(raw) as WorkspaceRuntimeSnapshot | null

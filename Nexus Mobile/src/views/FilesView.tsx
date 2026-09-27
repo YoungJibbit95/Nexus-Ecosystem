@@ -19,6 +19,7 @@ import { useApp } from '../store/appStore'
 import { useTheme } from '../store/themeStore'
 import { useWorkspaces, Workspace } from '../store/workspaceStore'
 import { useCanvas } from '../store/canvasStore'
+import { projectCanvasPlanning } from '@nexus/core/canvas/planningCompatibility'
 import { useWorkspaceHandoff } from '../store/workspaceHandoffStore'
 import { hexToRgb } from '../lib/utils'
 import { useMobile } from '../lib/useMobile'
@@ -311,7 +312,7 @@ export function FilesView({ setView }: FilesViewProps = {}) {
 
     useCanvas.setState((current) => ({
       ...current,
-      canvases: nextCanvases,
+      canvases: projectCanvasPlanning(nextCanvases, 'mobile'),
       activeCanvasId: canvasIds.has(state.activeCanvasId as string) ? state.activeCanvasId : (nextCanvases[0]?.id ?? null),
     }))
 
