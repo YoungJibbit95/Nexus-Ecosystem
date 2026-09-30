@@ -31,13 +31,10 @@ import {
   type ReminderTemplateId,
   readQuietHours,
   type QuietHoursState,
-  type Toast,
-  useChecker,
 } from "./reminders/reminderHelpers";
 import {
   ReminderCard,
   ReminderModal,
-  ToastCard,
 } from "./reminders/ReminderViewParts";
 
 const REMINDER_FILTER_STORAGE_KEY = "nx-reminders-filter-v1";
@@ -49,10 +46,8 @@ export function RemindersView({
   const activeCommandScope = useActiveViewCommandScope();
   const t = useTheme();
   const rgb = hexToRgb(t.accent);
-  const { reminders, tasks, updateReminder, delRem, addRem } = useApp();
+  const { reminders, tasks, updateReminder, delRem, addRem, snoozeRem } = useApp();
 
-  const [toasts, setToasts] = useState<Toast[]>([]);
-  const { dismiss, snooze } = useChecker(setToasts);
   const [now, setNow] = useState(new Date());
   const [search, setSearch] = useState(() => {
     if (typeof window === "undefined") return "";
@@ -242,12 +237,14 @@ export function RemindersView({
   }, [notifyAvailable]);
 
   const snoozeAllOverdue = useCallback(
-    (minutes: number) => {
-      const until = new Date(Date.now() + minutes * 60000).toISOString();
+    async (minutes: number) => {
       const overdueItems = reminders.filter(
         (r) => !r.done && new Date(r.snoozeUntil || r.datetime) < now,
       );
-      overdueItems.forEach((r) => updateReminder(r.id, { snoozeUntil: until }));
+      for (const reminder of overdueItems) {
+        const result = await snoozeRem(reminder.id, minutes);
+        if (result.ok === false) { setControlMsg(result.message); return; }
+      }
       setLastRescheduleAt(new Date().toISOString());
       setLastRescheduleReason(
         overdueItems.length > 0
@@ -255,7 +252,7 @@ export function RemindersView({
           : "no-overdue-reminders",
       );
     },
-    [reminders, now, updateReminder],
+    [reminders, now, snoozeRem],
   );
 
   const clearDone = useCallback(() => {
@@ -1130,17 +1127,6 @@ export function RemindersView({
         )}
       </AnimatePresence>
 
-      {/* Toasts */}
-      <AnimatePresence>
-        {toasts.slice(-1).map((toast) => (
-          <ToastCard
-            key={toast.id}
-            toast={toast}
-            onDone={() => dismiss(toast.id)}
-            onSnooze={(m) => snooze(toast.id, m)}
-          />
-        ))}
-      </AnimatePresence>
     </div>
   );
 }

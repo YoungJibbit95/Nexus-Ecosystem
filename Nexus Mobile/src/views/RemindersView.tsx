@@ -1,3 +1,4 @@
+import { executeReminderCommand, type ReminderCommandResult } from '@nexus/core/reminders/reminderDomain'
 declare const window: Window & typeof globalThis & { api?: any; Capacitor?: any }
 
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react'
@@ -14,7 +15,7 @@ import { useApp, Reminder } from '../store/appStore'
 import { useTheme } from '../store/themeStore'
 import { fmtDt, hexToRgb } from '../lib/utils'
 import { useMobile } from '../lib/useMobile'
-import { mobileReminderService } from '../lib/mobileReminderService'
+import { mobileReminderService, mobileReminderController } from '../lib/mobileReminderService'
 import { useInteractiveSurfaceMotion } from '../render/useInteractiveSurfaceMotion'
 import { useRenderSurfaceBudget } from '../render/useRenderSurfaceBudget'
 import { useSurfaceMotionRuntime } from '../render/useSurfaceMotionRuntime'
@@ -75,7 +76,7 @@ const isNowWithinQuietHours = (date: Date, quietHours: QuietHoursState): boolean
   const endMinutes = endH * 60 + endM
   const currentMinutes = date.getHours() * 60 + date.getMinutes()
 
-  if (startMinutes === endMinutes) return false
+  if (startMinutes === endMinutes) return true
   if (startMinutes < endMinutes) {
     return currentMinutes >= startMinutes && currentMinutes < endMinutes
   }
@@ -89,216 +90,19 @@ const isEditableTarget = (target: EventTarget | null) => {
   return tag === 'INPUT' || tag === 'TEXTAREA' || el.isContentEditable
 }
 
-// ── Sound ────────────────────────────────────────────────────────
-function playNotifSound(freq = 880) {
-  try {
-    const ctx = new ((window as any).AudioContext || (window as any).webkitAudioContext)()
-    const play = (f: number, start: number, dur: number) => {
-      const osc = ctx.createOscillator(), g = ctx.createGain()
-      osc.connect(g); g.connect(ctx.destination)
-      osc.frequency.value = f; osc.type = 'sine'
-      g.gain.value = 0.12
-      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + start + dur)
-      osc.start(ctx.currentTime + start); osc.stop(ctx.currentTime + start + dur)
-    }
-    play(freq, 0, 0.4); play(freq * 1.25, 0.25, 0.35)
-  } catch {}
-}
-
-// ── Toast notification ───────────────────────────────────────────
-interface Toast { id: string; title: string; msg: string }
-
-function ToastCard({ toast, onDone, onSnooze }: { toast: Toast; onDone: () => void; onSnooze: (m: number) => void }) {
-  const t = useTheme()
-  const rgb = hexToRgb(t.accent)
-  const mob = useMobile()
-  const toastDecision = useRenderSurfaceBudget({
-    id: `reminder-toast-${toast.id}`,
-    surfaceClass: 'utility-surface',
-    effectClass: 'status-highlight',
-    interactionState: 'active',
-    visibilityState: 'visible',
-    budgetPriority: 'high',
-    areaHint: 120,
-    motionClassHint: 'status',
-    transformOwnerHint: 'surface',
-    filterOwnerHint: 'none',
-    opacityOwnerHint: 'surface',
-  })
-  const toastRuntime = useSurfaceMotionRuntime(toastDecision, { family: 'status' })
-  const toastTransition = {
-    duration: Math.max(0.12, toastRuntime.timings.regularMs / 1000),
-    ease: toastRuntime.timings.framerEase,
-  }
-  return (
-    <motion.div
-      initial={mob.isMobile ? { y: 46, opacity: 0 } : { x: 340, opacity:0 }}
-      animate={mob.isMobile ? { y: 0, opacity: 1 } : { x:0, opacity:1 }}
-      exit={mob.isMobile ? { y: 46, opacity: 0 } : { x:340, opacity:0 }}
-      transition={toastTransition}
-      style={{
-        position:'fixed',
-        zIndex:9999,
-        width: mob.isMobile ? 'auto' : 360,
-        left: mob.isMobile ? 10 : undefined,
-        right: mob.isMobile ? 10 : 20,
-        top: mob.isMobile ? undefined : 20,
-        bottom: mob.isMobile ? 'calc(74px + var(--sat-bottom, 0px))' : undefined,
-      }}
-    >
-      <Glass type="modal" glow style={{ padding:16, borderLeft:`3px solid ${t.accent}`, boxShadow:`0 16px 50px rgba(0,0,0,0.5), 0 0 24px rgba(${rgb},0.18)` }}>
-        <div style={{ display:'flex', alignItems:'flex-start', gap:12 }}>
-          <div style={{ width:38, height:38, borderRadius:10, background:`rgba(${rgb},0.15)`, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-            <BellRing size={18} style={{ color:t.accent }} />
-          </div>
-          <div style={{ flex:1, minWidth:0 }}>
-            <div style={{ fontWeight:700, fontSize:14, marginBottom:2 }}>{toast.title}</div>
-            {toast.msg && <div style={{ fontSize:12, opacity:0.7, lineHeight:1.45 }}>{toast.msg}</div>}
-          </div>
-          <InteractiveIconButton motionId={`toast-dismiss-${toast.id}`} onClick={onDone} idleOpacity={0.4} radius={5} style={{ padding: 3, flexShrink: 0 }}>
-            <X size={15}/>
-          </InteractiveIconButton>
-        </div>
-        <div style={{ display:'flex', gap:6, marginTop:12 }}>
-          <button onClick={onDone} style={{ flex:1, padding:'7px 0', borderRadius:8, background:t.accent, border:'none', color:'#fff', fontSize:12, fontWeight:700, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:4 }}>
-            <Check size={12}/> Dismiss
-          </button>
-          {REMINDER_SNOOZE_PRESETS.map(m => (
-            <button key={m} onClick={()=>onSnooze(m)} style={{ padding:'7px 10px', borderRadius:8, background:'rgba(255,255,255,0.08)', border:'1px solid rgba(255,255,255,0.1)', color:'inherit', fontSize:11, cursor:'pointer' }}>
-              {m < 60 ? `${m}m` : '1h'}
-            </button>
-          ))}
-        </div>
-      </Glass>
-    </motion.div>
-  )
-}
-
-// ── Reminder checker ─────────────────────────────────────────────
-function useChecker(
-  setToasts: React.Dispatch<React.SetStateAction<Toast[]>>,
-  quietHours: QuietHoursState,
-) {
-  const { reminders, doneRem, snoozeRem } = useApp()
-  const fired = useRef(new Set<string>())
-  const fallbackEnabledRef = useRef(true)
-  const [fallbackMode, setFallbackMode] = useState(true)
-  const [nativeReady, setNativeReady] = useState(false)
-  const [serviceState, setServiceState] = useState(() => mobileReminderService.getStatus())
-  const [lastSyncError, setLastSyncError] = useState<string | null>(null)
-
-  const refreshHealth = useCallback(() => {
-    setServiceState(mobileReminderService.getStatus())
-  }, [])
-
-  const syncPermissions = useCallback(async () => {
-    try {
-      const permission = await mobileReminderService.syncPermissions()
-      const fallback = !permission.canSchedule
-      fallbackEnabledRef.current = fallback
-      setFallbackMode(fallback)
-      setNativeReady(permission.nativeAvailable && permission.canSchedule)
-      setLastSyncError(null)
-      refreshHealth()
-      return permission
-    } catch {
-      fallbackEnabledRef.current = true
-      setFallbackMode(true)
-      setNativeReady(false)
-      setLastSyncError('PERMISSION_SYNC_FAILED')
-      refreshHealth()
-      return null
-    }
-  }, [refreshHealth])
-
-  const resyncOpenReminders = useCallback(async () => {
-    try {
-      const result = await mobileReminderService.rescheduleFromStore(reminders)
-      fallbackEnabledRef.current = result.fallback
-      setFallbackMode(result.fallback)
-      setNativeReady(result.nativeAvailable && !result.fallback)
-      setLastSyncError(result.reason || null)
-      refreshHealth()
-      return result
-    } catch {
-      fallbackEnabledRef.current = true
-      setFallbackMode(true)
-      setNativeReady(false)
-      setLastSyncError('RESCHEDULE_FAILED')
-      refreshHealth()
-      return null
-    }
-  }, [refreshHealth, reminders])
-
-  useEffect(() => {
-    let active = true
-    void syncPermissions().then(() => {
-      if (!active) return
-      refreshHealth()
-    })
-    return () => {
-      active = false
-    }
-  }, [refreshHealth, syncPermissions])
-
-  useEffect(() => {
-    let active = true
-    void resyncOpenReminders().then(() => {
-      if (!active) return
-      refreshHealth()
-    })
-    return () => {
-      active = false
-    }
-  }, [refreshHealth, reminders, resyncOpenReminders])
-
-  useEffect(() => {
-    if (!fallbackEnabledRef.current) return
-    const check = () => {
-      const now = new Date()
-      if (isNowWithinQuietHours(now, quietHours)) return
-      reminders.filter(r => !r.done).forEach(r => {
-        const dt = new Date(r.snoozeUntil || r.datetime)
-        if (dt <= now && !fired.current.has(r.id)) {
-          fired.current.add(r.id)
-          playNotifSound()
-          setToasts(ts => [...ts, { id: r.id, title: r.title, msg: r.msg }])
-          try { window.api?.notify(r.title, r.msg) } catch {}
-        }
-      })
-    }
-    check()
-    const id = setInterval(check, 15000)
-    return () => clearInterval(id)
-  }, [quietHours, reminders])
-
-  const dismiss = (id: string) => {
-    doneRem(id)
-    void mobileReminderService.cancel(id)
-    fired.current.delete(id)
-    setToasts(ts => ts.filter(t => t.id !== id))
-    refreshHealth()
-  }
-  const snooze  = (id: string, m: number) => {
-    snoozeRem(id, m)
-    fired.current.delete(id)
-    setToasts(ts => ts.filter(t => t.id !== id))
-    refreshHealth()
-  }
+// Presentation subscribes to the App owner; it creates no checker or timer.
+function useReminderHealth() {
+  const status = mobileReminderController.useStatus()
+  const serviceState = mobileReminderService.getStatus()
   return {
-    dismiss,
-    snooze,
-    fallbackMode,
-    nativeReady,
-    serviceState,
-    lastSyncError,
-    syncPermissions,
-    resyncOpenReminders,
+    serviceState, fallbackMode: serviceState.fallback,
+    nativeReady: serviceState.nativeAvailable && serviceState.permission === 'granted',
+    lastSyncError: status.error,
+    syncPermissions: () => mobileReminderService.requestPermissions(),
+    resyncOpenReminders: () => mobileReminderService.rescheduleFromStore(),
     openSystemSettings: () => mobileReminderService.openSystemSettings(),
-    refreshHealth,
   }
 }
-
 // ── Reminder form ────────────────────────────────────────────────
 function ReminderModal({
   reminder,
@@ -479,6 +283,7 @@ function ReminderModal({
                     ))}
                   </div>
                 </div>
+                {repeat !== 'none' && <p style={{fontSize:11,opacity:0.75}}>Repeats in UTC. Monthly dates clamp to the last day and retain the original anchor day. Local civil-time recurrence is unavailable.</p>}
                 <div style={{ marginTop: 12, display: 'grid', gap: 8 }}>
                   <label style={{ display: 'grid', gap: 4, fontSize: 11, opacity: 0.8 }}>
                     Verknupfte Task
@@ -571,6 +376,8 @@ function ReminderCard({
   const t = useTheme()
   const rgb = hexToRgb(t.accent)
   const { doneRem, delRem, snoozeRem, tasks, notes, openNote, setNote } = useApp()
+  const [commandMessage, setCommandMessage] = useState('' )
+  const runCommand = async (pending: Promise<ReminderCommandResult>) => { const result = await pending; setCommandMessage(result.ok === false ? result.message : result.skipped ? `Advanced; ${result.skipped} missed occurrences skipped.` : '') }
   const dt       = new Date(r.snoozeUntil || r.datetime)
   const isPast   = dt < now && !r.done
   const isSoon   = !isPast && (dt.getTime() - now.getTime()) < 30 * 60000
@@ -675,7 +482,7 @@ function ReminderCard({
         </SurfaceHighlight>
         <div style={{ display:'flex', alignItems:'flex-start', gap:isCompactMobile ? 9 : 12 }}>
           {/* Done toggle */}
-          <button onClick={()=>doneRem(r.id)} style={{ width:isCompactMobile ? 20 : 22, height:isCompactMobile ? 20 : 22, borderRadius:isCompactMobile ? 5 : 6, border:`2px solid ${r.done?statusColor:'rgba(255,255,255,0.2)'}`, background:r.done?statusColor:'transparent', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, marginTop:1, color:r.done?'#fff':'inherit', transition:'all 0.15s' }}>
+          <button aria-label="Complete occurrence" disabled={r.done} onClick={()=>{void runCommand(doneRem(r.id))}} style={{ width:isCompactMobile ? 20 : 22, height:isCompactMobile ? 20 : 22, borderRadius:isCompactMobile ? 5 : 6, border:`2px solid ${r.done?statusColor:'rgba(255,255,255,0.2)'}`, background:r.done?statusColor:'transparent', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, marginTop:1, color:r.done?'#fff':'inherit', transition:'all 0.15s' }}>
             {r.done && <Check size={isCompactMobile ? 11 : 12}/>}
           </button>
 
@@ -712,7 +519,7 @@ function ReminderCard({
               </span>
               {r.repeat !== 'none' && (
                 <span style={{ display:'flex', alignItems:'center', gap:3, fontSize:cardTagSize, padding:isCompactMobile ? '2px 6px' : '2px 7px', borderRadius:10, background:`rgba(${rgb},0.12)`, color:t.accent }}>
-                  <Repeat size={isCompactMobile ? 8 : 9}/> {formatReminderRepeat(r.repeat)}
+                  <Repeat size={isCompactMobile ? 8 : 9}/> {formatReminderRepeat(r.repeat)} (UTC)
                 </span>
               )}
               {linkedTask ? (
@@ -783,11 +590,13 @@ function ReminderCard({
           )}
         </AnimatePresence>
 
+        {r.repeat !== 'none' && !r.done && <button onClick={()=>{void runCommand(executeReminderCommand('mobile',{kind:'stop',id:r.id}))}}>Stop series</button>}
+        {commandMessage && <div role="status">{commandMessage}</div>}
         {/* Snooze quick buttons for overdue */}
         {isPast && !r.done && (
           <div style={{ display:'flex', gap:5, marginTop:10 }}>
             {REMINDER_SNOOZE_PRESETS.map(m => (
-              <button key={m} onClick={()=>snoozeRem(r.id,m)} style={{ padding:'4px 10px', borderRadius:7, border:'1px solid rgba(255,159,10,0.2)', background:'rgba(255,159,10,0.08)', cursor:'pointer', fontSize:10, fontWeight:600, color:'#ff9f0a' }}>
+              <button key={m} onClick={()=>{void runCommand(snoozeRem(r.id,m))}} style={{ padding:'4px 10px', borderRadius:7, border:'1px solid rgba(255,159,10,0.2)', background:'rgba(255,159,10,0.08)', cursor:'pointer', fontSize:10, fontWeight:600, color:'#ff9f0a' }}>
                 Snooze {m<60?`${m}m`:'1h'}
               </button>
             ))}
@@ -817,11 +626,8 @@ export function RemindersView({ setView }: { setView?: (viewId: string) => void 
   const compactRowPadding = isCompactMobile ? '6px 10px' : '10px 14px'
   const compactControlFont = isCompactMobile ? 10 : 11
 
-  const [toasts, setToasts]       = useState<Toast[]>([])
   const [quietHours, setQuietHours] = useState<QuietHoursState>(() => readQuietHours())
   const {
-    dismiss,
-    snooze,
     fallbackMode,
     nativeReady,
     serviceState,
@@ -829,7 +635,7 @@ export function RemindersView({ setView }: { setView?: (viewId: string) => void 
     syncPermissions,
     resyncOpenReminders,
     openSystemSettings,
-  } = useChecker(setToasts, quietHours)
+  } = useReminderHealth()
   const [now, setNow]             = useState(new Date())
   const [search, setSearch]       = useState(() => {
     if (typeof window === 'undefined') return ''
@@ -1117,20 +923,20 @@ export function RemindersView({ setView }: { setView?: (viewId: string) => void 
               Permission: {serviceState.permission}
             </span>
             <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 999, border: fallbackMode ? '1px solid rgba(255,159,10,0.3)' : '1px solid rgba(48,209,88,0.3)', background: fallbackMode ? 'rgba(255,159,10,0.1)' : 'rgba(48,209,88,0.1)', color: fallbackMode ? '#ff9f0a' : '#30d158', fontWeight: 700 }}>
-              Fallback: {fallbackMode ? 'active' : 'off'}
+              Foreground: {fallbackMode ? 'active' : 'native request pending'}
             </span>
             <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 999, border: quietHours.enabled ? '1px solid rgba(255,159,10,0.3)' : '1px solid rgba(255,255,255,0.18)', background: quietHours.enabled ? 'rgba(255,159,10,0.1)' : 'rgba(255,255,255,0.05)', color: quietHours.enabled ? '#ff9f0a' : 'inherit', fontWeight: 700 }}>
               Quiet: {quietHours.enabled ? (isNowWithinQuietHours(now, quietHours) ? 'active now' : `${quietHours.start}–${quietHours.end}`) : 'off'}
             </span>
           </div>
           <span style={{ fontSize: 10, opacity: 0.72, color: nativeReady ? '#30d158' : 'inherit', fontWeight: 700 }}>
-            {nativeReady ? 'Native Notifications aktiv' : 'Fallback-Poller aktiv'}
+            {nativeReady && !fallbackMode ? 'Inexact native scheduling ready' : 'Foreground reminders (app visible)'}
           </span>
         </div>
 
         <div style={{ marginTop: 8, display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 6 }}>
           <div style={{ borderRadius: 8, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.04)', padding: '6px 8px' }}>
-            <div style={{ fontSize: 10, opacity: 0.55 }}>Scheduled</div>
+            <div style={{ fontSize: 10, opacity: 0.55 }}>Native requests</div>
             <div style={{ fontSize: 14, fontWeight: 800 }}>{serviceState.scheduled}</div>
           </div>
           <div style={{ borderRadius: 8, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.04)', padding: '6px 8px' }}>
@@ -1170,7 +976,7 @@ export function RemindersView({ setView }: { setView?: (viewId: string) => void 
             style={{ borderRadius: 8, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.05)', color: 'inherit', fontSize: 11, padding: '4px 6px' }}
           />
           <span style={{ fontSize: 10, opacity: 0.58 }}>
-            In Quiet Hours werden lokale Fallback-Alerts unterdrückt.
+            Quiet hours defer foreground reminders. Native scheduling is paused while quiet hours are enabled.
           </span>
         </div>
 
@@ -1189,7 +995,7 @@ export function RemindersView({ setView }: { setView?: (viewId: string) => void 
             }}
             style={{ padding:'5px 9px', borderRadius:8, border:`1px solid rgba(${rgb},0.3)`, background:`rgba(${rgb},0.14)`, color:t.accent, fontSize:10, fontWeight:700, cursor:'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}
           >
-            <Bell size={11}/> {controlBusy === 'permissions' ? 'Prüfe…' : 'Permissions prüfen'}
+            <Bell size={11}/> {controlBusy === 'permissions' ? 'Requesting…' : 'Enable notifications'}
           </button>
           <button
             onClick={async () => {
@@ -1344,13 +1150,13 @@ export function RemindersView({ setView }: { setView?: (viewId: string) => void 
               Permission: {serviceState.permission}
             </span>
             <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 999, border: fallbackMode ? '1px solid rgba(255,159,10,0.3)' : '1px solid rgba(48,209,88,0.3)', background: fallbackMode ? 'rgba(255,159,10,0.1)' : 'rgba(48,209,88,0.1)', color: fallbackMode ? '#ff9f0a' : '#30d158', fontWeight: 700 }}>
-              Fallback: {fallbackMode ? 'active' : 'off'}
+              Foreground: {fallbackMode ? 'active' : 'native request pending'}
             </span>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 6 }}>
             <div style={{ borderRadius: 8, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.04)', padding: '6px 8px' }}>
-              <div style={{ fontSize: 10, opacity: 0.55 }}>Scheduled</div>
+              <div style={{ fontSize: 10, opacity: 0.55 }}>Native requests</div>
               <div style={{ fontSize: 14, fontWeight: 800 }}>{serviceState.scheduled}</div>
             </div>
             <div style={{ borderRadius: 8, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.04)', padding: '6px 8px' }}>
@@ -1406,7 +1212,7 @@ export function RemindersView({ setView }: { setView?: (viewId: string) => void 
               }}
               style={{ padding:'6px 9px', borderRadius:8, border:`1px solid rgba(${rgb},0.3)`, background:`rgba(${rgb},0.14)`, color:t.accent, fontSize:11, fontWeight:700, cursor:'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}
             >
-              <Bell size={11}/> {controlBusy === 'permissions' ? 'Prüfe…' : 'Permissions'}
+              <Bell size={11}/> {controlBusy === 'permissions' ? 'Requesting…' : 'Permissions'}
             </button>
             <button
               onClick={async () => {
@@ -1473,10 +1279,10 @@ export function RemindersView({ setView }: { setView?: (viewId: string) => void 
           <div style={{ borderRadius: 12, border: '1px solid rgba(255,159,10,0.28)', background: 'rgba(255,159,10,0.1)', padding: 10 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, fontWeight: 800, color: '#ff9f0a', marginBottom: 5 }}>
               <LifeBuoy size={14} />
-              Fallback ist ein kontrollierter Sicherungsmodus
+              Foreground reminder capability
             </div>
             <div style={{ fontSize: 11, opacity: 0.72, lineHeight: 1.45 }}>
-              Wenn Local Notifications fehlen, Permissions nicht erteilt sind oder der native Bridge-Check fehlschlägt, prüft Nexus offene Erinnerungen in der App per Poller. Das ist weniger stark als native Notifications, verhindert aber stumme Ausfälle im aktiven App-Kontext.
+              Foreground reminders require the app to be running and visible. Native scheduling uses inexact requests; device timing and delivery are unverified. Quiet hours use foreground deferral. Civil-time recurrence and background JavaScript delivery are unavailable.
             </div>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
@@ -1504,12 +1310,7 @@ export function RemindersView({ setView }: { setView?: (viewId: string) => void 
         {editId   && <ReminderModal key={editId} reminder={editReminder} onClose={()=>setEditId(null)} setView={setView} />}
       </AnimatePresence>
 
-      {/* Toasts */}
-      <AnimatePresence>
-        {toasts.slice(-1).map(toast => (
-          <ToastCard key={toast.id} toast={toast} onDone={()=>dismiss(toast.id)} onSnooze={m=>snooze(toast.id,m)}/>
-        ))}
-      </AnimatePresence>
+
     </div>
   )
 }

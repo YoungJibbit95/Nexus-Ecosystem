@@ -1,300 +1,60 @@
-import type { Reminder } from "../store/appStore";
+import { Capacitor } from '@capacitor/core'
+import { LocalNotifications } from '@capacitor/local-notifications'
+import { App as CapacitorApp } from '@capacitor/app'
+import { createBrowserReminderController } from '@nexus/core/reminders/browserReminderController'
+import type { NativeReminderPort } from '@nexus/core/reminders/reminderRuntime'
+import { useApp } from '../store/appStore'
 
-type PermissionState = "granted" | "denied" | "prompt" | "unknown";
-
-type LocalNotificationsPluginLike = {
-  checkPermissions?: () => Promise<any>;
-  requestPermissions?: () => Promise<any>;
-  schedule?: (payload: any) => Promise<any>;
-  cancel?: (payload: any) => Promise<any>;
-};
-
-export type ReminderPermissionSync = {
-  nativeAvailable: boolean;
-  permission: PermissionState;
-  canSchedule: boolean;
-};
-
-export type ReminderScheduleResult = {
-  ok: boolean;
-  mode: "native" | "fallback";
-  notificationId: number | null;
-  reason?: string;
-};
-
-export type ReminderHealthStatus = {
-  nativeAvailable: boolean;
-  permission: PermissionState;
-  fallback: boolean;
-  scheduled: number;
-  nextReminderAt: string | null;
-  lastRescheduleAt: string | null;
-  lastRescheduleReason: string | null;
-};
-
-let scheduledNotificationIds = new Set<number>();
-let cachedPermission: PermissionState = "unknown";
-let cachedNativeAvailable = false;
-let cachedFallback = true;
-let lastRescheduleAt: string | null = null;
-let lastRescheduleReason: string | null = null;
-let lastNextReminderAt: string | null = null;
-
-const getLocalNotificationsPlugin = (): LocalNotificationsPluginLike | null => {
-  if (typeof window === "undefined") return null;
-  const plugin = (window as any)?.Capacitor?.Plugins?.LocalNotifications;
-  if (!plugin) return null;
-  if (typeof plugin.schedule !== "function" || typeof plugin.cancel !== "function") {
-    return null;
-  }
-  return plugin as LocalNotificationsPluginLike;
-};
-
-const resolvePermissionState = (payload: any): PermissionState => {
-  const value = String(
-    payload?.display ?? payload?.notifications ?? payload?.localNotifications ?? payload?.permission ?? "unknown",
-  ).toLowerCase();
-  if (value.includes("granted")) return "granted";
-  if (value.includes("denied")) return "denied";
-  if (value.includes("prompt")) return "prompt";
-  return "unknown";
-};
-
-const hashReminderId = (id: string): number => {
-  let hash = 0;
-  for (let i = 0; i < id.length; i += 1) {
-    hash = (hash * 31 + id.charCodeAt(i)) | 0;
-  }
-  return Math.abs(hash) % 1_000_000_000;
-};
-
-const resolveReminderDate = (reminder: Reminder): Date | null => {
-  const raw = reminder.snoozeUntil || reminder.datetime;
-  const date = new Date(raw);
-  if (Number.isNaN(date.getTime())) return null;
-  return date;
-};
-
-const scheduleNativeNotification = async (
-  plugin: LocalNotificationsPluginLike,
-  reminder: Reminder,
-): Promise<ReminderScheduleResult> => {
-  const at = resolveReminderDate(reminder);
-  if (!at) {
-    return {
-      ok: false,
-      mode: "fallback",
-      notificationId: null,
-      reason: "INVALID_REMINDER_DATE",
-    };
-  }
-  if (at.getTime() <= Date.now()) {
-    return {
-      ok: false,
-      mode: "fallback",
-      notificationId: null,
-      reason: "REMINDER_IN_PAST",
-    };
-  }
-
-  const notificationId = hashReminderId(reminder.id);
-  try {
-    await plugin.cancel?.({ notifications: [{ id: notificationId }] });
-  } catch {
-    // best effort
-  }
-
-  await plugin.schedule?.({
-    notifications: [
-      {
-        id: notificationId,
-        title: reminder.title || "Reminder",
-        body: reminder.msg || "",
-        schedule: { at, allowWhileIdle: true },
-        extra: { reminderId: reminder.id },
-      },
-    ],
-  });
-  scheduledNotificationIds.add(notificationId);
-
-  return {
-    ok: true,
-    mode: "native",
-    notificationId,
-  };
-};
-
-export const mobileReminderService = {
-  async syncPermissions(): Promise<ReminderPermissionSync> {
-    const plugin = getLocalNotificationsPlugin();
-    if (!plugin) {
-      cachedPermission = "unknown";
-      cachedNativeAvailable = false;
-      cachedFallback = true;
-      return { nativeAvailable: false, permission: "unknown", canSchedule: false };
-    }
-
-    try {
-      const current = await plugin.checkPermissions?.();
-      let permission = resolvePermissionState(current);
-
-      if (permission !== "granted" && typeof plugin.requestPermissions === "function") {
-        const requested = await plugin.requestPermissions();
-        permission = resolvePermissionState(requested);
-      }
-
-      cachedPermission = permission;
-      cachedNativeAvailable = true;
-      cachedFallback = permission !== "granted";
-      return {
-        nativeAvailable: true,
-        permission,
-        canSchedule: permission === "granted",
-      };
-    } catch {
-      cachedPermission = "unknown";
-      cachedNativeAvailable = true;
-      cachedFallback = true;
-      return { nativeAvailable: true, permission: "unknown", canSchedule: false };
-    }
+type PermissionState='granted'|'denied'|'prompt'|'unknown'
+export type ReminderPermissionSync={nativeAvailable:boolean;permission:PermissionState;canSchedule:boolean}
+export type ReminderHealthStatus={nativeAvailable:boolean;permission:PermissionState;fallback:boolean;scheduled:number;nextReminderAt:string|null;lastRescheduleAt:string|null;lastRescheduleReason:string|null;uncertain:number}
+const permission=(value:unknown):PermissionState=>value==='granted'?'granted':value==='denied'?'denied':typeof value==='string'&&value.startsWith('prompt')?'prompt':'unknown'
+// Use the installed Capacitor plugin proxy rather than a legacy global registry.
+const nativeAvailable=Capacitor.isNativePlatform()&&Capacitor.isPluginAvailable('LocalNotifications')
+const native:NativeReminderPort|undefined=nativeAvailable?{
+  permission:async()=>permission((await LocalNotifications.checkPermissions()).display),
+  pending:async()=>(await LocalNotifications.getPending()).notifications.map(item=>({id:item.id,
+    fingerprint:item.extra?.nexusReminderFormat==='delivery-v1'?item.extra.fingerprint:undefined,
+    legacyReminderId:item.extra?.nexusReminderFormat?undefined:item.extra?.reminderId,
+  })),
+  delivered:async()=>(await LocalNotifications.getDeliveredNotifications()).notifications.map(item=>({id:item.id,fingerprint:item.extra?.nexusReminderFormat==='delivery-v1'?item.extra.fingerprint:undefined})),
+  cancel:async id=>{await LocalNotifications.cancel({notifications:[{id}]})},
+  schedule:async(source,item,fingerprint)=>{
+    // Some plugin versions prompt if schedule runs without permission. Check
+    // immediately before schedule; explicit requests stay in the UI handler.
+    if(permission((await LocalNotifications.checkPermissions()).display)!=='granted')throw new Error('Notification permission is unavailable')
+    // 8.3's default exact schedule can open Android settings from a background
+    // reconciliation. Explicit inexact requests avoid that permission flow.
+    await LocalNotifications.schedule({notifications:[{id:item.nativeId,title:source.title||'Reminder',body:source.msg||'',isExactNotification:false,isExactMandatory:false,schedule:{at:new Date(item.snoozeUntil||item.datetime)},extra:{nexusReminderFormat:'delivery-v1',reminderId:source.id,fingerprint}}]})
   },
-
-  async schedule(reminder: Reminder): Promise<ReminderScheduleResult> {
-    const plugin = getLocalNotificationsPlugin();
-    if (!plugin) {
-      cachedFallback = true;
-      return { ok: false, mode: "fallback", notificationId: null, reason: "PLUGIN_UNAVAILABLE" };
-    }
-
-    if (cachedPermission !== "granted") {
-      const permission = await this.syncPermissions();
-      if (!permission.canSchedule) {
-        cachedFallback = true;
-        return { ok: false, mode: "fallback", notificationId: null, reason: "PERMISSION_UNAVAILABLE" };
-      }
-    }
-
-    try {
-      cachedFallback = false;
-      return await scheduleNativeNotification(plugin, reminder);
-    } catch {
-      cachedFallback = true;
-      return { ok: false, mode: "fallback", notificationId: null, reason: "SCHEDULE_FAILED" };
-    }
+}:undefined
+export const mobileReminderController=createBrowserReminderController({client:'mobile',store:useApp,native,resume:refresh=>{
+  if(!nativeAvailable)return()=>{}
+  let active=true,remove:(()=>void)|undefined
+  void CapacitorApp.addListener('appStateChange',state=>{if(active&&state.isActive)refresh()}).then(handle=>{
+    if(!active)void handle.remove();else remove=()=>{void handle.remove()}
+  }).catch(()=>{})
+  return()=>{active=false;remove?.()}
+}})
+export const useReminderApplication=mobileReminderController.useApplication
+export const mobileReminderService={
+  async syncPermissions():Promise<ReminderPermissionSync>{
+    const state=native?await native.permission():'unknown'
+    return {nativeAvailable,permission:state,canSchedule:state==='granted'}
   },
-
-  async cancel(reminderId: string): Promise<void> {
-    const plugin = getLocalNotificationsPlugin();
-    if (!plugin) return;
-    const notificationId = hashReminderId(reminderId);
-    try {
-      await plugin.cancel?.({ notifications: [{ id: notificationId }] });
-    } catch {
-      // best effort
-    } finally {
-      scheduledNotificationIds.delete(notificationId);
-    }
+  async requestPermissions():Promise<ReminderPermissionSync>{
+    if(!native)return {nativeAvailable:false,permission:'unknown',canSchedule:false}
+    const state=permission((await LocalNotifications.requestPermissions()).display)
+    await mobileReminderController.refresh()
+    return {nativeAvailable:true,permission:state,canSchedule:state==='granted'}
   },
-
-  async rescheduleFromStore(reminders: Reminder[]): Promise<{
-    nativeAvailable: boolean;
-    scheduled: number;
-    fallback: boolean;
-    reason?: string;
-    nextReminderAt?: string | null;
-  }> {
-    const plugin = getLocalNotificationsPlugin();
-    if (!plugin) {
-      scheduledNotificationIds.clear();
-      cachedNativeAvailable = false;
-      cachedFallback = true;
-      lastRescheduleReason = "PLUGIN_UNAVAILABLE";
-      lastRescheduleAt = new Date().toISOString();
-      lastNextReminderAt = null;
-      return { nativeAvailable: false, scheduled: 0, fallback: true, reason: "PLUGIN_UNAVAILABLE", nextReminderAt: null };
-    }
-
-    const permission = await this.syncPermissions();
-    if (!permission.canSchedule) {
-      scheduledNotificationIds.clear();
-      cachedNativeAvailable = true;
-      cachedFallback = true;
-      lastRescheduleReason = permission.permission === "denied" ? "PERMISSION_DENIED" : "PERMISSION_UNAVAILABLE";
-      lastRescheduleAt = new Date().toISOString();
-      lastNextReminderAt = null;
-      return {
-        nativeAvailable: true,
-        scheduled: 0,
-        fallback: true,
-        reason: lastRescheduleReason,
-        nextReminderAt: null,
-      };
-    }
-
-    try {
-      if (scheduledNotificationIds.size > 0) {
-        await plugin.cancel?.({
-          notifications: Array.from(scheduledNotificationIds).map((id) => ({ id })),
-        });
-      }
-    } catch {
-      // best effort
-    } finally {
-      scheduledNotificationIds.clear();
-    }
-
-    let scheduled = 0;
-    let nextReminderAt: string | null = null;
-    const pending = reminders.filter((reminder) => !reminder.done);
-    for (const reminder of pending) {
-      const result = await scheduleNativeNotification(plugin, reminder);
-      if (result.ok) scheduled += 1;
-      if (result.ok) {
-        const reminderDate = resolveReminderDate(reminder);
-        const reminderIso = reminderDate ? reminderDate.toISOString() : null;
-        if (!nextReminderAt || (reminderIso && reminderIso < nextReminderAt)) {
-          nextReminderAt = reminderIso;
-        }
-      }
-    }
-
-    cachedNativeAvailable = true;
-    cachedFallback = false;
-    lastRescheduleAt = new Date().toISOString();
-    lastRescheduleReason = pending.length === 0 ? "NO_OPEN_REMINDERS" : "OK";
-    lastNextReminderAt = nextReminderAt;
-
-    return {
-      nativeAvailable: true,
-      scheduled,
-      fallback: false,
-      reason: lastRescheduleReason,
-      nextReminderAt,
-    };
+  async rescheduleFromStore(_reminders?:unknown){await mobileReminderController.refresh();return this.getStatus()},
+  getStatus():ReminderHealthStatus {
+    const state=mobileReminderController.getStatus()
+    let quiet=false
+    try {quiet=Boolean(JSON.parse(localStorage.getItem('nx-mobile-reminder-quiet-hours')||'null')?.enabled)} catch {quiet=true}
+    const next=useApp.getState().reminders.filter(item=>!item.done).map(item=>item.snoozeUntil||item.datetime).sort((a,b)=>Date.parse(a)-Date.parse(b))[0]||null
+    return {nativeAvailable,permission:state.permission,fallback:!nativeAvailable||state.permission!=='granted'||quiet||Boolean(state.error),scheduled:state.scheduled,nextReminderAt:next,lastRescheduleAt:state.lastReconcileAt,lastRescheduleReason:state.error||(state.blocked?'RECOVERY_PENDING':quiet?'QUIET_HOURS_FOREGROUND_ONLY':state.ready?'OK':'NOT_READY'),uncertain:state.uncertain}
   },
-
-  getStatus(): ReminderHealthStatus {
-    return {
-      nativeAvailable: cachedNativeAvailable,
-      permission: cachedPermission,
-      fallback: cachedFallback,
-      scheduled: scheduledNotificationIds.size,
-      nextReminderAt: lastNextReminderAt,
-      lastRescheduleAt,
-      lastRescheduleReason,
-    };
-  },
-
-  async openSystemSettings(): Promise<boolean> {
-    try {
-      const appPlugin = (window as any)?.Capacitor?.Plugins?.App;
-      if (appPlugin && typeof appPlugin.openSettings === "function") {
-        await appPlugin.openSettings();
-        return true;
-      }
-    } catch {
-      // ignore
-    }
-    return false;
-  },
-};
+  async openSystemSettings():Promise<boolean>{return false},
+}
