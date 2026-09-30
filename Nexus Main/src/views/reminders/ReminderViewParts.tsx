@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
+import { createReminderTimeEdit, resolveReminderTimeEdit } from "@nexus/core/time/reminderTimeEdit";
 import {
   AlarmClock,
   AlertCircle,
@@ -163,14 +164,14 @@ export function ReminderModal({
   const rgb = hexToRgb(t.accent);
   const { addRem, updateReminder, tasks, notes: noteEntries, openNote, setNote } = useApp();
 
-  const now = new Date();
-  now.setMinutes(now.getMinutes() + 15);
-  const defaultDT = now.toISOString().slice(0, 16);
-
+  const [timeEdit] = useState(() => createReminderTimeEdit(reminder?.datetime));
   const [title, setTitle] = useState(reminder?.title ?? "");
   const [msg, setMsg] = useState(reminder?.msg ?? "");
-  const [datetime, setDatetime] = useState(
-    reminder?.datetime ? reminder.datetime.slice(0, 16) : defaultDT,
+  const [datetime, setDatetime] = useState(timeEdit.initialLocal);
+  const [occurrence, setOccurrence] = useState("");
+  const timeResolution = useMemo(
+    () => resolveReminderTimeEdit(timeEdit, datetime, occurrence),
+    [timeEdit, datetime, occurrence],
   );
   const [repeat, setRepeat] = useState<Reminder["repeat"]>(reminder?.repeat ?? "none");
   const [linkedTaskId, setLinkedTaskId] = useState(reminder?.linkedTaskId ?? "");
@@ -215,14 +216,14 @@ export function ReminderModal({
   ];
 
   const save = () => {
-    if (!title.trim()) return;
+    if (!title.trim() || timeResolution.ok === false) return;
     if (reminder) {
       updateReminder(
         reminder.id,
         {
           title,
           msg,
-          datetime: new Date(datetime).toISOString(),
+          datetime: timeResolution.instant,
           repeat,
           linkedTaskId: linkedTaskId || undefined,
           linkedNoteId: linkedNoteId || undefined,
@@ -233,7 +234,7 @@ export function ReminderModal({
       addRem({
         title,
         msg,
-        datetime: new Date(datetime).toISOString(),
+        datetime: timeResolution.instant,
         repeat,
         linkedTaskId: linkedTaskId || undefined,
         linkedNoteId: linkedNoteId || undefined,
@@ -385,8 +386,9 @@ export function ReminderModal({
                 />
                 <input
                   type="datetime-local"
+                  aria-label="Reminder date and time"
                   value={datetime}
-                  onChange={(event) => setDatetime(event.target.value)}
+                  onChange={(event) => { setDatetime(event.target.value); setOccurrence(""); }}
                   style={{
                     width: "100%",
                     padding: "9px 12px",
@@ -400,6 +402,28 @@ export function ReminderModal({
                     marginBottom: 12,
                   }}
                 />
+                <div style={{ fontSize: 11, opacity: 0.8, marginBottom: 8 }}>
+                  Time zone: <strong>{timeEdit.timeZone}</strong>
+                </div>
+                {timeResolution.choices.length > 1 && (
+                  <label style={{ display: "grid", gap: 4, fontSize: 12, marginBottom: 8 }}>
+                    This time occurs twice
+                    <select
+                      aria-label="Repeated time occurrence"
+                      value={timeResolution.selectedOccurrence}
+                      onChange={(event) => setOccurrence(event.target.value)}
+                      style={{ padding: "7px 9px", borderRadius: 8, background: "rgba(255,255,255,0.07)", color: "inherit", border: "1px solid rgba(255,255,255,0.2)" }}
+                    >
+                      <option value="">Choose earlier or later</option>
+                      {timeResolution.choices.map((choice, index) => (
+                        <option key={choice.instant} value={choice.instant}>{index === 0 ? "Earlier" : "Later"} ({choice.offsetLabel})</option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+                {timeResolution.ok === false && (
+                  <div role="alert" style={{ color: "#ff9f0a", fontSize: 12, marginBottom: 12 }}>{timeResolution.message}</div>
+                )}
                 <div style={{ display: "flex", gap: 6 }}>
                   {repeats.map((entry) => (
                     <button
@@ -564,6 +588,7 @@ export function ReminderModal({
             </button>
             <button
               onClick={save}
+              disabled={!title.trim() || !timeResolution.ok}
               style={{
                 flex: 2,
                 padding: 9,
@@ -571,6 +596,7 @@ export function ReminderModal({
                 background: t.accent,
                 border: "none",
                 cursor: "pointer",
+                opacity: timeResolution.ok ? 1 : 0.5,
                 fontSize: 13,
                 fontWeight: 700,
                 color: "#fff",
