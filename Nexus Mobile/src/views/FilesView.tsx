@@ -19,7 +19,8 @@ import { useApp } from '../store/appStore'
 import { useTheme } from '../store/themeStore'
 import { useWorkspaces, Workspace } from '../store/workspaceStore'
 import { useCanvas } from '../store/canvasStore'
-import { projectCanvasPlanning } from '@nexus/core/canvas/planningCompatibility'
+import { applyWorkspaceHandoff, captureMobileRuntime, hydrateMobileSources, restoreMobileCheckpoint } from '../app/workspaceHandoff'
+import type { SnapshotSection } from '@nexus/core/workspace/runtimeHandoff'
 import { useWorkspaceHandoff } from '../store/workspaceHandoffStore'
 import { hexToRgb } from '../lib/utils'
 import { useMobile } from '../lib/useMobile'
@@ -41,40 +42,11 @@ import {
   type WorkspaceRuntimeSnapshot,
 } from './files/mobileFilesTypes'
 
-type SnapshotSection = 'notes' | 'codes' | 'tasks' | 'reminders' | 'canvases' | 'workspaces'
 type ReviewRisk = 'low' | 'medium' | 'high'
 
 const SNAPSHOT_SECTIONS: SnapshotSection[] = ['notes', 'codes', 'tasks', 'reminders', 'canvases', 'workspaces']
 
 const getArray = <T,>(value: unknown): T[] => (Array.isArray(value) ? (value as T[]) : [])
-const getStringArray = (value: unknown): string[] =>
-  Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === 'string') : []
-const normalizeWorkspaceEntry = (workspace: any): Workspace | null => {
-  if (!workspace || typeof workspace !== 'object' || typeof workspace.id !== 'string') return null
-  const now = new Date().toISOString()
-  return {
-    id: workspace.id,
-    name: typeof workspace.name === 'string' && workspace.name ? workspace.name : 'Workspace',
-    icon: typeof workspace.icon === 'string' && workspace.icon ? workspace.icon : '🗂️',
-    color: typeof workspace.color === 'string' && workspace.color ? workspace.color : '#007AFF',
-    description: typeof workspace.description === 'string' ? workspace.description : undefined,
-    created: typeof workspace.created === 'string' && workspace.created ? workspace.created : now,
-    lastAccessed: typeof workspace.lastAccessed === 'string' && workspace.lastAccessed ? workspace.lastAccessed : now,
-    noteIds: getStringArray(workspace.noteIds),
-    codeIds: getStringArray(workspace.codeIds),
-    taskIds: getStringArray(workspace.taskIds),
-    reminderIds: getStringArray(workspace.reminderIds),
-    canvasIds: getStringArray(workspace.canvasIds),
-  }
-}
-
-const mergeById = <T extends { id: string }>(current: T[], incoming: T[]) => {
-  const map = new Map<string, T>()
-  current.forEach((entry) => map.set(entry.id, entry))
-  incoming.forEach((entry) => map.set(entry.id, entry))
-  return Array.from(map.values())
-}
-
 const getSnapshotCounts = (snapshot: WorkspaceRuntimeSnapshot) => {
   const state = snapshot.state || ({} as any)
   return {
@@ -191,7 +163,6 @@ export function FilesView({ setView }: FilesViewProps = {}) {
   const lastActionAt = useWorkspaceHandoff((s) => s.lastActionAt)
   const lastSourceApp = useWorkspaceHandoff((s) => s.lastSourceApp)
   const checkpoint = useWorkspaceHandoff((s) => s.checkpoint)
-  const saveCheckpoint = useWorkspaceHandoff((s) => s.saveCheckpoint)
 
   const runtimeImportRef = useRef<HTMLInputElement | null>(null)
   const searchInputRef = useRef<HTMLInputElement | null>(null)
@@ -212,28 +183,11 @@ export function FilesView({ setView }: FilesViewProps = {}) {
     window.setTimeout(() => setHandoffMsg(''), 3200)
   }
 
-  const buildRuntimeSnapshot = (): WorkspaceRuntimeSnapshot => ({
-    version: 1,
-    exportedAt: new Date().toISOString(),
-    app: 'Nexus Mobile',
-    state: {
-      notes,
-      openNoteIds,
-      activeNoteId,
-      codes,
-      openCodeIds,
-      activeCodeId,
-      tasks,
-      reminders,
-      folders,
-      canvases,
-      activeCanvasId,
-      workspaces,
-      activeWorkspaceId,
-    },
-  })
+  const buildRuntimeSnapshot = captureMobileRuntime
 
-  const exportRuntimeSnapshot = () => {
+  const exportRuntimeSnapshot = async () => {
+    try {
+    await hydrateMobileSources()
     const snapshot = buildRuntimeSnapshot()
     const payload = JSON.stringify(snapshot, null, 2)
     const blob = new Blob([payload], { type: 'application/json' })
@@ -250,10 +204,12 @@ export function FilesView({ setView }: FilesViewProps = {}) {
       counts: getSnapshotCounts(snapshot),
       riskLevel: 'low',
     })
+    } catch (error) { setHandoffStatus(`Export fehlgeschlagen: ${error instanceof Error ? error.message : String(error)}`) }
   }
 
   const shareRuntimeSnapshot = async () => {
     try {
+      await hydrateMobileSources()
       const snapshot = buildRuntimeSnapshot()
       const payload = JSON.stringify(snapshot, null, 2)
       const file = new File([payload], 'runtime.json', { type: 'application/json' })
@@ -275,156 +231,9 @@ export function FilesView({ setView }: FilesViewProps = {}) {
         })
         return
       }
-      exportRuntimeSnapshot()
+      await exportRuntimeSnapshot()
     } catch {
       setHandoffStatus('Share abgebrochen')
-    }
-  }
-
-  const applyRuntimeState = (state: WorkspaceRuntimeSnapshot['state']) => {
-    const nextNotes = getArray<any>(state.notes)
-    const nextCodes = getArray<any>(state.codes)
-    const nextTasks = getArray<any>(state.tasks)
-    const nextReminders = getArray<any>(state.reminders)
-    const nextFolders = getArray<any>(state.folders)
-    const nextCanvases = getArray<any>(state.canvases)
-    const nextWorkspaces = getArray<any>(state.workspaces)
-      .map((workspace) => normalizeWorkspaceEntry(workspace))
-      .filter((workspace): workspace is Workspace => Boolean(workspace))
-
-    const noteIds = new Set(nextNotes.map((note) => note.id))
-    const codeIds = new Set(nextCodes.map((code) => code.id))
-    const canvasIds = new Set(nextCanvases.map((canvas) => canvas.id))
-    const workspaceIds = new Set(nextWorkspaces.map((workspace) => workspace.id))
-
-    useApp.setState((current) => ({
-      ...current,
-      notes: nextNotes,
-      openNoteIds: getArray<string>(state.openNoteIds).filter((id) => noteIds.has(id)),
-      activeNoteId: noteIds.has(state.activeNoteId as string) ? state.activeNoteId : (nextNotes[0]?.id ?? null),
-      codes: nextCodes,
-      openCodeIds: getArray<string>(state.openCodeIds).filter((id) => codeIds.has(id)),
-      activeCodeId: codeIds.has(state.activeCodeId as string) ? state.activeCodeId : (nextCodes[0]?.id ?? null),
-      tasks: nextTasks,
-      reminders: nextReminders,
-      folders: nextFolders,
-    }))
-
-    useCanvas.setState((current) => ({
-      ...current,
-      canvases: projectCanvasPlanning(nextCanvases, 'mobile'),
-      activeCanvasId: canvasIds.has(state.activeCanvasId as string) ? state.activeCanvasId : (nextCanvases[0]?.id ?? null),
-    }))
-
-    useWorkspaces.setState((current) => ({
-      ...current,
-      workspaces: nextWorkspaces,
-      activeWorkspaceId: workspaceIds.has(state.activeWorkspaceId as string)
-        ? state.activeWorkspaceId
-        : (nextWorkspaces[0]?.id ?? null),
-    }))
-  }
-
-  const buildMergedState = (
-    snapshot: WorkspaceRuntimeSnapshot,
-    mode: 'replace' | 'merge',
-    selected: Record<SnapshotSection, boolean>,
-  ): WorkspaceRuntimeSnapshot['state'] => {
-    const incoming = snapshot.state || ({} as any)
-
-    const incomingNotes = getArray<any>(incoming.notes)
-    const incomingCodes = getArray<any>(incoming.codes)
-    const incomingTasks = getArray<any>(incoming.tasks)
-    const incomingReminders = getArray<any>(incoming.reminders)
-    const incomingFolders = getArray<any>(incoming.folders)
-    const incomingCanvases = getArray<any>(incoming.canvases)
-    const incomingWorkspaces = getArray<any>(incoming.workspaces)
-      .map((workspace) => normalizeWorkspaceEntry(workspace))
-      .filter((workspace): workspace is Workspace => Boolean(workspace))
-
-    const useIncoming = (section: SnapshotSection) => mode === 'replace' || selected[section]
-
-    const nextNotes = useIncoming('notes')
-      ? (mode === 'replace' ? incomingNotes : mergeById(notes as any[], incomingNotes))
-      : (notes as any[])
-    const nextCodes = useIncoming('codes')
-      ? (mode === 'replace' ? incomingCodes : mergeById(codes as any[], incomingCodes))
-      : (codes as any[])
-    const nextTasks = useIncoming('tasks')
-      ? (mode === 'replace' ? incomingTasks : mergeById(tasks as any[], incomingTasks))
-      : (tasks as any[])
-    const nextReminders = useIncoming('reminders')
-      ? (mode === 'replace' ? incomingReminders : mergeById(reminders as any[], incomingReminders))
-      : (reminders as any[])
-    const nextCanvases = useIncoming('canvases')
-      ? (mode === 'replace' ? incomingCanvases : mergeById(canvases as any[], incomingCanvases))
-      : (canvases as any[])
-    const currentWorkspaces = (workspaces as any[])
-      .map((workspace: any) => normalizeWorkspaceEntry(workspace))
-      .filter((workspace: Workspace | null): workspace is Workspace => Boolean(workspace))
-    const nextWorkspaces = useIncoming('workspaces')
-      ? (mode === 'replace' ? incomingWorkspaces : mergeById(currentWorkspaces, incomingWorkspaces))
-      : currentWorkspaces
-
-    const noteIds = new Set(nextNotes.map((entry) => entry.id))
-    const codeIds = new Set(nextCodes.map((entry) => entry.id))
-    const canvasIds = new Set(nextCanvases.map((entry) => entry.id))
-    const workspaceIds = new Set(nextWorkspaces.map((entry) => entry.id))
-
-    const incomingOpenNoteIds = getArray<string>(incoming.openNoteIds).filter((id) => noteIds.has(id))
-    const incomingOpenCodeIds = getArray<string>(incoming.openCodeIds).filter((id) => codeIds.has(id))
-
-    const nextOpenNoteIds = mode === 'replace'
-      ? incomingOpenNoteIds
-      : useIncoming('notes')
-        ? Array.from(new Set([
-          ...openNoteIds.filter((id) => noteIds.has(id)),
-          ...incomingOpenNoteIds,
-        ]))
-        : openNoteIds.filter((id) => noteIds.has(id))
-
-    const nextOpenCodeIds = mode === 'replace'
-      ? incomingOpenCodeIds
-      : useIncoming('codes')
-        ? Array.from(new Set([
-          ...openCodeIds.filter((id) => codeIds.has(id)),
-          ...incomingOpenCodeIds,
-        ]))
-        : openCodeIds.filter((id) => codeIds.has(id))
-
-    const resolveActiveId = (
-      currentId: string | null,
-      incomingId: string | null,
-      idSet: Set<string>,
-      fallbackId: string | null,
-      section: SnapshotSection,
-    ) => {
-      if (mode === 'replace') {
-        if (incomingId && idSet.has(incomingId)) return incomingId
-        return fallbackId
-      }
-      if (!useIncoming(section)) {
-        return currentId && idSet.has(currentId) ? currentId : fallbackId
-      }
-      if (currentId && idSet.has(currentId)) return currentId
-      if (incomingId && idSet.has(incomingId)) return incomingId
-      return fallbackId
-    }
-
-    return {
-      notes: nextNotes,
-      openNoteIds: nextOpenNoteIds,
-      activeNoteId: resolveActiveId(activeNoteId, incoming.activeNoteId ?? null, noteIds, nextNotes[0]?.id ?? null, 'notes'),
-      codes: nextCodes,
-      openCodeIds: nextOpenCodeIds,
-      activeCodeId: resolveActiveId(activeCodeId, incoming.activeCodeId ?? null, codeIds, nextCodes[0]?.id ?? null, 'codes'),
-      tasks: nextTasks,
-      reminders: nextReminders,
-      folders: mode === 'replace' ? incomingFolders : folders,
-      canvases: nextCanvases,
-      activeCanvasId: resolveActiveId(activeCanvasId, incoming.activeCanvasId ?? null, canvasIds, nextCanvases[0]?.id ?? null, 'canvases'),
-      workspaces: nextWorkspaces,
-      activeWorkspaceId: resolveActiveId(activeWorkspaceId, incoming.activeWorkspaceId ?? null, workspaceIds, nextWorkspaces[0]?.id ?? null, 'workspaces'),
     }
   }
 
@@ -520,15 +329,6 @@ export function FilesView({ setView }: FilesViewProps = {}) {
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [activeWs])
 
-  const applyImportedSnapshot = (
-    snapshot: WorkspaceRuntimeSnapshot,
-    mode: 'replace' | 'merge',
-    selected: Record<SnapshotSection, boolean>,
-  ) => {
-    const nextState = buildMergedState(snapshot, mode, selected)
-    applyRuntimeState(nextState)
-  }
-
   const importRuntimeSnapshot = (file: File) => {
     const reader = new FileReader()
     reader.onload = () => {
@@ -558,10 +358,10 @@ export function FilesView({ setView }: FilesViewProps = {}) {
     reader.readAsText(file)
   }
 
-  const handleApplySnapshot = (mode: 'replace' | 'merge') => {
+  const handleApplySnapshot = async (mode: 'replace' | 'merge') => {
     if (!pendingSnapshot) return
-    saveCheckpoint(buildRuntimeSnapshot().state as any)
-    applyImportedSnapshot(pendingSnapshot.snapshot, mode, mergeSelection)
+    try {
+    await applyWorkspaceHandoff(pendingSnapshot.snapshot, mode, mergeSelection)
     setHandoffStatus(
       mode === 'replace'
         ? 'runtime.json vollständig ersetzt'
@@ -575,16 +375,19 @@ export function FilesView({ setView }: FilesViewProps = {}) {
       },
     )
     setPendingSnapshot(null)
+    } catch (error) { setHandoffStatus(`Übernahme fehlgeschlagen: ${error instanceof Error ? error.message : String(error)}`) }
   }
 
-  const restoreCheckpoint = () => {
+  const restoreCheckpoint = async () => {
     if (!checkpoint?.state) return
-    applyRuntimeState(checkpoint.state as any)
+    try {
+    await restoreMobileCheckpoint()
     setHandoffStatus('Letzter Restore-Checkpoint wiederhergestellt', {
       sourceApp: 'local-checkpoint',
       snapshotAgeMinutes: 0,
       riskLevel: 'low',
     })
+    } catch (error) { setHandoffStatus(`Wiederherstellung fehlgeschlagen: ${error instanceof Error ? error.message : String(error)}`) }
   }
 
   // Build unified file list
