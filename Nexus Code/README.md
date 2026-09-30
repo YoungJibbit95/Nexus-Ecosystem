@@ -7,6 +7,8 @@
 Nexus Code ist die Desktop-IDE-App im Nexus Ecosystem.
 Sie fokussiert den Editor-/Run-Workflow, mit Workspace-, Terminal-, Search- und Debug-Surfaces.
 
+Current implementation truth, limits and the V2 migration checkpoint are recorded in the [Wave 0 audit](../docs/nexus-code-v2/README.md), [feature status](../docs/nexus-code-v2/feature-status.md) and [current user guide](../docs/nexus-code-v2/user-guide.md). The Debug surface is a simulated preview. Extension installation is a local declarative record operation, and the native command runner does not yet provide a persistent PTY terminal.
+
 ## Main Surfaces
 
 | Surface | Purpose | Highlights |
@@ -15,7 +17,7 @@ Sie fokussiert den Editor-/Run-Workflow, mit Workspace-, Terminal-, Search- und 
 | `Explorer` | file workflow | tree navigation, project context, quick open |
 | `Search` | project discovery | scoped search and jump actions |
 | `Terminal` | execution | command runtime with integrated output flow |
-| `Debug` | runtime inspection | debug events and feedback panels |
+| `Debug` | experimental preview | simulated state; no real process inspection or DAP adapter |
 | `Problems` | quality surface | errors/warnings tracking and jump-to-location |
 | `Command` | fast actions | command palette and quick execution |
 | `Settings` | behavior tuning | editor and runtime preferences |
