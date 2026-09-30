@@ -21,25 +21,13 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: 24
 
-      - name: Install Nexus Core deps
-        run: npm --prefix "./packages/nexus-core" ci
-
-      - name: Install Nexus Main deps
-        run: npm --prefix "./Nexus Main" ci
-
-      - name: Install Nexus Mobile deps
-        run: npm --prefix "./Nexus Mobile" ci
-
-      - name: Install Nexus Code deps
-        run: npm --prefix "./Nexus Code" ci
-
-      - name: Install Nexus Code Mobile deps
-        run: npm --prefix "./Nexus Code Mobile" ci
+      - name: Install locked public package dependencies
+        run: node tools/install-public-packages.mjs
 
       - name: Verify contracts and security
-        run: npm run verify:ecosystem
+        run: npm run verify:public
 
       - name: Build Main
         run: npm --prefix "./Nexus Main" run build

@@ -75,7 +75,7 @@ test('public release workflows enforce fresh artifacts, architecture, and signat
   const [electronWorkflow, androidWorkflow, gate, buildScript, packageJson] = await Promise.all([
     readFile(path.join(ROOT, '.github', 'workflows', 'build-installers.yml'), 'utf8'),
     readFile(path.join(ROOT, '.github', 'workflows', 'build-android.yml'), 'utf8'),
-    readFile(path.join(ROOT, 'tools', 'release-gate.mjs'), 'utf8'),
+    readFile(path.join(ROOT, 'tools', 'lib', 'release-gate-plan.mjs'), 'utf8'),
     readFile(path.join(ROOT, 'tools', 'build-ecosystem.mjs'), 'utf8'),
     readFile(path.join(ROOT, 'package.json'), 'utf8'),
   ])

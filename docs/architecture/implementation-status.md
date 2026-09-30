@@ -1,8 +1,8 @@
-# Modernization on dev
+# Modernization progress
 
-Started 2026-09-27 from audited baseline `d39cfa2`. The user authorized implementation of the recovery roadmap on `dev`. The previous local `dev` tip (`da7ff3f`) is preserved at `archive/dev-before-recovery-20260927`; `origin/dev` and `main` have not been changed.
+Started 2026-09-27 from audited baseline `d39cfa2` on authorized local `dev`. The previous tip (`da7ff3f`) remains at `archive/dev-before-recovery-20260927`; divergent origin/dev is preserved. On continuation, PR #396 was found already merged into main as `7b15c69`. This session continues on the existing PR branch and does not merge or replace main.
 
-**Paused at the user's request, 2026-09-27.** The current packet is finished and verified. Continue only when the user says `weiter`. Read [the continuation checkpoint](next-session.md) first. The overall modernization is not complete.
+**Bounded checkpoint, 2026-09-30:** public CI repair completed locally and submitted as Draft PR #418; use its checks for final-head status. Resume with `weiter` from [the continuation checkpoint](next-session.md). The overall modernization and release acceptance are incomplete. Older packet entries below describe their historical state.
 
 ## Working decisions
 
@@ -74,3 +74,22 @@ Audit baseline results are preserved in `../architecture-recovery/09-test-protec
 - All four app production builds passed at source checkpoint `699a06b`; this preparation changes verification/documentation only. No native installer/device upgrade acceptance is claimed.
 - Repaired the static backup UI gate to check delegation to the restore coordinator and added a coordinator safety-backup/journal gate. The public verification chain now passes 78 structural checks, all 79 tests, the single-React check and encoding verification. The public-facing secret scan also passed.
 - Draft status remains appropriate until installed-app upgrades, interruption/native filesystem cases and the supported downgrade/export procedure have been accepted. No merge or release publication is part of this checkpoint.
+
+### Public CI contract repair — 2026-09-30
+
+- Actual baseline: #396 was already merged at `7b15c69`; installation failures persisted in main runs 36319805381 (contract-parity) and 36319805499 (Release Gate). Mobile reproduced `Invalid Version` locally before repair. Code/Wiki logs named the missing Rolldown OpenHarmony binding. No existing locked package versions changed.
+- Install ownership now resides in one six-package public manifest and a fail-fast runner. A host-independent lockfile guard rejects versionless entries and incomplete Rolldown optional-platform records before npm prunes foreign platforms. Node 24 satisfies already-locked Electron tooling engines.
+- Release-gate plan owns scope selection: public checkout checks all public builds/audit/contracts/regressions plus browser persistence; default/full workspace verification still requires private Control. Previously the public workflow requested a full workspace while checking out only the public repository. Correcting that input contract does not certify private products or weaken the full release path. Partial-public flags are rejected, and full missing-Control failure is tested.
+- Product/storage owners, schema, migration policy and legacy readers are unchanged. W2 handoff/state ownership gaps remain. The [release acceptance matrix](storage-release-validation.md) distinguishes all 16 scenarios, current model/browser evidence and missing installed/native/process-crash acceptance.
+- Implementation commits `05702ad` and `346cc57`; follow-up Draft PR [#418](https://github.com/YoungJibbit95/Nexus-Ecosystem/pull/418). Existing branch reused; local dev and main were not edited by this packet. The Linux suite revealed a pre-existing wrong-case `Titlebar.tsx` fixture path; it now uses the tracked `TitleBar.tsx` and retains every assertion.
+- Local Node 26.3.1/npm 11.3.0: all six clean npm ci installs passed with lifecycle scripts enabled. Public verification passed 78 structural checks, 88 tests across 26 files, six lockfile checks, single-React and encoding. Core/Main/Mobile no-emit typechecks and public-surface/secret guards passed. Narrow preflight: 12/12; affected titlebar/UI suite: 4/4.
+- GitHub Node 24 Windows run 36692033532 passed the complete public Release Gate at `05702ad`: core and four app production builds, Wiki audit/build, public contracts/tests, hardening and 27 browser assertions. Linux installation also succeeded; its subsequent wrong-case fixture failure was corrected at `346cc57`. See the PR description/checks for final-head rerun results rather than treating the earlier run 36692033550 as current status.
+- The next packet is actual process-restart/upgrade acceptance in temporary profiles. Existing browser reloads do not prove a new process or installed upgrade. Full workspace/signing/device validation remains outstanding; the already-merged #396 is not approved for a production release.
+- npm/GitHub still report dependency advisories outside the repaired lockfile metadata. Issue #397 remains open; no broad upgrades, alert suppression or release approval are part of this packet.
+
+### Main dependency-audit blocker — 2026-09-30
+
+- Linux contract-parity and Windows Release Gate passed at `083da72`. The additionally triggered Main UI Gate failed its unchanged moderate-level audit in run 36692775945. Registry audit reports identified Electron, brace-expansion, fast-uri and undici; this is a concrete CI/security exception to deferred dependency maintenance.
+- Commit `fbd65f3` updates only Main's four affected locked packages within existing majors: Electron 42.9.0 to 42.11.9 (manifest minimum ^42.10.0), brace-expansion 5.0.9 to 5.0.12, undici 7.29.0 to 7.29.1, fast-uri 3.1.6 to 3.1.8. Existing security overrides were adjusted; Electron-builder, product dependencies and other clients were not broadly upgraded.
+- Regenerated Main lockfile passed the host-independent guard and `npm audit --audit-level=moderate` returned zero vulnerabilities. Final fresh-install/build/runtime and GitHub results are maintained in PR #418's description/checks, linked from the handoff, so later CI completion does not require an endless documentation-only rerun.
+- No product owner, persistence schema or legacy-reader change. Installed Electron and mobile upgrade/crash acceptance remain incomplete; the browser harness's default Electron comes from Code. A Main-runtime smoke must select Main's executable explicitly. Other clients' outstanding dependency work remains in #397.
