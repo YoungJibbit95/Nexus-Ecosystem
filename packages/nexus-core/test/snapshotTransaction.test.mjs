@@ -43,3 +43,27 @@ test('failure during rollback retains a complete recovery point for restart', as
   assert.deepEqual(f.journal(), { before: { content: 'before' }, after: { content: 'after' } })
   assert.equal(f.events.includes('clear'), false)
 })
+
+test('partial composition uses the latest flushed draft and detaches its captured preimage', async () => {
+  const f = fixture()
+  f.ports.beforeCapture = () => { f.events.push('flush-drafts'); f.ports.apply({ content: 'latest draft' }) }
+  await applySnapshotTransaction(before => ({ content: before.content + ' + imported' }), f.ports)
+  assert.equal(f.state().content, 'latest draft + imported')
+  assert.equal(f.events.indexOf('journal') > f.events.indexOf('apply-latest draft'), true)
+})
+
+test('failed journal acknowledgement never applies imported state', async () => {
+  const f = fixture()
+  f.ports.journal = async () => { throw new Error('journal unavailable') }
+  await assert.rejects(applySnapshotTransaction({ content: 'after' }, f.ports), /journal unavailable/)
+  assert.equal(f.state().content, 'before')
+  assert.deepEqual(f.events, ['flush-drafts'])
+})
+
+test('a synchronous partial apply failure still restores the entire preimage', async () => {
+  const f = fixture(), original = f.ports.apply
+  f.ports.apply = snapshot => { original(snapshot); if (snapshot.content === 'after') throw new Error('third store failed') }
+  await assert.rejects(applySnapshotTransaction({ content: 'after' }, f.ports), /previous state was recovered/)
+  assert.equal(f.state().content, 'before')
+  assert.equal(f.journal(), undefined)
+})

@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { draftRegistry } from "@nexus/core/storage/draftRegistry";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { CanvasNode } from "../../../../store/canvasStore";
 
 export const useNodeWidgetContentDraft = ({
@@ -10,28 +11,42 @@ export const useNodeWidgetContentDraft = ({
 }) => {
   const [contentDraft, setContentDraft] = useState(node.content || "");
   const contentCommitTimerRef = useRef<number | null>(null);
-  const pendingContentRef = useRef<string | null>(null);
+  const pendingContentRef = useRef<{ nodeId: string; content: string; generation: number } | null>(null);
+  const generation = useSyncExternalStore(draftRegistry.subscribe, draftRegistry.getGeneration, draftRegistry.getGeneration);
+  const loadedNodeIdRef = useRef(node.id);
+  const loadedGenerationRef = useRef(generation);
+
+  const cancelContentCommitTimer = useCallback(() => {
+    if (contentCommitTimerRef.current === null) return;
+    window.clearTimeout(contentCommitTimerRef.current);
+    contentCommitTimerRef.current = null;
+  }, []);
+
+  const discardPendingContentCommit = useCallback(() => {
+    pendingContentRef.current = null;
+    cancelContentCommitTimer();
+  }, [cancelContentCommitTimer]);
 
   const flushPendingContentCommit = useCallback(() => {
     const pending = pendingContentRef.current;
     if (pending === null) return;
     pendingContentRef.current = null;
-    updateNode(node.id, { content: pending });
-  }, [node.id, updateNode]);
+    cancelContentCommitTimer();
+    if (pending.generation !== draftRegistry.getGeneration()) return;
+    updateNode(pending.nodeId, { content: pending.content });
+  }, [cancelContentCommitTimer, updateNode]);
 
   const scheduleContentCommit = useCallback(
     (nextContent: string) => {
       setContentDraft(nextContent);
-      pendingContentRef.current = nextContent;
-      if (contentCommitTimerRef.current !== null) {
-        window.clearTimeout(contentCommitTimerRef.current);
-      }
+      pendingContentRef.current = { nodeId: node.id, content: nextContent, generation: draftRegistry.getGeneration() };
+      cancelContentCommitTimer();
       contentCommitTimerRef.current = window.setTimeout(() => {
         contentCommitTimerRef.current = null;
         flushPendingContentCommit();
       }, 260);
     },
-    [flushPendingContentCommit],
+    [cancelContentCommitTimer, flushPendingContentCommit, node.id],
   );
 
   const commitNodePatch = useCallback(
@@ -55,20 +70,27 @@ export const useNodeWidgetContentDraft = ({
   );
 
   useEffect(() => {
+    const replaced = loadedGenerationRef.current !== generation;
+    const switched = loadedNodeIdRef.current !== node.id;
+    if (replaced && pendingContentRef.current?.generation !== generation) discardPendingContentCommit();
+    else if (switched) flushPendingContentCommit();
+    loadedGenerationRef.current = generation;
+    loadedNodeIdRef.current = node.id;
     if (pendingContentRef.current !== null) return;
     setContentDraft(node.content || "");
-  }, [node.id, node.content]);
+  }, [discardPendingContentCommit, flushPendingContentCommit, generation, node.id, node.content]);
 
-  useEffect(
-    () => () => {
-      if (contentCommitTimerRef.current !== null) {
-        window.clearTimeout(contentCommitTimerRef.current);
-        contentCommitTimerRef.current = null;
-      }
+  useEffect(() => {
+    const unregister = draftRegistry.register(flushPendingContentCommit);
+    // Clear refs synchronously: a replacement must win even before React renders.
+    const unsubscribe = draftRegistry.subscribe(discardPendingContentCommit);
+    return () => {
+      unregister();
+      unsubscribe();
       flushPendingContentCommit();
-    },
-    [flushPendingContentCommit],
-  );
+      cancelContentCommitTimer();
+    };
+  }, [cancelContentCommitTimer, discardPendingContentCommit, flushPendingContentCommit]);
 
   const nodeForRender = useMemo(
     () =>
