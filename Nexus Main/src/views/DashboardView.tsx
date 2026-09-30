@@ -1,6 +1,8 @@
 import React, { useMemo, useState } from "react";
 import { AnimatePresence } from "framer-motion";
 import { useApp } from "../store/appStore";
+import { shallow } from 'zustand/shallow';
+import { useActiveViewCommandScope } from '../app/ViewCommandScope';
 import { useCanvas } from "../store/canvasStore";
 import { useTheme } from "../store/themeStore";
 import { useWorkspaces } from "../store/workspaceStore";
@@ -16,10 +18,12 @@ import { asObjectArray } from "./dashboard/dashboardViewUtils";
 import { buildDashboardWidgetContent } from "./dashboard/widgetContent";
 import { useDashboardLayoutEditing } from "./dashboard/useDashboardLayoutEditing";
 import { useDashboardDerivedData } from "./dashboard/useDashboardDerivedData";
+import { MainPlanningTodayCard } from './planning/MainPlanningTodayCard';
 import "./dashboard/dashboard.css";
 
 export function DashboardView({ setView }: { setView?: (v: string) => void }) {
   const t = useTheme();
+  const active = useActiveViewCommandScope();
   const {
     notes: rawNotes,
     tasks: rawTasks,
@@ -31,7 +35,12 @@ export function DashboardView({ setView }: { setView?: (v: string) => void }) {
     addRem,
     addCode,
     updateReminder,
-  } = useApp();
+  } = useApp(state => ({
+    notes: state.notes, tasks: state.tasks, codes: state.codes,
+    reminders: state.reminders, activities: state.activities,
+    addNote: state.addNote, addTask: state.addTask, addRem: state.addRem,
+    addCode: state.addCode, updateReminder: state.updateReminder,
+  }), shallow);
   const addCanvas = useCanvas((state) => state.addCanvas);
   const canvases = useCanvas((state) => state.canvases);
   const activeCanvasId = useCanvas((state) => state.activeCanvasId);
@@ -81,7 +90,7 @@ export function DashboardView({ setView }: { setView?: (v: string) => void }) {
     surfaceClass: "hero-surface",
     effectClass: "status-highlight",
     interactionState: "idle",
-    visibilityState: "visible",
+    visibilityState: active ? 'visible' : 'hidden',
     budgetPriority: "high",
     areaHint: 1200,
     motionClassHint: "hero",
@@ -95,7 +104,7 @@ export function DashboardView({ setView }: { setView?: (v: string) => void }) {
     surfaceClass: "panel-surface",
     effectClass: "backdrop",
     interactionState: "idle",
-    visibilityState: "visible",
+    visibilityState: active ? 'visible' : 'hidden',
     budgetPriority: "normal",
     areaHint: 980,
     motionClassHint: "content",
@@ -277,6 +286,8 @@ export function DashboardView({ setView }: { setView?: (v: string) => void }) {
           widgetContentBuildError={widgetContentBuildError}
           resetLayout={resetLayout}
         />
+
+        <MainPlanningTodayCard setView={setView} />
 
         <DashboardWidgetGridSection
           gridRef={gridRef}

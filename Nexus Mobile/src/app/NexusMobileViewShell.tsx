@@ -22,7 +22,7 @@ type Props = {
   active: boolean;
   reducedMotion: boolean;
   onRequestViewChange: (viewId: View | string) => void;
-  onExecuteCommand?: (command: NexusResolvedViewCommand) => boolean | void;
+  onExecuteCommand?: (command: NexusResolvedViewCommand) => boolean | void | 'opened';
   children: React.ReactNode;
 };
 
@@ -260,6 +260,10 @@ export function NexusMobileViewShell({
       }
 
       const handled = onExecuteCommand?.(command);
+      if (handled === 'opened') {
+        setShellState({ ...resolveNexusViewState({ viewId }), tone: 'info', label: 'Geöffnet', title: 'Erfassung geöffnet', description: 'Noch nicht gespeichert. Bestätige die Eingaben im Erfassungsformular.', ariaLive: 'polite' });
+        return;
+      }
       if (handled) {
         setShellState(resolveNexusViewState({ viewId, saved: true }));
         return;

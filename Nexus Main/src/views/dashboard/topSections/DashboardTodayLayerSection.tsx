@@ -4,6 +4,7 @@ import { ChevronDown, Plus } from "lucide-react";
 import type { CaptureIntentType } from "@nexus/core";
 import { Glass } from "../../../components/Glass";
 import { DashboardActionButton } from "../DashboardActionButton";
+import { usePlanningToday } from '../../planning/usePlanningToday';
 
 export function DashboardTodayLayerSection({
   heroMotion,
@@ -39,6 +40,7 @@ export function DashboardTodayLayerSection({
 }) {
   const detailsId = useId();
   const captureId = useId();
+  const today = usePlanningToday();
 
   return (
     <motion.section
@@ -57,16 +59,14 @@ export function DashboardTodayLayerSection({
           <div className="nx-dashboard-today-summary">
             <h2>Heute</h2>
             <button className="nx-dashboard-summary-link" onClick={() => setView?.("tasks")}>
-              <strong>{todaySummary.openTaskCount}</strong> offene Tasks
+              <strong>{today.openTaskCount}</strong> offene Aufgaben heute
+            </button>
+            <button className="nx-dashboard-summary-link" onClick={() => setView?.("calendar")}>
+              <strong>{today.commitmentCount}</strong> Verpflichtungen
             </button>
             <button className="nx-dashboard-summary-link" onClick={() => setView?.("reminders")}>
-              <strong>{todaySummary.dueTodayCount}</strong> heute fällig
+              <strong>{today.reminderCount}</strong> Erinnerungspunkte
             </button>
-            {todaySummary.overdueCount > 0 ? (
-              <button className="nx-dashboard-summary-link nx-dashboard-overdue" onClick={() => setView?.("reminders")}>
-                <strong>{todaySummary.overdueCount}</strong> überfällig
-              </button>
-            ) : null}
           </div>
           <DashboardActionButton
             className="nx-dashboard-control nx-dashboard-control-quiet"
@@ -134,7 +134,7 @@ export function DashboardTodayLayerSection({
               <dd>{lastSyncLabel}</dd>
             </div>
           </dl>
-          {todaySummary.overdueCount > 0 ? (
+          {todaySummary.overdueReminderIds.length > 0 ? (
             <div className="nx-dashboard-snooze-actions">
               <span>Überfällige Erinnerungen verschieben</span>
               <DashboardActionButton className="nx-dashboard-control" onClick={() => snoozeOverdue(15)}>

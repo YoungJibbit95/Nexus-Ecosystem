@@ -6,6 +6,7 @@ import { DashboardView as DashboardViewComponent } from '../views/DashboardView'
 const IS_DEV = (import.meta as any).env?.DEV
 const loadDashboardView = () => Promise.resolve({ DashboardView: DashboardViewComponent })
 const loadNotesView = () => import('../views/NotesView')
+const loadAgendaView = () => import('../views/AgendaView')
 const loadCodeView = () => import('../views/CodeView')
 const loadTasksView = () => import('../views/TasksView')
 const loadRemindersView = () => import('../views/RemindersView')
@@ -18,6 +19,7 @@ const loadDevToolsView = () => import('../views/DevToolsView')
 const loadRenderDiagnosticsView = () => import('../views/RenderDiagnosticsView')
 
 export const DashboardView = DashboardViewComponent
+export const AgendaView = lazy(() => loadAgendaView().then(m => ({ default: m.AgendaView })))
 export const NotesView = lazy(() => loadNotesView().then(m => ({ default: m.NotesView })))
 export const CodeView = lazy(() => loadCodeView().then(m => ({ default: m.CodeView })))
 export const TasksView = lazy(() => loadTasksView().then(m => ({ default: m.TasksView })))
@@ -42,6 +44,7 @@ export const VIEW_IDS: View[] = Array.from(
 
 export const VIEW_CHUNK_PRELOADERS: Record<View, () => Promise<unknown>> = {
   dashboard: loadDashboardView,
+  calendar: loadAgendaView,
   notes: loadNotesView,
   code: loadCodeView,
   tasks: loadTasksView,
@@ -57,6 +60,7 @@ export const VIEW_CHUNK_PRELOADERS: Record<View, () => Promise<unknown>> = {
 
 const MOBILE_PRELOAD_PRIORITY: View[] = [
   'dashboard',
+  'calendar',
   'notes',
   'tasks',
   'reminders',

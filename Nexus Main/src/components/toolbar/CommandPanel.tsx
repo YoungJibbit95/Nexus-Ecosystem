@@ -95,7 +95,7 @@ export function CommandPanel({
             setSelIdx(0);
           }}
           onKeyDown={onKeyDown}
-          placeholder="Search commands... (note:, task:, rem:, canvas:, > help)"
+          placeholder="Search commands... (note:, task:, event:, rem:, canvas:, > help)"
           style={{
             flex: 1,
             border: "none",
@@ -208,6 +208,7 @@ export function CommandPanel({
               {[
                 { label: "note:", value: "note: " },
                 { label: "task:", value: "task: " },
+                { label: "event:", value: "event: " },
                 { label: "rem:", value: "rem: " },
                 { label: "canvas:", value: "canvas: " },
                 { label: "cmd:", value: "> " },

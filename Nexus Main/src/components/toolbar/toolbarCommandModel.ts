@@ -1,5 +1,6 @@
 import {
   Bell,
+  CalendarDays,
   CheckSquare,
   Code2,
   FileText,
@@ -74,10 +75,10 @@ export function buildToolbarCommands({
       type: "command",
       color: "#30D158",
       icon: FileText,
-      hint: "Create a blank note",
+      hint: "Open unsaved note capture",
       keywords: ["create", "new", "note", "quick"],
       action: () => {
-        runCaptureIntent(createCaptureIntent("note", { title: "Quick Note", targetView: "notes" }));
+        runCaptureIntent(createCaptureIntent("note"));
       },
     },
     {
@@ -86,23 +87,28 @@ export function buildToolbarCommands({
       type: "command",
       color: "#FF9F0A",
       icon: CheckSquare,
-      hint: "Add quick todo",
+      hint: "Open unsaved task capture",
       keywords: ["create", "task", "todo", "kanban"],
       action: () => {
-        runCaptureIntent(createCaptureIntent("task", { title: "Quick Task", targetView: "tasks" }));
+        runCaptureIntent(createCaptureIntent("task"));
       },
     },
     {
       id: "new-reminder",
-      label: "Reminder in 1 hour",
+      label: "Capture reminder",
       type: "command",
       color: "#FF453A",
       icon: Bell,
-      hint: "Set reminder quickly",
+      hint: "Review time; default one hour after opening",
       keywords: ["create", "reminder", "alarm", "notify"],
       action: () => {
-        runCaptureIntent(createCaptureIntent("reminder", { title: "Quick Reminder", targetView: "reminders" }));
+        runCaptureIntent(createCaptureIntent("reminder"));
       },
+    },
+    {
+      id: "new-event", label: "Capture fixed event", type: "command", color: "#64D2FF", icon: CalendarDays,
+      hint: "Open unsaved event capture", keywords: ["create", "event", "calendar"],
+      action: () => runCaptureIntent(createCaptureIntent("event")),
     },
     {
       id: "toggle-terminal",
@@ -336,6 +342,7 @@ export function buildToolbarSuggestions({
     const iconByType = {
       note: FileText,
       task: CheckSquare,
+      event: CalendarDays,
       reminder: Bell,
       code: Code2,
       canvas: GitBranch,
@@ -343,6 +350,7 @@ export function buildToolbarSuggestions({
     const colorByType = {
       note: "#30D158",
       task: "#FF9F0A",
+      event: "#64D2FF",
       reminder: "#FF453A",
       code: "#BF5AF2",
       canvas: "#64D2FF",

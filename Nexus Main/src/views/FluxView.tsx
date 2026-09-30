@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { MainPlanningTodayCard } from './planning/MainPlanningTodayCard'
 import { canHandleViewKeyboardEvent, hasPlainShortcutModifiers, isEditableShortcutTarget, useActiveViewCommandScope } from '../app/ViewCommandScope'
 import {
   Activity as ActivityIcon,
@@ -636,6 +637,7 @@ export function FluxView({ setView }: { setView?: (view: string) => void } = {})
 
   return (
     <div className="nx-flux-v6 nx-release-view" style={{ display: 'flex', flexDirection: 'column', gap: 12, height: '100%', padding: 14, minHeight: 0 }}>
+      <div style={{ maxHeight: 260, overflowY: 'auto', flexShrink: 0 }}><MainPlanningTodayCard setView={setView} /></div>
       <Glass className="nx-flux-hero nx-release-toolbar" style={{ padding: '14px 16px', flexShrink: 0 }} glow>
         <div className="nx-flux-hero-main" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
           <div className="nx-flux-hero-copy">

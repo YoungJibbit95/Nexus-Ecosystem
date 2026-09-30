@@ -5,7 +5,7 @@ import { haptic } from '../lib/haptics'
 import { useMobile } from '../lib/useMobile'
 import { View } from './Sidebar'
 import {
-  BarChart3, FileText, Code2, Columns, Bell, GitBranch,
+  BarChart3, Calendar, FileText, Code2, Columns, Bell, GitBranch,
   HardDrive, Wrench, Zap, Settings, Info, Menu, X, Activity
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -18,6 +18,7 @@ const PRIMARY_ITEMS: { id: View; icon: any; label: string; color: string }[] = [
 ]
 
 const MORE_ITEMS: { id: View; icon: any; label: string; color: string }[] = [
+  { id: 'calendar',  icon: Calendar, label: 'Agenda', color: '#30D158' },
   { id: 'code',      icon: Code2,     label: 'Code',     color: '#BF5AF2' },
   { id: 'canvas',    icon: GitBranch, label: 'Canvas',   color: '#64D2FF' },
   { id: 'files',     icon: HardDrive, label: 'Files',    color: '#5E5CE6' },

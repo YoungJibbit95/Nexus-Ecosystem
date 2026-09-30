@@ -30,6 +30,13 @@ import { HTML5Backend } from 'react-dnd-html5-backend'
 import { shallow } from 'zustand/shallow'
 import { canHandleViewKeyboardEvent, hasPlainShortcutModifiers, isEditableShortcutTarget, isViewCommandScopeActive, useActiveViewCommandScope } from '../app/ViewCommandScope'
 import { taskDeadlineDate, taskDeadlineForSave } from './tasks/taskDeadline'
+import { requestPlanningNavigation } from '@nexus/core/planning/planningNavigation'
+import { useCanvas } from '../store/canvasStore'
+import { planningCommands, usePlanning } from '../store/planningStore'
+import { TaskContextLinks } from '@nexus/core/planning/TaskContextLinks'
+import type { EntityCatalog, EntityRef } from '@nexus/core/planning/entityLinks'
+import { requestEntityNavigation } from '@nexus/core/planning/entityNavigation'
+import type { TaskRecord } from '@nexus/core/planning/domain'
 
 const PRIORITY_COLOR = { low: '#30d158', mid: '#ffd60a', high: '#ff453a' }
 const PRIORITY_LABEL = { low: 'Low', mid: 'Medium', high: 'High' }
@@ -154,6 +161,7 @@ function StatsBar({ tasks }: { tasks: Task[] }) {
 type TaskCardProps = {
   tk: Task
   onEdit: () => void
+  onSchedule: () => void
   onDelete: () => void
   batchMode: boolean
   selected: boolean
@@ -168,6 +176,7 @@ type TaskCardProps = {
 function TaskCard({
   tk,
   onEdit,
+  onSchedule,
   onDelete,
   batchMode,
   selected,
@@ -228,6 +237,7 @@ function TaskCard({
                   <InteractiveIconButton motionId={`task-edit-${tk.id}`} onClick={onEdit} idleOpacity={0.35} radius={4}>
                     <Edit3 size={11}/>
                   </InteractiveIconButton>
+                  {tk.status !== 'done' && <button type="button" aria-label={`Schedule ${tk.title}`} onClick={onSchedule} style={{ background: 'none', border: 0, color: 'inherit', cursor: 'pointer', padding: 4 }}><Calendar size={12} /></button>}
                   <InteractiveIconButton motionId={`task-delete-${tk.id}`} onClick={onDelete} intent="danger" idleOpacity={0.35} radius={4}>
                     <Trash2 size={11}/>
                   </InteractiveIconButton>
@@ -407,6 +417,9 @@ function TaskModal({
   const [blockedReason, setBlockedReason] = useState(task?.blockedReason ?? '')
   const [dependsOnTaskIds, setDependsOnTaskIds] = useState<string[]>(task?.dependsOnTaskIds ?? [])
   const [linkedCanvasNodeId, setLinkedCanvasNodeId] = useState(task?.linkedCanvasNodeId ?? '')
+  const [linkedCanvasRef, setLinkedCanvasRef] = useState<EntityRef | null>(null)
+  const canvases = useCanvas(state => state.canvases)
+  const planning = usePlanning()
 
   const subRef = useRef<HTMLInputElement>(null)
 
@@ -452,7 +465,7 @@ function TaskModal({
   )
 
   const openLinkedNote = useCallback((noteId: string) => {
-    if (!noteId) return
+    if (!noteId || !useApp.getState().notes.some(note => note.id === noteId)) return
     openNote(noteId)
     setNote(noteId)
     setView?.('notes')
@@ -497,7 +510,7 @@ function TaskModal({
       datetime: reminderDate,
       repeat: 'none',
       linkedTaskId: task.id,
-      linkedNoteId: linkedNoteId || undefined,
+      linkedNoteId: task ? useApp.getState().tasks.find(item => item.id === task.id)?.linkedNoteId : linkedNoteId || undefined,
     })
   }, [addRem, deadline, desc, linkedNoteId, task, title])
 
@@ -518,18 +531,19 @@ function TaskModal({
   const save = () => {
     if (!title.trim()) return
 
-    const taskPatch: Partial<Task> = {
+    const taskPatch: Partial<Task> & { entityLinks?: EntityRef[] } = {
       title,
       desc,
       priority,
       deadline: taskDeadlineForSave(task?.deadline, deadline),
       tags,
       notes: notesMd,
-      linkedNoteId: linkedNoteId || undefined,
+      linkedNoteId: task ? useApp.getState().tasks.find(item => item.id === task.id)?.linkedNoteId : linkedNoteId || undefined,
       blocked,
       blockedReason: blocked ? blockedReason.trim() || undefined : undefined,
       dependsOnTaskIds,
-      linkedCanvasNodeId: linkedCanvasNodeId || undefined,
+      linkedCanvasNodeId: task ? useApp.getState().tasks.find(item => item.id === task.id)?.linkedCanvasNodeId : linkedCanvasNodeId || undefined,
+      entityLinks: task ? (useApp.getState().tasks.find(item => item.id === task.id) as any)?.entityLinks : [...(linkedNoteId ? [{ kind: 'note', id: linkedNoteId }] : []), ...(linkedCanvasRef ? [linkedCanvasRef] : [])],
     }
 
     if (task) {
@@ -650,7 +664,7 @@ function TaskModal({
                   <div>
                     <label style={{ fontSize:11, opacity:0.5, display:'block', marginBottom:5, textTransform:'uppercase', letterSpacing:0.5 }}>Linked Note</label>
                     <div style={{ display:'flex', gap:6 }}>
-                      <select value={linkedNoteId} onChange={(event) => setLinkedNoteId(event.target.value)} style={{ flex:1, padding:'7px 10px', borderRadius:8, background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.1)', outline:'none', fontSize:12, color:'inherit' }}>
+                      <select disabled={Boolean(task)} value={linkedNoteId} onChange={(event) => setLinkedNoteId(event.target.value)} style={{ flex:1, padding:'7px 10px', borderRadius:8, background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.1)', outline:'none', fontSize:12, color:'inherit' }}>
                         <option value="">No linked note</option>
                         {notes.slice(0, 200).map((note: Note) => (
                           <option key={note.id} value={note.id}>{note.title || 'Untitled note'}</option>
@@ -711,7 +725,7 @@ function TaskModal({
 
                   <div>
                     <label style={{ fontSize:11, opacity:0.5, display:'block', marginBottom:5, textTransform:'uppercase', letterSpacing:0.5 }}>Canvas Link (optional)</label>
-                    <input value={linkedCanvasNodeId} onChange={(event) => setLinkedCanvasNodeId(event.target.value)} placeholder="Canvas node id / anchor" style={{ width:'100%', padding:'7px 10px', borderRadius:8, background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.1)', outline:'none', fontSize:12, color:'inherit' }} />
+                    {task ? <TaskContextLinks task={(tasks.find(item => item.id === task.id) || task) as unknown as TaskRecord} catalog={{ notes, canvases } as unknown as EntityCatalog} planning={planning} execute={planningCommands.execute} onOpen={ref => { requestEntityNavigation('main', ref); setView?.(ref.kind === 'note' ? 'notes' : 'canvas') }} /> : <select aria-label="Canvas-Projekt und Knoten" value={linkedCanvasRef ? JSON.stringify(linkedCanvasRef) : ''} onChange={event => { const ref = event.target.value ? JSON.parse(event.target.value) as EntityRef : null; setLinkedCanvasRef(ref); setLinkedCanvasNodeId(ref?.id || '') }}><option value="">Kein Canvas-Knoten</option>{canvases.flatMap(canvas => canvas.nodes.map(node => <option key={`${canvas.id}-${node.id}`} value={JSON.stringify({ kind: 'canvas-node', canvasId: canvas.id, id: node.id })}>{canvas.name} / {node.title}</option>))}</select>}
                   </div>
 
                   {task && (
@@ -981,7 +995,7 @@ export function TasksView({ setView }: { setView?: (viewId: string) => void } = 
   }, [delTask, selectedTaskIds])
 
   const openLinkedNote = useCallback((task: Task) => {
-    if (!task.linkedNoteId) return
+    if (!task.linkedNoteId || !useApp.getState().notes.some(note => note.id === task.linkedNoteId)) return
     openNote(task.linkedNoteId)
     setNote(task.linkedNoteId)
     setView?.('notes')
@@ -1249,6 +1263,7 @@ export function TasksView({ setView }: { setView?: (viewId: string) => void } = 
                           key={task.id}
                           tk={task}
                           onEdit={() => setEditId(task.id)}
+                          onSchedule={() => { requestPlanningNavigation('main', { mode: 'schedule', taskId: task.id, localStart: '' }); setView?.('calendar') }}
                           onDelete={() => delTask(task.id)}
                           batchMode={batchMode}
                           selected={selectedTaskIds.includes(task.id)}

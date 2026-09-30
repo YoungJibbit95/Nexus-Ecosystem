@@ -21,11 +21,14 @@ import { useApp, type Reminder, type Task } from "../store/appStore";
 import { useTheme } from "../store/themeStore";
 import { hexToRgb } from "../lib/utils";
 import { mapIcsImport, type IcsImportMode } from "./calendar/icsImport";
+import { MainPlanningSurface } from "./planning/MainPlanningSurface";
+import { requestPlanningNavigation, usePlanningNavigation } from "@nexus/core/planning/planningNavigation";
+import { planningCommands, planningStore } from "../store/planningStore";
 import "./calendar/calendarView.css";
 
 type CalendarItemType = "task" | "reminder";
 type CalendarDensity = "comfortable" | "compact";
-type CalendarDisplayMode = "day" | "week" | "month";
+type CalendarDisplayMode = "day" | "week" | "month" | "agenda";
 type CalendarDayPlanVariant = "sidebar" | "window";
 type CalendarTypeFilter = "all" | CalendarItemType;
 type CalendarPriorityFilter = "all" | Task["priority"];
@@ -103,18 +106,21 @@ const TYPE_LABEL: Record<CalendarItemType, string> = {
 };
 
 const VIEW_LABEL: Record<CalendarDisplayMode, string> = {
+  agenda: "Agenda / Planen",
   day: "Tag",
   week: "Woche",
   month: "Monat",
 };
 
 const PREVIOUS_PERIOD_LABEL: Record<CalendarDisplayMode, string> = {
+  agenda: "Vorheriger Tag",
   day: "Vorheriger Tag",
   week: "Vorherige Woche",
   month: "Vorheriger Monat",
 };
 
 const NEXT_PERIOD_LABEL: Record<CalendarDisplayMode, string> = {
+  agenda: "Naechster Tag",
   day: "Naechster Tag",
   week: "Naechste Woche",
   month: "Naechster Monat",
@@ -386,7 +392,8 @@ const CalendarCard = ({
   const priorityClass = item.priority ? `is-priority-${item.priority}` : "is-priority-time";
   const overdue = isItemOverdue(item);
   const statusClass = getCalendarStatusClass(item, overdue);
-  const title = `${TYPE_LABEL[item.type]}: ${item.title} um ${item.timeLabel}${
+  const typeLabel = item.type === 'task' ? 'Aufgabenfrist' : TYPE_LABEL[item.type];
+  const title = `${typeLabel}: ${item.title} um ${item.timeLabel}${
     item.priority ? `, Prioritaet ${priorityLabel}` : ""
   }`;
 
@@ -409,9 +416,9 @@ const CalendarCard = ({
       <span className="nx-calendar-card-rail" aria-hidden="true" />
       <div className="nx-calendar-card-main">
         <div className="nx-calendar-card-title-row">
-          <span className="nx-calendar-card-type" aria-label={TYPE_LABEL[item.type]}>
+          <span className="nx-calendar-card-type" aria-label={typeLabel}>
             <Icon size={variant === "month" ? 10 : 12} />
-            <span>{variant === "month" ? TYPE_LABEL[item.type][0] : TYPE_LABEL[item.type]}</span>
+            <span>{variant === "month" ? typeLabel[0] : typeLabel}</span>
           </span>
           <span className="nx-calendar-card-time">
             <Clock size={variant === "month" ? 9 : 11} />
@@ -793,6 +800,7 @@ const CalendarTimeline = ({
 };
 
 export function CalendarView({
+  setView,
   onTaskDrop,
   onReminderDrop,
   onImportClick,
@@ -820,7 +828,9 @@ export function CalendarView({
   const [priorityFilter, setPriorityFilter] =
     useState<CalendarPriorityFilter>("all");
   const [density, setDensity] = useState<CalendarDensity>("comfortable");
-  const [calendarMode, setCalendarMode] = useState<CalendarDisplayMode>("week");
+  const [calendarMode, setCalendarMode] = useState<CalendarDisplayMode>("agenda");
+  const planningRequest = usePlanningNavigation('main');
+  useEffect(() => { if (planningRequest) setCalendarMode('agenda'); }, [planningRequest]);
   const [composerType, setComposerType] = useState<CalendarItemType>("task");
   const [composerTitle, setComposerTitle] = useState("");
   const [composerPriority, setComposerPriority] =
@@ -854,7 +864,7 @@ export function CalendarView({
   const weekDays = useMemo(() => getWeekDays(selectedDate), [selectedDateKey]);
   const timelineDays = calendarMode === "day" ? [selectedDate] : weekDays;
   const periodTitle = useMemo(() => {
-    if (calendarMode === "day") return formatDayTitle(selectedDate);
+    if (calendarMode === "day" || calendarMode === "agenda") return formatDayTitle(selectedDate);
     if (calendarMode === "week") return formatWeekTitle(weekDays);
     return formatMonthTitle(viewMonth);
   }, [calendarMode, selectedDateKey, viewMonth, weekDays]);
@@ -936,7 +946,7 @@ export function CalendarView({
   const navigatePeriod = useCallback(
     (direction: -1 | 1) => {
       const current = fromDateKey(selectedDateKey);
-      if (calendarMode === "day") {
+      if (calendarMode === "day" || calendarMode === "agenda") {
         focusDate(addDays(current, direction));
         return;
       }
@@ -972,17 +982,9 @@ export function CalendarView({
       if (type === "task") {
         const task = useApp.getState().tasks.find((entry) => entry.id === id);
         if (!task) return;
-        const nextDeadline = targetTimeValue
-          ? combineDateAndTime(targetDateKey, targetTimeValue)
-          : moveDateKeepingTime(targetDateKey, task.deadline, "17:00");
-        updateTask(id, { deadline: nextDeadline });
-        onTaskDrop?.({
-          type: "task",
-          id,
-          dateKey: targetDateKey,
-          datetime: nextDeadline,
-          item: task,
-        });
+        setSelectedDateKey(targetDateKey);
+        setCalendarMode('agenda');
+        requestPlanningNavigation('main', { mode: 'schedule', taskId: id, localStart: targetTimeValue ? `${targetDateKey}T${targetTimeValue}` : '' });
         return;
       }
 
@@ -1003,11 +1005,11 @@ export function CalendarView({
         item: reminder,
       });
     },
-    [onReminderDrop, onTaskDrop, updateReminder, updateTask],
+    [onReminderDrop, updateReminder],
   );
 
   const submitComposer = useCallback(
-    (event: React.FormEvent) => {
+    async (event: React.FormEvent) => {
       event.preventDefault();
       const title = composerTitle.trim();
       if (!title) return;
@@ -1018,8 +1020,11 @@ export function CalendarView({
           .split(/[,\s]+/)
           .map((tag) => tag.trim().replace(/^#/, ""))
           .filter(Boolean);
-        const created = addTask(title, "todo", "", composerPriority);
-        updateTask(created.id, { deadline: datetime, tags });
+        const snapshot = planningStore.capturePlanning();
+        const result = await planningCommands.execute({ kind: 'capture-task', key: crypto.randomUUID(), expected: { generation: snapshot.generation, revision: snapshot.revision }, fields: { title, priority: composerPriority, tags } });
+        if (result.ok === false) { setImportMessage(result.message); return; }
+        requestPlanningNavigation('main', { mode: 'schedule', taskId: result.ids[0], localStart: `${selectedDateKey}T${composerTime}` });
+        setCalendarMode('agenda');
       } else {
         addRem({
           title,
@@ -1047,10 +1052,11 @@ export function CalendarView({
   );
 
   const toggleImport = useCallback(() => {
-    setImportOpen((current) => {
-      const next = !current;
-      if (next) onImportClick?.();
-      return next;
+    setCalendarMode('agenda');
+    onImportClick?.();
+    requestAnimationFrame(() => {
+      const panel = document.querySelector<HTMLDetailsElement>('.nx-planning-ics');
+      if (panel) { panel.open = true; panel.scrollIntoView({ block: 'nearest' }); panel.querySelector<HTMLTextAreaElement>('textarea')?.focus(); }
     });
   }, [onImportClick]);
 
@@ -1431,7 +1437,7 @@ export function CalendarView({
                 className="nx-calendar-segment nx-calendar-mode-switch"
                 aria-label="Kalenderansicht"
               >
-                {(["day", "week", "month"] as const).map((mode) => (
+                {(["agenda", "day", "week", "month"] as const).map((mode) => (
                   <button
                     key={mode}
                     type="button"
@@ -1757,7 +1763,7 @@ export function CalendarView({
         </div>
 
         <div className={`nx-calendar-shell nx-calendar-shell-${calendarMode}`}>
-          {calendarMode === "month" ? (
+          {calendarMode === "agenda" ? <div className="custom-scrollbar" style={{ overflowY: 'auto', width: '100%', padding: 8 }}><MainPlanningSurface setView={setView} selectedDay={selectedDateKey} onDayChange={setSelectedDateKey} /></div> : calendarMode === "month" ? (
             <Glass className="nx-calendar-month-panel">
               <div className="nx-calendar-panel-head nx-calendar-month-head">
                 <div>

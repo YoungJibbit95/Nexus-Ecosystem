@@ -7,6 +7,7 @@ import { getNexusViewManifest, NEXUS_VIEW_META } from "@nexus/core";
 
 const TAB_SHORT_LABELS: Record<string, string> = {
   dashboard: "Da",
+  calendar: "Ag",
   notes: "No",
   code: "</>",
   tasks: "Ta",

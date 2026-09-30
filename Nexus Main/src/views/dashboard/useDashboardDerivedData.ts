@@ -1,4 +1,6 @@
 import { useCallback, useMemo } from "react";
+import { usePlanningToday } from '../planning/usePlanningToday';
+import { openApplicationCapture } from '@nexus/core/application/captureNavigation';
 import {
   Activity,
   Bell,
@@ -92,6 +94,7 @@ export function useDashboardDerivedData({
   accent,
   accent2,
 }: UseDashboardDerivedDataInput) {
+  const planningToday = usePlanningToday();
   const doneTasks = useMemo(
     () => tasks.filter((task) => task.status === "done").length,
     [tasks],
@@ -319,8 +322,8 @@ export function useDashboardDerivedData({
   );
 
   const todaySummary = useMemo(
-    () => computeTodayLayerSummary(tasks as any[], reminders as any[], new Date()),
-    [tasks, reminders],
+    () => { const remindersSummary = computeTodayLayerSummary(tasks as any[], reminders as any[], new Date()); return { ...remindersSummary, openTaskCount: planningToday.openTaskCount, dueTodayCount: planningToday.dueTaskCount + planningToday.dueReminderCount, overdueCount: planningToday.overdueTaskCount + remindersSummary.overdueCount } },
+    [tasks, reminders, planningToday],
   );
 
   const activeWorkspace = useMemo(
@@ -333,29 +336,19 @@ export function useDashboardDerivedData({
       const intent = createCaptureIntent(intentType);
       switch (intent.type) {
         case "note": {
-          addNote();
-          setView?.(intent.targetView || "notes");
+          openApplicationCapture('main', 'note', setView);
           break;
         }
         case "task": {
-          addTask(
-            intent.title || "Quick Task",
-            "todo",
-            "Erstellt via Quick Capture",
-            "mid",
-          );
-          setView?.(intent.targetView || "tasks");
+          openApplicationCapture('main', 'task', setView);
+          break;
+        }
+        case "event": {
+          openApplicationCapture('main', 'event', setView);
           break;
         }
         case "reminder": {
-          const inFifteenMinutes = new Date(Date.now() + 15 * 60_000).toISOString();
-          addRem({
-            title: intent.title || "Quick Reminder",
-            msg: "Erstellt via Quick Capture",
-            datetime: inFifteenMinutes,
-            repeat: "none",
-          });
-          setView?.(intent.targetView || "reminders");
+          openApplicationCapture('main', 'reminder', setView);
           break;
         }
         case "code": {

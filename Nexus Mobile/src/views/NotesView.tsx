@@ -13,6 +13,8 @@ import { InteractiveIconButton } from '../components/render/InteractiveIconButto
 import { InteractiveActionButton } from '../components/render/InteractiveActionButton'
 import { NexusMarkdown } from '../components/NexusMarkdown'
 import { useApp } from '../store/appStore'
+import { planningStore } from '../store/planningStore'
+import { useEntityNavigationTarget } from '@nexus/core/planning/entityNavigation'
 import { useCanvas } from '../store/canvasStore'
 import { useTheme } from '../store/themeStore'
 import { hexToRgb, fmtDt } from '../lib/utils'
@@ -552,24 +554,17 @@ export function NotesView() {
     insertFormat(`[[${title}]]`, '', '')
   }, [insertFormat])
 
-  const convertNoteToTask = useCallback(() => {
+  const [promotionMessage, setPromotionMessage] = useState('')
+  useEntityNavigationTarget('mobile', 'note', useCallback(ref => {
+    if (ref.kind !== 'note') return false
+    if (!useApp.getState().notes.some(note => note.id === ref.id)) { setPromotionMessage('Verknüpfte Notiz fehlt. Referenz bleibt zur Reparatur erhalten.'); return true }
+    useApp.getState().setNote(ref.id); return true
+  }, []))
+  const convertNoteToTask = useCallback(async () => {
     if (!active) return
-    const state = useApp.getState()
-    const beforeTaskIds = new Set(state.tasks.map((task) => task.id))
-    const summary = draftContentRef.current
-      .replace(/[#*`\[\]()]/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim()
-      .slice(0, 220)
-    addTask(active.title || 'Notiz Aufgabe', 'todo', summary, 'mid')
-    const afterState = useApp.getState()
-    const created = afterState.tasks.find((task) => !beforeTaskIds.has(task.id))
-    if (!created) return
-    updateTask(created.id, {
-      linkedNoteId: active.id,
-      notes: `Erstellt aus Notiz: ${active.title}`,
-    })
-  }, [active, addTask, updateTask])
+    try { const result = await planningStore.promoteEntity({ kind: 'note', id: active.id }); setPromotionMessage(result.ok === true ? `Aufgabe dauerhaft bestätigt: ${result.ids.join(', ')}. Wiederholen verwendet dieselbe Zuordnung.` : result.message) }
+    catch (error) { setPromotionMessage(String(error instanceof Error ? error.message : error)) }
+  }, [active])
 
   const convertNoteToReminder = useCallback(() => {
     if (!active) return
@@ -705,6 +700,7 @@ export function NotesView() {
       className="flex h-full gap-3 p-3 relative nx-mobile-view-screen"
       style={{ minHeight: 0, flexDirection: mob.isMobile ? 'column' : 'row', gap: mob.isMobile ? 0 : 12, padding: mob.isMobile ? 0 : 12 }}
     >
+      {promotionMessage && <p role="status" style={{ position: 'absolute', bottom: 24, right: 12, zIndex: 200, maxWidth: 360, background: '#172033', padding: 10 }}>{promotionMessage}</p>}
 
       {/* Mobile top bar */}
       {mob.isMobile && !focusMode && (
