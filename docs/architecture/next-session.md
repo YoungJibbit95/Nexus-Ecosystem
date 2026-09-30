@@ -4,7 +4,7 @@ The continuation prioritizes actual CI blockers and storage release safety. Stop
 
 ## Repository and authorization
 
-- Current working directory: `F:\Coding\Nexus Workspace\Nexus-Ecosystem-pr-persistence`. Branch: `fix/persistence-recovery-checkpoint`. Latest implementation commit: `346cc57` (CI repair `05702ad` plus Linux test-path fix); later handoff-only commits may follow it. Check `git log -1` for the documentation tip.
+- Current working directory: `F:\Coding\Nexus Workspace\Nexus-Ecosystem-pr-persistence`. Branch: `fix/persistence-recovery-checkpoint`. Latest implementation commit: `fbd65f3` (Main audit fix), preceded by `346cc57` (Linux test path) and `05702ad` (CI repair). Later handoff-only commits may follow it; check `git log -1` for the documentation tip.
 - Original audit-only request was superseded by the user's explicit instruction to implement the full recovery roadmap on `dev`. No new permission is needed for that authorized work after `weiter`.
 - PR [#396](https://github.com/YoungJibbit95/Nexus-Ecosystem/pull/396) was already merged on 2026-09-27 as `7b15c69`. Earlier claims that main was unchanged and #396 remained Draft are historical. This session did not merge or replace main. The existing branch was reused, merging origin/main normally at `ff4bd91` without source differences.
 - Follow-up Draft PR: [#418](https://github.com/YoungJibbit95/Nexus-Ecosystem/pull/418). Never force-push or discard unmerged work. Original checkout `Nexus-Ecosystem` remains clean on local `dev` at `10f8684`; its persistence checkpoint is in main, but it does not yet contain this CI repair.
@@ -14,7 +14,7 @@ The continuation prioritizes actual CI blockers and storage release safety. Stop
 
 ## Current packet and exact next step
 
-Four lockfiles omitted the already-locked Rolldown OpenHarmony binding; Mobile and Code Mobile also had versionless placeholders. Both old PR and merged-main logs failed during npm installation. Correct metadata is now validated before install on every host. Existing package versions are unchanged. All six public packages use npm ci and the first process failure stops installation. Contract-parity uses Node 24 to satisfy existing Electron dependency engines.
+Four lockfiles omitted the already-locked Rolldown OpenHarmony binding; Mobile and Code Mobile also had versionless placeholders. Both old PR and merged-main logs failed during npm installation. Correct metadata is now validated before install on every host. This repair preserved package versions; the later Main security update is listed below. All six public packages use npm ci and the first process failure stops installation. Contract-parity uses Node 24 to satisfy existing Electron dependency engines.
 
 Release verification has an explicit `--public-only` plan requiring all public builds, the Wiki audit, public contracts/regressions and real-browser persistence tests. Default/full mode still requires private Control sources. Public mode rejects partial-public flags and is independent of private siblings. Signing policy and installer workflows are unchanged. A green public check does not certify private products or installed releases.
 
@@ -65,9 +65,10 @@ Start from these current files:
 
 ## Verification for the CI repair packet — 2026-09-30
 
-- Fresh `node tools/install-public-packages.mjs`: all six packages passed npm ci with lifecycle scripts enabled (local Node 26.3.1/npm 11.3.0). Existing locked versions are unchanged.
+- Fresh `node tools/install-public-packages.mjs`: all six packages passed npm ci with lifecycle scripts enabled (local Node 26.3.1/npm 11.3.0) before the targeted Main security update below.
 - Local `npm run verify:public`: 78/78 structural checks, 88/88 tests across 26 files, all six lockfile checks, single-React and encoding passed. Core/Main/Mobile typechecks and public-surface/secret guards passed. No outstanding local verification failure.
 - GitHub Node 24 Windows Release Gate passed at `05702ad` (run 36692033532): public suite, core/four app production builds, Wiki audit/build, hardening and 27 browser assertions. Signing environment remains optional in this preflight; installed/signing acceptance is not claimed.
 - The newly enabled Linux test suite exposed a case-sensitive fixture path (`Titlebar.tsx` vs tracked `TitleBar.tsx`). Corrected at `346cc57`; all four affected local assertions passed unchanged. The original install failures are resolved on both runner platforms.
+- At `083da72`, Linux contract-parity and Windows Release Gate both passed. Main UI Gate then failed its unchanged dependency audit (run 36692775945). Concrete exception to the no-upgrade rule: Main now locks Electron 42.11.9 (minimum ^42.10.0), brace-expansion 5.0.12, undici 7.29.1 and fast-uri 3.1.8. Only these four package versions changed, within existing majors. Local Main audit returned zero vulnerabilities; other clients' dependency work remains in #397. The native runtime update still requires installed-app acceptance.
 - Final-head GitHub results are recorded in the [PR #418 description and checks](https://github.com/YoungJibbit95/Nexus-Ecosystem/pull/418); consult that live record before continuing. It is separate from the earlier failed run 36692033550 and the passing Windows evidence above.
 - Release status: #396 is already merged but its storage migration is **not release-ready**. Native upgrades, actual process restart/crash, filesystem acceptance and W2 empty-collection/restore-guard gaps remain. Next bounded packet is the isolated restart/upgrade harness above, after confirming #418 checks.
