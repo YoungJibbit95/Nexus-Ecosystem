@@ -31,7 +31,7 @@ const init = `(() => {
 })()`
 const quantile = (values, percent) => { const ordered = [...values].sort((a,b)=>a-b); return ordered[Math.max(0,Math.ceil(percent*ordered.length)-1)] }
 const summaries = actions => Object.fromEntries([...new Set(actions.map(action=>action.control))].map(control => { const samples=actions.filter(action=>action.control===control); return [control,{count:samples.length,armToValueMs:{median:quantile(samples.map(sample=>sample.armToValueMs),.5),p95:quantile(samples.map(sample=>sample.armToValueMs),.95),max:Math.max(...samples.map(sample=>sample.armToValueMs))},armToSecondFrameMs:{median:quantile(samples.map(sample=>sample.armToSecondFrameMs),.5),p95:quantile(samples.map(sample=>sample.armToSecondFrameMs),.95),max:Math.max(...samples.map(sample=>sample.armToSecondFrameMs))}}] }))
-const waitSource = expression => `new Promise((resolve,reject) => {const start=Date.now();const poll=()=>{const result=(${expression});if(result)resolve(result);else if(Date.now()-start>20000)reject(new Error('Actual production control not ready'));else setTimeout(poll,25)};poll()})`
+const waitForSelectorSource = selector => { const safeSelector = JSON.stringify(selector).replace(/[<>\u2028\u2029]/g, char => ({'<':'\\u003C','>':'\\u003E','\u2028':'\\u2028','\u2029':'\\u2029'}[char])); return `new Promise((resolve,reject) => {const start=Date.now();const poll=()=>{const result=document.querySelector(${safeSelector});if(result)resolve(result);else if(Date.now()-start>20000)reject(new Error('Actual production control not ready'));else setTimeout(poll,25)};poll()})` }
 app.whenReady().then(async () => {
   const results = {runtime:{electron:process.versions.electron,chromium:process.versions.chrome,embeddedNode:process.versions.node},window:{width:1440,height:1000,show:false,offscreen:true,frameRate:60,hardwareAcceleration:false,externalNetwork:'denied'},fixture:{notes:5,tasks:3,source:'Identical persisted browser snapshot; actual normal production entry/module graph'},runs:[]}
   try {
@@ -54,7 +54,7 @@ app.whenReady().then(async () => {
       console.log(`${name}: startup observer registered before load`)
       await window.loadURL(`${process.env.NEXUS_INTERACTION_BASE}/${name}/index.html`)
       console.log(`${name}: normal entry loaded`)
-      await window.webContents.executeJavaScript(waitSource("document.querySelector('.nx-dashboard-v6')"))
+      await window.webContents.executeJavaScript(waitForSelectorSource('.nx-dashboard-v6'))
       console.log(`${name}: actual Dashboard ready`)
       const startupEnd = await window.webContents.executeJavaScript('performance.now()')
       await window.webContents.executeJavaScript("document.querySelector('[aria-label=\"Rundgang schließen\"]')?.click()")
@@ -63,7 +63,7 @@ app.whenReady().then(async () => {
       for (const [view,selector,control] of [['Notizen','.nx-v6-view-shell[data-view="notes"][data-active="true"] textarea','notes-editor'],['Tasks','.nx-v6-view-shell[data-view="tasks"][data-active="true"] input[placeholder="Search tasks..."]','tasks-search']]) {
         console.log(`${name}: navigating to actual ${view} control`)
         await window.webContents.executeJavaScript(`(() => {const button=[...document.querySelectorAll('.nx-sidebar-nav-row')].find(button=>button.innerText.trim().split(/\\s+/)[0]===${JSON.stringify(view)} || button.title===${JSON.stringify(view)});if(!button)throw new Error('Actual navigation not found: ${view}');button.click()})()`)
-        await window.webContents.executeJavaScript(waitSource(`document.querySelector(${JSON.stringify(selector)})`))
+        await window.webContents.executeJavaScript(waitForSelectorSource(selector))
         console.log(`${name}: ${control} DOM ready`)
         await window.webContents.executeJavaScript(`document.querySelector(${JSON.stringify(selector)}).scrollIntoView({block:'center'});document.querySelector(${JSON.stringify(selector)}).focus()`)
         await window.webContents.executeJavaScript('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))')
