@@ -464,7 +464,7 @@ function registerFileHandlers(getMainWindow) {
 
       return { ok: true, data: fs.readFileSync(check.value, 'utf-8') };
     } catch (e) {
-      return { ok: false, error: e.message };
+      return { ok: false, error: e.message, code: typeof e.code === 'string' ? e.code : undefined };
     }
   });
 

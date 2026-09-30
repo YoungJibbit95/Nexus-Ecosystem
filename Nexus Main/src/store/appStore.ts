@@ -634,11 +634,17 @@ export const useApp = create<Store>()(
       }),
       merge: (persistedState, currentState) => {
         const persisted = (persistedState as Partial<Store> | undefined) ?? {}
-        const notes = ensureV6ReadmeNotes(persisted.notes ?? currentState.notes)
-        const openNoteIds = mergeV6OpenNotes(persisted.openNoteIds ?? currentState.openNoteIds, notes)
+        // Saved collections are authoritative, including imported seed IDs and emptiness.
+        // Help is seeded on first boot only; hydration must not rewrite customer content.
+        const hasSavedNotes = Array.isArray(persisted.notes)
+        const notes = hasSavedNotes ? persisted.notes! : ensureV6ReadmeNotes(currentState.notes)
+        const noteIds = new Set(notes.map(note => note.id))
+        const openNoteIds = hasSavedNotes
+          ? [...new Set((persisted.openNoteIds ?? []).filter(id => noteIds.has(id)))]
+          : mergeV6OpenNotes(currentState.openNoteIds, notes)
         const activeNoteId = persisted.activeNoteId && notes.some(note => note.id === persisted.activeNoteId)
           ? persisted.activeNoteId
-          : INITIAL_APP_DATA.activeNoteId
+          : openNoteIds[0] ?? notes[0]?.id ?? null
 
         return {
           ...currentState,

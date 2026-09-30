@@ -1,14 +1,12 @@
 import { useState } from 'react'
+import { captureWorkspaceRuntime, importWorkspaceState } from '../../app/workspaceImport'
+import { hydrateWorkspaceSources } from '../../app/workspaceRestore'
 import type { CodeFile, Note, Reminder, Task } from '../../store/appStore'
 import { useApp } from '../../store/appStore'
 import type { Canvas } from '../../store/canvasStore'
-import { useCanvas } from '../../store/canvasStore'
 import { useWorkspaceFs, WORKSPACE_EXPORT_DIRNAME } from '../../store/workspaceFsStore'
 import type { Workspace } from '../../store/workspaceStore'
-import { projectCanvasPlanning } from '@nexus/core/canvas/planningCompatibility'
-import { useWorkspaces } from '../../store/workspaceStore'
 import {
-  buildWorkspaceRuntimeSnapshot,
   readWorkspaceRuntimeSnapshot,
   writeWorkspaceRuntimeSnapshot,
 } from '../../lib/workspaceFsRuntime'
@@ -66,6 +64,7 @@ const normalizeWorkspaceDefinition = (workspace: any): Workspace | null => {
   const lastAccessedAt =
     typeof workspace.lastAccessed === 'string' && workspace.lastAccessed ? workspace.lastAccessed : fallbackTimestamp
   return {
+    ...workspace,
     id: workspace.id,
     name: typeof workspace.name === 'string' && workspace.name ? workspace.name : 'Workspace',
     icon: typeof workspace.icon === 'string' && workspace.icon ? workspace.icon : '🗂️',
@@ -91,15 +90,7 @@ type WorkspaceSyncArgs = {
   activeWorkspaceId: string | null
 }
 
-export function useWorkspaceSync({
-  notes,
-  codes,
-  tasks,
-  reminders,
-  canvases,
-  workspaces,
-  activeWorkspaceId,
-}: WorkspaceSyncArgs) {
+export function useWorkspaceSync(_sources: WorkspaceSyncArgs) {
   const workspaceRoot = useWorkspaceFs((s) => s.rootPath)
   const setWorkspaceRoot = useWorkspaceFs((s) => s.setRootPath)
   const autoSync = useWorkspaceFs((s) => s.autoSync)
@@ -165,76 +156,9 @@ export function useWorkspaceSync({
     try {
       const runtimeSnapshot = await readWorkspaceRuntimeSnapshot(root, fsApi)
       if (runtimeSnapshot) {
-        const incoming = runtimeSnapshot.state
-
-        useApp.setState((state) => {
-          const nextNotes = Array.isArray(incoming.notes) ? incoming.notes : state.notes
-          const noteIds = new Set(nextNotes.map((note) => note.id))
-          const nextOpenNoteIds = (Array.isArray(incoming.openNoteIds) ? incoming.openNoteIds : []).filter((id) =>
-            noteIds.has(id),
-          )
-          const nextActiveNoteId =
-            incoming.activeNoteId && noteIds.has(incoming.activeNoteId)
-              ? incoming.activeNoteId
-              : nextOpenNoteIds[0] || nextNotes[0]?.id || null
-
-          const nextCodes = Array.isArray(incoming.codes) ? incoming.codes : state.codes
-          const codeIds = new Set(nextCodes.map((code) => code.id))
-          const nextOpenCodeIds = (Array.isArray(incoming.openCodeIds) ? incoming.openCodeIds : []).filter((id) =>
-            codeIds.has(id),
-          )
-          const nextActiveCodeId =
-            incoming.activeCodeId && codeIds.has(incoming.activeCodeId)
-              ? incoming.activeCodeId
-              : nextOpenCodeIds[0] || nextCodes[0]?.id || null
-
-          return {
-            notes: nextNotes,
-            openNoteIds: nextOpenNoteIds,
-            activeNoteId: nextActiveNoteId,
-            codes: nextCodes,
-            openCodeIds: nextOpenCodeIds,
-            activeCodeId: nextActiveCodeId,
-            tasks: Array.isArray(incoming.tasks) ? incoming.tasks : state.tasks,
-            reminders: Array.isArray(incoming.reminders) ? incoming.reminders : state.reminders,
-            folders: Array.isArray(incoming.folders) ? incoming.folders : state.folders,
-          }
-        })
-
-        if (Array.isArray(incoming.canvases) && incoming.canvases.length > 0) {
-          const canvasIds = new Set(incoming.canvases.map((canvas) => canvas.id))
-          useCanvas.setState((state) => ({
-            ...state,
-            canvases: projectCanvasPlanning(incoming.canvases, 'main'),
-            activeCanvasId:
-              incoming.activeCanvasId && canvasIds.has(incoming.activeCanvasId)
-                ? incoming.activeCanvasId
-                : incoming.canvases[0]?.id || state.activeCanvasId,
-          }))
-        }
-
-        if (Array.isArray(incoming.workspaces) && incoming.workspaces.length > 0) {
-          const normalizedWorkspaces = incoming.workspaces
-            .map((workspace) => normalizeWorkspaceDefinition(workspace))
-            .filter((workspace): workspace is Workspace => Boolean(workspace))
-          if (normalizedWorkspaces.length === 0) {
-            markWorkspaceSync('runtime-import')
-            toast('Runtime Snapshot geladen, Workspace-Definitionen übersprungen (ungültig).')
-            return
-          }
-          const workspaceIds = new Set(normalizedWorkspaces.map((workspace) => workspace.id))
-          useWorkspaces.setState((state) => ({
-            ...state,
-            workspaces: normalizedWorkspaces,
-            activeWorkspaceId:
-              incoming.activeWorkspaceId && workspaceIds.has(incoming.activeWorkspaceId)
-                ? incoming.activeWorkspaceId
-                : normalizedWorkspaces[0]?.id || state.activeWorkspaceId,
-          }))
-        }
-
+        await importWorkspaceState(runtimeSnapshot.state)
         markWorkspaceSync('runtime-import')
-        toast('Workspace Runtime geladen (schneller Snapshot-Import).')
+        toast('Workspace Runtime gespeichert und geladen.')
         return
       }
 
@@ -258,26 +182,33 @@ export function useWorkspaceSync({
 
       for (const file of files) {
         const rel = file.relPath.replace(/\\/g, '/')
-        const lower = rel.toLowerCase()
+        const lower = `/${rel.toLowerCase().replace(/^\/+/, '')}`
         if (lower.endsWith('workspace-export.txt') || lower.endsWith('manifest.json')) continue
+        const recognized = lower.endsWith('/workspaces/workspaces.json')
+          || (lower.includes('/notes/') && lower.endsWith('.md'))
+          || lower.includes('/code/')
+          || (['/tasks/', '/reminders/', '/canvas/'].some(section => lower.includes(section)) && lower.endsWith('.json'))
+        if (!recognized) continue
         const fileRead = await fsApi.read(file.path)
-        if (!fileRead.ok || typeof fileRead.data !== 'string') continue
+        if (!fileRead.ok || typeof fileRead.data !== 'string') throw new Error(`Workspace file could not be read: ${rel}`)
         const content = fileRead.data
 
         if (lower.endsWith('/workspaces/workspaces.json')) {
           try {
             const parsed = JSON.parse(content)
-            if (Array.isArray(parsed)) {
+            if (!Array.isArray(parsed)) throw new Error('Workspace definitions must be an array')
+            {
               importedWorkspaceDefs = parsed
                 .map((item) => normalizeWorkspaceDefinition(item))
                 .filter((item): item is Workspace => Boolean(item))
+              if (importedWorkspaceDefs.length !== parsed.length) throw new Error('Invalid workspace definition')
             }
-          } catch {}
+          } catch { throw new Error(`Invalid workspace definitions: ${rel}`) }
           continue
         }
 
         if (lower.includes('/notes/') && lower.endsWith('.md')) {
-          const titleFromPath = rel.split('/').pop()?.replace(/\\.md$/i, '') || 'Imported Note'
+          const titleFromPath = rel.split('/').pop()?.replace(/\.md$/i, '') || 'Imported Note'
           const noteTitle = parseMarkdownTitle(content, titleFromPath)
           importedNotes.push({
             id: toSafeId(),
@@ -309,8 +240,10 @@ export function useWorkspaceSync({
         if (lower.includes('/tasks/') && lower.endsWith('.json')) {
           try {
             const parsed = JSON.parse(content)
-            if (parsed && typeof parsed === 'object') {
+            if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('Invalid task object')
+            {
               importedTasks.push({
+                ...parsed,
                 id: toSafeId(),
                 title: String(parsed.title || 'Imported Task'),
                 desc: String(parsed.desc || parsed.description || ''),
@@ -327,6 +260,7 @@ export function useWorkspaceSync({
                 linkedCanvasNodeId: parsed.linkedCanvasNodeId ? String(parsed.linkedCanvasNodeId) : undefined,
                 subtasks: Array.isArray(parsed.subtasks)
                   ? parsed.subtasks.map((sub: any) => ({
+                    ...sub,
                     id: String(sub?.id || toSafeId()),
                     title: String(sub?.title || 'Subtask'),
                     done: Boolean(sub?.done),
@@ -339,15 +273,17 @@ export function useWorkspaceSync({
                 notes: parsed.notes ? String(parsed.notes) : undefined,
               })
             }
-          } catch {}
+          } catch { throw new Error(`Invalid task file: ${rel}`) }
           continue
         }
 
         if (lower.includes('/reminders/') && lower.endsWith('.json')) {
           try {
             const parsed = JSON.parse(content)
-            if (parsed && typeof parsed === 'object') {
+            if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('Invalid reminder object')
+            {
               importedReminders.push({
+                ...parsed,
                 id: toSafeId(),
                 title: String(parsed.title || 'Imported Reminder'),
                 msg: String(parsed.msg || parsed.message || ''),
@@ -361,13 +297,15 @@ export function useWorkspaceSync({
                 notes: parsed.notes ? String(parsed.notes) : undefined,
               })
             }
-          } catch {}
+          } catch { throw new Error(`Invalid reminder file: ${rel}`) }
         }
 
         if (lower.includes('/canvas/') && lower.endsWith('.json')) {
           try {
             const parsed = JSON.parse(content)
-            if (parsed && typeof parsed === 'object' && typeof parsed.id === 'string') {
+            if (!parsed || typeof parsed !== 'object' || typeof parsed.id !== 'string'
+              || !Array.isArray(parsed.nodes) || !Array.isArray(parsed.connections)) throw new Error('Invalid Canvas object')
+            {
               const name = typeof parsed.name === 'string' && parsed.name ? parsed.name : 'Imported Canvas'
               const nodes = Array.isArray(parsed.nodes) ? parsed.nodes : []
               const connections = Array.isArray(parsed.connections) ? parsed.connections : []
@@ -381,7 +319,7 @@ export function useWorkspaceSync({
                 updated: typeof parsed.updated === 'string' ? parsed.updated : new Date(file.mtimeMs || Date.now()).toISOString(),
               })
             }
-          } catch {}
+          } catch { throw new Error(`Invalid Canvas file: ${rel}`) }
         }
       }
 
@@ -390,43 +328,29 @@ export function useWorkspaceSync({
         importedCodes.length > 0 ||
         importedTasks.length > 0 ||
         importedReminders.length > 0 ||
-        importedCanvases.length > 0
+        importedCanvases.length > 0 ||
+        Boolean(importedWorkspaceDefs?.length)
 
       if (!importedSomething) {
         toast('Keine importierbaren Workspace-Dateien gefunden.')
         return
       }
 
-      useApp.setState((state) => {
-        const nextNotes = importedNotes.length > 0 ? importedNotes : state.notes
-        const nextCodes = importedCodes.length > 0 ? importedCodes : state.codes
+      await importWorkspaceState(current => {
+        const nextNotes = importedNotes.length > 0 ? importedNotes : current.notes
+        const nextCodes = importedCodes.length > 0 ? importedCodes : current.codes
         return {
-          notes: nextNotes,
-          openNoteIds: nextNotes.length > 0 ? [nextNotes[0].id] : [],
-          activeNoteId: nextNotes[0]?.id ?? null,
-          codes: nextCodes,
-          openCodeIds: nextCodes.length > 0 ? [nextCodes[0].id] : [],
-          activeCodeId: nextCodes[0]?.id ?? null,
-          tasks: importedTasks.length > 0 ? importedTasks : state.tasks,
-          reminders: importedReminders.length > 0 ? importedReminders : state.reminders,
+          ...current,
+          notes: nextNotes, openNoteIds: importedNotes.length ? [nextNotes[0].id] : current.openNoteIds, activeNoteId: importedNotes.length ? nextNotes[0].id : current.activeNoteId,
+          codes: nextCodes, openCodeIds: importedCodes.length ? [nextCodes[0].id] : current.openCodeIds, activeCodeId: importedCodes.length ? nextCodes[0].id : current.activeCodeId,
+          tasks: importedTasks.length > 0 ? importedTasks : current.tasks,
+          reminders: importedReminders.length > 0 ? importedReminders : current.reminders,
+          canvases: importedCanvases.length > 0 ? importedCanvases : current.canvases,
+          activeCanvasId: importedCanvases.length > 0 ? importedCanvases[0].id : current.activeCanvasId,
+          workspaces: importedWorkspaceDefs?.length ? importedWorkspaceDefs : current.workspaces,
+          activeWorkspaceId: importedWorkspaceDefs?.length ? importedWorkspaceDefs[0].id : current.activeWorkspaceId,
         }
       })
-
-      if (importedCanvases.length > 0) {
-        useCanvas.setState((state) => ({
-          ...state,
-          canvases: projectCanvasPlanning(importedCanvases, 'main'),
-          activeCanvasId: importedCanvases[0]?.id || state.activeCanvasId,
-        }))
-      }
-
-      if (importedWorkspaceDefs && importedWorkspaceDefs.length > 0) {
-        useWorkspaces.setState((state) => ({
-          ...state,
-          workspaces: importedWorkspaceDefs!,
-          activeWorkspaceId: importedWorkspaceDefs![0]?.id || state.activeWorkspaceId,
-        }))
-      }
 
       useApp
         .getState()
@@ -461,6 +385,10 @@ export function useWorkspaceSync({
     }
 
     setSyncing(true)
+    try {
+    await hydrateWorkspaceSources()
+    const runtimeSnapshot = captureWorkspaceRuntime()
+    const { notes, codes, tasks, reminders, canvases, workspaces, activeWorkspaceId } = runtimeSnapshot.state
     const exportedAt = new Date().toISOString()
     const exportRoot = joinFsPath(root, WORKSPACE_EXPORT_DIRNAME)
     const manifest: {
@@ -495,22 +423,6 @@ export function useWorkspaceSync({
       manifest.files.push({ ...meta, path: relativePath })
     }
 
-    try {
-      const runtimeSnapshot = buildWorkspaceRuntimeSnapshot({
-        notes,
-        openNoteIds: useApp.getState().openNoteIds,
-        activeNoteId: useApp.getState().activeNoteId,
-        codes,
-        openCodeIds: useApp.getState().openCodeIds,
-        activeCodeId: useApp.getState().activeCodeId,
-        tasks,
-        reminders,
-        folders: useApp.getState().folders,
-        canvases,
-        activeCanvasId: useCanvas.getState().activeCanvasId,
-        workspaces,
-        activeWorkspaceId,
-      })
       const runtimeWrite = await writeWorkspaceRuntimeSnapshot(root, runtimeSnapshot, fsApi)
       if (!runtimeWrite.ok) {
         throw new Error(runtimeWrite.error || 'Runtime Snapshot konnte nicht geschrieben werden.')
@@ -520,7 +432,7 @@ export function useWorkspaceSync({
       for (const note of notes) {
         const noteName = sanitizeFileName(note.title || 'untitled-note')
         const noteFile = `notes/${noteName}-${note.id.slice(0, 8)}.md`
-        const noteBody = `# ${note.title || 'Untitled'}\\n\\n${note.content || ''}\\n`
+        const noteBody = `# ${note.title || 'Untitled'}\n\n${note.content || ''}\n`
         await writeWithManifest(noteFile, noteBody, { type: 'note', sourceId: note.id })
       }
 
@@ -570,7 +482,7 @@ export function useWorkspaceSync({
         ``,
         `## Canvas`,
         ...canvases.map((canvas) => `- ${canvas.name} (${canvas.id})`),
-      ].join('\\n')
+      ].join('\n')
       await writeWithManifest('workspace-export.txt', aiExport, { type: 'summary' })
 
       await writeWithManifest('manifest.json', JSON.stringify(manifest, null, 2), { type: 'meta' })

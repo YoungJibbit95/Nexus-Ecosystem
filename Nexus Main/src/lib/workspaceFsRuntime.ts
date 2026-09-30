@@ -7,7 +7,7 @@ import { WORKSPACE_EXPORT_DIRNAME } from '../store/workspaceFsStore'
 export const WORKSPACE_RUNTIME_FILE = 'state/runtime.json'
 
 export type FsApi = {
-  read?: (path: string) => Promise<{ ok: boolean; data?: string; error?: string }>
+  read?: (path: string) => Promise<{ ok: boolean; data?: string; error?: string; code?: string }>
   write?: (path: string, content: string) => Promise<{ ok: boolean; error?: string }>
 }
 
@@ -109,10 +109,14 @@ export const readWorkspaceRuntimeSnapshot = async (
   if (primary.ok && typeof primary.data === 'string') {
     return requireRuntimeSnapshot(primary.data)
   }
+  if (primary.ok || !(primary.code === 'ENOENT' || /^ENOENT(?=:|$)/.test(primary.error ?? ''))) {
+    throw new Error(`runtime.json could not be read. The workspace was retained: ${primary.error || 'unknown read failure'}`)
+  }
 
   const fallbackPath = joinFsPath(rootPath, WORKSPACE_RUNTIME_FILE)
   const fallback = await fsApi.read(fallbackPath)
-  if (!fallback.ok || typeof fallback.data !== 'string') return null
+  if (!fallback.ok && (fallback.code === 'ENOENT' || /^ENOENT(?=:|$)/.test(fallback.error ?? ''))) return null
+  if (!fallback.ok || typeof fallback.data !== 'string') throw new Error(`runtime.json could not be read. The workspace was retained: ${fallback.error || 'invalid read result'}`)
   return requireRuntimeSnapshot(fallback.data)
 }
 
