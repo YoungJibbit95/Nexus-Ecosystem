@@ -63,7 +63,7 @@ test('Settings separates accessibility and keeps details progressive on small sc
 test('Main keeps renderer credentials out of production bundles and labels titlebar controls', async () => {
   const [app, titlebar] = await Promise.all([
     read('../App.tsx'),
-    read('../components/Titlebar.tsx'),
+    read('../components/TitleBar.tsx'),
   ])
 
   assert.doesNotMatch(app, /VITE_NEXUS_CONTROL_INGEST_KEY/)

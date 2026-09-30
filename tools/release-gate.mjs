@@ -2,223 +2,17 @@ import { existsSync } from 'node:fs'
 import path from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
+import { createReleaseGatePlan } from './lib/release-gate-plan.mjs'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const ROOT = path.resolve(__dirname, '..')
-const WORKSPACE = path.resolve(ROOT, '..')
-const npmBin = 'npm'
-
-const args = new Set(process.argv.slice(2))
-const fast = args.has('--fast')
-const ci = args.has('--ci')
-const skipDoctor = args.has('--skip-doctor')
-const skipWebsite = args.has('--skip-website')
-const skipApps = args.has('--skip-apps')
-const skipWiki = args.has('--skip-wiki')
-const withApiContract = args.has('--with-api-contract')
-const signingRequired = args.has('--signing-required')
-const mainMobileOnly = args.has('--main-mobile-only')
-const withMainMobileAudit = args.has('--with-main-mobile-audit') || mainMobileOnly
-const withControlDesktopPack = args.has('--with-control-desktop-pack')
-
-const sibling = (name) => path.join(WORKSPACE, name)
-const hasPackage = (dir) => existsSync(path.join(dir, 'package.json'))
-const resolveControlUiRootSync = () => {
-  const configured = String(process.env.NEXUS_CONTROL_UI_ROOT || '').trim()
-  if (configured) return path.resolve(configured)
-  const candidates = [
-    sibling('Nexus Control'),
-    path.join(sibling('NexusAPI'), 'Nexus Control'),
-  ].filter(Boolean)
-
-  return candidates.find((candidate) => hasPackage(candidate)) || null
-}
-
-const steps = [
-  {
-    name: 'single React instance',
-    cwd: ROOT,
-    command: [npmBin, ['run', 'verify:single-react']],
-  },
-  {
-    name: 'encoding gate',
-    cwd: ROOT,
-    command: [npmBin, ['run', 'verify:encoding']],
-  },
-  {
-    name: 'ecosystem contracts',
-    cwd: ROOT,
-    command: [npmBin, ['run', 'verify:ecosystem']],
-  },
-  {
-    name: signingRequired ? 'signing environment (required)' : 'signing environment (optional)',
-    cwd: ROOT,
-    command: [
-      npmBin,
-      ['run', signingRequired ? 'verify:signing:required' : 'verify:signing'],
-    ],
-    optional: !signingRequired,
-  },
-  {
-    name: 'release hardening regressions',
-    cwd: ROOT,
-    command: [npmBin, ['run', 'verify:release-hardening']],
-  },
-  {
-    name: 'nexus-core package gate',
-    cwd: ROOT,
-    command: [npmBin, ['--prefix', 'packages/nexus-core', 'run', 'build']],
-  },
-]
-
-if (!mainMobileOnly && !fast && !skipDoctor) {
-  steps.push({
-    name: 'release doctor',
-    cwd: ROOT,
-    command: [npmBin, ['run', ci ? 'doctor:release:hosted' : 'doctor:release']],
-  })
-}
-
-if (!fast && !skipApps) {
-  steps.push(
-    {
-      name: 'Nexus Main build',
-      cwd: ROOT,
-      command: [npmBin, ['--prefix', 'Nexus Main', 'run', 'build']],
-    },
-    {
-      name: 'Nexus Mobile build',
-      cwd: ROOT,
-      command: [npmBin, ['--prefix', 'Nexus Mobile', 'run', 'build']],
-    },
-  )
-
-  if (!mainMobileOnly) {
-    steps.push(
-      {
-        name: 'Nexus Code build',
-        cwd: ROOT,
-        command: [npmBin, ['--prefix', 'Nexus Code', 'run', 'build']],
-      },
-      {
-        name: 'Nexus Code Mobile build',
-        cwd: ROOT,
-        command: [npmBin, ['--prefix', 'Nexus Code Mobile', 'run', 'build']],
-      },
-    )
-  }
-
-  if (withMainMobileAudit) {
-    steps.push(
-      {
-        name: 'Nexus Main dependency audit',
-        cwd: ROOT,
-        command: [npmBin, ['--prefix', 'Nexus Main', 'audit', '--audit-level=moderate']],
-      },
-      {
-        name: 'Nexus Mobile dependency audit',
-        cwd: ROOT,
-        command: [npmBin, ['--prefix', 'Nexus Mobile', 'audit', '--audit-level=moderate']],
-      },
-    )
-  }
-
-  if (!mainMobileOnly) {
-    const controlDir = resolveControlUiRootSync()
-    if (controlDir && hasPackage(controlDir)) {
-      steps.push({
-        name: 'Nexus Control build',
-        cwd: controlDir,
-        command: [npmBin, ['run', 'build']],
-      })
-    } else {
-      steps.push({
-        name: 'Nexus Control source required',
-        cwd: ROOT,
-        command: [process.execPath, ['-e', 'console.error("Nexus Control UI nicht gefunden. Setze NEXUS_CONTROL_UI_ROOT auf ein Projekt mit package.json."); process.exit(1)']],
-      })
-    }
-  }
-}
-
-if (!mainMobileOnly && !fast && !skipWiki) {
-  steps.push(
-    {
-      name: 'Nexus Wiki dependency audit',
-      cwd: ROOT,
-      command: [npmBin, ['--prefix', 'Nexus Wiki', 'audit', '--audit-level=moderate']],
-    },
-    {
-      name: 'Nexus Wiki CI build',
-      cwd: ROOT,
-      command: [npmBin, ['--prefix', 'Nexus Wiki', 'run', 'build:ci']],
-    },
-  )
-}
-
-const websiteDir = sibling('nexusproject.dev')
-if (!mainMobileOnly && !fast && !skipWebsite && hasPackage(websiteDir)) {
-  steps.push(
-    {
-      name: 'nexusproject.dev CI build',
-      cwd: websiteDir,
-      command: [npmBin, ['run', 'build:ci']],
-    },
-    {
-      name: 'nexusproject.dev API integration',
-      cwd: websiteDir,
-      command: [npmBin, ['run', 'test:api:integration']],
-    },
-  )
-}
-
-const apiDir = path.join(sibling('NexusAPI'), 'API', 'nexus-control-plane')
-const controlDesktopDir = path.join(sibling('NexusAPI'), 'Nexus Control Desktop')
-
-if (!mainMobileOnly && hasPackage(controlDesktopDir)) {
-  steps.push(
-    {
-      name: 'Control Desktop main syntax',
-      cwd: controlDesktopDir,
-      command: [process.execPath, ['--check', 'src/main.cjs']],
-    },
-    {
-      name: 'Control Desktop preload syntax',
-      cwd: controlDesktopDir,
-      command: [process.execPath, ['--check', 'src/preload.cjs']],
-    },
-  )
-
-  if (withControlDesktopPack) {
-    steps.push({
-      name: 'Control Desktop directory pack',
-      cwd: controlDesktopDir,
-      command: [npmBin, ['run', 'pack']],
-      optional: true,
-    })
-  }
-}
-
-if (!mainMobileOnly && withApiContract && hasPackage(apiDir)) {
-  steps.push(
-    {
-      name: 'Control Plane contract tests',
-      cwd: apiDir,
-      command: [npmBin, ['run', 'test:contract']],
-    },
-    {
-      name: 'Control Plane attack tests',
-      cwd: apiDir,
-      command: [npmBin, ['run', 'test:attack']],
-    },
-  )
-}
+const { steps, ci, scope } = createReleaseGatePlan({ root: ROOT, argv: process.argv.slice(2) })
 
 const summary = []
 const startedAt = Date.now()
 
-console.log(`[release:gate] mode=${mainMobileOnly ? 'main-mobile' : fast ? 'fast' : 'full'} ci=${ci ? 'yes' : 'no'}`)
+console.log(`[release:gate] mode=${scope} ci=${ci ? 'yes' : 'no'}`)
 
 for (const step of steps) {
   const [command, commandArgs] = step.command
@@ -255,7 +49,7 @@ for (const step of steps) {
 }
 
 printSummary(summary, startedAt)
-console.log('\n[release:gate] PASS all required gates')
+console.log(`\n[release:gate] PASS all required ${scope} gates`)
 
 function printSummary(items, started) {
   const seconds = ((Date.now() - started) / 1000).toFixed(1)
