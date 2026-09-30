@@ -2,25 +2,41 @@ import type { WikiEntry } from './wikiData'
 
 export const wikiEntriesPrimary: WikiEntry[] = [
   {
-    id: 'ecosystem-overview',
-    title: 'Nexus Ecosystem Gesamtueberblick',
-    app: 'ecosystem',
-    category: 'overview',
-    summary:
-      'Das Nexus Ecosystem ist ein local-first workspace mit Main, Mobile, Code, Code Mobile und optional Nexus Cloud.',
-    guide: [
-      { title: '1. Scope verstehen', detail: 'Main/Mobile sind Productivity-Surfaces, Code/Code Mobile sind IDE-Surfaces, Control ist zentraler Steuerpunkt.' },
-      { title: '2. Shared Layer verstehen', detail: 'Die Apps teilen Runtime Contracts ueber packages/nexus-core und erhalten v2 Features/Layout ueber cloud availability.' },
-      { title: '3. Betriebsmodell verstehen', detail: 'Public Repo liefert Runtime + Clients, produktive Nexus Cloud Logik liegt im privaten private Nexus Cloud workspace Umfeld.' },
+    "id": "ecosystem-overview",
+    "title": "Nexus Ecosystem: Apps nutzen",
+    "summary": "Main und Mobile organisieren lokale Arbeit; die separate App Nexus Code bearbeitet Projektdateien. Cloud-Verfügbarkeit ist eine eigene Voraussetzung.",
+    "guide": [
+      {
+        "title": "1. App wählen",
+        "detail": "Main für Desktop-Arbeit, Mobile für Touch-Workflows und Nexus Code für Dateibearbeitung wählen."
+      },
+      {
+        "title": "2. Lokal arbeiten",
+        "detail": "Notes, Tasks, Reminders, Canvas und Files über die sichtbare Navigation öffnen."
+      },
+      {
+        "title": "3. Grenzen beachten",
+        "detail": "Code in Main/Mobile liest und exportiert alte Dateien. Account- und Cloud-Zugriff folgen der angezeigten Verfügbarkeit."
+      }
     ],
-    points: [
-      'Ziel ist konsistente Feature-Paritaet ueber Desktop und Mobile.',
-      'View Access und account feature access werden serverseitig geprueft.',
-      'Release-Flow basiert auf Verify-, Build- und Kompatibilitaets-Gates.',
+    "points": [
+      "Desktop und Mobile haben unterschiedliche Navigation und native Funktionen.",
+      "Nexus Code benötigt einen validierten kompatiblen Account.",
+      "Entwickler-Setup und Betrieb stehen in eigenen Wiki-Bereichen."
     ],
-    commands: ['npm run setup', 'npm run build', 'npm run verify:ecosystem'],
-    tags: ['monorepo', 'architecture', 'apps', 'contracts'],
-    sources: ['README.md', 'docs/DEVELOPER_GUIDE.md'],
+    "app": "ecosystem",
+    "category": "overview",
+    "audience": "user",
+    "commands": [],
+    "tags": [
+      "usage",
+      "ecosystem",
+      "capability"
+    ],
+    "sources": [
+      "docs/USER_GUIDE.md",
+      "README.md"
+    ]
   },
   {
     id: 'ecosystem-setup-dev',
@@ -56,8 +72,8 @@ export const wikiEntriesPrimary: WikiEntry[] = [
       'cloud availability steuert Feature-Freigaben und Layout-Profile zentral ueber feature availability, layout profile und release state.',
     guide: [
       { title: '1. Feature implementieren', detail: 'Neue View-/Feature-Logik wird in App-Code umgesetzt und in VIEW_FEATURE_MAP gemappt.' },
-      { title: '2. feature and layout drafts pflegen', detail: 'Im Control cloud availability Tab werden draft feature and layout draftss gespeichert und validiert.' },
-      { title: '3. release handoff', detail: 'Nach Verify und Build wird von draft nach release released.' },
+      { title: '2. feature and layout drafts pflegen', detail: 'Im Control cloud availability Tab werden Feature- und Layout-Entwürfe gespeichert und validiert.' },
+      { title: '3. release handoff', detail: 'Nach Verify und Build wird der Entwurf als Release freigegeben.' },
     ],
     points: [
       'Shared Core orchestriert effektive Views pro App.',
@@ -620,26 +636,49 @@ export const wikiEntriesPrimary: WikiEntry[] = [
     ],
   },
   {
-    id: 'main-code-view-guide',
-    title: 'Nexus Main: CodeView Guide',
-    app: 'main',
-    category: 'view',
-    summary:
-      'CodeView kombiniert Multi-Language Editing, Run-Sandbox, Split/Preview und Output-Historie fuer schnellen Build-Iterate-Check-Loop.',
-    guide: [
-      { title: '1. Sprache/Datei waehlen', detail: 'Neue Datei erzeugen und passende Language fuers Syntaxmodell setzen.' },
-      { title: '2. Run oder Preview', detail: 'JS/TS per Run ausfuehren, HTML/CSS/Markdown im Preview- oder Split-Modus pruefen.' },
-      { title: '3. Output analysieren', detail: 'Terminalausgabe, Laufzeitzeit und JSON-Fehlerpositionen fuer Iteration nutzen.' },
+    "id": "main-code-view-guide",
+    "title": "Main / Mobile: Code-Archiv",
+    "summary": "Vorhandene Code-Dateien durchsuchen, lesen und exportieren. Im Archiv gibt es keinen Editor und keine Ausführung.",
+    "guide": [
+      {
+        "title": "1. Datei finden",
+        "detail": "Nach Dateinamen suchen und den Quelltext aufklappen."
+      },
+      {
+        "title": "2. Exportieren",
+        "detail": "Eine Datei herunterladen oder das gesamte Archiv mit Code- und Ordnerdaten als JSON sichern."
+      },
+      {
+        "title": "3. Separat bearbeiten",
+        "detail": "Exportierte Einzeldateien in einen gewählten Ordner legen und diesen in Nexus Code öffnen; Archiv-JSON ist kein automatischer Projektimport."
+      }
     ],
-    points: [
-      'JS/TS nutzt eine sichere Sandbox mit mock console API.',
-      'Run-History zeigt letzte Ausfuehrungen inklusive Dauer und Status.',
-      'Preview unterstuetzt editor/split/preview fuer HTML/CSS/Markdown.',
-      'Snippet Quick-Buttons (log/fetch/todo) beschleunigen Prototyping.',
+    "points": [
+      "Der Export löscht vorhandene Daten nicht.",
+      "Code-Daten bleiben in lokaler Speicherung und unterstützten Workspace-Snapshots/Backups enthalten.",
+      "Nexus Code ist eine separate Desktop-App mit CodeMirror und einfachem Befehlsrunner.",
+      "Das Archiv verspricht weder Run/Preview noch Sandbox oder Output-History."
     ],
-    commands: ['Ctrl/Cmd+Enter', 'Ctrl/Cmd+S', 'Tab (Textarea)', 'Enter (Create File Modal)'],
-    tags: ['code', 'preview', 'runtime', 'json'],
-    sources: ['Nexus Main/src/views/CodeView.tsx', 'Nexus Main/src/views/InfoView.tsx'],
+    "app": "main",
+    "category": "view",
+    "audience": "user",
+    "commands": [
+      "Search file names",
+      "Source preview",
+      "Download file",
+      "Export archive JSON"
+    ],
+    "tags": [
+      "usage",
+      "main",
+      "capability"
+    ],
+    "sources": [
+      "Nexus Main/src/views/CodeView.tsx",
+      "Nexus Mobile/src/views/CodeView.tsx",
+      "Nexus Main/src/views/codeArchive.ts",
+      "docs/USER_GUIDE.md"
+    ]
   },
   {
     id: 'main-tasks-guide',
@@ -1032,7 +1071,7 @@ export const wikiEntriesPrimary: WikiEntry[] = [
     points: [
       'Global: Shift x2 (toggle spotlight), Cmd/Ctrl+K (open), Esc (close/reset).',
       'Notes: Cmd/Ctrl+S, +B, +I, +K, +Z, +Y, Tab.',
-      'Code: Cmd/Ctrl+Enter (run), Cmd/Ctrl+S (save), Tab indent in Textarea.',
+      'Code-Archiv: Dateisuche, Quelltextansicht und Export; keine Run-/Save-Shortcuts.',
       'Canvas: Space, Delete, Esc, Cmd/Ctrl+0, +/=, -, G, F, P, Cmd/Ctrl+M.',
       'Flux: Cmd/Ctrl+F, Cmd/Ctrl+Shift+N/C/T/R, Cmd/Ctrl+Shift+D/B, 1/2/3/4, 0, F, Esc.',
       'DevTools: Tab (indent), Enter (confirm rename), Esc (cancel rename).',
@@ -1043,7 +1082,6 @@ export const wikiEntriesPrimary: WikiEntry[] = [
       'Ctrl/Cmd+K',
       'Ctrl/Cmd+F',
       'Ctrl/Cmd+S',
-      'Ctrl/Cmd+Enter',
       'Ctrl/Cmd+M',
       'Ctrl/Cmd+Shift+D',
       'Ctrl/Cmd+Shift+B',

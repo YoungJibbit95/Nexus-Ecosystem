@@ -7,6 +7,14 @@
 Nexus Main ist die Desktop-Workspace-App im Nexus Ecosystem.
 Sie kombiniert produktive Kern-Views mit der zentralen Render-/Motion-Laufzeit aus `@nexus/core`.
 
+## Nutzung
+
+Öffne Dashboard zum Fortsetzen deiner Arbeit, Notes zum Schreiben, Tasks/Reminders zum Planen und Files für den lokalen Datenbestand. Der [User Guide](../docs/USER_GUIDE.md) beschreibt die Bedienung; die Build-Kommandos weiter unten richten sich an Entwickler.
+
+**Code ist ein Archiv:** Vorhandene Code-Dateien lassen sich nach Namen suchen, lesen und als einzelne Datei oder mit Ordnerdaten als JSON exportieren. Die Daten bleiben in der lokalen Speicherung und in unterstützten Workspace-Snapshots/Backups erhalten. Im Archiv gibt es kein Bearbeiten oder Ausführen. Exportierte Einzeldateien kannst du in einem selbst gewählten Ordner in der separaten App Nexus Code öffnen; Archiv-JSON ist kein automatischer Projektimport.
+
+Nexus Code verwendet CodeMirror und einen einfachen Befehlsrunner mit stdio, keine interaktive PTY-Shell. Sprachserver und GitHub benötigen externe Voraussetzungen. Debugging und Marketplace sind Vorschauen; ein Fehler bei zitierten absoluten Windows-Befehlspfaden mit Leerzeichen ist weiterhin offen. Die separate App benötigt einen validierten kompatiblen Account.
+
 ## View Overview
 
 | View | Purpose | Highlights |
@@ -19,12 +27,12 @@ Sie kombiniert produktive Kern-Views mit der zentralen Render-/Motion-Laufzeit a
 | `canvas` | visual board workflow (development) | node graph, templates, quick add, inspector, keyboard actions |
 | `files` | workspace + handoff (partial) | explicit library/workspace assignment, root selection, import/export and preview |
 | `flux` | local operations view (partial) | queue, bottleneck and activity signals derived from local workspace data |
-| `code` | embedded code work (partial) | bounded local code execution and file workflows in Main shell |
+| `code` | compatibility archive | read/search/export existing code files; no embedded editing or execution |
 | `devtools` | internal diagnostics (development) | development-only, Pro plus Admin/Developer-gated utilities |
 | `settings` | system controls (partial) | appearance, typography, motion/render controls, presets |
 | `info` | product and architecture docs | in-app source of truth for usage and internals |
 
-## UI Engine
+## Developer reference: UI Engine
 
 Nexus Main uses shared runtime modules from:
 

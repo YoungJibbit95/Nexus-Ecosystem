@@ -8,18 +8,27 @@ const g = (items: Array<[string, string]>): GuideStep[] => items.map(([title, de
 
 export const englishEntryTranslations: Record<string, EntryTranslation> = {
   'ecosystem-overview': {
-    title: 'Nexus Ecosystem Overview',
-    summary: 'The Nexus Ecosystem is an local-first workspace with Main, Mobile, Code, Code Mobile and the optional Nexus Cloud.',
-    guide: g([
-      ['1. Understand the scope', 'Main and Mobile are productivity surfaces, Code and Code Mobile are IDE surfaces, and Control is the central operations surface.'],
-      ['2. Understand the shared layer', 'All apps share runtime contracts through packages/nexus-core and receive v2 features/layouts through cloud availability.'],
-      ['3. Understand the operating model', 'The public repo contains runtime clients and shared code; protected backend behavior belongs to the private private Nexus Cloud workspace environment.'],
-    ]),
-    points: [
-      'The goal is consistent feature parity across desktop and mobile.',
-      'View access and account feature access are checked by the server-side authority.',
-      'Releases are gated by verify, build and compatibility checks.',
+    "title": "Nexus Ecosystem: using the apps",
+    "summary": "Main and Mobile organize local work; separate Nexus Code edits project files. Cloud availability is a separate prerequisite.",
+    "guide": [
+      {
+        "title": "1. Choose an app",
+        "detail": "Use Main for desktop work, Mobile for touch workflows and Nexus Code for file editing."
+      },
+      {
+        "title": "2. Work locally",
+        "detail": "Open Notes, Tasks, Reminders, Canvas and Files through the visible navigation."
+      },
+      {
+        "title": "3. Check the limits",
+        "detail": "Code in Main/Mobile reads and exports existing files. Account and cloud access follow displayed availability."
+      }
     ],
+    "points": [
+      "Desktop and mobile have different navigation and native capabilities.",
+      "Nexus Code requires a validated compatible account.",
+      "Developer setup and operations have separate Wiki areas."
+    ]
   },
   'ecosystem-setup-dev': {
     title: 'Setup and Development in the Ecosystem',
@@ -384,19 +393,28 @@ export const englishEntryTranslations: Record<string, EntryTranslation> = {
     ],
   },
   'main-code-view-guide': {
-    title: 'Nexus Main: CodeView Guide',
-    summary: 'CodeView combines multi-language editing, run sandbox, split/preview and output history for a fast build-iterate-check loop.',
-    guide: g([
-      ['1. Choose language/file', 'Create a new file and select the right language for syntax behavior.'],
-      ['2. Run or preview', 'Run JS/TS, or inspect HTML/CSS/Markdown in preview or split mode.'],
-      ['3. Analyze output', 'Use terminal output, runtime duration and JSON error positions for iteration.'],
-    ]),
-    points: [
-      'JS/TS uses a safe sandbox with a mock console API.',
-      'Run history shows recent executions with duration and status.',
-      'Preview supports editor/split/preview for HTML/CSS/Markdown.',
-      'Snippet quick buttons (log/fetch/todo) speed up prototyping.',
+    "title": "Main / Mobile: Code archive",
+    "summary": "Search, read and export existing code files. The archive has no editor or execution flow.",
+    "guide": [
+      {
+        "title": "1. Find a file",
+        "detail": "Search by file name and expand its source preview."
+      },
+      {
+        "title": "2. Export",
+        "detail": "Download one file or preserve the entire archive with code and folder data as JSON."
+      },
+      {
+        "title": "3. Edit separately",
+        "detail": "Put exported files in a selected folder and open it in Nexus Code; archive JSON is not an automatic project import."
+      }
     ],
+    "points": [
+      "Exporting does not delete existing data.",
+      "Code data remains in local persistence and supported workspace snapshots/backups.",
+      "Nexus Code is a separate desktop app with CodeMirror and a simple command runner.",
+      "The archive does not promise Run/Preview, a sandbox or output history."
+    ]
   },
   'main-tasks-guide': {
     title: 'Nexus Main: TasksView Guide',
@@ -560,7 +578,7 @@ export const englishEntryTranslations: Record<string, EntryTranslation> = {
       ['2. Train per view', 'Practice Notes/Code/Canvas/Flux keybinds per daily workflow.'],
       ['3. Combine with Terminal', 'Use Terminal/Spotlight as a shortcut bridge to layouts, templates and quick actions.'],
     ]),
-    points: ['Global: Shift x2 (toggle spotlight), Cmd/Ctrl+K (open), Esc (close/reset).', 'Notes: Cmd/Ctrl+S, +B, +I, +K, +Z, +Y, Tab.', 'Code: Cmd/Ctrl+Enter (run), Cmd/Ctrl+S (save), Tab indent in textarea.', 'Canvas: Space, Delete, Esc, Cmd/Ctrl+0, +/=, -, G, F, P, Cmd/Ctrl+M.', 'Flux: Cmd/Ctrl+F, Cmd/Ctrl+Shift+N/C/T/R, Cmd/Ctrl+Shift+D/B, 1/2/3/4, 0, F, Esc.', 'DevTools: Tab (indent), Enter (confirm rename), Esc (cancel rename).', 'Terminal input: Enter execute, ArrowUp/Down history, Esc close, Ctrl+L clear.'],
+    points: ['Global: Shift x2 (toggle spotlight), Cmd/Ctrl+K (open), Esc (close/reset).', 'Notes: Cmd/Ctrl+S, +B, +I, +K, +Z, +Y, Tab.', 'Code archive: file search, source preview and export; no run/save shortcuts.', 'Canvas: Space, Delete, Esc, Cmd/Ctrl+0, +/=, -, G, F, P, Cmd/Ctrl+M.', 'Flux: Cmd/Ctrl+F, Cmd/Ctrl+Shift+N/C/T/R, Cmd/Ctrl+Shift+D/B, 1/2/3/4, 0, F, Esc.', 'DevTools: Tab (indent), Enter (confirm rename), Esc (cancel rename).', 'Terminal input: Enter execute, ArrowUp/Down history, Esc close, Ctrl+L clear.'],
   },
   'main-settings-overview': {
     title: 'Nexus Main: Settings Full Guide',
@@ -707,7 +725,7 @@ export const englishEntryTranslations: Record<string, EntryTranslation> = {
     summary: 'Nexus Mobile maps the Main core views to mobile form factors with adaptive navigation and haptic-oriented interaction.',
     guide: g([
       ['1. Understand navigation', 'Bottom tabs cover core areas; More Drawer opens extended views.'],
-      ['2. Check feature parity', 'Notes/Code/Tasks/Reminders/Canvas/Files/Settings/Info are available on mobile.'],
+      ['2. Check available views', 'Use the visible views; Code is a read/export archive and native capabilities differ from desktop.'],
       ['3. Respect runtime behavior', 'View access list and account feature access remain centrally enforced.'],
     ]),
     points: ['Safe-area behavior and mobile UX are prioritized.', 'Bottom navigation is optimized for quick one-handed use.', 'Terminal Store provides mobile-compatible commands.'],
@@ -737,10 +755,10 @@ export const englishEntryTranslations: Record<string, EntryTranslation> = {
     summary: 'Current Mobile keybinds for hardware keyboards plus palette and terminal shortcuts.',
     guide: g([
       ['1. Learn global actions', 'Ctrl/Cmd+K toggles Command Palette, Shift x2 toggles Toolbar Spotlight, Esc closes overlays or expanded states.'],
-      ['2. Use view keybinds', 'Notes/Code/Flux/Canvas follow Main shortcuts for parity.'],
+      ['2. Use view keybinds', 'Use the actions actually available in Notes, the Code archive, Flux and Canvas.'],
       ['3. Use Terminal fallback', 'Use palette/new/search/goto to intensify workflows without pointer input.'],
     ]),
-    points: ['Global Mobile: Ctrl/Cmd+K, Shift x2, Esc.', 'Notes: Cmd/Ctrl+S, +B, +I, +K, +Z, +Y, Tab.', 'Code: Cmd/Ctrl+Enter run, Cmd/Ctrl+S save, Tab indent.', 'Canvas: Space, Delete, Esc, Cmd/Ctrl+0 plus pan/zoom gestures.', 'Flux: Cmd/Ctrl+F, Cmd/Ctrl+Shift+N/C/T/R, Cmd/Ctrl+Shift+D/B, 1/2/3/4, 0, F, Esc.', 'Terminal: help, views, goto, new, list, stats, theme, preset, search, palette.'],
+    points: ['Global Mobile: Ctrl/Cmd+K, Shift x2, Esc.', 'Notes: Cmd/Ctrl+S, +B, +I, +K, +Z, +Y, Tab.', 'Code archive: file search, source preview and export; no run/save shortcuts.', 'Canvas: Space, Delete, Esc, Cmd/Ctrl+0 plus pan/zoom gestures.', 'Flux: Cmd/Ctrl+F, Cmd/Ctrl+Shift+N/C/T/R, Cmd/Ctrl+Shift+D/B, 1/2/3/4, 0, F, Esc.', 'Terminal: help, views, goto, new, list, stats, theme, preset, search, palette.'],
   },
   'mobile-terminal-guide': {
     title: 'Nexus Mobile Terminal Guide',
@@ -753,24 +771,50 @@ export const englishEntryTranslations: Record<string, EntryTranslation> = {
     points: ['The command set is more compact than Main.', 'list notes/tasks/reminders shows quick previews.', 'theme dark/light and preset are directly available.'],
   },
   'code-overview': {
-    title: 'Nexus Code Full Guide',
-    summary: 'Nexus Code is the desktop IDE surface with panel stack, file workflow, Command Palette, Spotlight and Terminal.',
-    guide: g([
-      ['1. Route and access', 'Editor runs on /editor and validates view access through Runtime.'],
-      ['2. Use panel stack', 'Open Explorer/Search/Problems/Git/Debug/Extensions depending on the task.'],
-      ['3. Editor loop', 'Manage tabs, save, auto-save and observe Terminal/Problems in parallel.'],
-    ]),
-    points: ['Settings and files are persisted locally.', 'TitleBar provides Open Folder, Sidebar Toggle, Zen Mode and Command Palette.', 'Bottom tab uses terminal/problems as work areas.'],
+    "title": "Nexus Code: capabilities and limits",
+    "summary": "Separate desktop app with CodeMirror, file operations and a simple stdio command runner; visible panels do not establish full IDE parity.",
+    "guide": [
+      {
+        "title": "1. Check access",
+        "detail": "A validated compatible account is required; selected workspace folders bound file access."
+      },
+      {
+        "title": "2. Edit and save",
+        "detail": "Edit files with CodeMirror and save explicitly. Search and language support have bounded scopes."
+      },
+      {
+        "title": "3. Check runner and integrations",
+        "detail": "The native runner is not a PTY shell; language servers need installed servers, GitHub needs the desktop connection and an account."
+      }
+    ],
+    "points": [
+      "Quoted absolute Windows command paths with spaces have a known failure; relative execution passed native characterization.",
+      "Debugging is simulated; marketplace installs manage local records without an accepted package host.",
+      "Native installers, actual language servers and live GitHub workflows are not locally accepted promises."
+    ]
   },
   'code-panels-guide': {
-    title: 'Nexus Code Panel Guide',
-    summary: 'The sidebar controls Explorer, Search, Problems, Git, Debug and Extensions as central work contexts.',
-    guide: g([
-      ['1. Explorer', 'Create, open, rename, delete and structure files/folders.'],
-      ['2. Analysis panels', 'Use Search for global search, Problems for diagnostics and Debug for runtime breakpoints.'],
-      ['3. Delivery panels', 'Use Git for sync/versioning and Extensions for extension management.'],
-    ]),
-    points: ['Active panel state is clearly visible through the sidebar indicator.', 'Panel can collapse to enlarge editor space.', 'Problems badge signals open issues directly in the editor.'],
+    "title": "Nexus Code: panel status",
+    "summary": "Explorer, Search, Problems and Git have real bounded paths; Debug and marketplace are previews.",
+    "guide": [
+      {
+        "title": "1. Files",
+        "detail": "Use Explorer for selected folders and files."
+      },
+      {
+        "title": "2. Diagnostics",
+        "detail": "Search covers a loaded, bounded scope; Problems and LSP depend on prerequisites."
+      },
+      {
+        "title": "3. Recognize previews",
+        "detail": "Debug has no connected DAP process; marketplace records are not an executable extension host."
+      }
+    ],
+    "points": [
+      "Local Git operations are implemented; structured remote actions are incomplete.",
+      "GitHub connection requires desktop and an account; live acceptance remains open.",
+      "A visible button does not prove runtime capability."
+    ]
   },
   'code-workflow-guide': {
     title: 'Nexus Code Workflow Guide',
@@ -780,17 +824,17 @@ export const englishEntryTranslations: Record<string, EntryTranslation> = {
       ['2. Edit', 'Edit active tabs; auto save marks modified status until persistence.'],
       ['3. Navigate fast', 'Use Command Palette (Ctrl+P/Ctrl+Shift+P) and Shift Shift Spotlight.'],
     ]),
-    points: ['Command actions include new-file, toggle-terminal, github-sync and open-settings.', 'Keyboard shortcuts are registered globally.', 'Zen Mode and Sidebar Visibility create focus contexts.'],
+    points: ['Quick actions open existing functions; GitHub requires the desktop connection and an account.', 'Keyboard shortcuts are registered globally.', 'Zen Mode and Sidebar Visibility create focus contexts.'],
   },
   'code-keybind-matrix': {
     title: 'Nexus Code: Keybind Matrix',
-    summary: 'Complete desktop IDE keybind matrix for editor, panels, Command Palette and Terminal.',
+    summary: 'Available desktop keybinds for editor, panels, Command Palette and Terminal.',
     guide: g([
       ['1. Core navigation', 'Use Ctrl/Cmd+P, Ctrl/Cmd+Shift+P and F1 as the central launcher.'],
       ['2. Editor loop', 'Train save, tab management and terminal toggles without mouse.'],
       ['3. Focus modes', 'Combine Shift x2 Spotlight, Zen Mode and Sidebar toggle.'],
     ]),
-    points: ['Global: Ctrl/Cmd+S, Ctrl/Cmd+N, Ctrl/Cmd+B, Ctrl/Cmd+`.', 'Terminal: Ctrl/Cmd+Shift+` new terminal, Ctrl+C interrupt, Ctrl+L clear.', 'Navigation: Ctrl/Cmd+W close tab, Ctrl/Cmd+, settings, F1 command palette.', 'Palette: Ctrl/Cmd+Shift+P toggle command palette, Ctrl/Cmd+P quick open.', 'Spotlight: Shift x2 toggle.'],
+    points: ['Global: Ctrl/Cmd+S, Ctrl/Cmd+N, Ctrl/Cmd+B, Ctrl/Cmd+`.', 'Runner session and output actions do not establish a PTY or persistent shell.', 'Navigation: Ctrl/Cmd+W close tab, Ctrl/Cmd+, settings, F1 command palette.', 'Palette: Ctrl/Cmd+Shift+P toggle command palette, Ctrl/Cmd+P quick open.', 'Spotlight: Shift x2 toggle.'],
   },
   'code-settings-guide': {
     title: 'Nexus Code Settings Guide',

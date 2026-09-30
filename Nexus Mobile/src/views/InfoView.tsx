@@ -248,7 +248,7 @@ export function InfoView() {
           </P>
           <Grid2>
             <Card icon="📝" title="Notes" desc="Markdown + Linking + strukturierte Blocks." />
-            <Card icon="💻" title="CodeView" desc="Quick Open, Run/Preview und klarer Output-Flow." />
+            <Card icon="💻" title="Code-Archiv" desc="Vorhandene Dateien durchsuchen, lesen und exportieren." />
             <Card icon="✅" title="Tasks" desc="Kanban + Focus/Saved Views + Linked Context." />
             <Card icon="🔔" title="Reminders" desc="Recurrence/Snooze/Triage mit Reliability-Hinweisen." />
             <Card icon="🧠" title="Canvas" desc="Find/Jump, Outline, Fokusfahrten und Magic Templates." />
@@ -297,7 +297,7 @@ Wenn Doku und Laufzeit abweichen, gilt die Laufzeit.`}</Code>
               desc="Wissensnavigation, Linking und Magic Blocks."
               keys={["Cmd/Ctrl+P", "Cmd/Ctrl+F", "Cmd/Ctrl+1/2/3", "Cmd/Ctrl+S", "Cmd/Ctrl+B", "Cmd/Ctrl+K"]}
             />
-            <Card icon="💻" title="CodeView" desc="Quick Open + Run/Preview + Output-History." />
+            <Card icon="💻" title="Code-Archiv" desc="Quelltext ansehen und Einzeldateien oder das Archiv herunterladen." />
             <Card icon="✅" title="Tasks" desc="Focus Views, Batch-Flows und Linked Context." />
             <Card icon="🔔" title="Reminders" desc="Recurrence/Snooze/Triage mit Kontext." />
             <Card
@@ -353,12 +353,12 @@ b:Ready|success
 b:Warnung|warning`}</Code>
         </Acc>
 
-        <Acc title="CodeView" icon={Code2} open={open.code} onToggle={() => tog("code")}> 
+        <Acc title="Code-Archiv" icon={Code2} open={open.code} onToggle={() => tog("code")}>
           <Grid2>
-            <Card icon="📂" title="Quick Open" desc="Dateien schnell öffnen und zwischen Tabs wechseln." keys={["Cmd/Ctrl+P"]} />
-            <Card icon="▶️" title="Run/Preview" desc="JS/TS Run, HTML/CSS Preview, JSON Validation." keys={["Cmd/Ctrl+Enter"]} />
-            <Card icon="🧪" title="History" desc="Letzte Runs mit Status und Dauer direkt sichtbar." />
-            <Card icon="🛟" title="Fallback" desc="Wenn Monaco fehlt, bleibt Editor nutzbar." />
+            <Card icon="📂" title="Dateisuche" desc="Vorhandene Code-Dateien nach Namen filtern und Quelltext lesen." />
+            <Card icon="📄" title="Einzeldatei" desc="Eine Datei mit ihrem Inhalt herunterladen; das Archiv bleibt erhalten." />
+            <Card icon="📦" title="Gesamtes Archiv" desc="Code- und Ordnerdaten als JSON sichern. Dies ist kein automatischer Projektimport in Nexus Code." />
+            <Card icon="💻" title="Nexus Code" desc="Separate Desktop-App mit CodeMirror und einfachem Befehlsrunner. Keine interaktive Shell; Debugging und Marketplace sind Vorschauen." />
           </Grid2>
         </Acc>
 
@@ -454,7 +454,7 @@ b:Warnung|warning`}</Code>
                 "Tab indent",
               ]}
             />
-            <Card title="CodeView" desc="" keys={["Cmd/Ctrl+P", "Cmd/Ctrl+Enter", "Cmd/Ctrl+S"]} />
+            <Card title="Code-Archiv" desc="Dateisuche, Quelltextansicht und Download über die sichtbaren Schaltflächen." />
             <Card
               title="Canvas"
               desc=""

@@ -160,7 +160,7 @@ Runtime, rendering, motion and public client contracts stay aligned through reus
 
 ### 📱 Nexus Mobile
 
-**Mobile workspace** with core workflow parity for Android and iOS.
+**Mobile workspace** for touch workflows on Android and iOS; navigation and native capabilities differ from desktop.
 
 <p>
   <img src="https://img.shields.io/badge/Capacitor-Mobile-bb9af7?style=flat&logo=capacitor&logoColor=c0caf5&labelColor=1a1b27" alt="Capacitor mobile" />
@@ -176,11 +176,11 @@ Runtime, rendering, motion and public client contracts stay aligned through reus
 
 ### 💻 Nexus Code
 
-**Desktop IDE** for editing, running, debugging and project workflows.
+**Desktop coding app** with CodeMirror editing, selected workspace files and a simple command runner. Debugging and marketplace panels are previews.
 
 <p>
   <img src="https://img.shields.io/badge/Electron-Desktop%20IDE-7aa2f7?style=flat&logo=electron&logoColor=c0caf5&labelColor=1a1b27" alt="Electron desktop IDE" />
-  <img src="https://img.shields.io/badge/Monaco-Code%20Editor-bb9af7?style=flat&logo=visualstudiocode&logoColor=c0caf5&labelColor=1a1b27" alt="Monaco code editor" />
+  <img src="https://img.shields.io/badge/CodeMirror-Code%20Editor-bb9af7?style=flat&logo=visualstudiocode&logoColor=c0caf5&labelColor=1a1b27" alt="CodeMirror code editor" />
 </p>
 
 <a href="./Nexus%20Code/README.md"><img src="https://img.shields.io/badge/OPEN%20IDE%20README-7aa2f7?style=for-the-badge&logo=readme&logoColor=c0caf5&labelColor=1a1b27" alt="Open Nexus Code README" /></a>
@@ -231,7 +231,7 @@ Installer builds and checksums are produced here; the launcher lives in its own 
 | Area | Free local clients | Pro / Nexus Cloud |
 | --- | --- | --- |
 | Workspace | Local notes, tasks, reminders, canvas and files | Planned/Beta: cloud sync, backups and multi-device continuity; not production-verified |
-| Code | Local editor and project workflows | Planned/Beta: account-bound cloud features and higher usage limits |
+| Code | Main/Mobile archive reads and exports existing files; standalone Code provides editing with a validated compatible account | Planned/Beta: account-bound cloud features and higher usage limits |
 | AI / Flux | Local triage/UI surfaces where available; no cloud-AI promise | Planned/Beta: cloud-backed AI, Flux and automation; not production-verified |
 | Sharing | Local export and handoff | Planned/Beta: sharing, team workflows and account collaboration |
 | Security | Public client guardrails | Server-side entitlement and cloud access enforcement |
@@ -254,7 +254,7 @@ Installer builds and checksums are produced here; the launcher lives in its own 
 | `canvas` | visual planning (development) | node graph, templates/magic, auto-layout, inspector, keyboard/pointer flows |
 | `files` | workspace and handoff (partial) | explicit library/workspace scope, import/export handoff, status and preview surfaces |
 | `flux` | ops and throughput (partial) | local queue/signal view, action routing and bottleneck support |
-| `code` | embedded coding view (partial) | bounded local edit/run path integrated in Main/Mobile shell |
+| `code` | compatibility archive | read/search/export existing code files and folder metadata; editing belongs in standalone Nexus Code |
 | `devtools` | internal tooling (development) | role/tier-gated diagnostics and development helpers; not normal navigation |
 | `settings` | system controls (partial) | appearance, typography, panel behavior, motion/render controls |
 | `info` | in-app docs | architecture, diagnostics explanation, view guides and release notes |
@@ -402,6 +402,14 @@ flowchart TB
 ## Getting Started
 
 </div>
+
+### App users
+
+Start with the [User Guide](docs/USER_GUIDE.md). Main/Mobile Code is a read/export archive. Standalone Nexus Code uses CodeMirror and a simple stdio runner, requires a validated compatible account, and has conditional language-server/GitHub support. It has no PTY or accepted real debugging/marketplace runtime. A quoted absolute Windows command path containing spaces remains a known failure.
+
+### Developers
+
+Repository setup is for contributors. See the [Developer Guide](docs/DEVELOPER_GUIDE.md) for source boundaries and current capability limits, and the [Security Model](docs/SECURITY_MODEL.md) for public operator responsibilities. Private backend/admin deployment stays outside these public guides.
 
 ```bash
 git clone https://github.com/YoungJibbit95/Nexus-Ecosystem.git

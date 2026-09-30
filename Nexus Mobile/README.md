@@ -7,6 +7,14 @@
 Nexus Mobile ist die mobile Workspace-App im Nexus Ecosystem.
 Sie bildet die Main-Workflows mobil ab, mit eigener Navigation und mobile-spezifischer Runtime-Steuerung.
 
+## Nutzung
+
+Nutze die für dein Gerät sichtbare Navigation für Dashboard, Notes, Tasks/Reminders, Canvas und Files. Native Funktionen und Navigation unterscheiden sich von Desktop; vollständige Parität ist nicht zugesagt. Der [User Guide](../docs/USER_GUIDE.md) beschreibt die Bedienung, der [Developer Guide](../docs/DEVELOPER_GUIDE.md) die Entwicklung.
+
+**Code ist ein Archiv:** Suche vorhandene Code-Dateien nach Namen, lies den Quelltext und lade einzelne Dateien oder Code- und Ordnerdaten als JSON herunter. Der Export löscht die bestehenden Daten nicht; Code-Daten bleiben auch in unterstützten Workspace-Snapshots erhalten. Das Archiv bearbeitet oder startet keine Programme. Archiv-JSON ist kein automatischer Projektimport in Nexus Code.
+
+Zum Bearbeiten gehört die separate Desktop-App Nexus Code: CodeMirror, Dateiarbeit und ein einfacher Befehlsrunner mit stdio. Eine PTY-Shell, echtes Debugging oder ein ausführbarer Marketplace sind nicht zugesagt. Sprachserver und GitHub benötigen externe Voraussetzungen; der bekannte Windows-Pfadfehler mit Leerzeichen bleibt offen. Die Desktop-App benötigt einen validierten kompatiblen Account.
+
 ## View Overview
 
 | View | Purpose | Highlights |
@@ -17,7 +25,7 @@ Sie bildet die Main-Workflows mobil ab, mit eigener Navigation und mobile-spezif
 | `reminders` | schedule control | native reminder service integration + fallback states |
 | `canvas` | visual planning | mobile board interactions, templates, inspector flows |
 | `files` | workspace handoff | runtime snapshot import/export + workspace controls |
-| `code` | mobile code workflow | integrated lightweight coding surface |
+| `code` | compatibility archive | read/search/export existing code files; no embedded editing or execution |
 | `devtools` | local diagnostics | performance and development helpers |
 | `settings` | personalization/system | appearance and runtime controls |
 | `info` | in-app docs | architecture, diagnostics, guides |
@@ -34,7 +42,7 @@ Main shell modules:
 - `src/app/mobileViewHost.tsx`
 - `src/app/mobileAppConfig.ts`
 
-## Render + Motion
+## Developer reference: Render + Motion
 
 Nexus Mobile uses the same core runtime principles as Main:
 
